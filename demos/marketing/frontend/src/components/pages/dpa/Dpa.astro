@@ -1,0 +1,260 @@
+---
+import Email from '../../Email.astro';
+// The /dpa document: the Voqalize data processing addendum. Follows the Recruit41 DPA (same
+// company) clause by clause, renumbered so cross-references resolve, with Recruit41's
+// recruiting and Frankfurt-AI clauses replaced by Voqalize's voice processing, India's DPDP Act
+// added, and Annex 2 lists the sub-processors (confirmed by the founder, 2026-10-12). Placeholders, if ever needed, use <Ph>.
+import Sec from '../legal/Sec.astro';
+import Ph from '../legal/Ph.astro';
+---
+<div class="lg-intro" id="addendum">
+  <p>This Data Processing Addendum ("Addendum") between Voqalize Technologies Private Limited ("Voqalize") and the Customer (as defined in the Agreement) forms part of the Voqalize terms of service at <a href="/privacy#terms">voqalize.com/terms</a>, or any other written or electronic agreement that incorporates this Addendum, in each case governing the Customer's access to and use of the Services (the "Agreement").</p>
+  <p>The Customer enters into this Addendum on behalf of itself and any Affiliates authorised to use the Services under the Agreement that have not entered into a separate contractual arrangement with Voqalize. For the purposes of this Addendum only, and except where otherwise indicated, references to "Customer" include the Customer and those Affiliates.</p>
+  <p>The Parties agree that the terms and conditions below are added as an Addendum to the Agreement.</p>
+</div>
+
+<Sec level={2} id="d-definitions" n="1" title="Definitions" short="The words this addendum uses, and what each one means.">
+  <p>In this Addendum, the following terms have the meanings set out below, and related terms are construed accordingly:</p>
+  <dl class="lg-defs">
+    <dt>"Affiliate"</dt><dd>means an entity that owns or controls, is owned or controlled by, or is under common control or ownership with either the Customer or Voqalize (as the context allows), where control means the power, directly or indirectly, to direct or cause the direction of the management and policies of an entity, whether through ownership of voting securities, by contract or otherwise;</dd>
+    <dt>"Customer Personal Data"</dt><dd>means any Personal Data provided or made available by the Customer or its End Users to Voqalize, or collected by Voqalize on behalf of the Customer, that Voqalize Processes to perform the Services, including Voice Data;</dd>
+    <dt>"Controller to Processor SCCs"</dt><dd>means (i) the standard contractual clauses for cross-border transfers published by the European Commission on 4 June 2021 governing the transfer of EU Area Personal Data to Third Countries, as recognised by the Swiss Federal Data Protection and Information Commissioner ("Swiss FDPIC") for transfers from Switzerland (together, the "EU SCCs"); (ii) the international data transfer addendum ("UK Transfer Addendum") issued by the UK Information Commissioner's Office ("UK ICO") for transfers from the UK to Third Countries; or (iii) any similar clauses adopted by a data protection regulator for transfers of Personal Data to Third Countries, including any successor clauses;</dd>
+    <dt>"Data Protection Laws"</dt><dd>means any law on the Processing of Personal Data that applies to Voqalize in the jurisdictions in which the Services are provided to the Customer, including privacy, security and data protection law, and including EU Area Law and India's Digital Personal Data Protection Act, 2023 and the rules made under it ("DPDP Act");</dd>
+    <dt>"End User"</dt><dd>means an individual who interacts with the Customer's application, website or agent through the Services, for example by speaking with a voice agent or character the Customer deploys;</dd>
+    <dt>"EU Area"</dt><dd>means the European Union, the European Economic Area, the United Kingdom and Switzerland;</dd>
+    <dt>"EU Area Law"</dt><dd>means (i) Regulation (EU) 2016/679 ("EU GDPR") together with legislation implementing or supplementing it; (ii) the EU GDPR as retained in United Kingdom law by section 3 of the European Union (Withdrawal) Act 2018 ("UK GDPR") and the Data Protection Act 2018; (iii) the Swiss Federal Act on Data Protection and its ordinances ("Swiss DPA"); (iv) any other law on the data protection, security or privacy of individuals that applies in the EU Area; and (v) any successor or amendment to any of them;</dd>
+    <dt>"Security Incident"</dt><dd>means any breach of security that leads to the accidental or unlawful destruction, loss, alteration, unauthorised disclosure of, or access to, Customer Personal Data Processed by Voqalize;</dd>
+    <dt>"Services"</dt><dd>means the services Voqalize supplies to the Customer or its Affiliates under the Agreement, including real-time voice sessions, speech to text, text to speech, characters, recording, the console, APIs, SDKs and MCP server, and, where the Customer uses it, Plug &amp; Play;</dd>
+    <dt>"Third Country"</dt><dd>means a country that, where Data Protection Laws require it, has not received an adequacy decision from the relevant authority for cross-border transfers of Personal Data, such as the European Commission, the UK ICO or the Swiss FDPIC; and</dd>
+    <dt>"Voice Data"</dt><dd>means audio of an End User's voice, any camera or screen video the Customer's application sends, and transcripts and session events derived from them.</dd>
+  </dl>
+  <p>The terms "Business", "Business Purpose", "Commercial Purpose", "Contractor", "Controller", "Data Fiduciary", "Data Principal", "Data Processor", "Data Subject", "Personal Data", "Personal Data Breach", "Process", "Processor", "Sell", "Service Provider", "Share", "Sub-processor", "Supervisory Authority" and "Third Party" have the meanings given in the applicable Data Protection Laws, and related terms are construed accordingly. Capitalised terms not otherwise defined in this Addendum have the meanings given in the Agreement.</p>
+</Sec>
+
+<Sec level={2} id="d-scope" n="2" title="Scope of this addendum" short="This addendum covers the personal data we process for you while running the Services.">
+  <p>This Addendum applies to Voqalize's Processing of Customer Personal Data under the Agreement to the extent that Processing is subject to Data Protection Laws. This Addendum is governed by the governing law of the Agreement unless Data Protection Laws require otherwise.</p>
+</Sec>
+
+<Sec level={2} id="d-roles" n="3" title="Roles of the parties" short="You decide what happens to your end users' data. We act on your instructions.">
+  <p>3.1 The Parties agree that, for the Processing of Customer Personal Data, and as more fully described in Annex 1, the Customer acts as a Business, Controller or Data Fiduciary, and Voqalize acts as a Service Provider, Processor or Data Processor. This Addendum applies only to Voqalize's Processing of Customer Personal Data as a Processor, Sub-processor or Service Provider (as specified in Annex 1).</p>
+  <p>3.2 The Customer is solely responsible for timely communications to its Affiliates or the relevant Controllers who receive the Services, where such communications are required or useful under Data Protection Laws to enable them to comply with those laws.</p>
+  <p>3.3 The Customer is solely responsible for complying with Security Incident notification laws that apply to the Customer and for giving any notices to government authorities, affected individuals or others relating to Security Incidents, using the information Voqalize provides under section 5.2(j).</p>
+</Sec>
+
+<Sec level={2} id="d-purpose" n="4" title="Description and purpose of processing" short="Annex 1 lists what we process and why. The purpose is to provide the Services you signed up for.">
+  <p>4.1 In Annex 1, the Parties set out their understanding of the subject matter and details of the Processing of Customer Personal Data by Voqalize under this Addendum. The Parties may make reasonable amendments to Annex 1 by mutual written agreement, as reasonably necessary to meet those requirements or the requirements of Data Protection Laws. Annex 1 does not create any obligation or right for either Party.</p>
+  <p>4.2 The purpose of Processing under this Addendum is the provision of the Services under the Agreement and any order forms.</p>
+</Sec>
+
+<Sec level={2} id="d-terms" n="5" title="Data processing terms" short="You keep your processing lawful. We process only on your instructions, keep the data secure, tell you about sub-processors and breaches, help with requests, and delete the data at the end.">
+  <h3 class="lg-sub">5.1 Customer obligations</h3>
+  <p>The Customer shall comply with all applicable Data Protection Laws in connection with this Addendum and the Processing of Customer Personal Data. In using the Services, the Customer shall Process Customer Personal Data and give Voqalize instructions in accordance with Data Protection Laws. As between the Parties, the Customer is solely responsible for the lawfulness of collecting Customer Personal Data and transferring it to Voqalize, including giving End Users any notice and obtaining any consent required to process and record their Voice Data. The Customer agrees not to provide Voqalize with any data about a natural person's health, religion or any other special category of data as defined in Article 9 of the GDPR, and not to use the Services to identify individuals from their voice or face, unless the Parties have agreed otherwise in writing.</p>
+  <h3 class="lg-sub">5.2 Voqalize obligations</h3>
+  <p>Voqalize shall comply with all applicable Data Protection Laws in the Processing of Customer Personal Data, and Voqalize shall:</p>
+  <ol class="lg-alpha">
+    <li><p>Process Customer Personal Data for the purposes of the Agreement and the specific purposes set out in Annex 1, and otherwise only on the documented instructions of the Customer. The Agreement, this Addendum and the Customer's use of the Services' features and settings (including whether recording is on and where the Customer's brain is) are the Customer's written instructions to Voqalize. Voqalize shall use, retain, disclose or otherwise Process Customer Personal Data only on behalf of the Customer and for the specific business purpose of providing the Services. Voqalize shall not Sell or Share Customer Personal Data, nor use, retain, disclose or otherwise Process it outside its business relationship with the Customer or for any other purpose (including Voqalize's own commercial purposes), except as required or permitted by law. Voqalize shall promptly inform the Customer (i) if it determines that it can no longer meet its obligations under Data Protection Laws, or (ii) if, in its opinion, an instruction infringes Data Protection Laws. The Customer may take reasonable and appropriate steps to ensure that Voqalize's Processing is consistent with the Customer's obligations under Data Protection Laws, and to stop and remediate unauthorised use of Customer Personal Data;</p></li>
+    <li><p>Process Customer Personal Data only (i) as necessary to (A) perform the Business Purposes and its obligations under the Agreement; (B) operate, manage, test, maintain and secure the Services; (C) disclose aggregate statistics about the Services in a way that prevents identification or re-identification of any individual or device; or (D) protect the Services or Customer Personal Data from a threat; (ii) if required by an order of a court or authorised government agency, after first giving notice to the Customer where legally permitted; or (iii) as otherwise expressly authorised by the Customer;</p></li>
+    <li><p>not combine Customer Personal Data with Personal Data it receives from or on behalf of another person, or collects from its own interactions with individuals, except as necessary to perform a Business Purpose permitted by the Agreement;</p></li>
+    <li><p>ensure that Voqalize personnel authorised to Process Customer Personal Data have committed themselves to confidentiality or are under an appropriate statutory obligation of confidentiality;</p></li>
+    <li><p>implement and maintain the technical and organisational measures in Annex 1, section 4, and, taking into account the state of the art, the costs of implementation, the nature, scope, context and purposes of Processing, and the risk to the rights and freedoms of natural persons, any further appropriate measures to ensure a level of security appropriate to the risk, in accordance with Article 32 of the GDPR and section 8(5) of the DPDP Act, including: (i) pseudonymisation and encryption of Customer Personal Data; (ii) the ongoing confidentiality, integrity, availability and resilience of its processing systems and services; (iii) the ability to restore availability of and access to Customer Personal Data in a timely manner after a physical or technical incident; and (iv) regular testing, assessment and evaluation of the effectiveness of those measures;</p></li>
+    <li><p>engage Sub-processors under the Customer's general authorisation, which the Customer hereby gives, provided that Voqalize: (i) notifies the Customer at least thirty (30) calendar days in advance of any intended addition or replacement, by email to the Customer's account contact and by updating Annex 2; (ii) includes data protection obligations in its contract with each Sub-processor that are materially the same as those in this Addendum; and (iii) remains liable to the Customer for any failure by a Sub-processor to fulfil its obligations in relation to Customer Personal Data. The Sub-processors in Annex 2 are authorised at the date of this Addendum;</p></li>
+    <li><p>allow the Customer, within thirty (30) days of a notice under section 5.2(f)(i), to object in writing on reasonable data protection grounds to the new Sub-processor. The Parties will then, for no more than thirty (30) days from the objection, work together in good faith to find a commercially reasonable solution that avoids the use of that Sub-processor. If no solution is found, either Party may, notwithstanding anything to the contrary in the Agreement, terminate the affected Services immediately on written notice, without damages, penalty or indemnification (but without prejudice to fees incurred before termination);</p></li>
+    <li><p>to the extent legally permitted, promptly notify the Customer of any legally binding request for disclosure of Customer Personal Data (such as a disclosure required by law, court order or subpoena). If a request is not legally binding, Voqalize shall not disclose Customer Personal Data and shall tell the Customer it has refused the request. Voqalize shall keep a record of all legally binding disclosure requests relating to Customer Personal Data;</p></li>
+    <li><p>to the extent legally permitted, promptly notify the Customer of any communication from a Data Subject or Data Principal about the Processing of Customer Personal Data, or any other communication (including from a Supervisory Authority or the Data Protection Board of India) about obligations under Data Protection Laws in respect of Customer Personal Data. Voqalize will not respond to any such request or complaint unless the Customer expressly authorises it or Data Protection Laws require it. Taking into account the nature of the Processing, Voqalize will reasonably assist the Customer, by appropriate technical and organisational measures where possible, to fulfil its obligation to respond to requests to exercise data subject rights under Chapter III of the GDPR and the rights of Data Principals under the DPDP Act. The Customer agrees to pay Voqalize for time and out-of-pocket expenses reasonably incurred under this section 5.2(i), at rates agreed in advance;</p></li>
+    <li><p>notify the Customer without undue delay, and in any case within twenty-four (24) hours, after becoming aware of a Personal Data Breach involving Customer Personal Data, with the information reasonably available to Voqalize that the Customer (or the relevant Controller) needs to meet its breach reporting obligations under Data Protection Laws. Voqalize shall take the measures necessary to remedy or mitigate the effects of the Security Incident and shall keep the Customer reasonably informed. Notification of a Security Incident is not an acknowledgement by Voqalize of fault or liability. Security Incidents do not include unsuccessful attempts or activities that do not compromise the security of Customer Personal Data, such as unsuccessful login attempts, pings, port scans, denial of service attacks or other network attacks on firewalls or networked systems;</p></li>
+    <li><p>to the extent required by Data Protection Laws, provide reasonable assistance to the Customer, its Affiliates or the relevant Controllers with their obligations under Articles 32 to 36 of the GDPR (including data protection impact assessments and prior consultations), taking into account the nature of the Processing and the information available to Voqalize. The Customer agrees to pay Voqalize for time and out-of-pocket expenses incurred in assistance under Articles 35 and 36 of the GDPR;</p></li>
+    <li><p>cease Processing Customer Personal Data on termination or expiry of the Agreement and, at the choice of the Customer, return or delete (including by rendering it unreadable) all copies of Customer Personal Data within forty-five (45) days, unless and only for as long as applicable law requires Voqalize to retain some or all of it. Retained Customer Personal Data remains subject to the confidentiality obligations of the Agreement;</p></li>
+    <li><p>maintain the records needed to demonstrate its compliance with its obligations for the Processing of Customer Personal Data carried out on behalf of the Customer; and</p></li>
+    <li><p>make available to the Customer all information reasonably necessary to demonstrate compliance with this Addendum, and allow for and contribute to audits, including inspections, by the Customer or an independent third-party auditor the Customer mandates, provided that the Customer gives Voqalize reasonable prior notice, conducts the audit during Voqalize's normal business hours, and takes reasonable measures to avoid unnecessary disruption to Voqalize's operations. In the first instance, once a year during the term of the Agreement (unless a competent Supervisory Authority requires more, or the Customer reasonably believes a further audit is needed after a Personal Data Breach affecting Customer Personal Data), Voqalize will answer the Customer's security and other assessment questionnaires and share its current third-party certifications and audit reports, and the Customer may ask to inspect Voqalize's processing operations only where it cannot establish compliance from those answers and reports. The Customer agrees to pay Voqalize for time and out-of-pocket expenses incurred in connection with audits and assessments under this section 5.2(n).</p></li>
+  </ol>
+</Sec>
+
+<Sec level={2} id="d-voice" n="6" title="Voice, recordings and models" short="We only record when you turn recording on, we do not identify people by their voice, and we do not train models on your data.">
+  <p>6.1 <b>Recording.</b> Voqalize stores audio, camera or screen video and the related transcript only for sessions where the Customer has turned recording on, through its agent settings or the session request. Recording is off unless the Customer turns it on. Without recording, Voice Data is processed in transit to provide the session and is not stored as audio or video. The session record, events, transcripts and logs are stored for the retention period in Annex 1.</p>
+  <p>6.2 <b>Access to recordings.</b> Recordings are made available to the Customer through the console and APIs using download links that expire within 15 minutes. The Customer is responsible for the security of recordings and transcripts once it downloads them.</p>
+  <p>6.3 <b>No identification.</b> Voqalize does not use Voice Data to identify or authenticate individuals, create voiceprints or speaker profiles, or infer sensitive characteristics, except where the Customer instructs it to in writing and has a lawful basis to do so.</p>
+  <p>6.4 <b>No model training.</b> Voqalize does not use Customer Personal Data, including audio, video, transcripts and recordings, to train or improve speech, language or character models.</p>
+  <p>6.5 <b>The Customer's brain and tools.</b> In developer integration, Voqalize sends transcripts and session events to the endpoint the Customer configures for its brain, and to any tools the Customer connects. Those systems are operated by or for the Customer and are not Sub-processors of Voqalize. In Plug &amp; Play, Voqalize sends conversation text and the Customer's configured instructions and knowledge to the language model provider listed in Annex 2 to generate replies.</p>
+</Sec>
+
+<Sec level={2} id="d-warranties" n="7" title="Warranties" short="Both sides promise to follow data protection law.">
+  <p>The Parties warrant that they, and any of their staff and subcontractors, will comply with their respective obligations under Data Protection Laws for the term of the Agreement.</p>
+</Sec>
+
+<Sec level={2} id="d-transfers" n="8" title="Restricted transfers" short="Data is processed in India. When European or UK data comes to us, the standard contractual clauses apply.">
+  <p>8.1 Where the transfer of Customer Personal Data from the Customer or its Affiliates (as exporter) to Voqalize (as importer) is a restricted transfer under EU Area Law, the transfer is subject to the appropriate Controller to Processor SCCs, which are deemed incorporated into and form part of this Addendum as follows:</p>
+  <ol class="lg-alpha">
+    <li><p>for Customer Personal Data protected by the EU GDPR, the EU SCCs apply, completed as follows: Module Two (controller to processor) applies; in Clause 7, the optional docking clause applies; in Clause 9, Option 2 applies, and the time period for prior notice of Sub-processor changes is as set out in section 5.2(f); in Clause 11, the optional language does not apply; in Clause 17, Option 1 applies and the EU SCCs are governed by Irish law; in Clause 18(b), disputes shall be resolved before the courts of Ireland; Annex I of the EU SCCs is deemed completed with the information in Annex 1 to this Addendum; and Annex II of the EU SCCs is deemed completed with the information in section 4 of Annex 1;</p></li>
+    <li><p>for Customer Personal Data protected by the Swiss DPA, the EU SCCs apply in accordance with section 8.1(a), with the following changes: references to "Regulation (EU) 2016/679" are interpreted as references to the Swiss DPA and its equivalent provisions; references to "EU", "Union", "Member State" and "Member State law" are interpreted as references to Switzerland and Swiss law; references to the "competent supervisory authority" and "competent courts" are interpreted as references to the Swiss FDPIC and the courts of Switzerland; and the Controller to Processor SCCs are governed by the laws of Switzerland, with disputes resolved before the competent Swiss courts;</p></li>
+    <li><p>for Customer Personal Data protected by the UK GDPR, the EU SCCs apply in accordance with section 8.1(a), as modified by Part 2 (Mandatory Clauses) of the UK Transfer Addendum, which is incorporated into this Addendum. Any conflict between the EU SCCs and the UK Transfer Addendum is resolved in accordance with sections 10 and 11 of the UK Transfer Addendum. Tables 1 to 3 in Part 1 of the UK Transfer Addendum are completed with the information in Annex 1, and table 4 is deemed completed by selecting both "Importer" and "Exporter".</p></li>
+  </ol>
+  <p>8.2 <b>Where processing happens.</b> Voqalize hosts the Services, and processes and stores Customer Personal Data, on Google Cloud in the Mumbai region (asia-south1), India, and nowhere else. Speech to text and text to speech run on speech models that Voqalize operates there. Where the Customer uses Plug &amp; Play, conversation text is sent to the language model provider listed in Annex 2, in the location shown there, only as necessary to generate replies. Transfers of personal data out of India comply with the DPDP Act and any restriction notified under it.</p>
+  <p>8.3 Voqalize shall not take part in any other restricted transfer of Customer Personal Data (as importer or exporter) unless the transfer complies with Data Protection Laws and is made under the relevant standard contractual clauses between the exporter and importer, as necessary to comply with Data Protection Laws.</p>
+  <p>8.4 The Customer should review its international transfers of Personal Data case by case to monitor new risks from changes in local laws and data practices, and apply additional safeguards (such as encryption or pseudonymisation) where needed so that Personal Data remains protected to the standard Data Protection Laws require.</p>
+  <p>8.5 <b>Transfer mechanism.</b> Where a Party located outside the European Economic Area or an adequate country receives Personal Data: (a) that Party acts as the data importer; (b) the other Party is the data exporter; and (c) the relevant Transfer Mechanism applies. "Transfer Mechanism" means any lawful means of transferring personal data from the European Economic Area or an adequate country to a third country in compliance with Data Protection Laws, including: (i) the standard contractual clauses approved by European Commission Decision of 4 June 2021, as amended from time to time; (ii) the International Data Transfer Agreement issued by the UK ICO under section 119A of the Data Protection Act 2018, in force from 21 March 2022; and (iii) the International Data Transfer Addendum issued by the UK ICO under section 119A of the Data Protection Act 2018, in force from 21 March 2022.</p>
+  <p>8.6 <b>Additional measures.</b> If the Transfer Mechanism is insufficient to safeguard the transferred Personal Data, the data importer will promptly implement supplementary measures to protect it to the standard Data Protection Laws require.</p>
+  <p>8.7 <b>Disclosures.</b> Subject to the terms of the relevant Transfer Mechanism, if the data importer receives a request from a public authority for access to Personal Data, it will, where legally allowed, challenge the request, promptly notify the data exporter, disclose only the minimum Personal Data required, and keep a record of the disclosure.</p>
+</Sec>
+
+<Sec level={2} id="d-precedence" n="9" title="Precedence" short="If documents conflict, the transfer clauses win, then this addendum, then the main agreement.">
+  <p>This Addendum supplements the Agreement. If there is any inconsistency between this Addendum and the Agreement, they take priority in this order: (a) any standard contractual clauses or other cross-border transfer mechanisms the Parties have agreed; (b) this Addendum; (c) the Agreement. If any provision of this Addendum or the Agreement contradicts, directly or indirectly, the Controller to Processor SCCs, the Controller to Processor SCCs control.</p>
+</Sec>
+
+<Sec level={2} id="d-indemnity" n="10" title="Indemnity" short="If you break this addendum or data protection law and we face a claim or fine as a result, you cover it.">
+  <p>To the extent permitted by law, the Customer shall (a) defend Voqalize and its Affiliates (the "Indemnified Parties") against any claim, demand, suit or proceeding made or brought against any of them by a third party (a "Claim"), and (b) indemnify and hold the Indemnified Parties harmless from any losses, damages, liabilities, fines and administrative fines, penalties, settlements, and costs and expenses of any kind (including reasonable legal, investigation and consultancy fees), in each case arising from any breach by the Customer of this Addendum or of its obligations under Data Protection Laws, including any failure to give notice to or obtain consent from End Users. Voqalize may participate in the defence or settlement of a Claim under this section 10 with counsel of its choosing at its own expense.</p>
+</Sec>
+
+<Sec level={2} id="d-severability" n="11" title="Severability" short="If one part fails, the rest still stands.">
+  <p>If any section or subsection of this Addendum is held by a court or competent authority to be unlawful or unenforceable, that does not invalidate or make unenforceable any other section of this Addendum.</p>
+</Sec>
+
+<Sec level={2} id="d-misc" n="12" title="Miscellaneous" short="Our general commitments, and who to contact about data protection.">
+  <p>12.1 This Addendum takes account of and follows: privacy by design and by default; security of Processing; notification of breaches involving Customer Personal Data to the relevant Supervisory Authority and to the Customer, as the law requires; privacy impact assessments where appropriate and required by Data Protection Laws; and Voqalize's assistance where prior consultation with a Supervisory Authority is needed and required by Data Protection Laws.</p>
+  <p>12.2 Voqalize shall comply with all statutory and regulatory requirements that apply to it as a Processor, including the EU GDPR and the DPDP Act. Voqalize is ISO/IEC 27001:2022 certified and SOC 2 compliant.</p>
+  <p>12.3 A Data Subject or Data Principal who wishes to exercise rights under Data Protection Laws (including access, correction and erasure) should contact the Customer, as the Controller. Where a request reaches Voqalize, Voqalize will handle it under section 5.2(i). Questions, concerns or complaints about the Processing of Customer Personal Data can be sent to Voqalize's Data Protection Officer:</p>
+  <p class="lg-address">Name: Samkeet Jain<br />Email: <Email address="samkeet@voqalize.com" /></p>
+</Sec>
+
+<div class="lg-part" id="annexes">
+  <p class="lg-part__k">Annexes</p>
+  <h2 class="lg-part__h">Annex 1. Description of processing</h2>
+</div>
+
+<section class="lg-sec" id="annex-1" aria-labelledby="annex-1-h">
+  <h3 class="lg-sec__h" id="annex-1-h"><span class="lg-sec__n">A1.</span> Description of processing activities for Customer Personal Data<a class="lg-anchor" href="#annex-1" aria-label="Link to Annex 1">#</a></h3>
+  <p class="lg-short"><b>In short.</b> What data we process, about whom, and why.</p>
+  <div class="lg-body">
+    <p>This Annex sets out details of the Processing of Customer Personal Data by Voqalize in connection with the Services.</p>
+    <h4>1. List of parties</h4>
+    <div class="lg-table-wrap">
+      <table class="lg-table lg-table--kv">
+        <thead><tr><th scope="col">Item</th><th scope="col">Data exporter</th><th scope="col">Data importer</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Name</th><td>Customer (as defined in the Agreement)</td><td>Voqalize Technologies Private Limited</td></tr>
+          <tr><th scope="row">Address</th><td>As set out in the relevant order form or account</td><td>503, Block 17B, Suncity Apartments, HSR Layout, Bengaluru, Karnataka 560102, India</td></tr>
+          <tr><th scope="row">Contact person</th><td>As set out in the relevant order form or account</td><td>Data Protection Officer, Samkeet Jain, <Email address="samkeet@voqalize.com" /></td></tr>
+          <tr><th scope="row">Activities relevant to the transfer</th><td>Recipient of the Services provided by Voqalize under the Agreement</td><td>Provision of the Services to the Customer under the Agreement</td></tr>
+          <tr><th scope="row">Signature and date</th><td>As set out in the Agreement</td><td>As set out in the Agreement</td></tr>
+          <tr><th scope="row">Role</th><td>Controller (Data Fiduciary)</td><td>Processor (Data Processor)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h4>2. Competent supervisory authority</h4>
+    <p>As determined by applying Clause 13 of the EU SCCs. For Processing subject to the DPDP Act, the Data Protection Board of India.</p>
+    <h4>3. Processing information</h4>
+    <div class="lg-table-wrap">
+      <table class="lg-table lg-table--kv">
+        <tbody>
+          <tr><th scope="row">Categories of data subjects</th><td><p>End Users who interact with the Customer's applications, websites or agents through the Services.</p><p>The Customer's authorised users of the console and APIs.</p></td></tr>
+          <tr><th scope="row">Categories of personal data</th><td>
+            <p>Processed automatically by the Services:</p>
+            <ul>
+              <li>End User voice audio, carried in real time;</li>
+              <li>transcripts of what End Users say and of the agent's replies;</li>
+              <li>session metadata, such as session identifiers, timestamps, duration, IP address, device and browser details, and connection quality;</li>
+              <li>session events, including events from the Customer's application that the Customer chooses to send;</li>
+              <li>names and email addresses of the Customer's authorised users.</li>
+            </ul>
+            <p>Processed only where and to the extent the Customer enables or provides it:</p>
+            <ul>
+              <li>recordings of audio, and of camera or screen video sent by the Customer's application;</li>
+              <li>context the Customer passes when starting a session (Voqalize recommends identifiers rather than personal data);</li>
+              <li>personal data contained in the instructions, knowledge or tool results the Customer configures for Plug &amp; Play.</li>
+            </ul>
+          </td></tr>
+          <tr><th scope="row">Sensitive data</th><td>None intended. End Users may disclose sensitive information in conversation; it is protected with the measures in section 4. Voice Data is not used for biometric identification (section 6.3).</td></tr>
+          <tr><th scope="row">Frequency of transfer</th><td>Continuous, for the duration of each session.</td></tr>
+          <tr><th scope="row">Nature of processing</th><td>Receiving and transmitting real-time audio and video; speech to text; text to speech; turn-taking and interruption handling; generating the on-screen character's movement from the agent's speech; forwarding text and events to the Customer's brain and tools; in Plug &amp; Play, generating replies with a language model; recording and storing sessions where enabled; logging, monitoring and support. The purpose is to perform the Services described in the Agreement and order forms.</td></tr>
+          <tr><th scope="row">Retention</th><td>Stored session data (the session record, events, transcripts, logs and recordings) is retained for 30 days, unless the Agreement or order form sets another period, and is then deleted. Account data of authorised users is retained while the account is open and for 90 days after.</td></tr>
+          <tr><th scope="row">Sub-processor transfers</th><td>As listed in Annex 2, for the subject matter, nature and duration described there and in the Agreement.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h4>Business Purposes for California consumers</h4>
+    <p>For Processing involving California consumers, Voqalize Processes Personal Data for these Business Purposes:</p>
+    <ul class="lg-checks">
+      <li class="is-on">Helping to ensure security and integrity, to the extent the use of the consumer's personal information is reasonably necessary and proportionate for these purposes.</li>
+      <li class="is-on">Debugging to identify and repair errors that impair existing intended functionality.</li>
+      <li class="is-on">Performing services on behalf of the business, including maintaining or servicing accounts, providing customer service, processing or fulfilling orders and transactions, verifying customer information, processing payments, providing analytic services, providing storage, or providing similar services on behalf of the business.</li>
+      <li class="is-on">Undertaking activities to verify or maintain the quality or safety of a service that is owned or controlled by the business.</li>
+      <li class="is-on">Retaining and employing another service provider or contractor as a subcontractor, where the subcontractor meets the requirements for a service provider or contractor under the CCPA.</li>
+      <li class="is-on">Preventing, detecting or investigating data security incidents, or protecting against malicious, deceptive, fraudulent or illegal activity.</li>
+      <li>Undertaking internal research for technological development and demonstration. Not selected (see section 6.4).</li>
+      <li>Building or improving the quality of the services provided to the business. Not selected (see section 6.4).</li>
+      <li>Short-term, transient use, or advertising and marketing services.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="lg-sec" id="annex-1-security" aria-labelledby="annex-1-security-h">
+  <h3 class="lg-sec__h" id="annex-1-security-h"><span class="lg-sec__n">A1.4</span> Technical and organisational security measures<a class="lg-anchor" href="#annex-1-security" aria-label="Link to Annex 1, section 4">#</a></h3>
+  <p class="lg-short"><b>In short.</b> The security measures we use to protect your data.</p>
+  <div class="lg-body">
+    <p>The technical and organisational measures Voqalize implements as the processor and data importer to ensure an appropriate level of security, taking into account the nature, scope, context and purpose of the Processing and the risks to the rights and freedoms of natural persons.</p>
+    <h4>Security management</h4>
+    <ul>
+      <li><b>Organisation.</b> Voqalize designates qualified security personnel responsible for developing, implementing and maintaining its information security program.</li>
+      <li><b>Policies.</b> Management reviews and supports all security policies to protect the security, availability, integrity and confidentiality of Customer Personal Data. Policies are reviewed at least once a year.</li>
+      <li><b>Assessments.</b> Voqalize engages a reputable independent third party to perform risk assessments of systems containing Customer Personal Data at least once a year.</li>
+      <li><b>Risk treatment.</b> Voqalize maintains a risk treatment program that includes vulnerability management and patch management, and engages an independent third party to perform a vulnerability assessment and penetration test (VAPT) at least once a year.</li>
+      <li><b>Vendor management.</b> Voqalize assesses Sub-processors before engaging them and reviews them periodically.</li>
+      <li><b>Incident management.</b> Voqalize reviews security incidents, determines root cause and takes corrective action.</li>
+      <li><b>Standards.</b> ISO/IEC 27001:2022 certified; SOC 2 compliant; GDPR and DPDP Act compliant.</li>
+    </ul>
+    <h4>Personnel security</h4>
+    <p>Voqalize personnel must act in line with the company's guidelines on confidentiality, business ethics, appropriate use and professional standards. Voqalize conducts reasonably appropriate background checks on employees who will have access to Customer Personal Data, to the extent legally permitted and in line with local labour law and practice. Personnel sign a confidentiality agreement when hired, acknowledge Voqalize's confidentiality, privacy and security policies, and receive privacy and security training. Personnel do not Process Customer Personal Data without authorisation.</p>
+    <h4>Access controls</h4>
+    <ul>
+      <li><b>Access management.</b> Access to Customer Personal Data and to the systems that store or transmit it is requested, approved and provisioned through a formal process, limited to authorised people with a need for access, and reviewed periodically.</li>
+      <li><b>Least privilege.</b> Systems allow people to access only the data they are authorised to access, based on least privilege and need to know. Unique user IDs, strong authentication and monitored access lists are required. Access to systems is logged to create an audit trail.</li>
+      <li><b>Authentication.</b> Console users sign in through a single sign-on provider. API access requires secret keys held on the Customer's server; client code uses publishable keys restricted to allowed origins. Keys can be revoked at any time.</li>
+      <li><b>Tenant isolation.</b> Each Customer's data is logically separated, and every request is authorised against the Customer it names before any data is read.</li>
+      <li><b>Audit trail.</b> Sign-ins, key creation and revocation, and administrative actions are logged and retained for 400 days.</li>
+    </ul>
+    <h4>Infrastructure and network security</h4>
+    <ul>
+      <li><b>Infrastructure.</b> All of the Services, including the control plane, database, storage, real-time voice runtime and speech models, run on Google Cloud Platform in the Mumbai region (asia-south1), India.</li>
+      <li><b>Resiliency and recovery.</b> Data is replicated to protect against accidental destruction or loss, and backup restoration and disaster recovery are tested regularly.</li>
+      <li><b>Hardening and code review.</b> Servers are configured and hardened for the Services. Code changes go through review before release.</li>
+      <li><b>Logging and monitoring.</b> Systems log security-relevant events to support audits and to detect actual and attempted intrusions.</li>
+      <li><b>Vulnerability management.</b> Regular vulnerability scans cover production infrastructure. Critical, high and medium vulnerabilities are remediated on a risk basis as soon as commercially possible.</li>
+      <li><b>Network protection.</b> Production systems sit behind firewalls that restrict inbound traffic to the services that need it.</li>
+    </ul>
+    <h4>Encryption, storage and deletion</h4>
+    <ul>
+      <li><b>In transit.</b> Real-time audio and video are encrypted with DTLS-SRTP. All other traffic uses TLS.</li>
+      <li><b>At rest.</b> Stored Customer Personal Data, including recordings, is encrypted at rest.</li>
+      <li><b>Recordings.</b> Recordings are retrieved only through signed links that expire within 15 minutes.</li>
+      <li><b>Deletion.</b> Stored session data is deleted automatically at the end of its retention period by storage lifecycle rules, and on request. Retired storage media are disposed of securely by the infrastructure provider.</li>
+    </ul>
+    <h4>Incident response</h4>
+    <p>Voqalize maintains incident management policies and procedures, including escalation procedures. Security personnel respond promptly to suspected or known incidents, mitigate harmful effects, and document incidents and their outcomes.</p>
+  </div>
+</section>
+
+<div class="lg-part" id="annex-2-part">
+  <p class="lg-part__k">Annexes</p>
+  <h2 class="lg-part__h">Annex 2. Sub-processors</h2>
+</div>
+
+<section class="lg-sec" id="annex-2" aria-labelledby="annex-2-h">
+  <h3 class="lg-sec__h" id="annex-2-h"><span class="lg-sec__n">A2.</span> List of sub-processors<a class="lg-anchor" href="#annex-2" aria-label="Link to Annex 2">#</a></h3>
+  <p class="lg-short"><b>In short.</b> The companies that help us process your data, and where.</p>
+  <div class="lg-body">
+    <p>The Customer authorises the use of the following Sub-processors.</p>
+    <div class="lg-table-wrap">
+      <table class="lg-table">
+        <thead><tr><th scope="col">Sub-processor</th><th scope="col">Description of processing</th><th scope="col">Location</th></tr></thead>
+        <tbody>
+          <tr><td>Google LLC (Google Cloud Platform)</td><td>Hosting all of the Services: the control plane, database and storage (including recordings and transcripts), the real-time voice runtime and the speech models</td><td>India (asia-south1, Mumbai)</td></tr>
+          <tr><td>Google LLC (Gemini API)</td><td>Language model that generates replies in Plug &amp; Play</td><td>India</td></tr>
+          <tr><td>Razorpay</td><td>Payments for the Customer's account</td><td>India</td></tr>
+          <tr><td>Dodo Payments</td><td>Payments for the Customer's account</td><td>India</td></tr>
+          <tr><td>Amazon Web Services, Inc. (Amazon SES)</td><td>Account and service emails</td><td>United States</td></tr>
+          <tr><td>PostHog, Inc.</td><td>Product analytics on pseudonymised, aggregated usage data</td><td>United States</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Voqalize will notify the Customer before adding or replacing a Sub-processor, as section 5.2(f) sets out.</p>
+  </div>
+</section>

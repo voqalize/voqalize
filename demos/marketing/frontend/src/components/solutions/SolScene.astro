@@ -1,0 +1,34 @@
+---
+// One chapter of the page's story: a motion piece (default slot, usually a <Device>)
+// beside its words. The whole scene is one step loop (motion.ts): pass `steps`, one
+// duration in ms per step. Step 0 is the idle app, step 1 the person speaking, the
+// last step the agent's reply. `beats` light up one by one: beat i shows from step i + 1.
+// `flip` puts the picture on the right. The number and title come first in the markup, so when the
+// scene stacks (phones, a narrow panel beside Tanvi) the title sits above its picture, not below it.
+// Samkeet, 2026-10-12: title, then the motion, then what they say.
+interface Props {
+  n: number; kicker: string; title: string; said: string;
+  today: string; with: string; beats?: string[]; steps: number[]; flip?: boolean; id?: string;
+}
+const { n, kicker, title, said, today, with: withV, beats = [], steps, flip = false, id } = Astro.props;
+---
+<article class={`sol-scene${flip ? ' sol-scene--flip' : ''}`} id={id} data-loop={steps.join(' ')} data-part={`scene${n}`}>
+  <div class="sol-scene__head">
+    <p class="sol-scene__kicker"><span class="sol-scene__n">{String(n).padStart(2, '0')}</span>{kicker}</p>
+    <h3>{title}</h3>
+  </div>
+  <div class="sol-scene__stage"><slot /></div>
+  <div class="sol-scene__text">
+    <p class="sol-scene__label">They say</p>
+    <p class="sol-scene__quote">“{said}”</p>
+    {beats.length > 0 && (
+      <ol class="sol-beats">
+        {beats.map((b, i) => <li class={`b-at-${i + 1}`}><button type="button" data-goto-step={i + 1}>{b}</button></li>)}
+      </ol>
+    )}
+    <dl class="sol-vs">
+      <div><dt>Today</dt><dd>{today}</dd></div>
+      <div><dt>With Voqalize</dt><dd>{withV}</dd></div>
+    </dl>
+  </div>
+</article>

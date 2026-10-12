@@ -1,0 +1,136 @@
+/* Security and trust (/security). Every rule is scoped under .pg--security.
+   Colors are tokens only; vermilion is a mark (dots, the spine, the heading stroke). */
+
+/* ---------- head ---------- */
+.pg--security .pg-head .eyebrow { margin-bottom: 18px; }
+.pg--security .sec-mk { position: relative; white-space: nowrap; }
+.pg--security .sec-mk::after { content: ""; position: absolute; left: -2%; right: 4%; bottom: .02em; height: .09em; border-radius: 99px; background: var(--accent); transform: rotate(-1.2deg); }
+
+/* ---------- standards ---------- */
+.pg--security .sec-std__row { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
+.pg--security .sec-std__item { border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--surface); padding: 28px 24px 26px; display: grid; align-content: start; gap: 6px; }
+.pg--security .sec-std .sec-badge { margin-bottom: 14px; }
+.pg--security .sec-std__status { font-size: 13px; font-weight: 500; color: var(--text-2); display: flex; align-items: center; gap: 8px; }
+.pg--security .sec-std__status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+.pg--security .sec-std__item h3 { font-size: 20px; letter-spacing: -.01em; }
+.pg--security .sec-std__meaning { font-size: 15px; line-height: 1.6; color: var(--text-2); }
+.pg--security .sec-std__note { margin-top: 24px; font-size: 14px; color: var(--text-2); }
+.pg--security .sec-std__note a { color: var(--text); font-weight: 500; margin-left: 4px; }
+@media (max-width: 1000px) { .pg--security .sec-std__row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) {
+  .pg--security .sec-std__row { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .pg--security .sec-std__item { padding: 20px 16px; grid-template-columns: 88px minmax(0, 1fr); column-gap: 16px; }
+  .pg--security .sec-std__item > :not(.sec-badge) { grid-column: 2; }
+  .pg--security .sec-std .sec-badge { grid-column: 1; grid-row: 1 / span 3; --b: 88px !important; margin-bottom: 0; }
+  .pg--security .sec-std__item h3 { font-size: 17px; }
+  .pg--security .sec-std__meaning { font-size: 14px; }
+}
+
+/* ---------- one sentence through a call ---------- */
+.pg--security .sec-path__box { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 56px; align-items: start; }
+.pg--security .sec-path__steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; counter-reset: st; }
+.pg--security .sec-path__steps li { position: relative; padding: 14px 0 14px 44px; border-top: 1px solid var(--line); counter-increment: st; transition: opacity calc(.4s * var(--m)); }
+.pg--security .sec-path__steps li::before { content: counter(st); position: absolute; left: 0; top: 15px; width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line); display: grid; place-items: center; font-size: 12px; font-weight: 500; transition: background calc(.3s * var(--m)), border-color calc(.3s * var(--m)), color calc(.3s * var(--m)); }
+.pg--security .sec-path__steps h3 { font-size: 17px; line-height: 1.4; }
+.pg--security .sec-path__steps p { font-size: 15px; line-height: 1.6; color: var(--text-2); margin-top: 2px; }
+.pg--security .sec-path__box[data-at="0"] .k1::before,
+.pg--security .sec-path__box[data-at="1"] .k2::before,
+.pg--security .sec-path__box[data-at="2"] .k3::before,
+.pg--security .sec-path__box[data-at="3"] .k4::before,
+.pg--security .sec-path__box[data-at="4"] .k5::before { background: var(--text); border-color: var(--text); color: var(--bg); }
+
+/* the stage: five layers on a spine */
+.pg--security .sec-path__stage { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-card); padding: 28px 28px 22px 52px; display: grid; gap: 14px; }
+.pg--security .sl { --dx: -21.5px; }
+.pg--security .sl::before, .pg--security .sl::after { content: ""; position: absolute; top: 11px; bottom: -25px; left: var(--dx); width: 1px; margin-left: -.5px; background: var(--line); }
+.pg--security .sl::after { width: 3px; margin-left: -1.5px; border-radius: 3px; background: var(--accent); transform-origin: top; transform: scaleY(0); transition: transform calc(.8s * var(--m)) var(--ease); }
+.pg--security .b5::before, .pg--security .b5::after { display: none; }
+.pg--security .is-s1 .b1::after, .pg--security .is-s2 .b2::after, .pg--security .is-s3 .b3::after, .pg--security .is-s4 .b4::after { transform: scaleY(1); }
+
+.pg--security .sl { position: relative; min-width: 0; }
+.pg--security .sl__label { position: relative; font-size: 12px; font-weight: 500; letter-spacing: .02em; color: var(--text-2); margin-bottom: 6px; }
+.pg--security .sl__label i { position: absolute; z-index: 1; left: calc(var(--dx) - 5.5px); top: 50%; width: 11px; height: 11px; margin-top: -5.5px; border-radius: 50%; border: 1.5px solid var(--text-2); background: var(--surface); transition: background calc(.3s * var(--m)), border-color calc(.3s * var(--m)); }
+.pg--security .sl__body { min-height: 52px; display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: var(--radius-card); background: var(--bg); border: 1px solid var(--line); min-width: 0; opacity: .35; transition: opacity calc(.5s * var(--m)) var(--ease); }
+.pg--security .sl__body > * { opacity: 0; transform: translateY(4px); transition: opacity calc(.5s * var(--m)) var(--ease), transform calc(.5s * var(--m)) var(--ease); }
+.pg--security .sl__body--two { flex-direction: column; align-items: flex-start; gap: 4px; }
+
+/* a layer is "on" from its step onward */
+.pg--security .sec-path__box .b1 .sl__body,
+.pg--security .is-s1 .b2 .sl__body, .pg--security .is-s2 .b3 .sl__body,
+.pg--security .is-s3 .b4 .sl__body, .pg--security .is-s4 .b5 .sl__body { opacity: 1; }
+.pg--security .sec-path__box .b1 .sl__body > *,
+.pg--security .is-s1 .b2 .sl__body > *, .pg--security .is-s2 .b3 .sl__body > *,
+.pg--security .is-s3 .b4 .sl__body > *, .pg--security .is-s4 .b5 .sl__body > * { opacity: 1; transform: none; }
+.pg--security .is-s3 .b4 .sl__reply { transition-delay: calc(.6s * var(--m)); }
+.pg--security .sec-path__box .b1 .sl__label i,
+.pg--security .is-s1 .b2 .sl__label i, .pg--security .is-s2 .b3 .sl__label i,
+.pg--security .is-s3 .b4 .sl__label i, .pg--security .is-s4 .b5 .sl__label i { background: var(--accent); border-color: var(--accent); }
+
+.pg--security .sl__wave { flex: none; width: 92px; height: 24px; }
+.pg--security .sl__heard { flex: none; font-size: 12px; font-weight: 500; color: var(--text-2); padding: 5px 10px; border: 1px solid var(--line); border-radius: 999rem; }
+.pg--security .sl__wave rect { fill: var(--accent); transform-box: fill-box; transform-origin: center; }
+.pg--security .sl__said, .pg--security .sl__reply { font-size: 15px; font-weight: 500; line-height: 1.4; }
+.pg--security .sl__lock { flex: none; width: 14px; height: 16px; fill: none; stroke: var(--text); stroke-width: 1.6; }
+.pg--security .sl__bytes { flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: clip; font-family: var(--font-mono); font-size: 13px; color: var(--text-2); -webkit-mask-image: linear-gradient(90deg, #000 80%, transparent); mask-image: linear-gradient(90deg, #000 80%, transparent); }
+.pg--security .sl__tag { flex: none; margin-left: auto; font-family: var(--font-mono); font-size: 11px; line-height: 1; padding: 5px 8px; border-radius: 999rem; border: 1px solid var(--line); color: var(--text-2); }
+.pg--security .sl__text { font-family: var(--font-mono); font-size: 13.5px; line-height: 1.5; min-width: 0; }
+.pg--security .sl__act { font-size: 13px; font-weight: 500; line-height: 1.3; padding: 5px 10px; border-radius: 12px; background: var(--highlight); color: #111; }
+.pg--security .sl__done { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; line-height: 1.35; }
+.pg--security .sl__done svg { flex: none; width: 14px; height: 14px; fill: none; stroke: var(--accent); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* the customer's waveform breathes only while its layer is the current one (waveforms are the person's only) */
+.pg--security .sec-path__box[data-at="0"] .b1 .sl__wave rect { animation: sec-say calc(1.1s * var(--m)) ease-in-out infinite alternate; }
+.pg--security .sl__wave rect:nth-child(3n) { animation-delay: calc(-.35s * var(--m)) !important; }
+.pg--security .sl__wave rect:nth-child(3n+1) { animation-delay: calc(-.7s * var(--m)) !important; }
+@keyframes sec-say { from { transform: scaleY(.45); } to { transform: scaleY(1); } }
+
+/* the foot: recording off */
+.pg--security .sl__foot { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; margin-top: 8px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 14px; color: var(--text-2); opacity: 0; transition: opacity calc(.6s * var(--m)) var(--ease); }
+.pg--security .is-s5 .sl__foot { opacity: 1; }
+.pg--security .sl__rec { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 500; color: var(--text); border: 1px solid var(--line); background: var(--bg); padding: 5px 10px; border-radius: 999rem; }
+.pg--security .sl__rec i { width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid var(--text-2); }
+
+@media (max-width: 900px) {
+  .pg--security .sec-path__box { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+}
+@media (max-width: 520px) {
+  .pg--security .sec-path__stage { padding: 20px 14px 16px 40px; }
+  .pg--security .sl { --dx: -19px; }
+  .pg--security .sl__body { flex-wrap: wrap; gap: 8px 10px; }
+  .pg--security .sl__wave { width: 72px; }
+  .pg--security .sl__said, .pg--security .sl__reply { font-size: 14px; }
+  .pg--security .b2 .sl__body { flex-wrap: nowrap; }
+  .pg--security .b2 .sl__bytes { font-size: 12px; }
+}
+
+/* ---------- how we treat conversations ---------- */
+.pg--security .sec-treat__rules { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 48px; }
+.pg--security .sec-treat__rules li { padding: 22px 0 24px; border-top: 1px solid var(--text); }
+.pg--security .sec-treat__rules h3 { font-size: 22px; letter-spacing: -.01em; }
+.pg--security .sec-treat__rules p { margin-top: 8px; color: var(--text-2); max-width: 52ch; }
+.pg--security .sec-ledger__t { margin-top: 64px; margin-bottom: 18px; font-size: 22px; display: flex; align-items: center; gap: 10px; }
+.pg--security .sec-ledger__t::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.pg--security .sec-ledger { margin: 0; border-bottom: 1px solid var(--line); }
+.pg--security .sec-ledger__row { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 9fr); gap: 24px; padding: 20px 0; border-top: 1px solid var(--line); }
+.pg--security .sec-ledger dt { font-weight: 700; font-size: 17px; line-height: 1.5; }
+.pg--security .sec-ledger dd { margin: 0; color: var(--text-2); max-width: 72ch; }
+@media (max-width: 760px) {
+  .pg--security .sec-treat__rules { grid-template-columns: minmax(0, 1fr); }
+  .pg--security .sec-treat__rules h3 { font-size: 20px; }
+  .pg--security .sec-ledger__row { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+}
+
+/* ---------- talk to us ---------- */
+.pg--security .sec-next__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.pg--security .sec-card { border: 1px solid var(--line); border-radius: var(--radius-card); padding: 28px; display: grid; align-content: start; justify-items: start; gap: 12px; }
+.pg--security .sec-card h3 { font-size: 20px; }
+.pg--security .sec-card p { color: var(--text-2); font-size: 15px; line-height: 1.65; }
+.pg--security .sec-card p a { color: var(--text); white-space: nowrap; }
+.pg--security .sec-card .btn { margin-top: 6px; }
+.pg--security .sec-card p.sec-card__fine { font-size: 13px; line-height: 1.6; margin-top: 4px; }
+.pg--security .sec-card__links { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 8px; font-weight: 500; }
+@media (max-width: 900px) { .pg--security .sec-next__grid { grid-template-columns: minmax(0, 1fr); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .pg--security .sl__wave rect { animation: none !important; }
+}

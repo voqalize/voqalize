@@ -1,0 +1,46 @@
+---
+// Scene 3, after the sale: two weeks later, the Orders screen. On the sentence the
+// store opens the cushion's order as an exchange (reason: duplicate gift), puts the
+// heated wrap in its place, works out the $90 difference and the return label, and
+// rings Confirm exchange for her to tap.
+// Steps: 0 orders, 1 said, 2 exchange opened with the reason, 3 the wrap swapped in,
+// 4 difference and label, 5 confirm ready, 6 reply.
+import Device from '../Device.astro';
+import Voice from '../../Voice.astro';
+import { ART } from './art';
+---
+<Device kind="phone" app="Larkfield" class="rt-dev">
+  <span slot="bar" class="rt-bar__end">Orders</span>
+  <div class="rt-ex">
+    <div class="rt-orders">
+      <p class="rt-k">Your orders</p>
+      <div class="rt-order rt-order--hit">
+        <svg class="rt-art" viewBox="0 0 64 48" set:html={ART.cushion} />
+        <span><b>Massage seat cushion</b>Delivered Saturday to Dad</span>
+      </div>
+      <div class="rt-order__acts"><span>Track</span><span class="rt-order__ex">Return or exchange</span></div>
+      <div class="rt-order">
+        <svg class="rt-art" viewBox="0 0 64 48" set:html={ART.pillow} />
+        <span><b>Lumbar pillow</b>Delivered in May</span>
+      </div>
+    </div>
+
+    <div class="rt-xf">
+      <p class="rt-k">Exchange</p>
+      <div class="rt-xf__swap">
+        <div class="rt-xf__out"><svg class="rt-art" viewBox="0 0 64 48" set:html={ART.cushion} /><span>Seat cushion</span><b>$179</b></div>
+        <svg class="rt-xf__arrow" viewBox="0 0 24 12"><path d="M1 6h20M16 1.5L21 6l-5 4.5"/></svg>
+        <div class="rt-xf__in"><svg class="rt-art" viewBox="0 0 64 48" set:html={ART.wrap} /><span>Heated wrap</span><b>$89</b></div>
+      </div>
+      <div class="rt-xf__r"><span>Reason</span><b class="rt-type">Duplicate gift</b></div>
+      <div class="rt-xf__r rt-xf__r--diff"><span>Back to card ending 1187</span><b>$90.00</b></div>
+      <div class="rt-xf__r rt-xf__r--label"><span>Return label</span><b>Emailed to you</b></div>
+      <div class="rt-xf__r rt-xf__r--ship"><span>New wrap ships</span><b>Today, to Dad</b></div>
+      <span class="rt-place">Confirm exchange</span>
+    </div>
+  </div>
+  <Fragment slot="dock">
+    <Voice who="person" class="sol-said out-at-6">My brother got Dad the same cushion. Can I swap mine for the heated wrap?</Voice>
+    <Voice who="agent" face="/characters/tara.webp" class="r-at-6">Confirm, and the wrap ships to your dad today. You get $90 back once the cushion reaches us.</Voice>
+  </Fragment>
+</Device>

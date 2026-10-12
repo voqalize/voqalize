@@ -1,0 +1,202 @@
+/* Customer support (src/pages/solutions/support.astro, src/components/solutions/support/*).
+   Every rule sits under .sol--support. Motion follows motion.ts: `.is-sN` stays on from
+   step N, so each rule reads "from step N on". Durations use var(--m) so the hidden speed
+   commands work. Text on the peach highlight is always charcoal (#111), in both themes. */
+
+/* ---------- shared bits of the drawn coffee app ---------- */
+.sol--support .dev__dock::before { content: ""; position: absolute; inset: -40px -10px -12px; z-index: -1; background: linear-gradient(to bottom, transparent, var(--bg) 36px); opacity: 0; transition: opacity var(--t); }
+.sol--support .is-s1 .dev__dock::before { opacity: 1; }
+.sol--support .sp-h { margin: 12px 0 4px; font-size: 11px; font-weight: 600; color: var(--text-2); }
+.sol--support .sp-back { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 700; margin-bottom: 10px; }
+.sol--support .sp-back svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+.sol--support .sp-ini { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); font-size: 12px; font-weight: 700; color: var(--text); }
+.sol--support .sp-list { list-style: none; margin: 0; padding: 0; }
+.sol--support .sp-list li { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.sol--support .sp-list b { font-weight: 400; color: var(--text-2); }
+
+/* ---------- hero: help center to settings, in a browser ---------- */
+.sol--support .sp-hero { width: 100%; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; }
+.sol--support .sp-hero .dev { width: min(600px, 100%); }
+.sol--support .sp-desk__nav { margin-left: auto;  display: flex; gap: 16px; font-size: 12px; color: var(--text-2); }
+.sol--support .sp-desk__nav i { font-style: normal; }
+.sol--support .sp-desk__nav .is-here { color: var(--text); box-shadow: 0 2px 0 var(--accent); }
+.sol--support .sp-desk__view { position: absolute; inset: 0; }
+.sol--support .sp-help, .sol--support .sp-set { position: absolute; inset: 0; padding: 18px 28px; transition: transform calc(.6s * var(--m)) var(--ease), opacity calc(.6s * var(--m)); }
+.sol--support .sp-help__h { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+.sol--support .sp-help__search { margin-top: 10px; display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999rem; color: var(--text-2); }
+.sol--support .sp-help__search svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.4; }
+.sol--support .sp-help__list { list-style: none; margin: 10px 0 0; padding: 0; }
+.sol--support .sp-help__list li { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 7px 10px; margin-inline: -10px; border-bottom: 1px solid var(--line); border-radius: 0; transition: background var(--t), color var(--t), border-radius var(--t); }
+.sol--support .sp-help__list small { flex: none; font-size: 10.5px; color: var(--text-2); }
+/* Step 1: the article that has the answer lights up. It is a six-minute read. */
+.sol--support .is-s1 .sp-help__hit { background: var(--highlight); color: #111; border-radius: 8px; }
+.sol--support .is-s1 .sp-help__hit small { color: rgba(17, 17, 17, .64); }
+/* Step 2: nobody reads it. The app goes to the setting instead. */
+.sol--support .sp-set { transform: translateX(100%); }
+.sol--support .is-s2 .sp-help { transform: translateX(-30%); opacity: 0; }
+.sol--support .is-s2 .sp-set { transform: none; }
+.sol--support .sp-path { display: flex; flex-wrap: wrap; gap: 4px 0; font-size: 11.5px; color: var(--text-2); margin-bottom: 6px; }
+.sol--support .sp-path span { opacity: 0; transform: translateX(-6px); transition: opacity var(--t), transform var(--t) var(--ease); }
+.sol--support .sp-path span + span::before { content: "›"; margin: 0 7px; color: var(--text-2); }
+.sol--support .sp-path span:last-child { color: var(--text); font-weight: 600; }
+.sol--support .is-s2 .sp-path span { opacity: 1; transform: none; transition-delay: calc((.35s + var(--j) * .2s) * var(--m)); }
+.sol--support .sp-group__h { margin: 10px 0 2px; font-size: 11px; font-weight: 600; color: var(--text-2); }
+.sol--support .sp-row { position: relative; display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 4px 10px; margin: 0 -10px; border-bottom: 1px solid var(--line); border-radius: 0; transition: box-shadow var(--t), border-radius var(--t); }
+.sol--support .sp-row > span { display: flex; flex-direction: column; }
+.sol--support .sp-row small { font-size: 10.5px; color: var(--text-2); }
+.sol--support .sp-row em { margin-left: auto; font-style: normal; font-size: 10px; font-weight: 600; color: #111; background: var(--highlight); padding: 1px 8px; border-radius: 999rem; opacity: 0; transform: scale(.7); transition: opacity var(--t), transform var(--t) var(--ease); }
+.sol--support .sp-tog { flex: none; margin-left: auto; position: relative; width: 28px; height: 16px; border-radius: 999rem; background: var(--line); transition: background calc(.35s * var(--m)); }
+.sol--support .sp-row em + .sp-tog { margin-left: 0; }
+.sol--support .sp-tog::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--bg); box-shadow: 0 1px 2px rgba(17, 17, 17, .3); transition: transform calc(.35s * var(--m)) var(--ease); }
+.sol--support .sp-tog.is-on { background: var(--text); }
+.sol--support .sp-tog.is-on::after { transform: translateX(12px); }
+/* Step 3: marketing goes off; the delivery texts are marked kept. */
+.sol--support .is-s3 .sp-row--mkt { box-shadow: 0 0 0 1.5px var(--accent); border-radius: 10px; border-bottom-color: transparent; }
+.sol--support .is-s3 .sp-row--mkt .sp-tog { background: var(--line); transition-delay: calc(.25s * var(--m)); }
+.sol--support .is-s3 .sp-row--mkt .sp-tog::after { transform: none; transition-delay: calc(.25s * var(--m)); }
+.sol--support .is-s3 .sp-row--keep em { opacity: 1; transform: none; transition-delay: calc(.8s * var(--m)); }
+
+/* ---------- scene 01: the order and the tracking ---------- */
+.sol--support .sp-o__home, .sol--support .sp-o__track { position: absolute; inset: 0; padding: 10px 14px; transition: transform calc(.6s * var(--m)) var(--ease), opacity calc(.6s * var(--m)); }
+.sol--support .sp-hi { font-size: 12px; color: var(--text-2); }
+.sol--support .sp-next { margin-top: 8px; padding: 14px; border-radius: 16px; background: var(--night); color: var(--on-night); }
+[data-theme="dark"] .sol--support .sp-next { box-shadow: inset 0 0 0 1px var(--line); }
+.sol--support .sp-next__k { display: block; font-size: 11px; color: var(--on-night-2); }
+.sol--support .sp-next__v { display: block; margin-top: 3px; font-size: 21px; letter-spacing: -0.02em; }
+.sol--support .sp-bags { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
+.sol--support .sp-bags li { display: grid; grid-template-columns: 14px minmax(0, 1fr); column-gap: 9px; align-items: center; font-weight: 500; }
+.sol--support .sp-bags i { grid-row: span 2; width: 14px; height: 19px; border-radius: 3px 3px 4px 4px; background: var(--highlight); }
+.sol--support .sp-bags small { font-size: 10.5px; font-weight: 400; color: var(--on-night-2); }
+.sol--support .sp-acts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 12px 0 2px; }
+.sol--support .sp-acts span { display: grid; justify-items: center; gap: 3px; font-size: 10.5px; color: var(--text-2); }
+.sol--support .sp-acts i { width: 32px; height: 32px; border-radius: 50%; background: var(--surface); color: var(--text); display: grid; place-items: center; font-style: normal; font-size: 13px; font-weight: 600; }
+.sol--support .sp-acts span:first-child i { box-shadow: 0 0 0 1.5px var(--accent); }
+.sol--support .sp-o__track { transform: translateX(100%); }
+.sol--support .is-s2 .sp-o__home { transform: translateX(-35%); opacity: 0; }
+.sol--support .is-s2 .sp-o__track { transform: none; }
+.sol--support .sp-eta { border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; }
+.sol--support .sp-eta > span { display: block; font-size: 11px; color: var(--text-2); }
+.sol--support .sp-eta b { display: grid; font-size: 17px; letter-spacing: -0.01em; margin-top: 2px; }
+.sol--support .sp-eta s { position: relative; text-decoration: none; justify-self: start; transition: color var(--t), font-size var(--t); }
+.sol--support .sp-eta s::after { content: ""; position: absolute; left: 0; right: 0; top: 52%; height: 1.5px; background: currentColor; transform: scaleX(0); transform-origin: left; transition: transform calc(.4s * var(--m)) var(--ease); }
+.sol--support .sp-eta em { justify-self: start; font-style: normal; max-height: 0; opacity: 0; overflow: hidden; background: linear-gradient(var(--accent), var(--accent)) no-repeat 0 100% / 0 2.5px; padding-bottom: 2px; transition: max-height var(--t) var(--ease), opacity var(--t), background-size calc(.5s * var(--m)) var(--ease) calc(.45s * var(--m)); }
+.sol--support .sp-eta small { display: block; font-size: 11px; color: var(--text-2); opacity: 0; transition: opacity var(--t) calc(.5s * var(--m)); }
+/* Step 4: the promised day is struck and the real one is marked. */
+.sol--support .is-s4 .sp-eta s { color: var(--text-2); font-size: 12px; font-weight: 400; }
+.sol--support .is-s4 .sp-eta s::after { transform: none; }
+.sol--support .is-s4 .sp-eta em { max-height: 30px; opacity: 1; background-size: 100% 2.5px; }
+.sol--support .is-s4 .sp-eta small { opacity: 1; }
+.sol--support .sp-tl { list-style: none; margin: 2px 0 0; padding: 0; }
+.sol--support .sp-tl__i { position: relative; padding: 6px 0 8px 24px; font-weight: 500; opacity: .4; transition: opacity var(--t); }
+.sol--support .sp-tl__i small { display: block; font-size: 10.5px; font-weight: 400; color: var(--text-2); }
+.sol--support .sp-tl__i::before { content: ""; position: absolute; left: 3px; top: 9px; width: 9px; height: 9px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--line); background: var(--bg); transition: background var(--t), box-shadow var(--t); }
+.sol--support .sp-tl__i:not(:last-child)::after { content: ""; position: absolute; left: 7px; top: 21px; bottom: -6px; width: 1.5px; background: var(--line); }
+/* Step 3: the tracking is read stop by stop. */
+.sol--support .is-s3 .sp-tl__i { opacity: 1; transition-delay: calc(var(--j) * .28s * var(--m)); }
+.sol--support .is-s3 .sp-tl__i::before { background: var(--text); box-shadow: none; transition-delay: calc(var(--j) * .28s * var(--m)); }
+.sol--support .is-s3 .sp-tl--late::before { background: var(--accent); }
+.sol--support .is-s3 .sp-tl--eta::before { background: var(--bg); box-shadow: inset 0 0 0 1.5px var(--text); }
+.sol--support .is-s4 .sp-tl--eta::before { background: var(--accent); box-shadow: 0 0 0 3px var(--bg), 0 0 0 4.5px var(--accent); transition-delay: 0s; }
+
+/* ---------- scene 02: the plan ---------- */
+.sol--support .sp-p { position: absolute; inset: 0; padding: 10px 14px; }
+.sol--support .sp-plan { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 11px 12px; border-radius: 14px; background: var(--surface); }
+.sol--support .sp-plan b { font-size: 14px; }
+.sol--support .sp-plan span { font-size: 11px; color: var(--text-2); }
+.sol--support .sp-days { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.sol--support .sp-day { display: grid; place-items: center; height: 32px; border-radius: 10px; box-shadow: inset 0 0 0 1px var(--line); font-weight: 500; transition: background var(--t), color var(--t), box-shadow var(--t); }
+.sol--support .sp-day--tue { background: var(--text); color: var(--bg); box-shadow: none; }
+/* Step 2: Thursday is picked, and every date follows it. */
+.sol--support .is-s2 .sp-day--tue { background: transparent; color: var(--text); box-shadow: inset 0 0 0 1px var(--line); }
+.sol--support .is-s2 .sp-day--thu { background: var(--text); color: var(--bg); box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--accent); transition-delay: calc(.3s * var(--m)); }
+.sol--support .sp-up { list-style: none; margin: 0; padding: 0; }
+.sol--support .sp-up li { position: relative; display: flex; align-items: center; justify-content: space-between; min-height: 40px; border-bottom: 1px solid var(--line); font-weight: 500; transition: color var(--t); }
+.sol--support .sp-up li > span:first-child small { display: block; font-size: 10.5px; font-weight: 400; color: var(--text-2); }
+.sol--support .sp-swap { display: grid; }
+.sol--support .sp-swap i { grid-area: 1 / 1; font-style: normal; transition: opacity var(--t), transform var(--t) var(--ease); }
+.sol--support .sp-swap i + i { opacity: 0; transform: translateY(6px); }
+.sol--support .is-s2 .sp-swap i:first-child { opacity: 0; transform: translateY(-6px); }
+.sol--support .is-s2 .sp-swap i + i { opacity: 1; transform: none; transition-delay: calc(.5s * var(--m)); }
+.sol--support .sp-up em { font-style: normal; font-size: 10px; font-weight: 600; color: #111; background: var(--highlight); padding: 1px 8px; border-radius: 999rem; opacity: 0; transform: scale(.7); transition: opacity var(--t), transform var(--t) var(--ease); }
+.sol--support .sp-up--skip .sp-swap { position: relative; }
+.sol--support .sp-up--skip .sp-swap::after { content: ""; position: absolute; left: 0; right: 0; top: 52%; height: 1.5px; background: currentColor; transform: scaleX(0); transform-origin: left; transition: transform calc(.4s * var(--m)) var(--ease); }
+/* Step 3: the next delivery is skipped. */
+.sol--support .is-s3 .sp-up--skip { color: var(--text-2); }
+.sol--support .is-s3 .sp-up--skip .sp-swap::after { transform: none; }
+.sol--support .is-s3 .sp-up--skip em { opacity: 1; transform: none; transition-delay: calc(.3s * var(--m)); }
+.sol--support .sp-save { position: relative; display: grid; place-items: center; height: 38px; margin-top: 16px; border-radius: 999rem; box-shadow: inset 0 0 0 1px var(--line); color: var(--text-2); font-weight: 600; transition: background var(--t), color var(--t), box-shadow var(--t); }
+.sol--support .sp-save span { grid-area: 1 / 1; transition: opacity var(--t); }
+.sol--support .sp-save__b { opacity: 0; display: flex; align-items: center; gap: 6px; }
+.sol--support .sp-save__b::before { content: ""; width: 8px; height: 4px; border-left: 2px solid var(--ok); border-bottom: 2px solid var(--ok); transform: translateY(-2px) rotate(-45deg); }
+/* Step 2: there is something to save. Step 5: she said yes, so it is saved. */
+.sol--support .is-s2 .sp-save { background: var(--text); color: var(--bg); box-shadow: none; }
+.sol--support .is-s5 .sp-save { background: var(--surface); color: var(--text); }
+.sol--support .is-s5 .sp-save__a { opacity: 0; }
+.sol--support .is-s5 .sp-save__b { opacity: 1; transition-delay: calc(.2s * var(--m)); }
+
+/* ---------- scene 03: billing, then Sam ---------- */
+.sol--support .sp-b { position: absolute; inset: 0; padding: 10px 14px; }
+.sol--support .sp-card { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 11px 12px; border-radius: 14px; background: var(--surface); }
+.sol--support .sp-card span { font-size: 11px; color: var(--text-2); }
+.sol--support .sp-ch { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.sol--support .sp-ch li { position: relative; display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; margin: 0 -10px; border-radius: 12px; box-shadow: inset 0 -1px 0 var(--line); transition: box-shadow var(--t); }
+.sol--support .sp-ch span { font-weight: 500; }
+.sol--support .sp-ch small { display: block; font-size: 10.5px; font-weight: 400; color: var(--text-2); }
+.sol--support .sp-ch em { position: absolute; top: -7px; right: 10px; font-style: normal; font-size: 9.5px; font-weight: 600; background: var(--accent); color: #fff; padding: 1px 7px; border-radius: 999rem; opacity: 0; transform: scale(.6); transition: opacity var(--t), transform var(--t) var(--ease); }
+/* Step 2: both charges for one delivery are found and marked. */
+.sol--support .is-s2 .sp-ch--dup { box-shadow: inset 0 0 0 1.5px var(--accent); transition-delay: calc(var(--j) * .3s * var(--m)); }
+.sol--support .is-s2 .sp-ch--dup em { opacity: 1; transform: none; transition-delay: calc((.2s + var(--j) * .3s) * var(--m)); }
+/* Step 4: Sam joins with everything from today. Step 5: his first line. */
+.sol--support .sp-hand { position: absolute; left: 10px; right: 10px; top: 8px; padding: 12px; border-radius: 18px; background: var(--bg); box-shadow: 0 0 0 1px var(--line), 0 24px 40px -24px rgba(17, 17, 17, .45); opacity: 0; transform: translateY(-16px) scale(.97); transition: opacity var(--t), transform var(--t) var(--ease); }
+.sol--support .is-s4 .sp-hand { opacity: 1; transform: none; }
+.sol--support .sp-ch { transition: opacity var(--t); }
+.sol--support .is-s4 .sp-ch { opacity: .3; }
+.sol--support .sp-hand__who { display: flex; align-items: center; gap: 9px; }
+.sol--support .sp-hand__who b { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.sol--support .sp-hand__who b::after { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
+.sol--support .sp-hand__who small { display: block; font-size: 10.5px; color: var(--text-2); }
+.sol--support .sp-hand__k { margin: 10px 0 5px; font-size: 10.5px; font-weight: 600; color: var(--text-2); }
+.sol--support .sp-ctx { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.sol--support .sp-ctx li { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 10px; background: var(--surface); opacity: 0; transform: translateY(6px); transition: opacity var(--t), transform var(--t) var(--ease); }
+.sol--support .sp-ctx li::before { content: ""; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.sol--support .is-s4 .sp-ctx li { opacity: 1; transform: none; transition-delay: calc((.35s + var(--j) * .22s) * var(--m)); }
+.sol--support .sp-hand__msg { margin-top: 10px; padding: 0 11px; max-height: 0; overflow: hidden; border-radius: 14px 14px 14px 4px; background: var(--highlight); color: #111; font-weight: 500; opacity: 0; transition: max-height var(--t) var(--ease), padding var(--t), opacity var(--t); }
+.sol--support .is-s5 .sp-hand__msg { max-height: 80px; padding: 8px 11px; opacity: 1; }
+
+/* ---------- the handoff block ---------- */
+.sol--support .sp-handoff__grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 56px; align-items: start; }
+.sol--support .sp-when { list-style: none; margin: 0; padding: 0; counter-reset: when; }
+.sol--support .sp-when li { counter-increment: when; display: grid; grid-template-columns: 32px minmax(0, 1fr); padding: 16px 0; border-top: 1px solid var(--line); }
+.sol--support .sp-when li::before { content: counter(when, decimal-leading-zero); grid-row: span 2; font-family: var(--font-mono); font-size: 12px; color: var(--accent); padding-top: 4px; }
+.sol--support .sp-when b { font-size: 18px; letter-spacing: -0.01em; }
+.sol--support .sp-when span { margin-top: 2px; color: var(--text-2); line-height: 1.55; }
+.sol--support .sp-note { margin: 0; padding: 24px; border-radius: 20px; background: var(--surface); }
+.sol--support .sp-note figcaption { display: flex; align-items: center; gap: 10px; font-weight: 600; margin-bottom: 10px; }
+.sol--support .sp-note .sp-ini { background: var(--bg); }
+.sol--support .sp-note dl { margin: 0; }
+.sol--support .sp-note dl div { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 12px; padding: 11px 0; border-top: 1px solid var(--line); }
+.sol--support .sp-note dt { font-size: 13px; color: var(--text-2); padding-top: 1px; }
+.sol--support .sp-note dd { margin: 0; line-height: 1.5; }
+.sol--support .sp-note__open dd { justify-self: start; background: var(--highlight); color: #111; padding: 1px 8px; border-radius: 6px; font-weight: 500; }
+
+/* ---------- smaller screens ---------- */
+@media (max-width: 1000px) {
+  .sol--support .sp-handoff__grid { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+}
+@media (max-width: 700px) {
+  .sol--support .sp-help, .sol--support .sp-set { padding: 14px 16px; }
+  .sol--support .sp-help__h { font-size: 17px; }
+  .sol--support .sp-desk__nav { display: none; }
+  .sol--support .sp-row { min-height: 30px; }
+  /* The short browser: drop one row, and let the request step aside once the app acts on it,
+     so the toggle that flips and the one that stays are both in view. */
+  .sol--support .sp-row--rcpt { display: none; }
+  .sol--support .sp-hero.is-s3 .sol-said { opacity: 0; transform: translateY(-8px); height: 0; padding-block: 0; overflow: hidden; }
+  .sol--support .sp-hero.is-s3 .dev__dock::before { opacity: 0; }
+  .sol--support .sp-hero.is-s4 .dev__dock::before { opacity: 1; }
+  .sol--support .sp-note { padding: 18px; }
+  .sol--support .sp-note dl div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+}
+
+/* The hero's app is labeled as an example, in its own title bar. */
+.sol--support .sp-ex { font-style: normal; font-size: 10.5px; color: var(--text-2); border: 1px solid var(--line); border-radius: 999rem; padding: 1px 8px; }

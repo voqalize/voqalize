@@ -1,0 +1,57 @@
+---
+// Scene 2, buy: the checkout for the seat cushion, every field empty. On the sentence
+// it fills from the top: Dad's saved address, the shipping that beats Sunday, gift
+// wrap and the note, then the card on file. Place order is ringed and left for her.
+// Steps: 0 empty checkout, 1 said, 2 address, 3 delivery, 4 gift wrap and note,
+// 5 card and total, Place order ready, 6 reply.
+import Device from '../Device.astro';
+import Voice from '../../Voice.astro';
+import { ART } from './art';
+
+const SHIP = [
+  { t: 'Standard', d: 'Arrives Tue', p: 'Free' },
+  { t: 'Two-day', d: 'Arrives Sat', p: '$12.99', pick: true },
+];
+---
+<Device kind="phone" app="Larkfield" class="rt-dev">
+  <span slot="bar" class="rt-bar__end">Checkout</span>
+  <div class="rt-co">
+    <div class="rt-co__item">
+      <svg class="rt-art" viewBox="0 0 64 48" set:html={ART.cushion} />
+      <span>Massage seat cushion</span><b>$179.00</b>
+    </div>
+
+    <p class="rt-co__h">Ship to</p>
+    <div class="rt-field rt-field--addr">
+      <span class="rt-field__ph">Name, street, city, ZIP</span>
+      <span class="rt-field__v"><b>Dad</b> Robert Hale<br />418 Saguaro Lane, Tucson, AZ 85719</span>
+    </div>
+
+    <p class="rt-co__h">Delivery</p>
+    <div class="rt-ship">
+      {SHIP.map((s) => (
+        <span class={`rt-radio${s.pick ? ' rt-radio--pick' : ''}`}><i></i><b>{s.t}</b><span>{s.d}</span><em>{s.p}</em></span>
+      ))}
+    </div>
+
+    <div class="rt-gift">
+      <span class="rt-toggle"><i></i></span><b>Gift wrap</b><em>$5.00</em>
+    </div>
+    <div class="rt-field rt-field--note">
+      <span class="rt-field__ph">Gift note</span>
+      <span class="rt-field__v rt-type">Drive safe, Dad.</span>
+    </div>
+
+        <div class="rt-field rt-field--card">
+      <span class="rt-field__ph">Card number</span>
+      <span class="rt-field__v"><i class="rt-cardmark"></i>Card ending 1187</span>
+    </div>
+
+    <div class="rt-co__total"><span>Total</span><b><i>$179.00</i><i>$196.99</i></b></div>
+    <span class="rt-place">Place order</span>
+  </div>
+  <Fragment slot="dock">
+    <Voice who="person" class="sol-said out-at-5">Ship it to my dad in Tucson, gift wrapped. Add a note: drive safe, Dad.</Voice>
+    <Voice who="agent" face="/characters/tara.webp" class="r-at-6">It will arrive Saturday, wrapped, with your note. Have a look, then tap Place order.</Voice>
+  </Fragment>
+</Device>

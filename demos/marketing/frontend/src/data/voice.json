@@ -1,0 +1,944 @@
+{
+  "targets": [
+    {
+      "id": "shift.scene1",
+      "section": "shift",
+      "does": "Scene 1: we talk to our tech all day (messages, the car, the phone)."
+    },
+    {
+      "id": "shift.scene2",
+      "section": "shift",
+      "does": "Scene 2: software still wants clicks, menus, forms and gestures."
+    },
+    {
+      "id": "shift.scene3",
+      "section": "shift",
+      "does": "Scene 3: what if every app listened? A flight booked by voice, with a change of mind halfway."
+    },
+    {
+      "id": "shift.scene4",
+      "section": "shift",
+      "does": "Scene 4: Voqalize brings a voice-first interface to the apps you already have."
+    },
+    {
+      "id": "action.step1",
+      "section": "action",
+      "does": "Step 1, you speak: the shopper asks for gold earrings under $800 that go with a green dress."
+    },
+    {
+      "id": "action.step2",
+      "section": "action",
+      "does": "Step 2, Voqalize listens: noise removed, end of turn heard, clean text out."
+    },
+    {
+      "id": "action.step3",
+      "section": "action",
+      "does": "Step 3, your brain decides: it searches its own catalog and returns what to say and do."
+    },
+    {
+      "id": "action.step4",
+      "section": "action",
+      "does": "Step 4, it speaks and acts: the character answers while the app sets the filters."
+    },
+    {
+      "id": "ways.plug_and_play",
+      "section": "ways",
+      "does": "The Plug & Play tab: give us your web address and we run everything."
+    },
+    {
+      "id": "ways.plug_and_play.step1",
+      "section": "ways",
+      "does": "Plug & Play step 1: give us your web address."
+    },
+    {
+      "id": "ways.plug_and_play.step2",
+      "section": "ways",
+      "does": "Plug & Play step 2: we learn your website; every page becomes a knowledge base."
+    },
+    {
+      "id": "ways.plug_and_play.step3",
+      "section": "ways",
+      "does": "Plug & Play step 3: pick a character, or create your own."
+    },
+    {
+      "id": "ways.plug_and_play.step4",
+      "section": "ways",
+      "does": "Plug & Play step 4: paste one script tag."
+    },
+    {
+      "id": "ways.plug_and_play.step5",
+      "section": "ways",
+      "does": "Plug & Play step 5: you are live, on the store page."
+    },
+    {
+      "id": "ways.developer",
+      "section": "ways",
+      "does": "The Developer integration tab: connect the agent you already have."
+    },
+    {
+      "id": "ways.developer.step1",
+      "section": "ways",
+      "does": "Developer step 1: install the SDKs, frontend and backend."
+    },
+    {
+      "id": "ways.developer.step2",
+      "section": "ways",
+      "does": "Developer step 2: connect your backend, two ways to dial in."
+    },
+    {
+      "id": "ways.developer.step3",
+      "section": "ways",
+      "does": "Developer step 3: your brain decides, with your APIs, database and tools."
+    },
+    {
+      "id": "ways.developer.step4",
+      "section": "ways",
+      "does": "Developer step 4: you are live."
+    },
+    {
+      "id": "worlds.jewelry",
+      "section": "worlds",
+      "does": "Use case tab: a jewelry store (Aurum Jewels)."
+    },
+    {
+      "id": "worlds.banking",
+      "section": "worlds",
+      "does": "Use case tab: banking (Tidewell Bank), a car loan."
+    },
+    {
+      "id": "worlds.forms",
+      "section": "worlds",
+      "does": "Use case tab: long forms (a change of address)."
+    },
+    {
+      "id": "worlds.contracts",
+      "section": "worlds",
+      "does": "Use case tab: contracts (a supply agreement)."
+    },
+    {
+      "id": "worlds.cab",
+      "section": "worlds",
+      "does": "Use case tab: cab booking (a ride to the airport)."
+    },
+    {
+      "id": "worlds.food",
+      "section": "worlds",
+      "does": "Use case tab: food delivery (reorder a pizza)."
+    },
+    {
+      "id": "cast.tanvi",
+      "section": "cast",
+      "does": "Point at Tanvi (you) in the cast."
+    },
+    {
+      "id": "cast.tara",
+      "section": "cast",
+      "does": "Point at Tara."
+    },
+    {
+      "id": "cast.tushar",
+      "section": "cast",
+      "does": "Point at Tushar."
+    },
+    {
+      "id": "cast.tanya",
+      "section": "cast",
+      "does": "Point at Tanya."
+    },
+    {
+      "id": "cast.tess",
+      "section": "cast",
+      "does": "Point at Tess."
+    },
+    {
+      "id": "cast.trisha",
+      "section": "cast",
+      "does": "Point at Trisha."
+    },
+    {
+      "id": "cast.create_yours",
+      "section": "cast",
+      "does": "Point at the Create yours tile: a business can make its own character."
+    },
+    {
+      "id": "pricing.annual",
+      "section": "pricing",
+      "does": "Switch prices to annual billing (two months free)."
+    },
+    {
+      "id": "pricing.monthly",
+      "section": "pricing",
+      "does": "Switch prices to monthly billing."
+    },
+    {
+      "id": "pricing.usd",
+      "section": "pricing",
+      "does": "Show prices in US dollars."
+    },
+    {
+      "id": "pricing.inr",
+      "section": "pricing",
+      "does": "Show prices in Indian rupees."
+    },
+    {
+      "id": "pricing.free",
+      "section": "pricing",
+      "does": "Point at the Free plan."
+    },
+    {
+      "id": "pricing.starter",
+      "section": "pricing",
+      "does": "Point at the Starter plan."
+    },
+    {
+      "id": "pricing.growth",
+      "section": "pricing",
+      "does": "Point at the Growth plan."
+    },
+    {
+      "id": "pricing.enterprise",
+      "section": "pricing",
+      "does": "Point at the Enterprise plan."
+    }
+  ],
+  "links": [
+    {
+      "id": "docs",
+      "url": "https://docs.voqalize.com",
+      "label": "Voqalize docs",
+      "does": "The documentation. The place for anything you do not know."
+    },
+    {
+      "id": "quickstart",
+      "url": "https://docs.voqalize.com/build/quickstart",
+      "label": "Quickstart",
+      "does": "The docs page that gets a developer from zero to a live call."
+    },
+    {
+      "id": "mcp",
+      "url": "https://docs.voqalize.com/reference/mcp",
+      "label": "Voqalize MCP server",
+      "does": "How to connect the Voqalize MCP server to an AI coding assistant, so it can answer and build with Voqalize."
+    },
+    {
+      "id": "console",
+      "url": "https://app.voqalize.com",
+      "label": "Voqalize Console",
+      "does": "Sign up and build: the first 300 minutes are free."
+    },
+    {
+      "id": "book_call",
+      "url": "https://cal.id/samkeet-jain",
+      "label": "Book a call",
+      "does": "Samkeet Jain's calendar: the visitor picks a free slot for a call with our co-founder, for a demo, a deal or their questions."
+    }
+  ],
+  "pages": [
+    {
+      "id": "retail",
+      "url": "/solutions/retail",
+      "title": "Retail and e-commerce",
+      "does": "Solution page: how an online store uses Voqalize, one shopper's order from search to exchange."
+    },
+    {
+      "id": "banking",
+      "url": "/solutions/banking",
+      "title": "Banking",
+      "does": "Solution page: Voqalize in a bank's app."
+    },
+    {
+      "id": "insurance",
+      "url": "/solutions/insurance",
+      "title": "Insurance",
+      "does": "Solution page: Voqalize for insurers."
+    },
+    {
+      "id": "healthcare",
+      "url": "/solutions/healthcare",
+      "title": "Healthcare",
+      "does": "Solution page: Voqalize in healthcare, one checkup story."
+    },
+    {
+      "id": "legal",
+      "url": "/solutions/legal",
+      "title": "Legal",
+      "does": "Solution page: Voqalize for legal work."
+    },
+    {
+      "id": "support",
+      "url": "/solutions/support",
+      "title": "Customer support",
+      "does": "Solution page: Voqalize for customer support."
+    },
+    {
+      "id": "about",
+      "url": "/about",
+      "title": "About Voqalize",
+      "does": "Who we are and what the company does."
+    },
+    {
+      "id": "story",
+      "url": "/story",
+      "title": "Our story",
+      "does": "How Voqalize started."
+    },
+    {
+      "id": "contact",
+      "url": "/contact",
+      "title": "Press and contact",
+      "does": "How to reach the team, for press and anything else. Also where privacy, terms and DPA questions go."
+    },
+    {
+      "id": "security",
+      "url": "/security",
+      "title": "Security and trust",
+      "does": "How Voqalize handles security and data."
+    },
+    {
+      "id": "experience",
+      "url": "/experience",
+      "title": "Experience Center",
+      "does": "The Experience Center: working demos, each a real app with a character inside. Each demo itself opens in its own tab."
+    },
+    {
+      "id": "pricing_details",
+      "url": "/pricing",
+      "title": "Pricing details",
+      "does": "What a minute includes, and common questions about pricing."
+    }
+  ],
+  "parts": [
+    {
+      "id": "retail.hero",
+      "page": "retail",
+      "part": "hero",
+      "does": "Your customers shop in sentences. Let your store understand them."
+    },
+    {
+      "id": "retail.scene1",
+      "page": "retail",
+      "part": "scene1",
+      "does": "Scene 1, Decide: Compare on how he’ll use it."
+    },
+    {
+      "id": "retail.scene2",
+      "page": "retail",
+      "part": "scene2",
+      "does": "Scene 2, Buy: A checkout that fills itself in."
+    },
+    {
+      "id": "retail.scene3",
+      "page": "retail",
+      "part": "scene3",
+      "does": "Scene 3, After the sale: A swap instead of a refund."
+    },
+    {
+      "id": "retail.moments",
+      "page": "retail",
+      "part": "moments",
+      "does": "Shoppers leave where the store can’t follow what they mean."
+    },
+    {
+      "id": "retail.setup",
+      "page": "retail",
+      "part": "setup",
+      "does": "Two ways to add it."
+    },
+    {
+      "id": "retail.close",
+      "page": "retail",
+      "part": "close",
+      "does": "Bring back the person behind the counter."
+    },
+    {
+      "id": "banking.hero",
+      "page": "banking",
+      "part": "hero",
+      "does": "Your banking app knows the answer. Let your customers ask."
+    },
+    {
+      "id": "banking.scene1",
+      "page": "banking",
+      "part": "scene1",
+      "does": "Scene 1, Apply: Apply without retyping."
+    },
+    {
+      "id": "banking.scene2",
+      "page": "banking",
+      "part": "scene2",
+      "does": "Scene 2, Autopay: Pay on the right day."
+    },
+    {
+      "id": "banking.scene3",
+      "page": "banking",
+      "part": "scene3",
+      "does": "Scene 3, Strange charge: Freeze the card on a charge they don't recognize."
+    },
+    {
+      "id": "banking.line",
+      "page": "banking",
+      "part": "line",
+      "does": "It works the screens. Your customer approves the money."
+    },
+    {
+      "id": "banking.setup",
+      "page": "banking",
+      "part": "setup",
+      "does": "Two ways into your banking app."
+    },
+    {
+      "id": "banking.close",
+      "page": "banking",
+      "part": "close",
+      "does": "Stop making customers dig. Let them ask."
+    },
+    {
+      "id": "insurance.hero",
+      "page": "insurance",
+      "part": "hero",
+      "does": "Your policyholders say what happened. Your app fills in the claim."
+    },
+    {
+      "id": "insurance.scene1",
+      "page": "insurance",
+      "part": "scene1",
+      "does": "Scene 1, The accident: Reported from the parking lot, before she drives home."
+    },
+    {
+      "id": "insurance.scene2",
+      "page": "insurance",
+      "part": "scene2",
+      "does": "Scene 2, The question: Is a rental covered? The app reads her the policy."
+    },
+    {
+      "id": "insurance.scene3",
+      "page": "insurance",
+      "part": "scene3",
+      "does": "Scene 3, The follow-up: A week later: where is my claim, and who can fix the car?"
+    },
+    {
+      "id": "insurance.handoff",
+      "page": "insurance",
+      "part": "handoff",
+      "does": "Your adjusters still make the call."
+    },
+    {
+      "id": "insurance.setup",
+      "page": "insurance",
+      "part": "setup",
+      "does": "Two ways to add it."
+    },
+    {
+      "id": "insurance.close",
+      "page": "insurance",
+      "part": "close",
+      "does": "Service you can talk to."
+    },
+    {
+      "id": "healthcare.hero",
+      "page": "healthcare",
+      "part": "hero",
+      "does": "Your patients ask. Your app does the paperwork."
+    },
+    {
+      "id": "healthcare.scene1",
+      "page": "healthcare",
+      "part": "scene1",
+      "does": "Scene 1, Monday · the intake form: The form she used to save for Jen."
+    },
+    {
+      "id": "healthcare.scene2",
+      "page": "healthcare",
+      "part": "scene2",
+      "does": "Scene 2, Wednesday night · the prep sheet: A question at 9:40 pm, answered from your own instructions."
+    },
+    {
+      "id": "healthcare.scene3",
+      "page": "healthcare",
+      "part": "scene3",
+      "does": "Scene 3, Two weeks later · the bill: Jen asks about her mom’s bill from her desk at work."
+    },
+    {
+      "id": "healthcare.routes",
+      "page": "healthcare",
+      "part": "routes",
+      "does": "Paperwork stays in the app. Symptoms go to your care team."
+    },
+    {
+      "id": "healthcare.setup",
+      "page": "healthcare",
+      "part": "setup",
+      "does": "Two ways to add it."
+    },
+    {
+      "id": "healthcare.close",
+      "page": "healthcare",
+      "part": "close",
+      "does": "Service you can talk to."
+    },
+    {
+      "id": "legal.hero",
+      "page": "legal",
+      "part": "hero",
+      "does": "Let your customers ask the contract."
+    },
+    {
+      "id": "legal.scene1",
+      "page": "legal",
+      "part": "scene1",
+      "does": "Scene 1, Monday · the renewal list: Catch the contract before it renews on its own."
+    },
+    {
+      "id": "legal.scene2",
+      "page": "legal",
+      "part": "scene2",
+      "does": "Scene 2, Wednesday · the redline: Cedar sends back a redline. Find the edits that change the terms."
+    },
+    {
+      "id": "legal.scene3",
+      "page": "legal",
+      "part": "scene3",
+      "does": "Scene 3, Friday · the signature: Marcus, the CFO, signs for the company and knows what page 4 says."
+    },
+    {
+      "id": "legal.handoff",
+      "page": "legal",
+      "part": "handoff",
+      "does": "It points to the text. Lawyers make the call."
+    },
+    {
+      "id": "legal.setup",
+      "page": "legal",
+      "part": "setup",
+      "does": "Two ways to add it."
+    },
+    {
+      "id": "legal.close",
+      "page": "legal",
+      "part": "close",
+      "does": "Stop making customers dig. Let them ask."
+    },
+    {
+      "id": "support.hero",
+      "page": "support",
+      "part": "hero",
+      "does": "Support that listens, then does the clicking."
+    },
+    {
+      "id": "support.scene1",
+      "page": "support",
+      "part": "scene1",
+      "does": "Scene 1, The question: A delivery that didn't show."
+    },
+    {
+      "id": "support.scene2",
+      "page": "support",
+      "part": "scene2",
+      "does": "Scene 2, The change: Thursdays work better anyway."
+    },
+    {
+      "id": "support.scene3",
+      "page": "support",
+      "part": "scene3",
+      "does": "Scene 3, The handoff: A person who already knows."
+    },
+    {
+      "id": "support.handoff",
+      "page": "support",
+      "part": "handoff",
+      "does": "It knows when to bring in a person."
+    },
+    {
+      "id": "support.setup",
+      "page": "support",
+      "part": "setup",
+      "does": "Start with the help center you already wrote."
+    },
+    {
+      "id": "support.close",
+      "page": "support",
+      "part": "close",
+      "does": "Answer the question before it becomes a ticket."
+    },
+    {
+      "id": "about.hero",
+      "page": "about",
+      "part": "hero",
+      "does": "Software should listen more than it talks."
+    },
+    {
+      "id": "about.beliefs",
+      "page": "about",
+      "part": "beliefs",
+      "does": "Five things we believe about voice."
+    },
+    {
+      "id": "about.people",
+      "page": "about",
+      "part": "people",
+      "does": "Who's building it."
+    },
+    {
+      "id": "about.more",
+      "page": "about",
+      "part": "more",
+      "does": "More about the company."
+    },
+    {
+      "id": "about.close",
+      "page": "about",
+      "part": "close",
+      "does": "Every app is about to get a voice. Make it yours."
+    },
+    {
+      "id": "story.hero",
+      "page": "story",
+      "part": "hero",
+      "does": "We spent two years on the hard part of voice."
+    },
+    {
+      "id": "story.ch-1",
+      "page": "story",
+      "part": "ch-1",
+      "does": "We were building products people could talk to."
+    },
+    {
+      "id": "story.ch-2",
+      "page": "story",
+      "part": "ch-2",
+      "does": "Then real people talked to them."
+    },
+    {
+      "id": "story.ch-3",
+      "page": "story",
+      "part": "ch-3",
+      "does": "So we kept building underneath."
+    },
+    {
+      "id": "story.ch-4",
+      "page": "story",
+      "part": "ch-4",
+      "does": "Every team adding voice was building the same thing."
+    },
+    {
+      "id": "story.ch-5",
+      "page": "story",
+      "part": "ch-5",
+      "does": "We turned it into a stack for other teams."
+    },
+    {
+      "id": "story.today",
+      "page": "story",
+      "part": "today",
+      "does": "Today we’re opening the doors."
+    },
+    {
+      "id": "contact.write",
+      "page": "contact",
+      "part": "write",
+      "does": "Talk to us."
+    },
+    {
+      "id": "contact.press",
+      "page": "contact",
+      "part": "press",
+      "does": "Writing about Voqalize?"
+    },
+    {
+      "id": "contact.ways",
+      "page": "contact",
+      "part": "ways",
+      "does": "Not a question? Start here."
+    },
+    {
+      "id": "security.standards",
+      "page": "security",
+      "part": "standards",
+      "does": "The standards we meet."
+    },
+    {
+      "id": "security.call",
+      "page": "security",
+      "part": "call",
+      "does": "One sentence, start to finish."
+    },
+    {
+      "id": "security.principles",
+      "page": "security",
+      "part": "principles",
+      "does": "Private by default, and kept to a minimum."
+    },
+    {
+      "id": "security.report",
+      "page": "security",
+      "part": "report",
+      "does": "Get in touch about security."
+    },
+    {
+      "id": "experience.demo-aura",
+      "page": "experience",
+      "part": "demo-aura",
+      "does": "The Banking demo: Answer a question inside the app."
+    },
+    {
+      "id": "experience.demo-servicing",
+      "page": "experience",
+      "part": "demo-servicing",
+      "does": "The Mortgage servicing demo: Work up a case at the console."
+    },
+    {
+      "id": "experience.demo-orderdesk",
+      "page": "experience",
+      "part": "demo-orderdesk",
+      "does": "The Pharma distribution demo: Take a bulk order by voice."
+    },
+    {
+      "id": "experience.demo-legal",
+      "page": "experience",
+      "part": "demo-legal",
+      "does": "The Legal demo: Review a contract out loud."
+    },
+    {
+      "id": "experience.demo-sugar",
+      "page": "experience",
+      "part": "demo-sugar",
+      "does": "The Healthcare demo: Run a daily check-in."
+    },
+    {
+      "id": "experience.demo-travel",
+      "page": "experience",
+      "part": "demo-travel",
+      "does": "The Travel demo: Plan a trip in one pass."
+    },
+    {
+      "id": "pricing_details.minute",
+      "page": "pricing_details",
+      "part": "minute",
+      "does": "What one minute carries."
+    },
+    {
+      "id": "pricing_details.questions",
+      "page": "pricing_details",
+      "part": "questions",
+      "does": "Short answers."
+    }
+  ],
+  "blocks": [
+    {
+      "id": "action.head",
+      "section": "action",
+      "part": "head",
+      "does": "The section heading: One sentence, there and back."
+    },
+    {
+      "id": "ways.head",
+      "section": "ways",
+      "part": "head",
+      "does": "The section heading: Two ways to integrate."
+    },
+    {
+      "id": "handled.head",
+      "section": "handled",
+      "part": "head",
+      "does": "The section heading: The hard part of voice is listening."
+    },
+    {
+      "id": "worlds.head",
+      "section": "worlds",
+      "part": "head",
+      "does": "The section heading: Same app. Now it listens."
+    },
+    {
+      "id": "cast.head",
+      "section": "cast",
+      "part": "head",
+      "does": "The section heading: Every voice agent should have a face."
+    },
+    {
+      "id": "pricing.head",
+      "section": "pricing",
+      "part": "head",
+      "does": "The section heading: Pricing is per minute of conversation."
+    },
+    {
+      "id": "action.diagram",
+      "section": "action",
+      "part": "diagram",
+      "does": "The animated diagram of one sentence going through: the jewelry store app, Voqalize, and your brain."
+    },
+    {
+      "id": "action.steps",
+      "section": "action",
+      "part": "steps",
+      "does": "The four numbered steps: you speak, Voqalize listens, your brain decides, it speaks and acts."
+    },
+    {
+      "id": "ways.we_run",
+      "section": "ways",
+      "part": "we_run",
+      "does": "The line of what Voqalize runs either way: WebRTC, speech-to-text, text-to-speech, turn-taking, interruptions, characters, recording."
+    },
+    {
+      "id": "ways.tabs",
+      "section": "ways",
+      "part": "tabs",
+      "does": "The two tabs: Plug & Play and Developer integration."
+    },
+    {
+      "id": "worlds.tabs",
+      "section": "worlds",
+      "part": "tabs",
+      "does": "The six use case tabs."
+    },
+    {
+      "id": "ways.pnp_steps",
+      "section": "ways",
+      "part": "pnp_steps",
+      "does": "The Plug & Play steps, 1 to 5, and a Go to Console button."
+    },
+    {
+      "id": "ways.pnp_demo",
+      "section": "ways",
+      "part": "pnp_demo",
+      "does": "The Plug & Play animation in a browser window: the web address, the knowledge base, the character, the script tag, the store live."
+    },
+    {
+      "id": "ways.pnp_facts",
+      "section": "ways",
+      "part": "pnp_facts",
+      "does": "The Plug & Play facts: live in under 5 minutes, you pay per conversation minute, update what it knows any time through our MCP."
+    },
+    {
+      "id": "ways.dev_steps",
+      "section": "ways",
+      "part": "dev_steps",
+      "does": "The developer steps, 1 to 4, and a Go to Console button."
+    },
+    {
+      "id": "ways.dev_demo",
+      "section": "ways",
+      "part": "dev_demo",
+      "does": "The developer animation in a terminal: installing the SDKs, the two ways to dial in, the brain code, the app talking."
+    },
+    {
+      "id": "ways.dev_facts",
+      "section": "ways",
+      "part": "dev_facts",
+      "does": "The developer facts: SDKs for the stacks you already use, your codebase and agent stay as they are, and a link to the docs."
+    },
+    {
+      "id": "handled.board",
+      "section": "handled",
+      "part": "board",
+      "does": "The whiteboard animation: the seven hard problems a team lists, and its estimate growing from 2 weeks to 3 months."
+    },
+    {
+      "id": "handled.why",
+      "section": "handled",
+      "part": "why",
+      "does": "Why each one is hard: the seven problems explained, ending with: add Voqalize and all seven are handled."
+    },
+    {
+      "id": "handled.try",
+      "section": "handled",
+      "part": "try",
+      "does": "The line: try it now, interrupt me while I am talking."
+    },
+    {
+      "id": "worlds.jewelry_phone",
+      "section": "worlds",
+      "part": "jewelry_phone",
+      "does": "The animated phone for Aurum Jewels: the person says it and the app does it."
+    },
+    {
+      "id": "worlds.jewelry_text",
+      "section": "worlds",
+      "part": "jewelry_text",
+      "does": "Aurum Jewels: what they say, and today versus with Voqalize."
+    },
+    {
+      "id": "worlds.banking_phone",
+      "section": "worlds",
+      "part": "banking_phone",
+      "does": "The animated phone for Tidewell Bank: the person says it and the app does it."
+    },
+    {
+      "id": "worlds.banking_text",
+      "section": "worlds",
+      "part": "banking_text",
+      "does": "Tidewell Bank: what they say, and today versus with Voqalize."
+    },
+    {
+      "id": "worlds.forms_phone",
+      "section": "worlds",
+      "part": "forms_phone",
+      "does": "The animated phone for Change of address: the person says it and the app does it."
+    },
+    {
+      "id": "worlds.forms_text",
+      "section": "worlds",
+      "part": "forms_text",
+      "does": "Change of address: what they say, and today versus with Voqalize."
+    },
+    {
+      "id": "worlds.contracts_phone",
+      "section": "worlds",
+      "part": "contracts_phone",
+      "does": "The animated phone for Supply agreement: the person says it and the app does it."
+    },
+    {
+      "id": "worlds.contracts_text",
+      "section": "worlds",
+      "part": "contracts_text",
+      "does": "Supply agreement: what they say, and today versus with Voqalize."
+    },
+    {
+      "id": "worlds.cab_phone",
+      "section": "worlds",
+      "part": "cab_phone",
+      "does": "The animated phone for Ride: the person says it and the app does it."
+    },
+    {
+      "id": "worlds.cab_text",
+      "section": "worlds",
+      "part": "cab_text",
+      "does": "Ride: what they say, and today versus with Voqalize."
+    },
+    {
+      "id": "worlds.food_phone",
+      "section": "worlds",
+      "part": "food_phone",
+      "does": "The animated phone for Order in: the person says it and the app does it."
+    },
+    {
+      "id": "worlds.food_text",
+      "section": "worlds",
+      "part": "food_text",
+      "does": "Order in: what they say, and today versus with Voqalize."
+    },
+    {
+      "id": "cast.signals",
+      "section": "cast",
+      "part": "signals",
+      "does": "The three signals a character gives: listens, thinks, responds."
+    },
+    {
+      "id": "cast.close",
+      "section": "cast",
+      "part": "close",
+      "does": "The line: pick one of ours, or create your own for your brand."
+    },
+    {
+      "id": "pricing.switches",
+      "section": "pricing",
+      "part": "switches",
+      "does": "The switches: annual or monthly billing, and the currency."
+    },
+    {
+      "id": "pricing.foot",
+      "section": "pricing",
+      "part": "foot",
+      "does": "The tax note under the plans, and a link to what a minute includes and common questions."
+    }
+  ]
+}

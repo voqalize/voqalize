@@ -1,0 +1,14 @@
+---
+// An email address as text with a Copy button, never a mailto link (Samkeet, 2026-10-12: a mailto
+// opens whatever mail app the visitor happens to have, or nothing; show the address and let them copy
+// it). `size`: "big" where writing to us is the point (the contact page), "inline" inside a sentence,
+// "fine" for fine print (security documents), small and quiet.
+import { CONTACT_EMAIL } from '../data/contact';
+interface Props { address?: string; size?: 'big' | 'inline' | 'fine' }
+const { address = CONTACT_EMAIL, size = 'inline' } = Astro.props;
+---
+<span class={`email email--${size}`}><span class="email__addr">{address}</span><button type="button" class="email__copy" data-copy={address} aria-label={`Copy ${address}`}>Copy</button></span>
+
+<script>
+  import '../scripts/copy';
+</script>

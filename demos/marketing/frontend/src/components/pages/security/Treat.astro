@@ -1,0 +1,27 @@
+---
+// How we treat conversations: four principles (one line each), then the ledger of
+// everything a call touches and what happens to it (including retention, region and model
+// training, confirmed by the founder 2026-10-12). Static, no motion.
+import { PRINCIPLES, LEDGER } from '../../../data/security';
+---
+<section class="pg-block sec-treat" aria-labelledby="sec-treat-t" data-part="principles">
+  <header class="s-head">
+    <p class="eyebrow">How we treat conversations</p>
+    <h2 id="sec-treat-t">Private by default, and kept to a minimum.</h2>
+    <p class="s-lede">People say private things to a voice that sounds like it’s listening. So we keep as little as we can, and only what you choose to keep.</p>
+  </header>
+
+  <ul class="sec-treat__rules">
+    {PRINCIPLES.map((p) => (
+      <li><h3>{p.title}</h3><p>{p.body}</p></li>
+    ))}
+  </ul>
+
+  <h3 class="sec-ledger__t">Everything a call touches</h3>
+  <dl class="sec-ledger">
+    {LEDGER.map((r) => (
+      <div class="sec-ledger__row"><dt>{r.what}</dt><dd>{r.detail}</dd></div>
+    ))}
+  </dl>
+
+</section>

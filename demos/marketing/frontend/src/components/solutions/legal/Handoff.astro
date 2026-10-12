@@ -1,0 +1,30 @@
+---
+// The domain block: where the line sits. Five things people ask a legal app, what the
+// character does with each, and who makes the call. Static (no loop): the meaning is the text.
+const ROWS = [
+  { ask: 'What does 9.1 say?', does: 'Reads the clause out and restates it in plain words.', then: 'Answered on the spot', who: false },
+  { ask: 'Is a six-month cap normal for us?', does: 'Puts the team’s playbook position beside the clause.', then: 'Counsel decides', who: true },
+  { ask: 'Should I sign this?', does: 'Says that’s a question for your lawyer, and offers to message them.', then: 'A lawyer answers', who: true },
+  { ask: 'Send the redline back to Cedar.', does: 'Drafts the email with the redline attached.', then: 'The person presses send', who: true },
+  { ask: 'I slipped on a wet floor at a grocery store in March.', does: 'Fills the firm’s intake form from the story, reads it back and waits for the client to submit.', then: 'The firm’s intake team reviews', who: true },
+];
+---
+<section class="sol-block lg-hand" aria-labelledby="lg-hand-t" data-part="handoff">
+  <header class="s-head">
+    <p class="eyebrow">Where the line sits</p>
+    <h2 id="lg-hand-t">It points to the text. Lawyers make the call.</h2>
+    <p class="s-lede">The character finds clauses, compares drafts and writes first versions. Advice, approvals and anything that gets sent, filed or signed go to a person.</p>
+  </header>
+  <div class="lg-hand__table" role="table" aria-label="What the character does, and who decides">
+    <div class="lg-hand__row lg-hand__row--head" role="row">
+      <span role="columnheader">Someone asks</span><span role="columnheader">The character</span><span role="columnheader">Then</span>
+    </div>
+    {ROWS.map((r) => (
+      <div class="lg-hand__row" role="row">
+        <span role="cell" class="lg-hand__ask">“{r.ask}”</span>
+        <span role="cell" class="lg-hand__does">{r.does}</span>
+        <span role="cell" class={`lg-hand__then${r.who ? ' lg-hand__then--person' : ''}`}>{r.then}</span>
+      </div>
+    ))}
+  </div>
+</section>

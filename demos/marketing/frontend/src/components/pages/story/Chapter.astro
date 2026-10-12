@@ -1,0 +1,17 @@
+---
+// One chapter of the story: a big chapter number, the kicker, the heading and the words on the
+// left (default slot), and the chapter's own motion piece on the right (slot "piece").
+// `flip` puts the piece first on wide screens. The page script reveals the chapter once
+// it scrolls into view (`.st-in`), and marks it in the side rail.
+interface Props { id: string; n: string; kicker: string; title: string; flip?: boolean; wide?: boolean }
+const { id, n, kicker, title, flip = false, wide = false } = Astro.props;
+---
+<section class:list={['st-ch', { 'st-ch--flip': flip, 'st-ch--wide': wide }]} id={id} aria-labelledby={`${id}-t`} data-reveal data-part={id}>
+  <div class="st-ch__text">
+    <p class="st-ch__n" aria-hidden="true">{n}</p>
+    <p class="eyebrow">{kicker}</p>
+    <h2 id={`${id}-t`}>{title}</h2>
+    <div class="st-ch__body"><slot /></div>
+  </div>
+  <div class="st-ch__piece"><slot name="piece" /></div>
+</section>

@@ -1,0 +1,19 @@
+---
+// Who spoke, the same everywhere on the site: a person's line carries sound waves,
+// the agent's line carries a small face inside a vermilion ring that ripples while
+// it speaks. `who="person"` (default) or `who="agent"`. Pass `class` to place and
+// animate it inside a motion piece; the text is the slot.
+interface Props { who?: 'person' | 'agent'; class?: string; face?: string }
+const { who = 'person', class: cls = '', face = '/characters/tanvi.webp' } = Astro.props;
+---
+{who === 'person' ? (
+  <p class={`voice voice--person ${cls}`}>
+    <svg class="wave" viewBox="0 0 14 12" aria-hidden="true"><rect x="0" y="4" width="2" height="4" rx="1"/><rect x="4" y="1" width="2" height="10" rx="1"/><rect x="8" y="3" width="2" height="6" rx="1"/><rect x="12" y="5" width="2" height="2" rx="1"/></svg>
+    <span class="voice__t"><slot /></span>
+  </p>
+) : (
+  <p class={`voice voice--agent ${cls}`}>
+    <span class="speaker" aria-hidden="true"><img src={face} alt="" width="28" height="28" loading="lazy" /></span>
+    <span class="voice__t"><slot /></span>
+  </p>
+)}

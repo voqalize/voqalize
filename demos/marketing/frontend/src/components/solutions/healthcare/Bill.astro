@@ -1,0 +1,47 @@
+---
+// Scene 3, the bill: the patient portal in a browser, Jen signed in with access to her
+// mom's account. She asks about the $140; the statement opens, the plan's share and the
+// deductible are marked, Ira explains and offers two ways to pay, Jen picks a plan and
+// the portal holds it for her to confirm (nothing is paid by the agent).
+// Steps: 0 billing home, 1 said, 2 Thursday's statement, 3 plan share and deductible
+// marked, 4 Ira explains, 5 Jen says "split it": the plan appears, 6 Ira asks her to
+// tap Confirm (the plan waits on her).
+import Device from '../Device.astro';
+import Voice from '../../Voice.astro';
+
+const ROWS = [
+  { s: 'Office visit', b: '$210', p: '$120', d: '$40', y: '$50' },
+  { s: 'Lab work', b: '$180', p: '$50', d: '$40', y: '$90' },
+];
+---
+<Device kind="browser" url="portal.larkfieldhealth.example/billing" app="Willow Health" class="hb-dev">
+  <span slot="bar" class="hb-who">Viewing <b>Carol Hayes</b></span>
+  <div class="hb">
+    <div class="hb-home">
+      <p class="hb-h1">Billing</p>
+      <div class="hb-due"><span>Amount due</span><b>$140.00</b></div>
+      <ul class="hb-list">
+        <li class="hb-li hb-li--hit"><span>Oct 16 · Annual checkup and lab work</span><b>$140.00 due</b></li>
+        <li class="hb-li"><span>Sep 2 · Flu shot</span><b>$0.00</b></li>
+        <li class="hb-li"><span>Jul 21 · Lab work</span><b>Paid</b></li>
+      </ul>
+    </div>
+    <div class="hb-stmt">
+      <p class="hb-back"><svg viewBox="0 0 10 10"><path d="M6.5 1.5L3 5l3.5 3.5"/></svg>Statement · Oct 16 visit</p>
+      <table class="hb-t">
+        <thead><tr><th>Service</th><th>Billed</th><th class="hb-c--plan">Plan paid</th><th class="hb-c--plan">Network discount</th><th class="hb-c--you">You owe</th></tr></thead>
+        <tbody>{ROWS.map((r) => <tr><td>{r.s}</td><td>{r.b}</td><td class="hb-c--plan">{r.p}</td><td class="hb-c--plan">{r.d}</td><td class="hb-c--you">{r.y}</td></tr>)}</tbody>
+        <tfoot><tr><td>Total</td><td>$390</td><td class="hb-c--plan">$170</td><td class="hb-c--plan">$80</td><td class="hb-c--you">$140</td></tr></tfoot>
+      </table>
+      <p class="hb-ded"><span>Applied to this year's deductible</span><b>$140</b></p>
+      <div class="hb-plan">
+        <span><b>3 payments of $46.67</b><small>First on Nov 1 · no fee</small></span>
+        <i>Confirm plan</i>
+      </div>
+    </div>
+  </div>
+  <Voice slot="dock" who="person" class="sol-said out-at-4">Why does Mom owe $140 for Thursday's visit?</Voice>
+  <Voice slot="dock" who="agent" face="/characters/ira.webp" class="r-at-4 out-at-6">Her statement says her plan paid $170, and $80 came off for being in network. The $140 counts toward her deductible this year. Pay it now, or split it over three months?</Voice>
+  <Voice slot="dock" who="person" class="r-at-5">Split it, please.</Voice>
+  <Voice slot="dock" who="agent" face="/characters/ira.webp" class="r-at-6">Three payments of $46.67, the first on Nov 1. Tap Confirm to set it up.</Voice>
+</Device>

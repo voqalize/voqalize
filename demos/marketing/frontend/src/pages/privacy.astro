@@ -1,0 +1,21 @@
+---
+// Privacy and terms: one document in two parts. Part A is the privacy policy, Part B (#terms)
+// the terms of service; /terms redirects to /privacy#terms (astro.config). Long-form legal
+// layout with a sticky contents list, no motion. Notes: docs/sections/page-legal.md.
+import Page from '../layouts/Page.astro';
+import LegalShell from '../components/pages/legal/LegalShell.astro';
+import PrivacyPolicy from '../components/pages/privacy/PrivacyPolicy.astro';
+import Terms from '../components/pages/privacy/Terms.astro';
+import { PRIVACY_TOC, LEGAL_UPDATED } from '../data/privacy';
+import '../styles/pages/legal.css';
+---
+<Page id="privacy" title="Privacy and terms" description="The Voqalize privacy policy and terms of service: what personal data we handle, how voice data is treated, and the terms for using Voqalize.">
+  <LegalShell title="Privacy policy and terms of service" updated={LEGAL_UPDATED} toc={PRIVACY_TOC}>
+    <Fragment slot="lede">
+      <p class="s-lede">How Voqalize Technologies Private Limited handles personal data, including the voice audio we carry during calls, and the terms for using Voqalize. Part A is the privacy policy. Part B is the terms of service.</p>
+      <p class="lg-links"><a href="#terms">Go to the terms of service</a><a href="/dpa">Data processing addendum</a></p>
+    </Fragment>
+    <PrivacyPolicy />
+    <Terms />
+  </LegalShell>
+</Page>

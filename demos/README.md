@@ -126,32 +126,24 @@ discovers backends and each frontend declares its own connection wiring. To add
 ### When the page lives somewhere else
 
 `marketing` is the exception the checklist does not cover, and it is deliberate:
-it has a `backend/` and no `frontend/`. Its page is the Voqalize homepage, which
-is built from the private repo (`platform/frontend/apps/marketing`), so steps
-2–4 above do not apply to it and **it is not in `manifest.json`** — it is not a
-card on the `/demos` index, it is the agent in the homepage's corner. `build.mjs`
-walks `manifest.demos`, so leaving it out is what keeps the web build from
-looking for a `frontend/` that is not there.
+its `frontend/` is voqalize.com itself, Tanvi's page, served at the apex rather
+than under `/demos/<name>/`. So steps 2–4 above do not apply to it and **it is
+not in `manifest.json`** — it is not a card on the `/demos` index, it is the
+site the index sits in. `build.mjs` walks `manifest.demos`, so leaving it out
+keeps the gallery build from building it at the wrong base;
+`cloudbuild.web.yaml` builds it on its own instead and stages it as
+`marketing/` in the web artifact, and the apex build lays it at `/`.
 
-The seams that cross the repo boundary as a result are generated rather than
-agreed by hand:
-
-- The action and event unions the page narrows on are generated from the brain —
-  run this from `demos/` after changing either:
-
-  ```sh
-  voqalize types marketing/backend/brain.py \
-    -o ../../platform/frontend/apps/marketing/src/agent/actions.gen.ts
-  ```
-
-- Every `target` in `PointAt` names a `data-vq="…"` attribute in that page's
-  markup, and every `section` names an element id. Neither repo can check the
-  other, so the page's build does it: `apps/marketing` holds its own markup to
-  the generated union.
-
-The knowledge the brain answers from lives with the brain, in
-`marketing/backend/knowledge/` — `L1.md` is loaded into every session and the
-`l2/` deep-dives are read on demand by a tool.
+The page and the brain share one vocabulary, read from the same files:
+`frontend/src/data/sections.json` and `frontend/src/data/voice.json` name every
+section, control and block Tanvi can open or point at, and `backend/site.py`
+turns them into the `Literal` types her tools accept. The actions and events
+the page narrows on are generated from the brain
+(`cd marketing/frontend && pnpm brain:types`), and `astro check` fails the site
+build on an action the page does not handle. Her tests are
+`tests/test_marketing_brain.py` and `tests/test_marketing_screen.py`;
+`frontend/README.md` has the site's own commands, including running the brain
+locally through Cortex (`marketing/local.py`).
 
 `qween` is the same exception, for the same reason: its page is someone else's
 site. The agent is a jewellery consultant on www.qween.com, a design partner's

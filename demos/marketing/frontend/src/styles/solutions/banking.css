@@ -1,0 +1,219 @@
+/* Banking solution page (src/pages/solutions/banking.astro, src/components/solutions/banking/*).
+   Every rule is scoped under .sol--banking. Motion follows motion.ts: `.is-sN` stays on from
+   step N, so each rule reads "from step N on". Durations use var(--m) for the speed commands. */
+
+/* ---------- shared bits inside this page ---------- */
+.sol--banking .bk-ok-ic { width: 12px; height: 12px; }
+.sol--banking svg path, .sol--banking svg circle, .sol--banking svg rect { vector-effect: non-scaling-stroke; }
+
+/* ================= hero: Heard > Understood > Ready ================= */
+.sol--banking .bkh { position: relative; width: 100%; max-width: 470px; display: grid; gap: 22px; padding: 6px 0 6px 40px; }
+.sol--banking .bkh__ex { position: absolute; top: -22px; right: 0; font-size: 11px; color: var(--text-2); }
+/* The rail: the page's one use of the Voice Gradient, a thin line that fills as the loop moves down. */
+.sol--banking .bkh__rail { position: absolute; left: 11px; top: 16px; bottom: 16px; width: 3px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.sol--banking .bkh__rail i { position: absolute; inset: 0; background: linear-gradient(180deg, #FD873F, #FD6E43, #FD5446, #FD394A, #F92158, #ED0B65, #D1056C, #AC0162); transform: scaleY(0); transform-origin: top; transition: transform calc(.9s * var(--m)) var(--ease); }
+.sol--banking .bkh.is-s1 .bkh__rail i { transform: scaleY(.18); }
+.sol--banking .bkh.is-s2 .bkh__rail i { transform: scaleY(.45); }
+.sol--banking .bkh.is-s3 .bkh__rail i { transform: scaleY(.72); }
+.sol--banking .bkh.is-s5 .bkh__rail i { transform: scaleY(1); }
+.sol--banking .bkh__row { position: relative; display: grid; gap: 8px; }
+.sol--banking .bkh__k { position: relative; display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500; color: var(--text-2); transition: color var(--t); }
+.sol--banking .bkh__k span { position: absolute; left: -40px; width: 25px; height: 25px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 600; background: var(--bg); border: 1px solid var(--line); color: var(--text-2); transition: border-color var(--t), background var(--t), color var(--t); }
+.sol--banking .bkh.is-s1 .bkh__row--heard .bkh__k,
+.sol--banking .bkh.is-s2 .bkh__row--got .bkh__k,
+.sol--banking .bkh.is-s3 .bkh__row--done .bkh__k { color: var(--text); }
+.sol--banking .bkh.is-s1 .bkh__row--heard .bkh__k span,
+.sol--banking .bkh.is-s2 .bkh__row--got .bkh__k span,
+.sol--banking .bkh.is-s3 .bkh__row--done .bkh__k span { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* Heard: the sentence; the words the app used get a vermilion stroke, one after another. */
+.sol--banking .bkh__said { font-size: 16px; padding: 12px 14px; min-height: 48px; }
+.sol--banking .bkh-w { text-decoration: none; background: linear-gradient(var(--accent), var(--accent)) no-repeat 0 100% / 0% 2px; padding-bottom: 1px; transition: background-size calc(.45s * var(--m)) var(--ease); }
+.sol--banking .bkh.is-s2 .bkh-w { background-size: 100% 2px; }
+.sol--banking .bkh.is-s2 .bkh-w2 { transition-delay: calc(.25s * var(--m)); }
+.sol--banking .bkh.is-s2 .bkh-w3 { transition-delay: calc(.5s * var(--m)); }
+
+/* Understood: three lettered chips. */
+.sol--banking .bkh__chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; min-height: 30px; }
+.sol--banking .bkh-c { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999rem; padding: 4px 11px 4px 5px; font-size: 12.5px; line-height: 1.3; color: var(--text-2); background: var(--bg); opacity: 0; transform: translateY(8px); transition: opacity var(--t), transform var(--t) var(--ease); }
+.sol--banking .bkh-c em { font-style: normal; font-weight: 600; color: var(--text); }
+.sol--banking .bkh-c b, .sol--banking .bkh-f b { flex: none; width: 17px; height: 17px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 10px; font-weight: 700; background: var(--highlight); color: #111; }
+.sol--banking .bkh.is-s2 .bkh-c { opacity: 1; transform: none; }
+.sol--banking .bkh.is-s2 .bkh-c1 { transition-delay: calc(.2s * var(--m)); }
+.sol--banking .bkh.is-s2 .bkh-c2 { transition-delay: calc(.45s * var(--m)); }
+.sol--banking .bkh.is-s2 .bkh-c3 { transition-delay: calc(.7s * var(--m)); }
+
+/* Ready: Tidewell Bank's transfer card. */
+.sol--banking .bkh__card { border: 1px solid var(--line); border-radius: 18px; padding: 14px 16px 16px; background: var(--bg); box-shadow: 0 30px 60px -40px rgba(17, 17, 17, .45); }
+.sol--banking .bkh__app { display: flex; align-items: center; gap: 8px; font-size: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.sol--banking .bkh__app small { margin-left: auto; font-size: 12px; color: var(--text-2); }
+.sol--banking .bkh__fields { margin: 4px 0 0; display: grid; }
+.sol--banking .bkh__fields > div { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+.sol--banking .bkh__fields dt { color: var(--text-2); }
+.sol--banking .bkh__fields dd { margin: 0; display: flex; align-items: center; gap: 7px; font-weight: 500; text-align: right; }
+.sol--banking .bkh-f dd { min-width: 110px; justify-content: flex-end; background: linear-gradient(color-mix(in srgb, var(--text) 9%, transparent), color-mix(in srgb, var(--text) 9%, transparent)) no-repeat 100% 50% / 100% 8px; transition: background-size calc(.3s * var(--m)); }
+.sol--banking .bkh-f em { font-style: normal; white-space: nowrap; clip-path: inset(0 0 0 100%); transition: clip-path calc(.55s * var(--m)) steps(16); }
+.sol--banking .bkh-f b { opacity: 0; transform: scale(.5); transition: opacity var(--t), transform var(--t) var(--ease); }
+.sol--banking .bkh.is-s3 .bkh-f dd { background-size: 0% 8px; }
+.sol--banking .bkh.is-s3 .bkh-f em { clip-path: inset(0); }
+.sol--banking .bkh.is-s3 .bkh-f b { opacity: 1; transform: none; }
+.sol--banking .bkh.is-s3 .bkh-f1 em, .sol--banking .bkh.is-s3 .bkh-f1 b { transition-delay: calc(.35s * var(--m)); }
+.sol--banking .bkh.is-s3 .bkh-f3 em, .sol--banking .bkh.is-s3 .bkh-f3 b { transition-delay: calc(.7s * var(--m)); }
+.sol--banking .bkh__go { display: grid; margin-top: 14px; }
+.sol--banking .bkh__go > span { grid-area: 1 / 1; }
+
+/* A button the customer has to press: dark pill; when it waits, a vermilion ring; the tap, a ripple. */
+.sol--banking .bkh__btn, .sol--banking .bkp-btn, .sol--banking .bka-submit span, .sol--banking .bkc-btn {
+  position: relative; display: flex; justify-content: center; align-items: center; border-radius: 999rem; background: var(--text); color: var(--bg); font-weight: 600;
+  transition: box-shadow var(--t), opacity var(--t), transform var(--t) var(--ease);
+}
+.sol--banking .bkh__btn { padding: 11px; font-size: 13.5px; }
+.sol--banking .bkh.is-s4 .bkh__btn, .sol--banking .is-s4 .bkp .bkp-btn { box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--accent); }
+.sol--banking .bkh__tap, .sol--banking .bkp-tap { position: absolute; left: 62%; top: 50%; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%; background: color-mix(in srgb, var(--bg) 55%, transparent); border: 2px solid var(--bg); opacity: 0; pointer-events: none; }
+[data-at="5"] .bkh__tap, [data-at="5"] .bkp-tap { animation: bk-tap calc(.6s * var(--m)) var(--ease) both; }
+@keyframes bk-tap { 0% { opacity: 0; transform: scale(.4); } 30% { opacity: 1; transform: scale(.8); } 100% { opacity: 0; transform: scale(1.8); } }
+.sol--banking .bkh.is-s5 .bkh__btn, .sol--banking .is-s5 .bkp .bkp-btn { opacity: 0; transform: scale(.97); transition-delay: calc(.45s * var(--m)); }
+.sol--banking .bkh__ok, .sol--banking .bkp-ok { display: flex; justify-content: center; align-items: center; gap: 7px; border-radius: 999rem; padding: 10px; font-weight: 600; background: color-mix(in srgb, var(--ok) 14%, var(--bg)); opacity: 0; transform: scale(.96); transition: opacity var(--t), transform var(--t) var(--ease); }
+.sol--banking .bkh__ok { font-size: 13.5px; }
+.sol--banking .bkh__ok svg, .sol--banking .bkp-ok svg, .sol--banking .bkc-u--ok svg { width: 13px; height: 13px; fill: none; stroke: var(--ok); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.sol--banking .bkh.is-s5 .bkh__ok, .sol--banking .is-s5 .bkp .bkp-ok { opacity: 1; transform: none; transition-delay: calc(.5s * var(--m)); }
+.sol--banking .bkh__reply { font-size: 13.5px; }
+
+/* ================= scene phones: common ================= */
+/* SolScene puts the loop on the <article>; the device sits inside it. */
+.sol--banking .dev .dev__view { font-size: 12px; }
+.sol--banking .dev__dock .voice { font-size: 12px; }
+
+/* ================= scene 1: apply ================= */
+.sol--banking .bka-offer, .sol--banking .bka-form { position: absolute; inset: 0; padding: 14px 16px; transition: transform calc(.6s * var(--m)) var(--ease), opacity calc(.6s * var(--m)); }
+.sol--banking .bka-tag { display: inline-block; font-size: 10.5px; font-weight: 600; background: var(--highlight); color: #111; padding: 2px 9px; border-radius: 999rem; }
+.sol--banking .bka-offer__k { margin-top: 14px; color: var(--text-2); }
+.sol--banking .bka-offer__v { font-size: 36px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.15; }
+.sol--banking .bka-offer__r { color: var(--text-2); }
+.sol--banking .bka-offer__m { display: flex; justify-content: space-between; align-items: baseline; margin-top: 18px; padding: 12px 0; border-block: 1px solid var(--line); }
+.sol--banking .bka-offer__m span { color: var(--text-2); }
+.sol--banking .bka-offer__m b { font-size: 18px; }
+.sol--banking .bka-offer__btn { margin-top: 18px; text-align: center; border-radius: 999rem; background: var(--text); color: var(--bg); font-weight: 600; padding: 10px; }
+.sol--banking .bka-form { transform: translateX(100%); }
+.sol--banking .is-s2 .bka-offer { transform: translateX(-35%); opacity: 0; }
+.sol--banking .is-s2 .bka-form { transform: none; }
+.sol--banking .bka-form__t { font-size: 15px; font-weight: 700; }
+.sol--banking .bka-form__sub { font-size: 11px; color: var(--text-2); }
+.sol--banking .bka-src { margin: 10px 0 4px; display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 600; color: var(--text-2); opacity: .35; transition: opacity var(--t); }
+.sol--banking .bka-src::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.sol--banking .is-s2 .bka-src--1, .sol--banking .is-s3 .bka-src--2 { opacity: 1; }
+.sol--banking .bka-f { display: grid; margin-top: 5px; padding: 4px 10px 5px; border: 1px solid var(--line); border-radius: 10px; line-height: 1.3; transition: background var(--t), border-color var(--t); }
+.sol--banking .bka-f span { font-size: 10px; color: var(--text-2); }
+.sol--banking .bka-f em { font-style: normal; font-weight: 500; font-size: 12.5px; min-height: 16px; white-space: nowrap; clip-path: inset(0 100% 0 0); transition: clip-path calc(.5s * var(--m)) steps(18); }
+.sol--banking .is-s2 .bka-f--p em, .sol--banking .is-s3 .bka-f--d em { clip-path: inset(0); transition-delay: calc((.35s + var(--i) * .3s) * var(--m)); }
+.sol--banking .is-s2 .bka-f--p, .sol--banking .is-s3 .bka-f--d { background: color-mix(in srgb, var(--highlight) 22%, var(--bg)); border-color: transparent; transition-delay: calc((.35s + var(--i) * .3s) * var(--m)); }
+.sol--banking .bka-submit { margin-top: 14px; }
+.sol--banking .bka-submit span { padding: 10px; }
+.sol--banking .is-s4 .bka-submit span { box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--accent); }
+
+/* ================= scene 2: autopay ================= */
+.sol--banking .bkp .dev__view { display: flex; flex-direction: column; gap: 10px; padding: 12px 16px; }
+.sol--banking .bkp-k { color: var(--text-2); font-size: 11px; }
+.sol--banking .bkp-v { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; }
+.sol--banking .bkp-due { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.sol--banking .bkp-due span { color: var(--text-2); }
+.sol--banking .bkp-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.sol--banking .bkp-row span { flex: 1; font-weight: 500; }
+.sol--banking .bkp-tg { position: relative; width: 30px; height: 18px; border-radius: 999rem; background: var(--line); transition: background var(--t); }
+.sol--banking .bkp-tg::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--bg); box-shadow: 0 1px 3px rgba(17, 17, 17, .3); transition: transform var(--t) var(--ease); }
+.sol--banking .bkp-st { font-style: normal; color: var(--text-2); width: 22px; }
+.sol--banking .is-s5 .bkp .bkp-tg { background: var(--ok); transition-delay: calc(.5s * var(--m)); }
+.sol--banking .is-s5 .bkp .bkp-tg::after { transform: translateX(12px); transition-delay: calc(.5s * var(--m)); }
+.sol--banking .is-s5 .bkp .bkp-st { font-size: 0; }
+.sol--banking .is-s5 .bkp .bkp-st::after { content: "On"; font-size: 12px; color: var(--text); font-weight: 600; }
+.sol--banking .bkp-h { font-size: 11px; font-weight: 600; color: var(--text-2); margin-bottom: 2px; }
+.sol--banking .bkp-dep { max-height: 0; opacity: 0; overflow: hidden; transition: max-height calc(.5s * var(--m)) var(--ease), opacity var(--t); }
+.sol--banking .is-s2 .bkp .bkp-dep { max-height: 90px; opacity: 1; }
+.sol--banking .is-s3 .bkp .bkp-dep { max-height: 0; opacity: 0; }
+.sol--banking .bkp-d { display: flex; justify-content: space-between; padding: 4px 8px; margin-top: 3px; border-radius: 8px; background: color-mix(in srgb, var(--highlight) 30%, var(--bg)); }
+.sol--banking .bkp-week { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; opacity: 0; transform: translateY(8px); transition: opacity var(--t), transform var(--t) var(--ease); }
+.sol--banking .is-s2 .bkp .bkp-week { opacity: 1; transform: none; transition-delay: calc(.3s * var(--m)); }
+.sol--banking .bkp-day { display: grid; justify-items: center; align-content: start; height: 44px; padding-top: 5px; border-radius: 9px; border: 1px solid var(--line); transition: background var(--t), box-shadow var(--t), border-color var(--t); }
+.sol--banking .bkp-day b { font-size: 12px; }
+.sol--banking .bkp-day small { font-size: 9px; font-weight: 600; line-height: 1.2; }
+.sol--banking .bkp-day--15 { background: var(--highlight); border-color: var(--highlight); color: #111; }
+.sol--banking .bkp-day--20 { border-style: dashed; }
+.sol--banking .bkp-day--20 small { color: var(--text-2); }
+.sol--banking .bkp-day--16 small { opacity: 0; transition: opacity var(--t); }
+.sol--banking .is-s3 .bkp .bkp-day--16 { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.sol--banking .is-s3 .bkp .bkp-day--16 small { opacity: 1; }
+.sol--banking .bkp-form { opacity: 0; transform: translateY(14px); transition: opacity var(--t), transform var(--t) var(--ease); }
+.sol--banking .is-s3 .bkp .bkp-form { opacity: 1; transform: none; }
+.sol--banking .bkp-f { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.sol--banking .bkp-f span { color: var(--text-2); }
+.sol--banking .bkp-f em { font-style: normal; font-weight: 500; white-space: nowrap; clip-path: inset(0 0 0 100%); transition: clip-path calc(.45s * var(--m)) steps(14); }
+.sol--banking .is-s3 .bkp .bkp-f em { clip-path: inset(0); }
+.sol--banking .is-s3 .bkp .bkp-f:nth-of-type(3) em { transition-delay: calc(.3s * var(--m)); }
+.sol--banking .is-s3 .bkp .bkp-f:nth-of-type(4) em { transition-delay: calc(.6s * var(--m)); }
+.sol--banking .bkp-go { display: grid; margin-top: 12px; }
+.sol--banking .bkp-go > span { grid-area: 1 / 1; }
+.sol--banking .bkp-btn { padding: 9px; }
+
+/* ================= scene 3: a strange charge ================= */
+.sol--banking .bkc .dev__view { display: flex; flex-direction: column; padding: 12px 16px; }
+.sol--banking .bkc-card { position: relative; flex: none; height: 92px; padding: 12px 14px; border-radius: 16px; background: var(--night); color: var(--on-night); overflow: hidden; transition: filter calc(.5s * var(--m)); }
+[data-theme="dark"] .sol--banking .bkc-card { box-shadow: inset 0 0 0 1px var(--line); }
+.sol--banking .bkc-card__k { display: block; font-size: 10.5px; color: var(--on-night-2); }
+.sol--banking .bkc-card__v { display: block; margin-top: 2px; font-size: 16px; }
+.sol--banking .bkc-chip { position: absolute; left: 14px; bottom: 14px; width: 24px; height: 17px; border-radius: 4px; background: var(--highlight); opacity: .85; }
+.sol--banking .bkc-frost { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 7px; font-size: 14px; font-weight: 600; color: var(--on-night); background: rgba(247, 243, 236, .16); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); opacity: 0; transition: opacity calc(.5s * var(--m)); }
+.sol--banking .bkc-frost svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+.sol--banking .is-s3 .bkc .bkc-frost { opacity: 1; }
+.sol--banking .bkc-h { margin: 10px 0 2px; font-size: 11px; font-weight: 600; color: var(--text-2); }
+.sol--banking .bkc-tx { list-style: none; margin: 0; padding: 0; }
+.sol--banking .bkc-tx li { max-height: 44px; overflow: hidden; border-bottom: 1px solid var(--line); transition: max-height calc(.5s * var(--m)) var(--ease), opacity var(--t), background var(--t), padding var(--t), border-color var(--t); }
+.sol--banking .bkc-tx__row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; }
+.sol--banking .bkc-tx__row span { font-weight: 500; }
+.sol--banking .bkc-tx__row small { display: block; font-size: 10px; font-weight: 400; color: var(--text-2); }
+.sol--banking .bkc-tx__more { font-size: 10.5px; line-height: 1.45; color: var(--text-2); max-height: 0; opacity: 0; transition: max-height calc(.4s * var(--m)), opacity var(--t); }
+.sol--banking .is-s2 .bkc .bkc-other { max-height: 0; opacity: 0; border-color: transparent; }
+.sol--banking .is-s2 .bkc .bkc-hit { max-height: 110px; padding: 2px 10px 8px; margin-top: 4px; border-radius: 12px; border-color: transparent; background: color-mix(in srgb, var(--highlight) 28%, var(--bg)); box-shadow: inset 3px 0 0 var(--accent); }
+.sol--banking .is-s2 .bkc .bkc-tx__more { max-height: 40px; opacity: 1; }
+.sol--banking .bkc-disp, .sol--banking .bkc-uses { opacity: 0; transform: translateY(14px); transition: opacity var(--t), transform var(--t) var(--ease); }
+.sol--banking .bkc-disp { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; }
+.sol--banking .is-s4 .bkc .bkc-disp, .sol--banking .is-s5 .bkc .bkc-uses { opacity: 1; transform: none; }
+.sol--banking .bkc-disp__t { font-weight: 700; font-size: 13px; }
+.sol--banking .bkc-disp__r { font-size: 11px; color: var(--text-2); }
+.sol--banking .bkc-disp__go { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.sol--banking .bkc-btn { padding: 6px 14px; font-size: 11.5px; box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--accent); }
+.sol--banking .bkc-disp__go small { font-size: 10.5px; color: var(--text-2); }
+.sol--banking .bkc-u { display: flex; justify-content: space-between; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 11.5px; }
+.sol--banking .bkc-u em { font-style: normal; color: var(--text-2); display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.sol--banking .bkc-u--ok em { color: var(--text); font-weight: 500; }
+
+/* ================= where the line is ================= */
+.sol--banking .bkl__cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.sol--banking .bkl__col { background: var(--surface); border-radius: 20px; padding: 26px 26px 28px; }
+.sol--banking .bkl__mark { display: flex; align-items: center; height: 36px; margin-bottom: 16px; }
+.sol--banking .bkl__mark svg { height: 30px; width: auto; fill: none; stroke: var(--text); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.sol--banking .bkl__col--now .bkl__mark circle { stroke: var(--accent); }
+.sol--banking .bkl__col--hand .bkl__mark path { stroke: var(--accent); }
+.sol--banking .bkl__btn { display: inline-block; border-radius: 999rem; background: var(--text); color: var(--bg); font-size: 12px; font-weight: 600; padding: 5px 14px; box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--accent); margin-left: 5px; }
+.sol--banking .bkl__col h3 { font-size: 20px; }
+.sol--banking .bkl__col ul { margin: 12px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.sol--banking .bkl__col li { position: relative; padding-left: 16px; font-size: 15px; line-height: 1.55; }
+.sol--banking .bkl__col li::before { content: ""; position: absolute; left: 0; top: .62em; width: 6px; height: 6px; border-radius: 50%; background: var(--text-2); }
+
+/* ================= smaller screens ================= */
+@media (max-width: 900px) {
+  .sol--banking .bkl__cols { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 700px) {
+  .sol--banking .bkh { margin-top: 24px; }
+}
+@media (max-width: 420px) {
+  .sol--banking .bkh { padding-left: 36px; }
+  .sol--banking .bkh__k span { left: -36px; }
+  .sol--banking .bkh__said { font-size: 15px; }
+  .sol--banking .bkh-c3 em { white-space: normal; }
+}
+
+/* ================= reduced motion: the finished picture ================= */
+@media (prefers-reduced-motion: reduce) {
+  .sol--banking .bkh__tap, .sol--banking .bkp-tap { animation: none; opacity: 0; }
+}

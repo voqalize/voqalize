@@ -1,0 +1,26 @@
+---
+// Chapter 4: every team, the same list. Three whiteboards for three different products fill
+// with the same notes at the same moment, and each team's estimate climbs the same way.
+// Then the boards fold away: the three products sit side by side on one shared stack,
+// "Built once".
+// Steps: 0 three empty boards; 1 the same notes scrawl onto all three in sync; 2 the
+// estimates climb (2 weeks, 6 weeks, 3 months, circled); 3 the boards fold and the shared
+// stack rises under the three products; 4 hold.
+const boards = ['An online store', 'A bank’s app', 'A clinic’s booking app'];
+const notes = ['when are they done?', 'interruptions', 'noise and echo', 'Safari??', 'under a second', 'lip sync'];
+---
+<div class="st-same" data-loop="700 2600 2600 1800 7000" aria-hidden="true">
+  <div class="st-same__boards">
+    {boards.map((b) => (
+      <div class="sb">
+        <p class="sb__app">{b}</p>
+        <ul class="sb__notes">{notes.map((n, i) => <li style={`--i:${i}`}>{n}</li>)}</ul>
+        <p class="sb__est"><span class="e1">2 weeks</span><span class="e2">6 weeks</span><span class="e3">3 months<i class="ring"></i></span></p>
+      </div>
+    ))}
+  </div>
+  <div class="st-same__once">
+    <span class="st-same__bar"></span><span class="st-same__bar"></span><span class="st-same__bar"></span>
+    <p>Built once</p>
+  </div>
+</div>

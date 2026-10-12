@@ -1,0 +1,27 @@
+---
+import type { SectionDef } from '../data/sections';
+import Shift from './sections/Shift.astro';
+import HowItWorks from './sections/HowItWorks.astro';
+import Ways from './sections/Ways.astro';
+import Hard from './sections/Hard.astro';
+import UseCases from './sections/UseCases.astro';
+import Cast from './sections/Cast.astro';
+import Pricing from './sections/Pricing.astro';
+interface Props { def: SectionDef; n: number; total: number }
+const { def, n, total } = Astro.props;
+const BODY = { shift: Shift, action: HowItWorks, ways: Ways, handled: Hard, worlds: UseCases, cast: Cast, pricing: Pricing } as const;
+const Body = BODY[def.id as keyof typeof BODY];
+---
+<section class={`sec sec--${def.id}`} id={`s-${def.id}`} data-section={def.id} data-status={def.status} aria-labelledby={`t-${def.id}`}>
+  <div class="sec__inner">
+    {Body ? <Body /> : (
+      <div class="ph">
+        <p class="ph__label"><span class="ph__badge">Placeholder</span>Section {n} of {total}</p>
+        <h2 id={`t-${def.id}`}>{def.title}</h2>
+        <p class="ph__line">Tanvi: "{def.line}"</p>
+        <p class="ph__notes">Notes: <code>docs/sections/{def.notes}</code></p>
+      </div>
+    )}
+    <button type="button" class="ask-about" data-ask-about={def.id}>Ask Tanvi about this</button>
+  </div>
+</section>

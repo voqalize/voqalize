@@ -1,0 +1,242 @@
+/* Healthcare solution page (src/pages/solutions/healthcare.astro). Every rule sits under
+   .sol--healthcare. Motion follows motion.ts: `.is-sN` stays on from step N, `data-at` is
+   the current step. Durations use var(--m) so the hidden speed commands work.
+   Text on peach (the note, the marked prep line, the marked bill cells) is var(--night),
+   which stays charcoal in both themes. */
+
+.sol--healthcare { --hc-t: calc(.55s * var(--m)); --hc-slow: calc(.9s * var(--m)); }
+
+/* =================== hero: the fridge note beside the app =================== */
+.sol--healthcare .hh { margin: 0; width: 100%; container-type: inline-size; }
+.sol--healthcare .hh-stage { position: relative; max-width: 566px; margin-inline: auto; display: flex; justify-content: flex-end; align-items: center; }
+.sol--healthcare .hh-cap { margin: 22px auto 0; max-width: 46ch; text-align: center; font-size: 13px; line-height: 1.6; color: var(--text-2); }
+
+/* The note: peach paper, a strip of tape, the daughter's eight steps. */
+.sol--healthcare .hh-note { position: absolute; left: 0; top: 96px; z-index: 6; width: 236px; padding: 22px 20px 20px; background: var(--highlight); color: var(--night); transform: rotate(-3deg); box-shadow: 0 22px 34px -22px rgba(17, 17, 17, .55), 0 2px 4px rgba(17, 17, 17, .08); transition: transform var(--hc-slow) var(--ease); }
+.sol--healthcare .hh-note::before { content: ""; position: absolute; left: 50%; top: -9px; width: 74px; height: 20px; margin-left: -37px; background: rgba(255, 255, 255, .55); transform: rotate(2deg); }
+.sol--healthcare .hh-note__t { white-space: nowrap; font-size: 14px; font-weight: 700; line-height: 1.25; letter-spacing: -0.01em; margin-bottom: 10px; }
+.sol--healthcare .hh-note__t span { font-weight: 500; }
+.sol--healthcare .hh-note ol { list-style: none; margin: 0; padding: 0; }
+.sol--healthcare .hh-n { display: flex; gap: 8px; font-size: 13px; line-height: 1.6; transition: opacity var(--hc-t); }
+.sol--healthcare .hh-n b { flex: none; width: 14px; font-weight: 600; }
+.sol--healthcare .hh-n span { position: relative; }
+.sol--healthcare .hh-note__call { margin-top: 8px; font-style: italic; }
+/* A step the app has done is struck through with a vermilion line, one after another. */
+.sol--healthcare .hh-n span::after { content: ""; position: absolute; left: -3px; right: -3px; top: 54%; height: 2px; border-radius: 1px; background: var(--accent); transform: scaleX(0); transform-origin: left; transition: transform calc(.32s * var(--m)) var(--ease) calc(var(--d, 0) * 1s * var(--m)); }
+.sol--healthcare .hh-n1, .sol--healthcare .hh-n5, .sol--healthcare .hh-n8 { --d: 0; }
+.sol--healthcare .hh-n2, .sol--healthcare .hh-n6, .sol--healthcare .hh-n9 { --d: .3; }
+.sol--healthcare .hh-n3, .sol--healthcare .hh-n7 { --d: .6; }
+.sol--healthcare .hh-n4 { --d: .9; }
+.sol--healthcare .is-s2 :is(.hh-n1, .hh-n2, .hh-n3, .hh-n4) span::after,
+.sol--healthcare .is-s3 :is(.hh-n5, .hh-n6, .hh-n7) span::after,
+.sol--healthcare .is-s5 :is(.hh-n8, .hh-n9) span::after { transform: scaleX(1); }
+.sol--healthcare .is-s2 :is(.hh-n1, .hh-n2, .hh-n3, .hh-n4),
+.sol--healthcare .is-s3 :is(.hh-n5, .hh-n6, .hh-n7),
+.sol--healthcare .is-s5 :is(.hh-n8, .hh-n9) { opacity: .6; }
+.sol--healthcare .is-s5 .hh-note { transform: rotate(-5deg) translateY(6px); }
+
+/* The app: home, the visit being moved, done. */
+.sol--healthcare .hh-phone { flex: none; }
+.sol--healthcare .hh-app { position: absolute; inset: 0; }
+.sol--healthcare :is(.hh-home, .hh-move, .hh-done) { position: absolute; inset: 0; padding: 12px 14px; transition: transform var(--hc-slow) var(--ease), opacity var(--hc-t); }
+.sol--healthcare .hh-hi { font-size: 12px; color: var(--text-2); }
+.sol--healthcare .hh-visit { margin-top: 8px; padding: 14px; border-radius: 16px; background: var(--night); color: var(--on-night); display: grid; gap: 2px; }
+[data-theme="dark"] .sol--healthcare .hh-visit { box-shadow: inset 0 0 0 1px var(--line); }
+.sol--healthcare .hh-visit__k { font-size: 10.5px; color: var(--on-night-2); }
+.sol--healthcare .hh-visit b { font-size: 17px; letter-spacing: -0.01em; }
+.sol--healthcare .hh-visit span:last-child { font-size: 11px; color: var(--on-night-2); }
+.sol--healthcare .hh-tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin: 12px 0 4px; }
+.sol--healthcare .hh-tiles span { padding: 12px 10px; border-radius: 12px; background: var(--surface); font-weight: 600; }
+.sol--healthcare .hh-h { margin: 12px 0 4px; font-size: 11px; font-weight: 600; color: var(--text-2); }
+.sol--healthcare .hh-list { list-style: none; margin: 0; padding: 0; }
+.sol--healthcare .hh-list li { padding: 7px 0; border-bottom: 1px solid var(--line); }
+
+.sol--healthcare .hh-move { transform: translateX(100%); }
+.sol--healthcare .is-s2 .hh-home { transform: translateX(-35%); opacity: 0; }
+.sol--healthcare .is-s2 .hh-move { transform: none; }
+.sol--healthcare :is(.hh-back, .hp-back, .hb-back) { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+.sol--healthcare :is(.hh-back, .hp-back, .hb-back) svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+.sol--healthcare .hh-was { display: flex; justify-content: space-between; align-items: baseline; padding: 9px 12px; border: 1px solid var(--line); border-radius: 12px; }
+.sol--healthcare .hh-was span { color: var(--text-2); }
+.sol--healthcare .is-s3 .hh-was b { text-decoration: line-through; text-decoration-color: var(--text-2); color: var(--text-2); }
+.sol--healthcare .hh-acts { display: flex; gap: 6px; margin-top: 8px; }
+.sol--healthcare .hh-act { padding: 6px 10px; border-radius: 999rem; border: 1px solid var(--line); font-size: 11px; font-weight: 500; transition: box-shadow var(--hc-t), border-color var(--hc-t), background var(--hc-t); }
+.sol--healthcare .is-s2 .hh-act--go { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); transition-delay: calc(.5s * var(--m)); }
+.sol--healthcare .hh-pick { opacity: 0; transform: translateY(14px); transition: opacity var(--hc-t), transform var(--hc-t) var(--ease); }
+.sol--healthcare .is-s3 .hh-pick { opacity: 1; transform: none; }
+.sol--healthcare .hh-h--sub { margin-top: 10px; }
+.sol--healthcare .hh-days { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
+.sol--healthcare .hh-day { display: grid; justify-items: center; padding: 6px 0; border-radius: 12px; border: 1px solid var(--line); font-size: 14px; font-weight: 700; transition: border-color var(--hc-t), box-shadow var(--hc-t), background var(--hc-t); }
+.sol--healthcare .hh-day small { font-size: 9.5px; font-weight: 500; color: var(--text-2); }
+.sol--healthcare .is-s3 .hh-day.is-thu { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); transition-delay: calc(.35s * var(--m)); }
+.sol--healthcare .hh-slots { display: flex; flex-wrap: wrap; gap: 6px; }
+.sol--healthcare .hh-slot { padding: 7px 11px; border-radius: 10px; border: 1px solid var(--line); font-weight: 600; transition: border-color var(--hc-t), box-shadow var(--hc-t), background var(--hc-t), color var(--hc-t); }
+.sol--healthcare .is-s3 .hh-slot.is-pick { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); transition-delay: calc(.8s * var(--m)); }
+.sol--healthcare .is-s5 .hh-slot.is-pick { background: var(--text); color: var(--bg); border-color: var(--text); box-shadow: none; transition-delay: 0s; }
+
+.sol--healthcare .hh-done { display: grid; place-content: center; justify-items: center; gap: 4px; padding-bottom: 120px; text-align: center; background: var(--bg); opacity: 0; transform: scale(.96); }
+.sol--healthcare .is-s5 .hh-done { opacity: 1; transform: none; transition-delay: calc(.5s * var(--m)); }
+.sol--healthcare .hh-tick { width: 52px; height: 52px; border-radius: 50%; background: var(--ok); display: grid; place-items: center; margin-bottom: 8px; }
+.sol--healthcare .hh-tick svg { width: 26px; height: 26px; fill: none; stroke: #fff; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.sol--healthcare .hh-done b { font-size: 19px; letter-spacing: -0.01em; }
+.sol--healthcare .hh-done span { font-size: 14px; font-weight: 600; }
+.sol--healthcare .hh-done .hh-done__s { font-size: 12px; font-weight: 400; color: var(--text-2); }
+
+/* Narrow: the note sits above the phone and tucks over its top corner. */
+@container (max-width: 520px) {
+  .sol--healthcare .hh-stage { flex-direction: column; align-items: center; }
+  .sol--healthcare .hh-note { position: relative; left: auto; top: auto; align-self: flex-start; width: min(270px, 84%); margin: 0 0 -30px 4px; padding: 18px 16px 14px; transform: rotate(-2deg); }
+  .sol--healthcare .hh-n { font-size: 12.5px; line-height: 1.5; }
+  .sol--healthcare .is-s5 .hh-note { transform: rotate(-3deg) translateY(4px); }
+}
+
+/* =================== scene 1: the intake form =================== */
+.sol--healthcare .hi { position: absolute; inset: 0; padding: 12px 14px; }
+.sol--healthcare .hi-k { font-size: 11px; color: var(--text-2); }
+.sol--healthcare .hi-prog { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin: 8px 0 10px; }
+.sol--healthcare .hi-prog i { display: block; height: 4px; border-radius: 2px; background: var(--line); }
+.sol--healthcare .hi-prog .on { background: var(--text); }
+.sol--healthcare .hi-prog .hi-cur { background: var(--accent); }
+.sol--healthcare .hi-t { display: flex; justify-content: space-between; align-items: baseline; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+.sol--healthcare .hi-t span { font-size: 11px; font-weight: 500; color: var(--text-2); }
+.sol--healthcare .hi-sub { margin-top: 2px; font-size: 11px; color: var(--text-2); }
+.sol--healthcare .hi-from { margin: 10px 0 5px; font-size: 10.5px; font-weight: 600; color: var(--text-2); opacity: 0; transition: opacity var(--hc-t); }
+.sol--healthcare .is-s2 .hi-from { opacity: 1; }
+.sol--healthcare .hi-meds { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.sol--healthcare .hi-med { position: relative; min-height: 40px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 12px; display: flex; align-items: center; transition: border-color var(--hc-t), box-shadow var(--hc-t), opacity var(--hc-t), max-height var(--hc-t) var(--ease), padding var(--hc-t), min-height var(--hc-t); }
+.sol--healthcare .hi-blank { position: absolute; left: 10px; top: 50%; width: 52%; height: 8px; margin-top: -4px; border-radius: 4px; background: var(--line); transition: opacity var(--hc-t); }
+.sol--healthcare .hi-fill { flex: 1; min-width: 0; display: flex; flex-direction: column; transition: opacity var(--hc-t), transform var(--hc-t) var(--ease); }
+.sol--healthcare .hi-fill b { font-size: 12.5px; }
+.sol--healthcare .hi-fill small { font-size: 10.5px; color: var(--text-2); }
+.sol--healthcare .hi-med--old .hi-fill { opacity: 0; transform: translateX(12px); }
+.sol--healthcare .is-s2 .hi-med--old .hi-fill { opacity: 1; transform: none; transition-delay: calc(var(--j) * .2s * var(--m)); }
+.sol--healthcare .is-s2 .hi-med--old .hi-blank { opacity: 0; transition-delay: calc(var(--j) * .2s * var(--m)); }
+/* The new row: it opens in at step 3, ringed, with its strength still empty. */
+.sol--healthcare .hi-med--new { max-height: 0; min-height: 0; padding-block: 0; opacity: 0; overflow: hidden; border-color: transparent; }
+.sol--healthcare .is-s3 .hi-med--new { max-height: 60px; min-height: 40px; padding-block: 6px; opacity: 1; border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.sol--healthcare .is-s5 .hi-med--new { border-color: var(--line); box-shadow: none; }
+.sol--healthcare .hi-med--new .hi-fill { flex-direction: row; justify-content: space-between; align-items: center; gap: 8px; }
+.sol--healthcare .hi-med--new em { margin-left: 4px; font-style: normal; font-size: 9.5px; font-weight: 600; padding: 1px 7px; border-radius: 999rem; background: var(--highlight); color: var(--night); vertical-align: 1px; }
+.sol--healthcare .hi-str { display: flex; align-items: center; gap: 6px; }
+.sol--healthcare .hi-str small { font-size: 10px; }
+.sol--healthcare .hi-str__v { min-width: 66px; height: 24px; padding: 0 8px; border-radius: 8px; border: 1px dashed var(--text-2); display: grid; place-items: center; font-style: normal; font-size: 11px; font-weight: 600; color: transparent; transition: color var(--hc-t), border-color var(--hc-t); }
+.sol--healthcare .is-s5 .hi-str__v { color: var(--text); border-style: solid; border-color: var(--line); transition-delay: calc(.3s * var(--m)); }
+.sol--healthcare .hi-add { padding: 6px 2px; font-size: 11.5px; color: var(--text-2); }
+.sol--healthcare .hi-send { display: block; margin-top: 8px; padding: 9px; border-radius: 999rem; border: 1px solid var(--line); text-align: center; font-weight: 600; color: var(--text-2); transition: background var(--hc-t), color var(--hc-t), border-color var(--hc-t); }
+.sol--healthcare .is-s5 .hi-send { background: var(--text); color: var(--bg); border-color: var(--text); transition-delay: calc(.6s * var(--m)); }
+
+/* =================== scene 2: the prep sheet =================== */
+.sol--healthcare .hp { position: absolute; inset: 0; }
+.sol--healthcare :is(.hp-visit, .hp-sheet) { position: absolute; inset: 0; padding: 12px 14px; transition: transform var(--hc-slow) var(--ease), opacity var(--hc-t); }
+.sol--healthcare .hp-when { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 8px; }
+.sol--healthcare .hp-card { display: grid; gap: 2px; padding: 12px; border-radius: 14px; background: var(--surface); }
+.sol--healthcare .hp-card b { font-size: 13px; }
+.sol--healthcare .hp-card span { font-size: 11px; color: var(--text-2); }
+.sol--healthcare .hp-rows { list-style: none; margin: 8px 0 0; padding: 0; }
+.sol--healthcare .hp-row { display: flex; align-items: center; gap: 10px; padding: 11px 8px; border-bottom: 1px solid var(--line); border-radius: 10px; transition: box-shadow var(--hc-t), border-color var(--hc-t); }
+.sol--healthcare .hp-row small { margin-left: auto; font-size: 10px; color: var(--text-2); }
+.sol--healthcare .is-s1 .hp-row--prep { box-shadow: 0 0 0 1.5px var(--accent); border-color: transparent; transition-delay: calc(1s * var(--m)); }
+.sol--healthcare .hp-row i { flex: none; width: 14px; height: 14px; border: 1.5px solid var(--text); }
+.sol--healthcare .hp-doc { border-radius: 3px; height: 16px !important; width: 12px !important; }
+.sol--healthcare .hp-pin { border-radius: 50% 50% 50% 0; transform: rotate(-45deg); }
+.sol--healthcare .hp-clock { border-radius: 50%; }
+.sol--healthcare .hp-sheet { transform: translateX(100%); }
+.sol--healthcare .is-s2 .hp-visit { transform: translateX(-35%); opacity: 0; }
+.sol--healthcare .is-s2 .hp-sheet { transform: none; }
+.sol--healthcare .hp-page { position: relative; height: calc(100% - 34px); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--bg); }
+.sol--healthcare .hp-scroll { padding: 14px 14px 40px; transition: transform calc(1.4s * var(--m)) var(--ease) calc(.4s * var(--m)); }
+.sol--healthcare .is-s2 .hp-scroll { transform: translateY(-92px); }
+.sol--healthcare .hp-ph { margin: 0 0 8px; font-size: 13px; font-weight: 700; }
+.sol--healthcare .hp-ph--s { margin: 14px 0 6px; font-size: 11.5px; }
+.sol--healthcare .hp-scroll .ln { display: block; height: 6px; margin: 7px 0; border-radius: 3px; background: var(--line); }
+.sol--healthcare .hp-scroll .ln--m { width: 78%; }
+.sol--healthcare .hp-scroll .ln--s { width: 52%; }
+.sol--healthcare .hp-hit { margin: 4px 0 6px; font-size: 12px; line-height: 1.5; font-weight: 500; }
+.sol--healthcare .hp-hit span { padding: 1px 2px; background-image: linear-gradient(var(--highlight), var(--highlight)); background-repeat: no-repeat; background-size: 0% 100%; -webkit-box-decoration-break: clone; box-decoration-break: clone; transition: background-size calc(.9s * var(--m)) var(--ease), color var(--hc-t); }
+.sol--healthcare .is-s3 .hp-hit span { background-size: 100% 100%; color: var(--night); }
+
+/* =================== scene 3: the bill, in a browser =================== */
+.sol--healthcare .sol-scene__stage { container-type: inline-size; }
+.sol--healthcare .hb-dev { height: 500px; width: min(600px, 100cqw); }
+.sol--healthcare .hb-dev .dev__dock { left: auto; right: 12px; width: 290px; }
+.sol--healthcare .hb-who { margin-left: auto; font-size: 11.5px; color: var(--text-2); }
+.sol--healthcare .hb-who b { color: var(--text); font-weight: 600; }
+.sol--healthcare .hb { position: absolute; inset: 0; }
+.sol--healthcare :is(.hb-home, .hb-stmt) { position: absolute; inset: 0; padding: 14px 18px; transition: transform var(--hc-slow) var(--ease), opacity var(--hc-t); }
+.sol--healthcare .hb-h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+.sol--healthcare .hb-due { display: flex; align-items: baseline; gap: 10px; margin: 6px 0 10px; }
+.sol--healthcare .hb-due span { color: var(--text-2); }
+.sol--healthcare .hb-due b { font-size: 24px; letter-spacing: -0.02em; }
+.sol--healthcare .hb-list { list-style: none; margin: 0; padding: 0; }
+.sol--healthcare .hb-li { display: flex; justify-content: space-between; gap: 12px; padding: 9px 10px; border-bottom: 1px solid var(--line); border-radius: 10px; transition: box-shadow var(--hc-t), border-color var(--hc-t); }
+.sol--healthcare .hb-li b { white-space: nowrap; }
+.sol--healthcare .is-s1 .hb-li--hit { box-shadow: 0 0 0 1.5px var(--accent); border-color: transparent; transition-delay: calc(1s * var(--m)); }
+.sol--healthcare .hb-stmt { transform: translateX(100%); }
+.sol--healthcare .is-s2 .hb-home { transform: translateX(-35%); opacity: 0; }
+.sol--healthcare .is-s2 .hb-stmt { transform: none; }
+.sol--healthcare .hb-t { width: 100%; border-collapse: collapse; font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.sol--healthcare .hb-t th { font-size: 10.5px; font-weight: 500; color: var(--text-2); text-align: right; padding: 4px 6px; border-bottom: 1px solid var(--line); vertical-align: bottom; line-height: 1.25; }
+.sol--healthcare .hb-t td { text-align: right; padding: 6px; border-bottom: 1px solid var(--line); transition: background var(--hc-t), color var(--hc-t); }
+.sol--healthcare .hb-t :is(th, td):first-child { text-align: left; }
+.sol--healthcare .hb-t tfoot td { font-weight: 700; border-bottom: 0; }
+.sol--healthcare .is-s3 .hb-t td.hb-c--plan { font-weight: 700; }
+.sol--healthcare .is-s3 .hb-t td.hb-c--you { background: var(--highlight); color: var(--night); font-weight: 700; transition-delay: calc(.5s * var(--m)); }
+.sol--healthcare .hb-ded { display: flex; justify-content: space-between; gap: 10px; max-width: 360px; margin-top: 10px; padding: 7px 10px; border-radius: 10px; border: 1px solid var(--line); opacity: 0; transform: translateY(8px); transition: opacity var(--hc-t), transform var(--hc-t) var(--ease), border-color var(--hc-t); }
+.sol--healthcare .hb-ded span { color: var(--text-2); }
+.sol--healthcare .is-s3 .hb-ded { opacity: 1; transform: none; border-color: var(--accent); transition-delay: calc(.9s * var(--m)); }
+.sol--healthcare .is-s5 .hb-ded { border-color: var(--line); transition-delay: 0s; }
+.sol--healthcare .hb-plan { display: flex; align-items: center; gap: 10px; max-width: 250px; margin-top: 8px; padding: 8px 10px; border-radius: 12px; border: 1px solid var(--line); opacity: 0; transform: translateY(10px); transition: opacity var(--hc-t), transform var(--hc-t) var(--ease); }
+.sol--healthcare .hb-plan > span { display: grid; flex: 1; min-width: 0; }
+.sol--healthcare .hb-plan small { font-size: 10px; color: var(--text-2); }
+.sol--healthcare .hb-plan i { flex: none; font-style: normal; font-size: 11px; font-weight: 600; padding: 6px 11px; border-radius: 999rem; background: var(--text); color: var(--bg); box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--accent); }
+.sol--healthcare .is-s5 .hb-plan { opacity: 1; transform: none; transition-delay: calc(.6s * var(--m)); }
+@container (max-width: 520px) {
+  .sol--healthcare .hb-dev { height: 470px; }
+  .sol--healthcare .hb-dev .dev__dock { left: 10px; right: 10px; width: auto; }
+  .sol--healthcare :is(.hb-home, .hb-stmt) { padding: 12px; }
+  .sol--healthcare .hb-t { font-size: 10.5px; }
+  .sol--healthcare .hb-t th { font-size: 9.5px; padding: 4px 3px; }
+  .sol--healthcare .hb-t td { padding: 5px 3px; }
+  .sol--healthcare .hb-who { display: none; }
+  .sol--healthcare .dev--browser .dev__url { font-size: 10px; }
+  /* The dock is full width here, so the statement scrolls up to keep the plan in view. */
+  .sol--healthcare .is-s5 .hb-stmt { transform: translateY(-112px); }
+}
+
+/* =================== where requests go =================== */
+.sol--healthcare .hr-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.sol--healthcare .hr-row { display: grid; grid-template-columns: minmax(0, 1fr) 72px minmax(0, 1.15fr); align-items: center; padding: 20px 22px; border: 1px solid var(--line); border-radius: 18px; transition: opacity var(--hc-t), border-color var(--hc-t); }
+.sol--healthcare .hr-said { font-size: 15px; }
+.sol--healthcare .hr-reply { font-size: 14px; }
+.sol--healthcare .hr-arrow { display: flex; align-items: center; padding: 0 12px; }
+.sol--healthcare .hr-arrow i { position: relative; flex: 1; height: 2px; background: var(--line); transition: background var(--hc-t); }
+.sol--healthcare .hr-arrow i::after { content: ""; position: absolute; right: -1px; top: -4px; width: 8px; height: 8px; border: solid currentColor; border-width: 2px 2px 0 0; transform: rotate(45deg); color: var(--line); transition: color var(--hc-t); }
+.sol--healthcare .hr-lane { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px; font-weight: 600; }
+.sol--healthcare .hr-lane::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.sol--healthcare .hr-foot { margin-top: 22px; font-size: 15px; color: var(--text-2); max-width: 62ch; }
+/* The loop brings one row forward at a time; at the end (and with reduced motion) all three. */
+.sol--healthcare .hr-rows[data-at="0"] .hr-row,
+.sol--healthcare .hr-rows[data-at="1"] .hr-row:not(.hr-row1),
+.sol--healthcare .hr-rows[data-at="2"] .hr-row:not(.hr-row2),
+.sol--healthcare .hr-rows[data-at="3"] .hr-row:not(.hr-row3) { opacity: .42; }
+.sol--healthcare .hr-rows[data-at="1"] .hr-row1,
+.sol--healthcare .hr-rows[data-at="2"] .hr-row2,
+.sol--healthcare .hr-rows[data-at="3"] .hr-row3 { border-color: var(--text); }
+.sol--healthcare .hr-rows[data-at="1"] .hr-row1 .hr-arrow i,
+.sol--healthcare .hr-rows[data-at="2"] .hr-row2 .hr-arrow i,
+.sol--healthcare .hr-rows[data-at="3"] .hr-row3 .hr-arrow i { background: var(--accent); }
+.sol--healthcare .hr-rows[data-at="1"] .hr-row1 .hr-arrow i::after,
+.sol--healthcare .hr-rows[data-at="2"] .hr-row2 .hr-arrow i::after,
+.sol--healthcare .hr-rows[data-at="3"] .hr-row3 .hr-arrow i::after { color: var(--accent); }
+@media (max-width: 760px) {
+  .sol--healthcare .hr-row { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 16px; }
+  .sol--healthcare .hr-arrow { height: 26px; padding: 0 0 0 22px; }
+  .sol--healthcare .hr-arrow i { flex: none; width: 2px; height: 100%; }
+  .sol--healthcare .hr-arrow i::after { right: -4px; top: auto; bottom: -1px; transform: rotate(135deg); }
+}
+
+/* =================== reduced motion: the finished picture, no travel =================== */
+@media (prefers-reduced-motion: reduce) {
+  .sol--healthcare :is(.hh, .hi, .hp, .hb, .hr-rows) *,
+  .sol--healthcare :is(.hh, .hi, .hp, .hb, .hr-rows) *::after { transition: none !important; }
+}

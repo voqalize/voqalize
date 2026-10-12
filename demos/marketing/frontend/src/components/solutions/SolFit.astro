@@ -1,0 +1,34 @@
+---
+// How it plugs in, for this industry: the two ways in, each with one line written
+// for the domain, and what Voqalize runs either way.
+// `pnpHow` / `devHow` replace the generic first line of each card when the page's own line already says it.
+interface Props { title?: string; lede?: string; pnp: string; dev: string; pnpHow?: string; devHow?: string }
+const {
+  title = 'Two ways to add it.', lede = 'Nobody rebuilds the app. Pick the path that fits your team.', pnp, dev,
+  pnpHow = 'One script tag. We learn your site, build the agent and run it.',
+  devHow = 'Keep your agent and your systems. We add the voice.',
+} = Astro.props;
+const weRun = ['WebRTC', 'Speech-to-text', 'Text-to-speech', 'Turn-taking', 'Interruptions', 'Characters', 'Recording'];
+---
+<section class="sol-block sol-fit" aria-labelledby="sol-fit-t" data-part="setup">
+  <header class="s-head">
+    <p class="eyebrow">How it plugs in</p>
+    <h2 id="sol-fit-t">{title}</h2>
+    <p class="s-lede">{lede}</p>
+  </header>
+  <div class="sol-fit__cards">
+    <div class="sol-fit__card">
+      <h3>Plug &amp; Play</h3>
+      <p class="sol-fit__how">{pnpHow}</p>
+      <p>{pnp}</p>
+      <a href="/?tab=tab-pnp#s-ways">How Plug &amp; Play works</a>
+    </div>
+    <div class="sol-fit__card">
+      <h3>Developer integration</h3>
+      <p class="sol-fit__how">{devHow}</p>
+      <p>{dev}</p>
+      <a href="/?tab=tab-dev#s-ways">How developer integration works</a>
+    </div>
+  </div>
+  <p class="we-run"><span>Either way, Voqalize runs</span>{weRun.map((w) => <span class="tag tag--run">{w}</span>)}</p>
+</section>

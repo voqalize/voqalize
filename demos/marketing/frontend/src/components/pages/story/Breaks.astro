@@ -1,0 +1,63 @@
+---
+// Chapter 2: the same request, four ways real people break it. Four cards, one plays at a
+// time (the current one is outlined); a played card stays finished, so by the last step
+// all four breaks are on screen together, and the loop rests there.
+// Steps: 0 all cards waiting; 1 to 4 one card each (its call plays left to right, then
+// the verdict lands with a vermilion cross); 5 rest on all four.
+// The cards are real content (headings and verdicts are read out); only the timelines are hidden.
+import Timeline from './Timeline.astro';
+import type { Row, Mark } from './Timeline.astro';
+interface Card { h: string; v: string; note?: string; rows: Row[]; marks: Mark[] }
+const cards: Card[] = [
+  {
+    h: 'They pause to think.',
+    v: 'The product answers into the pause and cuts them off.',
+    note: 'People take turns with gaps of about 200 milliseconds (Stivers et al., PNAS 2009), so a pause to think looks a lot like being done.',
+    rows: [
+      { who: 'Person', segs: [{ a: 0, b: 0.4, say: 'Move my booking to, um' }, { a: 0.62, b: 0.86, faded: true }] },
+      { who: 'Product', kind: 'a', segs: [{ a: 0.5, b: 0.92, say: 'Sure. Which booking?' }] },
+    ],
+    marks: [{ type: 'bracket', a: 0.41, b: 0.6, label: 'thinking', rows: [0, 0] }, { type: 'hatch', a: 0.62, b: 0.86 }],
+  },
+  {
+    h: 'They change their mind.',
+    v: 'The product keeps talking, then carries on as if they heard all of it.',
+    rows: [
+      { who: 'Product', kind: 'a', segs: [{ a: 0, b: 0.94, say: 'Thursday at 10 is free, and I can also' }] },
+      { who: 'Person', segs: [{ a: 0.42, b: 0.7, say: 'Actually, Friday.' }] },
+    ],
+    marks: [{ type: 'stop', a: 0.42, label: 'should stop here' }, { type: 'hatch', a: 0.42, b: 0.7 }],
+  },
+  {
+    h: 'The TV is on.',
+    v: 'The news ends up in the request.',
+    rows: [
+      { who: 'Person', segs: [{ a: 0, b: 0.46, say: 'Friday morning, please.' }] },
+      { who: 'TV', kind: 'tv', segs: [{ a: 0.02, b: 0.98, say: '…and now, the weather' }] },
+      { who: 'Product', kind: 'a', segs: [{ a: 0.56, b: 0.98, say: 'Friday, and the weather?' }] },
+    ],
+    marks: [],
+  },
+  {
+    h: 'The signal drops.',
+    v: 'The answer arrives late, and the conversation falls apart.',
+    rows: [
+      { who: 'Person', segs: [{ a: 0, b: 0.34, say: 'Move it to Friday?' }, { a: 0.66, b: 0.9, say: 'Hello?' }] },
+      { who: 'Product', kind: 'a', segs: [{ a: 0.36, b: 0.64, flat: true }, { a: 0.66, b: 0.98, say: 'Sure, moving' }] },
+    ],
+    marks: [{ type: 'bracket', a: 0.36, b: 0.64, label: 'nothing', rows: [1, 1] }, { type: 'hatch', a: 0.66, b: 0.9 }],
+  },
+];
+---
+<div class="st-breaks" data-loop="600 4300 4300 4300 4300 12000">
+  <ol class="st-breaks__list">
+    {cards.map((c, i) => (
+      <li class={`bk bk${i + 1}`}>
+        <h3>{c.h}</h3>
+        <div aria-hidden="true"><Timeline rows={c.rows} marks={c.marks} seed={3 + i * 4} span={1.9} /></div>
+        <p class="bk__v"><i class="bk__x" aria-hidden="true"></i>{c.v}</p>
+        {c.note && <p class="bk__note">{c.note}</p>}
+      </li>
+    ))}
+  </ol>
+</div>

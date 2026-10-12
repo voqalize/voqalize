@@ -1,0 +1,54 @@
+---
+// Use cases: six everyday apps, each drawn as its own kind of app in a phone. Each
+// tab plays one loop: the app idles, the person says one sentence, the app does the
+// work on screen, the agent replies. Tabs advance on their own (motion.ts).
+import { USE_CASES } from '../../data/usecases';
+import Voice from '../Voice.astro';
+import Jewelry from '../usecases/Jewelry.astro';
+import Banking from '../usecases/Banking.astro';
+import Forms from '../usecases/Forms.astro';
+import Contracts from '../usecases/Contracts.astro';
+import Cab from '../usecases/Cab.astro';
+import Food from '../usecases/Food.astro';
+const MOCKS = { jewelry: Jewelry, banking: Banking, forms: Forms, contracts: Contracts, cab: Cab, food: Food } as const;
+---
+<header class="s-head" data-part="head">
+  <p class="eyebrow">Use cases</p>
+  <h2 id="t-worlds">Same app. Now it listens.</h2>
+  <p class="s-lede">Any screen people struggle with is a place for a voice. Six everyday ones.</p>
+</header>
+
+<div class="tabs tabs--uc" data-tabs>
+  <div class="tabs__list" role="tablist" aria-label="Use cases" data-part="tabs" data-part-label="The six use case tabs.">
+    {USE_CASES.map((u, i) => <button type="button" role="tab" id={`tab-${u.id}`} data-voice={`worlds.${u.id}`} aria-controls={`panel-${u.id}`} aria-selected={i === 0 ? "true" : "false"} tabindex={i === 0 ? 0 : -1}>{u.tab}</button>)}
+  </div>
+  {USE_CASES.map((u, i) => {
+    const Mock = MOCKS[u.id];
+    const last = u.steps.length - 1;
+    return (
+      <div role="tabpanel" id={`panel-${u.id}`} aria-labelledby={`tab-${u.id}`} hidden={i !== 0} class={`uc uc--${u.id}`}>
+        <div class="uc__grid" data-loop={u.steps.join(' ')}>
+          <div class="uc-phone" aria-hidden="true" data-part={`${u.id}_phone`} data-part-label={`The animated phone for ${u.app}: the person says it and the app does it.`}>
+            <div class="uc-screen">
+              <div class="uc-status"><b>9:41</b><span><i></i><i></i><i></i></span></div>
+              <div class="uc-bar"><span class="uc-bar__mark">{u.app.charAt(0)}</span><b>{u.app}</b></div>
+              <div class="uc-view"><Mock /></div>
+              <div class="uc-dock">
+                <Voice who="person" class="uc-said">{u.said}</Voice>
+                <Voice who="agent" class={`uc-reply r-at-${last}`}>{u.reply}</Voice>
+              </div>
+            </div>
+          </div>
+          <div class="uc__text" data-part={`${u.id}_text`} data-part-label={`${u.app}: what they say, and today versus with Voqalize.`}>
+            <p class="uc__label">They say</p>
+            <p class="uc__quote">“{u.said}”</p>
+            <dl class="uc__vs">
+              <div><dt>Today</dt><dd>{u.today}</dd></div>
+              <div><dt>With Voqalize</dt><dd>{u.with}</dd></div>
+            </dl>
+          </div>
+        </div>
+      </div>
+    );
+  })}
+</div>

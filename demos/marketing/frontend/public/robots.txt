@@ -1,0 +1,5 @@
+# voqalize.com — the marketing site, the demo gallery and the docs.
+# Crawlable on purpose; there is nothing here that is not meant to be found.
+# (No Sitemap: line — the site ships no sitemap integration today.)
+User-agent: *
+Allow: /

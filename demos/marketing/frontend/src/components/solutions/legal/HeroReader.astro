@@ -1,0 +1,58 @@
+---
+// Hero: a law firm's client portal open on a 14-page services agreement. The client asks
+// where they can cancel. Nobody wrote "cancel" in the contract, so the app first shows what
+// it understood ("cancel" means termination for convenience, 14.2), then turns to page 12
+// and marks the clause, and the character says what it says.
+// Steps: 0 reading page 3, 1 said, 2 understood, 3 turns to page 12, 4 marks 14.2, 5 reply.
+import Device from '../Device.astro';
+import Voice from '../../Voice.astro';
+import Lines from './Lines.astro';
+const PAGES = Array.from({ length: 14 }, (_, i) => i + 1);
+const PAGE3: number[][] = [[96, 90, 94, 58], [92, 97, 88, 70], [95, 86, 91, 93, 44], [90, 96, 62]];
+---
+<div class="lg-stage" data-loop="2600 2200 2000 1500 2000 5600">
+  <div class="lg-hero">
+    <Device kind="browser" url="portal.alderfinch.law/documents" app="Alder & Finch">
+      <span slot="bar" class="lg-barnote">Client portal</span>
+      <div class="lg-read">
+        <div class="lg-rail">
+          <div class="lg-rail__track">
+            {PAGES.map((n) => <span class={`lg-thumb${n === 3 ? ' lg-thumb--from' : ''}${n === 12 ? ' lg-thumb--to' : ''}`}><i></i><i></i><i></i><b>{n}</b></span>)}
+          </div>
+        </div>
+        <div class="lg-main">
+          <div class="lg-band">
+            <p class="lg-band__doc">Services Agreement<small>14 pages</small></p>
+            <p class="lg-meant"><span class="lg-meant__w">“cancel”</span><svg viewBox="0 0 16 10"><path d="M1 5h13M10 1l4 4-4 4"/></svg><b>Termination for convenience</b><span class="lg-meant__ref">14.2</span></p>
+          </div>
+          <div class="lg-sheet">
+            <p class="lg-pager"><span class="lg-pager__a">Page 3 of 14</span><span class="lg-pager__b">Page 12 of 14</span></p>
+            <div class="lg-p3">
+              <div class="lg-p3__run">
+                {[0, 1].map(() => (<>
+                  <p class="lg-h">5. Services</p><Lines w={PAGE3[0]} /><Lines w={PAGE3[1]} />
+                  <p class="lg-h">6. Fees and invoices</p><Lines w={PAGE3[2]} /><Lines w={PAGE3[3]} />
+                </>))}
+              </div>
+            </div>
+            <div class="lg-p12">
+              <p class="lg-h">14. Term and termination</p>
+              <div class="lg-cl"><span class="lg-no">14.1</span><Lines w={[94, 88, 52]} /></div>
+              <div class="lg-cl lg-mark lg-at-4">
+                <span class="lg-no">14.2</span>
+                <p class="lg-txt"><mark class="lg-mk">Either party may terminate this Agreement for convenience on thirty (30) days' written notice</mark> to the other party.</p>
+                <em class="lg-tag">Termination</em>
+              </div>
+              <div class="lg-cl"><span class="lg-no">14.3</span><Lines w={[90, 96, 84, 40]} /></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <Fragment slot="dock">
+        <Voice who="person" class="sol-said">Where does it say we can cancel?</Voice>
+        <Voice who="agent" face="/characters/trisha.webp" class="r-at-5">Section 14.2, on page 12. Either side can end the agreement with 30 days' written notice.</Voice>
+      </Fragment>
+    </Device>
+  </div>
+  <p class="lg-cap">Example: a law firm’s client portal</p>
+</div>

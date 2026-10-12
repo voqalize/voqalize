@@ -1,0 +1,108 @@
+---
+// Why voice, why now: a four-scene story. Read mode on a wide screen shows it as a
+// carousel (arrows, dots, swipe) that moves on by itself when a scene's motion ends;
+// Talk mode and phones scroll it top to bottom. Every scene carries the eyebrow.
+import Voice from '../Voice.astro';
+const spoken = [
+  ['Messages', 'Reply to Sam: running ten minutes late.'],
+  ['Car', 'Play something calm.'],
+  ['Phone', 'Call Mom.'],
+  ['Notes', 'Note to self: send the deck by Friday.'],
+];
+const gestures = ['Click.', 'Scroll.', 'Pinch.', 'Tap.', 'Type.', 'Swipe.', 'Shake to undo.'];
+const flights = [['7:10 AM', 'AUS', '$214'], ['8:05 AM', 'AUS', '$189'], ['11:40 AM', 'AUS', '$236']];
+const seats = ['A', 'B', '', 'C', 'D'];
+const eyebrow = 'Why voice, why now';
+---
+<div class="reel" data-reel>
+  <h2 id="t-shift" class="visually-hidden">Why voice, why now</h2>
+  <div class="reel__track">
+    <article class="scene" aria-label="Scene 1 of 4" data-voice="shift.scene1">
+      <div class="scene__text">
+        <p class="eyebrow">{eyebrow}</p>
+        <h3 class="scene__h">We talk to our tech all day.</h3>
+        <p class="scene__p">We dictate messages and notes, ask the car for music, and tell the phone who to call.</p>
+      </div>
+      <ul class="said-list" data-loop="700 1100 1100 1100 1100 2600">
+        {spoken.map(([where, line], i) => (
+          <li class={`said-row r${i + 1}`}>
+            <svg class="wave" viewBox="0 0 14 12" aria-hidden="true"><rect x="0" y="4" width="2" height="4" rx="1"/><rect x="4" y="1" width="2" height="10" rx="1"/><rect x="8" y="3" width="2" height="6" rx="1"/><rect x="12" y="5" width="2" height="2" rx="1"/></svg>
+            <span class="said-row__line">{line}</span>
+            <span class="said-row__where">{where}</span>
+          </li>
+        ))}
+      </ul>
+    </article>
+
+    <article class="scene" aria-label="Scene 2 of 4" data-voice="shift.scene2">
+      <div class="scene__text">
+        <p class="eyebrow">{eyebrow}</p>
+        <h3 class="scene__h">Software still wants clicks.</h3>
+        <p class="scene__p">For forty years we learned the computer's language of menus, forms and gestures. It's time it learned ours.</p>
+      </div>
+      <ul class="gestures" data-loop="500 450 450 450 450 450 450 900 2600">
+        {gestures.map((g, i) => <li class={`g g${i + 1}${i === gestures.length - 1 ? ' g--shake' : ''}`}><span class="g__dot" aria-hidden="true"></span>{g}</li>)}
+      </ul>
+    </article>
+
+    <article class="scene" aria-label="Scene 3 of 4" data-voice="shift.scene3">
+      <div class="scene__text">
+        <p class="eyebrow">{eyebrow}</p>
+        <h3 class="scene__h">What if every app listened?</h3>
+        <p class="scene__p">One sentence, and a change of mind halfway. The app keeps up.</p>
+      </div>
+      <!-- Ask for a flight; she shows them; pick the 8:05; ask for an aisle; change to a window; confirmed. -->
+      <div class="flight" data-loop="600 1700 1700 1500 1200 1500 1500 1500 1300 3600" aria-hidden="true">
+        <div class="phone">
+          <div class="phone__bar"><span>Fri, Oct 16</span><b>NYC to Austin</b></div>
+          <div class="phone__body">
+            <ul class="flight__list">
+              {flights.map(([t, to, p], i) => <li class={`fl fl${i + 1}${i === 1 ? ' fl--pick' : ''}`}><span>{t}</span><span>{to}</span><span>{p}</span></li>)}
+            </ul>
+            <div class="seatmap">
+              <p class="seatmap__label">Seat <b class="seat-c">14C, aisle</b><b class="seat-a">14A, window</b></p>
+              <div class="seatmap__rows">
+                {[12, 13, 14, 15, 16].map((row) => (
+                  <div class="seatrow">
+                    {seats.map((s) => s ? <span class={`seat${row === 14 ? ` s14${s}` : ''}`}></span> : <i>{row}</i>)}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div class="booked">
+              <svg class="booked__tick" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" /><path d="M14 24.5l6.5 6.5L34 17.5" /></svg>
+              <b>Booking confirmed</b>
+              <span>Fri, Oct 16, 8:05 AM<br />NYC to Austin, seat 14A</span>
+            </div>
+          </div>
+          <div class="phone__said">
+            <Voice class="said1">Book a Friday morning flight to Austin.</Voice>
+            <Voice who="agent" class="said2">Here are your flights.</Voice>
+            <Voice class="said3">Pick the one around 8 AM.</Voice>
+            <Voice class="said4">Aisle seat, please.</Voice>
+            <Voice class="said5">Actually, make it a window.</Voice>
+            <Voice who="agent" class="said6">Done. Seat 14A on the 8:05.</Voice>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <article class="scene scene--close" aria-label="Scene 4 of 4" data-voice="shift.scene4">
+      <div class="scene__text">
+        <p class="eyebrow">{eyebrow}</p>
+        <h3 class="scene__h scene__h--big">Voqalize brings a voice-first interface to the apps you already have.</h3>
+        <p class="scene__p">Your customers talk to it the way they talk to a person, and change their minds halfway. It understands what they ask and does it.</p>
+      </div>
+      <div class="bars" data-loop="6000 100" aria-hidden="true">{Array.from({ length: 9 }, (_, i) => <span style={`--b:${i}`}></span>)}</div>
+    </article>
+  </div>
+  <div class="reel__nav">
+    <button type="button" class="reel__arrow" data-reel-prev aria-label="Previous scene">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="reel__dots">{[1, 2, 3, 4].map((n) => <button type="button" aria-label={`Scene ${n}`}></button>)}</div>
+    <button type="button" class="reel__arrow" data-reel-next aria-label="Next scene">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
+</div>

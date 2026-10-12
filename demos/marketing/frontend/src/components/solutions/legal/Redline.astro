@@ -1,0 +1,43 @@
+---
+// Scene 2, Wednesday: the compare view of Cedar's redline against our last draft, in track
+// changes (struck and underlined). 41 edits; on the question the app folds away the sections
+// whose edits are only wording, then marks the three changes to the terms one by one and
+// puts the company's own playbook position beside the liability cap.
+// Steps: 0 full redline, 1 said, 2 wording folded away, 3 fees 4.2, 4 new renewal 7.3,
+// 5 liability cap 9.1 + playbook, 6 reply.
+import Device from '../Device.astro';
+import Voice from '../../Voice.astro';
+import Lines from './Lines.astro';
+---
+<Device kind="browser" url="app.clausebook.com/cedar-freight/compare" app="Clausebook" class="lg-dev-rl">
+  <span slot="bar" class="lg-barnote lg-vers">v3 ours<svg viewBox="0 0 16 10"><path d="M1 5h13M10 1l4 4-4 4"/></svg>v4 Cedar</span>
+  <div class="lg-rl">
+    <p class="lg-rl__sum"><span class="lg-rl__all">Cedar Freight MSA · 41 edits</span><span class="lg-rl__few"><b>3 change the terms</b> · 38 are wording</span></p>
+    <div class="lg-rl__doc">
+      <div class="lg-fold"><span class="lg-fold__l">Sections 1 to 4.1 · wording only</span><Lines w={[94, 88, 97, 60]} class="lg-ed" /><Lines w={[90, 96, 72]} /></div>
+      <div class="lg-cl lg-mark lg-at-3">
+        <span class="lg-no">4.2</span>
+        <p class="lg-txt"><mark class="lg-mk">Fees may increase once a year by up to <del>4%</del> <ins>7%</ins></mark> on 60 days' notice.</p>
+        <em class="lg-tag">Fees</em>
+      </div>
+      <div class="lg-fold"><span class="lg-fold__l">Sections 5 to 7.2 · wording only</span><Lines w={[96, 84, 91, 52]} class="lg-ed" /><Lines w={[88, 94, 66]} /></div>
+      <div class="lg-cl lg-mark lg-at-4">
+        <span class="lg-no">7.3</span>
+        <p class="lg-txt"><mark class="lg-mk"><ins>After the initial term, this Agreement renews for successive 24-month terms.</ins></mark></p>
+        <em class="lg-tag">New clause</em>
+      </div>
+      <div class="lg-fold"><span class="lg-fold__l">Section 8 · wording only</span><Lines w={[92, 97, 70]} class="lg-ed" /></div>
+      <div class="lg-cl lg-mark lg-at-5">
+        <span class="lg-no">9.1</span>
+        <p class="lg-txt">Each party's total liability is capped at <mark class="lg-mk">the fees paid in the <del>twelve (12)</del> <ins>six (6)</ins> months</mark> before the claim.</p>
+        <em class="lg-tag">Liability cap</em>
+        <p class="lg-pb"><b>Your playbook</b> Cap at 12 months of fees.</p>
+      </div>
+      <div class="lg-fold"><span class="lg-fold__l">Sections 10 to 18 · wording only</span><Lines w={[95, 89, 93, 58]} class="lg-ed" /></div>
+    </div>
+  </div>
+  <Fragment slot="dock">
+    <Voice who="person" class="sol-said out-at-6">What did Cedar change since our last draft?</Voice>
+    <Voice who="agent" face="/characters/trisha.webp" class="r-at-6">Three changes to the terms. Fees can rise 7% a year, there's a new 24-month renewal, and the liability cap drops to six months. Your playbook says twelve.</Voice>
+  </Fragment>
+</Device>

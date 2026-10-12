@@ -1,4 +1,4 @@
-"""Voqalize homepage agent — the demo's own FastAPI brain route.
+"""Tanvi, the voqalize.com guide — the demo's own FastAPI brain route.
 
 Voqalize dials `/marketing?session_id=…` once per session (the inbound path); the
 shared `make_brain_router` owns the socket lifecycle and token verification, so
@@ -6,7 +6,10 @@ this file only names the demo and its per-session brain factory. This is the who
 backend surface a demo contributes — discovered and mounted by the umbrella.
 
 Unlike its neighbours this one has no frontend folder: its UI is the marketing
-site itself, which lives in the platform repo and embeds the agent in the page.
+site itself, voqalize.com, which lives beside it in `../frontend` and is
+deployed as the apex rather than under /demos. The brain reads the site's
+`sections.json` and `voice.json` from there, so the ids she can open and point
+at are exactly the ids the page has.
 """
 
 from __future__ import annotations
@@ -14,15 +17,15 @@ from __future__ import annotations
 from google import genai
 from voqalize_demos.session import make_brain_router
 
-from .brain import MarketingBrain
+from .brain import TanviBrain
 
 # The URL segment Voqalize dials; must equal this folder's name.
 NAME = "marketing"
 
 
-def build(client: genai.Client) -> MarketingBrain:
+def build(client: genai.Client) -> TanviBrain:
     """Build a fresh brain for one session from the shared Gemini client."""
-    return MarketingBrain(client=client)
+    return TanviBrain(client=client)
 
 
 router = make_brain_router(NAME, build)

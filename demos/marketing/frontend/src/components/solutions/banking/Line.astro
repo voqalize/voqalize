@@ -1,0 +1,39 @@
+---
+// Domain block, "where the line is": what the character does right away, what waits for the
+// customer's own tap, and what goes to the bank's people. Each column opens with a small drawn
+// mark (a done tick, a button waiting under a ring, two people passing something along).
+const COLS = [
+  {
+    id: 'now', h: 'Does it right away',
+    items: ['Finds a charge, a statement or a setting.', 'Explains a fee or a balance in plain words.', 'Fills forms from what the bank already knows.', 'Freezes a card when the customer asks.'],
+  },
+  {
+    id: 'tap', h: 'Waits for their tap',
+    items: ['Moves money, between their accounts or to anyone else.', 'Submits an application.', 'Turns on or changes autopay.', 'Sends a dispute.'],
+  },
+  {
+    id: 'hand', h: 'Hands to your people',
+    items: ['Anything your rules send to a person, like fraud that needs a call or a hardship plan.', 'The conversation so far goes along, so nobody asks twice.'],
+  },
+];
+---
+<section class="sol-block bkl" aria-labelledby="bkl-t" data-part="line">
+  <header class="s-head">
+    <p class="eyebrow">Where the line is</p>
+    <h2 id="bkl-t">It works the screens. Your customer approves the money.</h2>
+    <p class="s-lede">The character works inside the customer's signed-in session, with the same access they have. You decide where it stops. Here is a sensible default.</p>
+  </header>
+  <div class="bkl__cols">
+    {COLS.map((c) => (
+      <div class={`bkl__col bkl__col--${c.id}`}>
+        <span class="bkl__mark" aria-hidden="true">
+          {c.id === 'now' && <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M7.5 12.3l3 3 6-6.3"/></svg>}
+          {c.id === 'tap' && <span class="bkl__btn">Confirm</span>}
+          {c.id === 'hand' && <svg viewBox="0 0 60 24"><circle cx="9" cy="12" r="7"/><circle cx="51" cy="12" r="7"/><path d="M21 12h18M35 8l4 4-4 4"/></svg>}
+        </span>
+        <h3>{c.h}</h3>
+        <ul>{c.items.map((t) => <li>{t}</li>)}</ul>
+      </div>
+    ))}
+  </div>
+</section>

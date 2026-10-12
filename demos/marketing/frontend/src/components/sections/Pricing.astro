@@ -1,0 +1,71 @@
+---
+// Pricing: the plan cards from the current site, with a billing switch (annual by default)
+// and a currency switch.
+// The full detail (what a minute carries, the short answers) is on /pricing.
+import { CONSOLE_URL, CONTACT_URL, CURRENCIES, PLANS, SIGNUP_MINUTES, annual, count, money } from '../../data/pricing';
+interface Props { page?: boolean }
+const { page = false } = Astro.props;
+const Tag = page ? 'h1' : 'h2';
+---
+<header class="s-head" data-part={page ? undefined : 'head'}>
+  <p class="eyebrow">Pricing</p>
+  <Tag id={page ? undefined : 't-pricing'}>Pricing is per minute of conversation.</Tag>
+  <p class="s-lede">Sign up and the first {count(SIGNUP_MINUTES)} conversation minutes are free. Speech in both directions, turn-taking, the connection and the character are all in the minute.</p>
+</header>
+
+<div class="price-switches" data-part={page ? undefined : 'switches'} data-part-label="The switches: annual or monthly billing, and the currency.">
+  <div class="cur" role="group" aria-label="Billing">
+    <button type="button" data-bill="annual" data-voice="pricing.annual" aria-pressed="true">Annual <span class="save">2 months free</span></button>
+    <button type="button" data-bill="monthly" data-voice="pricing.monthly" aria-pressed="false">Monthly</button>
+  </div>
+  <div class="cur" role="group" aria-label="Currency" data-currency>
+    {CURRENCIES.map((c, i) => <button type="button" data-cur={c.k} data-voice={`pricing.${c.k}`} aria-pressed={i === 0 ? "true" : "false"}>{c.label}</button>)}
+  </div>
+</div>
+
+<ul class="plans">
+  {PLANS.map((p) => (
+    <li class={`plan${p.recommended ? ' plan--rec' : ''}`} data-voice={`pricing.${p.k}`}>
+      {p.recommended && <span class="plan__flag">Most teams</span>}
+      <h3>{p.name}</h3>
+      <p class="plan__who">{p.who}</p>
+      <p class="plan__price">
+        {p.price ? CURRENCIES.map((c) => p.price![c.k] === 0 ? <span class={`c-${c.k}`}><b>{money(c.k, 0)}</b></span> : (
+          <span class={`c-${c.k}`}>
+            <span class="b-annual"><b>{money(c.k, Math.round(annual(p.price!, c.k).perMonth))}</b><i>/mo</i></span>
+            <span class="b-monthly"><b>{money(c.k, p.price![c.k])}</b><i>/mo</i></span>
+          </span>
+        )) : <b>Talk to us</b>}
+      </p>
+      <p class="plan__bill">
+        {p.price && p.price.usd > 0 ? CURRENCIES.map((c) => (
+          <span class={`c-${c.k}`}><span class="b-annual">{money(c.k, annual(p.price!, c.k).total)} billed yearly</span><span class="b-monthly">Billed monthly</span></span>
+        )) : p.price ? 'Free forever' : 'Quoted for your volume'}
+      </p>
+      <dl class="plan__facts">
+        {p.signupMinutes && <div><dt>Free minutes</dt><dd>{count(p.signupMinutes)} at signup</dd></div>}
+        {p.minutes !== null && <div><dt>Included</dt><dd>{count(p.minutes)} minutes a month</dd></div>}
+        {p.rate && <div><dt>Extra minutes</dt><dd>{CURRENCIES.map((c) => <span class={`c-${c.k}`}>{money(c.k, p.rate![c.k])}/min</span>)}</dd></div>}
+        {p.concurrency !== null && <div><dt>At once</dt><dd>{p.concurrency} {p.concurrency === 1 ? 'session' : 'sessions'}</dd></div>}
+      </dl>
+      <ul class="plan__items">
+        {p.inherits && <li class="plan__inh">Everything in {p.inherits}, plus</li>}
+        {p.items.map((it) => <li>{it}</li>)}
+      </ul>
+      <a class={`btn btn--sm${p.recommended ? '' : ' btn--ghost'}`} href={p.price ? CONSOLE_URL : CONTACT_URL} data-console={p.price ? '' : undefined} data-book={p.price ? undefined : ''} target={p.price ? undefined : '_blank'} rel={p.price ? undefined : 'noopener'}>{p.cta}</a>
+    </li>
+  ))}
+</ul>
+<p class="s-foot" data-part={page ? undefined : 'foot'} data-part-label="The tax note under the plans, and a link to what a minute includes and common questions.">
+  {CURRENCIES.map((c) => <span class={`c-${c.k}`} data-cur-note>{c.tax}</span>)}
+  {!page && <Fragment> <a href="/pricing">What a minute includes, and common questions</a></Fragment>}
+</p>
+<script>
+  // The currency switch: one attribute on <html>, so every price on the page follows.
+  for (const k of ['cur', 'bill'] as const) {
+    document.querySelectorAll<HTMLButtonElement>(`button[data-${k}]`).forEach((b) => b.addEventListener('click', () => {
+      document.documentElement.dataset[k] = b.dataset[k];
+      document.querySelectorAll<HTMLElement>(`button[data-${k}]`).forEach((x) => x.setAttribute('aria-pressed', String(x.dataset[k] === b.dataset[k])));
+    }));
+  }
+</script>
