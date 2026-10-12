@@ -1,0 +1,20 @@
+---
+// Chapter 1: the demo that worked. One clean exchange on a timeline, in a quiet room.
+// Steps: 0 empty tracks; 1 the call plays left to right (the person asks, then the product
+// answers as a vermilion band); 2 the tick; 3 the tag "Quiet room, first take." with a
+// marker stroke, then a long hold.
+import Timeline from './Timeline.astro';
+---
+<div class="st-quiet st-frame" data-loop="700 2500 900 7000" aria-hidden="true">
+  <p class="st-frame__k"><span class="st-dot"></span>Demo</p>
+  <Timeline
+    seed={5}
+    span={1.6}
+    rows={[
+      { who: 'Person', segs: [{ a: 0, b: 0.5, say: 'Can you move my booking to Friday?' }] },
+      { who: 'Product', kind: 'a', segs: [{ a: 0.56, b: 0.98, say: 'Done. You’re on Friday at 10.' }] },
+    ]}
+  />
+  <i class="st-quiet__tick"></i>
+  <p class="st-quiet__tag">Quiet room, first take.</p>
+</div>

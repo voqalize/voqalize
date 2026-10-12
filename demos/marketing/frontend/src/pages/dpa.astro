@@ -1,0 +1,19 @@
+---
+// Data processing addendum: the terms for personal data Voqalize processes on a customer's
+// behalf, with Annex 1 (processing and security measures) and Annex 2 (sub-processors).
+// Same long-form layout as /privacy. Notes: docs/sections/page-legal.md.
+import Page from '../layouts/Page.astro';
+import LegalShell from '../components/pages/legal/LegalShell.astro';
+import Dpa from '../components/pages/dpa/Dpa.astro';
+import { DPA_TOC, LEGAL_UPDATED } from '../data/privacy';
+import '../styles/pages/legal.css';
+---
+<Page id="dpa" title="Data processing addendum" description="The Voqalize data processing addendum: how we process our customers' end-user data, including voice, as their processor.">
+  <LegalShell title="Data processing addendum" updated={LEGAL_UPDATED} toc={DPA_TOC}>
+    <Fragment slot="lede">
+      <p class="s-lede">The terms that apply when Voqalize processes personal data for a customer, including the voice and transcripts of the people your agents talk to. It forms part of our terms of service.</p>
+      <p class="lg-links"><a href="/privacy">Privacy policy</a><a href="/privacy#terms">Terms of service</a></p>
+    </Fragment>
+    <Dpa />
+  </LegalShell>
+</Page>

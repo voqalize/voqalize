@@ -1,0 +1,23 @@
+---
+// One standard's badge: the issued mark (Scrut-monitored ISO 27001, SOC 2 and GDPR; the DPDP
+// certification mark), from the founders' badge folder (2026-10-12). ISO, SOC 2 and GDPR come in a
+// light and a dark version and follow the theme; DPDP has one, drawn on its own white disc.
+import type { Standard } from '../../../data/security';
+interface Props { s: Standard; size?: number; night?: boolean }
+// `night`: on the always-dark footer, the dark version whatever the theme.
+const { s, size = 124, night = false } = Astro.props;
+const alt = `${s.name}: ${s.status.toLowerCase()}`;
+const themed = s.id !== 'dpdp' && !night;
+const one = s.id === 'dpdp' ? '/badges/dpdp.webp' : `/badges/${s.id}-dark.webp`;
+const h = s.id === 'dpdp' ? Math.round(size * 415 / 442) : size;
+---
+{themed ? (
+  <span class="sec-badge" style={`--b:${size}px`}>
+    <img class="logo-on-light" src={`/badges/${s.id}-light.webp`} alt={alt} width={size} height={size} loading="lazy" decoding="async" />
+    <img class="logo-on-dark" src={`/badges/${s.id}-dark.webp`} alt="" width={size} height={size} loading="lazy" decoding="async" />
+  </span>
+) : (
+  <span class="sec-badge" style={`--b:${size}px`}>
+    <img src={one} alt={alt} width={size} height={h} loading="lazy" decoding="async" />
+  </span>
+)}

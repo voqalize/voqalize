@@ -1,0 +1,39 @@
+---
+// Scene 1, the intake form: step 3 of 4, Medications, empty. Carol says what changed;
+// the form copies last visit's list, adds a vitamin D row with the strength left blank,
+// Ira asks for it, Carol answers and the form is ready for her to send.
+// Steps: 0 empty form, 1 said, 2 last visit's three rows fill, 3 vitamin D row with an
+// empty strength, 4 Ira asks, 5 Carol answers: strength filled, "Review and send" ready.
+import Device from '../Device.astro';
+import Voice from '../../Voice.astro';
+
+const MEDS = [
+  { n: 'Lisinopril', d: '10 mg', f: 'Once a day' },
+  { n: 'Atorvastatin', d: '20 mg', f: 'At night' },
+  { n: 'Metformin', d: '500 mg', f: 'Twice a day' },
+];
+---
+<Device kind="phone" app="Willow Health">
+  <div class="hi">
+    <p class="hi-k">Before your visit · Thu, Oct 16</p>
+    <div class="hi-prog"><i class="on"></i><i class="on"></i><i class="hi-cur"></i><i></i></div>
+    <p class="hi-t">Medications <span>Step 3 of 4</span></p>
+    <p class="hi-sub">List everything you take, including vitamins.</p>
+    <p class="hi-from">From your last visit</p>
+    <ul class="hi-meds">
+      {MEDS.map((m, j) => (
+        <li class="hi-med hi-med--old" style={`--j:${j}`}>
+          <span class="hi-blank"></span>
+          <span class="hi-fill"><b>{m.n}</b><small>{m.d} · {m.f}</small></span>
+        </li>
+      ))}
+      <li class="hi-med hi-med--new">
+        <span class="hi-fill"><b>Vitamin D <em>New</em></b><span class="hi-str"><small>Strength</small><i class="hi-str__v">1,000 IU</i></span></span>
+      </li>
+    </ul>
+    <span class="hi-send">Review and send</span>
+  </div>
+  <Voice slot="dock" who="person" class="sol-said out-at-4">Same medicines as last year, and I started vitamin D.</Voice>
+  <Voice slot="dock" who="agent" face="/characters/ira.webp" class="r-at-4">I copied three from your last visit and added vitamin D. What strength is it? It's on the bottle.</Voice>
+  <Voice slot="dock" who="person" class="r-at-5">One thousand units.</Voice>
+</Device>

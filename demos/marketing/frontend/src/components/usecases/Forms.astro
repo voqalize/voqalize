@@ -1,0 +1,32 @@
+---
+// Long forms: a real-looking change of address form, fourteen fields long. On the
+// sentence it scrolls to the new address block and fills it field by field; the
+// state list opens and lands on Texas.
+// Steps: 0 top of form, 1 said, 2 scroll + street, 3 apartment, 4 city,
+// 5 state list open, 6 Texas + ZIP, 7 reply.
+---
+<div class="fm">
+  <div class="fm-form">
+    <p class="fm-step">Step 2 of 3 <i><b></b></i></p>
+    <p class="fm-sec">About you</p>
+    <div class="fm-row fm-row--even"><label class="fm-f"><span>First name</span><b>Maya</b></label><label class="fm-f"><span>Last name</span><b>Reyes</b></label></div>
+    <label class="fm-f"><span>Email</span><b>maya.reyes@mail.com</b></label>
+    <div class="fm-row fm-row--even"><label class="fm-f"><span>Phone</span><b>(512) 555 0142</b></label><label class="fm-f"><span>Date of birth</span><b>04 / 12 / 1991</b></label></div>
+    <p class="fm-sec">Old address</p>
+    <label class="fm-f"><span>Street</span><b>221 Oak Avenue</b></label>
+    <div class="fm-row"><label class="fm-f"><span>City</span><b>Dallas</b></label><label class="fm-f fm-f--s"><span>ZIP</span><b>75201</b></label></div>
+    <p class="fm-sec fm-sec--new">New address</p>
+    <label class="fm-f fm-in fm-in1"><span>Street</span><b><em>14 Elm Street</em></b></label>
+    <div class="fm-row fm-row--rev"><label class="fm-f fm-f--s fm-in fm-in2"><span>Apartment</span><b><em>3B</em></b></label><label class="fm-f fm-in fm-in3"><span>City</span><b><em>Austin</em></b></label></div>
+    <div class="fm-row fm-row--state">
+      <label class="fm-f fm-in fm-in4 fm-sel"><span>State</span><b><em>Texas</em><s>Select</s><svg viewBox="0 0 10 10"><path d="M2 3.5l3 3l3-3"/></svg></b></label>
+      <label class="fm-f fm-f--s fm-in fm-in5"><span>ZIP</span><b><em>78701</em></b></label>
+      <div class="fm-list"><div class="fm-list__t">
+        {['Alabama', 'Alaska', 'Arizona', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont'].map((s) => <span class={s === 'Texas' ? 'is-tx' : ''}>{s}</span>)}
+      </div></div>
+    </div>
+    <label class="fm-f"><span>Move date</span><b class="fm-ph">MM / DD / YYYY</b></label>
+    <label class="fm-f"><span>Forward mail for</span><b class="fm-ph">12 months</b></label>
+    <p class="fm-check"><i></i>Email me a confirmation</p>
+  </div>
+</div>

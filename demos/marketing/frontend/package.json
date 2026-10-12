@@ -1,0 +1,34 @@
+{
+  "name": "voqalize-marketing-website",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "brain": "cd ../.. && uv run --with watchfiles watchfiles --sigint-timeout 2 'python marketing/local.py' marketing/backend marketing/frontend/src/data",
+    "brain:types": "cd ../.. && uv run voqalize types marketing/backend/brain.py -o marketing/frontend/src/scripts/actions.gen.ts",
+    "brain:test": "cd ../.. && uv run pytest -q tests/test_marketing_brain.py tests/test_marketing_screen.py",
+    "test:e2e": "playwright test",
+    "voice:parts": "astro build --outDir .e2e-dist > /dev/null && python3 -I tools/page_parts.py .e2e-dist",
+    "dev:live": "concurrently -k -n site,brain -c gray,magenta \"pnpm dev\" \"pnpm brain\"",
+    "build": "astro check && astro build",
+    "build:release": "SOURCEMAPS=1 astro check && SOURCEMAPS=1 astro build && posthog-cli sourcemap inject --directory dist --release-name voqalize-marketing-website && posthog-cli sourcemap upload --directory dist --release-name voqalize-marketing-website --delete-after",
+    "preview": "astro preview",
+    "check": "astro check"
+  },
+  "dependencies": {
+    "@pipecat-ai/client-js": "1.13.1",
+    "@pipecat-ai/small-webrtc-transport": "1.10.8",
+    "@voqalize/avatar": "0.5.6",
+    "@voqalize/client-transport": "0.3.2",
+    "astro": "^7.2.8",
+    "posthog-js": "1.438.7"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "@playwright/test": "1.55.0",
+    "@posthog/cli": "0.18.10",
+    "concurrently": "9.2.1",
+    "typescript": "^5.6.0"
+  }
+}

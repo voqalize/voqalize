@@ -1,0 +1,20 @@
+---
+// The frame for the company and resources pages (About, Our story, Press and contact,
+// Security and trust, Privacy and terms, DPA): header, the page, the footer, and the
+// motion loops (motion.ts) so `data-loop` pieces play. Each page's own styles live in
+// src/styles/pages/<id>.css, scoped under `.pg--<id>`.
+import Base from './Base.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import '../styles/s/pages.css';
+interface Props { title: string; description: string; id: string }
+const { title, description, id } = Astro.props;
+---
+<Base title={`${title} | Voqalize`} description={description} mode="read">
+  <Header home={false} />
+  <main class={`pg pg--${id}`}>
+    <slot />
+  </main>
+  <Footer />
+  <script>import { mountMotion } from '../scripts/motion'; mountMotion();</script>
+</Base>

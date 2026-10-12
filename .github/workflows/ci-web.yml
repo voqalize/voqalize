@@ -70,6 +70,21 @@ jobs:
       - name: Build the demo UIs
         run: node demos/build.mjs
 
+      # voqalize.com itself (demos/marketing/frontend): built on its own because it
+      # is the apex, not a card under /demos. `pnpm build` is `astro check` plus the
+      # build, so a brain action the page does not handle fails here. No agent keys:
+      # without them the page falls back to its simulated voice.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'   # Astro 7 needs 22.12+; the deploy step runs node:22-slim
+
+      - name: Build the marketing site
+        working-directory: demos/marketing/frontend
+        run: |
+          corepack enable && corepack prepare pnpm@10.32.1 --activate
+          pnpm install --ignore-workspace --frozen-lockfile
+          pnpm build
+
       - name: Build the docs site
         working-directory: docs
         run: |

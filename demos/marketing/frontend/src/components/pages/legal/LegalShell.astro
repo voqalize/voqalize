@@ -1,0 +1,62 @@
+---
+// The long-form frame both legal pages share (/privacy with its Terms part, and /dpa).
+// Top: breadcrumb, title, "Last updated" date, a plain lede, links to the sibling document,
+// and a draft notice. Then a two-column reading layout: a sticky table of contents on wide
+// screens (a collapsible "Contents" disclosure on phones) and the document itself.
+// No motion. A tiny script marks the section in view in the side contents (aria-current).
+// Print: the contents, header, footer and dock are hidden; see src/styles/pages/legal.css.
+import type { TocGroup } from '../../../data/privacy';
+interface Props { title: string; updated: string; toc: TocGroup[] }
+const { title, updated, toc } = Astro.props;
+---
+<p class="pg-crumb"><a href="/">Voqalize</a> / Resources</p>
+<header class="pg-head lg-head">
+  <h1>{title}</h1>
+  <p class="lg-meta">Last updated {updated}</p>
+  <slot name="lede" />
+</header>
+<div class="lg">
+  <details class="lg-toc-m">
+    <summary>Contents</summary>
+    <nav aria-label="Contents">
+      {toc.map((g) => (
+        <div class="lg-toc__g">
+          <a class="lg-toc__part" href={`#${g.id}`}>{g.label}</a>
+          <ol>{g.items.map((s) => <li><a href={`#${s.id}`}><span>{s.n}</span> {s.title}</a></li>)}</ol>
+        </div>
+      ))}
+    </nav>
+  </details>
+  <aside class="lg-toc">
+    <nav aria-label="Contents" data-lg-toc>
+      <p class="lg-toc__title">Contents</p>
+      {toc.map((g) => (
+        <div class="lg-toc__g">
+          <a class="lg-toc__part" href={`#${g.id}`}>{g.label}</a>
+          <ol>{g.items.map((s) => <li><a href={`#${s.id}`}><span>{s.n}</span> {s.title}</a></li>)}</ol>
+        </div>
+      ))}
+    </nav>
+  </aside>
+  <article class="lg-doc">
+    <slot />
+  </article>
+</div>
+<script>
+  // Mark the section in view in the side contents. No scrolling effects, just aria-current.
+  const nav = document.querySelector<HTMLElement>('[data-lg-toc]');
+  if (nav && 'IntersectionObserver' in window) {
+    const links = new Map<string, HTMLAnchorElement>();
+    nav.querySelectorAll<HTMLAnchorElement>('a[href^="#"]').forEach((a) => links.set(a.hash.slice(1), a));
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        const a = links.get(e.target.id);
+        if (!a) continue;
+        nav.querySelectorAll('[aria-current]').forEach((x) => x.removeAttribute('aria-current'));
+        a.setAttribute('aria-current', 'location');
+      }
+    }, { rootMargin: '-15% 0px -75% 0px' });
+    links.forEach((_, id) => { const el = document.getElementById(id); if (el) io.observe(el); });
+  }
+</script>

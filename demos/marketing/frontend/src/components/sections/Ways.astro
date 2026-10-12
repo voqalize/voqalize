@@ -1,0 +1,149 @@
+---
+import { CONSOLE_URL } from '../../data/env';
+// Two ways to add voice: Plug & Play and developer integration, each as a stepped loop.
+// The tabs advance on their own when a loop ends, unless the visitor picks a tab or a
+// step (a step is a button that jumps the loop there). What Voqalize runs is shared by
+// both paths, so it sits above the tabs.
+const pnp = [
+  ['Give us your web address.', ''],
+  ['We learn your website.', 'Every page becomes a knowledge base.'],
+  ['Pick a character, or create your own.', ''],
+  ['Paste one script tag.', ''],
+  ['You are live.', ''],
+];
+const dev = [
+  ['Install the SDKs.', 'In your frontend and your backend.'],
+  ['Connect your backend.', 'Two ways to dial in: we call your endpoint, or your backend calls us.'],
+  ['Your brain decides.', 'With your APIs, your database and your tools.'],
+  ['You are live.', ''],
+];
+const shelves = [['Products', '96'], ['Policies', '12'], ['Sizes and care', '9'], ['Store and contact', '7']];
+const faces = ['tara', 'tushar', 'tanvi', 'tess', 'trisha', 'tanya'];
+const weRun = ['WebRTC', 'Speech-to-text', 'Text-to-speech', 'Turn-taking', 'Interruptions', 'Characters', 'Recording'];
+---
+<header class="s-head" data-part="head">
+  <p class="eyebrow">Getting started</p>
+  <h2 id="t-ways">Two ways to integrate.</h2>
+  <p class="s-lede">Let us run the AI for you, or connect the agent you already have. Either way, nobody rebuilds the app.</p>
+</header>
+<p class="we-run" data-part="we_run" data-part-label="The line of what Voqalize runs either way: WebRTC, speech-to-text, text-to-speech, turn-taking, interruptions, characters, recording."><span>Either way, Voqalize runs</span>{weRun.map((w) => <span class="tag tag--run">{w}</span>)}</p>
+
+<div class="tabs" data-tabs>
+  <div class="tabs__list" role="tablist" aria-label="Two ways to add voice" data-part="tabs" data-part-label="The two tabs: Plug &amp; Play and Developer integration.">
+    <button type="button" role="tab" id="tab-pnp" data-voice="ways.plug_and_play" aria-controls="panel-pnp" aria-selected="true">Plug &amp; Play</button>
+    <button type="button" role="tab" id="tab-dev" data-voice="ways.developer" aria-controls="panel-dev" aria-selected="false" tabindex="-1">Developer integration</button>
+  </div>
+
+  <div role="tabpanel" id="panel-pnp" aria-labelledby="tab-pnp" class="way">
+    <div class="way__grid" data-loop="500 2600 2400 2400 2600 3600">
+      <div class="way__side" data-part="pnp_steps" data-part-label="The Plug &amp; Play steps, 1 to 5, and a Go to Console button.">
+        <ol class="way__steps">
+          {pnp.map(([h, p], i) => <li class={`ws ws${i + 1}`}><button type="button" class="ws__btn" data-goto-step={i + 1} data-voice={`ways.plug_and_play.step${i + 1}`}><span class="ws__n">{i + 1}</span><span><b>{h}</b>{p && <span> {p}</span>}</span></button></li>)}
+        </ol>
+        <a class="btn btn--accent way__go" href={CONSOLE_URL} data-console rel="noopener">Go to Console</a>
+      </div>
+      <div class="way__stage browser" aria-hidden="true" data-part="pnp_demo" data-part-label="The Plug &amp; Play animation in a browser window: the web address, the knowledge base, the character, the script tag, the store live.">
+        <div class="browser__bar"><i></i><i></i><i></i><span class="browser__url"><span class="type-url">yourstore.com</span></span></div>
+        <div class="browser__body">
+          <div class="pane pane--1">
+            <p class="pane__label">Your web address</p>
+            <p class="url-field"><span class="type-url">https://yourstore.com</span><span class="caret"></span></p>
+          </div>
+          <div class="pane pane--2">
+            <p class="pane__label">Knowledge base</p>
+            <ul class="shelves">{shelves.map(([k, n], i) => <li class={`sh sh${i + 1}`}><span>{k}</span><b>{n} pages</b></li>)}</ul>
+          </div>
+          <div class="pane pane--3">
+            <p class="pane__label">Your character</p>
+            <ul class="pick">{faces.map((f) => <li class={f === 'tess' ? 'is-picked' : ''}><img src={`/characters/${f}.webp`} alt="" width="64" height="64" loading="lazy" /></li>)}<li class="pick__own">+</li></ul>
+          </div>
+          <div class="pane pane--4">
+            <p class="pane__label">Paste this before &lt;/body&gt;</p>
+            <pre class="code"><code>&lt;script src=&quot;https://voqalize.com/widget.js&quot;
+  data-agent=&quot;yourstore&quot;&gt;&lt;/script&gt;</code></pre>
+          </div>
+          <div class="pane pane--5">
+            <div class="site">
+              <div class="site__nav"><i class="site__logo"></i><i></i><i></i><i></i><i class="site__btn"></i></div>
+              <div class="site__body">
+                <div class="site__side"><b></b><i></i><i></i><i></i><b></b><i></i><i></i></div>
+                <div class="site__main">
+                  <div class="site__hero"><div class="site__copy"><i></i><i></i><i></i><span></span></div><span class="site__img"></span></div>
+                  <div class="site__grid"><span><i></i><i></i><i></i></span><span><i></i><i></i><i></i></span><span><i></i><i></i><i></i></span><span><i></i><i></i><i></i></span><span><i></i><i></i><i></i></span><span><i></i><i></i><i></i></span></div>
+                </div>
+              </div>
+            </div>
+            <p class="live-pill"><img src="/characters/tess.webp" alt="" width="36" height="36" /><span>Hi, welcome to Your Store. What brings you in today?</span></p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <ul class="facts" data-part="pnp_facts" data-part-label="The Plug &amp; Play facts: live in under 5 minutes, you pay per conversation minute, update what it knows any time through our MCP.">
+      <li><b>Live in under 5 minutes.</b></li>
+      <li><b>You pay per conversation minute.</b></li>
+      <li><b>Update what it knows any time,</b> through our MCP.</li>
+    </ul>
+  </div>
+
+  <div role="tabpanel" id="panel-dev" aria-labelledby="tab-dev" class="way way--dev" hidden>
+    <div class="way__grid" data-loop="500 4200 3600 4800 3600">
+      <div class="way__side" data-part="dev_steps" data-part-label="The developer steps, 1 to 4, and a Go to Console button.">
+        <ol class="way__steps">
+          {dev.map(([h, p], i) => <li class={`ws ws${i + 1}`}><button type="button" class="ws__btn" data-goto-step={i + 1} data-voice={`ways.developer.step${i + 1}`}><span class="ws__n">{i + 1}</span><span><b>{h}</b>{p && <span> {p}</span>}</span></button></li>)}
+        </ol>
+        <a class="btn btn--accent way__go" href={CONSOLE_URL} data-console rel="noopener">Go to Console</a>
+      </div>
+      <div class="way__stage term" aria-hidden="true" data-part="dev_demo" data-part-label="The developer animation in a terminal: installing the SDKs, the two ways to dial in, the brain code, the app talking.">
+        <div class="term__bar"><i></i><i></i><i></i><span>your-app</span></div>
+        <div class="term__body">
+          <!-- Typed by hand: each `.ty` line types out at its own delay (--d, in ms), --n characters long. -->
+          <div class="pane pane--1">
+            <pre class="code code--dark"><code><span class="c-mute"># backend</span>
+<span class="ty" style="--n:32;--d:0">$ pip install voqalize-agent-sdk</span>
+<span class="c-mute"># frontend</span>
+<span class="ty" style="--n:40;--d:1300">$ npm install @voqalize/client-transport</span></code></pre>
+          </div>
+          <div class="pane pane--2">
+            <p class="hs-label">Two ways to dial in. Pick one.</p>
+            <div class="dial dial--a">
+              <span class="dial__k">We call you</span>
+              <div class="handshake"><span class="hs-box">Voqalize</span><span class="hs-line"><i></i></span><span class="hs-box">Your endpoint</span></div>
+              <span class="dial__sub">Voqalize dials your WebSocket</span>
+            </div>
+            <div class="dial dial--b">
+              <span class="dial__k">You call us</span>
+              <div class="handshake"><span class="hs-box">Voqalize</span><span class="hs-line hs-line--back"><i></i></span><span class="hs-box">Your backend</span></div>
+              <span class="dial__sub">Your backend connects out to Voqalize, no open port</span>
+            </div>
+          </div>
+          <div class="pane pane--3">
+            <pre class="code code--dark"><code><span class="ty" style="--n:37;--d:0"><span class="c-key">from</span> voqalize.sdk <span class="c-key">import</span> Brain, serve</span>
+
+<span class="ty" style="--n:23;--d:900"><span class="c-key">class</span> <span class="c-fn">YourAgent</span>(Brain):</span>
+<span class="ty" style="--n:37;--d:1500">    <span class="c-key">async def</span> <span class="c-fn">respond</span>(self, session):</span>
+<span class="ty" style="--n:46;--d:2400">        <span class="c-mute"># your agent, your APIs, your database</span></span>
+<span class="ty" style="--n:11;--d:3500">        ...</span></code></pre>
+          </div>
+          <div class="pane pane--4">
+            <div class="site site--dark">
+              <div class="site__nav"><i class="site__logo"></i><i></i><i></i><i></i><i class="site__btn"></i></div>
+              <div class="site__body">
+                <div class="site__side"><b></b><i></i><i></i><i></i><b></b><i></i><i></i></div>
+                <div class="site__main">
+                  <div class="site__hero"><div class="site__copy"><i></i><i></i><i></i><span></span></div><span class="site__img"></span></div>
+                  <div class="site__grid"><span><i></i><i></i><i></i></span><span><i></i><i></i><i></i></span><span><i></i><i></i><i></i></span><span><i></i><i></i><i></i></span><span><i></i><i></i><i></i></span><span><i></i><i></i><i></i></span></div>
+                </div>
+              </div>
+            </div>
+            <p class="live-pill live-pill--dark"><img src="/characters/tess.webp" alt="" width="36" height="36" /><span>Your app is talking.</span></p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <ul class="facts" data-part="dev_facts" data-part-label="The developer facts: SDKs for the stacks you already use, your codebase and agent stay as they are, and a link to the docs.">
+      <li><b>SDKs for the stacks you already use.</b></li>
+      <li><b>Your codebase and your agent stay as they are.</b></li>
+      <li><a href="https://docs.voqalize.com" target="_blank" rel="noopener">Read the docs</a></li>
+    </ul>
+  </div>
+</div>

@@ -126,27 +126,24 @@ discovers backends and each frontend declares its own connection wiring. To add
 ### When the page lives somewhere else
 
 `marketing` is the exception the checklist does not cover, and it is deliberate:
-it has a `backend/` and no `frontend/`. Its page is the Voqalize homepage, which
-is built from its own repo (`voqalize/marketing-website`), so steps 2–4 above do
-not apply to it and **it is not in `manifest.json`** — it is not a card on the
-`/demos` index, it is Tanvi, the guide who runs the homepage by voice.
-`build.mjs` walks `manifest.demos`, so leaving it out is what keeps the web build
-from looking for a `frontend/` that is not there.
+its `frontend/` is voqalize.com itself, Tanvi's page, served at the apex rather
+than under `/demos/<name>/`. So steps 2–4 above do not apply to it and **it is
+not in `manifest.json`** — it is not a card on the `/demos` index, it is the
+site the index sits in. `build.mjs` walks `manifest.demos`, so leaving it out
+keeps the gallery build from building it at the wrong base;
+`cloudbuild.web.yaml` builds it on its own instead and stages it as
+`marketing/` in the web artifact, and the apex build lays it at `/`.
 
-The brain is written in that repo too (`brain/tanvi/`), next to the page it
-drives, and copied here so it deploys with the other brains:
-
-```sh
-# from the marketing-website checkout
-pnpm brain:sync ../voqalize
-```
-
-That replaces `brain.py`, `screen.py`, `silent.py`, `site.py`, `knowledge/` and
-`site_data/` (the site's `sections.json` and `voice.json`, which name every
-section and control she can open or point at). Edit them there, never here: the
-next sync overwrites them. `routes.py` and `__init__.py` belong to this repo. The
-action and event types the page narrows on are generated in that repo
-(`pnpm brain:types`), and its own tests hold the page to them.
+The page and the brain share one vocabulary, read from the same files:
+`frontend/src/data/sections.json` and `frontend/src/data/voice.json` name every
+section, control and block Tanvi can open or point at, and `backend/site.py`
+turns them into the `Literal` types her tools accept. The actions and events
+the page narrows on are generated from the brain
+(`cd marketing/frontend && pnpm brain:types`), and `astro check` fails the site
+build on an action the page does not handle. Her tests are
+`tests/test_marketing_brain.py` and `tests/test_marketing_screen.py`;
+`frontend/README.md` has the site's own commands, including running the brain
+locally through Cortex (`marketing/local.py`).
 
 `qween` is the same exception, for the same reason: its page is someone else's
 site. The agent is a jewellery consultant on www.qween.com, a design partner's

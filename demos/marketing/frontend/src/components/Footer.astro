@@ -1,0 +1,48 @@
+---
+import { SECTIONS } from '../data/sections';
+import { ROOMS } from '../data/rooms';
+import { SOLUTIONS } from '../data/solutions';
+import { STANDARDS } from '../data/security';
+import Badge from './pages/security/Badge.astro';
+import { BOOK_URL } from '../data/contact';
+// Plug & Play and Developer integration also pick their tab in the Two ways section.
+const product: Array<[string, string, string?]> = [['action', 'How it works'], ['ways', 'Plug & Play', 'tab-pnp'], ['ways', 'Developer integration', 'tab-dev'], ['cast', 'Characters']];
+const group = (g: string) => ROOMS.filter((r) => r.group === g);
+const known = new Set(SECTIONS.map((s) => s.id));
+// "Ask your AI assistant about Voqalize" (after recruit41.com): one click opens an assistant with this question.
+const ASK = 'I run product at a company with a web or mobile app. From voqalize.com, explain what Voqalize does: how our customers could talk to our app and have it act on screen, what it handles for us, how we would integrate it with our app or our own AI agent, and what it costs. Keep it short.';
+const q = encodeURIComponent(ASK);
+const assistants: Array<[string, string]> = [
+  ['Ask Claude', `https://claude.ai/new?q=${q}`],
+  ['Ask ChatGPT', `https://chatgpt.com/?q=${q}`],
+  ['Ask Gemini', `https://www.google.com/search?udm=50&aep=11&q=${q}`],
+];
+---
+<footer class="foot">
+  <div class="foot__in">
+    <div class="foot__ask">
+      <div>
+        <h2>Ask your AI assistant about Voqalize</h2>
+        <p>One click opens your assistant with a question about what we do and how it would work for your app, answered from voqalize.com.</p>
+      </div>
+      <div class="foot__ask-go">{assistants.map(([label, href]) => <a class="btn btn--sm btn--onnight" href={href} target="_blank" rel="noopener">{label}</a>)}</div>
+    </div>
+    <div class="foot__top">
+      <div class="foot__brand">
+        <img src="/brand/logo-dark.png" alt="Voqalize" width="84" height="28" />
+        <p>Your customers talk.<br />Your app acts.</p>
+        <div class="foot__go">
+          <button type="button" class="btn btn--ghost btn--sm" data-talk>Ask Tanvi anything</button>
+          <a class="btn btn--ghost btn--sm" href={BOOK_URL} target="_blank" rel="noopener" data-book>Book a call</a>
+        </div>
+        <a class="foot__badges" href="/security" aria-label="Security and trust: ISO/IEC 27001:2022, SOC 2, GDPR and DPDP">{STANDARDS.map((s) => <Badge s={s} size={52} night />)}</a>
+      </div>
+      <div><h3>Product</h3><ul>{product.filter(([id]) => known.has(id)).map(([id, label, tab]) => <li><a href={tab ? `/?tab=${tab}#s-${id}` : `/#s-${id}`} data-goto={id} data-open-tab={tab}>{label}</a></li>)}<li><a href="/experience">Experience Center</a></li><li><a href="/pricing">Pricing</a></li></ul></div>
+      <div><h3>Solutions</h3><ul>{SOLUTIONS.map((r) => <li><a href={`/${r.slug}`}>{r.title}</a></li>)}</ul></div>
+      <div><h3>Company</h3><ul>{group('Company').map((r) => <li><a href={`/${r.slug}`}>{r.title}</a></li>)}<li><a href={BOOK_URL} target="_blank" rel="noopener" data-book>Book a call</a></li></ul></div>
+      <div><h3>Resources</h3><ul><li><a href="https://docs.voqalize.com">Docs</a></li>{group('Resources').map((r) => <li><a href={`/${r.slug}`}>{r.title}</a></li>)}</ul></div>
+    </div>
+    <div class="foot__bottom"><span>© 2026 Voqalize Inc. All rights reserved.</span><button type="button" class="foot__ck" data-ck-open>Cookie settings</button><span class="sp"></span><a href="https://x.com/voqalize" target="_blank" rel="noopener">X (Twitter)</a><a href="https://www.linkedin.com/company/voqalize" target="_blank" rel="noopener">LinkedIn</a></div>
+  </div>
+  <img class="foot__mark" src="/brand/footer-wordmark.webp" alt="" width="1600" height="359" loading="lazy" aria-hidden="true" />
+</footer>

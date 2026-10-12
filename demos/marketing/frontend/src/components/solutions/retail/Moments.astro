@@ -1,0 +1,33 @@
+---
+// Where voice helps most in a store: six places shoppers give up, each as one row.
+// The screen they get today is struck through; what they would say instead sits
+// beside it with the person's wave mark. Static: no loop, readable as it is.
+const ROWS = [
+  { m: 'Search', today: '0 results for “something”', say: 'I need a rain jacket that packs small. I’m going to Seattle in May.' },
+  { m: 'Filters', today: 'Nine filters across four menus', say: 'Something linen, but not white, under 60 bucks.' },
+  { m: 'Size and fit', today: 'A size chart in centimeters', say: 'I’m a medium in most brands. Which size is that here?' },
+  { m: 'Compare', today: 'A spec table with forty rows', say: 'Which of these is better for a side sleeper?' },
+  { m: 'Checkout', today: 'Twelve fields for a one-item order', say: 'Ship it to my office.' },
+  { m: 'Where’s my order', today: 'A tracking number to paste somewhere else', say: 'Will it get here before Friday?' },
+];
+---
+<section class="sol-block rt-moments" aria-labelledby="rt-moments-t" data-part="moments">
+  <header class="s-head">
+    <p class="eyebrow">Where it helps most</p>
+    <h2 id="rt-moments-t">Shoppers leave where the store can’t follow what they mean.</h2>
+    <p class="s-lede">You already see these drop-offs in your analytics. Here’s the screen today, and what the shopper would say instead.</p>
+  </header>
+  <ul class="rt-moments__list">
+    {ROWS.map((r) => (
+      <li>
+        <span class="rt-moments__m">{r.m}</span>
+        <s class="rt-moments__today"><span class="visually-hidden">Today: </span>{r.today}</s>
+        <p class="rt-moments__say">
+          <svg class="wave" viewBox="0 0 14 12" aria-hidden="true"><rect x="0" y="4" width="2" height="4" rx="1"/><rect x="4" y="1" width="2" height="10" rx="1"/><rect x="8" y="3" width="2" height="6" rx="1"/><rect x="12" y="5" width="2" height="2" rx="1"/></svg>
+          <span><span class="visually-hidden">They say: </span>“{r.say}”</span>
+        </p>
+      </li>
+    ))}
+  </ul>
+  <p class="rt-moments__foot"><span class="rt-dot" aria-hidden="true"></span>The character proposes. The shopper confirms anything that charges a card or sends a refund.</p>
+</section>

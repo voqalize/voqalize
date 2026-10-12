@@ -1,0 +1,37 @@
+---
+// The last scene, "Today": a dark panel with two doors. When the doors come into view the
+// page script adds `.is-open` once and they swing apart; behind them the stack stands lit,
+// with the page's second (and, in this view, only) Voice Gradient as the light on the threshold.
+// Then the calls to action, a draft founder quote (placeholder for approval) and the founders.
+// Reduced motion: the doors are open from the start.
+import { CONSOLE_URL } from '../../../data/env';
+---
+<section class="st-today" id="today" aria-labelledby="today-t" data-reveal data-part="today">
+  <div class="st-today__text">
+    <p class="st-ch__n" aria-hidden="true">06</p>
+    <p class="eyebrow">Today</p>
+    <h2 id="today-t">Today we’re opening the doors.</h2>
+    <p class="st-today__p">Most of our work went into listening and timing. Starting today, any team building a product people talk to can use it.</p>
+  </div>
+
+  <div class="st-doors" data-doors aria-hidden="true">
+    <div class="st-doors__room">
+      <div class="st-doors__stack">{Array.from({ length: 8 }, (_, i) => <i style={`--i:${i}`}></i>)}</div>
+      <span class="st-doors__light"></span>
+    </div>
+    <span class="st-door st-door--l"><i></i></span>
+    <span class="st-door st-door--r"><i></i></span>
+  </div>
+
+  <div class="st-today__go">
+    <a class="btn btn--accent" href={CONSOLE_URL} data-console rel="noopener">Go to Console</a>
+    <a class="btn btn--ghost" href="/experience" target="_blank" rel="noopener">Try the Experience Center</a>
+  </div>
+
+  <figure class="st-quote">
+    <blockquote>“Every demo we built worked in a quiet room. Then a real customer called with the TV on. Most of what we built since was for that customer, and now other teams get it too.”</blockquote>
+    <figcaption>Samkeet Jain, Co-founder</figcaption>
+  </figure>
+
+  <p class="st-today__team">Voqalize is built by a team in Bengaluru, India.</p>
+</section>

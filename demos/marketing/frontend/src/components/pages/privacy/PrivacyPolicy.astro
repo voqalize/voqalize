@@ -1,0 +1,194 @@
+---
+import Email from '../../Email.astro';
+// Part A of /privacy: the Voqalize privacy policy. Adapted from the Recruit41 privacy and terms
+// document (same company), rewritten for voice AI infrastructure: Voqalize as controller for the
+// website, Tanvi, the demos, accounts and billing; as processor (under the DPA) for the voice
+// data of our customers' end users. Placeholders use <Ph>. Source text and the list of changes:
+// docs/sections/page-legal.md and docs/sections/legal-source/.
+import Sec from '../legal/Sec.astro';
+import Ph from '../legal/Ph.astro';
+import { CONSOLE_URL } from '../../../data/env';
+---
+<div class="lg-part" id="privacy-policy">
+  <p class="lg-part__k">Part A</p>
+  <h2 class="lg-part__h">Privacy policy</h2>
+</div>
+
+<Sec id="who-we-are" n="1" title="Who we are and what this covers" short="Voqalize Technologies Private Limited runs Voqalize. This policy explains what personal data we handle, why, and what you can ask us to do with it.">
+  <p>Voqalize Technologies Private Limited ("Voqalize", "we", "us", "our") is a company registered in India, with its registered office at 503, Block 17B, Suncity Apartments, HSR Layout, Bengaluru, Karnataka 560102, India, and corporate identity number U62099KA2025PTC197186. Voqalize is voice AI infrastructure: it lets businesses add two-way voice conversations to their applications, websites and AI agents.</p>
+  <p>This policy applies to the website at voqalize.com, including the voice guide Tanvi and the demos on it; the developer console at <a href={CONSOLE_URL} data-console>app.voqalize.com</a>; our APIs, SDKs, hosted voice runtime and MCP server; and any other product or service that links to this policy (together, the "Services"). Part B of this page sets out our <a href="#terms">terms of service</a>, and our <a href="/dpa">data processing addendum</a> ("DPA") governs the personal data we process for customers.</p>
+  <p>Voqalize Technologies Private Limited also operates Recruit41, a separate product with its own privacy notice. This policy covers Voqalize only.</p>
+</Sec>
+
+<Sec id="roles" n="2" title="Our two roles: controller and processor" short="If you visit our site, try Tanvi or open an account, we decide what happens to your data. If you talked to a voice agent a business built on Voqalize, that business decides, and you should ask them first.">
+  <p><b>Voqalize as controller.</b> We decide why and how your personal data is processed when you browse voqalize.com, talk to Tanvi or a demo on our site, create or use an account in the console, buy a plan, or write to us. For this data, we are the controller under the EU and UK GDPR and the Data Fiduciary under India's Digital Personal Data Protection Act, 2023 ("DPDP Act"), and this policy is the notice that applies to you.</p>
+  <p><b>Voqalize as processor.</b> Our customers use the Services to run voice conversations with their own users. When you speak to a voice agent or character in another company's app or website, that company (our customer) decides what is collected, whether the conversation is recorded, how long it is kept and what it is used for. The customer is the controller (or Data Fiduciary), and we are its processor (or Data Processor). We process that data only on the customer's documented instructions and under the <a href="/dpa">DPA</a>. The customer's own privacy notice governs, and requests about that data should go to the customer. If you contact us about it, we will pass your request to the customer and help them respond.</p>
+</Sec>
+
+<Sec id="collect" n="3" title="Information we collect as controller" short="Technical data and cookies when you visit, what you say when you talk to Tanvi or a demo, your account and usage details if you sign up, billing details if you pay, and whatever you put in an email to us.">
+  <h4>3.1 When you visit voqalize.com</h4>
+  <p>Our servers and hosting provider receive standard technical information with each request, such as your IP address, browser type, device type, the pages you request, the referring page and the time of the request. We use it to deliver and secure the website. voqalize.com also uses analytics cookies, to understand how visitors use the site, and marketing and advertising cookies, to measure and improve our marketing. <a href="#cookies">Section 15</a> explains our use of cookies.</p>
+  <h4>3.2 When you talk to Tanvi or a demo on our site</h4>
+  <p>Tanvi, the character who can guide you around voqalize.com, and the demos on our site are real voice sessions. Your microphone opens only after you choose to start a conversation and your browser asks for permission. During the session we process:</p>
+  <ul>
+    <li>your voice audio, streamed to us over WebRTC;</li>
+    <li>the transcript of what you say, produced by our speech-to-text service, and the replies, produced by a language model and spoken by our text-to-speech service;</li>
+    <li>events from the page that let the guide act on the site, such as which section is open or which button you pressed;</li>
+    <li>session metadata, such as the time, duration, connection quality and your IP address.</li>
+  </ul>
+  <p>The text of the conversation is sent to a third-party language model provider to generate replies (see <a href="#share">section 8</a>). We do not record Tanvi or the demos on our site, so no audio or video of your session is stored. We keep the session record, transcript and logs for 30 days (see <a href="#retention">section 10</a>). Please do not share sensitive or confidential information with Tanvi or a demo.</p>
+  <h4>3.3 When you create and use an account</h4>
+  <p>When you sign up for the console, we collect your name and email address (for example through Google sign-in), your organisation name, and the information you create in the Services: agents and their settings, characters and voices you choose, the URL of your brain, API keys (we store them in a form we cannot read back), allowed origins and team members. We also keep records of how the Services are used, such as sessions run, minutes used, errors and logs, and a security audit trail of sign-ins, key changes and administrative actions.</p>
+  <h4>3.4 When you buy a plan</h4>
+  <p>We collect billing contact details, company name, billing address, tax identifiers such as a GSTIN, the plan you choose, invoices and payment status. Card and UPI payments are handled by our payment processors, Razorpay and Dodo Payments; we do not receive or store full card numbers.</p>
+  <h4>3.5 When you contact us</h4>
+  <p>If you email support@voqalize.com or contact us another way, we keep your message, your contact details and our reply so that we can help you and keep a record of what was agreed.</p>
+</Sec>
+
+<Sec id="voice-data" n="4" title="Voice data we process for our customers" short="For our customers we carry the conversation: audio in, text to their agent, speech and the character back out. We only do what the customer asks, under the DPA.">
+  <p>When a customer deploys Voqalize, the Services process the following on the customer's behalf, as its processor:</p>
+  <ul>
+    <li><b>Voice sessions.</b> Audio from the end user's microphone, and camera or screen video if the customer's app sends it, carried over WebRTC to our voice runtime.</li>
+    <li><b>Speech to text and text to speech.</b> We transcribe what the end user says and turn the agent's replies into speech, using speech models that we operate on Google Cloud in the Mumbai region, India.</li>
+    <li><b>The customer's brain.</b> In developer integration, the customer runs its own agent (its "brain") and gives us its address. We send the transcribed text and session events to that brain and speak its replies. What the brain does with the data is the customer's responsibility.</li>
+    <li><b>Plug &amp; Play.</b> When Voqalize manages the agent for the customer, we send the conversation text, together with the instructions and knowledge the customer configures, to a language model provider listed in the DPA to generate replies. Where the customer connects tools through MCP or another integration, we send the data needed to call those tools.</li>
+    <li><b>Characters.</b> We generate the facial movement and expressions of the on-screen character from the agent's speech. The character does not analyse the end user's face.</li>
+    <li><b>Recordings and transcripts.</b> If the customer turns recording on, we store audio (and any camera or screen video the customer's app sends) and the session's transcript, events and logs, so the customer can review them.</li>
+  </ul>
+  <p>We do not use this data for our own purposes, sell it, or use it to build profiles of end users. The customer is responsible for telling its users about the processing, for obtaining any consent that is needed, including consent to record, and for answering their requests. Our commitments to customers are set out in the <a href="/dpa">DPA</a>.</p>
+</Sec>
+
+<Sec id="sensitive" n="5" title="Voice, biometrics and sensitive data" short="A voice can be personal in ways text is not. We do not use voices to identify people, we do not build voiceprints, we do not train models on conversations, and we ask customers not to use Voqalize to identify people either.">
+  <p>A recording of someone's voice is personal data, and in some places it can become biometric data or sensitive personal data when it is used to identify a person. We do not use voice data to identify or authenticate individuals, we do not create voiceprints or speaker profiles, and we do not infer emotions, health or other sensitive characteristics from a person's voice for our own purposes.</p>
+  <p>We do not use customer audio, video, transcripts or recordings to train or improve speech or language models. We do not record Tanvi or the demos on our site, so nothing from those conversations is used to train models either.</p>
+  <p>We do not intend to collect special categories of personal data under the GDPR (such as data about health, religion, ethnic origin, sexual orientation or biometric data used for identification). People sometimes say sensitive things in a conversation, and we treat any such content with the same protections as the rest of the session. Customers must not use the Services to collect or process special categories of personal data, or biometric identifiers for identification, unless they have a lawful basis, have given any notice and obtained any consent the law requires, and have agreed this with us in writing.</p>
+</Sec>
+
+<Sec id="use" n="6" title="How we use information" short="To run the site and the Services, keep them secure, support and bill you, improve the product, and meet legal duties.">
+  <p>We use the personal data we control to:</p>
+  <ul>
+    <li>provide the website, Tanvi, the demos and the Services, and carry out the requests you make;</li>
+    <li>create and manage accounts, authenticate users and enforce plan limits;</li>
+    <li>bill for the Services, collect payment and keep tax and accounting records;</li>
+    <li>monitor, debug and secure the Services, and prevent fraud, abuse and misuse;</li>
+    <li>understand how the Services are used, in aggregate, so we can improve them;</li>
+    <li>understand how visitors use voqalize.com and measure our marketing and advertising, using the cookies described in section 15;</li>
+    <li>answer questions and send service messages, such as security notices and changes to these terms;</li>
+    <li>send product news to account holders, which you can turn off at any time;</li>
+    <li>comply with law, respond to lawful requests and protect our rights.</li>
+  </ul>
+</Sec>
+
+<Sec id="bases" n="7" title="Legal bases for processing" short="Under the GDPR we rely on contract, legitimate interests, consent and legal duty, depending on the data. Under India's DPDP Act we rely on consent or a legitimate use the Act allows.">
+  <p>Data you give us as a visitor, or when you sign up or register for the Services, is processed to provide the Services to you or to take steps you ask for before we do. Where we use data for something else, we ask for your consent, and you can withdraw it at any time by writing to us. We may also process data where it serves our legitimate interests and those interests are not overridden by your rights.</p>
+  <div class="lg-table-wrap">
+    <table class="lg-table">
+      <thead><tr><th scope="col">Nature of data</th><th scope="col">Grounds</th></tr></thead>
+      <tbody>
+        <tr><td>Website visitor data</td><td>Legitimate interest; consent where required</td></tr>
+        <tr><td>Tanvi and demo sessions</td><td>Consent, given when you start the session</td></tr>
+        <tr><td>Account registration data</td><td>Performance of a contract; legitimate interest</td></tr>
+        <tr><td>Service usage data and security logs</td><td>Legitimate interest; compliance with applicable laws</td></tr>
+        <tr><td>Billing and tax records</td><td>Performance of a contract; compliance with applicable laws</td></tr>
+        <tr><td>Data for marketing our Services</td><td>Consent or legitimate interest, as the law requires</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Under the DPDP Act, we process your digital personal data with your consent, or for a legitimate use the Act permits, such as where you have voluntarily provided data for a specified purpose and not objected to its use for that purpose.</p>
+</Sec>
+
+<Sec id="share" n="8" title="How we share information" short="With the service providers who help us run Voqalize, with the business you are using if you came through a customer, and when the law requires it. We do not sell personal data.">
+  <p>We share personal data only as follows:</p>
+  <ul>
+    <li><b>Sub-processors and service providers</b> that host our infrastructure, run language models, process payments or send email for us, under contracts that require them to protect the data and use it only for our instructions. The current list is in <a href="/dpa#annex-2">Annex 2 of the DPA</a>.</li>
+    <li><b>Our customers</b>, for data we process on their behalf. Data passes to the customer's brain and systems as the customer directs.</li>
+    <li><b>Legal and safety reasons</b>, where we must comply with a law, court order or lawful request from an authority, or to protect the rights, safety and property of our users, the public or Voqalize.</li>
+    <li><b>Business transfers</b>, if we are involved in a merger, acquisition, financing or sale of assets, subject to this policy.</li>
+  </ul>
+  <p>We do not sell personal data. We never use customer data, or the voice data of our customers' end users, for advertising, and we do not share customer data with any other product or business of our company.</p>
+  <p>On voqalize.com, advertising cookies can let our advertising partners collect information about your visit to the website. Some US state laws, including California's, call this "sharing" personal data for cross-context behavioural advertising. You can opt out at any time: our website shows a cookie choice whenever these cookies are in use, and we treat a Global Privacy Control signal from your browser as an opt-out. This applies only to website visits, never to the Services or to conversations.</p>
+</Sec>
+
+<Sec id="transfers" n="9" title="Where data is processed" short="We host everything on Google Cloud in Mumbai, India. If you use Voqalize from elsewhere, your data comes to India. Our email and analytics providers work from the United States, under proper safeguards.">
+  <p>All of the Services are hosted on Google Cloud in the Mumbai region (asia-south1), India, and nowhere else. That includes our control plane, database and storage, our voice runtime and our speech models. If you use the Services from outside India, your personal data is transferred to and processed in India, where data protection law may differ from the law where you live.</p>
+  <p>Our email and analytics providers process data in the United States; every other sub-processor processes data in India. Annex 2 of the DPA lists each one and where. When we transfer personal data out of the European Economic Area, the United Kingdom or Switzerland to a country without an adequacy decision, we rely on the European Commission's standard contractual clauses or another lawful transfer mechanism, as set out in the DPA. Transfers out of India follow the DPDP Act and any restrictions notified under it.</p>
+</Sec>
+
+<Sec id="retention" n="10" title="How long we keep data" short="Session data, including recordings, is kept for 30 days. Account data stays while your account is open, plus 90 days. Some security and tax records are kept longer because the law requires it.">
+  <div class="lg-table-wrap">
+    <table class="lg-table">
+      <thead><tr><th scope="col">Data</th><th scope="col">How long</th></tr></thead>
+      <tbody>
+        <tr><td>Customer session data: the session record, events, transcripts, logs and recordings</td><td>30 days, unless the customer's agreement says otherwise</td></tr>
+        <tr><td>Tanvi and demo sessions on voqalize.com: the session record, transcript and logs (these sessions are not recorded)</td><td>30 days</td></tr>
+        <tr><td>Service logs (requests, errors and deploys)</td><td>30 days</td></tr>
+        <tr><td>Account data</td><td>While the account is open, plus 90 days</td></tr>
+        <tr><td>Security audit trail (sign-ins, key changes, administrative actions)</td><td>400 days</td></tr>
+        <tr><td>Billing, invoices and tax records</td><td>As long as the applicable tax law of the respective country requires</td></tr>
+        <tr><td>Emails and support requests</td><td>90 days</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>We may keep data longer where the law requires it, or to establish, exercise or defend a legal claim. When the period ends we delete the data or make it anonymous.</p>
+</Sec>
+
+<Sec id="deletion" n="11" title="Deletion" short="Write to us and we will delete what we hold about you, unless the law says we must keep it. Customers can ask us to delete any session.">
+  <p>You can ask us to delete personal data we control by writing to support@voqalize.com. You can also ask us to delete a Tanvi or demo session before its retention period ends; tell us roughly when it happened so we can find it.</p>
+  <p>Customers can ask us to delete any session or recording we hold on their behalf, and when a customer's agreement ends we delete or return its data as the DPA sets out. If you are an end user of one of our customers, send your request to that customer; we will help them carry it out.</p>
+  <p>Deleted data may remain in encrypted backups for a limited period of time until those backups expire, and is not restored for any other purpose.</p>
+</Sec>
+
+<Sec id="security" n="12" title="Security" short="We encrypt calls and stored data, keep each customer's data separate, limit who can reach production, and keep an audit trail.">
+  <p>We protect personal data with technical and organisational measures suited to the risk, including:</p>
+  <ul>
+    <li>encryption in transit (DTLS-SRTP for the voice session, TLS for everything else) and encryption at rest;</li>
+    <li>separation of each customer's data, with every request checked against the customer it names before data is read;</li>
+    <li>short-lived download links for recordings, which expire within 15 minutes;</li>
+    <li>access to production systems limited to named people, reviewed regularly and logged;</li>
+    <li>vulnerability management, backups and incident response procedures.</li>
+  </ul>
+  <p>Voqalize is ISO/IEC 27001:2022 certified and SOC 2 compliant, and complies with the GDPR and India's DPDP Act. More detail is on our <a href="/security">security page</a>. No system is perfectly secure, and we cannot guarantee that data will never be accessed without authorisation. If a breach affects your personal data, we will notify you and the relevant authorities as the law requires, including the Data Protection Board of India under the DPDP Act.</p>
+</Sec>
+
+<Sec id="children" n="13" title="Children" short="Voqalize is for businesses. Tanvi and the demos are not meant for children, and we do not knowingly collect children's data.">
+  <p>The Services, the console and the conversations on voqalize.com are intended for adults. We do not knowingly collect personal data from anyone under 18 (or the age of majority where they live) for our own purposes, and we do not knowingly market to children. If we learn that we have collected personal data from a child without verifiable parental consent, as required by the DPDP Act and, in the United States, the Children's Online Privacy Protection Act, we will delete it as quickly as is reasonably practical. If you believe a child has given us personal data, please write to us.</p>
+  <p>A customer that deploys the Services in a product used by children is responsible for meeting the laws that apply, including obtaining verifiable parental consent, and must tell us in writing before it does so.</p>
+</Sec>
+
+<Sec id="rights" n="14" title="Your rights" short="You can ask what we hold, get a copy, correct it, delete it, object, or complain. One email is enough.">
+  <p>Subject to the GDPR and other applicable law, you have the right:</p>
+  <ul>
+    <li><b>to be informed</b> about how your personal data is collected and used, which is what this policy does;</li>
+    <li><b>of access</b> to the personal data we hold about you;</li>
+    <li><b>to rectification</b> of personal data that is inaccurate or incomplete;</li>
+    <li><b>to erasure</b> of your personal data;</li>
+    <li><b>to restrict</b> our processing of all or some of your personal data;</li>
+    <li><b>to object</b> to our processing in certain circumstances, and always to processing for direct marketing;</li>
+    <li><b>to data portability</b>, receiving your personal data in an electronic format you can take to another service;</li>
+    <li><b>not to be subject to a decision based solely on automated processing</b>, including profiling, that has legal or similarly significant effects. We do not make such decisions about you.</li>
+  </ul>
+  <p>Under the DPDP Act, you also have the right to a summary of the personal data we process and the processing activities, to correction, completion, updating and erasure of your data, to withdraw consent as easily as you gave it, to have a grievance addressed by us, and to nominate another person to exercise your rights if you die or become unable to. Residents of California and other US states may have similar rights, including to know, delete and correct, and not to be discriminated against for using them. We do not sell personal data. Where advertising cookies on voqalize.com count as "sharing" under those laws, you can opt out as <a href="#share">section 8</a> describes, including with a Global Privacy Control signal.</p>
+  <p>To use any of these rights, write to support@voqalize.com or to our grievance officer (<a href="#contact">section 17</a>). We may need to verify your identity first. We will respond within the time the law allows. If you are not satisfied, you may complain to your local supervisory authority or, in India, to the Data Protection Board of India once you have used our grievance process.</p>
+  <p>If you are a customer using the Services to collect data about people from third parties, you are responsible for telling those people where the data came from.</p>
+</Sec>
+
+<Sec id="cookies" n="15" title="Cookies and browser storage" short="voqalize.com uses analytics and advertising cookies, and stores your theme choice in your browser.">
+  <p>voqalize.com uses analytics cookies and advertising cookies. Analytics cookies tell us how visitors find and use the site. Marketing and advertising cookies help us measure and improve our marketing and advertising. Where the law requires it, we ask for your consent before setting these cookies. You can also block or delete cookies in your browser settings.</p>
+  <p>voqalize.com also stores a small number of settings in your browser's local storage, such as whether you chose the light or dark theme. This data stays on your device. The console uses cookies and similar storage that are strictly necessary to sign you in and keep your session secure.</p>
+</Sec>
+
+<Sec id="changes" n="16" title="Changes to this policy" short="When we change what we do, we change this page and its date, and we tell account holders about significant changes.">
+  <p>We may update this policy from time to time. The "Last updated" date at the top shows when it last changed. If a change is significant, we will tell account holders by email or in the console before it takes effect.</p>
+</Sec>
+
+<Sec id="contact" n="17" title="Contact and grievance officer" short="Write to support@voqalize.com, or to our grievance officer named below.">
+  <p>For any question about this policy or your personal data, write to us:</p>
+  <address class="lg-address">
+    Voqalize Technologies Private Limited<br />
+    503, Block 17B, Suncity Apartments<br />
+    HSR Layout, Bengaluru, Karnataka 560102<br />
+    India<br />
+    Email: <Email address="support@voqalize.com" />
+  </address>
+  <p><b>Data Protection Officer and Grievance Officer</b> (under the DPDP Act and the Information Technology Act, 2000 and its rules): Samkeet Jain, <Email address="samkeet@voqalize.com" />. We will acknowledge a grievance and resolve it within the time the law sets.</p>
+</Sec>

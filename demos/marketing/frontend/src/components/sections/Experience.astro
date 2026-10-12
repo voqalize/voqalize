@@ -1,0 +1,37 @@
+---
+import { CONSOLE_URL } from '../../data/env';
+// The Experience Center page (/experience): today's working demos, each opening in a new tab,
+// then a call to build your own. Not a home section since 2026-10-11.
+import { DEMOS, DEMO_BASE } from '../../data/demos';
+---
+<header class="s-head">
+  <p class="eyebrow">Experience Center</p>
+  <h1>Try it on something real.</h1>
+  <p class="s-lede">Each demo is a working app with a Voqalize character inside. Allow the microphone and talk to it the way a customer would.</p>
+</header>
+<ul class="demos">
+  {DEMOS.map((d) => (
+    <li data-part={`demo-${d.name}`}>
+      <a class="demo" href={`${DEMO_BASE}/${d.name}/`} target="_blank" rel="noopener">
+        <span class="demo__shot"><img src={`/shots/${d.shot}`} alt="" loading="lazy" decoding="async" width="640" height="400" /></span>
+        <span class="demo__body">
+          <span class="demo__tag">{d.tag}</span>
+          <b class="demo__title">{d.title}</b>
+          <span class="demo__blurb">{d.blurb}</span>
+          <span class="demo__go">Open the demo <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="visually-hidden">(opens in a new tab)</span></span>
+        </span>
+      </a>
+    </li>
+  ))}
+</ul>
+<aside class="build" aria-labelledby="t-build">
+  <div class="build__text">
+    <p class="build__kicker">More demos are on the way.</p>
+    <h2 id="t-build">Build yours next.</h2>
+    <p class="build__p">Put a character in your own app. The first 300 conversation minutes are free.</p>
+  </div>
+  <div class="build__go">
+    <a class="btn btn--accent" href={CONSOLE_URL} data-console rel="noopener">Start building</a>
+    <a class="btn btn--onnight" href="https://docs.voqalize.com" rel="noopener">Read the docs</a>
+  </div>
+</aside>

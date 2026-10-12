@@ -1,0 +1,164 @@
+/* Why voice is hard to build (src/components/sections/Hard.astro).
+   Steps: 0 start, 1 the rush (everything slams onto the board in about 3 s),
+   2 to 8 one note each (its reason stacks in the panel, newest on top), 9 the eraser,
+   10 the answer: "+ Voqalize" beside the app and the seven notes back, ticked. */
+
+.hb { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 44px; align-items: stretch; }
+
+/* ---------- the board ---------- */
+.hb__board { position: relative; align-self: start; aspect-ratio: 16 / 11; border: 1px solid var(--line); border-radius: 18px; background: var(--bg); overflow: hidden; box-shadow: inset 0 0 0 8px var(--surface), 0 1px 0 var(--line); container-type: inline-size; }
+.is-s1 .hb__board { animation: hb-jolt calc(.36s * var(--m)) calc(2.45s * var(--m)) both; }
+@keyframes hb-jolt { 30% { transform: translate(-3px, 1px) rotate(-.4deg); } 65% { transform: translate(3px, -1px) rotate(.3deg); } }
+
+.hb__agent { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 6px; z-index: 3; }
+.hb__box { border: 3px solid var(--text); border-radius: 10px; padding: 11px 20px; font-size: 19px; font-weight: 700; letter-spacing: .01em; text-transform: uppercase; white-space: nowrap; background: var(--bg); }
+.hb__done { position: absolute; left: 0; right: 0; width: max-content; margin-inline: auto; top: calc(100% + 8px); display: flex; align-items: center; gap: 8px; white-space: nowrap; font-size: 24px; font-weight: 700; line-height: 1; opacity: 0; transform: translateY(4px); transition: opacity calc(.3s * var(--m)), transform calc(.3s * var(--m)) var(--ease); }
+.hb__done img { height: 40px; width: auto; }
+.hb__plus { color: var(--text); }
+.hb__all { position: absolute; left: 0; right: 0; width: max-content; margin-inline: auto; top: calc(100% + 56px); font-size: 13px; font-weight: 500; color: var(--text-2); white-space: nowrap; opacity: 0; transform: translateY(4px); }
+/* the tick each note gets back in the answer */
+.hb__tick { position: absolute; left: -13px; top: 2px; width: 6px; height: 11px; border: solid var(--accent); border-width: 0 2.5px 2.5px 0; transform: rotate(45deg) scale(0); opacity: 0; }
+
+/* the marker strokes */
+.hb__board svg { overflow: visible; pointer-events: none; }
+.hb__board path { fill: none; stroke: var(--accent); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; stroke-dasharray: 1; stroke-dashoffset: 1; }
+
+/* the arrows into the agent (wide board only) */
+.hb__arrows { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; }
+.hb__board .hb__arrows path { stroke: var(--text); stroke-width: .5; vector-effect: none; opacity: .75; }
+
+/* the seven notes */
+.hb__note { position: absolute; left: var(--x); top: var(--y); max-width: 26%; margin: 0; font-size: 14px; font-weight: 700; line-height: 1.25; letter-spacing: .01em; text-transform: uppercase; opacity: 0; transform: scale(1.7) rotate(calc(var(--r) + 9deg)); transform-origin: 30% 50%; z-index: 2; }
+.hb__note > span { position: relative; z-index: 1; padding: 2px 4px; border-radius: 3px; background: linear-gradient(var(--highlight), var(--highlight)) no-repeat 0 0 / 0% 100%; transition: background-size calc(.45s * var(--m)) var(--ease); box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.hb__note svg { position: absolute; left: 0; width: 100%; bottom: -9px; height: 10px; }
+.hb__note.m-ring svg { left: -9%; width: 118%; top: -10px; bottom: auto; height: calc(100% + 18px); }
+.hb__note.m-arrow svg { left: auto; right: 100%; width: 34%; top: 40%; bottom: auto; height: 10px; }
+
+/* the scribbles in between */
+.hb__bit { position: absolute; left: var(--x); top: var(--y); font-size: 12px; font-weight: 500; line-height: 1.2; color: var(--text-2); white-space: nowrap; opacity: 0; transform: scale(1.5) rotate(var(--r)); }
+.hb__bit--sticky { color: #111; background: var(--highlight); padding: 6px 8px; border-radius: 2px; box-shadow: 0 2px 6px rgba(0, 0, 0, .12); }
+
+/* the estimate */
+.hb__est { position: absolute; left: 50%; bottom: 6%; transform: translateX(-50%); display: flex; align-items: baseline; gap: 14px; margin: 0; white-space: nowrap; font-size: 15px; font-weight: 700; z-index: 2; }
+.hb__k { font-size: 12px; font-weight: 500; color: var(--text-2); opacity: 0; }
+.ev { position: relative; opacity: 0; transform: scale(1.6); }
+.ev i { position: absolute; left: -4%; right: -4%; top: 52%; height: 2.5px; border-radius: 2px; background: var(--accent); transform: scaleX(0) rotate(-4deg); transform-origin: left; }
+.e3 { font-size: 17px; }
+.e3 svg { position: absolute; left: -16%; width: 132%; top: -8px; height: calc(100% + 14px); }
+
+.hb__eraser { position: absolute; left: -40%; top: 12%; width: 72px; height: 32px; border-radius: 6px; background: linear-gradient(var(--text) 58%, var(--surface) 58%); border: 1px solid var(--text); box-shadow: 0 6px 14px rgba(0, 0, 0, .18); z-index: 4; transform: rotate(-12deg); }
+
+/* ---------- step 1: the rush ---------- */
+.is-s1 .hb__note { opacity: 1; transform: rotate(var(--r)); transition: opacity calc(.1s * var(--m)) calc(var(--d) * var(--m)), transform calc(.34s * var(--m)) cubic-bezier(.3, 1.6, .5, 1) calc(var(--d) * var(--m)); }
+.is-s1 .hb__note path { stroke-dashoffset: 0; transition: stroke-dashoffset calc(.32s * var(--m)) ease-out calc((var(--d) + .2s) * var(--m)); }
+.is-s1 .hb__arrows path { stroke-dashoffset: 0; transition: stroke-dashoffset calc(.28s * var(--m)) ease-out calc((var(--d) + .15s) * var(--m)); }
+.is-s1 .hb__bit { opacity: 1; transform: rotate(var(--r)); transition: opacity calc(.1s * var(--m)) calc(var(--d) * var(--m)), transform calc(.3s * var(--m)) cubic-bezier(.3, 1.6, .5, 1) calc(var(--d) * var(--m)); }
+.is-s1 .hb__k, .is-s1 .e1 { opacity: 1; transform: none; transition: opacity calc(.15s * var(--m)), transform calc(.3s * var(--m)) cubic-bezier(.3, 1.6, .5, 1); }
+.is-s1 .e2 { opacity: 1; transform: none; transition: opacity calc(.15s * var(--m)) calc(1.2s * var(--m)), transform calc(.3s * var(--m)) cubic-bezier(.3, 1.6, .5, 1) calc(1.2s * var(--m)); }
+.is-s1 .e3 { opacity: 1; transform: none; transition: opacity calc(.15s * var(--m)) calc(2.3s * var(--m)), transform calc(.34s * var(--m)) cubic-bezier(.3, 1.6, .5, 1) calc(2.3s * var(--m)); }
+.is-s1 .e1 i { transform: scaleX(1) rotate(-4deg); transition: transform calc(.22s * var(--m)) ease-out calc(1s * var(--m)); }
+.is-s1 .e2 i { transform: scaleX(1) rotate(-4deg); transition: transform calc(.22s * var(--m)) ease-out calc(2.1s * var(--m)); }
+.is-s1 .e3 path { stroke-dashoffset: 0; transition: stroke-dashoffset calc(.4s * var(--m)) ease-out calc(2.55s * var(--m)); }
+
+/* ---------- steps 2 to 8: one note at a time ---------- */
+.is-s2 .hb__note { opacity: .4; transition: opacity calc(.4s * var(--m)), transform calc(.4s * var(--m)) var(--ease); }
+.is-s2 .hb__bit, .is-s2 .hb__arrows { opacity: .45; transition: opacity calc(.5s * var(--m)); }
+[data-at="2"] .hn1, [data-at="3"] .hn2, [data-at="4"] .hn3, [data-at="5"] .hn4,
+[data-at="6"] .hn5, [data-at="7"] .hn6, [data-at="8"] .hn7 { opacity: 1; transform: rotate(var(--r)) scale(1.08); }
+[data-at="2"] .hn1 > span, [data-at="3"] .hn2 > span, [data-at="4"] .hn3 > span, [data-at="5"] .hn4 > span,
+[data-at="6"] .hn5 > span, [data-at="7"] .hn6 > span, [data-at="8"] .hn7 > span { background-size: 100% 100%; color: #111; }
+
+/* ---------- step 9: the eraser leaves only the app ---------- */
+.is-s9 .hb__eraser { animation: hb-erase calc(1.5s * var(--m)) cubic-bezier(.45, 0, .55, 1) forwards; }
+@keyframes hb-erase {
+  0% { left: -20%; top: 8%; transform: rotate(-12deg); }
+  18% { left: 22%; top: 72%; transform: rotate(8deg); }
+  36% { left: 42%; top: 10%; transform: rotate(-10deg); }
+  56% { left: 62%; top: 74%; transform: rotate(9deg); }
+  76% { left: 84%; top: 12%; transform: rotate(-8deg); }
+  100% { left: 116%; top: 60%; transform: rotate(6deg); }
+}
+.is-s9 .hb__arrows { opacity: 0; transition: opacity calc(.2s * var(--m)) calc(.5s * var(--m)); }
+.is-s9 .hb__note, .is-s9 .hb__bit, .is-s9 .hb__est { opacity: 0; transition: opacity calc(.18s * var(--m)) calc((var(--w, .6s) + .1s) * var(--m)); }
+.is-s9 .hb__est { --w: .6s; }
+
+/* ---------- step 10: your app + Voqalize, and all seven come back ticked ---------- */
+.is-s10 .hb__done { opacity: 1; transform: none; transition: opacity calc(.12s * var(--m)), transform calc(.34s * var(--m)) cubic-bezier(.3, 1.6, .5, 1); }
+.is-s10 .hb__note { opacity: 1; transform: rotate(var(--r)) scale(.92); transition: opacity calc(.12s * var(--m)) calc((.55s + var(--i) * .13s) * var(--m)), transform calc(.32s * var(--m)) cubic-bezier(.3, 1.6, .5, 1) calc((.55s + var(--i) * .13s) * var(--m)); }
+.is-s10 .hb__note svg { opacity: 0; }
+.is-s10 .hb__tick { opacity: 1; transform: rotate(45deg) scale(1); transition: opacity calc(.1s * var(--m)) calc((.7s + var(--i) * .13s) * var(--m)), transform calc(.3s * var(--m)) cubic-bezier(.3, 1.6, .5, 1) calc((.7s + var(--i) * .13s) * var(--m)); }
+.is-s10 .hb__all { opacity: 1; transform: none; transition: opacity calc(.3s * var(--m)) calc(1.7s * var(--m)), transform calc(.3s * var(--m)) var(--ease) calc(1.7s * var(--m)); }
+
+/* ---------- the reasons: newest on top, older ones pushed down and fading, three at most ---------- */
+.hb__side { display: flex; flex-direction: column; min-width: 0; contain: size; }
+.hb__why-k { font-size: 13px; font-weight: 500; color: var(--text-2); margin: 0 0 8px; }
+.hb__why { flex: 1; min-height: 0; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column-reverse; justify-content: flex-end; overflow: hidden; -webkit-mask-image: linear-gradient(#000 78%, transparent); mask-image: linear-gradient(#000 78%, transparent); }
+.hy { display: grid; grid-template-rows: 0fr; overflow: hidden; opacity: 0; transform: translateY(-16px); transition: grid-template-rows calc(.6s * var(--m)) var(--ease), opacity calc(.5s * var(--m)) var(--ease), transform calc(.6s * var(--m)) var(--ease); }
+.hy > div { min-height: 0; overflow: hidden; }
+.hy b { display: block; padding-bottom: 8px; margin-top: 4px; font-size: clamp(20px, 1.8vw, 24px); line-height: 1.2; letter-spacing: -0.015em; }
+.hy span { display: block; padding-bottom: 22px; font-size: 16px; line-height: 1.55; color: var(--text-2); max-width: 44ch; }
+.hy--end b { border-left: 3px solid var(--accent); padding: 0 0 0 12px; margin-bottom: 8px; }
+.hy--end span { padding-left: 15px; color: var(--text); }
+/* arrive */
+.is-s2 .hy1, .is-s3 .hy2, .is-s4 .hy3, .is-s5 .hy4, .is-s6 .hy5, .is-s7 .hy6, .is-s8 .hy7, .is-s10 .hy8 { grid-template-rows: 1fr; opacity: 1; transform: none; }
+/* one step older */
+.is-s3 .hy1, .is-s4 .hy2, .is-s5 .hy3, .is-s6 .hy4, .is-s7 .hy5, .is-s8 .hy6, .is-s10 .hy7 { opacity: .42; }
+/* two steps older */
+.is-s4 .hy1, .is-s5 .hy2, .is-s6 .hy3, .is-s7 .hy4, .is-s8 .hy5, .is-s10 .hy6 { opacity: .18; }
+/* gone */
+.is-s5 .hy1, .is-s6 .hy2, .is-s7 .hy3, .is-s8 .hy4, .is-s10 .hy5 { grid-template-rows: 0fr; opacity: 0; transform: translateY(12px); }
+
+/* ---------- Talk mode during a live call ---------- */
+.try-live { display: none; margin-top: 24px; font-size: 15px; font-weight: 500; }
+[data-mode="talk"].is-live .try-live { display: flex; align-items: center; gap: 10px; }
+[data-mode="talk"].is-live .try-live::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--accent); animation: ripple 2.4s cubic-bezier(.2, .7, .3, 1) infinite; }
+
+/* ---------- the tall board: Talk mode and phones ---------- */
+[data-mode="talk"] .hb { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 28px; }
+[data-mode="talk"] .hb__board { aspect-ratio: 4 / 5; }
+[data-mode="talk"] .hb__arrows { display: none; }
+[data-mode="talk"] .hb__note, [data-mode="talk"] .hb__bit { left: var(--tx); top: var(--ty); }
+[data-mode="talk"] .hb__note { max-width: 40%; font-size: 12px; }
+[data-mode="talk"] .hb__bit { font-size: 11px; }
+[data-mode="talk"] .hb__box { font-size: 16px; padding: 9px 14px; }
+[data-mode="talk"] .hb__done img { height: 32px; }
+[data-mode="talk"] .hb__done { font-size: 20px; }
+[data-mode="talk"] .hb__all { top: calc(100% + 48px); }
+[data-mode="talk"] .hb__est { gap: 10px; font-size: 13px; bottom: 4%; }
+[data-mode="talk"] .e3 { font-size: 14px; }
+[data-mode="talk"] .hy b { font-size: 19px; }
+[data-mode="talk"] .hy span { font-size: 15px; }
+
+@media (max-width: 1100px) {
+  .hb, [data-mode="talk"] .hb { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .hb__side { contain: none; height: 400px; }
+}
+@media (max-width: 860px) {
+  .hb__board { aspect-ratio: 4 / 5; }
+  .hb__arrows { display: none; }
+  .hb__note, .hb__bit { left: var(--tx); top: var(--ty); }
+  .hb__note { max-width: 40%; font-size: 12px; }
+  .hb__bit { font-size: 11px; }
+  .hb__box { font-size: 16px; padding: 9px 14px; }
+  .hb__done img { height: 32px; }
+  .hb__done { font-size: 20px; }
+  .hb__all { top: calc(100% + 48px); }
+  .hb__est { gap: 10px; font-size: 13px; bottom: 4%; }
+  .e3 { font-size: 14px; }
+  .hy b { font-size: 19px; }
+  .hy span { font-size: 15px; }
+  .hb__side { height: 420px; }
+}
+@media (max-width: 380px) { .hb__k { display: none; } }
+
+[data-theme="dark"] .hb__eraser { box-shadow: 0 6px 14px rgba(0, 0, 0, .5); }
+
+/* ---------- reduced motion: the finished picture, every reason readable ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .hb__eraser { display: none; }
+  .hb .hb__bit, .hb .hb__est, .hb .hb__arrows { opacity: 0; }
+  .hb__side, [data-mode="talk"] .hb__side { contain: none; height: auto; }
+  .hb__why { flex-direction: column; -webkit-mask-image: none; mask-image: none; }
+  .hb .hy { grid-template-rows: 1fr; opacity: 1; transform: none; }
+  .hy span { padding-bottom: 16px; }
+}

@@ -1,0 +1,55 @@
+---
+// Scene 3, Friday: an e-signature app on the CFO's phone, open on page 1 of the final
+// agreement. He asks about page 4; the app turns to it, marks the fee and the term, then
+// the renewal and notice line, and the character explains it. The Sign button stays his.
+// Steps: 0 page 1, 1 said, 2 turns to page 4, 3 fee and term marked, 4 notice marked, 5 reply.
+import Device from '../Device.astro';
+import Voice from '../../Voice.astro';
+import Lines from './Lines.astro';
+---
+<Device kind="phone" app="Quillpoint" class="lg-dev-sg">
+  <span slot="bar" class="lg-sign">Sign</span>
+  <div class="lg-sg">
+    <div class="lg-env">
+      <b>Cedar Freight MSA</b>
+      <span>From Rachel Ruiz, Legal · 9 pages</span>
+    </div>
+    <div class="lg-sheet lg-sheet--sg">
+      <p class="lg-pager"><span class="lg-pager__a">Page 1 of 9</span><span class="lg-pager__b">Page 4 of 9</span></p>
+      <div class="lg-p3">
+        <div class="lg-p3__run">
+          {[0, 1].map(() => (<>
+            <p class="lg-title">Master Services Agreement</p>
+            <Lines w={[70, 52]} />
+            <p class="lg-h">Parties</p><Lines w={[94, 86, 60]} />
+            <p class="lg-h">1. Definitions</p><Lines w={[96, 90, 93, 48]} /><Lines w={[88, 95, 70]} />
+            <p class="lg-h">2. Services</p><Lines w={[92, 97, 84, 56]} />
+          </>))}
+        </div>
+      </div>
+      <div class="lg-p12">
+        <p class="lg-h">4. Fees, term and renewal</p>
+        <div class="lg-cl lg-mark lg-at-3">
+          <span class="lg-no">4.1</span>
+          <p class="lg-txt"><mark class="lg-mk">Customer pays $48,000 per year</mark>, invoiced quarterly, due in 30 days.</p>
+          <em class="lg-tag">Fee</em>
+        </div>
+        <div class="lg-cl lg-mark lg-at-3">
+          <span class="lg-no">4.2</span>
+          <p class="lg-txt"><mark class="lg-mk">The initial term is 12 months</mark> from the Effective Date.</p>
+          <em class="lg-tag">Term</em>
+        </div>
+        <div class="lg-cl lg-mark lg-at-4">
+          <span class="lg-no">4.3</span>
+          <p class="lg-txt">This Agreement renews for 12-month terms <mark class="lg-mk">unless either party gives 60 days' written notice</mark>.</p>
+          <em class="lg-tag">To cancel</em>
+        </div>
+        <div class="lg-cl"><span class="lg-no">4.4</span><Lines w={[92, 86, 40]} /></div>
+      </div>
+    </div>
+  </div>
+  <Fragment slot="dock">
+    <Voice who="person" class="sol-said">What am I agreeing to on page 4?</Voice>
+    <Voice who="agent" face="/characters/trisha.webp" class="r-at-5">Page 4 sets a $48,000 yearly fee for 12 months. It renews unless either side gives 60 days' written notice. Rachel approved this version.</Voice>
+  </Fragment>
+</Device>

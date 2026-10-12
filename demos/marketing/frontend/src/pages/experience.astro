@@ -1,0 +1,14 @@
+---
+// The Experience Center on its own page: the header button opens this in a new tab.
+import Base from '../layouts/Base.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import Experience from '../components/sections/Experience.astro';
+---
+<Base title="Experience Center | Voqalize" description="Working demos with a Voqalize character inside. Allow the microphone and talk to any of them." mode="read">
+  <Header home={false} />
+  <main class="page sec--experience">
+    <Experience />
+  </main>
+  <Footer />
+</Base>

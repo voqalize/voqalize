@@ -1,0 +1,52 @@
+---
+// Scene 2, the coverage question. Elena's sent claim. On her question the app opens her
+// own policy, finds the rental line and reads it back; the decision stays with the adjuster.
+// Steps: 0 the claim, 1 said, 2 her policy opens (coverages and lines of text),
+// 3 the rental row is marked and its wording opens, 4 a note for the adjuster
+// lands on the claim, 5 Tess's reply.
+import Device from '../Device.astro';
+import Voice from '../../Voice.astro';
+interface Props { said: string; reply: string }
+const { said, reply } = Astro.props;
+const COVER = [
+  ['Liability', '$100k / $300k'],
+  ['Collision', '$500 deductible'],
+  ['Comprehensive', '$500 deductible'],
+  ['Uninsured motorist', 'Included'],
+  ['Roadside help', 'Included'],
+];
+---
+<Device kind="phone" app="Bayline Insurance" class="ic-phone">
+  <div class="ic">
+    <div class="ic-claim">
+      <p class="ic-head">Claim CL-4471 <em>Sent</em></p>
+      <p class="ic-what">Rear bumper · backed into while parked</p>
+      <ol class="ic-line">
+        <li class="is-done"><i></i>Reported<small>Mon</small></li>
+        <li class="is-done"><i></i>Photos received<small>3 of 3</small></li>
+        <li><i></i>Adjuster review<small>Next</small></li>
+      </ol>
+      <div class="ic-tiles"><span>Your policy</span><span>Documents</span><span>Message us</span></div>
+    </div>
+
+    <div class="ic-pol">
+      <p class="ic-head"><svg viewBox="0 0 10 10"><path d="M6.5 1.5L3 5l3.5 3.5" /></svg>Your auto policy</p>
+      <p class="ic-meta">Policy LK-20931 · 2021 Toyota RAV4</p>
+      <ul class="ic-rows">
+        {COVER.map(([k, v]) => <li><span>{k}</span><b>{v}</b></li>)}
+        <li class="ic-rent">
+          <span>Rental reimbursement</span><b>$40 a day</b>
+          <em class="ic-tag">You asked</em>
+          <span class="ic-words">Pays for a rental while your car is repaired after a covered loss. Up to $40 a day, for 30 days.</span>
+        </li>
+      </ul>
+      <div class="ic-text"><i></i><i></i><i></i><i></i></div>
+      <div class="ic-note">
+        <span class="ic-who">PS</span>
+        <p><b>Added to your claim</b>Question for Priya Shah, your adjuster: rental while the car is in the shop.</p>
+      </div>
+    </div>
+  </div>
+  <Voice slot="dock" who="person" class="sol-said out-at-5">{said}</Voice>
+  <Voice slot="dock" who="agent" face="/characters/tess.webp" class="r-at-5">{reply}</Voice>
+</Device>

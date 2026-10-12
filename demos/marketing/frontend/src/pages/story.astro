@@ -1,0 +1,104 @@
+---
+// Our story: one request ("move my booking to Friday") carried through the page. It works in a
+// quiet demo (1), breaks when real people use it (2), gets fixed layer by layer underneath (3),
+// turns out to be every team's problem (4), becomes a stack for other teams (5), and today the
+// doors open. Each chapter has its own motion piece; a rail on wide screens tracks the chapter.
+// Notes, copy and decisions: docs/sections/page-story.md. Styles: src/styles/pages/story.css.
+import Page from '../layouts/Page.astro';
+import StoryHero from '../components/pages/story/StoryHero.astro';
+import Chapter from '../components/pages/story/Chapter.astro';
+import Quiet from '../components/pages/story/Quiet.astro';
+import Breaks from '../components/pages/story/Breaks.astro';
+import Stack from '../components/pages/story/Stack.astro';
+import Same from '../components/pages/story/Same.astro';
+import Swap from '../components/pages/story/Swap.astro';
+import Doors from '../components/pages/story/Doors.astro';
+import { CHAPTERS } from '../data/story';
+import '../styles/pages/story.css';
+---
+<Page id="story" title="Our story" description="For two years we built voice products, and most of the work was underneath them. That work became Voqalize, and today we're opening it to every team.">
+  <StoryHero />
+
+  <div class="st-body">
+    <nav class="st-rail" aria-label="Story chapters">
+      <ol>{CHAPTERS.map((c) => <li><a href={`#${c.id}`} data-rail={c.id}><span>{c.n}</span>{c.short}</a></li>)}</ol>
+    </nav>
+
+    <div class="st-chapters">
+      <Chapter id="ch-1" n="01" kicker="Where we started" title="We were building products people could talk to.">
+        <p>We started out building voice products, software you could talk to and get something done.</p>
+        <p>The first versions looked great in a demo, in a quiet room with someone who knew what to say.</p>
+        <Quiet slot="piece" />
+      </Chapter>
+
+      <Chapter id="ch-2" n="02" kicker="Real people" title="Then real people talked to them." wide>
+        <p>People don’t talk in clean sentences. They stop to think, change their minds halfway through, leave the TV on and talk from a train.</p>
+        <p>Each of those breaks a voice product, and none of it is the thing you set out to build.</p>
+        <Breaks slot="piece" />
+      </Chapter>
+
+      <Chapter id="ch-3" n="03" kicker="Underneath" title="So we kept building underneath." flip>
+        <p>We fixed one break at a time, and each fix became another layer under the product.</p>
+        <p>That’s where the two years went.</p>
+        <Stack slot="piece" />
+      </Chapter>
+
+      <Chapter id="ch-4" n="04" kicker="The same list" title="Every team adding voice was building the same thing." wide>
+        <p>Along the way we saw that any team putting a voice on its agent would need the same layers. Most start with the same estimate, two weeks, and then meet the same list.</p>
+        <p>It made more sense to build it once, for everyone.</p>
+        <Same slot="piece" />
+      </Chapter>
+
+      <Chapter id="ch-5" n="05" kicker="A stack for others" title="We turned it into a stack for other teams.">
+        <p>Voqalize is the voice AI infrastructure we built for ourselves, now ready to sit under your product.</p>
+        <p>Bring your own agent and Voqalize adds the voice. Or let Plug & Play run the agent and the voice for you. Either way, Voqalize handles the listening and the speaking, and your product keeps its own logic and screens.</p>
+        <p class="st-pull">You bring the brain. We bring the voice.</p>
+        <Swap slot="piece" />
+      </Chapter>
+
+      <Doors />
+    </div>
+  </div>
+</Page>
+
+<script>
+  // Scroll-triggered reveals (each chapter once), the side rail's current chapter, and the doors.
+  // Reduced motion: everything is shown and the doors are open from the start.
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const root = document.querySelector<HTMLElement>('.pg--story');
+  if (root) {
+    root.classList.add('st-js');
+    const reveals = [...root.querySelectorAll<HTMLElement>('[data-reveal]')];
+    const doors = root.querySelector<HTMLElement>('[data-doors]');
+    if (reduced) {
+      reveals.forEach((el) => el.classList.add('st-in'));
+      doors?.classList.add('is-open');
+    } else {
+      const io = new IntersectionObserver((entries) => {
+        for (const e of entries) {
+          if (!e.isIntersecting) continue;
+          e.target.classList.add(e.target === doors ? 'is-open' : 'st-in');
+          io.unobserve(e.target);
+        }
+      }, { threshold: 0.15, rootMargin: '0px 0px -8% 0px' });
+      reveals.forEach((el) => io.observe(el));
+      if (doors) io.observe(doors);
+    }
+    // The rail: the chapter whose top half is on screen is the current one.
+    const links = new Map([...root.querySelectorAll<HTMLAnchorElement>('[data-rail]')].map((a) => [a.dataset.rail!, a]));
+    const spy = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        // Chapters up to and including the current one fill in.
+        let past = true;
+        links.forEach((a, id) => {
+          const on = id === e.target.id;
+          if (on) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current');
+          a.closest('li')?.classList.toggle('is-past', past);
+          if (on) past = false;
+        });
+      }
+    }, { rootMargin: '-40% 0px -55% 0px' });
+    reveals.forEach((el) => spy.observe(el));
+  }
+</script>

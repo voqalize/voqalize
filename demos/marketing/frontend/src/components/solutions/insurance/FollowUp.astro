@@ -1,0 +1,59 @@
+---
+// Scene 3, the follow-up a week later. Two questions in one sentence: where is the claim,
+// and who can fix the car near work. The booking waits for Elena's yes.
+// Steps: 0 home with the claim card, 1 said, 2 the claim's status in plain steps,
+// 3 body shops near her office on a map and a list, 4 one shop picked with a time
+// for her to confirm, 5 Tess's reply.
+import Device from '../Device.astro';
+import Voice from '../../Voice.astro';
+interface Props { said: string; reply: string }
+const { said, reply } = Astro.props;
+const SHOPS = [
+  ['Elm Street Collision', '1.1 mi from work'],
+  ['Lamar Body and Paint', '2.4 mi'],
+  ['Northside Auto Body', '3.0 mi'],
+];
+---
+<Device kind="phone" app="Bayline Insurance" class="if-phone">
+  <div class="if">
+    <div class="if-home">
+      <p class="ia-hi">Hi, Elena</p>
+      <div class="if-claim">
+        <span>Claim CL-4471</span>
+        <b>In review</b>
+        <small>Updated 2 days ago</small>
+      </div>
+      <p class="ia-sub">Your policy</p>
+      <ul class="if-list"><li><span>2021 Toyota RAV4</span><b>Active</b></li><li><span>Next bill</span><b>Nov 1</b></li></ul>
+    </div>
+
+    <div class="if-status">
+      <p class="ic-head"><svg viewBox="0 0 10 10"><path d="M6.5 1.5L3 5l3.5 3.5" /></svg>Claim CL-4471</p>
+      <ol class="ic-line if-line">
+        <li class="is-done"><i></i>Reported<small>Mon</small></li>
+        <li class="is-done"><i></i>Photos received<small>Mon</small></li>
+        <li class="is-done"><i></i>Adjuster: Priya Shah<small>Tue</small></li>
+        <li class="is-now"><i></i>Repair estimate<small>Thursday</small></li>
+        <li><i></i>Repair<small>Next</small></li>
+      </ol>
+    </div>
+
+    <div class="if-shops">
+      <p class="ic-head"><svg viewBox="0 0 10 10"><path d="M6.5 1.5L3 5l3.5 3.5" /></svg>Body shops near work</p>
+      <p class="if-strip">Estimate by Thursday · Priya Shah</p>
+      <div class="if-map">
+        <svg viewBox="0 0 280 84" preserveAspectRatio="none">
+          <path class="ia-st" d="M0 52 H280 M96 0 V84 M206 0 V84" /><path class="ia-st ia-st--minor" d="M0 22 H280 M150 0 V84 M40 0 V84" />
+        </svg>
+        <span class="if-work">Work</span>
+        <i class="if-pin if-pin1"></i><i class="if-pin if-pin2"></i><i class="if-pin if-pin3"></i>
+      </div>
+      <ul class="if-shoplist">
+        {SHOPS.map(([n, d], j) => <li class={`if-s if-s${j + 1}`} style={`--j:${j}`}><span>{n}<small>{d}</small></span>{j === 0 && <em>Fri 8:00 am</em>}</li>)}
+      </ul>
+      <p class="if-book">Book Friday, 8:00 am</p>
+    </div>
+  </div>
+  <Voice slot="dock" who="person" class="sol-said out-at-5">{said}</Voice>
+  <Voice slot="dock" who="agent" face="/characters/tess.webp" class="r-at-5">{reply}</Voice>
+</Device>

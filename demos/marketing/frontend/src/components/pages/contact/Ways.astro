@@ -1,0 +1,28 @@
+---
+// Other ways in: three cards for people who don't need to write to us. Docs, the
+// Experience Center (opens in a new tab, like the header button) and the Console
+// (CONSOLE_URL, with data-console so Base.astro points it at the right environment).
+import { CONSOLE_URL } from '../../../data/env';
+const ways = [
+  { k: 'Docs', title: 'Read the docs', line: 'Guides and reference for building with Voqalize.', href: 'https://docs.voqalize.com', console: false, blank: false },
+  { k: 'Experience Center', title: 'Talk to a demo', line: 'Working demos with a Voqalize character inside. Allow the microphone and talk to any of them.', href: '/experience', console: false, blank: true },
+  { k: 'Console', title: 'Start building', line: 'Sign in, create an agent and get your keys.', href: CONSOLE_URL, console: true, blank: false },
+];
+---
+<section class="pg-block ct-ways" aria-labelledby="t-ways" data-part="ways">
+  <header class="s-head">
+    <p class="eyebrow">Other ways in</p>
+    <h2 id="t-ways">Not a question? Start here.</h2>
+  </header>
+  <ul class="ct-ways__list">
+    {ways.map((w) => (
+      <li>
+        <a class="ct-way" href={w.href} data-console={w.console ? '' : undefined} target={w.blank ? '_blank' : undefined} rel={w.blank || w.console ? 'noopener' : undefined}>
+          <span class="ct-way__k">{w.k}</span>
+          <span class="ct-way__t">{w.title}<svg class="ct-way__arrow" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8h9M8.5 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span class="ct-way__l">{w.line}</span>
+        </a>
+      </li>
+    ))}
+  </ul>
+</section>

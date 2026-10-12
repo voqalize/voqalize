@@ -1,0 +1,82 @@
+---
+// Hero: an example store (Larkfield) in a browser. The keyword search has already
+// failed; the shopper says the sentence instead, and the store understands it and
+// does the clicking. Voice > Understanding > Action, left to right in time.
+// Steps: 0 "0 results for 'something'", 1 the shopper speaks (a listening line runs
+// under the search box), 2 the filter rail ticks itself and four chips appear,
+// 3 three products rise in, 4 each gets its reason and "Arrives Sat", 5 Tara answers.
+import Device from '../Device.astro';
+import Voice from '../../Voice.astro';
+import { ART } from './art';
+
+const RAIL = [
+  { h: 'Category', items: [{ t: 'Back care', on: true }, { t: 'Kitchen' }] },
+  { h: 'Gift for', items: [{ t: 'Him', on: true }, { t: 'Her' }] },
+  { h: 'Delivery', items: [{ t: 'By Sunday', on: true }, { t: 'Any time' }] },
+];
+const CHIPS = ['Back care', 'For him', 'Under $200', 'By Sunday'];
+const PICKS = [
+  { a: 'pillow', n: 'Lumbar pillow', p: '$45', why: 'Firm, for his desk chair' },
+  { a: 'wrap', n: 'Heated back wrap', p: '$89', why: 'Heat, three settings' },
+  { a: 'cushion', n: 'Massage seat cushion', p: '$179', why: 'Heat and massage' },
+] as const;
+let tick = 0;
+---
+<div class="rt-hero" data-loop="2400 2600 2200 1700 1900 4600">
+  <Device kind="browser" url="larkfield.example/search" class="rt-hero__dev">
+    <div class="rt-shop">
+      <div class="rt-top">
+        <span class="rt-logo"><i>L</i>Larkfield</span>
+        <div class="rt-search">
+          <svg viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+          <span class="rt-search__kw">something for my dad's back under $200</span>
+          <span class="rt-search__q">Back care for him, under $200, by Sunday</span>
+        </div>
+        <i class="rt-listen" aria-hidden="true"></i>
+      </div>
+      <div class="rt-body">
+        <aside class="rt-rail">
+          {RAIL.map((g) => (
+            <div class="rt-rail__g">
+              <p>{g.h}</p>
+              {g.items.map((it) => (
+                <span class={`rt-check${it.on ? ' rt-check--on' : ''}`} style={it.on ? `--k:${tick++}` : undefined}><i></i>{it.t}</span>
+              ))}
+            </div>
+          ))}
+          <div class="rt-rail__g">
+            <p>Price</p>
+            <span class="rt-range"><i></i><b></b></span>
+            <span class="rt-range__v"><span>$0</span><span class="rt-range__max"><em>$500</em><em>$200</em></span></span>
+          </div>
+        </aside>
+        <div class="rt-main">
+          <div class="rt-empty">
+            <svg viewBox="0 0 40 40"><circle cx="17" cy="17" r="10"/><path d="M25 25l8 8M12 17h10"/></svg>
+            <b>0 results for “something”</b>
+            <span>Check the spelling, or try fewer words.</span>
+          </div>
+          <div class="rt-found">
+            <div class="rt-chips">{CHIPS.map((c, j) => <span style={`--j:${j}`}>{c}</span>)}</div>
+            <p class="rt-count">3 results</p>
+            <div class="rt-grid">
+              {PICKS.map((p, j) => (
+                <div class="rt-card" style={`--j:${j}`}>
+                  <svg class="rt-art" viewBox="0 0 64 48" set:html={ART[p.a]} />
+                  <span class="rt-card__n">{p.n}</span>
+                  <b>{p.p}</b>
+                  <em class="rt-card__why">{p.why}</em>
+                  <span class="rt-card__eta"><i></i>Arrives Sat</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <Fragment slot="dock">
+      <Voice who="person" class="sol-said out-at-5">Something for my dad's back, under $200. It has to get there by Sunday.</Voice>
+      <Voice who="agent" face="/characters/tara.webp" class="r-at-5">Three fit, and all of them arrive Saturday. Two of them are heated.</Voice>
+    </Fragment>
+  </Device>
+</div>

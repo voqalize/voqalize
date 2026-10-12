@@ -1,7 +1,7 @@
 """The page, as Tanvi knows it.
 
-The site's section registry (`src/data/sections.json`) and its voice map
-(`src/data/voice.json`: every control and link she can work) are the single source
+The site's section registry (`frontend/src/data/sections.json`) and its voice map
+(`frontend/src/data/voice.json`: every control and link she can work) are the single source
 of truth: the browser renders them and this module reads them, so the ids Tanvi can
 open, switch and point at are exactly the ids the page has. The ids become
 ``Literal`` types so the model cannot invent one, and so ``voqalize types`` emits a
@@ -16,9 +16,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 HERE = Path(__file__).resolve().parent
-# Deployed, the brain runs from voqalize/demos/marketing/backend, where `pnpm brain:sync`
-# copies the two files next to it; here it reads them straight from the site.
-DATA = HERE / "site_data" if (HERE / "site_data").is_dir() else HERE.parents[1] / "src" / "data"
+DATA = HERE.parent / "frontend" / "src" / "data"
 SECTIONS_JSON = DATA / "sections.json"
 VOICE_JSON = DATA / "voice.json"
 KNOWLEDGE = HERE / "knowledge"

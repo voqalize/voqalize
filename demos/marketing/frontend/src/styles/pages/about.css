@@ -1,0 +1,156 @@
+/* About (src/pages/about.astro). Every rule is scoped under .pg--about.
+   Motion: the hero's "who did the talking" loop (Talk.astro), the belief marker strokes,
+   and the People tiles settling into place (People.astro). Durations use --m. */
+
+.pg--about { --ab-r: 14px; }
+.pg--about .ab-go { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 32px; }
+
+/* ---------- the marker stroke under an emphasized word ---------- */
+.pg--about .ab-mk { position: relative; white-space: nowrap; }
+.pg--about .ab-mk svg { position: absolute; left: -2%; width: 104%; bottom: -.14em; height: .24em; overflow: visible; pointer-events: none; }
+.pg--about .ab-mk path { fill: none; stroke: var(--accent); stroke-width: 3; stroke-linecap: round; vector-effect: non-scaling-stroke; stroke-dasharray: 1; stroke-dashoffset: 0; }
+.pg--about .ab-hero h1 .ab-mk path { stroke-width: 4; stroke-dashoffset: 1; animation: ab-draw calc(.7s * var(--m)) ease-out calc(.5s * var(--m)) forwards; }
+@keyframes ab-draw { to { stroke-dashoffset: 0; } }
+
+/* ---------- hero ---------- */
+.pg--about .ab-hero { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 56px; align-items: center; padding-block: 8px 24px; }
+.pg--about .ab-hero h1 { font-size: clamp(38px, 5vw, 64px); line-height: 1.06; letter-spacing: -0.03em; }
+.pg--about .ab-hero .s-lede { max-width: 54ch; }
+
+/* ---------- the motion piece: one conversation, counted ---------- */
+.pg--about .ab-talk { display: grid; gap: 18px; padding: 24px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
+.pg--about .ab-talk__k, .pg--about .ab-who, .pg--about .ab-tally__k { margin: 0; font-size: 12px; font-weight: 500; color: var(--text-2); }
+.pg--about .ab-row--you { display: grid; gap: 8px; }
+.pg--about .ab-wave { display: flex; align-items: center; gap: 10px; height: 44px; }
+.pg--about .ab-seg { display: flex; align-items: center; gap: 3px; height: 100%; }
+.pg--about .ab-seg1 { order: 1; } .pg--about .ab-gap { order: 2; } .pg--about .ab-seg2 { order: 3; } .pg--about .ab-seg3 { order: 4; }
+.pg--about .ab-seg i { display: block; width: 4px; height: var(--h); border-radius: 4px; background: var(--text); transform: scaleY(0); opacity: 0; }
+.pg--about .ab-gap { font-size: 11px; color: var(--text-2); padding: 2px 8px; border: 1px dashed var(--line); border-radius: 999rem; opacity: 0; }
+.pg--about .ab-said { margin: 0; min-height: 3.2em; font-size: 16px; line-height: 1.55; font-weight: 500; }
+.pg--about .ab-w { opacity: 0; }
+.pg--about .ab-said b { position: relative; font-weight: 700; }
+.pg--about .ab-said b svg { position: absolute; left: 0; width: 100%; bottom: -5px; height: 7px; overflow: visible; }
+.pg--about .ab-said b path { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linecap: round; vector-effect: non-scaling-stroke; stroke-dasharray: 1; stroke-dashoffset: 1; }
+
+.pg--about .ab-row--app { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 14px; align-items: center; padding-top: 16px; border-top: 1px solid var(--line); }
+.pg--about .ab-face { position: relative; width: 56px; height: 56px; border-radius: 50%; box-shadow: 0 0 0 2px var(--accent); }
+.pg--about .ab-face img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
+.pg--about .ab-face::before, .pg--about .ab-face::after { content: ""; position: absolute; inset: -2px; border-radius: 50%; border: 2px solid var(--accent); opacity: 0; pointer-events: none; }
+.pg--about [data-at="5"] .ab-face::before, .pg--about [data-at="5"] .ab-face::after { animation: ab-ripple calc(1.4s * var(--m)) cubic-bezier(.2, .7, .3, 1) infinite; }
+.pg--about [data-at="5"] .ab-face::after { animation-delay: calc(.7s * var(--m)); }
+@keyframes ab-ripple { 0% { transform: scale(1); opacity: .8; } 100% { transform: scale(1.5); opacity: 0; } }
+.pg--about .ab-app { display: grid; gap: 4px; min-width: 0; }
+.pg--about .ab-states { display: grid; font-size: 13px; font-weight: 500; }
+.pg--about .ab-st { grid-area: 1 / 1; display: flex; align-items: center; gap: 7px; opacity: 0; transition: opacity calc(.25s * var(--m)); }
+.pg--about .ab-st::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none; }
+.pg--about [data-at="1"] .ab-st1, .pg--about [data-at="2"] .ab-st2, .pg--about [data-at="3"] .ab-st3, .pg--about [data-at="4"] .ab-st4,
+.pg--about [data-at="5"] .ab-st5, .pg--about [data-at="6"] .ab-st6, .pg--about [data-at="7"] .ab-st7 { opacity: 1; }
+.pg--about .ab-reply { margin: 2px 0 0; min-height: 1.5em; font-size: 16px; line-height: 1.5; opacity: 0; transform: translateY(4px); }
+
+.pg--about .ab-acts { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.pg--about .ab-act { display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 999rem; border: 1px solid var(--line); background: var(--bg); font-size: 13px; font-weight: 500; opacity: .35; }
+.pg--about .ab-act i { width: 6px; height: 10px; margin: -2px 2px 0; border: solid var(--accent); border-width: 0 2px 2px 0; transform: rotate(45deg) scale(0); }
+
+.pg--about .ab-tally { display: grid; gap: 8px; padding-top: 16px; border-top: 1px solid var(--line); }
+.pg--about .ab-bar { margin: 0; display: grid; grid-template-columns: 72px minmax(0, 1fr) 64px; gap: 12px; align-items: center; font-size: 13px; }
+.pg--about .ab-bar span { color: var(--text-2); }
+.pg--about .ab-bar b { position: relative; height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.pg--about .ab-bar b::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 4px; background: var(--text); }
+.pg--about .ab-bar--app b::after { background: var(--accent); }
+.pg--about .ab-bar em { font-style: normal; font-weight: 500; text-align: right; opacity: 0; }
+
+/* steps */
+.pg--about .is-s1 .ab-seg1 i, .pg--about .is-s3 .ab-seg2 i, .pg--about .is-s4 .ab-seg3 i { transform: scaleY(1); opacity: 1; transition: transform calc(.25s * var(--m)) var(--ease) calc(var(--d) * var(--m)), opacity calc(.1s * var(--m)) calc(var(--d) * var(--m)); }
+.pg--about .is-s1 .ab-w1, .pg--about .is-s3 .ab-w2, .pg--about .is-s4 .ab-w3 { opacity: 1; transition: opacity calc(.5s * var(--m)) calc(.2s * var(--m)); }
+.pg--about .is-s2 .ab-gap { opacity: 1; transition: opacity calc(.3s * var(--m)); }
+.pg--about .is-s4 .ab-said b path { stroke-dashoffset: 0; transition: stroke-dashoffset calc(.4s * var(--m)) ease-out calc(.5s * var(--m)); }
+.pg--about .is-s5 .ab-reply { opacity: 1; transform: none; transition: opacity calc(.4s * var(--m)), transform calc(.4s * var(--m)) var(--ease); }
+.pg--about .is-s6 .ab-act { opacity: 1; background: var(--highlight); border-color: var(--highlight); color: #111; transition: all calc(.35s * var(--m)) var(--ease); }
+.pg--about .is-s6 .ab-act2 { transition-delay: calc(.5s * var(--m)); }
+.pg--about .is-s6 .ab-act i { transform: rotate(45deg) scale(1); border-color: #111; transition: transform calc(.3s * var(--m)) var(--ease) calc(.2s * var(--m)); }
+.pg--about .is-s6 .ab-act2 i { transition-delay: calc(.7s * var(--m)); }
+.pg--about .is-s7 .ab-bar b::after { width: var(--w); transition: width calc(.9s * var(--m)) var(--ease); }
+.pg--about .is-s7 .ab-bar--app b::after { transition-delay: calc(.35s * var(--m)); }
+.pg--about .is-s7 .ab-bar em { opacity: 1; transition: opacity calc(.3s * var(--m)) calc(.6s * var(--m)); }
+
+/* ---------- beliefs ---------- */
+.pg--about .ab-bl { list-style: none; margin: 0; padding: 0; border-bottom: 1px solid var(--line); }
+.pg--about .ab-bl__i { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 16px; padding: 32px 0; border-top: 1px solid var(--line); }
+.pg--about .ab-bl__n { font-family: var(--font-mono); font-size: 13px; color: var(--text-2); padding-top: 8px; }
+.pg--about .ab-bl__i > div { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 40px; align-items: baseline; }
+.pg--about .ab-bl h3 { font-size: clamp(22px, 2.3vw, 30px); line-height: 1.2; letter-spacing: -0.015em; }
+.pg--about .ab-bl p { margin: 0; font-size: 16px; line-height: 1.7; color: var(--text-2); max-width: 52ch; }
+.pg--about .ab-bl[data-at] .ab-mk path { stroke-dashoffset: 1; }
+.pg--about .ab-bl.is-s1 .ab-bl1 .ab-mk path, .pg--about .ab-bl.is-s2 .ab-bl2 .ab-mk path, .pg--about .ab-bl.is-s3 .ab-bl3 .ab-mk path,
+.pg--about .ab-bl.is-s4 .ab-bl4 .ab-mk path, .pg--about .ab-bl.is-s5 .ab-bl5 .ab-mk path { stroke-dashoffset: 0; transition: stroke-dashoffset calc(.6s * var(--m)) ease-out; }
+
+
+/* ---------- people ---------- */
+.pg--about .ab-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 56px 32px; }
+.pg--about .ab-card { display: grid; gap: 18px; align-content: start; }
+.pg--about .ab-card__text { display: grid; gap: 4px; justify-items: start; }
+.pg--about .ab-card h3 { font-size: 22px; letter-spacing: -0.015em; }
+.pg--about .ab-bio { margin: 8px 0 0; font-size: 15px; line-height: 1.6; color: var(--text-2); }
+.pg--about .ab-role { margin: 0; font-size: 13px; font-weight: 500; color: var(--text-2); }
+.pg--about .ab-line { margin: 10px 0 0; padding-left: 12px; border-left: 2px solid var(--accent); font-size: 15px; line-height: 1.55; }
+.pg--about .ab-links { margin: 8px 0 0; display: flex; gap: 14px; font-size: 14px; }
+.pg--about .ab-links a { color: var(--text); text-decoration: underline; text-decoration-color: var(--accent); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+
+/* the photo frame: one square for everyone */
+.pg--about .ab-pic { position: relative; margin: 0; width: 100%; aspect-ratio: 1; border-radius: var(--ab-r); overflow: hidden; background: var(--surface); border: 1px solid var(--line); container-type: inline-size; }
+.pg--about .ab-pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pg--about .ab-pic__ph { position: absolute; inset: 0; }
+.pg--about .ab-pic__ini { position: absolute; left: 8cqw; top: 6cqw; font-size: 22cqw; font-weight: 700; line-height: 1; letter-spacing: -0.04em; color: var(--text); opacity: .1; }
+.pg--about .ab-pic__fig, .pg--about .ab-pic__ring { position: absolute; left: 16%; bottom: 0; width: 68%; height: 68%; overflow: visible; }
+.pg--about .ab-pic__fig circle, .pg--about .ab-pic__fig path { fill: none; stroke: var(--text); stroke-width: 1.6; vector-effect: non-scaling-stroke; opacity: .55; }
+.pg--about .ab-pic__ring circle { fill: none; stroke: var(--accent); stroke-width: 1.4; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 0; transform: rotate(-90deg); transform-origin: 50px 44px; }
+.pg--about .ab-pic__tag { position: absolute; right: 10px; top: 10px; padding: 4px 10px; border-radius: 999rem; background: var(--highlight); color: #111; font-size: 11px; font-weight: 500; line-height: 1.4; }
+
+/* People motion: scattered prints settle, rings draw, tags pop. No data-at (no script) = finished picture. */
+.pg--about [data-at="0"] .ab-pic { opacity: 0; transform: translateY(-28px) rotate(var(--r)) scale(.96); }
+.pg--about .is-s1 .ab-pic { transition: opacity calc(.3s * var(--m)) calc(var(--i) * .13s * var(--m)), transform calc(.6s * var(--m)) cubic-bezier(.3, 1.35, .5, 1) calc(var(--i) * .13s * var(--m)); }
+.pg--about [data-at]:not(.is-s2) .ab-pic__ring circle { stroke-dashoffset: 1; }
+.pg--about .is-s2 .ab-pic__ring circle { transition: stroke-dashoffset calc(.6s * var(--m)) ease-out calc(var(--i) * .16s * var(--m)); }
+.pg--about [data-at]:not(.is-s3) .ab-pic__tag { opacity: 0; transform: scale(.7); }
+.pg--about .is-s3 .ab-pic__tag { transition: opacity calc(.2s * var(--m)) calc(var(--i) * .08s * var(--m)), transform calc(.35s * var(--m)) cubic-bezier(.3, 1.6, .5, 1) calc(var(--i) * .08s * var(--m)); }
+
+/* ---------- story and contact ---------- */
+.pg--about .ab-next { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.pg--about .ab-next__card { display: grid; gap: 10px; align-content: start; padding: 28px; border: 1px solid var(--line); border-radius: var(--ab-r); background: var(--surface); color: var(--text); text-decoration: none; transition: border-color .2s; }
+.pg--about .ab-next__card:hover { border-color: var(--text); }
+.pg--about .ab-next__card .eyebrow { margin: 0; }
+.pg--about .ab-next__card b { font-size: 22px; line-height: 1.3; letter-spacing: -0.01em; }
+.pg--about .ab-next__go { margin-top: 6px; font-size: 14px; font-weight: 500; text-decoration: underline; text-decoration-color: var(--accent); text-decoration-thickness: 2px; text-underline-offset: 4px; }
+
+/* ---------- close ---------- */
+.pg--about .ab-close { text-align: center; padding-top: 96px; border-top: 1px solid var(--line); }
+.pg--about .ab-close h2 { font-size: clamp(32px, 4vw, 52px); letter-spacing: -0.025em; line-height: 1.08; max-width: 18ch; margin-inline: auto; }
+.pg--about .ab-close__cta { margin-top: 16px; font-size: 18px; color: var(--text-2); }
+.pg--about .ab-close__mail { margin-top: 20px; font-size: 15px; color: var(--text-2); }
+.pg--about .ab-close .ab-go { justify-content: center; }
+
+/* ---------- smaller screens ---------- */
+@media (max-width: 1000px) {
+  .pg--about .ab-hero { grid-template-columns: minmax(0, 1fr); gap: 40px; }
+  .pg--about .ab-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  .pg--about .ab-talk { padding: 18px; }
+  .pg--about .ab-wave { gap: 6px; }
+  .pg--about .ab-seg { gap: 2px; }
+  .pg--about .ab-seg i { width: 3px; }
+  .pg--about .ab-bl__i { grid-template-columns: minmax(0, 1fr); gap: 6px; padding: 24px 0; }
+  .pg--about .ab-bl__n { padding-top: 0; }
+  .pg--about .ab-bl__i > div { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .pg--about .ab-grid { gap: 36px 16px; }
+  .pg--about .ab-card h3 { font-size: 17px; }
+  .pg--about .ab-line { font-size: 14px; }
+  .pg--about .ab-pic__tag { right: 6px; top: 6px; font-size: 10px; padding: 3px 7px; }
+  .pg--about .ab-next { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ---------- reduced motion: the finished picture ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .pg--about .ab-hero h1 .ab-mk path { animation: none; stroke-dashoffset: 0; }
+  .pg--about *, .pg--about *::before, .pg--about *::after { transition: none !important; animation: none !important; }
+}

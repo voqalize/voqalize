@@ -1,0 +1,85 @@
+---
+// The cookie choice: a small card, bottom left, on every page until the visitor picks.
+// One line, then Accept all, Customize, and a quiet Necessary only (EU and India law ask
+// that saying no is as easy as saying yes). Customize opens three switches with a line
+// each: Necessary (locked on), Analytics, Advertising. The footer's "Cookie settings"
+// ([data-ck-open]) opens it again with the switches showing. Logic: src/scripts/consent.ts.
+// Notes: docs/sections/cookies.md.
+import '../styles/consent.css';
+const kinds = [
+  { id: 'necessary', name: 'Necessary', line: 'Keep the site working and remember choices like this one.', locked: true },
+  { id: 'analytics', name: 'Analytics', line: 'Show us how people use the site, so we can improve it.', locked: false },
+  { id: 'ads', name: 'Advertising', line: 'Measure our ads and make the ones you see elsewhere more relevant.', locked: false },
+];
+---
+<section class="ck" id="ck" aria-label="Cookie choices" hidden>
+  <p class="ck__t">We use cookies to run this site and, if you allow them, to see how it's used and measure our ads. <a href="/privacy#cookies">Learn more</a></p>
+  <form class="ck__opts" id="ck-opts" hidden>
+    <ul>
+      {kinds.map((k) => (
+        <li class="ck__row">
+          <label for={`ck-${k.id}`}>
+            <b>{k.name}</b>
+            <span>{k.line}</span>
+          </label>
+          {k.locked
+            ? <span class="ck__on">Always on<input type="checkbox" id={`ck-${k.id}`} checked disabled hidden /></span>
+            : <input type="checkbox" role="switch" class="ck__sw" id={`ck-${k.id}`} name={k.id} />}
+        </li>
+      ))}
+    </ul>
+    <p class="ck__gpc" id="ck-gpc" hidden>Your browser asks sites not to share your data, so advertising stays off unless you switch it on.</p>
+  </form>
+  <div class="ck__go">
+    <button type="button" class="btn btn--sm" data-ck="all">Accept all</button>
+    <button type="button" class="btn btn--sm btn--ghost" data-ck="custom" aria-expanded="false" aria-controls="ck-opts">Customize</button>
+    <button type="button" class="btn btn--sm" data-ck="save" hidden>Save choices</button>
+    <button type="button" class="ck__quiet" data-ck="necessary">Necessary only</button>
+  </div>
+</section>
+
+<script>
+  import { gpc, read, save } from '../scripts/consent';
+  const box = document.getElementById('ck') as HTMLElement;
+  const opts = document.getElementById('ck-opts') as HTMLFormElement;
+  const sw = (n: string) => opts.querySelector<HTMLInputElement>(`input[name="${n}"]`)!;
+  const btn = (n: string) => box.querySelector<HTMLButtonElement>(`[data-ck="${n}"]`)!;
+  if (gpc()) (document.getElementById('ck-gpc') as HTMLElement).hidden = false;
+
+  function customize(on: boolean) {
+    const c = read();
+    sw('analytics').checked = c?.analytics ?? false;
+    sw('ads').checked = c?.ads ?? false;
+    opts.hidden = !on;
+    btn('custom').hidden = on;
+    btn('custom').setAttribute('aria-expanded', String(on));
+    btn('save').hidden = !on;
+    box.classList.toggle('is-open', on);
+  }
+  function show(open: boolean) {
+    customize(open);
+    box.hidden = false;
+    requestAnimationFrame(() => box.classList.add('is-in'));
+    if (open) sw('analytics').focus();
+  }
+  function done(choice: { analytics: boolean; ads: boolean }) {
+    save(choice);
+    box.classList.remove('is-in');
+    box.hidden = true;
+  }
+
+  box.addEventListener('click', (e) => {
+    const k = (e.target as Element).closest<HTMLElement>('[data-ck]')?.dataset.ck;
+    if (k === 'all') done({ analytics: true, ads: !gpc() });
+    else if (k === 'necessary') done({ analytics: false, ads: false });
+    else if (k === 'custom') { customize(true); sw('analytics').focus(); }
+    else if (k === 'save') done({ analytics: sw('analytics').checked, ads: sw('ads').checked });
+  });
+  // "Cookie settings" anywhere on the page opens the choice again, switches showing.
+  document.addEventListener('click', (e) => {
+    if (!(e.target as Element).closest('[data-ck-open]')) return;
+    e.preventDefault();
+    show(true);
+  });
+  if (!read()) show(false);
+</script>

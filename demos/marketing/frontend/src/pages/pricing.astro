@@ -1,0 +1,30 @@
+---
+// Pricing in full: the plans, what a minute carries, what is metered on top, and
+// the short answers. Copied from the current voqalize.com (src/data/pricing.ts).
+import Base from '../layouts/Base.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import Pricing from '../components/sections/Pricing.astro';
+import { ADDITIONAL, CURRENCIES, INCLUDED, QA, money } from '../data/pricing';
+---
+<Base title="Pricing: per minute of conversation | Voqalize" description="Voqalize is priced per minute of conversation. The first 300 minutes are free at signup." mode="read">
+  <Header home={false} />
+  <main class="page sec--pricing">
+    <Pricing page />
+
+    <section class="page__block" aria-labelledby="t-minute" data-part="minute">
+      <h2 id="t-minute">What one minute carries.</h2>
+      <ul class="included">{INCLUDED.map((x) => <li><b>{x.t}</b><span>{x.d}</span></li>)}</ul>
+      <h3 class="page__h3">Metered on top</h3>
+      <ul class="additional">
+        {ADDITIONAL.map((x) => <li><b>{x.t}</b><span>{CURRENCIES.map((c) => <span class={`c-${c.k}`}>{money(c.k, x.price[c.k])}</span>)} {x.unit}</span></li>)}
+      </ul>
+    </section>
+
+    <section class="page__block" aria-labelledby="t-qa" data-part="questions">
+      <h2 id="t-qa">Short answers.</h2>
+      <dl class="qa">{QA.map((x) => <div><dt>{x.q}</dt><dd>{x.a}</dd></div>)}</dl>
+    </section>
+  </main>
+  <Footer />
+</Base>

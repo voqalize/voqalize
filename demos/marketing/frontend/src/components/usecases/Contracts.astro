@@ -1,0 +1,56 @@
+---
+// Contracts: a long agreement drawn as gray lines that scrolls on its own. On the
+// question it jumps to the three clauses that would worry a buyer and marks each
+// one in vermilion, with a margin mark and a label. One changed line is tinted.
+// Steps: 0 reading, 1 said, 2 jump, 3 clause 7.2, 4 clause 9.1, 5 clause 12.4, 6 reply.
+type Block =
+  | { t: 'h'; s: string }
+  | { t: 'p'; w: number[] }
+  | { t: 'table' }
+  | { t: 'img' }
+  | { t: 'c'; n: number; no: string; tag: string; w: number[]; changed?: number };
+const p = (...w: number[]): Block => ({ t: 'p', w });
+const INTRO: Block[] = [
+  { t: 'h', s: '1. Definitions' }, p(96, 88, 92, 60),
+  { t: 'h', s: '2. Supply of goods' }, p(94, 90, 97, 82, 45),
+  { t: 'table' },
+  p(91, 86, 70),
+  { t: 'h', s: '3. Orders' }, p(97, 93, 88, 95, 52),
+  { t: 'h', s: '4. Delivery' }, p(90, 96, 84, 66),
+  { t: 'img' },
+  { t: 'h', s: '5. Acceptance' }, p(93, 97, 89, 74),
+  { t: 'h', s: '6. Price' }, p(95, 87, 92, 40),
+];
+const KEY: Block[] = [
+  { t: 'h', s: '7. Term and renewal' }, p(94, 72),
+  { t: 'c', n: 1, no: '7.2', tag: 'Auto-renewal', w: [96, 91, 64] },
+  { t: 'h', s: '8. Payment' }, p(92, 58),
+  { t: 'h', s: '9. Liability' },
+  { t: 'c', n: 2, no: '9.1', tag: 'Liability cap', w: [93, 97, 88, 50], changed: 1 },
+  { t: 'h', s: '10. Warranty' }, p(90, 62),
+  { t: 'h', s: '12. Exclusivity' },
+  { t: 'c', n: 3, no: '12.4', tag: 'Exclusivity', w: [95, 89, 70] },
+  { t: 'h', s: '13. Notices' }, p(94, 86, 91, 60),
+];
+const TW = [70, 54, 40, 82, 60, 48, 66, 74, 36];
+---
+<div class="ct">
+  <div class="ct-page">
+    <div class="ct-doc">
+      <p class="ct-title">Supply Agreement</p>
+      <div class="ct-p ct-p--meta"><i class="ct-l" style="width:62%"></i><i class="ct-l" style="width:48%"></i></div>
+      {[...INTRO, ...INTRO].map((b) => b.t === 'h' ? <p class="ct-h">{b.s}</p>
+  : b.t === 'p' ? <div class="ct-p">{b.w.map((x) => <i class="ct-l" style={`width:${x}%`}></i>)}</div>
+  : b.t === 'table' ? <div class="ct-table">{TW.map((x, k) => <span class={k < 3 ? 'ct-th' : ''}><i style={`width:${x}%`}></i></span>)}</div>
+  : b.t === 'img' ? <div class="ct-img"><svg viewBox="0 0 100 40" preserveAspectRatio="none"><path d="M0 40 L28 16 L44 28 L64 8 L100 40z"/><circle cx="82" cy="12" r="5"/></svg></div>
+  : <div class={`ct-c ct-c${b.n}`}><span class="ct-no">{b.no}</span><div class="ct-p">{b.w.map((x, k) => <i class={k === b.changed ? 'ct-l ct-l--changed' : 'ct-l'} style={`width:${x}%`}></i>)}</div><em class="ct-tag">{b.tag}</em></div>)}
+    </div>
+    <div class="ct-key">{KEY.map((b) => b.t === 'h' ? <p class="ct-h">{b.s}</p>
+  : b.t === 'p' ? <div class="ct-p">{b.w.map((x) => <i class="ct-l" style={`width:${x}%`}></i>)}</div>
+  : b.t === 'table' ? <div class="ct-table">{TW.map((x, k) => <span class={k < 3 ? 'ct-th' : ''}><i style={`width:${x}%`}></i></span>)}</div>
+  : b.t === 'img' ? <div class="ct-img"><svg viewBox="0 0 100 40" preserveAspectRatio="none"><path d="M0 40 L28 16 L44 28 L64 8 L100 40z"/><circle cx="82" cy="12" r="5"/></svg></div>
+  : <div class={`ct-c ct-c${b.n}`}><span class="ct-no">{b.no}</span><div class="ct-p">{b.w.map((x, k) => <i class={k === b.changed ? 'ct-l ct-l--changed' : 'ct-l'} style={`width:${x}%`}></i>)}</div><em class="ct-tag">{b.tag}</em></div>)}</div>
+  </div>
+  <div class="ct-bar"><i class="ct-thumb"></i><b class="ct-tick ct-tick1"></b><b class="ct-tick ct-tick2"></b><b class="ct-tick ct-tick3"></b></div>
+  <p class="ct-pages"><span class="ct-pages__a">Page 3 of 40</span><span class="ct-pages__b">Page 18 of 40</span></p>
+</div>

@@ -1,0 +1,25 @@
+---
+import Email from '../../Email.astro';
+// The four standards as a row of badges (four across, two on a phone): each badge, its
+// status, the standard's full name and one line on what it means. Static, no motion.
+import Badge from './Badge.astro';
+import { STANDARDS } from '../../../data/security';
+---
+<section class="pg-block sec-std" aria-labelledby="sec-std-t" data-part="standards">
+  <header class="s-head">
+    <p class="eyebrow">Standards</p>
+    <h2 id="sec-std-t">The standards we meet.</h2>
+    <p class="s-lede">Voqalize is certified for ISO/IEC 27001:2022, SOC 2, the GDPR and India’s Digital Personal Data Protection Act.</p>
+  </header>
+  <ul class="sec-std__row">
+    {STANDARDS.map((s) => (
+      <li class="sec-std__item">
+        <Badge s={s} />
+        <p class="sec-std__status">{s.status}</p>
+        <h3>{s.name}</h3>
+        <p class="sec-std__meaning">{s.meaning}</p>
+      </li>
+    ))}
+  </ul>
+  <p class="sec-std__note">Certificates and audit reports are available on request. Please reach out to <Email size="fine" />.</p>
+</section>

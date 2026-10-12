@@ -1,0 +1,102 @@
+---
+// Healthcare: the admin side of care in patient apps and portals. One example family
+// through one checkup: the hero moves the visit (the fridge note from launch post 13),
+// then the intake form, the prep sheet and the bill. The agent never gives medical
+// advice; the block "Where requests go" shows what goes to the care team or to 911.
+// Notes: docs/sections/solutions-healthcare.md. Styles: src/styles/solutions/healthcare.css.
+import SolutionLayout from '../../components/solutions/SolutionLayout.astro';
+import SolHero from '../../components/solutions/SolHero.astro';
+import SolScene from '../../components/solutions/SolScene.astro';
+import SolFit from '../../components/solutions/SolFit.astro';
+import SolClose from '../../components/solutions/SolClose.astro';
+import Hero from '../../components/solutions/healthcare/Hero.astro';
+import Intake from '../../components/solutions/healthcare/Intake.astro';
+import Prep from '../../components/solutions/healthcare/Prep.astro';
+import Bill from '../../components/solutions/healthcare/Bill.astro';
+import Routes from '../../components/solutions/healthcare/Routes.astro';
+import '../../styles/solutions/healthcare.css';
+---
+<SolutionLayout
+  id="healthcare"
+  title="Healthcare"
+  description="Voqalize for patient apps and portals. Patients and caregivers say what they need, and the app reschedules visits, fills intake forms, reads prep sheets and explains bills. Health questions go to your care team."
+>
+  <SolHero
+    eyebrow="Healthcare"
+    title="Your patients ask. Your app does the paperwork."
+    lede="Rescheduling, intake forms, prep sheets, refills and bills are where patients and caregivers get stuck on a small screen. With Voqalize they say what they need, and your app does the steps while they watch. Questions about their health still go to your care team."
+  >
+    <Hero slot="stage" />
+  </SolHero>
+
+  <section class="sol-story" aria-labelledby="hc-story-t">
+    <header class="s-head">
+      <p class="eyebrow">The story</p>
+      <h2 id="hc-story-t">One checkup, from the forms to the bill.</h2>
+      <p class="s-lede">An example family. Carol, 71, just moved her checkup to Thursday. Here is the rest of her week, and the bill her daughter Jen sorts out later, with Ira, the app's character, helping.</p>
+    </header>
+
+    <SolScene
+      n={1} id="hc-intake" kicker="Monday · the intake form"
+      title="The form she used to save for Jen."
+      said="Same medicines as last year, and I started vitamin D."
+      beats={[
+        'Carol says what changed since last year.',
+        'The form copies her list from the last visit.',
+        'Vitamin D gets its own row, strength left blank.',
+        'Ira asks for the strength.',
+        'She reads it off the bottle and checks the list before sending.',
+      ]}
+      today="Four screens of fields, typed on a phone, with the pill bottles lined up on the counter."
+      with="Carol says what's new since last year. Ira fills in the rest and asks about the vitamin D, and she taps Send herself."
+      steps={[1200, 2400, 2600, 2300, 3200, 4200]}
+    >
+      <Intake />
+    </SolScene>
+
+    <SolScene
+      n={2} id="hc-prep" kicker="Wednesday night · the prep sheet" flip
+      title="A question at 9:40 pm, answered from your own instructions."
+      said="Can I have my coffee before the blood test tomorrow?"
+      beats={[
+        'Carol asks the night before.',
+        'Ira opens the prep sheet her clinic sent.',
+        'It finds the fasting line and marks it.',
+        'It answers with the sheet’s own words and the time of her draw. Anything else goes to the care team.',
+      ]}
+      today="Find the email, open the PDF, pinch to zoom, look for the word fasting. Or wait until the clinic opens."
+      with="Ira reads from your clinic’s own sheet and shows her the line it used."
+      steps={[1200, 2400, 2600, 2600, 4800]}
+    >
+      <Prep />
+    </SolScene>
+
+    <SolScene
+      n={3} id="hc-bill" kicker="Two weeks later · the bill"
+      title="Jen asks about her mom’s bill from her desk at work."
+      said="Why does Mom owe $140 for Thursday’s visit?"
+      beats={[
+        'Jen asks from her own login, with access to her mom’s account.',
+        'Thursday’s statement opens.',
+        'The plan’s share and the deductible are marked.',
+        'Ira explains the $140 and offers two ways to pay.',
+        'Jen picks a payment plan. It waits for her to confirm.',
+      ]}
+      today="An insurance statement and a clinic bill that use different words for the same numbers, and a billing line that opens at 9."
+      with="Jen gets the answer on the statement itself, and the money doesn’t move until she taps Confirm."
+      steps={[1200, 2400, 2500, 2500, 3800, 2600, 4200]}
+    >
+      <Bill />
+    </SolScene>
+  </section>
+
+  <Routes />
+
+  <SolFit
+    lede="Your patient app or portal stays as it is. There are two ways to add a voice to it."
+    pnp="Add the tag to your patient portal or booking site. Voqalize reads your visit types, forms and help pages, and your character walks patients through them in your portal."
+    dev="Your agent already talks to your scheduling, records and billing systems, and it keeps doing that. Voqalize adds the voice and lets it work your screens."
+  />
+
+  <SolClose tagline="Service you can talk to." cta="Give your app a voice in 5 minutes." current="solutions/healthcare" />
+</SolutionLayout>

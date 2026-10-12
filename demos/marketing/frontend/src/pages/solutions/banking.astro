@@ -1,0 +1,94 @@
+---
+// Banking: one customer's car, after the "can I afford it" moment on the home page.
+// Hero (a transfer with a payday condition), three chained scenes in Tidewell Bank's app
+// (apply, autopay, a strange charge), where the line is, how it plugs in, the close.
+// Notes: docs/sections/solutions-banking.md. Styles: src/styles/solutions/banking.css.
+import SolutionLayout from '../../components/solutions/SolutionLayout.astro';
+import SolHero from '../../components/solutions/SolHero.astro';
+import SolScene from '../../components/solutions/SolScene.astro';
+import SolFit from '../../components/solutions/SolFit.astro';
+import SolClose from '../../components/solutions/SolClose.astro';
+import Hero from '../../components/solutions/banking/Hero.astro';
+import Apply from '../../components/solutions/banking/Apply.astro';
+import Autopay from '../../components/solutions/banking/Autopay.astro';
+import Charge from '../../components/solutions/banking/Charge.astro';
+import Line from '../../components/solutions/banking/Line.astro';
+import '../../styles/solutions/banking.css';
+---
+<SolutionLayout id="banking" title="Banking" description="Voqalize for banking apps: your customers say what they need, and the app fills the form or pulls up the charge while they watch. Money only moves when they confirm.">
+  <SolHero
+    eyebrow="Banking"
+    title="Your banking app knows the answer. Let your customers ask."
+    lede="Voqalize gives your app a voice and a character that works inside the customer's signed-in session. They say what they need, and the app fills the form or pulls up the charge while they watch. Money only moves when they confirm."
+  >
+    <Hero slot="stage" />
+  </SolHero>
+
+  <section class="sol-story" aria-labelledby="bk-story-t">
+    <header class="s-head">
+      <p class="eyebrow">One customer, after the yes</p>
+      <h2 id="bk-story-t">Jordan is buying a car. Three screens stand in the way.</h2>
+      <p class="s-lede">Jordan has already checked what's left each month after bills and picked a car. Three things come next, in the same banking app, weeks apart. Names and numbers are examples.</p>
+    </header>
+
+    <SolScene
+      n={1} kicker="Apply" title="Apply without retyping."
+      said="Apply for the 5.9 percent loan. Use what you already have on me."
+      beats={[
+        'They ask for the offer they picked.',
+        'Name, address and phone come from the profile.',
+        'Income and employer come from their pay deposits.',
+        'The app stops at Submit and waits for them.',
+      ]}
+      today="Eleven fields of things the bank already knows, typed with thumbs."
+      with="The form arrives filled. They check it and tap Submit."
+      steps={[1600, 2200, 2600, 2400, 4200]}
+    >
+      <Apply />
+    </SolScene>
+
+    <SolScene
+      n={2} kicker="Autopay" title="Pay on the right day." flip
+      said="Pay the car loan from checking every month, the day after my paycheck."
+      beats={[
+        'They say when, in their own words.',
+        'The app finds payday in their deposits.',
+        'It fills in the account, the amount and the date.',
+        'They confirm, and only then is it set.',
+      ]}
+      today="Loans, Manage, Payments, Recurring, then a date picker and a guess."
+      with="The app picks the 16th and says why."
+      steps={[1600, 2400, 2400, 2400, 3600, 2600]}
+    >
+      <Autopay />
+    </SolScene>
+
+    <SolScene
+      n={3} kicker="Strange charge" title="Freeze the card on a charge they don't recognize."
+      said="I don't know this $89.99 charge from last night. Freeze my card."
+      beats={[
+        'They say it the way they would tell a person.',
+        'The app finds the charge.',
+        'The card is frozen, as they asked.',
+        'The dispute is drafted and waits for them to send it.',
+        'It checks what else the card pays for.',
+      ]}
+      today="Scroll for the charge, call the number on the back, wait on hold, then read out sixteen digits."
+      with="The card is frozen in a few seconds, and nobody waits on hold."
+      steps={[1600, 2400, 2200, 2000, 2400, 4200]}
+    >
+      <Charge />
+    </SolScene>
+  </section>
+
+  <Line />
+
+  <SolFit
+    title="Two ways into your banking app."
+    lede="Use the script tag to have it running on your web app this week, or keep the agent your team already built."
+    pnp="Put it in your signed-in web app. The character learns your screens and works the same buttons your customers do."
+    dev="If your bank already runs an agent, it keeps its rules and its connections to your core systems. Voqalize gives it a voice and a character that can work your screens."
+  />
+
+  <SolClose tagline="Stop making customers dig. Let them ask." cta="Keep your agent. Add the voice in 5 minutes." current="solutions/banking" />
+</SolutionLayout>

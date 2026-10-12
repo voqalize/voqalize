@@ -1,0 +1,38 @@
+---
+// Cab booking: only Pickup and Destination at first. On the sentence the airport
+// fills in, a drawn map opens with the route, three rides come up and the XL is picked.
+// Steps: 0 empty, 1 said, 2 destination, 3 map + route, 4 rides, 5 XL picked, 6 reply.
+const car = (long = false) => `<path d="M3 13h${long ? 30 : 24}v-3l-3-1l-3-5h-${long ? 15 : 11}l-4 5l-3 1z" fill="currentColor"/><circle cx="9" cy="14" r="2.6" fill="var(--bg)" stroke="currentColor" stroke-width="1.6"/><circle cx="${long ? 27 : 21}" cy="14" r="2.6" fill="var(--bg)" stroke="currentColor" stroke-width="1.6"/>`;
+const RIDES = [
+  { n: 'Go', d: '4 seats · 3 min', p: '$28', long: false },
+  { n: 'Comfort', d: '4 seats · 4 min', p: '$34', long: false },
+  { n: 'XL', d: '6 seats · 4+ bags · 6 min', p: '$46', long: true },
+];
+---
+<div class="cb">
+  <p class="cb-h">Where to?</p>
+  <div class="cb-fields">
+    <p class="cb-f"><i class="cb-dot"></i><span>Pickup</span><b>Current location</b></p>
+    <p class="cb-f cb-f--to"><i class="cb-dot cb-dot--to"></i><span>Destination</span><b class="cb-to"><s class="cb-caret"></s><em>Airport, Departures</em></b></p>
+  </div>
+  <ul class="cb-recent"><li>Home<span>1120 Lamar Blvd</span></li><li>Office<span>500 Congress Ave</span></li><li>Gym<span>38th Street</span></li></ul>
+  <div class="cb-map">
+    <svg viewBox="0 0 300 140" preserveAspectRatio="xMidYMid slice">
+      <rect class="cb-park" x="160" y="18" width="70" height="40" rx="10"/>
+      <path class="cb-river" d="M-10 112 C60 92 110 130 180 108 S270 90 320 104"/>
+      <g class="cb-streets">
+        <path d="M0 30H300M0 74H300M0 128H300M40 0V140M110 0V140M190 0V140M262 0V140"/>
+        <path class="cb-minor" d="M0 52H300M0 98H300M75 0V140M150 0V140M226 0V140"/>
+      </g>
+      <path class="cb-route" pathLength="1" d="M58 120 V74 H150 V30 H246"/>
+      <g class="cb-pin cb-pin--a"><circle cx="58" cy="120" r="7"/><circle cx="58" cy="120" r="2.6" class="cb-pin__c"/></g>
+      <g class="cb-pin cb-pin--b"><path d="M246 30c-7 0-11-5-11-10a11 11 0 0 1 22 0c0 5-4 10-11 10z" transform="translate(0 -4)"/><circle cx="246" cy="16" r="3.4" class="cb-pin__c"/></g>
+    </svg>
+    <span class="cb-eta">22 min · 14 mi</span>
+  </div>
+  <ul class="cb-rides">
+    {RIDES.map((r, j) => (
+      <li class={`cb-r cb-r${j + 1}`} style={`--j:${j}`}><svg viewBox="0 0 36 18" set:html={car(r.long)} /><span class="cb-r__n">{r.n}<small>{r.d}</small></span><b>{r.p}</b></li>
+    ))}
+  </ul>
+</div>

@@ -6,9 +6,10 @@ this file only names the demo and its per-session brain factory. This is the who
 backend surface a demo contributes — discovered and mounted by the umbrella.
 
 Unlike its neighbours this one has no frontend folder: its UI is the marketing
-site itself (voqalize/marketing-website). The brain is written there, in
-`brain/tanvi/`, and copied here with `pnpm brain:sync` so it deploys with the
-other brains; edit it in that repo, never here.
+site itself, voqalize.com, which lives beside it in `../frontend` and is
+deployed as the apex rather than under /demos. The brain reads the site's
+`sections.json` and `voice.json` from there, so the ids she can open and point
+at are exactly the ids the page has.
 """
 
 from __future__ import annotations
