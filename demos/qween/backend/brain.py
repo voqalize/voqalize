@@ -164,9 +164,10 @@ _PICKS = 3
 
 #: Her written line for a silent turn whose move answers a question of its own.
 #: The generic "There you go." to "how do I know my size?" says the screen moved
-#: and nothing else (47ee8dd8, 2026-10-12); these say what the dialog is for. The
-#: 3D line offers rather than claims: many pieces have no 3D view, and only the
-#: page knows which.
+#: and nothing else (47ee8dd8, 2026-10-12); these say what the dialog is for.
+#: The page reports whether the open piece has a 3D view (``has_3d``): known, the
+#: line says it is there, or that there is none; unknown — an adapter too old to
+#: say — the line offers rather than claims.
 _LANDED_LINES: dict[str, dict[Language, tuple[str, ...]]] = {
     "size_guide": {
         Language.EN: ("Here's the size guide. It shows how to measure.",),
@@ -179,6 +180,14 @@ _LANDED_LINES: dict[str, dict[Language, tuple[str, ...]]] = {
     "view_3d": {
         Language.EN: ("Its 3D view, if this piece has one.",),
         Language.HI: ("अगर इस पीस का 3D व्यू है, तो वह यह रहा।",),
+    },
+    "view_3d_known": {
+        Language.EN: ("Here's its 3D view.",),
+        Language.HI: ("यह रहा इसका 3D व्यू।",),
+    },
+    "no_3d": {
+        Language.EN: ("This piece has no 3D view, but its photos show it well.",),
+        Language.HI: ("इस पीस का 3D व्यू नहीं है, पर इसकी फ़ोटो में यह अच्छे से दिखता है।",),
     },
 }
 assert all({s.spoken for s in SPEECH.values()} <= set(v) for v in _LANDED_LINES.values()), (
@@ -694,6 +703,17 @@ async def _silence() -> AsyncGenerator[Any, None]:
         yield
 
 
+def _three_d_line(page: PageChanged) -> str | None:
+    """What the model is told about the open piece's 3D view, when the page said."""
+    match page.has_3d:
+        case True:
+            return "It has a 3D view: show_in_3d shows it."
+        case False:
+            return "It has no 3D view: never offer one; asked, say so plainly."
+        case None:
+            return None
+
+
 class QweenBrain(GeminiBrain):
     """One per session. Trisha: Qween's catalogue, Qween's pages, and a mirror of
     what this shopper's screen shows.
@@ -1008,10 +1028,13 @@ class QweenBrain(GeminiBrain):
         shopper's move is only named."""
         if page.kind == "product":
             # The catalogue has the piece's golds and prices but not its stones'
-            # count and carat; only the page does.
-            if not page.composition:
-                return None
-            return f"The piece's page gives its composition: {page.composition}"
+            # count and carat, or whether it has a 3D view; only the page does.
+            said: list[str] = []
+            if page.composition:
+                said.append(f"The piece's page gives its composition: {page.composition}")
+            if (three_d := _three_d_line(page)) is not None:
+                said.append(three_d)
+            return " ".join(said) or None
         if not page.cards:
             return None
         shown = "; ".join(f"{c.n}. {c.text}" for c in page.cards[:_CARDS_IN_NOTE])
@@ -1282,11 +1305,20 @@ class QweenBrain(GeminiBrain):
         return "ok"
 
     async def show_in_3d(self) -> str:
-        """Turn the open piece's photos into its 3D view, if it has one. Many
-        pieces have none, and you cannot know until the page tries: offer, never
-        claim — "Here's its 3D view, if this piece has one." If the page reports
-        that it failed, say so plainly."""
-        self._move(View3D(), "view_3d")
+        """Turn the open piece's photos into its 3D view. Many pieces have none;
+        what you are told about the open piece says whether it has one. Has one:
+        "Here's its 3D view." with this call. Has none: say so plainly, offer its
+        photos, and do not call. Not told: offer, never claim —
+        "Here's its 3D view, if this piece has one." If the page reports that it
+        failed, say so plainly."""
+        page = self.page
+        has_3d = page.has_3d if page is not None and page.kind == "product" else None
+        if has_3d is False:
+            # Nothing to open: the page would only throw. Her line for a silent
+            # turn says there is none, rather than that it is coming.
+            landed(*_LANDED_LINES["no_3d"][self.spoken])
+            return "Not opened: this piece has no 3D view. Say so plainly; never offer one."
+        self._move(View3D(), "view_3d" if has_3d is None else "view_3d_known")
         return "ok"
 
     async def open_try_on(self) -> str:
@@ -1346,6 +1378,8 @@ class QweenBrain(GeminiBrain):
                     lines.append(pairs)
             if page.composition:
                 lines.append(f"Its page's composition, in Qween's figures: {page.composition}")
+            if (three_d := _three_d_line(page)) is not None:
+                lines.append(three_d)
         elif page.cards:
             lines.append("Cards, in order: " + "; ".join(f"{c.n}. {c.text}" for c in page.cards))
         elif page.kind in ("catalog", "category"):

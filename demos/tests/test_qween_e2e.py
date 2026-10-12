@@ -634,6 +634,49 @@ async def test_a_3d_view_is_offered_never_claimed() -> None:
         assert rig.actions() == ["view_3d"], rig.actions()
 
 
+async def test_a_piece_with_a_3d_view_is_said_to_have_one() -> None:
+    """The page says the piece has a 3D view, so she is told so with the page
+    and her line says it is there, not that it might be."""
+    llm = ScriptedGemini({"Can I see it in 3D?": call("show_in_3d")})
+    async with demo("qween", llm) as rig:
+        await rig.driver.start_session()
+        await _page(rig, "page_changed", PIECE_PAGE | {"has_3d": True})
+        turn = await rig.driver.user_says("Can I see it in 3D?")
+        assert "It has a 3D view" in _texts(llm.captured_contents[0])
+        (line,) = (u.text for u in turn.units)
+        assert line == "Here's its 3D view.", line
+        assert rig.actions() == ["view_3d"], rig.actions()
+
+
+async def test_a_piece_without_a_3d_view_is_never_shown_in_3d() -> None:
+    """6320e6d8 T6 to T7: she said she'd show a piece in 3D and the page threw.
+    Told it has none, the toggle is never pressed, the silent turn's line says
+    there is none, and it is still one request, never a re-ask."""
+    llm = ScriptedGemini({"Can I see it in 3D?": call("show_in_3d")})
+    async with demo("qween", llm) as rig:
+        await rig.driver.start_session()
+        await _page(rig, "page_changed", PIECE_PAGE | {"has_3d": False})
+        turn = await rig.driver.user_says("Can I see it in 3D?")
+        assert "It has no 3D view" in _texts(llm.captured_contents[0])
+        (line,) = (u.text for u in turn.units)
+        assert line.startswith("This piece has no 3D view"), line
+        assert "view_3d" not in rig.actions(), rig.actions()
+        assert len(llm.captured_contents) == 1, "a silent turn asked the model again"
+
+
+async def test_a_piece_she_opens_lands_with_whether_it_has_a_3d_view() -> None:
+    """Her own move lands with what only the page knows: the 3D view comes with
+    the composition, before the shopper asks."""
+    llm = _llm()
+    async with demo("qween", llm) as rig:
+        await rig.driver.start_session()
+        await _page(rig, "page_changed", LISTING)
+        await rig.driver.user_says("Open the first one.")
+        await _page(rig, "page_changed", PIECE_PAGE | {"has_3d": False})
+        await rig.driver.user_says("So what does the gold cost?")
+        assert "It has no 3D view" in _texts(llm.captured_contents[-1])
+
+
 async def test_a_listing_that_comes_back_asks_her_to_speak() -> None:
     """A bare "Listing opened" read as done, and the re-ask came back with no
     words: the result says what is wanted of it."""

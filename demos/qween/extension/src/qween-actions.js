@@ -310,6 +310,24 @@
     }
   }
 
+  // Whether the open variant has a 3D view, by the page's own rule: its gallery
+  // shows the 3D toggle when the variant's assets carry one whose `type` is
+  // THREE_D with a url (`assetType` is not it: some 3D files are labelled
+  // PRODUCT_VIDEO there). Read from the loader data, which is ready when the
+  // route resolves, where the toggle can lag the route by a render and, after a
+  // client-side move, still be the last piece's. `null` is unknown: the data is
+  // not there, or is not yet the variant the URL names.
+  function has3d(variantCode) {
+    try {
+      const variants = router().state.loaderData["routes/product.$productSlug"].product.variants;
+      const v = variantCode ? variants.find((x) => x.variantCode === variantCode) : variants[0];
+      if (!v || !Array.isArray(v.assets)) return null;
+      return v.assets.some((a) => a && a.type === "THREE_D" && !!a.url);
+    } catch {
+      return null;
+    }
+  }
+
   function context() {
     const { pathname, search } = window.location;
     const params = {};
@@ -321,6 +339,7 @@
       const h1 = document.querySelector("h1");
       ctx.name = h1 ? clean(h1.innerText) : null;
       ctx.composition = composition(ctx.variant_code);
+      ctx.has_3d = has3d(ctx.variant_code);
     } else {
       ctx.cards = cards().map((c, i) => {
         const a = cardLink(c);

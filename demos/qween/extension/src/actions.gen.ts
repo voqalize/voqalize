@@ -98,6 +98,8 @@ export interface PageChanged {
 
   composition?: string | null;
 
+  has_3d?: boolean | null;
+
   cards?: Card[];
 }
 
