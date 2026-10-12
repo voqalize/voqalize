@@ -202,8 +202,10 @@ def _llm() -> ScriptedGemini:
             "Just hoops please.": [
                 reply_and_call("Only the hoops.", "find_jewellery", request={"kind": "hoops"}),
             ],
+            # A move that comes back: the name with the call, then the sell.
             "Open the first one.": [
                 reply_and_call("The Petal Hoops.", "show_piece", request={"card": 1}),
+                reply("Pink sapphires in a petal, light enough for every day."),
             ],
             "Can I see it in yellow gold?": [
                 reply_and_call("In yellow gold.", "change_metal", request={"metal": "desert noon"}),
@@ -502,6 +504,24 @@ async def test_the_piece_she_opens_comes_with_what_goes_with_it() -> None:
         await rig.driver.user_says("So what does the gold cost?")
         opened = _results(llm.captured_contents[-1])["show_piece"]
         assert "Goes with it: Petal Ring (rings, made as a set with it, from ₹88,000)." in opened
+
+
+async def test_the_piece_she_opens_she_talks_about() -> None:
+    """Opening a piece comes back within the turn: the model is asked again with
+    what the piece is, and speaks about it before the shopper says anything."""
+    llm = _llm()
+    async with demo("qween", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("Show me rose gold earrings with pink sapphire under a lakh.")
+        await _page(rig, "page_changed", LISTING)
+        before = len(llm.captured_contents)
+        turn = await rig.driver.user_says("Open the first one.")
+        assert len(llm.captured_contents) - before == 2, "show_piece's result waited a turn"
+        assert [u.text for u in turn.units] == [
+            "The Petal Hoops.",
+            "Pink sapphires in a petal, light enough for every day.",
+        ]
+        assert "Opened: Petal Hoops" in _results(llm.captured_contents[-1])["show_piece"]
 
 
 async def test_the_idle_window_reaches_the_wire() -> None:
