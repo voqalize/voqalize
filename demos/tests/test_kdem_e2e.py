@@ -238,6 +238,51 @@ def _llm() -> ScriptedGemini:
             "Naanu startup fund bagge beku": call("set_language", request={"language": "kannada"}),
             # In Kannada mode, English arrives in Kannada script: switch back, silently.
             "ಐ ವಾಂಟ್ ಇಂಗ್ಲಿಷ್": call("set_language", request={"language": "english"}),
+            # Walking the site: offer first, go on a yes; an explicit ask is the yes.
+            "Where can I read about the seed fund?": reply_and_call(
+                "It is on the Beyond Bengaluru Cluster Seed Fund page. Shall I take you there?",
+                "offer_page",
+                request={"url": SEED_FUND},
+            ),
+            "Yes please.": reply_and_call(
+                "Taking you there.", "go_to_page", request={"url": "/cluster-seed-fund/"}
+            ),
+            "Take me to the contact page.": reply_and_call(
+                "Taking you there.", "go_to_page", request={"url": "/contact-us/"}
+            ),
+            "Take me to the state scheme.": reply_and_call(
+                "Taking you there.", "go_to_page", request={"url": STATE_PDF}
+            ),
+            "Take me to the startup policy.": reply_and_call(
+                "Taking you there.", "go_to_page", request={"url": POLICY_PDF}
+            ),
+            "Take me to an unlisted page.": reply_and_call(
+                "Taking you there.", "go_to_page", request={"url": "/not-a-listed-page/"}
+            ),
+            "Take me to another site.": reply_and_call(
+                "Taking you there.", "go_to_page", request={"url": "https://example.com/page/"}
+            ),
+            "Take me to the seed fund page.": reply_and_call(
+                "Taking you there.", "go_to_page", request={"url": SEED_FUND}
+            ),
+            "Tell me about the seed fund.": reply_and_call(
+                "Here is the seed fund page.", "go_to_page", request={"url": SEED_FUND}
+            ),
+            "Where are the startups listed?": reply_and_call(
+                "Right here.", "point_at", request={"text": "early-stage   STARTUPS in Mysuru"}
+            ),
+            "Where are the lanterns?": reply_and_call(
+                "Right here.", "point_at", request={"text": "lantern workshop grants"}
+            ),
+            "Where are the reports?": reply_and_call(
+                "Right here.", "point_at", request={"text": "global capability centres"}
+            ),
+            "Where are the reports now?": reply_and_call(
+                "Right here.", "point_at", request={"text": "global capability centres"}
+            ),
+            "And the startups?": reply_and_call(
+                "Right here.", "point_at", request={"text": "early-stage startups in Mysuru"}
+            ),
             "Show me the other document.": [
                 reply_and_call("Here.", "show_link", request={"url": UNINDEXED_PDF}),
             ],
@@ -784,3 +829,149 @@ async def test_a_malformed_language_request_is_ignored(payload: object) -> None:
         check_voice_pair(rig, voice=VOICE, language="en")
         turn = await rig.driver.user_says("Thank you.")
         assert [u.text for u in turn.units] == ["You're welcome."]
+
+
+# ─── Walking the site ─────────────────────────────────────────────────────────
+
+
+def _navigations(rig: object) -> list[dict[str, object]]:
+    return [
+        dict(c.get("payload") or {})
+        for c in rig.driver.ui_commands  # type: ignore[attr-defined]
+        if c.get("command") == "navigate"
+    ]
+
+
+def _points(rig: object) -> list[dict[str, object]]:
+    return [
+        dict(c.get("payload") or {})
+        for c in rig.driver.ui_commands  # type: ignore[attr-defined]
+        if c.get("command") == "point_at"
+    ]
+
+
+def _result(llm: ScriptedGemini, tool: str) -> str:
+    return _results(llm.captured_contents[-1])[tool]
+
+
+async def test_an_offer_does_not_move_the_page_and_a_yes_does() -> None:
+    """Ask first: the turn that offers sends nothing, and going in that same turn
+    is refused. The yes, in the visitor's next turn, sends the canonical URL."""
+    llm = _llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        turn = await rig.driver.user_says("Where can I read about the seed fund?")
+        check_turn(rig, turn, units=1)
+        assert _navigations(rig) == [] and "show_link" not in rig.actions()
+
+        brain = rig.brain
+        assert isinstance(brain, KdemBrain)
+        from voqalize_demos._loaded.kdem.brain import PageRequest
+
+        same_turn = await brain.go_to_page(PageRequest(url=SEED_FUND))
+        assert same_turn.startswith("Not sent: ask first") and _navigations(rig) == []
+
+        await rig.driver.user_says("Yes please.")
+        assert _navigations(rig) == [{"url": SEED_FUND}]
+        # The offer is spent: a second go needs a new yes.
+        assert brain._offered is None  # pyright: ignore[reportPrivateUsage]
+
+
+async def test_an_explicit_request_is_the_yes() -> None:
+    async with demo("kdem", _llm()) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says("Take me to the contact page.")
+        assert _navigations(rig) == [{"url": CONTACT}]
+
+
+async def test_going_unprompted_is_refused() -> None:
+    llm = _llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says("Tell me about the seed fund.")
+        assert _navigations(rig) == []
+        await rig.driver.user_says("Thank you.")
+    assert _result(llm, "go_to_page").startswith("Not sent: ask first")
+
+
+@pytest.mark.parametrize(
+    "ask",
+    ["Take me to an unlisted page.", "Take me to another site.", "Take me to the startup policy."],
+    ids=["unlisted", "off-site", "on-site-pdf"],
+)
+async def test_a_page_aria_may_not_take_them_to_is_refused(ask: str) -> None:
+    """Unapproved, another site, or a PDF (which opens beside her, so the call
+    stays): "Not sent", and nothing crosses the wire."""
+    llm = _llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says(ask)
+        assert _navigations(rig) == []
+        await rig.driver.user_says("Thank you.")
+    assert _result(llm, "go_to_page").startswith("Not sent:")
+
+
+async def test_a_pdf_on_another_site_takes_them_to_its_kdem_page() -> None:
+    async with demo("kdem", _llm()) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says("Take me to the state scheme.")
+        assert _navigations(rig) == [{"url": RESOURCES}]
+
+
+async def test_the_page_they_are_on_is_pointed_at_not_opened_again() -> None:
+    llm = _llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": "/cluster-seed-fund/"})
+        await rig.driver.user_says("Take me to the seed fund page.")
+        assert _navigations(rig) == []
+        await rig.driver.user_says("Thank you.")
+    assert "already on" in _result(llm, "go_to_page") and "point_at" in _result(llm, "go_to_page")
+
+
+async def test_point_at_sends_text_on_the_current_page_and_refuses_the_rest() -> None:
+    """Checked against the indexed text of the page the visitor has open, with
+    whitespace and case ignored; then, after the visitor moves, against the new
+    page."""
+    llm = _llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": "/cluster-seed-fund/"})
+        await rig.driver.user_says("Where are the startups listed?")
+        assert _points(rig) == [{"text": "early-stage STARTUPS in Mysuru"}]
+
+        await rig.driver.user_says("Where are the lanterns?")  # on no page of the snapshot here
+        assert len(_points(rig)) == 1
+        await rig.driver.user_says("Where are the reports?")  # on another page, not this one
+        assert len(_points(rig)) == 1
+
+        await _viewed(rig, {"path": "/resource/", "title": "Resources"})
+        await rig.driver.user_says("Where are the reports now?")
+        assert _points(rig)[-1] == {"text": "global capability centres"}
+        await rig.driver.user_says("And the startups?")  # the old page's text
+        assert len(_points(rig)) == 2
+        await rig.driver.user_says("Thank you.")
+    assert _result(llm, "point_at").startswith("Not shown:")
+
+
+async def test_arriving_where_she_took_them_carries_the_conversation_on() -> None:
+    llm = _llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says("Take me to the contact page.")
+        await _viewed(rig, {"path": "/contact-us/", "title": "Contact"})
+        await rig.driver.user_says("Thank you.")
+    seen = _said(llm.captured_contents[-1])
+    assert "You took them here" in seen and "do not greet them again" in seen
+
+
+async def test_a_point_the_page_could_not_show_reaches_the_next_turn() -> None:
+    llm = _llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": "/cluster-seed-fund/"})
+        await rig.driver.user_says("Where are the startups listed?")
+        await rig.driver.send_ui_event("point_missed", {"text": "something it never sent"})
+        await rig.driver.send_ui_event("point_missed", {"text": "early-stage STARTUPS in Mysuru"})
+        await asyncio.sleep(0.1)
+        await rig.driver.user_says("Thank you.")
+    seen = _said(llm.captured_contents[-1])
+    assert 'could not show "early-stage STARTUPS in Mysuru"' in seen
+    assert "something it never sent" not in seen

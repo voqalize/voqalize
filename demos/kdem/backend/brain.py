@@ -27,10 +27,16 @@ brain is where "only approved pages" is decided.
 
 **The page is someone else's.** There is no frontend here: the snippet in
 ``demos/kdem/embed/`` is pasted into the site, connects with
-``init = {surface, page, lang}``, and renders exactly one command, ``show_link``.
-So that is the only Action this brain sends. The call carries on across page
-loads, and on every (re)connect the snippet sends ``page_viewed``
+``init = {surface, page, lang}``, and renders four commands: ``show_link``,
+``navigate``, ``point_at`` and ``language_changed``. The call carries on across
+page loads, and on every (re)connect the snippet sends ``page_viewed``
 (:mod:`.app_events`): Aria learns the visitor moved, silently, on their next turn.
+
+**She asks before she moves the page.** ``go_to_page`` opens another page in the
+visitor's tab, and the brain sends it only for a page ``offer_page`` offered in
+her previous turn (the visitor's next turn is the yes), or when the visitor's
+own words this turn ask to be taken somewhere. ``point_at`` needs no asking: it
+lights up a phrase the brain has checked is on the page they have open.
 
 The knowledge base is one per process. The first session starts its keeper
 (:meth:`~.knowledge.KnowledgeService.start`, idempotent and non-blocking); every
@@ -39,6 +45,7 @@ session after that reads the same index.
 
 from __future__ import annotations
 
+import re
 from collections.abc import AsyncGenerator
 from typing import Any
 
@@ -58,10 +65,10 @@ from voqalize_demos import (
     say_line,
 )
 
-from voqalize.sdk import Action, RequestRejected, RTVIMessage, Session, Speech
+from voqalize.sdk import Action, RequestRejected, RTVIMessage, Session, Speech, UserMessage
 from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig
 
-from .app_events import KDEM_EVENTS, LanguageRequested, PageViewed
+from .app_events import KDEM_EVENTS, LanguageRequested, PageViewed, PointMissed
 from .content import (
     BY_CODE,
     BY_TAG,
@@ -78,6 +85,7 @@ from .knowledge import (
     KNOWLEDGE,
     Passage,
     host_of,
+    is_pdf,
     normalize,
     off_site,
     path_of,
@@ -106,7 +114,7 @@ assert {s.code for s in SPEECH.values()} <= set(PHRASES), "a spoken language has
 
 _SYSTEM_INSTRUCTION = f"""You are {AGENT_NAME}, the voice assistant on the website of KDEM, the Karnataka Digital Economy Mission, at karnatakadigital.in. A visitor is on the site right now, with you in the corner of the page. They are usually a founder, an investor, a company looking at Karnataka, a student or a job seeker.
 
-EVERY RESPONSE STARTS WITH WORDS. Whenever you offer a page, write your line first and make the call in that same response — the line is spoken as the link appears. A response that is only a tool call is silence: after show_link you do not speak again until the visitor does. For example:
+EVERY RESPONSE STARTS WITH WORDS. Whenever you offer a page, take them to one or point at something, write your line first and make the call in that same response — the line is spoken as the page moves. A response that is only a tool call is silence: after show_link, offer_page, go_to_page or point_at you do not speak again until the visitor does. For example:
   Visitor: "Do you have a seed fund for startups outside Bengaluru?" You: (search_kdem first, then) "Yes, the Beyond Bengaluru Cluster Seed Fund backs startups in the clusters. I've put the page beside me." — and show_link, in the same response.
 search_kdem and set_language are the two calls that take no line. search_kdem is silent and comes straight back to you in the same turn, so call it first and then answer from it. set_language is answered by a line of its own, in the new voice, so call it alone and say nothing.
 
@@ -115,6 +123,13 @@ ANSWER ONLY FROM THE SITE. Everything you may say about KDEM, its programmes, po
 THE SHAPE OF AN ANSWER. One or two short sentences that answer the question, then offer the page that says it in full with show_link, in the same response. Do not read a page aloud; the link is there for that. Pass show_link a URL that search_kdem returned or one from THE PAGES below — never one you made up or one from outside karnatakadigital.in.
 
 DOCUMENTS. Many results come from the PDF documents KDEM's pages link to — policies, guidelines, reports and newsletters — and are marked "PDF document, page N". When you answer from one, say which document and where, in words, for example "the Startup Policy says so on page 12", and offer it with show_link, passing the url exactly as search_kdem gave it. For a document on KDEM's site that url is the PDF itself. For one hosted on another government site, marked "on <site>", the url is the KDEM page that links to it, and the card opens that page: name the document and the page in what you say, and say it is linked from that KDEM page.
+
+TAKING THEM AROUND THE SITE. You can take the visitor to another page of the site, in this same tab; the call carries on there with them.
+- Ask first, in one short line, and call offer_page with that page in the same response: "Shall I take you to the Seed Fund page?" When they say yes, in their next turn, call go_to_page with it and say one short line: "Taking you there."
+- When they ask to be taken somewhere ("take me to the events page", "open the policies page"), that is their yes: call go_to_page at once, with "Taking you there."
+- go_to_page goes to a page you offered in your last turn, or one they asked for in this turn. A PDF opens beside you with show_link instead, so the call stays on this page.
+- POINTING. On the page they have open, point at the part that answers them with point_at, passing a short exact phrase from that page's text: a heading or a few words, under 80 characters, as they appear in what search_kdem returned for that page. No need to ask: "Eligibility is right here."
+- After you take them to a page you are still in the same conversation: carry on from where you were, point at the part they need, and do not greet them again.
 
 VOICE STYLE. Warm, plain and brief. No markdown, no lists, no symbols, no URLs read aloud — say "the Policies page", not its address. Say numbers as a person would. No throat-clearing: not "Great question", not "Sure, let me". English by default.
 
@@ -211,6 +226,36 @@ class LanguageChanged(Action, name="language_changed"):
     language: LanguageTag
 
 
+class Navigate(Action, name="navigate"):
+    """Brain → browser: open this KDEM page in the same tab. The call carries on
+    across the page load. Sent only for a page the visitor said yes to, or asked
+    for themselves."""
+
+    url: str
+    """An absolute ``https://karnatakadigital.in/...`` page URL, chosen by the brain."""
+
+
+class PointAt(Action, name="point_at"):
+    """Brain → browser: scroll to, and briefly highlight, the first visible part
+    of the page holding this text. The brain checked it is on the page."""
+
+    text: str
+
+
+class PageRequest(BaseModel):
+    url: str = Field(
+        description="The page: a URL that search_kdem returned, or a path from THE PAGES, "
+        "e.g. '/policies/'."
+    )
+
+
+class PointRequest(BaseModel):
+    text: str = Field(
+        description="A short exact phrase from the page the visitor has open, under 80 "
+        "characters: a heading or a few words, as they appear in its text."
+    )
+
+
 class LinkRequest(BaseModel):
     url: str = Field(
         description="The page or PDF to offer: a URL that search_kdem returned, or a "
@@ -229,6 +274,24 @@ class LanguageRequest(BaseModel):
         description="The language to conduct the rest of the call in. Only English and "
         "Kannada are offered; if they ask for another, say so rather than picking one."
     )
+
+
+_POINT_CHARS = 80
+"""The longest phrase ``point_at`` takes: a heading or a few words, not a passage."""
+
+_ASKS_TO_GO = re.compile(
+    r"\b(?:take|bring|walk)\s+(?:me|us)\b|\b(?:go|navigate|jump|head|move)\s+to\b"
+    r"|\bopen\b|\bvisit\b|\blet'?s\s+go\b"
+    r"|ಕರೆದುಕೊಂಡು\s*ಹೋಗಿ|ಕರ್ಕೊಂಡು\s*ಹೋಗಿ|ತೆರೆಯಿರಿ|ತೆಗೆಯಿರಿ|ಹೋಗೋಣ",
+    re.IGNORECASE,
+)
+"""Words with which a visitor asks to be taken to a page, in English and Kannada.
+Their own request is the yes that ``go_to_page`` otherwise waits for."""
+
+
+def _squash(text: str) -> str:
+    """Text as compared for pointing: whitespace collapsed, case folded."""
+    return re.sub(r"\s+", " ", text).strip().casefold()
 
 
 def _page(url: str) -> tuple[str, str] | None:
@@ -338,6 +401,15 @@ class KdemBrain(GeminiBrain):
         #: A switch the model asked for with ``set_language``, made when its
         #: response has streamed, still inside the turn.
         self._pending: LanguageSpeech | None = None
+        #: The visitor's turns so far, and what they said in the latest.
+        self._turn = 0
+        self._heard = ""
+        #: The page Aria offered to take them to, and in which turn.
+        self._offered: tuple[str, int] | None = None
+        #: The page she took them to, until they arrive there.
+        self._took_to: str | None = None
+        #: The phrase she last pointed at, for a page that could not show it.
+        self._pointed: str | None = None
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -377,6 +449,13 @@ class KdemBrain(GeminiBrain):
     async def greet(self, session: Session) -> str:
         """The opener, written not generated, in the language the call opens in."""
         return _GREETING_KN if self.spoken == Language.KN else _GREETING
+
+    def on_user_message(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
+        """Count the turn and keep what was said, for ``go_to_page``'s rule; then
+        the model's turn as usual."""
+        self._turn += 1
+        self._heard = msg.text
+        return super().on_user_message(session, msg)
 
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
         """The model's turn, and a line of Aria's own if it acted and said nothing.
@@ -438,6 +517,16 @@ class KdemBrain(GeminiBrain):
                 self._viewed(event)
             case LanguageRequested():
                 await self._requested(session, event)
+            case PointMissed():
+                # Only for the phrase she pointed at: never a line the page made up.
+                if event.text == self._pointed:
+                    note = (
+                        f'[The page could not show "{event.text}": no part of it on screen '
+                        "holds that text. Say where it is in words instead.]"
+                    )
+                    self.append_to_context(
+                        types.Content(role="user", parts=[types.Part(text=note)])
+                    )
 
     async def _requested(self, session: Session, event: LanguageRequested) -> None:
         """The visitor pressed the other language on the toggle. Switched in code,
@@ -474,6 +563,12 @@ class KdemBrain(GeminiBrain):
             return
         self.here = here
         line = self._where = _where_they_are(event.path, moved=True)
+        if self._took_to is not None and ALLOWLIST.canonical(here) == self._took_to:
+            self._took_to = None
+            line += (
+                " You took them here: carry on the conversation where it was, pointing at "
+                "the part they need, and do not greet them again."
+            )
         logger.info(
             "kdem: page_viewed {} ({})", path_of(here), "named" if _page(here) else "unnamed"
         )
@@ -482,14 +577,97 @@ class KdemBrain(GeminiBrain):
 
     # ─── Tools ──────────────────────────────────────────────────────────
     #
-    # All three read memory and return inside the tool budget. Only the search
-    # is marked: Aria cannot answer without what it returns. The link and the
-    # language switch are spoken with, in the same response.
+    # All read memory and return inside the tool budget. Only the search is
+    # marked: Aria cannot answer without what it returns. The rest are spoken
+    # with, in the same response; set_language's line is the brain's.
 
     @property
     def tools(self) -> list[Any]:
-        """Search the approved pages, offer one as a link, change language."""
-        return [self.search_kdem, self.show_link, self.set_language]
+        """Search the approved pages, offer one as a link, take the visitor to one
+        (asking first), point at part of the page they are on, change language."""
+        return [
+            self.search_kdem,
+            self.show_link,
+            self.offer_page,
+            self.go_to_page,
+            self.point_at,
+            self.set_language,
+        ]
+
+    def _destination(self, url: str) -> tuple[str, str] | str:
+        """The page ``url`` would take the visitor to, as ``(url, title)``, or the
+        sentence that says why not: the same rules as ``show_link``, a PDF on
+        another site going to the KDEM page that links it, and only pages, since a
+        PDF in this tab would leave the call behind."""
+        found = _page(url)
+        if found is None:
+            return (
+                f"Not sent: {url!r} is not one of the approved KDEM pages. Offer a page "
+                f"search_kdem returned, or the Contact Us page ({CONTACT_PATH})."
+            )
+        dest, title = found
+        if is_pdf(dest):
+            return "Not sent: a PDF opens beside you with show_link; go_to_page is for pages."
+        here = ALLOWLIST.canonical(self.here) if self.here else None
+        if dest == here:
+            return f'They are already on "{title}". Point at the part they need with point_at.'
+        return dest, title
+
+    async def offer_page(self, request: PageRequest) -> str:
+        """Offer to take the visitor to another page of the site. Say your one short
+        question ("Shall I take you to the Seed Fund page?") and call this in the
+        same response; nothing moves until they say yes."""
+        found = self._destination(request.url)
+        if isinstance(found, str):
+            return found
+        self._offered = (found[0], self._turn)
+        logger.info("kdem: offered {}", path_of(found[0]))
+        return "Offered. When they say yes, call go_to_page with this page."
+
+    async def go_to_page(self, request: PageRequest) -> str:
+        """Take the visitor to another page of the site, in this tab; the call
+        carries on there. Only a page you offered in your last turn and they said
+        yes to, or one they asked to be taken to in this turn. Say one short line
+        ("Taking you there.") and call this in the same response."""
+        found = self._destination(request.url)
+        if isinstance(found, str):
+            return found
+        dest, title = found
+        offered = self._offered
+        said_yes = offered is not None and offered[0] == dest and offered[1] == self._turn - 1
+        if not (said_yes or _ASKS_TO_GO.search(self._heard)):
+            logger.info("kdem: go_to_page {} refused: not offered or asked for", path_of(dest))
+            return (
+                f'Not sent: ask first. Say "Shall I take you to the {title} page?" and call '
+                "offer_page with it; go when they say yes."
+            )
+        self._offered = None
+        self._took_to = dest
+        self.session.dispatch(Navigate(url=dest))
+        landed(*phrase(self.spoken, "shown"))
+        return "ok: the page opens, and the call carries on there."
+
+    async def point_at(self, request: PointRequest) -> str:
+        """Point at part of the page the visitor has open: it scrolls into view and
+        lights up. Pass a short exact phrase from that page. No need to ask; say
+        one short line ("Eligibility is right here.") and call this with it."""
+        text = re.sub(r"\s+", " ", request.text).strip()
+        if not text:
+            return "Not shown: pass a short phrase from the page they are on."
+        if len(text) > _POINT_CHARS:
+            return f"Not shown: pass a shorter phrase, under {_POINT_CHARS} characters."
+        page = KNOWLEDGE.kb.page(self.here) if self.here else None
+        if page is None:
+            return "Not shown: I do not have the text of the page they are on."
+        if _squash(text) not in _squash(f"{page.title}\n{page.text}"):
+            return (
+                f"Not shown: {text!r} is not on the page they are on now ({page.title}). "
+                "Pass a phrase from that page, or offer to take them to the page that has it."
+            )
+        self._pointed = text
+        self.session.dispatch(PointAt(text=text))
+        landed(*phrase(self.spoken, "shown"))
+        return "ok"
 
     @needs_result_now
     async def search_kdem(self, request: SearchRequest) -> str:
@@ -557,4 +735,13 @@ class KdemBrain(GeminiBrain):
         )
 
 
-__all__ = ["DONT_KNOW", "SWITCH_LINE", "TOGGLE_CONFIRM", "KdemBrain", "LanguageChanged", "ShowLink"]
+__all__ = [
+    "DONT_KNOW",
+    "SWITCH_LINE",
+    "TOGGLE_CONFIRM",
+    "KdemBrain",
+    "LanguageChanged",
+    "Navigate",
+    "PointAt",
+    "ShowLink",
+]

@@ -15,8 +15,8 @@ never looks for a frontend here and it is not a card on `/demos`.
 
 | Path | What it is |
 |---|---|
-| `backend/brain.py` | Aria: the prompt, the greeting and the tools (`search_kdem`, `show_link`, `set_language`) |
-| `backend/app_events.py` | `page_viewed`, the one event the snippet sends the brain |
+| `backend/brain.py` | Aria: the prompt, the greeting and the tools (`search_kdem`, `show_link`, `offer_page`, `go_to_page`, `point_at`, `set_language`) |
+| `backend/app_events.py` | The events the snippet sends the brain: `page_viewed`, `language_requested`, `point_missed` |
 | `backend/content.py` | The languages table and the page list in the prompt |
 | `backend/knowledge.py` | The approved-page list, visible-text extraction, PDF text extraction, sitemap and PDF refresh, and in-memory search |
 | `backend/knowledge/` | `approved_pages.json`, which KDEM reviews, and its README |
@@ -139,6 +139,46 @@ The snippet and the brain share these:
   the call is in now, sent after every switch, by the toggle or by voice. It is
   the toggle's only source of truth. A switch Voqalize refuses sends the
   language that still holds, so the toggle goes back.
+- **`navigate`** (brain → page, `{url}`): open another KDEM page in this tab.
+  The call carries over to it, and the snippet waits for the line Aria says with
+  it ("Taking you there.") before the page changes. Only https on
+  karnatakadigital.in (or www); the page the visitor is already on is ignored.
+- **`point_at`** (brain → page, `{text}`): scroll the part of this page holding
+  the text into view and highlight it for a few seconds: the innermost visible
+  element whose text contains it, outside Aria's panel, with an outline and a
+  soft tint in KDEM blue, no layout shift, and an instant scroll for visitors
+  who ask for reduced motion. If no visible element holds it, the page sends
+  back **`point_missed`** `{text}`, and Aria says where it is in words instead.
+
+### Walking the site: she asks before she moves the page
+
+Aria can take a visitor to another page of the site and point at part of the
+page they are on.
+
+- **Another page: she asks first.** She offers in one short line ("Shall I take
+  you to the Seed Fund page?") and calls `offer_page` with it, which moves
+  nothing. When they say yes, in their next turn, she calls `go_to_page` and the
+  brain sends `navigate`. A visitor who asks to be taken somewhere ("take me to
+  the events page", "open the policies page") has already said yes, and she
+  goes at once. The rule is held in code, not only in the prompt:
+  `go_to_page` is sent only for the page `offer_page` offered in her previous
+  turn, or when the visitor's own words this turn ask to go (in English or
+  Kannada). Otherwise it is refused with "ask first", and nothing moves.
+- Only pages Aria may link are opened: the same approved-and-indexed rule as
+  `show_link`, with a PDF on another site opening its KDEM page. A PDF opens
+  beside her with `show_link` instead, so the call stays on this page; the page
+  they are already on is pointed at, not opened again.
+- **Part of this page: she just points.** `point_at` takes a short exact phrase
+  (under 80 characters) that the brain checks is in the text of the page the
+  visitor has open, ignoring case and spacing. A phrase from another page is
+  refused. After she takes them to a page, `page_viewed` tells her they
+  arrived, and she carries on the conversation there, pointing at what they
+  need, without greeting them again.
+
+**KDEM has to update the script on the site** to this version for any of this
+to work: it is the same single file, pasted the same way, with nothing new to
+configure. An older script ignores `navigate` and `point_at`, so Aria's line
+is heard and nothing moves.
 
 The site has to allow the microphone for its own pages. If it sends a
 `Permissions-Policy` header, that header must include `microphone=(self)`.

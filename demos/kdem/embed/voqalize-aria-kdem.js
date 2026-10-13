@@ -64,6 +64,9 @@
         line-height: 1; cursor: pointer; }
       #vq-aria .vq-bar .vq-end { background: #b3261e; border-color: #b3261e; color: #fff; }
       #vq-aria [hidden] { display: none !important; }
+      /* What Aria points at on the page: an outline and a soft tint, no layout shift. */
+      .vq-aria-pointed { outline: 3px solid #0b4f8a !important; outline-offset: 4px !important;
+        border-radius: 4px; background-color: rgba(11, 79, 138, .08) !important; }
       /* Bottom-left, clear of the site's own chat on the right; on phones, above its strip. */
       @media (max-width: 480px) { #vq-aria { left: 12px; bottom: 96px; } #vq-aria .vq-face { height: 240px; } }
     `;
@@ -132,6 +135,65 @@
       }
     }
 
+    // ── Walking the site ─────────────────────────────────────────────────────
+    // navigate: another KDEM page in this tab. The call carries over to it
+    // (keepAcrossPageLoads), and the move waits for the line Aria says with it,
+    // so "Taking you there." is heard before the page changes.
+    let speaking = false, pendingNav = null, navTimer = 0;
+    function navNow() {
+      clearTimeout(navTimer);
+      const go = pendingNav;
+      pendingNav = null;
+      go?.();
+    }
+    function navWaitForLine() {
+      if (!pendingNav) return;
+      clearTimeout(navTimer);
+      navTimer = setTimeout(navNow, 6000); // she is speaking: until she stops, at most 6 s
+    }
+    function navigateTo(raw) {
+      let url;
+      try { url = new URL(raw, location.origin); } catch { return; }
+      if (url.protocol !== "https:" || !/^(www\.)?karnatakadigital\.in$/.test(url.hostname)) return;
+      if (url.pathname + url.search === location.pathname + location.search) return;
+      pendingNav = () => location.assign(url.href);
+      clearTimeout(navTimer);
+      navTimer = setTimeout(navNow, speaking ? 6000 : 1500); // not speaking yet: a moment for her line
+    }
+
+    // point_at: bring the part of this page holding the text into view and light
+    // it up for a few seconds. The first, innermost visible element whose text
+    // contains it, outside Aria's own panel; nothing found, and the brain is told.
+    const squash = (t) => (t || "").replace(/\s+/g, " ").trim().toLowerCase();
+    const SKIP = new Set(["SCRIPT", "STYLE", "NOSCRIPT", "TEMPLATE", "SVG", "IFRAME"]);
+    function shown(el) {
+      if (el.checkVisibility) return el.checkVisibility({ visibilityProperty: true, opacityProperty: true });
+      return el.getClientRects().length > 0 && getComputedStyle(el).visibility !== "hidden";
+    }
+    function holding(el, want) {
+      for (const child of el.children) {
+        if (child === root || SKIP.has(child.tagName.toUpperCase()) || !shown(child)) continue;
+        if (squash(child.innerText).includes(want)) return holding(child, want) || child;
+      }
+      return null;
+    }
+    let pointed = null, pointTimer = 0;
+    function pointAt(text) {
+      const want = squash(text);
+      const el = want && squash(document.body.innerText).includes(want) ? holding(document.body, want) : null;
+      if (!el) {
+        try { client?.sendUIEvent("point_missed", { text }); } catch {}
+        return;
+      }
+      clearTimeout(pointTimer);
+      pointed?.classList.remove("vq-aria-pointed");
+      const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      el.scrollIntoView({ behavior: still ? "auto" : "smooth", block: "center" });
+      el.classList.add("vq-aria-pointed");
+      pointed = el;
+      pointTimer = setTimeout(() => { el.classList.remove("vq-aria-pointed"); if (pointed === el) pointed = null; }, 3000);
+    }
+
     function setMuted(next) {
       muted = next;
       store.set(MUTED, muted ? "1" : null);
@@ -178,8 +240,8 @@
               audio.srcObject = new MediaStream([track]);
               audio.play().catch(() => {});
             },
-            onBotStartedSpeaking: () => say("Aria is speaking…"),
-            onBotStoppedSpeaking: () => say(muted ? "Muted." : "Listening. Just talk."),
+            onBotStartedSpeaking: () => { speaking = true; say("Aria is speaking…"); navWaitForLine(); },
+            onBotStoppedSpeaking: () => { speaking = false; say(muted ? "Muted." : "Listening. Just talk."); navNow(); },
             // Aria can offer a KDEM page as a link card; it opens in a new tab
             // so the conversation keeps going here.
             onUICommand: ({ command, payload }) => {
@@ -187,6 +249,8 @@
                 if (payload?.language === "en" || payload?.language === "kn") showLang(payload.language);
                 return;
               }
+              if (command === "navigate") { if (typeof payload?.url === "string") navigateTo(payload.url); return; }
+              if (command === "point_at") { if (typeof payload?.text === "string") pointAt(payload.text); return; }
               if (command !== "show_link" || !payload?.url) return;
               const url = new URL(payload.url, location.origin);
               if (!/(^|\.)karnatakadigital\.in$/.test(url.hostname)) return;
@@ -246,6 +310,8 @@
     async function stop(endCall) {
       const live = client;
       client = null;
+      pendingNav = null; // a move she had not made yet goes with the call
+      clearTimeout(navTimer);
       if (endCall && live) { try { await live.disconnectBot(); } catch {} }
       avatar?.destroy(); avatar = null;
       setMuted(false);

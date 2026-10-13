@@ -23,7 +23,7 @@ from voqalize.sdk import AppEvent, AppEvents
 
 from .content import LanguageTag
 
-__all__ = ["KDEM_EVENTS", "KdemEvent", "LanguageRequested", "PageViewed"]
+__all__ = ["KDEM_EVENTS", "KdemEvent", "LanguageRequested", "PageViewed", "PointMissed"]
 
 
 class PageViewed(AppEvent):
@@ -41,6 +41,12 @@ class LanguageRequested(AppEvent):
     language: LanguageTag
 
 
-type KdemEvent = PageViewed | LanguageRequested
+class PointMissed(AppEvent):
+    """A ``point_at`` the page could not show: no visible element holds the text."""
 
-KDEM_EVENTS = AppEvents[KdemEvent](PageViewed, LanguageRequested)
+    text: str = Field(max_length=200)
+
+
+type KdemEvent = PageViewed | LanguageRequested | PointMissed
+
+KDEM_EVENTS = AppEvents[KdemEvent](PageViewed, LanguageRequested, PointMissed)
