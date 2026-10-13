@@ -1,6 +1,0 @@
----
-// A paragraph of a drawn document: gray bars, one per line, `w` = each line's width in percent.
-interface Props { w: number[]; class?: string }
-const { w, class: cls = '' } = Astro.props;
----
-<div class={`lg-lines ${cls}`}>{w.map((x) => <i style={`width:${x}%`}></i>)}</div>
