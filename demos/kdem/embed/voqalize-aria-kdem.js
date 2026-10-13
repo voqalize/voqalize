@@ -34,7 +34,9 @@
     // ── 2. Styles, scoped to #vq-aria ────────────────────────────────────────
     const style = document.createElement("style");
     style.textContent = `
-      #vq-aria { position: fixed; left: 20px; bottom: 20px; z-index: 2147483000;
+      /* Bottom-right and 1.3x, as KDEM placed it on their site; 1.1x on phones and tablets. */
+      #vq-aria { position: fixed; right: 30px; bottom: 30px; z-index: 2147483000;
+        transform: scale(1.3); transform-origin: bottom right;
         font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #1b1b1f; }
       #vq-aria * { box-sizing: border-box; }
       #vq-aria .vq-launch { display: flex; align-items: center; gap: 10px; padding: 6px 18px 6px 6px;
@@ -67,8 +69,14 @@
       /* What Aria points at on the page: an outline and a soft tint, no layout shift. */
       .vq-aria-pointed { outline: 3px solid #0b4f8a !important; outline-offset: 4px !important;
         border-radius: 4px; background-color: rgba(11, 79, 138, .08) !important; }
-      /* Bottom-left, clear of the site's own chat on the right; on phones, above its strip. */
-      @media (max-width: 480px) { #vq-aria { left: 12px; bottom: 96px; } #vq-aria .vq-face { height: 240px; } }
+      #vq-aria .vq-powered { display: block; padding: 0 14px 10px; text-align: center; font-size: 11px;
+        color: #6b6e76; text-decoration: none; }
+      #vq-aria .vq-powered:hover, #vq-aria .vq-powered:focus-visible { color: #0b4f8a; text-decoration: underline; }
+      @media (max-width: 768px) { #vq-aria { right: 20px; bottom: 20px; transform: scale(1.1); } }
+      /* Short screens: shrink just enough that the open panel's top (the language toggle) stays on screen. */
+      @media (min-width: 769px) and (max-height: 780px) { #vq-aria { transform: scale(1.1); } }
+      @media (max-height: 660px) { #vq-aria { transform: none; } }
+      @media (max-width: 480px) { #vq-aria .vq-face { height: 240px; } }
     `;
     document.head.appendChild(style);
 
@@ -92,6 +100,7 @@
           <button class="vq-mute" type="button" aria-pressed="false">Mute</button>
           <button class="vq-end" type="button">End</button>
         </div>
+        <a class="vq-powered" href="https://voqalize.com" target="_blank" rel="noopener">Powered by Voqalize</a>
         <audio autoplay></audio>
       </div>`;
     document.body.appendChild(root);
