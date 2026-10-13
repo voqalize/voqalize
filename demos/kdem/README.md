@@ -56,103 +56,28 @@ transcripts.
 
 ## The snippet
 
-`embed/voqalize-aria-kdem.js` is plain JavaScript. It goes into any "Custom
-JavaScript" box as it is, or, inside a `<script>` tag, into Elementor Pro →
-Custom Code with the location set to the end of `</body>`. Nothing downloads
-until a visitor clicks "Talk to Aria", except Aria's picture for the button
-(her still image, from the avatar's `listCharacters()`), fetched once the page
-has settled. The agent id and the publishable key are placeholders
-(`REPLACE_WITH_...`). They are filled in when the snippet is handed over, and
-never committed.
+`embed/voqalize-aria-kdem.js` is plain JavaScript, loaded by one tag that
+names the agent and its publishable key:
 
-It sits at the bottom left, clear of the site's own chat button on the right;
-on a phone it sits higher, above the site's chat strip.
+```html
+<script src="https://cdn.jsdelivr.net/gh/voqalize/voqalize@<commit>/demos/kdem/embed/voqalize-aria-kdem.js"
+        data-agent="<agent id>" data-key="<publishable key>" defer></script>
+```
 
-It loads these libraries from jsDelivr, each pinned to an exact version in the
-script: pipecat's `@pipecat-ai/client-js`, `@voqalize/client-transport` 0.3.1
-and the `@voqalize/avatar` the other demos use. The call is pipecat's client on our transport, whose
-media manager is ours rather than daily's, so daily's call machine is never
-loaded from `c.daily.co`.
+The file itself names no agent and carries no key; both live in the site's own
+tag, so nothing account-specific is committed here. Without them the script
+starts nothing and says why in the browser console. The contents can also be
+pasted into Elementor Pro → Custom Code inside a script tag, with the same two
+`data-` attributes on that tag. Nothing downloads until a visitor clicks "Talk
+to Aria", except Aria's picture for the button (her still image, from the
+avatar's `listCharacters()`), fetched once the page has settled.
 
-**A call carries on across page loads.** The transport is created with
-`createVoqalizeTransport({ mediaManager, keepAcrossPageLoads: true })`. It keeps
-the call's connection request in `sessionStorage`, per tab, and the next page
-of the site rejoins the same call with a bare `connect()`: no new session, and
-the conversation goes on where it was. Voqalize holds a dropped call for a few
-seconds for exactly this. The snippet never hangs up on `pagehide`, since the
-page going away is what the call has to survive; a page restored from the
-back/forward cache is reloaded so it rejoins properly. A visitor who leaves the
-site lets the call end on its own. **End** sends `disconnectBot()`, which ends
-the call at once, so the next page does not dial back. A visitor who muted
-stays muted on the next page.
+It sits at the bottom right at 1.3x (1.1x up to 768px wide), where KDEM placed
+it on their site; on a short screen it shrinks just enough that the open
+panel's top stays on screen. The panel ends with a small "Powered by Voqalize"
+link to voqalize.com.
 
-At the top of the panel is an **English | ಕನ್ನಡ** toggle: two buttons with
-`aria-pressed`, usable from the keyboard. It always shows the language the call
-is actually in. Pressing the other side sends `language_requested`, and the
-toggle moves only when the brain answers `language_changed`, so a switch made by
-voice moves it too and a switch Voqalize refused leaves it where it was. The
-choice is remembered for the tab (`sessionStorage`, `vq-aria:lang`); pressed
-with no call, it picks the language the next call starts in.
-
-The snippet and the brain share these:
-
-- **`init`**: the snippet sends `{surface: "kdem-web", page: location.pathname,
-  lang: "en" | "kn"}` with `sessions.connect`. `lang` is the toggle's choice:
-  `"kn"` opens the call in Kannada, with both legs on Kannada and a written
-  Kannada greeting; anything else opens in English. A rejoin after a page load
-  sends no `init`, and the call keeps the language it is in. The brain reads
-  `page` so it knows which page the visitor started on. When `page` is a page
-  Aria may link right now, the prompt names it by its own title and path.
-  Anything else, including an excluded page or a path the index does not hold,
-  is left out of the prompt: the brain never quotes what the browser sent.
-  `surface` and `lang` are logged.
-- **`show_link`**: a link card for a **document**, `{url, title}`. Pages are
-  visited (`navigate`, below); cards are for PDFs. The model's tool for it is
-  `show_document`, which refuses an ordinary page; the command keeps the wire
-  name `show_link`, so the snippet's card handler is unchanged. The brain fills
-  the card in itself: it canonicalises the document the model names and sends
-  it only if the current index holds it (an approved page links to it and the
-  refresh read it), under the document's own title. The snippet checks again
-  that the host is karnatakadigital.in, then shows the card, which opens the PDF
-  in a new tab in the browser's PDF viewer. A PDF on another site (a government
-  portal an approved page links to) is cited by name and page, but its card is
-  the approved KDEM page that links it, since the snippet shows only
-  karnatakadigital.in. The same index rule holds every page Aria offers or
-  opens: an approved page the refresh dropped (deleted, unpublished, or now
-  redirecting elsewhere) is not offered, and before the first index exists
-  Contact Us is the only page she may offer.
-- **`page_viewed`**: on every connect and rejoin, the snippet sends the RTVI UI
-  event `page_viewed` with `{path, title}`. Since the call follows the visitor
-  around the site, this is how Aria learns they moved. The brain takes it in
-  silently: Aria does not speak because a page changed, and her next turn knows
-  where they are. The page is named by its own title only when it is one Aria
-  may link now; any other page is "a page of the site", and the title the
-  browser sent is never quoted. A rejoin on the same page, and any event that
-  does not fit, change nothing.
-- **`language_requested`** (page → brain, `{language: "en" | "kn"}`): the
-  visitor pressed the toggle. The brain switches both legs in code, not through
-  the model, in one awaited request, and tells the model with a line in its
-  context. Aria confirms with a written line in the new language, read by the
-  new voice ("Sure, let's continue in English." or "ಸರಿ, ಈಗ ಕನ್ನಡದಲ್ಲಿ
-  ಮಾತಾಡೋಣ."). A brain has no floor outside a turn, so the line opens her next
-  turn, before her reply, and never talks over anyone. Asking for the language the call is already in, or a value
-  that is not `"en"` or `"kn"`, does nothing.
-- **`language_changed`** (brain → page, `{language: "en" | "kn"}`): the language
-  the call is in now, sent after every switch, by the toggle or by voice. It is
-  the toggle's only source of truth. A switch Voqalize refuses sends the
-  language that still holds, so the toggle goes back.
-- **`navigate`** (brain → page, `{url}`): open another KDEM page in this tab.
-  The call carries over to it, and the snippet waits for the line Aria says with
-  it ("Taking you there.") before the page changes. Only https on
-  karnatakadigital.in (or www); the page the visitor is already on is ignored.
-- **`point_at`** (brain → page, `{text}`): scroll the part of this page holding
-  the text into view and highlight it for a few seconds: the innermost visible
-  element whose text contains it, outside Aria's panel, with an outline and a
-  soft tint in KDEM blue, no layout shift, and an instant scroll for visitors
-  who ask for reduced motion. If no visible element holds it, the page sends
-  back **`point_missed`** `{text}`, and Aria says where it is in words instead.
-
-### Walking the site: she asks before she moves the page
+## Walking the site: she asks before she moves the page
 
 Aria can take a visitor to another page of the site and point at part of the
 page they are on.
@@ -177,9 +102,8 @@ page they are on.
   arrived, and she carries on the conversation there, pointing at what they
   need, without greeting them again.
 
-**KDEM has to update the script on the site** to this version for any of this
-to work: it is the same single file, pasted the same way, with nothing new to
-configure. An older script ignores `navigate` and `point_at`, so Aria's line
+**KDEM has to update the script tag on the site** to this version for any of
+this to work: the same single file, now with the agent and key on the tag. An older script ignores `navigate` and `point_at`, so Aria's line
 is heard and nothing moves.
 
 The site has to allow the microphone for its own pages. If it sends a

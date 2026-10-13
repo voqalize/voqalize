@@ -1,22 +1,33 @@
 /*
   Voqalize · Aria for karnatakadigital.in
-  Plain JavaScript: paste into any "Custom JavaScript" box as it is. For an HTML box
-  (Elementor Pro → Custom Code, Location: end of body), put it inside a script tag.
-  Nothing downloads until a visitor clicks "Talk to Aria", except Aria's picture
-  for the button. A call carries on when the visitor moves to another page.
-  Remove the snippet to remove Aria.
+  Load it with one tag that names the agent and its website key:
+
+    script tag:  src="…/voqalize-aria-kdem.js"  data-agent="AGENT_ID"  data-key="PUBLISHABLE_KEY"  defer
+
+  Pasting the file's contents into an HTML box works too: put the two data-
+  attributes on that script tag instead. Nothing downloads until a visitor
+  clicks "Talk to Aria", except Aria's picture for the button. A call carries
+  on when the visitor moves to another page. Remove the tag to remove Aria.
 */
 (function () {
   if (window.__vqAria) return; // pasted twice, or loaded by two plugins: run once
   window.__vqAria = true;
 
-  // ── 1. Configuration (filled in by Voqalize) ─────────────────────────────
+  // ── 1. Configuration ──────────────────────────────────────────────────────
+  // The agent and its publishable key come from the tag that loaded this file,
+  // so the file itself names no agent. Read now: currentScript is only set
+  // while this file is running, not later when boot() does.
+  const tag = document.currentScript;
   const VQ = {
-    agentId: "06ac5fe2-54d1-79b1-8000-c77b136e76ef",
-    publishableKey: "pk_live_eJOBDwN-zWHGqb9OPTYXeO5WPWzQhoYnlfRBnfR1tSY", // works only on karnatakadigital.in
-    character: "tara",                                // female avatar; voice (Gauri) is set by Voqalize
+    agentId: tag?.dataset.agent || "",
+    publishableKey: tag?.dataset.key || "", // a pk_ key; Voqalize accepts it only from the site's own addresses
+    character: "tara",                      // female avatar; voice (Gauri) is set by Voqalize
     api: "https://app.dev.voqalize.com/api/v1/sessions.connect", // dev hosting for the pilot
   };
+  if (!VQ.agentId || !VQ.publishableKey) {
+    console.warn("[Voqalize] Aria not started: the script tag needs data-agent and data-key.");
+    return;
+  }
   // Exact versions, from jsDelivr. The transport imports the same pipecat URLs,
   // so the page holds one copy of each.
   const LIBS = {
