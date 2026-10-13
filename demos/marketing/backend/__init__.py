@@ -1,4 +1,4 @@
-"""Tanvi, the voqalize.com guide — demo backend (brain + route). See `routes.py`."""
+"""Voqalize homepage agent — demo backend (brain + route). See `routes.py`."""
 
 from .routes import NAME, build, router
 
