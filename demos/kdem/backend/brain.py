@@ -16,7 +16,8 @@ document the answer is. The prompt holds her to what comes back. When nothing do
 line and offers Contact Us. A government agency's assistant that improvises a
 scheme, a figure or a deadline is worse than one that says it does not know.
 
-**The model never supplies a URL the brain trusts.** :meth:`show_link` takes what
+**The model never supplies a URL the brain trusts.** :meth:`show_document`,
+:meth:`offer_page` and :meth:`go_to_page` take what
 the model names, canonicalises it, and sends it only if the index holds that page
 now — an approved page the last refresh read, a page it added, or a PDF an
 approved page links to and the refresh read — with the page's own title, not
@@ -27,8 +28,9 @@ brain is where "only approved pages" is decided.
 
 **The page is someone else's.** There is no frontend here: the snippet in
 ``demos/kdem/embed/`` is pasted into the site, connects with
-``init = {surface, page, lang}``, and renders four commands: ``show_link``,
-``navigate``, ``point_at`` and ``language_changed``. The call carries on across
+``init = {surface, page, lang}``, and renders four commands: ``show_link`` (a
+card for a document, sent by the model's ``show_document``), ``navigate``,
+``point_at`` and ``language_changed``. Pages are visited; cards are for documents. The call carries on across
 page loads, and on every (re)connect the snippet sends ``page_viewed``
 (:mod:`.app_events`): Aria learns the visitor moved, silently, on their next turn.
 
@@ -114,20 +116,24 @@ assert {s.code for s in SPEECH.values()} <= set(PHRASES), "a spoken language has
 
 _SYSTEM_INSTRUCTION = f"""You are {AGENT_NAME}, the voice assistant on the website of KDEM, the Karnataka Digital Economy Mission, at karnatakadigital.in. A visitor is on the site right now, with you in the corner of the page. They are usually a founder, an investor, a company looking at Karnataka, a student or a job seeker.
 
-EVERY RESPONSE STARTS WITH WORDS. Whenever you offer a page, take them to one or point at something, write your line first and make the call in that same response — the line is spoken as the page moves. A response that is only a tool call is silence: after show_link, offer_page, go_to_page or point_at you do not speak again until the visitor does. For example:
-  Visitor: "Do you have a seed fund for startups outside Bengaluru?" You: (search_kdem first, then) "Yes, the Beyond Bengaluru Cluster Seed Fund backs startups in the clusters. I've put the page beside me." — and show_link, in the same response.
+EVERY RESPONSE STARTS WITH WORDS. Whenever you offer a page, take them to one, point at something or show a document, write your line first and make the call in that same response — the line is spoken as the page moves. A response that is only a tool call is silence: after offer_page, go_to_page, point_at or show_document you do not speak again until the visitor does. For example:
+  Visitor: "Do you have a seed fund for startups outside Bengaluru?" You: (search_kdem first, then) "Yes, the Beyond Bengaluru Cluster Seed Fund backs startups in the clusters. Shall I take you to its page?" — and offer_page with that page, in the same response.
 search_kdem and set_language are the two calls that take no line. search_kdem is silent and comes straight back to you in the same turn, so call it first and then answer from it. set_language is answered by a line of its own, in the new voice, so call it alone and say nothing.
 
-ANSWER ONLY FROM THE SITE. Everything you may say about KDEM, its programmes, policies, events, reports and news comes from what search_kdem returns. Search before you answer any question about KDEM or Karnataka's digital economy — even one you think you know. Never add a figure, a date, a deadline, an amount, an eligibility rule or a name that is not in what came back. If the search returns nothing that answers the question, say exactly: "{DONT_KNOW}" and offer the Contact Us page with show_link ({CONTACT_PATH}).
+ANSWER ONLY FROM THE SITE. Everything you may say about KDEM, its programmes, policies, events, reports and news comes from what search_kdem returns. Search before you answer any question about KDEM or Karnataka's digital economy — even one you think you know. Never add a figure, a date, a deadline, an amount, an eligibility rule or a name that is not in what came back. If the search returns nothing that answers the question, say exactly: "{DONT_KNOW}" and offer to take them to the Contact Us page with offer_page ({CONTACT_PATH}), or point at it with point_at if they are already there.
 
-THE SHAPE OF AN ANSWER. One or two short sentences that answer the question, then offer the page that says it in full with show_link, in the same response. Do not read a page aloud; the link is there for that. Pass show_link a URL that search_kdem returned or one from THE PAGES below — never one you made up or one from outside karnatakadigital.in.
+THE SHAPE OF AN ANSWER. One or two short sentences that answer the question, then, in the same response:
+- when the page that says it in full is another page, offer to take them there with offer_page: "Shall I take you to the Seed Fund page?";
+- when they are already on that page, point at the part that says it with point_at;
+- when the answer comes from a PDF, name the document and the page in words and show it beside you with show_document.
+Do not read a page aloud; the page is there for that. Pass a URL that search_kdem returned or one from THE PAGES below.
 
-DOCUMENTS. Many results come from the PDF documents KDEM's pages link to — policies, guidelines, reports and newsletters — and are marked "PDF document, page N". When you answer from one, say which document and where, in words, for example "the Startup Policy says so on page 12", and offer it with show_link, passing the url exactly as search_kdem gave it. For a document on KDEM's site that url is the PDF itself. For one hosted on another government site, marked "on <site>", the url is the KDEM page that links to it, and the card opens that page: name the document and the page in what you say, and say it is linked from that KDEM page.
+DOCUMENTS. Many results come from the PDF documents KDEM's pages link to — policies, guidelines, reports and newsletters — and are marked "PDF document, page N". When you answer from one, say which document and where, in words, for example "the Startup Policy says so on page 12", and show it beside you with show_document, passing the url exactly as search_kdem gave it. A document hosted on another government site, marked "on <site>", opens as the KDEM page that links to it: name the document and the page in what you say, and say it is linked from that KDEM page.
 
 TAKING THEM AROUND THE SITE. You can take the visitor to another page of the site, in this same tab; the call carries on there with them.
 - Ask first, in one short line, and call offer_page with that page in the same response: "Shall I take you to the Seed Fund page?" When they say yes, in their next turn, call go_to_page with it and say one short line: "Taking you there."
 - When they ask to be taken somewhere ("take me to the events page", "open the policies page"), that is their yes: call go_to_page at once, with "Taking you there."
-- go_to_page goes to a page you offered in your last turn, or one they asked for in this turn. A PDF opens beside you with show_link instead, so the call stays on this page.
+- go_to_page goes to a page you offered in your last turn, or one they asked for in this turn. A PDF opens beside you with show_document instead, so the call stays on this page.
 - POINTING. On the page they have open, point at the part that answers them with point_at, passing a short exact phrase from that page's text: a heading or a few words, under 80 characters, as they appear in what search_kdem returned for that page. No need to ask: "Eligibility is right here."
 - After you take them to a page you are still in the same conversation: carry on from where you were, point at the part they need, and do not greet them again.
 
@@ -199,15 +205,19 @@ def _prompt(where: str = "", spoken: Language = OPENING.code) -> str:
 
 
 class ShowLink(Action, name="show_link"):
-    """Brain → browser: a link card to one KDEM page or PDF, opened in a new tab.
+    """Brain → browser: a link card to one KDEM document, opened in a new tab.
 
-    The snippet in ``demos/kdem/embed/`` renders this and nothing else."""
+    The model's tool for it is ``show_document``, and it is for PDFs only: pages
+    are visited, with ``offer_page`` / ``go_to_page``. The command keeps the wire
+    name ``show_link`` and its ``{url, title}`` payload so the snippet already on
+    the site renders it unchanged."""
 
     url: str
     """An absolute ``https://karnatakadigital.in/...`` URL, chosen by the brain: a
-    page, or a PDF under ``/wp-content/uploads/``."""
+    PDF under ``/wp-content/uploads/``, or, for a PDF on another site, the
+    approved KDEM page that links it."""
     title: str
-    """The page's own title, as the card shows it."""
+    """The document's own title, as the card shows it."""
 
 
 class SearchRequest(BaseModel):
@@ -256,16 +266,13 @@ class PointRequest(BaseModel):
     )
 
 
-class LinkRequest(BaseModel):
+class DocumentRequest(BaseModel):
     url: str = Field(
-        description="The page or PDF to offer: a URL that search_kdem returned, or a "
-        "path from THE PAGES, e.g. '/policies/'. Only karnatakadigital.in pages and "
-        "documents are sent."
+        description="The PDF document to show: its url exactly as search_kdem returned it."
     )
     title: str = Field(
         "",
-        description="A few words naming the page. The card uses the page's own title "
-        "when it has one.",
+        description="A few words naming the document. The card uses its own title.",
     )
 
 
@@ -348,14 +355,6 @@ def _via(url: str) -> tuple[str, str] | None:
     if indexed is None or indexed.kind != "pdf" or not off_site(indexed.url):
         return None
     return _page(indexed.via) if indexed.via else None
-
-
-def _link_url(p: Passage) -> str:
-    """The url a search result offers: the page or PDF itself, or for a PDF on
-    another site, the KDEM page that links it."""
-    if p.kind == "pdf" and off_site(p.url) and (via := _via(p.url)) is not None:
-        return via[0]
-    return p.url
 
 
 def _where_they_are(path: str, *, moved: bool) -> str:
@@ -587,7 +586,7 @@ class KdemBrain(GeminiBrain):
         (asking first), point at part of the page they are on, change language."""
         return [
             self.search_kdem,
-            self.show_link,
+            self.show_document,
             self.offer_page,
             self.go_to_page,
             self.point_at,
@@ -596,7 +595,7 @@ class KdemBrain(GeminiBrain):
 
     def _destination(self, url: str) -> tuple[str, str] | str:
         """The page ``url`` would take the visitor to, as ``(url, title)``, or the
-        sentence that says why not: the same rules as ``show_link``, a PDF on
+        sentence that says why not: the same rules as ``show_document``, a PDF on
         another site going to the KDEM page that links it, and only pages, since a
         PDF in this tab would leave the call behind."""
         found = _page(url)
@@ -607,7 +606,7 @@ class KdemBrain(GeminiBrain):
             )
         dest, title = found
         if is_pdf(dest):
-            return "Not sent: a PDF opens beside you with show_link; go_to_page is for pages."
+            return "Not sent: a PDF opens beside you with show_document; go_to_page is for pages."
         here = ALLOWLIST.canonical(self.here) if self.here else None
         if dest == here:
             return f'They are already on "{title}". Point at the part they need with point_at.'
@@ -621,7 +620,7 @@ class KdemBrain(GeminiBrain):
         if isinstance(found, str):
             return found
         self._offered = (found[0], self._turn)
-        logger.info("kdem: offered {}", path_of(found[0]))
+        logger.info("kdem: offer_page {}", path_of(found[0]))
         return "Offered. When they say yes, call go_to_page with this page."
 
     async def go_to_page(self, request: PageRequest) -> str:
@@ -644,6 +643,9 @@ class KdemBrain(GeminiBrain):
         self._offered = None
         self._took_to = dest
         self.session.dispatch(Navigate(url=dest))
+        logger.info(
+            "kdem: go_to_page {} ({})", path_of(dest), "a yes" if said_yes else "they asked"
+        )
         landed(*phrase(self.spoken, "shown"))
         return "ok: the page opens, and the call carries on there."
 
@@ -666,6 +668,7 @@ class KdemBrain(GeminiBrain):
             )
         self._pointed = text
         self.session.dispatch(PointAt(text=text))
+        logger.info("kdem: point_at {!r} on {}", text, path_of(page.url))
         landed(*phrase(self.spoken, "shown"))
         return "ok"
 
@@ -679,39 +682,47 @@ class KdemBrain(GeminiBrain):
             logger.warning("kdem: search with an empty knowledge base")
             return (
                 "The website's pages are not available right now, so there is nothing to "
-                f'answer from. Say: "{DONT_KNOW}" and offer the Contact Us page '
-                f"({CONTACT_PATH}) with show_link."
+                f'answer from. Say: "{DONT_KNOW}" and offer to take them to the Contact '
+                f"Us page ({CONTACT_PATH}) with offer_page, or point at it with point_at if "
+                "they are already there."
             )
         passages = kb.search(request.query, k=_PASSAGES)
         logger.info("kdem: search {!r} -> {} passages", request.query, len(passages))
         if not passages:
             return (
-                f'Nothing on the approved pages matches. Say: "{DONT_KNOW}" and offer the '
-                f"Contact Us page ({CONTACT_PATH}) with show_link."
+                f'Nothing on the approved pages matches. Say: "{DONT_KNOW}" and offer to '
+                f"take them to the Contact Us page ({CONTACT_PATH}) with offer_page, or "
+                "point at it with point_at if they are already there."
             )
         found = "\n\n".join(
-            f"[{i}] {_source(p)}\nurl: {_link_url(p)}\n{p.snippet}"
-            for i, p in enumerate(passages, 1)
+            f"[{i}] {_source(p)}\nurl: {p.url}\n{p.snippet}" for i, p in enumerate(passages, 1)
         )
         return (
             "From karnatakadigital.in. Answer only from this; if it does not answer the "
             f'question, say: "{DONT_KNOW}"\n\n{found}'
         )
 
-    async def show_link(self, request: LinkRequest) -> str:
-        """Put a link card to one KDEM page or PDF document beside you; it opens in a
-        new tab. Say your one or two sentences and call this in the same response.
-        Only approved karnatakadigital.in pages and the PDFs they link to are sent."""
-        found = _page(request.url)
+    async def show_document(self, request: DocumentRequest) -> str:
+        """Show a PDF document beside you as a card; it opens in a new tab. Name the
+        document and the page in your one or two sentences and call this in the
+        same response. For PDFs that search_kdem returned; pages are visited."""
+        found = _page(request.url) if pdf_url(request.url) is not None else None
         if found is None:
-            logger.info("kdem: show_link refused {!r}", request.url)
+            if _page(request.url) is not None:
+                logger.info("kdem: show_document refused a page {!r}", request.url)
+                return (
+                    "Not sent: pages are visited with offer_page / go_to_page; "
+                    "show_document is for PDFs."
+                )
+            logger.info("kdem: show_document refused {!r}", request.url)
             return (
-                f"Not sent: {request.url!r} is not one of the approved KDEM pages or "
-                "documents. Offer a page or PDF search_kdem returned, or the Contact Us "
-                f"page ({CONTACT_PATH})."
+                f"Not sent: {request.url!r} is not one of the approved KDEM documents. "
+                "Show a PDF search_kdem returned."
             )
         url, title = found
+        # Sent as the snippet's "show_link" card: the wire name it already renders.
         self.session.dispatch(ShowLink(url=url, title=title))
+        logger.info("kdem: show_document {}", path_of(url))
         landed(*phrase(self.spoken, "shown"))
         return "ok"
 

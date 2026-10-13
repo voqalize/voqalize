@@ -1,7 +1,8 @@
 """Where the visitor is on the site — the browser→brain half of the snippet's contract.
 
-The other direction is ``show_link``, the one :class:`~voqalize.sdk.Action` the
-brain sends. This is its mirror: a declared shape, validated where it arrives,
+The other direction is the :class:`~voqalize.sdk.Action` classes in
+``brain.py`` (``navigate``, ``point_at``, ``show_link``, ``language_changed``).
+This is their mirror: a declared shape, validated where it arrives,
 so ``on_rtvi`` narrows on a type instead of digging through a dict.
 
 The snippet also has an English | ಕನ್ನಡ toggle. Pressing the other side sends
