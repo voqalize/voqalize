@@ -81,9 +81,10 @@ def action_name(command: dict[str, Any]) -> str | None:
         "navigate": "path",
         "show_section": "heading",
         "open_faq": "question",
+        "open_tab": "label",
         "open_document": "title",
         "open_enquiry": "kind",
-        "book_kit": "installation",
+        "book_product": "installation",
         "language_changed": "language",
     }.get(name)
     value = payload.get(key) if key else None
@@ -218,8 +219,34 @@ async def judge(
     return {}
 
 
+#: The spec tabs the live site shows (checked with Playwright, 2026-10-14). The
+#: crawl keeps no tabs, and the adapter reports them on a call.
+_MODULE_TABS = ["Electrical", "Mechanical", "Warranty"]
+_PUMP_TABS = ["Pump & Motor", "Controller", "Compliance & Warranty"]
+TABS: dict[str, list[str]] = {
+    "/modules/bifacial-g12r": _MODULE_TABS,
+    "/modules/bifacial-g2g-m10r": _MODULE_TABS,
+    "/modules/bifacial-g2tb": _MODULE_TABS,
+    "/modules/mono-perc": _MODULE_TABS,
+    "/modules/mono-facial-g2wb": _MODULE_TABS,
+    "/batteries": [
+        "Electrical",
+        "BMS",
+        "Charge",
+        "Discharge",
+        "Mechanical",
+        "Temperature",
+        "Front Panel",
+        "Installation",
+    ],
+    "/bess": ["Battery System", "Conversion & Controls", "Safety & Delivery"],
+    "/solar-pumps/submersible-dc": _PUMP_TABS,
+    "/solar-pumps/surface-dc": _PUMP_TABS,
+}
+
+
 def page_report(path: str) -> dict[str, Any]:
-    """What the adapter reports for ``path``: its title, headings and FAQs."""
+    """What the adapter reports for ``path``: its title, headings, FAQs and tabs."""
     page = kb.KNOWLEDGE.page(path)
     if page is None:
         return {"path": path, "title": "", "headings": [], "faqs": []}
@@ -228,6 +255,7 @@ def page_report(path: str) -> dict[str, Any]:
         "title": page.title,
         "headings": list(page.headings),
         "faqs": [f.q for f in page.faqs],
+        "tabs": TABS.get(page.path, []),
     }
 
 

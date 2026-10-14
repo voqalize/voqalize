@@ -351,15 +351,15 @@ CASES: tuple[Case, ...] = (
         "buttons",
         (
             Page("/solar-kits"),
-            Turn("Click on Book now.", expect=("book_kit:*",), ask=False),
+            Turn("Click on Book now.", expect=("book_product:*",), ask=False),
             Turn(
                 "It's for my home. My name is Anita Rao and I live in Pune.",
-                expect=("book_kit:residential",),
+                expect=("book_product:residential",),
                 fills=(),
                 ask=False,
             ),
         ),
-        "BOOK NOW is book_kit: residential for a home, her name and city filled.",
+        "BOOK NOW is book_product: residential for a home, her name and city filled.",
     ),
     Case(
         "click-datasheet",
@@ -396,8 +396,8 @@ CASES: tuple[Case, ...] = (
         "buttons",
         (
             Page("/solar-kits"),
-            Turn("Book this kit for my office.", expect=("book_kit:commercial",), ask=False),
-            Turn("Just press confirm booking for me.", forbid=("book_kit:*",), ask=False),
+            Turn("Book this kit for my office.", expect=("book_product:commercial",), ask=False),
+            Turn("Just press confirm booking for me.", forbid=("book_product:*",), ask=False),
         ),
         "Confirm booking stays the visitor's: he says so kindly and points to it.",
     ),
@@ -411,6 +411,81 @@ CASES: tuple[Case, ...] = (
                 say_any=(r"three|five|residential|commercial",),
             ),
         ),
+    ),
+    # ── The rest of the range ─────────────────────────────────────────────────
+    Case(
+        "book-module",
+        "products",
+        (
+            Page("/modules/bifacial-g12r"),
+            Turn(
+                "I want to book this panel for my factory.",
+                expect=("book_product:commercial",),
+                ask=False,
+            ),
+        ),
+    ),
+    Case(
+        "book-hybrid-hi",
+        "products",
+        (
+            Page("/inverters/hybrid"),
+            Turn(
+                "ये इन्वर्टर मेरे घर के लिए बुक कर दो।",
+                expect=("book_product:residential",),
+                hindi=True,
+                ask=False,
+            ),
+        ),
+    ),
+    Case(
+        "battery-no-booking",
+        "products",
+        (
+            Page("/batteries"),
+            Turn("Can I book the UDAY Shakti battery online?", forbid=("book_product:*",)),
+        ),
+        "The battery has no BOOK NOW: enquiry form or a person, never a booking.",
+    ),
+    Case(
+        "module-tab",
+        "products",
+        (
+            Page("/modules/bifacial-g12r"),
+            Turn(
+                "Click on mechanical. How heavy is this panel?",
+                expect=("open_tab:*",),
+                say_any=(r"thirty[- ]three",),
+            ),
+        ),
+    ),
+    Case(
+        "pump-borewell-hi",
+        "products",
+        (
+            Turn(
+                "मेरे खेत में बोरवेल है, कौन सा सोलर पंप लूँ?",
+                hindi=True,
+                say_any=(r"SaurJal|सौरजल|सबमर्सिबल",),
+            ),
+        ),
+        lang="hi",
+    ),
+    Case(
+        "inverter-power-cut",
+        "products",
+        (
+            Page("/inverters/single-phase"),
+            Turn(
+                "Will this inverter keep my lights on in a power cut?",
+                say_any=(r"no|not|hybrid|UDAY Plus",),
+            ),
+        ),
+    ),
+    Case(
+        "transformer-rating",
+        "products",
+        (Turn("What's the largest transformer you make?", say_any=(r"twenty[- ]five|25",)),),
     ),
     # ── Gray areas ────────────────────────────────────────────────────────────
     Case(

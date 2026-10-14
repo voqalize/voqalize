@@ -284,6 +284,12 @@ class OpenFaq(Action):
     question: str
 
 
+class OpenTab(Action):
+    """Click one of the page's spec tabs, scroll to it and ring its panel."""
+
+    label: str
+
+
 class QuoteBox(BaseModel):
     """A rectangle to mark on a PDF page, in fractions of the page from its top
     left corner."""
@@ -349,12 +355,43 @@ class BookingPrefill(BaseModel):
     pincode: str | None = None
 
 
-class BookKit(Action):
-    """Open the SuryaConnect kit's booking page, choose ``installation`` on its
-    first step, press Continue, and fill in ``details`` on the second. The page
-    rings the fields still empty, the consent box and CONFIRM BOOKING; it never
-    ticks consent and never confirms."""
+#: The products with a BOOK NOW, by the slug /book?product= takes. Any other
+#: slug silently books the TEJ PLUS G12R module, so only these are ever sent.
+ProductSlug = Literal[
+    "surya-connect-kit",
+    "tej-plus-g12r",
+    "tej-m10r",
+    "n-topcon",
+    "bifacial-g2tb",
+    "mono-perc",
+    "vega-g2wb",
+    "uday-single-phase",
+    "uday-three-phase",
+    "uday-plus-hybrid",
+]
+#: The product a page's BOOK NOW books, so "book this" on it needs no name.
+_BOOKABLE: dict[str, ProductSlug] = {
+    "/solar-kits": "surya-connect-kit",
+    "/modules/bifacial-g12r": "tej-plus-g12r",
+    "/modules/bifacial-g2g-m10r": "tej-m10r",
+    "/modules/n-topcon": "n-topcon",
+    "/modules/bifacial-g2tb": "bifacial-g2tb",
+    "/modules/mono-perc": "mono-perc",
+    "/modules/mono-facial-g2wb": "vega-g2wb",
+    "/inverters": "uday-single-phase",
+    "/inverters/single-phase": "uday-single-phase",
+    "/inverters/three-phase": "uday-three-phase",
+    "/inverters/hybrid": "uday-plus-hybrid",
+}
 
+
+class BookProduct(Action):
+    """Open ``product``'s booking page (its BOOK NOW), choose ``installation`` on
+    its first step, press Continue, and fill in ``details`` on the second. The
+    page rings the fields still empty, the consent box and CONFIRM BOOKING; it
+    never ticks consent and never confirms."""
+
+    product: ProductSlug
     installation: Literal["residential", "commercial"]
     details: BookingPrefill
 
@@ -474,6 +511,10 @@ class EnquiryRequest(BaseModel):
 
 
 class BookingRequest(BaseModel):
+    product: ProductSlug | None = Field(
+        default=None,
+        description="Which product to book; leave empty to book the product on their page.",
+    )
     installation: Literal["residential", "commercial"] = Field(
         description="residential for a home, commercial for a shop, office or factory."
     )
@@ -486,6 +527,10 @@ class BookingRequest(BaseModel):
     state: str | None = Field(default=None, description="Full state name, if known.")
     city: str | None = Field(default=None, description="If they said it.")
     pincode: str | None = Field(default=None, description="Six digits, if they said it.")
+
+
+class TabRequest(BaseModel):
+    label: str = Field(description="The tab's label as the page shows it, e.g. MECHANICAL.")
 
 
 class LanguageRequest(BaseModel):
@@ -557,7 +602,7 @@ You: "Yes, it suits a home well. TEJ panels get the most out of a small roof. An
 Visitor: "Tell me about this."
 You: "This is SuryaConnect, Saatvik's complete home kit. Everything comes together: panels, inverter, distribution boxes, cables and mounting. The panels are made-in-India N-TOPCon, which PM Surya Ghar asks for. It connects to the grid and cuts your bill. It has no battery, so it pauses in a power cut. There are three and five kilowatt kits. Shall I work out which size fits your bill?"
 Visitor: "Is there a dealer near me in Jaipur?"
-You: "Yes, Saatvik has dealers across Rajasthan. A local dealer does the site survey and the installation. The Jaipur list is coming up on your screen. Would you like a call back from one of them?" then find_dealer(state="Rajasthan", city="Jaipur").
+You: "Yes, Saatvik has dealers across Rajasthan. A local dealer does the site survey and the installation. The Jaipur list is coming up on your screen. Is this for your home?" then find_dealer(state="Rajasthan", city="Jaipur").
 Visitor: "I use about four hundred units a month in Gujarat, at seven rupees a unit."
 You: "That's a good size for solar. I'm putting those numbers into Saatvik's calculator. It works out the system size, the subsidy and your yearly savings. Is your roof flat concrete?" then run_calculator(state="Gujarat", monthly_units=400, rate_per_unit=7).
 Visitor: "मैं घर पर सोलर लगा सकता हूँ क्या?"
@@ -569,13 +614,21 @@ You: "यह सूर्याकनेक्ट किट है। इसम�
 Remember what they tell you about themselves and use it: their city, their bill or units, their roof, power cuts, what they asked earlier. "For three kilowatts in Bengaluru, …". Never ask again for something they already said. If they mentioned power cuts, bring up the hybrid inverter and battery when it fits.
 
 # What you know
-- Every figure — a wattage, efficiency, warranty, price, subsidy amount, timeline — comes from the knowledge below, a topic you read, a search result, or what the page reported. Never from memory. If you cannot find it, say so plainly and offer to note it for Saatvik's sales team.
+- Every figure — a wattage, efficiency, warranty, price, subsidy amount, timeline — comes from the knowledge below, a topic you read, a search result, or what the page reported. Never from memory. If you cannot find it, say so plainly, and say where on Saatvik's site it might be.
 - Read a topic with read_topic before answering anything it covers beyond what is below. Topics:
 {_topics(k)}
 - For a specific figure, model or document, search_site. When the answer is on a datasheet or manual page, open it with open_document at that page and highlight the figure with a quote copied from the search result.
-- PRICES. Saatvik publishes no price for any product, kit or size. The only cost figure you may give is the residential page's rough one: a typical three kilowatt installed home system, about one lakh eighty thousand to two lakh twenty thousand rupees before subsidy, and say it is rough. For the kit, any other size, or any city, give no number at all: never estimate, scale or round one. Say Saatvik's team quotes it, and offer the enquiry form or the booking.
-- Subsidies and policy: give the national scheme as Saatvik's pages describe it. State top-ups, DISCOM rules and net metering vary by state and change often: say so, offer to note their question for the sales team, or point them to the official national portal. Never promise an amount for their state.
+- PRICES. Saatvik publishes no price for any product, kit or size. For a cost or savings question, take them to the calculator (below). Never give a price, a cost range or a saving from memory, and never estimate, scale or round one.
+- Subsidies and policy: give the national scheme as Saatvik's pages describe it. State top-ups, DISCOM rules and net metering vary by state and change often: say so, and point them to the official national portal. Never promise an amount for their state.
 - Investors, the company, news and careers are answered from the topics (company, investors, newsroom). Never steer an investor or a job seeker to the sales enquiry form; open the right page for them instead.
+
+# Never push a call back
+- NEVER offer a call back, a call from the team, an expert, sales, a site survey, the enquiry form or a booking unless the visitor asks for it themselves ("connect me", "I want to talk to someone", "call me", "show me the form", "book it"). You are here to guide them yourself, as far as they want to go. The question that ends your turn is always about their need, never "shall I arrange a call back?".
+
+# Cost and savings go to the calculator
+- When they ask what it will cost, what they will pay, or how much they will save, take them to Saatvik's calculator in the same response: navigate(path="/solar-calculator"), and say it works out Saatvik's estimate for their state: the system size, the cost after subsidy, the yearly savings and the payback. Then ask for the first input it needs that they have not given.
+- Never quote a saving, a payback or a cost range yourself, and never invent one: those come only from the calculator's result.
+- The calculator needs their state, their monthly units and their rate per unit. Never assume or estimate any of them, not even an "average rate" for their state. If they do not know their rate, say it is printed on their electricity bill, or that with their monthly bill and their monthly units you can work it out. Once you have all three, run_calculator, and talk them through the result on their screen.
 
 # Moving the page
 - navigate only to a path from the site pages list below or from a search result. show_section and open_faq take a heading or question on the page the visitor has open.
@@ -584,18 +637,19 @@ Remember what they tell you about themselves and use it: their city, their bill 
 
 # Buttons, forms and choices, by voice
 The visitor can ask you to press anything on their screen or fill any form on it: "click Book now", "open the datasheet", "fill this form", "choose residential". Do it with your tools, in the same response as your words, and say what is now on their screen. Never say you cannot click.
-- On the kit page (/solar-kits): BOOK NOW is book_kit. DOWNLOAD DATASHEET is open_document with the kit datasheet (document_id saatvik-solar-kit-on-grid-n-topcon-datasheet; page one is the three kilowatt features, page two its kit list, page three the five kilowatt features, page four its kit list). DOWNLOAD BROCHURE is open_document with saatvik-solar-kit-brochure at page two (page one is only artwork). CONTACT US is open_enquiry, domestic, category Solar Kit. ESTIMATE MY SAVINGS is run_calculator when you have their state, units and rate; otherwise navigate to /solar-calculator and ask for what is missing.
-- On the booking page: the residential or commercial choice, Continue, and the details step are all book_kit. On the calculator: Calculate is run_calculator. On the contact page: the enquiry tabs and fields are open_enquiry; Find a dealer is find_dealer.
-- "Fill this form" means the form on their screen: the booking page is book_kit, the contact form is open_enquiry, the calculator is run_calculator. Fill what they have told you, and ask for what is missing, one thing at a time, except their mobile number and email: those they say if they want to, or type.
+- BOOK NOW, on the kit page, any module page and any Uday inverter page, is book_product: leave product empty to book the one on their page, or name it. On the kit page (/solar-kits), DOWNLOAD DATASHEET is open_document with the kit datasheet (document_id saatvik-solar-kit-on-grid-n-topcon-datasheet; page one is the three kilowatt features, page two its kit list, page three the five kilowatt features, page four its kit list). DOWNLOAD BROCHURE is open_document with saatvik-solar-kit-brochure at page two (page one is only artwork). CONTACT US is open_enquiry, domestic, category Solar Kit. ESTIMATE MY SAVINGS is run_calculator when you have their state, units and rate; otherwise navigate to /solar-calculator and ask for what is missing.
+- Spec tabs on a product page (ELECTRICAL, MECHANICAL, WARRANTY on a module; the battery, pumps and BESS have their own): open_tab with the label, when they ask about what is on one, or say "click mechanical". Only the open tab's rows are on screen.
+- On the booking page: the residential or commercial choice, Continue, and the details step are all book_product. On the calculator: Calculate is run_calculator. On the contact page: the enquiry tabs and fields are open_enquiry; Find a dealer is find_dealer.
+- "Fill this form" means the form on their screen: the booking page is book_product, the contact form is open_enquiry, the calculator is run_calculator. Fill what they have told you, and ask for what is missing, one thing at a time, except their mobile number and email: those they say if they want to, or type.
 - What stays theirs, always: the consent box, Submit, Confirm booking, and the calculator's "Unlock my report" form. If they ask you to press one of those, say kindly that it is theirs to press, and point to it.
 - A button with no tool here: say what it does, and offer what you can do instead.
 - When there is a choice, say the options: the kit comes in three and five kilowatts; booking asks residential or commercial; the contact page has domestic, export and dealer enquiries.
-- To buy, book or order the kit, use book_kit: it is the kit page's own path, with no payment now. A quote for anything else, a call back or a question for sales is open_enquiry.
+- To buy, book or order the kit, a module or an Uday inverter, use book_product: it is the product page's own path, with no payment now. The battery, pumps, BESS, transformers, film and EPC have no booking: a quote, a call back or a question for sales is open_enquiry.
 
 # The visitor's enquiry
 - You are a product expert. The question that ends your turn is about their need when the answer changes your advice — their kind of building, their bill, power cuts, their roof — one question per turn, and never to fill in a form. Nothing is recorded during the conversation; there is no bookkeeping for you to do.
 - When they want a quote, a call back or to talk to sales, open_enquiry with what they told you, including what the sales team needs from the call so far (their need, city, bill or units, roof, timeline) as far as they said it. Then tell them, in a sentence or two, which fields are left, and that they tick the consent box and press Submit themselves. Never say it is submitted until the page tells you.
-- FILLING THE FORM IS YOUR JOB, the enquiry form and the kit's booking page alike (book_kit works the same way: call it again to add, and what is filled stays). Whenever they tell you their name, company, email, mobile number, city or what to write in the message, or ask you to fill or type something in, call open_enquiry again with it, in the same response as your words. What is already filled stays; you only add. Never refuse, never tell them they must type it themselves, and never give a reason such as privacy or security: there is none. The only things that stay theirs are the consent box and Submit.
+- FILLING THE FORM IS YOUR JOB, the enquiry form and the booking page alike (book_product works the same way: call it again to add, and what is filled stays). Whenever they tell you their name, company, email, mobile number, city or what to write in the message, or ask you to fill or type something in, call open_enquiry again with it, in the same response as your words. What is already filled stays; you only add. Never refuse, never tell them they must type it themselves, and never give a reason such as privacy or security: there is none. The only things that stay theirs are the consent box and Submit.
 - Never ask them to read out a phone number or email. But when they say one, fill it in, then read it back so they can check it, because a number heard over a call is easily misheard: "I've put nine eight four seven five, four one seven nine zero. Is that right?" If they correct it, fill it again.
 - You know only what they said in this call. If they say "you know my name" or "you have my email", say kindly that you don't have it yet, and ask them to say it or type it in.
 - A question while the form is open is a question: answer it, as in any other turn. Call open_enquiry only when they give you something for the form.
@@ -653,8 +707,8 @@ _LANDED_LINES: dict[str, dict[Language, tuple[str, ...]]] = {
         Language.HI: ("यह रहा फ़ॉर्म, आपकी बताई बातें भरी हुई हैं।",),
     },
     "booking": {
-        Language.EN: ("Here's the kit's booking page, with what you told me filled in.",),
-        Language.HI: ("यह रहा किट का बुकिंग पेज, आपकी बताई बातें भरी हुई हैं।",),
+        Language.EN: ("Here's the booking page, with what you told me filled in.",),
+        Language.HI: ("यह रहा बुकिंग पेज, आपकी बताई बातें भरी हुई हैं।",),
     },
 }
 assert all({s.spoken for s in SPEECH.values()} <= set(v) for v in _LANDED_LINES.values()), (
@@ -855,8 +909,9 @@ class SaatvikBrain(GeminiBrain):
         #: What the enquiry form has been filled with this call, so each
         #: open_enquiry adds to it.
         self._prefill: EnquiryPrefill | None = None
-        #: The same for the kit's booking page.
+        #: The same for the booking page, and the product it books.
         self._booking: BookingPrefill | None = None
+        self._booked_product: ProductSlug | None = None
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -970,7 +1025,7 @@ class SaatvikBrain(GeminiBrain):
         else:
             ask = (
                 "Still quiet. One last, light offer, different from your last: something you "
-                "could show them, the savings estimate, or a person at Saatvik. Then let them "
+                "could show them, or the savings estimate. Then let them "
                 "browse."
             )
         self._note(f"{quiet} {ask}")
@@ -1096,12 +1151,13 @@ class SaatvikBrain(GeminiBrain):
             case BookingOpened():
                 missing = ", ".join(event.missing) or "none"
                 return (
-                    f"[The kit's booking page is at step two of two, for a {event.installation} "
+                    f"[The booking page for {event.product or 'the product'} is at step two of "
+                    f"two, for a {event.installation} "
                     f"installation. Fields still empty: {missing}. The visitor ticks consent and "
                     "presses Confirm booking themselves.]"
                 )
             case BookingSubmitted():
-                return self._booked(event.installation, event.fields)
+                return self._booked(event.product, event.installation, event.fields)
             case CommandFailed():
                 if event.command in ("run_calculator", "find_dealer"):
                     self._talk = None
@@ -1139,12 +1195,12 @@ class SaatvikBrain(GeminiBrain):
         if not event.dealers:
             self._talk_through(
                 "The dealer locator found nobody for that search and they have not spoken. "
-                "Say so in one sentence and offer the enquiry form, so Saatvik can connect them."
+                "Say so in one sentence and offer to look in a nearby city instead."
             )
             return f"[The dealer locator shows no dealers for '{event.state} {event.query}'.]"
         self._talk_through(
             "The dealers are on their screen and they have not spoken. Name the nearest one "
-            "or two in a sentence, and offer to open the enquiry form for a call back."
+            "or two in a sentence, and ask one question about their need."
         )
         listed = _clip([_dealer_line(d) for d in event.dealers], _DEALERS_IN_NOTE)
         return f"[The dealer locator shows, for '{event.state} {event.query}': {listed}]"
@@ -1162,7 +1218,7 @@ class SaatvikBrain(GeminiBrain):
         )
         return f"[The visitor submitted the {kind} enquiry form. It reached Saatvik's sales team.]"
 
-    def _booked(self, installation: str, fields: BookingFields) -> str:
+    def _booked(self, product: str, installation: str, fields: BookingFields) -> str:
         self.lead.update(
             name=fields.name or None,
             city=fields.city or None,
@@ -1172,11 +1228,11 @@ class SaatvikBrain(GeminiBrain):
         self.lead.submitted = True
         self._brief_changed()
         self._talk_through(
-            "They have just confirmed the kit booking. Thank them in one sentence, say a "
+            "They have just confirmed the booking. Thank them in one sentence, say a "
             "Saatvik specialist will call to size the system and share a quote, with no "
             "payment now, and offer to keep answering their questions."
         )
-        return f"[The visitor confirmed the SuryaConnect kit booking, {installation}.]"
+        return f"[The visitor confirmed the booking of {product or 'the product'}, {installation}.]"
 
     async def _requested(self, session: Session, event: LanguageRequested) -> None:
         """The visitor pressed the other language on the toggle. Switched in
@@ -1213,6 +1269,8 @@ class SaatvikBrain(GeminiBrain):
             note += f" Its sections: {_clip(p.headings, _HEADINGS_IN_NOTE)}."
         if p.faqs:
             note += f" Its FAQs: {_clip(p.faqs, _FAQS_IN_NOTE)}."
+        if p.tabs:
+            note += f" Its spec tabs: {', '.join(p.tabs)}."
         self._note(note + "]")
 
     def _note(self, text: str) -> None:
@@ -1288,12 +1346,13 @@ class SaatvikBrain(GeminiBrain):
             self.navigate,
             self.show_section,
             self.open_faq,
+            self.open_tab,
             self.open_document,
             self.close_document,
             self.run_calculator,
             self.find_dealer,
             self.open_enquiry,
-            self.book_kit,
+            self.book_product,
             self.set_language,
         ]
 
@@ -1369,6 +1428,21 @@ class SaatvikBrain(GeminiBrain):
             )
         self._move(OpenFaq(question=question), english=self._faq_answer(question))
         return f"Opened the FAQ '{question}'."
+
+    async def open_tab(self, request: TabRequest) -> str:
+        """Click one of the spec tabs on the visitor's page (ELECTRICAL,
+        MECHANICAL, WARRANTY on a module; the battery's, a pump's or BESS's own),
+        so its rows are on screen. In the same response, say the one figure on it
+        that answers them."""
+        tabs = self.page.tabs if self.page is not None else []
+        label = _match(request.label, tabs)
+        if label is None:
+            return (
+                f"Not opened: this page has no tab '{request.label}'. "
+                f"Its tabs: {', '.join(tabs) or 'none'}."
+            )
+        self._move(OpenTab(label=label))
+        return f"Opened the '{label}' tab."
 
     async def open_document(self, request: DocumentRequest) -> str:
         """Open a datasheet, manual or other Saatvik PDF on the visitor's screen at
@@ -1487,13 +1561,22 @@ class SaatvikBrain(GeminiBrain):
             "Submit."
         )
 
-    async def book_kit(self, request: BookingRequest) -> str:
-        """Book the SuryaConnect kit: the kit page's BOOK NOW. Opens the booking
-        page, picks residential or commercial, presses Continue, and fills in
-        what they told you. Call it again to add their name, mobile, email,
-        address, city or pincode as they say them; what is filled stays. It never
-        confirms. Say which fields are left, and that they tick consent and
-        press Confirm booking."""
+    async def book_product(self, request: BookingRequest) -> str:
+        """Book a product: its page's BOOK NOW (the SuryaConnect kit, a module or
+        an Uday inverter). Opens its booking page, picks residential or
+        commercial, presses Continue, and fills in what they told you. Call it
+        again to add their name, mobile, email, address, city or pincode as they
+        say them; what is filled stays. It never confirms. Say which fields are
+        left, and that they tick consent and press Confirm booking."""
+        product = request.product or _BOOKABLE.get(self._path) or self._booked_product
+        if product is None:
+            return (
+                "Not opened: say which product to book. Bookable: the SuryaConnect kit, "
+                "the six modules and the three Uday inverters."
+            )
+        if product != self._booked_product:
+            self._booking = None
+        self._booked_product = product
         asked = BookingPrefill(
             name=request.name,
             mobile=request.mobile,
@@ -1509,11 +1592,14 @@ class SaatvikBrain(GeminiBrain):
         )
         self._booking = details
         self.lead.update(name=request.name, city=request.city, state=request.state)
-        self._move(BookKit(installation=request.installation, details=details), "booking")
+        self._move(
+            BookProduct(product=product, installation=request.installation, details=details),
+            "booking",
+        )
         filled = [k for k, v in details.model_dump().items() if v]
         left = [k for k in BookingPrefill.model_fields if k not in filled]
         return (
-            f"The {request.installation} booking is at step two with "
+            f"The {request.installation} booking for {product} is at step two with "
             f"{', '.join(filled) or 'nothing'} filled in. Left for the visitor: "
             f"{', '.join(left) or 'nothing'}, the consent box and Confirm booking."
         )
@@ -1548,7 +1634,7 @@ def _dealer_line(d: Dealer) -> str:
 
 
 __all__ = [
-    "BookKit",
+    "BookProduct",
     "CloseDocument",
     "FindDealer",
     "LanguageChanged",
@@ -1558,6 +1644,7 @@ __all__ = [
     "OpenDocument",
     "OpenEnquiry",
     "OpenFaq",
+    "OpenTab",
     "QuoteBox",
     "RunCalculator",
     "SaatvikBrain",
