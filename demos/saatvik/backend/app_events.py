@@ -3,7 +3,7 @@
 The other direction is the :class:`~voqalize.sdk.Action` classes in ``brain.py``
 and ``lead.py``. These are sent by the adapter the extension injects into
 saatvikgroup.com, and they fire for the visitor's own clicks as well as for
-Tara's moves, so the brain's picture of the page is true whoever moved it.
+Tushar's moves, so the brain's picture of the page is true whoever moved it.
 
 The site is Saatvik's, not ours, and it changes without asking. So the nested
 shapes are plain models that ignore a field they do not know, while the events
@@ -118,7 +118,7 @@ class EnquirySubmitted(AppEvent):
 
 
 class CommandFailed(AppEvent):
-    """A move Tara sent could not be carried out on the page."""
+    """A move Tushar sent could not be carried out on the page."""
 
     command: str
     reason: str = ""

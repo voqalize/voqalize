@@ -1,6 +1,6 @@
 """The lead brief — what Saatvik's sales team receives from one call.
 
-Tara is a product expert first. What she learns on the way — the visitor's kind
+Tushar is a product expert first. What he learns on the way — the visitor's kind
 of building, their bill, their state, their roof, how soon — is recorded with
 ``update_lead`` as bookkeeping, and the page's own events add what the visitor
 did: the pages and documents they opened, the estimate they ran, the dealers they
@@ -59,7 +59,7 @@ BUYERS: frozenset[str] = frozenset(
 
 
 class LeadFields(BaseModel):
-    """What the visitor told Tara, or typed into the enquiry form. Every field is
+    """What the visitor told Tushar, or typed into the enquiry form. Every field is
     optional: a brief is useful from its first fact."""
 
     name: str | None = None

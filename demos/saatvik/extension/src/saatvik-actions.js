@@ -71,7 +71,7 @@
   }
 
   // ─── Their page, less their chat ──────────────────────────────────────
-  // Tara replaces Saatvik's chat launcher, so it is hidden for as long as the
+  // Tushar replaces Saatvik's chat launcher, so it is hidden for as long as the
   // extension runs. Their WhatsApp button sits in the corner the widget takes;
   // it moves to the other corner rather than going away.
 

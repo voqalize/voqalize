@@ -1,6 +1,6 @@
 /**
  * The corner of Saatvik's page that is ours: the button that starts a call,
- * the card that holds Tara's face while it runs, the language toggle, and the
+ * the card that holds Tushar's face while it runs, the language toggle, and the
  * lead brief — what Saatvik's sales team would receive about this caller.
  *
  * It lives in a shadow root so that neither side's styles reach the other, and
@@ -10,7 +10,7 @@
  *
  * It takes the bottom-right corner their chat launcher used (the adapter hides
  * that launcher and moves their WhatsApp button to the other corner). The
- * person can drag it anywhere for the page and minimise the card to her face
+ * person can drag it anywhere for the page and minimise the card to him face
  * alone; the call and its audio carry on.
  */
 
@@ -262,10 +262,10 @@ export function mountWidget(): Widget {
         </button>
         <div class="brief-body"></div>
       </div>
-      <button class="invite" type="button" aria-label="Talk to Tara, Saatvik's solar advisor, by voice">
+      <button class="invite" type="button" aria-label="Talk to Tushar, Saatvik's solar advisor, by voice">
         <span class="still"></span>
         <span class="invite-text">
-          <span class="invite-name">Talk to Tara</span>
+          <span class="invite-name">Talk to Tushar</span>
           <span class="invite-role">Solar advisor · voice</span>
         </span>
       </button>
@@ -278,7 +278,7 @@ export function mountWidget(): Widget {
         </div>
         <div class="body">
           <div class="head">
-            <span class="name">Tara</span>
+            <span class="name">Tushar</span>
             <span class="status caps"><span class="dot"></span><span class="status-text"></span></span>
           </div>
           <div class="lang-slot"></div>

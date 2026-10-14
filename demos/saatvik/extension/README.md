@@ -1,17 +1,17 @@
-# Tara for Saatvik — the extension
+# Tushar for Saatvik — the extension
 
-A Chrome extension that puts Tara, a voice solar advisor, on
+A Chrome extension that puts Tushar, a voice solar advisor, on
 [www.saatvikgroup.com](https://www.saatvikgroup.com) in place of the site's chat
-launcher. She talks a visitor through Saatvik's modules, inverters and rooftop
-kits while she moves their pages: she opens a page, rings the section or the
-table row she is talking about, opens the FAQ that answers the question, opens a
-datasheet or policy PDF at the page and line she quotes, runs the savings
+launcher. He talks a visitor through Saatvik's modules, inverters and rooftop
+kits while he moves their pages: he opens a page, rings the section or the
+table row he is talking about, opens the FAQ that answers the question, opens a
+datasheet or policy PDF at the page and line he quotes, runs the savings
 calculator, filters the dealer locator, and fills in the enquiry form with what
-the visitor has told her. Everything she shows is a page, section or form Saatvik
+the visitor has told him. Everything he shows is a page, section or form Saatvik
 already has; the extension adds a corner widget, a PDF viewer, and the orange
-ring she draws around what she is pointing at.
+ring he draws around what he is pointing at.
 
-While she talks, the widget builds the brief Saatvik's sales team would receive —
+While he talks, the widget builds the brief Saatvik's sales team would receive —
 a score, the reasons for it, where the lead would be routed, and what was said —
 so the people watching see the other half of the product.
 
@@ -30,7 +30,7 @@ on it; it is not how a customer would ship it.
 - `src/actions.gen.ts` — the Action and event unions, generated from the brain
   with `pnpm gen`. Regenerate after changing either.
 - `src/pdf-viewer.ts` — the document viewer: a panel beside the widget that
-  opens one of Saatvik's PDFs at a page and marks the quote Tara reads from it.
+  opens one of Saatvik's PDFs at a page and marks the quote Tushar reads from it.
   It renders with pdf.js and its own text layer, so the mark sits on the words.
   A quote is looked for on the asked page first, then on the pages either side
   of it, and a quote the model tidied up still lands on its opening or closing
@@ -40,7 +40,7 @@ on it; it is not how a customer would ship it.
 - `src/widget.ts` — the corner widget, in a shadow root, in Saatvik's own navy,
   orange and typefaces: the call, an English | हिंदी toggle, and the lead
   brief, which can be collapsed. The visitor can drag it anywhere and minimise
-  it to Tara's face with the call still live.
+  it to Tushar's face with the call still live.
 - `src/content.ts` — the call: stock pipecat with `@voqalize/client-transport`
   as its media manager, one `sessions.connect`, the avatar, and the glue
   between the adapter, the viewer, the widget and the brain.
@@ -110,7 +110,7 @@ state.
 
 ## Enquiries are never sent
 
-`DEMO_BLOCK_SUBMIT`, at the top of `src/saatvik-actions.js`, is on. Tara fills
+`DEMO_BLOCK_SUBMIT`, at the top of `src/saatvik-actions.js`, is on. Tushar fills
 in the enquiry form but never ticks the consent box and never presses SUBMIT;
 that stays the visitor's. When the visitor does press it, on any of the enquiry
 tabs, the page reads the form and sends the brain `enquiry_submitted` with what
@@ -124,5 +124,5 @@ off lets the site's own handlers run after the event is sent.
 Moving between pages keeps the call: the site's own client-side router changes
 the page under it, and a full page load rejoins the same session on the next
 page. The call belongs to one tab: starting a call in a second tab while the first
-holds one says "Tara is already on a call in another tab." rather than opening a
+holds one says "Tushar is already on a call in another tab." rather than opening a
 second call.

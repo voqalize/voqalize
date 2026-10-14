@@ -107,7 +107,7 @@ export interface CalculatorResult {
   text?: string;
 }
 
-/** A move Tara sent could not be carried out on the page. */
+/** A move Tushar sent could not be carried out on the page. */
 export interface CommandFailed {
   command: string;
 
@@ -230,7 +230,7 @@ export interface Estimate {
 }
 
 /**
- * What the visitor told Tara, or typed into the enquiry form. Every field is
+ * What the visitor told Tushar, or typed into the enquiry form. Every field is
  * optional: a brief is useful from its first fact.
  */
 export interface LeadFields {

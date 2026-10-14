@@ -1,19 +1,19 @@
-"""What Tara knows about Saatvik, in three layers, read once at import.
+"""What Tushar knows about Saatvik, in three layers, read once at import.
 
-- **L1** (``knowledge/L1.md``) is always in her prompt: the company, the product
+- **L1** (``knowledge/L1.md``) is always in his prompt: the company, the product
   families, the national subsidy scheme, the ways to reach a person.
-- **L2** (``knowledge/L2/<topic>.md``) is a topic she reads with ``read_topic``
+- **L2** (``knowledge/L2/<topic>.md``) is a topic he reads with ``read_topic``
   when a question needs more than L1. Each file opens with ``# Title`` and a
   ``Sources:`` line.
 - **L3** (``knowledge/L3/pages.json``, ``documents.json``) is the site itself —
   every page's headings, FAQs and text, and every product PDF page by page — which
   ``search_site`` searches and which the brain checks every move against: a path
-  she navigates to, a section she scrolls to, a quote she highlights in a PDF.
+  he navigates to, a section he scrolls to, a quote he highlights in a PDF.
 
 The files are built offline (``knowledge/build.py``) and committed. Every one of
 them may be missing or empty and this module still imports: the demos backend
 serves every brain from one process, and one brain that cannot import takes the
-others down with it. A Tara without L3 says she cannot find a page; she never
+others down with it. A Tushar without L3 says he cannot find a page; he never
 crashes the server.
 """
 
@@ -33,7 +33,7 @@ from loguru import logger
 
 ROOT = Path(__file__).parent / "knowledge"
 
-#: What she knows when ``L1.md`` is missing: enough to be honest, nothing to quote.
+#: What he knows when ``L1.md`` is missing: enough to be honest, nothing to quote.
 _L1_FALLBACK = (
     "Saatvik Green Energy makes solar modules and offers rooftop and ground-mount "
     "solar projects across India. Its website is www.saatvikgroup.com. Nothing more "
@@ -431,7 +431,7 @@ def load(root: Path = ROOT) -> Knowledge:
     try:
         l1 = (root / "L1.md").read_text(encoding="utf-8").strip() or _L1_FALLBACK
     except OSError:
-        logger.warning("saatvik: L1.md not found; Tara runs on the fallback")
+        logger.warning("saatvik: L1.md not found; Tushar runs on the fallback")
         l1 = _L1_FALLBACK
     topics: dict[str, Topic] = {}
     for path in sorted((root / "L2").glob("*.md")) if (root / "L2").is_dir() else []:

@@ -1,4 +1,4 @@
-"""Tara, Saatvik's solar advisor, end to end over the wire — no network, no LLM key.
+"""Tushar, Saatvik's solar advisor, end to end over the wire — no network, no LLM key.
 
 The real ``SaatvikBrain`` on a real ``brain_server`` socket, driven by the
 conformance ``VoqalizeDriver``, with only the model scripted. The knowledge is a
@@ -16,8 +16,8 @@ else — no consent, no submit — and a submitted form becomes the brief the sa
 team receives, scored.
 
 **A result the page produced is talked through.** The calculator's estimate
-arrives after Tara's turn; it reaches the model's next request, and a quiet
-visitor hears it from her in a short quiet spell.
+arrives after Tushar's turn; it reaches the model's next request, and a quiet
+visitor hears it from him in a short quiet spell.
 
 Run: ``cd demos && uv run pytest tests/test_saatvik_e2e.py``
 """
@@ -259,14 +259,14 @@ def _idle_windows(rig: object) -> list[int | None]:
 
 
 async def test_greeting_and_voice_reach_the_wire() -> None:
-    """A written opener, and gauri in English on both legs before it."""
+    """A written opener, and gaurav in English on both legs before it."""
     async with demo("saatvik", _llm()) as rig:
         greeting = await rig.driver.start_session(
             init={"surface": "saatvik-ext", "page": "/", "lang": "en"}
         )
         check_greeting(rig, greeting)
         assert greeting is not None and greeting.text == _GREETING
-        check_voice_pair(rig, voice="omnivoice/gauri", language="en")
+        check_voice_pair(rig, voice="omnivoice/gaurav", language="en")
         assert _idle_windows(rig) == [_IDLE_MS]
 
 
@@ -281,7 +281,7 @@ async def test_the_opener_follows_the_page_and_the_language() -> None:
             init={"surface": "saatvik-ext", "page": "/", "lang": "hi"}
         )
         assert greeting is not None and greeting.text == _GREETING_HI
-        check_voice_pair(rig, voice="omnivoice/gauri", language="hi")
+        check_voice_pair(rig, voice="omnivoice/gaurav", language="hi")
 
 
 async def test_navigate_goes_to_a_real_page_and_refuses_an_invented_one() -> None:
@@ -474,8 +474,8 @@ async def test_the_toggle_switches_both_legs_and_confirms_in_hindi() -> None:
     async with demo("saatvik", _llm()) as rig:
         await rig.driver.start_session(init={"page": "/"})
         await _page(rig, "language_requested", {"language": "hi"})
-        check_voice_pair(rig, voice="omnivoice/gauri", language="hi")
-        # The widget's toggle is told at once, not left to guess from her voice.
+        check_voice_pair(rig, voice="omnivoice/gaurav", language="hi")
+        # The widget's toggle is told at once, not left to guess from him voice.
         assert rig.command("language_changed") == {"language": "hi"}
         turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
         check_turn(rig, turn)
@@ -489,5 +489,5 @@ async def test_hinglish_switches_before_the_model_answers() -> None:
             "Mujhe solar panel chahiye, kya aap Hindi mein baat kar sakti hain?"
         )
         check_turn(rig, turn)
-        check_voice_pair(rig, voice="omnivoice/gauri", language="hi")
+        check_voice_pair(rig, voice="omnivoice/gaurav", language="hi")
         assert rig.command("language_changed") == {"language": "hi"}

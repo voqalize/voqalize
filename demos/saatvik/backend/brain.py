@@ -1,4 +1,4 @@
-"""SaatvikBrain — Tara, a solar advisor on www.saatvikgroup.com.
+"""SaatvikBrain — Tushar, a solar advisor on www.saatvikgroup.com.
 
 The site is Saatvik Green Energy's, not ours. A browser extension injects the
 widget and a small adapter into it; the adapter turns each
@@ -11,26 +11,26 @@ back as a typed event (:mod:`.app_events`).
 Four things shape every decision here.
 
 **A product expert first, a lead-capturer second.** Every turn answers what was
-asked, in a sentence or two, and makes a move on the page. What she learns on
+asked, in a sentence or two, and makes a move on the page. What he learns on
 the way is recorded quietly with ``update_lead`` and becomes the brief Saatvik's
 sales team receives (:mod:`.lead`) — shown to the visitor as it fills, so
 nothing is collected behind their back.
 
 **Every figure has a source.** A wattage, efficiency, warranty or subsidy amount
-is spoken from L1 (in this prompt), an L2 topic she read, a search of the site,
+is spoken from L1 (in this prompt), an L2 topic he read, a search of the site,
 or what the page itself reported. A datasheet figure is shown, not just said:
 the PDF opens at its page with the figure highlighted, and the brain checks the
 quote is on that page before it is sent (:meth:`.knowledge.Knowledge.find_quote`).
 
-**Nothing on the page is invented.** A path she navigates to, a heading she
-scrolls to and an FAQ she opens are checked against the crawl and against what
+**Nothing on the page is invented.** A path he navigates to, a heading he
+scrolls to and an FAQ he opens are checked against the crawl and against what
 the page last reported; anything else is refused before it reaches the page.
 
-**The form is the visitor's.** She fills in what they told her and rings what is
-left. She never ticks consent and never submits; the visitor types their own
+**The form is the visitor's.** He fills in what they told him and rings what is
+left. He never ticks consent and never submits; the visitor types their own
 phone number and email, and presses Submit themselves.
 
-How a result that arrives after her turn gets spoken — the calculator's
+How a result that arrives after his turn gets spoken — the calculator's
 estimate, the dealers, a submitted form — is in :meth:`SaatvikBrain.on_user_idle`.
 """
 
@@ -102,7 +102,7 @@ from .lead import (
     post_brief,
 )
 
-AGENT_NAME = "Tara"
+AGENT_NAME = "Tushar"
 
 # ─── Timing ────────────────────────────────────────────────────────────────────
 
@@ -110,12 +110,12 @@ AGENT_NAME = "Tara"
 #: something after a while: the same window Qween asked for, long enough that a
 #: visitor reading a datasheet is not interrupted mid-thought.
 _IDLE_MS = 20_000
-#: The quiet spells she speaks into before leaving them to browse. Every later
+#: The quiet spells he speaks into before leaving them to browse. Every later
 #: one is silence: a third nudge is nagging.
 _IDLE_NUDGES = 2
 #: The idle window while a result the page just produced is waiting to be talked
 #: through. A brain has no floor outside a turn, so the calculator's estimate,
-#: the dealer list and a submitted form reach Tara as a quiet spell, not as a
+#: the dealer list and a submitted form reach Tushar as a quiet spell, not as a
 #: turn. Two seconds: a visitor who reacts to the result has started speaking by
 #: then (and their words win, with the result already in context), while a
 #: visitor who is reading is not left with a silent screen for long.
@@ -134,17 +134,17 @@ class Speaking:
 
 
 SPEECH: dict[LanguageName, Speaking] = {
-    "english": Speaking(Language.EN, Language.EN, Voice.OMNIVOICE_GAURI),
-    "hindi": Speaking(Language.HI, Language.HI, Voice.OMNIVOICE_GAURI),
+    "english": Speaking(Language.EN, Language.EN, Voice.OMNIVOICE_GAURAV),
+    "hindi": Speaking(Language.HI, Language.HI, Voice.OMNIVOICE_GAURAV),
 }
 BY_TAG: dict[str, LanguageName] = {"en": "english", "hi": "hindi"}
 _TAG: dict[LanguageName, Literal["en", "hi"]] = {"english": "en", "hindi": "hi"}
 OPENING: LanguageName = "english"
 
-# Tara's own line for a silent turn is said in the language her voice speaks.
+# Tushar's own line for a silent turn is said in the language his voice speaks.
 assert {s.spoken for s in SPEECH.values()} <= set(PHRASES), "a spoken language has no PHRASES row"
 
-#: What Tara says at the start of her next turn after the visitor switched the
+#: What Tushar says at the start of his next turn after the visitor switched the
 #: language on the toggle: written, in the new language, read by the new voice.
 TOGGLE_CONFIRM: dict[LanguageName, str] = {
     "english": "Sure, let's continue in English.",
@@ -462,7 +462,7 @@ def _prompt(k: Knowledge) -> str:
 - One or two short sentences, then a move on the page. The page carries the detail; you say what matters.
 - Spoken words only: no lists, no markdown, no symbols. Say numbers the way a person would ("five hundred and eighty watts", "about seventy-eight thousand rupees").
 - Speak the move and the answer in the same response as the tool call: once the turn ends you cannot speak until the visitor does.
-- English by default. A visitor who speaks Hindi or Hinglish is answered in Hindi, written in Devanagari. Product names, model numbers and units stay as Saatvik writes them.
+- English by default. A visitor who speaks Hindi or Hinglish is answered in Hindi, written in Devanagari; you are a man, so use masculine forms of yourself ("मैं दिखाता हूँ", "मैं ढूँढ रहा हूँ"). Product names, model numbers and units stay as Saatvik writes them.
 - Lines in square brackets come from the page, not the visitor: what they opened, what a form or the calculator shows. Never read them out; use them.
 
 # What you know
@@ -496,7 +496,7 @@ def _prompt(k: Knowledge) -> str:
 # ─── Greeting ──────────────────────────────────────────────────────────────────
 
 _GREETING = f"Hi, I'm {AGENT_NAME}, Saatvik's solar advisor. Ask me anything about going solar."
-_GREETING_HI = "नमस्ते, मैं तारा हूँ, सात्विक की सोलर सलाहकार। सोलर के बारे में कुछ भी पूछिए।"
+_GREETING_HI = "नमस्ते, मैं तुषार हूँ, सात्विक का सोलर सलाहकार। सोलर के बारे में कुछ भी पूछिए।"
 _INTRO = f"Hi, I'm {AGENT_NAME}, Saatvik's solar advisor."
 #: The opener's second sentence for the page the call starts on, by a word in
 #: its path; the first match wins, and anything else gets the plain greeting.
@@ -520,16 +520,16 @@ def greeting(path: str | None, spoken: Language) -> str:
 
 # ─── Written lines for moves ───────────────────────────────────────────────────
 
-#: Her line for a silent turn whose move is not "here it is": the calculator and
+#: His line for a silent turn whose move is not "here it is": the calculator and
 #: the dealer list are still loading when the turn ends, and the form waits on them.
 _LANDED_LINES: dict[str, dict[Language, tuple[str, ...]]] = {
     "calculator": {
         Language.EN: ("I'm running the estimate now.",),
-        Language.HI: ("मैं अभी अनुमान निकाल रही हूँ।",),
+        Language.HI: ("मैं अभी अनुमान निकाल रहा हूँ।",),
     },
     "dealers": {
         Language.EN: ("Let me find dealers near you.",),
-        Language.HI: ("मैं आपके पास के डीलर ढूँढती हूँ।",),
+        Language.HI: ("मैं आपके पास के डीलर ढूँढता हूँ।",),
     },
     "enquiry": {
         Language.EN: ("Here's the form, with what you told me filled in.",),
@@ -549,7 +549,7 @@ _SEARCH_HITS = 6
 
 
 async def _silence() -> AsyncGenerator[Any, None]:
-    """Yields nothing: a quiet spell she lets ride."""
+    """Yields nothing: a quiet spell he lets ride."""
     for _ in ():
         yield
 
@@ -581,7 +581,7 @@ def _match(want: str, options: list[str]) -> str | None:
 
 
 class SaatvikBrain(GeminiBrain):
-    """One per session. Tara: Saatvik's knowledge, Saatvik's pages, and a mirror
+    """One per session. Tushar: Saatvik's knowledge, Saatvik's pages, and a mirror
     of what this visitor's screen shows."""
 
     def __init__(
@@ -607,7 +607,7 @@ class SaatvikBrain(GeminiBrain):
         self.document: DocumentOpened | None = None
         #: The document ids search has shown the model this call.
         self._found_docs: list[str] = []
-        #: A result the page produced, waiting for the quiet spell that lets her
+        #: A result the page produced, waiting for the quiet spell that lets him
         #: talk it through; and the toggle's written confirmation.
         self._talk: str | None = None
         self._confirm: str | None = None
@@ -620,7 +620,7 @@ class SaatvikBrain(GeminiBrain):
         init = session.init or {}
         self._path = canonical_path(str(init.get("page") or "/"))
         lang = BY_TAG.get(str(init.get("lang") or ""), OPENING)
-        # Her own voice, settled here and not by the page. Both language legs
+        # His own voice, settled here and not by the page. Both language legs
         # move together; the toggle and `set_language` move them again.
         await session.configure(
             Config(
@@ -657,15 +657,15 @@ class SaatvikBrain(GeminiBrain):
             yield event
 
     def on_user_idle(self, session: Session, idle: UserIdle) -> AsyncGenerator[Speech, None]:
-        """A quiet spell — and the only floor she gets without the visitor speaking.
+        """A quiet spell — and the only floor he gets without the visitor speaking.
 
         Events never speak: ``on_rtvi`` has no floor. So a result the page
-        produced after her turn (the estimate, the dealers, a submitted form)
+        produced after his turn (the estimate, the dealers, a submitted form)
         is put in the context at once, and the idle window is shortened to
         :data:`_TALK_THROUGH_MS`. A visitor who reacts speaks first and is
         answered with the result in hand; one who is reading gets the quiet
-        spell, and she talks the result through in it. The window goes back to
-        :data:`_IDLE_MS` as soon as she has, or as soon as they speak.
+        spell, and he talks the result through in it. The window goes back to
+        :data:`_IDLE_MS` as soon as he has, or as soon as they speak.
 
         Otherwise it is an ordinary quiet spell: a nudge as qween's consultant
         gives one, twice, then silence."""
@@ -699,7 +699,7 @@ class SaatvikBrain(GeminiBrain):
         return self.respond(session)
 
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
-        """The model's turn, and a line of Tara's own if it acted and said
+        """The model's turn, and a line of Tushar's own if it acted and said
         nothing (:mod:`voqalize_demos.silent_turn`).
 
         A language switched on the toggle is confirmed first, in the new
@@ -845,7 +845,7 @@ class SaatvikBrain(GeminiBrain):
     async def _requested(self, session: Session, event: LanguageRequested) -> None:
         """The visitor pressed the other language on the toggle. Switched in
         code, not through the model: both legs move in one awaited request, and
-        the written confirmation is said in her next turn — which, if they stay
+        the written confirmation is said in his next turn — which, if they stay
         quiet, is the short quiet spell :meth:`on_user_idle` turns into it."""
         name = BY_TAG[event.language]
         if SPEECH[name].spoken == self.spoken:
@@ -1139,7 +1139,7 @@ class SaatvikBrain(GeminiBrain):
         return "ok"
 
     def _speaking(self, language: LanguageName) -> Config:
-        """Both legs of ``language``, recorded as the one she speaks now, and
+        """Both legs of ``language``, recorded as the one he speaks now, and
         the widget's toggle moved to it."""
         speech = SPEECH[language]
         if speech.spoken != self.spoken:
