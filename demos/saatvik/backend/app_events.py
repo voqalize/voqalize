@@ -52,6 +52,8 @@ class PageChanged(AppEvent):
     """The page's ``h1`` to ``h3`` texts, in order — what ``show_section`` takes."""
     faqs: list[str] = Field(default_factory=list[str])
     """The accordion questions on the page — what ``open_faq`` takes."""
+    tabs: list[str] = Field(default_factory=list[str])
+    """The spec tabs on the page (ELECTRICAL, MECHANICAL…) — what ``open_tab`` takes."""
 
 
 class DocumentOpened(AppEvent):
@@ -122,10 +124,11 @@ class EnquirySubmitted(AppEvent):
 
 
 class BookingOpened(AppEvent):
-    """The kit's booking page is at its details step, for this installation type,
-    with these fields still empty."""
+    """A product's booking page is at its details step, for this installation
+    type, with these fields still empty."""
 
     installation: Installation
+    product: str = ""
     missing: list[str] = Field(default_factory=list[str])
 
 
@@ -143,6 +146,7 @@ class BookingSubmitted(AppEvent):
     """The visitor pressed CONFIRM BOOKING; the details as they stood."""
 
     installation: Installation
+    product: str = ""
     fields: BookingFields = Field(default_factory=BookingFields)
 
 

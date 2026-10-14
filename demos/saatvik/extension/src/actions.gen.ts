@@ -1,5 +1,5 @@
-// Generated from saatvik/backend/brain.py by `voqalize types`. Do not edit — regenerate with:
-//   voqalize types saatvik/backend/brain.py -o saatvik/extension/src/actions.gen.ts
+// Generated from demos/saatvik/backend/brain.py by `voqalize types`. Do not edit — regenerate with:
+//   voqalize types demos/saatvik/backend/brain.py -o demos/saatvik/extension/src/actions.gen.ts
 //
 // Every field of an action is present on the wire, `null` included, so nothing
 // there is optional and no runtime validation is needed to narrow on `command`.
@@ -37,6 +37,11 @@ export interface ShowSection {
 /** Open the accordion question that starts with `question` and ring it. */
 export interface OpenFaq {
   question: string;
+}
+
+/** Click one of the page's spec tabs, scroll to it and ring its panel. */
+export interface OpenTab {
+  label: string;
 }
 
 /**
@@ -82,12 +87,14 @@ export interface OpenEnquiry {
 }
 
 /**
- * Open the SuryaConnect kit's booking page, choose `installation` on its
- * first step, press Continue, and fill in `details` on the second. The page
- * rings the fields still empty, the consent box and CONFIRM BOOKING; it never
- * ticks consent and never confirms.
+ * Open `product`'s booking page (its BOOK NOW), choose `installation` on
+ * its first step, press Continue, and fill in `details` on the second. The
+ * page rings the fields still empty, the consent box and CONFIRM BOOKING; it
+ * never ticks consent and never confirms.
  */
-export interface BookKit {
+export interface BookProduct {
+  product: 'surya-connect-kit' | 'tej-plus-g12r' | 'tej-m10r' | 'n-topcon' | 'bifacial-g2tb' | 'mono-perc' | 'vega-g2wb' | 'uday-single-phase' | 'uday-three-phase' | 'uday-plus-hybrid';
+
   installation: 'residential' | 'commercial';
 
   details: BookingPrefill;
@@ -110,11 +117,13 @@ export interface FindDealer {
 }
 
 /**
- * The kit's booking page is at its details step, for this installation type,
- * with these fields still empty.
+ * A product's booking page is at its details step, for this installation
+ * type, with these fields still empty.
  */
 export interface BookingOpened {
   installation: 'residential' | 'commercial';
+
+  product?: string;
 
   missing?: string[];
 }
@@ -122,6 +131,8 @@ export interface BookingOpened {
 /** The visitor pressed CONFIRM BOOKING; the details as they stood. */
 export interface BookingSubmitted {
   installation: 'residential' | 'commercial';
+
+  product?: string;
 
   fields?: BookingFields;
 }
@@ -194,6 +205,8 @@ export interface PageChanged {
   headings?: string[];
 
   faqs?: string[];
+
+  tabs?: string[];
 }
 
 // ── Shapes used by the messages above ──────────────────────────────
@@ -396,11 +409,12 @@ export type UiAction =
   | { command: 'navigate'; payload: Navigate }
   | { command: 'show_section'; payload: ShowSection }
   | { command: 'open_faq'; payload: OpenFaq }
+  | { command: 'open_tab'; payload: OpenTab }
   | { command: 'open_document'; payload: OpenDocument }
   | { command: 'close_document'; payload: CloseDocument }
   | { command: 'language_changed'; payload: LanguageChanged }
   | { command: 'open_enquiry'; payload: OpenEnquiry }
-  | { command: 'book_kit'; payload: BookKit }
+  | { command: 'book_product'; payload: BookProduct }
   | { command: 'run_calculator'; payload: RunCalculator }
   | { command: 'find_dealer'; payload: FindDealer };
 
@@ -411,11 +425,12 @@ export const UI_ACTION_COMMANDS: readonly UiActionCommand[] = [
   'navigate',
   'show_section',
   'open_faq',
+  'open_tab',
   'open_document',
   'close_document',
   'language_changed',
   'open_enquiry',
-  'book_kit',
+  'book_product',
   'run_calculator',
   'find_dealer',
 ];

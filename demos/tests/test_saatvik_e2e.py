@@ -244,13 +244,18 @@ def _llm() -> ScriptedGemini:
             # BOOK NOW, by voice: the booking fills in as they talk.
             "Book the kit for my home.": reply_and_call(
                 "I've opened the booking for a home.",
-                "book_kit",
+                "book_product",
                 request={"installation": "residential", "name": "Ravi", "city": "Bengaluru"},
             ),
             "My pincode is 560102.": reply_and_call(
                 "I've added five six zero one zero two.",
-                "book_kit",
+                "book_product",
                 request={"installation": "residential", "pincode": "560102"},
+            ),
+            "Book this for my shop.": reply_and_call(
+                "I've opened the booking for a business.",
+                "book_product",
+                request={"installation": "commercial"},
             ),
             # Gemini sometimes sends a tool's fields flat, without ``request``.
             "Show me the specs, flat.": reply_and_call(
@@ -691,13 +696,38 @@ async def test_book_now_fills_the_booking_and_adds_to_it() -> None:
         await rig.driver.user_says("Book the kit for my home.")
         turn = await rig.driver.user_says("My pincode is 560102.")
         check_turn(rig, turn)
-        books = [c["payload"] for c in rig.driver.ui_commands if c.get("command") == "book_kit"]
+        books = [c["payload"] for c in rig.driver.ui_commands if c.get("command") == "book_product"]
         assert [b["installation"] for b in books] == ["residential", "residential"]
+        # Booked from the kit page with no product named: the kit's own BOOK NOW.
+        assert {b["product"] for b in books} == {"surya-connect-kit"}
         assert books[1]["details"]["name"] == "Ravi"
         assert books[1]["details"]["city"] == "Bengaluru"
         assert books[1]["details"]["pincode"] == "560102"
         await _page(
-            rig, "booking_submitted", {"installation": "residential", "fields": {"name": "Ravi"}}
+            rig,
+            "booking_submitted",
+            {
+                "product": "surya-connect-kit",
+                "installation": "residential",
+                "fields": {"name": "Ravi"},
+            },
         )
         await rig.driver.user_says("So how much would I save?")
-        assert "confirmed the SuryaConnect kit booking" in _texts(llm.captured_contents[-1])
+        assert "confirmed the booking of surya-connect-kit" in _texts(llm.captured_contents[-1])
+
+
+async def test_book_now_books_the_product_on_their_page_and_nothing_else() -> None:
+    """On an inverter page, "book this" books that inverter; on a page with no
+    BOOK NOW and no product named, nothing is opened and the model is told so."""
+    llm = _llm()
+    async with demo("saatvik", llm) as rig:
+        await rig.driver.start_session(init={"page": "/inverters/hybrid"})
+        await rig.driver.user_says("Book this for my shop.")
+        assert rig.command("book_product")["product"] == "uday-plus-hybrid"
+    llm = _llm()
+    async with demo("saatvik", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says("Book this for my shop.")
+        assert "book_product" not in rig.actions()
+        await rig.driver.user_says("So how much would I save?")
+        assert _results(llm.captured_contents[-1])["book_product"].startswith("Not opened")

@@ -332,7 +332,36 @@
       title: document.title,
       headings: hs,
       faqs: faqButtons().map(faqQuestion).slice(0, MAX_FAQS),
+      tabs: tabButtons().map((b) => clean(b.textContent)),
     };
+  }
+
+  // ─── open_tab ─────────────────────────────────────────────────────────
+  // Spec tabs — ELECTRICAL / MECHANICAL / WARRANTY on a module, eight on the
+  // battery, three on a pump or BESS — are plain buttons with no role, and
+  // only the open tab's rows are on the page until another is clicked.
+  const TAB_SELECTOR = "#specifications button, main button[role=tab], button.text-xs.font-medium.tracking-widest";
+  function tabButtons() {
+    const seen = new Set();
+    return [...document.querySelectorAll(TAB_SELECTOR)].filter((b) => {
+      const t = clean(b.textContent);
+      if (!t || t.length > 40 || !visible(b) || b.hasAttribute("aria-expanded") || seen.has(norm(t))) return false;
+      seen.add(norm(t));
+      return true;
+    });
+  }
+
+  async function openTab({ label }) {
+    const want = norm(label);
+    const tabs = tabButtons();
+    const tab = tabs.find((b) => norm(b.textContent) === want) || tabs.find((b) => norm(b.textContent).includes(want) || want.includes(norm(b.textContent)));
+    if (!tab) throw new Error(`no tab "${label}" on ${location.pathname}; it has: ${tabs.map((b) => clean(b.textContent)).join(" | ") || "none"}`);
+    tab.click();
+    await sleep(400);
+    await scrollToTop(tab);
+    const panel = tab.closest("section") || tab.parentElement;
+    const r = panel.getBoundingClientRect();
+    highlight(r.height > window.innerHeight * 1.5 ? tab : panel);
   }
 
   // ─── show_section ─────────────────────────────────────────────────────
@@ -593,20 +622,28 @@
     emit("enquiry_opened", { kind, missing: missing.map((el) => fieldName(form, el)) });
   }
 
-  // ─── Booking the kit (/book) ──────────────────────────────────────────
+  // ─── Booking a product (/book) ────────────────────────────────────────
   // Two client-side steps with no <form>: step 1 is a Residential / Commercial
   // choice and CONTINUE, step 2 the details, CONSENT and CONFIRM BOOKING. The
   // choice shows as chosen only by its orange border, and the page ignores
   // clicks until it has hydrated, so a choice is clicked until it shows.
-  const BOOK_PATH = "/book?product=surya-connect-kit";
+  // Every product with a BOOK NOW books through the same page; an unknown
+  // slug silently shows the TEJ PLUS G12R module, so only these are sent.
+  const BOOKABLE = new Set([
+    "surya-connect-kit", "tej-plus-g12r", "tej-m10r", "n-topcon", "bifacial-g2tb",
+    "mono-perc", "vega-g2wb", "uday-single-phase", "uday-three-phase", "uday-plus-hybrid",
+  ]);
   const BOOK_FIELDS = ["name", "mobile", "email", "address", "state", "city", "pincode"];
   const buttonNamed = (re) => [...main().querySelectorAll("button")].find((b) => visible(b) && re.test(clean(b.textContent)));
   const bookingField = (key) => document.querySelector(`#${key}`);
   const confirmBooking = () => buttonNamed(/confirm booking/i);
 
-  async function bookKit({ installation, details }) {
+  const bookingProduct = () => new URLSearchParams(location.search).get("product") || "";
+
+  async function bookProduct({ product, installation, details }) {
+    if (!BOOKABLE.has(product)) throw new Error(`${product} has no booking page; bookable: ${[...BOOKABLE].join(", ")}`);
     const kind = installation === "commercial" ? "commercial" : "residential";
-    if (location.pathname !== "/book") await navigate(BOOK_PATH);
+    if (location.pathname !== "/book" || bookingProduct() !== product) await navigate(`/book?product=${product}`);
     if (!(await waitFor(() => bookingField("name") || buttonNamed(/^continue\b/i), 8000))) {
       throw new Error("the booking page did not load");
     }
@@ -637,7 +674,7 @@
     const missing = BOOK_FIELDS.filter((k) => bookingField(k) && !clean(bookingField(k).value));
     await scrollToTop(bookingField("name"));
     highlight(...missing.map(bookingField), ...[bookingField("consent"), confirmBooking()].filter(Boolean));
-    emit("booking_opened", { installation: kind, missing });
+    emit("booking_opened", { product, installation: kind, missing });
   }
 
   function readBooking() {
@@ -647,7 +684,7 @@
   }
 
   function bookingKind() {
-    const sub = clean((main().innerText.match(/Booking SuryaConnect Solar Kit\s*·\s*(\w+)/i) || [])[1]);
+    const sub = clean((main().innerText.match(/Booking [^\n·]+·\s*(\w+)/i) || [])[1]);
     return /commercial/i.test(sub) ? "commercial" : "residential";
   }
 
@@ -690,7 +727,7 @@
   function onBookingIntent(e, button) {
     if (Date.now() - lastReport > 500) {
       lastReport = Date.now();
-      emit("booking_submitted", { installation: bookingKind(), fields: readBooking() });
+      emit("booking_submitted", { product: bookingProduct(), installation: bookingKind(), fields: readBooking() });
     }
     if (!DEMO_BLOCK_SUBMIT) return;
     e.preventDefault();
@@ -921,8 +958,9 @@
     navigate: ({ path }) => navigate(path),
     show_section: showSection,
     open_faq: openFaq,
+    open_tab: openTab,
     open_enquiry: openEnquiry,
-    book_kit: bookKit,
+    book_product: bookProduct,
     run_calculator: runCalculator,
     find_dealer: findDealer,
   };
