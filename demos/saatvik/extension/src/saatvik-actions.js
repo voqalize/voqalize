@@ -174,9 +174,54 @@
     return strip(a) === strip(b);
   }
 
+  // Paths the site answers with a permanent redirect, by their targets. The
+  // router follows a redirect softly but with an extra round trip, so a move
+  // goes straight to the target. The brain's `knowledge.REDIRECTS` is the same
+  // table.
+  const REDIRECTS = {
+    "/contact-us": "/contact",
+    "/saatvik-solar-gti-inverter": "/inverters",
+    "/epc-solutions/carport-solar-solutions": "/epc-solutions/carport",
+    "/epc-solutions/roof-top": "/epc-solutions/rooftop/commercial",
+  };
+
+  function redirected(url) {
+    const to = REDIRECTS[url.pathname.replace(/\/+$/, "").toLowerCase()];
+    if (to) url.pathname = to;
+    return url;
+  }
+
+  // The router moves softly only while it can fetch the next page's payload.
+  // When that fetch fails it loads the page in full instead (checked in Chrome
+  // 2026-10-14: offline, `router.push` replaced the document), and a full load
+  // drops the call until it rejoins on the new page. That is the reload on the
+  // owner's hotspot call 1c91dcfc, whose uplink stalled every 10 to 20 s. So a
+  // move first checks the site answers, and on a dead network it fails where
+  // it stands — the call stays up and the brain says so — rather than letting
+  // the router fall back to a load. The check is a HEAD of their favicon, about
+  // 300 ms from the CDN; a page's own payload is rendered on demand and took
+  // 1.4 to 4 s, which would make every move that much slower.
+  const PROBE_TRIES = 3;
+  const PROBE_MS = 1500;
+  async function reachable() {
+    for (let i = 0; i < PROBE_TRIES; i++) {
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), PROBE_MS);
+      try {
+        const r = await fetch(`/favicon.ico?probe=${Date.now()}`, { method: "HEAD", signal: ctl.signal, cache: "no-store" });
+        if (r.ok) return true;
+      } catch {
+        // A dropped or timed-out fetch: try again.
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+    return false;
+  }
+
   async function navigate(path) {
     if (typeof path !== "string" || !path.startsWith("/")) throw new Error(`not a path on this site: ${path}`);
-    const target = new URL(path, location.origin);
+    const target = redirected(new URL(path, location.origin));
     if (samePath(location.pathname, target.pathname) && location.search === target.search) {
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
@@ -184,6 +229,7 @@
     const from = location.pathname;
     const router = window.next && window.next.router;
     if (router && typeof router.push === "function") {
+      if (!(await reachable())) throw new Error("the network dropped, so the page did not move");
       await router.push(target.pathname + target.search + target.hash);
     } else {
       // Without the router the move is a page load. The call rejoins on the
@@ -221,6 +267,35 @@
 
   async function goTo(path) {
     if (!samePath(location.pathname, path)) await navigate(path);
+  }
+
+  // Not every link on their site is the router's: a plain anchor in the header,
+  // footer or a blog post loads the next page in full, which drops the call
+  // until it rejoins on the new page. While a call is live, a same-origin link
+  // the router left alone is pushed through it instead. This listens on the
+  // window in the bubble phase, after React's own handler at the root, so a
+  // link the router already took arrives with its default prevented.
+  const FILE = /\.(pdf|jpe?g|png|webp|gif|svg|zip|docx?|xlsx?|pptx?|mp4)$/i;
+  function watchLinks() {
+    window.addEventListener("click", (e) => {
+      if (!emitter || e.defaultPrevented || e.button !== 0) return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const a = e.target && e.target.closest && e.target.closest("a[href]");
+      if (!a || a.closest("[data-voqalize]") || a.hasAttribute("download")) return;
+      if (a.target && a.target !== "_self") return;
+      const url = new URL(a.href, location.href);
+      if (url.origin !== location.origin || FILE.test(url.pathname)) return;
+      // A jump within this page is the browser's own and keeps the document.
+      if (samePath(url.pathname, location.pathname) && url.search === location.search) return;
+      const router = window.next && window.next.router;
+      if (!router || typeof router.push !== "function") return;
+      e.preventDefault();
+      const to = redirected(url);
+      reachable().then((ok) => {
+        if (ok) router.push(to.pathname + to.search + to.hash);
+        else toast(a, "The network dropped. Try that link again in a moment.");
+      });
+    });
   }
 
   // ─── What the page shows ──────────────────────────────────────────────
@@ -792,6 +867,7 @@
   styleThePage();
   watchRoutes();
   watchSubmits();
+  watchLinks();
 
   window.voqalizeSaatvik = {
     run,

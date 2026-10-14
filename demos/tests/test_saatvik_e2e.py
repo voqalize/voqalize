@@ -30,7 +30,7 @@ from collections.abc import Iterator
 import pytest
 from google.genai import types
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import Reply, ScriptedGemini, call, reply, reply_and_call
+from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
 
 from ._harness import _configs, check_greeting, check_turn, check_voice_pair, demo
 
@@ -206,34 +206,20 @@ def _llm() -> ScriptedGemini:
                     "quote": f"{_PMAX} {_VOC}",
                 },
             ),
-            # One response, both calls: noting the lead never costs a hop.
-            "We're a school in Pune, I'm Asha, and we'd like a quote.": Reply(
-                text="Here's the form; add your email and mobile, tick consent and submit.",
-                calls=(
-                    (
-                        "update_lead",
-                        {
-                            "request": {
-                                "segment": "institutional",
-                                "state": "Maharashtra",
-                                "city": "Pune",
-                            }
-                        },
-                    ),
-                    (
-                        "open_enquiry",
-                        {
-                            "request": {
-                                "kind": "domestic",
-                                "category": "Solar EPC - Rooftop",
-                                "state": "Maharashtra",
-                                "name": "Asha",
-                            }
-                        },
-                    ),
-                ),
+            # What the call told him goes to the lead with the form, once.
+            "We're a school in Pune, I'm Asha, and we'd like a quote.": reply_and_call(
+                "Here's the form; add your email and mobile, tick consent and submit.",
+                "open_enquiry",
+                request={
+                    "kind": "domestic",
+                    "category": "Solar EPC - Rooftop",
+                    "state": "Maharashtra",
+                    "name": "Asha",
+                    "segment": "institutional",
+                    "city": "Pune",
+                },
             ),
-            "My bill is about 4000 rupees in Gujarat.": reply_and_call(
+            "I use 500 units, about 4000 rupees, in Gujarat.": reply_and_call(
                 "That's about five hundred units.",
                 "run_calculator",
                 request={"state": "Gujarat", "monthly_units": 500, "monthly_bill_inr": 4000},
@@ -247,6 +233,12 @@ def _llm() -> ScriptedGemini:
             "I use 350 units in Karnataka.": call(
                 "run_calculator", request={"state": "Karnataka", "monthly_units": 350}
             ),
+            # A state the visitor never named is not guessed: it is asked for.
+            "I use 500 units at 6 rupees a unit.": call(
+                "run_calculator", request={"monthly_units": 500, "rate_per_unit": 6}
+            ),
+            "How does this one compare?": reply("TOPCon runs cooler."),
+            "Against the mono.": reply("TOPCon beats Mono PERC in heat."),
             "Is TOPCon better than PERC?": reply("Yes, TOPCon. It handles heat better than PERC."),
             "Mujhe solar panel chahiye, kya aap Hindi mein baat kar sakte hain?": reply(
                 "जी हाँ, बताइए आपको क्या चाहिए।"
@@ -370,7 +362,11 @@ async def test_an_outlined_pdf_quote_is_marked_by_its_ocr_boxes() -> None:
         assert top["y"] < 0.40 < bottom["y"] - 0.04
 
 
-async def test_the_enquiry_is_prefilled_never_submitted_and_becomes_the_brief() -> None:
+async def test_the_enquiry_is_prefilled_never_submitted_and_becomes_the_brief(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A pitch, with the brief shown in the widget.
+    monkeypatch.setattr(saatvik, "SHARE_BRIEF", True)
     llm = _llm()
     async with demo("saatvik", llm) as rig:
         await rig.driver.start_session(init={"page": "/"})
@@ -433,11 +429,28 @@ async def test_the_enquiry_is_prefilled_never_submitted_and_becomes_the_brief() 
         assert _idle_windows(rig)[-1] == _IDLE_MS
 
 
+async def test_a_visitor_never_sees_the_brief_and_the_model_keeps_no_lead() -> None:
+    """The owner's call 1c91dcfc: told to record the lead every turn, the model
+    answered nothing. No tool keeps it, and the visitor's widget never shows it."""
+    llm = _llm()
+    async with demo("saatvik", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says("We're a school in Pune, I'm Asha, and we'd like a quote.")
+        await _page(
+            rig,
+            "enquiry_submitted",
+            {"kind": "domestic", "fields": {"name": "Asha Rao", "state": "Maharashtra"}},
+        )
+        assert "lead_brief" not in rig.actions()
+        assert not hasattr(saatvik.SaatvikBrain, "update_lead")
+        assert "update_lead" not in llm.captured_system_instructions[-1]
+
+
 async def test_the_calculator_result_reaches_the_next_request() -> None:
     llm = _llm()
     async with demo("saatvik", llm) as rig:
         await rig.driver.start_session(init={"page": "/"})
-        await rig.driver.user_says("My bill is about 4000 rupees in Gujarat.")
+        await rig.driver.user_says("I use 500 units, about 4000 rupees, in Gujarat.")
         assert rig.command("run_calculator") == {"units": 500, "state": "Gujarat", "rate": 8}
         await _page(
             rig,
@@ -458,7 +471,7 @@ async def test_a_quiet_visitor_hears_the_estimate_talked_through() -> None:
     llm = _llm()
     async with demo("saatvik", llm) as rig:
         await rig.driver.start_session(init={"page": "/"})
-        await rig.driver.user_says("My bill is about 4000 rupees in Gujarat.")
+        await rig.driver.user_says("I use 500 units, about 4000 rupees, in Gujarat.")
         await _page(
             rig,
             "calculator_result",
@@ -509,6 +522,30 @@ async def test_a_calculator_with_no_rate_asks_for_it_aloud() -> None:
         check_turn(rig, turn)
         assert turn.text == saatvik._ASK_RATE[saatvik.Language.EN][0]
         assert "run_calculator" not in rig.actions()
+
+
+async def test_a_calculator_with_no_state_asks_for_it_rather_than_guess() -> None:
+    async with demo("saatvik", _llm()) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        turn = await rig.driver.user_says("I use 500 units at 6 rupees a unit.")
+        check_turn(rig, turn)
+        assert turn.text == saatvik._ASK_STATE[saatvik.Language.EN][0]
+        assert "run_calculator" not in rig.actions()
+
+
+async def test_the_rest_of_a_split_question_gets_no_second_nod(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(saatvik, "ACK_RATE", 1.0)
+    async with demo("saatvik", _llm()) as rig:
+        await rig.driver.start_session(init={"page": "/modules"})
+        first = await rig.driver.user_says("How does this one compare?")
+        rest = await rig.driver.user_says("Against the mono.")
+        nods = {
+            line for lines in saatvik._ACK_LINES[saatvik.Language.EN].values() for line in lines
+        }
+        assert any(first.text.startswith(n) for n in nods)
+        assert rest.text == "TOPCon beats Mono PERC in heat."
 
 
 async def test_a_question_gets_his_nod_then_the_answer(monkeypatch: pytest.MonkeyPatch) -> None:

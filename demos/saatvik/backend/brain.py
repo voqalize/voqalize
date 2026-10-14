@@ -10,11 +10,14 @@ back as a typed event (:mod:`.app_events`).
 
 Four things shape every decision here.
 
-**A product expert first, a lead-capturer second.** Every turn answers what was
-asked, in a sentence or two, and makes a move on the page. What he learns on
-the way is recorded quietly with ``update_lead`` and becomes the brief Saatvik's
-sales team receives (:mod:`.lead`) — shown to the visitor as it fills, so
-nothing is collected behind their back.
+**A product expert, not a lead-capturer.** Every turn answers what was asked,
+in words, in a sentence or two; a move on the page goes beside the answer when
+it helps. The model keeps no lead: the brief Saatvik's sales team receives
+(:mod:`.lead`) is filled by the brain from what it already sees — the
+calculator's inputs, the dealer search, the enquiry form, the pages and
+documents opened, the questions asked — and never costs a tool call inside a
+reply. A dev call where the model was told to record the lead every turn
+answered nothing at all: each reply was bookkeeping and a page move.
 
 **Every figure has a source.** A wattage, efficiency, warranty or subsidy amount
 is spoken from L1 (in this prompt), an L2 topic he read, a search of the site,
@@ -37,6 +40,7 @@ estimate, the dealers, a submitted form — is in :meth:`SaatvikBrain.on_user_id
 from __future__ import annotations
 
 import re
+import time
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
@@ -122,6 +126,15 @@ _IDLE_NUDGES = 2
 #: then (and their words win, with the result already in context), while a
 #: visitor who is reading is not left with a silent screen for long.
 _TALK_THROUGH_MS = 2_000
+#: How long a pause the recognizer waits out before the visitor's turn ends: a
+#: little more than the other demos'. On the owner's hotspot call (1c91dcfc) the
+#: uplink stalled every 10 to 20 s and, at the demos' patience, "How does this one
+#: compare? … Against the mono." reached Tushar as two turns.
+SAATVIK_PATIENCE = PATIENCE + 2
+#: A message that arrives this soon after the last one is the rest of the same
+#: thought, split by a pause: answered without a nod of its own, so the visitor
+#: does not hear a nod cut off and another start.
+_FRAGMENT_S = 4.0
 
 # ─── Language ──────────────────────────────────────────────────────────────────
 
@@ -366,14 +379,22 @@ class DocumentRequest(BaseModel):
 
 
 class CalculatorRequest(BaseModel):
-    state: CalculatorState = Field(description="The visitor's state.")
+    """Only what the visitor said, in their words' numbers: leave out anything
+    they did not say rather than guess it."""
+
+    state: CalculatorState | None = Field(
+        default=None, description="The visitor's state, only if they named it."
+    )
     monthly_units: float | None = Field(
-        default=None, description="Units (kWh) the visitor uses a month, if they said."
+        default=None, description="Units (kWh) the visitor uses a month, only if they said."
     )
     monthly_bill_inr: float | None = Field(
-        default=None, description="The visitor's monthly electricity bill in rupees, if they said."
+        default=None,
+        description="The visitor's monthly electricity bill in rupees, only if they said.",
     )
-    rate_per_unit: float | None = Field(default=None, description="Rupees per unit, if they said.")
+    rate_per_unit: float | None = Field(
+        default=None, description="Rupees per unit, only if they said."
+    )
 
 
 class DealerRequest(BaseModel):
@@ -390,39 +411,27 @@ class EnquiryRequest(BaseModel):
     state: str | None = Field(default=None, description="The visitor's state, if known.")
     message: str | None = Field(
         default=None,
-        description="One or two sentences for the sales team: what they need, in "
-        "their terms. Leave empty to have it written from what you recorded.",
+        description="One or two sentences for the sales team: what they need, in their terms.",
     )
     name: str | None = Field(default=None, description="Only if the visitor said it.")
     company: str | None = Field(default=None, description="Only if the visitor said it.")
     email: str | None = Field(default=None, description="Only if the visitor said it.")
     mobile: str | None = Field(default=None, description="Only if the visitor said it.")
-
-
-class LeadUpdate(BaseModel):
-    """What the visitor just told you about their need. Set only what they said."""
-
-    segment: Segment | None = Field(default=None, description="Who they are.")
+    # What the call has told you that the sales team needs, all optional and
+    # only as the visitor said it. Gathered here, once, when the form opens —
+    # never as bookkeeping inside an ordinary reply.
+    segment: Segment | None = Field(default=None, description="Who they are, if clear.")
     need: str | None = Field(default=None, description="What they want, in a few words.")
+    city: str | None = Field(default=None, description="City or district, if they said.")
     system_size_kw: float | None = None
     monthly_units: float | None = None
     monthly_bill_inr: float | None = None
-    state: str | None = None
-    city: str | None = Field(default=None, description="City or district.")
     roof_type: str | None = Field(default=None, description="e.g. RCC flat, tin sheet, tiled.")
     roof_area: str | None = Field(default=None, description="As they said it, e.g. '800 sq ft'.")
     ownership: Ownership | None = Field(default=None, description="Of the roof or site.")
     timeline: Timeline | None = None
-    budget: str | None = None
-    financing_interest: bool | None = None
-    subsidy_interest: bool | None = None
-    products_interested: list[str] | None = None
-    decision_maker: bool | None = Field(default=None, description="Do they decide the purchase?")
-    callback_requested: bool | None = None
+    callback_requested: bool | None = Field(default=None, description="They want a person to call.")
     preferred_time: str | None = Field(default=None, description="Best time to call them.")
-    objections: list[str] | None = Field(default=None, description="Doubts they raised.")
-    name: str | None = Field(default=None, description="Only if they said it.")
-    company: str | None = Field(default=None, description="Only if they said it.")
 
 
 class LanguageRequest(BaseModel):
@@ -443,7 +452,7 @@ def _site_map(k: Knowledge) -> str:
     lines: list[str] = []
     size = 0
     for p in sorted(k.pages.values(), key=lambda p: (p.path.count("/"), p.path)):
-        if p.path.count("/") > _SITE_MAP_DEPTH:
+        if p.path.count("/") > _SITE_MAP_DEPTH or p.path in kb.REDIRECTS:
             continue
         line = f"- {p.path} — {p.title.removesuffix(_TITLE_SUFFIX)}"
         size += len(line) + 1
@@ -461,6 +470,7 @@ def _prompt(k: Knowledge) -> str:
     return f"""You are {AGENT_NAME}, the solar advisor on Saatvik Green Energy's website, www.saatvikgroup.com. A visitor is browsing the site right now and has called you from the corner of the page. You can see and move their screen: you open Saatvik's pages, scroll to sections, open FAQs, open datasheets at the right page with the figure highlighted, run the savings calculator, find dealers and fill in the enquiry form with them. You are warm, expert and brief — the advisor who knows the panels inside out and makes going solar feel simple.
 
 # How you speak
+- YOU ANSWER, EVERY TURN, IN WORDS. Your job is to answer the visitor's questions about solar and Saatvik's products like an expert would: say which panel, which inverter, what size, and why, in plain words. Every reply has words of yours in it. Moving the page is optional: do it when it helps them see the answer, never in place of the answer.
 - EVERY MOVE COMES WITH WORDS. Whenever you move the page — navigate, show_section, open_faq, open_document, run_calculator, find_dealer, open_enquiry — write your line first and make the call in the same response: the line is spoken while the page moves. A response that is only tool calls is silence: after it you do not speak again until the visitor does, and what the call returns reaches you only on your next turn.
 - A QUESTION GETS ITS ANSWER IN WORDS. When they ask something, your line is the answer, and the page, FAQ or datasheet you open is shown beside it, never instead of it: "TOPCon has the better low-light and heat performance. Here's the TOPCon page." "Minus zero point two nine percent per degree. Here's the line on the datasheet." A reply that only confirms the move ("Here it is.") is too little.
 - A READ COMES BEFORE ANY WORDS. read_topic and search_site come straight back to you within this same turn. When you need one, call it first, with nothing written before it, then give your one reply — the answer, and the move — once it is back. Never say a line that promises more to come ("let me check", "let me find that"): nothing comes after it. Say a move as done, not as about to be done: "Here's the datasheet.", never "Let me open the datasheet."
@@ -480,15 +490,14 @@ def _prompt(k: Knowledge) -> str:
 
 # Moving the page
 - navigate only to a path from the site pages list below or from a search result. show_section and open_faq take a heading or question on the page the visitor has open.
-- To size a system or show savings, run_calculator: you need their state, and two of their monthly units, their monthly bill and their rate per unit. Ask for what is missing, one thing at a time, before calling it — usually "And roughly what do you pay per unit? It's on your bill." The estimate appears on the page and comes back to you: talk them through it from the page's figures.
+- To size a system or show savings you can answer from the rules of thumb below first, in words. run_calculator is for when they want Saatvik's estimate: it needs their state, and two of their monthly units, their monthly bill and their rate per unit — every one exactly as the visitor said it. Never guess, assume or default any of them: no state they did not name, no rate they did not give. A bill in rupees on its own is not units. Ask for what is missing, one thing at a time, before calling it. The estimate appears on the page and comes back to you: talk them through it from the page's figures.
 - find_dealer for a dealer near them. The dealer list comes back to you from the page.
 
 # The visitor's enquiry
-- You are a product expert first. Learn about their need only as it helps you answer: their kind of building, state, bill, roof, timeline. Never interrogate; at most one question per turn.
-- Every time they tell you something about their need, call update_lead with it, in the same response. It is silent bookkeeping: never mention it.
-- When they want a quote, a call back or to talk to sales, open_enquiry with what they told you. Fill in name, company, email or mobile only if they said them; never ask them to read out a phone number or email for you to type. Then tell them which fields are left for them to fill in, that they tick the consent box and press Submit themselves. Never say it is submitted until the page tells you.
-- A visitor who wants a person: give Saatvik's toll-free number or WhatsApp from the knowledge below if it is there, or open the enquiry form with a call back noted (update_lead callback_requested), and say a person will call.
-- When the page tells you the form was submitted, thank them in one sentence, then ask the one sales question still unknown that matters most: timeline, whether they own the roof and what kind it is, who decides, financing, or the best time for the call. Record each answer with update_lead.
+- You are a product expert. Ask about their need only when the answer changes your advice — their kind of building, their bill, power cuts — at most one question per turn, and never to fill in a form. Nothing is recorded during the conversation; there is no bookkeeping for you to do.
+- When they want a quote, a call back or to talk to sales, open_enquiry with what they told you, including what the sales team needs from the call so far (their need, city, bill or units, roof, timeline) as far as they said it. Fill in name, company, email or mobile only if they said them; never ask them to read out a phone number or email for you to type. Then tell them which fields are left for them to fill in, that they tick the consent box and press Submit themselves. Never say it is submitted until the page tells you.
+- A visitor who wants a person: give Saatvik's toll-free number or WhatsApp from the knowledge below, or open the enquiry form with callback_requested, and say a person will call.
+- When the page tells you the form was submitted, thank them in one sentence, say Saatvik's team will be in touch, and go back to answering their questions.
 
 # Saatvik
 {k.l1}
@@ -563,6 +572,10 @@ _ACK_LINES: dict[Language, dict[Kind, tuple[str, ...]]] = {
         "statement": ("जी।", "अच्छा।", "ठीक है।"),
     },
 }
+#: Whether the widget shows the brief to the visitor (see ``share_brief``).
+#: Module-level so a test can pin it.
+SHARE_BRIEF = False
+
 #: The share of readable turns he nods on, and how long the model may stay
 #: quiet after a nod before he holds the floor. Module-level so a test can pin them.
 ACK_RATE = 0.75
@@ -647,6 +660,10 @@ _ASK_RATE = {
     Language.EN: ("And roughly what do you pay per unit? It's on your bill.",),
     Language.HI: ("और आप एक यूनिट का लगभग कितना देते हैं? यह आपके बिल पर होता है।",),
 }
+_ASK_STATE = {
+    Language.EN: ("And which state are you in?",),
+    Language.HI: ("और आप किस राज्य में हैं?",),
+}
 
 
 def _short_title(title: str) -> str:
@@ -696,12 +713,15 @@ class SaatvikBrain(GeminiBrain):
         client: genai.Client,
         model: str = DEFAULT_MODEL,
         knowledge: Knowledge | None = None,
-        share_brief: bool = True,
+        share_brief: bool | None = None,
     ) -> None:
         self.kb = knowledge if knowledge is not None else kb.KNOWLEDGE
         super().__init__(client=client, system_instruction=_prompt(self.kb), model=model)
-        #: Send the brief to the widget as it fills, not only once submitted.
-        self._share_brief = share_brief
+        #: Show the brief in the widget. Off for a visitor, who came to ask
+        #: about solar; on for a pitch that shows Saatvik what sales receives.
+        self._share_brief = SHARE_BRIEF if share_brief is None else share_brief
+        #: When the visitor's last message arrived, to tell a fragment from a question.
+        self._heard_at = float("-inf")
         self.spoken: Language = SPEECH[OPENING].spoken
         self._fallback = FallbackLine()
         self._ack = Acknowledger(
@@ -733,7 +753,7 @@ class SaatvikBrain(GeminiBrain):
         # move together; the toggle and `set_language` move them again.
         await session.configure(
             Config(
-                stt=SttConfig(language=SPEECH[lang].heard, patience=PATIENCE),
+                stt=SttConfig(language=SPEECH[lang].heard, patience=SAATVIK_PATIENCE),
                 tts=TtsConfig(voice=SPEECH[lang].voice, language=SPEECH[lang].spoken),
                 idle=IdleConfig(timeout_ms=_IDLE_MS),
             )
@@ -742,6 +762,12 @@ class SaatvikBrain(GeminiBrain):
         self.lead.update(language=lang)
         self.lead.saw_page(self._path)
         logger.info("saatvik: session start on {} in {}", self._path, lang)
+
+    async def on_session_end(self, session: Session) -> None:
+        """A submitted lead goes to the webhook once more at the end, with
+        every page and question that came after the form."""
+        if self.lead.submitted:
+            post_brief(self.lead.brief())
 
     async def greet(self, session: Session) -> str:
         """The opener, written not generated."""
@@ -762,10 +788,13 @@ class SaatvikBrain(GeminiBrain):
         self._restore_idle()
         self.lead.asked(msg.text)
         self._read_in_page()
+        now = time.monotonic()
+        fragment, self._heard_at = now - self._heard_at < _FRAGMENT_S, now
         # His nod while the model thinks, in the voice now speaking: a unit of
         # his own, never in the model's context. Once it has played the face
-        # looks away and works until the answer starts.
-        if (nod := self._ack.line(msg.text, self.spoken)) is not None:
+        # looks away and works until the answer starts. The rest of a split
+        # question gets none: the first half's nod was its nod.
+        if not fragment and (nod := self._ack.line(msg.text, self.spoken)) is not None:
             logger.info("saatvik: ack {!r}", nod)
             async for event in say_line(self, nod):
                 yield event
@@ -965,14 +994,10 @@ class SaatvikBrain(GeminiBrain):
             **{k: v for k, v in fields.model_dump().items() if v},
         )
         self.lead.submitted = True
-        brief = self.lead.brief()
-        self.session.dispatch(brief)
-        post_brief(brief)
+        self._brief_changed()
         self._talk_through(
-            "They have just submitted the enquiry. Thank them in one sentence and say "
-            "Saatvik's team will call, then ask the one sales question still unknown that "
-            "matters most: timeline, roof ownership and type, who decides, financing, or the "
-            "best time for the call."
+            "They have just submitted the enquiry. Thank them in one sentence, say "
+            "Saatvik's team will be in touch, and offer to keep answering their questions."
         )
         return f"[The visitor submitted the {kind} enquiry form. It reached Saatvik's sales team.]"
 
@@ -1031,14 +1056,13 @@ class SaatvikBrain(GeminiBrain):
             configure_soon(self.session, Config(idle=IdleConfig(timeout_ms=_IDLE_MS)))
 
     def _brief_changed(self) -> None:
-        """Send the brief to the widget — as it fills when sharing is on, and
-        always once submitted, when it also goes to the webhook."""
+        """Post the brief to the webhook once submitted, and show it in the
+        widget when sharing is on."""
+        brief = self.lead.brief()
         if self.lead.submitted:
-            brief = self.lead.brief()
-            self.session.dispatch(brief)
             post_brief(brief)
-        elif self._share_brief:
-            self.session.dispatch(self.lead.brief())
+        if self._share_brief:
+            self.session.dispatch(brief)
 
     def _move(self, action: Action, lines: str | None = None, english: str | None = None) -> None:
         """Dispatch ``action``, with the written line for it should the turn say
@@ -1079,8 +1103,8 @@ class SaatvikBrain(GeminiBrain):
     @property
     def tools(self) -> list[Any]:
         """Read and search Saatvik's knowledge, move the visitor's page, run the
-        calculator and the dealer locator, fill the enquiry, keep the lead,
-        change language."""
+        calculator and the dealer locator, fill the enquiry, change language.
+        Nothing here keeps the lead: the brain does that from what it sees."""
         return [
             self.read_topic,
             self.search_site,
@@ -1092,7 +1116,6 @@ class SaatvikBrain(GeminiBrain):
             self.run_calculator,
             self.find_dealer,
             self.open_enquiry,
-            self.update_lead,
             self.set_language,
         ]
 
@@ -1203,8 +1226,9 @@ class SaatvikBrain(GeminiBrain):
 
     async def run_calculator(self, request: CalculatorRequest) -> str:
         """Run Saatvik's solar savings calculator on the visitor's screen. Needs
-        their state and two of monthly units, monthly bill and rate per unit. The
-        estimate comes back from the page. Say one short line with it."""
+        their state and two of monthly units, monthly bill and rate per unit,
+        every one as the visitor said it: never a guess. The estimate comes back
+        from the page. Say one short line with it."""
         units, bill, rate = request.monthly_units, request.monthly_bill_inr, request.rate_per_unit
         if units is None and bill is not None and rate:
             units = round(bill / rate)
@@ -1216,6 +1240,9 @@ class SaatvikBrain(GeminiBrain):
         if rate is None:
             landed(*_ASK_RATE[self.spoken])
             return "Not run: ask for their rate per unit, or their monthly bill."
+        if request.state is None:
+            landed(*_ASK_STATE[self.spoken])
+            return "Not run: ask which state they are in."
         self.lead.update(monthly_units=units, monthly_bill_inr=bill, state=request.state)
         self._move(RunCalculator(units=units, state=request.state, rate=rate), "calculator")
         return (
@@ -1243,6 +1270,10 @@ class SaatvikBrain(GeminiBrain):
         """Open Saatvik's enquiry form on the visitor's screen with what they told
         you filled in. It never submits. Then tell them which fields are left for
         them, and that they tick consent and press Submit."""
+        self.lead.update(
+            **request.model_dump(exclude={"kind", "message", "email", "mobile"}),
+            enquiry_kind=request.kind,
+        )
         message = request.message or (
             self.lead.brief().summary if self.lead.fields != LeadFields() else None
         )
@@ -1255,12 +1286,6 @@ class SaatvikBrain(GeminiBrain):
             state=request.state or self.lead.fields.state,
             message=message,
         )
-        self.lead.update(
-            enquiry_kind=request.kind,
-            category=request.category,
-            name=request.name,
-            company=request.company,
-        )
         self._move(OpenEnquiry(kind=request.kind, prefill=prefill), "enquiry")
         self._brief_changed()
         filled = [k for k, v in prefill.model_dump().items() if v]
@@ -1270,14 +1295,6 @@ class SaatvikBrain(GeminiBrain):
             f"Left for the visitor: {', '.join(left) or 'nothing required'}, the consent box and "
             "Submit."
         )
-
-    async def update_lead(self, request: LeadUpdate) -> str:
-        """Record what the visitor just told you about their need, for Saatvik's
-        sales team. Silent: call it alongside your reply, never mention it."""
-        changed = self.lead.update(**request.model_dump())
-        if changed:
-            self._brief_changed()
-        return "noted"
 
     async def set_language(self, request: LanguageRequest) -> str:
         """Conduct the rest of the call in another language, listening and
@@ -1299,7 +1316,7 @@ class SaatvikBrain(GeminiBrain):
         self.spoken = speech.spoken
         return Config(
             # Carried on every switch: unset, it drops back to the deployment's 7.
-            stt=SttConfig(language=speech.heard, patience=PATIENCE),
+            stt=SttConfig(language=speech.heard, patience=SAATVIK_PATIENCE),
             tts=TtsConfig(voice=speech.voice, language=speech.spoken),
         )
 

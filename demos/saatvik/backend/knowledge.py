@@ -66,6 +66,19 @@ def norm(text: str) -> str:
     return " ".join(text.translate(_QUOTES).lower().split())
 
 
+#: Paths the site answers with a permanent redirect, by their targets. Next's
+#: router follows one softly, but with an extra round trip, and the page then
+#: reports the target's path; so a move goes straight there. Found 2026-10-14 by
+#: fetching every crawled path with ``RSC: 1``: every other path answers with
+#: the router's own payload.
+REDIRECTS: dict[str, str] = {
+    "/contact-us": "/contact",
+    "/saatvik-solar-gti-inverter": "/inverters",
+    "/epc-solutions/carport-solar-solutions": "/epc-solutions/carport",
+    "/epc-solutions/roof-top": "/epc-solutions/rooftop/commercial",
+}
+
+
 def canonical_path(path_or_url: str) -> str:
     """``https://www.saatvikgroup.com/Products/X/?a=1#b`` → ``/products/x``."""
     raw = path_or_url.strip()
@@ -183,6 +196,8 @@ class Knowledge:
         # tool budget, so it only scores.
         for p in self.pages.values():
             head = f"{p.title} {' '.join(p.headings)}"
+            if p.path in REDIRECTS:
+                continue  # the same page as its target, which is indexed itself
             self._add(Hit("page", p.title, "", 0, path=p.path), f"{head}\n{p.text}")
             for faq in p.faqs:
                 self._add(Hit("faq", faq.q, "", 0, path=p.path), f"{faq.q}\n{faq.a}")
@@ -203,8 +218,10 @@ class Knowledge:
     # ── Lookups ──
 
     def page(self, path_or_url: str) -> Page | None:
-        """The page at this path or URL, if the site has one."""
-        return self.pages.get(canonical_path(path_or_url))
+        """The page at this path or URL, if the site has one; a redirect's target
+        for a path the site redirects."""
+        path = canonical_path(path_or_url)
+        return self.pages.get(REDIRECTS.get(path, path))
 
     def near_paths(self, path_or_url: str, limit: int = 3) -> list[str]:
         """Paths that look like this one: what to offer instead of a refusal."""

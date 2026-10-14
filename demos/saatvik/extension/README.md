@@ -11,9 +11,12 @@ the visitor has told him. Everything he shows is a page, section or form Saatvik
 already has; the extension adds a corner widget, a PDF viewer, and the orange
 ring he draws around what he is pointing at.
 
-While he talks, the widget builds the brief Saatvik's sales team would receive —
-a score, the reasons for it, where the lead would be routed, and what was said —
-so the people watching see the other half of the product.
+Behind the conversation the brain builds the brief Saatvik's sales team would
+receive — a score, the reasons for it, where the lead would be routed, and what
+was asked — from what the page and the enquiry form tell it, never from a tool
+call inside a reply. The visitor does not see it: the widget shows it only when
+the brain's `SHARE_BRIEF` is on, for a pitch that shows the other half of the
+product.
 
 This is how we show the agent to Saatvik on their own site, before anything goes
 on it; it is not how a customer would ship it.
@@ -39,7 +42,7 @@ on it; it is not how a customer would ship it.
   page but have nothing to mark.
 - `src/widget.ts` — the corner widget, in a shadow root, in Saatvik's own navy,
   orange and typefaces: the call, an English | हिंदी toggle, and the lead
-  brief, which can be collapsed. The visitor can drag it anywhere and minimise
+  brief when the brain sends it, which can be collapsed. The visitor can drag it anywhere and minimise
   it to Tushar's face with the call still live.
 - `src/content.ts` — the call: stock pipecat with `@voqalize/client-transport`
   as its media manager, one `sessions.connect`, the avatar, and the glue

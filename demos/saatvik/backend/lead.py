@@ -1,10 +1,11 @@
 """The lead brief — what Saatvik's sales team receives from one call.
 
-Tushar is a product expert first. What he learns on the way — the visitor's kind
-of building, their bill, their state, their roof, how soon — is recorded with
-``update_lead`` as bookkeeping, and the page's own events add what the visitor
-did: the pages and documents they opened, the estimate they ran, the dealers they
-were shown. This module turns that into one brief:
+Tushar is a product expert, and the model keeps no lead. The brain fills it from
+what it already sees: the page's own events (the pages and documents opened, the
+estimate run, the dealers shown, the form submitted), the visitor's questions,
+and what the model passes when it opens the enquiry form — the visitor's kind of
+building, bill, roof and timeline as far as the call told it. This module turns
+that into one brief:
 
 - **fields**, as the visitor gave them;
 - **observed**, what they did on the site;
@@ -13,10 +14,10 @@ were shown. This module turns that into one brief:
 - **routing**, who should call them back;
 - **summary**, the brief in a sentence or two.
 
-The brief is shown to the visitor in the widget as it fills ("what Saatvik's
-sales team receives"), and once they submit the enquiry form it is also posted
-to ``SAATVIK_LEAD_WEBHOOK`` when that is set — fire and forget, never in the way
-of a turn.
+Once the visitor submits the enquiry form the brief is posted to
+``SAATVIK_LEAD_WEBHOOK`` when that is set — fire and forget, never in the way of
+a turn — and again when the call ends. The widget shows it ("what Saatvik's
+sales team receives") only in a pitch that turns it on.
 """
 
 from __future__ import annotations
