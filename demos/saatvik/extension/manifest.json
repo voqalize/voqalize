@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Tara for Saatvik — Voqalize preview",
+  "version": "0.0.0",
+  "description": "A voice solar advisor on www.saatvikgroup.com, who answers from Saatvik's own pages and documents, shows them as she talks, and fills in the enquiry form. A Voqalize preview.",
+  "content_scripts": [
+    {
+      "matches": ["https://www.saatvikgroup.com/*", "https://saatvikgroup.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    }
+  ]
+}
