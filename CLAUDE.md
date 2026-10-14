@@ -288,7 +288,11 @@ detail; what binds a demo:
   The prompt alone does not hold, so every demo has a floor under it:
   `landed(...)` beside each dispatch, and `FallbackLine` speaks one of those
   written lines when the turn said nothing (`voqalize_demos/silent_turn.py`).
-  Never a second model request for it — the owner rejected that on 2026-09-26.
+  Never a second model request for it — the owner rejected that on 2026-09-26 —
+  with one exception: saatvik asks the model once more with tools off before the
+  written line (owner, 2026-10-14), because on a dialled call the line alone
+  pointed at the page and the conversation died there. It passes `again=` to
+  `FallbackLine.speak_if_silent`; no other demo does.
 
 ## Every demo has an e2e, and one of them is a sweep
 

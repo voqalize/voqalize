@@ -230,13 +230,53 @@ def _llm() -> ScriptedGemini:
             "Find me a dealer in Goa.": reply_and_call(
                 "Here are the dealers.", "find_dealer", request={"state": "Goa", "city": "Panaji"}
             ),
-            "I use 350 units in Karnataka.": call(
-                "run_calculator", request={"state": "Karnataka", "monthly_units": 350}
+            # Refused and silent: asked again with tools off, he asks in his own words.
+            "I use 350 units in Karnataka.": [
+                call("run_calculator", request={"state": "Karnataka", "monthly_units": 350}),
+                reply("What rate do you pay per unit?"),
+            ],
+            # A state the visitor never named is not guessed: it is asked for. Silent
+            # twice, so the written line asks.
+            "I use 500 units at 6 rupees a unit.": [
+                call("run_calculator", request={"monthly_units": 500, "rate_per_unit": 6}),
+                call("run_calculator", request={"monthly_units": 500, "rate_per_unit": 6}),
+            ],
+            # BOOK NOW, by voice: the booking fills in as they talk.
+            "Book the kit for my home.": reply_and_call(
+                "I've opened the booking for a home.",
+                "book_kit",
+                request={"installation": "residential", "name": "Ravi", "city": "Bengaluru"},
             ),
-            # A state the visitor never named is not guessed: it is asked for.
-            "I use 500 units at 6 rupees a unit.": call(
-                "run_calculator", request={"monthly_units": 500, "rate_per_unit": 6}
+            "My pincode is 560102.": reply_and_call(
+                "I've added five six zero one zero two.",
+                "book_kit",
+                request={"installation": "residential", "pincode": "560102"},
             ),
+            # Gemini sometimes sends a tool's fields flat, without ``request``.
+            "Show me the specs, flat.": reply_and_call(
+                "Here are the specs.", "show_section", heading="mechanical"
+            ),
+            # The form fills in as the visitor talks: each call adds, none clears.
+            "I'm Ravi, from Bengaluru, I want a quote.": reply_and_call(
+                "I've put your name in.",
+                "open_enquiry",
+                request={"kind": "domestic", "name": "Ravi", "state": "Karnataka"},
+            ),
+            "My mobile is 98475 41790.": reply_and_call(
+                "I've put nine eight four seven five, four one seven nine zero. Is that right?",
+                "open_enquiry",
+                request={"kind": "domestic", "mobile": "9847541790"},
+            ),
+            # A page move with no words: the model is asked once more, tools off.
+            "Show me that panel.": [
+                call("navigate", request={"path": "/modules/test-panel"}),
+                reply("It's a bifacial panel made for rooftops. Do you get much heat there?"),
+            ],
+            # Silent twice: the second request may not call, so his written line speaks.
+            "Open the panel page.": [
+                call("navigate", request={"path": "/modules/test-panel"}),
+                call("navigate", request={"path": "/modules/test-panel"}),
+            ],
             "How does this one compare?": reply("TOPCon runs cooler."),
             "Against the mono.": reply("TOPCon beats Mono PERC in heat."),
             "Is TOPCon better than PERC?": reply("Yes, TOPCon. It handles heat better than PERC."),
@@ -514,14 +554,48 @@ async def test_hinglish_switches_before_the_model_answers() -> None:
 
 
 async def test_a_calculator_with_no_rate_asks_for_it_aloud() -> None:
-    """A speechless call the calculator refused is not a silent turn: he asks
-    for what it lacked, and nothing runs on the page."""
+    """A speechless call the calculator refused is not a silent turn: asked
+    again, he asks for what it lacked, and nothing runs on the page."""
     async with demo("saatvik", _llm()) as rig:
         await rig.driver.start_session(init={"page": "/"})
         turn = await rig.driver.user_says("I use 350 units in Karnataka.")
         check_turn(rig, turn)
-        assert turn.text == saatvik._ASK_RATE[saatvik.Language.EN][0]
+        assert turn.text == "What rate do you pay per unit?"
         assert "run_calculator" not in rig.actions()
+
+
+async def test_a_silent_move_asks_the_model_to_talk_about_it() -> None:
+    """A page move with no words gets one more request, tools off, with the call
+    and its result in the context: he talks about the page, not "Here it is."."""
+    llm = _llm()
+    async with demo("saatvik", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        turn = await rig.driver.user_says("Show me that panel.")
+        check_turn(rig, turn, units=1)
+        assert turn.text.startswith("It's a bifacial panel made for rooftops.")
+        assert rig.actions().count("navigate") == 1
+        retry = llm.captured_contents[-1]
+        # Gemini takes no request ending on the model's turn.
+        assert retry[-1].role == "user"
+        assert "Opened Test Panel 600" in _results(retry)["navigate"]
+
+
+async def test_twice_silent_falls_back_to_his_written_line() -> None:
+    """The retry may not call a tool, so a model silent again gets the written
+    line, and the page moved once."""
+    async with demo("saatvik", _llm()) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        turn = await rig.driver.user_says("Open the panel page.")
+        check_turn(rig, turn)
+        assert turn.text == "Here's our Test Panel 600 page."
+        assert rig.actions().count("navigate") == 1
+
+
+async def test_he_thinks_at_low_so_the_words_come_before_the_calls() -> None:
+    async with demo("saatvik", _llm()) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        config = rig.brain._config  # type: ignore[attr-defined]
+        assert config.thinking_config.thinking_level == types.ThinkingLevel.LOW
 
 
 async def test_a_calculator_with_no_state_asks_for_it_rather_than_guess() -> None:
@@ -578,3 +652,52 @@ async def test_a_slow_model_after_the_nod_is_held(monkeypatch: pytest.MonkeyPatc
         assert nod in saatvik._ACK_LINES[saatvik.Language.EN]["question"]
         assert hold in saatvik._ACK_HOLD[saatvik.Language.EN]
         assert answer == "Yes, TOPCon."
+
+
+async def test_a_second_fill_adds_to_the_form_and_keeps_what_is_there() -> None:
+    async with demo("saatvik", _llm()) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says("I'm Ravi, from Bengaluru, I want a quote.")
+        turn = await rig.driver.user_says("My mobile is 98475 41790.")
+        check_turn(rig, turn)
+        fills = [
+            c["payload"]["prefill"]
+            for c in rig.driver.ui_commands
+            if c.get("command") == "open_enquiry"
+        ]
+        assert len(fills) == 2
+        assert fills[0]["mobile"] is None
+        assert fills[1]["name"] == "Ravi"
+        assert fills[1]["mobile"] == "9847541790"
+        assert fills[1]["state"] == "Karnataka"
+
+
+async def test_flat_arguments_still_move_the_page() -> None:
+    """Fields sent without ``request`` are wrapped, not refused into silence."""
+    async with demo("saatvik", _llm()) as rig:
+        await rig.driver.start_session(init={"page": "/modules/test-panel"})
+        await _page(rig, "page_changed", PANEL_PAGE)
+        turn = await rig.driver.user_says("Show me the specs, flat.")
+        check_turn(rig, turn)
+        assert rig.command("show_section")["heading"] == "Mechanical & Electrical Specifications"
+
+
+async def test_book_now_fills_the_booking_and_adds_to_it() -> None:
+    """The kit's BOOK NOW by voice: residential chosen, details filled, a second
+    call adds the pincode and keeps the rest; a confirmed booking reaches him."""
+    llm = _llm()
+    async with demo("saatvik", llm) as rig:
+        await rig.driver.start_session(init={"page": "/solar-kits"})
+        await rig.driver.user_says("Book the kit for my home.")
+        turn = await rig.driver.user_says("My pincode is 560102.")
+        check_turn(rig, turn)
+        books = [c["payload"] for c in rig.driver.ui_commands if c.get("command") == "book_kit"]
+        assert [b["installation"] for b in books] == ["residential", "residential"]
+        assert books[1]["details"]["name"] == "Ravi"
+        assert books[1]["details"]["city"] == "Bengaluru"
+        assert books[1]["details"]["pincode"] == "560102"
+        await _page(
+            rig, "booking_submitted", {"installation": "residential", "fields": {"name": "Ravi"}}
+        )
+        await rig.driver.user_says("So how much would I save?")
+        assert "confirmed the SuryaConnect kit booking" in _texts(llm.captured_contents[-1])

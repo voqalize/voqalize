@@ -81,6 +81,18 @@ export interface OpenEnquiry {
   prefill: EnquiryPrefill;
 }
 
+/**
+ * Open the SuryaConnect kit's booking page, choose `installation` on its
+ * first step, press Continue, and fill in `details` on the second. The page
+ * rings the fields still empty, the consent box and CONFIRM BOOKING; it never
+ * ticks consent and never confirms.
+ */
+export interface BookKit {
+  installation: 'residential' | 'commercial';
+
+  details: BookingPrefill;
+}
+
 /** Fill in and run the savings calculator; the page reports `calculator_result`. */
 export interface RunCalculator {
   units: number;
@@ -95,6 +107,23 @@ export interface FindDealer {
   state: string | null;
 
   query: string | null;
+}
+
+/**
+ * The kit's booking page is at its details step, for this installation type,
+ * with these fields still empty.
+ */
+export interface BookingOpened {
+  installation: 'residential' | 'commercial';
+
+  missing?: string[];
+}
+
+/** The visitor pressed CONFIRM BOOKING; the details as they stood. */
+export interface BookingSubmitted {
+  installation: 'residential' | 'commercial';
+
+  fields?: BookingFields;
 }
 
 /**
@@ -168,6 +197,38 @@ export interface PageChanged {
 }
 
 // ── Shapes used by the messages above ──────────────────────────────
+
+export interface BookingFields {
+  name?: string;
+
+  mobile?: string;
+
+  email?: string;
+
+  address?: string;
+
+  state?: string;
+
+  city?: string;
+
+  pincode?: string;
+}
+
+export interface BookingPrefill {
+  name: string | null;
+
+  mobile: string | null;
+
+  email: string | null;
+
+  address: string | null;
+
+  state: string | null;
+
+  city: string | null;
+
+  pincode: string | null;
+}
 
 export interface CalculatorInputs {
   units?: number | null;
@@ -339,6 +400,7 @@ export type UiAction =
   | { command: 'close_document'; payload: CloseDocument }
   | { command: 'language_changed'; payload: LanguageChanged }
   | { command: 'open_enquiry'; payload: OpenEnquiry }
+  | { command: 'book_kit'; payload: BookKit }
   | { command: 'run_calculator'; payload: RunCalculator }
   | { command: 'find_dealer'; payload: FindDealer };
 
@@ -353,6 +415,7 @@ export const UI_ACTION_COMMANDS: readonly UiActionCommand[] = [
   'close_document',
   'language_changed',
   'open_enquiry',
+  'book_kit',
   'run_calculator',
   'find_dealer',
 ];
@@ -379,6 +442,8 @@ export function unhandledUiAction(action: never): never {
 
 /** Everything the person can do on screen, discriminated by `event`. */
 export type AppEvent =
+  | { event: 'booking_opened'; payload: BookingOpened }
+  | { event: 'booking_submitted'; payload: BookingSubmitted }
   | { event: 'calculator_result'; payload: CalculatorResult }
   | { event: 'command_failed'; payload: CommandFailed }
   | { event: 'dealers_shown'; payload: DealersShown }
@@ -392,6 +457,8 @@ export type AppEvent =
 export type AppEventName = AppEvent['event'];
 
 export const APP_EVENT_NAMES: readonly AppEventName[] = [
+  'booking_opened',
+  'booking_submitted',
   'calculator_result',
   'command_failed',
   'dealers_shown',

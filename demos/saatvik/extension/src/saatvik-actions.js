@@ -593,6 +593,64 @@
     emit("enquiry_opened", { kind, missing: missing.map((el) => fieldName(form, el)) });
   }
 
+  // ─── Booking the kit (/book) ──────────────────────────────────────────
+  // Two client-side steps with no <form>: step 1 is a Residential / Commercial
+  // choice and CONTINUE, step 2 the details, CONSENT and CONFIRM BOOKING. The
+  // choice shows as chosen only by its orange border, and the page ignores
+  // clicks until it has hydrated, so a choice is clicked until it shows.
+  const BOOK_PATH = "/book?product=surya-connect-kit";
+  const BOOK_FIELDS = ["name", "mobile", "email", "address", "state", "city", "pincode"];
+  const buttonNamed = (re) => [...main().querySelectorAll("button")].find((b) => visible(b) && re.test(clean(b.textContent)));
+  const bookingField = (key) => document.querySelector(`#${key}`);
+  const confirmBooking = () => buttonNamed(/confirm booking/i);
+
+  async function bookKit({ installation, details }) {
+    const kind = installation === "commercial" ? "commercial" : "residential";
+    if (location.pathname !== "/book") await navigate(BOOK_PATH);
+    if (!(await waitFor(() => bookingField("name") || buttonNamed(/^continue\b/i), 8000))) {
+      throw new Error("the booking page did not load");
+    }
+    if (!bookingField("name")) {
+      const choice = new RegExp(`^${kind}\\b`, "i");
+      const chosen = () => /saatvik-orange/.test((buttonNamed(choice) || {}).className || "");
+      const picked = await waitFor(() => {
+        if (!chosen()) {
+          const b = buttonNamed(choice);
+          if (b) b.click();
+        }
+        return chosen();
+      }, 8000);
+      if (!picked) throw new Error(`could not choose ${kind} on the booking page`);
+      const next = buttonNamed(/^continue\b/i);
+      if (next) next.click();
+      if (!(await waitFor(() => bookingField("name"), 6000))) throw new Error("the booking page did not move to its details step");
+    }
+    for (const key of BOOK_FIELDS) {
+      const value = details && details[key];
+      if (value === null || value === undefined || value === "") continue;
+      const el = bookingField(key);
+      if (!el) continue;
+      const text = key === "mobile" ? String(value).replace(/\D/g, "").slice(-10) : key === "pincode" ? String(value).replace(/\D/g, "").slice(0, 6) : String(value);
+      setNative(el, text);
+      await sleep(30);
+    }
+    const missing = BOOK_FIELDS.filter((k) => bookingField(k) && !clean(bookingField(k).value));
+    await scrollToTop(bookingField("name"));
+    highlight(...missing.map(bookingField), ...[bookingField("consent"), confirmBooking()].filter(Boolean));
+    emit("booking_opened", { installation: kind, missing });
+  }
+
+  function readBooking() {
+    const out = {};
+    for (const key of BOOK_FIELDS) out[key] = bookingField(key) ? clean(bookingField(key).value) : "";
+    return out;
+  }
+
+  function bookingKind() {
+    const sub = clean((main().innerText.match(/Booking SuryaConnect Solar Kit\s*·\s*(\w+)/i) || [])[1]);
+    return /commercial/i.test(sub) ? "commercial" : "residential";
+  }
+
   /** Every field the form has, by our names, as the person left them. */
   /** The fields `enquiry_submitted` carries; the dealer tab's city, district
    *  and investment have no place in it. */
@@ -628,9 +686,25 @@
     toast(submitButton(form) || form, "Demo: this enquiry was not sent to Saatvik.");
   }
 
+  // CONFIRM BOOKING: reported, then — while DEMO_BLOCK_SUBMIT holds — stopped.
+  function onBookingIntent(e, button) {
+    if (Date.now() - lastReport > 500) {
+      lastReport = Date.now();
+      emit("booking_submitted", { installation: bookingKind(), fields: readBooking() });
+    }
+    if (!DEMO_BLOCK_SUBMIT) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    toast(button, "Demo: this booking was not sent to Saatvik.");
+  }
+
   function watchSubmits() {
     const onClick = (e) => {
       const b = e.target && e.target.closest && e.target.closest("button");
+      if (b && location.pathname === "/book" && /confirm booking/i.test(clean(b.textContent))) {
+        onBookingIntent(e, b);
+        return;
+      }
       if (!b || !b.form || (b.type || "submit") !== "submit") return;
       onSubmitIntent(e, b.form);
     };
@@ -848,6 +922,7 @@
     show_section: showSection,
     open_faq: openFaq,
     open_enquiry: openEnquiry,
+    book_kit: bookKit,
     run_calculator: runCalculator,
     find_dealer: findDealer,
   };

@@ -11,8 +11,9 @@ back as a typed event (:mod:`.app_events`).
 Four things shape every decision here.
 
 **A product expert, not a lead-capturer.** Every turn answers what was asked,
-in words, in a sentence or two; a move on the page goes beside the answer when
-it helps. The model keeps no lead: the brief Saatvik's sales team receives
+in words, as a conversation: the answer, why it matters for this visitor, and
+usually a question back. A move on the page goes beside the answer when it
+helps, and is talked about, never just pointed at. The model keeps no lead: the brief Saatvik's sales team receives
 (:mod:`.lead`) is filled by the brain from what it already sees — the
 calculator's inputs, the dealer search, the enquiry form, the pages and
 documents opened, the questions asked — and never costs a tool call inside a
@@ -29,9 +30,10 @@ quote is on that page before it is sent (:meth:`.knowledge.Knowledge.find_quote`
 scrolls to and an FAQ he opens are checked against the crawl and against what
 the page last reported; anything else is refused before it reaches the page.
 
-**The form is the visitor's.** He fills in what they told him and rings what is
-left. He never ticks consent and never submits; the visitor types their own
-phone number and email, and presses Submit themselves.
+**The form is the visitor's.** He fills in what they told him, adds to it as
+they tell him more — a number or email they say is filled in and read back —
+and rings what is left. He never asks for a number or email, never ticks
+consent and never submits; the visitor presses Submit themselves.
 
 How a result that arrives after his turn gets spoken — the calculator's
 estimate, the dealers, a submitted form — is in :meth:`SaatvikBrain.on_user_idle`.
@@ -39,6 +41,7 @@ estimate, the dealers, a submitted form — is in :meth:`SaatvikBrain.on_user_id
 
 from __future__ import annotations
 
+import inspect
 import re
 import time
 from collections.abc import AsyncGenerator
@@ -80,6 +83,9 @@ from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig
 from . import knowledge as kb
 from .app_events import (
     SAATVIK_EVENTS,
+    BookingFields,
+    BookingOpened,
+    BookingSubmitted,
     CalculatorInputs,
     CalculatorResult,
     CommandFailed,
@@ -109,6 +115,19 @@ from .lead import (
 )
 
 AGENT_NAME = "Tushar"
+
+#: LOW, not the SDK's MINIMAL. At MINIMAL, Gemini mostly made the page call first
+#: and wrote nothing, so the visitor heard only the brain's written "ये देखिए।" or
+#: "Here's our … page." (dev calls ab8f6acb and ffdcd2d2, 2026-10-14). At LOW it
+#: writes the whole answer first and calls at the end, and the page moves while he
+#: is still talking — the marketing site's guide measured the same switch, at
+#: about 1.5 s to the first word, which his nod covers.
+THINKING = types.ThinkingConfig(thinking_level=types.ThinkingLevel.LOW)
+#: The config of the one extra request a silent page move gets: tools declared, so
+#: the calls already in the context still read, but none may be made.
+_TALK_NOW = types.ToolConfig(
+    function_calling_config=types.FunctionCallingConfig(mode=types.FunctionCallingConfigMode.NONE)
+)
 
 # ─── Timing ────────────────────────────────────────────────────────────────────
 
@@ -320,6 +339,26 @@ class OpenEnquiry(Action):
     prefill: EnquiryPrefill
 
 
+class BookingPrefill(BaseModel):
+    name: str | None = None
+    mobile: str | None = None
+    email: str | None = None
+    address: str | None = None
+    state: str | None = None
+    city: str | None = None
+    pincode: str | None = None
+
+
+class BookKit(Action):
+    """Open the SuryaConnect kit's booking page, choose ``installation`` on its
+    first step, press Continue, and fill in ``details`` on the second. The page
+    rings the fields still empty, the consent box and CONFIRM BOOKING; it never
+    ticks consent and never confirms."""
+
+    installation: Literal["residential", "commercial"]
+    details: BookingPrefill
+
+
 class RunCalculator(Action):
     """Fill in and run the savings calculator; the page reports ``calculator_result``."""
 
@@ -434,6 +473,21 @@ class EnquiryRequest(BaseModel):
     preferred_time: str | None = Field(default=None, description="Best time to call them.")
 
 
+class BookingRequest(BaseModel):
+    installation: Literal["residential", "commercial"] = Field(
+        description="residential for a home, commercial for a shop, office or factory."
+    )
+    name: str | None = Field(default=None, description="Only if the visitor said it.")
+    mobile: str | None = Field(default=None, description="Ten digits, only if the visitor said it.")
+    email: str | None = Field(default=None, description="Only if the visitor said it.")
+    address: str | None = Field(
+        default=None, description="House or flat, street, area; only if they said it."
+    )
+    state: str | None = Field(default=None, description="Full state name, if known.")
+    city: str | None = Field(default=None, description="If they said it.")
+    pincode: str | None = Field(default=None, description="Six digits, if they said it.")
+
+
 class LanguageRequest(BaseModel):
     language: LanguageName
 
@@ -467,24 +521,59 @@ def _topics(k: Knowledge) -> str:
 
 
 def _prompt(k: Knowledge) -> str:
-    return f"""You are {AGENT_NAME}, the solar advisor on Saatvik Green Energy's website, www.saatvikgroup.com. A visitor is browsing the site right now and has called you from the corner of the page. You can see and move their screen: you open Saatvik's pages, scroll to sections, open FAQs, open datasheets at the right page with the figure highlighted, run the savings calculator, find dealers and fill in the enquiry form with them. You are warm, expert and brief — the advisor who knows the panels inside out and makes going solar feel simple.
+    return f"""You are {AGENT_NAME}, the solar advisor on Saatvik Green Energy's website, www.saatvikgroup.com. A visitor is browsing the site right now and has called you from the corner of the page. You can see and move their screen: you open Saatvik's pages, scroll to sections, open FAQs, open datasheets at the right page with the figure highlighted, run the savings calculator, find dealers and fill in the enquiry form with them. You are warm, expert and conversational — the advisor in a showroom who knows the panels inside out, explains them in plain words, relates them to the visitor's own home, and keeps the conversation going. Going solar should feel simple and personal after talking to you.
 
-# How you speak
-- YOU ANSWER, EVERY TURN, IN WORDS. Your job is to answer the visitor's questions about solar and Saatvik's products like an expert would: say which panel, which inverter, what size, and why, in plain words. Every reply has words of yours in it. Moving the page is optional: do it when it helps them see the answer, never in place of the answer.
-- EVERY MOVE COMES WITH WORDS. Whenever you move the page — navigate, show_section, open_faq, open_document, run_calculator, find_dealer, open_enquiry — write your line first and make the call in the same response: the line is spoken while the page moves. A response that is only tool calls is silence: after it you do not speak again until the visitor does, and what the call returns reaches you only on your next turn.
-- A QUESTION GETS ITS ANSWER IN WORDS. When they ask something, your line is the answer, and the page, FAQ or datasheet you open is shown beside it, never instead of it: "TOPCon has the better low-light and heat performance. Here's the TOPCon page." "Minus zero point two nine percent per degree. Here's the line on the datasheet." A reply that only confirms the move ("Here it is.") is too little.
-- A READ COMES BEFORE ANY WORDS. read_topic and search_site come straight back to you within this same turn. When you need one, call it first, with nothing written before it, then give your one reply — the answer, and the move — once it is back. Never say a line that promises more to come ("let me check", "let me find that"): nothing comes after it. Say a move as done, not as about to be done: "Here's the datasheet.", never "Let me open the datasheet."
-- THE FIRST SENTENCE IS A FEW WORDS. The visitor hears nothing until your whole first sentence has been voiced, so open every reply, in English or Hindi, with a sentence of two to six words that ends in a full stop, and put the answer in it: "Yes, TOPCon. It handles heat better than PERC." Then say the rest in one or two more short sentences.
-- Before most replies the visitor has already heard a short acknowledgement of mine — "Sure.", "Let me see.", "जी।" — the moment they stopped speaking. So never open with one: your first word is the answer.
-- Spoken words only: no lists, no markdown, no symbols. Say numbers the way a person would ("five hundred and eighty watts", "about seventy-eight thousand rupees").
-- English by default. A visitor who speaks Hindi or Hinglish is answered in Hindi, written in Devanagari; you are a man, so use masculine forms of yourself ("मैं दिखाता हूँ", "मैं ढूँढ रहा हूँ"). Product names, model numbers and units stay as Saatvik writes them.
+# A good turn has three parts
+1. Answer what they asked, first, in plain words: which panel, which inverter, what size, and why it suits them.
+2. Show it, and talk about it. If a page, section, FAQ or datasheet fits, move the page in the same response, and name one concrete thing on it that matters for them: "See the thirty-year warranty in the comparison? That's five years more than Mono PERC." Never read the page out. Never say only "here it is", "here's the page", "ये देखिए।" or "यह रहा।": the screen moving already says that. A reply that only points at the screen is a failed turn.
+3. Hand it back. End with one short question or offer that moves the conversation on. Make it about them: their roof, their monthly units or bill, power cuts where they live, when they want it. Or offer the next natural step ("Want me to run the savings calculator with you?"). Vary it. Never end with "anything else?" or "let me know if you have questions".
+
+# How you sound
+You are heard, not read, so keep it light and warm, like a helpful advisor in a showroom.
+- A turn is three or four short sentences, about forty words: the answer, one thing on the screen or one reason, the question. Stop there.
+- Every sentence under fifteen words. Small, everyday words. One idea per sentence. One number per sentence.
+- THE FIRST SENTENCE IS A FEW WORDS. The visitor hears nothing until your whole first sentence has been voiced, so open every reply, in English or Hindi, with a sentence of two to six words that ends in a full stop, with the answer in it.
+- Go longer only when they ask you to explain, tell them more, or just talk about something ("tell me more", "explain this", "कुछ बताइए", "इसके बारे में बात करो"). Then talk properly: five to eight short sentences about what they asked or what is on their screen, picking what matters for a home buyer, and end with a question.
+- Before most replies the visitor has already heard a short acknowledgement of mine — "Sure.", "Let me see.", "जी।" — the moment they stopped speaking. So never open with one: your first word is the answer. No "great question", no repeating their question back.
+- Spoken words only: no lists, no markdown, no symbols, never an exclamation mark. Write every number and unit as spoken words, never digits or symbols: "three kilowatts", never "3 kW"; "five hundred and eighty watts", never "580 Wp"; "about seventy-eight thousand rupees", never "₹78,000". In Hindi too: "तीन किलोवाट", never "३ किलोवाट" or "3 kW".
+- English by default. A visitor who speaks Hindi or Hinglish is answered in Hindi, written in Devanagari; you are a man, so use masculine forms of yourself ("मैं दिखाता हूँ", "मैंने खोल दिया है"). Product names and model numbers stay as Saatvik writes them. One language per reply: in a Hindi reply every sentence is Hindi, with no English sentence in it, even a short question about the screen.
 - Lines in square brackets come from the page, not the visitor: what they opened, what a form or the calculator shows. Never read them out; use them.
+
+# Every response starts with words
+Write your whole answer first, then make the page calls at the end of the same response. The page moves while you are still talking. A response that is only tool calls is silence: after it you do not speak again until the visitor does, and what a page call returns reaches you only on your next turn.
+- The one exception is a read. read_topic and search_site come straight back to you within this same turn. When you need one, call it first, with nothing written before it, then give your one reply, the answer and the move, once it is back.
+- Never promise more to come ("let me check", "let me find that", "let me open"): nothing comes after it. Talk about what they see, as already there.
+
+# What that sounds like
+Match this rhythm: short sentences, one idea each, words before calls.
+Visitor: "Can I put solar on my house?"
+You: "Yes, most homes can. You need a roof you control, with some shade-free space. About a hundred square feet gives you one kilowatt. See the five steps, from site survey to first unit? Roughly how many units do you use a month?" then navigate(path="/epc-solutions/rooftop/residential").
+Visitor: "Can you recommend a kit for a three kilowatt system?"
+You: "SuryaConnect is the simple choice. It comes as one kit: panels, inverter, wiring and mounting. There's a three kilowatt size, so it fits you exactly. See every component listed on the page? Do you get power cuts where you live?" then navigate(path="/solar-kits").
+Visitor: "Which panel should I buy?"
+You: "For a home, I'd pick N-TOPCon. It makes more power in heat and low light. It also carries a thirty-year performance warranty. See the N-TOPCon versus Mono PERC comparison? Is your roof space tight, or is budget the bigger concern?" then navigate(path="/modules/n-topcon").
+Visitor: "Is this suitable for a home?"
+You: "Yes, it suits a home well. TEJ panels get the most out of a small roof. And they lose less power on hot days. Saatvik's home kits use N-TOPCon too. How big is your roof, roughly?"
+Visitor: "Tell me about this."
+You: "This is SuryaConnect, Saatvik's complete home kit. Everything comes together: panels, inverter, distribution boxes, cables and mounting. The panels are made-in-India N-TOPCon, which PM Surya Ghar asks for. It connects to the grid and cuts your bill. It has no battery, so it pauses in a power cut. There are three and five kilowatt kits. Shall I work out which size fits your bill?"
+Visitor: "Is there a dealer near me in Jaipur?"
+You: "Yes, Saatvik has dealers across Rajasthan. A local dealer does the site survey and the installation. The Jaipur list is coming up on your screen. Would you like a call back from one of them?" then find_dealer(state="Rajasthan", city="Jaipur").
+Visitor: "I use about four hundred units a month in Gujarat, at seven rupees a unit."
+You: "That's a good size for solar. I'm putting those numbers into Saatvik's calculator. It works out the system size, the subsidy and your yearly savings. Is your roof flat concrete?" then run_calculator(state="Gujarat", monthly_units=400, rate_per_unit=7).
+Visitor: "मैं घर पर सोलर लगा सकता हूँ क्या?"
+You: "जी, बिल्कुल लगा सकते हैं। बस छत आपकी हो और उस पर धूप आती हो। एक किलोवाट के लिए करीब सौ वर्ग फुट जगह चाहिए। आपका महीने का बिल लगभग कितने यूनिट का आता है?" then navigate(path="/epc-solutions/rooftop/residential").
+Visitor: "इसके बारे में कुछ बात करो।"
+You: "यह सूर्याकनेक्ट किट है। इसमें पैनल, इन्वर्टर, तार और माउंटिंग सब साथ आता है। पैनल भारत में बने N-TOPCon हैं, तो PM Surya Ghar की सब्सिडी मिल सकती है। यह ग्रिड से जुड़कर आपका बिल घटाती है। तीन और पाँच किलोवाट की किट आती है। क्या मैं आपके बिल से सही साइज़ निकालूँ?"
+
+# Keep threads
+Remember what they tell you about themselves and use it: their city, their bill or units, their roof, power cuts, what they asked earlier. "For three kilowatts in Bengaluru, …". Never ask again for something they already said. If they mentioned power cuts, bring up the hybrid inverter and battery when it fits.
 
 # What you know
 - Every figure — a wattage, efficiency, warranty, price, subsidy amount, timeline — comes from the knowledge below, a topic you read, a search result, or what the page reported. Never from memory. If you cannot find it, say so plainly and offer to note it for Saatvik's sales team.
 - Read a topic with read_topic before answering anything it covers beyond what is below. Topics:
 {_topics(k)}
 - For a specific figure, model or document, search_site. When the answer is on a datasheet or manual page, open it with open_document at that page and highlight the figure with a quote copied from the search result.
+- PRICES. Saatvik publishes no price for any product, kit or size. The only cost figure you may give is the residential page's rough one: a typical three kilowatt installed home system, about one lakh eighty thousand to two lakh twenty thousand rupees before subsidy, and say it is rough. For the kit, any other size, or any city, give no number at all: never estimate, scale or round one. Say Saatvik's team quotes it, and offer the enquiry form or the booking.
 - Subsidies and policy: give the national scheme as Saatvik's pages describe it. State top-ups, DISCOM rules and net metering vary by state and change often: say so, offer to note their question for the sales team, or point them to the official national portal. Never promise an amount for their state.
 - Investors, the company, news and careers are answered from the topics (company, investors, newsroom). Never steer an investor or a job seeker to the sales enquiry form; open the right page for them instead.
 
@@ -493,9 +582,23 @@ def _prompt(k: Knowledge) -> str:
 - To size a system or show savings you can answer from the rules of thumb below first, in words. run_calculator is for when they want Saatvik's estimate: it needs their state, and two of their monthly units, their monthly bill and their rate per unit — every one exactly as the visitor said it. Never guess, assume or default any of them: no state they did not name, no rate they did not give. A bill in rupees on its own is not units. Ask for what is missing, one thing at a time, before calling it. The estimate appears on the page and comes back to you: talk them through it from the page's figures.
 - find_dealer for a dealer near them. The dealer list comes back to you from the page.
 
+# Buttons, forms and choices, by voice
+The visitor can ask you to press anything on their screen or fill any form on it: "click Book now", "open the datasheet", "fill this form", "choose residential". Do it with your tools, in the same response as your words, and say what is now on their screen. Never say you cannot click.
+- On the kit page (/solar-kits): BOOK NOW is book_kit. DOWNLOAD DATASHEET is open_document with the kit datasheet (document_id saatvik-solar-kit-on-grid-n-topcon-datasheet; page one is the three kilowatt features, page two its kit list, page three the five kilowatt features, page four its kit list). DOWNLOAD BROCHURE is open_document with saatvik-solar-kit-brochure at page two (page one is only artwork). CONTACT US is open_enquiry, domestic, category Solar Kit. ESTIMATE MY SAVINGS is run_calculator when you have their state, units and rate; otherwise navigate to /solar-calculator and ask for what is missing.
+- On the booking page: the residential or commercial choice, Continue, and the details step are all book_kit. On the calculator: Calculate is run_calculator. On the contact page: the enquiry tabs and fields are open_enquiry; Find a dealer is find_dealer.
+- "Fill this form" means the form on their screen: the booking page is book_kit, the contact form is open_enquiry, the calculator is run_calculator. Fill what they have told you, and ask for what is missing, one thing at a time, except their mobile number and email: those they say if they want to, or type.
+- What stays theirs, always: the consent box, Submit, Confirm booking, and the calculator's "Unlock my report" form. If they ask you to press one of those, say kindly that it is theirs to press, and point to it.
+- A button with no tool here: say what it does, and offer what you can do instead.
+- When there is a choice, say the options: the kit comes in three and five kilowatts; booking asks residential or commercial; the contact page has domestic, export and dealer enquiries.
+- To buy, book or order the kit, use book_kit: it is the kit page's own path, with no payment now. A quote for anything else, a call back or a question for sales is open_enquiry.
+
 # The visitor's enquiry
-- You are a product expert. Ask about their need only when the answer changes your advice — their kind of building, their bill, power cuts — at most one question per turn, and never to fill in a form. Nothing is recorded during the conversation; there is no bookkeeping for you to do.
-- When they want a quote, a call back or to talk to sales, open_enquiry with what they told you, including what the sales team needs from the call so far (their need, city, bill or units, roof, timeline) as far as they said it. Fill in name, company, email or mobile only if they said them; never ask them to read out a phone number or email for you to type. Then tell them which fields are left for them to fill in, that they tick the consent box and press Submit themselves. Never say it is submitted until the page tells you.
+- You are a product expert. The question that ends your turn is about their need when the answer changes your advice — their kind of building, their bill, power cuts, their roof — one question per turn, and never to fill in a form. Nothing is recorded during the conversation; there is no bookkeeping for you to do.
+- When they want a quote, a call back or to talk to sales, open_enquiry with what they told you, including what the sales team needs from the call so far (their need, city, bill or units, roof, timeline) as far as they said it. Then tell them, in a sentence or two, which fields are left, and that they tick the consent box and press Submit themselves. Never say it is submitted until the page tells you.
+- FILLING THE FORM IS YOUR JOB, the enquiry form and the kit's booking page alike (book_kit works the same way: call it again to add, and what is filled stays). Whenever they tell you their name, company, email, mobile number, city or what to write in the message, or ask you to fill or type something in, call open_enquiry again with it, in the same response as your words. What is already filled stays; you only add. Never refuse, never tell them they must type it themselves, and never give a reason such as privacy or security: there is none. The only things that stay theirs are the consent box and Submit.
+- Never ask them to read out a phone number or email. But when they say one, fill it in, then read it back so they can check it, because a number heard over a call is easily misheard: "I've put nine eight four seven five, four one seven nine zero. Is that right?" If they correct it, fill it again.
+- You know only what they said in this call. If they say "you know my name" or "you have my email", say kindly that you don't have it yet, and ask them to say it or type it in.
+- A question while the form is open is a question: answer it, as in any other turn. Call open_enquiry only when they give you something for the form.
 - A visitor who wants a person: give Saatvik's toll-free number or WhatsApp from the knowledge below, or open the enquiry form with callback_requested, and say a person will call.
 - When the page tells you the form was submitted, thank them in one sentence, say Saatvik's team will be in touch, and go back to answering their questions.
 
@@ -548,6 +651,10 @@ _LANDED_LINES: dict[str, dict[Language, tuple[str, ...]]] = {
     "enquiry": {
         Language.EN: ("Here's the form, with what you told me filled in.",),
         Language.HI: ("यह रहा फ़ॉर्म, आपकी बताई बातें भरी हुई हैं।",),
+    },
+    "booking": {
+        Language.EN: ("Here's the kit's booking page, with what you told me filled in.",),
+        Language.HI: ("यह रहा किट का बुकिंग पेज, आपकी बताई बातें भरी हुई हैं।",),
     },
 }
 assert all({s.spoken for s in SPEECH.values()} <= set(v) for v in _LANDED_LINES.values()), (
@@ -717,6 +824,9 @@ class SaatvikBrain(GeminiBrain):
     ) -> None:
         self.kb = knowledge if knowledge is not None else kb.KNOWLEDGE
         super().__init__(client=client, system_instruction=_prompt(self.kb), model=model)
+        self._config = self._config.model_copy(update={"thinking_config": THINKING})
+        #: The tool config of the request under way, when it is not the turn's own.
+        self._forced: types.ToolConfig | None = None
         #: Show the brief in the widget. Off for a visitor, who came to ask
         #: about solar; on for a pitch that shows Saatvik what sales receives.
         self._share_brief = SHARE_BRIEF if share_brief is None else share_brief
@@ -742,6 +852,11 @@ class SaatvikBrain(GeminiBrain):
         self._confirm: str | None = None
         self._idle_short = False
         self._nudges = 0
+        #: What the enquiry form has been filled with this call, so each
+        #: open_enquiry adds to it.
+        self._prefill: EnquiryPrefill | None = None
+        #: The same for the kit's booking page.
+        self._booking: BookingPrefill | None = None
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -862,8 +977,10 @@ class SaatvikBrain(GeminiBrain):
         return self.respond(session)
 
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
-        """The model's turn, and a line of Tushar's own if it acted and said
-        nothing (:mod:`voqalize_demos.silent_turn`).
+        """The model's turn. If it moved the page and said nothing, the model is
+        asked once more with tools off, so he talks about what he just showed;
+        only if that is silent too does he say a written line of his own
+        (:mod:`voqalize_demos.silent_turn`).
 
         A language switched on the toggle is confirmed first, in the new
         language, with its written line. A unit is opened only once its first
@@ -875,7 +992,10 @@ class SaatvikBrain(GeminiBrain):
             async for event in say_line(self, line):
                 yield event
         opening: SpeechStart | None = None
-        async for event in self._fallback.speak_if_silent(self, super().respond(session)):
+        turn = self._fallback.speak_if_silent(
+            self, super().respond(session), again=lambda: self._talk_now(session)
+        )
+        async for event in turn:
             if isinstance(event, SpeechStart):
                 opening = event
                 continue
@@ -887,6 +1007,38 @@ class SaatvikBrain(GeminiBrain):
             yield event
         if opening is not None:
             yield opening
+
+    async def _talk_now(self, session: Session) -> AsyncGenerator[Speech, None]:
+        """One more model request with tools off: the page has moved, and what he
+        says now is about what is on it."""
+        self._forced = _TALK_NOW
+        try:
+            async for event in super().respond(session):
+                yield event
+        finally:
+            self._forced = None
+
+    def _turn_config(self) -> types.GenerateContentConfig:
+        config = super()._turn_config()
+        if self._forced is None:
+            return config
+        return config.model_copy(update={"tool_config": self._forced})
+
+    async def _run(self, tool: Any, call: types.FunctionCall) -> types.Part:
+        """Every tool takes one model, ``request``. Gemini sometimes sends that
+        model's fields flat (``{"heading": …}`` for ``{"request": {"heading": …}}``),
+        which the SDK refuses: nothing moves, nothing lands, and the turn ends in
+        silence (an eval call sat 90 s on one). Wrap them before the call runs."""
+        args = dict(call.args or {})
+        if (
+            tool is not None
+            and args
+            and "request" not in args
+            and "request" in inspect.signature(tool).parameters
+        ):
+            logger.info("saatvik: {} called with flat arguments; wrapping them", call.name)
+            call = call.model_copy(update={"args": {"request": args}})
+        return await super()._run(tool, call)
 
     async def _follow_script(self, session: Session, text: str) -> None:
         """Move both legs to Hindi when the model writes it and the call is not."""
@@ -941,6 +1093,15 @@ class SaatvikBrain(GeminiBrain):
                 )
             case EnquirySubmitted():
                 return self._submitted(event.kind, event.fields)
+            case BookingOpened():
+                missing = ", ".join(event.missing) or "none"
+                return (
+                    f"[The kit's booking page is at step two of two, for a {event.installation} "
+                    f"installation. Fields still empty: {missing}. The visitor ticks consent and "
+                    "presses Confirm booking themselves.]"
+                )
+            case BookingSubmitted():
+                return self._booked(event.installation, event.fields)
             case CommandFailed():
                 if event.command in ("run_calculator", "find_dealer"):
                     self._talk = None
@@ -1000,6 +1161,22 @@ class SaatvikBrain(GeminiBrain):
             "Saatvik's team will be in touch, and offer to keep answering their questions."
         )
         return f"[The visitor submitted the {kind} enquiry form. It reached Saatvik's sales team.]"
+
+    def _booked(self, installation: str, fields: BookingFields) -> str:
+        self.lead.update(
+            name=fields.name or None,
+            city=fields.city or None,
+            state=fields.state or None,
+            enquiry_kind="domestic",
+        )
+        self.lead.submitted = True
+        self._brief_changed()
+        self._talk_through(
+            "They have just confirmed the kit booking. Thank them in one sentence, say a "
+            "Saatvik specialist will call to size the system and share a quote, with no "
+            "payment now, and offer to keep answering their questions."
+        )
+        return f"[The visitor confirmed the SuryaConnect kit booking, {installation}.]"
 
     async def _requested(self, session: Session, event: LanguageRequested) -> None:
         """The visitor pressed the other language on the toggle. Switched in
@@ -1116,6 +1293,7 @@ class SaatvikBrain(GeminiBrain):
             self.run_calculator,
             self.find_dealer,
             self.open_enquiry,
+            self.book_kit,
             self.set_language,
         ]
 
@@ -1151,8 +1329,9 @@ class SaatvikBrain(GeminiBrain):
         return "\n".join(out)
 
     async def navigate(self, request: NavigateRequest) -> str:
-        """Open one of Saatvik's pages on the visitor's screen. Say one short line
-        with it, in the same response."""
+        """Open one of Saatvik's pages on the visitor's screen. In the same
+        response, before the call, tell them what the page shows that answers
+        them and why it matters for their home, then ask what you need next."""
         page = self.kb.page(request.path)
         if page is None:
             near = ", ".join(self.kb.near_paths(request.path)) or "none"
@@ -1165,7 +1344,8 @@ class SaatvikBrain(GeminiBrain):
 
     async def show_section(self, request: SectionRequest) -> str:
         """Scroll the visitor's page to a section and ring it — or, with text, one
-        row or line inside it. Say one short line with it."""
+        row or line inside it. In the same response, say what that section or row
+        tells them and why it matters."""
         headings = self._headings()
         heading = _match(request.heading, headings)
         if heading is None:
@@ -1178,8 +1358,8 @@ class SaatvikBrain(GeminiBrain):
         return f"Showing '{heading}'."
 
     async def open_faq(self, request: FaqRequest) -> str:
-        """Open one of the FAQs on the visitor's page and ring it. Say one short
-        line with it."""
+        """Open one of the FAQs on the visitor's page and ring it. In the same
+        response, give the answer in your own words."""
         faqs = self._faqs()
         question = _match(request.question, faqs)
         if question is None:
@@ -1228,7 +1408,8 @@ class SaatvikBrain(GeminiBrain):
         """Run Saatvik's solar savings calculator on the visitor's screen. Needs
         their state and two of monthly units, monthly bill and rate per unit,
         every one as the visitor said it: never a guess. The estimate comes back
-        from the page. Say one short line with it."""
+        from the page. In the same response, say what you are working out for
+        them."""
         units, bill, rate = request.monthly_units, request.monthly_bill_inr, request.rate_per_unit
         if units is None and bill is not None and rate:
             units = round(bill / rate)
@@ -1251,7 +1432,8 @@ class SaatvikBrain(GeminiBrain):
 
     async def find_dealer(self, request: DealerRequest) -> str:
         """Show Saatvik's dealers near the visitor in the dealer locator. The list
-        comes back from the page. Say one short line with it."""
+        comes back from the page. In the same response, say what you are looking
+        for and what a local dealer will do for them."""
         state = _dealer_state(request.state)
         unlisted = bool(request.state) and state is None
         query = request.city or (request.state if unlisted else None)
@@ -1268,8 +1450,10 @@ class SaatvikBrain(GeminiBrain):
 
     async def open_enquiry(self, request: EnquiryRequest) -> str:
         """Open Saatvik's enquiry form on the visitor's screen with what they told
-        you filled in. It never submits. Then tell them which fields are left for
-        them, and that they tick consent and press Submit."""
+        you filled in, or fill more into the open form: call it again whenever
+        they give you their name, email, mobile, city or message. What is already
+        filled stays. It never submits. Say which fields are left for them, and
+        that they tick consent and press Submit."""
         self.lead.update(
             **request.model_dump(exclude={"kind", "message", "email", "mobile"}),
             enquiry_kind=request.kind,
@@ -1277,7 +1461,7 @@ class SaatvikBrain(GeminiBrain):
         message = request.message or (
             self.lead.brief().summary if self.lead.fields != LeadFields() else None
         )
-        prefill = EnquiryPrefill(
+        asked = EnquiryPrefill(
             name=request.name,
             company=request.company,
             email=request.email,
@@ -1286,6 +1470,13 @@ class SaatvikBrain(GeminiBrain):
             state=request.state or self.lead.fields.state,
             message=message,
         )
+        # A second call adds to the form rather than starting it again: the model
+        # sends what the visitor just said, and the rest is what is already there.
+        before = self._prefill.model_dump() if self._prefill is not None else {}
+        prefill = EnquiryPrefill(
+            **{k: v if v is not None else before.get(k) for k, v in asked.model_dump().items()}
+        )
+        self._prefill = prefill
         self._move(OpenEnquiry(kind=request.kind, prefill=prefill), "enquiry")
         self._brief_changed()
         filled = [k for k, v in prefill.model_dump().items() if v]
@@ -1294,6 +1485,37 @@ class SaatvikBrain(GeminiBrain):
             f"The {request.kind} form is open with {', '.join(filled) or 'nothing'} filled in. "
             f"Left for the visitor: {', '.join(left) or 'nothing required'}, the consent box and "
             "Submit."
+        )
+
+    async def book_kit(self, request: BookingRequest) -> str:
+        """Book the SuryaConnect kit: the kit page's BOOK NOW. Opens the booking
+        page, picks residential or commercial, presses Continue, and fills in
+        what they told you. Call it again to add their name, mobile, email,
+        address, city or pincode as they say them; what is filled stays. It never
+        confirms. Say which fields are left, and that they tick consent and
+        press Confirm booking."""
+        asked = BookingPrefill(
+            name=request.name,
+            mobile=request.mobile,
+            email=request.email,
+            address=request.address,
+            state=request.state or self.lead.fields.state,
+            city=request.city or self.lead.fields.city,
+            pincode=request.pincode,
+        )
+        before = self._booking.model_dump() if self._booking is not None else {}
+        details = BookingPrefill(
+            **{k: v if v is not None else before.get(k) for k, v in asked.model_dump().items()}
+        )
+        self._booking = details
+        self.lead.update(name=request.name, city=request.city, state=request.state)
+        self._move(BookKit(installation=request.installation, details=details), "booking")
+        filled = [k for k, v in details.model_dump().items() if v]
+        left = [k for k in BookingPrefill.model_fields if k not in filled]
+        return (
+            f"The {request.installation} booking is at step two with "
+            f"{', '.join(filled) or 'nothing'} filled in. Left for the visitor: "
+            f"{', '.join(left) or 'nothing'}, the consent box and Confirm booking."
         )
 
     async def set_language(self, request: LanguageRequest) -> str:
@@ -1326,6 +1548,7 @@ def _dealer_line(d: Dealer) -> str:
 
 
 __all__ = [
+    "BookKit",
     "CloseDocument",
     "FindDealer",
     "LanguageChanged",
