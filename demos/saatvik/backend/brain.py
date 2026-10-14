@@ -57,11 +57,13 @@ from voqalize_demos import (
     phrase,
     say_line,
 )
+from voqalize_demos.acknowledge import Acknowledger, Kind, Vocabulary, hold_the_floor
 
 from voqalize.sdk import (
     Action,
     RequestRejected,
     RTVIMessage,
+    RTVIType,
     Session,
     Speech,
     SpeechChunk,
@@ -459,9 +461,12 @@ def _prompt(k: Knowledge) -> str:
     return f"""You are {AGENT_NAME}, the solar advisor on Saatvik Green Energy's website, www.saatvikgroup.com. A visitor is browsing the site right now and has called you from the corner of the page. You can see and move their screen: you open Saatvik's pages, scroll to sections, open FAQs, open datasheets at the right page with the figure highlighted, run the savings calculator, find dealers and fill in the enquiry form with them. You are warm, expert and brief — the advisor who knows the panels inside out and makes going solar feel simple.
 
 # How you speak
-- One or two short sentences, then a move on the page. The page carries the detail; you say what matters.
+- EVERY MOVE COMES WITH WORDS. Whenever you move the page — navigate, show_section, open_faq, open_document, run_calculator, find_dealer, open_enquiry — write your line first and make the call in the same response: the line is spoken while the page moves. A response that is only tool calls is silence: after it you do not speak again until the visitor does, and what the call returns reaches you only on your next turn.
+- A QUESTION GETS ITS ANSWER IN WORDS. When they ask something, your line is the answer, and the page, FAQ or datasheet you open is shown beside it, never instead of it: "TOPCon has the better low-light and heat performance. Here's the TOPCon page." "Minus zero point two nine percent per degree. Here's the line on the datasheet." A reply that only confirms the move ("Here it is.") is too little.
+- A READ COMES BEFORE ANY WORDS. read_topic and search_site come straight back to you within this same turn. When you need one, call it first, with nothing written before it, then give your one reply — the answer, and the move — once it is back. Never say a line that promises more to come ("let me check", "let me find that"): nothing comes after it. Say a move as done, not as about to be done: "Here's the datasheet.", never "Let me open the datasheet."
+- THE FIRST SENTENCE IS A FEW WORDS. The visitor hears nothing until your whole first sentence has been voiced, so open every reply, in English or Hindi, with a sentence of two to six words that ends in a full stop, and put the answer in it: "Yes, TOPCon. It handles heat better than PERC." Then say the rest in one or two more short sentences.
+- Before most replies the visitor has already heard a short acknowledgement of mine — "Sure.", "Let me see.", "जी।" — the moment they stopped speaking. So never open with one: your first word is the answer.
 - Spoken words only: no lists, no markdown, no symbols. Say numbers the way a person would ("five hundred and eighty watts", "about seventy-eight thousand rupees").
-- Speak the move and the answer in the same response as the tool call: once the turn ends you cannot speak until the visitor does.
 - English by default. A visitor who speaks Hindi or Hinglish is answered in Hindi, written in Devanagari; you are a man, so use masculine forms of yourself ("मैं दिखाता हूँ", "मैं ढूँढ रहा हूँ"). Product names, model numbers and units stay as Saatvik writes them.
 - Lines in square brackets come from the page, not the visitor: what they opened, what a form or the calculator shows. Never read them out; use them.
 
@@ -475,7 +480,7 @@ def _prompt(k: Knowledge) -> str:
 
 # Moving the page
 - navigate only to a path from the site pages list below or from a search result. show_section and open_faq take a heading or question on the page the visitor has open.
-- To size a system or show savings, run_calculator: you need their state and either their monthly units or their monthly bill (and the rate if they know it). Ask for what is missing, one thing at a time. The estimate appears on the page and comes back to you: talk them through it from the page's figures.
+- To size a system or show savings, run_calculator: you need their state, and two of their monthly units, their monthly bill and their rate per unit. Ask for what is missing, one thing at a time, before calling it — usually "And roughly what do you pay per unit? It's on your bill." The estimate appears on the page and comes back to you: talk them through it from the page's figures.
 - find_dealer for a dealer near them. The dealer list comes back to you from the page.
 
 # The visitor's enquiry
@@ -540,12 +545,113 @@ assert all({s.spoken for s in SPEECH.values()} <= set(v) for v in _LANDED_LINES.
     "a spoken language has no written line for a move"
 )
 
+# ─── His nod ───────────────────────────────────────────────────────────────────
+
+#: Said the moment the visitor stops, while the model thinks. See
+#: :mod:`voqalize_demos.acknowledge`; the Hindi lines are his, so masculine.
+_ACK_LINES: dict[Language, dict[Kind, tuple[str, ...]]] = {
+    Language.EN: {
+        "request": ("Sure.", "Okay.", "Of course.", "Certainly."),
+        "question": ("Let me see.", "Hmm, let me see.", "Okay."),
+        "correction": ("I see.", "Understood.", "Right."),
+        "statement": ("Okay.", "Got it.", "Right."),
+    },
+    Language.HI: {
+        "request": ("जी।", "ज़रूर।", "ठीक है।", "अच्छा।"),
+        "question": ("जी, बताता हूँ।", "जी।", "हम्म, देखता हूँ।"),
+        "correction": ("अच्छा।", "समझ गया।", "जी।"),
+        "statement": ("जी।", "अच्छा।", "ठीक है।"),
+    },
+}
+#: The share of readable turns he nods on, and how long the model may stay
+#: quiet after a nod before he holds the floor. Module-level so a test can pin them.
+ACK_RATE = 0.75
+ACK_HOLD_AFTER_S = 4.0
+_ACK_HOLD = {
+    Language.EN: ("One moment.", "Just a moment."),
+    Language.HI: ("एक पल।", "बस एक पल।"),
+}
+_ACK_SORRY = {
+    Language.EN: "Sorry, that's taking a little longer.",
+    Language.HI: "माफ़ कीजिए, थोड़ा समय लग रहा है।",
+}
+#: A visitor's ordinary words about going solar, so the reading trusts them.
+_ACK_WORDS = Vocabulary(
+    common=frozenset(
+        [
+            "solar",
+            "panel",
+            "panels",
+            "module",
+            "modules",
+            "roof",
+            "rooftop",
+            "house",
+            "home",
+            "bill",
+            "units",
+            "unit",
+            "subsidy",
+            "inverter",
+            "battery",
+            "batteries",
+            "kw",
+            "kilowatt",
+            "price",
+            "cost",
+            "dealer",
+            "installation",
+            "system",
+            "electricity",
+            "monthly",
+            "topcon",
+            "perc",
+            "bifacial",
+            "pump",
+            "warranty",
+            "company",
+            "सोलर",
+            "पैनल",
+            "छत",
+            "घर",
+            "बिल",
+            "यूनिट",
+            "सब्सिडी",
+            "बिजली",
+        ]
+    ),
+)
+
+
+def _avatar_state(session: Session, state: Literal["WORKING"] | None) -> None:
+    """The talking head's working latch, as qween sends it: held until speech
+    owed has played, ended by the reply's own playout."""
+    session.send_rtvi(RTVIType.SERVER_MESSAGE, {"type": "avatar", "cmd": "state", "state": state})
+
+
 #: How much of a page's own text reaches the model in a note.
 _CALC_CHARS = 1200
 _HEADINGS_IN_NOTE = 20
 _FAQS_IN_NOTE = 12
 _DEALERS_IN_NOTE = 8
 _SEARCH_HITS = 6
+
+
+#: Said when the calculator could not run and the turn said nothing: the
+#: question that gets it run.
+_ASK_UNITS = {
+    Language.EN: ("Roughly how many units do you use a month? It's on your bill.",),
+    Language.HI: ("आप महीने में लगभग कितने यूनिट इस्तेमाल करते हैं? यह आपके बिल पर होता है।",),
+}
+_ASK_RATE = {
+    Language.EN: ("And roughly what do you pay per unit? It's on your bill.",),
+    Language.HI: ("और आप एक यूनिट का लगभग कितना देते हैं? यह आपके बिल पर होता है।",),
+}
+
+
+def _short_title(title: str) -> str:
+    """A page or document title as said aloud: the part before the site's name."""
+    return title.split(" — ")[0].split(" | ")[0].strip()
 
 
 async def _silence() -> AsyncGenerator[Any, None]:
@@ -598,6 +704,9 @@ class SaatvikBrain(GeminiBrain):
         self._share_brief = share_brief
         self.spoken: Language = SPEECH[OPENING].spoken
         self._fallback = FallbackLine()
+        self._ack = Acknowledger(
+            _ACK_LINES, _ACK_HOLD, _ACK_SORRY, _ACK_WORDS, ACK_RATE, ACK_HOLD_AFTER_S
+        )
         self.lead = Lead()
         #: The page as the adapter last reported it, and whether the model has
         #: seen it since it changed.
@@ -653,6 +762,31 @@ class SaatvikBrain(GeminiBrain):
         self._restore_idle()
         self.lead.asked(msg.text)
         self._read_in_page()
+        # His nod while the model thinks, in the voice now speaking: a unit of
+        # his own, never in the model's context. Once it has played the face
+        # looks away and works until the answer starts.
+        if (nod := self._ack.line(msg.text, self.spoken)) is not None:
+            logger.info("saatvik: ack {!r}", nod)
+            async for event in say_line(self, nod):
+                yield event
+            working = True
+
+            def answered() -> None:
+                nonlocal working
+                if working:
+                    working = False
+                    _avatar_state(session, None)
+
+            _avatar_state(session, "WORKING")
+            try:
+                turn = super().on_user_message(session, msg)
+                async for event in hold_the_floor(
+                    self, self._ack, lambda: self.spoken, turn, answered
+                ):
+                    yield event
+            finally:
+                answered()
+            return
         async for event in super().on_user_message(session, msg):
             yield event
 
@@ -906,10 +1040,15 @@ class SaatvikBrain(GeminiBrain):
         elif self._share_brief:
             self.session.dispatch(self.lead.brief())
 
-    def _move(self, action: Action, lines: str | None = None) -> None:
+    def _move(self, action: Action, lines: str | None = None, english: str | None = None) -> None:
         """Dispatch ``action``, with the written line for it should the turn say
-        nothing: its own, under ``lines``, or the plain "shown"."""
+        nothing: ``english`` when the call is in English and the move has
+        something of its own to say, else its own under ``lines``, else the
+        plain "shown"."""
         self.session.dispatch(action)
+        if english and self.spoken == Language.EN:
+            landed(english)
+            return
         own = _LANDED_LINES[lines][self.spoken] if lines is not None else None
         landed(*(own or phrase(self.spoken, "shown")))
 
@@ -924,6 +1063,13 @@ class SaatvikBrain(GeminiBrain):
             return self.page.faqs
         page = self.kb.page(self._path)
         return [f.q for f in page.faqs] if page else []
+
+    def _faq_answer(self, question: str) -> str | None:
+        """The first sentence of a FAQ's own answer on the page the visitor has open."""
+        page = self.kb.page(self._path)
+        answer = next((f.a for f in page.faqs if f.q == question), "") if page else ""
+        first = re.split(r"(?<=[.!?])\s", answer.strip(), maxsplit=1)[0]
+        return first if 0 < len(first) <= 240 else None
 
     def _document_by_url(self, url: str) -> kb.Document | None:
         return next((d for d in self.kb.documents.values() if d.url == url), None)
@@ -991,7 +1137,7 @@ class SaatvikBrain(GeminiBrain):
                 f"Not opened: {request.path} is not a page on Saatvik's site. Closest: {near}. "
                 "Tell the visitor if you said it was open."
             )
-        self._move(Navigate(path=page.path))
+        self._move(Navigate(path=page.path), english=f"Here's our {_short_title(page.title)} page.")
         return f"Opened {page.title} ({page.path})."
 
     async def show_section(self, request: SectionRequest) -> str:
@@ -1018,7 +1164,7 @@ class SaatvikBrain(GeminiBrain):
                 f"Not opened: this page has no FAQ '{request.question}'. "
                 f"Its FAQs: {_clip(faqs, _FAQS_IN_NOTE) or 'none'}."
             )
-        self._move(OpenFaq(question=question))
+        self._move(OpenFaq(question=question), english=self._faq_answer(question))
         return f"Opened the FAQ '{question}'."
 
     async def open_document(self, request: DocumentRequest) -> str:
@@ -1042,7 +1188,11 @@ class SaatvikBrain(GeminiBrain):
                     result = f"Opened {doc.title} at page {found.page}, where the quote is."
                 page, quote = found.page, found.text
                 boxes = [QuoteBox(x=b.x, y=b.y, w=b.w, h=b.h) for b in found.boxes] or None
-        self._move(OpenDocument(url=doc.url, title=doc.title, page=page, quote=quote, boxes=boxes))
+        self._move(
+            OpenDocument(url=doc.url, title=doc.title, page=page, quote=quote, boxes=boxes),
+            english=f"Here's the {_short_title(doc.title)}"
+            + (", with that line highlighted." if quote else "."),
+        )
         return result
 
     async def close_document(self) -> str:
@@ -1053,16 +1203,18 @@ class SaatvikBrain(GeminiBrain):
 
     async def run_calculator(self, request: CalculatorRequest) -> str:
         """Run Saatvik's solar savings calculator on the visitor's screen. Needs
-        their state and either monthly units or monthly bill. The estimate comes
-        back from the page. Say one short line with it."""
+        their state and two of monthly units, monthly bill and rate per unit. The
+        estimate comes back from the page. Say one short line with it."""
         units, bill, rate = request.monthly_units, request.monthly_bill_inr, request.rate_per_unit
         if units is None and bill is not None and rate:
             units = round(bill / rate)
         if rate is None and bill is not None and units:
             rate = round(bill / units, 2)
         if units is None:
+            landed(*_ASK_UNITS[self.spoken])
             return "Not run: ask for their monthly units, or their bill and rate per unit."
         if rate is None:
+            landed(*_ASK_RATE[self.spoken])
             return "Not run: ask for their rate per unit, or their monthly bill."
         self.lead.update(monthly_units=units, monthly_bill_inr=bill, state=request.state)
         self._move(RunCalculator(units=units, state=request.state, rate=rate), "calculator")

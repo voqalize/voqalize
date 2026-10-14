@@ -61,9 +61,9 @@ const DISPLAY = `Syne, "DM Sans", system-ui, sans-serif`;
 const EASE = "cubic-bezier(0.32, 0.72, 0, 1)";
 
 /** The card's width, and so the face's: the face is square. */
-const CARD = 264;
+const CARD = 200;
 /** The minimised face's diameter. */
-const BUBBLE = 76;
+const BUBBLE = 64;
 /** The gap kept from the viewport's edges and from anything it avoids. */
 const GAP = 16;
 /** Pointer travel below this is a click, above it a drag. */

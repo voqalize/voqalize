@@ -414,7 +414,7 @@ function reason(error: unknown): string {
 }
 
 // Mount on `load`, but never wait on it for long: a third-party resource on
-// the site can hold `load` back for over a minute, and Tara would not appear.
+// the site can hold `load` back for over a minute, and Tushar would not appear.
 // `start` mounts once, so whichever comes first wins.
 if (document.readyState === "complete") void start();
 else {

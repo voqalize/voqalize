@@ -36,6 +36,7 @@ from ._harness import _configs, check_greeting, check_turn, check_voice_pair, de
 
 discover()
 
+from voqalize_demos._loaded.saatvik import brain as saatvik  # noqa: E402
 from voqalize_demos._loaded.saatvik import knowledge as kb  # noqa: E402
 from voqalize_demos._loaded.saatvik.brain import (  # noqa: E402
     _GREETING,
@@ -119,8 +120,10 @@ PANEL_PAGE = {
 
 @pytest.fixture(autouse=True)
 def _site(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """Every session reads the invented site, not the committed crawl."""
+    """Every session reads the invented site, not the committed crawl, and he
+    never nods unless a test asks him to: a nod is a unit of its own."""
     monkeypatch.setattr(kb, "KNOWLEDGE", SITE)
+    monkeypatch.setattr(saatvik, "ACK_RATE", 0.0)
     yield
 
 
@@ -231,7 +234,7 @@ def _llm() -> ScriptedGemini:
                 ),
             ),
             "My bill is about 4000 rupees in Gujarat.": reply_and_call(
-                "Let me run that.",
+                "That's about five hundred units.",
                 "run_calculator",
                 request={"state": "Gujarat", "monthly_units": 500, "monthly_bill_inr": 4000},
             ),
@@ -239,9 +242,13 @@ def _llm() -> ScriptedGemini:
             "estimate is on their screen": reply("You'd save about three thousand rupees a month."),
             "just submitted the enquiry": reply("Thank you! When are you hoping to install?"),
             "Find me a dealer in Goa.": reply_and_call(
-                "Let me look.", "find_dealer", request={"state": "Goa", "city": "Panaji"}
+                "Here are the dealers.", "find_dealer", request={"state": "Goa", "city": "Panaji"}
             ),
-            "Mujhe solar panel chahiye, kya aap Hindi mein baat kar sakti hain?": reply(
+            "I use 350 units in Karnataka.": call(
+                "run_calculator", request={"state": "Karnataka", "monthly_units": 350}
+            ),
+            "Is TOPCon better than PERC?": reply("Yes, TOPCon. It handles heat better than PERC."),
+            "Mujhe solar panel chahiye, kya aap Hindi mein baat kar sakte hain?": reply(
                 "जी हाँ, बताइए आपको क्या चाहिए।"
             ),
         }
@@ -475,7 +482,7 @@ async def test_the_toggle_switches_both_legs_and_confirms_in_hindi() -> None:
         await rig.driver.start_session(init={"page": "/"})
         await _page(rig, "language_requested", {"language": "hi"})
         check_voice_pair(rig, voice="omnivoice/gaurav", language="hi")
-        # The widget's toggle is told at once, not left to guess from him voice.
+        # The widget's toggle is told at once, not left to guess from his voice.
         assert rig.command("language_changed") == {"language": "hi"}
         turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
         check_turn(rig, turn)
@@ -486,8 +493,51 @@ async def test_hinglish_switches_before_the_model_answers() -> None:
     async with demo("saatvik", _llm()) as rig:
         await rig.driver.start_session(init={"page": "/"})
         turn = await rig.driver.user_says(
-            "Mujhe solar panel chahiye, kya aap Hindi mein baat kar sakti hain?"
+            "Mujhe solar panel chahiye, kya aap Hindi mein baat kar sakte hain?"
         )
         check_turn(rig, turn)
         check_voice_pair(rig, voice="omnivoice/gaurav", language="hi")
         assert rig.command("language_changed") == {"language": "hi"}
+
+
+async def test_a_calculator_with_no_rate_asks_for_it_aloud() -> None:
+    """A speechless call the calculator refused is not a silent turn: he asks
+    for what it lacked, and nothing runs on the page."""
+    async with demo("saatvik", _llm()) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        turn = await rig.driver.user_says("I use 350 units in Karnataka.")
+        check_turn(rig, turn)
+        assert turn.text == saatvik._ASK_RATE[saatvik.Language.EN][0]
+        assert "run_calculator" not in rig.actions()
+
+
+async def test_a_question_gets_his_nod_then_the_answer(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The nod is a unit of his own ahead of the model's, and never in its context."""
+    monkeypatch.setattr(saatvik, "ACK_RATE", 1.0)
+    llm = _llm()
+    async with demo("saatvik", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        turn = await rig.driver.user_says("Is TOPCon better than PERC?")
+        nod = turn.units[0].text
+        assert nod in saatvik._ACK_LINES[saatvik.Language.EN]["question"]
+        assert turn.text.endswith("It handles heat better than PERC.")
+        await rig.driver.user_says("Is TOPCon better than PERC?")
+        said = _texts([c for c in llm.captured_contents[-1] if c.role == "model"])
+        assert nod not in said
+
+
+async def test_a_slow_model_after_the_nod_is_held(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The nod disarms the runtime's "taking longer" line, so he holds the floor."""
+    monkeypatch.setattr(saatvik, "ACK_RATE", 1.0)
+    monkeypatch.setattr(saatvik, "ACK_HOLD_AFTER_S", 0.2)
+    llm = ScriptedGemini(
+        {"Is TOPCon better than PERC?": [reply(chunks=["Yes, TOPCon."], chunk_delay=0.6)]}
+    )
+    async with demo("saatvik", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        turn = await rig.driver.user_says("Is TOPCon better than PERC?", quiet_for=1.0)
+        check_turn(rig, turn, units=3)
+        nod, hold, answer = (u.text for u in turn.units)
+        assert nod in saatvik._ACK_LINES[saatvik.Language.EN]["question"]
+        assert hold in saatvik._ACK_HOLD[saatvik.Language.EN]
+        assert answer == "Yes, TOPCon."
