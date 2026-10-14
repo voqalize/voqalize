@@ -43,7 +43,7 @@ from __future__ import annotations
 
 import contextlib
 import random
-from collections.abc import AsyncGenerator, Mapping
+from collections.abc import AsyncGenerator, Callable, Mapping
 from contextvars import ContextVar
 from typing import Literal
 
@@ -172,10 +172,20 @@ class FallbackLine:
         self._last = ""
 
     async def speak_if_silent(
-        self, brain: GeminiBrain, turn: AsyncGenerator[Speech, None]
+        self,
+        brain: GeminiBrain,
+        turn: AsyncGenerator[Speech, None],
+        again: Callable[[], AsyncGenerator[Speech, None]] | None = None,
     ) -> AsyncGenerator[Speech, None]:
         """``turn`` — the inherited ``super().respond(session)`` — and then, if it
-        spoke nothing and something landed, one line from the last call that did."""
+        spoke nothing and something landed, one line from the last call that did.
+
+        ``again``, when a demo passes it, is tried before the line: one more model
+        request with tools off, so the model talks about what it just put on
+        screen rather than the brain pointing at it. Only saatvik does (owner,
+        2026-10-14, after the marketing site's guide showed the written line
+        alone leaves the conversation dead). The line stays as the floor under
+        a second silence."""
         record: list[tuple[str, ...]] = []
         token = _LANDED.set(record)
         spoke = False
@@ -185,6 +195,17 @@ class FallbackLine:
                 yield event
             if spoke or not record:
                 return
+            if again is not None:
+                logger.info("turn: acted on screen and said nothing; asking the model to speak")
+                follow = again()
+                try:
+                    async for event in follow:
+                        spoke = spoke or isinstance(event, SpeechStart)
+                        yield event
+                finally:
+                    await follow.aclose()
+                if spoke:
+                    return
             line = self._pick(record[-1])
             logger.warning("turn: acted on screen and said nothing; the brain says {!r}", line)
             async for event in say_line(brain, line):

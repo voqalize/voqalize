@@ -16,19 +16,23 @@ A complete, ready-to-install on-grid rooftop system for homes and businesses, in
 - The datasheets cover 3 kW and 5 kW kits. The brochure lists a product range of 3 kW, 5 kW and 6 kW; the home page describes kits from 1 to 10 kW. Quote 3 and 5 kW as the documented kits and send other sizes to the team.
 - Prices are not published: "to know more about the price, specifications and availability … get in touch with our team" (sales@saatvikgroup.com, 1800-547-1151).
 
-## Kit composition (datasheet pp 2 and 4)
+## Kit composition (datasheet pp 2 and 4; grouping checked against the rendered page)
 | Item | 3 kW — GCS T-AC 3000/1P | 5 kW — GCS T-AC 5000/1P |
 |---|---|---|
-| Solar modules | 580 Wp × 6 | 580 Wp × 9 |
-| Grid-tie inverter | 3.3 kVA, single phase | 5 kVA, single phase |
+| Solar PV modules (N-TOPCon bifacial, DCR) | 580 Wp × 6 | 580 Wp × 9 |
+| Grid-connected inverter | 3.3 kVA, single phase | 5 kVA, single phase |
 | DCDB | 3.9 kW | 6.5 kW |
 | ACDB | 3.3 kVA | 5.5 kVA |
 | Cu solar cable, red and black, 4 sq mm | 30 m | 40 m |
 | Cu AC cable, PVC, 6 sq mm, 3-core | 10 m | 10 m |
-| Also included | MC4 connectors (30 A), lugs, lightning arrester (1 m HDG), installation and operation manual, cable ties, tape, clips, tool set | same |
-| Add-on 1: HDG mounting structure, 2-module blocks | 3 sets | 5 sets |
-| Add-on 2: earthing | electrodes (1 m, 14 mm), earthing chemical, FRP earth chambers, 6 sq mm Cu earthing cable (25 m) | same, 30 m cable |
+| Also in the main kit | MC4 connectors (30 A, 1 pair), 12 pin-type Cu lugs, UV-protected cable ties, 2 rolls of insulating tape, installation and operation manual | same |
+| Add-On 1: lightning and earthing | conventional lightning arrester (1 m HDG), 3 earthing electrodes (1 m, 14 mm), 10 kg earthing chemical, 3 FRP earth chambers (300 mm), green Cu earthing cable 6 sq mm (25 m), 12 ring-type lugs, 1 dozen wire clips | same, with 30 m cable and 2 dozen clips |
+| Add-On 2: mounting | HDG mounting structure, 2-module blocks, 3 sets; a tool set (plier and screwdriver) | 5 sets; tool set |
 | Catalogue no. | SS/GCS/T/3K1P/0426 | SS/GCS/T/5K1P/0426 |
+
+The lightning arrester, earthing and mounting are the add-ons, not the main kit; the installation guide (p 1) also marks the mounting structure, earthing kit and hardware "Optional". Never say they are in the box without saying they are the add-ons.
+
+The datasheet's own lines, for highlighting: p 1 (3 kW) and p 3 (5 kW) "Real-time system visibility through Wi-Fi / SIM / App-based remote monitoring.", "Built-in safety layers including DC isolator, AC isolator, surge protection and smart monitoring.", "Automatically exports excess solar energy to the grid for credit on your electricity bill."; p 2 and p 4 "System operates only when the grid is available (anti-islanding safety)." The brochure's p 1 is artwork with no readable text; p 2 has "Product Range: 3kw 5kw 6kw".
 
 ## Installation
 The kit installation guide covers unboxing inspection, mounting, separate earthing for the lightning arrester, DC and AC sides, and the arrester height above the panels; details in topic `installation-and-service`. Saatvik describes the kit as simple enough to install with minimal effort, but PM Surya Ghar subsidy requires installation by a registered vendor; route subsidy buyers through Saatvik's team or a dealer (topic `dealers-and-distributorship`).

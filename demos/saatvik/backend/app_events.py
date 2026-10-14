@@ -21,6 +21,9 @@ from voqalize.sdk import AppEvent, AppEvents
 
 __all__ = [
     "SAATVIK_EVENTS",
+    "BookingFields",
+    "BookingOpened",
+    "BookingSubmitted",
     "CalculatorInputs",
     "CalculatorResult",
     "CommandFailed",
@@ -37,6 +40,7 @@ __all__ = [
 ]
 
 EnquiryKind = Literal["domestic", "dealer", "export"]
+Installation = Literal["residential", "commercial"]
 
 
 class PageChanged(AppEvent):
@@ -117,6 +121,31 @@ class EnquirySubmitted(AppEvent):
     fields: EnquiryFields = Field(default_factory=EnquiryFields)
 
 
+class BookingOpened(AppEvent):
+    """The kit's booking page is at its details step, for this installation type,
+    with these fields still empty."""
+
+    installation: Installation
+    missing: list[str] = Field(default_factory=list[str])
+
+
+class BookingFields(BaseModel):
+    name: str = ""
+    mobile: str = ""
+    email: str = ""
+    address: str = ""
+    state: str = ""
+    city: str = ""
+    pincode: str = ""
+
+
+class BookingSubmitted(AppEvent):
+    """The visitor pressed CONFIRM BOOKING; the details as they stood."""
+
+    installation: Installation
+    fields: BookingFields = Field(default_factory=BookingFields)
+
+
 class CommandFailed(AppEvent):
     """A move Tushar sent could not be carried out on the page."""
 
@@ -138,6 +167,8 @@ type SaatvikEvent = (
     | DealersShown
     | EnquiryOpened
     | EnquirySubmitted
+    | BookingOpened
+    | BookingSubmitted
     | CommandFailed
     | LanguageRequested
 )
@@ -150,6 +181,8 @@ SAATVIK_EVENTS = AppEvents[SaatvikEvent](
     DealersShown,
     EnquiryOpened,
     EnquirySubmitted,
+    BookingOpened,
+    BookingSubmitted,
     CommandFailed,
     LanguageRequested,
 )
