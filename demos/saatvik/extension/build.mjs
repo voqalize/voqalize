@@ -112,6 +112,9 @@ const manifest = JSON.parse(readFileSync(join(here, "manifest.json"), "utf8"));
 manifest.version = pkg.version;
 writeFileSync(join(out, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
 copyFileSync(join(here, "README.md"), join(out, "README.md"));
+// Saatvik's pages forbid the microphone (`Permissions-Policy: microphone=()`);
+// this rule lets the page itself use it and keeps the rest of their policy.
+copyFileSync(join(here, "rules.json"), join(out, "rules.json"));
 
 console.log(`built ${out} (${wiring.apiBase})`);
 console.log(`avatar runtime: ${avatarRuntime || "the npm pin"}`);

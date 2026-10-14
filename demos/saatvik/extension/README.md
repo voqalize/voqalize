@@ -66,6 +66,15 @@ The publishable key's allowed origins must include
 the session is minted from. The agent id and key are baked into the bundle at
 build time and are never committed: this repo is public.
 
+Saatvik's pages send `Permissions-Policy: microphone=()`, which forbids the
+microphone to the page and to this script with it: a call connects, the agent
+speaks, and hears nothing. `rules.json` rewrites that header on Saatvik's pages to
+`microphone=(self)` and leaves the rest of their policy as it was, which is why
+the extension asks for `declarativeNetRequest` on those hosts. A real embed on
+their site needs the same change made in their own header. If the microphone
+still cannot open, the widget says so and ends the call rather than showing
+"live".
+
 The build works without them. With an empty `.env` it warns, and the extension
 loads with everything but the call: the widget, the viewer and every page Action
 still work from the console (below), which is how the page side is tested before

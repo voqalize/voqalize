@@ -1,0 +1,20 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "responseHeaders": [
+        {
+          "header": "permissions-policy",
+          "operation": "set",
+          "value": "camera=(), microphone=(self), geolocation=(), payment=()"
+        }
+      ]
+    },
+    "condition": {
+      "requestDomains": ["saatvikgroup.com"],
+      "resourceTypes": ["main_frame"]
+    }
+  }
+]

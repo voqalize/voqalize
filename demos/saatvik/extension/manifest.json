@@ -5,10 +5,31 @@
   "description": "A voice solar advisor on www.saatvikgroup.com, who answers from Saatvik's own pages and documents, shows them as he talks, and fills in the enquiry form. A Voqalize preview.",
   "content_scripts": [
     {
-      "matches": ["https://www.saatvikgroup.com/*", "https://saatvikgroup.com/*"],
-      "js": ["content.js"],
+      "matches": [
+        "https://www.saatvikgroup.com/*",
+        "https://saatvikgroup.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_idle",
       "world": "MAIN"
     }
-  ]
+  ],
+  "permissions": [
+    "declarativeNetRequest"
+  ],
+  "host_permissions": [
+    "https://www.saatvikgroup.com/*",
+    "https://saatvikgroup.com/*"
+  ],
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "microphone",
+        "enabled": true,
+        "path": "rules.json"
+      }
+    ]
+  }
 }

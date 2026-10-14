@@ -224,6 +224,13 @@ async function start(): Promise<void> {
           widget.audio.srcObject = new MediaStream([track]);
           void widget.audio.play().catch(() => {});
         },
+        // A microphone that never opened is a call Tushar cannot hear: end it
+        // and say why, rather than leave a widget that says "live".
+        onDeviceError: (error) => {
+          if (client !== next || !error.devices.includes("mic")) return;
+          end();
+          paint("error", micFailure(error.type));
+        },
         onUICommand: ({ command, payload }) => {
           void perform(command, payload).then((failed) => {
             if (failed && client === next) report(failed);
@@ -236,6 +243,12 @@ async function start(): Promise<void> {
 
   async function connect(rejoin: boolean): Promise<void> {
     if (client || status === "connecting") return;
+    // A page whose Permissions-Policy forbids the microphone gives a call that
+    // hears nothing and looks live. Say so instead of starting one.
+    if (!micAllowed()) {
+      paint("error", MIC_BLOCKED);
+      return;
+    }
     const lock = await takeCall(AGENT);
     if (!lock || client) {
       lock?.();
@@ -406,6 +419,25 @@ async function start(): Promise<void> {
 interface Prepared {
   client: PipecatClient;
   transport: ReturnType<typeof createVoqalizeTransport>;
+}
+
+const MIC_BLOCKED =
+  "This page blocks the microphone, so Tushar can't hear you. Reload the extension in chrome://extensions, then refresh this page.";
+
+/** Whether this document's Permissions-Policy lets it open the microphone. */
+function micAllowed(): boolean {
+  const policy = (document as { featurePolicy?: { allowsFeature(name: string): boolean } })
+    .featurePolicy;
+  return policy?.allowsFeature("microphone") ?? true;
+}
+
+function micFailure(type: string): string {
+  if (!micAllowed()) return MIC_BLOCKED;
+  if (type === "permissions")
+    return "Tushar can't hear you: microphone access was refused. Allow it for this site, then start again.";
+  if (type === "in-use") return "Tushar can't hear you: another app is using the microphone.";
+  if (type === "not-found") return "Tushar can't hear you: no microphone was found.";
+  return "Tushar can't hear you: the microphone did not open.";
 }
 
 function reason(error: unknown): string {
