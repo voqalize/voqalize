@@ -18,8 +18,8 @@ importers:
         specifier: ^0.5.7
         version: 0.5.7(@pipecat-ai/client-js@1.13.1)
       '@voqalize/client-transport':
-        specifier: 0.3.2
-        version: 0.3.2(@pipecat-ai/client-js@1.13.1)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.13.1))
+        specifier: 0.4.0
+        version: 0.4.0(@pipecat-ai/client-js@1.13.1)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.13.1))
       pdfjs-dist:
         specifier: 4.10.38
         version: 4.10.38
@@ -322,8 +322,8 @@ packages:
       react-dom:
         optional: true
 
-  '@voqalize/client-transport@0.3.2':
-    resolution: {integrity: sha512-jgAvFBIXMFEvDF9C8Rc0Q1BP9Y2pjIdsqJVF0sLJ8YWT0N4Tudp1ZGuWUjZCmcPNa8UsSQHxikpuTCo/jigGgA==}
+  '@voqalize/client-transport@0.4.0':
+    resolution: {integrity: sha512-3I6ztS/iIjm48Q7E2rXEN732XNJXherUYKWvJZ82ZnO2sTQ0TMw7cR18KazpA8IacHI4NScwMBh5TOIRx83evw==}
     peerDependencies:
       '@pipecat-ai/client-js': '>=1.13.0 <2'
       '@pipecat-ai/small-webrtc-transport': '>=1.10.0 <2'
@@ -577,7 +577,7 @@ snapshots:
     optionalDependencies:
       '@pipecat-ai/client-js': 1.13.1
 
-  '@voqalize/client-transport@0.3.2(@pipecat-ai/client-js@1.13.1)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.13.1))':
+  '@voqalize/client-transport@0.4.0(@pipecat-ai/client-js@1.13.1)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.13.1))':
     dependencies:
       '@pipecat-ai/client-js': 1.13.1
       '@pipecat-ai/small-webrtc-transport': 1.10.8(@pipecat-ai/client-js@1.13.1)

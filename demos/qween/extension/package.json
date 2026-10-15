@@ -14,7 +14,7 @@
     "@pipecat-ai/client-js": "^1.13.0",
     "@pipecat-ai/small-webrtc-transport": "^1.10.6",
     "@voqalize/avatar": "^0.5.7",
-    "@voqalize/client-transport": "0.3.2"
+    "@voqalize/client-transport": "0.4.0"
   },
   "devDependencies": {
     "esbuild": "^0.25.0",
