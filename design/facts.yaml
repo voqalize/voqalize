@@ -451,9 +451,9 @@ facts:
       - 'no client library of ours'
 
   client.transport.version:
-    value: '0.3.0'
+    value: '0.4.0'
     source: https://registry.npmjs.org/@voqalize/client-transport
-    verified: 2026-10-07
+    verified: 2026-10-15
     reproduce: npm view @voqalize/client-transport version
     note: >-
       The version every install line pins, exactly, and every demo here
@@ -463,7 +463,7 @@ facts:
   client.transport.pipecat_floor:
     value: 'client-js >=1.13.0 <2, small-webrtc-transport >=1.10.0 <2'
     source: voqalize-client-transport/package.json peerDependencies
-    verified: 2026-10-07
+    verified: 2026-10-15
     reproduce: grep -A3 peerDependencies ../voqalize-client-transport/package.json
     note: >-
       What a page on the default path must clear. pipecat.client.floor is the

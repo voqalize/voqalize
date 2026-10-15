@@ -15,7 +15,7 @@ Your server has no pipecat. Installing the Python SDK pulls in none of it.
 Install pipecat's client and transport, and our media manager:
 
 ```bash
-pnpm add @pipecat-ai/client-js @pipecat-ai/small-webrtc-transport @voqalize/client-transport@0.3.0
+pnpm add @pipecat-ai/client-js @pipecat-ai/small-webrtc-transport @voqalize/client-transport@0.4.0
 ```
 
 ```ts
@@ -123,7 +123,7 @@ the call's pipeline; in the browser, `@voqalize/avatar` takes the
 
 ## Versions
 
-`@voqalize/client-transport` 0.3.0 needs `@pipecat-ai/client-js` at
+`@voqalize/client-transport` 0.4.0 needs `@pipecat-ai/client-js` at
 `>=1.13.0 <2` and `@pipecat-ai/small-webrtc-transport` at `>=1.10.0 <2`, as peer
 dependencies. Pin our package at an exact version. Its
 [CHANGELOG](https://github.com/voqalize/voqalize-client-transport/blob/main/CHANGELOG.md)
