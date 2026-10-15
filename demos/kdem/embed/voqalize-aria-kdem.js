@@ -205,6 +205,9 @@
         try { client?.sendUIEvent("point_missed", { text }); } catch {}
         return;
       }
+      light(el);
+    }
+    function light(el) {
       clearTimeout(pointTimer);
       pointed?.classList.remove("vq-aria-pointed");
       const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -212,6 +215,80 @@
       el.classList.add("vq-aria-pointed");
       pointed = el;
       pointTimer = setTimeout(() => { el.classList.remove("vq-aria-pointed"); if (pointed === el) pointed = null; }, 3000);
+    }
+
+    // ── The KAN application form ─────────────────────────────────────────────
+    // Aria fills the Karnataka Acceleration Network form by voice, one field at
+    // a time (kan_fill). Fields are found by their visible label inside the form:
+    // the form builder's own field ids do not follow the labels. The visitor's
+    // own typing is reported back (kan_field_changed), so she never writes over
+    // it. Nothing here presses Apply Now or submits the form: that is the visitor's.
+    const KAN_FORM = 'form[name="Accelerator Form"]';
+    const KAN_LABELS = {
+      startup_name: "Name of the startup",
+      sector: "Sector",
+      founder_name: "Founder/Co-Founder Name",
+      mobile: "Mobile number",
+      email: "Email ID",
+      location: "Interested Location for Acceleration Network",
+    };
+    const tidy = (t) => (t || "").replace(/[\u2010-\u2015\u2212]/g, "-").replace(/\s+/g, " ").trim().toLowerCase();
+    const kanSet = new WeakMap(); // field element → the value Aria last put in it
+    function kanField(form, field) {
+      const want = tidy(KAN_LABELS[field]);
+      for (const label of form.querySelectorAll("label")) {
+        if (tidy(label.textContent).replace(/\s*\*$/, "") !== want) continue;
+        const el = label.htmlFor
+          ? form.querySelector("#" + CSS.escape(label.htmlFor))
+          : label.querySelector("input, select, textarea");
+        if (el) return el;
+      }
+      return null;
+    }
+    function kanFailed(field, reason) {
+      try { client?.sendUIEvent("kan_fill_failed", { field, reason }); } catch {}
+    }
+    function kanFill(field, value) {
+      if (!(field in KAN_LABELS)) return;
+      const form = document.querySelector(KAN_FORM);
+      if (!form) return kanFailed(field, "form_missing");
+      const el = kanField(form, field);
+      if (!el) return kanFailed(field, "field_missing");
+      if (el.tagName === "SELECT") {
+        const option = [...el.options].find((o) => tidy(o.textContent) === tidy(value));
+        if (!option) return kanFailed(field, "option_missing");
+        el.value = option.value;
+      } else {
+        // Through the element type's own setter, so a page that tracks the value sees it.
+        const proto = el.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+        Object.getOwnPropertyDescriptor(proto, "value").set.call(el, value);
+      }
+      kanSet.set(el, el.value);
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+      light(el);
+    }
+    const kanWatched = new WeakSet();
+    function watchKan() {
+      const form = document.querySelector(KAN_FORM);
+      if (!form || kanWatched.has(form)) return;
+      kanWatched.add(form);
+      for (const field of Object.keys(KAN_LABELS)) {
+        const el = kanField(form, field);
+        if (!el) continue;
+        let timer = 0;
+        const send = () => {
+          if (kanSet.get(el) === el.value) return; // the change Aria just made
+          kanSet.delete(el);
+          const value = el.tagName === "SELECT"
+            ? (el.selectedIndex > 0 ? el.options[el.selectedIndex].textContent.trim() : "")
+            : el.value;
+          try { client?.sendUIEvent("kan_field_changed", { field, value }); } catch {}
+        };
+        const later = () => { clearTimeout(timer); timer = setTimeout(send, 600); };
+        el.addEventListener("input", later);
+        el.addEventListener("change", later);
+      }
     }
 
     function setMuted(next) {
@@ -225,6 +302,7 @@
     // a page load she knows where the conversation has moved to.
     function reportPage() {
       try { client?.sendUIEvent("page_viewed", { path: location.pathname, title: document.title }); } catch {}
+      watchKan();
     }
 
     // ── 4. Start a call, or carry one over from the last page ────────────────
@@ -271,6 +349,10 @@
               }
               if (command === "navigate") { if (typeof payload?.url === "string") navigateTo(payload.url); return; }
               if (command === "point_at") { if (typeof payload?.text === "string") pointAt(payload.text); return; }
+              if (command === "kan_fill") {
+                if (typeof payload?.field === "string" && typeof payload?.value === "string") kanFill(payload.field, payload.value);
+                return;
+              }
               if (command !== "show_link" || !payload?.url) return;
               const url = new URL(payload.url, location.origin);
               if (!/(^|\.)karnatakadigital\.in$/.test(url.hostname)) return;

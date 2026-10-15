@@ -16,8 +16,8 @@ never looks for a frontend here and it is not a card on `/demos`.
 
 | Path | What it is |
 |---|---|
-| `backend/brain.py` | Aria: the prompt, the greeting and the tools (`search_kdem`, `offer_page`, `go_to_page`, `point_at`, `show_document`, `set_language`) |
-| `backend/app_events.py` | The events the snippet sends the brain: `page_viewed`, `language_requested`, `point_missed` |
+| `backend/brain.py` | Aria: the prompt, the greeting and the tools (`search_kdem`, `offer_page`, `go_to_page`, `point_at`, `show_document`, `fill_kan_field`, `set_language`) |
+| `backend/app_events.py` | The events the snippet sends the brain: `page_viewed`, `language_requested`, `point_missed`, `kan_field_changed`, `kan_fill_failed` |
 | `backend/content.py` | The languages table and the page list in the prompt |
 | `backend/knowledge.py` | The approved-page list, visible-text extraction, PDF text extraction, sitemap and PDF refresh, and in-memory search |
 | `backend/knowledge/` | `approved_pages.json`, which KDEM reviews, and its README |
@@ -127,6 +127,51 @@ manager, and the snippet gives it ours. (The transport still imports daily's
 library module, from jsDelivr like the rest; it never creates a call with it.)
 The pipecat and transport bundles contain no `eval`, and the avatar's own
 sources are the ones its documentation lists, above.
+
+## Filling the KAN application form by voice
+
+The Karnataka Acceleration Network page (`/acceleration-network/`) carries an
+application form, and Aria fills it in with the visitor. When someone wants to
+apply to KAN she offers to take them to that page (asking first, as for any
+page). There she says she can fill the form in with them and asks for one field
+at a time, in the form's order, filling each as they answer and skipping any
+they have already filled:
+
+| Field (its label on the form) | What the brain checks |
+|---|---|
+| Name of the startup | trimmed, up to 120 characters |
+| Sector (the form's one required field) | trimmed, up to 120 characters |
+| Founder/Co-Founder Name | trimmed, up to 120 characters |
+| Mobile number | an Indian ten-digit mobile; spaces, dashes and a +91 or 0 in front are dropped |
+| Email ID | the shape of an email address, in lower case |
+| Interested Location for Acceleration Network | exactly one of the form's six options; a city or incubator resolves to it ("Mysuru"), and a city with more than one ("Bengaluru") makes her ask which |
+
+- **`kan_fill`** (brain → page, `{field, value}`): the snippet finds the form by
+  its name, the field by its visible label (the form builder's field ids do not
+  follow the labels), sets the value, picks the drop-down option by its exact
+  text, fires `input` and `change` so the form's own checks see it, and lights
+  the field up. If the form, the field or the option is missing it sends
+  **`kan_fill_failed`** `{field, reason}`, and Aria asks the visitor to type it.
+- **`kan_field_changed`** (page → brain, `{field, value}`): a field the visitor
+  typed or changed themselves. Aria knows it is filled, and does not change it
+  without asking first. A mobile number or email is never repeated into the
+  model's context.
+- **The mobile number and email are read back before they go in.** This is held
+  in code: the first `fill_kan_field` for either records the value and returns
+  "read it back"; it goes into the form only when the model calls again with
+  the same value in the visitor's next turn and the visitor's words say yes
+  ("yes", "correct", "that's right", "ಹೌದು", "ಸರಿ"…). A correction is read back
+  again; a yes with nothing read back before it fills nothing.
+- **Aria never sends the form.** There is no submit action at all: at the end she
+  asks the visitor to check it and press Apply Now themselves.
+- The form fills only while the visitor is on the KAN page; anywhere else the
+  tool tells Aria to offer that page first. In Kannada, names stay as spoken and
+  the location is still one of the six English options.
+
+**What happens to a phone number and email said aloud.** They pass through
+speech recognition like every other word, so they are in the call's transcript,
+which Voqalize keeps with the session for 30 days. The brain itself never logs
+them: each fill is logged with the field's name only.
 
 ## Keeping the pages fresh
 

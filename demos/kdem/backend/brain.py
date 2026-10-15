@@ -70,13 +70,24 @@ from voqalize_demos import (
 from voqalize.sdk import Action, RequestRejected, RTVIMessage, Session, Speech, UserMessage
 from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig
 
-from .app_events import KDEM_EVENTS, LanguageRequested, PageViewed, PointMissed
+from .app_events import (
+    KDEM_EVENTS,
+    KanFieldChanged,
+    KanFillFailed,
+    LanguageRequested,
+    PageViewed,
+    PointMissed,
+)
 from .content import (
     BY_CODE,
     BY_TAG,
     CONTACT_PATH,
+    KAN_LABELS,
+    KAN_LOCATIONS,
+    KAN_URL,
     OPENING,
     SPEECH,
+    KanField,
     LanguageName,
     LanguageTag,
     page_digest,
@@ -137,6 +148,14 @@ TAKING THEM AROUND THE SITE. You can take the visitor to another page of the sit
 - POINTING. On the page they have open, point at the part that answers them with point_at, passing a short exact phrase from that page's text: a heading or a few words, under 80 characters, as they appear in what search_kdem returned for that page. No need to ask: "Eligibility is right here."
 - After you take them to a page you are still in the same conversation: carry on from where you were, point at the part they need, and do not greet them again.
 
+THE KAN APPLICATION FORM. The Karnataka Acceleration Network page ({path_of(KAN_URL)}) has an application form, and you fill it in with the visitor, by voice.
+- When they want to apply to KAN, or to join the accelerator, offer to take them to that page, asking first as always.
+- On that page, say you can fill the form in with them. Then ask for one field at a time, in the form's order: the startup's name, its sector, the founder or co-founder's name, a mobile number, an email ID, and the location they are interested in. As each answer comes, say a short line and call fill_kan_field with it, in the same response. Skip a field they have already filled.
+- The mobile number and the email: read it back in one short line ("That's 98450 12345, is that right?") and call fill_kan_field with it in that same response; it goes into the form when they say yes and you call fill_kan_field with it again. If they correct it, read the new one back.
+- The location is one of: {"; ".join(KAN_LOCATIONS)}. When they name a city with more than one (Bengaluru has three), ask which.
+- In Kannada, names stay as they say them, and the location is still one of those six, written as above.
+- At the end, ask them to check the form and press Apply Now themselves: filling it is yours, sending it is theirs.
+
 VOICE STYLE. Warm, plain and brief. No markdown, no lists, no symbols, no URLs read aloud — say "the Policies page", not its address. Say numbers as a person would. No throat-clearing: not "Great question", not "Sure, let me". English by default.
 
 WHAT YOU DO NOT DO. Each of these gets one polite sentence and, where it helps, the Contact Us page:
@@ -144,7 +163,7 @@ WHAT YOU DO NOT DO. Each of these gets one polite sentence and, where it helps, 
 - Commitments on behalf of KDEM or the Government of Karnataka: no promises of funding, approval, a meeting, a timeline or an outcome.
 - The status of any individual application, registration, payment or tender. You cannot see them; the KDEM team can.
 - Legal, tax or investment advice beyond what the site's own documents say. Say what the document says and suggest they take advice.
-- Personal data. Never ask for a name, phone number, email, address, ID number, OTP or password, and if they offer one, tell them you do not need it.
+- Personal details. The details you take are the six on the KAN application form, while the visitor is applying on that page (see THE KAN APPLICATION FORM): the startup's name and sector, a founder's name, a mobile number, an email ID and a location. Those go into the form and nowhere else. For anything beyond them — an address, an ID number, an OTP, a password — tell them you do not need it.
 - Anything unrelated to KDEM and doing business in Karnataka: say briefly that it is outside what you can help with here.
 
 LANGUAGE. The call starts in English, and English stays the main language. Besides English you speak Kannada, the language of Karnataka, in a Kannada voice.
@@ -252,6 +271,29 @@ class PointAt(Action, name="point_at"):
     text: str
 
 
+class KanFill(Action, name="kan_fill"):
+    """Brain → browser: put ``value`` into one field of the KAN application form,
+    found by its label. For the location, ``value`` is the drop-down option's
+    exact text. There is no action that sends the form: Apply Now is the
+    visitor's."""
+
+    field: KanField
+    value: str
+
+
+class KanFillRequest(BaseModel):
+    field: KanField = Field(description="Which field of the KAN application form.")
+    value: str = Field(
+        description="What goes in it, as the visitor said it. A mobile number as digits; "
+        "the location as one of the form's six, or the city or incubator they named."
+    )
+    replace: bool = Field(
+        False,
+        description="True only when the visitor typed this field themselves and has "
+        "told you to change it.",
+    )
+
+
 class PageRequest(BaseModel):
     url: str = Field(
         description="The page: a URL that search_kdem returned, or a path from THE PAGES, "
@@ -294,6 +336,70 @@ _ASKS_TO_GO = re.compile(
 )
 """Words with which a visitor asks to be taken to a page, in English and Kannada.
 Their own request is the yes that ``go_to_page`` otherwise waits for."""
+
+
+_KAN_TEXT_CHARS = 120
+"""The longest a name or a sector may be on the KAN form."""
+
+_YES = re.compile(
+    r"\b(?:yes|yeah|yep|yup|correct|right|ok|okay|sure|confirm(?:ed)?|perfect)\b"
+    r"|ಹೌದು|ಸರಿ|\bhaudu\b|\bsari\b",
+    re.IGNORECASE,
+)
+_NO = re.compile(r"\b(?:no|nope|wrong|incorrect|not)\b|ಇಲ್ಲ|\billa\b", re.IGNORECASE)
+
+
+def _said_yes(text: str) -> bool:
+    """Whether the visitor's words confirm what was read back to them."""
+    return bool(_YES.search(text)) and not _NO.search(text)
+
+
+def _kan_mobile(value: str) -> str | None:
+    """An Indian mobile number as ten digits, from however it was said: spaces,
+    dashes and a +91, 91 or 0 in front are dropped. ``None`` for anything else."""
+    digits = re.sub(r"[\s\-().]", "", value)
+    digits = re.sub(r"^(?:\+91|0091|91(?=\d{10}$)|0(?=\d{10}$))", "", digits)
+    return digits if re.fullmatch(r"[6-9]\d{9}", digits) else None
+
+
+def _kan_email(value: str) -> str | None:
+    """An email address in lower case, if it has the shape of one."""
+    email = re.sub(r"\s+", "", value).lower()
+    return email if re.fullmatch(r"[^@\s]+@[^@\s.]+(?:\.[^@\s.]+)*\.[a-z]{2,}", email) else None
+
+
+_KAN_PLACES: dict[str, str] = {
+    "bangalore": "bengaluru",
+    "ಬೆಂಗಳೂರು": "bengaluru",
+    "mysore": "mysuru",
+    "ಮೈಸೂರು": "mysuru",
+    "mangalore": "mangaluru",
+    "ಮಂಗಳೂರು": "mangaluru",
+    "hubli": "hubballi",
+    "ಹುಬ್ಬಳ್ಳಿ": "hubballi",
+    "ಧಾರವಾಡ": "dharwad",
+    "belgaum": "belagavi",
+    "ಬೆಳಗಾವಿ": "belagavi",
+}
+"""Other spellings of the form's cities: older English names and Kannada."""
+_KAN_FILLER = frozenset({"the", "in", "at", "a", "an", "and", "for", "of", "location", "centre"})
+
+
+def _kan_words(text: str) -> list[str]:
+    words: list[str] = re.findall(r"[a-z0-9]+|[\u0c80-\u0cff]+", text.casefold())
+    return [_KAN_PLACES.get(w) or w for w in words if w not in _KAN_FILLER]
+
+
+def _kan_location(value: str) -> list[str]:
+    """The drop-down options ``value`` names: the one it spells, else every
+    option holding all its words (a city, an incubator, or both)."""
+    want = _kan_words(value)
+    if not want:
+        return []
+    exact = [o for o in KAN_LOCATIONS if _kan_words(o) == want]
+    if exact:
+        return exact
+    return [o for o in KAN_LOCATIONS if all(w in _kan_words(o) for w in want)]
 
 
 def _squash(text: str) -> str:
@@ -409,6 +515,10 @@ class KdemBrain(GeminiBrain):
         self._took_to: str | None = None
         #: The phrase she last pointed at, for a page that could not show it.
         self._pointed: str | None = None
+        #: KAN form: who filled each field ("aria" or "visitor"), and a mobile
+        #: number or email read back and waiting for the visitor's yes.
+        self._kan: dict[KanField, str] = {}
+        self._kan_pending: dict[KanField, tuple[str, int]] = {}
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -516,6 +626,16 @@ class KdemBrain(GeminiBrain):
                 self._viewed(event)
             case LanguageRequested():
                 await self._requested(session, event)
+            case KanFieldChanged():
+                self._kan_changed(event)
+            case KanFillFailed():
+                label = KAN_LABELS[event.field]
+                logger.info("kdem: kan_fill_failed {} ({})", event.field, event.reason)
+                note = (
+                    f'[The form could not take "{label}" ({event.reason.replace("_", " ")}). '
+                    "Tell them plainly, and ask them to type it in themselves.]"
+                )
+                self.append_to_context(types.Content(role="user", parts=[types.Part(text=note)]))
             case PointMissed():
                 # Only for the phrase she pointed at: never a line the page made up.
                 if event.text == self._pointed:
@@ -554,6 +674,25 @@ class KdemBrain(GeminiBrain):
             line = f"[The call is now in {speech.name.capitalize()}, switched by {by}.]"
             self.append_to_context(types.Content(role="user", parts=[types.Part(text=line)]))
 
+    def _kan_changed(self, event: KanFieldChanged) -> None:
+        """The visitor filled a field of the KAN form themselves: remember it is
+        theirs, so it is not overwritten without asking, and tell the model. A
+        mobile number or email is never repeated into the context or the log."""
+        value = re.sub(r"\s+", " ", event.value).strip()[:_KAN_TEXT_CHARS]
+        label = KAN_LABELS[event.field]
+        logger.info("kdem: kan_field_changed {}", event.field)
+        self._kan_pending.pop(event.field, None)
+        if not value:
+            self._kan.pop(event.field, None)
+            line = f'[The visitor cleared "{label}" on the form.]'
+        else:
+            self._kan[event.field] = "visitor"
+            if event.field in ("mobile", "email"):
+                line = f'[The visitor filled in "{label}" on the form themselves.]'
+            else:
+                line = f'[The visitor filled in "{label}" on the form themselves: "{value}".]'
+        self.append_to_context(types.Content(role="user", parts=[types.Part(text=line)]))
+
     def _viewed(self, event: PageViewed) -> None:
         here = normalize(event.path)
         if here is None or here == self.here:
@@ -587,6 +726,7 @@ class KdemBrain(GeminiBrain):
         return [
             self.search_kdem,
             self.show_document,
+            self.fill_kan_field,
             self.offer_page,
             self.go_to_page,
             self.point_at,
@@ -702,6 +842,82 @@ class KdemBrain(GeminiBrain):
             f'question, say: "{DONT_KNOW}"\n\n{found}'
         )
 
+    def _kan_next(self) -> str:
+        left = [KAN_LABELS[f] for f in KAN_LABELS if f not in self._kan]
+        if not left:
+            return "Every field is filled: ask them to check the form and press Apply Now."
+        return f'Next, ask for "{left[0]}".'
+
+    async def fill_kan_field(self, request: KanFillRequest) -> str:
+        """Put one answer into the KAN application form on the page they are on.
+        Say a short line and call this with each answer as it comes. A mobile
+        number or email is read back first and goes in after their yes, when you
+        call this again with it. The form is sent by the visitor, never by you."""
+        field = request.field
+        here = ALLOWLIST.canonical(self.here) if self.here else None
+        if here != KAN_URL:
+            logger.info("kdem: fill_kan_field {} refused: not on the KAN page", field)
+            return (
+                "Not filled: the form is on the Karnataka Acceleration Network page. "
+                f"Offer to take them there with offer_page ({path_of(KAN_URL)}) first."
+            )
+        if self._kan.get(field) == "visitor" and not request.replace:
+            return (
+                f'Not filled: they typed "{KAN_LABELS[field]}" themselves. Ask before changing '
+                "it; if they say to, call again with replace set to true."
+            )
+        value: str | None
+        if field == "mobile":
+            value = _kan_mobile(request.value)
+            if value is None:
+                return (
+                    "Not filled: that is not a ten-digit Indian mobile number. "
+                    "Ask them to say it again."
+                )
+        elif field == "email":
+            value = _kan_email(request.value)
+            if value is None:
+                return "Not filled: that is not an email address. Ask them to say it again."
+        elif field == "location":
+            options = _kan_location(request.value)
+            if len(options) > 1:
+                return "Not filled: more than one matches. Ask which: " + "; ".join(options) + "."
+            if not options:
+                return (
+                    "Not filled: that is not one of the form's locations. They are: "
+                    + "; ".join(KAN_LOCATIONS)
+                    + "."
+                )
+            value = options[0]
+        else:
+            value = re.sub(r"\s+", " ", request.value).strip()
+            if not value:
+                return "Not filled: there is nothing to put in. Ask them again."
+            if len(value) > _KAN_TEXT_CHARS:
+                return f"Not filled: keep it under {_KAN_TEXT_CHARS} characters."
+        if field in ("mobile", "email"):
+            # Read back, then filled on the yes: what was read back in the
+            # visitor's last turn, confirmed in this one.
+            pending = self._kan_pending.get(field)
+            confirmed = (
+                pending is not None
+                and pending == (value, self._turn - 1)
+                and _said_yes(self._heard)
+            )
+            if not confirmed:
+                self._kan_pending[field] = (value, self._turn)
+                logger.info("kdem: fill_kan_field {} read back, waiting for a yes", field)
+                return (
+                    "Not in the form yet: read it back to them in one short line and ask if it "
+                    "is right; when they say yes, call fill_kan_field with it again."
+                )
+            self._kan_pending.pop(field, None)
+        self._kan[field] = "aria"
+        self.session.dispatch(KanFill(field=field, value=value))
+        logger.info("kdem: kan_fill {}", field)
+        landed(*phrase(self.spoken, "done"))
+        return f"Filled. {self._kan_next()}"
+
     async def show_document(self, request: DocumentRequest) -> str:
         """Show a PDF document beside you as a card; it opens in a new tab. Name the
         document and the page in your one or two sentences and call this in the
@@ -750,6 +966,7 @@ __all__ = [
     "DONT_KNOW",
     "SWITCH_LINE",
     "TOGGLE_CONFIRM",
+    "KanFill",
     "KdemBrain",
     "LanguageChanged",
     "Navigate",

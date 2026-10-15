@@ -61,6 +61,7 @@ from voqalize_demos._loaded.kdem.brain import (  # noqa: E402
     TOGGLE_CONFIRM,
     KdemBrain,
 )
+from voqalize_demos._loaded.kdem.content import KAN_LOCATIONS  # noqa: E402
 from voqalize_demos._loaded.kdem.knowledge import (  # noqa: E402
     ALLOWLIST,
     KNOWLEDGE,
@@ -290,6 +291,73 @@ def _llm() -> ScriptedGemini:
                 reply_and_call("Here.", "show_document", request={"url": UNINDEXED_PDF}),
             ],
             "Thank you.": reply("You're welcome."),
+            # The KAN application form, one field at a time.
+            "My startup is Lantern Labs.": reply_and_call(
+                "Lantern Labs, got it.",
+                "fill_kan_field",
+                request={"field": "startup_name", "value": "  Lantern   Labs "},
+            ),
+            "The sector is clean energy.": reply_and_call(
+                "Clean energy.",
+                "fill_kan_field",
+                request={"field": "sector", "value": "Clean energy"},
+            ),
+            "The founder is Asha Rao.": reply_and_call(
+                "Thank you.",
+                "fill_kan_field",
+                request={"field": "founder_name", "value": "Asha Rao"},
+            ),
+            "Mysuru, please.": reply_and_call(
+                "Mysuru it is.", "fill_kan_field", request={"field": "location", "value": "Mysuru"}
+            ),
+            "The Dharwad one.": reply_and_call(
+                "Dharwad.",
+                "fill_kan_field",
+                request={"field": "location", "value": "ASTRA, Dharwad"},
+            ),
+            "Bengaluru.": reply_and_call(
+                "Which one?", "fill_kan_field", request={"field": "location", "value": "Bengaluru"}
+            ),
+            "Chennai.": reply_and_call(
+                "Let me check.", "fill_kan_field", request={"field": "location", "value": "Chennai"}
+            ),
+            "My number is 98450 12345.": reply_and_call(
+                "That's 98450 12345, is that right?",
+                "fill_kan_field",
+                request={"field": "mobile", "value": "+91 98450-12345"},
+            ),
+            "Yes, that's right.": reply_and_call(
+                "Thank you.", "fill_kan_field", request={"field": "mobile", "value": "9845012345"}
+            ),
+            "Yes, fill 98450 12345.": reply_and_call(
+                "Filling it.", "fill_kan_field", request={"field": "mobile", "value": "9845012345"}
+            ),
+            "My number is 12345.": reply_and_call(
+                "Let me check.", "fill_kan_field", request={"field": "mobile", "value": "12345"}
+            ),
+            "It is Priya at example dot com.": reply_and_call(
+                "That's priya at example dot com, is that right?",
+                "fill_kan_field",
+                request={"field": "email", "value": "Priya@Example.com"},
+            ),
+            "No, it is priya dot r at example dot com.": reply_and_call(
+                "That's priya dot r at example dot com, is that right?",
+                "fill_kan_field",
+                request={"field": "email", "value": "Priya.R@example.com"},
+            ),
+            "Yes, correct.": reply_and_call(
+                "Thank you.",
+                "fill_kan_field",
+                request={"field": "email", "value": "priya.r@example.com"},
+            ),
+            "It is priya at nowhere.": reply_and_call(
+                "Let me check.",
+                "fill_kan_field",
+                request={"field": "email", "value": "priya at nowhere"},
+            ),
+            "Put Fintech as the sector.": reply_and_call(
+                "Fintech.", "fill_kan_field", request={"field": "sector", "value": "Fintech"}
+            ),
             "What is the weather on Mars?": [
                 call("search_kdem", request={"query": "weather on Mars"}),
                 reply_and_call(DONT_KNOW, "offer_page", request={"url": "/contact-us/"}),
@@ -1010,3 +1078,168 @@ async def test_a_point_the_page_could_not_show_reaches_the_next_turn() -> None:
     seen = _said(llm.captured_contents[-1])
     assert 'could not show "early-stage STARTUPS in Mysuru"' in seen
     assert "something it never sent" not in seen
+
+
+# ─── The KAN application form ─────────────────────────────────────────────────
+
+KAN_PAGE = "/acceleration-network/"
+
+
+def _fills(rig: object) -> list[dict[str, object]]:
+    return [
+        dict(c.get("payload") or {})
+        for c in rig.driver.ui_commands  # type: ignore[attr-defined]
+        if c.get("command") == "kan_fill"
+    ]
+
+
+async def test_the_text_fields_and_the_location_are_filled_as_they_answer() -> None:
+    async with demo("kdem", _llm()) as rig:
+        await rig.driver.start_session(init={"page": KAN_PAGE})
+        await rig.driver.user_says("My startup is Lantern Labs.")
+        await rig.driver.user_says("The sector is clean energy.")
+        await rig.driver.user_says("The founder is Asha Rao.")
+        await rig.driver.user_says("Mysuru, please.")
+        await rig.driver.user_says("The Dharwad one.")
+        assert _fills(rig) == [
+            {"field": "startup_name", "value": "Lantern Labs"},
+            {"field": "sector", "value": "Clean energy"},
+            {"field": "founder_name", "value": "Asha Rao"},
+            {"field": "location", "value": "Mysuru - SJCE STEP"},
+            {"field": "location", "value": KAN_LOCATIONS[5]},
+        ]
+        assert "\u2013" in KAN_LOCATIONS[5]  # the en dash, as the form writes it
+
+
+@pytest.mark.parametrize(
+    ("ask", "expected"),
+    [
+        ("Bengaluru.", "more than one matches. Ask which: Bengaluru - JAIN Launchpad"),
+        ("Chennai.", "not one of the form's locations"),
+        ("My number is 12345.", "not a ten-digit Indian mobile number"),
+        ("It is priya at nowhere.", "not an email address"),
+    ],
+)
+async def test_what_the_form_cannot_take_is_refused_with_why(ask: str, expected: str) -> None:
+    llm = _llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": KAN_PAGE})
+        await rig.driver.user_says(ask)
+        assert _fills(rig) == []
+        await rig.driver.user_says("Thank you.")
+    assert expected in _result(llm, "fill_kan_field")
+
+
+async def test_a_mobile_number_goes_in_only_after_the_visitor_confirms_it() -> None:
+    """Read back, then filled on the yes, normalised to ten digits. A yes with no
+    read-back before it is not a confirmation."""
+    llm = _llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": KAN_PAGE})
+        await rig.driver.user_says("Yes, fill 98450 12345.")  # nothing was read back yet
+        assert _fills(rig) == []
+        await rig.driver.user_says("My number is 98450 12345.")
+        assert _fills(rig) == []
+        await rig.driver.user_says("Yes, that's right.")
+        assert _fills(rig) == [{"field": "mobile", "value": "9845012345"}]
+
+
+async def test_an_email_is_confirmed_and_a_correction_is_read_back_again() -> None:
+    async with demo("kdem", _llm()) as rig:
+        await rig.driver.start_session(init={"page": KAN_PAGE})
+        await rig.driver.user_says("It is Priya at example dot com.")
+        await rig.driver.user_says("No, it is priya dot r at example dot com.")
+        assert _fills(rig) == []
+        await rig.driver.user_says("Yes, correct.")
+        assert _fills(rig) == [{"field": "email", "value": "priya.r@example.com"}]
+
+
+async def test_the_form_is_filled_only_on_the_kan_page() -> None:
+    llm = _llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says("My startup is Lantern Labs.")
+        assert _fills(rig) == []
+        await rig.driver.user_says("Thank you.")
+    refused = _result(llm, "fill_kan_field")
+    assert refused.startswith("Not filled") and "offer_page" in refused and KAN_PAGE in refused
+
+
+async def test_what_the_visitor_typed_reaches_the_next_turn_and_is_not_overwritten() -> None:
+    llm = _llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": KAN_PAGE})
+        await rig.driver.send_ui_event(
+            "kan_field_changed", {"field": "sector", "value": " Agritech "}
+        )
+        await rig.driver.send_ui_event(
+            "kan_field_changed", {"field": "mobile", "value": "98450 99999"}
+        )
+        await asyncio.sleep(0.1)
+        await rig.driver.user_says("Put Fintech as the sector.")
+        assert _fills(rig) == []  # theirs: asked before it is changed
+        await rig.driver.user_says("Thank you.")
+    seen = _said(llm.captured_contents[-1])
+    assert 'filled in "Sector" on the form themselves: "Agritech"' in seen
+    assert 'filled in "Mobile number" on the form themselves.]' in seen
+    assert "98450 99999" not in seen  # never repeated into the context
+    assert "they typed" in _result(llm, "fill_kan_field")
+
+
+async def test_a_fill_the_page_could_not_make_reaches_the_next_turn() -> None:
+    llm = _llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": KAN_PAGE})
+        await rig.driver.send_ui_event(
+            "kan_fill_failed", {"field": "location", "reason": "option_missing"}
+        )
+        await rig.driver.send_ui_event("kan_fill_failed", {"field": "nowhere", "reason": "x"})
+        await asyncio.sleep(0.1)
+        await rig.driver.user_says("Thank you.")
+    seen = _said(llm.captured_contents[-1])
+    assert 'could not take "Interested Location for Acceleration Network" (option missing)' in seen
+    assert seen.count("could not take") == 1
+
+
+def test_nothing_aria_has_sends_the_form() -> None:
+    """Filling is hers; sending is the visitor's. No tool and no action submits."""
+    from voqalize_demos._loaded.kdem import brain as kdem_brain
+
+    from voqalize.sdk import Action
+
+    tools = [t.__name__ for t in KdemBrain.tools.fget(object.__new__(KdemBrain))]  # type: ignore[attr-defined]
+    assert "fill_kan_field" in tools
+    assert not any("submit" in t or "apply" in t for t in tools)
+    actions = [
+        v.__voqal_command__ if hasattr(v, "__voqal_command__") else k
+        for k, v in vars(kdem_brain).items()
+        if isinstance(v, type) and issubclass(v, Action) and v is not Action
+    ]
+    assert not any("submit" in str(a).lower() for a in actions)
+    assert "press Apply Now themselves" in _SYSTEM_INSTRUCTION
+
+
+async def test_the_brain_log_carries_no_mobile_number_or_email() -> None:
+    from loguru import logger
+
+    lines: list[str] = []
+    sink = logger.add(lambda m: lines.append(str(m)), level="DEBUG")
+    try:
+        async with demo("kdem", _llm()) as rig:
+            await rig.driver.start_session(init={"page": KAN_PAGE})
+            await rig.driver.user_says("My number is 98450 12345.")
+            await rig.driver.user_says("Yes, that's right.")
+            await rig.driver.user_says("It is Priya at example dot com.")
+            await rig.driver.user_says("No, it is priya dot r at example dot com.")
+            await rig.driver.user_says("Yes, correct.")
+            await rig.driver.send_ui_event(
+                "kan_field_changed", {"field": "email", "value": "typed.by@example.org"}
+            )
+            await asyncio.sleep(0.1)
+            assert len(_fills(rig)) == 2
+    finally:
+        logger.remove(sink)
+    log = "\n".join(lines)
+    assert "kdem: kan_fill mobile" in log and "kdem: kan_fill email" in log
+    for secret in ("9845012345", "98450", "priya", "example.com", "typed.by"):
+        assert secret not in log.lower(), secret

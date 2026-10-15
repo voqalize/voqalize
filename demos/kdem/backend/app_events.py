@@ -18,13 +18,23 @@ title on its own approved list, never by what the browser sent.
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import Field
 
 from voqalize.sdk import AppEvent, AppEvents
 
-from .content import LanguageTag
+from .content import KanField, LanguageTag
 
-__all__ = ["KDEM_EVENTS", "KdemEvent", "LanguageRequested", "PageViewed", "PointMissed"]
+__all__ = [
+    "KDEM_EVENTS",
+    "KanFieldChanged",
+    "KanFillFailed",
+    "KdemEvent",
+    "LanguageRequested",
+    "PageViewed",
+    "PointMissed",
+]
 
 
 class PageViewed(AppEvent):
@@ -48,6 +58,25 @@ class PointMissed(AppEvent):
     text: str = Field(max_length=200)
 
 
-type KdemEvent = PageViewed | LanguageRequested | PointMissed
+class KanFieldChanged(AppEvent):
+    """The visitor typed in, or changed, one field of the KAN application form
+    themselves. ``value`` is what the field holds now; it is trimmed in the
+    brain, and a mobile number or email is never logged or put in the context."""
 
-KDEM_EVENTS = AppEvents[KdemEvent](PageViewed, LanguageRequested, PointMissed)
+    field: KanField
+    value: str
+
+
+class KanFillFailed(AppEvent):
+    """The snippet could not carry out a ``kan_fill``: the form is not on the
+    page, the field is not on the form, or the drop-down has no such option."""
+
+    field: KanField
+    reason: Literal["form_missing", "field_missing", "option_missing"]
+
+
+type KdemEvent = PageViewed | LanguageRequested | PointMissed | KanFieldChanged | KanFillFailed
+
+KDEM_EVENTS = AppEvents[KdemEvent](
+    PageViewed, LanguageRequested, PointMissed, KanFieldChanged, KanFillFailed
+)
