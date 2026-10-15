@@ -417,6 +417,96 @@ enum Voice {
 
   // Female, Indian English and the Indic languages.
   VOICE_OMNIVOICE_GAYATRI = 10 [(voice_id) = "omnivoice/gayatri"];
+
+  // Female, American English. The voice of the character Emily Carter.
+  VOICE_OMNIVOICE_EMILY = 11 [(voice_id) = "omnivoice/emily"];
+
+  // Female, American English. The voice of the character Jasmine Brooks.
+  VOICE_OMNIVOICE_JASMINE = 12 [(voice_id) = "omnivoice/jasmine"];
+
+  // Female, American English. The voice of the character Sofia Ramirez.
+  VOICE_OMNIVOICE_SOFIA = 13 [(voice_id) = "omnivoice/sofia"];
+
+  // Female, American English. The voice of the character Madison Hayes.
+  VOICE_OMNIVOICE_MADISON = 14 [(voice_id) = "omnivoice/madison"];
+
+  // Female, American English. The voice of the character Aaliyah Johnson.
+  VOICE_OMNIVOICE_AALIYAH = 15 [(voice_id) = "omnivoice/aaliyah"];
+
+  // Male, American English. The voice of the character Ryan Mitchell.
+  VOICE_OMNIVOICE_RYAN = 16 [(voice_id) = "omnivoice/ryan"];
+
+  // Male, American English. The voice of the character Marcus Williams.
+  VOICE_OMNIVOICE_MARCUS = 17 [(voice_id) = "omnivoice/marcus"];
+
+  // Male, American English. The voice of the character Daniel Reyes.
+  VOICE_OMNIVOICE_DANIEL = 18 [(voice_id) = "omnivoice/daniel"];
+
+  // Male, American English. The voice of the character Tyler Morgan.
+  VOICE_OMNIVOICE_TYLER = 19 [(voice_id) = "omnivoice/tyler"];
+
+  // Male, American English. The voice of the character Jordan Ellis.
+  VOICE_OMNIVOICE_JORDAN = 20 [(voice_id) = "omnivoice/jordan"];
+
+  // Female, European-accented English. The voice of the character Freya Lindqvist.
+  VOICE_OMNIVOICE_FREYA = 21 [(voice_id) = "omnivoice/freya"];
+
+  // Female, European-accented English. The voice of the character Chiara Romano.
+  VOICE_OMNIVOICE_CHIARA = 22 [(voice_id) = "omnivoice/chiara"];
+
+  // Female, European-accented English. The voice of the character Élodie Martin.
+  VOICE_OMNIVOICE_ELODIE = 23 [(voice_id) = "omnivoice/elodie"];
+
+  // Female, British English. The voice of the character Amara Mensah.
+  VOICE_OMNIVOICE_AMARA = 24 [(voice_id) = "omnivoice/amara"];
+
+  // Female, European-accented English. The voice of the character Kasia Nowak.
+  VOICE_OMNIVOICE_KASIA = 25 [(voice_id) = "omnivoice/kasia"];
+
+  // Male, European-accented English. The voice of the character Lukas Becker.
+  VOICE_OMNIVOICE_LUKAS = 26 [(voice_id) = "omnivoice/lukas"];
+
+  // Male, European-accented English. The voice of the character Javier Morales.
+  VOICE_OMNIVOICE_JAVIER = 27 [(voice_id) = "omnivoice/javier"];
+
+  // Male, British English. The voice of the character Oliver Bennett.
+  VOICE_OMNIVOICE_OLIVERBENNETT = 28 [(voice_id) = "omnivoice/oliverbennett"];
+
+  // Male, British English. The voice of the character Samuel Adeyemi.
+  VOICE_OMNIVOICE_SAMUEL = 29 [(voice_id) = "omnivoice/samuel"];
+
+  // Male, European-accented English. The voice of the character Andrei Popescu.
+  VOICE_OMNIVOICE_ANDREI = 30 [(voice_id) = "omnivoice/andrei"];
+
+  // Female, Indian English. The voice of the character Ananya Sharma.
+  VOICE_OMNIVOICE_ANANYA = 31 [(voice_id) = "omnivoice/ananya"];
+
+  // Female, Indian English. The voice of the character Meera Iyer.
+  VOICE_OMNIVOICE_MEERA = 32 [(voice_id) = "omnivoice/meera"];
+
+  // Female, Indian English. The voice of the character Priya Nair.
+  VOICE_OMNIVOICE_PRIYA = 33 [(voice_id) = "omnivoice/priya"];
+
+  // Female, Indian English. The voice of the character Riya Kapoor.
+  VOICE_OMNIVOICE_RIYA = 34 [(voice_id) = "omnivoice/riya"];
+
+  // Female, Indian English. The voice of the character Kavya Reddy.
+  VOICE_OMNIVOICE_KAVYA = 35 [(voice_id) = "omnivoice/kavya"];
+
+  // Male, Indian English. The voice of the character Arjun Mehta.
+  VOICE_OMNIVOICE_ARJUN = 36 [(voice_id) = "omnivoice/arjun"];
+
+  // Male, Indian English. The voice of the character Karthik Rao.
+  VOICE_OMNIVOICE_KARTHIK = 37 [(voice_id) = "omnivoice/karthik"];
+
+  // Male, Indian English. The voice of the character Rohan Malhotra.
+  VOICE_OMNIVOICE_ROHAN = 38 [(voice_id) = "omnivoice/rohan"];
+
+  // Male, Indian English. The voice of the character Aditya Verma.
+  VOICE_OMNIVOICE_ADITYA = 39 [(voice_id) = "omnivoice/aditya"];
+
+  // Male, Indian English. The voice of the character Nikhil Joshi.
+  VOICE_OMNIVOICE_NIKHIL = 40 [(voice_id) = "omnivoice/nikhil"];
 }
 
 // English plus the 22 Indic languages the speech tier serves.

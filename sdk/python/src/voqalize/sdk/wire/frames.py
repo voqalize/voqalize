@@ -244,6 +244,66 @@ class Voice(StrEnum):
     OMNIVOICE_GAUTAM = "omnivoice/gautam"
     #: Female, Indian English and the Indic languages.
     OMNIVOICE_GAYATRI = "omnivoice/gayatri"
+    #: Female, American English. The voice of the character Emily Carter.
+    OMNIVOICE_EMILY = "omnivoice/emily"
+    #: Female, American English. The voice of the character Jasmine Brooks.
+    OMNIVOICE_JASMINE = "omnivoice/jasmine"
+    #: Female, American English. The voice of the character Sofia Ramirez.
+    OMNIVOICE_SOFIA = "omnivoice/sofia"
+    #: Female, American English. The voice of the character Madison Hayes.
+    OMNIVOICE_MADISON = "omnivoice/madison"
+    #: Female, American English. The voice of the character Aaliyah Johnson.
+    OMNIVOICE_AALIYAH = "omnivoice/aaliyah"
+    #: Male, American English. The voice of the character Ryan Mitchell.
+    OMNIVOICE_RYAN = "omnivoice/ryan"
+    #: Male, American English. The voice of the character Marcus Williams.
+    OMNIVOICE_MARCUS = "omnivoice/marcus"
+    #: Male, American English. The voice of the character Daniel Reyes.
+    OMNIVOICE_DANIEL = "omnivoice/daniel"
+    #: Male, American English. The voice of the character Tyler Morgan.
+    OMNIVOICE_TYLER = "omnivoice/tyler"
+    #: Male, American English. The voice of the character Jordan Ellis.
+    OMNIVOICE_JORDAN = "omnivoice/jordan"
+    #: Female, European-accented English. The voice of the character Freya Lindqvist.
+    OMNIVOICE_FREYA = "omnivoice/freya"
+    #: Female, European-accented English. The voice of the character Chiara Romano.
+    OMNIVOICE_CHIARA = "omnivoice/chiara"
+    #: Female, European-accented English. The voice of the character Élodie Martin.
+    OMNIVOICE_ELODIE = "omnivoice/elodie"
+    #: Female, British English. The voice of the character Amara Mensah.
+    OMNIVOICE_AMARA = "omnivoice/amara"
+    #: Female, European-accented English. The voice of the character Kasia Nowak.
+    OMNIVOICE_KASIA = "omnivoice/kasia"
+    #: Male, European-accented English. The voice of the character Lukas Becker.
+    OMNIVOICE_LUKAS = "omnivoice/lukas"
+    #: Male, European-accented English. The voice of the character Javier Morales.
+    OMNIVOICE_JAVIER = "omnivoice/javier"
+    #: Male, British English. The voice of the character Oliver Bennett.
+    OMNIVOICE_OLIVERBENNETT = "omnivoice/oliverbennett"
+    #: Male, British English. The voice of the character Samuel Adeyemi.
+    OMNIVOICE_SAMUEL = "omnivoice/samuel"
+    #: Male, European-accented English. The voice of the character Andrei Popescu.
+    OMNIVOICE_ANDREI = "omnivoice/andrei"
+    #: Female, Indian English. The voice of the character Ananya Sharma.
+    OMNIVOICE_ANANYA = "omnivoice/ananya"
+    #: Female, Indian English. The voice of the character Meera Iyer.
+    OMNIVOICE_MEERA = "omnivoice/meera"
+    #: Female, Indian English. The voice of the character Priya Nair.
+    OMNIVOICE_PRIYA = "omnivoice/priya"
+    #: Female, Indian English. The voice of the character Riya Kapoor.
+    OMNIVOICE_RIYA = "omnivoice/riya"
+    #: Female, Indian English. The voice of the character Kavya Reddy.
+    OMNIVOICE_KAVYA = "omnivoice/kavya"
+    #: Male, Indian English. The voice of the character Arjun Mehta.
+    OMNIVOICE_ARJUN = "omnivoice/arjun"
+    #: Male, Indian English. The voice of the character Karthik Rao.
+    OMNIVOICE_KARTHIK = "omnivoice/karthik"
+    #: Male, Indian English. The voice of the character Rohan Malhotra.
+    OMNIVOICE_ROHAN = "omnivoice/rohan"
+    #: Male, Indian English. The voice of the character Aditya Verma.
+    OMNIVOICE_ADITYA = "omnivoice/aditya"
+    #: Male, Indian English. The voice of the character Nikhil Joshi.
+    OMNIVOICE_NIKHIL = "omnivoice/nikhil"
 
 
 class Language(StrEnum):
