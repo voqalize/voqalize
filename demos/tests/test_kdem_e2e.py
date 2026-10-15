@@ -11,20 +11,22 @@ every other test that opens a KDEM session).
 
 KDEM earns four checks of its own.
 
-**Only approved pages leave the brain.** The browser snippet renders one command,
-``show_link``, and the brain decides what goes in it: the model names a page, the
-brain canonicalises it and sends it with the page's own title — or refuses it.
-So the tests send aliases, spelling variants, excluded pages, unapproved pages and
+**Only approved pages leave the brain.** The model names a page or a document,
+and the brain canonicalises it and sends it — ``navigate`` for a page the
+visitor said yes to, a ``show_link`` card for a PDF — or refuses it. So the
+tests send aliases, spelling variants, excluded pages, unapproved pages and
 other sites, and read what crosses the wire.
 
 **The search is the only read.** ``search_kdem`` is marked, so a turn that calls
-it is asked again at once and the answer's request carries the passages.
-``show_link`` and ``set_language`` are not, so a line and a call share one
-response and the turn ends with it.
+it is asked again at once and the answer's request carries the passages. The
+other tools are not, so a line and a call share one response and the turn ends
+with it.
 
-**A PDF is cited by page and linked as itself.** A passage from a PDF the index
-holds says which document and which page, and ``show_link`` sends the PDF's own
-URL with its link text as the title — but only for a PDF the index holds.
+**Pages are visited, documents are shown.** An answer offers the page with
+``offer_page`` and goes there only on a yes (or the visitor's own request); a
+passage from a PDF the index holds says which document and which page, and
+``show_document`` sends the PDF's own URL as a card — but only for a PDF the
+index holds, and never for an ordinary page.
 
 **No index is a fixed line, not an improvisation.** With no snapshot on a fresh
 host, the search hands back the don't-know line and the Contact Us page.
@@ -177,51 +179,52 @@ def _results(contents: list[types.Content]) -> dict[str, str]:
 def _llm() -> ScriptedGemini:
     return ScriptedGemini(
         {
-            # The read, then the answer and the link in one response.
+            # The read, then the answer and the offer to go there, in one response.
             "Do you fund startups outside Bengaluru?": [
                 call("search_kdem", request={"query": "seed fund startups outside Bengaluru"}),
                 reply_and_call(
-                    "Yes, the cluster seed fund backs startups in Mysuru and beyond.",
-                    "show_link",
-                    request={"url": SEED_FUND, "title": "Seed fund"},
+                    "Yes, the cluster seed fund backs startups in Mysuru and beyond. "
+                    "Shall I take you to its page?",
+                    "offer_page",
+                    request={"url": SEED_FUND},
                 ),
             ],
             # An alias, with www, a query and no trailing slash: one canonical page.
-            "Where are your reports?": [
-                reply_and_call(
-                    "They are all on one page.",
-                    "show_link",
-                    request={
-                        "url": "https://www.karnatakadigital.in/resources?ref=x",
-                        "title": "x",
-                    },
-                ),
-            ],
-            "Any news on incubators?": [
-                reply_and_call(
-                    "There is one in Kalaburagi.",
-                    "show_link",
-                    request={"url": "/news/sample-headline/"},
-                ),
-            ],
-            "Show me another site.": [
-                reply_and_call(
-                    "Here.",
-                    "show_link",
-                    request={"url": "https://example.com/karnatakadigital.in/"},
-                ),
-            ],
-            "Show me the sample page.": [
-                reply_and_call("Here.", "show_link", request={"url": "/sample-page/"}),
-            ],
-            "Show me a page that is not listed.": [
-                reply_and_call("Here.", "show_link", request={"url": "/not-a-listed-page/"}),
-            ],
+            "Where are your reports?": reply_and_call(
+                "They are all on one page. Shall I take you there?",
+                "offer_page",
+                request={"url": "https://www.karnatakadigital.in/resources?ref=x"},
+            ),
+            "Yes.": reply_and_call(
+                "Taking you there.",
+                "go_to_page",
+                request={"url": "https://www.karnatakadigital.in/resources?ref=x"},
+            ),
+            "Any news on incubators?": reply_and_call(
+                "There is one in Kalaburagi. Shall I take you to it?",
+                "offer_page",
+                request={"url": "/news/sample-headline/"},
+            ),
+            "Show me another site.": reply_and_call(
+                "Shall I take you there?",
+                "offer_page",
+                request={"url": "https://example.com/karnatakadigital.in/"},
+            ),
+            "Show me the sample page.": reply_and_call(
+                "Shall I take you there?", "offer_page", request={"url": "/sample-page/"}
+            ),
+            "Show me a page that is not listed.": reply_and_call(
+                "Shall I take you there?", "offer_page", request={"url": "/not-a-listed-page/"}
+            ),
+            # A page is visited, never shown as a card.
+            "Show me the seed fund as a card.": reply_and_call(
+                "Here.", "show_document", request={"url": SEED_FUND}
+            ),
             "What does the startup policy offer student founders?": [
                 call("search_kdem", request={"query": "startup policy student founders grant"}),
                 reply_and_call(
                     "The Sample Startup Policy describes an incubator grant, on page 2.",
-                    "show_link",
+                    "show_document",
                     request={"url": POLICY_PDF, "title": "the policy"},
                 ),
             ],
@@ -230,7 +233,7 @@ def _llm() -> ScriptedGemini:
                 reply_and_call(
                     "The Sample State Scheme offers lantern workshop grants; the KDEM "
                     "resources page links to it.",
-                    "show_link",
+                    "show_document",
                     request={"url": STATE_PDF},
                 ),
             ],
@@ -238,13 +241,58 @@ def _llm() -> ScriptedGemini:
             "Naanu startup fund bagge beku": call("set_language", request={"language": "kannada"}),
             # In Kannada mode, English arrives in Kannada script: switch back, silently.
             "ಐ ವಾಂಟ್ ಇಂಗ್ಲಿಷ್": call("set_language", request={"language": "english"}),
+            # Walking the site: offer first, go on a yes; an explicit ask is the yes.
+            "Where can I read about the seed fund?": reply_and_call(
+                "It is on the Beyond Bengaluru Cluster Seed Fund page. Shall I take you there?",
+                "offer_page",
+                request={"url": SEED_FUND},
+            ),
+            "Yes please.": reply_and_call(
+                "Taking you there.", "go_to_page", request={"url": "/cluster-seed-fund/"}
+            ),
+            "Take me to the contact page.": reply_and_call(
+                "Taking you there.", "go_to_page", request={"url": "/contact-us/"}
+            ),
+            "Take me to the state scheme.": reply_and_call(
+                "Taking you there.", "go_to_page", request={"url": STATE_PDF}
+            ),
+            "Take me to the startup policy.": reply_and_call(
+                "Taking you there.", "go_to_page", request={"url": POLICY_PDF}
+            ),
+            "Take me to an unlisted page.": reply_and_call(
+                "Taking you there.", "go_to_page", request={"url": "/not-a-listed-page/"}
+            ),
+            "Take me to another site.": reply_and_call(
+                "Taking you there.", "go_to_page", request={"url": "https://example.com/page/"}
+            ),
+            "Take me to the seed fund page.": reply_and_call(
+                "Taking you there.", "go_to_page", request={"url": SEED_FUND}
+            ),
+            "Tell me about the seed fund.": reply_and_call(
+                "Here is the seed fund page.", "go_to_page", request={"url": SEED_FUND}
+            ),
+            "Where are the startups listed?": reply_and_call(
+                "Right here.", "point_at", request={"text": "early-stage   STARTUPS in Mysuru"}
+            ),
+            "Where are the lanterns?": reply_and_call(
+                "Right here.", "point_at", request={"text": "lantern workshop grants"}
+            ),
+            "Where are the reports?": reply_and_call(
+                "Right here.", "point_at", request={"text": "global capability centres"}
+            ),
+            "Where are the reports now?": reply_and_call(
+                "Right here.", "point_at", request={"text": "global capability centres"}
+            ),
+            "And the startups?": reply_and_call(
+                "Right here.", "point_at", request={"text": "early-stage startups in Mysuru"}
+            ),
             "Show me the other document.": [
-                reply_and_call("Here.", "show_link", request={"url": UNINDEXED_PDF}),
+                reply_and_call("Here.", "show_document", request={"url": UNINDEXED_PDF}),
             ],
             "Thank you.": reply("You're welcome."),
             "What is the weather on Mars?": [
                 call("search_kdem", request={"query": "weather on Mars"}),
-                reply_and_call(DONT_KNOW, "show_link", request={"url": "/contact-us/"}),
+                reply_and_call(DONT_KNOW, "offer_page", request={"url": "/contact-us/"}),
             ],
             "Is there a seed fund?": [
                 call("search_kdem", request={"query": "seed fund"}),
@@ -252,14 +300,14 @@ def _llm() -> ScriptedGemini:
             ],
             # Asked for: the call alone, with no line of the model's own.
             "Can we speak in Kannada?": call("set_language", request={"language": "kannada"}),
-            # Called alone: the link lands and the brain says its own line.
-            "Just show me the fund.": call("show_link", request={"url": "/cluster-seed-fund/"}),
-            "How do I reach you?": call("show_link", request={"url": "/contact-us/"}),
+            # Called alone: the card lands and the brain says its own line.
+            "Just show me the policy.": call("show_document", request={"url": POLICY_PDF}),
+            "How do I reach you?": call("offer_page", request={"url": "/contact-us/"}),
             # On the list, but not in the index: the refresh dropped it.
-            "Show me the newsletter.": [
-                reply_and_call("Here.", "show_link", request={"url": "/newsletter-2024/"}),
-            ],
-            "ಸೀಡ್ ಫಂಡ್ ತೋರಿಸಿ": call("show_link", request={"url": SEED_FUND}),
+            "Show me the newsletter.": reply_and_call(
+                "Shall I take you there?", "offer_page", request={"url": "/newsletter-2024/"}
+            ),
+            "ಪಾಲಿಸಿ ತೋರಿಸಿ": call("show_document", request={"url": POLICY_PDF}),
         }
     )
 
@@ -316,12 +364,13 @@ async def test_a_listed_page_the_refresh_dropped_is_neither_offered_nor_sent() -
     prompt = llm.captured_system_instructions[-1]
     assert "/beyond-bengaluru-cluster-seed-fund/ — " in prompt
     assert "/newsletter-2024/" not in prompt
-    assert _results(llm.captured_contents[-1])["show_link"].startswith("Not sent:")
+    assert _results(llm.captured_contents[-1])["offer_page"].startswith("Not sent:")
 
 
-async def test_a_search_grounds_the_answer_and_the_link_is_canonical() -> None:
+async def test_a_search_grounds_the_answer_and_the_offer_is_canonical() -> None:
     """``search_kdem`` is marked, so its passages are read in a second request of
-    the same turn — and that request is the one that answers and links."""
+    the same turn — and that request is the one that answers and offers the
+    page. An offer sends nothing: the page moves only on a yes."""
     llm = _llm()
     async with demo("kdem", llm) as rig:
         await rig.driver.start_session()
@@ -336,25 +385,24 @@ async def test_a_search_grounds_the_answer_and_the_link_is_canonical() -> None:
         assert "Beyond Bengaluru Cluster Seed Fund" in found
         assert "Mysuru" in found
 
-        assert rig.actions() == ["show_link"], rig.actions()
-        # The page's own title, not the model's two words.
-        assert rig.command("show_link") == {
-            "url": SEED_FUND,
-            "title": "Beyond Bengaluru Cluster Seed Fund",
-        }
+        assert rig.actions() == [], rig.actions()
+        brain = rig.brain
+        assert isinstance(brain, KdemBrain)
+        assert brain._offered is not None and brain._offered[0] == SEED_FUND  # pyright: ignore[reportPrivateUsage]
 
 
-async def test_an_alias_is_sent_as_its_canonical_page() -> None:
+async def test_an_alias_is_offered_and_visited_as_its_canonical_page() -> None:
     """``/resources`` with ``www``, a query and no slash is ``/resource/``. One
-    request: ``show_link`` is not marked."""
+    request: ``offer_page`` is not marked. The yes navigates to the canonical URL."""
     llm = _llm()
     async with demo("kdem", llm) as rig:
-        await rig.driver.start_session()
+        await rig.driver.start_session(init={"page": "/"})
         before = len(llm.captured_contents)
         turn = await rig.driver.user_says("Where are your reports?")
         check_turn(rig, turn, units=1)
         assert len(llm.captured_contents) - before == 1, "an unmarked tool took a second request"
-        assert rig.command("show_link") == {"url": RESOURCES, "title": "KDEM Resources and Reports"}
+        await rig.driver.user_says("Yes.")
+        assert rig.command("navigate") == {"url": RESOURCES}
 
 
 async def test_a_pdf_answer_names_its_page_and_links_the_pdf() -> None:
@@ -384,7 +432,7 @@ async def test_a_pdf_on_another_site_is_cited_and_its_kdem_page_is_the_card() ->
         found = _results(llm.captured_contents[-1])["search_kdem"]
         assert "Sample State Scheme (PDF document on portal.example.gov, page 1)" in found
         assert 'linked from the KDEM page "KDEM Resources and Reports"' in found
-        assert f"url: {RESOURCES}" in found and f"url: {STATE_PDF}" not in found
+        assert f"url: {STATE_PDF}" in found  # the document's own address, for show_document
         assert rig.command("show_link") == {"url": RESOURCES, "title": "KDEM Resources and Reports"}
 
 
@@ -431,19 +479,43 @@ async def test_a_pdf_the_index_does_not_hold_is_not_sent() -> None:
         await rig.driver.user_says("Show me the other document.")
         assert len(rig.driver.ui_commands) == before, rig.actions()
         await rig.driver.user_says("Thank you.")
-    assert _results(llm.captured_contents[-1])["show_link"].startswith("Not sent:")
+    assert _results(llm.captured_contents[-1])["show_document"].startswith("Not sent:")
 
 
-async def test_an_indexed_news_page_may_be_linked() -> None:
-    """A page the refresh added in an approved section is linkable though the list
-    never named it."""
+async def test_an_indexed_news_page_may_be_offered() -> None:
+    """A page the refresh added in an approved section may be offered though the
+    list never named it."""
     async with demo("kdem", _llm()) as rig:
-        await rig.driver.start_session()
+        await rig.driver.start_session(init={"page": "/"})
         await rig.driver.user_says("Any news on incubators?")
-        assert rig.command("show_link") == {
-            "url": NEWS,
-            "title": "Sample headline about a new incubator",
-        }
+        brain = rig.brain
+        assert isinstance(brain, KdemBrain)
+        assert brain._offered is not None and brain._offered[0] == NEWS  # pyright: ignore[reportPrivateUsage]
+
+
+async def test_show_document_refuses_an_ordinary_page() -> None:
+    """Link cards are for documents. A page is visited, so asked to show one as
+    a card, show_document says so and nothing crosses the wire."""
+    llm = _llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("Show me the seed fund as a card.")
+        assert "show_link" not in rig.actions()
+        await rig.driver.user_says("Thank you.")
+    assert _results(llm.captured_contents[-1])["show_document"] == (
+        "Not sent: pages are visited with offer_page / go_to_page; show_document is for PDFs."
+    )
+
+
+def test_the_prompt_makes_pages_visits_and_cards_documents() -> None:
+    """The worked example and the shape of an answer offer the page with
+    offer_page, and the model is never told to show a page as a card."""
+    assert "show_link" not in _SYSTEM_INSTRUCTION
+    assert "Shall I take you to its page?" in _SYSTEM_INSTRUCTION
+    assert "and offer_page with that page, in the same response" in _SYSTEM_INSTRUCTION
+    shape = _SYSTEM_INSTRUCTION.split("THE SHAPE OF AN ANSWER.")[1].split("DOCUMENTS.")[0]
+    assert "offer_page" in shape and "point_at" in shape and "show_document" in shape
+    assert "offer to take them to the Contact Us page with offer_page" in _SYSTEM_INSTRUCTION
 
 
 @pytest.mark.parametrize(
@@ -466,7 +538,7 @@ async def test_a_page_that_is_not_approved_is_never_sent(ask: str) -> None:
         assert "show_link" not in rig.actions()
 
         await rig.driver.user_says("Thank you.")
-    refused = _results(llm.captured_contents[-1])["show_link"]
+    refused = _results(llm.captured_contents[-1])["offer_page"]
     assert refused.startswith("Not sent:")
     assert "/contact-us/" in refused
 
@@ -482,7 +554,12 @@ async def test_nothing_found_is_the_dont_know_line_and_contact_us() -> None:
         found = _results(llm.captured_contents[-1])["search_kdem"]
         assert found.startswith("Nothing on the approved pages matches.")
         assert DONT_KNOW in found
-        assert rig.command("show_link") == {"url": CONTACT, "title": "Contact Us"}
+        assert "offer_page" in found and "show_link" not in found
+        # The don't-know path offers Contact Us; nothing moves until a yes.
+        assert rig.actions() == [], rig.actions()
+        brain = rig.brain
+        assert isinstance(brain, KdemBrain)
+        assert brain._offered is not None and brain._offered[0] == CONTACT  # pyright: ignore[reportPrivateUsage]
 
 
 async def test_an_empty_knowledge_base_answers_with_the_fixed_line() -> None:
@@ -500,12 +577,15 @@ async def test_an_empty_knowledge_base_answers_with_the_fixed_line() -> None:
         assert DONT_KNOW in found
         assert "/contact-us/" in found
 
+        assert "offer_page" in found
         before = len(rig.driver.ui_commands)
-        await rig.driver.user_says("Just show me the fund.")
+        await rig.driver.user_says("Just show me the policy.")
         assert len(rig.driver.ui_commands) == before, rig.actions()
 
         await rig.driver.user_says("How do I reach you?")
-        assert rig.command("show_link") == {"url": CONTACT, "title": "Contact Us"}
+        brain = rig.brain
+        assert isinstance(brain, KdemBrain)
+        assert brain._offered is not None and brain._offered[0] == CONTACT  # pyright: ignore[reportPrivateUsage]
     prompt = llm.captured_system_instructions[-1]
     assert "/contact-us/ — Contact Us" in prompt
     assert "/beyond-bengaluru-cluster-seed-fund/ — " not in prompt
@@ -536,7 +616,7 @@ async def test_switching_to_kannada_moves_both_legs_and_keeps_the_voice() -> Non
 
 
 async def test_a_link_sent_in_silence_gets_her_line_in_the_language_she_speaks() -> None:
-    """The model called ``show_link`` alone. The card lands, and the visitor hears
+    """The model called ``show_document`` alone. The card lands, and the visitor hears
     the brain's own line — in English, then in Kannada after the switch — with no
     second request."""
     llm = _llm()
@@ -544,15 +624,15 @@ async def test_a_link_sent_in_silence_gets_her_line_in_the_language_she_speaks()
         await rig.driver.start_session()
 
         before = len(llm.captured_contents)
-        turn = await rig.driver.user_says("Just show me the fund.")
+        turn = await rig.driver.user_says("Just show me the policy.")
         check_turn(rig, turn, units=1)
         (line,) = (u.text for u in turn.units)
         assert line in PHRASES[Language.EN]["shown"], line
         assert len(llm.captured_contents) - before == 1, "a silent turn asked the model again"
-        assert rig.command("show_link")["url"] == SEED_FUND
+        assert rig.command("show_link")["url"] == POLICY_PDF
 
         await rig.driver.user_says("Can we speak in Kannada?")
-        turn = await rig.driver.user_says("ಸೀಡ್ ಫಂಡ್ ತೋರಿಸಿ")
+        turn = await rig.driver.user_says("ಪಾಲಿಸಿ ತೋರಿಸಿ")
         (line,) = (u.text for u in turn.units)
         assert line in PHRASES[Language.KN]["shown"], line
 
@@ -784,3 +864,149 @@ async def test_a_malformed_language_request_is_ignored(payload: object) -> None:
         check_voice_pair(rig, voice=VOICE, language="en")
         turn = await rig.driver.user_says("Thank you.")
         assert [u.text for u in turn.units] == ["You're welcome."]
+
+
+# ─── Walking the site ─────────────────────────────────────────────────────────
+
+
+def _navigations(rig: object) -> list[dict[str, object]]:
+    return [
+        dict(c.get("payload") or {})
+        for c in rig.driver.ui_commands  # type: ignore[attr-defined]
+        if c.get("command") == "navigate"
+    ]
+
+
+def _points(rig: object) -> list[dict[str, object]]:
+    return [
+        dict(c.get("payload") or {})
+        for c in rig.driver.ui_commands  # type: ignore[attr-defined]
+        if c.get("command") == "point_at"
+    ]
+
+
+def _result(llm: ScriptedGemini, tool: str) -> str:
+    return _results(llm.captured_contents[-1])[tool]
+
+
+async def test_an_offer_does_not_move_the_page_and_a_yes_does() -> None:
+    """Ask first: the turn that offers sends nothing, and going in that same turn
+    is refused. The yes, in the visitor's next turn, sends the canonical URL."""
+    llm = _llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        turn = await rig.driver.user_says("Where can I read about the seed fund?")
+        check_turn(rig, turn, units=1)
+        assert _navigations(rig) == [] and "show_link" not in rig.actions()
+
+        brain = rig.brain
+        assert isinstance(brain, KdemBrain)
+        from voqalize_demos._loaded.kdem.brain import PageRequest
+
+        same_turn = await brain.go_to_page(PageRequest(url=SEED_FUND))
+        assert same_turn.startswith("Not sent: ask first") and _navigations(rig) == []
+
+        await rig.driver.user_says("Yes please.")
+        assert _navigations(rig) == [{"url": SEED_FUND}]
+        # The offer is spent: a second go needs a new yes.
+        assert brain._offered is None  # pyright: ignore[reportPrivateUsage]
+
+
+async def test_an_explicit_request_is_the_yes() -> None:
+    async with demo("kdem", _llm()) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says("Take me to the contact page.")
+        assert _navigations(rig) == [{"url": CONTACT}]
+
+
+async def test_going_unprompted_is_refused() -> None:
+    llm = _llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says("Tell me about the seed fund.")
+        assert _navigations(rig) == []
+        await rig.driver.user_says("Thank you.")
+    assert _result(llm, "go_to_page").startswith("Not sent: ask first")
+
+
+@pytest.mark.parametrize(
+    "ask",
+    ["Take me to an unlisted page.", "Take me to another site.", "Take me to the startup policy."],
+    ids=["unlisted", "off-site", "on-site-pdf"],
+)
+async def test_a_page_aria_may_not_take_them_to_is_refused(ask: str) -> None:
+    """Unapproved, another site, or a PDF (which opens beside her, so the call
+    stays): "Not sent", and nothing crosses the wire."""
+    llm = _llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says(ask)
+        assert _navigations(rig) == []
+        await rig.driver.user_says("Thank you.")
+    assert _result(llm, "go_to_page").startswith("Not sent:")
+
+
+async def test_a_pdf_on_another_site_takes_them_to_its_kdem_page() -> None:
+    async with demo("kdem", _llm()) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says("Take me to the state scheme.")
+        assert _navigations(rig) == [{"url": RESOURCES}]
+
+
+async def test_the_page_they_are_on_is_pointed_at_not_opened_again() -> None:
+    llm = _llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": "/cluster-seed-fund/"})
+        await rig.driver.user_says("Take me to the seed fund page.")
+        assert _navigations(rig) == []
+        await rig.driver.user_says("Thank you.")
+    assert "already on" in _result(llm, "go_to_page") and "point_at" in _result(llm, "go_to_page")
+
+
+async def test_point_at_sends_text_on_the_current_page_and_refuses_the_rest() -> None:
+    """Checked against the indexed text of the page the visitor has open, with
+    whitespace and case ignored; then, after the visitor moves, against the new
+    page."""
+    llm = _llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": "/cluster-seed-fund/"})
+        await rig.driver.user_says("Where are the startups listed?")
+        assert _points(rig) == [{"text": "early-stage STARTUPS in Mysuru"}]
+
+        await rig.driver.user_says("Where are the lanterns?")  # on no page of the snapshot here
+        assert len(_points(rig)) == 1
+        await rig.driver.user_says("Where are the reports?")  # on another page, not this one
+        assert len(_points(rig)) == 1
+
+        await _viewed(rig, {"path": "/resource/", "title": "Resources"})
+        await rig.driver.user_says("Where are the reports now?")
+        assert _points(rig)[-1] == {"text": "global capability centres"}
+        await rig.driver.user_says("And the startups?")  # the old page's text
+        assert len(_points(rig)) == 2
+        await rig.driver.user_says("Thank you.")
+    assert _result(llm, "point_at").startswith("Not shown:")
+
+
+async def test_arriving_where_she_took_them_carries_the_conversation_on() -> None:
+    llm = _llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says("Take me to the contact page.")
+        await _viewed(rig, {"path": "/contact-us/", "title": "Contact"})
+        await rig.driver.user_says("Thank you.")
+    seen = _said(llm.captured_contents[-1])
+    assert "You took them here" in seen and "do not greet them again" in seen
+
+
+async def test_a_point_the_page_could_not_show_reaches_the_next_turn() -> None:
+    llm = _llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": "/cluster-seed-fund/"})
+        await rig.driver.user_says("Where are the startups listed?")
+        await rig.driver.send_ui_event("point_missed", {"text": "something it never sent"})
+        await rig.driver.send_ui_event("point_missed", {"text": "early-stage STARTUPS in Mysuru"})
+        await asyncio.sleep(0.1)
+        await rig.driver.user_says("Thank you.")
+    seen = _said(llm.captured_contents[-1])
+    assert 'could not show "early-stage STARTUPS in Mysuru"' in seen
+    assert "something it never sent" not in seen

@@ -6,8 +6,8 @@ Two tables live here, and each exists so the model never has to guess.
 ``knowledge.py`` into :data:`~.knowledge.ALLOWLIST`. This module only turns it
 into what the prompt needs: one line per page, in the order KDEM listed them, so
 the model can choose a page by what it is for. The model never writes a URL the
-brain then trusts — ``show_link`` canonicalises what it names and refuses anything
-the index does not hold now.
+brain then trusts — ``offer_page``, ``go_to_page`` and ``show_document``
+canonicalise what it names and refuse anything the index does not hold now.
 
 **The languages.** English, and Kannada on demand — the pilot's two. Both legs
 move together, and the voice does not change: Aria is one woman in two languages,
