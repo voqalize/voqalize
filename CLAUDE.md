@@ -54,7 +54,8 @@ is built and deployed. This file is only the things that will bite you.
 | `build-demos-web` | `voqal-cloud-prod` | `^prod$` | web artifact → the prod bucket's `web/latest.json` |
 
 This is the same shape every other service already had (cortex, the voice runtime,
-controlplane, marketing are all `main` → dev, `prod` → prod in `voqalize/platform`). The
+controlplane are all `main` → dev, `prod` → prod in `voqalize/platform`, and the
+voqalize.com site the same in `voqalize/marketing-website`). The
 demos were the sole exception until 2026-08-07: both production triggers watched
 `^main$`, so one `git push origin main` had the brains behind `voqalize.com/demos/*`
 running your commit about four minutes later, with no gate, no soak and no canary
@@ -111,11 +112,14 @@ Consequences to internalize:
   ```sh
   git show python-sdk-v0.5.0:sdk/python/src/voqalize/sdk/__init__.py | grep -A40 __all__
   ```
-- The web half is a two-step: `build-demos-web` only *stages* an artifact and moves
-  `latest.json`. The apex site (`voqalize.com`) picks it up on the **next**
-  `deploy-marketing-prod` run (fired by `voqalize/platform`'s `prod` branch), which reads
-  `latest.json` unless `_WEB_SHA` pins a version. So a UI change sits armed until
-  someone deploys marketing for an unrelated reason — and then ships.
+- The web half is a two-step that runs itself: `build-demos-web` stages an artifact,
+  moves `latest.json` and publishes `web-artifact-built`; the voqalize.com site's
+  rebuild trigger in the same project (`marketing-website-site-onweb`, and
+  `marketing-website-site-prod-onweb` in prod; the site lives in
+  `voqalize/marketing-website` since 2026-10-13) then redeploys the apex with the new
+  demos and the docs origin. So a demo UI or docs change is live a few minutes after
+  its build, in that environment. The old `deploy-marketing*` triggers in
+  `voqalize/platform` are disabled.
 - **Which trigger fires is decided by `includedFiles` on the trigger, not by
   anything in this repo** — so you cannot read it off the YAML. Today:
   - brains ← `demos/**/backend/**`, `demos/voqalize_demos/**`, `sdk/python/**`,

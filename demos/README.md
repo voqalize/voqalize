@@ -24,7 +24,7 @@ architecture:
   its brain WebSocket at `/{name}?session_id=…`. That's *all* this container
   does — it's brains only. See `Dockerfile` + `cloudbuild.brains-vm.yaml`.
 - **The frontend UIs** (plus the docs) build into a versioned **web artifact**
-  (`cloudbuild.web.yaml`) that the private marketing repo downloads and lays under
+  (`cloudbuild.web.yaml`) that the voqalize.com site's own build downloads and lays under
   the **apex domain** (`voqalize.com` / `dev.voqalize.com`) at `/demos/{name}`.
   There the browser mints a session same-origin — the apex's Firebase Hosting
   rewrites `/api/*` to the control plane — so nothing about session bootstrap
@@ -47,7 +47,7 @@ the browser loads the UI. So a demo's `brain_url` is `wss://brain.voqalize.com/{
 ```
 demos/
   manifest.json          # the demo directory: name + title + tagline per demo;
-                         #   shipped inside the web artifact so marketing renders /demos
+                         #   shipped inside the web artifact next to the demo UIs
   build.mjs              # builds every UI → assembles demos/dist/demos/<name>/
   public/                # the gallery's shared static assets — today, the favicon.
                          #   Every frontend points `publicDir` here, so each demo
@@ -125,39 +125,11 @@ discovers backends and each frontend declares its own connection wiring. To add
 
 ### When the page lives somewhere else
 
-`marketing` is the exception the checklist does not cover, and it is deliberate:
-it has a `backend/` and no `frontend/`. Its page is the Voqalize homepage, which
-is built from the private repo (`platform/frontend/apps/marketing`), so steps
-2–4 above do not apply to it and **it is not in `manifest.json`** — it is not a
-card on the `/demos` index, it is the agent in the homepage's corner. `build.mjs`
-walks `manifest.demos`, so leaving it out is what keeps the web build from
-looking for a `frontend/` that is not there.
-
-The seams that cross the repo boundary as a result are generated rather than
-agreed by hand:
-
-- The action and event unions the page narrows on are generated from the brain —
-  run this from `demos/` after changing either:
-
-  ```sh
-  voqalize types marketing/backend/brain.py \
-    -o ../../platform/frontend/apps/marketing/src/agent/actions.gen.ts
-  ```
-
-- Every `target` in `PointAt` names a `data-vq="…"` attribute in that page's
-  markup, and every `section` names an element id. Neither repo can check the
-  other, so the page's build does it: `apps/marketing` holds its own markup to
-  the generated union.
-
-The knowledge the brain answers from lives with the brain, in
-`marketing/backend/knowledge/` — `L1.md` is loaded into every session and the
-`l2/` deep-dives are read on demand by a tool.
-
-`qween` is the same exception, for the same reason: its page is someone else's
-site. The agent is a jewellery consultant on www.qween.com, a design partner's
+`qween` is the exception the checklist does not cover, and it is deliberate:
+its page is someone else's site. The agent is a jewellery consultant on www.qween.com, a design partner's
 live shop, and the widget reaches that page through the browser extension in
 `qween/extension/` rather than a frontend here — so it has no `frontend/` and is
-not in `manifest.json` either. The extension carries the site adapter that turns
+not in `manifest.json`. The extension carries the site adapter that turns
 each of the brain's Actions into a move on Qween's own page; their types are
 generated from `qween/backend/brain.py` with `pnpm gen`, and the extension warns
 on load about any Action the adapter cannot perform. The catalogue the brain quotes from is Qween's public product feed, read
@@ -198,7 +170,7 @@ node demos/build.mjs          # builds the SDK + every UI → demos/dist/demos/<
 ```
 
 In a deploy `cloudbuild.web.yaml` runs `build.mjs`, tars `demos/dist` + the built
-docs + `manifest.json` into a versioned artifact, and the private marketing build
+docs + `manifest.json` into a versioned artifact, and the voqalize.com site's build
 lays it under the apex. The brains image (`Dockerfile` / `cloudbuild.brains-vm.yaml`)
 ships separately, onto the voice node.
 

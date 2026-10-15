@@ -7,10 +7,10 @@
  *     demos/dist/
  *       demos/<name>/index.html, assets/…   ← each demo (base /demos/<name>/)
  *
- * There is no landing page here — the marketing site owns the `/demos` index and
- * weaves the demos into its story. The private marketing build downloads this
- * assembled `dist/` (as a versioned artifact) and lays it under the apex domain at
- * `/demos/<name>`, so the browser loads a demo same-origin with marketing + docs.
+ * There is no landing page here — the voqalize.com site links each demo from its
+ * own pages. That site's build downloads this assembled `dist/` (as a versioned
+ * artifact) and lays it under the apex domain at `/demos/<name>`, so the browser
+ * loads a demo same-origin with the site and its `/api`.
  *
  * A demo installs stock pipecat plus `@voqalize/client-transport`, the open MIT
  * media manager that replaces pipecat's default (which loads a third-party call
