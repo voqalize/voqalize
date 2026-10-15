@@ -1133,10 +1133,10 @@ facts:
 
   pricing.state:
     value: per conversation minute, on the plans the pricing page lists
-    source: platform/frontend/apps/marketing/src/data/pricing.ts
+    source: marketing-website/src/data/pricing.ts
     verified: 2026-09-21
     reproduce: >-
-      sed -n '60,130p' ../platform/frontend/apps/marketing/src/data/pricing.ts
+      sed -n '60,130p' ../marketing-website/src/data/pricing.ts
     note: >-
       The pricing page renders PLANS and writes no figure of its own, so a page
       here quotes a plan's figure only by pointing at voqalize.com/pricing. The
@@ -1152,7 +1152,7 @@ facts:
 
   service_level:
     value: uptime SLA on Growth and Enterprise, as the pricing page states
-    source: platform/frontend/apps/marketing/src/data/pricing.ts
+    source: marketing-website/src/data/pricing.ts
     verified: 2026-09-21
     note: >-
       The SLA is a plan feature; name it by pointing at the pricing page rather
@@ -1161,11 +1161,11 @@ facts:
 
   regions.current:
     value: India
-    source: platform/frontend/apps/marketing/src/pages/privacy.astro:294
-    verified: 2026-08-28
+    source: marketing-website/src/components/pages/privacy/PrivacyPolicy.astro:113
+    verified: 2026-10-15
     reproduce: >-
-      sed -n '286,302p'
-      ../platform/frontend/apps/marketing/src/pages/privacy.astro
+      sed -n '112,114p'
+      ../marketing-website/src/components/pages/privacy/PrivacyPolicy.astro
     note: >-
       Processing and storage are in India today. The deployed control plane and
       storage are asia-south1 and the voice tier runs in Indian data centres.
@@ -1205,7 +1205,7 @@ facts:
 
   pricing.minute_includes:
     value: STT, TTS, turn-taking, WebRTC, the avatar, observability and network; the developer's LLM excluded
-    source: platform/frontend/apps/marketing/src/data/pricing.ts INCLUDED
+    source: marketing-website/src/data/pricing.ts INCLUDED
     verified: 2026-09-21
     note: >-
       Recording and storage above a plan's quota are metered on top (ADDITIONAL
@@ -1214,10 +1214,10 @@ facts:
 
   limits.concurrent_calls:
     value: set per plan, as the pricing page lists
-    source: platform/frontend/apps/marketing/src/data/pricing.ts
+    source: marketing-website/src/data/pricing.ts
     verified: 2026-09-21
     reproduce: >-
-      grep -n 'concurrency' ../platform/frontend/apps/marketing/src/data/pricing.ts
+      grep -n 'concurrency' ../marketing-website/src/data/pricing.ts
     note: >-
       Docs describe the product as sold and point at the pricing page for each
       plan's concurrent sessions, minutes and storage. The per-tenant API rate
@@ -1228,7 +1228,7 @@ facts:
 
   support.plans:
     value: email support on Starter; priority Slack and a forward-deployed engineer on Growth; a named account manager on Enterprise
-    source: platform/frontend/apps/marketing/src/data/pricing.ts
+    source: marketing-website/src/data/pricing.ts
     verified: 2026-09-21
     note: >-
       Point at the pricing page for support by plan; no response time beyond

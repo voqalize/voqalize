@@ -122,12 +122,6 @@ DEMOS: dict[str, Expected] = {
     # Auric opens in the language of the enquiry form's state; nothing in the
     # payload ⇒ the Hindi default.
     "lead_qual": Expected(voice="omnivoice/gauri", language="hi"),
-    # Tanya opens the homepage in English on a kokoro checkpoint rather than a
-    # cloned persona — the visitor may be anywhere. She moves both legs again if
-    # they ask for an Indian language, and
-    # the voice follows to `gauri`; that switch is asserted in
-    # test_marketing_e2e.py.
-    "marketing": Expected(voice="kokoro/ava", language="en"),
     "orderdesk": Expected(voice="omnivoice/gauri", language="hi"),
     "petwell": Expected(voice="omnivoice/gaurav", language="en"),
     # Trisha, Qween's jewellery consultant, opens a shopper's call in English and

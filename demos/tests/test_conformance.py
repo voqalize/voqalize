@@ -175,9 +175,9 @@ def test_the_gallery_is_a_subset_of_the_brains():
 
     The two are different rosters and the direction matters. ``manifest.json`` is
     the gallery index — ``build.mjs`` walks it looking for a ``frontend/`` — while
-    discovery serves any folder with a ``backend/routes.py``. ``marketing`` is the
-    case that separates them: her page is the Voqalize homepage, built from
-    another repo, so she is a brain with no card and must stay off the manifest.
+    discovery serves any folder with a ``backend/routes.py``. ``qween`` and
+    ``kdem`` are the cases that separate them: their pages are someone else's
+    site, so each is a brain with no card and must stay off the manifest.
 
     A card naming a brain that is not there is the failure worth catching: it
     opens onto nothing. The post-deploy gate in ``cloudbuild.brains-vm.yaml``

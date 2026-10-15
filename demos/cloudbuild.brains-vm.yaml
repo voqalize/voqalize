@@ -150,8 +150,8 @@ steps:
         # demo ship — and a count would only say how many are dark, never which.
         #
         # This gate used to read `manifest.json` instead, which is the gallery
-        # index and a narrower thing: `marketing` is a backend whose page is the
-        # homepage, so it has no card and must not have one. Reading the manifest
+        # index and a narrower thing: a backend whose page is someone else's site
+        # (`qween`, `kdem`) has no card and must not have one. Reading the manifest
         # here failed a deploy that had in fact succeeded, and would have gone on
         # failing every brain that does not sell itself from the /demos grid.
         want_demos = {p.parent.parent.name for p in Path("demos").glob("*/backend/routes.py")}

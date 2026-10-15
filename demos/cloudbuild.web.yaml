@@ -1,8 +1,8 @@
 # Build B — the WEB artifact: every demo UI + the docs site → a versioned tarball in
-# GCS. This is the entire interface between the public repo and the private marketing
-# build: the private "assemble" build (infra/cloudbuild/marketing.yaml in the
-# voqalcloud repo) downloads this artifact and lays it under the apex domain, so the
-# demos and docs are served same-origin with marketing (voqalize.com / dev.voqalize.com).
+# GCS. This is the entire interface between this repo and the voqalize.com site: the
+# site's own build downloads this artifact, lays the demos under the apex domain and
+# deploys the docs to their own origin, so the demos are served same-origin with the
+# site (voqalize.com / dev.voqalize.com).
 #
 #   gcloud builds submit --config demos/cloudbuild.web.yaml .
 #
@@ -17,7 +17,7 @@
 # the site, because nothing rebuilt the artifact. Both env triggers carry it.
 #
 # On SUCCESS its final step publishes to the dedicated `web-artifact-built` Pub/Sub
-# topic, which the private marketing repo's `deploy-marketing-onweb` trigger is
+# topic, which the site's rebuild trigger in the same project is
 # subscribed to — the native Cloud Build dependent-build seam. No imperative
 # `gcloud builds triggers run`. (A dedicated topic, not the built-in `cloud-builds`
 # one, because that topic only filters on build status, not on which build ran.)
@@ -136,7 +136,7 @@ steps:
         pnpm build
 
   # 3. Assemble the artifact (demos + docs + manifest.json), tar, upload to GCS under
-  #    the commit sha, and bump latest.json (the pointer the marketing build reads).
+  #    the commit sha, and bump latest.json (the pointer the site build reads).
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     id: upload
     waitFor: [demos, docs]
@@ -158,10 +158,10 @@ steps:
         gsutil -h "Cache-Control:no-store" cp latest.json gs://${_ARTIFACT_BUCKET}/web/latest.json
         echo "web artifact → gs://${_ARTIFACT_BUCKET}/web/$$SHA/web.tgz"
 
-  # 4. Announce the new artifact on a dedicated Pub/Sub topic. The private
-  #    marketing repo's `deploy-marketing-onweb` trigger is subscribed to it and
-  #    re-assembles the apex (reading web/latest.json). The payload is just an
-  #    event ping — the marketing build discovers the sha itself. Only runs on a
+  # 4. Announce the new artifact on a dedicated Pub/Sub topic. The site's rebuild
+  #    trigger is subscribed to it and re-assembles the apex (reading
+  #    web/latest.json). The payload is just an event ping — the site build
+  #    discovers the sha itself. Only runs on a
   #    successful upload, so a failed artifact never fires a deploy.
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     id: notify
