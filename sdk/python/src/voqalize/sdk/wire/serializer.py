@@ -192,21 +192,21 @@ def _enc_configure(f: ConfigureFrame, env: pb.Envelope) -> None:
         m.tts.SetInParent()
         voice = c.tts.voice
         if isinstance(voice, Voice):
-            m.tts.voice_enum = _VOICE_TO_PB[voice]
+            m.tts.voice = _VOICE_TO_PB[voice]
         elif voice is not None:
-            m.tts.voice = voice
+            m.tts.voice_id = voice
         language = c.tts.language
         if isinstance(language, Language):
-            m.tts.language_enum = _LANG_TO_PB[language]
+            m.tts.language = _LANG_TO_PB[language]
         elif language is not None:
-            m.tts.language = language
+            m.tts.language_tag = language
     if c.stt is not None:
         m.stt.SetInParent()
         language = c.stt.language
         if isinstance(language, Language):
-            m.stt.language_enum = _LANG_TO_PB[language]
+            m.stt.language = _LANG_TO_PB[language]
         elif language is not None:
-            m.stt.language = language
+            m.stt.language_tag = language
         if c.stt.patience is not None:
             m.stt.patience = c.stt.patience
     if c.idle is not None:
@@ -330,18 +330,18 @@ def _dec_speech_cancel(env: pb.Envelope) -> SpeechCancelFrame:
 # string is read first, and a catalog value decodes to its catalog member, so
 # what a brain sent is what reads back.
 def _dec_voice(m: pb.TtsConfig) -> Voice | str | None:
+    if m.HasField("voice_id"):
+        return m.voice_id
     if m.HasField("voice"):
-        return m.voice
-    if m.HasField("voice_enum"):
-        return _PB_TO_VOICE[m.voice_enum]
+        return _PB_TO_VOICE[m.voice]
     return None
 
 
 def _dec_language(m: pb.TtsConfig | pb.SttConfig) -> Language | str | None:
+    if m.HasField("language_tag"):
+        return m.language_tag
     if m.HasField("language"):
-        return m.language
-    if m.HasField("language_enum"):
-        return _PB_TO_LANG[m.language_enum]
+        return _PB_TO_LANG[m.language]
     return None
 
 

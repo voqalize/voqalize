@@ -25,8 +25,8 @@ exactly as before. One package-API change can break a brain, under *Changed*.
 - **Voice and language as strings.** `TtsConfig(voice="omnivoice/gauri",
   language="en-IN")` and `SttConfig(language="ta")` take the speech tier's
   voice id and a BCP-47 tag, so a voice or language added there needs no new
-  SDK. They travel on new fields, `TtsConfig.voice = 3`,
-  `TtsConfig.language = 4` and `SttConfig.language = 3`, and need a Voqalize
+  SDK. They travel on new fields, `TtsConfig.voice_id = 3`,
+  `TtsConfig.language_tag = 4` and `SttConfig.language_tag = 3`, and need a Voqalize
   that advertises the new `Capability.STRING_CONFIG`
   (`session.can_configure_strings`); without it `session.configure` raises
   `Unsupported` before sending, because an older Voqalize would skip the
@@ -48,9 +48,9 @@ exactly as before. One package-API change can break a brain, under *Changed*.
 ### Deprecated
 
 - **The `Voice` and `Language` catalogs, and the enum fields that carry them.**
-  They keep working with every Voqalize, travel on their original field
-  numbers, now named `voice_enum` and `language_enum` in the proto, and no
-  longer grow. They will be removed after a deprecation window.
+  They keep working with every Voqalize, keep their field names and numbers
+  (`TtsConfig.voice`, `TtsConfig.language`, `SttConfig.language`), now marked
+  deprecated in the proto, and no longer grow. They will be removed after a deprecation window.
 
 ## 0.9.0
 

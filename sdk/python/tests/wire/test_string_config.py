@@ -10,6 +10,7 @@ field every Voqalize reads, a plain string on the string field.
 from __future__ import annotations
 
 import pytest
+from google.protobuf import json_format
 
 from voqalize.sdk.wire import (
     Capability,
@@ -36,15 +37,15 @@ def _numbers(message) -> dict[str, int]:
 
 
 def test_the_field_numbers_are_the_contract() -> None:
-    # Names are not on the binary wire; numbers are. The enum fields keep the
-    # numbers they shipped with, so an older brain's bytes mean what they meant.
+    # The enum fields keep the names and numbers they shipped with, so an older
+    # brain's bytes and an older document's JSON keys mean what they meant.
     assert _numbers(pb.TtsConfig) == {
-        "voice_enum": 1,
-        "language_enum": 2,
-        "voice": 3,
-        "language": 4,
+        "voice": 1,
+        "language": 2,
+        "voice_id": 3,
+        "language_tag": 4,
     }
-    assert _numbers(pb.SttConfig) == {"language_enum": 1, "patience": 2, "language": 3}
+    assert _numbers(pb.SttConfig) == {"language": 1, "patience": 2, "language_tag": 3}
     assert _numbers(pb.Response)["code"] == 4
     assert pb.CAPABILITY_STRING_CONFIG == 2
     assert (
@@ -56,11 +57,35 @@ def test_the_field_numbers_are_the_contract() -> None:
 
 def test_the_enum_fields_are_marked_deprecated() -> None:
     for message, name in (
-        (pb.TtsConfig, "voice_enum"),
-        (pb.TtsConfig, "language_enum"),
-        (pb.SttConfig, "language_enum"),
+        (pb.TtsConfig, "voice"),
+        (pb.TtsConfig, "language"),
+        (pb.SttConfig, "language"),
     ):
         assert message.DESCRIPTOR.fields_by_name[name].GetOptions().deprecated, name
+
+
+def test_json_written_before_the_strings_still_names_the_enums() -> None:
+    # A stored configuration in proto3 JSON keeps its meaning: the existing
+    # keys are still the enum fields, and the strings have keys of their own.
+    m = json_format.Parse(
+        '{"tts": {"voice": "VOICE_OMNIVOICE_GAURI", "language": "LANGUAGE_HI"},'
+        ' "stt": {"language": "LANGUAGE_HI"}}',
+        pb.Config(),
+    )
+    assert m.tts.voice == pb.VOICE_OMNIVOICE_GAURI
+    assert m.tts.language == pb.LANGUAGE_HI
+    assert m.stt.language == pb.LANGUAGE_HI
+    assert not m.tts.HasField("voice_id")
+    m = json_format.Parse(
+        '{"tts": {"voice_id": "gemini/kore", "language_tag": "en-IN"},'
+        ' "stt": {"language_tag": "ta"}}',
+        pb.Config(),
+    )
+    assert (m.tts.voice_id, m.tts.language_tag, m.stt.language_tag) == (
+        "gemini/kore",
+        "en-IN",
+        "ta",
+    )
 
 
 async def _configure(config: Config) -> pb.Envelope:
@@ -77,10 +102,10 @@ async def test_strings_travel_on_the_string_fields() -> None:
         )
     )
     tts, stt = env.request.configure.tts, env.request.configure.stt
-    assert (tts.voice, tts.language, stt.language) == ("gemini/kore", "en-IN", "ta")
-    assert not tts.HasField("voice_enum")
-    assert not tts.HasField("language_enum")
-    assert not stt.HasField("language_enum")
+    assert (tts.voice_id, tts.language_tag, stt.language_tag) == ("gemini/kore", "en-IN", "ta")
+    assert not tts.HasField("voice")
+    assert not tts.HasField("language")
+    assert not stt.HasField("language")
 
 
 async def test_catalog_members_travel_on_the_enum_fields() -> None:
@@ -93,12 +118,12 @@ async def test_catalog_members_travel_on_the_enum_fields() -> None:
         )
     )
     tts, stt = env.request.configure.tts, env.request.configure.stt
-    assert tts.voice_enum == pb.VOICE_OMNIVOICE_GAURI
-    assert tts.language_enum == pb.LANGUAGE_HI
-    assert stt.language_enum == pb.LANGUAGE_HI
-    assert not tts.HasField("voice")
-    assert not tts.HasField("language")
-    assert not stt.HasField("language")
+    assert tts.voice == pb.VOICE_OMNIVOICE_GAURI
+    assert tts.language == pb.LANGUAGE_HI
+    assert stt.language == pb.LANGUAGE_HI
+    assert not tts.HasField("voice_id")
+    assert not tts.HasField("language_tag")
+    assert not stt.HasField("language_tag")
 
 
 @pytest.mark.parametrize(
@@ -118,13 +143,12 @@ async def test_a_string_config_round_trips_as_written(config: Config) -> None:
 
 
 async def test_bytes_from_an_enum_only_brain_still_decode() -> None:
-    # Hand-built with field numbers alone, as an SDK that predates the rename
-    # would write them: field 1 is the voice, field 2 the language.
+    # Only the enum fields set, as an SDK that predates the strings writes them.
     env = pb.Envelope()
     env.request.request_id = 1
-    env.request.configure.tts.voice_enum = pb.VOICE_OMNIVOICE_GAURAV
-    env.request.configure.tts.language_enum = pb.LANGUAGE_TA
-    env.request.configure.stt.language_enum = pb.LANGUAGE_TA
+    env.request.configure.tts.voice = pb.VOICE_OMNIVOICE_GAURAV
+    env.request.configure.tts.language = pb.LANGUAGE_TA
+    env.request.configure.stt.language = pb.LANGUAGE_TA
     out = await ser.deserialize(env.SerializeToString())
     assert isinstance(out, ConfigureFrame)
     assert out.config.tts == TtsConfig(voice=Voice.OMNIVOICE_GAURAV, language=Language.TA)
