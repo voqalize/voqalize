@@ -41,7 +41,8 @@ import { type APIRequest, PipecatClient, type TransportState } from "@pipecat-ai
 import { type AvatarInstance, createAvatar, listCharacters, preloadAvatar } from "@voqalize/avatar";
 import { createVoqalizeTransport, VoqalizeMediaManager } from "@voqalize/client-transport";
 
-import { type AppEvent, asUiAction, sendAppEvent, UI_ACTION_COMMANDS, type UiAction } from "./actions.gen";
+import { type AppEvent, asUiAction, type Cue, sendAppEvent, UI_ACTION_COMMANDS, type UiAction } from "./actions.gen";
+import { Narration } from "./narration";
 import { focusTab, HubChannel, openTab, pendingMove, type Then, tabId, takeCall } from "./hub";
 import {
   followCall, type Following, forgetCopiedCall, gestureContext, here, holdCall, type Holding,
@@ -67,7 +68,7 @@ const BACK_FROM_CLOSE_MS = 1_500;
 /** The Actions that belong on a sendpotion.com tab, wherever the visitor is. */
 const SITE_COMMANDS = new Set(["navigate", "book_demo"]);
 /** The Actions the holder performs itself rather than a page. */
-const OURS = new Set(["open_posts", "open_post", "open_signup", "focus_tab"]);
+const OURS = new Set(["open_posts", "open_post", "open_signup", "focus_tab", "cue"]);
 
 /** The request that mints a session — see `docs/client/handshake`. */
 function connectRequest(init: Record<string, unknown>): APIRequest {
@@ -308,6 +309,7 @@ async function start(): Promise<void> {
     spare = null;
     client = next;
     watchActivity(next);
+    narrate(next);
     holding = holdCall(next, chan, () => active === me);
     void holding.pulse(made);
 
@@ -353,16 +355,69 @@ async function start(): Promise<void> {
     if (front && isSite(front.url)) return active;
     if (lastSiteTab && tabs.has(lastSiteTab)) return lastSiteTab;
     for (const [id, t] of tabs) if (isSite(t.url)) return id;
+    // No tab list yet (the call is still reaching the brain, or there is no
+    // call and the console is driving): this tab, when it is on the site.
+    return isSite(location.href) ? me : null;
+  }
+
+  /** Perform an Action on tab `to`: this one, or another through the hub.
+   *  The reason it failed, or `null`. Another tab reports its own failure
+   *  through the hub, so its move resolves once it has had time to land. */
+  async function performOn(to: string, command: string, payload: unknown): Promise<string | null> {
+    if (to === me) {
+      const failed = await perform(command, payload);
+      return failed ? String((failed.payload as { reason?: string }).reason ?? "failed") : null;
+    }
+    post({ k: "perform", to, command, payload });
+    await new Promise((r) => setTimeout(r, 1200));
     return null;
   }
 
-  /** Perform an Action on tab `to`: this one, or another through the hub. */
-  function performOn(to: string, command: string, payload: unknown): void {
-    if (to === me) {
-      void perform(command, payload).then((failed) => failed && toBrain(me, failed));
-    } else {
-      post({ k: "perform", to, command, payload });
+  /** Send a page Action to the tab it belongs on: a sendpotion.com move to a
+   *  sendpotion.com tab (brought to the front, or a new one), anything else
+   *  to the tab in front. The reason it failed, or `null`. */
+  async function dispatch(command: string, payload: unknown): Promise<string | null> {
+    if (SITE_COMMANDS.has(command)) {
+      const to = siteTab();
+      if (to === null) {
+        // No sendpotion.com tab is open: one opens, and makes the move once up.
+        const path = command === "navigate" ? (payload as { path: string }).path : "/demo/";
+        return openTab(new URL(path, SITE).href, { command, payload });
+      }
+      if (to !== active) await focusTab(to);
+      return performOn(to, command, payload);
     }
+    return performOn(tabs.has(active) ? active : me, command, payload);
+  }
+
+  /** A cue, as the page Action it stands for. */
+  function cueMove(cue: Cue): [string, unknown] {
+    if (cue.path) return ["navigate", { path: cue.path, heading: cue.heading, text: cue.text, faq: cue.faq }];
+    if (cue.faq) return ["open_faq", { question: cue.faq }];
+    return ["show_section", { heading: cue.heading, text: cue.text }];
+  }
+
+  // The screen follows his voice; see `narration.ts`. A cue that misses is
+  // reported as `cue`, which the brain takes quietly: he has spoken past it.
+  const narration = new Narration(async (cue) => {
+    const [command, payload] = cueMove(cue);
+    const why = await dispatch(command, payload);
+    if (why) toBrain(me, { event: "command_failed", payload: { command: "cue", reason: why } });
+  });
+
+  /** Follow the call's speech for the cues: its spoken text, when it starts
+   *  and stops, and when the visitor talks over it. */
+  function narrate(on: PipecatClient): void {
+    const heard = (data: unknown) => {
+      const d = data as { text?: string; spoken?: boolean; will_be_spoken?: boolean } | undefined;
+      if (!d?.text || d.spoken === false || d.will_be_spoken === false) return;
+      narration.hear(d.text);
+    };
+    on.on("botOutput" as never, heard as never);
+    on.on("botTtsText" as never, heard as never);
+    on.on("botStartedSpeaking" as never, (() => narration.speaking()) as never);
+    on.on("botStoppedSpeaking" as never, (() => narration.stopped()) as never);
+    on.on("userStartedSpeaking" as never, (() => narration.interrupted()) as never);
   }
 
   async function route(on: PipecatClient, command: string, payload: unknown): Promise<void> {
@@ -371,28 +426,12 @@ async function start(): Promise<void> {
       console.warn("voqalize: an Action this page does not know:", command);
       return;
     }
-    const fail = (why: string) => {
-      if (client === on) toBrain(me, { event: "command_failed", payload: { command, reason: why } });
-    };
-    if (OURS.has(action.command)) {
-      const why = await ours(action);
-      if (why) fail(why);
+    if (action.command === "cue") {
+      narration.add(action.payload);
       return;
     }
-    if (SITE_COMMANDS.has(action.command)) {
-      const to = siteTab();
-      if (to === null) {
-        // No sendpotion.com tab is open: one opens, and makes the move once up.
-        const path = action.command === "navigate" ? action.payload.path : "/demo/";
-        const why = await openTab(new URL(path, SITE).href, { command: action.command, payload: action.payload });
-        if (why) fail(why);
-        return;
-      }
-      if (to !== active) await focusTab(to);
-      performOn(to, action.command, action.payload);
-      return;
-    }
-    performOn(tabs.has(active) ? active : me, action.command, action.payload);
+    const why = OURS.has(action.command) ? await ours(action) : await dispatch(action.command, action.payload);
+    if (why && client === on) toBrain(me, { event: "command_failed", payload: { command, reason: why } });
   }
 
   /** The Actions the call performs itself. A failure comes back as words. */
@@ -414,7 +453,7 @@ async function start(): Promise<void> {
         const there = tabShowing(url);
         if (there) {
           await focusTab(there);
-          if (then) performOn(there, then.command, then.payload);
+          if (then) void performOn(there, then.command, then.payload);
           return null;
         }
         return openTab(url, then);
@@ -444,6 +483,8 @@ async function start(): Promise<void> {
       return failed;
     },
     reads: (heading: string, posts: Read[]) => showReads({ heading, posts }, false),
+    // Cues as the brain sends them, and speech as the voice plays it.
+    narration,
   };
 
   function end(): void {

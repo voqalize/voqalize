@@ -6,7 +6,8 @@
 
 /**
  * Go to one of sendpotion.com's pages and, with `heading` or `text`,
- * scroll to that section and ring it. The page reports `page_changed`.
+ * scroll to that section and ring it; with `faq`, open that FAQ on it. The
+ * page reports `page_changed`.
  */
 export interface Navigate {
   path: string;
@@ -14,6 +15,28 @@ export interface Navigate {
   heading: string | null;
 
   text: string | null;
+
+  faq: string | null;
+}
+
+/**
+ * A move for the page to make when the voice reaches `at` — the first
+ * words of the sentence it belongs to (see `.cues`); empty `at` is
+ * when the voice stops. With `path`, it is a `Navigate` (and goes to
+ * a sendpotion.com tab); else a section, words or FAQ on the tab in front.
+ */
+export interface Cue {
+  at: string;
+
+  word: number;
+
+  path: string | null;
+
+  heading: string | null;
+
+  text: string | null;
+
+  faq: string | null;
 }
 
 /**
@@ -182,6 +205,7 @@ export interface TabInfo {
 /** Everything the brain can put on screen, discriminated by `command`. */
 export type UiAction =
   | { command: 'navigate'; payload: Navigate }
+  | { command: 'cue'; payload: Cue }
   | { command: 'show_section'; payload: ShowSection }
   | { command: 'open_faq'; payload: OpenFaq }
   | { command: 'open_posts'; payload: OpenPosts }
@@ -194,6 +218,7 @@ export type UiActionCommand = UiAction['command'];
 
 export const UI_ACTION_COMMANDS: readonly UiActionCommand[] = [
   'navigate',
+  'cue',
   'show_section',
   'open_faq',
   'open_posts',

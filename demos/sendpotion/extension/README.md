@@ -23,6 +23,12 @@ goes on it; it is not how a customer would ship it.
   the site's own router takes, so the call survives every page; scrolling goes
   through the site's smooth-scrollbar, not the window. On the blog (a Medium
   publication) it scrolls the window.
+- `src/narration.ts` — the screen follows his voice. The brain sends each
+  screen cue he wrote into his reply ahead of the speech, with the first words
+  of the sentence it belongs to; this fires it when the call's spoken-text
+  events (`bot-output`, released as the audio plays) reach those words, one
+  move at a time. With no spoken text, it times cues from the start of the
+  speech instead; when the visitor talks over him, the rest is dropped.
 - `src/early.ts` — runs before the site's own scripts and finds that scroller:
   the library keeps its instances in a private `Map`, so this notes the one
   `Map.prototype.set` that stores a scrollbar under its own element.
@@ -83,6 +89,13 @@ await __voqalizeSendPotion.perform("book_demo", {
   day: "Tuesday, October 20", time: "3:00pm", name: "Jane Doe", email: "jane@example.com",
   notes: "Agency of ten; wants outreach videos.",
 });
+// A narrated turn: cues as the brain sends them, then speech as the voice plays it.
+const n = __voqalizeSendPotion.narration;
+n.speaking();
+n.add({ at: "it takes three", word: 0, path: null, heading: "How Potion works", text: null, faq: null });
+n.add({ at: "first you train", word: 4, path: null, heading: "Train video AI (Takes 4 mins)", text: null, faq: null });
+n.hear("It takes three simple steps.");
+n.hear("First, you train the AI on you.");
 __voqalizeSendPotion.reads("For agency outreach", [
   { url: "https://blog.sendpotion.com/…", title: "…", why: "How agencies win clients" },
 ]);

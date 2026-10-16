@@ -71,6 +71,12 @@ SITE = Knowledge(
             "/integrations", "Integrations | Potion", sections=(Section("Works with HubSpot"),)
         ),
         "/demo": Page("/demo", "Book a demo — Potion", sections=(Section("Book a demo"),)),
+        "/faq": Page(
+            "/faq",
+            "FAQ | Potion",
+            sections=(Section("FAQs"),),
+            faqs=(Faq("Can I cancel anytime?", "Yes, from your account."),),
+        ),
     },
     posts={
         AGENCY: Post(
@@ -201,6 +207,19 @@ def _llm() -> ScriptedGemini:
             ),
             "Show me tab ninety.": reply_and_call("Here.", "switch_tab", request={"tab_id": "90"}),
             "What's on this tab?": reply("It's the agency post."),
+            # Cues: out of the speech, checked against the site, sent to the page.
+            "How does it work?": reply(
+                "{page: /}{show: clone yourself} One recording becomes many. "
+                "{show: the pink button} Each one is personal. {page: /moon} "
+                "{faq: can i cancel anytime} Cancel whenever you like."
+            ),
+            # Asked about an FAQ that is on another page: it opens there.
+            "Where does it say video length?": reply_and_call(
+                "Up to five minutes.", "open_faq", request={"question": "how long can a video"}
+            ),
+            # The model came back with nothing at all: asked once more.
+            "Hello?": [reply(""), reply("I'm here. Want a quick tour?")],
+            "Carry on.": reply("Sure, let's keep going."),
             # A page move with no words: the model is asked once more, tools off.
             "Show me integrations.": [
                 call("navigate", request={"path": "/integrations"}),
@@ -251,13 +270,19 @@ async def test_navigate_lands_on_the_section_and_refuses_an_invented_page() -> N
             "path": "/pricing/",
             "heading": "Pricing plans",
             "text": None,
+            "faq": None,
         }
         await rig.driver.user_says("Take me to the moon page.")
         assert rig.actions().count("navigate") == 1
         # A heading the page does not have: it goes, and rings the words.
         await rig.driver.user_says("Show me HubSpot.")
         moves = [c["payload"] for c in rig.driver.ui_commands if c.get("command") == "navigate"]
-        assert moves[-1] == {"path": "/integrations/", "heading": None, "text": "HubSpot logo"}
+        assert moves[-1] == {
+            "path": "/integrations/",
+            "heading": None,
+            "text": "HubSpot logo",
+            "faq": None,
+        }
         assert "Not opened: /moon is not a page" in _results(llm.captured_contents[-1])["navigate"]
 
 
@@ -399,3 +424,60 @@ async def test_signup_opens_and_a_silent_move_is_talked_about() -> None:
         turn = await rig.driver.user_says("Show me integrations.")
         check_turn(rig, turn)
         assert "Which one do you use?" in turn.text
+
+
+async def test_cues_leave_the_speech_and_move_the_page_with_it() -> None:
+    async with demo("sendpotion", _llm()) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/"})
+        turn = await rig.driver.user_says("How does it work?")
+        check_turn(rig, turn)
+        assert "{" not in turn.text and "}" not in turn.text
+        assert "One recording becomes many." in turn.text
+        cues = [c["payload"] for c in rig.driver.ui_commands if c.get("command") == "cue"]
+        # The page cue to where they already are; the heading in the site's
+        # spelling; words that are no heading rung as words; the invented page
+        # dropped; and an FAQ on another page, opened there.
+        none = {"path": None, "heading": None, "text": None, "faq": None}
+        assert cues == [
+            {**none, "at": "one recording becomes", "word": 0, "path": "/"},
+            {**none, "at": "one recording becomes", "word": 0, "heading": "Clone yourself"},
+            {**none, "at": "each one is", "word": 4, "text": "the pink button"},
+            {
+                **none,
+                "at": "cancel whenever you",
+                "word": 8,
+                "path": "/faq/",
+                "faq": "Can I cancel anytime?",
+            },
+        ]
+
+
+async def test_an_faq_on_another_page_is_opened_there() -> None:
+    async with demo("sendpotion", _llm()) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/"})
+        await rig.driver.user_says("Where does it say video length?")
+        assert rig.command("navigate") == {
+            "path": "/pricing/",
+            "heading": None,
+            "text": None,
+            "faq": "How long can a video be?",
+        }
+
+
+async def test_a_missed_cue_is_noted_quietly() -> None:
+    llm = _llm()
+    async with demo("sendpotion", llm) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/"})
+        await _page(rig, "command_failed", {"command": "cue", "reason": "no heading X"})
+        await rig.driver.user_says("Carry on.")
+        seen = _texts(llm.captured_contents[-1])
+        assert "A screen cue of yours did not land (no heading X)" in seen
+        assert "Tell the visitor plainly" not in seen
+
+
+async def test_a_reply_with_nothing_in_it_is_asked_for_again() -> None:
+    async with demo("sendpotion", _llm()) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/"})
+        turn = await rig.driver.user_says("Hello?")
+        check_turn(rig, turn)
+        assert "Want a quick tour?" in turn.text
