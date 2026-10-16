@@ -197,13 +197,19 @@ facts:
       two are deliberately apart between a bump and the tag that publishes it.
 
   sdk.python.version.published:
-    value: '0.6.0'
+    value: '0.9.0'
     source: https://pypi.org/pypi/voqalize-agent-sdk/json
-    verified: 2026-09-24
+    verified: 2026-10-16
     reproduce: >-
       curl -s https://pypi.org/pypi/voqalize-agent-sdk/json
       | python3 -c "import sys,json;print(json.load(sys.stdin)['info']['version'])"
     note: >-
+      Published 2026-10-16 by the `python-sdk-v0.9.0` tag, and level with
+      sdk.python.version.tree again; the install lines across the docs moved
+      from 0.6.0 to 0.9.0 the same day. 0.9.0 puts the thirty character voices
+      on the wire (VOICE_OMNIVOICE_EMILY through VOICE_OMNIVOICE_NIKHIL, 11-40,
+      appended), so a brain on 0.8.0 is understood unchanged. 0.8.0 was published
+      2026-10-09 (SpeechCancel); 0.7.0 never was.
       Published 2026-09-24 by the `python-sdk-v0.6.0` tag, and level with
       sdk.python.version.tree again. 0.6.0 puts the gautam and gayatri voices
       on the wire — OMNIVOICE_GAUTAM and OMNIVOICE_GAYATRI on Voice, appended,
