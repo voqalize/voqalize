@@ -336,9 +336,9 @@ class Session:
 
         Both language legs, always — :class:`Config` refuses to be built with one
         and not the other, because half a language change is silent. They may
-        differ: ten of the twenty-three languages can be spoken, so a call heard
-        in Odia is spoken with the Hindi clip, said out loud rather than
-        substituted behind your back.
+        differ: a voice speaks only the languages it has a recording in, fewer
+        than the recognizer hears, so a call heard in Odia is spoken with the
+        Hindi clip, said out loud rather than substituted behind your back.
 
         Where each change lands:
 

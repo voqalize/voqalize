@@ -166,13 +166,17 @@ facts:
       pattern: '^name = "(.+)"$'
 
   sdk.python.version.tree:
-    value: '0.9.0'
+    value: '0.10.0'
     source: sdk/python/pyproject.toml:3
     verified: 2026-10-16
     derive:
       file: sdk/python/pyproject.toml
       pattern: '^version = "(.+)"$'
     note: >-
+      Bumped to 0.10.0 on 2026-10-16 for the European languages: Language
+      gains LANGUAGE_BG through LANGUAGE_UK (24-47), the 24 languages besides
+      English in speech.stt.languages.european, appended so no value moves. An
+      added roster takes the minor under 1.0.
       Bumped to 0.9.0 on 2026-10-16 for the thirty character voices: Voice
       gains VOICE_OMNIVOICE_EMILY through VOICE_OMNIVOICE_NIKHIL (11-40), appended
       so no value moves. An added roster takes the minor under 1.0.
@@ -695,42 +699,66 @@ facts:
 
   speech.stt.languages.indic:
     value: 22
-    source: speech/src/vql_speech/stt/engines/indic_conformer.py SUPPORTED_LANGUAGES
-    verified: 2026-08-24
+    source: speech/stt-rs/src/registry.rs INDIC_LANGUAGES
+    verified: 2026-10-16
     reproduce: >-
-      python3 -c "import re;print(len(re.findall(r'\"[a-z]{2,3}\",',
-      open('../speech/src/vql_speech/stt/engines/indic_conformer.py').read())))"
+      git -C ../speech show origin/main:stt-rs/src/registry.rs | python3 -c
+      "import re,sys;s=sys.stdin.read();
+      print(len(re.findall(r'\"[a-z]{2,3}\"', s.split('INDIC_LANGUAGES: &[&str] = &[')[1].split('];')[0])))"
+    note: >-
+      Until 2026-10-16 this cited speech/src/vql_speech/stt/engines/indic_conformer.py
+      SUPPORTED_LANGUAGES, a file the speech tier has since deleted; the list now
+      lives in stt-rs/src/registry.rs.
+
+  speech.stt.languages.european:
+    value: 25
+    source: speech/stt-rs/src/registry.rs (the speech tier's language registry, its European language list)
+    verified: 2026-10-16
+    reproduce: >-
+      git -C ../speech show origin/main:stt-rs/src/registry.rs | grep -n -E
+      'pub const [A-Z_]+_LANGUAGES' — then count the codes in the European
+      list: bg cs da de el en es et fi fr hr hu it lt lv mt nl pl pt ro ru sk
+      sl sv uk. English is one of them, so the Language enum gains the other 24
+      (LANGUAGE_BG = 24 through LANGUAGE_UK = 47). The list lands with the
+      speech tier's change that adds these languages; until then this file
+      names only INDIC_LANGUAGES.
 
   speech.stt.languages.total:
-    value: 23
-    source: speech/src/vql_speech/stt/engines/indic_conformer.py + English
-    verified: 2026-08-24
+    value: 47
+    source: speech.stt.languages.indic + speech.stt.languages.european
+    verified: 2026-10-16
     note: >-
-      English plus 22 Indic languages. Say twenty-three, or say "English plus 22
-      Indic languages"; the roster is in docs reference/catalog.md and nowhere
-      else. The retired claim is "sixty-plus languages", which was never true of
-      any model we host.
+      English, 22 Indic languages and 24 other European languages: the 22 of
+      speech.stt.languages.indic plus the 25 of speech.stt.languages.european,
+      which include English. It was 23 (English plus 22 Indic) until the
+      recognizer's English engine became multilingual. Say forty-seven, or say
+      "English, 22 Indic languages and 24 other European languages"; the
+      roster is in docs reference/catalog.md and nowhere else. The retired
+      claim is "sixty-plus languages", which was never true of any model we
+      host.
     forbid:
       - '\b(sixty|60)\+? languages'
       - '\b100\+? languages'
 
   speech.tts.clip_languages:
-    value: 10
+    value: 11
     source: https://speech.prod.voqalize.com/voices.json — the omnivoice voices' `languages`
-    verified: 2026-09-20
+    verified: 2026-10-16
     reproduce: >-
       python3 -c "import json,urllib.request;
       d=json.load(urllib.request.urlopen('https://speech.prod.voqalize.com/voices.json'));
       print({v['id']: len(v['languages']) for v in d['voices'] if v['engine']=='omnivoice'})"
     note: >-
-      **The number that makes "23 languages" a half-truth, and it has no
-      derivable source in this repo.** `vql-stt` *hears* 23; the omnivoice
-      personas have recorded reference clips for 10 — bn, en, gu, hi, kn, ml,
-      mr, pa, ta, te. A tts.language a voice does not speak is refused at mint
+      **The number that makes "47 languages" a half-truth, and it has no
+      derivable source in this repo.** `vql-stt` *hears* 47; the omnivoice
+      personas have recorded reference clips for 11, counted across all of
+      them — bn, en, es, gu, hi, kn, ml, mr, pa, ta, te. es is
+      omnivoice/javier's alone (2026-10-16); the other ten are the four Indic
+      personas'. A tts.language a voice does not speak is refused at mint
       with the field named, so an Odia call is written `stt.language=OR,
-      tts.language=HI` on purpose. A surface that says "23 languages" without
+      tts.language=HI` on purpose. A surface that says "47 languages" without
       saying which half is which is one clip away from the production bug this
-      whole rule came from. Recorded here because a bare 23 invites exactly
+      whole rule came from. Recorded here because a bare 47 invites exactly
       that sentence.
 
       **This is per voice, not per tier, and it stopped being a single number
@@ -741,11 +769,11 @@ facts:
       cited above was `pygato/session_config.py TTS_CLIP_LANGUAGES`, a copy
       that was deleted the same day along with every other copy.
     forbid:
-      # The wrong half asserted. "23 languages" alone is fine where the page
-      # then says which ten are spoken — reference/catalog.md does exactly that
+      # The wrong half asserted. "47 languages" alone is fine where the page
+      # then says which are spoken — reference/catalog.md does exactly that
       # — so the pattern names the *verb*, which is what makes the claim false.
-      - '\b(speaks|speaking|spoken in|voices in|say[s]?) (23|twenty-three) languages'
-      - '\b(23|twenty-three) (voices|speakers|recorded)'
+      - '\b(speaks|speaking|spoken in|voices in|say[s]?) (23|twenty-three|47|forty-seven) languages'
+      - '\b(23|twenty-three|47|forty-seven) (voices|speakers|recorded)'
 
   speech.turn.eot_timeout_share:
     value: '8.6%'
