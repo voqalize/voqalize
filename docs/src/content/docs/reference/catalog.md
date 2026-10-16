@@ -40,13 +40,14 @@ is wrong, so every transcript, log and automated score is blind to it — see
 ### Model
 
 There is no model to choose, and no field in which to choose one. Every session
-is served by the same **recognizer**: a composite that covers **English plus 22
-Indic languages** and picks the engine underneath from the language you set. A
-brain names a language; it never names an engine.
+is served by the same **recognizer**: a composite that covers **English, 22
+Indic languages and 24 other European languages** — 47 in all — and picks the
+engine underneath from the language you set. A brain names a language; it never
+names an engine.
 
 ### Language (`stt.language`)
 
-The recognizer serves **English (`en`)** plus these 22 Indic languages:
+The recognizer serves **English (`en`)**, these 22 Indic languages:
 
 | Code | Language | Code | Language | Code | Language |
 |---|---|---|---|---|---|
@@ -59,13 +60,26 @@ The recognizer serves **English (`en`)** plus these 22 Indic languages:
 | `sd` | Sindhi | `ta` | Tamil | `te` | Telugu |
 | `ur` | Urdu | | | | |
 
+and these 24 other European languages:
+
+| Code | Language | Code | Language | Code | Language |
+|---|---|---|---|---|---|
+| `bg` | Bulgarian | `cs` | Czech | `da` | Danish |
+| `de` | German | `el` | Greek | `es` | Spanish |
+| `et` | Estonian | `fi` | Finnish | `fr` | French |
+| `hr` | Croatian | `hu` | Hungarian | `it` | Italian |
+| `lt` | Lithuanian | `lv` | Latvian | `mt` | Maltese |
+| `nl` | Dutch | `pl` | Polish | `pt` | Portuguese |
+| `ro` | Romanian | `ru` | Russian | `sk` | Slovak |
+| `sl` | Slovenian | `sv` | Swedish | `uk` | Ukrainian |
+
 These are the members of the `Language` enum, so a language outside the set is
 not a value you can send — it is a value you cannot construct. That is the point:
 the old failure mode was an unserved code falling through to the English
 recognizer, in a call nobody could tell had gone wrong.
 
-A language change that crosses the English↔Indic boundary is applied at the
-**next end-of-turn**, never mid-utterance.
+A language change that moves between an Indic language and English or another
+European language is applied at the **next end-of-turn**, never mid-utterance.
 
 ### Waiting through a pause (`stt.patience`)
 
@@ -90,10 +104,40 @@ surface as we learn, not in advance.
 | `Voice.KOKORO_NOAH` | `kokoro/noah` | Noah (American male) | `en` |
 | `Voice.KOKORO_OLIVER` | `kokoro/oliver` | Oliver (British male) | `en` |
 | `Voice.KOKORO_SARAH` | `kokoro/sarah` | Sarah (American female) | `en` |
+| `Voice.OMNIVOICE_AALIYAH` | `omnivoice/aaliyah` | Aaliyah (female) | `en` |
+| `Voice.OMNIVOICE_ADITYA` | `omnivoice/aditya` | Aditya (male) | `en`, `hi` |
+| `Voice.OMNIVOICE_AMARA` | `omnivoice/amara` | Amara (female) | `en` |
+| `Voice.OMNIVOICE_ANANYA` | `omnivoice/ananya` | Ananya (female) | `en`, `hi` |
+| `Voice.OMNIVOICE_ANDREI` | `omnivoice/andrei` | Andrei (male) | `en` |
+| `Voice.OMNIVOICE_ARJUN` | `omnivoice/arjun` | Arjun (male) | `en`, `hi` |
+| `Voice.OMNIVOICE_CHIARA` | `omnivoice/chiara` | Chiara (female) | `en` |
+| `Voice.OMNIVOICE_DANIEL` | `omnivoice/daniel` | Daniel (male) | `en` |
+| `Voice.OMNIVOICE_ELODIE` | `omnivoice/elodie` | Elodie (female) | `en` |
+| `Voice.OMNIVOICE_EMILY` | `omnivoice/emily` | Emily (female) | `en` |
+| `Voice.OMNIVOICE_FREYA` | `omnivoice/freya` | Freya (female) | `en` |
 | `Voice.OMNIVOICE_GAURAV` | `omnivoice/gaurav` | Gaurav (male) | `bn`, `en`, `gu`, `hi`, `kn`, `ml`, `mr`, `pa`, `ta`, `te` |
 | `Voice.OMNIVOICE_GAURI` | `omnivoice/gauri` | Gauri (female) | `bn`, `en`, `gu`, `hi`, `kn`, `ml`, `mr`, `pa`, `ta`, `te` |
 | `Voice.OMNIVOICE_GAUTAM` | `omnivoice/gautam` | Gautam (male) | `bn`, `en`, `gu`, `hi`, `kn`, `ml`, `mr`, `pa`, `ta`, `te` |
 | `Voice.OMNIVOICE_GAYATRI` | `omnivoice/gayatri` | Gayatri (female) | `bn`, `en`, `gu`, `hi`, `kn`, `ml`, `mr`, `pa`, `ta`, `te` |
+| `Voice.OMNIVOICE_JASMINE` | `omnivoice/jasmine` | Jasmine (female) | `en` |
+| `Voice.OMNIVOICE_JAVIER` | `omnivoice/javier` | Javier (male) | `en`, `es` |
+| `Voice.OMNIVOICE_JORDAN` | `omnivoice/jordan` | Jordan (male) | `en` |
+| `Voice.OMNIVOICE_KARTHIK` | `omnivoice/karthik` | Karthik (male) | `en`, `hi` |
+| `Voice.OMNIVOICE_KASIA` | `omnivoice/kasia` | Kasia (female) | `en` |
+| `Voice.OMNIVOICE_KAVYA` | `omnivoice/kavya` | Kavya (female) | `en`, `hi` |
+| `Voice.OMNIVOICE_LUKAS` | `omnivoice/lukas` | Lukas (male) | `en` |
+| `Voice.OMNIVOICE_MADISON` | `omnivoice/madison` | Madison (female) | `en` |
+| `Voice.OMNIVOICE_MARCUS` | `omnivoice/marcus` | Marcus (male) | `en` |
+| `Voice.OMNIVOICE_MEERA` | `omnivoice/meera` | Meera (female) | `en`, `hi` |
+| `Voice.OMNIVOICE_NIKHIL` | `omnivoice/nikhil` | Nikhil (male) | `en`, `hi` |
+| `Voice.OMNIVOICE_OLIVERBENNETT` | `omnivoice/oliverbennett` | Oliverbennett (male) | `en` |
+| `Voice.OMNIVOICE_PRIYA` | `omnivoice/priya` | Priya (female) | `en`, `hi` |
+| `Voice.OMNIVOICE_RIYA` | `omnivoice/riya` | Riya (female) | `en`, `hi` |
+| `Voice.OMNIVOICE_ROHAN` | `omnivoice/rohan` | Rohan (male) | `en`, `hi` |
+| `Voice.OMNIVOICE_RYAN` | `omnivoice/ryan` | Ryan (male) | `en` |
+| `Voice.OMNIVOICE_SAMUEL` | `omnivoice/samuel` | Samuel (male) | `en` |
+| `Voice.OMNIVOICE_SOFIA` | `omnivoice/sofia` | Sofia (female) | `en` |
+| `Voice.OMNIVOICE_TYLER` | `omnivoice/tyler` | Tyler (male) | `en` |
 <!-- voices:end -->
 
 **That table is not written by hand.** Voqalize's speech tier publishes the
@@ -233,7 +277,8 @@ is the whole story:
 
 ### We run the speech tier ourselves
 
-The recognizer covers English plus 22 Indic languages, and it runs on our own
+The recognizer covers English, 22 Indic languages and 24 other European
+languages, and it runs on our own
 GPUs. Text-to-speech runs there too: a voice-cloning model whose personas are
 recorded per language, and English checkpoint voices that speak in the accent
 they were trained in. Speech-to-text is a composite that reads the language and

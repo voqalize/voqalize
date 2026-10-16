@@ -15,6 +15,26 @@ The public series has now caught up to them, so **a heading carrying
 are different releases that happen to share a number; the pre-restart entries are
 kept for the history, and nothing installable was ever cut from them.
 
+## 0.10.0
+
+Additive on the wire and in the package API: twenty-four new `Language` values
+and nothing else, so a brain on 0.9.0 is served exactly as before, and the wire
+version stays 3.
+
+### Added
+
+- **The European languages, on the wire.** `Language` gains the 24 languages
+  besides English that the recognizer now hears: `BG`, `CS`, `DA`, `DE`, `EL`,
+  `ES`, `ET`, `FI`, `FR`, `HR`, `HU`, `IT`, `LT`, `LV`, `MT`, `NL`, `PL`, `PT`,
+  `RO`, `RU`, `SK`, `SL`, `SV` and `UK`, each valued by its ISO 639-1 code.
+  Every one can be set on `stt.language`. A voice speaks only the languages it
+  has a recording in, so `tts.language` is still refused for a language the
+  chosen voice does not speak; the catalog lists which languages each voice
+  speaks (`OMNIVOICE_JAVIER` speaks Spanish).
+
+  Additive on the wire: new enum values only, appended so no existing value
+  moves, and a brain built against an older SDK is understood unchanged.
+
 ## 0.9.0
 
 Additive on the wire and in the package API: thirty new `Voice` values and

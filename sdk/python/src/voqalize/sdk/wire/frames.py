@@ -309,6 +309,11 @@ class Voice(StrEnum):
 class Language(StrEnum):
     """The languages a session can be conducted in.
 
+    English, the 22 Indic languages and the 24 other European languages the
+    recognizer hears. A voice speaks only the languages it has a recording in,
+    which is a smaller set that the catalog lists per voice and the runtime
+    checks when the configuration is used.
+
     The value is the code the speech tier wants. It is ISO 639-1 where a
     two-letter code exists and 639-3 where none does — six of these have no
     two-letter code, so the set is not uniform and the *name* is the language,
@@ -342,6 +347,30 @@ class Language(StrEnum):
     TA = "ta"
     TE = "te"
     UR = "ur"
+    BG = "bg"
+    CS = "cs"
+    DA = "da"
+    DE = "de"
+    EL = "el"
+    ES = "es"
+    ET = "et"
+    FI = "fi"
+    FR = "fr"
+    HR = "hr"
+    HU = "hu"
+    IT = "it"
+    LT = "lt"
+    LV = "lv"
+    MT = "mt"
+    NL = "nl"
+    PL = "pl"
+    PT = "pt"
+    RO = "ro"
+    RU = "ru"
+    SK = "sk"
+    SL = "sl"
+    SV = "sv"
+    UK = "uk"
 
 
 class ConfigError(ValueError):

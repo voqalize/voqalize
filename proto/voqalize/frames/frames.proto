@@ -509,7 +509,8 @@ enum Voice {
   VOICE_OMNIVOICE_NIKHIL = 40 [(voice_id) = "omnivoice/nikhil"];
 }
 
-// English plus the 22 Indic languages the speech tier serves.
+// English, the 22 Indic languages and the 24 other European languages the
+// speech tier hears.
 //
 // Enumerated rather than a free string so a language we do not serve cannot be
 // sent at all. It used to be sendable: an unserved code fell back to the
@@ -517,10 +518,11 @@ enum Voice {
 // get a call wrong.
 //
 // Which of these can be *spoken* is a smaller set, and it is not written down
-// here. Reference clips are a capability of the speech tier, they move when it
-// does, and a wire contract that froze today's roster would need a new proto
-// every time a clip is recorded. The runtime answers that question at the
-// moment it is asked, with a rejected Response.
+// here: a voice speaks only the languages it has a recording in. Reference
+// clips are a capability of the speech tier, they move when it does, and a wire
+// contract that froze today's roster would need a new proto every time a clip
+// is recorded. The runtime answers that question at the moment it is asked,
+// with a rejected Response.
 enum Language {
   // Unset. On the wire this means leave the language alone.
   LANGUAGE_UNSPECIFIED = 0;
@@ -593,6 +595,78 @@ enum Language {
 
   // Urdu.
   LANGUAGE_UR = 23 [(iso_code) = "ur"];
+
+  // Bulgarian.
+  LANGUAGE_BG = 24 [(iso_code) = "bg"];
+
+  // Czech.
+  LANGUAGE_CS = 25 [(iso_code) = "cs"];
+
+  // Danish.
+  LANGUAGE_DA = 26 [(iso_code) = "da"];
+
+  // German.
+  LANGUAGE_DE = 27 [(iso_code) = "de"];
+
+  // Greek.
+  LANGUAGE_EL = 28 [(iso_code) = "el"];
+
+  // Spanish.
+  LANGUAGE_ES = 29 [(iso_code) = "es"];
+
+  // Estonian.
+  LANGUAGE_ET = 30 [(iso_code) = "et"];
+
+  // Finnish.
+  LANGUAGE_FI = 31 [(iso_code) = "fi"];
+
+  // French.
+  LANGUAGE_FR = 32 [(iso_code) = "fr"];
+
+  // Croatian.
+  LANGUAGE_HR = 33 [(iso_code) = "hr"];
+
+  // Hungarian.
+  LANGUAGE_HU = 34 [(iso_code) = "hu"];
+
+  // Italian.
+  LANGUAGE_IT = 35 [(iso_code) = "it"];
+
+  // Lithuanian.
+  LANGUAGE_LT = 36 [(iso_code) = "lt"];
+
+  // Latvian.
+  LANGUAGE_LV = 37 [(iso_code) = "lv"];
+
+  // Maltese.
+  LANGUAGE_MT = 38 [(iso_code) = "mt"];
+
+  // Dutch.
+  LANGUAGE_NL = 39 [(iso_code) = "nl"];
+
+  // Polish.
+  LANGUAGE_PL = 40 [(iso_code) = "pl"];
+
+  // Portuguese.
+  LANGUAGE_PT = 41 [(iso_code) = "pt"];
+
+  // Romanian.
+  LANGUAGE_RO = 42 [(iso_code) = "ro"];
+
+  // Russian.
+  LANGUAGE_RU = 43 [(iso_code) = "ru"];
+
+  // Slovak.
+  LANGUAGE_SK = 44 [(iso_code) = "sk"];
+
+  // Slovenian.
+  LANGUAGE_SL = 45 [(iso_code) = "sl"];
+
+  // Swedish.
+  LANGUAGE_SV = 46 [(iso_code) = "sv"];
+
+  // Ukrainian.
+  LANGUAGE_UK = 47 [(iso_code) = "uk"];
 }
 
 // ─── RTVI plane ──────────────────────────────────────────────────────────────
