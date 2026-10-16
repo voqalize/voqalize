@@ -155,6 +155,13 @@ def _llm() -> ScriptedGemini:
             "How do marketing teams use it?": reply(
                 "Marketing teams clone themselves once. Every lead gets a video."
             ),
+            # A page cue and nothing more: the heading he names and each plan
+            # he names are shown as he says them (dev call 56e87ed1).
+            "Go through the plans.": reply(
+                "{page: /pricing/} Here are our pricing plans. The Starter plan suits "
+                "most teams of five. Want a demo?"
+            ),
+            "Close the reading list.": reply_and_call("Done.", "close_reading_list"),
             # His own cue wins over the page their words name.
             "What does marketing cost?": reply(
                 "{page: /pricing/} Plans start small. See them side by side?"
@@ -517,6 +524,7 @@ def test_the_page_for_what_they_asked_about() -> None:
     assert sendpotion.asked_page("No, show me some use cases in sales.") == sales
     assert sendpotion.asked_page("We use HubSpot for sales") == "/integrations"
     assert sendpotion.asked_page("Show me the use cases") == "/use-cases"
+    assert sendpotion.asked_page("Can you show me some stories?") == "/reviews"
     assert sendpotion.asked_page("Go back to the pricing tab.") is None
     assert sendpotion.asked_page("Mm-hmm") is None
     assert sendpotion.asked_page("Yeah, please show me.") is None
@@ -543,3 +551,92 @@ async def test_a_reply_with_nothing_in_it_is_asked_for_again() -> None:
         turn = await rig.driver.user_says("Hello?")
         check_turn(rig, turn)
         assert "Want a quick tour?" in turn.text
+
+
+async def test_a_page_cue_alone_still_shows_what_he_describes() -> None:
+    async with demo("sendpotion", _llm()) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/"})
+        turn = await rig.driver.user_says("Go through the plans.")
+        check_turn(rig, turn)
+        assert _cues(rig) == [
+            {**NONE, "at": "here are our", "word": 0, "path": "/pricing/"},
+            {
+                **NONE,
+                "at": "here are our",
+                "word": 0,
+                "path": "/pricing/",
+                "heading": "Pricing plans",
+            },
+            {**NONE, "at": "the starter plan", "word": 5, "path": "/pricing/", "text": "Starter"},
+        ]
+
+
+async def test_the_reading_list_can_be_closed() -> None:
+    async with demo("sendpotion", _llm()) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/"})
+        await rig.driver.user_says("Close the reading list.")
+        assert rig.command("open_posts") == {"heading": "", "posts": [], "open": None}
+
+
+# The matching itself, on the crawl and on what he said on dev calls 7d813396
+# and 56e87ed1: a page cue alone left the page at its title.
+
+SALES = "/ai-video-prospecting-software"
+HIRING = "/ai-personalized-onboarding-tools-enhance-recruitment-process"
+
+
+@pytest.mark.parametrize(
+    ("path", "sentence", "section"),
+    [
+        (
+            SALES,
+            "Teams also re-engage dormant leads with quick personal check-ins.",
+            "Re-engage dormant leads",
+        ),
+        (
+            SALES,
+            "After calls, reps summarize demos and outline next steps on video.",
+            "Summarize your demo and plan for next steps",
+        ),
+        (
+            HIRING,
+            "You can engage passive candidates with a personalized video outreach.",
+            "Engage Passive Candidates",
+        ),
+        (
+            HIRING,
+            "New hires receive a warm, personal welcome video before day one.",
+            "Prepare new hires with a personalized welcome",
+        ),
+        (
+            HIRING,
+            "And here is how teams strengthen relationships with high performers.",
+            "Strengthen bonds with top performers",
+        ),
+        ("/pricing", "Here are our pricing plans.", "Pricing plans"),
+        # About no one section: the opener, and the closing offer.
+        (SALES, "Sales teams use Potion across the entire sales cycle.", None),
+        (SALES, "Would you like to see the pricing plans next?", None),
+        (HIRING, "Recruiters use Potion across the hiring journey.", None),
+    ],
+)
+def test_a_sentence_finds_its_section_on_the_page(
+    path: str, sentence: str, section: str | None
+) -> None:
+    page = kb.load().page(path)
+    assert page is not None
+    sections = [(s.heading, s.text) for s in page.sections]
+    assert sendpotion.best_section(sentence, sections) == section
+
+
+def test_a_sentence_names_a_plan_a_logo_or_a_customer_on_the_page() -> None:
+    named = sendpotion.named_on_page
+    assert named("Starter is ninety-nine dollars a month.", "/pricing", "", ()) == "Starter"
+    assert (
+        named("For CRM, it connects with HubSpot and Pipedrive.", "/integrations", "", ())
+        == "HubSpot"
+    )
+    assert named("SAP closed six hundred thousand dollars.", "/", "Mike Kaszuk, SAP", ()) == "SAP"
+    # A word that opens the sentence is no name, nor one the page lacks.
+    assert named("Sales teams use it daily.", "/", "Sales", ()) is None
+    assert named("It works with Orum.", "/reviews", "Andy Svalesen", ()) is None

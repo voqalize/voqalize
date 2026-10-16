@@ -183,7 +183,8 @@ async function start(): Promise<void> {
   function showReads(next: { heading: string; posts: Read[] } | null, tell: boolean): void {
     reads = next;
     widget.setReads(next?.heading ?? "", next?.posts ?? []);
-    if (tell && next) post({ k: "reads", heading: next.heading, posts: next.posts });
+    // An empty list is news too: closed here, it closes on every tab.
+    if (tell) post({ k: "reads", heading: next?.heading ?? "", posts: next?.posts ?? [] });
   }
 
   /** The holder's state, for the followers: on every change. */
@@ -661,6 +662,7 @@ async function start(): Promise<void> {
   widget.onHang(end);
   widget.onMute(toggleMute);
   // A post in the reading list: its own tab if one shows it, else a new one.
+  widget.onCloseReads(() => showReads(null, true));
   widget.onRead((url) => {
     const there = role === "holder" ? tabShowing(url) : null;
     if (there) void focusTab(there);
