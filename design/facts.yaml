@@ -712,12 +712,16 @@ facts:
 
   speech.stt.languages.european:
     value: 25
-    source: https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3 (model card, supported languages)
+    source: speech/stt-rs/src/registry.rs (the speech tier's language registry, its European language list)
     verified: 2026-10-16
     reproduce: >-
-      Read the model card's language list: bg cs da de el en es et fi fr hr hu
-      it lt lv mt nl pl pt ro ru sk sl sv uk. English is one of them, so the
-      Language enum gains the other 24 (LANGUAGE_BG = 24 through LANGUAGE_UK = 47).
+      git -C ../speech show origin/main:stt-rs/src/registry.rs | grep -n -E
+      'pub const [A-Z_]+_LANGUAGES' — then count the codes in the European
+      list: bg cs da de el en es et fi fr hr hu it lt lv mt nl pl pt ro ru sk
+      sl sv uk. English is one of them, so the Language enum gains the other 24
+      (LANGUAGE_BG = 24 through LANGUAGE_UK = 47). The list lands with the
+      speech tier's change that adds these languages; until then this file
+      names only INDIC_LANGUAGES.
 
   speech.stt.languages.total:
     value: 47
