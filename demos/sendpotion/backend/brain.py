@@ -44,6 +44,7 @@ days, a submitted booking — is in :meth:`SendPotionBrain.on_user_idle`.
 from __future__ import annotations
 
 import inspect
+import math
 import re
 import time
 from collections.abc import AsyncGenerator
@@ -89,7 +90,7 @@ from .app_events import (
     TabInfo,
     TabsChanged,
 )
-from .cues import CueParser, RawCue
+from .cues import CueKind, CueParser, RawCue
 from .knowledge import TOPIC_IDS, Knowledge, canonical_path, norm
 
 AGENT_NAME = "Tushar"
@@ -333,6 +334,9 @@ You are giving a guided walkthrough, like a product specialist sitting beside th
 - One cue per sentence at most, and only where the screen should change. A cue goes before the sentence, never inside it.
 - Example, for "how does it work?": "{{page: /}}{{show: How Potion works}} It takes three simple steps. {{show: Train video AI (Takes 4 mins)}} First, you train the AI on you, in about four minutes. {{show: Type video script or record a video template}} Then you type a script, or record one template. {{show: Get videos in your own face & voice}} And Potion makes the videos in your face and voice. Want to see what teams use it for?"
 - When the visitor asks where something is ("show me", "where is that", "scroll to it"), your reply starts with the cue for exactly that thing: the FAQ question itself, the step, the plan. Never just the page or the section above it.
+- A page cue opens a page at its title, and on SendPotion's pages the title is all the visitor sees. So after a page cue, every sentence about a part of the page brings its own show cue, with that section's heading from the site pages list or the screen lines: each use case, each feature, each step. On pricing only two plans fit on the screen: show each plan by name as you say it ({{show: Starter}}).
+- Talk about what is on the page you show. /reviews shows reviewers' quotes and logos. The customer stories with numbers — Grow Pronto's forty-five meetings, SAP's six hundred thousand dollars, Orum's five hundred and seventy percent — are on the home page, under "Trusted by 13000+ companies", and in the case study posts.
+- On a blog tab, a question about Potion itself — a use case, pricing, reviews, a feature — is answered with a page cue: it opens on their sendpotion.com tab and brings it to the front.
 - Cues are the only way you move the page. There is no tool for it, and nothing waits on a cue.
 - EVERY ANSWER ABOUT POTION STARTS WITH A CUE. Whatever you talk about — a use case, a feature, pricing, integrations, an FAQ, a step — is on a page in the site pages list, so open that page and show the section as you begin. When the visitor names a use case ("marketing", "sales", "real estate"), open that use case's own page, never only the use cases overview. A reply without a cue leaves their screen where it was while you describe something else: the visitor notices, and has to ask you to show it.
 - Example, for "how do marketing teams use it?": "{{page: /ai-personalized-video-marketing-software}}{{show: Clone yourself and generate AI videos for marketing in your own face & voice}} Marketing teams clone themselves once. {{show: Manage inbound leads with precision}} Then every inbound lead gets a personal video reply. {{show: Follow up with webinar attendees}} Webinar attendees get a personal follow-up, too. Want to see the reasons teams pick Potion for marketing?"
@@ -388,6 +392,7 @@ You: "Then outreach is your use case. Agencies send a personal video to each pro
 # The blog
 - SendPotion's blog has posts on outreach, sales, marketing, agencies, video sales letters, case studies and more. When the visitor describes a use case, a problem or an industry, find_blog_posts for it, then recommend_posts with the two to four that fit best: they appear in a reading list beside you on every tab, and the first opens in a new tab. Say in a sentence what the opened post covers and why it fits them.
 - Recommend only posts find_blog_posts returned, by their url. Never invent a title.
+- The reading list stays beside you, on every tab, until it is closed. When the conversation moves on from those posts, or they ask, close_reading_list. They can also close it themselves with the cross on it.
 - On a post, talk about what the post says: {{show: Heading}} takes its headings. To take them to one part of another post, open_post with its heading.
 - When they ask for case studies or proof, look for case study posts.
 
@@ -397,7 +402,7 @@ You: "Then outreach is your use case. Agencies send a personal video to each pro
 
 # Booking a demo
 - Offer a demo where the story reaches it — after pricing, or when they ask for one, ask to talk to someone, or ask about Enterprise or a custom plan — and not before. You are here to guide them yourself, as far as they want to go.
-- When they want one, book_demo with whatever they have already said: it opens /demo/ and its calendar. The open days come back to you: say two or three of them, and ask which day and time suits them. Then book_demo again with their day and time, and any name, email or notes they gave, and it fills the calendar. What is filled stays; you only add.
+- When they want one, book_demo with whatever they have already said: it opens /demo/ and its calendar. The open days come back to you: say two or three of them, and ask which day suits them. When they pick a day, book_demo with it, and never name its times yet: the calendar's times for that day come back to you after, and you read two or three of them out then. Never a time the calendar has not listed. Then book_demo again with their time, and any name, email or notes they gave, and it fills the calendar. What is filled stays; you only add.
 - Never ask them to read out their email. When they say a name or email, fill it in with book_demo, then read the email back so they can check it: "I've put jane at acme dot com. Is that right?"
 - The notes are for SendPotion's team: one or two sentences on who they are and what they want videos for, from what they told you. Fill them in when the details step opens.
 - Schedule Event stays theirs to press, always. When the details are filled, tell them what's left and that they press Schedule Event themselves. Never say it is booked until the page tells you.
@@ -442,6 +447,7 @@ _LANDED: dict[str, tuple[str, ...]] = {
     "demo": ("Here's the demo calendar.",),
     "demo_filled": ("I've filled that in on the calendar.",),
     "posts": ("I've opened the best fit in a new tab.",),
+    "closed": ("I've closed the reading list.",),
     "signup": ("I've opened the sign-up in a new tab.",),
     "tab": ("There's that tab.",),
 }
@@ -560,7 +566,7 @@ _ASKED_PAGES: tuple[tuple[re.Pattern[str], str], ...] = tuple(
         (r"pric|cost|how much|plans?\b|free trial", "/pricing"),
         (r"integrat|hubspot|salesforce|crm\b|apollo|lemlist|instantly", "/integrations"),
         (r"languages?\b|spanish|hindi|french|german", "/supported-languages"),
-        (r"reviews?\b|testimonial|case stud", "/reviews"),
+        (r"reviews?\b|testimonial|case stud|customer stor|stories\b", "/reviews"),
         (r"security|secure|gdpr", "/security"),
         (r"ethic|deepfake|consent", "/ai-ethics"),
         (r"features?\b", "/features"),
@@ -580,6 +586,307 @@ def asked_page(text: str) -> str | None:
     if named:
         return min(named)[1]
     return "/use-cases" if _ASKED_OVERVIEW.search(text) else None
+
+
+# ─── The section a sentence describes ──────────────────────────────────────────
+#
+# What he says, sentence by sentence, matched against the sections of the one
+# page in front — never the whole site, where "they follow up after webinars"
+# lands on real estate. A heading word counts for more than a word of the
+# section's text, a word every section shares for little, and a sentence that
+# is not clearly about one section moves nothing.
+
+_STOP = frozenset(
+    [
+        "a",
+        "an",
+        "the",
+        "and",
+        "or",
+        "but",
+        "of",
+        "to",
+        "in",
+        "on",
+        "for",
+        "with",
+        "by",
+        "at",
+        "from",
+        "as",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "it",
+        "its",
+        "this",
+        "that",
+        "these",
+        "those",
+        "you",
+        "your",
+        "yours",
+        "we",
+        "our",
+        "us",
+        "they",
+        "their",
+        "them",
+        "he",
+        "she",
+        "his",
+        "her",
+        "i",
+        "me",
+        "my",
+        "can",
+        "will",
+        "just",
+        "also",
+        "so",
+        "then",
+        "than",
+        "too",
+        "very",
+        "here",
+        "there",
+        "what",
+        "which",
+        "who",
+        "how",
+        "when",
+        "where",
+        "why",
+        "all",
+        "any",
+        "each",
+        "every",
+        "more",
+        "most",
+        "some",
+        "such",
+        "no",
+        "not",
+        "only",
+        "own",
+        "same",
+        "into",
+        "out",
+        "up",
+        "down",
+        "over",
+        "under",
+        "again",
+        "once",
+        "about",
+        "after",
+        "before",
+        "both",
+        "few",
+        "other",
+        "per",
+        "via",
+        "do",
+        "does",
+        "did",
+        "have",
+        "has",
+        "had",
+        "get",
+        "gets",
+        "got",
+        "make",
+        "makes",
+        "made",
+        "use",
+        "uses",
+        "used",
+        "using",
+        "potion",
+        "potions",
+        "video",
+        "videos",
+        "ai",
+        "personal",
+        "personalized",
+        "personalised",
+        "team",
+        "teams",
+        "like",
+        "let",
+        "lets",
+        "want",
+        "would",
+        "shall",
+        "could",
+        "should",
+        "see",
+        "show",
+        "shows",
+        "one",
+        "two",
+        "three",
+        "section",
+        "page",
+    ]
+)
+#: How sure a match must be: its score, and its lead over the runner-up.
+#: Tuned on dev calls 60e6c24b and 56e87ed1, where every sentence that was
+#: about a section scored 6.6 or more with a lead of 1.8 or more, and the
+#: closing offers and openers scored under 4.
+_SECTION_MIN = 6.0
+_SECTION_LEAD = 1.5
+_SECTION_MIN_WORDS = 4
+
+
+def _stem(w: str) -> str:
+    for suffix in ("ing", "ers", "er", "ed", "es", "s"):
+        if len(w) > 4 and w.endswith(suffix):
+            return w[: -len(suffix)]
+    return w
+
+
+def _terms(text: str) -> list[str]:
+    return [
+        _stem(w) for w in re.findall(r"[a-z0-9']+", text.lower()) if len(w) > 2 and w not in _STOP
+    ]
+
+
+def best_section(sentence: str, sections: list[tuple[str, str]]) -> str | None:
+    """The heading of the one section ``sentence`` is about, of ``sections``
+    (heading, text) on one page; ``None`` unless it is clearly one."""
+    if sentence.rstrip().endswith("?"):
+        return None  # The closing offer: about what comes next, not this page.
+    # A heading he says outright ("Here are our pricing plans.") is the one,
+    # however short the sentence; the longest, when he says two.
+    said = " ".join(re.findall(r"[a-z0-9']+", sentence.lower()))
+    quoted = [
+        h
+        for h, _ in sections
+        if h
+        and len(phrase := re.findall(r"[a-z0-9']+", h.lower())) >= 2
+        and re.search(rf"\b{re.escape(' '.join(phrase))}\b", said)
+    ]
+    if quoted:
+        return max(quoted, key=len)
+    if len(sentence.split()) < _SECTION_MIN_WORDS:
+        return None  # A few words: about no one section.
+    docs = [(h, set(_terms(h)), set(_terms(t))) for h, t in sections if h]
+    if not docs:
+        return None
+    df: dict[str, int] = {}
+    for _, head, text in docs:
+        for w in head | text:
+            df[w] = df.get(w, 0) + 1
+    want = set(_terms(sentence))
+    scored: list[tuple[float, str]] = []
+    for heading, head, text in docs:
+        score = 0.0
+        for w in want:
+            idf = math.log(1 + len(docs) / (1 + df.get(w, 0)))
+            score += 2 * idf if w in head else 0.6 * idf if w in text else 0.0
+        scored.append((score, heading))
+    scored.sort(key=lambda s: -s[0])
+    top, heading = scored[0]
+    second = scored[1][0] if len(scored) > 1 else 0.0
+    return heading if top >= _SECTION_MIN and top - second >= _SECTION_LEAD else None
+
+
+#: Plans on /pricing, as its cards name them (the crawl's "Pricing plans").
+_PLANS = ("Personal", "Starter", "Professional", "Enterprise")
+#: Capitalised words that are no name to ring.
+_NOT_NAMES = frozenset(
+    [
+        "Potion",
+        "AI",
+        "I",
+        "CRM",
+        "CTA",
+        "CTAs",
+        "HD",
+        "Here",
+        "This",
+        "That",
+        "These",
+        "Those",
+        "Then",
+        "Every",
+        "Each",
+        "You",
+        "Your",
+        "We",
+        "Our",
+        "They",
+        "It",
+        "And",
+        "Or",
+        "But",
+        "So",
+        "For",
+        "With",
+        "Would",
+        "Shall",
+        "Want",
+        "Yes",
+        "No",
+        "First",
+        "Second",
+        "Third",
+        "Fourth",
+        "Next",
+        "Also",
+        "Plus",
+        "Most",
+        "Many",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+    ]
+)
+_NAME = re.compile(r"[A-Z][A-Za-z0-9&']*(?:[ -][A-Z][A-Za-z0-9&']*)*")
+
+
+def named_on_page(sentence: str, path: str, text: str, plans: tuple[str, ...]) -> str | None:
+    """A plan, a logo, a customer or a reviewer the sentence names that the
+    page shows, to ring as words; ``None`` when it names none.
+
+    A lone capitalised word that opens the sentence is only a plan: "Sales
+    teams…" is not a name. On /integrations any name will do — its logos say
+    their names only in their alt text, which the crawl does not have."""
+    if path == "/pricing":
+        for plan in plans or _PLANS:
+            if re.search(rf"\b{re.escape(plan)}\b", sentence):
+                return plan
+    for m in _NAME.finditer(sentence):
+        parts = [p for p in re.split(r"[ -]", m.group()) if p not in _NOT_NAMES]
+        if not parts:
+            continue
+        name = " ".join(parts)
+        opens = m.start() == 0 and len(parts) == 1 and not re.search(r"[A-Z].*[A-Z]", name)
+        if len(name) < 3 or opens:
+            continue
+        if path == "/integrations" or re.search(rf"\b{re.escape(name)}\b", text):
+            return name
+    return None
 
 
 # ─── The brain ─────────────────────────────────────────────────────────────────
@@ -629,6 +936,10 @@ class SendPotionBrain(GeminiBrain):
         #: The page for what the visitor last asked about, shown at the start
         #: of his reply if it has no cue of its own; see :func:`asked_page`.
         self._backstop: str | None = None
+        #: This reply's moves so far: whether one opened a page, and what was
+        #: last rung, so a sentence on the same section does not ring it again.
+        self._paged = False
+        self._shown: str | None = None
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -731,6 +1042,8 @@ class SendPotionBrain(GeminiBrain):
         on dev call 67d16b5d three such turns left the visitor with a nod and
         then silence until they spoke again."""
         self._cue_path = self._path if self._site == "site" else None
+        self._paged = False
+        self._shown = None
         spoke = False
         turn = self._fallback.speak_if_silent(
             self, super().respond(session), again=lambda: self._talk_now(session)
@@ -746,11 +1059,11 @@ class SendPotionBrain(GeminiBrain):
     async def _cued(self, turn: AsyncGenerator[Speech, None]) -> AsyncGenerator[Speech, None]:
         """``turn`` with every ``{page|show|faq: …}`` taken out of its text and
         sent to the page as a :class:`Cue`, anchored to the words before it."""
-        parser = CueParser()
+        parser = CueParser(self._auto_cues)
         try:
             async for event in turn:
                 if isinstance(event, SpeechStart):
-                    parser = CueParser()
+                    parser = CueParser(self._auto_cues)
                 elif isinstance(event, SpeechChunk):
                     text, raw = parser.feed(self._with_backstop(event.text))
                     for cue in raw:
@@ -785,7 +1098,59 @@ class SendPotionBrain(GeminiBrain):
         cue = self._resolve_cue(raw)
         logger.info("sendpotion: cue {} {!r} at {!r} -> {}", raw.kind, raw.value, raw.at, cue)
         if cue is not None:
+            self._paged = self._paged or raw.kind == "page"
+            if raw.kind == "show":
+                self._shown = cue.heading or cue.text
             self.session.dispatch(cue)
+
+    def _auto_cues(
+        self, sentence: str, index: int, placed: tuple[tuple[CueKind, str], ...]
+    ) -> list[tuple[CueKind, str]]:
+        """The moves a sentence of his needs and did not bring (see
+        :mod:`.cues`): the page its first sentence is about, when nothing has
+        opened one, and the section, plan or name on the page it describes.
+        On dev call 56e87ed1 his replies on sales, recruitment, reviews and
+        pricing opened the page at its title and stayed there."""
+        out: list[tuple[CueKind, str]] = []
+        kinds = {k for k, _ in placed}
+        # A page the model opens on this very sentence is not sent yet.
+        pages = [p.path for k, v in placed if k == "page" and (p := self.kb.page(v)) is not None]
+        path = pages[-1] if pages else self._cue_path
+        if index == 0 and not self._paged and "page" not in kinds and self._site == "site":
+            asked = asked_page(sentence)
+            # The home page has customer stories of its own, under "Trusted
+            # by 13000+ companies": stories told there stay there.
+            if self._path == "/" and asked == "/reviews":
+                asked = None
+            if asked is not None and asked != self._path and self.kb.page(asked) is not None:
+                logger.info("sendpotion: he talks about {} with no cue; opening it", asked)
+                out.append(("page", asked))
+                path = asked
+        # The rest of the reply is on this page, though the cue that opens it
+        # may not be sent until several sentences have come in one chunk.
+        self._cue_path = path
+        if kinds & {"show", "faq"}:
+            return out
+        shown = self._section_for(sentence, path)
+        if shown is not None and shown != self._shown:
+            out.append(("show", shown))
+        return out
+
+    def _section_for(self, sentence: str, path: str | None) -> str | None:
+        """The heading or words on ``path`` (a site page; ``None`` on the blog,
+        for the post in front) that ``sentence`` is about."""
+        if path is None:
+            return best_section(sentence, [(h, "") for h in self._headings()])
+        page = self.kb.page(path)
+        if page is None:
+            return None
+        heading = best_section(sentence, [(s.heading, s.text) for s in page.sections])
+        if heading is not None:
+            return heading
+        live = self.page is not None and canonical_path(self.page.path) == page.path
+        plans = tuple(self.page.plans) if live and self.page is not None else ()
+        text = " ".join([page.text, *(f"{s.heading} {s.text}" for s in page.sections)])
+        return named_on_page(sentence, page.path, text, plans)
 
     def _resolve_cue(self, raw: RawCue) -> Cue | None:
         if raw.kind == "page":
@@ -1018,6 +1383,7 @@ class SendPotionBrain(GeminiBrain):
             self.search_site,
             self.find_blog_posts,
             self.recommend_posts,
+            self.close_reading_list,
             self.open_post,
             self.book_demo,
             self.open_signup,
@@ -1140,6 +1506,12 @@ class SendPotionBrain(GeminiBrain):
             f"The demo calendar is open{(' at ' + ' '.join(parts)) if parts else ''}; "
             f"details given: {filled}. The visitor presses Schedule Event themselves."
         )
+
+    async def close_reading_list(self) -> str:
+        """Close the reading list beside you, on every tab: when they ask, or
+        when the conversation has moved on from those posts."""
+        self._move(OpenPosts(heading="", posts=[]), _LANDED["closed"][0])
+        return "Closed the reading list."
 
     async def open_signup(self) -> str:
         """Open Potion's sign-up and log-in (app.sendpotion.com) in a new tab.

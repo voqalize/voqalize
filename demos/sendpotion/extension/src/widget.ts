@@ -45,6 +45,8 @@ export interface Widget {
   onHang(fn: () => void): void;
   /** A post in the reading list was clicked. */
   onRead(fn: (url: string) => void): void;
+  /** The visitor closed the reading list. */
+  onCloseReads(fn: () => void): void;
 }
 
 // SendPotion's own purple, read off their buttons, and a deep shade of it.
@@ -139,8 +141,11 @@ button { font: inherit; cursor: pointer; }
 /* The reading list: blog posts Tushar picked for this visitor. */
 .reads { width: ${CARD + 64}px; background: #fff; border: 1px solid ${LINE}; border-radius: 14px;
   box-shadow: 0 16px 40px rgba(42, 22, 80, 0.18); overflow: hidden; }
-.reads-head { display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 12px;
-  background: ${BRAND_DARK}; color: #fff; border: 0; text-align: left; }
+.reads-bar { display: flex; background: ${BRAND_DARK}; }
+.reads-head { display: flex; flex: 1; min-width: 0; align-items: center; gap: 8px; padding: 10px 4px 10px 12px;
+  background: transparent; color: #fff; border: 0; text-align: left; }
+.reads-close { flex: none; width: 36px; background: transparent; color: #fff; border: 0; opacity: 0.8; }
+.reads-close:hover, .reads-close:focus-visible { opacity: 1; background: rgba(255,255,255,0.12); outline: none; }
 .reads-title { flex: 1; font-weight: 600; font-size: 13px; line-height: 1.25; }
 .chev { transition: transform 200ms; }
 .reads[data-open] .chev { transform: rotate(180deg); }
@@ -198,10 +203,15 @@ export function mountWidget(): Widget {
     <style>${STYLES}</style>
     <div class="root" data-status="idle">
       <div class="reads" hidden>
-        <button class="reads-head" type="button" aria-expanded="false">
-          <span class="reads-title">Reads picked for you</span>
-          <svg class="chev" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
-        </button>
+        <div class="reads-bar">
+          <button class="reads-head" type="button" aria-expanded="false">
+            <span class="reads-title">Reads picked for you</span>
+            <svg class="chev" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+          </button>
+          <button class="reads-close" type="button" aria-label="Close the reading list">
+            <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          </button>
+        </div>
         <ul class="reads-list"></ul>
       </div>
       <button class="invite" type="button" aria-label="Talk to Tushar, SendPotion's guide, by voice">
@@ -477,5 +487,6 @@ export function mountWidget(): Widget {
     onRead: (fn) => {
       readFn = fn;
     },
+    onCloseReads: (fn) => $<HTMLButtonElement>(".reads-close").addEventListener("click", fn),
   };
 }

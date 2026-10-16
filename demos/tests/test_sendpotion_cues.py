@@ -58,3 +58,30 @@ def test_braces_that_are_not_cues_are_not_spoken_and_a_stray_one_is_dropped() ->
     long = "word " * (MAX_CUE // 4)
     spoken, cues = _run("Open { " + long, "and on.")
     assert "{" not in spoken and spoken.startswith("Open ") and cues == []
+
+
+def test_each_sentence_is_offered_for_the_moves_it_did_not_bring() -> None:
+    seen: list[tuple[str, int, tuple[tuple[str, str], ...]]] = []
+
+    def auto(
+        sentence: str, index: int, placed: tuple[tuple[str, str], ...]
+    ) -> list[tuple[str, str]]:
+        seen.append((sentence, index, placed))
+        return [("show", "Re-engage dormant leads")] if "dormant" in sentence else []
+
+    p = CueParser(auto)  # type: ignore[arg-type]
+    cues: list[RawCue] = []
+    for chunk in ("{page: /sales} Hi. Reps wake up dor", "mant leads, too. Want pricing?"):
+        cues += p.feed(chunk)[1]
+    cues += p.flush()[1]
+    assert seen == [
+        ("Hi.", 0, (("page", "/sales"),)),
+        ("Reps wake up dormant leads, too.", 1, ()),
+        ("Want pricing?", 2, ()),
+    ]
+    # The model's page cue, on a sentence too short to wait out: anchored to
+    # its own word, not the next sentence's. The added cue, to its sentence.
+    assert [(c.kind, c.value, c.at, c.word) for c in cues] == [
+        ("page", "/sales", "hi", 0),
+        ("show", "Re-engage dormant leads", "reps wake up", 1),
+    ]

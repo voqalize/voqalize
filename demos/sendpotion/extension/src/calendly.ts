@@ -143,22 +143,22 @@ function setNative(el: HTMLInputElement | HTMLTextAreaElement, value: string): v
   el.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
-/** The open day ``said`` names: "October 21", "21", "Tuesday", "Tuesday 21st". */
-function findDay(said: string): HTMLButtonElement | null {
+/** Whether ``said`` ("October 21", "21", "Tuesday", "Tuesday 21st") names the
+ * day labelled ``label`` ("Wednesday, October 21"). */
+function sameDay(said: string, label: string): boolean {
   const want = fold(said).replace(/(\d+)(st|nd|rd|th)\b/g, "$1");
-  const days = dayButtons();
+  const have = fold(label);
+  if (have === want) return true;
   const num = want.match(/\b(\d{1,2})\b/)?.[1];
   const words = want.split(" ").filter((w) => w.length > 2 && !/^\d/.test(w));
-  return (
-    days.find((b) => fold(dayLabel(b)) === want) ??
-    days.find((b) => {
-      const label = fold(dayLabel(b));
-      const dayNum = label.match(/(\d{1,2})$/)?.[1];
-      if (num && dayNum !== num) return false;
-      return words.every((w) => label.includes(w));
-    }) ??
-    null
-  );
+  if (num && have.match(/(\d{1,2})$/)?.[1] !== num) return false;
+  return words.every((w) => have.includes(w));
+}
+
+/** The open day ``said`` names, among the days on the calendar. */
+function findDay(said: string): HTMLButtonElement | null {
+  const days = dayButtons();
+  return days.find((b) => fold(dayLabel(b)) === fold(said)) ?? days.find((b) => sameDay(said, dayLabel(b))) ?? null;
 }
 
 /** "3pm", "3:00 pm", "15:00" → Calendly's "3:00pm". */
@@ -182,7 +182,21 @@ async function book(order: BookOrder): Promise<string | null> {
     await waitFor(() => step() === "calendar", 4000);
   }
   if (step() === "calendar") {
-    if (order.day) {
+    // The day already chosen, with its times showing: on to the time. Once a
+    // day is chosen a narrow Calendly swaps the day grid for its times, so
+    // asking for the same day again found no day button and never reached
+    // the time (dev call 56e87ed1).
+    const chosen = chosenDay();
+    const already = !!order.day && !!chosen && sameDay(order.day, chosen) && timeButtons().length > 0;
+    if (order.day && !already) {
+      if (dayButtons().length === 0 && timeButtons().length > 0) {
+        // Another day, from the times view: back to the grid first.
+        const back = document.querySelector<HTMLButtonElement>(
+          "button[aria-label*='back' i], button[aria-label*='Go to previous' i]",
+        );
+        back?.click();
+        await waitFor(() => dayButtons().length > 0, 3000);
+      }
       const day = (await waitFor(() => findDay(order.day!), 3000)) ?? null;
       if (!day) return `no open day matches "${order.day}"; open days: ${dayButtons().map(dayLabel).join(", ") || "none this month"}`;
       day.click();
