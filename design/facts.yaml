@@ -166,13 +166,16 @@ facts:
       pattern: '^name = "(.+)"$'
 
   sdk.python.version.tree:
-    value: '0.8.0'
+    value: '0.9.0'
     source: sdk/python/pyproject.toml:3
-    verified: 2026-10-09
+    verified: 2026-10-16
     derive:
       file: sdk/python/pyproject.toml
       pattern: '^version = "(.+)"$'
     note: >-
+      Bumped to 0.9.0 on 2026-10-16 for the thirty character voices: Voice
+      gains VOICE_OMNIVOICE_EMILY through VOICE_OMNIVOICE_NIKHIL (11-40), appended
+      so no value moves. An added roster takes the minor under 1.0.
       Bumped to 0.8.0 on 2026-10-09 for SpeechCancel: Session.cancel_speech,
       can_cancel_speech and Unsupported, with SessionStart.capabilities on the
       wire. Additive in the package API and on the wire (version stays 3); it
