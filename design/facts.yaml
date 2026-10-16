@@ -166,13 +166,19 @@ facts:
       pattern: '^name = "(.+)"$'
 
   sdk.python.version.tree:
-    value: '0.9.0'
+    value: '0.10.0'
     source: sdk/python/pyproject.toml:3
     verified: 2026-10-16
     derive:
       file: sdk/python/pyproject.toml
       pattern: '^version = "(.+)"$'
     note: >-
+      Bumped to 0.10.0 on 2026-10-16 for voice and language as strings:
+      TtsConfig.voice_id, TtsConfig.language_tag and SttConfig.language_tag,
+      Capability.STRING_CONFIG, Response.code and the caller error codes
+      UNSUPPORTED_VOICE, UNSUPPORTED_LANGUAGE and INVALID_REQUEST. The enum
+      fields keep their names and are deprecated; additive on the wire
+      (version stays 3).
       Bumped to 0.9.0 on 2026-10-16 for the thirty character voices: Voice
       gains VOICE_OMNIVOICE_EMILY through VOICE_OMNIVOICE_NIKHIL (11-40), appended
       so no value moves. An added roster takes the minor under 1.0.

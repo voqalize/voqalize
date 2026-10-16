@@ -57,8 +57,23 @@ _CODE_TO_PB: dict[ErrorCode, int] = {
     ErrorCode.REJECTED: pb.ERROR_CODE_REJECTED,
     ErrorCode.OVERLOAD: pb.ERROR_CODE_OVERLOAD,
     ErrorCode.INTERNAL: pb.ERROR_CODE_INTERNAL,
+    ErrorCode.UNSUPPORTED_VOICE: pb.ERROR_CODE_UNSUPPORTED_VOICE,
+    ErrorCode.UNSUPPORTED_LANGUAGE: pb.ERROR_CODE_UNSUPPORTED_LANGUAGE,
+    ErrorCode.INVALID_REQUEST: pb.ERROR_CODE_INVALID_REQUEST,
+    # Never a code of its own on the wire: it is how a code this build does not
+    # know reads, so sending it says only that the kind was not recorded.
+    ErrorCode.UNKNOWN: pb.ERROR_CODE_UNSPECIFIED,
 }
-_CODE_FROM_PB: dict[int, ErrorCode] = {v: k for k, v in _CODE_TO_PB.items()}
+# A code a newer Voqalize added reads as UNKNOWN, never as INTERNAL: guessing
+# "our fault" for a code that may be the caller's mislabels it.
+_CODE_FROM_PB: dict[int, ErrorCode] = {
+    v: k for k, v in _CODE_TO_PB.items() if k is not ErrorCode.UNKNOWN
+}
+
+
+def _code_from_pb(code: int) -> ErrorCode:
+    return _CODE_FROM_PB.get(code, ErrorCode.UNKNOWN)
+
 
 _RTVI_TO_PB: dict[RTVIType, int] = {
     RTVIType.SERVER_MESSAGE: pb.RTVI_TYPE_SERVER_MESSAGE,
@@ -76,6 +91,7 @@ _RTVI_FROM_PB: dict[int, RTVIType] = {v: k for k, v in _RTVI_TO_PB.items()}
 
 _CAPABILITY_TO_PB: dict[Capability, int] = {
     Capability.SPEECH_CANCEL: pb.CAPABILITY_SPEECH_CANCEL,
+    Capability.STRING_CONFIG: pb.CAPABILITY_STRING_CONFIG,
 }
 _CAPABILITY_FROM_PB: dict[int, Capability] = {v: k for k, v in _CAPABILITY_TO_PB.items()}
 
@@ -174,14 +190,23 @@ def _enc_configure(f: ConfigureFrame, env: pb.Envelope) -> None:
     c = f.config
     if c.tts is not None:
         m.tts.SetInParent()
-        if c.tts.voice is not None:
-            m.tts.voice = _VOICE_TO_PB[c.tts.voice]
-        if c.tts.language is not None:
-            m.tts.language = _LANG_TO_PB[c.tts.language]
+        voice = c.tts.voice
+        if isinstance(voice, Voice):
+            m.tts.voice = _VOICE_TO_PB[voice]
+        elif voice is not None:
+            m.tts.voice_id = voice
+        language = c.tts.language
+        if isinstance(language, Language):
+            m.tts.language = _LANG_TO_PB[language]
+        elif language is not None:
+            m.tts.language_tag = language
     if c.stt is not None:
         m.stt.SetInParent()
-        if c.stt.language is not None:
-            m.stt.language = _LANG_TO_PB[c.stt.language]
+        language = c.stt.language
+        if isinstance(language, Language):
+            m.stt.language = _LANG_TO_PB[language]
+        elif language is not None:
+            m.stt.language_tag = language
         if c.stt.patience is not None:
             m.stt.patience = c.stt.patience
     if c.idle is not None:
@@ -195,6 +220,8 @@ def _enc_response(f: ResponseFrame, env: pb.Envelope) -> None:
     m.request_id = f.request_id
     m.status = pb.STATUS_ACCEPTED if f.accepted else pb.STATUS_REJECTED
     m.detail = f.detail
+    if f.code is not None:
+        m.code = _CODE_TO_PB[f.code]
 
 
 def _enc_rtvi(f: RTVIFrame, env: pb.Envelope) -> None:
@@ -299,17 +326,33 @@ def _dec_speech_cancel(env: pb.Envelope) -> SpeechCancelFrame:
     return SpeechCancelFrame(speech_id=env.speech_cancel.speech_id)
 
 
+# Each setting has two fields, the string and the deprecated catalog enum. The
+# string is read first, and a catalog value decodes to its catalog member, so
+# what a brain sent is what reads back.
+def _dec_voice(m: pb.TtsConfig) -> Voice | str | None:
+    if m.HasField("voice_id"):
+        return m.voice_id
+    if m.HasField("voice"):
+        return _PB_TO_VOICE[m.voice]
+    return None
+
+
+def _dec_language(m: pb.TtsConfig | pb.SttConfig) -> Language | str | None:
+    if m.HasField("language_tag"):
+        return m.language_tag
+    if m.HasField("language"):
+        return _PB_TO_LANG[m.language]
+    return None
+
+
 def _dec_configure(req: pb.Request) -> ConfigureFrame:
     m = req.configure
     tts = stt = idle = None
     if m.HasField("tts"):
-        tts = TtsConfig(
-            voice=_PB_TO_VOICE[m.tts.voice] if m.tts.HasField("voice") else None,
-            language=_PB_TO_LANG[m.tts.language] if m.tts.HasField("language") else None,
-        )
+        tts = TtsConfig(voice=_dec_voice(m.tts), language=_dec_language(m.tts))
     if m.HasField("stt"):
         stt = SttConfig(
-            language=_PB_TO_LANG[m.stt.language] if m.stt.HasField("language") else None,
+            language=_dec_language(m.stt),
             patience=m.stt.patience if m.stt.HasField("patience") else None,
         )
     if m.HasField("idle"):
@@ -338,6 +381,7 @@ def _dec_response(env: pb.Envelope) -> ResponseFrame:
         request_id=m.request_id,
         accepted=m.status == pb.STATUS_ACCEPTED,
         detail=m.detail,
+        code=_code_from_pb(m.code) if m.code != pb.ERROR_CODE_UNSPECIFIED else None,
     )
 
 
@@ -366,7 +410,7 @@ def _dec_cancel(env: pb.Envelope) -> CancelFrame:
 def _dec_error(env: pb.Envelope) -> ErrorFrame:
     m = env.error
     return ErrorFrame(
-        code=_CODE_FROM_PB.get(m.code, ErrorCode.INTERNAL),
+        code=_code_from_pb(m.code),
         message=m.message,
         fatal=m.fatal,
     )

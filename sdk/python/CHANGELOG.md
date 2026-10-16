@@ -15,6 +15,43 @@ The public series has now caught up to them, so **a heading carrying
 are different releases that happen to share a number; the pre-restart entries are
 kept for the history, and nothing installable was ever cut from them.
 
+## 0.10.0
+
+Additive on the wire, and the wire version stays 3: a brain on 0.9.0 is served
+exactly as before. One package-API change can break a brain, under *Changed*.
+
+### Added
+
+- **Voice and language as strings.** `TtsConfig(voice="omnivoice/gauri",
+  language="en-IN")` and `SttConfig(language="ta")` take the speech tier's
+  voice id and a BCP-47 tag, so a voice or language added there needs no new
+  SDK. They travel on new fields, `TtsConfig.voice_id = 3`,
+  `TtsConfig.language_tag = 4` and `SttConfig.language_tag = 3`, and need a Voqalize
+  that advertises the new `Capability.STRING_CONFIG`
+  (`session.can_configure_strings`); without it `session.configure` raises
+  `Unsupported` before sending, because an older Voqalize would skip the
+  fields and answer accepted. An empty string raises `ConfigError`.
+- **Caller errors by code.** `ErrorCode` gains `UNSUPPORTED_VOICE`,
+  `UNSUPPORTED_LANGUAGE` and `INVALID_REQUEST`, the request's own faults, on
+  `Error` and on a rejected `Response`, which gains `code = 4`.
+  `RequestRejected.code` carries it, and is `None` from a Voqalize that does
+  not send one. The conformance driver advertises the new capability and
+  takes `reject_codes`.
+
+### Changed
+
+- **An error code this build does not know reads as `ErrorCode.UNKNOWN`**, not
+  `INTERNAL`, so the next code added is not mistaken for Voqalize's own fault.
+  A brain that matched `INTERNAL` to catch every unrecognised code must match
+  `UNKNOWN` too.
+
+### Deprecated
+
+- **The `Voice` and `Language` catalogs, and the enum fields that carry them.**
+  They keep working with every Voqalize, keep their field names and numbers
+  (`TtsConfig.voice`, `TtsConfig.language`, `SttConfig.language`), now marked
+  deprecated in the proto, and no longer grow. They will be removed after a deprecation window.
+
 ## 0.9.0
 
 Additive on the wire and in the package API: thirty new `Voice` values and

@@ -31,10 +31,19 @@ from voqalize.conformance import (
     generate_keypair,
     mint_voqalize_token,
 )
-from voqalize.sdk import Brain, RequestRejected, SpeechChunk, SpeechEnd, SpeechStart
+from voqalize.sdk import (
+    Brain,
+    RequestRejected,
+    SpeechChunk,
+    SpeechEnd,
+    SpeechStart,
+    Unsupported,
+)
 from voqalize.sdk.wire import (
+    Capability,
     Config,
     ConfigureFrame,
+    ErrorCode,
     IdleConfig,
     Language,
     SpeechChunkFrame,
@@ -244,3 +253,102 @@ async def test_the_three_sections_travel_as_one_request() -> None:
     assert driver.requests[1].config == Config(
         stt=SttConfig(language=Language.TA), tts=TtsConfig(language=Language.TA)
     )
+
+
+class StringBrain(Brain):
+    """Names its voice and language as strings, and says what came back."""
+
+    async def greet(self, session) -> str:
+        return "hello"
+
+    async def on_user_message(self, session, msg):
+        try:
+            await session.configure(
+                Config(
+                    stt=SttConfig(language="ta"),
+                    tts=TtsConfig(voice="omnivoice/gauri", language="ta"),
+                )
+            )
+            outcome = "accepted"
+        except RequestRejected as exc:
+            outcome = f"rejected {exc.code}: {exc.detail}"
+        except Unsupported as exc:
+            outcome = f"unsupported {exc.capability}"
+        yield SpeechStart()
+        yield SpeechChunk(outcome)
+        yield SpeechEnd()
+
+
+async def test_strings_reach_a_voqalize_that_reads_them() -> None:
+    driver, server = await _open(StringBrain())
+    try:
+        await driver.start_session()
+        turn = await driver.user_says("switch to tamil")
+    finally:
+        await driver.aclose()
+        await server.aclose()
+
+    assert _spoken(turn) == "accepted"
+    assert [f.config for f in driver.requests] == [
+        Config(
+            stt=SttConfig(language="ta"),
+            tts=TtsConfig(voice="omnivoice/gauri", language="ta"),
+        )
+    ]
+
+
+async def test_strings_are_refused_here_when_voqalize_does_not_read_them() -> None:
+    # A Voqalize that predates the string fields skips them and answers
+    # accepted, so the call would go on in the old voice with nothing said.
+    driver, server = await _open(StringBrain())
+    driver.capabilities.discard(Capability.STRING_CONFIG)
+    try:
+        await driver.start_session()
+        turn = await driver.user_says("switch to tamil")
+    finally:
+        await driver.aclose()
+        await server.aclose()
+
+    assert _spoken(turn) == "unsupported string_config"
+    assert driver.requests == [], "nothing may reach the wire"
+
+
+async def test_catalog_members_need_no_capability() -> None:
+    driver, server = await _open(TuningBrain())
+    driver.capabilities.discard(Capability.STRING_CONFIG)
+    try:
+        await driver.start_session()
+        turn = await driver.user_says("switch to tamil")
+    finally:
+        await driver.aclose()
+        await server.aclose()
+
+    assert _spoken(turn) == "accepted"
+
+
+async def test_a_refusal_names_its_code() -> None:
+    driver, server = await _open(StringBrain())
+    driver.reject["configure"] = "no voice 'omnivoice/gauri'"
+    driver.reject_codes["configure"] = ErrorCode.UNSUPPORTED_VOICE
+    try:
+        await driver.start_session()
+        turn = await driver.user_says("switch to tamil")
+    finally:
+        await driver.aclose()
+        await server.aclose()
+
+    assert _spoken(turn) == "rejected unsupported_voice: no voice 'omnivoice/gauri'"
+
+
+async def test_a_refusal_without_a_code_reads_as_none() -> None:
+    # What a Voqalize that predates `Response.code` sends.
+    driver, server = await _open(StringBrain())
+    driver.reject["configure"] = "refused"
+    try:
+        await driver.start_session()
+        turn = await driver.user_says("switch to tamil")
+    finally:
+        await driver.aclose()
+        await server.aclose()
+
+    assert _spoken(turn) == "rejected None: refused"

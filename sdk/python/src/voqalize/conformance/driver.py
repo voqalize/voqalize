@@ -202,13 +202,20 @@ class VoqalizeDriver:
         # Ops to refuse, op name → the reason Voqalize gives. A scenario sets one to
         # exercise the path where a brain asks for something Voqalize will not do.
         self.reject: dict[str, str] = {}
+        # The kind each refusal names, op name → code, carried on the Response
+        # beside the reason. An op refused without one plays a Voqalize that
+        # predates the code.
+        self.reject_codes: dict[str, ErrorCode] = {}
         # Ops to leave unanswered, for the one case the wire cannot promise
         # away: a Voqalize that stopped answering mid-call.
         self.withhold: set[str] = set()
         # What ``SessionStart`` advertises. Clear it before ``start_session`` to
         # play a Voqalize that predates a capability: the frame is then skipped,
         # as an older Voqalize skips a body it does not know.
-        self.capabilities: set[Capability] = {Capability.SPEECH_CANCEL}
+        self.capabilities: set[Capability] = {
+            Capability.SPEECH_CANCEL,
+            Capability.STRING_CONFIG,
+        }
         # Every ``SpeechCancel`` the brain sent, in wire order, honoured or not.
         self.cancels: list[SpeechCancelFrame] = []
         # The heard text a cancelled unit is finalized with. The default is
@@ -302,7 +309,12 @@ class VoqalizeDriver:
                 return
             detail = self.reject.get(op, "")
             await self._send(
-                ResponseFrame(request_id=frame.request_id, accepted=not detail, detail=detail)
+                ResponseFrame(
+                    request_id=frame.request_id,
+                    accepted=not detail,
+                    detail=detail,
+                    code=self.reject_codes.get(op) if detail else None,
+                )
             )
 
     def _unit_at(self, speech_id: int) -> tuple[TurnObs | None, SpeechObs | None]:
