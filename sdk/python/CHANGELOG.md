@@ -15,7 +15,11 @@ The public series has now caught up to them, so **a heading carrying
 are different releases that happen to share a number; the pre-restart entries are
 kept for the history, and nothing installable was ever cut from them.
 
-## Unreleased
+## 0.9.0
+
+Additive on the wire and in the package API: thirty new `Voice` values and
+nothing else, so a brain on 0.8.0 is served exactly as before, and the wire
+version stays 3.
 
 ### Added
 
