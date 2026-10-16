@@ -71,6 +71,11 @@ SITE = Knowledge(
             "/integrations", "Integrations | Potion", sections=(Section("Works with HubSpot"),)
         ),
         "/demo": Page("/demo", "Book a demo — Potion", sections=(Section("Book a demo"),)),
+        "/ai-personalized-video-marketing-software": Page(
+            "/ai-personalized-video-marketing-software",
+            "Marketing | Potion",
+            sections=(Section("Manage inbound leads"),),
+        ),
         "/faq": Page(
             "/faq",
             "FAQ | Potion",
@@ -133,31 +138,28 @@ def _texts(contents: list[types.Content]) -> str:
 def _llm() -> ScriptedGemini:
     return ScriptedGemini(
         {
-            "How much is it?": reply_and_call(
-                "Plans start small. See the plans side by side?",
-                "navigate",
-                request={"path": "/pricing/", "heading": "pricing plans"},
+            "How much is it?": reply(
+                "{page: /pricing/}{show: pricing plans} Plans start small. "
+                "See the plans side by side?"
             ),
-            "Take me to the moon page.": reply_and_call(
-                "Here it is.", "navigate", request={"path": "/moon"}
+            "Show me HubSpot.": reply(
+                "{page: /integrations}{show: HubSpot logo} Yes, it works with HubSpot."
             ),
-            "Show me HubSpot.": reply_and_call(
-                "Yes, it works with HubSpot.",
-                "navigate",
-                request={"path": "/integrations", "heading": "HubSpot logo"},
+            "Show me the Professional plan.": reply(
+                "{show: Professional} Most teams land here. It has no limit."
             ),
-            "Show me the Professional plan.": reply_and_call(
-                "Most teams land here.", "show_section", request={"text": "Professional"}
+            "How long can videos be?": reply(
+                "{faq: how long can a video} Up to five minutes. Shorter works best."
             ),
-            "Show me the testimonials.": reply_and_call(
-                "Here.", "show_section", request={"heading": "Testimonials"}
+            # He forgot to show what they asked about: their page goes first.
+            "How do marketing teams use it?": reply(
+                "Marketing teams clone themselves once. Every lead gets a video."
             ),
-            "How long can videos be?": reply_and_call(
-                "Up to five minutes.", "open_faq", request={"question": "how long can a video"}
+            # His own cue wins over the page their words name.
+            "What does marketing cost?": reply(
+                "{page: /pricing/} Plans start small. See them side by side?"
             ),
-            "Show me the plans, flat.": reply_and_call(
-                "Here are the plans.", "show_section", heading="Pricing plans"
-            ),
+            "Tell me more about marketing.": reply("Webinar attendees get a follow-up, too."),
             "I run an agency and want more clients.": [
                 call("find_blog_posts", request={"use_case": "agency growth cold outreach"}),
                 reply_and_call(
@@ -214,16 +216,16 @@ def _llm() -> ScriptedGemini:
                 "{faq: can i cancel anytime} Cancel whenever you like."
             ),
             # Asked about an FAQ that is on another page: it opens there.
-            "Where does it say video length?": reply_and_call(
-                "Up to five minutes.", "open_faq", request={"question": "how long can a video"}
+            "Where does it say video length?": reply(
+                "{faq: how long can a video} Up to five minutes."
             ),
             # The model came back with nothing at all: asked once more.
             "Hello?": [reply(""), reply("I'm here. Want a quick tour?")],
             "Carry on.": reply("Sure, let's keep going."),
-            # A page move with no words: the model is asked once more, tools off.
-            "Show me integrations.": [
-                call("navigate", request={"path": "/integrations"}),
-                reply("It plugs into your CRM. Which one do you use?"),
+            # A move with no words: the model is asked once more, tools off.
+            "Open the sign-up.": [
+                call("open_signup"),
+                reply("It's open beside this one. Want a hand with the first step?"),
             ],
         }
     )
@@ -260,30 +262,39 @@ async def test_the_opener_follows_the_page_and_the_blog() -> None:
         assert greeting is not None and greeting.text == _BLOG_GREETING
 
 
-async def test_navigate_lands_on_the_section_and_refuses_an_invented_page() -> None:
-    llm = _llm()
-    async with demo("sendpotion", llm) as rig:
+NONE = {"path": None, "heading": None, "text": None, "faq": None}
+
+
+def _cues(rig: object) -> list[dict[str, object]]:
+    return [c["payload"] for c in rig.driver.ui_commands if c.get("command") == "cue"]  # type: ignore[attr-defined]
+
+
+async def test_the_page_moves_only_by_cues() -> None:
+    """No tool moves the page: a tool call ends the model's response, and one
+    made before any words cost a second model call (dev call 60e6c24b, turns 7
+    and 10: about 1.7 s each)."""
+    async with demo("sendpotion", _llm()) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/"})
+        tools = {t.__name__ for t in rig.brain.tools}  # type: ignore[attr-defined]
+        assert not tools & {"navigate", "show_section", "open_faq"}
         check_turn(rig, await rig.driver.user_says("How much is it?"))
         # The site's own spelling of the path and the heading.
-        assert rig.command("navigate") == {
+        assert _cues(rig)[-1] == {
+            **NONE,
+            "at": "plans start small",
+            "word": 0,
             "path": "/pricing/",
             "heading": "Pricing plans",
-            "text": None,
-            "faq": None,
         }
-        await rig.driver.user_says("Take me to the moon page.")
-        assert rig.actions().count("navigate") == 1
         # A heading the page does not have: it goes, and rings the words.
         await rig.driver.user_says("Show me HubSpot.")
-        moves = [c["payload"] for c in rig.driver.ui_commands if c.get("command") == "navigate"]
-        assert moves[-1] == {
+        assert _cues(rig)[-1] == {
+            **NONE,
+            "at": "yes it works",
+            "word": 0,
             "path": "/integrations/",
-            "heading": None,
             "text": "HubSpot logo",
-            "faq": None,
         }
-        assert "Not opened: /moon is not a page" in _results(llm.captured_contents[-1])["navigate"]
 
 
 async def test_sections_and_faqs_are_checked_against_the_tab_in_front() -> None:
@@ -292,18 +303,23 @@ async def test_sections_and_faqs_are_checked_against_the_tab_in_front() -> None:
         await rig.driver.start_session(init={"site": "site", "path": "/"})
         await _page(rig, "page_changed", PRICING_PAGE)
         await rig.driver.user_says("Show me the Professional plan.")
-        assert rig.command("show_section") == {"heading": None, "text": "Professional"}
+        assert _cues(rig)[-1] == {
+            **NONE,
+            "at": "most teams land",
+            "word": 0,
+            "text": "Professional",
+        }
         # The page in front was read in with what they said.
         seen = _texts(llm.captured_contents[-1])
         assert "Its headings: Pricing plans; FAQs" in seen
         assert "Its plans: Starter, Professional, Enterprise" in seen
-        await rig.driver.user_says("Show me the testimonials.")
-        assert rig.actions().count("show_section") == 1
         await rig.driver.user_says("How long can videos be?")
-        assert rig.command("open_faq") == {"question": "How long can a video be?"}
-        # Gemini sometimes sends a tool's fields flat, without ``request``.
-        await rig.driver.user_says("Show me the plans, flat.")
-        assert rig.actions().count("show_section") == 2
+        assert _cues(rig)[-1] == {
+            **NONE,
+            "at": "up to five",
+            "word": 0,
+            "faq": "How long can a video be?",
+        }
 
 
 async def test_blog_posts_are_found_recommended_and_never_invented() -> None:
@@ -421,9 +437,9 @@ async def test_signup_opens_and_a_silent_move_is_talked_about() -> None:
         await rig.driver.start_session(init={"site": "site", "path": "/"})
         await rig.driver.user_says("Let me sign up.")
         assert "open_signup" in rig.actions()
-        turn = await rig.driver.user_says("Show me integrations.")
+        turn = await rig.driver.user_says("Open the sign-up.")
         check_turn(rig, turn)
-        assert "Which one do you use?" in turn.text
+        assert "Want a hand with the first step?" in turn.text
 
 
 async def test_cues_leave_the_speech_and_move_the_page_with_it() -> None:
@@ -456,12 +472,58 @@ async def test_an_faq_on_another_page_is_opened_there() -> None:
     async with demo("sendpotion", _llm()) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/"})
         await rig.driver.user_says("Where does it say video length?")
-        assert rig.command("navigate") == {
-            "path": "/pricing/",
-            "heading": None,
-            "text": None,
-            "faq": "How long can a video be?",
-        }
+        assert _cues(rig) == [
+            {
+                **NONE,
+                "at": "up to five",
+                "word": 0,
+                "path": "/pricing/",
+                "faq": "How long can a video be?",
+            }
+        ]
+
+
+async def test_what_they_asked_about_is_shown_when_his_reply_forgets_to() -> None:
+    """Dev call 60e6c24b: told about marketing twice, screen unmoved."""
+    async with demo("sendpotion", _llm()) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/"})
+        turn = await rig.driver.user_says("How do marketing teams use it?")
+        check_turn(rig, turn)
+        assert "{" not in turn.text
+        marketing = "/ai-personalized-video-marketing-software/"
+        assert _cues(rig) == [{**NONE, "at": "marketing teams clone", "word": 0, "path": marketing}]
+        # His own cue wins over the page their words name.
+        await rig.driver.user_says("What does marketing cost?")
+        assert [c["path"] for c in _cues(rig)] == [marketing, "/pricing/"]
+        # Nothing to add on the page they already have in front.
+        await _page(
+            rig,
+            "page_changed",
+            {**PRICING_PAGE, "path": marketing, "url": "x", "faqs": [], "plans": []},
+        )
+        await rig.driver.user_says("Tell me more about marketing.")
+        assert len(_cues(rig)) == 2
+    # Nor on the blog: a site page would open over the post they are reading.
+    async with demo("sendpotion", _llm()) as rig:
+        await rig.driver.start_session(init={"site": "blog", "path": "/x-1a2b"})
+        await rig.driver.user_says("How do marketing teams use it?")
+        assert _cues(rig) == []
+
+
+def test_the_page_for_what_they_asked_about() -> None:
+    marketing = "/ai-personalized-video-marketing-software"
+    sales = "/ai-video-prospecting-software"
+    assert sendpotion.asked_page("some use case about marketing with Potion?") == marketing
+    assert sendpotion.asked_page("No, show me some use cases in sales.") == sales
+    assert sendpotion.asked_page("We use HubSpot for sales") == "/integrations"
+    assert sendpotion.asked_page("Show me the use cases") == "/use-cases"
+    assert sendpotion.asked_page("Go back to the pricing tab.") is None
+    assert sendpotion.asked_page("Mm-hmm") is None
+    assert sendpotion.asked_page("Yeah, please show me.") is None
+    # Every page it names is one the crawl has.
+    crawl = kb.load()
+    for path in [p for _, p in sendpotion._ASKED_PAGES] + ["/use-cases"]:
+        assert crawl.page(path) is not None, path
 
 
 async def test_a_missed_cue_is_noted_quietly() -> None:

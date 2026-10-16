@@ -245,43 +245,6 @@ class PostSearchRequest(BaseModel):
     )
 
 
-class NavigateRequest(BaseModel):
-    path: str = Field(
-        description="A page path from the site pages list or a search result, e.g. "
-        "'/pricing'. Never a path you made up."
-    )
-    heading: str | None = Field(
-        default=None,
-        description="Optional: a section heading on that page to scroll to, from the site "
-        "pages list or a search result.",
-    )
-    text: str | None = Field(
-        default=None,
-        description="Optional: a few words on that page to scroll to and ring instead, e.g. "
-        "a plan name like 'Professional'.",
-    )
-    faq: str | None = Field(
-        default=None,
-        description="Optional: an FAQ question on that page to open and show, from a "
-        "search result or the page's FAQ list.",
-    )
-
-
-class SectionRequest(BaseModel):
-    heading: str | None = Field(
-        default=None, description="A heading on the page the visitor has in front."
-    )
-    text: str | None = Field(
-        default=None,
-        description="Optional: a few words on that page to ring, e.g. a plan name or a "
-        "feature, inside the heading's section when both are given.",
-    )
-
-
-class FaqRequest(BaseModel):
-    question: str = Field(description="An FAQ question on the page the visitor has in front.")
-
-
 class PickedPost(BaseModel):
     url: str = Field(description="The post's url, from find_blog_posts.")
     why: str = Field(
@@ -370,7 +333,9 @@ You are giving a guided walkthrough, like a product specialist sitting beside th
 - One cue per sentence at most, and only where the screen should change. A cue goes before the sentence, never inside it.
 - Example, for "how does it work?": "{{page: /}}{{show: How Potion works}} It takes three simple steps. {{show: Train video AI (Takes 4 mins)}} First, you train the AI on you, in about four minutes. {{show: Type video script or record a video template}} Then you type a script, or record one template. {{show: Get videos in your own face & voice}} And Potion makes the videos in your face and voice. Want to see what teams use it for?"
 - When the visitor asks where something is ("show me", "where is that", "scroll to it"), your reply starts with the cue for exactly that thing: the FAQ question itself, the step, the plan. Never just the page or the section above it.
-- The tools navigate, show_section and open_faq still work, for a move with nothing to say beside it. Prefer cues: they move in step with your voice.
+- Cues are the only way you move the page. There is no tool for it, and nothing waits on a cue.
+- EVERY ANSWER ABOUT POTION STARTS WITH A CUE. Whatever you talk about — a use case, a feature, pricing, integrations, an FAQ, a step — is on a page in the site pages list, so open that page and show the section as you begin. When the visitor names a use case ("marketing", "sales", "real estate"), open that use case's own page, never only the use cases overview. A reply without a cue leaves their screen where it was while you describe something else: the visitor notices, and has to ask you to show it.
+- Example, for "how do marketing teams use it?": "{{page: /ai-personalized-video-marketing-software}}{{show: Clone yourself and generate AI videos for marketing in your own face & voice}} Marketing teams clone themselves once. {{show: Manage inbound leads with precision}} Then every inbound lead gets a personal video reply. {{show: Follow up with webinar attendees}} Webinar attendees get a personal follow-up, too. Want to see the reasons teams pick Potion for marketing?"
 
 # A good turn tells the next part of the story
 1. Answer what they asked, first, in plain words, and show it as you say it.
@@ -416,14 +381,14 @@ You: "Then outreach is your use case. Agencies send a personal video to each pro
 - search_site finds a feature, page, section or FAQ by its words. Its results name the page and section, which you can then cue.
 
 # Moving the page
-- Cue or navigate only to a path from the site pages list below or a search result, and only to headings the list or the screen gives.
+- Cue only a path from the site pages list below or a search result, and only to headings the list or the screen gives.
 - The visitor can ask you to press or scroll to anything: "scroll to pricing", "open that FAQ", "go back to features", "show me the Starter plan". Do it with a cue at the start of your reply, and say what is now on their screen. Never say you cannot scroll or click.
 - "Try for free", "sign up" or "log in" is open_signup, which opens Potion's app in a new tab. Only when they ask for it, or say yes to your offer of the free trial.
 
 # The blog
 - SendPotion's blog has posts on outreach, sales, marketing, agencies, video sales letters, case studies and more. When the visitor describes a use case, a problem or an industry, find_blog_posts for it, then recommend_posts with the two to four that fit best: they appear in a reading list beside you on every tab, and the first opens in a new tab. Say in a sentence what the opened post covers and why it fits them.
 - Recommend only posts find_blog_posts returned, by their url. Never invent a title.
-- On a post, talk about what the post says: show_section takes its headings. To take them to one part of another post, open_post with its heading.
+- On a post, talk about what the post says: {{show: Heading}} takes its headings. To take them to one part of another post, open_post with its heading.
 - When they ask for case studies or proof, look for case study posts.
 
 # Tabs
@@ -559,6 +524,64 @@ def _site_path(path: str) -> str:
     return "/" if path == "/" else f"{path}/"
 
 
+#: The page for what the visitor asked about, when his reply forgets to show
+#: it: on dev call 60e6c24b he told them about marketing twice with the screen
+#: left where it was, until they said they could not see it. Matched on their
+#: own words, not on his reply's: a search of a sentence like "they follow up
+#: after webinars" lands on real estate. A specific page beats the overview,
+#: and among specific ones the first named wins.
+_ASKED_PAGES: tuple[tuple[re.Pattern[str], str], ...] = tuple(
+    (re.compile(rf"\b(?:{words})", re.IGNORECASE), path)
+    for words, path in (
+        (r"marketing|marketer", "/ai-personalized-video-marketing-software"),
+        (r"sales\b|prospect|outbound|outreach|sdrs?\b", "/ai-video-prospecting-software"),
+        (
+            r"customer (?:support|service)|support team",
+            "/ai-generated-customer-service-training-videos-software",
+        ),
+        (
+            r"customer success|product (?:team|manage|engagement)",
+            "/ai-personalized-customer-engagement-platform",
+        ),
+        (
+            r"real estate|realtor",
+            "/ai-personalized-video-messaging-for-real-estate-agents-realtors",
+        ),
+        (
+            r"e-?commerce|online store|shopping cart|cart abandon",
+            "/ai-personalized-shopping-cart-abandonment-solutions",
+        ),
+        (
+            r"recruit|hiring|onboarding",
+            "/ai-personalized-onboarding-tools-enhance-recruitment-process",
+        ),
+        (r"video sales letter|vsl", "/video-sales-letter-software"),
+        (r"video emails?\b", "/personalized-video-emails"),
+        (r"pric|cost|how much|plans?\b|free trial", "/pricing"),
+        (r"integrat|hubspot|salesforce|crm\b|apollo|lemlist|instantly", "/integrations"),
+        (r"languages?\b|spanish|hindi|french|german", "/supported-languages"),
+        (r"reviews?\b|testimonial|case stud", "/reviews"),
+        (r"security|secure|gdpr", "/security"),
+        (r"ethic|deepfake|consent", "/ai-ethics"),
+        (r"features?\b", "/features"),
+        (r"faqs?\b", "/faq"),
+    )
+)
+_ASKED_OVERVIEW = re.compile(r"\buse[- ]?cases?\b|\bwho uses\b", re.IGNORECASE)
+_ASKED_TAB = re.compile(r"\btabs?\b", re.IGNORECASE)
+
+
+def asked_page(text: str) -> str | None:
+    """The site page for what ``text`` asks about, or ``None``. "The pricing
+    tab" is a tab to switch to, not a page to open over the one in front."""
+    if _ASKED_TAB.search(text):
+        return None
+    named = [(m.start(), path) for rx, path in _ASKED_PAGES if (m := rx.search(text))]
+    if named:
+        return min(named)[1]
+    return "/use-cases" if _ASKED_OVERVIEW.search(text) else None
+
+
 # ─── The brain ─────────────────────────────────────────────────────────────────
 
 
@@ -603,6 +626,9 @@ class SendPotionBrain(GeminiBrain):
         self._cue_path: str | None = None
         self._idle_short = False
         self._nudges = 0
+        #: The page for what the visitor last asked about, shown at the start
+        #: of his reply if it has no cue of its own; see :func:`asked_page`.
+        self._backstop: str | None = None
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -630,6 +656,9 @@ class SendPotionBrain(GeminiBrain):
         the model's thinking."""
         self._talk = None
         self._nudges = 0
+        # A reply cut off before it said a word keeps its page for the next one:
+        # "use cases in sales", then "mm-hmm" while he was still thinking.
+        self._backstop = asked_page(msg.text) or self._backstop
         self._restore_idle()
         self._read_in_screen()
         now = time.monotonic()
@@ -667,6 +696,7 @@ class SendPotionBrain(GeminiBrain):
         window shortened, so a reading visitor hears it from him here. Otherwise
         an ordinary quiet spell: a nudge, twice, then silence."""
         self._restore_idle()
+        self._backstop = None
         if self._talk is not None:
             ask, self._talk = self._talk, None
             self._note(ask)
@@ -722,7 +752,7 @@ class SendPotionBrain(GeminiBrain):
                 if isinstance(event, SpeechStart):
                     parser = CueParser()
                 elif isinstance(event, SpeechChunk):
-                    text, raw = parser.feed(event.text)
+                    text, raw = parser.feed(self._with_backstop(event.text))
                     for cue in raw:
                         self._send_cue(cue)
                     if text:
@@ -737,6 +767,17 @@ class SendPotionBrain(GeminiBrain):
                 yield event
         finally:
             await turn.aclose()
+
+    def _with_backstop(self, chunk: str) -> str:
+        """The reply's first words, with the page the visitor asked about cued
+        in front of them when the reply brings no cue of its own."""
+        if self._backstop is None or not chunk.strip():
+            return chunk
+        path, self._backstop = self._backstop, None
+        if "{" in chunk or self._site != "site" or path == self._path:
+            return chunk
+        logger.info("sendpotion: the reply has no cue; showing {} first", path)
+        return f"{{page: {path}}}{chunk}"
 
     def _send_cue(self, raw: RawCue) -> None:
         """Check a cue against the site, as the tools do, and send it; one that
@@ -966,12 +1007,6 @@ class SendPotionBrain(GeminiBrain):
         page = self.kb.page(self._path)
         return tuple(f.q for f in page.faqs) if page and self._site == "site" else ()
 
-    def _faq_answer(self, question: str) -> str | None:
-        page = self.kb.page(self._path) if self._site == "site" else None
-        answer = next((f.a for f in page.faqs if f.q == question), "") if page else ""
-        first = answer.strip().split(". ")[0].rstrip(".")
-        return f"{first}." if 0 < len(first) <= 200 else None
-
     # ─── Tools ──────────────────────────────────────────────────────────
 
     @property
@@ -982,9 +1017,6 @@ class SendPotionBrain(GeminiBrain):
             self.read_topic,
             self.search_site,
             self.find_blog_posts,
-            self.navigate,
-            self.show_section,
-            self.open_faq,
             self.recommend_posts,
             self.open_post,
             self.book_demo,
@@ -1034,69 +1066,6 @@ class SendPotionBrain(GeminiBrain):
             heads = f"\n  headings: {_clip(post.headings, 8)}" if post.headings else ""
             out.append(f"- {post.title} — url: {post.url}\n  {about}{heads}")
         return "\n".join(out)
-
-    async def navigate(self, request: NavigateRequest) -> str:
-        """Open one of sendpotion.com's pages on the visitor's screen, scrolled to
-        the section that answers them. In the same response, before the call,
-        tell them what that section shows and why it matters for them."""
-        page = self.kb.page(request.path)
-        if page is None:
-            near = ", ".join(self.kb.near_paths(request.path)) or "none"
-            return (
-                f"Not opened: {request.path} is not a page on sendpotion.com. Closest: {near}. "
-                "Tell the visitor if you said it was open."
-            )
-        heading = _match(request.heading, page.headings) if request.heading else None
-        text = request.text.strip()[:120] if request.text else None
-        if request.heading and heading is None and not text:
-            # A heading the page does not have: go anyway, and ring the words.
-            text = request.heading.strip()[:120]
-        faq = _match(request.faq, [f.q for f in page.faqs]) if request.faq else None
-        if request.faq and faq is None:
-            return (
-                f"Not opened: {page.path} has no FAQ '{request.faq}'. "
-                f"Its FAQs: {_clip([f.q for f in page.faqs], _FAQS_IN_NOTE) or 'none'}."
-            )
-        self._move(Navigate(path=_site_path(page.path), heading=heading, text=text, faq=faq))
-        at = faq or heading or text
-        return f"Opened {_short_title(page.title)} ({page.path})" + (f", at '{at}'." if at else ".")
-
-    async def show_section(self, request: SectionRequest) -> str:
-        """Scroll the tab in front to a heading and ring its section — or, with
-        text, ring those words (a plan, a feature, a line of a post). In the same
-        response, say what it tells them and why it matters."""
-        headings = self._headings()
-        heading = _match(request.heading, headings) if request.heading else None
-        text = request.text.strip()[:120] if request.text else None
-        if request.heading and heading is None:
-            if headings and not text:
-                return (
-                    f"Not shown: this page has no heading '{request.heading}'. "
-                    f"Its headings: {_clip(headings, _HEADINGS_IN_NOTE)}."
-                )
-            text = text or request.heading.strip()[:120]
-        if heading is None and text is None:
-            return "Not shown: say which heading or words to show."
-        self._move(ShowSection(heading=heading, text=text))
-        return f"Showing '{heading or text}'."
-
-    async def open_faq(self, request: FaqRequest) -> str:
-        """Open one of the FAQs on the page in front and ring it. In the same
-        response, give the answer in your own words."""
-        faqs = self._faqs()
-        question = _match(request.question, faqs)
-        if question is not None:
-            self._move(OpenFaq(question=question), self._faq_answer(question))
-            return f"Opened the FAQ '{question}'."
-        # Not on the page in front: the page it is on, opened at it.
-        if (found := self._faq_elsewhere(request.question)) is not None:
-            path, question = found
-            self._move(Navigate(path=_site_path(path), faq=question))
-            return f"Opened {path} at the FAQ '{question}'."
-        return (
-            f"Not opened: no FAQ '{request.question}' on this page or the site. "
-            f"This page's FAQs: {_clip(faqs, _FAQS_IN_NOTE) or 'none'}."
-        )
 
     def _faq_elsewhere(self, asked: str) -> tuple[str, str] | None:
         """The page and FAQ ``asked`` names: by its words on any page, else the
