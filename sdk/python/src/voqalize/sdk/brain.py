@@ -103,6 +103,7 @@ from .wire import (
     FinalizeFrame,
     Frame,
     InterruptionFrame,
+    Language,
     ResponseFrame,
     RTVIFrame,
     RTVIType,
@@ -113,6 +114,7 @@ from .wire import (
     SpeechStartFrame,
     UserIdleFrame,
     UserMessageFrame,
+    Voice,
 )
 from .wire.frames import RTVI_TO_APP
 
@@ -165,12 +167,20 @@ class RequestRejected(RuntimeError):
     setting is still in force and the call is still coherent — an unsupported
     language leaves both legs where they were rather than moving one of them.
     ``detail`` is Voqalize's own reason, written to be shown.
+
+    ``code`` is the same reason by kind, for a brain to act on without reading
+    ``detail``: :attr:`ErrorCode.UNSUPPORTED_VOICE` or
+    :attr:`ErrorCode.UNSUPPORTED_LANGUAGE` when the voice or the language is
+    why, :attr:`ErrorCode.INVALID_REQUEST` for anything else in the request.
+    It is ``None`` from a Voqalize that does not say, and
+    :attr:`ErrorCode.UNKNOWN` for a kind this SDK does not know yet.
     """
 
-    def __init__(self, op: str, detail: str) -> None:
+    def __init__(self, op: str, detail: str, code: ErrorCode | None = None) -> None:
         super().__init__(f"{op} rejected: {detail}")
         self.op = op
         self.detail = detail
+        self.code = code
 
 
 class Unsupported(RuntimeError):
@@ -191,6 +201,18 @@ class Unsupported(RuntimeError):
         )
         self.op = op
         self.capability = capability
+
+
+def _names_a_string(config: Config) -> bool:
+    """Whether ``config`` names a voice or language as a plain string rather
+    than as a catalog member, which only a Voqalize advertising
+    :attr:`Capability.STRING_CONFIG` reads."""
+    named: list[object] = []
+    if config.tts is not None:
+        named += [config.tts.voice, config.tts.language]
+    if config.stt is not None:
+        named.append(config.stt.language)
+    return any(value is not None and not isinstance(value, Voice | Language) for value in named)
 
 
 # ─── The session ──────────────────────────────────────────────────────────────
@@ -356,10 +378,25 @@ class Session:
 
         Accepted means Voqalize took the change, not that you can hear it yet.
         Rejection is all-or-nothing and raises :class:`RequestRejected` with the
-        reason: nothing in the request applied, and the call is still wholly in
-        the state it was in.
+        reason and its ``code``: nothing in the request applied, and the call is
+        still wholly in the state it was in.
+
+        A voice or language named as a string rather than a catalog member
+        needs :attr:`can_configure_strings`. Without it, this raises
+        :class:`Unsupported` before sending anything: a Voqalize that predates
+        the string fields would skip them and answer accepted.
         """
+        if not self.can_configure_strings and _names_a_string(config):
+            raise Unsupported("configure", Capability.STRING_CONFIG)
         await self._request("configure", ConfigureFrame(config=config))
+
+    @property
+    def can_configure_strings(self) -> bool:
+        """Whether this Voqalize reads a voice or language given as a string —
+        ``"omnivoice/gauri"``, ``"en-IN"`` — in :meth:`configure`. A member of
+        the :class:`Voice` and :class:`Language` catalogs works either way.
+        Fixed for the session's life."""
+        return Capability.STRING_CONFIG in self.capabilities
 
     async def _request(self, op: str, frame: ConfigureRequest) -> None:
         """Send one request and block on its answer.
@@ -383,7 +420,7 @@ class Session:
         finally:
             self._awaiting.pop(frame.request_id, None)
         if not response.accepted:
-            raise RequestRejected(op, response.detail)
+            raise RequestRejected(op, response.detail, response.code)
 
     def _settle_request(self, frame: ResponseFrame) -> None:
         future = self._awaiting.pop(frame.request_id, None)
