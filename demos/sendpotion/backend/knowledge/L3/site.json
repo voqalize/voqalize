@@ -1,0 +1,724 @@
+{
+ "crawled": "2026-10-16",
+ "site": {
+  "host": "sendpotion.com",
+  "headers": {
+   "cache-control": "max-age=0, must-revalidate",
+   "content-type": "text/html",
+   "server": "AmazonS3",
+   "via": "1.1 2e20f4c36951b735f4334191fb4397b4.cloudfront.net (CloudFront)"
+  },
+  "stack": "Custom static site on Amazon S3 behind CloudFront (not Webflow). GSAP + ScrollTrigger animations, Smooth Scrollbar on .pt-layout[data-scrollbar], an AJAX router that swaps #view-main and pushes history, typed.js, Plyr video players, Intercom, Rewardful, Google gtag.",
+  "chrome": {
+   "top_nav": [
+    {
+     "text": "Reviews",
+     "href": "/reviews/",
+     "target": "",
+     "classes": "pt-navbar-nav"
+    },
+    {
+     "text": "Features",
+     "href": "/features/",
+     "target": "",
+     "classes": "pt-navbar-nav"
+    },
+    {
+     "text": "Use cases",
+     "href": "/use-cases/",
+     "target": "",
+     "classes": "pt-navbar-nav"
+    },
+    {
+     "text": "Pricing",
+     "href": "/pricing/",
+     "target": "",
+     "classes": "pt-navbar-nav"
+    }
+   ],
+   "language_switch": [
+    {
+     "text": "EN",
+     "href": "/",
+     "target": "",
+     "classes": "pt-lang -active"
+    },
+    {
+     "text": "ES",
+     "href": "/es/",
+     "target": "",
+     "classes": "pt-lang"
+    },
+    {
+     "text": "PT",
+     "href": "/pt-br/",
+     "target": "",
+     "classes": "pt-lang"
+    }
+   ],
+   "nav_actions": [
+    {
+     "text": "Login / Signup",
+     "href": "https://app.sendpotion.com?utm_campaign=inbound&utm_source=website",
+     "target": "_blank",
+     "classes": "pt-btn pt-btn_cta pt-btn_bdemo -md -primary"
+    },
+    {
+     "text": "Menu",
+     "href": null,
+     "target": "",
+     "classes": "pt-btn pt-btn_menu"
+    }
+   ],
+   "footer_nav": [
+    {
+     "text": "YouTube Tutorials",
+     "href": "https://www.youtube.com/@sendpotion",
+     "target": "_blank",
+     "classes": "pt-footer-nav"
+    },
+    {
+     "text": "Help Articles",
+     "href": "https://help.sendpotion.com",
+     "target": "_blank",
+     "classes": "pt-footer-nav"
+    },
+    {
+     "text": "FAQs",
+     "href": "/faq/",
+     "target": "",
+     "classes": "pt-footer-nav"
+    },
+    {
+     "text": "Pricing",
+     "href": "/pricing/",
+     "target": "",
+     "classes": "pt-footer-nav"
+    },
+    {
+     "text": "Case Studies",
+     "href": "https://blog.sendpotion.com/tagged/case-study",
+     "target": "_blank",
+     "classes": "pt-footer-nav"
+    },
+    {
+     "text": "Blog",
+     "href": "https://blog.sendpotion.com",
+     "target": "_blank",
+     "classes": "pt-footer-nav"
+    },
+    {
+     "text": "AI videos in Sales",
+     "href": "/ai-video-prospecting-software/",
+     "target": "",
+     "classes": "pt-footer-nav"
+    },
+    {
+     "text": "AI videos in Marketing",
+     "href": "/ai-personalized-video-marketing-software/",
+     "target": "",
+     "classes": "pt-footer-nav"
+    },
+    {
+     "text": "Customer Service AI videos",
+     "href": "/ai-generated-customer-service-training-videos-software/",
+     "target": "",
+     "classes": "pt-footer-nav"
+    },
+    {
+     "text": "AI product videos",
+     "href": "/ai-personalized-customer-engagement-platform/",
+     "target": "",
+     "classes": "pt-footer-nav"
+    },
+    {
+     "text": "AI videos for Real Estate",
+     "href": "/ai-personalized-video-messaging-for-real-estate-agents-realtors/",
+     "target": "",
+     "classes": "pt-footer-nav"
+    },
+    {
+     "text": "AI videos for eCommerce",
+     "href": "/ai-personalized-shopping-cart-abandonment-solutions/",
+     "target": "",
+     "classes": "pt-footer-nav"
+    },
+    {
+     "text": "AI videos in Recruitment",
+     "href": "/ai-personalized-onboarding-tools-enhance-recruitment-process/",
+     "target": "",
+     "classes": "pt-footer-nav"
+    },
+    {
+     "text": "Personalized video emails",
+     "href": "/personalized-video-emails/",
+     "target": "",
+     "classes": "pt-footer-nav"
+    },
+    {
+     "text": "VSL Software",
+     "href": "/video-sales-letter-software/",
+     "target": "",
+     "classes": "pt-footer-nav"
+    },
+    {
+     "text": "Chrome Extension",
+     "href": "https://chrome.google.com/webstore/detail/potion-video-emails-to-do/fikcpjkdkmmbmpahfkiodjnhnngfkghf",
+     "target": "_blank",
+     "classes": "pt-footer-nav"
+    },
+    {
+     "text": "Integrations",
+     "href": "/integrations/",
+     "target": "",
+     "classes": "pt-footer-nav"
+    },
+    {
+     "text": "Affiliate Program",
+     "href": "/affiliate/",
+     "target": "",
+     "classes": "pt-footer-nav"
+    },
+    {
+     "text": "About us",
+     "href": "/about/",
+     "target": "",
+     "classes": "pt-footer-nav"
+    },
+    {
+     "text": "Values",
+     "href": "/values/",
+     "target": "",
+     "classes": "pt-footer-nav"
+    },
+    {
+     "text": "Partners",
+     "href": "/partners/",
+     "target": "",
+     "classes": "pt-footer-nav"
+    },
+    {
+     "text": "Security",
+     "href": "/security/",
+     "target": "",
+     "classes": "pt-footer-nav"
+    },
+    {
+     "text": "AI Ethics",
+     "href": "/ai-ethics/",
+     "target": "",
+     "classes": "pt-footer-nav"
+    },
+    {
+     "text": "Supported Languages",
+     "href": "/supported-languages/",
+     "target": "",
+     "classes": "pt-footer-nav"
+    }
+   ],
+   "footer_cta": [
+    {
+     "text": "Try Potion for Free",
+     "href": "https://app.sendpotion.com?utm_campaign=inbound&utm_source=website",
+     "target": "_blank",
+     "classes": "pt-btn pt-btn_cta pt-btn_bdemo -md -primary"
+    }
+   ],
+   "footer_social": [
+    {
+     "text": "Instagram",
+     "href": "https://instagram.com/sendpotion",
+     "target": "_blank",
+     "classes": "pt-footer-social -instagram"
+    },
+    {
+     "text": "Twitter",
+     "href": "https://twitter.com/sendpotion",
+     "target": "_blank",
+     "classes": "pt-footer-social -twitter"
+    },
+    {
+     "text": "Facebook",
+     "href": "https://www.facebook.com/sendpotion/",
+     "target": "_blank",
+     "classes": "pt-footer-social -facebook"
+    },
+    {
+     "text": "LinkedIn",
+     "href": "https://www.linkedin.com/company/sendpotion",
+     "target": "_blank",
+     "classes": "pt-footer-social -linkedin"
+    },
+    {
+     "text": "YouTube",
+     "href": "https://www.youtube.com/@sendpotion",
+     "target": "_blank",
+     "classes": "pt-footer-social -youtube"
+    }
+   ],
+   "footer_links": [
+    {
+     "text": "Privacy Policy",
+     "href": "/privacy/",
+     "target": "",
+     "classes": "pt-footer-link -smooth"
+    },
+    {
+     "text": "Terms",
+     "href": "/terms/",
+     "target": "",
+     "classes": "pt-footer-link -smooth"
+    },
+    {
+     "text": "support@sendpotion.com",
+     "href": "mailto:support@sendpotion.com",
+     "target": "",
+     "classes": "pt-footer-link"
+    }
+   ],
+   "footer_text": "Generate AI videos easily. Create hyper-realistic Personalized AI videos in your own face, voice, & gestures with Potion. TRY POTION FOR FREE",
+   "fixed_elements": [
+    {
+     "tag": "div",
+     "id": "",
+     "classes": "pt-loader pt-loader_overlay",
+     "rect": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 0,
+      "top": 0,
+      "right": 1440,
+      "bottom": 0,
+      "left": 0
+     },
+     "z": "90"
+    },
+    {
+     "tag": "nav",
+     "id": "",
+     "classes": "pt-navbar",
+     "rect": {
+      "x": 0,
+      "y": 30,
+      "width": 1440,
+      "height": 66,
+      "top": 30,
+      "right": 1440,
+      "bottom": 96,
+      "left": 0
+     },
+     "z": "100"
+    },
+    {
+     "tag": "div",
+     "id": "",
+     "classes": "intercom-lightweight-app-launcher intercom-launcher",
+     "rect": {
+      "x": 1372,
+      "y": 832,
+      "width": 48,
+      "height": 48,
+      "top": 832,
+      "right": 1420,
+      "bottom": 880,
+      "left": 1372
+     },
+     "z": "2147483003"
+    }
+   ],
+   "html_class": "smooth",
+   "globals": [
+    "gtag",
+    "dataLayer",
+    "rewardful",
+    "intercomSettings",
+    "Intercom",
+    "Typed",
+    "typed",
+    "_rewardful_loaded",
+    "Rewardful",
+    "gsapVersions",
+    "__intercomAssignLocation",
+    "__intercomReloadLocation"
+   ],
+   "scripts": [
+    "https://widget.intercom.io/widget/p51fzfug",
+    "https://www.googletagmanager.com/gtag/js?id=G-L9WZ924TJW&cx=c&gtm=4e6ae1",
+    "https://sendpotion.com/assets/js/bundle.js?v=20261014b",
+    "https://www.googletagmanager.com/gtag/js?id=UA-160773905-2",
+    "https://r.wdfl.co/rw.js",
+    "https://unpkg.com/typed.js@2.1.0/dist/typed.umd.js",
+    "https://googleads.g.doubleclick.net/pagead/viewthroughconversion/16497965395/?random=1792123638600&cv=11&fst=1792123638600&bg=ffffff&guid=ON&async=1&en=gtag.config&gtm=45je6ae1v9115934198za20oxecxf1&gcd=13l3l3l3l1l1&dma=0&tag_exp=115938466~115938468~118897920~118897930~120213116~120385422~120469145~120469153~121246026~121246034&u_w=1440&u_h=900&url=https%3A%2F%2Fsendpotion.com%2F&rcb=9&frm=0&tiba=Unlimited%20Custom%20%26%20Personalized%20AI%20Videos%20Generator%20%7C%20Potion&hn=www.googleadservices.com&npa=0&pscdl=noapi&auid=125085300.1792123639&data=event%3Dgtag.config&ept=9&rfmt=3&fmt=4"
+   ],
+   "intercom": {
+    "app_id": "p51fzfug",
+    "settings_keys": [
+     "api_base",
+     "app_id"
+    ]
+   }
+  },
+  "faq_probe": {
+   "toggle": ".pt-faq-item .pt-faq-toggle",
+   "answer": ".pt-faq-item .pt-faq-info > .pt-faq-text",
+   "before": {
+    "item_class": "pt-faq-item",
+    "height": "auto",
+    "display": "none",
+    "overflow": "visible",
+    "opacity": "1",
+    "inline_style": ""
+   },
+   "after": {
+    "item_class": "pt-faq-item -active",
+    "height": "321.156px",
+    "display": "block",
+    "overflow": "visible",
+    "opacity": "1",
+    "inline_style": ""
+   },
+   "closed_again": {
+    "item_class": "pt-faq-item",
+    "height": "auto",
+    "display": "none",
+    "overflow": "visible",
+    "opacity": "1",
+    "inline_style": ""
+   },
+   "siblings_after": [
+    "pt-faq-item",
+    "pt-faq-item",
+    "pt-faq-item"
+   ]
+  },
+  "sitemap_paths": [
+   "/",
+   "/about/",
+   "/affiliate/",
+   "/ai-ethics/",
+   "/ai-generated-customer-service-training-videos-software/",
+   "/ai-personalized-customer-engagement-platform/",
+   "/ai-personalized-onboarding-tools-enhance-recruitment-process/",
+   "/ai-personalized-shopping-cart-abandonment-solutions/",
+   "/ai-personalized-video-marketing-software/",
+   "/ai-personalized-video-messaging-for-real-estate-agents-realtors/",
+   "/ai-video-prospecting-software/",
+   "/demo/",
+   "/examples/",
+   "/faq/",
+   "/features/",
+   "/integrations/",
+   "/partners/",
+   "/personalized-video-emails/",
+   "/pricing/",
+   "/privacy/",
+   "/reviews/",
+   "/security/",
+   "/supported-languages/",
+   "/terms/",
+   "/use-cases/",
+   "/values/",
+   "/video-sales-letter-software/"
+  ],
+  "external_hosts": {
+   "app.sendpotion.com": 37,
+   "blog.sendpotion.com": 18,
+   "www.capterra.com": 3,
+   "www.g2.com": 2,
+   "www.sendpotion.com": 2,
+   "help.sendpotion.com": 2,
+   "www.youtube.com": 2,
+   "www.growpronto.com": 1,
+   "potion-1.getrewardful.com": 1,
+   "www.gorevx.com": 1,
+   "www.heyewe.co": 1,
+   "www.salesloft.com": 1,
+   "www.amplifyremarketing.com": 1,
+   "www.nachonacho.com": 1,
+   "refermeiq.com": 1,
+   "www.everoutbound.io": 1,
+   "engage-ai.co": 1,
+   "chrome.google.com": 1,
+   "instagram.com": 1,
+   "twitter.com": 1,
+   "www.facebook.com": 1,
+   "www.linkedin.com": 1
+  }
+ },
+ "blog": {
+  "host": "blog.sendpotion.com",
+  "headers": {
+   "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+   "content-security-policy": "frame-ancestors 'self' https://medium.com",
+   "content-type": "text/html; charset=utf-8",
+   "server": "cloudflare",
+   "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+   "x-powered-by": "Express"
+  },
+  "home_headers": {
+   "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+   "content-security-policy": "frame-ancestors 'self' https://medium.com",
+   "content-type": "text/html; charset=utf-8",
+   "server": "cloudflare",
+   "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+   "x-powered-by": "Express"
+  },
+  "stack": "Medium publication on a custom domain (Cloudflare in front; x-powered-by: Medium / Express).",
+  "tags": [
+   "https://blog.sendpotion.com/tagged/abm",
+   "https://blog.sendpotion.com/tagged/abm-best-practice",
+   "https://blog.sendpotion.com/tagged/abm-for-saas",
+   "https://blog.sendpotion.com/tagged/abm-for-sales",
+   "https://blog.sendpotion.com/tagged/abm-strategies",
+   "https://blog.sendpotion.com/tagged/account-based-marketing",
+   "https://blog.sendpotion.com/tagged/account-based-sales",
+   "https://blog.sendpotion.com/tagged/advertising",
+   "https://blog.sendpotion.com/tagged/advertising-and-marketing",
+   "https://blog.sendpotion.com/tagged/affiliate-marketing",
+   "https://blog.sendpotion.com/tagged/affiliate-programs",
+   "https://blog.sendpotion.com/tagged/agency",
+   "https://blog.sendpotion.com/tagged/agency-growth-secrets",
+   "https://blog.sendpotion.com/tagged/agency-workflow",
+   "https://blog.sendpotion.com/tagged/agencylife",
+   "https://blog.sendpotion.com/tagged/ai",
+   "https://blog.sendpotion.com/tagged/ai-video",
+   "https://blog.sendpotion.com/tagged/announcements",
+   "https://blog.sendpotion.com/tagged/artificial-intelligence",
+   "https://blog.sendpotion.com/tagged/automation",
+   "https://blog.sendpotion.com/tagged/automation-agency",
+   "https://blog.sendpotion.com/tagged/automation-ideas",
+   "https://blog.sendpotion.com/tagged/b2b",
+   "https://blog.sendpotion.com/tagged/b2b-marketing",
+   "https://blog.sendpotion.com/tagged/b2b-sales",
+   "https://blog.sendpotion.com/tagged/b2b-software-sales",
+   "https://blog.sendpotion.com/tagged/best-practices",
+   "https://blog.sendpotion.com/tagged/branding",
+   "https://blog.sendpotion.com/tagged/business",
+   "https://blog.sendpotion.com/tagged/business-development",
+   "https://blog.sendpotion.com/tagged/business-strategy",
+   "https://blog.sendpotion.com/tagged/cart-abandonment",
+   "https://blog.sendpotion.com/tagged/case-study",
+   "https://blog.sendpotion.com/tagged/client-communication",
+   "https://blog.sendpotion.com/tagged/client-escalations",
+   "https://blog.sendpotion.com/tagged/client-management",
+   "https://blog.sendpotion.com/tagged/client-onboarding",
+   "https://blog.sendpotion.com/tagged/client-onboarding-process",
+   "https://blog.sendpotion.com/tagged/client-relationship",
+   "https://blog.sendpotion.com/tagged/client-reporting",
+   "https://blog.sendpotion.com/tagged/clients",
+   "https://blog.sendpotion.com/tagged/cold-call-script",
+   "https://blog.sendpotion.com/tagged/cold-calling",
+   "https://blog.sendpotion.com/tagged/cold-calling-icebreakers",
+   "https://blog.sendpotion.com/tagged/cold-calling-objections",
+   "https://blog.sendpotion.com/tagged/cold-calling-script",
+   "https://blog.sendpotion.com/tagged/cold-calling-tips",
+   "https://blog.sendpotion.com/tagged/cold-calls",
+   "https://blog.sendpotion.com/tagged/cold-email-examples",
+   "https://blog.sendpotion.com/tagged/cold-email-mistakes",
+   "https://blog.sendpotion.com/tagged/cold-email-outreach",
+   "https://blog.sendpotion.com/tagged/cold-email-templates",
+   "https://blog.sendpotion.com/tagged/cold-email-tips",
+   "https://blog.sendpotion.com/tagged/cold-emailing",
+   "https://blog.sendpotion.com/tagged/cold-emails",
+   "https://blog.sendpotion.com/tagged/construction",
+   "https://blog.sendpotion.com/tagged/construction-company",
+   "https://blog.sendpotion.com/tagged/crm",
+   "https://blog.sendpotion.com/tagged/customer-engagement",
+   "https://blog.sendpotion.com/tagged/customer-escalation",
+   "https://blog.sendpotion.com/tagged/customer-experience",
+   "https://blog.sendpotion.com/tagged/customer-handling",
+   "https://blog.sendpotion.com/tagged/customer-interaction",
+   "https://blog.sendpotion.com/tagged/customer-onboarding",
+   "https://blog.sendpotion.com/tagged/customer-retention",
+   "https://blog.sendpotion.com/tagged/customer-satisfaction",
+   "https://blog.sendpotion.com/tagged/customer-service",
+   "https://blog.sendpotion.com/tagged/customer-service-mistakes",
+   "https://blog.sendpotion.com/tagged/customer-service-skills",
+   "https://blog.sendpotion.com/tagged/customer-success",
+   "https://blog.sendpotion.com/tagged/customer-support",
+   "https://blog.sendpotion.com/tagged/digital-marketing",
+   "https://blog.sendpotion.com/tagged/ecommerce",
+   "https://blog.sendpotion.com/tagged/ecommerce-personalization",
+   "https://blog.sendpotion.com/tagged/email-cadence",
+   "https://blog.sendpotion.com/tagged/email-deliverability",
+   "https://blog.sendpotion.com/tagged/email-etiquette",
+   "https://blog.sendpotion.com/tagged/email-etiquette-rules",
+   "https://blog.sendpotion.com/tagged/email-marketing",
+   "https://blog.sendpotion.com/tagged/email-marketing-mistakes",
+   "https://blog.sendpotion.com/tagged/email-marketing-tips",
+   "https://blog.sendpotion.com/tagged/email-sequence",
+   "https://blog.sendpotion.com/tagged/email-subject-line",
+   "https://blog.sendpotion.com/tagged/email-template",
+   "https://blog.sendpotion.com/tagged/employee-engagement",
+   "https://blog.sendpotion.com/tagged/employee-experience",
+   "https://blog.sendpotion.com/tagged/employee-onboarding",
+   "https://blog.sendpotion.com/tagged/employee-orientation",
+   "https://blog.sendpotion.com/tagged/employee-retention",
+   "https://blog.sendpotion.com/tagged/entrepreneur",
+   "https://blog.sendpotion.com/tagged/entrepreneurship",
+   "https://blog.sendpotion.com/tagged/escalation-management",
+   "https://blog.sendpotion.com/tagged/financial-advisor",
+   "https://blog.sendpotion.com/tagged/follow-up-email",
+   "https://blog.sendpotion.com/tagged/grow-real-estate-business",
+   "https://blog.sendpotion.com/tagged/growth-hacking",
+   "https://blog.sendpotion.com/tagged/growth-hacks",
+   "https://blog.sendpotion.com/tagged/handling-objections",
+   "https://blog.sendpotion.com/tagged/handling-rejection",
+   "https://blog.sendpotion.com/tagged/high-ticket-closing",
+   "https://blog.sendpotion.com/tagged/high-ticket-sales",
+   "https://blog.sendpotion.com/tagged/hiring",
+   "https://blog.sendpotion.com/tagged/how-to-generate-leads",
+   "https://blog.sendpotion.com/tagged/hr",
+   "https://blog.sendpotion.com/tagged/humor",
+   "https://blog.sendpotion.com/tagged/icp",
+   "https://blog.sendpotion.com/tagged/ideal-customer-profile",
+   "https://blog.sendpotion.com/tagged/insurance",
+   "https://blog.sendpotion.com/tagged/is-cold-email-dead",
+   "https://blog.sendpotion.com/tagged/jokes",
+   "https://blog.sendpotion.com/tagged/lead-generation",
+   "https://blog.sendpotion.com/tagged/life-insurance",
+   "https://blog.sendpotion.com/tagged/linkedin",
+   "https://blog.sendpotion.com/tagged/luxury-real-estate",
+   "https://blog.sendpotion.com/tagged/management-and-leadership",
+   "https://blog.sendpotion.com/tagged/marketing",
+   "https://blog.sendpotion.com/tagged/marketing-ideas",
+   "https://blog.sendpotion.com/tagged/marketing-strategies",
+   "https://blog.sendpotion.com/tagged/mistakes-to-avoid",
+   "https://blog.sendpotion.com/tagged/new-hire",
+   "https://blog.sendpotion.com/tagged/objections-in-sales",
+   "https://blog.sendpotion.com/tagged/onboarding",
+   "https://blog.sendpotion.com/tagged/onboarding-checklist",
+   "https://blog.sendpotion.com/tagged/onboarding-process",
+   "https://blog.sendpotion.com/tagged/online-shopping",
+   "https://blog.sendpotion.com/tagged/open-house",
+   "https://blog.sendpotion.com/tagged/open-house-real-estate",
+   "https://blog.sendpotion.com/tagged/open-house-tips",
+   "https://blog.sendpotion.com/tagged/opening-lines",
+   "https://blog.sendpotion.com/tagged/orientation",
+   "https://blog.sendpotion.com/tagged/outbound-marketing",
+   "https://blog.sendpotion.com/tagged/outbound-sales",
+   "https://blog.sendpotion.com/tagged/outreach",
+   "https://blog.sendpotion.com/tagged/pdf",
+   "https://blog.sendpotion.com/tagged/personalization",
+   "https://blog.sendpotion.com/tagged/personalized-interaction",
+   "https://blog.sendpotion.com/tagged/personalized-shopping",
+   "https://blog.sendpotion.com/tagged/personalized-video",
+   "https://blog.sendpotion.com/tagged/pitching",
+   "https://blog.sendpotion.com/tagged/potions",
+   "https://blog.sendpotion.com/tagged/professional-development",
+   "https://blog.sendpotion.com/tagged/project-management",
+   "https://blog.sendpotion.com/tagged/project-management-tool",
+   "https://blog.sendpotion.com/tagged/property-advertisement",
+   "https://blog.sendpotion.com/tagged/property-management",
+   "https://blog.sendpotion.com/tagged/property-marketing",
+   "https://blog.sendpotion.com/tagged/prospecting",
+   "https://blog.sendpotion.com/tagged/prospecting-ideas",
+   "https://blog.sendpotion.com/tagged/psychology",
+   "https://blog.sendpotion.com/tagged/real-estate",
+   "https://blog.sendpotion.com/tagged/real-estate-advertising",
+   "https://blog.sendpotion.com/tagged/real-estate-agent",
+   "https://blog.sendpotion.com/tagged/real-estate-marketing",
+   "https://blog.sendpotion.com/tagged/real-estate-prospecting",
+   "https://blog.sendpotion.com/tagged/realtor",
+   "https://blog.sendpotion.com/tagged/recruiters",
+   "https://blog.sendpotion.com/tagged/recruiting",
+   "https://blog.sendpotion.com/tagged/recruitment",
+   "https://blog.sendpotion.com/tagged/recruitment-agencies",
+   "https://blog.sendpotion.com/tagged/remote-employee",
+   "https://blog.sendpotion.com/tagged/remote-onboarding",
+   "https://blog.sendpotion.com/tagged/remote-sales",
+   "https://blog.sendpotion.com/tagged/remote-selling",
+   "https://blog.sendpotion.com/tagged/remote-working",
+   "https://blog.sendpotion.com/tagged/saas",
+   "https://blog.sendpotion.com/tagged/sales",
+   "https://blog.sendpotion.com/tagged/sales-calls",
+   "https://blog.sendpotion.com/tagged/sales-development",
+   "https://blog.sendpotion.com/tagged/sales-discovery-call",
+   "https://blog.sendpotion.com/tagged/sales-enablement",
+   "https://blog.sendpotion.com/tagged/sales-enablement-tips",
+   "https://blog.sendpotion.com/tagged/sales-objections",
+   "https://blog.sendpotion.com/tagged/sales-pitch",
+   "https://blog.sendpotion.com/tagged/sales-prospecting",
+   "https://blog.sendpotion.com/tagged/sales-strategy",
+   "https://blog.sendpotion.com/tagged/sales-tips",
+   "https://blog.sendpotion.com/tagged/sales-training",
+   "https://blog.sendpotion.com/tagged/selling-a-home",
+   "https://blog.sendpotion.com/tagged/send-potion",
+   "https://blog.sendpotion.com/tagged/shopify",
+   "https://blog.sendpotion.com/tagged/shopping",
+   "https://blog.sendpotion.com/tagged/shopping-cart-abandonment",
+   "https://blog.sendpotion.com/tagged/small-business",
+   "https://blog.sendpotion.com/tagged/social-media",
+   "https://blog.sendpotion.com/tagged/spam",
+   "https://blog.sendpotion.com/tagged/startup",
+   "https://blog.sendpotion.com/tagged/storytelling",
+   "https://blog.sendpotion.com/tagged/storytelling-for-business",
+   "https://blog.sendpotion.com/tagged/team-building",
+   "https://blog.sendpotion.com/tagged/tech-stack",
+   "https://blog.sendpotion.com/tagged/video-email",
+   "https://blog.sendpotion.com/tagged/video-for-sales",
+   "https://blog.sendpotion.com/tagged/video-marketing",
+   "https://blog.sendpotion.com/tagged/video-messaging",
+   "https://blog.sendpotion.com/tagged/video-personalization",
+   "https://blog.sendpotion.com/tagged/video-prospecting",
+   "https://blog.sendpotion.com/tagged/video-sales-letter",
+   "https://blog.sendpotion.com/tagged/video-script-writing",
+   "https://blog.sendpotion.com/tagged/virtual-selling",
+   "https://blog.sendpotion.com/tagged/virtual-staging",
+   "https://blog.sendpotion.com/tagged/vi̇deo",
+   "https://blog.sendpotion.com/tagged/vsl",
+   "https://blog.sendpotion.com/tagged/vsl-examples",
+   "https://blog.sendpotion.com/tagged/vsl-marketing",
+   "https://blog.sendpotion.com/tagged/vídeo-storytelling",
+   "https://blog.sendpotion.com/tagged/warm-emails",
+   "https://blog.sendpotion.com/tagged/woocommerce"
+  ],
+  "feed_posts": [
+   "/how-to-write-real-estate-video-scripts-that-actually-convert-021ec78795c2",
+   "/why-use-video-onboarding-vs-traditional-text-docs-pdfs-a74cfabeb2b3",
+   "/top-handy-real-estate-follow-up-email-templates-examples-6e0fe9915f55",
+   "/top-customer-retention-best-practices-tips-that-work-e41a3e182eac",
+   "/top-cold-calling-calls-scripts-for-recruiters-recruitment-agency-tips-d0bd60c4ca5d",
+   "/define-what-is-a-are-client-escalations-causes-impact-examples-solutions-explained-6774ec982b9c",
+   "/best-top-sales-cold-calling-scripts-for-construction-companies-examples-27b37118bfd8",
+   "/top-common-effects-consequences-of-poor-bad-customer-service-how-to-fix-them-a822e1f07b92",
+   "/handling-how-to-deal-handle-manage-with-client-escalations-b2b-b2c-7a89a46b42ef",
+   "/top-essential-good-great-qualities-skills-required-needed-for-customer-service-representative-reps-77ffa6825cfa"
+  ],
+  "about": "Get app\nWrite\n\nSign up\n\nSign in\n\nPotion Blog\n\nCase Studies\n\nAnnouncements\n\nTry Potion For FREE\n\nPotion Blog\n\nGenerate AI videos using your face, voice, & gestures — just from a text script. Easily create personalized AI videos at scale for your business with just a few clicks. Sign up for FREE. 🎥🚀\n\nNOTE FROM THE EDITOR\n\nGenerate AI videos using your face, voice, & gestures — just from a text script. Easily create personalized AI videos at scale for your business with just a few clicks. Sign up for FREE.\n\nConnect:\n\nTopics\nSales\nBusiness\nProspecting\nMarketing\nEntrepreneur\nEditors\nPotion\n\n1 follower\n\nPotion is a video prospecting tool for top sales professionals.\n\nAmarpreet Singh\n\n146 followers\n\nHuman, Artist, Hustler & a Deep Thinker | Follow for content on innovation, AI, video marketing, sales and marketing optimization\n\nArchives\nAll\n·\n2023\n·\n2024\n·\n2025\n\nHelp\n\nStatus\n\nAbout\n\nCareers\n\nPress\n\nBlog\n\nStore\n\nPrivacy\n\nRules\n\nTerms\n\nText to speech",
+  "home": "Get app\nWrite\n\nSign up\n\nSign in\n\nPotion Blog\n\nHelping You Transform Prospects into Loyal Customers\n\n50 followers\n·\n2 editors\n\nCase Studies\n\nAnnouncements\n\nTry Potion For FREE\n\nHelp\n\nStatus\n\nAbout\n\nCareers\n\nPress\n\nBlog\n\nStore\n\nPrivacy\n\nRules\n\nTerms\n\nText to speech"
+ },
+ "probes": {
+  "site": {
+   "top_nav_pricing": {
+    "url_after": "https://sendpotion.com/pricing/",
+    "document_kept": true,
+    "title_after": "Pricing — Potion",
+    "back_url": "https://sendpotion.com/",
+    "back_document_kept": true
+   },
+   "footer_faq": {
+    "url_after": "https://sendpotion.com/faq/",
+    "document_kept": true,
+    "title_after": "FAQs — Potion",
+    "back_url": "https://sendpotion.com/",
+    "back_document_kept": true
+   },
+   "scroll": {
+    "window_scrollY": 0,
+    "document_scroll_height": 900,
+    "content_height": 23013,
+    "heading_top_before": 16614.15625,
+    "after_scrollIntoView": 16614.15625,
+    "after_wheel_to_120": 120.15625,
+    "content_transform": "translate3d(0px, -16494px, 0px)"
+   }
+  },
+  "blog": {
+   "clicked": null,
+   "url_after": "https://blog.sendpotion.com/",
+   "document_kept": true
+  }
+ }
+}

@@ -132,6 +132,9 @@ DEMOS: dict[str, Expected] = {
     # said Hindi, and moves both legs for the toggle or for Hindi heard — gaurav
     # in both. Asserted in test_saatvik_e2e.py.
     "saatvik": Expected(voice="omnivoice/gaurav", language="en"),
+    # Tushar, SendPotion's guide on sendpotion.com and its blog: English only,
+    # on gaurav, as Saatvik's Tushar. Asserted in test_sendpotion_e2e.py.
+    "sendpotion": Expected(voice="omnivoice/gaurav", language="en"),
     "servicing": Expected(voice="kokoro/sarah", language="en"),
     "shopping": Expected(voice="omnivoice/gaurav", language="en"),
     # The patient picks sugar's language on the page, before the call exists, so
