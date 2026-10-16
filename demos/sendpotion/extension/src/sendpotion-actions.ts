@@ -57,8 +57,9 @@ export interface PageContext {
 const RING = "#832EC4";
 const RING_MS = 5500;
 const WAIT_MS = 8000;
-const MAX_HEADINGS = 50;
-const MAX_FAQS = 30;
+const MAX_HEADINGS = 80;
+/** The /faq/ page's questions run past forty; the brain needs the last one too. */
+const MAX_FAQS = 120;
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 const clean = (s: string | null | undefined) => (s ?? "").replace(/\s+/g, " ").trim();
@@ -124,34 +125,55 @@ function headerHeight(): number {
   return h;
 }
 
-/** Scroll so `el` sits under the header (`top`) or in the middle of the screen. */
+/** The site's scroll container, which takes wheel events itself. */
+const layout = () => (BLOG ? null : document.querySelector<HTMLElement>(".pt-layout[data-scrollbar]"));
+
+/** How far `el` is from where it should sit: under the header (`top`) or in
+ *  the middle of the screen. */
+function distance(el: Element, align: "top" | "center"): number {
+  const r = el.getBoundingClientRect();
+  const h = window.innerHeight;
+  return align === "center" ? r.top - (h - Math.min(r.height, h)) / 2 : r.top - (headerHeight() + 24);
+}
+
+/**
+ * Scroll so `el` sits under the header (`top`) or in the middle of the screen,
+ * and check that it did. The captured scroller is asked first; where it is
+ * missing (a tab that was open before the extension, so `early.ts` never ran)
+ * or does not move the element, a wheel event on the site's container does
+ * what a visitor's wheel does. Pinned sections and reveal animations move
+ * things as the page scrolls, so it measures again and corrects, up to twice.
+ */
 async function scrollTo(el: Element, align: "top" | "center" = "top"): Promise<void> {
-  const sb = scroller();
-  for (let pass = 0; pass < 2; pass++) {
-    const r = el.getBoundingClientRect();
-    if (sb) {
-      const c = sb.containerEl.getBoundingClientRect();
-      const offset = align === "center" ? (c.height - Math.min(r.height, c.height)) / 2 : headerHeight() + 24;
-      const y = Math.min(Math.max(sb.offset.y + r.top - c.top - offset, 0), sb.limit.y);
+  let wheel = false;
+  for (let pass = 0; pass < 3; pass++) {
+    const delta = distance(el, align);
+    if (Math.abs(delta) < 12) return;
+    const sb = scroller();
+    const box = layout();
+    const before = el.getBoundingClientRect().top;
+    if (sb && !wheel) {
+      const y = Math.min(Math.max(sb.offset.y + delta, 0), sb.limit.y);
       if (Math.abs(y - sb.offset.y) < 8) return;
       sb.scrollTo(sb.offset.x, y, 900);
       await sleep(1000);
+    } else if (box) {
+      box.dispatchEvent(new WheelEvent("wheel", { deltaY: delta, bubbles: true, cancelable: true }));
+      await sleep(1100);
     } else {
-      const offset =
-        align === "center" ? (window.innerHeight - Math.min(r.height, window.innerHeight)) / 2 : headerHeight() + 24;
-      const y = Math.max(r.top + window.scrollY - offset, 0);
-      if (Math.abs(y - window.scrollY) < 8) return;
-      window.scrollTo({ top: y, behavior: "smooth" });
+      window.scrollBy({ top: delta, behavior: "smooth" });
       await sleep(900);
     }
-    // Pinned sections and reveal animations move things as the page scrolls:
-    // one correction, then it stands.
+    // The scroller answered and nothing moved: the wheel from here on.
+    if (Math.abs(el.getBoundingClientRect().top - before) < 4) wheel = true;
   }
 }
 
 async function scrollToTopOfPage(): Promise<void> {
   const sb = scroller();
+  const box = layout();
   if (sb) sb.scrollTo(sb.offset.x, 0, 700);
+  else if (box) box.dispatchEvent(new WheelEvent("wheel", { deltaY: -100000, bubbles: true, cancelable: true }));
   else window.scrollTo({ top: 0, behavior: "smooth" });
   await sleep(750);
 }
@@ -367,9 +389,20 @@ async function transitioned(): Promise<void> {
   await sleep(250);
 }
 
-async function navigate({ path, heading, text }: { path: string; heading?: string | null; text?: string | null }) {
+async function navigate({
+  path,
+  heading,
+  text,
+  faq,
+}: {
+  path: string;
+  heading?: string | null;
+  text?: string | null;
+  faq?: string | null;
+}) {
   const here = samePath(location.pathname, new URL(path, location.origin).pathname);
   await goTo(path);
+  if (faq) return openFaq({ question: faq });
   if (heading || text) return showSection({ heading, text });
   if (here) await scrollToTopOfPage();
 }
@@ -632,14 +665,29 @@ function emit(event: string, payload: unknown): void {
 
 let lastUrl: string | null = null;
 let reportTimer: ReturnType<typeof setTimeout> | null = null;
+/**
+ * Report the page once it is the new page. The site's router changes the URL
+ * before its fetch lands and swaps `#view-main` after, so a page read at the
+ * URL change is the page before: on dev call 67d16b5d, `/use-cases/` reported
+ * the home page's headings and FAQs, and the brain picked a heading from them
+ * that /use-cases/ does not have. So: wait for the new view or title, then for
+ * the transition, then for the DOM to settle.
+ */
 function routeChanged(): void {
+  const view = document.getElementById("view-main");
+  const title = document.title;
   if (reportTimer) clearTimeout(reportTimer);
   reportTimer = setTimeout(async () => {
     const here = location.origin + location.pathname;
     if (here === lastUrl) return;
     lastUrl = here;
     clearHighlight();
+    if (!BLOG) {
+      await waitFor(() => document.getElementById("view-main") !== view || document.title !== title, 6000);
+      await transitioned();
+    }
     await settled();
+    if (location.origin + location.pathname !== here) return;
     emit("page_changed", context());
   }, 60);
 }

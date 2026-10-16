@@ -30,6 +30,13 @@ before it reaches the page.
 fills in what they told him; he never asks for an email, and never presses
 Schedule Event.
 
+**The screen follows his voice.** He writes his moves into the reply as cues
+(``{show: How Potion works}``), at the start of the sentence they belong to;
+the brain takes them out of the speech, checks them against the site, and the
+page fires each as the voice reaches its sentence (:mod:`.cues`, and the
+extension's ``narration.ts``). A reply ends on a leading offer of the next part
+of the site's story, not an open question.
+
 How a result that arrives after his turn gets spoken — the demo calendar's open
 days, a submitted booking — is in :meth:`SendPotionBrain.on_user_idle`.
 """
@@ -47,7 +54,6 @@ from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field
 from voqalize_demos import (
-    DEFAULT_MODEL,
     PATIENCE,
     FallbackLine,
     GeminiBrain,
@@ -59,7 +65,17 @@ from voqalize_demos import (
 )
 from voqalize_demos.acknowledge import Acknowledger, Kind, Vocabulary, hold_the_floor
 
-from voqalize.sdk import Action, RTVIMessage, RTVIType, Session, Speech, UserIdle, UserMessage
+from voqalize.sdk import (
+    Action,
+    RTVIMessage,
+    RTVIType,
+    Session,
+    Speech,
+    SpeechChunk,
+    SpeechStart,
+    UserIdle,
+    UserMessage,
+)
 from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
 
 from . import knowledge as kb
@@ -73,6 +89,7 @@ from .app_events import (
     TabInfo,
     TabsChanged,
 )
+from .cues import CueParser, RawCue
 from .knowledge import TOPIC_IDS, Knowledge, canonical_path, norm
 
 AGENT_NAME = "Tushar"
@@ -81,6 +98,11 @@ AGENT_NAME = "Tushar"
 #: and wrote nothing; at LOW it writes the answer first and calls at the end, so
 #: the page moves while he is still talking.
 THINKING = types.ThinkingConfig(thinking_level=types.ThinkingLevel.LOW)
+#: Gemini 3.8 Flash, not the demos' shared default (3.5). On this prompt, eight
+#: asks each at LOW (2026-10-16): 3.8 had its first words out in 1.8 to 2.3 s,
+#: 3.5 in 1.6 to 6.8 s with spikes of 3.6, 4.0 and 6.8 s, which is the stall
+#: the owner heard on call 67d16b5d. Both wrote the screen cues correctly.
+MODEL = "gemini-3.8-flash"
 #: The one extra request a silent page move gets: tools declared, none callable.
 _TALK_NOW = types.ToolConfig(
     function_calling_config=types.FunctionCallingConfig(mode=types.FunctionCallingConfigMode.NONE)
@@ -112,11 +134,28 @@ _FRAGMENT_S = 4.0
 
 class Navigate(Action):
     """Go to one of sendpotion.com's pages and, with ``heading`` or ``text``,
-    scroll to that section and ring it. The page reports ``page_changed``."""
+    scroll to that section and ring it; with ``faq``, open that FAQ on it. The
+    page reports ``page_changed``."""
 
     path: str
     heading: str | None = None
     text: str | None = None
+    faq: str | None = None
+
+
+class Cue(Action):
+    """A move for the page to make when the voice reaches ``at`` — the first
+    words of the sentence it belongs to (see :mod:`.cues`); empty ``at`` is
+    when the voice stops. With ``path``, it is a :class:`Navigate` (and goes to
+    a sendpotion.com tab); else a section, words or FAQ on the tab in front."""
+
+    at: str
+    word: int = 0
+    """Words of the unit before it, for a page that times cues by the clock."""
+    path: str | None = None
+    heading: str | None = None
+    text: str | None = None
+    faq: str | None = None
 
 
 class ShowSection(Action):
@@ -221,6 +260,11 @@ class NavigateRequest(BaseModel):
         description="Optional: a few words on that page to scroll to and ring instead, e.g. "
         "a plan name like 'Professional'.",
     )
+    faq: str | None = Field(
+        default=None,
+        description="Optional: an FAQ question on that page to open and show, from a "
+        "search result or the page's FAQ list.",
+    )
 
 
 class SectionRequest(BaseModel):
@@ -286,8 +330,8 @@ class TabRequest(BaseModel):
 
 # ─── The prompt ────────────────────────────────────────────────────────────────
 
-_SITE_MAP_CHARS = 7000
-_SECTIONS_PER_PAGE = 8
+_SITE_MAP_CHARS = 16000
+_SECTIONS_PER_PAGE = 16
 _TITLE_SUFFIXES = (" | Potion", " — Potion", " - Potion")
 
 
@@ -317,55 +361,64 @@ def _topics(k: Knowledge) -> str:
 def _prompt(k: Knowledge) -> str:
     return f"""You are {AGENT_NAME}, the guide on SendPotion's website, sendpotion.com, and its blog, blog.sendpotion.com. SendPotion's product is called Potion. A visitor is browsing the site right now and has called you from the corner of the page. You can see and move their screen: you open pages, scroll to the exact section that answers them and ring it, open FAQs, book a demo with them on the calendar, and open the blog posts that fit their use case in a new tab. You are warm, sharp and conversational — the product specialist who knows Potion inside out, explains it in plain words, relates it to the visitor's own work, and keeps the conversation going. Understanding Potion should feel easy and personal after talking to you.
 
-# A good turn has three parts
-1. Answer what they asked, first, in plain words, and say why it matters for them.
-2. Show it, and talk about it. When a page or a section fits, move the page in the same response, to the exact section — navigate with a heading, or show_section on the page they are on — and name one concrete thing there that matters for them: "See the bulk generation part? That's how one video becomes five hundred personal ones." Never read the page out. Never say only "here it is" or "here's the page": the screen moving already says that. A reply that only points at the screen is a failed turn.
-3. Hand it back. End with one short question that moves the conversation on: about their work (who they sell to, how they reach prospects now, how many videos they'd send), or the natural next step ("Want to see how it plugs into your CRM?"). Vary it. Never end with "anything else?" or "let me know if you have questions".
+# You narrate, and the screen follows your words
+You are giving a guided walkthrough, like a product specialist sitting beside the visitor with their screen in front of you both. As you talk about something, it is on their screen, ringed, at that moment: never the top of the page while you describe the third step.
+- Put a screen cue in your reply at the start of the sentence it belongs to. The page moves when your voice reaches that sentence. The visitor never hears a cue.
+  - {{page: /path}} opens a page of the site, at its top.
+  - {{show: Heading}} scrolls to a heading on the page they are on, or are taken to by a page cue, and rings it. Use the heading exactly as the site pages list or the screen lines spell it. With words that are not a heading, it rings those words instead: a plan name, an integration, a step.
+  - {{faq: Question}} opens that FAQ and rings it. The FAQ can be on any page: it is found and opened there.
+- One cue per sentence at most, and only where the screen should change. A cue goes before the sentence, never inside it.
+- Example, for "how does it work?": "{{page: /}}{{show: How Potion works}} It takes three simple steps. {{show: Train video AI (Takes 4 mins)}} First, you train the AI on you, in about four minutes. {{show: Type video script or record a video template}} Then you type a script, or record one template. {{show: Get videos in your own face & voice}} And Potion makes the videos in your face and voice. Want to see what teams use it for?"
+- When the visitor asks where something is ("show me", "where is that", "scroll to it"), your reply starts with the cue for exactly that thing: the FAQ question itself, the step, the plan. Never just the page or the section above it.
+- The tools navigate, show_section and open_faq still work, for a move with nothing to say beside it. Prefer cues: they move in step with your voice.
 
-# Be a guide, not a search box
-- Clarify before you guess. When a question could mean two things, or the right answer depends on who they are, ask one short question first — and still give the most likely answer in a sentence. "For sales teams it's mostly cold outreach. Are you selling, or marketing?"
-- Learn who they are as you go: their role, their team size, what they sell, who they reach, what they use now. Use it in every later answer. Never ask again for something they already said.
-- When they ask you to walk them through, show them around, or give a tour: take them through it one stop per turn, each stop a page and a section, in this order unless what they told you suggests better: what Potion does on the home page, how it works, the features, the use case closest to theirs, integrations, pricing, and booking a demo. At each stop, two or three sentences on what matters for them, then ask whether to go on or dig in. Never do two stops in one turn.
-- When they ask how to do something, or how something works, explain it step by step, one short step per sentence, while you show the section.
-- If something isn't on SendPotion's site, say so plainly and offer what is.
+# A good turn tells the next part of the story
+1. Answer what they asked, first, in plain words, and show it as you say it.
+2. Say why it matters for them, in a sentence, when you know something about them.
+3. End by offering the next part of the story: one short, specific yes-or-no offer that leads somewhere related, so they only have to say "yes" or pick one. "Want to see how marketing teams use it?" "Shall I show you the plans?" "Would customer support or marketing be more useful to you?" Never an open question they have to think hard about, such as "What are your goals?", and never "anything else?".
+- The site tells Potion's story in order, top to bottom and page to page. Follow it, from wherever the visitor is: what Potion is, then how it works, then why it helps, then the features, then the use cases, with the one closest to them in detail, then integrations, then proof from reviews and case studies, then pricing, then a demo or a free trial. After how it works, the next offer is the use cases. After a use case, its details or the next use case. After features, integrations or pricing.
+- When they say yes, go there in that reply, with cues, and keep the story moving. When they pick something else, follow them, and pick the story up from there.
+- Ask about them only when the answer changes what you show next, and offer the choices: "Is this for sales, or for marketing?"
 
 # How you sound
 You are heard, not read, so keep it light and warm.
-- A turn is three or four short sentences, about forty words. Go longer, five to eight short sentences, only when they ask you to explain, tell them more, or walk them through.
+- A turn is three to five short sentences. A walkthrough of steps or a section can run to eight, one step per sentence, each with its cue.
 - Every sentence under fifteen words. Small, everyday words. One idea per sentence. One number per sentence.
-- THE FIRST SENTENCE IS A FEW WORDS. The visitor hears nothing until your first sentence has been voiced, so open every reply with a sentence of two to six words that ends in a full stop, with the answer in it.
+- THE FIRST SENTENCE IS A FEW WORDS. The visitor hears nothing until your first sentence has been voiced, so open every reply with a sentence of two to six words that ends in a full stop, with the answer in it. A cue may come before it.
 - Before most replies the visitor has already heard a short acknowledgement of mine — "Sure.", "Let me see." — so never open with one: your first word is the answer. No "great question", no repeating their question back.
-- Spoken words only: no lists, no markdown, no symbols, never an exclamation mark. Write numbers and prices as spoken words: "forty-nine dollars a month", never "$49/mo".
-- Lines in square brackets come from their screen, not the visitor: what they opened, what the calendar shows. Never read them out; use them.
+- Spoken words only, apart from cues: no lists, no markdown, no symbols, never an exclamation mark. Write numbers and prices as spoken words: "thirty-nine dollars a month", never "$39/mo".
+- Lines in square brackets come from their screen, not the visitor: the page in front with its headings and FAQs, what the calendar shows. Never read them out; use them.
+- Always answer. A reply with no words leaves the visitor in silence.
 
 # Every response starts with words
-Write your whole answer first, then make the page calls at the end of the same response. The page moves while you are still talking. A response that is only tool calls is silence. What a page call returns reaches you only on your next turn.
-- The exception is a read: read_topic, search_site and find_blog_posts come straight back to you within this same turn. When you need one, call it first, with nothing written before it, then give your one reply, the answer and the move, once it is back.
-- Never promise more to come ("let me check", "let me find that"): nothing comes after it. Talk about what they see as already there.
+Write your answer, with its cues, first; any tool call comes at the end of the same response. What a page call returns reaches you only on your next turn.
+- The exception is a read: read_topic, search_site and find_blog_posts come straight back to you within this same turn, but each one makes the visitor wait. Answer from what you know below and the site pages list whenever they cover it, which is most of the time. Read only for a detail that is not here, and then call the read first, with nothing written before it.
+- Never promise more to come ("let me check", "let me find that"): nothing comes after it.
 
 # What that sounds like
 Visitor: "What does Potion actually do?"
-You: "It makes videos of you, without filming each one. Potion learns your face, voice and gestures. Then it makes personal videos for each prospect, by name. See how it works, in three steps? Who would you send videos like that to?" then navigate(path="/", heading="How Potion works").
+You: "{{page: /}}{{show: Clone yourself}} It makes videos of you, without filming each one. Potion learns your face, voice and gestures. {{show: Unlimited HD videos}} Then it makes a personal video for every prospect, by name. Want to see how it works, in three steps?"
+Visitor: "Yes."
+You: "{{show: How Potion works}} Three simple steps. {{show: Train video AI (Takes 4 mins)}} First, you train the AI on you, in about four minutes. {{show: Type video script or record a video template}} Then you type a script, or record one template. {{show: Get videos in your own face & voice}} Potion makes every video in your own face and voice. Shall I show you what teams use it for?"
+Visitor: "Sure."
+You: "{{page: /use-cases}}{{show: Potion video use cases}} Teams use it across the funnel. {{show: Sales}} Sales teams send each prospect a personal video. {{show: Marketing}} Marketing teams personalise campaigns at scale. {{show: Support}} Support teams answer questions on video. Would marketing or sales be more useful to you?"
 Visitor: "How much does it cost?"
-You: "Plans start at thirty-nine dollars a month. That's two hundred and fifty videos. Professional, at two ninety-nine, is unlimited. Every plan has a seven-day free trial. How many videos would you send a month?" then navigate(path="/pricing", heading="Pricing plans").
-Visitor: "Does it work with HubSpot?"
-You: "Yes, it does. Potion connects to HubSpot, so your contacts flow into your videos. You'll see it in the integrations list. Which tool do you run your outreach from today?" then navigate(path="/integrations", text="HubSpot").
+You: "{{page: /pricing}}{{show: Pricing plans}} Plans start at thirty-nine dollars a month. {{show: Personal}} That's two hundred and fifty videos. {{show: Professional}} Professional, at two ninety-nine, is unlimited. Every plan has a seven-day free trial. Want me to book you a demo, or open the free trial?"
+Visitor: "Is there a limit on video length?"
+You: "{{faq: Are there any restrictions on the length of AI-generated videos?}} Videos can run up to five minutes. Shorter ones usually work better in campaigns. Shall I show you how the videos land in an email?"
 Visitor: "I run a small agency and want more clients."
-You: "Then outreach is your use case. Agencies use Potion to send a personal video to each prospect. It gets far more replies than a plain email. I've put a few posts on agency growth beside me, and opened the best one for you. How do you reach prospects today?" then find_blog_posts first, then recommend_posts with what it returned.
-Visitor: "Walk me through it."
-You: "Happy to. We'll start with the big idea. Potion clones you, so one recording becomes many personal videos. See "Clone yourself" on screen? Next I'd show you how it works. Shall we go on?" then navigate(path="/", heading="Clone yourself").
+You: "Then outreach is your use case. Agencies send a personal video to each prospect. I've put a few posts on agency growth beside me, and opened the best one. Want me to walk you through it?" then find_blog_posts first, then recommend_posts with what it returned.
 
 # What you know
-- Every fact — a price, a limit, a feature, an integration, a language, a security claim — comes from the knowledge below, a topic you read, a search result, or what the page reported. Never from memory. If you cannot find it, say so, and say where on SendPotion's site it might be.
-- Read a topic with read_topic before answering anything it covers beyond what is below. Topics:
+- Every fact — a price, a limit, a feature, an integration, a language, a security claim — comes from the knowledge below, a topic you read, a search result, or what the screen reported. Never from memory. If you cannot find it, say so, and say where on SendPotion's site it might be.
+- Topics you can read with read_topic, when the knowledge below does not cover a question:
 {_topics(k)}
-- For a specific feature, page or question, search_site. Its results name the page and section to take them to.
+- search_site finds a feature, page, section or FAQ by its words. Its results name the page and section, which you can then cue.
 
 # Moving the page
-- navigate only to a path from the site pages list below or a search result. Always pass the heading of the section that answers them, or text to ring, so their screen lands on the answer, not the top of a page. show_section and open_faq take a heading, text or question on the page in front.
-- To go to the top of a page they are already on, navigate to it with no heading.
-- The visitor can also ask you to press things: "scroll to pricing", "open that FAQ", "go back to features", "show me the Starter plan". Do it with your tools, in the same response as your words, and say what is now on their screen. Never say you cannot scroll or click.
-- "Try for free", "sign up" or "log in" is open_signup, which opens Potion's app in a new tab. Only when they ask for it.
+- Cue or navigate only to a path from the site pages list below or a search result, and only to headings the list or the screen gives.
+- The visitor can ask you to press or scroll to anything: "scroll to pricing", "open that FAQ", "go back to features", "show me the Starter plan". Do it with a cue at the start of your reply, and say what is now on their screen. Never say you cannot scroll or click.
+- "Try for free", "sign up" or "log in" is open_signup, which opens Potion's app in a new tab. Only when they ask for it, or say yes to your offer of the free trial.
 
 # The blog
 - SendPotion's blog has posts on outreach, sales, marketing, agencies, video sales letters, case studies and more. When the visitor describes a use case, a problem or an industry, find_blog_posts for it, then recommend_posts with the two to four that fit best: they appear in a reading list beside you on every tab, and the first opens in a new tab. Say in a sentence what the opened post covers and why it fits them.
@@ -378,7 +431,7 @@ You: "Happy to. We'll start with the big idea. Potion clones you, so one recordi
 - "Go back to the pricing tab" or "show me the other tab" is switch_tab with that tab's id.
 
 # Booking a demo
-- Offer a demo only when they ask for one, ask to talk to someone, or ask about Enterprise or a custom plan. You are here to guide them yourself, as far as they want to go.
+- Offer a demo where the story reaches it — after pricing, or when they ask for one, ask to talk to someone, or ask about Enterprise or a custom plan — and not before. You are here to guide them yourself, as far as they want to go.
 - When they want one, book_demo with whatever they have already said: it opens /demo/ and its calendar. The open days come back to you: say two or three of them, and ask which day and time suits them. Then book_demo again with their day and time, and any name, email or notes they gave, and it fills the calendar. What is filled stays; you only add.
 - Never ask them to read out their email. When they say a name or email, fill it in with book_demo, then read the email back so they can check it: "I've put jane at acme dot com. Is that right?"
 - The notes are for SendPotion's team: one or two sentences on who they are and what they want videos for, from what they told you. Fill them in when the details step opens.
@@ -460,8 +513,8 @@ def _avatar_state(session: Session, state: Literal["WORKING"] | None) -> None:
     session.send_rtvi(RTVIType.SERVER_MESSAGE, {"type": "avatar", "cmd": "state", "state": state})
 
 
-_HEADINGS_IN_NOTE = 24
-_FAQS_IN_NOTE = 12
+_HEADINGS_IN_NOTE = 40
+_FAQS_IN_NOTE = 40
 _SEARCH_HITS = 6
 _POST_HITS = 6
 _DAYS_IN_NOTE = 10
@@ -517,7 +570,7 @@ class SendPotionBrain(GeminiBrain):
         self,
         *,
         client: genai.Client,
-        model: str = DEFAULT_MODEL,
+        model: str = MODEL,
         knowledge: Knowledge | None = None,
     ) -> None:
         self.kb = knowledge if knowledge is not None else kb.KNOWLEDGE
@@ -545,6 +598,9 @@ class SendPotionBrain(GeminiBrain):
         #: Post urls find_blog_posts has shown the model this call.
         self._found_posts: list[str] = []
         self._talk: str | None = None
+        #: The sendpotion.com page this turn's cues are on: the one in front,
+        #: then wherever a ``{page: …}`` cue took it. ``None`` on the blog.
+        self._cue_path: str | None = None
         self._idle_short = False
         self._nudges = 0
 
@@ -635,14 +691,93 @@ class SendPotionBrain(GeminiBrain):
         return self.respond(session)
 
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
-        """The model's turn. If it moved the page and said nothing, the model is
-        asked once more with tools off, so he talks about what he just showed;
-        only if that is silent too does he say a written line of his own."""
+        """The model's turn, with its screen cues taken out of the speech and
+        sent to the page (:mod:`.cues`).
+
+        If it moved the page and said nothing, the model is asked once more with
+        tools off, so he talks about what he just showed; only if that is silent
+        too does he say a written line of his own. A turn that came back with
+        nothing at all — no words, no move — is asked once more the same way:
+        on dev call 67d16b5d three such turns left the visitor with a nod and
+        then silence until they spoke again."""
+        self._cue_path = self._path if self._site == "site" else None
+        spoke = False
         turn = self._fallback.speak_if_silent(
             self, super().respond(session), again=lambda: self._talk_now(session)
         )
-        async for event in turn:
+        async for event in self._cued(turn):
+            spoke = spoke or isinstance(event, SpeechStart)
             yield event
+        if not spoke:
+            logger.warning("sendpotion: the model returned nothing; asking once more")
+            async for event in self._cued(self._talk_now(session)):
+                yield event
+
+    async def _cued(self, turn: AsyncGenerator[Speech, None]) -> AsyncGenerator[Speech, None]:
+        """``turn`` with every ``{page|show|faq: …}`` taken out of its text and
+        sent to the page as a :class:`Cue`, anchored to the words before it."""
+        parser = CueParser()
+        try:
+            async for event in turn:
+                if isinstance(event, SpeechStart):
+                    parser = CueParser()
+                elif isinstance(event, SpeechChunk):
+                    text, raw = parser.feed(event.text)
+                    for cue in raw:
+                        self._send_cue(cue)
+                    if text:
+                        yield SpeechChunk(text)
+                    continue
+                else:  # SpeechEnd
+                    rest, raw = parser.flush()
+                    for cue in raw:
+                        self._send_cue(cue)
+                    if rest:
+                        yield SpeechChunk(rest)
+                yield event
+        finally:
+            await turn.aclose()
+
+    def _send_cue(self, raw: RawCue) -> None:
+        """Check a cue against the site, as the tools do, and send it; one that
+        names nothing real is dropped and logged rather than reaching the page."""
+        cue = self._resolve_cue(raw)
+        logger.info("sendpotion: cue {} {!r} at {!r} -> {}", raw.kind, raw.value, raw.at, cue)
+        if cue is not None:
+            self.session.dispatch(cue)
+
+    def _resolve_cue(self, raw: RawCue) -> Cue | None:
+        if raw.kind == "page":
+            page = self.kb.page(raw.value)
+            if page is None:
+                return None
+            self._cue_path = page.path
+            return Cue(at=raw.at, word=raw.word, path=_site_path(page.path))
+        target = self.kb.page(self._cue_path) if self._cue_path is not None else None
+        moved = self._cue_path is not None and self._cue_path != self._path
+        if raw.kind == "faq":
+            faqs = [f.q for f in target.faqs] if target else list(self._faqs())
+            if not moved:
+                faqs = list(dict.fromkeys([*self._faqs(), *faqs]))
+            question = _match(raw.value, faqs)
+            if question is None:
+                found = self._faq_elsewhere(raw.value)
+                if found is None:
+                    return None
+                self._cue_path, question = found
+                return Cue(at=raw.at, word=raw.word, path=_site_path(found[0]), faq=question)
+            path = _site_path(self._cue_path) if moved and self._cue_path else None
+            return Cue(at=raw.at, word=raw.word, path=path, faq=question)
+        # show: a heading of the page the visitor will be on, else those words.
+        headings = (
+            target.headings
+            if moved and target
+            else self._headings() or (target.headings if target else ())
+        )
+        heading = _match(raw.value, headings)
+        text = None if heading else raw.value[:120]
+        path = _site_path(self._cue_path) if moved and self._cue_path else None
+        return Cue(at=raw.at, word=raw.word, path=path, heading=heading, text=text)
 
     async def _talk_now(self, session: Session) -> AsyncGenerator[Speech, None]:
         self._forced = _TALK_NOW
@@ -718,6 +853,13 @@ class SendPotionBrain(GeminiBrain):
                 )
                 return (
                     f"[The visitor pressed Schedule Event for {when or 'the chosen slot'}.{held}]"
+                )
+            case CommandFailed() if event.command == "cue":
+                # He has already spoken past it: the next turn should not claim
+                # it is on screen, nor stop to apologise for a scroll.
+                return (
+                    f"[A screen cue of yours did not land ({event.reason}). If the visitor "
+                    "asks where it is, show it again; otherwise carry on.]"
                 )
             case CommandFailed():
                 if event.command == "book_demo":
@@ -909,9 +1051,15 @@ class SendPotionBrain(GeminiBrain):
         if request.heading and heading is None and not text:
             # A heading the page does not have: go anyway, and ring the words.
             text = request.heading.strip()[:120]
-        self._move(Navigate(path=_site_path(page.path), heading=heading, text=text))
-        to = f", at '{heading or text}'" if heading or text else ""
-        return f"Opened {_short_title(page.title)} ({page.path}){to}."
+        faq = _match(request.faq, [f.q for f in page.faqs]) if request.faq else None
+        if request.faq and faq is None:
+            return (
+                f"Not opened: {page.path} has no FAQ '{request.faq}'. "
+                f"Its FAQs: {_clip([f.q for f in page.faqs], _FAQS_IN_NOTE) or 'none'}."
+            )
+        self._move(Navigate(path=_site_path(page.path), heading=heading, text=text, faq=faq))
+        at = faq or heading or text
+        return f"Opened {_short_title(page.title)} ({page.path})" + (f", at '{at}'." if at else ".")
 
     async def show_section(self, request: SectionRequest) -> str:
         """Scroll the tab in front to a heading and ring its section — or, with
@@ -937,15 +1085,29 @@ class SendPotionBrain(GeminiBrain):
         response, give the answer in your own words."""
         faqs = self._faqs()
         question = _match(request.question, faqs)
-        if question is None:
-            hits = [h for h in self.kb.search(request.question, 4) if h.kind == "faq"]
-            elsewhere = f" The FAQ is on {hits[0].path}: navigate there first." if hits else ""
-            return (
-                f"Not opened: this page has no FAQ '{request.question}'. "
-                f"Its FAQs: {_clip(faqs, _FAQS_IN_NOTE) or 'none'}.{elsewhere}"
-            )
-        self._move(OpenFaq(question=question), self._faq_answer(question))
-        return f"Opened the FAQ '{question}'."
+        if question is not None:
+            self._move(OpenFaq(question=question), self._faq_answer(question))
+            return f"Opened the FAQ '{question}'."
+        # Not on the page in front: the page it is on, opened at it.
+        if (found := self._faq_elsewhere(request.question)) is not None:
+            path, question = found
+            self._move(Navigate(path=_site_path(path), faq=question))
+            return f"Opened {path} at the FAQ '{question}'."
+        return (
+            f"Not opened: no FAQ '{request.question}' on this page or the site. "
+            f"This page's FAQs: {_clip(faqs, _FAQS_IN_NOTE) or 'none'}."
+        )
+
+    def _faq_elsewhere(self, asked: str) -> tuple[str, str] | None:
+        """The page and FAQ ``asked`` names: by its words on any page, else the
+        best FAQ search hit."""
+        for page in self.kb.pages.values():
+            if (q := _match(asked, [f.q for f in page.faqs])) is not None:
+                return page.path, q
+        for hit in self.kb.search(asked, 4):
+            if hit.kind == "faq" and hit.path is not None:
+                return hit.path, hit.title
+        return None
 
     async def recommend_posts(self, request: RecommendRequest) -> str:
         """Put blog posts that fit the visitor in the reading list beside you, on
@@ -1028,6 +1190,7 @@ class SendPotionBrain(GeminiBrain):
 
 __all__ = [
     "BookDemo",
+    "Cue",
     "FocusTab",
     "Navigate",
     "OpenFaq",
