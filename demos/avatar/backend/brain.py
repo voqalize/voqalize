@@ -86,6 +86,7 @@ from .content import (
     BLURBS,
     DEFAULT_AVATAR,
     DEFAULT_VOICE,
+    RETIRED_VOICES,
     SECTIONS_BY_ID,
     SectionId,
     sections_for_prompt,
@@ -330,6 +331,7 @@ def _resolve_avatar(init: dict[str, Any] | None) -> Wearing:
     voice."""
     avatar = str((init or {}).get("avatar", ""))
     voice = str((init or {}).get("voice", ""))
+    voice = RETIRED_VOICES.get(voice, voice)
     if _NAME.fullmatch(avatar) and voice in {v.value for v in Voice}:
         return Wearing(avatar, Voice(voice))
     return Wearing(DEFAULT_AVATAR, DEFAULT_VOICE)

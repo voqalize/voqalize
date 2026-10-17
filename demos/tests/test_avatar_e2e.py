@@ -45,9 +45,9 @@ from voqalize_demos._loaded.avatar.brain import _GREETING, _SIGN_OFF  # noqa: E4
 from voqalize_demos._loaded.avatar.content import SECTIONS  # noqa: E402
 
 # The default avatar is `tanya`, and `tanya` is female — so a call that names no
-# face opens on her kokoro voice, which is not the voice the agent is
-# provisioned with (``omnivoice/gaurav``): the brain has to move it.
-VOICE = "kokoro/ava"
+# face opens on her voice, which is not the voice the agent is provisioned with
+# (``omnivoice/gaurav``): the brain has to move it.
+VOICE = "omnivoice/madison"
 LANGUAGE = "en"
 
 
@@ -246,14 +246,24 @@ async def test_the_face_picked_before_the_call_is_the_voice_the_opener_uses() ->
 
 
 async def test_the_voice_the_page_sends_is_the_voice_spoken() -> None:
-    """tess and tanya are both female and both kokoro, and the default is
-    tanya's. A brain that kept the default voice whenever the gender matched
-    would pass every other check, so this pins that the sent voice is used."""
+    """tess and tanya are both female, and the default is tanya's. A brain that
+    kept the default voice whenever the gender matched would pass every other
+    check, so this pins that the sent voice is used."""
+    async with demo("avatar", _llm()) as rig:
+        await rig.driver.start_session(
+            init={"surface": "avatar-web", "avatar": "tess", "voice": "omnivoice/emily"}
+        )
+        check_voice_pair(rig, voice="omnivoice/emily", language="en")
+
+
+async def test_a_retired_kokoro_suggestion_is_worn_as_its_successor() -> None:
+    """The roster still suggests ``kokoro/sarah`` for tess, and the speech tier no
+    longer serves it: the face stays tess and speaks in the voice that replaced it."""
     async with demo("avatar", _llm()) as rig:
         await rig.driver.start_session(
             init={"surface": "avatar-web", "avatar": "tess", "voice": "kokoro/sarah"}
         )
-        check_voice_pair(rig, voice="kokoro/sarah", language="en")
+        check_voice_pair(rig, voice="omnivoice/emily", language="en")
 
 
 @pytest.mark.parametrize(

@@ -39,7 +39,7 @@ from ._harness import check_greeting, check_turn, check_voice_pair, demo
 
 discover()
 
-VOICE = "kokoro/sarah"
+VOICE = "omnivoice/emily"
 LANGUAGE = "en"
 
 #: The board as ``data.ts``'s ``boardSeed()`` sends it — the worklist the advisor

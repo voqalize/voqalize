@@ -93,9 +93,9 @@ DEMOS: dict[str, Expected] = {
     # The avatar demo takes its voice from the connect request: the page sends
     # the face the visitor picked with that face's suggested voice, so a face
     # and a voice are one choice. This sweep sends no `init`, so what is checked
-    # here is the default pair: `tanya`, on kokoro. The picked case is asserted
+    # here is the default pair: `tanya`, on madison. The picked case is asserted
     # in test_avatar_e2e.py.
-    "avatar": Expected(voice="kokoro/ava", language="en"),
+    "avatar": Expected(voice="omnivoice/madison", language="en"),
     # Aria takes the language from the connect request's ``init`` and configures
     # both legs from it, so the brain still owns the answer — nothing in the
     # payload ⇒ English. The per-user case is asserted below.
@@ -114,11 +114,11 @@ DEMOS: dict[str, Expected] = {
     # same choice also picks which hand-written greeting is spoken. That switch,
     # and the page's choice, are asserted in test_kiosk_e2e.py.
     "kiosk": Expected(voice="omnivoice/gayatri", language="en"),
-    # Docket speaks with a kokoro checkpoint and wears the face recorded beside
-    # it — Tanya, in the dock: a Delaware-law MSA read in US commercial-contract
+    # Docket speaks with an American English voice and wears Tanya's face, in
+    # the dock: a Delaware-law MSA read in US commercial-contract
     # register, where a cloned Indian-English persona was the accent of nobody in
     # the scene. English only, which is all this voice speaks.
-    "legal": Expected(voice="kokoro/ava", language="en"),
+    "legal": Expected(voice="omnivoice/madison", language="en"),
     # Auric opens in the language of the enquiry form's state; nothing in the
     # payload ⇒ the Hindi default.
     "lead_qual": Expected(voice="omnivoice/gauri", language="hi"),
@@ -135,7 +135,7 @@ DEMOS: dict[str, Expected] = {
     # Tushar, SendPotion's guide on sendpotion.com and its blog: English only,
     # on gaurav, as Saatvik's Tushar. Asserted in test_sendpotion_e2e.py.
     "sendpotion": Expected(voice="omnivoice/gaurav", language="en"),
-    "servicing": Expected(voice="kokoro/sarah", language="en"),
+    "servicing": Expected(voice="omnivoice/emily", language="en"),
     "shopping": Expected(voice="omnivoice/gaurav", language="en"),
     # The patient picks sugar's language on the page, before the call exists, so
     # it rides the connect request and this brain configures nothing. What the
@@ -145,7 +145,7 @@ DEMOS: dict[str, Expected] = {
     # grown back beside it.
     "sugar": Expected(at_connect=True),
     "support": Expected(voice="omnivoice/gaurav", language="en"),
-    "travel": Expected(voice="kokoro/sarah", language="en"),
+    "travel": Expected(voice="omnivoice/emily", language="en"),
 }
 
 
@@ -241,10 +241,10 @@ async def test_the_check_fails_when_a_half_is_wrong() -> None:
     expectation is rejected, on each half independently."""
     async with demo("legal", ScriptedGemini()) as rig:
         await rig.driver.start_session()
-        # The session really is en/`kokoro/ava` — so each of these must raise, and
+        # The session really is en/`omnivoice/madison` — so each of these must raise, and
         # each is wrong in exactly one half, or a passing assertion would not say
         # which half the probe can see.
         with pytest.raises(ConformanceError, match="TTS language"):
-            check_voice_pair(rig, voice="kokoro/ava", language="hi")
+            check_voice_pair(rig, voice="omnivoice/madison", language="hi")
         with pytest.raises(ConformanceError, match="TTS voice"):
             check_voice_pair(rig, voice="omnivoice/gauri", language="en")

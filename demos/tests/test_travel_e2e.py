@@ -40,7 +40,7 @@ from voqalize_demos._loaded.travel.brain_gemini import (  # noqa: E402
     TravelBrain,
 )
 
-VOICE = "kokoro/sarah"
+VOICE = "omnivoice/emily"
 LANGUAGE = "en"
 
 
