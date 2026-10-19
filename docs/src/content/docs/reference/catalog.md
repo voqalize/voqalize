@@ -90,10 +90,40 @@ surface as we learn, not in advance.
 | `Voice.KOKORO_NOAH` | `kokoro/noah` | Noah (American male) | `en` |
 | `Voice.KOKORO_OLIVER` | `kokoro/oliver` | Oliver (British male) | `en` |
 | `Voice.KOKORO_SARAH` | `kokoro/sarah` | Sarah (American female) | `en` |
+| `Voice.OMNIVOICE_AALIYAH` | `omnivoice/aaliyah` | Aaliyah (female) | `en` |
+| `Voice.OMNIVOICE_ADITYA` | `omnivoice/aditya` | Aditya (male) | `en`, `hi` |
+| `Voice.OMNIVOICE_AMARA` | `omnivoice/amara` | Amara (female) | `en` |
+| `Voice.OMNIVOICE_ANANYA` | `omnivoice/ananya` | Ananya (female) | `en`, `hi` |
+| `Voice.OMNIVOICE_ANDREI` | `omnivoice/andrei` | Andrei (male) | `en` |
+| `Voice.OMNIVOICE_ARJUN` | `omnivoice/arjun` | Arjun (male) | `en`, `hi` |
+| `Voice.OMNIVOICE_CHIARA` | `omnivoice/chiara` | Chiara (female) | `en` |
+| `Voice.OMNIVOICE_DANIEL` | `omnivoice/daniel` | Daniel (male) | `en` |
+| `Voice.OMNIVOICE_ELODIE` | `omnivoice/elodie` | Elodie (female) | `en` |
+| `Voice.OMNIVOICE_EMILY` | `omnivoice/emily` | Emily (female) | `en` |
+| `Voice.OMNIVOICE_FREYA` | `omnivoice/freya` | Freya (female) | `en` |
 | `Voice.OMNIVOICE_GAURAV` | `omnivoice/gaurav` | Gaurav (male) | `bn`, `en`, `gu`, `hi`, `kn`, `ml`, `mr`, `pa`, `ta`, `te` |
 | `Voice.OMNIVOICE_GAURI` | `omnivoice/gauri` | Gauri (female) | `bn`, `en`, `gu`, `hi`, `kn`, `ml`, `mr`, `pa`, `ta`, `te` |
 | `Voice.OMNIVOICE_GAUTAM` | `omnivoice/gautam` | Gautam (male) | `bn`, `en`, `gu`, `hi`, `kn`, `ml`, `mr`, `pa`, `ta`, `te` |
 | `Voice.OMNIVOICE_GAYATRI` | `omnivoice/gayatri` | Gayatri (female) | `bn`, `en`, `gu`, `hi`, `kn`, `ml`, `mr`, `pa`, `ta`, `te` |
+| `Voice.OMNIVOICE_JASMINE` | `omnivoice/jasmine` | Jasmine (female) | `en` |
+| `Voice.OMNIVOICE_JAVIER` | `omnivoice/javier` | Javier (male) | `en`, `es` |
+| `Voice.OMNIVOICE_JORDAN` | `omnivoice/jordan` | Jordan (male) | `en` |
+| `Voice.OMNIVOICE_KARTHIK` | `omnivoice/karthik` | Karthik (male) | `en`, `hi` |
+| `Voice.OMNIVOICE_KASIA` | `omnivoice/kasia` | Kasia (female) | `en` |
+| `Voice.OMNIVOICE_KAVYA` | `omnivoice/kavya` | Kavya (female) | `en`, `hi` |
+| `Voice.OMNIVOICE_LUKAS` | `omnivoice/lukas` | Lukas (male) | `en` |
+| `Voice.OMNIVOICE_MADISON` | `omnivoice/madison` | Madison (female) | `en` |
+| `Voice.OMNIVOICE_MARCUS` | `omnivoice/marcus` | Marcus (male) | `en` |
+| `Voice.OMNIVOICE_MEERA` | `omnivoice/meera` | Meera (female) | `en`, `hi` |
+| `Voice.OMNIVOICE_NIKHIL` | `omnivoice/nikhil` | Nikhil (male) | `en`, `hi` |
+| `Voice.OMNIVOICE_OLIVERBENNETT` | `omnivoice/oliverbennett` | Oliverbennett (male) | `en` |
+| `Voice.OMNIVOICE_PRIYA` | `omnivoice/priya` | Priya (female) | `en`, `hi` |
+| `Voice.OMNIVOICE_RIYA` | `omnivoice/riya` | Riya (female) | `en`, `hi` |
+| `Voice.OMNIVOICE_ROHAN` | `omnivoice/rohan` | Rohan (male) | `en`, `hi` |
+| `Voice.OMNIVOICE_RYAN` | `omnivoice/ryan` | Ryan (male) | `en` |
+| `Voice.OMNIVOICE_SAMUEL` | `omnivoice/samuel` | Samuel (male) | `en` |
+| `Voice.OMNIVOICE_SOFIA` | `omnivoice/sofia` | Sofia (female) | `en` |
+| `Voice.OMNIVOICE_TYLER` | `omnivoice/tyler` | Tyler (male) | `en` |
 <!-- voices:end -->
 
 **That table is not written by hand.** Voqalize's speech tier publishes the
