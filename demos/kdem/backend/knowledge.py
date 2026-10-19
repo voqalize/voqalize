@@ -2943,6 +2943,16 @@ quarter of its score."""
 _LIST_DOCUMENT = 0.5
 """A document whose passages read as a list on average (a directory of
 addresses and codes, an annexure of names) keeps half the score of each."""
+_THIN_CHARS = 150
+"""A page with less text than this, once boilerplate is gone, is a heading and
+a line: a download form ("Fill the details to download the Guidelines
+Document") or a stub. Its few words are nearly all its title, so BM25's length
+normalisation hands it the top score for any question that shares them, ahead
+of the page that explains the programme."""
+_THIN_WEIGHT = 0.75
+"""A thin page's score against a full one's: enough to lose to the programme's
+own page on the programme's name, not so much that a question naming the
+document ("NIPUNA guidelines") stops finding it."""
 
 
 def listness(text: str) -> float:
@@ -3015,7 +3025,8 @@ class KnowledgeBase:
                 self._passages += ((p.url, None, c) for c in _chunks(lines))
         # How much each passage counts beside the others: a PDF passage less than
         # a page's, a list-like one less again, and every passage of a document
-        # that reads as a list on the whole less still. Folded into the weights
+        # that reads as a list on the whole less still, and a page with almost no
+        # text of its own less than one that has some. Folded into the weights
         # below, so a search pays nothing for it.
         listy = [listness(chunk) for _, _, chunk in self._passages]
         by_doc: dict[str, list[float]] = {}
@@ -3027,6 +3038,7 @@ class KnowledgeBase:
             * _DIGEST_SECTIONS.get(self._pages[url].section, 1.0)
             * (1 - _LIST_DAMPING * score)
             * (_LIST_DOCUMENT if listy_doc[url] else 1.0)
+            * (_THIN_WEIGHT if self._thin(url) else 1.0)
             for (url, _, _), score in zip(self._passages, listy, strict=True)
         ]
         counts: list[Counter[str]] = []
@@ -3053,6 +3065,11 @@ class KnowledgeBase:
                 posting[0].append(i)
                 posting[1].append(factor[i] * idf[term] * tf * (_K1 + 1) / (tf + norm))
         self._n = n
+
+    def _thin(self, url: str) -> bool:
+        """A web page with almost no text of its own (see :data:`_THIN_CHARS`)."""
+        page = self._pages[url]
+        return page.kind == "page" and len(page.text) < _THIN_CHARS
 
     @classmethod
     def empty(cls, allowlist: Allowlist) -> KnowledgeBase:

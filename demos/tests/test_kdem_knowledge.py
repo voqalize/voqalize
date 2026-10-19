@@ -767,6 +767,26 @@ def test_the_core_holds_government_first_and_nipuna_under_the_list_titles() -> N
     assert hits[0].url == f"{SITE}/nipuna-karnataka-guidelines/"
 
 
+def test_the_programme_page_outranks_its_download_forms(monkeypatch: pytest.MonkeyPatch) -> None:
+    """For "NIPUNA Karnataka" the programme's page, not the two download forms
+    beside it, whose eighty-odd characters are nearly all title, comes first;
+    the form a question names by its document still does."""
+    from voqalize_demos._loaded.kdem import knowledge
+
+    assert CORE is not None
+    main = f"{SITE}/nipuna-karnataka/"
+    forms = {f"{SITE}/nipuna-karnataka-guidelines/", f"{SITE}/nipuna-karnataka-proposal/"}
+    with monkeypatch.context() as m:
+        m.setattr(knowledge, "_THIN_WEIGHT", 1.0)
+        control = KnowledgeService(ALLOWLIST, core=CORE).kb
+    assert control.search("NIPUNA Karnataka")[0].url in forms  # the failure, reproduced
+    kb = KnowledgeService(ALLOWLIST, core=CORE).kb
+    for query in ("NIPUNA Karnataka", "nipuna", "NIPUNA proposal"):
+        assert kb.search(query)[0].url == main, query
+    assert kb.search("NIPUNA guidelines")[0].url == f"{SITE}/nipuna-karnataka-guidelines/"
+    assert f"{SITE}/nipuna-karnataka-proposal/" in {p.url for p in kb.search("NIPUNA proposal")}
+
+
 async def test_a_snapshot_on_disk_replaces_the_core(
     tmp_path: Path, allowlist: Allowlist, monkeypatch: pytest.MonkeyPatch
 ) -> None:
