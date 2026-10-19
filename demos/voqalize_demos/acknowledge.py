@@ -28,7 +28,8 @@ Like :class:`~voqalize_demos.FallbackLine`'s line, a nod never enters the
 model's context: it is the brain's, not the model's.
 
 This began as qween's (``qween/backend/acknowledge.py``, which still carries its
-own copy); the word lists and lines here are per demo.
+own copy). The word lists read English, Hindi and Kannada; the lines, and a
+demo's own vocabulary, are per demo.
 """
 
 from __future__ import annotations
@@ -50,8 +51,10 @@ from voqalize.sdk.wire import Language
 
 Kind = Literal["request", "question", "correction", "statement"]
 
-#: Words, in either script; the danda (।) ends a sentence and is not a letter.
-_WORDS = re.compile("[\\wऀ-ॣ०-ॿ']+")
+#: Words, in Latin, Devanagari or Kannada script; the danda (।) ends a
+#: sentence and is not a letter. Kannada's vowel signs are not ``\\w``, so
+#: its block is named whole.
+_WORDS = re.compile("[\\wऀ-ॣ०-ॿ\u0c80-\u0cff']+")
 
 #: Nothing to nod at: the user's own backchannel, thanks, goodbye, hello.
 _SKIP = frozenset(
@@ -95,10 +98,37 @@ _SKIP = frozenset(
         "शुक्रिया",
         "नमस्ते",
         "हम्म",
+        "ಹೌದು",
+        "ಸರಿ",
+        "ಓಕೆ",
+        "ಹಾ",
+        "ಹಾಂ",
+        "ಇಲ್ಲ",
+        "ಬೇಡ",
+        "ಆಯ್ತು",
+        "ಧನ್ಯವಾದ",
+        "ಧನ್ಯವಾದಗಳು",
+        "ಥ್ಯಾಂಕ್ಸ್",
+        "ನಮಸ್ಕಾರ",
+        "ಹಲೋ",
     ]
 )
 _THANKS_OR_BYE = frozenset(
-    ["thanks", "thank", "bye", "goodbye", "shukriya", "dhanyavaad", "धन्यवाद", "शुक्रिया", "अलविदा"]
+    [
+        "thanks",
+        "thank",
+        "bye",
+        "goodbye",
+        "shukriya",
+        "dhanyavaad",
+        "धन्यवाद",
+        "शुक्रिया",
+        "अलविदा",
+        "ಧನ್ಯವಾದ",
+        "ಧನ್ಯವಾದಗಳು",
+        "ಥ್ಯಾಂಕ್ಸ್",
+        "ಬೈ",
+    ]
 )
 _CORRECTION = frozenset(
     [
@@ -118,6 +148,9 @@ _CORRECTION = frozenset(
         "गलत",
         "ग़लत",
         "बल्कि",
+        "ಇಲ್ಲ",
+        "ಅಲ್ಲ",
+        "ತಪ್ಪು",
     ]
 )
 _QUESTION = frozenset(
@@ -160,6 +193,18 @@ _QUESTION = frozenset(
         "कितनी",
         "क्यों",
         "कहाँ",
+        "ಏನು",
+        "ಏನಿದೆ",
+        "ಯಾವ",
+        "ಯಾವುದು",
+        "ಯಾಕೆ",
+        "ಏಕೆ",
+        "ಹೇಗೆ",
+        "ಯಾರು",
+        "ಎಲ್ಲಿ",
+        "ಎಲ್ಲಿದೆ",
+        "ಯಾವಾಗ",
+        "ಎಷ್ಟು",
     ]
 )
 #: A mic check wants "yes, I can hear you" at once, not a nod.
@@ -208,6 +253,14 @@ _REQUEST = frozenset(
         "खोलिए",
         "बताओ",
         "बताइए",
+        "ತೋರಿಸಿ",
+        "ಬೇಕು",
+        "ತೆರೆಯಿರಿ",
+        "ಹೇಳಿ",
+        "ತಿಳಿಸಿ",
+        "ಹುಡುಕಿ",
+        "ಕರೆದುಕೊಂಡು",
+        "ನೋಡಬೇಕು",
     ]
 )
 _COMMON = frozenset(
@@ -270,6 +323,19 @@ _COMMON = frozenset(
         "यह",
         "वो",
         "और",
+        "ನಾನು",
+        "ನನಗೆ",
+        "ನನ್ನ",
+        "ನಮ್ಮ",
+        "ನೀವು",
+        "ನಿಮ್ಮ",
+        "ಈ",
+        "ಆ",
+        "ಇದು",
+        "ಅದು",
+        "ಇದೆ",
+        "ಮತ್ತು",
+        "ಬಗ್ಗೆ",
     ]
 )
 
@@ -301,7 +367,13 @@ def classify(text: str, vocabulary: Vocabulary = _NO_VOCABULARY) -> Kind | None:
         said & {"why", "kyun", "kyon", "क्यों"} and said & _TOO_MUCH
     ):
         return None
-    if words[0] in {"no", "nahi", "nahin", "नहीं"} or said & {"wrong", "galat", "गलत", "ग़लत"}:
+    if words[0] in {"no", "nahi", "nahin", "नहीं", "ಇಲ್ಲ", "ಅಲ್ಲ"} or said & {
+        "wrong",
+        "galat",
+        "गलत",
+        "ग़लत",
+        "ತಪ್ಪು",
+    }:
         return "correction"
     if said & _REQUEST and not (words[0] in _QUESTION and words[0] not in {"can", "could"}):
         return "request"
