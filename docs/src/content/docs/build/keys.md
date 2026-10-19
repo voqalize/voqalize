@@ -69,7 +69,9 @@ key id.
 
 ## Managing agents and keys takes neither
 
-Creating agents, minting keys, reading sessions — none of it is driven by an API key.
+Creating agents and minting keys are not driven by an API key. The one read an
+`sk_` makes is its own agent's calls and recordings, which your backend fetches
+with it ([fetching them from your server](/operate/recordings/#fetching-them-from-your-server)).
 Developer tooling authenticates interactively over OAuth, which is what the MCP
 server does when you connect it. There is no third key kind to manage, and no
 long-lived admin credential to leak.

@@ -129,6 +129,42 @@ after the session ends, and reads `uploaded` if it is there and `lost` if it is
 not. Read this before concluding that an empty `get_recordings` list means the
 call was not recorded. See [reading a call back](/operate/reading-a-call/).
 
+## Fetching them from your server
+
+Your backend fetches a call's files with the `sk_` it starts calls with. No
+console sign-in and no MCP client are needed:
+
+```sh
+curl -s "https://app.voqalize.com/api/v1/sessions.get_recordings?session_id=$SESSION_ID" \
+  -H "Authorization: Bearer $VOQALIZE_SK"
+```
+
+It answers `{session_id, recordings}`, the same entries `get_recordings` returns
+over MCP. Each file it can serve carries a `download_url` and a
+`download_url_expires_at`. Fetch each URL with a plain `GET`. The file is named
+`{session_id}-{role}.{ext}`, so `curl -OJ` saves it under that name.
+
+```sh
+curl -sfOJ "$DOWNLOAD_URL"
+```
+
+The key reads only the agent it names. Two more reads take it:
+
+| Route | What it answers |
+|---|---|
+| `GET /api/v1/sessions.list` | That agent's sessions, newest first. Takes `since`, `until`, `state`, `cursor` and `limit`. Asking for another agent is a `403`. |
+| `GET /api/v1/sessions.get?session_id=` | One session, including `files.recording`, which says whether the recording has arrived. |
+
+A session of another agent answers `404`, the same as one that does not exist.
+A publishable (`pk_`) key reads nothing: it ships in page source, and these routes
+hand back URLs to a caller's voice and video. All three refuse it with `403`,
+code `secret_key_required`.
+
+For a video call, the `composite` is encoded after the other files, about half
+the call's length later. Its entry is missing from the list until it lands, so
+fetch the lanes and `audio` as soon as `files.recording` reads `uploaded`, and
+read the list again for the composite.
+
 ## The download URL is a credential
 
 An entry in state `completed` carries a `download_url`: a short-lived signed URL
@@ -138,11 +174,13 @@ partial one rather than the rendered file.
 
 It carries its own credential, so treat it as a secret. Do not write it anywhere
 durable — not a ticket, not a log line, not a spreadsheet. `ttl_seconds` sets its
-lifetime between 60 and 900 seconds, defaulting to the maximum. Fifteen minutes is
-long enough to download and short enough that a leaked URL is dead by the time
-anyone finds it.
+lifetime between 60 and 1200 seconds, defaulting to the maximum. Twenty minutes
+is long enough to start downloading an hour of video, and short enough that a
+leaked URL is dead by the time anyone finds it. A download that starts before the
+URL expires runs to the end.
 
-Ask for a fresh one rather than holding one.
+Ask for a fresh one rather than holding one, including to resume a download that
+broke off.
 
 The URL lifetime is not the retention period. Recordings are retained for 30
 days; download anything you need to keep longer. See

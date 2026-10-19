@@ -1,10 +1,13 @@
 ---
 title: The HTTP API
-description: One route takes a key — sessions.connect, which starts a call. Its body, its strictness, and why management lives on MCP instead.
+description: A secret key starts a call with sessions.connect and reads its agent's calls back. The body, its strictness, and why management lives on MCP instead.
 ---
 
-One route accepts an API key rather than a console session, and it does one
-thing: start a call.
+An API key, rather than a console session, does two things here: it starts a
+call, and an `sk_` reads that agent's calls back. The reads are
+`sessions.list`, `sessions.get` and `sessions.get_recordings`, covered under
+[fetching them from your server](/operate/recordings/#fetching-them-from-your-server).
+This page is about the one route that starts a call.
 
 ```
 POST https://app.voqalize.com/api/v1/sessions.connect
@@ -18,8 +21,8 @@ verbatim: it is what `startBotAndConnect` takes, so there is no field to pick
 out and no object to rebuild.
 
 Everything else — creating an agent, pointing its `brain_url` at your route,
-minting and revoking keys, listing sessions, reading logs and usage — is [the
-MCP server](/reference/mcp/), authenticated over OAuth.
+minting and revoking keys, reading other agents' sessions, logs and usage — is
+[the MCP server](/reference/mcp/), authenticated over OAuth.
 
 ## The body
 
