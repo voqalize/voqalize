@@ -264,9 +264,14 @@ These are about the *agent*:
 Others are about the session's configuration rather than the key:
 
 - **The control plane parses `config` as canonical proto3 JSON.** An unknown
-  field name, a wrong type, or a language the enum does not contain is a `400`
-  with code `invalid_config`, naming the offending field. Nothing about the
-  catalog is re-typed on that side; the message is proto's own.
+  field name or a wrong type is a `400` with code `invalid_config`, naming the
+  offending field. Nothing about the catalog is re-typed on that side; the
+  message is proto's own.
+- **A language the recognizer does not hear is refused at `sessions.connect`.**
+  `stt.language` is judged against what the speech tier says it transcribes,
+  and a tag outside that is a `400` `invalid_config` whose `details.code` is
+  `unsupported_language`. The message lists the languages the recognizer does
+  hear; `GET /api/v1/capabilities` lists them too.
 - **Voqalize then runs the same validator your brain's `configure` goes
   through**, before it builds the pipeline, and answers the request that starts
   the media instead. The clip rule, the both-legs rule and the idle ceiling are
@@ -278,14 +283,16 @@ Others are about the session's configuration rather than the key:
 A refusal at either door happens before the session task starts, so the brain is
 never dialled.
 
-**There is no model field on the wire, and no free-text voice or language.**
-`Config` names a voice and a language, both protobuf enums, and a value outside
-them is refused by the decoder before it reaches anything that could substitute
-for it. That absence is what makes a whole class of failure unreachable: your
-brain cannot select an engine, cannot name a model, and cannot ask for a voice
-that does not exist. The wire used to carry `voice`, `language` and `model` as
-free-text strings, and a language with no recorded clip behind it was read in
-the English clip's voice with nothing reporting it.
+**There is no model field on the wire, and nothing substitutes for a voice or a
+language.** `Config` names a voice by its id and a language by its BCP-47 tag,
+and each is judged against what the speech tier serves before it reaches
+anything that could fall back: an id or a tag it does not serve is refused, at
+whichever door it came through. That is what makes a whole class of failure
+unreachable: your brain cannot select an engine, cannot name a model, and
+cannot ask for a voice that does not exist. The wire used to carry `voice`,
+`language` and `model` as free-text strings that nothing judged, and a language
+with no recorded clip behind it was read in the English clip's voice with
+nothing reporting it.
 
 ## What your user hears
 

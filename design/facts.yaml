@@ -710,23 +710,24 @@ facts:
       sed -n '/^pub const INDIC_LANGUAGES/,/^];/p' | grep -o '"[a-z]*"' | wc -l
 
   speech.stt.languages.total:
-    value: 23
-    source: speech prod branch, stt-rs/src/registry.rs INDIC_LANGUAGES + English
-    verified: 2026-10-19
+    value: 47
+    source: speech prod branch, stt-rs/src/registry.rs PARAKEET_LANGUAGES + INDIC_LANGUAGES
+    verified: 2026-10-20
     reproduce: >-
-      git -C ../speech show origin/prod:stt-rs/src/registry.rs | grep -n
-      'INDIC_LANGUAGES\|"en"'
+      git -C ../speech show origin/prod:stt-rs/src/registry.rs | awk
+      '/^pub const (PARAKEET|INDIC)_LANGUAGES/,/^];/' | grep -o '"[a-z]*"' | wc -l
     note: >-
-      English plus 22 Indic languages — what prod serves. Say twenty-three, or
-      say "English plus 22 Indic languages"; the roster is in docs
-      reference/catalog.md and nowhere else. **Dev is ahead of this**: speech
-      `main` routes English and the other European languages on
-      Parakeet TDT 0.6B v3's model card (`PARAKEET_LANGUAGES` in
-      `stt-rs/src/registry.rs`) and publishes its route table at
-      `GET /v2/languages`. Prod moves to that table with the speech prod
-      release, and this fact, the catalog and the `Language` enum move then —
-      not before, since customer pages state what prod serves. The retired claim is "sixty-plus languages", which was never true of
-      any model we host.
+      English and the European languages on Parakeet TDT 0.6B v3's model card,
+      plus the Indic languages on IndicConformer — what the speech tier
+      publishes at `GET /v2/languages`, and what `GET /api/v1/capabilities`
+      relays. Verified against speech `main` on 2026-10-20, ahead of the speech
+      prod release this lands with; re-run `reproduce` against `origin/prod`
+      when it ships. Prefer naming the groups to stating the total; the roster
+      is in docs reference/catalog.md and nowhere else. Before that release it
+      was English plus 22 Indic languages. The `Language` enum stays at English
+      and the Indic codes: a European language is a `language_tag` string only.
+      The retired claim is "sixty-plus languages", which was never true of any
+      model we host.
     forbid:
       - '\b(sixty|60)\+? languages'
       - '\b100\+? languages'

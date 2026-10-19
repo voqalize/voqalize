@@ -550,7 +550,10 @@ enum Voice {
   VOICE_OMNIVOICE_NIKHIL = 40 [(voice_id) = "omnivoice/nikhil"];
 }
 
-// English plus the 22 Indic languages the speech tier serves.
+// English and the Indic languages, which is what the speech tier served when
+// this enumeration was frozen. The recognizer hears more than it names — the
+// European languages have no value here and never will — so the speech tier,
+// not this list, is the record of what is heard.
 //
 // Deprecated, with the `language` fields that carry it: name a language by its
 // BCP-47 tag in the `language_tag` fields instead, which a runtime

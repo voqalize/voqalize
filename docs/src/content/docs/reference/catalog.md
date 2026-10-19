@@ -40,13 +40,29 @@ is wrong, so every transcript, log and automated score is blind to it — see
 ### Model
 
 There is no model to choose, and no field in which to choose one. Every session
-is served by the same **recognizer**: a composite that covers **English plus 22
-Indic languages** and picks the engine underneath from the language you set. A
-brain names a language; it never names an engine.
+is served by the same **recognizer**: a composite that covers **English, the
+European languages below and the Indic languages below**, and picks the engine
+underneath from the language you set. A brain names a language; it never names
+an engine.
 
 ### Language (`stt.language`)
 
-The recognizer serves **English (`en`)** plus these 22 Indic languages:
+A language is a BCP-47 tag, such as `es`, `es-MX` or `ta`. The recognizer
+matches it by the part before the first hyphen, ignoring case, so `es-MX` is
+heard as Spanish. It hears **English (`en`)** and these European languages:
+
+| Code | Language | Code | Language | Code | Language |
+|---|---|---|---|---|---|
+| `bg` | Bulgarian | `cs` | Czech | `da` | Danish |
+| `de` | German | `el` | Greek | `es` | Spanish |
+| `et` | Estonian | `fi` | Finnish | `fr` | French |
+| `hr` | Croatian | `hu` | Hungarian | `it` | Italian |
+| `lt` | Lithuanian | `lv` | Latvian | `mt` | Maltese |
+| `nl` | Dutch | `pl` | Polish | `pt` | Portuguese |
+| `ro` | Romanian | `ru` | Russian | `sk` | Slovak |
+| `sl` | Slovenian | `sv` | Swedish | `uk` | Ukrainian |
+
+And these Indic languages:
 
 | Code | Language | Code | Language | Code | Language |
 |---|---|---|---|---|---|
@@ -59,13 +75,34 @@ The recognizer serves **English (`en`)** plus these 22 Indic languages:
 | `sd` | Sindhi | `ta` | Tamil | `te` | Telugu |
 | `ur` | Urdu | | | | |
 
-These are the members of the `Language` enum, so a language outside the set is
-not a value you can send — it is a value you cannot construct. That is the point:
-the old failure mode was an unserved code falling through to the English
-recognizer, in a call nobody could tell had gone wrong.
+**A language the recognizer does not hear is refused, never substituted.** At
+`sessions.connect` it is a `400` `invalid_config` whose `details.code` is
+`unsupported_language`, and the message lists what the recognizer does hear.
+Mid-call, from your brain, it is a rejected `configure`. The old failure mode
+was an unserved code falling through to the English recognizer, in a call
+nobody could tell had gone wrong. The authority on what is heard today is
+`GET /api/v1/capabilities`, which reads the speech tier rather than a list kept
+here.
 
-A language change that crosses the English↔Indic boundary is applied at the
-**next end-of-turn**, never mid-utterance.
+The `Language` enum still works, and its members are the English and Indic
+codes above. It is frozen and deprecated: a European language has no member,
+and there will not be one. Name it by its tag. A call heard and spoken in
+Spanish:
+
+```python
+await session.configure(
+    Config(
+        stt=SttConfig(language="es-ES"),
+        tts=TtsConfig(language="es-ES", voice="omnivoice/javier"),
+    )
+)
+```
+
+A voice speaks fewer languages than the recognizer hears, so the two legs often
+differ: a call heard in German and answered in English is a legitimate
+configuration. Which voice speaks what is the table below.
+
+A language change is applied at the **next end-of-turn**, never mid-utterance.
 
 ### Waiting through a pause (`stt.patience`)
 
@@ -263,8 +300,8 @@ is the whole story:
 
 ### We run the speech tier ourselves
 
-The recognizer covers English plus 22 Indic languages, and it runs on our own
-GPUs. Text-to-speech runs there too: a voice-cloning model whose personas are
+The recognizer covers English, the European languages and the Indic languages,
+and it runs on our own GPUs. Text-to-speech runs there too: a voice-cloning model whose personas are
 recorded per language, and English checkpoint voices that speak in the accent
 they were trained in. Speech-to-text is a composite that reads the language and
 routes to the engine underneath, which is why a brain never names one.
