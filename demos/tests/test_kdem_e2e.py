@@ -1293,3 +1293,12 @@ async def test_a_broad_question_gets_a_second_search_and_never_a_third() -> None
     found = _results(llm.captured_contents[-1])
     assert found["search_kdem"].startswith("Not searched: that is two searches this turn")
     assert "search once more with different words" in llm.captured_system_instructions[-1]
+
+
+def test_a_named_page_is_taken_from_the_list_and_visited_at_once() -> None:
+    """'Take me to the events page' names a page: it comes from THE PAGES by its
+    title, not from a search that can rank a different page first, and it is
+    visited at once rather than offered back."""
+    assert "Do not offer it back to them first." in _SYSTEM_INSTRUCTION
+    assert "Take its path from THE PAGES without searching." in _SYSTEM_INSTRUCTION
+    assert "Events is /events/" in _SYSTEM_INSTRUCTION
