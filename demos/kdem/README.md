@@ -10,7 +10,7 @@ example "the Startup Policy, page 12", and shows the PDF as a link card. She spe
 English by default and switches to Kannada when the visitor asks for it or
 speaks it.
 
-Like `marketing` and `qween`, this demo has a `backend/` and no `frontend/`. The
+Like `qween`, this demo has a `backend/` and no `frontend/`. The
 page is karnatakadigital.in itself. It is not in `manifest.json`, so `build.mjs`
 never looks for a frontend here and it is not a card on `/demos`.
 

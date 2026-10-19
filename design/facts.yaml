@@ -166,13 +166,22 @@ facts:
       pattern: '^name = "(.+)"$'
 
   sdk.python.version.tree:
-    value: '0.8.0'
+    value: '0.10.0'
     source: sdk/python/pyproject.toml:3
-    verified: 2026-10-09
+    verified: 2026-10-16
     derive:
       file: sdk/python/pyproject.toml
       pattern: '^version = "(.+)"$'
     note: >-
+      Bumped to 0.10.0 on 2026-10-16 for voice and language as strings:
+      TtsConfig.voice_id, TtsConfig.language_tag and SttConfig.language_tag,
+      Capability.STRING_CONFIG, Response.code and the caller error codes
+      UNSUPPORTED_VOICE, UNSUPPORTED_LANGUAGE and INVALID_REQUEST. The enum
+      fields keep their names and are deprecated; additive on the wire
+      (version stays 3).
+      Bumped to 0.9.0 on 2026-10-16 for the thirty character voices: Voice
+      gains VOICE_OMNIVOICE_EMILY through VOICE_OMNIVOICE_NIKHIL (11-40), appended
+      so no value moves. An added roster takes the minor under 1.0.
       Bumped to 0.8.0 on 2026-10-09 for SpeechCancel: Session.cancel_speech,
       can_cancel_speech and Unsupported, with SessionStart.capabilities on the
       wire. Additive in the package API and on the wire (version stays 3); it
@@ -194,13 +203,19 @@ facts:
       two are deliberately apart between a bump and the tag that publishes it.
 
   sdk.python.version.published:
-    value: '0.6.0'
+    value: '0.9.0'
     source: https://pypi.org/pypi/voqalize-agent-sdk/json
-    verified: 2026-09-24
+    verified: 2026-10-16
     reproduce: >-
       curl -s https://pypi.org/pypi/voqalize-agent-sdk/json
       | python3 -c "import sys,json;print(json.load(sys.stdin)['info']['version'])"
     note: >-
+      Published 2026-10-16 by the `python-sdk-v0.9.0` tag, and level with
+      sdk.python.version.tree again; the install lines across the docs moved
+      from 0.6.0 to 0.9.0 the same day. 0.9.0 puts the thirty character voices
+      on the wire (VOICE_OMNIVOICE_EMILY through VOICE_OMNIVOICE_NIKHIL, 11-40,
+      appended), so a brain on 0.8.0 is understood unchanged. 0.8.0 was published
+      2026-10-09 (SpeechCancel); 0.7.0 never was.
       Published 2026-09-24 by the `python-sdk-v0.6.0` tag, and level with
       sdk.python.version.tree again. 0.6.0 puts the gautam and gayatri voices
       on the wire — OMNIVOICE_GAUTAM and OMNIVOICE_GAYATRI on Voice, appended,
@@ -451,9 +466,9 @@ facts:
       - 'no client library of ours'
 
   client.transport.version:
-    value: '0.3.0'
+    value: '0.4.0'
     source: https://registry.npmjs.org/@voqalize/client-transport
-    verified: 2026-10-07
+    verified: 2026-10-15
     reproduce: npm view @voqalize/client-transport version
     note: >-
       The version every install line pins, exactly, and every demo here
@@ -463,7 +478,7 @@ facts:
   client.transport.pipecat_floor:
     value: 'client-js >=1.13.0 <2, small-webrtc-transport >=1.10.0 <2'
     source: voqalize-client-transport/package.json peerDependencies
-    verified: 2026-10-07
+    verified: 2026-10-15
     reproduce: grep -A3 peerDependencies ../voqalize-client-transport/package.json
     note: >-
       What a page on the default path must clear. pipecat.client.floor is the
@@ -1133,10 +1148,10 @@ facts:
 
   pricing.state:
     value: per conversation minute, on the plans the pricing page lists
-    source: platform/frontend/apps/marketing/src/data/pricing.ts
+    source: marketing-website/src/data/pricing.ts
     verified: 2026-09-21
     reproduce: >-
-      sed -n '60,130p' ../platform/frontend/apps/marketing/src/data/pricing.ts
+      sed -n '60,130p' ../marketing-website/src/data/pricing.ts
     note: >-
       The pricing page renders PLANS and writes no figure of its own, so a page
       here quotes a plan's figure only by pointing at voqalize.com/pricing. The
@@ -1152,7 +1167,7 @@ facts:
 
   service_level:
     value: uptime SLA on Growth and Enterprise, as the pricing page states
-    source: platform/frontend/apps/marketing/src/data/pricing.ts
+    source: marketing-website/src/data/pricing.ts
     verified: 2026-09-21
     note: >-
       The SLA is a plan feature; name it by pointing at the pricing page rather
@@ -1161,11 +1176,11 @@ facts:
 
   regions.current:
     value: India
-    source: platform/frontend/apps/marketing/src/pages/privacy.astro:294
-    verified: 2026-08-28
+    source: marketing-website/src/components/pages/privacy/PrivacyPolicy.astro:113
+    verified: 2026-10-15
     reproduce: >-
-      sed -n '286,302p'
-      ../platform/frontend/apps/marketing/src/pages/privacy.astro
+      sed -n '112,114p'
+      ../marketing-website/src/components/pages/privacy/PrivacyPolicy.astro
     note: >-
       Processing and storage are in India today. The deployed control plane and
       storage are asia-south1 and the voice tier runs in Indian data centres.
@@ -1205,7 +1220,7 @@ facts:
 
   pricing.minute_includes:
     value: STT, TTS, turn-taking, WebRTC, the avatar, observability and network; the developer's LLM excluded
-    source: platform/frontend/apps/marketing/src/data/pricing.ts INCLUDED
+    source: marketing-website/src/data/pricing.ts INCLUDED
     verified: 2026-09-21
     note: >-
       Recording and storage above a plan's quota are metered on top (ADDITIONAL
@@ -1214,10 +1229,10 @@ facts:
 
   limits.concurrent_calls:
     value: set per plan, as the pricing page lists
-    source: platform/frontend/apps/marketing/src/data/pricing.ts
+    source: marketing-website/src/data/pricing.ts
     verified: 2026-09-21
     reproduce: >-
-      grep -n 'concurrency' ../platform/frontend/apps/marketing/src/data/pricing.ts
+      grep -n 'concurrency' ../marketing-website/src/data/pricing.ts
     note: >-
       Docs describe the product as sold and point at the pricing page for each
       plan's concurrent sessions, minutes and storage. The per-tenant API rate
@@ -1228,7 +1243,7 @@ facts:
 
   support.plans:
     value: email support on Starter; priority Slack and a forward-deployed engineer on Growth; a named account manager on Enterprise
-    source: platform/frontend/apps/marketing/src/data/pricing.ts
+    source: marketing-website/src/data/pricing.ts
     verified: 2026-09-21
     note: >-
       Point at the pricing page for support by plan; no response time beyond

@@ -34,13 +34,26 @@ class Frame:
 
 
 class ErrorCode(StrEnum):
-    """What kind of error an :class:`ErrorFrame` reports."""
+    """What kind of error an :class:`ErrorFrame` or a rejected
+    :class:`ResponseFrame` reports.
+
+    ``UNSUPPORTED_VOICE``, ``UNSUPPORTED_LANGUAGE`` and ``INVALID_REQUEST`` are
+    the caller's mistakes: something the brain asked for that cannot be served,
+    and that asking differently fixes. ``INTERNAL`` is Voqalize's own fault.
+    ``UNKNOWN`` is never sent: it is what a code this build does not know reads
+    as, so a code added after this SDK shipped is not mistaken for any of the
+    others.
+    """
 
     PROTOCOL = "protocol"
     WIRE_VERSION = "wire_version"
     REJECTED = "rejected"
     OVERLOAD = "overload"
     INTERNAL = "internal"
+    UNSUPPORTED_VOICE = "unsupported_voice"
+    UNSUPPORTED_LANGUAGE = "unsupported_language"
+    INVALID_REQUEST = "invalid_request"
+    UNKNOWN = "unknown"
 
 
 class RTVIType(StrEnum):
@@ -100,6 +113,11 @@ class Capability(StrEnum):
 
     #: Voqalize honours :class:`SpeechCancelFrame`.
     SPEECH_CANCEL = "speech_cancel"
+
+    #: Voqalize reads a voice or language given as a string — a voice id such
+    #: as ``"omnivoice/gauri"``, a BCP-47 tag such as ``"en-IN"`` — rather than
+    #: only the :class:`Voice` and :class:`Language` catalogs.
+    STRING_CONFIG = "string_config"
 
 
 # ─── Voqalize → Brain ────────────────────────────────────────────────────────────
@@ -211,7 +229,13 @@ class SpeechCancelFrame(Frame):
 
 
 class Voice(StrEnum):
-    """The voices a session can speak in.
+    """A fixed catalog of the voices a session can speak in.
+
+    Superseded by naming the voice as a string — its id, such as
+    ``"omnivoice/gauri"`` — which reaches every voice the speech tier serves,
+    including those added after this SDK shipped. The catalog still works and
+    is still understood by every Voqalize, but it no longer grows and it will
+    be removed. Each member's value is the same string.
 
     The value is the voice id the speech tier knows, and its prefix is what
     picks the engine — there is no separate model field, here or on the wire.
@@ -244,10 +268,75 @@ class Voice(StrEnum):
     OMNIVOICE_GAUTAM = "omnivoice/gautam"
     #: Female, Indian English and the Indic languages.
     OMNIVOICE_GAYATRI = "omnivoice/gayatri"
+    #: Female, American English. The voice of the character Emily Carter.
+    OMNIVOICE_EMILY = "omnivoice/emily"
+    #: Female, American English. The voice of the character Jasmine Brooks.
+    OMNIVOICE_JASMINE = "omnivoice/jasmine"
+    #: Female, American English. The voice of the character Sofia Ramirez.
+    OMNIVOICE_SOFIA = "omnivoice/sofia"
+    #: Female, American English. The voice of the character Madison Hayes.
+    OMNIVOICE_MADISON = "omnivoice/madison"
+    #: Female, American English. The voice of the character Aaliyah Johnson.
+    OMNIVOICE_AALIYAH = "omnivoice/aaliyah"
+    #: Male, American English. The voice of the character Ryan Mitchell.
+    OMNIVOICE_RYAN = "omnivoice/ryan"
+    #: Male, American English. The voice of the character Marcus Williams.
+    OMNIVOICE_MARCUS = "omnivoice/marcus"
+    #: Male, American English. The voice of the character Daniel Reyes.
+    OMNIVOICE_DANIEL = "omnivoice/daniel"
+    #: Male, American English. The voice of the character Tyler Morgan.
+    OMNIVOICE_TYLER = "omnivoice/tyler"
+    #: Male, American English. The voice of the character Jordan Ellis.
+    OMNIVOICE_JORDAN = "omnivoice/jordan"
+    #: Female, European-accented English. The voice of the character Freya Lindqvist.
+    OMNIVOICE_FREYA = "omnivoice/freya"
+    #: Female, European-accented English. The voice of the character Chiara Romano.
+    OMNIVOICE_CHIARA = "omnivoice/chiara"
+    #: Female, European-accented English. The voice of the character Élodie Martin.
+    OMNIVOICE_ELODIE = "omnivoice/elodie"
+    #: Female, British English. The voice of the character Amara Mensah.
+    OMNIVOICE_AMARA = "omnivoice/amara"
+    #: Female, European-accented English. The voice of the character Kasia Nowak.
+    OMNIVOICE_KASIA = "omnivoice/kasia"
+    #: Male, European-accented English. The voice of the character Lukas Becker.
+    OMNIVOICE_LUKAS = "omnivoice/lukas"
+    #: Male, European-accented English. The voice of the character Javier Morales.
+    OMNIVOICE_JAVIER = "omnivoice/javier"
+    #: Male, British English. The voice of the character Oliver Bennett.
+    OMNIVOICE_OLIVERBENNETT = "omnivoice/oliverbennett"
+    #: Male, British English. The voice of the character Samuel Adeyemi.
+    OMNIVOICE_SAMUEL = "omnivoice/samuel"
+    #: Male, European-accented English. The voice of the character Andrei Popescu.
+    OMNIVOICE_ANDREI = "omnivoice/andrei"
+    #: Female, Indian English. The voice of the character Ananya Sharma.
+    OMNIVOICE_ANANYA = "omnivoice/ananya"
+    #: Female, Indian English. The voice of the character Meera Iyer.
+    OMNIVOICE_MEERA = "omnivoice/meera"
+    #: Female, Indian English. The voice of the character Priya Nair.
+    OMNIVOICE_PRIYA = "omnivoice/priya"
+    #: Female, Indian English. The voice of the character Riya Kapoor.
+    OMNIVOICE_RIYA = "omnivoice/riya"
+    #: Female, Indian English. The voice of the character Kavya Reddy.
+    OMNIVOICE_KAVYA = "omnivoice/kavya"
+    #: Male, Indian English. The voice of the character Arjun Mehta.
+    OMNIVOICE_ARJUN = "omnivoice/arjun"
+    #: Male, Indian English. The voice of the character Karthik Rao.
+    OMNIVOICE_KARTHIK = "omnivoice/karthik"
+    #: Male, Indian English. The voice of the character Rohan Malhotra.
+    OMNIVOICE_ROHAN = "omnivoice/rohan"
+    #: Male, Indian English. The voice of the character Aditya Verma.
+    OMNIVOICE_ADITYA = "omnivoice/aditya"
+    #: Male, Indian English. The voice of the character Nikhil Joshi.
+    OMNIVOICE_NIKHIL = "omnivoice/nikhil"
 
 
 class Language(StrEnum):
-    """The languages a session can be conducted in.
+    """A fixed catalog of the languages a session can be conducted in.
+
+    Superseded by naming the language as a BCP-47 tag string, such as ``"ta"``
+    or ``"en-IN"``. The catalog still works and is still understood by every
+    Voqalize, but it no longer grows and it will be removed. Each member's
+    value is the same tag.
 
     The value is the code the speech tier wants. It is ISO 639-1 where a
     two-letter code exists and 639-3 where none does — six of these have no
@@ -292,6 +381,18 @@ class ConfigError(ValueError):
     """
 
 
+def _check_named(where: str, value: str | None) -> None:
+    # Whether the speech tier serves a voice or speaks a language is its own
+    # answer, and comes back as a rejected Response. All that is decidable here
+    # is that something was named at all: an empty string would read as unset
+    # at one end and as a name at the other.
+    if value is not None and not value.strip():
+        raise ConfigError(
+            f"{where} is an empty string. Leave it as None to keep the current "
+            f"setting, or name one."
+        )
+
+
 @dataclass(frozen=True)
 class TtsConfig:
     """How the session speaks. Applies to the next speech unit, never
@@ -303,10 +404,19 @@ class TtsConfig:
     speak comes back as a rejected :class:`ResponseFrame` saying which
     languages that voice does speak, rather than being refused here from a
     stale copy of the roster.
+
+    Each takes a string — ``voice="omnivoice/gauri"``, ``language="hi"`` — or
+    a member of the older :class:`Voice` and :class:`Language` catalogs. A
+    string needs a Voqalize that advertises :attr:`Capability.STRING_CONFIG`;
+    a catalog member is understood by every one.
     """
 
-    voice: Voice | None = None
-    language: Language | None = None
+    voice: Voice | str | None = None
+    language: Language | str | None = None
+
+    def __post_init__(self) -> None:
+        _check_named("tts.voice", self.voice)
+        _check_named("tts.language", self.language)
 
 
 #: The bounds of :attr:`SttConfig.patience`. The scale is the contract; what a
@@ -321,9 +431,13 @@ class SttConfig:
 
     ``language`` applies once the open turn commits, never mid-utterance.
     ``patience`` applies immediately, to the pause already in progress.
+
+    ``language`` takes a BCP-47 tag string, such as ``"ta"``, or a member of
+    the older :class:`Language` catalog, with the same rule as
+    :class:`TtsConfig`.
     """
 
-    language: Language | None = None
+    language: Language | str | None = None
 
     #: How long the recognizer waits through a pause before deciding the caller
     #: has finished, from ``PATIENCE_MIN`` to ``PATIENCE_MAX``. Higher waits
@@ -340,6 +454,7 @@ class SttConfig:
     patience: int | None = None
 
     def __post_init__(self) -> None:
+        _check_named("stt.language", self.language)
         if self.patience is None:
             return
         if not PATIENCE_MIN <= self.patience <= PATIENCE_MAX:
@@ -417,11 +532,16 @@ class ConfigureFrame(Frame):
 
 @dataclass
 class ResponseFrame(Frame):
-    """Voqalize's answer to one request. ``detail`` is empty on acceptance."""
+    """Voqalize's answer to one request. ``detail`` is empty on acceptance.
+
+    ``code`` says why a request was rejected, by kind. It is ``None`` on
+    acceptance, and from a Voqalize that predates it.
+    """
 
     request_id: int = 0
     accepted: bool = True
     detail: str = ""
+    code: ErrorCode | None = None
 
 
 #: Every frame that carries a request. Each has a ``request_id``, and exactly one

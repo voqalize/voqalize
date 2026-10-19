@@ -362,8 +362,8 @@ class LegalBrain(GeminiBrain):
         # both legs at once: the recognizer's hint, and the TTS reference clip,
         # which is the accent. This lands before the greeting.
         #
-        # `kokoro/ava` speaks English and only English, which is what this desk is:
-        # a Delaware-law MSA, read in US commercial-contract register, with no
+        # `omnivoice/madison` speaks English and only English, which is what this
+        # desk is: a Delaware-law MSA, read in US commercial-contract register, with no
         # rupee amount anywhere in `content.py` for the Indic voices to render. The
         # pairing rule is satisfied the same way it always was — both legs named,
         # and `en` is a language this voice speaks, so the speech tier serves it
@@ -383,7 +383,7 @@ class LegalBrain(GeminiBrain):
         await session.configure(
             Config(
                 stt=SttConfig(language=Language.EN, patience=PATIENCE),
-                tts=TtsConfig(voice=Voice.KOKORO_AVA, language=Language.EN),
+                tts=TtsConfig(voice=Voice.OMNIVOICE_MADISON, language=Language.EN),
             )
         )
         logger.info("legal: session start")

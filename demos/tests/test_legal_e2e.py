@@ -28,7 +28,7 @@ discover()
 
 from voqalize_demos._loaded.legal.brain import _GREETING  # noqa: E402
 
-VOICE = "kokoro/ava"
+VOICE = "omnivoice/madison"
 LANGUAGE = "en"
 
 # c2 is Term & Termination in the shipped MSA. ``ClauseId`` is a Literal over the

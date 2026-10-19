@@ -23,7 +23,7 @@
  * sits in a small tile in the console's corner. She is driven entirely by the
  * `avatar` messages Voqalize sends on the data channel the call already has, so
  * the tile is the live client and a character name and nothing else; the brain
- * gives the desk her voice (`kokoro/sarah`) to match.
+ * gives the desk her voice (`omnivoice/emily`) to match.
  *
  * This is exactly the surface an external developer embeds: one `fetch` for
  * `sessions.connect`, handed to `PipecatAppBase`, driven by a publishable

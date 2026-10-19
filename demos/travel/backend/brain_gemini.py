@@ -760,7 +760,7 @@ class TravelBrain(GeminiBrain):
         await session.configure(
             Config(
                 stt=SttConfig(language=Language.EN, patience=PATIENCE),
-                tts=TtsConfig(voice=Voice.KOKORO_SARAH, language=Language.EN),
+                tts=TtsConfig(voice=Voice.OMNIVOICE_EMILY, language=Language.EN),
             )
         )
 

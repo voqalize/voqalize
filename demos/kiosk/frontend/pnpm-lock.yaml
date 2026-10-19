@@ -27,11 +27,11 @@ importers:
         specifier: ^0.5.7
         version: 0.5.7(@pipecat-ai/client-js@1.13.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@voqalize/client-transport':
-        specifier: 0.3.2
-        version: 0.3.2(@pipecat-ai/client-js@1.13.1)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.13.1))
+        specifier: 0.4.0
+        version: 0.4.0(@pipecat-ai/client-js@1.13.1)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.13.1))
       '@voqalize/demo-kit':
         specifier: file:../../shared
-        version: file:../../shared(@pipecat-ai/client-js@1.13.1)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.13.1))(@voqalize/client-transport@0.3.2(@pipecat-ai/client-js@1.13.1)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.13.1)))(react@19.3.0)
+        version: file:../../shared(@pipecat-ai/client-js@1.13.1)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.13.1))(@voqalize/client-transport@0.4.0(@pipecat-ai/client-js@1.13.1)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.13.1)))(react@19.3.0)
       react:
         specifier: ^19.1.0
         version: 19.3.0
@@ -1009,8 +1009,8 @@ packages:
       react-dom:
         optional: true
 
-  '@voqalize/client-transport@0.3.2':
-    resolution: {integrity: sha512-jgAvFBIXMFEvDF9C8Rc0Q1BP9Y2pjIdsqJVF0sLJ8YWT0N4Tudp1ZGuWUjZCmcPNa8UsSQHxikpuTCo/jigGgA==}
+  '@voqalize/client-transport@0.4.0':
+    resolution: {integrity: sha512-3I6ztS/iIjm48Q7E2rXEN732XNJXherUYKWvJZ82ZnO2sTQ0TMw7cR18KazpA8IacHI4NScwMBh5TOIRx83evw==}
     peerDependencies:
       '@pipecat-ai/client-js': '>=1.13.0 <2'
       '@pipecat-ai/small-webrtc-transport': '>=1.10.0 <2'
@@ -1020,7 +1020,7 @@ packages:
     peerDependencies:
       '@pipecat-ai/client-js': '>=1.5.0 <2'
       '@pipecat-ai/small-webrtc-transport': '>=1.10.6 <2'
-      '@voqalize/client-transport': 0.3.2
+      '@voqalize/client-transport': 0.4.0
       react: ^19.0.0
 
   aria-hidden@1.2.6:
@@ -2290,16 +2290,16 @@ snapshots:
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
 
-  '@voqalize/client-transport@0.3.2(@pipecat-ai/client-js@1.13.1)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.13.1))':
+  '@voqalize/client-transport@0.4.0(@pipecat-ai/client-js@1.13.1)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.13.1))':
     dependencies:
       '@pipecat-ai/client-js': 1.13.1
       '@pipecat-ai/small-webrtc-transport': 1.10.8(@pipecat-ai/client-js@1.13.1)
 
-  '@voqalize/demo-kit@file:../../shared(@pipecat-ai/client-js@1.13.1)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.13.1))(@voqalize/client-transport@0.3.2(@pipecat-ai/client-js@1.13.1)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.13.1)))(react@19.3.0)':
+  '@voqalize/demo-kit@file:../../shared(@pipecat-ai/client-js@1.13.1)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.13.1))(@voqalize/client-transport@0.4.0(@pipecat-ai/client-js@1.13.1)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.13.1)))(react@19.3.0)':
     dependencies:
       '@pipecat-ai/client-js': 1.13.1
       '@pipecat-ai/small-webrtc-transport': 1.10.8(@pipecat-ai/client-js@1.13.1)
-      '@voqalize/client-transport': 0.3.2(@pipecat-ai/client-js@1.13.1)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.13.1))
+      '@voqalize/client-transport': 0.4.0(@pipecat-ai/client-js@1.13.1)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.13.1))
       react: 19.3.0
 
   aria-hidden@1.2.6:

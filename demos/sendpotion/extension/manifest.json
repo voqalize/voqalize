@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "Tushar for SendPotion — Voqalize preview",
+  "version": "0.0.0",
+  "description": "A voice guide on sendpotion.com and blog.sendpotion.com, who answers from SendPotion's own pages and blog, takes visitors to the part that answers them, fills in forms with them, and opens the posts that fit their use case. A Voqalize preview.",
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://sendpotion.com/*", "https://www.sendpotion.com/*"],
+      "js": ["early.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://sendpotion.com/*", "https://www.sendpotion.com/*", "https://blog.sendpotion.com/*"],
+      "js": ["bridge.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://sendpotion.com/*", "https://www.sendpotion.com/*", "https://blog.sendpotion.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://calendly.com/*"],
+      "js": ["calendly.js"],
+      "all_frames": true,
+      "run_at": "document_idle",
+      "world": "MAIN"
+    }
+  ],
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://sendpotion.com/*",
+    "https://www.sendpotion.com/*",
+    "https://blog.sendpotion.com/*"
+  ]
+}

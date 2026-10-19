@@ -23,8 +23,8 @@
  *
  * **The face is Tanya**, from `@voqalize/avatar` — the same 2.5-D character the
  * homepage agent wears, and she is here because the voice moved first: Docket
- * now speaks with `kokoro/ava`, which is Tanya's voice on voqalize.com. One
- * face, one voice, wherever she turns up.
+ * speaks with `omnivoice/madison`, an American English voice, as Tanya did
+ * when she spoke with Kokoro's Ava.
  *
  * She takes the live `PipecatClient` and the character name `"tanya"`, and
  * drives herself off the `avatar` messages Voqalize already sends down the same

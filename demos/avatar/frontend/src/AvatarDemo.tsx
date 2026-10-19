@@ -620,10 +620,18 @@ function useCall(media: VoqalizeMedia, params: APIRequest) {
   const [call] = useState(() => {
     const transport = createVoqalizeTransport({ mediaManager: media.manager, keepAcrossPageLoads: true });
     const client = new PipecatClient({ transport, enableMic: true, enableCam: false });
-    media.onClient(client);
-    return { transport, client, rejoining: false };
+    return { transport, client, bound: false, rejoining: false };
   });
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Not from the initializer: StrictMode calls that twice in development and
+    // keeps the first client, so the media, pointed at the second, ignored
+    // every track the kept one started and the agent played to no one.
+    if (call.bound) return;
+    call.bound = true;
+    media.onClient(call.client);
+  }, [call, media]);
 
   useEffect(() => {
     // Once per page: StrictMode runs this effect twice in development.

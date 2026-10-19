@@ -74,6 +74,40 @@ always.**
 An empty submission mints nothing — it is dropped where it arrives rather than
 travelling as a turn that says nothing.
 
+## What Voqalize tells your page
+
+Voqalize sends your page one `server-message` of its own, and your brain never
+sees it: how well the caller's audio is reaching us.
+
+```json
+{ "label": "rtvi-ai", "type": "server-message",
+  "data": { "type": "network-quality", "quality": "poor" } }
+```
+
+`quality` is one of these, best first:
+
+| `quality` | What it means for the call |
+|---|---|
+| `good` | Nothing to say. |
+| `fair` | Audio is being lost and repaired before anyone hears it. The call sounds normal. |
+| `poor` | Some audio did not arrive, or arrives slowly. Expect slower replies and the odd misheard word. |
+| `bad` | Long stretches of audio are missing. Expect the agent to miss what was said. |
+
+It is sent only when the grade changes, and never at the start: until the first
+one arrives, the call is `good`. A worse grade arrives at once; a better one comes
+back a step at a time, after the network has held there for a while, so a brief
+burst of loss doesn't make it flicker.
+
+What the caller is told, if anything, is yours to decide. A banner at `poor`, a
+"we lost you for a moment" at `bad`, or nothing at all. The word is all we send:
+the measurements behind it are ours and change as we tune them.
+
+```js
+client.on(RTVIEvent.ServerMessage, (data) => {
+  if (data?.type === "network-quality") showNetworkBanner(data.quality);
+});
+```
+
 ## What does not cross, and why that is the point
 
 `bot-*` and `llm-*` are absent from both lists. They are the voice tier's own

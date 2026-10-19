@@ -10,7 +10,7 @@ are the upstream records for the SDK surfaces.
 
 ## Brain SDK
 
-The published Python brain SDK is `voqalize-agent-sdk==0.6.0`. It requires
+The published Python brain SDK is `voqalize-agent-sdk==0.9.0`. It requires
 Python 3.12 or later. Pin the version you build against: releases before 1.0
 may change the brain callbacks.
 
@@ -34,7 +34,7 @@ connecting a live call. See [bringing an agent you already have](/build/existing
 ## App clients
 
 Voqalize uses Pipecat's RTVI and SmallWebRTC client surfaces directly. In a
-browser, the media is `@voqalize/client-transport@0.3.0`, our open
+browser, the media is `@voqalize/client-transport@0.4.0`, our open
 implementation of pipecat's media manager; pipecat's stock transport still
 works and is documented for a couple more releases. See
 [client libraries](/build/pipecat/).

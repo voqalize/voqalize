@@ -160,7 +160,16 @@ SECTIONS_BY_ID: dict[str, Section] = {section.id: section for section in SECTION
 #: voice it wears it in. The page opens its strip on the same face
 #: (``DEFAULT_AVATAR`` in ``frontend/src/AvatarDemo.tsx``).
 DEFAULT_AVATAR = "tanya"
-DEFAULT_VOICE = Voice.KOKORO_AVA
+DEFAULT_VOICE = Voice.OMNIVOICE_MADISON
+
+#: The voice a face's retired suggestion is worn in. The roster still suggests
+#: Kokoro voices for ``tanya`` and ``tess``, and the speech tier has stopped
+#: serving Kokoro; until a release of ``@voqalize/avatar`` moves the roster, the
+#: brain reads each as the American English voice that replaces it.
+RETIRED_VOICES: dict[str, Voice] = {
+    "kokoro/ava": Voice.OMNIVOICE_MADISON,
+    "kokoro/sarah": Voice.OMNIVOICE_EMILY,
+}
 
 #: What the model may say about a face beyond its name. Optional: a face with no
 #: line here is introduced by name alone, so a new character needs no edit.

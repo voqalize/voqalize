@@ -15,8 +15,8 @@
  * other half: our own copy, for our own gallery.
  *
  * If you change {@link CONSENT} or {@link RETENTION_DAYS}, change
- * `frontend/apps/marketing/src/pages/privacy.astro` in the private repo in the
- * same window, and change the bucket lifecycle rule that actually enforces it.
+ * the voqalize.com privacy policy (`src/components/pages/privacy/PrivacyPolicy.astro`
+ * in the site's repo) in the same window, and change the bucket lifecycle rule that actually enforces it.
  * The three are one claim, and a number that appears in only two of them is a
  * finding waiting to be written up.
  */
