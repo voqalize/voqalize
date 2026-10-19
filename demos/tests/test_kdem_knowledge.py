@@ -844,3 +844,177 @@ async def test_a_service_answers_from_approved_pages_while_new_ones_load(
     await service.refresh_now(policy=RefreshPolicy(pause_s=0))
     assert sizes == [3]
     assert len(service.kb) == 5
+
+
+# ─── Ranking: pages over loosely matching PDFs, prose over lists ──────────────
+#
+# Reproduces what a live test found: thousands of PDF passages swamped the
+# site's short pages, and a long directory of training centres (names, codes,
+# addresses) won any broad business question on shared words alone.
+
+UPLOADS = f"{SITE}/wp-content/uploads/2026/01"
+DIRECTORY = f"{UPLOADS}/sample-centre-directory.pdf"
+REPORT = f"{UPLOADS}/sample-annual-report.pdf"
+POLICY = f"{UPLOADS}/sample-it-policy.pdf"
+
+
+def _directory_page(n: int) -> str:
+    """A page of a directory: capitalised names, codes and addresses, no prose."""
+    rows = []
+    for i in range(12):
+        k = n * 12 + i
+        rows.append(
+            f"TC{4100 + k} Sri Lakshmi Institute Of IT Services Business Expansion Policy "
+            f"Incentives Cell {k} Main Road Bangalore Urban 5600{k % 90:02d} Karnataka IT ITES"
+        )
+    return "\n".join(rows)
+
+
+def _report_page(n: int) -> str:
+    return (
+        f"Page {n} of the report describes a delegation visit and the KDEM initiatives and "
+        "programs discussed with visiting officials during the year. The overview of each "
+        "meeting lists the initiatives presented, the programs reviewed and the next steps "
+        "agreed. Delegates toured incubators and heard about programs for students."
+    )
+
+
+def _ranking_pages() -> list[StoredPage]:
+    def pdf(url: str, title: str, pages: list[str]) -> StoredPage:
+        return StoredPage(
+            url, title, "policies-resources", "auto", "", "", "", tuple(pages), kind="pdf"
+        )
+
+    policy_pages = [
+        f"Section {n}. The policy sets out its general provisions and definitions for the "
+        "applicants, and the procedure for each claim under the scheme."
+        for n in range(1, 60)
+    ]
+    policy_pages[36] = (
+        "Lease rental reimbursement. Eligible IT companies receive a lease rental "
+        "reimbursement of fifty percent of the rent paid, up to ten lakh rupees a year, "
+        "for three years from the start of operations."
+    )
+    return [
+        StoredPage(
+            f"{SITE}/about-us/", "About KDEM", "core-pages", "approved", "", "", "",
+            ("Karnataka Digital Economy Mission (KDEM) is the knowledge bridge between the "
+             "government and industry. Its initiatives and programs grow the digital economy "
+             "across the state, with an overview of every programme on its focus area pages.",),
+        ),
+        StoredPage(
+            f"{SITE}/innovation-and-startup/", "Innovation and Startups",
+            "focus-areas-programmes", "approved", "", "", "",
+            ("KDEM initiatives and programs help IT services companies expand their "
+             "business in Bangalore and beyond, with policy incentives for companies that "
+             "set up in Karnataka.",),
+        ),
+        StoredPage(
+            f"{SITE}/software-products-services-including-global-capability-centers-gcc/",
+            "IT Products & Services / BPM and GCC Promotion", "focus-areas-programmes",
+            "approved", "", "", "",
+            ("Promotion of IT services and global capability centres: KDEM supports "
+             "companies that expand in Karnataka and explains the policy incentives open "
+             "to them.",),
+        ),
+        StoredPage(
+            f"{SITE}/talent-accelerator/", "Talent Accelerator", "focus-areas-programmes",
+            "approved", "", "", "",
+            ("Talent for IT services businesses across Karnataka's emerging hubs, beyond "
+             "Bangalore, through skilling and industry partnerships.",),
+        ),
+        StoredPage(
+            f"{SITE}/resource/", "KDEM Resources and Reports", "policies-resources",
+            "approved", "", "", "", ("Reports, policies and directories.",),
+            pdf_links=(
+                (DIRECTORY, "Sample Centre Directory"),
+                (REPORT, "Sample Annual Report"),
+                (POLICY, "Sample IT Policy"),
+            ),
+        ),
+        pdf(DIRECTORY, "Sample Centre Directory", [_directory_page(n) for n in range(40)]),
+        pdf(REPORT, "Sample Annual Report", [_report_page(n) for n in range(1, 120)]),
+        pdf(POLICY, "Sample IT Policy", policy_pages),
+    ]  # fmt: skip
+
+
+@pytest.fixture
+def unweighted(monkeypatch: pytest.MonkeyPatch) -> Callable[[], KnowledgeBase]:
+    """The index as it was before pages were preferred and lists damped: the
+    control that shows the fixtures reproduce the failure."""
+    from voqalize_demos._loaded.kdem import knowledge
+
+    def build() -> KnowledgeBase:
+        with monkeypatch.context() as m:
+            m.setattr(knowledge, "_PDF_WEIGHT", 1.0)
+            m.setattr(knowledge, "_LIST_DAMPING", 0.0)
+            m.setattr(knowledge, "_LIST_DOCUMENT", 1.0)
+            m.setattr(knowledge, "_DIGEST_SECTIONS", {})
+            return KnowledgeBase(_ranking_pages(), ALLOWLIST)
+
+    return build
+
+
+def test_an_overview_question_finds_the_about_and_focus_pages_first(
+    unweighted: Callable[[], KnowledgeBase],
+) -> None:
+    query = "KDEM overview initiatives programs"
+    assert unweighted().search(query, 3)[0].url == REPORT  # the failure, reproduced
+    hits = KnowledgeBase(_ranking_pages(), ALLOWLIST).search(query, 3)
+    assert hits[0].url == f"{SITE}/about-us/"
+    assert hits[1].url == f"{SITE}/innovation-and-startup/"  # a focus page before the report
+
+
+def test_a_business_question_never_returns_the_directory(
+    unweighted: Callable[[], KnowledgeBase],
+) -> None:
+    query = "IT services expand business Bangalore IT policy incentives"
+    assert DIRECTORY in {h.url for h in unweighted().search(query, 3)}  # the failure, reproduced
+    hits = KnowledgeBase(_ranking_pages(), ALLOWLIST).search(query, 3)
+    assert hits[0].url == f"{SITE}/innovation-and-startup/"
+    assert DIRECTORY not in {h.url for h in hits}
+    assert all(h.kind == "page" for h in hits)
+
+
+def test_a_policy_detail_still_finds_the_pdf_page_that_says_it() -> None:
+    hits = KnowledgeBase(_ranking_pages(), ALLOWLIST).search("lease rental reimbursement", 3)
+    assert (hits[0].url, hits[0].page) == (POLICY, 37)
+    assert "fifty percent" in hits[0].snippet
+
+
+def test_one_document_cannot_fill_the_answer() -> None:
+    """At most one passage from any PDF, and two from any page; the next best
+    fill the rest."""
+    kb = KnowledgeBase(_ranking_pages(), ALLOWLIST)
+    for query in ("delegation visit initiatives programs report", "training centre institute"):
+        hits = kb.search(query, 5)
+        pdfs = [h.url for h in hits if h.kind == "pdf"]
+        assert len(pdfs) == len(set(pdfs)), query
+        assert all([h.url for h in hits].count(u) <= 2 for u in {h.url for h in hits}), query
+
+
+def test_listness_tells_a_directory_from_prose() -> None:
+    from voqalize_demos._loaded.kdem.knowledge import listness
+
+    assert listness(_directory_page(3)) > 0.8
+    assert listness(_report_page(3)) < 0.2
+    assert listness("Short line.") == 0.0
+    assert listness("ಕರ್ನಾಟಕ ಡಿಜಿಟಲ್ ಆರ್ಥಿಕ ಮಿಷನ್ ರಾಜ್ಯದ ಡಿಜಿಟಲ್ ಆರ್ಥಿಕತೆಯನ್ನು ಬೆಳೆಸುತ್ತದೆ. " * 3) < 0.2
+
+
+def test_ranked_search_stays_inside_the_tool_budget() -> None:
+    import time
+
+    from voqalize.sdk.gemini import TOOL_BUDGET_MS
+
+    kb = KnowledgeBase(_ranking_pages(), ALLOWLIST)
+    worst = 0.0
+    for query in (
+        "KDEM overview initiatives programs",
+        "IT services expand business Bangalore IT policy incentives",
+        "lease rental reimbursement",
+    ):
+        started = time.perf_counter()
+        kb.search(query, 3)
+        worst = max(worst, (time.perf_counter() - started) * 1000)
+    assert worst < TOOL_BUDGET_MS / 4, f"{worst:.1f} ms"

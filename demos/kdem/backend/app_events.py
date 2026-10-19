@@ -1,7 +1,8 @@
 """Where the visitor is on the site — the browser→brain half of the snippet's contract.
 
-The other direction is ``show_link``, the one :class:`~voqalize.sdk.Action` the
-brain sends. This is its mirror: a declared shape, validated where it arrives,
+The other direction is the :class:`~voqalize.sdk.Action` classes in
+``brain.py`` (``navigate``, ``point_at``, ``show_link``, ``language_changed``).
+This is their mirror: a declared shape, validated where it arrives,
 so ``on_rtvi`` narrows on a type instead of digging through a dict.
 
 The snippet also has an English | ಕನ್ನಡ toggle. Pressing the other side sends
@@ -17,13 +18,23 @@ title on its own approved list, never by what the browser sent.
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import Field
 
 from voqalize.sdk import AppEvent, AppEvents
 
-from .content import LanguageTag
+from .content import KanField, LanguageTag
 
-__all__ = ["KDEM_EVENTS", "KdemEvent", "LanguageRequested", "PageViewed"]
+__all__ = [
+    "KDEM_EVENTS",
+    "KanFieldChanged",
+    "KanFillFailed",
+    "KdemEvent",
+    "LanguageRequested",
+    "PageViewed",
+    "PointMissed",
+]
 
 
 class PageViewed(AppEvent):
@@ -41,6 +52,31 @@ class LanguageRequested(AppEvent):
     language: LanguageTag
 
 
-type KdemEvent = PageViewed | LanguageRequested
+class PointMissed(AppEvent):
+    """A ``point_at`` the page could not show: no visible element holds the text."""
 
-KDEM_EVENTS = AppEvents[KdemEvent](PageViewed, LanguageRequested)
+    text: str = Field(max_length=200)
+
+
+class KanFieldChanged(AppEvent):
+    """The visitor typed in, or changed, one field of the KAN application form
+    themselves. ``value`` is what the field holds now; it is trimmed in the
+    brain, and a mobile number or email is never logged or put in the context."""
+
+    field: KanField
+    value: str
+
+
+class KanFillFailed(AppEvent):
+    """The snippet could not carry out a ``kan_fill``: the form is not on the
+    page, the field is not on the form, or the drop-down has no such option."""
+
+    field: KanField
+    reason: Literal["form_missing", "field_missing", "option_missing"]
+
+
+type KdemEvent = PageViewed | LanguageRequested | PointMissed | KanFieldChanged | KanFillFailed
+
+KDEM_EVENTS = AppEvents[KdemEvent](
+    PageViewed, LanguageRequested, PointMissed, KanFieldChanged, KanFillFailed
+)

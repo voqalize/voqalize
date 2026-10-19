@@ -6,8 +6,8 @@ Two tables live here, and each exists so the model never has to guess.
 ``knowledge.py`` into :data:`~.knowledge.ALLOWLIST`. This module only turns it
 into what the prompt needs: one line per page, in the order KDEM listed them, so
 the model can choose a page by what it is for. The model never writes a URL the
-brain then trusts — ``show_link`` canonicalises what it names and refuses anything
-the index does not hold now.
+brain then trusts — ``offer_page``, ``go_to_page`` and ``show_document``
+canonicalise what it names and refuse anything the index does not hold now.
 
 **The languages.** English, and Kannada on demand — the pilot's two. Both legs
 move together, and the voice does not change: Aria is one woman in two languages,
@@ -73,6 +73,37 @@ def page_digest(linkable: Callable[[str], bool] = lambda _url: True) -> str:
 CONTACT_PATH = path_of(ALLOWLIST.contact_url)
 
 
+# ─── The KAN application form ─────────────────────────────────────────────────
+
+KAN_URL = f"{SITE}/acceleration-network/"
+"""The Karnataka Acceleration Network page, which carries its application form."""
+
+KanField = Literal["startup_name", "sector", "founder_name", "mobile", "email", "location"]
+"""The form's six fields, in the order the form shows them."""
+
+KAN_LABELS: dict[KanField, str] = {
+    "startup_name": "Name of the startup",
+    "sector": "Sector",
+    "founder_name": "Founder/Co-Founder Name",
+    "mobile": "Mobile number",
+    "email": "Email ID",
+    "location": "Interested Location for Acceleration Network",
+}
+"""Each field's visible label on the form, which is how the snippet finds it:
+Elementor's own field ids do not follow the labels."""
+
+KAN_LOCATIONS: tuple[str, ...] = (
+    "Bengaluru - JAIN Launchpad",
+    "Bengaluru - GINSERV",
+    "Bengaluru - DERBI Foundation",
+    "Mysuru - SJCE STEP",
+    "Mangaluru - SHINE Foundation",
+    "Hubballi-Dharwad-Belagavi \u2013 ASTRA, Dharwad",
+)
+"""The location drop-down's options, exactly as the form writes them (the last
+one with an en dash), the placeholder left out."""
+
+
 # ─── Import-time checks ───────────────────────────────────────────────────────
 
 
@@ -95,6 +126,15 @@ def _assert_pages_are_on_the_site() -> None:
             raise RuntimeError(f"kdem: approved page {p.url} is not on {SITE}")
 
 
+def _assert_kan_page_is_approved() -> None:
+    # The form fills only on this page, so it has to be one Aria may take them to.
+    if ALLOWLIST.approved(KAN_URL) is None:
+        raise RuntimeError(f"kdem: the KAN page {KAN_URL} is not an approved page")
+    if set(get_args(KanField)) != set(KAN_LABELS):
+        raise RuntimeError("kdem: KanField and KAN_LABELS disagree")
+
+
 _assert_languages()
 _assert_contact_is_approved()
 _assert_pages_are_on_the_site()
+_assert_kan_page_is_approved()

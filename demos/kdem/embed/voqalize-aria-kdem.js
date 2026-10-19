@@ -1,22 +1,33 @@
 /*
   Voqalize · Aria for karnatakadigital.in
-  Plain JavaScript: paste into any "Custom JavaScript" box as it is. For an HTML box
-  (Elementor Pro → Custom Code, Location: end of body), put it inside a script tag.
-  Nothing downloads until a visitor clicks "Talk to Aria", except Aria's picture
-  for the button. A call carries on when the visitor moves to another page.
-  Remove the snippet to remove Aria.
+  Load it with one tag that names the agent and its website key:
+
+    script tag:  src="…/voqalize-aria-kdem.js"  data-agent="AGENT_ID"  data-key="PUBLISHABLE_KEY"  defer
+
+  Pasting the file's contents into an HTML box works too: put the two data-
+  attributes on that script tag instead. Nothing downloads until a visitor
+  clicks "Talk to Aria", except Aria's picture for the button. A call carries
+  on when the visitor moves to another page. Remove the tag to remove Aria.
 */
 (function () {
   if (window.__vqAria) return; // pasted twice, or loaded by two plugins: run once
   window.__vqAria = true;
 
-  // ── 1. Configuration (filled in by Voqalize) ─────────────────────────────
+  // ── 1. Configuration ──────────────────────────────────────────────────────
+  // The agent and its publishable key come from the tag that loaded this file,
+  // so the file itself names no agent. Read now: currentScript is only set
+  // while this file is running, not later when boot() does.
+  const tag = document.currentScript;
   const VQ = {
-    agentId: "06ac5fe2-54d1-79b1-8000-c77b136e76ef",
-    publishableKey: "pk_live_eJOBDwN-zWHGqb9OPTYXeO5WPWzQhoYnlfRBnfR1tSY", // works only on karnatakadigital.in
-    character: "tara",                                // female avatar; voice (Gauri) is set by Voqalize
+    agentId: tag?.dataset.agent || "",
+    publishableKey: tag?.dataset.key || "", // a pk_ key; Voqalize accepts it only from the site's own addresses
+    character: "tara",                      // female avatar; voice (Gauri) is set by Voqalize
     api: "https://app.dev.voqalize.com/api/v1/sessions.connect", // dev hosting for the pilot
   };
+  if (!VQ.agentId || !VQ.publishableKey) {
+    console.warn("[Voqalize] Aria not started: the script tag needs data-agent and data-key.");
+    return;
+  }
   // Exact versions, from jsDelivr. The transport imports the same pipecat URLs,
   // so the page holds one copy of each.
   const LIBS = {
@@ -34,7 +45,9 @@
     // ── 2. Styles, scoped to #vq-aria ────────────────────────────────────────
     const style = document.createElement("style");
     style.textContent = `
-      #vq-aria { position: fixed; left: 20px; bottom: 20px; z-index: 2147483000;
+      /* Bottom-right and 1.3x, as KDEM placed it on their site; 1.1x on phones and tablets. */
+      #vq-aria { position: fixed; right: 30px; bottom: 30px; z-index: 2147483000;
+        transform: scale(1.3); transform-origin: bottom right;
         font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #1b1b1f; }
       #vq-aria * { box-sizing: border-box; }
       #vq-aria .vq-launch { display: flex; align-items: center; gap: 10px; padding: 6px 18px 6px 6px;
@@ -64,8 +77,17 @@
         line-height: 1; cursor: pointer; }
       #vq-aria .vq-bar .vq-end { background: #b3261e; border-color: #b3261e; color: #fff; }
       #vq-aria [hidden] { display: none !important; }
-      /* Bottom-left, clear of the site's own chat on the right; on phones, above its strip. */
-      @media (max-width: 480px) { #vq-aria { left: 12px; bottom: 96px; } #vq-aria .vq-face { height: 240px; } }
+      /* What Aria points at on the page: an outline and a soft tint, no layout shift. */
+      .vq-aria-pointed { outline: 3px solid #0b4f8a !important; outline-offset: 4px !important;
+        border-radius: 4px; background-color: rgba(11, 79, 138, .08) !important; }
+      #vq-aria .vq-powered { display: block; padding: 0 14px 10px; text-align: center; font-size: 11px;
+        color: #6b6e76; text-decoration: none; }
+      #vq-aria .vq-powered:hover, #vq-aria .vq-powered:focus-visible { color: #0b4f8a; text-decoration: underline; }
+      @media (max-width: 768px) { #vq-aria { right: 20px; bottom: 20px; transform: scale(1.1); } }
+      /* Short screens: shrink just enough that the open panel's top (the language toggle) stays on screen. */
+      @media (min-width: 769px) and (max-height: 780px) { #vq-aria { transform: scale(1.1); } }
+      @media (max-height: 660px) { #vq-aria { transform: none; } }
+      @media (max-width: 480px) { #vq-aria .vq-face { height: 240px; } }
     `;
     document.head.appendChild(style);
 
@@ -89,6 +111,7 @@
           <button class="vq-mute" type="button" aria-pressed="false">Mute</button>
           <button class="vq-end" type="button">End</button>
         </div>
+        <a class="vq-powered" href="https://voqalize.com" target="_blank" rel="noopener">Powered by Voqalize</a>
         <audio autoplay></audio>
       </div>`;
     document.body.appendChild(root);
@@ -132,6 +155,142 @@
       }
     }
 
+    // ── Walking the site ─────────────────────────────────────────────────────
+    // navigate: another KDEM page in this tab. The call carries over to it
+    // (keepAcrossPageLoads), and the move waits for the line Aria says with it,
+    // so "Taking you there." is heard before the page changes.
+    let speaking = false, pendingNav = null, navTimer = 0;
+    function navNow() {
+      clearTimeout(navTimer);
+      const go = pendingNav;
+      pendingNav = null;
+      go?.();
+    }
+    function navWaitForLine() {
+      if (!pendingNav) return;
+      clearTimeout(navTimer);
+      navTimer = setTimeout(navNow, 6000); // she is speaking: until she stops, at most 6 s
+    }
+    function navigateTo(raw) {
+      let url;
+      try { url = new URL(raw, location.origin); } catch { return; }
+      if (url.protocol !== "https:" || !/^(www\.)?karnatakadigital\.in$/.test(url.hostname)) return;
+      if (url.pathname + url.search === location.pathname + location.search) return;
+      pendingNav = () => location.assign(url.href);
+      clearTimeout(navTimer);
+      navTimer = setTimeout(navNow, speaking ? 6000 : 1500); // not speaking yet: a moment for her line
+    }
+
+    // point_at: bring the part of this page holding the text into view and light
+    // it up for a few seconds. The first, innermost visible element whose text
+    // contains it, outside Aria's own panel; nothing found, and the brain is told.
+    const squash = (t) => (t || "").replace(/\s+/g, " ").trim().toLowerCase();
+    const SKIP = new Set(["SCRIPT", "STYLE", "NOSCRIPT", "TEMPLATE", "SVG", "IFRAME"]);
+    function shown(el) {
+      if (el.checkVisibility) return el.checkVisibility({ visibilityProperty: true, opacityProperty: true });
+      return el.getClientRects().length > 0 && getComputedStyle(el).visibility !== "hidden";
+    }
+    function holding(el, want) {
+      for (const child of el.children) {
+        if (child === root || SKIP.has(child.tagName.toUpperCase()) || !shown(child)) continue;
+        if (squash(child.innerText).includes(want)) return holding(child, want) || child;
+      }
+      return null;
+    }
+    let pointed = null, pointTimer = 0;
+    function pointAt(text) {
+      const want = squash(text);
+      const el = want && squash(document.body.innerText).includes(want) ? holding(document.body, want) : null;
+      if (!el) {
+        try { client?.sendUIEvent("point_missed", { text }); } catch {}
+        return;
+      }
+      light(el);
+    }
+    function light(el) {
+      clearTimeout(pointTimer);
+      pointed?.classList.remove("vq-aria-pointed");
+      const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      el.scrollIntoView({ behavior: still ? "auto" : "smooth", block: "center" });
+      el.classList.add("vq-aria-pointed");
+      pointed = el;
+      pointTimer = setTimeout(() => { el.classList.remove("vq-aria-pointed"); if (pointed === el) pointed = null; }, 3000);
+    }
+
+    // ── The KAN application form ─────────────────────────────────────────────
+    // Aria fills the Karnataka Acceleration Network form by voice, one field at
+    // a time (kan_fill). Fields are found by their visible label inside the form:
+    // the form builder's own field ids do not follow the labels. The visitor's
+    // own typing is reported back (kan_field_changed), so she never writes over
+    // it. Nothing here presses Apply Now or submits the form: that is the visitor's.
+    const KAN_FORM = 'form[name="Accelerator Form"]';
+    const KAN_LABELS = {
+      startup_name: "Name of the startup",
+      sector: "Sector",
+      founder_name: "Founder/Co-Founder Name",
+      mobile: "Mobile number",
+      email: "Email ID",
+      location: "Interested Location for Acceleration Network",
+    };
+    const tidy = (t) => (t || "").replace(/[\u2010-\u2015\u2212]/g, "-").replace(/\s+/g, " ").trim().toLowerCase();
+    const kanSet = new WeakMap(); // field element → the value Aria last put in it
+    function kanField(form, field) {
+      const want = tidy(KAN_LABELS[field]);
+      for (const label of form.querySelectorAll("label")) {
+        if (tidy(label.textContent).replace(/\s*\*$/, "") !== want) continue;
+        const el = label.htmlFor
+          ? form.querySelector("#" + CSS.escape(label.htmlFor))
+          : label.querySelector("input, select, textarea");
+        if (el) return el;
+      }
+      return null;
+    }
+    function kanFailed(field, reason) {
+      try { client?.sendUIEvent("kan_fill_failed", { field, reason }); } catch {}
+    }
+    function kanFill(field, value) {
+      if (!(field in KAN_LABELS)) return;
+      const form = document.querySelector(KAN_FORM);
+      if (!form) return kanFailed(field, "form_missing");
+      const el = kanField(form, field);
+      if (!el) return kanFailed(field, "field_missing");
+      if (el.tagName === "SELECT") {
+        const option = [...el.options].find((o) => tidy(o.textContent) === tidy(value));
+        if (!option) return kanFailed(field, "option_missing");
+        el.value = option.value;
+      } else {
+        // Through the element type's own setter, so a page that tracks the value sees it.
+        const proto = el.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+        Object.getOwnPropertyDescriptor(proto, "value").set.call(el, value);
+      }
+      kanSet.set(el, el.value);
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+      light(el);
+    }
+    const kanWatched = new WeakSet();
+    function watchKan() {
+      const form = document.querySelector(KAN_FORM);
+      if (!form || kanWatched.has(form)) return;
+      kanWatched.add(form);
+      for (const field of Object.keys(KAN_LABELS)) {
+        const el = kanField(form, field);
+        if (!el) continue;
+        let timer = 0;
+        const send = () => {
+          if (kanSet.get(el) === el.value) return; // the change Aria just made
+          kanSet.delete(el);
+          const value = el.tagName === "SELECT"
+            ? (el.selectedIndex > 0 ? el.options[el.selectedIndex].textContent.trim() : "")
+            : el.value;
+          try { client?.sendUIEvent("kan_field_changed", { field, value }); } catch {}
+        };
+        const later = () => { clearTimeout(timer); timer = setTimeout(send, 600); };
+        el.addEventListener("input", later);
+        el.addEventListener("change", later);
+      }
+    }
+
     function setMuted(next) {
       muted = next;
       store.set(MUTED, muted ? "1" : null);
@@ -143,6 +302,7 @@
     // a page load she knows where the conversation has moved to.
     function reportPage() {
       try { client?.sendUIEvent("page_viewed", { path: location.pathname, title: document.title }); } catch {}
+      watchKan();
     }
 
     // ── 4. Start a call, or carry one over from the last page ────────────────
@@ -178,13 +338,19 @@
               audio.srcObject = new MediaStream([track]);
               audio.play().catch(() => {});
             },
-            onBotStartedSpeaking: () => say("Aria is speaking…"),
-            onBotStoppedSpeaking: () => say(muted ? "Muted." : "Listening. Just talk."),
+            onBotStartedSpeaking: () => { speaking = true; say("Aria is speaking…"); navWaitForLine(); },
+            onBotStoppedSpeaking: () => { speaking = false; say(muted ? "Muted." : "Listening. Just talk."); navNow(); },
             // Aria can offer a KDEM page as a link card; it opens in a new tab
             // so the conversation keeps going here.
             onUICommand: ({ command, payload }) => {
               if (command === "language_changed") {
                 if (payload?.language === "en" || payload?.language === "kn") showLang(payload.language);
+                return;
+              }
+              if (command === "navigate") { if (typeof payload?.url === "string") navigateTo(payload.url); return; }
+              if (command === "point_at") { if (typeof payload?.text === "string") pointAt(payload.text); return; }
+              if (command === "kan_fill") {
+                if (typeof payload?.field === "string" && typeof payload?.value === "string") kanFill(payload.field, payload.value);
                 return;
               }
               if (command !== "show_link" || !payload?.url) return;
@@ -246,6 +412,8 @@
     async function stop(endCall) {
       const live = client;
       client = null;
+      pendingNav = null; // a move she had not made yet goes with the call
+      clearTimeout(navTimer);
       if (endCall && live) { try { await live.disconnectBot(); } catch {} }
       avatar?.destroy(); avatar = null;
       setMuted(false);
