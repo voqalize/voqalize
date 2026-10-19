@@ -747,6 +747,26 @@ async def test_the_core_answers_at_once_with_no_snapshot_and_no_network(
     await service.stop()
 
 
+def test_the_core_holds_government_first_and_nipuna_under_the_list_titles() -> None:
+    assert CORE is not None
+    kb = KnowledgeService(ALLOWLIST, core=CORE).kb
+    titles = {
+        "/government-first/": "Government First Initiative",
+        "/nipuna-karnataka/": "NIPUNA Karnataka",
+        "/nipuna-karnataka-guidelines/": "NIPUNA Karnataka Guidelines",
+        "/nipuna-karnataka-proposal/": "NIPUNA Karnataka Proposal",
+    }
+    for path, title in titles.items():
+        page = kb.page(f"{SITE}{path}")
+        assert page is not None and page.text, path
+        assert page.title == title
+        assert CORE.pages[f"{SITE}{path}"].origin == "approved"
+    hits = kb.search("government first work order")
+    assert hits[0].url == f"{SITE}/government-first/"
+    hits = kb.search("NIPUNA guidelines")
+    assert hits[0].url == f"{SITE}/nipuna-karnataka-guidelines/"
+
+
 async def test_a_snapshot_on_disk_replaces_the_core(
     tmp_path: Path, allowlist: Allowlist, monkeypatch: pytest.MonkeyPatch
 ) -> None:
