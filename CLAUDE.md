@@ -221,8 +221,10 @@ deployment's calibration, which is 7. We widen as we learn.
 The catalog is small and closed, and the `Voice` enum is the one copy of the
 voice half we keep on purpose — it is what gives a brain author autocompletion.
 `design/voice_catalog.py check` holds it to what the speech tier serves, and
-renders the docs table from the same fetch. `vql-stt` serves `en` plus the 22
-Indic codes. An unknown model is **HTTP 403 at connect**, an unknown voice
+renders the docs table from the same fetch. In prod `vql-stt` serves `en` plus
+the 22 Indic codes; dev's also routes the European languages on Parakeet TDT
+0.6B v3, and the speech tier publishes its route table at `GET /v2/languages`.
+Customer docs follow prod. An unknown model is **HTTP 403 at connect**, an unknown voice
 prefix is `voice not found` — both fail the session, not the sentence.
 
 `frames.proto` documents every declaration in place rather than in banner

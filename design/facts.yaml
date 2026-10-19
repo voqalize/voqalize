@@ -554,11 +554,11 @@ facts:
 
   stt.patience.range:
     value: 0 to 10
-    source: speech/src/vql_speech/flux/turn_detector.py:206 PATIENCE_MIN, PATIENCE_MAX
-    verified: 2026-09-21
+    source: speech/stt-rs/src/turn.rs:14 PATIENCE_MIN, PATIENCE_MAX
+    verified: 2026-10-19
     reproduce: >-
       grep -n 'PATIENCE_MIN\|PATIENCE_MAX'
-      ../speech/src/vql_speech/flux/turn_detector.py
+      ../speech/stt-rs/src/turn.rs
       ../platform/backend/controlplane/app/domains/sessions/session_service.py
       sdk/python/src/voqalize/sdk/wire/frames.py
     note: >-
@@ -577,26 +577,28 @@ facts:
 
   stt.patience.default:
     value: 7
-    source: speech/infra/deploy/env/prod.env:159,172 — derived, see note
-    verified: 2026-09-21
+    source: speech/infra/deploy/env/stt-prod.env:20,24 — derived, see note
+    verified: 2026-10-19
     reproduce: >-
       grep -n 'VAD_EAGER_FRAMES\|VAD_STOP_FRAMES_TO_TRIGGER_UPDATE'
-      ../speech/infra/deploy/env/prod.env ../speech/infra/deploy/env/dev.env &&
+      ../speech/infra/deploy/env/stt-prod.env ../speech/infra/deploy/env/stt-dev.env &&
       grep -n 'update_frames + 1 + patience'
-      ../speech/src/vql_speech/flux/turn_detector.py
+      ../speech/stt-rs/src/turn.rs
     note: >-
       What an unset `stt.patience` runs at, and a **derived** number, so the
       derivation is the fact: `eager_frames_for_patience` is
-      `eager_frames = update_frames + 1 + patience`, and both deployed
-      environments set `VAD_EAGER_FRAMES=18` with
-      `VAD_STOP_FRAMES_TO_TRIGGER_UPDATE=10`, giving `18 - 10 - 1 = 7`. Retune
+      `eager_frames = update_frames + 1 + patience` (`stt-rs/src/turn.rs`),
+      and both deployed environments set `VQL_STT__VAD_EAGER_FRAMES=18` with
+      `VQL_STT__VAD_STOP_FRAMES_TO_TRIGGER_UPDATE=10`, giving
+      `18 - 10 - 1 = 7`. Retune
       the tier and this moves, which is why it is pinned here rather than
       trusted where it is written — it is already spelled out in the SDK
-      docstring (`wire/frames.py` `SttConfig.patience`) and in vql-speech's
-      `flux/query_params.py`, and neither of those checks the other. vql-speech
-      refuses to boot on an eager gate that is not a whole step on the scale,
-      which keeps the mapping honest but says nothing about whether the number
-      we published is still the one deployed. **Nothing writes a 7 onto the
+      docstring (`wire/frames.py` `SttConfig.patience`) and in the comments of
+      vql-speech's `stt-{dev,prod}.env`, and neither of those checks the other.
+      The Python STT refused to boot on an eager gate that was not a whole step
+      on the scale; the Rust STT that replaced it (prod since the 2026-10-12
+      cutover) has no such check, so nothing but this fact holds the deployed
+      gate to the published default. **Nothing writes a 7 onto the
       wire**: unset is what a default-patience session sends, which is what
       makes the field additive for a brain on an older SDK.
     forbid:
@@ -701,20 +703,29 @@ facts:
 
   speech.stt.languages.indic:
     value: 22
-    source: speech/src/vql_speech/stt/engines/indic_conformer.py SUPPORTED_LANGUAGES
-    verified: 2026-08-24
+    source: speech/stt-rs/src/registry.rs INDIC_LANGUAGES
+    verified: 2026-10-19
     reproduce: >-
-      python3 -c "import re;print(len(re.findall(r'\"[a-z]{2,3}\",',
-      open('../speech/src/vql_speech/stt/engines/indic_conformer.py').read())))"
+      git -C ../speech show origin/prod:stt-rs/src/registry.rs |
+      sed -n '/^pub const INDIC_LANGUAGES/,/^];/p' | grep -o '"[a-z]*"' | wc -l
 
   speech.stt.languages.total:
     value: 23
-    source: speech/src/vql_speech/stt/engines/indic_conformer.py + English
-    verified: 2026-08-24
+    source: speech prod branch, stt-rs/src/registry.rs INDIC_LANGUAGES + English
+    verified: 2026-10-19
+    reproduce: >-
+      git -C ../speech show origin/prod:stt-rs/src/registry.rs | grep -n
+      'INDIC_LANGUAGES\|"en"'
     note: >-
-      English plus 22 Indic languages. Say twenty-three, or say "English plus 22
-      Indic languages"; the roster is in docs reference/catalog.md and nowhere
-      else. The retired claim is "sixty-plus languages", which was never true of
+      English plus 22 Indic languages — what prod serves. Say twenty-three, or
+      say "English plus 22 Indic languages"; the roster is in docs
+      reference/catalog.md and nowhere else. **Dev is ahead of this**: speech
+      `main` routes English and the other European languages on
+      Parakeet TDT 0.6B v3's model card (`PARAKEET_LANGUAGES` in
+      `stt-rs/src/registry.rs`) and publishes its route table at
+      `GET /v2/languages`. Prod moves to that table with the speech prod
+      release, and this fact, the catalog and the `Language` enum move then —
+      not before, since customer pages state what prod serves. The retired claim is "sixty-plus languages", which was never true of
       any model we host.
     forbid:
       - '\b(sixty|60)\+? languages'
