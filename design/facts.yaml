@@ -872,9 +872,9 @@ facts:
       is the same 10.0 and answers a different question.
 
   recording.url_ttl_secs:
-    value: 60 to 900, default 900
-    source: platform/backend/controlplane/app/domains/sessions/service_dtos.py:43 MAX_RECORDING_URL_TTL_SECONDS
-    verified: 2026-09-21
+    value: 60 to 1200, default 1200
+    source: platform/backend/controlplane/app/domains/sessions/service_dtos.py:48 MAX_RECORDING_URL_TTL_SECONDS
+    verified: 2026-10-19
     reproduce: >-
       grep -n 'RECORDING_URL_TTL_SECONDS'
       ../platform/backend/controlplane/app/domains/sessions/service_dtos.py
