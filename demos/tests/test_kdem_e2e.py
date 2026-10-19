@@ -291,6 +291,13 @@ def _llm() -> ScriptedGemini:
                 reply_and_call("Here.", "show_document", request={"url": UNINDEXED_PDF}),
             ],
             "Thank you.": reply("You're welcome."),
+            # A broad question: a second search in other words, then no third.
+            "What can you do for my IT company?": [
+                call("search_kdem", request={"query": "IT company support"}),
+                call("search_kdem", request={"query": "IT Products Services GCC Promotion"}),
+                call("search_kdem", request={"query": "incentives"}),
+                reply(DONT_KNOW),
+            ],
             # The KAN application form, one field at a time.
             "My startup is Lantern Labs.": reply_and_call(
                 "Lantern Labs, got it.",
@@ -1243,3 +1250,46 @@ async def test_the_brain_log_carries_no_mobile_number_or_email() -> None:
     assert "kdem: kan_fill mobile" in log and "kdem: kan_fill email" in log
     for secret in ("9845012345", "98450", "priya", "example.com", "typed.by"):
         assert secret not in log.lower(), secret
+
+
+# ─── What KDEM is, and how hard she looks ─────────────────────────────────────
+
+ABOUT = f"{SITE}/about-us/"
+ABOUT_TEXT = (
+    "Karnataka Digital Economy Mission (KDEM) is the knowledge bridge between the "
+    "government and industry, set up to grow the state's digital economy. It supports "
+    "technology investment, research, promotion abroad and policy feedback."
+)
+
+
+async def test_about_kdem_is_in_the_prompt_once_the_about_page_is_indexed() -> None:
+    """Built from the indexed About KDEM page and the focus-area hubs, in the
+    site's own words; absent while the About page is not indexed."""
+    llm = _llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("Thank you.")
+    assert "ABOUT KDEM." not in llm.captured_system_instructions[-1]
+
+    pages = dict(SNAPSHOT.pages)
+    pages[ABOUT] = _stored(ABOUT, "About KDEM", "core-pages", ABOUT_TEXT)
+    KNOWLEDGE.prime(Snapshot("2026-10-06T00:00:00+00:00", pages=pages))
+    llm = _llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("Thank you.")
+    prompt = llm.captured_system_instructions[-1]
+    assert f"ABOUT KDEM. In the site's own words, from the About KDEM page: {ABOUT_TEXT}" in prompt
+    # A focus-area hub the index holds is listed with its page and first sentence.
+    assert "- Beyond Bengaluru Cluster Seed Fund (/beyond-bengaluru-cluster-seed-fund/): " in prompt
+    assert '"What is KDEM", "what do you do" and "what programmes do you run"' in prompt
+
+
+async def test_a_broad_question_gets_a_second_search_and_never_a_third() -> None:
+    llm = _llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("What can you do for my IT company?")
+    found = _results(llm.captured_contents[-1])
+    assert found["search_kdem"].startswith("Not searched: that is two searches this turn")
+    assert "search once more with different words" in llm.captured_system_instructions[-1]

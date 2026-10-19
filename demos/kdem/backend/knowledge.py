@@ -2907,6 +2907,43 @@ class PageText:
 
 _K1, _B = 1.2, 0.75
 
+_PDF_WEIGHT = 0.6
+"""A PDF passage's score against a page's. The site's own pages say what KDEM
+does in a few short paragraphs; its PDFs run to hundreds of pages that mention
+everything once. A page that answers should beat a PDF that only shares words
+with the question, while a PDF passage that answers squarely still wins."""
+_DIGEST_SECTIONS = {"news": 0.6}
+"""Sections whose pages are digests of other publishers' stories, by how much
+they count: a headline and a date, short enough to win on length alone, and
+not KDEM's own word (see the section's notes in ``approved_pages.json``)."""
+_LIST_DAMPING = 0.75
+"""How far a passage that reads as a list falls: a list-like passage keeps a
+quarter of its score."""
+_LIST_DOCUMENT = 0.5
+"""A document whose passages read as a list on average (a directory of
+addresses and codes, an annexure of names) keeps half the score of each."""
+
+
+def listness(text: str) -> float:
+    """How much ``text`` reads like a list rather than prose, from 0 to 1.
+
+    A directory, a register or an address list is mostly capitalised names
+    with no sentences, or words mixed with codes and numbers. It shares words
+    with any question and answers none. Measured from the text alone: the share
+    of capitalised words with too few sentence ends, and the share of tokens
+    that mix letters and digits."""
+    words = text.split()
+    n = len(words)
+    if n < 12:
+        return 0.0
+    capitalised = sum(1 for w in words if w[:1].isupper()) / n
+    sentences = len(re.findall(r"[a-z\u0c80-\u0cff)][.!?](?:\s|$)", text)) / n * 100
+    coded = sum(1 for w in words if any(c.isdigit() for c in w) and any(c.isalpha() for c in w)) / n
+    no_sentences = min(1.0, max(0.0, (1.5 - sentences) / 1.5))
+    caps = min(1.0, max(0.0, (capitalised - 0.5) / 0.35))
+    codes = min(1.0, coded / 0.06)
+    return max(caps * no_sentences, codes * (0.5 + 0.5 * no_sentences))
+
 
 class KnowledgeBase:
     """The pages and PDFs, cleaned and cut into passages, under a BM25 index. In
@@ -2955,6 +2992,22 @@ class KnowledgeBase:
             )
             if p.kind == "page":
                 self._passages += ((p.url, None, c) for c in _chunks(lines))
+        # How much each passage counts beside the others: a PDF passage less than
+        # a page's, a list-like one less again, and every passage of a document
+        # that reads as a list on the whole less still. Folded into the weights
+        # below, so a search pays nothing for it.
+        listy = [listness(chunk) for _, _, chunk in self._passages]
+        by_doc: dict[str, list[float]] = {}
+        for (url, _, _), score in zip(self._passages, listy, strict=True):
+            by_doc.setdefault(url, []).append(score)
+        listy_doc = {u: sum(v) / len(v) > 0.5 for u, v in by_doc.items()}
+        factor = [
+            (_PDF_WEIGHT if self._pages[url].kind == "pdf" else 1.0)
+            * _DIGEST_SECTIONS.get(self._pages[url].section, 1.0)
+            * (1 - _LIST_DAMPING * score)
+            * (_LIST_DOCUMENT if listy_doc[url] else 1.0)
+            for (url, _, _), score in zip(self._passages, listy, strict=True)
+        ]
         counts: list[Counter[str]] = []
         lengths: list[int] = []
         for url, _, chunk in self._passages:
@@ -2977,7 +3030,7 @@ class KnowledgeBase:
                 if (posting := self._postings.get(term)) is None:
                     posting = self._postings[term] = (array("i"), array("d"))
                 posting[0].append(i)
-                posting[1].append(idf[term] * tf * (_K1 + 1) / (tf + norm))
+                posting[1].append(factor[i] * idf[term] * tf * (_K1 + 1) / (tf + norm))
         self._n = n
 
     @classmethod
@@ -2996,9 +3049,13 @@ class KnowledgeBase:
         c = self.allowlist.locate(url)
         return self._pages.get(c) if c is not None else None
 
-    def search(self, query: str, k: int = 3, *, per_page: int = 2) -> list[Passage]:
-        """The ``k`` passages that best answer ``query``, at most ``per_page``
-        from any one page or PDF. Empty when nothing matches."""
+    def search(
+        self, query: str, k: int = 3, *, per_page: int = 2, per_pdf: int = 1
+    ) -> list[Passage]:
+        """The ``k`` passages that best answer ``query``: at most ``per_page``
+        from any one page and ``per_pdf`` from any one PDF, so a long document
+        cannot fill the answer by itself; the next best fill in. Empty when
+        nothing matches."""
         postings = [p for t in dict.fromkeys(tokens(query)) if (p := self._postings.get(t))]
         if not postings:
             return []
@@ -3022,10 +3079,10 @@ class KnowledgeBase:
         for i in ranked():
             score = acc[i]
             url, number, chunk = self._passages[i]
-            if per[url] >= per_page:
+            page = self._pages[url]
+            if per[url] >= (per_pdf if page.kind == "pdf" else per_page):
                 continue
             per[url] += 1
-            page = self._pages[url]
             out.append(Passage(url, page.title, chunk, round(score, 3), number, page.kind))
             if len(out) >= k:
                 break

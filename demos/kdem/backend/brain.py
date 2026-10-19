@@ -96,6 +96,7 @@ from .content import Speech as LanguageSpeech
 from .knowledge import (
     ALLOWLIST,
     KNOWLEDGE,
+    SITE,
     Passage,
     host_of,
     is_pdf,
@@ -131,7 +132,7 @@ EVERY RESPONSE STARTS WITH WORDS. Whenever you offer a page, take them to one, p
   Visitor: "Do you have a seed fund for startups outside Bengaluru?" You: (search_kdem first, then) "Yes, the Beyond Bengaluru Cluster Seed Fund backs startups in the clusters. Shall I take you to its page?" — and offer_page with that page, in the same response.
 search_kdem and set_language are the two calls that take no line. search_kdem is silent and comes straight back to you in the same turn, so call it first and then answer from it. set_language is answered by a line of its own, in the new voice, so call it alone and say nothing.
 
-ANSWER ONLY FROM THE SITE. Everything you may say about KDEM, its programmes, policies, events, reports and news comes from what search_kdem returns. Search before you answer any question about KDEM or Karnataka's digital economy — even one you think you know. Never add a figure, a date, a deadline, an amount, an eligibility rule or a name that is not in what came back. If the search returns nothing that answers the question, say exactly: "{DONT_KNOW}" and offer to take them to the Contact Us page with offer_page ({CONTACT_PATH}), or point at it with point_at if they are already there.
+ANSWER ONLY FROM THE SITE. Everything you may say about KDEM, its programmes, policies, events, reports and news comes from ABOUT KDEM below or from what search_kdem returns. "What is KDEM", "what do you do" and "what programmes do you run" are answered from ABOUT KDEM, with no search; for anything else, search before you answer — even a question you think you know. When what comes back does not answer a broad question, search once more with different words, such as the programme names in THE PAGES, before you give the don't-know line; two searches in a turn at most. Never add a figure, a date, a deadline, an amount, an eligibility rule or a name that is not in what came back. If the search returns nothing that answers the question, say exactly: "{DONT_KNOW}" and offer to take them to the Contact Us page with offer_page ({CONTACT_PATH}), or point at it with point_at if they are already there.
 
 THE SHAPE OF AN ANSWER. One or two short sentences that answer the question, then, in the same response:
 - when the page that says it in full is another page, offer to take them there with offer_page: "Shall I take you to the Seed Fund page?";
@@ -206,12 +207,55 @@ SWITCH_LINE: dict[LanguageTag, str] = {
 }
 
 
+_ABOUT_URL = f"{SITE}/about-us/"
+_ABOUT_CHARS = 600
+_FIRST_SENTENCE_CHARS = 220
+#: The focus-area hubs: the programme pages ABOUT KDEM names, in list order.
+_FOCUS = tuple(
+    p.url for p in ALLOWLIST.pages if p.section == "focus-areas-programmes" and p.hub_for
+)
+
+
+def _opening(text: str, limit: int) -> str:
+    """The first sentences of a page's text, up to ``limit`` characters, cut at a
+    sentence end. Short lines — headings, menus, figures — are passed over."""
+    body = " ".join(ln for ln in text.split("\n") if len(ln) >= 60 and " " in ln)
+    if len(body) <= limit:
+        return body
+    cut = body[:limit]
+    end = max(cut.rfind(". "), cut.rfind("? "), cut.rfind("! "), cut.rfind("."))
+    return cut[: end + 1] if end > limit // 4 else cut.rsplit(" ", 1)[0] + "..."
+
+
+def _about_kdem() -> str:
+    """ABOUT KDEM for the prompt, built from the index as it is now: the opening
+    of the About Us page, and each focus-area hub's title and first sentence.
+    Only the site's own words; empty until the About Us page is indexed."""
+    kb = KNOWLEDGE.kb
+    about = kb.page(_ABOUT_URL)
+    if about is None or not (opening := _opening(about.text, _ABOUT_CHARS)):
+        return ""
+    programmes: list[str] = []
+    for url in _FOCUS:
+        page, approved = kb.page(url), ALLOWLIST.approved(url)
+        if page is None or approved is None:
+            continue
+        first = _opening(page.text, _FIRST_SENTENCE_CHARS)
+        programmes.append(f"- {approved.title} ({path_of(url)})" + (f": {first}" if first else ""))
+    lines = "\n".join(programmes)
+    return f"ABOUT KDEM. In the site's own words, from the About KDEM page: {opening}" + (
+        f"\nIts focus areas and programmes, each with its page:\n{lines}" if lines else ""
+    )
+
+
 def _prompt(where: str = "", spoken: Language = OPENING.code) -> str:
     """The system prompt as things stand: THE PAGES lists only the pages Aria
     may link at this moment, so the model is never offered one the refresh has
-    dropped; the call's language now, when it is not English; and where the
-    visitor is."""
+    dropped; ABOUT KDEM, from the pages indexed now; the call's language now,
+    when it is not English; and where the visitor is."""
     prompt = _SYSTEM_INSTRUCTION + page_digest(lambda url: _page(url) is not None)
+    if about := _about_kdem():
+        prompt += f"\n\n{about}"
     if spoken == Language.KN:
         prompt += (
             "\n\nTHE CALL IS IN KANNADA NOW. Speak Kannada, in Kannada script, until the "
@@ -337,6 +381,9 @@ _ASKS_TO_GO = re.compile(
 """Words with which a visitor asks to be taken to a page, in English and Kannada.
 Their own request is the yes that ``go_to_page`` otherwise waits for."""
 
+
+_SEARCHES_PER_TURN = 2
+"""A broad question may take a second search in other words; never a third."""
 
 _KAN_TEXT_CHARS = 120
 """The longest a name or a sector may be on the KAN form."""
@@ -519,6 +566,8 @@ class KdemBrain(GeminiBrain):
         #: number or email read back and waiting for the visitor's yes.
         self._kan: dict[KanField, str] = {}
         self._kan_pending: dict[KanField, tuple[str, int]] = {}
+        #: Searches made in the latest visitor turn: (turn, how many).
+        self._searches: tuple[int, int] = (0, 0)
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -817,6 +866,15 @@ class KdemBrain(GeminiBrain):
         """Search KDEM's approved website pages and the PDF documents they link to.
         Call it before answering any question about KDEM, its programmes, policies,
         events, reports or news, and answer only from what it returns."""
+        turn, done = self._searches
+        done = done + 1 if turn == self._turn else 1
+        self._searches = (self._turn, done)
+        if done > _SEARCHES_PER_TURN:
+            return (
+                "Not searched: that is two searches this turn. Answer from what came back, "
+                f'or say: "{DONT_KNOW}" and offer to take them to the Contact Us page '
+                f"({CONTACT_PATH}) with offer_page."
+            )
         kb = KNOWLEDGE.kb
         if len(kb) == 0:
             logger.warning("kdem: search with an empty knowledge base")

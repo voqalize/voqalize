@@ -173,6 +173,30 @@ speech recognition like every other word, so they are in the call's transcript,
 which Voqalize keeps with the session for 30 days. The brain itself never logs
 them: each fill is logged with the field's name only.
 
+## How search ranks, and what Aria knows without searching
+
+The index holds the site's pages and a few thousand PDF passages, so the PDFs
+would win most broad questions on shared words alone. The ranking corrects for
+that, folded into the index when it is built, so a search costs nothing more:
+
+- a PDF passage counts 0.6 of a page's, and an industry-news digest page 0.6:
+  a page that answers beats a PDF that only shares words with the question,
+  while a PDF passage that answers squarely (a policy's reimbursement rules,
+  say) still comes first;
+- a passage that reads as a list (mostly capitalised names with no sentences,
+  or words mixed with codes and numbers) keeps a quarter of its score, and a
+  document that reads as a list on the whole, such as a directory of centres
+  and addresses, keeps half of each of its passages';
+- at most one passage from any PDF and two from any page reach Aria, so one
+  long document cannot fill the answer.
+
+The prompt also carries **ABOUT KDEM**, built at session start from the indexed
+About KDEM page (its opening, in the site's own words) and each focus-area
+hub's title and first sentence. "What is KDEM", "what do you do" and "what
+programmes do you run" are answered from it without a search; until the About
+page is indexed it is left out. When a search does not answer a broad question
+she searches once more in other words, at most twice a turn.
+
 ## Keeping the pages fresh
 
 Each brains host keeps its own snapshot of the approved pages, in
