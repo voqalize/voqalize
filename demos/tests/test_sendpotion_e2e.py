@@ -1,4 +1,4 @@
-"""Tushar, SendPotion's guide, end to end over the wire — no network, no LLM key.
+"""Javier, SendPotion's guide, end to end over the wire — no network, no LLM key.
 
 The real ``SendPotionBrain`` on a real ``brain_server`` socket, driven by the
 conformance ``VoqalizeDriver``, with only the model scripted. The knowledge is a
@@ -39,10 +39,11 @@ discover()
 from voqalize_demos._loaded.sendpotion import brain as sendpotion  # noqa: E402
 from voqalize_demos._loaded.sendpotion import knowledge as kb  # noqa: E402
 from voqalize_demos._loaded.sendpotion.brain import (  # noqa: E402
-    _BLOG_GREETING,
-    _GREETING,
     _IDLE_MS,
     _TALK_THROUGH_MS,
+    TOGGLE_CONFIRM,
+    greeting,
+    language_of,
 )
 from voqalize_demos._loaded.sendpotion.knowledge import (  # noqa: E402
     Faq,
@@ -167,6 +168,12 @@ def _llm() -> ScriptedGemini:
                 "{page: /pricing/} Plans start small. See them side by side?"
             ),
             "Tell me more about marketing.": reply("Webinar attendees get a follow-up, too."),
+            # Spanish heard: the call is in Spanish before he answers.
+            "¿Cuánto cuesta Potion? Quiero ver los precios.": reply(
+                "{page: /pricing/} Los planes empiezan muy bajos. ¿Quieres verlos?"
+            ),
+            # One Spanish word is not enough to move the call; his Spanish is.
+            "Hola.": reply("Claro, te lo enseño ahora. ¿Por dónde empezamos?"),
             "I run an agency and want more clients.": [
                 call("find_blog_posts", request={"use_case": "agency growth cold outreach"}),
                 reply_and_call(
@@ -249,14 +256,15 @@ def _idle_windows(rig: object) -> list[int | None]:
 
 
 async def test_greeting_and_voice_reach_the_wire() -> None:
-    """A written opener, and gaurav in English on both legs before it."""
+    """A written opener, and javier in English on both legs before it."""
     async with demo("sendpotion", _llm()) as rig:
         greeting = await rig.driver.start_session(
             init={"surface": "sendpotion-ext", "site": "site", "path": "/"}
         )
         check_greeting(rig, greeting)
-        assert greeting is not None and greeting.text == _GREETING
-        check_voice_pair(rig, voice="omnivoice/gaurav", language="en")
+        assert greeting is not None and greeting.text == sendpotion.greeting("/", "site")
+        assert greeting.text.startswith("Hi, I'm Javier")
+        check_voice_pair(rig, voice="omnivoice/javier", language="en")
         assert _idle_windows(rig) == [_IDLE_MS]
 
 
@@ -266,7 +274,81 @@ async def test_the_opener_follows_the_page_and_the_blog() -> None:
         assert greeting is not None and "plan" in greeting.text
     async with demo("sendpotion", _llm()) as rig:
         greeting = await rig.driver.start_session(init={"site": "blog", "path": "/x-1a2b"})
-        assert greeting is not None and greeting.text == _BLOG_GREETING
+        assert greeting is not None and greeting.text == greeting_for_blog()
+
+
+def greeting_for_blog() -> str:
+    return greeting("/x-1a2b", "blog")
+
+
+async def test_a_call_started_in_spanish_opens_and_listens_in_spanish() -> None:
+    async with demo("sendpotion", _llm()) as rig:
+        opener = await rig.driver.start_session(
+            init={"site": "site", "path": "/pricing/", "lang": "es"}
+        )
+        check_greeting(rig, opener)
+        assert opener is not None and opener.text == greeting("/pricing/", "site", "es")
+        assert opener.text.startswith("Hola, soy Javier")
+        check_voice_pair(rig, voice="omnivoice/javier", language="es")
+
+
+async def test_the_toggle_switches_both_legs_and_confirms_in_spanish() -> None:
+    async with demo("sendpotion", _llm()) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/"})
+        await _page(rig, "language_requested", {"language": "es"})
+        check_voice_pair(rig, voice="omnivoice/javier", language="es")
+        # The widget's toggle is told at once, not left to guess from his voice.
+        assert rig.command("language_changed") == {"language": "es"}
+        turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
+        check_turn(rig, turn)
+        assert turn.text == TOGGLE_CONFIRM["es"]
+
+
+async def test_spanish_heard_switches_before_he_answers_and_english_switches_back() -> None:
+    async with demo("sendpotion", _llm()) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/"})
+        turn = await rig.driver.user_says("¿Cuánto cuesta Potion? Quiero ver los precios.")
+        check_turn(rig, turn)
+        check_voice_pair(rig, voice="omnivoice/javier", language="es")
+        assert rig.command("language_changed") == {"language": "es"}
+        turn = await rig.driver.user_says("How much is it?")
+        check_turn(rig, turn)
+        check_voice_pair(rig, voice="omnivoice/javier", language="en")
+        changed = [
+            c["payload"]
+            for c in rig.driver.ui_commands  # type: ignore[attr-defined]
+            if c.get("command") == "language_changed"
+        ]
+        assert changed == [{"language": "es"}, {"language": "en"}]
+
+
+async def test_his_spanish_reply_moves_the_voice_to_spanish() -> None:
+    async with demo("sendpotion", _llm()) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/"})
+        turn = await rig.driver.user_says("Hola.")
+        check_turn(rig, turn)
+        assert turn.text.startswith("Claro, te lo enseño")
+        check_voice_pair(rig, voice="omnivoice/javier", language="es")
+
+
+@pytest.mark.parametrize(
+    ("text", "sure", "lang"),
+    [
+        ("¿Puedes hablar en español?", True, "es"),
+        ("Quiero ver los precios de Potion", True, "es"),
+        ("Hola", True, None),
+        ("Can you show me the pricing?", True, "en"),
+        ("Starter", True, None),
+        ("Okay.", True, None),
+        # His own first words are few: one of a language is enough.
+        ("Claro.", False, "es"),
+        ("Sure, here it is.", False, "en"),
+        # A cue is the site's English inside a Spanish reply.
+        ("{show: Pricing plans for your team} Los planes son baratos.", False, "es"),
+    ],
+)
+def test_the_language_a_line_is_in(text: str, sure: bool, lang: str | None) -> None:
+    assert language_of(text, sure=sure) == lang
 
 
 NONE = {"path": None, "heading": None, "text": None, "faq": None}

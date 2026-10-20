@@ -34,7 +34,7 @@
 import type { PipecatClient } from "@pipecat-ai/client-js";
 
 import type { HubChannel } from "./hub";
-import type { Activity, Status } from "./widget";
+import type { Activity, Language, Status } from "./widget";
 
 /** The pipecat events relayed to followers: the avatar's (`RTVI_EVENTS` in
  *  the avatar's `AvatarClient.ts`, less `trackStarted`) and the widget's. */
@@ -58,7 +58,7 @@ export type Relay =
   | { k: "hello"; from: string }
   | { k: "away"; from: string }
   // The holder's state, on every change and in answer to a hello.
-  | { k: "holder"; from: string; status: Status; muted: boolean; activity: Activity | null }
+  | { k: "holder"; from: string; status: Status; muted: boolean; activity: Activity | null; language?: Language }
   // The holder's page is going away. `navigating` when the Navigation API saw
   // it leave for another document, which comes back and dials again; a
   // closed tab does not.
@@ -76,7 +76,7 @@ export type Relay =
   | { k: "report"; from: string; data: unknown }
   | { k: "mute" }
   | { k: "end" }
-  // The reading list Tushar made, for every tab's widget; sent with each
+  // The reading list Javier made, for every tab's widget; sent with each
   // change and again to a newcomer.
   | { k: "reads"; heading: string; posts: { url: string; title: string; why: string | null }[] };
 

@@ -3,7 +3,7 @@
 The other direction is the :class:`~voqalize.sdk.Action` classes in
 ``brain.py``. These are sent by the extension on sendpotion.com and
 blog.sendpotion.com, and they fire for the visitor's own clicks as well as for
-Tushar's moves, so his picture of their screen is true whoever moved it.
+Javier's moves, so his picture of their screen is true whoever moved it.
 
 The site is SendPotion's, not ours, and it changes without asking. So the nested
 shapes are plain models that ignore a field they do not know, while the events
@@ -25,6 +25,7 @@ __all__ = [
     "DemoFields",
     "DemoScheduled",
     "DemoState",
+    "LanguageRequested",
     "PageChanged",
     "SendPotionEvent",
     "TabInfo",
@@ -96,13 +97,21 @@ class DemoScheduled(AppEvent):
 
 
 class CommandFailed(AppEvent):
-    """A move Tushar sent could not be carried out on the page."""
+    """A move Javier sent could not be carried out on the page."""
 
     command: str
     reason: str = ""
 
 
-type SendPotionEvent = PageChanged | TabsChanged | DemoState | DemoScheduled | CommandFailed
+class LanguageRequested(AppEvent):
+    """The visitor pressed the other language on the widget's toggle."""
+
+    language: Literal["en", "es"]
+
+
+type SendPotionEvent = (
+    PageChanged | TabsChanged | DemoState | DemoScheduled | CommandFailed | LanguageRequested
+)
 
 SENDPOTION_EVENTS = AppEvents[SendPotionEvent](
     PageChanged,
@@ -110,4 +119,5 @@ SENDPOTION_EVENTS = AppEvents[SendPotionEvent](
     DemoState,
     DemoScheduled,
     CommandFailed,
+    LanguageRequested,
 )
