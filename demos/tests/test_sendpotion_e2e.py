@@ -172,8 +172,13 @@ def _llm() -> ScriptedGemini:
             "¿Cuánto cuesta Potion? Quiero ver los precios.": reply(
                 "{page: /pricing/} Los planes empiezan muy bajos. ¿Quieres verlos?"
             ),
-            # One Spanish word is not enough to move the call; his Spanish is.
-            "Hola.": reply("Claro, te lo enseño ahora. ¿Por dónde empezamos?"),
+            # One Spanish word is not enough to move the call; his Spanish is,
+            # even when its first chunk is a sliver (dev call 826ccd1f: " P").
+            "Hola.": reply(chunks=[" C", "laro, te lo enseño ahora. ¿Por dónde empezamos?"]),
+            # Dev call 826ccd1f: Spanish chosen, English spoken, Spanish answered.
+            "can you show me a few features?": reply(
+                chunks=[" P", "otion ofrece herramientas muy completas. ¿Quieres verlas?"]
+            ),
             "I run an agency and want more clients.": [
                 call("find_blog_posts", request={"use_case": "agency growth cold outreach"}),
                 reply_and_call(
@@ -292,6 +297,41 @@ async def test_a_call_started_in_spanish_opens_and_listens_in_spanish() -> None:
         check_voice_pair(rig, voice="omnivoice/javier", language="es")
 
 
+def _language_changes(rig: object) -> list[object]:
+    return [
+        c["payload"]
+        for c in rig.driver.ui_commands  # type: ignore[attr-defined]
+        if c.get("command") == "language_changed"
+    ]
+
+
+async def test_a_chosen_language_holds_when_the_visitor_speaks_the_other(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Dev call 826ccd1f: Spanish chosen on the toggle, English spoken. Each
+    turn nodded in English, the toggle flicked to English and back, and the last
+    reply, whose first chunk was " P", was read by the English voice."""
+    monkeypatch.setattr(sendpotion, "ACK_RATE", 1.0)
+    async with demo("sendpotion", _llm()) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/"})
+        await _page(rig, "language_requested", {"language": "es"})
+        turn = await rig.driver.user_says("I'm asking, can you show me a few features?")
+        check_turn(rig, turn)
+        nods = {line for lines in sendpotion._ACK_LINES["es"].values() for line in lines}
+        assert any(turn.text.startswith(nod) for nod in nods), turn.text
+        assert "Potion ofrece herramientas" in turn.text
+        check_voice_pair(rig, voice="omnivoice/javier", language="es")
+        assert _language_changes(rig) == [{"language": "es"}]
+
+
+async def test_a_language_chosen_before_the_call_holds_too() -> None:
+    async with demo("sendpotion", _llm()) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/", "lang": "es"})
+        await rig.driver.user_says("How much is it?")
+        check_voice_pair(rig, voice="omnivoice/javier", language="es")
+        assert _language_changes(rig) == []
+
+
 async def test_the_toggle_switches_both_legs_and_confirms_in_spanish() -> None:
     async with demo("sendpotion", _llm()) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/"})
@@ -314,12 +354,7 @@ async def test_spanish_heard_switches_before_he_answers_and_english_switches_bac
         turn = await rig.driver.user_says("How much is it?")
         check_turn(rig, turn)
         check_voice_pair(rig, voice="omnivoice/javier", language="en")
-        changed = [
-            c["payload"]
-            for c in rig.driver.ui_commands  # type: ignore[attr-defined]
-            if c.get("command") == "language_changed"
-        ]
-        assert changed == [{"language": "es"}, {"language": "en"}]
+        assert _language_changes(rig) == [{"language": "es"}, {"language": "en"}]
 
 
 async def test_his_spanish_reply_moves_the_voice_to_spanish() -> None:
@@ -327,7 +362,7 @@ async def test_his_spanish_reply_moves_the_voice_to_spanish() -> None:
         await rig.driver.start_session(init={"site": "site", "path": "/"})
         turn = await rig.driver.user_says("Hola.")
         check_turn(rig, turn)
-        assert turn.text.startswith("Claro, te lo enseño")
+        assert turn.text.strip().startswith("Claro, te lo enseño")
         check_voice_pair(rig, voice="omnivoice/javier", language="es")
 
 

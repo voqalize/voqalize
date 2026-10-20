@@ -37,12 +37,15 @@ page fires each as the voice reaches its sentence (:mod:`.cues`, and the
 extension's ``narration.ts``). A reply ends on a leading offer of the next part
 of the site's story, not an open question.
 
-**English or Spanish, whichever the visitor speaks.** The recognizer hears
+**English or Spanish, as the visitor chose or speaks.** The recognizer hears
 both whatever it is set to, so the brain only decides which language he answers
-in, and moves both legs of the call there together: when the visitor's words
-are plainly the other language, when his own reply is, when they ask
-(``set_language``), or when they press the widget's toggle. The voice is one
-man, recorded in each.
+in, and moves both legs of the call there together. A language the visitor
+chose — on the widget's toggle, before or during the call, or by asking
+(``set_language``) — holds whatever they speak: on dev call 826ccd1f a visitor
+who chose Spanish and spoke English had every nod in English and the toggle
+flicking back and forth. Until they choose, the call follows the language they
+speak. Either way the voice follows the language his reply is written in. The
+voice is one man, recorded in each.
 
 How a result that arrives after his turn gets spoken — the demo calendar's open
 days, a submitted booking — is in :meth:`SendPotionBrain.on_user_idle`.
@@ -173,6 +176,10 @@ _ENGLISH_WORDS = frozenset(
     would like tell sure yes okay right of course let's
     """.split()  # noqa: SIM905
 )
+#: Enough of his reply to tell its language: its first sentence, or this many
+#: characters. On dev call 826ccd1f the first chunk of a Spanish reply was " P".
+_WRITTEN_ENOUGH = 60
+_SENTENCE_END = re.compile(r"[.?!](?:\s|$)")
 #: Letters and marks only Spanish writes, of the two.
 _SPANISH_MARKS = re.compile(r"[¿¡ñáéíóú]", re.IGNORECASE)
 _LETTERS = re.compile(r"[\wáéíóúüñ']+")
@@ -196,6 +203,14 @@ def language_of(text: str, *, sure: bool = True) -> Lang | None:
     if en >= (3 if sure else 2) and es == 0:
         return "en"
     return None
+
+
+def _chosen_note(language: Lang, how: str) -> str:
+    name = LANGUAGE_NAMES[language]
+    return (
+        f"[The visitor chose {name} {how}. Answer in {name} from now on, whatever "
+        "language they speak to you, until they ask for the other one.]"
+    )
 
 
 # ─── Actions (brain → page) ────────────────────────────────────────────────────
@@ -441,6 +456,7 @@ You are heard, not read, so keep it light and warm.
 # English or Spanish
 You speak English and Spanish, as a native of Madrid. The call starts in English unless the visitor chose Spanish.
 - Answer in the language the visitor speaks to you. If they speak Spanish, answer in Spanish from that reply on; if they go back to English, so do you. Your voice follows the language you write.
+- Except when they chose a language: a line in square brackets says so. Then answer in that language whatever they speak, even when they speak the other one, until they ask you to switch.
 - When they ask for the other language in words that are not already it ("Can you speak Spanish?", "¿Podemos hablar en inglés?"), answer in that language and call set_language in the same response. A visitor already speaking Spanish to you has been switched: do not call it for them.
 - One language per reply: in a Spanish reply every sentence is Spanish. Use "tú", plain neutral Spanish, and masculine forms of yourself ("estoy encantado de ayudarte").
 - In Spanish too, write numbers and prices as spoken words: "treinta y nueve dólares al mes", never "39 $/mes". Product and plan names stay as SendPotion writes them: Potion, Starter, Professional.
@@ -1069,6 +1085,9 @@ class SendPotionBrain(GeminiBrain):
         #: The language he speaks now, and the toggle's written confirmation
         #: of a switch, said at the start of his next turn.
         self.spoken: Lang = OPENING
+        #: Whether the visitor chose the language, which then holds whatever
+        #: they speak; until they do, it follows what they speak.
+        self._chosen = False
         self._confirm: str | None = None
         self._fallback = FallbackLine()
         self._ack = Acknowledger(
@@ -1109,7 +1128,10 @@ class SendPotionBrain(GeminiBrain):
         init = session.init or {}
         self._path = canonical_path(str(init.get("path") or "/"))
         self._site = "blog" if init.get("site") == "blog" else "site"
-        self.spoken = "es" if init.get("lang") == "es" else OPENING
+        # The page sends `lang` only once the visitor has pressed the toggle.
+        chosen = init.get("lang")
+        self._chosen = chosen in LANGUAGE_NAMES
+        self.spoken = "es" if chosen == "es" else OPENING
         # His own voice, settled here and not by the page. Both language legs
         # move together; what he hears, the toggle and `set_language` move them
         # again.
@@ -1120,7 +1142,15 @@ class SendPotionBrain(GeminiBrain):
                 idle=IdleConfig(timeout_ms=_IDLE_MS),
             )
         )
-        logger.info("sendpotion: session start on {} {} in {}", self._site, self._path, self.spoken)
+        logger.info(
+            "sendpotion: session start on {} {} in {}{}",
+            self._site,
+            self._path,
+            self.spoken,
+            " (chosen)" if self._chosen else "",
+        )
+        if self._chosen:
+            self._note(_chosen_note(self.spoken, "before the call"))
 
     async def greet(self, session: Session) -> str:
         """The opener, written not generated."""
@@ -1130,9 +1160,9 @@ class SendPotionBrain(GeminiBrain):
         self, session: Session, msg: UserMessage
     ) -> AsyncGenerator[Speech, None]:
         """A visitor who speaks the other language is answered in it from the
-        first word; the tab they moved to is read in with what they said; his
+        first word, unless they chose the language they are in; the tab they moved to is read in with what they said; his
         nod covers the model's thinking."""
-        heard = language_of(msg.text)
+        heard = None if self._chosen else language_of(msg.text)
         if heard is not None and heard != self.spoken:
             await session.configure(self._speaking(heard))
             logger.info("sendpotion: language -> {} (heard)", heard)
@@ -1241,24 +1271,39 @@ class SendPotionBrain(GeminiBrain):
     async def _written(
         self, session: Session, turn: AsyncGenerator[Speech, None]
     ) -> AsyncGenerator[Speech, None]:
-        """``turn``, with each unit held back until its first words are in, and
-        both legs moved to the language they are in when it is not the call's."""
-        opening: SpeechStart | None = None
+        """``turn``, with each unit held back until its first sentence is in,
+        and both legs moved to the language it is in when it is not the call's.
+        A chunk can be a sliver (" P"), so one is never enough to tell."""
+        held: list[Speech] = []
+        text = ""
+
+        async def release() -> AsyncGenerator[Speech, None]:
+            nonlocal held, text
+            written = language_of(text, sure=False)
+            if written is not None and written != self.spoken:
+                await session.configure(self._speaking(written))
+                logger.info("sendpotion: language -> {} (written)", written)
+            out, held, text = held, [], ""
+            for event in out:
+                yield event
+
         async for event in turn:
             if isinstance(event, SpeechStart):
-                opening = event
+                held.append(event)
                 continue
-            if opening is not None:
-                if isinstance(event, SpeechChunk):
-                    written = language_of(event.text, sure=False)
-                    if written is not None and written != self.spoken:
-                        await session.configure(self._speaking(written))
-                        logger.info("sendpotion: language -> {} (written)", written)
-                yield opening
-                opening = None
-            yield event
-        if opening is not None:
-            yield opening
+            if not held:
+                yield event
+                continue
+            held.append(event)
+            if isinstance(event, SpeechChunk):
+                text += event.text
+                if len(text) < _WRITTEN_ENOUGH and not _SENTENCE_END.search(text):
+                    continue
+            async for out in release():
+                yield out
+        if held:
+            async for out in release():
+                yield out
 
     async def _cued(self, turn: AsyncGenerator[Speech, None]) -> AsyncGenerator[Speech, None]:
         """``turn`` with every ``{page|show|faq: …}`` taken out of its text and
@@ -1445,14 +1490,12 @@ class SendPotionBrain(GeminiBrain):
             session.dispatch(LanguageChanged(language=was))
             return
         logger.info("sendpotion: language -> {} (toggle)", event.language)
+        self._chosen = True
         self._confirm = TOGGLE_CONFIRM[event.language]
         if not self._idle_short:
             self._idle_short = True
             configure_soon(session, Config(idle=IdleConfig(timeout_ms=_TALK_THROUGH_MS)))
-        self._note(
-            f"[The call is now in {LANGUAGE_NAMES[event.language]}, switched by the visitor "
-            "on the toggle. Answer in it from now on.]"
-        )
+        self._note(_chosen_note(event.language, "on the toggle"))
 
     def _speaking(self, language: Lang) -> Config:
         """Both legs of ``language``, recorded as the one he speaks now, and the
@@ -1779,6 +1822,7 @@ class SendPotionBrain(GeminiBrain):
         back. Say one short line in the language you are switching to, in the
         same response. A visitor already speaking Spanish has been switched: do
         not call it for them."""
+        self._chosen = True
         configure_soon(self.session, self._speaking(request.language))
         logger.info("sendpotion: language -> {} (asked)", request.language)
         return "ok"
