@@ -121,6 +121,10 @@ class LiteLLMBrain(PortableBrain):
             kwargs["tool_choice"] = choice
         if self._reasoning is not None:
             kwargs["reasoning_effort"] = self._reasoning
+            # drop_params would otherwise drop it, silently, for any model LiteLLM's
+            # table does not list as reasoning — every GPT-6 model, when this was
+            # written — and the model would run at its own default effort instead.
+            kwargs["allowed_openai_params"] = ["reasoning_effort"]
         return kwargs
 
     async def _model_stream(

@@ -40,6 +40,9 @@ voice behaviour lives, under *Changed*.
 - **`LiteLLMBrain`** (`voqalize.sdk.litellm`, extra `[litellm]`) for any model
   LiteLLM reaches, as chat messages. Reasoning is not carried between requests.
   GPT-6 with tools and a reasoning effort needs `"openai/responses/<model>"`.
+  The `reasoning` you give is always sent: LiteLLM's `drop_params` would
+  otherwise drop it, without a word, for a model its table does not list as
+  reasoning, and the model would run at its own default.
 - **Tools declared from their signatures** on both: one pydantic model parameter
   is declared flat and validated before the tool runs; plain parameters and no
   parameters work too.

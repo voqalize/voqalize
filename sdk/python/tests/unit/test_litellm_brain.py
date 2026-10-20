@@ -145,6 +145,9 @@ async def test_the_context_goes_back_as_chat_messages(fake: Any) -> None:
 
     second = f.requests[1]
     assert second["reasoning_effort"] == "low"
+    # drop_params would drop it silently for a model LiteLLM does not list as reasoning,
+    # and the model would answer at its default effort.
+    assert second["allowed_openai_params"] == ["reasoning_effort"]
     assert second["drop_params"] is True
     assert second["stream_options"] == {"include_usage": True}
     messages = second["messages"]
