@@ -1,4 +1,4 @@
-"""Run Tushar's brain on your own machine against a deployed Voqalize, over Cortex.
+"""Run Javier's brain on your own machine against a deployed Voqalize, over Cortex.
 
 The deployed demos are served from `brain.<env>.voqalize.com/sendpotion`, which
 is only as new as the last merge to `main`. To try a change first, put a dev

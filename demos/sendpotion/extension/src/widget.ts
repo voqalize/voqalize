@@ -1,7 +1,8 @@
 /**
  * The corner of SendPotion's page that is ours: the button that starts a call,
- * the card that holds Tushar's face while it runs, and the reading list — the
- * blog posts he picked for this visitor, which stay in the card on every tab.
+ * the card that holds Javier's face while it runs, the language toggle, and
+ * the reading list — the blog posts he picked for this visitor, which stay in
+ * the card on every tab.
  *
  * It lives in a shadow root so that neither side's styles reach the other. It
  * takes the bottom-right corner; the visitor can drag it anywhere and minimise
@@ -10,6 +11,7 @@
 
 export type Status = "idle" | "connecting" | "live" | "error";
 export type Activity = "listening" | "thinking" | "speaking";
+export type Language = "en" | "es";
 
 /** A rectangle in viewport pixels. */
 export interface Rect {
@@ -34,6 +36,10 @@ export interface Widget {
   setActivity(activity: Activity): void;
   setMuted(muted: boolean): void;
   setStill(url: string): void;
+  /** The language the call is in, or the next one starts in. */
+  setLanguage(language: Language): void;
+  /** A language asked for on the toggle and not yet confirmed; `null` for none. */
+  setLanguagePending(language: Language | null): void;
   /** The posts he recommended, newest list first; empty hides the card. */
   setReads(heading: string, reads: readonly Read[]): void;
   /** What on the page the widget must not cover; empty when nothing is open. */
@@ -42,6 +48,8 @@ export interface Widget {
   /** The visitor is reaching for the invite: a pointer over it, or focus. */
   onReach(fn: () => void): void;
   onMute(fn: () => void): void;
+  /** The visitor pressed a language on the toggle. */
+  onLanguage(fn: (language: Language) => void): void;
   onHang(fn: () => void): void;
   /** A post in the reading list was clicked. */
   onRead(fn: (url: string) => void): void;
@@ -135,10 +143,17 @@ button { font: inherit; cursor: pointer; }
 .solid { background: ${BRAND}; border: 1px solid ${BRAND}; color: #fff; }
 .ghost[aria-pressed="true"] { background: ${BRAND_DARK}; color: #fff; }
 .credit { color: ${MUTED}; font-size: 10px; letter-spacing: 0.08em; text-align: center; }
+.lang { display: flex; gap: 4px; padding: 3px; border-radius: 999px; background: #f0e8f8; width: ${CARD + 20}px; }
+.card .lang { width: auto; }
+.lang button { flex: 1; min-height: 30px; padding: 4px 10px; border: 0; border-radius: 999px;
+  background: transparent; color: ${BRAND_DARK}; font-size: 13px; font-weight: 500; }
+.lang button[aria-pressed="true"] { background: ${BRAND}; color: #fff; cursor: default; }
+.lang button.pending { opacity: 0.55; outline: 1px dashed ${BRAND}; outline-offset: -3px; }
+.lang button:focus-visible { outline: 2px solid ${BRAND_DARK}; outline-offset: 2px; }
 .error { color: #9b2c2c; background: #fff; border-radius: 8px; padding: 8px 10px; font-size: 12px; line-height: 1.4;
   max-width: ${CARD + 20}px; margin: 0; box-shadow: 0 6px 18px rgba(0,0,0,0.1); }
 
-/* The reading list: blog posts Tushar picked for this visitor. */
+/* The reading list: blog posts Javier picked for this visitor. */
 .reads { width: ${CARD + 64}px; background: #fff; border: 1px solid ${LINE}; border-radius: 14px;
   box-shadow: 0 16px 40px rgba(42, 22, 80, 0.18); overflow: hidden; }
 .reads-bar { display: flex; background: ${BRAND_DARK}; }
@@ -214,10 +229,10 @@ export function mountWidget(): Widget {
         </div>
         <ul class="reads-list"></ul>
       </div>
-      <button class="invite" type="button" aria-label="Talk to Tushar, SendPotion's guide, by voice">
+      <button class="invite" type="button" aria-label="Talk to Javier, SendPotion's guide, by voice">
         <span class="still"></span>
         <span class="invite-text">
-          <span class="invite-name">Talk to Tushar</span>
+          <span class="invite-name">Talk to Javier</span>
           <span class="invite-role">SendPotion guide · voice</span>
         </span>
       </button>
@@ -230,15 +245,20 @@ export function mountWidget(): Widget {
         </div>
         <div class="body">
           <div class="head">
-            <span class="name">Tushar</span>
+            <span class="name">Javier</span>
             <span class="status caps"><span class="dot"></span><span class="status-text"></span></span>
           </div>
+          <div class="lang-slot"></div>
           <div class="buttons">
             <button class="ghost caps mute" type="button" aria-pressed="false">Mute</button>
             <button class="solid caps hang" type="button">End call</button>
           </div>
           <div class="credit caps">Voice by Voqalize · preview</div>
         </div>
+      </div>
+      <div class="lang" role="group" aria-label="Language">
+        <button type="button" data-lang="en" lang="en" aria-pressed="true">English</button>
+        <button type="button" data-lang="es" lang="es" aria-pressed="false">Español</button>
       </div>
       <p class="error" hidden></p>
       <audio autoplay></audio>
@@ -258,6 +278,9 @@ export function mountWidget(): Widget {
   const readsHead = $<HTMLButtonElement>(".reads-head");
   const readsTitle = $<HTMLElement>(".reads-title");
   const readsList = $<HTMLElement>(".reads-list");
+  const lang = $<HTMLElement>(".lang");
+  const langSlot = $<HTMLElement>(".lang-slot");
+  const langButtons = [...lang.querySelectorAll<HTMLButtonElement>("button")];
 
   // ─── Where it sits ────────────────────────────────────────────────────
 
@@ -277,8 +300,8 @@ export function mountWidget(): Widget {
     if (bubble) return { w: BUBBLE, h: BUBBLE };
     let h = 0;
     let w = 0;
-    for (const child of [reads, invite, card, error]) {
-      if (child.hidden) continue;
+    for (const child of [reads, invite, card, lang, error]) {
+      if (child.hidden || (child === lang && !card.hidden)) continue;
       const cw = child === card ? CARD : child.offsetWidth;
       const ch = child === card ? CARD + $<HTMLElement>(".body").offsetHeight : child.offsetHeight;
       w = Math.max(w, cw);
@@ -340,7 +363,7 @@ export function mountWidget(): Widget {
   root.addEventListener("pointerdown", (e) => {
     if (e.button !== 0) return;
     const target = e.target as Element;
-    if (target.closest(".mute, .hang, .minimise, .reads")) return;
+    if (target.closest(".mute, .hang, .minimise, .reads, .lang")) return;
     drag = { id: e.pointerId, dx: e.clientX - at.x, dy: e.clientY - at.y, sx: e.clientX, sy: e.clientY, moved: false };
   });
   root.addEventListener("pointermove", (e) => {
@@ -413,6 +436,13 @@ export function mountWidget(): Widget {
   }
   readsHead.addEventListener("click", () => setReadsOpen(!reads.hasAttribute("data-open")));
 
+  // ─── The language toggle ──────────────────────────────────────────────
+
+  let languageFn: ((language: Language) => void) | null = null;
+  for (const b of langButtons) {
+    b.addEventListener("click", () => languageFn?.(b.dataset.lang as Language));
+  }
+
   return {
     face: $<HTMLElement>(".face"),
     audio: $<HTMLAudioElement>("audio"),
@@ -422,6 +452,8 @@ export function mountWidget(): Widget {
       card.hidden = status === "idle" || status === "error";
       invite.hidden = !card.hidden;
       invite.disabled = status === "connecting";
+      // Under the invite it picks the next call's language; in the card, the call's.
+      (card.hidden ? root : langSlot).insertBefore(lang, card.hidden ? error : null);
       error.hidden = status !== "error";
       error.textContent = status === "error" ? (message ?? "Could not start the call.") : "";
       if (status === "connecting") statusText.textContent = message ?? "Connecting";
@@ -441,6 +473,15 @@ export function mountWidget(): Widget {
     },
     setStill(url) {
       $<HTMLElement>(".still").style.backgroundImage = `url("${url}")`;
+    },
+    setLanguage(language) {
+      for (const b of langButtons) {
+        b.setAttribute("aria-pressed", String(b.dataset.lang === language));
+        b.classList.remove("pending");
+      }
+    },
+    setLanguagePending(language) {
+      for (const b of langButtons) b.classList.toggle("pending", b.dataset.lang === language);
     },
     setReads(heading, list) {
       readsList.replaceChildren();
@@ -483,6 +524,9 @@ export function mountWidget(): Widget {
       invite.addEventListener("focus", fn);
     },
     onMute: (fn) => mute.addEventListener("click", fn),
+    onLanguage: (fn) => {
+      languageFn = fn;
+    },
     onHang: (fn) => hang.addEventListener("click", fn),
     onRead: (fn) => {
       readFn = fn;

@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Tushar for SendPotion — Voqalize preview",
+  "name": "Javier for SendPotion — Voqalize preview",
   "version": "0.0.0",
   "description": "A voice guide on sendpotion.com and blog.sendpotion.com, who answers from SendPotion's own pages and blog, takes visitors to the part that answers them, fills in forms with them, and opens the posts that fit their use case. A Voqalize preview.",
   "background": {

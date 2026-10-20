@@ -1,6 +1,6 @@
 # SendPotion knowledge
 
-What the SendPotion agent (Tushar, in a Chrome extension on sendpotion.com and
+What the SendPotion agent (Javier, in a Chrome extension on sendpotion.com and
 blog.sendpotion.com) knows, in three layers. Every fact is the site's own, taken
 from sendpotion.com and the Potion Blog on blog.sendpotion.com. Nothing is filled
 in from general knowledge. Where the site's own pages disagree, the files record

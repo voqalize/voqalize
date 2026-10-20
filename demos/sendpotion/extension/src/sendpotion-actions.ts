@@ -253,7 +253,7 @@ function styleThePage(): void {
   if (document.querySelector("style[data-voqalize=sendpotion]")) return;
   const style = document.createElement("style");
   style.setAttribute("data-voqalize", "sendpotion");
-  // Tushar takes the corner SendPotion's Intercom launcher sits in, and the
+  // Javier takes the corner SendPotion's Intercom launcher sits in, and the
   // blog's reCAPTCHA badge; both stand aside while the extension runs.
   style.textContent = `
     .intercom-lightweight-app, #intercom-container, .intercom-launcher,
