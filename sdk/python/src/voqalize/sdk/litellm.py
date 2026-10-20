@@ -51,7 +51,7 @@ __all__ = ["TOOL_BUDGET_MS", "LiteLLMBrain", "needs_result_now"]
 
 class LiteLLMBrain(PortableBrain):
     """Base for a brain on any model LiteLLM reaches. Override the prompt, the
-    greeting and :attr:`~voqalize.sdk.voice.VoiceBrain.tools`; the turn shape, the
+    greeting and :attr:`~voqalize.sdk.voice.VoiceCore.tools`; the turn shape, the
     tool loop and the context come from the voice core.
 
     ``model`` is LiteLLM's model string. ``reasoning`` is passed as

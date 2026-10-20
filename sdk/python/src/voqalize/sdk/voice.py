@@ -5,7 +5,7 @@
     class Concierge(OpenAIBrain):
         ...
 
-:class:`VoiceBrain` is the part of a model-backed brain that is about *voice*, not
+:class:`VoiceCore` is the part of a model-backed brain that is about *voice*, not
 about any one model: when speech opens and closes, when a tool runs against the
 words around it, which tool results are worth a round trip of silence, what the
 context records once the user cut a reply short, and what a turn cost. It holds no
@@ -21,7 +21,7 @@ add this part). Nothing else. Subclass a layer, never this class, unless you are
 writing a layer.
 
 **The model speaks first, and a tool's result waits for the next request.**
-:attr:`~VoiceBrain.tools` is a plain list of bound ``async def`` methods, and the
+:attr:`~VoiceCore.tools` is a plain list of bound ``async def`` methods, and the
 method is the declaration — its docstring is the description the model reads, its
 parameter is the schema. Each call runs the moment it arrives in the stream, and
 the call and its result go into the context. The model is not asked again for
@@ -65,7 +65,7 @@ __all__ = [
     "ModelPart",
     "ModelUsage",
     "ToolChoice",
-    "VoiceBrain",
+    "VoiceCore",
     "needs_result_now",
 ]
 
@@ -133,7 +133,7 @@ class ModelChunk:
 
 @dataclass(frozen=True)
 class ToolChoice:
-    """Which tools one :meth:`VoiceBrain.respond` may call.
+    """Which tools one :meth:`VoiceCore.respond` may call.
 
     ``ToolChoice.AUTO`` (the default) lets the model choose; ``ToolChoice.NONE``
     takes every tool away, so the model has to speak; ``ToolChoice.only(name)``
@@ -606,7 +606,7 @@ def _log_turn(model: str, tally: _Tally, clock: _Clock) -> None:
 # ─── The core ────────────────────────────────────────────────────────────────
 
 
-class VoiceBrain[M, R](Brain):
+class VoiceCore[M, R](Brain):
     """The voice half of a model-backed brain, for any model. A provider layer
     subclasses it; a brain subclasses the layer.
 

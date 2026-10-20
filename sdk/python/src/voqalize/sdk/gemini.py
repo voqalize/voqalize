@@ -52,7 +52,7 @@ from .voice import (
     ModelPart,
     ModelUsage,
     ToolChoice,
-    VoiceBrain,
+    VoiceCore,
     _needs_result_now,  # pyright: ignore[reportPrivateUsage]
     _require_async,  # pyright: ignore[reportPrivateUsage]
     needs_result_now,
@@ -111,10 +111,10 @@ _ANSWER_NOW = types.ToolConfig(
 )
 
 
-class GeminiBrain(VoiceBrain[types.Content, types.GenerateContentConfig]):
+class GeminiBrain(VoiceCore[types.Content, types.GenerateContentConfig]):
     """Base for a Gemini-backed brain. Override the prompt, the greeting and
     :attr:`tools`; the turn shape, the tool loop and the context come from the
-    voice core (:class:`~voqalize.sdk.voice.VoiceBrain`).
+    voice core (:class:`~voqalize.sdk.voice.VoiceCore`).
 
     ``max_tool_hops`` caps how many times one turn asks the model again for the
     result of a tool marked :func:`needs_result_now`. The last of those times
@@ -166,7 +166,7 @@ class GeminiBrain(VoiceBrain[types.Content, types.GenerateContentConfig]):
                             )
                         )
 
-        For a sentence, :meth:`~voqalize.sdk.voice.VoiceBrain.append_note` is the
+        For a sentence, :meth:`~voqalize.sdk.voice.VoiceCore.append_note` is the
         same thing on every model. This one is for what only Gemini takes: a
         ``Content`` is whatever Gemini takes, so handing the model a screenshot or
         a PDF is this same call with a different part. The role must be ``user``:
@@ -174,7 +174,7 @@ class GeminiBrain(VoiceBrain[types.Content, types.GenerateContentConfig]):
 
         Append the **act**, not the screen, and know that it appends
         **immediately, once, where you call it** — the rules are
-        :meth:`~voqalize.sdk.voice.VoiceBrain.append_note`'s.
+        :meth:`~voqalize.sdk.voice.VoiceCore.append_note`'s.
         """
         if content.role != "user":
             raise ValueError(

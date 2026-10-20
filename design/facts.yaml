@@ -174,7 +174,7 @@ facts:
       pattern: '^version = "(.+)"$'
     note: >-
       Bumped to 0.11.0 on 2026-10-20 for the voice core and two more model
-      layers: voqalize.sdk.voice (VoiceBrain, ToolChoice), OpenAIBrain behind the
+      layers: voqalize.sdk.voice (VoiceCore, ToolChoice), OpenAIBrain behind the
       `openai` extra and LiteLLMBrain behind `litellm`, GeminiBrain rebuilt on the
       core, and TurnUsage with session.report_usage and Capability.TURN_USAGE.
       Additive on the wire (version stays 3).

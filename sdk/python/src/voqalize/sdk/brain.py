@@ -453,7 +453,7 @@ class Session:
         Voqalize keeps it in the call record beside the turn, so where a slow or
         expensive turn spent its time and tokens can be read from the call, for
         any model, without the brain's logs. The voice brains in this SDK
-        (:class:`~voqalize.sdk.voice.VoiceBrain` and its subclasses) send it for
+        (:class:`~voqalize.sdk.voice.VoiceCore` and its subclasses) send it for
         every turn unless built with ``report_usage=False``; a brain with its own
         loop calls this once per turn, after its last model request.
 

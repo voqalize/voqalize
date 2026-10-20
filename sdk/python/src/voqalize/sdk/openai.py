@@ -61,7 +61,7 @@ __all__ = ["TOOL_BUDGET_MS", "OpenAIBrain", "needs_result_now"]
 
 class OpenAIBrain(PortableBrain):
     """Base for an OpenAI-backed brain. Override the prompt, the greeting and
-    :attr:`~voqalize.sdk.voice.VoiceBrain.tools`; the turn shape, the tool loop and
+    :attr:`~voqalize.sdk.voice.VoiceCore.tools`; the turn shape, the tool loop and
     the context come from the voice core.
 
     ``reasoning`` is the model's reasoning effort, or ``None`` for its default.

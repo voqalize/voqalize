@@ -23,7 +23,7 @@ voice behaviour lives, under *Changed*.
 
 ### Added
 
-- **The voice core, `voqalize.sdk.voice`.** `VoiceBrain` is everything about a
+- **The voice core, `voqalize.sdk.voice`.** `VoiceCore` is everything about a
   voice turn that is not about one model: speech opened lazily on the first
   word, tools run mid-sentence after the words before them, results filed for
   the next request unless the tool is `@needs_result_now`, `max_tool_hops`,

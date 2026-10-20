@@ -21,7 +21,7 @@ from typing import Any, Literal, get_type_hints
 from pydantic import BaseModel, create_model
 from pydantic_core import to_json
 
-from .voice import ToolChoice, VoiceBrain, _require_async  # pyright: ignore[reportPrivateUsage]
+from .voice import ToolChoice, VoiceCore, _require_async  # pyright: ignore[reportPrivateUsage]
 
 __all__ = ["PortableBrain", "Request", "Tool", "Turn", "declare"]
 
@@ -157,7 +157,7 @@ class Request:
     choice: ToolChoice
 
 
-class PortableBrain(VoiceBrain[Turn, Request]):
+class PortableBrain(VoiceCore[Turn, Request]):
     """The half that :class:`~voqalize.sdk.openai.OpenAIBrain` and
     :class:`~voqalize.sdk.litellm.LiteLLMBrain` share: the context as
     :class:`Turn` values, tools declared from their signatures, and calls run
