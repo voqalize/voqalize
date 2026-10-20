@@ -645,6 +645,29 @@ def test_the_page_for_what_they_asked_about() -> None:
     assert sendpotion.asked_page("Go back to the pricing tab.") is None
     assert sendpotion.asked_page("Mm-hmm") is None
     assert sendpotion.asked_page("Yeah, please show me.") is None
+    # Dev call 1ff72fee: a request about the call's language opened
+    # /supported-languages. A question about Potion's languages still does.
+    for ask in (
+        "Hey, can you speak in Spanish?",
+        "Can we continue in English?",
+        "Let's talk in Spanish, please.",
+        "Switch to English.",
+        "¿Puedes hablar en inglés?",
+        "Hablemos en español.",
+        "Vale, sigamos en español.",
+        # His own first sentence of a switch, read for its page the same way.
+        "Claro, volvemos al español.",
+        "Of course, I can speak Spanish.",
+        "We can switch to English right now.",
+    ):
+        assert sendpotion.asked_page(ask) is None, ask
+    for ask in (
+        "Does Potion make videos in Spanish?",
+        "Can the avatars speak Spanish?",
+        "What languages do you support?",
+        "¿Potion hace vídeos en español?",
+    ):
+        assert sendpotion.asked_page(ask) == "/supported-languages", ask
     # Every page it names is one the crawl has.
     crawl = kb.load()
     for path in [p for _, p in sendpotion._ASKED_PAGES] + ["/use-cases"]:

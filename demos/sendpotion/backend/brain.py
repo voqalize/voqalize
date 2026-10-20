@@ -739,7 +739,10 @@ _ASKED_PAGES: tuple[tuple[re.Pattern[str], str], ...] = tuple(
         (r"video emails?\b", "/personalized-video-emails"),
         (r"pric|cost|how much|plans?\b|free trial", "/pricing"),
         (r"integrat|hubspot|salesforce|crm\b|apollo|lemlist|instantly", "/integrations"),
-        (r"languages?\b|spanish|hindi|french|german", "/supported-languages"),
+        (
+            r"languages?\b|spanish|hindi|french|german|idiomas?\b|español|espanol",
+            "/supported-languages",
+        ),
         (r"reviews?\b|testimonial|case stud|customer stor|stories\b", "/reviews"),
         (r"security|secure|gdpr", "/security"),
         (r"ethic|deepfake|consent", "/ai-ethics"),
@@ -750,11 +753,41 @@ _ASKED_PAGES: tuple[tuple[re.Pattern[str], str], ...] = tuple(
 _ASKED_OVERVIEW = re.compile(r"\buse[- ]?cases?\b|\bwho uses\b", re.IGNORECASE)
 _ASKED_TAB = re.compile(r"\btabs?\b", re.IGNORECASE)
 
+# A request about the call's own language: a verb of speaking, addressed to him
+# ("can you", "let's", or said as an order) or said by him ("I can", "volvemos"),
+# and the language. His own first sentence is read the same way for the page
+# it is about, so "Claro, volvemos al español." must not open a page either. On dev call
+# 1ff72fee "Hey, can you speak in Spanish?" opened /supported-languages while
+# he talked about integrations. "Does Potion make videos in Spanish?" is about
+# the product, and still opens it.
+_CALL_LANGUAGE = re.compile(
+    r"\b(?:speak|talk|switch|change|continue|carry on|answer|reply|respond|go back|"
+    r"habl\w*|cambi\w*|sig\w*|continu\w*|respond\w*|contest\w*|pas\w*|volv\w*)\b"
+    r"[^.?!]{0,25}?\b(?:spanish|english|español|espanol|castellano|inglés|ingles)\b",
+    re.IGNORECASE,
+)
+_TO_HIM = re.compile(
+    r"^\W*(?:(?:hey|ok|okay|please|so|now|vale|oye|bueno|por favor)\W+)*"
+    r"(?:speak|talk|switch|change|continue|carry|answer|reply|respond|go|habla|háblame|"
+    r"hábleme|cambia|sigue|continúa|responde|contesta|pasa|vuelve)\b"
+    r"|\b(?:you|we|us|let'?s|let us|i|i'?ll|puedes|podemos|podrías|podríamos|hablemos|"
+    r"sigamos|cambiemos|continuemos|pasemos|volvamos|me|nos|hablamos|seguimos|cambiamos|"
+    r"continuamos|pasamos|volvemos|puedo)\b",
+    re.IGNORECASE,
+)
+
+
+def asks_call_language(text: str) -> bool:
+    """Whether ``text`` asks him to speak another language — a request about
+    this call, not a question about the languages Potion's videos come in."""
+    return bool(_CALL_LANGUAGE.search(text) and _TO_HIM.search(text))
+
 
 def asked_page(text: str) -> str | None:
     """The site page for what ``text`` asks about, or ``None``. "The pricing
-    tab" is a tab to switch to, not a page to open over the one in front."""
-    if _ASKED_TAB.search(text):
+    tab" is a tab to switch to, not a page to open over the one in front, and
+    "can you speak Spanish?" is a request about this call, not a page."""
+    if _ASKED_TAB.search(text) or asks_call_language(text):
         return None
     named = [(m.start(), path) for rx, path in _ASKED_PAGES if (m := rx.search(text))]
     if named:
@@ -1170,7 +1203,11 @@ class SendPotionBrain(GeminiBrain):
         self._nudges = 0
         # A reply cut off before it said a word keeps its page for the next one:
         # "use cases in sales", then "mm-hmm" while he was still thinking.
-        self._backstop = asked_page(msg.text) or self._backstop
+        # A request to switch language shows nothing, not even the page a
+        # reply cut off before had kept.
+        self._backstop = (
+            None if asks_call_language(msg.text) else asked_page(msg.text) or self._backstop
+        )
         self._restore_idle()
         self._read_in_screen()
         now = time.monotonic()
