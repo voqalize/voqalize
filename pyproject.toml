@@ -32,6 +32,11 @@ dev = [
     # `import voqalize.sdk` pulls none of it; customers opt in via the sdk/python
     # `gemini` extra.
     "google-genai>=1.0,<3",
+    # The same for `voqalize.sdk.openai` and `voqalize.sdk.litellm`, behind the
+    # `openai` and `litellm` extras. The demo image installs with --no-dev, so
+    # neither reaches a deployed brain.
+    "openai>=3.35",
+    "litellm>=1.83",
 ]
 
 # ─── Ruff ─────────────────────────────────────────────────────────────────────

@@ -15,6 +15,64 @@ The public series has now caught up to them, so **a heading carrying
 are different releases that happen to share a number; the pre-restart entries are
 kept for the history, and nothing installable was ever cut from them.
 
+## 0.11.0
+
+Additive on the wire, and the wire version stays 3: a brain on 0.10.0 is served
+exactly as before. `GeminiBrain` behaves as it did; what moved is where its
+voice behaviour lives, under *Changed*.
+
+### Added
+
+- **The voice core, `voqalize.sdk.voice`.** `VoiceBrain` is everything about a
+  voice turn that is not about one model: speech opened lazily on the first
+  word, tools run mid-sentence after the words before them, results filed for
+  the next request unless the tool is `@needs_result_now`, `max_tool_hops`,
+  the leaked-call guard and its one retry, heard truth, the greeting in
+  history, unanswered calls dropped after a barge-in, the `TOOL_BUDGET_MS`
+  warning and the `turn:` log line. It holds no prompt and imports no vendor.
+  A provider layer subclasses it and answers a handful of questions about its
+  own types; a brain subclasses the layer.
+- **`OpenAIBrain`** (`voqalize.sdk.openai`, extra `[openai]`) on the Responses
+  API. The conversation stays in your process (`store=False`, the whole context
+  each request) so heard truth can cut it; encrypted reasoning items go back in
+  as they came. `reasoning="none" | "low" | "medium" | "high"`, and `options`
+  for anything else `responses.create` takes.
+- **`LiteLLMBrain`** (`voqalize.sdk.litellm`, extra `[litellm]`) for any model
+  LiteLLM reaches, as chat messages. Reasoning is not carried between requests.
+  GPT-6 with tools and a reasoning effort needs `"openai/responses/<model>"`.
+- **Tools declared from their signatures** on both: one pydantic model parameter
+  is declared flat and validated before the tool runs; plain parameters and no
+  parameters work too.
+- **Public hooks on every model-backed brain**: `append_note(text)` for a line
+  of context without a turn, `say_line(line, remember=False)` for a line the
+  brain wrote itself (it takes its own finalize, so the model's next unit is
+  paired correctly), and `respond_with(session, tools=ToolChoice.NONE |
+  ToolChoice.only(name))` to ask again with the tools limited.
+- **What a turn cost, on the wire.** `TurnUsage` — model, provider, requests,
+  tool calls, input / cached input / cache-write / output / reasoning tokens,
+  time to the first token and to the first word — goes out after each model
+  loop, as the new `TurnUsage` envelope arm (16), when Voqalize advertises
+  `Capability.TURN_USAGE`. Counts only, never prices. On by default in every
+  model-backed brain; `report_usage=False` keeps the numbers in your logs.
+  A brain with its own loop sends the same with `session.report_usage(...)`
+  (`session.can_report_usage` first). The conformance driver advertises the
+  capability and keeps what arrives in `driver.usage`.
+
+### Changed
+
+- **`GeminiBrain` is the voice core plus Gemini's layer.** Its constructor,
+  `append_to_context`, `system_instruction`, `tools`, `_turn_config` and `_run`
+  are unchanged, and `voqalize.sdk.gemini` still exports `needs_result_now`,
+  `TOOL_BUDGET_MS` and `_Unit`. Two things a brain could notice:
+  - the turn log line and the tool warnings are now logged by the
+    `voqalize.sdk.voice` logger, not `voqalize.sdk.gemini` — a loguru filter on
+    the module name needs the new one;
+  - the `turn:` line's token counts are now the **sum** over the turn's
+    requests, not the last request's, since each request is billed for its
+    whole prompt. One-request turns read the same.
+- `respond(session)` keeps its signature; limiting the tools is
+  `respond_with`, so a brain that overrides `respond` is unaffected.
+
 ## 0.10.0
 
 Additive on the wire, and the wire version stays 3: a brain on 0.9.0 is served

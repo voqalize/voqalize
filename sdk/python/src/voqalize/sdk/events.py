@@ -9,7 +9,8 @@ Three groups, and the split between them is the whole contract:
   whose position on the audio timeline is its meaning. Everything else — an
   action, a language switch, hanging up — is a method on the session.
 * **Reports** — :class:`Finalize` and :class:`Error`. What happened, after it
-  happened.
+  happened. :class:`TurnUsage` is the one report that goes the other way: what
+  a turn cost the brain's model, for :meth:`Session.report_usage`.
 
 Speech is bracketed because it can be cut mid-word: one ``SpeechStart`` …
 ``SpeechEnd`` pair is one *unit*, and a unit is the granularity at which Voqalize
@@ -33,6 +34,7 @@ __all__ = [
     "SpeechChunk",
     "SpeechEnd",
     "SpeechStart",
+    "TurnUsage",
     "UserIdle",
     "UserMessage",
 ]
@@ -175,3 +177,35 @@ class Error:
     code: ErrorCode
     message: str
     fatal: bool = False
+
+
+# ─── What the brain reports ───────────────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class TurnUsage:
+    """What one turn cost the brain's model, for :meth:`Session.report_usage`.
+
+    Counts and durations, summed over every model request the turn made, since
+    each request is billed for its whole prompt. A count the model's API did not
+    report is ``None``, never a guessed zero. There is no price: prices change on
+    dates nobody here controls, so cost is computed from these counts by whoever
+    reads them.
+
+    ``input_tokens`` includes ``cached_input_tokens``. ``output_tokens`` is what
+    the model wrote as text or tool calls; ``reasoning_tokens`` is the thinking it
+    did on top, which nobody hears and the provider still bills.
+    """
+
+    model: str
+    provider: str
+    requests: int = 1
+    input_tokens: int | None = None
+    cached_input_tokens: int | None = None
+    cache_write_tokens: int | None = None
+    output_tokens: int | None = None
+    reasoning_tokens: int | None = None
+    tool_calls: int = 0
+    first_token_ms: int | None = None
+    first_speech_ms: int | None = None
+    total_ms: int = 0

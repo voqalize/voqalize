@@ -119,6 +119,9 @@ class Capability(StrEnum):
     #: only the :class:`Voice` and :class:`Language` catalogs.
     STRING_CONFIG = "string_config"
 
+    #: Voqalize records :class:`TurnUsageFrame`.
+    TURN_USAGE = "turn_usage"
+
 
 # ─── Voqalize → Brain ────────────────────────────────────────────────────────────
 
@@ -216,6 +219,31 @@ class SpeechCancelFrame(Frame):
     :attr:`Capability.SPEECH_CANCEL`."""
 
     speech_id: int = 0
+
+
+@dataclass
+class TurnUsageFrame(Frame):
+    """What one model loop of a turn cost the brain, sent after the loop's last
+    request and never acknowledged — usually once per turn; a brain that asks
+    its model again within a turn sends one per loop, and readers sum by
+    ``turn_id``. Counts are sums over the loop's requests; a count the model's
+    API did not report is ``None``, not zero. Prices are not here on purpose:
+    they change, so cost is computed by whoever reads this. Recorded only when
+    the session advertised :attr:`Capability.TURN_USAGE`."""
+
+    turn_id: int = 0
+    model: str = ""
+    provider: str = ""
+    requests: int = 0
+    input_tokens: int | None = None
+    cached_input_tokens: int | None = None
+    cache_write_tokens: int | None = None
+    output_tokens: int | None = None
+    reasoning_tokens: int | None = None
+    tool_calls: int = 0
+    first_token_ms: int | None = None
+    first_speech_ms: int | None = None
+    total_ms: int = 0
 
 
 # ─── The control leg ──────────────────────────────────────────────────────────
@@ -632,6 +660,7 @@ WIRE_FRAME_CLASSES: tuple[type[Frame], ...] = (
     SpeechChunkFrame,
     SpeechEndFrame,
     SpeechCancelFrame,
+    TurnUsageFrame,
     ConfigureFrame,
     ResponseFrame,
     RTVIFrame,

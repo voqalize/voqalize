@@ -57,6 +57,7 @@ Mapping onto the wire:
 - ``session.cancel_speech`` → ``SpeechCancelFrame``, answered by that unit's ``FinalizeFrame``
 - ``on_finalize``           ← ``FinalizeFrame``
 - ``session.send_rtvi``     → ``RTVIFrame``
+- ``session.report_usage``  → ``TurnUsageFrame``, never answered
 - an ``Action``             → an RTVI ``ui-command``
 - ``configure_*``           → a ``Configure*Frame``, answered by one ``ResponseFrame``
 - barge-in                  ← ``InterruptionFrame`` → every turn through the watermark is cancelled
@@ -87,6 +88,7 @@ from .events import (
     SpeechChunk,
     SpeechEnd,
     SpeechStart,
+    TurnUsage,
     UserIdle,
     UserMessage,
 )
@@ -112,6 +114,7 @@ from .wire import (
     SpeechChunkFrame,
     SpeechEndFrame,
     SpeechStartFrame,
+    TurnUsageFrame,
     UserIdleFrame,
     UserMessageFrame,
     Voice,
@@ -434,6 +437,59 @@ class Session:
             return
         if not future.done():
             future.set_result(frame)
+
+    # ─── What the model cost ────────────────────────────────────────────
+
+    @property
+    def can_report_usage(self) -> bool:
+        """Whether this Voqalize records :meth:`report_usage`. Fixed for the
+        session's life — it is what Voqalize said when the session opened."""
+        return Capability.TURN_USAGE in self.capabilities
+
+    def report_usage(self, usage: TurnUsage, *, turn_id: int | None = None) -> None:
+        """Tell Voqalize what one turn cost your model. Never blocks, and nothing
+        comes back.
+
+        Voqalize keeps it in the call record beside the turn, so the console can
+        show where a slow or expensive turn spent its time and tokens, for any
+        model, without reading the brain's logs. The voice brains in this SDK
+        (:class:`~voqalize.sdk.voice.VoiceBrain` and its subclasses) send it for
+        every turn unless built with ``report_usage=False``; a brain with its own
+        loop calls this once per turn, after its last model request.
+
+        Counts and durations only — no text, no prices. ``turn_id`` defaults to
+        the turn the call is made from, which is right inside a speaking
+        callback, including in its ``finally``.
+
+        - Raises :class:`Unsupported` before sending anything when
+          :attr:`can_report_usage` is false.
+        - Raises ``ValueError`` outside a turn with no ``turn_id`` given.
+        """
+        if not self.can_report_usage:
+            raise Unsupported("report_usage", Capability.TURN_USAGE)
+        turn = _current_turn.get() if turn_id is None else turn_id
+        if turn is None:
+            raise ValueError(
+                "report_usage was called outside a turn without a turn_id; pass the "
+                "turn the numbers belong to."
+            )
+        self._adapter.emit(
+            TurnUsageFrame(
+                turn_id=turn,
+                model=usage.model,
+                provider=usage.provider,
+                requests=usage.requests,
+                input_tokens=usage.input_tokens,
+                cached_input_tokens=usage.cached_input_tokens,
+                cache_write_tokens=usage.cache_write_tokens,
+                output_tokens=usage.output_tokens,
+                reasoning_tokens=usage.reasoning_tokens,
+                tool_calls=usage.tool_calls,
+                first_token_ms=usage.first_token_ms,
+                first_speech_ms=usage.first_speech_ms,
+                total_ms=usage.total_ms,
+            )
+        )
 
     # ─── Taking speech back ─────────────────────────────────────────────
 

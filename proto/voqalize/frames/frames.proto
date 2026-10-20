@@ -71,6 +71,10 @@ message Envelope {
     // heard.
     SpeechCancel speech_cancel = 15;
 
+    // What one model loop of a turn cost the brain. Recorded, never
+    // acknowledged.
+    TurnUsage turn_usage = 16;
+
     // Lifecycle, both directions.
 
     // Hang up, having said everything already sent.
@@ -121,6 +125,10 @@ enum Capability {
   // TtsConfig and SttConfig. A runtime that does not list it ignores them, and would
   // answer a request carrying only them as accepted with nothing changed.
   CAPABILITY_STRING_CONFIG = 2;
+
+  // The runtime records TurnUsage. A runtime that does not list it skips the
+  // frame, so a brain that checks first sends nothing it will not keep.
+  CAPABILITY_TURN_USAGE = 3;
 }
 
 // A committed user utterance, on a turn of its own.
@@ -224,6 +232,67 @@ message SpeechEnd {
 message SpeechCancel {
   // The unit to stop. Must name a unit this session opened.
   uint64 speech_id = 1;
+}
+
+// What one turn cost the brain's model: tokens by kind, requests, tools and
+// time. Sent after each model loop the turn ran, and never acknowledged. That is
+// usually once per turn; a brain that asks its model again within the same turn
+// sends one per loop, and a reader sums them by turn_id. The runtime records it
+// beside the turn and changes nothing about the call because of it; a brain that
+// sends none loses nothing but the record.
+//
+// Counts, never prices: a price moves on a date nobody here controls, so cost is
+// computed from these by whoever reads them. Every count is the sum over the
+// loop's requests, since each request is billed for its whole prompt. A count
+// the model's API did not report is unset, not zero.
+//
+// A runtime honours this only if SessionStart lists CAPABILITY_TURN_USAGE; one
+// that does not skips it.
+message TurnUsage {
+  // The turn these numbers belong to.
+  uint64 turn_id = 1;
+
+  // The model as the brain asked for it, e.g. "gpt-6-sol" or
+  // "gemini-3.5-flash".
+  string model = 2;
+
+  // Who served it, as the brain names it: "openai", "gemini", "litellm", or a
+  // brain's own label.
+  string provider = 3;
+
+  // Model requests the loop made: one, plus one for each time the model was
+  // asked again for a tool's result, plus any retry.
+  uint32 requests = 4;
+
+  // Every input token, cached ones included.
+  optional uint64 input_tokens = 5;
+
+  // The part of input_tokens served from the provider's prompt cache.
+  optional uint64 cached_input_tokens = 6;
+
+  // Input tokens written to the provider's prompt cache, where the provider
+  // bills writes separately.
+  optional uint64 cache_write_tokens = 7;
+
+  // Output tokens the model wrote as text or tool calls, reasoning excluded.
+  optional uint64 output_tokens = 8;
+
+  // Output tokens spent on reasoning the caller never hears.
+  optional uint64 reasoning_tokens = 9;
+
+  // Tools the loop ran.
+  uint32 tool_calls = 10;
+
+  // Milliseconds from the loop's first request to the first piece of the
+  // model's stream.
+  optional uint32 first_token_ms = 11;
+
+  // Milliseconds from the loop's first request to the first text handed to
+  // speech. Unset when the loop said nothing.
+  optional uint32 first_speech_ms = 12;
+
+  // Milliseconds from the loop's first request to its end.
+  uint32 total_ms = 13;
 }
 
 // ─── The control leg ─────────────────────────────────────────────────────────
