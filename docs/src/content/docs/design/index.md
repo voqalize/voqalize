@@ -175,7 +175,8 @@ that is all they are.
 
 ### Speak first, and call in the same response
 
-`GeminiBrain` asks the model once per turn. The model speaks, calls its tools in
+The SDK's model-backed brains (`GeminiBrain`, `OpenAIBrain`, `LiteLLMBrain`) ask
+the model once per turn. The model speaks, calls its tools in
 the same response, and the turn ends when it stops. Each tool runs as its call
 arrives, after the speech ahead of it has been sent, so the screen changes while
 the line is playing.
@@ -202,7 +203,7 @@ and whether it was interrupted. Stamp a monotonic clock at callback entry and
 close it at your first `SpeechChunk`; that is your half of the budget, measured on
 every turn, in your own process.
 
-`GeminiBrain` logs one `turn:` line per turn with that interval, its model round
+The model-backed brains log one `turn:` line per turn with that interval, its model round
 trips and its tool calls. `speechless=yes` on it is a turn that called tools and
 said nothing — the silence above, counted.
 
@@ -674,7 +675,7 @@ a rejection is a retry rather than a dead turn.
 ## Tool design for voice
 
 A tool call in a chat app is a pause. In a voice call, a pause is dead air. So
-`GeminiBrain` does not wait on a tool to finish the reply: the model speaks its
+the SDK's model-backed brains do not wait on a tool to finish the reply: the model speaks its
 line, calls the tool in the same response, and the tool's result reaches the
 model with the user's next message. The user hears the line while the tool
 changes the screen.
@@ -684,7 +685,7 @@ around it.
 
 ### A tool returns immediately
 
-A tool returns within 20 ms. `GeminiBrain` times every call, and one that runs
+A tool returns within 20 ms. The model-backed brains time every call, and one that runs
 longer is logged as a warning that the user waited for it. Nothing is cancelled
 or timed out; the warning is how you find it.
 
@@ -780,7 +781,7 @@ expensive enough that you want to abort it mid-flight is the one to split.
 ### A failed call is a result, not an exception
 
 A tool that raises comes back to the model as `{"error": …}`, with the
-exception's message, and `GeminiBrain` logs `tool … failed` in your process. A
+exception's message, and the model-backed brains log `tool … failed` in your process. A
 call to a tool that is not declared this turn answers the same way. The model
 reads it like any other result and can call again.
 

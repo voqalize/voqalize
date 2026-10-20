@@ -122,7 +122,8 @@ deploy today. The brain is code in your repository, under your version control,
 and swapping the model behind it is a change we never see. Tool calls are local
 function calls in your process, not webhooks we fire at you from rotating IPs.
 
-The `gemini` extra ships `GeminiBrain` and `GeminiInteractionsBrain`. For Google ADK, LangChain, OpenAI Agents or another
+The SDK ships model-backed brains on one voice core: `GeminiBrain` (the `gemini`
+extra), `OpenAIBrain` (`openai`) and `LiteLLMBrain` (`litellm`). For Google ADK, LangChain, OpenAI Agents or another
 framework, connect its text stream to `Brain` or implement the language-neutral
 protobuf WebSocket contract. [Use another agent framework](/build/existing-agent/)
 shows the integration and verification path.

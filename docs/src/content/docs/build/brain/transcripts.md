@@ -110,9 +110,10 @@ class Concierge(Brain):
             self.history = [c for c in self.history if c is not unit]
 ```
 
-Both shipped adapters are built this way, and the contract suite asserts it
-against every brain we ship — including the tool-only response that must leave the
-queue untouched. The conformance driver answers silent brackets too, so a brain
+Every shipped brain is built this way. The contract suite asserts it against
+both Gemini brains — including the tool-only response that must leave the
+queue untouched — and `OpenAIBrain` and `LiteLLMBrain` share `GeminiBrain`'s
+implementation in the voice core. The conformance driver answers silent brackets too, so a brain
 that opens one and forgets to enrol it fails there rather than in a call — see
 [testing a brain](/build/testing/).
 

@@ -26,6 +26,7 @@ from any callback and from work that outlives one.
 | `RTVIMessage` | dataclass | One message from the app. |
 | `Finalize` | dataclass | What the user actually heard, for one speech unit. |
 | `Error` | dataclass | A signal from Voqalize. |
+| `TurnUsage` | dataclass | What one turn cost your model, for `session.report_usage`. |
 | `SpeechStart` | dataclass | Opens a speech unit. |
 | `SpeechChunk` | dataclass | Text to speak inside an open unit. |
 | `SpeechEnd` | dataclass | Closes the open unit. |
@@ -60,9 +61,10 @@ from voqalize.sdk.wire import (
 of the message, decided before the call is reached. See [why both halves
 matter](/reference/catalog/#why-both-halves-matter).
 
-The shipped model adapters are not among them either — importing
-`voqalize.sdk` pulls no model vendor, so each lives in its own module behind the
-`gemini` extra. There is no ADK adapter; that one was removed.
+The shipped model-backed brains are not among them either — importing
+`voqalize.sdk` pulls no model vendor, so each lives in its own module behind its
+own extra: `gemini`, `openai` or `litellm`. See [the shipped
+adapters](#the-shipped-adapters). There is no ADK adapter; that one was removed.
 
 ## `Brain`
 
@@ -174,6 +176,7 @@ lifetime is exactly the socket's.
 | `init` | `dict[str, Any]` | The opaque init data handed to Voqalize at connect. Read your own keys out of it; the SDK interprets none of it. |
 | `capabilities` | `frozenset[Capability]` | What this Voqalize said it honours beyond the wire version's baseline, at `SessionStart`. Read the `can_*` properties rather than the set. |
 | `can_cancel_speech` | `bool` | Whether `cancel_speech` is honoured. Fixed for the session's life. |
+| `can_report_usage` | `bool` | Whether `report_usage` is recorded. Fixed for the session's life. |
 
 There is no `SessionStart` object in the SDK. The frame's payload arrives as
 these attributes, and its turn id is the turn the greeting is bound to.
@@ -186,6 +189,7 @@ def send_rtvi(self, type: RTVIType, data: Any = None, *, id: str | None = None) 
 def end(self, reason: str = "agent_ended") -> None: ...
 async def configure(self, config: Config) -> None: ...
 async def cancel_speech(self, speech_id: int | None) -> Finalize: ...
+def report_usage(self, usage: TurnUsage, *, turn_id: int | None = None) -> None: ...
 ```
 
 **`dispatch`** sends one action to the app and never blocks; nothing comes back.
@@ -275,6 +279,58 @@ a yes/no, a digit, a menu choice — and the wait is the only thing the caller
 notices. Most brains should leave it alone: it is a floor on how long a pause has
 to run before it counts as the end, and moving it trades one kind of wrong
 against the other rather than removing either.
+
+**`report_usage`** tells Voqalize what one turn cost your model. It never
+blocks and nothing comes back; Voqalize keeps it in the call record beside the
+turn. The [model-backed brains](#the-shipped-adapters) send it for you after
+every model loop unless built with `report_usage=False`. A brain that runs its
+own loop calls it once per loop, after the last model request:
+
+```python
+from voqalize.sdk import TurnUsage
+
+if session.can_report_usage:
+    session.report_usage(
+        TurnUsage(
+            model="gpt-6-sol",
+            provider="openai",
+            requests=1,
+            input_tokens=1840,
+            output_tokens=42,
+            first_speech_ms=610,
+            total_ms=900,
+        )
+    )
+```
+
+```python
+@dataclass(frozen=True)
+class TurnUsage:
+    model: str                              # the model as you asked for it
+    provider: str                           # who served it, as you name it
+    requests: int = 1                       # model requests this loop made
+    input_tokens: int | None = None         # every input token, cached ones included
+    cached_input_tokens: int | None = None  # the part of input served from the prompt cache
+    cache_write_tokens: int | None = None   # input written to the cache, where billed apart
+    output_tokens: int | None = None        # text and tool calls, reasoning excluded
+    reasoning_tokens: int | None = None     # reasoning nobody hears
+    tool_calls: int = 0
+    first_token_ms: int | None = None       # first request to the first piece of the stream
+    first_speech_ms: int | None = None      # first request to the first text handed to speech
+    total_ms: int = 0
+```
+
+- **Counts and durations only.** No text, and no prices: a price changes on a
+  date nobody here controls, so cost is computed from the counts by whoever
+  reads them. Every count is the sum over the loop's requests, since each
+  request is billed for its whole prompt.
+- **`None` means the API did not report it**, never zero. Leave a count you do
+  not have unset rather than writing a `0`.
+- **`turn_id` defaults to the turn the call is made from**, which is right
+  inside a speaking callback, including in its `finally`. Outside a turn, pass
+  it, or the call raises `ValueError`.
+- **Refused before sending:** `Unsupported` when `can_report_usage` is false.
+  Check it first; a Voqalize that does not record usage would skip the frame.
 
 ## What a callback is handed
 
@@ -474,6 +530,218 @@ working, and every one of those fields is computed and thrown away. The
 
 ## The shipped adapters
 
+Three model-backed brains ship with the SDK, one per model API, and they are one
+brain underneath. The voice core, `voqalize.sdk.voice`, holds everything about a
+voice turn that is not about one model: speech opened on the first word, tools
+run mid-sentence after the words before them, results filed for the next request
+unless the tool is marked, `max_tool_hops`, heard truth, the greeting in the
+history, the `TOOL_BUDGET_MS` warning, the `turn:` log line and the turn's
+`TurnUsage`. Each class below is that core plus one provider's layer, which
+calls the model's API and keeps the conversation in the provider's own types.
+Subclass a layer, never the core.
+
+| Class | Module | Extra | Speaks to |
+|---|---|---|---|
+| `GeminiBrain` | `voqalize.sdk.gemini` | `gemini` | Gemini's `generate_content`. |
+| `OpenAIBrain` | `voqalize.sdk.openai` | `openai` | OpenAI's Responses API. |
+| `LiteLLMBrain` | `voqalize.sdk.litellm` | `litellm` | Any model LiteLLM reaches, as chat messages. |
+
+```python
+from voqalize.sdk.gemini import GeminiBrain
+from voqalize.sdk.openai import OpenAIBrain
+from voqalize.sdk.litellm import LiteLLMBrain
+from voqalize.sdk.voice import TOOL_BUDGET_MS, ToolChoice, needs_result_now
+```
+
+`GeminiBrain` is installed with `pip install "voqalize-agent-sdk[gemini]==0.9.0"`;
+the other two take the `openai` and `litellm` extras the same way. All three are
+hosted exactly like any other brain.
+
+### The constructors
+
+They share one shape. Every argument is keyword-only, and the brain is built
+once per session, so a client constructed in your subclass's `__init__` belongs
+to that call.
+
+```python
+class GeminiBrain:
+    def __init__(
+        self,
+        *,
+        client: genai.Client,
+        system_instruction: str,
+        model: str = DEFAULT_MODEL,
+        max_tool_hops: int = 6,
+        report_usage: bool = True,
+    ) -> None: ...
+
+class OpenAIBrain:
+    def __init__(
+        self,
+        *,
+        client: AsyncOpenAI,
+        system_instruction: str,
+        model: str,
+        reasoning: str | None = None,
+        options: Mapping[str, Any] | None = None,
+        max_tool_hops: int = 6,
+        report_usage: bool = True,
+    ) -> None: ...
+
+class LiteLLMBrain:
+    def __init__(
+        self,
+        *,
+        system_instruction: str,
+        model: str,
+        reasoning: str | None = None,
+        options: Mapping[str, Any] | None = None,
+        max_tool_hops: int = 6,
+        report_usage: bool = True,
+    ) -> None: ...
+```
+
+| Argument | On | What it does |
+|---|---|---|
+| `system_instruction` | all | The prompt every request carries. |
+| `model` | all | The model every request names. Required on `OpenAIBrain` and `LiteLLMBrain`; `GeminiBrain` defaults it. On `LiteLLMBrain` it is LiteLLM's model string. |
+| `max_tool_hops` | all | How many times one turn may ask the model again for a marked tool's result. |
+| `report_usage` | all | Send each turn's `TurnUsage` to Voqalize. On by default; `False` keeps the numbers in your logs only. |
+| `client` | Gemini, OpenAI | The provider's async client, with its keys. `LiteLLMBrain` has none: LiteLLM reads keys from the environment, or from `options`. |
+| `reasoning` | OpenAI, LiteLLM | The model's reasoning effort: `"none"`, `"low"`, `"medium"` or `"high"`, or `None` for the model's own default. |
+| `options` | OpenAI, LiteLLM | Passed as they are to every `responses.create` or `litellm.acompletion` call, for whatever the class does not name. |
+
+**Reasoning is silence.** On a voice turn every reasoning token is spent before
+the first word, and none of it is spoken. `GeminiBrain` forces the model's
+minimum thinking level and takes no `reasoning` argument; on the other two, start
+low and measure.
+
+`DEFAULT_MODEL` reads `VOQAL_GEMINI_MODEL` from the environment, falling back to
+`gemini-3.5-flash`. Moving models means re-measuring both the thinking knob and
+the model's willingness to call tools at a level it accepts.
+
+What each layer does differently:
+
+- **`OpenAIBrain` keeps the conversation in your process.** Every request sends
+  the whole context with `store=False` and no `previous_response_id`, because a
+  conversation kept on OpenAI's side cannot be told that the user heard half of
+  the last sentence. Encrypted reasoning items go back in as they came, so a
+  reasoning model keeps its thread across a tool call.
+- **`LiteLLMBrain` does not carry reasoning between requests.** Chat messages
+  have no place for a provider's reasoning items, so each request reasons
+  afresh. A call runs when its arguments are complete, which over chat
+  completions is when the response ends, so the words before it have already
+  been spoken. GPT-6 with tools and a reasoning effort needs the Responses
+  bridge, `"openai/responses/<model>"`.
+- **`GeminiBrain` declares tools through google-genai**, which validates one
+  pydantic model parameter and nothing else. The other two declare a tool from
+  its signature and validate plain parameters too. See
+  [Tools](/build/brain/tools/#one-pydantic-model-or-nothing-at-all).
+
+### The members
+
+All three offer the same members to override, read or call:
+
+| Member | Kind | What it does |
+|---|---|---|
+| `tools` | property | The tools the model may call, read once per turn. A list of bound `async def` methods, each returning within `TOOL_BUDGET_MS`. |
+| `system_instruction` | property, settable | The prompt every request carries. Set it from `on_session_start`, where this user's facts are in hand. |
+| `model` | property | The model every request names. |
+| `append_note(text)` | method | Add one sentence to the context, on the user's side, without starting a turn. |
+| `say_line(line, *, remember=False)` | async generator | Speak a line the brain wrote itself, as a unit of its own. |
+| `respond(session)` | async generator | Stream one turn, however many requests it takes. |
+| `respond_with(session, *, tools)` | async generator | One more model loop on the turn under way, with the tools limited by a `ToolChoice`. |
+
+`GeminiBrain` also keeps `append_to_context(content)`, which takes a Gemini
+`types.Content` with role `user`: the same as `append_note`, for what only
+Gemini takes, such as an image or a PDF part.
+
+**`append_note`** appends immediately, once, where you call it. Nothing
+debounces or re-renders it, and it is never cut by heard truth or dropped as an
+unanswered call. Calling it from inside a tool is safe: a call's result is filed
+directly after the call, so the note lands after both.
+
+```python
+async def on_rtvi(self, session, msg):
+    match EVENTS.parse(msg):
+        case QuantitySet() as e:
+            self.append_note(f"(They set {e.item_id} to {e.quantity}.)")
+```
+
+**`say_line`** is for a line the model did not write, yielded from inside a
+speaking callback. By default it stays out of the context, so the model never
+reads words it did not choose; `remember=True` puts it in as the model's words,
+cut to what was heard like any other unit. Use it rather than yielding the unit
+yourself: every unit Voqalize plays gets a finalize, and a unit the brain did not
+open would take the finalize meant for the model's next one.
+
+```python
+async for event in self.say_line("One moment, opening it."):
+    yield event
+```
+
+**`respond_with`** asks again within the same turn, with every request of that
+loop limited by `tools`:
+
+| `ToolChoice` | The model |
+|---|---|
+| `ToolChoice.AUTO` | may call any tool. The same as `respond`. |
+| `ToolChoice.NONE` | may call none, so it has to speak. |
+| `ToolChoice.only(name)` | must call `name`, and no other tool. |
+
+The tools stay declared either way, so the calls already in the context still
+read. It goes straight to the voice core rather than through `respond`, so an
+override of `respond` that calls it runs once per turn:
+
+```python
+from voqalize.sdk import SpeechStart
+from voqalize.sdk.voice import ToolChoice
+
+
+class Desk(OpenAIBrain):
+    async def respond(self, session):
+        spoke = False
+        async for event in super().respond(session):
+            spoke = spoke or isinstance(event, SpeechStart)
+            yield event
+        if not spoke:
+            async for event in self.respond_with(session, tools=ToolChoice.NONE):
+                yield event
+```
+
+### The tool loop
+
+A turn is one request. Each call runs as it arrives, after the speech before it
+has gone out, and its result is read with the next request, which is the user's
+next message unless the tool is marked `@needs_result_now`. A response that
+called a marked tool is followed at once by another request carrying every
+result it produced. This is the voice core's, so it is the same on every model.
+
+`max_tool_hops` caps how many times one turn asks again. The last of those
+requests may not call a tool, so the model has to answer. Only marked tools ask
+again, so unmarked ones never count against it.
+
+| Name | Kind | What it does |
+|---|---|---|
+| `needs_result_now` | decorator | Marks a tool whose result the model must read before it finishes its reply. Sets an attribute and nothing else. |
+| `TOOL_BUDGET_MS` | constant | How long a tool may take, in milliseconds, before it is logged as slow. Nothing is cancelled. |
+
+Both live in `voqalize.sdk.voice`, and each layer's module re-exports them, so
+`from voqalize.sdk.gemini import needs_result_now` keeps working. Neither is
+exported from `voqalize.sdk`, because nothing there imports a model vendor.
+
+Every turn logs one `turn:` line per model loop, from the `voqalize.sdk.voice`
+logger: requests, tools run and how many were marked, whether the turn said
+nothing, the times, and the token counts summed over the turn's requests. Unless
+built with `report_usage=False`, the same counts go to Voqalize as a
+`TurnUsage` when `session.can_report_usage` is true.
+
+The tool declaration contract, the mark and the budget are in
+[Tools](/build/brain/tools/). Porting a brain you already have is
+[Bringing an existing agent](/build/existing-agent/).
+
+### `GeminiInteractionsBrain`
+
 :::caution[`GeminiInteractionsBrain` is experimental]
 Every demo brain runs on `GeminiBrain`, and the last one that did not moved across
 on 2026-09-08. The interactions adapter's interruption path has open defects: a
@@ -482,78 +750,22 @@ buffered during a step is discarded if a barge-in lands before the step closes. 
 properties it has that `generate_content` does not.
 :::
 
-Both are `Brain` subclasses, both are installed with the `gemini` extra
-(`pip install "voqalize-agent-sdk[gemini]==0.9.0"`), and both are hosted exactly
-like any other brain.
-
 ```python
-from voqalize.sdk.gemini import GeminiBrain
 from voqalize.sdk.gemini_interactions import GeminiInteractionsBrain
 ```
 
-They take the same constructor:
+It is not on the voice core and is unchanged. It is installed with the `gemini`
+extra and takes `client`, `system_instruction`, `model` and `max_tool_hops`, with
+no `report_usage`: it sends no `TurnUsage`. It offers `tools`,
+`system_instruction`, `append_to_context` and `respond`, and none of
+`append_note`, `say_line` or `respond_with`.
 
-```python
-def __init__(
-    self,
-    *,
-    client: genai.Client,
-    system_instruction: str,
-    model: str = DEFAULT_MODEL,
-    max_tool_hops: int = 6,
-) -> None: ...
-```
-
-and offer the same members to override, read or call:
-
-| Member | Kind | What it does |
-|---|---|---|
-| `tools` | property | The tools the model may call, read once per turn. A list of bound `async def` methods, each returning within `TOOL_BUDGET_MS`. |
-| `system_instruction` | property, settable | The prompt every request carries. Set it from `on_session_start`, where this user's facts are in hand. |
-| `append_to_context(…)` | method | Add to the conversation the model sees, in the provider's own type. |
-| `respond(session)` | async generator | Stream one turn, however many requests it takes. |
-
-Both run their own tool loop, and they run it differently. `GeminiBrain` makes
-one request per turn: each call runs as it arrives, and its result is read with
-the next request, which is the user's next message unless the tool is marked
-`@needs_result_now`. A response that called a marked tool is followed at once by
-another request carrying every result it produced. `GeminiInteractionsBrain`
-runs on the `interactions` API, where a call and its result are linked by id
+It runs on the `interactions` API, where a call and its result are linked by id
 rather than by position, and asks again after every response that made a call;
-it ignores the mark.
-
-`max_tool_hops` caps how many times one turn asks again. The last of those
-requests may not call a tool, so the model has to answer. On `GeminiBrain` only
-marked tools ask again, so unmarked ones never count against it.
-
-`voqalize.sdk.gemini` also exports the mark and the budget every tool runs
-against:
-
-```python
-from voqalize.sdk.gemini import TOOL_BUDGET_MS, needs_result_now
-```
-
-| Name | Kind | What it does |
-|---|---|---|
-| `needs_result_now` | decorator | Marks a tool whose result the model must read before it finishes its reply. Sets an attribute and nothing else. `GeminiBrain` only. |
-| `TOOL_BUDGET_MS` | constant | How long a tool may take, in milliseconds, before `GeminiBrain` logs it as slow. Nothing is cancelled. |
-
-Neither is exported from `voqalize.sdk`, because nothing there imports
-`google-genai`. `append_to_context`
-takes a `types.Content` on `GeminiBrain` and a `gi.UserInputStep` on
-`GeminiInteractionsBrain` — that is the one place a brain written for one does
-not paste into the other.
-
-`DEFAULT_MODEL` reads `VOQAL_GEMINI_MODEL` from the environment, falling back to
-`gemini-3.5-flash`. Both classes force the model's minimum reasoning level: a
-thinking budget on a voice turn is spent in silence the user sits through, and
-the thought parts are never spoken. Moving models means re-measuring both the
-knob and the model's willingness to call tools at a level it accepts.
-
-The tool declaration contract they share — the method name is the tool name, the
-docstring is its description, and it takes exactly one pydantic model — is in
-[Tools](/build/brain/tools/). Porting a brain you already have is
-[Bringing an existing agent](/build/existing-agent/).
+it ignores the mark and does not time its tools. `append_to_context` takes a
+`gi.UserInputStep` here rather than a `types.Content`, which is the one place a
+brain written for `GeminiBrain` does not paste into this one. It too forces the
+model's minimum reasoning level.
 
 ## What is not here
 

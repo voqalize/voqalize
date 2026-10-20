@@ -88,10 +88,10 @@ a unit opens on the first thing you actually say and closes when you stop:
   wrong unit for the rest of the call (`test_a_silent_hop_opens_no_unit`, in the
   same file).
 
-Both shipped adapters are written this way. `GeminiBrain.respond` makes a unit
-of **one model response**: it opens lazily on the first spoken text and closes on
-the response's `finish_reason`, or when its stream ends
-(`sdk/python/src/voqalize/sdk/gemini.py`, `respond`). A tool it calls mid-response
+Every shipped brain is written this way. The voice core under `GeminiBrain`,
+`OpenAIBrain` and `LiteLLMBrain` makes a unit of **one model response**: it opens
+lazily on the first spoken text and closes when the response finishes, or when
+its stream ends (`sdk/python/src/voqalize/sdk/voice.py`, `respond_with`). A tool it calls mid-response
 runs between two pieces of the same unit, so a line, a call and a second line in
 one response are one unit, and the tool has to be quick —
 [Tools](/build/brain/tools/#a-tool-returns-within-20-ms) has the budget. Two units
@@ -128,8 +128,8 @@ async def on_user_message(self, session, msg):
     yield SpeechEnd()
 ```
 
-An `await` with no speech in front of it is dead air you chose. On `GeminiBrain`
-the SDK writes this shape for a tool marked `@needs_result_now`: the model's
+An `await` with no speech in front of it is dead air you chose. On the
+model-backed brains the SDK writes this shape for a tool marked `@needs_result_now`: the model's
 line is the first unit and its answer from the result is the second. The first
 line is still the model's to say, so it belongs in the prompt —
 [Tools](/build/brain/tools/#when-the-model-reads-a-result) has what a response
