@@ -59,8 +59,8 @@ const SIGNUP = "https://app.sendpotion.com/?utm_campaign=inbound&utm_source=webs
 /** Set once the widget is up, so a second copy of this script on the page
  *  puts up no second widget. */
 const MOUNTED = "__voqalizeJavier";
-/** The language the next call starts in, as the toggle last left it on this
- *  host; and how long the toggle waits for the brain to answer a switch before
+/** The language the visitor last chose on the toggle on this host, which the
+ *  next call starts in and holds to; and how long the toggle waits for the brain to answer a switch before
  *  it shows the language the call is still in. */
 const LANG_KEY = "voqalize.sendpotion.lang";
 const SWITCH_WAIT_MS = 4000;
@@ -165,7 +165,7 @@ async function start(): Promise<void> {
   let reads: { heading: string; posts: Read[] } | null = null;
   /** The call's language, or the next call's; the one the toggle asked for
    *  until the brain answers; and the wait for that answer. */
-  let language: Language = storedLanguage();
+  let language: Language = storedLanguage() ?? "en";
   let asked: Language | null = null;
   let switchTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -199,7 +199,6 @@ async function start(): Promise<void> {
 
   function showLanguage(next: Language): void {
     language = next;
-    storeLanguage(next);
     if (switchTimer) clearTimeout(switchTimer);
     switchTimer = null;
     asked = null;
@@ -347,8 +346,12 @@ async function start(): Promise<void> {
         await next.connect();
       } else {
         const ctx = adapter!.context();
+        // `lang` only when the visitor chose it: the brain then holds to it
+        // whatever they speak, and otherwise follows the language they speak.
+        const chosen = storedLanguage();
         const init = {
-          surface: "sendpotion-ext", site: ctx.site, path: ctx.path, url: ctx.url, title: ctx.title, lang: language,
+          surface: "sendpotion-ext", site: ctx.site, path: ctx.path, url: ctx.url, title: ctx.title,
+          ...(chosen ? { lang: chosen } : {}),
         };
         const started = await next.startBot(connectRequest(init));
         await next.connect(withRealHeaders(started));
@@ -562,6 +565,7 @@ async function start(): Promise<void> {
    *  once on the brain's `language_changed`, which also follows a switch made
    *  by voice. */
   function chooseLanguage(want: Language): void {
+    storeLanguage(want);
     if (want === language && !switchTimer) return;
     if (role === "idle") return showLanguage(want);
     asked = want === language ? null : want;
@@ -771,11 +775,13 @@ async function start(): Promise<void> {
   });
 }
 
-function storedLanguage(): Language {
+/** The language the visitor chose on the toggle, or `null` if they never have. */
+function storedLanguage(): Language | null {
   try {
-    return localStorage.getItem(LANG_KEY) === "es" ? "es" : "en";
+    const v = localStorage.getItem(LANG_KEY);
+    return v === "es" || v === "en" ? v : null;
   } catch {
-    return "en";
+    return null;
   }
 }
 
