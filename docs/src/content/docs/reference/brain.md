@@ -6,7 +6,7 @@ description: Every callback a brain may implement, its signature, and what it is
 A brain is a subclass of `Brain`. Voqalize opens one WebSocket per session, and
 what arrives on it reaches your code as a callback, each handed the `Session`
 for that call. This page is every signature on that surface,
-read out of `voqalize-agent-sdk` 0.9.0 and speaking wire version 3.
+read out of `voqalize-agent-sdk` 0.10.0 and speaking wire version 3.
 
 Only `on_user_message` is required. `on_user_message` and `on_user_idle` are
 async generators, and they are the only moments the floor is yours. Everything that is not speech is a method on `session`, callable
@@ -555,7 +555,7 @@ from voqalize.sdk.litellm import LiteLLMBrain
 from voqalize.sdk.voice import TOOL_BUDGET_MS, ToolChoice, needs_result_now
 ```
 
-`GeminiBrain` is installed with `pip install "voqalize-agent-sdk[gemini]==0.9.0"`;
+`GeminiBrain` is installed with `pip install "voqalize-agent-sdk[gemini]==0.10.0"`;
 the other two take the `openai` and `litellm` extras the same way. All three are
 hosted exactly like any other brain.
 

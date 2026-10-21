@@ -19,6 +19,7 @@ DNS is gone — don't reintroduce the name.)
 
 from __future__ import annotations
 
+import gc
 import os
 
 from fastapi import FastAPI
@@ -33,6 +34,20 @@ from voqalize_demos.session import Settings, init_runtime
 GIT_SHA = os.environ.get("VOQALIZE_GIT_SHA") or "unknown"
 
 
+def settle_heap() -> None:
+    """Move everything alive now out of the cyclic collector's reach.
+
+    What startup loads (every demo backend, its prompts and indexes, the SDK,
+    genai, FastAPI) lives as long as the process: a couple of hundred thousand
+    objects the collector can never free. Left in place, each full collection
+    walks all of them, a 50 to 170 ms stop that lands wherever the allocation
+    count says, which can be inside a tool while the user waits for it. Frozen,
+    a full collection walks only what sessions made since. Collect first, so
+    the garbage of loading is freed rather than frozen."""
+    gc.collect()
+    gc.freeze()
+
+
 def create_app() -> FastAPI:
     """Build the umbrella app: wire the shared runtime, then discover and mount
     every co-located demo's brain router."""
@@ -40,6 +55,7 @@ def create_app() -> FastAPI:
     init_runtime(settings)
 
     demos = discover()
+    settle_heap()
     demo_names = {d.name for d in demos}
 
     app = FastAPI(title="Voqalize demos")

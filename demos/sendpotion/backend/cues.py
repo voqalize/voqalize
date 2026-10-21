@@ -1,4 +1,4 @@
-"""Screen cues in Tushar's speech: the page moves when he says the sentence.
+"""Screen cues in Javier's speech: the page moves when he says the sentence.
 
 A tool call moves the page once, when the model has finished writing — and the
 model writes a whole reply in about a second, which the voice then takes fifteen

@@ -40,6 +40,15 @@ her previous turn (the visitor's next turn is the yes), or when the visitor's
 own words this turn ask to be taken somewhere. ``point_at`` needs no asking: it
 lights up a phrase the brain has checked is on the page they have open.
 
+**She is heard at once, and every move is said.** The moment the visitor stops
+she nods — "Sure.", "Let me see.", "ಸರಿ." — a line of her own, said while the
+model thinks (:mod:`voqalize_demos.acknowledge`, as qween and saatvik do), and
+she holds the floor with "One moment." if the model stays quiet. Each tool
+lands a written line that names what it did or why it could not ("Taking you
+to the Events page.", "I couldn't find that on this page."); when the model's
+turn says nothing, :class:`~voqalize_demos.FallbackLine` says it. A ``go_to_page``
+the visitor did not ask for becomes the offer, so their yes takes them there.
+
 The knowledge base is one per process. The first session starts its keeper
 (:meth:`~.knowledge.KnowledgeService.start`, idempotent and non-blocking); every
 session after that reads the same index.
@@ -48,8 +57,8 @@ session after that reads the same index.
 from __future__ import annotations
 
 import re
-from collections.abc import AsyncGenerator
-from typing import Any
+from collections.abc import AsyncGenerator, Mapping
+from typing import Any, Literal
 
 from google import genai
 from google.genai import types
@@ -58,16 +67,23 @@ from pydantic import BaseModel, Field
 from voqalize_demos import (
     DEFAULT_MODEL,
     PATIENCE,
-    PHRASES,
     FallbackLine,
     GeminiBrain,
     landed,
     needs_result_now,
-    phrase,
     say_line,
 )
+from voqalize_demos.acknowledge import Acknowledger, Kind, Vocabulary, hold_the_floor
 
-from voqalize.sdk import Action, RequestRejected, RTVIMessage, Session, Speech, UserMessage
+from voqalize.sdk import (
+    Action,
+    RequestRejected,
+    RTVIMessage,
+    Session,
+    Speech,
+    SpeechChunk,
+    UserMessage,
+)
 from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig
 
 from .app_events import (
@@ -120,15 +136,11 @@ _PASSAGES = 3
 #: so the prompt and the tool results say the same words.
 DONT_KNOW = "I don't have that on our website. The KDEM team can help."
 
-# Her own line for a silent turn is said in the language her voice speaks, so
-# each one needs a row in the shared phrases — held at import, not on a call.
-assert {s.code for s in SPEECH.values()} <= set(PHRASES), "a spoken language has no PHRASES row"
-
 # ─── System prompt ─────────────────────────────────────────────────────────────
 
 _SYSTEM_INSTRUCTION = f"""You are {AGENT_NAME}, the voice assistant on the website of KDEM, the Karnataka Digital Economy Mission, at karnatakadigital.in. A visitor is on the site right now, with you in the corner of the page. They are usually a founder, an investor, a company looking at Karnataka, a student or a job seeker.
 
-EVERY RESPONSE STARTS WITH WORDS. Whenever you offer a page, take them to one, point at something or show a document, write your line first and make the call in that same response — the line is spoken as the page moves. A response that is only a tool call is silence: after offer_page, go_to_page, point_at or show_document you do not speak again until the visitor does. For example:
+EVERY MOVE COMES WITH WORDS. Whenever you offer a page, take them to one, point at something, show a document or fill in the form, write your line first and make the call in that same response — the line is spoken as the page moves. Your line says what you are doing, by name: "Taking you to the Events page.", "Here's the eligibility, on this page.", "I've opened the Startup Policy beside you." A response that is only a tool call is silence: after offer_page, go_to_page, point_at, show_document or fill_kan_field you do not speak again until the visitor does, and what the call returns reaches you on their next turn. For example:
   Visitor: "Do you have a seed fund for startups outside Bengaluru?" You: (search_kdem first, then) "Yes, the Beyond Bengaluru Cluster Seed Fund backs startups in the clusters. Shall I take you to its page?" — and offer_page with that page, in the same response.
 search_kdem and set_language are the two calls that take no line. search_kdem is silent and comes straight back to you in the same turn, so call it first and then answer from it. set_language is answered by a line of its own, in the new voice, so call it alone and say nothing.
 
@@ -157,6 +169,8 @@ THE KAN APPLICATION FORM. The Karnataka Acceleration Network page ({path_of(KAN_
 - The location is one of: {"; ".join(KAN_LOCATIONS)}. When they name a city with more than one (Bengaluru has three), ask which.
 - In Kannada, names stay as they say them, and the location is still one of those six, written as above.
 - At the end, ask them to check the form and press Apply Now themselves: filling it is yours, sending it is theirs.
+
+SOUND LIKE A PERSON, NOT A SCRIPT. Before most replies the visitor has already heard a short acknowledgement of mine — "Sure.", "Let me see.", "ಸರಿ." — the moment they stopped speaking. So never open with one: your first word is the answer, and your first sentence is short, so it is heard quickly.
 
 VOICE STYLE. Warm, plain and brief. No markdown, no lists, no symbols, no URLs read aloud — say "the Policies page", not its address. Say numbers as a person would. No throat-clearing: not "Great question", not "Sure, let me". English by default.
 
@@ -206,6 +220,246 @@ SWITCH_LINE: dict[LanguageTag, str] = {
     "en": "Sure, let's continue in English.",
     "kn": "ಸರಿ, ಈಗ ಕನ್ನಡದಲ್ಲಿ ಮಾತಾಡೋಣ. ದಯವಿಟ್ಟು ನಿಮ್ಮ ಪ್ರಶ್ನೆಯನ್ನು ಮತ್ತೊಮ್ಮೆ ಹೇಳಿ.",
 }
+
+# ─── Her nod, and holding the floor ───────────────────────────────────────────
+
+#: Said the moment the visitor stops, while the model thinks: a unit of her
+#: own, never in the model's context. See :mod:`voqalize_demos.acknowledge`.
+#: The Kannada lines are to be checked by a native speaker.
+ACK_LINES: dict[Language, dict[Kind, tuple[str, ...]]] = {
+    Language.EN: {
+        "request": ("Sure.", "Okay.", "Of course.", "Certainly."),
+        "question": ("Let me see.", "Hmm, let me see.", "Okay."),
+        "correction": ("I see.", "Understood.", "Right."),
+        "statement": ("Okay.", "Got it.", "Right."),
+    },
+    Language.KN: {
+        "request": ("ಸರಿ.", "ಖಂಡಿತ.", "ಆಗಲಿ."),
+        "question": ("ನೋಡೋಣ.", "ಒಂದು ನಿಮಿಷ, ನೋಡುತ್ತೇನೆ.", "ಸರಿ."),
+        "correction": ("ಓಹ್, ಸರಿ.", "ಅರ್ಥವಾಯಿತು."),
+        "statement": ("ಸರಿ.", "ಅರ್ಥವಾಯಿತು."),
+    },
+}
+#: The share of readable turns she nods on, and how long the model may stay
+#: quiet after a nod before she holds the floor, then apologises. A nod speaks
+#: for the turn, so Voqalize's own "taking longer" line never fires after one:
+#: these are the floor in its place. Module-level so a test can pin them.
+ACK_RATE = 0.75
+ACK_HOLD_AFTER_S = 4.0
+ACK_SORRY_AFTER_S = 12.0
+ACK_HOLD: dict[Language, tuple[str, ...]] = {
+    Language.EN: ("One moment.", "Just a moment."),
+    Language.KN: ("ಒಂದು ನಿಮಿಷ.", "ಸ್ವಲ್ಪ ಇರಿ."),
+}
+ACK_SORRY: dict[Language, str] = {
+    Language.EN: "Sorry, that's taking a little longer.",
+    Language.KN: "ಕ್ಷಮಿಸಿ, ಸ್ವಲ್ಪ ಸಮಯ ಹಿಡಿಯುತ್ತಿದೆ.",
+}
+#: A visitor's ordinary words about KDEM, so the reading trusts a statement made of them.
+_ACK_WORDS = Vocabulary(
+    common=frozenset(
+        [
+            "kdem",
+            "karnataka",
+            "startup",
+            "startups",
+            "fund",
+            "funding",
+            "seed",
+            "policy",
+            "policies",
+            "scheme",
+            "programme",
+            "program",
+            "programs",
+            "event",
+            "events",
+            "report",
+            "reports",
+            "newsletter",
+            "page",
+            "website",
+            "site",
+            "company",
+            "business",
+            "invest",
+            "investment",
+            "incubator",
+            "accelerator",
+            "kan",
+            "nipuna",
+            "government",
+            "grant",
+            "grants",
+            "bengaluru",
+            "bangalore",
+            "mysuru",
+            "mangaluru",
+            "hubballi",
+            "jobs",
+            "skills",
+            "talent",
+            "apply",
+            "application",
+            "form",
+            "contact",
+            "ಸ್ಟಾರ್ಟಪ್",
+            "ಕರ್ನಾಟಕ",
+            "ನೀತಿ",
+            "ಯೋಜನೆ",
+            "ಕಾರ್ಯಕ್ರಮ",
+            "ಪುಟ",
+        ]
+    ),
+)
+
+# ─── Her own line for each move ───────────────────────────────────────────────
+
+#: What she says when a turn moved something, or was refused, and the model
+#: said nothing: the move by name, so the visitor hears what happened. Spoken
+#: only for a silent turn (:class:`~voqalize_demos.FallbackLine`), never in the
+#: model's context. ``{title}`` is a page's or a document's own title, ``{text}``
+#: what she pointed at, ``{label}`` a KAN form field. The Kannada lines are to
+#: be checked by a native speaker.
+Said = Literal[
+    "offer",
+    "go",
+    "point",
+    "document",
+    "filled",
+    "already_here",
+    "cant_open",
+    "cant_open_offer",
+    "cant_open_here",
+    "pdf_not_page",
+    "point_miss",
+    "document_refused",
+    "kan_elsewhere",
+    "say_again",
+    "dont_know",
+    "dont_know_offer",
+    "dont_know_here",
+]
+LINES: Mapping[Said, Mapping[Language, str]] = {
+    "offer": {
+        Language.EN: "Shall I take you to the {title} page?",
+        Language.KN: "ನಿಮ್ಮನ್ನು {title} ಪುಟಕ್ಕೆ ಕರೆದುಕೊಂಡು ಹೋಗಲೇ?",
+    },
+    "go": {
+        Language.EN: "Taking you to the {title} page.",
+        Language.KN: "ನಿಮ್ಮನ್ನು {title} ಪುಟಕ್ಕೆ ಕರೆದುಕೊಂಡು ಹೋಗುತ್ತಿದ್ದೇನೆ.",
+    },
+    "point": {
+        Language.EN: "Here's {text}, highlighted on the page.",
+        Language.KN: "{text} ಇಲ್ಲಿದೆ, ಪುಟದಲ್ಲಿ ಗುರುತಿಸಿದ್ದೇನೆ.",
+    },
+    "document": {
+        Language.EN: "I've opened {title} beside you.",
+        Language.KN: "{title} ಅನ್ನು ಪಕ್ಕದಲ್ಲೇ ತೆರೆದಿದ್ದೇನೆ.",
+    },
+    "filled": {
+        Language.EN: "I've filled in your {label}.",
+        Language.KN: "ನಿಮ್ಮ {label} ತುಂಬಿದ್ದೇನೆ.",
+    },
+    "already_here": {
+        Language.EN: "You're already on the {title} page.",
+        Language.KN: "ನೀವು ಈಗಾಗಲೇ {title} ಪುಟದಲ್ಲಿದ್ದೀರಿ.",
+    },
+    "cant_open": {
+        Language.EN: "I can't open that page.",
+        Language.KN: "ಆ ಪುಟವನ್ನು ನಾನು ತೆರೆಯಲು ಆಗುವುದಿಲ್ಲ.",
+    },
+    "cant_open_offer": {
+        Language.EN: "I can't open that page, but I can take you to the {title} page.",
+        Language.KN: ("ಆ ಪುಟವನ್ನು ನಾನು ತೆರೆಯಲು ಆಗುವುದಿಲ್ಲ, ಆದರೆ ನಿಮ್ಮನ್ನು {title} ಪುಟಕ್ಕೆ ಕರೆದುಕೊಂಡು ಹೋಗಬಲ್ಲೆ."),
+    },
+    "cant_open_here": {
+        Language.EN: "I can't open that page. The KDEM team's details are on this page.",
+        Language.KN: "ಆ ಪುಟವನ್ನು ನಾನು ತೆರೆಯಲು ಆಗುವುದಿಲ್ಲ. KDEM ತಂಡದ ವಿವರಗಳು ಇದೇ ಪುಟದಲ್ಲಿವೆ.",
+    },
+    "pdf_not_page": {
+        Language.EN: "That's a document. Shall I open it beside you?",
+        Language.KN: "ಅದು ಒಂದು ದಾಖಲೆ. ಅದನ್ನು ಪಕ್ಕದಲ್ಲೇ ತೆರೆಯಲೇ?",
+    },
+    "point_miss": {
+        Language.EN: "I couldn't find that on this page.",
+        Language.KN: "ಅದು ಈ ಪುಟದಲ್ಲಿ ನನಗೆ ಸಿಗಲಿಲ್ಲ.",
+    },
+    "document_refused": {
+        Language.EN: "I can't open that document.",
+        Language.KN: "ಆ ದಾಖಲೆಯನ್ನು ನಾನು ತೆರೆಯಲು ಆಗುವುದಿಲ್ಲ.",
+    },
+    "kan_elsewhere": {
+        Language.EN: "The form is on the {title} page. Shall I take you there?",
+        Language.KN: "ಫಾರ್ಮ್ {title} ಪುಟದಲ್ಲಿದೆ. ಅಲ್ಲಿಗೆ ಕರೆದುಕೊಂಡು ಹೋಗಲೇ?",
+    },
+    "say_again": {
+        Language.EN: "Sorry, could you say that again?",
+        Language.KN: "ಕ್ಷಮಿಸಿ, ಅದನ್ನು ಮತ್ತೊಮ್ಮೆ ಹೇಳುತ್ತೀರಾ?",
+    },
+    "dont_know": {
+        Language.EN: DONT_KNOW,
+        Language.KN: "ಅದರ ಬಗ್ಗೆ ನಮ್ಮ ವೆಬ್‌ಸೈಟ್‌ನಲ್ಲಿ ಮಾಹಿತಿ ಇಲ್ಲ. KDEM ತಂಡ ಸಹಾಯ ಮಾಡಬಹುದು.",
+    },
+    "dont_know_offer": {
+        Language.EN: DONT_KNOW + " Shall I take you to the {title} page?",
+        Language.KN: (
+            "ಅದರ ಬಗ್ಗೆ ನಮ್ಮ ವೆಬ್‌ಸೈಟ್‌ನಲ್ಲಿ ಮಾಹಿತಿ ಇಲ್ಲ. KDEM ತಂಡ ಸಹಾಯ ಮಾಡಬಹುದು. "
+            "ನಿಮ್ಮನ್ನು {title} ಪುಟಕ್ಕೆ ಕರೆದುಕೊಂಡು ಹೋಗಲೇ?"
+        ),
+    },
+    "dont_know_here": {
+        Language.EN: DONT_KNOW + " Their details are on this page.",
+        Language.KN: (
+            "ಅದರ ಬಗ್ಗೆ ನಮ್ಮ ವೆಬ್‌ಸೈಟ್‌ನಲ್ಲಿ ಮಾಹಿತಿ ಇಲ್ಲ. KDEM ತಂಡ ಸಹಾಯ ಮಾಡಬಹುದು. ಅವರ ವಿವರಗಳು ಇದೇ ಪುಟದಲ್ಲಿವೆ."
+        ),
+    },
+}
+# Her own lines are said in the language her voice speaks, so each needs a row
+# for every language she speaks — held at import, not on a call.
+assert all({s.code for s in SPEECH.values()} <= set(v) for v in LINES.values()), (
+    "a spoken language has no written line for a move"
+)
+assert {s.code for s in SPEECH.values()} <= set(ACK_LINES) & set(ACK_HOLD) & set(ACK_SORRY), (
+    "a spoken language has no nod"
+)
+
+#: The KAN form's fields as she says them in a sentence.
+KAN_SPOKEN: dict[Language, dict[KanField, str]] = {
+    Language.EN: {
+        "startup_name": "startup's name",
+        "sector": "sector",
+        "founder_name": "founder's name",
+        "mobile": "mobile number",
+        "email": "email ID",
+        "location": "location",
+    },
+    Language.KN: {
+        "startup_name": "ಸ್ಟಾರ್ಟಪ್ ಹೆಸರು",
+        "sector": "ವಲಯ",
+        "founder_name": "ಸಂಸ್ಥಾಪಕರ ಹೆಸರು",
+        "mobile": "ಮೊಬೈಲ್ ಸಂಖ್ಯೆ",
+        "email": "ಇಮೇಲ್ ಐಡಿ",
+        "location": "ಸ್ಥಳ",
+    },
+}
+
+#: The most of a pointed-at phrase her own line repeats.
+_SPOKEN_TEXT_CHARS = 40
+
+
+def _spoken_title(title: str) -> str:
+    """A page's title as said in "the … page": anything after a " | " (the
+    site's name) and a trailing "page" dropped."""
+    short = title.split(" | ")[0].strip() or title
+    return re.sub(r"\s+page$", "", short, flags=re.IGNORECASE)
+
+
+def _spoken_text(text: str) -> str:
+    """What she pointed at, as her line repeats it: a few words, cut at a word."""
+    if len(text) <= _SPOKEN_TEXT_CHARS:
+        return text
+    return text[:_SPOKEN_TEXT_CHARS].rsplit(" ", 1)[0].rstrip(",;:")
 
 
 _ABOUT_URL = f"{SITE}/about-us/"
@@ -375,12 +629,19 @@ _POINT_CHARS = 80
 
 _ASKS_TO_GO = re.compile(
     r"\b(?:take|bring|walk)\s+(?:me|us)\b|\b(?:go|navigate|jump|head|move)\s+to\b"
-    r"|\bopen\b|\bvisit\b|\blet'?s\s+go\b"
-    r"|ಕರೆದುಕೊಂಡು\s*ಹೋಗಿ|ಕರ್ಕೊಂಡು\s*ಹೋಗಿ|ತೆರೆಯಿರಿ|ತೆಗೆಯಿರಿ|ಹೋಗೋಣ",
+    r"|\bopen\b|\bvisit\b|\blet'?s\s+go\b|\bshow\s+(?:me|us)\b|\bcan\s+(?:i|we)\s+see\b"
+    r"|\b(?:i'?d|i\s+would|we'?d|we\s+would)\s+(?:like|love)\s+to\s+(?:see|go|visit|view)\b"
+    r"|\bwhere(?:'s|\s+is)\s+(?:the|your)\s+(?:[\w'&-]+\s+){0,5}?page\b"
+    r"|ಕರೆದುಕೊಂಡು\s*ಹೋಗಿ|ಕರ್ಕೊಂಡು\s*ಹೋಗಿ|ತೆರೆಯಿರಿ|ತೆಗೆಯಿರಿ|ಹೋಗೋಣ|ತೋರಿಸಿ|ನೋಡಬೇಕು"
+    r"|ಪುಟ\S*\s+ಎಲ್ಲಿ",
     re.IGNORECASE,
 )
-"""Words with which a visitor asks to be taken to a page, in English and Kannada.
-Their own request is the yes that ``go_to_page`` otherwise waits for."""
+"""Words with which a visitor asks to be taken to a page, in English and Kannada:
+"take me to", "open", "show me", "I'd like to see", "can I see", "where's the
+events page", "ತೋರಿಸಿ" (show), "ನೋಡಬೇಕು" (want to see). Their own request is
+the yes that ``go_to_page`` otherwise waits for. A plain question ("what events
+are going on?", "tell me about the seed fund") is not one: she answers it, and
+offers the page."""
 
 
 _SEARCHES_PER_TURN = 2
@@ -545,6 +806,18 @@ class KdemBrain(GeminiBrain):
         #: the model's turn acted and said nothing.
         self.spoken: Language = OPENING.code
         self._fallback = FallbackLine()
+        self._ack = Acknowledger(
+            ACK_LINES,
+            ACK_HOLD,
+            ACK_SORRY,
+            _ACK_WORDS,
+            ACK_RATE,
+            ACK_HOLD_AFTER_S,
+            ACK_SORRY_AFTER_S,
+        )
+        #: Her own lines this turn that offer a page, by line: said aloud, the
+        #: page counts as offered, so the visitor's yes takes them there.
+        self._offer_lines: dict[str, str] = {}
         #: The page the visitor has open, as a site URL; ``None`` until known.
         self.here: str | None = None
         #: The WHERE THEY ARE line the prompt carries now.
@@ -609,12 +882,31 @@ class KdemBrain(GeminiBrain):
         """The opener, written not generated, in the language the call opens in."""
         return _GREETING_KN if self.spoken == Language.KN else _GREETING
 
-    def on_user_message(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
-        """Count the turn and keep what was said, for ``go_to_page``'s rule; then
-        the model's turn as usual."""
+    async def on_user_message(
+        self, session: Session, msg: UserMessage
+    ) -> AsyncGenerator[Speech, None]:
+        """Count the turn and keep what was said, for ``go_to_page``'s rule; nod,
+        in the language the voice speaks; then the model's turn.
+
+        The nod is a unit of her own, said before the model is asked and never
+        in its context (:mod:`voqalize_demos.acknowledge`). It speaks for the
+        turn, so Voqalize's "taking longer" line is disarmed: she holds the
+        floor herself while the model is quiet. A toggle switch waiting to be
+        confirmed gets no nod: its written line is the first thing she says."""
         self._turn += 1
         self._heard = msg.text
-        return super().on_user_message(session, msg)
+        self._offer_lines = {}
+        turn = super().on_user_message(session, msg)
+        nod = None if self._confirm is not None else self._ack.line(msg.text, self.spoken)
+        if nod is None:
+            async for event in turn:
+                yield event
+            return
+        logger.info("kdem: ack {!r}", nod)
+        async for event in say_line(self, nod):
+            yield event
+        async for event in hold_the_floor(self, self._ack, lambda: self.spoken, turn):
+            yield event
 
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
         """The model's turn, and a line of Aria's own if it acted and said nothing.
@@ -638,6 +930,9 @@ class KdemBrain(GeminiBrain):
             async for event in say_line(self, line):
                 yield event
         async for event in self._fallback.speak_if_silent(self, super().respond(session)):
+            if isinstance(event, SpeechChunk) and (url := self._offer_lines.get(event.text)):
+                # Her own line offered this page: the visitor's yes takes them there.
+                self._offered = (url, self._turn)
             yield event
         if (speech := self._pending) is not None:
             self._pending = None
@@ -783,22 +1078,67 @@ class KdemBrain(GeminiBrain):
             self.set_language,
         ]
 
-    def _destination(self, url: str) -> tuple[str, str] | str:
+    def _say(self, what: Said, *, offers: str | None = None, **names: str) -> None:
+        """Land her own line for this call, in the language the voice speaks:
+        said only if the turn ends with nothing said. A line that offers a page
+        (``offers``) makes it the page offered, once it has been said."""
+        line = LINES[what][self.spoken].format(**names)
+        landed(line)
+        if offers is not None:
+            self._offer_lines[line] = offers
+
+    def _offer(self, dest: str, title: str, what: Said = "offer") -> None:
+        """Offer ``dest`` now: the visitor's next turn is the yes."""
+        self._offered = (dest, self._turn)
+        self._say(what, title=_spoken_title(title))
+
+    def _here(self) -> str | None:
+        return ALLOWLIST.canonical(self.here) if self.here else None
+
+    def _cant_open(self) -> None:
+        """Her line for a page she may not open: Contact Us instead, as the
+        don't-know answer offers it, or its details when they are on it."""
+        contact = _page(ALLOWLIST.contact_url)
+        if contact is None:
+            self._say("cant_open")
+        elif contact[0] == self._here():
+            self._say("cant_open_here")
+        else:
+            self._say("cant_open_offer", offers=contact[0], title=_spoken_title(contact[1]))
+
+    def _dont_know(self) -> None:
+        """Her line for a search with nothing to say: the don't-know line, with
+        Contact Us offered, or pointed out when they are on it."""
+        contact = _page(ALLOWLIST.contact_url)
+        if contact is None:
+            self._say("dont_know")
+        elif contact[0] == self._here():
+            self._say("dont_know_here")
+        else:
+            self._say("dont_know_offer", offers=contact[0], title=_spoken_title(contact[1]))
+
+    def _destination(self, url: str, tool: str) -> tuple[str, str] | str:
         """The page ``url`` would take the visitor to, as ``(url, title)``, or the
         sentence that says why not: the same rules as ``show_document``, a PDF on
         another site going to the KDEM page that links it, and only pages, since a
-        PDF in this tab would leave the call behind."""
+        PDF in this tab would leave the call behind. A refusal is logged, and
+        lands her line that says it."""
         found = _page(url)
         if found is None:
+            logger.info("kdem: {} {!r} refused: not an approved page", tool, url)
+            self._cant_open()
             return (
                 f"Not sent: {url!r} is not one of the approved KDEM pages. Offer a page "
                 f"search_kdem returned, or the Contact Us page ({CONTACT_PATH})."
             )
         dest, title = found
         if is_pdf(dest):
+            logger.info("kdem: {} {} refused: a PDF", tool, path_of(dest))
+            self._say("pdf_not_page")
             return "Not sent: a PDF opens beside you with show_document; go_to_page is for pages."
-        here = ALLOWLIST.canonical(self.here) if self.here else None
-        if dest == here:
+        if dest == self._here():
+            logger.info("kdem: {} {} refused: already there", tool, path_of(dest))
+            self._say("already_here", title=_spoken_title(title))
             return f'They are already on "{title}". Point at the part they need with point_at.'
         return dest, title
 
@@ -806,10 +1146,10 @@ class KdemBrain(GeminiBrain):
         """Offer to take the visitor to another page of the site. Say your one short
         question ("Shall I take you to the Seed Fund page?") and call this in the
         same response; nothing moves until they say yes."""
-        found = self._destination(request.url)
+        found = self._destination(request.url, "offer_page")
         if isinstance(found, str):
             return found
-        self._offered = (found[0], self._turn)
+        self._offer(*found)
         logger.info("kdem: offer_page {}", path_of(found[0]))
         return "Offered. When they say yes, call go_to_page with this page."
 
@@ -818,17 +1158,23 @@ class KdemBrain(GeminiBrain):
         carries on there. Only a page you offered in your last turn and they said
         yes to, or one they asked to be taken to in this turn. Say one short line
         ("Taking you there.") and call this in the same response."""
-        found = self._destination(request.url)
+        found = self._destination(request.url, "go_to_page")
         if isinstance(found, str):
             return found
         dest, title = found
         offered = self._offered
         said_yes = offered is not None and offered[0] == dest and offered[1] == self._turn - 1
         if not (said_yes or _ASKS_TO_GO.search(self._heard)):
-            logger.info("kdem: go_to_page {} refused: not offered or asked for", path_of(dest))
+            # Not asked for: made the offer instead, so their yes takes them there.
+            logger.info(
+                "kdem: go_to_page {} refused: not offered or asked for; offered instead",
+                path_of(dest),
+            )
+            self._offer(dest, title)
             return (
-                f'Not sent: ask first. Say "Shall I take you to the {title} page?" and call '
-                "offer_page with it; go when they say yes."
+                f'Not sent yet: they did not ask to go, so it is offered to them instead: "Shall '
+                f'I take you to the {_spoken_title(title)} page?" When they say yes, call '
+                "go_to_page with it."
             )
         self._offered = None
         self._took_to = dest
@@ -836,7 +1182,7 @@ class KdemBrain(GeminiBrain):
         logger.info(
             "kdem: go_to_page {} ({})", path_of(dest), "a yes" if said_yes else "they asked"
         )
-        landed(*phrase(self.spoken, "shown"))
+        self._say("go", title=_spoken_title(title))
         return "ok: the page opens, and the call carries on there."
 
     async def point_at(self, request: PointRequest) -> str:
@@ -845,13 +1191,21 @@ class KdemBrain(GeminiBrain):
         one short line ("Eligibility is right here.") and call this with it."""
         text = re.sub(r"\s+", " ", request.text).strip()
         if not text:
+            logger.info("kdem: point_at refused: no phrase")
+            self._say("point_miss")
             return "Not shown: pass a short phrase from the page they are on."
         if len(text) > _POINT_CHARS:
+            logger.info("kdem: point_at refused: {} characters", len(text))
+            self._say("point_miss")
             return f"Not shown: pass a shorter phrase, under {_POINT_CHARS} characters."
         page = KNOWLEDGE.kb.page(self.here) if self.here else None
         if page is None:
+            logger.info("kdem: point_at {!r} refused: no text for the page they are on", text)
+            self._say("point_miss")
             return "Not shown: I do not have the text of the page they are on."
         if _squash(text) not in _squash(f"{page.title}\n{page.text}"):
+            logger.info("kdem: point_at {!r} refused: not on {}", text, path_of(page.url))
+            self._say("point_miss")
             return (
                 f"Not shown: {text!r} is not on the page they are on now ({page.title}). "
                 "Pass a phrase from that page, or offer to take them to the page that has it."
@@ -859,7 +1213,7 @@ class KdemBrain(GeminiBrain):
         self._pointed = text
         self.session.dispatch(PointAt(text=text))
         logger.info("kdem: point_at {!r} on {}", text, path_of(page.url))
-        landed(*phrase(self.spoken, "shown"))
+        self._say("point", text=_spoken_text(text))
         return "ok"
 
     @needs_result_now
@@ -867,10 +1221,14 @@ class KdemBrain(GeminiBrain):
         """Search KDEM's approved website pages and the PDF documents they link to.
         Call it before answering any question about KDEM, its programmes, policies,
         events, reports or news, and answer only from what it returns."""
+        # Her line should the turn end with nothing said after the search: the
+        # model found nothing in it worth saying, so it is the don't-know line.
+        self._dont_know()
         turn, done = self._searches
         done = done + 1 if turn == self._turn else 1
         self._searches = (self._turn, done)
         if done > _SEARCHES_PER_TURN:
+            logger.info("kdem: search {!r} refused: a third search this turn", request.query)
             return (
                 "Not searched: that is two searches this turn. Answer from what came back, "
                 f'or say: "{DONT_KNOW}" and offer to take them to the Contact Us page '
@@ -916,6 +1274,8 @@ class KdemBrain(GeminiBrain):
         here = ALLOWLIST.canonical(self.here) if self.here else None
         if here != KAN_URL:
             logger.info("kdem: fill_kan_field {} refused: not on the KAN page", field)
+            if (kan := _page(KAN_URL)) is not None:
+                self._offer(kan[0], kan[1], "kan_elsewhere")
             return (
                 "Not filled: the form is on the Karnataka Acceleration Network page. "
                 f"Offer to take them there with offer_page ({path_of(KAN_URL)}) first."
@@ -929,6 +1289,8 @@ class KdemBrain(GeminiBrain):
         if field == "mobile":
             value = _kan_mobile(request.value)
             if value is None:
+                logger.info("kdem: fill_kan_field mobile refused: not a mobile number")
+                self._say("say_again")
                 return (
                     "Not filled: that is not a ten-digit Indian mobile number. "
                     "Ask them to say it again."
@@ -936,6 +1298,8 @@ class KdemBrain(GeminiBrain):
         elif field == "email":
             value = _kan_email(request.value)
             if value is None:
+                logger.info("kdem: fill_kan_field email refused: not an email address")
+                self._say("say_again")
                 return "Not filled: that is not an email address. Ask them to say it again."
         elif field == "location":
             options = _kan_location(request.value)
@@ -951,6 +1315,8 @@ class KdemBrain(GeminiBrain):
         else:
             value = re.sub(r"\s+", " ", request.value).strip()
             if not value:
+                logger.info("kdem: fill_kan_field {} refused: empty", field)
+                self._say("say_again")
                 return "Not filled: there is nothing to put in. Ask them again."
             if len(value) > _KAN_TEXT_CHARS:
                 return f"Not filled: keep it under {_KAN_TEXT_CHARS} characters."
@@ -974,7 +1340,7 @@ class KdemBrain(GeminiBrain):
         self._kan[field] = "aria"
         self.session.dispatch(KanFill(field=field, value=value))
         logger.info("kdem: kan_fill {}", field)
-        landed(*phrase(self.spoken, "done"))
+        self._say("filled", label=KAN_SPOKEN[self.spoken][field])
         return f"Filled. {self._kan_next()}"
 
     async def show_document(self, request: DocumentRequest) -> str:
@@ -983,13 +1349,22 @@ class KdemBrain(GeminiBrain):
         same response. For PDFs that search_kdem returned; pages are visited."""
         found = _page(request.url) if pdf_url(request.url) is not None else None
         if found is None:
-            if _page(request.url) is not None:
-                logger.info("kdem: show_document refused a page {!r}", request.url)
+            if (page := _page(request.url)) is not None:
+                logger.info("kdem: show_document {!r} refused: a page", request.url)
+                if (dest := page[0]) != self._here():
+                    self._offer(dest, page[1])
+                    return (
+                        "Not sent: pages are visited, not shown, so it is offered to them "
+                        f'instead: "Shall I take you to the {_spoken_title(page[1])} page?" '
+                        "When they say yes, call go_to_page with it."
+                    )
+                self._say("already_here", title=_spoken_title(page[1]))
                 return (
                     "Not sent: pages are visited with offer_page / go_to_page; "
-                    "show_document is for PDFs."
+                    "show_document is for PDFs. They are on that page already."
                 )
-            logger.info("kdem: show_document refused {!r}", request.url)
+            logger.info("kdem: show_document {!r} refused: not an approved document", request.url)
+            self._say("document_refused")
             return (
                 f"Not sent: {request.url!r} is not one of the approved KDEM documents. "
                 "Show a PDF search_kdem returned."
@@ -998,7 +1373,7 @@ class KdemBrain(GeminiBrain):
         # Sent as the snippet's "show_link" card: the wire name it already renders.
         self.session.dispatch(ShowLink(url=url, title=title))
         logger.info("kdem: show_document {}", path_of(url))
-        landed(*phrase(self.spoken, "shown"))
+        self._say("document", title=_spoken_title(title))
         return "ok"
 
     async def set_language(self, request: LanguageRequest) -> str:

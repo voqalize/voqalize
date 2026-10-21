@@ -1,4 +1,4 @@
-"""SendPotionBrain — Tushar, a guide on sendpotion.com and its blog.
+"""SendPotionBrain — Javier, a guide on sendpotion.com and its blog.
 
 The site is SendPotion's, not ours. A browser extension injects the widget and a
 small adapter into sendpotion.com and blog.sendpotion.com; the adapter turns
@@ -7,7 +7,7 @@ page, a section scrolled to and ringed, an FAQ opened, the demo calendar on
 /demo/ with a day, a time and the visitor's details filled in — and the call
 itself opens the blog posts he recommends in new tabs. Every tab reports what it
 shows as a typed event (:mod:`.app_events`), whichever of the visitor and
-Tushar moved it.
+Javier moved it.
 
 Four things shape every decision here.
 
@@ -37,6 +37,16 @@ page fires each as the voice reaches its sentence (:mod:`.cues`, and the
 extension's ``narration.ts``). A reply ends on a leading offer of the next part
 of the site's story, not an open question.
 
+**English or Spanish, as the visitor chose or speaks.** The recognizer hears
+both whatever it is set to, so the brain only decides which language he answers
+in, and moves both legs of the call there together. A language the visitor
+chose — on the widget's toggle, before or during the call, or by asking
+(``set_language``) — holds whatever they speak: on dev call 826ccd1f a visitor
+who chose Spanish and spoke English had every nod in English and the toggle
+flicking back and forth. Until they choose, the call follows the language they
+speak. Either way the voice follows the language his reply is written in. The
+voice is one man, recorded in each.
+
 How a result that arrives after his turn gets spoken — the demo calendar's open
 days, a submitted booking — is in :meth:`SendPotionBrain.on_user_idle`.
 """
@@ -61,13 +71,13 @@ from voqalize_demos import (
     configure_soon,
     landed,
     needs_result_now,
-    phrase,
     say_line,
 )
 from voqalize_demos.acknowledge import Acknowledger, Kind, Vocabulary, hold_the_floor
 
 from voqalize.sdk import (
     Action,
+    RequestRejected,
     RTVIMessage,
     RTVIType,
     Session,
@@ -77,7 +87,7 @@ from voqalize.sdk import (
     UserIdle,
     UserMessage,
 )
-from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
+from voqalize.sdk.wire import Config, IdleConfig, SttConfig, TtsConfig, Voice
 
 from . import knowledge as kb
 from .app_events import (
@@ -85,6 +95,7 @@ from .app_events import (
     CommandFailed,
     DemoScheduled,
     DemoState,
+    LanguageRequested,
     PageChanged,
     SendPotionEvent,
     TabInfo,
@@ -93,7 +104,7 @@ from .app_events import (
 from .cues import CueKind, CueParser, RawCue
 from .knowledge import TOPIC_IDS, Knowledge, canonical_path, norm
 
-AGENT_NAME = "Tushar"
+AGENT_NAME = "Javier"
 
 #: LOW, as Saatvik measured: at MINIMAL, Gemini mostly made the page call first
 #: and wrote nothing; at LOW it writes the answer first and calls at the end, so
@@ -111,10 +122,9 @@ _TALK_NOW = types.ToolConfig(
 
 # ─── Voice and timing ──────────────────────────────────────────────────────────
 
-#: Tushar's voice, in English: the speech tier's Indian-English male persona,
-#: the one Saatvik's Tushar speaks with.
-VOICE = Voice.OMNIVOICE_GAURAV
-LANGUAGE = Language.EN
+#: Javier's voice: the speech tier's European male persona, recorded once in
+#: English and once in Spanish, so a switch keeps the same man.
+VOICE = Voice.OMNIVOICE_JAVIER
 
 #: A quiet visitor is someone reading a page or a post; a guide beside them says
 #: something after a while, and not twice more.
@@ -129,6 +139,79 @@ _TALK_THROUGH_MS = 2_000
 SENDPOTION_PATIENCE = PATIENCE + 2
 #: A message this soon after the last one is the rest of the same thought.
 _FRAGMENT_S = 4.0
+
+# ─── Language ──────────────────────────────────────────────────────────────────
+
+#: What he answers in, as the tag both legs of the call take. The European
+#: recognizer hears either whatever it is set to and writes what it heard, so
+#: the recognizer leg only follows the voice, as a pair, and the language is
+#: decided here from words: the visitor's, then his own.
+Lang = Literal["en", "es"]
+OPENING: Lang = "en"
+LANGUAGE_NAMES: dict[Lang, str] = {"en": "English", "es": "Spanish"}
+
+#: What he says at the start of his next turn after the visitor pressed the
+#: toggle: written, in the new language, read by the new voice.
+TOGGLE_CONFIRM: dict[Lang, str] = {
+    "en": "Sure, let's continue in English.",
+    "es": "Claro, seguimos en español.",
+}
+
+# The small words of each language, which carry no topic: a sentence that uses
+# several of one and none of the other is in that one, whatever its nouns are.
+# Words both languages write ("a", "no", "me", "son") are in neither list.
+_SPANISH_WORDS = frozenset(
+    # A word list reads as words, so it stays a split string.
+    """que qué de del el los las la una unas unos por para con como cómo cuánto cuanto
+    cuánta cuesta cuestan puedes puede podrías quiero quisiera necesito tengo tienes
+    tiene hay hola gracias sí está están estoy es eso esto esta este estos pero muy
+    también hablar habla hablas hablemos español castellano usted ustedes mi mis tu tus
+    su sus nosotros vale bueno claro dónde donde cuál cual cuándo cuando precio precios
+    enséñame muéstrame dime explícame funciona hace hacer vídeo vídeos
+    """.split()  # noqa: SIM905
+)
+_ENGLISH_WORDS = frozenset(
+    """the is are was what how can could you your i i'm it it's this that these those do
+    does show me my we our for with about and of to have has there here please want
+    would like tell sure yes okay right of course let's
+    """.split()  # noqa: SIM905
+)
+#: Enough of his reply to tell its language: its first sentence, or this many
+#: characters. On dev call 826ccd1f the first chunk of a Spanish reply was " P".
+_WRITTEN_ENOUGH = 60
+_SENTENCE_END = re.compile(r"[.?!](?:\s|$)")
+#: Letters and marks only Spanish writes, of the two.
+_SPANISH_MARKS = re.compile(r"[¿¡ñáéíóú]", re.IGNORECASE)
+_LETTERS = re.compile(r"[\wáéíóúüñ']+")
+#: A cue is the site's own words, in English whatever he speaks.
+_CUE_TEXT = re.compile(r"\{[^{}]*\}?")
+
+
+def language_of(text: str, *, sure: bool = True) -> Lang | None:
+    """The language ``text`` is plainly in, or ``None``.
+
+    ``sure`` is for what the visitor said, where one stray word must not move
+    the call: Spanish needs two of its words (or its marks and one), English
+    three of its own and none of Spanish's. Unsure is for the first words of his
+    own reply, which are few: one Spanish word, or two English ones, will do."""
+    text = _CUE_TEXT.sub(" ", text)
+    words = set(_LETTERS.findall(text.lower()))
+    es = len(words & _SPANISH_WORDS) + (1 if _SPANISH_MARKS.search(text) else 0)
+    en = len(words & _ENGLISH_WORDS)
+    if es >= (2 if sure else 1) and es > en:
+        return "es"
+    if en >= (3 if sure else 2) and es == 0:
+        return "en"
+    return None
+
+
+def _chosen_note(language: Lang, how: str) -> str:
+    name = LANGUAGE_NAMES[language]
+    return (
+        f"[The visitor chose {name} {how}. Answer in {name} from now on, whatever "
+        "language they speak to you, until they ask for the other one.]"
+    )
+
 
 # ─── Actions (brain → page) ────────────────────────────────────────────────────
 
@@ -219,6 +302,13 @@ class FocusTab(Action):
     tab_id: str
 
 
+class LanguageChanged(Action):
+    """The call's language moved, by the toggle, by voice or by
+    ``set_language``: the widget's toggle follows at once."""
+
+    language: Literal["en", "es"]
+
+
 # ─── Tool requests ─────────────────────────────────────────────────────────────
 
 if TYPE_CHECKING:
@@ -292,6 +382,10 @@ class TabRequest(BaseModel):
     tab_id: str = Field(description="The tab_id from the open tabs list.")
 
 
+class LanguageRequest(BaseModel):
+    language: Lang = Field(description="'en' for English, 'es' for Spanish.")
+
+
 # ─── The prompt ────────────────────────────────────────────────────────────────
 
 _SITE_MAP_CHARS = 16000
@@ -354,10 +448,20 @@ You are heard, not read, so keep it light and warm.
 - A turn is three to five short sentences. A walkthrough of steps or a section can run to eight, one step per sentence, each with its cue.
 - Every sentence under fifteen words. Small, everyday words. One idea per sentence. One number per sentence.
 - THE FIRST SENTENCE IS A FEW WORDS. The visitor hears nothing until your first sentence has been voiced, so open every reply with a sentence of two to six words that ends in a full stop, with the answer in it. A cue may come before it.
-- Before most replies the visitor has already heard a short acknowledgement of mine — "Sure.", "Let me see." — so never open with one: your first word is the answer. No "great question", no repeating their question back.
+- Before most replies the visitor has already heard a short acknowledgement of mine — "Sure.", "Let me see.", or in Spanish "Claro.", "A ver." — so never open with one: your first word is the answer. No "great question", no repeating their question back.
 - Spoken words only, apart from cues: no lists, no markdown, no symbols, never an exclamation mark. Write numbers and prices as spoken words: "thirty-nine dollars a month", never "$39/mo".
 - Lines in square brackets come from their screen, not the visitor: the page in front with its headings and FAQs, what the calendar shows. Never read them out; use them.
 - Always answer. A reply with no words leaves the visitor in silence.
+
+# English or Spanish
+You speak English and Spanish, as a native of Madrid. The call starts in English unless the visitor chose Spanish.
+- Answer in the language the visitor speaks to you. If they speak Spanish, answer in Spanish from that reply on; if they go back to English, so do you. Your voice follows the language you write.
+- Except when they chose a language: a line in square brackets says so. Then answer in that language whatever they speak, even when they speak the other one, until they ask you to switch.
+- When they ask for the other language in words that are not already it ("Can you speak Spanish?", "¿Podemos hablar en inglés?"), answer in that language and call set_language in the same response. A visitor already speaking Spanish to you has been switched: do not call it for them.
+- One language per reply: in a Spanish reply every sentence is Spanish. Use "tú", plain neutral Spanish, and masculine forms of yourself ("estoy encantado de ayudarte").
+- In Spanish too, write numbers and prices as spoken words: "treinta y nueve dólares al mes", never "39 $/mes". Product and plan names stay as SendPotion writes them: Potion, Starter, Professional.
+- Cues are the site's own words, and the site is in English, so a cue stays in English inside a Spanish reply: "{{page: /pricing}}{{show: Pricing plans}} Los planes empiezan en treinta y nueve dólares al mes." The visitor sees an English page; describe it in Spanish, and if they ask, say the site itself is in English.
+- The languages Potion makes videos in are a question about the product, not about this call: answer it from the knowledge, like any other.
 
 # Every response starts with words
 Write your answer, with its cues, first; any tool call comes at the end of the same response. What a page call returns reaches you only on your next turn.
@@ -417,55 +521,125 @@ You: "Then outreach is your use case. Agencies send a personal video to each pro
 
 # ─── Greeting ──────────────────────────────────────────────────────────────────
 
-_INTRO = f"Hi, I'm {AGENT_NAME}, your guide to Potion."
-_GREETING = f"{_INTRO} I can walk you through it, or take you straight to what you need. What brings you here today?"
+_INTRO: dict[Lang, str] = {
+    "en": f"Hi, I'm {AGENT_NAME}, your guide to Potion.",
+    "es": f"Hola, soy {AGENT_NAME}, tu guía de Potion.",
+}
+_GREETING: dict[Lang, str] = {
+    "en": "I can walk you through it, or take you straight to what you need. "
+    "What brings you here today?",
+    "es": "Puedo enseñártelo paso a paso, o llevarte directo a lo que necesitas. "
+    "¿Qué te trae por aquí?",
+}
 #: The opener's second sentence for the page the call starts on, by a word in
 #: its path; the first match wins, and anything else gets the plain greeting.
-_OPENERS: tuple[tuple[str, str], ...] = (
-    ("pricing", "I can help you pick a plan. How many people would be making videos?"),
-    ("demo", "I can book this demo with you. Which day suits you?"),
-    ("integrations", "Tell me which tools you use, and I'll show you how Potion fits in."),
-    ("features", "Ask me about anything here, or I can walk you through it."),
-    ("use-cases", "Tell me what you do, and I'll show you the use case that fits."),
-    ("faq", "Ask me anything, and I'll open the answer for you."),
+_OPENERS: tuple[tuple[str, dict[Lang, str]], ...] = (
+    (
+        "pricing",
+        {
+            "en": "I can help you pick a plan. How many people would be making videos?",
+            "es": "Te ayudo a elegir un plan. ¿Cuántas personas harían vídeos?",
+        },
+    ),
+    (
+        "demo",
+        {
+            "en": "I can book this demo with you. Which day suits you?",
+            "es": "Puedo reservar esta demo contigo. ¿Qué día te viene bien?",
+        },
+    ),
+    (
+        "integrations",
+        {
+            "en": "Tell me which tools you use, and I'll show you how Potion fits in.",
+            "es": "Dime qué herramientas usas, y te enseño cómo encaja Potion.",
+        },
+    ),
+    (
+        "features",
+        {
+            "en": "Ask me about anything here, or I can walk you through it.",
+            "es": "Pregúntame por cualquier cosa de aquí, o te lo enseño paso a paso.",
+        },
+    ),
+    (
+        "use-cases",
+        {
+            "en": "Tell me what you do, and I'll show you the use case that fits.",
+            "es": "Cuéntame a qué te dedicas, y te enseño el caso de uso que encaja.",
+        },
+    ),
+    (
+        "faq",
+        {
+            "en": "Ask me anything, and I'll open the answer for you.",
+            "es": "Pregúntame lo que quieras, y te abro la respuesta.",
+        },
+    ),
 )
-_BLOG_GREETING = f"{_INTRO} Tell me what you're working on, and I'll find the posts that fit it."
+_BLOG_GREETING: dict[Lang, str] = {
+    "en": "Tell me what you're working on, and I'll find the posts that fit it.",
+    "es": "Cuéntame en qué estás trabajando, y busco los artículos que encajan.",
+}
 
 
-def greeting(path: str | None, site: str | None) -> str:
-    """The written opener, tailored to the page the call starts on."""
+def greeting(path: str | None, site: str | None, lang: Lang = OPENING) -> str:
+    """The written opener, in ``lang``, tailored to the page the call starts on."""
     if site == "blog":
-        return _BLOG_GREETING
+        return f"{_INTRO[lang]} {_BLOG_GREETING[lang]}"
     here = canonical_path(path or "/")
-    return next((f"{_INTRO} {line}" for word, line in _OPENERS if word in here), _GREETING)
+    line = next((lines[lang] for word, lines in _OPENERS if word in here), _GREETING[lang])
+    return f"{_INTRO[lang]} {line}"
 
 
 # ─── Written lines for moves ───────────────────────────────────────────────────
 
-#: His line for a silent turn whose move is not "here it is".
-_LANDED: dict[str, tuple[str, ...]] = {
-    "demo": ("Here's the demo calendar.",),
-    "demo_filled": ("I've filled that in on the calendar.",),
-    "posts": ("I've opened the best fit in a new tab.",),
-    "closed": ("I've closed the reading list.",),
-    "signup": ("I've opened the sign-up in a new tab.",),
-    "tab": ("There's that tab.",),
+#: His line for a silent turn, by what moved: "shown" for anything else.
+_LANDED: dict[str, dict[Lang, str]] = {
+    "shown": {"en": "Here it is.", "es": "Aquí lo tienes."},
+    "demo": {"en": "Here's the demo calendar.", "es": "Aquí tienes el calendario de la demo."},
+    "demo_filled": {
+        "en": "I've filled that in on the calendar.",
+        "es": "Ya lo he rellenado en el calendario.",
+    },
+    "posts": {
+        "en": "I've opened the best fit in a new tab.",
+        "es": "He abierto el que mejor encaja en una pestaña nueva.",
+    },
+    "closed": {"en": "I've closed the reading list.", "es": "He cerrado la lista de lecturas."},
+    "signup": {
+        "en": "I've opened the sign-up in a new tab.",
+        "es": "He abierto el registro en una pestaña nueva.",
+    },
+    "tab": {"en": "There's that tab.", "es": "Ahí tienes esa pestaña."},
 }
 
 # ─── His nod ───────────────────────────────────────────────────────────────────
 
-_ACK_LINES: dict[Language, dict[Kind, tuple[str, ...]]] = {
-    Language.EN: {
+_ACK_LINES: dict[Lang, dict[Kind, tuple[str, ...]]] = {
+    "en": {
         "request": ("Sure.", "Okay.", "Of course.", "Certainly."),
         "question": ("Let me see.", "Hmm, let me see.", "Okay."),
         "correction": ("I see.", "Understood.", "Right."),
         "statement": ("Okay.", "Got it.", "Right."),
     },
+    "es": {
+        "request": ("Claro.", "Vale.", "Por supuesto.", "Perfecto."),
+        "question": ("A ver.", "Mmm, a ver.", "Vale."),
+        "correction": ("Ya veo.", "Entendido.", "Vale."),
+        "statement": ("Vale.", "Entendido.", "Claro."),
+    },
 }
 ACK_RATE = 0.75
 ACK_HOLD_AFTER_S = 4.0
-_ACK_HOLD = {Language.EN: ("One moment.", "Just a moment.")}
-_ACK_SORRY = {Language.EN: "Sorry, that's taking a little longer."}
+_ACK_HOLD: dict[Lang, tuple[str, ...]] = {
+    "en": ("One moment.", "Just a moment."),
+    "es": ("Un momento.", "Solo un momento."),
+}
+_ACK_SORRY: dict[Lang, str] = {
+    "en": "Sorry, that's taking a little longer.",
+    "es": "Perdona, está tardando un poco más.",
+}
 #: A visitor's ordinary words about Potion, so the reading trusts them.
 _ACK_WORDS = Vocabulary(
     common=frozenset(
@@ -565,7 +739,10 @@ _ASKED_PAGES: tuple[tuple[re.Pattern[str], str], ...] = tuple(
         (r"video emails?\b", "/personalized-video-emails"),
         (r"pric|cost|how much|plans?\b|free trial", "/pricing"),
         (r"integrat|hubspot|salesforce|crm\b|apollo|lemlist|instantly", "/integrations"),
-        (r"languages?\b|spanish|hindi|french|german", "/supported-languages"),
+        (
+            r"languages?\b|spanish|hindi|french|german|idiomas?\b|español|espanol",
+            "/supported-languages",
+        ),
         (r"reviews?\b|testimonial|case stud|customer stor|stories\b", "/reviews"),
         (r"security|secure|gdpr", "/security"),
         (r"ethic|deepfake|consent", "/ai-ethics"),
@@ -576,11 +753,41 @@ _ASKED_PAGES: tuple[tuple[re.Pattern[str], str], ...] = tuple(
 _ASKED_OVERVIEW = re.compile(r"\buse[- ]?cases?\b|\bwho uses\b", re.IGNORECASE)
 _ASKED_TAB = re.compile(r"\btabs?\b", re.IGNORECASE)
 
+# A request about the call's own language: a verb of speaking, addressed to him
+# ("can you", "let's", or said as an order) or said by him ("I can", "volvemos"),
+# and the language. His own first sentence is read the same way for the page
+# it is about, so "Claro, volvemos al español." must not open a page either. On dev call
+# 1ff72fee "Hey, can you speak in Spanish?" opened /supported-languages while
+# he talked about integrations. "Does Potion make videos in Spanish?" is about
+# the product, and still opens it.
+_CALL_LANGUAGE = re.compile(
+    r"\b(?:speak|talk|switch|change|continue|carry on|answer|reply|respond|go back|"
+    r"habl\w*|cambi\w*|sig\w*|continu\w*|respond\w*|contest\w*|pas\w*|volv\w*)\b"
+    r"[^.?!]{0,25}?\b(?:spanish|english|español|espanol|castellano|inglés|ingles)\b",
+    re.IGNORECASE,
+)
+_TO_HIM = re.compile(
+    r"^\W*(?:(?:hey|ok|okay|please|so|now|vale|oye|bueno|por favor)\W+)*"
+    r"(?:speak|talk|switch|change|continue|carry|answer|reply|respond|go|habla|háblame|"
+    r"hábleme|cambia|sigue|continúa|responde|contesta|pasa|vuelve)\b"
+    r"|\b(?:you|we|us|let'?s|let us|i|i'?ll|puedes|podemos|podrías|podríamos|hablemos|"
+    r"sigamos|cambiemos|continuemos|pasemos|volvamos|me|nos|hablamos|seguimos|cambiamos|"
+    r"continuamos|pasamos|volvemos|puedo)\b",
+    re.IGNORECASE,
+)
+
+
+def asks_call_language(text: str) -> bool:
+    """Whether ``text`` asks him to speak another language — a request about
+    this call, not a question about the languages Potion's videos come in."""
+    return bool(_CALL_LANGUAGE.search(text) and _TO_HIM.search(text))
+
 
 def asked_page(text: str) -> str | None:
     """The site page for what ``text`` asks about, or ``None``. "The pricing
-    tab" is a tab to switch to, not a page to open over the one in front."""
-    if _ASKED_TAB.search(text):
+    tab" is a tab to switch to, not a page to open over the one in front, and
+    "can you speak Spanish?" is a request about this call, not a page."""
+    if _ASKED_TAB.search(text) or asks_call_language(text):
         return None
     named = [(m.start(), path) for rx, path in _ASKED_PAGES if (m := rx.search(text))]
     if named:
@@ -893,8 +1100,8 @@ def named_on_page(sentence: str, path: str, text: str, plans: tuple[str, ...]) -
 
 
 class SendPotionBrain(GeminiBrain):
-    """One per session. Tushar: SendPotion's knowledge, its pages and posts, and
-    a mirror of the visitor's tabs."""
+    """One per session. Javier: SendPotion's knowledge, its pages and posts, and
+    a mirror of the visitor's tabs, in English or Spanish."""
 
     def __init__(
         self,
@@ -908,6 +1115,13 @@ class SendPotionBrain(GeminiBrain):
         self._config = self._config.model_copy(update={"thinking_config": THINKING})
         self._forced: types.ToolConfig | None = None
         self._heard_at = float("-inf")
+        #: The language he speaks now, and the toggle's written confirmation
+        #: of a switch, said at the start of his next turn.
+        self.spoken: Lang = OPENING
+        #: Whether the visitor chose the language, which then holds whatever
+        #: they speak; until they do, it follows what they speak.
+        self._chosen = False
+        self._confirm: str | None = None
         self._fallback = FallbackLine()
         self._ack = Acknowledger(
             _ACK_LINES, _ACK_HOLD, _ACK_SORRY, _ACK_WORDS, ACK_RATE, ACK_HOLD_AFTER_S
@@ -947,34 +1161,58 @@ class SendPotionBrain(GeminiBrain):
         init = session.init or {}
         self._path = canonical_path(str(init.get("path") or "/"))
         self._site = "blog" if init.get("site") == "blog" else "site"
+        # The page sends `lang` only once the visitor has pressed the toggle.
+        chosen = init.get("lang")
+        self._chosen = chosen in LANGUAGE_NAMES
+        self.spoken = "es" if chosen == "es" else OPENING
+        # His own voice, settled here and not by the page. Both language legs
+        # move together; what he hears, the toggle and `set_language` move them
+        # again.
         await session.configure(
             Config(
-                stt=SttConfig(language=LANGUAGE, patience=SENDPOTION_PATIENCE),
-                tts=TtsConfig(voice=VOICE, language=LANGUAGE),
+                stt=SttConfig(language=self.spoken, patience=SENDPOTION_PATIENCE),
+                tts=TtsConfig(voice=VOICE, language=self.spoken),
                 idle=IdleConfig(timeout_ms=_IDLE_MS),
             )
         )
-        logger.info("sendpotion: session start on {} {}", self._site, self._path)
+        logger.info(
+            "sendpotion: session start on {} {} in {}{}",
+            self._site,
+            self._path,
+            self.spoken,
+            " (chosen)" if self._chosen else "",
+        )
+        if self._chosen:
+            self._note(_chosen_note(self.spoken, "before the call"))
 
     async def greet(self, session: Session) -> str:
         """The opener, written not generated."""
-        return greeting(self._path, self._site)
+        return greeting(self._path, self._site, self.spoken)
 
     async def on_user_message(
         self, session: Session, msg: UserMessage
     ) -> AsyncGenerator[Speech, None]:
-        """The tab they moved to is read in with what they said; his nod covers
-        the model's thinking."""
+        """A visitor who speaks the other language is answered in it from the
+        first word, unless they chose the language they are in; the tab they moved to is read in with what they said; his
+        nod covers the model's thinking."""
+        heard = None if self._chosen else language_of(msg.text)
+        if heard is not None and heard != self.spoken:
+            await session.configure(self._speaking(heard))
+            logger.info("sendpotion: language -> {} (heard)", heard)
         self._talk = None
         self._nudges = 0
         # A reply cut off before it said a word keeps its page for the next one:
         # "use cases in sales", then "mm-hmm" while he was still thinking.
-        self._backstop = asked_page(msg.text) or self._backstop
+        # A request to switch language shows nothing, not even the page a
+        # reply cut off before had kept.
+        self._backstop = (
+            None if asks_call_language(msg.text) else asked_page(msg.text) or self._backstop
+        )
         self._restore_idle()
         self._read_in_screen()
         now = time.monotonic()
         fragment, self._heard_at = now - self._heard_at < _FRAGMENT_S, now
-        if not fragment and (nod := self._ack.line(msg.text, LANGUAGE)) is not None:
+        if not fragment and (nod := self._ack.line(msg.text, self.spoken)) is not None:
             logger.info("sendpotion: ack {!r}", nod)
             async for event in say_line(self, nod):
                 yield event
@@ -990,7 +1228,7 @@ class SendPotionBrain(GeminiBrain):
             try:
                 turn = super().on_user_message(session, msg)
                 async for event in hold_the_floor(
-                    self, self._ack, lambda: LANGUAGE, turn, answered
+                    self, self._ack, lambda: self.spoken, turn, answered
                 ):
                     yield event
             finally:
@@ -1012,6 +1250,9 @@ class SendPotionBrain(GeminiBrain):
             ask, self._talk = self._talk, None
             self._note(ask)
             return self.respond(session)
+        if self._confirm is not None:
+            line, self._confirm = self._confirm, None
+            return say_line(self, line)
         if self._nudges >= _IDLE_NUDGES:
             return _silence()
         self._nudges += 1
@@ -1040,7 +1281,15 @@ class SendPotionBrain(GeminiBrain):
         too does he say a written line of his own. A turn that came back with
         nothing at all — no words, no move — is asked once more the same way:
         on dev call 67d16b5d three such turns left the visitor with a nod and
-        then silence until they spoke again."""
+        then silence until they spoke again.
+
+        A language switched on the toggle is confirmed first, in the new
+        language. A unit is opened only once its first words are known, so the
+        voice follows the language the model chose to write in."""
+        if (line := self._confirm) is not None:
+            self._confirm = None
+            async for event in say_line(self, line):
+                yield event
         self._cue_path = self._path if self._site == "site" else None
         self._paged = False
         self._shown = None
@@ -1048,13 +1297,50 @@ class SendPotionBrain(GeminiBrain):
         turn = self._fallback.speak_if_silent(
             self, super().respond(session), again=lambda: self._talk_now(session)
         )
-        async for event in self._cued(turn):
+        async for event in self._written(session, self._cued(turn)):
             spoke = spoke or isinstance(event, SpeechStart)
             yield event
         if not spoke:
             logger.warning("sendpotion: the model returned nothing; asking once more")
-            async for event in self._cued(self._talk_now(session)):
+            async for event in self._written(session, self._cued(self._talk_now(session))):
                 yield event
+
+    async def _written(
+        self, session: Session, turn: AsyncGenerator[Speech, None]
+    ) -> AsyncGenerator[Speech, None]:
+        """``turn``, with each unit held back until its first sentence is in,
+        and both legs moved to the language it is in when it is not the call's.
+        A chunk can be a sliver (" P"), so one is never enough to tell."""
+        held: list[Speech] = []
+        text = ""
+
+        async def release() -> AsyncGenerator[Speech, None]:
+            nonlocal held, text
+            written = language_of(text, sure=False)
+            if written is not None and written != self.spoken:
+                await session.configure(self._speaking(written))
+                logger.info("sendpotion: language -> {} (written)", written)
+            out, held, text = held, [], ""
+            for event in out:
+                yield event
+
+        async for event in turn:
+            if isinstance(event, SpeechStart):
+                held.append(event)
+                continue
+            if not held:
+                yield event
+                continue
+            held.append(event)
+            if isinstance(event, SpeechChunk):
+                text += event.text
+                if len(text) < _WRITTEN_ENOUGH and not _SENTENCE_END.search(text):
+                    continue
+            async for out in release():
+                yield out
+        if held:
+            async for out in release():
+                yield out
 
     async def _cued(self, turn: AsyncGenerator[Speech, None]) -> AsyncGenerator[Speech, None]:
         """``turn`` with every ``{page|show|faq: …}`` taken out of its text and
@@ -1219,8 +1505,45 @@ class SendPotionBrain(GeminiBrain):
         if event is None:
             return
         logger.info("sendpotion: {} — {}", type(event).__voqal_event__, event)
+        if isinstance(event, LanguageRequested):
+            await self._requested(session, event)
+            return
         if (note := self.apply_event(event)) is not None:
             self._note(note)
+
+    async def _requested(self, session: Session, event: LanguageRequested) -> None:
+        """The visitor pressed the other language on the toggle. Switched in
+        code, not through the model: both legs move in one awaited request, and
+        the written confirmation is said in his next turn — which, if they stay
+        quiet, is the short quiet spell :meth:`on_user_idle` turns into it."""
+        if event.language == self.spoken:
+            return
+        was = self.spoken
+        try:
+            await session.configure(self._speaking(event.language))
+        except RequestRejected as rejected:
+            logger.warning("sendpotion: switch to {} refused: {}", event.language, rejected)
+            self.spoken = was
+            session.dispatch(LanguageChanged(language=was))
+            return
+        logger.info("sendpotion: language -> {} (toggle)", event.language)
+        self._chosen = True
+        self._confirm = TOGGLE_CONFIRM[event.language]
+        if not self._idle_short:
+            self._idle_short = True
+            configure_soon(session, Config(idle=IdleConfig(timeout_ms=_TALK_THROUGH_MS)))
+        self._note(_chosen_note(event.language, "on the toggle"))
+
+    def _speaking(self, language: Lang) -> Config:
+        """Both legs of ``language``, recorded as the one he speaks now, and the
+        widget's toggle moved to it."""
+        if language != self.spoken:
+            self.session.dispatch(LanguageChanged(language=language))
+        self.spoken = language
+        return Config(
+            stt=SttConfig(language=language, patience=SENDPOTION_PATIENCE),
+            tts=TtsConfig(voice=VOICE, language=language),
+        )
 
     # ─── Page → brain ───────────────────────────────────────────────────
 
@@ -1260,6 +1583,9 @@ class SendPotionBrain(GeminiBrain):
                 return (
                     f"[The visitor pressed Schedule Event for {when or 'the chosen slot'}.{held}]"
                 )
+            case LanguageRequested():
+                # Switched by on_rtvi before it gets here: a toggle is not a note.
+                return None
             case CommandFailed() if event.command == "cue":
                 # He has already spoken past it: the next turn should not claim
                 # it is on screen, nor stop to apologise for a scroll.
@@ -1351,14 +1677,11 @@ class SendPotionBrain(GeminiBrain):
             self._idle_short = False
             configure_soon(self.session, Config(idle=IdleConfig(timeout_ms=_IDLE_MS)))
 
-    def _move(self, action: Action, line: str | None = None) -> None:
-        """Dispatch ``action``, with the written line for it should the turn say
-        nothing."""
+    def _move(self, action: Action, line: str = "shown") -> None:
+        """Dispatch ``action``, with the written line for it (one of
+        :data:`_LANDED`, in the language he speaks) should the turn say nothing."""
         self.session.dispatch(action)
-        if line is not None:
-            landed(line)
-        else:
-            landed(*phrase(LANGUAGE, "shown"))
+        landed(_LANDED[line][self.spoken])
 
     def _headings(self) -> tuple[str, ...]:
         if self.page is not None:
@@ -1388,6 +1711,7 @@ class SendPotionBrain(GeminiBrain):
             self.book_demo,
             self.open_signup,
             self.switch_tab,
+            self.set_language,
         ]
 
     @needs_result_now
@@ -1460,7 +1784,7 @@ class SendPotionBrain(GeminiBrain):
         if not items:
             return "Not shown: none of those is a SendPotion blog post. Use find_blog_posts first."
         first = items[0].url if request.open_first else None
-        self._move(OpenPosts(heading=request.heading, posts=items, open=first), _LANDED["posts"][0])
+        self._move(OpenPosts(heading=request.heading, posts=items, open=first), "posts")
         result = f"Listed {len(items)} posts beside you" + (
             f"; opened '{items[0].title}' in a new tab." if first else "."
         )
@@ -1498,7 +1822,7 @@ class SendPotionBrain(GeminiBrain):
                 email=fields.get("email"),
                 notes=fields.get("notes"),
             ),
-            _LANDED["demo_filled" if day or when or self._demo_fields else "demo"][0],
+            "demo_filled" if day or when or self._demo_fields else "demo",
         )
         parts = [x for x in (day, when) if x]
         filled = ", ".join(self._demo_fields) or "nothing"
@@ -1510,13 +1834,13 @@ class SendPotionBrain(GeminiBrain):
     async def close_reading_list(self) -> str:
         """Close the reading list beside you, on every tab: when they ask, or
         when the conversation has moved on from those posts."""
-        self._move(OpenPosts(heading="", posts=[]), _LANDED["closed"][0])
+        self._move(OpenPosts(heading="", posts=[]), "closed")
         return "Closed the reading list."
 
     async def open_signup(self) -> str:
         """Open Potion's sign-up and log-in (app.sendpotion.com) in a new tab.
         Only when they ask to sign up, try it free or log in."""
-        self._move(OpenSignup(), _LANDED["signup"][0])
+        self._move(OpenSignup(), "signup")
         return "Opened app.sendpotion.com in a new tab."
 
     async def switch_tab(self, request: TabRequest) -> str:
@@ -1525,14 +1849,27 @@ class SendPotionBrain(GeminiBrain):
         if tab is None:
             listed = ", ".join(f"{t.tab_id} ({t.title})" for t in self.tabs) or "none"
             return f"Not switched: no tab '{request.tab_id}'. Open tabs: {listed}."
-        self._move(FocusTab(tab_id=tab.tab_id), _LANDED["tab"][0])
+        self._move(FocusTab(tab_id=tab.tab_id), "tab")
         return f"Brought '{tab.title or tab.url}' to the front."
+
+    async def set_language(self, request: LanguageRequest) -> str:
+        """Conduct the rest of the call in English ('en') or Spanish ('es'),
+        listening and speaking. Call it when they ask for the other language in
+        words that are not already it — "Can you speak Spanish?" — and to go
+        back. Say one short line in the language you are switching to, in the
+        same response. A visitor already speaking Spanish has been switched: do
+        not call it for them."""
+        self._chosen = True
+        configure_soon(self.session, self._speaking(request.language))
+        logger.info("sendpotion: language -> {} (asked)", request.language)
+        return "ok"
 
 
 __all__ = [
     "BookDemo",
     "Cue",
     "FocusTab",
+    "LanguageChanged",
     "Navigate",
     "OpenFaq",
     "OpenPost",

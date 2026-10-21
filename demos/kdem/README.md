@@ -20,7 +20,7 @@ never looks for a frontend here and it is not a card on `/demos`.
 | `backend/app_events.py` | The events the snippet sends the brain: `page_viewed`, `language_requested`, `point_missed`, `kan_field_changed`, `kan_fill_failed` |
 | `backend/content.py` | The languages table and the page list in the prompt |
 | `backend/knowledge.py` | The approved-page list, visible-text extraction, PDF text extraction, sitemap and PDF refresh, and in-memory search |
-| `backend/knowledge/` | `approved_pages.json`, which KDEM reviews, and its README |
+| `backend/knowledge/` | `approved_pages.json`, which KDEM reviews, `core_pages.json` (the frozen core), and its README |
 | `embed/voqalize-aria-kdem.js` | The snippet that is pasted into the site |
 
 ## The brain
@@ -204,12 +204,15 @@ Each brains host keeps its own snapshot of the approved pages, in
 the snapshot about once a day from `wp-sitemap.xml`. Sessions are never kept
 waiting for it.
 
-On a host with no snapshot, the first refresh reads the approved pages first
-and Aria answers from them as soon as they are read, a minute or two after the
-first session starts. Until then she says she does not have the answer and
-offers Contact Us. New news and event pages follow, then the PDFs those approved
-pages link to: the news and events are answered from before the PDFs are
-downloaded, and the PDFs once the refresh finishes. After that, a PDF is
+On a host with no snapshot, Aria answers from the frozen core
+(`backend/knowledge/core_pages.json`): the approved and hub-linked pages,
+committed in the repository, with no news and no PDFs. It is loaded at import,
+with no network, so the first session after a deploy already answers. The
+first refresh starts at once and re-reads only the core pages whose `lastmod`
+has moved since they were frozen; the newer text replaces the frozen one. New
+news and event pages follow, then the PDFs the approved pages link to: the news
+and events are answered from before the PDFs are downloaded, and the PDFs once
+the refresh finishes. If the refresh fails, the core stays in use. After that, a PDF is
 downloaded again only when it changed, or while a long one is still being read.
 
 PDFs are read with `pypdf`, page by page. The limits are on the work, not the
@@ -244,8 +247,8 @@ link or a failed read is tried again after a backoff that starts at a day and
 doubles to a month.
 
 The brains container is started with no volume today
-(`demos/bin/brains-node-deploy.sh`), so every redeploy starts from no snapshot
-and goes through those first minutes again. To keep the snapshot across
+(`demos/bin/brains-node-deploy.sh`), so every redeploy starts from the core
+and goes through those first minutes again, without the news and the PDFs. To keep the snapshot across
 redeploys, mount a volume and point `KDEM_KNOWLEDGE_DIR` at it in the deploy
 script. That is a deploy change and is not made here.
 

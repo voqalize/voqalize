@@ -23,6 +23,7 @@ from __future__ import annotations
 import asyncio
 import sys
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -35,6 +36,7 @@ if "voqalize_demos._loaded.kdem" not in sys.modules:  # no routes.py yet: load i
 
 from voqalize_demos._loaded.kdem.knowledge import (  # noqa: E402
     ALLOWLIST,
+    CORE,
     Allowlist,
     FetchResult,
     KnowledgeBase,
@@ -699,6 +701,152 @@ def test_prime_installs_a_snapshot_and_keeps_the_keeper_off(allowlist: Allowlist
     )
     service.start()  # outside a loop, and a no-op once primed
     assert len(service.kb) == 1
+
+
+# ─── The frozen core ──────────────────────────────────────────────────────────
+
+
+async def _offline(url: str) -> FetchResult:
+    raise OSError("offline")
+
+
+def test_the_committed_core_is_approved_pages_only() -> None:
+    assert CORE is not None
+    assert CORE.built_at == "" and not CORE.known
+    assert not CORE.pending_review and not CORE.unreadable
+    assert {p.section for p in CORE.pages.values()} == {
+        "core-pages",
+        "focus-areas-programmes",
+        "event-landing-pages",
+        "policies-resources",
+    }
+    assert all(p.kind == "page" for p in CORE.pages.values())
+    refused = {u: ALLOWLIST.refusal(u, p.origin, p.section) for u, p in CORE.pages.items()}
+    assert {u: why for u, why in refused.items() if why is not None} == {}
+    # The links stay, so the first refresh finds the PDFs and hub pages from them.
+    assert any(p.pdf_links for p in CORE.pages.values())
+
+
+async def test_the_core_answers_at_once_with_no_snapshot_and_no_network(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("KDEM_KNOWLEDGE_REFRESH")
+    service = KnowledgeService(ALLOWLIST, cache_dir=tmp_path, fetch=_offline, core=CORE)
+    assert CORE is not None and len(service.kb) == len(CORE.pages)
+    hits = service.kb.search("cluster seed fund")
+    assert hits[0].url == f"{SITE}/beyond-bengaluru-cluster-seed-fund/"
+    kan = service.kb.page(f"{SITE}/acceleration-network/")
+    assert kan is not None and kan.text
+    # Never built: the first refresh is due now, not in a day.
+    assert service._due_in() == 0  # pyright: ignore[reportPrivateUsage]
+    service.start()
+    await asyncio.sleep(0.05)
+    # The refresh failed (no network); the core is still what answers.
+    assert len(service.kb) == len(CORE.pages)
+    assert not service.path.exists()
+    await service.stop()
+
+
+def test_the_core_holds_government_first_and_nipuna_under_the_list_titles() -> None:
+    assert CORE is not None
+    kb = KnowledgeService(ALLOWLIST, core=CORE).kb
+    titles = {
+        "/government-first/": "Government First Initiative",
+        "/nipuna-karnataka/": "NIPUNA Karnataka",
+        "/nipuna-karnataka-guidelines/": "NIPUNA Karnataka Guidelines",
+        "/nipuna-karnataka-proposal/": "NIPUNA Karnataka Proposal",
+    }
+    for path, title in titles.items():
+        page = kb.page(f"{SITE}{path}")
+        assert page is not None and page.text, path
+        assert page.title == title
+        assert CORE.pages[f"{SITE}{path}"].origin == "approved"
+    hits = kb.search("government first work order")
+    assert hits[0].url == f"{SITE}/government-first/"
+    hits = kb.search("NIPUNA guidelines")
+    assert hits[0].url == f"{SITE}/nipuna-karnataka-guidelines/"
+
+
+def test_the_programme_page_outranks_its_download_forms(monkeypatch: pytest.MonkeyPatch) -> None:
+    """For "NIPUNA Karnataka" the programme's page, not the two download forms
+    beside it, whose eighty-odd characters are nearly all title, comes first;
+    the form a question names by its document still does."""
+    from voqalize_demos._loaded.kdem import knowledge
+
+    assert CORE is not None
+    main = f"{SITE}/nipuna-karnataka/"
+    forms = {f"{SITE}/nipuna-karnataka-guidelines/", f"{SITE}/nipuna-karnataka-proposal/"}
+    with monkeypatch.context() as m:
+        m.setattr(knowledge, "_THIN_WEIGHT", 1.0)
+        control = KnowledgeService(ALLOWLIST, core=CORE).kb
+    assert control.search("NIPUNA Karnataka")[0].url in forms  # the failure, reproduced
+    kb = KnowledgeService(ALLOWLIST, core=CORE).kb
+    for query in ("NIPUNA Karnataka", "nipuna", "NIPUNA proposal"):
+        assert kb.search(query)[0].url == main, query
+    assert kb.search("NIPUNA guidelines")[0].url == f"{SITE}/nipuna-karnataka-guidelines/"
+    assert f"{SITE}/nipuna-karnataka-proposal/" in {p.url for p in kb.search("NIPUNA proposal")}
+
+
+async def test_a_snapshot_on_disk_replaces_the_core(
+    tmp_path: Path, allowlist: Allowlist, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("KDEM_KNOWLEDGE_REFRESH")
+    core = Snapshot(pages={p.url: p for p in [_stored("/about-us/", "About", "core text")]})
+    on_disk = Snapshot(
+        _iso_now(),
+        pages={p.url: p for p in [_stored("/contact-us/", "Contact Us", "Write to us.")]},
+    )
+    on_disk.save(tmp_path / "snapshot.json")
+    service = KnowledgeService(allowlist, cache_dir=tmp_path, fetch=_offline, core=core)
+    assert [p.url for p in service.kb.pages] == [f"{SITE}/about-us/"]
+    service.start()
+    for _ in range(50):
+        if service.snapshot.built_at:
+            break
+        await asyncio.sleep(0.02)
+    assert [p.url for p in service.kb.pages] == [f"{SITE}/contact-us/"]
+    await service.stop()
+
+
+async def test_a_refresh_from_the_core_rereads_only_what_moved(
+    tmp_path: Path, allowlist: Allowlist, site: FakeSite
+) -> None:
+    def frozen(path: str, title: str, lastmod: str, text: str) -> StoredPage:
+        return replace(_stored(path, title, text), lastmod=lastmod, digest=text)
+
+    core = Snapshot(
+        pages={
+            p.url: p
+            for p in [
+                frozen("/about-us/", "About KDEM", _days_ago(60), "The frozen about text."),
+                frozen("/contact-us/", "Contact Us", _days_ago(30), "The frozen contact text."),
+            ]
+        }
+    )
+    service = KnowledgeService(allowlist, cache_dir=tmp_path, fetch=site.fetch, core=core)
+    seen: list[set[str]] = []
+    slow = site.fetch
+
+    async def fetch(url: str) -> FetchResult:
+        if url.endswith("/news/fresh/"):
+            seen.append({p.url for p in service.kb.pages})
+        return await slow(url)
+
+    service._fetch = fetch  # pyright: ignore[reportPrivateUsage]
+    await service.refresh_now(policy=RefreshPolicy(pause_s=0))
+    # The moved page is read again and its new text wins; the other is not read.
+    about = service.kb.page(f"{SITE}/about-us/")
+    assert about is not None and "knowledge bridge" in about.text
+    assert "/contact-us/" not in site.page_reads()
+    contact = service.kb.page(f"{SITE}/contact-us/")
+    assert contact is not None and "frozen contact" in contact.text
+    # Answering while the news is read: every core page is still there.
+    assert seen and {f"{SITE}/about-us/", f"{SITE}/contact-us/"} <= seen[0]
+    assert f"{SITE}/news/fresh/" in service.snapshot.pages
+
+
+def _iso_now() -> str:
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 async def test_a_page_that_redirects_off_the_site_is_not_indexed(

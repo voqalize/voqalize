@@ -42,9 +42,8 @@ from dataclasses import replace
 
 import pytest
 from google.genai import types
-from voqalize_demos import PHRASES
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
+from voqalize_demos.testing import Reply, ScriptedGemini, call, reply, reply_and_call
 
 from voqalize.sdk.wire import Language
 
@@ -52,6 +51,7 @@ from ._harness import check_greeting, check_turn, check_voice_pair, demo
 
 discover()
 
+from voqalize_demos._loaded.kdem import brain as kdem_brain  # noqa: E402
 from voqalize_demos._loaded.kdem.brain import (  # noqa: E402
     _GREETING,
     _GREETING_KN,
@@ -160,8 +160,10 @@ SNAPSHOT = Snapshot(
 
 
 @pytest.fixture(autouse=True)
-def _primed() -> Iterator[None]:
-    """Every test answers from the synthetic snapshot unless it primes its own."""
+def _primed(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Every test answers from the synthetic snapshot unless it primes its own,
+    and Aria never nods unless a test asks her to: a nod is a unit of its own."""
+    monkeypatch.setattr(kdem_brain, "ACK_RATE", 0.0)
     KNOWLEDGE.prime(SNAPSHOT)
     yield
     KNOWLEDGE.prime(SNAPSHOT)
@@ -570,16 +572,19 @@ async def test_an_indexed_news_page_may_be_offered() -> None:
 
 async def test_show_document_refuses_an_ordinary_page() -> None:
     """Link cards are for documents. A page is visited, so asked to show one as
-    a card, show_document says so and nothing crosses the wire."""
+    a card, show_document offers the page instead and nothing crosses the wire."""
     llm = _llm()
     async with demo("kdem", llm) as rig:
         await rig.driver.start_session()
         await rig.driver.user_says("Show me the seed fund as a card.")
         assert "show_link" not in rig.actions()
+        brain = rig.brain
+        assert isinstance(brain, KdemBrain)
+        assert brain._offered is not None and brain._offered[0] == SEED_FUND  # pyright: ignore[reportPrivateUsage]
         await rig.driver.user_says("Thank you.")
-    assert _results(llm.captured_contents[-1])["show_document"] == (
-        "Not sent: pages are visited with offer_page / go_to_page; show_document is for PDFs."
-    )
+    result = _results(llm.captured_contents[-1])["show_document"]
+    assert result.startswith("Not sent: pages are visited, not shown, so it is offered")
+    assert "Shall I take you to the Beyond Bengaluru Cluster Seed Fund page?" in result
 
 
 def test_the_prompt_makes_pages_visits_and_cards_documents() -> None:
@@ -702,14 +707,14 @@ async def test_a_link_sent_in_silence_gets_her_line_in_the_language_she_speaks()
         turn = await rig.driver.user_says("Just show me the policy.")
         check_turn(rig, turn, units=1)
         (line,) = (u.text for u in turn.units)
-        assert line in PHRASES[Language.EN]["shown"], line
+        assert line == "I've opened Sample Startup Policy beside you.", line
         assert len(llm.captured_contents) - before == 1, "a silent turn asked the model again"
         assert rig.command("show_link")["url"] == POLICY_PDF
 
         await rig.driver.user_says("Can we speak in Kannada?")
         turn = await rig.driver.user_says("ಪಾಲಿಸಿ ತೋರಿಸಿ")
         (line,) = (u.text for u in turn.units)
-        assert line in PHRASES[Language.KN]["shown"], line
+        assert line == "Sample Startup Policy ಅನ್ನು ಪಕ್ಕದಲ್ಲೇ ತೆರೆದಿದ್ದೇನೆ.", line
 
 
 # ─── The visitor moves while the call goes on ─────────────────────────────────
@@ -804,7 +809,10 @@ def test_nothing_said_in_english_names_the_language() -> None:
         DONT_KNOW,
         SWITCH_LINE["en"],
         TOGGLE_CONFIRM["en"],
-        *(line for lines in PHRASES[Language.EN].values() for line in lines),
+        *(lines[Language.EN] for lines in kdem_brain.LINES.values()),
+        *(line for lines in kdem_brain.ACK_LINES[Language.EN].values() for line in lines),
+        *kdem_brain.ACK_HOLD[Language.EN],
+        kdem_brain.ACK_SORRY[Language.EN],
     ]
     # Every quoted line in the prompt that is not Kannada script.
     english += [
@@ -979,7 +987,8 @@ async def test_an_offer_does_not_move_the_page_and_a_yes_does() -> None:
         from voqalize_demos._loaded.kdem.brain import PageRequest
 
         same_turn = await brain.go_to_page(PageRequest(url=SEED_FUND))
-        assert same_turn.startswith("Not sent: ask first") and _navigations(rig) == []
+        assert same_turn.startswith("Not sent yet: they did not ask to go")
+        assert _navigations(rig) == []
 
         await rig.driver.user_says("Yes please.")
         assert _navigations(rig) == [{"url": SEED_FUND}]
@@ -994,14 +1003,21 @@ async def test_an_explicit_request_is_the_yes() -> None:
         assert _navigations(rig) == [{"url": CONTACT}]
 
 
-async def test_going_unprompted_is_refused() -> None:
+async def test_going_unprompted_is_offered_instead() -> None:
+    """A page the visitor did not ask for is not opened: the call becomes the
+    offer, and the model is told so."""
     llm = _llm()
     async with demo("kdem", llm) as rig:
         await rig.driver.start_session(init={"page": "/"})
         await rig.driver.user_says("Tell me about the seed fund.")
         assert _navigations(rig) == []
+        brain = rig.brain
+        assert isinstance(brain, KdemBrain)
+        assert brain._offered is not None and brain._offered[0] == SEED_FUND  # pyright: ignore[reportPrivateUsage]
         await rig.driver.user_says("Thank you.")
-    assert _result(llm, "go_to_page").startswith("Not sent: ask first")
+    result = _result(llm, "go_to_page")
+    assert result.startswith("Not sent yet: they did not ask to go, so it is offered")
+    assert "When they say yes, call go_to_page with it." in result
 
 
 @pytest.mark.parametrize(
@@ -1302,3 +1318,254 @@ def test_a_named_page_is_taken_from_the_list_and_visited_at_once() -> None:
     assert "Do not offer it back to them first." in _SYSTEM_INSTRUCTION
     assert "Take its path from THE PAGES without searching." in _SYSTEM_INSTRUCTION
     assert "Events is /events/" in _SYSTEM_INSTRUCTION
+
+
+# ─── Her nod, holding the floor, and a line for every move ────────────────────
+#
+# What a visitor heard on 2026-10-19: a turn answered with a call alone, or
+# with a call the brain refused, was silence until Voqalize's own "taking
+# longer" line. Now she nods first, holds the floor while the model is quiet,
+# and every call lands a line that names what happened, said when the model
+# said nothing.
+
+EVENTS_ASK = "I would like to see what events are going on"
+
+
+def _moves_llm() -> ScriptedGemini:
+    return ScriptedGemini(
+        {
+            "Can you show me the seed fund?": reply_and_call(
+                "Here is the seed fund page.", "offer_page", request={"url": SEED_FUND}
+            ),
+            "What do you fund?": reply("Startups in the clusters."),
+            "Is there a seed fund page?": call("offer_page", request={"url": SEED_FUND}),
+            "What is on the seed fund page?": call("go_to_page", request={"url": SEED_FUND}),
+            "Yes.": call("go_to_page", request={"url": SEED_FUND}),
+            "Thank you.": reply("You're welcome."),
+            "Where does it say lanterns?": call("point_at", request={"text": "lantern workshops"}),
+            "Where are the startups listed?": call(
+                "point_at", request={"text": "early-stage startups in Mysuru, Mangaluru and"}
+            ),
+            "Can I see the sample page?": call("offer_page", request={"url": "/sample-page/"}),
+            "Yes, please.": call("go_to_page", request={"url": "/contact-us/"}),
+            "What is the weather on Mars?": [
+                call("search_kdem", request={"query": "weather on Mars"}),
+                reply(),
+            ],
+            "Is TOPCon better?": reply(chunks=["The seed fund page says so."], chunk_delay=0.6),
+            "What is the seed fund for?": Reply(
+                chunks=("",),
+                calls=(("offer_page", {"request": {"url": SEED_FUND}}),),
+                chunk_delay=0.6,
+            ),
+            "ಸೀಡ್ ಫಂಡ್ ಬಗ್ಗೆ ತಿಳಿಸಿ": call("offer_page", request={"url": SEED_FUND}),
+            "ಸೀಡ್ ಫಂಡ್ ಪುಟ ಯಾವುದು?": call("go_to_page", request={"url": SEED_FUND}),
+        }
+    )
+
+
+def _nods(kind: str, language: Language = Language.EN) -> tuple[str, ...]:
+    return kdem_brain.ACK_LINES[language][kind]  # type: ignore[index]
+
+
+async def test_a_request_gets_her_nod_before_the_model_and_never_in_its_context(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The nod is a unit of her own ahead of the model's, and the model's own
+    line follows it unchanged: no second line of hers on a turn that spoke."""
+    monkeypatch.setattr(kdem_brain, "ACK_RATE", 1.0)
+    llm = _moves_llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        turn = await rig.driver.user_says("Can you show me the seed fund?")
+        check_turn(rig, turn, units=2)
+        nod, said = (u.text for u in turn.units)
+        assert nod in _nods("request"), nod
+        assert said == "Here is the seed fund page."
+
+        turn = await rig.driver.user_says("What do you fund?")
+        nod, said = (u.text for u in turn.units)
+        assert nod in _nods("question"), nod
+        assert said == "Startups in the clusters."
+    context = _said([c for c in llm.captured_contents[-1] if c.role == "model"])
+    assert not any(n in context for n in ("Sure.", "Let me see.", "Of course.", "Certainly."))
+
+
+@pytest.mark.parametrize("ask", ["Thank you.", "Yes."])
+async def test_thanks_and_a_yes_get_no_nod(monkeypatch: pytest.MonkeyPatch, ask: str) -> None:
+    monkeypatch.setattr(kdem_brain, "ACK_RATE", 1.0)
+    async with demo("kdem", _moves_llm()) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        turn = await rig.driver.user_says(ask)
+        every_nod = {
+            n for kind in ("request", "question", "correction", "statement") for n in _nods(kind)
+        }
+        assert not every_nod & {u.text for u in turn.units}, [u.text for u in turn.units]
+
+
+async def test_an_offer_made_in_silence_is_said_by_name() -> None:
+    async with demo("kdem", _moves_llm()) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        turn = await rig.driver.user_says("Is there a seed fund page?")
+        check_turn(rig, turn, units=1)
+        assert [u.text for u in turn.units] == [
+            "Shall I take you to the Beyond Bengaluru Cluster Seed Fund page?"
+        ]
+        assert _navigations(rig) == []
+
+
+async def test_a_go_they_did_not_ask_for_is_offered_and_their_yes_goes() -> None:
+    """The live failure: go_to_page on a question was refused, and the turn was
+    silent. Now it is the offer, said aloud, and the yes takes them there."""
+    llm = _moves_llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        turn = await rig.driver.user_says("What is on the seed fund page?")
+        assert [u.text for u in turn.units] == [
+            "Shall I take you to the Beyond Bengaluru Cluster Seed Fund page?"
+        ]
+        assert _navigations(rig) == []
+
+        turn = await rig.driver.user_says("Yes.")
+        assert _navigations(rig) == [{"url": SEED_FUND}]
+        assert [u.text for u in turn.units] == [
+            "Taking you to the Beyond Bengaluru Cluster Seed Fund page."
+        ]
+    assert _results(llm.captured_contents[-1])["go_to_page"].startswith("Not sent yet:")
+
+
+async def test_a_point_that_misses_says_so_and_a_long_one_is_said_short() -> None:
+    async with demo("kdem", _moves_llm()) as rig:
+        await rig.driver.start_session(init={"page": "/cluster-seed-fund/"})
+        turn = await rig.driver.user_says("Where does it say lanterns?")
+        assert [u.text for u in turn.units] == ["I couldn't find that on this page."]
+        assert _points(rig) == []
+
+        turn = await rig.driver.user_says("Where are the startups listed?")
+        assert _points(rig) == [{"text": "early-stage startups in Mysuru, Mangaluru and"}]
+        assert [u.text for u in turn.units] == [
+            "Here's early-stage startups in Mysuru, highlighted on the page."
+        ]
+
+
+async def test_a_page_she_may_not_open_offers_contact_us_and_the_yes_goes_there() -> None:
+    async with demo("kdem", _moves_llm()) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        turn = await rig.driver.user_says("Can I see the sample page?")
+        assert [u.text for u in turn.units] == [
+            "I can't open that page, but I can take you to the Contact Us page."
+        ]
+        await rig.driver.user_says("Yes, please.")
+        assert _navigations(rig) == [{"url": CONTACT}]
+
+
+async def test_a_search_that_ends_in_silence_is_the_dont_know_line_and_contact_us() -> None:
+    async with demo("kdem", _moves_llm()) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        turn = await rig.driver.user_says("What is the weather on Mars?")
+        assert [u.text for u in turn.units] == [
+            f"{DONT_KNOW} Shall I take you to the Contact Us page?"
+        ]
+        brain = rig.brain
+        assert isinstance(brain, KdemBrain)
+        assert brain._offered is not None and brain._offered[0] == CONTACT  # pyright: ignore[reportPrivateUsage]
+
+
+async def test_a_slow_model_after_the_nod_is_held_then_apologised_for(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The nod disarms Voqalize's "taking longer" line, so she holds the floor
+    herself: a holding line, then an apology, then the model's answer."""
+    monkeypatch.setattr(kdem_brain, "ACK_RATE", 1.0)
+    monkeypatch.setattr(kdem_brain, "ACK_HOLD_AFTER_S", 0.2)
+    monkeypatch.setattr(kdem_brain, "ACK_SORRY_AFTER_S", 0.4)
+    async with demo("kdem", _moves_llm()) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        turn = await rig.driver.user_says("Is TOPCon better?", quiet_for=1.0)
+        check_turn(rig, turn, units=4)
+        nod, hold, sorry, answer = (u.text for u in turn.units)
+        assert nod in _nods("question")
+        assert hold in kdem_brain.ACK_HOLD[Language.EN]
+        assert sorry == kdem_brain.ACK_SORRY[Language.EN]
+        assert answer == "The seed fund page says so."
+
+
+async def test_a_slow_silent_move_is_held_and_then_said(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(kdem_brain, "ACK_RATE", 1.0)
+    monkeypatch.setattr(kdem_brain, "ACK_HOLD_AFTER_S", 0.2)
+    async with demo("kdem", _moves_llm()) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        turn = await rig.driver.user_says("What is the seed fund for?", quiet_for=1.0)
+        nod, hold, line = (u.text for u in turn.units)
+        assert nod in _nods("question")
+        assert hold in kdem_brain.ACK_HOLD[Language.EN]
+        assert line == "Shall I take you to the Beyond Bengaluru Cluster Seed Fund page?"
+
+
+async def test_in_kannada_she_nods_and_says_her_moves_in_kannada(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(kdem_brain, "ACK_RATE", 1.0)
+    async with demo("kdem", _moves_llm()) as rig:
+        await rig.driver.start_session(init={"page": "/", "lang": "kn"})
+        turn = await rig.driver.user_says("ಸೀಡ್ ಫಂಡ್ ಬಗ್ಗೆ ತಿಳಿಸಿ")
+        nod, line = (u.text for u in turn.units)
+        assert nod in _nods("request", Language.KN), nod
+        assert line == "ನಿಮ್ಮನ್ನು Beyond Bengaluru Cluster Seed Fund ಪುಟಕ್ಕೆ ಕರೆದುಕೊಂಡು ಹೋಗಲೇ?"
+
+        # Offered last turn, so this go is the yes: said by name, in Kannada.
+        turn = await rig.driver.user_says("ಸೀಡ್ ಫಂಡ್ ಪುಟ ಯಾವುದು?")
+        nod, line = (u.text for u in turn.units)
+        assert nod in _nods("question", Language.KN), nod
+        assert line == ("ನಿಮ್ಮನ್ನು Beyond Bengaluru Cluster Seed Fund ಪುಟಕ್ಕೆ ಕರೆದುಕೊಂಡು ಹೋಗುತ್ತಿದ್ದೇನೆ.")
+        assert _navigations(rig) == [{"url": SEED_FUND}]
+
+
+@pytest.mark.parametrize(
+    "said",
+    [
+        EVENTS_ASK,
+        "I'd like to see the policies.",
+        "Show me the events page.",
+        "Where is the events page?",
+        "Where's the contact us page?",
+        "Can I see the newsletter?",
+        "Take me to the contact page.",
+        "ಈವೆಂಟ್ಸ್ ಪುಟ ತೋರಿಸಿ",
+        "ನಾನು ಈವೆಂಟ್ಸ್ ನೋಡಬೇಕು",
+        "ಈವೆಂಟ್ಸ್ ಪುಟ ಎಲ್ಲಿದೆ?",
+    ],
+)
+def test_words_that_ask_to_be_taken_somewhere(said: str) -> None:
+    assert kdem_brain._ASKS_TO_GO.search(said)  # pyright: ignore[reportPrivateUsage]
+
+
+@pytest.mark.parametrize(
+    "said",
+    [
+        "What events are going on?",
+        "Tell me about the seed fund.",
+        "Where can I read about the seed fund?",
+        "Where is the seed fund available?",
+        "Is there a page about grants?",
+        "I would like to know about events.",
+        "Can I apply for the seed fund?",
+        "Where is KDEM located?",
+        "ಸೀಡ್ ಫಂಡ್ ಬಗ್ಗೆ ತಿಳಿಸಿ",
+    ],
+)
+def test_a_plain_question_is_not_asking_to_go(said: str) -> None:
+    assert not kdem_brain._ASKS_TO_GO.search(said)  # pyright: ignore[reportPrivateUsage]
+
+
+async def test_asking_in_her_words_takes_them_there() -> None:
+    """The live turn: "I would like to see what events are going on" is their
+    yes, so go_to_page goes at once."""
+    llm = ScriptedGemini({EVENTS_ASK: call("go_to_page", request={"url": SEED_FUND})})
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        turn = await rig.driver.user_says(EVENTS_ASK)
+        assert _navigations(rig) == [{"url": SEED_FUND}]
+        assert [u.text for u in turn.units] == [
+            "Taking you to the Beyond Bengaluru Cluster Seed Fund page."
+        ]

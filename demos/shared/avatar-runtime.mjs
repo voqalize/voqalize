@@ -13,6 +13,12 @@
  * `current.js` is the newest runtime each host has, not a release. A demo you
  * copy from here needs none of this: leave `AVATAR_RUNTIME` unset.
  *
+ * Only those hosts are accepted. A runtime on `avatar.voqalize.com` reaches a
+ * page through a release of `@voqalize/avatar`, never through this override:
+ * from 2026-10-16 to the 0.6.0 release the prod demos trigger named one here by
+ * hand, and the prod pages kept a runtime no release pinned, out of sight of
+ * every repository. `unreleasedRuntime()` fails that build instead.
+ *
  * The shim is kept out of dependency pre-bundling while overridden, because
  * the pre-bundler reads `pin.js` without running plugins.
  */
@@ -20,9 +26,22 @@ import { readFileSync } from "node:fs";
 
 const PIN = /[\\/]@voqalize[\\/]avatar[\\/]dist[\\/]pin\.js$/;
 const URL_LINE = /export const RUNTIME_URL = "[^"]*";/;
+const UNRELEASED_HOSTS = ["avatar.dev.voqalize.com", "avatar.local.voqalize.com"];
+
+/** `url`, if it is a runtime on a host of unreleased runtimes; otherwise throws. */
+export function unreleasedRuntime(url) {
+  let host;
+  try { host = new URL(url).host; } catch { throw new Error(`AVATAR_RUNTIME is not a URL: ${url}`); }
+  if (UNRELEASED_HOSTS.includes(host)) return url;
+  throw new Error(
+    `AVATAR_RUNTIME names ${url}. It may only name an unreleased runtime, on ${UNRELEASED_HOSTS.join(" or ")}. ` +
+      `A page reaches a runtime on avatar.voqalize.com by depending on the @voqalize/avatar release that pins it.`,
+  );
+}
 
 export function avatarRuntime(url = process.env.AVATAR_RUNTIME) {
   if (!url) return null;
+  unreleasedRuntime(url);
   return {
     name: "voqalize-avatar-runtime",
     enforce: "pre",

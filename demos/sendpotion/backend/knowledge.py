@@ -1,4 +1,4 @@
-"""What Tushar knows about SendPotion, in three layers, read once at import.
+"""What Javier knows about SendPotion, in three layers, read once at import.
 
 - **L1** (``knowledge/L1.md``) is always in his prompt: what SendPotion is,
   who it is for, the product in brief, pricing in brief, how to start.
@@ -448,7 +448,7 @@ def load(root: Path = ROOT) -> Knowledge:
     try:
         l1 = (root / "L1.md").read_text(encoding="utf-8").strip() or _L1_FALLBACK
     except OSError:
-        logger.warning("sendpotion: L1.md not found; Tushar runs on the fallback")
+        logger.warning("sendpotion: L1.md not found; Javier runs on the fallback")
         l1 = _L1_FALLBACK
     topics: dict[str, Topic] = {}
     for path in sorted((root / "L2").glob("*.md")) if (root / "L2").is_dir() else []:

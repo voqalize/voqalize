@@ -723,7 +723,7 @@ facts:
   speech.stt.languages.total:
     value: 47
     source: speech prod branch, stt-rs/src/registry.rs PARAKEET_LANGUAGES + INDIC_LANGUAGES
-    verified: 2026-10-20
+    verified: 2026-10-21
     reproduce: >-
       git -C ../speech show origin/prod:stt-rs/src/registry.rs | awk
       '/^pub const (PARAKEET|INDIC)_LANGUAGES/,/^];/' | grep -o '"[a-z]*"' | wc -l
@@ -731,9 +731,8 @@ facts:
       English and the European languages on Parakeet TDT 0.6B v3's model card,
       plus the Indic languages on IndicConformer — what the speech tier
       publishes at `GET /v2/languages`, and what `GET /api/v1/capabilities`
-      relays. Verified against speech `main` on 2026-10-20, ahead of the speech
-      prod release this lands with; re-run `reproduce` against `origin/prod`
-      when it ships. Prefer naming the groups to stating the total; the roster
+      relays. Re-run against speech `origin/prod` on 2026-10-21, after the
+      speech prod release, and the live prod `/v2/languages` lists the same. Prefer naming the groups to stating the total; the roster
       is in docs reference/catalog.md and nowhere else. Before that release it
       was English plus 22 Indic languages. The `Language` enum stays at English
       and the Indic codes: a European language is a `language_tag` string only.

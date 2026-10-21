@@ -1,5 +1,5 @@
 /**
- * Tushar on SendPotion — the whole browser half of the call.
+ * Javier on SendPotion — the whole browser half of the call.
  *
  * SendPotion's pages are theirs and we change nothing in them. This script is
  * injected into the page's own JavaScript world (the manifest's
@@ -12,7 +12,7 @@
  *   - the call: stock pipecat on `@voqalize/client-transport`'s media, one
  *     `sessions.connect`, and the avatar.
  *
- * Nothing here decides what Tushar says or shows. The prompt, the tools and the
+ * Nothing here decides what Javier says or shows. The prompt, the tools and the
  * knowledge live in the brain, `demos/sendpotion/backend/`.
  *
  * One site and one agent have one call, in every tab of both hosts (`tabs.ts`
@@ -48,17 +48,22 @@ import {
   followCall, type Following, forgetCopiedCall, gestureContext, here, holdCall, type Holding,
   inFront, type Relay, type TabInfo,
 } from "./tabs";
-import { type Activity, mountWidget, type Read, type Status } from "./widget";
+import { type Activity, type Language, mountWidget, type Read, type Status } from "./widget";
 
 declare const __VOQALIZE__: { apiBase: string; agentId: string; publishableKey: string };
 
-const CHARACTER = "tushar";
+const CHARACTER = "javier";
 const AGENT = __VOQALIZE__.agentId;
 const SITE = "https://sendpotion.com";
 const SIGNUP = "https://app.sendpotion.com/?utm_campaign=inbound&utm_source=website";
 /** Set once the widget is up, so a second copy of this script on the page
  *  puts up no second widget. */
-const MOUNTED = "__voqalizeTushar";
+const MOUNTED = "__voqalizeJavier";
+/** The language the visitor last chose on the toggle on this host, which the
+ *  next call starts in and holds to; and how long the toggle waits for the brain to answer a switch before
+ *  it shows the language the call is still in. */
+const LANG_KEY = "voqalize.sendpotion.lang";
+const SWITCH_WAIT_MS = 4000;
 
 /** How long a follower waits for the holder to come back after it left for
  *  another page, and after a close the Navigation API did not see as one. */
@@ -68,7 +73,7 @@ const BACK_FROM_CLOSE_MS = 1_500;
 /** The Actions that belong on a sendpotion.com tab, wherever the visitor is. */
 const SITE_COMMANDS = new Set(["navigate", "book_demo"]);
 /** The Actions the holder performs itself rather than a page. */
-const OURS = new Set(["open_posts", "open_post", "open_signup", "focus_tab", "cue"]);
+const OURS = new Set(["open_posts", "open_post", "open_signup", "focus_tab", "cue", "language_changed"]);
 
 /** The request that mints a session — see `docs/client/handshake`. */
 function connectRequest(init: Record<string, unknown>): APIRequest {
@@ -158,6 +163,11 @@ async function start(): Promise<void> {
   let waiting: ReturnType<typeof setTimeout> | null = null;
   /** The reading list, kept by every tab so a newcomer can be told. */
   let reads: { heading: string; posts: Read[] } | null = null;
+  /** The call's language, or the next call's; the one the toggle asked for
+   *  until the brain answers; and the wait for that answer. */
+  let language: Language = storedLanguage() ?? "en";
+  let asked: Language | null = null;
+  let switchTimer: ReturnType<typeof setTimeout> | null = null;
 
   const post = (r: Relay) => chan.postMessage(r);
 
@@ -187,15 +197,29 @@ async function start(): Promise<void> {
     if (tell) post({ k: "reads", heading: next?.heading ?? "", posts: next?.posts ?? [] });
   }
 
+  function showLanguage(next: Language): void {
+    language = next;
+    if (switchTimer) clearTimeout(switchTimer);
+    switchTimer = null;
+    asked = null;
+    widget.setLanguage(next);
+    announce();
+  }
+
   /** The holder's state, for the followers: on every change. */
   function announce(): void {
-    if (role === "holder") post({ k: "holder", from: me, status, muted, activity });
+    if (role === "holder") post({ k: "holder", from: me, status, muted, activity, language });
   }
 
   function watchActivity(on: PipecatClient): void {
     on.on("userStartedSpeaking" as never, (() => setActivity("listening")) as never);
     on.on("botLlmStarted" as never, (() => setActivity("thinking")) as never);
-    on.on("botStartedSpeaking" as never, (() => setActivity("speaking")) as never);
+    on.on("botStartedSpeaking" as never, (() => {
+      setActivity("speaking");
+      // The brain answers `language_requested` by moving both legs and
+      // confirming aloud in the new language, so his next words are the switch.
+      if (asked && role === "holder") showLanguage(asked);
+    }) as never);
     on.on("botStoppedSpeaking" as never, (() => setActivity("listening")) as never);
   }
 
@@ -205,7 +229,8 @@ async function start(): Promise<void> {
    *  move's failure, which is the brain's whichever tab made it. */
   function toBrain(from: string, event: AppEvent): void {
     if (role !== "holder" || !reporting) return;
-    if (from !== active && event.event !== "command_failed" && event.event !== "demo_state") return;
+    const anyTab = ["command_failed", "demo_state", "language_requested"];
+    if (from !== active && !anyTab.includes(event.event)) return;
     sendAppEvent(reporting.sendUIEvent.bind(reporting), event);
   }
 
@@ -259,7 +284,7 @@ async function start(): Promise<void> {
             toBrain(me, { event, payload } as AppEvent);
           });
           // Every other tab says where it is, which fills the brain's list.
-          post({ k: "holder", from: me, status, muted, activity });
+          post({ k: "holder", from: me, status, muted, activity, language });
           sendTabs();
         },
         // The avatar draws and never plays a sound, so the bot's track is ours.
@@ -268,7 +293,7 @@ async function start(): Promise<void> {
           widget.audio.srcObject = new MediaStream([track]);
           void widget.audio.play().catch(() => {});
         },
-        // A microphone that never opened is a call Tushar cannot hear: end it
+        // A microphone that never opened is a call Javier cannot hear: end it
         // and say why, rather than leave a widget that says "live".
         onDeviceError: (error) => {
           if (client !== next || !error.devices.includes("mic")) return;
@@ -321,7 +346,13 @@ async function start(): Promise<void> {
         await next.connect();
       } else {
         const ctx = adapter!.context();
-        const init = { surface: "sendpotion-ext", site: ctx.site, path: ctx.path, url: ctx.url, title: ctx.title };
+        // `lang` only when the visitor chose it: the brain then holds to it
+        // whatever they speak, and otherwise follows the language they speak.
+        const chosen = storedLanguage();
+        const init = {
+          surface: "sendpotion-ext", site: ctx.site, path: ctx.path, url: ctx.url, title: ctx.title,
+          ...(chosen ? { lang: chosen } : {}),
+        };
         const started = await next.startBot(connectRequest(init));
         await next.connect(withRealHeaders(started));
       }
@@ -463,6 +494,11 @@ async function start(): Promise<void> {
         return openTab(SIGNUP);
       case "focus_tab":
         return (await focusTab(action.payload.tab_id)) ? null : `no tab ${action.payload.tab_id} to bring forward`;
+      // The brain's word that the call's language moved, by the toggle, by
+      // voice or on request: the toggle follows at once, on every tab.
+      case "language_changed":
+        showLanguage(action.payload.language);
+        return null;
       default:
         return `the call cannot ${action.command}`;
     }
@@ -506,6 +542,7 @@ async function start(): Promise<void> {
     tabs.clear();
     release?.();
     release = null;
+    if (switchTimer) showLanguage(language);
     if (!leaving) {
       try {
         live?.disconnectBot();
@@ -522,9 +559,31 @@ async function start(): Promise<void> {
     client?.enableMic(!muted);
   }
 
+  /** The toggle. Off a call it picks the next call's language. In a call it
+   *  asks the brain, from whichever tab it was pressed on, and moves when
+   *  Javier next speaks, which is his confirmation in the new language, or at
+   *  once on the brain's `language_changed`, which also follows a switch made
+   *  by voice. */
+  function chooseLanguage(want: Language): void {
+    storeLanguage(want);
+    if (want === language && !switchTimer) return;
+    if (role === "idle") return showLanguage(want);
+    asked = want === language ? null : want;
+    widget.setLanguagePending(want);
+    const payload = { language: want };
+    if (role === "holder") toBrain(me, { event: "language_requested", payload });
+    else post({ k: "app", from: me, event: "language_requested", payload });
+    if (switchTimer) clearTimeout(switchTimer);
+    switchTimer = setTimeout(() => {
+      switchTimer = null;
+      asked = null;
+      widget.setLanguage(language);
+    }, SWITCH_WAIT_MS);
+  }
+
   // ─── A follower ──────────────────────────────────────────────────────
 
-  function follow(from: { status: Status; muted: boolean; activity: Activity | null }): void {
+  function follow(from: { status: Status; muted: boolean; activity: Activity | null; language?: Language }): void {
     role = "follower";
     following = followCall(chan, me);
     watchActivity(following.client);
@@ -539,7 +598,7 @@ async function start(): Promise<void> {
     sayWhere();
   }
 
-  function track(from: { status: Status; muted: boolean; activity: Activity | null }): void {
+  function track(from: { status: Status; muted: boolean; activity: Activity | null; language?: Language }): void {
     if (from.status === "idle" || from.status === "error") return unfollow();
     if (waiting) clearTimeout(waiting);
     waiting = null;
@@ -549,6 +608,7 @@ async function start(): Promise<void> {
     widget.setMuted(from.muted);
     muted = from.muted;
     if (from.activity) widget.setActivity(from.activity);
+    if (from.language && (from.language !== language || switchTimer)) showLanguage(from.language);
     if (from.status === "live" && !wasLive) following?.joined();
   }
 
@@ -661,6 +721,8 @@ async function start(): Promise<void> {
   });
   widget.onHang(end);
   widget.onMute(toggleMute);
+  widget.setLanguage(language);
+  widget.onLanguage(chooseLanguage);
   // A post in the reading list: its own tab if one shows it, else a new one.
   widget.onCloseReads(() => showReads(null, true));
   widget.onRead((url) => {
@@ -703,7 +765,7 @@ async function start(): Promise<void> {
   if (spare.transport.hasLiveCall) void connect(true);
   else post({ k: "hello", from: me });
 
-  // A tab Tushar opened may have a move to make once its page is up: a section
+  // A tab Javier opened may have a move to make once its page is up: a section
   // of the post he opened it for.
   void pendingMove().then(async (then) => {
     if (!then) return;
@@ -713,13 +775,31 @@ async function start(): Promise<void> {
   });
 }
 
+/** The language the visitor chose on the toggle, or `null` if they never have. */
+function storedLanguage(): Language | null {
+  try {
+    const v = localStorage.getItem(LANG_KEY);
+    return v === "es" || v === "en" ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+function storeLanguage(language: Language): void {
+  try {
+    localStorage.setItem(LANG_KEY, language);
+  } catch {
+    /* Storage blocked: the next call starts in English. */
+  }
+}
+
 interface Prepared {
   client: PipecatClient;
   transport: ReturnType<typeof createVoqalizeTransport>;
 }
 
 const MIC_BLOCKED =
-  "This page blocks the microphone, so Tushar can't hear you. Start the call from a sendpotion.com tab.";
+  "This page blocks the microphone, so Javier can't hear you. Start the call from a sendpotion.com tab.";
 
 /** Whether this document's Permissions-Policy lets it open the microphone. */
 function micAllowed(): boolean {
@@ -730,10 +810,10 @@ function micAllowed(): boolean {
 function micFailure(type: string): string {
   if (!micAllowed()) return MIC_BLOCKED;
   if (type === "permissions")
-    return "Tushar can't hear you: microphone access was refused. Allow it for this site, then start again.";
-  if (type === "in-use") return "Tushar can't hear you: another app is using the microphone.";
-  if (type === "not-found") return "Tushar can't hear you: no microphone was found.";
-  return "Tushar can't hear you: the microphone did not open.";
+    return "Javier can't hear you: microphone access was refused. Allow it for this site, then start again.";
+  if (type === "in-use") return "Javier can't hear you: another app is using the microphone.";
+  if (type === "not-found") return "Javier can't hear you: no microphone was found.";
+  return "Javier can't hear you: the microphone did not open.";
 }
 
 function reason(error: unknown): string {
@@ -742,7 +822,7 @@ function reason(error: unknown): string {
 }
 
 // Mount on `load`, but never wait on it for long: a third-party resource can
-// hold `load` back, and Tushar would not appear. `start` mounts once.
+// hold `load` back, and Javier would not appear. `start` mounts once.
 if (document.readyState === "complete") void start();
 else {
   window.addEventListener("load", () => void start(), { once: true });

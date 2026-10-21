@@ -72,19 +72,6 @@ git checkout prod && git merge --ff-only main && git push origin prod && git che
 someone committed to `prod` directly, which is the state this branch exists to
 prevent.
 
-**HOLD (since 2026-10-20): do not fast-forward `prod` past the European-languages
-docs commit until speech and the control plane are promoted to prod.** `main`
-documents the recognizer hearing the European languages and a language passed as
-a BCP-47 string at connect. Dev serves both. Prod's speech tier hears English
-and the Indic languages only, and prod's control plane takes no language string,
-so promoting this commit early tells customers about calls that prod refuses.
-The two ship together: promote `prod` with the speech and control-plane release,
-re-run the `speech.stt.languages.total` reproduce in `design/facts.yaml` against
-speech `origin/prod`, run `design/voice_catalog.py check`, then delete this
-paragraph. A docs fix prod needs before then goes on a branch cut from `prod`
-and is merged back into `main`, the one exception to fast-forward only, and it
-is recorded here when it happens.
-
 Consequences to internalize:
 
 - **CI is now a real gate.** `.github/workflows/ci.yml` runs ruff, pyright, the SDK
@@ -102,7 +89,7 @@ Consequences to internalize:
   (`8104298`, "point the install lines at 0.2.0, now that PyPI serves it"). Docs on
   `main` are written against this tree, so adding or renaming an export puts the
   two out of step, and a reader who follows an install line then gets a package
-  without the name the page just used. **They are level as of 0.9.0, released
+  without the name the page just used. **They are level as of 0.10.0, released
   2026-10-16**, which is the normal state right after a release and not the
   normal state. The files carrying that pin are `build/quickstart.md`,
   `build/pipecat.md`, `overview/status.md`, `reference/brain.md`,
