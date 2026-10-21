@@ -40,7 +40,7 @@ from typing import Any
 
 from loguru import logger
 from voqalize_demos.discovery import build_for
-from voqalize_demos.testing import ScriptedGemini
+from voqalize_demos.testing import ScriptedGemini, ScriptedOpenAI
 
 from voqalize.conformance import (
     BrainServer,
@@ -105,9 +105,11 @@ class DemoRig:
 
 
 @contextlib.asynccontextmanager
-async def demo(name: str, llm: ScriptedGemini) -> AsyncIterator[DemoRig]:
+async def demo(name: str, llm: ScriptedGemini | ScriptedOpenAI) -> AsyncIterator[DemoRig]:
     """Host demo ``name``'s real brain (scripted model) on localhost and open a
-    PyGato-side driver against it. Tears both down on the way out.
+    PyGato-side driver against it. Tears both down on the way out. ``llm`` is the
+    fake for the demo's provider: ``ScriptedGemini`` for a ``GeminiBrain`` demo,
+    ``ScriptedOpenAI`` for an ``OpenAIBrain`` one.
 
     The brain comes from :func:`build_for` — the same factory the umbrella mounts —
     so a test never re-wires a demo by hand. :func:`demo_from` is the escape hatch
@@ -121,7 +123,7 @@ async def demo(name: str, llm: ScriptedGemini) -> AsyncIterator[DemoRig]:
 @contextlib.asynccontextmanager
 async def demo_from(name: str, build: Callable[[], Brain]) -> AsyncIterator[DemoRig]:
     """:func:`demo` with the brain construction spelled out — for a demo whose model
-    is not the injected ``genai.Client``."""
+    is not the injected client, or a brain that is not a discovered demo."""
     keypair = generate_keypair()
     built: list[Brain] = []
 

@@ -68,6 +68,8 @@ fetch_secret() {
 }
 
 GEMINI_API_KEY="$(fetch_secret gemini-api-key)"
+# The existing demos run on Gemini; new ones start on OpenAI (OpenAIBrain).
+OPENAI_API_KEY="$(fetch_secret openai-api-key)"
 # The dev/prod PyGato RS256 signer(s) this brain verifies session tokens against.
 # REQUIRED in dev: dev and prod sign with different keys and the SDK's embedded
 # fallback is the PROD signer only, so a dev deploy without this closes every
@@ -75,11 +77,13 @@ GEMINI_API_KEY="$(fetch_secret gemini-api-key)"
 VOQALIZE_BRAIN_PUBKEYS="$(fetch_secret controlplane-pygato-pubkeys)"
 
 [[ -n "$GEMINI_API_KEY" ]] || die "gemini-api-key resolved empty"
+[[ -n "$OPENAI_API_KEY" ]] || die "openai-api-key resolved empty"
 [[ "$VOQALIZE_BRAIN_PUBKEYS" == *"BEGIN PUBLIC KEY"* ]] \
 	|| die "controlplane-pygato-pubkeys does not look like a PEM bundle"
 
 {
 	printf 'GEMINI_API_KEY_B64=%s\n' "$(b64 "$GEMINI_API_KEY")"
+	printf 'OPENAI_API_KEY_B64=%s\n' "$(b64 "$OPENAI_API_KEY")"
 	printf 'VOQALIZE_BRAIN_PUBKEYS_B64=%s\n' "$(b64 "$VOQALIZE_BRAIN_PUBKEYS")"
 } | "${SSH[@]}" "umask 077 && cat > ${ETC_DIR}/secrets.env && chmod 600 ${ETC_DIR}/secrets.env"
 info "secrets.env written (${ETC_DIR}/secrets.env, 0600, base64 values)"

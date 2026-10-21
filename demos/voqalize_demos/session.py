@@ -4,14 +4,19 @@ A demo backend never writes WebSocket boilerplate. Its ``routes.py`` is one line
 
     router = make_brain_router("travel", lambda client: TravelBrain(client=client))
 
-which returns a FastAPI ``APIRouter`` exposing ``/{name}`` — the **inbound**
+or, for a demo on OpenAI (where a new demo starts; the existing ones stay on
+Gemini)::
+
+    router = make_openai_brain_router("concierge", lambda client: Concierge(client=client))
+
+Either returns a FastAPI ``APIRouter`` exposing ``/{name}`` — the **inbound**
 brain socket Voqalize dials once per session, with the session as a query
 parameter, exactly as it dials a customer's own server. This module owns the
 socket lifecycle: accept, adapt it to the SDK ``Channel``, verify Voqalize's RS256
 brain token inside ``run_session``, and map the outcome to the right close code.
 
-The process-wide dependencies the handler needs — a lazily built ``genai.Client``
-and the verification settings — are set once at startup by the umbrella via
+The process-wide dependencies the handler needs — a lazily built ``genai.Client``,
+a lazily built ``openai.AsyncOpenAI`` and the verification settings — are set once at startup by the umbrella via
 :func:`init_runtime`, so a per-demo router carries no configuration of its own.
 """
 
@@ -26,6 +31,7 @@ from functools import cached_property
 from fastapi import APIRouter, Query, WebSocket
 from google import genai
 from loguru import logger
+from openai import AsyncOpenAI
 from starlette.websockets import WebSocketDisconnect
 
 from voqalize.sdk import Brain, SessionRejected, run_session
@@ -39,6 +45,8 @@ _PEM_END = "-----END PUBLIC KEY-----"
 
 # A demo's brain builder: given the shared client, build a fresh brain for one session.
 BrainFactory = Callable[[genai.Client], Brain]
+# The same, for a demo whose brain is an ``OpenAIBrain``.
+OpenAIBrainFactory = Callable[[AsyncOpenAI], Brain]
 
 
 def _split_pem_bundle(raw: str) -> tuple[str, ...]:
@@ -59,6 +67,7 @@ class Settings:
     """Process configuration, all from the environment."""
 
     gemini_api_key: str
+    openai_api_key: str
     # PEM public key(s) to verify Voqalize's brain token against; empty → the SDK's
     # embedded platform keys (prod signer only). A dev deploy MUST set this to dev
     # PyGato's signer — dev and prod sign with different keys, so the embedded prod
@@ -71,6 +80,7 @@ class Settings:
     def from_env(cls) -> Settings:
         return cls(
             gemini_api_key=os.environ.get("GEMINI_API_KEY", ""),
+            openai_api_key=os.environ.get("OPENAI_API_KEY", ""),
             brain_pubkeys=_split_pem_bundle(os.environ.get("VOQALIZE_BRAIN_PUBKEYS", "")),
             allow_unverified=os.environ.get("VOQALIZE_ALLOW_UNVERIFIED", "") == "1",
         )
@@ -94,17 +104,22 @@ class _WsChannel:
 
 @dataclass(frozen=True)
 class _Runtime:
-    """``client`` is built lazily, on first read: the umbrella builds its app graph
-    in every environment — tests, CI, a container that has not been given a key
-    yet — and ``genai.Client(api_key="")`` raises at construction. The key is only
-    needed once a session is actually dialed, which is when a brain socket first
-    reads :attr:`client`."""
+    """``client`` (Gemini) and ``openai`` are built lazily, on first read: the
+    umbrella builds its app graph in every environment — tests, CI, a container
+    that has not been given a key yet — and both ``genai.Client(api_key="")`` and
+    a keyless ``AsyncOpenAI`` raise at construction. A key is only needed once a
+    session is actually dialed, which is when a brain socket first reads its
+    provider's client."""
 
     settings: Settings
 
     @cached_property
     def client(self) -> genai.Client:
         return genai.Client(api_key=self.settings.gemini_api_key)
+
+    @cached_property
+    def openai(self) -> AsyncOpenAI:
+        return AsyncOpenAI(api_key=self.settings.openai_api_key or None)
 
 
 _runtime_singleton: _Runtime | None = None
@@ -124,13 +139,26 @@ def _runtime() -> _Runtime:
 
 
 def make_brain_router(name: str, factory: BrainFactory) -> APIRouter:
-    """Build the ``/{name}`` inbound brain route for one demo.
+    """Build the ``/{name}`` inbound brain route for one demo on Gemini.
 
     ``factory(llm)`` builds a fresh brain per session from the shared provider.
     ``name`` is the whole path Voqalize dials — kept at the root (``/travel``)
     independent of where the UI is served (``/demos/travel``). The session rides
     as ``?session_id=``, so a demo brain is one ordinary WebSocket route and not
     a shape only our own brains have."""
+    return _brain_router(name, lambda rt: factory(rt.client))
+
+
+def make_openai_brain_router(name: str, factory: OpenAIBrainFactory) -> APIRouter:
+    """:func:`make_brain_router` for a demo on OpenAI: ``factory(client)`` is
+    handed the shared ``AsyncOpenAI`` instead of the Gemini client. The socket,
+    the token check and the close codes are the same route."""
+    return _brain_router(name, lambda rt: factory(rt.openai))
+
+
+def _brain_router(name: str, build: Callable[[_Runtime], Brain]) -> APIRouter:
+    """The route both builders share. ``build`` reads its provider's client off
+    the runtime when a session is dialed, never before."""
     router = APIRouter()
 
     @router.websocket("/" + name)
@@ -141,7 +169,7 @@ def make_brain_router(name: str, factory: BrainFactory) -> APIRouter:
         try:
             await run_session(
                 _WsChannel(websocket),
-                brain=lambda: factory(rt.client),
+                brain=lambda: build(rt),
                 session_id=session_id,
                 token=token,
                 # Verify Voqalize's RS256 brain token. Prefer configured pubkeys

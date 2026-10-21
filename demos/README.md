@@ -60,13 +60,14 @@ demos/
   voqalize_demos/        # the shared backend spine
     umbrella.py           # the single FastAPI app: discovers + mounts brain routers
     discovery.py          # scans demos/*/backend, loads each router from source
-    session.py            # the shared per-session WebSocket handler (make_brain_router)
+    session.py            # the shared per-session WebSocket handler (make_brain_router,
+                          #   make_openai_brain_router)
     __init__.py           # re-exports GeminiBrain and needs_result_now from voqalize.sdk.gemini
     configure.py          # configure_soon: a config change from a tool, without waiting on the answer
     greeting.py           # hello_for: a one-word hello per demo language
     screen.py             # ScreenState, screen_prose: the screen is read, never remembered
     silent_turn.py        # landed, FallbackLine, PHRASES: a turn that acted and said nothing gets a line of the brain's own
-    testing.py            # ScriptedGemini: a fake genai.Client for the tests
+    testing.py            # ScriptedGemini, ScriptedOpenAI: fake model clients for the tests
   <name>/
     frontend/             # the demo UI — a standalone Vite app, built at base /demos/<name>/
       package.json         #   stock @pipecat-ai/client-react + @voqalize/demo-kit: "file:../../shared"
@@ -74,7 +75,7 @@ demos/
       src/config.ts        #   this demo's wiring: tenant + agent id + pk (NO voice/language)
       src/…                #   the app
     backend/
-      brain.py             # the demo's Brain (usually a GeminiBrain subclass)
+      brain.py             # the demo's Brain (an OpenAIBrain for a new demo; GeminiBrain for the rest)
       routes.py            # one line: router = make_brain_router("<name>", lambda llm: <Name>Brain(llm=llm))
       __init__.py          # re-exports NAME, build, router
 ```
@@ -93,16 +94,26 @@ scanning `demos/*/backend`, so nothing binds names in a central registry.
 discovers backends and each frontend declares its own connection wiring. To add
 `demos/<name>/`:
 
-1. **Backend** — `demos/<name>/backend/`:
-   - `brain.py`: a `Brain` (usually a `GeminiBrain` subclass, importing its base
-     from `voqalize_demos`). Every tool returns at once — it reads memory,
+1. **Backend** — `demos/<name>/backend/`. **A new demo starts on OpenAI**:
+   its brain subclasses `voqalize.sdk.openai.OpenAIBrain`. The existing demos stay
+   on `GeminiBrain` by decision (2026-10-21); do not move one over as part of
+   other work.
+   - `brain.py`: an `OpenAIBrain` subclass taking `client: AsyncOpenAI`. Every tool returns at once — it reads memory,
      dispatches to the screen and returns — and only the ones that read data the
      model must answer from carry `needs_result_now`; the prompt tells the model
      to say one short line and call in the same response. The rule and the why
      are [Tools](../docs/src/content/docs/build/brain/tools.md).
-   - `routes.py`: `NAME = "<name>"`, `def build(llm): return <Name>Brain(llm=llm)`,
-     `router = make_brain_router(NAME, build)`.
+   - `routes.py`: `NAME = "<name>"`, `def build(client: AsyncOpenAI): return <Name>Brain(client=client)`,
+     `router = make_openai_brain_router(NAME, build)`. The host builds one shared
+     `AsyncOpenAI` from `OPENAI_API_KEY` the first time a session needs it. (A
+     Gemini demo's is the same with `genai.Client` and `make_brain_router`.)
    - `__init__.py`: `from .routes import NAME, build, router`.
+   - `demos/tests/test_<name>_e2e.py`: drive it with `ScriptedOpenAI` from
+     `voqalize_demos.testing`, in the same `reply` / `call` / `reply_and_call`
+     script as `ScriptedGemini`. One difference: `OpenAIBrain` declares a tool's
+     pydantic parameter flat, so a scripted call passes its fields
+     (`call("open_room", room_id="sea-view")`), not `action={…}`.
+     `tests/test_openai_host.py` is a worked example.
    Discovery asserts `NAME` equals the folder name.
 2. **Frontend** — `demos/<name>/frontend/`: a standalone Vite app. Copy an
    existing demo's `package.json` / `vite.config.ts` (set `base: "/demos/<name>/"`
@@ -184,7 +195,7 @@ ships separately, onto the voice node.
 **Every demo has an end-to-end test** (`demos/tests/test_<name>_e2e.py`): the real
 brain on a real `brain_server` socket, driven by the conformance `VoqalizeDriver`,
 with only the *model* faked — `ScriptedGemini` (`demos/voqalize_demos/testing.py`)
-for every demo; ADK and its `ScriptedLlm` are gone from the repo. Plus
+for every demo today, `ScriptedOpenAI` for the OpenAI demos to come; ADK and its `ScriptedLlm` are gone from the repo. Plus
 `test_demo_voice_contract.py`, a cross-demo sweep that asserts every demo puts a
 **matched** voice/language pair on both legs before its first audio — the one
 defect no transcript, log or WER score can see.

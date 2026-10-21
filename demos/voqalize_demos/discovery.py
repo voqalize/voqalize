@@ -5,7 +5,10 @@ Each demo is a folder ``demos/<name>/`` with its ``backend/`` beside its
 ``routes.py`` (re-exported by its ``__init__``):
 
 - ``NAME``    — the URL segment (``travel``), which must equal the folder name.
-- ``build``   — ``(genai.Client) -> Brain``, the per-session brain factory.
+- ``build``   — the per-session brain factory: ``(genai.Client) -> Brain`` for a
+  demo on Gemini, ``(AsyncOpenAI) -> Brain`` for one on OpenAI. Which client it
+  takes is the router's business (``make_brain_router`` or
+  ``make_openai_brain_router``); a test hands it the matching scripted fake.
 - ``router``  — the FastAPI ``APIRouter`` for ``/{NAME}?session_id=…``.
 
 There is no central registry to keep in sync (the old ``manifest.py`` +
@@ -31,7 +34,7 @@ from types import ModuleType
 from fastapi import APIRouter
 from loguru import logger
 
-from voqalize_demos.session import BrainFactory
+from voqalize_demos.session import BrainFactory, OpenAIBrainFactory
 
 
 @dataclass(frozen=True)
@@ -40,7 +43,7 @@ class DiscoveredDemo:
 
     name: str
     router: APIRouter
-    build: BrainFactory
+    build: BrainFactory | OpenAIBrainFactory
 
 
 def _demos_root() -> Path:
@@ -117,8 +120,9 @@ def discover() -> list[DiscoveredDemo]:
     return demos
 
 
-def build_for(name: str) -> BrainFactory:
-    """The brain factory for one demo by name (for tests that drive a brain)."""
+def build_for(name: str) -> BrainFactory | OpenAIBrainFactory:
+    """The brain factory for one demo by name (for tests that drive a brain). It
+    takes the client of the demo's provider, which the test knows."""
     for demo in discover():
         if demo.name == name:
             return demo.build
