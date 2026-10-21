@@ -8,8 +8,10 @@ tier's reference clip; the words are this brain's. Two halves, as in
 
 * **The lines he owns — always run, no model.** His greetings, nods, holding
   lines and the lines for a page move are written here, and carry no word or
-  form only Spain uses. "Vídeo" is respelled "video" in anything he says in
-  Spanish, since the voice reads the accented spelling with Spain's stress.
+  form only Spain uses. In Spanish the voice is handed "bidéo" for "video":
+  on dev it read plain "video" with Spain's stress in one sentence of three.
+  The page's cue anchors follow that spelling, and the model only ever sees
+  "video".
 
 * **What the model writes — opt-in, real model.** Whether Gemini answers in
   Latin American Spanish is a property of the prompt and the model, and only the
@@ -113,26 +115,53 @@ def test_his_own_spanish_lines_are_latin_american(line: str) -> None:
 
 
 @pytest.mark.parametrize(
-    ("said", "spelled"),
+    ("written", "for_voice"),
     [
-        ("Cada cliente recibe un vídeo.", "Cada cliente recibe un video."),
-        ("Los vídeos llegan por correo.", "Los videos llegan por correo."),
-        ("Vídeo personalizado", "Video personalizado"),
-        ("Un video ya bien escrito.", "Un video ya bien escrito."),
-        ("Potion makes videos.", "Potion makes videos."),
+        ("Cada cliente recibe un video.", "Cada cliente recibe un bidéo."),
+        ("Los videos llegan por correo.", "Los bidéos llegan por correo."),
+        ("Video personalizado", "Bidéo personalizado"),
+        ("Un vídeo y dos vídeos.", "Un bidéo y dos bidéos."),
+        ("Una videollamada no cambia.", "Una videollamada no cambia."),
     ],
 )
-def test_video_is_spelled_as_latin_america_says_it(said: str, spelled: str) -> None:
-    assert sendpotion.latin_american(said) == spelled
+def test_video_is_respelled_for_the_voice_and_back(written: str, for_voice: str) -> None:
+    """The voice reads "bidéo" as Latin America says "video"; what it said is
+    spelled "video" again for the model."""
+    assert sendpotion.for_the_voice(written) == for_voice
+    assert sendpotion.from_the_voice(for_voice) == written.replace("vídeo", "video")
 
 
-async def test_a_spanish_reply_reaches_the_voice_as_latin_america_spells_it() -> None:
-    """The model wrote Spain's "vídeos"; the voice is handed "videos"."""
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        "Un video para cada cliente.",
+        "Los videos llegan solos.",
+        "Un vídeo para ti.",
+        "Potion crea un video.",
+    ],
+)
+def test_a_cue_anchor_follows_the_voice(sentence: str) -> None:
+    """The page finds a cue by the first words of its sentence in what the voice
+    says, reduced to [a-z0-9']; the anchor is spelled the way the voice says it."""
+    from voqalize_demos._loaded.sendpotion.cues import words
+
+    at = " ".join(words(sentence)[:3])
+    heard = " ".join(words(sendpotion.for_the_voice(sentence)))
+    assert heard.startswith(sendpotion._anchor_for_voice(at)), (at, heard)
+
+
+async def test_the_voice_says_bideo_and_the_model_reads_video() -> None:
+    """The voice is handed "bidéo"; the page's cue is anchored to it; the model's
+    next request holds what was said, spelled "video"."""
     llm = ScriptedGemini(
         {
             "¿Qué hace Potion?": reply(
-                chunks=[" Potion hace vídeos de ti.", " Cada vídeo lleva tu cara y tu voz."]
-            )
+                chunks=[
+                    "{page: /pricing} Un video para cada cliente.",
+                    " Los vídeos llevan tu voz.",
+                ]
+            ),
+            "¿Y cuánto cuesta?": reply("Los planes empiezan en treinta y nueve dólares."),
         }
     )
     async with demo("sendpotion", llm) as rig:
@@ -140,9 +169,31 @@ async def test_a_spanish_reply_reaches_the_voice_as_latin_america_spells_it() ->
         turn = await rig.driver.user_says("¿Qué hace Potion?")
         check_turn(rig, turn)
         check_voice_pair(rig, voice="omnivoice/javier", language="es")
-        assert "vídeo" not in turn.text, turn.text
-        assert "Potion hace videos de ti." in turn.text, turn.text
-        assert "Cada video lleva tu cara y tu voz." in turn.text, turn.text
+        assert "Un bidéo para cada cliente." in turn.text, turn.text
+        assert "Los bidéos llevan tu voz." in turn.text, turn.text
+        assert "video" not in turn.text.lower().replace("bidéo", ""), turn.text
+        cues = [c["payload"] for c in rig.driver.ui_commands if c.get("command") == "cue"]
+        assert any(c["at"] == "un bid o para" for c in cues), cues
+        await rig.driver.user_says("¿Y cuánto cuesta?")
+        context = " ".join(
+            part.text or "" for content in llm.captured_contents[-1] for part in content.parts or []
+        )
+        assert "Un video para cada cliente." in context, context
+        assert "bidéo" not in context, context
+
+
+async def test_the_spanish_greeting_is_respelled_too() -> None:
+    llm = ScriptedGemini({"Hola.": reply("Claro.")})
+    async with demo("sendpotion", llm) as rig:
+        opener = await rig.driver.start_session(
+            init={"site": "site", "path": "/pricing/", "lang": "es"}
+        )
+        assert opener is not None and "harían bidéos?" in opener.text, opener
+        await rig.driver.user_says("Hola.")
+        context = " ".join(
+            part.text or "" for content in llm.captured_contents[-1] for part in content.parts or []
+        )
+        assert "harían videos?" in context and "bidéo" not in context, context
 
 
 async def test_english_speech_is_left_as_written() -> None:
