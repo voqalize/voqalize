@@ -29,6 +29,7 @@ import { build } from "esbuild";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { unreleasedRuntime } from "../../shared/avatar-runtime.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const out = process.env.VOQALIZE_OUT_DIR || join(here, "dist");
@@ -47,6 +48,7 @@ function readEnv() {
 
 const env = readEnv();
 const avatarRuntime = process.env.AVATAR_RUNTIME || "";
+if (avatarRuntime) unreleasedRuntime(avatarRuntime);
 const wiring = {
   apiBase: env.VOQALIZE_API_BASE || "https://app.dev.voqalize.com/api/v1",
   agentId: env.VOQALIZE_AGENT_ID || "",

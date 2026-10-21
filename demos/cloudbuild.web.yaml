@@ -74,7 +74,9 @@ substitutions:
   # Empty in prod, so every prod page loads the runtime its npm release pins.
   # The dev trigger sets it to the dev host's `runtime/current.js`, the newest
   # runtime uploaded there, so an unreleased character is testable on dev
-  # (`demos/shared/avatar-runtime.mjs`).
+  # (`demos/shared/avatar-runtime.mjs`). Only the dev and local hosts are
+  # accepted: a runtime on avatar.voqalize.com here fails the build, because
+  # prod moves to a runtime by releasing @voqalize/avatar, not by this setting.
   _AVATAR_RUNTIME: ''
 
 steps:
