@@ -149,17 +149,21 @@ could not tell *ignored* from *too late*. The list says up front.
 enum Capability {
   CAPABILITY_UNSPECIFIED = 0;
   CAPABILITY_SPEECH_CANCEL = 1;  // SpeechCancel is honoured
+  // …
+  CAPABILITY_TURN_STEPS = 3;     // TurnStep is recorded
 }
 ```
 
 | Capability | Means |
 |---|---|
 | `CAPABILITY_SPEECH_CANCEL` | `SpeechCancel` stops a unit and is answered by its `Finalize`. See [taking speech back](#taking-speech-back). |
+| `CAPABILITY_TURN_STEPS` | `TurnStep` is recorded beside its turn. See [what a turn did](#what-a-turn-did). |
 
 Check before sending an optional frame, and treat a value you do not recognise
 as absent. Adding a capability is append-only and does not move the version.
-The Python SDK reads it as `session.can_cancel_speech`, and refuses the call
-locally when it is false.
+The Python SDK reads them as `session.can_cancel_speech` and
+`session.can_report_steps`, and refuses the call locally when the one it needs
+is false.
 
 ## Voqalize → brain
 
@@ -185,6 +189,7 @@ locally when it is false.
 | `SpeechEnd` | `speech_id` | Close the open unit. |
 | `SpeechCancel` | `speech_id` | Stop one unit now and close it. Answered by that unit's `Finalize`, and nothing else. Honoured when `SessionStart` lists `CAPABILITY_SPEECH_CANCEL`. |
 | `RTVIFrame` | `type`, `data` *(JSON)*, `id`, `turn_id` | Drive the screen. Relayed to the app unread. |
+| `TurnStep` | `turn_id`, `kind`, `name`, `provider`, times, `counts` | One piece of work the brain did for a turn: a model request, a tool, a query. Recorded, never acknowledged. Honoured when `SessionStart` lists `CAPABILITY_TURN_STEPS`. See [what a turn did](#what-a-turn-did). |
 | `Request` | `request_id`, one `op` | Change how the call behaves — today `configure`. Answered by exactly one `Response`. |
 | `End` | — | Hang up. |
 | `Cancel` | `reason` | Tear down abruptly. |
@@ -286,6 +291,83 @@ included, and a later one still open, whose further chunks and `SpeechEnd` are
 ignored the same way — and each gets its own truthful `Finalize`, oldest first.
 A unit opened after the cancel plays. Stopping your model is still your job: Voqalize
 can only drop text it is sent.
+
+### What a turn did
+
+`TurnStep` is the brain telling Voqalize about one piece of work it did for a
+turn: a model request, a tool it ran, a database query, an API or MCP call.
+Voqalize records it beside the turn and changes nothing about the call because
+of it. A brain that sends none loses nothing but the record.
+
+```proto
+message TurnStep {
+  uint64              turn_id         = 1;
+  string              kind            = 2;  // "model", "tool", or the brain's own word
+  string              name            = 3;  // "gpt-6-sol", "open_section", "orders"
+  string              provider        = 4;  // the company whose meter ran; empty for the brain's own work
+  uint32              start_ms        = 5;  // after the brain received the turn's stimulus
+  uint32              duration_ms     = 6;
+  optional uint32     first_output_ms = 7;  // for a step that streams
+  map<string, uint64> counts          = 8;  // how much of what, by name
+}
+```
+
+**A turn is the steps that name it.** Say the visitor asks to see pricing, and
+the brain asks its model, which calls `open_section`, then asks again with the
+result and speaks. That is three steps on one `turn_id`:
+
+| `kind` | `name` | `start_ms` | `duration_ms` |
+|---|---|---|---|
+| `tool` | `open_section` | 610 | 40 |
+| `model` | `gpt-6-sol` | 0 | 900 |
+| `model` | `gpt-6-sol` | 900 | 600 |
+
+Each is sent when it ends, so they arrive in the order they finished, and a
+reader orders them by `start_ms`. Steps may overlap: the tool above ran while the
+first request's stream was open, so it lies inside it.
+
+**It is never acknowledged.** Nothing comes back for it, success or failure, and
+it needs no turn to be open: it is floor-free, like an `RTVIFrame`. It is
+envelope arm 16.
+
+**`kind` and the count names are open.** They are words, like a `voice_id`, not
+a list fixed in the proto: a new kind of work, or a new thing a provider bills
+for, needs no new message and no new Voqalize. The words below are the ones every
+brain spells the same way. A brain may use its own for its own work, and a
+reader shows a word it does not know as it is.
+
+| `kind` | Means |
+|---|---|
+| `model` | One request to a model. `name` is the model as the brain asked for it. |
+| `tool` | One tool the model called. `name` is the tool's name. |
+| `database`, `http`, `mcp` | The brain's own work: a query, an API call, an MCP call. |
+
+| Count | Means |
+|---|---|
+| `input_tokens` | Every input token, cached ones included. |
+| `cached_input_tokens` | The part of `input_tokens` served from the provider's prompt cache. |
+| `cache_write_tokens` | Input tokens written to the cache, where the provider bills writes apart. |
+| `output_tokens` | Tokens the model wrote as text or tool calls, reasoning excluded. |
+| `reasoning_tokens` | Tokens spent on reasoning nobody hears. |
+| `audio_input_tokens`, `audio_output_tokens` | For a model that takes or makes audio. |
+| `rows` | Rows a query returned. |
+
+**Absent is not zero.** A count that was not reported is left out of `counts`;
+one present with `0` is a zero. That is what lets a reader tell *not reported*
+from *none*.
+
+**Facts about the work, never its content.** No prompt, no tool arguments, no
+result, no query text, nothing the caller said. Steps are kept in the call
+record, and the record of a call is not the place for its words.
+
+**Counts, never prices.** A price changes on a date nobody here controls, so cost
+is computed from the counts by whoever reads them.
+
+**`provider` is whoever's meter ran.** `openai`, `google`, `anthropic` — never a
+router or gateway in between, so steps from different brains add up by company.
+
+At a Voqalize that does not list `CAPABILITY_TURN_STEPS`, the frame is skipped.
+A brain that checks first sends nothing that will not be kept.
 
 ## The control leg
 
@@ -560,6 +642,7 @@ class Greeter(Brain):
 | `session.send_rtvi(type, data)` / `session.dispatch(action)` | → `RTVIFrame` |
 | `await session.configure(Config(...))` | → `Request`, awaited until its `Response` |
 | `await session.cancel_speech(start.speech_id)` | → `SpeechCancel`, awaited until that unit's `Finalize`; refused locally unless `session.can_cancel_speech` |
+| `session.report_step(TurnStep(...))` | → `TurnStep`, never answered; refused locally unless `session.can_report_steps`. The SDK's model-backed brains send one for every model request and tool |
 | `session.end()` | → `End` |
 
 `greet` returns a string or `None` — one unit of speech, on the turn
@@ -606,7 +689,7 @@ Both ends rely on these, and a brain that implements the wire directly owes them
   echoed, never lowered.
 - **Exactly one `Response` per `Request`**, matching on `request_id`.
 - **Nothing is emitted outside a turn except floor-free messages** —
-  `RTVIFrame`, `Request`, `SpeechCancel`, `End`, `Cancel`, `Error`.
+  `RTVIFrame`, `Request`, `SpeechCancel`, `TurnStep`, `End`, `Cancel`, `Error`.
 - **`heard_text` is the delivered prefix**, per unit, never a concatenation,
   and a verbatim prefix of that unit's own text.
 - **Exactly one `Finalize` per bracket the brain opened**, in that order —

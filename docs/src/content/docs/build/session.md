@@ -42,8 +42,9 @@ brain dial out instead, and the brain code is unchanged.
 
 The brain receives finalized text and returns the words to speak. What produces
 those words is yours: a model call, an agent framework, a state machine, a
-lookup table. `GeminiBrain` ships in the SDK for the case where you want a model
-loop already wired, and the demo brains are readable source.
+lookup table. `GeminiBrain`, `OpenAIBrain` and `LiteLLMBrain` ship in the SDK for
+the case where you want a model loop already wired, and the demo brains are
+readable source.
 
 Your model, your prompts, your tools and your retrieval stay in the process you
 deploy today.

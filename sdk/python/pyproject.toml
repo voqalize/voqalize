@@ -1,6 +1,6 @@
 [project]
 name = "voqalize-agent-sdk"
-version = "0.10.0"
+version = "0.11.0"
 description = "Bring the brain, we bring the voice: write a plain Python Brain, Voqalize runs the voice."
 readme = "README.md"
 license = "Apache-2.0"
@@ -50,6 +50,12 @@ dependencies = [
 # `GeminiBrain` sets `thinking_config.thinking_level`, which the 1.x releases do
 # not model.
 gemini = ["google-genai>=2.19"]
+# `voqalize.sdk.openai` — the OpenAI-backed Brain, on the Responses API. Floor is
+# the release whose stream and usage types the layer is tested against.
+openai = ["openai>=3.35"]
+# `voqalize.sdk.litellm` — the Brain for any model LiteLLM reaches. Floor is the
+# release the layer is tested against, including its Responses bridge for GPT-6.
+litellm = ["litellm>=1.83"]
 # Deps used only by the bundled examples/ — never imported by the SDK itself.
 # `examples/fastapi_inbound` mounts a Brain on FastAPI and is served with uvicorn. `examples/echo` needs nothing but the SDK, which is the
 # point of it.

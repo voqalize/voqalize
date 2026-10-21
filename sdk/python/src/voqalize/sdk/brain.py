@@ -57,6 +57,7 @@ Mapping onto the wire:
 - ``session.cancel_speech`` → ``SpeechCancelFrame``, answered by that unit's ``FinalizeFrame``
 - ``on_finalize``           ← ``FinalizeFrame``
 - ``session.send_rtvi``     → ``RTVIFrame``
+- ``session.report_step``   → ``TurnStepFrame``, never answered
 - an ``Action``             → an RTVI ``ui-command``
 - ``configure_*``           → a ``Configure*Frame``, answered by one ``ResponseFrame``
 - barge-in                  ← ``InterruptionFrame`` → every turn through the watermark is cancelled
@@ -70,6 +71,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import time
 from collections import OrderedDict
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextvars import ContextVar
@@ -87,6 +89,7 @@ from .events import (
     SpeechChunk,
     SpeechEnd,
     SpeechStart,
+    TurnStep,
     UserIdle,
     UserMessage,
 )
@@ -112,6 +115,7 @@ from .wire import (
     SpeechChunkFrame,
     SpeechEndFrame,
     SpeechStartFrame,
+    TurnStepFrame,
     UserIdleFrame,
     UserMessageFrame,
     Voice,
@@ -136,6 +140,9 @@ _current_turn: ContextVar[int | None] = ContextVar("voqalize_turn", default=None
 #: arrives as a rejection rather than as a timeout. `session.cancel_speech`
 #: waits the same bound for its unit's Finalize.
 REQUEST_TIMEOUT_S = 10.0
+
+# How many recent turns a session remembers the start of, to place their steps.
+_TURNS_REMEMBERED = 32
 
 #: How many settled units `session.cancel_speech` still answers from memory. A
 #: guardrail's verdict on a unit lands seconds after it, not minutes, so this is
@@ -265,6 +272,8 @@ class Session:
         # adapter held back. Sent after all if the cancel goes unanswered.
         self._end_withheld: set[int] = set()
         self._finals: dict[int, asyncio.Future[Finalize]] = {}
+        # When each recent turn's stimulus arrived, on the monotonic clock.
+        self._turn_began: OrderedDict[int, float] = OrderedDict()
 
     # ─── The app ────────────────────────────────────────────────────────
 
@@ -434,6 +443,86 @@ class Session:
             return
         if not future.done():
             future.set_result(frame)
+
+    # ─── What a turn did ────────────────────────────────────────────────
+
+    @property
+    def can_report_steps(self) -> bool:
+        """Whether this Voqalize records :meth:`report_step`. Fixed for the
+        session's life — it is what Voqalize said when the session opened."""
+        return Capability.TURN_STEPS in self.capabilities
+
+    def report_step(self, step: TurnStep, *, turn_id: int | None = None) -> None:
+        """Tell Voqalize about one piece of work the brain did for a turn — a
+        model request, a tool, a database query, an API or MCP call. Never
+        blocks, and nothing comes back.
+
+        Voqalize keeps it in the call record beside the turn, so where a slow or
+        expensive turn spent its time and tokens can be read from the call, for
+        any model, without the brain's logs. The voice brains in this SDK
+        (:class:`~voqalize.sdk.voice.VoiceCore` and its subclasses) report every
+        model request and every tool unless built with ``report_steps=False``; a
+        brain reports anything else of its own with this, when the work ends::
+
+            started = time.monotonic()
+            rows = await db.fetch(query)
+            session.report_step(
+                TurnStep(
+                    kind="database",
+                    name="orders",
+                    duration_ms=round((time.monotonic() - started) * 1000),
+                    counts={"rows": len(rows)},
+                )
+            )
+
+        Facts about the work only — no prompt, no arguments, no result, no
+        prices. ``turn_id`` defaults to the turn the call is made from, which is
+        right inside a speaking callback, including in its ``finally``. A step
+        whose ``start_ms`` is ``None`` began ``duration_ms`` before now.
+
+        - Raises :class:`Unsupported` before sending anything when
+          :attr:`can_report_steps` is false.
+        - Raises ``ValueError`` outside a turn with no ``turn_id`` given, and for
+          a step with no ``start_ms`` on a turn this session no longer remembers
+          the start of.
+        """
+        if not self.can_report_steps:
+            raise Unsupported("report_step", Capability.TURN_STEPS)
+        turn = _current_turn.get() if turn_id is None else turn_id
+        if turn is None:
+            raise ValueError(
+                "report_step was called outside a turn without a turn_id; pass the "
+                "turn the step belongs to."
+            )
+        start_ms = step.start_ms
+        if start_ms is None:
+            began = self._turn_began.get(turn)
+            if began is None:
+                raise ValueError(
+                    f"report_step: turn {turn} began too long ago to place the step; "
+                    "give its start_ms."
+                )
+            start_ms = max(0, round((time.monotonic() - began) * 1000) - step.duration_ms)
+        self._adapter.emit(
+            TurnStepFrame(
+                turn_id=turn,
+                kind=step.kind,
+                name=step.name,
+                provider=step.provider,
+                start_ms=start_ms,
+                duration_ms=step.duration_ms,
+                first_output_ms=step.first_output_ms,
+                counts=dict(step.counts),
+            )
+        )
+
+    def _began_turn(self, turn_id: int) -> None:
+        """Remember when the stimulus that opened ``turn_id`` arrived, which is
+        where its steps' times run from. Only the newest few: a step is reported
+        as its work ends, inside the turn or just after it."""
+        self._turn_began[turn_id] = time.monotonic()
+        while len(self._turn_began) > _TURNS_REMEMBERED:
+            self._turn_began.popitem(last=False)
 
     # ─── Taking speech back ─────────────────────────────────────────────
 
@@ -804,6 +893,10 @@ class _BrainAdapter:
         if session is None:
             return
 
+        if isinstance(frame, UserMessageFrame | UserIdleFrame):
+            # Where the turn's steps are timed from: the stimulus arriving.
+            session._began_turn(frame.turn_id)
+
         if isinstance(frame, UserMessageFrame):
             self._spawn_turn(
                 session,
@@ -856,6 +949,7 @@ class _BrainAdapter:
         session = Session(self, frame.session_id, dict(frame.init), frame.capabilities)
         self._session = session
         self._brain._session = session
+        session._began_turn(frame.turn_id)
         if frame.wire_version != WIRE_VERSION:
             self._refuse_version(session, frame.wire_version)
             return

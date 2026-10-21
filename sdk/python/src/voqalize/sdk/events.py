@@ -9,7 +9,8 @@ Three groups, and the split between them is the whole contract:
   whose position on the audio timeline is its meaning. Everything else — an
   action, a language switch, hanging up — is a method on the session.
 * **Reports** — :class:`Finalize` and :class:`Error`. What happened, after it
-  happened.
+  happened. :class:`TurnStep` is the one report that goes the other way: one
+  piece of work the brain did for a turn, for :meth:`Session.report_step`.
 
 Speech is bracketed because it can be cut mid-word: one ``SpeechStart`` …
 ``SpeechEnd`` pair is one *unit*, and a unit is the granularity at which Voqalize
@@ -20,6 +21,7 @@ brain can take speech back: ``session.cancel_speech`` names a unit by the
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -33,6 +35,7 @@ __all__ = [
     "SpeechChunk",
     "SpeechEnd",
     "SpeechStart",
+    "TurnStep",
     "UserIdle",
     "UserMessage",
 ]
@@ -175,3 +178,38 @@ class Error:
     code: ErrorCode
     message: str
     fatal: bool = False
+
+
+# ─── What the brain reports ───────────────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class TurnStep:
+    """One piece of work the brain did for a turn, for :meth:`Session.report_step`:
+    a model request, a tool, a database query, an API or MCP call.
+
+    ``kind`` says what sort — ``"model"`` and ``"tool"`` are the ones the voice
+    brains report themselves; a brain names its own (``"database"``, ``"http"``,
+    ``"mcp"``). ``name`` says which one: the model, the tool, the table.
+    ``provider`` is the company whose meter the counts ran on, never a router in
+    between, and empty for the brain's own work.
+
+    ``start_ms`` is when it began, after the brain received the turn's stimulus.
+    Leave it ``None`` when reporting a step the moment it ends, and the session
+    places it: now, less ``duration_ms``.
+
+    ``counts`` is how much of what, by name. For a model request:
+    ``input_tokens`` (cached ones included), ``cached_input_tokens``,
+    ``cache_write_tokens``, ``output_tokens`` (text and tool calls) and
+    ``reasoning_tokens`` (thinking nobody hears and the provider still bills).
+    Leave out a count that was not reported rather than writing 0. Counts, never
+    prices, and never content: no prompt, no arguments, no result.
+    """
+
+    kind: str
+    name: str
+    duration_ms: int
+    provider: str = ""
+    start_ms: int | None = None
+    first_output_ms: int | None = None
+    counts: Mapping[str, int] = field(default_factory=lambda: dict[str, int]())

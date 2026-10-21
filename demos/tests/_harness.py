@@ -171,8 +171,8 @@ _watches: list[list[str]] = []
 def tools_within_budget() -> Iterator[list[str]]:
     """Fail when a tool run inside the block went over the SDK's budget.
 
-    ``GeminiBrain`` times every tool and logs a warning for one over
-    ``TOOL_BUDGET_MS``; that warning is the whole of its enforcement in
+    The voice core under ``GeminiBrain`` times every tool and logs a warning for
+    one over ``TOOL_BUDGET_MS``; that warning is the whole of its enforcement in
     production. Here it is a failure, because a demo is what a customer copies.
     Yields the warnings as they arrive."""
     slow: list[str] = []
@@ -185,7 +185,7 @@ def tools_within_budget() -> Iterator[list[str]]:
     sink = logger.add(
         _sink,
         level="WARNING",
-        filter=lambda r: r["name"] == "voqalize.sdk.gemini" and "budget;" in r["message"],
+        filter=lambda r: r["name"] == "voqalize.sdk.voice" and "budget;" in r["message"],
     )
     try:
         yield slow

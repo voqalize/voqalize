@@ -46,6 +46,7 @@ from .frames import (
     SpeechStartFrame,
     SttConfig,
     TtsConfig,
+    TurnStepFrame,
     UserIdleFrame,
     UserMessageFrame,
     Voice,
@@ -92,6 +93,7 @@ _RTVI_FROM_PB: dict[int, RTVIType] = {v: k for k, v in _RTVI_TO_PB.items()}
 _CAPABILITY_TO_PB: dict[Capability, int] = {
     Capability.SPEECH_CANCEL: pb.CAPABILITY_SPEECH_CANCEL,
     Capability.STRING_CONFIG: pb.CAPABILITY_STRING_CONFIG,
+    Capability.TURN_STEPS: pb.CAPABILITY_TURN_STEPS,
 }
 _CAPABILITY_FROM_PB: dict[int, Capability] = {v: k for k, v in _CAPABILITY_TO_PB.items()}
 
@@ -180,6 +182,21 @@ def _enc_speech_cancel(f: SpeechCancelFrame, env: pb.Envelope) -> None:
     env.speech_cancel.speech_id = f.speech_id
 
 
+def _enc_turn_step(f: TurnStepFrame, env: pb.Envelope) -> None:
+    m = env.turn_step
+    m.turn_id = f.turn_id
+    m.kind = f.kind
+    m.name = f.name
+    m.provider = f.provider
+    m.start_ms = f.start_ms
+    m.duration_ms = f.duration_ms
+    if f.first_output_ms is not None:
+        m.first_output_ms = f.first_output_ms
+    # A count that was not reported stays out of the map, so a reader can tell
+    # "not reported" from zero.
+    m.counts.update(f.counts)
+
+
 # The op arm is set explicitly, so a request carrying no delta at all still names
 # the op it is — an empty delta is a legal no-op the runtime answers, not a body
 # the far side cannot identify.
@@ -259,6 +276,7 @@ _ENCODERS: dict[type[Frame], Callable[[Any, pb.Envelope], None]] = {
     SpeechChunkFrame: _enc_speech_chunk,
     SpeechEndFrame: _enc_speech_end,
     SpeechCancelFrame: _enc_speech_cancel,
+    TurnStepFrame: _enc_turn_step,
     ConfigureFrame: _enc_configure,
     ResponseFrame: _enc_response,
     RTVIFrame: _enc_rtvi,
@@ -324,6 +342,20 @@ def _dec_speech_end(env: pb.Envelope) -> SpeechEndFrame:
 
 def _dec_speech_cancel(env: pb.Envelope) -> SpeechCancelFrame:
     return SpeechCancelFrame(speech_id=env.speech_cancel.speech_id)
+
+
+def _dec_turn_step(env: pb.Envelope) -> TurnStepFrame:
+    m = env.turn_step
+    return TurnStepFrame(
+        turn_id=m.turn_id,
+        kind=m.kind,
+        name=m.name,
+        provider=m.provider,
+        start_ms=m.start_ms,
+        duration_ms=m.duration_ms,
+        first_output_ms=m.first_output_ms if m.HasField("first_output_ms") else None,
+        counts=dict(m.counts),
+    )
 
 
 # Each setting has two fields, the string and the deprecated catalog enum. The
@@ -426,6 +458,7 @@ _DECODERS: dict[str, Callable[[pb.Envelope], Frame]] = {
     "speech_chunk": _dec_speech_chunk,
     "speech_end": _dec_speech_end,
     "speech_cancel": _dec_speech_cancel,
+    "turn_step": _dec_turn_step,
     "request": _dec_request,
     "response": _dec_response,
     "rtvi": _dec_rtvi,
@@ -454,7 +487,9 @@ class WireSerializer:
             )
         env = pb.Envelope()
         encoder(frame, env)
-        return env.SerializeToString()
+        # Deterministic: map entries in key order, so the same frame is the same
+        # bytes from every codec that encodes it the same way.
+        return env.SerializeToString(deterministic=True)
 
     async def deserialize(self, data: str | bytes) -> Frame:
         frame = self._decode(data)

@@ -11,21 +11,29 @@ finalized text and takes speech back, so whatever already turns a string into a
 stream of strings is the body of the method. Your model, your prompts, your
 tools, your retrieval and your memory do not move.
 
-## There is no adapter for your framework
+## Model layers, not framework adapters
 
-The adapters we ship are `GeminiBrain` and `GeminiInteractionsBrain`, both for
-Gemini. There is no ADK adapter, no LangChain adapter and no OpenAI Agents
-adapter, and none is coming.
+What we ship sits on raw model APIs, not on agent frameworks. `GeminiBrain`,
+`OpenAIBrain` (the Responses API) and `LiteLLMBrain` (any model LiteLLM reaches)
+are one voice core, `voqalize.sdk.voice`, with a thin layer per provider on top.
+If your agent is a prompt, a model and a list of tools, subclassing one of them
+is the shortest port there is — [the Brain API](/reference/brain/#the-shipped-adapters)
+has their constructors. `GeminiInteractionsBrain` is also shipped, and is
+experimental.
 
-An adapter is a second surface to learn and a lag behind every release of a
-framework we do not own. Read what the Gemini ones actually spend their code on:
-`GeminiBrain._file` puts each tool's response in the context directly after the
+There is no adapter for an agent framework that owns its own loop: not ADK, not
+LangGraph, not the OpenAI Agents SDK. The port below is how you bring one of
+those today.
+
+The reason is where the work is. Read what the voice core actually spends its
+code on: `_file` puts each tool's response in the context directly after the
 call that asked for it, so that context appended while the tool ran lands behind
-the pair rather than between them, and `GeminiBrain._drop_unanswered` removes a
-`function_call` whose `function_response` never arrived because a barge-in cut
-the stream between them (`sdk/python/src/voqalize/sdk/gemini.py`). Neither is
-about voice. Both are about one provider's turn record, and both break when that
-provider changes it.
+the pair rather than between them, and `_drop_unanswered` removes a call whose
+result never arrived because a barge-in cut the stream between them
+(`sdk/python/src/voqalize/sdk/voice.py`). Both are about who owns the turn
+record. A model layer owns it, because it is the loop; a framework owns its own,
+and an adapter written against it would be a second surface to learn and a lag
+behind every release of a framework we do not own.
 
 The boundary Voqalize holds is text. Nothing in the wire declares a tool,
 carries a schema or names a model: `proto/voqalize/frames/frames.proto` has
@@ -97,15 +105,15 @@ there is something to say:
             yield SpeechEnd()
 ```
 
-That is what `GeminiBrain.respond` does — a response that only calls a tool
-never opens a unit at all. Opening one per response is what used to emit an empty
-`SpeechStart` / `SpeechEnd` pair around a silent tool call
-(`sdk/python/src/voqalize/sdk/gemini.py`, `respond`).
+That is what the voice core's `respond` does on every model-backed brain — a
+response that only calls a tool never opens a unit at all. Opening one per
+response is what used to emit an empty `SpeechStart` / `SpeechEnd` pair around a
+silent tool call (`sdk/python/src/voqalize/sdk/voice.py`, `respond_with`).
 
 Lazy opening removes the empty bracket. It does not remove the silence: the tool
 runs for as long as it runs and the user sits through it either way, and the
 fix for that is to say what you are doing before you do it, or to move the screen
-while the voice waits. `GeminiBrain` does both by construction: the model says its
+while the voice waits. The model-backed brains do both by construction: the model says its
 line and calls in the same response, and every tool returns within 20 ms. [The turn budget](/design/#the-turn-budget) is the argument;
 [Tools](/build/brain/tools/) is the mechanism.
 
@@ -150,47 +158,79 @@ and the user is the only instrument that sees it.
 the ordering rules; [Interruption and heard
 truth](/design/#interruption-and-heard-truth) is the argument under them.
 
-`GeminiBrain.on_finalize` is a shipped implementation of exactly this: it pops
-the oldest unit still awaiting a finalize, rewrites that turn's text down to
-`heard`, and drops the turn when nothing is left of it
-(`sdk/python/src/voqalize/sdk/gemini.py`, `on_finalize` and `_reconcile`).
-`sdk/python/tests/unit/test_gemini_heard_truth.py` pins the cases, including
-that finalizes match units in order and that a unit nobody heard leaves the
-context.
+The voice core's `on_finalize` is a shipped implementation of exactly this, the
+same on every model-backed brain: it pops the oldest unit still awaiting a
+finalize, rewrites that turn's text down to `heard`, and drops the turn when
+nothing is left of it (`sdk/python/src/voqalize/sdk/voice.py`, `on_finalize`
+and `_reconcile`). `sdk/python/tests/unit/test_gemini_heard_truth.py` pins the
+cases, including that finalizes match units in order and that a unit nobody
+heard leaves the context.
 
 ### The greeting is also history
 
 `greet` returns a string the SDK speaks, so your framework never saw it. Its
-finalize arrives with nothing of yours awaiting one — that is the branch in both
-adapters that appends `fin.heard` as a fresh model turn rather than rewriting an
-existing one. Skip it and the model does not know it greeted, and asks its
-opening question a second time.
+finalize arrives with nothing of yours awaiting one — that is the branch in the
+shipped brains that appends `fin.heard` as a fresh model turn rather than
+rewriting an existing one. Skip it and the model does not know it greeted, and
+asks its opening question a second time.
 
 ### Keep the conversation in your process
 
 If your framework holds history on the provider's server — a stored conversation
 id that each call continues — heard truth cannot be applied to it. A server-side
 conversation cannot be told that the user only heard half of the last sentence.
-`GeminiInteractionsBrain` sends `store=False` and no `previous_interaction_id`
-for that reason, and carries the whole context on every call
+`OpenAIBrain` sends `store=False` and no `previous_response_id` for that reason,
+and carries the whole context on every request
+(`sdk/python/src/voqalize/sdk/openai.py`); `GeminiInteractionsBrain` does the
+same with no `previous_interaction_id`
 (`sdk/python/src/voqalize/sdk/gemini_interactions.py`, `_stream`). Port to a
 local history list and the rewrite is a list mutation.
 
-## Where the Gemini adapters fit
+## Where the shipped brains fit
 
-Both are worked examples of the port above, not a supported-frameworks list.
-[The Brain API](/reference/brain/#the-shipped-adapters) has the constructor
-they share, the members they offer, and which of them to build on.
+They are worked examples of the port above, not a supported-frameworks list.
+[The Brain API](/reference/brain/#the-shipped-adapters) has their constructors,
+the members they share, and which of them to build on.
 
-The differences that matter while porting are in the tool loop, and both
-adapters run their own. `GeminiBrain` makes one request per turn and files each
-tool's result for the next request, which is the user's next message unless the
-tool is marked `@needs_result_now`; then it asks again at once
+The differences that matter while porting are in the tool loop, and they run
+their own. `GeminiBrain`, `OpenAIBrain` and `LiteLLMBrain` share one: a turn is
+one request, and each tool's result is filed for the next request, which is the
+user's next message unless the tool is marked `@needs_result_now`; then the
+model is asked again at once
 ([Tools](/build/brain/tools/#when-the-model-reads-a-result) has the rule for
 which tools earn the mark). `GeminiInteractionsBrain` asks again after every
-response that made a call. Both re-read the whole context on every request, so
-an append that lands while a tool is running reaches the model with the next
-request either of them makes, and both apply heard truth per unit of speech.
+response that made a call. All of them re-read the whole context on every
+request, so an append that lands while a tool is running reaches the model with
+the next request they make, and all of them apply heard truth per unit of
+speech.
+
+## Reporting what a turn cost
+
+The model-backed brains tell Voqalize what each turn cost their model — tokens
+by kind, requests, tools, the time to the first word — and Voqalize keeps it in
+the call record beside the turn. A ported brain runs its own loop, so it reports
+its own, once per loop, after the last model request:
+
+```python
+from voqalize.sdk import TurnUsage
+
+    async def on_user_message(self, session, msg):
+        ...  # the turn, as above
+        usage = self.agent.last_usage  # whatever your framework reports
+        if session.can_report_usage:
+            session.report_usage(
+                TurnUsage(
+                    model="gpt-6-sol",
+                    provider="openai",
+                    input_tokens=usage.input_tokens,
+                    output_tokens=usage.output_tokens,
+                )
+            )
+```
+
+It is optional and never answered. Leave a count your framework does not give
+you unset rather than writing a zero. [The Brain API](/reference/brain/#methods)
+has the fields.
 
 ## What changes about the agent itself
 

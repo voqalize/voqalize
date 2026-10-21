@@ -166,13 +166,18 @@ facts:
       pattern: '^name = "(.+)"$'
 
   sdk.python.version.tree:
-    value: '0.10.0'
+    value: '0.11.0'
     source: sdk/python/pyproject.toml:3
-    verified: 2026-10-16
+    verified: 2026-10-20
     derive:
       file: sdk/python/pyproject.toml
       pattern: '^version = "(.+)"$'
     note: >-
+      Bumped to 0.11.0 on 2026-10-20 for the voice core and two more model
+      layers: voqalize.sdk.voice (VoiceCore, ToolChoice), OpenAIBrain behind the
+      `openai` extra and LiteLLMBrain behind `litellm`, GeminiBrain rebuilt on the
+      core, and TurnStep with session.report_step and Capability.TURN_STEPS.
+      Additive on the wire (version stays 3).
       Bumped to 0.10.0 on 2026-10-16 for voice and language as strings:
       TtsConfig.voice_id, TtsConfig.language_tag and SttConfig.language_tag,
       Capability.STRING_CONFIG, Response.code and the caller error codes
@@ -272,11 +277,11 @@ facts:
   sdk.python.surface.tree:
     value: [Action, AppEvent, AppEvents, Brain, Channel, Chunk, Error, ErrorCode,
             Finalize, RTVIMessage, RTVIType, RequestRejected, Session, SessionRejected,
-            Speech, SpeechChunk, SpeechEnd, SpeechStart, Unsupported, UserIdle,
-            UserMessage, WireError, configure_logging, run_session, serve,
+            Speech, SpeechChunk, SpeechEnd, SpeechStart, TurnStep, Unsupported,
+            UserIdle, UserMessage, WireError, configure_logging, run_session, serve,
             session_context]
     source: sdk/python/src/voqalize/sdk/__init__.py
-    verified: 2026-10-08
+    verified: 2026-10-20
     derive:
       file: sdk/python/src/voqalize/sdk/__init__.py
       within: '^__all__\s*=\s*\[(.*?)\]'
@@ -290,7 +295,11 @@ facts:
       `sdk.python.surface.published` is level with this list again; it falls
       behind whenever an export lands on main, and that is not a defect.
       Twenty-six on 2026-10-08, when `Unsupported` landed with
-      `session.cancel_speech` — unreleased, so published is behind it again. It was recorded as nine on 2026-08-24 while the hardening
+      `session.cancel_speech` — unreleased, so published is behind it again.
+      Twenty-seven on 2026-10-20, when `TurnStep` landed with
+      `session.report_step` and the voice core. The model-backed brains
+      (`GeminiBrain`, `OpenAIBrain`, `LiteLLMBrain`) and the voice core
+      (`voqalize.sdk.voice`) stay out of this list, each in its own module. It was recorded as nine on 2026-08-24 while the hardening
       agent held brain.py, and the nine were the ones the board had confirmed
       rather than the whole export. Two things are NOT in it and are asked for
       often: GeminiBrain lives in voqalize.sdk.gemini behind the `gemini` extra
@@ -348,12 +357,14 @@ facts:
 
   gemini.tool_budget_ms:
     value: 20
-    source: sdk/python/src/voqalize/sdk/gemini.py:193 TOOL_BUDGET_MS
-    verified: 2026-09-26
+    source: sdk/python/src/voqalize/sdk/voice.py TOOL_BUDGET_MS
+    verified: 2026-10-20
     derive:
-      file: sdk/python/src/voqalize/sdk/gemini.py
+      file: sdk/python/src/voqalize/sdk/voice.py
       pattern: '^TOOL_BUDGET_MS = (\d+)$'
     note: >-
+      Moved to the voice core on 2026-10-20, so it is the same number on every
+      model-backed brain; voqalize.sdk.gemini still re-exports it.
       The tool budget: GeminiBrain times every tool call from the wrapper's
       entry to its return, and one over this logs one warning, "tool
       {Brain}.{name} took {ms}ms, over the 20ms budget; the user waited for it".

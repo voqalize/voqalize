@@ -119,6 +119,9 @@ class Capability(StrEnum):
     #: only the :class:`Voice` and :class:`Language` catalogs.
     STRING_CONFIG = "string_config"
 
+    #: Voqalize records :class:`TurnStepFrame`.
+    TURN_STEPS = "turn_steps"
+
 
 # ─── Voqalize → Brain ────────────────────────────────────────────────────────────
 
@@ -216,6 +219,25 @@ class SpeechCancelFrame(Frame):
     :attr:`Capability.SPEECH_CANCEL`."""
 
     speech_id: int = 0
+
+
+@dataclass
+class TurnStepFrame(Frame):
+    """One piece of work the brain did for a turn — a model call, a tool, a
+    query — sent when it ends and never acknowledged. A turn is every step that
+    names it. ``kind`` and the keys of ``counts`` are open words, documented in
+    the wire reference; a count that was not reported is absent, not zero. Facts
+    about the work, never its content, and counts, never prices. Recorded only
+    when the session advertised :attr:`Capability.TURN_STEPS`."""
+
+    turn_id: int = 0
+    kind: str = ""
+    name: str = ""
+    provider: str = ""
+    start_ms: int = 0
+    duration_ms: int = 0
+    first_output_ms: int | None = None
+    counts: dict[str, int] = field(default_factory=lambda: dict[str, int]())
 
 
 # ─── The control leg ──────────────────────────────────────────────────────────
@@ -632,6 +654,7 @@ WIRE_FRAME_CLASSES: tuple[type[Frame], ...] = (
     SpeechChunkFrame,
     SpeechEndFrame,
     SpeechCancelFrame,
+    TurnStepFrame,
     ConfigureFrame,
     ResponseFrame,
     RTVIFrame,

@@ -56,6 +56,13 @@ back. Each carries:
 - **`marks`** — published measurements, each placed independently on the turn's
   own zero. `acked_at` is a protocol reflex and is not a response time.
 
+A turn's **steps** — each model request with its tokens by kind, each tool,
+and anything else the brain reported, on one timeline — come from the brain
+itself, as [`TurnStep`](/reference/wire/#what-a-turn-did). The SDK's
+model-backed brains send them by default; build one with `report_steps=False` to
+keep the numbers in your own logs. A brain reports its own work, such as a
+database query, with `session.report_step`.
+
 `pace` is each measurement's spread across the session, with the number of turns
 it was computed over. `meta` is what is true of the file itself, including
 `closed_by`: `recovery` means the record was salvaged after the session's voice
