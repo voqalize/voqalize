@@ -53,6 +53,7 @@ days, a submitted booking — is in :meth:`SendPotionBrain.on_user_idle`.
 
 from __future__ import annotations
 
+import dataclasses
 import inspect
 import math
 import re
@@ -77,6 +78,7 @@ from voqalize_demos.acknowledge import Acknowledger, Kind, Vocabulary, hold_the_
 
 from voqalize.sdk import (
     Action,
+    Finalize,
     RequestRejected,
     RTVIMessage,
     RTVIType,
@@ -102,7 +104,7 @@ from .app_events import (
     TabInfo,
     TabsChanged,
 )
-from .cues import CueKind, CueParser, RawCue
+from .cues import CueKind, CueParser, RawCue, words
 from .knowledge import TOPIC_IDS, Knowledge, canonical_path, norm
 
 AGENT_NAME = "Javier"
@@ -202,15 +204,36 @@ def language_of(text: str, *, sure: bool = True) -> Lang | None:
     return None
 
 
-#: "Vídeo" is Spain's spelling, and the voice reads it with Spain's stress
-#: ("VÍ-deo"); Latin America writes and says "video" ("vi-DE-o"). The prompt
-#: asks for it, and this makes sure of it in everything he says in Spanish.
-_VIDEO_ES = re.compile(r"\b([Vv])ídeo(s?)\b")
+#: Latin America says "vi-DE-o"; Spain says "VÍ-deo". The prompt asks for
+#: "video", but on dev (2026-10-21) the Spanish voice still read plain "video"
+#: as "VÍ-deo" in one sentence of three. Spelled "bidéo" it said "vi-DE-o" in
+#: every take, and natural (Spanish b and v are one sound). So in Spanish the
+#: voice is handed "bidéo", and only the voice: the page's word anchors follow
+#: the same spelling (``_anchor_for_voice``), and what comes back as heard is
+#: spelled "video" again before it reaches the model (``on_finalize``).
+_VIDEO_TO_VOICE = re.compile(r"\b([Vv])[ií]deo(s?)\b")
+_VIDEO_FROM_VOICE = re.compile(r"\b([Bb])idéo(s?)\b")
+#: "vídeo" as the page's words reads it: the accented letter splits the word.
+_VIDEO_AS_WORDS = re.compile(r"\bv deo(s?)\b")
 
 
-def latin_american(text: str) -> str:
-    """``text`` as Latin America spells what the voice reads."""
-    return _VIDEO_ES.sub(r"\1ideo\2", text)
+def for_the_voice(text: str) -> str:
+    """Spanish ``text`` as the voice must read it to say "vi-DE-o"."""
+    return _VIDEO_TO_VOICE.sub(
+        lambda m: ("B" if m.group(1) == "V" else "b") + "idéo" + m.group(2), text
+    )
+
+
+def from_the_voice(text: str) -> str:
+    """What the voice said, spelled as Latin America writes it."""
+    return _VIDEO_FROM_VOICE.sub(
+        lambda m: ("V" if m.group(1) == "B" else "v") + "ideo" + m.group(2), text
+    )
+
+
+def _anchor_for_voice(at: str) -> str:
+    """A cue's anchor, in the page's words, for speech spelled :func:`for_the_voice`."""
+    return " ".join(words(for_the_voice(_VIDEO_AS_WORDS.sub(r"video\1", at))))
 
 
 def _chosen_note(language: Lang, how: str) -> str:
@@ -1199,7 +1222,16 @@ class SendPotionBrain(GeminiBrain):
 
     async def greet(self, session: Session) -> str:
         """The opener, written not generated."""
-        return greeting(self._path, self._site, self.spoken)
+        line = greeting(self._path, self._site, self.spoken)
+        return for_the_voice(line) if self.spoken == "es" else line
+
+    async def on_finalize(self, session: Session, fin: Finalize) -> None:
+        """What was heard goes into the model's context; a word respelled for
+        the voice is spelled as written again first, so the model never sees
+        "bidéo" in its own words."""
+        if "idéo" in fin.heard:
+            fin = dataclasses.replace(fin, heard=from_the_voice(fin.heard))
+        await super().on_finalize(session, fin)
 
     async def on_user_message(
         self, session: Session, msg: UserMessage
@@ -1356,12 +1388,12 @@ class SendPotionBrain(GeminiBrain):
                 yield out
 
     def _spelled(self, turn: AsyncGenerator[Speech, None]) -> AsyncGenerator[Speech, None]:
-        """``turn``, with Spanish speech spelled as Latin America says it."""
+        """``turn``, with Spanish speech spelled as the voice must read it."""
 
         async def spelled() -> AsyncGenerator[Speech, None]:
             async for event in turn:
                 if isinstance(event, SpeechChunk) and self.spoken == "es":
-                    event = SpeechChunk(latin_american(event.text))
+                    event = SpeechChunk(for_the_voice(event.text))
                 yield event
 
         return spelled()
@@ -1405,6 +1437,8 @@ class SendPotionBrain(GeminiBrain):
     def _send_cue(self, raw: RawCue) -> None:
         """Check a cue against the site, as the tools do, and send it; one that
         names nothing real is dropped and logged rather than reaching the page."""
+        if self.spoken == "es" and raw.at:
+            raw = dataclasses.replace(raw, at=_anchor_for_voice(raw.at))
         cue = self._resolve_cue(raw)
         logger.info("sendpotion: cue {} {!r} at {!r} -> {}", raw.kind, raw.value, raw.at, cue)
         if cue is not None:

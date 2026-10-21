@@ -316,7 +316,9 @@ async def test_a_call_started_in_spanish_opens_and_listens_in_spanish() -> None:
             init={"site": "site", "path": "/pricing/", "lang": "es"}
         )
         check_greeting(rig, opener)
-        assert opener is not None and opener.text == greeting("/pricing/", "site", "es")
+        assert opener is not None and opener.text == sendpotion.for_the_voice(
+            greeting("/pricing/", "site", "es")
+        )
         assert opener.text.startswith("Hola, soy Javier")
         check_voice_pair(rig, voice="omnivoice/javier", language="es")
 
