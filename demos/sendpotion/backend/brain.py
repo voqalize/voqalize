@@ -202,6 +202,17 @@ def language_of(text: str, *, sure: bool = True) -> Lang | None:
     return None
 
 
+#: "Vídeo" is Spain's spelling, and the voice reads it with Spain's stress
+#: ("VÍ-deo"); Latin America writes and says "video" ("vi-DE-o"). The prompt
+#: asks for it, and this makes sure of it in everything he says in Spanish.
+_VIDEO_ES = re.compile(r"\b([Vv])ídeo(s?)\b")
+
+
+def latin_american(text: str) -> str:
+    """``text`` as Latin America spells what the voice reads."""
+    return _VIDEO_ES.sub(r"\1ideo\2", text)
+
+
 def _chosen_note(language: Lang, how: str) -> str:
     name = LANGUAGE_NAMES[language]
     return (
@@ -445,17 +456,22 @@ You are heard, not read, so keep it light and warm.
 - A turn is three to five short sentences. A walkthrough of steps or a section can run to eight, one step per sentence, each with its cue.
 - Every sentence under fifteen words. Small, everyday words. One idea per sentence. One number per sentence.
 - THE FIRST SENTENCE IS A FEW WORDS. The visitor hears nothing until your first sentence has been voiced, so open every reply with a sentence of two to six words that ends in a full stop, with the answer in it. A cue may come before it.
-- Before most replies the visitor has already heard a short acknowledgement of mine — "Sure.", "Let me see.", or in Spanish "Claro.", "A ver." — so never open with one: your first word is the answer. No "great question", no repeating their question back.
+- Before most replies the visitor has already heard a short acknowledgement of mine — "Sure.", "Let me see.", or in Spanish "Claro.", "Déjame ver." — so never open with one: your first word is the answer. No "great question", no repeating their question back.
 - Spoken words only, apart from cues: no lists, no markdown, no symbols, never an exclamation mark. Write numbers and prices as spoken words: "thirty-nine dollars a month", never "$39/mo".
 - Lines in square brackets come from their screen, not the visitor: the page in front with its headings and FAQs, what the calendar shows. Never read them out; use them.
 - Always answer. A reply with no words leaves the visitor in silence.
 
 # English or Spanish
-You speak English and Spanish, as a native of Madrid. The call starts in English unless the visitor chose Spanish.
+You speak English, and Spanish as a native of Latin America. The call starts in English unless the visitor chose Spanish.
 - Answer in the language the visitor speaks to you. If they speak Spanish, answer in Spanish from that reply on; if they go back to English, so do you. Your voice follows the language you write.
 - Except when they chose a language: a line in square brackets says so. Then answer in that language whatever they speak, even when they speak the other one, until they ask you to switch.
 - When they ask for the other language in words that are not already it ("Can you speak Spanish?", "¿Podemos hablar en inglés?"), answer in that language and call set_language in the same response. A visitor already speaking Spanish to you has been switched: do not call it for them.
-- One language per reply: in a Spanish reply every sentence is Spanish. Use "tú", plain neutral Spanish, and masculine forms of yourself ("estoy encantado de ayudarte").
+- One language per reply: in a Spanish reply every sentence is Spanish, and masculine forms of yourself ("estoy encantado de ayudarte").
+- Your Spanish is neutral Latin American Spanish, the kind understood from Mexico to Chile, never the Spanish of Spain. Your visitors are businesses across Latin America.
+  - Address one visitor as "tú"; several people are "ustedes", never "vosotros", and never its verb forms ("queréis", "tenéis", "podéis") or "os".
+  - Write "video" and "videos", without an accent mark: never "vídeo".
+  - Use Latin American words: "computadora", never "ordenador"; "celular", never "móvil"; "agendar una demo", not "reservar"; "mostrar" ("te muestro"), not "enseñar"; "completar un formulario", not "rellenar"; "¿Qué día te queda bien?", not "te viene bien"; "disculpa", not "perdona"; "está bien" or "perfecto", never "vale"; "tomar", never "coger".
+  - For something just done, use the simple past: "Abrí la página", "Ya lo completé", not "He abierto" or "Ya lo he rellenado".
 - In Spanish too, write numbers and prices as spoken words: "treinta y nueve dólares al mes", never "39 $/mes". Product and plan names stay as SendPotion writes them: Potion, Starter, Professional.
 - Cues are the site's own words, and the site is in English, so a cue stays in English inside a Spanish reply: "{{page: /pricing}}{{show: Pricing plans}} Los planes empiezan en treinta y nueve dólares al mes." The visitor sees an English page; describe it in Spanish, and if they ask, say the site itself is in English.
 - The languages Potion makes videos in are a question about the product, not about this call: answer it from the knowledge, like any other.
@@ -525,7 +541,7 @@ _INTRO: dict[Lang, str] = {
 _GREETING: dict[Lang, str] = {
     "en": "I can walk you through it, or take you straight to what you need. "
     "What brings you here today?",
-    "es": "Puedo enseñártelo paso a paso, o llevarte directo a lo que necesitas. "
+    "es": "Puedo mostrártelo paso a paso, o llevarte directo a lo que necesitas. "
     "¿Qué te trae por aquí?",
 }
 #: The opener's second sentence for the page the call starts on, by a word in
@@ -535,35 +551,35 @@ _OPENERS: tuple[tuple[str, dict[Lang, str]], ...] = (
         "pricing",
         {
             "en": "I can help you pick a plan. How many people would be making videos?",
-            "es": "Te ayudo a elegir un plan. ¿Cuántas personas harían vídeos?",
+            "es": "Te ayudo a elegir un plan. ¿Cuántas personas harían videos?",
         },
     ),
     (
         "demo",
         {
             "en": "I can book this demo with you. Which day suits you?",
-            "es": "Puedo reservar esta demo contigo. ¿Qué día te viene bien?",
+            "es": "Puedo agendar esta demo contigo. ¿Qué día te queda bien?",
         },
     ),
     (
         "integrations",
         {
             "en": "Tell me which tools you use, and I'll show you how Potion fits in.",
-            "es": "Dime qué herramientas usas, y te enseño cómo encaja Potion.",
+            "es": "Dime qué herramientas usas, y te muestro cómo encaja Potion.",
         },
     ),
     (
         "features",
         {
             "en": "Ask me about anything here, or I can walk you through it.",
-            "es": "Pregúntame por cualquier cosa de aquí, o te lo enseño paso a paso.",
+            "es": "Pregúntame por cualquier cosa de aquí, o te lo muestro paso a paso.",
         },
     ),
     (
         "use-cases",
         {
             "en": "Tell me what you do, and I'll show you the use case that fits.",
-            "es": "Cuéntame a qué te dedicas, y te enseño el caso de uso que encaja.",
+            "es": "Cuéntame a qué te dedicas, y te muestro el caso de uso que encaja.",
         },
     ),
     (
@@ -597,16 +613,16 @@ _LANDED: dict[str, dict[Lang, str]] = {
     "demo": {"en": "Here's the demo calendar.", "es": "Aquí tienes el calendario de la demo."},
     "demo_filled": {
         "en": "I've filled that in on the calendar.",
-        "es": "Ya lo he rellenado en el calendario.",
+        "es": "Ya lo completé en el calendario.",
     },
     "posts": {
         "en": "I've opened the best fit in a new tab.",
-        "es": "He abierto el que mejor encaja en una pestaña nueva.",
+        "es": "Abrí el que mejor encaja en una pestaña nueva.",
     },
-    "closed": {"en": "I've closed the reading list.", "es": "He cerrado la lista de lecturas."},
+    "closed": {"en": "I've closed the reading list.", "es": "Cerré la lista de lecturas."},
     "signup": {
         "en": "I've opened the sign-up in a new tab.",
-        "es": "He abierto el registro en una pestaña nueva.",
+        "es": "Abrí el registro en una pestaña nueva.",
     },
     "tab": {"en": "There's that tab.", "es": "Ahí tienes esa pestaña."},
 }
@@ -621,21 +637,21 @@ _ACK_LINES: dict[Lang, dict[Kind, tuple[str, ...]]] = {
         "statement": ("Okay.", "Got it.", "Right."),
     },
     "es": {
-        "request": ("Claro.", "Vale.", "Por supuesto.", "Perfecto."),
-        "question": ("A ver.", "Mmm, a ver.", "Vale."),
-        "correction": ("Ya veo.", "Entendido.", "Vale."),
-        "statement": ("Vale.", "Entendido.", "Claro."),
+        "request": ("Claro.", "Por supuesto.", "Perfecto.", "Con gusto."),
+        "question": ("Déjame ver.", "A ver.", "Mmm, déjame ver."),
+        "correction": ("Ya veo.", "Entendido.", "De acuerdo."),
+        "statement": ("Muy bien.", "Entendido.", "Claro."),
     },
 }
 ACK_RATE = 0.75
 ACK_HOLD_AFTER_S = 4.0
 _ACK_HOLD: dict[Lang, tuple[str, ...]] = {
     "en": ("One moment.", "Just a moment."),
-    "es": ("Un momento.", "Solo un momento."),
+    "es": ("Un momento.", "Un momentito."),
 }
 _ACK_SORRY: dict[Lang, str] = {
     "en": "Sorry, that's taking a little longer.",
-    "es": "Perdona, está tardando un poco más.",
+    "es": "Disculpa, está tardando un poco más.",
 }
 #: A visitor's ordinary words about Potion, so the reading trusts them.
 _ACK_WORDS = Vocabulary(
@@ -1293,12 +1309,13 @@ class SendPotionBrain(GeminiBrain):
         turn = self._fallback.speak_if_silent(
             self, super().respond(session), again=lambda: self._talk_now(session)
         )
-        async for event in self._written(session, self._cued(turn)):
+        async for event in self._spelled(self._written(session, self._cued(turn))):
             spoke = spoke or isinstance(event, SpeechStart)
             yield event
         if not spoke:
             logger.warning("sendpotion: the model returned nothing; asking once more")
-            async for event in self._written(session, self._cued(self._talk_now(session))):
+            again = self._written(session, self._cued(self._talk_now(session)))
+            async for event in self._spelled(again):
                 yield event
 
     async def _written(
@@ -1337,6 +1354,17 @@ class SendPotionBrain(GeminiBrain):
         if held:
             async for out in release():
                 yield out
+
+    def _spelled(self, turn: AsyncGenerator[Speech, None]) -> AsyncGenerator[Speech, None]:
+        """``turn``, with Spanish speech spelled as Latin America says it."""
+
+        async def spelled() -> AsyncGenerator[Speech, None]:
+            async for event in turn:
+                if isinstance(event, SpeechChunk) and self.spoken == "es":
+                    event = SpeechChunk(latin_american(event.text))
+                yield event
+
+        return spelled()
 
     async def _cued(self, turn: AsyncGenerator[Speech, None]) -> AsyncGenerator[Speech, None]:
         """``turn`` with every ``{page|show|faq: …}`` taken out of its text and
