@@ -121,10 +121,10 @@ class GeminiBrain(VoiceCore[types.Content, types.GenerateContentConfig]):
     may not call a tool, so the model has to answer. Unmarked tools never ask
     again, so they never count.
 
-    ``report_usage=False`` keeps each turn's token counts off the wire; they stay
+    ``report_steps=False`` keeps each request's and each tool's step off the wire; the counts stay
     in the ``turn:`` log line either way."""
 
-    provider = "gemini"
+    provider = "google"
 
     def __init__(
         self,
@@ -133,9 +133,9 @@ class GeminiBrain(VoiceCore[types.Content, types.GenerateContentConfig]):
         system_instruction: str,
         model: str = DEFAULT_MODEL,
         max_tool_hops: int = 6,
-        report_usage: bool = True,
+        report_steps: bool = True,
     ) -> None:
-        super().__init__(model=model, max_tool_hops=max_tool_hops, report_usage=report_usage)
+        super().__init__(model=model, max_tool_hops=max_tool_hops, report_steps=report_steps)
         self._client = client
         self._config = types.GenerateContentConfig(
             system_instruction=system_instruction,

@@ -120,7 +120,7 @@ class _Guide(OpenAIBrain):
 
 
 class _Session:
-    can_report_usage = False
+    can_report_steps = False
 
 
 async def _drain(brain: _Guide, text: str = "hello") -> list[Speech]:

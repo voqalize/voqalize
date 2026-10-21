@@ -71,9 +71,9 @@ message Envelope {
     // heard.
     SpeechCancel speech_cancel = 15;
 
-    // What one model loop of a turn cost the brain. Recorded, never
-    // acknowledged.
-    TurnUsage turn_usage = 16;
+    // One piece of work the brain did for a turn: a model call, a tool.
+    // Recorded, never acknowledged.
+    TurnStep turn_step = 16;
 
     // Lifecycle, both directions.
 
@@ -126,9 +126,9 @@ enum Capability {
   // answer a request carrying only them as accepted with nothing changed.
   CAPABILITY_STRING_CONFIG = 2;
 
-  // The runtime records TurnUsage. A runtime that does not list it skips the
+  // The runtime records TurnStep. A runtime that does not list it skips the
   // frame, so a brain that checks first sends nothing it will not keep.
-  CAPABILITY_TURN_USAGE = 3;
+  CAPABILITY_TURN_STEPS = 3;
 }
 
 // A committed user utterance, on a turn of its own.
@@ -234,65 +234,57 @@ message SpeechCancel {
   uint64 speech_id = 1;
 }
 
-// What one turn cost the brain's model: tokens by kind, requests, tools and
-// time. Sent after each model loop the turn ran, and never acknowledged. That is
-// usually once per turn; a brain that asks its model again within the same turn
-// sends one per loop, and a reader sums them by turn_id. The runtime records it
-// beside the turn and changes nothing about the call because of it; a brain that
-// sends none loses nothing but the record.
+// One piece of work the brain did for a turn: a model call, a tool it ran, a
+// database query, an API or MCP call. A turn is the steps that name it, so a
+// turn that asked its model twice and ran a tool in between sends three, and a
+// reader groups them by turn_id. Steps may overlap: a tool run while the
+// model's stream is open lies inside that model step.
 //
-// Counts, never prices: a price moves on a date nobody here controls, so cost is
-// computed from these by whoever reads them. Every count is the sum over the
-// loop's requests, since each request is billed for its whole prompt. A count
-// the model's API did not report is unset, not zero.
+// Sent when the step ends, and never acknowledged. The runtime records it
+// beside the turn and changes nothing about the call because of it; a brain
+// that sends none loses nothing but the record.
 //
-// A runtime honours this only if SessionStart lists CAPABILITY_TURN_USAGE; one
+// Facts about the work, never its content: no prompt, no arguments, no result,
+// nothing the caller said. Counts, never prices: a price moves on a date nobody
+// here controls, so cost is computed from the counts by whoever reads them.
+//
+// A runtime honours this only if SessionStart lists CAPABILITY_TURN_STEPS; one
 // that does not skips it.
-message TurnUsage {
-  // The turn these numbers belong to.
+message TurnStep {
+  // The turn this step was part of.
   uint64 turn_id = 1;
 
-  // The model as the brain asked for it, e.g. "gpt-6-sol" or
-  // "gemini-3.5-flash".
-  string model = 2;
+  // What sort of work: "model" or "tool" for the steps the SDK reports itself,
+  // or any other word a brain uses for its own ("database", "http", "mcp").
+  // Open, like a voice_id: the documented words are in the wire reference, and
+  // a reader shows one it does not know as it is.
+  string kind = 2;
 
-  // Who served it, as the brain names it: "openai", "gemini", "litellm", or a
-  // brain's own label.
-  string provider = 3;
+  // Which one: the model as the brain asked for it ("gpt-6-sol"), the tool's
+  // name ("open_section"), the table or the endpoint.
+  string name = 3;
 
-  // Model requests the loop made: one, plus one for each time the model was
-  // asked again for a tool's result, plus any retry.
-  uint32 requests = 4;
+  // Who served it: "openai", "google", "anthropic" — the company whose meter
+  // the counts ran on, never a router in between. Empty for the brain's own
+  // work.
+  string provider = 4;
 
-  // Every input token, cached ones included.
-  optional uint64 input_tokens = 5;
+  // When the step began, in milliseconds after the brain received the
+  // stimulus that opened the turn.
+  uint32 start_ms = 5;
 
-  // The part of input_tokens served from the provider's prompt cache.
-  optional uint64 cached_input_tokens = 6;
+  // How long it took, in milliseconds.
+  uint32 duration_ms = 6;
 
-  // Input tokens written to the provider's prompt cache, where the provider
-  // bills writes separately.
-  optional uint64 cache_write_tokens = 7;
+  // Milliseconds from the step's start to the first piece of its output, for
+  // a step that streams. Unset for one that does not.
+  optional uint32 first_output_ms = 7;
 
-  // Output tokens the model wrote as text or tool calls, reasoning excluded.
-  optional uint64 output_tokens = 8;
-
-  // Output tokens spent on reasoning the caller never hears.
-  optional uint64 reasoning_tokens = 9;
-
-  // Tools the loop ran.
-  uint32 tool_calls = 10;
-
-  // Milliseconds from the loop's first request to the first piece of the
-  // model's stream.
-  optional uint32 first_token_ms = 11;
-
-  // Milliseconds from the loop's first request to the first text handed to
-  // speech. Unset when the loop said nothing.
-  optional uint32 first_speech_ms = 12;
-
-  // Milliseconds from the loop's first request to its end.
-  uint32 total_ms = 13;
+  // How much of what, by name: "input_tokens", "cached_input_tokens",
+  // "output_tokens", "rows". Open, like kind: the documented names are in the
+  // wire reference, and a brain may add its own. A name that is absent was not
+  // reported, which is not the same as one present with 0.
+  map<string, uint64> counts = 8;
 }
 
 // ─── The control leg ─────────────────────────────────────────────────────────

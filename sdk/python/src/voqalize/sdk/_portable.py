@@ -169,9 +169,9 @@ class PortableBrain(VoiceCore[Turn, Request]):
         model: str,
         system_instruction: str,
         max_tool_hops: int = 6,
-        report_usage: bool = True,
+        report_steps: bool = True,
     ) -> None:
-        super().__init__(model=model, max_tool_hops=max_tool_hops, report_usage=report_usage)
+        super().__init__(model=model, max_tool_hops=max_tool_hops, report_steps=report_steps)
         self._system_instruction = system_instruction
         # The declarations the turn under way was asked with, by name, so a call
         # is validated against exactly the schema the model was shown.

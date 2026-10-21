@@ -176,7 +176,7 @@ facts:
       Bumped to 0.11.0 on 2026-10-20 for the voice core and two more model
       layers: voqalize.sdk.voice (VoiceCore, ToolChoice), OpenAIBrain behind the
       `openai` extra and LiteLLMBrain behind `litellm`, GeminiBrain rebuilt on the
-      core, and TurnUsage with session.report_usage and Capability.TURN_USAGE.
+      core, and TurnStep with session.report_step and Capability.TURN_STEPS.
       Additive on the wire (version stays 3).
       Bumped to 0.10.0 on 2026-10-16 for voice and language as strings:
       TtsConfig.voice_id, TtsConfig.language_tag and SttConfig.language_tag,
@@ -277,7 +277,7 @@ facts:
   sdk.python.surface.tree:
     value: [Action, AppEvent, AppEvents, Brain, Channel, Chunk, Error, ErrorCode,
             Finalize, RTVIMessage, RTVIType, RequestRejected, Session, SessionRejected,
-            Speech, SpeechChunk, SpeechEnd, SpeechStart, TurnUsage, Unsupported,
+            Speech, SpeechChunk, SpeechEnd, SpeechStart, TurnStep, Unsupported,
             UserIdle, UserMessage, WireError, configure_logging, run_session, serve,
             session_context]
     source: sdk/python/src/voqalize/sdk/__init__.py
@@ -296,8 +296,8 @@ facts:
       behind whenever an export lands on main, and that is not a defect.
       Twenty-six on 2026-10-08, when `Unsupported` landed with
       `session.cancel_speech` — unreleased, so published is behind it again.
-      Twenty-seven on 2026-10-20, when `TurnUsage` landed with
-      `session.report_usage` and the voice core. The model-backed brains
+      Twenty-seven on 2026-10-20, when `TurnStep` landed with
+      `session.report_step` and the voice core. The model-backed brains
       (`GeminiBrain`, `OpenAIBrain`, `LiteLLMBrain`) and the voice core
       (`voqalize.sdk.voice`) stay out of this list, each in its own module. It was recorded as nine on 2026-08-24 while the hardening
       agent held brain.py, and the nine were the ones the board had confirmed

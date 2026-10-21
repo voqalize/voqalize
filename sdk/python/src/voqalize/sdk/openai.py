@@ -29,7 +29,7 @@ Install with ``pip install voqalize-agent-sdk[openai]``. Nothing in
 
 The turn — speech first, tools mid-sentence, results filed for the next request
 unless :func:`~voqalize.sdk.voice.needs_result_now`, history cut to what was
-heard, a :class:`~voqalize.sdk.TurnUsage` per turn — is the voice core's
+heard, a :class:`~voqalize.sdk.TurnStep` per request and per tool — is the voice core's
 (:mod:`voqalize.sdk.voice`) and is the same on every model. This module is only
 OpenAI's half:
 
@@ -67,7 +67,7 @@ class OpenAIBrain(PortableBrain):
     ``reasoning`` is the model's reasoning effort, or ``None`` for its default.
     ``options`` are passed to every ``responses.create`` call as they are — a
     ``prompt_cache_key``, a ``service_tier``, a ``max_output_tokens`` — for what
-    this class does not name. ``max_tool_hops`` and ``report_usage`` are the voice
+    this class does not name. ``max_tool_hops`` and ``report_steps`` are the voice
     core's."""
 
     provider = "openai"
@@ -81,13 +81,13 @@ class OpenAIBrain(PortableBrain):
         reasoning: str | None = None,
         options: Mapping[str, Any] | None = None,
         max_tool_hops: int = 6,
-        report_usage: bool = True,
+        report_steps: bool = True,
     ) -> None:
         super().__init__(
             model=model,
             system_instruction=system_instruction,
             max_tool_hops=max_tool_hops,
-            report_usage=report_usage,
+            report_steps=report_steps,
         )
         self._client = client
         self._reasoning = reasoning

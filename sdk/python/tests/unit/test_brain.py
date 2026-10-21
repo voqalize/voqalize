@@ -64,8 +64,8 @@ def test_the_public_surface_is_deliberate() -> None:
         "SpeechChunk",
         "SpeechEnd",
         "SpeechStart",
-        # What a turn cost the brain's model, for `session.report_usage`.
-        "TurnUsage",
+        # One piece of work a turn did, for `session.report_step`.
+        "TurnStep",
         # Raised by `session.cancel_speech` when Voqalize did not advertise it.
         "Unsupported",
         "UserIdle",

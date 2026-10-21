@@ -53,7 +53,7 @@ from voqalize.sdk.wire import (
     SpeechChunkFrame,
     SpeechEndFrame,
     SpeechStartFrame,
-    TurnUsageFrame,
+    TurnStepFrame,
     UserIdleFrame,
     UserMessageFrame,
 )
@@ -216,13 +216,13 @@ class VoqalizeDriver:
         self.capabilities: set[Capability] = {
             Capability.SPEECH_CANCEL,
             Capability.STRING_CONFIG,
-            Capability.TURN_USAGE,
+            Capability.TURN_STEPS,
         }
         # Every ``SpeechCancel`` the brain sent, in wire order, honoured or not.
         self.cancels: list[SpeechCancelFrame] = []
-        # Every ``TurnUsage`` the brain sent, in wire order: what each model loop
-        # cost. Recorded and never answered, as Voqalize does.
-        self.usage: list[TurnUsageFrame] = []
+        # Every ``TurnStep`` the brain sent, in wire order: each model request and
+        # tool of every turn. Recorded and never answered, as Voqalize does.
+        self.steps: list[TurnStepFrame] = []
         # The heard text a cancelled unit is finalized with. The default is
         # everything that arrived before the cut — the unit played up to the
         # cancel. A scenario that wants a cut mid-playout, which is the case a
@@ -307,8 +307,8 @@ class VoqalizeDriver:
                 self.ui_commands.append(frame.data)
         elif isinstance(frame, ErrorFrame):
             self.errors.append(frame)
-        elif isinstance(frame, TurnUsageFrame):
-            self.usage.append(frame)
+        elif isinstance(frame, TurnStepFrame):
+            self.steps.append(frame)
         elif isinstance(frame, ConfigureFrame):
             self.requests.append(frame)
             op = REQUEST_OPS[type(frame)]

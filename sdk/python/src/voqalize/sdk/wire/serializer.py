@@ -46,7 +46,7 @@ from .frames import (
     SpeechStartFrame,
     SttConfig,
     TtsConfig,
-    TurnUsageFrame,
+    TurnStepFrame,
     UserIdleFrame,
     UserMessageFrame,
     Voice,
@@ -93,7 +93,7 @@ _RTVI_FROM_PB: dict[int, RTVIType] = {v: k for k, v in _RTVI_TO_PB.items()}
 _CAPABILITY_TO_PB: dict[Capability, int] = {
     Capability.SPEECH_CANCEL: pb.CAPABILITY_SPEECH_CANCEL,
     Capability.STRING_CONFIG: pb.CAPABILITY_STRING_CONFIG,
-    Capability.TURN_USAGE: pb.CAPABILITY_TURN_USAGE,
+    Capability.TURN_STEPS: pb.CAPABILITY_TURN_STEPS,
 }
 _CAPABILITY_FROM_PB: dict[int, Capability] = {v: k for k, v in _CAPABILITY_TO_PB.items()}
 
@@ -182,31 +182,19 @@ def _enc_speech_cancel(f: SpeechCancelFrame, env: pb.Envelope) -> None:
     env.speech_cancel.speech_id = f.speech_id
 
 
-# The counts the API may not report: set when known, left unset otherwise, so a
-# reader can tell "not reported" from zero.
-_USAGE_OPTIONAL = (
-    "input_tokens",
-    "cached_input_tokens",
-    "cache_write_tokens",
-    "output_tokens",
-    "reasoning_tokens",
-    "first_token_ms",
-    "first_speech_ms",
-)
-
-
-def _enc_turn_usage(f: TurnUsageFrame, env: pb.Envelope) -> None:
-    m = env.turn_usage
+def _enc_turn_step(f: TurnStepFrame, env: pb.Envelope) -> None:
+    m = env.turn_step
     m.turn_id = f.turn_id
-    m.model = f.model
+    m.kind = f.kind
+    m.name = f.name
     m.provider = f.provider
-    m.requests = f.requests
-    m.tool_calls = f.tool_calls
-    m.total_ms = f.total_ms
-    for name in _USAGE_OPTIONAL:
-        value = getattr(f, name)
-        if value is not None:
-            setattr(m, name, value)
+    m.start_ms = f.start_ms
+    m.duration_ms = f.duration_ms
+    if f.first_output_ms is not None:
+        m.first_output_ms = f.first_output_ms
+    # A count that was not reported stays out of the map, so a reader can tell
+    # "not reported" from zero.
+    m.counts.update(f.counts)
 
 
 # The op arm is set explicitly, so a request carrying no delta at all still names
@@ -288,7 +276,7 @@ _ENCODERS: dict[type[Frame], Callable[[Any, pb.Envelope], None]] = {
     SpeechChunkFrame: _enc_speech_chunk,
     SpeechEndFrame: _enc_speech_end,
     SpeechCancelFrame: _enc_speech_cancel,
-    TurnUsageFrame: _enc_turn_usage,
+    TurnStepFrame: _enc_turn_step,
     ConfigureFrame: _enc_configure,
     ResponseFrame: _enc_response,
     RTVIFrame: _enc_rtvi,
@@ -356,17 +344,17 @@ def _dec_speech_cancel(env: pb.Envelope) -> SpeechCancelFrame:
     return SpeechCancelFrame(speech_id=env.speech_cancel.speech_id)
 
 
-def _dec_turn_usage(env: pb.Envelope) -> TurnUsageFrame:
-    m = env.turn_usage
-    known = {name: getattr(m, name) for name in _USAGE_OPTIONAL if m.HasField(name)}
-    return TurnUsageFrame(
+def _dec_turn_step(env: pb.Envelope) -> TurnStepFrame:
+    m = env.turn_step
+    return TurnStepFrame(
         turn_id=m.turn_id,
-        model=m.model,
+        kind=m.kind,
+        name=m.name,
         provider=m.provider,
-        requests=m.requests,
-        tool_calls=m.tool_calls,
-        total_ms=m.total_ms,
-        **known,
+        start_ms=m.start_ms,
+        duration_ms=m.duration_ms,
+        first_output_ms=m.first_output_ms if m.HasField("first_output_ms") else None,
+        counts=dict(m.counts),
     )
 
 
@@ -470,7 +458,7 @@ _DECODERS: dict[str, Callable[[pb.Envelope], Frame]] = {
     "speech_chunk": _dec_speech_chunk,
     "speech_end": _dec_speech_end,
     "speech_cancel": _dec_speech_cancel,
-    "turn_usage": _dec_turn_usage,
+    "turn_step": _dec_turn_step,
     "request": _dec_request,
     "response": _dec_response,
     "rtvi": _dec_rtvi,

@@ -26,7 +26,7 @@ from any callback and from work that outlives one.
 | `RTVIMessage` | dataclass | One message from the app. |
 | `Finalize` | dataclass | What the user actually heard, for one speech unit. |
 | `Error` | dataclass | A signal from Voqalize. |
-| `TurnUsage` | dataclass | What one turn cost your model, for `session.report_usage`. |
+| `TurnStep` | dataclass | One piece of work a turn did, for `session.report_step`. |
 | `SpeechStart` | dataclass | Opens a speech unit. |
 | `SpeechChunk` | dataclass | Text to speak inside an open unit. |
 | `SpeechEnd` | dataclass | Closes the open unit. |
@@ -176,7 +176,7 @@ lifetime is exactly the socket's.
 | `init` | `dict[str, Any]` | The opaque init data handed to Voqalize at connect. Read your own keys out of it; the SDK interprets none of it. |
 | `capabilities` | `frozenset[Capability]` | What this Voqalize said it honours beyond the wire version's baseline, at `SessionStart`. Read the `can_*` properties rather than the set. |
 | `can_cancel_speech` | `bool` | Whether `cancel_speech` is honoured. Fixed for the session's life. |
-| `can_report_usage` | `bool` | Whether `report_usage` is recorded. Fixed for the session's life. |
+| `can_report_steps` | `bool` | Whether `report_step` is recorded. Fixed for the session's life. |
 
 There is no `SessionStart` object in the SDK. The frame's payload arrives as
 these attributes, and its turn id is the turn the greeting is bound to.
@@ -189,7 +189,7 @@ def send_rtvi(self, type: RTVIType, data: Any = None, *, id: str | None = None) 
 def end(self, reason: str = "agent_ended") -> None: ...
 async def configure(self, config: Config) -> None: ...
 async def cancel_speech(self, speech_id: int | None) -> Finalize: ...
-def report_usage(self, usage: TurnUsage, *, turn_id: int | None = None) -> None: ...
+def report_step(self, step: TurnStep, *, turn_id: int | None = None) -> None: ...
 ```
 
 **`dispatch`** sends one action to the app and never blocks; nothing comes back.
@@ -280,57 +280,59 @@ notices. Most brains should leave it alone: it is a floor on how long a pause ha
 to run before it counts as the end, and moving it trades one kind of wrong
 against the other rather than removing either.
 
-**`report_usage`** tells Voqalize what one turn cost your model. It never
+**`report_step`** tells Voqalize about one piece of work your brain did for a
+turn: a model request, a tool, a database query, an API or MCP call. It never
 blocks and nothing comes back; Voqalize keeps it in the call record beside the
-turn. The [model-backed brains](#the-shipped-adapters) send it for you after
-every model loop unless built with `report_usage=False`. A brain that runs its
-own loop calls it once per loop, after the last model request:
+turn, and the console shows a turn's steps as a timeline. The
+[model-backed brains](#the-shipped-adapters) report every model request and every
+tool for you unless built with `report_steps=False`. Report anything else your
+brain does the moment it ends:
 
 ```python
-from voqalize.sdk import TurnUsage
+import time
 
-if session.can_report_usage:
-    session.report_usage(
-        TurnUsage(
-            model="gpt-6-sol",
-            provider="openai",
-            requests=1,
-            input_tokens=1840,
-            output_tokens=42,
-            first_speech_ms=610,
-            total_ms=900,
+from voqalize.sdk import TurnStep
+
+started = time.monotonic()
+rows = await db.fetch(query)
+if session.can_report_steps:
+    session.report_step(
+        TurnStep(
+            kind="database",
+            name="orders",
+            duration_ms=round((time.monotonic() - started) * 1000),
+            counts={"rows": len(rows)},
         )
     )
 ```
 
 ```python
 @dataclass(frozen=True)
-class TurnUsage:
-    model: str                              # the model as you asked for it
-    provider: str                           # who served it, as you name it
-    requests: int = 1                       # model requests this loop made
-    input_tokens: int | None = None         # every input token, cached ones included
-    cached_input_tokens: int | None = None  # the part of input served from the prompt cache
-    cache_write_tokens: int | None = None   # input written to the cache, where billed apart
-    output_tokens: int | None = None        # text and tool calls, reasoning excluded
-    reasoning_tokens: int | None = None     # reasoning nobody hears
-    tool_calls: int = 0
-    first_token_ms: int | None = None       # first request to the first piece of the stream
-    first_speech_ms: int | None = None      # first request to the first text handed to speech
-    total_ms: int = 0
+class TurnStep:
+    kind: str                           # "model", "tool", or your own word: "database", "http", "mcp"
+    name: str                           # which one: the model, the tool, the table
+    duration_ms: int
+    provider: str = ""                  # the company whose meter ran; empty for your own work
+    start_ms: int | None = None         # after the turn's stimulus; None: it ended now
+    first_output_ms: int | None = None  # for a step that streams
+    counts: Mapping[str, int] = {}      # how much of what, by name
 ```
 
-- **Counts and durations only.** No text, and no prices: a price changes on a
-  date nobody here controls, so cost is computed from the counts by whoever
-  reads them. Every count is the sum over the loop's requests, since each
-  request is billed for its whole prompt.
-- **`None` means the API did not report it**, never zero. Leave a count you do
-  not have unset rather than writing a `0`.
+- **Facts about the work, never its content.** No prompt, no arguments, no
+  result, no query text — and no prices: a price changes on a date nobody here
+  controls, so cost is computed from the counts by whoever reads them.
+- **The names are open.** Use the documented `kind` words and count names in
+  [the wire reference](/reference/wire/#what-a-turn-did) where they fit, so
+  every brain's steps add up the same way, and your own words where they do not.
+- **Leave out a count you do not have** rather than writing `0`; absent means
+  not reported.
+- **`start_ms` is placed for you** when you report a step as it ends: it began
+  `duration_ms` before now. Give it yourself for a step you report later.
 - **`turn_id` defaults to the turn the call is made from**, which is right
   inside a speaking callback, including in its `finally`. Outside a turn, pass
   it, or the call raises `ValueError`.
-- **Refused before sending:** `Unsupported` when `can_report_usage` is false.
-  Check it first; a Voqalize that does not record usage would skip the frame.
+- **Refused before sending:** `Unsupported` when `can_report_steps` is false.
+  Check it first; a Voqalize that does not record steps would skip the frame.
 
 ## What a callback is handed
 
@@ -535,8 +537,8 @@ brain underneath. The voice core, `voqalize.sdk.voice`, holds everything about a
 voice turn that is not about one model: speech opened on the first word, tools
 run mid-sentence after the words before them, results filed for the next request
 unless the tool is marked, `max_tool_hops`, heard truth, the greeting in the
-history, the `TOOL_BUDGET_MS` warning, the `turn:` log line and the turn's
-`TurnUsage`. Each class below is that core plus one provider's layer, which
+history, the `TOOL_BUDGET_MS` warning, the `turn:` log line and a
+`TurnStep` for every model request and tool. Each class below is that core plus one provider's layer, which
 calls the model's API and keeps the conversation in the provider's own types.
 Subclass a layer, never the core.
 
@@ -572,7 +574,7 @@ class GeminiBrain:
         system_instruction: str,
         model: str = DEFAULT_MODEL,
         max_tool_hops: int = 6,
-        report_usage: bool = True,
+        report_steps: bool = True,
     ) -> None: ...
 
 class OpenAIBrain:
@@ -585,7 +587,7 @@ class OpenAIBrain:
         reasoning: str | None = None,
         options: Mapping[str, Any] | None = None,
         max_tool_hops: int = 6,
-        report_usage: bool = True,
+        report_steps: bool = True,
     ) -> None: ...
 
 class LiteLLMBrain:
@@ -597,7 +599,7 @@ class LiteLLMBrain:
         reasoning: str | None = None,
         options: Mapping[str, Any] | None = None,
         max_tool_hops: int = 6,
-        report_usage: bool = True,
+        report_steps: bool = True,
     ) -> None: ...
 ```
 
@@ -606,7 +608,7 @@ class LiteLLMBrain:
 | `system_instruction` | all | The prompt every request carries. |
 | `model` | all | The model every request names. Required on `OpenAIBrain` and `LiteLLMBrain`; `GeminiBrain` defaults it. On `LiteLLMBrain` it is LiteLLM's model string. |
 | `max_tool_hops` | all | How many times one turn may ask the model again for a marked tool's result. |
-| `report_usage` | all | Send each turn's `TurnUsage` to Voqalize. On by default; `False` keeps the numbers in your logs only. |
+| `report_steps` | all | Send a `TurnStep` to Voqalize for every model request and tool. On by default; `False` keeps the numbers in your logs only. |
 | `client` | Gemini, OpenAI | The provider's async client, with its keys. `LiteLLMBrain` has none: LiteLLM reads keys from the environment, or from `options`. |
 | `reasoning` | OpenAI, LiteLLM | The model's reasoning effort: `"none"`, `"low"`, `"medium"` or `"high"`, or `None` for the model's own default. |
 | `options` | OpenAI, LiteLLM | Passed as they are to every `responses.create` or `litellm.acompletion` call, for whatever the class does not name. |
@@ -733,8 +735,9 @@ exported from `voqalize.sdk`, because nothing there imports a model vendor.
 Every turn logs one `turn:` line per model loop, from the `voqalize.sdk.voice`
 logger: requests, tools run and how many were marked, whether the turn said
 nothing, the times, and the token counts summed over the turn's requests. Unless
-built with `report_usage=False`, the same counts go to Voqalize as a
-`TurnUsage` when `session.can_report_usage` is true.
+built with `report_steps=False`, every request and every tool also goes to
+Voqalize as a `TurnStep` when `session.can_report_steps` is true: the model
+request with its own token counts, the tool with its time.
 
 The tool declaration contract, the mark and the budget are in
 [Tools](/build/brain/tools/). Porting a brain you already have is
@@ -756,7 +759,7 @@ from voqalize.sdk.gemini_interactions import GeminiInteractionsBrain
 
 It is not on the voice core and is unchanged. It is installed with the `gemini`
 extra and takes `client`, `system_instruction`, `model` and `max_tool_hops`, with
-no `report_usage`: it sends no `TurnUsage`. It offers `tools`,
+no `report_steps`: it sends no `TurnStep`. It offers `tools`,
 `system_instruction`, `append_to_context` and `respond`, and none of
 `append_note`, `say_line` or `respond_with`.
 

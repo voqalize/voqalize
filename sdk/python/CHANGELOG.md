@@ -51,15 +51,21 @@ voice behaviour lives, under *Changed*.
   brain wrote itself (it takes its own finalize, so the model's next unit is
   paired correctly), and `respond_with(session, tools=ToolChoice.NONE |
   ToolChoice.only(name))` to ask again with the tools limited.
-- **What a turn cost, on the wire.** `TurnUsage` — model, provider, requests,
-  tool calls, input / cached input / cache-write / output / reasoning tokens,
-  time to the first token and to the first word — goes out after each model
-  loop, as the new `TurnUsage` envelope arm (16), when Voqalize advertises
-  `Capability.TURN_USAGE`. Counts only, never prices. On by default in every
-  model-backed brain; `report_usage=False` keeps the numbers in your logs.
-  A brain with its own loop sends the same with `session.report_usage(...)`
-  (`session.can_report_usage` first). The conformance driver advertises the
-  capability and keeps what arrives in `driver.usage`.
+- **What a turn did, on the wire.** `TurnStep` is one piece of work a turn
+  did: a model request, a tool, or the brain's own work such as a database
+  query. It carries `kind`, `name`, `provider` (the company whose meter ran),
+  `start_ms` and `duration_ms` on the turn's timeline, `first_output_ms`, and
+  `counts` — how much of what, by open names such as `input_tokens`,
+  `cached_input_tokens`, `output_tokens` or `rows`, with an absent name meaning
+  not reported. It is the new `TurnStep` envelope arm (16), sent when
+  Voqalize advertises `Capability.TURN_STEPS`. Facts about the work, never its
+  content, and counts, never prices. Every model-backed brain reports each
+  model request and each tool by default; `report_steps=False` keeps the
+  numbers in your logs. A brain reports its own work with
+  `session.report_step(TurnStep(...))` (`session.can_report_steps` first),
+  which places a step reported as it ends on the timeline for you. The
+  conformance driver advertises the capability and keeps what arrives in
+  `driver.steps`.
 
 ### Changed
 

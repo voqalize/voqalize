@@ -44,7 +44,7 @@ from .events import (
     SpeechChunk,
     SpeechEnd,
     SpeechStart,
-    TurnUsage,
+    TurnStep,
     UserIdle,
     UserMessage,
 )
@@ -70,7 +70,7 @@ __all__ = [
     "SpeechChunk",
     "SpeechEnd",
     "SpeechStart",
-    "TurnUsage",
+    "TurnStep",
     "Unsupported",
     "UserIdle",
     "UserMessage",

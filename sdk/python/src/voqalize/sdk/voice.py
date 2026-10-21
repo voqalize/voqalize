@@ -37,11 +37,11 @@ of speech goes into the context as it streams, then
 reply that generated three sentences and was cut after one is remembered as one —
 which is the only version the user and the model can both agree on.
 
-**Every turn reports what it cost.** One ``turn:`` log line per model loop, and,
-when Voqalize records it, one :class:`~voqalize.sdk.TurnUsage` on the wire with
-the same counts: requests, tools, tokens by kind and time to the first word.
-Counts, never prices. Build with ``report_usage=False`` to keep them off the wire;
-the log line stays.
+**Every turn reports what it did.** One ``turn:`` log line per model loop, and,
+when Voqalize records them, one :class:`~voqalize.sdk.TurnStep` on the wire for
+every model request and every tool: what ran, when, for how long, and for a
+model request its tokens by kind. Counts, never prices. Build with
+``report_steps=False`` to keep them off the wire; the log line stays.
 """
 
 from __future__ import annotations
@@ -57,7 +57,7 @@ from typing import Any, ClassVar, Literal
 from loguru import logger
 
 from .brain import Brain, Session
-from .events import Finalize, Speech, SpeechChunk, SpeechEnd, SpeechStart, TurnUsage, UserMessage
+from .events import Finalize, Speech, SpeechChunk, SpeechEnd, SpeechStart, TurnStep, UserMessage
 
 __all__ = [
     "TOOL_BUDGET_MS",
@@ -104,6 +104,17 @@ class ModelUsage:
     cache_write: int | None = None
     output: int | None = None
     reasoning: int | None = None
+
+    def counts(self) -> dict[str, int]:
+        """The reported counts under their wire names, leaving out the rest."""
+        named = {
+            "input_tokens": self.input,
+            "cached_input_tokens": self.cached_input,
+            "cache_write_tokens": self.cache_write,
+            "output_tokens": self.output,
+            "reasoning_tokens": self.reasoning,
+        }
+        return {name: n for name, n in named.items() if n is not None}
 
     def __add__(self, other: ModelUsage) -> ModelUsage:
         def add(a: int | None, b: int | None) -> int | None:
@@ -619,19 +630,19 @@ class VoiceCore[M, R](Brain):
     may not call a tool, so the model has to answer. Unmarked tools never ask
     again, so they never count.
 
-    ``report_usage`` sends each turn's :class:`~voqalize.sdk.TurnUsage` to
-    Voqalize, which keeps it in the call record. On by default; ``False`` keeps the
-    numbers in your logs only.
+    ``report_steps`` sends a :class:`~voqalize.sdk.TurnStep` to Voqalize for every
+    model request and every tool, which it keeps in the call record. On by
+    default; ``False`` keeps the numbers in your logs only.
     """
 
-    #: The name the turn log and :class:`~voqalize.sdk.TurnUsage` give the
-    #: provider. Set by each layer.
-    provider: ClassVar[str] = ""
+    #: The company whose meter a model step's counts ran on, as its
+    #: :class:`~voqalize.sdk.TurnStep` names it. Set by each layer.
+    provider: str = ""
 
-    def __init__(self, *, model: str, max_tool_hops: int = 6, report_usage: bool = True) -> None:
+    def __init__(self, *, model: str, max_tool_hops: int = 6, report_steps: bool = True) -> None:
         self._model = model
         self._max_tool_hops = max_tool_hops
-        self._report_usage = report_usage
+        self._report_steps = report_steps
         # The conversation, in the provider's own type, on purpose. What a brain
         # owes Voqalize is provider-neutral; what a brain says to a model is the
         # provider's, and a wrapper type in between is one more thing that has to
@@ -790,9 +801,10 @@ class VoiceCore[M, R](Brain):
         say them again. Once only: a model that leaks twice in a row is not
         converging, and a third request is more silence for the user to sit in.
 
-        When it ends — finished, cut by a barge-in, or failed — the turn logs one
-        ``turn:`` line and, unless built with ``report_usage=False``, sends its
-        :class:`~voqalize.sdk.TurnUsage`.
+        Each model request and each tool is reported as a
+        :class:`~voqalize.sdk.TurnStep` when it ends, unless built with
+        ``report_steps=False``, and when the turn ends — finished, cut by a
+        barge-in, or failed — it logs one ``turn:`` line.
         """
         return self._respond_turn(session, tools)
 
@@ -836,9 +848,13 @@ class VoiceCore[M, R](Brain):
                 stranded = False
                 # This request's usage, as reported so far: a running total.
                 hop_usage: ModelUsage | None = None
+                hop_started = time.monotonic()
+                hop_first: float | None = None
                 try:
                     async for chunk in self._model_stream(contents, request):
                         clock.mark_open()
+                        if hop_first is None:
+                            hop_first = time.monotonic()
                         if chunk.usage is not None:
                             hop_usage = chunk.usage
                         speak: list[str] = []
@@ -855,8 +871,11 @@ class VoiceCore[M, R](Brain):
                                 self._extend_unit(unit, part.raw)
                                 unit.called = True
                                 running = (unit, part.raw)
-                                tool = tool_map.get(self._call_name(part.call))
+                                name = self._call_name(part.call)
+                                tool = tool_map.get(name)
+                                tool_started = time.monotonic()
                                 self._file(unit, await self._run(tool, part.call))
+                                self._report(session, "tool", name, "", tool_started)
                                 running = None
                                 tally.calls += 1
                                 if tool is not None and _needs_result_now(tool):
@@ -899,6 +918,15 @@ class VoiceCore[M, R](Brain):
                             unit = None
                 finally:
                     tally.add(hop_usage)
+                    self._report(
+                        session,
+                        "model",
+                        self._model,
+                        self.provider,
+                        hop_started,
+                        first=hop_first,
+                        counts=(hop_usage or ModelUsage()).counts(),
+                    )
                 if unit is not None:
                     # The stream ended without finishing. Close the unit anyway: a
                     # SpeechStart with no SpeechEnd is a wire violation.
@@ -940,33 +968,37 @@ class VoiceCore[M, R](Brain):
                 # streaming: none of the call was heard.
                 self._strip(unit)
             _log_turn(self._model, tally, clock)
-            self._send_usage(session, tally, clock)
 
-    def _send_usage(self, session: Session, tally: _Tally, clock: _Clock) -> None:
-        """Send the turn's counts to Voqalize, if it records them and this brain
-        has not opted out. Never raises: the numbers are a record, not the call."""
-        if not self._report_usage or not getattr(session, "can_report_usage", False):
+    def _report(
+        self,
+        session: Session,
+        kind: str,
+        name: str,
+        provider: str,
+        started: float,
+        *,
+        first: float | None = None,
+        counts: dict[str, int] | None = None,
+    ) -> None:
+        """Send one step that started at ``started`` and ends now, if Voqalize
+        records them and this brain has not opted out. Never raises: the step is
+        a record, not the call."""
+        if not self._report_steps or not getattr(session, "can_report_steps", False):
             return
-        usage = tally.usage or ModelUsage()
+        now = time.monotonic()
         try:
-            session.report_usage(
-                TurnUsage(
-                    model=self._model,
-                    provider=self.provider,
-                    requests=tally.hops,
-                    input_tokens=usage.input,
-                    cached_input_tokens=usage.cached_input,
-                    cache_write_tokens=usage.cache_write,
-                    output_tokens=usage.output,
-                    reasoning_tokens=usage.reasoning,
-                    tool_calls=tally.calls,
-                    first_token_ms=clock.ms(clock.open),
-                    first_speech_ms=clock.ms(clock.speak),
-                    total_ms=clock.ms(time.monotonic()) or 0,
+            session.report_step(
+                TurnStep(
+                    kind=kind,
+                    name=name,
+                    provider=provider,
+                    duration_ms=round((now - started) * 1000),
+                    first_output_ms=None if first is None else round((first - started) * 1000),
+                    counts=counts or {},
                 )
             )
         except Exception:
-            logger.exception("turn: model={} could not report its usage", self._model)
+            logger.exception("turn: model={} could not report a {} step", self._model, kind)
 
     def _speak(self, unit: _Unit, pieces: list[str]) -> Iterator[Speech]:
         """Released text as speech, opening the unit on its first piece.

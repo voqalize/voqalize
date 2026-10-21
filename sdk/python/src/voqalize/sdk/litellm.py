@@ -58,10 +58,8 @@ class LiteLLMBrain(PortableBrain):
     ``reasoning_effort``, or left out when ``None``. ``options`` are passed to
     every ``litellm.acompletion`` call as they are — an ``api_key``, an
     ``api_base``, a ``temperature``. A setting the provider does not take is
-    dropped rather than refused. ``max_tool_hops`` and ``report_usage`` are the
+    dropped rather than refused. ``max_tool_hops`` and ``report_steps`` are the
     voice core's."""
-
-    provider = "litellm"
 
     def __init__(
         self,
@@ -71,16 +69,18 @@ class LiteLLMBrain(PortableBrain):
         reasoning: str | None = None,
         options: Mapping[str, Any] | None = None,
         max_tool_hops: int = 6,
-        report_usage: bool = True,
+        report_steps: bool = True,
     ) -> None:
         super().__init__(
             model=model,
             system_instruction=system_instruction,
             max_tool_hops=max_tool_hops,
-            report_usage=report_usage,
+            report_steps=report_steps,
         )
         self._reasoning = reasoning
         self._options = dict(options or {})
+        # LiteLLM routes; the company at the end of the route is the provider.
+        self.provider = _company(model)
 
     def _arguments(self, contents: list[Turn], request: Request) -> dict[str, Any]:
         """One ``litellm.acompletion`` call's arguments."""
@@ -165,6 +165,18 @@ class LiteLLMBrain(PortableBrain):
         if parts:
             yield ModelChunk(parts)
         yield ModelChunk(finished=True, usage=usage)
+
+
+# LiteLLM's route prefixes for the companies it names differently.
+_COMPANY = {"gemini": "google", "vertex_ai": "google", "azure": "microsoft", "bedrock": "amazon"}
+
+
+def _company(model: str) -> str:
+    """Whose meter a LiteLLM model string runs on, from its route prefix
+    (``"openai/responses/gpt-6-sol"`` is ``"openai"``). Empty when the string
+    names no route and LiteLLM is left to guess."""
+    prefix = model.split("/", 1)[0] if "/" in model else ""
+    return _COMPANY.get(prefix, prefix)
 
 
 def _messages(system: str, contents: list[Turn]) -> list[dict[str, Any]]:

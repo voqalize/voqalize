@@ -9,8 +9,8 @@ Three groups, and the split between them is the whole contract:
   whose position on the audio timeline is its meaning. Everything else — an
   action, a language switch, hanging up — is a method on the session.
 * **Reports** — :class:`Finalize` and :class:`Error`. What happened, after it
-  happened. :class:`TurnUsage` is the one report that goes the other way: what
-  a turn cost the brain's model, for :meth:`Session.report_usage`.
+  happened. :class:`TurnStep` is the one report that goes the other way: one
+  piece of work the brain did for a turn, for :meth:`Session.report_step`.
 
 Speech is bracketed because it can be cut mid-word: one ``SpeechStart`` …
 ``SpeechEnd`` pair is one *unit*, and a unit is the granularity at which Voqalize
@@ -21,6 +21,7 @@ brain can take speech back: ``session.cancel_speech`` names a unit by the
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -34,7 +35,7 @@ __all__ = [
     "SpeechChunk",
     "SpeechEnd",
     "SpeechStart",
-    "TurnUsage",
+    "TurnStep",
     "UserIdle",
     "UserMessage",
 ]
@@ -183,29 +184,32 @@ class Error:
 
 
 @dataclass(frozen=True)
-class TurnUsage:
-    """What one turn cost the brain's model, for :meth:`Session.report_usage`.
+class TurnStep:
+    """One piece of work the brain did for a turn, for :meth:`Session.report_step`:
+    a model request, a tool, a database query, an API or MCP call.
 
-    Counts and durations, summed over every model request the turn made, since
-    each request is billed for its whole prompt. A count the model's API did not
-    report is ``None``, never a guessed zero. There is no price: prices change on
-    dates nobody here controls, so cost is computed from these counts by whoever
-    reads them.
+    ``kind`` says what sort — ``"model"`` and ``"tool"`` are the ones the voice
+    brains report themselves; a brain names its own (``"database"``, ``"http"``,
+    ``"mcp"``). ``name`` says which one: the model, the tool, the table.
+    ``provider`` is the company whose meter the counts ran on, never a router in
+    between, and empty for the brain's own work.
 
-    ``input_tokens`` includes ``cached_input_tokens``. ``output_tokens`` is what
-    the model wrote as text or tool calls; ``reasoning_tokens`` is the thinking it
-    did on top, which nobody hears and the provider still bills.
+    ``start_ms`` is when it began, after the brain received the turn's stimulus.
+    Leave it ``None`` when reporting a step the moment it ends, and the session
+    places it: now, less ``duration_ms``.
+
+    ``counts`` is how much of what, by name. For a model request:
+    ``input_tokens`` (cached ones included), ``cached_input_tokens``,
+    ``cache_write_tokens``, ``output_tokens`` (text and tool calls) and
+    ``reasoning_tokens`` (thinking nobody hears and the provider still bills).
+    Leave out a count that was not reported rather than writing 0. Counts, never
+    prices, and never content: no prompt, no arguments, no result.
     """
 
-    model: str
-    provider: str
-    requests: int = 1
-    input_tokens: int | None = None
-    cached_input_tokens: int | None = None
-    cache_write_tokens: int | None = None
-    output_tokens: int | None = None
-    reasoning_tokens: int | None = None
-    tool_calls: int = 0
-    first_token_ms: int | None = None
-    first_speech_ms: int | None = None
-    total_ms: int = 0
+    kind: str
+    name: str
+    duration_ms: int
+    provider: str = ""
+    start_ms: int | None = None
+    first_output_ms: int | None = None
+    counts: Mapping[str, int] = field(default_factory=lambda: dict[str, int]())

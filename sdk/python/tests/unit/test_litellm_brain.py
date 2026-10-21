@@ -97,7 +97,7 @@ class _Guide(LiteLLMBrain):
 
 
 class _Session:
-    can_report_usage = False
+    can_report_steps = False
 
 
 async def _drain(brain: _Guide, text: str = "hello") -> list[str]:
@@ -205,3 +205,12 @@ def test_usage_counts_reasoning_and_cache_writes_apart() -> None:
     )
     usage = layer._usage(anthropic)  # pyright: ignore[reportPrivateUsage]
     assert (usage.cache_write, usage.reasoning, usage.output) == (700, None, 10)
+
+
+def test_the_provider_is_the_company_at_the_end_of_the_route() -> None:
+    company = layer._company  # pyright: ignore[reportPrivateUsage]
+    assert company("openai/responses/gpt-6-sol") == "openai"
+    assert company("anthropic/claude-haiku-5-5") == "anthropic"
+    assert company("gemini/gemini-3.5-flash") == "google"
+    assert company("vertex_ai/gemini-3.5-flash") == "google"
+    assert company("gpt-6-sol") == ""
