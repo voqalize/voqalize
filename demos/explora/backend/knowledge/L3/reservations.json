@@ -1,0 +1,1553 @@
+{
+ "site": "https://reservations.explora.com/ (302 -> /ibe/paso1). Art2Fly IBE, server-rendered PHP-style pages on nginx/1.30.2. Every step is a full page load (window.__mark lost); only nights loading is AJAX.",
+ "explored": "2026-10-21",
+ "framework": {
+  "jquery": "3.7.1",
+  "jquery_ui": "1.14.1 (datepicker)",
+  "jquery_validate": "1.21.0",
+  "select2": "4.0.13 loaded but not applied to these selects",
+  "magnific_popup": "1.1.0 (paso2 add-room iframe popup)",
+  "angular": false,
+  "vue": false,
+  "react": false,
+  "third_party": "GTM GTM-WVCWG8, GA/gtag, Facebook pixel, Clarity, Bing UET, LinkedIn, Sojern, Ensighten, CallTrackingMetrics (rewrites phone numbers), OptinMonster api, Asksuite pixel (no chat widget seen), Sirdata consentframework CMP (no banner shown in our session)"
+ },
+ "language": {
+  "cookie": "lang=EN|ES (path=/, 1 year, set by server on first visit)",
+  "switch": "No language UI on this subdomain. Use query ?language=ES or ?language=EN (uppercase; sticky for the browser session) or set cookie lang=ES. ?lang=ES and lowercase ?language=es do nothing.",
+  "es_strings": {
+   "paso1_h2": "DETALLES DEL VIAJE",
+   "send_button": "ENVIAR MENSAJE",
+   "labels": [
+    "Título",
+    "Nombre",
+    "Apellido",
+    "Email",
+    "Teléfono",
+    "Nacionalidad",
+    "Mensaje"
+   ]
+  },
+  "note": "Expedition page title (e.g. ICELAND EXPEDITION) stays English in ES; hotel labels translate (e.g. 'Torres del Paine - Reserva de Conservacion, Chile')."
+ },
+ "hotels": [
+  {
+   "value": "ECFT",
+   "label": "El Calafate, Patagonia Argentina",
+   "group": "New hotels (Opening Dec 2026)",
+   "flow": "booking"
+  },
+  {
+   "value": "ERTP",
+   "label": "Torres del Paine - Conservation Reserve, Chile",
+   "group": "New hotels (Opening Dec 2026)",
+   "flow": "booking"
+  },
+  {
+   "value": "EATA",
+   "label": "Atacama, Chile",
+   "group": "Hotels",
+   "flow": "booking"
+  },
+  {
+   "value": "ERAP",
+   "label": "Easter Island, Chile",
+   "group": "Hotels",
+   "flow": "booking"
+  },
+  {
+   "value": "EPAT",
+   "label": "Torres del Paine, Patagonia Chile",
+   "group": "Hotels",
+   "flow": "booking"
+  },
+  {
+   "value": "EPNP",
+   "label": "Parque Nacional Patagonia, Chile",
+   "group": "Hotels",
+   "flow": "booking"
+  },
+  {
+   "value": "EVAL",
+   "label": "Machu Picchu & Sacred Valley, Peru",
+   "group": "Hotels",
+   "flow": "booking"
+  },
+  {
+   "value": "ECHA",
+   "label": "El Chaltén, Patagonia Argentina",
+   "group": "Hotels",
+   "flow": "booking"
+  },
+  {
+   "value": "PATA",
+   "label": "Atacama & Uyuni (Chile to Bolivia)",
+   "group": "Travesias",
+   "flow": "booking"
+  },
+  {
+   "value": "PUYU",
+   "label": "Uyuni & Atacama (Bolivia to Chile)",
+   "group": "Travesias",
+   "flow": "booking"
+  },
+  {
+   "value": "XICE",
+   "label": "Iceland Expedition",
+   "group": "Expeditions",
+   "flow": "enquiry"
+  },
+  {
+   "value": "XICW",
+   "label": "Iceland Winter Expedition",
+   "group": "Expeditions",
+   "flow": "enquiry"
+  },
+  {
+   "value": "XSCM",
+   "label": "Sacred Mountains Expedition",
+   "group": "Expeditions",
+   "flow": "enquiry"
+  },
+  {
+   "value": "XTFG",
+   "label": "Tierra del Fuego Expedition",
+   "group": "Expeditions",
+   "flow": "enquiry"
+  }
+ ],
+ "nationalities": [
+  {
+   "value": "",
+   "label": ""
+  },
+  {
+   "value": "AF",
+   "label": "Afghanistan"
+  },
+  {
+   "value": "AL",
+   "label": "Albania"
+  },
+  {
+   "value": "DZ",
+   "label": "Algeria"
+  },
+  {
+   "value": "AS",
+   "label": "American Samoa"
+  },
+  {
+   "value": "AD",
+   "label": "Andorra"
+  },
+  {
+   "value": "AO",
+   "label": "Angola"
+  },
+  {
+   "value": "AI",
+   "label": "Anguilla/St Kitts"
+  },
+  {
+   "value": "AQ",
+   "label": "Antarctica"
+  },
+  {
+   "value": "AG",
+   "label": "Antigua and Barbuda"
+  },
+  {
+   "value": "AR",
+   "label": "Argentina"
+  },
+  {
+   "value": "AM",
+   "label": "Armenia"
+  },
+  {
+   "value": "AW",
+   "label": "Aruba"
+  },
+  {
+   "value": "AU",
+   "label": "Australia"
+  },
+  {
+   "value": "AT",
+   "label": "Austria"
+  },
+  {
+   "value": "AZ",
+   "label": "Azerbaijan"
+  },
+  {
+   "value": "BS",
+   "label": "Bahamas"
+  },
+  {
+   "value": "BH",
+   "label": "Bahrain"
+  },
+  {
+   "value": "BD",
+   "label": "Bangladesh"
+  },
+  {
+   "value": "BB",
+   "label": "Barbados"
+  },
+  {
+   "value": "BY",
+   "label": "Belarus"
+  },
+  {
+   "value": "BE",
+   "label": "Belgium"
+  },
+  {
+   "value": "BZ",
+   "label": "Belize"
+  },
+  {
+   "value": "BJ",
+   "label": "Benin"
+  },
+  {
+   "value": "BM",
+   "label": "Bermuda"
+  },
+  {
+   "value": "BT",
+   "label": "Bhutan"
+  },
+  {
+   "value": "BO",
+   "label": "Bolivia"
+  },
+  {
+   "value": "BA",
+   "label": "Bosnia Herzegovina"
+  },
+  {
+   "value": "BW",
+   "label": "Botswana"
+  },
+  {
+   "value": "BV",
+   "label": "Bouvet Island"
+  },
+  {
+   "value": "BR",
+   "label": "Brazil"
+  },
+  {
+   "value": "IO",
+   "label": "British Indian Ocean Territory"
+  },
+  {
+   "value": "BN",
+   "label": "Brunei Darussalam"
+  },
+  {
+   "value": "BG",
+   "label": "Bulgaria"
+  },
+  {
+   "value": "BF",
+   "label": "Burkina Fasa"
+  },
+  {
+   "value": "BI",
+   "label": "Burundi"
+  },
+  {
+   "value": "KH",
+   "label": "Cambodia"
+  },
+  {
+   "value": "CM",
+   "label": "Cameroon"
+  },
+  {
+   "value": "CA",
+   "label": "Canada"
+  },
+  {
+   "value": "CV",
+   "label": "Cape Verde"
+  },
+  {
+   "value": "KY",
+   "label": "Cayman Islands"
+  },
+  {
+   "value": "CF",
+   "label": "Central African Republic"
+  },
+  {
+   "value": "TD",
+   "label": "Chad"
+  },
+  {
+   "value": "CL",
+   "label": "Chile"
+  },
+  {
+   "value": "CN",
+   "label": "China"
+  },
+  {
+   "value": "CX",
+   "label": "Christmas Island"
+  },
+  {
+   "value": "CC",
+   "label": "Cocos (Keeling) Islands"
+  },
+  {
+   "value": "CO",
+   "label": "Colombia"
+  },
+  {
+   "value": "KM",
+   "label": "Comoros"
+  },
+  {
+   "value": "CG",
+   "label": "Congo"
+  },
+  {
+   "value": "AL",
+   "label": "Congo, The Democratic Republic of the"
+  },
+  {
+   "value": "CK",
+   "label": "Cook Island"
+  },
+  {
+   "value": "CR",
+   "label": "Costa Rica"
+  },
+  {
+   "value": "HR",
+   "label": "Croatia"
+  },
+  {
+   "value": "CU",
+   "label": "Cuba"
+  },
+  {
+   "value": "CY",
+   "label": "Cyprus"
+  },
+  {
+   "value": "CZ",
+   "label": "Czech Republic"
+  },
+  {
+   "value": "DK",
+   "label": "Denmark"
+  },
+  {
+   "value": "DJ",
+   "label": "Djibouti"
+  },
+  {
+   "value": "DM",
+   "label": "Dominica"
+  },
+  {
+   "value": "DO",
+   "label": "Dominican Republic"
+  },
+  {
+   "value": "TP",
+   "label": "East Timor"
+  },
+  {
+   "value": "EC",
+   "label": "Ecuador"
+  },
+  {
+   "value": "EG",
+   "label": "Egypt"
+  },
+  {
+   "value": "SV",
+   "label": "El Salvador"
+  },
+  {
+   "value": "GQ",
+   "label": "Equatorial Guinea"
+  },
+  {
+   "value": "ER",
+   "label": "Eritrea"
+  },
+  {
+   "value": "EE",
+   "label": "Estonia"
+  },
+  {
+   "value": "ET",
+   "label": "Ethiopia"
+  },
+  {
+   "value": "FK",
+   "label": "Falkland Islands"
+  },
+  {
+   "value": "FO",
+   "label": "Faroe Islands"
+  },
+  {
+   "value": "FJ",
+   "label": "Fiji"
+  },
+  {
+   "value": "FI",
+   "label": "Finland"
+  },
+  {
+   "value": "FR",
+   "label": "France"
+  },
+  {
+   "value": "FX",
+   "label": "France"
+  },
+  {
+   "value": "GF",
+   "label": "French Guiana"
+  },
+  {
+   "value": "PF",
+   "label": "French Polynesia"
+  },
+  {
+   "value": "TF",
+   "label": "French Souther Territories"
+  },
+  {
+   "value": "GA",
+   "label": "Gabon"
+  },
+  {
+   "value": "GM",
+   "label": "Gambia"
+  },
+  {
+   "value": "GE",
+   "label": "Georgia"
+  },
+  {
+   "value": "DE",
+   "label": "Germany"
+  },
+  {
+   "value": "GH",
+   "label": "Ghana"
+  },
+  {
+   "value": "GI",
+   "label": "Gibraltar"
+  },
+  {
+   "value": "GB",
+   "label": "Great Britain"
+  },
+  {
+   "value": "GR",
+   "label": "Greece"
+  },
+  {
+   "value": "GL",
+   "label": "Greenland"
+  },
+  {
+   "value": "GD",
+   "label": "Grenada"
+  },
+  {
+   "value": "GP",
+   "label": "Guadeloupe/St Martin"
+  },
+  {
+   "value": "GU",
+   "label": "Guam"
+  },
+  {
+   "value": "GT",
+   "label": "Guatemala"
+  },
+  {
+   "value": "GN",
+   "label": "Guinea"
+  },
+  {
+   "value": "GW",
+   "label": "Guinea Bissau"
+  },
+  {
+   "value": "GY",
+   "label": "Guyana"
+  },
+  {
+   "value": "HT",
+   "label": "Haiti"
+  },
+  {
+   "value": "HM",
+   "label": "Heard and McDonald Islands"
+  },
+  {
+   "value": "HN",
+   "label": "Honduras"
+  },
+  {
+   "value": "HK",
+   "label": "Hong Kong"
+  },
+  {
+   "value": "HU",
+   "label": "Hungary"
+  },
+  {
+   "value": "IS",
+   "label": "Iceland"
+  },
+  {
+   "value": "IN",
+   "label": "India"
+  },
+  {
+   "value": "ID",
+   "label": "Indonesia"
+  },
+  {
+   "value": "IR",
+   "label": "Iran"
+  },
+  {
+   "value": "IQ",
+   "label": "Iraq"
+  },
+  {
+   "value": "IE",
+   "label": "Ireland"
+  },
+  {
+   "value": "IM",
+   "label": "Isle Of Man"
+  },
+  {
+   "value": "IL",
+   "label": "Israel"
+  },
+  {
+   "value": "IT",
+   "label": "Italy"
+  },
+  {
+   "value": "JM",
+   "label": "Jamaica"
+  },
+  {
+   "value": "JP",
+   "label": "Japan"
+  },
+  {
+   "value": "JO",
+   "label": "Jordan"
+  },
+  {
+   "value": "KZ",
+   "label": "Kazakhstan"
+  },
+  {
+   "value": "KE",
+   "label": "Kenya"
+  },
+  {
+   "value": "KI",
+   "label": "Kiribati"
+  },
+  {
+   "value": "KR",
+   "label": "Korea, Republic Of"
+  },
+  {
+   "value": "KW",
+   "label": "Kuwait"
+  },
+  {
+   "value": "KG",
+   "label": "Kyrgzstan"
+  },
+  {
+   "value": "LA",
+   "label": "Laos"
+  },
+  {
+   "value": "LV",
+   "label": "Latvia"
+  },
+  {
+   "value": "LB",
+   "label": "Lebanon"
+  },
+  {
+   "value": "LS",
+   "label": "Lesotho"
+  },
+  {
+   "value": "LR",
+   "label": "Liberia"
+  },
+  {
+   "value": "LY",
+   "label": "Libyan Arab Jamahiriya"
+  },
+  {
+   "value": "LI",
+   "label": "Liechtenstein"
+  },
+  {
+   "value": "LT",
+   "label": "Lithuania"
+  },
+  {
+   "value": "LU",
+   "label": "Luxembourg"
+  },
+  {
+   "value": "MO",
+   "label": "Macau"
+  },
+  {
+   "value": "MK",
+   "label": "Macedonia"
+  },
+  {
+   "value": "MG",
+   "label": "Madagascar"
+  },
+  {
+   "value": "MW",
+   "label": "Malawi"
+  },
+  {
+   "value": "MY",
+   "label": "Malaysia"
+  },
+  {
+   "value": "MV",
+   "label": "Maldives"
+  },
+  {
+   "value": "ML",
+   "label": "Mali"
+  },
+  {
+   "value": "MT",
+   "label": "Malta"
+  },
+  {
+   "value": "MH",
+   "label": "Marshall Islands"
+  },
+  {
+   "value": "MQ",
+   "label": "Martinique"
+  },
+  {
+   "value": "MR",
+   "label": "Mauritania"
+  },
+  {
+   "value": "MU",
+   "label": "Mauritius"
+  },
+  {
+   "value": "YT",
+   "label": "Mayotte"
+  },
+  {
+   "value": "MX",
+   "label": "Mexico"
+  },
+  {
+   "value": "FM",
+   "label": "Micronesia, Federated States of"
+  },
+  {
+   "value": "MI",
+   "label": "Midway Islands"
+  },
+  {
+   "value": "MD",
+   "label": "Moldova"
+  },
+  {
+   "value": "MC",
+   "label": "Monaco"
+  },
+  {
+   "value": "MN",
+   "label": "Mongolia"
+  },
+  {
+   "value": "MS",
+   "label": "Montserrat"
+  },
+  {
+   "value": "MA",
+   "label": "Morocco"
+  },
+  {
+   "value": "MZ",
+   "label": "Mozambique"
+  },
+  {
+   "value": "MM",
+   "label": "Myanmar"
+  },
+  {
+   "value": "NA",
+   "label": "Namibia"
+  },
+  {
+   "value": "NR",
+   "label": "Nauru"
+  },
+  {
+   "value": "NP",
+   "label": "Nepal"
+  },
+  {
+   "value": "NL",
+   "label": "Netherlands"
+  },
+  {
+   "value": "AN",
+   "label": "Netherlands Antilles"
+  },
+  {
+   "value": "NC",
+   "label": "New Caledonia"
+  },
+  {
+   "value": "NZ",
+   "label": "New Zealand"
+  },
+  {
+   "value": "NI",
+   "label": "Nicaragua"
+  },
+  {
+   "value": "NE",
+   "label": "Niger"
+  },
+  {
+   "value": "NG",
+   "label": "Nigeria"
+  },
+  {
+   "value": "NU",
+   "label": "Niue"
+  },
+  {
+   "value": "NF",
+   "label": "Norfolk Island"
+  },
+  {
+   "value": "MP",
+   "label": "Northern Mariana Islands"
+  },
+  {
+   "value": "NO",
+   "label": "Norway"
+  },
+  {
+   "value": "OM",
+   "label": "Oman"
+  },
+  {
+   "value": "PK",
+   "label": "Pakistan"
+  },
+  {
+   "value": "PW",
+   "label": "Palau"
+  },
+  {
+   "value": "PA",
+   "label": "Panama"
+  },
+  {
+   "value": "PG",
+   "label": "Papua New Guinea"
+  },
+  {
+   "value": "PY",
+   "label": "Paraguay"
+  },
+  {
+   "value": "PE",
+   "label": "Peru"
+  },
+  {
+   "value": "PH",
+   "label": "Philippines"
+  },
+  {
+   "value": "PN",
+   "label": "Pitcairn"
+  },
+  {
+   "value": "PL",
+   "label": "Poland"
+  },
+  {
+   "value": "PT",
+   "label": "Portugal"
+  },
+  {
+   "value": "PR",
+   "label": "Puerto Rico"
+  },
+  {
+   "value": "QA",
+   "label": "Qatar"
+  },
+  {
+   "value": "RE",
+   "label": "Reunion"
+  },
+  {
+   "value": "RO",
+   "label": "Romania"
+  },
+  {
+   "value": "RU",
+   "label": "Russia"
+  },
+  {
+   "value": "RQ",
+   "label": "Russian Federation"
+  },
+  {
+   "value": "RW",
+   "label": "Rwanda"
+  },
+  {
+   "value": "SH",
+   "label": "Saint Helena"
+  },
+  {
+   "value": "KN",
+   "label": "Saint Kitts and Nevis"
+  },
+  {
+   "value": "LC",
+   "label": "Saint Lucia"
+  },
+  {
+   "value": "PM",
+   "label": "Saint Pierre And Miquelon"
+  },
+  {
+   "value": "VC",
+   "label": "Saint Vincent And The Grenadines"
+  },
+  {
+   "value": "WS",
+   "label": "Samoa"
+  },
+  {
+   "value": "SM",
+   "label": "San Marino"
+  },
+  {
+   "value": "ST",
+   "label": "Sao Tome and Principe"
+  },
+  {
+   "value": "SA",
+   "label": "Saudi Arabia"
+  },
+  {
+   "value": "SX",
+   "label": "Scotland"
+  },
+  {
+   "value": "SN",
+   "label": "Senegal"
+  },
+  {
+   "value": "CS",
+   "label": "Serbia and Montenegro"
+  },
+  {
+   "value": "SC",
+   "label": "Seychelles"
+  },
+  {
+   "value": "SL",
+   "label": "Sierra Leone"
+  },
+  {
+   "value": "SG",
+   "label": "Singapore"
+  },
+  {
+   "value": "SK",
+   "label": "Slovakia"
+  },
+  {
+   "value": "SI",
+   "label": "Slovenia"
+  },
+  {
+   "value": "SB",
+   "label": "Solomon Islands"
+  },
+  {
+   "value": "SO",
+   "label": "Somalia"
+  },
+  {
+   "value": "ZA",
+   "label": "South Africa"
+  },
+  {
+   "value": "GS",
+   "label": "South Georgia and the South Sandwich Islands"
+  },
+  {
+   "value": "ES",
+   "label": "Spain"
+  },
+  {
+   "value": "LK",
+   "label": "Sri Lanka"
+  },
+  {
+   "value": "SD",
+   "label": "Sudan"
+  },
+  {
+   "value": "SR",
+   "label": "Suriname"
+  },
+  {
+   "value": "SJ",
+   "label": "Svalbard and Jan Mayen Islands"
+  },
+  {
+   "value": "SZ",
+   "label": "Swaziland"
+  },
+  {
+   "value": "SE",
+   "label": "Sweden"
+  },
+  {
+   "value": "CH",
+   "label": "Switzerland"
+  },
+  {
+   "value": "SY",
+   "label": "Syria"
+  },
+  {
+   "value": "TA",
+   "label": "TAHITI"
+  },
+  {
+   "value": "TW",
+   "label": "Taiwan"
+  },
+  {
+   "value": "TJ",
+   "label": "Tajikistan"
+  },
+  {
+   "value": "TZ",
+   "label": "Tanzania"
+  },
+  {
+   "value": "TH",
+   "label": "Thailand"
+  },
+  {
+   "value": "TG",
+   "label": "Togo"
+  },
+  {
+   "value": "TK",
+   "label": "Tokelau"
+  },
+  {
+   "value": "TO",
+   "label": "Tonga"
+  },
+  {
+   "value": "TT",
+   "label": "Trinidad And Tobago"
+  },
+  {
+   "value": "TN",
+   "label": "Tunisia"
+  },
+  {
+   "value": "TR",
+   "label": "Turkey"
+  },
+  {
+   "value": "TM",
+   "label": "Turkmenistan"
+  },
+  {
+   "value": "TX",
+   "label": "Turks and Caicos Islands"
+  },
+  {
+   "value": "TV",
+   "label": "Tuvalu"
+  },
+  {
+   "value": "UG",
+   "label": "Uganda"
+  },
+  {
+   "value": "UA",
+   "label": "Ukraine"
+  },
+  {
+   "value": "AE",
+   "label": "United Arab Emirates"
+  },
+  {
+   "value": "US",
+   "label": "United States"
+  },
+  {
+   "value": "UM",
+   "label": "United States Minor Outlying Islands"
+  },
+  {
+   "value": "UY",
+   "label": "Uruguay"
+  },
+  {
+   "value": "UZ",
+   "label": "Uzbekistan"
+  },
+  {
+   "value": "VU",
+   "label": "Vanuatu"
+  },
+  {
+   "value": "VA",
+   "label": "Vatican City State"
+  },
+  {
+   "value": "VE",
+   "label": "Venezuela"
+  },
+  {
+   "value": "VN",
+   "label": "Vietnam"
+  },
+  {
+   "value": "VG",
+   "label": "Virgin Islands, British"
+  },
+  {
+   "value": "VI",
+   "label": "Virgin Islands, US"
+  },
+  {
+   "value": "WF",
+   "label": "Wallis and Futuna Islands"
+  },
+  {
+   "value": "EH",
+   "label": "Western Sahara"
+  },
+  {
+   "value": "YE",
+   "label": "Yemen"
+  },
+  {
+   "value": "ZR",
+   "label": "Zaire"
+  },
+  {
+   "value": "ZM",
+   "label": "Zambia"
+  },
+  {
+   "value": "ZW",
+   "label": "Zimbabwe"
+  }
+ ],
+ "nationalities_notes": "244 options incl. blank first. Same list on the expeditions form and paso3. Duplicate values: 'AL' = Albania AND 'Congo, The Democratic Republic of the' (select by value gives Albania); 'FR' and 'FX' are both 'France'. Use 'US' United States, 'GB' Great Britain, 'IN' India, 'CL' Chile.",
+ "steps": [
+  {
+   "id": "paso1",
+   "url": "/ibe/paso1  (after hotel change: /ibe/paso1?session_id=&hotel_code=EATA&check_in_date=YYYY-MM-DD&nights=)",
+   "title": "Reservations In Explora hotels. Best Expedition Company",
+   "heading": "PLEASE PROVIDE YOUR TRAVEL DETAILS",
+   "form": {
+    "selector": "#form_paso1",
+    "action": "paso2",
+    "method": "GET"
+   },
+   "fields": [
+    {
+     "name": "hotel_code",
+     "label": "1. Select HOTEL / TRAVESIA",
+     "selector": "#destination",
+     "type": "native <select> with <optgroup>s",
+     "required": true,
+     "options": [
+      {
+       "value": "",
+       "label": "Select destination"
+      },
+      {
+       "value": "ECFT",
+       "label": "El Calafate, Patagonia Argentina"
+      },
+      {
+       "value": "ERTP",
+       "label": "Torres del Paine - Conservation Reserve, Chile"
+      },
+      {
+       "value": "EATA",
+       "label": "Atacama, Chile"
+      },
+      {
+       "value": "ERAP",
+       "label": "Easter Island, Chile"
+      },
+      {
+       "value": "EPAT",
+       "label": "Torres del Paine, Patagonia Chile"
+      },
+      {
+       "value": "EPNP",
+       "label": "Parque Nacional Patagonia, Chile"
+      },
+      {
+       "value": "EVAL",
+       "label": "Machu Picchu & Sacred Valley, Peru"
+      },
+      {
+       "value": "ECHA",
+       "label": "El Chaltén, Patagonia Argentina"
+      },
+      {
+       "value": "PATA",
+       "label": "Atacama & Uyuni (Chile to Bolivia)"
+      },
+      {
+       "value": "PUYU",
+       "label": "Uyuni & Atacama (Bolivia to Chile)"
+      },
+      {
+       "value": "XICE",
+       "label": "Iceland Expedition"
+      },
+      {
+       "value": "XICW",
+       "label": "Iceland Winter Expedition"
+      },
+      {
+       "value": "XSCM",
+       "label": "Sacred Mountains Expedition"
+      },
+      {
+       "value": "XTFG",
+       "label": "Tierra del Fuego Expedition"
+      }
+     ],
+     "notes": "Inline onchange=\"this.form.action='paso1'; submit();\" -> any change does a FULL PAGE RELOAD to /ibe/paso1?...&hotel_code=X, which repaints the calendar with that hotel's availability (lista_disponibles). Expedition codes (X*) return 302 -> /ibe/expeditions?expedition_request=X. Setting the value with the native setter + dispatching 'change' fires the inline handler; a plain .value= without the event does not reload."
+    },
+    {
+     "name": "check_in_date",
+     "label": "2. SELECT ARRIVAL DATE",
+     "selector": "#check_in_date (hidden input, altField) + #check_in_calendar (inline jQuery UI datepicker span)",
+     "type": "hidden",
+     "required": true,
+     "notes": "Format yy-mm-dd (2026-11-06). Hidden so jQuery Validate ignores it (default ignore ':hidden'); it is pre-filled with tomorrow. Server-side value is what counts."
+    },
+    {
+     "name": "nights",
+     "label": "3. Select the number of nights of your stay",
+     "selector": "#nights",
+     "type": "native <select>",
+     "required": true,
+     "options": [
+      {
+       "value": "",
+       "label": "0 (placeholder before a date is picked)"
+      }
+     ],
+     "notes": "Populated by AJAX GET /ibe/get_stay?dt=YYYY-MM-DD&hc=CODE&session_id= (JSON [{nights,amount,currency,recommended_stay?}]). Option value = nights int, label '5 nights (from US$ 1,140 / night )'. The recommended_stay item is auto-selected. Observed ranges: EATA 3-6 or 3-8 depending on date. [{\"nights\":0}] => single 'Not available' option with value 0. Site copy: 'programs two nights or longer'. Validation message 'Required Field'. No adults/children/rooms on paso1."
+    }
+   ],
+   "buttons": [
+    {
+     "text": "Continue",
+     "selector": "#submit-button",
+     "notes": "jQuery Validate submitHandler disables it 3 s then form.submit() -> GET /ibe/paso2?session_id=&hotel_code=..&check_in_date=..&nights=.."
+    }
+   ],
+   "screenshots": [
+    "paso1.png",
+    "paso1_date.png",
+    "paso1_ready.png"
+   ]
+  },
+  {
+   "id": "paso2",
+   "url": "/ibe/paso2?session_id=&hotel_code=EATA&check_in_date=2026-11-06&nights=5",
+   "title": "Rooms",
+   "heading": "<HOTEL> / YOUR SEARCH (rates table)",
+   "fields": [
+    {
+     "name": "nadults",
+     "label": "Room for",
+     "selector": "#room_<ROOM>_nadults (e.g. #room_YA_nadults, #room_SC_nadults)",
+     "type": "native <select>",
+     "required": true,
+     "options": [
+      {
+       "value": "1",
+       "label": "1 Traveler"
+      },
+      {
+       "value": "2",
+       "label": "2 Travelers"
+      }
+     ],
+     "notes": "onchange adjust_price()"
+    },
+    {
+     "name": "bedtype",
+     "label": "Bed type",
+     "selector": "#room_<ROOM>_bedtype (only some rooms)",
+     "type": "native <select>",
+     "required": true,
+     "options": [
+      {
+       "value": "",
+       "label": "Select"
+      },
+      {
+       "value": "K",
+       "label": "King Bed"
+      },
+      {
+       "value": "T",
+       "label": "Twin Bed"
+      }
+     ],
+     "notes": "'*Required' message"
+    }
+   ],
+   "buttons": [
+    {
+     "text": "Add this room",
+     "selector": "form[action$='add_room'] button.room-select[name=FareFamily]",
+     "notes": "Each room is its own GET form to add_room; a global jQuery(document).submit handler opens /ibe/add_room?... in a Magnific Popup iframe. Popup has 'I'm ready. Go to check-out' (button.checkout, POST paso3), 'Add more rooms', 'Add another Explora destination'."
+    }
+   ],
+   "screenshots": [
+    "paso2.png",
+    "paso2_popup.png"
+   ]
+  },
+  {
+   "id": "paso3",
+   "url": "/ibe/paso3?session_id=si..._XXXX (POST)",
+   "title": "Contact info",
+   "form": {
+    "selector": "#goandpay",
+    "action": "paso4?session_id=...",
+    "method": "POST"
+   },
+   "fields": [
+    {
+     "name": "title",
+     "selector": "#goandpay select[name=title]",
+     "type": "select",
+     "required": true,
+     "options": [
+      {
+       "value": "",
+       "label": ""
+      },
+      {
+       "value": "1",
+       "label": "Mr."
+      },
+      {
+       "value": "2",
+       "label": "Ms."
+      }
+     ]
+    },
+    {
+     "name": "firstname",
+     "selector": "#goandpay input[name=firstname]",
+     "type": "text",
+     "required": true,
+     "notes": "minlength 2, letters only /^[a-zA-Z\\s]*$/ (accents rejected!). Msg 'Please enter your first name'"
+    },
+    {
+     "name": "lastname",
+     "selector": "#goandpay input[name=lastname]",
+     "type": "text",
+     "required": true,
+     "notes": "same rules as firstname"
+    },
+    {
+     "name": "email",
+     "selector": "#goandpay input[name=email]",
+     "type": "email",
+     "required": true
+    },
+    {
+     "name": "phone",
+     "selector": "#goandpay input[name=phone]",
+     "type": "text",
+     "required": true,
+     "notes": "minlength 7, free text, no intl-tel-input"
+    },
+    {
+     "name": "country",
+     "label": "Nationality",
+     "selector": "#goandpay select[name=country]",
+     "type": "select",
+     "required": true,
+     "notes": "same 244-option list"
+    },
+    {
+     "name": "terms",
+     "selector": "#accept-tyc",
+     "type": "checkbox",
+     "required": true
+    },
+    {
+     "name": "opt-in",
+     "selector": "#receive-info",
+     "type": "checkbox",
+     "required": false,
+     "notes": "pre-checked"
+    },
+    {
+     "name": "guarantee",
+     "selector": "#FPA100",
+     "type": "radio",
+     "required": true
+    },
+    {
+     "name": "fop",
+     "selector": "#webpay / #flywire",
+     "type": "radio",
+     "required": true
+    }
+   ],
+   "buttons": [
+    {
+     "text": "Review your order and pay",
+     "selector": "#goandpay button.review"
+    }
+   ],
+   "notes": "This is the paid-booking path (paso4 payment, paso5 confirmation). NOT the enquiry form; never submit. No reCAPTCHA here.",
+   "screenshots": [
+    "paso3.png"
+   ]
+  },
+  {
+   "id": "expeditions",
+   "url": "/ibe/expeditions?expedition_request=XICE|XICW|XSCM|XTFG",
+   "title": "(same site title)",
+   "heading": "<EXPEDITION NAME> (h2 in #titulo)",
+   "form": {
+    "selector": "#form-expeditions",
+    "action": "(none: posts to the current URL)",
+    "method": "POST (full page navigation, not AJAX)"
+   },
+   "fields": [
+    {
+     "name": "expedition_name",
+     "selector": "#form-expeditions input[name=expedition_name]",
+     "type": "hidden",
+     "required": false,
+     "notes": "e.g. 'Iceland Expedition'"
+    },
+    {
+     "name": "expedition_id",
+     "selector": "#form-expeditions input[name=expedition_id]",
+     "type": "hidden",
+     "required": false,
+     "notes": "e.g. XICE"
+    },
+    {
+     "name": "title",
+     "label": "Title",
+     "selector": "#form-expeditions select[name=title]",
+     "type": "select",
+     "required": true,
+     "options": [
+      {
+       "value": "Mr.",
+       "label": "Mr."
+      },
+      {
+       "value": "Ms.",
+       "label": "Ms."
+      }
+     ],
+     "notes": "No value attrs; value == text. Defaults to Mr."
+    },
+    {
+     "name": "firstname",
+     "label": "First Name",
+     "selector": "#form-expeditions input[name=firstname]",
+     "type": "text",
+     "required": true
+    },
+    {
+     "name": "lastname",
+     "label": "Last Name",
+     "selector": "#form-expeditions input[name=lastname]",
+     "type": "text",
+     "required": true
+    },
+    {
+     "name": "email",
+     "label": "Email",
+     "selector": "#form-expeditions input[name=email]",
+     "type": "email",
+     "required": true,
+     "notes": "type=email => jQuery Validate adds email rule: 'Please enter a valid email address.'"
+    },
+    {
+     "name": "phone",
+     "label": "Phone",
+     "selector": "#form-expeditions input[name=phone]",
+     "type": "text",
+     "required": true,
+     "notes": "plain text, no format rule, no country-code widget; '+1 555 0100' accepted"
+    },
+    {
+     "name": "country",
+     "label": "Nationality",
+     "selector": "#form-expeditions select[name=country]",
+     "type": "native <select class=country>",
+     "required": true,
+     "options": "see nationalities (244, first blank)"
+    },
+    {
+     "name": "message",
+     "label": "Message",
+     "selector": "#form-expeditions textarea[name=message]",
+     "type": "textarea",
+     "required": true
+    },
+    {
+     "name": "hiddenRecaptcha",
+     "selector": "#hiddenRecaptcha",
+     "type": "hidden (validated because ignore:[])",
+     "required": "true while grecaptcha.getResponse()===''"
+    }
+   ],
+   "validation": {
+    "library": "jQuery Validate, rules all required:true, no submitHandler",
+    "message": "This field is required.",
+    "error_element": "label.error inserted after the field (inside .control-value); .control-value gets class error/success"
+   },
+   "buttons": [
+    {
+     "text": "SEND MESSAGE (ES: ENVIAR MENSAJE)",
+     "selector": "#form-expeditions button[type=submit].room-select  (also #submit button)"
+    }
+   ],
+   "screenshots": [
+    "paso1_XICE.png",
+    "exp_empty_errors.png",
+    "exp_filled_nocaptcha.png",
+    "exp_es.png"
+   ]
+  }
+ ],
+ "datepicker": {
+  "library": "jQuery UI 1.14.1 Datepicker, INLINE (always visible), on span#check_in_calendar.hasDatepicker; altField #check_in_date",
+  "selector": "#check_in_calendar",
+  "input": "#check_in_date (hidden)",
+  "format": "yy-mm-dd => 2026-11-06",
+  "options": "firstDay 1 (Mon), minDate 1 (today not selectable), maxDate 2029-01-31, numberOfMonths 2 at >=639px (1 below), beforeShowDay revisa_dispo",
+  "availability": "window.lista_disponibles = array of 'YYYY-MM-DD' strings rendered server-side for the selected hotel (empty with no hotel => all days disabled). Available: td.ui-state-highlight.input_ok[data-handler=selectDay] > a[data-date]. Unavailable: td.ui-datepicker-unselectable.ui-state-disabled.input_error > span. data-month is 0-based.",
+  "navigation": "#check_in_calendar .ui-datepicker-next / .ui-datepicker-prev (prev has ui-state-disabled at first month). Month titles: #check_in_calendar .ui-datepicker-title.",
+  "how_to_pick": "Real click: click td[data-handler=selectDay][data-month=M0][data-year=Y] a[data-date=D] (navigate with .ui-datepicker-next first). onSelect empties #nights, shows 'Please wait...', calls getStay(date) -> AJAX fills #nights. Programmatic (no clicks): check lista_disponibles.includes(d); $('#check_in_calendar').datepicker('setDate', d) (updates altField + highlights, jumps view) THEN getStay(d) yourself, because setDate does not fire onSelect; wait until $('#nights').val() !== ''. Setting #check_in_date.value alone does nothing visible and nights stay empty.",
+  "deep_link_prefill": "/ibe/paso1?hotel_code=EATA&check_in_date=2026-11-06 preselects hotel and date (calendar shows that month) but nights is NOT loaded; call getStay('2026-11-06') or click the day."
+ },
+ "recaptcha": {
+  "version": "v2 checkbox ('I'm not a robot', size=normal)",
+  "sitekey": "6LdKmCwUAAAAAA90L8nGijXAM2klQqol7oDsrVr6",
+  "container": "#c_recaptcha .g-recaptcha",
+  "iframe": "iframe[title=reCAPTCHA][src*='recaptcha/api2/anchor']",
+  "challenge_iframe": "iframe[src*='recaptcha/api2/bframe'] inside a fixed full-screen div (z-index 2000000000, visibility hidden until a challenge)",
+  "response_field": "#g-recaptcha-response",
+  "script": "https://www.google.com/recaptcha/api.js (no render param, no data-callback; YourOnSubmitFn defined but unused)",
+  "only_on": "expeditions page",
+  "unchecked_behavior": "Click Send: button stays enabled; jQuery Validate blocks the submit and shows label.error 'This field is required.' for hiddenRecaptcha just above the widget (plus any other empty fields). No request is sent.",
+  "agent_rule": "The visitor must tick the checkbox themselves. Agent fills fields, scrolls #c_recaptcha into view, asks the visitor to tick it, waits for grecaptcha.getResponse() !== '' and then clicks Send."
+ },
+ "submit": {
+  "selector": "#form-expeditions button[type=submit]",
+  "method": "POST form-urlencoded, full page navigation to the same URL /ibe/expeditions?expedition_request=X (not AJAX). Fields: expedition_name, expedition_id, title, firstname, lastname, email, phone, country, message, hiddenRecaptcha, g-recaptcha-response.",
+  "how": "document.querySelector('#form-expeditions button[type=submit]').click() (or .requestSubmit()); never form.submit(), which skips validation. Pre-check with $('#form-expeditions').valid().",
+  "not_tested": "Actual send was NOT performed (hard rule); post-submit page unknown."
+ },
+ "deep_links": {
+  "from_www": "All lodge pages' CHECK AVAILABILITY / Book now -> https://reservations.explora.com/ibe/paso1?language=EN (no hotel). Sacred Mountains page links https://reservations.explora.com/ibe/expeditions?expedition_request=XSCM. Expeditions hub uses mailto:reserveexpeditions@explora.com and /contact-expedition-expert.",
+  "working_params": {
+   "/ibe/paso1?hotel_code=CODE": "preselects hotel and loads its availability",
+   "/ibe/paso1?hotel_code=CODE&check_in_date=YYYY-MM-DD": "also preselects date (nights still needs getStay)",
+   "/ibe/paso2?session_id=&hotel_code=CODE&check_in_date=YYYY-MM-DD&nights=N": "jumps straight to rates/rooms",
+   "/ibe/paso1?hotel_code=X***": "302 to /ibe/expeditions?expedition_request=X***",
+   "/ibe/expeditions?expedition_request=CODE": "enquiry form for that expedition (unknown code => 200 with empty heading)",
+   "?language=ES|EN": "switch language"
+  },
+  "not_supported": "Contact fields cannot be prefilled by query string (firstname/email/message ignored)."
+ },
+ "headers": {
+  "all_steps": "paso1, paso2, add_room, paso3, expeditions: no Content-Security-Policy, no CSP-Report-Only, no Permissions-Policy, no X-Frame-Options, no HSTS seen. Headers: cache-control max-age=0,no-cache; content-type text/html; server nginx/1.30.2; vary Accept-Encoding,User-Agent; set-cookie browser_id, lang.",
+  "mediaDevices": "navigator.mediaDevices and getUserMedia exist (https, no Permissions-Policy restriction)",
+  "fetch_to_voqalize": "Not blocked by the page (no CSP; fetch to example.com no-cors worked). fetch('https://app.dev.voqalize.com/') failed only because of OUR response headers (no Access-Control-Allow-Origin; Cross-Origin-Resource-Policy: same-origin). A CORS-enabled Voqalize API endpoint, or calls from the extension background/service worker, will work."
+ },
+ "layout": {
+  "scroll_container": "document (scrollingElement BODY/HTML, normal window scroll)",
+  "fixed_headers": "none; <header> is position:relative (top phone bar #header-top, #header-logo, #steps breadcrumb all scroll away)",
+  "overlays": "No cookie banner and no chat widget rendered in our sessions (Sirdata CMP and Asksuite pixel load, may appear by geo). Only fixed element: reCAPTCHA challenge backdrop (hidden). Magnific Popup (.mfp-wrap/.mfp-content iframe) on paso2 when a room is added. Bottom-right is free.",
+  "form_position": "Expedition form is in #formulario-expeditions inside #expeditions (left column, ~800px wide), Send button ~y=1350 at 1440x900 so scroll needed."
+ },
+ "screenshots_dir": "/Users/samkeetjain/.claude/jobs/2a4b1863/tmp/explore/reservations/",
+ "recipes": {
+  "set_field": "const set=(el,v)=>{const P=el.tagName==='SELECT'?HTMLSelectElement:el.tagName==='TEXTAREA'?HTMLTextAreaElement:HTMLInputElement;Object.getOwnPropertyDescriptor(P.prototype,'value').set.call(el,v);['input','change','keyup','blur'].forEach(t=>el.dispatchEvent(new Event(t,{bubbles:true})));}",
+  "choose_hotel": "const s=document.querySelector('#destination'); set(s,'EATA'); // fires inline onchange -> full reload. Re-inject the agent after load.",
+  "pick_date": "if(!lista_disponibles.includes(d)) -> tell visitor unavailable; else $('#check_in_calendar').datepicker('setDate',d); $('#nights').empty().append('<option value=\"\">Please wait...</option>'); getStay(d); then poll $('#nights').val()!==''.",
+  "pick_nights": "set(document.querySelector('#nights'), String(n)) only if an option with that value exists",
+  "continue_paso1": "document.querySelector('#submit-button').click()",
+  "fill_expedition": "const f=document.querySelector('#form-expeditions'); set(f.title,'Ms.'); set(f.firstname,'Ana'); set(f.lastname,'Diaz'); set(f.email,'ana@example.com'); set(f.phone,'+1 415 555 0100'); set(f.country,'US'); set(f.message,'...'); $(f).validate().element(f.email);",
+  "press_send": "if(grecaptcha.getResponse()===''){ask visitor to tick captcha} else document.querySelector('#form-expeditions button[type=submit]').click();"
+ }
+}
