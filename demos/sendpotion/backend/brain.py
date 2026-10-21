@@ -87,6 +87,7 @@ from voqalize.sdk import (
     UserIdle,
     UserMessage,
 )
+from voqalize.sdk.voice import ToolChoice
 from voqalize.sdk.wire import Config, IdleConfig, SttConfig, TtsConfig, Voice
 
 from . import knowledge as kb
@@ -115,10 +116,6 @@ THINKING = types.ThinkingConfig(thinking_level=types.ThinkingLevel.LOW)
 #: 3.5 in 1.6 to 6.8 s with spikes of 3.6, 4.0 and 6.8 s, which is the stall
 #: the owner heard on call 67d16b5d. Both wrote the screen cues correctly.
 MODEL = "gemini-3.8-flash"
-#: The one extra request a silent page move gets: tools declared, none callable.
-_TALK_NOW = types.ToolConfig(
-    function_calling_config=types.FunctionCallingConfig(mode=types.FunctionCallingConfigMode.NONE)
-)
 
 # ─── Voice and timing ──────────────────────────────────────────────────────────
 
@@ -1113,7 +1110,6 @@ class SendPotionBrain(GeminiBrain):
         self.kb = knowledge if knowledge is not None else kb.KNOWLEDGE
         super().__init__(client=client, system_instruction=_prompt(self.kb), model=model)
         self._config = self._config.model_copy(update={"thinking_config": THINKING})
-        self._forced: types.ToolConfig | None = None
         self._heard_at = float("-inf")
         #: The language he speaks now, and the toggle's written confirmation
         #: of a switch, said at the start of his next turn.
@@ -1471,19 +1467,9 @@ class SendPotionBrain(GeminiBrain):
         path = _site_path(self._cue_path) if moved and self._cue_path else None
         return Cue(at=raw.at, word=raw.word, path=path, heading=heading, text=text)
 
-    async def _talk_now(self, session: Session) -> AsyncGenerator[Speech, None]:
-        self._forced = _TALK_NOW
-        try:
-            async for event in super().respond(session):
-                yield event
-        finally:
-            self._forced = None
-
-    def _turn_config(self) -> types.GenerateContentConfig:
-        config = super()._turn_config()
-        if self._forced is None:
-            return config
-        return config.model_copy(update={"tool_config": self._forced})
+    def _talk_now(self, session: Session) -> AsyncGenerator[Speech, None]:
+        """The one extra request a silent page move gets: tools declared, none callable."""
+        return self.respond_with(session, tools=ToolChoice.NONE)
 
     async def _run(self, tool: Any, call: types.FunctionCall) -> types.Part:
         """Every tool takes one model, ``request``; Gemini sometimes sends its

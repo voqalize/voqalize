@@ -78,6 +78,7 @@ from voqalize.sdk import (
     UserIdle,
     UserMessage,
 )
+from voqalize.sdk.voice import ToolChoice
 from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
 
 from . import knowledge as kb
@@ -123,11 +124,6 @@ AGENT_NAME = "Tushar"
 #: is still talking — the marketing site's guide measured the same switch, at
 #: about 1.5 s to the first word, which his nod covers.
 THINKING = types.ThinkingConfig(thinking_level=types.ThinkingLevel.LOW)
-#: The config of the one extra request a silent page move gets: tools declared, so
-#: the calls already in the context still read, but none may be made.
-_TALK_NOW = types.ToolConfig(
-    function_calling_config=types.FunctionCallingConfig(mode=types.FunctionCallingConfigMode.NONE)
-)
 
 # ─── Timing ────────────────────────────────────────────────────────────────────
 
@@ -879,8 +875,6 @@ class SaatvikBrain(GeminiBrain):
         self.kb = knowledge if knowledge is not None else kb.KNOWLEDGE
         super().__init__(client=client, system_instruction=_prompt(self.kb), model=model)
         self._config = self._config.model_copy(update={"thinking_config": THINKING})
-        #: The tool config of the request under way, when it is not the turn's own.
-        self._forced: types.ToolConfig | None = None
         #: Show the brief in the widget. Off for a visitor, who came to ask
         #: about solar; on for a pitch that shows Saatvik what sales receives.
         self._share_brief = SHARE_BRIEF if share_brief is None else share_brief
@@ -1063,21 +1057,11 @@ class SaatvikBrain(GeminiBrain):
         if opening is not None:
             yield opening
 
-    async def _talk_now(self, session: Session) -> AsyncGenerator[Speech, None]:
+    def _talk_now(self, session: Session) -> AsyncGenerator[Speech, None]:
         """One more model request with tools off: the page has moved, and what he
-        says now is about what is on it."""
-        self._forced = _TALK_NOW
-        try:
-            async for event in super().respond(session):
-                yield event
-        finally:
-            self._forced = None
-
-    def _turn_config(self) -> types.GenerateContentConfig:
-        config = super()._turn_config()
-        if self._forced is None:
-            return config
-        return config.model_copy(update={"tool_config": self._forced})
+        says now is about what is on it. The tools stay declared, so the calls
+        already in the context still read, but none may be made."""
+        return self.respond_with(session, tools=ToolChoice.NONE)
 
     async def _run(self, tool: Any, call: types.FunctionCall) -> types.Part:
         """Every tool takes one model, ``request``. Gemini sometimes sends that

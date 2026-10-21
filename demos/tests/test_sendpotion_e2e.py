@@ -136,6 +136,30 @@ def _texts(contents: list[types.Content]) -> str:
     return "\n".join(p.text or "" for c in contents for p in (c.parts or []))
 
 
+def _requests(llm: ScriptedGemini) -> list[types.GenerateContentConfig]:
+    """Every request's config, in call order, recorded as the brain sends it."""
+    seen: list[types.GenerateContentConfig] = []
+    answer = llm.answer
+
+    def recording(*, model: str, contents: object, config: types.GenerateContentConfig) -> object:
+        seen.append(config)
+        return answer(model=model, contents=contents, config=config)
+
+    llm.answer = recording
+    return seen
+
+
+def _names(config: types.GenerateContentConfig) -> list[str]:
+    """The tools a request declares, by name."""
+    return [getattr(fn, "__name__", "") for fn in config.tools or []]
+
+
+#: What the one extra request asks of Gemini: function-calling mode NONE.
+_MAY_CALL_NONE = types.ToolConfig(
+    function_calling_config=types.FunctionCallingConfig(mode=types.FunctionCallingConfigMode.NONE)
+)
+
+
 def _llm() -> ScriptedGemini:
     return ScriptedGemini(
         {
@@ -691,6 +715,26 @@ async def test_a_reply_with_nothing_in_it_is_asked_for_again() -> None:
         turn = await rig.driver.user_says("Hello?")
         check_turn(rig, turn)
         assert "Want a quick tour?" in turn.text
+
+
+@pytest.mark.parametrize("said", ["Open the sign-up.", "Hello?"])
+async def test_the_extra_request_declares_the_tools_and_may_call_none(said: str) -> None:
+    """A silent move and an empty reply each get one more request: Gemini's
+    function-calling mode NONE over the same declared tools, where the turn's
+    own request carries no tool config at all."""
+    llm = _llm()
+    requests = _requests(llm)
+    async with demo("sendpotion", llm) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/"})
+        before = len(requests)
+        await rig.driver.user_says(said)
+        first, again = requests[before:]
+        assert first.tool_config is None
+        assert again.tool_config == _MAY_CALL_NONE
+        assert again.tools
+        assert _names(again) == _names(first)
+        assert again.thinking_config == first.thinking_config
+        assert again.system_instruction == first.system_instruction
 
 
 async def test_a_page_cue_alone_still_shows_what_he_describes() -> None:

@@ -140,6 +140,24 @@ def _texts(contents: list[types.Content]) -> str:
     return "\n".join(p.text or "" for c in contents for p in (c.parts or []))
 
 
+def _requests(llm: ScriptedGemini) -> list[types.GenerateContentConfig]:
+    """Every request's config, in call order, recorded as the brain sends it."""
+    seen: list[types.GenerateContentConfig] = []
+    answer = llm.answer
+
+    def recording(*, model: str, contents: object, config: types.GenerateContentConfig) -> object:
+        seen.append(config)
+        return answer(model=model, contents=contents, config=config)
+
+    llm.answer = recording
+    return seen
+
+
+def _names(config: types.GenerateContentConfig) -> list[str]:
+    """The tools a request declares, by name."""
+    return [getattr(fn, "__name__", "") for fn in config.tools or []]
+
+
 def _llm() -> ScriptedGemini:
     return ScriptedGemini(
         {
@@ -583,6 +601,28 @@ async def test_a_silent_move_asks_the_model_to_talk_about_it() -> None:
         # Gemini takes no request ending on the model's turn.
         assert retry[-1].role == "user"
         assert "Opened Test Panel 600" in _results(retry)["navigate"]
+
+
+async def test_the_silent_move_retry_declares_the_tools_and_may_call_none() -> None:
+    """The retry is Gemini's function-calling mode NONE over the same declared
+    tools; the turn's own request carries no tool config at all."""
+    llm = _llm()
+    requests = _requests(llm)
+    async with demo("saatvik", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        before = len(requests)
+        await rig.driver.user_says("Show me that panel.")
+        first, retry = requests[before:]
+        assert first.tool_config is None
+        assert retry.tool_config == types.ToolConfig(
+            function_calling_config=types.FunctionCallingConfig(
+                mode=types.FunctionCallingConfigMode.NONE
+            )
+        )
+        assert retry.tools
+        assert _names(retry) == _names(first)
+        assert retry.thinking_config == first.thinking_config
+        assert retry.system_instruction == first.system_instruction
 
 
 async def test_twice_silent_falls_back_to_his_written_line() -> None:
