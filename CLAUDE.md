@@ -89,8 +89,8 @@ Consequences to internalize:
   (`8104298`, "point the install lines at 0.2.0, now that PyPI serves it"). Docs on
   `main` are written against this tree, so adding or renaming an export puts the
   two out of step, and a reader who follows an install line then gets a package
-  without the name the page just used. **They are level as of 0.10.0, released
-  2026-10-16**, which is the normal state right after a release and not the
+  without the name the page just used. **They are level as of 0.11.0, released
+  2026-10-21**, which is the normal state right after a release and not the
   normal state. The files carrying that pin are `build/quickstart.md`,
   `build/pipecat.md`, `overview/status.md`, `reference/brain.md`,
   `sdk/python/examples/fastapi_inbound/requirements.txt` and the repo

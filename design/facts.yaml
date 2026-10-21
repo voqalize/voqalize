@@ -258,10 +258,11 @@ facts:
   sdk.python.surface.published:
     value: [Action, AppEvent, AppEvents, Brain, Channel, Chunk, Error, ErrorCode,
             Finalize, RTVIMessage, RTVIType, RequestRejected, Session, SessionRejected,
-            Speech, SpeechChunk, SpeechEnd, SpeechStart, UserIdle, UserMessage,
-            WireError, configure_logging, run_session, serve, session_context]
-    source: https://pypi.org/pypi/voqalize-agent-sdk/0.6.0/json
-    verified: 2026-09-24
+            Speech, SpeechChunk, SpeechEnd, SpeechStart, TurnStep, Unsupported,
+            UserIdle, UserMessage, WireError, configure_logging, run_session, serve,
+            session_context]
+    source: https://pypi.org/pypi/voqalize-agent-sdk/0.11.0/json
+    verified: 2026-10-21
     reproduce: >-
       uv venv /tmp/v -q --python 3.12
       && VIRTUAL_ENV=/tmp/v uv pip install -q voqalize-agent-sdk==0.6.0
