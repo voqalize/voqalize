@@ -1,0 +1,117 @@
+{
+ "base": "https://www.ssilva.cl",
+ "list": "/proyectos/?region=<id>&property=<id> (communes are checkboxes, #commune<id>)",
+ "regions": {
+  "metropolitana": {
+   "id": 17,
+   "label": "Región Metropolitana"
+  },
+  "valparaiso": {
+   "id": 557,
+   "label": "Región de Valparaíso"
+  },
+  "otros": {
+   "id": 556,
+   "label": "Otros"
+  }
+ },
+ "properties": {
+  "departamento": {
+   "id": 34,
+   "label": "Departamentos"
+  },
+  "casa": {
+   "id": 193,
+   "label": "Casas"
+  },
+  "oficina": {
+   "id": 35,
+   "label": "Oficinas"
+  },
+  "local": {
+   "id": 36,
+   "label": "Locales comerciales"
+  }
+ },
+ "communes": [
+  {
+   "name": "Las Condes",
+   "id": 18
+  },
+  {
+   "name": "La Dehesa",
+   "id": 570
+  },
+  {
+   "name": "Chicureo",
+   "id": 186
+  },
+  {
+   "name": "Santiago",
+   "id": 363
+  },
+  {
+   "name": "Estación Central",
+   "id": 564
+  },
+  {
+   "name": "La Florida",
+   "id": 185
+  },
+  {
+   "name": "Huechuraba",
+   "id": 190
+  },
+  {
+   "name": "Macúl",
+   "id": 187
+  },
+  {
+   "name": "Conchalí",
+   "id": 192
+  },
+  {
+   "name": "Vitacura",
+   "id": 293
+  }
+ ],
+ "menu": [
+  "Portal propietario",
+  "Nuestros proyectos",
+  "Oportunidades",
+  "Centro de negocios",
+  "Sobre Ssilva",
+  "Descubre",
+  "Vende tu terreno",
+  "Centro de ayuda"
+ ],
+ "status_steps": [
+  "En blanco",
+  "Inicio de obra",
+  "En verde",
+  "Obra gruesa",
+  "Término de obra",
+  "Próxima entrega",
+  "Entrega inmediata"
+ ],
+ "lead_form": {
+  "step 1": [
+   "Nombre",
+   "Apellidos",
+   "N° de Rut",
+   "Tu mejor correo",
+   "Teléfono",
+   "¿Qué te motiva a realizar la compra? (Invertir / Habitar)"
+  ],
+  "step 2": [
+   "¿Qué tipo de departamento estas buscando?",
+   "¿Cuál es tu ingreso líquido mensual?",
+   "¿Cuánto ahorro puedes destinar para un pie?"
+  ],
+  "buttons": [
+   "Siguiente",
+   "Anterior",
+   "Enviar"
+  ]
+ }
+}

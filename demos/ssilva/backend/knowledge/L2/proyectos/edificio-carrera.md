@@ -1,0 +1,32 @@
+# Edificio Carrera
+Sources: ssilva.cl project page /edificiocarrera/, cotizar page /proyectos/cotizar/edificio-carrera/, the project list.
+
+- Name on the site: EDIFICIO CARRERA
+- Comuna: Conchalí (Región Metropolitana). Type: Departamentos.
+- Address (hero): AV. Independencia 3540, Conchalí
+- Desde 1.753 UF (the list's starting price).
+- Dormitorios: 1, 2. Baños: 1 y 2 baños.
+- Desde 26 m².
+- Estado (list): En verde.
+- Profile: Para invertir, Para vivir.
+- Hero also says: SALA DE VENTAS Augusto Leguía Nte. 201, Las Condes, Región Metropolitana APROVECHA COMPRA HOY SIN PIE PAGA EL PIE HASTA EN 60 CUOTAS
+- Description (EDIFICIO CARRERA): EDIFICIO CARRERA Es un nuevo proyecto en un barrio en expansión y completamente conectado de la comuna de Conchalí. A pasos de la estación de Metro Línea 3 con excelente conectividad a cualquier punto de Santiago y fuera de la ciudad a través de la Ruta 5, con supermercados, instituciones educacionales y mucho más a solo metros de distancia. Este proyecto fue diseñado pensando en tu conectividad y ofreciendo una gran oportunidad de inversión. Haz una inversión inteligente de insuperable plusvalía.
+- Tipologías on the page: ESTUDIO / 1D | 1B / 2D | 2B
+- Units on the cotizar page (by typology):
+  - A - 2D|2B: 10 unidades, desde 3.857 UF hasta 4.086 UF, total 53.18–54.97 m², orientación Norte
+  - A1 - 2D|2B: 13 unidades, desde 3.166 UF hasta 3.950 UF, total 53.17–54.3 m², orientación Sur
+  - A2 - 2D|2B: 19 unidades, desde 2.678 UF hasta 3.684 UF, total 34.17–50.03 m², orientación Norte, Oriente, Poniente, Sur
+  - B - 1D|1B: 48 unidades, desde 2.336 UF hasta 2.678 UF, total 34.08–36.22 m², orientación Oriente, Poniente, Sur
+  - B1 - 1D|1B: 13 unidades, desde 2.461 UF hasta 2.574 UF, total 34.07–34.28 m², orientación Norte
+  - B2 - 1D|1B: 2 unidades, desde 2.434 UF hasta 2.520 UF, total 33.98–34.07 m², orientación Poniente
+  - B3 - 1D|1B: 8 unidades, desde 2.499 UF hasta 2.616 UF, total 35.51–35.7 m², orientación Poniente
+  - C - Estudio: 4 unidades, desde 1.885 UF hasta 2.110 UF, total 27.76–27.84 m², orientación Oriente
+- Amenities section title: ESPACIOS DISEÑADOS PARA DISFRUTAR
+- Gallery: 4 photos.
+- Virtual tour on the page: no.
+- Quote form on the page: yes.
+- Sections, top to bottom: EDIFICIO CARRERA; Galería [galería]; Tipologías que se adaptan a tus necesidades [tipologías]; ESPACIOS DISEÑADOS PARA DISFRUTAR [amenidades]; Brochure [brochure]; ¿Te interesó este proyecto? [contacto]
+- Horario de atención: LUNES A VIERNES 09:00 A 19:00 HRS
+- Phone: +56 9 6599 7861. Email: edificiocarrera@ssilva.cl.
+- Sala de ventas / contact address: Av. Independencia 3540, Conchalí
+- WhatsApp button: yes.

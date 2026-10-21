@@ -1,0 +1,3183 @@
+[
+ {
+  "slug": "piedra-roja",
+  "name": "Mirador Piedra Roja",
+  "site_name": "MIRADOR PIEDRA ROJA",
+  "listed": true,
+  "path": "/mirador-piedra-roja/",
+  "quote_path": "/proyectos/cotizar/piedra-roja/",
+  "comuna": "Chicureo",
+  "region": "metropolitana",
+  "tipos": [
+   "casa"
+  ],
+  "desde_uf": 11590,
+  "dormitorios": [
+   3
+  ],
+  "banos": "3 baños",
+  "superficie_m2": 138,
+  "estado": "Entrega inmediata",
+  "perfil": [
+   "Para vivir"
+  ],
+  "address": "Av. Jose Rabat 11005, Chicureo",
+  "hero_tags": "",
+  "tagline": "NATURALEZA QUE SE VIVE",
+  "intro": "NATURALEZA QUE SE VIVE Mirador Piedra Roja es un condominio en Chicureo donde el diseño contemporáneo y la naturaleza conviven en perfecta armonía. Elige entre tres tipos de casas pensadas para acompañar tu forma de vivir, en un sector con excelente conectividad a colegios, servicios y comercio. Vive la experiencia Piedra Roja ¡Conócenos!",
+  "typologies": [
+   "ALGARROBO",
+   "QUILLAY",
+   "CHAMIZA"
+  ],
+  "status": "Entrega inmediata",
+  "gallery_slides": 0,
+  "amenities_title": "",
+  "outline": [
+   {
+    "key": "",
+    "heading": "NATURALEZA QUE SE VIVE",
+    "module": "main-slider-section"
+   },
+   {
+    "key": "tipologías",
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "module": "cotizador-l1-section"
+   },
+   {
+    "key": "estado",
+    "heading": "Estado del proyecto",
+    "module": "l3-project-status-section"
+   },
+   {
+    "key": "brochure",
+    "heading": "Brochure",
+    "module": "wbct-section"
+   },
+   {
+    "key": "contacto",
+    "heading": "¿Te interesó este proyecto?",
+    "module": "project-actions-section"
+   }
+  ],
+  "hours": "LUNES DE 15:00 A 18:00 HRS, MARTES A DOMINGO DE 10:00 A 18:00 HRS. MIÉRCOLES CERRADO",
+  "phone": "+56955359535",
+  "email": "miradorpiedraroja@ssilva.cl",
+  "contact_address": "Av. Jose Rabat 11005, Chicureo",
+  "whatsapp": true,
+  "brochure": false,
+  "tour": false,
+  "lead_form": true,
+  "units": [],
+  "notes": ""
+ },
+ {
+  "slug": "condominio-piemonte",
+  "name": "Piemonte Chicureo",
+  "site_name": "Piemonte Chicureo",
+  "listed": true,
+  "path": "/piemontechicureo/",
+  "quote_path": "/proyectos/cotizar/piemonte/",
+  "comuna": "Chicureo",
+  "region": "metropolitana",
+  "tipos": [
+   "departamento"
+  ],
+  "desde_uf": 7741,
+  "dormitorios": [
+   2,
+   3
+  ],
+  "banos": "2 y 3 baños",
+  "superficie_m2": 99,
+  "estado": "Inicio de obras",
+  "perfil": [
+   "Para invertir",
+   "Para vivir"
+  ],
+  "address": "Av. El Valle 11200, Chicureo, Región Metropolitana",
+  "hero_tags": "PAGA EL SALDO DEL PIE HASTA EN 60 CUOTAS info PAGA SÓLO EL 5% DE PIE info",
+  "tagline": "EXCLUSIVO TOWNHOUSE CHICUREO PIEMONTE TOWNHOUSE",
+  "intro": "EXCLUSIVO TOWNHOUSE CHICUREO PIEMONTE TOWNHOUSE ha sido desarrollado bajo un concepto de espacios abiertos en perfecta armonía con un entorno único, para que puedas vivir la naturaleza. Departamentos que privilegian los detalles, fusionando la arquitectura moderna, de líneas simples, integrando el entorno de la manera más noble, para así, ser parte del paisaje con total libertad. Visítanos en Av. El Valle 11200, Chicureo, Colina, Región Metropolitana",
+  "typologies": [
+   "2D | 2B",
+   "3D | 2B",
+   "3D | 2B PENTHOUSE",
+   "3D | 2B LOFT"
+  ],
+  "status": "",
+  "gallery_slides": 4,
+  "amenities_title": "INCREÍBLES ESPACIOS",
+  "outline": [
+   {
+    "key": "",
+    "heading": "EXCLUSIVO TOWNHOUSE CHICUREO PIEMONTE TOWNHOUSE",
+    "module": "main-slider-section"
+   },
+   {
+    "key": "galería",
+    "heading": "Galería",
+    "module": "l3-numbered-slider-section"
+   },
+   {
+    "key": "tipologías",
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "module": "cotizador-l1-section"
+   },
+   {
+    "key": "amenidades",
+    "heading": "INCREÍBLES ESPACIOS",
+    "module": "alternate-images-section"
+   },
+   {
+    "key": "brochure",
+    "heading": "Brochure",
+    "module": "wbct-section"
+   },
+   {
+    "key": "contacto",
+    "heading": "¿Te interesó este proyecto?",
+    "module": "project-actions-section"
+   },
+   {
+    "key": "tour",
+    "heading": "Recorre los espacios desde donde estés",
+    "module": "video-tour-section"
+   }
+  ],
+  "hours": "LUNES 15:00 A 18:00 HRS - MAR, MIÉ, VIE, SÁB Y DOM: 11:00 A 14:00 Y 15:00 A 18:00 HRS - JUEVES CERRADO",
+  "phone": "+56 9 4276 0844",
+  "email": "piemonte@ssilva.cl",
+  "contact_address": "Av. El Valle 11200, Chicureo, Colina, Región Metropolitana",
+  "whatsapp": true,
+  "brochure": true,
+  "tour": true,
+  "lead_form": true,
+  "units": [],
+  "notes": ""
+ },
+ {
+  "slug": "edificio-carrera",
+  "name": "Edificio Carrera",
+  "site_name": "EDIFICIO CARRERA",
+  "listed": true,
+  "path": "/edificiocarrera/",
+  "quote_path": "/proyectos/cotizar/edificio-carrera/",
+  "comuna": "Conchalí",
+  "region": "metropolitana",
+  "tipos": [
+   "departamento"
+  ],
+  "desde_uf": 1753,
+  "dormitorios": [
+   1,
+   2
+  ],
+  "banos": "1 y 2 baños",
+  "superficie_m2": 26,
+  "estado": "En verde",
+  "perfil": [
+   "Para invertir",
+   "Para vivir"
+  ],
+  "address": "AV. Independencia 3540, Conchalí",
+  "hero_tags": "SALA DE VENTAS Augusto Leguía Nte. 201, Las Condes, Región Metropolitana APROVECHA COMPRA HOY SIN PIE PAGA EL PIE HASTA EN 60 CUOTAS",
+  "tagline": "EDIFICIO CARRERA",
+  "intro": "EDIFICIO CARRERA Es un nuevo proyecto en un barrio en expansión y completamente conectado de la comuna de Conchalí. A pasos de la estación de Metro Línea 3 con excelente conectividad a cualquier punto de Santiago y fuera de la ciudad a través de la Ruta 5, con supermercados, instituciones educacionales y mucho más a solo metros de distancia. Este proyecto fue diseñado pensando en tu conectividad y ofreciendo una gran oportunidad de inversión. Haz una inversión inteligente de insuperable plusvalía.",
+  "typologies": [
+   "ESTUDIO",
+   "1D | 1B",
+   "2D | 2B"
+  ],
+  "status": "",
+  "gallery_slides": 4,
+  "amenities_title": "ESPACIOS DISEÑADOS PARA DISFRUTAR",
+  "outline": [
+   {
+    "key": "",
+    "heading": "EDIFICIO CARRERA",
+    "module": "main-slider-section"
+   },
+   {
+    "key": "galería",
+    "heading": "Galería",
+    "module": "l3-numbered-slider-section"
+   },
+   {
+    "key": "tipologías",
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "module": "cotizador-l1-section"
+   },
+   {
+    "key": "amenidades",
+    "heading": "ESPACIOS DISEÑADOS PARA DISFRUTAR",
+    "module": "alternate-images-section"
+   },
+   {
+    "key": "brochure",
+    "heading": "Brochure",
+    "module": "wbct-section"
+   },
+   {
+    "key": "contacto",
+    "heading": "¿Te interesó este proyecto?",
+    "module": "project-actions-section"
+   }
+  ],
+  "hours": "LUNES A VIERNES 09:00 A 19:00 HRS",
+  "phone": "+56 9 6599 7861",
+  "email": "edificiocarrera@ssilva.cl",
+  "contact_address": "Av. Independencia 3540, Conchalí",
+  "whatsapp": true,
+  "brochure": true,
+  "tour": false,
+  "lead_form": true,
+  "units": [
+   {
+    "typology": "A - 2D|2B",
+    "count": 10,
+    "desde_uf": 3857,
+    "hasta_uf": 4086,
+    "total_m2": [
+     53.18,
+     54.97
+    ],
+    "orientations": [
+     "Norte"
+    ]
+   },
+   {
+    "typology": "A1 - 2D|2B",
+    "count": 13,
+    "desde_uf": 3166,
+    "hasta_uf": 3950,
+    "total_m2": [
+     53.17,
+     54.3
+    ],
+    "orientations": [
+     "Sur"
+    ]
+   },
+   {
+    "typology": "A2 - 2D|2B",
+    "count": 19,
+    "desde_uf": 2678,
+    "hasta_uf": 3684,
+    "total_m2": [
+     34.17,
+     50.03
+    ],
+    "orientations": [
+     "Norte",
+     "Oriente",
+     "Poniente",
+     "Sur"
+    ]
+   },
+   {
+    "typology": "B - 1D|1B",
+    "count": 48,
+    "desde_uf": 2336,
+    "hasta_uf": 2678,
+    "total_m2": [
+     34.08,
+     36.22
+    ],
+    "orientations": [
+     "Oriente",
+     "Poniente",
+     "Sur"
+    ]
+   },
+   {
+    "typology": "B1 - 1D|1B",
+    "count": 13,
+    "desde_uf": 2461,
+    "hasta_uf": 2574,
+    "total_m2": [
+     34.07,
+     34.28
+    ],
+    "orientations": [
+     "Norte"
+    ]
+   },
+   {
+    "typology": "B2 - 1D|1B",
+    "count": 2,
+    "desde_uf": 2434,
+    "hasta_uf": 2520,
+    "total_m2": [
+     33.98,
+     34.07
+    ],
+    "orientations": [
+     "Poniente"
+    ]
+   },
+   {
+    "typology": "B3 - 1D|1B",
+    "count": 8,
+    "desde_uf": 2499,
+    "hasta_uf": 2616,
+    "total_m2": [
+     35.51,
+     35.7
+    ],
+    "orientations": [
+     "Poniente"
+    ]
+   },
+   {
+    "typology": "C - Estudio",
+    "count": 4,
+    "desde_uf": 1885,
+    "hasta_uf": 2110,
+    "total_m2": [
+     27.76,
+     27.84
+    ],
+    "orientations": [
+     "Oriente"
+    ]
+   }
+  ],
+  "notes": ""
+ },
+ {
+  "slug": "edificio-amengual",
+  "name": "Edificio Amengual",
+  "site_name": "EDIFICIO AMENGUAL",
+  "listed": true,
+  "path": "/amengual/",
+  "quote_path": "/proyectos/cotizar/edificio-amengual/",
+  "comuna": "Estación Central",
+  "region": "metropolitana",
+  "tipos": [
+   "departamento"
+  ],
+  "desde_uf": 2485,
+  "dormitorios": [
+   2
+  ],
+  "banos": "1 y 2 baños",
+  "superficie_m2": 45,
+  "estado": "Entrega inmediata",
+  "perfil": [
+   "Para invertir",
+   "Para vivir"
+  ],
+  "address": "Coronel Souper 4515, Estación Central",
+  "hero_tags": "",
+  "tagline": "BIENVENIDO A AMENGUAL",
+  "intro": "BIENVENIDO A AMENGUAL Edificio Amengual destaca por sus excepcionales comodidades que lo diferencian de otros proyectos. Sus atributos han sido cuidadosamente desarrollados para ofrecer una experiencia de vida de alto nivel, siempre priorizando la funcionalidad. Desde el momento de ingreso, se percibe un ambiente de comodidad. El edificio cuenta con tres ascensores que garantizan una circulación fluida, además de áreas comunes de primera categoría, creadas para brindar la sensación de estar en un hotel.",
+  "typologies": [
+   "2D | 1B",
+   "2D | 2B"
+  ],
+  "status": "Entrega inmediata",
+  "gallery_slides": 5,
+  "amenities_title": "FACILITIES COMPLETAMENTE EQUIPADAS",
+  "outline": [
+   {
+    "key": "",
+    "heading": "BIENVENIDO A AMENGUAL",
+    "module": "main-slider-section"
+   },
+   {
+    "key": "galería",
+    "heading": "Galería",
+    "module": "l3-numbered-slider-section"
+   },
+   {
+    "key": "tipologías",
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "module": "cotizador-l1-section"
+   },
+   {
+    "key": "amenidades",
+    "heading": "FACILITIES COMPLETAMENTE EQUIPADAS",
+    "module": "alternate-images-section"
+   },
+   {
+    "key": "estado",
+    "heading": "Estado del proyecto",
+    "module": "l3-project-status-section"
+   },
+   {
+    "key": "brochure",
+    "heading": "Brochure",
+    "module": "wbct-section"
+   },
+   {
+    "key": "contacto",
+    "heading": "¿Te interesó este proyecto?",
+    "module": "project-actions-section"
+   }
+  ],
+  "hours": "LUNES A VIERNES DE 10HRS A 19HRS",
+  "phone": "+569 63349931",
+  "email": "amengual@ssilva.cl",
+  "contact_address": "Coronel Souper 4515, Estación Central",
+  "whatsapp": true,
+  "brochure": true,
+  "tour": false,
+  "lead_form": true,
+  "units": [
+   {
+    "typology": "2D-1B",
+    "count": 2,
+    "desde_uf": 3106,
+    "hasta_uf": 3111,
+    "total_m2": [
+     45.49,
+     45.75
+    ],
+    "orientations": [
+     "Norte"
+    ]
+   },
+   {
+    "typology": "2D-2B",
+    "count": 6,
+    "desde_uf": 3422,
+    "hasta_uf": 3422,
+    "total_m2": [
+     51.15,
+     51.47
+    ],
+    "orientations": [
+     "NorOriente",
+     "Norte"
+    ]
+   }
+  ],
+  "notes": ""
+ },
+ {
+  "slug": "mira-huechuraba",
+  "name": "Mira Huechuraba",
+  "site_name": "MIRA HUECHURABA",
+  "listed": true,
+  "path": "/mirahuechuraba/",
+  "quote_path": "/proyectos/cotizar/mira-huechuraba/",
+  "comuna": "Huechuraba",
+  "region": "metropolitana",
+  "tipos": [
+   "departamento"
+  ],
+  "desde_uf": 4072,
+  "dormitorios": [
+   2,
+   3
+  ],
+  "banos": "2 baños",
+  "superficie_m2": 71,
+  "estado": "Entrega inmediata",
+  "perfil": [
+   "Para invertir",
+   "Para vivir"
+  ],
+  "address": "Av. Sta. Marta de Huechuraba 7455",
+  "hero_tags": "",
+  "tagline": "TU DEPTO CON PATIO PRIVADO",
+  "intro": "TU DEPTO CON PATIO PRIVADO Mira Huechuraba es tener un departamento cómodo y espacioso para tu familia, con un jardín privado a pasos de tu puerta. La arquitectura de los departamentos plantea continuidad en los ambientes de manera de generar un lugar de encuentro. Espacios integrados, de circulación amable y listos para disfrutar, con un diseño actual de gran categoria.",
+  "typologies": [
+   "2D | 2B",
+   "3D | 2B",
+   "3D | 2B + ESTAR"
+  ],
+  "status": "Entrega inmediata",
+  "gallery_slides": 9,
+  "amenities_title": "ESPACIOS PARA DISFRUTAR",
+  "outline": [
+   {
+    "key": "",
+    "heading": "TU DEPTO CON PATIO PRIVADO",
+    "module": "main-slider-section"
+   },
+   {
+    "key": "galería",
+    "heading": "Galería",
+    "module": "l3-numbered-slider-section"
+   },
+   {
+    "key": "tipologías",
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "module": "cotizador-l1-section"
+   },
+   {
+    "key": "amenidades",
+    "heading": "ESPACIOS PARA DISFRUTAR",
+    "module": "alternate-images-section"
+   },
+   {
+    "key": "estado",
+    "heading": "Estado del proyecto",
+    "module": "l3-project-status-section"
+   },
+   {
+    "key": "brochure",
+    "heading": "Brochure",
+    "module": "wbct-section"
+   },
+   {
+    "key": "contacto",
+    "heading": "¿Te interesó este proyecto?",
+    "module": "project-actions-section"
+   }
+  ],
+  "hours": "LUNES A DOMINGO DE 11:00 A 14:00 Y DE 15:00 A 19:00 HRS",
+  "phone": "+569 4229 9025",
+  "email": "mirahuechuraba@ssilva.cl",
+  "contact_address": "Av. Sta. Marta de Huechuraba 7455, Huechuraba, Región Metropolitana",
+  "whatsapp": true,
+  "brochure": false,
+  "tour": false,
+  "lead_form": true,
+  "units": [
+   {
+    "typology": "2D|2B",
+    "count": 1,
+    "desde_uf": 4977,
+    "hasta_uf": 4977,
+    "total_m2": [
+     71.3,
+     71.3
+    ],
+    "orientations": [
+     "Norte"
+    ]
+   },
+   {
+    "typology": "3D|2B",
+    "count": 5,
+    "desde_uf": 5201,
+    "hasta_uf": 5873,
+    "total_m2": [
+     86.8,
+     94.2
+    ],
+    "orientations": [
+     "Oriente",
+     "Poniente",
+     "Sur"
+    ]
+   },
+   {
+    "typology": "3D|2B+Estar",
+    "count": 9,
+    "desde_uf": 5845,
+    "hasta_uf": 8562,
+    "total_m2": [
+     97.6,
+     107.9
+    ],
+    "orientations": [
+     "Norte",
+     "Oriente",
+     "Sur"
+    ]
+   }
+  ],
+  "notes": ""
+ },
+ {
+  "slug": "parque-el-rodeo-arrayan",
+  "name": "Parque el Rodeo Arrayán",
+  "site_name": "PARQUE EL RODEO ARRAYAN",
+  "listed": true,
+  "path": "/parque-el-rodeo-arrayan/",
+  "quote_path": "/proyectos/cotizar/parque-el-rodeo-arrayan/",
+  "comuna": "La Dehesa",
+  "region": "metropolitana",
+  "tipos": [
+   "departamento"
+  ],
+  "desde_uf": 9786,
+  "dormitorios": [
+   2
+  ],
+  "banos": "2 baños",
+  "superficie_m2": 95,
+  "estado": "Entrega inmediata",
+  "perfil": [
+   "Para vivir"
+  ],
+  "address": "Av. El Rodeo 12.737, esquina Av. La Dehesa",
+  "hero_tags": "Deptos 2D - 2B",
+  "tagline": "VIVIR BIEN CERCA DE TODO",
+  "intro": "VIVIR BIEN CERCA DE TODO Parque el Rodeo cuenta con los estándares más altos de diseño y calidad. Edificio Arrayán es un proyecto pensado para la vida familiar, con espacios diseñados para formar hogar. Ubicado en Av. La Dehesa con Av. El Rodeo, ofrece una conexión privilegiada con servicios, comercio y todo lo necesario para vivir conectado y cómodo; Portal La Dehesa, Club de Golf La Dehesa, Zoco y Clínica Alemana.",
+  "typologies": [
+   "2D | 2B"
+  ],
+  "status": "Entrega inmediata",
+  "gallery_slides": 7,
+  "amenities_title": "DIVERSIÓN, BIENESTAR Y FUNCIONALIDAD",
+  "outline": [
+   {
+    "key": "",
+    "heading": "VIVIR BIEN CERCA DE TODO",
+    "module": "main-slider-section"
+   },
+   {
+    "key": "galería",
+    "heading": "Galería",
+    "module": "l3-numbered-slider-section"
+   },
+   {
+    "key": "tipologías",
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "module": "cotizador-l1-section"
+   },
+   {
+    "key": "tour",
+    "heading": "Recorre los espacios desde donde estés",
+    "module": "video-tour-section"
+   },
+   {
+    "key": "amenidades",
+    "heading": "DIVERSIÓN, BIENESTAR Y FUNCIONALIDAD",
+    "module": "alternate-images-section"
+   },
+   {
+    "key": "estado",
+    "heading": "Estado del proyecto",
+    "module": "l3-project-status-section"
+   },
+   {
+    "key": "brochure",
+    "heading": "Brochure",
+    "module": "wbct-section"
+   },
+   {
+    "key": "contacto",
+    "heading": "¿Te interesó este proyecto?",
+    "module": "project-actions-section"
+   }
+  ],
+  "hours": "LUNES A VIERNES DE 10:00 A 14:00 Y DE 15:00 A 18:00. SÁBADO CONSULTE POR ATENCIÓN. DOMINGO CERRADO",
+  "phone": "+56 9 6658 0581",
+  "email": "parqueelrodeo@ssilva.cl",
+  "contact_address": "Av. El Rodeo 12.737, esquina Av. La Dehesa",
+  "whatsapp": true,
+  "brochure": true,
+  "tour": true,
+  "lead_form": true,
+  "units": [],
+  "notes": ""
+ },
+ {
+  "slug": "parque-el-rodeo-encino",
+  "name": "Parque el Rodeo Encino",
+  "site_name": "PARQUE EL RODEO ENCINO",
+  "listed": true,
+  "path": "/parque-el-rodeo-encino/",
+  "quote_path": "/proyectos/cotizar/parque-el-rodeo-encino/",
+  "comuna": "La Dehesa",
+  "region": "metropolitana",
+  "tipos": [
+   "departamento"
+  ],
+  "desde_uf": 5250,
+  "dormitorios": [
+   1,
+   2
+  ],
+  "banos": "1 y 2 baños",
+  "superficie_m2": 60,
+  "estado": "En blanco",
+  "perfil": [
+   "Para vivir"
+  ],
+  "address": "Av. El Rodeo 12.737, esquina Av. La Dehesa",
+  "hero_tags": "Paga sólo el 10% de pie hasta en 30 cuotas",
+  "tagline": "DISEÑO Y CONECTIVIDAD",
+  "intro": "DISEÑO Y CONECTIVIDAD Edificio Encino está pensado para quienes comienzan una nueva etapa de independencia. Con altos estándares de diseño y calidad, destaca por su ubicación privilegiada en Av. La Dehesa con Av. El Rodeo, ofrece una conexión privilegiada con servicios, comercio y todo lo necesario para vivir conectado y cómodo; Portal La Dehesa, Club de Golf La Dehesa, Zoco y Clínica Alemana.",
+  "typologies": [
+   "1D | 1B",
+   "1 1/2 D | 2B",
+   "2D | 2B"
+  ],
+  "status": "En blanco",
+  "gallery_slides": 17,
+  "amenities_title": "DIVERSIÓN, BIENESTAR Y FUNCIONALIDAD",
+  "outline": [
+   {
+    "key": "",
+    "heading": "DISEÑO Y CONECTIVIDAD",
+    "module": "main-slider-section"
+   },
+   {
+    "key": "galería",
+    "heading": "Galería",
+    "module": "l3-numbered-slider-section"
+   },
+   {
+    "key": "tipologías",
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "module": "cotizador-l1-section"
+   },
+   {
+    "key": "tour",
+    "heading": "Recorre los espacios desde donde estés",
+    "module": "video-tour-section"
+   },
+   {
+    "key": "amenidades",
+    "heading": "DIVERSIÓN, BIENESTAR Y FUNCIONALIDAD",
+    "module": "alternate-images-section"
+   },
+   {
+    "key": "estado",
+    "heading": "Estado del proyecto",
+    "module": "l3-project-status-section"
+   },
+   {
+    "key": "brochure",
+    "heading": "Brochure",
+    "module": "wbct-section"
+   },
+   {
+    "key": "contacto",
+    "heading": "¿Te interesó este proyecto?",
+    "module": "project-actions-section"
+   }
+  ],
+  "hours": "LUNES A VIERNES DE 10:00 A 14:00 Y DE 15:00 A 18:00. SÁBADO CONSULTE POR ATENCIÓN. DOMINGO CERRADO",
+  "phone": "+56 9 6658 0581",
+  "email": "parqueelrodeo@ssilva.cl",
+  "contact_address": "Av. El Rodeo 12.737, esquina Av. La Dehesa",
+  "whatsapp": true,
+  "brochure": true,
+  "tour": true,
+  "lead_form": true,
+  "units": [],
+  "notes": ""
+ },
+ {
+  "slug": "millalongo-72",
+  "name": "Edificio Millalongo 72",
+  "site_name": "EDIFICIO MILLALONGO 72",
+  "listed": true,
+  "path": "/millalongo72/",
+  "quote_path": "/proyectos/cotizar/millalongo-72/",
+  "comuna": "La Florida",
+  "region": "metropolitana",
+  "tipos": [
+   "departamento"
+  ],
+  "desde_uf": 2462,
+  "dormitorios": [
+   1,
+   2
+  ],
+  "banos": "1 y 2 baños",
+  "superficie_m2": 39,
+  "estado": "Entrega inmediata",
+  "perfil": [
+   "Para invertir",
+   "Para vivir"
+  ],
+  "address": "Millalongo 72, La Florida",
+  "hero_tags": "PAGA EL PIE Hasta en 60 Cuotas info",
+  "tagline": "TU NUEVO HOGAR CON LA AMPLITUD QUE SUEÑAS",
+  "intro": "TU NUEVO HOGAR CON LA AMPLITUD QUE SUEÑAS Millalongo 72 es un Edificio de sólo 8 pisos, que ofrece amplios estudios y departamentos de 2 dormitorios, en donde cada detalle ha sido cuidadosamente planeado para ofrecer una experiencia residencial, en donde destacan las entradas de luz natural, la seguridad y la distribución de los espacios.",
+  "typologies": [
+   "ESTUDIO",
+   "2D | 2B"
+  ],
+  "status": "Entrega inmediata",
+  "gallery_slides": 6,
+  "amenities_title": "",
+  "outline": [
+   {
+    "key": "brochure",
+    "heading": "Brochure",
+    "module": "wbct-section"
+   },
+   {
+    "key": "",
+    "heading": "TU NUEVO HOGAR CON LA AMPLITUD QUE SUEÑAS",
+    "module": "main-slider-section"
+   },
+   {
+    "key": "galería",
+    "heading": "Galería",
+    "module": "l3-numbered-slider-section"
+   },
+   {
+    "key": "tipologías",
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "module": "cotizador-l1-section"
+   },
+   {
+    "key": "tour",
+    "heading": "Recorre los espacios desde donde estés",
+    "module": "video-tour-section"
+   },
+   {
+    "key": "estado",
+    "heading": "Estado del proyecto",
+    "module": "l3-project-status-section"
+   },
+   {
+    "key": "contacto",
+    "heading": "¿Te interesó este proyecto?",
+    "module": "project-actions-section"
+   }
+  ],
+  "hours": "SALA DE VENTAS: LUNES A DOMINGO DE 10:00 A 19:00 HRS. HORARIO CONTINUADO",
+  "phone": "+56 9 4027 4064 | +56 9 4849 0169",
+  "email": "millalongo72@ssilva.cl",
+  "contact_address": "Millalongo 72, La Florida, Santiago",
+  "whatsapp": true,
+  "brochure": false,
+  "tour": true,
+  "lead_form": true,
+  "units": [
+   {
+    "typology": "2D|2B",
+    "count": 7,
+    "desde_uf": 4798,
+    "hasta_uf": 5171,
+    "total_m2": [
+     77.0,
+     77.0
+    ],
+    "orientations": [
+     "NorOriente",
+     "SurOriente",
+     "SurPoniente"
+    ]
+   },
+   {
+    "typology": "2D|2B MARIPOSA",
+    "count": 2,
+    "desde_uf": 4848,
+    "hasta_uf": 4954,
+    "total_m2": [
+     71.5,
+     71.5
+    ],
+    "orientations": [
+     "Norte"
+    ]
+   },
+   {
+    "typology": "ESTUDIO",
+    "count": 1,
+    "desde_uf": 2923,
+    "hasta_uf": 2923,
+    "total_m2": [
+     39.4,
+     39.4
+    ],
+    "orientations": [
+     "Sur"
+    ]
+   }
+  ],
+  "notes": ""
+ },
+ {
+  "slug": "edificio-vista-la-florida",
+  "name": "Edificio Vista la Florida",
+  "site_name": "EDIFICIO VISTA LA FLORIDA",
+  "listed": true,
+  "path": "/vistalaflorida/",
+  "quote_path": "/proyectos/cotizar/edificio-vista-la-florida/",
+  "comuna": "La Florida",
+  "region": "metropolitana",
+  "tipos": [
+   "departamento"
+  ],
+  "desde_uf": 3994,
+  "dormitorios": [
+   1,
+   2,
+   3
+  ],
+  "banos": "1 y 2 baños",
+  "superficie_m2": 67,
+  "estado": "Entrega inmediata",
+  "perfil": [
+   "Para invertir",
+   "Para vivir"
+  ],
+  "address": "Av. La Florida 10671 | La Florida",
+  "hero_tags": "",
+  "tagline": "UN PROYECTO A TU ALTURA",
+  "intro": "UN PROYECTO A TU ALTURA Proyecto VISTA LA FLORIDA cuenta con 9 pisos que ofrecen una vida en comunidad y una vista insuperable que marca la diferencia con otros proyectos en la comuna. Disfruta tu departamento con facilities completamente equipadas junto a tu familia y amigos.",
+  "typologies": [
+   "2D | 2B",
+   "3D | 2B"
+  ],
+  "status": "Entrega inmediata",
+  "gallery_slides": 5,
+  "amenities_title": "",
+  "outline": [
+   {
+    "key": "",
+    "heading": "UN PROYECTO A TU ALTURA",
+    "module": "main-slider-section"
+   },
+   {
+    "key": "tipologías",
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "module": "cotizador-l1-section"
+   },
+   {
+    "key": "galería",
+    "heading": "Galería",
+    "module": "l3-numbered-slider-section"
+   },
+   {
+    "key": "amenidades",
+    "heading": "Amenidades",
+    "module": "alternate-images-section"
+   },
+   {
+    "key": "estado",
+    "heading": "Estado del proyecto",
+    "module": "l3-project-status-section"
+   },
+   {
+    "key": "brochure",
+    "heading": "Brochure",
+    "module": "wbct-section"
+   },
+   {
+    "key": "",
+    "heading": "Ubicación",
+    "module": "map-section"
+   },
+   {
+    "key": "contacto",
+    "heading": "¿Te interesó este proyecto?",
+    "module": "project-actions-section"
+   }
+  ],
+  "hours": "LUNES DE 15:00 A 18:00 HRS, MARTES A SÁBADO DE 10:00 A 14:00 Y DE 15:00 A 18:00 HRS. DOMINGO CERRADO",
+  "phone": "+56 9 3932 1689",
+  "email": "vistalaflorida@ssilva.cl",
+  "contact_address": "Av. La Florida 10671, La Florida, Región Metropolitana",
+  "whatsapp": true,
+  "brochure": true,
+  "tour": false,
+  "lead_form": true,
+  "units": [
+   {
+    "typology": "1 DORM",
+    "count": 1,
+    "desde_uf": 2785,
+    "hasta_uf": 2785,
+    "total_m2": [
+     33.49,
+     33.49
+    ],
+    "orientations": [
+     "Sur"
+    ]
+   },
+   {
+    "typology": "2 DORMS",
+    "count": 2,
+    "desde_uf": 4232,
+    "hasta_uf": 4243,
+    "total_m2": [
+     67.95,
+     67.95
+    ],
+    "orientations": [
+     "Norte",
+     "Sur"
+    ]
+   },
+   {
+    "typology": "3 DORMS",
+    "count": 6,
+    "desde_uf": 4561,
+    "hasta_uf": 5688,
+    "total_m2": [
+     75.98,
+     93.04
+    ],
+    "orientations": [
+     "NOS",
+     "NorPoniente",
+     "Norte",
+     "SurPoniente"
+    ]
+   }
+  ],
+  "notes": ""
+ },
+ {
+  "slug": "estocolmo",
+  "name": "Estocolmo",
+  "site_name": "ESTOCOLMO",
+  "listed": true,
+  "path": "/estocolmo/",
+  "quote_path": "/proyectos/cotizar/estocolmo/",
+  "comuna": "Las Condes",
+  "region": "metropolitana",
+  "tipos": [
+   "departamento"
+  ],
+  "desde_uf": 13976,
+  "dormitorios": [
+   2,
+   3
+  ],
+  "banos": "2 y 3 baños",
+  "superficie_m2": 115,
+  "estado": "Entrega inmediata",
+  "perfil": [
+   "Para vivir"
+  ],
+  "address": "Estocolmo 661 esquina Pdte. Riesco, Las Condes",
+  "hero_tags": "Grandes Deptos. 2 & 3 Dormitorios",
+  "tagline": "MÁS VERDE PARA TU VIDA",
+  "intro": "MÁS VERDE PARA TU VIDA En Parque Estocolmo vivir bien es parte del día a día. Su ubicación frente al Parque Juan Pablo II te conecta con colegios, comercio y ferias libres, mientras disfrutas de un entorno ideal para compartir en familia, hacer deporte y disfrutar la vida de barrio. Un proyecto Pet Friendly, pensado para todos los integrantes del hogar.",
+  "typologies": [
+   "2D | 3B",
+   "3D | 3B"
+  ],
+  "status": "Entrega inmediata",
+  "gallery_slides": 6,
+  "amenities_title": "DIVERSIÓN, BIENESTAR Y FUNCIONALIDAD",
+  "outline": [
+   {
+    "key": "",
+    "heading": "MÁS VERDE PARA TU VIDA",
+    "module": "main-slider-section"
+   },
+   {
+    "key": "galería",
+    "heading": "Galería",
+    "module": "l3-numbered-slider-section"
+   },
+   {
+    "key": "tipologías",
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "module": "cotizador-l1-section"
+   },
+   {
+    "key": "amenidades",
+    "heading": "DIVERSIÓN, BIENESTAR Y FUNCIONALIDAD",
+    "module": "alternate-images-section"
+   },
+   {
+    "key": "estado",
+    "heading": "Estado del proyecto",
+    "module": "l3-project-status-section"
+   },
+   {
+    "key": "brochure",
+    "heading": "Brochure",
+    "module": "wbct-section"
+   },
+   {
+    "key": "contacto",
+    "heading": "¿Te interesó este proyecto?",
+    "module": "project-actions-section"
+   }
+  ],
+  "hours": "LUNES A VIERNES DE 10:00 A 14:00 Y DE 15:00 A 18:00 HRS. SÁBADO CONSULTE POR ATENCIÓN. DOMINGO CERRADO",
+  "phone": "+56 9 9373 9343",
+  "email": "parquestocolmo@ssilva.cl",
+  "contact_address": "Estocolmo 661 esquina Pdte. Riesco, Las Condes",
+  "whatsapp": true,
+  "brochure": false,
+  "tour": false,
+  "lead_form": true,
+  "units": [],
+  "notes": ""
+ },
+ {
+  "slug": "los-navegantes",
+  "name": "Los Navegantes",
+  "site_name": "LOS NAVEGANTES",
+  "listed": true,
+  "path": "/losnavegantes/",
+  "quote_path": "/proyectos/cotizar/los-navegantes/",
+  "comuna": "Las Condes",
+  "region": "metropolitana",
+  "tipos": [
+   "departamento"
+  ],
+  "desde_uf": 12452,
+  "dormitorios": [
+   3
+  ],
+  "banos": "2 baños",
+  "superficie_m2": 155,
+  "estado": "Entrega inmediata",
+  "perfil": [
+   "Para invertir",
+   "Para vivir"
+  ],
+  "address": "El Bergantín 970, Las Condes",
+  "hero_tags": "ENTREGA INMEDIATA",
+  "tagline": "UN PASO MÁS ALLÁ DE SUS EXPECTATIVAS",
+  "intro": "UN PASO MÁS ALLÁ DE SUS EXPECTATIVAS Ambientes de carácter contemporáneo y minimalista, iluminación moderna, espacios muy amplios e imponentes estructuras que privilegian la luz natural. Materiales nobles en la construcción, una base de colores neutros, espacios integrados y un diseño elegante como gran protagonista. Visítanos en El Bergantín 970, Las Condes, Región Metropolitana.",
+  "typologies": [
+   "ESTAR"
+  ],
+  "status": "Entrega inmediata",
+  "gallery_slides": 8,
+  "amenities_title": "INCREÍBLES ESPACIOS PARA DISFRUTAR",
+  "outline": [
+   {
+    "key": "",
+    "heading": "UN PASO MÁS ALLÁ DE SUS EXPECTATIVAS",
+    "module": "main-slider-section"
+   },
+   {
+    "key": "galería",
+    "heading": "Galería",
+    "module": "l3-numbered-slider-section"
+   },
+   {
+    "key": "tipologías",
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "module": "cotizador-l1-section"
+   },
+   {
+    "key": "amenidades",
+    "heading": "INCREÍBLES ESPACIOS PARA DISFRUTAR",
+    "module": "alternate-images-section"
+   },
+   {
+    "key": "estado",
+    "heading": "Estado del proyecto",
+    "module": "l3-project-status-section"
+   },
+   {
+    "key": "brochure",
+    "heading": "Brochure",
+    "module": "wbct-section"
+   },
+   {
+    "key": "contacto",
+    "heading": "¿Te interesó este proyecto?",
+    "module": "project-actions-section"
+   }
+  ],
+  "hours": "LUNES A DOMINGO DE 11:00 A 19:00HRS *JUEVES CERRADO",
+  "phone": "+56 9 4285 2876",
+  "email": "losnavegantes@ssilva.cl",
+  "contact_address": "El Bergantín 970, Las Condes, Región Metropolitana AGENDE VISITA A PILOTO",
+  "whatsapp": true,
+  "brochure": true,
+  "tour": false,
+  "lead_form": true,
+  "units": [
+   {
+    "typology": "3D | 2B + Estar",
+    "count": 1,
+    "desde_uf": 13247,
+    "hasta_uf": 13247,
+    "total_m2": [
+     155.18,
+     155.18
+    ],
+    "orientations": [
+     "SurPoniente"
+    ]
+   }
+  ],
+  "notes": ""
+ },
+ {
+  "slug": "apoquindo-moro",
+  "name": "Oficinas Apoquindo Moro",
+  "site_name": "OFICINAS APOQUINDO MORO",
+  "listed": true,
+  "path": "/oficinasapoquindomoro/",
+  "quote_path": "/proyectos/cotizar/apoquindomoro/",
+  "comuna": "Las Condes",
+  "region": "metropolitana",
+  "tipos": [
+   "oficina"
+  ],
+  "desde_uf": 2276,
+  "dormitorios": [],
+  "banos": "1 baños",
+  "superficie_m2": 29,
+  "estado": "Entrega inmediata",
+  "perfil": [
+   "Para invertir"
+  ],
+  "address": "Apoquindo 7331, Las Condes",
+  "hero_tags": "",
+  "tagline": "APOQUINDO MORO APOQUINDO MORO",
+  "intro": "APOQUINDO MORO APOQUINDO MORO Es el nuevo polo empresarial de Las Condes. Diseñado con una visión moderna y vanguardista, para ofrecer un entorno de trabajo inspirador y funcional. Con un total de 9 pisos. Dispone de una amplia variedad de oficinas y locales comerciales, lo que brinda una experiencia completa tanto para sus dueños como para quienes lo visitan.",
+  "typologies": [
+   "OFICINA"
+  ],
+  "status": "Entrega inmediata",
+  "gallery_slides": 9,
+  "amenities_title": "ARQUITECTURA VANGUARDISTA",
+  "outline": [
+   {
+    "key": "",
+    "heading": "APOQUINDO MORO APOQUINDO MORO",
+    "module": "main-slider-section"
+   },
+   {
+    "key": "galería",
+    "heading": "Galería",
+    "module": "l3-numbered-slider-section"
+   },
+   {
+    "key": "tipologías",
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "module": "cotizador-l1-section"
+   },
+   {
+    "key": "amenidades",
+    "heading": "ARQUITECTURA VANGUARDISTA",
+    "module": "alternate-images-section"
+   },
+   {
+    "key": "estado",
+    "heading": "Estado del proyecto",
+    "module": "l3-project-status-section"
+   },
+   {
+    "key": "brochure",
+    "heading": "Brochure",
+    "module": "wbct-section"
+   },
+   {
+    "key": "contacto",
+    "heading": "¿Te interesó este proyecto?",
+    "module": "project-actions-section"
+   }
+  ],
+  "hours": "LUNES DE 15:00 A 19:00 HRS. - MARTES A VIERNES DE 10:00 A 19:00 HRS",
+  "phone": "+56968486292",
+  "email": "apoquindomoro@ssilva.cl",
+  "contact_address": "Avenida Apoquindo 7331, Las condes",
+  "whatsapp": true,
+  "brochure": true,
+  "tour": false,
+  "lead_form": true,
+  "units": [],
+  "notes": ""
+ },
+ {
+  "slug": "edificio-limit",
+  "name": "Edificio Limit",
+  "site_name": "EDIFICIO LIMIT",
+  "listed": true,
+  "path": "/limit/",
+  "quote_path": "/proyectos/cotizar/limit/",
+  "comuna": "Macúl",
+  "region": "metropolitana",
+  "tipos": [
+   "departamento"
+  ],
+  "desde_uf": 3176,
+  "dormitorios": [
+   1,
+   2
+  ],
+  "banos": "1 y 2 baños",
+  "superficie_m2": 35,
+  "estado": "Término de obra",
+  "perfil": [
+   "Para invertir",
+   "Para vivir"
+  ],
+  "address": "Mayor Abé 3090, Macul",
+  "hero_tags": "VISITA PILOTOS Y SALA DE VENTAS",
+  "tagline": "LIMIT APARTMENTS VIVE A OTRO NIVEL INVIERTE A OTRO NIVEL",
+  "intro": "LIMIT APARTMENTS VIVE A OTRO NIVEL INVIERTE A OTRO NIVEL Ubicado en Macúl, cada departamento del edificio LIMIT podrás ver los detalles tan funcionales como atractivos, tales como: la decoración, los materiales, colores, texturas y formas crean un espacio que se siente y respira distinto. Vas a amar vivir aquí. Descubre la gran terraza panorámica ubicada en el último piso de LIMIT APARTMENTS: equipamiento de alto estándar, una vista inigualable y la compañía que tú elijas para sentirte de vacaciones los 365 días del año. LIMIT te ofrece una gran oportunidad de inversión. Haz una inversión inteligente de excelente plusvalía.",
+  "typologies": [
+   "1D | 1B E",
+   "2D | 2B A",
+   "2D | 2B B1",
+   "2D | 2B C - SUITE",
+   "2D | 2B D1",
+   "2D | 2B D2"
+  ],
+  "status": "Término de obra",
+  "gallery_slides": 5,
+  "amenities_title": "INCREÍBLES ESPACIOS",
+  "outline": [
+   {
+    "key": "",
+    "heading": "LIMIT APARTMENTS VIVE A OTRO NIVEL INVIERTE A OTRO NIVEL",
+    "module": "main-slider-section"
+   },
+   {
+    "key": "galería",
+    "heading": "Galería",
+    "module": "l3-numbered-slider-section"
+   },
+   {
+    "key": "tipologías",
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "module": "cotizador-l1-section"
+   },
+   {
+    "key": "tour",
+    "heading": "Recorre los espacios desde donde estés",
+    "module": "video-tour-section"
+   },
+   {
+    "key": "amenidades",
+    "heading": "INCREÍBLES ESPACIOS",
+    "module": "alternate-images-section"
+   },
+   {
+    "key": "estado",
+    "heading": "Estado del proyecto",
+    "module": "l3-project-status-section"
+   },
+   {
+    "key": "brochure",
+    "heading": "Brochure",
+    "module": "wbct-section"
+   },
+   {
+    "key": "contacto",
+    "heading": "¿Te interesó este proyecto?",
+    "module": "project-actions-section"
+   }
+  ],
+  "hours": "LUNES DE 15:00 A 18:00 HRS, MARTES A SÁBADO DE 10:00 A 14:00 Y DE 15:00 A 18:00 HRS. DOMINGO CERRADO",
+  "phone": "+569 4290 2511",
+  "email": "limit@ssilva.cl",
+  "contact_address": "Mayor Abe 3090, Macul, Región Metropolitana",
+  "whatsapp": true,
+  "brochure": false,
+  "tour": true,
+  "lead_form": true,
+  "units": [],
+  "notes": ""
+ },
+ {
+  "slug": "distrito-barroso",
+  "name": "Distrito Barroso",
+  "site_name": "DISTRITO BARROSO",
+  "listed": true,
+  "path": "/distrito-barroso/",
+  "quote_path": "/proyectos/cotizar/distrito-barroso/",
+  "comuna": "Santiago",
+  "region": "metropolitana",
+  "tipos": [
+   "departamento"
+  ],
+  "desde_uf": 2582,
+  "dormitorios": [
+   1,
+   2
+  ],
+  "banos": "1 y 2 baños",
+  "superficie_m2": 24,
+  "estado": "En verde",
+  "perfil": [
+   "Para invertir",
+   "Para vivir"
+  ],
+  "address": "Rosas 1777, Barrio Brasil, Santiago",
+  "hero_tags": "ESTADO DEL PROYECTO EN VERDE PAGA EL PIE HASTA EN 18 CUOTAS",
+  "tagline": "EL NUEVO CENTRO DE LA CIUDAD",
+  "intro": "EL NUEVO CENTRO DE LA CIUDAD Distrito Barroso es un proyecto de departamentos con boulevard comercial en el primer piso. Descubre un espacio lleno de vida y conectado a todo lo que necesitas día a día. Equipamiento comunitario: azotea con gourmet y grill zone. Piscina panorámica con vista al centro de la ciudad. Play zone. Hall de acceso con doble altura.",
+  "typologies": [
+   "1D | 1B",
+   "2D | 1B",
+   "2D | 2B",
+   "2D | 2B MARIPOSA"
+  ],
+  "status": "En verde",
+  "gallery_slides": 6,
+  "amenities_title": "",
+  "outline": [
+   {
+    "key": "",
+    "heading": "EL NUEVO CENTRO DE LA CIUDAD",
+    "module": "main-slider-section"
+   },
+   {
+    "key": "galería",
+    "heading": "Galería",
+    "module": "l3-numbered-slider-section"
+   },
+   {
+    "key": "tipologías",
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "module": "cotizador-l1-section"
+   },
+   {
+    "key": "amenidades",
+    "heading": "Amenidades",
+    "module": "alternate-images-section"
+   },
+   {
+    "key": "estado",
+    "heading": "Estado del proyecto",
+    "module": "l3-project-status-section"
+   },
+   {
+    "key": "brochure",
+    "heading": "Brochure",
+    "module": "wbct-section"
+   },
+   {
+    "key": "contacto",
+    "heading": "¿Te interesó este proyecto?",
+    "module": "project-actions-section"
+   }
+  ],
+  "hours": "LUNES DE 15:00 A 18:00 HRS, MARTES A DOMINGOS DE 10:00 A 18:00 HRS",
+  "phone": "+56966064704",
+  "email": "distritobarroso@ssilva.cl",
+  "contact_address": "Rosas 1777, Santiago, Región Metropolitana",
+  "whatsapp": true,
+  "brochure": true,
+  "tour": false,
+  "lead_form": true,
+  "units": [
+   {
+    "typology": "1D|1B",
+    "count": 19,
+    "desde_uf": 2807,
+    "hasta_uf": 3720,
+    "total_m2": [
+     36.4,
+     46.72
+    ],
+    "orientations": [
+     "Norte",
+     "Oriente",
+     "Poniente"
+    ]
+   },
+   {
+    "typology": "2D|1B",
+    "count": 19,
+    "desde_uf": 3275,
+    "hasta_uf": 3898,
+    "total_m2": [
+     49.52,
+     50.19
+    ],
+    "orientations": [
+     "Oriente",
+     "Poniente"
+    ]
+   },
+   {
+    "typology": "2D|2B",
+    "count": 56,
+    "desde_uf": 3453,
+    "hasta_uf": 4298,
+    "total_m2": [
+     50.2,
+     66.08
+    ],
+    "orientations": [
+     "Norte",
+     "Oriente",
+     "Poniente",
+     "Sur"
+    ]
+   },
+   {
+    "typology": "2D|2B Mariposa",
+    "count": 56,
+    "desde_uf": 3453,
+    "hasta_uf": 4298,
+    "total_m2": [
+     50.2,
+     66.08
+    ],
+    "orientations": [
+     "Norte",
+     "Oriente",
+     "Poniente",
+     "Sur"
+    ]
+   }
+  ],
+  "notes": ""
+ },
+ {
+  "slug": "edificio-rondizzoni",
+  "name": "Edificio Rondizzoni",
+  "site_name": "EDIFICIO RONDIZZONI",
+  "listed": true,
+  "path": "/rondizzoni/",
+  "quote_path": "/proyectos/cotizar/edificio-rondizzoni/",
+  "comuna": "Santiago",
+  "region": "metropolitana",
+  "tipos": [
+   "departamento"
+  ],
+  "desde_uf": 2674,
+  "dormitorios": [
+   1,
+   2
+  ],
+  "banos": "1 y 2 baños",
+  "superficie_m2": 30,
+  "estado": "Entrega inmediata",
+  "perfil": [
+   "Para invertir",
+   "Para vivir"
+  ],
+  "address": "San Ignacio de Loyola 1801",
+  "hero_tags": "ENTREGA INMEDIATA PAGA EL PIE HASTA EN 20 CUOTAS",
+  "tagline": "UN ENTORNO INIGUALABLE",
+  "intro": "UN ENTORNO INIGUALABLE Edificio Rondizzoni es un proyecto ideal para inversionistas, con terminaciones de increíble estándar y amplias amenities habilitadas. El proyecto se encuentra ubicado en un barrio residencial a pasos del Parque O´Higgins y estación de metro Rondizzoni, vistas inigualables, conectividad y calidad de vida a sus residentes.",
+  "typologies": [
+   "1D | 1B",
+   "2D | 2B"
+  ],
+  "status": "Entrega inmediata",
+  "gallery_slides": 5,
+  "amenities_title": "INCREÍBLES ESPACIOS PARA COMPARTIR",
+  "outline": [
+   {
+    "key": "",
+    "heading": "UN ENTORNO INIGUALABLE",
+    "module": "main-slider-section"
+   },
+   {
+    "key": "galería",
+    "heading": "Galería",
+    "module": "l3-numbered-slider-section"
+   },
+   {
+    "key": "tipologías",
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "module": "cotizador-l1-section"
+   },
+   {
+    "key": "amenidades",
+    "heading": "INCREÍBLES ESPACIOS PARA COMPARTIR",
+    "module": "alternate-images-section"
+   },
+   {
+    "key": "estado",
+    "heading": "Estado del proyecto",
+    "module": "l3-project-status-section"
+   },
+   {
+    "key": "brochure",
+    "heading": "Brochure",
+    "module": "wbct-section"
+   },
+   {
+    "key": "contacto",
+    "heading": "¿Te interesó este proyecto?",
+    "module": "project-actions-section"
+   }
+  ],
+  "hours": "LUNES DESDE 15:00 HORAS HASTA LAS 19:30. MARTES A SÁBADO DESDE 11:30 A 14:00 Y DESDE 15:00 A 19:30. DOMINGOS CERRADO",
+  "phone": "+56 9 7649 9281",
+  "email": "rondizzoni@ssilva.cl",
+  "contact_address": "San Ignacio de Loyola 1801, Santiago",
+  "whatsapp": true,
+  "brochure": true,
+  "tour": false,
+  "lead_form": true,
+  "units": [
+   {
+    "typology": "1D | 1B",
+    "count": 84,
+    "desde_uf": 3212,
+    "hasta_uf": 3596,
+    "total_m2": [
+     30.71,
+     49.18
+    ],
+    "orientations": [
+     "NorPoniente",
+     "Norte",
+     "Oriente",
+     "Poniente",
+     "Sur"
+    ]
+   },
+   {
+    "typology": "2D | 2B",
+    "count": 7,
+    "desde_uf": 4170,
+    "hasta_uf": 4569,
+    "total_m2": [
+     44.99,
+     52.83
+    ],
+    "orientations": [
+     "NorPoniente",
+     "Norte",
+     "Sur"
+    ]
+   }
+  ],
+  "notes": ""
+ },
+ {
+  "slug": "edificio-santa-victoria-155",
+  "name": "Edificio Santa Victoria 155",
+  "site_name": "EDIFICIO SANTA VICTORIA 155",
+  "listed": true,
+  "path": "/edificio-santa-victoria-155/",
+  "quote_path": "/proyectos/cotizar/edificio-santa-victoria-155/",
+  "comuna": "Santiago",
+  "region": "metropolitana",
+  "tipos": [
+   "departamento"
+  ],
+  "desde_uf": 2599,
+  "dormitorios": [
+   1,
+   2,
+   3
+  ],
+  "banos": "1 y 2 baños",
+  "superficie_m2": 35,
+  "estado": "Obra gruesa",
+  "perfil": [
+   "Para invertir",
+   "Para vivir"
+  ],
+  "address": "Santa Victoria 155, a pasos de Barrio Italia",
+  "hero_tags": "ENTREGA INMEDIATA VISITA SALA DE VENTAS",
+  "tagline": "ESPACIOS AMPLIOS, LUMINOSOS Y FUNCIONALES",
+  "intro": "ESPACIOS AMPLIOS, LUMINOSOS Y FUNCIONALES En una ubicación privilegiada de la comuna de Santiago se encuentra el edificio Santa Victoria 155, emplazado en un sector residencial, tranquilo y bien conectado: a pasos del Parque Bustamante, la estación de metro Santa Isabel y cercano a importantes avenidas para llegar rápidamente a malls, bancos, cines, restaurantes y todo tipo de servicios. Descubre este atractivo proyecto de gran plusvalía al mejor precio por m².",
+  "typologies": [
+   "ESTUDIO",
+   "1D | 1B",
+   "2D | 2B",
+   "TWINS"
+  ],
+  "status": "",
+  "gallery_slides": 8,
+  "amenities_title": "",
+  "outline": [
+   {
+    "key": "",
+    "heading": "ESPACIOS AMPLIOS, LUMINOSOS Y FUNCIONALES",
+    "module": "main-slider-section"
+   },
+   {
+    "key": "galería",
+    "heading": "Galería",
+    "module": "l3-numbered-slider-section"
+   },
+   {
+    "key": "tipologías",
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "module": "cotizador-l1-section"
+   },
+   {
+    "key": "",
+    "heading": "Ubicación",
+    "module": "map-section"
+   },
+   {
+    "key": "brochure",
+    "heading": "Brochure",
+    "module": "wbct-section"
+   },
+   {
+    "key": "contacto",
+    "heading": "¿Te interesó este proyecto?",
+    "module": "project-actions-section"
+   }
+  ],
+  "hours": "LUNES A DOMINGO DE 10:00 A 19:00 HRS HRS. HORARIO CONTINUADO",
+  "phone": "+569 3259 3048 | +569 9945 2273",
+  "email": "santavictoria155@ssilva.cl",
+  "contact_address": "Sta Victoria 155, Santiago, a pasos de Vicuña Mackenna, Barrio Italia",
+  "whatsapp": true,
+  "brochure": false,
+  "tour": false,
+  "lead_form": true,
+  "units": [
+   {
+    "typology": "1 DORM",
+    "count": 49,
+    "desde_uf": 2899,
+    "hasta_uf": 5679,
+    "total_m2": [
+     43.17,
+     79.31
+    ],
+    "orientations": [
+     "Norte",
+     "Oriente",
+     "Poniente",
+     "Sur"
+    ]
+   },
+   {
+    "typology": "2 DORMS",
+    "count": 14,
+    "desde_uf": 4449,
+    "hasta_uf": 5906,
+    "total_m2": [
+     62.21,
+     75.02
+    ],
+    "orientations": [
+     "Oriente",
+     "Poniente",
+     "Sur"
+    ]
+   },
+   {
+    "typology": "2 DORMS EN 1",
+    "count": 3,
+    "desde_uf": 7190,
+    "hasta_uf": 7281,
+    "total_m2": [
+     116.15,
+     116.15
+    ],
+    "orientations": [
+     "NS"
+    ]
+   },
+   {
+    "typology": "ESTUDIO",
+    "count": 1,
+    "desde_uf": 3158,
+    "hasta_uf": 3158,
+    "total_m2": [
+     35.93,
+     35.93
+    ],
+    "orientations": [
+     "Norte"
+    ]
+   }
+  ],
+  "notes": ""
+ },
+ {
+  "slug": "locales-comerciales-distrito-barroso",
+  "name": "Locales Comerciales Distrito Barroso",
+  "site_name": "LOCALES COMERCIALES DISTRITO BARROSO",
+  "listed": true,
+  "path": "",
+  "quote_path": "/proyectos/cotizar/locales-comerciales-distrito-barroso/",
+  "comuna": "Santiago",
+  "region": "metropolitana",
+  "tipos": [
+   "local"
+  ],
+  "desde_uf": 5408,
+  "dormitorios": [],
+  "banos": "baños",
+  "superficie_m2": 49,
+  "estado": "En verde",
+  "perfil": [
+   "Para invertir"
+  ],
+  "address": "",
+  "hero_tags": "",
+  "tagline": "",
+  "intro": "",
+  "typologies": [],
+  "status": "",
+  "gallery_slides": 0,
+  "amenities_title": "",
+  "outline": [],
+  "hours": "",
+  "phone": "",
+  "email": "",
+  "contact_address": "",
+  "whatsapp": false,
+  "brochure": false,
+  "tour": false,
+  "lead_form": false,
+  "units": [
+   {
+    "typology": "LOCALES COMERCIALES DISTRITO BARROSO",
+    "count": 10,
+    "desde_uf": 5408,
+    "hasta_uf": 11047,
+    "total_m2": [
+     49.78,
+     94.23
+    ],
+    "orientations": []
+   }
+  ],
+  "notes": "Its page redirects to /proyectos/: it has no page of its own."
+ },
+ {
+  "slug": "edificio-uniq",
+  "name": "Edificio Uniq",
+  "site_name": "EDIFICIO UNIQ",
+  "listed": true,
+  "path": "/uniq/",
+  "quote_path": "/proyectos/cotizar/edificio-uniq/",
+  "comuna": "Vitacura",
+  "region": "metropolitana",
+  "tipos": [
+   "departamento"
+  ],
+  "desde_uf": 10761,
+  "dormitorios": [
+   2,
+   3
+  ],
+  "banos": "2 y 3 baños",
+  "superficie_m2": 99,
+  "estado": "Entrega inmediata",
+  "perfil": [
+   "Para vivir"
+  ],
+  "address": "Miguel Comas 1795, Vitacura, Santiago",
+  "hero_tags": "PAGA EL 7% DE PIE HASTA EN 24 CUOTAS* VISITA NUESTRA ¡SALA DE VENTAS Y PILOTOS! DESDE 99,59m² A 198,96m²",
+  "tagline": "CREA EXPERIENCIAS ÚNICAS",
+  "intro": "CREA EXPERIENCIAS ÚNICAS Te invitamos a descubrir un proyecto con espacios amplios y conectados con exclusivos detalles de diseño que se adaptan a tu estilo de vida. Bienvenido a UNIQ Visítanos en Miguel Comas #1795, Vitacura.",
+  "typologies": [
+   "2D | 2B SUITE",
+   "2D | 3B",
+   "3D | 3B"
+  ],
+  "status": "",
+  "gallery_slides": 9,
+  "amenities_title": "",
+  "outline": [
+   {
+    "key": "",
+    "heading": "CREA EXPERIENCIAS ÚNICAS",
+    "module": "main-slider-section"
+   },
+   {
+    "key": "galería",
+    "heading": "Galería",
+    "module": "l3-numbered-slider-section"
+   },
+   {
+    "key": "tipologías",
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "module": "cotizador-l1-section"
+   },
+   {
+    "key": "amenidades",
+    "heading": "Amenidades",
+    "module": "alternate-images-section"
+   },
+   {
+    "key": "brochure",
+    "heading": "Brochure",
+    "module": "wbct-section"
+   },
+   {
+    "key": "contacto",
+    "heading": "¿Te interesó este proyecto?",
+    "module": "project-actions-section"
+   }
+  ],
+  "hours": "LUNES DE 15:00 A 19:00 HRS, MARTES A DOMINGO DE 11:00 A 14:00 Y DE 15:00 A 19: 00 HRS. JUEVES CERRADO",
+  "phone": "+56 9 4285 2876",
+  "email": "edificiouniq@ssilva.cl",
+  "contact_address": "Miguel Comas 1795, Vitacura, Santiago",
+  "whatsapp": true,
+  "brochure": true,
+  "tour": false,
+  "lead_form": true,
+  "units": [
+   {
+    "typology": "2D SUITE",
+    "count": 1,
+    "desde_uf": 11697,
+    "hasta_uf": 11697,
+    "total_m2": [
+     99.59,
+     99.59
+    ],
+    "orientations": [
+     "Sur"
+    ]
+   },
+   {
+    "typology": "2D|3B",
+    "count": 1,
+    "desde_uf": 18725,
+    "hasta_uf": 18725,
+    "total_m2": [
+     198.96,
+     198.96
+    ],
+    "orientations": [
+     "Norte"
+    ]
+   },
+   {
+    "typology": "3D|3B",
+    "count": 5,
+    "desde_uf": 18885,
+    "hasta_uf": 19441,
+    "total_m2": [
+     175.72,
+     177.45
+    ],
+    "orientations": [
+     "Oriente"
+    ]
+   },
+   {
+    "typology": "PENTHOUSE",
+    "count": 2,
+    "desde_uf": 16617,
+    "hasta_uf": 17845,
+    "total_m2": [
+     99.59,
+     100.86
+    ],
+    "orientations": [
+     "Poniente",
+     "Sur"
+    ]
+   }
+  ],
+  "notes": ""
+ },
+ {
+  "slug": "barlovento",
+  "name": "Barlovento",
+  "site_name": "BARLOVENTO",
+  "listed": true,
+  "path": "/barlovento/",
+  "quote_path": "/proyectos/cotizar/barlovento/",
+  "comuna": "Algarrobo",
+  "region": "valparaiso",
+  "tipos": [
+   "departamento"
+  ],
+  "desde_uf": 6627,
+  "dormitorios": [
+   2,
+   3
+  ],
+  "banos": "2 baños",
+  "superficie_m2": 68,
+  "estado": "Obra gruesa",
+  "perfil": [
+   "Para invertir",
+   "Para vivir",
+   "Segunda vivienda"
+  ],
+  "address": "Av. Carlos Alessandri 1930, Algarrobo",
+  "hero_tags": "",
+  "tagline": "EXPERIENCIAS INOLVIDABLES FRENTE AL MAR",
+  "intro": "EXPERIENCIAS INOLVIDABLES FRENTE AL MAR Edificio BARLOVENTO se encuentra emplazado en la Av. Principal de Algarrobo.< Departamentos totalmente equipados con facilities de hotel, rodeado de vistas maravillosas al Océano Pacífico a pasos de Playa Las Cadenas. Visítanos en Av. Carlos Alessandri 1930, Algarrobo",
+  "typologies": [
+   "2D | 2B",
+   "3D | 2B"
+  ],
+  "status": "Obra gruesa",
+  "gallery_slides": 4,
+  "amenities_title": "ESPACIOS VARIADOS PARA DISFRUTAR",
+  "outline": [
+   {
+    "key": "",
+    "heading": "EXPERIENCIAS INOLVIDABLES FRENTE AL MAR",
+    "module": "main-slider-section"
+   },
+   {
+    "key": "tipologías",
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "module": "cotizador-l1-section"
+   },
+   {
+    "key": "galería",
+    "heading": "Galería",
+    "module": "l3-numbered-slider-section"
+   },
+   {
+    "key": "amenidades",
+    "heading": "ESPACIOS VARIADOS PARA DISFRUTAR",
+    "module": "alternate-images-section"
+   },
+   {
+    "key": "estado",
+    "heading": "Estado del proyecto",
+    "module": "l3-project-status-section"
+   },
+   {
+    "key": "brochure",
+    "heading": "Brochure",
+    "module": "wbct-section"
+   },
+   {
+    "key": "contacto",
+    "heading": "¿Te interesó este proyecto?",
+    "module": "project-actions-section"
+   }
+  ],
+  "hours": "LUNES DE 15:00 A 19:00 HRS - MARTES A DOMINGO DE 10:45 A 14:00 Y DE 15:00 A 19:00 HRS - MIÉRCOLES CERRADO",
+  "phone": "+569 51789758",
+  "email": "barlovento@ssilva.cl",
+  "contact_address": "Av. Carlos Alessandri 1930, Algarrobo, Valparaíso",
+  "whatsapp": true,
+  "brochure": true,
+  "tour": false,
+  "lead_form": true,
+  "units": [
+   {
+    "typology": "2D|2B",
+    "count": 22,
+    "desde_uf": 7414,
+    "hasta_uf": 8171,
+    "total_m2": [
+     68.96,
+     69.86
+    ],
+    "orientations": [
+     "NorPoniente",
+     "Norte"
+    ]
+   },
+   {
+    "typology": "3D|2B",
+    "count": 3,
+    "desde_uf": 8398,
+    "hasta_uf": 10350,
+    "total_m2": [
+     82.63,
+     100.27
+    ],
+    "orientations": [
+     "NorOriente",
+     "NorPoniente"
+    ]
+   }
+  ],
+  "notes": ""
+ },
+ {
+  "slug": "lagunamar-brisas",
+  "name": "Lagunamar Brisas",
+  "site_name": "LAGUNAMAR BRISAS",
+  "listed": true,
+  "path": "/lagunamar_brisas/",
+  "quote_path": "/proyectos/cotizar/lagunamar-brisas/",
+  "comuna": "Las Cruces",
+  "region": "valparaiso",
+  "tipos": [
+   "departamento"
+  ],
+  "desde_uf": 3588,
+  "dormitorios": [
+   2,
+   3
+  ],
+  "banos": "2 baños",
+  "superficie_m2": 63,
+  "estado": "En blanco",
+  "perfil": [
+   "Para invertir",
+   "Segunda vivienda"
+  ],
+  "address": "Lincoln Nte. 2200, Las Cruces",
+  "hero_tags": "",
+  "tagline": "DEPARTAMENTOS 2·3 DORMS.",
+  "intro": "DEPARTAMENTOS 2·3 DORMS. Laguna Mar cuenta con piscinas, senderos de treking, una increíble laguna con un muelle para la práctica de diversos deportes, club house y gimnasio full equipado. Todo especialmente diseñado para que el descanso venga de la mano de la diversión y del encanto que ofrece un lugar como Las Cruces. Te invitamos a ser parte de esta historia.",
+  "typologies": [
+   "2D | 2B",
+   "3D | 2B"
+  ],
+  "status": "En blanco",
+  "gallery_slides": 6,
+  "amenities_title": "DISFRUTA ENTRE EL BOSQUE, LAS DUNAS Y EL MAR",
+  "outline": [
+   {
+    "key": "",
+    "heading": "DEPARTAMENTOS 2·3 DORMS.",
+    "module": "main-slider-section"
+   },
+   {
+    "key": "galería",
+    "heading": "Galería",
+    "module": "l3-numbered-slider-section"
+   },
+   {
+    "key": "tipologías",
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "module": "cotizador-l1-section"
+   },
+   {
+    "key": "amenidades",
+    "heading": "DISFRUTA ENTRE EL BOSQUE, LAS DUNAS Y EL MAR",
+    "module": "alternate-images-section"
+   },
+   {
+    "key": "estado",
+    "heading": "Estado del proyecto",
+    "module": "l3-project-status-section"
+   },
+   {
+    "key": "brochure",
+    "heading": "Brochure",
+    "module": "wbct-section"
+   },
+   {
+    "key": "contacto",
+    "heading": "¿Te interesó este proyecto?",
+    "module": "project-actions-section"
+   }
+  ],
+  "hours": "LUNES DE 15:00 A 19:00 HRS - MARTES A SÁBADO DE 10:45 A 14:00 Y DE 15:00 A 19:00 HRS - MIÉRCOLES CERRADO, DOMINGO CONSULTE POR ATENCIÓN",
+  "phone": "+569 2224 0082",
+  "email": "lagunamar@ssilva.cl",
+  "contact_address": "Lincoln Nte. 2200, Las Cruces",
+  "whatsapp": true,
+  "brochure": true,
+  "tour": false,
+  "lead_form": true,
+  "units": [
+   {
+    "typology": "2D - 2B",
+    "count": 15,
+    "desde_uf": 3604,
+    "hasta_uf": 3804,
+    "total_m2": [
+     63.15,
+     63.15
+    ],
+    "orientations": [
+     "Poniente"
+    ]
+   },
+   {
+    "typology": "3D - 2B",
+    "count": 27,
+    "desde_uf": 3957,
+    "hasta_uf": 4528,
+    "total_m2": [
+     71.63,
+     76.32
+    ],
+    "orientations": [
+     "Poniente"
+    ]
+   }
+  ],
+  "notes": ""
+ },
+ {
+  "slug": "lagunamar-dunas",
+  "name": "Lagunamar Dunas",
+  "site_name": "LAGUNAMAR DUNAS",
+  "listed": true,
+  "path": "/edificio-lagunamar-dunas/",
+  "quote_path": "/proyectos/cotizar/lagunamar-dunas/",
+  "comuna": "Las Cruces",
+  "region": "valparaiso",
+  "tipos": [
+   "departamento"
+  ],
+  "desde_uf": 3734,
+  "dormitorios": [
+   2
+  ],
+  "banos": "2 baños",
+  "superficie_m2": 78,
+  "estado": "Entrega inmediata",
+  "perfil": [
+   "Para invertir",
+   "Para vivir",
+   "Segunda vivienda",
+   "V región"
+  ],
+  "address": "Lincoln Nte. 2200, Las Cruces",
+  "hero_tags": "",
+  "tagline": "DEPARTAMENTOS 2·3 DORMS.",
+  "intro": "DEPARTAMENTOS 2·3 DORMS. Laguna Mar cuenta con piscinas, senderos de treking, una increíble laguna con un muelle para la práctica de diversos deportes, club house y gimnasio full equipado. Todo especialmente diseñado para que el descanso venga de la mano de la diversión y del encanto que ofrece un lugar como Las Cruces. Te invitamos a ser parte de esta historia.",
+  "typologies": [
+   "2D | 2B",
+   "3D | 2B"
+  ],
+  "status": "Entrega inmediata",
+  "gallery_slides": 7,
+  "amenities_title": "INCREÍBLES ESPACIOS PARA DISFRUTAR",
+  "outline": [
+   {
+    "key": "",
+    "heading": "DEPARTAMENTOS 2·3 DORMS.",
+    "module": "main-slider-section"
+   },
+   {
+    "key": "galería",
+    "heading": "Galería",
+    "module": "l3-numbered-slider-section"
+   },
+   {
+    "key": "tipologías",
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "module": "cotizador-l1-section"
+   },
+   {
+    "key": "amenidades",
+    "heading": "INCREÍBLES ESPACIOS PARA DISFRUTAR",
+    "module": "alternate-images-section"
+   },
+   {
+    "key": "estado",
+    "heading": "Estado del proyecto",
+    "module": "l3-project-status-section"
+   },
+   {
+    "key": "brochure",
+    "heading": "Brochure",
+    "module": "wbct-section"
+   },
+   {
+    "key": "contacto",
+    "heading": "¿Te interesó este proyecto?",
+    "module": "project-actions-section"
+   }
+  ],
+  "hours": "LUNES DE 15:00 A 19:00 HRS - MARTES A SÁBADO DE 10:45 A 14:00 Y DE 15:00 A 19:00 HRS - MIÉRCOLES CERRADO, DOMINGO CONSULTE POR ATENCIÓN",
+  "phone": "+569 2224 0082",
+  "email": "lagunamar@ssilva.cl",
+  "contact_address": "Lincoln Nte. 2200, Las Cruces",
+  "whatsapp": true,
+  "brochure": true,
+  "tour": false,
+  "lead_form": true,
+  "units": [],
+  "notes": ""
+ },
+ {
+  "slug": "vista-golf",
+  "name": "Vista Golf",
+  "site_name": "VISTA GOLF",
+  "listed": true,
+  "path": "/vista-golf/",
+  "quote_path": "/proyectos/cotizar/vista-golf/",
+  "comuna": "Maitencillo",
+  "region": "valparaiso",
+  "tipos": [
+   "departamento",
+   "casa"
+  ],
+  "desde_uf": 10323,
+  "dormitorios": [
+   2
+  ],
+  "banos": "2 baños",
+  "superficie_m2": 90,
+  "estado": "Entrega inmediata",
+  "perfil": [
+   "Segunda vivienda"
+  ],
+  "address": "KM 35,5 Ruta Concón – Zapallar, Marbella",
+  "hero_tags": "Casas| Deptos | Terrenos",
+  "tagline": "TODO LO QUE QUIERES A LA VISTA",
+  "intro": "TODO LO QUE QUIERES A LA VISTA Un proyecto de departamentos, casas y sitios, con una vista privilegiada hacia el campo de golf y el mar. El proyecto se caracteriza por su equipamiento de vanguardia y máximo cuidado en los detalles, con finas terminaciones que otorgan elegancia y carácter al proyecto.",
+  "typologies": [
+   "2D | 2B"
+  ],
+  "status": "Entrega inmediata",
+  "gallery_slides": 7,
+  "amenities_title": "UN ENTORNO INIGUALABLE",
+  "outline": [
+   {
+    "key": "",
+    "heading": "TODO LO QUE QUIERES A LA VISTA",
+    "module": "main-slider-section"
+   },
+   {
+    "key": "galería",
+    "heading": "Galería",
+    "module": "l3-numbered-slider-section"
+   },
+   {
+    "key": "tipologías",
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "module": "cotizador-l1-section"
+   },
+   {
+    "key": "amenidades",
+    "heading": "UN ENTORNO INIGUALABLE",
+    "module": "alternate-images-section"
+   },
+   {
+    "key": "",
+    "heading": "Ubicación",
+    "module": "map-section"
+   },
+   {
+    "key": "estado",
+    "heading": "Estado del proyecto",
+    "module": "l3-project-status-section"
+   },
+   {
+    "key": "brochure",
+    "heading": "Brochure",
+    "module": "wbct-section"
+   },
+   {
+    "key": "contacto",
+    "heading": "¿Te interesó este proyecto?",
+    "module": "project-actions-section"
+   }
+  ],
+  "hours": "LUNES DE 15:00 A 19:00 HRS - JUEVES A SÁBADO DE 10:45 A 14:00 Y DE 15:00 A 19:00 HRS - MARTES Y MIÉRCOLES CERRADO, DOMINGO CONSULTE POR ATENCIÓN",
+  "phone": "+56 9 5238 0210",
+  "email": "vistagolf@ssilva.cl",
+  "contact_address": "Km 35,5, ruta Concón, Zapallar, Marbella",
+  "whatsapp": true,
+  "brochure": true,
+  "tour": false,
+  "lead_form": true,
+  "units": [],
+  "notes": ""
+ },
+ {
+  "slug": "aires-de-quintay",
+  "name": "Aires de Quintay",
+  "site_name": "AIRES DE QUINTAY",
+  "listed": true,
+  "path": "/airesdequintay/",
+  "quote_path": "/proyectos/cotizar/aires-de-quintay/",
+  "comuna": "Quintay",
+  "region": "valparaiso",
+  "tipos": [
+   "departamento"
+  ],
+  "desde_uf": 5761,
+  "dormitorios": [
+   2,
+   3
+  ],
+  "banos": "2 baños",
+  "superficie_m2": 75,
+  "estado": "En blanco",
+  "perfil": [
+   "Para invertir",
+   "Segunda vivienda"
+  ],
+  "address": "Club de Golf Santa Augusta, Quintay",
+  "hero_tags": "PAGA EL PIE HASTA EN 36 CUOTAS info ASESORIA PERSONALIZADA VISITA SALA DE VENTAS",
+  "tagline": "AIRES DE QUINTAY",
+  "intro": "AIRES DE QUINTAY Tu espacio ideal para vivir las mejores experiencias. Visítanos en Av. El Estero con Santa Augusta, Club de Golf Santa Augusta, Quintay Aires de Quintay es un condominio privado a sólo 80 minutos de Santiago, perfecto para disfrutar en familia rodeado de bosques y con vista al mar desde tu departamento.",
+  "typologies": [
+   "2D | 2B",
+   "3D | 2B + TERRAZA PANORáMICA",
+   "3D | 2B"
+  ],
+  "status": "",
+  "gallery_slides": 0,
+  "amenities_title": "ENCUENTRA NATURALEZA ENTRE EL BOSQUE Y EL MAR",
+  "outline": [
+   {
+    "key": "",
+    "heading": "AIRES DE QUINTAY",
+    "module": "main-slider-section"
+   },
+   {
+    "key": "tipologías",
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "module": "cotizador-l1-section"
+   },
+   {
+    "key": "tour",
+    "heading": "Recorre los espacios desde donde estés",
+    "module": "video-tour-section"
+   },
+   {
+    "key": "amenidades",
+    "heading": "ENCUENTRA NATURALEZA ENTRE EL BOSQUE Y EL MAR",
+    "module": "alternate-images-section"
+   },
+   {
+    "key": "brochure",
+    "heading": "Brochure",
+    "module": "wbct-section"
+   },
+   {
+    "key": "contacto",
+    "heading": "¿Te interesó este proyecto?",
+    "module": "project-actions-section"
+   }
+  ],
+  "hours": "LUNES DE 15:00 A 18:00 HRS - MARTES Y JUEVES 10:00 A 14:00 Y DE 15:00 A 18:00 HRS - VIERNES Y SÁBADO DE 10:45 A 14:00 Y DE 15:00 A 19:00 HRS - MIÉRCOLES CERRADO, DOMINGO CONSULTE POR ATENCIÓN",
+  "phone": "Ejecutiva de ventas Viviana Salazar +56 9 5756 0036",
+  "email": "airesdequintay@ssilva.cl",
+  "contact_address": "Av. El Estero con Santa Augusta, Club de Golf Santa Augusta, Quintay",
+  "whatsapp": true,
+  "brochure": true,
+  "tour": true,
+  "lead_form": true,
+  "units": [
+   {
+    "typology": "2D|2B",
+    "count": 4,
+    "desde_uf": 6064,
+    "hasta_uf": 6169,
+    "total_m2": [
+     75.53,
+     75.53
+    ],
+    "orientations": [
+     "NorPoniente",
+     "Norte"
+    ]
+   },
+   {
+    "typology": "3D|2B",
+    "count": 50,
+    "desde_uf": 6773,
+    "hasta_uf": 9462,
+    "total_m2": [
+     87.26,
+     97.76
+    ],
+    "orientations": [
+     "NorOriente",
+     "NorPoniente"
+    ]
+   }
+  ],
+  "notes": ""
+ },
+ {
+  "slug": "playa-cochoa",
+  "name": "Playa Cochoa",
+  "site_name": "PLAYA COCHOA",
+  "listed": true,
+  "path": "/playacochoa/",
+  "quote_path": "/proyectos/cotizar/playa-cochoa/",
+  "comuna": "Reñaca",
+  "region": "valparaiso",
+  "tipos": [
+   "departamento"
+  ],
+  "desde_uf": 7609,
+  "dormitorios": [
+   2,
+   3
+  ],
+  "banos": "2 baños",
+  "superficie_m2": 73,
+  "estado": "Entrega inmediata",
+  "perfil": [
+   "Para invertir",
+   "Para vivir",
+   "Segunda vivienda"
+  ],
+  "address": "Av. Borgoño 18900, Reñaca",
+  "hero_tags": "",
+  "tagline": "GRANDES DEPARTAMENTOS",
+  "intro": "GRANDES DEPARTAMENTOS Ubicados frente al mar en pleno borde costero de Reñaca-Cochoa. Edificio Playa Cochoa es un proyecto de diseño vanguardista, con insuperable vista al mar y hacia la bahía de Valparaíso, con múltiples áreas comunes para disfrutar cada momento. No pierdas la oportunidad de sentir y disfrutar los hermosos atardeceres que esperan por ti.",
+  "typologies": [
+   "2D | 2B",
+   "3D | 2B"
+  ],
+  "status": "",
+  "gallery_slides": 8,
+  "amenities_title": "",
+  "outline": [
+   {
+    "key": "",
+    "heading": "GRANDES DEPARTAMENTOS",
+    "module": "main-slider-section"
+   },
+   {
+    "key": "tipologías",
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "module": "cotizador-l1-section"
+   },
+   {
+    "key": "galería",
+    "heading": "Galería",
+    "module": "l3-numbered-slider-section"
+   },
+   {
+    "key": "amenidades",
+    "heading": "Amenidades",
+    "module": "alternate-images-section"
+   },
+   {
+    "key": "",
+    "heading": "Ubicación",
+    "module": "map-section"
+   },
+   {
+    "key": "brochure",
+    "heading": "Brochure",
+    "module": "wbct-section"
+   },
+   {
+    "key": "contacto",
+    "heading": "¿Te interesó este proyecto?",
+    "module": "project-actions-section"
+   }
+  ],
+  "hours": "LUNES DE 15:00 A 19:00 HRS - MARTES A SÁBADO DE 10:45 A 14:00 Y DE 15:00 A 19:00 HRS - MIÉRCOLES CERRADO, DOMINGO CONSULTE POR ATENCIÓN",
+  "phone": "+569 6168 0174",
+  "email": "playacochoa@ssilva.cl",
+  "contact_address": "Av. Borgoño 18900, Reñaca",
+  "whatsapp": true,
+  "brochure": true,
+  "tour": false,
+  "lead_form": true,
+  "units": [
+   {
+    "typology": "2D - 2B",
+    "count": 15,
+    "desde_uf": 8952,
+    "hasta_uf": 13931,
+    "total_m2": [
+     73.89,
+     117.87
+    ],
+    "orientations": [
+     "Poniente"
+    ]
+   },
+   {
+    "typology": "3D - 2B",
+    "count": 2,
+    "desde_uf": 15119,
+    "hasta_uf": 16147,
+    "total_m2": [
+     145.84,
+     157.01
+    ],
+    "orientations": [
+     "Poniente"
+    ]
+   }
+  ],
+  "notes": ""
+ },
+ {
+  "slug": "canal-beagle",
+  "name": "Canal Beagle",
+  "site_name": "CANAL BEAGLE",
+  "listed": true,
+  "path": "/canalbeagle/",
+  "quote_path": "/proyectos/cotizar/canal-beagle/",
+  "comuna": "Viña del Mar",
+  "region": "valparaiso",
+  "tipos": [
+   "departamento"
+  ],
+  "desde_uf": 3654,
+  "dormitorios": [
+   2,
+   3
+  ],
+  "banos": "1 y 2 baños",
+  "superficie_m2": 54,
+  "estado": "Entrega inmediata",
+  "perfil": [
+   "Para invertir",
+   "Para vivir",
+   "Segunda vivienda",
+   "V región"
+  ],
+  "address": "Isla Melinka 220 | Viña del Mar",
+  "hero_tags": "",
+  "tagline": "ESPACIOS PARA DISFRUTAR",
+  "intro": "ESPACIOS PARA DISFRUTAR Edificio Canal Beagle ha sido creado con todo lo que tú y tu familia necesita para disfrutar de Viña del Mar como nunca antes. Con una terraza panorámica en el último piso del edificio, un cómodo family room y un moderno e innovador lounge bar. Visítanos en Isla Melinka 220 | Sector Canal Beagle",
+  "typologies": [
+   "2D | 2B"
+  ],
+  "status": "Entrega inmediata",
+  "gallery_slides": 8,
+  "amenities_title": "LOS MEJORES ESPACIOS DISEÑADOS PARA DISFRUTAR",
+  "outline": [
+   {
+    "key": "",
+    "heading": "ESPACIOS PARA DISFRUTAR",
+    "module": "main-slider-section"
+   },
+   {
+    "key": "tipologías",
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "module": "cotizador-l1-section"
+   },
+   {
+    "key": "galería",
+    "heading": "Galería",
+    "module": "l3-numbered-slider-section"
+   },
+   {
+    "key": "amenidades",
+    "heading": "LOS MEJORES ESPACIOS DISEÑADOS PARA DISFRUTAR",
+    "module": "alternate-images-section"
+   },
+   {
+    "key": "estado",
+    "heading": "Estado del proyecto",
+    "module": "l3-project-status-section"
+   },
+   {
+    "key": "brochure",
+    "heading": "Brochure",
+    "module": "wbct-section"
+   },
+   {
+    "key": "contacto",
+    "heading": "¿Te interesó este proyecto?",
+    "module": "project-actions-section"
+   }
+  ],
+  "hours": "LUNES DE 15:00 A 19:00 HRS - MARTES A SÁBADO DE 10:45 A 14:00 Y DE 15:00 A 19:00 HRS - MIÉRCOLES CERRADO, DOMINGO CONSULTE POR ATENCIÓN",
+  "phone": "+56 9 5976 0366",
+  "email": "canalbeagle@ssilva.cl",
+  "contact_address": "Isla Melinka 220 | Sector Canal Beagle",
+  "whatsapp": true,
+  "brochure": true,
+  "tour": false,
+  "lead_form": true,
+  "units": [
+   {
+    "typology": "2D|2B",
+    "count": 3,
+    "desde_uf": 4523,
+    "hasta_uf": 4657,
+    "total_m2": [
+     60.04,
+     60.04
+    ],
+    "orientations": [
+     "Poniente"
+    ]
+   },
+   {
+    "typology": "3D|2B",
+    "count": 1,
+    "desde_uf": 5000,
+    "hasta_uf": 5000,
+    "total_m2": [
+     75.91,
+     75.91
+    ],
+    "orientations": [
+     "Norte"
+    ]
+   }
+  ],
+  "notes": ""
+ },
+ {
+  "slug": "isla-picton",
+  "name": "Isla Picton",
+  "site_name": "ISLA PICTON",
+  "listed": true,
+  "path": "/isla-picton/",
+  "quote_path": "/proyectos/cotizar/isla-picton/",
+  "comuna": "Viña del Mar",
+  "region": "valparaiso",
+  "tipos": [
+   "departamento"
+  ],
+  "desde_uf": 2372,
+  "dormitorios": [
+   1,
+   2
+  ],
+  "banos": "1 y 2 baños",
+  "superficie_m2": 35,
+  "estado": "En blanco",
+  "perfil": [
+   "Para invertir",
+   "Para vivir",
+   "V región"
+  ],
+  "address": "Isla Picton 300, Viña del Mar",
+  "hero_tags": "",
+  "tagline": "DEPARTAMENTOS 1 Y 2 DORMS.",
+  "intro": "DEPARTAMENTOS 1 Y 2 DORMS. Isla Picton es el nuevo proyecto tras el éxito de Canal Beagle. Situado en la parte alta de Viña del Mar, este exclusivo desarrollo combina un diseño arquitectónico impresionante y grandes comodidades. Isla Picton ofrece una oportunidad única para disfrutar de uno de los destinos más deseados de la costa.",
+  "typologies": [
+   "1D | 1B",
+   "2D | 1B",
+   "2D | 2B"
+  ],
+  "status": "En blanco",
+  "gallery_slides": 5,
+  "amenities_title": "EQUIPAMIENTO",
+  "outline": [
+   {
+    "key": "",
+    "heading": "DEPARTAMENTOS 1 Y 2 DORMS.",
+    "module": "main-slider-section"
+   },
+   {
+    "key": "galería",
+    "heading": "Galería",
+    "module": "l3-numbered-slider-section"
+   },
+   {
+    "key": "tipologías",
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "module": "cotizador-l1-section"
+   },
+   {
+    "key": "amenidades",
+    "heading": "EQUIPAMIENTO",
+    "module": "alternate-images-section"
+   },
+   {
+    "key": "estado",
+    "heading": "Estado del proyecto",
+    "module": "l3-project-status-section"
+   },
+   {
+    "key": "brochure",
+    "heading": "Brochure",
+    "module": "wbct-section"
+   },
+   {
+    "key": "contacto",
+    "heading": "¿Te interesó este proyecto?",
+    "module": "project-actions-section"
+   }
+  ],
+  "hours": "LUNES DE 15:00 A 19:00 HRS - MARTES A SÁBADO DE 10:45 A 14:00 Y DE 15:00 A 19:00 HRS - MIÉRCOLES CERRADO, DOMINGO CONSULTE POR ATENCIÓN",
+  "phone": "+56 9 5976 0366",
+  "email": "islapicton@ssilva.cl",
+  "contact_address": "Isla Picton 300, Viña del Mar",
+  "whatsapp": true,
+  "brochure": false,
+  "tour": false,
+  "lead_form": true,
+  "units": [],
+  "notes": ""
+ },
+ {
+  "slug": "mira-al-mar",
+  "name": "Mira al Mar",
+  "site_name": "MIRA AL MAR",
+  "listed": true,
+  "path": "/miraalmar/",
+  "quote_path": "/proyectos/cotizar/mira-al-mar/",
+  "comuna": "Viña del Mar",
+  "region": "valparaiso",
+  "tipos": [
+   "departamento"
+  ],
+  "desde_uf": 2836,
+  "dormitorios": [
+   1,
+   2,
+   3
+  ],
+  "banos": "1 y 2 baños",
+  "superficie_m2": 39,
+  "estado": "Entrega inmediata",
+  "perfil": [
+   "Para vivir",
+   "Segunda vivienda"
+  ],
+  "address": "Calle Nueve con Calle del Agua, Recreo, Viña del Mar",
+  "hero_tags": "",
+  "tagline": "TU NUEVO DEPTO",
+  "intro": "TU NUEVO DEPTO El edificio MIRA AL MAR fue pensado en generar momentos para compartir y disfrutar con tu familia y amigos. Este proyecto entrega una gran amplitud en los dormitorios principales con vistas al mar, ambientes integrados que propician el desplazamiento fluido sumado a las espaciosas terrazas que permiten una vista despejada del paisaje de Viña del Mar y el Puerto de Valparaíso. Ten la mejor conectividad para poder escaparte donde desees solo a 11 minutos del SECTOR RECREO, podrás ir a visitar el estadio, tomar el metro, ir a los diferentes miradores que tiene la costa, visitar la playa, entre otros lugares turísticos.",
+  "typologies": [
+   "1D | 1B",
+   "2D | 2B",
+   "3D | 2B"
+  ],
+  "status": "Entrega inmediata",
+  "gallery_slides": 9,
+  "amenities_title": "AMENITIES",
+  "outline": [
+   {
+    "key": "",
+    "heading": "TU NUEVO DEPTO",
+    "module": "main-slider-section"
+   },
+   {
+    "key": "tipologías",
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "module": "cotizador-l1-section"
+   },
+   {
+    "key": "galería",
+    "heading": "Galería",
+    "module": "l3-numbered-slider-section"
+   },
+   {
+    "key": "amenidades",
+    "heading": "AMENITIES",
+    "module": "alternate-images-section"
+   },
+   {
+    "key": "estado",
+    "heading": "Estado del proyecto",
+    "module": "l3-project-status-section"
+   },
+   {
+    "key": "brochure",
+    "heading": "Brochure",
+    "module": "wbct-section"
+   },
+   {
+    "key": "contacto",
+    "heading": "¿Te interesó este proyecto?",
+    "module": "project-actions-section"
+   }
+  ],
+  "hours": "LUNES DE 15:00 A 19:00 HRS - MARTES A SÁBADO DE 10:45 A 14:00 Y DE 15:00 A 19:00 HRS - MIÉRCOLES CERRADO, DOMINGO CONSULTE POR ATENCIÓN",
+  "phone": "+56 9 6122 4225",
+  "email": "miraalmar@ssilva.cl",
+  "contact_address": "Calle Nueve con Calle del Agua, Recreo, Viña del Mar",
+  "whatsapp": true,
+  "brochure": false,
+  "tour": false,
+  "lead_form": true,
+  "units": [
+   {
+    "typology": "1D|1B",
+    "count": 4,
+    "desde_uf": 2867,
+    "hasta_uf": 3067,
+    "total_m2": [
+     39.9,
+     39.94
+    ],
+    "orientations": [
+     "SPO",
+     "SurPoniente"
+    ]
+   },
+   {
+    "typology": "2D|2B",
+    "count": 5,
+    "desde_uf": 3889,
+    "hasta_uf": 4208,
+    "total_m2": [
+     56.57,
+     56.57
+    ],
+    "orientations": [
+     "SurOriente"
+    ]
+   }
+  ],
+  "notes": ""
+ },
+ {
+  "slug": "vistamar",
+  "name": "Vistamar",
+  "site_name": "VISTAMAR",
+  "listed": true,
+  "path": "/vistamar/",
+  "quote_path": "/proyectos/cotizar/vistamar/",
+  "comuna": "Viña del Mar",
+  "region": "valparaiso",
+  "tipos": [
+   "departamento"
+  ],
+  "desde_uf": 2658,
+  "dormitorios": [
+   1,
+   2,
+   3
+  ],
+  "banos": "1 y 2 baños",
+  "superficie_m2": 39,
+  "estado": "En blanco",
+  "perfil": [
+   "Para invertir",
+   "Para vivir",
+   "Segunda vivienda",
+   "V región"
+  ],
+  "address": "Calle del Agua esquina Calle Nueve, Recreo Viña del Mar",
+  "hero_tags": "",
+  "tagline": "VIVE LA EXPERIENCIA VISTA MAR",
+  "intro": "VIVE LA EXPERIENCIA VISTA MAR Vistamar te ofrece la oportunidad de vivir en un lugar único, en un consolidado sector de Recreo, donde la tranquilidad y la seguridad se combinan con la cercanía al centro de Viña del Mar.",
+  "typologies": [
+   "1D | 1B",
+   "2D | 2B",
+   "3D | 2B"
+  ],
+  "status": "En blanco",
+  "gallery_slides": 4,
+  "amenities_title": "VISTAS INCREÍBLES",
+  "outline": [
+   {
+    "key": "",
+    "heading": "VIVE LA EXPERIENCIA VISTA MAR",
+    "module": "main-slider-section"
+   },
+   {
+    "key": "galería",
+    "heading": "Galería",
+    "module": "l3-numbered-slider-section"
+   },
+   {
+    "key": "tipologías",
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "module": "cotizador-l1-section"
+   },
+   {
+    "key": "amenidades",
+    "heading": "VISTAS INCREÍBLES",
+    "module": "alternate-images-section"
+   },
+   {
+    "key": "estado",
+    "heading": "Estado del proyecto",
+    "module": "l3-project-status-section"
+   },
+   {
+    "key": "brochure",
+    "heading": "Brochure",
+    "module": "wbct-section"
+   },
+   {
+    "key": "contacto",
+    "heading": "¿Te interesó este proyecto?",
+    "module": "project-actions-section"
+   }
+  ],
+  "hours": "LUNES DE 15:00 A 19:00 HRS - MARTES A SÁBADO DE 10:45 A 14:00 Y DE 15:00 A 19:00 HRS - MIÉRCOLES CERRADO, DOMINGO CONSULTE POR ATENCIÓN",
+  "phone": "+56 9 6122 4225",
+  "email": "vistamar@ssilva.cl",
+  "contact_address": "Calle del Agua esquina Calle Nueve, Recreo Viña del Mar",
+  "whatsapp": true,
+  "brochure": true,
+  "tour": false,
+  "lead_form": true,
+  "units": [],
+  "notes": ""
+ },
+ {
+  "slug": "la-poza-de-pucon",
+  "name": "La Poza de Pucón",
+  "site_name": "LA POZA DE PUCON",
+  "listed": true,
+  "path": "/lapoza/",
+  "quote_path": "/proyectos/cotizar/la-poza-de-pucon/",
+  "comuna": "Pucón",
+  "region": "otros",
+  "tipos": [
+   "departamento"
+  ],
+  "desde_uf": 3375,
+  "dormitorios": [
+   1,
+   2,
+   3
+  ],
+  "banos": "1 y 2 baños",
+  "superficie_m2": 40,
+  "estado": "Entrega inmediata",
+  "perfil": [
+   "Para invertir",
+   "Para vivir",
+   "Segunda vivienda"
+  ],
+  "address": "Camino Pucón - Villarrica Nº1200",
+  "hero_tags": "Estado Entrega Inmediata A 4 minutos del Centro de Pucón Asesoría Comercial incluida",
+  "tagline": "BIENVENIDOS A LA POZA",
+  "intro": "BIENVENIDOS A LA POZA Ubicado camino a Villarrica, a pasos del centro de Pucón, se encuentra el proyecto LA POZA. Departamentos de 1 · 2 & 3 Dormitorios, con increíbles vistas al lago Villarrica. A sólo pasos del centro de Pucón. Disfruta de la tranquilidad de un entorno natural y privilegiado, sin sacrificar cercanía y comodidad.",
+  "typologies": [
+   "1D | 1B",
+   "2D | 1B",
+   "2D | 2B",
+   "3D | 2B"
+  ],
+  "status": "Entrega inmediata",
+  "gallery_slides": 8,
+  "amenities_title": "PANORAMAS PARA DISFRUTAR",
+  "outline": [
+   {
+    "key": "",
+    "heading": "BIENVENIDOS A LA POZA",
+    "module": "main-slider-section"
+   },
+   {
+    "key": "galería",
+    "heading": "Galería",
+    "module": "l3-numbered-slider-section"
+   },
+   {
+    "key": "tipologías",
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "module": "cotizador-l1-section"
+   },
+   {
+    "key": "tour",
+    "heading": "Recorre los espacios desde donde estés",
+    "module": "video-tour-section"
+   },
+   {
+    "key": "amenidades",
+    "heading": "PANORAMAS PARA DISFRUTAR",
+    "module": "alternate-images-section"
+   },
+   {
+    "key": "estado",
+    "heading": "Estado del proyecto",
+    "module": "l3-project-status-section"
+   },
+   {
+    "key": "brochure",
+    "heading": "Brochure",
+    "module": "wbct-section"
+   },
+   {
+    "key": "contacto",
+    "heading": "¿Te interesó este proyecto?",
+    "module": "project-actions-section"
+   }
+  ],
+  "hours": "",
+  "phone": "+56 9 9884 5103",
+  "email": "lapoza@ssilva.cl",
+  "contact_address": "Camino Villarrica - Pucón 1200, Pucón",
+  "whatsapp": true,
+  "brochure": false,
+  "tour": true,
+  "lead_form": true,
+  "units": [
+   {
+    "typology": "1D|1B",
+    "count": 18,
+    "desde_uf": 4327,
+    "hasta_uf": 6326,
+    "total_m2": [
+     40.06,
+     40.06
+    ],
+    "orientations": [
+     "Sur"
+    ]
+   },
+   {
+    "typology": "2D|1B",
+    "count": 15,
+    "desde_uf": 4219,
+    "hasta_uf": 7056,
+    "total_m2": [
+     44.61,
+     51.44
+    ],
+    "orientations": [
+     "Norte",
+     "Oriente",
+     "Poniente"
+    ]
+   },
+   {
+    "typology": "2D|2B",
+    "count": 19,
+    "desde_uf": 5237,
+    "hasta_uf": 8589,
+    "total_m2": [
+     49.6,
+     64.31
+    ],
+    "orientations": [
+     "Norte",
+     "Oriente",
+     "Poniente",
+     "Sur"
+    ]
+   },
+   {
+    "typology": "3D|2B",
+    "count": 37,
+    "desde_uf": 5914,
+    "hasta_uf": 16544,
+    "total_m2": [
+     61.93,
+     108.75
+    ],
+    "orientations": [
+     "NorPoniente",
+     "Norte",
+     "Oriente",
+     "Poniente"
+    ]
+   }
+  ],
+  "notes": ""
+ },
+ {
+  "slug": "alto-quintay",
+  "name": "Alto Quintay",
+  "site_name": "ALTO QUINTAY",
+  "listed": false,
+  "path": "/alto-quintay/",
+  "quote_path": "",
+  "comuna": "Quintay",
+  "region": "valparaiso",
+  "tipos": [
+   "departamento"
+  ],
+  "desde_uf": 9950,
+  "dormitorios": [
+   2,
+   3
+  ],
+  "banos": "",
+  "superficie_m2": null,
+  "estado": "",
+  "perfil": [],
+  "address": "Club de Golf Santa Augusta, Quintay",
+  "hero_tags": "",
+  "tagline": "¡BIENVENIDOS A ALTO QUINTAY!",
+  "intro": "¡BIENVENIDOS A ALTO QUINTAY! Un verdadero refugio en donde encontrarás la tranquilidad y seguridad que tú y tu familia están buscando. Disfruta de dos increíbles piscinas con arena y vive una experiencia como si estuvieras en la playa.",
+  "typologies": [],
+  "status": "",
+  "gallery_slides": 6,
+  "amenities_title": "DISFRUTA ESPACIOS INCREÍBLES",
+  "outline": [
+   {
+    "key": "",
+    "heading": "¡BIENVENIDOS A ALTO QUINTAY!",
+    "module": "main-slider-section"
+   },
+   {
+    "key": "galería",
+    "heading": "DEPARTAMENTOS SORPRENDENTES",
+    "module": "l3-numbered-slider-section"
+   },
+   {
+    "key": "amenidades",
+    "heading": "DISFRUTA ESPACIOS INCREÍBLES",
+    "module": "alternate-images-section"
+   },
+   {
+    "key": "estado",
+    "heading": "ESTADO DEL PROYECTO",
+    "module": "l3-project-status-section"
+   },
+   {
+    "key": "brochure",
+    "heading": "BROCHURE",
+    "module": "wbct-section"
+   },
+   {
+    "key": "contacto",
+    "heading": "CONTÁCTANOS",
+    "module": "project-actions-section"
+   }
+  ],
+  "hours": "LUNES DE 15:00 A 19:00 - MARTES A SÁBADO DE 10:45 A 14:00 Y DE 15:00 A 19:00 - MIÉRCOLES CERRADO, DOMINGO CONSULTE POR ATENCIÓN.",
+  "phone": "+569 5756 0036",
+  "email": "altoquintay@ssilva.cl",
+  "contact_address": "Av. El Estero con Santa Augusta, Club de Golf Santa Augusta, Quintay",
+  "whatsapp": true,
+  "brochure": true,
+  "tour": false,
+  "lead_form": false,
+  "units": [],
+  "notes": "Not in the project list or its filters; shown in the home page's Destacados tab. Its contact block offers AGENDAR VISITA A PILOTO (WhatsApp). There is no typology section and no quote form on its page."
+ }
+]
