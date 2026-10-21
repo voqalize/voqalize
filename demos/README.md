@@ -97,7 +97,8 @@ discovers backends and each frontend declares its own connection wiring. To add
 1. **Backend** — `demos/<name>/backend/`. **A new demo starts on OpenAI**:
    its brain subclasses `voqalize.sdk.openai.OpenAIBrain`. The existing demos stay
    on `GeminiBrain` by decision (2026-10-21); do not move one over as part of
-   other work.
+   other work. Run it at `reasoning="medium"`: at `"low"`, GPT-6 Sol skipped
+   screen actions it had just promised in our tests.
    - `brain.py`: an `OpenAIBrain` subclass taking `client: AsyncOpenAI`. Every tool returns at once — it reads memory,
      dispatches to the screen and returns — and only the ones that read data the
      model must answer from carry `needs_result_now`; the prompt tells the model

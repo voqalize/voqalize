@@ -43,7 +43,7 @@ class Concierge(OpenAIBrain):
             client=client,
             system_instruction="You are a hotel concierge. Say one short line and act.",
             model="gpt-6-sol",
-            reasoning="low",
+            reasoning="medium",
         )
         self.opened: list[str] = []
 
@@ -105,7 +105,7 @@ async def test_an_openai_brain_speaks_runs_its_tool_and_dispatches() -> None:
     first, second = llm.requests
     assert first["stream"] is True and first["store"] is False
     assert first["model"] == "gpt-6-sol"
-    assert first["reasoning"] == {"effort": "low"}
+    assert first["reasoning"] == {"effort": "medium"}
     assert [t["name"] for t in first["tools"]] == ["open_room"]
     assert llm.captured_instructions[0].startswith("You are a hotel concierge.")
     # The tool's result rides in the next request, after the call that made it.
