@@ -1,6 +1,6 @@
 # Explora Atacama (San Pedro de Atacama, Chile)
 
-Sources: /lodge/atacama-lodge/; /atacama-desert-explora-lodge/; /atacama-explorations/; /explorations-lodge/atacama/; /atacama-getting-there/; /atacama-travel-tips/; /frequently-asked-questions-atacama/; /atacama-desert-hotels/; /atacama-desert-tours/; /atacama-desert/; /puritama-conservation-reserve-home-to-the-andean-cat/; /new-puritama/; /uyuni-lodge/; /2026/07/10/atacama-and-torres-del-paine-two-sides-of-chile/; /2026/09/17/how-to-sequence-explora-lodges-south-america-journey/; reservations.explora.com.
+Sources: /lodge/atacama-lodge/; /atacama-desert-explora-lodge/; /atacama-explorations/; /explorations-lodge/atacama/; /atacama-getting-there/; /atacama-travel-tips/; /frequently-asked-questions-atacama/; /atacama-desert-hotels/; /atacama-desert-tours/; /atacama-desert/; /puritama-conservation-reserve-home-to-the-andean-cat/; /new-puritama/; /uyuni-lodge/; /2026/07/10/atacama-and-torres-del-paine-two-sides-of-chile/; /2026/09/17/how-to-sequence-explora-lodges-south-america-journey/; reservations.explora.com; `L3/lodges.json` (all six sub-menu pages incl. DINING /gastronomy-in-atacama/, and 52 /explorations/ detail pages).
 
 ## The lodge
 - **50 rooms** on "a pristine 42-acre (17-hectare) desert estate" on the Ayllu de Larache, near San Pedro de Atacama; destination group **Desert & Altiplano** (/atacama-desert/).
@@ -19,15 +19,16 @@ Sources: /lodge/atacama-lodge/; /atacama-desert-explora-lodge/; /atacama-explora
 All sleep 2; heating, jetted bathtub; extra bed and crib subject to availability; phone calls and laundry not included. No air conditioning. Bed type chosen at booking, changeable at the lodge if available.
 
 ## Explorations
-- **49** guided Explorations (count varies; see disagreements), half- and full-day, **groups of no more than eight**, bilingual (Spanish and English) guides from the School of Guides. Classic and Signature Explora-only routes; your guide plans the next day with you each evening. **Private Explorations cost extra**, arranged in advance.
-- Activities: Hike, Overland, Bike, Horseback Ride, E-Bike, Sky, High Mountain Ascent. Difficulty: Easy, Moderate, Advanced, Expert.
-- Zones: **Cuenca del salar** (salt flat, 2350 m.a.s.l.), **Quebradas Intermedias** (ravines, Puritama hot springs), **Altiplano** (3800–4300 m.a.s.l., geysers), **Montaña** (summits such as Licancabur, over 5000 m.a.s.l.; needs stamina and preparation), **Cielo** (night skies).
-- Examples (/explorations-lodge/atacama/, 4 pages): Lari, Selenita (horseback, easy); Caspana (e-bike, advanced, full-day); Vilama (e-bike, expert); Cejar (lagoon float, easy; not on Tuesdays); Camino del Agua (through water; bring two pairs of shoes); Ronque (moderate, full-day, Puritama hot springs); Domeyko (not for vertigo); Ckausama (Tatio Geysers, full-day).
-- Signature (2026 blog): El Tatio at dawn, Valle de la Luna at dusk, the observatory after dark; guides start low and climb day by day.
-- Free equipment: trekking poles, helmets, riding gaiters, bike and horse gear, water bottle.
+- **52** exploration detail pages (lodges.json; the site also says 49 and "nearly 50" — see disagreements), half- and full-day, **groups of no more than eight**, guides from the School of Guides "fluent in Spanish and English". Classic and Signature Explora-only routes; your guide plans the next day with you each evening. **Private Explorations cost extra.**
+- By activity: Hike 17, Overland 11, High Mountain Ascent 8, Horseback Ride 7, E-Bike 7, Bike 1, Sky 1. By difficulty: Easy 27, Moderate 14, Advanced 7, Expert 4. 35 half-day, 17 full-day.
+- Zones: **Cuenca del salar** (24; salt flat at 2350 m.a.s.l., Chaxa Lagoon, Salt Mountain Range, the oasis), **Quebradas Intermedias** (12; ravines, Domeyko range, Puritama hot springs), **Montaña** (8; volcano ascents), **Altiplano** (7; geysers, high lagoons), **Cielo** (1).
+- Examples: horseback — Lari (Mars Valley, easy, 2 h; not on Mondays), Dunas de la Chula, Valle de Marte (advanced; not on Mondays); overland — Cejar (float in the lagoon; not on Tuesdays), Gran Salar (Chaxa flamingos), Reserva Tatio and Ckausama (El Tatio geysers), Lagunas Altiplánicas; hikes — Puritama (moderate, to the hot springs), Incahuasi (advanced, 14.3 km, full-day); e-bike — Caspana (advanced, 29.5 km, full-day), Vilama (expert); sky — Astronomía Andina (SmartScope, 1 h); ascents — Láscar (moderate, max 5,592 m), Toco (5,610 m), Licancabur (expert, 5,916 m, 14 h 10 m, only after several explorations above 4,000 m), Sairecabur (expert, 5,984 m).
+- **Children:** the communities that administer El Tatio do not admit children under 9 (Reserva Tatio, Ckausama, Volcán Blanco).
+- 2026 blog: El Tatio at dawn, Valle de la Luna at dusk; guides start low and climb day by day.
+- Provided: trekking poles, helmets, riding gaiters, bike and horse gear, water bottle.
 
-## Dining
-An "authentic, handcrafted daily menu" of Atacama flavors; "local cuisine paired with bold Chilean wine" (/uyuni-lodge/). No reservations needed. Vegetarian/vegan options; tell reservations about dietary needs before arrival. /gastronomy-in-atacama/ was not crawled.
+## Dining (/gastronomy-in-atacama/)
+"Our menu blends tradition with innovation, with a focus on local flavors and ingredients." Included: **breakfast, lunch and dinner, all beverages, wine and an open bar**, plus meals and snacks on full-day Explorations. Chilean wines (Merlot, Cabernet Sauvignon, Carmenère) in the dining room or at the bar by a fire. No reservations needed. Vegetarian/vegan options; tell reservations about dietary needs before arrival.
 
 ## Getting there (/atacama-getting-there/)
 - Santiago (SCL), then 2 hours to **Calama (CJC)**; about 1 h by Explora van (Calama is 98 km / 61 mi away).
@@ -57,10 +58,10 @@ Lodge: **2,500 meters (8,202 feet)** (FAQ). See disagreements for other figures.
 Chile Highlights (from 12 days, with Easter Island and Torres del Paine, "Starting at $8,680 USD / total per person"), Cultural Heritage (from 9 days, $6,588), Southamerican Landscapes (from 12 days, 4 lodges, $8,860); see topic `journeys`. Booking-site rates vary by date.
 
 ## Site pages for this lodge
-Sub-menu OVERVIEW /lodge/atacama-lodge/ · LODGE /atacama-desert-explora-lodge/ · EXPLORATIONS /atacama-explorations/ (full list /explorations-lodge/atacama/) · DINING /gastronomy-in-atacama/ · GETTING HERE /atacama-getting-there/ · TRAVEL TIPS /atacama-travel-tips/. Also FAQ /frequently-asked-questions-atacama/. Older pages still live: /atacama-desert-hotels/ (rooms), /atacama-desert-tours/ (journeys: Essentials 3-5 days, A Step Further 5-8 days).
+Sub-menu (lodges.json tabs) OVERVIEW /lodge/atacama-lodge/ · LODGE /atacama-desert-explora-lodge/ · EXPLORATIONS /atacama-explorations/ (full list /explorations-lodge/atacama/; details /explorations/<name>/) · DINING /gastronomy-in-atacama/ · GETTING HERE /atacama-getting-there/ · TRAVEL TIPS /atacama-travel-tips (no trailing slash in the menu). Also FAQ /frequently-asked-questions-atacama/. Older pages still live: /atacama-desert-hotels/ (rooms), /atacama-desert-tours/ (journeys: Essentials 3-5 days, A Step Further 5-8 days).
 
 ## Where the site disagrees with itself
-- **Number of explorations:** "nearly 50" (overview), "almost 50" (travel-tips FAQ), "49 guided Explorations" and "Explore 52 explorations" on the same /atacama-explorations/ page; home says "more than 30" per lodge.
+- **Number of explorations:** "nearly 50" (overview), "almost 50" (FAQ), "49 guided Explorations" and "Explore 52 explorations" on the same /atacama-explorations/ page (52 detail pages exist); home says "more than 30" per lodge.
 - **Zones:** /atacama-explorations/ says "five unique zones" and lists 5, but the same page also says "four unique Andean zones".
 - **Altitude:** lodge 2,500 m / 8,202 ft (FAQ, /atacama-desert/); San Pedro village 2,443 m / 8,015 ft (FAQ climate answer); Explora Atacama "8,000 feet (2,438 meters)" (/uyuni-lodge/).
 - **Tip amount:** "USD 100 per day per room" (/atacama-travel-tips/) vs "$100 per stay per visitor" (FAQ).

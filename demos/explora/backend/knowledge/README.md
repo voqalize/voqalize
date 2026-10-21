@@ -16,7 +16,17 @@ What the Explora voice guide (Javier, on www.explora.com and reservations.explor
   - `whats-included`, `explorations`, `offers-and-programs`, `journeys`, `getting-there-and-transfers`, `booking-and-policies`, `conservation-reserves`, `company`
 - **`L3/`** holds the generated raw material, which is searchable and highlightable.
   - `pages_main.json`: 150 crawled English pages of www.explora.com. Each record has `{path, url, title, description, kind, h1, sections[{heading, level, tag, selector, heading_selector, text, items[{text, href}]}], faqs[{q, a}], tabs[{selector, click, labels, panes}], ctas, images_alts, text}`. `kind` is one of home, lodge, destination, expedition, experience, offer, about, post or other. Built by `build_main.py`.
-  - `lodges.json`: every lodge's and expedition's sub-pages (OVERVIEW, LODGE, EXPLORATIONS, DINING, GETTING HERE, TRAVEL TIPS), with rooms and exploration detail pages. Built by `build_lodges.py`. This file did not exist yet when L1/L2 were written (2026-10-22). Once it lands, re-check the L2 gaps listed below against it.
+  - `lodges.json`: 336 entries, built by `build_lodges.py`. There are 9 `lodge`, 8 `expedition`/program and 319 `exploration` entries. Each lodge or expedition record has:
+    - `{path, url, name, destination, kind, submenu_label, page_title}`
+    - `tabs[{label, selector, url, mechanism, sections[{heading, component, selector, text}]}]`: every sub-menu page, which for a lodge are OVERVIEW, LODGE, EXPLORATIONS, DINING, GETTING HERE and TRAVEL TIPS (the Travesía has ITINERARIES; expeditions have ITINERARY, DEPARTURE DATES, WHAT TO BRING and FAQ)
+    - `rooms[{name, text, facts, amenities}]`, with size, capacity and beds
+    - `explorations[{name, area, activity, difficulty, duration, text, url, distance, time, elevation}]`
+    - `faqs`
+    - `booking`, with `hotel_param.hotel_code`
+    - `facts`, extracted snippets such as `altitude`, `min_nights` and `airport`
+    - `text`
+
+    Exploration entries carry `lodge_url`, `facts{area, activity, difficulty, duration, distance, time, elevation, has_map}` and the detail text. L2 was updated from it on 2026-10-22.
   - `reservations.json`: the booking site (Art2Fly IBE), explored 2026-10-21. It records:
     - the hotel `<select>` with codes and groups, and which codes book and which only enquire
     - the four steps (paso1 date and nights, paso2 rooms, paso3 contact and payment, the expeditions enquiry form)
@@ -70,8 +80,7 @@ A rebuild changes L3 only. When new facts or changed dates appear, update L2 and
   - the non-English pages
   - the privacy policy body (a WordPress default) and the reporting-channel form
   - most blog posts beyond the 2026 ones and the conservation posts
-  - the exploration detail pages (`/explorations/<name>/`), which are for `lodges.json`
-
+  
 ## Known disagreements (recorded in the L2 files)
 
 **Counts and dates**
@@ -115,17 +124,20 @@ A rebuild changes L3 only. When new facts or changed dates appear, update L2 and
   - Puritama reserve: 6,000 / 6,440 / 7,000 / 8,000 ha.
   - Torres del Paine reserve: 15,000 acres / 14,800 acres / ~6,000 ha. Its share for conservation is 95% vs 97%.
 - **Beds.** "King or two double beds" (FAQs) vs "King or 2 twin" (room cards), at several lodges.
-- **Patagonia National Park award year** (2025 vs 2024).
+- **Patagonia National Park award year** (2025 vs 2024). The expeditions hub says the World's Leading Expedition Company award came "six consecutive years"; the awards page says seven.
+- **Found in `lodges.json` (2026-10-22):**
+  - **Sacred Valley alcohol:** the DINING tab says "all beverages … open bar"; the FAQs say alcohol is not included.
+  - **Expedition FAQs vs the policy page:** the Iceland summer FAQ gives a 121/90/60-day scale; the Sacred Mountains and Tierra del Fuego FAQs give 60/30 days.
+  - **Travesía:** four vs three nights at Atacama first; 300+ miles vs 338 miles (544 km); Ramaditas at 4,075 m vs 4,000 m.
+  - **Same exploration, different figures on the two Torres del Paine lodges' lists:** Tough Life, Cañadón de las Torres, El Pasado and Base Torres.
+  - **Explorations sold as extras:** PNP fly fishing and helicopter flights are listed as explorations but also called "optional experiences at an additional cost".
+  - **Counts on the same page:** El Calafate says "30+" and "24 explorations"; Easter Island "30" and "35", and "seven zones" and "4 zones".
+  - **Guide planning:** "every evening" (several EXPLORATIONS tabs) vs "each afternoon".
 - **El Chaltén.** Its travel-tips medical section is copied from Torres del Paine.
 
 ## Gaps (things visitors ask that the crawled site does not answer)
-- **Prices:** nightly rates outside the booking calendar; single supplements; Travesía prices; spa treatment prices.
-- **Not crawled:** the Travesía day-by-day itinerary; the dining pages for Atacama, Sacred Valley, the TdP Conservation Reserve and El Calafate; the LODGE and EXPLORATIONS sub-pages for Easter Island; travel tips for the TdP Conservation Reserve. `lodges.json` may fill these.
-- **Not answered by the site:**
-  - minimum ages and children's rules for explorations, the Travesía and the expeditions (Iceland Winter recommends 13+)
-  - accessibility and reduced mobility
-  - dietary needs
-  - exact opening days for the two new lodges
-  - seasonal closures
-  - what happens after an expedition enquiry is sent
-  - the current Echo Society season table
+- **Prices:** nightly rates outside the booking calendar; single supplements (only Iceland Winter says "on request"); current Travesía prices; spa treatment prices.
+- **Travesía:** the day-by-day plan, the night split per lodge, and room types for Ramaditas, Chituca and Jirira. The itinerary pages carry only link labels for the 8- and 10-night versions.
+- **El Calafate:** check-in/out times, tips, voltage, Wi-Fi, medical information, minimum stay, the Standard vs Suite split, and the exact opening day. The TdP Conservation Reserve gives no minimum stay or opening day either.
+- **Minimum ages:** for explorations, the Travesía and most expeditions. The exceptions are Iceland Winter 13+, Puma Encounters 18+, and El Tatio, which takes no children under 9.
+- **Not answered:** accessibility; seasonal closures; Tapati festival dates; what happens after an expedition enquiry is sent; a current Echo Society season table.

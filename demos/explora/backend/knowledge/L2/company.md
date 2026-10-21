@@ -50,5 +50,5 @@ Posts by "Emily from Explora" and others: family stays at Valle Sagrado, the nin
 ## Where the site disagrees with itself
 - **How many lodges/destinations**: home "nine lodges in Chile, Peru, Argentina, and Bolivia" and, in another section, "nine lodges across Chile, Easter Island, Argentina, and Peru; one overland Travesía into Bolivia"; the nine-lodge blog counts Jirira in Bolivia among 9 lodges in 4 countries; /explora-jobs/ says "seven destinations across four countries".
 - **Age**: "over 30 years" (/explora-travels/), "almost three decades" (/explora-south-america/), "More than 20 years since then" (founder's letter, older text), "With more than 20 years of experience" (/corporate-travel-program/).
-- **Leading Expedition Company years**: awards page lists World's Leading 2019–2025 (seven); /2025/12/02/how-do-we-explore/ badges show 2023 and 2024; /explora-travels/ and /explora-south-america/ still show a 2022 badge.
+- **Leading Expedition Company years**: awards page lists World's Leading 2019–2025 (seven); the expeditions hub says "six consecutive years"; /2025/12/02/how-do-we-explore/ badges show 2023 and 2024; /explora-travels/ and /explora-south-america/ still show a 2022 badge.
 - **PNP World's Leading Lodge**: 2025 on the overview, 2024 on the lodge page (see `patagonia-national-park`).

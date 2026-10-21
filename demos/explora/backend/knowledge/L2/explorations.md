@@ -1,6 +1,6 @@
 # Explorations: how they work
 
-Sources: https://www.explora.com/ (section "Our Explorations: Discover More with the Best Experts"); /2025/12/02/how-do-we-explore/ (fetched live 2026-10-21; linked from the home page "HOW WE EXPLORE"); /explora-hotels/ (tabs); /torres-del-paine-tours/; /2026/08/27/solo-travel-set-your-own-pace/; the exploration archives /explorations-lodge/atacama/, /explorations-lodge/atacama-uyuni/, /explorations-lodge/easter-island/, /explorations-lodge/machu-picchu-sacred-valley/, /explorations-lodge/torres-del-paine/, /explorations-lodge/reserva-torres-del-paine/, /explorations-lodge/patagonia-national-park/, /explorations-lodge/el-chalten/, /explorations-lodge/explorations-el-calafate/; lodge overviews and FAQ pages; /benefits-categories/.
+Sources: https://www.explora.com/ (section "Our Explorations: Discover More with the Best Experts"); /2025/12/02/how-do-we-explore/ (fetched live 2026-10-21; linked from the home page "HOW WE EXPLORE"); /explora-hotels/ (tabs); /torres-del-paine-tours/; /2026/08/27/solo-travel-set-your-own-pace/; `L3/lodges.json` (each lodge's exploration list and 319 exploration detail pages); the exploration archives /explorations-lodge/atacama/, /explorations-lodge/atacama-uyuni/, /explorations-lodge/easter-island/, /explorations-lodge/machu-picchu-sacred-valley/, /explorations-lodge/torres-del-paine/, /explorations-lodge/reserva-torres-del-paine/, /explorations-lodge/patagonia-national-park/, /explorations-lodge/el-chalten/, /explorations-lodge/explorations-el-calafate/; lodge overviews and FAQ pages; /benefits-categories/.
 
 ## The basics
 - **Included**: "we offer more than 30 curated half- and full-day explorations at each of our lodges, all included with your stay" (home). Privately guided explorations cost extra.
@@ -34,16 +34,33 @@ Sources: https://www.explora.com/ (section "Our Explorations: Discover More with
 | El Chaltén | "more than 30" | Lago del Desierto, Los Huemules Conservation Reserve, Parque Nacional Los Glaciares | Hike, Overland, Climbing, Self Guided, By packraft, High Mountain Ascent |
 | El Calafate | "30+" | Brazo Sur, Hielos Milenarios, La Estancia, Pampa, Valles y Montañas | Hike, Overland, Horseback Ride, By Boat, Mountain Ascent |
 
-A few first-page examples (name — zone — activity — difficulty — duration): Lari — Cuenca del salar — Horseback Ride — Easy — Half-day (Atacama); Caspana — Altiplano — E-Bike — Advanced — Full-day (Atacama); Tangata Manu — Vaikava — At the sea — Advanced — Half-day (Easter Island, kayak); 9 Apus — Suni — E-Bike — Advanced — Half-day (Sacred Valley, a Signature ride); Cañadón de las Torres — Conservation Reserve — Horseback Ride — Easy — Half-day (Torres del Paine); Valles Glaciares — The Uplands — By air — Easy — Half-day (Patagonia National Park, over the Northern Patagonian Ice Field); Packraft Río de las Vueltas — Lago del Desierto — By packraft — Moderate — Half-day (El Chaltén); Cerro Cristal — Valles y Montañas — Hike — Advanced — Full-day (El Calafate); Baguales — Sierra Baguales — Overland — Easy — Half-day (TdP Conservation Reserve). Each lodge topic lists its highlights.
+Named examples are in each lodge topic.
+
+## What the crawl found per lodge (L3/lodges.json exploration detail pages)
+Counts are the exploration pages found in October 2026, not a number the site states. Each detail page gives zone, activity, difficulty, duration and, for many, distance and time (e.g. Lari, Atacama: 8 km / 5 mi, 2 h; "not available on Mondays").
+| Lodge | Pages | Easy / Moderate / Advanced / Expert | Half-day / Full-day | Main activities |
+|---|---|---|---|---|
+| Atacama | 52 | 27 / 14 / 7 / 4 | 35 / 17 | Hike 17, Overland 11, High Mountain Ascent 8, Horseback 7, E-Bike 7 |
+| Travesía Atacama–Uyuni | 30 | 17 / 8 / 5 / 0 | 14 / 16 | Hike 12, Overland 10, Bike 4, High Mountain Ascent 3 |
+| Easter Island (Rapa Nui) | 35 | 14 / 10 / 10 / 1 | 29 / 6 | Hike 12, At the sea 8, Bike 6, Overland 6 |
+| Sacred Valley | 47 | 23 / 15 / 6 / 3 | 22 / 25 | Hike 23, Overland 9, Bike 5, Self Guided 4 |
+| Torres del Paine | 34 | 12 / 9 / 7 / 6 | 20 / 14 | Hike 17, Horseback 10, Overland 4, High Mountain Ascent 3 |
+| TdP Conservation Reserve | 33 (the lodge's list shows 36) | 15 / 11 / 7 / 0 | 19 / 14 | Hike 22, Overland 4, Mountain Ascent 4, Horseback 3 |
+| Patagonia National Park | 30 | 12 / 11 / 4 / 3 | 17 / 13 | Hike 11, Overland 5, E-Bike 5, High Mountain Ascent 3, By air 2, By water 2 |
+| El Chaltén | 34 | 12 / 10 / 10 / 2 | 16 / 18 | Hike 23, Overland 3, Self Guided 3, Climbing 2 |
+| El Calafate | 24 | 11 / 8 / 5 / 0 | 16 / 8 | Hike 12, Horseback 6, Overland 3, Mountain Ascent 2, By Boat 1 |
+
+## Recommended stays (lodge pages in L3/lodges.json)
+At least five nights at Atacama, Sacred Valley, Torres del Paine, Patagonia National Park and El Chaltén; a minimum of four nights at Easter Island. (The 2026 Atacama + Torres del Paine blog says Atacama "4 nights minimum, 5 for more room".)
 
 ## Gear
 Walking sticks and bike equipment are provided without extra cost (Patagonia National Park FAQ; corporate program list includes horse and bicycle equipment and trekking sticks).
 
 ## Departure day
-At most lodges a half-day exploration is possible on check-out day by checking out at 07:00 (Patagonia National Park, Sacred Valley, Easter Island) or before the exploration (Atacama, Torres del Paine); El Chaltén's 08:00 shared transfer leaves no time for one unless a private transfer is booked.
+Several lodges allow a half-day exploration on check-out day (see `getting-there-and-transfers`).
 
 ## Where the site disagrees with itself
-- **Counts**: home "more than 30 … at each of our lodges"; Torres del Paine "more than 40" and "34 destinations"; Atacama "nearly 50", "49" and "52" on different pages; Sacred Valley "over 40" and "49" on one page; TdP Conservation Reserve "30+" and "36" on one page; Easter Island "30" vs "more than 30". Quote the lodge's own overview.
+- **Counts**: the crawl found fewer detail pages than several lodges claim (table above). Home "more than 30 … at each of our lodges"; Torres del Paine "more than 40" and "34 destinations"; Atacama "nearly 50", "49" and "52" on different pages; Sacred Valley "over 40" and "49" on one page; TdP Conservation Reserve "30+" and "36" on one page; Easter Island "30" vs "more than 30". Quote the lodge's own overview.
 - **When you plan**: "each afternoon" (how-we-explore, solo post) vs "every evening" (Torres del Paine).
 - **Guides**: "bilingual" almost everywhere; "multilingual" on /el-chalten-lodge/.
 - **Durations**: Patagonia National Park's "Baker" card says Half-day while its text says "A full-day exploration".
