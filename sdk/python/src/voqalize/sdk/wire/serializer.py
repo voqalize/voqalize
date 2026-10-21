@@ -487,7 +487,9 @@ class WireSerializer:
             )
         env = pb.Envelope()
         encoder(frame, env)
-        return env.SerializeToString()
+        # Deterministic: map entries in key order, so the same frame is the same
+        # bytes from every codec that encodes it the same way.
+        return env.SerializeToString(deterministic=True)
 
     async def deserialize(self, data: str | bytes) -> Frame:
         frame = self._decode(data)
