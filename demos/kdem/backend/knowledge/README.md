@@ -65,8 +65,8 @@ approved pages in a section with `read_pdfs` (today `policies-resources` and
 
 ## The snapshot
 
-The text of each page is not kept here. It is read from the site into a
-snapshot outside the repository (`KDEM_KNOWLEDGE_DIR`), refreshed about once a
+The current text of each page is not kept here (only the frozen core, below).
+It is read from the site into a snapshot outside the repository (`KDEM_KNOWLEDGE_DIR`), refreshed about once a
 day from `wp-sitemap.xml`:
 
 - a page whose `lastmod` changed is read again;
@@ -85,6 +85,23 @@ day from `wp-sitemap.xml`:
 The list is applied to the snapshot every time it is loaded, so a page taken
 off the list stops being answered from on the next session, before any
 refresh.
+
+## `core_pages.json`
+
+The frozen core: the text of the approved and hub-linked pages as they read
+when it was last frozen, with no news and no PDFs. The brain answers from it
+the moment it starts, with no network, until a snapshot is on disk, so the
+first session after a deploy is never answered from an empty index. It counts
+as never refreshed: the first refresh starts at once, re-reads only the pages
+whose `lastmod` has moved since, and adds the news and the PDFs from the links
+the core pages keep. The list applies to it as to any snapshot.
+
+Freeze it again from a fresh snapshot when the pages have moved a lot, and
+review the diff like any change to this directory:
+
+```sh
+uv run python demos/kdem/backend/knowledge.py --cache-dir <a fresh snapshot dir> freeze-core
+```
 
 For an urgent change, refresh by hand on each brains host, against the brain's
 own snapshot directory (see `../../README.md`):

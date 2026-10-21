@@ -1,0 +1,1606 @@
+{
+ "version": 2,
+ "built_at": "",
+ "known": {},
+ "pages": [
+  {
+   "url": "https://karnatakadigital.in/",
+   "title": "Home",
+   "section": "core-pages",
+   "origin": "approved",
+   "lastmod": "2026-10-16T17:07:16+05:30",
+   "fetched_at": "2026-10-19T05:45:53+00:00",
+   "digest": "c403c59b7878248e",
+   "blocks": [
+    "Karnataka's Digital Landscape\nDPIIT registered\nstartups\n14 K\nVenture Capital raised by Bengaluru based start-ups\n$ 64 Bn\nActive tech startup\ninvestors in the state\n4 K+\nTech Unicorns\nin Karnataka\n44\nTech soonicorns\nin Karnataka\n44\nAccelerators & Incubators\n138 +\nInnovation hubs\n47\nMergers & acquisitions\n307\nCenter of Excellence\n8\nFunded tech startups\n1.7 K",
+    "Latest News\nWHY INDIAN FACTORIES NEED A MAKEOVER\nAugust 28, 2026\nLightspeed’s Mohapatra on India’s AI Startups\nAugust 28, 2026\nHemant Mohapatra, Partner at Lightspeed India, discusses the investment opportunities in India's...\nNaidu Clears ₹730.70-Cr Quantum, AI University Campus in Amaravati\nAugust 28, 2026\nChief Minister N. Chandrababu Naidu on Thursday approved a dedicated Quantum and...\nState explores ElevenLabs voice AI pilots for services\nAugust 28, 2026\nKarnataka govt sets up cabinet sub-committee for education reforms\nAugust 28, 2026\nTech, Al must help make justice more accessible: CJI Surya Kant\nAugust 28, 2026\nSpeaking at the Indo-German arbitration conclave in Berlin, Germany, CJI Kant said...\nLoad More",
+    "ABOUT KDEM\nKarnataka Digital Economy Mission(KDEM), initiative of Government of Karnataka, designed to function as the knowledge bridge between the Government of Karnataka and industry to accelerate growth and investments in the field of Information Technology sector in Karnataka.\nA not-for-profit, Section ‘8’ organization under the aegis of the Department of Electronics, Information Technology, Biotechnology and Science & Technology, Government of Karnataka, driven by highly skilled, energetic and dynamic professionals. Industry Partners – ASSOCHAM, IESA & NASSCOM.",
+    "Our Focus Areas\nKDEM will help guide growth and investments in five core sectors. An advocacy council has been set up for each vertical to guide the management in its goals. The council helps in designing sector-specific strategies and its implementation. KDEM also facilitates in execution of short-term and long term projects. The focus is to achieve annual goals, increase investment flow and align existing activities within the overall KDEM goals.",
+    "IT Products & Services/BPM and\nGCC Promotion\nInnovation\nand Startups\nElectronics Systems Design and\nManufacturing (ESDM)",
+    "Beyond Bengaluru\nTalent Accelerator",
+    "KDEM Youtube Channel\nMangaluru technovanza 2025\nHDB Techceleration 2025\nThe Mysuru Big Tech Show 2025\nLaunch of Beyond Bengaluru Cluster Seed Fund\nAccelerating Talent Growth in Karnataka: The Navasutra Strategy\nLEAP Talks - Epidode 13 - Kiran Marathe, Founder & CEO, DTRI",
+    "KDEM led Initiatives\nDhruva by Vergecloud\nMore Details\nKarnataka Skill Connect Portal\nMore Details\nWomen@Work\nMore Details\nFuture Digital Jobs\nMore Details\nK-VLSI Design Program\nMore Details",
+    "Key Industry MoUs - Partners in Progress",
+    "Resources\nView More",
+    "Blogs\nBreaking the Myth: How Bengaluru Emerged as India’s Safest City for Women\nWhen Bengaluru was ranked as India’s safest city for women in 2025, the headline quickly drew attention and debate. Rankings often compress complex realities into\nRead More »\nJanuary 24, 2026\nThe Future of ESDM Leadership: Karnataka at the Forefront\nThe Indian Electronics System Design and Manufacturing (ESDM) sector is experiencing a period of phenomenal growth.\nRead More »\nJuly 1, 2024\nThe Fintech Revolution in India: Success, Opportunities, Challenges\nIndia boasts one of the world’s fastest-growing fintech markets, with a current size of USD 584 billion and a projected.\nRead More »\nJune 27, 2024"
+   ],
+   "links": [
+    "https://karnatakadigital.in/nipuna-karnataka/",
+    "https://karnatakadigital.in/kdem-samco-ethical-ai/",
+    "https://karnatakadigital.in/kdem-xpheno-silicon-beach_september2026/",
+    "https://karnatakadigital.in/beyond-bengaluru-cluster-seed-fund/",
+    "https://karnatakadigital.in/mysuru-beyond-heritage-skills-talent-landscape-report-2026/",
+    "https://karnatakadigital.in/mysuru-ai-cybersecurity-skills-report-2026/",
+    "https://karnatakadigital.in/the-global-startup-ecosystem-report-2026/",
+    "https://karnatakadigital.in/guidelines/",
+    "https://karnatakadigital.in/",
+    "https://karnatakadigital.in/news/why-indian-factories-need-a-makeover/",
+    "https://karnatakadigital.in/news/lightspeeds-mohapatra-on-indias-ai-startups/",
+    "https://karnatakadigital.in/news/naidu-clears-%E2%82%B9730-70-cr-quantum-ai-university-campus-in-amaravati/",
+    "https://karnatakadigital.in/news/state-explores-elevenlabs-voice-ai-pilots-for-services/",
+    "https://karnatakadigital.in/news/karnataka-govt-sets-up-cabinet-sub-committee-for-education-reforms/",
+    "https://karnatakadigital.in/news/tech-al-must-help-make-justice-more-accessible-cji-surya-kant/",
+    "https://karnatakadigital.in/news-updates/",
+    "https://karnatakadigital.in/software-products-services-including-global-capability-centers-gcc/",
+    "https://karnatakadigital.in/innovation-and-startups/",
+    "https://karnatakadigital.in/electronics-system-design-and-manufacturing/",
+    "https://karnatakadigital.in/beyond-bengaluru/",
+    "https://karnatakadigital.in/talent-accelerator/",
+    "https://karnatakadigital.in/womenatwork/",
+    "https://karnatakadigital.in/futuredigitaljobs/",
+    "https://karnatakadigital.in/k-vlsi/",
+    "https://karnatakadigital.in/resources/",
+    "https://karnatakadigital.in/breaking-the-myth-how-bengaluru-emerged-as-indias-safest-city-for-women/",
+    "https://karnatakadigital.in/the-future-of-esdm-leadership-karnataka-at-the-forefront/",
+    "https://karnatakadigital.in/the-fintech-revolution-in-india-success-opportunities-challenges/"
+   ],
+   "kind": "page",
+   "pdf_links": []
+  },
+  {
+   "url": "https://karnatakadigital.in/about-us/",
+   "title": "About KDEM",
+   "section": "core-pages",
+   "origin": "approved",
+   "lastmod": "2026-06-16T20:30:44+05:30",
+   "fetched_at": "2026-10-07T10:19:20+00:00",
+   "digest": "9291f6a7005b1603",
+   "blocks": [
+    "ABOUT KDEM\nKarnataka Digital Economy Mission (KDEM) is a Section 8 organisation designed to function as the knowledge bridge between the Government of Karnataka and the industry ecosystem to accelerate the development of the state’s IT, BT, and S&T sectors. Endeavouring to contribute US$300 billion to the prime minister’s vision of a US$1 trillion digital economy, KDEM plays a critical role in supporting technology investments, uncovering technology opportunities through research, structuring promotional efforts abroad, providing feedback on policy, and forming strategic roadmaps. The organisation’s ‘Beyond Bengaluru’ imitative seeks to maximise the economic potential of emerging cities/regions outside the state capital by enabling their organic growth and inviting investments for start-ups/enterprises.\nAs a result, over 25 companies, including IBM and GlowTouch, have begun functioning in the Mysuru, Mangaluru, and Hubballi clusters, generating employment for more than 5,000 people. Additionally, in measures to create about 10,000 start-ups by 2030, KDEM is working on augmenting the start-up ecosystem in the existing and planned clusters through the ‘Beyond Bengaluru Startup Grid’. The project facilitates access for upcoming start-ups with mentor groups across broad areas like HR, legal, R&D, accounting, and marketing/branding, with more than 300 start-ups already a part of the grid. KDEM, in association with industry partners, is also setting up funds of INR 75 crore for the three clusters to invest in promising tech-based start-ups.\nKDEM is enabling future digital jobs across artificial intelligence and cyber security in Mysuru, Hubballi, Mangaluru, Kalaburagi, and Belagavi, with 2,000+ opportunities. It is also spearheading innovation by implementing various specialised Centres of Excellence.\nKDEM regularly brings together the industry ecosystem through numerous large-scale events, connecting thousands of delegates and prominent speakers. Highlights of these discussions include the signing of multiple MoUs, expressions of interest in start-up investments, and over 500 business meetings. The ‘Beyond Bengaluru’ Investor Connect events specifically have successfully leveraged opportunities in cyber security, ESDM, and AI/VR for Mysuru, fintech for Mangaluru, and agritech, edtech, and Industry 4.0 for Hubballi.",
+    "KDEM, spearheading investment promotion in the State’s technology industry, to create 40 Unicorns and 50 Soonicorns and target having 150 VC investors with corpus of USD 100 Bn.\nMr. Sanjeev Gupta\nCEO, Karnataka Digital Economy Mission\nKarnataka to attract at least 100 mid-sized Global Capability Centers (GCCS) to establish their operations in Karnataka in locations other than Bengaluru.\nLalith Ahuja\nFounder & CEO, ANSR\nKDEM’s objective is to increase Startups’ contribution to about 5% of the State’s GDP.\nPrashanth Prakash\nPartner, Accel\nKDEM to bring innovation to emerging cities of Karnataka through Innovation Authority.\nRavi Gururaj\nFounder & CEO, QikPod\nTo encourage MNCs, GCCs and Startups to contribute to innovation-driven products and services while laying emphasis on social development.\nAssocham",
+    "our OBJECTIVES\nSupport Karnataka's technological investments\nAssist the Department of\nIT/BT/S&T\nAid in the organisation of international promotional operations\nAid in positioning Karnataka well with technology-sector-specific investment reports\nFund and coordinate research\nto identify\ntechnological prospects\nGive input to governmental bodies on the policy measures that will be required to draw further investment\nServe as a liaison\nbetween the government\nand industry\nCreate a detailed Vision Document\nthat includes strategy and roadmap directions\nTo develop Brand Karnataka and strengthen our leadership position across all sectors",
+    "board of directors\nDr. Manjula.N, IAS\nSecretary to Government, Dept. of El, IT, Bt and S&T, GoK\nand Co-Chair, KDEM\nMr. BV Naidu\nChairman,\nKDEM\nMr. Sanjeev Kumar Gupta\nCEO,\nKDEM\nMr. Manish Singhal\nSecretary General,\nASSOCHAM\nMr. Bhaskar Kumar Verma\nRegional Head,\nNASSCOM\nDr. S Selvakumar, IAS\nPrincipal Secretary for Commerce and Industries, GoK\nMr. Prashanth Prakash\nChairman, Karnataka Startup Vision Group\nMr. Ritesh Kumar Singh, IAS\nPrincipal Secretary, Finance Department, Gok\nMr. Rahul Sharanappa Sankanur, IAS\nDirector, Dept. of E, IT and Bt, GoK and Managing Director, KITS\nMr. Ashok Chandak\nPresident,\nIESA\nMr. Manoj Kumar Meena, IAS\nSecretary to Government. House Dept. Karnataka Government Secretariat Bengaluru\nFormer Board Members\nDr. Ekroop Caur, IAS\nSecretary, IT, BT and S&T, GoK and Co-Chair, KDEM\nMr. L K Atheeq, IAS\nAdditional Chief Secretary, Finance Department, GoK\nSmt. Uma Mahadevan\nAdditional Chief Secretary, Panchayati Raj and Rural Development, GoK\nMr. Darshan H V, IAS\nMD,\nKITS\nMr. Deepak Sood\nSecretary General,\nASSOCHAM\nMr. ISN Prasad, IAS\nFormer ACS (Finance) Government of Karnataka\nDr. E. V. Ramana Reddy, IAS (Retired)\nFormer ACS, Dept of IT, Bt & S\nMr K Krishna Moorthy\nFormer President and CEO,\nIESA\nMrs. Meena Nagaraj, IAS\nFormer Director, E, IT, Bt\nand MD, KITS"
+   ],
+   "links": [
+    "https://karnatakadigital.in/about-us/"
+   ],
+   "kind": "page",
+   "pdf_links": []
+  },
+  {
+   "url": "https://karnatakadigital.in/acceleration-network/",
+   "title": "Karnataka Acceleration Network (KAN)",
+   "section": "focus-areas-programmes",
+   "origin": "approved",
+   "lastmod": "2026-10-07T13:23:46+05:30",
+   "fetched_at": "2026-10-07T10:19:20+00:00",
+   "digest": "fce71bf3759be6af",
+   "blocks": [
+    "Home\nObjectives\nCohort Impact\nAcceleration team\nContact Us",
+    "Karnataka Acceleration Network (KAN)\nKarnataka Acceleration Network is a unique initiative by the Government of Karnataka and one of its kind in the country designed to boost the acceleration ecosystem in the state.\nThe six-month acceleration program offers growth stage startups comprehensive support through a series of modules, including cohort readiness, business strategy revisits, market validation, customer acquisition, and investment readiness. Additionally, startups will receive mentorship, access to infrastructure and market linkages.\nThe program culminates in a demo day where startups showcase their progress and innovation to investors.",
+    "To create vital inter-linkages/ exchanges of information among all the relevant stakeholders.\nTo effectively translate R&D activities for commercial gain.\nTo provide technical and business advisory through a cache of experts and mentors.\nTo facilitate industry, connect, fundraising through VCs/Angels and promote globalization of Indian Tech start-ups.\nTo provide the entire range of value added IPR support services like sensitization, protection and compliance of generated IPs.\nTo boost the growth stage startups and help them scale up.\nTo provide positive effect on the performance of the startups.\nAssist in raising venture capital, support exit by acquisition, and help in gaining customer traction.\nProviding mentorship support, market linkages etc.",
+    "Implementing Accelerators – Bengaluru and Beyond",
+    "Hubballi\nMysuru\nManagaluru\nBengaluru\nBengaluru\nMysuru\nMangaluru\nHubballi-Dharwad-Belagavi\nDERBI Foundation: Dayananda Sagar Entrepreneurship Research and Business Incubation Foundation a Technology Business Incubator with the objective of incubating technology ventures. https://derbifoundation.com\nGINSERV: GINSERV, like any other startup, began its journey in 2010, with an eye on Nurturing and Acceleration of Startups in the area of information technology. https://www.ginserv.in\nJAIN Launchpad: Jain University Incubation Centre is a not-for-profit Technology Business Incubator, Accelerator and Seed Fund with programs supported by NSTEDB, Department of Science and Technology, Government of India; DPIIT, Ministry of Commerce and Industry, Government of India; KITS, Dept. of El, IT, BT and S&T, Government of Karnataka and JAIN (Deemed-to-be-University), Bangalore https://www.jainlaunchpad.com/\nSri Jayachamarajendra College of Engineering – Science & Technology Entrepreneurs Park (SJCE-STEP) JSS Mahaswamiji, is Focusing on technology domains to support andsupport of Department of Science & Technology (DST) and the blessings of His Holiness was established in 1985 at JSS Technical Campus, Mysuru, with the product or service in STEP incubator. Over 3 decades of its existence, STEP has been in forefront to groom Entrepreneurs and has also promoted more than 1000 entrepreneurs over the years. SJCE-STEP has CATALYSING and PROMOTING ENTREPRENEURSHIP across the information technology and communication domains. Promoting Techno Entrepreneurs & Start-ups in the Information-Communication Technology (ICT), electronic product development, latest technological domain (Agri, Medical, Education, Manufacturing), with host of programs, labs, mentors and industry connection. SJCE-STEP- creates a conductive atmosphere for innovation, for sharing ideas, experience, networking and facilities for carrying thought provoking initiatives. It opens up avenues for Students, Teachers, Researchers and industry professionals for successfully starting Varieties of Economic Ventures. https://www.sjcestep.in\nSHINE (Sahyadri Hub for Innovation & Entrepreneurship) Foundation, a Section 8 company situated on the campus of Sahyadri College of Engineering & Management (SCEM). Our mission is to support startups that can positively impact the community and have high growth potential through innovative products, contributing to the overall GDP of the state. SHINE focuses on supporting startups in various sectors, including Agri tech, Ed-Tech, FinTech, Energy. Our extensive pool of experts and industry connections ensures that startups receive the guidance and resources they need to succeed and thrive, ultimatel contributing to the community’s development and prosperity. https://shine.sahyadri.edu.in\nA leader in the field of Agricultural Education, the University of Agricultural Sciences, Dharwad (UASD) is among India’s most respected names in Agricultural Education, Research and Extension. The University has jurisdiction over 7 districts of North Karnataka accounting for 28% of geographical area, 27% of total cultivated area and 14% of the irrigated area in the state. Agriculture continues to be the mainstay of the economy with more than 70 percent of the rural population and 50% of total work force dependent on it for livelihood. While Agri startups in India have made a head way, the Agri-startup boom is yet to proliferate in the Northern Karnataka. The area is blessed with the bounty of nature and the region is largely rural, with myriad agricultural and allied production dominating the Agri landscape. Despite several development schemes being launched by the government, largely focusing on the farm and rural sector in the area, there remains a gap. Focus Areas:- Farm Mechanization, Food Technology, Agri Bio-Tech , IoT, ICT, ML and AI in Agriculture and Agri Fintech\nhttps://krishik-abiuasd.in/",
+    "Accelerate your startup with structured, expert-led growth\nExpert Mentorship\n1:1 & group sessions with seasoned leaders\nStructured Growth Modules\nStrategy, finance & go-to-market support\nMarket Access\nEarly customer pilots & validation opportunities\nInvestor Bootcamp\nCurated connects & demo day exposure\nInfrastructure Access\nPremium workspaces across Karnataka\nAccelerator/Incubation Partners\nStartup Ecosystem - Partners in Progress",
+    "Foundation Cohort Completed\nCohort 1\nApr 2025 – Jan 2026\nEstablished the Karnataka Accelerator Network and accelerated the first cohort of high-potential startups through mentorship, business diagnostics and investor readiness.\nEnabled 56 high-potential startups through structured acceleration, mentorship, customer acquisition and investor readiness across Karnataka.\n9+ Cr fund raised\n200+ jobs created\n65+ investors connect\nProgram Details\nExpanded Impact In-Progress\nCohort 2\nFeb 2026 – Oct 2026\nExpanded statewide participation with stronger accelerator partnerships, wider regional outreach and deeper ecosystem engagement across Karnataka.\nBuilding Karnataka's next generation of scalable startups through stronger regional partnerships, mentorship and market access.\n293 Applications Received\n56 Startups Selected\n105 Beyond Bengaluru\n53 Women-led\nProgram Details\nThe Next Chapter Applications Closed\nCohort 3\nNov 2026 – May 2027\nEmpowering the next generation of ambitious Karnataka startups with structured acceleration, industry mentorship, market access and investment readiness.\n500+ Expected Applications\n60 Startups\n6 Accelerator Partners\n4 Growth Modules\nStarts from November 2026\nProgram Details\nThe Next Chapter Coming Soon\nCohort 4\nApplications Will Begin in March 2027\nKarnataka Acceleration Network Cohort 4 Details coming soon\nSubmit EOI\nGrowing Karnataka’s startup acceleration ecosystem, cohort by cohort.\n519+ Total Applications across all cohorts\n160+ Shortlisted\n110+ Startups Accelerated",
+    "Gallery",
+    "Contact us\nSuvin Narayan\nProgram Manager\nEmail: pm.kan@karnatakadigital.in\nOffice\nKEONICS, 27th Main Rd, 1st Sector, HSR Layout, Bengaluru, Karnataka – 560102",
+    "Copyright © 2026 Karnataka Digital Economy Mission | Developed By InsideOut"
+   ],
+   "links": [
+    "https://karnatakadigital.in/",
+    "https://karnatakadigital.in/acceleration-network/",
+    "https://karnatakadigital.in/cohort-1/",
+    "https://karnatakadigital.in/cohort-2/",
+    "https://karnatakadigital.in/cohort-3/",
+    "https://karnatakadigital.in/acceleration-network/YOUR-EOI-FORM-PAGE-URL/",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-22-scaled.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-23-scaled.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-24-scaled.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-25-scaled.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-27.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-28.png",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-29.png",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-30.png",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-31.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-32.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-33.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-34.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-35.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-36.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-37.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-38.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-39.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-40.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-41.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-1-scaled.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-2-scaled.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-3-scaled.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-4-scaled.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-6-scaled.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-7-scaled.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-8-scaled.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-9-scaled.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-10-scaled.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-11-scaled.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-12-scaled.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-13-scaled.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-14-scaled.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-15-scaled.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-16-scaled.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-17-scaled.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-18-scaled.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-19-scaled.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-20-1-scaled.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-21-1-scaled.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-26-1-scaled.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2026/02/KAN-Cohort-1-image-5-1-scaled.jpg"
+   ],
+   "kind": "page",
+   "pdf_links": []
+  },
+  {
+   "url": "https://karnatakadigital.in/bengaluru-innovation-report-2024/",
+   "title": "BENGALURU INNOVATION REPORT 2024",
+   "section": "policies-resources",
+   "origin": "auto",
+   "lastmod": "2024-11-14T17:40:52+05:30",
+   "fetched_at": "2026-10-14T19:25:45+00:00",
+   "digest": "b5234aa79e35b666",
+   "blocks": [],
+   "links": [
+    "https://karnatakadigital.in/bengaluru-innovation-report-2024/"
+   ],
+   "kind": "page",
+   "pdf_links": []
+  },
+  {
+   "url": "https://karnatakadigital.in/bengaluru-tech-summit-2024/",
+   "title": "Bengaluru Tech Summit 2024",
+   "section": "event-landing-pages",
+   "origin": "auto",
+   "lastmod": "2024-11-25T16:47:05+05:30",
+   "fetched_at": "2026-10-07T10:19:20+00:00",
+   "digest": "0d023c974cdfc736",
+   "blocks": [
+    "Resources\nBengaluru Rising\nDownload\nDraft Karnataka Space Technology Policy\nDownload\n(265)BTS Exhibitor Directory Updated V2.5\nDownload\nDraft Karnataka GCC Policy 2024-2029\nDownload",
+    "Click here to KNOW MORE\nClick here"
+   ],
+   "links": [
+    "https://karnatakadigital.in/wp-content/uploads/2024/11/Bengaluru-Rising.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2024/11/Draft-Space-Policy_Exec-Summary.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2024/11/265BTS_Exhibitor_Directory_updated_V2.5.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2024/11/Draft-KarnatakaGCCPolicy2024-2029-.pdf"
+   ],
+   "kind": "page",
+   "pdf_links": [
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2024/11/Bengaluru-Rising.pdf",
+     "BigTech Show Mysore Report"
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2024/11/Draft-Space-Policy_Exec-Summary.pdf",
+     ""
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2024/11/265BTS_Exhibitor_Directory_updated_V2.5.pdf",
+     ""
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2024/11/Draft-KarnatakaGCCPolicy2024-2029-.pdf",
+     ""
+    ]
+   ]
+  },
+  {
+   "url": "https://karnatakadigital.in/bengaluru-tech-summit-chro-hr-leaders-roundtable/",
+   "title": "Bengaluru Tech Summit CHRO & HR Leaders Roundtable",
+   "section": "policies-resources",
+   "origin": "auto",
+   "lastmod": "2026-10-14T17:45:20+05:30",
+   "fetched_at": "2026-10-14T19:25:45+00:00",
+   "digest": "0e166322fe28b112",
+   "blocks": [
+    "Bengaluru Tech Summit CHRO & HR Leaders Roundtable\nFill the details to recieve your copy of the report."
+   ],
+   "links": [],
+   "kind": "page",
+   "pdf_links": []
+  },
+  {
+   "url": "https://karnatakadigital.in/beyond-bengaluru-cluster-seed-fund/",
+   "title": "Beyond Bengaluru Cluster Seed Fund",
+   "section": "focus-areas-programmes",
+   "origin": "approved",
+   "lastmod": "2026-08-14T13:32:44+05:30",
+   "fetched_at": "2026-10-07T10:19:20+00:00",
+   "digest": "00c5026c785d5fe1",
+   "blocks": [
+    "Government of Karnataka-backed seed capital\nBeyond Bengaluru Cluster Seed Fund\nGovernment of Karnataka-backed seed capital for startups from Beyond Bengaluru.\n₹Dedicated risk capital for innovation-driven companies.\n✓A credible, SEBI-registered Category I AIF – Venture Capital Fund — signals trust to founders.\nApply Now →\n↻ Applications accepted on a rolling basis\nWho it is forPrivate Limited Companies incorporated in Karnataka and operating from a district in the Beyond Bengaluru region.\nAbout the Fund\nEarly-stage risk capital for innovation from Beyond Bengaluru.\nThe Beyond Bengaluru Cluster Seed Fund is a Government of Karnataka initiative providing early-stage risk capital to innovation-driven startups operating in Beyond Bengaluru districts. It is a SEBI-registered Category I AIF – Venture Capital Fund (Reg. No. IN/AIF1/22-23/1224).\nWho Can Apply\nTo be eligible, an applicant must be:\nA startup company in a target sector that meets all three eligibility criteria can apply.\n◉\na Private Limited Company, and\n▦\nincorporated in Karnataka, and\n⌖\noperating from a district in the Beyond Bengaluru region.\nSectors & Clusters\nWhere the fund is focused.\nTarget sectors include IT, BT, ESDM, Semiconductor, AVGC and allied / emerging technologies.\nTarget Sectors\nDT DeepTech & Advanced Computing\nAS Aerospace, Aviation & Space Technologies\nRA Robotics & Automation\nSC Sustainability & Climate Technologies\nEC Energy & Clean Technologies\nIoT Internet of Things (IoT)\nAM Automotive & Mobility\nWE Water & Environmental Technologies\nIN Industrial & Natural Resources\nM4 Manufacturing & Industry 4.0\nGP Government & Public Sector Technologies\nFocus Clusters\nMysuru Mangaluru Hubballi–Dharwad–Belagavi Other Beyond Bengaluru clusters in the State\nHow it works\n01\nApply\nSubmit the single common application form.\n02\nScreening\nApplications are reviewed based on the eligibility criteria.\n03\nCluster-level evaluation\nApplications move through the Cluster Level Advisory Committee.\n04\nInvestment decision\nInvestment decisions are taken by the Investment Committee of the Fund.\n05\nFunding & support\nSelected startups proceed towards funding and required support.\nHow to apply\nSubmit the single common application form. Applications are accepted on a rolling basis.\nApply Now →\nBacked By\nFund ecosystem\nPrimary SponsorGovernment of Karnataka – Department of Electronics, IT, BT & S&T\nKarnataka Asset Management Company Private Limited\nFund ManagerKAMCO\nStrategic PartnerKarnataka Digital Economy Mission (KDEM)\n!\nDisclaimer\nPlease review the following before submitting an application.\nThe Beyond Bengaluru Cluster Seed Fund is a Government of Karnataka initiative, with KAMCO as Fund Manager and the Karnataka Digital Economy Mission (KDEM) as Strategic Partner. By submitting an application, startups acknowledge and agree to the following:\nOnly Private Limited Companies incorporated in Karnataka and operating from a district in the Beyond Bengaluru region are eligible to apply. Applications that do not meet these criteria will not be considered.\nSubmitting an application does not guarantee funding and creates no right, entitlement, or commitment on the part of the Government of Karnataka, KDEM, KAMCO, the Fund, or any committee.\nAll applications are evaluated on a rolling basis. Selection is made at the sole discretion of the Fund's committees and Fund Manager, whose decisions are final.\nAny investment is subject to completion of due diligence, legal and financial compliance, execution of a term sheet and definitive agreements, and applicable SEBI and other regulatory requirements.\nEligibility criteria, sectors, focus clusters, evaluation parameters and process timelines may be revised, suspended or withdrawn by the Department / Fund at any time without prior notice.\nInformation submitted may be shared with the Department, committees, KDEM, KAMCO and their advisors, strictly for evaluation and administration of the Fund. By applying, startups consent to such use.\nApplicants are responsible for the accuracy and completeness of the information they provide. Misrepresentation may lead to disqualification.\nThis page and its contents are for general information only and do not constitute an offer, invitation, or solicitation to invest, nor investment, legal, or financial advice."
+   ],
+   "links": [],
+   "kind": "page",
+   "pdf_links": []
+  },
+  {
+   "url": "https://karnatakadigital.in/beyond-bengaluru/",
+   "title": "Beyond Bengaluru (clusters: Mysuru, Mangaluru, Hubballi-Dharwad-Belagavi, Kalaburagi and others)",
+   "section": "focus-areas-programmes",
+   "origin": "approved",
+   "lastmod": "2026-05-21T11:28:14+05:30",
+   "fetched_at": "2026-10-07T10:19:20+00:00",
+   "digest": "f17bdd8091b6ff8e",
+   "blocks": [
+    "Beyond Bengaluru",
+    "KDEM Mysuru cluster to spearhead investments in IT-ITES, ESDM, and Cyber Security sectors, with ESDM sector alone having a potential to generate 43,000 direct employment over the next 5 years\nKDEM Mangaluru cluster to spearhead investments in IT/ITES and FinTech sectors generating revenue worth USD 1 Bn and 1,00,000 jobs by 2026\nThe Hubballi - Dharwad - Belagavi region to emerge as a corridor of Economic growth and Development attracting huge investments by the year 2026",
+    "Karnataka's Beyond Bengaluru Initiative\nAbout Beyond Benagluru\nThe Beyond Bengaluru Mission, led by KDEM, is driving inclusive, distributed growth of Karnataka’s digital economy outside Bengaluru, aligned with India’s US$1 trillion digital economy vision and targeting US$10 billion in IT services exports by 2030 within Karnataka’s US$300 billion goal. The mission focuses on six key clusters—Mysuru, Mangaluru, Hubballi, Kalaburagi, Shivamogga, and Tumakuru—leveraging their regional strengths through partnerships, incubation, ecosystem development, and policy support since FY21-22. As of March 2025, it has onboarded 126 companies, created 5,500+ direct jobs, and attracted investments across IT, ESDM, GCC, fintech, AVGC, and emerging tech, supported by policy handbooks, governance structures, international roadshows, and cluster-specific accelerator programmes.\nGoing forward, the focus is on scaling these cluster ecosystems, improving infrastructure, boosting investments, developing talent, and strengthening global linkages to make Karnataka India’s leading state for balanced digital growth.",
+    "Our Aspirational goals",
+    "Cluster Information",
+    "The nerve center of Digital Economy aiming at deepening the connect of innovation/start-ups/ESDM/GCCs & talent in clusters that are Beyond Bengaluru.\nHubballi\nMysuru\nManagaluru\nMysuru\nMangaluru\nHubballi/Dharwad/Belagavi\nCLUSTER\nINFORMATION\nECOSYSTEM OF\nINDUSTRIES\nTALENT\nINFRASTRUCTURE\nINCUBATORS\nCOLLEGES AND\nUNIVERSITIES\nMysuru is an emerging cybersecurity cluster that excels in research, development, and innovation in cybersecurity. It is home to a robust ecosystem, attracting cybersecurity companies and professionals, and fostering a culture of knowledge exchange and collaboration.\nKDEM plays a pivotal role in empowering Mysuru’s cybersecurity cluster. It facilitates technology investments, supports research initiatives, and nurtures cybersecurity startups. KDEM’s initiatives create a conducive environment for talent growth, industry collaboration, and the development of cutting-edge solutions, positioning Mysuru as a leading center for cybersecurity excellence.\nIT, ITeS & BPM\nEngineering Electrical & Electronics\nPharma & Biotech\nAutomotive\nAgri & Food\nOther Players\n15+\nRenowned Engineering Colleges\n~40,000\nEngineering & Degree College students\n100%\nApplication Development & Maintenance\n~30,000\nIT Talent Available\n~25,000\nBPM Talent Available\n~19,000\nAvailable IT Skill\nTotal availability of plug & play infrastructure: 1,00,000 sq.ft\nTotal Availability of co-working spaces: ~350+\nUpcoming facilities: Approx 20,000 sq.ft of facility 'Global Technology Centre' under construction\n– JSS Science and Technology University, Mysuru\n– The National Institute of Engineering\n– Sri Jayachamarajendra College of Engineering\n– NIE Institute of Technology (NIEIT)\n– Vidyavardhaka College of Engineering\n– University of Mysuru\n– Mysore College of Engineering & Management MYCEM\n– Vidya Vikas Institute Of Engineering And Technology\n– Maharaja Institute of Technology Mysore\n– Mysuru Royal Institute of Technology (MRIT)\nCLUSTER\nINFORMATION\nECOSYSTEM OF\nINDUSTRIES\nTALENT\nINFRASTRUCTURE\nINCUBATORS\nCOLLEGES AND\nUNIVERSITIES\nMangaluru has emerged as a vibrant fintech cluster, driving innovation and digital transformation in financial services. It offers a fertile ground for fintech startups, fostering entrepreneurship, and promoting financial inclusion and digital banking solutions.\nKDEM actively supports Mangaluru’s fintech cluster by providing access to capital, mentorship, and networking opportunities. Through targeted initiatives, KDEM nurtures fintech startups, facilitates collaborations with industry players, and promotes the development of innovative solutions. This support enables Mangaluru to establish itself as a thriving hub for fintech advancements and economic growth.\nIT, ITeS & BPM\nEngineering & Manufacturing\nPharma & Biotech\nAutomotive\nAgri & Food\nOther Players\n20+\nRenowned Engineering Colleges\n15+\nMedical & Dental Colleges\n60,000\nEngineering & Degree College Students\n~12,000\nIT Talent Available\n~10,000\nBPM Talent Available\n~10,000\nApplication Development & Maintenance\nTotal availability of Plug & Play Infrastructure: 3,35,000 sq.ft\nTotal availability of Co-working spaces: ~500+\nUpcoming facilities: Approx 4,50,000 sq.ft under construction (3-4 IT Parks)\n– A J Institute of Technology\n– Alva’s Institute of Engineering & Technology\n– St Joseph Engineering College\n– Canara Engineering College\n– SDM Institute of Technology, Ujire\n– Mangalore Institute of Technology and Engineeering\n– Moodalkatte Institute of Technology, Kundapur\n– Sahyadri College of Engineering and Management\n– NITK, Surathkal\n– Yenopoya Institute of Technology\nCLUSTER\nINFORMATION\nECOSYSTEM OF\nINDUSTRIES\nTALENT\nINFRASTRUCTURE\nINCUBATORS\nCOLLEGES &\nUNIVERSITIES\nHubballi-Dharwad-Belagavi is an emerging cluster for AI, ML, IoT, and advanced manufacturing. It offers a conducive ecosystem for startups and businesses, fostering innovation, and driving technological advancements.\nKDEM plays a crucial role in enabling the growth of the Hubballi-Dharwad-Belagavi cluster. It facilitates access to resources, infrastructure, and skill development programs. KDEM’s collaborative efforts bring together industry leaders, researchers, and entrepreneurs, fostering a culture of innovation, driving economic growth, and positioning the cluster as a hub for emerging technologies in Karnataka.\nIT, ITeS & BPM\nEngineering Electrical & Electronics\nPharma & Biotech\nAutomotive\nAgri & Food\nOther Players\n10+\nRenowned Institutes of Eminence\n~35,000\nEngineering & Degree College students\n43\nEngineering Colleges\n127\nDegree College\n49\nDilpoma Colleges\n~11,000 - 14,000\nIT Talent Available\n~20,000 - 30,000\nBPM Talent Available\nAbout 0.5 million sq.ft of shared space (includes bare shell & plug & play infrastructure)\nTotal availability of Co-working spaces: ~400+\nHubballi-Dharwad\n– KLE’s KLE Institute of Technology, Hubli\n– Jain College of Engineering & Technology, Hubli\n– B.V. B. College of Engineering and Technology, Hubli\n– Rai Tech University, Hubli\n– A.g.m Rural College Of Engineering And Technology\n– Indian Institute Of Technology, Dharwad\n– Indian Institute Of Information Technology, Dharwad\n– KLE Technological University\n– Tippu Shaheed Institute Of Technology Hubli\nBelgaum\n– S.G Balekundri Institute of Technology, Belgaum\n– KLE’s KLE College of Engineering and Technology,Chikkodi, Belgaum Dist.\n– Angadi Institute of Technology & Management , Belagaum\n– K.L.S. Gogte Institute of Technology, Belgaum\n– Jain College Of Engineering\n– Visvesvaraya Technological University (VTU)\n– Hirasugar Institute of Technology\n– KLE Deemed University\n– KLE Dr. M.S. Sheshgiri College of Engineering and Technology",
+    "Initiatives",
+    "The Beyond Bengaluru Start-Up Grid leverages the advantages of the networks across different stages of the start-ups. These networks enable you to access inputs and relevant business-related information to build on. By accessing the mentor groups across the board: areas like HR, Legal, R&D, Accounting services, Marketing & Branding experts, upcoming start-ups in the grid can leverage the network for business strategy. Similarly, access to the associated R&D Labs can link the start-ups to our network for knowledge and funds.\nDemand Increase Initiatives\nSupply Increase Initiatives\nMarket Development Initiatives\nBranding & Promotional Measures",
+    "Marquee Projects\nBeyond Bengaluru Cluster Seed Fund\nGlobal Technology Center at Mysuru\nGlobal Emerging Tech Design Center at Belagavi",
+    "Cluster Support\nKDEM Knowledge Dissemination Series\nStart-ups get to be a part of the KDEM Knowledge Dissemination Series wherein the Industry anchors from the Beyond Bengaluru clusters share insights on their respective entrepreneurial journeys. Moreover, these knowledge series will also consist of discussions across the themes like technology, platforms, product development, funding pitch, domain-specific bytes for cyber-security, fintech, agri-tech and so on.\nKDEM R&D Pack\nThis contains the compiled information of various funds/projects from the Central Government, State Government, universities, and other institutions under the start-up promotion. This will facilitate the start-ups in the Beyond Bengaluru Start-Up Grid in exploring institutional assistance.\nKDEM Talent Accelerator Program\nThis program connects you to the colleges and institutions in our network, with whom you can collaborate in terms of ideas and knowledge and hire talent commensurate to the industry requirements. consequatur.\nIdea-exchange Program\nThis program is an idea exchange between startups that are a member of the grid. This is a novel initiative wherein entrepreneurs will be grooming entrepreneurs in terms of providing learnings on entrepreneurship.\nSemi-Annual Road Show\nA fund-raising semi-annual road show for all members of the grid to pitch their ideas to the VCs.\ngrooming entrepreneurs in terms of providing learnings on entrepreneurship.",
+    "Resources\nMangaluru Vision Document 2025\nDownload\nHDB Vision Document 2025\nDownload\nMysuru Vision Document 2025\nDownload\nKDEM - Mangaluru Cluster\nDownload\nKDEM - HDB Cluster\nDownload\nKDEM - Mysuru Cluster\nDownload\nBeyond Bengaluru Cluster Fact Sheet\nDownload",
+    "Product packs\nMysuru Product pack\nThe Mysuru Product pack focusses on Mysuru as the happiest city and on key areas which include the advantages of Mysuru and the 5 strong pillars which include policy enablers, startup landscape, cultural and social capital, talent pool and infrastructure\nMangaluru Product pack\nPort city with intellectual capital, thriving IT ecosystem, incubation centers, IT SEZ, and tech parks. Attracting companies with incentives, success stories from Mysuru. Unlock the potential of Mangaluru!\nHubballi Product pack\nHubballi & Dharwad – AI-ML hub, Belagavi – Engineering Tech hub. NAIN colleges, incubators, industry associations, dynamic anchors. Infrastructure for IT, ESDM, startups. Robust talent pipeline. Unleash HDB cluster’s potential!",
+    "Get in Touch\nWe really appreciate you taking the time to get in touch. Please fill in the form for any further queries.",
+    "Quick links\nAbout Us\nEvents\nCareers\nContact Us\nConnect with us\nFacebook Twitter Instagram Linkedin Youtube\nVisit Us\nKEONICS, 27th Main Rd,\n1st Sector, HSR Layout,\nBengaluru – 560102, Karnataka",
+    "Copyright © 2026 Karnataka Digital Economy Mission | Developed By InsideOut"
+   ],
+   "links": [
+    "https://karnatakadigital.in/",
+    "https://karnatakadigital.in/beyond-bengaluru/",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/1-2.png",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/2-2.png",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/3-2.png",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/4-2.png",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/5.png",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/12.png",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/10.png",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/11.png",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/9.png",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/8.png",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/7.png",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/6.png",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/13.png",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/16.png",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/14.png",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/17.png",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/20.png",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/19.png",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/18.png",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/15.png",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/25.png",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/22.png",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/23.png",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/21.png",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/24.png",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/26.png",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/27.png",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/29.png",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/28.png",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/202.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/203.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/204.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/205.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/206.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/207.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/208.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/209.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/215.png",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/211.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/212.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/213.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/214.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/216.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/217.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/218.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/219.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/220.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/221.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/222.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/223.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/224.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/225.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/226.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/227.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/229.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/230.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/31.png",
+    "https://karnatakadigital.in/wp-content/uploads/2023/03/30.png",
+    "https://karnatakadigital.in/about-us/",
+    "https://karnatakadigital.in/events/",
+    "https://karnatakadigital.in/careers/",
+    "https://karnatakadigital.in/contact-us/"
+   ],
+   "kind": "page",
+   "pdf_links": []
+  },
+  {
+   "url": "https://karnatakadigital.in/careers/",
+   "title": "Careers",
+   "section": "core-pages",
+   "origin": "approved",
+   "lastmod": "2026-09-30T14:25:17+05:30",
+   "fetched_at": "2026-10-07T10:19:20+00:00",
+   "digest": "bb1a3456cb0fd949",
+   "blocks": [
+    "Careers",
+    "District Industry - Academia Champions\nEngagement: Consultant – 3-Year Contract\nExperience: Open to strong industry exposure, local credibility, and a district-level network matter more than a specific job title.\nKDEM is looking for 5 DIA-Champions (District Industry-Academia Champions) one Champion for each of five clusters across Karnataka to drive the implementation of 100 IAAP across the state.\nLearn More\nProgram Manager – Talent Acceleration (TA)\nLocation: Bengaluru\nExperience: 8–12 Years\nThe Program Manager – Talent Acceleration will be responsible for driving the strategy, implementation, monitoring, and growth of talent development initiatives under KDEM.\nLearn More",
+    "Associate, Talent Acceleration (TA)\nExperience: 3–6 Years\nThe Associate – Talent Acceleration will support the implementation, coordination, and monitoring of talent development initiatives under KDEM.\nAdmin & Operations - Executive\nQualification: B.COM (MBA preferred but not mandatory)\nExperience: 1 - 5 years"
+   ],
+   "links": [
+    "https://karnatakadigital.in/careers/"
+   ],
+   "kind": "page",
+   "pdf_links": []
+  },
+  {
+   "url": "https://karnatakadigital.in/cohort-1/",
+   "title": "Acceleration Network Cohort 1",
+   "section": "focus-areas-programmes",
+   "origin": "approved",
+   "lastmod": "2026-08-03T17:50:48+05:30",
+   "fetched_at": "2026-10-07T10:19:20+00:00",
+   "digest": "aefdafe7d5278f02",
+   "blocks": [
+    "Karnataka Acceleration Network\nCohort 1\nGraduated Startup Profiles\n56 startups completing all four program modules across six accelerator partners - building Karnataka's next generation of high-impact ventures.\n56\nGraduated\nStartups\n93.3%\nGraduation\nRate\n~₹6.5Cr\nFunding\nRaised\n50+\nInvestors\nEngaged\n2000+\nMentorship\nHours",
+    "DERBI – SHINE Foundation\nHealthcare, DeepTech & EnviroTech focus\n19 startups\nGINSERV – ASTRA\nAgriTech, FinTech & Sustainability focus\n20 startups\nJain Launchpad – SJCE-STEP\nEdTech, Mobility, EV & Enterprise Tech focus\n17 startups\nNo startups match your search. Try a different keyword or clear the search."
+   ],
+   "links": [],
+   "kind": "page",
+   "pdf_links": []
+  },
+  {
+   "url": "https://karnatakadigital.in/cohort-3/",
+   "title": "Acceleration Network Cohort 3",
+   "section": "focus-areas-programmes",
+   "origin": "approved",
+   "lastmod": "2026-10-01T16:19:30+05:30",
+   "fetched_at": "2026-10-07T10:19:20+00:00",
+   "digest": "a5702489d61b8180",
+   "blocks": [
+    "Why join KAN Cohort 3?\nBuilt to move startups from potential to scale.\nAn initiative of the Department of Electronics, IT, Bt, Government of Karnataka, implemented by Karnataka Digital Economy Mission under Startup Karnataka.\n01\nStructured Accelerator Programme\n02\nOne-on-One Mentorship from Industry Experts\n03\nCustomer & Market Access Opportunities\n04\nInvestment Readiness & Investor Connect\n05\nAccess to Corporate & Ecosystem Networks\n06\nPeer Learning & Founder Community\n07\nDemo Day with Investors & Industry Leaders\n08\nBeyond Bengaluru Growth Opportunities",
+    "Who should apply?\nInnovative startups with scalable solutions.\nApplications are invited from high-potential startups across priority and emerging technology sectors.\nDeepTech AI & Data Agritech HealthTech Manufacturing CleanTech & Sustainability Mobility Enterprise SaaS Industry 4.0 Emerging Technologies",
+    "Programme partners\nA connected network for startup acceleration.\nBengaluru accelerators are paired with regional institutions to combine specialist expertise with stronger access across Karnataka.\nAcceleration Pair 01\nAcceleration Pair 02\nAcceleration Pair 03\nKDEM Team\nProgramme Partner Team\nStartup Ecosystem — Partners in Progress",
+    "Supported by\nBacked by Karnataka's innovation ecosystem."
+   ],
+   "links": [],
+   "kind": "page",
+   "pdf_links": []
+  },
+  {
+   "url": "https://karnatakadigital.in/contact-us/",
+   "title": "Contact Us",
+   "section": "core-pages",
+   "origin": "approved",
+   "lastmod": "2025-10-17T16:15:24+05:30",
+   "fetched_at": "2026-10-07T10:19:20+00:00",
+   "digest": "99c10c9e467e959e",
+   "blocks": [
+    "Contact Us",
+    "Get in Touch\nWe really appreciate you taking the time to get in touch. Please fill in the form for any further queries.\nKARNATAKA DIGITAL ECONOMY MISSION\nKEONICS, 27th Main Rd, 1st Sector, HSR Layout,\nBengaluru - 560102, Karnataka\ninfo@karnatakadigital.in\nFacebook Twitter Instagram Linkedin Youtube"
+   ],
+   "links": [],
+   "kind": "page",
+   "pdf_links": []
+  },
+  {
+   "url": "https://karnatakadigital.in/electronics-system-design-and-manufacturing/",
+   "title": "Electronics System Design and Manufacturing (ESDM)",
+   "section": "focus-areas-programmes",
+   "origin": "approved",
+   "lastmod": "2026-06-16T20:31:08+05:30",
+   "fetched_at": "2026-10-07T10:19:20+00:00",
+   "digest": "f98b941d9d7e02fb",
+   "blocks": [
+    "Electronics System Design and Manufacturing",
+    "Karnataka ranks 2nd in India for electronics exports, contributing over 22% of the national share.\nThe state hosts 100+ fabless semiconductor design companies, contributing nearly 40% of India’s electronic design output.\nKarnataka is home to 400+ Fortune 500 R&D centres, forming one of Asia’s strongest deep-tech innovation ecosystems.\nThe state operates as a power-surplus region, with 35 GW installed capacity, including 23 GW from renewable sources.\nKarnataka enables the full ESDM value chain — from chip design and R&D to ATMP, testing, certification, and systems manufacturing.",
+    "Karnataka's ESDM Initiative\nAbout ESDM\nThe Karnataka Digital Economy Mission (KDEM) is advancing Electronics System Design and Manufacturing (ESDM) as a core driver of the state’s digital economy. The focus is clear. Build strong capabilities across electronics design, semiconductor R&D, manufacturing, testing, and certification, and do it at scale.\nGuided by a defined roadmap through 2025, Karnataka is strengthening its ESDM ecosystem to support innovation, industrial growth, and India’s broader semiconductor ambitions. KDEM works closely with industry, academia, and government to enable infrastructure, talent development, cluster-led manufacturing, and smoother pathways for investment.\nWhy Karnataka?\nKarnataka is one of India’s most established ESDM ecosystems.\n✅ It contributes 10% of the country’s electronics output.\n✅ The state is home to over 100 fabless semiconductor design firms, making it India’s largest chip design hub.\n✅ Nearly 40% of India’s electronic design output comes from Karnataka.\n✅ Around 50% of the nation’s electronic product companies operate here.\nBacked by global R&D centres, advanced testing facilities, and Electronics Manufacturing Clusters across the state, Karnataka offers a design-led, manufacturing-ready environment that supports the entire electronics and semiconductor lifecycle.",
+    "Existing ESDM Clusters in Karnataka\nHubballi\nMysuru\nBengaluru\nMangaluru\nMysuru\nHubballi/Dharwad/Belgaum\nBengaluru\nMangaluru\nMysuru plays a critical role in Karnataka’s ESDM ecosystem by anchoring testing, certification, and semiconductor enablement infrastructure. The city hosts the Lahari Advanced Testing and Certification Facility, an ISO 17025–accredited centre that supports EMI/EMC, safety, environmental, and reliability testing. Lahari functions as a single-window facility for product validation and compliance, helping electronics companies accelerate product development and meet global quality standards.\nTo further strengthen semiconductor readiness, the Government of India and the Government of Karnataka have approved a multi-tenancy clean room facility in Mysuru. This shared infrastructure model is designed to attract compound semiconductor, OSAT, and ATMP players by significantly reducing initial capital investment requirements, making Mysuru an accessible entry point for advanced semiconductor activities.\nUnder the EMC 2.0 scheme of MeitY, Mysuru has received 7 Letters of Intent with proposed investments exceeding ₹1,300 crore. More than 230 acres of land have been approved for the cluster, with the potential to generate over 1,200 jobs, reinforcing Mysuru’s position as a key ESDM hub beyond Bengaluru.\nThe Hubballi–Dharwad–Belagavi region is emerging as a key manufacturing-focused ESDM cluster within Karnataka’s distributed electronics ecosystem. Positioned to support scalable electronics manufacturing and ancillary industries, the cluster strengthens the state’s capacity beyond its traditional design centres.\nUnder the EMC 2.0 scheme of MeitY, the region has secured 11 Letters of Intent with proposed investments exceeding ₹300 crore. Around 200 acres of land have been approved for the development of the cluster, creating a strong foundation for electronics manufacturing expansion.\nWith the potential to facilitate over 2,000 jobs, the Hubballi–Dharwad–Belagavi cluster contributes to balanced regional growth while reinforcing Karnataka’s broader ESDM manufacturing and supply-chain capabilities.\nBengaluru forms the design and R&D core of Karnataka’s ESDM ecosystem. The city hosts the country’s largest concentration of fabless semiconductor design companies and a dense network of global electronics and semiconductor R&D centres. A significant share of India’s electronic design output originates from Bengaluru, reinforcing its role as the state’s primary source of engineering talent, IP creation, and advanced system design.\nWith strong capabilities across semiconductor design, electronic systems engineering, embedded software, and product development, Bengaluru acts as the upstream engine for Karnataka’s ESDM value chain. The city’s design and research strength directly supports manufacturing, testing, and scale-up activities across clusters beyond Bengaluru.\nMangaluru is identified in the presentation as a key cluster under Karnataka’s Beyond Bengaluru strategy, supported by its strategic coastal location and port-led connectivity. While the cluster is highlighted with a primary focus on FinTech and digital services, its infrastructure and logistics advantages position it as an important enabler within the state’s broader digital and industrial ecosystem.\nIts inclusion reflects Karnataka’s intent to diversify digital and technology-driven clusters across the state, complementing core ESDM activities anchored in design, manufacturing, and testing hubs elsewhere.",
+    "Policies and Schemes\nElectronic Systems – India is one of the largest consumer electronics markets in Asia Pacific Region. The world’s fastest-growing industry, Electronics System Design and Manufacturing (ESDM) continues to transform lives, businesses, and economies across the globe. The Government of India attributes high priority to electronics hardware manufacturing, as it is one of the crucial pillars of Make in India, Digital India, and Start-up India programmes.\nIndia is expected to have a digital economy of $ 1 Tn by 2025. India’s semiconductor market is expected to increase from ~$ 15 Bn in FY20 to ~$ 110 Bn in FY30, growing at a CAGR of 22%.\nThe Semicon India Program with an incentive outlay of ~$ 10 Bn was launched with the vision to develop a sustainable semiconductor and display ecosystem in the country. This program will establish India as global hub for semiconductor and display manufacturing, promote self-reliance, strengthen resilience in global supply chains, and pave the way for India’s technological leadership in the industry. Further details can be found here\nGovernment of India Policies and Schemes\nElectronic Component Manufacturing\nSemiconductor and Display Manufacturing\nProduction Linked Incentive Scheme (PLI) for Large Scale Electronics Manufacturing\nProduction Linked Incentive Scheme (PLI) for IT Hardware\nView PDF\nScheme for Promotion of Manufacturing of Electronic Components and Semiconductors (SPECS)\nModified Electronics Manufacturing Clusters Scheme (EMC 2.0)\nView PDF\nScheme for setting up of Semiconductor Fabs in India\nScheme for setting up of Display Fabs in India\nScheme for setting up of Compound Semiconductors / Silicon Photonics / Sensors Fab and Semiconductor Assembly, Testing, Marking and Packaging (ATMP) / OSAT facilities in India\nDesign Linked Incentive (DLI) Scheme\nGovernment of Karnataka Policies and Schemes\nHandbook On Digital Economy Policies, Programs & Incentives In Karnataka\nDownload\nK-ESDM Policy 2017 – 2022 – Government of Karnataka\nDevelop Karnataka into a global ESDM hub and a hotbed of innovation through focused interventions and encouragement to local companies in the sector.\nStimulate the growth of 2000 ESDM start-ups during the policy period.\nEnhance value addition done in Karnataka by 50%.\nCreate 20 Lacs new jobs in the ESDM industry by 2025, both direct and indirect, thereby increasing the total workforce in the sector to ten times the present number.\nEffect a quantum jump in the overall revenues of Karnataka’s ESDM companies to USD 40 billion by 2025.\nView Website\nView PDF\nSpecial Incentives Scheme for ESDM Sector (2020-25)\nCapital Investment Subsidy: 20% of eligible capital expenditure on Plant & Machinery\nLand Subsidy: 25% of expenditure on land up to an extent of 50 acres (only in districts other than Bengaluru Urban & Rural)\nStamp Duty Reimbursement: 100%\nRegistration fee reimbursement: 100%\nReimbursement of Land conversion fee: 100%\nIncentive on Power & Electricity Duty:\nINR 1 per unit for 5 years from the month of commencement of commercial production\n100% exemption for 5 years from the month of commencement of commercial production\nProduction Linked Incentive (PLI) Scheme: 1% of annual turnover for a period of 5 years\nView PDF",
+    "ESDM Infrastructure\nSkilling Infrastructure & Labour Environment:\nKarnataka has a strong talent ecosystem supported by institutions such as IISc, IIM, NID, and IIITs, along with engineering colleges, polytechnics, ITIs, and GTTCs. Skill development is driven through programs like Semiconductor Fabless Accelerator Lab (SFAL), Chips to Startup, SMART Lab, and industry collaborations.\n✅ Two Electronics Manufacturing Clusters (EMCs) are approved in Mysuru and Hubballi–Dharwad–Belagavi.\n✅ Mysuru EMC: 234 acres, 7 LoIs, ₹1,300+ crore investment, 1,200+ jobs.\n✅ Hubballi EMC: 200+ acres, 11 LoIs, ₹300+ crore investment, 2,000+ jobs.",
+    "130,000+\nEngineering Seats\n30\nGTTCs\n100+\nFabless Firms\n400+\nGlobal R&D Centres\n~22%\nElectronics Export Share",
+    "ESDM STRATEGIES\nEnhance Skill Development in Karnataka\nKarnataka’s skilling ecosystem is strengthened through strong academia–industry collaboration, with initiatives like Semiconductor Fabless Accelerator Lab (SFAL), Chips to Startup, SMART Lab, and industry-led programs. These efforts focus on building capabilities in semiconductor design, embedded systems, AI/ML, and advanced electronics, supported by institutions such as IISc, IIM, NID, and VTU.\nAim towards building Quality Infrastructure\nThe state is enabling advanced infrastructure to support the ESDM ecosystem, including facilities like Lahari – Advanced Testing Facility, multi-tenancy clean rooms, and Centres of Excellence focused on nanofabrication, wireless technologies, and sensor productization. These initiatives are designed to strengthen R&D, testing, and manufacturing capabilities across Karnataka.\nCluster Ecosystem Support\nKarnataka is developing a strong cluster-based ecosystem with Electronics Manufacturing Clusters (EMCs) in Mysuru and Hubballi–Dharwad–Belagavi. These clusters are supported by robust connectivity, power, water infrastructure, and proximity to ports, airports, and logistics hubs, enabling manufacturing scale-up and industry expansion beyond Bengaluru.\nEncouragement to Start-ups and MSMEs\nThe state supports innovation through initiatives like the Semiconductor Fabless Accelerator Lab (SFAL), which provides access to EDA tools, mentorship, incubation, and funding support. Karnataka’s strong startup ecosystem and focus on IP creation enable growth across semiconductor design, electronics manufacturing, and emerging technologies.\nEnhancing Ease-of-doing Business\nKarnataka offers strong policy support through initiatives aligned with the Semicon India program, enabling access to design tools, funding, and infrastructure. The state facilitates industry participation through coordinated efforts between government, academia, and industry, ensuring smoother implementation of projects and faster ecosystem development.",
+    "Get in Touch\nWe really appreciate you taking the time to get in touch. Please fill in the form for any further queries.",
+    "Quick links\nAbout Us\nEvent\nCareers\nContact Us\nConnect with us\nFacebook Twitter Instagram Linkedin Youtube\nVisit us\nKEONICS, 27th Main Rd, 1st Sector, HSR Layout, Bengaluru, Karnataka 560102",
+    "Copyright © 2026 Karnataka Digital Economy Mission | Developed By InsideOut"
+   ],
+   "links": [
+    "https://karnatakadigital.in/",
+    "https://karnatakadigital.in/electronics-system-design-and-manufacturing/",
+    "https://karnatakadigital.in/wp-content/uploads/2023/06/PLI-IT-Hardware-2.0-Notification-May-2023-3.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2023/06/EoI-for-Anchor-Units-FOR-emc2ENG_230508_131204-1.pdf",
+    "https://karnatakadigital.in/about-us/",
+    "https://karnatakadigital.in/events/",
+    "https://karnatakadigital.in/careers/",
+    "https://karnatakadigital.in/contact-us/"
+   ],
+   "kind": "page",
+   "pdf_links": [
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2023/06/PLI-IT-Hardware-2.0-Notification-May-2023-3.pdf",
+     ""
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2023/06/EoI-for-Anchor-Units-FOR-emc2ENG_230508_131204-1.pdf",
+     ""
+    ],
+    [
+     "https://itbtst.karnataka.gov.in/storage/pdf-files/KESDM%20POLICY%202017-2022.pdf",
+     ""
+    ],
+    [
+     "https://itbtst.karnataka.gov.in/storage/pdf-files/ITBT%2003%20PRM%202022%20(1).pdf",
+     ""
+    ]
+   ]
+  },
+  {
+   "url": "https://karnatakadigital.in/emerge/",
+   "title": "Emerge",
+   "section": "event-landing-pages",
+   "origin": "auto",
+   "lastmod": "2024-02-16T15:54:20+05:30",
+   "fetched_at": "2026-10-07T10:19:20+00:00",
+   "digest": "5ac851c2b2c01e73",
+   "blocks": [
+    "EMERGE-2024\nA CUTTING-EDGE INNOVATION EVENT HOSTED BY IFIA BHARAT AND SECTION INFIN-8 FOUNDATION",
+    "INVESTORS\n50 +\nPARTICIPANTS\n1000 +\nMENTORS\n50 +\nANTICIPATED FOOTFALL\n100000 +",
+    "EMERGE -2024 PARTNER",
+    "EMERGE-2024 TEAM\nSuhas Gopinath\nThe world's Youngest CEO by The Economist. Holds accolades including World Economic Forum Young Global Leader\nDr. (Inv) Prof Vishal U S Rao\nPrincipal Scientific Advisor (GoI) - Member Head & Neck Surgeon, Aum Voice Prosthesis Inventor, Innovator, TEDx Speaker\nAnand Kannan\nNational Director - IFIA Bharat IFIA Bharat leader, Avas Digitech CEO, Innovation expert, Multicertified professional.\nVishwas U S\nDirector - SI-8 Foundation Professional Businessmen with 20+ years of experience in Business, Operations & Finance",
+    "EMERGE-2024 Agenda\nKnow More"
+   ],
+   "links": [
+    "https://karnatakadigital.in/wp-content/uploads/2024/02/Emerge-2024-Brochure-.pdf"
+   ],
+   "kind": "page",
+   "pdf_links": [
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2024/02/Emerge-2024-Brochure-.pdf",
+     "Vishwas U S"
+    ]
+   ]
+  },
+  {
+   "url": "https://karnatakadigital.in/esdm-directory/",
+   "title": "ESDM Directory",
+   "section": "policies-resources",
+   "origin": "auto",
+   "lastmod": "2026-10-14T17:04:50+05:30",
+   "fetched_at": "2026-10-14T19:25:45+00:00",
+   "digest": "20f4ef4760e5bddb",
+   "blocks": [
+    "ESDM Directory\nFill the details to recieve your copy of the report."
+   ],
+   "links": [],
+   "kind": "page",
+   "pdf_links": []
+  },
+  {
+   "url": "https://karnatakadigital.in/events/",
+   "title": "Events",
+   "section": "core-pages",
+   "origin": "approved",
+   "lastmod": "2026-05-28T18:36:08+05:30",
+   "fetched_at": "2026-10-07T10:19:20+00:00",
+   "digest": "7b44e93ea7b7f5f7",
+   "blocks": [
+    "Past Events\nMay 15 Friday\nC2C – Campus to Career\nEVENT DETAIL\nMay 05 Tuesday\nWorld Fintech Summit\nEVENT DETAIL\nSeptember 24 Wednesday\nMangaluru Technovanza 2025\nEVENT DETAIL\nAugust 22 Friday\nHDB Techceleration 2025\nEVENT DETAIL\nJuly 04 Friday\nMysuru Big Tech Show 2025\nEVENT DETAIL\nDecember 09 Monday\nTiE Global Summit 2024\nEVENT DETAIL\nNovember 19 Tuesday\nBengaluru Tech Summit 2024\nEVENT DETAIL\nOctober 24 Thursday\nMangaluru Technovanza 2024\nEVENT DETAIL\nSeptember 19 Thursday\nMysuru Big Tech Show 2024\nEVENT DETAIL\nAugust 29 Thursday\nHubbali Dharwad Belagavi Techceleration – 2024\nEVENT DETAIL\nFebruary 16 Friday\nEMERGE-2024: A CUTTING-EDGE INNOVATION EVENT HOSTED BY IFIA BHARAT AND SECTION INFIN-8 FOUNDATION\nEVENT DETAIL\nFebruary 02 Friday\nTPO Conclave\nEVENT DETAIL\nFebruary 02 Friday\nW@W Empower\nEVENT DETAIL\nDecember 15 Friday\nHubbali Dharwad Belagavi Techceleration – 2023\nEVENT DETAIL\nNovember 09 Thursday\nEU-India Innocenter Ecosystem Builder Mission to India\nEVENT DETAIL\nNovember 03 Friday\nThe Big Tech Show – 2023\nEVENT DETAIL\nOctober 20 Friday\nINNOVATION WORKSHOP by AIMA YoungLeaders Council Bengaluru and ISB.\nEVENT DETAIL\nOctober 04 Wednesday\nMega Kickstart event for TGS Singapore 2023\nEVENT DETAIL\nOctober 04 Wednesday\nStartup Summit – Enabling the growth of Engineering Startups\nEVENT DETAIL\nSeptember 19 Tuesday\nWeeks to FUNDING READINESS – Cohort 5\nEVENT DETAIL"
+   ],
+   "links": [
+    "https://karnatakadigital.in/bengaluru-tech-summit-2024/",
+    "https://karnatakadigital.in/mangaluru-technovanza-2024/",
+    "https://karnatakadigital.in/the-big-tech-show-2024/",
+    "https://karnatakadigital.in/hdb-techceleration-2024/",
+    "https://karnatakadigital.in/emerge/",
+    "https://karnatakadigital.in/events/tpo-conclave/",
+    "https://karnatakadigital.in/events/ww-empower/",
+    "https://karnatakadigital.in/hdb-techceleration-2023/",
+    "https://karnatakadigital.in/events/eu-india-innocenter-ecosystem-builder-mission-to-india/",
+    "https://karnatakadigital.in/events/innovation-workshop-by-aima-youngleaders-council-bengaluru-and-isb/",
+    "https://karnatakadigital.in/events/mega-kickstart-event-for-tgs-singapore-2023/",
+    "https://karnatakadigital.in/events/startup-summit-enabling-the-growth-of-engineering-startups/"
+   ],
+   "kind": "page",
+   "pdf_links": []
+  },
+  {
+   "url": "https://karnatakadigital.in/futuredigitaljobs/",
+   "title": "Future Digital Jobs",
+   "section": "focus-areas-programmes",
+   "origin": "approved",
+   "lastmod": "2023-03-09T12:34:38+05:30",
+   "fetched_at": "2026-10-07T10:19:20+00:00",
+   "digest": "661f0e3d137c3e61",
+   "blocks": [
+    "About the program\n#FutureDigitalJobs is a KDEM initiative under the Talent Accelerator Program, which aims at providing job opportunities for fresh engineering graduates in the emerging clusters of Karnataka (Tier 2 and Tier 3 cities). The program helps companies hire the best-fit tech talent through its innovative Talent Hiring Model. KDEM has partnered with various skilling & job partners to execute this program in Karnataka.\nThe initiative helps engineering graduates to get their skills assessed on emerging technologies and also access to the launchpad training on different technologies and assist them for job placements.\nWho can apply\nEngineering & Diploma Graduates from 2021, 2022 and 2023, with an aggregate of 60% and above in 10th, 12th, and Graduation, who would wish to build their careers in Full Stack development / Data Analytics/ Test Automation roles. All applicants should be a resident of Karnataka.\nCourse specialization: BE / B. Tech (any stream), BCA/MCA.\nSkill Set Required: Basic coding skill is expected in any programming language like C, C++, C#, Java, Python etc. along with good communication skills",
+    "How it works\nDates to be Considered\nProgram Launch\n13-Feb-2023\nApplication Start Date\n13-Feb-2023\nApplication End Date\n31-Mar-2023\nCall for applications\nScreening of applications\nClear an assessment\nGet letter of intent to hire, by the employer\nUndergo 2-3weeks of launchpad training\nClear final assessment\nGet offer of employment by reputed IT firms.\nNote : Mode of training – Hybrid (online/offline)\nLast Date of Submission: 31 st March 2023",
+    "Register now",
+    "Potential Employers",
+    "Frequently Asked Questions",
+    "I am still studying, Can I apply for this program?\nYes, You can still register for this program.\nDo I have to pay any Upfront fee?\nNo.\nWill I get any job placement?\nYes. Once you pass the final assessment of the program, We will be able to provide placement assistance.\nI am an average student with basic skills, Can I register?\nYes, You can register. We know the challenges in finding the right talent and the impact on the college due to a majority of the students not being ready for the industry. Here we help students self-assess themselves and choose from the 12 top job roles in the industry based on their aptitude, passion and goals.\nWill I be able to get job placement, If I am not able to clear the assesment?\nNo\nWhat should the students know to attend this program?\nThere are no prerequisites for the KDEM programs other than basic knowledge of using a computer system. Prior programming knowledge will be an advantage.\nHow are these programs delivered?\nThe program will be delivered through:\nOnline Instructor Led Training Sessions\nSelf-Paced Learning Sessions\nLive Sessions with Project Mentors\nSoft Skills Sessions from Industry Experts."
+   ],
+   "links": [],
+   "kind": "page",
+   "pdf_links": []
+  },
+  {
+   "url": "https://karnatakadigital.in/government-first/",
+   "title": "Government First Initiative",
+   "section": "focus-areas-programmes",
+   "origin": "approved",
+   "lastmod": "2026-10-12T15:55:49+05:30",
+   "fetched_at": "2026-10-19T10:44:42+00:00",
+   "digest": "636fdb9d1bd55876",
+   "blocks": [
+    "Government First Initiative\nOverview\nUnder the Government First Initiative, startups with innovative, deployment-ready solutions will have a unique opportunity to engage directly with the Government of Karnataka as a potential customer, with the objective of addressing critical government problem statements.\nSelected startups will receive a direct work order of up to ₹25 lakhs, subject to technical evaluation. The initiative aims to enable startups to pilot, test, and validate their solutions in a real-world government environment.\nThrough a structured approach, solutions that demonstrate measurable impact, operational effectiveness, and value for public service delivery may be considered for procurement in Government Departments, Boards and Corporations.\nThe initiative seeks to foster innovation by providing startups registered in Karnataka with early market access, real-world validation opportunities, and a clear pathway to Government adoption. At the same time, it ensures a transparent, merit-based evaluation process, enabling the Government to identify and adopt proven, scalable solutions that deliver meaningful outcomes and strengthen public service delivery.\nImportant Links\nGovernment Order\nGovernment First Initiative – Government Order\nDownload Government Order\nClick Here to Register with Startup Karnataka\nSubmit your application through the online portal.\nRegister Now\nEligibility\nTo qualify for the Government First, the applicant must meet the following conditions:\nBe incorporated as:\nPrivate Limited Company (Companies Act, 2013)\nOPC Private Limited (Companies Act, 2013)\nRegistered Partnership Firm (Partnership Act, 1932)\nLimited Liability Partnership (LLP Act, 2008)\nMulti-State Cooperative Society registered with the Central Registrar of Cooperative Societies (Multi-State Cooperative Societies Act, 2002) or a Cooperative Society registered under any State or Union Territory Cooperative Societies Act with the respective Registrar of Cooperative Societies in India.\nTurnover for any financial year since incorporation/registration must not have exceeded INR 200 Crore for non-Deeptech Startups and INR 300 Crore for Deeptech Startup.\nBe within 10 years for non-Deeptech Startups and 20 years for Deeptech Startups from the date of incorporation at the time of application.\nBe an independent entity and not a subsidiary, spin-off, or internal division of an existing company.\nTechnology Readiness Level (TRL ≥ 7): Solutions must be validated in operational environments and ready for real-world testing.\nBe addressing a real-world problem in industry, society, or the environment, or creating a new market opportunity.\nSelection Process\nPost submission of the online application form published by the Department, the selection process will involve the following stages of evaluation.\n1\nStage 1: Eligibility check and document verification – Data Sufficiency\n2\nStage 2: Solution Evaluation (Pitch Deck and In-person pitching)\n3\nStage 3: Final Selection of a Startup for a Problem Statement\nThe selection of startup will be followed by the Work Order being awarded to the selected startup to deploy its solution. The progress of the pilot will be evaluated in a time bound manner.\nEvaluation Parameters\nApplications will be evaluated based on the following Parameters:\nParameter\nMarks\nEvaluation Criteria\nInnovation & Differentiation\n20\nNovelty, uniqueness, use of emerging technologies\nTechnical Soundness\n15\nArchitecture, reliability, robustness\nProduct Readiness (TRL ≥ 7)\n15\nDeployment readiness, maturity\nApplicability to Government Use\n15\nRelevance, contextual fit, usability\nScalability\n10\nPotential to scale across geographies/departments\nIntegration Capability\n5\nCompatibility with existing systems\nSocio-Economic Impact\n10\nImpact on governance, economy, and citizen services\nTeam Capability\n5\nExpertise and execution ability\nGrants / Government Support Received\n5\nPrior grants, funding, or institutional support\nSustainability & Maintenance\n5\nLong-term viability and support\nKey Highlights\nThe Karnataka Innovation and Technology Society (KITS), Department of E, IT & Bt will act as the Nodal Department for the implementation and governance of the initiative, including the publication of problem statements, calls for applications, coordination with Government Departments and various committees, and overall programme design and oversight.\nThe Department will be responsible for the constitution of the Selection Committee, Technical Committee, and Review Committee, as well as for fund management and the release of financial support based on committee recommendations.\nIn addition, the Department will undertake capacity building exercise for the nodal officers, appointed under Government First by respective Departments, to provide policy and procedural support. This will facilitate the development and strengthening of broader innovation in the startup ecosystem.\nGeneral Terms and Conditions\nStartups must be registered with KITS.\nThe Company/Firm should submit a valid Incorporation certificate (in case of Pvt Ltd/OPC/LLP) /Registered partnership deed and Registration certificate (in case of Partnership firm). Acknowledgement receipt of the above shall not be considered.\nDocuments not accepted as valid registration certificates: MSME, Udyog Aadhaar, GST, Trade Union, KMF, VAT certificates, or registration with shops and establishments.\nStartup must not:\nA subsidiary, franchise, reseller, or part of a group company.\nA Section 8 company, trust, society, association, or non-profit entity.\nA merger/demerger from a larger company.\nPart of Government initiative, PPP, or aided partner.\nIn the event that two or more applicant entities sharing a common promoter, director, or partner for the final stage of selection, the highest-scoring startup shall take precedence.\nOnly one application per entity will be accepted. If multiple applications are submitted by the same entity, only the valid application will be reviewed and considered for evaluation, while other applications shall be summarily rejected.\nApplications that do not meet eligibility criteria or lack supporting documents will be disqualified at any stage, resulting in the cancellation of their application or grant.\nKnow More About Problem Statements\nMandatory Documents\nPlease ensure that the following documents are ready as per the format and file size mentioned.\n1. Incorporation / Registration Certificate\nPDF Format, file size to be less than 2 MB\n2. Company MoA / Partnership Deed / LLP Deed\nPDF Format, file size should be less than 2 MB\n3. Startup Affidavit\nStartup Affidavit signed by Promoters and notarized on INR 100 (Rupees One Hundred Only) e-stamp paper (First party: Your Startup Name; Second Party: KARNATAKA INNOVATION AND TECHNOLOGY SOCIETY). PDF format, file size < 2 MB.\nDownload Affidavit\n4. Solution Docket\nPDF Format following the slide number, font style, size and format with final file size less than 10 MB.\nDownload Pitch Deck\nProblem Statement Documents\nBWSSB – Transforming Urban Water Management\nClick Here to Apply\nProblem Statement 1: AI-Driven Reduction of Non-Revenue Water (NRW)\nDownload\nProblem Statement 2: AI-Based Treated Wastewater Reuse Planning\nDownload\nProblem Statement 3: Intelligent Asset Management\nDownload\nProblem Statement 4: GIS-Enabled Revenue and Operational Intelligence\nDownload\nProblem Statement 5: Digital Twin for Integrated Water Management\nDownload\nPraja Seva – Reimagining Citizen-Centric Governance\nClick Here to Apply\nProblem Statement 1: AI-Enabled Grievance Management and Redressal\nDownload\nProblem Statement 2: AI-Powered Unified Citizen Call Centre\nDownload\nProblem Statement 3: AI-Enabled e-Office and Unified Office Workflow\nDownload\nProblem Statement 4: Ensuring Uptime and Availability of Citizen-Facing Government IT Services\nDownload\nApply By: 23 Oct 2026, 5:00 PM Applications open from 08 Oct 2026, 9:00 AM.",
+    "```"
+   ],
+   "links": [
+    "https://karnatakadigital.in/wp-content/uploads/2026/10/media_to_upload1791366733.docx",
+    "https://karnatakadigital.in/wp-content/uploads/2026/10/media_to_upload1791366769-1.pptx"
+   ],
+   "kind": "page",
+   "pdf_links": [
+    [
+     "https://eitbt.karnataka.gov.in/uploads/media_to_upload1791426035.pdf",
+     "Download Government Order"
+    ],
+    [
+     "https://eitbt.karnataka.gov.in/uploads/media_to_upload1791391621.pdf",
+     ""
+    ],
+    [
+     "https://eitbt.karnataka.gov.in/uploads/media_to_upload1791391816.pdf",
+     ""
+    ],
+    [
+     "https://eitbt.karnataka.gov.in/uploads/media_to_upload1791391912.pdf",
+     ""
+    ],
+    [
+     "https://eitbt.karnataka.gov.in/uploads/media_to_upload1791391944.pdf",
+     ""
+    ],
+    [
+     "https://eitbt.karnataka.gov.in/uploads/media_to_upload1791391980.pdf",
+     ""
+    ],
+    [
+     "https://eitbt.karnataka.gov.in/uploads/media_to_upload1791392098.pdf",
+     ""
+    ],
+    [
+     "https://eitbt.karnataka.gov.in/uploads/media_to_upload1791392149.pdf",
+     ""
+    ],
+    [
+     "https://eitbt.karnataka.gov.in/uploads/media_to_upload1791392172.pdf",
+     ""
+    ],
+    [
+     "https://eitbt.karnataka.gov.in/uploads/media_to_upload1791392199.pdf",
+     ""
+    ]
+   ]
+  },
+  {
+   "url": "https://karnatakadigital.in/guidelines/",
+   "title": "Guidelines",
+   "section": "policies-resources",
+   "origin": "approved",
+   "lastmod": "2026-05-07T13:29:45+05:30",
+   "fetched_at": "2026-10-07T10:19:20+00:00",
+   "digest": "a19be18248e431a4",
+   "blocks": [
+    "Guidelines\nDraft Operational Guidelines for Karnataka Startup Policy 2025 - 2030\nView More\nOperational Guidelines for Incentives and Offerings under Karnataka IT Policy 2025 - 2030\nView More\nOperational Guidelines for Incentives and offerings under Karnataka IT Policy 2020-25\nView More\nOperational guidelines for Karnataka Electronics System Design & Manufacturing Policy 2017-2022\nView More\nAmendment to the operational guidelines for KESDM Policy 2017-2022\nView More\nOperational guidelines for incentives and offerings under Karnataka Data Centre Policy 2022\nView More\nOperational guidelines for Animation, Visual Effects, Gaming, Comics - extended reality OPG - AVGC-XR Policy 3.0 (2024 -29)\nView More\nScheme guidelines for Electronics Component Manufacturing Scheme\nView More",
+    "For detailed information on company registration in Karnataka and to register,\nplease visit the official portal",
+    "For additional resources and Karnataka Government Policies,\nplease refer to the links below\nResources\nPolicies"
+   ],
+   "links": [
+    "https://karnatakadigital.in/guidelines/",
+    "https://karnatakadigital.in/wp-content/uploads/2025/01/IT-Policy-OPG-2021.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2025/01/Operational_Guidelines_for_KESDM_Policy_2017-2022.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2025/01/ITBT-02-PRM-2021-1-R-and-D-amendment.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2025/01/DataCenterPolicy-Operationalguidelines.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2025/01/AVGC-XRPolicy_OperationalGuidelines.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2025/05/30e8672a53f05b9f90d86d16901b23d2.pdf",
+    "https://karnatakadigital.in/resources/",
+    "https://karnatakadigital.in/policies/"
+   ],
+   "kind": "page",
+   "pdf_links": [
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2025/01/IT-Policy-OPG-2021.pdf",
+     "Operational Guidelines for Incentives and offerings under Karnataka IT Policy 2020-25"
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2025/01/Operational_Guidelines_for_KESDM_Policy_2017-2022.pdf",
+     "Operational guidelines for Karnataka Electronics System Design & Manufacturing Policy 2017-2022"
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2025/01/ITBT-02-PRM-2021-1-R-and-D-amendment.pdf",
+     "Amendment to the operational guidelines for KESDM Policy 2017-2022"
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2025/01/DataCenterPolicy-Operationalguidelines.pdf",
+     "Operational guidelines for incentives and offerings under Karnataka Data Centre Policy 2022"
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2025/01/AVGC-XRPolicy_OperationalGuidelines.pdf",
+     "Operational guidelines for Animation, Visual Effects, Gaming, Comics - extended reality OPG - AVGC-XR Policy 3.0 (2024 -29)"
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2025/05/30e8672a53f05b9f90d86d16901b23d2.pdf",
+     "Scheme guidelines for Electronics Component Manufacturing Scheme"
+    ]
+   ]
+  },
+  {
+   "url": "https://karnatakadigital.in/hdb-techceleration-2023/",
+   "title": "HDB Techceleration",
+   "section": "event-landing-pages",
+   "origin": "auto",
+   "lastmod": "2024-08-20T11:53:13+05:30",
+   "fetched_at": "2026-10-07T10:19:20+00:00",
+   "digest": "5c456d0575282896",
+   "blocks": [
+    "Why attend?\nThe 3rd edition of the Hubballi-Dharwad-Belagavi (HDB) Techceleration 2023 is set to be the most prominent and influential business technology conference in the emerging tech cluster. With more than 30 visionary speakers, 50 cutting-edge startups, 300 high-level delegates, including decision-makers and CXOs, 200 students, over 20 investors, and participation from 15+ colleges, 10+ incubators/accelerators, and three country partners, this event promises an unparalleled opportunity for knowledge-sharing, networking, and innovation.\nMark your calendars for December 15, 2023, and make your way to Belagavi for a day filled with impactful knowledge sessions, engaging panel discussions, exciting product launches, captivating startup exhibitions, and high-impact networking opportunities. Connect with key decision-makers and influencers from various government departments and immerse yourself in a thriving ecosystem of visionaries, industry leaders, policymakers, investors, entrepreneurs, mentors, and tech enthusiasts.\nThis event is the ideal platform to showcase your successes, milestones, and achievements, and be an integral part of Karnataka’s remarkable growth story in the tech sector. Next is now, and the future belongs to HDB Techceleration 2023. Join us as we shape the future, celebrate today’s accomplishments, and pave the way for a dynamic and prosperous tomorrow in Karnataka’s tech journey!"
+   ],
+   "links": [],
+   "kind": "page",
+   "pdf_links": []
+  },
+  {
+   "url": "https://karnatakadigital.in/hdb-techceleration-2024/",
+   "title": "HDB Techceleration",
+   "section": "event-landing-pages",
+   "origin": "auto",
+   "lastmod": "2024-10-18T15:11:50+05:30",
+   "fetched_at": "2026-10-07T10:19:20+00:00",
+   "digest": "11990a89cfe46799",
+   "blocks": [
+    "Register Here\nStartup Booth Registration\n2024 Summary\nSpeakers\nResources\nPartners\nAgenda",
+    "HDB Techceleration 2024 - 4th Edition: Key Stats\nTotal Delegates\n340 +\nGlobal Speakers\n40 +\nTotal Startups Participated\n50\nShowcases (Exhibitions)\n26\nProduct Launches\n6\nMoUs Signed\n3\nLoIs for Cluster Seed Fund\n3\nFund-Ready Startups\n3\nInvestors Present\n10 +\nIncubators Involved\n5",
+    "Our Distinguished Speakers for 2024\nShri. Sharath Kumar Bache Gowda\nSmt. Ekroop Caur, IAS\nShri. Darshan H V, IAS\nSmt. Parnika Pavanram\nMr. Anil Sivadas\nMr. Ajit Patil\nMr. Ankit Aggarwal\nView Speakers\nagenda\nBeyond Bengaluru – Mysuru BLUE @ STPI Mysuru\n09:30 AM to 01:30 PM\nSTPI Mysuru\nView Agenda\nHDB Cluster Pitch Deck - 2024\nDownload\nKarnataka IT Policy - 2020 - 2025\nDowload\nHubballi-Dharwad-Belagavi Techcelaration 2024 Event Report\nDowload\nOur Partners in Progress",
+    "For more details, reach out to our team.\nKiran Kulkarni\nProject Manager HDB Cluster,\nKDEM\nkiran.kulkarni@karnatakadigital.in"
+   ],
+   "links": [
+    "https://karnatakadigital.in/hdb-techceleration-2024/",
+    "https://karnatakadigital.in/hdb-techceleration-2024/speakers/",
+    "https://karnatakadigital.in/hdb-techceleration-2024/agenda/",
+    "https://karnatakadigital.in/wp-content/uploads/2024/07/KDEM-HDB-CLUSTER-2024-3.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2024/06/Karnataka-IT-Policy-2020-2025-3.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2024/10/HDB-Techceleration-Event-Report_2024.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2024/08/BCIC.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/08/betca.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/08/Brand-X.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/08/CTIE.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/08/deshpande-Startups.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/08/FKCCI.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/08/FUEL-Logo.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/08/GCPIT.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/08/AICC.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/08/IIIT.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/08/Indian-Institute.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/08/Karnataka.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/08/KLE.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/08/KLS.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/08/Krishi.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/08/Mikro.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/08/SFAL.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/08/Step.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/08/Hubli.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/08/tiE-Banglore.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/08/Vishveshwarayya-Research.jpg"
+   ],
+   "kind": "page",
+   "pdf_links": [
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2024/07/KDEM-HDB-CLUSTER-2024-3.pdf",
+     "BigTech Show Mysore Report"
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2024/06/Karnataka-IT-Policy-2020-2025-3.pdf",
+     "Dowload"
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2024/10/HDB-Techceleration-Event-Report_2024.pdf",
+     "Dowload"
+    ]
+   ]
+  },
+  {
+   "url": "https://karnatakadigital.in/innovation-and-startup/",
+   "title": "Innovation and Startups",
+   "section": "focus-areas-programmes",
+   "origin": "approved",
+   "lastmod": "2026-08-28T12:13:49+05:30",
+   "fetched_at": "2026-10-07T10:19:20+00:00",
+   "digest": "49843a61708995fb",
+   "blocks": [
+    "Innovation and Startups",
+    "Catalyzing Innovation & Startup Growth Across Karnataka\nEmpowering clusters, accelerating deep-tech, and building a robust digital economy.\nExplore Startup Initiatives",
+    "Karnataka's Innovation and Startups Ecosystem\n19,000+\nNumber of Startups\n5,000+\nActive Tech Investors\n$76Bn+\nFunding Raised\n53\nUnicorns\n183\nSoonicorns\n4\nDecacorns\n200+\nAccelerators & Incubators\n55+\nInnovation Hubs\n16\nCoEs(Centres of Excellence)\n3.4k\nFunded Tech Startups-highest number in India\n14th\nIn Global Startup Ecosystem Ranking 2025 by Startup Genome\n1600\nActive Women led startups since 2010",
+    "About Innovation and Startups Ecosystem\nKarnataka ranks as the world's third-largest startup ecosystem, boasting over 19,000+ DPIIT-recognized startups as of 2025. The state is home to more than 40% of India's unicorns, with 53 unicorns and over 183 soonicorns currently based here. Karnataka ecosystem achieved a global ranking of 14th in the Startup Genome Global Startup Ecosystem Ranking 2025, cementing its status as a major global innovation hub",
+    "Initiatives\nBeyond Bengaluru Blue\nKarnataka Accelerator Network\nBeyond Bengaluru Cluster Seed Fund\nLocal Economy Accelerator Program\nGlobal Innovation Alliance – Market Access Program",
+    "GoK Initiatives\nElevate\nGrassroot Innovation\nCentre of Excellence\nNew Age Innovation Network\nRajiv Gandhi Entrepreneurship Program\nTechnology Business Incubator\nGlobal Technology Centre",
+    "Other Incentives\nStartups get access to the following tools and services at discounts or on a free-of-cost basis through credits from our industry partners\nSelf-certifications for varous statuatory permissions\nA better deal for Women Entrepreneurs in Incubators\nReimbursements of patents spends\nSGST Exemptions\nReimbursements of marketing spends\nSubsidized seats in Government supported Incubators\nAccess to idea to a PoC Funding\nParticipate in Government sponsored Exposure Visits\nMake a Difference through \"Grand Challenges\"",
+    "Policy Incentives and support from the Government of Karnataka\nKarnataka Startup Policy 2022 - 2027\nHandbook On Digital Economy Policies, Programs & Incentives In Karnataka",
+    "Reports\nKDEM Reports\nThird Party Reports\nBengaluru Innovation Report 2025\nDownload\nBengaluru Innovation Report 2025\nDownload\nCompendium of CoEs\nDownload\nAI Driven Cybersecurity\nDownload\nLandscape of Early-Stage Funding in Karnataka\nDownload\nFintech Task Group Report 2022\nDownload\nStartup Genome 2025\nDownload\nKarnataka Quarterly funding Report Q1 2025\nDownload\nInc42 Indian Tech Startup Funding Report 2025\nDownload\nStartup Genome Report\nDownload\nKarnataka State Report –StartupIndia\nDownload\nInc42 Indian Tech Startup Funding Report\nDownload\nInc42 National Startup Day\nReport\nDownload\nYOURSTORY State of India’s Startup Ecosystem July 2022\nDownload\nThe State of the Indian Startup Ecosystem – Inc42\nDownload",
+    "Our Partners in Progress\nGovernment Partners\nIndustry Association Partners",
+    "Get in Touch\nWe really appreciate you taking the time to get in touch. Please fill in the form for any further queries."
+   ],
+   "links": [
+    "https://karnatakadigital.in/",
+    "https://karnatakadigital.in/innovation-and-startup/",
+    "https://karnatakadigital.in/acceleration-network/",
+    "https://karnatakadigital.in/beyond-bengaluru-cluster-seed-fund/"
+   ],
+   "kind": "page",
+   "pdf_links": [
+    [
+     "https://cdn.tracxn.com/marketing-campaigns/Karnataka_Tech_Quarterly_Funding_Report_-_Q1_2025_rUzxLBy9pH-dF9LBdeY3S.pdf",
+     "Karnataka Quarterly funding Report Q1 2025"
+    ]
+   ]
+  },
+  {
+   "url": "https://karnatakadigital.in/k-vlsi/",
+   "title": "K-VLSI Design Skill Program",
+   "section": "focus-areas-programmes",
+   "origin": "approved",
+   "lastmod": "2024-08-19T16:09:37+05:30",
+   "fetched_at": "2026-10-07T10:19:20+00:00",
+   "digest": "e302d0e8b5c7b41d",
+   "blocks": [
+    "#K-VLSI Design Skill Program in Karnataka",
+    "About K-VLSI Design Skill Program",
+    "The Industry and Govt.of Karnataka acknowledges the pressing need to address the increasing demand for skilled professionals in the field of VLSI (Very Large Scale Integration) Design. With rapid technological advancements, VLSI plays a crucial role in sectors such as telecommunications, automotive, healthcare, and consumer electronics. However, there is a significant shortage of trained individuals possessing the necessary knowledge and expertise in VLSI Design.\nTo tackle this critical requirement, we are delighted to launch the Next Generation K-VLSI Design Program, in collaboration with the MINRO Center at IIIT Bangalore, IESA, and SAFL. This intensive 6-9 month skill development pilot program is specifically tailored for VLSI Design, aiming to equip students with the essential skills and make them job-ready for the thriving ESDM industry.",
+    "Course & Program Outcome\nIndustry-relevant VLSI engineering skills\nReal-world VLSI project execution\nWell defined\ndesign outcome\nActive interaction with the industry experts\nIndustry training or internships\n100% Placement assistance\nCertification from\nIIIT-B and IESA\nNetworking Opportunities",
+    "K-VLSI Design Skilling Program Graduation Day\nK-VLSI Program Graduates Profile - RTL Focus\nDownload\nK-VLSI Program Graduates Profile - Verification Focus\nDownload",
+    "Eligibility Criteria\n1.Engineers from Electronics, ECE, CS, IT and related engineering branches\n2.Students who have completed (or passed out from) their engineering in 2020 onwards till 2023\n3.Engineers who:\ni. Have completed their engineering studies at a college or university that is recognized and approved UGC/AICTE,located within Karnataka State\nOR\nii.Are originally from Karnataka (Karnataka domicile) but have pursued their engineering education the state are also eligible to apply.\n4.Applicants must be available for full time in the initial 2 months of the course to attend classes in IIIT Bangalore",
+    "Program Fee: The overall value of the program is INR 2,50,000+. However, the shortlisted candidate will only pay 15000 + GST",
+    "Selection Procedure\nPlease read the following disclaimer regarding the selection procedure for candidates who have applied for the program:\na. First level of shortlisting will be done based on percentage in engineering\nb. Second Level of Shortlisting will be done based on online written test (with video\nenabled) :-\ni. The Test will have 2 sections Aptitude and Digital Design basics\nii. The test will be of 40 mins duration. Students are expected to login 15\nmins before the test start time.\nc. The final level of shortlisting will be based on interviews, focusing on the\nfundamentals of engineering (with video enabled).\nPlease note that this disclaimer is for informational purposes only and does not constitute a legally binding agreement. The organization reserves the right to modify or alter the selection procedure at its discretion, as deemed necessary.\nBy participating in the selection process, candidates acknowledge that they have read and understood the above disclaimer and agree to abide by the terms and conditions outlined therein.",
+    "Timelines at a glance\nMilestones\nDates\nShortlisted candidates will receive a program offer letter from IIITB\nNovember 17, 2023 (Thursday)\nCandidates must confirm their acceptance of the offer by paying the tuition fee of Rs. 15,000/- (inclusive of GST). Payment details will be provided in the letter from IIITB. Candidates will receive a fee receipt email as confirmation of their acceptance.\nNovember 30, 2023 (Thursday)\nThe program launch and reporting will take place at IIITB Campus in Electronics City, Bengaluru.\nDecember 8, 2023 (Friday), 10 AM\nOn this day, there will be a 2-hour induction program followed by lunch.\nDecember 8, 2023\nClasses for the program will commence at IIITB. A complete schedule will be provided to students on December 8, 2023.\nJanuary 3, 2024\nFor candidates who do not reside in Bengaluru, they are responsible for arranging their own accommodation in the city.",
+    "Course Duration : 6 Months\nMode of Conduct : Hybrid Mode\nLast Date to Apply: 20th October 2023\n100% Placement Assistance"
+   ],
+   "links": [
+    "https://karnatakadigital.in/k-vlsi/",
+    "https://karnatakadigital.in/wp-content/uploads/2024/08/K-VLSI-Program-Graduates-Profile-RTL-Focus.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2024/08/K-VLSI-Program-Graduates-Profile-Verification-Focus.pdf"
+   ],
+   "kind": "page",
+   "pdf_links": [
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2024/08/K-VLSI-Program-Graduates-Profile-RTL-Focus.pdf",
+     "K-VLSI Program Graduates Profile - RTL Focus"
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2024/08/K-VLSI-Program-Graduates-Profile-Verification-Focus.pdf",
+     "K-VLSI Program Graduates Profile - Verification Focus"
+    ]
+   ]
+  },
+  {
+   "url": "https://karnatakadigital.in/karnataka-skill-handbook/",
+   "title": "Karnataka Skill Handbook",
+   "section": "policies-resources",
+   "origin": "auto",
+   "lastmod": "2026-10-14T15:47:37+05:30",
+   "fetched_at": "2026-10-14T19:25:45+00:00",
+   "digest": "b7d0bc70f4a3a61f",
+   "blocks": [
+    "Karnataka Skill Handbook\nFill the details to recieve your copy of the report."
+   ],
+   "links": [],
+   "kind": "page",
+   "pdf_links": []
+  },
+  {
+   "url": "https://karnatakadigital.in/karnataka-state-budget-2026-27/",
+   "title": "Karnataka State Budget 2026-27",
+   "section": "policies-resources",
+   "origin": "auto",
+   "lastmod": "2026-10-14T15:33:19+05:30",
+   "fetched_at": "2026-10-14T19:25:45+00:00",
+   "digest": "5c338ea64f66587a",
+   "blocks": [
+    "Karnataka State Budget 2026-27\nFill the details to recieve your copy of the report."
+   ],
+   "links": [],
+   "kind": "page",
+   "pdf_links": []
+  },
+  {
+   "url": "https://karnatakadigital.in/kdem-samco-ethical-ai/",
+   "title": "KDEM SAMCo Ethical AI",
+   "section": "policies-resources",
+   "origin": "auto",
+   "lastmod": "2026-10-07T14:22:39+05:30",
+   "fetched_at": "2026-10-07T10:19:20+00:00",
+   "digest": "1707b5a9ca1bb105",
+   "blocks": [
+    "AI Governance for Indian Startups: A Set of Principles\nFill the details to recieve your copy of the report."
+   ],
+   "links": [],
+   "kind": "page",
+   "pdf_links": []
+  },
+  {
+   "url": "https://karnatakadigital.in/kdem-vision-document-2025-hdb-cluster/",
+   "title": "KDEM Vision Document 2025",
+   "section": "policies-resources",
+   "origin": "auto",
+   "lastmod": "2026-10-14T18:24:43+05:30",
+   "fetched_at": "2026-10-14T19:25:45+00:00",
+   "digest": "b21346681539af3d",
+   "blocks": [
+    "KDEM Vision Document 2025 - HDB Cluster\nFill the details to recieve your copy of the report."
+   ],
+   "links": [],
+   "kind": "page",
+   "pdf_links": []
+  },
+  {
+   "url": "https://karnatakadigital.in/kdem-xpheno-silicon-beach_september2026/",
+   "title": "KDEM-Xpheno-Silicon Beach_Sept2026",
+   "section": "policies-resources",
+   "origin": "auto",
+   "lastmod": "2026-10-07T14:24:04+05:30",
+   "fetched_at": "2026-10-07T10:19:20+00:00",
+   "digest": "3a66b1580f602599",
+   "blocks": [
+    "Silicon Beach Skills – Talent Landscape of Udupi & Mangaluru Cluster\nFill the details to recieve your copy of the report."
+   ],
+   "links": [],
+   "kind": "page",
+   "pdf_links": []
+  },
+  {
+   "url": "https://karnatakadigital.in/mangaluru-technovanza-2024/",
+   "title": "Mangaluru Technovanza",
+   "section": "event-landing-pages",
+   "origin": "auto",
+   "lastmod": "2024-11-13T11:01:10+05:30",
+   "fetched_at": "2026-10-07T10:19:20+00:00",
+   "digest": "e02118a336579034",
+   "blocks": [
+    "Register Here\nStartup Booth Registration\n2024 Summary\nSpeakers\nResources\nPartners",
+    "2024 SUMMARY\nDelegates\n600 +\nGlobal speakers\n40 +\nStartups\n70 +\nShowcases\n33 +\nProduct Launches\n7\nFund-ready startups\n3\nInvestors\n20 +\nIncubators\n3\nNew companies grounded\n7\nCountry Partners\n4\nGCCs\n60 +",
+    "Our Distinguished Speakers of 2024\nMr. Sanjeev Kumar Gupta\nMr. Anuj Agrawal\nMr. Bhaskar Verma\nMr. Dale Vaz\nMr. Dhiraj Gyani\nView Speakers\nIndustry Anchors\nAshith Hegde\nGaurav Hegde\nJohnson Tellis\nMohammed Hanif\nMurali Manohar\nPrashanth Shenoy\nView Speakers\nMangaluru Blue 2024 - Grand Jury\nMr Dharshan Karsaravalli\nMr Narendra Bandari\nMr Neeraj Tyagi\nMs Sylaja Rao\nMr Ved Prakash Mall\nMr Vijeetha Shastry\nView Speakers\nMangaluru Blue 2024 - Top-3 Investment Ready Startups",
+    "Mangaluru Cluster Pitch Deck - 2024\nDownload\nMangaluru Technovanza Report - 2024\nDownload",
+    "OUR Partners from 2024",
+    "Title Partner\nStartup Ecosystem Partner\nDigital Partner\nGifiting Partner\nBanking Partners\nTravel Partner\nKnowledge Partner\nEvent Curator",
+    "Partners in Progress",
+    "Recognition & felicitation of companies:\nInnoscripta AG\nNidec\nClaytech\nBose Professionals\nxTransmatrix\nVinyl Equity\nJumpwhere",
+    "For more details, reach out to our team.\nMukesh S\nCluster Head – Mangaluru,\nKDEM\nmukesh@karnatakadigital.in"
+   ],
+   "links": [
+    "https://karnatakadigital.in/mangaluru-technovanza-2024/",
+    "https://karnatakadigital.in/hdb-techceleration-2024/magalore-speakers/",
+    "https://karnatakadigital.in/hdb-techceleration-2024/magalore-speakers-ia/",
+    "https://karnatakadigital.in/hdb-techceleration-2024/magalore-speakers-blue/",
+    "https://karnatakadigital.in/wp-content/uploads/2024/10/7.png",
+    "https://karnatakadigital.in/wp-content/uploads/2024/10/esh.png",
+    "https://karnatakadigital.in/wp-content/uploads/2024/10/8.png",
+    "https://karnatakadigital.in/wp-content/uploads/2024/07/KDEM-MANGALURU-CLUSTER-2024.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2024/11/Mangaluru-Technovanza-2024-report.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/wk.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/deel-e1729941174909.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/10/111-e1729944316178.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/mathe-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/idfc-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/towner-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/10/333-e1729944284150.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/resize-172666371215882609876af66561e50c4963a7af55f3d0b455d9.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/assocham-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/iesa.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/nasscom-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/cii-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/10/cred.png",
+    "https://karnatakadigital.in/wp-content/uploads/2024/10/555.png",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/kcci.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/10/222.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/startup-1-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/10/666.png",
+    "https://karnatakadigital.in/wp-content/uploads/2024/10/WhatsApp-Image-2024-10-28-at-12.13.20-PM.jpeg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/10/WhatsApp-Image-2024-10-28-at-12.12.15-PM.jpeg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/10/WhatsApp-Image-2024-10-28-at-12.13.38-PM.jpeg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/10/WhatsApp-Image-2024-10-28-at-12.13.57-PM.jpeg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/10/WhatsApp-Image-2024-10-28-at-12.12.36-PM.jpeg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/10/Untitled-design-4.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/10/WhatsApp-Image-2024-10-28-at-12.12.58-PM.jpeg"
+   ],
+   "kind": "page",
+   "pdf_links": [
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2024/07/KDEM-MANGALURU-CLUSTER-2024.pdf",
+     "BigTech Show Mysore Report"
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2024/11/Mangaluru-Technovanza-2024-report.pdf",
+     ""
+    ]
+   ]
+  },
+  {
+   "url": "https://karnatakadigital.in/mid-market-global-capability-centersgccs-in-karnataka/",
+   "title": "Mid-market Global Capability Centers(GCCs) in Karnataka",
+   "section": "policies-resources",
+   "origin": "auto",
+   "lastmod": "2026-10-14T18:10:57+05:30",
+   "fetched_at": "2026-10-14T19:25:45+00:00",
+   "digest": "a767d7e39bca5749",
+   "blocks": [
+    "Mid-market Global Capability Centers(GCCs) in Karnataka\nFill the details to recieve your copy of the report."
+   ],
+   "links": [],
+   "kind": "page",
+   "pdf_links": []
+  },
+  {
+   "url": "https://karnatakadigital.in/mysuru-ai-cybersecurity-skills-report-2026/",
+   "title": "Mysuru AI & Cybersecurity Skills Report 2026",
+   "section": "policies-resources",
+   "origin": "approved",
+   "lastmod": "2026-10-14T15:42:36+05:30",
+   "fetched_at": "2026-10-14T19:25:45+00:00",
+   "digest": "ddf020cfc3530c59",
+   "blocks": [
+    "GLOBAL CYBERSECURITY SKILLS GAP REPORT 2025\nFill the details to recieve your copy of the report."
+   ],
+   "links": [],
+   "kind": "page",
+   "pdf_links": []
+  },
+  {
+   "url": "https://karnatakadigital.in/mysuru-beyond-heritage-skills-talent-landscape-report-2026/",
+   "title": "Mysuru: Beyond Heritage - Skills & Talent Landscape Report 2026",
+   "section": "policies-resources",
+   "origin": "approved",
+   "lastmod": "2026-07-22T18:14:44+05:30",
+   "fetched_at": "2026-10-07T10:19:20+00:00",
+   "digest": "0e9fe10a67c1efe2",
+   "blocks": [
+    "Mysuru: Beyond Heritage Skills & Talent Landscape Report 2026\nFill the details to recieve your copy of the report."
+   ],
+   "links": [],
+   "kind": "page",
+   "pdf_links": []
+  },
+  {
+   "url": "https://karnatakadigital.in/news-updates/",
+   "title": "News Updates",
+   "section": "core-pages",
+   "origin": "approved",
+   "lastmod": "2026-03-06T17:36:41+05:30",
+   "fetched_at": "2026-10-07T10:19:20+00:00",
+   "digest": "48e4db48cc8c2f0b",
+   "blocks": [
+    "WHY INDIAN FACTORIES NEED A MAKEOVER\nRead More »\nAugust 28, 2026\nLightspeed’s Mohapatra on India’s AI Startups\nHemant Mohapatra, Partner at Lightspeed India, discusses the investment opportunities in India’s AI startup ecosystem. He speaks with Shery Ahn on Bloomberg Tech: Asia.\nRead More »\nAugust 28, 2026\nNaidu Clears ₹730.70-Cr Quantum, AI University Campus in Amaravati\nChief Minister N. Chandrababu Naidu on Thursday approved a dedicated Quantum and AI University campus in Amaravati, with the ₹730.70-crore project aimed at creating a national hub for advanced technology, research and deep-tech innovation.\nRead More »\nAugust 28, 2026\nState explores ElevenLabs voice AI pilots for services\nRead More »\nAugust 28, 2026\nKarnataka govt sets up cabinet sub-committee for education reforms\nRead More »\nAugust 28, 2026\nTech, Al must help make justice more accessible: CJI Surya Kant\nSpeaking at the Indo-German arbitration conclave in Berlin, Germany, CJI Kant said disputes are a natural feature of commercial activity, but their existence does not indicate a failure of trust.\n“What matters is whether the legal system provides a reliable mechanism through which disagreements can be resolved without undermining the commercial relationship itself,” he said.\nRead More »\nAugust 28, 2026\nCompanies are giving AI more control. Is cybersecurity ready for it?\nCompanies are moving beyond using artificial intelligence simply to generate content or answer questions. AI systems are increasingly being connected to enterprise identities, internal data, APIs, databases and other applications, while AI agents are being given the ability to retrieve information, make decisions, call tools and take actions.\nRead More »\nAugust 28, 2026\nIndia moving from Al pilots to broad-scale adoption, aims to be Al maker and shaper\nIndia is moving from the era of Al pilots to broad-scale adoption and wants to be a maker and shaper of artificial intelligence, with Google highly optimistic about the country’s long-term Al trajectory and seeing rising demand for advanced digital infrastructure, Alexander Smith, Principal, Global Infrastructure, Asia Pacific, Google, said.\nRead More »\nAugust 28, 2026\nKDEM Delegation’s Visit to IBMR: A Milestone in Entrepreneurship, Technology, and Academic Development\nSanjeev Gupta, CEO of the Karnataka Digital Economy Mission (KDEM), Bengaluru, and Chetan Dixit, Vice President, visited IBMR Educational Institution, which has established a significant milestone in the field of education. They held important discussions on entrepreneurship, industrial development, technology, the growth of startups, and academic advancement in North Karnataka.\nRead More »\nAugust 28, 2026\nMid-market firms to drive next wave of India GCC growth: Embark\n“Today, when there’s much talk about AI, there is more acceptance of setting up smaller centres because these are no longer back-office centres but capability hubs in their true sense,” Aravind Maiya, co-founder and CEO of Embark, explained.\nRead More »\nAugust 27, 2026\nWACKER taps HCLTech to build digital transformation GCC in India\nThe centre will serve as a delivery hub for WACKER’s engineering, technology and digital programmes while providing what the companies describe as a flexible, resilient and future-ready operating foundation.\nRead More »\nAugust 27, 2026\nSemiconductor GCCs set to add 10,000 jobs in India\nSemiconductor global capability centres (GCCs) in India are expected to add 8,000-10,000 employees this year, taking the sector’s workforce to about 80,000, as chip companies expand their India operations amid a global surge in demand for chips used in artificial intelligence and data centres, according to industry estimates. About 80% of the expected headcount growth will come from existing GCCs and 20% from new centres, said Pareekh Jain, chief\nRead More »\nAugust 27, 2026\nGoogle DeepMind’s India-built Al models for agriculture now support farm credit, crop advisories and UN food security data\nGoogle DeepMind’s Agricultural Landscape Understanding (ALU) and Agricultural Monitoring & Event Detection (AMED) models, initially developed to support India’s agricultural ecosystem, now power farmer credit platforms, state-level crop advisories, and data systems maintained by the United Nations Food and Agriculture Organisation. Both models use\nRead More »\nAugust 27, 2026\nIndia-Japan ties gain momentum after Piyush Goyal’s Japan visit\nThe India-Japan Special Strategic and Global Partnership gained fresh momentum, as the two countries vowed to step up efforts to deepen trade, investment, technology and industrial cooperation across strategic and emerging sectors during commerce and industry minister Piyush Goyal’s four-day visit to Japan.\nRead More »\nAugust 27, 2026\nIndia Targets 3nm Chip Technology Within Eight Years\nIndia targets developing 7nm to 3nm semiconductor technology within eight years, with the government focusing on chip design, fabrication, advanced packaging, research and talent to build a stronger domestic ecosystem.\nRead More »\nAugust 27, 2026\nAmaravati to house India’s first dedicated Quantum and AI University campus\nIn a major step towards positioning Amaravati as a national hub for advanced technology, research and innovation, the Government of Andhra Pradesh has approved the establishment of India’s first dedicated Quantum and Artificial Intelligence University campus by the NIELIT Deemed-to-be University, under the Ministry of Electronics and Information Technology, Government of India.\nRead More »\nAugust 27, 2026\nBelagavi gears up for mega cybersecurity summit\nAgamya Cyber Tech will organise Agamya Tech Summit 2026, billed as North Karnataka’s largest cybersecurity summit, at SG Balekundri Institute of Technology (SGBIT), Belagavi, on Aug 29 and 30.\nRead More »\nAugust 27, 2026\nKDEM visit: technical educational development discussion\nKarnataka Digital Economy Mission (KDEM) CEO Sanjay Gupta and Vice President Chetan Dixit visited the Vidyanagar IBMR Institute here on Thursday.\nRead More »\nAugust 27, 2026\nChennai rapidly emerging as one of India’s next major GCC and IT destinations”: Nair\nGlobal annual office net absorption stands at approximately 350 million square feet. Asia accounts for nearly 100 million square feet of this total, with India commanding a dominant 60 million square feet, underscoring the country’s position as the office capital of the world. Yet, when we look at these numbers against a total global inventory of 15 billion square feet and a US market of 5 billion square feet, India’s current figure of 900 million square feet footprint indicates that this growth story is just beginning.\nRead More »\nAugust 6, 2026\nBeyond defence: 3 Indian companies chasing a Rs 5 lakh crore aerospace opportunity\nIndia’s aerospace story is taking off. As global OEMs source more from India and defence spending rises, a few niche manufacturers are positioning for a multi-year growth runway.\nRead More »\nAugust 6, 2026\nFrom diagnostics to semicon, nanotech goes commercial\nIndia’s nanotechnology startup ecosystem is moving beyond laboratory research towards commercialisation, with companies focusing on regulatory approvals, manufacturing at scale and customer adoption across healthcare, semiconductor manufacturing, environmental technologies and industrial applications.\nRead More »\nAugust 6, 2026"
+   ],
+   "links": [
+    "https://karnatakadigital.in/news/why-indian-factories-need-a-makeover/",
+    "https://karnatakadigital.in/news/lightspeeds-mohapatra-on-indias-ai-startups/",
+    "https://karnatakadigital.in/news/naidu-clears-%E2%82%B9730-70-cr-quantum-ai-university-campus-in-amaravati/",
+    "https://karnatakadigital.in/news/state-explores-elevenlabs-voice-ai-pilots-for-services/",
+    "https://karnatakadigital.in/news/karnataka-govt-sets-up-cabinet-sub-committee-for-education-reforms/",
+    "https://karnatakadigital.in/news/tech-al-must-help-make-justice-more-accessible-cji-surya-kant/",
+    "https://karnatakadigital.in/news/companies-are-giving-ai-more-control-is-cybersecurity-ready-for-it/",
+    "https://karnatakadigital.in/news/india-moving-from-al-pilots-to-broad-scale-adoption-aims-to-be-al-maker-and-shaper/",
+    "https://karnatakadigital.in/news/kdem-delegations-visit-to-ibmr-a-milestone-in-entrepreneurship-technology-and-academic-development/",
+    "https://karnatakadigital.in/news/mid-market-firms-to-drive-next-wave-of-india-gcc-growth-embark/",
+    "https://karnatakadigital.in/news/wacker-taps-hcltech-to-build-digital-transformation-gcc-in-india/",
+    "https://karnatakadigital.in/news/semiconductor-gccs-set-to-add-10000-jobs-in-india/",
+    "https://karnatakadigital.in/news/google-deepminds-india-built-al-models-for-agriculture-now-support-farm-credit-crop-advisories-and-un-food-security-data/",
+    "https://karnatakadigital.in/news/india-japan-ties-gain-momentum-after-piyush-goyals-japan-visit/",
+    "https://karnatakadigital.in/news/india-targets-3nm-chip-technology-within-eight-years/",
+    "https://karnatakadigital.in/news/amaravati-to-house-indias-first-dedicated-quantum-and-ai-university-campus/",
+    "https://karnatakadigital.in/news/belagavi-gears-up-for-mega-cybersecurity-summit/",
+    "https://karnatakadigital.in/news/kdem-visit-technical-educational-development-discussion/",
+    "https://karnatakadigital.in/news/chennai-rapidly-emerging-as-one-of-indias-next-major-gcc-and-it-destinations-nair/",
+    "https://karnatakadigital.in/news/beyond-defence-3-indian-companies-chasing-a-rs-5-lakh-crore-aerospace-opportunity/",
+    "https://karnatakadigital.in/news/from-diagnostics-to-semicon-nanotech-goes-commercial-2/"
+   ],
+   "kind": "page",
+   "pdf_links": []
+  },
+  {
+   "url": "https://karnatakadigital.in/newsletter-2024/",
+   "title": "KDEM Monthly Newsletter",
+   "section": "policies-resources",
+   "origin": "approved",
+   "lastmod": "2026-09-10T12:00:22+05:30",
+   "fetched_at": "2026-10-07T10:19:20+00:00",
+   "digest": "d157d0bcec93db9e",
+   "blocks": [
+    "Download Now\nDownload Now\nDownload Now\nDownload Now\nDownload Now"
+   ],
+   "links": [
+    "https://karnatakadigital.in/wp-content/uploads/2026/09/KDEM-Monthly-News-Letter-_-August-2026.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2026/09/KDEM-Monthly-News-Letter-_-July-2026_compressed.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2026/09/KDEM-Monthly-News-Letter-_-June-2026.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2026/09/KDEM-Monthly-News-Letter-_-May-2026.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2026/05/KDEM-Monthly-News-Letter-_-April-2026-1.pdf"
+   ],
+   "kind": "page",
+   "pdf_links": [
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2026/09/KDEM-Monthly-News-Letter-_-August-2026.pdf",
+     ""
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2026/09/KDEM-Monthly-News-Letter-_-July-2026_compressed.pdf",
+     ""
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2026/09/KDEM-Monthly-News-Letter-_-June-2026.pdf",
+     ""
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2026/09/KDEM-Monthly-News-Letter-_-May-2026.pdf",
+     ""
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2026/05/KDEM-Monthly-News-Letter-_-April-2026-1.pdf",
+     ""
+    ]
+   ]
+  },
+  {
+   "url": "https://karnatakadigital.in/nipuna-karnataka-guidelines/",
+   "title": "NIPUNA Karnataka Guidelines",
+   "section": "focus-areas-programmes",
+   "origin": "approved",
+   "lastmod": "2026-10-10T13:25:21+05:30",
+   "fetched_at": "2026-10-19T10:44:42+00:00",
+   "digest": "a1e8a54173742381",
+   "blocks": [
+    "Nipuna Karnataka Guidelines\nFill the details to download the Guidelines Document"
+   ],
+   "links": [],
+   "kind": "page",
+   "pdf_links": []
+  },
+  {
+   "url": "https://karnatakadigital.in/nipuna-karnataka-proposal/",
+   "title": "NIPUNA Karnataka Proposal",
+   "section": "focus-areas-programmes",
+   "origin": "approved",
+   "lastmod": "2026-10-10T13:27:13+05:30",
+   "fetched_at": "2026-10-19T10:44:42+00:00",
+   "digest": "58823aed40637531",
+   "blocks": [
+    "Nipuna Karnataka — Call for Proposals\nFill the details to download the proposal document."
+   ],
+   "links": [],
+   "kind": "page",
+   "pdf_links": []
+  },
+  {
+   "url": "https://karnatakadigital.in/nipuna-karnataka/",
+   "title": "NIPUNA Karnataka",
+   "section": "focus-areas-programmes",
+   "origin": "approved",
+   "lastmod": "2026-10-16T12:03:28+05:30",
+   "fetched_at": "2026-10-19T10:44:42+00:00",
+   "digest": "841cb135559b792b",
+   "blocks": [
+    "NIPUNA KARNATAKA\nSkill Locally.\nWork Globally.\nBuilding Karnataka’s future-ready workforce through industry-aligned skilling, practical learning and pathways to employment.\nExplore Opportunities →",
+    "Closing the Gap Between Learning and Employment\nIndustries are evolving rapidly. The skills required for tomorrow’s careers are evolving with them.\nNipuna Karnataka brings Government, Industry and Academia together to help Karnataka’s talent build relevant skills, gain real-world exposure and prepare for emerging career opportunities.\n01Learn\n02Apply\n03Experience\n04Progress\nDesigned Around Outcomes\n1,000+\nTrainees per partner company, annually\n70%\nMinimum placement target\n3\nCore pillars of training\nPractical Learning · On-the-Job Training · Professional Skills",
+    "Three Pillars\nSkills Built for the Real World\nA\nPractical Learning\nLearn by doing through:\nSimulations\nLive projects\nCase studies\nIndustry-standard tools\nB\nOn-the-Job Training\nGain workplace exposure through:\nInternships\nMentorship\nWorkplace integration\nPerformance evaluation\nC\nProfessional Skills\nBuild the capabilities needed to perform at work:\nCommunication\nCritical thinking\nTime management\nProfessional etiquette\nEmotional intelligence",
+    "Who It's For\nWherever You Are in Your Career Journey\nStudents\nFinal-year UG, PG and Diploma students, along with eligible recent graduates.\nWorking Professionals\nUpskill, reskill and prepare for evolving roles.\nJob Seekers\nBuild relevant capabilities and strengthen your pathway back into employment.\nFind Your Path →",
+    "FUTURE-READY SKILLS\nIndustry-relevant capabilities across areas such as:\nArtificial Intelligence\nData Science\nCybersecurity\nInformation Technology\nBiotechnology\nEmerging Technologies",
+    "How It Works\nFrom Industry Need to\nEmployment\n01\nIndustry Need\nCompanies identify emerging workforce and skill requirements.\n02\nProposal & Review\nTraining proposals are evaluated through the programme framework.\n03\nIndustry Meets Academia\nGovernment facilitates connections between companies, institutions and training partners.\n04\nTraining Design\nThe curriculum, delivery model and training partners are finalised.\n05\nTalent Selection\nEligible participants are identified with support from academia and Government.\n06\nTraining + OJT\nParticipants undergo practical training and on-the-job exposure.\n07\nPlacement\nPartners work towards employment outcomes for trained candidates.\n08\nImpact Reporting\nProgramme outcomes are reported and evaluated.",
+    "The Ecosystem\nOne Connected Ecosystem\nGovernment\nEnable\nCreates the framework, facilitates collaboration and supports programme implementation.\nIndustry\nDefine + Employ\nIdentifies skill needs, contributes expertise and supports employment pathways.\nAcademia\nConnect + Prepare\nConnects students with industry-led learning and skilling opportunities.\nSkill Partners\nTrain + Deliver\nBring specialised training capabilities, tools and implementation expertise.",
+    "Karnataka Is the Classroom.\nThe World Is the Opportunity.\nNipuna Karnataka is designed to expand access to industry-relevant skills across Karnataka. The ambition is simple:\nBuild skills locally. Create stronger career pathways. Prepare Karnataka’s talent to compete globally.",
+    "Outcomes\nLearning Is Only the Beginning\nTrain → Practise → Experience → Get Job-Ready → Connect to Opportunities\nNipuna Karnataka is designed around measurable employment outcomes, with a 70% minimum placement target under the programme framework.",
+    "PARTNERSHIP MODEL\nA Public–Private Model\nBuilt to Scale\nNipuna Karnataka uses flexible funding models that can bring together:\nUP TO\n40%\nGovernment support is capped at up to 40% of programme costs, depending on the approved model.\nSupport\nContribution\nCSR Funding\nTraining Partners\nBeneficiary\nContribution,\nwhere applicable\nView Partnership Guidelines →",
+    "Partner With Us\nMore Than Funding\nOrganisations can also participate through:\nInfrastructure Support\nMentorship & Guidance\nApprenticeships\nCurriculum Development\nR&D Collaboration",
+    "Accountability\nMeasured by What Matters\nNipuna Karnataka tracks programme progress across:\nEnrolment\nTraining Hours\nParticipant Progress\nAssessments\nRetention\nFinancial Utilisation\nParticipant Feedback",
+    "🏢\nFor Corporates\nInviting corporates to participate in employment-oriented skilling initiatives across Karnataka by submitting proposals for skill development and employment opportunities.\nSubmit Your Proposal →\n🎓\nFor Individuals\nInviting fresh graduates and unemployed individuals across Karnataka to register their interest in skill development programmes and explore potential employment opportunities.\nSubmit Your Resume →",
+    "Downloadable Resources\n↓ Nipuna Karnataka Guidelines ↓ Nipuna Karnataka Proposal",
+    "Karnataka Has the Talent.\nLet’s Build the Opportunity.\nWhether you are looking to learn, hire, train or collaborate, Nipuna Karnataka connects you to an ecosystem built around skills, industry relevance and employment outcomes.",
+    "For more details, contact:\nSubha Mahata VP - Talent Accelerator, KDEM subha.mahata@karnatakadigital.in +91 84203 15666\nSowjanya KA Assistant Manager - Talent Accelerator, KDEM sowjanya@karnatakadigital.in"
+   ],
+   "links": [
+    "https://karnatakadigital.in/nipuna-karnataka/",
+    "https://karnatakadigital.in/nipuna-karnataka-guidelines/",
+    "https://karnatakadigital.in/nipuna-karnataka-proposal/"
+   ],
+   "kind": "page",
+   "pdf_links": []
+  },
+  {
+   "url": "https://karnatakadigital.in/operational-guidelines-for-karnataka-startup-policy-2022-2027/",
+   "title": "Operational Guidelines for Karnataka Startup Policy 2022-2027",
+   "section": "policies-resources",
+   "origin": "auto",
+   "lastmod": "2026-10-14T15:45:15+05:30",
+   "fetched_at": "2026-10-14T19:25:45+00:00",
+   "digest": "42b75d598e82f72d",
+   "blocks": [
+    "Operational Guidelines for Karnataka Startup Policy 2022-2027\nFill the details to recieve your copy of the report."
+   ],
+   "links": [],
+   "kind": "page",
+   "pdf_links": []
+  },
+  {
+   "url": "https://karnatakadigital.in/policies/",
+   "title": "Policies",
+   "section": "policies-resources",
+   "origin": "approved",
+   "lastmod": "2026-05-06T19:00:51+05:30",
+   "fetched_at": "2026-10-07T10:19:20+00:00",
+   "digest": "dedc8a43c7e6c929",
+   "blocks": [
+    "Policies\nKarnataka Startup Policy 2025-2030\nThe Government of Karnataka has formulated the Karnataka Startup Policy 2025-2030 with a vision to position the state as a global leader in innovation and entrepreneurship.\nDownload\nKarnataka State Skill Development Policy 2025 - 2032\nThe Karnataka State Skill Development Policy 2025-2032 represents our commitment to transforming our state’s human capital into a globally competitive workforce.\nDownload\nKarnataka Aerospace and Defence Policy\nKarnataka has a rich history of being at the forefront of innovation for Aerospace and Defence in India. Today, 67% of all aircraft and helicopters manufactured for Defence services are done in the State.\nDownload\nKarnataka Global Capability Center (GCC) Policy 2024-2029\nKarnataka stands as a beacon of innovation, with its vibrant ecosystem hosting over 500+ esteemed Global Capability Centres (GCCs).\nDownload\nKarnataka Cyber Security\nPolicy - 2024\nThe global nature of risks in cyberspace and interconnectedness of devices, networks and people in this field has necessitated collaborative international.\nDownload\nDraft Karnataka Space\nTechnology Policy\nGlobally, space sector in the midst of a very exciting phase. Backed by regulatory reforms and enabled by technology advancements, we are witnessing.\nDownload\nKarnataka Engineering R&D Policy\n2021 - 2026\nGovernment of Karnataka has always strived to lead the wave of innovation. In this very spirit, it is with immense pleasure that I present to you.\nDownload\nKarnataka Data Center Policy\n2022 - 2027\nGovernment of Karnataka (GoK) has formulated Karnataka’s Data Centre Policy 2022, with a focus on creating demand and value for data centres.\nDownload\nKarnataka Cyber Security\nPolicy - 2023\nKarnataka stands as the nucleus of India’s technological advancement with Bengaluru as Silicon Valley of India. The state has a burgeoning IT landscape which propels it.\nDownload\nKarnataka Startup Policy\n2022 - 2027\nGovernment of Karnataka has formulated Karnataka Startup Policy 2022 with a focus on ensuring the State plays an integral role in galvanizing the startup.\nDownload\nKarnataka IT Policy\n2020 - 2025\nGovernment of Karnataka (GoK) has formulated Karnataka’s IT Policy for the period 2020-2025 with a focus on the continued development of infrastructure.\nDownload\nOPG - AVGC-XR POLICY 3.0\n(2024 -2029)\nKarnataka shines as a leader in the dynamic AVGC-XR landscape, claiming 20% of India’s Media & Entertainment industry. With 300+ specialized studios.\nDownload\nKarnataka AVGC-XR Policy\n2024 - 2029\nThe rise of the AVGC-XR sector, encompassing Animation, Visual Effects, Gaming, Comics, and Extended Reality, has become a notable development.\nDownload",
+    "For additional resources and detailed policy guidelines,\nplease refer to the links below\nResources\nPolicy Guidelines",
+    "Terms and Conditions\nAccess and Use of Resources\nThe resources section provides various government policies, reports, and publications. To access these resources, users may be required to fill out a form with personal information, including but not limited to name, email address, and professional details. By submitting this form, users agree to receive updates and communications from KDEM.\nDownloadable Content\nThe downloadable resources, including reports and government policies, are provided for informational purposes only. Users may download these resources for personal and non-commercial use. Redistribution, modification, or publication of these materials without prior consent from KDEM is strictly prohibited.\nAccuracy of Resources\nWhile every effort is made to ensure the accuracy and relevance of the resources provided, KDEM does not guarantee that the information is current or applicable in every circumstance. Users are encouraged to consult with appropriate legal or governmental bodies for official guidance on any policy or report.\nData Collection\nBy filling out the form to download resources, you consent to KDEM collecting and processing your personal data in accordance with its privacy policy. KDEM will not share your data with third parties without your explicit consent.\nUpdates to Resources\nKDEM reserves the right to update or remove any resource or report without prior notice. Users are encouraged to check for the latest versions."
+   ],
+   "links": [
+    "https://karnatakadigital.in/policies/",
+    "https://karnatakadigital.in/wp-content/uploads/2024/11/Draft-Space-Policy_Exec-Summary.pdf",
+    "https://karnatakadigital.in/resources/",
+    "https://karnatakadigital.in/guidelines/"
+   ],
+   "kind": "page",
+   "pdf_links": [
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2024/11/Draft-Space-Policy_Exec-Summary.pdf",
+     "Draft Karnataka Space Technology Policy"
+    ]
+   ]
+  },
+  {
+   "url": "https://karnatakadigital.in/resource/",
+   "title": "KDEM Resources and Reports",
+   "section": "policies-resources",
+   "origin": "approved",
+   "lastmod": "2026-10-14T18:24:14+05:30",
+   "fetched_at": "2026-10-14T19:25:45+00:00",
+   "digest": "65757737af7503e2",
+   "blocks": [
+    "KDEM Resources\nAI Governance for Indian Startups: A Set of Principles\nDeveloped by the Karnataka Digital Economy Mission (KDEM) and Shardul Amarchand Mangaldas & Co., this report presents a practical framework to help Indian startups build and deploy AI responsibly.\nDownload\nSilicon Beach Skills – Talent Landscape of Udupi & Mangaluru Cluster\nThe second edition of Silicon Beach Skills, with Xpheno as the Insights Partner, provides a data-driven assessment of the evolving talent landscape across the Udupi–Mangaluru region.\nDownload\nMysuru: Beyond Heritage Skills & Talent Landscape Report 2026\nA comprehensive report by Xpheno analysing Mysuru’s evolving white-collar talent ecosystem, highlighting workforce strengths, skill groups, industry sectors, and the city’s emergence as a technology and innovation destination.\nDownload\nMysuru AI & Cybersecurity Skills Report\nAn in-depth research report exploring AI-driven cybersecurity trends, emerging skill requirements, industry adoption, workforce readiness, and strategies to build a stronger cybersecurity ecosystem in Mysuru.\nDownload\nThe Global Startup Ecosystem Report 2026\nThe Global Startup Ecosystem Report 2026 (GSER) is a comprehensive analysis of the current state of startup ecosystems worldwide. Now in its 14th year, the GSER provides insights into the world’s leading startup ecosystems, emerging trends, and key challenges facing entrepreneurs.\nDownload\nKarnataka State Budget 2026-27\nThe Karnataka Budget 2026–27 outlines the state’s development priorities, focusing on agriculture, education, healthcare, infrastructure, skilling, and regional growth.\nDownload\nOperational Guidelines for Karnataka Startup Policy 2022-2027\nIssued by the Government of Karnataka, this document outlines the operational guidelines for implementing the Karnataka Startup Policy 2022–2027 and administering its incentives and programs\nDownload\nKarnataka Skill Handbook\nKarnataka has established itself as a leading state in India, driven by its robust economic growth, diverse industrial sectors, and advancements in technology.\nDownload\nESDM Directory\nThe Karnataka Digital Economy Mission (KDEM) is pleased to present the official Directory of ESDM (Electronic System Design and Manufacturing) Companies in Karnataka, a comprehensive resource highlighting the strength and diversity of the state’s electronics sector\nDownload\nBengaluru Innovation Report 2025\nKarnataka’s consistent leadership in the India Innovation Index, where it has ranked first for consecutive years, reflects the strength of our ecosystem and the foresight of our policy interventions. Through the Karnataka Startup Policy 2025-2030, we aim to enable 25,000 startups during the policy period.\nDownload\nBengaluru Tech Summit CHRO & HR Leaders Roundtable\nThe CHRO & HR Leaders Roundtable at the Bengaluru Skill Summit 2025 united senior HR leaders to strategize positioning India, especially Karnataka, as a global hub for future-ready talent through AI-driven transformation, inclusion, policy, and global collaboration.\nDownload\nMid-market Global Capability Centers(GCCs) in Karnataka\nKarnataka has a rich history of being at the forefront of innovation for Aerospace and Defence in India. Today, 67% of all aircraft and helicopters manufactured for Defence services are done in the State.\nDownload\nKDEM Vision Document 2025 - HDB Cluster\nIt is with great pride and enthusiasm that I present the Hubballi-Dharwad-Belagavi (HDB) Cluster Vision Report 2025-2030, an ambitious roadmap designed to drive transformative growth in the ESDM, IT, EVs and emerging technology sectors across North Karnataka.\nDownload\nCOEs: A Compendium of Excellence\nTo drive sustainable innovation in marine biotechnology by fostering collaboration among academia, industry, and government; empowering startups; and advancing research, skill development, and responsible utilization of Karnataka’s coastal and marine bioresources.\nDownload\nAI-DRIVEN CYBERSECURITY\nAI (Artificial Intelligence) is reshaping cybersecurity, offering unmatched precision in threat detection and response while also being exploited by adversaries.\nDownload\nKDEM Vision Document 2025 - Mysuru Cluster\nTo drive sustainable innovation in marine biotechnology by fostering collaboration among academia, industry, and government; empowering startups; and advancing research, skill development, and responsible utilization of Karnataka’s coastal and marine bioresources.\nDownload\nHandbook On Digital Economy Policies, Programs & Incentives In Karnataka\nKarnataka is the bright spot in the developmental story of India. It epitomizes the best of many worlds. Karnataka is a land of ancient heritage, scenic beauty.\nDownload\nUnlocking Farmer-centric Digital Agriculture\nAgriculture forms the backbone of Karnataka’s economy, and as we navigate the challenges of the 21st century, digital transformation offers a path.\nDownload\nLandscape of Early Stage Funding in Karnataka\nIndia’s tech startup ecosystem has experienced a meteoric rise in recent years, driven by a surge in seed and series A funding.\nDownload\nAnnual Report\n2023-24\nThe Karnataka Digital Economy Mission (KDEM) was established to position Karnataka as a premier hub for digital innovation and economic growth.\nDownload\nBengaluru\nRising\nBengaluru is only the fifth-largest Indian city in population. This, naturally, placeslimits on it as a market for spending of an essential nature.\nDownload\nBengaluru Innovation\nReport 2024\nAll of the top 10 cities with the highest GDP Growth rates between 2020-2035 are slated to be based out of Asia, with Bengaluru Mumbai, and Delhi featuring.\nDownload\nLeading the Way for Global Capability Centers(GCCs) 2024\nKarnataka Digital Economy Mission (KDEM) is a Section 8 organization designed to function as the knowledge bridge between the Government.\nDownload\nIndia’s Tech\nIndustry Talent\nIndia is positioned favourably mainly due to its demographic advantage and various skilling initiatives by all key stakeholders.\nDownload\nMaking Digital Platforms Work For Asia And The Pacific\nPlatforms have been transformative, drastically challenging traditional business models. Digital platform-enabled companies have radically reduced.\nDownload\nDigital Leadership And\nThe GIG Economy\nDigitalization refers to the fourth industrial revolution and gig economy is its latest advancement. Digitalization is fast, and ongoing and now arguably.\nDownload\nThe Rising GIG\nEconomyos INDIA\nThe Gig economy refers to a temporary contractual job or freelance work that a person may take, on a project-to-project basis, for which the payment.\nDownload\nElectronics System Design & Manufacturing\nThe Electronics System Design & Manufacturing (ESDM) market in India is anticipated to increase at a CAGR of 16.1% between 2019 and 2025, owing to strong.\nDownload\nProceedings Of The Government Of Karnataka\nKarnataka is the IT hub of India and its capital Bengaluru is the fourth largest technology cluster in the world. Karnataka is the first State in the country to\nDownload\nAnnual Report 2024 - 25\nThe Karnataka Digital Economy Mission’s Annual Report celebrates a year defined by progress, partnerships, and purpose. From driving digital inclusion to advancing emerging tech clusters, our collective efforts have positioned Karnataka as a beacon of innovation.\nDownload",
+    "To learn more about the Karnataka Government Policies and detailed policy guidelines, please refer to the links below\nResources\nPolicy Guidelines",
+    "Terms and Conditions\nAccess and Use of Resources\nThe resources section provides various government policies, reports, and publications. To access these resources, users may be required to fill out a form with personal information, including but not limited to name, email address, and professional details. By submitting this form, users agree to receive updates and communications from KDEM.\nDownloadable Content\nThe downloadable resources, including reports and government policies, are provided for informational purposes only. Users may download these resources for personal and non-commercial use. Redistribution, modification, or publication of these materials without prior consent from KDEM is strictly prohibited.\nAccuracy of Resources\nWhile every effort is made to ensure the accuracy and relevance of the resources provided, KDEM does not guarantee that the information is current or applicable in every circumstance. Users are encouraged to consult with appropriate legal or governmental bodies for official guidance on any policy or report.\nData Collection\nBy filling out the form to download resources, you consent to KDEM collecting and processing your personal data in accordance with its privacy policy. KDEM will not share your data with third parties without your explicit consent.\nUpdates to Resources\nKDEM reserves the right to update or remove any resource or report without prior notice. Users are encouraged to check for the latest versions."
+   ],
+   "links": [
+    "https://karnatakadigital.in/kdem-samco-ethical-ai/",
+    "https://karnatakadigital.in/kdem-xpheno-silicon-beach_september2026/",
+    "https://karnatakadigital.in/mysuru-beyond-heritage-skills-talent-landscape-report-2026/",
+    "https://karnatakadigital.in/mysuru-ai-cybersecurity-skills-report-2026/",
+    "https://karnatakadigital.in/the-global-startup-ecosystem-report-2026/",
+    "https://karnatakadigital.in/karnataka-state-budget-2026-27/",
+    "https://karnatakadigital.in/operational-guidelines-for-karnataka-startup-policy-2022-2027/",
+    "https://karnatakadigital.in/karnataka-skill-handbook/",
+    "https://karnatakadigital.in/esdm-directory/",
+    "https://karnatakadigital.in/bengaluru-innovation-report-2024/",
+    "https://karnatakadigital.in/bengaluru-tech-summit-chro-hr-leaders-roundtable/",
+    "https://karnatakadigital.in/mid-market-global-capability-centersgccs-in-karnataka/",
+    "https://karnatakadigital.in/kdem-vision-document-2025-hdb-cluster/",
+    "https://karnatakadigital.in/wp-content/uploads/2025/08/COEs.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2026/07/Mysuru-AI-CyberSecurity-Skills-Report.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2025/07/02.7_Mysuru_cluster_vision_document_Final-Version_Page.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2023/08/Digital_Economy_in_Karnataka_-_Handbook_KDEM_Version_16.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2024/12/2024-1209-GoK-WB-TAC-TiE-Digital-Agri-Workshop-Summary.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2024/06/Karnataka-Biotechnology-Policy.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2024/11/Bengaluru-Rising.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2024/07/BLRInnovationReport.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2024/07/Leading-the-Way-for-Global-Capability-Centers-GCCs-2024.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2023/02/Draup-NASSCOM-India-Talent-Story-10-Feb-2022-Final_0.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2023/02/AEIR2021_8_theme-chapter-making-digital-platforms-work-for-asia-and-the-pacific.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2023/02/DigitalLeadershipandtheGigEconomy.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2023/02/Gig-Economy-Report_-Assocham-and-Primus.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2023/02/IBEF-ESDM-Report-Main.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2026/10/Proceedings-Of-The-Government-Of-Karnataka.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2026/03/KDEM_Annual-Report_2024-25_compressed.pdf",
+    "https://karnatakadigital.in/resources/",
+    "https://karnatakadigital.in/guidelines/"
+   ],
+   "kind": "page",
+   "pdf_links": [
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2025/08/COEs.pdf",
+     "COEs: A Compendium of Excellence"
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2026/07/Mysuru-AI-CyberSecurity-Skills-Report.pdf",
+     "AI-DRIVEN CYBERSECURITY"
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2025/07/02.7_Mysuru_cluster_vision_document_Final-Version_Page.pdf",
+     "KDEM Vision Document 2025 - Mysuru Cluster"
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2023/08/Digital_Economy_in_Karnataka_-_Handbook_KDEM_Version_16.pdf",
+     "Handbook On Digital Economy Policies, Programs & Incentives In Karnataka"
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2024/12/2024-1209-GoK-WB-TAC-TiE-Digital-Agri-Workshop-Summary.pdf",
+     "Unlocking Farmer-centric Digital Agriculture"
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2024/06/Karnataka-Biotechnology-Policy.pdf",
+     "Landscape of Early Stage Funding in Karnataka"
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2024/11/Bengaluru-Rising.pdf",
+     "Annual Report 2023-24"
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2024/07/BLRInnovationReport.pdf",
+     "Bengaluru Innovation Report 2024"
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2024/07/Leading-the-Way-for-Global-Capability-Centers-GCCs-2024.pdf",
+     "Leading the Way for Global Capability Centers(GCCs) 2024"
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2023/02/Draup-NASSCOM-India-Talent-Story-10-Feb-2022-Final_0.pdf",
+     "India’s Tech Industry Talent"
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2023/02/AEIR2021_8_theme-chapter-making-digital-platforms-work-for-asia-and-the-pacific.pdf",
+     "Making Digital Platforms Work For Asia And The Pacific"
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2023/02/DigitalLeadershipandtheGigEconomy.pdf",
+     "Digital Leadership And The GIG Economy"
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2023/02/Gig-Economy-Report_-Assocham-and-Primus.pdf",
+     "The Rising GIG Economyos INDIA"
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2023/02/IBEF-ESDM-Report-Main.pdf",
+     "Electronics System Design & Manufacturing"
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2026/10/Proceedings-Of-The-Government-Of-Karnataka.pdf",
+     "Proceedings Of The Government Of Karnataka"
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2026/03/KDEM_Annual-Report_2024-25_compressed.pdf",
+     "Annual Report 2024 - 25"
+    ]
+   ]
+  },
+  {
+   "url": "https://karnatakadigital.in/samagra-2026/",
+   "title": "Samagra 2026",
+   "section": "event-landing-pages",
+   "origin": "approved",
+   "lastmod": "2026-09-19T12:48:29+05:30",
+   "fetched_at": "2026-10-07T10:19:20+00:00",
+   "digest": "59c85023d0fefc40",
+   "blocks": [
+    "Government partners\nOrganisers\nKarnataka CSR & Social Impact Conclave\nCo-creating Karnataka's development future through CSR partnerships\nThis inaugural edition of SAMAGRA 2026 is a flagship initiative of the Department of E, IT & Bt, Government of Karnataka & Karnataka Digital Economy Mission (KDEM), in partnership with AISECT India\nThe event brings Government, corporate leaders, CSR foundations, multilateral organisations, academia, and social enterprises onto one platform to build partnerships that accelerate inclusive, sustainable development.\nRegister to attend",
+    "About\nKarnataka's premier CSR & Social Impact Conclave\nSAMAGRA 2026 is Karnataka's premier CSR and Social Impact Conclave, bringing together Government, corporate leaders, CSR foundations, multilateral organisations, development institutions, academia, social enterprises, and industry to build strategic partnerships that accelerate inclusive and sustainable development.\nThe Conclave provides a unique platform to align Corporate Social Responsibility (CSR) investments with Karnataka's development priorities and create meaningful collaborations that deliver measurable social and economic impact fostering dialogue, innovation, and action across the State's priority sectors.\nAs organizations begin planning their CSR strategies and investments for the coming financial year, SAMAGRA 2026 offers a timely opportunity for Government and industry to come together, identify shared priorities, develop investment-ready initiatives, and strengthen public-private partnerships before key CSR decisions are made.\nMore than a conference, SAMAGRA 2026 is a strategic movement to position Karnataka as India's leading destination for collaborative CSR partnershipsconnecting policy, purpose, and partnerships to build a stronger workforce, empower communities, and shape a more inclusive future.",
+    "Why Karnataka?\nIndia's Innovation Capital.\nA Global Investment Destination.\nA Leader in Social Impact.\nKarnataka stands at the intersection of economic growth, technological innovation, and social development. As one of India's most industrialised and innovation-driven states, Karnataka offers an unparalleled opportunity for Corporate Social Responsibility (CSR) to create scalable, measurable, and sustainable impact. Home to thousands of global enterprises, leading Indian corporations, world-class academic institutions, vibrant start-ups, and a strong development ecosystem, Karnataka is uniquely positioned to transform CSR investments into long-term development outcomes.\n01\nSkilled workforce with future potential\nWith one of the country's largest student populations and a rapidly growing youth workforce, Karnataka presents a tremendous opportunity for investments in employability, digital skills, AI, and future-ready talent.\n02\nGovernment committed to inclusive growth\nThe Government of Karnataka continues to prioritise skill development, digital inclusion, women empowerment, entrepreneurship, healthcare, and rural development creating strong alignment between public priorities and CSR objectives\n03\nA thriving higher-education ecosystem\nHome to premier universities, engineering colleges, management institutions, research centres, and skill development organisations that provide an ideal platform for industry-academia collaboration.\n04\nGateway for public-private partnerships\nKarnataka has consistently demonstrated leadership in fostering collaboration between Government, industry, academia, and civil society, making it an ideal State for large-scale, outcome-driven CSR partnerships.\n05\nA State Ready for Collaborative CSR\nKarnataka is well positioned to move beyond project-based CSR towards a strategic, partnership-led approach by connecting Government priorities, corporate expertise, development partners, and implementation agencies through a common platform.",
+    "Vision & Objectives\nA State ready for collaborative CSR\nGoal 01\nAlign CSR investments\nwith Karnataka's development priorities and Vision 2032.\nGoal 02\nStrengthen partnerships\nbetween Government, industry, academia, development organisations, and civil society.\nGoal 03\nPromote employability and Workforce Development\nthrough industry-led skilling and future-ready talent initiatives.\nGoal 04\nCatalyse scalable social impact\nby supporting innovative, measurable, and sustainable development models.\nGoal 05\nEstablish a Karnataka CSR Collaboration Platform\nto enable long-term engagement, investment-ready projects, and knowledge sharing.",
+    "Focus Areas\nPriority sectors for collaboration\nSkill Development & Employability\nEducation &\nDigital Inclusion\nWomen Empowerment\nHealthcare\nRural Livelihoods\nSustainability\nAI for Social Impact\nESG & Responsible Business",
+    "Agenda\nA full day of dialogue and partnership-building\nSave the date\nFriday, September 25, 2026\nVenue\nRadisson Blu Hotel, Atria Bengaluru 1, Palace Rd, Ambedkar Veedhi, Bengaluru, Karnataka 560001\nComplete Programme Schedule\nSession Details\nNetworking Sessions\nPanel Discussions\nVenue Information\nPanel Details\nPanel Discussions\nPanel 1\nCSR, Skills & the Future of Work: Co-Creating Karnataka’s Talent Ecosystem\nPanel 2\nFrom Job-Ready to Future-Ready: Rethinking Skilling for a Changing World\nPanel 3\nFrom Schemes to Solutions: Who Will Close Karnataka’s Last-Mile Gap",
+    "Speakers\nVoices shaping Karnataka's CSR agenda\nGuest of Honor\nShri. Priyank Kharge\nMinister for Home Affairs, IT, BT, & E-Governance\nMr. Sanjeev Kumar Gupta\nCEO, Karnataka Digital Economy Mission, (A GOK initiative)\nChief Guests\nMr. BV Naidu\nChairman, Karnataka Digital Economy Mission (KDEM)\nTo be announced\nNames are published here as confirmations come in.\nGovernment Dignitaries\nTo be announced\nDepartmental representation is being confirmed.\nIndustry Leaders\nSuhasini Deshpande\nBusiness, Talent & Ecosystem Leader\nPrakash B\nCorporate Talent Acquisition Human Resources Manager\nMuthoot Group\nNeeti Arora\nQNu Labs\nCHRO\nAnkit Sharma\nDirector\nEmployment Express Verband LLP\nSuresh Kandasamy\nVice President – Engineering & DevOps\nSumeru\nPrasanth Kirupanadan\nAssistant Manager\nTeamLease Services Limited\nSanthosh Kumar S P\nManaging Director\nEzy Ventures\nP. Ajay Padmasuran\nCEO\nV4U Solutions\nMs. Ritika Gandhi\nVertical Lead & Group Manager, CSR, Titan Company Limited\nTo be announced\nNames are published here as confirmations come in.\nCSR Leaders\nMs. Sneha Laxman\nProgram Manager\nIBM SkillsBuild, CSR-India\nMs. Shipra Sharma\nCorporate Responsibility Leader\nIBM India/South Asia\nMs. Rachna Chugh\nVice President & CSR Leader\nGenpact\nKarishma Bhuyan\nCommunity & Engagement Manager\nAsia Pacific & Japan Zscaler\nMs. Pratima Harita\nHead, Asia Pacific CSR & Philanthropy\nLenovo\nMr. Prasenjit Kundu\nCEO\nSkillSonics\nMs. Poulamee Dey\nIndia CSR Specialist\nLenovo India Pvt. Ltd\nMr. Kishore Kumar Thangavelu\nCSR & CER Lead\nMicrosoft India\nMr. Carolin Tänzer\nManaging Director\nImpact Week gUG - Berlin\nMs. Manisha Bhattacharya\nMD Corporate Citizenship\nAPAC Accenture\nDr. Augustus G S Azariah\nRegional HR Director\nAPMEA kyndryl\nTo be announced\nNames are published here as confirmations come in.\nOrganizers & Knowledge Partners\nDr. Siddharth Chaturvedi\nDirector at AISECT India\nChancellor - Scope Global Skills University\nAniket Doegar\nFounder & CEO\nHaqdarshak\nManoj Balachandran\nCountry Head\nPrompeteer.ai\nTo be announced\nSpeakers from Haqdarshak, Prompteer.ai and our other knowledge partners are being confirmed.\nModerators\nDeepika Mallick Arora\nVice President - Growth\nHaqdarshak\nJyoti Sharma\nCEO\nNasscom Foundation\nTo be announced\nSession moderators are announced alongside the full programme.",
+    "Partners\nConvened by a coalition built for scale\nGovernment Partner\nKnowledge Partners\nStrategic · Supporting · Academic · Media Partners",
+    "Registration\nChoose how you'll take part\nChargeable\nDelegate Registration\nAttend all sessions, panels, and networking through the day.\nEnquire →\nChargeable\nPartner Registration\nShowcase your organisation as a Conclave partner.\nEnquire →\nOpen\nSponsor / CSR Partner EOI\nExpress interest in sponsoring or co-hosting a session.\nEnquire →\nInvitation\nGovernment Nomination\nNominate departmental representatives to attend.\nEnquire →\nPress\nMedia Registration\nCover SAMAGRA 2026 as an accredited media partner.\nEnquire →",
+    "Contact\nGet in touch with the organising committee\nPhone\n+91 96115 83229\nEmail\nsujeet.kumar@aisect.org\nRadisson Blu Hotel, Atria Bengaluru\n1, Palace Rd, Ambedkar Veedhi, Bengaluru, Karnataka 560001\nGet Directions"
+   ],
+   "links": [
+    "https://karnatakadigital.in/samagra-2026/"
+   ],
+   "kind": "page",
+   "pdf_links": []
+  },
+  {
+   "url": "https://karnatakadigital.in/software-products-services-including-global-capability-centers-gcc/",
+   "title": "IT Products & Services / BPM and GCC Promotion",
+   "section": "focus-areas-programmes",
+   "origin": "approved",
+   "lastmod": "2026-06-16T20:31:46+05:30",
+   "fetched_at": "2026-10-07T10:19:20+00:00",
+   "digest": "285a6fed2cbbe125",
+   "blocks": [
+    "IT Products & Services/BPM and GCC Promotion",
+    "Download Now",
+    "Karnataka's Software Products & Services including Global Capability Centers (GCCs) Promotion Initiatives\nAbout our Focus area\nThe mandate of the Karnataka Digital Economy Mission is to contribute to the growth of Digital Economy in the state of Karnataka. Software Products & Services including Global Capability Centers (GCCs) Promotion enables companies to operationlise in their preferred location, anywhere across Karnataka by using an established network of real estate developers, educational institutions as well as industry to help GCCs set foot in a vibrant ecosystem. Come, be a part of India’s economy growing towards One trillion dollars.",
+    "Our Aspirational goals",
+    "Reports\nHandbook On Digital Economy Policies, Programs & Incentives In Karnataka\nDownload",
+    "Get in Touch\nWe really appreciate you taking the time to get in touch. Please fill in the form for any further queries.",
+    "Quick links\nAbout Us\nEvents\nCareers\nContact Us\nConnect with us\nFacebook Twitter Instagram Linkedin Youtube\nVisit Us\nKEONICS, 27th Main Rd,\n1st Sector, HSR Layout,\nBengaluru – 560102, Karnataka",
+    "Copyright © 2026 Karnataka Digital Economy Mission | Developed By InsideOut"
+   ],
+   "links": [
+    "https://karnatakadigital.in/",
+    "https://karnatakadigital.in/software-products-services-including-global-capability-centers-gcc/",
+    "https://karnatakadigital.in/about-us/",
+    "https://karnatakadigital.in/events/",
+    "https://karnatakadigital.in/careers/",
+    "https://karnatakadigital.in/contact-us/"
+   ],
+   "kind": "page",
+   "pdf_links": []
+  },
+  {
+   "url": "https://karnatakadigital.in/talent-accelerator/",
+   "title": "Talent Accelerator",
+   "section": "focus-areas-programmes",
+   "origin": "approved",
+   "lastmod": "2026-10-16T17:26:25+05:30",
+   "fetched_at": "2026-10-19T05:45:53+00:00",
+   "digest": "b1e2a4deb09fd354",
+   "blocks": [
+    "Talent Accelerator",
+    "Karnataka's Talent Ecosystem\n1,521,937+\nStudents\n3,800+\nAcademic Institutions\n4,424+\nSkilling Partners\n5486+\nIT / ITeS Companies\n1Million +\nDigital Jobs Available",
+    "Mission\nTalent Accelerator aims to bridge the supply and demand gap of skilled talent across emerging IT hubs in Karnataka through strategic interventions such as competency building in future skills via industry-academic collaboration.\nVision\nTalent Accelerator aims to bridge the supply and demand gap of skilled talent across emerging IT hubs in Karnataka through strategic interventions such as competency building in future skills via industry-academic collaboration.",
+    "Our Aspirational goals",
+    "Ecosystem\nLatest News\nHiring Trends\nDemand for fresh-talent remains strong. According to the latest survey, India-wide fresher hiring intent stands at around 70% for the second half of 2025 (July to December). In Bengaluru, the figure is significantly higher at 81%, making it the top city for fresh-graduate hiring intent.\nFuture Skills Demand\nNipuna Karnataka addresses the growing need for AI and Machine Learning talent by specifically focusing the ambitious program on providing upskilling and reskilling opportunities in emerging technologies, including Artificial Intelligence, Data Science, and Cybersecurity, to meet the rising demands of industries in a rapidly changing global economy.\nMajor Announcements\n– Bengaluru Skill Summit 2025 (Knowledge Partner)\n– CHRO (2nd Exclusive CHRO Roundtable on Commitment to Employability & Skills, in collaboration with, ASSOCHAM and 42 Learn under the Smrithi Initiative.\n– Hands-On AI Fluency Workshop – Pre-Event, Technovanza 2025",
+    "Initiatives",
+    "Programs\nNipuna Karnataka\nRegister Here\nKarnataka Skill Connect Portal\nRegister Here\nFuture Digital Jobs\nRegister Here\nWomen@Work\nRegister Here\nK-VLSI Design Program\nRegister Here",
+    "Resources\n1\nNational Apprenticeship Promotion Scheme\n2\nTraining Centre details under CMKKY\n3\nTop 10 Digital Skills in 2023\n4\nNEP English\nNEP Kannada\n5\nApprenticeship and Skill training\n6\nSTRIVE\n7\nPradhan Mantri Kaushal Vikas Yojana\n8\nChief Minister's Kaushalya Karnataka Yojane\n9\nJob demand estimation for Gigworkers\n10\nKarnataka Skill & Entrepreneurship Task Force Report\nEvents\n16 APR 2023\nJob Fair\nTime : Coming Soon\nLocation : Hubbali\n31 MAR 2023\nDate : 31st march 2023\nLocation : Mangalore",
+    "Our Partners in Progress\nGovernment Partners\nIndustry Association Partners",
+    "Advisory Team\nPrabhunandayya Kotur\nGlobal Head - Global Engineering Academy\nL&T Technology Services\nPrashanth Prakash\nPartner\nAccel partners\nSmitha M V\nCoach/Mentor\nNagaraja N M\nManaging Director\nKSDC\nRakesh Agarwal\nExperience Product Management Consultant\nManjunath Hebbar\nFounder & CEO\nBuoyanci Innovations\nShuchika Sahay\nFounder\nPowering-People\nBhaskar Verma\nRegional Director - South\nNASSCOM\nRakesh Aerath\nPresident\nCGI\nK S Vishwanathan\nIndependent Digital Transformation Advisor\nNavneet Samiyar\nHead Market Development, Futureskills\nNASSCOM",
+    "TALENT ACCELERATOR TEAM\nSanjeev Gupta\nCEO, Karnataka Digital Economy Mission\nLinkedin\nSupria Dhanda\nLEAD ANCHOR\nWOMEN@WORK\nLinkedin Envelope\nSubha Mahata\nVice President\nLinkedin",
+    "Be a part of our mission to equip the future workforce with essential skills - register as our skilling partner by clicking the button now!\nRegister now\nGain access to a diverse pool of skilled professionals! Register now to find and hire top talent for your business needs.\nRegister now\nRegister now and enable your students to build essential skills that meet industry demands, discover apprenticeship /internship opportunities and land their dream jobs.\nRegister now",
+    "Get in Touch\nWe really appreciate you taking the time to get in touch. Please fill in the form for any further queries.",
+    "Quick links\nAbout KDEM\nEvent\nNAPS\nKAPS\nDTE\nConnect with us\nFacebook Twitter Instagram Linkedin Youtube\nVisit Us\nKEONICS, 27th Main Rd,\n1st Sector, HSR Layout,\nBengaluru – 560102, Karnataka",
+    "Copyright © 2026 Karnataka Digital Economy Mission | Developed By InsideOut"
+   ],
+   "links": [
+    "https://karnatakadigital.in/",
+    "https://karnatakadigital.in/nipuna-karnataka/",
+    "https://karnatakadigital.in/futuredigitaljobs/",
+    "https://karnatakadigital.in/womenatwork/",
+    "https://karnatakadigital.in/k-vlsi/",
+    "https://karnatakadigital.in/wp-content/uploads/2023/04/Top_10_Digital_Skills_2023-compressed.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2023/04/KDEM-Gig-Economy-Presentation_v4.pptx",
+    "https://karnatakadigital.in/wp-content/uploads/2023/04/Task-Force-Final-Report-10-03-2022-1.pdf",
+    "https://karnatakadigital.in/talent-accelerator/",
+    "https://karnatakadigital.in/about-us/",
+    "https://karnatakadigital.in/events/"
+   ],
+   "kind": "page",
+   "pdf_links": [
+    [
+     "https://kaushalkar.karnataka.gov.in/storage/pdf-files/General/training%20center%20details%20(2).pdf",
+     "Training Centre details under CMKKY"
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2023/04/Top_10_Digital_Skills_2023-compressed.pdf",
+     "Top 10 Digital Skills in 2023"
+    ],
+    [
+     "https://www.education.gov.in/sites/upload_files/mhrd/files/NEP_Final_English_0.pdf",
+     "NEP English"
+    ],
+    [
+     "https://www.education.gov.in/sites/upload_files/mhrd/files/nep/2020/KANNADA.pdf",
+     "NEP Kannada"
+    ],
+    [
+     "https://www.kaushalkar.com/wp-content/uploads/2021/06/kaushalya-Sampada.pdf",
+     "Apprenticeship and Skill training"
+    ],
+    [
+     "https://www.pmkvyofficial.org/photos/shares/guidlines/PMKY-Guideline_report_(08-01-2021)V3.pdf",
+     "Pradhan Mantri Kaushal Vikas Yojana"
+    ],
+    [
+     "https://www.kaushalkar.com/wp-content/uploads/2021/10/CMKKY_Guidline-Final.pdf",
+     "Chief Minister's Kaushalya Karnataka Yojane"
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2023/04/Task-Force-Final-Report-10-03-2022-1.pdf",
+     "Karnataka Skill & Entrepreneurship Task Force Report"
+    ]
+   ]
+  },
+  {
+   "url": "https://karnatakadigital.in/tender-and-rfp/",
+   "title": "Tenders and RFPs",
+   "section": "core-pages",
+   "origin": "approved",
+   "lastmod": "2026-01-20T16:08:53+05:30",
+   "fetched_at": "2026-10-07T10:19:20+00:00",
+   "digest": "76f241f295480f6d",
+   "blocks": [
+    "Archives\nComputer Peripherals Procurement\nDownload PDF\nLegal Consultancy and Advisory Services\nDownload PDF\nSocial Media - Tender publication Ad\nDownload PDF\nTravel Management Service\nView Details\nPublic Relations and Related Services\nView Details\nAccounting and Financial Services\nView Details",
+    "RFP Archives"
+   ],
+   "links": [
+    "https://karnatakadigital.in/wp-content/uploads/2025/05/Computer-Peripherals-Procurement.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2025/05/Legal-Consultancy-and-Advisory-Services-Scope-of-Work-_KDEM_V2.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2025/05/Social-Media-Tender-publication-Ad.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2025/09/KDEM-Tender-New-22-09-2025-240x300.jpeg.webp",
+    "https://karnatakadigital.in/wp-content/uploads/2025/02/Post.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2025/09/KDEM-Tender-New-22-09-2025.jpeg",
+    "https://karnatakadigital.in/wp-content/uploads/2025/01/Request-for-proposal_2.jpg"
+   ],
+   "kind": "page",
+   "pdf_links": [
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2025/05/Computer-Peripherals-Procurement.pdf",
+     "Computer Peripherals Procurement"
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2025/05/Legal-Consultancy-and-Advisory-Services-Scope-of-Work-_KDEM_V2.pdf",
+     "Legal Consultancy and Advisory Services"
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2025/05/Social-Media-Tender-publication-Ad.pdf",
+     "Social Media - Tender publication Ad"
+    ]
+   ]
+  },
+  {
+   "url": "https://karnatakadigital.in/the-big-tech-show-2024/",
+   "title": "The Big Tech Show 2024",
+   "section": "event-landing-pages",
+   "origin": "auto",
+   "lastmod": "2024-10-18T13:48:36+05:30",
+   "fetched_at": "2026-10-07T10:19:20+00:00",
+   "digest": "b68f012b548fbc6a",
+   "blocks": [
+    "Register Here\nStartup Booth Registration\n2024 Summary\nSpeakers\nResources\nPartners\nAgenda",
+    "Mysuru Big Tech Show 2024 - At a Glimpse\nDelegates\n550 +\nGlobal Speakers\n40 +\nStartups\n70 +\nShowcases\n29 +\nProduct Launches\n5\nMoUs Signed\n3\nFund -Rready Startups\n3\nInvestors\n10 +\nIncubators\n3\nNew Companies Grounded\n8 +\nCountry Partners\n7\nour Esteemed speakers of Bigtech show 2024\nShri. Sharath Kumar Bache Gowda\nSmt. Ekroop Caur, IAS\nShri. Darshan H V, IAS\nSmt. Parnika Pavanram\nMr. Sanjeev Kumar Gupta\nMr. Anil Muniswamy\nMs. Ambika Banotra\nView Speakers\nagenda\nView Agenda\nTop Investment-ready Startups from Mysuru Blue 2024\nMoUs Exchanged\nNew Companies Setting up in Mysuru Cluster\nMysuru Cluster Pitch Deck - 2024\nDownload\nMysuru Big Tech Show 2024 Event Report\nDownload\nOUR Partners from 2023\nStartup EcosystemPartners\nAssociatePartners\nHost Partners\nGifting Partners\nBanking Partners\nSkilling Partners\nTravel Partners\nMedia Partner\nGifting Partners\nBanking Partners",
+    "For more details, reach out to our team.\nSudheer Shankar\nCluster Head – Mysuru,\nKDEM\nsudheer@karnatakadigital.in"
+   ],
+   "links": [
+    "https://karnatakadigital.in/the-big-tech-show-2024/",
+    "https://karnatakadigital.in/hdb-techceleration-2024/bts-speakers/",
+    "https://karnatakadigital.in/agenda-mysore/",
+    "https://karnatakadigital.in/wp-content/uploads/2024/07/KDEM-MYSURU-CLUSTER-DECK-2024.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2024/10/Mysuru-Big-Tech-Show-2024_Event-Report.pdf",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/assocham-2.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/isea-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/nasscom-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/Dell_Technologies_Logo.png",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/intel_PNG23-2.png",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/ibm-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/infosis-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/mathe-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/idfc-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/rankbook-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/towner-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/oiot-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/elets-logo1-01.png",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/mm-active-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/gcpit-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/maha-vidya-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/step-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/azn-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/berunda-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/cii-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/csa-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/cybervers-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/cyseck-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/55-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/excelsoft-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/ip-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/isca-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/isca2-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/jss-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/mickro-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/NIE-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/dsmind-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/fal-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/start-payanam-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/tie-banglore-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/tie-mysuru-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/unesco-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/vvce-1.jpg",
+    "https://karnatakadigital.in/wp-content/uploads/2024/09/vallipa-1.jpg"
+   ],
+   "kind": "page",
+   "pdf_links": [
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2024/07/KDEM-MYSURU-CLUSTER-DECK-2024.pdf",
+     "BigTech Show Mysore Report"
+    ],
+    [
+     "https://karnatakadigital.in/wp-content/uploads/2024/10/Mysuru-Big-Tech-Show-2024_Event-Report.pdf",
+     "BigTech Show Mysore Report"
+    ]
+   ]
+  },
+  {
+   "url": "https://karnatakadigital.in/the-global-startup-ecosystem-report-2026/",
+   "title": "The Global Startup Ecosystem Report 2026",
+   "section": "policies-resources",
+   "origin": "approved",
+   "lastmod": "2026-06-17T16:01:39+05:30",
+   "fetched_at": "2026-10-07T10:19:20+00:00",
+   "digest": "58a6f4408a19ffbe",
+   "blocks": [
+    "THE GLOBAL STARTUP ECOSYSTEM REPORT 2026\nFill the details to recieve your copy of the report."
+   ],
+   "links": [],
+   "kind": "page",
+   "pdf_links": []
+  },
+  {
+   "url": "https://karnatakadigital.in/virtual-job-fair/",
+   "title": "Virtual Job Fair",
+   "section": "focus-areas-programmes",
+   "origin": "auto",
+   "lastmod": "2023-03-08T14:08:40+05:30",
+   "fetched_at": "2026-10-07T10:19:20+00:00",
+   "digest": "fddf827aefcac85c",
+   "blocks": [
+    "virtual job fair\nWe really appreciate you taking the time to get in touch. Please fill in the form for any further queries regarding Women at Work."
+   ],
+   "links": [],
+   "kind": "page",
+   "pdf_links": []
+  },
+  {
+   "url": "https://karnatakadigital.in/whats-happening/",
+   "title": "What's Happening (Beyond Bengaluru Mysuru BLUE)",
+   "section": "event-landing-pages",
+   "origin": "approved",
+   "lastmod": "2025-07-18T13:10:21+05:30",
+   "fetched_at": "2026-10-07T10:19:20+00:00",
+   "digest": "4d61872af5eadece",
+   "blocks": [
+    "What's Happening?",
+    "Beyond Bengaluru Mysuru BLUE\nBeyond Bengaluru Mysuru BLUE is a strategic initiative by the Karnataka Digital Economy Mission (KDEM) under the larger Beyond Bengaluru program, aimed at accelerating the growth of startups and digital innovation beyond the capital city. Focused on fostering a vibrant, inclusive tech ecosystem in emerging clusters like Mysuru, the initiative creates a platform for high-potential startups to connect with investors, showcase innovations, and scale their ventures.\nAt the Mysuru Big Tech Show 2025, the top-performing and fund-ready startups selected through this initiative will receive a host of valuable perks to help propel their growth:\nMysuru's boldest founders meet real opportunity\nSTPI Mysuru\n10:00 AM - 1:00 PM\nWHY MYSURU BLUE?\nBeyond Bengaluru Mysuru Blue is more than a pitch day. It's a movement to spotlight the next generation of innovators in Emerging Tech Clusters in Karnataka.\nAccess to investors.\nExposure to markets.\nBacking from the Government of Karnataka.\nMentorship from top ecosystem enablers.\nKEY TIMELINES\nCall for Applications:\n17th June - 26th June\nPreliminary Screening (Online):\n27th June - 28th June\nGrand Finale:\n3rd July 2025 (10:00 AM - 1:00 PM)\nVenue: STPI, Mysuru\nWHAT'S IN IT FOR THE STARTUPS?\nFast-track access to KDEM's flagship programs and the Karnataka Acceleration Network.\nE Invitations to high-impact networking events such as KDEM's Mixxer.\nRepresentation at the Pre-investment Committee for the Beyond Bengaluru Cluster Seed Fund.\nProduct showcase and felicitation opportunities at The Big Tech Show (Top 10 & Top 3).\nAccess to the Government of Karnataka's booster kits and stalls at Bengaluru Tech Summit (Top 3).\nOur jury members\nParikshit Mukesh\nFounder, Capital Case Co-Founder, & Co. Consulting\nAshutosh Kumar - JHA\nGeneral Partner, Expert Dojo\nDeepak Agrawal\nPartner, Venture Catalysts",
+    "Women@Work Roundtable\nThe Women@Work (W@W) Roundtable Conference is part of the Karnataka Digital Economy Mission’s (KDEM) flagship initiative, Women@Work (W@W), which is dedicated to increasing women’s participation in the workforce—especially those returning after career breaks. In collaboration with the Karnataka Skill Development Corporation (KSDC), the initiative aims to create structured pathways for re-entry and career advancement through reskilling, upskilling, and strategic industry partnerships.\nThe roundtable brings together leaders from government, industry, and academia to address the challenges women face while re-entering the workforce. It serves as a forum to discuss actionable solutions, share best practices, and strengthen collaboration for building a more inclusive and equitable professional ecosystem across Karnataka.",
+    "Main Conference: Catalyzing Innovation, Collaboration & Growth\nThe Main Conference at the Mysuru Big Tech Show 2025 serves as the epicenter of dialogue, vision, and action—bringing together industry pioneers, government leaders, startup founders, and academia under one roof. Designed to spark high-impact conversations and strategic alliances, the conference features a dynamic mix of keynote addresses, riveting panel discussions, MoU signings, and more, that underline Mysuru’s rising stature as a next-generation tech and innovation hub.\nAttendees can expect deep insights from thought leaders, policy announcements, and felicitations of innovation champions, all within a vibrant environment that fosters meaningful networking and collaboration. The conference is not just a showcase—it’s a launchpad for ideas, investments, and initiatives that shape the digital future of Karnataka and beyond.",
+    "Experience the Mysuru Big Tech Showcase\nExplore a dynamic blend of innovation, collaboration, and culture through a carefully curated lineup of experiences designed to inspire, engage, and elevate.\nPlenary Talks\nPanel Discussions\nStartup Showcase\nProduct Launches\nFelicitation Ceremony\nNetworking Lunch"
+   ],
+   "links": [],
+   "kind": "page",
+   "pdf_links": []
+  },
+  {
+   "url": "https://karnatakadigital.in/womenatwork/",
+   "title": "Women@Work",
+   "section": "focus-areas-programmes",
+   "origin": "approved",
+   "lastmod": "2023-06-07T10:33:14+05:30",
+   "fetched_at": "2026-10-07T10:19:20+00:00",
+   "digest": "225f04b8264105b2",
+   "blocks": [
+    "Aspirational Goals by 2026",
+    "Women upskilled\nand Reskilled\n1 Million+\nWomen Entrepreneurs\nenabled\n10 K+\nIndustry Partners\nOnboarded\n100 +\nJob Opportunities\ncreated\n100 K +",
+    "About W@W\nKarnataka Digital Economy Mission (KDEM) in association with Karnataka Skill Connect Portal has launched Women @ Work (W@W) flagship initiative in Karnataka on occasion of International Women’s Day, March 08, 2022. The primary mission of Women@Work (W@W) initiative is to work together with various stakeholders to increasethe number of women participating in the workforce including facilitating ‘Return to work’ for women who have taken career breaks.w@w acts as an umbrella initiative/platform to bring women focused programs of various agencies at one platform which can be leveraged by Women for joining workforce.",
+    "W@W Initiative facilitates relevant reskilling/upskilling programs on Karnataka Skill Connect Portal. W@W is also aimed at amplifying and augmenting the industry efforts in increasing the women participation in the workforce in Karnataka by estimating demand forecast and ensuring availability of skilled women professionals enabling through industry supported skilling programs.",
+    "W@W OBJECTIVE",
+    "Amplify Industry Programs to attract more women participation\nIdentify and\nPromote Employment Opportunities\nProvide skill/ upskill programs on technology and Entrepreneurs hip for women\nTo skill/upskill 1Mn women & also 500K Women to get employment opportunities by 2026",
+    "Gallery",
+    "fnfnn\n⟵\n⟶",
+    "Our Executive council members",
+    "Our Lead Anchor\nSupria Dhanda is a Business leader with more than 25 years of corporate experience in leading technology companies like Western Digital, SanDisk, Alcatel-Lucent and General Electric. Her last assignment was Country Manager India and Vice President for Western Digital, provider of data storage solutions.\nSupria is a thought leader in Engineering R&D industry of India and serves on the NASSCOM Engineering R&D Council, NASSCOM Regional Council for Karnataka, is an advisory panel member of Karnataka Digital Economy Mission (KDEM) and member of Advisory Board for WILL and V-WA. She is also leading Women@Work, a KDEM initiative, for Government of Karnataka. She is a sought after speaker and moderator in Technology industry and is a powerful voice in defining what next for Global Capability Centers(GCC) in Technology domains.",
+    "Our Cluster Anchors",
+    "Our Partners in Progress\nGovernment Partners\nInterested Partners",
+    "Quick links\nAbout KDEM\nResources\nConnect with us\nFacebook Twitter Instagram Linkedin Youtube\nContact us\nKEONICS, 27th Main Rd, 1st Sector, HSR Layout, Bengaluru, Karnataka 560102",
+    "Copyright © 2023 Karnataka Digital Economy Mission | Developed By InsideOut"
+   ],
+   "links": [
+    "https://karnatakadigital.in/women-job-registration/",
+    "https://karnatakadigital.in/corporate-registration/",
+    "https://karnatakadigital.in/virtual-job-fair/",
+    "https://karnatakadigital.in/womenatwork/",
+    "https://karnatakadigital.in/",
+    "https://karnatakadigital.in/resources/"
+   ],
+   "kind": "page",
+   "pdf_links": []
+  }
+ ],
+ "pending_review": [],
+ "unreadable": []
+}

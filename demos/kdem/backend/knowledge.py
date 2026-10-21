@@ -44,8 +44,13 @@ memory.
 **The snapshot and its keeper.** The index is built from a snapshot on disk,
 outside the repository (``KDEM_KNOWLEDGE_DIR``). :class:`KnowledgeService` loads
 it in the background, refreshes it about once a day, keeps the last good copy
-when a refresh fails, and never makes a session wait. With no snapshot and no
-network the index is simply empty.
+when a refresh fails, and never makes a session wait. Until a snapshot is on
+disk, the brain answers from the frozen core (``knowledge/core_pages.json``):
+the approved and hub-linked pages, no news and no PDFs, as they read when the
+core was last frozen. It is in the index from import, with no network, so the
+first session after a deploy already answers; it counts as never built, so the
+first refresh starts at once, re-reads only the pages whose ``lastmod`` moved
+since, and adds the news and PDFs. A snapshot on disk replaces it.
 
 Run by hand (the urgent-change path), on each brains host, with the brain's own
 ``KDEM_KNOWLEDGE_DIR`` (or ``--cache-dir``) so the brain reads what it writes::
@@ -55,6 +60,7 @@ Run by hand (the urgent-change path), on each brains host, with the brain's own
     uv run python demos/kdem/backend/knowledge.py refresh --force https://karnatakadigital.in/wp-content/uploads/2026/01/policy.pdf
     uv run python demos/kdem/backend/knowledge.py search "seed fund for clusters"
     uv run python demos/kdem/backend/knowledge.py pending
+    uv run python demos/kdem/backend/knowledge.py freeze-core   # from --cache-dir's snapshot
 
 This module imports nothing relative, so it runs as a script as well as inside
 the brain package.
@@ -115,6 +121,8 @@ USER_AGENT = "Mozilla/5.0 (compatible; VoqalizeKnowledge/1.0; +https://voqalize.
 FETCH_TIMEOUT_S = 45.0
 
 ALLOWLIST_PATH = Path(__file__).resolve().parent / "knowledge" / "approved_pages.json"
+CORE_PATH = ALLOWLIST_PATH.with_name("core_pages.json")
+"""The frozen core, committed: what the brain answers from before a refresh."""
 SNAPSHOT_FILE = "snapshot.json"
 SNAPSHOT_VERSION = 2
 """2 added PDFs. A version 1 snapshot still loads: its pages count as pages, and
@@ -1993,6 +2001,19 @@ def default_cache_dir() -> Path:
     return Path(tempfile.gettempdir()) / "voqalize-kdem"
 
 
+def freeze_core(snapshot: Snapshot) -> Snapshot:
+    """The frozen core of ``snapshot``: its pages, less news and PDFs, under no
+    ``built_at`` and no ``known``, so whoever holds it refreshes at once and
+    treats the run as a first build. Each page keeps its ``lastmod`` and digest,
+    so the refresh re-reads only what moved since, and its links, so the PDFs
+    and hub-linked pages are found again."""
+    pages = sorted(
+        (p for p in snapshot.pages.values() if p.kind == "page" and p.section != "news"),
+        key=lambda p: p.url,
+    )
+    return Snapshot(pages={p.url: p for p in pages})
+
+
 def _digest(title: str, blocks: Sequence[str]) -> str:
     h = hashlib.sha256(title.encode("utf-8", "replace"))
     for b in blocks:
@@ -2922,6 +2943,16 @@ quarter of its score."""
 _LIST_DOCUMENT = 0.5
 """A document whose passages read as a list on average (a directory of
 addresses and codes, an annexure of names) keeps half the score of each."""
+_THIN_CHARS = 150
+"""A page with less text than this, once boilerplate is gone, is a heading and
+a line: a download form ("Fill the details to download the Guidelines
+Document") or a stub. Its few words are nearly all its title, so BM25's length
+normalisation hands it the top score for any question that shares them, ahead
+of the page that explains the programme."""
+_THIN_WEIGHT = 0.75
+"""A thin page's score against a full one's: enough to lose to the programme's
+own page on the programme's name, not so much that a question naming the
+document ("NIPUNA guidelines") stops finding it."""
 
 
 def listness(text: str) -> float:
@@ -2994,7 +3025,8 @@ class KnowledgeBase:
                 self._passages += ((p.url, None, c) for c in _chunks(lines))
         # How much each passage counts beside the others: a PDF passage less than
         # a page's, a list-like one less again, and every passage of a document
-        # that reads as a list on the whole less still. Folded into the weights
+        # that reads as a list on the whole less still, and a page with almost no
+        # text of its own less than one that has some. Folded into the weights
         # below, so a search pays nothing for it.
         listy = [listness(chunk) for _, _, chunk in self._passages]
         by_doc: dict[str, list[float]] = {}
@@ -3006,6 +3038,7 @@ class KnowledgeBase:
             * _DIGEST_SECTIONS.get(self._pages[url].section, 1.0)
             * (1 - _LIST_DAMPING * score)
             * (_LIST_DOCUMENT if listy_doc[url] else 1.0)
+            * (_THIN_WEIGHT if self._thin(url) else 1.0)
             for (url, _, _), score in zip(self._passages, listy, strict=True)
         ]
         counts: list[Counter[str]] = []
@@ -3032,6 +3065,11 @@ class KnowledgeBase:
                 posting[0].append(i)
                 posting[1].append(factor[i] * idf[term] * tf * (_K1 + 1) / (tf + norm))
         self._n = n
+
+    def _thin(self, url: str) -> bool:
+        """A web page with almost no text of its own (see :data:`_THIN_CHARS`)."""
+        page = self._pages[url]
+        return page.kind == "page" and len(page.text) < _THIN_CHARS
 
     @classmethod
     def empty(cls, allowlist: Allowlist) -> KnowledgeBase:
@@ -3117,7 +3155,11 @@ class KnowledgeService:
     refreshes it whenever it is about a day old (immediately, when there is none),
     jittered so a fleet does not arrive together. A failed refresh is logged and
     retried within the hour; the last good index stays in use. ``kb`` is safe to
-    read from a tool at any moment."""
+    read from a tool at any moment.
+
+    ``core`` is installed at once, before any of that (:func:`freeze_core`): the
+    index a session answers from until the snapshot on disk or a refresh
+    replaces it."""
 
     def __init__(
         self,
@@ -3129,6 +3171,7 @@ class KnowledgeService:
         policy: RefreshPolicy | None = None,
         every_s: float = REFRESH_EVERY_S,
         jitter_s: float = REFRESH_JITTER_S,
+        core: Snapshot | None = None,
     ) -> None:
         self.allowlist = allowlist
         self._cache_dir = cache_dir
@@ -3139,6 +3182,8 @@ class KnowledgeService:
         self._jitter_s = jitter_s
         self._snapshot = Snapshot()
         self._kb = KnowledgeBase.empty(allowlist)
+        if core is not None:
+            self._install(freeze_core(core))
         self._loaded_mtime: float | None = None
         self._task: asyncio.Task[None] | None = None
         self._refreshing = False
@@ -3280,7 +3325,10 @@ class KnowledgeService:
 ALLOWLIST = Allowlist.load()
 """Read once at import; a malformed allowlist stops the brain from starting."""
 
-KNOWLEDGE = KnowledgeService(ALLOWLIST)
+CORE = Snapshot.load(CORE_PATH)
+"""Read once at import. Missing or unreadable, the brain starts empty, as before."""
+
+KNOWLEDGE = KnowledgeService(ALLOWLIST, core=CORE)
 """The process-wide keeper. The brain calls ``KNOWLEDGE.start()`` per session and
 reads ``KNOWLEDGE.kb`` from its tools."""
 
@@ -3296,7 +3344,8 @@ def _cite(p: Passage) -> str:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """``refresh`` (re-read what changed and save), ``search QUERY``, ``pending``."""
+    """``refresh`` (re-read what changed and save), ``search QUERY``, ``pending``,
+    ``freeze-core`` (write the frozen core from the saved snapshot)."""
     parser = argparse.ArgumentParser(prog="knowledge.py", description=main.__doc__)
     parser.add_argument("--cache-dir", type=Path, default=None, help=f"default: ${ENV_DIR}")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -3311,11 +3360,25 @@ def main(argv: Sequence[str] | None = None) -> int:
     s.add_argument("query")
     s.add_argument("-k", type=int, default=5)
     sub.add_parser("pending", help="list pages held for review and PDFs that cannot be read")
+    f = sub.add_parser("freeze-core", help="write the frozen core from the saved snapshot")
+    f.add_argument("--out", type=Path, default=CORE_PATH, help=f"default: {CORE_PATH.name}")
     args = parser.parse_args(argv)
 
-    service = KnowledgeService(ALLOWLIST, cache_dir=args.cache_dir)
+    service = KnowledgeService(ALLOWLIST, cache_dir=args.cache_dir, core=CORE)
     snap = Snapshot.load(service.path)
-    if snap is not None and not (args.command == "refresh" and args.rebuild):
+    if args.command == "freeze-core":
+        if snap is None:
+            print(f"{service.path}: no snapshot to freeze", file=sys.stderr)
+            return 1
+        core = freeze_core(snap)
+        # One field per line, so a refrozen core reviews as a diff of what changed.
+        text = json.dumps(core.to_json(), ensure_ascii=False, indent=1)
+        args.out.write_text(text + "\n", encoding="utf-8")
+        print(f"{args.out}: {len(core.pages)} pages from {service.path}")
+        return 0
+    if args.command == "refresh" and args.rebuild:
+        service.prime(Snapshot())
+    elif snap is not None:
         service.prime(snap)
     if args.command == "refresh":
         policy = RefreshPolicy(
