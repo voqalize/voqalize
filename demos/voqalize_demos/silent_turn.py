@@ -47,11 +47,10 @@ from collections.abc import AsyncGenerator, Callable, Mapping
 from contextvars import ContextVar
 from typing import Literal
 
-from google.genai import types
 from loguru import logger
 
-from voqalize.sdk import Speech, SpeechChunk, SpeechEnd, SpeechStart
-from voqalize.sdk.gemini import GeminiBrain, _Unit  # pyright: ignore[reportPrivateUsage]
+from voqalize.sdk import Speech, SpeechStart
+from voqalize.sdk.gemini import GeminiBrain
 from voqalize.sdk.wire import Language
 
 #: The lines of each call that landed in the turn under way, in order. Per turn,
@@ -153,16 +152,13 @@ def landed(*lines: str) -> None:
         record.append(lines)
 
 
-async def say_line(brain: GeminiBrain, line: str) -> AsyncGenerator[Speech, None]:
+def say_line(brain: GeminiBrain, line: str) -> AsyncGenerator[Speech, None]:
     """One written line, spoken as a unit of the brain's own inside a turn it
-    has been given. Like the fallback line, it is never in the model's context:
-    it joins the finalize queue, where the heard truth that comes back for it is
-    taken and let go. Yield from it inside ``respond``; outside a turn a brain
-    has no floor to speak on."""
-    yield SpeechStart()
-    brain._awaiting.append(_Unit(types.Content(role="model", parts=[])))  # pyright: ignore[reportPrivateUsage]
-    yield SpeechChunk(line)
-    yield SpeechEnd()
+    has been given — the voice core's ``say_line``, so the unit takes its own
+    finalize. Like the fallback line, it is never in the model's context: the
+    heard truth that comes back for it is taken and let go. Yield from it inside
+    ``respond``; outside a turn a brain has no floor to speak on."""
+    return brain.say_line(line)
 
 
 class FallbackLine:
