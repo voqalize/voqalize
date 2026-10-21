@@ -28,8 +28,9 @@ Like :class:`~voqalize_demos.FallbackLine`'s line, a nod never enters the
 model's context: it is the brain's, not the model's.
 
 This began as qween's (``qween/backend/acknowledge.py``, which still carries its
-own copy). The word lists read English, Hindi and Kannada; the lines, and a
-demo's own vocabulary, are per demo.
+own word lists and lines, and holds the floor with :func:`hold_the_floor`). The
+word lists read English, Hindi and Kannada; the lines, and a demo's own
+vocabulary, are per demo.
 """
 
 from __future__ import annotations
@@ -40,13 +41,12 @@ import random
 import re
 from collections.abc import AsyncGenerator, Callable, Iterable, Mapping
 from dataclasses import dataclass, field
-from typing import Literal, cast
+from typing import Literal, Protocol, cast
 
-from google.genai import types
 from loguru import logger
 
-from voqalize.sdk import Speech, SpeechChunk, SpeechEnd, SpeechStart
-from voqalize.sdk.gemini import GeminiBrain, _Unit  # pyright: ignore[reportPrivateUsage]
+from voqalize.sdk import Speech
+from voqalize.sdk.gemini import GeminiBrain
 
 Kind = Literal["request", "question", "correction", "statement"]
 
@@ -423,22 +423,28 @@ class Acknowledger[L: str]:
         return self._last
 
 
-async def own_line(
-    brain: GeminiBrain, line: str, at: int | None = None
-) -> AsyncGenerator[Speech, None]:
-    """One unit of the brain's own, queued for its finalize at ``at`` (the end by
-    default) and never in the model's context."""
-    yield SpeechStart()
-    awaiting = brain._awaiting  # pyright: ignore[reportPrivateUsage]
-    unit = _Unit(types.Content(role="model", parts=[]))
-    awaiting.insert(len(awaiting) if at is None else at, unit)
-    yield SpeechChunk(line)
-    yield SpeechEnd()
+class Floor[L: str](Protocol):
+    """What :func:`hold_the_floor` reads of a demo's acknowledger: when to hold
+    the floor and what to say. :class:`Acknowledger` is one; qween's own, with
+    its own word lists, is another. :func:`hold_the_floor` names
+    :class:`Acknowledger` beside it, so a demo's own language type (``Literal["en",
+    "es"]``) is read off its acknowledger rather than widened to ``str``."""
+
+    @property
+    def hold_after_s(self) -> float: ...
+
+    @property
+    def sorry_after_s(self) -> float: ...
+
+    @property
+    def sorry(self) -> Mapping[L, str]: ...
+
+    def hold(self, spoken: L) -> str: ...
 
 
 async def hold_the_floor[L: str](
     brain: GeminiBrain,
-    ack: Acknowledger[L],
+    ack: Acknowledger[L] | Floor[L],
     spoken: Callable[[], L],
     turn: AsyncGenerator[Speech, None],
     answered: Callable[[], None] = lambda: None,
@@ -448,21 +454,27 @@ async def hold_the_floor[L: str](
     The turn runs in a task of its own that feeds a queue, so its context — the
     turn's calls that :class:`~voqalize_demos.FallbackLine` reads — stays in one
     task, and the wait for its next event can time out without disturbing it. A
-    held line goes out only while the model has yielded nothing, and is queued
-    for its finalize ahead of any unit the model has opened. ``answered`` is
-    called before each of the model's own events."""
+    held line goes out only while the model has yielded nothing, and takes its
+    finalize ahead of any unit the model opens. ``answered`` is called before
+    each of the model's own events."""
     done = object()
     events: asyncio.Queue[object] = asyncio.Queue()
+    # Cleared while a held line goes out. A unit joins the finalize queue only
+    # once its SpeechStart has been taken and its generator resumed, and the
+    # brain's ``say_line`` joins it at the end; so the pump waits here, between
+    # handing an event over and asking for the next, and a unit the model opens
+    # meanwhile queues behind the held line, as it is heard.
+    flowing = asyncio.Event()
+    flowing.set()
 
     async def pump() -> None:
         try:
             async for event in turn:
                 await events.put(event)
+                await flowing.wait()
         finally:
             await events.put(done)
 
-    awaiting = brain._awaiting  # pyright: ignore[reportPrivateUsage]
-    before = {id(unit) for unit in awaiting}
     task = asyncio.create_task(pump())
     floor = [ack.hold_after_s, ack.sorry_after_s - ack.hold_after_s]
     try:
@@ -470,15 +482,19 @@ async def hold_the_floor[L: str](
             try:
                 event = await asyncio.wait_for(events.get(), floor[0] if floor else None)
             except TimeoutError:
+                if not events.empty():
+                    # The model's first event arrived as the wait ran out: it is
+                    # next, and nothing is held ahead of it.
+                    continue
                 line = ack.hold(spoken()) if len(floor) == 2 else ack.sorry[spoken()]
                 floor.pop(0)
                 logger.warning("acknowledge: the model is quiet after the nod; saying {!r}", line)
-                at = next(
-                    (i for i, unit in enumerate(awaiting) if id(unit) not in before),
-                    len(awaiting),
-                )
-                async for e in own_line(brain, line, at):
-                    yield e
+                flowing.clear()
+                try:
+                    async for e in brain.say_line(line):
+                        yield e
+                finally:
+                    flowing.set()
                 continue
             if event is done:
                 break

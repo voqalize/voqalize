@@ -393,3 +393,18 @@ class Acknowledger:
         lines = HOLD.get(spoken, HOLD[Language.EN])
         self._last = self._rng.choice([line for line in lines if line != self._last] or list(lines))
         return self._last
+
+    # What :func:`voqalize_demos.acknowledge.hold_the_floor` reads, from the
+    # module's constants at the moment it reads them.
+
+    @property
+    def hold_after_s(self) -> float:
+        return HOLD_AFTER_S
+
+    @property
+    def sorry_after_s(self) -> float:
+        return SORRY_AFTER_S
+
+    @property
+    def sorry(self) -> Mapping[Language, str]:
+        return SORRY

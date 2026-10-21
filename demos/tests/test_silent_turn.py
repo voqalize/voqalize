@@ -10,10 +10,9 @@ leaves alone.
 from __future__ import annotations
 
 import asyncio
-from collections import deque
 from collections.abc import AsyncGenerator
 from itertools import pairwise
-from typing import Any, cast
+from typing import cast
 
 from voqalize_demos import PHRASES, FallbackLine, GeminiBrain, landed
 from voqalize_demos.testing import ScriptedGemini, call, reply
@@ -26,10 +25,17 @@ _OPEN = ("It's open.", "Here it is.")
 
 
 class _Brain:
-    """All :class:`FallbackLine` touches of a brain: its finalize queue."""
+    """All :class:`FallbackLine` touches of a brain: the voice core's
+    ``say_line``, recorded as ``(line, remember)``."""
 
     def __init__(self) -> None:
-        self._awaiting: deque[Any] = deque()
+        self.lines: list[tuple[str, bool]] = []
+
+    async def say_line(self, line: str, *, remember: bool = False) -> AsyncGenerator[Speech, None]:
+        self.lines.append((line, remember))
+        yield SpeechStart()
+        yield SpeechChunk(line)
+        yield SpeechEnd()
 
 
 async def _turn(
@@ -66,14 +72,16 @@ async def test_a_turn_that_acted_silently_gets_one_line_of_what_landed() -> None
     events, brain = await _drain(turn())
     assert [type(e) for e in events] == [SpeechStart, SpeechChunk, SpeechEnd]
     assert _said(events)[0] in _OPEN, "the line is the last landed call's"
-    assert len(brain._awaiting) == 1, "the line is a unit Voqalize will finalize"  # pyright: ignore[reportPrivateUsage]
+    assert brain.lines == [(_said(events)[0], False)], (
+        "the line is the brain's own unit, and stays out of the context"
+    )
 
 
 async def test_a_turn_that_spoke_or_landed_nothing_is_left_alone() -> None:
     for lands, speaks in ((_OPEN, True), ((), False), ((), True)):
         events, brain = await _drain(_turn(lands=lands, speaks=speaks))
         assert _said(events) == (["It's open."] if speaks else []), (lands, speaks)
-        assert not brain._awaiting  # pyright: ignore[reportPrivateUsage]
+        assert not brain.lines
 
 
 async def test_the_line_said_last_is_not_said_again() -> None:

@@ -59,12 +59,8 @@ from voqalize.sdk import (
     RTVIMessage,
     Session,
     Speech,
-    SpeechChunk,
-    SpeechEnd,
-    SpeechStart,
     UserMessage,
 )
-from voqalize.sdk.gemini import _Unit  # pyright: ignore[reportPrivateUsage]
 
 from .app_events import (
     PETWELL_EVENTS,
@@ -907,15 +903,10 @@ class PetwellBrain(GeminiBrain):
         async for speech in self._say(SWITCH_LINE[name]):
             yield speech
 
-    async def _say(self, line: str) -> AsyncGenerator[Speech, None]:
+    def _say(self, line: str) -> AsyncGenerator[Speech, None]:
         """Speak a written line and keep it in the context as Tushar's own, so the
         model knows what he has already said."""
-        unit = _Unit(types.Content(role="model", parts=[types.Part(text=line)]))
-        self._history.append(unit.content)  # pyright: ignore[reportPrivateUsage]
-        self._awaiting.append(unit)  # pyright: ignore[reportPrivateUsage]
-        yield SpeechStart()
-        yield SpeechChunk(line)
-        yield SpeechEnd()
+        return self.say_line(line, remember=True)
 
     def _append_note(self, text: str) -> None:
         """One line in front of the model, without taking the floor."""
