@@ -102,7 +102,15 @@ export interface FocusTab {
   tab_id: string;
 }
 
-/** A move Tushar sent could not be carried out on the page. */
+/**
+ * The call's language moved, by the toggle, by voice or by
+ * `set_language`: the widget's toggle follows at once.
+ */
+export interface LanguageChanged {
+  language: 'en' | 'es';
+}
+
+/** A move Javier sent could not be carried out on the page. */
 export interface CommandFailed {
   command: string;
 
@@ -145,6 +153,11 @@ export interface DemoState {
   filled?: DemoFields;
 
   missing?: string[];
+}
+
+/** The visitor pressed the other language on the widget's toggle. */
+export interface LanguageRequested {
+  language: 'en' | 'es';
 }
 
 /** The tab in front changed page, or came to the front: what is on it now. */
@@ -212,7 +225,8 @@ export type UiAction =
   | { command: 'open_post'; payload: OpenPost }
   | { command: 'book_demo'; payload: BookDemo }
   | { command: 'open_signup'; payload: OpenSignup }
-  | { command: 'focus_tab'; payload: FocusTab };
+  | { command: 'focus_tab'; payload: FocusTab }
+  | { command: 'language_changed'; payload: LanguageChanged };
 
 export type UiActionCommand = UiAction['command'];
 
@@ -226,6 +240,7 @@ export const UI_ACTION_COMMANDS: readonly UiActionCommand[] = [
   'book_demo',
   'open_signup',
   'focus_tab',
+  'language_changed',
 ];
 
 const _known = new Set<string>(UI_ACTION_COMMANDS);
@@ -253,6 +268,7 @@ export type AppEvent =
   | { event: 'command_failed'; payload: CommandFailed }
   | { event: 'demo_scheduled'; payload: DemoScheduled }
   | { event: 'demo_state'; payload: DemoState }
+  | { event: 'language_requested'; payload: LanguageRequested }
   | { event: 'page_changed'; payload: PageChanged }
   | { event: 'tabs_changed'; payload: TabsChanged };
 
@@ -262,6 +278,7 @@ export const APP_EVENT_NAMES: readonly AppEventName[] = [
   'command_failed',
   'demo_scheduled',
   'demo_state',
+  'language_requested',
   'page_changed',
   'tabs_changed',
 ];

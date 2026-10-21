@@ -1,5 +1,5 @@
 /**
- * The screen follows Tushar's voice: cues fire as he says their sentence.
+ * The screen follows Javier's voice: cues fire as he says their sentence.
  *
  * The brain takes the cues out of his reply before the voice reads it (see
  * `backend/cues.py`) and sends each one ahead of the speech, with `at`, the
@@ -18,7 +18,7 @@
 
 import type { Cue } from "./actions.gen";
 
-/** Words a second, for cues timed by the clock. Tushar's voice runs close to
+/** Words a second, for cues timed by the clock. Javier's voice runs close to
  *  this; a little early is better than late. */
 const WORDS_PER_S = 2.8;
 /** How long into the speech with no spoken text before cues go by the clock. */

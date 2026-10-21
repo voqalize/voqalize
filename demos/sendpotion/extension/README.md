@@ -1,6 +1,6 @@
-# Tushar for SendPotion — the extension
+# Javier for SendPotion — the extension
 
-A Chrome extension that puts Tushar, a voice guide, on
+A Chrome extension that puts Javier, a voice guide, on
 [sendpotion.com](https://sendpotion.com) and its blog,
 [blog.sendpotion.com](https://blog.sendpotion.com). He talks a visitor through
 Potion while he moves their screen: he opens the page that answers them and
@@ -39,13 +39,16 @@ goes on it; it is not how a customer would ship it.
   `BroadcastChannel` and a Web Lock reach one origin, and SendPotion is two, so
   the call's relay runs through the extension's service worker instead: every
   tab's messages reach every other SendPotion tab, the call's claim is held by
-  browser tab, and the posts Tushar opens are opened by the worker, since his
+  browser tab, and the posts Javier opens are opened by the worker, since his
   move arrives over the call and a page may not open a tab without a click.
 - `src/tabs.ts` — Qween's one-call-every-tab relay, on the hub: the tab the
   call started in holds it; every other tab follows with his face, the mute and
   the call's state.
-- `src/widget.ts` — the corner widget, in a shadow root: the call, and the
-  reading list, which every tab shows.
+- `src/widget.ts` — the corner widget, in a shadow root: the call, the
+  English/Español toggle, and the reading list, which every tab shows. Off a
+  call the toggle picks the language the next call starts in; in a call it asks
+  the brain to switch, from any tab. Javier also switches by himself when the
+  visitor speaks the other language, and the toggle follows him.
 - `src/content.ts` — the call: stock pipecat with `@voqalize/client-transport`
   as its media manager, one `sessions.connect`, the avatar, and the routing of
   each Action to the tab it belongs on.
@@ -108,7 +111,7 @@ the days it does.
 
 ## Demos are never booked
 
-`DEMO_BLOCK_SUBMIT`, at the top of `src/calendly.ts`, is on. Tushar picks the
+`DEMO_BLOCK_SUBMIT`, at the top of `src/calendly.ts`, is on. Javier picks the
 day and time and fills in the details, but never presses **Schedule Event**;
 that stays the visitor's. When they press it, the frame reports
 `demo_scheduled` to the brain and then stops the real booking, with "Demo: this
@@ -119,7 +122,7 @@ wants the agent's bookings to reach them.
 ## One call, every tab
 
 The call belongs to the tab it started in. Every other SendPotion tab, on either
-host, shows Tushar's face and the call's state and can mute or end it; the tab
+host, shows Javier's face and the call's state and can mute or end it; the tab
 in front is the one he sees and moves. A move to a sendpotion.com page made
 while the visitor is reading the blog goes to their sendpotion.com tab, brought
 to the front, or a new one. Closing the call's tab ends the call everywhere.

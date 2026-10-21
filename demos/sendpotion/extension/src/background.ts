@@ -4,15 +4,15 @@
  * Qween's tabs relay a call over a `BroadcastChannel` and claim it with a Web
  * Lock, and both are scoped to one origin. SendPotion is two:
  * sendpotion.com (Webflow) and blog.sendpotion.com (Medium). A visitor talking
- * to Tushar on the product site who opens a blog post would otherwise get a tab
- * with no Tushar in it. So the relay runs here, in the extension's service
+ * to Javier on the product site who opens a blog post would otherwise get a tab
+ * with no Javier in it. So the relay runs here, in the extension's service
  * worker, which every tab of both hosts reaches through `bridge.ts`:
  *
  *   - every message a tab posts is sent to every other tab, as a
  *     `BroadcastChannel` would, origin notwithstanding;
  *   - the call's claim (`lock`) is held here, by browser tab id, so a tab that
  *     reloads takes its own call back and no other tab can take it meanwhile;
- *   - a blog post Tushar recommends opens in a new tab from here
+ *   - a blog post Javier recommends opens in a new tab from here
  *     (`chrome.tabs.create`), because the page itself may only open a tab from
  *     the visitor's own click and his move arrives over the call, not a click.
  *

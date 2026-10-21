@@ -72,6 +72,19 @@ git checkout prod && git merge --ff-only main && git push origin prod && git che
 someone committed to `prod` directly, which is the state this branch exists to
 prevent.
 
+**HOLD (since 2026-10-20): do not fast-forward `prod` past the European-languages
+docs commit until speech and the control plane are promoted to prod.** `main`
+documents the recognizer hearing the European languages and a language passed as
+a BCP-47 string at connect. Dev serves both. Prod's speech tier hears English
+and the Indic languages only, and prod's control plane takes no language string,
+so promoting this commit early tells customers about calls that prod refuses.
+The two ship together: promote `prod` with the speech and control-plane release,
+re-run the `speech.stt.languages.total` reproduce in `design/facts.yaml` against
+speech `origin/prod`, run `design/voice_catalog.py check`, then delete this
+paragraph. A docs fix prod needs before then goes on a branch cut from `prod`
+and is merged back into `main`, the one exception to fast-forward only, and it
+is recorded here when it happens.
+
 Consequences to internalize:
 
 - **CI is now a real gate.** `.github/workflows/ci.yml` runs ruff, pyright, the SDK
@@ -211,8 +224,10 @@ control plane, and the display-name table beside it — are gone.
 **A page still never sets either.** That part of the old rule was right and stays.
 
 The surface is **deliberately narrow: voice, language and `stt.patience`.**
-Voices and languages are protobuf enums, so an unserved value is unrepresentable
-rather than silently falling back to the English recognizer. The VAD knobs that
+A voice is its id and a language its BCP-47 tag (the `Voice` and `Language`
+enums still parse, deprecated), and each is judged against what the speech tier
+publishes, so an unserved value is refused rather than silently falling back to
+the English recognizer. The VAD knobs that
 left the wire in the rewrite stay off it and keep the voice runtime's internal
 defaults. `patience` came back in 0.5.0 as a step on a 0-to-10 scale rather than
 a duration, so it survives a retune of the tier underneath it; unset takes the
@@ -221,8 +236,15 @@ deployment's calibration, which is 7. We widen as we learn.
 The catalog is small and closed, and the `Voice` enum is the one copy of the
 voice half we keep on purpose — it is what gives a brain author autocompletion.
 `design/voice_catalog.py check` holds it to what the speech tier serves, and
-renders the docs table from the same fetch. `vql-stt` serves `en` plus the 22
-Indic codes. An unknown model is **HTTP 403 at connect**, an unknown voice
+renders the docs table from the same fetch. `vql-stt` routes English and the
+European languages to Parakeet TDT 0.6B v3 and the Indic codes to
+IndicConformer, and publishes that route table at `GET /v2/languages`; the
+control plane reads it to refuse an unheard `stt.language` at connect and to
+answer `GET /api/v1/capabilities`. The `Language` enum is frozen at English and
+the Indic codes (owner, 2026-10-19), so a European language is a string only and
+`voice_catalog.py check` notes a voice that speaks one rather than failing.
+The docs on `main` describe dev, and `prod` describes prod; a promote is what
+makes a page true for customers, which is why the hold below exists. An unknown model is **HTTP 403 at connect**, an unknown voice
 prefix is `voice not found` — both fail the session, not the sentence.
 
 `frames.proto` documents every declaration in place rather than in banner

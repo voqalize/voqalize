@@ -114,7 +114,7 @@ export interface Then {
   payload: unknown;
 }
 
-/** Open a SendPotion page in a new tab, as a move of Tushar's, with an
+/** Open a SendPotion page in a new tab, as a move of Javier's, with an
  *  optional move for that page to make once it has loaded. */
 export async function openTab(url: string, then?: Then): Promise<string | null> {
   const got = await ask<{ ok: boolean; error?: string }>({ op: "open_tab", url, active: true, then });

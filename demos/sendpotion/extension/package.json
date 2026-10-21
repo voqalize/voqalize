@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Puts Tushar, the sendpotion demo brain's guide, on sendpotion.com and blog.sendpotion.com: a Chrome extension that injects the call widget and the site adapter, and carries one call across every tab of both hosts.",
+  "description": "Puts Javier, the sendpotion demo brain's guide, on sendpotion.com and blog.sendpotion.com: a Chrome extension that injects the call widget and the site adapter, and carries one call across every tab of both hosts.",
   "scripts": {
     "build": "tsc --noEmit && AVATAR_RUNTIME=https://avatar.dev.voqalize.com/runtime/current.js node build.mjs",
     "typecheck": "tsc --noEmit",

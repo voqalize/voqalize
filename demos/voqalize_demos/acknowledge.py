@@ -47,7 +47,6 @@ from loguru import logger
 
 from voqalize.sdk import Speech, SpeechChunk, SpeechEnd, SpeechStart
 from voqalize.sdk.gemini import GeminiBrain, _Unit  # pyright: ignore[reportPrivateUsage]
-from voqalize.sdk.wire import Language
 
 Kind = Literal["request", "question", "correction", "statement"]
 
@@ -387,12 +386,16 @@ def classify(text: str, vocabulary: Vocabulary = _NO_VOCABULARY) -> Kind | None:
 
 
 @dataclass
-class Acknowledger:
-    """Picks the nod for a turn. One per brain, so it never repeats itself."""
+class Acknowledger[L: str]:
+    """Picks the nod for a turn. One per brain, so it never repeats itself.
 
-    lines: Mapping[Language, Mapping[Kind, tuple[str, ...]]]
-    hold_lines: Mapping[Language, tuple[str, ...]]
-    sorry: Mapping[Language, str]
+    ``L`` is how the demo names the language its voice speaks: the frozen
+    :class:`~voqalize.sdk.wire.Language` for English and the Indic languages,
+    or a plain tag (``"es"``) for a language the enum will never have."""
+
+    lines: Mapping[L, Mapping[Kind, tuple[str, ...]]]
+    hold_lines: Mapping[L, tuple[str, ...]]
+    sorry: Mapping[L, str]
     vocabulary: Vocabulary = _NO_VOCABULARY
     #: The share of readable turns that get a nod. The rest open with the model.
     rate: float = 0.75
@@ -401,7 +404,7 @@ class Acknowledger:
     rng: random.Random = field(default_factory=random.Random)
     _last: str = ""
 
-    def line(self, text: str, spoken: Language) -> str | None:
+    def line(self, text: str, spoken: L) -> str | None:
         """The line to say before the model runs, or ``None`` for none this turn."""
         kind = classify(text, self.vocabulary)
         lines = self.lines.get(spoken, {}).get(kind) if kind else None
@@ -409,9 +412,10 @@ class Acknowledger:
             return None
         return self._pick(lines)
 
-    def hold(self, spoken: Language) -> str:
-        """A line that keeps the floor while the model is slow."""
-        return self._pick(self.hold_lines.get(spoken) or self.hold_lines[Language.EN])
+    def hold(self, spoken: L) -> str:
+        """A line that keeps the floor while the model is slow: in ``spoken``,
+        else in the first language the demo wrote lines for."""
+        return self._pick(self.hold_lines.get(spoken) or next(iter(self.hold_lines.values())))
 
     def _pick(self, lines: Iterable[str]) -> str:
         options = list(lines)
@@ -432,10 +436,10 @@ async def own_line(
     yield SpeechEnd()
 
 
-async def hold_the_floor(
+async def hold_the_floor[L: str](
     brain: GeminiBrain,
-    ack: Acknowledger,
-    spoken: Callable[[], Language],
+    ack: Acknowledger[L],
+    spoken: Callable[[], L],
     turn: AsyncGenerator[Speech, None],
     answered: Callable[[], None] = lambda: None,
 ) -> AsyncGenerator[Speech, None]:

@@ -360,7 +360,8 @@ is far easier to add than to take back.
 ### Both legs carry a language, and both must be set
 
 `Language` appears on `TtsConfig` and on `SttConfig`, and that is not
-duplication. The recognizer serves English and the Indic languages; a voice
+duplication. The recognizer serves English, the European languages and the
+Indic languages; a voice
 speaks the subset it was recorded or trained for, which is smaller and differs
 from voice to voice. So the legs genuinely differ — a call understood in Odia is
 spoken with the Hindi clip — and one field could not say so.

@@ -180,17 +180,22 @@ def cmd_check(args: argparse.Namespace) -> int:
     for voice_id in sorted(declared - served):
         problems.append(f"`Voice` claims {voice_id} and {args.host} does not serve it")
 
-    # A voice may claim a language the enum cannot spell. Nothing crashes on
-    # it — the code simply never matches a `Language` value — so the voice
-    # quietly speaks one language fewer than it does, everywhere at once.
-    # The reverse is fine and expected: the recognizer serves languages no
-    # voice speaks, which is what makes hearing one and answering in another
-    # a real session.
+    # A voice may speak a language the enum cannot spell. Until 0.10.0 that
+    # was a voice quietly speaking one language fewer than it does, so it
+    # failed here. Since then a language is also a BCP-47 string
+    # (`language_tag`), and the enum is closed on purpose: a language added to
+    # the speech tier reaches a brain as a string, with no proto release. So it
+    # is printed, not failed — the docs table still shows the code, rendered
+    # from the same fetch. The reverse is fine and expected too: the
+    # recognizer serves languages no voice speaks, which is what makes hearing
+    # one and answering in another a real session.
     codes = set(proto_languages())
     for voice in rosters[first]:
         unknown = sorted(str(code) for code in voice["languages"] if code not in codes)  # type: ignore[union-attr]
         for code in unknown:
-            problems.append(f"{voice['id']} speaks {code!r} and no `Language` value claims it")
+            print(
+                f"  · {voice['id']} speaks {code!r}, which is a string tag only; no `Language` value names it"
+            )
 
     # The docs describe one environment, and `render` writes them from
     # DEFAULT_HOST. Comparing them against any other node would fail on the

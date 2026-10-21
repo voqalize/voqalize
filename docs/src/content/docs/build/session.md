@@ -153,8 +153,10 @@ comes back `invalid_config` and the call never starts. See
 [waiting through a pause](/reference/wire/#waiting-through-a-pause-sttpatience).
 
 **`config` is how this call sounds and listens.** It is the same `Config` the
-brain sends mid-call, parsed as proto3 JSON — enum members are their names, and
-a name we do not serve is refused at mint with the field pointed at. Send only
+brain sends mid-call, parsed as proto3 JSON. A voice is its id and a language
+its BCP-47 tag — `"stt": { "language": "es-ES" }` — and the older enum names
+above still work; a value we do not serve is refused at mint with the field
+pointed at. Send only
 what you want moved; both legs of a language change travel together, because
 moving one leaves the call listening in a language it is answering out of. See
 [the catalog](/reference/catalog/) for what is on the roster and

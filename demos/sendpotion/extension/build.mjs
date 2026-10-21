@@ -10,7 +10,7 @@
 //   bridge.js      the isolated-world script that carries the page's messages
 //                  to the hub and back;
 //   background.js  the hub: one call relayed across every SendPotion tab, on
-//                  both hosts, and new tabs opened for Tushar's moves.
+//                  both hosts, and new tabs opened for Javier's moves.
 //
 // The agent id and publishable key are read from the environment (or a local
 // .env beside this file) and baked into content.js. A build without them still
