@@ -9,7 +9,8 @@
 #
 #   docker build -f demos/Dockerfile -t <img> .
 #
-# All *configuration* is runtime env set on deploy (GEMINI_API_KEY, brain pubkeys).
+# All *configuration* is runtime env set on deploy (GEMINI_API_KEY, OPENAI_API_KEY,
+# brain pubkeys).
 # The one thing baked at build is the commit (`GIT_SHA`), because a deployed
 # container that cannot say what it is forces an SSH to find out — see the ARG at
 # the bottom, deliberately placed after every COPY so it busts no cached layer.

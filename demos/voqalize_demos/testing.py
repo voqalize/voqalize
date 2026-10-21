@@ -1,5 +1,5 @@
-"""``ScriptedGemini`` — a fake ``genai.Client`` driven by a dictionary, no network,
-no API key.
+"""``ScriptedGemini`` and ``ScriptedOpenAI`` — a fake ``genai.Client`` and a fake
+``AsyncOpenAI``, each driven by a dictionary, no network, no API key.
 
 The demo brains take the client by injection and hand it straight to
 :class:`voqalize.sdk.gemini.GeminiBrain`, so the whole model is one seam wide:
@@ -40,11 +40,31 @@ Keys match the **last user text** exactly; failing that, any key that is a
 in a long turn rather than pasting the whole of it. Anything unmatched gets
 :attr:`default`, so a mis-keyed test fails on the assertion it wrote rather than
 deep in the brain.
+
+:class:`ScriptedOpenAI` is the same fake for a brain on
+:class:`voqalize.sdk.openai.OpenAIBrain`, where the seam is
+``client.responses.create(..., stream=True)``. The script, the helpers and every
+rule above are the same; only the stream is OpenAI's: text deltas, then each call
+as a finished ``function_call`` item, then ``response.completed``. A
+``tool_choice`` of ``"none"`` drops the scripted calls, and one naming a single
+tool keeps only the calls to it. One difference shows in a script: ``OpenAIBrain``
+declares a tool's one pydantic parameter *flat*, so a call carries that model's
+fields directly (``product_id="pixel-9"``), where a ``GeminiBrain`` call names the
+parameter (``action={"product_id": "pixel-9"}``)::
+
+    from voqalize_demos.testing import ScriptedOpenAI, reply_and_call
+
+    llm = ScriptedOpenAI({
+        "Show me the Pixel.": reply_and_call(
+            "Pulling it up.", "open_product", product_id="pixel-9"
+        ),
+    })
 """
 
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
@@ -52,6 +72,16 @@ from typing import Any
 
 from google.genai import interactions as gi
 from google.genai import types
+from openai.types.responses import (
+    Response,
+    ResponseCompletedEvent,
+    ResponseFunctionToolCall,
+    ResponseOutputItemDoneEvent,
+    ResponseStreamEvent,
+    ResponseTextDeltaEvent,
+    ResponseUsage,
+)
+from openai.types.responses.response_usage import InputTokensDetails, OutputTokensDetails
 
 
 @dataclass
@@ -206,7 +236,47 @@ class _Aio:
         self.interactions = _Interactions(owner)
 
 
-class ScriptedGemini:
+class _Script:
+    """``{user_text: [Reply, ...]}`` and how a request picks its next reply: the
+    half both fakes share, so a script reads the same whichever model it plays."""
+
+    def __init__(
+        self,
+        script: dict[str, list[Reply] | Reply] | None = None,
+        *,
+        default: Reply | None = None,
+    ) -> None:
+        self._cursors: dict[str, _Cursor] = {}
+        for key, value in (script or {}).items():
+            self._cursors[key] = _Cursor(value if isinstance(value, list) else [value])
+        self._default = default if default is not None else reply("Right.")
+
+    def _key(self, texts: list[str]) -> str:
+        """The script key for a request, given its user texts newest first: the
+        newest one the script knows, else the newest."""
+        return next((t for t in texts if self._cursor(t) is not None), texts[0] if texts else "")
+
+    def _cursor(self, key: str) -> _Cursor | None:
+        """The script this user text is keyed on: exact first, then any key that is
+        a substring of it, in insertion order."""
+        cursor = self._cursors.get(key)
+        if cursor is None:
+            cursor = next(
+                (c for k, c in self._cursors.items() if k and k in key),
+                None,
+            )
+        return cursor
+
+    def _next(self, key: str) -> Reply:
+        cursor = self._cursor(key)
+        if cursor is None or cursor.i >= len(cursor.steps):
+            return self._default
+        step = cursor.steps[cursor.i]
+        cursor.i += 1
+        return step
+
+
+class ScriptedGemini(_Script):
     """A ``genai.Client``-shaped fake answering from ``{user_text: [Reply, ...]}``.
 
     Structural, not nominal: a brain calls
@@ -219,10 +289,7 @@ class ScriptedGemini:
         *,
         default: Reply | None = None,
     ) -> None:
-        self._cursors: dict[str, _Cursor] = {}
-        for key, value in (script or {}).items():
-            self._cursors[key] = _Cursor(value if isinstance(value, list) else [value])
-        self._default = default if default is not None else reply("Right.")
+        super().__init__(script, default=default)
         self.calls: list[_Call] = []
         self.aio = _Aio(self)
 
@@ -306,30 +373,6 @@ class ScriptedGemini:
         return _interaction_events(
             self._next(self._key(_user_texts(list(request.get("input") or []))))
         )
-
-    def _key(self, texts: list[str]) -> str:
-        """The script key for a request, given its user texts newest first: the
-        newest one the script knows, else the newest."""
-        return next((t for t in texts if self._cursor(t) is not None), texts[0] if texts else "")
-
-    def _cursor(self, key: str) -> _Cursor | None:
-        """The script this user text is keyed on: exact first, then any key that is
-        a substring of it, in insertion order."""
-        cursor = self._cursors.get(key)
-        if cursor is None:
-            cursor = next(
-                (c for k, c in self._cursors.items() if k and k in key),
-                None,
-            )
-        return cursor
-
-    def _next(self, key: str) -> Reply:
-        cursor = self._cursor(key)
-        if cursor is None or cursor.i >= len(cursor.steps):
-            return self._default
-        step = cursor.steps[cursor.i]
-        cursor.i += 1
-        return step
 
 
 def _system_text(config: types.GenerateContentConfig) -> str:
@@ -426,9 +469,173 @@ def _response(parts: list[types.Part], *, finish: bool = False) -> types.Generat
     )
 
 
+# ─── OpenAI ──────────────────────────────────────────────────────────────────
+
+
+class _Responses:
+    """The ``client.responses`` half of the OpenAI seam."""
+
+    def __init__(self, owner: ScriptedOpenAI) -> None:
+        self._owner = owner
+
+    async def create(self, **request: Any) -> AsyncIterator[ResponseStreamEvent]:
+        """One scripted response. Async like the real one, which awaits the call
+        before iterating the stream it returns."""
+        return self._owner.answer(request)
+
+
+class ScriptedOpenAI(_Script):
+    """An ``AsyncOpenAI``-shaped fake answering from ``{user_text: [Reply, ...]}``.
+
+    Structural, not nominal: :class:`~voqalize.sdk.openai.OpenAIBrain` calls
+    ``client.responses.create(**kwargs)`` and iterates the events, so this answers
+    on that one method and never constructs a real ``AsyncOpenAI``. The events are
+    the ``openai`` package's own types, so a field the brain reads that the API
+    does not send fails here and not in a call."""
+
+    def __init__(
+        self,
+        script: dict[str, list[Reply] | Reply] | None = None,
+        *,
+        default: Reply | None = None,
+    ) -> None:
+        super().__init__(script, default=default)
+        #: Every ``responses.create`` call's arguments, in call order, copied as
+        #: the API would serialise them (the brain goes on editing its context).
+        self.requests: list[dict[str, Any]] = []
+        self.responses = _Responses(self)
+
+    @property
+    def client(self) -> ScriptedOpenAI:
+        """What a brain is handed. This object is its own client."""
+        return self
+
+    # ─── What the brain asked ────────────────────────────────────────────
+
+    @property
+    def captured_inputs(self) -> list[list[Any]]:
+        """Every request's ``input`` items, in call order, for asserting the brain
+        prompted the model with heard truth."""
+        return [list(r.get("input") or []) for r in self.requests]
+
+    @property
+    def captured_instructions(self) -> list[str]:
+        """Every request's ``instructions``, in call order, for asserting what a
+        brain folded into the prompt."""
+        return [str(r.get("instructions") or "") for r in self.requests]
+
+    # ─── The seam ────────────────────────────────────────────────────────
+
+    def answer(self, request: dict[str, Any]) -> AsyncIterator[ResponseStreamEvent]:
+        """Record the request and return its reply as an event stream."""
+        request = copy.deepcopy(request)
+        self.requests.append(request)
+        if request.get("stream") is not True:
+            raise AssertionError("OpenAIBrain streams every request; this one did not")
+        tools: list[dict[str, Any]] = list(request.get("tools") or [])
+        declared = {str(t.get("name")) for t in tools if t.get("type") == "function"}
+        step = self._next(self._key(_openai_user_texts(list(request.get("input") or []))))
+        if step.error is not None:
+            raise RuntimeError(step.error)
+        for name, _ in step.calls:
+            if name not in declared:
+                raise AssertionError(
+                    f"scripted call to {name!r}, which this brain does not declare"
+                )
+        choice = request.get("tool_choice", "auto")
+        if choice == "none":
+            calls: tuple[tuple[str, dict[str, Any]], ...] = ()
+        elif isinstance(choice, dict):
+            only = choice.get("name")
+            calls = tuple(c for c in step.calls if c[0] == only)
+        else:
+            calls = step.calls
+        return _openai_events(step, calls, model=str(request.get("model", "")))
+
+
+def _openai_user_texts(items: list[Any]) -> list[str]:
+    """Every ``role="user"`` text in a Responses API ``input``, newest first;
+    every one, for the reason :func:`_user_contents` gives."""
+    texts: list[str] = []
+    for item in reversed(items):
+        if not isinstance(item, dict) or item.get("role") != "user":
+            continue
+        content = item.get("content")
+        if isinstance(content, str):
+            texts.append(content)
+        elif isinstance(content, list):
+            texts.append(
+                "".join(
+                    str(part.get("text", ""))
+                    for part in content
+                    if isinstance(part, dict) and part.get("type") == "input_text"
+                )
+            )
+    return texts
+
+
+async def _openai_events(
+    step: Reply, calls: tuple[tuple[str, dict[str, Any]], ...], *, model: str
+) -> AsyncIterator[ResponseStreamEvent]:
+    """One reply as the event sequence a real Responses stream produces: the
+    speech as text deltas, each call as a finished ``function_call`` item with its
+    arguments as a JSON string, then ``response.completed`` with the usage."""
+    seq = 0
+    chunks = step.chunks or ((step.text,) if step.text else ())
+    for chunk in chunks:
+        if step.chunk_delay:
+            await asyncio.sleep(step.chunk_delay)
+        yield ResponseTextDeltaEvent(
+            type="response.output_text.delta",
+            delta=chunk,
+            item_id="msg_0",
+            output_index=0,
+            content_index=0,
+            logprobs=[],
+            sequence_number=seq,
+        )
+        seq += 1
+    for i, (name, args) in enumerate(calls):
+        yield ResponseOutputItemDoneEvent(
+            type="response.output_item.done",
+            item=ResponseFunctionToolCall(
+                type="function_call",
+                call_id=f"call_{i}_{name}",
+                name=name,
+                arguments=json.dumps(args),
+            ),
+            output_index=i + 1,
+            sequence_number=seq,
+        )
+        seq += 1
+    usage = ResponseUsage(
+        input_tokens=0,
+        input_tokens_details=InputTokensDetails(cached_tokens=0, cache_write_tokens=0),
+        output_tokens=0,
+        output_tokens_details=OutputTokensDetails(reasoning_tokens=0),
+        total_tokens=0,
+    )
+    yield ResponseCompletedEvent(
+        type="response.completed",
+        response=Response(
+            id="resp_0",
+            created_at=0,
+            model=model,
+            object="response",
+            output=[],
+            parallel_tool_calls=True,
+            tool_choice="auto",
+            tools=[],
+            usage=usage,
+        ),
+        sequence_number=seq,
+    )
+
+
 __all__ = [
     "Reply",
     "ScriptedGemini",
+    "ScriptedOpenAI",
     "call",
     "fail",
     "replies",
