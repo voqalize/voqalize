@@ -599,7 +599,9 @@ _ACK_LINES: dict[Lang, dict[Kind, tuple[str, ...]]] = {
         "statement": ("Muy bien.", "Entendido.", "Claro."),
     },
 }
-ACK_RATE = 0.75
+#: Higher than SendPotion's 0.75: every page here is a full load, and the nod
+#: is what the visitor hears while the next page comes in.
+ACK_RATE = 0.9
 ACK_HOLD_AFTER_S = 4.0
 _ACK_HOLD: dict[Lang, tuple[str, ...]] = {
     "en": ("One moment.", "Just a moment."),

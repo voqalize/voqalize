@@ -66,9 +66,14 @@ _QUOTES = str.maketrans(
 )
 
 
+#: The site writes some apostrophes as an acute accent (U+00B4), as in its Jack
+#: Daniel bar; they read as the plain apostrophe.
+_APOSTROPHES = str.maketrans({chr(0x00B4): "'", chr(0x2019): "'", chr(0x0060): "'"})
+
+
 def fold(text: str) -> str:
     """Lower case, without accents: "Cúpula Ñandú" → "cupula nandu"."""
-    decomposed = unicodedata.normalize("NFKD", text.lower())
+    decomposed = unicodedata.normalize("NFKD", text.lower().translate(_APOSTROPHES))
     return "".join(c for c in decomposed if not unicodedata.combining(c))
 
 

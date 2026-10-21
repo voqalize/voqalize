@@ -517,7 +517,9 @@ async function start(): Promise<void> {
     setMuted(false);
     paint("idle");
     role = "idle";
-    keepCallLanguage(null);
+    // Leaving for another page closes the connection too, and that is no
+    // hang-up: the next page carries on in the call's language.
+    if (!leaving) keepCallLanguage(null);
     tabs.clear();
     release?.();
     release = null;
