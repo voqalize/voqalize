@@ -137,6 +137,11 @@ DEMOS: dict[str, Expected] = {
     # toggle or for Spanish heard — javier in both. Asserted in
     # test_sendpotion_e2e.py.
     "sendpotion": Expected(voice="omnivoice/javier", language="en"),
+    # Javier again, as Santander Arena's guide on santanderarena.cl: the site is
+    # Chilean, so with no `lang` in the payload he opens in Spanish, and moves
+    # both legs for the toggle or for English heard — javier in both. Asserted
+    # in test_santanderarena_e2e.py.
+    "santanderarena": Expected(voice="omnivoice/javier", language="es"),
     "servicing": Expected(voice="omnivoice/emily", language="en"),
     "shopping": Expected(voice="omnivoice/gaurav", language="en"),
     # The patient picks sugar's language on the page, before the call exists, so

@@ -29,7 +29,7 @@ model's context: it is the brain's, not the model's.
 
 This began as qween's (``qween/backend/acknowledge.py``, which still carries its
 own word lists and lines, and holds the floor with :func:`hold_the_floor`). The
-word lists read English, Hindi and Kannada; the lines, and a demo's own
+word lists read English, Hindi, Kannada and Spanish; the lines, and a demo's own
 vocabulary, are per demo.
 """
 
@@ -55,8 +55,25 @@ Kind = Literal["request", "question", "correction", "statement"]
 #: its block is named whole.
 _WORDS = re.compile("[\\wऀ-ॣ०-ॿ\u0c80-\u0cff']+")
 
+# Spanish, as Latin America says it: the SendPotion and Santander Arena guides
+# speak it, and a Spanish question with none of the words below went un-nodded
+# ("¿Qué conciertos hay en noviembre?" waited ten seconds in silence on dev).
+_ES_SKIP = frozenset(["sí", "ajá", "dale", "hola", "bueno", "ya", "okey"])
+_ES_THANKS_OR_BYE = frozenset(["gracias", "chao", "chau", "adiós", "adios"])
+_ES_CORRECTION = frozenset(["equivocado", "incorrecto", "error"])
+_ES_QUESTION = frozenset(
+    # A word list reads as words, so it stays a split string.
+    """qué que cómo como cuándo cuando dónde donde cuál cual cuáles cuánto cuánta cuántos
+    cuántas quién quiénes hay puedo puedes podrías podría""".split()  # noqa: SIM905
+)
+_ES_REQUEST = frozenset(
+    """muéstrame muestrame enséñame dime cuéntame cuentame abre ábreme abreme llévame
+    llevame quiero quisiera necesito busca búscame explícame ayúdame ayudame
+    mostrar ver comprar""".split()  # noqa: SIM905
+)
+
 #: Nothing to nod at: the user's own backchannel, thanks, goodbye, hello.
-_SKIP = frozenset(
+_SKIP = _ES_SKIP | frozenset(
     [
         "ok",
         "okay",
@@ -112,7 +129,7 @@ _SKIP = frozenset(
         "ಹಲೋ",
     ]
 )
-_THANKS_OR_BYE = frozenset(
+_THANKS_OR_BYE = _ES_THANKS_OR_BYE | frozenset(
     [
         "thanks",
         "thank",
@@ -129,7 +146,7 @@ _THANKS_OR_BYE = frozenset(
         "ಬೈ",
     ]
 )
-_CORRECTION = frozenset(
+_CORRECTION = _ES_CORRECTION | frozenset(
     [
         "not",
         "wrong",
@@ -152,7 +169,7 @@ _CORRECTION = frozenset(
         "ತಪ್ಪು",
     ]
 )
-_QUESTION = frozenset(
+_QUESTION = _ES_QUESTION | frozenset(
     [
         "what",
         "which",
@@ -211,7 +228,7 @@ _NO_NOD = frozenset(["hear", "hearing", "audible", "mic", "sunai", "सुना
 _TOO_MUCH = frozenset(
     ["too", "so", "itna", "itni", "itne", "इतना", "इतनी", "इतने", "ज़्यादा", "zyada", "jyada"]
 )
-_REQUEST = frozenset(
+_REQUEST = _ES_REQUEST | frozenset(
     [
         "show",
         "scroll",
