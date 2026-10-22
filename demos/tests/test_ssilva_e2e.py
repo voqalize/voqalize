@@ -310,6 +310,12 @@ def _llm() -> ScriptedGemini:
                 call("open_whatsapp"),
                 reply("Ya está abierto. ¿Te ayudo con algo del proyecto?"),
             ],
+            # A reply that only promises is asked again (Explora's dev call
+            # ed9846d5: his whole reply was "One moment.").
+            "¿Dónde queda?": [
+                reply("Un momento."),
+                reply("Queda en Las Condes, cerca del metro."),
+            ],
         }
     )
 
@@ -610,3 +616,11 @@ async def test_a_silent_move_is_talked_about() -> None:
         turn = await rig.driver.user_says("Ábreme WhatsApp.")
         check_turn(rig, turn)
         assert "Ya está abierto." in turn.text
+
+
+async def test_a_reply_that_only_promises_is_asked_again() -> None:
+    async with demo("ssilva", _llm()) as rig:
+        await rig.driver.start_session(init={"path": "/estocolmo/"})
+        turn = await rig.driver.user_says("¿Dónde queda?")
+        check_turn(rig, turn)
+        assert "Queda en Las Condes" in turn.text
