@@ -568,7 +568,8 @@ enum Voice {
   // Male, European-accented English. The voice of the character Lukas Becker.
   VOICE_OMNIVOICE_LUKAS = 26 [(voice_id) = "omnivoice/lukas"];
 
-  // Male, European-accented English. The voice of the character Javier Morales.
+  // Male, neutral Latin American accent, in English and Spanish. The voice of the
+  // character Javier Morales.
   VOICE_OMNIVOICE_JAVIER = 27 [(voice_id) = "omnivoice/javier"];
 
   // Male, British English. The voice of the character Oliver Bennett.

@@ -322,7 +322,8 @@ class Voice(StrEnum):
     OMNIVOICE_KASIA = "omnivoice/kasia"
     #: Male, European-accented English. The voice of the character Lukas Becker.
     OMNIVOICE_LUKAS = "omnivoice/lukas"
-    #: Male, European-accented English. The voice of the character Javier Morales.
+    #: Male, neutral Latin American accent, in English and Spanish. The voice of the
+    #: character Javier Morales.
     OMNIVOICE_JAVIER = "omnivoice/javier"
     #: Male, British English. The voice of the character Oliver Bennett.
     OMNIVOICE_OLIVERBENNETT = "omnivoice/oliverbennett"
