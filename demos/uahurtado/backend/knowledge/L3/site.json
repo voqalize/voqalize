@@ -1,0 +1,1937 @@
+{
+ "crawled": "2026-10-22",
+ "hosts": {
+  "admision": {
+   "url": "https://admision.uahurtado.cl",
+   "role": "Undergraduate admissions: careers, vías de admisión, becas, gratuidad, visits, lead form"
+  },
+  "postgrados": {
+   "url": "https://postgrados.uahurtado.cl",
+   "role": "Postgraduate programmes: magíster, doctorado, diplomados, postítulos, cursos"
+  },
+  "www": {
+   "url": "https://www.uahurtado.cl",
+   "role": "Institution: la universidad, campus, estudiantes, news, events"
+  },
+  "simula": {
+   "url": "https://simula.uahurtado.cl",
+   "role": "Simulador de Puntaje PAES (needs a full lead form with reCAPTCHA; offer it, never fill it)"
+  }
+ },
+ "contact": {
+  "address": "Av. Bernardo O'Higgins 1825, Metro Los Héroes, Santiago",
+  "phone": "+56 2 2692 0200",
+  "admision_email": "futuroestudiante@uahurtado.cl",
+  "admision_phone": "+56 9 9793 7820",
+  "postgrados_email": "postgrados@uahurtado.cl",
+  "whatsapp": [
+   "https://wa.me/56934433089",
+   "https://wa.me/56934552723",
+   "https://wa.me/56951984861",
+   "https://wa.me/56975184663"
+  ],
+  "note": "The site has no contact page: contact details are in each host's footer and the admisión home carousel; the lead form #admisionForm is the 'solicita información' route."
+ },
+ "nav": {
+  "admision": {
+   "menus": {
+    "menu-menu-de-servicios": [
+     {
+      "label": "Internacional",
+      "href": "https://www.uahurtado.cl/la-universidad/la-direccion-de-cooperacion-internacional-dci/",
+      "target": "_blank"
+     },
+     {
+      "label": "Biblioteca",
+      "href": "https://biblioteca.uahurtado.cl/",
+      "target": "_blank"
+     },
+     {
+      "label": "Servicios",
+      "href": "https://admision.uahurtado.cl/#",
+      "target": ""
+     }
+    ],
+    "menu-menu-comunidades": [
+     {
+      "label": "Estudiantes",
+      "href": "https://www.uahurtado.cl/estudiantes/",
+      "target": "_blank"
+     },
+     {
+      "label": "Académicas/os",
+      "href": "https://www.uahurtado.cl/academicas-os/",
+      "target": "_blank"
+     },
+     {
+      "label": "Alumni UAH",
+      "href": "https://www.uahurtado.cl/alumni-uah/",
+      "target": "_blank"
+     },
+     {
+      "label": "Conversemos!",
+      "href": "https://admision.uahurtado.cl/#admisionForm",
+      "target": ""
+     }
+    ],
+    "menu-menu-principal-1": [
+     {
+      "label": "Carreras",
+      "href": "https://admision.uahurtado.cl/#menu-carreras",
+      "target": "",
+      "opens": "#collapseCarreras"
+     },
+     {
+      "label": "Estudia en la UAH",
+      "href": "https://admision.uahurtado.cl/estudia-en-la-uah/",
+      "target": "",
+      "children": [
+       {
+        "label": "Financiamiento",
+        "href": "https://admision.uahurtado.cl/#",
+        "target": ""
+       },
+       {
+        "label": "Becas y Beneficios de la UAH",
+        "href": "https://admision.uahurtado.cl/becas-y-beneficios/",
+        "target": ""
+       },
+       {
+        "label": "Gratuidad Universitaria 2027",
+        "href": "https://admision.uahurtado.cl/gratuidad-universitaria/",
+        "target": ""
+       },
+       {
+        "label": "Beca: Deportista destacado",
+        "href": "https://admision.uahurtado.cl/deportista-destacado/",
+        "target": ""
+       },
+       {
+        "label": "Aranceles UAH 2026",
+        "href": "https://admision.uahurtado.cl/aranceles/",
+        "target": ""
+       },
+       {
+        "label": "Pedagogías",
+        "href": "https://admision.uahurtado.cl/pedagogias/",
+        "target": ""
+       }
+      ]
+     },
+     {
+      "label": "Vías de Admisión",
+      "href": "https://admision.uahurtado.cl/vias-de-admision/",
+      "target": "",
+      "children": [
+       {
+        "label": "Admisión directa a la UAH",
+        "href": "https://admision.uahurtado.cl/admision-directa/",
+        "target": ""
+       },
+       {
+        "label": "Simulador de Puntaje",
+        "href": "https://simula.uahurtado.cl/",
+        "target": ""
+       },
+       {
+        "label": "Requisitos Admisión Carreras",
+        "href": "https://admision.uahurtado.cl/requisitos-de-admision/",
+        "target": ""
+       },
+       {
+        "label": "Ranking 1000",
+        "href": "https://admision.uahurtado.cl/ranking-1000/",
+        "target": ""
+       },
+       {
+        "label": "Admisión PACE",
+        "href": "https://admision.uahurtado.cl/admision-pace/",
+        "target": ""
+       },
+       {
+        "label": "Programa de Atracción de Talento Pedagógico",
+        "href": "https://admision.uahurtado.cl/programa-de-atraccion-de-talento-pedagogico/",
+        "target": ""
+       }
+      ]
+     },
+     {
+      "label": "Ven y Conócenos",
+      "href": "https://admision.uahurtado.cl/ven-y-conocenos/",
+      "target": "",
+      "children": [
+       {
+        "label": "Red Internacional: Intercambio Universitario",
+        "href": "https://admision.uahurtado.cl/red-internacional/",
+        "target": ""
+       },
+       {
+        "label": "Yo elijo lo que quiero estudiar",
+        "href": "https://admision.uahurtado.cl/que-quiero-estudiar/",
+        "target": ""
+       },
+       {
+        "label": "Becas y Beneficios de la UAH",
+        "href": "https://admision.uahurtado.cl/becas-y-beneficios/",
+        "target": ""
+       },
+       {
+        "label": "Audio Mallas",
+        "href": "https://admision.uahurtado.cl/audiomallas/",
+        "target": ""
+       },
+       {
+        "label": "La uah orienta tu vocación",
+        "href": "https://admision.uahurtado.cl/tu-vocacion/",
+        "target": ""
+       },
+       {
+        "label": "A Toda Prueba",
+        "href": "https://admision.uahurtado.cl/a-toda-prueba/",
+        "target": ""
+       },
+       {
+        "label": "Te acompañamos",
+        "href": "https://admision.uahurtado.cl/en-cada-paso-te-acompanamos/",
+        "target": ""
+       }
+      ]
+     },
+     {
+      "label": "Simula tu puntaje",
+      "href": "https://simula.uahurtado.cl/",
+      "target": ""
+     },
+     {
+      "label": "Continuidad",
+      "href": "https://admision.uahurtado.cl/continuidad-de-estudios/",
+      "target": ""
+     }
+    ],
+    "menu-menu-principal-2": [
+     {
+      "label": "Carreras",
+      "href": "https://admision.uahurtado.cl/#oferta-academica",
+      "target": "",
+      "opens": "#collapseCarreras"
+     },
+     {
+      "label": "Estudia en la UAH ▶",
+      "href": "https://admision.uahurtado.cl/estudia-en-la-uah/",
+      "target": "",
+      "children": [
+       {
+        "label": "Financiamiento▶",
+        "href": "https://admision.uahurtado.cl/#",
+        "target": ""
+       },
+       {
+        "label": "Becas y Beneficios de la UAH",
+        "href": "https://admision.uahurtado.cl/becas-y-beneficios/",
+        "target": ""
+       },
+       {
+        "label": "Gratuidad Universitaria 2027",
+        "href": "https://admision.uahurtado.cl/gratuidad-universitaria/",
+        "target": ""
+       },
+       {
+        "label": "Beca: Deportista destacado",
+        "href": "https://admision.uahurtado.cl/deportista-destacado/",
+        "target": ""
+       },
+       {
+        "label": "Aranceles UAH 2026",
+        "href": "https://admision.uahurtado.cl/aranceles/",
+        "target": ""
+       },
+       {
+        "label": "Pedagogías",
+        "href": "https://admision.uahurtado.cl/pedagogias/",
+        "target": ""
+       }
+      ]
+     },
+     {
+      "label": "Vías de Admisión ▶",
+      "href": "https://admision.uahurtado.cl/vias-de-admision/",
+      "target": "",
+      "children": [
+       {
+        "label": "Admisión directa a la UAH",
+        "href": "https://admision.uahurtado.cl/admision-directa/",
+        "target": ""
+       },
+       {
+        "label": "Simulador de Puntaje",
+        "href": "https://simula.uahurtado.cl/",
+        "target": ""
+       },
+       {
+        "label": "Requisitos Admisión Carreras",
+        "href": "https://admision.uahurtado.cl/requisitos-de-admision/",
+        "target": ""
+       },
+       {
+        "label": "Ranking 1000",
+        "href": "https://admision.uahurtado.cl/ranking-1000/",
+        "target": ""
+       },
+       {
+        "label": "Admisión PACE",
+        "href": "https://admision.uahurtado.cl/admision-pace/",
+        "target": ""
+       },
+       {
+        "label": "Programa de Atracción de Talento Pedagógico",
+        "href": "https://admision.uahurtado.cl/programa-de-atraccion-de-talento-pedagogico/",
+        "target": ""
+       }
+      ]
+     },
+     {
+      "label": "Ven y Conócenos ▶",
+      "href": "https://admision.uahurtado.cl/ven-y-conocenos/",
+      "target": "",
+      "children": [
+       {
+        "label": "Red Internacional: Intercambio Universitario",
+        "href": "https://admision.uahurtado.cl/red-internacional/",
+        "target": ""
+       },
+       {
+        "label": "Yo elijo lo que quiero estudiar",
+        "href": "https://admision.uahurtado.cl/que-quiero-estudiar/",
+        "target": ""
+       },
+       {
+        "label": "Becas y Beneficios de la UAH",
+        "href": "https://admision.uahurtado.cl/becas-y-beneficios/",
+        "target": ""
+       },
+       {
+        "label": "Audio Mallas",
+        "href": "https://admision.uahurtado.cl/audiomallas/",
+        "target": ""
+       },
+       {
+        "label": "La uah orienta tu vocación",
+        "href": "https://admision.uahurtado.cl/tu-vocacion/",
+        "target": ""
+       },
+       {
+        "label": "A Toda Prueba",
+        "href": "https://admision.uahurtado.cl/a-toda-prueba/",
+        "target": ""
+       },
+       {
+        "label": "Te acompañamos",
+        "href": "https://admision.uahurtado.cl/en-cada-paso-te-acompanamos/",
+        "target": ""
+       }
+      ]
+     },
+     {
+      "label": "Simula tu puntaje",
+      "href": "https://simula.uahurtado.cl/",
+      "target": ""
+     },
+     {
+      "label": "Continuidad",
+      "href": "https://admision.uahurtado.cl/continuidad-de-estudios/",
+      "target": ""
+     }
+    ]
+   },
+   "footer_links": [
+    {
+     "label": "+56 2 2692 0200",
+     "href": "tel:+56226920200",
+     "target": "_blank"
+    },
+    {
+     "label": "Estudiar en la UAH",
+     "href": "https://admision.uahurtado.cl/proceso-de-matricula-alumnos-nuevos/",
+     "target": ""
+    },
+    {
+     "label": "Proceso de Matrícula Online Estudiantes 2024 PAES",
+     "href": "https://admision.uahurtado.cl/proceso-de-matricula-alumnos-nuevos/",
+     "target": ""
+    },
+    {
+     "label": "Financiamiento",
+     "href": "https://admision.uahurtado.cl/#",
+     "target": ""
+    },
+    {
+     "label": "Comunidad Estudiantil",
+     "href": "https://admision.uahurtado.cl/comunidad-estudiantil/",
+     "target": ""
+    },
+    {
+     "label": "Indicadores de Calidad",
+     "href": "https://admision.uahurtado.cl/indicadores-de-calidad/",
+     "target": ""
+    },
+    {
+     "label": "Red Internacional",
+     "href": "https://admision.uahurtado.cl/red-internacional/",
+     "target": ""
+    },
+    {
+     "label": "Alumni UAH",
+     "href": "https://alumni.uahurtado.cl/",
+     "target": ""
+    },
+    {
+     "label": "Vías de Admisión",
+     "href": "https://admision.uahurtado.cl/admision-directa/",
+     "target": ""
+    },
+    {
+     "label": "Admisión Directa",
+     "href": "https://admision.uahurtado.cl/admision-directa/",
+     "target": ""
+    },
+    {
+     "label": "Requisitos Admisión Carreras",
+     "href": "https://admision.uahurtado.cl/requisitos-de-admision/",
+     "target": ""
+    },
+    {
+     "label": "Ranking 1000",
+     "href": "https://admision.uahurtado.cl/ranking-1000/",
+     "target": ""
+    },
+    {
+     "label": "Admisión Vía PAES",
+     "href": "https://admision.uahurtado.cl/admision-via-paes/",
+     "target": ""
+    },
+    {
+     "label": "Admisión PACE",
+     "href": "https://admision.uahurtado.cl/admision-pace/",
+     "target": ""
+    },
+    {
+     "label": "Simulador de Puntaje",
+     "href": "https://simula.uahurtado.cl/",
+     "target": ""
+    },
+    {
+     "label": "Visítanos",
+     "href": "https://admision.uahurtado.cl/admision-visita-la-uah/",
+     "target": ""
+    },
+    {
+     "label": "UAH Orienta Tu Vocación",
+     "href": "https://admision.uahurtado.cl/tu-vocacion/",
+     "target": ""
+    },
+    {
+     "label": "Audio Mallas",
+     "href": "https://admision.uahurtado.cl/audiomallas/",
+     "target": ""
+    },
+    {
+     "label": "Actividades UAH",
+     "href": "https://admision.uahurtado.cl/conocenos/",
+     "target": ""
+    },
+    {
+     "label": "Visitas Guiadas",
+     "href": "https://docs.google.com/forms/d/e/1FAIpQLSeKC88ouvnLRk3xBEiouDWSXQWTnYN0m3LpXUtny6z0ruS1DQ/viewform",
+     "target": ""
+    },
+    {
+     "label": "Simula tu puntaje",
+     "href": "https://simula.uahurtado.cl/",
+     "target": ""
+    },
+    {
+     "label": "Continuidad",
+     "href": "https://admision.uahurtado.cl/continuidad/",
+     "target": ""
+    }
+   ],
+   "career_menu": {
+    "opens": "#collapseCarreras",
+    "button": "#menu-menu-principal-1 > li.boton-carrera > a",
+    "groups": [
+     {
+      "group": "Facultad de Ciencias Sociales",
+      "careers": [
+       {
+        "label": "Administración Pública",
+        "href": "https://admision.uahurtado.cl/carreras/administracion-publica/",
+        "target": ""
+       },
+       {
+        "label": "Antropología",
+        "href": "https://admision.uahurtado.cl/carreras/antropologia/",
+        "target": ""
+       },
+       {
+        "label": "Ciencia Política y Relaciones Internacionales",
+        "href": "https://admision.uahurtado.cl/carreras/ciencia-politica/",
+        "target": ""
+       },
+       {
+        "label": "Geografía",
+        "href": "https://admision.uahurtado.cl/carreras/geografia/",
+        "target": ""
+       },
+       {
+        "label": "Periodismo",
+        "href": "https://admision.uahurtado.cl/carreras/periodismo/",
+        "target": ""
+       },
+       {
+        "label": "Sociología",
+        "href": "https://admision.uahurtado.cl/carreras/sociologia/",
+        "target": ""
+       },
+       {
+        "label": "Trabajo Social",
+        "href": "https://admision.uahurtado.cl/carreras/trabajo-social/",
+        "target": ""
+       },
+       {
+        "label": "Arqueología",
+        "href": "https://admision.uahurtado.cl/carreras/arqueologia/",
+        "target": ""
+       }
+      ]
+     },
+     {
+      "group": "Facultad de Educación",
+      "careers": [
+       {
+        "label": "Pedagogía en Biología y Ciencias Naturales",
+        "href": "https://admision.uahurtado.cl/carreras/pedagogia-en-biologia-y-ciencias-naturales/",
+        "target": ""
+       },
+       {
+        "label": "Pedagogía en Inglés",
+        "href": "https://admision.uahurtado.cl/carreras/pedagogia-en-ingles/",
+        "target": ""
+       },
+       {
+        "label": "Pedagogía en Educación Diferencial",
+        "href": "https://admision.uahurtado.cl/carreras/pedagogia-en-educacion-diferencial/",
+        "target": ""
+       },
+       {
+        "label": "Educación Parvularia",
+        "href": "https://admision.uahurtado.cl/carreras/educacion-parvularia/",
+        "target": ""
+       },
+       {
+        "label": "Pedagogía en Matemática",
+        "href": "https://admision.uahurtado.cl/carreras/pedagogia-en-matematica/",
+        "target": ""
+       },
+       {
+        "label": "Pedagogía en Educación Básica",
+        "href": "https://admision.uahurtado.cl/carreras/educacion-basica/",
+        "target": ""
+       }
+      ]
+     },
+     {
+      "group": "Facultad de Economía y Negocios",
+      "careers": [
+       {
+        "label": "Gestión de Información, Bibliotecología y Archivística",
+        "href": "https://admision.uahurtado.cl/carreras/gestion-de-informacion-bibliotecologia-y-archivistica/",
+        "target": ""
+       },
+       {
+        "label": "Ingeniería Comercial",
+        "href": "https://admision.uahurtado.cl/carreras/ingenieria-comercial/",
+        "target": ""
+       },
+       {
+        "label": "Contador Público Auditor",
+        "href": "https://admision.uahurtado.cl/carreras/contador-publico-auditor-diurno/",
+        "target": ""
+       }
+      ]
+     },
+     {
+      "group": "Facultad de Filosofía y Humanidades",
+      "careers": [
+       {
+        "label": "Licenciatura en Filosofía",
+        "href": "https://admision.uahurtado.cl/carreras/licenciatura-en-filosofia/",
+        "target": ""
+       },
+       {
+        "label": "Licenciatura en Historia",
+        "href": "https://admision.uahurtado.cl/carreras/licenciatura-en-historia/",
+        "target": ""
+       },
+       {
+        "label": "Licenciatura en Lengua y Literatura",
+        "href": "https://admision.uahurtado.cl/carreras/licenciatura-en-lengua-y-literatura/",
+        "target": ""
+       },
+       {
+        "label": "Licenciatura en Teoría e Historia del Arte",
+        "href": "https://admision.uahurtado.cl/carreras/licenciatura-en-teoria-e-historia-del-arte/",
+        "target": ""
+       },
+       {
+        "label": "Pedagogía en Artes Visuales",
+        "href": "https://admision.uahurtado.cl/carreras/pedagogia-en-artes-visuales/",
+        "target": ""
+       },
+       {
+        "label": "Pedagogía en Filosofía",
+        "href": "https://admision.uahurtado.cl/carreras/pedagogia-en-filosofia/",
+        "target": ""
+       },
+       {
+        "label": "Pedagogía en Historia y Ciencias Sociales",
+        "href": "https://admision.uahurtado.cl/carreras/pedagogia-en-historia-y-ciencias-sociales/",
+        "target": ""
+       },
+       {
+        "label": "Pedagogía en Lengua Castellana y Comunicación",
+        "href": "https://admision.uahurtado.cl/carreras/pedagogia-en-lengua-castellana-y-comunicacion/",
+        "target": ""
+       },
+       {
+        "label": "Pedagogía en Música",
+        "href": "https://admision.uahurtado.cl/carreras/pedagogia-en-musica/",
+        "target": ""
+       },
+       {
+        "label": "Interpretación Superior en Música Antigua",
+        "href": "https://admision.uahurtado.cl/carreras/interpretacion-superior-en-musica-antigua/",
+        "target": ""
+       },
+       {
+        "label": "Interpretación Superior en Dirección Coral",
+        "href": "https://admision.uahurtado.cl/carreras/interpretacion-superior-en-direccion-coral/",
+        "target": ""
+       },
+       {
+        "label": "Bachillerato en Humanidades",
+        "href": "https://admision.uahurtado.cl/carreras/bachillerato-en-humanidades/",
+        "target": ""
+       },
+       {
+        "label": "Interpretación Superior Mención Canto",
+        "href": "https://admision.uahurtado.cl/carreras/interpretacion-superior-mencion-canto/",
+        "target": ""
+       },
+       {
+        "label": "Bachillerato en Filosofía",
+        "href": "https://admision.uahurtado.cl/carreras/bachillerato-en-filosofia-y-humanidades/",
+        "target": ""
+       }
+      ]
+     },
+     {
+      "group": "Facultad de Ingeniería",
+      "careers": [
+       {
+        "label": "Ingeniería Civil Plan Común conducente a Ingeniería Civil en Informática e Ingeniería Civil Industrial",
+        "href": "https://admision.uahurtado.cl/carreras/ingenieria-civil-plan-comun-conducente-a-ingenieria-civil-en-informatica-e-ingenieria-civil-industrial/",
+        "target": ""
+       },
+       {
+        "label": "Ingeniería Civil Industrial",
+        "href": "https://admision.uahurtado.cl/carreras/ingenieria-civil-industrial/",
+        "target": ""
+       },
+       {
+        "label": "Ingeniería Civil en Informática",
+        "href": "https://admision.uahurtado.cl/carreras/ingenieria-civil-en-informatica/",
+        "target": ""
+       }
+      ]
+     },
+     {
+      "group": "Facultad de Derecho",
+      "careers": [
+       {
+        "label": "Derecho",
+        "href": "https://admision.uahurtado.cl/carreras/derecho/",
+        "target": ""
+       }
+      ]
+     },
+     {
+      "group": "Facultad de Psicología",
+      "careers": [
+       {
+        "label": "Psicología",
+        "href": "https://admision.uahurtado.cl/carreras/psicologia/",
+        "target": ""
+       }
+      ]
+     },
+     {
+      "group": "Continuidad de Estudios",
+      "careers": [
+       {
+        "label": "Administración Pública 100% online",
+        "href": "https://admision.uahurtado.cl/carreras/administracion-publica-100-online/",
+        "target": ""
+       },
+       {
+        "label": "Ingeniería en Gestión y Analítica de Datos 100% Online",
+        "href": "https://admision.uahurtado.cl/carreras/ingenieria-en-gestion-y-analitica-de-datos/",
+        "target": ""
+       },
+       {
+        "label": "Ingeniería en Gestión de la Innovación y emprendimiento 100% Online",
+        "href": "https://admision.uahurtado.cl/carreras/ingenieria-en-gestion-de-la-innovacion-y-emprendimiento/",
+        "target": ""
+       },
+       {
+        "label": "Ingeniería en Gestión Logística 100% Online",
+        "href": "https://admision.uahurtado.cl/carreras/ingenieria-en-gestion-logistica/",
+        "target": ""
+       },
+       {
+        "label": "Ingeniería Civil Industrial 100% Online",
+        "href": "https://admision.uahurtado.cl/carreras/ingenieria-civil-industrial-100-online/",
+        "target": ""
+       },
+       {
+        "label": "Ingeniería en Gestión Comercial y Marketing 100% Online",
+        "href": "https://admision.uahurtado.cl/carreras/ingenieria-en-gestion-comercial-y-marketing-continuidad-de-estudios/",
+        "target": ""
+       },
+       {
+        "label": "Ingeniería en Gestión de Empresas 100% Online",
+        "href": "https://admision.uahurtado.cl/carreras/ingenieria-en-gestion-de-empresas/",
+        "target": ""
+       },
+       {
+        "label": "Ingeniería en Gestión Financiera 100% Online",
+        "href": "https://admision.uahurtado.cl/carreras/ingenieria-en-gestion-financiera-continuidad-de-estudios/",
+        "target": ""
+       },
+       {
+        "label": "Pedagogía para Profesionales",
+        "href": "https://admision.uahurtado.cl/carreras/pedagogia-para-profesionales-continuidad-de-estudios/",
+        "target": ""
+       },
+       {
+        "label": "Ingeniería en Gestión de Personas 100% Online",
+        "href": "https://admision.uahurtado.cl/carreras/ingenieria-en-gestion-de-personas/",
+        "target": ""
+       },
+       {
+        "label": "Ingeniería Civil en Informática, para TNS",
+        "href": "https://admision.uahurtado.cl/carreras/ingenieria-civil-informatica-tns-continuidad/",
+        "target": ""
+       },
+       {
+        "label": "Ingeniería Civil Industrial, para TNS",
+        "href": "https://admision.uahurtado.cl/carreras/ingenieria-civil-industrial-tns-continuidad/",
+        "target": ""
+       },
+       {
+        "label": "Ingeniería Comercial 100% Online, continuidad de estudios",
+        "href": "https://admision.uahurtado.cl/carreras/ingenieria-comercial-cev-campb/",
+        "target": ""
+       },
+       {
+        "label": "Contador Público Auditor, continuidad de estudios",
+        "href": "https://admision.uahurtado.cl/carreras/contador-publico-auditor-cev-campb/",
+        "target": ""
+       }
+      ]
+     }
+    ]
+   },
+   "footer_text": "Universidad Alberto Hurtado Avda."
+  },
+  "postgrados": {
+   "menus": {
+    "menu-menu-comunidades": [
+     {
+      "label": "La Universidad",
+      "href": "https://www.uahurtado.cl/la-universidad/",
+      "target": ""
+     },
+     {
+      "label": "Red Internacional",
+      "href": "https://internacional.uahurtado.cl/",
+      "target": ""
+     },
+     {
+      "label": "Financiamiento",
+      "href": "https://postgrados.uahurtado.cl/financiamiento/",
+      "target": ""
+     }
+    ],
+    "menu-menu-de-servicios": [
+     {
+      "label": "Internacional",
+      "href": "https://www.uahurtado.cl/la-universidad/la-direccion-de-cooperacion-internacional-dci/",
+      "target": "_blank"
+     },
+     {
+      "label": "Biblioteca",
+      "href": "https://biblioteca.uahurtado.cl/",
+      "target": "_blank"
+     },
+     {
+      "label": "Servicios",
+      "href": "https://postgrados.uahurtado.cl/#",
+      "target": ""
+     }
+    ],
+    "menu-menu-principal": [
+     {
+      "label": "Doctorados",
+      "href": "https://postgrados.uahurtado.cl/doctorados/",
+      "target": ""
+     },
+     {
+      "label": "Magíster",
+      "href": "https://postgrados.uahurtado.cl/especialidad/magister/",
+      "target": ""
+     },
+     {
+      "label": "Magíster Online",
+      "href": "https://postgrados.uahurtado.cl/magister-online/",
+      "target": ""
+     },
+     {
+      "label": "Diplomados",
+      "href": "https://postgrados.uahurtado.cl/especialidad/diplomado/",
+      "target": ""
+     },
+     {
+      "label": "Cursos",
+      "href": "https://postgrados.uahurtado.cl/especialidad/cursos/",
+      "target": ""
+     }
+    ]
+   },
+   "footer_links": [],
+   "footer_text": ""
+  },
+  "www": {
+   "menus": {
+    "menu-quick-links": [
+     {
+      "label": "Internacional",
+      "href": "https://internacional.uahurtado.cl/",
+      "target": ""
+     },
+     {
+      "label": "Biblioteca",
+      "href": "https://biblioteca.uahurtado.cl/",
+      "target": ""
+     },
+     {
+      "label": "Estudiantes",
+      "href": "https://www.uahurtado.cl/estudiantes/",
+      "target": ""
+     },
+     {
+      "label": "Académicas/os",
+      "href": "https://www.uahurtado.cl/academicas-os/",
+      "target": ""
+     },
+     {
+      "label": "Alumni",
+      "href": "https://alumni.uahurtado.cl/",
+      "target": ""
+     }
+    ],
+    "menu-buscador": [
+     {
+      "label": "Servicios",
+      "href": "https://www.uahurtado.cl/#",
+      "target": ""
+     }
+    ],
+    "menu-menu-principal": [
+     {
+      "label": "ADMISIÓN 2027",
+      "href": "https://admision.uahurtado.cl/",
+      "target": "_blank"
+     },
+     {
+      "label": "LA UNIVERSIDAD",
+      "href": "https://www.uahurtado.cl/la-universidad/",
+      "target": "",
+      "children": [
+       {
+        "label": "Nuestra historia: proyecto educativo institucional",
+        "href": "https://www.uahurtado.cl/historia-uah/",
+        "target": ""
+       },
+       {
+        "label": "Autoridades",
+        "href": "https://www.uahurtado.cl/la-universidad/#autoridades",
+        "target": ""
+       },
+       {
+        "label": "Nuestros campus",
+        "href": "https://www.uahurtado.cl/la-universidad/campus/",
+        "target": ""
+       },
+       {
+        "label": "Campus Patrimonial",
+        "href": "https://www.uahurtado.cl/la-universidad/campus/campus-patrimonial/",
+        "target": ""
+       },
+       {
+        "label": "Campus B",
+        "href": "https://www.uahurtado.cl/la-universidad/campus/campusb/",
+        "target": ""
+       },
+       {
+        "label": "Biblioteca",
+        "href": "https://biblioteca.uahurtado.cl/",
+        "target": ""
+       },
+       {
+        "label": "Dirección de Filantropía y Proyectos Sociales",
+        "href": "https://www.uahurtado.cl/direccion-de-filantropia/",
+        "target": ""
+       },
+       {
+        "label": "Marco Normativo",
+        "href": "https://www.uahurtado.cl/marco-normativo-uah/",
+        "target": ""
+       },
+       {
+        "label": "Acreditación",
+        "href": "https://www.uahurtado.cl/la-universidad/calidad-uah/",
+        "target": ""
+       },
+       {
+        "label": "Actualización Plan Estratégico Institucional 2030",
+        "href": "https://www.uahurtado.cl/pei2030/",
+        "target": ""
+       },
+       {
+        "label": "Trabaja con nosotros",
+        "href": "https://www.uahurtado.cl/trabaja-con-nosotros/",
+        "target": ""
+       }
+      ]
+     },
+     {
+      "label": "PROGRAMAS UAH",
+      "href": "https://www.uahurtado.cl/programas-uah/",
+      "target": "",
+      "children": [
+       {
+        "label": "Facultades",
+        "href": "https://www.uahurtado.cl/la-universidad/#facultades",
+        "target": ""
+       },
+       {
+        "label": "Ciencias Sociales",
+        "href": "https://csociales.uahurtado.cl/",
+        "target": "_blank"
+       },
+       {
+        "label": "Derecho",
+        "href": "https://derecho.uahurtado.cl/",
+        "target": "_blank"
+       },
+       {
+        "label": "Economía y Negocios",
+        "href": "https://fen.uahurtado.cl/",
+        "target": "_blank"
+       },
+       {
+        "label": "Educación",
+        "href": "https://educacion.uahurtado.cl/",
+        "target": "_blank"
+       },
+       {
+        "label": "Filosofía y Humanidades",
+        "href": "https://filosofiahumanidades.uahurtado.cl/",
+        "target": "_blank"
+       },
+       {
+        "label": "Ingeniería",
+        "href": "https://admision.uahurtado.cl/ingenierias/",
+        "target": "_blank"
+       },
+       {
+        "label": "Psicología",
+        "href": "https://psicologia.uahurtado.cl/",
+        "target": "_blank"
+       },
+       {
+        "label": "Carreras de Pregrado",
+        "href": "https://admision.uahurtado.cl/",
+        "target": "_blank"
+       },
+       {
+        "label": "Postgrados y Educación Continua",
+        "href": "https://postgrados.uahurtado.cl/",
+        "target": "_blank"
+       },
+       {
+        "label": "Magíster",
+        "href": "https://postgrados.uahurtado.cl/especialidad/magister/",
+        "target": "_blank"
+       },
+       {
+        "label": "Doctorado",
+        "href": "https://postgrados.uahurtado.cl/especialidad/doctorado/",
+        "target": "_blank"
+       },
+       {
+        "label": "Diplomados",
+        "href": "https://postgrados.uahurtado.cl/especialidad/diplomado/",
+        "target": "_blank"
+       },
+       {
+        "label": "Cursos",
+        "href": "https://postgrados.uahurtado.cl/especialidad/cursos/",
+        "target": "_blank"
+       },
+       {
+        "label": "Magíster online",
+        "href": "https://postgrados.uahurtado.cl/magister-online/",
+        "target": ""
+       },
+       {
+        "label": "Educación virtual",
+        "href": "https://postgrados.uahurtado.cl/especialidad/educacion-virtual/",
+        "target": "_blank"
+       },
+       {
+        "label": "Carreras de Continuidad de Estudios",
+        "href": "https://admision.uahurtado.cl/continuidad/",
+        "target": ""
+       },
+       {
+        "label": "Vías de admisión",
+        "href": "https://www.uahurtado.cl/#",
+        "target": ""
+       },
+       {
+        "label": "Admisión vía PAES",
+        "href": "https://admision.uahurtado.cl/admision-via-paes/",
+        "target": ""
+       },
+       {
+        "label": "Admisión Directa",
+        "href": "https://admision.uahurtado.cl/admision-directa/",
+        "target": ""
+       },
+       {
+        "label": "Becas y beneficios",
+        "href": "https://admision.uahurtado.cl/becas-y-beneficios/",
+        "target": ""
+       },
+       {
+        "label": "Intercambio Estudiantil",
+        "href": "https://internacional.uahurtado.cl/",
+        "target": ""
+       }
+      ]
+     },
+     {
+      "label": "INVESTIGACIÓN",
+      "href": "https://investigacion.uahurtado.cl/",
+      "target": "_blank",
+      "children": [
+       {
+        "label": "Investigación para el bien común",
+        "href": "https://investigacion.uahurtado.cl/#investigadores-home",
+        "target": "_blank"
+       },
+       {
+        "label": "Unidades de investigación asociativa",
+        "href": "https://investigacion.uahurtado.cl/investigacion/#unidades-inv",
+        "target": "_blank"
+       },
+       {
+        "label": "Redes de investigación",
+        "href": "https://www.uahurtado.cl/#",
+        "target": ""
+       },
+       {
+        "label": "Red VYRAL: Violencia y Representación en América Latina",
+        "href": "https://www.redvyral.com/",
+        "target": "_blank"
+       },
+       {
+        "label": "Comité de Ética",
+        "href": "https://investigacion.uahurtado.cl/vicerrectoria/comite-de-etica/",
+        "target": ""
+       }
+      ]
+     },
+     {
+      "label": "EXTENSIÓN",
+      "href": "https://www.uahurtado.cl/extension/",
+      "target": "",
+      "children": [
+       {
+        "label": "Dirección de Vinculación con el Medio, Alumni y Relaciones Institucionales",
+        "href": "https://www.uahurtado.cl/direccion-de-vinculacion-con-el-medio-alumni-y-relaciones-institucionales/",
+        "target": ""
+       },
+       {
+        "label": "Noticias",
+        "href": "https://www.uahurtado.cl/extension/noticias-uah/",
+        "target": ""
+       },
+       {
+        "label": "Agenda de eventos",
+        "href": "https://www.uahurtado.cl/events/",
+        "target": ""
+       },
+       {
+        "label": "Voces en los medios",
+        "href": "https://www.uahurtado.cl/extension/opinion/",
+        "target": ""
+       },
+       {
+        "label": "Ediciones UAH",
+        "href": "https://ediciones.uahurtado.cl/",
+        "target": ""
+       },
+       {
+        "label": "Revistas",
+        "href": "https://www.uahurtado.cl/#",
+        "target": ""
+       },
+       {
+        "label": "Contrapulso",
+        "href": "https://contrapulso.uahurtado.cl/",
+        "target": ""
+       },
+       {
+        "label": "Cuadernos de Educación",
+        "href": "https://cuadernosdeeducacion.uahurtado.cl/",
+        "target": ""
+       },
+       {
+        "label": "Observatorio Económico",
+        "href": "https://fen.uahurtado.cl/revistas-y-publicaciones/oe/",
+        "target": ""
+       },
+       {
+        "label": "Psicología Hoy",
+        "href": "https://psicologia.uahurtado.cl/category/publicaciones/psicologia-hoy/",
+        "target": ""
+       },
+       {
+        "label": "Letras en Línea",
+        "href": "https://letrasenlinea.uahurtado.cl/",
+        "target": ""
+       },
+       {
+        "label": "Puro Periodismo",
+        "href": "https://periodismo.uahurtado.cl/puroperiodismo-2/",
+        "target": ""
+       },
+       {
+        "label": "Documentos Arte",
+        "href": "https://documentosartechile.uahurtado.cl/",
+        "target": ""
+       },
+       {
+        "label": "Persona y Sociedad",
+        "href": "https://personaysociedad.uahurtado.cl/",
+        "target": ""
+       },
+       {
+        "label": "Revista Intervención",
+        "href": "https://intervencion.uahurtado.cl/",
+        "target": ""
+       },
+       {
+        "label": "Centros",
+        "href": "https://www.uahurtado.cl/extension/centros/",
+        "target": ""
+       },
+       {
+        "label": "UAH TV",
+        "href": "https://www.uahurtado.cl/noticias/tv-digital/",
+        "target": ""
+       },
+       {
+        "label": "Tienda UAH",
+        "href": "https://www.uahurtado.cl/tienda-uah/",
+        "target": ""
+       },
+       {
+        "label": "Otros",
+        "href": "https://www.uahurtado.cl/#",
+        "target": ""
+       },
+       {
+        "label": "Premio Periodismo de Excelencia",
+        "href": "https://ppe.uahurtado.cl/",
+        "target": ""
+       },
+       {
+        "label": "Derecho al cuidado",
+        "href": "https://www.uahurtado.cl/derechoaloscuidadosuah/",
+        "target": ""
+       },
+       {
+        "label": "50 Años",
+        "href": "https://50.uahurtado.cl/",
+        "target": ""
+       },
+       {
+        "label": "Temporada de Conciertos",
+        "href": "https://www.uahurtado.cl/temporada-conciertos-xix/",
+        "target": ""
+       },
+       {
+        "label": "Gabriela Mistral a 80 años del Nobel",
+        "href": "https://www.uahurtado.cl/gabriela-mistral/",
+        "target": ""
+       }
+      ]
+     }
+    ],
+    "menu-menu-principal-1": [
+     {
+      "label": "Admisión 2027",
+      "href": "https://admision.uahurtado.cl/",
+      "target": "_blank"
+     },
+     {
+      "label": "La Universidad+",
+      "href": "https://www.uahurtado.cl/la-universidad/",
+      "target": "",
+      "children": [
+       {
+        "label": "Nuestra historia: proyecto educativo institucional",
+        "href": "https://www.uahurtado.cl/historia-uah/",
+        "target": ""
+       },
+       {
+        "label": "Autoridades",
+        "href": "https://www.uahurtado.cl/la-universidad/#autoridades",
+        "target": ""
+       },
+       {
+        "label": "Nuestros campus+",
+        "href": "https://www.uahurtado.cl/la-universidad/campus/",
+        "target": ""
+       },
+       {
+        "label": "Campus Patrimonial",
+        "href": "https://www.uahurtado.cl/la-universidad/campus/campus-patrimonial/",
+        "target": ""
+       },
+       {
+        "label": "Campus B",
+        "href": "https://www.uahurtado.cl/la-universidad/campus/campusb/",
+        "target": ""
+       },
+       {
+        "label": "Biblioteca",
+        "href": "https://biblioteca.uahurtado.cl/",
+        "target": ""
+       },
+       {
+        "label": "Dirección de Filantropía y Proyectos Sociales",
+        "href": "https://www.uahurtado.cl/direccion-de-filantropia/",
+        "target": ""
+       },
+       {
+        "label": "Marco Normativo",
+        "href": "https://www.uahurtado.cl/marco-normativo-uah/",
+        "target": ""
+       },
+       {
+        "label": "Acreditación",
+        "href": "https://www.uahurtado.cl/la-universidad/calidad-uah/",
+        "target": ""
+       },
+       {
+        "label": "Actualización Plan Estratégico Institucional 2030",
+        "href": "https://www.uahurtado.cl/pei2030/",
+        "target": ""
+       },
+       {
+        "label": "Trabaja con nosotros",
+        "href": "https://www.uahurtado.cl/trabaja-con-nosotros/",
+        "target": ""
+       }
+      ]
+     },
+     {
+      "label": "Programas UAH+",
+      "href": "https://www.uahurtado.cl/programas-uah/",
+      "target": "",
+      "children": [
+       {
+        "label": "Facultades+",
+        "href": "https://www.uahurtado.cl/la-universidad/#facultades",
+        "target": ""
+       },
+       {
+        "label": "Ciencias Sociales",
+        "href": "https://csociales.uahurtado.cl/",
+        "target": "_blank"
+       },
+       {
+        "label": "Derecho",
+        "href": "https://derecho.uahurtado.cl/",
+        "target": "_blank"
+       },
+       {
+        "label": "Economía y Negocios",
+        "href": "https://fen.uahurtado.cl/",
+        "target": "_blank"
+       },
+       {
+        "label": "Educación",
+        "href": "https://educacion.uahurtado.cl/",
+        "target": "_blank"
+       },
+       {
+        "label": "Filosofía y Humanidades",
+        "href": "https://filosofiahumanidades.uahurtado.cl/",
+        "target": "_blank"
+       },
+       {
+        "label": "Ingeniería",
+        "href": "https://admision.uahurtado.cl/ingenierias/",
+        "target": "_blank"
+       },
+       {
+        "label": "Psicología",
+        "href": "https://psicologia.uahurtado.cl/",
+        "target": "_blank"
+       },
+       {
+        "label": "Carreras de Pregrado",
+        "href": "https://admision.uahurtado.cl/",
+        "target": "_blank"
+       },
+       {
+        "label": "Postgrados y Educación Continua+",
+        "href": "https://postgrados.uahurtado.cl/",
+        "target": "_blank"
+       },
+       {
+        "label": "Magíster",
+        "href": "https://postgrados.uahurtado.cl/especialidad/magister/",
+        "target": "_blank"
+       },
+       {
+        "label": "Doctorado",
+        "href": "https://postgrados.uahurtado.cl/especialidad/doctorado/",
+        "target": "_blank"
+       },
+       {
+        "label": "Diplomados",
+        "href": "https://postgrados.uahurtado.cl/especialidad/diplomado/",
+        "target": "_blank"
+       },
+       {
+        "label": "Cursos",
+        "href": "https://postgrados.uahurtado.cl/especialidad/cursos/",
+        "target": "_blank"
+       },
+       {
+        "label": "Magíster online",
+        "href": "https://postgrados.uahurtado.cl/magister-online/",
+        "target": ""
+       },
+       {
+        "label": "Educación virtual",
+        "href": "https://postgrados.uahurtado.cl/especialidad/educacion-virtual/",
+        "target": "_blank"
+       },
+       {
+        "label": "Carreras de Continuidad de Estudios",
+        "href": "https://admision.uahurtado.cl/continuidad/",
+        "target": ""
+       },
+       {
+        "label": "Vías de admisión+",
+        "href": "https://www.uahurtado.cl/#",
+        "target": ""
+       },
+       {
+        "label": "Admisión vía PAES",
+        "href": "https://admision.uahurtado.cl/admision-via-paes/",
+        "target": ""
+       },
+       {
+        "label": "Admisión Directa",
+        "href": "https://admision.uahurtado.cl/admision-directa/",
+        "target": ""
+       },
+       {
+        "label": "Becas y beneficios",
+        "href": "https://admision.uahurtado.cl/becas-y-beneficios/",
+        "target": ""
+       },
+       {
+        "label": "Intercambio Estudiantil",
+        "href": "https://internacional.uahurtado.cl/",
+        "target": ""
+       }
+      ]
+     },
+     {
+      "label": "Investigación+",
+      "href": "https://investigacion.uahurtado.cl/",
+      "target": "_blank",
+      "children": [
+       {
+        "label": "Investigación para el bien común",
+        "href": "https://investigacion.uahurtado.cl/#investigadores-home",
+        "target": "_blank"
+       },
+       {
+        "label": "Unidades de investigación asociativa",
+        "href": "https://investigacion.uahurtado.cl/investigacion/#unidades-inv",
+        "target": "_blank"
+       },
+       {
+        "label": "Redes de investigación+",
+        "href": "https://www.uahurtado.cl/#",
+        "target": ""
+       },
+       {
+        "label": "Red VYRAL: Violencia y Representación en América Latina",
+        "href": "https://www.redvyral.com/",
+        "target": "_blank"
+       },
+       {
+        "label": "Comité de Ética",
+        "href": "https://investigacion.uahurtado.cl/vicerrectoria/comite-de-etica/",
+        "target": ""
+       }
+      ]
+     },
+     {
+      "label": "Extensión+",
+      "href": "https://www.uahurtado.cl/extension/",
+      "target": "",
+      "children": [
+       {
+        "label": "Dirección de Vinculación con el Medio, Alumni y Relaciones Institucionales",
+        "href": "https://www.uahurtado.cl/direccion-de-vinculacion-con-el-medio-alumni-y-relaciones-institucionales/",
+        "target": ""
+       },
+       {
+        "label": "Noticias",
+        "href": "https://www.uahurtado.cl/extension/noticias-uah/",
+        "target": ""
+       },
+       {
+        "label": "Agenda de eventos",
+        "href": "https://www.uahurtado.cl/events/",
+        "target": ""
+       },
+       {
+        "label": "Voces en los medios",
+        "href": "https://www.uahurtado.cl/extension/opinion/",
+        "target": ""
+       },
+       {
+        "label": "Ediciones UAH",
+        "href": "https://ediciones.uahurtado.cl/",
+        "target": ""
+       },
+       {
+        "label": "Revistas+",
+        "href": "https://www.uahurtado.cl/#",
+        "target": ""
+       },
+       {
+        "label": "Contrapulso",
+        "href": "https://contrapulso.uahurtado.cl/",
+        "target": ""
+       },
+       {
+        "label": "Cuadernos de Educación",
+        "href": "https://cuadernosdeeducacion.uahurtado.cl/",
+        "target": ""
+       },
+       {
+        "label": "Observatorio Económico",
+        "href": "https://fen.uahurtado.cl/revistas-y-publicaciones/oe/",
+        "target": ""
+       },
+       {
+        "label": "Psicología Hoy",
+        "href": "https://psicologia.uahurtado.cl/category/publicaciones/psicologia-hoy/",
+        "target": ""
+       },
+       {
+        "label": "Letras en Línea",
+        "href": "https://letrasenlinea.uahurtado.cl/",
+        "target": ""
+       },
+       {
+        "label": "Puro Periodismo",
+        "href": "https://periodismo.uahurtado.cl/puroperiodismo-2/",
+        "target": ""
+       },
+       {
+        "label": "Documentos Arte",
+        "href": "https://documentosartechile.uahurtado.cl/",
+        "target": ""
+       },
+       {
+        "label": "Persona y Sociedad",
+        "href": "https://personaysociedad.uahurtado.cl/",
+        "target": ""
+       },
+       {
+        "label": "Revista Intervención",
+        "href": "https://intervencion.uahurtado.cl/",
+        "target": ""
+       },
+       {
+        "label": "Centros",
+        "href": "https://www.uahurtado.cl/extension/centros/",
+        "target": ""
+       },
+       {
+        "label": "UAH TV",
+        "href": "https://www.uahurtado.cl/noticias/tv-digital/",
+        "target": ""
+       },
+       {
+        "label": "Tienda UAH",
+        "href": "https://www.uahurtado.cl/tienda-uah/",
+        "target": ""
+       },
+       {
+        "label": "Otros+",
+        "href": "https://www.uahurtado.cl/#",
+        "target": ""
+       },
+       {
+        "label": "Premio Periodismo de Excelencia",
+        "href": "https://ppe.uahurtado.cl/",
+        "target": ""
+       },
+       {
+        "label": "Derecho al cuidado",
+        "href": "https://www.uahurtado.cl/derechoaloscuidadosuah/",
+        "target": ""
+       },
+       {
+        "label": "50 Años",
+        "href": "https://50.uahurtado.cl/",
+        "target": ""
+       },
+       {
+        "label": "Temporada de Conciertos",
+        "href": "https://www.uahurtado.cl/temporada-conciertos-xix/",
+        "target": ""
+       },
+       {
+        "label": "Gabriela Mistral a 80 años del Nobel",
+        "href": "https://www.uahurtado.cl/gabriela-mistral/",
+        "target": ""
+       }
+      ]
+     }
+    ],
+    "menu-buscador-1": [
+     {
+      "label": "Servicios",
+      "href": "https://www.uahurtado.cl/#",
+      "target": ""
+     }
+    ],
+    "menu-quick-links-1": [
+     {
+      "label": "Internacional",
+      "href": "https://internacional.uahurtado.cl/",
+      "target": ""
+     },
+     {
+      "label": "Biblioteca",
+      "href": "https://biblioteca.uahurtado.cl/",
+      "target": ""
+     },
+     {
+      "label": "Estudiantes",
+      "href": "https://www.uahurtado.cl/estudiantes/",
+      "target": ""
+     },
+     {
+      "label": "Académicas/os",
+      "href": "https://www.uahurtado.cl/academicas-os/",
+      "target": ""
+     },
+     {
+      "label": "Alumni",
+      "href": "https://alumni.uahurtado.cl/",
+      "target": ""
+     }
+    ]
+   },
+   "footer_links": [
+    {
+     "label": "+56 2 2692 0200",
+     "href": "tel:+56226920200",
+     "target": "_blank"
+    },
+    {
+     "label": "Ciencias Sociales",
+     "href": "https://csociales.uahurtado.cl/",
+     "target": ""
+    },
+    {
+     "label": "Derecho",
+     "href": "https://derecho.uahurtado.cl/",
+     "target": ""
+    },
+    {
+     "label": "Economía y Negocios",
+     "href": "https://fen.uahurtado.cl/",
+     "target": ""
+    },
+    {
+     "label": "Educación",
+     "href": "https://educacion.uahurtado.cl/",
+     "target": ""
+    },
+    {
+     "label": "Filosofía y Humanidades",
+     "href": "https://filosofiahumanidades.uahurtado.cl/",
+     "target": ""
+    },
+    {
+     "label": "Psicología",
+     "href": "https://psicologia.uahurtado.cl/",
+     "target": ""
+    },
+    {
+     "label": "Ingeniería",
+     "href": "https://admision.uahurtado.cl/ingenierias/",
+     "target": ""
+    },
+    {
+     "label": "Admisión",
+     "href": "https://admision.uahurtado.cl/",
+     "target": ""
+    },
+    {
+     "label": "Estudiantes",
+     "href": "https://uahurtado.cl/estudiantes/",
+     "target": ""
+    },
+    {
+     "label": "Alumni UAH",
+     "href": "https://uahurtado.cl/alumni-uah/",
+     "target": ""
+    },
+    {
+     "label": "Académicos",
+     "href": "https://uahurtado.cl/academicas-os/",
+     "target": ""
+    },
+    {
+     "label": "Funcionarios",
+     "href": "https://www.uahurtado.cl/#",
+     "target": ""
+    },
+    {
+     "label": "Visitantes",
+     "href": "https://uahurtado.cl/visitantes/",
+     "target": ""
+    },
+    {
+     "label": "Comunicaciones",
+     "href": "https://www.uahurtado.cl/visitantes/direccion-de-comunicaciones-institucionales/",
+     "target": ""
+    },
+    {
+     "label": "Campus",
+     "href": "https://www.uahurtado.cl/la-universidad/campus/",
+     "target": ""
+    },
+    {
+     "label": "Acreditación",
+     "href": "https://www.uahurtado.cl/la-universidad/acreditacion/",
+     "target": ""
+    },
+    {
+     "label": "Rectoría",
+     "href": "https://www.uahurtado.cl/la-universidad/autoridades-y-benefactores/rector/",
+     "target": ""
+    },
+    {
+     "label": "Vicerrectorías",
+     "href": "https://www.uahurtado.cl/la-universidad/autoridades-y-benefactores/vicerrectorias/",
+     "target": ""
+    },
+    {
+     "label": "Directorio",
+     "href": "https://www.uahurtado.cl/la-universidad/autoridades-y-benefactores/directorio/",
+     "target": ""
+    },
+    {
+     "label": "Decanos",
+     "href": "https://www.uahurtado.cl/la-universidad/autoridades-y-benefactores/decanas-y-decanos/",
+     "target": ""
+    },
+    {
+     "label": "Canal de Denuncias",
+     "href": "https://servicios.uahurtado.cl/CanalDenuncia/",
+     "target": "_blank"
+    },
+    {
+     "label": "Trabaja con Nosotros",
+     "href": "https://www.uahurtado.cl/trabaja-con-nosotros/",
+     "target": "_blank"
+    }
+   ],
+   "footer_text": "Universidad Alberto Hurtado Avda. Bernardo O’Higgins 1825 Metro Los Héroes Santiago de Chile Teléfono +56 2 2692 0200 Ciencias Sociales Derecho Economía y Negocios Educación Filosofía y Humanidades Psicología Ingeniería Admisión Estudiantes Alumni UAH Académicos Funcionarios Visitantes Comunicaciones Campus Acreditación Rectoría Vicerrectorías Directorio Decanos Canal de Denuncias Trabaja con Nosotros"
+  }
+ },
+ "lead_form": {
+  "id": "admisionForm",
+  "action": "https://admision.uahurtado.cl/wp-json/nippytech-theme/v1/validate-uah-form",
+  "method": "post",
+  "submit": "Enviar",
+  "fields": [
+   {
+    "name": "entry.230062511",
+    "type": "text",
+    "required": true,
+    "label": "Nombre"
+   },
+   {
+    "name": "entry.721330585",
+    "type": "text",
+    "required": true,
+    "label": "Apellido"
+   },
+   {
+    "name": "entry.289307241",
+    "type": "text",
+    "required": true,
+    "label": "Rut"
+   },
+   {
+    "name": "entry.1559668481",
+    "type": "email",
+    "required": true,
+    "label": "Email"
+   },
+   {
+    "name": "entry.916683147",
+    "type": "text",
+    "required": true,
+    "label": "Fono"
+   },
+   {
+    "name": "entry.229701830",
+    "type": "hidden",
+    "required": false,
+    "label": ""
+   },
+   {
+    "name": "entry.699238472",
+    "type": "text",
+    "required": true,
+    "label": "Consulta"
+   },
+   {
+    "name": "entry.1765941633",
+    "type": "hidden",
+    "required": false,
+    "label": ""
+   },
+   {
+    "name": "entry.1033703898",
+    "type": "hidden",
+    "required": false,
+    "label": ""
+   },
+   {
+    "name": "entry.1791298390",
+    "type": "hidden",
+    "required": false,
+    "label": ""
+   },
+   {
+    "name": "entry.1791298390",
+    "type": "hidden",
+    "required": false,
+    "label": ""
+   },
+   {
+    "name": "entry.215503382",
+    "type": "hidden",
+    "required": false,
+    "label": ""
+   },
+   {
+    "name": "entry.2138016348",
+    "type": "hidden",
+    "required": false,
+    "label": ""
+   }
+  ],
+  "note": "A real lead in UAH's admissions pipeline. Fill fields with input/change events; never submit, requestSubmit or click Enviar."
+ },
+ "headers": {
+  "admision": {
+   "content-security-policy-report-only": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' data: https: http:; style-src 'self' 'unsafe-inline' https: http:; img-src 'self' data: blob: https: http:; font-src 'self' data: https:; connect-src 'self' https: http: ws: wss:; frame-src 'self' https: http:; worker-src 'self' blob:; media-src 'self' https: http:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; report-uri https://www.uahurtado.cl/__csp_report__",
+   "content-type": "text/html; charset=UTF-8",
+   "permissions-policy": "geolocation=(), microphone=(), camera=()",
+   "referrer-policy": "strict-origin-when-cross-origin",
+   "server": "nginx",
+   "x-frame-options": "SAMEORIGIN"
+  },
+  "postgrados": {
+   "cache-control": "no-store, no-cache, must-revalidate",
+   "content-security-policy-report-only": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' data: https: http:; style-src 'self' 'unsafe-inline' https: http:; img-src 'self' data: blob: https: http:; font-src 'self' data: https:; connect-src 'self' https: http: ws: wss:; frame-src 'self' https: http:; worker-src 'self' blob:; media-src 'self' https: http:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; report-uri https://www.uahurtado.cl/__csp_report__",
+   "content-type": "text/html; charset=UTF-8",
+   "permissions-policy": "geolocation=(), microphone=(), camera=()",
+   "referrer-policy": "strict-origin-when-cross-origin",
+   "server": "nginx",
+   "x-frame-options": "SAMEORIGIN"
+  },
+  "www": {
+   "cache-control": "max-age=3, must-revalidate",
+   "content-security-policy-report-only": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' data: https: http:; style-src 'self' 'unsafe-inline' https: http:; img-src 'self' data: blob: https: http:; font-src 'self' data: https:; connect-src 'self' https: http: ws: wss:; frame-src 'self' https: http:; worker-src 'self' blob:; media-src 'self' https: http:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; report-uri https://www.uahurtado.cl/__csp_report__",
+   "content-type": "text/html; charset=UTF-8",
+   "permissions-policy": "geolocation=(), microphone=(), camera=()",
+   "referrer-policy": "strict-origin-when-cross-origin",
+   "server": "nginx",
+   "x-frame-options": "SAMEORIGIN"
+  }
+ },
+ "redirects": [
+  {
+   "from": "https://admision.uahurtado.cl/ingenierias/",
+   "to": "https://ingenieria.uahurtado.cl/"
+  },
+  {
+   "from": "https://admision.uahurtado.cl/continuidad/",
+   "to": "https://admision.uahurtado.cl/continuidad-de-estudios/"
+  },
+  {
+   "from": "https://admision.uahurtado.cl/visitas-guiadas-uah/",
+   "to": "https://admision.uahurtado.cl/"
+  },
+  {
+   "from": "https://admision.uahurtado.cl/indicadores-de-calidad/",
+   "to": "https://www.uahurtado.cl/la-universidad/calidad-uah/"
+  },
+  {
+   "from": "https://admision.uahurtado.cl/campusb/",
+   "to": "https://admision.uahurtado.cl/continuidad-de-estudios/"
+  }
+ ],
+ "uah_hosts_linked": {
+  "admision.uahurtado.cl": 9798,
+  "www.uahurtado.cl": 1100,
+  "postgrados.uahurtado.cl": 1018,
+  "simula.uahurtado.cl": 518,
+  "biblioteca.uahurtado.cl": 210,
+  "uahurtado.cl": 204,
+  "alumni.uahurtado.cl": 95,
+  "estudiantes.uahurtado.cl": 90,
+  "servicios.uahurtado.cl": 88,
+  "smci.uahurtado.cl": 86,
+  "intranet.uahurtado.cl": 86,
+  "masuah.uahurtado.cl": 86,
+  "www2.uahurtado.cl": 86,
+  "fen.uahurtado.cl": 79,
+  "siga2.uahurtado.cl": 77,
+  "investigacion.uahurtado.cl": 73,
+  "ingenieria.uahurtado.cl": 57,
+  "filosofiahumanidades.uahurtado.cl": 57,
+  "csociales.uahurtado.cl": 54,
+  "educacion.uahurtado.cl": 51,
+  "psicologia.uahurtado.cl": 51,
+  "internacional.uahurtado.cl": 48,
+  "derecho.uahurtado.cl": 32,
+  "ediciones.uahurtado.cl": 18,
+  "contrapulso.uahurtado.cl": 18,
+  "cuadernosdeeducacion.uahurtado.cl": 18,
+  "letrasenlinea.uahurtado.cl": 18,
+  "periodismo.uahurtado.cl": 18,
+  "documentosartechile.uahurtado.cl": 18,
+  "personaysociedad.uahurtado.cl": 18,
+  "intervencion.uahurtado.cl": 18,
+  "ppe.uahurtado.cl": 18,
+  "50.uahurtado.cl": 18,
+  "ucampus.uahurtado.cl": 9,
+  "ensayopsu.uahurtado.cl": 4,
+  "vcm.uahurtado.cl": 2,
+  "cui.uahurtado.cl": 2,
+  "uah2030.uahurtado.cl": 1,
+  "docencia.uahurtado.cl": 1,
+  "incubauah.uahurtado.cl": 1,
+  "antologiadelacancion.uahurtado.cl": 1
+ },
+ "outbound_hosts": {
+  "www.instagram.com": 130,
+  "www.youtube.com": 105,
+  "www.linkedin.com": 100,
+  "www.facebook.com": 99,
+  "twitter.com": 98,
+  "open.spotify.com": 97,
+  "outlook.office.com": 87,
+  "wa.me": 87,
+  "docs.google.com": 83,
+  "www.tiktok.com": 77,
+  "www.redvyral.com": 18,
+  "www.ausjal.org": 10,
+  "iaju.org": 10,
+  "jesuitas.cl": 10,
+  "www.jesuits.global": 10,
+  "oducal.com": 10,
+  "www.twitter.com": 9,
+  "share.hsforms.com": 6,
+  "www.ayudamineduc.cl": 4,
+  "www.beneficiosestudiantiles.cl": 4,
+  "www.anid.cl": 4,
+  "forms.gle": 3,
+  "certificados.mineduc.cl": 2,
+  "www.conicyt.cl": 2,
+  "www.ranking1000.cl": 1,
+  "www.demre.cl": 1,
+  "3bj9b.share.hsforms.com": 1,
+  "youtu.be": 1,
+  "www.google.com": 1,
+  "outlook.live.com": 1,
+  "www.agci.cl": 1,
+  "www.corfo.cl": 1,
+  "www.zumpago.cl": 1,
+  "cogency.udp.cl": 1,
+  "centrojusticiaeducacional.uc.cl": 1,
+  "sophiaaustral.cl": 1,
+  "scielo.conicyt.cl": 1,
+  "revistainteredu.com": 1,
+  "portal.beneficiosestudiantiles.cl": 1,
+  "www.investigaciondemedios.cl": 1
+ },
+ "page_kinds": {
+  "home": 3,
+  "listing": 32,
+  "page": 28,
+  "template": 2,
+  "carrera": 50,
+  "programa": 82
+ },
+ "path_collisions": [
+  "/"
+ ]
+}

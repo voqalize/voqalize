@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "Javier for Universidad Alberto Hurtado — Voqalize preview",
+  "version": "0.0.0",
+  "description": "A voice guide for prospective students on the Universidad Alberto Hurtado's sites, in Spanish or English: careers, fees, PAES weights, scholarships, campus, visits and postgraduate programmes, read from the university's own pages. A Voqalize preview.",
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://admision.uahurtado.cl/*",
+        "https://postgrados.uahurtado.cl/*",
+        "https://www.uahurtado.cl/*",
+        "https://uahurtado.cl/*"
+      ],
+      "js": ["bridge.js", "anchor.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://admision.uahurtado.cl/*",
+        "https://postgrados.uahurtado.cl/*",
+        "https://www.uahurtado.cl/*",
+        "https://uahurtado.cl/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    }
+  ],
+  "permissions": ["storage", "declarativeNetRequest", "contentSettings"],
+  "host_permissions": ["https://*.uahurtado.cl/*", "https://uahurtado.cl/*"],
+  "declarative_net_request": {
+    "rule_resources": [{ "id": "microphone", "enabled": true, "path": "rules.json" }]
+  }
+}
