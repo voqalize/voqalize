@@ -191,6 +191,8 @@ def _llm() -> ScriptedGemini:
     return ScriptedGemini(
         {
             "Hola, ¿cómo estás?": reply("Muy bien. ¿En qué te ayudo hoy?"),
+            # The model sometimes writes only a promise (Explora's dev call ed9846d5).
+            "¿Y para la mamografía?": reply("Un momento."),
             # Spanish chosen, English spoken, Spanish answered, even from a sliver.
             "can you show me the MRI prices?": reply(
                 chunks=[" C", "on Fonasa sale ochenta mil pesos. ¿Te busco una hora?"]
@@ -1028,3 +1030,29 @@ async def test_a_form_locked_until_the_rut_is_a_cue_to_ask_for_it() -> None:
         seen = _texts(llm.captured_contents[-1])
         assert "keeps its other fields locked until the visitor types their RUT" in seen
         assert "That did not happen on the page" not in seen
+
+
+async def test_a_reply_that_only_promises_is_asked_again_with_tools_off() -> None:
+    """ "Un momento." and nothing after it is silence to the visitor, so the
+    brain asks once more, as it does for an empty reply: function-calling
+    mode NONE over the same tools."""
+    llm = _llm()
+    seen: list[types.GenerateContentConfig] = []
+    answer = llm.answer
+
+    def recording(*, model: str, contents: object, config: types.GenerateContentConfig) -> object:
+        seen.append(config)
+        return answer(model=model, contents=contents, config=config)
+
+    llm.answer = recording
+    async with demo("clini", llm) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/"})
+        before = len(seen)
+        await rig.driver.user_says("¿Y para la mamografía?")
+        first, again = seen[before:]
+        assert first.tool_config is None
+        assert again.tool_config == types.ToolConfig(
+            function_calling_config=types.FunctionCallingConfig(
+                mode=types.FunctionCallingConfigMode.NONE
+            )
+        )
