@@ -219,6 +219,14 @@ def latin_american(text: str) -> str:
     return _VIDEO_ES.sub(r"\1ideo\2", text)
 
 
+#: A reply that only promises more ("One moment.", "Déjame ver.") says nothing.
+_PROMISE = re.compile(
+    r"\b(?:just |one |un )?(?:moment|momento|momentito|second|segundo)\b"
+    r"|\blet me (?:see|check|look)(?: (?:that|into it|at that))?\b|\bdéjame ver\b|\ba ver\b",
+    re.IGNORECASE,
+)
+
+
 def _chosen_note(language: Lang, how: str) -> str:
     name = LANGUAGE_NAMES[language]
     return (
@@ -426,7 +434,7 @@ You are heard, not read, so keep it light and warm.
 - A turn is three to five short sentences. A walkthrough of a page can run to eight, one item per sentence, each with its cue.
 - Every sentence under fifteen words. Small, everyday words. One idea per sentence. One number per sentence.
 - THE FIRST SENTENCE IS A FEW WORDS. The visitor hears nothing until your first sentence has been voiced, so open every reply with a sentence of two to six words that ends in a full stop, with the answer in it. A cue may come before it.
-- Before most replies the visitor has already heard a short acknowledgement of mine — "Claro.", "Déjame ver.", or in English "Sure.", "Let me see." — so never open with one: your first word is the answer. No "great question", no repeating their question back.
+- Before most replies the visitor has already heard a short acknowledgement of mine — "Claro.", "A ver.", or in English "Happy to help.", "Let me see." — so never open with one: your first word is the answer. No "great question", no repeating their question back.
 - Spoken words only, apart from cues: no lists, no markdown, no symbols, never an exclamation mark. Write dates, times and numbers as spoken words: "the fifth of November at nine at night", "el cinco de noviembre a las nueve de la noche", never "05/11 21:00 hrs".
 - Lines in square brackets come from their screen, not the visitor: the page in front with its headings, cards, FAQs and ticket links. Never read them out; use them.
 - Always answer. A reply with no words leaves the visitor in silence.
@@ -447,7 +455,7 @@ You speak Spanish as a native of Latin America, and English. The call starts in 
 # Every response starts with words
 Write your answer, with its cues, first; any tool call comes at the end of the same response. What a page call returns reaches you only on your next turn.
 - The exception is a read: read_topic, search_site and find_events come straight back to you within this same turn, but each one makes the visitor wait. Answer from what you know below, the events list and the site pages list whenever they cover it, which is most of the time. Read only for a detail that is not here, and then call the read first, with nothing written before it.
-- Never promise more to come ("let me check", "let me find that"): nothing comes after it.
+- Never promise more to come ("let me check", "one moment", "un momento"): nothing comes after it, and a reply that is only a promise leaves the visitor in silence.
 
 # What that sounds like
 Visitor: "¿Qué conciertos hay?"
@@ -585,18 +593,29 @@ _LANDED: dict[str, dict[Lang, str]] = {
 
 # ─── His nod ───────────────────────────────────────────────────────────────────
 
+#: Every line here is voiced on its own, and a given string always comes out
+#: the same way, so a nod either always sounds like Javier or always like
+#: someone else. These are the lines measured to be his voice (speaker
+#: embedding and pitch against his own replies), Explora's set (explora
+#: brain.py, fd30c1c); "Okay.", "Right.", "Un momento." and others were not.
+#: Valid for omnivoice/javier as baked today: measure a new line before adding.
 _ACK_LINES: dict[Lang, dict[Kind, tuple[str, ...]]] = {
     "en": {
-        "request": ("Sure.", "Okay.", "Of course.", "Certainly."),
-        "question": ("Let me see.", "Hmm, let me see.", "Okay."),
-        "correction": ("I see.", "Understood.", "Right."),
-        "statement": ("Okay.", "Got it.", "Right."),
+        "request": ("Happy to help.", "Absolutely, let me do that.", "Sure thing."),
+        "question": ("Let me see.", "Good question, let me see."),
+        "correction": ("Got it, thanks for letting me know.", "Ah, I see what you mean."),
+        "statement": ("Okay, that makes sense.", "Got it, thanks for letting me know."),
     },
     "es": {
-        "request": ("Claro.", "Por supuesto.", "Perfecto.", "Con gusto."),
-        "question": ("Déjame ver.", "A ver.", "Mmm, déjame ver."),
-        "correction": ("Ya veo.", "Entendido.", "De acuerdo."),
-        "statement": ("Muy bien.", "Entendido.", "Claro."),
+        "request": (
+            "Claro.",
+            "Con gusto, ya lo hago.",
+            "Por supuesto, déjame revisarlo.",
+            "Claro, ahora mismo.",
+        ),
+        "question": ("A ver.", "Déjame revisarlo un momento."),
+        "correction": ("Entendido, gracias por avisarme.", "Entendido, eso me ayuda."),
+        "statement": ("Entendido, eso me ayuda.", "Claro.", "Entendido, gracias por avisarme."),
     },
 }
 #: Higher than SendPotion's 0.75: every page here is a full load, and the nod
@@ -604,12 +623,12 @@ _ACK_LINES: dict[Lang, dict[Kind, tuple[str, ...]]] = {
 ACK_RATE = 0.9
 ACK_HOLD_AFTER_S = 4.0
 _ACK_HOLD: dict[Lang, tuple[str, ...]] = {
-    "en": ("One moment.", "Just a moment."),
-    "es": ("Un momento.", "Un momentito."),
+    "en": ("Just a moment.", "One moment while I check that for you."),
+    "es": ("Dame un momento mientras lo busco.", "Un momento mientras lo reviso para ti."),
 }
 _ACK_SORRY: dict[Lang, str] = {
     "en": "Sorry, that's taking a little longer.",
-    "es": "Disculpa, está tardando un poco más.",
+    "es": "Lo siento, está tardando un poco más de lo normal.",
 }
 #: A visitor's ordinary words about the arena, so the reading trusts them.
 _ACK_WORDS = Vocabulary(
@@ -1078,14 +1097,17 @@ class SantanderBrain(GeminiBrain):
         self._cue_path = self._path
         self._paged = False
         self._shown = None
-        spoke = False
+        said = ""
         turn = self._fallback.speak_if_silent(
             self, super().respond(session), again=lambda: self._talk_now(session)
         )
         async for event in self._spelled(self._written(session, self._cued(turn))):
-            spoke = spoke or isinstance(event, SpeechStart)
+            if isinstance(event, SpeechChunk):
+                said += event.text
             yield event
-        if not spoke:
+        # Words, and not only a promise: on Explora's dev call ed9846d5 his whole
+        # reply was "One moment.", and the visitor sat in silence.
+        if not _PROMISE.sub("", said).strip(" .,!?¡¿…"):
             logger.warning("santanderarena: the model returned nothing; asking once more")
             again = self._written(session, self._cued(self._talk_now(session)))
             async for event in self._spelled(again):
