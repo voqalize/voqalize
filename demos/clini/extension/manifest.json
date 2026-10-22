@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "Javier para Clini — Voqalize preview",
+  "version": "0.0.0",
+  "description": "A voice guide on www.clini.cl and its online booking, who answers from Clini's own pages and takes visitors to the part that answers them, in Spanish or English. A Voqalize preview.",
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.clini.cl/*", "https://clini.cl/*", "https://agenda-web.clini.cl/*"],
+      "js": ["bridge.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://www.clini.cl/*", "https://clini.cl/*", "https://agenda-web.clini.cl/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    }
+  ],
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://www.clini.cl/*",
+    "https://clini.cl/*",
+    "https://agenda-web.clini.cl/*"
+  ]
+}

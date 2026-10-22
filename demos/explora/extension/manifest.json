@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "Javier for Explora — Voqalize preview",
+  "version": "0.0.0",
+  "description": "A voice guide on www.explora.com and reservations.explora.com, who answers from Explora's own pages, takes visitors to the section that answers them, opens its tabs and questions, checks a lodge's availability with them and fills in an expedition's enquiry. A Voqalize preview.",
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.explora.com/*",
+        "https://explora.com/*",
+        "https://reservations.explora.com/*"
+      ],
+      "js": [
+        "bridge.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://www.explora.com/*",
+        "https://explora.com/*",
+        "https://reservations.explora.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    }
+  ],
+  "permissions": [
+    "storage",
+    "contentSettings"
+  ],
+  "host_permissions": [
+    "https://www.explora.com/*",
+    "https://explora.com/*",
+    "https://reservations.explora.com/*"
+  ]
+}

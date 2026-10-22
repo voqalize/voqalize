@@ -1,0 +1,280 @@
+[
+ {
+  "name": "Centro de Diagnóstico CLINI - Metro Tobalaba",
+  "address": "Luis Thayer Ojeda 073, Piso 2. Providencia. A pasos del Costanera Center.",
+  "comuna": "Providencia",
+  "region": "Región Metropolitana",
+  "services": [
+   "Evaluación Cirugía Lasik",
+   "Imagenología",
+   "Laboratorio Cardiología"
+  ],
+  "hours": "Lunes a Viernes: 08:00 a 21:00hrs; Sábado: 08:00 a 20:30hrs; Domingos: 09:00 a 20:30hrs",
+  "book_link": [
+   "https://www.clini.cl/agendamiento"
+  ]
+ },
+ {
+  "name": "Centro de Salud Astra Alameda",
+  "address": "Av. Libertador Bernardo O'Higgins 1529, 2 piso Clínica Astra. A pasos del Metro la Moneda.",
+  "comuna": "Santiago Centro",
+  "region": "Región Metropolitana",
+  "services": [
+   "Toma de Muestras",
+   "Imagenología",
+   "Laboratorio Cardiología",
+   "Consultas Médicas"
+  ],
+  "hours": "Centro de Salud: Lunes a Viernes: de 07:30 a 18:00hrs; Toma de muestras: Lunes a Viernes: de 7:00 a 15:00hrs; Sábado: de 07:30 a 14:00hrs; Domingo: 08:30 a 13:00hrs.",
+  "book_link": [
+   "https://www.clini.cl/agendamiento"
+  ]
+ },
+ {
+  "name": "Centro de Salud Astra La Florida",
+  "address": "Av. Vicuña Mackenna Poniente 7255, Piso 2, La Florida.",
+  "comuna": "La Florida",
+  "region": "Región Metropolitana",
+  "services": [
+   "Toma de Muestras",
+   "Imagenología",
+   "Kinesiología",
+   "Consultas Médicas",
+   "Laboratorio Cardiología"
+  ],
+  "hours": "Centro de Salud: Lunes a Viernes: de 07:30 a 20:00hrs; Domingos: de 08:30 a 14:00hrs",
+  "book_link": [
+   "https://www.clini.cl/agendamiento"
+  ]
+ },
+ {
+  "name": "Centro de Salud Astra Maipú",
+  "address": "Av. Pajaritos 2624, Local 32. Maipú",
+  "comuna": "Maipú",
+  "region": "Región Metropolitana",
+  "services": [
+   "Kinesiología",
+   "Imagenología",
+   "Toma de Muestras",
+   "Consultas Médicas",
+   "Laboratorio Cardiología"
+  ],
+  "hours": "Centro de Salud: Lunes a Viernes: de 08:00 a 19:30hrs; Toma de Muestras: Lunes a Viernes: de 7:00 a 15:00hrs; Sábado: de 07:30 a 14:00hrs; Domingo: 08:30 a 13:00hrs.",
+  "book_link": [
+   "https://www.clini.cl/agendamiento"
+  ]
+ },
+ {
+  "name": "Centro de Salud Astra San Miguel",
+  "address": "Gran Avenida 5681, CLINI Salud Astra.",
+  "comuna": "San miguel",
+  "region": "Región Metropolitana",
+  "services": [
+   "Imagenología",
+   "Kinesiología",
+   "Consultas Médicas",
+   "Toma de Muestras"
+  ],
+  "hours": "Centro de Salud: Lunes a Viernes: de 07:30 a 20:00hrs; Toma de muestras: Lunes a Viernes: de 7:00 a 15:00hrs; Sábado: de 07:30 a 14:00hrs; Domingo: Sin atención.",
+  "book_link": [
+   "https://www.clini.cl/agendamiento"
+  ]
+ },
+ {
+  "name": "Centro de Salud Quinta Vergara (Viña del Mar)",
+  "address": "Errázuriz 690, Viña del Mar, Valparaíso",
+  "comuna": "Viña del Mar",
+  "region": "Región de Valparaíso",
+  "services": [
+   "Imagenología"
+  ],
+  "hours": "Lunes, Martes y Jueves: 08:45 a 19:30hrs; Miércoles: 08:45 a 19:30hrs; Viernes: 08:45 a 17:00hrs.",
+  "book_link": [
+   "https://clini.cl/agendamiento-imagenes"
+  ]
+ },
+ {
+  "name": "Centro Médico Astra Salvador",
+  "address": "Av. Salvador 283, Providencia. A pasos del Metro Salvador.",
+  "comuna": "Providencia",
+  "region": "Región Metropolitana",
+  "services": [
+   "Toma de Muestras",
+   "Imagenología",
+   "Kinesiología",
+   "Laboratorio Cardiología",
+   "Consultas Médicas"
+  ],
+  "hours": "Centro de Salud: Lunes a Viernes: de 07:30 a 20:00hrs; Toma de muetras: Lunes a Viernes: de 7:00 a 15:00hrs; Sábado: de 07:30 a 14:00hrs; Domingo: Sin atención.",
+  "book_link": [
+   "https://www.clini.cl/agendamiento"
+  ]
+ },
+ {
+  "name": "Toma de Muestras Buin",
+  "address": "Santa María 399, Buin.",
+  "comuna": "Buin",
+  "region": "Región Metropolitana",
+  "services": [
+   "Toma de Muestras"
+  ],
+  "hours": "Todo tipo de examen: Lunes a Viernes: de 7:00 a 15:00hrs; Sábado: de 07:30 a 14:00hrs; Domingo: 08:30 a 13:00hrs.; Exámenes de larga duración: Lunes a Viernes: de 7:00 a 13:30hrs; Sábado: 07:30 a 12:00hrs; Domingo: 08:30 a 10:45hrs",
+  "book_link": [
+   "https://agenda.clini.cl/"
+  ]
+ },
+ {
+  "name": "Toma de Muestras Chillán",
+  "address": "Constitución 796, piso 5, Chillán, Ñuble",
+  "comuna": "Chillán",
+  "region": "Región del Ñuble",
+  "services": [
+   "Toma de Muestras"
+  ],
+  "hours": "Todo tipo de examen: Lunes a Viernes: de 7:30 a 16:00hrs; Sábado: de 08:00 a 13:00hrs; Domingo: Sin Atención.; Exámenes de larga duración: Lunes a Viernes: de 7:30 a 13:30hrs; Sábado: de 08:00 a 10:30hrs; Domingo: Sin Atención.",
+  "book_link": [
+   "https://agenda.clini.cl/"
+  ]
+ },
+ {
+  "name": "Toma de Muestras Mall Florida",
+  "address": "Mall Cenco Florida, planta -1, acceso Jumbo.",
+  "comuna": "La Florida",
+  "region": "Región Metropolitana",
+  "services": [
+   "Toma de Muestras"
+  ],
+  "hours": "Todo tipo de examen: Lunes a Viernes: de 7:30 a 15:00hrs; Sábado: de 08:00 a 14:00hrs; Domingo: 09:00 a 13:00hrs; Exámenes de larga duración: Lunes a Viernes: de 7:30 a 13:30hrs; Sábado: de 08:00 a 10:30hrs; Domingo: 09:00 a 13:00hrs",
+  "book_link": [
+   "https://agenda.clini.cl/"
+  ]
+ },
+ {
+  "name": "Toma de Muestras Metro Los Leones",
+  "address": "Coyancura n° 2244, Esq Lyon/Lota. Edificio Paris.",
+  "comuna": "Providencia",
+  "region": "Región Metropolitana",
+  "services": [
+   "Toma de Muestras"
+  ],
+  "hours": "Todo tipo de examen: Lunes a Viernes: de 7:00 a 15:00hrs; Sábado: de 07:30 a 14:00hrs; Domingo: Sin atención.; Exámenes de larga duración: Lunes a Viernes: de 7:00 a 13:30hrs; Sábado: 07:30 a 12:00hrs; Domingo: Sin atención.",
+  "book_link": [
+   "https://agenda.clini.cl/"
+  ]
+ },
+ {
+  "name": "Toma de Muestras Rancagua",
+  "address": "Sargento Jose Bernardo - C. Cuevas 483, Rancagua, O'Higgins",
+  "comuna": "Rancagua",
+  "region": "Región del Libertador General Bernardo O'Higgins",
+  "services": [
+   "Toma de Muestras"
+  ],
+  "hours": "Todo tipo de examen: Lunes a Viernes: de 7:00 a 15:00hrs; Sábado: de 07:30 a 14:00hrs; Domingo: Sin atención.; Exámenes de larga duración: Lunes a Viernes: de 7:00 a 13:30hrs; Sábado: 07:30 a 12:00hrs; Domingo: Sin atención.",
+  "book_link": [
+   "https://agenda.clini.cl/"
+  ]
+ },
+ {
+  "name": "Toma de Muestras San Bernardo",
+  "address": "O´Higgins n° 337",
+  "comuna": "San Bernardo",
+  "region": "Región Metropolitana",
+  "services": [
+   "Toma de Muestras"
+  ],
+  "hours": "Todo tipo de examen: Lunes a Viernes: de 7:00 a 15:00hrs; Sábado: de 07:30 a 14:00hrs; Domingo: 08:30 a 13:00hrs.; Exámenes de larga duración: Lunes a Viernes: de 7:00 a 13:30hrs; Sábado: 07:30 a 12:00hrs; Domingo: 08:30 a 10:45hrs",
+  "book_link": [
+   "https://agenda.clini.cl/"
+  ]
+ },
+ {
+  "name": "Toma de Muestras Santa Lucía",
+  "address": "Miraflores 156, Santiago Centro.",
+  "comuna": "Santiago Centro",
+  "region": "Región Metropolitana",
+  "services": [
+   "Toma de Muestras"
+  ],
+  "hours": "Todo tipo de examen: Lunes a Viernes: de 7:00 a 15:00hrs; Sábado: de 07:30 a 14:00hrs; Domingo: Sin atención.; Exámenes de larga duración: Lunes a Viernes: de 7:00 a 13:30hrs; Sábado: 07:30 a 12:00hrs; Domingo: Sin atención.",
+  "book_link": [
+   "https://agenda.clini.cl/"
+  ]
+ },
+ {
+  "name": "Toma de Muestras Temuco",
+  "address": "Av. Alemania 999, Temuco",
+  "comuna": "Temuco",
+  "region": "Región de la Araucanía",
+  "services": [
+   "Toma de Muestras"
+  ],
+  "hours": "Todo tipo de examen: Lunes a Viernes: de 7:00 a 15:00hrs; Sábado: de 07:30 a 14:00hrs; Domingo: de 080:00 a 12:00hrs; Exámenes de larga duración: Lunes a Viernes: de 7:00 a 13:30hrs; Sábado: 07:30 a 12:00hrs; Domingo: de 08:00 a 11:00hrs",
+  "book_link": [
+   "https://agenda.clini.cl/"
+  ]
+ },
+ {
+  "name": "Toma de Muestras Tobalaba",
+  "address": "Av. Luis Thayer Ojeda 082, Providencia, Región Metropolitana",
+  "comuna": "Providencia",
+  "region": "Región Metropolitana",
+  "services": [
+   "Toma de Muestras"
+  ],
+  "hours": "Toma de Muestras: Lunes a Viernes: de 7:00 a 15:00hrs; Sábado: de 07:30 a 14:00hrs; Domingo: 08:30 a 13:00hrs.; Exámenes de larga duración: Lunes a Viernes: de 7:00 a 13:30hrs; Sábado: 07:30 a 12:00hrs; Domingo: 08:30 a 10:45hrs.",
+  "book_link": []
+ },
+ {
+  "name": "Visión Antofagasta",
+  "address": "Sucre 244, 2do piso de Diagno Salud",
+  "comuna": "Barrio Histórico de Antofagasta",
+  "region": "Región de Antofagasta",
+  "services": [
+   "Evaluación Cirugía Lasik"
+  ],
+  "hours": "Lunes a Viernes: de 9:00 a 19:00hrs; Sábado: de 09:00 a 13:00hrs; Domingo: Sin Atención.",
+  "book_link": [
+   "https://www.clini.cl/cirugia-lasik/antofagasta"
+  ]
+ },
+ {
+  "name": "Visión Metro Los Leones",
+  "address": "Av. Ricardo Lyon 190, Providencia",
+  "comuna": "Providencia",
+  "region": "Región Metropolitana",
+  "services": [
+   "Evaluación Cirugía Lasik"
+  ],
+  "hours": "Lunes a Viernes: de 9:00 a 18:30hrs; Sábado: de 09:00 a 12:30hrs; Domingo: Sin Atención.",
+  "book_link": [
+   "https://www.clini.cl/cirugia-lasik"
+  ]
+ },
+ {
+  "name": "Visión Metro Santa Lucía",
+  "address": "Miraflores 156, Santiago Centro.",
+  "comuna": "Santiago Centro",
+  "region": "Región Metropolitana",
+  "services": [
+   "Evaluación Cirugía Lasik"
+  ],
+  "hours": "Lunes a Viernes: de 9:00 a 18:30hrs; Sábado: de 09:00 a 12:30hrs; Domingo: Sin Atención.",
+  "book_link": [
+   "https://www.clini.cl/cirugia-lasik"
+  ]
+ },
+ {
+  "name": "Visión Temuco",
+  "address": "Avenida Alemania 999, Edificio Paseo de las Artes.",
+  "comuna": "Temuco",
+  "region": "Región de la Araucanía",
+  "services": [
+   "Evaluación Cirugía Lasik"
+  ],
+  "hours": "Lunes a Viernes: de 9:00 a 18:30hrs; Sábado: de 09:00 a 12:30hrs; Domingo: Sin Atención.",
+  "book_link": [
+   "https://www.clini.cl/cirugia-lasik"
+  ]
+ }
+]

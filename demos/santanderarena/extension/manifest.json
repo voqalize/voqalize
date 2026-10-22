@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Javier for Santander Arena — Voqalize preview",
+  "version": "0.0.0",
+  "description": "A voice guide on santanderarena.cl, in Spanish or English, who answers from Santander Arena's own pages, takes visitors to the show, section or FAQ that answers them, and opens the Puntoticket page to buy. A Voqalize preview.",
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.santanderarena.cl/*", "https://santanderarena.cl/*"],
+      "js": ["bridge.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://www.santanderarena.cl/*", "https://santanderarena.cl/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    }
+  ],
+  "permissions": ["storage", "declarativeNetRequest"],
+  "host_permissions": ["https://www.santanderarena.cl/*", "https://santanderarena.cl/*"],
+  "declarative_net_request": {
+    "rule_resources": [{ "id": "microphone", "enabled": true, "path": "rules.json" }]
+  }
+}

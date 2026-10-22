@@ -1,0 +1,20 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "responseHeaders": [
+        {
+          "header": "permissions-policy",
+          "operation": "set",
+          "value": "geolocation=(), microphone=(self), camera=(), payment=(), usb=(), serial=(), bluetooth=(), accelerometer=(), gyroscope=()"
+        }
+      ]
+    },
+    "condition": {
+      "requestDomains": ["santanderarena.cl"],
+      "resourceTypes": ["main_frame"]
+    }
+  }
+]
