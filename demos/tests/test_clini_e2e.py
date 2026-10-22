@@ -27,6 +27,7 @@ import asyncio
 from collections.abc import Iterator
 from typing import Any
 
+import httpx
 import pytest
 from google.genai import types
 from voqalize_demos.discovery import discover
@@ -59,6 +60,9 @@ from voqalize_demos._loaded.clini.knowledge import (  # noqa: E402
 )
 
 RM = "/imagenes/resonancias-fonasa-1"
+
+#: The real GET, before the fixture below puts the offline one in its place.
+REAL_GET_JSON = clini_api._get_json
 
 # An invented site in the crawl's shape: the names, sedes and figures are ours.
 SITE = Knowledge(
@@ -578,7 +582,7 @@ async def test_a_price_comes_from_the_price_list_then_from_its_saved_copy(
 
     async def cotizador(url: str, params: dict[str, str], timeout: float) -> Any:
         asked.append(params)
-        assert url == clini_api.COTIZADOR and timeout <= 3.0
+        assert url == clini_api.COTIZADOR
         return [_KNEE, {"nombre": ""}, "junk"]
 
     monkeypatch.setattr(clini_api, "_get_json", cotizador)
@@ -644,7 +648,7 @@ def _hours(times: list[str], centre: str = "CENTRO DE SALUD | METRO TOBALABA") -
 
 def _booking(calls: list[dict[str, str]]) -> Any:
     async def answer(url: str, params: dict[str, str], timeout: float) -> Any:
-        assert url == clini_api.AGENDA and timeout <= 4.0
+        assert url == clini_api.AGENDA
         calls.append(params)
         if params["handler"] == "Disponibilidad":
             return {
@@ -679,14 +683,21 @@ async def test_open_hours_are_read_from_the_booking_and_said_by_sede(
         assert (
             "- CENTRO DE SALUD | METRO TOBALABA (LUIS THAYER OJEDA 073): 07:40, 08:00, 15:20"
         ) in found
-        assert [c["handler"] for c in calls] == ["Disponibilidad", "HorariosDia", "HorariosDia"]
-        assert calls[0] == {
-            "handler": "Disponibilidad",
-            "servicio": "64",
-            "prestacion": "804",
-            "region": "13",
-            "buscarPrimera": "true",
-        }
+        # The open days, and the first one's morning and afternoon. With nothing
+        # cached, today's hours are asked beside the days, in case today is it.
+        assert [c for c in calls if c["handler"] == "Disponibilidad"] == [
+            {
+                "handler": "Disponibilidad",
+                "servicio": "64",
+                "prestacion": "804",
+                "region": "13",
+                "buscarPrimera": "true",
+            }
+        ]
+        hours = {(c["fecha"], c["periodo"]) for c in calls if c["handler"] == "HorariosDia"}
+        assert {(MON, "AM"), (MON, "PM")} <= hours
+        # And the next open day's, asked for next: in the background.
+        assert {day for day, _ in hours} <= {MON, "2030-03-06", clini_api.today().isoformat()}
         # Every call is a read: never the booking itself, never a patient lookup.
         assert not {c["handler"] for c in calls} & {"AgendarCitaMedica", "PacientePorDocumento"}
 
@@ -710,10 +721,13 @@ async def test_a_day_with_no_hours_gives_the_next_one_and_the_lab_takes_a_sector
         await rig.driver.start_session(init={"site": "site", "path": "/"})
         await rig.driver.user_says("¿Hay hora para sangre el martes?")
         found = _results(llm.captured_contents[-1])["check_availability"]
-        assert "2030-03-05 (martes 5 de marzo) has no free hours; the next is 2030-03-04" in found
+        # The days from the one asked for: the fake lists an earlier one too.
+        assert "2030-03-05 (martes 5 de marzo) has no free hours; the next is 2030-03-06" in found
+        assert "2030-03-04" not in found
         # One prestación, taken for them; the RM laboratorio search is by sector.
-        assert calls[0]["prestacion"] == "30" and calls[0]["sector"] == "TODOS"
-        assert calls[0]["desde"] == TUE
+        (days,) = [c for c in calls if c["handler"] == "Disponibilidad"]
+        assert days["prestacion"] == "30" and days["sector"] == "TODOS"
+        assert days["desde"] == TUE
 
 
 async def test_a_booking_that_does_not_answer_is_said_plainly() -> None:
@@ -796,7 +810,8 @@ async def test_the_booking_opens_steps_through_and_is_talked_through() -> None:
         ) in seen
         assert _idle_windows(rig)[-1] == _IDLE_MS
 
-        # A later pick on the tab already open.
+        # A later pick on the tab already open, once the open has answered.
+        await _page(rig, "command_done", {"command": "open_agenda", "detail": "results shown"})
         await rig.driver.user_says("Mejor el martes.")
         assert _commands(rig, "agenda_pick")[-1] == {
             "day": TUE,
@@ -850,6 +865,7 @@ async def test_the_patient_form_is_filled_without_a_rut_and_never_booked() -> No
             "focus_rut": False,
         }
         # What is filled stays; the email is tidied; the RUT field rung.
+        await _page(rig, "command_done", {"command": "fill_agenda_patient", "detail": "filled"})
         await rig.driver.user_says("Mi correo es ana@correo.cl, y el RUT lo escribo yo.")
         # Sent, not done: the page has not answered yet.
         sent = _every(llm.captured_contents[-1], "fill_agenda_patient")[-1]
@@ -1143,9 +1159,10 @@ async def test_morning_and_afternoon_hours_are_asked_together(
             in_flight -= 1
 
     monkeypatch.setattr(clini_api, "_get_json", answer)
-    found = await clini_api.availability(64, 804, 13)
-    assert [c["handler"] for c in calls] == ["Disponibilidad", "HorariosDia", "HorariosDia"]
-    assert most == 2, "the AM and PM hours were asked one after the other"
+    found = await clini_api.availability(64, 804, 13, MON)
+    # The day asked for: its hours are asked beside its open days, not after.
+    assert sorted(c["handler"] for c in calls) == ["Disponibilidad", "HorariosDia", "HorariosDia"]
+    assert most == 3, "the AM and PM hours were asked one after the other"
     assert found.centres[0].times == ("07:40", "08:00", "15:20")
 
 
@@ -1346,3 +1363,260 @@ async def test_a_reply_that_only_promises_is_asked_again_with_tools_off() -> Non
                 mode=types.FunctionCallingConfigMode.NONE
             )
         )
+
+
+# ─── Latency: one client, deadlines, prefetch (dev call 2fd742d5) ─────────────
+
+
+def _days_body(*days: tuple[str, bool]) -> dict[str, Any]:
+    return {
+        "exito": True,
+        "dias": [{"fecha": d, "tieneDisponibilidad": has, "centros": []} for d, has in days],
+    }
+
+
+async def test_one_kept_alive_client_carries_every_lookup_within_a_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Every GET rides one client, warmed before the first question; a lookup
+    answers within its deadline with what it has, and what missed it goes on."""
+    seen: list[httpx.Request] = []
+
+    async def clini(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        if request.method == "HEAD":
+            return httpx.Response(200)
+        params = request.url.params
+        if params["handler"] == "Disponibilidad":
+            if params["prestacion"] == "81":
+                await asyncio.sleep(5)
+            return httpx.Response(200, json=_days_body((MON, True), ("2030-03-06", True)))
+        if params["fecha"] == "2030-03-06":
+            await asyncio.sleep(5)
+        return httpx.Response(200, json=_hours(["07:40"] if params["periodo"] == "AM" else []))
+
+    monkeypatch.setattr(clini_api, "_get_json", REAL_GET_JSON)
+    monkeypatch.setattr(clini_api, "_transport", httpx.MockTransport(clini))
+    monkeypatch.setattr(clini_api, "_client", None)
+    clini_api.warm()
+    await asyncio.gather(*list(clini_api._background))  # pyright: ignore[reportPrivateUsage]
+    assert sorted(r.url.host for r in seen) == [
+        "agenda-web.clini.cl",
+        "agenda-web.clini.cl",
+        "cotizador-web.clini.cl",
+    ]
+    clini_api.warm()  # warm already: nothing more is sent
+    assert len(seen) == 3
+    client = clini_api._http()  # pyright: ignore[reportPrivateUsage]
+
+    found = await clini_api.availability(64, 804, 13, MON)
+    assert found.day == MON and found.centres[0].times == ("07:40",)
+    assert clini_api._http() is client, "a lookup opened a client of its own"  # pyright: ignore[reportPrivateUsage]
+    asked = len(seen)
+
+    # Another day of the same search: its open days are already known, and
+    # its slow hours miss the deadline without failing the answer.
+    loop = asyncio.get_running_loop()
+    started = loop.time()
+    late = await clini_api.availability(64, 804, 13, "2030-03-06", deadline=0.2)
+    assert loop.time() - started < 1.0
+    assert late.days == ("2030-03-06",) and late.day == "2030-03-06" and late.centres == ()
+    assert [r.url.params["handler"] for r in seen[asked:]] == ["HorariosDia", "HorariosDia"]
+
+    # Open days that miss it: slow, and still running for the next ask.
+    with pytest.raises(clini_api.LookupSlow):
+        await clini_api.availability(64, 81, 13, deadline=0.2)
+    assert any(r.url.params.get("prestacion") == "81" for r in seen)
+
+
+async def test_the_open_days_are_one_answer_whatever_day_they_are_asked_from(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ "Is there one tomorrow?" after "when is the first?" reads the days
+    already listed (dev call 2fd742d5, T25 looked them up again)."""
+    calls: list[dict[str, str]] = []
+    monkeypatch.setattr(clini_api, "_get_json", _booking(calls))
+    await clini_api.availability(64, 804, 13)
+    found = await clini_api.availability(64, 804, 13, "2030-03-06")
+    assert found.day == "2030-03-06"
+    assert [c["handler"] for c in calls].count("Disponibilidad") == 1
+
+
+async def test_a_booking_that_shows_an_exam_has_its_hours_looked_up_before_the_question(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[dict[str, str]] = []
+    monkeypatch.setattr(clini_api, "_get_json", _booking(calls))
+    llm = _llm()
+    async with demo("clini", llm) as rig:
+        await rig.driver.start_session(init={"site": "agenda", "path": "/"})
+        await _page(rig, "agenda_state", _agenda_state())
+        hours = {(c["fecha"], c["periodo"]) for c in calls if c["handler"] == "HorariosDia"}
+        # Its first two open days, morning and afternoon.
+        assert {(MON, "AM"), (MON, "PM"), ("2030-03-06", "AM"), ("2030-03-06", "PM")} <= hours
+        asked = len(calls)
+        # The same search reported again starts nothing new.
+        await _page(rig, "agenda_state", _agenda_state(day=MON))
+        assert len(calls) == asked
+        await rig.driver.user_says("¿Hay hora para resonancia de rodilla?")
+        assert len(calls) == asked, "the question did not find the prefetched hours"
+        found = _results(llm.captured_contents[-1])["check_availability"]
+        assert "First days with free hours: 2030-03-04 (lunes 4 de marzo)" in found
+        # The booking is open on it: a day there is picked, not looked up.
+        assert "The booking tab is open on this exam" in found and "agenda_pick" in found
+
+
+def _quick_llm() -> ScriptedGemini:
+    return ScriptedGemini(
+        {
+            # The model's usual booking move: the call alone, no words.
+            "Ábreme la agenda de la rodilla.": call(
+                "open_agenda", request={"servicio": 64, "prestacion": 804}
+            ),
+            "Mejor el martes.": 2
+            * [reply_and_call("Cambio al martes.", "agenda_pick", request={"day": TUE})],
+            "Mejor el lunes.": 2
+            * [reply_and_call("Cambio al lunes.", "agenda_pick", request={"day": MON})],
+            "Cuéntame de la preparación.": reply(
+                chunks=["No necesitas ayuno. ", "Llega quince minutos antes. ", "¿Algo más?"],
+                chunk_delay=0.15,
+            ),
+            # A talk-through that tries to move the booking by itself.
+            "The page answered what you sent it": reply_and_call(
+                "Listo, ya está abierta la agenda.",
+                "fill_agenda_patient",
+                request={"focus_rut": True},
+            ),
+            "¿Y qué horario tienen los sábados?": reply(
+                chunks=["Los sábados ", "abren a las ocho."], chunk_delay=0.3
+            ),
+            "mi celular es nueve uno dos tres cuatro cinco seis siete ocho": reply_and_call(
+                "Te lo anoto. Es nueve, uno, dos, tres, cuatro, cinco, seis, siete, ocho.",
+                "fill_agenda_patient",
+                request={"phone": "912345678"},
+            ),
+            "Sigamos.": reply("Claro, sigamos."),
+        }
+    )
+
+
+async def test_a_booking_move_with_no_words_says_its_line_without_asking_again() -> None:
+    """Ten booking moves in ten came back speechless on dev call 2fd742d5, and
+    each cost a second model request, 2.3 to 5.2 s of silence: the move's own
+    written line is said instead, at once, in the call's language."""
+    llm = _quick_llm()
+    async with demo("clini", llm) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/"})
+        before = len(llm.calls)
+        turn = await rig.driver.user_says("Ábreme la agenda de la rodilla.")
+        check_turn(rig, turn)
+        assert rig.command("open_agenda")["servicio"] == 64
+        assert turn.text == clini._LANDED["agenda"]["es"]
+        assert len(llm.calls) == before + 1
+
+
+async def test_one_booking_move_at_a_time_the_next_follows_the_answer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Dev call 2fd742d5: a pick sent while the booking was still opening
+    raced it, and the open then failed on the pick's day."""
+    llm = _quick_llm()
+    async with demo("clini", llm) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/"})
+        await rig.driver.user_says("Ábreme la agenda de la rodilla.")
+        await _page(rig, "agenda_state", _agenda_state())
+        await rig.driver.user_says("Mejor el martes.")
+        assert _commands(rig, "agenda_pick") == [], "a pick was sent while the open ran"
+        await rig.driver.user_says("Sigamos.")
+        queued = _every(llm.captured_contents[-1], "agenda_pick")[-1]
+        assert queued.startswith("Queued, not sent yet: the booking is still opening")
+        # The open answers: the pick goes now, and only then.
+        await _page(rig, "command_done", {"command": "open_agenda", "detail": "results shown"})
+        assert _commands(rig, "agenda_pick") == [
+            {"day": TUE, "time": None, "centre": None, "period": None}
+        ]
+        # A move queued behind one that fails is dropped, and said.
+        await rig.driver.user_says("Mejor el lunes.")
+        assert len(_commands(rig, "agenda_pick")) == 1
+        await _page(rig, "command_failed", {"command": "agenda_pick", "reason": "no 5 March"})
+        assert len(_commands(rig, "agenda_pick")) == 1
+        turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
+        check_turn(rig, turn)
+        seen = _texts(llm.captured_contents[-1])
+        assert "agenda_pick not done: no 5 March (so agenda_pick, asked for while it ran" in seen
+        # A move the page never answered stops holding the next one up.
+        monkeypatch.setitem(clini._MOVE_TAKES_S, "", 0.0)
+        await rig.driver.user_says("Mejor el lunes.")
+        await rig.driver.user_says("Mejor el martes.")
+        assert [c["day"] for c in _commands(rig, "agenda_pick")] == [TUE, MON, TUE]
+
+
+async def test_a_talk_through_waits_for_his_turn_and_runs_with_tools_off() -> None:
+    """Dev call 2fd742d5, T27: a page answer arriving mid-turn shortened the
+    idle window under his own reply, which the quiet spell then cut; and that
+    talk-through had filled the form again by itself."""
+    llm = _quick_llm()
+    seen: list[types.GenerateContentConfig] = []
+    answer = llm.answer
+
+    def recording(*, model: str, contents: object, config: types.GenerateContentConfig) -> object:
+        seen.append(config)
+        return answer(model=model, contents=contents, config=config)
+
+    llm.answer = recording
+    async with demo("clini", llm) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/"})
+        await rig.driver.user_says("Ábreme la agenda de la rodilla.")
+        speaking = asyncio.create_task(rig.driver.user_says("Cuéntame de la preparación."))
+        await asyncio.sleep(0.1)
+        await rig.driver.send_ui_event(
+            "command_done", {"command": "open_agenda", "detail": "results shown"}
+        )
+        await asyncio.sleep(0.15)
+        assert not speaking.done()
+        assert _idle_windows(rig)[-1] == _IDLE_MS, "the idle was shortened under his reply"
+        await speaking
+        await asyncio.sleep(0.1)
+        assert _idle_windows(rig)[-1] == _TALK_THROUGH_MS
+        before = len(seen)
+        turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
+        check_turn(rig, turn)
+        assert "Listo, ya está abierta la agenda." in turn.text
+        assert "fill_agenda_patient" not in rig.actions()
+        (talk,) = seen[before:]
+        assert talk.tool_config == types.ToolConfig(
+            function_calling_config=types.FunctionCallingConfig(
+                mode=types.FunctionCallingConfigMode.NONE
+            )
+        )
+
+
+async def test_dead_air_with_no_nod_is_held_with_a_late_nod(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Dev call 2fd742d5, T23 to T25: a turn the nod skipped sat in ten seconds
+    of silence, because a hold was only ever said after a nod."""
+    monkeypatch.setattr(clini, "HOLD_WITHOUT_NOD_S", 0.1)
+    llm = _quick_llm()
+    async with demo("clini", llm) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/"})
+        turn = await rig.driver.user_says("¿Y qué horario tienen los sábados?", quiet_for=1.0)
+        check_turn(rig, turn)
+        late = [n for n in clini._ACK_LINES["es"]["question"] if turn.text.startswith(n)]
+        assert late, turn.text
+        assert turn.text.endswith("Los sábados abren a las ocho.")
+    # A nod holds longer before its hold line, and the apology waits longer still.
+    assert clini.ACK_HOLD_AFTER_S >= 5.5 and clini.ACK_SORRY_AFTER_S >= 15
+
+
+async def test_a_celular_is_filled_the_moment_it_is_said_then_read_back() -> None:
+    """Dev call 2fd742d5, T19 to T21: the read-back rule had him leave the
+    phone the visitor had just given empty."""
+    prompt = clini._prompt(SITE, clini_api.date(2030, 3, 4))
+    assert "Fill a celular or an email the moment they say it, then read it back" in prompt
+    llm = _quick_llm()
+    async with demo("clini", llm) as rig:
+        await rig.driver.start_session(init={"site": "agenda", "path": "/"})
+        await _page(rig, "agenda_state", _agenda_state(step="booking", invalid=["phone"]))
+        await rig.driver.user_says("mi celular es nueve uno dos tres cuatro cinco seis siete ocho")
+        assert rig.command("fill_agenda_patient")["phone"] == "912345678"
