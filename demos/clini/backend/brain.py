@@ -849,7 +849,7 @@ You are giving a guided walkthrough, like someone sitting beside the visitor wit
 You are heard, not read, so keep it light and warm.
 - A turn is three to five short sentences. Every sentence under fifteen words. Small, everyday words. One idea per sentence. One number per sentence.
 - THE FIRST SENTENCE IS A FEW WORDS. The visitor hears nothing until your first sentence has been voiced, so open every reply with a sentence of two to six words that ends in a full stop, with the answer in it. A cue may come before it.
-- Before most replies the visitor has already heard a short acknowledgement of mine — "Claro.", "Déjame ver.", or in English "Sure.", "Let me see." — so never open with one: your first word is the answer. No "great question", no repeating their question back.
+- Before most replies the visitor has already heard a short acknowledgement of mine — "Claro.", "A ver.", or in English "Happy to help.", "Let me see." — so never open with one: your first word is the answer. No "great question", no repeating their question back.
 - Spoken words only, apart from cues: no lists, no markdown, no symbols, never an exclamation mark.
 - Write every number, price, date and hour as spoken words. Prices are Chilean pesos: "$88.280" is "ochenta y ocho mil doscientos ochenta pesos", in English "eighty-eight thousand two hundred and eighty pesos". "2026-10-23" is "el viernes veintitrés de octubre"; "07:40" is "a las siete y cuarenta de la mañana"; "15:00" is "a las tres de la tarde". Never say a code, a servicio number or a date in digits.
 - Lines in square brackets come from their screen, not the visitor: the page in front, the booking's step, what a form still needs. Never read them out; use them.
@@ -1083,31 +1083,48 @@ _LANDED: dict[str, dict[Lang, str]] = {
     "link": {"en": "I've opened it in a new tab.", "es": "Lo abrí en una pestaña nueva."},
 }
 
+#: What a reply that only promises more says: nothing comes after it.
+_PROMISE = re.compile(
+    r"\b(?:just |one |un )?(?:moment|momento|momentito|second|segundo)\b"
+    r"|\blet me (?:see|check|look)(?: (?:that|into it|at that))?\b|\bdéjame ver\b|\ba ver\b",
+    re.IGNORECASE,
+)
+
 # ─── His nod ───────────────────────────────────────────────────────────────────
 
+#: Only lines measured to come out in Javier's own voice: each line is voiced
+#: on its own and always the same way, and "Right.", "One moment." or "Un
+#: momento." came out as somebody else (82 Hz and 166 Hz against his 110-132).
+#: This is Explora's measured set (speaker embedding and pitch against his own
+#: replies). It holds for this bake of omnivoice/javier: measure a new line first.
 _ACK_LINES: dict[Lang, dict[Kind, tuple[str, ...]]] = {
     "en": {
-        "request": ("Sure.", "Okay.", "Of course.", "Certainly."),
-        "question": ("Let me see.", "Hmm, let me see.", "Okay."),
-        "correction": ("I see.", "Understood.", "Right."),
-        "statement": ("Okay.", "Got it.", "Right."),
+        "request": ("Happy to help.", "Absolutely, let me do that.", "Sure thing."),
+        "question": ("Let me see.", "Good question, let me see."),
+        "correction": ("Got it, thanks for letting me know.", "Ah, I see what you mean."),
+        "statement": ("Okay, that makes sense.", "Got it, thanks for letting me know."),
     },
     "es": {
-        "request": ("Claro.", "Por supuesto.", "Perfecto.", "Con gusto."),
-        "question": ("Déjame ver.", "A ver.", "Mmm, déjame ver."),
-        "correction": ("Ya veo.", "Entendido.", "De acuerdo."),
-        "statement": ("Muy bien.", "Entendido.", "Claro."),
+        "request": (
+            "Claro.",
+            "Con gusto, ya lo hago.",
+            "Por supuesto, déjame revisarlo.",
+            "Claro, ahora mismo.",
+        ),
+        "question": ("A ver.", "Déjame revisarlo un momento."),
+        "correction": ("Entendido, gracias por avisarme.", "Entendido, eso me ayuda."),
+        "statement": ("Entendido, eso me ayuda.", "Claro.", "Entendido, gracias por avisarme."),
     },
 }
 ACK_RATE = 0.75
 ACK_HOLD_AFTER_S = 4.0
 _ACK_HOLD: dict[Lang, tuple[str, ...]] = {
-    "en": ("One moment.", "Just a moment."),
-    "es": ("Un momento.", "Un momentito."),
+    "en": ("Just a moment.", "One moment while I check that for you."),
+    "es": ("Dame un momento mientras lo busco.", "Un momento mientras lo reviso para ti."),
 }
 _ACK_SORRY: dict[Lang, str] = {
     "en": "Sorry, that's taking a little longer.",
-    "es": "Disculpa, está tardando un poco más.",
+    "es": "Lo siento, está tardando un poco más de lo normal.",
 }
 #: A visitor's ordinary words about Clini, so the reading trusts them: the
 #: site's services, exams, places and the words of booking, in both languages.
@@ -1698,14 +1715,17 @@ class CliniBrain(GeminiBrain):
         self._cue_path = self._path if self._site == "site" else None
         self._paged = False
         self._shown = None
-        spoke = False
+        said = ""
         turn = self._fallback.speak_if_silent(
             self, super().respond(session), again=lambda: self._talk_now(session)
         )
         async for event in self._spelled(self._written(session, self._cued(turn))):
-            spoke = spoke or isinstance(event, SpeechStart)
+            if isinstance(event, SpeechChunk):
+                said += event.text
             yield event
-        if not spoke:
+        # Words, and not only a promise: on Explora's dev call ed9846d5 the whole
+        # reply was "One moment.", and the visitor sat in silence.
+        if not _PROMISE.sub("", _CUE_TEXT.sub(" ", said)).strip(" .,!?¡¿…"):
             logger.warning("clini: the model returned nothing; asking once more")
             again = self._written(session, self._cued(self._talk_now(session)))
             async for event in self._spelled(again):
