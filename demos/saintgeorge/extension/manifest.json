@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "Javier for Saint George's College — Voqalize preview",
+  "version": "0.0.0",
+  "description": "A voice guide on saintgeorge.cl, in Spanish or English, who answers families from the school's own pages, takes them to the unit, grade or section that answers them, reads the fees and the calendar off their screen, and readies an email to admissions they send themselves. A Voqalize preview.",
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://saintgeorge.cl/*", "https://www.saintgeorge.cl/*"],
+      "js": ["bridge.js", "anchor.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://saintgeorge.cl/*", "https://www.saintgeorge.cl/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    }
+  ],
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://saintgeorge.cl/*",
+    "https://www.saintgeorge.cl/*",
+    "https://calendar.google.com/calendar/ical/*"
+  ]
+}
