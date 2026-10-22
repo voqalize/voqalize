@@ -1,0 +1,428 @@
+{
+ "site": "https://www.santanderarena.cl",
+ "crawled": "2026-10-21",
+ "nav": {
+  "menu": [
+   {
+    "label": "Cartelera",
+    "href": "https://www.santanderarena.cl/cartelera",
+    "target": "_top"
+   },
+   {
+    "label": "Planifica tu visita",
+    "href": "",
+    "target": "",
+    "children": [
+     {
+      "label": "Estacionamientos",
+      "href": "https://www.santanderarena.cl/estacionamientos",
+      "target": "_top"
+     },
+     {
+      "label": "¿Cómo llegar?",
+      "href": "https://www.santanderarena.cl/como-llegar-a-movistar-arena",
+      "target": "_top"
+     },
+     {
+      "label": "Objetos perdidos",
+      "href": "https://www.santanderarena.cl/objetos-perdidos",
+      "target": "_top"
+     },
+     {
+      "label": "Preguntas frecuentes",
+      "href": "https://www.santanderarena.cl/preguntas-frecuentes",
+      "target": "_top"
+     }
+    ]
+   },
+   {
+    "label": "Arena Fans",
+    "href": "",
+    "target": "",
+    "children": [
+     {
+      "label": "Fotos Fans",
+      "href": "https://www.santanderarena.cl/arena-fans",
+      "target": "_top"
+     },
+     {
+      "label": "Únete a Nosotros",
+      "href": "https://www.santanderarena.cl/unete-a-nosotros",
+      "target": "_blank"
+     }
+    ]
+   },
+   {
+    "label": "Arena News",
+    "href": "https://www.santanderarena.cl/arena-news",
+    "target": "_top"
+   },
+   {
+    "label": "Experiencias Premium",
+    "href": "",
+    "target": "",
+    "children": [
+     {
+      "label": "Santander Suites",
+      "href": "https://www.santanderarena.cl/santander-suites",
+      "target": "_top"
+     },
+     {
+      "label": "Boxes",
+      "href": "https://www.santanderarena.cl/box",
+      "target": "_top"
+     },
+     {
+      "label": "Experiencias VIP",
+      "href": "https://www.santanderarena.cl/experiencias",
+      "target": "_top"
+     }
+    ]
+   },
+   {
+    "label": "Reservas",
+    "href": "https://www.santanderarena.cl/reservas-santander-arena",
+    "target": "_top"
+   },
+   {
+    "label": "Nosotros",
+    "href": "",
+    "target": "",
+    "children": [
+     {
+      "label": "Sobre Nosotros",
+      "href": "https://www.santanderarena.cl/sobre-nosotros",
+      "target": "_top"
+     },
+     {
+      "label": "Sustentabilidad",
+      "href": "https://www.santanderarena.cl/sustentabilidad",
+      "target": "_top"
+     }
+    ]
+   }
+  ],
+  "secondary": [
+   {
+    "label": "Contacto",
+    "href": "https://www.santanderarena.cl/formulario-de-contacto",
+    "target": "_top"
+   },
+   {
+    "label": "Santander Rewards",
+    "href": "https://banco.santander.cl/rewards",
+    "target": "_blank"
+   },
+   {
+    "label": "Suscríbete",
+    "href": "https://www.santanderarena.cl/unete-a-nosotros",
+    "target": "_top"
+   }
+  ],
+  "mobile": [
+   {
+    "label": "Cartelera",
+    "href": "https://www.santanderarena.cl/cartelera",
+    "target": "_top"
+   },
+   {
+    "label": "Planifica tu visita",
+    "children": [
+     {
+      "label": "Estacionamientos",
+      "href": "https://www.santanderarena.cl/estacionamientos",
+      "target": "_top"
+     },
+     {
+      "label": "¿Cómo llegar?",
+      "href": "https://www.santanderarena.cl/como-llegar-a-movistar-arena",
+      "target": "_top"
+     },
+     {
+      "label": "Objetos perdidos",
+      "href": "https://www.santanderarena.cl/objetos-perdidos",
+      "target": "_top"
+     },
+     {
+      "label": "Preguntas frecuentes",
+      "href": "https://www.santanderarena.cl/preguntas-frecuentes",
+      "target": "_top"
+     }
+    ]
+   },
+   {
+    "label": "Arena Fans",
+    "children": [
+     {
+      "label": "Fotos Fans",
+      "href": "https://www.santanderarena.cl/arena-fans",
+      "target": "_top"
+     },
+     {
+      "label": "Únete a Nosotros",
+      "href": "https://www.santanderarena.cl/unete-a-nosotros",
+      "target": "_blank"
+     }
+    ]
+   },
+   {
+    "label": "Arena News",
+    "href": "https://www.santanderarena.cl/arena-news",
+    "target": "_top"
+   },
+   {
+    "label": "Experiencias Premium",
+    "children": [
+     {
+      "label": "Santander Suites",
+      "href": "https://www.santanderarena.cl/santander-suites",
+      "target": "_top"
+     },
+     {
+      "label": "Boxes",
+      "href": "https://www.santanderarena.cl/box",
+      "target": "_top"
+     },
+     {
+      "label": "Experiencias VIP",
+      "href": "https://www.santanderarena.cl/experiencias",
+      "target": "_top"
+     }
+    ]
+   },
+   {
+    "label": "Reservas",
+    "href": "https://www.santanderarena.cl/reservas-santander-arena",
+    "target": "_top"
+   },
+   {
+    "label": "Nosotros",
+    "children": [
+     {
+      "label": "Sobre Nosotros",
+      "href": "https://www.santanderarena.cl/sobre-nosotros",
+      "target": "_top"
+     },
+     {
+      "label": "Sustentabilidad",
+      "href": "https://www.santanderarena.cl/sustentabilidad",
+      "target": "_top"
+     }
+    ]
+   },
+   {
+    "label": "Contacto",
+    "href": "https://www.santanderarena.cl/formulario-de-contacto",
+    "target": "_top"
+   },
+   {
+    "label": "Santander Rewards",
+    "href": "https://banco.santander.cl/rewards",
+    "target": "_blank"
+   },
+   {
+    "label": "Suscríbete",
+    "href": "https://www.santanderarena.cl/unete-a-nosotros",
+    "target": "_top"
+   }
+  ],
+  "footer": [
+   {
+    "title": "Nosotros",
+    "links": [
+     {
+      "label": "Ver Mapa de acceso",
+      "href": "https://www.santanderarena.cl/como-llegar-a-movistar-arena",
+      "target": "_top"
+     },
+     {
+      "label": "Be Live",
+      "href": "https://www.linkedin.com/company/be-live-group/posts/?feedView=all",
+      "target": "_blank"
+     },
+     {
+      "label": "Santander",
+      "href": "https://banco.santander.cl/personas",
+      "target": "_blank"
+     }
+    ]
+   },
+   {
+    "title": "Legales",
+    "links": [
+     {
+      "label": "Reglamento Interno de Servicio de la Obra (RSO)",
+      "href": "https://www.santanderarena.cl/santander-arena/site/docs/20251003/20251003100414/extracto_rso.pdf",
+      "target": "_top"
+     },
+     {
+      "label": "Bases Concurso",
+      "href": "https://www.santanderarena.cl/bases-legales-concurso",
+      "target": "_top"
+     }
+    ]
+   }
+  ],
+  "contact": [
+   {
+    "label": "+562 2770 2300",
+    "href": "tel:+56227702300",
+    "alt": ""
+   },
+   {
+    "label": "contacto@santanderarena.cl",
+    "href": "mailto:contacto@santanderarena.cl",
+    "alt": "Footer correo contacto"
+   },
+   {
+    "label": "prensa@santanderarena.cl",
+    "href": "mailto:prensa@santanderarena.cl",
+    "alt": "Footer correo prensa"
+   }
+  ],
+  "social_footer": [
+   {
+    "label": "Tiktok footer",
+    "href": "https://www.tiktok.com/@santanderarenacl"
+   },
+   {
+    "label": "Facebook footer",
+    "href": "https://www.facebook.com/SantanderArena.scl/"
+   },
+   {
+    "label": "Instagram",
+    "href": "https://www.instagram.com/santanderarena/"
+   },
+   {
+    "label": "LinkedIn",
+    "href": "https://www.linkedin.com/company/santander-arena-chile"
+   },
+   {
+    "label": "YouTube",
+    "href": "https://www.youtube.com/@santanderarenacl"
+   }
+  ],
+  "social_side": [
+   {
+    "label": "Instagram",
+    "href": "https://www.instagram.com/santanderarena/"
+   },
+   {
+    "label": "Facebook",
+    "href": "https://www.facebook.com/santanderarenaoficial/"
+   },
+   {
+    "label": "Youtube",
+    "href": "https://www.youtube.com/@santanderarenacl"
+   },
+   {
+    "label": "Tiktok",
+    "href": "https://www.tiktok.com/@santanderarena?is_from_webapp=1&sender_device=pc"
+   }
+  ],
+  "accessibility_widget": [
+   "modo claro modo oscuro"
+  ],
+  "legal": "Les recordamos que la única venta oficial para todos los shows en Santander Arena es a través de Puntoticket en su web www.puntoticket.com y en sus puntos de venta físicos oficiales. Respecto de otros sitios que comercializan tickets de shows que se realizarán en Santander Arena, tanto el recinto como las productoras no pueden responder frente a problemas que se generen con ellos.",
+  "search": {
+   "placeholder": "Ingresa tu búsqueda",
+   "param": "search_texto"
+  }
+ },
+ "headers": {
+  "cache-control": "max-age=180",
+  "content-security-policy": "default-src * data: blob: filesystem: about: ws: wss: 'unsafe-inline' 'unsafe-eval';",
+  "content-type": "text/html; charset=utf-8",
+  "cross-origin-opener-policy": "same-origin-allow-popups",
+  "cross-origin-resource-policy": "same-origin",
+  "permissions-policy": "geolocation=(), microphone=(), camera=(), payment=(), usb=(), serial=(), bluetooth=(), accelerometer=(), gyroscope=()",
+  "referrer-policy": "strict-origin-when-cross-origin",
+  "server": "cloudflare",
+  "x-frame-options": "SAMEORIGIN"
+ },
+ "redirects": {
+  "/como-llegar-a-movistar-arena": "/como-llegar-a-santander-arena"
+ },
+ "broken_internal_links": {
+  "/arena-news/ricardo%20arjona%20hace%20historia%20y%20recibe%20el%20m%c3%a1ximo%20reconocimiento%20de%20movistar%20arena": [
+   "/arena-news/ricardo-arjona-recibe-maximo-reconocimiento-de-santander-arena"
+  ],
+  "/nuestra-cartelera/conciertos/h": [
+   "/nuestra-cartelera/conciertos/jowell-y-randy-0"
+  ],
+  "/santander-arena/bar-jack-daniel-s-1": [
+   "/bares"
+  ],
+  "/santander-arena/bar-schweppes": [
+   "/bares"
+  ],
+  "/santander-arena/como-llegar-a-movistar-arena": [
+   "/sobre-nosotros"
+  ],
+  "/santander-arena/cupula-movistar-arena": [
+   "/arena-news/emilia-primera-mujer-con-3-sold-out-santander-arena-chile",
+   "/arena-news/los-tres-hicieron-historia-al-recibir-la-cupula-de-movistar-arena-tras",
+   "/arena-news/gino-mella-recibio-la-cupula-de-santander-arena"
+  ],
+  "/santander-arena/estacionamientos": [
+   "/como-llegar-a-movistar-arena"
+  ],
+  "/santander-arena/la-cupula-movistar-arena": [
+   "/arena-news/jose-luis-el-puma-rodriguez-se-despide-de-santander-arena"
+  ],
+  "/santander-arena/objetos-perdidos": [
+   "/preguntas-frecuentes"
+  ],
+  "/santander-arena/reservas": [
+   "/preguntas-frecuentes"
+  ],
+  "/santander-arena/site/tax/port/all/taxport_1_1__2.html": [
+   "/santander-arena/site/tax/port/all/taxport_1_1__1.html"
+  ],
+  "/santander-arena/site/tax/port/all/taxport_1_1__3.html": [
+   "/santander-arena/site/tax/port/all/taxport_1_1__1.html"
+  ],
+  "/santander-arena/site/tax/port/all/taxport_1_1__4.html": [
+   "/santander-arena/site/tax/port/all/taxport_1_1__1.html"
+  ],
+  "/santander-arena/site/tax/port/all/taxport_1_1__5.html": [
+   "/santander-arena/site/tax/port/all/taxport_1_1__1.html"
+  ],
+  "/santander-arena/site/tax/port/all/taxport_1_1__6.html": [
+   "/santander-arena/site/tax/port/all/taxport_1_1__1.html"
+  ],
+  "/santander-arena/terrazas": [
+   "/food-trucks"
+  ]
+ },
+ "page_kinds": {
+  "home": 1,
+  "page": 47,
+  "listing": 5,
+  "event": 275,
+  "news": 14
+ },
+ "outbound_hosts": {
+  "www.puntoticket.com": 3774,
+  "banco.santander.cl": 1305,
+  "www.linkedin.com": 687,
+  "www.instagram.com": 465,
+  "www.youtube.com": 360,
+  "www.facebook.com": 343,
+  "www.tiktok.com": 343,
+  "bizarro.cl": 50,
+  "www.lotuspro.cl": 28,
+  "dgmedios.com": 26,
+  "bizarro.cl%20": 4,
+  "redeyes.cl": 3,
+  "www.pollstar.com": 2,
+  "www.multimusica.cl": 2,
+  "music.youtube.com": 2,
+  "www.movistararena.cl": 1,
+  "reservas.movistararena.cl": 1,
+  "agenciainclusiva.cl": 1,
+  "www.freetime.cl": 1,
+  "open.spotify.com": 1,
+  "ww2.movistar.cl": 1
+ }
+}
