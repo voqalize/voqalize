@@ -1,0 +1,27 @@
+# Mira Huechuraba
+Sources: ssilva.cl project page /mirahuechuraba/, cotizar page /proyectos/cotizar/mira-huechuraba/, the project list.
+
+- Name on the site: MIRA HUECHURABA
+- Comuna: Huechuraba (Región Metropolitana). Type: Departamentos.
+- Address (hero): Av. Sta. Marta de Huechuraba 7455
+- Desde 4.072 UF (the list's starting price).
+- Dormitorios: 2, 3. Baños: 2 baños.
+- Desde 71 m².
+- Estado (list): Entrega inmediata.
+- Status bar on the page: Entrega inmediata.
+- Profile: Para invertir, Para vivir.
+- Description (TU DEPTO CON PATIO PRIVADO): TU DEPTO CON PATIO PRIVADO Mira Huechuraba es tener un departamento cómodo y espacioso para tu familia, con un jardín privado a pasos de tu puerta. La arquitectura de los departamentos plantea continuidad en los ambientes de manera de generar un lugar de encuentro. Espacios integrados, de circulación amable y listos para disfrutar, con un diseño actual de gran categoria.
+- Tipologías on the page: 2D | 2B / 3D | 2B / 3D | 2B + ESTAR
+- Units on the cotizar page (by typology):
+  - 2D|2B: 1 unidades, desde 4.977 UF, total 71.3 m², orientación Norte
+  - 3D|2B: 5 unidades, desde 5.201 UF hasta 5.873 UF, total 86.8–94.2 m², orientación Oriente, Poniente, Sur
+  - 3D|2B+Estar: 9 unidades, desde 5.845 UF hasta 8.562 UF, total 97.6–107.9 m², orientación Norte, Oriente, Sur
+- Amenities section title: ESPACIOS PARA DISFRUTAR
+- Gallery: 9 photos.
+- Virtual tour on the page: no.
+- Quote form on the page: yes.
+- Sections, top to bottom: TU DEPTO CON PATIO PRIVADO; Galería [galería]; Tipologías que se adaptan a tus necesidades [tipologías]; ESPACIOS PARA DISFRUTAR [amenidades]; Estado del proyecto [estado]; Brochure [brochure]; ¿Te interesó este proyecto? [contacto]
+- Horario de atención: LUNES A DOMINGO DE 11:00 A 14:00 Y DE 15:00 A 19:00 HRS
+- Phone: +569 4229 9025. Email: mirahuechuraba@ssilva.cl.
+- Sala de ventas / contact address: Av. Sta. Marta de Huechuraba 7455, Huechuraba, Región Metropolitana
+- WhatsApp button: yes.

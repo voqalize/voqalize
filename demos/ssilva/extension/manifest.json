@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Javier for Ssilva — Voqalize preview",
+  "version": "0.0.0",
+  "description": "A voice guide on ssilva.cl, who answers from Ssilva's own pages, takes visitors to the project, section and typology that answer them, lists the projects that fit, and fills in the quote form with them. A Voqalize preview.",
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.ssilva.cl/*", "https://ssilva.cl/*"],
+      "js": ["bridge.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://www.ssilva.cl/*", "https://ssilva.cl/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://js.hsforms.net/*"],
+      "js": ["hsform.js"],
+      "all_frames": true,
+      "run_at": "document_idle",
+      "world": "MAIN"
+    }
+  ],
+  "permissions": ["storage"],
+  "host_permissions": ["https://www.ssilva.cl/*", "https://ssilva.cl/*"]
+}

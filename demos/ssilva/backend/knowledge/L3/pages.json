@@ -1,0 +1,1760 @@
+[
+ {
+  "path": "/",
+  "kind": "home",
+  "title": "Inicio",
+  "sections": [
+   {
+    "heading": "Conoce NUESTROS PROYECTOS",
+    "key": ""
+   },
+   {
+    "heading": "Descubre OPORTUNIDADES DE INVERSIÓN",
+    "key": ""
+   },
+   {
+    "heading": "Compra hoy CON TASA SUBSIDIADA",
+    "key": ""
+   },
+   {
+    "heading": "Somos Ssilva",
+    "key": ""
+   },
+   {
+    "heading": "Te recomendamos",
+    "key": ""
+   },
+   {
+    "heading": "Oportunidades",
+    "key": ""
+   },
+   {
+    "heading": "Destacados",
+    "key": ""
+   },
+   {
+    "heading": "Invierte tranquilo, nosotros nos ocupamos",
+    "key": ""
+   }
+  ],
+  "text": "Hero slider: Conoce NUESTROS PROYECTOS; Descubre OPORTUNIDADES DE INVERSIÓN; Compra hoy CON TASA SUBSIDIADA; each with COTIZA CON NOSOTROS. Somos Ssilva, Conócenos: más de 30 años. Proyectos, Te recomendamos: tabs Oportunidades and Destacados. Invierte tranquilo, nosotros nos ocupamos: Centro de Negocios."
+ },
+ {
+  "path": "/proyectos",
+  "kind": "projects",
+  "title": "Proyectos",
+  "sections": [
+   {
+    "heading": "ENCUENTRA TU NUEVA VIVIENDA",
+    "key": ""
+   }
+  ],
+  "text": "Every project, 8 per page, with filters: Tipo de propiedad, Región and, for Región Metropolitana, Sector / Comuna. N proyectos encontrados para tu búsqueda. Limpiar filtros."
+ },
+ {
+  "path": "/oportunidades",
+  "kind": "projects",
+  "title": "Oportunidades",
+  "sections": [
+   {
+    "heading": "ENCUENTRA LA MEJOR OPORTUNIDAD",
+    "key": ""
+   },
+   {
+    "heading": "Calculadora de UF",
+    "key": ""
+   },
+   {
+    "heading": "Conoce proyectos de Segunda vivienda",
+    "key": ""
+   },
+   {
+    "heading": "¡Asesórate aquí para tu búsqueda!",
+    "key": ""
+   }
+  ],
+  "text": ""
+ },
+ {
+  "path": "/centro-de-negocios",
+  "kind": "page",
+  "title": "Centro de Negocios",
+  "sections": [
+   {
+    "heading": "Centro de Negocios",
+    "key": ""
+   },
+   {
+    "heading": "Más de 40 años impulsando inversiones inmobiliarias",
+    "key": ""
+   },
+   {
+    "heading": "Nuestro Proceso",
+    "key": ""
+   },
+   {
+    "heading": "Buscas Invertir",
+    "key": ""
+   },
+   {
+    "heading": "¿Buscas tu primer hogar?",
+    "key": ""
+   },
+   {
+    "heading": "¡Beneficios y promociones!",
+    "key": ""
+   },
+   {
+    "heading": "Nuestra experiencia nos respalda",
+    "key": ""
+   }
+  ],
+  "text": ""
+ },
+ {
+  "path": "/sobre-nosotros",
+  "kind": "page",
+  "title": "Sobre nosotros",
+  "sections": [
+   {
+    "heading": "Descubre qué nos inspira",
+    "key": ""
+   },
+   {
+    "heading": "Mucho más que gestión inmobiliaria",
+    "key": ""
+   },
+   {
+    "heading": "Cumplir el sueño de hogar propio",
+    "key": ""
+   },
+   {
+    "heading": "Observa nuestro recorrido",
+    "key": ""
+   },
+   {
+    "heading": "Lo que nos mueve",
+    "key": ""
+   },
+   {
+    "heading": "Visita nuestro Centro de Negocios",
+    "key": ""
+   }
+  ],
+  "text": ""
+ },
+ {
+  "path": "/descubre-inversionistas",
+  "kind": "page",
+  "title": "Descubre",
+  "sections": [
+   {
+    "heading": "ENCUENTRA INFORMACIÓN PARA TUS INVERSIONES",
+    "key": ""
+   },
+   {
+    "heading": "INVERSIONISTAS",
+    "key": ""
+   },
+   {
+    "heading": "PRIMERA VIVIENDA",
+    "key": ""
+   },
+   {
+    "heading": "SEGUNDA VIVIENDA",
+    "key": ""
+   }
+  ],
+  "text": ""
+ },
+ {
+  "path": "/ayuda-llamanos",
+  "kind": "page",
+  "title": "Centro de Ayuda",
+  "sections": [
+   {
+    "heading": "Centro de Ayuda",
+    "key": ""
+   },
+   {
+    "heading": "Tiene alguna duda? Contáctanos",
+    "key": ""
+   }
+  ],
+  "text": ""
+ },
+ {
+  "path": "/vende-tu-terreno",
+  "kind": "page",
+  "title": "Vende tu terreno",
+  "sections": [
+   {
+    "heading": "¿Quieres vender un Terreno?",
+    "key": ""
+   }
+  ],
+  "text": ""
+ },
+ {
+  "path": "/mirador-piedra-roja",
+  "kind": "project",
+  "title": "Mirador Piedra Roja",
+  "project": "piedra-roja",
+  "sections": [
+   {
+    "heading": "NATURALEZA QUE SE VIVE",
+    "key": ""
+   },
+   {
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "key": "tipologías"
+   },
+   {
+    "heading": "Estado del proyecto",
+    "key": "estado"
+   },
+   {
+    "heading": "Brochure",
+    "key": "brochure"
+   },
+   {
+    "heading": "¿Te interesó este proyecto?",
+    "key": "contacto"
+   }
+  ],
+  "text": "NATURALEZA QUE SE VIVE Mirador Piedra Roja es un condominio en Chicureo donde el diseño contemporáneo y la naturaleza conviven en perfecta armonía. Elige entre tres tipos de casas pensadas para acompañar tu forma de vivir, en un sector con excelente conectividad a colegios, servicios y comercio. Vive la experiencia Piedra Roja ¡Conócenos!"
+ },
+ {
+  "path": "/proyectos/cotizar/piedra-roja",
+  "kind": "quote",
+  "title": "Cotizar Mirador Piedra Roja",
+  "project": "piedra-roja",
+  "sections": [
+   {
+    "heading": "SELECCIONA LAS TIPOLOGÍAS DE INTERÉS",
+    "key": ""
+   },
+   {
+    "heading": "INGRESA TUS DATOS PERSONALES",
+    "key": ""
+   }
+  ],
+  "text": ""
+ },
+ {
+  "path": "/piemontechicureo",
+  "kind": "project",
+  "title": "Piemonte Chicureo",
+  "project": "condominio-piemonte",
+  "sections": [
+   {
+    "heading": "EXCLUSIVO TOWNHOUSE CHICUREO PIEMONTE TOWNHOUSE",
+    "key": ""
+   },
+   {
+    "heading": "Galería",
+    "key": "galería"
+   },
+   {
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "key": "tipologías"
+   },
+   {
+    "heading": "INCREÍBLES ESPACIOS",
+    "key": "amenidades"
+   },
+   {
+    "heading": "Brochure",
+    "key": "brochure"
+   },
+   {
+    "heading": "¿Te interesó este proyecto?",
+    "key": "contacto"
+   },
+   {
+    "heading": "Recorre los espacios desde donde estés",
+    "key": "tour"
+   }
+  ],
+  "text": "EXCLUSIVO TOWNHOUSE CHICUREO PIEMONTE TOWNHOUSE ha sido desarrollado bajo un concepto de espacios abiertos en perfecta armonía con un entorno único, para que puedas vivir la naturaleza. Departamentos que privilegian los detalles, fusionando la arquitectura moderna, de líneas simples, integrando el entorno de la manera más noble, para así, ser parte del paisaje con total libertad. Visítanos en Av. El Valle 11200, Chicureo, Colina, Región Metropolitana"
+ },
+ {
+  "path": "/proyectos/cotizar/piemonte",
+  "kind": "quote",
+  "title": "Cotizar Piemonte Chicureo",
+  "project": "condominio-piemonte",
+  "sections": [
+   {
+    "heading": "SELECCIONA LAS TIPOLOGÍAS DE INTERÉS",
+    "key": ""
+   },
+   {
+    "heading": "INGRESA TUS DATOS PERSONALES",
+    "key": ""
+   }
+  ],
+  "text": ""
+ },
+ {
+  "path": "/edificiocarrera",
+  "kind": "project",
+  "title": "Edificio Carrera",
+  "project": "edificio-carrera",
+  "sections": [
+   {
+    "heading": "EDIFICIO CARRERA",
+    "key": ""
+   },
+   {
+    "heading": "Galería",
+    "key": "galería"
+   },
+   {
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "key": "tipologías"
+   },
+   {
+    "heading": "ESPACIOS DISEÑADOS PARA DISFRUTAR",
+    "key": "amenidades"
+   },
+   {
+    "heading": "Brochure",
+    "key": "brochure"
+   },
+   {
+    "heading": "¿Te interesó este proyecto?",
+    "key": "contacto"
+   }
+  ],
+  "text": "EDIFICIO CARRERA Es un nuevo proyecto en un barrio en expansión y completamente conectado de la comuna de Conchalí. A pasos de la estación de Metro Línea 3 con excelente conectividad a cualquier punto de Santiago y fuera de la ciudad a través de la Ruta 5, con supermercados, instituciones educacionales y mucho más a solo metros de distancia. Este proyecto fue diseñado pensando en tu conectividad y ofreciendo una gran oportunidad de inversión. Haz una inversión inteligente de insuperable plusvalía."
+ },
+ {
+  "path": "/proyectos/cotizar/edificio-carrera",
+  "kind": "quote",
+  "title": "Cotizar Edificio Carrera",
+  "project": "edificio-carrera",
+  "sections": [
+   {
+    "heading": "SELECCIONA LAS TIPOLOGÍAS DE INTERÉS",
+    "key": ""
+   },
+   {
+    "heading": "INGRESA TUS DATOS PERSONALES",
+    "key": ""
+   }
+  ],
+  "text": ""
+ },
+ {
+  "path": "/amengual",
+  "kind": "project",
+  "title": "Edificio Amengual",
+  "project": "edificio-amengual",
+  "sections": [
+   {
+    "heading": "BIENVENIDO A AMENGUAL",
+    "key": ""
+   },
+   {
+    "heading": "Galería",
+    "key": "galería"
+   },
+   {
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "key": "tipologías"
+   },
+   {
+    "heading": "FACILITIES COMPLETAMENTE EQUIPADAS",
+    "key": "amenidades"
+   },
+   {
+    "heading": "Estado del proyecto",
+    "key": "estado"
+   },
+   {
+    "heading": "Brochure",
+    "key": "brochure"
+   },
+   {
+    "heading": "¿Te interesó este proyecto?",
+    "key": "contacto"
+   }
+  ],
+  "text": "BIENVENIDO A AMENGUAL Edificio Amengual destaca por sus excepcionales comodidades que lo diferencian de otros proyectos. Sus atributos han sido cuidadosamente desarrollados para ofrecer una experiencia de vida de alto nivel, siempre priorizando la funcionalidad. Desde el momento de ingreso, se percibe un ambiente de comodidad. El edificio cuenta con tres ascensores que garantizan una circulación fluida, además de áreas comunes de primera categoría, creadas para brindar la sensación de estar en un hotel."
+ },
+ {
+  "path": "/proyectos/cotizar/edificio-amengual",
+  "kind": "quote",
+  "title": "Cotizar Edificio Amengual",
+  "project": "edificio-amengual",
+  "sections": [
+   {
+    "heading": "SELECCIONA LAS TIPOLOGÍAS DE INTERÉS",
+    "key": ""
+   },
+   {
+    "heading": "INGRESA TUS DATOS PERSONALES",
+    "key": ""
+   }
+  ],
+  "text": ""
+ },
+ {
+  "path": "/mirahuechuraba",
+  "kind": "project",
+  "title": "Mira Huechuraba",
+  "project": "mira-huechuraba",
+  "sections": [
+   {
+    "heading": "TU DEPTO CON PATIO PRIVADO",
+    "key": ""
+   },
+   {
+    "heading": "Galería",
+    "key": "galería"
+   },
+   {
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "key": "tipologías"
+   },
+   {
+    "heading": "ESPACIOS PARA DISFRUTAR",
+    "key": "amenidades"
+   },
+   {
+    "heading": "Estado del proyecto",
+    "key": "estado"
+   },
+   {
+    "heading": "Brochure",
+    "key": "brochure"
+   },
+   {
+    "heading": "¿Te interesó este proyecto?",
+    "key": "contacto"
+   }
+  ],
+  "text": "TU DEPTO CON PATIO PRIVADO Mira Huechuraba es tener un departamento cómodo y espacioso para tu familia, con un jardín privado a pasos de tu puerta. La arquitectura de los departamentos plantea continuidad en los ambientes de manera de generar un lugar de encuentro. Espacios integrados, de circulación amable y listos para disfrutar, con un diseño actual de gran categoria."
+ },
+ {
+  "path": "/proyectos/cotizar/mira-huechuraba",
+  "kind": "quote",
+  "title": "Cotizar Mira Huechuraba",
+  "project": "mira-huechuraba",
+  "sections": [
+   {
+    "heading": "SELECCIONA LAS TIPOLOGÍAS DE INTERÉS",
+    "key": ""
+   },
+   {
+    "heading": "INGRESA TUS DATOS PERSONALES",
+    "key": ""
+   }
+  ],
+  "text": ""
+ },
+ {
+  "path": "/parque-el-rodeo-arrayan",
+  "kind": "project",
+  "title": "Parque el Rodeo Arrayán",
+  "project": "parque-el-rodeo-arrayan",
+  "sections": [
+   {
+    "heading": "VIVIR BIEN CERCA DE TODO",
+    "key": ""
+   },
+   {
+    "heading": "Galería",
+    "key": "galería"
+   },
+   {
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "key": "tipologías"
+   },
+   {
+    "heading": "Recorre los espacios desde donde estés",
+    "key": "tour"
+   },
+   {
+    "heading": "DIVERSIÓN, BIENESTAR Y FUNCIONALIDAD",
+    "key": "amenidades"
+   },
+   {
+    "heading": "Estado del proyecto",
+    "key": "estado"
+   },
+   {
+    "heading": "Brochure",
+    "key": "brochure"
+   },
+   {
+    "heading": "¿Te interesó este proyecto?",
+    "key": "contacto"
+   }
+  ],
+  "text": "VIVIR BIEN CERCA DE TODO Parque el Rodeo cuenta con los estándares más altos de diseño y calidad. Edificio Arrayán es un proyecto pensado para la vida familiar, con espacios diseñados para formar hogar. Ubicado en Av. La Dehesa con Av. El Rodeo, ofrece una conexión privilegiada con servicios, comercio y todo lo necesario para vivir conectado y cómodo; Portal La Dehesa, Club de Golf La Dehesa, Zoco y Clínica Alemana."
+ },
+ {
+  "path": "/proyectos/cotizar/parque-el-rodeo-arrayan",
+  "kind": "quote",
+  "title": "Cotizar Parque el Rodeo Arrayán",
+  "project": "parque-el-rodeo-arrayan",
+  "sections": [
+   {
+    "heading": "SELECCIONA LAS TIPOLOGÍAS DE INTERÉS",
+    "key": ""
+   },
+   {
+    "heading": "INGRESA TUS DATOS PERSONALES",
+    "key": ""
+   }
+  ],
+  "text": ""
+ },
+ {
+  "path": "/parque-el-rodeo-encino",
+  "kind": "project",
+  "title": "Parque el Rodeo Encino",
+  "project": "parque-el-rodeo-encino",
+  "sections": [
+   {
+    "heading": "DISEÑO Y CONECTIVIDAD",
+    "key": ""
+   },
+   {
+    "heading": "Galería",
+    "key": "galería"
+   },
+   {
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "key": "tipologías"
+   },
+   {
+    "heading": "Recorre los espacios desde donde estés",
+    "key": "tour"
+   },
+   {
+    "heading": "DIVERSIÓN, BIENESTAR Y FUNCIONALIDAD",
+    "key": "amenidades"
+   },
+   {
+    "heading": "Estado del proyecto",
+    "key": "estado"
+   },
+   {
+    "heading": "Brochure",
+    "key": "brochure"
+   },
+   {
+    "heading": "¿Te interesó este proyecto?",
+    "key": "contacto"
+   }
+  ],
+  "text": "DISEÑO Y CONECTIVIDAD Edificio Encino está pensado para quienes comienzan una nueva etapa de independencia. Con altos estándares de diseño y calidad, destaca por su ubicación privilegiada en Av. La Dehesa con Av. El Rodeo, ofrece una conexión privilegiada con servicios, comercio y todo lo necesario para vivir conectado y cómodo; Portal La Dehesa, Club de Golf La Dehesa, Zoco y Clínica Alemana."
+ },
+ {
+  "path": "/proyectos/cotizar/parque-el-rodeo-encino",
+  "kind": "quote",
+  "title": "Cotizar Parque el Rodeo Encino",
+  "project": "parque-el-rodeo-encino",
+  "sections": [
+   {
+    "heading": "SELECCIONA LAS TIPOLOGÍAS DE INTERÉS",
+    "key": ""
+   },
+   {
+    "heading": "INGRESA TUS DATOS PERSONALES",
+    "key": ""
+   }
+  ],
+  "text": ""
+ },
+ {
+  "path": "/millalongo72",
+  "kind": "project",
+  "title": "Edificio Millalongo 72",
+  "project": "millalongo-72",
+  "sections": [
+   {
+    "heading": "Brochure",
+    "key": "brochure"
+   },
+   {
+    "heading": "TU NUEVO HOGAR CON LA AMPLITUD QUE SUEÑAS",
+    "key": ""
+   },
+   {
+    "heading": "Galería",
+    "key": "galería"
+   },
+   {
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "key": "tipologías"
+   },
+   {
+    "heading": "Recorre los espacios desde donde estés",
+    "key": "tour"
+   },
+   {
+    "heading": "Estado del proyecto",
+    "key": "estado"
+   },
+   {
+    "heading": "¿Te interesó este proyecto?",
+    "key": "contacto"
+   }
+  ],
+  "text": "TU NUEVO HOGAR CON LA AMPLITUD QUE SUEÑAS Millalongo 72 es un Edificio de sólo 8 pisos, que ofrece amplios estudios y departamentos de 2 dormitorios, en donde cada detalle ha sido cuidadosamente planeado para ofrecer una experiencia residencial, en donde destacan las entradas de luz natural, la seguridad y la distribución de los espacios."
+ },
+ {
+  "path": "/proyectos/cotizar/millalongo-72",
+  "kind": "quote",
+  "title": "Cotizar Edificio Millalongo 72",
+  "project": "millalongo-72",
+  "sections": [
+   {
+    "heading": "SELECCIONA LAS TIPOLOGÍAS DE INTERÉS",
+    "key": ""
+   },
+   {
+    "heading": "INGRESA TUS DATOS PERSONALES",
+    "key": ""
+   }
+  ],
+  "text": ""
+ },
+ {
+  "path": "/vistalaflorida",
+  "kind": "project",
+  "title": "Edificio Vista la Florida",
+  "project": "edificio-vista-la-florida",
+  "sections": [
+   {
+    "heading": "UN PROYECTO A TU ALTURA",
+    "key": ""
+   },
+   {
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "key": "tipologías"
+   },
+   {
+    "heading": "Galería",
+    "key": "galería"
+   },
+   {
+    "heading": "Amenidades",
+    "key": "amenidades"
+   },
+   {
+    "heading": "Estado del proyecto",
+    "key": "estado"
+   },
+   {
+    "heading": "Brochure",
+    "key": "brochure"
+   },
+   {
+    "heading": "Ubicación",
+    "key": ""
+   },
+   {
+    "heading": "¿Te interesó este proyecto?",
+    "key": "contacto"
+   }
+  ],
+  "text": "UN PROYECTO A TU ALTURA Proyecto VISTA LA FLORIDA cuenta con 9 pisos que ofrecen una vida en comunidad y una vista insuperable que marca la diferencia con otros proyectos en la comuna. Disfruta tu departamento con facilities completamente equipadas junto a tu familia y amigos."
+ },
+ {
+  "path": "/proyectos/cotizar/edificio-vista-la-florida",
+  "kind": "quote",
+  "title": "Cotizar Edificio Vista la Florida",
+  "project": "edificio-vista-la-florida",
+  "sections": [
+   {
+    "heading": "SELECCIONA LAS TIPOLOGÍAS DE INTERÉS",
+    "key": ""
+   },
+   {
+    "heading": "INGRESA TUS DATOS PERSONALES",
+    "key": ""
+   }
+  ],
+  "text": ""
+ },
+ {
+  "path": "/estocolmo",
+  "kind": "project",
+  "title": "Estocolmo",
+  "project": "estocolmo",
+  "sections": [
+   {
+    "heading": "MÁS VERDE PARA TU VIDA",
+    "key": ""
+   },
+   {
+    "heading": "Galería",
+    "key": "galería"
+   },
+   {
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "key": "tipologías"
+   },
+   {
+    "heading": "DIVERSIÓN, BIENESTAR Y FUNCIONALIDAD",
+    "key": "amenidades"
+   },
+   {
+    "heading": "Estado del proyecto",
+    "key": "estado"
+   },
+   {
+    "heading": "Brochure",
+    "key": "brochure"
+   },
+   {
+    "heading": "¿Te interesó este proyecto?",
+    "key": "contacto"
+   }
+  ],
+  "text": "MÁS VERDE PARA TU VIDA En Parque Estocolmo vivir bien es parte del día a día. Su ubicación frente al Parque Juan Pablo II te conecta con colegios, comercio y ferias libres, mientras disfrutas de un entorno ideal para compartir en familia, hacer deporte y disfrutar la vida de barrio. Un proyecto Pet Friendly, pensado para todos los integrantes del hogar."
+ },
+ {
+  "path": "/proyectos/cotizar/estocolmo",
+  "kind": "quote",
+  "title": "Cotizar Estocolmo",
+  "project": "estocolmo",
+  "sections": [
+   {
+    "heading": "SELECCIONA LAS TIPOLOGÍAS DE INTERÉS",
+    "key": ""
+   },
+   {
+    "heading": "INGRESA TUS DATOS PERSONALES",
+    "key": ""
+   }
+  ],
+  "text": ""
+ },
+ {
+  "path": "/losnavegantes",
+  "kind": "project",
+  "title": "Los Navegantes",
+  "project": "los-navegantes",
+  "sections": [
+   {
+    "heading": "UN PASO MÁS ALLÁ DE SUS EXPECTATIVAS",
+    "key": ""
+   },
+   {
+    "heading": "Galería",
+    "key": "galería"
+   },
+   {
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "key": "tipologías"
+   },
+   {
+    "heading": "INCREÍBLES ESPACIOS PARA DISFRUTAR",
+    "key": "amenidades"
+   },
+   {
+    "heading": "Estado del proyecto",
+    "key": "estado"
+   },
+   {
+    "heading": "Brochure",
+    "key": "brochure"
+   },
+   {
+    "heading": "¿Te interesó este proyecto?",
+    "key": "contacto"
+   }
+  ],
+  "text": "UN PASO MÁS ALLÁ DE SUS EXPECTATIVAS Ambientes de carácter contemporáneo y minimalista, iluminación moderna, espacios muy amplios e imponentes estructuras que privilegian la luz natural. Materiales nobles en la construcción, una base de colores neutros, espacios integrados y un diseño elegante como gran protagonista. Visítanos en El Bergantín 970, Las Condes, Región Metropolitana."
+ },
+ {
+  "path": "/proyectos/cotizar/los-navegantes",
+  "kind": "quote",
+  "title": "Cotizar Los Navegantes",
+  "project": "los-navegantes",
+  "sections": [
+   {
+    "heading": "SELECCIONA LAS TIPOLOGÍAS DE INTERÉS",
+    "key": ""
+   },
+   {
+    "heading": "INGRESA TUS DATOS PERSONALES",
+    "key": ""
+   }
+  ],
+  "text": ""
+ },
+ {
+  "path": "/oficinasapoquindomoro",
+  "kind": "project",
+  "title": "Oficinas Apoquindo Moro",
+  "project": "apoquindo-moro",
+  "sections": [
+   {
+    "heading": "APOQUINDO MORO APOQUINDO MORO",
+    "key": ""
+   },
+   {
+    "heading": "Galería",
+    "key": "galería"
+   },
+   {
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "key": "tipologías"
+   },
+   {
+    "heading": "ARQUITECTURA VANGUARDISTA",
+    "key": "amenidades"
+   },
+   {
+    "heading": "Estado del proyecto",
+    "key": "estado"
+   },
+   {
+    "heading": "Brochure",
+    "key": "brochure"
+   },
+   {
+    "heading": "¿Te interesó este proyecto?",
+    "key": "contacto"
+   }
+  ],
+  "text": "APOQUINDO MORO APOQUINDO MORO Es el nuevo polo empresarial de Las Condes. Diseñado con una visión moderna y vanguardista, para ofrecer un entorno de trabajo inspirador y funcional. Con un total de 9 pisos. Dispone de una amplia variedad de oficinas y locales comerciales, lo que brinda una experiencia completa tanto para sus dueños como para quienes lo visitan."
+ },
+ {
+  "path": "/proyectos/cotizar/apoquindomoro",
+  "kind": "quote",
+  "title": "Cotizar Oficinas Apoquindo Moro",
+  "project": "apoquindo-moro",
+  "sections": [
+   {
+    "heading": "SELECCIONA LAS TIPOLOGÍAS DE INTERÉS",
+    "key": ""
+   },
+   {
+    "heading": "INGRESA TUS DATOS PERSONALES",
+    "key": ""
+   }
+  ],
+  "text": ""
+ },
+ {
+  "path": "/limit",
+  "kind": "project",
+  "title": "Edificio Limit",
+  "project": "edificio-limit",
+  "sections": [
+   {
+    "heading": "LIMIT APARTMENTS VIVE A OTRO NIVEL INVIERTE A OTRO NIVEL",
+    "key": ""
+   },
+   {
+    "heading": "Galería",
+    "key": "galería"
+   },
+   {
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "key": "tipologías"
+   },
+   {
+    "heading": "Recorre los espacios desde donde estés",
+    "key": "tour"
+   },
+   {
+    "heading": "INCREÍBLES ESPACIOS",
+    "key": "amenidades"
+   },
+   {
+    "heading": "Estado del proyecto",
+    "key": "estado"
+   },
+   {
+    "heading": "Brochure",
+    "key": "brochure"
+   },
+   {
+    "heading": "¿Te interesó este proyecto?",
+    "key": "contacto"
+   }
+  ],
+  "text": "LIMIT APARTMENTS VIVE A OTRO NIVEL INVIERTE A OTRO NIVEL Ubicado en Macúl, cada departamento del edificio LIMIT podrás ver los detalles tan funcionales como atractivos, tales como: la decoración, los materiales, colores, texturas y formas crean un espacio que se siente y respira distinto. Vas a amar vivir aquí. Descubre la gran terraza panorámica ubicada en el último piso de LIMIT APARTMENTS: equipamiento de alto estándar, una vista inigualable y la compañía que tú elijas para sentirte de vacaciones los 365 días del año. LIMIT te ofrece una gran oportunidad de inversión. Haz una inversión inteligente de excelente plusvalía."
+ },
+ {
+  "path": "/proyectos/cotizar/limit",
+  "kind": "quote",
+  "title": "Cotizar Edificio Limit",
+  "project": "edificio-limit",
+  "sections": [
+   {
+    "heading": "SELECCIONA LAS TIPOLOGÍAS DE INTERÉS",
+    "key": ""
+   },
+   {
+    "heading": "INGRESA TUS DATOS PERSONALES",
+    "key": ""
+   }
+  ],
+  "text": ""
+ },
+ {
+  "path": "/distrito-barroso",
+  "kind": "project",
+  "title": "Distrito Barroso",
+  "project": "distrito-barroso",
+  "sections": [
+   {
+    "heading": "EL NUEVO CENTRO DE LA CIUDAD",
+    "key": ""
+   },
+   {
+    "heading": "Galería",
+    "key": "galería"
+   },
+   {
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "key": "tipologías"
+   },
+   {
+    "heading": "Amenidades",
+    "key": "amenidades"
+   },
+   {
+    "heading": "Estado del proyecto",
+    "key": "estado"
+   },
+   {
+    "heading": "Brochure",
+    "key": "brochure"
+   },
+   {
+    "heading": "¿Te interesó este proyecto?",
+    "key": "contacto"
+   }
+  ],
+  "text": "EL NUEVO CENTRO DE LA CIUDAD Distrito Barroso es un proyecto de departamentos con boulevard comercial en el primer piso. Descubre un espacio lleno de vida y conectado a todo lo que necesitas día a día. Equipamiento comunitario: azotea con gourmet y grill zone. Piscina panorámica con vista al centro de la ciudad. Play zone. Hall de acceso con doble altura."
+ },
+ {
+  "path": "/proyectos/cotizar/distrito-barroso",
+  "kind": "quote",
+  "title": "Cotizar Distrito Barroso",
+  "project": "distrito-barroso",
+  "sections": [
+   {
+    "heading": "SELECCIONA LAS TIPOLOGÍAS DE INTERÉS",
+    "key": ""
+   },
+   {
+    "heading": "INGRESA TUS DATOS PERSONALES",
+    "key": ""
+   }
+  ],
+  "text": ""
+ },
+ {
+  "path": "/rondizzoni",
+  "kind": "project",
+  "title": "Edificio Rondizzoni",
+  "project": "edificio-rondizzoni",
+  "sections": [
+   {
+    "heading": "UN ENTORNO INIGUALABLE",
+    "key": ""
+   },
+   {
+    "heading": "Galería",
+    "key": "galería"
+   },
+   {
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "key": "tipologías"
+   },
+   {
+    "heading": "INCREÍBLES ESPACIOS PARA COMPARTIR",
+    "key": "amenidades"
+   },
+   {
+    "heading": "Estado del proyecto",
+    "key": "estado"
+   },
+   {
+    "heading": "Brochure",
+    "key": "brochure"
+   },
+   {
+    "heading": "¿Te interesó este proyecto?",
+    "key": "contacto"
+   }
+  ],
+  "text": "UN ENTORNO INIGUALABLE Edificio Rondizzoni es un proyecto ideal para inversionistas, con terminaciones de increíble estándar y amplias amenities habilitadas. El proyecto se encuentra ubicado en un barrio residencial a pasos del Parque O´Higgins y estación de metro Rondizzoni, vistas inigualables, conectividad y calidad de vida a sus residentes."
+ },
+ {
+  "path": "/proyectos/cotizar/edificio-rondizzoni",
+  "kind": "quote",
+  "title": "Cotizar Edificio Rondizzoni",
+  "project": "edificio-rondizzoni",
+  "sections": [
+   {
+    "heading": "SELECCIONA LAS TIPOLOGÍAS DE INTERÉS",
+    "key": ""
+   },
+   {
+    "heading": "INGRESA TUS DATOS PERSONALES",
+    "key": ""
+   }
+  ],
+  "text": ""
+ },
+ {
+  "path": "/edificio-santa-victoria-155",
+  "kind": "project",
+  "title": "Edificio Santa Victoria 155",
+  "project": "edificio-santa-victoria-155",
+  "sections": [
+   {
+    "heading": "ESPACIOS AMPLIOS, LUMINOSOS Y FUNCIONALES",
+    "key": ""
+   },
+   {
+    "heading": "Galería",
+    "key": "galería"
+   },
+   {
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "key": "tipologías"
+   },
+   {
+    "heading": "Ubicación",
+    "key": ""
+   },
+   {
+    "heading": "Brochure",
+    "key": "brochure"
+   },
+   {
+    "heading": "¿Te interesó este proyecto?",
+    "key": "contacto"
+   }
+  ],
+  "text": "ESPACIOS AMPLIOS, LUMINOSOS Y FUNCIONALES En una ubicación privilegiada de la comuna de Santiago se encuentra el edificio Santa Victoria 155, emplazado en un sector residencial, tranquilo y bien conectado: a pasos del Parque Bustamante, la estación de metro Santa Isabel y cercano a importantes avenidas para llegar rápidamente a malls, bancos, cines, restaurantes y todo tipo de servicios. Descubre este atractivo proyecto de gran plusvalía al mejor precio por m²."
+ },
+ {
+  "path": "/proyectos/cotizar/edificio-santa-victoria-155",
+  "kind": "quote",
+  "title": "Cotizar Edificio Santa Victoria 155",
+  "project": "edificio-santa-victoria-155",
+  "sections": [
+   {
+    "heading": "SELECCIONA LAS TIPOLOGÍAS DE INTERÉS",
+    "key": ""
+   },
+   {
+    "heading": "INGRESA TUS DATOS PERSONALES",
+    "key": ""
+   }
+  ],
+  "text": ""
+ },
+ {
+  "path": "/proyectos/cotizar/locales-comerciales-distrito-barroso",
+  "kind": "quote",
+  "title": "Cotizar Locales Comerciales Distrito Barroso",
+  "project": "locales-comerciales-distrito-barroso",
+  "sections": [
+   {
+    "heading": "SELECCIONA LAS TIPOLOGÍAS DE INTERÉS",
+    "key": ""
+   },
+   {
+    "heading": "INGRESA TUS DATOS PERSONALES",
+    "key": ""
+   }
+  ],
+  "text": ""
+ },
+ {
+  "path": "/uniq",
+  "kind": "project",
+  "title": "Edificio Uniq",
+  "project": "edificio-uniq",
+  "sections": [
+   {
+    "heading": "CREA EXPERIENCIAS ÚNICAS",
+    "key": ""
+   },
+   {
+    "heading": "Galería",
+    "key": "galería"
+   },
+   {
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "key": "tipologías"
+   },
+   {
+    "heading": "Amenidades",
+    "key": "amenidades"
+   },
+   {
+    "heading": "Brochure",
+    "key": "brochure"
+   },
+   {
+    "heading": "¿Te interesó este proyecto?",
+    "key": "contacto"
+   }
+  ],
+  "text": "CREA EXPERIENCIAS ÚNICAS Te invitamos a descubrir un proyecto con espacios amplios y conectados con exclusivos detalles de diseño que se adaptan a tu estilo de vida. Bienvenido a UNIQ Visítanos en Miguel Comas #1795, Vitacura."
+ },
+ {
+  "path": "/proyectos/cotizar/edificio-uniq",
+  "kind": "quote",
+  "title": "Cotizar Edificio Uniq",
+  "project": "edificio-uniq",
+  "sections": [
+   {
+    "heading": "SELECCIONA LAS TIPOLOGÍAS DE INTERÉS",
+    "key": ""
+   },
+   {
+    "heading": "INGRESA TUS DATOS PERSONALES",
+    "key": ""
+   }
+  ],
+  "text": ""
+ },
+ {
+  "path": "/barlovento",
+  "kind": "project",
+  "title": "Barlovento",
+  "project": "barlovento",
+  "sections": [
+   {
+    "heading": "EXPERIENCIAS INOLVIDABLES FRENTE AL MAR",
+    "key": ""
+   },
+   {
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "key": "tipologías"
+   },
+   {
+    "heading": "Galería",
+    "key": "galería"
+   },
+   {
+    "heading": "ESPACIOS VARIADOS PARA DISFRUTAR",
+    "key": "amenidades"
+   },
+   {
+    "heading": "Estado del proyecto",
+    "key": "estado"
+   },
+   {
+    "heading": "Brochure",
+    "key": "brochure"
+   },
+   {
+    "heading": "¿Te interesó este proyecto?",
+    "key": "contacto"
+   }
+  ],
+  "text": "EXPERIENCIAS INOLVIDABLES FRENTE AL MAR Edificio BARLOVENTO se encuentra emplazado en la Av. Principal de Algarrobo.< Departamentos totalmente equipados con facilities de hotel, rodeado de vistas maravillosas al Océano Pacífico a pasos de Playa Las Cadenas. Visítanos en Av. Carlos Alessandri 1930, Algarrobo"
+ },
+ {
+  "path": "/proyectos/cotizar/barlovento",
+  "kind": "quote",
+  "title": "Cotizar Barlovento",
+  "project": "barlovento",
+  "sections": [
+   {
+    "heading": "SELECCIONA LAS TIPOLOGÍAS DE INTERÉS",
+    "key": ""
+   },
+   {
+    "heading": "INGRESA TUS DATOS PERSONALES",
+    "key": ""
+   }
+  ],
+  "text": ""
+ },
+ {
+  "path": "/lagunamar_brisas",
+  "kind": "project",
+  "title": "Lagunamar Brisas",
+  "project": "lagunamar-brisas",
+  "sections": [
+   {
+    "heading": "DEPARTAMENTOS 2·3 DORMS.",
+    "key": ""
+   },
+   {
+    "heading": "Galería",
+    "key": "galería"
+   },
+   {
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "key": "tipologías"
+   },
+   {
+    "heading": "DISFRUTA ENTRE EL BOSQUE, LAS DUNAS Y EL MAR",
+    "key": "amenidades"
+   },
+   {
+    "heading": "Estado del proyecto",
+    "key": "estado"
+   },
+   {
+    "heading": "Brochure",
+    "key": "brochure"
+   },
+   {
+    "heading": "¿Te interesó este proyecto?",
+    "key": "contacto"
+   }
+  ],
+  "text": "DEPARTAMENTOS 2·3 DORMS. Laguna Mar cuenta con piscinas, senderos de treking, una increíble laguna con un muelle para la práctica de diversos deportes, club house y gimnasio full equipado. Todo especialmente diseñado para que el descanso venga de la mano de la diversión y del encanto que ofrece un lugar como Las Cruces. Te invitamos a ser parte de esta historia."
+ },
+ {
+  "path": "/proyectos/cotizar/lagunamar-brisas",
+  "kind": "quote",
+  "title": "Cotizar Lagunamar Brisas",
+  "project": "lagunamar-brisas",
+  "sections": [
+   {
+    "heading": "SELECCIONA LAS TIPOLOGÍAS DE INTERÉS",
+    "key": ""
+   },
+   {
+    "heading": "INGRESA TUS DATOS PERSONALES",
+    "key": ""
+   }
+  ],
+  "text": ""
+ },
+ {
+  "path": "/edificio-lagunamar-dunas",
+  "kind": "project",
+  "title": "Lagunamar Dunas",
+  "project": "lagunamar-dunas",
+  "sections": [
+   {
+    "heading": "DEPARTAMENTOS 2·3 DORMS.",
+    "key": ""
+   },
+   {
+    "heading": "Galería",
+    "key": "galería"
+   },
+   {
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "key": "tipologías"
+   },
+   {
+    "heading": "INCREÍBLES ESPACIOS PARA DISFRUTAR",
+    "key": "amenidades"
+   },
+   {
+    "heading": "Estado del proyecto",
+    "key": "estado"
+   },
+   {
+    "heading": "Brochure",
+    "key": "brochure"
+   },
+   {
+    "heading": "¿Te interesó este proyecto?",
+    "key": "contacto"
+   }
+  ],
+  "text": "DEPARTAMENTOS 2·3 DORMS. Laguna Mar cuenta con piscinas, senderos de treking, una increíble laguna con un muelle para la práctica de diversos deportes, club house y gimnasio full equipado. Todo especialmente diseñado para que el descanso venga de la mano de la diversión y del encanto que ofrece un lugar como Las Cruces. Te invitamos a ser parte de esta historia."
+ },
+ {
+  "path": "/proyectos/cotizar/lagunamar-dunas",
+  "kind": "quote",
+  "title": "Cotizar Lagunamar Dunas",
+  "project": "lagunamar-dunas",
+  "sections": [
+   {
+    "heading": "SELECCIONA LAS TIPOLOGÍAS DE INTERÉS",
+    "key": ""
+   },
+   {
+    "heading": "INGRESA TUS DATOS PERSONALES",
+    "key": ""
+   }
+  ],
+  "text": ""
+ },
+ {
+  "path": "/vista-golf",
+  "kind": "project",
+  "title": "Vista Golf",
+  "project": "vista-golf",
+  "sections": [
+   {
+    "heading": "TODO LO QUE QUIERES A LA VISTA",
+    "key": ""
+   },
+   {
+    "heading": "Galería",
+    "key": "galería"
+   },
+   {
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "key": "tipologías"
+   },
+   {
+    "heading": "UN ENTORNO INIGUALABLE",
+    "key": "amenidades"
+   },
+   {
+    "heading": "Ubicación",
+    "key": ""
+   },
+   {
+    "heading": "Estado del proyecto",
+    "key": "estado"
+   },
+   {
+    "heading": "Brochure",
+    "key": "brochure"
+   },
+   {
+    "heading": "¿Te interesó este proyecto?",
+    "key": "contacto"
+   }
+  ],
+  "text": "TODO LO QUE QUIERES A LA VISTA Un proyecto de departamentos, casas y sitios, con una vista privilegiada hacia el campo de golf y el mar. El proyecto se caracteriza por su equipamiento de vanguardia y máximo cuidado en los detalles, con finas terminaciones que otorgan elegancia y carácter al proyecto."
+ },
+ {
+  "path": "/proyectos/cotizar/vista-golf",
+  "kind": "quote",
+  "title": "Cotizar Vista Golf",
+  "project": "vista-golf",
+  "sections": [
+   {
+    "heading": "SELECCIONA LAS TIPOLOGÍAS DE INTERÉS",
+    "key": ""
+   },
+   {
+    "heading": "INGRESA TUS DATOS PERSONALES",
+    "key": ""
+   }
+  ],
+  "text": ""
+ },
+ {
+  "path": "/airesdequintay",
+  "kind": "project",
+  "title": "Aires de Quintay",
+  "project": "aires-de-quintay",
+  "sections": [
+   {
+    "heading": "AIRES DE QUINTAY",
+    "key": ""
+   },
+   {
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "key": "tipologías"
+   },
+   {
+    "heading": "Recorre los espacios desde donde estés",
+    "key": "tour"
+   },
+   {
+    "heading": "ENCUENTRA NATURALEZA ENTRE EL BOSQUE Y EL MAR",
+    "key": "amenidades"
+   },
+   {
+    "heading": "Brochure",
+    "key": "brochure"
+   },
+   {
+    "heading": "¿Te interesó este proyecto?",
+    "key": "contacto"
+   }
+  ],
+  "text": "AIRES DE QUINTAY Tu espacio ideal para vivir las mejores experiencias. Visítanos en Av. El Estero con Santa Augusta, Club de Golf Santa Augusta, Quintay Aires de Quintay es un condominio privado a sólo 80 minutos de Santiago, perfecto para disfrutar en familia rodeado de bosques y con vista al mar desde tu departamento."
+ },
+ {
+  "path": "/proyectos/cotizar/aires-de-quintay",
+  "kind": "quote",
+  "title": "Cotizar Aires de Quintay",
+  "project": "aires-de-quintay",
+  "sections": [
+   {
+    "heading": "SELECCIONA LAS TIPOLOGÍAS DE INTERÉS",
+    "key": ""
+   },
+   {
+    "heading": "INGRESA TUS DATOS PERSONALES",
+    "key": ""
+   }
+  ],
+  "text": ""
+ },
+ {
+  "path": "/playacochoa",
+  "kind": "project",
+  "title": "Playa Cochoa",
+  "project": "playa-cochoa",
+  "sections": [
+   {
+    "heading": "GRANDES DEPARTAMENTOS",
+    "key": ""
+   },
+   {
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "key": "tipologías"
+   },
+   {
+    "heading": "Galería",
+    "key": "galería"
+   },
+   {
+    "heading": "Amenidades",
+    "key": "amenidades"
+   },
+   {
+    "heading": "Ubicación",
+    "key": ""
+   },
+   {
+    "heading": "Brochure",
+    "key": "brochure"
+   },
+   {
+    "heading": "¿Te interesó este proyecto?",
+    "key": "contacto"
+   }
+  ],
+  "text": "GRANDES DEPARTAMENTOS Ubicados frente al mar en pleno borde costero de Reñaca-Cochoa. Edificio Playa Cochoa es un proyecto de diseño vanguardista, con insuperable vista al mar y hacia la bahía de Valparaíso, con múltiples áreas comunes para disfrutar cada momento. No pierdas la oportunidad de sentir y disfrutar los hermosos atardeceres que esperan por ti."
+ },
+ {
+  "path": "/proyectos/cotizar/playa-cochoa",
+  "kind": "quote",
+  "title": "Cotizar Playa Cochoa",
+  "project": "playa-cochoa",
+  "sections": [
+   {
+    "heading": "SELECCIONA LAS TIPOLOGÍAS DE INTERÉS",
+    "key": ""
+   },
+   {
+    "heading": "INGRESA TUS DATOS PERSONALES",
+    "key": ""
+   }
+  ],
+  "text": ""
+ },
+ {
+  "path": "/canalbeagle",
+  "kind": "project",
+  "title": "Canal Beagle",
+  "project": "canal-beagle",
+  "sections": [
+   {
+    "heading": "ESPACIOS PARA DISFRUTAR",
+    "key": ""
+   },
+   {
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "key": "tipologías"
+   },
+   {
+    "heading": "Galería",
+    "key": "galería"
+   },
+   {
+    "heading": "LOS MEJORES ESPACIOS DISEÑADOS PARA DISFRUTAR",
+    "key": "amenidades"
+   },
+   {
+    "heading": "Estado del proyecto",
+    "key": "estado"
+   },
+   {
+    "heading": "Brochure",
+    "key": "brochure"
+   },
+   {
+    "heading": "¿Te interesó este proyecto?",
+    "key": "contacto"
+   }
+  ],
+  "text": "ESPACIOS PARA DISFRUTAR Edificio Canal Beagle ha sido creado con todo lo que tú y tu familia necesita para disfrutar de Viña del Mar como nunca antes. Con una terraza panorámica en el último piso del edificio, un cómodo family room y un moderno e innovador lounge bar. Visítanos en Isla Melinka 220 | Sector Canal Beagle"
+ },
+ {
+  "path": "/proyectos/cotizar/canal-beagle",
+  "kind": "quote",
+  "title": "Cotizar Canal Beagle",
+  "project": "canal-beagle",
+  "sections": [
+   {
+    "heading": "SELECCIONA LAS TIPOLOGÍAS DE INTERÉS",
+    "key": ""
+   },
+   {
+    "heading": "INGRESA TUS DATOS PERSONALES",
+    "key": ""
+   }
+  ],
+  "text": ""
+ },
+ {
+  "path": "/isla-picton",
+  "kind": "project",
+  "title": "Isla Picton",
+  "project": "isla-picton",
+  "sections": [
+   {
+    "heading": "DEPARTAMENTOS 1 Y 2 DORMS.",
+    "key": ""
+   },
+   {
+    "heading": "Galería",
+    "key": "galería"
+   },
+   {
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "key": "tipologías"
+   },
+   {
+    "heading": "EQUIPAMIENTO",
+    "key": "amenidades"
+   },
+   {
+    "heading": "Estado del proyecto",
+    "key": "estado"
+   },
+   {
+    "heading": "Brochure",
+    "key": "brochure"
+   },
+   {
+    "heading": "¿Te interesó este proyecto?",
+    "key": "contacto"
+   }
+  ],
+  "text": "DEPARTAMENTOS 1 Y 2 DORMS. Isla Picton es el nuevo proyecto tras el éxito de Canal Beagle. Situado en la parte alta de Viña del Mar, este exclusivo desarrollo combina un diseño arquitectónico impresionante y grandes comodidades. Isla Picton ofrece una oportunidad única para disfrutar de uno de los destinos más deseados de la costa."
+ },
+ {
+  "path": "/proyectos/cotizar/isla-picton",
+  "kind": "quote",
+  "title": "Cotizar Isla Picton",
+  "project": "isla-picton",
+  "sections": [
+   {
+    "heading": "SELECCIONA LAS TIPOLOGÍAS DE INTERÉS",
+    "key": ""
+   },
+   {
+    "heading": "INGRESA TUS DATOS PERSONALES",
+    "key": ""
+   }
+  ],
+  "text": ""
+ },
+ {
+  "path": "/miraalmar",
+  "kind": "project",
+  "title": "Mira al Mar",
+  "project": "mira-al-mar",
+  "sections": [
+   {
+    "heading": "TU NUEVO DEPTO",
+    "key": ""
+   },
+   {
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "key": "tipologías"
+   },
+   {
+    "heading": "Galería",
+    "key": "galería"
+   },
+   {
+    "heading": "AMENITIES",
+    "key": "amenidades"
+   },
+   {
+    "heading": "Estado del proyecto",
+    "key": "estado"
+   },
+   {
+    "heading": "Brochure",
+    "key": "brochure"
+   },
+   {
+    "heading": "¿Te interesó este proyecto?",
+    "key": "contacto"
+   }
+  ],
+  "text": "TU NUEVO DEPTO El edificio MIRA AL MAR fue pensado en generar momentos para compartir y disfrutar con tu familia y amigos. Este proyecto entrega una gran amplitud en los dormitorios principales con vistas al mar, ambientes integrados que propician el desplazamiento fluido sumado a las espaciosas terrazas que permiten una vista despejada del paisaje de Viña del Mar y el Puerto de Valparaíso. Ten la mejor conectividad para poder escaparte donde desees solo a 11 minutos del SECTOR RECREO, podrás ir a visitar el estadio, tomar el metro, ir a los diferentes miradores que tiene la costa, visitar la playa, entre otros lugares turísticos."
+ },
+ {
+  "path": "/proyectos/cotizar/mira-al-mar",
+  "kind": "quote",
+  "title": "Cotizar Mira al Mar",
+  "project": "mira-al-mar",
+  "sections": [
+   {
+    "heading": "SELECCIONA LAS TIPOLOGÍAS DE INTERÉS",
+    "key": ""
+   },
+   {
+    "heading": "INGRESA TUS DATOS PERSONALES",
+    "key": ""
+   }
+  ],
+  "text": ""
+ },
+ {
+  "path": "/vistamar",
+  "kind": "project",
+  "title": "Vistamar",
+  "project": "vistamar",
+  "sections": [
+   {
+    "heading": "VIVE LA EXPERIENCIA VISTA MAR",
+    "key": ""
+   },
+   {
+    "heading": "Galería",
+    "key": "galería"
+   },
+   {
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "key": "tipologías"
+   },
+   {
+    "heading": "VISTAS INCREÍBLES",
+    "key": "amenidades"
+   },
+   {
+    "heading": "Estado del proyecto",
+    "key": "estado"
+   },
+   {
+    "heading": "Brochure",
+    "key": "brochure"
+   },
+   {
+    "heading": "¿Te interesó este proyecto?",
+    "key": "contacto"
+   }
+  ],
+  "text": "VIVE LA EXPERIENCIA VISTA MAR Vistamar te ofrece la oportunidad de vivir en un lugar único, en un consolidado sector de Recreo, donde la tranquilidad y la seguridad se combinan con la cercanía al centro de Viña del Mar."
+ },
+ {
+  "path": "/proyectos/cotizar/vistamar",
+  "kind": "quote",
+  "title": "Cotizar Vistamar",
+  "project": "vistamar",
+  "sections": [
+   {
+    "heading": "SELECCIONA LAS TIPOLOGÍAS DE INTERÉS",
+    "key": ""
+   },
+   {
+    "heading": "INGRESA TUS DATOS PERSONALES",
+    "key": ""
+   }
+  ],
+  "text": ""
+ },
+ {
+  "path": "/lapoza",
+  "kind": "project",
+  "title": "La Poza de Pucón",
+  "project": "la-poza-de-pucon",
+  "sections": [
+   {
+    "heading": "BIENVENIDOS A LA POZA",
+    "key": ""
+   },
+   {
+    "heading": "Galería",
+    "key": "galería"
+   },
+   {
+    "heading": "Tipologías que se adaptan a tus necesidades",
+    "key": "tipologías"
+   },
+   {
+    "heading": "Recorre los espacios desde donde estés",
+    "key": "tour"
+   },
+   {
+    "heading": "PANORAMAS PARA DISFRUTAR",
+    "key": "amenidades"
+   },
+   {
+    "heading": "Estado del proyecto",
+    "key": "estado"
+   },
+   {
+    "heading": "Brochure",
+    "key": "brochure"
+   },
+   {
+    "heading": "¿Te interesó este proyecto?",
+    "key": "contacto"
+   }
+  ],
+  "text": "BIENVENIDOS A LA POZA Ubicado camino a Villarrica, a pasos del centro de Pucón, se encuentra el proyecto LA POZA. Departamentos de 1 · 2 & 3 Dormitorios, con increíbles vistas al lago Villarrica. A sólo pasos del centro de Pucón. Disfruta de la tranquilidad de un entorno natural y privilegiado, sin sacrificar cercanía y comodidad."
+ },
+ {
+  "path": "/proyectos/cotizar/la-poza-de-pucon",
+  "kind": "quote",
+  "title": "Cotizar La Poza de Pucón",
+  "project": "la-poza-de-pucon",
+  "sections": [
+   {
+    "heading": "SELECCIONA LAS TIPOLOGÍAS DE INTERÉS",
+    "key": ""
+   },
+   {
+    "heading": "INGRESA TUS DATOS PERSONALES",
+    "key": ""
+   }
+  ],
+  "text": ""
+ },
+ {
+  "path": "/alto-quintay",
+  "kind": "project",
+  "title": "Alto Quintay",
+  "project": "alto-quintay",
+  "sections": [
+   {
+    "heading": "¡BIENVENIDOS A ALTO QUINTAY!",
+    "key": ""
+   },
+   {
+    "heading": "DEPARTAMENTOS SORPRENDENTES",
+    "key": "galería"
+   },
+   {
+    "heading": "DISFRUTA ESPACIOS INCREÍBLES",
+    "key": "amenidades"
+   },
+   {
+    "heading": "ESTADO DEL PROYECTO",
+    "key": "estado"
+   },
+   {
+    "heading": "BROCHURE",
+    "key": "brochure"
+   },
+   {
+    "heading": "CONTÁCTANOS",
+    "key": "contacto"
+   }
+  ],
+  "text": "¡BIENVENIDOS A ALTO QUINTAY! Un verdadero refugio en donde encontrarás la tranquilidad y seguridad que tú y tu familia están buscando. Disfruta de dos increíbles piscinas con arena y vive una experiencia como si estuvieras en la playa."
+ }
+]

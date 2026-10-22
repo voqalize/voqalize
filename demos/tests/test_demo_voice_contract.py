@@ -153,6 +153,10 @@ DEMOS: dict[str, Expected] = {
     # both legs for the toggle or for English heard — javier in both. Asserted
     # in test_santanderarena_e2e.py.
     "santanderarena": Expected(voice="omnivoice/javier", language="es"),
+    # Javier again, as Ssilva's guide on ssilva.cl: the site is Chilean, so he
+    # opens in Spanish unless the toggle said English, and moves both legs for
+    # the toggle or for English heard. Asserted in test_ssilva_e2e.py.
+    "ssilva": Expected(voice="omnivoice/javier", language="es"),
     "servicing": Expected(voice="omnivoice/emily", language="en"),
     "shopping": Expected(voice="omnivoice/gaurav", language="en"),
     # The patient picks sugar's language on the page, before the call exists, so
