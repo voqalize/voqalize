@@ -8,13 +8,18 @@ name: CI
 # standing between a bad commit and production was whether the author remembered
 # to run pytest.
 #
-# Deliberately NOT path-filtered. The Cloud Build triggers decide what to deploy
-# from an `includedFiles` list that lives in the trigger (private) and is invisible
-# from this repo — CLAUDE.md spells out how surprising it is (a test-only commit
-# that touches `demos/voqalize_demos/**` rolls production). A filter here would be
-# a second copy of a list we cannot read, and its failure mode is the bad one:
-# a change that deploys the brains while its CI job is skipped. The whole Python
-# suite runs in about 90 seconds; that is cheaper than being wrong about it.
+# The workflow is NOT path-filtered: every push runs it. The Cloud Build triggers decide
+# what to deploy from an `includedFiles` list that lives in the trigger (private) and is
+# invisible from this repo — CLAUDE.md spells out how surprising it is (a test-only commit
+# that touches `demos/voqalize_demos/**` rolls production). A filter here would be a second
+# copy of a list we cannot read, and its failure mode is the bad one: a change that deploys
+# the brains while its CI job is skipped.
+#
+# The demo suite inside it is narrowed, and only by what the change touched rather than by
+# what it deploys: demos/bin/select-tests.py runs the tests of the demos a push changed and
+# of the demos that import them, and every test the moment anything shared changes. The
+# whole suite takes about seven minutes on a hosted runner (436 s, 2026-10-22), nearly all
+# of this job.
 
 on:
   push:
@@ -37,6 +42,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The demo test selection diffs from the last commit CI passed on, which can be
+          # any distance back.
+          fetch-depth: 0
 
       - uses: astral-sh/setup-uv@v5
         with:
@@ -96,9 +105,41 @@ jobs:
         working-directory: sdk/python
         run: uv run pytest -q
 
+      # Which demo tests this push needs (demos/bin/select-tests.py says how it decides).
+      # It diffs from the last commit whose CI passed on main, not from the previous push,
+      # so what a cancelled or failed run left untested is tested by the next one. Only a
+      # push to main is narrowed: prod, the SDK release (workflow_call) and a main with no
+      # passing run yet run every test.
+      - name: Select the demo tests
+        id: select
+        working-directory: demos
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          base=""
+          if [ "${{ github.event_name }}" = push ] && [ "${{ github.ref }}" = refs/heads/main ]; then
+            base=$(gh run list --repo "${{ github.repository }}" --workflow ci.yml --branch main \
+              --status success --limit 1 --json headSha -q '.[0].headSha' || true)
+          fi
+          if [ -n "$base" ]; then
+            echo "Diffing from $base, the last commit CI passed on"
+            tests=$(bin/select-tests.py "$base" "$GITHUB_SHA")
+          else
+            tests=all
+          fi
+          case "$tests" in
+            all) echo "Running every demo test"; args="tests/" ;;
+            "") echo "Nothing this change touched is read by a demo test"; args="" ;;
+            *) echo "Running:"; echo "$tests"; args=$(tr "\n" " " <<< "$tests") ;;
+          esac
+          echo "args=$args" >> "$GITHUB_OUTPUT"
+
       # Every demo's brain on a real DirectAgent socket with only the model faked —
       # no network, no API key. This is the suite CLAUDE.md calls "the deploy gate";
-      # it is now actually a gate.
+      # it is now actually a gate. Four workers, one per vCPU on ubuntu-latest (owner,
+      # 2026-10-22): the suite mostly waits on sockets, and took 117 s this way against
+      # 427 s serially.
       - name: Test the demos
+        if: steps.select.outputs.args != ''
         working-directory: demos
-        run: uv run pytest tests/ -q
+        run: uv run pytest ${{ steps.select.outputs.args }} -q -n 4

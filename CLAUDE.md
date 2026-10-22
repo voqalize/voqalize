@@ -74,11 +74,17 @@ prevent.
 
 Consequences to internalize:
 
-- **CI is now a real gate.** `.github/workflows/ci.yml` runs ruff, pyright, the SDK
-  suite and every demo e2e on every push and PR — deliberately unfiltered, because
-  which paths deploy is decided by the trigger, not by anything readable here (see
-  below). `ci-web.yml` builds the demo UIs and the docs site, and *is* path-filtered.
-  Run `cd demos && uv run pytest tests/` locally anyway; it is 33 s.
+- **CI runs on every push to `main` and `prod`, after the merge**, not on pull
+  requests (owner, 2026-10-22), so on `main` a red run is an alarm and not a gate:
+  the deploy has already started. `.github/workflows/ci.yml` runs ruff, pyright and
+  the SDK suite on every push — the workflow is deliberately not path-filtered,
+  because which paths deploy is decided by the trigger, not by anything readable
+  here (see below). The demo e2es are narrowed on a `main` push only:
+  `demos/bin/select-tests.py` runs the tests of the demos the change touched and of
+  the demos that import them, diffed from the last commit CI passed on, and all of
+  them when anything shared changed; `prod` and the SDK release run all of them.
+  `ci-web.yml` builds the demo UIs and the docs site, and *is* path-filtered. Run
+  the demo suite locally before you merge, since nothing runs it on the PR.
 - **A dev deploy is now the thing that proves a change**, not a hope. `main` lands
   on `brain.dev.voqalize.com`; exercise it at `dev.voqalize.com/demos/*` before you
   fast-forward `prod`.
@@ -135,7 +141,9 @@ Consequences to internalize:
   exactly that. `demos/tests/**` alone is on neither list and fires nothing. This
   is also why `ci.yml` has no path filter: the list above is a transcription of a
   private trigger field, and a CI filter derived from it would skip the run on
-  exactly the commits nobody expected to deploy.
+  exactly the commits nobody expected to deploy. The demo test selection is not
+  that filter: it narrows by what a change touched, never by what it deploys, and
+  a change to `demos/voqalize_demos/**` runs every test.
 - **Each brains host reports the commit it is running**, at `GET /_healthz` as
   `git_sha` (`e521f72`), and the deploy *gates* on it — a build that never
   actually replaced the container fails instead of reporting success while the old
@@ -313,7 +321,8 @@ detail; what binds a demo:
 `brain_server` socket, driven by the conformance `VoqalizeDriver`, with only the
 *model* faked: `ScriptedGemini` (`demos/voqalize_demos/testing.py`) drives every
 one — the ADK adapter and its `ScriptedLlm` are gone, and so is the last
-brain on `GeminiInteractionsBrain`, which is now marked experimental. No network, no API key, ~33 s for the whole suite.
+brain on `GeminiInteractionsBrain`, which is now marked experimental. No network,
+no API key; the whole suite takes about seven minutes (427 s locally, 2026-10-22).
 
 `demos/tests/test_demo_voice_contract.py` is the cross-demo sweep: it asserts every
 demo puts a **matched** voice/language pair on both legs before its first audio,
@@ -345,15 +354,17 @@ Footguns found writing them (see `demos/tests/_harness.py`):
 uv run ruff format --check . && uv run ruff check .
 uv run pyright                       # whole repo, and it is clean — keep it that way
 cd sdk/python && uv run pytest -q
-cd demos && uv run pytest tests/     # every demo's brain over the real wire, ~33 s
+cd demos && uv run pytest tests/     # every demo's brain over the real wire, about seven minutes
 uv run --with pyyaml python3 design/check_facts.py   # numbers and words, below
 cd sdk/python && uv run python ../../design/voice_catalog.py check   # the voice roster, below
 ```
 
-Everything above the roster line is exactly what `.github/workflows/ci.yml` runs,
-in the same order, on the Python version `demos/Dockerfile` ships (3.12) with
-`uv sync --frozen` — so a lockfile that has drifted from `pyproject.toml` fails CI
-before it fails the image build.
+Everything above the roster line is what `.github/workflows/ci.yml` runs, in the
+same order (on a `main` push it runs the demo tests `demos/bin/select-tests.py`
+picks; `bin/select-tests.py origin/main` prints the same choice for your branch),
+on the Python version `demos/Dockerfile` ships (3.12) with `uv sync --frozen` — so
+a lockfile that has drifted from `pyproject.toml` fails CI before it fails the
+image build.
 
 The roster line is the exception, and `.github/workflows/voice-catalog.yml` runs
 it on a schedule instead: it fetches a deployed speech node over the network, so

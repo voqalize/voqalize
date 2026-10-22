@@ -51,6 +51,8 @@ dev = [
     "pytest-asyncio>=1.3.0",
     # Test-only: mint RS256 brain tokens for the conformance harness.
     "cryptography>=43",
+    # CI runs the demo suite on 4 workers (-n 4 in ci.yml).
+    "pytest-xdist>=3.8",
 ]
 
 [tool.pytest.ini_options]
