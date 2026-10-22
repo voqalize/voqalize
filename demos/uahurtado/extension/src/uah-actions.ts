@@ -29,9 +29,8 @@
  *     made here, and the site's REST record beside them by the service worker
  *     (`hooks.rest`), which may read across hosts;
  *   - the lead form `form#admisionForm` is filled, never sent: no `submit()`,
- *     no `requestSubmit()`, no press of "Enviar", never the RUT. In a preview
- *     build (`UAHURTADO_BLOCK_SUBMIT`) even the visitor's own press is stopped
- *     and reported, so a demo never puts a lead in UAH's pipeline.
+ *     no `requestSubmit()`, no press of "Enviar", never the RUT. The visitor
+ *     presses "Enviar" and the lead goes to UAH's admissions, as it always does.
  */
 
 import type {
@@ -44,10 +43,8 @@ import {
 } from "./dom";
 import { readRecord, type RestRecord, setPendingMove, type Then } from "./hub";
 
-declare const __UAHURTADO_BLOCK_SUBMIT__: boolean;
 
 /** Whether this build stops the visitor's own press of "Enviar" (a preview). */
-const BLOCK_SUBMIT = typeof __UAHURTADO_BLOCK_SUBMIT__ === "boolean" ? __UAHURTADO_BLOCK_SUBMIT__ : true;
 
 export interface RunResult {
   ok: boolean;
@@ -780,67 +777,24 @@ function watchForm(): void {
   document.addEventListener("input", typed, true);
   document.addEventListener("change", typed, true);
 
-  // "Enviar" is the visitor's. In a preview build it is reported, then stopped.
+  // "Enviar" is the visitor's: their press goes to the university as it
+  // always does, and is only reported. The submit event covers Enter too. It
+  // is reported once the site's own handlers have run, and only if none of
+  // them stopped it (the RUT check digit is validated on submit).
   let pressedAt = 0;
-  const pressed = (e: Event, form: HTMLFormElement) => {
-    const now = Date.now();
-    if (now - pressedAt > 800) emitNow("lead_submitted", { blocked: BLOCK_SUBMIT });
-    pressedAt = now;
-    if (!BLOCK_SUBMIT) return;
-    e.preventDefault();
-    e.stopImmediatePropagation();
-    previewNote(form);
-  };
-  window.addEventListener(
-    "click",
-    (e) => {
-      const b = (e.target as Element | null)?.closest?.("button, input[type=submit]") as HTMLButtonElement | null;
-      if (!b || b.type !== "submit" || b.form?.id !== "admisionForm") return;
-      pressed(e, b.form);
-    },
-    true,
-  );
   window.addEventListener(
     "submit",
     (e) => {
-      const f = e.target as HTMLFormElement | null;
-      if (f?.id === "admisionForm") pressed(e, f);
+      if ((e.target as HTMLFormElement | null)?.id !== "admisionForm") return;
+      setTimeout(() => {
+        const now = Date.now();
+        if (e.defaultPrevented || now - pressedAt < 800) return;
+        pressedAt = now;
+        emitNow("lead_submitted", {});
+      }, 0);
     },
     true,
   );
-  // Enter in a field submits the form without a press of its button.
-  window.addEventListener(
-    "keydown",
-    (e: KeyboardEvent) => {
-      if (!BLOCK_SUBMIT || e.key !== "Enter") return;
-      const t = e.target as HTMLElement | null;
-      const form = t?.closest?.("form#admisionForm") as HTMLFormElement | null;
-      if (!form || t?.tagName !== "INPUT") return;
-      pressed(e, form);
-    },
-    true,
-  );
-}
-
-/** Say, under the form, that the press went nowhere: a block of its own after
- *  the form, so the form's own layout is untouched. */
-function previewNote(form: HTMLFormElement): void {
-  if (document.querySelector("[data-voqalize=preview-note]")) return;
-  const p = document.createElement("p");
-  p.setAttribute("data-voqalize", "preview-note");
-  p.textContent = "Vista previa: este formulario no se envió.";
-  Object.assign(p.style, {
-    display: "block",
-    margin: "10px 0 0",
-    padding: "8px 12px",
-    borderRadius: "8px",
-    background: "#ffffff",
-    color: "#161616",
-    font: "600 13px/1.4 system-ui, sans-serif",
-    textAlign: "center",
-  });
-  form.insertAdjacentElement("afterend", p);
-  setTimeout(() => p.remove(), 6000);
 }
 
 // ─── Opening what is closed ───────────────────────────────────────────────

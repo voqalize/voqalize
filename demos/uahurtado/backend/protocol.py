@@ -23,7 +23,8 @@ just reported.
 
 **Forms are filled, never sent.** ``fill_lead_form`` types what the visitor
 dictated into the site's own lead form; nothing ever types a RUT, presses
-"Enviar", calls ``submit()`` or follows a visit's sign-up link.
+"Enviar", calls ``submit()`` or follows a visit's sign-up link. The visitor
+presses "Enviar", and the lead goes to UAH's admissions.
 
 The nested shapes are lenient plain models (the site changes without asking);
 the events themselves are strict, so a new event is a change we hear about.
@@ -367,10 +368,7 @@ class LeadFormState(AppEvent):
 
 
 class LeadSubmitted(AppEvent):
-    """The visitor pressed "Enviar". In a preview build the extension stops
-    the post (``blocked``) so a demo never sends UAH a lead."""
-
-    blocked: bool = True
+    """The visitor pressed "Enviar": the form went to UAH's admissions."""
 
 
 class AudiomallaEnded(AppEvent):

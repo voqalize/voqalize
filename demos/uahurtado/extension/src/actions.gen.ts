@@ -308,13 +308,8 @@ export interface LeadFormState {
   ready?: boolean;
 }
 
-/**
- * The visitor pressed "Enviar". In a preview build the extension stops
- * the post (`blocked`) so a demo never sends UAH a lead.
- */
-export interface LeadSubmitted {
-  blocked?: boolean;
-}
+/** The visitor pressed "Enviar": the form went to UAH's admissions. */
+export type LeadSubmitted = Record<string, never>;
 
 /** The audiomalla stopped: it finished, or the visitor paused it. */
 export interface AudiomallaEnded {

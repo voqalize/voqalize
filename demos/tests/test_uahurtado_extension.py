@@ -6,7 +6,7 @@ extension's own ``pnpm test:page`` (``uahurtado/extension/test/page.mjs``): the
 site adapter in headless Chromium against trimmed copies of the university's
 pages in ``tests/fixtures/uahurtado/``, with no network — tabs and pills, the
 Carreras menu, the career sheet and its 2027 fees read from the visible text,
-the lead form filled but never sent and the visitor's own press stopped, visit
+the lead form filled but never sent by him, the visitor's own press let through, visit
 cards, a programme's "Requisitos y Valores".
 
 It needs Node, the extension's ``node_modules`` (``pnpm install

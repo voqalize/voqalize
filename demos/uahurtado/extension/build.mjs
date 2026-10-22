@@ -20,11 +20,6 @@
 // another directory, and VOQALIZE_TARGET=prod marks a production build
 // (`build:prod` sets all three).
 //
-// UAHURTADO_BLOCK_SUBMIT (1 or 0, from the environment or the .env file) says
-// whether the visitor's own press of the lead form's "Enviar" is stopped (and
-// reported) rather than sent to the university. Unset, every build stops it:
-// letting a demo put a lead in UAH's pipeline is a choice made with `=0`.
-//
 // AVATAR_RUNTIME, when set, swaps the avatar runtime the npm shim names for
 // another — `pnpm build` sets it to the dev host's `current.js`, so the dev
 // extension runs the last dev upload. Read from the process alone, never from a
@@ -59,9 +54,6 @@ const wiring = {
   agentId: env.VOQALIZE_AGENT_ID || "",
   publishableKey: env.VOQALIZE_PUBLISHABLE_KEY || "",
 };
-const blockFlag = (env.UAHURTADO_BLOCK_SUBMIT ?? "").trim();
-if (blockFlag && !/^[01]$/.test(blockFlag)) throw new Error(`UAHURTADO_BLOCK_SUBMIT is "${blockFlag}"; say 1 or 0`);
-const blockSubmit = blockFlag ? blockFlag === "1" : true;
 if (!wiring.agentId || !wiring.publishableKey) {
   console.warn(
     "warning: VOQALIZE_AGENT_ID or VOQALIZE_PUBLISHABLE_KEY is empty (see .env.example); " +
@@ -95,7 +87,7 @@ await build({
   ...common,
   entryPoints: [join(here, "src/content.ts")],
   format: "iife",
-  define: { __VOQALIZE__: JSON.stringify(wiring), __UAHURTADO_BLOCK_SUBMIT__: JSON.stringify(blockSubmit) },
+  define: { __VOQALIZE__: JSON.stringify(wiring) },
   plugins: avatarRuntime ? [runtimeOverride] : [],
   outfile: join(out, "content.js"),
 });
@@ -112,4 +104,3 @@ if (existsSync(join(here, "rules.json"))) copyFileSync(join(here, "rules.json"),
 
 console.log(`built ${out} (${wiring.apiBase})`);
 console.log(`avatar runtime: ${avatarRuntime || "the npm pin"}`);
-console.log(`lead form "Enviar": ${blockSubmit ? "stopped (UAHURTADO_BLOCK_SUBMIT on)" : "sent to the university"}`);

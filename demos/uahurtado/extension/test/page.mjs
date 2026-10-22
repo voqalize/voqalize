@@ -41,7 +41,6 @@ const bundled = await build({
   write: false,
   format: "iife",
   target: "chrome120",
-  define: { __UAHURTADO_BLOCK_SUBMIT__: "true" },
   logLevel: "silent",
 });
 const ADAPTER = bundled.outputFiles[0].text;
@@ -329,23 +328,35 @@ test("focus_rut rings and focuses the RUT field, empty", async () => {
   await t.close();
 });
 
-test("a press of Enviar is stopped and reported while the block is on", async () => {
+test("the visitor's press of Enviar is never stopped by the extension", async () => {
   const t = await open(PSICOLOGIA);
   await t.page.evaluate(() => {
     window.__submits = 0;
-    document.getElementById("admisionForm").addEventListener("submit", () => window.__submits++);
+    document.getElementById("admisionForm").addEventListener("submit", (e) => {
+      window.__submits++;
+      e.preventDefault(); // stands in for the post; a cancelled press is not reported
+    });
   });
   await t.page.click("form#admisionForm button[type=submit]");
-  await t.page.focus("form#admisionForm [name='entry.230062511']");
-  await t.page.keyboard.press("Enter");
   await t.page.waitForTimeout(300);
-  assert.equal(await t.page.evaluate(() => window.__submits), 0);
-  assert.deepEqual(t.navigations, [PSICOLOGIA]);
-  assert.deepEqual(t.posts, [], "nothing was posted to the university");
-  const sent = await t.events("lead_submitted");
-  assert.ok(sent.length >= 1);
-  assert.deepEqual(sent[0], { blocked: true });
-  assert.match(await t.page.textContent("[data-voqalize=preview-note]"), /Vista previa: este formulario no se envió/);
+  assert.equal(await t.page.evaluate(() => window.__submits), 1, "the press was not stopped");
+  assert.deepEqual(await t.events("lead_submitted"), []);
+  await t.close();
+});
+
+test("a press the site lets through goes to the university and is reported once", async () => {
+  const t = await open(PSICOLOGIA);
+  await t.page.evaluate(() => {
+    // Post into a frame, so the page (and what it recorded) stays.
+    const sink = document.createElement("iframe");
+    sink.name = "sink";
+    document.body.append(sink);
+    document.getElementById("admisionForm").target = "sink";
+  });
+  await t.page.click("form#admisionForm button[type=submit]");
+  await t.page.waitForTimeout(500);
+  assert.equal(t.posts.length, 1, "the form was posted");
+  assert.deepEqual(await t.events("lead_submitted"), [{}]);
   await t.close();
 });
 

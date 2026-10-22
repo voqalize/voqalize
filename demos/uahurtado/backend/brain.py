@@ -1743,11 +1743,7 @@ class UahurtadoBrain(GeminiBrain):
                 return _form_note(event)
             case LeadSubmitted():
                 self._say_soon(
-                    "The visitor pressed Enviar on the form, but this is a preview: the page "
-                    "stopped it, and nothing reached the university. Say so in one sentence, "
-                    "and that on the real site the form would go to admissions."
-                    if event.blocked
-                    else "The visitor sent the form to admissions. Thank them in one sentence, "
+                    "The visitor sent the form to admissions. Thank them in one sentence, "
                     "and say admissions will contact them."
                 )
                 return None

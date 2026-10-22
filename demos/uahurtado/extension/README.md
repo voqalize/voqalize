@@ -153,14 +153,10 @@ pages), field by field, the way typing would, so the form's own scripts see it.
 It never types the RUT (with `focus_rut` it rings and focuses the field for the
 visitor), never calls `submit()` or `requestSubmit()`, never presses "Enviar"
 or Enter: once everything but the RUT is in, it rings "Enviar" for the visitor.
-That form is a real lead in the university's admissions pipeline.
-
-So a demo never sends one, the build has a flag: `UAHURTADO_BLOCK_SUBMIT` (`1`
-or `0`, from the environment or `.env`; anything else fails the build). Unset,
-every build stops the visitor's own press of "Enviar" (and Enter in a field),
-says "Vista previa: este formulario no se envió" under the form and reports
-`lead_submitted {blocked: true}`. With `0` the press goes through and reports
-`lead_submitted {blocked: false}`. The build prints which it did.
+That form is a real lead in the university's admissions pipeline: the visitor
+reviews it and presses "Enviar" themselves, the post goes to UAH as it always
+does, and the extension only reports the press (`lead_submitted`) so Javier can
+thank them.
 
 The PAES simulator (simula.uahurtado.cl) opens in a tab of its own when Javier
 offers it; the extension does not run there, and fills nothing: its form is a
