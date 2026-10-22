@@ -9,18 +9,33 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://www.explora.com/*", "https://explora.com/*", "https://reservations.explora.com/*"],
-      "js": ["bridge.js"],
+      "matches": [
+        "https://www.explora.com/*",
+        "https://explora.com/*",
+        "https://reservations.explora.com/*"
+      ],
+      "js": [
+        "bridge.js"
+      ],
       "run_at": "document_start"
     },
     {
-      "matches": ["https://www.explora.com/*", "https://explora.com/*", "https://reservations.explora.com/*"],
-      "js": ["content.js"],
+      "matches": [
+        "https://www.explora.com/*",
+        "https://explora.com/*",
+        "https://reservations.explora.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_idle",
       "world": "MAIN"
     }
   ],
-  "permissions": ["storage"],
+  "permissions": [
+    "storage",
+    "contentSettings"
+  ],
   "host_permissions": [
     "https://www.explora.com/*",
     "https://explora.com/*",

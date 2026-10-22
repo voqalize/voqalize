@@ -242,6 +242,26 @@ def _llm() -> ScriptedGemini:
                 "{show: included with your stay} Todo está incluido. ¿Revisamos fechas?"
             ),
             "Carry on.": reply("Sure, let's keep going."),
+            # Dev call 0a304d89: the zones are accordions on the page, named in
+            # passing with no cue of his own.
+            "Talk me through the zones.": reply(
+                "There are four zones. Janca is the highest, with glaciers. "
+                "Suni covers the mid altitudes and its farms. Shall I check dates?"
+            ),
+            # Dev call 0a304d89, turn 4: a page cue for the page in front and
+            # nothing else. Now asked once more, with tools off.
+            "Show me explorations.": [
+                reply("{page: /lodge/atacama-lodge/}"),
+                reply("{show: stargaze} Here are the nights under the stars."),
+            ],
+            "I'll take the suite, two of us, king bed.": reply_and_call(
+                "Good choice.",
+                "choose_room",
+                request={"room": "suite", "travellers": 2, "bed": "King"},
+            ),
+            "Pick the penthouse.": reply_and_call(
+                "Let me pick it.", "choose_room", request={"room": "Penthouse"}
+            ),
             "Anything in March?": reply_and_call(
                 "I've opened the calendar.",
                 "check_availability",
@@ -638,6 +658,57 @@ async def test_a_month_they_name_turns_the_calendar_to_it() -> None:
         assert sent["month"] == "2027-03" and sent["date"] is None
         # The booking site opens in the call's language.
         assert sent["language"] == "ES"
+
+
+ZONES_PAGE: dict[str, Any] = {
+    "site": "site",
+    "url": "https://www.explora.com/machu-picchu-hiking-tours/",
+    "path": "/machu-picchu-hiking-tours/",
+    "title": "Machu Picchu Hiking Tours",
+    "headings": ["Exploration Zones"],
+    "faqs": ["1. Janca", "2. Quechua", "3. Suni", "4. Puna"],
+}
+
+
+async def test_items_he_names_in_passing_are_shown() -> None:
+    async with demo("explora", _llm()) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/machu-picchu-hiking-tours/"})
+        await _page(rig, "page_changed", ZONES_PAGE)
+        await rig.driver.user_says("Talk me through the zones.")
+        assert [c["faq"] for c in _cues(rig)] == ["1. Janca", "3. Suni"]
+
+
+async def test_a_reply_that_was_only_a_dropped_page_cue_is_asked_again() -> None:
+    async with demo("explora", _llm()) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
+        await _page(rig, "page_changed", ATACAMA_PAGE)
+        turn = await rig.driver.user_says("Show me explorations.")
+        assert "nights under the stars" in turn.text
+
+
+async def test_a_room_is_chosen_from_the_rooms_on_screen() -> None:
+    llm = _llm()
+    async with demo("explora", llm) as rig:
+        await rig.driver.start_session(init={"site": "reservations", "path": "/ibe/paso2"})
+        await _page(
+            rig,
+            "stay_state",
+            {
+                "step": "rooms",
+                "hotel_code": "EATA",
+                "date": "2026-11-06",
+                "chosen_nights": 5,
+                "rooms": [{"name": "Suite Catur"}, {"name": "Yali"}],
+            },
+        )
+        await rig.driver.user_says("I'll take the suite, two of us, king bed.")
+        assert _commands(rig, "choose_room") == [
+            {"room": "Suite Catur", "travellers": 2, "bed": "King"}
+        ]
+        await rig.driver.user_says("Pick the penthouse.")
+        await rig.driver.user_says("Carry on.")
+        assert "no room 'Penthouse'" in _results(llm.captured_contents[-1])["choose_room"]
+        assert len(_commands(rig, "choose_room")) == 1
 
 
 def test_countries_and_hotels_are_found_by_name() -> None:

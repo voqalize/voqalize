@@ -271,6 +271,17 @@ class CheckAvailability(Action):
     """The booking site's language for the pages it opens: the call's."""
 
 
+class ChooseRoom(Action):
+    """On the rooms and rates (step two), choose ``room`` for ``travellers``
+    with ``bed`` and press its select button, which shows the room's summary
+    and its check-out button. Never check-out itself. The page reports
+    ``stay_state``."""
+
+    room: str
+    travellers: int | None = None
+    bed: str | None = None
+
+
 class FillEnquiry(Action):
     """On reservations.explora.com, open the enquiry form of the expedition
     ``expedition_code`` and fill in the fields given. What is filled stays. The
@@ -358,6 +369,14 @@ class AvailabilityRequest(BaseModel):
         default=False,
         description="Go on to the rooms and rates for that stay. Only when the visitor "
         "agrees to see them.",
+    )
+
+
+class RoomRequest(BaseModel):
+    room: str = Field(description="The room's name as the screen lists it, e.g. 'Suite'.")
+    travellers: int | None = Field(default=None, description="How many people, if they said.")
+    bed: Literal["King", "Twin"] | None = Field(
+        default=None, description="Bed type, only if they said and the room offers it."
     )
 
 
@@ -524,12 +543,13 @@ You: "Let's look at the calendar. I've opened Torres del Paine on the booking si
 
 # Moving the page
 - Cue only a path from the site pages list below or a search result, and only headings the list or the screen gives. A lodge's page has its own sub-pages — the lodge itself, its explorations, travel tips, getting there, FAQs — listed in the screen lines as its links: open the one that answers them.
+- When you talk through several items on a page — zones, rooms, lodges, explorations, steps — cue each one as you name it, by the label the screen lines give it: a heading, a tab or a question. When the visitor asks you to scroll to each one as you talk, that is what they mean.
 - The visitor can ask you to press or scroll to anything: "scroll to the rooms", "open that tab", "go back to the lodge", "show me Easter Island". Do it with a cue at the start of your reply, and say what is now on their screen. Never say you cannot scroll or click.
 
 # Checking availability
 - Offer it where the story reaches it — once a lodge fits them, or when they ask about dates, prices or booking — and not before.
 - check_availability with the lodge opens it on the booking site, in this tab, with its calendar. When they named a month ("March", "next spring"), pass it as month. Say so in a short sentence in the same response — "I've opened the calendar for Atacama." — and name no day yet: you do not know the open days until the screen lists them. Never choose a day for them: the date is the one they picked from the days you offered. They come back to you: say two or three near what they asked, and ask which day suits them. When they pick a day, check_availability with that date: the nights the lodge offers that day come back, each with its price from per night. Read out the one they asked for, or the recommended stay and one other. Never a day or a number of nights the calendar has not listed. Then, when they want, check_availability with show_rooms to show the rooms and rates.
-- On the rooms, the visitor chooses a room and goes on to book it themselves. Never press anything that books or pays, and never ask for card details.
+- On the rooms, talk through two or three with their prices, cueing each as you name it. When they pick one, choose_room selects it, with their travellers and bed type if they said: the page shows its summary and the check-out button. Check-out, booking and payment are theirs to press: never press them, and never ask for card details.
 - A Travesia (Atacama and Uyuni) books like a lodge. The two new lodges open in December twenty twenty-six.
 
 # An expedition's enquiry
@@ -620,7 +640,13 @@ _LANDED: dict[str, dict[Lang, str]] = {
         "en": "Here's the booking calendar.",
         "es": "Aquí tienes el calendario de reservas.",
     },
+    "stay_date": {
+        "en": "I've picked that day on the calendar.",
+        "es": "Ya elegí ese día en el calendario.",
+    },
+    "stay_nights": {"en": "I've set the nights.", "es": "Ya ajusté las noches."},
     "rooms": {"en": "Here are the rooms and rates.", "es": "Aquí están las habitaciones."},
+    "room": {"en": "I've selected that room.", "es": "Ya seleccioné esa habitación."},
     "enquiry": {
         "en": "I've filled that in on the form.",
         "es": "Ya lo completé en el formulario.",
@@ -633,9 +659,12 @@ _LANDED: dict[str, dict[Lang, str]] = {
 
 _ACK_LINES: dict[Lang, dict[Kind, tuple[str, ...]]] = {
     "en": {
-        "request": ("Sure.", "Okay.", "Of course.", "Certainly."),
+        # One short word each. A long word said alone ("Certainly.") is read
+        # by the cloned voice with nothing around it, and on dev call 0a304d89
+        # it did not sound like him.
+        "request": ("Sure.", "Okay.", "Sure thing.", "All right."),
         "question": ("Let me see.", "Hmm, let me see.", "Okay."),
-        "correction": ("I see.", "Understood.", "Right."),
+        "correction": ("I see.", "Got it.", "Right."),
         "statement": ("Okay.", "Got it.", "Right."),
     },
     "es": {
@@ -940,6 +969,8 @@ class ExploraBrain(GeminiBrain):
         self._shown: str | None = None
         #: Whether this turn made a booking move (availability, the enquiry).
         self._booked = False
+        #: The room last chosen, with its travellers and bed.
+        self._room: tuple[str, int | None, str | None] | None = None
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -1085,7 +1116,9 @@ class ExploraBrain(GeminiBrain):
             )
         )
         async for event in self._spelled(self._written(session, self._cued(self._paced(turn)))):
-            spoke = spoke or isinstance(event, SpeechStart)
+            # Words, not a unit: a reply that was only a dropped page cue
+            # opened a unit and said nothing (dev call 0a304d89, turn 4).
+            spoke = spoke or (isinstance(event, SpeechChunk) and bool(event.text.strip()))
             yield event
         if not spoke:
             logger.warning("explora: the model returned nothing; asking once more")
@@ -1290,7 +1323,36 @@ class ExploraBrain(GeminiBrain):
         if {k for k, _ in placed} & {"show", "faq", "page"}:
             return []
         shown = self._section_for(sentence)
-        return [("show", shown)] if shown is not None and shown != self._shown else []
+        if shown is not None:
+            return [("show", shown)] if shown != self._shown else []
+        # Items the page lists as questions or tabs, named in passing: on dev
+        # call 0a304d89 he talked through the four exploration zones (Janca,
+        # Quechua, Suni, Puna) of a page that lists them only as accordions,
+        # and the screen stayed where it was.
+        named = self._named_label(sentence)
+        if named is None or named[1] == self._shown:
+            return []
+        if named[0] == "faq":
+            self._shown = named[1]
+        return [named]
+
+    def _named_label(self, sentence: str) -> tuple[CueKind, str] | None:
+        """The question or tab on the page in front whose name ``sentence``
+        says outright ("Suni covers the mid altitudes" names "3. Suni"); the
+        longest, when it names two."""
+        said = " ".join(re.findall(r"[a-z0-9']+", norm(sentence)))
+        best: tuple[int, CueKind, str] | None = None
+        for kind, labels in (("faq", self._faqs()), ("show", self._tab_labels())):
+            for label in labels:
+                core = re.sub(r"\[[^\]]*\]|^\s*\d+\s*[.)]\s*", " ", label)
+                words = re.findall(r"[a-z0-9']+", norm(core))
+                if not words or len(" ".join(words)) < 4 or len(words) > 6:
+                    continue
+                if re.search(rf"\b{re.escape(' '.join(words))}\b", said):
+                    size = len(" ".join(words))
+                    if best is None or size > best[0]:
+                        best = (size, kind, label)  # type: ignore[assignment]
+        return (best[1], best[2]) if best else None
 
     def _section_for(self, sentence: str) -> str | None:
         """The heading on the page in front that ``sentence`` is about."""
@@ -1606,6 +1668,7 @@ class ExploraBrain(GeminiBrain):
             self.read_topic,
             self.search_site,
             self.check_availability,
+            self.choose_room,
             self.fill_enquiry,
             self.send_enquiry,
             self.switch_tab,
@@ -1672,7 +1735,13 @@ class ExploraBrain(GeminiBrain):
                 rooms=rooms,
                 language=self._site_language(),
             ),
-            "rooms" if rooms else "stay",
+            "rooms"
+            if rooms
+            else "stay_date"
+            if date
+            else "stay_nights"
+            if request.nights
+            else "stay",
         )
         what = ", ".join(
             x
@@ -1684,6 +1753,28 @@ class ExploraBrain(GeminiBrain):
             if x
         )
         return f"The booking site is opening {hotel.label}" + (f", {what}" if what else "") + "."
+
+    async def choose_room(self, request: RoomRequest) -> str:
+        """On the rooms and rates, select the room they picked, for their
+        travellers and bed type: the page shows its summary with the check-out
+        button, which they press themselves. Never books or pays."""
+        stay = self.stay
+        if stay is None or stay.step != "rooms":
+            return (
+                "Not chosen: the rooms are not on screen. check_availability with show_rooms first."
+            )
+        room = _match(request.room, [r.name for r in stay.rooms])
+        if room is None:
+            listed = ", ".join(r.name for r in stay.rooms) or "none"
+            return f"Not chosen: no room '{request.room}'. The rooms: {listed}."
+        # The site adds a room each time its button is pressed.
+        chosen = (room, request.travellers, request.bed)
+        if chosen == self._room:
+            return f"{room} is already selected, as asked: the summary is on screen."
+        self._room = chosen
+        self._booked = True
+        self._move(ChooseRoom(room=room, travellers=request.travellers, bed=request.bed), "room")
+        return f"Selecting {room}; the visitor presses check-out themselves."
 
     async def fill_enquiry(self, request: EnquiryRequest) -> str:
         """Open an expedition's enquiry form on reservations.explora.com, or add
@@ -1753,6 +1844,7 @@ class ExploraBrain(GeminiBrain):
 
 __all__ = [
     "CheckAvailability",
+    "ChooseRoom",
     "Cue",
     "EnquiryFields",
     "ExploraBrain",

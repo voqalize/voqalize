@@ -101,7 +101,7 @@ const MOVE_WITHOUT_CALL_MS = 800;
 /** The Actions that load a page of the other host when the tab in front is
  *  not on it: the booking steps from www.explora.com, a page from the
  *  booking site. */
-const BOOKING_COMMANDS = new Set(["check_availability", "fill_enquiry", "send_enquiry"]);
+const BOOKING_COMMANDS = new Set(["check_availability", "choose_room", "fill_enquiry", "send_enquiry"]);
 /** The Actions www.explora.com's adapter performs (`explora-actions.ts`). */
 const SITE_COMMANDS = ["navigate", "show_section", "open_faq"];
 /** The Actions the holder performs itself rather than a page. */
@@ -528,9 +528,14 @@ async function start(): Promise<void> {
     }
     if (action.command === "navigate") {
       await paced((action.payload as Navigate).after_words ?? 0);
-    } else if (BOOKING_COMMANDS.has(action.command) && !onBooking(frontUrl())) {
+    } else if (
+      BOOKING_COMMANDS.has(action.command) &&
+      !onBooking(frontUrl()) &&
+      bookingUrl(action.command, action.payload, language)
+    ) {
       // A booking step from www.explora.com loads the booking site: let him
-      // finish the sentence he is on first.
+      // finish the sentence he is on first. One that needs a page already
+      // open there (`choose_room`, `send_enquiry`) fails at once instead.
       await paced(0);
     }
     const why = OURS.has(action.command) ? await ours(action) : await dispatch(action.command, action.payload);
@@ -568,6 +573,9 @@ async function start(): Promise<void> {
         return null;
       }
       if (command === "send_enquiry" && !onBooking(location.href)) return fail("no expedition enquiry form is open");
+      if (command === "choose_room" && !onBooking(location.href)) {
+        return fail("the rooms are not open: check a lodge's availability through to its rooms first");
+      }
       if (command === "navigate" && onBooking(location.href)) {
         const p = payload as Navigate;
         const then: Then | undefined = p.faq

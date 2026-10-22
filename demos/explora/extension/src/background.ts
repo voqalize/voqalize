@@ -114,6 +114,11 @@ async function answer(tab: number, ask: Ask): Promise<unknown> {
     // `sessionStorage`, which is per origin: a load from www.explora.com to
     // reservations.explora.com in the same tab finds it here instead.
     case "stash":
+      // A call is live: the visitor let one Explora host hear them. The other
+      // host is another origin, which Chrome would ask again mid-call as the
+      // tab moves to the booking site, so the microphone is allowed on every
+      // Explora host now.
+      if (ask.call) await allowMicrophone();
       if (ask.call) await chrome.storage.session.set({ [`call:${tab}`]: ask.call });
       else await chrome.storage.session.remove(`call:${tab}`);
       return { ok: true };
@@ -121,6 +126,22 @@ async function answer(tab: number, ask: Ask): Promise<unknown> {
       const key = `call:${tab}`;
       const got = await chrome.storage.session.get(key);
       return { call: (got[key] as string | undefined) ?? null };
+    }
+  }
+}
+
+/** The hosts a call moves between, as content-setting patterns. */
+const EXPLORA_HOSTS = ["https://www.explora.com/*", "https://explora.com/*", "https://reservations.explora.com/*"];
+let micAllowed = false;
+
+async function allowMicrophone(): Promise<void> {
+  if (micAllowed || !chrome.contentSettings?.microphone) return;
+  micAllowed = true;
+  for (const primaryPattern of EXPLORA_HOSTS) {
+    try {
+      await chrome.contentSettings.microphone.set({ primaryPattern, setting: "allow" });
+    } catch (error) {
+      console.warn("voqalize: could not allow the microphone on", primaryPattern, error);
     }
   }
 }

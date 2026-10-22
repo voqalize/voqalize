@@ -65,25 +65,58 @@ const laidOut = (el: Element) =>
   !!((el as HTMLElement).offsetWidth || (el as HTMLElement).offsetHeight || el.getClientRects().length);
 
 const SKIP = "header#masthead, footer, .modal, .mobile-menu, .nav-mobile, script, style, noscript, [data-voqalize]";
+/** Menus too, for the `h4`s: a dropdown's or a sub-menu's titles are not sections. */
+const SKIP_H4 = `${SKIP}, nav, .dropdown-menu, .explora-submenu, .owl-item.cloned`;
 const HEAD_SEL = "h1,h2,h3,.h1,.h2,.h3,.explora-page-title";
 const isQuestionLike = (s: string) => /read more|read less/i.test(s);
+
+/** A pane the adapter can open: a closed theme tab, Bootstrap tab or collapse. */
+const CLOSED = ".tab-panels-content .panel:not(.active), .tab-pane:not(.active), .collapse:not(.show)";
+
+/** Hidden by the layout itself, not by a pane the adapter can open: inside a
+ *  responsive copy that is `display: none` at this width (`d-none`,
+ *  `d-md-none`, `d-lg-none`…), the mobile accordion beside a desktop row. */
+function layoutHidden(el: Element): boolean {
+  for (let p: Element | null = el; p && p !== document.body; p = p.parentElement) {
+    if (laidOut(p)) return false;
+    if (!p.matches(CLOSED) && getComputedStyle(p).display === "none") return true;
+  }
+  return false;
+}
+
+/** What may be reported and used at this width: laid out, or hidden only
+ *  by a closed pane the adapter can open. */
+const usable = (el: Element) => laidOut(el) || !layoutHidden(el);
 
 // ─── What the page shows ──────────────────────────────────────────────────
 
 /** Section headings, in document order: the crawler's (`h1`–`h3`, the styled
  *  `.h1`–`.h3` divs, `.explora-page-title`; not in the header, footer or a
  *  modal; laid out; not wrapping another heading), plus the destination
- *  names `/destinations/` sets in `h4.explora-heading`. With `hidden`, also
- *  those in closed panes, for a heading asked for that is not showing. */
+ *  names `/destinations/` sets in `h4.explora-heading`, plus every other
+ *  `h4` that is laid out (not in a menu, not an accordion's trigger, not a
+ *  question): the desktop copy of a row whose mobile copy is an accordion,
+ *  as the Sacred Valley's exploration zones. With `hidden`, also those in
+ *  closed panes (never in a responsive copy hidden at this width), for a
+ *  heading asked for that is not showing. */
 function headingEls(hidden = false): HTMLElement[] {
-  return [...root().querySelectorAll<HTMLElement>(`${HEAD_SEL}, h4.explora-heading`)].filter(
-    (h) =>
-      !h.closest(SKIP) &&
-      (hidden || laidOut(h)) &&
-      headText(h) &&
-      (h.matches("h4") || !h.querySelector(HEAD_SEL)),
-  );
+  return [...root().querySelectorAll<HTMLElement>(`${HEAD_SEL}, h4`)].filter((h) => {
+    if (h.closest(SKIP) || !headText(h)) return false;
+    if (isPlainH4(h)) {
+      return (
+        laidOut(h) &&
+        !h.closest(SKIP_H4) &&
+        !h.matches("[data-toggle]") &&
+        !h.querySelector("[data-toggle]") &&
+        !headText(h).endsWith("?")
+      );
+    }
+    return (laidOut(h) || (hidden && !layoutHidden(h))) && (h.matches("h4") || !h.querySelector(HEAD_SEL));
+  });
 }
+
+/** An `h4` the crawler's rules do not take (not `.h3`-styled, not a destination name). */
+const isPlainH4 = (h: Element) => h.matches("h4") && !h.matches(`${HEAD_SEL}, .explora-heading`);
 
 /** A heading as the crawler read it: its rendered text (`innerText`, so
  *  `text-transform: uppercase` reads as capitals), at most 200 characters. */
@@ -114,7 +147,7 @@ function tabPanelTriggers(): Trigger[] {
     for (const li of tp.querySelectorAll<HTMLElement>(".tab-panels-nav li")) {
       const pane = tp.querySelector<HTMLElement>(`.tab-panels-content .panel[data-index="${li.dataset.index}"]`);
       const label = clean(li.textContent);
-      if (pane && label) out.push({ el: li, label, pane, kind: "tabpanel" });
+      if (pane && label && usable(li)) out.push({ el: li, label, pane, kind: "tabpanel" });
     }
   }
   return out;
@@ -128,17 +161,19 @@ function navTabTriggers(): Trigger[] {
     for (const a of nav.querySelectorAll<HTMLElement>("a[href^='#'], [data-toggle=tab], [role=tab]")) {
       const pane = byId(a.getAttribute("data-target") ?? a.getAttribute("href"));
       const label = clean(a.textContent);
-      if (pane && label) out.push({ el: a, label, pane, kind: "navtab" });
+      if (pane && label && usable(a)) out.push({ el: a, label, pane, kind: "navtab" });
     }
   }
   return out;
 }
 
-/** Every Bootstrap collapse trigger with a pane it opens. */
+/** Every Bootstrap collapse trigger with a pane it opens, that is laid out
+ *  at this width or sits in a pane that can be opened: never one in a
+ *  responsive copy the layout hides (`laidOut`/`layoutHidden`). */
 function collapseTriggers(): Trigger[] {
   const out: Trigger[] = [];
   for (const t of root().querySelectorAll<HTMLElement>("[data-toggle=collapse]")) {
-    if (t.closest(SKIP)) continue;
+    if (t.closest(SKIP) || !usable(t)) continue;
     const pane = byId(t.getAttribute("data-target") ?? t.getAttribute("href"));
     const label = clean(t.textContent);
     if (pane && label) out.push({ el: t, label, pane, kind: "collapse" });
@@ -165,8 +200,6 @@ function tabLabels(): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const t of tabTriggers()) {
-    // The mobile copy of a tab row is not laid out on a desktop; it still
-    // names the same tab.
     const l = tabLabel(t);
     if (seen.has(norm(l))) continue;
     seen.add(norm(l));
@@ -241,11 +274,15 @@ function links(): string[] {
 
 function context(): PageContext {
   const seen = new Set<string>();
+  const seenNorm = new Set<string>();
   const hs: string[] = [];
   for (const h of headingEls()) {
     const t = headText(h);
-    if (seen.has(t)) continue;
+    // The crawler's headings by their exact text; an added `h4` also by its
+    // folded one ("FAQs" beside "FAQS").
+    if (seen.has(t) || (isPlainH4(h) && seenNorm.has(norm(t)))) continue;
     seen.add(t);
+    seenNorm.add(norm(t));
     hs.push(t);
     if (hs.length >= MAX_HEADINGS) break;
   }
@@ -303,8 +340,7 @@ function closedAround(el: HTMLElement): Trigger[] | null {
   const all = [...tabPanelTriggers(), ...navTabTriggers(), ...collapseTriggers()];
   for (let p: HTMLElement | null = el.parentElement; p && p !== document.body; p = p.parentElement) {
     if (shown(p)) break;
-    const closed =
-      p.matches(".tab-panels-content .panel:not(.active), .tab-pane:not(.active), .collapse:not(.show)");
+    const closed = p.matches(CLOSED);
     if (!closed) {
       // Hidden for some other reason (`d-none`, a mobile-only copy): not ours to open.
       if (getComputedStyle(p).display === "none") return null;
@@ -490,13 +526,61 @@ async function showTab(label: string): Promise<boolean> {
   return true;
 }
 
+/** Scroll to a laid-out element's block and ring it. */
+async function ringBlock(el: HTMLElement): Promise<void> {
+  const section = sectionOf(el);
+  await scrollTo(section, "top");
+  highlight(section);
+}
+
+const TRIGGER = "[data-toggle], [role=tab], .tab-panels-nav li, .nav-link";
+
+/** A laid-out label on the page that reads `label`: a heading, a title, a
+ *  term, whose text equals it or starts with it (or, failing those, ends
+ *  with it: "Suni" for "3. Suni"). For what a responsive copy hides: the
+ *  desktop `h4` "3. Suni" beside the mobile accordion of the same name. */
+function laidOutLabel(label: string): HTMLElement | null {
+  const want = norm(label);
+  if (!want) return null;
+  const hits: [HTMLElement, number, number][] = [];
+  for (const el of root().querySelectorAll<HTMLElement>("h1,h2,h3,h4,h5,h6,.h1,.h2,.h3,.h4,.h5,dt,strong,b,summary")) {
+    // A tab's or an accordion's own label is opened, not ringed (`showTab`).
+    if (el.closest(JUNK) || el.closest(SKIP) || el.closest(TRIGGER) || !onShow(el)) continue;
+    const t = norm(el.innerText || el.textContent);
+    if (!t || t.length > 200) continue;
+    const rank = t === want ? 0 : t.startsWith(want) ? 1 : t.endsWith(want) && want.length > 2 ? 2 : -1;
+    if (rank >= 0) hits.push([el, rank, t.length]);
+  }
+  hits.sort((a, b) => a[1] - b[1] || a[2] - b[2]);
+  return hits[0]?.[0] ?? null;
+}
+
+/** What is showing, for an error the model can act on. */
+function shownLabels(n = 20): string {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const l of [...context().headings, ...tabLabels(), ...faqs()]) {
+    if (seen.has(norm(l))) continue;
+    seen.add(norm(l));
+    out.push(l);
+  }
+  return out.slice(0, n).join(" | ");
+}
+
 async function showSection({ heading, text }: { heading?: string | null; text?: string | null }) {
   if (!heading && !text) throw new Error("say which heading or text to show");
   if (heading) {
     const found = findHeading(heading);
+    // A heading that is not laid out gives way to a laid-out label of the
+    // same name before any pane is opened for it.
+    const twin = found && !onShow(found) && !text ? laidOutLabel(heading) : null;
+    if (twin) {
+      await ringBlock(twin);
+      return;
+    }
     const h = found && (onShow(found) ? found : await reveal(found));
     if (found && !h && !text) {
-      throw new Error(`"${heading}" is in a part of ${location.pathname} that cannot be opened`);
+      throw new Error(`"${heading}" is in a part of ${location.pathname} that cannot be opened; it shows: ${shownLabels()}`);
     }
     if (h) {
       if (text && (await ringText(text, sectionOf(h)))) return;
@@ -511,10 +595,14 @@ async function showSection({ heading, text }: { heading?: string | null; text?: 
       if (text) await ringText(text);
       return;
     }
-    if (!text && (await ringText(heading))) return;
     if (!text) {
-      const known = context().headings.slice(0, 20).join(" | ");
-      throw new Error(`no heading "${heading}" on ${location.pathname}; it has: ${known}`);
+      const label = laidOutLabel(heading);
+      if (label) {
+        await ringBlock(label);
+        return;
+      }
+      if (await ringText(heading)) return;
+      throw new Error(`no heading "${heading}" on ${location.pathname}; it shows: ${shownLabels()}`);
     }
   }
   if (text && (await ringText(text))) return;
@@ -524,13 +612,30 @@ async function showSection({ heading, text }: { heading?: string | null; text?: 
 // ─── open_faq ─────────────────────────────────────────────────────────────
 
 async function openFaq({ question }: { question: string }) {
+  if (!clean(question)) throw new Error("say which question to open");
+  // Only triggers laid out at this width, or in a pane that can be opened.
   const triggers = collapseTriggers().filter((t) => !isQuestionLike(t.label));
-  const t =
-    pick(question, triggers.filter((x) => visible(x.el)), (x) => x.label) ??
-    pick(question, triggers, (x) => x.label);
+  let t = pick(question, triggers.filter((x) => visible(x.el)), (x) => x.label);
+  if (!t) {
+    // Not an accordion that is showing: a question set as a heading, or a
+    // laid-out label of that name (the desktop row a mobile accordion
+    // copies), before any closed pane is opened for it.
+    const q = pick(question, questionHeadings(new Set()).filter((x) => onShow(x.els[0])), (x) => x.q);
+    if (q) {
+      await scrollTo(q.els[0], "top");
+      highlight(q.els);
+      return;
+    }
+    const label = laidOutLabel(question);
+    if (label) {
+      await ringBlock(label);
+      return;
+    }
+    t = pick(question, triggers, (x) => x.label);
+  }
   if (t) {
-    // A trigger in a closed pane: open the pane first. A mobile copy that
-    // cannot be opened gives way to the desktop tab of the same name.
+    // A trigger in a closed pane: open the pane first; one that cannot be
+    // opened gives way to a tab of the same name.
     if (!visible(t.el) && !(await reveal(t.el)) && (await showTab(t.label))) return;
     await openTrigger(t);
     const item = t.el.closest<HTMLElement>("li.list-group-item, .card") ?? null;
@@ -549,7 +654,10 @@ async function openFaq({ question }: { question: string }) {
     return;
   }
   const known = faqs().slice(0, 15).join(" | ");
-  throw new Error(`no question "${question}" on ${location.pathname}${known ? `; it has: ${known}` : ""}`);
+  throw new Error(
+    `no question "${question}" on ${location.pathname}; ` +
+      (known ? `its questions: ${known}` : `it has no questions; it shows: ${shownLabels()}`),
+  );
 }
 
 // ─── navigate ─────────────────────────────────────────────────────────────
