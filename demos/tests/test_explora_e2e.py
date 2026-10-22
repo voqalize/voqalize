@@ -248,6 +248,14 @@ def _llm() -> ScriptedGemini:
                 "{show: included with your stay} Todo está incluido. ¿Revisamos fechas?"
             ),
             "Carry on.": reply("Sure, let's keep going."),
+            # Dev call 1f6cd8ce: the lodge's own rooms page, linked by its tab
+            # bar but crawled under another path, was dropped three times.
+            "Show me the room options.": reply(
+                "Just a moment. {page: /explora-lodge-easter-island-new/} Here are the rooms."
+            ),
+            "Bring up the pricing tab.": reply_and_call(
+                "Here it is.", "switch_tab", request={"tab_id": "99"}
+            ),
             # Dev call ed9846d5, turn 6: his whole reply was a promise.
             "Show me the explorations.": [
                 reply("One moment."),
@@ -782,6 +790,72 @@ def test_a_numbered_one_word_heading_is_named() -> None:
     assert best_section("Then the Altiplano rises above four thousand metres.", sections) == (
         "3. Altiplano"
     )
+
+
+EASTER_PAGE: dict[str, Any] = {
+    "site": "site",
+    "url": "https://www.explora.com/explorations-lodge/easter-island/",
+    "path": "/explorations-lodge/easter-island/",
+    "title": "Easter Island Explorations",
+    "headings": ["All Explorations"],
+    "links": ["/lodge/easter-island-hotels/", "/explora-lodge-easter-island-new/"],
+}
+
+
+async def test_a_page_its_own_tab_bar_links_opens_though_the_crawl_lacks_it() -> None:
+    async with demo("explora", _llm()) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": EASTER_PAGE["path"]})
+        await _page(rig, "page_changed", EASTER_PAGE)
+        turn = await _says_while_pages_load(
+            rig,
+            "Show me the room options.",
+            {**EASTER_PAGE, "path": "/explora-lodge-easter-island-new/", "headings": ["OUR ROOMS"]},
+        )
+        assert _commands(rig, "navigate")[0]["path"] == "/explora-lodge-easter-island-new/"
+        # The holding line he copied is not said.
+        assert turn.text.strip() == "Here are the rooms."
+
+
+async def test_switch_tab_with_one_tab_moves_nothing() -> None:
+    llm = _llm()
+    async with demo("explora", llm) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/"})
+        await rig.driver.user_says("Bring up the pricing tab.")
+        await rig.driver.user_says("Carry on.")
+        assert "only this one Explora tab" in _results(llm.captured_contents[-1])["switch_tab"]
+        assert _commands(rig, "focus_tab") == []
+
+
+@pytest.mark.parametrize(
+    ("text", "path"),
+    [
+        # The thing named last is the one wanted.
+        (
+            "I'm still seeing the explorations, I can't see the rooms here.",
+            "/atacama-desert-explora-lodge/",
+        ),
+        ("Show me the rooms and then the explorations", "/atacama-explorations/"),
+    ],
+)
+def test_the_sub_page_named_last_is_the_one_wanted(text: str, path: str) -> None:
+    links = ATACAMA_LODGE_PAGE["links"]
+    assert explora.asked_sub_page(text, links, "/atacama-explorations") == path or (
+        explora.asked_sub_page(text, links, "/lodge/atacama-lodge") == path
+    )
+
+
+@pytest.mark.parametrize(
+    ("text", "here", "path"),
+    [
+        ("Can you go back to the other lodges available?", "/ibe/paso2", "/destinations/"),
+        ("Show me all the lodges", "/", "/destinations/"),
+        ("Show me the lodges", "/destinations", None),
+        # A place named wins over "lodges".
+        ("Show me the lodges in Atacama", "/", "/lodge/atacama-lodge/"),
+    ],
+)
+def test_all_the_lodges(text: str, here: str, path: str | None) -> None:
+    assert asked_page(text, here) == path
 
 
 def test_countries_and_hotels_are_found_by_name() -> None:

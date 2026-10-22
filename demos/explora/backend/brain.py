@@ -830,22 +830,37 @@ def asked_sub_page(text: str, links: list[str], here: str) -> str | None:
     whole reply to that was "One moment.", and nothing moved."""
     if asks_call_language(text):
         return None
-    for asked, path in _SUB_PAGES:
-        if asked.search(text):
-            # Not the page in front, nor the lodge's overview (every lodge
-            # page links its own, and its path says "lodge" too).
-            hit = next(
-                (
-                    link
-                    for link in links
-                    if path.search(link)
-                    and canonical_path(link) != here
-                    and not canonical_path(link).startswith("/lodge/")
-                ),
-                None,
-            )
+    # The thing named last is the one wanted: "I'm still seeing the
+    # explorations, not the rooms" asks for the rooms (dev call 1f6cd8ce).
+    asked = sorted(
+        ((m.start(), path) for rx, path in _SUB_PAGES for m in rx.finditer(text)),
+        key=lambda hit: -hit[0],
+    )
+    for _, path in asked:
+        # Not the page in front, nor the lodge's overview (every lodge
+        # page links its own, and its path says "lodge" too).
+        hit = next(
+            (
+                link
+                for link in links
+                if path.search(link)
+                and canonical_path(link) != here
+                and not canonical_path(link).startswith("/lodge/")
+            ),
+            None,
+        )
+        if hit is not None:
             return hit
     return None
+
+
+#: All the lodges, when the visitor names no one place: "go back to the other
+#: lodges" from the booking site did nothing on dev call 1f6cd8ce.
+_ALL_LODGES = re.compile(
+    r"\b(?:lodges|hotels|destinations|all (?:the |your )?(?:lodges|places)|"
+    r"alojamientos|hoteles|destinos)\b",
+    re.IGNORECASE,
+)
 
 
 def asked_page(text: str, here: str) -> str | None:
@@ -855,6 +870,8 @@ def asked_page(text: str, here: str) -> str | None:
         return None
     named = [(m.start(), path, home) for rx, path, home in _ASKED_PAGES if (m := rx.search(text))]
     if not named:
+        if _ALL_LODGES.search(text) and "destinations" not in here and "destinos" not in here:
+            return "/destinations/"
         return None
     _, path, home = min(named)
     return None if any(h in here for h in home) else path
@@ -975,6 +992,12 @@ def best_section(sentence: str, sections: list[tuple[str, str]]) -> str | None:
 #: A ``{page: …}`` cue, as the model writes it, anywhere in a chunk.
 _PAGE_CUE = re.compile(r"\{\s*page\s*:\s*([^{}]*?)\s*\}", re.IGNORECASE)
 
+
+#: A holding line the model writes at the start of its own reply.
+_HOLD_OPENER = re.compile(
+    r"^\s*(?:just a moment|one moment(?: please)?|un momento|dame un momento)[.,]\s*",
+    re.IGNORECASE,
+)
 
 #: What a reply that only promises more says: nothing comes after it.
 _PROMISE = re.compile(
@@ -1245,6 +1268,9 @@ class ExploraBrain(GeminiBrain):
                 text = event.text
                 if first and text.strip():
                     first = False
+                    # A holding line is mine to say, not his: he copied it on
+                    # dev call 1f6cd8ce ("Just a moment. Here are the rooms").
+                    text = _HOLD_OPENER.sub("", text, count=1)
                     text = self._with_backstop(text)
                 buf += text
                 while (m := _PAGE_CUE.search(buf)) is not None:
@@ -1252,17 +1278,22 @@ class ExploraBrain(GeminiBrain):
                     if before.strip():
                         yield SpeechChunk(before)
                         said += _words_in(before)
-                    page = self.kb.page(value)
-                    if page is None:
+                    target = self._page_target(value)
+                    if target is None:
                         logger.info("explora: page cue {!r} names no page; dropped", value)
+                        self._note(
+                            f"[Your page cue {value} named no page of the site, so the "
+                            "screen did not move. Never say it is on their screen: find the "
+                            "page with search_site, or the page's own sub-pages, and cue it.]"
+                        )
                         continue
-                    if self._site == "site" and page.path == self._path:
+                    if self._site == "site" and target == self._path:
                         continue  # Already there: a show cue after it does the rest.
                     # The words so far play out in their own unit, then the page goes.
                     if opened and said:
                         yield SpeechEnd()
                         opened = False
-                    await self._open_page(page.path, said)
+                    await self._open_page(target, said)
                     said = 0
                     if not opened:
                         yield SpeechStart()
@@ -1281,6 +1312,28 @@ class ExploraBrain(GeminiBrain):
         finally:
             await turn.aclose()
 
+    def _cue_is_here(self, chunk: str) -> bool:
+        """Whether ``chunk`` opens with a show or faq cue that names something
+        on the page in front."""
+        m = re.match(r"\s*\{\s*(show|faq)\s*:\s*([^{}]*?)\s*\}", chunk, re.IGNORECASE)
+        if m is None:
+            return False
+        here = (*self._headings(), *self._tab_labels(), *self._faqs())
+        return _match(m.group(2), here) is not None
+
+    def _page_target(self, value: str) -> str | None:
+        """The path a page cue opens: a page of the crawl, or one of the page
+        in front's own links (a lodge's sub-pages, the Spanish site's pages),
+        which the crawl may hold under another path. On dev call 1f6cd8ce the
+        Easter Island lodge's /easter-island-excursions/ was dropped three
+        times as unknown, though its own tab bar linked it."""
+        page = self.kb.page(value)
+        if page is not None:
+            return page.path
+        want = canonical_path(value)
+        links = self.page.links if self.page is not None else []
+        return want if any(canonical_path(link) == want for link in links) else None
+
     async def _open_page(self, path: str, words_before: int) -> None:
         """Open ``path`` on the tab in front and wait for it to report itself."""
         seen = self._pages_seen
@@ -1293,6 +1346,10 @@ class ExploraBrain(GeminiBrain):
         self._cue_path = path
         self._shown = None
         deadline = time.monotonic() + _PAGE_WAIT_S + words_before / _WORDS_PER_S
+        # On the Spanish site an English path may be the page in front: the
+        # page re-reports itself rather than reload, and that is the arrival.
+        if leaving is not None and leaving.startswith("/es/"):
+            leaving = None
         while self._pages_seen == seen or (leaving is not None and self._path == leaving):
             left = deadline - time.monotonic()
             if left <= 0:
@@ -1386,7 +1443,14 @@ class ExploraBrain(GeminiBrain):
         if self._backstop is None or not chunk.strip():
             return chunk
         path, self._backstop = self._backstop, None
-        if "{" in chunk or self._site != "site" or canonical_path(path) == self._path:
+        # His own cue wins when it opens a page, or shows something the page
+        # in front has; a section cue that names nothing here does not keep
+        # the visitor on the wrong page.
+        if (
+            _PAGE_CUE.search(chunk)
+            or self._cue_is_here(chunk)
+            or canonical_path(path) == self._path
+        ):
             return chunk
         logger.info("explora: the reply has no cue; showing {} first", path)
         return f"{{page: {path}}}{chunk}"
@@ -1908,7 +1972,14 @@ class ExploraBrain(GeminiBrain):
         return "Pressed Send Message; the page will say when it has gone."
 
     async def switch_tab(self, request: TabRequest) -> str:
-        """Bring another of the visitor's Explora tabs to the front."""
+        """Bring ANOTHER of the visitor's open Explora tabs to the front — only
+        when the screen lines list more than one. Never to show a page: a page
+        cue does that, in this tab."""
+        if len(self.tabs) <= 1:
+            return (
+                "Not switched: they have only this one Explora tab. To show a page, cue it "
+                "with {page: /path/} at the start of your reply. Never say it is on screen."
+            )
         tab = next((t for t in self.tabs if t.tab_id == request.tab_id), None)
         if tab is None:
             listed = ", ".join(f"{t.tab_id} ({t.title})" for t in self.tabs) or "none"
