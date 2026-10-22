@@ -91,9 +91,10 @@ async def test_a_turn_reports_each_request_and_each_tool_as_a_step() -> None:
         "reasoning_tokens": 0,
     }
     # One timeline: the tool ran inside the first request's stream, and the
-    # second request began after the first ended.
-    assert first.start_ms <= tool.start_ms
-    assert tool.start_ms + tool.duration_ms <= first.start_ms + first.duration_ms
+    # second request began after the first ended. Each start is rounded to a whole
+    # millisecond on its own, so every comparison allows 1 ms.
+    assert first.start_ms <= tool.start_ms + 1
+    assert tool.start_ms + tool.duration_ms <= first.start_ms + first.duration_ms + 1
     assert second.start_ms >= first.start_ms + first.duration_ms - 1
     assert first.first_output_ms is not None
     assert tool.first_output_ms is None
