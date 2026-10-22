@@ -1,6 +1,6 @@
 # Admisión, valores y Programa Moreau
 
-Sources: https://saintgeorge.cl/admision/admision/ (h1 "Admisión"; párrafos en negrita "Admisión 2027:", "Admisión Pre Kínder 2028:", "Valores referenciales año 2026:", "Consultas:", "Fono:"; h3 "Cambridge English Qualifications"); https://saintgeorge.cl/admision/admision-programa-moreau/; https://saintgeorge.cl/colegio/comite-de-escolaridad/; https://saintgeorge.cl/familia/ropero/ (uniformes Moreau). Crawl 2026-10-22.
+Sources: https://saintgeorge.cl/admision/admision/ (h1 "Admisión"; párrafos en negrita "Admisión …:" (estado de admisión), "Valores referenciales año …:", "Consultas:", "Fono:"; h3 "Cambridge English Qualifications"); https://saintgeorge.cl/admision/admision-programa-moreau/; https://saintgeorge.cl/colegio/comite-de-escolaridad/; https://saintgeorge.cl/familia/ropero/ (uniformes Moreau). Crawl 2026-10-22.
 
 ## Cómo se postula
 - **No hay formulario de admisión** en el sitio, ni agendamiento de visitas. Todo es por correo o teléfono:
@@ -10,9 +10,9 @@ Sources: https://saintgeorge.cl/admision/admision/ (h1 "Admisión"; párrafos en
 - Si el visitante quiere escribir a admisión, puedo ayudarle a redactar el correo, pero lo envía él desde su correo.
 
 ## Estado de admisión `[en vivo]`
-- Dónde está: `/admision/admision/`, primer bloque de texto (`main section .col-lg-12 p`), párrafos que empiezan con **"Admisión 2027:"** y **"Admisión Pre Kínder 2028:"** (en negrita).
-- Dato cambiante: léelo en la página antes de responder. No prometas vacantes ni fechas.
-- Foto 2026-10-22 (no es vigente por definición): "Admisión 2027: Para información de vacantes disponibles escribir a admisiones@saintgeorge.cl" · "Admisión Pre Kínder 2028: Información a partir de noviembre."
+- Dónde está: `/admision/admision/`, primer bloque de texto (`main section .col-lg-12 p`), párrafos en negrita que empiezan con **"Admisión"** y el año de ingreso (uno por proceso, p. ej. el de Pre Kínder).
+- Dato cambiante: qué años están abiertos, las vacantes y desde cuándo se informa se leen en la página en vivo con show_fees(about="admission"), nunca desde aquí. No prometas vacantes ni fechas.
+- El estado no se guarda aquí a propósito, como las cifras de los valores.
 
 ## Valores (aranceles) `[en vivo]`
 - Dónde está: misma página, párrafo que empieza con **"Valores referenciales año 2026:"** (en negrita), justo después del estado de admisión. Tres líneas: **Cuota de Incorporación por estudiante**, **Matrícula anual por estudiante**, **Colegiatura mensual por estudiante** (esta última "puede variar dependiendo el nivel"). Todo en **UF** (Unidad de Fomento: unidad indexada chilena; su valor en pesos cambia cada día — no la conviertas).

@@ -12,7 +12,7 @@ Sources: https://saintgeorge.cl/familia/calendario/ (h1 "Calendario", dos iframe
 ## Fechas que el sitio escribe en texto
 - **Musical The Lion King**: viernes 20 y sábado 21 de noviembre, Gimnasio del colegio (ver `musical-90-anos`). Es el único evento destacado con página propia.
 - **Informativo 2026** (`/familia/informativo/`, carta de la Rectora; foto del inicio de año 2026, ya pasado): inicio de clases martes 3 de marzo de 2026 para 2° Básico a 12°; Pre-Kínder a 1° Básico se incorporan miércoles 4 y jueves 5 de marzo según su grupo. Menciona que con el Informativo se publicaba el "Calendario Escolar 2026".
-- **Admisión Pre Kínder 2028**: "Información a partir de noviembre" (`/admision/admision/`, `[en vivo]`).
+- **Fechas de admisión**: no se guardan aquí; el estado de admisión se lee en vivo en `/admision/admision/` (show_fees(about="admission")).
 - Ropero: atención los miércoles de 8:00 a 13:30 hrs.
 
 ## Lo que el sitio no tiene

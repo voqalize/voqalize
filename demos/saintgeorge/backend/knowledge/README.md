@@ -11,8 +11,9 @@ The hand-written layers are in **Spanish**, the site's only language, keeping th
 **Changing data is marked `[en vivo]`.** Admission status and vacancies, the "Valores referenciales"
 in UF, the Google Calendar, ticket sales for the musical, the monthly casino menus and the newsletter
 list change during the year. The files say *where* each lives (path, heading, selector) and tell the
-agent to read it from the live page. The UF values are not written in L1/L2 at all (the brain's
-loader also masks them in L3); the few other changing values kept are labelled "foto 2026-10-22",
+agent to read it from the live page. The UF values and the admission status ("Admisión 2027: …")
+are not written in L1/L2 at all (the brain's loader also masks both in L3, so a rebuild cannot
+bring them back); the few other changing values kept are labelled "foto 2026-10-22",
 as santanderarena and clini keep their dated snapshots.
 
 - **`L1.md`**: always in the prompt. Who the school is, history in short, mission and values, the

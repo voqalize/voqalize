@@ -20,8 +20,9 @@ others down with it.
 What changes during the year — fees, admission status, the calendar — is
 deliberately not trusted from here: the extension reads it off the visitor's
 own page while the call is on (see ``brain.py``). So every fee the crawl or a
-topic wrote down ("UF 85") is taken out as the layers load, and a search can
-never hand the model last month's value. Pages the site serves empty (its
+topic wrote down ("UF 85") and the admission page's status lines ("Admisión
+2027: …") are taken out as the layers load, and a search can never hand the
+model last month's value. Pages the site serves empty (its
 broken parent pages, its unused post types) are left out, so no move lands on
 one. The brain itself never fetches the site.
 
@@ -102,6 +103,22 @@ _FEE_LIVE = "UF (read live: show_fees)"
 def redact_fees(text: str) -> str:
     """``text`` with every fee value taken out: fees are only ever read live."""
     return _FEE.sub(_FEE_LIVE, text)
+
+
+#: The admission page's status lines, "Admisión 2027: …", "Admisión Pre Kínder
+#: 2028: …", up to the next bold label or the end of the line.
+_ADMISSION_LABEL = r"\bAdmisi[oó]n(?:\s+Pre[\s-]*K[ií]nder)?\s+\d{4}\s*:"
+_ADMISSION = re.compile(
+    rf"({_ADMISSION_LABEL}).*?(?=\s*(?:{_ADMISSION_LABEL}|\bValores\b|\bConsultas\s*:|\n|$))",
+    re.IGNORECASE,
+)
+_ADMISSION_LIVE = r'\1 (read live: show_fees about="admission")'
+
+
+def redact_live(text: str) -> str:
+    """``text`` with what is only ever read live taken out: the fees and the
+    admission status."""
+    return _ADMISSION.sub(_ADMISSION_LIVE, redact_fees(text))
 
 
 def fold(text: str) -> str:
@@ -397,7 +414,7 @@ def _topic(path: Path) -> Topic:
     text = path.read_text(encoding="utf-8")
     first = text.lstrip().splitlines()[0] if text.strip() else ""
     title = first.lstrip("# ").strip() if first.startswith("#") else path.stem
-    return Topic(path.stem, title, redact_fees(text))
+    return Topic(path.stem, title, redact_live(text))
 
 
 def _section(raw: Any) -> Section | None:
@@ -412,7 +429,7 @@ def _section(raw: Any) -> Section | None:
     body = _str(raw.get("text"))
     if items := _strs(raw.get("items")):
         body = f"{body} {'; '.join(items)}".strip()
-    return Section(heading, redact_fees(body))
+    return Section(heading, redact_live(body))
 
 
 def _links(raw: dict[str, Any]) -> tuple[Link, ...]:
@@ -439,7 +456,7 @@ def _page(raw: dict[str, Any]) -> Page | None:
     if not sections and (heads := _strs(raw.get("headings"))):
         sections = tuple(Section(h) for h in heads)
     faqs = tuple(
-        Faq(q, redact_fees(_str(f.get("a") or f.get("answer"))))
+        Faq(q, redact_live(_str(f.get("a") or f.get("answer"))))
         for f in _dicts(raw.get("faqs") or raw.get("accordions"))
         if (q := _str(f.get("q") or f.get("question") or f.get("label")))
     )
@@ -457,14 +474,14 @@ def _page(raw: dict[str, Any]) -> Page | None:
         faqs=faqs,
         cards=cards,
         links=_links(raw),
-        text=redact_fees(_str(raw.get("text"))),
+        text=redact_live(_str(raw.get("text"))),
     )
 
 
 def load(root: Path = ROOT) -> Knowledge:
     """Every layer under ``root``; whatever is missing is empty."""
     try:
-        l1 = redact_fees((root / "L1.md").read_text(encoding="utf-8").strip()) or _L1_FALLBACK
+        l1 = redact_live((root / "L1.md").read_text(encoding="utf-8").strip()) or _L1_FALLBACK
     except OSError:
         logger.warning("saintgeorge: L1.md not found; Javier runs on the fallback")
         l1 = _L1_FALLBACK
@@ -504,5 +521,6 @@ __all__ = [
     "load",
     "norm",
     "redact_fees",
+    "redact_live",
     "tokens",
 ]

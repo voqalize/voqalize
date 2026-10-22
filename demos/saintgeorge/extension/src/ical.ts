@@ -9,7 +9,9 @@
  * calendar itself.
  *
  * Only what Javier says is read: each event's day, its time in Santiago when
- * it has one, and its title. A recurring event counts at its first date only
+ * it has one, the last day it runs, and its title. An event counts until it
+ * ends, so a week that began before today is still in the list. A recurring
+ * event counts at its first date only
  * (four of the feed's ~760 events recur, all weekly series long over); a
  * cancelled one is left out.
  */
@@ -23,13 +25,21 @@ export interface CalendarEvent {
   date: string;
   /** `19:00` in Santiago, or empty for an all-day event. */
   time: string;
+  /** The last day it runs, in Santiago: `date` for a one-day event. */
+  end: string;
   title: string;
 }
 
 interface Parsed extends CalendarEvent {
   /** Santiago's wall clock as a number, for order. */
   key: number;
+  /** When it ends, on the same clock. */
+  endKey: number;
 }
+
+type When = { date: string; time: string; key: number };
+
+const DAY_MS = 86_400_000;
 
 /** The feed's lines, with folded continuation lines joined (RFC 5545 §3.1). */
 function lines(text: string): string[] {
@@ -53,7 +63,7 @@ function unescape(value: string): string {
 const pad = (n: number) => String(n).padStart(2, "0");
 
 /** A UTC instant's day and time on Santiago's clock. */
-function inSantiago(utc: Date, timeZone: string): { date: string; time: string; key: number } {
+function inSantiago(utc: Date, timeZone: string): When {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone,
     year: "numeric",
@@ -68,8 +78,8 @@ function inSantiago(utc: Date, timeZone: string): { date: string; time: string; 
   return { date: `${y}-${pad(m)}-${pad(d)}`, time: `${pad(h)}:${pad(mi)}`, key: Date.UTC(y, m - 1, d, h, mi) };
 }
 
-/** DTSTART's value, with its parameters: a day, a UTC time, or a local time. */
-function start(params: string, value: string, timeZone: string): { date: string; time: string; key: number } | null {
+/** A DTSTART or DTEND value, with its parameters: a day, a UTC time, or a local time. */
+function when(params: string, value: string, timeZone: string): When | null {
   const m = /^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})(Z)?)?$/.exec(value.trim());
   if (!m) return null;
   const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
@@ -83,17 +93,30 @@ function start(params: string, value: string, timeZone: string): { date: string;
   return { date: `${m[1]}-${m[2]}-${m[3]}`, time: `${m[4]}:${m[5]}`, key: Date.UTC(y, mo - 1, d, h, mi) };
 }
 
+/** The day a clock key falls on: `2026-10-23`. */
+const dayOf = (key: number) => new Date(key).toISOString().slice(0, 10);
+
+/** An event's start, end and title. A day's DTEND is the day after the last
+ *  (RFC 5545 §3.6.1); with none, an all-day event lasts its day and a timed
+ *  one ends as it starts. */
+function event(start: When, until: When | null | undefined, title: string): Parsed {
+  const endKey = Math.max(start.key, until?.key ?? (start.time ? start.key : start.key + DAY_MS));
+  // The last day it runs is the one before an end at midnight.
+  const end = endKey > start.key ? dayOf(endKey - 1) : start.date;
+  return { ...start, end, title, endKey };
+}
+
 /** Every event in an iCal feed, in no particular order. */
 export function parseIcs(text: string, timeZone = TIMEZONE): Parsed[] {
   const out: Parsed[] = [];
-  let ev: { start?: ReturnType<typeof start>; title?: string; cancelled?: boolean } | null = null;
+  let ev: { start?: When | null; end?: When | null; title?: string; cancelled?: boolean } | null = null;
   for (const line of lines(text)) {
     if (line === "BEGIN:VEVENT") {
       ev = {};
       continue;
     }
     if (line === "END:VEVENT") {
-      if (ev?.start && !ev.cancelled) out.push({ ...ev.start, title: ev.title ?? "" });
+      if (ev?.start && !ev.cancelled) out.push(event(ev.start, ev.end, ev.title ?? ""));
       ev = null;
       continue;
     }
@@ -105,7 +128,10 @@ export function parseIcs(text: string, timeZone = TIMEZONE): Parsed[] {
     const [name, ...params] = head.split(";");
     switch (name.toUpperCase()) {
       case "DTSTART":
-        ev.start = start(params.join(";"), value, timeZone);
+        ev.start = when(params.join(";"), value, timeZone);
+        break;
+      case "DTEND":
+        ev.end = when(params.join(";"), value, timeZone);
         break;
       case "SUMMARY":
         ev.title = unescape(value);
@@ -118,14 +144,15 @@ export function parseIcs(text: string, timeZone = TIMEZONE): Parsed[] {
   return out;
 }
 
-/** The next `count` events from today on, in Santiago, soonest first. */
+/** The next `count` events not yet over at `now`, in Santiago, by their
+ *  start: one under way since before today comes first. */
 export function upcoming(events: Parsed[], now: Date, count: number, timeZone = TIMEZONE): CalendarEvent[] {
-  const today = inSantiago(now, timeZone).date;
+  const at = inSantiago(now, timeZone).key;
   return events
-    .filter((e) => e.date >= today && e.title)
+    .filter((e) => e.endKey > at && e.title)
     .sort((a, b) => a.key - b.key || a.title.localeCompare(b.title))
     .slice(0, count)
-    .map(({ date, time, title }) => ({ date, time, title }));
+    .map(({ date, time, end, title }) => ({ date, time, end, title }));
 }
 
 /** Today's date in Santiago. */

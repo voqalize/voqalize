@@ -203,10 +203,33 @@ FEES = {
 EVENTS = {
     "today": "2026-10-22",
     "events": [
-        {"date": "2026-10-23", "time": "08:15", "title": "Liturgia de la palabra de 2°E"},
-        {"date": "2026-10-27", "time": "", "title": "Visita de los abuelos PKA y PKG 10:00 hrs."},
-        {"date": "2026-11-05", "time": "", "title": "Reunión de apoderados Kínder"},
-        {"date": "2026-11-20", "time": "19:00", "title": "Musical The Lion King"},
+        # Under way since before today: the calendar sends what has not ended.
+        {"date": "2026-10-16", "time": "", "end": "2026-10-23", "title": "Semana Amarilla"},
+        {
+            "date": "2026-10-23",
+            "time": "08:15",
+            "end": "2026-10-23",
+            "title": "Liturgia de la palabra de 2°E",
+        },
+        {
+            "date": "2026-10-27",
+            "time": "",
+            "end": "2026-10-27",
+            "title": "Visita de los abuelos PKA y PKG 10:00 hrs.",
+        },
+        {"date": "2026-10-30", "time": "", "end": "2026-11-02", "title": "Fin de semana largo"},
+        {
+            "date": "2026-11-05",
+            "time": "",
+            "end": "2026-11-05",
+            "title": "Reunión de apoderados Kínder",
+        },
+        {
+            "date": "2026-11-20",
+            "time": "19:00",
+            "end": "2026-11-20",
+            "title": "Musical The Lion King",
+        },
     ],
 }
 
@@ -257,6 +280,9 @@ def _llm() -> ScriptedGemini:
             ),
             "¿Qué eventos vienen para Kínder?": reply_and_call(
                 "Te muestro el calendario.", "show_events", request={"query": "Kínder"}
+            ),
+            "¿Qué viene en noviembre?": reply_and_call(
+                "Te muestro el calendario.", "show_events", request={"query": "noviembre"}
             ),
             "¿Qué viene en diciembre?": reply_and_call(
                 "Te muestro el calendario.", "show_events", request={"query": "diciembre"}
@@ -668,6 +694,15 @@ def test_the_committed_knowledge_loads_and_holds_no_fee_value() -> None:
     assert kb.redact_fees("Matrícula: UF 13,5 y UF 18.") == (
         "Matrícula: UF (read live: show_fees) y UF (read live: show_fees)."
     )
+    # The admission status is read live too: no layer says which years are open.
+    status = re.compile(r"Admisi[oó]n (?:Pre K[ií]nder )?\d{4}: (?!\(read live)", re.IGNORECASE)
+    assert not status.search(sg._prompt(real))
+    assert not any(status.search(t.text) for t in real.topics.values())
+    assert not status.search(real.pages[ADMISION].text)
+    assert "a partir de noviembre" not in real.pages[ADMISION].text
+    assert kb.redact_live("Admisión 2027: Escribir a admisiones@saintgeorge.cl Valores: UF 85") == (
+        'Admisión 2027: (read live: show_fees about="admission") Valores: UF (read live: show_fees)'
+    )
 
 
 # ─── The calendar, read live ───────────────────────────────────────────────────
@@ -701,6 +736,35 @@ async def test_a_month_with_nothing_says_so_and_names_whats_coming() -> None:
         context = _texts(llm.captured_contents[-1])
         assert "None of the coming events matches what they asked" in context
         assert "2026-10-23 (viernes) 08:15: Liturgia de la palabra de 2°E" in context
+
+
+async def test_an_event_under_way_is_said_by_when_it_ends() -> None:
+    llm = _llm()
+    async with demo("saintgeorge", llm) as rig:
+        await rig.driver.start_session(init={"path": "/"})
+        await rig.driver.user_says("¿Qué viene en noviembre?")
+        await _page(rig, "events_read", EVENTS)
+        await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
+        context = _texts(llm.captured_contents[-1])
+        listed = context.split("matching 'noviembre': ")[1].split("]")[0]
+        # A span that runs into the month matches it; one over before it does not.
+        assert listed.startswith(
+            "2026-10-30 (viernes) to 2026-11-02 (lunes): Fin de semana largo; "
+            "2026-11-05 (jueves): Reunión de apoderados Kínder"
+        )
+        assert "Semana Amarilla" not in listed
+        assert "never as if it were still to start" in context
+
+
+async def test_the_whole_list_puts_a_running_week_first_with_its_end() -> None:
+    llm = _llm()
+    async with demo("saintgeorge", llm) as rig:
+        await rig.driver.start_session(init={"path": "/"})
+        await rig.driver.user_says("¿Qué viene en diciembre?")
+        await _page(rig, "events_read", EVENTS)
+        await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
+        context = _texts(llm.captured_contents[-1])
+        assert "under way, until 2026-10-23 (viernes): Semana Amarilla" in context
 
 
 async def test_one_move_at_a_time_the_next_follows_the_answer() -> None:

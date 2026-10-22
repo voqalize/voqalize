@@ -154,7 +154,8 @@ export interface ContactUsed {
 
 /**
  * The school's public calendar, fetched and read in the visitor's
- * browser just now: the next events from today, soonest first.
+ * browser just now: the events not yet over, by their start, so one that
+ * began before today and still runs comes first.
  */
 export interface EventsRead {
   today?: string;
@@ -216,6 +217,8 @@ export interface CalendarEvent {
   date: string;
 
   time?: string;
+
+  end?: string;
 
   title?: string;
 }

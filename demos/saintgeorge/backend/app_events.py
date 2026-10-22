@@ -127,12 +127,15 @@ class CalendarEvent(BaseModel):
     """ISO, in Santiago: ``2026-10-27``."""
     time: str = ""
     """``19:00`` in Santiago, or empty for an all-day event."""
+    end: str = ""
+    """The last day it runs, ISO, in Santiago: ``date`` for a one-day event."""
     title: str = ""
 
 
 class EventsRead(AppEvent):
     """The school's public calendar, fetched and read in the visitor's
-    browser just now: the next events from today, soonest first."""
+    browser just now: the events not yet over, by their start, so one that
+    began before today and still runs comes first."""
 
     today: str = ""
     events: list[CalendarEvent] = Field(default_factory=list[CalendarEvent])

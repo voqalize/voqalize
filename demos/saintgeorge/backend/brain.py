@@ -104,6 +104,7 @@ from voqalize.sdk.wire import Config, IdleConfig, SttConfig, TtsConfig, Voice
 from . import knowledge as kb
 from .app_events import (
     SAINT_GEORGE_EVENTS,
+    CalendarEvent,
     CommandDone,
     CommandFailed,
     ContactUsed,
@@ -1187,6 +1188,10 @@ _SAY_EVENTS = (
     "Say the two or three of these that matter to this family, with their dates as spoken "
     "words, then offer one next step. Do not read out the whole list."
 )
+_SAY_RUNNING = (
+    "An event over several days is said by its span; one already under way, by when it ends "
+    '("hasta el 23 de octubre", "until 23 October"), never as if it were still to start.'
+)
 _SAY_NO_EVENTS = (
     "None of the coming events matches what they asked. Say so plainly, name one or two that "
     "are coming up, and say the calendar is on their screen."
@@ -1818,14 +1823,12 @@ class SaintGeorgeBrain(GeminiBrain):
             hits = [
                 e
                 for e in event.events
-                if (month is not None and int(e.date[5:7] or 0) == month)
+                if (month is not None and _in_month(e, month))
                 or (want and all(w in fold(e.title) for w in want))
             ]
             chosen = hits
         listed = chosen[:_EVENTS_IN_NOTE] or event.events[:_EVENTS_IN_NOTE]
-        lines = "; ".join(
-            f"{_date_words(e.date)}{f' {e.time}' if e.time else ''}: {e.title}" for e in listed
-        )
+        lines = "; ".join(_event_words(e, event.today) for e in listed)
         if not event.events:
             self._answered(
                 "show_events",
@@ -1834,6 +1837,8 @@ class SaintGeorgeBrain(GeminiBrain):
             )
             return "[The school's calendar, read just now: nothing coming up.]"
         ask = _SAY_EVENTS if chosen else _SAY_NO_EVENTS
+        if any(_last_day(e) > e.date for e in listed):
+            ask += f" {_SAY_RUNNING}"
         self._answered("show_events", f"show_events done. {ask}")
         lead = f" matching '{query}'" if query and chosen else ""
         return (
@@ -2230,6 +2235,29 @@ def _month_of(query: str) -> int | None:
     """The month a query names ("noviembre", "in December"), or ``None``."""
     found = [_MONTHS[w] for w in re.findall(r"[a-z]+", fold(query)) if w in _MONTHS]
     return found[0] if len(found) == 1 else None
+
+
+def _last_day(e: CalendarEvent) -> str:
+    """The last day an event runs (an older page sends no ``end``)."""
+    return max(e.end, e.date)
+
+
+def _in_month(e: CalendarEvent, month: int) -> bool:
+    """Whether an event's days overlap a month, in either year they touch."""
+    first, last = e.date[:7], _last_day(e)[:7]
+    return any(first <= f"{year}-{month:02d}" <= last for year in {first[:4], last[:4]})
+
+
+def _event_words(e: CalendarEvent, today: str) -> str:
+    """One event as the note gives it: its day or span, its time, its title."""
+    last = _last_day(e)
+    if last == e.date:
+        when = _date_words(e.date)
+    elif today and e.date < today:
+        when = f"under way, until {_date_words(last)}"
+    else:
+        when = f"{_date_words(e.date)} to {_date_words(last)}"
+    return f"{when}{f' {e.time}' if e.time else ''}: {e.title}"
 
 
 def _date_words(iso: str) -> str:

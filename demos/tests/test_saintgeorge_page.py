@@ -308,13 +308,129 @@ def test_the_calendar_feed_parses_in_santiago_time(page: Any) -> None:
     )
     saved = (FIXTURES / "SAVED").read_text(encoding="utf-8").strip()
     assert events, "the saved feed has events from its day on"
-    assert all(e["date"] >= saved for e in events)
+    assert all(e["end"] >= saved and e["end"] >= e["date"] for e in events)
     assert [e["date"] for e in events] == sorted(e["date"] for e in events)
     assert all(e["title"] and "\\" not in e["title"] for e in events)
     # A time given in UTC is on Santiago's clock: 11:15Z is 08:15 in October.
     timed = [e for e in events if e["time"]]
     assert timed and all(len(e["time"]) == 5 for e in timed)
     assert any(e["time"] == "08:15" for e in timed)
+
+
+def test_the_calendar_parser_reads_the_feed_as_google_serves_it(page: Any) -> None:
+    # The saved fixture is read with Python's universal newlines and has no
+    # folded lines; the live feed is CRLF, folds long lines, and mixes UTC,
+    # TZID and all-day starts.
+    ics = "\r\n".join(
+        [
+            "BEGIN:VCALENDAR",
+            "BEGIN:VTIMEZONE",
+            "DTSTART:19700405T000000",
+            "END:VTIMEZONE",
+            "BEGIN:VEVENT",
+            "DTSTART:20261105T223000Z",
+            "SUMMARY:Concierto de primavera\\, Gimnasio del",
+            "  colegio",
+            "END:VEVENT",
+            "BEGIN:VEVENT",
+            "DTSTART;TZID=America/Santiago:20261104T072000",
+            "SUMMARY:Misa",
+            "END:VEVENT",
+            "BEGIN:VEVENT",
+            "DTSTART;VALUE=DATE:20261103",
+            "SUMMARY:Día de la familia",
+            "END:VEVENT",
+            "BEGIN:VEVENT",
+            "DTSTART;VALUE=DATE:20261102",
+            "STATUS:CANCELLED",
+            "SUMMARY:Suspendido",
+            "END:VEVENT",
+            "END:VCALENDAR",
+            "",
+        ]
+    )
+    _open(page, "/")
+    got = page.evaluate(
+        "([ics]) => { const t = window.__voqalizeTest;"
+        " const now = new Date('2026-11-01T12:00:00Z');"
+        " return [t.upcoming(t.parseIcs(ics), now, 10),"
+        " t.upcoming(t.parseIcs(ics.replace(/\\r\\n/g, '\\n')), now, 10)]; }",
+        [ics],
+    )
+    crlf, lf = got
+    assert crlf == lf
+    assert crlf == [
+        {"date": "2026-11-03", "time": "", "end": "2026-11-03", "title": "Día de la familia"},
+        {"date": "2026-11-04", "time": "07:20", "end": "2026-11-04", "title": "Misa"},
+        # 22:30Z is 19:30 in Santiago in November (UTC-3).
+        {
+            "date": "2026-11-05",
+            "time": "19:30",
+            "end": "2026-11-05",
+            "title": "Concierto de primavera, Gimnasio del colegio",
+        },
+    ]
+
+
+def test_the_calendar_keeps_what_is_under_way_and_drops_what_has_ended(page: Any) -> None:
+    ics = "\r\n".join(
+        [
+            "BEGIN:VCALENDAR",
+            # A week begun before today: DTEND of a day is the day after the last.
+            "BEGIN:VEVENT",
+            "DTSTART;VALUE=DATE:20261016",
+            "DTEND;VALUE=DATE:20261024",
+            "SUMMARY:Semana Amarilla",
+            "END:VEVENT",
+            # Over yesterday.
+            "BEGIN:VEVENT",
+            "DTSTART;VALUE=DATE:20261019",
+            "DTEND;VALUE=DATE:20261022",
+            "SUMMARY:Pruebas de nivel",
+            "END:VEVENT",
+            # Earlier today and ended (11:15Z to 12:00Z is 08:15 to 09:00).
+            "BEGIN:VEVENT",
+            "DTSTART:20261022T111500Z",
+            "DTEND:20261022T120000Z",
+            "SUMMARY:Liturgia",
+            "END:VEVENT",
+            # Earlier today with no DTEND: it ended as it started.
+            "BEGIN:VEVENT",
+            "DTSTART;TZID=America/Santiago:20261022T073000",
+            "SUMMARY:Misa",
+            "END:VEVENT",
+            # Begun earlier today and still on.
+            "BEGIN:VEVENT",
+            "DTSTART;TZID=America/Santiago:20261022T090000",
+            "DTEND;TZID=America/Santiago:20261022T130000",
+            "SUMMARY:Feria científica",
+            "END:VEVENT",
+            # Today, all day, with no DTEND: it lasts the day.
+            "BEGIN:VEVENT",
+            "DTSTART;VALUE=DATE:20261022",
+            "SUMMARY:Día del profesor",
+            "END:VEVENT",
+            "BEGIN:VEVENT",
+            "DTSTART;TZID=America/Santiago:20261022T190000",
+            "SUMMARY:Concierto",
+            "END:VEVENT",
+            "END:VCALENDAR",
+            "",
+        ]
+    )
+    _open(page, "/")
+    got = page.evaluate(
+        "([ics]) => { const t = window.__voqalizeTest;"
+        # 13:00Z is 10:00 in Santiago in October (UTC-3).
+        " return t.upcoming(t.parseIcs(ics), new Date('2026-10-22T13:00:00Z'), 10); }",
+        [ics],
+    )
+    assert got == [
+        {"date": "2026-10-16", "time": "", "end": "2026-10-23", "title": "Semana Amarilla"},
+        {"date": "2026-10-22", "time": "", "end": "2026-10-22", "title": "Día del profesor"},
+        {"date": "2026-10-22", "time": "09:00", "end": "2026-10-22", "title": "Feria científica"},
+        {"date": "2026-10-22", "time": "19:00", "end": "2026-10-22", "title": "Concierto"},
+    ]
 
 
 def test_show_events_opens_the_calendar_and_reports_the_next_events(page: Any) -> None:
