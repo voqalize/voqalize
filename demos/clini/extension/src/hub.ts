@@ -17,7 +17,9 @@ type Ask =
   | { op: "unlock" }
   | { op: "open_tab"; url: string; active?: boolean; then?: unknown }
   | { op: "focus_tab"; tab: number }
-  | { op: "pending" };
+  | { op: "pending" }
+  | { op: "get_lang" }
+  | { op: "set_lang"; lang: "es" | "en" };
 
 let nextId = 1;
 const waiting = new Map<number, (result: unknown) => void>();
@@ -136,4 +138,16 @@ export async function focusTab(tab: string): Promise<boolean> {
 export async function pendingMove(): Promise<Then | null> {
   const got = await ask<{ then: Then | null }>({ op: "pending" });
   return got?.then ?? null;
+}
+
+/** The language the visitor chose on the toggle on any Clini host, or `null`
+ *  if they never have (or there is no hub). */
+export async function sharedLanguage(): Promise<"es" | "en" | null> {
+  const got = await ask<{ lang: "es" | "en" | null }>({ op: "get_lang" }, 1500);
+  return got?.lang ?? null;
+}
+
+/** Keep the visitor's choice for every Clini host. */
+export function shareLanguage(lang: "es" | "en"): void {
+  void ask({ op: "set_lang", lang });
 }

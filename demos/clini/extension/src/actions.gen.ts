@@ -107,10 +107,13 @@ export interface AgendaPick {
 
 /**
  * Fill the booking's patient form with what the visitor said; a field the
- * booking has locked (an existing patient's) is left as it is. With
- * `focus_rut`, scroll to the RUT field, ring it and focus it: the visitor
- * types their RUT. It never ticks the consent box and never presses AGENDAR,
- * which it rings once the form is valid.
+ * booking has locked (an existing patient's) is left as it is. `document`
+ * switches the form's RUT / Pasaporte toggle first (`passport` for a
+ * visitor without a Chilean RUT). With `focus_rut`, scroll to the document
+ * field, ring it and focus it: the visitor types their RUT or passport
+ * number. It never ticks the consent box and never presses AGENDAR, which it
+ * rings once the form is valid. The page answers `command_done` or
+ * `command_failed`.
  */
 export interface FillAgendaPatient {
   name: string | null;
@@ -126,6 +129,8 @@ export interface FillAgendaPatient {
   phone: string | null;
 
   email: string | null;
+
+  document: 'rut' | 'passport' | null;
 
   focus_rut: boolean;
 }
@@ -185,11 +190,15 @@ export interface AgendaState {
 
   region?: number | null;
 
+  month?: string;
+
   days?: string[];
 
   centres?: string[];
 
   day?: string;
+
+  centre?: string;
 
   times?: string[];
 
@@ -199,7 +208,24 @@ export interface AgendaState {
 
   invalid?: string[];
 
+  document?: 'rut' | 'passport';
+
   ready?: boolean;
+}
+
+/**
+ * A move Javier sent was carried out: the page now shows what he asked.
+ *
+ * Sent for `open_agenda` (once the requested step is on screen),
+ * `agenda_pick` (after the day or hour is selected),
+ * `fill_agenda_patient` (after the fields are set) and `fill_lasik_form`.
+ * The booking tools wait for this or `CommandFailed` before they
+ * answer the model, so Javier only claims what actually happened.
+ */
+export interface CommandDone {
+  command: string;
+
+  detail?: string;
 }
 
 /** A move Javier sent could not be carried out on the page. */
@@ -315,6 +341,7 @@ export function unhandledUiAction(action: never): never {
 /** Everything the person can do on screen, discriminated by `event`. */
 export type AppEvent =
   | { event: 'agenda_state'; payload: AgendaState }
+  | { event: 'command_done'; payload: CommandDone }
   | { event: 'command_failed'; payload: CommandFailed }
   | { event: 'language_requested'; payload: LanguageRequested }
   | { event: 'lasik_form_state'; payload: LasikFormState }
@@ -325,6 +352,7 @@ export type AppEventName = AppEvent['event'];
 
 export const APP_EVENT_NAMES: readonly AppEventName[] = [
   'agenda_state',
+  'command_done',
   'command_failed',
   'language_requested',
   'lasik_form_state',

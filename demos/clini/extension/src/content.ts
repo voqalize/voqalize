@@ -44,7 +44,7 @@ import { createVoqalizeTransport, VoqalizeMediaManager } from "@voqalize/client-
 
 import { type AppEvent, asUiAction, type Cue, sendAppEvent, UI_ACTION_COMMANDS, type UiAction } from "./actions.gen";
 import { Narration } from "./narration";
-import { focusTab, HubChannel, openTab, pendingMove, tabId, takeCall } from "./hub";
+import { focusTab, HubChannel, openTab, pendingMove, shareLanguage, sharedLanguage, tabId, takeCall } from "./hub";
 import {
   followCall, type Following, forgetCopiedCall, gestureContext, here, holdCall, type Holding,
   inFront, type Relay, type TabInfo,
@@ -88,7 +88,13 @@ const OURS = new Set(["focus_tab", "cue", "language_changed", "open_link"]);
 /** Page events the brain takes from any tab, not only the one in front: a
  *  move's failure, the toggle, and the state of a form Javier filled, which
  *  is the booking's even while the visitor looks at another tab. */
-const ANY_TAB = new Set(["command_failed", "language_requested", "agenda_state", "lasik_form_state"]);
+const ANY_TAB = new Set(["command_failed", "command_done", "language_requested", "agenda_state", "lasik_form_state"]);
+/** The moves whose success is reported as `command_done`, which the brain
+ *  waits on before it says they happened. */
+const DONE_COMMANDS = new Set(["open_agenda", "agenda_pick", "fill_agenda_patient", "fill_lasik_form"]);
+/** How long after a move on the booking a cue to another page of the site is
+ *  dropped rather than pulling the visitor off the booking. */
+const AGENDA_HOLD_MS = 10_000;
 
 /** The request that mints a session — see `docs/client/handshake`. */
 function connectRequest(init: Record<string, unknown>): APIRequest {
@@ -177,6 +183,8 @@ async function start(): Promise<void> {
   /** The call's language, or the next call's; the one the toggle asked for
    *  until the brain answers; and the wait for that answer. */
   let language: Language = storedLanguage() ?? OPENING;
+  /** When the last move on the booking was sent to it. */
+  let agendaMovedAt = 0;
   let asked: Language | null = null;
   let switchTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -352,7 +360,7 @@ async function start(): Promise<void> {
         // `lang` only when the visitor chose it: the brain then holds to it
         // whatever they speak, and otherwise opens in Spanish and follows the
         // language they speak.
-        const chosen = storedLanguage();
+        const chosen = (await sharedLanguage()) ?? storedLanguage();
         const init = {
           surface: "clini-ext", site: ctx.site, path: ctx.path, url: ctx.url, title: ctx.title,
           ...(chosen ? { lang: chosen } : {}),
@@ -403,8 +411,10 @@ async function start(): Promise<void> {
    *  through the hub, so its move resolves once it has had time to land. */
   async function performOn(to: string, command: string, payload: unknown): Promise<string | null> {
     if (to === me) {
-      const failed = await perform(command, payload);
-      return failed ? String((failed.payload as { reason?: string }).reason ?? "failed") : null;
+      const outcome = await perform(command, payload);
+      if (outcome?.event === "command_failed") return String(outcome.payload.reason ?? "failed");
+      if (outcome) toBrain(me, outcome);
+      return null;
     }
     post({ k: "perform", to, command, payload });
     await new Promise((r) => setTimeout(r, 1200));
@@ -459,6 +469,13 @@ async function start(): Promise<void> {
   // cues after it are saved on `pagehide` and the next page takes them up.
   const narration = new Narration(async (cue) => {
     const [command, payload] = cueMove(cue);
+    if (command === "navigate" && Date.now() - agendaMovedAt < AGENDA_HOLD_MS) {
+      // He has just moved the booking, and its tab is in front: a page of the
+      // site now would pull the visitor off it (and reload the call's tab).
+      console.info("voqalize: kept the booking in front; dropped the cue to", cue.path);
+      toBrain(me, { event: "command_failed", payload: { command: "cue", reason: `not moved to ${cue.path}: the booking is in front` } });
+      return;
+    }
     const why = await dispatch(command, payload);
     if (why) toBrain(me, { event: "command_failed", payload: { command: "cue", reason: why } });
   });
@@ -488,6 +505,7 @@ async function start(): Promise<void> {
       narration.add(action.payload);
       return;
     }
+    if (AGENDA_COMMANDS.has(action.command)) agendaMovedAt = Date.now();
     const why = OURS.has(action.command) ? await ours(action) : await dispatch(action.command, action.payload);
     if (why && client === on) toBrain(me, { event: "command_failed", payload: { command, reason: why } });
   }
@@ -515,20 +533,24 @@ async function start(): Promise<void> {
     }
   }
 
-  /** Perform an Action on this tab's page. Never waits on the visitor; a
-   *  failure is returned for the brain so he never claims it worked. */
+  /** Perform an Action on this tab's page. Never waits on the visitor. Its
+   *  outcome for the brain, so he never claims what did not happen: a
+   *  failure, or for a move he waits on, what it left on screen; `null` for
+   *  anything else, and for a move that goes on on another page, which
+   *  reports from there. */
   async function perform(command: string, payload: unknown): Promise<AppEvent | null> {
     const result = await adapter!.run(command, payload);
-    if (result.ok) return null;
-    return { event: "command_failed", payload: { command, reason: result.error ?? "failed" } };
+    if (!result.ok) return { event: "command_failed", payload: { command, reason: result.error ?? "failed" } };
+    if (result.moved || !DONE_COMMANDS.has(command)) return null;
+    return { event: "command_done", payload: { command, detail: result.detail ?? "" } };
   }
 
   // Driving the page from the console, with no call (see the README).
   flags.__voqalizeClini = {
     perform: async (command: string, payload: unknown) => {
-      const failed = await perform(command, payload);
-      if (failed) console.info("voqalize (no call):", failed.event, failed.payload);
-      return failed;
+      const outcome = await perform(command, payload);
+      if (outcome) console.info("voqalize (no call):", outcome.event, outcome.payload);
+      return outcome;
     },
     // Cues as the brain sends them, and speech as the voice plays it.
     narration,
@@ -576,6 +598,7 @@ async function start(): Promise<void> {
    *  by voice. */
   function chooseLanguage(want: Language): void {
     storeLanguage(want);
+    shareLanguage(want);
     if (want === language && !switchTimer) return;
     if (role === "idle") return showLanguage(want);
     asked = want === language ? null : want;
@@ -688,8 +711,8 @@ async function start(): Promise<void> {
         return;
       case "perform":
         if (role !== "follower" || r.to !== me) return;
-        void perform(r.command, r.payload).then((failed) => {
-          if (failed) post({ k: "app", from: me, event: failed.event, payload: failed.payload });
+        void perform(r.command, r.payload).then((outcome) => {
+          if (outcome) post({ k: "app", from: me, event: outcome.event, payload: outcome.payload });
         });
         return;
       case "tab":
@@ -729,6 +752,12 @@ async function start(): Promise<void> {
   widget.onMute(toggleMute);
   widget.setLanguage(language);
   widget.onLanguage(chooseLanguage);
+  // The choice made on the other host (www.clini.cl or the booking) holds here.
+  void sharedLanguage().then((shared) => {
+    if (!shared) return;
+    storeLanguage(shared);
+    if (role === "idle" && shared !== language) showLanguage(shared);
+  });
 
   document.addEventListener("visibilitychange", sayWhere);
   window.addEventListener("focus", sayWhere);
@@ -810,8 +839,10 @@ async function start(): Promise<void> {
   void pendingMove().then(async (then) => {
     if (!then) return;
     await new Promise((r) => setTimeout(r, 1200));
-    const failed = await perform(then.command, then.payload);
-    if (failed) post({ k: "app", from: me, event: failed.event, payload: failed.payload });
+    const outcome = await perform(then.command, then.payload);
+    if (!outcome) return;
+    if (role === "holder") toBrain(me, outcome);
+    else post({ k: "app", from: me, event: outcome.event, payload: outcome.payload });
   });
 }
 

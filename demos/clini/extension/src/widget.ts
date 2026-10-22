@@ -219,11 +219,15 @@ function overlaps(a: Rect, b: Rect): boolean {
 export function mountWidget(): Widget {
   const host = document.createElement("div");
   host.setAttribute("data-voqalize", "widget");
+  // The widget speaks both languages itself, and Chrome's translator would
+  // otherwise make "Javier" "Xavier".
+  host.setAttribute("translate", "no");
+  host.classList.add("notranslate");
   const shadow = host.attachShadow({ mode: "open" });
 
   shadow.innerHTML = `
     <style>${STYLES}</style>
-    <div class="root" data-status="idle">
+    <div class="root notranslate" translate="no" data-status="idle">
       <button class="invite" type="button">
         <span class="still"></span>
         <span class="invite-text">

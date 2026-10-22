@@ -91,6 +91,9 @@ SITE = Knowledge(
         "/resultados": Page(
             "/resultados", "Resultados", sections=(Section("Resultados de Exámenes CLINI"),)
         ),
+        "/ahorra-fonasa-1": Page(
+            "/ahorra-fonasa-1", "Ahorra con Fonasa", sections=(Section("Ahorra con Fonasa"),)
+        ),
     },
     branches=(
         Branch(
@@ -153,6 +156,7 @@ def _site(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     he never nods unless a test asks him to: a nod is a unit of its own."""
     monkeypatch.setattr(kb, "KNOWLEDGE", SITE)
     monkeypatch.setattr(clini, "ACK_RATE", 0.0)
+    monkeypatch.setattr(clini, "NO_HOURS_HOLD_S", 0.05)
 
     async def offline(url: str, params: dict[str, str], timeout: float) -> Any:
         raise clini_api.LookupFailed(f"no network in tests: {url}")
@@ -246,7 +250,7 @@ def _llm() -> ScriptedGemini:
             "Soy Ana Pérez Soto, mi celular es +56 9 1234 5678.": 2
             * [
                 reply_and_call(
-                    "Anoté tu celular, nueve uno dos tres.",
+                    "Anoto tu celular.",
                     "fill_agenda_patient",
                     # The model wrote a RUT it should not have: it never reaches the page.
                     args={
@@ -299,6 +303,44 @@ def _llm() -> ScriptedGemini:
             ],
             "Cámbiame el día a mañana.": 2
             * [reply_and_call("Veamos.", "agenda_pick", request={"day": TUE})],
+            "Te abro la agenda de la rodilla.": 2
+            * [
+                reply_and_call(
+                    "Te abro la agenda.", "open_agenda", request={"servicio": 64, "prestacion": 804}
+                )
+            ],
+            # The page's answers to his moves, talked through in the quiet spell.
+            "The page answered what you sent it": reply(
+                # A site cue while the booking comes to the front: dropped.
+                "{page: /imagenes/resonancias-fonasa-1} Esto es lo que hizo la agenda."
+            ),
+            "Las diez en Quinta Vergara.": reply_and_call(
+                "Te selecciono las diez.",
+                "agenda_pick",
+                request={"day": MON, "time": "10:00", "centre": "CENTRO DE SALUD | QUINTA"},
+            ),
+            "No tengo RUT, soy extranjero.": reply_and_call(
+                "Elige Pasaporte.",
+                "fill_agenda_patient",
+                request={"document": "passport", "focus_rut": True},
+            ),
+            "my phone is eight one four seven five one four one seven nine": reply_and_call(
+                # Reshaped to look Chilean: refused, never sent.
+                "Let me add it.",
+                "fill_agenda_patient",
+                request={"phone": "914751417"},
+            ),
+            "it is eight one four seven five one four one seven nine, really": reply_and_call(
+                "Adding it.", "fill_agenda_patient", request={"phone": "8147514179"}
+            ),
+            "Can I speak in English?": reply_and_call(
+                "Sure, let's continue in English.",
+                "fill_agenda_patient",
+                request={"focus_rut": True},
+            ),
+            "¿Cuánto sale con Fonasa la resonancia?": reply(
+                "{show: Precios de Resonancias} Con Fonasa la rodilla sale ochenta mil pesos."
+            ),
             "¿Qué pestañas tengo?": reply("Tienes el sitio y la agenda."),
             "Sigamos.": reply("Claro, sigamos."),
         }
@@ -360,6 +402,15 @@ async def test_a_call_started_in_english_greets_in_english() -> None:
         opener = await rig.driver.start_session(init={"site": "site", "path": "/", "lang": "en"})
         assert opener is not None and opener.text == greeting("/", "site", "en")
         assert opener.text.startswith("Hi, I'm Javier, Clini's voice guide.")
+        check_voice_pair(rig, voice="omnivoice/javier", language="en")
+
+
+async def test_a_language_chosen_on_the_site_holds_on_the_booking() -> None:
+    """The extension keeps the choice for every Clini host, and the booking's
+    tab sends it at connect: dev call 03a45037 redialled there in Spanish."""
+    async with demo("clini", _llm()) as rig:
+        opener = await rig.driver.start_session(init={"site": "agenda", "path": "/", "lang": "en"})
+        assert opener is not None and opener.text == greeting("/", "agenda", "en")
         check_voice_pair(rig, voice="omnivoice/javier", language="en")
 
 
@@ -795,16 +846,21 @@ async def test_the_patient_form_is_filled_without_a_rut_and_never_booked() -> No
             "sex": None,
             "phone": "912345678",
             "email": None,
+            "document": None,
             "focus_rut": False,
         }
-        # What is filled stays; the email is tidied and read back; the RUT field rung.
+        # What is filled stays; the email is tidied; the RUT field rung.
         await rig.driver.user_says("Mi correo es ana@correo.cl, y el RUT lo escribo yo.")
+        # Sent, not done: the page has not answered yet.
+        sent = _every(llm.captured_contents[-1], "fill_agenda_patient")[-1]
+        assert "Sent to the page; it has not happened yet." in sent
+        assert "The celular sent: 9 1 2 3 4 5 6 7 8." in sent
         last = _commands(rig, "fill_agenda_patient")[-1]
         assert last["name"] == "Ana" and last["phone"] == "912345678"
         assert last["email"] == "ana@correo.cl" and last["focus_rut"] is True
         await rig.driver.user_says("Sigamos.")
         said = _every(llm.captured_contents[-1], "fill_agenda_patient")[-1]
-        assert "Read the email back: ana@correo.cl." in said
+        assert "The email sent: ana@correo.cl." in said
         assert "they type it themselves" in said
         wire = str(rig.driver.ui_commands)  # type: ignore[attr-defined]
         assert "12.345.678-5" not in wire and "rut" not in {
@@ -865,18 +921,249 @@ async def test_agenda_tabs_are_read_in_and_a_pick_needs_one() -> None:
         ]
 
 
-async def test_a_failed_booking_step_cancels_its_talk_through() -> None:
+async def test_a_failed_booking_step_is_talked_through_instead_of_the_step() -> None:
     llm = _llm()
     async with demo("clini", llm) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/"})
         await rig.driver.user_says("Agenda la rodilla el lunes a las siete y cuarenta en Tobalaba.")
         await _page(rig, "agenda_state", _agenda_state())
         await _page(rig, "command_failed", {"command": "open_agenda", "reason": "no 07:40"})
-        assert _idle_windows(rig)[-1] == _IDLE_MS
+        # The open days are not talked through; the failure is.
+        assert _idle_windows(rig)[-1] == _TALK_THROUGH_MS
+        await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
+        seen = _texts(llm.captured_contents[-1])
+        assert "[Not done on the page (open_agenda): no 07:40." in seen
+        assert "The page answered what you sent it: open_agenda not done: no 07:40." in seen
+        assert "shows its open days and they have not spoken" not in seen
+
+
+async def test_a_booking_move_returns_at_once_and_claims_nothing() -> None:
+    """The tool sends and returns: it never waits on the page, and its result
+    says nothing has happened yet (dev call 5ff8b052, "I selected ten in the
+    morning" while the page refused the pick)."""
+    llm = _llm()
+    async with demo("clini", llm) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/"})
+        before = len(llm.calls)
+        turn = await rig.driver.user_says("Te abro la agenda de la rodilla.")
+        check_turn(rig, turn)
+        assert rig.command("open_agenda")["servicio"] == 64
+        # One request: the turn did not ask the model again with the result.
+        assert len(llm.calls) == before + 1
         await rig.driver.user_says("Sigamos.")
-        assert "That did not happen on the page (open_agenda: no 07:40)" in _texts(
+        opened = _every(llm.captured_contents[-1], "open_agenda")[-1]
+        assert opened.startswith("Opening the booking for Resonancia — RM Rodilla.")
+        assert "Sent to the page; it has not happened yet. Say only what you are doing" in opened
+        assert "never that it is done" in opened
+
+
+async def test_the_pages_answers_are_noted_and_talked_through_once() -> None:
+    llm = _llm()
+    async with demo("clini", llm) as rig:
+        await rig.driver.start_session(init={"site": "agenda", "path": "/"})
+        await _page(rig, "agenda_state", _agenda_state(step="booking", invalid=["rut"]))
+        await rig.driver.user_says("No tengo RUT, soy extranjero.")
+        assert _idle_windows(rig)[-1] == _IDLE_MS
+        # Two answers close together: one talk-through says both.
+        reason = "the form did not answer"
+        await _page(rig, "command_failed", {"command": "fill_agenda_patient", "reason": reason})
+        assert _idle_windows(rig)[-1] == _TALK_THROUGH_MS
+        await _page(rig, "command_done", {"command": "fill_agenda_patient", "detail": "late"})
+        before = len(llm.calls)
+        turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
+        check_turn(rig, turn)
+        assert len(llm.calls) == before + 1
+        seen = _texts(llm.captured_contents[-1])
+        assert f"[Not done on the page (fill_agenda_patient): {reason}." in seen
+        assert (
+            f"The page answered what you sent it: fill_agenda_patient not done: {reason}."
+        ) in seen
+        # A second answer to a move already answered is a note, not a second ask.
+        assert "fill_agenda_patient done: late" not in seen
+        # Said, and not again in the next quiet spell.
+        assert _idle_windows(rig)[-1] == _IDLE_MS
+        await rig.driver.user_idle(level=1, idle_ms=_IDLE_MS)
+        assert (
+            "The page answered what you sent it"
+            not in _texts(llm.captured_contents[-1])[len(seen) :]
+        )
+
+
+async def test_the_pages_answer_is_not_talked_through_when_the_visitor_speaks_first() -> None:
+    llm = _llm()
+    async with demo("clini", llm) as rig:
+        await rig.driver.start_session(init={"site": "agenda", "path": "/"})
+        await _page(rig, "agenda_state", _agenda_state(days=[MON], day=MON, times=["10:00"]))
+        await rig.driver.user_says("Las diez en Quinta Vergara.")
+        await _page(
+            rig, "command_done", {"command": "agenda_pick", "detail": "selected 10:00 at QUINTA"}
+        )
+        assert _idle_windows(rig)[-1] == _TALK_THROUGH_MS
+        await rig.driver.user_says("Sigamos.")
+        seen = _texts(llm.captured_contents[-1])
+        # In the context for his answer to them; no talk-through of its own.
+        assert "[The page confirms agenda_pick: selected 10:00 at QUINTA.]" in seen
+        assert "The page answered what you sent it" not in seen
+        assert _idle_windows(rig)[-1] == _IDLE_MS
+
+
+async def test_no_free_hours_only_when_the_booking_shows_neither_days_nor_hours() -> None:
+    llm = _llm()
+    async with demo("clini", llm) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/"})
+        await rig.driver.user_says("Te abro la agenda de la rodilla.")
+        # Translated: the calendar's days are unreadable, the hours are not.
+        await _page(rig, "agenda_state", _agenda_state(days=[], times=["14:40"], day=""))
+        await asyncio.sleep(0.1)
+        await rig.driver.user_says("Sigamos.")
+        seen = _texts(llm.captured_contents[-1])
+        assert "The calendar's open days could not be read; the hours below are on screen" in seen
+        assert "no open days and no hours" not in seen
+        # Empty for a moment, then the hours: still nothing to say about none.
+        await _page(rig, "agenda_state", _agenda_state(days=[], times=[]))
+        await _page(rig, "agenda_state", _agenda_state(times=["08:50"], day=MON))
+        await asyncio.sleep(0.1)
+        assert _idle_windows(rig)[-1] == _TALK_THROUGH_MS  # the hours, to talk through
+        await rig.driver.user_says("Sigamos.")
+        assert "no open days and no hours" not in _texts(llm.captured_contents[-1])
+        # Empty, and it stays empty: now he says so.
+        await rig.driver.user_says("Te abro la agenda de la rodilla.")
+        await _page(rig, "agenda_state", _agenda_state(days=[], times=[]))
+        await asyncio.sleep(0.15)
+        turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
+        check_turn(rig, turn)
+        assert "The booking shows no open days and no hours for this search." in _texts(
             llm.captured_contents[-1]
         )
+
+
+async def test_a_visitor_without_a_rut_is_switched_to_the_passport() -> None:
+    prompt = clini._prompt(SITE, clini_api.date(2030, 3, 4))
+    assert "chooses Pasaporte" in prompt and "never send a visitor to WhatsApp" in prompt
+    llm = _llm()
+    async with demo("clini", llm) as rig:
+        await rig.driver.start_session(init={"site": "agenda", "path": "/"})
+        await _page(rig, "agenda_state", _agenda_state(step="booking", invalid=["rut"]))
+        await rig.driver.user_says("No tengo RUT, soy extranjero.")
+        sent = rig.command("fill_agenda_patient")
+        assert sent["document"] == "passport" and sent["focus_rut"] is True
+        await _page(
+            rig,
+            "agenda_state",
+            _agenda_state(step="booking", invalid=["rut"], document="passport"),
+        )
+        await rig.driver.user_says("Sigamos.")
+        said = _every(llm.captured_contents[-1], "fill_agenda_patient")[-1]
+        assert "The passport number field is ringed: they type it themselves." in said
+        assert "The form is set to the passport (Pasaporte)." in _texts(llm.captured_contents[-1])
+
+
+async def test_a_phone_is_never_reshaped_to_fit_a_chilean_mobile() -> None:
+    """Dev call 03a45037: 8147514179 said, 914751417 sent."""
+    assert clini.said_digits("eight one four seven five 1 4 one seven nine") == "8147514179"
+    assert clini.said_digits("nueve uno dos, 345 6789") == "9123456789"
+    pairs = "nueve, ochenta y dos, cuarenta y seis, treinta y dos, cero dos"
+    assert clini.said_digits(pairs) == "982463202"
+    assert clini.said_digits("noventa, veintidós y diez") == "902210"
+    llm = _llm()
+    async with demo("clini", llm) as rig:
+        await rig.driver.start_session(init={"site": "agenda", "path": "/", "lang": "en"})
+        await _page(rig, "agenda_state", _agenda_state(step="booking", invalid=["phone"]))
+        await rig.driver.user_says("my phone is eight one four seven five one four one seven nine")
+        await rig.driver.user_says(
+            "it is eight one four seven five one four one seven nine, really"
+        )
+        reshaped = _every(llm.captured_contents[-1], "fill_agenda_patient")[-1]
+        assert (
+            "celular: 9 1 4 7 5 1 4 1 7 is not what the visitor said (8 1 4 7 5 1 4 1 7 9)"
+        ) in reshaped
+        await rig.driver.user_says("Sigamos.")
+        said = _every(llm.captured_contents[-1], "fill_agenda_patient")[-1]
+        assert "is not a Chilean celular, nine digits starting with 9" in said
+        assert "never change or invent digits" in said
+        assert all(c["phone"] is None for c in _commands(rig, "fill_agenda_patient"))
+
+
+async def test_a_question_about_the_call_touches_no_booking() -> None:
+    llm = _llm()
+    async with demo("clini", llm) as rig:
+        await rig.driver.start_session(init={"site": "agenda", "path": "/"})
+        await _page(rig, "agenda_state", _agenda_state(step="booking", invalid=["rut"]))
+        await rig.driver.user_says("Can I speak in English?")
+        assert "fill_agenda_patient" not in rig.actions()
+
+
+async def test_no_site_cue_pulls_the_visitor_off_the_booking_it_opened() -> None:
+    """Dev call 5ff8b052: a page cue right after open_agenda brought the site
+    tab back over the booking, before the booking's tab had even reported."""
+    llm = _llm()
+    async with demo("clini", llm) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/"})
+        await rig.driver.user_says("Te abro la agenda de la rodilla.")
+        # The page answers before the booking's tab has reported itself: his
+        # talk-through cues a page of the site, and it is dropped.
+        await _page(rig, "command_done", {"command": "open_agenda", "detail": "results shown"})
+        turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
+        assert "Esto es lo que hizo la agenda." in turn.text
+        assert not [c for c in _commands(rig, "cue") if c["path"]], _commands(rig, "cue")
+        # While the booking is in front, an exam question moves no page either.
+        await _page(rig, "page_changed", {**HOME, "site": "agenda", "path": "/", "kind": "agenda"})
+        await rig.driver.user_says("How much is a knee MRI?")
+        assert not [c for c in _commands(rig, "cue") if c["path"]], _commands(rig, "cue")
+
+
+async def test_a_section_shown_on_the_page_keeps_the_backstop_from_moving_it() -> None:
+    """Dev call 03a45037: "with Fonasa", said about a section of the page in
+    front, opened the Fonasa page over it."""
+    llm = _llm()
+    async with demo("clini", llm) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": RM})
+        await rig.driver.user_says("¿Cuánto sale con Fonasa la resonancia?")
+        cues = _commands(rig, "cue")
+        assert [c["heading"] for c in cues] == ["Precios de Resonancias"], cues
+        assert not [c for c in cues if c["path"]], cues
+
+
+async def test_morning_and_afternoon_hours_are_asked_together(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[dict[str, str]] = []
+    booking = _booking(calls)
+    in_flight = 0
+    most = 0
+
+    async def answer(url: str, params: dict[str, str], timeout: float) -> Any:
+        nonlocal in_flight, most
+        in_flight += 1
+        most = max(most, in_flight)
+        await asyncio.sleep(0)
+        try:
+            return await booking(url, params, timeout)
+        finally:
+            in_flight -= 1
+
+    monkeypatch.setattr(clini_api, "_get_json", answer)
+    found = await clini_api.availability(64, 804, 13)
+    assert [c["handler"] for c in calls] == ["Disponibilidad", "HorariosDia", "HorariosDia"]
+    assert most == 2, "the AM and PM hours were asked one after the other"
+    assert found.centres[0].times == ("07:40", "08:00", "15:20")
+
+
+async def test_availability_on_the_booking_in_front_is_answered_from_it() -> None:
+    llm = _llm()
+    async with demo("clini", llm) as rig:
+        await rig.driver.start_session(init={"site": "agenda", "path": "/"})
+        await _page(
+            rig,
+            "agenda_state",
+            _agenda_state(
+                day=MON, centre="CENTRO DE SALUD | METRO TOBALABA", times=["07:40", "08:00"]
+            ),
+        )
+        await rig.driver.user_says("¿Hay hora para resonancia de rodilla?")
+        found = _results(llm.captured_contents[-1])["check_availability"]
+        assert found.startswith("From the booking on their screen.")
+        assert "Hours at CENTRO DE SALUD | METRO TOBALABA on 2030-03-04" in found
 
 
 # ─── The LASIK form ────────────────────────────────────────────────────────────
@@ -996,7 +1283,9 @@ async def test_the_prompt_carries_the_booking_list_and_today() -> None:
     assert "- 62 Laboratorio — prestaciones: 30 Toma De Muestra" in prompt
     assert "Eval cir.lasik" not in prompt
     for rule in (
-        "THE RUT IS THEIRS TO TYPE",
+        "THE RUT OR PASSPORT IS THEIRS TO TYPE",
+        "chooses Pasaporte",
+        "document passport",
         "AGENDAR STAYS THEIRS TO PRESS",
         "SAMU",
         'never "usted"',
@@ -1028,7 +1317,8 @@ async def test_a_form_locked_until_the_rut_is_a_cue_to_ask_for_it() -> None:
         )
         await rig.driver.user_says("Sigamos.")
         seen = _texts(llm.captured_contents[-1])
-        assert "keeps its other fields locked until the visitor types their RUT" in seen
+        assert "Nothing was filled yet" in seen and "chosen Pasaporte" in seen
+        assert "Do not say it failed" not in seen
         assert "That did not happen on the page" not in seen
 
 

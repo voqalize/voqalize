@@ -45,7 +45,7 @@ declare global {
 
 export interface Adapter {
   /** Perform one of the brain's page Actions. Never throws. */
-  run(command: string, payload: unknown): Promise<{ ok: boolean; error?: string }>;
+  run(command: string, payload: unknown): Promise<RunResult>;
   /** What the visitor is looking at now, as a `page_changed` payload. */
   context(): PageContext;
   /** Report the page, and a move left over from the last page that could not
@@ -55,6 +55,19 @@ export interface Adapter {
   /** The Actions `run` performs. */
   readonly commands: readonly string[];
 }
+
+/** How a move went. `detail`, for a move the brain waits on (`DONE_COMMANDS`),
+ *  says in English what is now on screen; `moved` means it went on to another
+ *  page, which reports it done or failed from there. */
+export interface RunResult {
+  ok: boolean;
+  error?: string;
+  detail?: string;
+  moved?: boolean;
+}
+
+/** The moves the brain waits on, whose success is reported as `command_done`. */
+export const DONE_COMMANDS = new Set(["open_agenda", "agenda_pick", "fill_agenda_patient", "fill_lasik_form"]);
 
 export interface PageContext {
   /** `site` is www.clini.cl; `agenda` is agenda-web.clini.cl, the booking. */
@@ -381,7 +394,9 @@ async function navigate({
     : heading || text
       ? { command: "show_section", payload: { heading: heading ?? null, text: text ?? null } }
       : null;
-  if (!samePath(location.pathname, target.pathname) || target.search !== location.search) {
+  // The same page (whatever query it was opened with) is not loaded again: a
+  // load of the tab holding the call drops his voice for a moment.
+  if (!samePath(location.pathname, target.pathname) || (target.search && target.search !== location.search)) {
     // A full page load: what is left is done by the adapter on the next page.
     loadPage(target, rest);
     return;
@@ -399,12 +414,17 @@ async function finishLeftover(): Promise<void> {
   await settled();
   const result = await run(then.command, then.payload);
   if (!result.ok) emit("command_failed", { command: then.command === "show_section" || then.command === "open_faq" ? "cue" : then.command, reason: result.error });
+  else if (!result.moved && DONE_COMMANDS.has(then.command)) emit("command_done", { command: then.command, detail: result.detail ?? "" });
 }
 
 // ─── show_section ─────────────────────────────────────────────────────────
 
+/** An anchor's own words, kept before any translation (`anchors.ts`). */
+const original = (el: Element | null | undefined) => el?.getAttribute("data-voqalize-text") ?? "";
+
 function findHeading(heading: string): HTMLElement | null {
-  return best(headings(), (x) => x.text, heading)?.el ?? null;
+  const all = headings();
+  return best(all, (x) => x.text, heading)?.el ?? best(all, (x) => original(x.el), heading)?.el ?? null;
 }
 
 /** A card: a CMS item (a sede on /ubicaciones, a blog card), a slide, a tab
@@ -473,7 +493,7 @@ function smallestContaining(root: Element, text: string): HTMLElement | null {
  *  dropdown: showing the sede opens them. */
 async function openHours(card: HTMLElement): Promise<HTMLElement[]> {
   const d = [...card.querySelectorAll<HTMLElement>(".w-dropdown")].find((x) =>
-    /horario/i.test(x.querySelector(":scope > .w-dropdown-toggle")?.textContent ?? ""),
+    /horario|schedule|hours/i.test(x.querySelector(":scope > .w-dropdown-toggle")?.textContent ?? ""),
   );
   if (!d) return [];
   await openDropdown(d);
@@ -520,7 +540,7 @@ async function showSection({ heading, text }: { heading?: string | null; text?: 
 async function openFaq({ question }: { question: string }) {
   await closePopups();
   const all = faqItems();
-  const item = best(all, (f) => f.question, question ?? "");
+  const item = best(all, (f) => f.question, question ?? "") ?? best(all, (f) => original(f.toggle), question ?? "");
   if (!item) {
     const known = all.map((f) => f.question).slice(0, 15).join(" | ");
     throw new Error(`no FAQ "${question}" on ${location.pathname}${known ? `; it has: ${known}` : ""}`);
@@ -591,10 +611,10 @@ const PREVISIONS: Record<string, string> = {
  * for them to type, and rings "¡Agendar evaluación!" for them to press once
  * the form is complete. He never submits it.
  */
-async function fillLasikForm(payload: LasikForm) {
+async function fillLasikForm(payload: LasikForm): Promise<string | null> {
   if (!samePath(location.pathname, LASIK_PATH)) {
     loadPage(new URL(LASIK_PATH, location.origin), { command: "fill_lasik_form", payload });
-    return;
+    return null;
   }
   await closePopups();
   const form = await waitFor(() => document.querySelector<HTMLFormElement>("#nuevo_lasik_junio, #form form"));
@@ -623,7 +643,7 @@ async function fillLasikForm(payload: LasikForm) {
   text("email", payload.email);
   if (payload.phone && fields.phone) {
     const digits = chileanMobile(payload.phone);
-    if (!/^9\d{8}$/.test(digits)) problems.push(`the phone "${payload.phone}" is not a Chilean mobile (9 digits, starting with 9)`);
+    if (!/^9\d{8}$/.test(digits)) problems.push(`phone "${payload.phone}" refused: the form takes a Chilean mobile (9 digits starting with 9); nothing was typed there: ask for one, never change the digits`);
     else {
       setValue(fields.phone, digits);
       touched.push(fields.phone);
@@ -660,7 +680,17 @@ async function fillLasikForm(payload: LasikForm) {
   } else {
     highlight(section);
   }
-  if (problems.length) throw new Error(problems.join("; "));
+  const filledNow = touched.map((el) => Object.entries(fields).find(([, f]) => f === el)?.[0]).filter(Boolean);
+  if (problems.length && !filledNow.length) throw new Error(problems.join("; "));
+  return [
+    filledNow.length ? `filled ${filledNow.join(", ")}` : "nothing new filled",
+    ...problems,
+    payload.focus_rut ? "the RUT box is focused for the visitor to type" : "",
+    state.missing.length ? `still missing: ${state.missing.join(", ")}` : "",
+    state.valid ? "the form is complete; ¡Agendar evaluación! is ringed for the visitor to press" : "",
+  ]
+    .filter(Boolean)
+    .join("; ");
 }
 
 function lasikState(
@@ -719,23 +749,27 @@ function start(next: (event: string, payload: unknown) => void): () => void {
   };
 }
 
-const SITE_COMMANDS: Record<string, (payload: never) => Promise<void>> = {
+type Command = (payload: never) => Promise<string | null | void>;
+
+const SITE_COMMANDS: Record<string, Command> = {
   navigate,
   show_section: showSection,
   open_faq: openFaq,
   fill_lasik_form: fillLasikForm,
 };
 
-const COMMANDS: Record<string, (payload: never) => Promise<void>> = onAgenda()
+const COMMANDS: Record<string, Command> = onAgenda()
   ? { show_section: showSection, ...agendaCommands() }
   : SITE_COMMANDS;
 
-async function run(command: string, payload: unknown): Promise<{ ok: boolean; error?: string }> {
+async function run(command: string, payload: unknown): Promise<RunResult> {
   const fn = COMMANDS[command];
   if (!fn) return { ok: false, error: `the page on ${location.host} cannot ${command}` };
   try {
-    await fn((payload ?? {}) as never);
-    return { ok: true };
+    const detail = await fn((payload ?? {}) as never);
+    // `null`: the move went on to another page, which finishes it.
+    if (detail === null) return { ok: true, moved: true };
+    return { ok: true, detail: detail ?? undefined };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : String(error) };
   }

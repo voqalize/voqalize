@@ -57,6 +57,13 @@ These are rules of the adapters, not of the prompt, so no brain can lift them:
 - `src/agenda-actions.ts` — the booking adapter for agenda-web.clini.cl:
   `open_agenda`, `agenda_pick`, `fill_agenda_patient`, and the `agenda_state`
   report.
+- `src/anchors.ts`, `src/anchor.ts` — Chrome's translator kept off what the
+  adapters match on. From `document_start` the headings, FAQ questions, tab
+  links and dropdown toggles on www, and the calendar, centre titles, summary
+  and document switch on agenda-web, get `translate="no"`; each day button is
+  stamped with its date (`data-voqalize-date`) while its label is still
+  Spanish. Days are read by class and stamp, centres by the name after "|",
+  so a translated page still books.
 - `src/page.ts` — what both adapters share: the waits, the window scroll under
   the fixed header (96 px, 91 on a phone), the ring in CLINI's pink, and the
   native-setter fill.
@@ -73,7 +80,9 @@ These are rules of the adapters, not of the prompt, so no brain can lift them:
   the call and the Español/English toggle. It sits bottom-left, because
   Clinito's chat owns the bottom-right. It moves up above the phone's bottom
   bar and above the chat wherever it would cover them. Off a call the toggle picks the language the next
-  call starts in; in a call it asks the brain to switch.
+  call starts in; in a call it asks the brain to switch. The choice is kept in
+  the extension's storage, so it holds on both hosts. The widget is never
+  translated ("Javier" stays Javier).
 - `src/content.ts` — the call: stock pipecat with `@voqalize/client-transport`
   as its media manager, one `sessions.connect`, the avatar, and the routing of
   each Action to the tab it belongs on. `navigate` and `fill_lasik_form` go to
