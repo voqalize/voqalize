@@ -19,10 +19,17 @@ name: CI
 on:
   push:
     branches: [main, prod]
-  pull_request:
   # release-python-sdk.yml runs this suite before it publishes, so a release is
   # gated on exactly the checks a merge is — not on a copy of them that can drift.
   workflow_call:
+
+# CI runs on main after a merge, not on pull requests (owner, 2026-10-22): a PR run and its
+# merge run were the same suite twice. Cloud Build deploys main whatever this says, so a red
+# run on main is an alarm, not a gate. A newer push cancels the run it supersedes; prod keeps
+# every run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/prod' }}
 
 jobs:
   python:
