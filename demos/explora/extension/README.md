@@ -31,6 +31,8 @@ goes on it; it is not how a customer would ship it.
 - `src/dom.ts` — what both adapters share: the ring, scrolling the window
   under Explora's fixed header and sticky sub-menu, and setting a form field
   the way the site's own scripts notice.
+- `src/site-language.ts`, `src/hreflang.ts` — the site follows the call's
+  language (see below).
 - `src/narration.ts` — the screen follows his voice. The brain sends each
   section or question cue he wrote into his reply ahead of the speech, with
   the first words of the sentence it belongs to; this fires it when the call's
@@ -165,6 +167,55 @@ from what that costs.
 - **Links stay in the tab.** While a call is live, links to either Explora host
   lose `target="_blank"`, so the visitor's own clicks load in the tab that
   holds the call rather than in a new one without it.
+
+## The site follows the call's language
+
+www.explora.com is WordPress with WPML: Spanish lives at `/es/…` under
+translated slugs (`/lodge/atacama-lodge/` ↔
+`/es/lodge/hotel-en-san-pedro-de-atacama/`), and every page names its
+translations in its `<head>` (`<link rel="alternate" hreflang="es">`).
+
+- **When the language moves** (the brain's `language_changed`: the visitor
+  spoke Spanish, asked, or pressed the toggle), the page in front waits for
+  Javier to finish confirming it aloud (up to 8 s) and loads its twin: the
+  `hreflang` link, else the language selector's link, else `/es/` or `/`. A
+  `navigate` that arrives meanwhile wins. A page in Portuguese, French or
+  German is left alone. On the booking site the step is loaded again with
+  `?language=ES|EN` swapped in, only where that loses nothing: paso1 (with the
+  lodge and day carried in the URL), paso2 when its URL carries the stay, and
+  the expedition enquiry while nothing is filled in. Never paso3.
+- **`navigate` names the English page**, because the brain knows the English
+  site. While the call is in Spanish, the English page's `<head>` is fetched
+  (same-origin, read only up to `</head>`; through the hub from the booking
+  site) and its Spanish twin is loaded, or the English page when it has none.
+  The lookup starts as the `navigate` arrives and runs while his voice is
+  still playing; it takes 60–150 ms when Explora's CDN has the page and about
+  a second when it does not, and each answer is kept in the tab's
+  `sessionStorage`. The page's own links answer for its translations at no
+  cost.
+- **A `navigate` to the page already in front** (by path; query, hash and a
+  trailing slash aside, and any translation of it) does not load it again: the
+  move is made on it and it reports `page_changed` once more, which the brain
+  waits for.
+- **On a translated page** a heading, words or question kept for it by a
+  `navigate` are the brain's English names, which may not be there: one that
+  is not found is skipped, not failed. A `show_section` or `open_faq` sent
+  directly still fails with the page's own (Spanish) headings listed, which
+  the brain can then use.
+- **At the start**, `init.site_lang` (`"es"` or `"en"`) tells the brain the
+  language the site is followed in: the visitor's toggle choice, else the
+  language of the page they started on. `init.lang` is still sent only when
+  the visitor chose on the toggle. Off a call the toggle shows the page's
+  language until the visitor chooses one.
+
+From the console, with no call:
+
+```js
+await __voqalizeExplora.setLanguage("es");   // as language_changed; the page loads in Spanish
+__voqalizeExplora.language();                // "es"
+await __voqalizeExplora.mapPath("/lodge/atacama-lodge/");  // {url, source, ms}
+await __voqalizeExplora.perform("navigate", { path: "/lodge/atacama-lodge/", after_words: 0, heading: null, text: null, faq: null });
+```
 
 ## One call, every tab
 

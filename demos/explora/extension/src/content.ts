@@ -29,7 +29,11 @@
  *     holder also stashes the saved call with the hub, per browser tab, and a
  *     page on the other host takes it back before it looks for one;
  *   - a move for the next page (a heading on it, the booking step after a
- *     load) is kept by the hub and made once the call is back on that page.
+ *     load) is kept by the hub and made once the call is back on that page;
+ *   - the site follows the call's language (`site-language.ts`): when it moves,
+ *     the page in front loads its twin in the new language once he has said
+ *     so, and while the call is in Spanish an English `navigate` loads the
+ *     page's Spanish twin.
  *
  * One site and one agent have one call, in every Explora tab of both hosts
  * (`tabs.ts` over the extension's hub, `hub.ts`). The tab it started in holds
@@ -58,6 +62,7 @@ import {
 } from "./actions.gen";
 import { focusTab, HubChannel, loadThen, pendingMove, stashCall, type Then, tabId, takeCall, unstashCall } from "./hub";
 import { Narration } from "./narration";
+import { type Lang, onSite, pageLanguage, pathLang, siteUrlIn } from "./site-language";
 import {
   followCall, type Following, forgetCopiedCall, gestureContext, here, holdCall, type Holding,
   inFront, type Relay, type TabInfo,
@@ -78,6 +83,12 @@ const MOUNTED = "__voqalizeExploraJavier";
  *  brain to answer a switch before it shows the language the call is still in. */
 const LANG_KEY = "voqalize.explora.lang";
 const SWITCH_WAIT_MS = 4000;
+/** The call's language as the brain last said it, kept for this tab's next
+ *  page (per origin; the page's own language covers a move across hosts). */
+const CALL_LANG_KEY = "voqalize.explora.callLang";
+/** How long the page waits for him to finish confirming a language switch
+ *  aloud before it loads the page in the new language. */
+const SITE_SWITCH_CAP_MS = 8000;
 /** client-transport's record of this tab's call (`STORAGE_KEY` in its
  *  `transport.ts`), which the hub carries across the two hosts. */
 const CALL_KEY = "voqalize-client-transport:call";
@@ -158,7 +169,7 @@ function bookingUrl(command: string, payload: unknown, language: Language): stri
   }
   if (command === "fill_enquiry") {
     const p = payload as FillEnquiry;
-    return `${BOOKING}/ibe/expeditions?expedition_request=${encodeURIComponent(p.expedition_code.toUpperCase())}`;
+    return `${BOOKING}/ibe/expeditions?expedition_request=${encodeURIComponent(p.expedition_code.toUpperCase())}&language=${lang}`;
   }
   return null;
 }
@@ -211,13 +222,16 @@ async function start(): Promise<void> {
   let waiting: ReturnType<typeof setTimeout> | null = null;
   /** The call's language, or the next call's; the one the toggle asked for
    *  until the brain answers; and the wait for that answer. */
-  let language: Language = storedLanguage() ?? "en";
+  let language: Language = storedLanguage() ?? pageLanguage() ?? "en";
   let asked: Language | null = null;
   let switchTimer: ReturnType<typeof setTimeout> | null = null;
   /** Whether his voice is playing now, and how many times it has started:
    *  what a page load waits on. */
   let botSpeaking = false;
   let botStarts = 0;
+  /** Counts the page moves the brain sends, so a language switch still
+   *  waiting for his voice gives way to a `navigate` that came after it. */
+  let moves = 0;
   /** Settles once the call is up on this page and reporting to the brain,
    *  or will not be: what a move kept for this page waits on. */
   let rejoined: () => void = () => {};
@@ -394,8 +408,12 @@ async function start(): Promise<void> {
         // `lang` only when the visitor chose it: the brain then holds to it
         // whatever they speak, and otherwise follows the language they speak.
         const chosen = storedLanguage();
+        // `site_lang`: the language the site is followed in, from the start:
+        // the visitor's choice, else the language of the page they are on
+        // (a call started on /es/… is a Spanish visitor's).
         const init = {
           surface: "explora-ext", site: ctx.site, path: ctx.path, url: ctx.url, title: ctx.title,
+          site_lang: chosen ?? pageLanguage() ?? "en",
           ...(chosen ? { lang: chosen } : {}),
         };
         const started = await next.startBot(connectRequest(init));
@@ -501,11 +519,18 @@ async function start(): Promise<void> {
    * the voice is quiet. A load cuts the audio off, so late beats early.
    */
   async function paced(afterWords: number): Promise<void> {
-    if (role !== "holder") return;
-    const t0 = Date.now();
     const cap = afterWords > 0 ? (afterWords / WORDS_PER_S) * 1000 + AFTER_WORDS_SLACK_MS : QUIET_WAIT_MS;
+    await settle(cap, afterWords > 0);
+  }
+
+  /** Wait for his voice to start (when `waitStart`, up to four seconds) and
+   *  then to stop and stay quiet, all within `cap`. Nothing to wait for off
+   *  a call. */
+  async function settle(cap: number, waitStart: boolean): Promise<void> {
+    if (role !== "holder" || !client) return;
+    const t0 = Date.now();
     const left = () => cap - (Date.now() - t0);
-    if (afterWords > 0) {
+    if (waitStart) {
       const starts = botStarts;
       await until(() => botSpeaking || botStarts > starts, Math.min(START_WAIT_MS, left()));
     }
@@ -527,6 +552,10 @@ async function start(): Promise<void> {
       return;
     }
     if (action.command === "navigate") {
+      moves++;
+      // The page's twin in the call's language is looked up while his voice
+      // plays, so the load does not wait on it after.
+      if (language !== "en") void siteUrlIn(language, (action.payload as Navigate).path);
       await paced((action.payload as Navigate).after_words ?? 0);
     } else if (
       BOOKING_COMMANDS.has(action.command) &&
@@ -550,11 +579,45 @@ async function start(): Promise<void> {
       // The brain's word that the call's language moved, by the toggle, by
       // voice or on request: the toggle follows at once, on every tab.
       case "language_changed":
-        showLanguage(action.payload.language);
+        setCallLanguage(action.payload.language);
+        void followSite(action.payload.language);
         return null;
       default:
         return `the call cannot ${action.command}`;
     }
+  }
+
+  /** The call's language moved: the toggle, every tab's, and this tab's next
+   *  page remember it. */
+  function setCallLanguage(next: Language): void {
+    showLanguage(next);
+    try {
+      sessionStorage.setItem(CALL_LANG_KEY, next);
+    } catch {
+      /* Storage blocked: the next page goes by its own language. */
+    }
+  }
+
+  /**
+   * The site follows the call's language: once he has confirmed the switch
+   * aloud (he is speaking it as `language_changed` arrives; a load would cut
+   * him off), the page in front loads its twin in that language. A `navigate`
+   * that arrives meanwhile wins: it lands in the new language anyway.
+   */
+  async function followSite(next: Lang): Promise<void> {
+    const seq = moves;
+    await settle(SITE_SWITCH_CAP_MS, true);
+    if (moves !== seq || language !== next) return;
+    const why = await dispatch("site_language", { language: next });
+    if (why) console.info("voqalize: the page stays in its language:", why);
+  }
+
+  /** A `navigate`'s path in the call's language: the brain names the English
+   *  page, and in Spanish the page's Spanish twin is loaded. */
+  async function inCallLanguage(p: Navigate): Promise<Navigate> {
+    if (typeof p.path !== "string" || !p.path || pathLang(p.path) === language) return p;
+    const mapped = await siteUrlIn(language, p.path);
+    return mapped.url === p.path ? p : { ...p, path: mapped.url };
   }
 
   /**
@@ -577,11 +640,13 @@ async function start(): Promise<void> {
         return fail("the rooms are not open: check a lodge's availability through to its rooms first");
       }
       if (command === "navigate" && onBooking(location.href)) {
-        const p = payload as Navigate;
+        const p = await inCallLanguage(payload as Navigate);
+        // On a translated page the English names may not be there: skipped.
+        const lenient = pathLang(p.path) !== "en";
         const then: Then | undefined = p.faq
-          ? { command: "open_faq", payload: { question: p.faq } }
+          ? { command: "open_faq", payload: { question: p.faq, ...(lenient ? { lenient } : {}) } }
           : p.heading || p.text
-            ? { command: "show_section", payload: { heading: p.heading, text: p.text } }
+            ? { command: "show_section", payload: { heading: p.heading, text: p.text, ...(lenient ? { lenient } : {}) } }
             : undefined;
         try {
           await loadThen(new URL(p.path, SITE).href, then);
@@ -591,6 +656,7 @@ async function start(): Promise<void> {
         return null;
       }
     }
+    if (command === "navigate" && onSite()) payload = await inCallLanguage(payload as Navigate);
     const result = await adapter!.run(command, payload);
     if (result.ok) return null;
     return fail(result.error ?? "failed");
@@ -605,6 +671,12 @@ async function start(): Promise<void> {
     },
     // Cues as the brain sends them, and speech as the voice plays it.
     narration,
+    // The brain's `language_changed`, as if it had arrived (no voice to wait
+    // for off a call), and the call's language as the page now has it.
+    setLanguage: (next: Language) => ours({ command: "language_changed", payload: { language: next } }),
+    language: () => language,
+    // A `navigate` path in the call's language, and what finding it cost.
+    mapPath: (path: string) => siteUrlIn(language, path),
   };
 
   function end(): void {
@@ -628,6 +700,11 @@ async function start(): Promise<void> {
     botSpeaking = false;
     if (switchTimer) showLanguage(language);
     if (!leaving) {
+      try {
+        sessionStorage.removeItem(CALL_LANG_KEY);
+      } catch {
+        /* Storage blocked. */
+      }
       // Ended, not left for the next page: no page of either host rejoins it.
       void stashCall(null);
       try {
@@ -855,6 +932,9 @@ async function start(): Promise<void> {
   spare = prepare();
   const rejoining = spare.transport.hasLiveCall;
   if (rejoining) {
+    // The call's language, as the brain last said it on this host.
+    const was = callLanguage();
+    if (was && was !== language) showLanguage(was);
     void connect(true);
   } else post({ k: "hello", from: me });
 
@@ -879,6 +959,16 @@ async function start(): Promise<void> {
 function storedLanguage(): Language | null {
   try {
     const v = localStorage.getItem(LANG_KEY);
+    return v === "es" || v === "en" ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The call's language as this tab's last page on this host knew it. */
+function callLanguage(): Language | null {
+  try {
+    const v = sessionStorage.getItem(CALL_LANG_KEY);
     return v === "es" || v === "en" ? v : null;
   } catch {
     return null;

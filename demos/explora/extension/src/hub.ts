@@ -20,7 +20,8 @@ type Ask =
   | { op: "pending" }
   | { op: "pend"; then: unknown }
   | { op: "stash"; call: string | null }
-  | { op: "unstash" };
+  | { op: "unstash" }
+  | { op: "alternate"; url: string; lang: string };
 
 let nextId = 1;
 const waiting = new Map<number, (result: unknown) => void>();

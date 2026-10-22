@@ -44,6 +44,7 @@ import {
   waitFor,
 } from "./dom";
 import { loadThen, type Then } from "./hub";
+import { alternateHere, type Lang, pageLanguage, pagePath, pathLang, rememberHere } from "./site-language";
 
 const SITE_ORIGIN = "https://www.explora.com";
 const MAX_HEADINGS = 80;
@@ -662,13 +663,21 @@ async function openFaq({ question }: { question: string }) {
 
 // ─── navigate ─────────────────────────────────────────────────────────────
 
-const strip = (p: string) => (p || "/").replace(/\/+$/, "").toLowerCase() || "/";
-
 /**
  * Load one of www.explora.com's pages in this tab. The move to make on it
  * (a heading, words, a question) is kept by the hub for the next page, which
  * makes it once it is up (`pendingMove` in `content.ts`). The wait for his
- * voice before the load is the call's, not this.
+ * voice before the load is the call's, not this; so is choosing the page's
+ * Spanish twin while the call is in Spanish (`site-language.ts`), so `path`
+ * may be a whole URL.
+ *
+ * The page already in front (same path; query, hash and a trailing slash
+ * aside) is not loaded again: the move is made on it and the page is reported
+ * once more, since the brain waits for a `page_changed` after every
+ * `navigate` before it says the rest.
+ *
+ * On a translated page the brain's English heading, words or question may not
+ * be there: the move is made leniently, and one that finds nothing is skipped.
  */
 async function navigate({
   path,
@@ -684,19 +693,50 @@ async function navigate({
   if (typeof path !== "string" || !path) throw new Error(`not a path: ${path}`);
   const target = new URL(path, SITE_ORIGIN);
   if (!isExplora(target.host)) throw new Error(`${target.href} is not on www.explora.com`);
-  if (strip(target.pathname) === strip(location.pathname) && target.search === location.search) {
-    if (faq) return openFaq({ question: faq });
-    if (heading || text) return showSection({ heading, text });
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  const lenient = pathLang(target) !== "en";
+  if (pagePath(target) === pagePath(location.href)) {
+    try {
+      if (faq) await lenientMove(lenient, () => openFaq({ question: faq }));
+      else if (heading || text) await lenientMove(lenient, () => showSection({ heading, text }));
+      else window.scrollTo({ top: 0, behavior: "smooth" });
+    } finally {
+      emitter?.("page_changed", context());
+    }
     return;
   }
   const then: Then | undefined = faq
-    ? { command: "open_faq", payload: { question: faq } }
+    ? { command: "open_faq", payload: { question: faq, ...(lenient ? { lenient } : {}) } }
     : heading || text
-      ? { command: "show_section", payload: { heading: heading ?? null, text: text ?? null } }
+      ? { command: "show_section", payload: { heading: heading ?? null, text: text ?? null, ...(lenient ? { lenient } : {}) } }
       : undefined;
   clearHighlight();
   await loadThen(target.href, then);
+}
+
+/** A move that, when `lenient`, skips what it cannot find rather than fail:
+ *  the English names the brain knows, on a page in another language. */
+async function lenientMove(lenient: boolean | undefined, move: () => Promise<void>): Promise<void> {
+  if (!lenient) return move();
+  try {
+    await move();
+  } catch (error) {
+    console.info("voqalize: skipped on a translated page:", error instanceof Error ? error.message : error);
+  }
+}
+
+// ─── site_language ────────────────────────────────────────────────────────
+
+/** Load this page's twin in `language` when it is in the other one: the
+ *  call's language moved. A page in neither English nor Spanish (WPML's
+ *  Portuguese, French, German) is the visitor's own choice and stays. */
+async function siteLanguage({ language }: { language: Lang }) {
+  if (language !== "en" && language !== "es") throw new Error(`not a site language: ${language}`);
+  const now = pageLanguage();
+  if (!now || now === language) return;
+  const there = alternateHere(language);
+  if (pagePath(there) === pagePath(location.href)) return;
+  clearHighlight();
+  await loadThen(there);
 }
 
 // ─── Links stay in the tab while a call is live ───────────────────────────
@@ -738,7 +778,11 @@ function keepLinksInTab(): () => void {
  * there are no route changes to watch: this page is reported once, and again
  * if its headings grow as late parts of it render (a carousel, the reviews).
  */
+/** Where `start` reports to, for a `navigate` to the page already in front. */
+let emitter: ((event: string, payload: unknown) => void) | null = null;
+
 function start(emit: (event: string, payload: unknown) => void): () => void {
+  emitter = emit;
   const restore = keepLinksInTab();
   let last = JSON.stringify(context());
   emit("page_changed", JSON.parse(last));
@@ -762,6 +806,7 @@ function start(emit: (event: string, payload: unknown) => void): () => void {
   obs.observe(root(), { childList: true, subtree: true });
   const stopWatching = setTimeout(() => obs.disconnect(), 20_000);
   return () => {
+    if (emitter === emit) emitter = null;
     obs.disconnect();
     clearTimeout(stopWatching);
     if (timer) clearTimeout(timer);
@@ -769,10 +814,14 @@ function start(emit: (event: string, payload: unknown) => void): () => void {
   };
 }
 
+type Lenient = { lenient?: boolean };
+
 const COMMANDS: Record<string, (payload: never) => Promise<void>> = {
   navigate,
-  show_section: showSection,
-  open_faq: openFaq,
+  show_section: (p: Parameters<typeof showSection>[0] & Lenient) => lenientMove(p.lenient, () => showSection(p)),
+  open_faq: (p: Parameters<typeof openFaq>[0] & Lenient) => lenientMove(p.lenient, () => openFaq(p)),
+  // The extension's own, not the brain's: the call's language moved.
+  site_language: siteLanguage,
 };
 
 async function run(command: string, payload: unknown): Promise<{ ok: boolean; error?: string }> {
@@ -788,6 +837,7 @@ async function run(command: string, payload: unknown): Promise<{ ok: boolean; er
 
 if (isExplora(location.host) && !window.voqalizeExplora) {
   styleThePage();
+  rememberHere();
   window.voqalizeExplora = { run, context, start, commands: Object.keys(COMMANDS) } satisfies Adapter;
 }
 
