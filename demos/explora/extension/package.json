@@ -1,0 +1,29 @@
+{
+  "name": "@voqalize/demo-explora-extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Puts Javier, the explora demo brain's guide, on www.explora.com and reservations.explora.com: a Chrome extension that injects the call widget and the site adapters, and carries one call across every page load and every Explora tab.",
+  "scripts": {
+    "build": "tsc --noEmit && AVATAR_RUNTIME=https://avatar.dev.voqalize.com/runtime/current.js node build.mjs",
+    "typecheck": "tsc --noEmit",
+    "gen": "cd ../.. && uv run voqalize types explora/backend/brain.py -o explora/extension/src/actions.gen.ts",
+    "build:prod": "tsc --noEmit && VOQALIZE_ENV_FILE=.env.prod VOQALIZE_OUT_DIR=dist-prod node build.mjs"
+  },
+  "dependencies": {
+    "@pipecat-ai/client-js": "^1.13.0",
+    "@pipecat-ai/small-webrtc-transport": "^1.10.6",
+    "@voqalize/avatar": "^0.6.0",
+    "@voqalize/client-transport": "0.4.0"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.287",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.8.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

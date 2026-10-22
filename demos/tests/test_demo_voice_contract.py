@@ -104,8 +104,13 @@ DEMOS: dict[str, Expected] = {
     # (the site's language) unless the page's toggle said English, and moves
     # both legs for the toggle or for English heard — javier in both. Not a
     # gallery card (the page is Clini's own site), so it is not in manifest.json.
-    # The switch will be asserted in test_clini_e2e.py.
+    # The switch is asserted in test_clini_e2e.py.
     "clini": Expected(voice="omnivoice/javier", language="es"),
+    # Javier, Explora's guide on explora.com and its booking site — SendPotion's
+    # Javier — opens in English unless the page's toggle said Spanish, and moves
+    # both legs for the toggle or for Spanish heard. Asserted in
+    # test_explora_e2e.py.
+    "explora": Expected(voice="omnivoice/javier", language="en"),
     "forge": Expected(voice="omnivoice/gauri", language="en"),
     "interview_bot": Expected(voice="omnivoice/gauri", language="en"),
     # Aria on karnatakadigital.in opens in English and moves both legs to Kannada
