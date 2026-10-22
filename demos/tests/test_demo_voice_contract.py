@@ -168,6 +168,7 @@ DEMOS: dict[str, Expected] = {
     "sugar": Expected(at_connect=True),
     "support": Expected(voice="omnivoice/gaurav", language="en"),
     "travel": Expected(voice="omnivoice/emily", language="en"),
+    "uahurtado": Expected(voice="omnivoice/javier", language="es"),
 }
 
 
