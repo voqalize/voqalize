@@ -23,6 +23,7 @@ __all__ = [
     "CLINI_EVENTS",
     "AgendaState",
     "CliniEvent",
+    "CommandDone",
     "CommandFailed",
     "LanguageRequested",
     "LasikFormState",
@@ -72,6 +73,22 @@ class CommandFailed(AppEvent):
     reason: str = ""
 
 
+class CommandDone(AppEvent):
+    """A move Javier sent was carried out: the page now shows what he asked.
+
+    Sent for ``open_agenda`` (once the requested step is on screen),
+    ``agenda_pick`` (after the day or hour is selected),
+    ``fill_agenda_patient`` (after the fields are set) and ``fill_lasik_form``.
+    The booking tools wait for this or :class:`CommandFailed` before they
+    answer the model, so Javier only claims what actually happened."""
+
+    command: str
+    detail: str = ""
+    """What is on screen now, in a few English words, e.g. ``selected Tue
+    2026-10-27 10:00 at QUINTA VERGARA`` or ``filled name, email; phone
+    refused: …``."""
+
+
 class LanguageRequested(AppEvent):
     """The visitor pressed the other language on the widget's toggle."""
 
@@ -92,21 +109,28 @@ class AgendaState(AppEvent):
     prestacion: int | None = None
     prestacion_name: str = ""
     region: int | None = None
+    month: str = ""
+    """The month the calendar shows, YYYY-MM (empty if it is not on screen)."""
     days: list[str] = Field(default_factory=list[str])
-    """The open days of the month on screen (at most ten), YYYY-MM-DD."""
+    """Every open day of the month on screen (at most 31), YYYY-MM-DD."""
     centres: list[str] = Field(default_factory=list[str])
     """The centres listed for the day, as titled ("TM | BUIN")."""
     day: str = ""
     """The day selected or in view, YYYY-MM-DD: the one ``times`` belong to."""
+    centre: str = ""
+    """The centre whose ``times`` are listed, as titled ("TM | BUIN")."""
     times: list[str] = Field(default_factory=list[str])
-    """The hours of the centre that is open (at most 24), HH:MM; empty once an
-    hour is picked."""
+    """The hours of ``centre`` (at most 24), HH:MM; empty once an hour is
+    picked."""
     selected: str = ""
     """The selection summary, as the booking writes it."""
     indications: str = ""
     """The service's alert and the centre's indications (at most 600 chars)."""
     invalid: list[str] = Field(default_factory=list[str])
     """The patient fields still empty or invalid, e.g. ``rut``, ``phone``, ``consent``."""
+    document: Literal["rut", "passport"] = "rut"
+    """Which identity document the patient form asks for: the RUT, or a
+    passport for a visitor without one."""
     ready: bool = False
     """Whether AGENDAR is enabled: everything is valid, and it is theirs to press."""
 
@@ -121,12 +145,19 @@ class LasikFormState(AppEvent):
 
 
 type CliniEvent = (
-    PageChanged | TabsChanged | CommandFailed | LanguageRequested | AgendaState | LasikFormState
+    PageChanged
+    | TabsChanged
+    | CommandDone
+    | CommandFailed
+    | LanguageRequested
+    | AgendaState
+    | LasikFormState
 )
 
 CLINI_EVENTS = AppEvents[CliniEvent](
     PageChanged,
     TabsChanged,
+    CommandDone,
     CommandFailed,
     LanguageRequested,
     AgendaState,

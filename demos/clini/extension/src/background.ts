@@ -18,6 +18,8 @@
  *
  * The worker may be stopped while nothing is happening; its one piece of state,
  * the holder, is kept in `chrome.storage.session` so a restart forgets nothing.
+ * The visitor's language choice is kept in `chrome.storage.local`, so it holds
+ * on both hosts and the next visit.
  */
 
 interface Port extends chrome.runtime.Port {}
@@ -29,7 +31,9 @@ type Ask =
   | { op: "unlock" }
   | { op: "open_tab"; url: string; active?: boolean; then?: unknown }
   | { op: "focus_tab"; tab: number }
-  | { op: "pending" };
+  | { op: "pending" }
+  | { op: "get_lang" }
+  | { op: "set_lang"; lang: "es" | "en" };
 
 interface FromTab {
   /** A relay message for every other tab. */
@@ -40,6 +44,9 @@ interface FromTab {
 }
 
 const ports = new Map<number, Set<Port>>();
+
+/** Where the visitor's language choice is kept, in `chrome.storage.local`. */
+const LANG_KEY = "lang";
 
 /**
  * Where a tab Javier opens may point: Clini's own hosts (the site, the
@@ -118,6 +125,18 @@ async function answer(tab: number, ask: Ask): Promise<unknown> {
       const got = await chrome.storage.session.get(key);
       await chrome.storage.session.remove(key);
       return { then: got[key] ?? null };
+    }
+    // The visitor's language on the widget's toggle, for every Clini host:
+    // a page's own storage is per origin, and agenda-web is another one.
+    case "get_lang": {
+      const got = await chrome.storage.local.get(LANG_KEY);
+      const lang = got[LANG_KEY];
+      return { lang: lang === "es" || lang === "en" ? lang : null };
+    }
+    case "set_lang": {
+      if (ask.lang !== "es" && ask.lang !== "en") return { ok: false };
+      await chrome.storage.local.set({ [LANG_KEY]: ask.lang });
+      return { ok: true };
     }
   }
 }

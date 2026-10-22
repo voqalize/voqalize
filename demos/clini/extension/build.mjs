@@ -1,10 +1,12 @@
-// Builds the unpacked extension into dist/: three bundles and the manifest,
+// Builds the unpacked extension into dist/: four bundles and the manifest,
 // stamped with this package's version.
 //
 //   content.js     the call, the widget and the site adapter, in the page's
 //                  own JavaScript world (MAIN);
 //   bridge.js      the isolated-world script that carries the page's messages
 //                  to the hub and back;
+//   anchor.js      marks what the adapters match on `translate="no"` from
+//                  document_start, before Chrome's translator reaches it;
 //   background.js  the hub: one call relayed across every Clini tab, on
 //                  www.clini.cl and agenda-web.clini.cl, and new tabs opened
 //                  for Javier's moves.
@@ -89,6 +91,7 @@ await build({
   outfile: join(out, "content.js"),
 });
 await build({ ...common, entryPoints: [join(here, "src/bridge.ts")], format: "iife", outfile: join(out, "bridge.js") });
+await build({ ...common, entryPoints: [join(here, "src/anchor.ts")], format: "iife", outfile: join(out, "anchor.js") });
 await build({ ...common, entryPoints: [join(here, "src/background.ts")], format: "esm", outfile: join(out, "background.js") });
 
 const pkg = JSON.parse(readFileSync(join(here, "package.json"), "utf8"));

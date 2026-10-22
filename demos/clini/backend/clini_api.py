@@ -20,6 +20,7 @@ here: a booking is the visitor's to press, and their RUT is theirs to type.
 
 from __future__ import annotations
 
+import asyncio
 import time
 from dataclasses import dataclass, field
 from datetime import date, datetime
@@ -319,11 +320,19 @@ async def availability(
     # A day with no hours left gives the next one that has some.
     chosen = day if day in days else days[0]
     centres: dict[str, Centre] = {}
-    for period in ("AM", "PM"):
-        try:
-            half = await day_hours(servicio, prestacion, region, chosen, period)
-        except LookupFailed as e:
-            logger.warning("clini: {} hours for {} failed: {}", period, chosen, e)
+    # The morning and the afternoon are two requests of their own: asked
+    # together, the slower one is the wait, not the sum (on 2026-10-22 they
+    # took 2.3 s and 3.4 s, one after the other).
+    periods = ("AM", "PM")
+    halves = await asyncio.gather(
+        *(day_hours(servicio, prestacion, region, chosen, p) for p in periods),
+        return_exceptions=True,
+    )
+    for period, half in zip(periods, halves, strict=True):
+        if isinstance(half, BaseException):
+            if not isinstance(half, LookupFailed):
+                raise half
+            logger.warning("clini: {} hours for {} failed: {}", period, chosen, half)
             continue
         for c in half:
             had = centres.get(c.nombre)

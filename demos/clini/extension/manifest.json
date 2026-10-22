@@ -10,7 +10,7 @@
   "content_scripts": [
     {
       "matches": ["https://www.clini.cl/*", "https://clini.cl/*", "https://agenda-web.clini.cl/*"],
-      "js": ["bridge.js"],
+      "js": ["bridge.js", "anchor.js"],
       "run_at": "document_start"
     },
     {

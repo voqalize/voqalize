@@ -28,17 +28,15 @@
  * every change, whoever made it.
  */
 
+import { isoOfLabel, stampCalendar } from "./anchors";
 import {
   best, chileanMobile, clean, highlight, leave, norm, pickOption, quiet, scrollTo, setValue, sleep, visible, waitFor,
 } from "./page";
 
-const MONTHS = [
-  "enero", "febrero", "marzo", "abril", "mayo", "junio",
-  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
-];
 const SEARCH_MS = 20_000;
 const DEBOUNCE_MS = 400;
-const MAX_DAYS = 10;
+/** Every open day of the month on screen. */
+const MAX_DAYS = 31;
 const MAX_TIMES = 24;
 const MAX_INDICATIONS = 600;
 
@@ -47,25 +45,28 @@ const shownEl = (id: string) => visible(byId(id));
 
 // ─── Reading the page ─────────────────────────────────────────────────────
 
-/** "jueves, 22 de octubre de 2026 …" → "2026-10-22". */
-function isoOf(label: string): string | null {
-  const m = norm(label).match(/(\d{1,2}) de ([a-z]+) de (\d{4})/);
-  if (!m) return null;
-  const month = MONTHS.indexOf(m[2]) + 1;
-  if (!month) return null;
-  return `${m[3]}-${String(month).padStart(2, "0")}-${m[1].padStart(2, "0")}`;
-}
-
-/** "2026-10-22" → the words its day button is named with: "22 de octubre de 2026". */
-function wordsOf(iso: string): string | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso.trim());
-  if (!m) return null;
-  const month = MONTHS[Number(m[2]) - 1];
-  return month ? `${m[3]} de ${month} de ${m[1]}` : null;
+/**
+ * A day button's date, "2026-10-22": the stamp `anchors.ts` put on it when the
+ * booking drew it (read from its label while that was still Spanish, else from
+ * its month and day number), else its label now, in either language.
+ */
+function dateOf(b: HTMLElement): string | null {
+  if (!b.dataset.voqalizeDate) stampCalendar();
+  return b.dataset.voqalizeDate ?? isoOfLabel(b.getAttribute("aria-label"));
 }
 
 const dayButtons = () => [...document.querySelectorAll<HTMLButtonElement>("#calendarMonths button.calendar-day-button")];
-const availableDays = () => dayButtons().filter((b) => !b.disabled && /con agenda/i.test(b.getAttribute("aria-label") ?? ""));
+/** A day with hours, by the booking's own classes, never its label's words:
+ *  `is-available`, not disabled (a day without is `no-availability` or
+ *  `is-out-of-range`, and disabled). */
+const hasTimes = (b: HTMLButtonElement) =>
+  !b.disabled &&
+  b.getAttribute("aria-disabled") !== "true" &&
+  !b.classList.contains("no-availability") &&
+  !b.classList.contains("is-out-of-range") &&
+  (b.classList.contains("is-available") || Boolean(b.querySelector(".calendar-day-availability-dot")));
+const availableDays = () => dayButtons().filter(hasTimes);
+const activeDay = () => dayButtons().find((b) => b.classList.contains("active")) ?? null;
 const groups = () => [...document.querySelectorAll<HTMLElement>("#timesGrid section.center-group")];
 const titleOf = (g: HTMLElement) => clean(g.querySelector(".center-title")?.textContent);
 const isOpen = (g: HTMLElement) =>
@@ -129,6 +130,9 @@ function invalidFields(): string[] {
 
 export interface AgendaState {
   step: "search" | "results" | "booking" | "done";
+  document: "rut" | "passport";
+  centre: string;
+  month: string;
   servicio: number | null;
   servicio_name: string;
   prestacion: number | null;
@@ -150,6 +154,7 @@ export function agendaState(): AgendaState {
   const region = selected(byId<HTMLSelectElement>("regionSelect"));
   const open = groups().find(isOpen);
   const alert = byId("serviceIndicationAlert");
+  const listed = step !== "search";
   const indications = [
     alert && visible(alert) ? clean(byId("serviceIndicationAlertText")?.textContent) : "",
     step === "booking"
@@ -162,21 +167,38 @@ export function agendaState(): AgendaState {
   const agendar = byId<HTMLButtonElement>("btnAgendar");
   return {
     step,
+    document: documentType(),
+    // The centre whose hours `times` are: the one group the booking opened.
+    centre: listed && open ? titleOf(open) : "",
+    month: listed ? (monthShown() ?? "") : "",
     servicio: servicio(),
     servicio_name: clean(document.querySelector(".service-box .service-name")?.textContent),
     prestacion: prest.value,
     prestacion_name: prest.text,
     region: region.value,
-    days: step === "search" ? [] : availableDays().map((b) => isoOf(b.getAttribute("aria-label") ?? "")).filter((d): d is string => Boolean(d)).slice(0, MAX_DAYS),
-    centres: step === "search" ? [] : groups().map(titleOf).filter(Boolean),
+    days: listed ? openDays() : [],
+    centres: listed ? groups().map(titleOf).filter(Boolean) : [],
     // agenda-web marks the chosen day `.active`: the day `times` belong to.
-    day: step === "search" ? "" : isoOf(dayButtons().find((b) => b.classList.contains("active"))?.getAttribute("aria-label") ?? "") ?? "",
+    day: listed ? ((() => { const a = activeDay(); return a ? (dateOf(a) ?? "") : ""; })()) : "",
     times: open ? timeButtons(open).filter(visible).map((b) => clean(b.textContent)).slice(0, MAX_TIMES) : [],
     selected: clean(byId("selectedSummary")?.textContent),
     indications,
     invalid: step === "booking" ? invalidFields() : [],
     ready: step === "booking" && Boolean(agendar && !agendar.disabled),
   };
+}
+
+/** The open days of the month on screen, YYYY-MM-DD. */
+function openDays(): string[] {
+  return [...new Set(availableDays().map(dateOf).filter((d): d is string => Boolean(d)))].slice(0, MAX_DAYS);
+}
+
+/** The patient form's document switch: RUT, or a passport for a visitor
+ *  without one. */
+function documentType(): "rut" | "passport" {
+  const hidden = byId<HTMLInputElement>("patientDocumentType")?.value;
+  if (hidden) return /pasaporte/i.test(hidden) ? "passport" : "rut";
+  return byId("btnDocumentPassport")?.getAttribute("aria-pressed") === "true" ? "passport" : "rut";
 }
 
 export function agendaContext() {
@@ -256,12 +278,16 @@ async function ready(): Promise<void> {
   }
   const grid = byId("schedulerGrid");
   if (grid) await quiet(grid, 400, 4000);
+  if (resultsShown() && !bookingShown()) await timesSettled();
 }
 
 /** The search came back with nothing to offer, in the page's words. */
 function noResults(): string | null {
   const text = clean(byId("availabilityDescription")?.textContent);
-  return /no (hay|existe|se encontr)|sin disponibilidad/i.test(text) ? text : null;
+  // In Spanish (the element is kept untranslated), or as Chrome put it.
+  return /no (hay|existe|se encontr|fue posible)|sin disponibilidad|no (\w+ )?(found|available|availability)|could not find|unable to find/i.test(text)
+    ? text
+    : null;
 }
 
 async function search(): Promise<void> {
@@ -275,49 +301,56 @@ async function search(): Promise<void> {
   highlight(button);
   button.click();
   await waitFor(() => (resultsShown() && (byId("timesGrid")?.innerHTML ?? "") !== before) || noResults(), SEARCH_MS);
-  const scheduler = byId("schedulerGrid");
-  if (scheduler) await quiet(scheduler, 500, 5000);
+  if (!noResults()) await timesSettled();
   const none = noResults();
   if (none) throw new Error(`no availability: ${none}`);
 }
 
-const dayList = () =>
-  availableDays()
-    .map((b) => isoOf(b.getAttribute("aria-label") ?? ""))
-    .filter(Boolean)
-    .slice(0, MAX_DAYS)
-    .join(", ");
+const dayList = () => openDays().join(", ");
 
 /** The month on screen, as "YYYY-MM". */
 function monthShown(): string | null {
+  stampCalendar();
+  const card = document.querySelector<HTMLElement>("#calendarMonths .calendar-month-card");
+  if (card?.dataset.voqalizeMonth) return card.dataset.voqalizeMonth;
   const first = dayButtons()[0];
-  return first ? (isoOf(first.getAttribute("aria-label") ?? "")?.slice(0, 7) ?? null) : null;
+  return first ? (dateOf(first)?.slice(0, 7) ?? null) : null;
 }
 
 async function chooseDay(iso: string): Promise<void> {
-  const words = wordsOf(iso);
-  if (!words) throw new Error(`"${iso}" is not a date as YYYY-MM-DD`);
-  const want = norm(words);
-  const find = () => dayButtons().find((b) => norm(b.getAttribute("aria-label")).includes(want));
+  const want = iso.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(want)) throw new Error(`"${iso}" is not a date as YYYY-MM-DD`);
+  const find = () => dayButtons().find((b) => dateOf(b) === want);
   for (let n = 0; n < 4 && !find(); n++) {
     const shownMonth = monthShown();
-    const nav = byId<HTMLButtonElement>(shownMonth && iso.slice(0, 7) < shownMonth ? "previousCalendarMonth" : "nextCalendarMonth");
+    if (!shownMonth) break;
+    const nav = byId<HTMLButtonElement>(want.slice(0, 7) < shownMonth ? "previousCalendarMonth" : "nextCalendarMonth");
     if (!nav || nav.disabled) break;
     nav.click();
     await quiet(byId("calendarMonths") ?? document.body, 300, 2000);
   }
   const day = find();
   if (!day) throw new Error(`the calendar does not reach ${iso}; days with times: ${dayList() || "none"}`);
-  if (day.disabled || !/con agenda/i.test(day.getAttribute("aria-label") ?? "")) {
+  if (!hasTimes(day)) {
     throw new Error(`no times on ${iso}; days with times: ${dayList() || "none"}`);
   }
   if (!day.classList.contains("active")) {
     const before = byId("timesGrid")?.innerHTML ?? "";
     day.click();
     await waitFor(() => (byId("timesGrid")?.innerHTML ?? "") !== before, 8000);
-    await quiet(byId("schedulerGrid") ?? document.body, 400, 5000);
+    await timesSettled();
   }
   highlight(day);
+}
+
+/** The day's hours are still loading: the booking's spinner in the grid. */
+const timesLoading = () => Boolean(byId("timesGrid")?.querySelector(".spinner-border"));
+
+/** Wait for a day's (or half's) hours to come back: centres listed, or the
+ *  booking's own "no times" line, with no spinner. */
+async function timesSettled(): Promise<void> {
+  await waitFor(() => !timesLoading() && (groups().length > 0 || Boolean(byId("timesGrid")?.querySelector(".no-times"))), 12_000);
+  await quiet(byId("schedulerGrid") ?? document.body, 300, 3000);
 }
 
 async function choosePeriod(period: "AM" | "PM"): Promise<void> {
@@ -326,7 +359,7 @@ async function choosePeriod(period: "AM" | "PM"): Promise<void> {
   const before = byId("timesGrid")?.innerHTML ?? "";
   b.click();
   await waitFor(() => (byId("timesGrid")?.innerHTML ?? "") !== before, 8000);
-  await quiet(byId("schedulerGrid") ?? document.body, 400, 5000);
+  await timesSettled();
 }
 
 async function expand(g: HTMLElement): Promise<void> {
@@ -355,15 +388,32 @@ const hhmm = (t: string) => {
   return `${m[1].padStart(2, "0")}:${m[2]}`;
 };
 
-const centreName = (g: HTMLElement) => titleOf(g).replace(/^.*\|\s*/, "");
+/** A centre's own name: the part after "|" ("CENTRO DE SALUD | QUINTA
+ *  VERGARA" → "QUINTA VERGARA"), which is the same in any language. */
+const afterBar = (s: string) => clean(s).replace(/^.*\|\s*/, "");
+const centreName = (g: HTMLElement) => afterBar(titleOf(g));
 
-async function chooseTime(time: string, centre: string | null): Promise<void> {
+/** The centre group the brain named, compared on the name after "|" on both
+ *  sides, accent- and case-folded; then as given. */
+function findCentre(all: HTMLElement[], want: string): HTMLElement | null {
+  const name = norm(afterBar(want));
+  return (
+    all.find((g) => norm(centreName(g)) === name) ??
+    best(all, centreName, afterBar(want)) ??
+    best(all, titleOf, want) ??
+    null
+  );
+}
+
+/** Hold `time` at `centre` (or wherever it is offered) and continue to the
+ *  patient form; the centre it was held at. */
+async function chooseTime(time: string, centre: string | null): Promise<string> {
   const all = groups();
   if (!all.length) throw new Error("there are no times on screen for that day");
   let g: HTMLElement | null = null;
   if (centre) {
-    g = best(all, titleOf, centre) ?? best(all, centreName, centre);
-    if (!g) throw new Error(`no centre "${centre}" for this day; centres: ${all.map(titleOf).join(" | ")}`);
+    g = findCentre(all, centre);
+    if (!g) throw new Error(`no centre "${centre}" on ${describeDay()}, the day now on screen; centres that day: ${all.map(titleOf).join(" | ")}`);
   }
   let button: HTMLButtonElement | null = null;
   for (const candidate of g ? [g] : all) {
@@ -419,6 +469,7 @@ async function chooseTime(time: string, centre: string | null): Promise<void> {
     await scrollTo(byId("bookingStep") ?? card, "top");
     highlight(card);
   }
+  return titleOf(g);
 }
 
 interface Pick {
@@ -428,7 +479,9 @@ interface Pick {
   period?: "AM" | "PM" | null;
 }
 
-async function pick({ day, time, centre, period }: Pick): Promise<void> {
+/** Take the steps given; what is on screen after them, in English, for the
+ *  brain (`command_done`). */
+async function pick({ day, time, centre, period }: Pick): Promise<string> {
   const t = time ? hhmm(time) : null;
   if (time && !t) throw new Error(`"${time}" is not a time as HH:MM`);
   if ((day || t || centre) && bookingShown()) {
@@ -439,21 +492,67 @@ async function pick({ day, time, centre, period }: Pick): Promise<void> {
   if (day) await chooseDay(day);
   const half = period ?? (t ? (Number(t.slice(0, 2)) < 12 ? "AM" : "PM") : null);
   if (half) await choosePeriod(half);
-  if (t) await chooseTime(t, centre ?? null);
-  else if (centre) {
+  if (t) {
+    const at = await chooseTime(t, centre ?? null);
+    const shown = activeDay();
+    const on = (shown && dateOf(shown)) || day || "";
+    return `selected ${weekday(on)}${on} ${t} at ${at}; the patient form is open (${describeForm()})`;
+  }
+  if (centre) {
     const all = groups();
-    const g = best(all, titleOf, centre) ?? best(all, centreName, centre);
-    if (!g) throw new Error(`no centre "${centre}" for this day; centres: ${all.map(titleOf).join(" | ")}`);
+    const g = findCentre(all, centre);
+    if (!g) throw new Error(`no centre "${centre}" on ${describeDay()}, the day now on screen; centres that day: ${all.map(titleOf).join(" | ")}`);
     await expand(g);
     await scrollTo(g, "top");
     highlight(g);
-  } else if (day || half) {
+    await sleep(200);
+    const times = timeButtons(g).filter(visible).map((b) => clean(b.textContent));
+    return `showing ${titleOf(g)} on ${describeDay()}: ${list(times) || "no hours"}`;
+  }
+  if (day || half) {
     const grid = byId("timesGrid");
     if (grid) {
       await scrollTo(grid, "top");
       highlight(grid);
     }
   }
+  return describe();
+}
+
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+/** "2026-10-27" → "Tue " (with the space), or "" for no date. */
+function weekday(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!m) return "";
+  return `${WEEKDAYS[new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).getDay()]} `;
+}
+
+const list = (xs: string[], max = 8) => (xs.length > max ? `${xs.slice(0, max).join(", ")}…` : xs.join(", "));
+
+function describeDay(): string {
+  const a = activeDay();
+  const iso = a ? dateOf(a) : null;
+  return iso ? `${weekday(iso)}${iso}` : "the selected day";
+}
+
+function describeForm(): string {
+  const s = agendaState();
+  const need = s.invalid.filter((f) => f !== "consent");
+  return `document ${s.document === "passport" ? "passport" : "RUT"}; ${need.length ? `still empty or invalid: ${need.join(", ")}` : "every field is in"}${s.ready ? "; AGENDAR is ready for the visitor" : ""}`;
+}
+
+/** What the booking shows now, in English, for the brain. */
+function describe(): string {
+  const s = agendaState();
+  if (s.step === "done") return "the booking's confirmation is on screen";
+  if (s.step === "booking") return `the patient form is open for ${s.selected || "the chosen time"} (${describeForm()})`;
+  if (s.step === "results") {
+    const parts = [`month ${s.month || "unknown"}`, s.days.length ? `${s.days.length} open days: ${list(s.days, 10)}` : "no open day marked yet"];
+    if (s.day) parts.push(`selected day ${weekday(s.day)}${s.day}`);
+    if (s.centre) parts.push(`hours at ${s.centre}: ${list(s.times) || "none listed"}`);
+    return `the calendar is showing ${s.prestacion_name || s.servicio_name || "the service"}: ${parts.join("; ")}`;
+  }
+  return "the search form is showing; no search has come back yet";
 }
 
 interface OpenAgenda extends Pick {
@@ -462,7 +561,9 @@ interface OpenAgenda extends Pick {
   region?: number | null;
 }
 
-async function openAgenda(p: OpenAgenda): Promise<void> {
+/** `null` when the move continues on the service's own page, which reports
+ *  it done from there. */
+async function openAgenda(p: OpenAgenda): Promise<string | null> {
   if (p.servicio && servicio() !== Number(p.servicio)) {
     // Another service is another page: the rest of the move waits for it.
     const url = new URL("/", location.origin);
@@ -470,7 +571,7 @@ async function openAgenda(p: OpenAgenda): Promise<void> {
     if (p.prestacion) url.searchParams.set("prestacion", String(p.prestacion));
     leave({ command: "open_agenda", payload: p });
     location.assign(url.pathname + url.search);
-    return;
+    return null;
   }
   await ready();
   let again = false;
@@ -503,22 +604,28 @@ async function openAgenda(p: OpenAgenda): Promise<void> {
     await sleep(400);
   }
   if (again || (!resultsShown() && !bookingShown())) await search();
-  if (p.day || p.time || p.centre || p.period) await pick(p);
-  else if (resultsShown() && !bookingShown()) {
-    const column = byId("availabilityColumn");
-    if (column) {
-      await scrollTo(column, "top");
-      highlight(column);
+  let done: string;
+  if (p.day || p.time || p.centre || p.period) done = await pick(p);
+  else {
+    if (resultsShown() && !bookingShown()) {
+      const column = byId("availabilityColumn");
+      if (column) {
+        await scrollTo(column, "top");
+        highlight(column);
+      }
     }
+    done = describe();
   }
   reportNow();
+  return done;
 }
 
-async function agendaPick(p: Pick): Promise<void> {
+async function agendaPick(p: Pick): Promise<string> {
   await ready();
   if (!resultsShown() && !bookingShown()) await search();
-  await pick(p);
+  const done = await pick(p);
   reportNow();
+  return done;
 }
 
 interface Patient {
@@ -530,16 +637,33 @@ interface Patient {
   phone?: string | null;
   email?: string | null;
   focus_rut?: boolean | null;
+  document?: "rut" | "passport" | null;
+}
+
+const FIELD_KEYS = ["name", "last_name", "maternal_last_name", "birth_date", "sex", "phone", "email"] as const;
+
+/** Switch the form's document to a RUT or a passport, as the visitor would,
+ *  by its own button (which empties the document box, so only when it
+ *  differs). Whether it switched. */
+async function chooseDocument(want: "rut" | "passport"): Promise<boolean> {
+  if (documentType() === want) return false;
+  const button = byId<HTMLButtonElement>(want === "passport" ? "btnDocumentPassport" : "btnDocumentRut");
+  if (!button) throw new Error(`there is no ${want === "passport" ? "Pasaporte" : "RUT"} switch on this form`);
+  button.click();
+  await waitFor(() => documentType() === want, 2000);
+  await sleep(200);
+  return documentType() === want;
 }
 
 /**
  * Fill the patient's fields the visitor said, with the page's own formatting
  * and checks. A field the page locked (a known patient's masked data) is left
- * alone. The RUT is focused and ringed for the visitor to type, never typed;
- * the consent box and "AGENDAR" are ringed for the visitor to press, never
- * pressed.
+ * alone. The document (RUT or passport, switched by `document`) is focused and
+ * ringed for the visitor to type, never typed; the consent box and "AGENDAR"
+ * are ringed for the visitor to press, never pressed. What was done, in
+ * English, for the brain.
  */
-async function fillPatient(p: Patient): Promise<void> {
+async function fillPatient(p: Patient): Promise<string> {
   if (!bookingShown()) throw new Error("the booking form is not open yet: pick a day and a time first (agenda_pick)");
   const alert = byId("serviceIndicationAlert");
   if (alert && visible(alert)) {
@@ -547,32 +671,44 @@ async function fillPatient(p: Patient): Promise<void> {
     await waitFor(() => !visible(alert), 3000);
   }
   const rut = byId<HTMLInputElement>("patientRut");
-  // The page looks the RUT up again (and empties a new patient's fields) when
-  // its box loses focus. The visitor has just typed it and it still has the
-  // focus, so that blur is let happen now and its lookup awaited, before
-  // anything is filled, or the visitor's next click would wipe the fill.
-  if (rut && document.activeElement === rut) {
+  const done: string[] = [];
+  if (p.document === "rut" || p.document === "passport") {
+    if (await chooseDocument(p.document)) done.push(`switched the document to ${p.document === "passport" ? "Pasaporte" : "RUT"}`);
+  }
+  const doc = documentType() === "passport" ? "passport number" : "RUT";
+  // The page looks the document up again (and empties a new patient's
+  // fields) when its box loses focus. The visitor has just typed it and it
+  // still has the focus, so that blur is let happen now and its lookup
+  // awaited, before anything is filled, or the visitor's next click would
+  // wipe the fill.
+  if (rut && document.activeElement === rut && !done.length) {
     rut.blur();
     await sleep(150);
   }
   await waitFor(() => !/buscando/i.test(byId("patientLookupStatus")?.textContent ?? ""), 6000);
   await sleep(200);
-  // The page keeps every other field shut until the visitor's RUT is in and
-  // looked up (a registered patient's come back masked): he points at it.
+  // The page keeps every other field shut until the visitor's RUT or passport
+  // is in and looked up (a registered patient's come back masked): he points
+  // at it.
   const waiting = byId<HTMLInputElement>("patientName");
+  const asked = FIELD_KEYS.some((k) => p[k] !== null && p[k] !== undefined && p[k] !== "");
   if (rut && waiting?.disabled && !waiting.value.trim()) {
     await scrollTo(rut, "center");
     rut.focus({ preventScroll: true });
     highlight(rut);
     reportNow();
-    const asked = Object.entries(p).some(([k, v]) => k !== "focus_rut" && v !== null && v !== undefined && v !== "");
-    if (asked) throw new Error("the page opens the patient's fields only after the visitor types their RUT; the RUT field is focused and ringed for them: ask them to type it, then fill the rest");
-    return;
+    if (asked) {
+      throw new Error(
+        `nothing was filled: the page opens the patient's fields only after the visitor types their ${doc} in the document box (a RUT, or a passport number with the Pasaporte switch); that box is focused and ringed for them: ask them to type it, then fill the rest`,
+      );
+    }
+    return [...done, `the ${doc} box is focused and ringed for the visitor to type; the other fields open once it is in`].join("; ");
   }
   const touched: HTMLElement[] = [];
+  const filled: string[] = [];
   const locked: string[] = [];
   const problems: string[] = [];
-  const put = (name: string, id: string, value: string | null | undefined, check?: (v: string) => string | null) => {
+  const put = (name: string, id: string, value: string | null | undefined, check?: (v: string) => string | null, why?: string) => {
     if (value === null || value === undefined || !String(value).trim()) return;
     const el = byId<HTMLInputElement | HTMLSelectElement>(id);
     if (!el) return;
@@ -580,32 +716,39 @@ async function fillPatient(p: Patient): Promise<void> {
     let v = String(value).trim();
     if (check) {
       const fixed = check(v);
-      if (fixed === null) return void problems.push(`${name} "${v}" was not accepted`);
+      if (fixed === null) return void problems.push(`${name} "${v}" refused${why ? `: ${why}` : ""}`);
       v = fixed;
     }
     setValue(el, v);
     touched.push(el);
+    filled.push(name);
   };
   put("name", "patientName", p.name);
   put("last_name", "patientLastName", p.last_name);
   put("maternal_last_name", "patientMaternalLastName", p.maternal_last_name);
-  put("birth_date", "patientBirthDate", p.birth_date, (v) => (/^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null));
+  put("birth_date", "patientBirthDate", p.birth_date, (v) => (/^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), "not a date as YYYY-MM-DD");
   put("sex", "patientSex", p.sex, (v) => {
     const sel = byId<HTMLSelectElement>("patientSex");
     const want = v.toUpperCase();
     const byValue = sel && [...sel.options].find((o) => o.value.toUpperCase() === want);
     return byValue?.value ?? (sel ? (pickOption(sel, v)?.value ?? null) : null);
   });
-  put("phone", "patientPhone", p.phone, (v) => {
-    const digits = chileanMobile(v);
-    return /^9\d{8}$/.test(digits) ? digits : null;
-  });
-  put("email", "patientEmail", p.email, (v) => (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? v : null));
+  put(
+    "phone",
+    "patientPhone",
+    p.phone,
+    (v) => {
+      const digits = chileanMobile(v);
+      return /^9\d{8}$/.test(digits) ? digits : null;
+    },
+    "the form takes a Chilean mobile (9 digits starting with 9); nothing was typed there: ask for one, never change the digits",
+  );
+  put("email", "patientEmail", p.email, (v) => (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? v : null), "not an email address");
   await sleep(300);
   const state = agendaState();
   const consent = byId<HTMLInputElement>("consentPrivacy");
   const agendar = byId<HTMLButtonElement>("btnAgendar");
-  if (p.focus_rut && rut) {
+  if ((p.focus_rut || done.length) && rut) {
     await scrollTo(rut, "center");
     rut.focus({ preventScroll: true });
     highlight(rut);
@@ -622,13 +765,19 @@ async function fillPatient(p: Patient): Promise<void> {
   }
   reportNow();
   if (locked.length) problems.push(`left as the page has them (a registered patient's data is locked): ${locked.join(", ")}`);
-  if (problems.length) throw new Error(problems.join("; "));
+  // Nothing landed: a failure. Something did: done, with what was refused.
+  if (problems.length && !filled.length && !done.length) throw new Error(problems.join("; "));
+  if (filled.length) done.push(`filled ${filled.join(", ")}`);
+  if (p.focus_rut && rut) done.push(`the ${doc} box is focused for the visitor to type`);
+  done.push(...problems);
+  done.push(describeForm());
+  return done.join("; ");
 }
 
-export function agendaCommands(): Record<string, (payload: never) => Promise<void>> {
+export function agendaCommands(): Record<string, (payload: never) => Promise<string | null | void>> {
   return {
-    open_agenda: openAgenda as (payload: never) => Promise<void>,
-    agenda_pick: agendaPick as (payload: never) => Promise<void>,
-    fill_agenda_patient: fillPatient as (payload: never) => Promise<void>,
+    open_agenda: openAgenda as (payload: never) => Promise<string | null>,
+    agenda_pick: agendaPick as (payload: never) => Promise<string>,
+    fill_agenda_patient: fillPatient as (payload: never) => Promise<string>,
   };
 }
