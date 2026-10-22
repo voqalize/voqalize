@@ -88,7 +88,11 @@ const SWITCH_WAIT_MS = 4000;
 const CALL_LANG_KEY = "voqalize.explora.callLang";
 /** How long the page waits for him to finish confirming a language switch
  *  aloud before it loads the page in the new language. */
-const SITE_SWITCH_CAP_MS = 8000;
+// Short on purpose: on dev call 1f6cd8ce the site followed the call to
+// Spanish 11.7 s late, after the visitor had asked again. A line cut by the
+// load is not lost: Voqalize holds the call's audio and plays the rest on the
+// next page.
+const SITE_SWITCH_CAP_MS = 3000;
 /** client-transport's record of this tab's call (`STORAGE_KEY` in its
  *  `transport.ts`), which the hub carries across the two hosts. */
 const CALL_KEY = "voqalize-client-transport:call";
