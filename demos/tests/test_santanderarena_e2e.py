@@ -358,6 +358,11 @@ def _llm() -> ScriptedGemini:
                 call("open_tickets", request={"event": "Camilo", "kind": "vip"}),
                 reply(""),
             ],
+            # A reply that only promises more says nothing: asked once more.
+            "¿Y los food trucks?": [
+                reply("Un momento."),
+                reply("Hay food trucks en la explanada. ¿Te los muestro?"),
+            ],
             # Spain's spelling, said as Latin America says it.
             "¿Hay vídeos del show?": reply("Sí, hay un vídeo del show en la página."),
         }
@@ -787,6 +792,16 @@ async def test_a_silent_move_is_talked_about_or_gets_his_line() -> None:
         check_turn(rig, turn)
         assert turn.text.strip() == _LANDED["tickets"]["es"]
         assert [c["url"] for c in _commands(rig, "open_tickets")] == [CAMILO_TICKETS, CAMILO_VIP]
+
+
+async def test_a_reply_that_only_promises_is_asked_once_more() -> None:
+    """Explora's dev call ed9846d5: his whole reply was "One moment.", and the
+    visitor sat in silence."""
+    async with demo("santanderarena", _llm()) as rig:
+        await rig.driver.start_session(init={"path": "/food-trucks"})
+        turn = await rig.driver.user_says("¿Y los food trucks?")
+        check_turn(rig, turn)
+        assert "Hay food trucks en la explanada" in turn.text
 
 
 async def test_a_missed_cue_is_noted_quietly() -> None:
