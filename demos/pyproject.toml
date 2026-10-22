@@ -28,6 +28,8 @@ dependencies = [
     # `cryptography` backend pyjwt[crypto] already brings. 6.19 for the
     # Configuration that bounds decompression.
     "pypdf>=6.19",
+    # Clini's brain reads CLINI's public price and availability endpoints.
+    "httpx>=0.27",
 ]
 
 [tool.uv.sources]
@@ -49,8 +51,6 @@ dev = [
     "pytest-asyncio>=1.3.0",
     # Test-only: mint RS256 brain tokens for the conformance harness.
     "cryptography>=43",
-    # Test-only: starlette's TestClient (the umbrella wiring test) rides on httpx.
-    "httpx>=0.27",
 ]
 
 [tool.pytest.ini_options]
