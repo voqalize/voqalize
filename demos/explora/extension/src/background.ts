@@ -16,10 +16,16 @@
  *     (`chrome.tabs.create`), because the page itself may only open a tab from
  *     the visitor's own click and his move arrives over the call, not a click.
  *
+ *   - the Spanish (or English) version of a www.explora.com page is read here
+ *     for a tab on the booking site (`alternate`), which may not fetch
+ *     www.explora.com across origins (`hreflang.ts`).
+ *
  * The worker may be stopped while nothing is happening; its state — the holder,
  * each tab's move for its next page (`pend`) and each tab's saved call
  * (`stash`) — is kept in `chrome.storage.session` so a restart forgets nothing.
  */
+
+import { fetchAlternate } from "./hreflang";
 
 interface Port extends chrome.runtime.Port {}
 
@@ -33,7 +39,8 @@ type Ask =
   | { op: "pending" }
   | { op: "pend"; then: unknown }
   | { op: "stash"; call: string | null }
-  | { op: "unstash" };
+  | { op: "unstash" }
+  | { op: "alternate"; url: string; lang: string };
 
 interface FromTab {
   /** A relay message for every other tab. */
@@ -122,6 +129,11 @@ async function answer(tab: number, ask: Ask): Promise<unknown> {
       if (ask.call) await chrome.storage.session.set({ [`call:${tab}`]: ask.call });
       else await chrome.storage.session.remove(`call:${tab}`);
       return { ok: true };
+    // The `lang` translation of a www.explora.com page, for the booking site.
+    case "alternate": {
+      if (!/^https:\/\/(www\.)?explora\.com\//i.test(ask.url)) return { url: null };
+      return { url: await fetchAlternate(ask.url, ask.lang).catch(() => null) };
+    }
     case "unstash": {
       const key = `call:${tab}`;
       const got = await chrome.storage.session.get(key);

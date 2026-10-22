@@ -503,7 +503,7 @@ You are heard, not read, so keep it light and warm.
 - A turn is three to five short sentences. A tour of a page can run to eight, one part per sentence, each with its cue.
 - Every sentence under fifteen words. Small, everyday words. One idea per sentence. One number per sentence.
 - THE FIRST SENTENCE IS A FEW WORDS. The visitor hears nothing until your first sentence has been voiced, so open every reply with a sentence of two to six words that ends in a full stop, with the answer in it. A cue may come before it.
-- Before most replies the visitor has already heard a short acknowledgement of mine — "Sure.", "Let me see.", or in Spanish "Claro.", "Déjame ver." — so never open with one: your first word is the answer. No "great question", no repeating their question back.
+- Before most replies the visitor has already heard a short acknowledgement of mine — "Happy to help.", "Let me see.", or in Spanish "Claro.", "A ver." — so never open with one: your first word is the answer. No "great question", no repeating their question back.
 - Spoken words only, apart from cues: no lists, no markdown, no symbols, never an exclamation mark. Write numbers, dates and prices as spoken words: "five nights", "the sixth of November", "eleven hundred dollars a night".
 - Lines in square brackets come from their screen, not the visitor: the page in front with its headings, what the booking calendar shows, what the form holds. Never read them out; use them. Never write a line in square brackets yourself.
 - Always answer. A reply with no words leaves the visitor in silence.
@@ -519,7 +519,7 @@ You speak English, and Spanish as a native of Latin America. The call starts in 
   - Use Latin American words: "computadora", never "ordenador"; "celular", never "móvil"; "mostrar" ("te muestro"), not "enseñar"; "completar un formulario", not "rellenar"; "¿Qué fecha te queda bien?", not "te viene bien"; "disculpa", not "perdona"; "está bien" or "perfecto", never "vale"; "tomar", never "coger"; "reservar" or "agendar".
   - For something just done, use the simple past: "Abrí la página", "Ya lo completé", not "He abierto" or "Ya lo he rellenado".
 - In Spanish too, write numbers, dates and prices as spoken words. Lodge and place names stay as Explora writes them: Explora Atacama, Torres del Paine, El Chaltén.
-- Cues are the site's own words, and the site is in English, so a cue stays in English inside a Spanish reply: "{{show: Included with Your Stay}} Todo está incluido: comidas, bebidas y exploraciones." Describe the English page in Spanish; if they ask, say the site itself is in English.
+- Cues are the site's own words. The site follows the call's language: in a Spanish call it shows Explora's Spanish pages (their paths start with /es/), and the screen lines give their Spanish headings. So a show cue names the heading exactly as the screen lines spell it, in whatever language the page is in: "{{show: Incluido en su estadía}} Todo está incluido." A page cue always names the path from the site pages list below, which is the English site: the page opens in the visitor's language by itself.
 
 # Every response starts with words
 Write your answer, with its cues, first; any tool call comes at the end of the same response. What a page call returns reaches you only on your next turn.
@@ -657,32 +657,43 @@ _LANDED: dict[str, dict[Lang, str]] = {
 
 # ─── His nod ───────────────────────────────────────────────────────────────────
 
+#: His nods, the holding line and the apology — chosen by measurement, not by
+#: ear. Each line is voiced on its own, and always the same way, so a line
+#: either sounds like him in every call or like somebody else in every call:
+#: on dev, "Right." came out at 82 Hz and "One moment." / "Un momento." at
+#: 166 Hz against his 110-132 Hz, and a speaker model put "Certainly.",
+#: "Okay.", "Right." and "Un momentito." well outside his voice (the owner
+#: heard it, 2026-10-22). Every line here measured within his own spread, with
+#: its pitch within 2.5 semitones of his. Measure a line before adding it; the
+#: measurements hold for his voice as it is today.
 _ACK_LINES: dict[Lang, dict[Kind, tuple[str, ...]]] = {
     "en": {
-        # One short word each. A long word said alone ("Certainly.") is read
-        # by the cloned voice with nothing around it, and on dev call 0a304d89
-        # it did not sound like him.
-        "request": ("Sure.", "Okay.", "Sure thing.", "All right."),
-        "question": ("Let me see.", "Hmm, let me see.", "Okay."),
-        "correction": ("I see.", "Got it.", "Right."),
-        "statement": ("Okay.", "Got it.", "Right."),
+        "request": ("Happy to help.", "Absolutely, let me do that.", "Sure thing."),
+        "question": ("Let me see.", "Good question, let me see."),
+        "correction": ("Got it, thanks for letting me know.", "Ah, I see what you mean."),
+        "statement": ("Okay, that makes sense.", "Got it, thanks for letting me know."),
     },
     "es": {
-        "request": ("Claro.", "Por supuesto.", "Perfecto.", "Con gusto."),
-        "question": ("Déjame ver.", "A ver.", "Mmm, déjame ver."),
-        "correction": ("Ya veo.", "Entendido.", "De acuerdo."),
-        "statement": ("Muy bien.", "Entendido.", "Claro."),
+        "request": (
+            "Claro.",
+            "Con gusto, ya lo hago.",
+            "Por supuesto, déjame revisarlo.",
+            "Claro, ahora mismo.",
+        ),
+        "question": ("A ver.", "Déjame revisarlo un momento."),
+        "correction": ("Entendido, gracias por avisarme.", "Entendido, eso me ayuda."),
+        "statement": ("Entendido, eso me ayuda.", "Claro.", "Entendido, gracias por avisarme."),
     },
 }
 ACK_RATE = 0.75
 ACK_HOLD_AFTER_S = 4.0
 _ACK_HOLD: dict[Lang, tuple[str, ...]] = {
-    "en": ("One moment.", "Just a moment."),
-    "es": ("Un momento.", "Un momentito."),
+    "en": ("Just a moment.", "One moment while I check that for you."),
+    "es": ("Dame un momento mientras lo busco.", "Un momento mientras lo reviso para ti."),
 }
 _ACK_SORRY: dict[Lang, str] = {
     "en": "Sorry, that's taking a little longer.",
-    "es": "Disculpa, está tardando un poco más.",
+    "es": "Lo siento, está tardando un poco más de lo normal.",
 }
 #: A visitor's ordinary words about Explora, so the reading trusts them.
 _ACK_WORDS = Vocabulary(
@@ -788,6 +799,55 @@ _ASKED_PAGES: tuple[tuple[re.Pattern[str], str, tuple[str, ...]], ...] = tuple(
 )
 
 
+#: A lodge's own sub-pages, by what the visitor asks for and the words their
+#: paths use (they differ per lodge: /atacama-explorations/, /uyuni-tours/,
+#: /gastronomy-in-atacama/, /how-to-get-el-chalten/). Found among the links
+#: the page in front reports, so they open that lodge's page, not another's.
+_SUB_PAGES: tuple[tuple[re.Pattern[str], re.Pattern[str]], ...] = tuple(
+    (re.compile(rf"\b(?:{asked})", re.IGNORECASE), re.compile(path, re.IGNORECASE))
+    for asked, path in (
+        (
+            r"explorations?|excursions?|tours?|activit|hik|exploraciones|excursiones",
+            r"explorations|tours|excursion|hiking",
+        ),
+        (
+            r"dining|food|cuisine|restaurant|wine|gastronom|comida|cocina",
+            r"dining|cuisine|gastronom|cuisine",
+        ),
+        (
+            r"getting there|get there|getting here|airport|transfers?|how to get|cómo llegar|como llegar",
+            r"getting|how-to-get|get-there",
+        ),
+        (r"travel tips|tips|what to pack|packing|weather|climate|clima|consejos", r"tips|guied"),
+        (r"rooms?|suites?|habitaci", r"lodge|hotel|where-to-stay"),
+    )
+)
+
+
+def asked_sub_page(text: str, links: list[str], here: str) -> str | None:
+    """The page in front's own sub-page for what ``text`` asks about ("show me
+    the explorations" on a lodge page), or ``None``. On dev call ed9846d5 his
+    whole reply to that was "One moment.", and nothing moved."""
+    if asks_call_language(text):
+        return None
+    for asked, path in _SUB_PAGES:
+        if asked.search(text):
+            # Not the page in front, nor the lodge's overview (every lodge
+            # page links its own, and its path says "lodge" too).
+            hit = next(
+                (
+                    link
+                    for link in links
+                    if path.search(link)
+                    and canonical_path(link) != here
+                    and not canonical_path(link).startswith("/lodge/")
+                ),
+                None,
+            )
+            return hit
+    return None
+
+
 def asked_page(text: str, here: str) -> str | None:
     """The site page for what ``text`` asks about, or ``None`` — never one about
     the place the tab at ``here`` already shows."""
@@ -864,6 +924,11 @@ def _terms(text: str) -> list[str]:
     ]
 
 
+def _unnumbered(words: list[str]) -> list[str]:
+    """A heading's words without its item number: "3. Altiplano" → "altiplano"."""
+    return words[1:] if len(words) > 1 and words[0].isdigit() else words
+
+
 def best_section(sentence: str, sections: list[tuple[str, str]]) -> str | None:
     """The heading of the one section ``sentence`` is about, of ``sections``
     (heading, text) on one page; ``None`` unless it is clearly one."""
@@ -874,8 +939,13 @@ def best_section(sentence: str, sections: list[tuple[str, str]]) -> str | None:
         h
         for h, _ in sections
         if h
-        and len(phrase := re.findall(r"[a-z0-9']+", norm(h))) >= 2
-        and re.search(rf"\b{re.escape(' '.join(phrase))}\b", said)
+        and (
+            len(phrase := re.findall(r"[a-z0-9']+", norm(h))) >= 2
+            # A numbered item's one word ("3. Altiplano") is a name too: on
+            # dev call ed9846d5 he read zones three to five with no cue.
+            or (len(phrase) == 2 and phrase[0].isdigit() and len(phrase[1]) >= 4)
+        )
+        and re.search(rf"\b{re.escape(' '.join(_unnumbered(phrase)))}\b", said)
     ]
     if quoted:
         return max(quoted, key=len)
@@ -904,6 +974,14 @@ def best_section(sentence: str, sections: list[tuple[str, str]]) -> str | None:
 
 #: A ``{page: …}`` cue, as the model writes it, anywhere in a chunk.
 _PAGE_CUE = re.compile(r"\{\s*page\s*:\s*([^{}]*?)\s*\}", re.IGNORECASE)
+
+
+#: What a reply that only promises more says: nothing comes after it.
+_PROMISE = re.compile(
+    r"\b(?:just |one |un )?(?:moment|momento|momentito|second|segundo)\b"
+    r"|\blet me (?:see|check|look)(?: (?:that|into it|at that))?\b|\bdéjame ver\b|\ba ver\b",
+    re.IGNORECASE,
+)
 
 
 def _words_in(text: str) -> int:
@@ -981,7 +1059,10 @@ class ExploraBrain(GeminiBrain):
         # The page sends `lang` only once the visitor has pressed the toggle.
         chosen = init.get("lang")
         self._chosen = chosen in LANGUAGE_NAMES
-        self.spoken = "es" if chosen == "es" else OPENING
+        # A visitor reading the Spanish site is answered in Spanish, though
+        # not held to it: what they speak still moves the call.
+        site_es = init.get("site_lang") == "es" or self._path.startswith("/es/")
+        self.spoken = "es" if chosen == "es" or (chosen is None and site_es) else OPENING
         await session.configure(
             Config(
                 stt=SttConfig(language=self.spoken, patience=EXPLORA_PATIENCE),
@@ -1022,7 +1103,9 @@ class ExploraBrain(GeminiBrain):
         self._backstop = (
             None
             if asks_call_language(msg.text)
-            else asked_page(msg.text, self._path) or self._backstop
+            else asked_page(msg.text, self._path)
+            or asked_sub_page(msg.text, self.page.links if self.page else [], self._path)
+            or self._backstop
         )
         self._restore_idle()
         self._read_in_screen()
@@ -1109,7 +1192,7 @@ class ExploraBrain(GeminiBrain):
         self._cue_path = self._path if self._site == "site" else None
         self._shown = None
         self._booked = False
-        spoke = False
+        said = ""
         turn = self._unbracketed(
             self._fallback.speak_if_silent(
                 self, super().respond(session), again=lambda: self._talk_again(session)
@@ -1118,8 +1201,12 @@ class ExploraBrain(GeminiBrain):
         async for event in self._spelled(self._written(session, self._cued(self._paced(turn)))):
             # Words, not a unit: a reply that was only a dropped page cue
             # opened a unit and said nothing (dev call 0a304d89, turn 4).
-            spoke = spoke or (isinstance(event, SpeechChunk) and bool(event.text.strip()))
+            if isinstance(event, SpeechChunk):
+                said += event.text
             yield event
+        # Words, and not only a promise: on dev call ed9846d5 his whole reply
+        # was "One moment.", and the visitor sat in silence.
+        spoke = bool(_PROMISE.sub("", said).strip(" .,!?¡¿…"))
         if not spoke:
             logger.warning("explora: the model returned nothing; asking once more")
             again = self._written(session, self._cued(self._paced(self._talk_now(session))))

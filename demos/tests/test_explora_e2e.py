@@ -91,6 +91,12 @@ SITE = Knowledge(
                 ),
             ),
         ),
+        "/atacama-explorations": Page(
+            "/atacama-explorations",
+            "Atacama Explorations | Explora",
+            kind="lodge",
+            sections=(Section("Explorations", "Nearly fifty guided explorations."),),
+        ),
         "/explora-expeditions": Page(
             "/explora-expeditions",
             "Explora Expeditions",
@@ -242,6 +248,15 @@ def _llm() -> ScriptedGemini:
                 "{show: included with your stay} Todo está incluido. ¿Revisamos fechas?"
             ),
             "Carry on.": reply("Sure, let's keep going."),
+            # Dev call ed9846d5, turn 6: his whole reply was a promise.
+            "Show me the explorations.": [
+                reply("One moment."),
+                reply("Nearly fifty explorations, all included. Shall I pick some?"),
+            ],
+            "Read me the zones.": reply(
+                "First, the salt flat basin. Then the Altiplano rises above four thousand metres. "
+                "Shall I check dates?"
+            ),
             # Dev call 0a304d89: the zones are accordions on the page, named in
             # passing with no cue of his own.
             "Talk me through the zones.": reply(
@@ -338,6 +353,15 @@ def test_the_opener_follows_the_page() -> None:
 async def test_a_chosen_spanish_starts_in_spanish() -> None:
     async with demo("explora", _llm()) as rig:
         turn = await rig.driver.start_session(init={"site": "site", "path": "/", "lang": "es"})
+        assert turn is not None and turn.text.startswith("Hola, soy Javier")
+        check_voice_pair(rig, voice="omnivoice/javier", language="es")
+
+
+async def test_a_call_on_the_spanish_site_starts_in_spanish() -> None:
+    async with demo("explora", _llm()) as rig:
+        turn = await rig.driver.start_session(
+            init={"site": "site", "path": "/es/desierto-de-atacama/", "site_lang": "es"}
+        )
         assert turn is not None and turn.text.startswith("Hola, soy Javier")
         check_voice_pair(rig, voice="omnivoice/javier", language="es")
 
@@ -709,6 +733,55 @@ async def test_a_room_is_chosen_from_the_rooms_on_screen() -> None:
         await rig.driver.user_says("Carry on.")
         assert "no room 'Penthouse'" in _results(llm.captured_contents[-1])["choose_room"]
         assert len(_commands(rig, "choose_room")) == 1
+
+
+ATACAMA_LODGE_PAGE: dict[str, Any] = {
+    **ATACAMA_PAGE,
+    "links": [
+        "/lodge/atacama-lodge/",
+        "/atacama-desert-explora-lodge/",
+        "/atacama-explorations/",
+        "/gastronomy-in-atacama/",
+        "/atacama-getting-there/",
+    ],
+}
+
+
+async def test_a_lodge_sub_page_opens_when_his_reply_only_promises() -> None:
+    """Dev call ed9846d5: "Show me the explorations." got "One moment." and
+    nothing moved. The lodge's own explorations page opens first, and a
+    reply that only promises is asked again."""
+    async with demo("explora", _llm()) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
+        await _page(rig, "page_changed", ATACAMA_LODGE_PAGE)
+        turn = await _says_while_pages_load(
+            rig,
+            "Show me the explorations.",
+            {**ATACAMA_PAGE, "path": "/atacama-explorations/", "headings": ["Explorations"]},
+        )
+        assert _commands(rig, "navigate")[0]["path"] == "/atacama-explorations/"
+        assert "Nearly fifty explorations" in turn.text
+
+
+@pytest.mark.parametrize(
+    ("text", "path"),
+    [
+        ("Show me the explorations", "/atacama-explorations/"),
+        ("What's the food like?", "/gastronomy-in-atacama/"),
+        ("How do I get there from the airport?", "/atacama-getting-there/"),
+        ("Show me the rooms", "/atacama-desert-explora-lodge/"),
+        ("Can you speak Spanish?", None),
+    ],
+)
+def test_the_lodge_sub_page_for_what_they_asked(text: str, path: str | None) -> None:
+    assert explora.asked_sub_page(text, ATACAMA_LODGE_PAGE["links"], "/lodge/atacama-lodge") == path
+
+
+def test_a_numbered_one_word_heading_is_named() -> None:
+    sections = [("1. Cuenca del salar", ""), ("3. Altiplano", ""), ("4. Montaña", "")]
+    assert best_section("Then the Altiplano rises above four thousand metres.", sections) == (
+        "3. Altiplano"
+    )
 
 
 def test_countries_and_hotels_are_found_by_name() -> None:

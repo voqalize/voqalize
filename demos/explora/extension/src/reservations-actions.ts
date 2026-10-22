@@ -918,6 +918,59 @@ async function sendEnquiry(): Promise<void> {
   button.click();
 }
 
+// ─── site_language ────────────────────────────────────────────────────────
+
+/** Whether anything has been typed or chosen in the enquiry form, by the
+ *  visitor or by Javier: a reload would throw it away. */
+function enquiryTouched(): boolean {
+  const form = enquiryForm();
+  if (!form) return false;
+  if (titleChosen) return true;
+  return [...form.querySelectorAll<Field>("input, textarea, select")].some((el) => {
+    if (el instanceof HTMLInputElement && ["hidden", "submit", "button", "checkbox", "radio"].includes(el.type)) return false;
+    if (el instanceof HTMLSelectElement) return el.name !== "title" && el.selectedIndex > 0;
+    return clean(el.value) !== "";
+  });
+}
+
+/**
+ * Show this step in the call's language: the same GET page with
+ * `?language=ES|EN` swapped in. Only where reloading loses nothing: paso1
+ * (with the lodge and day picked carried in the URL), paso2 when its URL
+ * carries the stay (the GET Continue makes), and the expedition enquiry while
+ * nothing is filled in. Never paso3 or any other step, and never a re-post:
+ * these three steps are GET pages, and this loads a new URL rather than
+ * reloading. Where it is not safe the page stays as it is, without an error:
+ * the call has moved language either way, and the next page Javier opens is
+ * in it.
+ */
+async function siteLanguage({ language }: { language: "en" | "es" }) {
+  const want = language === "es" ? "ES" : "EN";
+  LANGUAGE = want;
+  const s = step();
+  const url = new URL(location.href);
+  if (url.searchParams.get("language")?.toUpperCase() === want) return;
+  if (s === "paso1") {
+    const code = selectedHotel()?.code;
+    if (code) url.searchParams.set("hotel_code", code);
+    const day = chosenDate();
+    if (day) url.searchParams.set("check_in_date", day);
+  } else if (s === "paso2") {
+    if (!["hotel_code", "check_in_date", "nights"].every((k) => url.searchParams.get(k))) {
+      return void console.info("voqalize: these rooms were not opened by a GET; the page keeps its language");
+    }
+  } else if (s === "expeditions") {
+    if (!url.searchParams.get("expedition_request") || enquiryTouched()) {
+      return void console.info("voqalize: the enquiry has been filled in; the page keeps its language");
+    }
+  } else {
+    return;
+  }
+  url.searchParams.set("language", want);
+  clearHighlight();
+  await loadThen(url.href);
+}
+
 // ─── The adapter ──────────────────────────────────────────────────────────
 
 const COMMANDS: Record<string, (payload: never) => Promise<void>> = {
@@ -925,6 +978,8 @@ const COMMANDS: Record<string, (payload: never) => Promise<void>> = {
   choose_room: chooseRoom,
   fill_enquiry: fillEnquiry,
   send_enquiry: sendEnquiry,
+  // The extension's own, not the brain's: the call's language moved.
+  site_language: siteLanguage,
 };
 
 const WHAT: Record<string, string> = {
