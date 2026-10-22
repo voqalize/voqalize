@@ -1,0 +1,794 @@
+{
+ "crawled": "2026-10-22",
+ "site": "https://www.clini.cl",
+ "counts": {
+  "pages": 126,
+  "blog": 134,
+  "sitemap": 258
+ },
+ "redirects": {
+  "/borrados/laboratorio": "/laboratorio",
+  "/chequeos-medicos": "/mantencion",
+  "/cirugia-lasik/antofagasta": "/cirugia-lasik/diagno-antofagasta",
+  "/cirugia-lasik/fonasa": "/cirugia-lasik",
+  "/cirugia-lasik/providencia": "/cirugia-lasik/santiago",
+  "/contacto": "/solicitudes/reclamos",
+  "/convenios": "/convenios-salud",
+  "/ecocardiograma-fonasa-1": "/cardiologia/ecocardiograma-fonasa-1",
+  "/imagenes-fonasa-nivel-1": "/imagenes",
+  "/imagenes/ecografias": "/imagenes/ecografia-fonasa-nivel-1",
+  "/imagenes/mamografia": "/imagenes/realiza-tu-mamografia-con-fonasa-en-clini",
+  "/medicina-deportiva/kinesiologia": "/medicina-deportiva/rehabilitacion-kinesica-en-clini",
+  "/quienes-somos": "/somos-clini",
+  "/resultados-clini": "/resultados",
+  "/servicios/imagenes": "/imagenes",
+  "/telemedicina": "/consultas-medicas"
+ },
+ "missing": [
+  "/bono-clini",
+  "/borrados/bono-pad-fonasa",
+  "/campanas/ofertas-super-dias",
+  "/campanas/semanazo",
+  "/chequeos/chequeo-bienestar-sexual",
+  "/chequeos/chequeo-energia-vitalidad",
+  "/chequeos/chequeo-hombre-integral",
+  "/chequeos/chequeo-salud-tiroides",
+  "/chequeos/panel-pcr-de-virus-respiratorio",
+  "/concientizacion-cancer-mama",
+  "/domicilio/servicios",
+  "/evalyn-brush-auto-toma-de-vph",
+  "/prevencion-cancer-colorrectal",
+  "/promociones/semanazo",
+  "/referidos"
+ ],
+ "not_pages": [
+  "/mantencion"
+ ],
+ "unlisted": [
+  "/ahorra-fonasa-1",
+  "/campanas/descuento-laboratorio-clinico-santa-lucia",
+  "/campanas/descuento-laboratorio-san-miguel",
+  "/cirugia-lasik-ocular",
+  "/cirugia-lasik/campana-de-derivadores",
+  "/cirugia-lasik/campana-de-derivados-vision",
+  "/cirugia-lasik/clinividentes",
+  "/cirugia-lasik/derivadores-clini",
+  "/cirugia-lasik/pacientes-derivados-clini-vision",
+  "/cirugia-lasik/temuco",
+  "/convenios-salud/codep",
+  "/convenios-salud/sermecoop",
+  "/convenios-salud/serviunion-unioncoop",
+  "/imagenes/resonancia-magnetica-fonasa-nivel-1-e-isapre-en-quillota",
+  "/imagenes/resonancias-magneticas/cavidades-perinasales",
+  "/imagenes/resonancias-magneticas/cerebro",
+  "/imagenes/resonancias-magneticas/oidos",
+  "/imagenes/resonancias-magneticas/parrilla-costal",
+  "/laboratorio/alameda",
+  "/laboratorio/la-florida",
+  "/laboratorio/maipu",
+  "/laboratorio/mall-florida-center",
+  "/laboratorio/rancagua",
+  "/laboratorio/salvador",
+  "/laboratorio/temuco",
+  "/laboratorio/tobalaba",
+  "/quienes-somos-2"
+ ],
+ "nav": {
+  "menus": [
+   {
+    "menu": "Reservar hora",
+    "links": [
+     {
+      "text": "Cirugía Lasik",
+      "href": "https://www.clini.cl/cirugia-lasik/fonasa",
+      "target": null
+     },
+     {
+      "text": "Laboratorio",
+      "href": "https://www.clini.cl/laboratorio",
+      "target": null
+     },
+     {
+      "text": "Imágenes",
+      "href": "/agendamiento-imagenes",
+      "target": null
+     },
+     {
+      "text": "Cardiología",
+      "href": "/agendamiento-cardiologia",
+      "target": null
+     },
+     {
+      "text": "Consultas Médicas/ Kine",
+      "href": "/agendamiento-consultas-medicas",
+      "target": null
+     }
+    ]
+   },
+   {
+    "menu": "Servicios",
+    "links": [
+     {
+      "text": "Oftalmología",
+      "href": "https://www.clini.cl/cirugia-lasik",
+      "target": null
+     },
+     {
+      "text": "Cirugía Lasik",
+      "href": "https://www.clini.cl/cirugia-lasik",
+      "target": null
+     },
+     {
+      "text": "Imagenología",
+      "href": "https://www.clini.cl/imagenes-fonasa-nivel-1",
+      "target": null
+     },
+     {
+      "text": "Resonancias Magnéticas",
+      "href": "https://www.clini.cl/imagenes/resonancias-fonasa-1",
+      "target": null
+     },
+     {
+      "text": "Ecografías",
+      "href": "https://www.clini.cl/imagenes/ecografia-fonasa-nivel-1",
+      "target": null
+     },
+     {
+      "text": "Mamografías",
+      "href": "https://www.clini.cl/imagenes/realiza-tu-mamografia-con-fonasa-en-clini",
+      "target": null
+     },
+     {
+      "text": "Tomografía (TAC/TC)",
+      "href": "https://www.clini.cl/imagenes/realiza-tu-examen-tac-scanner-fonasa-nivel-1",
+      "target": null
+     },
+     {
+      "text": "Radiografías",
+      "href": "https://www.clini.cl/imagenes/radiografias-fonasa-nivel-1",
+      "target": null
+     },
+     {
+      "text": "PET-CT",
+      "href": "https://www.clini.cl/imagenes/examen-pet-ct-con-fonasa-nivel-1",
+      "target": null
+     },
+     {
+      "text": "Laboratorio",
+      "href": "https://www.clini.cl/laboratorio",
+      "target": null
+     },
+     {
+      "text": "Toma de Muestras",
+      "href": "https://www.clini.cl/laboratorio",
+      "target": null
+     },
+     {
+      "text": "Packs de exámenes",
+      "href": "https://www.clini.cl/chequeos-medicos",
+      "target": null
+     },
+     {
+      "text": "Cardiología",
+      "href": "https://www.clini.cl/examenes-de-cardiologia-fonasa-nivel-1",
+      "target": null
+     },
+     {
+      "text": "Ecocardiograma",
+      "href": "https://www.clini.cl/cardiologia/ecocardiograma-fonasa-1",
+      "target": null
+     },
+     {
+      "text": "Electrocardiograma",
+      "href": "https://www.clini.cl/cardiologia/realiza-tu-electrocardiograma-de-reposo-en-clini",
+      "target": null
+     },
+     {
+      "text": "Holter de Presión",
+      "href": "https://www.clini.cl/cardiologia/realiza-tu-holter-de-presion-mapa-en-clini",
+      "target": null
+     },
+     {
+      "text": "Holter de Ritmo",
+      "href": "https://www.clini.cl/cardiologia/realiza-tu-holter-de-ritmo-en-clini",
+      "target": null
+     },
+     {
+      "text": "Consultas",
+      "href": "https://www.clini.cl/consultas-medicas",
+      "target": null
+     },
+     {
+      "text": "Consultas Médicas",
+      "href": "https://www.clini.cl/consultas-medicas",
+      "target": null
+     },
+     {
+      "text": "Kinesiología",
+      "href": "https://www.clini.cl/medicina-deportiva/rehabilitacion-kinesica-en-clini",
+      "target": null
+     },
+     {
+      "text": "Oncología",
+      "href": "https://www.clini.cl/consultas-medicas",
+      "target": null
+     },
+     {
+      "text": "Exámenes oncológicos",
+      "href": "/centro-oncologico",
+      "target": null
+     }
+    ]
+   },
+   {
+    "menu": "Pacientes",
+    "links": [
+     {
+      "text": "Resultados de exámenesRevisa tus resultados en línea ingresando tu RUT y código de atención.",
+      "href": "/resultados",
+      "target": null
+     },
+     {
+      "text": "Preparación de exámenesInstrucciones claras y específicas para llegar preparado a tu examen o procedimiento",
+      "href": "/indicaciones",
+      "target": null
+     },
+     {
+      "text": "Convenios de SaludConoce los convenios con municipalidades, cajas de compensación, empresas y más.",
+      "href": "/convenios-salud",
+      "target": null
+     },
+     {
+      "text": "Sugerencias / Reclamos (feedback)Espacio abierto para que nos dejes tus comentarios y ayudarnos a mejorar.",
+      "href": "https://www.clini.cl/solicitudes/reclamos",
+      "target": null
+     },
+     {
+      "text": "Formulario de solicitudesEnvíanos tu solicitud de forma rápida y sencilla.",
+      "href": "https://www.clini.cl/solicitudes/contacto",
+      "target": null
+     }
+    ]
+   }
+  ],
+  "header": [
+   {
+    "text": "Cirugía Lasik",
+    "href": "https://www.clini.cl/cirugia-lasik/fonasa",
+    "target": null
+   },
+   {
+    "text": "Laboratorio",
+    "href": "/laboratorio",
+    "target": null
+   },
+   {
+    "text": "Imágenes",
+    "href": "/agendamiento-imagenes",
+    "target": null
+   },
+   {
+    "text": "Cardiología",
+    "href": "/agendamiento-cardiologia",
+    "target": null
+   },
+   {
+    "text": "Consultas médicas/Kine",
+    "href": "/agendamiento-consultas-medicas",
+    "target": null
+   },
+   {
+    "text": "Horarios call center: Lunes - Viernes: 08:00–22:00 hrs Sábados: 08:00–20:00 hrs Domingo: 14:00–22:00 hrs Lunes - Viernes: 08:00–22:00 hrs Sábados: 08:00–20:00 hrs Domingo: 14:00–22:00 hrs",
+    "href": "/agendamiento",
+    "target": null
+   },
+   {
+    "text": "22 994 4003",
+    "href": "tel:229944003",
+    "target": null
+   },
+   {
+    "text": "Laboratorio",
+    "href": "https://www.clini.cl/laboratorio",
+    "target": null
+   },
+   {
+    "text": "Consultas Médicas/ Kine",
+    "href": "/agendamiento-consultas-medicas",
+    "target": null
+   },
+   {
+    "text": "",
+    "href": "/",
+    "target": null
+   },
+   {
+    "text": "Oftalmología",
+    "href": "https://www.clini.cl/cirugia-lasik",
+    "target": null
+   },
+   {
+    "text": "Cirugía Lasik",
+    "href": "https://www.clini.cl/cirugia-lasik",
+    "target": null
+   },
+   {
+    "text": "Imagenología",
+    "href": "https://www.clini.cl/imagenes-fonasa-nivel-1",
+    "target": null
+   },
+   {
+    "text": "Resonancias Magnéticas",
+    "href": "https://www.clini.cl/imagenes/resonancias-fonasa-1",
+    "target": null
+   },
+   {
+    "text": "Ecografías",
+    "href": "https://www.clini.cl/imagenes/ecografia-fonasa-nivel-1",
+    "target": null
+   },
+   {
+    "text": "Mamografías",
+    "href": "https://www.clini.cl/imagenes/realiza-tu-mamografia-con-fonasa-en-clini",
+    "target": null
+   },
+   {
+    "text": "Tomografía (TAC/TC)",
+    "href": "https://www.clini.cl/imagenes/realiza-tu-examen-tac-scanner-fonasa-nivel-1",
+    "target": null
+   },
+   {
+    "text": "Radiografías",
+    "href": "https://www.clini.cl/imagenes/radiografias-fonasa-nivel-1",
+    "target": null
+   },
+   {
+    "text": "PET-CT",
+    "href": "https://www.clini.cl/imagenes/examen-pet-ct-con-fonasa-nivel-1",
+    "target": null
+   },
+   {
+    "text": "Toma de Muestras",
+    "href": "https://www.clini.cl/laboratorio",
+    "target": null
+   },
+   {
+    "text": "Packs de exámenes",
+    "href": "https://www.clini.cl/chequeos-medicos",
+    "target": null
+   },
+   {
+    "text": "Cardiología",
+    "href": "https://www.clini.cl/examenes-de-cardiologia-fonasa-nivel-1",
+    "target": null
+   },
+   {
+    "text": "Ecocardiograma",
+    "href": "https://www.clini.cl/cardiologia/ecocardiograma-fonasa-1",
+    "target": null
+   },
+   {
+    "text": "Electrocardiograma",
+    "href": "https://www.clini.cl/cardiologia/realiza-tu-electrocardiograma-de-reposo-en-clini",
+    "target": null
+   },
+   {
+    "text": "Holter de Presión",
+    "href": "https://www.clini.cl/cardiologia/realiza-tu-holter-de-presion-mapa-en-clini",
+    "target": null
+   },
+   {
+    "text": "Holter de Ritmo",
+    "href": "https://www.clini.cl/cardiologia/realiza-tu-holter-de-ritmo-en-clini",
+    "target": null
+   },
+   {
+    "text": "Consultas",
+    "href": "https://www.clini.cl/consultas-medicas",
+    "target": null
+   },
+   {
+    "text": "Consultas Médicas",
+    "href": "https://www.clini.cl/consultas-medicas",
+    "target": null
+   },
+   {
+    "text": "Kinesiología",
+    "href": "https://www.clini.cl/medicina-deportiva/rehabilitacion-kinesica-en-clini",
+    "target": null
+   },
+   {
+    "text": "Oncología",
+    "href": "https://www.clini.cl/consultas-medicas",
+    "target": null
+   },
+   {
+    "text": "Exámenes oncológicos",
+    "href": "/centro-oncologico",
+    "target": null
+   },
+   {
+    "text": "Resultados de exámenesRevisa tus resultados en línea ingresando tu RUT y código de atención.",
+    "href": "/resultados",
+    "target": null
+   },
+   {
+    "text": "Preparación de exámenesInstrucciones claras y específicas para llegar preparado a tu examen o procedimiento",
+    "href": "/indicaciones",
+    "target": null
+   },
+   {
+    "text": "Convenios de SaludConoce los convenios con municipalidades, cajas de compensación, empresas y más.",
+    "href": "/convenios-salud",
+    "target": null
+   },
+   {
+    "text": "Sugerencias / Reclamos (feedback)Espacio abierto para que nos dejes tus comentarios y ayudarnos a mejorar.",
+    "href": "https://www.clini.cl/solicitudes/reclamos",
+    "target": null
+   },
+   {
+    "text": "Formulario de solicitudesEnvíanos tu solicitud de forma rápida y sencilla.",
+    "href": "https://www.clini.cl/solicitudes/contacto",
+    "target": null
+   },
+   {
+    "text": "Ubicaciones",
+    "href": "/ubicaciones",
+    "target": null
+   },
+   {
+    "text": "Cotizador",
+    "href": "https://cotizador-web.clini.cl/",
+    "target": null
+   },
+   {
+    "text": "Blog",
+    "href": "https://www.clini.cl/blog",
+    "target": null
+   },
+   {
+    "text": "Somos CLINI",
+    "href": "https://www.clini.cl/somos-clini",
+    "target": null
+   }
+  ],
+  "footer": [
+   {
+    "text": "Laboratorio clínico",
+    "href": "/laboratorio",
+    "target": null
+   },
+   {
+    "text": "PET-CT Oncológico",
+    "href": "https://www.clini.cl/imagenes/examen-pet-ct-con-fonasa-nivel-1",
+    "target": null
+   },
+   {
+    "text": "Consultas médicas",
+    "href": "https://www.clini.cl/consultas-medicas",
+    "target": null
+   },
+   {
+    "text": "Resultados de Exámenes",
+    "href": "/resultados",
+    "target": null
+   },
+   {
+    "text": "Sugerencias, felicitaciones o reclamos",
+    "href": "https://www.clini.cl/contacto",
+    "target": null
+   },
+   {
+    "text": "Políticas de privacidad",
+    "href": "/politicas-de-privacidad",
+    "target": null
+   },
+   {
+    "text": "Aranceles",
+    "href": "/cotizador",
+    "target": null
+   },
+   {
+    "text": "Reglamento interno",
+    "href": "https://www.clini.cl/cotizador",
+    "target": null
+   },
+   {
+    "text": "Atención Preferente",
+    "href": "https://cdn.prod.website-files.com/63e243301667410e99e1031e/641470e9b7ac5b5e6f6df0b0_AFICHE_ATENCION-PREFERENTE_04.pdf",
+    "target": null
+   },
+   {
+    "text": "Deberes y derechos del paciente",
+    "href": "/pacientes/derechos-y-deberes-del-paciente",
+    "target": null
+   },
+   {
+    "text": "Indicaciones de exámenes",
+    "href": "/indicaciones",
+    "target": null
+   },
+   {
+    "text": "Trabaja con nosotros",
+    "href": "mailto:postulaciones@clini.cl?subject=%C2%A1Me%20gustar%C3%ADa%20trabajar%20con%20CLINI!",
+    "target": null
+   },
+   {
+    "text": "Soy Empresa",
+    "href": "mailto:alejandro.schifferli@clini.cl",
+    "target": null
+   },
+   {
+    "text": "Imágenes",
+    "href": "/imagenes",
+    "target": null
+   },
+   {
+    "text": "Laboratorio Clínico",
+    "href": "https://www.clini.cl/laboratorio",
+    "target": null
+   },
+   {
+    "text": "PET-CT Oncologíco",
+    "href": "/imagenes/examen-pet-ct-con-fonasa-nivel-1",
+    "target": null
+   },
+   {
+    "text": "Exámenes de cardiología",
+    "href": "/examenes-de-cardiologia-fonasa-nivel-1",
+    "target": null
+   },
+   {
+    "text": "Consultas Médicas",
+    "href": "/consultas-medicas",
+    "target": null
+   },
+   {
+    "text": "Políticas privacidad",
+    "href": "/politicas-de-privacidad",
+    "target": null
+   },
+   {
+    "text": "Aranceles",
+    "href": "https://www.clini.cl/cotizador",
+    "target": null
+   },
+   {
+    "text": "Reglamento Interno",
+    "href": "https://cdn.prod.website-files.com/63e243301667410e99e1031e/64147f38318bac0425f35f22_Reglamento%20interno%20de%20funcionamiento%20CLINI%20para%20pacientes%20y%20acompa%C3%B1antes%20V1.pdf",
+    "target": "_blank"
+   },
+   {
+    "text": "Atención preferente",
+    "href": "https://cdn.prod.website-files.com/63e243301667410e99e1031e/641470e9b7ac5b5e6f6df0b0_AFICHE_ATENCION-PREFERENTE_04.pdf",
+    "target": "_blank"
+   },
+   {
+    "text": "Formulario de solicitudes",
+    "href": "/solicitudes/contacto",
+    "target": null
+   },
+   {
+    "text": "Canal de sugerencias, felicitaciones o reclamos",
+    "href": "/solicitudes/reclamos",
+    "target": null
+   },
+   {
+    "text": "Trabaja con nosotros",
+    "href": "/solicitudes/postulaciones-laborales",
+    "target": null
+   },
+   {
+    "text": "Somos CLINI",
+    "href": "https://www.clini.cl/quienes-somos",
+    "target": null
+   },
+   {
+    "text": "Resultados",
+    "href": "https://www.clini.cl/resultados-clini",
+    "target": null
+   },
+   {
+    "text": "",
+    "href": "https://www.facebook.com/clini_cl-108468828376290",
+    "target": null
+   },
+   {
+    "text": "",
+    "href": "https://www.instagram.com/clini_cl/",
+    "target": null
+   },
+   {
+    "text": "",
+    "href": "https://www.linkedin.com/company/clini-chile/",
+    "target": null
+   },
+   {
+    "text": "",
+    "href": "https://www.youtube.com/@clinichile",
+    "target": null
+   },
+   {
+    "text": "Cotizar",
+    "href": "https://cotizador-web.clini.cl/",
+    "target": null
+   },
+   {
+    "text": "Llamar",
+    "href": "tel:229944003",
+    "target": null
+   },
+   {
+    "text": "Reservar",
+    "href": "/agendamiento",
+    "target": null
+   }
+  ]
+ },
+ "probes": {
+  "desktop": {
+   "header_height": 96,
+   "scroll_element": "window",
+   "scroll_padding_top": "auto",
+   "scroll_behavior": "auto",
+   "fixed": [
+    {
+     "selector": "div.header-fixed-clini",
+     "rect": [
+      0,
+      0,
+      1440,
+      35
+     ],
+     "z": "100"
+    },
+    {
+     "selector": "div.navbar7_component-2.w-nav",
+     "rect": [
+      35,
+      0,
+      1440,
+      61
+     ],
+     "z": "999"
+    },
+    {
+     "selector": "div.column-525.w-col.w-col-6",
+     "rect": [
+      130,
+      70,
+      650,
+      391
+     ],
+     "z": "auto"
+    },
+    {
+     "selector": "#clinitoEmbed",
+     "rect": [
+      760,
+      1100,
+      340,
+      240
+     ],
+     "z": "99999"
+    }
+   ],
+   "modals": [
+    {
+     "cls": "modal-feriados nono",
+     "display": "none"
+    },
+    {
+     "cls": "pop-up-modal",
+     "display": "none"
+    },
+    {
+     "cls": "modal-feriados nono",
+     "display": "none"
+    }
+   ]
+  },
+  "mobile": {
+   "header_height": 91,
+   "scroll_element": "window",
+   "scroll_padding_top": "auto",
+   "scroll_behavior": "auto",
+   "fixed": [
+    {
+     "selector": "div.header-fixed-clini",
+     "rect": [
+      0,
+      0,
+      390,
+      35
+     ],
+     "z": "100"
+    },
+    {
+     "selector": "div.navbar7_component-2.w-nav",
+     "rect": [
+      35,
+      0,
+      390,
+      56
+     ],
+     "z": "999"
+    },
+    {
+     "selector": "div.column-525.w-col.w-col-6",
+     "rect": [
+      110,
+      10,
+      370,
+      290
+     ],
+     "z": "auto"
+    },
+    {
+     "selector": "div.div-block-475.pet-no",
+     "rect": [
+      758,
+      0,
+      390,
+      86
+     ],
+     "z": "99999999"
+    },
+    {
+     "selector": "#clinitoEmbed",
+     "rect": [
+      614,
+      50,
+      340,
+      240
+     ],
+     "z": "99999"
+    }
+   ],
+   "modals": [
+    {
+     "cls": "modal-feriados nono",
+     "display": "none"
+    },
+    {
+     "cls": "pop-up-modal",
+     "display": "none"
+    },
+    {
+     "cls": "modal-feriados nono",
+     "display": "none"
+    }
+   ]
+  }
+ },
+ "hosts": {
+  "https://www.clini.cl": {
+   "status": 200,
+   "content-security-policy": "frame-ancestors 'self'",
+   "content-type": "text/html; charset=utf-8",
+   "server": "cloudflare",
+   "x-frame-options": "SAMEORIGIN"
+  },
+  "https://agenda-web.clini.cl": {
+   "status": 200,
+   "content-type": "text/html; charset=utf-8",
+   "server": "Microsoft-IIS/10.0",
+   "x-powered-by": "ASP.NET"
+  },
+  "https://cotizador-web.clini.cl": {
+   "status": 200,
+   "cache-control": "no-cache, no-store",
+   "content-type": "text/html; charset=utf-8",
+   "server": "Microsoft-IIS/10.0",
+   "x-frame-options": "SAMEORIGIN",
+   "x-powered-by": "ASP.NET"
+  }
+ },
+ "notes": [
+  "Scroll container is the window; the fixed header covers the top: scroll to element top - 104 px.",
+  "Webflow tabs (.w-tab-link), dropdowns (.w-dropdown-toggle: FAQs and branch hours) and sliders (.w-slider-dot) open with a programmatic click.",
+  "The newer exam pages' FAQs are a custom accordion (.faq-clini .faq-item > button.faq-question + .faq-answer; the open item has .active): click the button.",
+  "#clinitoEmbed (chat iframe) sits bottom-right at z-index 99999; on mobile .div-block-475 is a fixed bottom bar."
+ ]
+}

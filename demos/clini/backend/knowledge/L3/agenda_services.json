@@ -1,0 +1,658 @@
+{
+ "55": {
+  "name": "Kinesiologia",
+  "url": "https://agenda-web.clini.cl/?servicio=55",
+  "prestaciones": [
+   {
+    "code": 101612,
+    "name": "Consulta Evaluación Kinesiológica"
+   },
+   {
+    "code": 606006,
+    "name": "TTO. Kinesiologico"
+   }
+  ],
+  "regions": [
+   {
+    "code": 13,
+    "name": "Región Metropolitana de Santiago",
+    "default": true
+   }
+  ],
+  "sectors": [],
+  "linked_from": []
+ },
+ "57": {
+  "name": "Radiografía",
+  "url": "https://agenda-web.clini.cl/?servicio=57",
+  "prestaciones": [
+   {
+    "code": 70,
+    "name": "Radiografía General"
+   },
+   {
+    "code": 72,
+    "name": "Radiografía Proyecciones"
+   }
+  ],
+  "regions": [
+   {
+    "code": 5,
+    "name": "Región de Valparaíso",
+    "default": false
+   },
+   {
+    "code": 13,
+    "name": "Región Metropolitana de Santiago",
+    "default": true
+   }
+  ],
+  "sectors": [],
+  "linked_from": [
+   "/",
+   "/agendamiento",
+   "/agendamiento-imagenes",
+   "/centro-de-salud/vina-del-mar",
+   "/imagenes/radiografias-fonasa-nivel-1"
+  ]
+ },
+ "62": {
+  "name": "Laboratorio",
+  "url": "https://agenda-web.clini.cl/?servicio=62",
+  "prestaciones": [
+   {
+    "code": 30,
+    "name": "Toma De Muestra"
+   }
+  ],
+  "regions": [
+   {
+    "code": 6,
+    "name": "Región del Libertador B. O Higgins",
+    "default": false
+   },
+   {
+    "code": 9,
+    "name": "Región de La Araucanía",
+    "default": false
+   },
+   {
+    "code": 13,
+    "name": "Región Metropolitana de Santiago",
+    "default": true
+   },
+   {
+    "code": 16,
+    "name": "Región del Ñuble",
+    "default": false
+   }
+  ],
+  "sectors": [
+   "TODOS",
+   "CENTRO",
+   "ORIENTE",
+   "SUR",
+   "PONIENTE"
+  ],
+  "linked_from": [
+   "/",
+   "/agendamiento",
+   "/borrados/laboratorio",
+   "/campanas/descuento-laboratorio-clinico-santa-lucia",
+   "/campanas/descuento-laboratorio-san-miguel",
+   "/centro-oncologico-clini",
+   "/centro-oncologico/cancer-de-prostata",
+   "/convenios-salud/aramark",
+   "/convenios-salud/caja-18",
+   "/convenios-salud/caja-la-araucana",
+   "/convenios-salud/caja-los-andes",
+   "/convenios-salud/caja-los-heroes",
+   "/convenios-salud/codep",
+   "/convenios-salud/cofodep-la-florida",
+   "/convenios-salud/convenio-municipalidad-de-puente-alto",
+   "/convenios-salud/convenio-sbpay-visa",
+   "/convenios-salud/municipalidad-nunoa",
+   "/convenios-salud/sermecoop",
+   "/convenios-salud/serviunion-unioncoop",
+   "/examenes/antigeno-prostatico-psa-total-y-libre",
+   "/examenes/beta-hcg",
+   "/examenes/complejo-vitamina-b-y-vitamina-b12",
+   "/examenes/creatinina",
+   "/examenes/cuales-son-los-valores-normales-de-hematocrito",
+   "/examenes/curva-de-tolerancia-a-la-glucosa-y-curva-de-insulina",
+   "/examenes/curva-de-tolerancia-a-la-glucosa-y-curva-de-insulina-2",
+   "/examenes/examen-de-orina-completo",
+   "/examenes/examen-de-sangre",
+   "/examenes/examenes-fta-abs-rpr-y-vdrl",
+   "/examenes/hemoglobina-glicada",
+   "/examenes/perfil-bioquimico",
+   "/examenes/perfil-hepatico-enfermedades-del-higado-y-vesicula-biliar",
+   "/examenes/perfil-lipidico",
+   "/examenes/test-de-antigenos",
+   "/examenes/test-para-las-alergias",
+   "/examenes/tiroideos",
+   "/examenes/vih-test-de-anticuerpos-y-test-de-antigenos",
+   "/examenes/vitamina-d",
+   "/laboratorio",
+   "/laboratorio/alameda",
+   "/laboratorio/buin",
+   "/laboratorio/chillan",
+   "/laboratorio/la-florida",
+   "/laboratorio/maipu",
+   "/laboratorio/mall-florida-center",
+   "/laboratorio/rancagua",
+   "/laboratorio/ricardo-lyon",
+   "/laboratorio/salvador",
+   "/laboratorio/san-bernardo",
+   "/laboratorio/santa-lucia",
+   "/laboratorio/temuco",
+   "/laboratorio/tobalaba",
+   "/ubicaciones"
+  ]
+ },
+ "64": {
+  "name": "Resonancia",
+  "url": "https://agenda-web.clini.cl/?servicio=64",
+  "prestaciones": [
+   {
+    "code": 804,
+    "name": "RM Rodilla, Cadera, Hombro, MANO, Muñeca"
+   },
+   {
+    "code": 81,
+    "name": "RM Columna Cervical O Dorsal O Lumbar"
+   },
+   {
+    "code": 800,
+    "name": "RM Cerebro/Cabeza"
+   },
+   {
+    "code": 801,
+    "name": "RM Cuello"
+   },
+   {
+    "code": 803,
+    "name": "RM Pelvis"
+   },
+   {
+    "code": 802,
+    "name": "RM Abdomen"
+   },
+   {
+    "code": 805,
+    "name": "RM Pierna, Brazo, Antebrazo"
+   },
+   {
+    "code": 83,
+    "name": "RM Abdomen Y Pelvis"
+   },
+   {
+    "code": 82,
+    "name": "RM Columna Total"
+   },
+   {
+    "code": 806,
+    "name": "RM Ambas Rodillas, Caderas, Hombros, Manos, Muñecas"
+   },
+   {
+    "code": 807,
+    "name": "RM Ambas Piernas, Brazos, Antebrazos"
+   },
+   {
+    "code": 808,
+    "name": "RM Columna Total CON Contraste"
+   },
+   {
+    "code": 86,
+    "name": "Otras RM"
+   }
+  ],
+  "regions": [
+   {
+    "code": 5,
+    "name": "Región de Valparaíso",
+    "default": false
+   },
+   {
+    "code": 13,
+    "name": "Región Metropolitana de Santiago",
+    "default": true
+   }
+  ],
+  "sectors": [],
+  "linked_from": [
+   "/",
+   "/agendamiento",
+   "/agendamiento-imagenes",
+   "/centro-de-salud/vina-del-mar",
+   "/centro-oncologico-clini",
+   "/imagenes/resonancia-magnetica-fonasa-nivel-1-e-isapre-en-quillota",
+   "/imagenes/resonancias-fonasa-1",
+   "/imagenes/resonancias-magneticas/cavidades-perinasales",
+   "/imagenes/resonancias-magneticas/cerebro",
+   "/imagenes/resonancias-magneticas/columna-lumbar",
+   "/imagenes/resonancias-magneticas/columna-total",
+   "/imagenes/resonancias-magneticas/cuello",
+   "/imagenes/resonancias-magneticas/encefalo-cerebro",
+   "/imagenes/resonancias-magneticas/oidos",
+   "/imagenes/resonancias-magneticas/parrilla-costal",
+   "/imagenes/resonancias-magneticas/rodilla",
+   "/imagenes/resonancias-magneticas/silla-turca",
+   "/resored"
+  ]
+ },
+ "65": {
+  "name": "Mamografia",
+  "url": "https://agenda-web.clini.cl/?servicio=65",
+  "prestaciones": [
+   {
+    "code": 401010,
+    "name": "Mamografia Bilateral (4 EXP.)"
+   },
+   {
+    "code": 401110,
+    "name": "Mamografia Unilateral (2 EXP.)"
+   }
+  ],
+  "regions": [
+   {
+    "code": 13,
+    "name": "Región Metropolitana de Santiago",
+    "default": true
+   }
+  ],
+  "sectors": [],
+  "linked_from": [
+   "/",
+   "/agendamiento",
+   "/agendamiento-imagenes",
+   "/campanas/octubre",
+   "/centro-oncologico-clini",
+   "/centro-oncologico/cancer-de-mama",
+   "/imagenes/mamografia",
+   "/imagenes/realiza-tu-mamografia-con-fonasa-en-clini"
+  ]
+ },
+ "68": {
+  "name": "Ecoginecologia",
+  "url": "https://agenda-web.clini.cl/?servicio=68",
+  "prestaciones": [
+   {
+    "code": 43,
+    "name": "Ecografía 4D Y 5D"
+   },
+   {
+    "code": 44,
+    "name": "Ecografía Doppler 11 A 14 Semanas"
+   },
+   {
+    "code": 45,
+    "name": "Ecografía Doppler 20 A 24 Semanas"
+   },
+   {
+    "code": 42,
+    "name": "Ecografia Ginecologica"
+   }
+  ],
+  "regions": [],
+  "sectors": [],
+  "linked_from": []
+ },
+ "70": {
+  "name": "Scanner",
+  "url": "https://agenda-web.clini.cl/?servicio=70",
+  "prestaciones": [
+   {
+    "code": 94,
+    "name": "Angio TAC (Cerebro, Cuello, Tórax, Abdomen, Pelvis)"
+   },
+   {
+    "code": 90,
+    "name": "TAC Cebrero/Cabeza/Cuello"
+   },
+   {
+    "code": 91,
+    "name": "TAC Columna Cervical/Dorsal/Lumbar"
+   },
+   {
+    "code": 93,
+    "name": "TAC Extremidades (Rodilla, Cadera, Pierna, Muslo, Hombro, Brazo, MANO, Muñeca)"
+   },
+   {
+    "code": 92,
+    "name": "TAC Torax / Abdomen/ Pelvis"
+   },
+   {
+    "code": 95,
+    "name": "Otros TAC"
+   }
+  ],
+  "regions": [
+   {
+    "code": 5,
+    "name": "Región de Valparaíso",
+    "default": false
+   },
+   {
+    "code": 13,
+    "name": "Región Metropolitana de Santiago",
+    "default": true
+   }
+  ],
+  "sectors": [],
+  "linked_from": [
+   "/",
+   "/agendamiento",
+   "/agendamiento-imagenes",
+   "/centro-de-salud/vina-del-mar",
+   "/centro-oncologico-clini",
+   "/imagenes/realiza-tu-examen-tac-scanner-fonasa-nivel-1"
+  ]
+ },
+ "71": {
+  "name": "Pet_ct",
+  "url": "https://agenda-web.clini.cl/?servicio=71",
+  "prestaciones": [
+   {
+    "code": 35,
+    "name": "PET CT"
+   }
+  ],
+  "regions": [],
+  "sectors": [],
+  "linked_from": [
+   "/",
+   "/agendamiento",
+   "/agendamiento-imagenes",
+   "/centro-oncologico-clini",
+   "/imagenes/examen-pet-ct-con-fonasa-nivel-1"
+  ]
+ },
+ "72": {
+  "name": "Control cirugia lasi",
+  "url": "https://agenda-web.clini.cl/?servicio=72",
+  "prestaciones": [
+   {
+    "code": 39,
+    "name": "Control Lasik"
+   },
+   {
+    "code": 2501033,
+    "name": "Lasik O PRK"
+   }
+  ],
+  "regions": [],
+  "sectors": [],
+  "linked_from": []
+ },
+ "73": {
+  "name": "Pabellones cirugia l",
+  "url": "https://agenda-web.clini.cl/?servicio=73",
+  "prestaciones": [
+   {
+    "code": 40,
+    "name": "Pabellon Lasik"
+   }
+  ],
+  "regions": [],
+  "sectors": [],
+  "linked_from": []
+ },
+ "74": {
+  "name": "Eval cir.lasik",
+  "url": "https://agenda-web.clini.cl/?servicio=74",
+  "prestaciones": [
+   {
+    "code": 39,
+    "name": "Control Lasik"
+   },
+   {
+    "code": 2501033,
+    "name": "Lasik O PRK"
+   }
+  ],
+  "regions": [],
+  "sectors": [],
+  "linked_from": []
+ },
+ "75": {
+  "name": "Lab operativo",
+  "url": "https://agenda-web.clini.cl/?servicio=75",
+  "prestaciones": [
+   {
+    "code": 41,
+    "name": "Operativo Vision"
+   }
+  ],
+  "regions": [],
+  "sectors": [],
+  "linked_from": []
+ },
+ "76": {
+  "name": "Holter de Ritmo",
+  "url": "https://agenda-web.clini.cl/?servicio=76",
+  "prestaciones": [
+   {
+    "code": 46,
+    "name": "Holter De Ritmo"
+   }
+  ],
+  "regions": [
+   {
+    "code": 13,
+    "name": "Región Metropolitana de Santiago",
+    "default": true
+   }
+  ],
+  "sectors": [],
+  "linked_from": [
+   "/",
+   "/agendamiento",
+   "/agendamiento-cardiologia",
+   "/cardiologia/realiza-tu-holter-de-ritmo-en-clini"
+  ]
+ },
+ "77": {
+  "name": "Holter de Presion",
+  "url": "https://agenda-web.clini.cl/?servicio=77",
+  "prestaciones": [
+   {
+    "code": 47,
+    "name": "Holter De Presion"
+   }
+  ],
+  "regions": [
+   {
+    "code": 13,
+    "name": "Región Metropolitana de Santiago",
+    "default": true
+   }
+  ],
+  "sectors": [],
+  "linked_from": [
+   "/",
+   "/agendamiento",
+   "/agendamiento-cardiologia",
+   "/cardiologia/realiza-tu-holter-de-presion-mapa-en-clini"
+  ]
+ },
+ "78": {
+  "name": "Electrocardiograma",
+  "url": "https://agenda-web.clini.cl/?servicio=78",
+  "prestaciones": [
+   {
+    "code": 49,
+    "name": "Electrocardiograma"
+   }
+  ],
+  "regions": [
+   {
+    "code": 13,
+    "name": "Región Metropolitana de Santiago",
+    "default": true
+   }
+  ],
+  "sectors": [],
+  "linked_from": [
+   "/",
+   "/agendamiento",
+   "/agendamiento-cardiologia",
+   "/cardiologia/realiza-tu-electrocardiograma-de-reposo-en-clini"
+  ]
+ },
+ "79": {
+  "name": "Ecocardiograma",
+  "url": "https://agenda-web.clini.cl/?servicio=79",
+  "prestaciones": [
+   {
+    "code": 50,
+    "name": "Ecocardiograma"
+   }
+  ],
+  "regions": [
+   {
+    "code": 13,
+    "name": "Región Metropolitana de Santiago",
+    "default": true
+   }
+  ],
+  "sectors": [],
+  "linked_from": [
+   "/",
+   "/agendamiento",
+   "/agendamiento-cardiologia",
+   "/cardiologia/ecocardiograma-fonasa-1",
+   "/ecocardiograma-fonasa-1"
+  ]
+ },
+ "80": {
+  "name": "Ecografias",
+  "url": "https://agenda-web.clini.cl/?servicio=80",
+  "prestaciones": [
+   {
+    "code": 51,
+    "name": "Ecografia"
+   }
+  ],
+  "regions": [],
+  "sectors": [],
+  "linked_from": []
+ },
+ "81": {
+  "name": "Ecografía",
+  "url": "https://agenda-web.clini.cl/?servicio=81",
+  "prestaciones": [
+   {
+    "code": 60,
+    "name": "Ecografía - Mamaria"
+   },
+   {
+    "code": 67,
+    "name": "Ecografía - Abdominal"
+   },
+   {
+    "code": 62,
+    "name": "Ecografía - Pélvica"
+   },
+   {
+    "code": 63,
+    "name": "Ecografía - Doppler (Renal, Abdominal, Hepática, Aortoilíaca, Extremidades Superiores E Inferiores)"
+   },
+   {
+    "code": 64,
+    "name": "Ecografía - Musculoesquelética U Osteoarticular"
+   },
+   {
+    "code": 66,
+    "name": "Ecografía - Tiroides / Renal"
+   },
+   {
+    "code": 65,
+    "name": "Ecografía - Otras"
+   }
+  ],
+  "regions": [
+   {
+    "code": 13,
+    "name": "Región Metropolitana de Santiago",
+    "default": true
+   }
+  ],
+  "sectors": [],
+  "linked_from": [
+   "/",
+   "/agendamiento",
+   "/agendamiento-imagenes",
+   "/campanas/octubre",
+   "/centro-oncologico-clini",
+   "/imagenes/ecografia-fonasa-nivel-1",
+   "/imagenes/ecografias"
+  ]
+ },
+ "82": {
+  "name": "Ecoginecología",
+  "url": "https://agenda-web.clini.cl/?servicio=82",
+  "prestaciones": [
+   {
+    "code": 43,
+    "name": "Ecografía - 4D Y 5D"
+   },
+   {
+    "code": 44,
+    "name": "Ecografía - Doppler 11 A 14 Semanas"
+   },
+   {
+    "code": 45,
+    "name": "Ecografía - Doppler 20 A 24 Semanas"
+   },
+   {
+    "code": 99,
+    "name": "Ecografía - Doppler Ginecológico"
+   },
+   {
+    "code": 42,
+    "name": "Ecografía - Ginecológica"
+   },
+   {
+    "code": 100,
+    "name": "Ecografía - Obstétrica"
+   }
+  ],
+  "regions": [
+   {
+    "code": 13,
+    "name": "Región Metropolitana de Santiago",
+    "default": true
+   }
+  ],
+  "sectors": [],
+  "linked_from": [
+   "/",
+   "/agendamiento",
+   "/agendamiento-imagenes",
+   "/imagenes/ecografia-fonasa-nivel-1",
+   "/imagenes/ecografias"
+  ]
+ },
+ "83": {
+  "name": "Test de esfuerzo",
+  "url": "https://agenda-web.clini.cl/?servicio=83",
+  "prestaciones": [
+   {
+    "code": 71,
+    "name": "TEST DE Esfuerzo"
+   }
+  ],
+  "regions": [],
+  "sectors": [],
+  "linked_from": []
+ },
+ "86": {
+  "name": "Servicio agenda",
+  "url": "https://agenda-web.clini.cl/?servicio=86",
+  "prestaciones": [],
+  "regions": [],
+  "sectors": [],
+  "linked_from": []
+ }
+}
