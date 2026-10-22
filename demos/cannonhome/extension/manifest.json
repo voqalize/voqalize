@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Javier para Cannon Home — Voqalize preview",
+  "version": "0.0.0",
+  "description": "A voice guide on cannonhome.cl who finds sheets, towels and duvets with the visitor, filters the shop, reads live prices and adds to the bag (never past it), in Spanish or English. A Voqalize preview.",
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://cannonhome.cl/*", "https://www.cannonhome.cl/*"],
+      "js": ["bridge.js", "anchor.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://cannonhome.cl/*", "https://www.cannonhome.cl/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    }
+  ],
+  "permissions": ["storage", "declarativeNetRequest"],
+  "host_permissions": ["https://cannonhome.cl/*", "https://www.cannonhome.cl/*"],
+  "declarative_net_request": {
+    "rule_resources": [{ "id": "csp", "enabled": true, "path": "rules.json" }]
+  }
+}
