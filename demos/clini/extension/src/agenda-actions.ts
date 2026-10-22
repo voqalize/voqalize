@@ -774,10 +774,25 @@ async function fillPatient(p: Patient): Promise<string> {
   return done.join("; ");
 }
 
+/** The move on the booking under way: the next waits for it, whatever it is.
+ *  Two at once click the same calendar against each other — on dev call
+ *  2fd742d5 a pick for the 28th ran inside an open still waiting for 07:00 at
+ *  Buin, and the open then failed on the pick's day. */
+let running: Promise<unknown> = Promise.resolve();
+
+function oneAtATime<P, R>(move: (payload: P) => Promise<R>): (payload: P) => Promise<R> {
+  return (payload: P) => {
+    const turn = running.then(() => move(payload));
+    // A failed move is answered on its own; the next one still runs.
+    running = turn.catch(() => undefined);
+    return turn;
+  };
+}
+
 export function agendaCommands(): Record<string, (payload: never) => Promise<string | null | void>> {
   return {
-    open_agenda: openAgenda as (payload: never) => Promise<string | null>,
-    agenda_pick: agendaPick as (payload: never) => Promise<string>,
-    fill_agenda_patient: fillPatient as (payload: never) => Promise<string>,
+    open_agenda: oneAtATime(openAgenda) as (payload: never) => Promise<string | null>,
+    agenda_pick: oneAtATime(agendaPick) as (payload: never) => Promise<string>,
+    fill_agenda_patient: oneAtATime(fillPatient) as (payload: never) => Promise<string>,
   };
 }
