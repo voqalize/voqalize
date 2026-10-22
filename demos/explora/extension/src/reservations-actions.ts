@@ -14,8 +14,12 @@
  *                     (`#check_in_calendar`, hidden `#check_in_date`, open days
  *                     in `window.lista_disponibles`) and the nights
  *                     (`select#nights`, filled by `getStay(date)` over AJAX);
- *   /ibe/paso2        the rooms and rates. Javier never goes past it: no
- *                     "Add this room", no check-out, nothing on paso3;
+ *   /ibe/paso2        the rooms and rates. `choose_room` sets a room's
+ *                     travellers and bed and presses its own "Add this
+ *                     room", which opens the room's summary (`add_room`, a
+ *                     GET, in a Magnific Popup iframe) with its "Go to
+ *                     check-out" button: he rings that button for the
+ *                     visitor and never presses it. Nothing on paso3;
  *   /ibe/expeditions  the enquiry form `#form-expeditions` (jQuery Validate and
  *                     a reCAPTCHA v2 checkbox the visitor ticks themselves).
  *
@@ -25,6 +29,7 @@
 
 import type {
   CheckAvailability,
+  ChooseRoom,
   EnquiryFields,
   EnquiryState,
   FillEnquiry,
@@ -647,6 +652,117 @@ async function checkAvailability(p: CheckAvailability): Promise<void> {
   }
 }
 
+// ─── choose_room ──────────────────────────────────────────────────────────
+
+/** A room on paso2: its item, its code (`room_<RM>_name`) and its name. */
+interface Room {
+  item: HTMLElement;
+  code: string;
+  name: string;
+}
+
+function rooms(): Room[] {
+  const out: Room[] = [];
+  for (const item of roomItems()) {
+    const span = item.querySelector<HTMLElement>("[id^=room_][id$=_name]");
+    const code = span?.id.match(/^room_(.+)_name$/)?.[1];
+    const name = clean(span?.textContent);
+    if (code && name) out.push({ item, code, name });
+  }
+  return out;
+}
+
+/** The bed select's value for what was said: K (King) or T (Twin). */
+function bedValue(select: HTMLSelectElement, want: string): HTMLOptionElement | null {
+  const opts = [...select.options].filter((o) => o.value);
+  const w = norm(want);
+  const code = /^(k|king|queen|double|matrimonial|one bed|cama king|cama matrimonial)\b/.test(w)
+    ? "K"
+    : /^(t|twin|twins|two beds|separate|single|singles|individual|individuales|dos camas|camas separadas)\b/.test(w)
+      ? "T"
+      : "";
+  return opts.find((o) => o.value === code) ?? pick(want, opts, (o) => o.text);
+}
+
+/** The room summary popup's "Go to check-out" button, inside its iframe
+ *  (same origin): found to be ringed, never pressed. */
+function checkoutButton(): HTMLElement | null {
+  const frame = document.querySelector<HTMLIFrameElement>(".mfp-content iframe, iframe.mfp-iframe");
+  let doc: Document | null = null;
+  try {
+    doc = frame?.contentDocument ?? null;
+  } catch {
+    return null;
+  }
+  if (!doc) return null;
+  const all = [...doc.querySelectorAll<HTMLElement>("a, button, input[type=submit], input[type=button]")];
+  const label = (el: HTMLElement) => clean(el instanceof HTMLInputElement ? el.value : el.textContent);
+  return (
+    all.find((el) => visible(el) && /check.?out|ir a pagar|pagar|finalizar/i.test(label(el))) ?? null
+  );
+}
+
+async function chooseRoom(p: ChooseRoom): Promise<void> {
+  if (step() !== "paso2") throw new Error("the rooms are not open: check a lodge's availability through to its rooms first");
+  const list = rooms();
+  if (!list.length) throw new Error("this stay has no rooms to choose");
+  const want = clean(p.room);
+  if (!want) throw new Error(`say which room: ${list.map((r) => r.name).join(", ")}`);
+  const room = pick(want, list, (r) => r.name);
+  if (!room) throw new Error(`no room "${want}" here; the rooms: ${list.map((r) => r.name).join(", ")}`);
+  const form = room.item.querySelector<HTMLFormElement>("form.room_form") ?? room.item.querySelector("form");
+  const button = room.item.querySelector<HTMLButtonElement>("button.room-select, button[type=submit]");
+  if (!form || !button) throw new Error(`${room.name} cannot be added on this page`);
+
+  const travellers = document.getElementById(`room_${room.code}_nadults`) as HTMLSelectElement | null;
+  if (p.travellers != null && travellers) {
+    const opt = [...travellers.options].find((o) => Number(o.value) === p.travellers);
+    if (!opt) {
+      const offered = [...travellers.options].map((o) => clean(o.text).toLowerCase()).join(" or ");
+      throw new Error(`${room.name} is for ${offered}, not ${p.travellers}`);
+    }
+    // Its inline onchange (`adjust_price`) shows the price for that many.
+    if (travellers.value !== opt.value) setField(travellers, opt.value);
+  }
+  const bed = document.getElementById(`room_${room.code}_bedtype`) as HTMLSelectElement | null;
+  if (p.bed && bed) {
+    const opt = bedValue(bed, p.bed);
+    if (!opt) {
+      const offered = [...bed.options].filter((o) => o.value).map((o) => clean(o.text)).join(" or ");
+      throw new Error(`${room.name} has no '${p.bed}' bed; it has ${offered}`);
+    }
+    if (bed.value !== opt.value) setField(bed, opt.value);
+  }
+
+  await scrollTo(room.item, "center");
+  highlight(room.item);
+  emit("stay_state", roomsState());
+  // The site requires the bed type before it adds the room: the visitor says.
+  if (bed && !bed.value) {
+    const offered = [...bed.options].filter((o) => o.value).map((o) => clean(o.text)).join(" or ");
+    highlight(bed.closest(".left-label") ?? bed);
+    throw new Error(`${room.name} needs a bed type before it can be added: ${offered}`);
+  }
+
+  await sleep(900); // Let the visitor see the room before the summary opens.
+  // Its own "Add this room": the site validates the form and opens the
+  // room's summary in a popup (`add_room`, a GET). Never anything past it.
+  button.click();
+  const popup = await waitFor(() => document.querySelector<HTMLElement>(".mfp-content iframe, .mfp-wrap"), 4000);
+  if (!popup) throw new Error(`pressed Add this room for ${room.name}, but its summary did not open`);
+  const checkout = await waitFor(checkoutButton, 8000);
+  if (checkout) {
+    // Shown, never pressed: the visitor goes to check-out themselves.
+    checkout.scrollIntoView({ block: "center" });
+    highlight(checkout);
+  } else {
+    const content = document.querySelector<HTMLElement>(".mfp-content");
+    if (content) highlight(content);
+  }
+  emit("stay_state", roomsState());
+  if (!checkout) throw new Error(`${room.name}'s summary opened, but its check-out button did not show`);
+}
+
 // ─── fill_enquiry ─────────────────────────────────────────────────────────
 
 function titleValue(want: string): string | null {
@@ -806,6 +922,7 @@ async function sendEnquiry(): Promise<void> {
 
 const COMMANDS: Record<string, (payload: never) => Promise<void>> = {
   check_availability: checkAvailability,
+  choose_room: chooseRoom,
   fill_enquiry: fillEnquiry,
   send_enquiry: sendEnquiry,
 };

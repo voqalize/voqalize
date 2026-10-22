@@ -76,6 +76,20 @@ export interface CheckAvailability {
 }
 
 /**
+ * On the rooms and rates (step two), choose `room` for `travellers`
+ * with `bed` and press its select button, which shows the room's summary
+ * and its check-out button. Never check-out itself. The page reports
+ * `stay_state`.
+ */
+export interface ChooseRoom {
+  room: string;
+
+  travellers: number | null;
+
+  bed: string | null;
+}
+
+/**
  * On reservations.explora.com, open the enquiry form of the expedition
  * `expedition_code` and fill in the fields given. What is filled stays. The
  * page reports `enquiry_state`.
@@ -253,6 +267,7 @@ export type UiAction =
   | { command: 'show_section'; payload: ShowSection }
   | { command: 'open_faq'; payload: OpenFaq }
   | { command: 'check_availability'; payload: CheckAvailability }
+  | { command: 'choose_room'; payload: ChooseRoom }
   | { command: 'fill_enquiry'; payload: FillEnquiry }
   | { command: 'send_enquiry'; payload: SendEnquiry }
   | { command: 'focus_tab'; payload: FocusTab }
@@ -266,6 +281,7 @@ export const UI_ACTION_COMMANDS: readonly UiActionCommand[] = [
   'show_section',
   'open_faq',
   'check_availability',
+  'choose_room',
   'fill_enquiry',
   'send_enquiry',
   'focus_tab',

@@ -137,8 +137,26 @@ let rings: { el: HTMLElement; targets: Element[] }[] = [];
 let ringFrame = 0;
 let ringTimer: ReturnType<typeof setTimeout> | null = null;
 
+/** `el`'s box in this window's viewport, also for an element inside a
+ *  same-origin iframe (the booking site's room summary popup). */
+function rectIn(el: Element): { left: number; top: number; right: number; bottom: number } {
+  const r = el.getBoundingClientRect();
+  let { left, top, right, bottom } = r;
+  for (let win: Window | null = el.ownerDocument.defaultView; win && win !== window && win.frameElement; win = win.parent) {
+    const frame = win.frameElement as HTMLElement;
+    const f = frame.getBoundingClientRect();
+    const dx = f.left + frame.clientLeft;
+    const dy = f.top + frame.clientTop;
+    left += dx;
+    right += dx;
+    top += dy;
+    bottom += dy;
+  }
+  return { left, top, right, bottom };
+}
+
 function boxOf(targets: Element[]) {
-  const rs = targets.filter(visible).map((el) => el.getBoundingClientRect());
+  const rs = targets.filter(visible).map(rectIn);
   if (!rs.length) return null;
   return {
     left: Math.min(...rs.map((r) => r.left)),

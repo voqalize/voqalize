@@ -26,7 +26,8 @@ goes on it; it is not how a customer would ship it.
   of view is brought out first, the way a visitor would: a click on its tab or
   trigger, or the carousel's own `to.owl.carousel`.
 - `src/reservations-actions.ts` — the reservations.explora.com adapter:
-  `check_availability`, `fill_enquiry`, `send_enquiry` (see below).
+  `check_availability`, `choose_room`, `fill_enquiry`, `send_enquiry` (see
+  below).
 - `src/dom.ts` — what both adapters share: the ring, scrolling the window
   under Explora's fixed header and sticky sub-menu, and setting a form field
   the way the site's own scripts notice.
@@ -114,9 +115,20 @@ n.hear("At night you can stargaze from our own observatory.");
 that belongs on the other host, loads that host with the move kept for it
 (`check_availability` from www.explora.com opens the lodge's page on the
 booking site). A move that could not be made comes back as the
-`command_failed` the brain would receive, with the reason in words the model
-can act on: a heading that is not on the page lists the first twenty that are;
-a question that is not there lists the page's questions.
+`command_failed` the brain would receive, at once, with the reason in words the
+model can act on: a heading that is not on the page lists the first twenty
+labels that are showing; a question that is not there lists the page's
+questions.
+
+What the page reports is what shows at the window's width. Explora often
+renders a block twice, a desktop row and a mobile accordion with one of them
+`display: none` (`d-none d-md-block` / `d-md-none`); a heading, tab or
+question inside the copy the layout hides is never reported or used, while
+one inside a closed tab, accordion or carousel slide is, and is opened first.
+Besides the crawler's headings, every laid-out `h4` that is not a menu entry,
+an accordion trigger or a question is a heading too (the Sacred Valley's
+exploration zones). A label asked for that is hidden gives way first to a
+laid-out label of the same name, which is ringed with its block.
 
 ## Every move is a full page load
 
@@ -167,8 +179,13 @@ On reservations.explora.com Javier works the booking engine with the visitor
 (`src/reservations-actions.ts`):
 
 - `check_availability` picks the lodge, reads the calendar's open days, and
-  with a day and a number of nights goes on to the rooms and rates. It stops
-  there: he never adds a room, never reaches checkout, and never books.
+  with a day and a number of nights goes on to the rooms and rates.
+- `choose_room`, on the rooms and rates, sets a room's travellers and bed
+  type (King or Twin) and presses that room's own "Add this room", which
+  opens its summary in a popup. He rings the popup's "I'm ready. Go to
+  check-out" for the visitor and never presses it: he never reaches
+  check-out and never books. With no bed type he rings the room's bed
+  select and asks.
 - `fill_enquiry` opens an expedition's enquiry form and fills in what the
   visitor told him. `send_enquiry` presses Send Message only once the visitor
   has ticked the reCAPTCHA themselves; until then he asks them to.
