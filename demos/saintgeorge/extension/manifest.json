@@ -3,6 +3,7 @@
   "name": "Javier for Saint George's College — Voqalize preview",
   "version": "0.0.0",
   "description": "A voice guide on saintgeorge.cl, in Spanish or English, who answers families from the school's own pages, takes them to the unit, grade or section that answers them, reads the fees and the calendar off their screen, and readies an email to admissions they send themselves. A Voqalize preview.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzT4XB6InikgPswkPFNomSZP/GCjx5C/ZZYgjkXuZ5E72trQ8LjC9g4o1Lp9s9n++aVl6Wyrnur8gu6T2X+ow2WpIlG23gdRUcOlByoyLLfQgWwwLHzDz6/6SBQTBFvOCF1v0MA4+QI/lkC8FihjpqZoiNqkz+ExqUTZKd7qnIbsNT98ANpa7FzgvSb75rXbXdoHAriMcP3hILF+ETVOyWkf74teztBnWk15l7E688KSaUiJ+AiWmZGMpWJm7EXcvJRdkLSRjN+KJxrUltwYqrm2YuarPKtv0N2DfaoROst9EbRpW5NBwWpU3f4dBuCLzv9DyU+zeqXmG8dlp1NRPMwIDAQAB",
   "background": {
     "service_worker": "background.js",
     "type": "module"
@@ -15,15 +16,27 @@
     },
     {
       "matches": ["https://saintgeorge.cl/*", "https://www.saintgeorge.cl/*"],
+      "js": ["shell.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://saintgeorge.cl/*", "https://www.saintgeorge.cl/*"],
       "js": ["content.js"],
       "run_at": "document_idle",
       "world": "MAIN"
     }
   ],
-  "permissions": ["storage"],
+  "permissions": ["storage", "offscreen"],
   "host_permissions": [
     "https://saintgeorge.cl/*",
     "https://www.saintgeorge.cl/*",
     "https://calendar.google.com/calendar/ical/*"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["grant.html", "grant.js"],
+      "matches": ["https://saintgeorge.cl/*", "https://www.saintgeorge.cl/*"]
+    }
   ]
 }
