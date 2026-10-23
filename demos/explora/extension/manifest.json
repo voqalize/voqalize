@@ -3,6 +3,7 @@
   "name": "Javier for Explora — Voqalize preview",
   "version": "0.0.0",
   "description": "A voice guide on www.explora.com and reservations.explora.com, who answers from Explora's own pages, takes visitors to the section that answers them, opens its tabs and questions, checks a lodge's availability with them and fills in an expedition's enquiry. A Voqalize preview.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1rm9dIi57QkzIWdv0UspUcfujmQvV20YpxhG3xIg90HbKL0wx9GcW7hZ+WA0JbeqWOL0P7rURzb7EoJN4k+0egt9htxgZ1CRkWwxLhBed4uACD+ofevhgJQs2LbRLoK0G4yphJ3SrwjX+WAD33MUvQb9l+KaVjlrdQOSF8i2iMyIsUPlVfQBY+r1upOzYnQZIgDn1C8EYB4JMk9PmMEj5qpmB9tGMZhs+LPHkDyko5YnH6MRdUoSEr3+kNOOMwWPOIvRmRIIaZTGwXvfjiF0s/6fxgTWwjUWfKp0GD7LmknhXJEveanp0gy8jEFHlo6TklEfAao9BdR32ztkM4wKawIDAQAB",
   "background": {
     "service_worker": "background.js",
     "type": "module"
@@ -26,6 +27,18 @@
         "https://reservations.explora.com/*"
       ],
       "js": [
+        "shell.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://www.explora.com/*",
+        "https://explora.com/*",
+        "https://reservations.explora.com/*"
+      ],
+      "js": [
         "content.js"
       ],
       "run_at": "document_idle",
@@ -34,11 +47,24 @@
   ],
   "permissions": [
     "storage",
-    "contentSettings"
+    "offscreen"
   ],
   "host_permissions": [
     "https://www.explora.com/*",
     "https://explora.com/*",
     "https://reservations.explora.com/*"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "grant.html",
+        "grant.js"
+      ],
+      "matches": [
+        "https://www.explora.com/*",
+        "https://explora.com/*",
+        "https://reservations.explora.com/*"
+      ]
+    }
   ]
 }

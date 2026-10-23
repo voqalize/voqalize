@@ -9,10 +9,10 @@
  * What the site is, for a script like this:
  *
  *   - Every move between pages is a full page load: no client-side router. So
- *     `navigate` stores the move for the next page with the hub (`loadThen`)
- *     and sets `location`; the next page's copy of this script makes it. The
- *     pacing of a load against Javier's voice (`after_words`) is the call's,
- *     in `content.ts`.
+ *     `navigate` stores the move for the next page with the service worker
+ *     (`loadThen`) and sets `location`; the next page's copy of this script
+ *     makes it. The pacing of a load against Javier's voice (`after_words`) is
+ *     the call's, in the holder (`holder.ts`).
  *   - The window scrolls (no smooth-scroll library), under a fixed
  *     `header#masthead` and, on destination, lodge and expedition pages, a
  *     sticky `.explora-submenu` (`dom.ts` measures both).
@@ -53,8 +53,10 @@ const MAX_TABS = 40;
 const MAX_LINKS = 30;
 
 const isExplora = (host: string) => /^(www\.)?explora\.com$/i.test(host);
-/** Links that stay in the tab while a call is live: the call survives a
- *  same-tab load, and a new tab would be a tab with no call in it. */
+/** Links that stay in the tab while a call is live. A new tab would follow
+ *  the call too (the holder keeps every Explora tab), but the brain moves the
+ *  tab in front and expects the visitor's one tab to be it: the walk through
+ *  the site stays in the tab it started in. */
 const OURS = /^https:\/\/(www\.|reservations\.)?explora\.com(\/|$)/i;
 
 /** The page's own content, as the crawler reads it. */
@@ -665,9 +667,9 @@ async function openFaq({ question }: { question: string }) {
 
 /**
  * Load one of www.explora.com's pages in this tab. The move to make on it
- * (a heading, words, a question) is kept by the hub for the next page, which
- * makes it once it is up (`pendingMove` in `content.ts`). The wait for his
- * voice before the load is the call's, not this; so is choosing the page's
+ * (a heading, words, a question) is kept by the service worker for the next
+ * page, which makes it once it is up (`pendingMove` in `content.ts`). The wait
+ * for his voice before the load is the holder's, not this; so is choosing the page's
  * Spanish twin while the call is in Spanish (`site-language.ts`), so `path`
  * may be a whole URL.
  *

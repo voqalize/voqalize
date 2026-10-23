@@ -17,7 +17,7 @@
  */
 
 import { fetchAlternate } from "./hreflang";
-import { ask } from "./hub";
+import { alternateOf } from "./hub";
 
 export type Lang = "en" | "es";
 
@@ -166,10 +166,9 @@ export function siteUrlIn(lang: Lang, path: string): Promise<Mapped> {
         found = await fetchAlternate(target.href, lang);
         read = true;
       } else {
-        // The booking site may not read www.explora.com; the hub can.
-        const got = await ask<{ url: string | null }>({ op: "alternate", url: target.href, lang }, 6000);
-        found = got?.url ?? null;
-        read = Boolean(got?.url);
+        // The booking site may not read www.explora.com; the service worker can.
+        found = await alternateOf(target.href, lang);
+        read = Boolean(found);
       }
     } catch {
       found = null;

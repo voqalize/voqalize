@@ -1,6 +1,6 @@
 /**
  * Reading a www.explora.com page's translations out of its HTML, for the page
- * (`site-language.ts`) and for the hub (`background.ts`), which fetches for
+ * (`site-language.ts`) and for the service worker (`background.ts`), which fetches for
  * the booking site: a page there cannot read www.explora.com across origins.
  *
  * WPML puts every translation of a page in its `<head>` as

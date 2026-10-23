@@ -14,6 +14,10 @@
  * and a half into the speech, cues are timed instead, from `word`, the number
  * of words before each, at a speaking pace. When the visitor talks over him,
  * what he had not reached yet is dropped: it was never said.
+ *
+ * This runs in the holder (`holder.ts`), with the call, so a cue whose move
+ * lands while the visitor's tab is loading ends nothing here: the holder keeps
+ * that move for the tab until its new page says hello.
  */
 
 import type { Cue } from "./actions.gen";
@@ -45,6 +49,8 @@ export class Narration {
   private textSince = false;
   private stopTimer: ReturnType<typeof setTimeout> | null = null;
   private clock: ReturnType<typeof setInterval> | null = null;
+  /** Moves on each `clear`: a cue fired before it is not made after. */
+  private epoch = 0;
 
   /** @param move performs one cue; resolves once the page has moved. */
   constructor(private readonly move: (cue: Cue) => Promise<void>) {}
@@ -88,6 +94,15 @@ export class Narration {
       this.queue = [];
       for (const q of left) this.fire(q.cue);
     }, AFTER_STOP_MS);
+  }
+
+  /** The call ended: nothing more moves. */
+  clear(): void {
+    this.queue = [];
+    this.speakingSince = 0;
+    this.epoch++;
+    if (this.stopTimer) clearTimeout(this.stopTimer);
+    this.stopTimer = null;
   }
 
   /** The visitor talked over him: the rest was never said. */
@@ -135,6 +150,7 @@ export class Narration {
   }
 
   private fire(cue: Cue): void {
-    this.chain = this.chain.then(() => this.move(cue)).catch(() => {});
+    const epoch = this.epoch;
+    this.chain = this.chain.then(() => (epoch === this.epoch ? this.move(cue) : undefined)).catch(() => {});
   }
 }

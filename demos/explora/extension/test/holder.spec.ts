@@ -1,0 +1,494 @@
+/**
+ * The holder (the offscreen document the call lives in) and the pages that
+ * follow it, end to end in the built extension (`VOQALIZE_TEST_BUILD=1`,
+ * test/.build/ext): a stand-in call (test/fake-call-client.ts) and a stand-in
+ * avatar, small pages served at www.explora.com's and
+ * reservations.explora.com's addresses, a made-up API. Headless, no network.
+ *
+ *   - the port protocol: hello, the call press, the state on every page, the
+ *     page's events up the port, mute and End;
+ *   - a full page load leaves the call alone, and a move sent while the tab is
+ *     loading is made on its next page, once it says hello;
+ *   - the same across hosts: a move sent while the tab loads from
+ *     www.explora.com to reservations.explora.com is made on the booking
+ *     site's page, and the move it leaves for www.explora.com (through the
+ *     service worker) is made there once the call is up on it;
+ *   - no Explora page for 15 s ends the call and closes the holder;
+ *   - the microphone permission's branches (granted, denied, prompt answered
+ *     in the frame, prompt that needs the tab), with the permission query
+ *     stubbed;
+ *   - the widget across a same-host page load (the early shell and the view
+ *     transition), and nothing early off a call.
+ */
+
+import { type BrowserContext, chromium, expect, type Page, test as base, type Worker } from "@playwright/test";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const EXT = join(here, ".build", "ext");
+const ORIGIN = "https://www.explora.com";
+const BOOKING = "https://reservations.explora.com";
+const API = "https://api.voqalize.test";
+
+type Fixture = { body: string; title: string; delay?: number };
+
+const PAGES: Record<string, Fixture> = {
+  // A page whose parse is held 2 s by a script in its body, as WordPress's
+  // trackers hold theirs: what is on screen before DOMContentLoaded is the
+  // early shell's.
+  "/lento/": {
+    title: "Patagonia",
+    body: `<body><main id="content"><h1>Patagonia</h1>
+      <h2>Explorations</h2><p>Treks and rides from the lodge.</p></main>
+      <script src="/slow.js"></script><p>End.</p></body>`,
+  },
+  "/": {
+    title: "explora",
+    body: `<body><main id="content"><h1>Explora</h1>
+      <h2>Our lodges</h2><p>Lodges at the end of the world, from the Atacama to Patagonia.</p>
+      <h2>Expeditions</h2><p>Journeys between our lodges.</p></main></body>`,
+  },
+  "/atacama/": {
+    title: "Atacama Lodge",
+    delay: 2500,
+    body: `<body><main id="content"><h1>Atacama Lodge</h1>
+      <h2>Stargaze from the Observatory</h2><p>One of the clearest skies on Earth, from our own telescope.</p></main></body>`,
+  },
+};
+
+/** The booking site: every path is a step of the booking engine, held back a
+ *  little as a real load is. */
+const BOOKING_PAGE: Fixture = {
+  title: "Explora reservations",
+  delay: 2500,
+  body: `<body><main><h1>Book your stay</h1><p>Choose a lodge and a day.</p></main></body>`,
+};
+
+interface Status {
+  state: { status: string; muted: boolean; ready: boolean };
+  tabs: { url: string; ports: number; front: boolean }[];
+  pending: number;
+  log: string[];
+  sent: { event: string; payload: Record<string, unknown> }[];
+  session: { session_id?: string } | null;
+  hungUp: boolean;
+  micOn: boolean | null;
+  micAsked: string[];
+}
+
+interface Ext {
+  ctx: BrowserContext;
+  sw: Worker;
+  /** The requests made of the made-up API. */
+  connects: { origin: string | undefined; body: unknown }[];
+  open(path: string): Promise<Page>;
+}
+
+const test = base.extend<{ ext: Ext }>({
+  // eslint-disable-next-line no-empty-pattern
+  ext: async ({}, use) => {
+    const dir = mkdtempSync(join(tmpdir(), "explora-ext-"));
+    const ctx = await chromium.launchPersistentContext(dir, {
+      channel: "chromium",
+      headless: true,
+      viewport: { width: 1280, height: 800 },
+      args: [
+        `--disable-extensions-except=${EXT}`,
+        `--load-extension=${EXT}`,
+        "--use-fake-device-for-media-stream",
+        "--use-fake-ui-for-media-stream",
+      ],
+    });
+    const connects: Ext["connects"] = [];
+    // Only the web: the extension's own pages load as they are.
+    await ctx.route(/^https?:/, async (route, request) => {
+      const url = new URL(request.url());
+      if (url.origin === ORIGIN || url.origin === BOOKING) {
+        if (url.pathname === "/slow.js") {
+          await new Promise((r) => setTimeout(r, 2000));
+          return route.fulfill({ status: 200, contentType: "text/javascript", body: "window.__slow = 1;" });
+        }
+        const page = url.origin === BOOKING ? BOOKING_PAGE : PAGES[url.pathname];
+        if (!page || request.resourceType() !== "document") return route.fulfill({ status: 404, body: "" });
+        if (page.delay) await new Promise((r) => setTimeout(r, page.delay));
+        return route.fulfill({
+          status: 200,
+          contentType: "text/html; charset=utf-8",
+          body: `<!doctype html><html lang="en"><head><title>${page.title}</title></head>${page.body}</html>`,
+        });
+      }
+      if (url.origin === API) {
+        const cors = {
+          "access-control-allow-origin": request.headers().origin ?? "*",
+          "access-control-allow-headers": "authorization, content-type",
+          "access-control-allow-methods": "POST, OPTIONS",
+        };
+        if (request.method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors });
+        connects.push({ origin: request.headers().origin, body: request.postDataJSON() });
+        return route.fulfill({
+          status: 200,
+          headers: cors,
+          contentType: "application/json",
+          body: JSON.stringify({ session_id: "s-test", webrtc_request_params: { endpoint: "https://rtc.voqalize.test/offer", headers: {} } }),
+        });
+      }
+      return route.abort();
+    });
+    const sw = ctx.serviceWorkers()[0] ?? (await ctx.waitForEvent("serviceworker"));
+    await use({
+      ctx,
+      sw,
+      connects,
+      async open(path) {
+        const page = ctx.pages()[0] ?? (await ctx.newPage());
+        await page.goto(ORIGIN + path, { waitUntil: "domcontentloaded" });
+        await page.locator("[data-voqalize=widget] .invite").waitFor();
+        return page;
+      },
+    });
+    await ctx.close();
+  },
+});
+
+const toHolder = (sw: Worker, msg: Record<string, unknown>) =>
+  sw.evaluate((m) => chrome.runtime.sendMessage({ to: "holder", op: "test", ...m }), msg);
+const status = (sw: Worker) => toHolder(sw, { what: "status" }) as Promise<Status>;
+const holderUp = (sw: Worker) =>
+  sw.evaluate(async () => (await chrome.runtime.getContexts({ contextTypes: [chrome.runtime.ContextType.OFFSCREEN_DOCUMENT] })).length > 0);
+
+/** Make the holder ahead of the press, as the worker would, so the test can
+ *  set its stubs first. */
+async function makeHolder(sw: Worker): Promise<void> {
+  await sw.evaluate(async () => {
+    const up = (await chrome.runtime.getContexts({ contextTypes: [chrome.runtime.ContextType.OFFSCREEN_DOCUMENT] })).length > 0;
+    if (!up) {
+      await chrome.offscreen.createDocument({
+        url: "call.html",
+        reasons: [chrome.offscreen.Reason.USER_MEDIA, chrome.offscreen.Reason.WEB_RTC],
+        justification: "test",
+      });
+    }
+  });
+  await expect.poll(async () => (await status(sw).catch(() => null))?.state?.status ?? null).toBe("idle");
+}
+
+const widget = (page: Page) => page.locator("[data-voqalize=widget] .root");
+
+async function callLive(ext: Ext, page: Page): Promise<void> {
+  await page.locator("[data-voqalize=widget] .invite").click();
+  await expect(widget(page)).toHaveAttribute("data-status", "live");
+  await expect.poll(async () => (await status(ext.sw)).state.ready).toBe(true);
+}
+
+test.describe("the holder and its pages", () => {
+  test("a page follows the call: the press, the state, the page's events up the port, mute and End", async ({ ext }) => {
+    const page = await ext.open("/");
+    await callLive(ext, page);
+
+    // The session was minted by the page, with the page's Origin, and handed over.
+    expect(ext.connects).toHaveLength(1);
+    expect(ext.connects[0].origin).toBe(ORIGIN);
+    expect((ext.connects[0].body as { init: { surface: string; path: string } }).init).toMatchObject({ surface: "explora-ext", path: "/", site_lang: "en" });
+    let s = await status(ext.sw);
+    expect(s.session?.session_id).toBe("s-test");
+    expect(s.tabs).toHaveLength(1);
+    expect(s.tabs[0]).toMatchObject({ url: `${ORIGIN}/`, ports: 1 });
+
+    // The brain hears where the visitor is, from the page, through the holder.
+    await expect.poll(async () => (await status(ext.sw)).sent.map((e) => e.event)).toContain("page_changed");
+    s = await status(ext.sw);
+    expect(s.sent.find((e) => e.event === "page_changed")!.payload).toMatchObject({ path: "/", site: "site", headings: expect.arrayContaining(["Our lodges"]) });
+    expect(s.sent.find((e) => e.event === "tabs_changed")!.payload).toMatchObject({ tabs: [{ url: `${ORIGIN}/` }] });
+
+    // What happens on the call reaches the widget and his face.
+    await toHolder(ext.sw, { what: "emit", name: "botStartedSpeaking" });
+    await expect(widget(page)).toHaveAttribute("data-activity", "speaking");
+    await expect(page.locator("[data-fake-avatar]")).toHaveAttribute("data-seen", /botStartedSpeaking/);
+
+    // Mute and End go back to the holder.
+    await page.locator("[data-voqalize=widget] .mute").click();
+    await expect.poll(async () => (await status(ext.sw)).micOn).toBe(false);
+    await expect(widget(page)).toHaveAttribute("data-muted", "");
+    await page.locator("[data-voqalize=widget] .hang").click();
+    await expect(widget(page)).toHaveAttribute("data-status", "idle");
+    s = await status(ext.sw);
+    expect(s.hungUp).toBe(true);
+    expect(s.state.status).toBe("idle");
+  });
+
+  test("a full page load leaves the call alone, and a move sent while the tab loads is made on its next page", async ({ ext }) => {
+    const page = await ext.open("/");
+    await callLive(ext, page);
+
+    // The visitor's tab starts loading the next page (held back 2.5 s): the
+    // page says it is leaving, and nothing more is sent to it.
+    void page.evaluate(() => {
+      location.href = "/atacama/";
+    });
+    await expect.poll(async () => (await status(ext.sw)).log.some((l) => l.includes("leaving"))).toBe(true);
+
+    // A cue for a heading on the next page arrives meanwhile: kept for the tab.
+    await toHolder(ext.sw, { what: "command", command: "cue", payload: { at: "", word: 0, heading: "Stargaze from the Observatory", text: null, faq: null } });
+    await toHolder(ext.sw, { what: "emit", name: "botStoppedSpeaking" });
+    await expect.poll(async () => (await status(ext.sw)).pending, { timeout: 5000 }).toBe(1);
+
+    // The next page says hello, gets it, and makes it.
+    await page.waitForURL(`${ORIGIN}/atacama/`);
+    await expect.poll(async () => (await status(ext.sw)).log.some((l) => l.includes("done show_section"))).toBe(true);
+    let s = await status(ext.sw);
+    expect(s.pending).toBe(0);
+    expect(s.log.filter((l) => l.includes("failed"))).toEqual([]);
+
+    // The same call all along: one connect, still live, and the new page follows it.
+    expect(s.log.filter((l) => l.includes("connected "))).toHaveLength(1);
+    expect(s.state.status).toBe("live");
+    await expect(widget(page)).toHaveAttribute("data-status", "live");
+    await expect.poll(async () => (await status(ext.sw)).sent.filter((e) => e.event === "page_changed").map((e) => e.payload.path)).toContain("/atacama/");
+
+    // A heading the page lacks fails, and the brain is told.
+    await toHolder(ext.sw, { what: "command", command: "cue", payload: { at: "", word: 0, heading: "No such heading", text: null, faq: null } });
+    await toHolder(ext.sw, { what: "emit", name: "botStoppedSpeaking" });
+    await expect.poll(async () => (await status(ext.sw)).log.some((l) => l.includes("failed show_section"))).toBe(true);
+    await expect.poll(async () => (await status(ext.sw)).sent.some((e) => e.event === "command_failed")).toBe(true);
+    s = await status(ext.sw);
+    expect(s.sent.find((e) => e.event === "command_failed")!.payload).toMatchObject({ command: "cue" });
+    expect(ext.connects).toHaveLength(1);
+  });
+
+  test("across hosts: a move sent while the tab loads the booking site is made on its hello, and the move it leaves for www.explora.com is made there", async ({ ext }) => {
+    const page = await ext.open("/");
+    await callLive(ext, page);
+
+    // The tab starts loading reservations.explora.com (held back 2.5 s).
+    void page.evaluate((url) => {
+      location.href = url;
+    }, `${BOOKING}/ibe/paso1?hotel_code=ATA&language=EN`);
+    await expect.poll(async () => (await status(ext.sw)).log.some((l) => l.includes("leaving"))).toBe(true);
+
+    // A `navigate` to a www.explora.com page arrives meanwhile: kept for the tab.
+    await toHolder(ext.sw, {
+      what: "command",
+      command: "navigate",
+      payload: { path: "/atacama/", after_words: 0, heading: "Stargaze from the Observatory", text: null, faq: null },
+    });
+    await expect.poll(async () => (await status(ext.sw)).pending, { timeout: 5000 }).toBe(1);
+    let s = await status(ext.sw);
+    expect(s.log.some((l) => l.includes("pending navigate"))).toBe(true);
+    expect(s.log.some((l) => l.includes("perform navigate"))).toBe(false);
+
+    // The booking site's page says hello on its own port and gets the move:
+    // `navigate` belongs on the other host, so it loads www.explora.com with
+    // the heading kept by the service worker for the page it lands on.
+    await page.waitForURL(`${BOOKING}/ibe/paso1?hotel_code=ATA&language=EN`);
+    await expect.poll(async () => (await status(ext.sw)).log.some((l) => l.includes("perform navigate"))).toBe(true);
+    await expect.poll(async () => (await status(ext.sw)).sent.filter((e) => e.event === "page_changed").map((e) => e.payload.site)).toContain("reservations");
+    await page.waitForURL(`${ORIGIN}/atacama/`, { timeout: 15_000 });
+
+    // Back on www.explora.com, once the call is up on the page, the heading is ringed.
+    await expect(page.locator("[data-voqalize=highlight]")).toHaveCount(1, { timeout: 10_000 });
+    await expect.poll(async () => (await status(ext.sw)).sent.filter((e) => e.event === "page_changed").map((e) => e.payload.path)).toContain("/atacama/");
+
+    // The same call all along, across both hosts, and nothing failed.
+    s = await status(ext.sw);
+    expect(s.pending).toBe(0);
+    expect(s.sent.filter((e) => e.event === "command_failed")).toEqual([]);
+    expect(s.log.filter((l) => l.includes("connected "))).toHaveLength(1);
+    expect(s.state.status).toBe("live");
+    await expect(widget(page)).toHaveAttribute("data-status", "live");
+    expect(ext.connects).toHaveLength(1);
+    expect(s.tabs).toHaveLength(1);
+  });
+
+  test("with no Explora page for 15 s the call ends and the holder closes", async ({ ext }) => {
+    test.setTimeout(60_000);
+    const page = await ext.open("/");
+    await callLive(ext, page);
+    await page.goto("about:blank");
+    await new Promise((r) => setTimeout(r, 9000));
+    expect(await holderUp(ext.sw)).toBe(true);
+    expect((await status(ext.sw)).state.status).toBe("live");
+    await expect.poll(() => holderUp(ext.sw), { timeout: 15_000 }).toBe(false);
+  });
+});
+
+test.describe("the extension's microphone", () => {
+  test("denied: the widget says how to allow it, and no session is minted", async ({ ext }) => {
+    const page = await ext.open("/");
+    await makeHolder(ext.sw);
+    await toHolder(ext.sw, { what: "mic", answers: ["denied"] });
+    await page.locator("[data-voqalize=widget] .invite").click();
+    await expect(widget(page)).toHaveAttribute("data-status", "error");
+    await expect(page.locator("[data-voqalize=widget] .error-text")).toContainText("blocks the microphone");
+    await expect(page.locator("[data-voqalize=widget] .settings")).toBeVisible();
+    expect(ext.connects).toHaveLength(0);
+    expect((await status(ext.sw)).session).toBeNull();
+  });
+
+  test("prompt, answered in the widget's frame: the call starts", async ({ ext }) => {
+    const page = await ext.open("/");
+    await makeHolder(ext.sw);
+    await toHolder(ext.sw, { what: "mic", answers: ["prompt", "granted"] });
+    const framed = page.waitForEvent("frameattached");
+    await callLive(ext, page);
+    expect((await framed).url()).toMatch(/^chrome-extension:\/\/[a-p]{32}\/grant\.html\?lang=en$/);
+    expect((await status(ext.sw)).micAsked).toEqual(["prompt", "granted"]);
+    // No tab was needed.
+    expect(ext.ctx.pages().filter((p) => p.url().includes("grant.html"))).toHaveLength(0);
+    await expect(page.locator("[data-voqalize=widget] .grant")).toBeHidden();
+  });
+
+
+  test("prompt that the frame's grant did not settle: the grant tab asks once, closes, and the call starts", async ({ ext }) => {
+    const page = await ext.open("/");
+    await makeHolder(ext.sw);
+    await toHolder(ext.sw, { what: "mic", answers: ["prompt", "prompt", "granted"] });
+    const tab = ext.ctx.waitForEvent("page", (p) => p.url().includes("grant.html"));
+    await page.locator("[data-voqalize=widget] .invite").click();
+    const grantTab = await tab;
+    expect(grantTab.url()).toMatch(/grant\.html\?tab=1&lang=en$/);
+    await grantTab.waitForEvent("close");
+    await expect(widget(page)).toHaveAttribute("data-status", "live");
+    expect((await status(ext.sw)).micAsked).toEqual(["prompt", "prompt", "granted"]);
+    expect(ext.connects).toHaveLength(1);
+  });
+});
+
+/** What a page saw of the widget from its very start (an init script, in
+ *  every document): when the host appeared and how it looked then, against
+ *  DOMContentLoaded, and the view transition that revealed the page. */
+interface Early {
+  host?: number;
+  dcl?: number;
+  first?: { status?: string; min: boolean; muted: boolean; poster: string; text: string; transitions: boolean };
+  vt?: boolean;
+  vtWidth?: number;
+}
+
+async function watchEarly(ctx: BrowserContext): Promise<void> {
+  await ctx.addInitScript(() => {
+    const t: Record<string, unknown> = {};
+    (window as unknown as { __early: unknown }).__early = t;
+    const look = () => {
+      const root = document.querySelector("[data-voqalize=widget]")?.shadowRoot?.querySelector<HTMLElement>(".root");
+      if (!root || t.host !== undefined) return;
+      t.host = performance.now();
+      const poster = root.querySelector<HTMLElement>(".poster")!;
+      t.first = {
+        status: root.dataset.status,
+        min: root.hasAttribute("data-min"),
+        muted: root.hasAttribute("data-muted"),
+        poster: poster.hidden ? "" : poster.style.backgroundImage,
+        text: root.querySelector(".status-text")?.textContent ?? "",
+        transitions: Boolean(document.getElementById("voqalize-transitions")),
+      };
+    };
+    new MutationObserver(look).observe(document.documentElement ?? document, { childList: true, subtree: true });
+    look();
+    document.addEventListener("DOMContentLoaded", () => {
+      look();
+      t.dcl = performance.now();
+    });
+    addEventListener("pagereveal", (e) => {
+      const vt = (e as Event & { viewTransition?: { ready: Promise<void> } | null }).viewTransition;
+      t.vt = Boolean(vt);
+      void vt?.ready.then(() => {
+        t.vtWidth = parseFloat(getComputedStyle(document.documentElement, "::view-transition-group(voqalize-javier)").width) || 0;
+      }).catch(() => {});
+    });
+  });
+}
+
+const early = (page: Page) => page.evaluate(() => (window as unknown as { __early: Early }).__early);
+const kept = (page: Page) => page.evaluate(() => sessionStorage.getItem("voqalize.explora.call"));
+
+test.describe("the widget across a page load", () => {
+  test("in a call, the next page has the widget before it has parsed, as the last page left it, and loads as a view transition", async ({ ext }) => {
+    await watchEarly(ext.ctx);
+    const page = await ext.open("/");
+    await callLive(ext, page);
+    expect(await page.evaluate(() => Boolean(document.getElementById("voqalize-transitions")))).toBe(true);
+    await toHolder(ext.sw, { what: "emit", name: "botStartedSpeaking" });
+    await page.locator("[data-voqalize=widget] .mute").click();
+    await expect(widget(page)).toHaveAttribute("data-muted", "");
+    await page.locator("[data-voqalize=widget] .minimise").click({ force: true });
+    await expect(widget(page)).toHaveAttribute("data-min", "");
+    // The last frame of his face is kept for the next page.
+    await expect.poll(() => page.evaluate(() => sessionStorage.getItem("voqalize.explora.face")?.slice(0, 15) ?? null), { timeout: 8000 }).toBe("data:image/webp");
+
+    await page.evaluate(() => {
+      location.href = "/lento/";
+    });
+    await page.waitForURL(`${ORIGIN}/lento/`, { waitUntil: "commit" });
+    await page.waitForFunction(() => (window as unknown as { __early?: { dcl?: number } }).__early?.dcl !== undefined, null, { timeout: 10_000 });
+    const e = await early(page);
+    // Up at document_start, two seconds ahead of the parse it used to wait for.
+    expect(e.host).toBeDefined();
+    expect(e.dcl! - e.host!).toBeGreaterThan(1500);
+    expect(e.first).toMatchObject({ status: "live", min: true, muted: true, text: "Speaking", transitions: true });
+    expect(e.first!.poster).toContain("data:image/webp");
+    // A cross-document view transition revealed it, with the widget as its own group.
+    expect(e.vt).toBe(true);
+    await expect.poll(async () => (await early(page)).vtWidth ?? 0).toBe(1280);
+
+    // The page adopts the widget (one of it), and his face takes over from the still.
+    await expect(page.locator("[data-voqalize=widget]")).toHaveCount(1);
+    await expect(page.locator("[data-fake-avatar]")).toHaveCount(1);
+    await expect.poll(() => page.evaluate(() =>
+      document.querySelector("[data-voqalize=widget]")!.shadowRoot!.querySelector(".poster")!.classList.contains("gone"),
+    )).toBe(true);
+    await expect(widget(page)).toHaveAttribute("data-status", "live");
+    await expect(widget(page)).toHaveAttribute("data-min", "");
+    await expect(widget(page)).toHaveAttribute("data-muted", "");
+    const s = await status(ext.sw);
+    expect(s.log.filter((l) => l.includes("connected "))).toHaveLength(1);
+    expect(ext.connects).toHaveLength(1);
+
+    // End: nothing is kept, and the next page loads as it always has.
+    await page.locator("[data-voqalize=widget] .card").click();
+    await page.locator("[data-voqalize=widget] .hang").click();
+    await expect(widget(page)).toHaveAttribute("data-status", "idle");
+    expect(await kept(page)).toBeNull();
+    expect(await page.evaluate(() => Boolean(document.getElementById("voqalize-transitions")))).toBe(false);
+    await page.goto(`${ORIGIN}/lento/`, { waitUntil: "domcontentloaded" });
+    const after = await early(page);
+    expect(after.host === undefined || after.host >= after.dcl!).toBe(true);
+    expect(after.vt).toBe(false);
+  });
+
+  test("off a call, nothing mounts early and no transition is asked for", async ({ ext }) => {
+    await watchEarly(ext.ctx);
+    const page = await ext.open("/");
+    expect(await kept(page)).toBeNull();
+    await page.evaluate(() => {
+      location.href = "/lento/";
+    });
+    await page.waitForURL(`${ORIGIN}/lento/`, { waitUntil: "commit" });
+    await page.waitForFunction(() => (window as unknown as { __early?: { dcl?: number } }).__early?.dcl !== undefined, null, { timeout: 10_000 });
+    await page.locator("[data-voqalize=widget] .invite").waitFor();
+    const e = await early(page);
+    expect(e.host! >= e.dcl!).toBe(true);
+    expect(e.first?.transitions).toBe(false);
+    expect(e.vt).toBe(false);
+    expect(await page.evaluate(() => Boolean(document.getElementById("voqalize-transitions")))).toBe(false);
+  });
+
+  test("a call kept from the last page that the holder no longer has: the carried widget goes back to the invite", async ({ ext }) => {
+    const page = await ext.open("/");
+    await page.evaluate(() =>
+      sessionStorage.setItem("voqalize.explora.call", JSON.stringify({
+        at: Date.now(), status: "live", muted: false, activity: "listening", language: "en", still: null,
+        home: { right: 24, bottom: 24 }, minimised: false,
+      })),
+    );
+    await page.goto(`${ORIGIN}/lento/`, { waitUntil: "commit" });
+    await expect(widget(page)).toHaveAttribute("data-status", "live");
+    await expect(widget(page)).toHaveAttribute("data-status", "idle", { timeout: 10_000 });
+    await expect(page.locator("[data-voqalize=widget] .invite")).toBeVisible();
+    expect(await kept(page)).toBeNull();
+    expect(await page.evaluate(() => Boolean(document.getElementById("voqalize-transitions")))).toBe(false);
+    expect(await holderUp(ext.sw)).toBe(false);
+  });
+});
