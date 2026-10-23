@@ -87,6 +87,8 @@ export interface ChooseRoom {
   travellers: number | null;
 
   bed: string | null;
+
+  count: number;
 }
 
 /**
@@ -124,10 +126,13 @@ export interface FocusTab {
 
 /**
  * The call's language moved, by the toggle, by voice or by
- * `set_language`: the widget's toggle follows at once.
+ * `set_language`: the widget's toggle follows at once, and the tab keeps
+ * it for the rest of the call, on every page and both hosts.
  */
 export interface LanguageChanged {
   language: 'en' | 'es';
+
+  site: 'follow' | 'twin' | 'stay';
 }
 
 /** A move Javier sent could not be carried out on the page. */
@@ -220,6 +225,26 @@ export interface TabsChanged {
   tabs?: TabInfo[];
 
   active?: string;
+}
+
+/**
+ * How the tab found the page a `navigate` named in the call's language,
+ * just before it loaded it: the brain names English paths, and a Spanish
+ * call loads each page's Spanish twin. Sent so a page that came up in the
+ * wrong language can be traced to why.
+ */
+export interface TwinLookup {
+  path: string;
+
+  language: 'en' | 'es';
+
+  url?: string;
+
+  source?: 'as-is' | 'here' | 'cache' | 'fetch' | 'hub' | 'fallback' | 'timeout';
+
+  ms?: number;
+
+  error?: string;
 }
 
 // ── Shapes used by the messages above ──────────────────────────────
@@ -316,7 +341,8 @@ export type AppEvent =
   | { event: 'language_requested'; payload: LanguageRequested }
   | { event: 'page_changed'; payload: PageChanged }
   | { event: 'stay_state'; payload: StayState }
-  | { event: 'tabs_changed'; payload: TabsChanged };
+  | { event: 'tabs_changed'; payload: TabsChanged }
+  | { event: 'twin_lookup'; payload: TwinLookup };
 
 export type AppEventName = AppEvent['event'];
 
@@ -328,6 +354,7 @@ export const APP_EVENT_NAMES: readonly AppEventName[] = [
   'page_changed',
   'stay_state',
   'tabs_changed',
+  'twin_lookup',
 ];
 
 /**

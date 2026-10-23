@@ -211,8 +211,10 @@ def _llm() -> ScriptedGemini:
             "¿Me muestras la resonancia?": reply(
                 "{page: /imagenes/resonancias-fonasa-1}{show: examenes de resonancia} "
                 "Aquí están las resonancias. {show: el botón rosado} Se agenda en línea. "
+                "{show: Rodilla, columna} Rodilla y columna. "
                 "{page: /no-existe} {faq: necesito orden medica} Sí, con orden médica."
             ),
+            "Quiero agendar una resonancia.": reply("Claro, te cuento cómo se agenda."),
             "¿Cuánto cuesta una resonancia de rodilla?": [
                 call("quote_price", request={"query": "resonancia rodilla"}),
                 reply("Con Fonasa sale ochenta mil pesos."),
@@ -492,7 +494,7 @@ async def test_the_site_name_in_capitals_is_handed_to_the_voice_as_a_word() -> N
 
 # ─── Cues ──────────────────────────────────────────────────────────────────────
 
-NONE = {"path": None, "heading": None, "text": None, "faq": None}
+NONE = {"path": None, "heading": None, "text": None, "faq": None, "lead": None}
 
 
 async def test_cues_leave_the_speech_and_are_checked_against_the_site() -> None:
@@ -501,12 +503,14 @@ async def test_cues_leave_the_speech_and_are_checked_against_the_site() -> None:
         turn = await rig.driver.user_says("¿Me muestras la resonancia?")
         check_turn(rig, turn)
         assert "{" not in turn.text and "}" not in turn.text
-        # The page with its trailing slash; the heading in the site's spelling,
-        # accents and case folded; words that are no heading rung as words; the
+        # The page they asked for, opened ahead of the answer and not again
+        # for his own cue; with its trailing slash; the heading in the site's
+        # spelling, accents and case folded; words that are no heading rung as
+        # words when the page has them, and dropped when it does not; the
         # invented page dropped; and the FAQ on the page the reply is on.
         path = RM + "/"
         assert _commands(rig, "cue") == [
-            {**NONE, "at": "aqui estan las", "word": 0, "path": path},
+            {**NONE, "at": "", "word": 0, "path": path, "lead": "now"},
             {
                 **NONE,
                 "at": "aqui estan las",
@@ -514,11 +518,17 @@ async def test_cues_leave_the_speech_and_are_checked_against_the_site() -> None:
                 "path": path,
                 "heading": "Exámenes de Resonancia Magnética",
             },
-            {**NONE, "at": "se agenda en", "word": 4, "path": path, "text": "el botón rosado"},
+            {
+                **NONE,
+                "at": "rodilla y columna",
+                "word": 8,
+                "path": path,
+                "text": "Rodilla, columna",
+            },
             {
                 **NONE,
                 "at": "si con orden",
-                "word": 8,
+                "word": 11,
                 "path": path,
                 "faq": "¿Necesito orden médica?",
             },
@@ -529,12 +539,38 @@ async def test_what_they_asked_about_is_shown_when_his_reply_forgets_to() -> Non
     async with demo("clini", _llm()) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/"})
         await rig.driver.user_says("¿Cuánto cuesta una resonancia de rodilla?")
-        assert _commands(rig, "cue")[0] == {
-            **NONE,
-            "at": "con fonasa sale",
-            "word": 0,
-            "path": RM + "/",
-        }
+        # Opened ahead of the answer (no nod: at once), and his reply, which
+        # brings no cue of its own, does not open it a second time.
+        assert _commands(rig, "cue") == [
+            {**NONE, "at": "", "word": 0, "path": RM + "/", "lead": "now"}
+        ]
+
+
+async def test_the_page_a_reply_opens_first_is_opened_before_its_words() -> None:
+    """Prod, 2026-10-22: every page load drops the call for 3 to 6 s while it
+    rejoins. Opened at the answer's first word, that silence was the answer's."""
+    async with demo("clini", _llm()) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/"})
+        # A booking ask is not led: its reply opens the booking's own tab. The
+        # page his reply opens first still goes before its words.
+        await rig.driver.user_says("Quiero agendar una resonancia.")
+        assert _commands(rig, "cue") == [
+            {**NONE, "at": "claro te cuento", "word": 0, "path": RM + "/", "lead": "now"}
+        ]
+
+
+async def test_a_page_asked_for_is_opened_while_his_nod_plays(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(clini, "ACK_RATE", 1.0)
+    async with demo("clini", _llm()) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/"})
+        turn = await rig.driver.user_says("¿Cuánto cuesta una resonancia de rodilla?")
+        nods = [n for lines in clini._ACK_LINES["es"].values() for n in lines]
+        assert any(turn.text.startswith(n) for n in nods), turn.text
+        assert _commands(rig, "cue") == [
+            {**NONE, "at": "", "word": 0, "path": RM + "/", "lead": "nod"}
+        ]
 
 
 def test_the_page_for_what_they_asked_about() -> None:
@@ -796,22 +832,30 @@ async def test_the_booking_opens_steps_through_and_is_talked_through() -> None:
             "centre": "CENTRO DE SALUD | METRO TOBALABA",
             "time": "07:40",
         }
-        # The booking reports its open days: he talks them through in the short
-        # quiet spell, and the note says the days as a Chilean says them.
+        # The booking reports its open days on its way to the Monday they
+        # chose: noted, and not asked about again (prod, 2026-10-22, "¿Qué día
+        # te acomoda?" with the day already given). Nor is the quiet nudged.
         await _page(rig, "agenda_state", _agenda_state())
+        assert _idle_windows(rig)[-1] == _IDLE_MS
+        before = len(llm.calls)
+        turn = await rig.driver.user_idle(level=1, idle_ms=_IDLE_MS)
+        assert turn.text == "" and len(llm.calls) == before
+        # Its answer is talked through, in the short quiet spell, with the
+        # note saying the days as a Chilean says them.
+        await _page(rig, "command_done", {"command": "open_agenda", "detail": "results shown"})
         assert _idle_windows(rig)[-1] == _TALK_THROUGH_MS
         turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
         check_turn(rig, turn)
-        assert "¿Cuál prefieres?" in turn.text
         seen = _texts(llm.captured_contents[-1])
         assert (
             "[The booking shows its calendar and hours, for Resonancia — RM Rodilla, region 13. "
             "Open days: 2030-03-04 (lunes 4 de marzo); 2030-03-05 (martes 5 de marzo)."
         ) in seen
+        assert "The page answered what you sent it: open_agenda done: results shown" in seen
+        assert "shows its open days and they have not spoken" not in seen
         assert _idle_windows(rig)[-1] == _IDLE_MS
 
         # A later pick on the tab already open, once the open has answered.
-        await _page(rig, "command_done", {"command": "open_agenda", "detail": "results shown"})
         await rig.driver.user_says("Mejor el martes.")
         assert _commands(rig, "agenda_pick")[-1] == {
             "day": TUE,
@@ -1620,3 +1664,251 @@ async def test_a_celular_is_filled_the_moment_it_is_said_then_read_back() -> Non
         await _page(rig, "agenda_state", _agenda_state(step="booking", invalid=["phone"]))
         await rig.driver.user_says("mi celular es nueve uno dos tres cuatro cinco seis siete ocho")
         assert rig.command("fill_agenda_patient")["phone"] == "912345678"
+
+
+# ─── The prod calls of 2026-10-22 ──────────────────────────────────────────────
+
+
+def _retro_llm() -> ScriptedGemini:
+    return ScriptedGemini(
+        {
+            "¿Hay hora para resonancia de rodilla?": [
+                call("check_availability", request={"servicio": 64, "prestacion": 804}),
+                reply("Hay hora el lunes en Tobalaba. ¿Te sirve?"),
+            ],
+            # A sede find_branch knows and the booking does not list for it.
+            "Sí, en la Sede Inventada Plaza Norte.": reply_and_call(
+                "Te abro la agenda.",
+                "open_agenda",
+                request={"servicio": 64, "prestacion": 804, "day": MON},
+            ),
+            # The sede they chose, dropped from the call (prod: "centre": null).
+            "Sí, en Tobalaba.": reply_and_call(
+                "Te abro la agenda.",
+                "open_agenda",
+                request={"servicio": 64, "prestacion": 804, "day": MON, "time": "07:40"},
+            ),
+            "Agenda la rodilla el lunes a las siete y cuarenta en Tobalaba.": reply_and_call(
+                "Te abro la agenda.",
+                "open_agenda",
+                request={
+                    "servicio": 64,
+                    "prestacion": 804,
+                    "day": MON,
+                    "centre": "CENTRO DE SALUD | METRO TOBALABA",
+                    "time": "7:40",
+                },
+            ),
+            "Las siete y cuarenta en Tobalaba.": reply_and_call(
+                "Te selecciono las siete y cuarenta.",
+                "agenda_pick",
+                request={"day": MON, "time": "07:40", "centre": "TOBALABA"},
+            ),
+            "Las diez en Quinta Vergara.": reply_and_call(
+                "Te selecciono las diez.",
+                "agenda_pick",
+                request={"day": MON, "time": "10:00", "centre": "CENTRO DE SALUD | QUINTA"},
+            ),
+            # The model's usual fill: the call alone, no words.
+            "Me llamo Ana, soy mujer, mi celular es nueve nueve nueve dos dos dos ocho cinco "
+            "cero cuatro.": call(
+                "fill_agenda_patient",
+                request={"name": "Ana", "sex": "F", "phone": "9992228504"},
+            ),
+            "Me llamo Pedro Rojas.": call(
+                "fill_agenda_patient", request={"name": "Pedro", "last_name": "Rojas", "sex": "M"}
+            ),
+            "Mi teléfono es el nueve nueve nueve.": call("fill_agenda_patient", request={}),
+            "¿Me ayudas con el examen?": reply(
+                "{faq: necesito orden medica} ¿Qué examen necesitas hacerte hoy? Te ayudo con eso."
+            ),
+            "Perfecto, muchas gracias por tu ayuda.": reply(
+                chunks=["Un placer ", "ayudarte."], chunk_delay=0.3
+            ),
+            "¿Cuánto cuesta el hemograma?": [
+                call("quote_price", request={"query": "hemograma"}),
+                reply("Con Fonasa sale mil pesos."),
+            ],
+            "Sigamos.": reply("Claro, sigamos."),
+        }
+    )
+
+
+async def test_an_hour_is_offered_and_booked_only_at_a_centre_the_booking_lists(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Prod: Tobalaba offered for a lab booking agenda-web does not take there,
+    accepted, and sent as ``centre: null``; the visitor gave up."""
+    prompt = clini._prompt(SITE, clini_api.date(2030, 3, 4))
+    assert "OFFER AN ONLINE HOUR ONLY AT A CENTRE check_availability OR THE BOOKING" in prompt
+    assert "walk-ins by order of arrival" in prompt
+    monkeypatch.setattr(clini_api, "_get_json", _booking([]))
+    llm = _retro_llm()
+    async with demo("clini", llm) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/"})
+        await rig.driver.user_says("¿Hay hora para resonancia de rodilla?")
+        found = _results(llm.captured_contents[-1])["check_availability"]
+        assert (
+            "Centres bookable online for this exam: CENTRO DE SALUD | METRO TOBALABA. Offer an "
+            "hour only at one of these"
+        ) in found
+        # A sede the booking does not list: not opened, and said so.
+        await rig.driver.user_says("Sí, en la Sede Inventada Plaza Norte.")
+        assert "open_agenda" not in rig.actions()
+        await rig.driver.user_says("Sigamos.")
+        (refused,) = _every(llm.captured_contents[-1], "open_agenda")
+        assert refused.startswith("Not opened: the sede they chose (inventada, norte)")
+        assert "it lists only CENTRO DE SALUD | METRO TOBALABA" in refused
+        # The listed sede they named, left out of the call: put back in.
+        await rig.driver.user_says("Sí, en Tobalaba.")
+        assert rig.command("open_agenda")["centre"] == "CENTRO DE SALUD | METRO TOBALABA"
+
+
+async def test_a_pick_already_on_its_way_or_on_screen_is_not_sent_again() -> None:
+    """Prod: a pick of the hour the open had chosen took the patient form down
+    and put it back, twice."""
+    llm = _retro_llm()
+    async with demo("clini", llm) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/"})
+        await rig.driver.user_says("Agenda la rodilla el lunes a las siete y cuarenta en Tobalaba.")
+        await rig.driver.user_says("Las siete y cuarenta en Tobalaba.")
+        await rig.driver.user_says("Sigamos.")
+        (pending,) = _every(llm.captured_contents[-1], "agenda_pick")
+        assert pending.startswith("Not sent: the booking is already on its way to exactly that")
+        await _page(rig, "command_done", {"command": "open_agenda", "detail": "form open"})
+        assert _commands(rig, "agenda_pick") == []
+
+    llm = _retro_llm()
+    async with demo("clini", llm) as rig:
+        await rig.driver.start_session(init={"site": "agenda", "path": "/"})
+        selected = "LUNES, 4 DE MARZO DE 2030 A LAS 10:00 (AM) · CENTRO DE SALUD | QUINTA"
+        form = _agenda_state(
+            step="booking", day=MON, centre="CENTRO DE SALUD | QUINTA", selected=selected
+        )
+        await _page(rig, "agenda_state", form)
+        await rig.driver.user_says("Las diez en Quinta Vergara.")
+        await rig.driver.user_says("Sigamos.")
+        (shown,) = _every(llm.captured_contents[-1], "agenda_pick")
+        assert shown.startswith(f"Not sent: that is already selected on their screen ({selected})")
+        assert _commands(rig, "agenda_pick") == []
+
+
+async def test_a_call_the_model_makes_with_tools_off_is_not_run() -> None:
+    """Prod: an idle turn with tools off ran an ``agenda_pick``. Gemini does not
+    always honour the mode; the scripted model is made not to, here."""
+    llm = _quick_llm()
+    answer = llm.answer
+
+    def ignoring(*, model: str, contents: object, config: types.GenerateContentConfig) -> object:
+        return answer(
+            model=model, contents=contents, config=config.model_copy(update={"tool_config": None})
+        )
+
+    llm.answer = ignoring
+    async with demo("clini", llm) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/"})
+        await rig.driver.user_says("Ábreme la agenda de la rodilla.")
+        await _page(rig, "command_done", {"command": "open_agenda", "detail": "results shown"})
+        turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
+        assert "Listo, ya está abierta la agenda." in turn.text
+        assert "fill_agenda_patient" not in rig.actions()
+        await rig.driver.user_says("Sigamos.")
+        (result,) = _every(llm.captured_contents[-1], "fill_agenda_patient")
+        assert result.startswith("Not run: this turn could only speak")
+
+
+async def test_his_line_on_a_fill_says_what_the_fill_did() -> None:
+    """Prod: "Te lo completo en el formulario de la agenda." after a fill that
+    took nothing; a celular counted wrong by the model; sex filled from a name."""
+    prompt = clini._prompt(SITE, clini_api.date(2030, 3, 4))
+    assert "NEVER COUNT OR JUDGE THE DIGITS YOURSELF" in prompt
+    assert "Never guess it from a name or a voice" in prompt
+    assert "quedó lista tu hora" in prompt
+    llm = _retro_llm()
+    async with demo("clini", llm) as rig:
+        await rig.driver.start_session(init={"site": "agenda", "path": "/"})
+        await _page(rig, "agenda_state", _agenda_state(step="booking", invalid=["name"]))
+        turn = await rig.driver.user_says(
+            "Me llamo Ana, soy mujer, mi celular es nueve nueve nueve dos dos dos ocho cinco "
+            "cero cuatro."
+        )
+        assert turn.text == (
+            "Te anoto tu nombre y tu sexo en el formulario. " + clini._ASK_AGAIN["phone"]["es"]
+        )
+        assert rig.command("fill_agenda_patient")["sex"] == "F"
+        await _page(rig, "command_done", {"command": "fill_agenda_patient", "detail": "filled"})
+        # Sex the visitor never said is not filled, and asked for.
+        turn = await rig.driver.user_says("Me llamo Pedro Rojas.")
+        assert turn.text == (
+            "Te anoto tu nombre y tu apellido paterno en el formulario. "
+            + clini._ASK_AGAIN["sex"]["es"]
+        )
+        await _page(rig, "command_done", {"command": "fill_agenda_patient", "detail": "filled"})
+        # A fill that took nothing says so, and asks again.
+        turn = await rig.driver.user_says("Mi teléfono es el nueve nueve nueve.")
+        assert turn.text == clini._ASK_AGAIN[""]["es"]
+        await rig.driver.user_says("Sigamos.")
+        results = _every(llm.captured_contents[-1], "fill_agenda_patient")
+        assert "(10 digits given)" in results[0]
+        assert "sex: they did not say it" in results[1]
+        # Ana's sex stays as she said it; Pedro's guess never reached the page.
+        assert [c["sex"] for c in _commands(rig, "fill_agenda_patient")] == ["F", "F", "F"]
+
+
+async def test_patience_is_raised_while_the_patient_form_is_dictated() -> None:
+    """Prod: at the call's patience a dictated name or celular came in pieces,
+    each a turn that cancelled the last."""
+    async with demo("clini", _retro_llm()) as rig:
+        await rig.driver.start_session(init={"site": "agenda", "path": "/"})
+
+        def patience() -> list[int | None]:
+            return [c.stt.patience for c in _configs(rig) if c.stt is not None]
+
+        assert patience() == [clini.CLINI_PATIENCE]
+        await _page(rig, "agenda_state", _agenda_state(step="booking", invalid=["rut"]))
+        assert patience()[-1] == clini.FORM_PATIENCE
+        await _page(rig, "agenda_state", _agenda_state(step="booking", invalid=[], ready=True))
+        assert patience()[-1] == clini.CLINI_PATIENCE
+        assert all(c.stt.language is None for c in _configs(rig)[1:] if c.stt is not None)
+
+
+def test_nods_fit_what_was_said() -> None:
+    """Prod: "Entendido, gracias por avisarme." for "Me gustaría cotizar mi
+    examen."; "Dame un momento mientras lo busco." for a thank-you."""
+    assert clini.nod_kind("Me gustaría cotizar mi examen.") == "request"
+    assert clini.nod_kind("No, yo Javier, yo quiero agendar una resonancia.") == "request"
+    assert all("avisarme" not in n for n in clini._ACK_LINES["es"]["statement"])
+    assert clini.is_closing("Voy a completar el resto. Muchas gracias.")
+    assert not clini.is_closing("Gracias, ¿y cuánto cuesta?")
+    assert clini.HOLD_WITHOUT_NOD_S >= 3.0
+
+
+async def test_a_thank_you_gets_no_hold_line(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(clini, "HOLD_WITHOUT_NOD_S", 0.1)
+    async with demo("clini", _retro_llm()) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/"})
+        turn = await rig.driver.user_says("Perfecto, muchas gracias por tu ayuda.", quiet_for=1.0)
+        assert turn.text == "Un placer ayudarte."
+
+
+async def test_an_faq_rung_on_a_sentence_it_is_not_about_is_dropped() -> None:
+    """Prod: "¿Qué examen necesitas hacerte?" rang "¿Qué es mejor estar en
+    fonasa o isapre?"."""
+    async with demo("clini", _retro_llm()) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": RM})
+        await rig.driver.user_says("¿Me ayudas con el examen?")
+        assert not [c for c in _commands(rig, "cue") if c["faq"]], _commands(rig, "cue")
+
+
+async def test_a_lab_price_looks_up_the_labs_hours_before_they_are_asked(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Prod: the lab search took its whole 6 s deadline when asked."""
+    started: list[tuple[int, int, int | None]] = []
+    monkeypatch.setattr(clini_api, "prefetch", lambda s, p, r: started.append((s, p, r)))
+    llm = _retro_llm()
+    async with demo("clini", llm) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/"})
+        await rig.driver.user_says("¿Cuánto cuesta el hemograma?")
+        assert "Hemograma Inventado" in _results(llm.captured_contents[-1])["quote_price"]
+        assert (62, 30, 13) in started

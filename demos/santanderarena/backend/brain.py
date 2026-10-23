@@ -46,12 +46,15 @@ is written in. The voice is one man, recorded in each.
 
 from __future__ import annotations
 
+import asyncio
 import inspect
 import math
 import re
 import time
-from collections.abc import AsyncGenerator
-from datetime import date, datetime
+import unicodedata
+from collections.abc import AsyncGenerator, AsyncIterator
+from dataclasses import dataclass
+from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING, Any, Literal
 from zoneinfo import ZoneInfo
 
@@ -82,7 +85,7 @@ from voqalize.sdk import (
     UserIdle,
     UserMessage,
 )
-from voqalize.sdk.voice import ToolChoice
+from voqalize.sdk.voice import ModelChunk, ModelPart, ToolChoice
 from voqalize.sdk.wire import Config, IdleConfig, SttConfig, TtsConfig, Voice
 
 from . import knowledge as kb
@@ -217,6 +220,11 @@ _VIDEO_ES = re.compile(r"\b([Vv])ídeo(s?)\b")
 def latin_american(text: str) -> str:
     """``text`` as Latin America spells what the voice reads."""
     return _VIDEO_ES.sub(r"\1ideo\2", text)
+
+
+def _calm(text: str) -> str:
+    """``text`` without exclamation marks: "¡Que disfrutes!" → "Que disfrutes."."""
+    return text.replace("¡", "").replace("!", ".")
 
 
 #: A reply that only promises more ("One moment.", "Déjame ver.") says nothing.
@@ -390,12 +398,106 @@ def _site_map(k: Knowledge) -> str:
     return "\n".join(lines) or "(The site map is not loaded: find pages with search_site.)"
 
 
-def _events_list(k: Knowledge, today: date) -> str:
-    """The shows coming up, soonest first: the billboard as the crawl saw it."""
+_EVENTS_IN_PROMPT = 40
+_WEEKDAYS_ES = ("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo")
+# Word lists read as words, so they stay split strings.
+_MONTHS_ES = """enero febrero marzo abril mayo junio julio agosto septiembre octubre noviembre
+    diciembre""".split()  # noqa: SIM905
+_MONTHS_EN = """January February March April May June July August September October November
+    December""".split()  # noqa: SIM905
+_DAYS_EN = """first second third fourth fifth sixth seventh eighth ninth tenth eleventh
+    twelfth thirteenth fourteenth fifteenth sixteenth seventeenth eighteenth nineteenth
+    twentieth twenty-first twenty-second twenty-third twenty-fourth twenty-fifth twenty-sixth
+    twenty-seventh twenty-eighth twenty-ninth thirtieth thirty-first""".split()  # noqa: SIM905
+#: Spoken as "el uno" or "el primero"; Chile says "el primero".
+_DAYS_ES = """primero dos tres cuatro cinco seis siete ocho nueve diez once doce trece catorce
+    quince dieciséis diecisiete dieciocho diecinueve veinte veintiuno veintidós veintitrés
+    veinticuatro veinticinco veintiséis veintisiete veintiocho veintinueve treinta
+    treinta_y_uno""".split()  # noqa: SIM905
+
+
+def _day(e: Event) -> date | None:
+    try:
+        return date.fromisoformat(e.date) if e.date else None
+    except ValueError:
+        return None
+
+
+def _dated(e: Event) -> str:
+    """An event's date as the model can count with it: ISO, the weekday, and
+    the site's own words — "2026-11-01 domingo — 1 de Noviembre / 20:00 hrs".
+    On prod he left Sunday's show out of "next week", with only the site's
+    words to go on."""
+    d = _day(e)
+    if d is None:
+        return e.when or "date not given"
+    iso = f"{d.isoformat()} {_WEEKDAYS_ES[d.weekday()]}"
+    return f"{iso} — {e.when}" if e.when else iso
+
+
+def _said_date(d: date, lang: Lang) -> str:
+    """A date as he says it: "the fifth of November", "el cinco de noviembre"."""
+    if lang == "en":
+        return f"the {_DAYS_EN[d.day - 1]} of {_MONTHS_EN[d.month - 1]}"
+    return f"el {_DAYS_ES[d.day - 1].replace('_', ' ')} de {_MONTHS_ES[d.month - 1]}"
+
+
+def _coming(k: Knowledge, today: date) -> list[Event]:
+    """The shows from today on, soonest first."""
     coming = [e for e in k.events.values() if not e.date or e.date >= today.isoformat()]
-    coming.sort(key=lambda e: e.date or "9999")
-    lines = [f"- {e.name} — {e.when or 'date not given'} — {e.path}" for e in coming[:40]]
+    return sorted(coming, key=lambda e: e.date or "9999")
+
+
+def _events_list(k: Knowledge, today: date) -> str:
+    """The shows coming up, soonest first: the lineup as the crawl saw it."""
+    coming = _coming(k, today)
+    lines = [f"- {e.name} — {_dated(e)} — {e.path}" for e in coming[:_EVENTS_IN_PROMPT]]
+    if len(coming) > _EVENTS_IN_PROMPT:
+        lines.append(f"- and {len(coming) - _EVENTS_IN_PROMPT} more after these: use find_events")
     return "\n".join(lines) or "(No events loaded: use find_events.)"
+
+
+@dataclass(frozen=True)
+class _Example:
+    """A show for the prompt's examples. On prod "what's coming up?" was
+    answered with the two shows the examples named, a week and a month out,
+    and the five sooner ones were skipped; so the examples name the soonest
+    two on the lineup, and a placeholder no visitor could take for a show when
+    there are not two."""
+
+    cue: str
+    name: str
+    path: str
+    es: str
+    en: str
+
+
+def _examples(k: Knowledge, today: date) -> tuple[_Example, _Example]:
+    shows: list[_Example] = []
+    for e in _coming(k, today):
+        d = _day(e)
+        if d is None or any(s.cue == e.name for s in shows):
+            continue
+        shows.append(
+            _Example(e.name, _spoken_name(e.name), e.path, _said_date(d, "es"), _said_date(d, "en"))
+        )
+        if len(shows) == 2:
+            return shows[0], shows[1]
+    first = _Example(
+        "ARTISTA UNO",
+        "Artista Uno",
+        "/cartelera",
+        "el día que dice su página",
+        "the date on its page",
+    )
+    second = _Example(
+        "ARTISTA DOS",
+        "Artista Dos",
+        "/cartelera",
+        "el día que dice su página",
+        "the date on its page",
+    )
+    return (shows[0] if shows else first), second
 
 
 def _topics(k: Knowledge) -> str:
@@ -404,6 +506,7 @@ def _topics(k: Knowledge) -> str:
 
 def _prompt(k: Knowledge, today: date | None = None) -> str:
     today = today or datetime.now(TIMEZONE).date()
+    a, b = _examples(k, today)
     return f"""You are {AGENT_NAME}, the guide on Santander Arena's website, santanderarena.cl. Santander Arena is a concert and events arena in Santiago, Chile. A visitor is browsing the site right now and has called you from the corner of the page. You can see and move their screen: you open pages, scroll to the exact section or card that answers them and ring it, bring cards out of the carousels, open FAQs, and open the ticket, parking and VIP links on Puntoticket in a new tab. You are warm, upbeat and helpful — the friend who knows the arena inside out and helps the visitor plan a great night: which show, how to get there, where to park, where to eat and drink, and how to make it special. Planning a night at the arena should feel easy and exciting after talking to you.
 
 # You narrate, and the screen follows your words
@@ -419,7 +522,7 @@ You are giving a guided walkthrough, like a host sitting beside the visitor with
 - A page cue opens a page at its top. So after a page cue, every sentence about a part of the page brings its own show cue: each experience, each bar, each show, each step.
 - EVERY ANSWER ABOUT THE ARENA STARTS WITH A CUE. Whatever you talk about — a show, an experience, parking, food, how to get there, an FAQ — is on a page in the site pages list or the events list, so open that page and show the section as you begin. When the visitor names a show, open that show's own page. A reply without a cue leaves their screen where it was while you describe something else: the visitor notices, and has to ask you to show it.
 - Cues are the only way you move the page. There is no tool for it, and nothing waits on a cue.
-- Example, for "what's coming up?": "{{page: /cartelera}} There's a lot coming up. {{show: CAMILO}} Camilo plays on the fifth of November. {{show: NICKY JAM}} And Nicky Jam closes the year on the fourth of December. Want me to open one of them?"
+- Example, for "what's coming up?": "{{page: /cartelera}} There's a lot coming up. {{show: {a.cue}}} {a.name} is first, on {a.en}. {{show: {b.cue}}} Then {b.name}, on {b.en}. Want me to open one of them?"
 
 # A good turn helps plan the night
 1. Answer what they asked, first, in plain words, and show it as you say it.
@@ -451,6 +554,7 @@ You speak Spanish as a native of Latin America, and English. The call starts in 
   - For something just done, use the simple past: "Abrí la página", "Ya te la mostré", not "He abierto".
 - In Spanish too, write dates, times and prices as spoken words. Names stay as the site writes them: Santander Arena, Experiencias VIP, Santander Suites, Puntoticket.
 - In English, say the site's Spanish names as they are written ("the Cúpula Santander Arena", "Experiencias VIP"), and explain them in a few words when they are not obvious.
+- In English, the Cartelera is "the lineup" or "what's on", never "the billboard".
 
 # Every response starts with words
 Write your answer, with its cues, first; any tool call comes at the end of the same response. What a page call returns reaches you only on your next turn.
@@ -459,17 +563,19 @@ Write your answer, with its cues, first; any tool call comes at the end of the s
 
 # What that sounds like
 Visitor: "¿Qué conciertos hay?"
-You: "{{page: /cartelera}} Hay muchos shows en camino. {{show: CAMILO}} Camilo llega el cinco de noviembre. {{show: NICKY JAM}} Y Nicky Jam cierra el año el cuatro de diciembre. ¿Te abro alguno de los dos?"
-Visitor: "Camilo."
-You: "{{page: /nuestra-cartelera/conciertos/camilo}} Gran elección. Camilo toca el cinco de noviembre a las nueve de la noche. Es parte de su gira mundial. ¿Te abro los tickets en Puntoticket?"
+You: "{{page: /cartelera}} Hay muchos shows en camino. {{show: {a.cue}}} {a.name} es el primero, {a.es}. {{show: {b.cue}}} Después viene {b.name}, {b.es}. ¿Te abro alguno de los dos?"
+Visitor: "{a.name}."
+You: "{{page: {a.path}}} Buena elección. {a.name} toca {a.es}. ¿Te abro los tickets en Puntoticket?"
 Visitor: "Yes please, and can I park there?"
-You: "Sure. I've opened the tickets in a new tab. {{show: Comprar estacionamiento}} Parking is sold for each show, right here. Want me to open the parking too?" then open_tickets for Camilo's tickets.
+You: "Sure. I've opened the tickets in a new tab. {{show: Comprar estacionamiento}} Parking is sold for each show, right here. Want me to open the parking too?" then open_tickets for {a.name}'s tickets.
 Visitor: "What can we do before the show?"
 You: "{{page: /}}{{show: Espacios para disfrutar en Santander Arena}} Plenty, inside the arena. {{show: Bares}} There are bars for a drink before the show. {{show: Terrazas}} The terraces are open air. {{show: Food trucks}} And food trucks if you're hungry. Want to see the bars?"
 
 # What you know
-- Today is {today:%A, %d %B %Y}, in Santiago. "Tonight", "this weekend" and "next month" are counted from today.
+- Today is {today:%A, %d %B %Y} ({today.isoformat()}, {_WEEKDAYS_ES[today.weekday()]}), in Santiago. "Tonight", "this weekend", "next week" and "next month" are counted from today: a week runs Monday to Sunday, so next week is the Monday after today to the Sunday after that. Each show below carries its ISO date and weekday for this.
+- When asked what is coming up, start with the soonest shows, in date order. For a period — this weekend, next week, a month — name the first few in date order, never skipping one in between, and say how many more there are ("y hay cuatro más ese mes"). find_events takes those periods too.
 - Every fact — a date, a time, an experience, a bar, a gate, a rule, a price — comes from the knowledge below, a topic you read, a search result, the events list, or what the screen reported. Never from memory. If you cannot find it, say so, and say where on the site it might be, or offer the contact page.
+- Name only what the site names. Never add a dish, a drink, a brand, a service or a feature it does not list: if the site says burgers, sweet options and cold drinks, it is those three, never "sándwiches". Describe a show with what its page says, not with your own praise ("promete ser una noche increíble").
 - Ticket prices and availability are on Puntoticket, not on this site: never quote a price or say a show is sold out unless the site says so. Offer to open the tickets instead.
 - Topics you can read with read_topic, when the knowledge below does not cover a question:
 {_topics(k)}
@@ -492,7 +598,7 @@ You: "{{page: /}}{{show: Espacios para disfrutar en Santander Arena}} Plenty, in
 # Santander Arena
 {k.l1}
 
-# Events coming up (soonest first; dates as the site writes them; the page is its path)
+# Events coming up (soonest first; the ISO date and weekday, then the date as the site writes it; the page is its path)
 {_events_list(k, today)}
 
 # Site pages
@@ -604,24 +710,32 @@ _ACK_LINES: dict[Lang, dict[Kind, tuple[str, ...]]] = {
         "request": ("Happy to help.", "Absolutely, let me do that.", "Sure thing."),
         "question": ("Let me see.", "Good question, let me see."),
         "correction": ("Got it, thanks for letting me know.", "Ah, I see what you mean."),
-        "statement": ("Okay, that makes sense.", "Got it, thanks for letting me know."),
+        # Not "thanks for letting me know": on prod it answered a closing
+        # remark and a decline, which told him nothing.
+        "statement": ("Okay, that makes sense.",),
     },
     "es": {
-        "request": (
-            "Claro.",
-            "Con gusto, ya lo hago.",
-            "Por supuesto, déjame revisarlo.",
-            "Claro, ahora mismo.",
-        ),
+        # Not "Por supuesto, déjame revisarlo.": a check promised that the
+        # reply never makes.
+        "request": ("Claro.", "Con gusto, ya lo hago.", "Claro, ahora mismo."),
         "question": ("A ver.", "Déjame revisarlo un momento."),
         "correction": ("Entendido, gracias por avisarme.", "Entendido, eso me ayuda."),
-        "statement": ("Entendido, eso me ayuda.", "Claro.", "Entendido, gracias por avisarme."),
+        "statement": ("Entendido, eso me ayuda.", "Claro."),
     },
 }
 #: Higher than SendPotion's 0.75: every page here is a full load, and the nod
 #: is what the visitor hears while the next page comes in.
 ACK_RATE = 0.9
+#: Every turn holds the floor, nod or none: on prod a bare show name ("La María
+#: José Quintanilla.") got no nod, the model stalled, and the visitor heard 18 s
+#: of nothing but the runtime's English apology. With no nod, the holding line
+#: comes at this; after a nod, at :data:`NOD_HOLD_AFTER_S`, since the nod has
+#: already spoken for the turn and a model that calls a tool before it writes
+#: takes two steps (about five seconds on prod), which stacked a second filler
+#: on the nod.
 ACK_HOLD_AFTER_S = 4.0
+NOD_HOLD_AFTER_S = 7.0
+ACK_SORRY_AFTER_S = 12.0
 _ACK_HOLD: dict[Lang, tuple[str, ...]] = {
     "en": ("Just a moment.", "One moment while I check that for you."),
     "es": ("Dame un momento mientras lo busco.", "Un momento mientras lo reviso para ti."),
@@ -630,6 +744,19 @@ _ACK_SORRY: dict[Lang, str] = {
     "en": "Sorry, that's taking a little longer.",
     "es": "Lo siento, está tardando un poco más de lo normal.",
 }
+#: His line when the model's stream stalls twice (see
+#: :meth:`SantanderBrain._model_stream`): honest, in the call's language.
+_STALLED: dict[Lang, str] = {
+    "en": "Sorry, I lost that answer. Could you ask me again?",
+    "es": "Disculpa, se me perdió la respuesta. ¿Me lo preguntas de nuevo?",
+}
+#: How long the model's stream may be quiet before it is given up: before its
+#: first chunk (a turn's first words take two to three seconds on prod), and
+#: between two chunks. On prod one stream sent two tokens at 2 s and then
+#: nothing until 18 s.
+STREAM_FIRST_S = 8.0
+STREAM_GAP_S = 6.0
+
 #: A visitor's ordinary words about the arena, so the reading trusts them.
 _ACK_WORDS = Vocabulary(
     common=frozenset(
@@ -641,6 +768,50 @@ _ACK_WORDS = Vocabulary(
         """.split()  # noqa: SIM905
     ),
 )
+
+
+class _Nods(Acknowledger[Lang]):
+    """The shared nod, and one of a given kind for what it cannot read."""
+
+    def line_of(self, kind: Kind, spoken: Lang) -> str | None:
+        """A ``kind`` nod, at the same rate as any other; ``None`` for none."""
+        lines = self.lines.get(spoken, {}).get(kind)
+        if not lines or self.rng.random() >= self.rate:
+            return None
+        return self._pick(lines)
+
+
+#: A yes to his closing offer: "Bueno.", "Sí, claro.", "Por supuesto,
+#: muéstramelo." (which the recognizer wrote "mástamelo"), "Yeah, sí, por
+#: favor." On prod a yes like these got no nod and three to four seconds of
+#: quiet, and his offer's page ("¿Te gustaría conocer los bares?") was not
+#: shown. Matched on folded words.
+_YES = re.compile(
+    r"^\W*(?:(?:eh|ah|mm|oh|ok|okay|okey)\W+)?(?:si|claro|bueno|dale|ya|ok|okay|okey|perfecto|"
+    r"por supuesto|obvio|de una|genial|bacan|me encantaria|me parece|vamos|por favor|"
+    r"mue?str\w*|mastr?a\w*|yes|yeah|yep|yup|sure|please|of course|absolutely|go ahead|"
+    r"let'?s|show me|why not)\b"
+)
+#: A yes with one of these in it takes something else instead.
+_NOT_YES = re.compile(r"\b(?:no|pero|but|otr[oa]s?|other|mejor|instead|gracias|thanks?|chao|bye)\b")
+_YES_WORDS = 5
+
+
+def says_yes(text: str) -> bool:
+    """Whether ``text`` is a short yes, and nothing more."""
+    said = fold(text)
+    return (
+        len(said.split()) <= _YES_WORDS
+        and _YES.search(said) is not None
+        and _NOT_YES.search(said) is None
+    )
+
+
+def _offer_in(said: str) -> str | None:
+    """His reply's closing offer — its last sentence, when it asks — or ``None``."""
+    sentences = [s for s in re.split(r"(?<=[.?!])\s+", said.strip()) if s.strip()]
+    last = sentences[-1].strip() if sentences else ""
+    return last if last.endswith("?") else None
 
 
 def _avatar_state(session: Session, state: Literal["WORKING"] | None) -> None:
@@ -727,6 +898,15 @@ _ASKED_PAGES: tuple[tuple[re.Pattern[str], str], ...] = tuple(
         (r"news|noticias", "/arena-news"),
         (r"about (?:the|santander) arena|sobre nosotros|history|historia", "/sobre-nosotros"),
         (r"faqs?\b|preguntas frecuentes|frequent questions", "/preguntas-frecuentes"),
+        # On prod "Puedes volver a la portada" and his own "Aquí tienes la página
+        # de inicio" left the screen where it was: nothing here named the home
+        # page. "Inicio" alone is also the start of a show, so only as a page.
+        (
+            r"portada|pagina (?:de )?inicio|pagina principal|main page|home ?page|"
+            r"(?:volver|vuelve|volvamos|vuelvo|regres\w*|ir|anda|ve|lleva\w*) al inicio\b|"
+            r"(?:go|back|take me|return) (?:back )?(?:to )?(?:the )?home\b",
+            "/",
+        ),
         (
             r"cartelera|what'?s on|coming up|upcoming|concerts?\b|conciertos?|shows?\b|"
             r"eventos?\b|events?\b|que hay\b|proximos",
@@ -734,8 +914,10 @@ _ASKED_PAGES: tuple[tuple[re.Pattern[str], str], ...] = tuple(
         ),
     )
 )
-#: The billboard, which "show" and "events" name in passing.
+#: The lineup, which "show" and "events" name in passing.
 _GENERAL_PAGE = "/cartelera"
+#: Where every FAQ is, whichever page also has it.
+_FAQ_PAGE = "/preguntas-frecuentes"
 #: A request to buy opens a Puntoticket tab, not a page of the site: on dev
 #: "Open the tickets for Camilo" also loaded Camilo's page behind the new tab.
 _BUYING = re.compile(
@@ -770,16 +952,85 @@ def asks_call_language(text: str) -> bool:
     return bool(_CALL_LANGUAGE.search(text) and _TO_HIM.search(text))
 
 
-def named_event(text: str, k: Knowledge) -> Event | None:
-    """The show ``text`` names, by the whole of its name (folded), or ``None``.
-    The longest name wins, so "La Oreja de Van Gogh" is not "La"."""
-    said = f" {' '.join(re.findall(r'[a-z0-9]+', fold(text)))} "
-    best: Event | None = None
+#: Words a show's name may open with that name nothing on their own.
+_NAME_FILLER = frozenset(
+    [
+        "el",
+        "la",
+        "los",
+        "las",
+        "lo",
+        "de",
+        "del",
+        "y",
+        "the",
+        "and",
+        "a",
+        "an",
+        "of",
+        "show",
+        "tour",
+    ]
+)
+
+
+def _sounds(word: str) -> str:
+    """A folded word as Spanish says it, so the recognizer's spelling is the
+    site's: "pereira" is "Pereyra", "bunburi" is "Bunbury". Only for comparing
+    two words, both put through it."""
+    w = word.replace("ll", "y").replace("y", "i").replace("v", "b").replace("z", "s")
+    w = re.sub(r"c(?=[ei])", "s", w).replace("h", "")
+    return re.sub(r"(.)\1+", r"\1", w)
+
+
+def _name_words(text: str) -> list[tuple[str, bool]]:
+    """``text``'s words as :func:`_sounds` has them, each with whether it was
+    written as a name (a capital first)."""
+    plain = "".join(c for c in unicodedata.normalize("NFKD", text) if not unicodedata.combining(c))
+    return [(_sounds(w.lower()), w[:1].isupper()) for w in re.findall(r"[A-Za-z0-9]+", plain)]
+
+
+def _within(name: list[str], said: list[str]) -> bool:
+    n = len(name)
+    return any(said[i : i + n] == name for i in range(len(said) - n + 1))
+
+
+def named_event(text: str, k: Knowledge, today: date | None = None) -> Event | None:
+    """The show ``text`` names, or ``None``: by the whole of its name, or by
+    its first two words or more when they are written as a name ("Los Tres"
+    for LOS TRES UNPLUGGED, never "los tres próximos shows"), spelled as the
+    recognizer may hear it (:func:`_sounds`). The longest match wins, so "La
+    Oreja de Van Gogh" is not "La"; between the same show twice, the one still
+    to come, soonest first."""
+    said = _name_words(text)
+    words = [w for w, _ in said]
+    capital = {w for w, up in said if up}
+    soon = (today or datetime.now(TIMEZONE).date()).isoformat()
+    best: tuple[int, bool, bool, str] | None = None
+    found: Event | None = None
     for e in k.events.values():
-        name = " ".join(re.findall(r"[a-z0-9]+", fold(e.name)))
-        if len(name) >= 4 and f" {name} " in said and (best is None or len(name) > len(best.name)):
-            best = e
-    return best
+        name = [_sounds(w) for w in re.findall(r"[a-z0-9]+", fold(e.name))]
+        if len(" ".join(name)) < 4:
+            continue
+        matched: list[str] | None = name if _within(name, words) else None
+        for j in range(len(name) - 1, 1, -1):
+            if matched is not None:
+                break
+            part = name[:j]
+            named = [w for w in part if w not in _NAME_FILLER]
+            if named and all(w in capital for w in named) and _within(part, words):
+                matched = part
+        if matched is None:
+            continue
+        rank = (
+            -len(" ".join(matched)),
+            matched is not name,
+            bool(e.date) and e.date < soon,
+            e.date or "9999",
+        )
+        if best is None or rank < best:
+            best, found = rank, e
+    return found
 
 
 def asked_page(text: str, k: Knowledge | None = None) -> str | None:
@@ -945,9 +1196,7 @@ class SantanderBrain(GeminiBrain):
         self._chosen = False
         self._confirm: str | None = None
         self._fallback = FallbackLine()
-        self._ack = Acknowledger(
-            _ACK_LINES, _ACK_HOLD, _ACK_SORRY, _ACK_WORDS, ACK_RATE, ACK_HOLD_AFTER_S
-        )
+        self._ack = _Nods(_ACK_LINES, _ACK_HOLD, _ACK_SORRY, _ACK_WORDS, ACK_RATE, ACK_HOLD_AFTER_S)
         #: The tab in front as it last reported itself, and whether the model
         #: has seen it since it changed.
         self.page: PageChanged | None = None
@@ -969,6 +1218,12 @@ class SantanderBrain(GeminiBrain):
         #: last rung, so a sentence on the same section does not ring it again.
         self._paged = False
         self._shown: str | None = None
+        #: Whether any cue of this reply has gone to the page yet.
+        self._moved = False
+        #: His last reply's closing offer, when it ended in one, and the page it
+        #: offered: a bare "sí" to it is a yes to that page.
+        self._offered = False
+        self._offer_page: str | None = None
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -1008,47 +1263,57 @@ class SantanderBrain(GeminiBrain):
         """A visitor who speaks the other language is answered in it from the
         first word, unless they chose the language they are in; the tab they
         moved to is read in with what they said; his nod covers the model's
-        thinking."""
+        thinking, and a line of his own holds the floor if the model is slow,
+        whether he nodded or not."""
         heard = None if self._chosen else language_of(msg.text)
         if heard is not None and heard != self.spoken:
             await session.configure(self._speaking(heard))
             logger.info("santanderarena: language -> {} (heard)", heard)
         self._nudges = 0
+        # A yes to his closing offer takes what he offered.
+        yes = self._offered and says_yes(msg.text)
         # A reply cut off before it said a word keeps its page for the next one.
         # A request to switch language shows nothing, not even that page.
         self._backstop = (
             None
             if asks_call_language(msg.text)
-            else asked_page(msg.text, self.kb) or self._backstop
+            else asked_page(msg.text, self.kb)
+            or (self._offer_page if yes else None)
+            or self._backstop
         )
         self._restore_idle()
         self._read_in_screen()
         now = time.monotonic()
         fragment, self._heard_at = now - self._heard_at < _FRAGMENT_S, now
-        if not fragment and (nod := self._ack.line(msg.text, self.spoken)) is not None:
+        nod = None
+        if not fragment:
+            nod = self._ack.line(msg.text, self.spoken)
+            if nod is None and yes:
+                # The shared reading nods at no bare "sí"; a yes to his own
+                # offer is a request.
+                nod = self._ack.line_of("request", self.spoken)
+        working = nod is not None
+
+        def answered() -> None:
+            nonlocal working
+            if working:
+                working = False
+                _avatar_state(session, None)
+
+        if nod is not None:
             logger.info("santanderarena: ack {!r}", nod)
             async for event in say_line(self, nod):
                 yield event
-            working = True
-
-            def answered() -> None:
-                nonlocal working
-                if working:
-                    working = False
-                    _avatar_state(session, None)
-
             _avatar_state(session, "WORKING")
-            try:
-                turn = super().on_user_message(session, msg)
-                async for event in hold_the_floor(
-                    self, self._ack, lambda: self.spoken, turn, answered
-                ):
-                    yield event
-            finally:
-                answered()
-            return
-        async for event in super().on_user_message(session, msg):
-            yield event
+        # This turn's holding line: later after a nod than without.
+        self._ack.hold_after_s = NOD_HOLD_AFTER_S if nod is not None else ACK_HOLD_AFTER_S
+        self._ack.sorry_after_s = ACK_SORRY_AFTER_S
+        try:
+            turn = super().on_user_message(session, msg)
+            async for event in hold_the_floor(self, self._ack, lambda: self.spoken, turn, answered):
+                yield event
+        finally:
+            answered()
 
     def on_user_idle(self, session: Session, idle: UserIdle) -> AsyncGenerator[Speech, None]:
         """A quiet spell — the only floor he gets without the visitor speaking:
@@ -1097,6 +1362,8 @@ class SantanderBrain(GeminiBrain):
         self._cue_path = self._path
         self._paged = False
         self._shown = None
+        self._moved = False
+        self._offered, self._offer_page = False, None
         said = ""
         turn = self._fallback.speak_if_silent(
             self, super().respond(session), again=lambda: self._talk_now(session)
@@ -1111,7 +1378,13 @@ class SantanderBrain(GeminiBrain):
             logger.warning("santanderarena: the model returned nothing; asking once more")
             again = self._written(session, self._cued(self._talk_now(session)))
             async for event in self._spelled(again):
+                if isinstance(event, SpeechChunk):
+                    said += event.text
                 yield event
+        # What a bare "sí" next answers: the page his closing offer names.
+        if (offer := _offer_in(said)) is not None:
+            self._offered = True
+            self._offer_page = asked_page(offer, self.kb)
 
     async def _written(
         self, session: Session, turn: AsyncGenerator[Speech, None]
@@ -1151,12 +1424,15 @@ class SantanderBrain(GeminiBrain):
                 yield out
 
     def _spelled(self, turn: AsyncGenerator[Speech, None]) -> AsyncGenerator[Speech, None]:
-        """``turn``, with Spanish speech spelled as Latin America says it."""
+        """``turn``, with Spanish speech spelled as Latin America says it, and
+        no exclamation marks: the prompt forbids them and on prod he still
+        wrote "¡Que disfrutes muchísimo!", which the voice reads louder."""
 
         async def spelled() -> AsyncGenerator[Speech, None]:
             async for event in turn:
-                if isinstance(event, SpeechChunk) and self.spoken == "es":
-                    event = SpeechChunk(latin_american(event.text))
+                if isinstance(event, SpeechChunk):
+                    text = _calm(event.text)
+                    event = SpeechChunk(latin_american(text) if self.spoken == "es" else text)
                 yield event
 
         return spelled()
@@ -1203,6 +1479,7 @@ class SantanderBrain(GeminiBrain):
         cue = self._resolve_cue(raw)
         logger.info("santanderarena: cue {} {!r} at {!r} -> {}", raw.kind, raw.value, raw.at, cue)
         if cue is not None:
+            self._moved = True
             self._paged = self._paged or raw.kind == "page"
             if raw.kind == "show":
                 self._shown = cue.heading or cue.text
@@ -1212,19 +1489,22 @@ class SantanderBrain(GeminiBrain):
         self, sentence: str, index: int, placed: tuple[tuple[CueKind, str], ...]
     ) -> list[tuple[CueKind, str]]:
         """The moves a sentence of his needs and did not bring (see
-        :mod:`.cues`): the page its first sentence is about, when nothing has
-        opened one, and the section or card on the page it describes."""
+        :mod:`.cues`): the page it is about, when nothing has opened one, and
+        the section, card or FAQ it describes.
+
+        The page is looked for in every sentence of a reply that has moved
+        nothing yet, not only its first: on prod "Tenemos opciones en distintos
+        niveles. En el cuarto piso norte está Bar Jack Daniel's." walked through
+        four bars with the food trucks on screen."""
         out: list[tuple[CueKind, str]] = []
         kinds = {k for k, _ in placed}
         # A page the model opens on this very sentence is not sent yet.
         pages = [p.path for k, v in placed if k == "page" and (p := self.kb.page(v)) is not None]
         path = pages[-1] if pages else self._cue_path
-        if index == 0 and not self._paged and "page" not in kinds:
-            asked = asked_page(sentence, self.kb)
-            if asked is not None and asked != self._path and self.kb.page(asked) is not None:
-                logger.info("santanderarena: he talks about {} with no cue; opening it", asked)
-                out.append(("page", asked))
-                path = asked
+        if (asked := self._page_about(sentence, index, kinds, path)) is not None:
+            logger.info("santanderarena: he talks about {} with no cue; opening it", asked)
+            out.append(("page", asked))
+            path = asked
         # The rest of the reply is on this page, though the cue that opens it
         # may not be sent until several sentences have come in one chunk.
         self._cue_path = path
@@ -1240,21 +1520,60 @@ class SantanderBrain(GeminiBrain):
                 out.append(("faq", question))
             return out
         shown = self._section_for(sentence, path)
-        if shown is not None and shown != self._shown:
-            out.append(("show", shown))
+        if shown is not None:
+            if shown != self._shown:
+                out.append(("show", shown))
+            return out
+        if not out and not self._moved and path != _FAQ_PAGE:
+            # An answer that is an FAQ of the FAQ page, given from another page
+            # with nothing moved: on prod "anything important to know?" was
+            # answered from three FAQs with the bars left on screen.
+            faq_page = self.kb.page(_FAQ_PAGE)
+            elsewhere = [(f.q, f.a) for f in faq_page.faqs] if faq_page is not None else []
+            if elsewhere and (question := best_section(sentence, elsewhere)) is not None:
+                self._shown = question
+                out.append(("faq", question))
         return out
+
+    def _page_about(self, sentence: str, index: int, kinds: set[str], path: str) -> str | None:
+        """The page ``sentence`` is about, to open before it, or ``None``.
+
+        Past the first sentence, only while the reply has moved nothing, never
+        for his closing offer, never for the lineup (which every mention of a
+        show names), and never for a show whose card is on the page in front:
+        a walkthrough of the lineup names a show in each sentence."""
+        if self._paged or "page" in kinds:
+            return None
+        later = index > 0
+        if later and (self._moved or kinds or sentence.rstrip().endswith("?")):
+            return None
+        asked = asked_page(sentence, self.kb)
+        if asked is None or asked in (self._path, path) or self.kb.page(asked) is None:
+            return None
+        if later and (
+            asked == _GENERAL_PAGE
+            or (asked in self.kb.events and named_card(sentence, self._cards(path)) is not None)
+        ):
+            return None
+        return asked
+
+    def _cards(self, path: str) -> list[str]:
+        """The cards on ``path``: as the tab reported them when it is in front,
+        and as the crawl read them."""
+        page = self.kb.page(path)
+        live = self.page is not None and canonical_path(self.page.path) == path
+        cards = list(self.page.cards) if live and self.page is not None else []
+        cards += [c.title for c in page.cards] if page is not None else []
+        return list(dict.fromkeys(cards))
 
     def _section_for(self, sentence: str, path: str) -> str | None:
         """The heading or card on ``path`` that ``sentence`` is about."""
         page = self.kb.page(path)
-        live = self.page is not None and canonical_path(self.page.path) == path
-        cards = list(self.page.cards) if live and self.page is not None else []
         if page is not None:
-            cards += [c.title for c in page.cards]
             heading = best_section(sentence, [(s.heading, s.text) for s in page.sections])
             if heading is not None:
                 return heading
-        return named_card(sentence, list(dict.fromkeys(cards)))
+        return named_card(sentence, self._cards(path))
 
     def _resolve_cue(self, raw: RawCue) -> Cue | None:
         if raw.kind == "page":
@@ -1300,6 +1619,48 @@ class SantanderBrain(GeminiBrain):
             text = text or raw.value[:120]
         path = self._cue_path if moved else None
         return Cue(at=raw.at, word=raw.word, path=path, heading=heading, text=text)
+
+    async def _model_stream(
+        self, contents: list[types.Content], request: types.GenerateContentConfig
+    ) -> AsyncIterator[ModelChunk]:
+        """Gemini's stream, given up when it goes quiet: asked once more when
+        it stalled before a word or a call, and else ended with his honest
+        line in the call's language. On prod one stream sent two tokens and
+        then nothing for sixteen seconds, and the visitor sat through it.
+
+        A stream that has written words is never asked again, since they are
+        already in the reply; it gets the line after them."""
+        for attempt in (1, 2):
+            stream = super()._model_stream(contents, request)
+            spoke = False
+            try:
+                while True:
+                    wait = STREAM_GAP_S if spoke else STREAM_FIRST_S
+                    try:
+                        # In this task, not one per chunk: the client's stream
+                        # may hold state that must stay in the task that opened it.
+                        async with asyncio.timeout(wait):
+                            chunk = await anext(stream)
+                    except StopAsyncIteration:
+                        return
+                    except TimeoutError:
+                        break
+                    spoke = spoke or any(p.kind in ("text", "call") for p in chunk.parts)
+                    yield chunk
+            finally:
+                await stream.aclose()
+            if attempt == 1 and not spoke:
+                logger.warning(
+                    "santanderarena: the model stream stalled for {} s; asking once more", wait
+                )
+                continue
+            logger.warning("santanderarena: the model stream stalled again; saying so")
+            line = _STALLED[self.spoken]
+            line = f" {line}" if spoke else line
+            yield ModelChunk(
+                parts=[ModelPart("text", types.Part(text=line), text=line)], finished=True
+            )
+            return
 
     def _talk_now(self, session: Session) -> AsyncGenerator[Speech, None]:
         """The one extra request a silent page move gets: tools declared, none callable."""
@@ -1511,14 +1872,30 @@ class SantanderBrain(GeminiBrain):
 
     @needs_result_now
     async def find_events(self, request: EventsRequest) -> str:
-        """Find shows on Santander Arena's billboard by artist, genre, month or
-        date, soonest first when nothing narrower is asked. Each names its date,
-        its page path and what can be bought for it."""
-        today = datetime.now(TIMEZONE).date().isoformat()
+        """Find shows on Santander Arena's lineup (what's on) by artist, genre,
+        month, date or period ("this weekend", "next week", "la próxima
+        semana"), in date order. Each names its ISO date and weekday, its page
+        path and what can be bought for it, and the list says how many more
+        there are."""
+        day = datetime.now(TIMEZONE).date()
+        today = day.isoformat()
         events = list(self.kb.events.values())
         if not events:
             return "No events are loaded. Open /cartelera and read its cards from the screen."
         month = _month_of(request.query)
+        period = _period_of(request.query, day)
+        if period is not None:
+            start, end, named = period
+            found = [e for e in events if e.date and start.isoformat() <= e.date <= end.isoformat()]
+            span = f"{named}: {start.isoformat()} ({_WEEKDAYS_ES[start.weekday()]}) to "
+            span += f"{end.isoformat()} ({_WEEKDAYS_ES[end.weekday()]})"
+            if not found:
+                return f"No show {span}. Say so, and offer the next ones:\n" + _listed(
+                    _coming(self.kb, day)[:3]
+                )
+            return f"{len(found)} shows {span}, in date order:\n" + _listed(
+                sorted(found, key=lambda e: e.date)
+            )
         if month is not None:
             found = [e for e in events if e.date[5:7] == f"{month:02d}"]
         else:
@@ -1537,25 +1914,9 @@ class SantanderBrain(GeminiBrain):
         coming = sorted(
             (e for e in found if not e.date or e.date >= today), key=lambda e: e.date or "9999"
         )
-        lines: list[str] = []
-        for e in coming[:_EVENT_HITS]:
-            buy = [
-                k
-                for k, u in (
-                    ("tickets", e.tickets_url),
-                    ("parking", e.parking_url),
-                    ("vip", e.vip_url),
-                )
-                if u
-            ]
-            line = f"- {e.name} — {e.when or 'date not given'} — path: {e.path}"
-            line += f" — can open: {', '.join(buy)}" if buy else ""
-            if e.summary:
-                line += f"\n  {e.summary}"
-            lines.append(line)
-        if not lines:
+        if not coming:
             return f"{lead}Nothing coming up from today on matches. Offer /cartelera."
-        return lead + "\n".join(lines)
+        return lead + _listed(coming)
 
     async def open_tickets(self, request: TicketsRequest) -> str:
         """Open, in a new tab on Puntoticket, the tickets, parking or VIP
@@ -1671,6 +2032,74 @@ _MONTHS = {
     )
     for name in names
 }
+
+
+def _listed(events: list[Event]) -> str:
+    """find_events' lines: the first few, in the order given, and how many more."""
+    lines: list[str] = []
+    for e in events[:_EVENT_HITS]:
+        buy = [
+            k
+            for k, u in (("tickets", e.tickets_url), ("parking", e.parking_url), ("vip", e.vip_url))
+            if u
+        ]
+        line = f"- {e.name} — {_dated(e)} — path: {e.path}"
+        line += f" — can open: {', '.join(buy)}" if buy else ""
+        if e.summary:
+            line += f"\n  {e.summary}"
+        lines.append(line)
+    if len(events) > _EVENT_HITS:
+        more = len(events) - _EVENT_HITS
+        lines.append(f"- and {more} more after these: name the first ones and say {more} more.")
+    return "\n".join(lines)
+
+
+#: A period a visitor asks about, by its words (folded), and what it is.
+_PERIODS: tuple[tuple[re.Pattern[str], str], ...] = tuple(
+    (re.compile(rf"\b(?:{words})\b"), kind)
+    for words, kind in (
+        (r"proximo fin de semana|fin de semana que viene|next weekend", "next weekend"),
+        (r"(?:este |el )?fin de semana|(?:this )?weekend|finde", "this weekend"),
+        (
+            r"proxima semana|semana que viene|semana proxima|la otra semana|next week|"
+            r"following week",
+            "next week",
+        ),
+        (r"esta semana|this week", "this week"),
+        (r"proximo mes|mes que viene|next month", "next month"),
+        (r"este mes|this month", "this month"),
+        (r"hoy|esta noche|tonight|today", "today"),
+        (r"manana|tomorrow", "tomorrow"),
+    )
+)
+
+
+def _period_of(query: str, today: date) -> tuple[date, date, str] | None:
+    """The dates a period in ``query`` spans, counted from ``today`` (a week
+    runs Monday to Sunday), and its name; ``None`` when it names none. On prod
+    "la próxima semana", asked on a Thursday, left out the Sunday show."""
+    said = fold(query)
+    kind = next((k for rx, k in _PERIODS if rx.search(said)), None)
+    monday = today - timedelta(days=today.weekday())
+    if kind == "today":
+        return today, today, kind
+    if kind == "tomorrow":
+        return today + timedelta(days=1), today + timedelta(days=1), kind
+    if kind == "this week":
+        return today, monday + timedelta(days=6), kind
+    if kind == "next week":
+        return monday + timedelta(days=7), monday + timedelta(days=13), kind
+    if kind == "this weekend":
+        return max(today, monday + timedelta(days=4)), monday + timedelta(days=6), kind
+    if kind == "next weekend":
+        return monday + timedelta(days=11), monday + timedelta(days=13), kind
+    first = today.replace(day=1)
+    if kind == "this month":
+        return today, (first + timedelta(days=32)).replace(day=1) - timedelta(days=1), kind
+    if kind == "next month":
+        start = (first + timedelta(days=32)).replace(day=1)
+        return start, (start + timedelta(days=32)).replace(day=1) - timedelta(days=1), kind
+    return None
 
 
 def _same_show(asked: str, name: str) -> bool:

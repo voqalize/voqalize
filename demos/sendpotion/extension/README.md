@@ -54,6 +54,10 @@ goes on it; it is not how a customer would ship it.
   each Action to the tab it belongs on.
 - `src/actions.gen.ts` — the Action and event unions, generated from the brain
   with `pnpm gen`. Regenerate after changing either.
+- `src/site.ts` — the rules the adapter and the Calendly frame share, free of
+  the DOM: sendpotion.com and www.sendpotion.com are one site, so a move is
+  made on the tab's own host; and a slot's time reads "3:00pm" whether the
+  calendar shows a 12-hour or a 24-hour clock. `pnpm test` runs them in Node.
 
 The brain is `../backend/`: the prompt, the tools, and SendPotion's knowledge.
 
@@ -63,6 +67,7 @@ The brain is `../backend/`: the prompt, the tools, and SendPotion's knowledge.
 cp .env.example .env     # the agent id and a publishable key (see below)
 pnpm install --ignore-workspace
 pnpm build               # → dist/
+pnpm test                # the host and time rules, in Node
 ```
 
 Then `chrome://extensions` → Developer mode → **Load unpacked** → `dist/`, and

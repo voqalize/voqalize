@@ -19,6 +19,12 @@
  * this script mid-sentence. The cues still to come are handed over (`pending`)
  * and taken up by the next page (`restore`), where the call rejoins and the
  * rest of his sentence plays.
+ *
+ * That rejoin drops the call for seconds (3 to 6 s from Chile), so a page the
+ * brain can open ahead of the words comes as a `lead`, not anchored to any:
+ * `now` opens it at once; `nod` once the nod now in the air has played, or at
+ * once if no voice starts within a moment. The silence then falls on the nod
+ * and the model's thinking, not on the answer.
  */
 
 import type { Cue } from "./actions.gen";
@@ -32,6 +38,8 @@ const NO_TEXT_MS = 1500;
 const AFTER_STOP_MS = 600;
 /** A cue whose words never come is dropped after this. */
 const STALE_MS = 45_000;
+/** How long a `nod` lead waits for the nod to start before it goes anyway. */
+const LEAD_WAIT_MS = 700;
 
 /** Lower case, accents folded ("Música" is "musica"), as `backend/cues.py`
  *  folds the cue's words: the voice's text and the cue meet in one spelling. */
@@ -66,11 +74,18 @@ export class Narration {
   private textSince = false;
   private stopTimer: ReturnType<typeof setTimeout> | null = null;
   private clock: ReturnType<typeof setInterval> | null = null;
+  /** Pages to open once the nod in the air has played. */
+  private leads: Cue[] = [];
+  private leadTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Between the voice starting and stopping. */
+  private voiceOn = false;
 
   /** @param move performs one cue; resolves once the page has moved. */
   constructor(private readonly move: (cue: Cue) => Promise<void>) {}
 
   add(cue: Cue): void {
+    if (cue.lead === "now") return this.fire(cue);
+    if (cue.lead === "nod") return this.lead(cue);
     this.queue.push({ cue, at: words(cue.at), from: Math.max(0, this.heard.length - 120), born: Date.now() });
     this.check();
     this.tick();
@@ -78,7 +93,26 @@ export class Narration {
 
   /** The cues not yet performed: fired and waiting, then queued. */
   pending(): Cue[] {
-    return [...this.firing, ...this.queue.map((q) => q.cue)];
+    return [...this.firing, ...this.leads, ...this.queue.map((q) => q.cue)];
+  }
+
+  /** A page to open once the nod has played: when the voice next stops, or
+   *  in a moment if it is quiet and stays so. */
+  private lead(cue: Cue): void {
+    this.leads.push(cue);
+    if (this.voiceOn || this.leadTimer) return;
+    this.leadTimer = setTimeout(() => {
+      this.leadTimer = null;
+      if (!this.voiceOn) this.fireLeads();
+    }, LEAD_WAIT_MS);
+  }
+
+  private fireLeads(): void {
+    if (this.leadTimer) clearTimeout(this.leadTimer);
+    this.leadTimer = null;
+    const leads = this.leads;
+    this.leads = [];
+    for (const cue of leads) this.fire(cue);
   }
 
   /** Take up the cues the last page left (`pending`), as though just sent:
@@ -107,6 +141,7 @@ export class Narration {
   }
 
   speaking(): void {
+    this.voiceOn = true;
     if (this.stopTimer) clearTimeout(this.stopTimer);
     this.stopTimer = null;
     if (!this.speakingSince) {
@@ -117,6 +152,10 @@ export class Narration {
   }
 
   stopped(): void {
+    this.voiceOn = false;
+    // The nod has played: the page it was covering opens now, not after the
+    // pause a sentence's end waits for.
+    if (this.leads.length) this.fireLeads();
     if (this.stopTimer) clearTimeout(this.stopTimer);
     this.stopTimer = setTimeout(() => {
       this.speakingSince = 0;
@@ -131,6 +170,9 @@ export class Narration {
   interrupted(): void {
     this.queue = [];
     this.speakingSince = 0;
+    this.voiceOn = false;
+    // A page asked for is still the page they asked for: it opens now.
+    if (this.leads.length) this.fireLeads();
   }
 
   private check(): void {

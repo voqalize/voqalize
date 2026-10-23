@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Iterator
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 import pytest
 from google.genai import types
@@ -620,7 +620,11 @@ async def test_find_events_by_artist_genre_and_month() -> None:
         await rig.driver.start_session(init={"path": "/"})
         await rig.driver.user_says("¿Cuándo viene Nicky Jam?")
         found = _results(llm.captured_contents[-1])["find_events"]
-        assert found.startswith(f"- NICKY JAM — {_spoken(LATER)} / 21:00 hrs — path: {NICKY}")
+        # The ISO date and weekday to count with, then the site's own words.
+        assert found.startswith(
+            f"- NICKY JAM — {LATER.isoformat()} {santander._WEEKDAYS_ES[LATER.weekday()]} — "
+            f"{_spoken(LATER)} / 21:00 hrs — path: {NICKY}"
+        )
         assert "can open: tickets" in found
         assert "CAMILO" not in found
         await rig.driver.user_says("¿Algo de rock?")
@@ -837,6 +841,7 @@ def _his_spanish_lines() -> list[str]:
         *(line for kind in santander._ACK_LINES["es"].values() for line in kind),
         *santander._ACK_HOLD["es"],
         santander._ACK_SORRY["es"],
+        santander._STALLED["es"],
     ]
     pages = ["/", "/cartelera", "/experiencias", "/santander-suites", PARKING, FAQS, CAMILO]
     return lines + [greeting(path, "es", SITE) for path in pages]
@@ -904,3 +909,340 @@ def test_spanish_cues_leave_the_speech_and_anchor_without_accents() -> None:
         ("show", "Cúpula Santander Arena", "esta en el", 0),
         ("faq", "¿Pueden entrar menores de edad?", "si con un", 6),
     ]
+
+
+# ─── From the prod calls of 2026-10-22 ─────────────────────────────────────────
+#
+# Each test below is one moment of those calls, on the invented arena with the
+# few shows and pages the moment needs added.
+
+HERE = datetime.now(santander.TIMEZONE).date()
+PEREYRA = "/nuestra-cartelera/conciertos/luciano-pereyra-0"
+PEREYRA_PAST = "/nuestra-cartelera/conciertos/luciano-pereyra"
+LOS_TRES = "/nuestra-cartelera/los-tres-unplugged"
+LOS_TRES_FIRST = "/nuestra-cartelera/los-tres-unplugged-0"
+FOOD = "/food-trucks"
+NEXT_MONDAY = HERE - timedelta(days=HERE.weekday()) + timedelta(days=7)
+
+CALLS = Knowledge(
+    l1=SITE.l1,
+    topics={},
+    pages={
+        **SITE.pages,
+        "/bares": Page(
+            "/bares",
+            "Bares | Santander Arena",
+            sections=(Section("Bares", "Tragos antes del show."),),
+            cards=(Card("Bar Central"), Card("BAR JACK DANIEL\u00b4S")),
+        ),
+        FOOD: Page(
+            FOOD,
+            "Food trucks | Santander Arena",
+            sections=(Section("Food trucks", "Hamburguesas, opciones dulces y bebidas frías."),),
+        ),
+        FAQS: Page(
+            FAQS,
+            "Preguntas frecuentes | Santander Arena",
+            sections=(Section("Preguntas frecuentes"),),
+            faqs=(
+                Faq("¿Pueden entrar menores de edad?", "Sí, con un adulto."),
+                Faq("¿Puedo entrar con comida?", "No."),
+                Faq("¿Qué documento necesito para entrar?", "Tu cédula de identidad."),
+                Faq("¿A qué hora abren las puertas?", "Lo anuncia el Instagram del recinto."),
+                Faq("¿Hay guardarropía?", "No hay guardarropía."),
+                Faq("¿Puedo llevar mi cámara?", "Solo cámaras de celular."),
+            ),
+        ),
+    },
+    events={
+        **SITE.events,
+        PEREYRA_PAST: _event("LUCIANO PEREYRA", PEREYRA_PAST, PAST, "Pop"),
+        PEREYRA: _event("LUCIANO PEREYRA", PEREYRA, LATER + timedelta(days=1), "Pop"),
+        LOS_TRES_FIRST: _event(
+            "LOS TRES UNPLUGGED", LOS_TRES_FIRST, LATER + timedelta(days=3), "Rock"
+        ),
+        LOS_TRES: _event("LOS TRES UNPLUGGED", LOS_TRES, LATER + timedelta(days=4), "Rock"),
+        "/nuestra-cartelera/opeth": _event(
+            "OPETH", "/nuestra-cartelera/opeth", NEXT_MONDAY + timedelta(days=6), "Metal"
+        ),
+        "/nuestra-cartelera/taemin": _event(
+            "TAEMIN", "/nuestra-cartelera/taemin", NEXT_MONDAY + timedelta(days=7), "K-pop"
+        ),
+    },
+)
+
+
+def _calls_llm() -> ScriptedGemini:
+    return ScriptedGemini(
+        {
+            "¿Qué hay para comer?": reply(
+                "{page: /food-trucks} Hay food trucks en cada show. "
+                "¿Te gustaría conocer los bares del recinto?"
+            ),
+            # A yes to his offer, and a reply that forgets to show the bars.
+            "Por supuesto, mástamelo.": reply(
+                "Tenemos opciones en distintos niveles. El Bar Central queda junto a la cancha."
+            ),
+            "Cuéntame más.": reply(
+                "Tenemos opciones en distintos niveles. "
+                "En el cuarto piso norte está Bar Jack Daniel's."
+            ),
+            "¿Qué shows vienen?": reply(
+                "Hay mucho en camino. Camilo llega pronto. Nicky Jam viene después."
+            ),
+            "¿Algo importante que saber?": reply(
+                "Los menores de edad pueden entrar con un adulto."
+            ),
+            "Puedes volver a la portada.": reply("Aquí tienes la página de inicio."),
+            "¿Algo para el show de Camilo?": reply("¡Que disfrutes muchísimo a Camilo!"),
+            "La María José Quintanilla.": [
+                reply(chunks=["La"], chunk_delay=5.0),
+                reply("Camilo toca pronto. ¿Te abro su página?"),
+            ],
+            "¿Y Nicky Jam?": [
+                reply(chunks=["Nicky"], chunk_delay=5.0),
+                reply(chunks=["Nicky"], chunk_delay=5.0),
+            ],
+            "¿Cuándo es Camilo?": reply(chunks=["Camilo toca pronto."], chunk_delay=0.6),
+            "¿Qué shows hay la próxima semana?": [
+                call("find_events", request={"query": "la próxima semana"}),
+                reply("Opeth toca el domingo."),
+            ],
+        }
+    )
+
+
+@pytest.fixture
+def _calls(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(kb, "KNOWLEDGE", CALLS)
+
+
+def test_a_show_is_named_as_the_recognizer_writes_it() -> None:
+    """ "Luciano Pereira" is Luciano Pereyra's coming show, not his last one;
+    "Los Tres" is the soonest Los Tres Unplugged; a lowercase "los tres" in a
+    sentence is a number."""
+    assert (
+        santander.named_event("El de Luciano Pereira, creo que nos lo dijiste", CALLS)
+        == (CALLS.events[PEREYRA])
+    )
+    assert (
+        santander.named_event("Quiero ir a algunos recitales de Los Tres.", CALLS)
+        == (CALLS.events[LOS_TRES_FIRST])
+    )
+    assert santander.named_event("Los tres próximos conciertos, por favor.", CALLS) is None
+    assert asked_page("¿Cuáles son los tres próximos shows?", CALLS) == "/cartelera"
+    # The ticket link for a show the arena has played before is the one to come.
+    assert CALLS.event("Luciano Pereyra") == CALLS.events[PEREYRA]
+
+
+def test_the_home_page_is_a_page_they_can_ask_for() -> None:
+    for ask in (
+        "Puedes volver a la portada.",
+        "Aquí tienes la página de inicio.",
+        "Vuelve al inicio, por favor.",
+        "Take me back to the home page.",
+    ):
+        assert asked_page(ask, SITE) == "/", ask
+    # The start of a show is not the home page.
+    assert asked_page("¿A qué hora es el inicio del show?", SITE) != "/"
+
+
+@pytest.mark.usefixtures("_calls")
+async def test_a_yes_to_his_offer_shows_what_he_offered_and_gets_a_nod(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Prod: "¿Te gustaría conocer los bares del recinto?" "Por supuesto,
+    mástamelo." — and four bars were described with the food trucks on screen,
+    after four seconds of quiet."""
+    monkeypatch.setattr(santander, "ACK_RATE", 1.0)
+    # The script speaks faster than any visitor: not the rest of a thought.
+    monkeypatch.setattr(santander, "_FRAGMENT_S", 0.0)
+    async with demo("santanderarena", _calls_llm()) as rig:
+        await rig.driver.start_session(init={"path": "/"})
+        await rig.driver.user_says("¿Qué hay para comer?")
+        shown = len(_cues(rig))
+        assert _cues(rig)[0]["path"] == FOOD
+        turn = await rig.driver.user_says("Por supuesto, mástamelo.")
+        check_turn(rig, turn, units=2)
+        assert turn.units[0].text in santander._ACK_LINES["es"]["request"]
+        assert _cues(rig)[shown:] == [
+            {**NONE, "at": "tenemos opciones en", "word": 0, "path": "/bares"},
+            {**NONE, "at": "el bar central", "word": 5, "path": "/bares", "text": "Bar Central"},
+        ]
+
+
+@pytest.mark.usefixtures("_calls")
+async def test_a_page_named_after_the_first_sentence_is_opened() -> None:
+    async with demo("santanderarena", _calls_llm()) as rig:
+        await rig.driver.start_session(init={"path": FOOD})
+        await rig.driver.user_says("Cuéntame más.")
+        assert _cues(rig) == [
+            {**NONE, "at": "en el cuarto", "word": 5, "path": "/bares"},
+            {
+                **NONE,
+                "at": "en el cuarto",
+                "word": 5,
+                "path": "/bares",
+                "text": "BAR JACK DANIEL\u00b4S",
+            },
+        ]
+
+
+@pytest.mark.usefixtures("_calls")
+async def test_a_walk_through_the_lineup_rings_cards_and_opens_no_show() -> None:
+    async with demo("santanderarena", _calls_llm()) as rig:
+        await rig.driver.start_session(init={"path": "/cartelera"})
+        await rig.driver.user_says("¿Qué shows vienen?")
+        assert [c["path"] for c in _cues(rig)] == [None, None]
+        assert [c["text"] for c in _cues(rig)] == ["CAMILO", "NICKY JAM"]
+
+
+@pytest.mark.usefixtures("_calls")
+async def test_an_faq_answered_from_another_page_is_opened_on_the_faq_page() -> None:
+    async with demo("santanderarena", _calls_llm()) as rig:
+        await rig.driver.start_session(init={"path": "/bares"})
+        await rig.driver.user_says("¿Algo importante que saber?")
+        assert _cues(rig) == [
+            {
+                **NONE,
+                "at": "los menores de",
+                "word": 0,
+                "path": FAQS,
+                "faq": "¿Pueden entrar menores de edad?",
+            }
+        ]
+
+
+async def test_going_home_moves_the_screen_home() -> None:
+    async with demo("santanderarena", _calls_llm()) as rig:
+        await rig.driver.start_session(init={"path": "/bares"})
+        await rig.driver.user_says("Puedes volver a la portada.")
+        assert [c["path"] for c in _cues(rig)][:1] == ["/"]
+
+
+async def test_he_never_exclaims() -> None:
+    async with demo("santanderarena", _calls_llm()) as rig:
+        await rig.driver.start_session(init={"path": "/"})
+        turn = await rig.driver.user_says("¿Algo para el show de Camilo?")
+        assert "Que disfrutes muchísimo a Camilo." in turn.text
+        assert "!" not in turn.text and "¡" not in turn.text
+
+
+async def test_a_slow_turn_with_no_nod_still_holds_the_floor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Prod: a bare show name got no nod, and nothing in Spanish covered the wait."""
+    monkeypatch.setattr(santander, "ACK_HOLD_AFTER_S", 0.2)
+    async with demo("santanderarena", _calls_llm()) as rig:
+        await rig.driver.start_session(init={"path": "/"})
+        turn = await rig.driver.user_says("¿Cuándo es Camilo?", quiet_for=1.0)
+        check_turn(rig, turn, units=2)
+        assert turn.units[0].text in santander._ACK_HOLD["es"]
+        assert turn.units[1].text == "Camilo toca pronto."
+
+
+async def test_a_nod_is_not_stacked_with_a_holding_line(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Prod: a nod, a holding line at four seconds, then the answer."""
+    monkeypatch.setattr(santander, "ACK_RATE", 1.0)
+    monkeypatch.setattr(santander, "ACK_HOLD_AFTER_S", 0.2)
+    async with demo("santanderarena", _calls_llm()) as rig:
+        await rig.driver.start_session(init={"path": "/"})
+        turn = await rig.driver.user_says("¿Cuándo es Camilo?", quiet_for=1.0)
+        check_turn(rig, turn, units=2)
+        assert turn.units[0].text in santander._ACK_LINES["es"]["question"]
+        assert turn.units[1].text == "Camilo toca pronto."
+
+
+async def test_a_stalled_stream_is_asked_once_more(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Prod: the stream sent two tokens and then nothing for sixteen seconds."""
+    monkeypatch.setattr(santander, "STREAM_FIRST_S", 0.2)
+    async with demo("santanderarena", _calls_llm()) as rig:
+        await rig.driver.start_session(init={"path": "/"})
+        turn = await rig.driver.user_says("La María José Quintanilla.")
+        check_turn(rig, turn)
+        assert turn.text.strip().startswith("Camilo toca pronto.")
+
+
+async def test_a_stream_that_stalls_twice_gets_his_honest_line(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(santander, "STREAM_FIRST_S", 0.2)
+    async with demo("santanderarena", _calls_llm()) as rig:
+        await rig.driver.start_session(init={"path": "/"})
+        turn = await rig.driver.user_says("¿Y Nicky Jam?")
+        check_turn(rig, turn)
+        assert turn.text.strip() == santander._STALLED["es"]
+
+
+@pytest.mark.usefixtures("_calls")
+async def test_next_week_is_monday_to_sunday_and_keeps_the_sunday_show() -> None:
+    """Prod, on a Thursday: "la próxima semana" left out Sunday's Opeth."""
+    llm = _calls_llm()
+    async with demo("santanderarena", llm) as rig:
+        await rig.driver.start_session(init={"path": "/"})
+        await rig.driver.user_says("¿Qué shows hay la próxima semana?")
+        found = _results(llm.captured_contents[-1])["find_events"]
+        assert found.startswith(f"1 shows next week: {NEXT_MONDAY.isoformat()} (lunes)")
+        assert "OPETH" in found and "TAEMIN" not in found
+
+
+def test_a_period_is_counted_from_today() -> None:
+    thursday = date(2026, 10, 22)
+    period = santander._period_of
+    assert period("la próxima semana", thursday) == (
+        date(2026, 10, 26),
+        date(2026, 11, 1),
+        "next week",
+    )
+    assert period("este fin de semana", thursday)[:2] == (date(2026, 10, 23), date(2026, 10, 25))  # type: ignore[index]
+    assert period("next weekend", thursday)[:2] == (date(2026, 10, 30), date(2026, 11, 1))  # type: ignore[index]
+    assert period("this week", thursday)[:2] == (thursday, date(2026, 10, 25))  # type: ignore[index]
+    assert period("el próximo mes", thursday)[:2] == (date(2026, 11, 1), date(2026, 11, 30))  # type: ignore[index]
+    assert period("noviembre", thursday) is None
+    assert period("Nicky Jam", thursday) is None
+
+
+def test_a_long_list_says_how_many_more() -> None:
+    many = [_event(f"SHOW {i}", f"/s/{i}", SOON + timedelta(days=i), "Pop") for i in range(11)]
+    listed = santander._listed(many).splitlines()
+    assert listed[-1].startswith("- and 3 more after these")
+    names = [line.split(" — ")[0] for line in listed if line.startswith("- SHOW")]
+    assert names == [f"- SHOW {i}" for i in range(8)]
+
+
+def test_the_prompts_examples_are_the_soonest_shows_not_fixed_ones() -> None:
+    """Prod: "what's coming up?" was answered with the two shows the examples
+    named, and the five sooner ones were skipped."""
+    prompt = santander._prompt(SITE, TODAY)
+    assert "{show: CAMILO} Camilo es el primero, " + santander._said_date(SOON, "es") in prompt
+    assert "{show: NICKY JAM} Then Nicky Jam, on " + santander._said_date(LATER, "en") in prompt
+    assert "closes the year" not in prompt and "cierra el año" not in prompt
+    # With no shows, a placeholder no visitor could take for one.
+    empty = Knowledge(l1="", topics={}, pages=SITE.pages)
+    assert "{show: ARTISTA UNO}" in santander._prompt(empty, TODAY)
+    # The lineup, in English, and in the tool the model reads.
+    assert '"the lineup" or "what\'s on", never "the billboard"' in prompt
+    assert "billboard" not in (santander.SantanderBrain.find_events.__doc__ or "")
+    # Each show with the date to count with.
+    events = prompt.split("# Events coming up")[1].split("# Site pages")[0]
+    assert f"- CAMILO — {SOON.isoformat()} {santander._WEEKDAYS_ES[SOON.weekday()]} — " in events
+    assert "el primero de" in santander._said_date(date(2026, 11, 1), "es")
+    assert santander._said_date(date(2026, 10, 31), "es") == "el treinta y uno de octubre"
+
+
+def test_a_short_yes_is_a_yes_and_nothing_more_is() -> None:
+    for yes in (
+        "Bueno.",
+        "Sí, claro.",
+        "Yeah, sí, por favor.",
+        "Por supuesto, mástamelo.",
+        "Dale.",
+    ):
+        assert santander.says_yes(yes), yes
+    for other in (
+        "No, gracias, con eso es suficiente.",
+        "Sí, pero mejor los bares.",
+        "Sí, quiero saber cuánto cuesta el estacionamiento para Camilo.",
+        "La María José Quintanilla.",
+    ):
+        assert not santander.says_yes(other), other

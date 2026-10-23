@@ -25,6 +25,8 @@
  * Calendly's own `aria-label`s and `data-*`.
  */
 
+import { onThisTab } from "./site";
+
 declare global {
   interface Window {
     voqalizeSendPotion?: Adapter;
@@ -95,7 +97,6 @@ async function waitFor<T>(fn: () => T | null | undefined | false, ms = WAIT_MS):
 }
 
 const BLOG = /(^|\.)blog\.sendpotion\.com$/i.test(location.host);
-const SITE_ORIGIN = "https://sendpotion.com";
 
 function main(): HTMLElement {
   if (BLOG) return document.querySelector<HTMLElement>("article") ?? document.querySelector("main") ?? document.body;
@@ -360,8 +361,9 @@ async function settled(): Promise<void> {
 
 async function goTo(path: string): Promise<void> {
   if (typeof path !== "string") throw new Error(`not a path: ${path}`);
-  const target = new URL(path, BLOG ? location.origin : SITE_ORIGIN);
-  if (target.host !== location.host) throw new Error(`${target.href} is not on this tab's site`);
+  // On the tab's own host: sendpotion.com and www.sendpotion.com are one site.
+  const target = onThisTab(path, location.href);
+  if (!target) throw new Error(`${new URL(path, location.origin).href} is not on this tab's site`);
   if (samePath(location.pathname, target.pathname)) return;
   const from = location.pathname;
   const title = document.title;
@@ -586,7 +588,14 @@ interface BookOrder {
 }
 
 const CALENDLY = "https://calendly.com";
+const DEMO_PATH = /^\/(?:[a-z]{2}\/)?demo\/?$/i;
 let calls = 0;
+
+/** Calendly has drawn the calendar (its month, or its open days), or is past it. */
+function drawn(state: unknown): boolean {
+  const s = state as { step?: string; month?: string; days?: unknown[] } | null;
+  return !!s && (s.step !== "calendar" || !!s.month || (s.days?.length ?? 0) > 0);
+}
 
 function calendlyFrame(): HTMLIFrameElement | null {
   return document.querySelector<HTMLIFrameElement>("iframe[src*='calendly.com']");
@@ -615,15 +624,25 @@ function toFrame(frame: HTMLIFrameElement, cmd: string, order?: unknown, ms = 15
 
 async function bookDemo(order: BookOrder) {
   if (BLOG) throw new Error("the demo booking is on sendpotion.com/demo/");
-  await goTo("/demo/");
+  // The site's Spanish copy has the same calendar at /es/demo/.
+  if (!DEMO_PATH.test(location.pathname)) await goTo("/demo/");
   const frame = await waitFor(calendlyFrame, WAIT_MS);
   if (!frame) throw new Error("the booking calendar is not on /demo/");
   await scrollTo(frame, "top");
   highlight(frame);
-  // The frame's script answers once Calendly has drawn the calendar.
+  // The frame's script answers as soon as it runs, which can be before
+  // Calendly has drawn the month: on prod (2026-10-22) that empty first answer
+  // was read as "no open days this month". So ask until it has.
   let answered = null as Awaited<ReturnType<typeof toFrame>>;
-  for (let i = 0; i < 12 && !answered; i++) answered = await toFrame(frame, "state", undefined, 1000);
+  for (let i = 0; i < 16; i++) {
+    const reply = await toFrame(frame, "state", undefined, 1000);
+    if (!reply) continue;
+    answered = reply;
+    if (drawn(reply.state)) break;
+    await sleep(500);
+  }
   if (!answered) throw new Error("the booking calendar did not load");
+  if (!drawn(answered.state)) throw new Error("the booking calendar is still loading");
   const wants = order.day || order.time || order.name || order.email || order.notes;
   if (!wants) {
     emit("demo_state", answered.state);

@@ -29,6 +29,7 @@ import re
 import unicodedata
 from collections import Counter
 from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path
 from typing import Any, cast
 from urllib.parse import urlsplit
@@ -318,6 +319,10 @@ class Knowledge:
         named = [e for e in self.events.values() if norm(e.name) == want]
         named = named or [e for e in self.events.values() if norm(e.name).startswith(want)]
         named = named or [e for e in self.events.values() if want in norm(e.name)]
+        # A show the arena has played before is on the billboard twice (Luciano
+        # Pereyra in 2025 and in 2026): the one still to come, soonest first.
+        today = date.today().isoformat()
+        named.sort(key=lambda e: (bool(e.date) and e.date < today, e.date or "9999"))
         return named[0] if named else None
 
     def ticket_urls(self) -> set[str]:
