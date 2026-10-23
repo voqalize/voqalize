@@ -750,10 +750,10 @@ async def test_a_rut_is_never_typed_and_a_reshaped_phone_is_refused() -> None:
         assert "12.345.678-5" not in str(rig.driver.ui_commands)
 
 
-async def test_a_page_without_the_form_is_refused_and_a_career_is_picked_from_the_list() -> None:
+async def test_a_page_without_the_form_opens_one_and_a_career_is_picked_from_the_list() -> None:
     llm = ScriptedGemini(
         {
-            "contacten": [call("fill_lead_form", request={"nombre": "Ana"}), reply("Te llevo.")],
+            "contacten": call("fill_lead_form", request={"nombre": "Ana"}),
             "derecho": reply_and_call(
                 "Lo completo.", "fill_lead_form", request={"carrera": "derecho"}
             ),
@@ -762,8 +762,11 @@ async def test_a_page_without_the_form_is_refused_and_a_career_is_picked_from_th
     async with demo("uahurtado", llm) as rig:
         await rig.driver.start_session(init={"url": CAMPUS})
         await _page(rig, "page_changed", _page_changed(CAMPUS))
-        await rig.driver.user_says("Quiero que me contacten.")
-        assert "has no contact form" in _results(llm.captured_contents[-1])["fill_lead_form"]
+        turn = await rig.driver.user_says("Quiero que me contacten.")
+        # No career seen yet: the admision home, whose form lists them all.
+        assert _page_loads(rig) == [f"{ADM}/"]
+        assert turn.text == _LANDED["to_form"]["es"]
+        assert "fill_lead_form" not in rig.actions()
         await _page(
             rig,
             "page_changed",
@@ -776,8 +779,10 @@ async def test_a_page_without_the_form_is_refused_and_a_career_is_picked_from_th
                 },
             ),
         )
+        assert rig.command("fill_lead_form")["nombre"] == "Ana"
+        await _page(rig, "command_done", {"command": "fill_lead_form", "detail": "filled"})
         await rig.driver.user_says("Para derecho.")
-        assert rig.command("fill_lead_form")["carrera"] == "Derecho"
+        assert _commands(rig, "fill_lead_form")[-1]["carrera"] == "Derecho"
 
 
 # ─── Postgrado ─────────────────────────────────────────────────────────────────
@@ -902,6 +907,162 @@ async def test_a_form_fill_after_a_page_cue_waits_for_that_page() -> None:
         assert _cues(rig)[0]["url"] == PSICO
         assert "fill_lead_form" not in rig.actions()
         await _page(rig, "page_changed", _career_page())
+        assert rig.command("fill_lead_form")["nombre"] == "Ana"
+
+
+# ─── A move whose page is not in front opens that page first ───────────────────
+#
+# Call f6dbda3e (dev, 2026-10-23): on Ingeniería Civil en Informática the
+# visitor said "I would like to do a visit"; no page opened, then on "Yeah."
+# he said "you can sign up right here" while show_signup was refused on the
+# career page; with a {page: /ven-y-conocenos/} cue in the next reply it was
+# refused again, judged on the page still in front. On /ven-y-conocenos/,
+# "Can you show me the contact form?" got "right at the top" and a refused
+# fill_lead_form: that page has no form. Each took the visitor correcting him.
+
+VEN = f"{ADM}/ven-y-conocenos/"
+TOURS = [
+    {
+        "title": "Visitas guiadas",
+        "text": "Desde el 1 de octubre",
+        "open": True,
+        "signup_label": "Inscribirse aquí",
+    },
+    {"title": "UAH ABIERTA / ENSAYO PAES", "text": "REALIZADO", "done": True},
+]
+
+
+def _page_loads(rig: object) -> list[object]:
+    """The pages his cues load: a cue with a URL and nothing to ring there."""
+    return [c["url"] for c in _cues(rig) if c["url"] and not (c["heading"] or c["text"])]
+
+
+def _informatica_page() -> dict[str, object]:
+    return _page_changed(
+        INFORMATICA,
+        title="Ingeniería Civil en Informática | Admisión UAH",
+        kind="career",
+        toggles=list(TABS),
+        headings=["Ingeniería Civil en Informática", "Datos Académicos"],
+        career={
+            "slug": "ingenieria-civil-en-informatica",
+            "name": "Ingeniería Civil en Informática",
+        },
+        form={**FORM, "career": "Ingeniería Civil en Informática"},
+    )
+
+
+def test_a_visit_asked_in_english_is_the_visits_page() -> None:
+    for said in ("I would like to do a visit to this university.", "Can I visit the campus?"):
+        assert asked_page(said, SITE) == "admision.uahurtado.cl/ven-y-conocenos", said
+
+
+async def test_a_signup_asked_on_another_page_opens_the_visits_page_then_rings_it() -> None:
+    llm = ScriptedGemini(
+        {
+            "Yeah": reply_and_call(
+                "Here are our upcoming activities.", "show_signup", request={"visit": "visitas"}
+            )
+        }
+    )
+    async with demo("uahurtado", llm) as rig:
+        await rig.driver.start_session(init={"url": INFORMATICA, "lang": "en"})
+        await _page(rig, "page_changed", _informatica_page())
+        await rig.driver.user_says("Yeah.")
+        assert _page_loads(rig) == [VEN]
+        assert "show_signup" not in rig.actions()
+        await _page(rig, "page_changed", _page_changed(VEN, visits=TOURS))
+        assert rig.command("show_signup") == {"title": "Visitas guiadas"}
+
+
+async def test_a_signup_after_a_page_cue_waits_for_the_visits_page() -> None:
+    llm = ScriptedGemini(
+        {
+            "card": reply_and_call(
+                "{page: /ven-y-conocenos/} Here is our Ven y Conócenos page.",
+                "show_signup",
+                request={"visit": "Visitas guiadas"},
+            )
+        }
+    )
+    async with demo("uahurtado", llm) as rig:
+        await rig.driver.start_session(init={"url": INFORMATICA, "lang": "en"})
+        await _page(rig, "page_changed", _informatica_page())
+        await rig.driver.user_says("I can't see which card you mean.")
+        assert _page_loads(rig) == [VEN]
+        assert "show_signup" not in rig.actions()
+        # The page it leaves may report itself again first: that is not the one.
+        await _page(rig, "page_changed", _informatica_page())
+        assert "show_signup" not in rig.actions()
+        await _page(rig, "page_changed", _page_changed(VEN, visits=TOURS))
+        assert rig.command("show_signup") == {"title": "Visitas guiadas"}
+
+
+async def test_a_signup_whose_page_never_comes_is_said_as_not_done(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(uah, "_PAGE_WAIT_S", 0.3)
+    llm = ScriptedGemini(
+        {
+            "tour": reply_and_call(
+                "I'm taking you to the visits page.", "show_signup", request={"visit": "visitas"}
+            ),
+            "The page answered": reply("The visits page did not open."),
+        }
+    )
+    async with demo("uahurtado", llm) as rig:
+        await rig.driver.start_session(init={"url": INFORMATICA, "lang": "en"})
+        await _page(rig, "page_changed", _informatica_page())
+        await rig.driver.user_says("Show me the guided tour.")
+        await asyncio.sleep(0.5)
+        turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
+        assert turn.text == "The visits page did not open."
+        assert "show_signup not done" in _texts(llm.captured_contents[-1])
+        assert "show_signup" not in rig.actions()
+
+
+async def test_the_form_asked_on_a_page_without_one_opens_the_career_and_fills_there() -> None:
+    llm = ScriptedGemini(
+        {
+            "contact form": reply_and_call(
+                "Here is the contact form.", "fill_lead_form", request={}
+            ),
+            "Ana": reply_and_call(
+                "Done, I put your name in.", "fill_lead_form", request={"nombre": "Ana"}
+            ),
+        }
+    )
+    async with demo("uahurtado", llm) as rig:
+        await rig.driver.start_session(init={"url": INFORMATICA, "lang": "en"})
+        await _page(rig, "page_changed", _informatica_page())
+        await _page(rig, "page_changed", _page_changed(VEN, visits=TOURS))
+        await rig.driver.user_says("Can you show me the contact form at least?")
+        # The career he was on, whose form is at its top.
+        assert _page_loads(rig) == [INFORMATICA]
+        await _page(rig, "page_changed", _informatica_page())
+        assert "fill_lead_form" not in rig.actions()  # nothing to fill yet
+        await rig.driver.user_says("My name is Ana.")
+        result = _results(llm.captured_contents[-1])["fill_lead_form"]
+        assert "Ingeniería Civil en Informática's page is opening" in result
+        assert rig.command("fill_lead_form")["nombre"] == "Ana"
+
+
+async def test_a_name_given_on_a_page_without_the_form_is_filled_once_the_career_loads() -> None:
+    llm = ScriptedGemini(
+        {
+            "contacten": reply_and_call(
+                "Te llevo al formulario.", "fill_lead_form", request={"nombre": "Ana"}
+            )
+        }
+    )
+    async with demo("uahurtado", llm) as rig:
+        await rig.driver.start_session(init={"url": INFORMATICA})
+        await _page(rig, "page_changed", _informatica_page())
+        await _page(rig, "page_changed", _page_changed(VEN, visits=TOURS))
+        await rig.driver.user_says("Quiero que me contacten, soy Ana.")
+        assert _page_loads(rig) == [INFORMATICA]
+        assert "fill_lead_form" not in rig.actions()
+        await _page(rig, "page_changed", _informatica_page())
         assert rig.command("fill_lead_form")["nombre"] == "Ana"
 
 

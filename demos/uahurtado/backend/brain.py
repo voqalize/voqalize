@@ -58,7 +58,7 @@ import math
 import random
 import re
 import time
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Any, Literal
 from zoneinfo import ZoneInfo
@@ -147,6 +147,7 @@ from .protocol import (
     FocusTab,
     LanguageChanged,
     LanguageRequested,
+    LeadFormInfo,
     LeadFormState,
     LeadSubmitted,
     OpenCareerMenu,
@@ -161,6 +162,7 @@ from .protocol import (
     TabInfo,
     TabsChanged,
     UahEvent,
+    VisitCard,
 )
 
 AGENT_NAME = "Javier"
@@ -613,10 +615,10 @@ Write your answer, with its cues, first; any tool call comes at the end of the s
 
 # Campus and visits
 - The Casa Central and the campus addresses are on www.uahurtado.cl/la-universidad/campus/campus-patrimonial/, under UBICACIÓN, with a map. Show them there.
-- Visits and workshops are on /ven-y-conocenos/. The screen line lists each card, with the ones already held marked as past: never offer a past one. To sign up, ring its "Inscribirse aquí" with show_signup and say they sign up there themselves. Never open or fill a sign-up form.
+- Visits and workshops are on /ven-y-conocenos/. The screen line lists each card, with the ones already held marked as past: never offer a past one. To sign up, call show_signup with the card's title: it rings its "Inscribirse aquí", and from any other page it first takes them to /ven-y-conocenos/ itself. Then say you are taking them there and that they sign up there themselves; never "right here" before the page is in front. Never open or fill a sign-up form.
 
 # The contact form
-- Most admision pages have the form "Solicita información" (on a career page, at its top, already for that career). When the visitor wants admissions to contact them, fill it as they dictate with fill_lead_form: nombre, apellido, email, fono and a short consulta you write from the conversation. Fill what they said as soon as they say it, then read back the email letter by letter and the phone digit by digit.
+- The form "Solicita información" is on every career page (at its top, already for that career), on the admision home and on /admision-directa/; other pages, /ven-y-conocenos/ among them, have none, and the screen line says which page is in front. From a page without it, fill_lead_form takes them to the career's page itself (the one they asked about, else the admision home) and fills it once it is in: say you are taking them to the form, never that it is on screen yet. When the visitor wants admissions to contact them, fill it as they dictate with fill_lead_form: nombre, apellido, email, fono and a short consulta you write from the conversation. Fill what they said as soon as they say it, then read back the email letter by letter and the phone digit by digit.
 - Never ask for, say, repeat or type their RUT: it is theirs to type, in the field you ring for them (focus_rut).
 - Never send it. When it is complete, ask them to review it and press "Enviar" themselves.
 - Never ask for data the form does not ask for.
@@ -763,6 +765,14 @@ _LANDED: dict[str, dict[Lang, str]] = {
     "link": {
         "en": "I've opened it in a new tab.",
         "es": "Te lo abrí en una pestaña nueva.",
+    },
+    "visits": {
+        "en": "I'm taking you to the visits page.",
+        "es": "Te llevo a la página de visitas.",
+    },
+    "to_form": {
+        "en": "I'm taking you to the contact form.",
+        "es": "Te llevo al formulario de contacto.",
     },
     "queued": {
         "en": "I'll do that as soon as the page is ready.",
@@ -923,7 +933,7 @@ _ASKED_PAGES: tuple[tuple[re.Pattern[str], str], ...] = tuple(
         (r"continuidad de estudios|continuidad\b", "/continuidad-de-estudios/"),
         (r"audiomallas", "/audiomallas/"),
         (
-            r"visitas?\b|visitar|conocer la (?:u|universidad)|ven y conocenos|open day|"
+            r"visit(?:as?|ar|s|ing)?\b|conocer la (?:u|universidad)|ven y conocenos|open day|"
             r"talleres?\b|workshops?|tours?\b",
             "/ven-y-conocenos/",
         ),
@@ -1193,6 +1203,17 @@ class _Sheet:
     corrects them."""
 
 
+@dataclasses.dataclass
+class _Awaited:
+    """A move that needs a page other than the one in front: the page (its
+    key) the tool opened, or found a page cue already opening, and what it does
+    there once that page reports itself — ``None`` when done, else why not."""
+
+    key: str
+    command: str
+    then: Callable[[PageChanged], str | None]
+
+
 class UahurtadoBrain(GeminiBrain):
     """One per session. Javier: the university's knowledge, its careers and
     programmes, what the page in front reads live, and a mirror of the
@@ -1251,6 +1272,11 @@ class UahurtadoBrain(GeminiBrain):
         #: for it waits for it to report itself.
         self._loading: tuple[str, float] | None = None
         self._parked: list[Action] = []
+        #: A move waiting for the page its tool opened (show_signup off the
+        #: visits page, fill_lead_form off a page with no form).
+        self._awaited: _Awaited | None = None
+        #: The last career page in front this call: where the form is.
+        self._career_url: str | None = None
         #: Moves sent and not yet answered, the answers that came since his
         #: last turn, and the ask a read's answer brought: talked through once,
         #: in the next short quiet spell.
@@ -1258,7 +1284,7 @@ class UahurtadoBrain(GeminiBrain):
         self._quiet_ok: set[str] = set()
         self._outcomes: list[str] = []
         self._talk: list[str] = []
-        self._queued: Action | None = None
+        self._queued: Action | Callable[[], None] | None = None
         self._turns = 0
         self._playing = 0
         self._played_at = 0.0
@@ -1554,6 +1580,11 @@ class UahurtadoBrain(GeminiBrain):
             return
         self._paged = self._paged or raw.kind == "page"
         if raw.kind == "page" and cue.url and (key := page_key(cue.url)) != self._key:
+            awaited = self._awaited
+            if awaited is not None and awaited.key == key and self._loading is not None:
+                # A tool of this reply already opened it, ahead of these words.
+                logger.info("uahurtado: {} is already opening; cue not sent again", key)
+                return
             self._loading = (key or "", time.monotonic())
         if raw.kind == "show":
             self._shown = cue.heading or cue.text
@@ -1780,16 +1811,25 @@ class UahurtadoBrain(GeminiBrain):
                 )
 
     def _page_changed(self, event: PageChanged) -> str | None:
+        before = self._key
         self.page = event
-        self._key = page_key(event.url) or self._key
+        key = page_key(event.url) or self._key
+        self._key = key
         self._page_unseen = True
         if event.career is not None:
             self._sheet_from_page(event.career)
-        if self._loading is not None:
+            self._career_url = event.url
+        if self._loading is not None and (key == self._loading[0] or key != before):
             # The page the cue loaded, or another the visitor went to: either
-            # way the load is over, and what waited for it goes now.
+            # way the load is over, and what waited for it goes now. The page
+            # being left reporting itself again is neither.
             self._loading = None
             self._send_parked()
+        if (awaited := self._awaited) is not None and key == awaited.key:
+            self._awaited = None
+            self._sent.pop(awaited.command, None)
+            if (why := awaited.then(event)) is not None:
+                self._not_done(awaited.command, why)
         # Read in with their next message or quiet spell: they may click on
         # before they speak, and only the last page matters.
         return None
@@ -1949,12 +1989,15 @@ class UahurtadoBrain(GeminiBrain):
         self._quiet_ok.discard(command)
         if (queued := self._queued) is not None and not self._busy():
             self._queued = None
-            name = queued.__voqal_action__
+            name = queued.__voqal_action__ if isinstance(queued, Action) else "the move asked for"
             if ok:
                 logger.info(
                     "uahurtado: {} answered; sending the {} queued behind it", command, name
                 )
-                self._send(queued)
+                if isinstance(queued, Action):
+                    self._send(queued)
+                else:
+                    queued()
             else:
                 outcome += f" (so {name}, asked for while it ran, was not sent)"
                 quiet = False
@@ -2007,6 +2050,61 @@ class UahurtadoBrain(GeminiBrain):
         for action in parked:
             logger.info("uahurtado: the page is in; sending {}", action.__voqal_action__)
             self.session.dispatch(action)
+
+    def _open_then(
+        self, url: str, command: str, then: Callable[[PageChanged], str | None]
+    ) -> str | None:
+        """Take the visitor to ``url`` and make ``command`` there once that page
+        reports itself: the move a tool cannot make on the page in front. A
+        page cue of this reply already opening it is not sent twice. Returns
+        ``None`` when started, else what the tool says (queued behind a move
+        still under way, which would be lost in a load)."""
+        key = page_key(url) or ""
+        if (running := self._busy()) is not None:
+
+            def later() -> None:
+                self._open_then(url, command, then)
+
+            self._queued = later
+            landed(_LANDED["queued"][self.spoken])
+            logger.info("uahurtado: {} on {} queued behind {}", command, key, running)
+            return (
+                f"Queued, not sent yet: the page is still working on the last move ({running}). "
+                "Say in a few words that you will do it as soon as the page is ready; never that "
+                "it is done, and do not call it again."
+            )
+        now = time.monotonic()
+        loading = self._loading is not None and self._loading[0] == key
+        if not loading:
+            # A page cue with no words of its own: the page moves at once,
+            # while he says what he is doing, and the cues still owed travel
+            # with it to the next page.
+            self._loading = (key, now)
+            self._paged = True
+            logger.info("uahurtado: {} opens {} first", command, key)
+            self.session.dispatch(Cue(at="", word=0, url=url))
+        awaited = _Awaited(key, command, then)
+        self._awaited = awaited
+        took = _MOVE_TAKES_S.get(command, _MOVE_TAKES_S[""])
+        self._sent[command] = now + _PAGE_WAIT_S + took
+        asyncio.get_running_loop().call_later(_PAGE_WAIT_S, self._awaited_late, awaited)
+        return None
+
+    def _awaited_late(self, awaited: _Awaited) -> None:
+        if self._awaited is not awaited:
+            return
+        self._awaited = None
+        logger.info("uahurtado: {} never reported itself; {} dropped", awaited.key, awaited.command)
+        self._not_done(
+            awaited.command,
+            f"{short(awaited.key)} did not open on their screen, so nothing was done there",
+        )
+
+    def _not_done(self, command: str, why: str) -> None:
+        """A move that waited for its page and could not be made there: said
+        in the next quiet spell, with what was queued behind it dropped."""
+        self._sent[command] = 0.0
+        self._answered(command, f"{command} not done: {why}", ok=False)
 
     def _move(self, action: Action, line: str = "shown", *, quiet_ok: bool = False) -> str | None:
         """Send a page move, or, while the last one is still under way on the
@@ -2313,14 +2411,9 @@ class UahurtadoBrain(GeminiBrain):
         )
 
     async def fill_lead_form(self, request: LeadRequest) -> str:
-        """Fill the page's contact form ("Solicita información") with what the
-        visitor said. Never their RUT, and never sent: they press Enviar."""
-        form = self.page.form if self.page is not None else None
-        if form is None:
-            return (
-                "Not filled: the page in front has no contact form. Every career page has one at "
-                "its top: open the career's page with a page cue first, then fill it."
-            )
+        """Fill the contact form ("Solicita información") with what the visitor
+        said; from a page without it, take them to a career's page and fill it
+        there. Never their RUT, and never sent: they press Enviar."""
         given = {
             k: v.strip()
             for k, v in request.model_dump(exclude={"focus_rut"}).items()
@@ -2351,20 +2444,10 @@ class UahurtadoBrain(GeminiBrain):
                 given.pop("fono")
             else:
                 given["fono"] = ("+" if fono.strip().startswith("+") else "") + digits
-        for field_name, options in (("carrera", form.career_options), ("via", form.via_options)):
-            if (said := given.get(field_name)) is None:
-                continue
-            if field_name not in form.fields or not options:
-                given.pop(field_name)
-                continue
-            if (hit := _match(said, options)) is None:
-                refused.append(f"{field_name} {said!r} is not on its list: {_clip(options, 12)}")
-                given.pop(field_name)
-            else:
-                given[field_name] = hit
-        missing_fields = [k for k in given if k not in form.fields]
-        for k in missing_fields:
-            given.pop(k)
+        form = self.page.form if self.page is not None else None
+        if form is None:
+            return self._fill_elsewhere(given, refused, focus_rut=request.focus_rut)
+        refused += self._fit_form(given, form)
         if not given and not request.focus_rut:
             return "Not filled: " + ("; ".join(refused) or "nothing to fill.")
         queued = self._move(
@@ -2380,26 +2463,126 @@ class UahurtadoBrain(GeminiBrain):
             out += " Not filled: " + "; ".join(refused) + "."
         return out + " Never say it is sent: they review it and press Enviar."
 
-    async def show_signup(self, request: VisitRequest) -> str:
-        """Ring the "Inscribirse aquí" of a visit or workshop on /ven-y-conocenos/.
-        Never opens it: the visitor signs up there themselves."""
-        visits = self.page.visits if self.page is not None else []
-        if not visits:
-            return (
-                "Not shown: the page in front lists no visits. Open /ven-y-conocenos/ with a page "
-                "cue first."
-            )
-        title = _match(request.visit, [v.title for v in visits])
+    @staticmethod
+    def _fit_form(given: dict[str, str], form: LeadFormInfo) -> list[str]:
+        """Keep in ``given`` only what ``form`` has, a career or vía as its list
+        writes it; return what was refused."""
+        refused: list[str] = []
+        for field_name, options in (("carrera", form.career_options), ("via", form.via_options)):
+            if (said := given.get(field_name)) is None:
+                continue
+            if field_name not in form.fields or not options:
+                given.pop(field_name)
+                continue
+            if (hit := _match(said, options)) is None:
+                refused.append(f"{field_name} {said!r} is not on its list: {_clip(options, 12)}")
+                given.pop(field_name)
+            else:
+                given[field_name] = hit
+        for k in [k for k in given if k not in form.fields]:
+            given.pop(k)
+        return refused
+
+    def _form_page(self, carrera: str | None) -> tuple[str, str]:
+        """The page whose form he fills when the one in front has none, and its
+        name: the page a cue of this reply is opening if it has the form, else
+        the career named, else the last career they saw, else the admision home
+        (whose form lists every career)."""
+        home = page_url(f"{ADMISION}/")
+        if self._loading is not None:
+            url = page_url(self._loading[0])
+            if (career := self.kb.career_at(url)) is not None:
+                return url, career.name
+            if self._loading[0] in {f"{ADMISION}/", f"{ADMISION}/admision-directa"}:
+                return url, "the admissions page"
+        if carrera and (career := self.kb.career(carrera)) is not None:
+            return career.url, career.name
+        if self._career_url is not None:
+            career = self.kb.career_at(self._career_url)
+            name = career.name if career else "the career they saw"
+            return self._career_url, name
+        return home, "the admissions home page"
+
+    def _fill_elsewhere(self, given: dict[str, str], refused: list[str], *, focus_rut: bool) -> str:
+        """The page in front has no form: take them to one and fill it there."""
+        url, name = self._form_page(given.get("carrera"))
+
+        def fill(page: PageChanged) -> str | None:
+            if page.form is None:
+                return f"{short(page_key(page.url) or page.url)} showed no contact form"
+            late = self._fit_form(given, page.form)
+            if given or focus_rut:
+                self._move(FillLeadForm(**given, focus_rut=focus_rut), "form")  # type: ignore[arg-type]
+            if late:
+                self._outcomes.append("fill_lead_form not filled: " + "; ".join(late))
+                self._shorten_idle()
+            return None
+
+        queued = self._open_then(url, "fill_lead_form", fill)
+        if queued:
+            return queued
+        landed(_LANDED["to_form"][self.spoken])
+        out = (
+            f"The page in front has no contact form, so {name}'s page is opening on their screen "
+            "now, with the form at its top"
+        )
+        out += (
+            f"; {', '.join(given)} {'goes' if len(given) == 1 else 'go'} in once it is in, and "
+            "the page confirms."
+            if given or focus_rut
+            else "; nothing to fill yet."
+        )
+        if refused:
+            out += " Not filled: " + "; ".join(refused) + "."
+        return (
+            out + " In this response say in one short sentence that you are taking them to the "
+            "form; never that it is on screen or filled yet, and never that it is sent."
+        )
+
+    def _signup(self, visits: list[VisitCard], asked: str) -> ShowSignup | str:
+        """The sign-up to ring for ``asked`` among ``visits``, or why not."""
+        title = _match(asked, [v.title for v in visits])
         visit = next((v for v in visits if v.title == title), None)
         if visit is None:
             listed = "; ".join(v.title for v in visits if not v.done) or "none open"
-            return f"Not shown: no visit '{request.visit}'. Open ones: {listed}."
+            return f"no visit '{asked}'. Open ones: {listed}"
         if visit.done:
-            return f"Not shown: {visit.title} already happened (REALIZADO). Never offer it."
+            return f"{visit.title} already happened (REALIZADO). Never offer it"
         if not visit.open:
-            return f"Not shown: sign-ups for {visit.title} are closed. Say so."
-        return self._move(ShowSignup(title=visit.title), "signup", quiet_ok=True) or (
-            f"Ringing the sign-up of {visit.title}. They open it and sign up themselves."
+            return f"sign-ups for {visit.title} are closed. Say so"
+        return ShowSignup(title=visit.title)
+
+    async def show_signup(self, request: VisitRequest) -> str:
+        """Ring the "Inscribirse aquí" of a visit or workshop on /ven-y-conocenos/,
+        taking them there first from any other page. Never opens it: the
+        visitor signs up there themselves."""
+        visits = self.page.visits if self.page is not None else []
+        if not visits:
+            url = page_url(f"{ADMISION}/ven-y-conocenos")
+
+            def ring(page: PageChanged) -> str | None:
+                found = self._signup(page.visits, request.visit)
+                if isinstance(found, str):
+                    return found
+                self._quiet_ok.add("show_signup")
+                self._move(found, "signup")
+                return None
+
+            queued = self._open_then(url, "show_signup", ring)
+            if queued:
+                return queued
+            landed(_LANDED["visits"][self.spoken])
+            return (
+                f"Opening /ven-y-conocenos/ on their screen now; once it is in, the sign-up of "
+                f"'{request.visit}' is rung, and if it cannot be, the page tells you. In this "
+                "response say in one short sentence that you are taking them to the visits page "
+                "and that they sign up there themselves; never that it is on screen yet."
+            )
+        found = self._signup(visits, request.visit)
+        if isinstance(found, str):
+            return f"Not shown: {found}."
+        return self._move(found, "signup", quiet_ok=True) or (
+            f"Ringing the sign-up of {found.title}. They open it and sign up themselves."
         )
 
     async def open_link(self, request: LinkRequest) -> str:
@@ -2583,6 +2766,8 @@ def _screen_note(p: PageChanged) -> str:
         note += f", already for {f.career}." if f.career else "."
         if f.career_options:
             note += " Its career list is a select."
+    elif key is not None and key.startswith(f"{ADMISION}/"):
+        note += " It has no contact form: fill_lead_form takes them to one."
     return note + "]"
 
 
