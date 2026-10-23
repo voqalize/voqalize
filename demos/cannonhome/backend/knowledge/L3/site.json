@@ -1,0 +1,2074 @@
+{
+ "site": "https://cannonhome.cl",
+ "aliases": [
+  "https://www.cannonhome.cl"
+ ],
+ "crawled": "2026-10-22",
+ "pages": 53,
+ "headers": {
+  "home": {
+   "status": 200,
+   "csp_enforced": true,
+   "csp_report_only": false,
+   "permissions_policy": null,
+   "x_frame_options": null,
+   "cache": {
+    "cache-control": "no-store, no-cache, must-revalidate, max-age=0",
+    "x-cache": "MISS, HIT, MISS",
+    "age": "823"
+   },
+   "csp_directives": {
+    "font-src": [
+     "www.paypalobjects.com",
+     "fonts.gstatic.com",
+     "use.typekit.net",
+     "*.typekit.net",
+     "*.gstatic.com",
+     "*.cdn-apple.com",
+     "data:",
+     "*.embluemail.com",
+     "stackpath.bootstrapcdn.com",
+     "snapwidget.com",
+     "widget.freshworks.com",
+     "https://www.gstatic.com",
+     "… 10 more"
+    ],
+    "form-action": [
+     "geostag.cardinalcommerce.com",
+     "geo.cardinalcommerce.com",
+     "1eafstag.cardinalcommerce.com",
+     "1eaf.cardinalcommerce.com",
+     "centinelapistag.cardinalcommerce.com",
+     "centinelapi.cardinalcommerce.com",
+     "pilot-payflowlink.paypal.com",
+     "www.paypal.com",
+     "www.sandbox.paypal.com",
+     "*.paypal.com",
+     "www.facebook.com",
+     "connect.facebook.net",
+     "… 28 more"
+    ],
+    "frame-ancestors": [
+     "*.embluemail.com",
+     "stackpath.bootstrapcdn.com",
+     "snapwidget.com",
+     "widget.freshworks.com",
+     "*.mercadopago.com",
+     "*.mercadolivre.com",
+     "*.mercadolibre.com",
+     "*.mercadolibre.com.br",
+     "https://mercadopago.com.br",
+     "*.mercadopago.com.br",
+     "*.mlstatic.com",
+     "*.retailrocket.net",
+     "… 5 more"
+    ],
+    "frame-src": [
+     "fast.amc.demdex.net",
+     "*.adobe.com",
+     "geostag.cardinalcommerce.com",
+     "geo.cardinalcommerce.com",
+     "1eafstag.cardinalcommerce.com",
+     "1eaf.cardinalcommerce.com",
+     "centinelapistag.cardinalcommerce.com",
+     "centinelapi.cardinalcommerce.com",
+     "bid.g.doubleclick.net",
+     "*.youtube.com",
+     "*.youtube-nocookie.com",
+     "www.paypal.com",
+     "… 43 more"
+    ],
+    "img-src": [
+     "data:",
+     "assets.adobedtm.com",
+     "amcglobal.sc.omtrdc.net",
+     "dpm.demdex.net",
+     "cm.everesttech.net",
+     "*.adobe.com",
+     "widgets.magentocommerce.com",
+     "www.googleadservices.com",
+     "*.google-analytics.com",
+     "googleads.g.doubleclick.net",
+     "www.google.com",
+     "bid.g.doubleclick.net",
+     "… 69 more"
+    ],
+    "script-src": [
+     "assets.adobedtm.com",
+     "*.adobe.com",
+     "geostag.cardinalcommerce.com",
+     "1eafstag.cardinalcommerce.com",
+     "geoapi.cardinalcommerce.com",
+     "1eafapi.cardinalcommerce.com",
+     "songbird.cardinalcommerce.com",
+     "includestest.ccdc02.com",
+     "www.googleadservices.com",
+     "www.google-analytics.com",
+     "googleads.g.doubleclick.net",
+     "analytics.google.com",
+     "… 93 more"
+    ],
+    "style-src": [
+     "*.adobe.com",
+     "fonts.googleapis.com",
+     "cdn.dnky.co",
+     "*.embluemail.com",
+     "stackpath.bootstrapcdn.com",
+     "snapwidget.com",
+     "widget.freshworks.com",
+     "wchat.freshchat.com",
+     "www.gstatic.com",
+     "https://*.gopersonal.ai",
+     "*.mercadopago.com",
+     "*.mercadolivre.com",
+     "… 18 more"
+    ],
+    "object-src": [
+     "*.embluemail.com",
+     "stackpath.bootstrapcdn.com",
+     "snapwidget.com",
+     "widget.freshworks.com",
+     "*.retailrocket.net",
+     "'self'",
+     "'unsafe-inline'"
+    ],
+    "media-src": [
+     "*.adobe.com",
+     "*.embluemail.com",
+     "stackpath.bootstrapcdn.com",
+     "snapwidget.com",
+     "widget.freshworks.com",
+     "*.retailrocket.net",
+     "'self'",
+     "'unsafe-inline'"
+    ],
+    "manifest-src": [
+     "'self'",
+     "'unsafe-inline'"
+    ],
+    "connect-src": [
+     "dpm.demdex.net",
+     "amcglobal.sc.omtrdc.net",
+     "geostag.cardinalcommerce.com",
+     "geo.cardinalcommerce.com",
+     "1eafstag.cardinalcommerce.com",
+     "1eaf.cardinalcommerce.com",
+     "centinelapistag.cardinalcommerce.com",
+     "centinelapi.cardinalcommerce.com",
+     "*.google-analytics.com",
+     "www.googleadservices.com",
+     "*.analytics.google.com",
+     "www.googletagmanager.com",
+     "… 73 more"
+    ],
+    "child-src": [
+     "*.embluemail.com",
+     "stackpath.bootstrapcdn.com",
+     "snapwidget.com",
+     "widget.freshworks.com",
+     "assets.braintreegateway.com",
+     "c.paypal.com",
+     "*.paypal.com",
+     "*.retailrocket.net",
+     "http:",
+     "https:",
+     "blob:",
+     "'self'",
+     "… 1 more"
+    ],
+    "default-src": [
+     "*.embluemail.com",
+     "stackpath.bootstrapcdn.com",
+     "snapwidget.com",
+     "widget.freshworks.com",
+     "dev.visualwebsiteoptimizer.com",
+     "*.retailrocket.net",
+     "'self'",
+     "'unsafe-inline'",
+     "'unsafe-eval'"
+    ],
+    "base-uri": [
+     "'self'",
+     "'unsafe-inline'"
+    ]
+   },
+   "csp_connect_src_count": 85,
+   "csp_allows_voqalize": false
+  },
+  "category": {
+   "status": 200,
+   "csp_enforced": true,
+   "csp_report_only": false,
+   "permissions_policy": null,
+   "x_frame_options": null,
+   "cache": {
+    "cache-control": "no-store, no-cache, must-revalidate, max-age=0",
+    "x-cache": "MISS, HIT, MISS",
+    "age": "11"
+   },
+   "csp_directives": {
+    "font-src": [
+     "www.paypalobjects.com",
+     "fonts.gstatic.com",
+     "use.typekit.net",
+     "*.typekit.net",
+     "*.gstatic.com",
+     "*.cdn-apple.com",
+     "data:",
+     "*.embluemail.com",
+     "stackpath.bootstrapcdn.com",
+     "snapwidget.com",
+     "widget.freshworks.com",
+     "https://www.gstatic.com",
+     "… 10 more"
+    ],
+    "form-action": [
+     "geostag.cardinalcommerce.com",
+     "geo.cardinalcommerce.com",
+     "1eafstag.cardinalcommerce.com",
+     "1eaf.cardinalcommerce.com",
+     "centinelapistag.cardinalcommerce.com",
+     "centinelapi.cardinalcommerce.com",
+     "pilot-payflowlink.paypal.com",
+     "www.paypal.com",
+     "www.sandbox.paypal.com",
+     "*.paypal.com",
+     "www.facebook.com",
+     "connect.facebook.net",
+     "… 28 more"
+    ],
+    "frame-ancestors": [
+     "*.embluemail.com",
+     "stackpath.bootstrapcdn.com",
+     "snapwidget.com",
+     "widget.freshworks.com",
+     "*.mercadopago.com",
+     "*.mercadolivre.com",
+     "*.mercadolibre.com",
+     "*.mercadolibre.com.br",
+     "https://mercadopago.com.br",
+     "*.mercadopago.com.br",
+     "*.mlstatic.com",
+     "*.retailrocket.net",
+     "… 5 more"
+    ],
+    "frame-src": [
+     "fast.amc.demdex.net",
+     "*.adobe.com",
+     "geostag.cardinalcommerce.com",
+     "geo.cardinalcommerce.com",
+     "1eafstag.cardinalcommerce.com",
+     "1eaf.cardinalcommerce.com",
+     "centinelapistag.cardinalcommerce.com",
+     "centinelapi.cardinalcommerce.com",
+     "bid.g.doubleclick.net",
+     "*.youtube.com",
+     "*.youtube-nocookie.com",
+     "www.paypal.com",
+     "… 43 more"
+    ],
+    "img-src": [
+     "data:",
+     "assets.adobedtm.com",
+     "amcglobal.sc.omtrdc.net",
+     "dpm.demdex.net",
+     "cm.everesttech.net",
+     "*.adobe.com",
+     "widgets.magentocommerce.com",
+     "www.googleadservices.com",
+     "*.google-analytics.com",
+     "googleads.g.doubleclick.net",
+     "www.google.com",
+     "bid.g.doubleclick.net",
+     "… 69 more"
+    ],
+    "script-src": [
+     "assets.adobedtm.com",
+     "*.adobe.com",
+     "geostag.cardinalcommerce.com",
+     "1eafstag.cardinalcommerce.com",
+     "geoapi.cardinalcommerce.com",
+     "1eafapi.cardinalcommerce.com",
+     "songbird.cardinalcommerce.com",
+     "includestest.ccdc02.com",
+     "www.googleadservices.com",
+     "www.google-analytics.com",
+     "googleads.g.doubleclick.net",
+     "analytics.google.com",
+     "… 93 more"
+    ],
+    "style-src": [
+     "*.adobe.com",
+     "fonts.googleapis.com",
+     "cdn.dnky.co",
+     "*.embluemail.com",
+     "stackpath.bootstrapcdn.com",
+     "snapwidget.com",
+     "widget.freshworks.com",
+     "wchat.freshchat.com",
+     "www.gstatic.com",
+     "https://*.gopersonal.ai",
+     "*.mercadopago.com",
+     "*.mercadolivre.com",
+     "… 18 more"
+    ],
+    "object-src": [
+     "*.embluemail.com",
+     "stackpath.bootstrapcdn.com",
+     "snapwidget.com",
+     "widget.freshworks.com",
+     "*.retailrocket.net",
+     "'self'",
+     "'unsafe-inline'"
+    ],
+    "media-src": [
+     "*.adobe.com",
+     "*.embluemail.com",
+     "stackpath.bootstrapcdn.com",
+     "snapwidget.com",
+     "widget.freshworks.com",
+     "*.retailrocket.net",
+     "'self'",
+     "'unsafe-inline'"
+    ],
+    "manifest-src": [
+     "'self'",
+     "'unsafe-inline'"
+    ],
+    "connect-src": [
+     "dpm.demdex.net",
+     "amcglobal.sc.omtrdc.net",
+     "geostag.cardinalcommerce.com",
+     "geo.cardinalcommerce.com",
+     "1eafstag.cardinalcommerce.com",
+     "1eaf.cardinalcommerce.com",
+     "centinelapistag.cardinalcommerce.com",
+     "centinelapi.cardinalcommerce.com",
+     "*.google-analytics.com",
+     "www.googleadservices.com",
+     "*.analytics.google.com",
+     "www.googletagmanager.com",
+     "… 73 more"
+    ],
+    "child-src": [
+     "*.embluemail.com",
+     "stackpath.bootstrapcdn.com",
+     "snapwidget.com",
+     "widget.freshworks.com",
+     "assets.braintreegateway.com",
+     "c.paypal.com",
+     "*.paypal.com",
+     "*.retailrocket.net",
+     "http:",
+     "https:",
+     "blob:",
+     "'self'",
+     "… 1 more"
+    ],
+    "default-src": [
+     "*.embluemail.com",
+     "stackpath.bootstrapcdn.com",
+     "snapwidget.com",
+     "widget.freshworks.com",
+     "dev.visualwebsiteoptimizer.com",
+     "*.retailrocket.net",
+     "'self'",
+     "'unsafe-inline'",
+     "'unsafe-eval'"
+    ],
+    "base-uri": [
+     "'self'",
+     "'unsafe-inline'"
+    ]
+   },
+   "csp_connect_src_count": 85,
+   "csp_allows_voqalize": false
+  },
+  "product": {
+   "status": 200,
+   "csp_enforced": true,
+   "csp_report_only": false,
+   "permissions_policy": null,
+   "x_frame_options": null,
+   "cache": {
+    "cache-control": "no-store, no-cache, must-revalidate, max-age=0",
+    "x-cache": "MISS, HIT, MISS",
+    "age": "14155"
+   },
+   "csp_directives": {
+    "font-src": [
+     "www.paypalobjects.com",
+     "fonts.gstatic.com",
+     "use.typekit.net",
+     "*.typekit.net",
+     "*.gstatic.com",
+     "*.cdn-apple.com",
+     "data:",
+     "*.embluemail.com",
+     "stackpath.bootstrapcdn.com",
+     "snapwidget.com",
+     "widget.freshworks.com",
+     "https://www.gstatic.com",
+     "… 10 more"
+    ],
+    "form-action": [
+     "geostag.cardinalcommerce.com",
+     "geo.cardinalcommerce.com",
+     "1eafstag.cardinalcommerce.com",
+     "1eaf.cardinalcommerce.com",
+     "centinelapistag.cardinalcommerce.com",
+     "centinelapi.cardinalcommerce.com",
+     "pilot-payflowlink.paypal.com",
+     "www.paypal.com",
+     "www.sandbox.paypal.com",
+     "*.paypal.com",
+     "www.facebook.com",
+     "connect.facebook.net",
+     "… 28 more"
+    ],
+    "frame-ancestors": [
+     "*.embluemail.com",
+     "stackpath.bootstrapcdn.com",
+     "snapwidget.com",
+     "widget.freshworks.com",
+     "*.mercadopago.com",
+     "*.mercadolivre.com",
+     "*.mercadolibre.com",
+     "*.mercadolibre.com.br",
+     "https://mercadopago.com.br",
+     "*.mercadopago.com.br",
+     "*.mlstatic.com",
+     "*.retailrocket.net",
+     "… 5 more"
+    ],
+    "frame-src": [
+     "fast.amc.demdex.net",
+     "*.adobe.com",
+     "geostag.cardinalcommerce.com",
+     "geo.cardinalcommerce.com",
+     "1eafstag.cardinalcommerce.com",
+     "1eaf.cardinalcommerce.com",
+     "centinelapistag.cardinalcommerce.com",
+     "centinelapi.cardinalcommerce.com",
+     "bid.g.doubleclick.net",
+     "*.youtube.com",
+     "*.youtube-nocookie.com",
+     "www.paypal.com",
+     "… 43 more"
+    ],
+    "img-src": [
+     "data:",
+     "assets.adobedtm.com",
+     "amcglobal.sc.omtrdc.net",
+     "dpm.demdex.net",
+     "cm.everesttech.net",
+     "*.adobe.com",
+     "widgets.magentocommerce.com",
+     "www.googleadservices.com",
+     "*.google-analytics.com",
+     "googleads.g.doubleclick.net",
+     "www.google.com",
+     "bid.g.doubleclick.net",
+     "… 69 more"
+    ],
+    "script-src": [
+     "assets.adobedtm.com",
+     "*.adobe.com",
+     "geostag.cardinalcommerce.com",
+     "1eafstag.cardinalcommerce.com",
+     "geoapi.cardinalcommerce.com",
+     "1eafapi.cardinalcommerce.com",
+     "songbird.cardinalcommerce.com",
+     "includestest.ccdc02.com",
+     "www.googleadservices.com",
+     "www.google-analytics.com",
+     "googleads.g.doubleclick.net",
+     "analytics.google.com",
+     "… 93 more"
+    ],
+    "style-src": [
+     "*.adobe.com",
+     "fonts.googleapis.com",
+     "cdn.dnky.co",
+     "*.embluemail.com",
+     "stackpath.bootstrapcdn.com",
+     "snapwidget.com",
+     "widget.freshworks.com",
+     "wchat.freshchat.com",
+     "www.gstatic.com",
+     "https://*.gopersonal.ai",
+     "*.mercadopago.com",
+     "*.mercadolivre.com",
+     "… 18 more"
+    ],
+    "object-src": [
+     "*.embluemail.com",
+     "stackpath.bootstrapcdn.com",
+     "snapwidget.com",
+     "widget.freshworks.com",
+     "*.retailrocket.net",
+     "'self'",
+     "'unsafe-inline'"
+    ],
+    "media-src": [
+     "*.adobe.com",
+     "*.embluemail.com",
+     "stackpath.bootstrapcdn.com",
+     "snapwidget.com",
+     "widget.freshworks.com",
+     "*.retailrocket.net",
+     "'self'",
+     "'unsafe-inline'"
+    ],
+    "manifest-src": [
+     "'self'",
+     "'unsafe-inline'"
+    ],
+    "connect-src": [
+     "dpm.demdex.net",
+     "amcglobal.sc.omtrdc.net",
+     "geostag.cardinalcommerce.com",
+     "geo.cardinalcommerce.com",
+     "1eafstag.cardinalcommerce.com",
+     "1eaf.cardinalcommerce.com",
+     "centinelapistag.cardinalcommerce.com",
+     "centinelapi.cardinalcommerce.com",
+     "*.google-analytics.com",
+     "www.googleadservices.com",
+     "*.analytics.google.com",
+     "www.googletagmanager.com",
+     "… 73 more"
+    ],
+    "child-src": [
+     "*.embluemail.com",
+     "stackpath.bootstrapcdn.com",
+     "snapwidget.com",
+     "widget.freshworks.com",
+     "assets.braintreegateway.com",
+     "c.paypal.com",
+     "*.paypal.com",
+     "*.retailrocket.net",
+     "http:",
+     "https:",
+     "blob:",
+     "'self'",
+     "… 1 more"
+    ],
+    "default-src": [
+     "*.embluemail.com",
+     "stackpath.bootstrapcdn.com",
+     "snapwidget.com",
+     "widget.freshworks.com",
+     "dev.visualwebsiteoptimizer.com",
+     "*.retailrocket.net",
+     "'self'",
+     "'unsafe-inline'",
+     "'unsafe-eval'"
+    ],
+    "base-uri": [
+     "'self'",
+     "'unsafe-inline'"
+    ]
+   },
+   "csp_connect_src_count": 85,
+   "csp_allows_voqalize": false
+  },
+  "cms": {
+   "status": 200,
+   "csp_enforced": true,
+   "csp_report_only": false,
+   "permissions_policy": null,
+   "x_frame_options": null,
+   "cache": {
+    "cache-control": "no-store, no-cache, must-revalidate, max-age=0",
+    "x-cache": "MISS, HIT, HIT",
+    "age": "67105"
+   },
+   "csp_directives": {
+    "font-src": [
+     "www.paypalobjects.com",
+     "fonts.gstatic.com",
+     "use.typekit.net",
+     "*.typekit.net",
+     "*.gstatic.com",
+     "*.cdn-apple.com",
+     "data:",
+     "*.embluemail.com",
+     "stackpath.bootstrapcdn.com",
+     "snapwidget.com",
+     "widget.freshworks.com",
+     "https://www.gstatic.com",
+     "… 10 more"
+    ],
+    "form-action": [
+     "geostag.cardinalcommerce.com",
+     "geo.cardinalcommerce.com",
+     "1eafstag.cardinalcommerce.com",
+     "1eaf.cardinalcommerce.com",
+     "centinelapistag.cardinalcommerce.com",
+     "centinelapi.cardinalcommerce.com",
+     "pilot-payflowlink.paypal.com",
+     "www.paypal.com",
+     "www.sandbox.paypal.com",
+     "*.paypal.com",
+     "www.facebook.com",
+     "connect.facebook.net",
+     "… 28 more"
+    ],
+    "frame-ancestors": [
+     "*.embluemail.com",
+     "stackpath.bootstrapcdn.com",
+     "snapwidget.com",
+     "widget.freshworks.com",
+     "*.mercadopago.com",
+     "*.mercadolivre.com",
+     "*.mercadolibre.com",
+     "*.mercadolibre.com.br",
+     "https://mercadopago.com.br",
+     "*.mercadopago.com.br",
+     "*.mlstatic.com",
+     "*.retailrocket.net",
+     "… 5 more"
+    ],
+    "frame-src": [
+     "fast.amc.demdex.net",
+     "*.adobe.com",
+     "geostag.cardinalcommerce.com",
+     "geo.cardinalcommerce.com",
+     "1eafstag.cardinalcommerce.com",
+     "1eaf.cardinalcommerce.com",
+     "centinelapistag.cardinalcommerce.com",
+     "centinelapi.cardinalcommerce.com",
+     "bid.g.doubleclick.net",
+     "*.youtube.com",
+     "*.youtube-nocookie.com",
+     "www.paypal.com",
+     "… 43 more"
+    ],
+    "img-src": [
+     "data:",
+     "assets.adobedtm.com",
+     "amcglobal.sc.omtrdc.net",
+     "dpm.demdex.net",
+     "cm.everesttech.net",
+     "*.adobe.com",
+     "widgets.magentocommerce.com",
+     "www.googleadservices.com",
+     "*.google-analytics.com",
+     "googleads.g.doubleclick.net",
+     "www.google.com",
+     "bid.g.doubleclick.net",
+     "… 69 more"
+    ],
+    "script-src": [
+     "assets.adobedtm.com",
+     "*.adobe.com",
+     "geostag.cardinalcommerce.com",
+     "1eafstag.cardinalcommerce.com",
+     "geoapi.cardinalcommerce.com",
+     "1eafapi.cardinalcommerce.com",
+     "songbird.cardinalcommerce.com",
+     "includestest.ccdc02.com",
+     "www.googleadservices.com",
+     "www.google-analytics.com",
+     "googleads.g.doubleclick.net",
+     "analytics.google.com",
+     "… 93 more"
+    ],
+    "style-src": [
+     "*.adobe.com",
+     "fonts.googleapis.com",
+     "cdn.dnky.co",
+     "*.embluemail.com",
+     "stackpath.bootstrapcdn.com",
+     "snapwidget.com",
+     "widget.freshworks.com",
+     "wchat.freshchat.com",
+     "www.gstatic.com",
+     "https://*.gopersonal.ai",
+     "*.mercadopago.com",
+     "*.mercadolivre.com",
+     "… 18 more"
+    ],
+    "object-src": [
+     "*.embluemail.com",
+     "stackpath.bootstrapcdn.com",
+     "snapwidget.com",
+     "widget.freshworks.com",
+     "*.retailrocket.net",
+     "'self'",
+     "'unsafe-inline'"
+    ],
+    "media-src": [
+     "*.adobe.com",
+     "*.embluemail.com",
+     "stackpath.bootstrapcdn.com",
+     "snapwidget.com",
+     "widget.freshworks.com",
+     "*.retailrocket.net",
+     "'self'",
+     "'unsafe-inline'"
+    ],
+    "manifest-src": [
+     "'self'",
+     "'unsafe-inline'"
+    ],
+    "connect-src": [
+     "dpm.demdex.net",
+     "amcglobal.sc.omtrdc.net",
+     "geostag.cardinalcommerce.com",
+     "geo.cardinalcommerce.com",
+     "1eafstag.cardinalcommerce.com",
+     "1eaf.cardinalcommerce.com",
+     "centinelapistag.cardinalcommerce.com",
+     "centinelapi.cardinalcommerce.com",
+     "*.google-analytics.com",
+     "www.googleadservices.com",
+     "*.analytics.google.com",
+     "www.googletagmanager.com",
+     "… 73 more"
+    ],
+    "child-src": [
+     "*.embluemail.com",
+     "stackpath.bootstrapcdn.com",
+     "snapwidget.com",
+     "widget.freshworks.com",
+     "assets.braintreegateway.com",
+     "c.paypal.com",
+     "*.paypal.com",
+     "*.retailrocket.net",
+     "http:",
+     "https:",
+     "blob:",
+     "'self'",
+     "… 1 more"
+    ],
+    "default-src": [
+     "*.embluemail.com",
+     "stackpath.bootstrapcdn.com",
+     "snapwidget.com",
+     "widget.freshworks.com",
+     "dev.visualwebsiteoptimizer.com",
+     "*.retailrocket.net",
+     "'self'",
+     "'unsafe-inline'",
+     "'unsafe-eval'"
+    ],
+    "base-uri": [
+     "'self'",
+     "'unsafe-inline'"
+    ]
+   },
+   "csp_connect_src_count": 85,
+   "csp_allows_voqalize": false
+  }
+ },
+ "notes": [
+  "CSP is enforced (not report-only) and identical on home, category and product pages; no voqalize host is allowed.",
+  "No Permissions-Policy header on any response: the microphone is not restricted by the site.",
+  "HTML is Fastly-cached for hours (x-cache HIT, large age); POST /graphql is never cached. GET /graphql is 403."
+ ],
+ "layout": {
+  "fixed_header_px": {
+   "desktop": 32,
+   "mobile": 160
+  },
+  "desktop": {
+   "home": {
+    "viewport": [
+     1440,
+     900
+    ],
+    "fixed_header_px": 32,
+    "topbar": {
+     "top": 0,
+     "left": 0,
+     "width": 1440,
+     "height": 32,
+     "position": "fixed",
+     "z": "99",
+     "display": "flex",
+     "visible": true
+    },
+    "header": {
+     "top": 32,
+     "left": 0,
+     "width": 1440,
+     "height": 81,
+     "position": "static",
+     "z": "auto",
+     "display": "block",
+     "visible": true
+    },
+    "whatsapp": {
+     "top": 784,
+     "left": 1372,
+     "width": 48,
+     "height": 48,
+     "position": "fixed",
+     "z": "900",
+     "display": "flex",
+     "visible": true
+    },
+    "sticky_addtocart": null,
+    "minicart": {
+     "top": 0,
+     "left": 40,
+     "width": 1400,
+     "height": 900,
+     "position": "fixed",
+     "z": "900",
+     "display": "flex",
+     "visible": false
+    },
+    "fixed": [
+     {
+      "selector": "div#topbarCannonBar",
+      "position": "fixed",
+      "top": 0,
+      "bottom": 868,
+      "left": 0,
+      "right": 0,
+      "width": 1440,
+      "height": 32,
+      "z": "99"
+     },
+     {
+      "selector": "a#whatsapp-link.whatsapp-link",
+      "position": "fixed",
+      "top": 784,
+      "bottom": 68,
+      "left": 1372,
+      "right": 20,
+      "width": 48,
+      "height": 48,
+      "z": "900"
+     },
+     {
+      "selector": "aside.modal-popup.content-minicart-modal.modal-slide",
+      "position": "fixed",
+      "top": 0,
+      "bottom": 0,
+      "left": 40,
+      "right": 0,
+      "width": 1400,
+      "height": 900,
+      "z": "900"
+     },
+     {
+      "selector": "aside.modal-popup.stock-alert-modal-popup.modal-slide",
+      "position": "fixed",
+      "top": 0,
+      "bottom": 0,
+      "left": 0,
+      "right": 0,
+      "width": 1440,
+      "height": 900,
+      "z": "900"
+     },
+     {
+      "selector": "aside.modal-popup.stock-alert-modal-popup.modal-slide",
+      "position": "fixed",
+      "top": 0,
+      "bottom": 0,
+      "left": 0,
+      "right": 0,
+      "width": 1440,
+      "height": 900,
+      "z": "900"
+     }
+    ],
+    "permissions_policy_microphone": true
+   },
+   "product": {
+    "viewport": [
+     1440,
+     900
+    ],
+    "fixed_header_px": 32,
+    "topbar": {
+     "top": 0,
+     "left": 0,
+     "width": 1440,
+     "height": 32,
+     "position": "fixed",
+     "z": "99",
+     "display": "flex",
+     "visible": true
+    },
+    "header": {
+     "top": 32,
+     "left": 0,
+     "width": 1440,
+     "height": 81,
+     "position": "static",
+     "z": "110",
+     "display": "block",
+     "visible": true
+    },
+    "whatsapp": {
+     "top": 784,
+     "left": 1372,
+     "width": 48,
+     "height": 48,
+     "position": "fixed",
+     "z": "900",
+     "display": "flex",
+     "visible": true
+    },
+    "sticky_addtocart": {
+     "top": 412,
+     "left": 831,
+     "width": 469,
+     "height": 39,
+     "position": "static",
+     "z": "auto",
+     "display": "block",
+     "visible": true
+    },
+    "minicart": {
+     "top": 0,
+     "left": 40,
+     "width": 1400,
+     "height": 900,
+     "position": "fixed",
+     "z": "900",
+     "display": "flex",
+     "visible": false
+    },
+    "fixed": [
+     {
+      "selector": "div#topbarCannonBar",
+      "position": "fixed",
+      "top": 0,
+      "bottom": 868,
+      "left": 0,
+      "right": 0,
+      "width": 1440,
+      "height": 32,
+      "z": "99"
+     },
+     {
+      "selector": "a#whatsapp-link.whatsapp-link",
+      "position": "fixed",
+      "top": 784,
+      "bottom": 68,
+      "left": 1372,
+      "right": 20,
+      "width": 48,
+      "height": 48,
+      "z": "900"
+     },
+     {
+      "selector": "aside.modal-popup.content-minicart-modal.modal-slide",
+      "position": "fixed",
+      "top": 0,
+      "bottom": 0,
+      "left": 40,
+      "right": 0,
+      "width": 1400,
+      "height": 900,
+      "z": "900"
+     },
+     {
+      "selector": "aside.modal-popup.store-selector-popup.location-popup",
+      "position": "fixed",
+      "top": 0,
+      "bottom": 0,
+      "left": 0,
+      "right": 0,
+      "width": 1440,
+      "height": 900,
+      "z": "900"
+     },
+     {
+      "selector": "aside.modal-popup.delivery-popup.custom-slide",
+      "position": "fixed",
+      "top": 0,
+      "bottom": 0,
+      "left": 0,
+      "right": 0,
+      "width": 1440,
+      "height": 900,
+      "z": "900"
+     },
+     {
+      "selector": "aside.modal-popup.storepickup-modal.modal-slide",
+      "position": "fixed",
+      "top": 0,
+      "bottom": 0,
+      "left": 0,
+      "right": 0,
+      "width": 1440,
+      "height": 900,
+      "z": "900"
+     }
+    ],
+    "permissions_policy_microphone": true
+   }
+  },
+  "mobile": {
+   "home": {
+    "viewport": [
+     390,
+     844
+    ],
+    "fixed_header_px": 160,
+    "topbar": {
+     "top": 0,
+     "left": 0,
+     "width": 390,
+     "height": 32,
+     "position": "fixed",
+     "z": "99",
+     "display": "flex",
+     "visible": true
+    },
+    "header": {
+     "top": 32,
+     "left": 0,
+     "width": 390,
+     "height": 128,
+     "position": "sticky",
+     "z": "9",
+     "display": "block",
+     "visible": true
+    },
+    "whatsapp": {
+     "top": 728,
+     "left": 0,
+     "width": 31,
+     "height": 13,
+     "position": "static",
+     "z": "auto",
+     "display": "inline",
+     "visible": true
+    },
+    "sticky_addtocart": null,
+    "minicart": {
+     "top": 0,
+     "left": 40,
+     "width": 350,
+     "height": 844,
+     "position": "fixed",
+     "z": "900",
+     "display": "flex",
+     "visible": false
+    },
+    "fixed": [
+     {
+      "selector": "div#topbarCannonBar",
+      "position": "fixed",
+      "top": 0,
+      "bottom": 812,
+      "left": 0,
+      "right": 0,
+      "width": 390,
+      "height": 32,
+      "z": "99"
+     },
+     {
+      "selector": "header.page-header",
+      "position": "sticky",
+      "top": 32,
+      "bottom": 684,
+      "left": 0,
+      "right": 0,
+      "width": 390,
+      "height": 128,
+      "z": "9"
+     },
+     {
+      "selector": "div.sections.nav-sections.ninjamenus-mobile-wrapper",
+      "position": "fixed",
+      "top": 0,
+      "bottom": 0,
+      "left": -347,
+      "right": 390,
+      "width": 347,
+      "height": 844,
+      "z": "7"
+     },
+     {
+      "selector": "div.whatsapp-link-mobile.desktop-hide",
+      "position": "fixed",
+      "top": 640,
+      "bottom": 101,
+      "left": 0,
+      "right": 359,
+      "width": 31,
+      "height": 103,
+      "z": "3"
+     },
+     {
+      "selector": "aside.modal-popup.content-minicart-modal.modal-slide",
+      "position": "fixed",
+      "top": 0,
+      "bottom": 0,
+      "left": 40,
+      "right": 0,
+      "width": 350,
+      "height": 844,
+      "z": "900"
+     },
+     {
+      "selector": "aside.modal-popup.stock-alert-modal-popup.modal-slide",
+      "position": "fixed",
+      "top": 0,
+      "bottom": 0,
+      "left": 35,
+      "right": 0,
+      "width": 355,
+      "height": 844,
+      "z": "900"
+     },
+     {
+      "selector": "aside.modal-popup.stock-alert-modal-popup.modal-slide",
+      "position": "fixed",
+      "top": 0,
+      "bottom": 0,
+      "left": 35,
+      "right": 0,
+      "width": 355,
+      "height": 844,
+      "z": "900"
+     }
+    ],
+    "permissions_policy_microphone": true
+   },
+   "product": {
+    "viewport": [
+     390,
+     844
+    ],
+    "fixed_header_px": 157,
+    "topbar": {
+     "top": 0,
+     "left": 0,
+     "width": 390,
+     "height": 32,
+     "position": "fixed",
+     "z": "99",
+     "display": "flex",
+     "visible": true
+    },
+    "header": {
+     "top": 29,
+     "left": 0,
+     "width": 390,
+     "height": 128,
+     "position": "sticky",
+     "z": "110",
+     "display": "block",
+     "visible": true
+    },
+    "whatsapp": {
+     "top": 728,
+     "left": 0,
+     "width": 31,
+     "height": 13,
+     "position": "static",
+     "z": "auto",
+     "display": "inline",
+     "visible": true
+    },
+    "sticky_addtocart": {
+     "top": 764,
+     "left": 0,
+     "width": 390,
+     "height": 80,
+     "position": "fixed",
+     "z": "850",
+     "display": "block",
+     "visible": true
+    },
+    "minicart": {
+     "top": 0,
+     "left": 40,
+     "width": 350,
+     "height": 844,
+     "position": "fixed",
+     "z": "900",
+     "display": "flex",
+     "visible": false
+    },
+    "fixed": [
+     {
+      "selector": "div#topbarCannonBar",
+      "position": "fixed",
+      "top": 0,
+      "bottom": 812,
+      "left": 0,
+      "right": 0,
+      "width": 390,
+      "height": 32,
+      "z": "99"
+     },
+     {
+      "selector": "header.page-header",
+      "position": "sticky",
+      "top": 29,
+      "bottom": 687,
+      "left": 0,
+      "right": 0,
+      "width": 390,
+      "height": 128,
+      "z": "110"
+     },
+     {
+      "selector": "div.sections.nav-sections.ninjamenus-mobile-wrapper",
+      "position": "fixed",
+      "top": 0,
+      "bottom": 0,
+      "left": -347,
+      "right": 390,
+      "width": 347,
+      "height": 844,
+      "z": "7"
+     },
+     {
+      "selector": "div.gallery-placeholder",
+      "position": "sticky",
+      "top": -659,
+      "bottom": 1172,
+      "left": 12,
+      "right": 12,
+      "width": 366,
+      "height": 331,
+      "z": "auto"
+     },
+     {
+      "selector": "div.box-tocart",
+      "position": "fixed",
+      "top": 764,
+      "bottom": 0,
+      "left": 0,
+      "right": 0,
+      "width": 390,
+      "height": 80,
+      "z": "850"
+     },
+     {
+      "selector": "div.whatsapp-link-mobile.desktop-hide",
+      "position": "fixed",
+      "top": 640,
+      "bottom": 101,
+      "left": 0,
+      "right": 359,
+      "width": 31,
+      "height": 103,
+      "z": "3"
+     },
+     {
+      "selector": "aside.modal-popup.content-minicart-modal.modal-slide",
+      "position": "fixed",
+      "top": 0,
+      "bottom": 0,
+      "left": 40,
+      "right": 0,
+      "width": 350,
+      "height": 844,
+      "z": "900"
+     },
+     {
+      "selector": "aside.modal-popup.store-selector-popup.location-popup",
+      "position": "fixed",
+      "top": 0,
+      "bottom": 0,
+      "left": 0,
+      "right": 0,
+      "width": 390,
+      "height": 844,
+      "z": "900"
+     },
+     {
+      "selector": "aside.modal-popup.delivery-popup.custom-slide",
+      "position": "fixed",
+      "top": 0,
+      "bottom": 0,
+      "left": 0,
+      "right": 0,
+      "width": 390,
+      "height": 844,
+      "z": "900"
+     },
+     {
+      "selector": "aside.modal-popup.storepickup-modal.modal-slide",
+      "position": "fixed",
+      "top": 0,
+      "bottom": 0,
+      "left": 0,
+      "right": 0,
+      "width": 390,
+      "height": 844,
+      "z": "900"
+     }
+    ],
+    "permissions_policy_microphone": true
+   }
+  },
+  "overlays": [
+   {
+    "name": "promo bar",
+    "selector": "#topbarCannonBar",
+    "where": "fixed top",
+    "height_px": 32,
+    "z": 120
+   },
+   {
+    "name": "WhatsApp button",
+    "selector": "a#whatsapp-link (desktop) / .whatsapp-link-mobile (mobile)",
+    "where": "bottom-right on desktop; a left-edge tab on mobile",
+    "href": "https://api.whatsapp.com/send?phone=56961069132"
+   },
+   {
+    "name": "minicart drawer",
+    "selector": "aside.content-minicart-modal._show",
+    "where": "right drawer ~400 px, full height, dims the page; opens by itself after every add",
+    "close": ".mc-header__close"
+   },
+   {
+    "name": "mobile sticky add-to-cart bar",
+    "selector": "#sticky-addtocart-bar / .box-tocart",
+    "where": "fixed bottom on mobile product pages, ~80 px, z 850"
+   },
+   {
+    "name": "filters drawer",
+    "selector": "#layered-filter-block.active",
+    "where": "left 380 px"
+   },
+   {
+    "name": "quick-filter panel",
+    "selector": ".qf__group.-open",
+    "close": ".qf__panel-close"
+   }
+  ]
+ },
+ "nav": [
+  {
+   "text": "ROPA DE CAMA",
+   "href": "https://cannonhome.cl/12-ropa-de-cama",
+   "links": [
+    {
+     "text": "VER MÁS",
+     "href": "https://cannonhome.cl/evento/nueva-colecci%C3%B3n"
+    },
+    {
+     "text": "ALMOHADAS",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/almohadas"
+    },
+    {
+     "text": "Almohadas Viscoelásticas",
+     "href": "https://cannonhome.cl/almohadas/almohadas-viscoelasticas"
+    },
+    {
+     "text": "Almohadas Microfibra",
+     "href": "https://cannonhome.cl/almohadas/microfibra-almohadas"
+    },
+    {
+     "text": "Almohadas Pluma",
+     "href": "https://cannonhome.cl/almohadas/pluma-almohadas"
+    },
+    {
+     "text": "Ver Todo",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/almohadas"
+    },
+    {
+     "text": "FUNDA PLUMÓN",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/fundas-plumon"
+    },
+    {
+     "text": "1.5 Plazas",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/fundas-plumon/fundas-plumon-1-5-plazas"
+    },
+    {
+     "text": "2 Plazas",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/fundas-plumon/fundas-plumon-2-plazas"
+    },
+    {
+     "text": "King",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/fundas-plumon/fundas-plumon-king"
+    },
+    {
+     "text": "Súper King",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/fundas-plumon/fundas-plumon-super-king"
+    },
+    {
+     "text": "Ver Todo",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/fundas-plumon"
+    },
+    {
+     "text": "SÁBANAS",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/20-sabanas"
+    },
+    {
+     "text": "Sábanas de Algodón",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/20-sabanas/sabanas-de-algodon"
+    },
+    {
+     "text": "Sábanas Bajeras",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/20-sabanas/sabanas-bajeras"
+    },
+    {
+     "text": "Sábanas Polar",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/20-sabanas/sabanas-polar"
+    },
+    {
+     "text": "Sábanas 300 Hilos",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/20-sabanas/sabanas-300-hilos"
+    },
+    {
+     "text": "Fundas de Almohada",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/20-sabanas/fundas-de-almohada"
+    },
+    {
+     "text": "Ver Todo",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/20-sabanas"
+    },
+    {
+     "text": "CUBRECAMAS",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/cubrecamas"
+    },
+    {
+     "text": "1.5 Plazas",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/cubrecamas/1-5-plazas"
+    },
+    {
+     "text": "2 Plazas",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/cubrecamas/2-plazas"
+    },
+    {
+     "text": "King",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/cubrecamas/king"
+    },
+    {
+     "text": "Súper King",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/cubrecamas/super-king"
+    },
+    {
+     "text": "Ver Todo",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/cubrecamas"
+    },
+    {
+     "text": "PLUMONES",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/plumones"
+    },
+    {
+     "text": "Plumones Microfibra",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/plumones/plumones-de-microfibra"
+    },
+    {
+     "text": "Plumones Pluma",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/plumones/plumones-pluma"
+    },
+    {
+     "text": "Plumones Lana",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/plumones/plumones-de-lana"
+    },
+    {
+     "text": "Plumones Sherpa",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/plumones/plumones-sherpa"
+    },
+    {
+     "text": "Plumones Blancos",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/plumones/plumones-blancos"
+    },
+    {
+     "text": "Ver Todo",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/plumones"
+    },
+    {
+     "text": "PLUMA",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/plumones/plumones-pluma"
+    },
+    {
+     "text": "Plumones Pluma",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/plumones/plumones-pluma"
+    },
+    {
+     "text": "Almohadas Pluma",
+     "href": "https://cannonhome.cl/almohadas/pluma-almohadas"
+    },
+    {
+     "text": "Toppers Pluma",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/70-complementos/toppers"
+    },
+    {
+     "text": "Ver Todo",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/plumones/plumones-pluma"
+    },
+    {
+     "text": "ACCESORIOS",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/accesorios-de-cama"
+    },
+    {
+     "text": "Cojines",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/3029-cojines"
+    },
+    {
+     "text": "Frazadas",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/54-frazadas"
+    },
+    {
+     "text": "Cubre Colchón",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/70-complementos/cubrecolchones"
+    },
+    {
+     "text": "Toppers",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/70-complementos/toppers"
+    },
+    {
+     "text": "Mantas y Pieceras",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/56-mantas-y-pieceras"
+    },
+    {
+     "text": "Ver Todo",
+     "href": "https://cannonhome.cl/12-ropa-de-cama/accesorios-de-cama"
+    }
+   ]
+  },
+  {
+   "text": "CAMAS Y COLCHONES",
+   "href": "https://cannonhome.cl/dormitorio",
+   "links": [
+    {
+     "text": "VER MÁS",
+     "href": "https://cannonhome.cl/dormitorio/nucol_adapt_sac-nucol_premium_soft"
+    },
+    {
+     "text": "CAMAS EUROPEAS",
+     "href": "https://cannonhome.cl/dormitorio/camas-europeas"
+    },
+    {
+     "text": "1 Plaza",
+     "href": "https://cannonhome.cl/dormitorio/camas-europeas/camas-1-plaza"
+    },
+    {
+     "text": "1.5 Plazas",
+     "href": "https://cannonhome.cl/dormitorio/camas-europeas/camas-1-5-plazas"
+    },
+    {
+     "text": "2 Plazas",
+     "href": "https://cannonhome.cl/dormitorio/camas-europeas/camas-2-plazas"
+    },
+    {
+     "text": "King",
+     "href": "https://cannonhome.cl/dormitorio/camas-europeas/camas-king"
+    },
+    {
+     "text": "Súper King",
+     "href": "https://cannonhome.cl/dormitorio/camas-europeas/camas-super-king"
+    },
+    {
+     "text": "Ver Todo",
+     "href": "https://cannonhome.cl/dormitorio/camas-europeas"
+    },
+    {
+     "text": "BASES DE CAMA",
+     "href": "https://cannonhome.cl/dormitorio/base-de-cama"
+    },
+    {
+     "text": "Ver Todo",
+     "href": "https://cannonhome.cl/dormitorio/base-de-cama"
+    },
+    {
+     "text": "COLCHONES",
+     "href": "https://cannonhome.cl/dormitorio/colchones"
+    },
+    {
+     "text": "1 Plaza",
+     "href": "https://cannonhome.cl/dormitorio/colchones/colchones-1-plaza"
+    },
+    {
+     "text": "1.5 Plazas",
+     "href": "https://cannonhome.cl/dormitorio/colchones/colchones-1-5-plazas"
+    },
+    {
+     "text": "2 Plazas",
+     "href": "https://cannonhome.cl/dormitorio/colchones/colchones-2-plazas"
+    },
+    {
+     "text": "King",
+     "href": "https://cannonhome.cl/dormitorio/colchones/colchones-king"
+    },
+    {
+     "text": "Súper King",
+     "href": "https://cannonhome.cl/dormitorio/colchones/colchones-super-king"
+    },
+    {
+     "text": "Ver Todo",
+     "href": "https://cannonhome.cl/dormitorio/colchones"
+    },
+    {
+     "text": "VELADORES",
+     "href": "https://cannonhome.cl/dormitorio/veladores"
+    },
+    {
+     "text": "Ver Todo",
+     "href": "https://cannonhome.cl/dormitorio/veladores"
+    },
+    {
+     "text": "COMBOS DE CAMA",
+     "href": "https://cannonhome.cl/dormitorio/combos-dormitorio"
+    },
+    {
+     "text": "1.5 Plazas",
+     "href": "https://cannonhome.cl/dormitorio/combos-dormitorio/combo-15-plazas"
+    },
+    {
+     "text": "2 Plazas",
+     "href": "https://cannonhome.cl/dormitorio/combos-dormitorio/combo-2-plazas"
+    },
+    {
+     "text": "King",
+     "href": "https://cannonhome.cl/dormitorio/combos-dormitorio/combo-king"
+    },
+    {
+     "text": "Ver Todo",
+     "href": "https://cannonhome.cl/dormitorio/combos-dormitorio"
+    },
+    {
+     "text": "RESPALDOS DE CAMA",
+     "href": "https://cannonhome.cl/dormitorio/respaldos"
+    },
+    {
+     "text": "Ver Todo",
+     "href": "https://cannonhome.cl/dormitorio/respaldos"
+    },
+    {
+     "text": "CAMAS FUNCIONALES",
+     "href": "https://cannonhome.cl/dormitorio/camas-funcionales?Camas%20funcionales"
+    },
+    {
+     "text": "Cama Baúl",
+     "href": "https://cannonhome.cl/dormitorio/camas-funcionales/camas-baul"
+    },
+    {
+     "text": "Camarotes",
+     "href": "https://cannonhome.cl/dormitorio/camas-funcionales/camarotes"
+    },
+    {
+     "text": "Camas Nido o Divanes",
+     "href": "https://cannonhome.cl/dormitorio/camas-funcionales/camas-nido-o-divanes"
+    },
+    {
+     "text": "Camas Eléctricas",
+     "href": "https://cannonhome.cl/dormitorio/camas-funcionales/camas-electricas"
+    },
+    {
+     "text": "Ver Todo",
+     "href": "https://cannonhome.cl/dormitorio/camas-funcionales"
+    }
+   ]
+  },
+  {
+   "text": "BAÑO Y SPA",
+   "href": "https://cannonhome.cl/bano",
+   "links": [
+    {
+     "text": "VER MÁS",
+     "href": "https://cannonhome.cl/bano"
+    },
+    {
+     "text": "TOALLAS",
+     "href": "https://cannonhome.cl/bano/toallas"
+    },
+    {
+     "text": "Toallas de Baño",
+     "href": "https://cannonhome.cl/bano/toallas/toallas-de-bano"
+    },
+    {
+     "text": "Toallas de Mano",
+     "href": "https://cannonhome.cl/bano/toallas/toallas-de-mano"
+    },
+    {
+     "text": "Toallas de Visita",
+     "href": "https://cannonhome.cl/bano/toallas/toallas-de-visita"
+    },
+    {
+     "text": "Sábanas de Baño",
+     "href": "https://cannonhome.cl/bano/toallas/sabanas-de-bano"
+    },
+    {
+     "text": "Toallas Microfibra",
+     "href": "https://cannonhome.cl/bano/toallas-microfibra"
+    },
+    {
+     "text": "Ver Todo",
+     "href": "https://cannonhome.cl/bano/toallas"
+    },
+    {
+     "text": "ACCESORIOS DE BAÑO",
+     "href": "https://cannonhome.cl/bano/accesorios-de-bano"
+    },
+    {
+     "text": "Batas de Baño",
+     "href": "https://cannonhome.cl/bano/accesorios-de-bano/batas-de-bano"
+    },
+    {
+     "text": "Jabones y Cremas",
+     "href": "https://cannonhome.cl/bano/accesorios-de-bano/jabones-y-cremas"
+    },
+    {
+     "text": "Pantuflas y Neceser",
+     "href": "https://cannonhome.cl/bano/accesorios-de-bano/pantuflas-y-neceser"
+    },
+    {
+     "text": "Canastos Organizadores",
+     "href": "https://cannonhome.cl/bano/accesorios-de-bano/canastos-organizadores"
+    },
+    {
+     "text": "Botellas Térmicas",
+     "href": "https://cannonhome.cl/bano/accesorios-de-bano/botellas-de-agua"
+    },
+    {
+     "text": "Guateros",
+     "href": "https://cannonhome.cl/bano/accesorios-de-bano/guateros"
+    },
+    {
+     "text": "Velas y Aromatizadores",
+     "href": "https://cannonhome.cl/bano/accesorios-de-bano/velas-aromaticas"
+    },
+    {
+     "text": "Ver Todo",
+     "href": "https://cannonhome.cl/bano/accesorios-de-bano"
+    },
+    {
+     "text": "PISOS DE BAÑO",
+     "href": "https://cannonhome.cl/bano/pisos-de-bano"
+    },
+    {
+     "text": "Ver Todo",
+     "href": "https://cannonhome.cl/bano/pisos-de-bano"
+    },
+    {
+     "text": "CORTINAS DE BAÑO",
+     "href": "https://cannonhome.cl/bano/accesorios-de-bano/cortinas-de-bano"
+    },
+    {
+     "text": "Ver Todo",
+     "href": "https://cannonhome.cl/bano/accesorios-de-bano/cortinas-de-bano"
+    },
+    {
+     "text": "TOALLAS DE PLAYA",
+     "href": "https://cannonhome.cl/toallas-de-playa"
+    },
+    {
+     "text": "Toallas Medianas",
+     "href": "https://cannonhome.cl/bano/toallas-de-playa/toallas-de-playa-medianas"
+    },
+    {
+     "text": "Toallas Grandes",
+     "href": "https://cannonhome.cl/bano/toallas-de-playa/toallas-de-playa-grandes"
+    },
+    {
+     "text": "Ponchos de Playa",
+     "href": "https://cannonhome.cl/toallas-de-playa/poncho-toalla"
+    },
+    {
+     "text": "Ver Todo",
+     "href": "https://cannonhome.cl/toallas-de-playa"
+    }
+   ]
+  },
+  {
+   "text": "MUEBLES Y DECO",
+   "href": "https://cannonhome.cl/muebles",
+   "links": [
+    {
+     "text": "VER MÁS",
+     "href": "https://cannonhome.cl/blog/alfombras-elige-el-material-mas-adecuado-para-tu-hogar.html"
+    },
+    {
+     "text": "BERGERES",
+     "href": "https://cannonhome.cl/muebles/bergers"
+    },
+    {
+     "text": "Bergeres Audio",
+     "href": "https://cannonhome.cl/muebles/bergers/linea-audio-bergeres"
+    },
+    {
+     "text": "Bergeres Premium",
+     "href": "https://cannonhome.cl/muebles/bergers/bergeres-linea-premium"
+    },
+    {
+     "text": "Sillones Reclinables",
+     "href": "https://cannonhome.cl/muebles/bergers/bergere-dallas"
+    },
+    {
+     "text": "Ver Todo",
+     "href": "https://cannonhome.cl/muebles/bergers"
+    },
+    {
+     "text": "ALFOMBRAS",
+     "href": "https://cannonhome.cl/decoracion/alfombras"
+    },
+    {
+     "text": "Grandes",
+     "href": "https://cannonhome.cl/decoracion/alfombras/alfombras-grandes"
+    },
+    {
+     "text": "Medianas",
+     "href": "https://cannonhome.cl/decoracion/alfombras/alfombras-medianas"
+    },
+    {
+     "text": "Ver Todo",
+     "href": "https://cannonhome.cl/decoracion/alfombras"
+    },
+    {
+     "text": "MANTELERÍA",
+     "href": "https://cannonhome.cl/decoracion/manteleria"
+    },
+    {
+     "text": "SITIALES Y POLTRONAS",
+     "href": "https://cannonhome.cl/muebles/sitiales-y-poltronas"
+    },
+    {
+     "text": "Ver Todo",
+     "href": "https://cannonhome.cl/muebles/sitiales-y-poltronas"
+    },
+    {
+     "text": "RESPALDOS Y VELADORES",
+     "href": "https://cannonhome.cl/muebles/veladores-y-respaldos-de-cama"
+    },
+    {
+     "text": "Respaldos 1 Plaza",
+     "href": "https://cannonhome.cl/dormitorio/respaldos/respaldos-de-cama-1-plaza"
+    },
+    {
+     "text": "Respaldos 1.5 Plaza",
+     "href": "https://cannonhome.cl/dormitorio/respaldos/1-5-plazas"
+    },
+    {
+     "text": "Respaldos 2 Plazas",
+     "href": "https://cannonhome.cl/dormitorio/respaldos/2-plazas"
+    },
+    {
+     "text": "Respaldos King",
+     "href": "https://cannonhome.cl/dormitorio/respaldos/king"
+    },
+    {
+     "text": "Respaldos Súper King",
+     "href": "https://cannonhome.cl/dormitorio/respaldos/respaldo-de-cama-super-king"
+    },
+    {
+     "text": "Veladores",
+     "href": "https://cannonhome.cl/dormitorio/veladores"
+    },
+    {
+     "text": "Ver Todo",
+     "href": "https://cannonhome.cl/muebles/veladores-y-respaldos-de-cama"
+    }
+   ]
+  },
+  {
+   "text": "HOTELERIA",
+   "href": "https://cannonhome.cl/hoteleria",
+   "links": [
+    {
+     "text": "CAMAS",
+     "href": "https://cannonhome.cl/hoteleria/camas"
+    },
+    {
+     "text": "2 Plazas",
+     "href": "https://cannonhome.cl/hoteleria/camas/camas-2-plazas-hotel"
+    },
+    {
+     "text": "King",
+     "href": "https://cannonhome.cl/hoteleria/camas/camas-king-hotel"
+    },
+    {
+     "text": "Súper King",
+     "href": "https://cannonhome.cl/hoteleria/camas/camas-super-king-hotel"
+    },
+    {
+     "text": "Ver Todo",
+     "href": "https://cannonhome.cl/hoteleria/camas"
+    },
+    {
+     "text": "COLCHONES",
+     "href": "https://cannonhome.cl/hoteleria/colchones"
+    },
+    {
+     "text": "2 Plazas",
+     "href": "https://cannonhome.cl/hoteleria/colchones/colchones-2-plazas-hotel"
+    },
+    {
+     "text": "King",
+     "href": "https://cannonhome.cl/hoteleria/colchones/colchones-king-hotel"
+    },
+    {
+     "text": "Súper King",
+     "href": "https://cannonhome.cl/hoteleria/colchones/colchones-super-king-hotel"
+    },
+    {
+     "text": "Ver Todo",
+     "href": "https://cannonhome.cl/hoteleria/colchones"
+    },
+    {
+     "text": "SÁBANAS",
+     "href": "https://cannonhome.cl/hoteleria/sabanas"
+    },
+    {
+     "text": "1.5 Plazas",
+     "href": "https://cannonhome.cl/hoteleria/sabanas/sabanas-1-5-plaza-hotel"
+    },
+    {
+     "text": "2 Plazas",
+     "href": "https://cannonhome.cl/hoteleria/sabanas/sabanas-hotel-2-plazas"
+    },
+    {
+     "text": "King",
+     "href": "https://cannonhome.cl/hoteleria/sabanas/sabanas-hotel-king"
+    },
+    {
+     "text": "Súper King",
+     "href": "https://cannonhome.cl/hoteleria/sabanas/sabanas-hotel-super-king"
+    },
+    {
+     "text": "Ver Todo",
+     "href": "https://cannonhome.cl/hoteleria/sabanas"
+    },
+    {
+     "text": "PLUMONES",
+     "href": "https://cannonhome.cl/hoteleria/plumones-hotel"
+    },
+    {
+     "text": "1 Plaza",
+     "href": "https://cannonhome.cl/hoteleria/plumones-hotel/plumones-1-plaza-hotel"
+    },
+    {
+     "text": "1.5 Plazas",
+     "href": "https://cannonhome.cl/hoteleria/plumones-hotel/plumones-1-5-plazas-hotel"
+    },
+    {
+     "text": "2 Plaza",
+     "href": "https://cannonhome.cl/hoteleria/plumones-hotel/plumones-2-plazas-hotel"
+    },
+    {
+     "text": "King",
+     "href": "https://cannonhome.cl/hoteleria/plumones-hotel/plumones-king-hotel"
+    },
+    {
+     "text": "Súper King",
+     "href": "https://cannonhome.cl/hoteleria/plumones-hotel/plumones-super-king-hotel"
+    },
+    {
+     "text": "Ver Todo",
+     "href": "https://cannonhome.cl/hoteleria/plumones-hotel"
+    },
+    {
+     "text": "ALMOHADAS",
+     "href": "https://cannonhome.cl/hoteleria/almohadas"
+    },
+    {
+     "text": "Almohadas Viscoelásticas",
+     "href": "https://cannonhome.cl/hoteleria/almohadas/almohadas-viscoelasticas"
+    },
+    {
+     "text": "Almohadas Microfibra",
+     "href": "https://cannonhome.cl/hoteleria/almohadas/almohadas-microfibra"
+    },
+    {
+     "text": "Almohadas Pluma",
+     "href": "https://cannonhome.cl/hoteleria/almohadas/almohadas-pluma"
+    },
+    {
+     "text": "Ver Todo",
+     "href": "https://cannonhome.cl/hoteleria/almohadas"
+    },
+    {
+     "text": "FUNDAS DE PLUMÓN",
+     "href": "https://cannonhome.cl/hoteleria/fundas-de-plumon"
+    },
+    {
+     "text": "1.5 Plazas",
+     "href": "https://cannonhome.cl/hoteleria/fundas-de-plumon/funda-plumon-1-5-plazas-hotel"
+    },
+    {
+     "text": "2 Plazas",
+     "href": "https://cannonhome.cl/hoteleria/fundas-de-plumon/fundas-plumon-2-plazas-hotel"
+    },
+    {
+     "text": "King",
+     "href": "https://cannonhome.cl/hoteleria/fundas-de-plumon/fundas-plumon-king-hotel"
+    },
+    {
+     "text": "Súper King",
+     "href": "https://cannonhome.cl/hoteleria/fundas-de-plumon/fundas-plumon-super-king-hotel"
+    },
+    {
+     "text": "Ver Todo",
+     "href": "https://cannonhome.cl/hoteleria/fundas-de-plumon"
+    },
+    {
+     "text": "BAÑO Y SPA",
+     "href": "https://cannonhome.cl/hoteleria/bano-y-spa"
+    },
+    {
+     "text": "Toallas",
+     "href": "https://cannonhome.cl/hoteleria/bano-y-spa/toallas"
+    },
+    {
+     "text": "Accesorios de Baño",
+     "href": "https://cannonhome.cl/hoteleria/bano-y-spa/accesorios-de-bano"
+    },
+    {
+     "text": "Ver Todo",
+     "href": "https://cannonhome.cl/hoteleria/bano-y-spa"
+    }
+   ]
+  },
+  {
+   "text": "POR PLAZA",
+   "href": "https://cannonhome.cl/plaza",
+   "links": [
+    {
+     "text": "1 PLAZA",
+     "href": "https://cannonhome.cl/plaza/1-plaza"
+    },
+    {
+     "text": "Ver Todo",
+     "href": "https://cannonhome.cl/plaza/1-plaza"
+    },
+    {
+     "text": "1.5 PLAZAS",
+     "href": "https://cannonhome.cl/plaza/1-plaza"
+    },
+    {
+     "text": "Ver Todo",
+     "href": "https://cannonhome.cl/plaza/1-5-plazas"
+    },
+    {
+     "text": "2 PLAZAS",
+     "href": "https://cannonhome.cl/plaza/2-plazas"
+    },
+    {
+     "text": "Ver Todo",
+     "href": "https://cannonhome.cl/plaza/2-plazas"
+    },
+    {
+     "text": "KING",
+     "href": "https://cannonhome.cl/plaza/king"
+    },
+    {
+     "text": "Ver Todo",
+     "href": "https://cannonhome.cl/plaza/king"
+    },
+    {
+     "text": "SÚPER KING",
+     "href": "https://cannonhome.cl/plaza/super-king"
+    },
+    {
+     "text": "Ver Todo",
+     "href": "https://cannonhome.cl/plaza/super-king"
+    }
+   ]
+  },
+  {
+   "text": "NUEVA COLECCIÓN",
+   "href": "https://cannonhome.cl/evento/nueva-coleccion",
+   "links": []
+  }
+ ]
+}

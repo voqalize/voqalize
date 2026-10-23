@@ -1,0 +1,788 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Realizar pedido CannonHome</title>
+<style>
+  /* Ours, standing in for the site's stylesheet: what it hides until a click. */
+  body { margin: 0; font-family: Lato, sans-serif; }
+  #checkout { max-width: 760px; margin: 24px auto; }
+  .field { margin: 8px 0; }
+  .cn-region-search__menu { display: none; }
+  .cn-region-search.is-open .cn-region-search__menu { display: block; max-height: 320px; overflow: auto; border: 1px solid #ccc; }
+  .country-list.hide { display: none; }
+  .co-place-order { position: sticky; bottom: 0; background: #fff; }
+</style>
+</head>
+<body class="checkout-index-index page-layout-checkout">
+<main id="maincontent" class="page-main"><div class="columns"><div class="column main">
+<div id="checkout" class="checkout-container"> 
+<div class="opc-wrapper">
+<ul class="opc-progress-bar">
+ <li class="opc-progress-bar-item _complete">
+ <span>Mi Carrito</span>
+ </li>
+ <li class="opc-progress-bar-item _complete">
+ <span>Datos Personales</span>
+ </li>
+ <li class="opc-progress-bar-item bar-shipping _active">
+ <span>Datos de entrega</span>
+ </li>
+ <li class="opc-progress-bar-item bar-payment">
+ <span>Pago</span>
+ </li>
+</ul>
+<div class="opc-estimated-wrapper">
+ <div class="estimated-block">
+ <span class="estimated-label">Resumen de pedido</span>
+ <span class="estimated-price">1 Producto</span>
+ <span class="estimated-price"> · Ver detalle</span>
+ </div>
+ <div class="minicart-wrapper">
+ <button type="button" class="action showcart" data-toggle="opc-summary">
+ </button>
+ </div>
+</div>
+<div data-role="checkout-messages" class="messages">
+</div>
+ <ol class="opc" id="checkoutSteps">
+<li id="store-pickup" style="display: none">
+<div id="delivery-method-selector" class="step-content">
+ <button class="action action-select-shipping selected">Despacho</button>
+ <button class="action action-select-store-pickup">Pick in Store</button>
+</div>
+ <div>
+<div id="store-selector">
+ <div class="step-title" data-role="title">
+ <span>Tienda</span>
+ </div>
+ <div id="checkout-step-store-selector" class="step-content" data-role="content">
+ <p class="no-selected-location">
+ <span>We could not preselect pickup location based on available information, please select it manually.</span>
+ </p>
+ <form class="form-continue" novalidate="novalidate">
+ <div class="actions-toolbar">
+ <div class="secondary">
+ <button type="button" class="button action openPopup-stores">
+ <span>
+ <span>Retiro en tienda</span>
+ </span>
+ </button>
+ </div>
+ <div class="primary">
+ <button data-role="opc-continue" type="submit" class="button action continue primary" disabled="">
+ <span>
+ <span>Siguiente</span>
+ </span>
+ </button>
+ </div>
+ </div>
+ </form>
+ </div>
+</div>
+<div id="opc-store-selector-popup">
+<div id="store-selector-popup">
+ <h3>Selecciona tu tienda</h3>
+ <div class="store-selector-popup-table" style="display: none;">
+ <div>
+ </div>
+ </div>
+ <h3>Recuerda que tienes hasta 7 días hábiles para retirar tu pedido</h3>
+</div>
+</div>
+</div>
+</li>
+<li id="shipping" class="checkout-shipping-address step-content">
+ <div class="step-title main-title" data-role="title">Finaliza tu compra</div>
+ <div class="checkout-email">
+<div class="form-login-container checkout-section">
+ <div class="form-login-content">
+ <div class="step-title-s" data-role="title">
+ <span>Información de contacto</span>
+ </div>
+ <form class="form form-login" data-role="email-with-possible-login">
+ <fieldset id="customer-email-fieldset" class="fieldset">
+ <div class="field required">
+ <label class="label" for="customer-email"><span>Correo Electrónico</span></label>
+ <div class="actions-toolbar">
+ <div class="secondary">
+ <a class="action remind">
+ <span>Iniciar sesión</span>
+ </a>
+ </div>
+ </div>
+ <div class="control">
+ <input class="input-text" type="email" name="username" id="customer-email" title="tu@correo.com" placeholder="tu@correo.com">
+ </div>
+ </div>
+<div class="field password" style="display: none;">
+ <label class="label" for="customer-password"><span>Contraseña</span></label>
+ <div class="control"><input class="input-text" type="password" name="password" id="customer-password" autocomplete="off" placeholder="Aa12345"></div>
+</div>
+<div class="cannon-guest-consent" id="cannon-guest-consent-1">
+ <button type="button" class="cannon-guest-consent__toggle" aria-controls="cannon-guest-consent-1-detail" aria-expanded="false">
+ <span>¿No quieres recordatorios de carrito? Cambiar</span>
+ </button>
+ <div class="cannon-guest-consent__control" id="cannon-guest-consent-1-detail" style="display: none;">
+ <input type="checkbox" class="cannon-guest-consent__checkbox" id="cannon-guest-consent-1-input">
+ <label class="cannon-guest-consent__label" for="cannon-guest-consent-1-input">
+ <span>Quiero recibir un recordatorio si dejo productos en mi carrito</span>
+ </label>
+ </div>
+</div>
+ </fieldset>
+ </form>
+ <div class="actions-toolbar new-user">
+ <div class="primary">
+ <a class="button action continue primary" href="/customer/account/create?checkoutredirect=1">
+ <span><span>Crear Cuenta</span></span>
+ </a>
+ </div>
+ <div class="primary">
+ <a class="button action continue primary" href="/checkout">
+ <span><span>Comprar como invitado</span></span>
+ </a>
+ </div>
+ </div>
+ </div>
+</div>
+ </div>
+ <div class="checkout-section">
+ <div class="step-title" data-role="title">Datos de entrega</div>
+ <div id="checkout-step-shipping" data-role="content">
+ <div class="form-shipping-address-container">
+<form class="form form-shipping-address" id="co-shipping-form" data-hasrequired="* Campos obligatorios">
+ <div id="shipping-new-address-form" class="fieldset address">
+ <div class="field-title personal-information">
+ <legend class="label">
+ <span>Información personal</span>
+ </legend>
+ <p class="description">
+ <span>Datos de la persona que recibirá el pedido.</span>
+ </p>
+</div>
+<div class="field region_id _required" name="shippingAddress.region_id">
+ <label class="label" for="SLIGSVK"><span>Región</span></label>
+ <div class="control">
+<div class="cn-region-search">
+ <button class="cn-region-search__trigger" type="button" id="SLIGSVK" aria-haspopup="listbox" aria-expanded="false" aria-disabled="false" aria-describedby="notice-SLIGSVK">
+ <span class="cn-region-search__value is-placeholder">Por favor seleccione región.</span>
+ <span class="cn-region-search__caret" aria-hidden="true">
+ </span>
+ </button>
+</div>
+ </div>
+</div>
+<div class="field _required" name="shippingAddress.region" style="display: none;">
+ <label class="label" for="H9RL6A9"><span>Región</span></label>
+ <div class="control">
+<input class="input-text" type="text" name="region" aria-required="true" aria-invalid="false" id="H9RL6A9">
+ </div>
+</div>
+ <div class="field-title address-information">
+ <legend class="label">
+ <span>Datos de entrega</span>
+ </legend>
+ <p class="description">
+ <span>Datos de la persona que recibirá la factura.</span>
+ </p>
+</div>
+ <div class="field city_id _required" name="shippingAddress.custom_attributes.city_id">
+ <label class="label" for="T4ALQ6G"><span>Comuna</span></label>
+ <div class="control">
+<div class="cn-region-search is-locked">
+ <button class="cn-region-search__trigger" type="button" id="T4ALQ6G" aria-haspopup="listbox" aria-expanded="false" aria-disabled="true" aria-describedby="notice-T4ALQ6G">
+ <span class="cn-region-search__value is-placeholder">Primero elige región</span>
+ <span class="cn-region-search__caret" aria-hidden="true">
+ </span>
+ </button>
+</div>
+ </div>
+</div>
+<div class="field firstname _required" name="shippingAddress.firstname">
+ <label class="label" for="R5LVCSX"><span>Nombre</span></label>
+ <div class="control">
+<input class="input-text" type="text" name="firstname" placeholder="Escribe aquí" aria-required="true" aria-invalid="false" id="R5LVCSX" maxlength="15">
+ </div>
+</div>
+<div class="field lastname _required" name="shippingAddress.lastname">
+ <label class="label" for="UR3DVL9"><span>Apellidos</span></label>
+ <div class="control">
+<input class="input-text" type="text" name="lastname" placeholder="Escribe aquí" aria-required="true" aria-invalid="false" id="UR3DVL9" maxlength="15">
+ </div>
+</div>
+<div class="field rut _required" name="shippingAddress.custom_attributes.rut">
+ <label class="label" for="U84P45U"><span>Rut</span></label>
+ <div class="control">
+<input class="input-text" type="text" name="custom_attributes[rut]" placeholder="Rut (Ej: 12345678-9)" aria-required="true" aria-invalid="false" id="U84P45U" maxlength="12">
+ </div>
+</div>
+<div class="field street _required" name="shippingAddress.street.0">
+ <label class="label" for="RP1JTT0"><span>Dirección</span></label>
+ <div class="control">
+<input class="input-text" type="text" name="street[0]" placeholder="Escribe aquí" aria-required="true" aria-invalid="false" id="RP1JTT0" maxlength="40">
+ </div>
+</div>
+<div class="field number _required" name="shippingAddress.street.1">
+ <label class="label" for="GWAVI46"><span>Número</span></label>
+ <div class="control">
+<input class="input-text" type="text" name="street[1]" placeholder="Escribe aquí" aria-required="true" aria-invalid="false" id="GWAVI46" maxlength="6">
+ </div>
+</div>
+<div class="field floor" name="shippingAddress.street.2">
+ <label class="label" for="VVP099X"><span>Depto/Casa</span></label>
+ <div class="control">
+<input class="input-text" type="text" name="street[2]" placeholder="Escribe aquí" aria-invalid="false" id="VVP099X" maxlength="6">
+ </div>
+</div>
+<div class="field telephone _required" name="shippingAddress.telephone">
+ <label class="label" for="NJISU1Q"><span>Número de teléfono</span></label>
+ <div class="control">
+<div class="intl-tel-input allow-dropdown"><div class="flag-container"><div class="selected-flag" tabindex="0" title="Selecciona un Codigo"><div class="iti-arrow"></div><div class="iti-flag">+56 9</div></div><ul class="country-list hide"><li class="country preferred" data-dial-code="56 9" data-country-code="cl"><span class="dial-code">+56 9</span></li><li class="divider"></li><li class="country" data-dial-code="56 2" data-country-code="cl"><span class="dial-code">+56 2</span></li></ul></div><input class="input-text" type="text" name="telephone" placeholder=" " aria-describedby="notice-NJISU1Q" id="NJISU1Q" maxlength="8" inputmode="numeric" autocomplete="off"><input type="hidden" name="telephone"></div>
+ </div>
+</div>
+<div class="field country_id _required" name="shippingAddress.country_id" style="display: none;">
+ <label class="label" for="X115B3U"><span>País</span></label>
+ <div class="control">
+<select class="select" name="country_id" id="X115B3U" aria-required="true" aria-invalid="false" placeholder="País example"><option data-title="Chile" value="CL">Chile</option></select>
+ </div>
+</div>
+<div class="field city" name="shippingAddress.city" style="display: none;">
+ <label class="label" for="T527AR7"><span>Comuna</span></label>
+ <div class="control">
+<input class="input-text" type="text" name="city" placeholder="Comuna example" aria-invalid="false" id="T527AR7">
+ </div>
+</div>
+ <div class="split-shipping-container checkout-shipping-method">
+ <div class="section-splits" style="display: none;">
+ <div class="wrapper-splits" id="envio-1000001">
+ <div class="split-item">
+ <div class="split-title">
+ <p>Envío 01</p>
+ </div>
+ <div class="split-content">
+ <div class="method-content collapsible_method_delivery">
+ <div class="title-method" data-role="title">
+ <div class="col col-method" id="label_method_homedelivery_homedelivery">
+ <label class="method-head-group" for="common_shipping_type_homedelivery">
+ <span class="method-icon-well method-icon-well--truck" aria-hidden="true"></span>
+ <div class="main-method-title">
+ <p>Despacho a domicilio</p>
+ </div>
+ </label>
+ <input type="radio" class="radio main-input-split" name="common_shipping_type" id="common_shipping_type_homedelivery" value="homedelivery">
+ </div>
+ </div>
+ <div class="content-method" data-role="content">
+ <div id="shippingrates_modal-init-1000001-homedelivery">
+ <form class="shippingrates_modal-content">
+ <div class="field rates">
+ <ul class="rates_list">
+ </ul>
+ </div>
+ </form>
+ </div>
+ </div>
+</div>
+ <div class="method-content collapsible_method_store" role="tablist">
+ <div class="title-method" data-role="title" role="tab" aria-selected="false" aria-expanded="false" tabindex="0">
+ <div class="col col-method" id="label_method_instore_instore">
+ <div class="method-head-group">
+ <span class="method-icon-well method-icon-well--store" aria-hidden="true"></span>
+ <span>
+ <span>Retiro en Tienda</span>
+ <p>Gratis</p>
+ </span>
+ </div>
+ <input type="radio" class="radio main-input-split" name="common_shipping_type" id="common_shipping_type_instore" value="instore">
+ </div>
+ </div>
+ <div class="content-method" data-role="content" role="tabpanel" aria-hidden="true" style="display: none;">
+ <div class="wrapper-who-receive">
+ <div id="opc-who-receive-checkout-form">
+ <div class="who-receive-checkout-form">
+ <div class="custom-form-body">
+ <form id="who-receive-checkout-form" class="form who-receive" event="[object Object]">
+ <fieldset class="fieldset who-receive__fieldset">
+ <div class="field who-receive__type" name="whoReceiveCheckoutForm.who_receive_type">
+ <label class="who-receive__self" for="who_receive_self">
+ <input type="checkbox" id="who_receive_self" class="who-receive__self-input">
+ <span class="who-receive__self-box" aria-hidden="true"></span>
+ <span class="who-receive__self-label">Soy yo quien retira</span>
+ </label>
+ </div>
+ <div class="who-receive__fields" style="display: none;">
+ <div class="field _required who-receive__field" name="whoReceiveCheckoutForm.who_receive_name">
+ <label class="label" for="who_receive_name">Nombre de quién retira</label>
+ <div class="control">
+ <input type="text" name="who_receive_name" class="required-entry input-text" id="who_receive_name" maxlength="15">
+ </div>
+ </div>
+ <div class="field _required who-receive__field" name="whoReceiveCheckoutForm.who_receive_lastname">
+ <label class="label" for="who_receive_lastname">Apellido de quién retira</label>
+ <div class="control">
+ <input type="text" name="who_receive_lastname" class="required-entry input-text" id="who_receive_lastname" maxlength="15">
+ </div>
+ </div>
+ <div class="field _required who-receive__field who-receive__field--full" name="whoReceiveCheckoutForm.who_receive_rut">
+ <label class="label" for="who_receive_rut">RUT de quién retira</label>
+ <div class="control">
+ <input type="text" name="who_receive_rut" class="required-entry validate-rut input-text" id="who_receive_rut" maxlength="12">
+ </div>
+ </div>
+ </div>
+ </fieldset>
+ </form>
+ </div>
+ </div>
+</div>
+ </div>
+<div class="split-store" id="shippingrates_modal-init-1000001-instore">
+ <div class="store-selector-popup-table">
+ <div class="store-filter" style="display: none;">
+ <div class="store-filter__selects">
+ <div class="store-filter__field">
+ <label class="store-filter__label" for="store-filter-comuna-1000001">
+ <span>Selecciona comuna</span>
+ </label>
+ <select class="store-filter__select" id="store-filter-comuna-1000001">
+ <option value="">Todas las comunas</option>
+ </select>
+ </div>
+ </div>
+ </div>
+ <div class="list-store">
+ </div>
+ <div class="store-filter__empty" style="display: none;">
+ <span>No encontramos tiendas con los filtros aplicados.</span>
+ </div>
+ </div>
+</div>
+ </div>
+</div>
+ </div>
+ <div class="no-quotes-block" style="display: none;">
+ <p class="message-no-stock">No hay disponibilidad en la dirección que ingresaste. Actualízala para continuar tu compra.</p>
+ </div>
+ </div>
+<div class="items-in-cart">
+ <div class="content minicart-items" data-role="content">
+ <div class="minicart-items-wrapper" style="display: flex; border: none ">
+ <ol class="minicart-items">
+ <li class="product-item">
+ <div class="product">
+<span class="product-image-container" style="height: 75px; width: 75px;">
+ <span class="product-image-wrapper">
+ </span>
+</span>
+<div class="product-item-details">
+ <div class="product-item-inner">
+ <div class="product-item-name-block">
+ <strong class="product-item-name">Almohada Microfibra 50x70 cm</strong>
+ <div class="details-qty">
+ <span class="label"><span>Cantidad</span></span>
+ <span class="value">1</span>
+ </div>
+ </div>
+<div class="subtotal">
+ <span class="price-excluding-tax" data-label="Impuestos NO Incl.">
+ <span class="cart-price">
+ <span class="price">$3.490</span>
+ </span>
+ </span>
+</div>
+ </div>
+</div>
+ </div>
+ </li>
+ </ol>
+ </div>
+ </div>
+</div>
+ <div class="message-error-split" style="display: none">
+ <div>No olvides seleccionar tu método de envío para poder avanzar a los métodos de pago*</div>
+ </div>
+ </div>
+</div>
+<div class="cn-alert-banner" style="display: none;">
+ <span>Completa tu <strong>región y comuna</strong> para cargar las opciones de entrega.</span>
+</div>
+<div id="split-shipping-method-main" style="display: none">
+</div>
+ </div>
+ </div>
+ <div class="actions-toolbar address-confirm-buttons-container" style="display:none">
+ <div class="primary">
+ <button data-role="opc-continue" type="submit" class="button action continue primary">
+ <span>Continuar compra</span>
+ </button>
+ </div>
+ </div>
+</form>
+ </div>
+ </div>
+ </div>
+</li>
+<li id="opc-shipping_method" class="checkout-shipping-method" role="presentation" style="display: none;">
+ <div class="checkout-shipping-method checkout-section">
+ <div class="step-title" data-role="title">Métodos de envío</div>
+ <div id="checkout-step-shipping_method" data-role="content" role="tabpanel" aria-hidden="false" class="button-disabled">
+ </div>
+ </div>
+</li>
+<li id="payment" role="presentation" class="checkout-payment-method">
+ <div class="step-title" data-role="title">Método de Pago</div>
+ <div id="checkout-step-payment" class="step-content" data-role="content" role="tabpanel" aria-hidden="false" style="display: none;">
+ <form id="co-payment-form" class="form payments" novalidate="novalidate">
+ <input type="hidden" name="form_key" value="">
+ <fieldset class="fieldset">
+<input name="captcha_form_id" type="hidden" value="payment_processing_request" data-scope="">
+ <br>
+ <div class="custom-form-body">
+ <form id="custom-checkout-form" class="form custom-billing-form">
+ <fieldset class="fieldset">
+ <div class="field" name="customCheckoutForm.checkout_request_invoice">
+ <div class="control checkout-agreement">
+ <input type="checkbox" class="checkbox" id="checkout_request_invoice" name="checkout_request_invoice" value="Si">
+ </div>
+ <label class="label" for="checkout_request_invoice">
+ <span>¿Desea Factura?</span>
+ </label>
+ </div>
+ <div class="fieldset content-form">
+ <p class="title" style="display: none;">Información Empresa</p>
+ <div class="field _required" name="customCheckoutForm.checkout_rut_empresa" style="display: none;">
+ <label class="label" id="checkout_rut_empresa_label" for="checkout_rut_empresa">Rut Empresa</label>
+ <div class="control">
+ <input type="text" name="checkout_rut_empresa" class="required-entry validate-rut input-text" id="checkout_rut_empresa" maxlength="12" minlength="8" placeholder="Escribe aquí">
+ </div>
+ </div>
+ <div class="field _required" name="customCheckoutForm.checkout_razon_social" style="display: none;">
+ <label class="label" id="checkout_razon_social_label" for="checkout_razon_social">Razón Social</label>
+ <div class="control">
+ <input type="text" name="checkout_razon_social" class="required-entry input-text" id="checkout_razon_social" maxlength="40" placeholder="Escribe aquí">
+ </div>
+ </div>
+ <div class="field _required" name="customCheckoutForm.checkout_giro" style="display: none;">
+ <label class="label" id="checkout_giro_label" for="checkout_giro">Giro</label>
+ <div class="control">
+ <input type="text" name="checkout_giro" class="required-entry input-text" id="checkout_giro" maxlength="40" placeholder="Escribe aquí">
+ <div class="field-note">
+ <span>0 de 40</span>
+ </div>
+ <div class="message message-error" style="display: none;">El campo Giro permite máximo 40 caracteres.</div>
+ </div>
+ </div>
+ <div class="field _required" name="customCheckoutForm.checkout_telephone" style="display: none;">
+ <label class="label" id="checkout_telephone_label" for="checkout_telephone">Número De Teléfono</label>
+ <div class="control">
+ <div class="intl-tel-input allow-dropdown"><div class="flag-container"><div class="selected-flag" tabindex="0" title="Selecciona un Codigo"><div class="iti-arrow"></div><div class="iti-flag">+56 9</div></div><ul class="country-list hide"><li class="country preferred" data-dial-code="56 9" data-country-code="cl"><span class="dial-code">+56 9</span></li><li class="divider"></li><li class="country" data-dial-code="56 2" data-country-code="cl"><span class="dial-code">+56 2</span></li></ul></div><input type="text" name="checkout_telephone" class="required-entry input-text input-telephone" id="checkout_telephone" maxlength="8" placeholder="Escribe aquí" autocomplete="off"><input type="hidden" name="telephone"></div>
+ </div>
+ </div>
+ <p class="title" style="display: none;">Dirección de facturación</p>
+ <div class="field_custom" name="customCheckoutForm.checkout_billing_is_shipping" style="display: none;">
+ <div class="control checkout-agreement">
+ <input type="checkbox" class="checkbox" id="checkout_billing_is_shipping" name="checkout_billing_is_shipping">
+ <label class="label" for="checkout_billing_is_shipping">
+ <span>Mi dirección de facturación y de envío es la misma.</span>
+ </label>
+ </div>
+ </div>
+ <div class="field _required" name="customCheckoutForm.checkout_region" style="display: none;">
+ <label for="checkout_region" class="label" id="checkout_region_label">Región</label>
+ <div class="control">
+ <div class="cn-region-search-host">
+<div class="cn-region-search">
+ <button class="cn-region-search__trigger" type="button" id="checkout_region-search" aria-haspopup="listbox" aria-expanded="false" aria-disabled="false">
+ <span class="cn-region-search__value is-placeholder">Por favor seleccione región</span>
+ <span class="cn-region-search__caret" aria-hidden="true">
+ </span>
+ </button>
+</div>
+</div><select class="select required-entry cn-region-search__native" id="checkout_region" name="checkout_region" tabindex="-1" aria-hidden="true">
+ </select>
+ </div>
+ </div>
+ <div class="field _required" name="customCheckoutForm.checkout_comuna" style="display: none;">
+ <label for="checkout_comuna" class="label" id="checkout_comuna_label">Comuna</label>
+ <div class="control">
+ <div class="cn-region-search-host">
+<div class="cn-region-search is-locked">
+ <button class="cn-region-search__trigger" type="button" id="checkout_comuna-search" aria-haspopup="listbox" aria-expanded="false" aria-disabled="true">
+ <span class="cn-region-search__value is-placeholder">Primero elige región</span>
+ <span class="cn-region-search__caret" aria-hidden="true">
+ </span>
+ </button>
+</div>
+</div><select class="select required-entry cn-region-search__native" id="checkout_comuna" name="checkout_comuna" tabindex="-1" aria-hidden="true">
+ </select>
+ <div class="message message-error" style="display: none;">
+ <span>No se pudieron cargar las comunas. Por favor, vuelva a seleccionar la región.</span>
+ </div>
+ </div>
+ </div>
+ <div class="field _required" name="customCheckoutForm.checkout_address" style="display: none;">
+ <label class="label" id="checkout_address_label" for="checkout_address">Dirección de Facturación</label>
+ <div class="control">
+ <input type="text" name="checkout_address" class="required-entry input-text" id="checkout_address" maxlength="44" placeholder="Escribe aquí">
+ </div>
+ </div>
+ <div class="field _required" name="customCheckoutForm.checkout_address_number" style="display: none;">
+ <label class="label" id="checkout_address_number_label" for="checkout_address_number">Número</label>
+ <div class="control">
+ <input type="text" name="checkout_address_number" class="required-entry input-text" id="checkout_address_number" maxlength="6" placeholder="Escribe aquí">
+ </div>
+ </div>
+ <div class="field" name="customCheckoutForm.checkout_observation" style="display: none;">
+ <label class="label" for="checkout_observation">Observación</label>
+ <div class="control">
+ <input type="text" name="checkout_observation" class="input-text" id="checkout_observation" maxlength="50" placeholder="Escribe aquí">
+ </div>
+ </div>
+ </div>
+ </fieldset>
+ </form>
+</div>
+ <div id="checkout-payment-method-load" class="opc-payment" style="display: none;">
+<div class="no-payments-block">No hay métodos de pago</div>
+ </div>
+ <div class="no-quotes-block">
+ <span>Por favor, completa tu dirección de envío y selecciona tu método de envío para mostrarte tus opciones de pago.</span>
+ </div>
+<div class="payment-option _collapsible opc-payment-additional giftcardaccount " id="giftcardaccount-placer" role="tablist">
+ <div class="payment-option-title field choice" data-role="title" role="tab" aria-selected="false" aria-expanded="false" tabindex="0">
+ <span class="action action-toggle" id="block-giftcard-heading" role="heading" aria-level="2">
+ <span>¿Tienes cupón de descuento?</span>
+ </span>
+ </div>
+ <div class="payment-option-content" data-role="content" role="tabpanel" aria-hidden="true" style="display: none;">
+<div data-role="checkout-messages" class="messages">
+</div>
+ <form class="form form-giftcard-account" id="giftcard-form" method="post">
+ <div class="payment-option-inner">
+ <div class="field">
+ <label class="label" for="giftcard-code">
+ <span>Ingrese el código de tarjeta de regalo</span>
+ </label>
+ <div class="control">
+ <input class="input-text" type="text" id="giftcard-code" name="giftcard_code" placeholder="Ingrese el código de tarjeta de regalo">
+ </div>
+ </div>
+ </div>
+<div id="recaptcha-checkout-gift-apply-wrapper">
+ <div class="g-recaptcha"></div>
+ <div class="field">
+ <div class="control">
+ <input type="checkbox" value="" class="required-captcha checkbox" name="recaptcha-validate-" tabindex="-1">
+ </div>
+ </div>
+</div>
+ <div class="actions-toolbar">
+ <div class="primary">
+ <button class="action action-add primary" type="submit" value="Aplicar">
+ <span><span>Aplicar</span></span>
+ </button>
+ </div>
+ <div class="secondary">
+ <button class="action action-check" type="button" value="Ver Saldo">
+ <span><span>Ver Saldo</span></span>
+ </button>
+ </div>
+ </div>
+ </form>
+ </div>
+</div>
+<div class="payment-option opc-payment-additional rewardpoints" id="reward_placer" style="display: none;">
+ <div class="payment-option-title">
+ <span>Reward points</span>
+ </div>
+ <div class="payment-option-content field choice">
+ <div class="payment-option-inner">
+ <span> store reward points available</span>
+ </div>
+ <div class="actions-toolbar" id="reward-points-buttons-container">
+ <div class="primary">
+ <button data-role="opc-use-reward" class="action action-use">
+ <span><span>Use reward points</span></span>
+ </button>
+ </div>
+ </div>
+ </div>
+</div>
+ </fieldset>
+ </form>
+ <div class="general-agreement-payment">
+ <div class="cn-order-summary__terms">
+ <span class="cn-checkbox is-on">
+ <input type="checkbox" id="general-agreement-payment-terms">
+ </span>
+ <span class="cn-order-summary__terms-text">
+ Acepto los <strong class="open-agreement-modal">términos y condiciones</strong> y la política de privacidad.
+ </span>
+ </div>
+ </div>
+ </div>
+ <div class="no-quotes-block">Por favor, completa tu dirección de envío y selecciona tu método de envío para mostrarte tus opciones de pago.</div>
+</li>
+ </ol>
+</div>
+<aside role="dialog" class="modal-custom opc-sidebar opc-summary-wrapper
+ custom-slide
+ " aria-labelledby="modal-title-9" aria-describedby="modal-content-9" data-role="modal" data-type="custom" tabindex="0">
+ <div data-role="focusable-start" tabindex="0"></div>
+ <div class="modal-inner-wrap" data-role="focusable-scope">
+ <header class="modal-header">
+ <p id="modal-title-9" class="modal-title" data-role="title">
+ Resumen de pedido
+ </p>
+ <button class="action-close" data-role="closeBtn" type="button">
+ <span>Cerrar</span>
+ </button>
+ </header>
+ <div id="modal-content-9" class="modal-content" data-role="content"><div id="opc-sidebar" class="cn-rail">
+<div class="opc-block-summary">
+ <span class="title">Resumen del pedido</span>
+<table class="data table totals table-totals">
+ <caption class="table-caption">Resumen del pedido</caption>
+ <tbody>
+<tr class="totals sub">
+ <th class="mark" scope="row">Subtotal</th>
+ <td class="amount">
+ <span class="price" data-th="Subtotal">$3.490</span>
+ </td>
+</tr>
+ <tr class="totals shipping excl">
+ <th class="mark" scope="row">
+ <span class="label">Despacho</span>
+ <span class="value"></span>
+ </th>
+ <td class="amount">
+ <span class="not-calculated" data-th="Despacho">Por Calcular</span>
+ </td>
+ </tr>
+<tr class="grand totals">
+ <th class="mark" scope="row">
+ <strong>Total</strong>
+ </th>
+ <td class="amount" data-th="Total">
+ <strong><span class="price">$3.490</span></strong>
+ </td>
+</tr>
+ </tbody>
+</table>
+<div class="block items-in-cart">
+ <div class="content minicart-items" data-role="content">
+ <div class="minicart-items-wrapper">
+ <ol class="minicart-items">
+ <li class="product-item cn-product-row">
+ <div class="product">
+<span class="product-image-container" style="height: 75px; width: 75px;">
+ <span class="product-image-wrapper">
+ </span>
+</span>
+<div class="product-item-details">
+ <div class="product-item-inner">
+ <div class="product-item-name-block">
+ <strong class="product-item-name">Almohada Microfibra 50x70 cm</strong>
+ <div class="details-qty">
+ <span class="label"><span>Cantidad</span></span>
+ <span class="value">1</span>
+ </div>
+ </div>
+<div class="subtotal">
+ <span class="price-excluding-tax" data-label="Impuestos NO Incl.">
+ <span class="cart-price">
+ <span class="price">$3.490</span>
+ </span>
+ </span>
+</div>
+ </div>
+</div>
+ </div>
+ </li>
+ </ol>
+ <div class="item-bottom-view"></div>
+ </div>
+ </div>
+</div>
+<div class="actions-toolbar">
+ <div class="secondary">
+ <a class="action viewcart" href="/checkout/cart/">
+ <span>Volver a mi bolsa</span>
+ </a>
+ </div>
+</div>
+ <div id="modal-bbr" style="display: none;">
+ <h2>Cobertura no disponible</h2>
+ <p>Lo sentimos la dirección de envío seleccionada no se encuentra disponible dentro de nuestras coberturas</p>
+</div>
+<div class="payment-option opc-payment-additional discount-code discount-logo active" role="tablist">
+ <div class="payment-option-title field choice" data-role="title" role="tab" aria-selected="false" aria-expanded="true" tabindex="0">
+ <span class="action action-toggle " id="block-discount-heading" role="heading" aria-level="2">
+ <span>¿Tienes cupón de descuento?</span>
+ </span>
+ </div>
+ <div class="payment-option-content" data-role="content" role="tabpanel" aria-hidden="false">
+<div data-role="checkout-messages" class="messages">
+</div>
+ <form class="form form-discount" id="discount-form">
+ <div class="payment-option-inner">
+ <span class="label">Cupón</span>
+ <div class="field">
+ <label class="label" for="discount-code">
+ <span>Introducir código de descuento</span>
+ </label>
+ <div class="control">
+ <input class="input-text" type="text" id="discount-code" name="discount_code" placeholder="Introduce el cupón">
+ </div>
+ </div>
+ </div>
+ <div class="actions-toolbar">
+ <div class="">
+ <button class="action action-apply button action primary" type="submit" value="Aplicar">
+ <span><span>Agregar</span></span>
+ </button>
+ </div>
+<input name="captcha_form_id" type="hidden" value="sales_rule_coupon_request" data-scope="">
+ </div>
+ </form>
+ </div>
+</div>
+</div>
+ <div class="opc-block-shipping-information">
+ </div>
+ <div class="whatsapp-button-checkout">
+ <a class="whatsapp-checkout" target="_blank" href="#">
+ <span>¿Tienes alguna consulta?</span>
+ <span class="whatsapp-icon">
+ </span>
+ </a>
+ </div>
+<div class="co-place-order sticky-checkout-bar is-visible">
+ <div class="sticky-checkout-bar__inner co-place-order__inner">
+ <div class="cn-order-summary__terms terms_desktop">
+ <span class="cn-checkbox is-on">
+ <input type="checkbox" id="co-place-order-terms" class="co-place-order__terms-input">
+ </span>
+ <span class="cn-order-summary__terms-text">
+ Acepto los <strong class="open-agreement-modal">términos y condiciones</strong> y la política de privacidad.
+ </span>
+ </div>
+ <div class="actions-toolbar">
+ <button type="button" class="action primary checkout co-place-order__button">
+ <span>Completa los pasos</span>
+ </button>
+ </div>
+ </div>
+</div>
+<div class="cn-order-summary__secure">
+ <span class="cn-order-summary__secure-text">Pago seguro · tus datos están encriptados</span>
+</div>
+</div></div>
+ </div>
+ <div data-role="focusable-end" tabindex="0"></div>
+</aside></div>
+</div></div></main>
+</body>
+</html>
