@@ -36,14 +36,15 @@
 
 import "./cannonhome-actions";
 
-import { type AvatarInstance, createAvatar, listCharacters, preloadAvatar } from "@voqalize/avatar";
+import { type AvatarInstance, createAvatar, listCharacters, type PreloadedAvatar, preloadAvatar } from "@voqalize/avatar";
 
 import { type AppEvent, UI_ACTION_COMMANDS } from "./actions.gen";
 import { DONE_COMMANDS } from "./cannonhome-actions";
 import { followCall, type Following } from "./follow";
 import { askHolder, askWorker, onHolder, shareLanguage, sharedLanguage, tell } from "./hub";
+import { clearKept, type Kept, transitions, writeFace, writeKept } from "./persist";
 import { ANY_TAB, type CallState, type MicState, OURS, type Where } from "./protocol";
-import { type Language, mountWidget } from "./widget";
+import { type Language, mountWidget, type Widget } from "./widget";
 
 declare const __VOQALIZE__: { apiBase: string; agentId: string; publishableKey: string };
 
@@ -51,6 +52,16 @@ const CHARACTER = "javier";
 /** Set once the widget is up, so a second copy of this script on the page
  *  puts up no second widget. */
 const MOUNTED = "__voqalizeJavier";
+/** The widget the early shell mounted at `document_start` (`shell.ts`), when
+ *  the last page of this tab left a call on. */
+const SHELL = "__voqalizeJavierShell";
+/** How long a widget carried over from the last page waits for the holder's
+ *  state before it believes the call is gone. */
+const CARRIED_WAIT_MS = 8000;
+/** How often, in a call, the last frame of his face is kept for the next page. */
+const FRAME_EVERY_MS = 3000;
+/** How long the still waits for the live face before it gives way anyway. */
+const UNVEIL_WAIT_MS = 10_000;
 /** The language the visitor last chose on the toggle, which the next call
  *  starts in and holds to; and how long the toggle waits for the brain to
  *  answer a switch before it shows the language the call is still in. With no
@@ -100,10 +111,18 @@ async function start(): Promise<void> {
   const missing = UI_ACTION_COMMANDS.filter((c) => !adapter.commands.includes(c) && !OURS.has(c));
   if (missing.length) console.warn("voqalize: nothing performs", missing);
 
-  const widget = mountWidget();
+  // A call carried over from the last page: the shell has the widget up
+  // already, as that page left it. Otherwise it mounts now, as always.
+  const shell = flags[SHELL] as { widget: Widget; kept: Kept } | undefined;
+  const widget = shell?.widget ?? mountWidget();
   watchCorners(widget);
+  // His face starts building now, to take over from the still.
+  const preloaded: PreloadedAvatar | null = shell ? preloadAvatar(CHARACTER) : null;
+  let still: string | null = shell?.kept.still ?? null;
+  let heard = false;
+  let frames: ReturnType<typeof setInterval> | null = null;
 
-  let state: CallState = { ...IDLE, language: storedLanguage() ?? OPENING };
+  let state: CallState = { ...IDLE, language: shell?.kept.language ?? storedLanguage() ?? OPENING };
   let following: Following | null = null;
   let avatar: AvatarInstance | null = null;
   let stopAdapter: (() => void) | null = null;
@@ -129,6 +148,10 @@ async function start(): Promise<void> {
     if (calling && !on) return;
     // One microphone on the page: GoPersonal's voice search hides while he listens.
     document.documentElement.toggleAttribute("data-voqalize-call", on);
+    // In a call, the next page of this tab gets the widget back at once, and
+    // the load is a view transition under it.
+    transitions(on);
+    if (!on) clearKept();
     if (on) follow();
     else unfollow();
     widget.paint(next.status, next.message);
@@ -136,6 +159,7 @@ async function start(): Promise<void> {
     if (next.activity) widget.setActivity(next.activity);
     if (next.language !== was.language || !switchTimer) showLanguage(next.language);
     if (next.status === "live" && was.status !== "live") following?.joined();
+    keep();
     // The page reports once the brain can hear it, starting with where the
     // visitor is now, and with a move the last page left for this one.
     if (next.ready && !stopAdapter) {
@@ -150,6 +174,8 @@ async function start(): Promise<void> {
     following = followCall();
     avatar?.destroy();
     avatar = createAvatar({ mount: widget.face, client: following.client, character: CHARACTER });
+    if (shell) handOver();
+    frames ??= setInterval(keepFrame, FRAME_EVERY_MS);
   }
 
   function unfollow(): void {
@@ -159,6 +185,72 @@ async function start(): Promise<void> {
     following = null;
     avatar?.destroy();
     avatar = null;
+    if (frames) clearInterval(frames);
+    frames = null;
+    widget.setPoster(null);
+  }
+
+  /** The call as this page shows it, for the next page of this tab. */
+  function keep(): void {
+    if (state.status !== "live" && state.status !== "connecting") return;
+    writeKept({
+      status: state.status, muted: state.muted, activity: state.activity, language: state.language, still,
+      ...widget.layout(),
+    });
+  }
+
+  /** The still the shell put up gives way once the live face has drawn. */
+  function handOver(): void {
+    const since = Date.now();
+    let built = !preloaded;
+    void preloaded?.ready.catch(() => {}).then(() => {
+      built = true;
+    });
+    const look = () => {
+      if (!avatar) return;
+      if (Date.now() - since > UNVEIL_WAIT_MS) return widget.unveil();
+      if (!built) return void setTimeout(look, 50);
+      const img = widget.face.querySelector("img");
+      if (img?.complete && img.naturalWidth) return widget.unveil();
+      void lastFrame().then((frame) => (frame ? widget.unveil() : setTimeout(look, 50)));
+    };
+    look();
+  }
+
+  /** Keep the last frame of his face for the next page's still. */
+  function keepFrame(): void {
+    if (!following) return;
+    void lastFrame("image/webp").then((frame) => {
+      if (frame && following) writeFace(frame);
+    });
+  }
+
+  /** The frame the avatar has just drawn, as a data URL (with `type`; else
+   *  `"drawn"`), or `null` while it has drawn nothing. Read in an animation
+   *  frame, after the avatar's own: a WebGL canvas keeps its picture only
+   *  until the frame is shown. */
+  function lastFrame(type?: string): Promise<string | null> {
+    return new Promise((resolve) =>
+      requestAnimationFrame(() => {
+        const canvas = widget.face.querySelector("canvas");
+        if (!canvas?.width || !canvas.height) return resolve(null);
+        try {
+          const probe = document.createElement("canvas");
+          probe.width = probe.height = 8;
+          const g = probe.getContext("2d", { willReadFrequently: true });
+          if (!g) return resolve(null);
+          g.drawImage(canvas, 0, 0, 8, 8);
+          const px = g.getImageData(0, 0, 8, 8).data;
+          let seen = false;
+          for (let i = 3; i < px.length; i += 4) if (px[i] > 0) seen = true;
+          if (!seen) return resolve(null);
+          resolve(type ? canvas.toDataURL(type, 0.85) : "drawn");
+        } catch {
+          // A canvas that cannot be read: the character's still stands in.
+          resolve(null);
+        }
+      }),
+    );
   }
 
   /** Perform an Action on this page. Never waits on the visitor. Its outcome
@@ -188,6 +280,7 @@ async function start(): Promise<void> {
       case "holder-down":
         return apply({ ...IDLE, language: state.language });
       case "state":
+        heard = true;
         return apply(msg);
       case "perform":
         void perform(msg.command, msg.payload).then((outcome) =>
@@ -327,6 +420,8 @@ async function start(): Promise<void> {
   // download, a 204), this page says hello again.
   const leaving = () => {
     tell({ k: "leaving" });
+    keep();
+    keepFrame();
     setTimeout(hello, 5000);
   };
   const navigation = (window as unknown as { navigation?: EventTarget }).navigation;
@@ -334,20 +429,39 @@ async function start(): Promise<void> {
     const nav = e as Event & { destination?: { sameDocument?: boolean }; downloadRequest?: string | null };
     if (nav.destination && !nav.destination.sameDocument && !nav.downloadRequest) leaving();
   });
-  window.addEventListener("pagehide", () => tell({ k: "leaving" }));
+  window.addEventListener("pagehide", () => {
+    tell({ k: "leaving" });
+    keep();
+  });
+  widget.onLayout(() => keep());
 
   // His face on the button, from the avatar's own host, once the page settles.
   const idle = window.requestIdleCallback ?? ((fn: () => void) => setTimeout(fn, 1500));
   idle(() => {
     listCharacters()
       .then((all) => {
-        const still = all.find((c) => c.name === CHARACTER)?.still;
-        if (still) widget.setStill(still);
+        const found = all.find((c) => c.name === CHARACTER)?.still;
+        if (!found) return;
+        still = found;
+        widget.setStill(found);
+        keep();
       })
       .catch(() => {});
   });
 
-  widget.paint("idle");
+  if (shell) {
+    // The widget the shell carried over says a call is on. The holder's state
+    // settles it; with no holder, or no word from it, the call is gone.
+    const gone = () => {
+      if (!heard) apply({ ...IDLE, language: state.language });
+    };
+    void askWorker<{ up: boolean }>({ op: "has_holder" }).then((got) => {
+      if (!got?.up) gone();
+    });
+    setTimeout(gone, CARRIED_WAIT_MS);
+  } else {
+    widget.paint("idle");
+  }
   // A call already on: the holder answers with its state, and with any move
   // it kept for this tab while this page loaded.
   hello();

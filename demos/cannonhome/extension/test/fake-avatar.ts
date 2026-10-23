@@ -12,6 +12,14 @@ export interface AvatarInstance {
 export function createAvatar(opts: { mount: HTMLElement; client: PipecatClient; character: string }): AvatarInstance {
   const el = document.createElement("div");
   el.dataset.fakeAvatar = opts.character;
+  // A face that draws: a canvas with something on it, which the page keeps
+  // the last frame of.
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 16;
+  const g = canvas.getContext("2d")!;
+  g.fillStyle = "#a01a1a";
+  g.fillRect(0, 0, 16, 16);
+  el.appendChild(canvas);
   opts.mount.appendChild(el);
   // What reaches the face from the holder's relay, counted.
   const seen: Record<string, number> = {};
@@ -24,7 +32,9 @@ export function createAvatar(opts: { mount: HTMLElement; client: PipecatClient; 
   return { destroy: () => el.remove() };
 }
 
-export function preloadAvatar(_character: string): void {}
+export function preloadAvatar(character: string): { character: string; ready: Promise<void> } {
+  return { character, ready: Promise.resolve() };
+}
 
 export async function listCharacters(): Promise<{ name: string; still?: string }[]> {
   return [];

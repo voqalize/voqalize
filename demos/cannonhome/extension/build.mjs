@@ -6,6 +6,9 @@
 //                  brain's Actions, the narration and the tab registry;
 //   content.js     the widget, his face and the site adapter, in the page's
 //                  own JavaScript world (MAIN); it mints the session;
+//   shell.js       the early shell (MAIN, document_start): in a call, the
+//                  widget back at once on the next page, as the last page left
+//                  it, and the page load as a view transition under it;
 //   bridge.js      the isolated-world script that carries the page's messages
 //                  to the holder and the service worker, and back;
 //   anchor.js      marks what the adapters match on `translate="no"` from
@@ -120,6 +123,9 @@ await build({
 // The holder is a classic script in `call.html`.
 await build({ ...common, entryPoints: [join(here, "src/holder.ts")], format: "iife", plugins, outfile: join(out, "holder.js") });
 await build({ ...common, entryPoints: [join(here, "src/grant.ts")], format: "iife", outfile: join(out, "grant.js") });
+// The early shell, also in the page's world, at document_start: in a call,
+// the widget as the last page left it, before the page has parsed.
+await build({ ...common, entryPoints: [join(here, "src/shell.ts")], format: "iife", outfile: join(out, "shell.js") });
 await build({ ...common, entryPoints: [join(here, "src/bridge.ts")], format: "iife", outfile: join(out, "bridge.js") });
 await build({ ...common, entryPoints: [join(here, "src/anchor.ts")], format: "iife", outfile: join(out, "anchor.js") });
 await build({ ...common, entryPoints: [join(here, "src/background.ts")], format: "esm", outfile: join(out, "background.js") });

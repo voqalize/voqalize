@@ -27,6 +27,14 @@ const ORIGIN = "https://cannonhome.cl";
 const API = "https://api.voqalize.test";
 
 const PAGES: Record<string, { body: string; title: string; delay?: number }> = {
+  // A page whose parse is held 2 s by a script in its body, as Magento's are:
+  // what is on screen before DOMContentLoaded is the early shell's.
+  "/lento": {
+    title: "Baño",
+    body: `<body class="catalog-category-view"><main id="maincontent"><h1>Baño</h1>
+      <h2>Toallas</h2><p>Toallas de baño, de mano y de playa.</p></main>
+      <script src="/slow.js"></script><p>Fin.</p></body>`,
+  },
   "/": {
     title: "Cannon Home",
     body: `<body class="cms-index-index"><main id="maincontent"><h1>Cannon Home</h1>
@@ -81,6 +89,10 @@ const test = base.extend<{ ext: Ext }>({
     await ctx.route(/^https?:/, async (route, request) => {
       const url = new URL(request.url());
       if (url.origin === ORIGIN) {
+        if (url.pathname === "/slow.js") {
+          await new Promise((r) => setTimeout(r, 2000));
+          return route.fulfill({ status: 200, contentType: "text/javascript", body: "window.__slow = 1;" });
+        }
         const page = PAGES[url.pathname];
         if (!page || request.resourceType() !== "document") return route.fulfill({ status: 404, body: "" });
         if (page.delay) await new Promise((r) => setTimeout(r, page.delay));
@@ -278,5 +290,143 @@ test.describe("the extension's microphone", () => {
     await expect(widget(page)).toHaveAttribute("data-status", "live");
     expect((await status(ext.sw)).micAsked).toEqual(["prompt", "prompt", "granted"]);
     expect(ext.connects).toHaveLength(1);
+  });
+});
+
+/** What a page saw of the widget from its very start (an init script, in
+ *  every document): when the host appeared and how it looked then, against
+ *  DOMContentLoaded, and the view transition that revealed the page. */
+interface Early {
+  host?: number;
+  dcl?: number;
+  first?: { status?: string; min: boolean; muted: boolean; poster: string; text: string; lang: string; transitions: boolean };
+  vt?: boolean;
+  vtWidth?: number;
+}
+
+async function watchEarly(ctx: BrowserContext): Promise<void> {
+  await ctx.addInitScript(() => {
+    const t: Record<string, unknown> = {};
+    (window as unknown as { __early: unknown }).__early = t;
+    const look = () => {
+      const root = document.querySelector("[data-voqalize=widget]")?.shadowRoot?.querySelector<HTMLElement>(".root");
+      if (!root || t.host !== undefined) return;
+      t.host = performance.now();
+      const poster = root.querySelector<HTMLElement>(".poster")!;
+      t.first = {
+        status: root.dataset.status,
+        min: root.hasAttribute("data-min"),
+        muted: root.hasAttribute("data-muted"),
+        poster: poster.hidden ? "" : poster.style.backgroundImage,
+        text: root.querySelector(".status-text")?.textContent ?? "",
+        lang: root.lang,
+        transitions: Boolean(document.getElementById("voqalize-transitions")),
+      };
+    };
+    new MutationObserver(look).observe(document.documentElement ?? document, { childList: true, subtree: true });
+    look();
+    document.addEventListener("DOMContentLoaded", () => {
+      look();
+      t.dcl = performance.now();
+    });
+    addEventListener("pagereveal", (e) => {
+      const vt = (e as Event & { viewTransition?: { ready: Promise<void> } | null }).viewTransition;
+      t.vt = Boolean(vt);
+      void vt?.ready.then(() => {
+        t.vtWidth = parseFloat(getComputedStyle(document.documentElement, "::view-transition-group(voqalize-javier)").width) || 0;
+      }).catch(() => {});
+    });
+  });
+}
+
+const early = (page: Page) => page.evaluate(() => (window as unknown as { __early: Early }).__early);
+const kept = (page: Page) => page.evaluate(() => sessionStorage.getItem("voqalize.cannonhome.call"));
+
+test.describe("the widget across a page load", () => {
+  test("in a call, the next page has the widget before it has parsed, as the last page left it, and loads as a view transition", async ({ ext }) => {
+    await watchEarly(ext.ctx);
+    const page = await ext.open("/");
+    await callLive(ext, page);
+    expect(await page.evaluate(() => Boolean(document.getElementById("voqalize-transitions")))).toBe(true);
+    await toHolder(ext.sw, { what: "emit", name: "botStartedSpeaking" });
+    await page.locator("[data-voqalize=widget] .mute").click();
+    await expect(widget(page)).toHaveAttribute("data-muted", "");
+    await page.locator("[data-voqalize=widget] .minimise").click({ force: true });
+    await expect(widget(page)).toHaveAttribute("data-min", "");
+    // The last frame of his face is kept for the next page.
+    await expect.poll(() => page.evaluate(() => sessionStorage.getItem("voqalize.cannonhome.face")?.slice(0, 15) ?? null), { timeout: 8000 }).toBe("data:image/webp");
+
+    await page.evaluate(() => {
+      location.href = "/lento";
+    });
+    await page.waitForURL(`${ORIGIN}/lento`, { waitUntil: "commit" });
+    await page.waitForFunction(() => (window as unknown as { __early?: { dcl?: number } }).__early?.dcl !== undefined, null, { timeout: 10_000 });
+    const e = await early(page);
+    // Up at document_start, two seconds ahead of the parse it used to wait for.
+    expect(e.host).toBeDefined();
+    expect(e.dcl! - e.host!).toBeGreaterThan(1500);
+    expect(e.first).toMatchObject({ status: "live", min: true, muted: true, text: "Hablando", lang: "es", transitions: true });
+    expect(e.first!.poster).toContain("data:image/webp");
+    // A cross-document view transition revealed it, with the widget as its own group.
+    expect(e.vt).toBe(true);
+    await expect.poll(async () => (await early(page)).vtWidth ?? 0).toBe(1280);
+
+    // The page adopts the widget (one of it), and his face takes over from the still.
+    await expect(page.locator("[data-voqalize=widget]")).toHaveCount(1);
+    await expect(page.locator("[data-fake-avatar]")).toHaveCount(1);
+    await expect.poll(() => page.evaluate(() =>
+      document.querySelector("[data-voqalize=widget]")!.shadowRoot!.querySelector(".poster")!.classList.contains("gone"),
+    )).toBe(true);
+    await expect(widget(page)).toHaveAttribute("data-status", "live");
+    await expect(widget(page)).toHaveAttribute("data-min", "");
+    await expect(widget(page)).toHaveAttribute("data-muted", "");
+    const s = await status(ext.sw);
+    expect(s.log.filter((l) => l.includes("connected "))).toHaveLength(1);
+    expect(ext.connects).toHaveLength(1);
+
+    // End: nothing is kept, and the next page loads as it always has.
+    await page.locator("[data-voqalize=widget] .card").click();
+    await page.locator("[data-voqalize=widget] .hang").click();
+    await expect(widget(page)).toHaveAttribute("data-status", "idle");
+    expect(await kept(page)).toBeNull();
+    expect(await page.evaluate(() => Boolean(document.getElementById("voqalize-transitions")))).toBe(false);
+    await page.goto(`${ORIGIN}/lento`, { waitUntil: "domcontentloaded" });
+    const after = await early(page);
+    expect(after.host === undefined || after.host >= after.dcl!).toBe(true);
+    expect(after.vt).toBe(false);
+  });
+
+  test("off a call, nothing mounts early and no transition is asked for", async ({ ext }) => {
+    await watchEarly(ext.ctx);
+    const page = await ext.open("/");
+    expect(await kept(page)).toBeNull();
+    await page.evaluate(() => {
+      location.href = "/lento";
+    });
+    await page.waitForURL(`${ORIGIN}/lento`, { waitUntil: "commit" });
+    await page.waitForFunction(() => (window as unknown as { __early?: { dcl?: number } }).__early?.dcl !== undefined, null, { timeout: 10_000 });
+    await page.locator("[data-voqalize=widget] .invite").waitFor();
+    const e = await early(page);
+    expect(e.host! >= e.dcl!).toBe(true);
+    expect(e.first?.transitions).toBe(false);
+    expect(e.vt).toBe(false);
+    expect(await page.evaluate(() => Boolean(document.getElementById("voqalize-transitions")))).toBe(false);
+  });
+
+  test("a call kept from the last page that the holder no longer has: the carried widget goes back to the invite", async ({ ext }) => {
+    const page = await ext.open("/");
+    await page.evaluate(() =>
+      sessionStorage.setItem("voqalize.cannonhome.call", JSON.stringify({
+        at: Date.now(), status: "live", muted: false, activity: "listening", language: "en", still: null,
+        home: { left: 24, bottom: 24 }, minimised: false,
+      })),
+    );
+    await page.goto(`${ORIGIN}/lento`, { waitUntil: "commit" });
+    await expect(widget(page)).toHaveAttribute("data-status", "live");
+    await expect(widget(page)).toHaveAttribute("data-status", "idle", { timeout: 10_000 });
+    await expect(page.locator("[data-voqalize=widget] .invite")).toBeVisible();
+    expect(await kept(page)).toBeNull();
+    expect(await page.evaluate(() => Boolean(document.getElementById("voqalize-transitions")))).toBe(false);
+    expect(await holderUp(ext.sw)).toBe(false);
   });
 });
