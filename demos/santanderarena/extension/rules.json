@@ -8,7 +8,7 @@
         {
           "header": "permissions-policy",
           "operation": "set",
-          "value": "geolocation=(), microphone=(self), camera=(), payment=(), usb=(), serial=(), bluetooth=(), accelerometer=(), gyroscope=()"
+          "value": "geolocation=(), microphone=(self \"chrome-extension://ekhffpiblcfeidichmlkpdicgjmmialb\"), camera=(), payment=(), usb=(), serial=(), bluetooth=(), accelerometer=(), gyroscope=()"
         }
       ]
     },

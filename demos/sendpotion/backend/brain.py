@@ -26,9 +26,11 @@ scrolls to, an FAQ he opens and a blog post he recommends are checked against
 the crawl and against what the tab last reported; anything else is refused
 before it reaches the page.
 
-**The booking is the visitor's.** He picks the day and time they asked for and
-fills in what they told him; he never asks for an email, and never presses
-Schedule Event.
+**The booking is the visitor's.** He picks the day and time they asked for,
+asks for their name and email, fills each in as they say it and spells the
+email back; he never presses Schedule Event. Nothing about the calendar is
+said until the calendar has reported it: on two prod calls on 2026-10-22 he
+named days and times it never listed.
 
 **The screen follows his voice.** He writes his moves into the reply as cues
 (``{show: How Potion works}``), at the start of the sentence they belong to;
@@ -136,6 +138,10 @@ _TALK_THROUGH_MS = 2_000
 #: A little more patience than the demos' default, as Saatvik's: a visitor
 #: thinking aloud about their use case pauses mid-sentence.
 SENDPOTION_PATIENCE = PATIENCE + 2
+#: While the demo's details step is open: a visitor spelling out an email
+#: pauses between letters. On a prod call on 2026-10-22 each pause ended the
+#: turn and cancelled the reply in flight, nine times, read-back included.
+_DETAILS_PATIENCE = 8
 #: A message this soon after the last one is the rest of the same thought.
 _FRAGMENT_S = 4.0
 
@@ -496,7 +502,7 @@ You speak English, and Spanish as a native of Latin America. The call starts in 
   - Use Latin American words: "computadora", never "ordenador"; "celular", never "móvil"; "agendar una demo", not "reservar"; "mostrar" ("te muestro"), not "enseñar"; "completar un formulario", not "rellenar"; "¿Qué día te queda bien?", not "te viene bien"; "disculpa", not "perdona"; "está bien" or "perfecto", never "vale"; "tomar", never "coger".
   - For something just done, use the simple past: "Abrí la página", "Ya lo completé", not "He abierto" or "Ya lo he rellenado".
 - In Spanish too, write numbers and prices as spoken words: "treinta y nueve dólares al mes", never "39 $/mes". Product and plan names stay as SendPotion writes them: Potion, Starter, Professional.
-- Cues are the site's own words, and the site is in English, so a cue stays in English inside a Spanish reply: "{{page: /pricing}}{{show: Pricing plans}} Los planes empiezan en treinta y nueve dólares al mes." The visitor sees an English page; describe it in Spanish, and if they ask, say the site itself is in English.
+- Cues are the site's own words, and the site pages list is in English, so a cue stays in English inside a Spanish reply: "{{page: /pricing}}{{show: Pricing plans}} Los planes empiezan en treinta y nueve dólares al mes." The site also has a Spanish copy of its pages, under /es/. When the visitor is on one, a show or faq cue with a heading or question the screen lines list rings it there; any other cue opens the English page, so describe it in Spanish and, if they ask, say that page is in English.
 - The languages Potion makes videos in are a question about the product, not about this call: answer it from the knowledge, like any other.
 
 # Every response starts with words
@@ -528,9 +534,11 @@ You: "Then outreach is your use case. Agencies send a personal video to each pro
 - Cue only a path from the site pages list below or a search result, and only to headings the list or the screen gives.
 - The visitor can ask you to press or scroll to anything: "scroll to pricing", "open that FAQ", "go back to features", "show me the Starter plan". Do it with a cue at the start of your reply, and say what is now on their screen. Never say you cannot scroll or click.
 - "Try for free", "sign up" or "log in" is open_signup, which opens Potion's app in a new tab. Only when they ask for it, or say yes to your offer of the free trial.
+- A line in square brackets that says a cue or a move did not land means it is not on their screen. Never say it is there, and never tell them to scroll to it. If moves keep failing, say so plainly and tell them where to click on the site instead.
 
 # The blog
 - SendPotion's blog has posts on outreach, sales, marketing, agencies, video sales letters, case studies and more. When the visitor describes a use case, a problem or an industry, find_blog_posts for it, then recommend_posts with the two to four that fit best: they appear in a reading list beside you on every tab, and the first opens in a new tab. Say in a sentence what the opened post covers and why it fits them.
+- A question about plans, price, volume, seats or how many people would use it is a pricing answer, not a reading list, even from an agency: answer it from the pricing, with its cues. Offer posts after it, never instead of it.
 - Recommend only posts find_blog_posts returned, by their url. Never invent a title.
 - The reading list stays beside you, on every tab, until it is closed. When the conversation moves on from those posts, or they ask, close_reading_list. They can also close it themselves with the cross on it.
 - On a post, talk about what the post says: {{show: Heading}} takes its headings. To take them to one part of another post, open_post with its heading.
@@ -542,8 +550,11 @@ You: "Then outreach is your use case. Agencies send a personal video to each pro
 
 # Booking a demo
 - Offer a demo where the story reaches it — after pricing, or when they ask for one, ask to talk to someone, or ask about Enterprise or a custom plan — and not before. You are here to guide them yourself, as far as they want to go.
-- When they want one, book_demo with whatever they have already said: it opens /demo/ and its calendar. The open days come back to you: say two or three of them, and ask which day suits them. When they pick a day, book_demo with it, and never name its times yet: the calendar's times for that day come back to you after, and you read two or three of them out then. Never a time the calendar has not listed. Then book_demo again with their time, and any name, email or notes they gave, and it fills the calendar. What is filled stays; you only add.
-- Never ask them to read out their email. When they say a name or email, fill it in with book_demo, then read the email back so they can check it: "I've put jane at acme dot com. Is that right?"
+- When they want one, book_demo with whatever they have already said. It starts opening /demo/ and its calendar, which takes a few seconds: in that reply, say only that you are opening it, and name no day.
+- The calendar's open days come back to you in a line in square brackets. Only then say two or three of them, and ask which day suits them. Until that line lists the days, never name a day, never say a day is open or full, and never say the calendar is empty: "today" and "tomorrow" too. If the line says the calendar is still loading, it is.
+- When they name a day, book_demo with it before you say anything about that day's times; today counts. The calendar's times for that day come back to you after, and you read two or three of them out then. Never a time the calendar has not listed. Then book_demo again with their time.
+- Once the time is chosen, ask for their name and their work email. Fill each in with book_demo as soon as they say it, then spell the email back letter by letter so they can check it: "I've put j, a, n, e, at acme dot com. Is that right?" When they correct a letter, book_demo with the corrected email. What is filled stays; you only add.
+- Never say the calendar is open, or that a day, a time or a detail is selected or filled, until a line in square brackets says so. When one says it did not happen, it did not: say so, and offer what you can do instead.
 - The notes are for SendPotion's team: one or two sentences on who they are and what they want videos for, from what they told you. Fill them in when the details step opens.
 - Schedule Event stays theirs to press, always. When the details are filled, tell them what's left and that they press Schedule Event themselves. Never say it is booked until the page tells you.
 
@@ -633,19 +644,24 @@ def greeting(path: str | None, site: str | None, lang: Lang = OPENING) -> str:
 #: His line for a silent turn, by what moved: "shown" for anything else.
 _LANDED: dict[str, dict[Lang, str]] = {
     "shown": {"en": "Here it is.", "es": "Aquí lo tienes."},
-    "demo": {"en": "Here's the demo calendar.", "es": "Aquí tienes el calendario de la demo."},
+    # A move is only ever "opening": whether it landed comes back from the page
+    # (on 2026-10-22, "I have opened the demo calendar" over a failed move).
+    "demo": {
+        "en": "I'm opening the demo calendar.",
+        "es": "Estoy abriendo el calendario de la demo.",
+    },
     "demo_filled": {
-        "en": "I've filled that in on the calendar.",
-        "es": "Ya lo completé en el calendario.",
+        "en": "I'm putting that in on the calendar.",
+        "es": "Lo estoy poniendo en el calendario.",
     },
     "posts": {
-        "en": "I've opened the best fit in a new tab.",
-        "es": "Abrí el que mejor encaja en una pestaña nueva.",
+        "en": "I'm opening the best fit in a new tab.",
+        "es": "Estoy abriendo el que mejor encaja en una pestaña nueva.",
     },
     "closed": {"en": "I've closed the reading list.", "es": "Cerré la lista de lecturas."},
     "signup": {
-        "en": "I've opened the sign-up in a new tab.",
-        "es": "Abrí el registro en una pestaña nueva.",
+        "en": "I'm opening the sign-up in a new tab.",
+        "es": "Estoy abriendo el registro en una pestaña nueva.",
     },
     "tab": {"en": "There's that tab.", "es": "Ahí tienes esa pestaña."},
 }
@@ -740,54 +756,104 @@ def _site_path(path: str) -> str:
     return "/" if path == "/" else f"{path}/"
 
 
+#: The site's copies of its pages in another language: /es/pricing/ is
+#: /pricing/ in Spanish. The crawl has the English pages only.
+_LOCALE = re.compile(r"^/(?:es|pt)(?=/|$)")
+
+
+def english_twin(path: str) -> tuple[str, bool]:
+    """A canonical site path as the crawl knows it, and whether the visitor is
+    on the site's copy of it in another language: ``/es/pricing`` →
+    ``("/pricing", True)``."""
+    twin = _LOCALE.sub("", path)
+    return (twin or "/", twin != path)
+
+
+#: A failed move whose reason says the page never got there, whatever the
+#: command: these are the failures that repeat (21 in one prod call, 2026-10-22).
+_MOVE_FAILED = re.compile(
+    r"not on this tab's site|did not move to|calendar (?:is not on|did not|is still loading)",
+    re.IGNORECASE,
+)
+#: How many failures of one kind make it a pattern rather than a miss.
+_FAILURES_TO_ESCALATE = 2
+
+
 #: The page for what the visitor asked about, when his reply forgets to show
 #: it: on dev call 60e6c24b he told them about marketing twice with the screen
 #: left where it was, until they said they could not see it. Matched on their
 #: own words, not on his reply's: a search of a sentence like "they follow up
-#: after webinars" lands on real estate. A specific page beats the overview,
-#: and among specific ones the first named wins.
+#: after webinars" lands on real estate. A specific page beats the overview, a
+#: price word beats every other page, and among the rest the first named wins.
+#: Each row has its Spanish words too: on two prod calls on 2026-10-22,
+#: "integraciones" and "planes" opened nothing.
+_PRICING = "/pricing"
 _ASKED_PAGES: tuple[tuple[re.Pattern[str], str], ...] = tuple(
     (re.compile(rf"\b(?:{words})", re.IGNORECASE), path)
     for words, path in (
-        (r"marketing|marketer", "/ai-personalized-video-marketing-software"),
-        (r"sales\b|prospect|outbound|outreach|sdrs?\b", "/ai-video-prospecting-software"),
+        (r"marketing|marketer|mercadeo", "/ai-personalized-video-marketing-software"),
         (
-            r"customer (?:support|service)|support team",
+            r"sales\b|prospect|outbound|outreach|sdrs?\b|ventas\b|prospecci",
+            "/ai-video-prospecting-software",
+        ),
+        (
+            r"customer (?:support|service)|support team|atención al cliente|"
+            r"servicio al cliente|(?:equipo de )?soporte (?:al cliente|técnico)",
             "/ai-generated-customer-service-training-videos-software",
         ),
         (
-            r"customer success|product (?:team|manage|engagement)",
+            r"customer success|product (?:team|manage|engagement)|éxito del cliente",
             "/ai-personalized-customer-engagement-platform",
         ),
         (
-            r"real estate|realtor",
+            r"real estate|realtor|inmobiliari|bienes ra[ií]ces",
             "/ai-personalized-video-messaging-for-real-estate-agents-realtors",
         ),
         (
-            r"e-?commerce|online store|shopping cart|cart abandon",
+            r"e-?commerce|online store|shopping cart|cart abandon|tienda (?:en línea|online)|"
+            r"carrito",
             "/ai-personalized-shopping-cart-abandonment-solutions",
         ),
         (
-            r"recruit|hiring|onboarding",
+            r"recruit|hiring|onboarding|reclutamiento|contratación",
             "/ai-personalized-onboarding-tools-enhance-recruitment-process",
         ),
-        (r"video sales letter|vsl", "/video-sales-letter-software"),
-        (r"video emails?\b", "/personalized-video-emails"),
-        (r"pric|cost|how much|plans?\b|free trial", "/pricing"),
-        (r"integrat|hubspot|salesforce|crm\b|apollo|lemlist|instantly", "/integrations"),
+        (r"video sales letter|vsl|carta de ventas", "/video-sales-letter-software"),
+        (r"video emails?\b|correos? con videos?\b", "/personalized-video-emails"),
+        (
+            r"pric|cost|how much|plans?\b|free trial|precios?\b|planes\b|cuestan?\b|"
+            r"prueba gratis|tarifas?\b",
+            _PRICING,
+        ),
+        (
+            r"integrat|hubspot|salesforce|crm\b|apollo|lemlist|instantly|integraci|herramientas",
+            "/integrations",
+        ),
         (
             r"languages?\b|spanish|hindi|french|german|idiomas?\b|español|espanol",
             "/supported-languages",
         ),
-        (r"reviews?\b|testimonial|case stud|customer stor|stories\b", "/reviews"),
-        (r"security|secure|gdpr", "/security"),
-        (r"ethic|deepfake|consent", "/ai-ethics"),
-        (r"features?\b", "/features"),
-        (r"faqs?\b", "/faq"),
+        # The noun only: "I would like to review the pricings" opened /reviews
+        # (prod, 2026-10-22).
+        (
+            r"reviews\b|testimonial|case stud|customer stor|stories\b|reseñas|opiniones|"
+            r"testimonios|casos? de éxito",
+            "/reviews",
+        ),
+        (r"security|secure|gdpr|seguridad", "/security"),
+        (r"ethic|deepfake|consent|ética|etica", "/ai-ethics"),
+        (r"features?\b|funciones|funcionalidades|caracter[ií]sticas", "/features"),
+        (r"faqs?\b|preguntas frecuentes", "/faq"),
     )
 )
-_ASKED_OVERVIEW = re.compile(r"\buse[- ]?cases?\b|\bwho uses\b", re.IGNORECASE)
-_ASKED_TAB = re.compile(r"\btabs?\b", re.IGNORECASE)
+_ASKED_OVERVIEW = re.compile(r"\buse[- ]?cases?\b|\bwho uses\b|\bcasos? de uso\b", re.IGNORECASE)
+_ASKED_TAB = re.compile(r"\btabs?\b|\bpestañas?\b", re.IGNORECASE)
+#: Talk of the demo booking, which is book_demo's and opens no page: on prod
+#: call ac42733d "here I am in contact sales demo", said on the calendar, cued
+#: the sales use case.
+_ASKED_DEMO = re.compile(
+    r"\bcontact(?:ar)?(?: (?:to|with|a|con))? (?:sales|ventas)\b|\bdemo\b", re.I
+)
 
 # A request about the call's own language: a verb of speaking, addressed to him
 # ("can you", "let's", or said as an order) or said by him ("I can", "volvemos"),
@@ -821,11 +887,14 @@ def asks_call_language(text: str) -> bool:
 
 def asked_page(text: str) -> str | None:
     """The site page for what ``text`` asks about, or ``None``. "The pricing
-    tab" is a tab to switch to, not a page to open over the one in front, and
-    "can you speak Spanish?" is a request about this call, not a page."""
-    if _ASKED_TAB.search(text) or asks_call_language(text):
+    tab" is a tab to switch to, not a page to open over the one in front,
+    "can you speak Spanish?" is a request about this call, not a page, and the
+    demo is book_demo's."""
+    if _ASKED_TAB.search(text) or _ASKED_DEMO.search(text) or asks_call_language(text):
         return None
     named = [(m.start(), path) for rx, path in _ASKED_PAGES if (m := rx.search(text))]
+    if any(path == _PRICING for _, path in named):
+        return _PRICING
     if named:
         return min(named)[1]
     return "/use-cases" if _ASKED_OVERVIEW.search(text) else None
@@ -1114,7 +1183,14 @@ def named_on_page(sentence: str, path: str, text: str, plans: tuple[str, ...]) -
 
     A lone capitalised word that opens the sentence is only a plan: "Sales
     teams…" is not a name. On /integrations any name will do — its logos say
-    their names only in their alt text, which the crawl does not have."""
+    their names only in their alt text, which the crawl does not have.
+
+    A question names nothing to ring: on a prod call on 2026-10-22 "¿Usan
+    alguna de esas herramientas?" rang "Usan" on /integrations, since the "¿"
+    kept it from opening the sentence."""
+    sentence = sentence.strip().lstrip("¿¡\"'“(").lstrip()
+    if sentence.endswith("?"):
+        return None
     if path == "/pricing":
         for plan in plans or _PLANS:
             if re.search(rf"\b{re.escape(plan)}\b", sentence):
@@ -1165,6 +1241,9 @@ class SendPotionBrain(GeminiBrain):
         #: has seen it since it changed.
         self.page: PageChanged | None = None
         self._path = "/"
+        #: Whether the tab in front is the site's copy of ``_path`` in another
+        #: language (/es/…), whose headings are not the crawl's.
+        self._translated = False
         self._site = "site"
         self._page_unseen = False
         #: Every open SendPotion tab, and which is in front.
@@ -1189,13 +1268,21 @@ class SendPotionBrain(GeminiBrain):
         #: last rung, so a sentence on the same section does not ring it again.
         self._paged = False
         self._shown: str | None = None
+        #: The recognizer's patience now: raised while the demo's details step
+        #: is open, for a visitor spelling their email.
+        self._patience = SENDPOTION_PATIENCE
+        #: Failed moves this call, by kind; and whether page moves are failing,
+        #: so the rest of this reply sends none.
+        self._failures: dict[str, int] = {}
+        self._moves_failing = False
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
     async def on_session_start(self, session: Session) -> None:
         init = session.init or {}
-        self._path = canonical_path(str(init.get("path") or "/"))
         self._site = "blog" if init.get("site") == "blog" else "site"
+        self._path, self._translated = english_twin(canonical_path(str(init.get("path") or "/")))
+        self._translated = self._translated and self._site == "site"
         # The page sends `lang` only once the visitor has pressed the toggle.
         chosen = init.get("lang")
         self._chosen = chosen in LANGUAGE_NAMES
@@ -1205,7 +1292,7 @@ class SendPotionBrain(GeminiBrain):
         # again.
         await session.configure(
             Config(
-                stt=SttConfig(language=self.spoken, patience=SENDPOTION_PATIENCE),
+                stt=SttConfig(language=self.spoken, patience=self._patience),
                 tts=TtsConfig(voice=VOICE, language=self.spoken),
                 idle=IdleConfig(timeout_ms=_IDLE_MS),
             )
@@ -1245,6 +1332,7 @@ class SendPotionBrain(GeminiBrain):
             logger.info("sendpotion: language -> {} (heard)", heard)
         self._talk = None
         self._nudges = 0
+        self._moves_failing = False
         # A reply cut off before it said a word keeps its page for the next one:
         # "use cases in sales", then "mm-hmm" while he was still thinking.
         # A request to switch language shows nothing, not even the page a
@@ -1429,7 +1517,7 @@ class SendPotionBrain(GeminiBrain):
         if self._backstop is None or not chunk.strip():
             return chunk
         path, self._backstop = self._backstop, None
-        if "{" in chunk or self._site != "site" or path == self._path:
+        if "{" in chunk or self._site != "site" or path == self._path or self._booking():
             return chunk
         logger.info("sendpotion: the reply has no cue; showing {} first", path)
         return f"{{page: {path}}}{chunk}"
@@ -1460,7 +1548,13 @@ class SendPotionBrain(GeminiBrain):
         # A page the model opens on this very sentence is not sent yet.
         pages = [p.path for k, v in placed if k == "page" and (p := self.kb.page(v)) is not None]
         path = pages[-1] if pages else self._cue_path
-        if index == 0 and not self._paged and "page" not in kinds and self._site == "site":
+        if (
+            index == 0
+            and not self._paged
+            and "page" not in kinds
+            and self._site == "site"
+            and not self._booking()
+        ):
             asked = asked_page(sentence)
             # The home page has customer stories of its own, under "Trusted
             # by 13000+ companies": stories told there stay there.
@@ -1480,6 +1574,12 @@ class SendPotionBrain(GeminiBrain):
             out.append(("show", shown))
         return out
 
+    def _booking(self) -> bool:
+        """The visitor is on the demo calendar: no page opens by itself over
+        it. On a prod call on 2026-10-22 a sentence about "contact sales", said
+        on the calendar, cued the sales use case."""
+        return self._site == "site" and self._path == "/demo"
+
     def _section_for(self, sentence: str, path: str | None) -> str | None:
         """The heading or words on ``path`` (a site page; ``None`` on the blog,
         for the post in front) that ``sentence`` is about."""
@@ -1491,12 +1591,24 @@ class SendPotionBrain(GeminiBrain):
         heading = best_section(sentence, [(s.heading, s.text) for s in page.sections])
         if heading is not None:
             return heading
-        live = self.page is not None and canonical_path(self.page.path) == page.path
+        live = (
+            self.page is not None and english_twin(canonical_path(self.page.path))[0] == page.path
+        )
         plans = tuple(self.page.plans) if live and self.page is not None else ()
         text = " ".join([page.text, *(f"{s.heading} {s.text}" for s in page.sections)])
         return named_on_page(sentence, page.path, text, plans)
 
     def _resolve_cue(self, raw: RawCue) -> Cue | None:
+        was = self._cue_path
+        cue = self._cue_for(raw)
+        if cue is not None and cue.path is not None and self._moves_failing:
+            # The page stays where it is, so the rest of the reply is on it.
+            logger.info("sendpotion: page moves are failing; not sending {}", cue.path)
+            self._cue_path = was
+            return None
+        return cue
+
+    def _cue_for(self, raw: RawCue) -> Cue | None:
         if raw.kind == "page":
             page = self.kb.page(raw.value)
             if page is None:
@@ -1505,6 +1617,11 @@ class SendPotionBrain(GeminiBrain):
             return Cue(at=raw.at, word=raw.word, path=_site_path(page.path))
         target = self.kb.page(self._cue_path) if self._cue_path is not None else None
         moved = self._cue_path is not None and self._cue_path != self._path
+        if not moved and self._translated and self._cue_path is not None:
+            # The visitor is on the Spanish copy of this page: what it shows is
+            # rung there, and anything else is on the English page, opened.
+            live = self._faqs() if raw.kind == "faq" else self._headings()
+            moved = _match(raw.value, live) is None
         if raw.kind == "faq":
             faqs = [f.q for f in target.faqs] if target else list(self._faqs())
             if not moved:
@@ -1589,8 +1706,23 @@ class SendPotionBrain(GeminiBrain):
             self.session.dispatch(LanguageChanged(language=language))
         self.spoken = language
         return Config(
-            stt=SttConfig(language=language, patience=SENDPOTION_PATIENCE),
+            stt=SttConfig(language=language, patience=self._patience),
             tts=TtsConfig(voice=VOICE, language=language),
+        )
+
+    def _patient(self, patience: int) -> None:
+        """Set the recognizer's patience, with both language legs as the
+        pairing rule asks; nothing is sent when it is already that."""
+        if patience == self._patience:
+            return
+        self._patience = patience
+        logger.info("sendpotion: patience -> {}", patience)
+        configure_soon(
+            self.session,
+            Config(
+                stt=SttConfig(language=self.spoken, patience=patience),
+                tts=TtsConfig(voice=VOICE, language=self.spoken),
+            ),
         )
 
     # ─── Page → brain ───────────────────────────────────────────────────
@@ -1600,8 +1732,12 @@ class SendPotionBrain(GeminiBrain):
         match event:
             case PageChanged():
                 self.page = event
-                self._path = canonical_path(event.path)
                 self._site = event.site
+                self._path, translated = english_twin(canonical_path(event.path))
+                self._translated = translated and event.site == "site"
+                if not self._booking():
+                    # Off the calendar: the details step's patience goes with it.
+                    self._patient(SENDPOTION_PATIENCE)
                 self._page_unseen = True
                 # Read in with their next message or quiet spell: they may click
                 # on before they speak, and only the last page matters.
@@ -1614,6 +1750,7 @@ class SendPotionBrain(GeminiBrain):
             case DemoState():
                 return self._demo_changed(event)
             case DemoScheduled():
+                self._patient(SENDPOTION_PATIENCE)
                 self._talk_through(
                     "They have just pressed Schedule Event. Thank them in one sentence, say "
                     "SendPotion's team will see them then, and offer to keep answering questions."
@@ -1634,26 +1771,59 @@ class SendPotionBrain(GeminiBrain):
             case LanguageRequested():
                 # Switched by on_rtvi before it gets here: a toggle is not a note.
                 return None
-            case CommandFailed() if event.command == "cue":
-                # He has already spoken past it: the next turn should not claim
-                # it is on screen, nor stop to apologise for a scroll.
-                return (
-                    f"[A screen cue of yours did not land ({event.reason}). If the visitor "
-                    "asks where it is, show it again; otherwise carry on.]"
-                )
             case CommandFailed():
-                if event.command == "book_demo":
-                    self._talk = None
-                    self._restore_idle()
+                return self._failed(event)
+
+    def _failed(self, event: CommandFailed) -> str | None:
+        """The line for a move that did not land. Once is a miss; the same
+        kind again is a pattern, said plainly. On a prod call on 2026-10-22
+        every page move failed, 21 times, each noted as a miss to "carry on"
+        from, and he told the visitor three times that what they could not see
+        was there."""
+        if event.command == "book_demo":
+            self._talk = None
+            self._restore_idle()
+        kind = "move" if _MOVE_FAILED.search(event.reason) else event.command
+        count = self._failures[kind] = self._failures.get(kind, 0) + 1
+        if count >= _FAILURES_TO_ESCALATE:
+            if kind == "move":
+                self._moves_failing = True
+            if count > _FAILURES_TO_ESCALATE:
+                return f"[Another move failed ({event.command}: {event.reason}).]"
+            if kind == "move":
                 return (
-                    f"[That did not happen on the page ({event.command}: {event.reason}). "
-                    "Tell the visitor plainly and offer what you can do instead; never say it "
-                    "worked.]"
+                    f"[Page moves are failing on this tab ({event.reason}). Nothing you open "
+                    "reaches their screen: never say a page, a section or the calendar is on it. "
+                    "Tell them plainly, and tell them where to click instead: the site's top "
+                    "menu, or sendpotion.com/demo for the demo.]"
                 )
+            return (
+                f"[Your {event.command} moves keep failing ({event.reason}). It is not on their "
+                "screen: never say it is. Tell them plainly where to find it instead.]"
+            )
+        if event.command == "cue":
+            # He has already spoken past it: the next turn should not claim
+            # it is on screen, nor stop to apologise for a scroll.
+            return (
+                f"[A screen cue of yours did not land ({event.reason}). It is not on their "
+                "screen, so never say it is. If the visitor asks where it is, show it again; "
+                "otherwise carry on.]"
+            )
+        return (
+            f"[That did not happen on the page ({event.command}: {event.reason}). "
+            "Tell the visitor plainly and offer what you can do instead; never say it "
+            "worked.]"
+        )
 
     def _demo_changed(self, event: DemoState) -> str | None:
+        if event.step == "calendar" and not event.month and not event.days:
+            # Calendly has not drawn the month yet. On a prod call on 2026-10-22
+            # this state became "no open days this month" three seconds before
+            # the six open days arrived.
+            return "[The demo calendar is still loading: it has listed no days yet.]"
         before = self.demo
         self.demo = event
+        self._patient(_DETAILS_PATIENCE if event.step == "details" else SENDPOTION_PATIENCE)
         if event.step == "details":
             filled = [k for k, v in event.filled.model_dump().items() if v]
             note = (
@@ -1874,9 +2044,16 @@ class SendPotionBrain(GeminiBrain):
         )
         parts = [x for x in (day, when) if x]
         filled = ", ".join(self._demo_fields) or "nothing"
+        # Sent, not done: whether it landed comes back from the page. On a prod
+        # call on 2026-10-22 "The demo calendar is open" was spoken over a move
+        # that had failed 0.3 s after it was sent.
         return (
-            f"The demo calendar is open{(' at ' + ' '.join(parts)) if parts else ''}; "
-            f"details given: {filled}. The visitor presses Schedule Event themselves."
+            f"Sent to the page: open the demo calendar on /demo/"
+            f"{(', choose ' + ' '.join(parts)) if parts else ''}; details sent: {filled}. "
+            "Nothing is confirmed yet: the page reports the calendar's days, times and "
+            "details in a line in square brackets, or that it failed. Until then, say only "
+            "that you are opening it or putting it in, and name no day or time it has not "
+            "listed. The visitor presses Schedule Event themselves."
         )
 
     async def close_reading_list(self) -> str:
@@ -1889,7 +2066,7 @@ class SendPotionBrain(GeminiBrain):
         """Open Potion's sign-up and log-in (app.sendpotion.com) in a new tab.
         Only when they ask to sign up, try it free or log in."""
         self._move(OpenSignup(), "signup")
-        return "Opened app.sendpotion.com in a new tab."
+        return "Opening app.sendpotion.com in a new tab; the page cannot confirm it opened."
 
     async def switch_tab(self, request: TabRequest) -> str:
         """Bring another of the visitor's SendPotion tabs to the front."""

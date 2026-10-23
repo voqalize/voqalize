@@ -207,6 +207,27 @@ translations in its `<head>` (`<link rel="alternate" hreflang="es">`).
   language of the page they started on. `init.lang` is still sent only when
   the visitor chose on the toggle. Off a call the toggle shows the page's
   language until the visitor chooses one.
+- **The call's language is the call's, not the page's.** It is recorded the
+  moment the call starts (and again by the brain's `language_changed` with
+  `site: "stay"`), in the page's `sessionStorage` and with the hub for the
+  browser tab, so a page on either host rejoins in it. An English page that
+  comes up in a Spanish call does not make the call English.
+- **The lookup never holds a load.** A `navigate` waits at most two seconds
+  for the twin, then loads the English page as named. The lookup reads the
+  page's head from the page, then from the hub (the extension's service
+  worker, which no script of the page can wrap) when that fails; a page that
+  answers with no translations at all is not remembered as having none.
+  Every lookup is reported to the brain as `twin_lookup`: the URL loaded,
+  where it came from, how long it took, and why it failed.
+- **A page that came up in the wrong language** is loaded again as its own
+  twin when the brain asks (`language_changed` with `site: "twin"`), from the
+  page's own `<head>`: never that language's home page. A page with no twin
+  reports `command_failed` for `language_changed`, and one already in that
+  language reports itself again. The brain asks when a page it opened in a
+  Spanish call came up in English, and when the visitor asks to see the page
+  in the call's language.
+- **A `navigate` that never takes the page away** (eight seconds after its
+  load began) is reported as `command_failed`.
 
 From the console, with no call:
 
@@ -236,7 +257,9 @@ On reservations.explora.com Javier works the booking engine with the visitor
   opens its summary in a popup. He rings the popup's "I'm ready. Go to
   check-out" for the visitor and never presses it: he never reaches
   check-out and never books. With no bed type he rings the room's bed
-  select and asks.
+  select and asks. With `count`, or when a room's summary is still open, the
+  next room goes through the popup's own "Add more rooms" (the rest of the
+  move is kept for the next page, should that button load the rooms again).
 - `fill_enquiry` opens an expedition's enquiry form and fills in what the
   visitor told him. `send_enquiry` presses Send Message only once the visitor
   has ticked the reCAPTCHA themselves; until then he asks them to.

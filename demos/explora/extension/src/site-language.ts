@@ -16,7 +16,7 @@
  * English.
  */
 
-import { fetchAlternate } from "./hreflang";
+import { fetchAlternates } from "./hreflang";
 import { ask } from "./hub";
 
 export type Lang = "en" | "es";
@@ -66,14 +66,18 @@ function alternatesHere(): Record<string, string> {
   return out;
 }
 
-/** This page in `lang`: its `hreflang` link, else the language selector's
- *  link, else that language's home page. */
-export function alternateHere(lang: Lang): string {
+/** This page's own twin in `lang`: its `hreflang` link, else the language
+ *  selector's link; `null` when it names none. */
+export function twinHere(lang: Lang): string | null {
   const link = alternatesHere()[lang];
   if (link) return link;
   const wpml = document.querySelector<HTMLAnchorElement>(`.language-selector .wpml-ls-item-${lang} a[href], .wpml-ls-item-${lang} a[href]`);
-  if (wpml?.href) return wpml.href;
-  return lang === "es" ? `${SITE}/es/` : `${SITE}/`;
+  return wpml?.href || null;
+}
+
+/** This page in `lang`: its own twin, else that language's home page. */
+export function alternateHere(lang: Lang): string {
+  return twinHere(lang) ?? (lang === "es" ? `${SITE}/es/` : `${SITE}/`);
 }
 
 // ─── The cache: page → its twin, for this tab ───────────────────────────────
@@ -115,9 +119,22 @@ export interface Mapped {
   /** The URL to load. */
   url: string;
   /** Where it came from: already in that language, this page, the cache, a
-   *  fetch, or the English page because none was found. */
-  source: "as-is" | "here" | "cache" | "fetch" | "fallback";
+   *  fetch from the page, a fetch from the hub, or the English page because
+   *  none was found. */
+  source: "as-is" | "here" | "cache" | "fetch" | "hub" | "fallback";
   ms: number;
+  /** Why the page's head could not be read, when it could not. */
+  error?: string;
+}
+
+const why = (error: unknown) => (error instanceof Error ? `${error.name}: ${error.message}` : String(error));
+
+/** The page's translations as the hub reads them: the extension's service
+ *  worker, which no script of the page can wrap or block. */
+async function alternatesFromHub(url: string, lang: Lang): Promise<{ url: string | null; read: boolean; error?: string }> {
+  const got = await ask<{ url: string | null; read?: boolean; error?: string }>({ op: "alternate", url, lang }, 6000);
+  if (!got) return { url: null, read: false, error: "the hub did not answer" };
+  return { url: got.url, read: got.read ?? Boolean(got.url), error: got.error };
 }
 
 /**
@@ -157,27 +174,40 @@ export function siteUrlIn(lang: Lang, path: string): Promise<Mapped> {
 
   const job = (async (): Promise<Mapped> => {
     let found: string | null = null;
-    /** Whether the page was read: a page read with no twin is remembered as
-     *  having none, one that could not be read is tried again next time. */
+    let source: Mapped["source"] = "fallback";
+    /** Whether the page was read: a page that lists its translations but not
+     *  this one is remembered as having none; one that could not be read, or
+     *  answered with a page that names no translations at all (a consent or
+     *  bot-check page, a script's stand-in), is tried again next time. Before,
+     *  any answer was remembered, so one bad answer sent every later lookup of
+     *  that page to English for the rest of the tab's visit. */
     let read = false;
-    try {
-      if (onSite()) {
-        // Same origin: the page's own fetch, with the visitor's cookies.
-        found = await fetchAlternate(target.href, lang);
-        read = true;
-      } else {
-        // The booking site may not read www.explora.com; the hub can.
-        const got = await ask<{ url: string | null }>({ op: "alternate", url: target.href, lang }, 6000);
-        found = got?.url ?? null;
-        read = Boolean(got?.url);
+    const errors: string[] = [];
+    if (onSite()) {
+      // Same origin: the page's own fetch, with the visitor's cookies.
+      try {
+        const alts = await fetchAlternates(target.href);
+        read = Object.keys(alts).length > 0;
+        found = alts[lang] ?? null;
+        if (found) source = "fetch";
+        else if (!read) errors.push("the page named no translations");
+      } catch (error) {
+        errors.push(why(error));
       }
-    } catch {
-      found = null;
+    }
+    // The booking site may not read www.explora.com, and a script of the page
+    // may wrap its fetch: the hub reads it from the extension instead.
+    if (!found && !read) {
+      const got = await alternatesFromHub(target.href, lang);
+      found = got.url;
+      read = got.read;
+      if (found) source = "hub";
+      else if (got.error) errors.push(`hub: ${got.error}`);
     }
     inFlight.delete(key);
     if (read) remember(lang, target.href, found ?? target.href);
-    const m = done(found ?? target.href, found ? "fetch" : "fallback");
-    console.debug(`voqalize: ${pagePath(target)} in ${lang} → ${m.url} (${m.source}, ${m.ms} ms)`);
+    const m: Mapped = { ...done(found ?? target.href, source), ...(errors.length ? { error: errors.join("; ") } : {}) };
+    console.info(`voqalize: ${pagePath(target)} in ${lang} → ${m.url} (${m.source}, ${m.ms} ms${m.error ? `, ${m.error}` : ""})`);
     return m;
   })();
   inFlight.set(key, job);

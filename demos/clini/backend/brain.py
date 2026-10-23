@@ -54,6 +54,7 @@ speak. The voice is one man, recorded in each.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import dataclasses
 import inspect
 import math
@@ -61,6 +62,7 @@ import random
 import re
 import time
 from collections.abc import AsyncGenerator
+from contextvars import ContextVar
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Any, Literal, cast
 from zoneinfo import ZoneInfo
@@ -134,7 +136,9 @@ AGENT_NAME = "Javier"
 
 #: LOW, as Saatvik measured: at MINIMAL, Gemini mostly made the page call first
 #: and wrote nothing; at LOW it writes the answer first and calls at the end, so
-#: the page moves while he is still talking.
+#: the page moves while he is still talking. LOW is also this model's floor:
+#: gemini-3.8-flash refuses MINIMAL outright ("Thinking level MINIMAL is not
+#: supported for this model", probed 2026-10-23), so no turn can think less.
 THINKING = types.ThinkingConfig(thinking_level=types.ThinkingLevel.LOW)
 #: Gemini 3.8 Flash, not the demos' shared default (3.5). On the prompt this one was ported from, eight
 #: asks each at LOW (2026-10-16): 3.8 had its first words out in 1.8 to 2.3 s,
@@ -161,6 +165,12 @@ _TALK_THROUGH_MS = 2_000
 #: A little more patience than the demos' default, as Saatvik's: a visitor
 #: thinking aloud about what they need pauses mid-sentence.
 CLINI_PATIENCE = PATIENCE + 2
+#: While a form is open for them to dictate into (the booking's patient form,
+#: the LASIK form): a name, a birth date or a celular is said in pieces, with
+#: pauses, and at the call's patience each piece was a turn of its own that
+#: cancelled the last (prod, 2026-10-22: nine of one call's turns had no
+#: reply, and a celular came in four fragments).
+FORM_PATIENCE = 9
 #: A message this soon after the last one is the rest of the same thought.
 _FRAGMENT_S = 4.0
 
@@ -323,6 +333,11 @@ class Cue(Action):
     heading: str | None = None
     text: str | None = None
     faq: str | None = None
+    lead: Literal["nod", "now"] | None = None
+    """A page to open ahead of the words, not at them: a page load drops the
+    call for seconds while it rejoins, so it is better spent before the answer
+    than in it. ``nod``: once the nod in the air has played (or at once, if no
+    voice starts); ``now``: at once."""
 
 
 class ShowSection(Action):
@@ -536,12 +551,15 @@ class PatientRequest(BaseModel):
     maternal_last_name: str | None = Field(default=None, description="Apellido materno.")
     birth_date: str | None = Field(default=None, description="YYYY-MM-DD.")
     sex: Literal["F", "M", "O"] | None = Field(
-        default=None, description="'F' femenino, 'M' masculino, 'O' otro o no informado."
+        default=None,
+        description="'F' femenino, 'M' masculino, 'O' otro o no informado. Only if they said "
+        "it; never infer it from a name or a voice.",
     )
     phone: str | None = Field(
         default=None,
-        description="Their celular, exactly the digits they said, never changed: a Chilean "
-        "one is nine digits starting with 9, e.g. 912345678.",
+        description="Their celular, exactly the digits they said, never changed and never "
+        "counted by you: a Chilean one is nine digits starting with 9, e.g. 912345678. The "
+        "tool checks it.",
     )
     email: str | None = Field(default=None, description="As they said it, e.g. ana@correo.cl.")
     document: Literal["rut", "passport"] | None = Field(
@@ -613,6 +631,9 @@ class LinkRequest(BaseModel):
 _BOOKABLE = frozenset({57, 62, 64, 65, 70, 71, 76, 77, 78, 79, 81, 82})
 #: The Región Metropolitana, the booking's default region.
 _RM = 13
+#: Laboratorio, whose search is the slowest the booking has (6 s and more), and
+#: the ask that nearly always follows a lab price.
+_LAB = 62
 
 
 def _services(k: Knowledge) -> dict[int, AgendaService]:
@@ -1013,15 +1034,17 @@ Write your answer, with its cues, first; any tool call comes at the end of the s
 Labs, imaging and cardiology are booked online on CLINI's booking, which opens in its own tab. Consultations are booked on Reservo, and the LASIK evaluation through its form.
 - The booking list below gives each servicio and its prestaciones by code. Map what they need to a servicio and prestación; if a servicio has several and it is not clear which, ask, offering two or three.
 - "Is there an hour tomorrow?", "when is the first one?": check_availability. Say two or three days, or for one day two or three hours with the sede, and ask which suits them. Never an hour it did not list.
+- OFFER AN ONLINE HOUR ONLY AT A CENTRE check_availability OR THE BOOKING LISTED for that exam. find_branch lists every sede, but the booking takes only some of them for each exam: never offer to book a sede it did not list. A laboratorio or Toma de Muestras sede it did not list takes walk-ins by order of arrival during its hours, with no booking: say that, and offer the nearest centre the booking listed.
 - When the booking tab already shows the days and hours (the latest booking line in square brackets lists them), answer from that line, as their screen shows it, without check_availability. The days and hours on their screen are the truth.
 - WITH THE BOOKING OPEN ON THAT EXAM, A DAY OR AN HOUR IS agenda_pick. "Can you do it for the twenty-eighth?", "anything on Friday?", "ten in the morning": agenda_pick with it, which shows that day's hours on their screen, and its answer comes back to you. check_availability is for an exam the booking is not showing. Never open_agenda again for the exam it shows.
 - One booking move at a time: when a tool says the booking is still opening or working on the last step, what you asked for follows by itself. Say so in a few words, and never call it again.
 - Say the booking has no free hours only when the booking line says it lists no open days and no hours. A line whose days could not be read but that lists hours has hours.
-- When they want to book, open_agenda with what they chose: the servicio and prestación, and the day, sede and hour once they picked them. It opens the booking in its own tab and takes those steps on it. That reply moves nothing on the site: no page or show cue in it. On the booking tab, a later choice is agenda_pick. While the booking is in front, cue the site only when they ask for a page of it. The booking's steps come back to you in square brackets: talk them through.
+- When they want to book, open_agenda with what they chose: the servicio and prestación, and the day, sede and hour once they picked them. A sede they named goes in centre, as the booking titles it. It opens the booking in its own tab and takes those steps on it. That reply moves nothing on the site: no page or show cue in it. On the booking tab, a later choice is agenda_pick. While the booking is in front, cue the site only when they ask for a page of it. The booking's steps come back to you in square brackets: talk them through.
 - At the patient form, ask them first to type their RUT: fill_agenda_patient with focus_rut rings the field. The form also takes a passport: a visitor with no Chilean RUT (a foreigner, a first visit) chooses Pasaporte, and fill_agenda_patient with document passport presses it for them. Say both options exist when they hesitate. The booking unlocks the other fields once it has a valid RUT or passport number (for a patient it knows, it fills them itself). Then fill_agenda_patient with what they tell you: name, surnames, birth date, sex, celular, email. What is filled stays; you only add.
 - THE RUT OR PASSPORT IS THEIRS TO TYPE. Never ask them to say it, never repeat one, never write one anywhere. When it is time, fill_agenda_patient with focus_rut and say: "Escribe tu RUT, o tu pasaporte, en el campo que marqué." The consent box is theirs to tick, too. Online booking does not need a Chilean RUT: never send a visitor to WhatsApp for lack of one.
-- A celular is the digits they said, never changed. The form takes a Chilean mobile: nine digits starting with 9. If what they said is not one, say the form needs a Chilean mobile and ask for it; never drop, add or reorder a digit to make it fit. Fill a celular or an email the moment they say it, then read it back in the same reply, the celular digit by digit; if they correct it, fill it again with what they say.
-- AGENDAR STAYS THEIRS TO PRESS, always. When the form is complete, say what is filled and that they press AGENDAR themselves. Never say it is booked until the booking shows it is done.
+- A celular is the digits they said, never changed. NEVER COUNT OR JUDGE THE DIGITS YOURSELF: pass exactly what they said to fill_agenda_patient (or fill_lasik_form), even when it looks too long or too short; it checks them, and tells you what is wrong and how many digits it got. Only then, if it refused them, say the form needs a Chilean mobile, nine digits starting with 9, and ask again. Never drop, add or reorder a digit to make it fit. Fill a celular or an email the moment they say it, then read it back in the same reply, the celular digit by digit; if they correct it, fill it again with what they say.
+- Sex goes in the form only when they said it ("femenino", "masculino", "otro"). Never guess it from a name or a voice: ask.
+- AGENDAR STAYS THEIRS TO PRESS, always. When the form is complete, say what is filled and that they press AGENDAR themselves. Never say the hour is booked, reserved or ready ("quedó lista tu hora", "está reservada", "ya tienes tu hora", "you're booked") until the booking shows it is done: before that, say "Dejé seleccionada la hora…" and that AGENDAR is theirs.
 - Read out the indications the booking shows (fasting, what to bring) in a sentence or two, in your own words.
 
 # Consultations, results and other links
@@ -1201,6 +1224,10 @@ _LANDED: dict[str, dict[Lang, str]] = {
         "es": "Te abro la agenda en su propia pestaña.",
     },
     "agenda_pick": {"en": "I'm picking that on the booking.", "es": "Te lo marco en la agenda."},
+    "already": {
+        "en": "That's already selected on your screen.",
+        "es": "Eso ya está seleccionado en tu pantalla.",
+    },
     "queued": {
         "en": "I'll do that as soon as the booking is ready.",
         "es": "Lo hago apenas la agenda esté lista.",
@@ -1219,6 +1246,71 @@ _LANDED: dict[str, dict[Lang, str]] = {
     },
     "link": {"en": "I've opened it in a new tab.", "es": "Lo abrí en una pestaña nueva."},
 }
+
+#: The patient form's fields as he names them, for his line on a fill.
+_FIELD_NAMES: dict[Lang, dict[str, str]] = {
+    "es": {
+        "name": "tu nombre",
+        "last_name": "tu apellido paterno",
+        "maternal_last_name": "tu apellido materno",
+        "birth_date": "tu fecha de nacimiento",
+        "sex": "tu sexo",
+        "phone": "tu celular",
+        "email": "tu correo",
+    },
+    "en": {
+        "name": "your name",
+        "last_name": "your first surname",
+        "maternal_last_name": "your second surname",
+        "birth_date": "your birth date",
+        "sex": "your sex",
+        "phone": "your celular",
+        "email": "your email",
+    },
+}
+_DIGIT_NAMES: dict[Lang, tuple[str, ...]] = {
+    "es": ("cero", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve"),
+    "en": ("zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"),
+}
+#: What he asks when a fill turned a field down; "" when it took nothing at all.
+_ASK_AGAIN: dict[str, dict[Lang, str]] = {
+    "phone": {
+        "es": "Ese celular no calza: el formulario pide uno chileno, de nueve dígitos, que "
+        "empiece con nueve. ¿Me lo repites?",
+        "en": "That celular doesn't fit: the form needs a Chilean one, nine digits starting "
+        "with nine. Could you say it again?",
+    },
+    "email": {
+        "es": "No me quedó claro tu correo. ¿Me lo deletreas?",
+        "en": "I didn't quite get your email. Could you spell it for me?",
+    },
+    "birth_date": {
+        "es": "¿Me repites tu fecha de nacimiento?",
+        "en": "Could you tell me your birth date again?",
+    },
+    "sex": {
+        "es": "Para el formulario, ¿tu sexo es femenino, masculino u otro?",
+        "en": "For the form, is your sex female, male or other?",
+    },
+    "": {
+        "es": "Todavía no tengo ese dato para el formulario. ¿Me lo repites?",
+        "en": "I didn't get that for the form yet. Could you say it again?",
+    },
+}
+#: The words that say each of the form's sexes, folded.
+_SAID_SEX: dict[str, re.Pattern[str]] = {
+    "M": re.compile(r"\b(?:masculino|hombre|varon|male|man)\b"),
+    "F": re.compile(r"\b(?:femenino|mujer|female|woman)\b"),
+    "O": re.compile(r"\b(?:otro|otra|other|no binari\w*|prefiero no)\b"),
+}
+
+
+def _and(lang: Lang, items: list[str]) -> str:
+    """``items`` as a spoken list: "a, b y c", "a, b and c"."""
+    if len(items) < 2:
+        return "".join(items)
+    return f"{', '.join(items[:-1])} {'y' if lang == 'es' else 'and'} {items[-1]}"
+
 
 #: What a reply that only promises more says: nothing comes after it.
 _PROMISE = re.compile(
@@ -1250,7 +1342,10 @@ _ACK_LINES: dict[Lang, dict[Kind, tuple[str, ...]]] = {
         ),
         "question": ("A ver.", "Déjame revisarlo un momento."),
         "correction": ("Entendido, gracias por avisarme.", "Entendido, eso me ayuda."),
-        "statement": ("Entendido, eso me ayuda.", "Claro.", "Entendido, gracias por avisarme."),
+        # Not "gracias por avisarme": a plain request read as a statement
+        # ("Me gustaría cotizar mi examen.") was thanked for the news (prod,
+        # 2026-10-22).
+        "statement": ("Entendido, eso me ayuda.", "Claro."),
     },
 }
 ACK_RATE = 0.75
@@ -1260,8 +1355,12 @@ ACK_RATE = 0.75
 ACK_HOLD_AFTER_S = 5.75
 #: With no nod, the dead air a turn may leave before his first line: a late nod
 #: for what they said, or a hold line. Without it, a turn the nod skipped sat in
-#: ten seconds of silence (dev call 2fd742d5, T23 to T25).
-HOLD_WITHOUT_NOD_S = 2.5
+#: ten seconds of silence (dev call 2fd742d5, T23 to T25). 3.2 s, not 2.5: the
+#: model's first words come at 2.3 to 2.8 s, so at 2.5 the hold line won that
+#: race by a few hundred milliseconds and the visitor sat through two seconds of
+#: filler before an answer that was ready (11 of 33 hold lines on prod,
+#: 2026-10-22, were followed by the answer within a second).
+HOLD_WITHOUT_NOD_S = 3.2
 #: "Sorry, that's taking a little longer." only when it really is.
 ACK_SORRY_AFTER_S = 15.0
 _ACK_HOLD: dict[Lang, tuple[str, ...]] = {
@@ -1310,9 +1409,45 @@ class _LateFloor:
         return self.nod or self.ack.hold(spoken)
 
 
+#: A visitor saying what they want, which the shared reading takes for a
+#: statement ("Me gustaría cotizar mi examen.") or, after a leading "No", for a
+#: correction ("No, yo quiero agendar una resonancia."): a request, here.
+_WANTS = re.compile(
+    r"\b(?:me gustaria|quiero|quisiera|necesito|i'?d like|i want|i need|i would like)\b"
+)
+#: Thanks and goodbyes, which no hold line fits: "Dame un momento mientras lo
+#: busco." answered "Voy a completar el resto. Muchas gracias." (prod, 2026-10-22).
+_CLOSING = re.compile(r"\b(?:gracias|adios|chao|chau|thanks|thank you|bye|goodbye)\b")
+
+
+def nod_kind(text: str) -> Kind | None:
+    """What the visitor's words ask of him, for his nod: the shared reading,
+    with what they want read as a request."""
+    kind = classify(text, _ACK_WORDS)
+    if kind in ("statement", "correction") and _WANTS.search(fold(text)):
+        return "request"
+    return kind
+
+
+def is_closing(text: str) -> bool:
+    """Whether ``text`` thanks him or says goodbye, and asks nothing more."""
+    return "?" not in text and bool(_CLOSING.search(fold(text)))
+
+
+class _Nods(Acknowledger[Lang]):
+    """The shared acknowledger, reading the visitor with :func:`nod_kind`."""
+
+    def line(self, text: str, spoken: Lang) -> str | None:
+        kind = nod_kind(text)
+        lines = self.lines.get(spoken, {}).get(kind) if kind else None
+        if not lines or self.rng.random() >= self.rate:
+            return None
+        return self._pick(lines)
+
+
 def _late_nod(text: str, spoken: Lang) -> str | None:
     """The nod :class:`Acknowledger` would have chosen, had the dice said yes."""
-    kind = classify(text, _ACK_WORDS)
+    kind = nod_kind(text)
     lines = _ACK_LINES[spoken].get(kind) if kind else None
     return random.choice(lines) if lines else None
 
@@ -1335,6 +1470,28 @@ _AVAILABLE_TIMES = 6
 async def _silence() -> AsyncGenerator[Any, None]:
     for _ in ():
         yield
+
+
+#: Set while a turn runs with tools off (``ToolChoice.NONE``): a call the model
+#: makes anyway is not run. Per turn, not per brain: turns overlap. Gemini does
+#: not always honour the mode, and the SDK runs what comes back: on prod
+#: (2026-10-22) an idle turn with tools off sent an ``agenda_pick`` that took
+#: the patient form down and put it back.
+_TOOLS_OFF: ContextVar[bool] = ContextVar("clini_tools_off", default=False)
+
+
+async def _tools_off(turn: AsyncGenerator[Speech, None]) -> AsyncGenerator[Speech, None]:
+    """``turn``, a request made with tools off, with :data:`_TOOLS_OFF` set."""
+    token = _TOOLS_OFF.set(True)
+    try:
+        async for event in turn:
+            yield event
+    finally:
+        await turn.aclose()
+        # Closed from another context, the token cannot be reset, and that
+        # context's value went with the task that set it.
+        with contextlib.suppress(ValueError):
+            _TOOLS_OFF.reset(token)
 
 
 def _clip(items: list[str] | tuple[str, ...], most: int) -> str:
@@ -1368,6 +1525,36 @@ def _match(want: str, options: list[str] | tuple[str, ...]) -> str | None:
 def _site_path(path: str) -> str:
     """The path as the site links it: with its trailing slash."""
     return "/" if path == "/" else f"{path}/"
+
+
+#: The words of a centre's or a sede's name that name no one place.
+_PLACE_STOP = frozenset(
+    # A word list reads as words, so it stays a split string.
+    """centro centros salud sede sedes toma tomas muestra muestras clini metro mall plaza
+    diagnostico laboratorio express astra imagenes resonancia cardiologia agenda
+    """.split()  # noqa: SIM905
+)
+
+
+def _places(name: str) -> set[str]:
+    """The words of a centre's name that tell it from the others, folded:
+    "TM | MALL FLORIDA" is {"florida"}, "Toma de Muestras Tobalaba" {"tobalaba"}."""
+    return {w for w in re.findall(r"[a-z]+", fold(name)) if len(w) > 3 and w not in _PLACE_STOP}
+
+
+def _places_in(text: str, vocabulary: set[str]) -> set[str]:
+    """The place words of ``vocabulary`` that ``text`` says."""
+    return set(re.findall(r"[a-z]+", fold(text))) & vocabulary
+
+
+def _same_centre(want: str, shown: str) -> bool:
+    """Whether the centre ``want`` is the one ``shown`` names."""
+    return bool(_places(want) & _places(shown)) or norm(want) in norm(shown)
+
+
+def _phrase(text: str) -> str:
+    """``text`` as folded words and numbers, one space apart: "$54.990" is "54 990"."""
+    return " ".join(re.findall(r"[a-z0-9]+", fold(text)))
 
 
 #: The page for what the visitor asked about, when his reply forgets to show
@@ -1444,6 +1631,11 @@ _ASKED_PAGES: tuple[tuple[re.Pattern[str], str], ...] = tuple(
     )
 )
 _ASKED_TAB = re.compile(r"\b(?:tabs?|pestanas?)\b", re.IGNORECASE)
+#: Words of booking, folded: a reply to them opens the booking in its own tab,
+#: so no page of the site is opened ahead of it (:meth:`CliniBrain._lead`).
+_BOOKING_WORDS = re.compile(
+    r"\b(?:agend\w*|reserv\w*|horas?|citas?|book\w*|appointments?|slots?)\b"
+)
 
 # A request about the call's own language: a verb of speaking, addressed to him
 # ("can you", "let's", or said as an order) or said by him ("I can", "volvemos"),
@@ -1508,11 +1700,17 @@ def asked_page(text: str) -> str | None:
     """The site page for what ``text`` asks about, or ``None``. "The pricing
     tab" is a tab to switch to, not a page to open over the one in front, and
     "can you speak Spanish?" is a request about this call, not a page."""
+    named = asked_pages(text)
+    return named[0] if named else None
+
+
+def asked_pages(text: str) -> list[str]:
+    """Every site page ``text`` names, the first named first."""
     if _ASKED_TAB.search(fold(text)) or asks_call_language(text):
-        return None
+        return []
     said = fold(text)
     named = [(m.start(), path) for rx, path in _ASKED_PAGES if (m := rx.search(said))]
-    return min(named)[1] if named else None
+    return [path for _, path in sorted(named)]
 
 
 # ─── The section a sentence describes ──────────────────────────────────────────
@@ -1773,7 +1971,7 @@ class CliniBrain(GeminiBrain):
         self._chosen = False
         self._confirm: str | None = None
         self._fallback = FallbackLine()
-        self._ack = Acknowledger(
+        self._ack: Acknowledger[Lang] = _Nods(
             _ACK_LINES,
             _ACK_HOLD,
             _ACK_SORRY,
@@ -1848,6 +2046,21 @@ class CliniBrain(GeminiBrain):
         #: The identity document the visitor said they use: ``passport`` for one
         #: with no Chilean RUT.
         self._document: Literal["rut", "passport"] | None = None
+        #: The page opened ahead of this turn's answer, while his nod played
+        #: (:meth:`_lead`), as the crawl names it; the reply's own cue for it is not
+        #: sent again.
+        self._led: str | None = None
+        #: The day, hour and centre the last open_agenda or agenda_pick asked
+        #: the booking for: a pick for the same, while it is on its way, is not
+        #: sent again.
+        self._sent_pick: tuple[str | None, str | None, str | None] | None = None
+        #: The centres the booking listed for each (servicio, prestación): the
+        #: only ones an hour can be booked at online.
+        self._centres: dict[tuple[int, int], list[str]] = {}
+        #: What he said in his last reply, for the sede he offered.
+        self._last_said = ""
+        #: The recognizer's patience now: raised while a form is being dictated.
+        self._patience = CLINI_PATIENCE
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -1864,7 +2077,7 @@ class CliniBrain(GeminiBrain):
         # again.
         await session.configure(
             Config(
-                stt=SttConfig(language=self.spoken, patience=CLINI_PATIENCE),
+                stt=SttConfig(language=self.spoken, patience=self._patience),
                 tts=TtsConfig(voice=VOICE, language=self.spoken),
                 idle=IdleConfig(timeout_ms=_IDLE_MS),
             )
@@ -1917,6 +2130,7 @@ class CliniBrain(GeminiBrain):
             await session.configure(self._speaking(heard))
             logger.info("clini: language -> {} (heard)", heard)
         self._talk = None
+        self._led = None
         # They spoke first: the page's answers are in the context as notes,
         # and he answers them with what they said.
         self._outcomes.clear()
@@ -1941,6 +2155,7 @@ class CliniBrain(GeminiBrain):
         fragment, self._heard_at = now - self._heard_at < _FRAGMENT_S, now
         nod = None if fragment else self._ack.line(msg.text, self.spoken)
         floor: Floor[Lang] = self._ack
+        lead = self._lead(msg.text)
         if nod is not None:
             logger.info("clini: ack {!r}", nod)
             async for event in say_line(self, nod):
@@ -1953,7 +2168,12 @@ class CliniBrain(GeminiBrain):
                 HOLD_WITHOUT_NOD_S,
                 ACK_SORRY_AFTER_S,
             )
+        if lead is not None:
+            self._send_lead(lead, "nod" if nod is not None else "now")
         working = nod is not None
+        # Thanks or a goodbye: no hold line fits it, and the model's own short
+        # reply follows in a couple of seconds.
+        closing = nod is None and is_closing(msg.text)
 
         def answered() -> None:
             nonlocal working
@@ -1963,7 +2183,9 @@ class CliniBrain(GeminiBrain):
 
         try:
             turn = super().on_user_message(session, msg)
-            async for event in hold_the_floor(self, floor, lambda: self.spoken, turn, answered):
+            if not closing:
+                turn = hold_the_floor(self, floor, lambda: self.spoken, turn, answered)
+            async for event in turn:
                 yield event
         finally:
             answered()
@@ -1998,6 +2220,7 @@ class CliniBrain(GeminiBrain):
         form again from a talk-through, on a form that had just been reset)."""
         self._restore_idle()
         self._backstop = None
+        self._led = None
         self._asked_site = False
         if (ask := self._take_ask()) is not None:
             self._agenda_asked = self._lasik_asked = False
@@ -2007,6 +2230,12 @@ class CliniBrain(GeminiBrain):
             line, self._confirm = self._confirm, None
             return say_line(self, line)
         if self._nudges >= _IDLE_NUDGES:
+            return _silence()
+        if (running := self._busy()) is not None:
+            # The booking is still taking the step he sent: a nudge now said it
+            # was open, and asked for the day it was on its way to (prod,
+            # 2026-10-22). Its answer is talked through when it comes.
+            logger.info("clini: quiet while {} is under way; no nudge", running)
             return _silence()
         self._nudges += 1
         self._read_in_screen()
@@ -2051,6 +2280,9 @@ class CliniBrain(GeminiBrain):
             async for event in say_line(self, line):
                 yield event
         self._cue_path = self._path if self._site == "site" else None
+        if self._led is not None:
+            # The page opened ahead of the answer: the reply's cues are for it.
+            self._cue_path = self._led
         self._paged = False
         self._shown = None
         self._opened_agenda = False
@@ -2058,6 +2290,8 @@ class CliniBrain(GeminiBrain):
         model = (
             super().respond(session) if tools is None else self.respond_with(session, tools=tools)
         )
+        if tools is not None and tools.mode == "none":
+            model = _tools_off(model)
         turn = self._fallback.speak_if_silent(self, model)
         async for event in self._spelled(self._written(session, self._cued(turn))):
             if isinstance(event, SpeechChunk):
@@ -2069,7 +2303,10 @@ class CliniBrain(GeminiBrain):
             logger.warning("clini: the model returned nothing; asking once more")
             again = self._written(session, self._cued(self._talk_now(session)))
             async for event in self._spelled(again):
+                if isinstance(event, SpeechChunk):
+                    said += event.text
                 yield event
+        self._last_said = said
 
     async def _written(
         self, session: Session, turn: AsyncGenerator[Speech, None]
@@ -2124,21 +2361,23 @@ class CliniBrain(GeminiBrain):
         """``turn`` with every ``{page|show|faq: …}`` taken out of its text and
         sent to the page as a :class:`Cue`, anchored to the words before it."""
         parser = CueParser(self._auto_cues)
+        units = 0
         try:
             async for event in turn:
                 if isinstance(event, SpeechStart):
                     parser = CueParser(self._auto_cues)
+                    units += 1
                 elif isinstance(event, SpeechChunk):
                     text, raw = parser.feed(self._with_backstop(event.text))
                     for cue in raw:
-                        self._send_cue(cue)
+                        self._send_cue(cue, first_unit=units <= 1)
                     if text:
                         yield SpeechChunk(text)
                     continue
                 else:  # SpeechEnd
                     rest, raw = parser.flush()
                     for cue in raw:
-                        self._send_cue(cue)
+                        self._send_cue(cue, first_unit=units <= 1)
                     if rest:
                         yield SpeechChunk(rest)
                 yield event
@@ -2156,9 +2395,45 @@ class CliniBrain(GeminiBrain):
         logger.info("clini: the reply has no cue; showing {} first", path)
         return f"{{page: {path}}}{chunk}"
 
-    def _send_cue(self, raw: RawCue) -> None:
+    def _lead(self, text: str) -> str | None:
+        """The page to open while his nod plays, ahead of the answer: the one
+        the visitor asked about (:func:`asked_page`), which his reply shows
+        first in any case (:meth:`_with_backstop`).
+
+        A page of the site is a full page load, and the call drops for 3 to 6 s
+        while it rejoins (prod, 2026-10-22, from Chile). Opened at the answer's
+        first word, that silence fell on the answer, with the mic dead; opened
+        here it falls on the nod and the model's thinking. Not for a booking
+        ask, whose reply opens the booking's own tab and moves no page, nor for
+        a question about the call."""
+        path = self._backstop
+        if (
+            path is None
+            or self._site != "site"
+            or path == self._path
+            or self.kb.page(path) is None
+            or _BOOKING_WORDS.search(fold(text))
+            or about_the_call(text)
+            # What they ask may be answered on the page they are on: "¿Cuánto
+            # sale con Fonasa la resonancia?" on the resonance page names it.
+            or self._path in asked_pages(text)
+            or self._section_for(text.rstrip(" ?!."), self._path) is not None
+        ):
+            return None
+        return path
+
+    def _send_lead(self, path: str, when: Literal["nod", "now"]) -> None:
+        self._led = path
+        logger.info("clini: opening {} ahead of the answer ({})", path, when)
+        self.session.dispatch(Cue(at="", path=_site_path(path), lead=when))
+
+    def _send_cue(self, raw: RawCue, *, first_unit: bool = False) -> None:
         """Check a cue against the site, as the tools do, and send it; one that
-        names nothing real is dropped and logged rather than reaching the page."""
+        names nothing real is dropped and logged rather than reaching the page.
+
+        The page a reply opens first, at its very start, is opened at once
+        (``lead="now"``) rather than at its first words: the page load drops
+        the call while it rejoins, and the opening words were cut by it."""
         if self.spoken == "es" and raw.at:
             raw = dataclasses.replace(raw, at=_anchor_for_voice(raw.at))
         if self._opened_agenda:
@@ -2177,6 +2452,23 @@ class CliniBrain(GeminiBrain):
         ):
             logger.info("clini: cue {} {!r} dropped: the booking is in front", raw.kind, raw.value)
             return
+        if cue is not None and raw.kind == "page" and self._led is not None:
+            led, self._led = self._led, None
+            if cue.path == _site_path(led):
+                logger.info("clini: {} was opened ahead of the answer", led)
+                self._paged = True
+                return
+        if cue is not None and not self._fits(raw, cue):
+            logger.info(
+                "clini: cue {} {!r} dropped: it shares no word with {!r}",
+                raw.kind,
+                raw.value,
+                raw.sentence,
+            )
+            return
+        first = raw.kind == "page" and raw.word == 0 and first_unit and not self._paged
+        if cue is not None and first:
+            cue = cue.model_copy(update={"lead": "now"})
         logger.info("clini: cue {} {!r} at {!r} -> {}", raw.kind, raw.value, raw.at, cue)
         if cue is not None:
             self._paged = self._paged or raw.kind == "page"
@@ -2275,17 +2567,70 @@ class CliniBrain(GeminiBrain):
         )
         heading = _match(raw.value, headings)
         text = None if heading else raw.value[:120]
+        if text is not None and not self._on_page(text, self._cue_path):
+            # Words the page does not show would fail there, after he has
+            # spoken past them (prod, 2026-10-22: "Resonancias magnéticas
+            # $54.990", a home page card, cued on the resonance page).
+            logger.info("clini: {!r} is not on {}; not cued", text, self._cue_path)
+            return None
         path = _site_path(self._cue_path) if moved and self._cue_path else None
         return Cue(at=raw.at, word=raw.word, path=path, heading=heading, text=text)
+
+    def _on_page(self, text: str, path: str | None) -> bool:
+        """Whether the words ``text`` are on the site page ``path``, as the
+        crawl saw it; true when there is no page of the crawl to check against
+        (the booking, a page it never saw)."""
+        page = self.kb.page(path) if path is not None else None
+        if page is None:
+            return True
+        want = _phrase(text)
+        if any(_phrase(b.name) == want for b in self.kb.branches):
+            return True  # A sede's card, wherever the site lists its sedes.
+        parts = [page.title, page.text, *page.tabs]
+        parts += [f"{s.heading} {s.text} {' '.join(s.items)}" for s in page.sections]
+        parts += [f"{f.q} {f.a}" for f in page.faqs]
+        return bool(want) and f" {want} " in f" {_phrase(' '.join(parts))} "
+
+    def _fits(self, raw: RawCue, cue: Cue) -> bool:
+        """Whether a question heading or an FAQ cued on a sentence of his is
+        about that sentence: it shares a word with it. "¿Qué examen necesitas
+        hacerte?" rang "¿Qué es mejor estar en fonasa o isapre?", and "Tenemos
+        horas disponibles" rang "Preguntas Frecuentes para toma de muestras:"
+        (prod, 2026-10-22). Spanish only: an English reply's cues are in Spanish
+        and share none of its words. A heading that is not a question is not
+        held to it."""
+        named = cue.faq or cue.heading
+        if named is None or self.spoken != "es":
+            return True
+        question = (
+            cue.faq is not None or named.strip().startswith("¿") or named.rstrip().endswith("?")
+        )
+        if not question and "preguntas frecuentes" not in fold(named):
+            return True
+        if len(raw.sentence.split()) < _SECTION_MIN_WORDS:
+            return True
+        return bool(set(_terms(named)) & set(_terms(raw.sentence)))
 
     def _talk_now(self, session: Session) -> AsyncGenerator[Speech, None]:
         """The one extra request a turn that said and moved nothing gets: tools
         declared, none callable."""
-        return self.respond_with(session, tools=ToolChoice.NONE)
+        return _tools_off(self.respond_with(session, tools=ToolChoice.NONE))
 
     async def _run(self, tool: Any, call: types.FunctionCall) -> types.Part:
         """Every tool takes one model, ``request``; Gemini sometimes sends its
         fields flat, which the SDK refuses. Wrap them before the call runs."""
+        if _TOOLS_OFF.get():
+            logger.warning("clini: {} called on a turn with tools off; not run", call.name)
+            return types.Part(
+                function_response=types.FunctionResponse(
+                    id=call.id,
+                    name=call.name,
+                    response={
+                        "result": "Not run: this turn could only speak, so nothing was sent to "
+                        "the page. Never say it was done."
+                    },
+                )
+            )
         args = dict(call.args or {})
         if (
             tool is not None
@@ -2337,7 +2682,7 @@ class CliniBrain(GeminiBrain):
             self.session.dispatch(LanguageChanged(language=language))
         self.spoken = language
         return Config(
-            stt=SttConfig(language=language, patience=CLINI_PATIENCE),
+            stt=SttConfig(language=language, patience=self._patience),
             tts=TtsConfig(voice=VOICE, language=language),
         )
 
@@ -2416,6 +2761,9 @@ class CliniBrain(GeminiBrain):
         if self._no_hours is not None:
             self._no_hours.cancel()
             self._no_hours = None
+        if event.servicio is not None and event.prestacion is not None and event.centres:
+            self._listed(event.servicio, event.prestacion, event.centres)
+        self._dictation()
         note = _agenda_note(event)
         ask: str | None = None
         if event.step == "done":
@@ -2436,7 +2784,13 @@ class CliniBrain(GeminiBrain):
             new_days = bool(event.days) and (
                 before is None or before.step != "results" or before.days != event.days
             )
-            if new_times:
+            if self._busy() is not None and self._sent_pick and self._sent_pick[0]:
+                # On its way to the day they gave: the calendar it passes
+                # through is not theirs to choose from again (prod, 2026-10-22:
+                # "¿Qué día te acomoda?" with Friday asked for). The move's own
+                # answer is talked through.
+                logger.info("clini: the booking is still on its way to {}", self._sent_pick[0])
+            elif new_times:
                 ask = (
                     "The booking shows the hours for the day they chose. Name two or three of "
                     "them, with the sede, as words, and ask which suits them."
@@ -2493,6 +2847,7 @@ class CliniBrain(GeminiBrain):
     def _lasik_changed(self, event: LasikFormState) -> str:
         before = self.lasik
         self.lasik = event
+        self._dictation()
         missing = ", ".join(event.missing) or "nothing"
         note = (
             f"[The free LASIK evaluation form: filled {', '.join(event.filled) or 'nothing'}; "
@@ -2512,6 +2867,27 @@ class CliniBrain(GeminiBrain):
                 "what is left; the RUT they type themselves, in the field you marked."
             )
         return note
+
+    def _dictation(self) -> None:
+        """More patience while a form is open for them to dictate into, and the
+        call's own again once it is complete or gone (:data:`FORM_PATIENCE`)."""
+        agenda = self.agenda
+        lasik = self.lasik
+        dictating = (agenda is not None and agenda.step == "booking" and not agenda.ready) or (
+            lasik is not None and bool(self._lasik_fields) and not lasik.valid
+        )
+        want = FORM_PATIENCE if dictating else CLINI_PATIENCE
+        if want == self._patience:
+            return
+        self._patience = want
+        logger.info("clini: patience -> {}", want)
+        # No language named: the pairing rule binds only a stated language.
+        configure_soon(self.session, Config(stt=SttConfig(patience=want)))
+
+    def _listed(self, servicio: int, prestacion: int, centres: list[str]) -> None:
+        """Centres the booking listed for an exam, kept with those it listed before."""
+        known = self._centres.setdefault((servicio, prestacion), [])
+        known.extend(c for c in centres if c and c not in known)
 
     def _read_in_screen(self) -> None:
         """The tabs and the page in front, once per change, ahead of what they say."""
@@ -2611,17 +2987,20 @@ class CliniBrain(GeminiBrain):
 
     def _send(self, action: Action) -> None:
         command = action.__voqal_action__
+        if isinstance(action, OpenAgenda | AgendaPick):
+            self._sent_pick = (action.day, action.time, action.centre)
         if command in _CONFIRMED_COMMANDS:
             self._sent[command] = time.monotonic() + _MOVE_TAKES_S.get(command, _MOVE_TAKES_S[""])
         self.session.dispatch(action)
 
-    def _agenda_move(self, action: Action, line: str) -> str | None:
+    def _agenda_move(self, action: Action, line: str, said: str | None = None) -> str | None:
         """Send a booking move, or, while the last one is still under way on
         the page, queue it to follow: ``None`` when sent, else what the tool
-        says. Only the latest queued move is kept."""
+        says. Only the latest queued move is kept. ``said`` is his line for it,
+        when it is not one of :data:`_LANDED`."""
         if (running := self._busy()) is None:
             self._queued = None
-            self._move(action, line)
+            self._move(action, line, said)
             return None
         self._queued = action
         landed(_LANDED["queued"][self.spoken])
@@ -2657,12 +3036,13 @@ class CliniBrain(GeminiBrain):
             self._idle_short = False
             configure_soon(self.session, Config(idle=IdleConfig(timeout_ms=_IDLE_MS)))
 
-    def _move(self, action: Action, line: str = "shown") -> None:
-        """Dispatch ``action``, with the written line for it (one of
-        :data:`_LANDED`, in the language he speaks) should the turn say nothing.
-        A booking move is awaited by nothing: the page answers later, as an event."""
+    def _move(self, action: Action, line: str = "shown", said: str | None = None) -> None:
+        """Dispatch ``action``, with the written line for it (``said``, else one
+        of :data:`_LANDED`, in the language he speaks) should the turn say
+        nothing. A booking move is awaited by nothing: the page answers later,
+        as an event."""
         self._send(action)
-        landed(_LANDED[line][self.spoken])
+        landed(said or _LANDED[line][self.spoken])
 
     def _headings(self) -> tuple[str, ...]:
         if self.page is not None:
@@ -2786,11 +3166,22 @@ class CliniBrain(GeminiBrain):
                 + ". Say so, try other words for the exam, or offer the cotizador "
                 "(open_link cotizador)."
             )
+        if any(p.servicio == "LAB" for p in found):
+            self._prefetch_lab()
         lines = "\n".join(f"- {clini_api.price_line(p)}" for p in found)
         return (
             f"From {source}; prices in Chilean pesos, Fonasa is the Nivel 1 copago for tramos B, "
             f"C and D:\n{lines}"
         )
+
+    def _prefetch_lab(self) -> None:
+        """The laboratorio's hours, looked up while he says a lab price: the lab
+        search is the slowest the booking has (6 s, its deadline, on prod), and
+        the question after a lab price is nearly always when."""
+        lab = _services(self.kb).get(_LAB)
+        if lab is None or len(lab.prestaciones) != 1:
+            return
+        clini_api.prefetch(lab.servicio, lab.prestaciones[0].code, _RM if lab.regions else None)
 
     @needs_result_now
     async def check_availability(self, request: AvailabilityRequest) -> str:
@@ -2864,6 +3255,18 @@ class CliniBrain(GeminiBrain):
                 times = ", ".join(c.times[:_AVAILABLE_TIMES]) or "none left"
                 addr = f" ({c.direccion})" if c.direccion else ""
                 out.append(f"- {c.nombre}{addr}: {times}")
+            self._listed(service.servicio, prestacion.code, [c.nombre for c in found.centres])
+            listed = "; ".join(self._centres.get((service.servicio, prestacion.code), []))
+            out.append(
+                f"Centres bookable online for this exam: {listed}. Offer an hour only at one of "
+                "these, never at another sede."
+                + (
+                    " A Toma de Muestras sede not listed takes walk-ins by order of arrival "
+                    "during its hours, with no booking."
+                    if service.servicio == _LAB
+                    else ""
+                )
+            )
         elif found.day:
             out.append(f"The hours of {_said_day(found.day)} did not load; the booking shows them.")
         out.append("Say two or three of these as words. Times are Santiago's.")
@@ -3025,6 +3428,12 @@ class CliniBrain(GeminiBrain):
         day = iso_day(request.day)
         when = hhmm(request.time)
         region = request.region if request.region not in (None, _RM) else None
+        centre = (request.centre or "").strip() or None
+        if centre is None and prestacion is not None:
+            named, refused = self._named_centre(service, prestacion)
+            if refused is not None:
+                return refused
+            centre = named
         self._agenda_asked = True
         # The booking comes to the front now: nothing more of this reply moves
         # the site, and the next reply's cues are for the booking.
@@ -3037,7 +3446,7 @@ class CliniBrain(GeminiBrain):
                 prestacion=prestacion.code if prestacion else None,
                 region=region,
                 day=day,
-                centre=(request.centre or "").strip() or None,
+                centre=centre,
                 time=when,
             ),
             "agenda",
@@ -3052,7 +3461,7 @@ class CliniBrain(GeminiBrain):
             )
         if queued is not None:
             return queued
-        steps = [x for x in (day and _said_day(day), when, request.centre) if x]
+        steps = [x for x in (day and _said_day(day), when, centre) if x]
         return (
             f"Opening the booking for {service.name}"
             + (f" — {prestacion.name}" if prestacion else "; they pick the prestación there")
@@ -3088,17 +3497,100 @@ class CliniBrain(GeminiBrain):
             )
         if not (day or when or request.centre or request.period):
             return "Not picked: say which day, sede or hour."
+        centre = (request.centre or "").strip() or None
+        if (same := self._same_pick(day, when, centre)) is not None:
+            landed(_LANDED["already"][self.spoken])
+            return same
         self._agenda_asked = True
         queued = self._agenda_move(
-            AgendaPick(
-                day=day,
-                time=when,
-                centre=(request.centre or "").strip() or None,
-                period=request.period,
-            ),
+            AgendaPick(day=day, time=when, centre=centre, period=request.period),
             "agenda_pick",
         )
         return queued or self._sent_note("'Te selecciono las diez.'")
+
+    def _same_pick(self, day: str | None, when: str | None, centre: str | None) -> str | None:
+        """Why a pick is not sent, when it asks for what the booking already
+        shows or is already on its way to: a pick of the hour the open had
+        chosen took the patient form down and put it back, twice (prod,
+        2026-10-22)."""
+        if not (day or when or centre):
+            return None
+        # What the booking will show once the moves under way are done: the
+        # one queued, else the one on the page.
+        queued = self._queued
+        sent = (
+            (queued.day, queued.time, queued.centre)
+            if isinstance(queued, OpenAgenda | AgendaPick)
+            else self._sent_pick
+            if self._busy() is not None
+            else None
+        )
+        if (
+            sent is not None
+            and (day is None or day == sent[0])
+            and (when is None or when == sent[1])
+            and (centre is None or (sent[2] is not None and _same_centre(centre, sent[2])))
+        ):
+            logger.info("clini: agenda_pick {} {} {} is on its way already", day, when, centre)
+            return (
+                "Not sent: the booking is already on its way to exactly that, from your last "
+                "booking move, and its answer comes back to you. Say in a few words that it is "
+                "being selected; do not call it again."
+            )
+        shown = self.agenda
+        if (
+            shown is not None
+            and shown.step == "booking"
+            and shown.selected
+            and (day is None or day == shown.day)
+            and (when is None or when in shown.selected)
+            and (centre is None or _same_centre(centre, f"{shown.centre} {shown.selected}"))
+        ):
+            logger.info("clini: agenda_pick {} {} {} is on screen already", day, when, centre)
+            return (
+                f"Not sent: that is already selected on their screen ({shown.selected}), with "
+                "the patient form open, which stays as it is. Say so in a few words and go on "
+                "with the form."
+            )
+        return None
+
+    def _named_centre(
+        self, service: AgendaService, prestacion: Prestacion
+    ) -> tuple[str | None, str | None]:
+        """The centre the visitor chose, when open_agenda left it out: ``(the
+        booking's centre, None)``; or ``(None, why not)`` when the sede they
+        named is not one the booking lists for this exam (prod, 2026-10-22:
+        Tobalaba, offered and accepted, dropped as ``centre: null``, and the
+        booking then showed other sedes); ``(None, None)`` when nothing says.
+        Only from the centres the booking listed for it."""
+        listed = self._centres.get((service.servicio, prestacion.code))
+        if not listed:
+            return None, None
+        vocabulary = {w for c in listed for w in _places(c)} | {
+            w for b in self.kb.branches for w in _places(b.name)
+        }
+        theirs = " ".join(self._heard[-2:])
+        named = _places_in(theirs, vocabulary) or _places_in(self._last_said, vocabulary)
+        if not named:
+            return None, None
+        matches = [c for c in listed if _places(c) & named]
+        if len(matches) == 1:
+            logger.info("clini: open_agenda had no centre; they named {}", matches[0])
+            return matches[0], None
+        if matches:
+            return None, None
+        where = ", ".join(sorted(named))
+        walk_in = (
+            " A Toma de Muestras sede the booking does not list takes walk-ins by order of "
+            "arrival during its hours, with no booking: say that."
+            if service.servicio == _LAB
+            else ""
+        )
+        return None, (
+            f"Not opened: the sede they chose ({where}) is not one the booking takes for "
+            f"{prestacion.name}; it lists only {'; '.join(listed)}.{walk_in} Offer the nearest of "
+            "the listed centres, and call open_agenda again with the one they choose."
+        )
 
     def _phone(self, said: str, refused: list[str]) -> str | None:
         """The celular the model passed, if it is a Chilean one and the digits
@@ -3113,8 +3605,8 @@ class CliniBrain(GeminiBrain):
             from_them = f" (they said {spaced(heard)})" if len(heard) >= _SAID_DIGITS_MIN else ""
             refused.append(
                 f"celular: {spaced(given) or said!r}{from_them} is not a Chilean celular, nine "
-                "digits starting with 9. Tell them the form needs a Chilean mobile and ask for "
-                "one; never change or invent digits"
+                f"digits starting with 9 ({len(given)} digits given). Tell them the form needs a "
+                "Chilean mobile and ask for one; never change or invent digits"
             )
             return None
         if len(heard) >= _SAID_DIGITS_MIN and phone not in heard:
@@ -3143,6 +3635,11 @@ class CliniBrain(GeminiBrain):
                 f"{_STEP_NAMES[self.agenda.step]} now)."
             )
         refused: list[str] = []
+        #: What this call adds to the form, and what it turned down, by field:
+        #: his line says exactly that (prod, 2026-10-22: "Te lo completo en el
+        #: formulario" after a fill that took nothing).
+        took: list[str] = []
+        turned: list[str] = []
         given = {
             "name": request.name,
             "last_name": request.last_name,
@@ -3151,26 +3648,46 @@ class CliniBrain(GeminiBrain):
         for key, value in given.items():
             if value and value.strip():
                 self._patient[key] = " ".join(value.split())
+                took.append(key)
         if request.birth_date:
             born = iso_day(request.birth_date)
             if born and born < clini_api.today().isoformat():
                 self._patient["birth_date"] = born
+                took.append("birth_date")
             else:
                 refused.append("birth date (as YYYY-MM-DD, in the past)")
+                turned.append("birth_date")
         if request.sex:
-            self._patient["sex"] = request.sex
-        if request.phone and (phone := self._phone(request.phone, refused)) is not None:
-            self._patient["phone"] = phone
+            if self._said_sex(request.sex):
+                self._patient["sex"] = request.sex
+                took.append("sex")
+            else:
+                # Inferred from a first name on prod (2026-10-22): a medical
+                # form takes what they said, not a guess.
+                refused.append(
+                    "sex: they did not say it. Ask them (femenino, masculino u otro); never "
+                    "guess it from a name or a voice"
+                )
+                turned.append("sex")
+        if request.phone:
+            if (phone := self._phone(request.phone, refused)) is not None:
+                self._patient["phone"] = phone
+                took.append("phone")
+            else:
+                turned.append("phone")
         if request.email:
             if (address := email_address(request.email)) is not None:
                 self._patient["email"] = address
+                took.append("email")
             else:
                 refused.append("email")
+                turned.append("email")
         if request.document is not None:
             self._document = request.document
         p = self._patient
         self._agenda_asked = True
-        only_rut = request.focus_rut and not any(given.values()) and not request.phone
+        only_rut = request.focus_rut and not took and not turned
+        line = None if only_rut else self._patient_line(took, turned, request.focus_rut)
         queued = self._agenda_move(
             FillAgendaPatient(
                 name=p.get("name"),
@@ -3184,6 +3701,7 @@ class CliniBrain(GeminiBrain):
                 focus_rut=request.focus_rut,
             ),
             "rut" if only_rut else "patient",
+            line,
         )
         out = f"For the booking form: {', '.join(p) or 'nothing yet'}. " + (
             queued or self._sent_note("'Te lo completo.'")
@@ -3198,6 +3716,33 @@ class CliniBrain(GeminiBrain):
             which = "passport number" if self._document == "passport" else "RUT"
             out += f" The {which} field is ringed: they type it themselves."
         return out + " AGENDAR is theirs to press."
+
+    def _said_sex(self, sex: str) -> bool:
+        """Whether the visitor's last words say ``sex`` (F, M or O)."""
+        said = _SAID_SEX.get(sex)
+        return said is not None and bool(said.search(fold(" ".join(self._heard))))
+
+    def _patient_line(self, took: list[str], turned: list[str], focus_rut: bool) -> str:
+        """His line for a fill of the patient form, from what it did: the
+        fields it sends, the celular read back, the first thing it turned down
+        asked again, the RUT field to type in."""
+        lang = self.spoken
+        out: list[str] = []
+        if took:
+            fields = _and(lang, [_FIELD_NAMES[lang][k] for k in took])
+            out.append(
+                f"Te anoto {fields} en el formulario."
+                if lang == "es"
+                else f"I'm putting {fields} in the form."
+            )
+            if "phone" in took:
+                digits = ", ".join(_DIGIT_NAMES[lang][int(d)] for d in self._patient["phone"])
+                out.append(f"Tu celular: {digits}." if lang == "es" else f"Your celular: {digits}.")
+        if turned:
+            out.append(_ASK_AGAIN[turned[0]][lang])
+        if focus_rut:
+            out.append(_LANDED["rut"][lang])
+        return " ".join(out) or _ASK_AGAIN[""][lang]
 
     async def fill_lasik_form(self, request: LasikRequest) -> str:
         """Fill the free LASIK evaluation form on /cirugia-lasik with what the
