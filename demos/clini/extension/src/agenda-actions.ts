@@ -479,11 +479,31 @@ interface Pick {
   period?: "AM" | "PM" | null;
 }
 
+/** Whether the patient form is open for exactly the day, time and centre
+ *  asked: going back to the calendar for them would take the form down and
+ *  put it back, and could clear what the visitor typed. The summary and the
+ *  centre titles are kept from translation (`anchors.ts`). */
+function alreadyHeld(day: string | null | undefined, t: string | null, centre: string | null | undefined): boolean {
+  if (!(day || t || centre) || !bookingShown()) return false;
+  const summary = norm(byId("selectedSummary")?.textContent);
+  if (!summary) return false;
+  const shown = activeDay();
+  if (day && (!shown || dateOf(shown) !== day)) return false;
+  if (t && !summary.includes(t)) return false;
+  if (centre) {
+    const name = norm(afterBar(centre));
+    const open = groups().find(isOpen);
+    if (!(open && norm(centreName(open)) === name) && !summary.includes(name)) return false;
+  }
+  return true;
+}
+
 /** Take the steps given; what is on screen after them, in English, for the
  *  brain (`command_done`). */
 async function pick({ day, time, centre, period }: Pick): Promise<string> {
   const t = time ? hhmm(time) : null;
   if (time && !t) throw new Error(`"${time}" is not a time as HH:MM`);
+  if (alreadyHeld(day, t, centre)) return `already selected, nothing changed: ${describe()}`;
   if ((day || t || centre) && bookingShown()) {
     byId("btnBackToAvailability")?.click();
     await waitFor(() => !bookingShown(), 4000);
