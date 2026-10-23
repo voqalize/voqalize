@@ -386,13 +386,20 @@ async function settle(cap: number, waitStart: boolean): Promise<void> {
  * loads its twin in that language (the adapter's own `site_language`, made on
  * the page, which knows its translations). A `navigate` that arrives
  * meanwhile wins: it lands in the new language anyway.
+ *
+ * With `twin`, the brain asked for the page's own twin (a page it opened came
+ * up in the other language, or the visitor asked to see it in theirs) and is
+ * quiet, waiting for it: there is no confirmation to wait for, only the end
+ * of what he is saying, and a page with no twin is the brain's to know.
  */
-async function followSite(next: Language): Promise<void> {
+async function followSite(next: Language, twin = false): Promise<void> {
   const seq = moves;
-  await settle(SITE_SWITCH_CAP_MS, true);
+  await settle(SITE_SWITCH_CAP_MS, !twin);
   if (!client || moves !== seq || state.language !== next) return;
-  const why = await dispatch("site_language", { language: next });
-  if (why) note(`the page stays in its language: ${why}`);
+  const why = await dispatch("site_language", { language: next, ...(twin ? { twin } : {}) });
+  if (!why) return;
+  note(`the page stays in its language: ${why}`);
+  if (twin) toBrain(null, { event: "command_failed", payload: { command: "language_changed", reason: why } });
 }
 
 async function route(on: PipecatClient, command: string, payload: unknown): Promise<void> {
@@ -430,11 +437,16 @@ async function ours(action: UiAction): Promise<string | null> {
       return got?.ok ? null : `no tab ${action.payload.tab_id} to bring forward`;
     }
     // The brain's word that the call's language moved, by the toggle, by
-    // voice or on request: the toggle follows at once, on every tab.
-    case "language_changed":
-      showLanguage(action.payload.language);
-      void followSite(action.payload.language);
+    // voice or on request: the toggle follows at once, on every tab, and every
+    // page of the call on both hosts takes it from here. At the call's start
+    // it is only recorded (`stay`); for a page that came up in the other
+    // language, only that page's own twin is loaded (`twin`).
+    case "language_changed": {
+      const { language: next, site = "follow" } = action.payload;
+      showLanguage(next);
+      if (site !== "stay") void followSite(next, site === "twin");
       return null;
+    }
     default:
       return `the call cannot ${action.command}`;
   }

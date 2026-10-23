@@ -3,7 +3,7 @@
  * holder (the offscreen document the call lives in, `holder.ts`) and its
  * messages back, and requests of the holder and of the service worker: the
  * move a page leaves for the next one (`loadThen`, which may be on the other
- * host), and a www.explora.com page's translation for the booking site.
+ * host), and a www.explora.com page's translations, read by the worker.
  */
 
 import type { FromPage, HolderAsk, ToPage, WorkerAsk } from "./protocol";
@@ -79,23 +79,29 @@ export interface Then {
   payload: unknown;
 }
 
+let loads = 0;
+
+/** How many loads this page has started (`loadThen`): a move that should
+ *  have loaded another page and did not can be told from one that stayed. */
+export const loadsStarted = () => loads;
+
 /** Load `url` in this tab, with a move for the page it lands on to make once
  *  it is up (`pendingMove`), across hosts: the page itself goes, so the move
  *  is kept by the service worker, for this browser tab. */
 export async function loadThen(url: string, then?: Then): Promise<void> {
   if (then) await askWorker({ op: "pend", then });
+  loads++;
   location.href = url;
+}
+
+/** Keep a move for this tab's next page, should the page go before it is
+ *  done (a button that may load another page); `pendingMove` takes it back. */
+export async function pend(then: Then): Promise<void> {
+  await askWorker({ op: "pend", then });
 }
 
 /** The move this tab's last page left for this one (`loadThen`), once. */
 export async function pendingMove(): Promise<Then | null> {
   const got = await askWorker<{ then: Then | null }>({ op: "pending" });
   return got?.then ?? null;
-}
-
-/** The `lang` translation of a www.explora.com page, read by the service
- *  worker for a page on the booking site (`hreflang.ts`). */
-export async function alternateOf(url: string, lang: string, ms = 6000): Promise<string | null> {
-  const got = await askWorker<{ url: string | null }>({ op: "alternate", url, lang }, ms);
-  return got?.url ?? null;
 }

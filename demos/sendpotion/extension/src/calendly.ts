@@ -17,6 +17,8 @@
  * stopped, so a demo call never puts a real meeting in SendPotion's calendar.
  */
 
+import { normTime } from "./site";
+
 const DEMO_BLOCK_SUBMIT = true;
 const PARENTS = /^https:\/\/(www\.)?sendpotion\.com$/;
 const WAIT_MS = 8000;
@@ -62,6 +64,10 @@ const dayButtons = () =>
     (b) => !b.disabled,
   );
 const timeButtons = () => [...document.querySelectorAll<HTMLButtonElement>("button[data-container='time-button']")];
+/** A slot's start time as "3:00pm", whichever clock the calendar shows: a
+ *  24-hour calendar writes "15:00" (on prod, 2026-10-22, it could not pick the
+ *  "12:00" it had just listed), and the details step reads "3:00pm" too. */
+const slotTime = (b: HTMLButtonElement) => normTime(b.getAttribute("data-start-time") ?? b.textContent);
 const field = (name: string) =>
   document.querySelector<HTMLInputElement | HTMLTextAreaElement>(
     name === "notes" ? "form textarea[name^='question']" : `form input[name='${name}']`,
@@ -128,7 +134,7 @@ function state() {
     month: month(),
     days: dayButtons().map(dayLabel),
     date: chosenDay() ?? "",
-    times: timeButtons().map((b) => clean(b.getAttribute("data-start-time") ?? b.textContent)),
+    times: timeButtons().map(slotTime),
     timezone: timezone(),
   };
 }
@@ -161,20 +167,6 @@ function findDay(said: string): HTMLButtonElement | null {
   return days.find((b) => fold(dayLabel(b)) === fold(said)) ?? days.find((b) => sameDay(said, dayLabel(b))) ?? null;
 }
 
-/** "3pm", "3:00 pm", "15:00" → Calendly's "3:00pm". */
-function normTime(said: string): string {
-  const m = fold(said).replace(/\s+/g, "").match(/^(\d{1,2})(?::(\d{2}))?(am|pm)?$/);
-  if (!m) return fold(said).replace(/\s+/g, "");
-  let h = Number(m[1]);
-  const min = m[2] ?? "00";
-  let ap = m[3];
-  if (!ap) {
-    ap = h >= 12 ? "pm" : "am";
-    if (h > 12) h -= 12;
-  }
-  return `${h === 0 ? 12 : h}:${min}${ap}`;
-}
-
 async function book(order: BookOrder): Promise<string | null> {
   if (step() === "details" && (order.day || order.time)) {
     const back = document.querySelector<HTMLButtonElement>("button[aria-label*='back' i], button[aria-label*='Go to previous' i]");
@@ -205,9 +197,9 @@ async function book(order: BookOrder): Promise<string | null> {
     if (order.time) {
       const want = normTime(order.time);
       const times = timeButtons();
-      const t = times.find((b) => fold(b.getAttribute("data-start-time")).replace(/\s+/g, "") === want);
+      const t = times.find((b) => slotTime(b) === want);
       if (!t) {
-        const open = times.map((b) => clean(b.getAttribute("data-start-time"))).join(", ");
+        const open = times.map(slotTime).join(", ");
         return `no ${order.time} slot on ${chosenDay() ?? "that day"}; open times: ${open || "choose a day first"}`;
       }
       t.click();
@@ -253,6 +245,10 @@ function start(): void {
   let last = "";
   const report = (force = false) => {
     const s = state();
+    // A calendar not drawn yet (no month, no days) is not a state: the brain
+    // took one for "no open days this month" (prod, 2026-10-22). The
+    // redraw that follows is reported by the observer below.
+    if (s.step === "calendar" && !("month" in s && s.month) && !("days" in s && s.days.length)) return;
     const key = JSON.stringify(s);
     if (!force && key === last) return;
     last = key;

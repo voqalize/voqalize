@@ -44,7 +44,7 @@ import {
   waitFor,
 } from "./dom";
 import { loadThen, type Then } from "./hub";
-import { alternateHere, type Lang, pageLanguage, pagePath, pathLang, rememberHere } from "./site-language";
+import { alternateHere, type Lang, pageLanguage, pagePath, pathLang, rememberHere, twinHere } from "./site-language";
 
 const SITE_ORIGIN = "https://www.explora.com";
 const MAX_HEADINGS = 80;
@@ -730,13 +730,26 @@ async function lenientMove(lenient: boolean | undefined, move: () => Promise<voi
 
 /** Load this page's twin in `language` when it is in the other one: the
  *  call's language moved. A page in neither English nor Spanish (WPML's
- *  Portuguese, French, German) is the visitor's own choice and stays. */
-async function siteLanguage({ language }: { language: Lang }) {
+ *  Portuguese, French, German) is the visitor's own choice and stays.
+ *
+ *  With `twin`, the brain asked for this page's own twin — it came up in the
+ *  wrong language, or the visitor asked to see it in theirs — and waits for
+ *  the page to report itself: a page already in that language reports itself
+ *  again, and one that names no twin is an error, never that language's home
+ *  page. */
+async function siteLanguage({ language, twin }: { language: Lang; twin?: boolean }) {
   if (language !== "en" && language !== "es") throw new Error(`not a site language: ${language}`);
   const now = pageLanguage();
-  if (!now || now === language) return;
-  const there = alternateHere(language);
-  if (pagePath(there) === pagePath(location.href)) return;
+  if (!now || now === language) {
+    if (twin) emitter?.("page_changed", context());
+    return;
+  }
+  const there = twin ? twinHere(language) : alternateHere(language);
+  if (!there) throw new Error(`${location.pathname} has no ${language === "es" ? "Spanish" : "English"} version`);
+  if (pagePath(there) === pagePath(location.href)) {
+    if (twin) emitter?.("page_changed", context());
+    return;
+  }
   clearHighlight();
   await loadThen(there);
 }

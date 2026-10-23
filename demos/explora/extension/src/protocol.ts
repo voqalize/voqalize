@@ -105,9 +105,9 @@ export const BOOKING_COMMANDS = new Set(["check_availability", "choose_room", "f
 /** The Actions the holder performs itself rather than a page. */
 export const OURS = new Set(["cue", "focus_tab", "language_changed"]);
 /** Page events the brain takes from any tab, not only the one in front: a
- *  move's failure, the toggle, and an enquiry the visitor sent, which answer
- *  the brain whichever tab made them. */
-export const ANY_TAB = new Set(["command_failed", "language_requested", "enquiry_sent"]);
+ *  move's failure, the toggle, an enquiry the visitor sent, and how a move
+ *  found a page's twin, which answer the brain whichever tab made them. */
+export const ANY_TAB = new Set(["command_failed", "language_requested", "enquiry_sent", "twin_lookup"]);
 
 /** www.explora.com, explora.com or reservations.explora.com. */
 export const isSite = (url: string) => /^https:\/\/(www\.|reservations\.)?explora\.com(\/|$)/i.test(url);

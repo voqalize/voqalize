@@ -44,13 +44,13 @@ import { type AvatarInstance, createAvatar, listCharacters, type PreloadedAvatar
 
 import { type AppEvent, type Navigate, UI_ACTION_COMMANDS } from "./actions.gen";
 import { followCall, type Following } from "./follow";
-import { askHolder, askWorker, loadThen, onHolder, pendingMove, type Then, tell } from "./hub";
+import { askHolder, askWorker, loadsStarted, loadThen, onHolder, pendingMove, type Then, tell } from "./hub";
 import { clearKept, type Kept, transitions, writeFace, writeKept } from "./persist";
 import {
   ANY_TAB, BOOKING_COMMANDS, bookingUrl, type CallState, type MicState, onBooking, OURS, SITE, SITE_COMMANDS,
   type Where,
 } from "./protocol";
-import { onSite, pageLanguage, pathLang, siteUrlIn } from "./site-language";
+import { type Mapped, onSite, pageLanguage, pathLang, siteUrlIn } from "./site-language";
 import { type Language, mountWidget, type Widget } from "./widget";
 
 declare const __VOQALIZE__: { apiBase: string; agentId: string; publishableKey: string };
@@ -83,6 +83,14 @@ const GRANT_WAIT_MS = 90_000;
 const MOVE_AFTER_READY_MS = 300;
 const MOVE_WITHOUT_CALL_MS = 800;
 const MOVE_AT_THE_LATEST_MS = 10_000;
+/** How long a `navigate` waits for its page's twin in the call's language
+ *  before it loads the English page as named (the brain then asks for the
+ *  twin from that page, whose own `<head>` names it). */
+const TWIN_WAIT_MS = 2000;
+/** A `navigate` that started a load and is still on this page this long
+ *  after is reported as failed, so the brain never talks about a page that
+ *  is not there. */
+const UNLOAD_WAIT_MS = 8000;
 
 const IDLE: CallState = { status: "idle", muted: false, activity: null, language: "en", ready: false };
 
@@ -151,6 +159,8 @@ async function start(): Promise<void> {
   let switchTimer: ReturnType<typeof setTimeout> | null = null;
   /** Whether the kept move has been taken up. */
   let keptTaken = false;
+  /** Set once this page is really going (`pagehide`), not merely asked to. */
+  let gone = false;
 
   const hello = () => tell({ k: "hello", ...where() });
 
@@ -162,9 +172,14 @@ async function start(): Promise<void> {
 
   /** The holder's state, as this page shows it. */
   function apply(next: CallState): void {
+    const on = next.status === "live" || next.status === "connecting";
+    // In a call the language is the call's, as the holder keeps it, on every
+    // page of both hosts and never re-read from the page: a Spanish call's
+    // English page is still a Spanish call. Off a call the toggle is the
+    // visitor's own choice for the next call.
+    if (!on) next = { ...next, language: storedLanguage() ?? pageLanguage() ?? "en" };
     const was = state;
     state = next;
-    const on = next.status === "live" || next.status === "connecting";
     // The press on this page is still on its way to the holder.
     if (calling && !on) return;
     // In a call, the next page of this tab on this host gets the widget back
@@ -283,7 +298,7 @@ async function start(): Promise<void> {
     void keptMove.then(async (then) => {
       if (!then) return;
       await sleep(delay);
-      const failed = await perform(then.command, then.payload);
+      const failed = await watched(then.command, then.payload);
       if (!failed) return;
       if (state.ready) tell({ k: "app", event: failed.event, payload: failed.payload });
       else console.info("voqalize (no call):", failed.event, failed.payload);
@@ -294,8 +309,46 @@ async function start(): Promise<void> {
    *  page, and in Spanish the page's Spanish twin is loaded. */
   async function inCallLanguage(p: Navigate): Promise<Navigate> {
     if (typeof p.path !== "string" || !p.path || pathLang(p.path) === state.language) return p;
-    const mapped = await siteUrlIn(state.language, p.path);
+    const lang = state.language;
+    const t0 = performance.now();
+    // Never held up past a moment: on prod call be1f5b9a a page from the
+    // booking site waited on the lookup and never loaded. Late, the English
+    // page loads, and the twin is asked for from it.
+    const late = sleep(TWIN_WAIT_MS).then((): Mapped => ({
+      url: new URL(p.path, SITE).href, source: "fallback", ms: Math.round(performance.now() - t0), error: "timeout",
+    }));
+    const mapped = await Promise.race([siteUrlIn(lang, p.path), late]);
+    // How it was found goes to the brain, so a wrong-language page is traced.
+    if (state.ready) {
+      tell({
+        k: "app",
+        event: "twin_lookup",
+        payload: {
+          path: p.path, language: lang, url: mapped.url, ms: mapped.ms, error: mapped.error ?? "",
+          source: mapped.error === "timeout" && mapped.source === "fallback" ? "timeout" : mapped.source,
+        },
+      });
+    }
     return mapped.url === p.path ? p : { ...p, path: mapped.url };
+  }
+
+  /** `perform`, and for a `navigate` that started a load: should the page
+   *  still be here a while after (prod call be1f5b9a: a page from the booking
+   *  site that never came), the brain is told the screen has not moved. */
+  async function watched(command: string, payload: unknown): Promise<AppEvent | null> {
+    const loads = loadsStarted();
+    const outcome = await perform(command, payload);
+    if (!outcome && command === "navigate" && loadsStarted() > loads) {
+      setTimeout(() => {
+        if (gone || !state.ready) return;
+        tell({
+          k: "app",
+          event: "command_failed",
+          payload: { command, reason: "the page did not load; the screen has not moved" },
+        });
+      }, UNLOAD_WAIT_MS);
+    }
+    return outcome;
   }
 
   /**
@@ -371,7 +424,7 @@ async function start(): Promise<void> {
         heard = true;
         return apply(msg);
       case "perform":
-        void perform(msg.command, msg.payload).then((outcome) =>
+        void watched(msg.command, msg.payload).then((outcome) =>
           tell({ k: "done", id: msg.id, outcome: outcome as { event: string; payload: Record<string, unknown> } | null }),
         );
         return;
@@ -438,13 +491,17 @@ async function start(): Promise<void> {
       const chosen = storedLanguage();
       // `site_lang`: the language the site is followed in, from the start:
       // the visitor's choice, else the language of the page they are on (a
-      // call started on /es/… is a Spanish visitor's).
+      // call started on /es/… is a Spanish visitor's). It is the call's
+      // language from now on, kept by the holder for every page of the call
+      // on both hosts (and recorded again by the brain's `language_changed`
+      // with `site: "stay"`).
+      const callLang: Language = chosen ?? pageLanguage() ?? "en";
       const session = await mintSession({
         surface: "explora-ext", site: ctx.site, path: ctx.path, url: ctx.url, title: ctx.title,
-        site_lang: chosen ?? pageLanguage() ?? "en",
+        site_lang: callLang,
         ...(chosen ? { lang: chosen } : {}),
       });
-      const got = await askHolder<{ ok: boolean; error?: string }>({ op: "call", session, language: lang }, 30_000);
+      const got = await askHolder<{ ok: boolean; error?: string }>({ op: "call", session, language: callLang }, 30_000);
       if (!got?.ok) throw new Error(got?.error ?? "the call did not start");
       calling = false;
       apply(state);
@@ -508,6 +565,7 @@ async function start(): Promise<void> {
     if (nav.destination && !nav.destination.sameDocument && !nav.downloadRequest) leaving();
   });
   window.addEventListener("pagehide", () => {
+    gone = true;
     tell({ k: "leaving" });
     keep();
   });

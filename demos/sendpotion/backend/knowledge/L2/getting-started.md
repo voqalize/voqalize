@@ -8,7 +8,7 @@ Sources: every page's top nav and footer; https://sendpotion.com/demo/; https://
 - First steps after sign-up (/use-cases/, tab "How to get started"): Sign Up → Train Video AI (record about a minute of video and 30 sentences; "Takes 4 mins" per the home page) → Choose a Specific Goal → Share.
 
 ## Book a demo / talk to sales
-- **/demo/** — H1 "Book a demo": "Learn how to generate AI videos in your own face, voice, & gestures". The scheduler is an embedded **Calendly** iframe (https://calendly.com/carlos-targetgrid/30min, a 30-minute meeting). It is cross-origin: the page cannot fill or read it; the visitor picks a time and enters their details inside Calendly.
+- **/demo/** — H1 "Book a demo": "Learn how to generate AI videos in your own face, voice, & gestures". The scheduler is an embedded **Calendly** iframe (https://calendly.com/carlos-targetgrid/30min, a 30-minute meeting). It is a cross-origin frame, so SendPotion's own page cannot fill or read it; this preview reads and fills it from inside the frame. I can open it, choose a day and time the calendar lists, and fill in the visitor's name, email and notes; the visitor presses Schedule Event themselves.
 - Reached from the Enterprise plan's "Contact sales" button (/demo/?utm_campaign=inbound&utm_source=website); the sitemap lists the same URL. The top nav has no Demo link.
 
 ## Help and contact

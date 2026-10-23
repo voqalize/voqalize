@@ -24,10 +24,11 @@
  *     worker that was stopped meanwhile forgets nothing.
  *   - It reads the Spanish (or English) version of a www.explora.com page for a
  *     tab on the booking site (`alternate`), which may not fetch
- *     www.explora.com across origins (`hreflang.ts`).
+ *     www.explora.com across origins, and for a page whose own fetch failed
+ *     (a script of the page may wrap it) (`hreflang.ts`).
  */
 
-import { fetchAlternate } from "./hreflang";
+import { fetchAlternates } from "./hreflang";
 
 const HOLDER = "call.html";
 const SITE_TABS = ["https://www.explora.com/*", "https://explora.com/*", "https://reservations.explora.com/*"];
@@ -175,11 +176,19 @@ async function answer(ask: Ask, sender: chrome.runtime.MessageSender): Promise<u
       await chrome.storage.session.remove(key);
       return { then: got[key] ?? null };
     }
-    // The `lang` translation of a www.explora.com page, for the booking site.
+    // The `lang` translation of a www.explora.com page, for the booking site,
+    // and for a page whose own fetch could not read it. `read`: the page named
+    // any translations at all (one that named none is not remembered).
     case "alternate": {
       const url = ask.url ?? "";
-      if (!/^https:\/\/(www\.)?explora\.com\//i.test(url)) return { url: null };
-      return { url: await fetchAlternate(url, ask.lang ?? "en").catch(() => null) };
+      if (!/^https:\/\/(www\.)?explora\.com\//i.test(url)) return { url: null, read: false, error: "not a www.explora.com page" };
+      try {
+        const alts = await fetchAlternates(url);
+        const read = Object.keys(alts).length > 0;
+        return { url: alts[ask.lang ?? "en"] ?? null, read, ...(read ? {} : { error: "the page named no translations" }) };
+      } catch (error) {
+        return { url: null, read: false, error: error instanceof Error ? `${error.name}: ${error.message}` : String(error) };
+      }
     }
     default:
       return { ok: false, error: `unknown request ${ask.op}` };

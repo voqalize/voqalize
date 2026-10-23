@@ -33,7 +33,7 @@ const ORIGIN = "https://www.explora.com";
 const BOOKING = "https://reservations.explora.com";
 const API = "https://api.voqalize.test";
 
-type Fixture = { body: string; title: string; delay?: number };
+type Fixture = { body: string; title: string; delay?: number; lang?: string; head?: string };
 
 const PAGES: Record<string, Fixture> = {
   // A page whose parse is held 2 s by a script in its body, as WordPress's
@@ -54,9 +54,20 @@ const PAGES: Record<string, Fixture> = {
   "/atacama/": {
     title: "Atacama Lodge",
     delay: 2500,
+    head: `<link rel="alternate" hreflang="en" href="https://www.explora.com/atacama/">
+      <link rel="alternate" hreflang="es" href="https://www.explora.com/es/atacama/">`,
     body: `<body><main id="content"><h1>Atacama Lodge</h1>
       <h2>Stargaze from the Observatory</h2><p>One of the clearest skies on Earth, from our own telescope.</p></main></body>`,
   },
+};
+
+PAGES["/es/atacama/"] = {
+  title: "Hotel en Atacama",
+  lang: "es",
+  head: `<link rel="alternate" hreflang="en" href="https://www.explora.com/atacama/">
+    <link rel="alternate" hreflang="es" href="https://www.explora.com/es/atacama/">`,
+  body: `<body><main id="content"><h1>Hotel en Atacama</h1>
+    <h2>Observa las estrellas</h2><p>Uno de los cielos más limpios del mundo.</p></main></body>`,
 };
 
 /** The booking site: every path is a step of the booking engine, held back a
@@ -68,7 +79,7 @@ const BOOKING_PAGE: Fixture = {
 };
 
 interface Status {
-  state: { status: string; muted: boolean; ready: boolean };
+  state: { status: string; muted: boolean; ready: boolean; language: string };
   tabs: { url: string; ports: number; front: boolean }[];
   pending: number;
   log: string[];
@@ -117,7 +128,7 @@ const test = base.extend<{ ext: Ext }>({
         return route.fulfill({
           status: 200,
           contentType: "text/html; charset=utf-8",
-          body: `<!doctype html><html lang="en"><head><title>${page.title}</title></head>${page.body}</html>`,
+          body: `<!doctype html><html lang="${page.lang ?? "en"}"><head><title>${page.title}</title>${page.head ?? ""}</head>${page.body}</html>`,
         });
       }
       if (url.origin === API) {
@@ -300,6 +311,49 @@ test.describe("the holder and its pages", () => {
     await expect(widget(page)).toHaveAttribute("data-status", "live");
     expect(ext.connects).toHaveLength(1);
     expect(s.tabs).toHaveLength(1);
+  });
+
+  test("the call's language is the holder's on every page of both hosts, and a page that came up in English loads its own twin", async ({ ext }) => {
+    // The visitor chose Spanish on the toggle; the page they start on is English.
+    const page = await ext.open("/");
+    await page.evaluate(() => localStorage.setItem("voqalize.explora.lang", "es"));
+    await callLive(ext, page);
+    expect((ext.connects[0].body as { init: Record<string, unknown> }).init).toMatchObject({ site_lang: "es", lang: "es" });
+    expect((await status(ext.sw)).state.language).toBe("es");
+    const pressed = (p: Page) => p.locator("[data-voqalize=widget] .lang button[aria-pressed=true]");
+
+    // The brain records it at the start (`stay`): nothing loads.
+    await toHolder(ext.sw, { what: "command", command: "language_changed", payload: { language: "es", site: "stay" } });
+    await new Promise((r) => setTimeout(r, 800));
+    expect((await status(ext.sw)).log.some((l) => l.includes("site_language"))).toBe(false);
+    expect(page.url()).toBe(`${ORIGIN}/`);
+
+    // On the booking site, an English step, the call is still Spanish.
+    await page.evaluate((url) => {
+      location.href = url;
+    }, `${BOOKING}/ibe/paso1?hotel_code=ATA&language=EN`);
+    await page.waitForURL(`${BOOKING}/ibe/paso1?hotel_code=ATA&language=EN`);
+    await expect(widget(page)).toHaveAttribute("data-status", "live");
+    await expect(pressed(page)).toHaveAttribute("data-lang", "es");
+
+    // Back on an English page of www.explora.com: still Spanish. The brain
+    // asks for the page's own twin (`twin`), which its <head> names.
+    await page.evaluate((url) => {
+      location.href = url;
+    }, `${ORIGIN}/atacama/`);
+    await page.waitForURL(`${ORIGIN}/atacama/`);
+    await expect(widget(page)).toHaveAttribute("data-status", "live");
+    await expect(pressed(page)).toHaveAttribute("data-lang", "es");
+    await expect.poll(async () => (await status(ext.sw)).state.ready).toBe(true);
+    await toHolder(ext.sw, { what: "command", command: "language_changed", payload: { language: "es", site: "twin" } });
+    await page.waitForURL(`${ORIGIN}/es/atacama/`, { timeout: 10_000 });
+    await expect.poll(async () => (await status(ext.sw)).sent.filter((e) => e.event === "page_changed").map((e) => e.payload.path)).toContain("/es/atacama/");
+
+    const s = await status(ext.sw);
+    expect(s.state.language).toBe("es");
+    expect(s.sent.filter((e) => e.event === "command_failed")).toEqual([]);
+    expect(s.log.filter((l) => l.includes("connected "))).toHaveLength(1);
+    expect(ext.connects).toHaveLength(1);
   });
 
   test("with no Explora page for 15 s the call ends and the holder closes", async ({ ext }) => {

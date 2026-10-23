@@ -19,7 +19,8 @@
  *                     room", which opens the room's summary (`add_room`, a
  *                     GET, in a Magnific Popup iframe) with its "Go to
  *                     check-out" button: he rings that button for the
- *                     visitor and never presses it. Nothing on paso3;
+ *                     visitor and never presses it. Another room is added
+ *                     through the popup's "Add more rooms". Nothing on paso3;
  *   /ibe/expeditions  the enquiry form `#form-expeditions` (jQuery Validate and
  *                     a reCAPTCHA v2 checkbox the visitor ticks themselves).
  *
@@ -52,7 +53,7 @@ import {
   type Adapter,
   type PageContext,
 } from "./dom";
-import { loadThen } from "./hub";
+import { loadThen, pend, pendingMove } from "./hub";
 
 /**
  * When true, `send_enquiry` reports `enquiry_sent` (so the conversation goes
@@ -702,7 +703,61 @@ function checkoutButton(): HTMLElement | null {
   );
 }
 
+/** The room summary popup's own control labelled `label`, inside its iframe
+ *  or around it. Never its check-out. */
+function popupControl(label: RegExp): HTMLElement | null {
+  const frame = document.querySelector<HTMLIFrameElement>(".mfp-content iframe, iframe.mfp-iframe");
+  let doc: Document | null = null;
+  try {
+    doc = frame?.contentDocument ?? null;
+  } catch {
+    doc = null;
+  }
+  const roots: ParentNode[] = [doc, document.querySelector(".mfp-wrap")].filter((r): r is Document | HTMLElement => r !== null);
+  const text = (el: HTMLElement) => clean(el instanceof HTMLInputElement ? el.value : el.textContent);
+  for (const root of roots) {
+    const all = [...root.querySelectorAll<HTMLElement>("a, button, input[type=submit], input[type=button]")];
+    const hit = all.find((el) => label.test(text(el)) && !/check.?out|pagar|finalizar/i.test(text(el)));
+    if (hit) return hit;
+  }
+  return null;
+}
+
+const ADD_MORE = /add more rooms|agregar m[aá]s habitaciones|a[nñ]adir m[aá]s habitaciones|m[aá]s habitaciones/i;
+
+/**
+ * Put the last room's summary away before the next room is added: its "Add
+ * more rooms", as a visitor would, else the popup's close. That button may
+ * load the rooms again, so the rest of this move is kept for the next page
+ * first, and taken back if the page stays.
+ */
+async function closeSummary(rest: ChooseRoom): Promise<void> {
+  if (!document.querySelector(".mfp-wrap")) return;
+  const more = popupControl(ADD_MORE);
+  await pend({ command: "choose_room", payload: rest });
+  if (more) more.click();
+  else {
+    const jq = (window as unknown as { jQuery?: { magnificPopup?: { close?: () => void } } }).jQuery;
+    if (jq?.magnificPopup?.close) jq.magnificPopup.close();
+    else document.querySelector<HTMLElement>(".mfp-close")?.click();
+  }
+  const closed = await waitFor(() => !document.querySelector(".mfp-wrap"), 6000);
+  // Still on this page: the move goes on here, not on the next one.
+  await pendingMove();
+  if (!closed) throw new Error("the last room's summary is still open: its Add more rooms did not close it");
+  await sleep(600);
+}
+
+/** Add `p.count` rooms (one by default), one after the other. */
 async function chooseRoom(p: ChooseRoom): Promise<void> {
+  const count = Math.max(1, Math.min(4, Math.round(p.count ?? 1)));
+  for (let i = 0; i < count; i++) {
+    await closeSummary({ ...p, count: count - i });
+    await addRoom(p);
+  }
+}
+
+async function addRoom(p: ChooseRoom): Promise<void> {
   if (step() !== "paso2") throw new Error("the rooms are not open: check a lodge's availability through to its rooms first");
   const list = rooms();
   if (!list.length) throw new Error("this stay has no rooms to choose");

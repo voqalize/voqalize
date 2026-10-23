@@ -55,9 +55,15 @@ export async function fetchHead(url: string, ms = 5000): Promise<{ html: string;
   }
 }
 
+/** Every translation of the www.explora.com page at `url`, as its `<head>`
+ *  names them. Throws when the page could not be read. */
+export async function fetchAlternates(url: string): Promise<Record<string, string>> {
+  const { html, finalUrl } = await fetchHead(url);
+  return alternatesIn(html, finalUrl);
+}
+
 /** The `lang` translation of the www.explora.com page at `url`, or `null`
  *  when the page has none (or could not be read). */
 export async function fetchAlternate(url: string, lang: string): Promise<string | null> {
-  const { html, finalUrl } = await fetchHead(url);
-  return alternatesIn(html, finalUrl)[lang] ?? null;
+  return (await fetchAlternates(url))[lang] ?? null;
 }

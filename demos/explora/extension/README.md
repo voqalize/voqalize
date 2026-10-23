@@ -329,8 +329,8 @@ translations in its `<head>` (`<link rel="alternate" hreflang="es">`).
   booking site) and its Spanish twin is loaded, or the English page when it
   has none. The lookup runs on the page as the move arrives there; it takes
   60–150 ms when Explora's CDN has the page and about a second when it does
-  not, and each answer is kept in the tab's `sessionStorage`. The page's own links answer for its translations at no
-  cost.
+  not, and each answer is kept in the tab's `sessionStorage`. The page's own
+  links answer for its translations at no cost.
 - **A `navigate` to the page already in front** (by path; query, hash and a
   trailing slash aside, and any translation of it) does not load it again: the
   move is made on it and it reports `page_changed` once more, which the brain
@@ -345,6 +345,31 @@ translations in its `<head>` (`<link rel="alternate" hreflang="es">`).
   language of the page they started on. `init.lang` is still sent only when
   the visitor chose on the toggle. Off a call the toggle shows the page's
   language until the visitor chooses one.
+- **The call's language is the call's, not the page's.** It is recorded the
+  moment the call starts (and again by the brain's `language_changed` with
+  `site: "stay"`) and kept by the holder (`state.language`), which every page
+  of the call, on either host, takes it from; no page reads it off itself. An
+  English page that comes up in a Spanish call does not make the call English.
+  Off a call the toggle is the visitor's own choice again.
+- **The lookup never holds a load.** A `navigate` waits at most two seconds
+  for the twin, then loads the English page as named. The lookup reads the
+  page's head from the page, then from the extension's service worker (which
+  no script of the page can wrap; `source: "hub"`) when that fails; a page that
+  answers with no translations at all is not remembered as having none.
+  Every lookup is reported to the brain as `twin_lookup`: the URL loaded,
+  where it came from, how long it took, and why it failed.
+- **A page that came up in the wrong language** is loaded again as its own
+  twin when the brain asks (`language_changed` with `site: "twin"`), from the
+  page's own `<head>`: never that language's home page. A page with no twin
+  reports `command_failed` for `language_changed`, and one already in that
+  language reports itself again. The brain asks when a page it opened in a
+  Spanish call came up in English, and when the visitor asks to see the page
+  in the call's language.
+- **A `navigate` that never takes the page away** (eight seconds after its
+  load began, and no `pagehide`) is reported as `command_failed`, by the page
+  that started the load. The holder, which kept any move sent meanwhile for
+  the next page, has that page say hello again after five seconds and sends
+  them there.
 
 From the console, with no call:
 
@@ -375,7 +400,9 @@ On reservations.explora.com Javier works the booking engine with the visitor
   opens its summary in a popup. He rings the popup's "I'm ready. Go to
   check-out" for the visitor and never presses it: he never reaches
   check-out and never books. With no bed type he rings the room's bed
-  select and asks.
+  select and asks. With `count`, or when a room's summary is still open, the
+  next room goes through the popup's own "Add more rooms" (the rest of the
+  move is kept for the next page, should that button load the rooms again).
 - `fill_enquiry` opens an expedition's enquiry form and fills in what the
   visitor told him. `send_enquiry` presses Send Message only once the visitor
   has ticked the reCAPTCHA themselves; until then he asks them to.

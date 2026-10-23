@@ -37,6 +37,8 @@ export interface Cue {
   text: string | null;
 
   faq: string | null;
+
+  lead: 'nod' | 'now' | null;
 }
 
 /**
