@@ -56,6 +56,11 @@ export interface Widget {
   /** The visitor pressed a language on the toggle. */
   onLanguage(fn: (language: Language) => void): void;
   onHang(fn: () => void): void;
+  /** Show the extension's microphone grant page in a frame; `null` takes it away. */
+  grant(src: string | null): void;
+  /** Say that Chrome blocks the extension's microphone, with the way to the setting. */
+  blocked(): void;
+  onSettings(fn: () => void): void;
 }
 
 // Cannon Home's palette, read off the theme's stylesheet (styles-l.min.css):
@@ -103,6 +108,10 @@ const WORDS = {
     language: "Idioma",
     connecting: "Conectando",
     failed: "No se pudo iniciar la llamada.",
+    grant: "La primera vez, Chrome pide el micrófono para la extensión de Javier.",
+    blocked:
+      "Chrome bloquea el micrófono para la extensión «Javier para Cannon Home». En la configuración del micrófono, quítala de «No pueden usar el micrófono» y vuelve a llamar.",
+    settings: "Abrir la configuración",
     activity: { listening: "Escuchando", thinking: "Pensando", speaking: "Hablando" },
   },
   en: {
@@ -118,6 +127,10 @@ const WORDS = {
     language: "Language",
     connecting: "Connecting",
     failed: "Could not start the call.",
+    grant: "The first time, Chrome asks for the microphone for Javier's extension.",
+    blocked:
+      "Chrome blocks the microphone for the “Javier para Cannon Home” extension. In the microphone settings, take it off “Not allowed to use your microphone”, then call again.",
+    settings: "Open the settings",
     activity: { listening: "Listening", thinking: "Thinking", speaking: "Speaking" },
   },
 } satisfies Record<Language, unknown>;
@@ -204,8 +217,16 @@ button { font: inherit; cursor: pointer; }
 .lang button[aria-pressed="true"] { background: ${BRAND}; color: ${ON_BRAND}; cursor: default; }
 .lang button.pending { opacity: 0.55; outline: 1px dashed ${BRAND}; outline-offset: -3px; }
 .lang button:focus-visible { outline: 2px solid ${INK}; outline-offset: 2px; }
+.grant { width: ${CARD + 20}px; background: ${CARD_BG}; border: 1px solid ${BRAND}; border-radius: 8px;
+  padding: 8px 10px 4px; box-shadow: 0 6px 18px rgba(0,0,0,0.3); }
+.grant-note { margin: 0 0 6px; font-size: 12px; line-height: 1.4; color: ${MUTED}; }
+.grant iframe { display: block; width: 100%; height: 76px; border: 0; border-radius: 6px; background: #fff; }
+.settings { margin-top: 8px; display: block; background: transparent; border: 1px solid ${LINE}; color: ${INK};
+  border-radius: 6px; padding: 6px 10px; font-size: 12px; }
+.settings:hover { border-color: ${INK}; }
 .error { color: ${INK}; background: ${CARD_BG}; border: 1px solid #EC0000; border-radius: 8px; padding: 8px 10px;
   font-size: 12px; line-height: 1.4; max-width: ${CARD + 20}px; margin: 0; box-shadow: 0 6px 18px rgba(0,0,0,0.3); }
+.error-text { margin: 0; }
 
 .root[data-min] .card { width: ${BUBBLE}px; border-radius: 50%; border-color: ${BRAND}; cursor: pointer; }
 .root[data-min] .frame { width: ${BUBBLE - 2}px; height: ${BUBBLE - 2}px; cursor: pointer; }
@@ -271,7 +292,8 @@ export function mountWidget(): Widget {
         <button type="button" data-lang="es" lang="es" aria-pressed="true">Español</button>
         <button type="button" data-lang="en" lang="en" aria-pressed="false">English</button>
       </div>
-      <p class="error" hidden></p>
+      <div class="grant" hidden><p class="grant-note"></p></div>
+      <div class="error" hidden><p class="error-text"></p><button class="settings" type="button" hidden></button></div>
       <audio autoplay></audio>
     </div>
   `;
@@ -285,6 +307,9 @@ export function mountWidget(): Widget {
   const card = $<HTMLElement>(".card");
   const statusText = $<HTMLElement>(".status-text");
   const error = $<HTMLElement>(".error");
+  const errorText = $<HTMLElement>(".error-text");
+  const settings = $<HTMLButtonElement>(".settings");
+  const grant = $<HTMLElement>(".grant");
   const mute = $<HTMLButtonElement>(".mute");
   const hang = $<HTMLButtonElement>(".hang");
   const lang = $<HTMLElement>(".lang");
@@ -309,7 +334,7 @@ export function mountWidget(): Widget {
     if (bubble) return { w: BUBBLE, h: BUBBLE };
     let h = 0;
     let w = 0;
-    for (const child of [invite, card, lang, error]) {
+    for (const child of [invite, card, lang, grant, error]) {
       if (child.hidden || (child === lang && !card.hidden)) continue;
       const cw = child === card ? CARD : child.offsetWidth;
       const ch = child === card ? CARD + $<HTMLElement>(".body").offsetHeight : child.offsetHeight;
@@ -465,6 +490,8 @@ export function mountWidget(): Widget {
     mute.setAttribute("aria-label", words.muteLabel);
     hang.textContent = words.hang;
     $<HTMLElement>(".credit").textContent = words.credit;
+    $<HTMLElement>(".grant-note").textContent = words.grant;
+    settings.textContent = words.settings;
     lang.setAttribute("aria-label", words.language);
     const activity = root.dataset.activity as Activity | undefined;
     if (activity) statusText.textContent = words.activity[activity];
@@ -483,7 +510,8 @@ export function mountWidget(): Widget {
       // Under the invite it picks the next call's language; in the card, the call's.
       (card.hidden ? root : langSlot).insertBefore(lang, card.hidden ? error : null);
       error.hidden = status !== "error";
-      error.textContent = status === "error" ? (message ?? words.failed) : "";
+      errorText.textContent = status === "error" ? (message ?? words.failed) : "";
+      settings.hidden = true;
       if (status === "connecting") statusText.textContent = message ?? words.connecting;
       if (status === "live" && !root.dataset.activity) statusText.textContent = words.activity.listening;
       if (status !== "live") delete root.dataset.activity;
@@ -528,5 +556,24 @@ export function mountWidget(): Widget {
       languageFn = fn;
     },
     onHang: (fn) => hang.addEventListener("click", fn),
+    grant(src) {
+      grant.querySelector("iframe")?.remove();
+      grant.hidden = !src;
+      if (src) {
+        const frame = document.createElement("iframe");
+        // The extension's page asks for the microphone itself: the prompt
+        // names the extension, and the grant is the extension's.
+        frame.allow = "microphone";
+        frame.src = src;
+        grant.appendChild(frame);
+      }
+      settle();
+    },
+    blocked() {
+      this.paint("error", words.blocked);
+      settings.hidden = false;
+      settle();
+    },
+    onSettings: (fn) => settings.addEventListener("click", fn),
   };
 }

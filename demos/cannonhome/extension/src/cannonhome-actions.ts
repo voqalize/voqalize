@@ -216,7 +216,7 @@ function context(): PageContext {
 
 let emitter: ((event: string, payload: unknown) => void) | null = null;
 /** Outcomes that happened before anyone listened (a move left from the last
- *  page, finished before the call rejoined on this one). */
+ *  page, finished before this page heard from the call's holder). */
 const backlog: [string, unknown][] = [];
 /** The latest of each state report on this page, and what each listener was
  *  last sent, so a report is sent once and a late listener gets the latest. */
@@ -1890,7 +1890,7 @@ function start(next: (event: string, payload: unknown) => void): () => void {
 if (!window.voqalizeCannonhome) {
   styleThePage();
   watchUrl();
-  // The state is read at once (a call that rejoins after a load gets it the
+  // The state is read at once (a page that loads mid-call reports it the
   // moment it listens), and the move left from the last page is finished.
   void settled().then(readState);
   void finishLeftover();

@@ -8,7 +8,8 @@ and reads the dropdown, filters a category by size, colour, thread count and
 material, sorts it, opens a product and its specifications or photos, reads
 live prices, adds to the bag, takes a guest to the checkout's delivery form
 and fills in the delivery details they tell him. One call follows the visitor across every
-Cannon Home tab they have open. Everything he shows is the shop's own; the
+Cannon Home tab they have open, and through every full page load, without
+reconnecting. Everything he shows is the shop's own; the
 extension adds a corner widget and the ring he draws around what he is
 pointing at.
 
@@ -101,7 +102,7 @@ These are rules of the adapter, not of the prompt, so no brain can lift them:
   autocomplete, placeholder or label says RUT/RUN, password/contraseña,
   card/tarjeta, CVV and the like, or that sits in the payment step. The RUT
   is reported only as filled or missing.
-- The hub opens tabs only on cannonhome.cl (the bag and the delivery form,
+- The service worker opens tabs only on cannonhome.cl (the bag and the delivery form,
   never past them or its account pages) and on WhatsApp, which the site links
   as its sales chat.
 - Typing an email into the delivery form is the site's own business from
@@ -111,18 +112,94 @@ These are rules of the adapter, not of the prompt, so no brain can lift them:
   for them once the address changes. That is what the visitor's own typing
   does too.
 
+## How the call lives through page loads
+
+Magento loads a whole page for most moves (a product, a category, a search
+result, the bag). The call therefore does not live in a page: it lives in an
+**offscreen document of the extension** (`call.html`, `src/holder.ts`, "the
+holder"), which no page load touches.
+
+- **The holder** runs stock pipecat on `@voqalize/client-transport`, plays his
+  voice, keeps every open Cannon Home tab (by browser tab id: its port, where
+  it is, whether it is in front) and sends the brain `tabs_changed`, routes
+  each brain Action to the tab it belongs on, fires his cues as he speaks
+  (`src/narration.ts`) and relays to the pages what they need to draw his
+  face (`src/relay.ts`: pipecat's events, the avatar's sync channel, which the
+  holder opens and says hello on, and the mouth clock).
+- **Every page is a follower** (`src/content.ts`): the widget, his face
+  (the unchanged avatar against a stand-in client fed by the relay,
+  `src/follow.ts`), the site adapter, and the moves the holder sends it. It
+  reports what it shows up the port. Each page keeps one port to the holder
+  (`src/bridge.ts` in the isolated world, `src/hub.ts` in the page's world).
+- **The service worker** (`src/background.ts`) makes the holder on the first
+  press of the call button, with the reasons `USER_MEDIA` and `WEB_RTC` (they
+  keep the document alive through any silence; `AUDIO_PLAYBACK` alone closes
+  it after 30 s without sound), one at a time, and tells every Cannon Home
+  tab when it is up (`holder-up`): a port opened before the holder existed has
+  no one at the other end, so pages open theirs on that word. It also opens and
+  focuses tabs for his moves (an offscreen document has no `chrome.tabs`) and
+  keeps the language choice.
+- **The session is minted by the page.** On the call button the page calls
+  `sessions.connect` with the publishable key (its fetch carries
+  cannonhome.cl's Origin, which the key allows; a `chrome-extension://` origin
+  cannot be added to a publishable key) and hands the answer to the holder,
+  which connects.
+- **A move for a page that is loading waits for it.** When a page starts
+  loading another document it tells the holder (`leaving`); a move sent to
+  that tab meanwhile is kept and delivered when the next page says `hello`.
+  A move that itself loads a page finishes there (the adapter's
+  `sessionStorage` leftover, as before).
+- **The call ends** on End (any tab), when the call drops, or when no Cannon
+  Home page has been open for 15 s; the holder then closes. Reloading or
+  updating the extension ends it too.
+
+## The microphone, once
+
+The microphone is the extension's, not cannonhome.cl's: Chrome keeps the
+permission against `chrome-extension://<id>`, `chrome.contentSettings` cannot
+set it for that origin, and an offscreen document cannot show a prompt. So, on
+each press of the call button, the page asks the holder for the extension's
+microphone permission state first:
+
+- **granted**: the call starts.
+- **prompt** (the first call): the widget shows the extension's own page
+  `grant.html` in a frame (`<iframe allow="microphone">`), which asks at once.
+  Chrome's prompt names the extension ("Javier para Cannon Home wants to use
+  your microphone"); the visitor chooses *Allow*. The holder then reads the
+  state again: granted, the call starts. Should it still not be granted (the
+  grant was stored for the site rather than the extension, or it was *Allow
+  this time*), `grant.html` opens once in a tab of its own, asks the same way,
+  closes itself once answered, and the call starts.
+- **denied**: the widget says Chrome blocks the microphone for the extension,
+  with a button that opens `chrome://settings/content/microphone`, where the
+  visitor takes "Javier para Cannon Home" off the blocked list.
+
+## What the visitor sees
+
+The first time: the press, then Chrome's microphone prompt naming the
+extension under the widget (and, only if that grant does not hold, a short-
+lived tab with the same prompt), then Javier. After that, the press and
+Javier. Pages load as they always do; the widget comes back on each new page
+already live, his voice carries on across the load, and the moves he started
+finish on the page they land on.
+
+**His voice plays from the extension, not from the tab.** Muting the tab
+(right-click → Mute site) does not silence him; the widget's *Silenciarme*
+mutes the visitor's microphone, and *Colgar* ends the call. Chrome shows the
+microphone in use for the extension rather than for the tab.
+
 ## The CSP rule, and why
 
 cannonhome.cl sends an enforced `Content-Security-Policy` (Magento_Csp's long
 allow-list) on every page. `content.js` runs in the page's own world, so the
-page's policy binds it: its `connect-src` does not list our API, the call's
-signalling or the avatar's hosts, and `script-src` does not list the avatar
-runtime's host. Left alone, the call could not start. `rules.json` is a
+page's policy binds it: its `connect-src` does not list our API (the page
+mints the session) or the avatar's hosts, and `script-src` does not list the
+avatar runtime's host. Left alone, neither could load. `rules.json` is a
 `declarativeNetRequest` rule that **removes** `content-security-policy` and
 `content-security-policy-report-only` from `main_frame` responses of
 `cannonhome.cl` (which covers `www.`), for the visitor who installed this
 preview, on this site only. The site sends no `Permissions-Policy`, so the
-microphone needs nothing.
+grant frame's `allow="microphone"` is enough.
 
 ## What is in it
 
@@ -141,23 +218,33 @@ microphone needs nothing.
 - `src/anchors.ts`, `src/anchor.ts` — Chrome's translator kept off what the
   adapter matches on and reports (headings, filters, product names, the
   specifications, tab titles), from `document_start`.
+- `src/holder.ts`, `src/call.html` — the holder: the call, his voice, the
+  tab registry, the routing of each Action, the moves kept for loading tabs,
+  the 15 s rule (above); `src/call-client.ts` makes the pipecat client and
+  reads the microphone permission.
+- `src/relay.ts`, `src/follow.ts` — what crosses from the holder to the pages
+  for his face, and the stand-in client the avatar draws against.
 - `src/narration.ts` — the screen follows his voice: each cue fires when the
   call's spoken text reaches the first words of its sentence; a cue to
-  another page fires at once, so the load overlaps his reply.
-- `src/hub.ts`, `src/bridge.ts`, `src/background.ts` — the hub: the call's
-  relay runs through the extension's service worker, so it reaches tabs on
-  both cannonhome.cl and www.cannonhome.cl.
-- `src/tabs.ts` — Qween's one-call-every-tab relay, on the hub.
+  another page fires at once, so the load overlaps his reply. It runs in the
+  holder, so a load ends nothing.
+- `src/protocol.ts` — the messages between the pages, the holder and the
+  service worker.
+- `src/bridge.ts`, `src/hub.ts` — the page's port to the holder and its
+  requests of the service worker.
+- `src/background.ts` — the service worker (above).
+- `src/grant.ts`, `src/grant.html` — the extension's one-time microphone
+  grant (above).
 - `src/widget.ts` — the widget, in a shadow root, in Cannon Home's ink and
   sale red, in Lato. It sits bottom-left (WhatsApp owns the bottom-right),
   and moves up or minimises to keep clear of the WhatsApp tab, the bag drawer,
   the filters drawer and the phone's sticky add-to-cart bar. It has no
   microphone glyph, so it is not confused with the search box's own voice
-  search (GoPersonal's), which is hidden while a call is live.
-- `src/content.ts` — the call: stock pipecat with `@voqalize/client-transport`
-  as its media manager, one `sessions.connect` (`surface: "cannonhome-ext"`),
-  the avatar, the routing of each Action to the tab in front, and the rejoin
-  after every page load with the call's language kept.
+  search (GoPersonal's), which is hidden while a call is live. It also holds
+  the grant frame and the "microphone blocked" message.
+- `src/content.ts` — the page: the widget, his face, the adapter, the moves
+  the holder sends, and on the call button the microphone check and
+  `sessions.connect` (`surface: "cannonhome-ext"`).
 - `src/actions.gen.ts` — the Action and event unions, generated from the brain
   with `pnpm gen`. Regenerate after changing either.
 
@@ -178,7 +265,14 @@ runs the dev avatar runtime. `pnpm build:prod` reads `.env.prod` into
 
 Load `dist/` unpacked in `chrome://extensions`. The publishable key's allowed
 origins are the host pages' (`https://cannonhome.cl`,
-`https://www.cannonhome.cl`), because `content.js` runs in the page's world.
+`https://www.cannonhome.cl`), because the page mints the session.
+
+**The extension id is fixed.** `manifest.json` carries a `key` (an RSA public
+key; it is not a secret), so the unpacked extension has the same id from any
+folder and on any machine, and the microphone grant made once holds across
+rebuilds and moves. The private key is not in the repo and is not needed to
+load unpacked (only to pack a `.crx`). `dist/` and `dist-prod/` share the id:
+load one of them at a time.
 
 ## Tests
 
@@ -186,7 +280,19 @@ origins are the host pages' (`https://cannonhome.cl`,
 pnpm test:e2e
 ```
 
-Playwright, headless, no network: trimmed copies of the shop's pages
+Two suites, Playwright, headless, no network.
+
+`test/holder.spec.ts` loads the built extension (`VOQALIZE_TEST_BUILD=1`
+builds it into `test/.build/ext` with a stand-in call,
+`test/fake-call-client.ts`, a stand-in avatar and a made-up API) on pages
+served at cannonhome.cl's address, and checks the port protocol (the press,
+the session minted with the page's Origin and handed over, the state on the
+page, its events reaching the brain, mute and End), a move sent while the tab
+loads made on its next page's hello, the 15 s rule, and the microphone's
+branches with the permission query stubbed (granted, denied, prompt answered
+in the frame, prompt that needs the tab).
+
+`test/adapter.spec.ts` drives the adapter: trimmed copies of the shop's pages
 (`test/pages/`, made by `test/make-fixtures.mjs` from pages saved with the
 site's scripts run) are served at their real addresses, `/graphql`, the cart
 section and the search dropdown are answered with fixed bodies, and the few
