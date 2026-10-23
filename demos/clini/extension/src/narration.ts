@@ -15,16 +15,15 @@
  * of words before each, at a speaking pace. When the visitor talks over him,
  * what he had not reached yet is dropped: it was never said.
  *
- * Clini's pages load in full, so a cue that opens another page ends
- * this script mid-sentence. The cues still to come are handed over (`pending`)
- * and taken up by the next page (`restore`), where the call rejoins and the
- * rest of his sentence plays.
+ * This runs in the holder (`holder.ts`), with the call, so a cue that loads
+ * another page in the visitor's tab ends nothing here: the cues after it wait
+ * their turn, and the holder keeps the next one for that tab until its new
+ * page says hello.
  *
- * That rejoin drops the call for seconds (3 to 6 s from Chile), so a page the
- * brain can open ahead of the words comes as a `lead`, not anchored to any:
- * `now` opens it at once; `nod` once the nod now in the air has played, or at
- * once if no voice starts within a moment. The silence then falls on the nod
- * and the model's thinking, not on the answer.
+ * A page the brain can open ahead of the words comes as a `lead`, not
+ * anchored to any: `now` opens it at once; `nod` once the nod now in the air
+ * has played, or at once if no voice starts within a moment, so the page
+ * loads while the model is still thinking.
  */
 
 import type { Cue } from "./actions.gen";
@@ -67,8 +66,6 @@ export class Narration {
   private queue: Waiting[] = [];
   /** Fired, and waiting their turn behind the move before them. */
   private firing: Cue[] = [];
-  /** Set once the page is leaving: nothing more moves here. */
-  private held = false;
   private chain: Promise<void> = Promise.resolve();
   private speakingSince = 0;
   private textSince = false;
@@ -80,8 +77,15 @@ export class Narration {
   /** Between the voice starting and stopping. */
   private voiceOn = false;
 
-  /** @param move performs one cue; resolves once the page has moved. */
-  constructor(private readonly move: (cue: Cue) => Promise<void>) {}
+  /**
+   * @param move performs one cue; resolves once the page has moved.
+   * @param shown the address of the site tab a cue would move (the holder's,
+   *   never `location`: this runs in no page).
+   */
+  constructor(
+    private readonly move: (cue: Cue) => Promise<void>,
+    readonly shown: () => string | null,
+  ) {}
 
   add(cue: Cue): void {
     if (cue.lead === "now") return this.fire(cue);
@@ -89,11 +93,6 @@ export class Narration {
     this.queue.push({ cue, at: words(cue.at), from: Math.max(0, this.heard.length - 120), born: Date.now() });
     this.check();
     this.tick();
-  }
-
-  /** The cues not yet performed: fired and waiting, then queued. */
-  pending(): Cue[] {
-    return [...this.firing, ...this.leads, ...this.queue.map((q) => q.cue)];
   }
 
   /** A page to open once the nod has played: when the voice next stops, or
@@ -115,15 +114,17 @@ export class Narration {
     for (const cue of leads) this.fire(cue);
   }
 
-  /** Take up the cues the last page left (`pending`), as though just sent:
-   *  their words are still to be spoken. */
-  restore(cues: readonly Cue[]): void {
-    for (const cue of cues) this.add(cue);
-  }
-
-  /** The page is leaving: what has not moved yet stays pending, for the next. */
-  hold(): void {
-    this.held = true;
+  /** The call ended: nothing more moves. */
+  clear(): void {
+    this.queue = [];
+    this.firing = [];
+    this.leads = [];
+    if (this.leadTimer) clearTimeout(this.leadTimer);
+    this.leadTimer = null;
+    this.voiceOn = false;
+    this.speakingSince = 0;
+    if (this.stopTimer) clearTimeout(this.stopTimer);
+    this.stopTimer = null;
   }
 
   /** Spoken text, as the voice plays it. */
@@ -215,8 +216,9 @@ export class Narration {
     this.firing.push(cue);
     this.chain = this.chain
       .then(() => {
-        if (this.held) return;
-        this.firing.splice(this.firing.indexOf(cue), 1);
+        const i = this.firing.indexOf(cue);
+        if (i < 0) return; // cleared
+        this.firing.splice(i, 1);
         return this.move(cue);
       })
       .catch(() => {});
