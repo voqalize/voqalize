@@ -15,10 +15,10 @@
  * of words before each, at a speaking pace. When the visitor talks over him,
  * what he had not reached yet is dropped: it was never said.
  *
- * Santander Arena's pages load in full, so a cue that opens another page ends
- * this script mid-sentence. The cues still to come are handed over (`pending`)
- * and taken up by the next page (`restore`), where the call rejoins and the
- * rest of his sentence plays.
+ * This runs in the holder (`holder.ts`), with the call, so a cue that loads
+ * another page in the visitor's tab ends nothing here: the cues after it wait
+ * their turn, and the holder keeps the next one for that tab until its new
+ * page says hello.
  */
 
 import type { Cue } from "./actions.gen";
@@ -54,10 +54,13 @@ interface Waiting {
   born: number;
 }
 
-/** Whether `path` is another page than the one this tab shows. */
-function elsewhere(path: string): boolean {
+/** Whether `path` is another page than `url`, the one the visitor's site tab
+ *  shows (`null`: no site tab yet, so it is). */
+function elsewhere(path: string, url: string | null): boolean {
+  if (!url) return true;
   const strip = (p: string) => p.replace(/\/+$/, "").toLowerCase() || "/";
-  return strip(new URL(path, location.origin).pathname) !== strip(location.pathname);
+  const here = new URL(url);
+  return strip(new URL(path, here.origin).pathname) !== strip(here.pathname);
 }
 
 export class Narration {
@@ -65,23 +68,26 @@ export class Narration {
   private queue: Waiting[] = [];
   /** Fired, and waiting their turn behind the move before them. */
   private firing: Cue[] = [];
-  /** Set once the page is leaving: nothing more moves here. */
-  private held = false;
   private chain: Promise<void> = Promise.resolve();
   private speakingSince = 0;
   private textSince = false;
   private stopTimer: ReturnType<typeof setTimeout> | null = null;
   private clock: ReturnType<typeof setInterval> | null = null;
 
-  /** @param move performs one cue; resolves once the page has moved. */
-  constructor(private readonly move: (cue: Cue) => Promise<void>) {}
+  /**
+   * @param move performs one cue; resolves once the page has moved.
+   * @param shown the address of the site tab a cue would move.
+   */
+  constructor(
+    private readonly move: (cue: Cue) => Promise<void>,
+    private readonly shown: () => string | null,
+  ) {}
 
   add(cue: Cue): void {
     // A reply that opens on another page moves there at once, before he
-    // speaks: the page loads in full and the call rejoins, so a load started
-    // on his first words cut them off for seconds (dev). Started now, the load
-    // overlaps the reply being written, and he speaks on the new page.
-    if (cue.path && cue.word === 0 && !this.queue.length && !this.firing.length && elsewhere(cue.path)) {
+    // speaks: started now, the load overlaps the reply being written, and he
+    // speaks over the new page.
+    if (cue.path && cue.word === 0 && !this.queue.length && !this.firing.length && elsewhere(cue.path, this.shown())) {
       this.fire(cue);
       return;
     }
@@ -95,15 +101,13 @@ export class Narration {
     return [...this.firing, ...this.queue.map((q) => q.cue)];
   }
 
-  /** Take up the cues the last page left (`pending`), as though just sent:
-   *  their words are still to be spoken. */
-  restore(cues: readonly Cue[]): void {
-    for (const cue of cues) this.add(cue);
-  }
-
-  /** The page is leaving: what has not moved yet stays pending, for the next. */
-  hold(): void {
-    this.held = true;
+  /** The call ended: nothing more moves. */
+  clear(): void {
+    this.queue = [];
+    this.firing = [];
+    this.speakingSince = 0;
+    if (this.stopTimer) clearTimeout(this.stopTimer);
+    this.stopTimer = null;
   }
 
   /** Spoken text, as the voice plays it. */
@@ -187,8 +191,9 @@ export class Narration {
     this.firing.push(cue);
     this.chain = this.chain
       .then(() => {
-        if (this.held) return;
-        this.firing.splice(this.firing.indexOf(cue), 1);
+        const i = this.firing.indexOf(cue);
+        if (i < 0) return; // cleared
+        this.firing.splice(i, 1);
         return this.move(cue);
       })
       .catch(() => {});

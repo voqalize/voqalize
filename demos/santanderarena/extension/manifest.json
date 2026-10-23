@@ -3,6 +3,7 @@
   "name": "Javier for Santander Arena — Voqalize preview",
   "version": "0.0.0",
   "description": "A voice guide on santanderarena.cl, in Spanish or English, who answers from Santander Arena's own pages, takes visitors to the show, section or FAQ that answers them, and opens the Puntoticket page to buy. A Voqalize preview.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwNKo3+A517IG1s78g/s+e8zs0zZh5An0QOjsQhlfbjyUSS/2ROfmstyL0+T2joVsVThwGVzRKMrLdD3w4H2q/NwJGZIys9nIMABU1TPUCopTcGWA/R9twcVTvQbV+YlVE8atUNx/8PRF4XF1KzDD0591n/ZcklxZB8bv1VwMqhYOaARy13QqEO7Rk6b6ZYAC3UYVLsgbswh+BYULeBPeIZyxwORilbZCA7K7vshInFxfD0NJaNXTEhU1tSSlz1HI6d550+Eypy7dcX+g5YKRpwzw7jmvqg0lw0kQxWsrvvqrnNs2xSiwHv+5HE+0zVfBPVbG/qhOc1fUiuz6uMH8zQIDAQAB",
   "background": {
     "service_worker": "background.js",
     "type": "module"
@@ -15,13 +16,22 @@
     },
     {
       "matches": ["https://www.santanderarena.cl/*", "https://santanderarena.cl/*"],
+      "js": ["shell.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://www.santanderarena.cl/*", "https://santanderarena.cl/*"],
       "js": ["content.js"],
       "run_at": "document_idle",
       "world": "MAIN"
     }
   ],
-  "permissions": ["storage", "declarativeNetRequest"],
+  "permissions": ["storage", "declarativeNetRequest", "offscreen"],
   "host_permissions": ["https://www.santanderarena.cl/*", "https://santanderarena.cl/*"],
+  "web_accessible_resources": [
+    { "resources": ["grant.html", "grant.js"], "matches": ["https://www.santanderarena.cl/*", "https://santanderarena.cl/*"] }
+  ],
   "declarative_net_request": {
     "rule_resources": [{ "id": "microphone", "enabled": true, "path": "rules.json" }]
   }
