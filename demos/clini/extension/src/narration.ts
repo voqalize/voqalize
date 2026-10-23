@@ -15,10 +15,10 @@
  * of words before each, at a speaking pace. When the visitor talks over him,
  * what he had not reached yet is dropped: it was never said.
  *
- * Clini's pages load in full, so a cue that opens another page ends
- * this script mid-sentence. The cues still to come are handed over (`pending`)
- * and taken up by the next page (`restore`), where the call rejoins and the
- * rest of his sentence plays.
+ * This runs in the holder (`holder.ts`), with the call, so a cue that loads
+ * another page in the visitor's tab ends nothing here: the cues after it wait
+ * their turn, and the holder keeps the next one for that tab until its new
+ * page says hello.
  */
 
 import type { Cue } from "./actions.gen";
@@ -59,16 +59,21 @@ export class Narration {
   private queue: Waiting[] = [];
   /** Fired, and waiting their turn behind the move before them. */
   private firing: Cue[] = [];
-  /** Set once the page is leaving: nothing more moves here. */
-  private held = false;
   private chain: Promise<void> = Promise.resolve();
   private speakingSince = 0;
   private textSince = false;
   private stopTimer: ReturnType<typeof setTimeout> | null = null;
   private clock: ReturnType<typeof setInterval> | null = null;
 
-  /** @param move performs one cue; resolves once the page has moved. */
-  constructor(private readonly move: (cue: Cue) => Promise<void>) {}
+  /**
+   * @param move performs one cue; resolves once the page has moved.
+   * @param shown the address of the site tab a cue would move (the holder's,
+   *   never `location`: this runs in no page).
+   */
+  constructor(
+    private readonly move: (cue: Cue) => Promise<void>,
+    readonly shown: () => string | null,
+  ) {}
 
   add(cue: Cue): void {
     this.queue.push({ cue, at: words(cue.at), from: Math.max(0, this.heard.length - 120), born: Date.now() });
@@ -76,20 +81,13 @@ export class Narration {
     this.tick();
   }
 
-  /** The cues not yet performed: fired and waiting, then queued. */
-  pending(): Cue[] {
-    return [...this.firing, ...this.queue.map((q) => q.cue)];
-  }
-
-  /** Take up the cues the last page left (`pending`), as though just sent:
-   *  their words are still to be spoken. */
-  restore(cues: readonly Cue[]): void {
-    for (const cue of cues) this.add(cue);
-  }
-
-  /** The page is leaving: what has not moved yet stays pending, for the next. */
-  hold(): void {
-    this.held = true;
+  /** The call ended: nothing more moves. */
+  clear(): void {
+    this.queue = [];
+    this.firing = [];
+    this.speakingSince = 0;
+    if (this.stopTimer) clearTimeout(this.stopTimer);
+    this.stopTimer = null;
   }
 
   /** Spoken text, as the voice plays it. */
@@ -173,8 +171,9 @@ export class Narration {
     this.firing.push(cue);
     this.chain = this.chain
       .then(() => {
-        if (this.held) return;
-        this.firing.splice(this.firing.indexOf(cue), 1);
+        const i = this.firing.indexOf(cue);
+        if (i < 0) return; // cleared
+        this.firing.splice(i, 1);
         return this.move(cue);
       })
       .catch(() => {});

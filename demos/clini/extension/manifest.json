@@ -3,6 +3,7 @@
   "name": "Javier para Clini — Voqalize preview",
   "version": "0.0.0",
   "description": "A voice guide on www.clini.cl and its online booking, who answers from Clini's own pages and takes visitors to the part that answers them, in Spanish or English. A Voqalize preview.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3p3xkA6mf0LIoe9yPpCS+0wVG4Aj2O1MSmjLe/AZcZZoRbqHpKNFh/kksnqJpcSeo1Vg1Byznewls7t7guqt0hDY4o2l/7SI+JKpivmIMOdd16eGyCN7gu3gG5MbnRZjIwOkVj7NeYOfx6hluwwG6c6NNw94A+tiX34Kuv7a0kyotORburzLrHPXUsejUUk9/LLekwk8fRIUGfdex7nC4G2M2c+4m8/+laB4SuEF6dpuX576QOtyt7ZD7uWqILgGWFymSnrgUHFawkIyGraTvWP39gMWwT/ZkxgQaGLq5qTyhX6q3lG+xmsK0koq3qeiJckvBZqcBq3hBJH3XoCcQQIDAQAB",
   "background": {
     "service_worker": "background.js",
     "type": "module"
@@ -15,15 +16,24 @@
     },
     {
       "matches": ["https://www.clini.cl/*", "https://clini.cl/*", "https://agenda-web.clini.cl/*"],
+      "js": ["shell.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://www.clini.cl/*", "https://clini.cl/*", "https://agenda-web.clini.cl/*"],
       "js": ["content.js"],
       "run_at": "document_idle",
       "world": "MAIN"
     }
   ],
-  "permissions": ["storage"],
+  "permissions": ["storage", "offscreen"],
   "host_permissions": [
     "https://www.clini.cl/*",
     "https://clini.cl/*",
     "https://agenda-web.clini.cl/*"
+  ],
+  "web_accessible_resources": [
+    { "resources": ["grant.html", "grant.js"], "matches": ["https://www.clini.cl/*", "https://clini.cl/*", "https://agenda-web.clini.cl/*"] }
   ]
 }

@@ -1,0 +1,4 @@
+# Playwright outputs and the adapter bundle the end-to-end tests inject.
+test-results/
+playwright-report/
+test/.build/

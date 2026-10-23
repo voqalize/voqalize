@@ -48,7 +48,34 @@ export interface Widget {
   /** The visitor pressed a language on the toggle. */
   onLanguage(fn: (language: Language) => void): void;
   onHang(fn: () => void): void;
+  /** Show the extension's microphone grant page in a frame; `null` takes it away. */
+  grant(src: string | null): void;
+  /** Say that Chrome blocks the extension's microphone, with the way to the setting. */
+  blocked(): void;
+  onSettings(fn: () => void): void;
+  /** Where the visitor put it and whether it is minimised, for the next page. */
+  layout(): Layout;
+  /** Put it back where the last page had it. */
+  restore(layout: Layout): void;
+  /** The visitor moved it or minimised it. */
+  onLayout(fn: (layout: Layout) => void): void;
+  /** A still of his face over the face's slot, until the live face is drawn
+   *  (`unveil`); `null` for none. */
+  setPoster(url: string | null): void;
+  /** The live face is drawn: the poster fades out. */
+  unveil(): void;
 }
+
+/** Where the widget sits, as the visitor left it. */
+export interface Layout {
+  /** Its home corner: the distance from the viewport's left and bottom edges. */
+  home: { left: number; bottom: number };
+  minimised: boolean;
+}
+
+/** The widget's `view-transition-name`: across a same-origin page load in a
+ *  call, the page changes under it while it stays where it is (`persist.ts`). */
+export const TRANSITION_NAME = "voqalize-javier";
 
 // CLINI's palette, read off www.clini.cl: the pink of its "Reservar hora"
 // buttons (rgb(221, 52, 136)) for what the visitor presses, on a deep shade of
@@ -92,6 +119,10 @@ const WORDS = {
     language: "Idioma",
     connecting: "Conectando",
     failed: "No se pudo iniciar la llamada.",
+    grant: "La primera vez, Chrome pide el micrófono para la extensión de Javier.",
+    blocked:
+      "Chrome bloquea el micrófono para la extensión «Javier para Clini». En la configuración del micrófono, quítala de «No pueden usar el micrófono» y vuelve a llamar.",
+    settings: "Abrir la configuración",
     activity: { listening: "Escuchando", thinking: "Pensando", speaking: "Hablando" },
   },
   en: {
@@ -106,6 +137,10 @@ const WORDS = {
     language: "Language",
     connecting: "Connecting",
     failed: "Could not start the call.",
+    grant: "The first time, Chrome asks for the microphone for Javier's extension.",
+    blocked:
+      "Chrome blocks the microphone for the “Javier para Clini” extension. In the microphone settings, take it off “Not allowed to use your microphone”, then call again.",
+    settings: "Open the settings",
     activity: { listening: "Listening", thinking: "Thinking", speaking: "Speaking" },
   },
 } satisfies Record<Language, unknown>;
@@ -114,7 +149,7 @@ const STYLES = `
 :host { all: initial; }
 * { box-sizing: border-box; }
 .root {
-  position: fixed; left: 0; top: 0; z-index: 2147483001;
+  position: fixed; left: 0; top: 0; z-index: 2147483001; width: max-content; pointer-events: auto;
   display: flex; flex-direction: column; align-items: flex-start; gap: 10px;
   font-family: ${SANS}; color: ${INK}; font-size: 14px; font-synthesis: none;
   -webkit-font-smoothing: antialiased;
@@ -162,6 +197,11 @@ button { font: inherit; cursor: pointer; }
   transform-origin: 0 0; transition: transform 300ms ${EASE};
 }
 .face > * { width: 100%; height: 100%; }
+.poster {
+  position: absolute; inset: 0; background: ${RAISED} center / cover no-repeat;
+  transition: opacity 250ms ease; pointer-events: none;
+}
+.poster.gone { opacity: 0; }
 .minimise {
   position: absolute; top: 8px; right: 8px; width: 28px; height: 28px;
   display: grid; place-items: center; padding: 0; border-radius: 6px;
@@ -192,8 +232,16 @@ button { font: inherit; cursor: pointer; }
 .lang button[aria-pressed="true"] { background: ${BRAND}; color: ${ON_BRAND}; cursor: default; }
 .lang button.pending { opacity: 0.55; outline: 1px dashed ${BRAND}; outline-offset: -3px; }
 .lang button:focus-visible { outline: 2px solid ${INK}; outline-offset: 2px; }
+.grant { width: ${CARD + 20}px; background: ${CARD_BG}; border: 1px solid ${BRAND}; border-radius: 8px;
+  padding: 8px 10px 4px; box-shadow: 0 6px 18px rgba(0,0,0,0.3); }
+.grant-note { margin: 0 0 6px; font-size: 12px; line-height: 1.4; color: ${MUTED}; }
+.grant iframe { display: block; width: 100%; height: 76px; border: 0; border-radius: 6px; background: #fff; }
+.settings { margin-top: 8px; display: block; background: transparent; border: 1px solid ${LINE}; color: ${INK};
+  border-radius: 6px; padding: 6px 10px; font-size: 12px; }
+.settings:hover { border-color: ${INK}; }
 .error { color: ${INK}; background: ${CARD_BG}; border: 1px solid #EC0000; border-radius: 8px; padding: 8px 10px;
   font-size: 12px; line-height: 1.4; max-width: ${CARD + 20}px; margin: 0; box-shadow: 0 6px 18px rgba(0,0,0,0.3); }
+.error-text { margin: 0; }
 
 .root[data-min] .card { width: ${BUBBLE}px; border-radius: 50%; border-color: ${BRAND}; cursor: pointer; }
 .root[data-min] .frame { width: ${BUBBLE - 2}px; height: ${BUBBLE - 2}px; cursor: pointer; }
@@ -238,6 +286,7 @@ export function mountWidget(): Widget {
       <div class="card" hidden>
         <div class="frame">
           <div class="face"></div>
+          <div class="poster" hidden></div>
           <button class="minimise" type="button">
             <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M1 6h10" stroke="currentColor" stroke-width="1.4"/></svg>
           </button>
@@ -259,23 +308,38 @@ export function mountWidget(): Widget {
         <button type="button" data-lang="es" lang="es" aria-pressed="true">Español</button>
         <button type="button" data-lang="en" lang="en" aria-pressed="false">English</button>
       </div>
-      <p class="error" hidden></p>
+      <div class="grant" hidden><p class="grant-note"></p></div>
+      <div class="error" hidden><p class="error-text"></p><button class="settings" type="button" hidden></button></div>
       <audio autoplay></audio>
     </div>
   `;
   const root = shadow.querySelector<HTMLElement>(".root")!;
-  document.body.appendChild(host);
+  // A fixed, see-through box over the viewport that holds the widget
+  // (`contain` makes it the containing block of the fixed `.root`, so the
+  // widget is painted, and captured for a view transition, as this one
+  // element, which keeps its place across the page load). It takes no pointer
+  // events; the widget does. Set inline, so no rule of the page's reaches it.
+  host.style.cssText =
+    "position:fixed;left:0;top:0;width:100vw;height:100vh;margin:0;padding:0;border:0;pointer-events:none;" +
+    `z-index:2147483001;contain:layout style;view-transition-name:${TRANSITION_NAME}`;
+  // <html>, not <body>: at `document_start` (a call carried over from the
+  // last page, `shell.ts`) <html> is all there is.
+  document.documentElement.appendChild(host);
 
   const $ = <T extends Element>(sel: string) => shadow.querySelector<T>(sel)!;
   const invite = $<HTMLButtonElement>(".invite");
   const card = $<HTMLElement>(".card");
   const statusText = $<HTMLElement>(".status-text");
   const error = $<HTMLElement>(".error");
+  const errorText = $<HTMLElement>(".error-text");
+  const settings = $<HTMLButtonElement>(".settings");
+  const grant = $<HTMLElement>(".grant");
   const mute = $<HTMLButtonElement>(".mute");
   const hang = $<HTMLButtonElement>(".hang");
   const lang = $<HTMLElement>(".lang");
   const langSlot = $<HTMLElement>(".lang-slot");
   const langButtons = [...lang.querySelectorAll<HTMLButtonElement>("button")];
+  const poster = $<HTMLElement>(".poster");
 
   // ─── Where it sits ────────────────────────────────────────────────────
 
@@ -285,6 +349,8 @@ export function mountWidget(): Widget {
   let squeezed = false;
   let openedAnyway = false;
   let at = { x: 0, y: 0 };
+  let layoutFn: ((layout: Layout) => void) | null = null;
+  const layoutNow = (): Layout => ({ home: { ...home }, minimised });
 
   function showMinimised(): boolean {
     return !card.hidden && (minimised || (squeezed && !openedAnyway));
@@ -295,7 +361,7 @@ export function mountWidget(): Widget {
     if (bubble) return { w: BUBBLE, h: BUBBLE };
     let h = 0;
     let w = 0;
-    for (const child of [invite, card, lang, error]) {
+    for (const child of [invite, card, lang, grant, error]) {
       if (child.hidden || (child === lang && !card.hidden)) continue;
       const cw = child === card ? CARD : child.offsetWidth;
       const ch = child === card ? CARD + $<HTMLElement>(".body").offsetHeight : child.offsetHeight;
@@ -399,6 +465,7 @@ export function mountWidget(): Widget {
     };
     openedAnyway = squeezed || openedAnyway;
     place(true);
+    layoutFn?.(layoutNow());
   };
   root.addEventListener("pointerup", drop);
   root.addEventListener("pointercancel", drop);
@@ -419,6 +486,7 @@ export function mountWidget(): Widget {
     e.stopPropagation();
     minimised = true;
     place(true);
+    layoutFn?.(layoutNow());
   });
   card.addEventListener("click", () => {
     if (!root.hasAttribute("data-min")) return;
@@ -426,6 +494,7 @@ export function mountWidget(): Widget {
     if (squeezed) openedAnyway = true;
     place(true);
     settle();
+    layoutFn?.(layoutNow());
   });
 
   // ─── The language toggle, and the widget's own words ──────────────────
@@ -450,6 +519,8 @@ export function mountWidget(): Widget {
     mute.textContent = muted ? words.unmute : words.mute;
     hang.textContent = words.hang;
     $<HTMLElement>(".credit").textContent = words.credit;
+    $<HTMLElement>(".grant-note").textContent = words.grant;
+    settings.textContent = words.settings;
     lang.setAttribute("aria-label", words.language);
     const activity = root.dataset.activity as Activity | undefined;
     if (activity) statusText.textContent = words.activity[activity];
@@ -468,7 +539,8 @@ export function mountWidget(): Widget {
       // Under the invite it picks the next call's language; in the card, the call's.
       (card.hidden ? root : langSlot).insertBefore(lang, card.hidden ? error : null);
       error.hidden = status !== "error";
-      error.textContent = status === "error" ? (message ?? words.failed) : "";
+      errorText.textContent = status === "error" ? (message ?? words.failed) : "";
+      settings.hidden = true;
       if (status === "connecting") statusText.textContent = message ?? words.connecting;
       if (status === "live" && !root.dataset.activity) statusText.textContent = words.activity.listening;
       if (status !== "live") delete root.dataset.activity;
@@ -513,5 +585,44 @@ export function mountWidget(): Widget {
       languageFn = fn;
     },
     onHang: (fn) => hang.addEventListener("click", fn),
+    grant(src) {
+      grant.querySelector("iframe")?.remove();
+      grant.hidden = !src;
+      if (src) {
+        const frame = document.createElement("iframe");
+        // The extension's page asks for the microphone itself: the prompt
+        // names the extension, and the grant is the extension's.
+        frame.allow = "microphone";
+        frame.src = src;
+        grant.appendChild(frame);
+      }
+      settle();
+    },
+    blocked() {
+      this.paint("error", words.blocked);
+      settings.hidden = false;
+      settle();
+    },
+    onSettings: (fn) => settings.addEventListener("click", fn),
+    layout: layoutNow,
+    restore(layout) {
+      home = { left: layout.home.left, bottom: layout.home.bottom };
+      minimised = layout.minimised && !card.hidden;
+      place(false);
+    },
+    onLayout(fn) {
+      layoutFn = fn;
+    },
+    setPoster(url) {
+      poster.hidden = !url;
+      poster.classList.remove("gone");
+      poster.style.backgroundImage = url ? `url("${url}")` : "";
+    },
+    unveil() {
+      poster.classList.add("gone");
+      setTimeout(() => {
+        if (poster.classList.contains("gone")) poster.hidden = true;
+      }, 300);
+    },
   };
 }
