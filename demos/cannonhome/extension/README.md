@@ -41,6 +41,15 @@ anything goes on it; it is not how a customer would ship it.
   and reports `cart_state` (lines, count, subtotal and how far from free
   shipping).
 - **Show the bag** (`show_cart`): opens or closes the bag drawer.
+- **Change the bag** (`update_cart_item`): sets one line, found by its
+  product link, to a quantity, or takes it out with 0. In the drawer it presses
+  the line's own − / + (each posts by AJAX) or its bin and the *Aceptar* of the
+  "¿Seguro…?" window, once Knockout has bound them. On the bag page it sends
+  the request those send (`/checkout/sidebar/updateItemQty/` or
+  `removeItem/`, with the page's form key) and reloads the page as the page's
+  own controls do: live, once the bag page has reloaded, its own − and
+  *Quitar* stop answering. The move is checked on the page it loads; from the
+  checkout it goes to the bag page first. Reports `cart_state`.
 - **Go to the delivery form** (`start_checkout`): from the bag page (loaded
   first if needed) presses *Terminar pedido*, then, in the login window it
   opens, *Comprar como invitado*, a plain link to `/checkout`; if the window

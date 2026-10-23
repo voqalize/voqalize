@@ -1311,3 +1311,196 @@ async def test_one_checkout_move_at_a_time() -> None:
         ]
         await _page(rig, "command_done", {"command": "fill_checkout", "detail": "filled nombre"})
         assert _commands(rig, "fill_checkout")[-1] == _NO_FILL | {"phone": "912345678"}
+
+
+# ─── Changing the cart (a live call, 2026-10-23) ───────────────────────────────
+#
+# The visitor asked for one grey set and one blue; the grey one was added twice,
+# and when they asked him to fix it he said he could not change the cart and
+# told them to tap the minus themselves. He can now: update_cart_item sets a
+# line's quantity, or takes it out with 0, and the cart's answer is talked
+# through like any move's. The duplicate came from a move the model called in a
+# quiet spell (tools off, which it ignored) while the same add was still under
+# way; both are refused now.
+
+S2_LINE = {"name": STORE.products[S2].name, "path": S2, "qty": 1, "price": 28495}
+S2G_LINE = {"name": STORE.products[S2G].name, "path": S2G, "qty": 2, "price": 28495}
+TWO_LINES = {
+    "items": [S2G_LINE, S2_LINE],
+    "count": 3,
+    "subtotal": 85485,
+    "free_shipping_left": 64515,
+}
+
+
+def _cart_llm() -> ScriptedGemini:
+    return ScriptedGemini(
+        {
+            "Deja solo una gris.": reply_and_call(
+                "Te dejo una gris.", "update_cart_item", request={"line": S2G, "qty": 1}
+            ),
+            "Quita las blancas.": reply_and_call(
+                "Te saco las blancas.",
+                "update_cart_item",
+                request={"line": STORE.products[S2].name, "qty": 0},
+            ),
+            "Quita la toalla.": reply_and_call(
+                "Te saco la toalla.", "update_cart_item", request={"line": TOWEL, "qty": 0}
+            ),
+            "Deja dos grises.": reply_and_call(
+                "Te dejo dos.", "update_cart_item", request={"line": S2G, "qty": 2}
+            ),
+            "Pon once grises.": reply_and_call(
+                "Te pongo once.", "update_cart_item", request={"line": S2G, "qty": 11}
+            ),
+            "Agrega las grises.": reply_and_call(
+                "Te las agrego.", "add_to_cart", request={"path": S2G, "qty": 1}
+            ),
+            "¿Cuándo llegan?": reply_and_call(
+                "Te veo eso.", "add_to_cart", request={"path": S2G, "qty": 1}
+            ),
+            # The quiet spell after a move: this model calls a move anyway.
+            "The page answered what you sent it": reply_and_call(
+                "Ya está en tu carro.", "add_to_cart", request={"path": S2G, "qty": 1}
+            ),
+            "When will these items be deliverable?": reply(
+                "The items are in your cart. Deliveries come with no exact hour."
+            ),
+            "Sigamos.": reply("Claro, sigamos."),
+        }
+    )
+
+
+def _ignoring_tools_off(llm: ScriptedGemini) -> None:
+    """The model as it was on the call: it made a call in a request with
+    tools off. The fake drops such calls, so the request reaches it without
+    its tool config."""
+    answer = llm.answer
+
+    def ignoring(*, model: str, contents: object, config: types.GenerateContentConfig) -> object:
+        return answer(
+            model=model, contents=contents, config=config.model_copy(update={"tool_config": None})
+        )
+
+    llm.answer = ignoring
+
+
+async def test_he_changes_a_cart_line_and_takes_one_out_by_path_or_name() -> None:
+    llm = _cart_llm()
+    async with demo("cannonhome", llm) as rig:
+        await rig.driver.start_session(init={"path": "/checkout/cart"})
+        await _page(rig, "cart_state", TWO_LINES)
+        turn = await rig.driver.user_says("Deja solo una gris.")
+        check_turn(rig, turn)
+        assert _commands(rig, "update_cart_item") == [{"path": S2G, "qty": 1}]
+        # The page answers: the bag line has one now, talked through once.
+        await _page(rig, "cart_state", {**TWO_LINES, "items": [{**S2G_LINE, "qty": 1}, S2_LINE]})
+        await _page(
+            rig,
+            "command_done",
+            {"command": "update_cart_item", "detail": "set it to 1 in the bag (it had 2)"},
+        )
+        assert _idle_windows(rig)[-1] == _TALK_THROUGH_MS
+        await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
+        said = _texts(llm.captured_contents[-1])
+        assert "update_cart_item done: set it to 1 in the bag (it had 2)" in said
+        result = _every(llm.captured_contents[-1], "update_cart_item")[-1]
+        assert result.startswith(
+            f"Setting {STORE.products[S2G].name} to 1 in their cart (it has 2)."
+        )
+        assert "never that it is done" in result
+        # The cart line carries each line's path, for the next change.
+        assert f"{STORE.products[S2G].name} ({S2G}) x2" in _texts(llm.captured_contents[-1])
+        # By the name the cart shows: taken out with 0.
+        await rig.driver.user_says("Quita las blancas.")
+        assert _commands(rig, "update_cart_item")[-1] == {"path": S2, "qty": 0}
+        await _page(rig, "command_done", {"command": "update_cart_item", "detail": "took it out"})
+        await _page(rig, "cart_state", {**TWO_LINES, "items": [{**S2G_LINE, "qty": 1}], "count": 1})
+        # Not a line of the cart, nothing to change, or out of range: refused.
+        sent = len(_commands(rig, "update_cart_item"))
+        await rig.driver.user_says("Quita la toalla.")
+        await rig.driver.user_says("Deja dos grises.")
+        await rig.driver.user_says("Pon once grises.")
+        await rig.driver.user_says("Sigamos.")
+        refused = _every(llm.captured_contents[-1], "update_cart_item")
+        assert any(
+            r.startswith(f"Taking {STORE.products[S2].name} out of their cart.") for r in refused
+        )
+        assert any(f"'{TOWEL}' is not a line of their cart, which has:" in r for r in refused)
+        assert not any("Nothing to change" in r for r in refused)
+        assert any("the quantity is 0 (take it out) to 10" in r for r in refused)
+        # Two grey sets asked for while one is in the bag: that is a change.
+        assert _commands(rig, "update_cart_item")[sent:] == [{"path": S2G, "qty": 2}]
+        assert not {"start_checkout", "fill_checkout"} & set(rig.actions())
+
+
+async def test_a_cart_line_already_at_that_quantity_is_left_alone() -> None:
+    llm = _cart_llm()
+    async with demo("cannonhome", llm) as rig:
+        await rig.driver.start_session(init={"path": "/checkout/cart"})
+        await _page(rig, "cart_state", TWO_LINES)
+        await rig.driver.user_says("Deja dos grises.")
+        await rig.driver.user_says("Sigamos.")
+        result = _every(llm.captured_contents[-1], "update_cart_item")[-1]
+        assert (
+            result == f"Nothing to change: their cart already has 2 of {STORE.products[S2G].name}."
+        )
+        assert _commands(rig, "update_cart_item") == []
+
+
+async def test_the_prompt_lets_him_change_the_cart_and_says_saturday_is_shorter() -> None:
+    prompt = ch._prompt(STORE, ch.date(2030, 3, 4))
+    assert "call update_cart_item with that line's path from the cart line" in prompt
+    assert "Never tell them to change it themselves." in prompt
+    assert "change how many of a line they have or take it out" in prompt
+    assert "Saturdays shorter than weekdays: never one span for every day" in prompt
+    assert "Deliveries arrive Monday to Saturday" not in prompt
+
+
+async def test_a_move_the_model_calls_with_tools_off_is_refused_and_never_sent() -> None:
+    llm = _cart_llm()
+    _ignoring_tools_off(llm)
+    async with demo("cannonhome", llm) as rig:
+        await rig.driver.start_session(init={"path": S2G})
+        await rig.driver.user_says("Agrega las grises.")
+        assert _commands(rig, "add_to_cart") == [{"path": S2G, "qty": 1}]
+        await _page(rig, "cart_state", {**TWO_LINES, "items": [{**S2G_LINE, "qty": 1}], "count": 1})
+        await _page(rig, "command_done", {"command": "add_to_cart", "detail": "added 1"})
+        await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
+        # The quiet spell's model called add_to_cart again: refused, not sent.
+        assert _commands(rig, "add_to_cart") == [{"path": S2G, "qty": 1}]
+        await rig.driver.user_says("Sigamos.")
+        refused = _every(llm.captured_contents[-1], "add_to_cart")[-1]
+        assert refused.startswith("Not done, nothing was sent: this turn only talks through")
+
+
+async def test_the_same_move_asked_for_while_it_runs_is_not_sent_twice() -> None:
+    llm = _cart_llm()
+    async with demo("cannonhome", llm) as rig:
+        await rig.driver.start_session(init={"path": S2G})
+        await rig.driver.user_says("Agrega las grises.")
+        # On the call: the same add, called again before the page answered it.
+        await rig.driver.user_says("¿Cuándo llegan?")
+        assert _commands(rig, "add_to_cart") == [{"path": S2G, "qty": 1}]
+        await rig.driver.user_says("Sigamos.")
+        again = _every(llm.captured_contents[-1], "add_to_cart")[-1]
+        assert again.startswith("Not sent again: the page is already doing exactly this")
+        # Its answer sends nothing more: nothing was queued behind it.
+        await _page(rig, "cart_state", {**TWO_LINES, "items": [{**S2G_LINE, "qty": 1}], "count": 1})
+        assert _commands(rig, "add_to_cart") == [{"path": S2G, "qty": 1}]
+
+
+async def test_his_own_sentence_about_the_cart_never_opens_the_cart_page() -> None:
+    llm = _cart_llm()
+    async with demo("cannonhome", llm) as rig:
+        await rig.driver.start_session(init={"path": S2})
+        await rig.driver.user_says("When will these items be deliverable?")
+        paths = [c.get("path") for c in _commands(rig, "cue")]
+        assert "/checkout/cart" not in paths
+        # What they asked about is shown instead: the delivery policy.
+        assert paths[0] == DESPACHO
+
+
+def test_deliverable_is_asking_about_delivery() -> None:
+    assert ch.asked_page("When will these items be deliverable?") == DESPACHO
+    assert ch.asked_page("Do you deliver to Valparaíso?") == DESPACHO

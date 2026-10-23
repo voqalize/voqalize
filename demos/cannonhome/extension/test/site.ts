@@ -87,6 +87,35 @@ const CATALOGUE: Record<string, ReturnType<typeof gqlProduct>> = {
   "funda-plumon-king-stone-washed-taupe": gqlProduct("FPKSWT", "Funda Plumón King Stone Washed Taupe", "funda-plumon-king-stone-washed-taupe", 39990, 39990, "OUT_OF_STOCK"),
 };
 
+/** One line of a bag the test sets up (`serveSite(p, { bag })`), which the
+ *  site's cart endpoints then change as the live ones do. */
+export interface BagLine {
+  id: string;
+  name: string;
+  path: string;
+  qty: number;
+  price: number;
+}
+
+/** The cart section for `bag`, as Magento answers it. */
+export function bagSection(bag: BagLine[]) {
+  const subtotal = bag.reduce((n, l) => n + l.qty * l.price, 0);
+  return {
+    cart: {
+      summary_count: bag.reduce((n, l) => n + l.qty, 0),
+      subtotalAmount: `${subtotal}.0000`,
+      items: bag.map((l) => ({
+        item_id: l.id,
+        product_name: l.name,
+        product_url: `${ORIGIN}${l.path}`,
+        qty: l.qty,
+        product_price_value: l.price,
+      })),
+      freeShippingBar: bag.length ? { show: true, qualified: subtotal >= 150000, goal: 150000, remaining: Math.max(0, 150000 - subtotal) } : { show: false, remaining: 0 },
+    },
+  };
+}
+
 export interface Seen {
   graphql: { method: string; query: string; variables: Record<string, unknown> }[];
   autocomplete: string[];
@@ -98,6 +127,8 @@ export interface Seen {
   /** Every request but a GET the pages sent (graphql aside): nothing is ever
    *  submitted from the checkout. */
   sent: string[];
+  /** The bag, as the cart endpoints have left it (with `serveSite(p, { bag })`). */
+  bag: BagLine[];
 }
 
 /** The site's regions with the ids its comuna lists are asked by, and the
@@ -235,6 +266,7 @@ function simulateSite(): void {
       });
     }
     if (document.body.classList.contains("checkout-index-index")) simulateCheckout();
+    if ((window as unknown as { __statefulBag?: boolean }).__statefulBag) simulateBag();
     // The AJAX add-to-cart: no page load; the bag slides in.
     $<HTMLFormElement>("#product_addtocart_form")?.addEventListener("submit", (e) => {
       e.preventDefault();
@@ -248,6 +280,115 @@ function simulateSite(): void {
   };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", ready, { once: true });
   else ready();
+}
+
+/** The bag's own scripts, as far as the adapter meets them: the drawer's
+ *  lines and the bag page's rows drawn from the cart section; the drawer's −
+ *  and + post the line's new quantity by AJAX, its bin asks "¿Seguro…?" and
+ *  "Aceptar" removes the line; on the bag page every change reloads it, and
+ *  its Quitar is a `data-post` link. Declared inside `simulateSite`'s page so
+ *  it serializes with it. */
+function simulateBag(): void {
+  type Item = { item_id: string; product_name: string; product_url: string; qty: number; product_price_value: number };
+  const onBagPage = document.body.classList.contains("checkout-cart-index");
+  const clp = (n: number) => "$" + String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  const post = (url: string, body: Record<string, string>) =>
+    fetch(url, { method: "POST", headers: { "X-Requested-With": "XMLHttpRequest", "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ ...body, form_key: "fixture-key" }).toString() }).then((r) => r.json() as Promise<{ cart: { items: Item[] } }>);
+  // The live bag page's form carries Magento's form key; the saved copy had it taken out.
+  if (onBagPage) {
+    const key = document.querySelector<HTMLInputElement>("form#form-validate input[name=form_key]");
+    if (key) key.value = "fixture-key";
+    else document.querySelector("form#form-validate")?.insertAdjacentHTML("afterbegin", `<input name="form_key" type="hidden" value="fixture-key">`);
+  }
+  const lineTemplate = document.querySelector<HTMLElement>("#mini-cart .mc-line")?.cloneNode(true) as HTMLElement | undefined;
+  const rowTemplate = document.querySelector<HTMLElement>("tbody.cart.item")?.cloneNode(true) as HTMLElement | undefined;
+  const draw = (items: Item[]) => {
+    const counter = document.querySelector(".minicart-wrapper .counter-number");
+    if (counter) counter.textContent = String(items.reduce((n, i) => n + i.qty, 0));
+    const box = document.querySelector("#mini-cart");
+    if (box && lineTemplate) {
+      box.querySelectorAll(".mc-line").forEach((l) => l.remove());
+      for (const i of items) {
+        const l = lineTemplate.cloneNode(true) as HTMLElement;
+        l.id = `item--${i.item_id}`;
+        const a = l.querySelector<HTMLAnchorElement>(".mc-line__name a")!;
+        a.href = i.product_url;
+        a.textContent = i.product_name;
+        l.querySelector<HTMLElement>(".mc-line__remove")!.dataset.cartItem = i.item_id;
+        const input = l.querySelector<HTMLInputElement>("input.cart-item-qty")!;
+        input.value = String(i.qty);
+        input.dataset.cartItem = i.item_id;
+        input.dataset.itemQty = String(i.qty);
+        l.querySelector(".mc-price--now")!.textContent = clp(i.product_price_value);
+        box.appendChild(l);
+      }
+    }
+    const first = document.querySelector("tbody.cart.item");
+    if (onBagPage && first && rowTemplate) {
+      const table = first.parentElement!;
+      table.querySelectorAll("tbody.cart.item").forEach((r) => r.remove());
+      for (const i of items) {
+        const r = rowTemplate.cloneNode(true) as HTMLElement;
+        r.querySelectorAll<HTMLAnchorElement>(".product-item-name a, a.product-item-photo").forEach((a) => {
+          a.href = i.product_url;
+          if (a.closest(".product-item-name")) a.textContent = i.product_name;
+        });
+        const input = r.querySelector<HTMLInputElement>("input.qty")!;
+        input.value = String(i.qty);
+        input.dataset.cartItem = i.item_id;
+        r.querySelectorAll<HTMLElement>("button.btn-plus, button.btn-min").forEach((b) => (b.dataset.itemId = i.item_id));
+        r.querySelector(".col.price .cart-price .price")!.textContent = clp(i.qty * i.product_price_value);
+        r.querySelector("a.action-delete")!.setAttribute("data-post", JSON.stringify({ action: `${location.origin}/checkout/cart/delete/`, data: { id: i.item_id } }));
+        table.appendChild(r);
+      }
+      if (!items.length) table.insertAdjacentHTML("afterend", `<div class="cart-empty"><p>No tienes ningún artículo en tu carrito.</p></div>`);
+    }
+  };
+  void fetch("/customer/section/load/?sections=cart", { headers: { "X-Requested-With": "XMLHttpRequest" } })
+    .then((r) => r.json())
+    .then((b: { cart: { items: Item[] } }) => draw(b.cart.items));
+  const after = (b: { cart: { items: Item[] } }) => (onBagPage ? location.reload() : draw(b.cart.items));
+  document.addEventListener("click", (e) => {
+    const t = e.target as Element;
+    const step = t.closest<HTMLElement>("#minicart-content-wrapper .mc-qty__btn");
+    if (step) {
+      const input = step.closest(".mc-line")?.querySelector<HTMLInputElement>("input.cart-item-qty");
+      if (!input) return;
+      const qty = Number(input.value) + (step.classList.contains("btn-plus") ? 1 : -1);
+      if (qty < 1) return;
+      void post("/checkout/sidebar/updateItemQty/", { item_id: input.dataset.cartItem ?? "", item_qty: String(qty) }).then(after);
+      return;
+    }
+    const bin = t.closest<HTMLElement>("#minicart-content-wrapper .mc-line__remove");
+    if (bin) {
+      e.preventDefault();
+      const id = bin.dataset.cartItem ?? "";
+      document.body.insertAdjacentHTML(
+        "beforeend",
+        `<aside class="modal-popup confirm _show"><div class="modal-content">¿Seguro que desea eliminar este artículo del carrito de la compra?</div><footer><button class="action-secondary action-dismiss" type="button">Cancelar</button><button class="action-primary action-accept" type="button">Aceptar</button></footer></aside>`,
+      );
+      const modal = document.querySelector("aside.modal-popup.confirm._show")!;
+      modal.querySelector(".action-dismiss")!.addEventListener("click", () => modal.remove());
+      modal.querySelector(".action-accept")!.addEventListener("click", () => {
+        modal.remove();
+        void post("/checkout/sidebar/removeItem/", { item_id: id }).then(after);
+      });
+      return;
+    }
+    const row = t.closest<HTMLElement>("tbody.cart.item button.btn-plus, tbody.cart.item button.btn-min");
+    if (row) {
+      const input = row.closest("tbody")!.querySelector<HTMLInputElement>("input.qty")!;
+      const qty = Number(input.value) + (row.classList.contains("btn-plus") ? 1 : -1);
+      if (qty >= 1) void post("/checkout/sidebar/updateItemQty/", { item_id: row.dataset.itemId ?? "", item_qty: String(qty) }).then(() => location.reload());
+      return;
+    }
+    const remove = t.closest<HTMLElement>("a.action-delete[data-post]");
+    if (remove) {
+      e.preventDefault();
+      const id = (JSON.parse(remove.getAttribute("data-post") ?? "{}") as { data?: { id?: string } }).data?.id ?? "";
+      void post("/checkout/cart/delete/", { id }).then(() => location.assign("/checkout/cart/"));
+    }
+  });
 }
 
 /** The checkout's own scripts, as far as the adapter meets them. Declared
@@ -405,8 +546,8 @@ function simulateGoPersonal(o: GoPersonalTiming & { partial: string }): void {
 const ADAPTER = join(here, ".build", "adapter.js");
 
 /** Serve the site on `page`, with the adapter injected; what it was asked. */
-export async function serveSite(p: Page, opts: { goPersonal?: GoPersonalTiming } = {}): Promise<Seen> {
-  const seen: Seen = { graphql: [], autocomplete: [], goPersonal: [], sections: 0, pages: [], comunas: [], sent: [] };
+export async function serveSite(p: Page, opts: { goPersonal?: GoPersonalTiming; bag?: BagLine[] } = {}): Promise<Seen> {
+  const seen: Seen = { graphql: [], autocomplete: [], goPersonal: [], sections: 0, pages: [], comunas: [], sent: [], bag: (opts.bag ?? []).map((l) => ({ ...l })) };
   const adapter = readFileSync(ADAPTER, "utf8");
   // The dropdown starts closed, as the site renders it before typing.
   await p.addInitScript(() => {
@@ -419,7 +560,8 @@ export async function serveSite(p: Page, opts: { goPersonal?: GoPersonalTiming }
     });
   });
   await p.addInitScript(`window.__regions = ${JSON.stringify(REGIONS)};`);
-  await p.addInitScript(`${simulateCheckout.toString()}\n(${simulateSite.toString()})();`);
+  if (opts.bag) await p.addInitScript("window.__statefulBag = true;");
+  await p.addInitScript(`${simulateCheckout.toString()}\n${simulateBag.toString()}\n(${simulateSite.toString()})();`);
   if (opts.goPersonal) await p.addInitScript(simulateGoPersonal, { ...opts.goPersonal, partial: GP_PARTIAL });
   await p.addInitScript({
     content: `document.addEventListener("DOMContentLoaded", () => { ${adapter}\n }, { once: true });`,
@@ -437,7 +579,22 @@ export async function serveSite(p: Page, opts: { goPersonal?: GoPersonalTiming }
     }
     if (url.pathname.startsWith("/customer/section/load")) {
       seen.sections++;
-      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(CART_SECTION) });
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(opts.bag ? bagSection(seen.bag) : CART_SECTION) });
+    }
+    // The bag's endpoints, as the drawer and the bag page call them.
+    if (opts.bag && request.method() === "POST" && /^\/checkout\/(?:sidebar\/(?:updateItemQty|removeItem)|cart\/delete)\/?$/.test(url.pathname)) {
+      const form = new URLSearchParams(request.postData() ?? "");
+      const id = form.get("item_id") ?? form.get("id") ?? "";
+      if (url.pathname.startsWith("/checkout/sidebar/") && !form.get("form_key")) {
+        return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: false, error_message: "Invalid Form Key" }) });
+      }
+      if (url.pathname.includes("updateItemQty")) {
+        const line = seen.bag.find((l) => l.id === id);
+        if (line) line.qty = Number(form.get("item_qty"));
+      } else {
+        seen.bag = seen.bag.filter((l) => l.id !== id);
+      }
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, ...bagSection(seen.bag) }) });
     }
     if (url.pathname === "/__gp/search") {
       seen.goPersonal.push(url.searchParams.get("q") ?? "");
