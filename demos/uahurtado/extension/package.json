@@ -3,13 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Puts Javier, the uahurtado demo brain's guide, on the Universidad Alberto Hurtado's sites: a Chrome extension that injects the call widget and the site adapter on admision., postgrados. and www.uahurtado.cl, and carries one call across every tab, every page load and every host.",
+  "description": "Puts Javier, the uahurtado demo brain's guide, on the Universidad Alberto Hurtado's sites: a Chrome extension that injects the call widget and the site adapter on admision., postgrados. and www.uahurtado.cl, and holds one call, in an offscreen document, across every UAH tab, page load and host.",
   "scripts": {
     "build": "tsc --noEmit && AVATAR_RUNTIME=https://avatar.dev.voqalize.com/runtime/current.js node build.mjs",
     "typecheck": "tsc --noEmit",
     "gen": "cd ../.. && uv run voqalize types uahurtado/backend/protocol.py -o uahurtado/extension/src/actions.gen.ts",
     "build:prod": "tsc --noEmit && VOQALIZE_TARGET=prod VOQALIZE_ENV_FILE=.env.prod VOQALIZE_OUT_DIR=dist-prod node build.mjs",
-    "test:page": "node test/page.mjs"
+    "test:page": "node test/page.mjs",
+    "test:e2e": "VOQALIZE_TEST_BUILD=1 node build.mjs && playwright test"
   },
   "dependencies": {
     "@pipecat-ai/client-js": "^1.13.0",
@@ -18,7 +19,9 @@
     "@voqalize/client-transport": "0.4.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.57.0",
     "@types/chrome": "^0.0.287",
+    "@types/node": "^22.10.0",
     "esbuild": "^0.25.0",
     "playwright-core": "1.57.0",
     "typescript": "^5.8.3"

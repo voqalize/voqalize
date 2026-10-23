@@ -21,9 +21,15 @@ importers:
         specifier: 0.4.0
         version: 0.4.0(@pipecat-ai/client-js@1.14.0)(@pipecat-ai/small-webrtc-transport@1.11.0(@pipecat-ai/client-js@1.14.0))
     devDependencies:
+      '@playwright/test':
+        specifier: 1.57.0
+        version: 1.57.0
       '@types/chrome':
         specifier: ^0.0.287
         version: 0.0.287
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.20.5
       esbuild:
         specifier: ^0.25.0
         version: 0.25.12
@@ -208,6 +214,11 @@ packages:
     peerDependencies:
       '@pipecat-ai/client-js': ~1.14.0
 
+  '@playwright/test@1.57.0':
+    resolution: {integrity: sha512-6TyEnHgd6SArQO8UO2OMTxshln3QMWBtPGrOCgs3wVEmQmwyuNtB10IZMfmYDE0riwNR1cu4q+pPcxMVtaG3TA==}
+    engines: {node: '>=18'}
+    hasBin: true
+
   '@sentry-internal/browser-utils@8.55.2':
     resolution: {integrity: sha512-GnKod+gL/Y+1FUM/RGV8q6le1CoyiGbT40MitEK7eVwWe+bfTRq1gN7ioupyHFMUg1RlQkDQ4/sENmio/uow5A==}
     engines: {node: '>=14.18'}
@@ -246,6 +257,9 @@ packages:
 
   '@types/har-format@1.2.16':
     resolution: {integrity: sha512-fluxdy7ryD3MV6h8pTfTYpy/xQzCFC7m89nOH9y94cNqJ1mDIDPut7MnRHI3F6qRmh/cT2fUjG1MLdCNb4hE9A==}
+
+  '@types/node@22.20.5':
+    resolution: {integrity: sha512-U2+DNr+wSjpsTS/wZGYHq7GcwfuSmKiKvoPvK22zwTlRhU91yOniN4qRR5KhIjvif7ysw/dz/hKmfDH0Ris4aA==}
 
   '@voqalize/avatar@0.6.1':
     resolution: {integrity: sha512-mcLHqAlhSNFirH0snsPa/zoB1Mn3BBn18gdha/ws/ZaYT2NrWQS7eX+du0nLRjGkNpBRcktp2BH7Tba6bnVJHg==}
@@ -288,6 +302,11 @@ packages:
     resolution: {integrity: sha512-mQw+2fkQbALzQ7V0MY0IqdnXNOeTtP4r0lN9z7AAawCXgqea7bDii20AYrIBrFd/Hx0M2Ocz6S111CaFkUcb0Q==}
     engines: {node: '>=0.8.x'}
 
+  fsevents@2.3.2:
+    resolution: {integrity: sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==}
+    engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
+    os: [darwin]
+
   is-plain-object@2.0.4:
     resolution: {integrity: sha512-h5PpgXkWitc38BBMYawTYMWJHFZJVnBquFE57xFpjB8pJFiF6gZ+bU+WyI/yqXiFR5mdLsgYNaPe8uao6Uv9Og==}
     engines: {node: '>=0.10.0'}
@@ -308,6 +327,11 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
+  playwright@1.57.0:
+    resolution: {integrity: sha512-ilYQj1s8sr2ppEJ2YVadYBN0Mb3mdo9J0wQ+UuDhzYqURwSoW4n1Xs5vs7ORwgDGmyEh33tRMeS8KhdkMoLXQw==}
+    engines: {node: '>=18'}
+    hasBin: true
+
   rxjs@7.8.2:
     resolution: {integrity: sha512-dhKf903U/PQZY6boNNtAGdWbG85WAbjT/1xYoZIC7FAY0yWapOBQVsVrDl58W86//e1VpMNBtRV4MaXfdMySFA==}
 
@@ -325,6 +349,9 @@ packages:
     resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
     engines: {node: '>=14.17'}
     hasBin: true
+
+  undici-types@6.21.0:
+    resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
 
   uuid@11.1.1:
     resolution: {integrity: sha512-vIYxrBCC/N/K+Js3qSN88go7kIfNPssr/hHCesKCQNAjmgvYS2oqr69kIufEG+O4+PfezOH4EbIeHCfFov8ZgQ==}
@@ -436,6 +463,10 @@ snapshots:
       dequal: 2.0.3
       lodash: 4.18.1
 
+  '@playwright/test@1.57.0':
+    dependencies:
+      playwright: 1.57.0
+
   '@sentry-internal/browser-utils@8.55.2':
     dependencies:
       '@sentry/core': 8.55.2
@@ -478,6 +509,10 @@ snapshots:
   '@types/filewriter@0.0.33': {}
 
   '@types/har-format@1.2.16': {}
+
+  '@types/node@22.20.5':
+    dependencies:
+      undici-types: 6.21.0
 
   '@voqalize/avatar@0.6.1(@pipecat-ai/client-js@1.14.0)':
     optionalDependencies:
@@ -529,6 +564,9 @@ snapshots:
 
   events@3.3.0: {}
 
+  fsevents@2.3.2:
+    optional: true
+
   is-plain-object@2.0.4:
     dependencies:
       isobject: 3.0.1
@@ -540,6 +578,12 @@ snapshots:
   lodash@4.18.1: {}
 
   playwright-core@1.57.0: {}
+
+  playwright@1.57.0:
+    dependencies:
+      playwright-core: 1.57.0
+    optionalDependencies:
+      fsevents: 2.3.2
 
   rxjs@7.8.2:
     dependencies:
@@ -558,5 +602,7 @@ snapshots:
       rxjs: 7.8.2
 
   typescript@5.9.3: {}
+
+  undici-types@6.21.0: {}
 
   uuid@11.1.1: {}

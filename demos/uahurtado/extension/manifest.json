@@ -3,36 +3,45 @@
   "name": "Javier for Universidad Alberto Hurtado — Voqalize preview",
   "version": "0.0.0",
   "description": "A voice guide for prospective students on the Universidad Alberto Hurtado's sites, in Spanish or English: careers, fees, PAES weights, scholarships, campus, visits and postgraduate programmes, read from the university's own pages. A Voqalize preview.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAz/pPM1DVRH4yWYE52TSv23u5rGpm8b3g+HxcNQmZcXvMKo0QtnG5UAl6WjotHPhoVKO6aedzXrCFTm6CfmjV3bAuAI+KEjaSYt9gDXeCvvXmDyQBPW8pUL/GC9emgKAogrlKRB8VPjMG4au8SHTfqYp5Iygex3b7Rd2bTN3Rsvq33nUu968yLifJTPR9xWbudjJDyRCMhKndMrQA9LISWDuAunBZOtJ3QOLOq1MP0OQCiitQN3j1tTz4c0BjykgtaYTe0S6n6rxb/vve9VdeMVgQIj/JQilUTXZVThdLz8LsuZkl67PAU6e1vWHR0mMm187atm3LlcjipHRVL8paLQIDAQAB",
   "background": {
     "service_worker": "background.js",
     "type": "module"
   },
   "content_scripts": [
     {
-      "matches": [
-        "https://admision.uahurtado.cl/*",
-        "https://postgrados.uahurtado.cl/*",
-        "https://www.uahurtado.cl/*",
-        "https://uahurtado.cl/*"
-      ],
+      "matches": ["https://admision.uahurtado.cl/*", "https://postgrados.uahurtado.cl/*", "https://www.uahurtado.cl/*", "https://uahurtado.cl/*"],
       "js": ["bridge.js", "anchor.js"],
       "run_at": "document_start"
     },
     {
-      "matches": [
-        "https://admision.uahurtado.cl/*",
-        "https://postgrados.uahurtado.cl/*",
-        "https://www.uahurtado.cl/*",
-        "https://uahurtado.cl/*"
-      ],
+      "matches": ["https://admision.uahurtado.cl/*", "https://postgrados.uahurtado.cl/*", "https://www.uahurtado.cl/*", "https://uahurtado.cl/*"],
+      "js": ["shell.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://admision.uahurtado.cl/*", "https://postgrados.uahurtado.cl/*", "https://www.uahurtado.cl/*", "https://uahurtado.cl/*"],
       "js": ["content.js"],
       "run_at": "document_idle",
       "world": "MAIN"
     }
   ],
-  "permissions": ["storage", "declarativeNetRequest", "contentSettings"],
+  "permissions": ["storage", "declarativeNetRequest", "offscreen"],
   "host_permissions": ["https://*.uahurtado.cl/*", "https://uahurtado.cl/*"],
+  "web_accessible_resources": [
+    {
+      "resources": ["grant.html", "grant.js"],
+      "matches": ["https://admision.uahurtado.cl/*", "https://postgrados.uahurtado.cl/*", "https://www.uahurtado.cl/*", "https://uahurtado.cl/*"]
+    }
+  ],
   "declarative_net_request": {
-    "rule_resources": [{ "id": "microphone", "enabled": true, "path": "rules.json" }]
+    "rule_resources": [
+      {
+        "id": "microphone",
+        "enabled": true,
+        "path": "rules.json"
+      }
+    ]
   }
 }

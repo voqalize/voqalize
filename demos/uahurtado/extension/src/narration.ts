@@ -15,16 +15,16 @@
  * of words before each, at a speaking pace. When the visitor talks over him,
  * what he had not reached yet is dropped: it was never said.
  *
- * Every move between the university's pages is a full page load, often to
- * another host. A reply whose first cue goes to another page moves there at
- * once, before he speaks, so the load overlaps the reply being written. A cue
- * that leaves the page takes the cues after it (`drain`), and the page it
- * loads makes the ones already due on arrival and waits for his voice to reach
- * the others (`restore`). A load the visitor made themselves stops the moves
- * (`hold`) and leaves what was owed (`pending`) for the next page.
+ * This runs in the holder (`holder.ts`), with the call, so a cue that loads
+ * another page in the visitor's tab, on whichever of the university's hosts,
+ * ends nothing here: the cues after it wait their turn, and the holder keeps
+ * the next one for that tab until its new page says hello. A reply whose first
+ * cue goes to another page still moves there at once, before he speaks, so
+ * the load overlaps the reply being written.
  */
 
 import type { Cue } from "./actions.gen";
+import { elsewhereThan } from "./pages";
 
 /** Words a second, for cues timed by the clock. Javier's voice runs close to
  *  this; a little early is better than late. */
@@ -35,9 +35,6 @@ const NO_TEXT_MS = 1500;
 const AFTER_STOP_MS = 600;
 /** A cue whose words never come is dropped after this. */
 const STALE_MS = 45_000;
-/** A restored cue whose words never come (the voice finished during the page
- *  load) is made after this anyway. */
-const RESTORED_MS = 9000;
 
 /** Words as the voice and the brain both spell them (`backend/cues.py`): lower
  *  case, accents folded ("Música" is "musica", "año" is "ano"), odd
@@ -51,12 +48,6 @@ export const words = (text: string) =>
       .replace(/[’‘´`]/g, "'")
       .match(/[a-z0-9']+/g) ?? []
   ).join(" ");
-
-/** The cues a page left for the next: due now, and still waiting for words. */
-export interface Rest {
-  ready: Cue[];
-  waiting: Cue[];
-}
 
 interface Waiting {
   cue: Cue;
@@ -72,8 +63,6 @@ export class Narration {
   private queue: Waiting[] = [];
   /** Cues due, in order, not yet made: each waits for the move before it. */
   private due: Cue[] = [];
-  /** Set once the page is leaving: nothing more moves here. */
-  private held = false;
   private chain: Promise<void> = Promise.resolve();
   private speakingSince = 0;
   private textSince = false;
@@ -82,19 +71,18 @@ export class Narration {
 
   /**
    * @param move performs one cue; resolves once the page has moved.
-   * @param elsewhere whether a cue's `url` is another page than this one.
+   * @param shown the address of the UAH tab a cue would move (`null`: none).
    */
   constructor(
     private readonly move: (cue: Cue) => Promise<void>,
-    private readonly elsewhere: (url: string) => boolean,
+    private readonly shown: () => string | null,
   ) {}
 
   add(cue: Cue): void {
     // A reply that opens on another page moves there at once, before he
-    // speaks: the page loads in full and the call rejoins, so a load started
-    // on his first words cut them off for seconds (dev). Started now, the load
-    // overlaps the reply being written, and he speaks on the new page.
-    if (cue.url && cue.word === 0 && !this.queue.length && !this.due.length && this.elsewhere(cue.url)) {
+    // speaks: started now, the load overlaps the reply being written, and he
+    // speaks over the new page.
+    if (cue.url && cue.word === 0 && !this.queue.length && !this.due.length && elsewhereThan(cue.url, this.shown())) {
       this.fire(cue);
       return;
     }
@@ -144,40 +132,13 @@ export class Narration {
     this.speakingSince = 0;
   }
 
-  /** Take every cue not made yet — due, and waiting for its words — for the
-   *  page this one is about to load. */
-  drain(): Rest {
-    const rest = { ready: this.due, waiting: this.queue.map((q) => q.cue) };
-    this.due = [];
+  /** The call ended: nothing more moves. */
+  clear(): void {
     this.queue = [];
-    return rest;
-  }
-
-  /** The page is leaving: what has not moved yet stays, for the next page. */
-  hold(): void {
-    this.held = true;
-  }
-
-  /** What is still owed, without taking it (the page is leaving anyway). */
-  pending(): Rest {
-    return { ready: [...this.due], waiting: this.queue.map((q) => q.cue) };
-  }
-
-  /** What the page before left: the due cues are made now, the others when
-   *  the voice reaches their words, or shortly anyway. */
-  restore(rest: Rest): void {
-    for (const cue of rest.ready) this.fire(cue);
-    if (!rest.waiting.length) return;
-    const restored = rest.waiting.map((cue) => ({ cue, at: words(cue.at), from: 0, born: Date.now() }));
-    this.queue.push(...restored);
-    this.check();
-    this.tick();
-    setTimeout(() => {
-      const left = this.queue.filter((q) => restored.includes(q));
-      if (!left.length) return;
-      this.queue = this.queue.filter((q) => !left.includes(q));
-      for (const q of left) this.fire(q.cue);
-    }, RESTORED_MS);
+    this.due = [];
+    this.speakingSince = 0;
+    if (this.stopTimer) clearTimeout(this.stopTimer);
+    this.stopTimer = null;
   }
 
   private check(): void {
@@ -220,8 +181,7 @@ export class Narration {
     this.due.push(cue);
     this.chain = this.chain
       .then(() => {
-        // Leaving, or drained for the next page meanwhile: nothing to make here.
-        if (this.held) return;
+        // Cleared meanwhile (the call ended): nothing to make.
         const next = this.due.shift();
         return next ? this.move(next) : undefined;
       })

@@ -1,191 +1,137 @@
 /**
- * The hub: one call across every UAH tab, on all three of the university's
- * hosts.
+ * The extension's service worker: what neither a page nor the holder may do.
  *
- * Qween's tabs relay a call over a `BroadcastChannel` and claim it with a Web
- * Lock, and both are scoped to one origin. The university is three:
- * admision.uahurtado.cl (undergraduate admission), postgrados.uahurtado.cl and
- * www.uahurtado.cl, and every link between them is a full page load to another
- * origin. So the relay runs here, in the extension's service worker, which
- * every tab of every host reaches through `bridge.ts`:
- *
- *   - every message a tab posts is sent to every other tab, as a
- *     `BroadcastChannel` would, origin notwithstanding;
- *   - the call's claim (`lock`) is held here, by browser tab id, so a tab that
- *     loads another page — on any host — takes its own call back and no other
- *     tab can take it meanwhile;
- *   - what a page keeps for its tab's next page is held here, because
- *     `sessionStorage` does not cross hosts: once (`stash`/`take`) the move
- *     Javier sent before a load and the cues his voice had not reached; and
- *     until replaced (`keep`/`peek`) the transport's saved call and the
- *     call's language;
- *   - a page Javier opens in a new tab opens from here (`chrome.tabs.create`):
- *     the PAES simulator, a malla PDF; a page may only open a tab from the
- *     visitor's own click, and his move arrives over the call;
- *   - the site's own records are read from here (`rest`): the site's REST API
- *     answers CORS only for https://www.uahurtado.cl, so a page on admision
- *     cannot read postgrados, and the extension's `host_permissions` let the
- *     worker read both. One career or programme by slug, never a whole list
- *     (postgrados' takes two minutes), and never longer than four seconds.
- *
- * The worker may be stopped while nothing is happening; its state is kept in
- * `chrome.storage.session` so a restart forgets nothing. The visitor's choice
- * of language is in `chrome.storage.local`, for every host and every visit.
+ *   - It makes the holder, the offscreen document the call lives in
+ *     (`call.html`, `holder.ts`), on the visitor's first press of the call
+ *     button, one at a time however many tabs ask, and tells every UAH tab, on
+ *     all three hosts, when it is up (`holder-up`), so each page opens its port to it: a
+ *     port opened before the holder existed has no one at the other end. It
+ *     closes the holder when the holder says no page is left.
+ *     The reasons are USER_MEDIA and WEB_RTC, which keep the document alive
+ *     through any silence; AUDIO_PLAYBACK alone closes it after 30 s without
+ *     sound.
+ *   - It opens and focuses tabs for Javier's moves (`chrome.tabs`, which an
+ *     offscreen document has no access to): the PAES simulator, a malla PDF; a
+ *     page may only open a tab from the visitor's own click, and his moves
+ *     arrive over the call.
+ *   - It opens the microphone grant page in a tab of its own, when the grant
+ *     made in the widget's frame did not hold (see `grant.ts`), and closes it
+ *     once answered.
+ *   - It keeps the visitor's language choice, in `chrome.storage.local`, so it
+ *     holds on every host and the next visit.
+ *   - It keeps what a page leaves for the next page of its tab (`stash`/
+ *     `take`: the move a page was loaded to make), because `sessionStorage`
+ *     does not cross from one UAH host to another; in `chrome.storage.session`,
+ *     so a worker that was stopped meanwhile forgets nothing.
+ *   - It reads the site's own records (`rest`): the site's REST API answers
+ *     CORS only for https://www.uahurtado.cl, so a page on admision cannot read
+ *     postgrados, and the extension's `host_permissions` let the worker read
+ *     both. One career or programme by slug, never a whole list (postgrados'
+ *     takes two minutes), and never longer than four seconds.
  */
 
 import { htmlText } from "./text";
 
-interface Port extends chrome.runtime.Port {}
-
-/** Requests a tab makes of the hub, answered on the same port with `re`. */
-type Ask =
-  | { op: "whoami" }
-  | { op: "lock" }
-  | { op: "unlock" }
-  | { op: "open_tab"; url: string; active?: boolean; then?: unknown }
-  | { op: "focus_tab"; tab: number }
-  | { op: "stash"; key: string; value: unknown }
-  | { op: "take"; key: string }
-  | { op: "keep"; key: string; value: unknown }
-  | { op: "peek"; key: string }
-  | { op: "get_lang" }
-  | { op: "set_lang"; lang: "es" | "en" }
-  | { op: "rest"; kind: "carrera" | "programa"; slug: string };
-
-interface FromTab {
-  /** A relay message for every other tab. */
-  relay?: unknown;
-  /** A request for the hub, with the id its answer carries. */
-  ask?: Ask;
-  id?: number;
-}
-
-const ports = new Map<number, Set<Port>>();
-
-/** The pages Javier may open in a new tab: any host of uahurtado.cl — the
- *  three sites, the PAES simulator, a PDF on one of them. */
-const OPENABLE = /^https:\/\/([a-z0-9-]+\.)*uahurtado\.cl(\/|$)/i;
-
-/** The hosts a call moves between, as content-setting patterns. */
-const UAH_HOSTS = [
+const HOLDER = "call.html";
+const SITE_TABS = [
   "https://admision.uahurtado.cl/*",
   "https://postgrados.uahurtado.cl/*",
   "https://www.uahurtado.cl/*",
   "https://uahurtado.cl/*",
 ];
 
+/** Where the visitor's language choice is kept, in `chrome.storage.local`. */
+const LANG_KEY = "voqalize.uahurtado.lang";
+
+/** The pages Javier may open in a new tab: any host of uahurtado.cl — the
+ *  three sites, the PAES simulator, a PDF on one of them. Nothing else,
+ *  whatever the brain sends. */
+const OPENABLE = [/^https:\/\/([a-z0-9-]+\.)*uahurtado\.cl(\/|$)/i];
+
 /** How long a stashed move waits for its tab's next page. */
 const STASH_MS = 60_000;
 /** How long the site's record may take before the page reads without it. */
 const REST_DEADLINE_MS = 4000;
-const LANG_KEY = "voqalize.uahurtado.lang";
 
-/** How long a holder's tab may be without a port (a page loading) before its
- *  claim lapses, should the tab never come back. */
-const HOLDER_AWAY_MS = 20_000;
+/** How long the grant tab waits for the visitor's answer. */
+const GRANT_TAB_MS = 120_000;
 
-interface Holder {
-  tab: number;
-  /** When the holder's last port closed, or 0 while it is connected. */
-  awaySince: number;
+// ─── The holder ──────────────────────────────────────────────────────────
+
+let making: Promise<void> | null = null;
+let closing: Promise<void> | null = null;
+
+async function hasHolder(): Promise<boolean> {
+  const contexts = await chrome.runtime.getContexts({ contextTypes: [chrome.runtime.ContextType.OFFSCREEN_DOCUMENT] });
+  return contexts.length > 0;
 }
 
-async function holder(): Promise<Holder | null> {
-  const got = await chrome.storage.session.get("holder");
-  return (got.holder as Holder | undefined) ?? null;
+/** Make the holder unless it is there; one at a time. */
+async function ensureHolder(): Promise<void> {
+  if (closing) await closing;
+  if (await hasHolder()) return;
+  making ??= chrome.offscreen
+    .createDocument({
+      url: HOLDER,
+      reasons: [chrome.offscreen.Reason.USER_MEDIA, chrome.offscreen.Reason.WEB_RTC],
+      justification: "Holds the voice call with Javier across the Universidad Alberto Hurtado's page loads and hosts: the microphone, the WebRTC connection and his voice.",
+    })
+    .catch(async (error: unknown) => {
+      // Made meanwhile by another call: that is the one.
+      if (!(await hasHolder())) throw error;
+    })
+    .finally(() => {
+      making = null;
+    });
+  await making;
 }
 
-async function setHolder(next: Holder | null): Promise<void> {
-  if (next) await chrome.storage.session.set({ holder: next });
-  else await chrome.storage.session.remove("holder");
+async function closeHolder(): Promise<void> {
+  if (making) await making.catch(() => {});
+  closing ??= (async () => {
+    if (await hasHolder()) await chrome.offscreen.closeDocument().catch(() => {});
+  })().finally(() => {
+    closing = null;
+  });
+  await closing;
 }
 
-async function answer(tab: number, ask: Ask): Promise<unknown> {
-  switch (ask.op) {
-    case "whoami":
-      return { tab };
-    case "lock": {
-      const h = await holder();
-      const lapsed = h && h.awaySince && Date.now() - h.awaySince > HOLDER_AWAY_MS && !ports.has(h.tab);
-      if (!h || h.tab === tab || lapsed) {
-        await setHolder({ tab, awaySince: 0 });
-        return { ok: true };
-      }
-      return { ok: false };
-    }
-    case "unlock": {
-      const h = await holder();
-      if (h?.tab === tab) await setHolder(null);
-      return { ok: true };
-    }
-    case "open_tab": {
-      if (!OPENABLE.test(ask.url)) return { ok: false, error: `not a uahurtado.cl address: ${ask.url}` };
-      const created = await chrome.tabs.create({ url: ask.url, active: ask.active ?? true, openerTabId: tab });
-      // A move for the new page once it is up: kept until that tab asks.
-      if (ask.then !== undefined && created.id !== undefined) {
-        await chrome.storage.session.set({ [`pending:${created.id}`]: { value: ask.then, at: Date.now() } });
-      }
-      return { ok: true, tab: created.id };
-    }
-    case "focus_tab": {
-      const t = await chrome.tabs.update(ask.tab, { active: true });
-      if (t?.windowId !== undefined) await chrome.windows.update(t.windowId, { focused: true });
-      return { ok: true };
-    }
-    case "stash":
-      await chrome.storage.session.set({ [`${ask.key}:${tab}`]: { value: ask.value, at: Date.now() } });
-      return { ok: true };
-    case "take": {
-      const key = `${ask.key}:${tab}`;
-      const got = await chrome.storage.session.get(key);
-      await chrome.storage.session.remove(key);
-      const kept = got[key] as { value: unknown; at: number } | undefined;
-      // A page that never came (the load failed, the visitor went elsewhere)
-      // leaves its move behind; a stale one is not made on a later page.
-      return { value: kept && Date.now() - kept.at < STASH_MS ? kept.value : null };
-    }
-    case "keep": {
-      const key = `keep:${ask.key}:${tab}`;
-      if (ask.value === null || ask.value === undefined) await chrome.storage.session.remove(key);
-      else await chrome.storage.session.set({ [key]: ask.value });
-      // A call is live: the visitor let one UAH host hear them. The other
-      // hosts are other origins, which Chrome would ask again mid-call as the
-      // tab moves between them, so the microphone is allowed on all now.
-      if (ask.key === "call" && ask.value) await allowMicrophone();
-      return { ok: true };
-    }
-    case "peek": {
-      const key = `keep:${ask.key}:${tab}`;
-      const got = await chrome.storage.session.get(key);
-      return { value: got[key] ?? null };
-    }
-    case "get_lang": {
-      const got = await chrome.storage.local.get(LANG_KEY);
-      const lang = got[LANG_KEY];
-      return { lang: lang === "es" || lang === "en" ? lang : null };
-    }
-    case "set_lang": {
-      if (ask.lang !== "es" && ask.lang !== "en") return { ok: false };
-      await chrome.storage.local.set({ [LANG_KEY]: ask.lang });
-      return { ok: true };
-    }
-    case "rest":
-      return readRecord(ask.kind, ask.slug);
+/** Every UAH tab: the holder is up, open a port to it. */
+async function holderUp(): Promise<void> {
+  const open = await chrome.tabs.query({ url: SITE_TABS });
+  for (const t of open) {
+    if (t.id === undefined) continue;
+    chrome.tabs.sendMessage(t.id, { k: "holder-up" }).catch(() => {
+      /* A tab whose content script is not there (still loading, or older). */
+    });
   }
 }
 
-let micAllowed = false;
+// ─── The grant tab ───────────────────────────────────────────────────────
 
-async function allowMicrophone(): Promise<void> {
-  if (micAllowed || !chrome.contentSettings?.microphone) return;
-  micAllowed = true;
-  for (const primaryPattern of UAH_HOSTS) {
-    try {
-      await chrome.contentSettings.microphone.set({ primaryPattern, setting: "allow" });
-    } catch (error) {
-      console.warn("voqalize: could not allow the microphone on", primaryPattern, error);
-    }
-  }
+const grants = new Map<number, (result: string) => void>();
+
+async function grantTab(opener: number | undefined, lang: string): Promise<{ result: string }> {
+  const url = chrome.runtime.getURL(`grant.html?tab=1&lang=${lang === "en" ? "en" : "es"}`);
+  const tab = await chrome.tabs.create({ url, active: true, openerTabId: opener });
+  if (tab.id === undefined) return { result: "no tab" };
+  const id = tab.id;
+  const result = await new Promise<string>((resolve) => {
+    const timer = setTimeout(() => resolve("timeout"), GRANT_TAB_MS);
+    grants.set(id, (r) => {
+      clearTimeout(timer);
+      resolve(r);
+    });
+  });
+  grants.delete(id);
+  await chrome.tabs.remove(id).catch(() => {});
+  if (opener !== undefined) await focus(opener).catch(() => {});
+  return { result };
+}
+
+async function focus(tab: number): Promise<void> {
+  const t = await chrome.tabs.update(tab, { active: true });
+  if (t?.windowId !== undefined) await chrome.windows.update(t.windowId, { focused: true });
 }
 
 // ─── The site's own records ───────────────────────────────────────────────
@@ -227,62 +173,103 @@ async function readRecord(kind: "carrera" | "programa", slug: string): Promise<u
   }
 }
 
-// ─── Ports ────────────────────────────────────────────────────────────────
+// ─── Requests ────────────────────────────────────────────────────────────
 
-chrome.runtime.onConnect.addListener((port) => {
-  if (port.name !== "voqalize") return;
-  const tab = port.sender?.tab?.id;
-  if (tab === undefined) return port.disconnect();
-  (ports.get(tab) ?? ports.set(tab, new Set()).get(tab)!).add(port);
-  void holder().then((h) => {
-    if (h?.tab === tab && h.awaySince) void setHolder({ tab, awaySince: 0 });
-  });
+interface Ask {
+  to: "sw";
+  op: string;
+  url?: string;
+  tab?: number;
+  lang?: string;
+  result?: string;
+  key?: string;
+  value?: unknown;
+  kind?: "carrera" | "programa";
+  slug?: string;
+}
 
-  port.onMessage.addListener((msg: FromTab) => {
-    if (msg.ask) {
-      void answer(tab, msg.ask)
-        .catch((error: unknown) => ({ ok: false, error: String(error) }))
-        .then((result) => {
-          try {
-            port.postMessage({ re: msg.id, result });
-          } catch {
-            /* The tab went away before its answer. */
-          }
-        });
-      return;
+async function answer(ask: Ask, sender: chrome.runtime.MessageSender): Promise<unknown> {
+  switch (ask.op) {
+    case "ensure":
+      await ensureHolder();
+      return { ok: true };
+    case "has_holder":
+      return { up: await hasHolder() };
+    case "holder_up":
+      await holderUp();
+      return { ok: true };
+    case "holder_idle":
+      await closeHolder();
+      return { ok: true };
+    case "open_tab": {
+      const url = ask.url ?? "";
+      if (!OPENABLE.some((re) => re.test(url))) return { ok: false, error: `not an address Javier opens: ${url}` };
+      const created = await chrome.tabs.create({ url, active: true });
+      return { ok: true, tab: created.id };
     }
-    if (msg.relay === undefined) return;
-    for (const [other, set] of ports) {
-      if (other === tab) continue;
-      for (const p of set) {
-        try {
-          p.postMessage({ relay: msg.relay });
-        } catch {
-          /* Closed; onDisconnect tidies it. */
-        }
-      }
+    case "focus_tab":
+      if (ask.tab === undefined) return { ok: false };
+      await focus(ask.tab);
+      return { ok: true };
+    case "grant_tab":
+      return grantTab(sender.tab?.id, ask.lang ?? "es");
+    case "grant_done":
+      if (sender.tab?.id !== undefined) grants.get(sender.tab.id)?.(ask.result ?? "");
+      return { ok: true };
+    case "grant_url":
+      return { url: chrome.runtime.getURL("grant.html") };
+    case "open_settings":
+      await chrome.tabs.create({ url: "chrome://settings/content/microphone", active: true });
+      return { ok: true };
+    // The visitor's language on the widget's toggle, for both origins: a
+    // page's own storage is per origin.
+    case "get_lang": {
+      const got = await chrome.storage.local.get(LANG_KEY);
+      const lang = got[LANG_KEY];
+      return { lang: lang === "es" || lang === "en" ? lang : null };
     }
-  });
+    case "set_lang":
+      if (ask.lang !== "es" && ask.lang !== "en") return { ok: false };
+      await chrome.storage.local.set({ [LANG_KEY]: ask.lang });
+      return { ok: true };
+    // What a page keeps for the next page of its tab, on whichever host.
+    case "stash": {
+      const tab = sender.tab?.id;
+      if (tab === undefined || !ask.key) return { ok: false };
+      await chrome.storage.session.set({ [`${ask.key}:${tab}`]: { value: ask.value, at: Date.now() } });
+      return { ok: true };
+    }
+    case "take": {
+      const tab = sender.tab?.id;
+      if (tab === undefined || !ask.key) return { value: null };
+      const key = `${ask.key}:${tab}`;
+      const got = await chrome.storage.session.get(key);
+      await chrome.storage.session.remove(key);
+      const kept = got[key] as { value: unknown; at: number } | undefined;
+      // A page that never came (the load failed, the visitor went elsewhere)
+      // leaves its move behind; a stale one is not made on a later page.
+      return { value: kept && Date.now() - kept.at < STASH_MS ? kept.value : null };
+    }
+    case "rest":
+      return readRecord(ask.kind ?? "carrera", ask.slug ?? "");
+    default:
+      return { ok: false, error: `unknown request ${ask.op}` };
+  }
+}
 
-  port.onDisconnect.addListener(() => {
-    const set = ports.get(tab);
-    set?.delete(port);
-    if (set && set.size === 0) {
-      ports.delete(tab);
-      void holder().then((h) => {
-        if (h?.tab === tab) void setHolder({ tab, awaySince: Date.now() });
-      });
-    }
-  });
+chrome.runtime.onMessage.addListener((msg: Ask, sender, reply) => {
+  if (msg?.to !== "sw") return;
+  void answer(msg, sender)
+    .catch((error: unknown) => ({ ok: false, error: String(error) }))
+    .then(reply);
+  return true;
 });
 
-// A closed tab's claim goes with it, and anything it kept.
+// A closed tab: the holder forgets it, and any move kept for it.
 chrome.tabs.onRemoved.addListener((tab) => {
-  ports.delete(tab);
-  void chrome.storage.session.remove([
-    `pending:${tab}`, `cues:${tab}`, `keep:call:${tab}`, `keep:call-lang:${tab}`,
-  ]);
-  void holder().then((h) => {
-    if (h?.tab === tab) void setHolder(null);
+  grants.get(tab)?.("closed");
+  void chrome.storage.session.remove(`pending:${tab}`);
+  void hasHolder().then((up) => {
+    if (up) chrome.runtime.sendMessage({ to: "holder", op: "tab_removed", tab }).catch(() => {});
   });
 });

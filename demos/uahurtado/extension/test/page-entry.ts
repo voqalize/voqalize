@@ -1,6 +1,6 @@
 /**
  * The site adapter alone, for the page test (`page.mjs`): what `content.ts`
- * lends it in the extension — the hub's REST read, the microphone, the move
+ * lends it in the extension — the service worker's REST read, the microphone, the move
  * kept for the next page, a page load — is recorded here instead, and what it
  * reports is collected on `window.__uah`.
  */
