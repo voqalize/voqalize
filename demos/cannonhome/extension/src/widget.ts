@@ -61,7 +61,29 @@ export interface Widget {
   /** Say that Chrome blocks the extension's microphone, with the way to the setting. */
   blocked(): void;
   onSettings(fn: () => void): void;
+  /** Where the visitor put it and whether it is minimised, for the next page. */
+  layout(): Layout;
+  /** Put it back where the last page had it. */
+  restore(layout: Layout): void;
+  /** The visitor moved it or minimised it. */
+  onLayout(fn: (layout: Layout) => void): void;
+  /** A still of his face over the face's slot, until the live face is drawn
+   *  (`unveil`); `null` for none. */
+  setPoster(url: string | null): void;
+  /** The live face is drawn: the poster fades out. */
+  unveil(): void;
 }
+
+/** Where the widget sits, as the visitor left it. */
+export interface Layout {
+  /** Its home corner: the distance from the viewport's left and bottom edges. */
+  home: { left: number; bottom: number };
+  minimised: boolean;
+}
+
+/** The widget's `view-transition-name`: across a same-origin page load in a
+ *  call, the page changes under it while it stays where it is (`persist.ts`). */
+export const TRANSITION_NAME = "voqalize-javier";
 
 // Cannon Home's palette, read off the theme's stylesheet (styles-l.min.css):
 // its ink (#242128, the text, the black "Buscar" and "Finalizar compra" pills
@@ -139,7 +161,7 @@ const STYLES = `
 :host { all: initial; }
 * { box-sizing: border-box; }
 .root {
-  position: fixed; left: 0; top: 0; z-index: 2147483001;
+  position: fixed; left: 0; top: 0; z-index: 2147483001; width: max-content; pointer-events: auto;
   display: flex; flex-direction: column; align-items: flex-start; gap: 10px;
   font-family: ${SANS}; color: ${INK}; font-size: 14px; font-synthesis: none;
   -webkit-font-smoothing: antialiased;
@@ -187,6 +209,11 @@ button { font: inherit; cursor: pointer; }
   transform-origin: 0 0; transition: transform 300ms ${EASE};
 }
 .face > * { width: 100%; height: 100%; }
+.poster {
+  position: absolute; inset: 0; background: ${RAISED} center / cover no-repeat;
+  transition: opacity 250ms ease; pointer-events: none;
+}
+.poster.gone { opacity: 0; }
 .minimise {
   position: absolute; top: 8px; right: 8px; width: 28px; height: 28px;
   display: grid; place-items: center; padding: 0; border-radius: 6px;
@@ -271,6 +298,7 @@ export function mountWidget(): Widget {
       <div class="card" hidden>
         <div class="frame">
           <div class="face"></div>
+          <div class="poster" hidden></div>
           <button class="minimise" type="button">
             <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M1 6h10" stroke="currentColor" stroke-width="1.4"/></svg>
           </button>
@@ -298,8 +326,18 @@ export function mountWidget(): Widget {
     </div>
   `;
   const root = shadow.querySelector<HTMLElement>(".root")!;
+  // A fixed, see-through box over the viewport that holds the widget
+  // (`contain` makes it the containing block of the fixed `.root`, so the
+  // widget is painted, and captured for a view transition, as this one
+  // element, which keeps its place across the page load). It takes no pointer
+  // events; the widget does. Set inline, so no rule of the page's reaches it.
+  host.style.cssText =
+    "position:fixed;left:0;top:0;width:100vw;height:100vh;margin:0;padding:0;border:0;pointer-events:none;" +
+    `z-index:2147483001;contain:layout style;view-transition-name:${TRANSITION_NAME}`;
   // <html>, not <body>: cannonhome.cl sets `zoom: 0.8` on <body>, which would
-  // scale the widget and put it 20% short of every corner it aims for.
+  // scale the widget and put it 20% short of every corner it aims for. At
+  // `document_start` (a call carried over from the last page, `shell.ts`)
+  // <html> is all there is.
   document.documentElement.appendChild(host);
 
   const $ = <T extends Element>(sel: string) => shadow.querySelector<T>(sel)!;
@@ -315,6 +353,7 @@ export function mountWidget(): Widget {
   const lang = $<HTMLElement>(".lang");
   const langSlot = $<HTMLElement>(".lang-slot");
   const langButtons = [...lang.querySelectorAll<HTMLButtonElement>("button")];
+  const poster = $<HTMLElement>(".poster");
 
   // ─── Where it sits ────────────────────────────────────────────────────
 
@@ -324,6 +363,8 @@ export function mountWidget(): Widget {
   let squeezed = false;
   let openedAnyway = false;
   let at = { x: 0, y: 0 };
+  let layoutFn: ((layout: Layout) => void) | null = null;
+  const layoutNow = (): Layout => ({ home: { ...home }, minimised });
 
   function showMinimised(): boolean {
     return !card.hidden && (minimised || (squeezed && !openedAnyway));
@@ -438,6 +479,7 @@ export function mountWidget(): Widget {
     };
     openedAnyway = squeezed || openedAnyway;
     place(true);
+    layoutFn?.(layoutNow());
   };
   root.addEventListener("pointerup", drop);
   root.addEventListener("pointercancel", drop);
@@ -458,6 +500,7 @@ export function mountWidget(): Widget {
     e.stopPropagation();
     minimised = true;
     place(true);
+    layoutFn?.(layoutNow());
   });
   card.addEventListener("click", () => {
     if (!root.hasAttribute("data-min")) return;
@@ -465,6 +508,7 @@ export function mountWidget(): Widget {
     if (squeezed) openedAnyway = true;
     place(true);
     settle();
+    layoutFn?.(layoutNow());
   });
 
   // ─── The language toggle, and the widget's own words ──────────────────
@@ -575,5 +619,25 @@ export function mountWidget(): Widget {
       settle();
     },
     onSettings: (fn) => settings.addEventListener("click", fn),
+    layout: layoutNow,
+    restore(layout) {
+      home = { left: layout.home.left, bottom: layout.home.bottom };
+      minimised = layout.minimised && !card.hidden;
+      place(false);
+    },
+    onLayout(fn) {
+      layoutFn = fn;
+    },
+    setPoster(url) {
+      poster.hidden = !url;
+      poster.classList.remove("gone");
+      poster.style.backgroundImage = url ? `url("${url}")` : "";
+    },
+    unveil() {
+      poster.classList.add("gone");
+      setTimeout(() => {
+        if (poster.classList.contains("gone")) poster.hidden = true;
+      }, 300);
+    },
   };
 }

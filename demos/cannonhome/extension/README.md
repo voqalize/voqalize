@@ -153,6 +153,40 @@ holder"), which no page load touches.
   Home page has been open for 15 s; the holder then closes. Reloading or
   updating the extension ends it too.
 
+## The widget across a page load
+
+The call outlives a page load, and in a call the widget does too, as near as a
+page can: it is back the moment the next page shows, not once the page has
+parsed and Magento's scripts have run (that wait was 1 to 3 s with no widget
+and no face).
+
+- **What the page leaves.** While a call is on, `content.js` keeps a picture of
+  it in the tab's `sessionStorage` (`src/persist.ts`): live or connecting,
+  muted or not, the status line, the language, where the visitor put the widget
+  and whether it is minimised, the character's still, and the last frame his
+  face drew (read from the avatar's canvas every 3 s and as the page leaves).
+  It is taken away when the call ends, and is stale after 60 s.
+- **The early shell.** `shell.js` (`src/shell.ts`) runs in the page's world at
+  `document_start`, before any of the page's scripts. Off a call it reads that
+  one key and does nothing else. In a call it mounts the widget on `<html>` at
+  once, as the last page left it, with the last frame of his face as a still
+  where his face goes. `content.js` (still at `document_idle`) adopts that
+  widget instead of mounting another, asks the holder for the call's state as
+  before, starts building his face at once (`preloadAvatar`), and fades the
+  still out once the live face has drawn. Should the holder be gone (no
+  holder, or no word from it in 8 s), the carried widget goes back to the
+  invite.
+- **The view transition.** In a call both pages opt in to a cross-document
+  view transition (`@view-transition { navigation: auto }`, Chrome 126+): the
+  page that leaves (`content.js`, while a call is on) and the page that arrives
+  (`shell.js`, from what was kept). The widget's host has its own
+  `view-transition-name` (`voqalize-javier`), so the page fades under it in
+  150 ms while it stays where it is. The host is a see-through, fixed box over
+  the viewport that takes no pointer events (the widget inside it does), so it
+  is captured whole and in place. Older Chrome ignores the rule and loads the
+  page as before, with the widget still up early. Off a call no transition is
+  asked for.
+
 ## The microphone, once
 
 The microphone is the extension's, not cannonhome.cl's: Chrome keeps the
@@ -242,6 +276,8 @@ grant frame's `allow="microphone"` is enough.
   microphone glyph, so it is not confused with the search box's own voice
   search (GoPersonal's), which is hidden while a call is live. It also holds
   the grant frame and the "microphone blocked" message.
+- `src/shell.ts`, `src/persist.ts` — the early shell, what a page in a call
+  leaves for the next one, and the view transition (above).
 - `src/content.ts` — the page: the widget, his face, the adapter, the moves
   the holder sends, and on the call button the microphone check and
   `sessions.connect` (`surface: "cannonhome-ext"`).
@@ -288,7 +324,12 @@ builds it into `test/.build/ext` with a stand-in call,
 served at cannonhome.cl's address, and checks the port protocol (the press,
 the session minted with the page's Origin and handed over, the state on the
 page, its events reaching the brain, mute and End), a move sent while the tab
-loads made on its next page's hello, the 15 s rule, and the microphone's
+loads made on its next page's hello, the 15 s rule, the widget across a page
+load (in a call the next page has it, as the last page left it and with the
+kept frame of his face, two seconds before a page held back by a slow script
+has parsed, and a view transition reveals the page with the widget as its own
+group; off a call nothing mounts early and no transition is asked for; a call
+kept for a holder that is gone goes back to the invite), and the microphone's
 branches with the permission query stubbed (granted, denied, prompt answered
 in the frame, prompt that needs the tab).
 

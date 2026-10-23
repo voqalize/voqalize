@@ -66,6 +66,7 @@ export type HolderAsk =
 /** Requests a page makes of the service worker. */
 export type WorkerAsk =
   | { op: "ensure" }
+  | { op: "has_holder" }
   | { op: "grant_tab"; lang: Language }
   | { op: "grant_url" }
   | { op: "open_settings" }

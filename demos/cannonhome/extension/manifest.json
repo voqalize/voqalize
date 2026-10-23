@@ -16,6 +16,12 @@
     },
     {
       "matches": ["https://cannonhome.cl/*", "https://www.cannonhome.cl/*"],
+      "js": ["shell.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://cannonhome.cl/*", "https://www.cannonhome.cl/*"],
       "js": ["content.js"],
       "run_at": "document_idle",
       "world": "MAIN"
