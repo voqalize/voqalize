@@ -223,6 +223,8 @@ _QUESTION = _ES_QUESTION | frozenset(
         "ಎಷ್ಟು",
     ]
 )
+#: "No, and …": the "no" answers an offer, and what comes after it is new.
+_AND = frozenset(["y", "e", "and"])
 #: A mic check wants "yes, I can hear you" at once, not a nod.
 _NO_NOD = frozenset(["hear", "hearing", "audible", "mic", "sunai", "सुनाई"])
 _TOO_MUCH = frozenset(
@@ -376,6 +378,11 @@ _NO_VOCABULARY = Vocabulary()
 def classify(text: str, vocabulary: Vocabulary = _NO_VOCABULARY) -> Kind | None:
     """What the user's message asks of the brain, or ``None`` for no nod."""
     words = words_of(text)
+    if len(words) > 2 and words[0] == "no" and words[1] in _AND:
+        # "No, y quiero ir a Los Tres" declines the last offer and asks anew: it
+        # corrects nothing, and "thanks for letting me know" answered it on a
+        # Santander Arena call. What follows the "and" is the message.
+        words = words[2:]
     if not words or all(w in _SKIP for w in words) or _THANKS_OR_BYE & set(words):
         return None
     said = set(words)
