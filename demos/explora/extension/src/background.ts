@@ -21,11 +21,11 @@
  *     www.explora.com across origins (`hreflang.ts`).
  *
  * The worker may be stopped while nothing is happening; its state — the holder,
- * each tab's move for its next page (`pend`) and each tab's saved call
- * (`stash`) — is kept in `chrome.storage.session` so a restart forgets nothing.
+ * each tab's move for its next page (`pend`), each tab's saved call
+ * (`stash`) and the call's language (`call_lang`) — is kept in `chrome.storage.session` so a restart forgets nothing.
  */
 
-import { fetchAlternate } from "./hreflang";
+import { fetchAlternates } from "./hreflang";
 
 interface Port extends chrome.runtime.Port {}
 
@@ -40,6 +40,7 @@ type Ask =
   | { op: "pend"; then: unknown }
   | { op: "stash"; call: string | null }
   | { op: "unstash" }
+  | { op: "call_lang"; lang: string | null }
   | { op: "alternate"; url: string; lang: string };
 
 interface FromTab {
@@ -127,17 +128,30 @@ async function answer(tab: number, ask: Ask): Promise<unknown> {
       // Explora host now.
       if (ask.call) await allowMicrophone();
       if (ask.call) await chrome.storage.session.set({ [`call:${tab}`]: ask.call });
-      else await chrome.storage.session.remove(`call:${tab}`);
+      else await chrome.storage.session.remove([`call:${tab}`, `lang:${tab}`]);
       return { ok: true };
-    // The `lang` translation of a www.explora.com page, for the booking site.
+    // The call's language, for this tab's pages on both hosts: a page's own
+    // language is not the call's (a Spanish call may land on an English page).
+    case "call_lang":
+      if (ask.lang) await chrome.storage.session.set({ [`lang:${tab}`]: ask.lang });
+      else await chrome.storage.session.remove(`lang:${tab}`);
+      return { ok: true };
+    // The `lang` translation of a www.explora.com page, for the booking site,
+    // and for a page whose own fetch could not read it.
     case "alternate": {
-      if (!/^https:\/\/(www\.)?explora\.com\//i.test(ask.url)) return { url: null };
-      return { url: await fetchAlternate(ask.url, ask.lang).catch(() => null) };
+      if (!/^https:\/\/(www\.)?explora\.com\//i.test(ask.url)) return { url: null, read: false, error: "not a www.explora.com page" };
+      try {
+        const alts = await fetchAlternates(ask.url);
+        const read = Object.keys(alts).length > 0;
+        return { url: alts[ask.lang] ?? null, read, ...(read ? {} : { error: "the page named no translations" }) };
+      } catch (error) {
+        return { url: null, read: false, error: error instanceof Error ? `${error.name}: ${error.message}` : String(error) };
+      }
     }
     case "unstash": {
       const key = `call:${tab}`;
-      const got = await chrome.storage.session.get(key);
-      return { call: (got[key] as string | undefined) ?? null };
+      const got = await chrome.storage.session.get([key, `lang:${tab}`]);
+      return { call: (got[key] as string | undefined) ?? null, lang: (got[`lang:${tab}`] as string | undefined) ?? null };
     }
   }
 }
@@ -208,7 +222,7 @@ chrome.runtime.onConnect.addListener((port) => {
 // A closed tab's claim goes with it.
 chrome.tabs.onRemoved.addListener((tab) => {
   ports.delete(tab);
-  void chrome.storage.session.remove([`call:${tab}`, `pending:${tab}`]);
+  void chrome.storage.session.remove([`call:${tab}`, `lang:${tab}`, `pending:${tab}`]);
   void holder().then((h) => {
     if (h?.tab === tab) void setHolder(null);
   });

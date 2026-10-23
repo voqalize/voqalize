@@ -21,6 +21,7 @@ type Ask =
   | { op: "pend"; then: unknown }
   | { op: "stash"; call: string | null }
   | { op: "unstash" }
+  | { op: "call_lang"; lang: string | null }
   | { op: "alternate"; url: string; lang: string };
 
 let nextId = 1;
@@ -142,12 +143,25 @@ export async function pendingMove(): Promise<Then | null> {
   return got?.then ?? null;
 }
 
+let loads = 0;
+
+/** How many loads this page has started (`loadThen`): a move that should
+ *  have loaded another page and did not can be told from one that stayed. */
+export const loadsStarted = () => loads;
+
 /** Load `url` in this tab, with a move for the page it lands on to make once
  *  it is up (`pendingMove`), across hosts: the page itself goes, so the move
  *  is kept by the hub. */
 export async function loadThen(url: string, then?: Then): Promise<void> {
   if (then) await ask({ op: "pend", then });
+  loads++;
   location.href = url;
+}
+
+/** Keep a move for this tab's next page, should the page go before it is
+ *  done (a button that may load another page); `pendingMove` takes it back. */
+export async function pend(then: Then): Promise<void> {
+  await ask({ op: "pend", then });
 }
 
 /** The transport's saved call, kept by the hub for this tab, so a load to the
@@ -156,8 +170,14 @@ export async function stashCall(call: string | null): Promise<void> {
   await ask({ op: "stash", call });
 }
 
-/** The call this tab held on the other host, if it stashed one. */
-export async function unstashCall(): Promise<string | null> {
-  const got = await ask<{ call: string | null }>({ op: "unstash" });
-  return got?.call ?? null;
+/** The call this tab held on the other host, if it stashed one, and the
+ *  call's language as this tab last knew it. */
+export async function unstashCall(): Promise<{ call: string | null; lang: string | null }> {
+  const got = await ask<{ call: string | null; lang?: string | null }>({ op: "unstash" });
+  return { call: got?.call ?? null, lang: got?.lang ?? null };
+}
+
+/** The call's language, kept for this tab's every page on both hosts. */
+export async function stashLanguage(lang: string | null): Promise<void> {
+  await ask({ op: "call_lang", lang });
 }
