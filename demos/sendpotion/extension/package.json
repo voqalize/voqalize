@@ -7,6 +7,7 @@
   "scripts": {
     "build": "tsc --noEmit && AVATAR_RUNTIME=https://avatar.dev.voqalize.com/runtime/current.js node build.mjs",
     "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --no-warnings --test test/site.test.mjs",
     "gen": "cd ../.. && uv run voqalize types sendpotion/backend/brain.py -o sendpotion/extension/src/actions.gen.ts",
     "build:prod": "tsc --noEmit && VOQALIZE_ENV_FILE=.env.prod VOQALIZE_OUT_DIR=dist-prod node build.mjs"
   },
