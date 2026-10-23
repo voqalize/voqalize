@@ -37,6 +37,7 @@ __all__ = [
     "StayState",
     "TabInfo",
     "TabsChanged",
+    "TwinLookup",
 ]
 
 
@@ -142,6 +143,26 @@ class LanguageRequested(AppEvent):
     language: Literal["en", "es"]
 
 
+class TwinLookup(AppEvent):
+    """How the tab found the page a ``navigate`` named in the call's language,
+    just before it loaded it: the brain names English paths, and a Spanish
+    call loads each page's Spanish twin. Sent so a page that came up in the
+    wrong language can be traced to why."""
+
+    path: str
+    """The English path the brain named."""
+    language: Literal["en", "es"]
+    url: str = ""
+    """What was loaded."""
+    source: Literal["as-is", "here", "cache", "fetch", "hub", "fallback", "timeout"] = "fallback"
+    """Already in that language; the page in front's own links; this tab's
+    cache; a fetch of the page's head (from the page, or the extension's hub);
+    none found (the English page); or not found in time (the English page)."""
+    ms: int = 0
+    error: str = ""
+    """Why the page's head could not be read, when it could not."""
+
+
 type ExploraEvent = (
     PageChanged
     | TabsChanged
@@ -150,6 +171,7 @@ type ExploraEvent = (
     | EnquirySent
     | CommandFailed
     | LanguageRequested
+    | TwinLookup
 )
 
 EXPLORA_EVENTS = AppEvents[ExploraEvent](
@@ -160,4 +182,5 @@ EXPLORA_EVENTS = AppEvents[ExploraEvent](
     EnquirySent,
     CommandFailed,
     LanguageRequested,
+    TwinLookup,
 )

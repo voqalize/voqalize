@@ -60,9 +60,12 @@ import {
   UI_ACTION_COMMANDS,
   type UiAction,
 } from "./actions.gen";
-import { focusTab, HubChannel, loadThen, pendingMove, stashCall, type Then, tabId, takeCall, unstashCall } from "./hub";
+import {
+  focusTab, HubChannel, loadsStarted, loadThen, pendingMove, stashCall, stashLanguage, type Then, tabId, takeCall,
+  unstashCall,
+} from "./hub";
 import { Narration } from "./narration";
-import { type Lang, onSite, pageLanguage, pathLang, siteUrlIn } from "./site-language";
+import { type Lang, type Mapped, onSite, pageLanguage, pathLang, siteUrlIn } from "./site-language";
 import {
   followCall, type Following, forgetCopiedCall, gestureContext, here, holdCall, type Holding,
   inFront, type Relay, type TabInfo,
@@ -83,8 +86,11 @@ const MOUNTED = "__voqalizeExploraJavier";
  *  brain to answer a switch before it shows the language the call is still in. */
 const LANG_KEY = "voqalize.explora.lang";
 const SWITCH_WAIT_MS = 4000;
-/** The call's language as the brain last said it, kept for this tab's next
- *  page (per origin; the page's own language covers a move across hosts). */
+/** The call's language, kept for this tab's next page from the moment the
+ *  call starts: here per origin, and with the hub for a move across hosts.
+ *  Never the page's own language, which a Spanish call's English page is not
+ *  (prod call be1f5b9a: one English page, and every page after it was
+ *  English). */
 const CALL_LANG_KEY = "voqalize.explora.callLang";
 /** How long the page waits for him to finish confirming a language switch
  *  aloud before it loads the page in the new language. */
@@ -112,6 +118,14 @@ const QUIET_HOLD_MS = 300;
  *  then is made anyway; with no call to wait for, this long after mounting. */
 const MOVE_AFTER_REJOIN_MS = 10_000;
 const MOVE_WITHOUT_CALL_MS = 800;
+/** How long a `navigate` waits for its page's twin in the call's language
+ *  before it loads the English page as named (the brain then asks for the
+ *  twin from that page, whose own `<head>` names it). */
+const TWIN_WAIT_MS = 2000;
+/** A `navigate` that started a load and is still on this page this long
+ *  after is reported as failed, so the brain never talks about a page that
+ *  is not there. */
+const UNLOAD_WAIT_MS = 8000;
 
 /** The Actions that load a page of the other host when the tab in front is
  *  not on it: the booking steps from www.explora.com, a page from the
@@ -415,11 +429,14 @@ async function start(): Promise<void> {
         // `site_lang`: the language the site is followed in, from the start:
         // the visitor's choice, else the language of the page they are on
         // (a call started on /es/… is a Spanish visitor's).
+        const callLang: Language = chosen ?? pageLanguage() ?? "en";
         const init = {
           surface: "explora-ext", site: ctx.site, path: ctx.path, url: ctx.url, title: ctx.title,
-          site_lang: chosen ?? pageLanguage() ?? "en",
+          site_lang: callLang,
           ...(chosen ? { lang: chosen } : {}),
         };
+        // The call's language, for every page of it from now on.
+        setCallLanguage(callLang);
         const started = await next.startBot(connectRequest(init));
         await next.connect(withRealHeaders(started));
       }
@@ -571,8 +588,17 @@ async function start(): Promise<void> {
       // open there (`choose_room`, `send_enquiry`) fails at once instead.
       await paced(0);
     }
+    const loads = loadsStarted();
     const why = OURS.has(action.command) ? await ours(action) : await dispatch(action.command, action.payload);
     if (why && client === on) toBrain(me, { event: "command_failed", payload: { command, reason: why } });
+    // A load started here that never took the page away (prod call be1f5b9a:
+    // a page from the booking site that never came) is the brain's to know.
+    if (!why && action.command === "navigate" && loadsStarted() > loads) {
+      setTimeout(() => {
+        if (leaving || client !== on) return;
+        toBrain(me, { event: "command_failed", payload: { command, reason: "the page did not load; the screen has not moved" } });
+      }, UNLOAD_WAIT_MS);
+    }
   }
 
   /** The Actions the call performs itself. A failure comes back as words. */
@@ -581,11 +607,15 @@ async function start(): Promise<void> {
       case "focus_tab":
         return (await focusTab(action.payload.tab_id)) ? null : `no tab ${action.payload.tab_id} to bring forward`;
       // The brain's word that the call's language moved, by the toggle, by
-      // voice or on request: the toggle follows at once, on every tab.
-      case "language_changed":
-        setCallLanguage(action.payload.language);
-        void followSite(action.payload.language);
+      // voice or on request: the toggle follows at once, on every tab. At the
+      // call's start it is only recorded (`stay`); for a page that came up in
+      // the other language, only that page's own twin is loaded (`twin`).
+      case "language_changed": {
+        const { language: next, site = "follow" } = action.payload;
+        setCallLanguage(next);
+        if (site !== "stay") void followSite(next, site === "twin");
         return null;
+      }
       default:
         return `the call cannot ${action.command}`;
     }
@@ -598,8 +628,9 @@ async function start(): Promise<void> {
     try {
       sessionStorage.setItem(CALL_LANG_KEY, next);
     } catch {
-      /* Storage blocked: the next page goes by its own language. */
+      /* Storage blocked: the hub still has it. */
     }
+    void stashLanguage(next);
   }
 
   /**
@@ -608,19 +639,40 @@ async function start(): Promise<void> {
    * him off), the page in front loads its twin in that language. A `navigate`
    * that arrives meanwhile wins: it lands in the new language anyway.
    */
-  async function followSite(next: Lang): Promise<void> {
+  async function followSite(next: Lang, twin = false): Promise<void> {
     const seq = moves;
-    await settle(SITE_SWITCH_CAP_MS, true);
+    // A twin is asked for while he is quiet, waiting for it: no confirmation
+    // to wait for, only the end of what he is saying.
+    await settle(SITE_SWITCH_CAP_MS, !twin);
     if (moves !== seq || language !== next) return;
-    const why = await dispatch("site_language", { language: next });
-    if (why) console.info("voqalize: the page stays in its language:", why);
+    const why = await dispatch("site_language", { language: next, ...(twin ? { twin } : {}) });
+    if (!why) return;
+    console.info("voqalize: the page stays in its language:", why);
+    // The brain waits for the twin it asked for: tell it there is none.
+    if (twin) toBrain(me, { event: "command_failed", payload: { command: "language_changed", reason: why } });
   }
 
   /** A `navigate`'s path in the call's language: the brain names the English
    *  page, and in Spanish the page's Spanish twin is loaded. */
   async function inCallLanguage(p: Navigate): Promise<Navigate> {
     if (typeof p.path !== "string" || !p.path || pathLang(p.path) === language) return p;
-    const mapped = await siteUrlIn(language, p.path);
+    const lang = language;
+    const t0 = performance.now();
+    // Never held up past a moment: on prod call be1f5b9a a page from the
+    // booking site waited on the lookup and never loaded. Late, the English
+    // page loads, and the twin is asked for from it.
+    const late = sleep(TWIN_WAIT_MS).then((): Mapped => ({
+      url: new URL(p.path, SITE).href, source: "fallback", ms: Math.round(performance.now() - t0), error: "timeout",
+    }));
+    const mapped = await Promise.race([siteUrlIn(lang, p.path), late]);
+    // How it was found goes to the brain, so a wrong-language page is traced.
+    toBrain(me, {
+      event: "twin_lookup",
+      payload: {
+        path: p.path, language: lang, url: mapped.url, ms: mapped.ms, error: mapped.error ?? "",
+        source: mapped.error === "timeout" && mapped.source === "fallback" ? "timeout" : mapped.source,
+      },
+    });
     return mapped.url === p.path ? p : { ...p, path: mapped.url };
   }
 
@@ -677,7 +729,7 @@ async function start(): Promise<void> {
     narration,
     // The brain's `language_changed`, as if it had arrived (no voice to wait
     // for off a call), and the call's language as the page now has it.
-    setLanguage: (next: Language) => ours({ command: "language_changed", payload: { language: next } }),
+    setLanguage: (next: Language) => ours({ command: "language_changed", payload: { language: next, site: "follow" } }),
     language: () => language,
     // A `navigate` path in the call's language, and what finding it cost.
     mapPath: (path: string) => siteUrlIn(language, path),
@@ -923,7 +975,7 @@ async function start(): Promise<void> {
 
   // A call this tab held on the other host: its saved record is put where the
   // transport looks for it, before `prepare` asks whether there is one.
-  const stashed = await unstashCall();
+  const { call: stashed, lang: stashedLang } = await unstashCall();
   if (stashed && stashed !== readCall()) {
     try {
       sessionStorage.setItem(CALL_KEY, stashed);
@@ -936,8 +988,9 @@ async function start(): Promise<void> {
   spare = prepare();
   const rejoining = spare.transport.hasLiveCall;
   if (rejoining) {
-    // The call's language, as the brain last said it on this host.
-    const was = callLanguage();
+    // The call's language, as this tab knows it (the hub's crosses hosts),
+    // never this page's: an English page in a Spanish call stays a Spanish call.
+    const was = asLanguage(stashedLang) ?? callLanguage();
     if (was && was !== language) showLanguage(was);
     void connect(true);
   } else post({ k: "hello", from: me });
@@ -967,6 +1020,10 @@ function storedLanguage(): Language | null {
   } catch {
     return null;
   }
+}
+
+function asLanguage(v: string | null | undefined): Language | null {
+  return v === "es" || v === "en" ? v : null;
 }
 
 /** The call's language as this tab's last page on this host knew it. */
