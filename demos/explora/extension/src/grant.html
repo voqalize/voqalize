@@ -1,0 +1,25 @@
+<!doctype html>
+<!-- The microphone grant for the extension (grant.ts): in the widget's frame
+     on an Explora page, or in a tab of its own. Dressed as the widget is, in
+     Explora's black, white and sand. -->
+<html lang="en">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Javier — microphone</title>
+<style>
+  html, body { margin: 0; background: transparent; }
+  body { font: 12px/1.45 "Helvetica Neue", Arial, sans-serif; color: #1a1a1a; padding: 8px 10px; }
+  body.tab { background: #fff; max-width: 34rem; margin: 15vh auto; font-size: 16px; padding: 24px;
+    border: 1px solid #e3ddd2; border-radius: 2px; }
+  p { margin: 0 0 6px; }
+  button { font: inherit; font-weight: 700; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: #fff; background: #000; border: 1px solid #000; border-radius: 2px; padding: 7px 12px; cursor: pointer; }
+  button:focus-visible { outline: 2px solid #C2410C; outline-offset: 2px; }
+  button[hidden] { display: none; }
+</style>
+<body>
+  <p id="say"></p>
+  <button id="again" type="button" hidden></button>
+  <script src="grant.js"></script>
+</body>
+</html>

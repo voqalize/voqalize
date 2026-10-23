@@ -17,7 +17,7 @@
  */
 
 import { fetchAlternates } from "./hreflang";
-import { ask } from "./hub";
+import { askWorker } from "./hub";
 
 export type Lang = "en" | "es";
 
@@ -119,7 +119,7 @@ export interface Mapped {
   /** The URL to load. */
   url: string;
   /** Where it came from: already in that language, this page, the cache, a
-   *  fetch from the page, a fetch from the hub, or the English page because
+   *  fetch from the page, a fetch from the service worker (`hub`), or the English page because
    *  none was found. */
   source: "as-is" | "here" | "cache" | "fetch" | "hub" | "fallback";
   ms: number;
@@ -129,11 +129,12 @@ export interface Mapped {
 
 const why = (error: unknown) => (error instanceof Error ? `${error.name}: ${error.message}` : String(error));
 
-/** The page's translations as the hub reads them: the extension's service
- *  worker, which no script of the page can wrap or block. */
+/** The page's translations as the extension's service worker reads them
+ *  (still `source: "hub"` for the brain), which no script of the page can
+ *  wrap or block. */
 async function alternatesFromHub(url: string, lang: Lang): Promise<{ url: string | null; read: boolean; error?: string }> {
-  const got = await ask<{ url: string | null; read?: boolean; error?: string }>({ op: "alternate", url, lang }, 6000);
-  if (!got) return { url: null, read: false, error: "the hub did not answer" };
+  const got = await askWorker<{ url: string | null; read?: boolean; error?: string }>({ op: "alternate", url, lang }, 6000);
+  if (!got) return { url: null, read: false, error: "the service worker did not answer" };
   return { url: got.url, read: got.read ?? Boolean(got.url), error: got.error };
 }
 
@@ -196,7 +197,7 @@ export function siteUrlIn(lang: Lang, path: string): Promise<Mapped> {
       }
     }
     // The booking site may not read www.explora.com, and a script of the page
-    // may wrap its fetch: the hub reads it from the extension instead.
+    // may wrap its fetch: the service worker reads it from the extension instead.
     if (!found && !read) {
       const got = await alternatesFromHub(target.href, lang);
       found = got.url;
