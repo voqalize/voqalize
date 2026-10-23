@@ -85,7 +85,7 @@ const NARRATION_MAX_AGE_MS = 30_000;
  *  one in front, else the one last in front, else a new one. */
 const SITE_COMMANDS = new Set([
   "search_products", "filter_listing", "open_product", "check_prices", "add_to_cart", "show_cart",
-  "start_checkout", "fill_checkout", "navigate", "show_section", "open_faq",
+  "update_cart_item", "start_checkout", "fill_checkout", "navigate", "show_section", "open_faq",
 ]);
 /** The Actions the holder performs itself rather than a page. */
 const OURS = new Set(["focus_tab", "cue", "language_changed"]);
@@ -428,7 +428,7 @@ async function start(): Promise<void> {
         const path =
           command === "filter_listing"
             ? (p.category_path ?? "/")
-            : command === "start_checkout" || command === "fill_checkout"
+            : command === "start_checkout" || command === "fill_checkout" || command === "update_cart_item"
               ? "/checkout/cart/"
               : (p.path ?? "/");
         return openTab(new URL(path, SITE).href, { command, payload });

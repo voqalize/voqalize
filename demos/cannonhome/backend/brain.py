@@ -21,7 +21,7 @@ listing, the search box's suggestions, a ``check_prices`` read or the cart.
 Without one he says he cannot see it right now and opens the product.
 
 **Delivery details, yes; the RUT and the payment, never.** He may add to the
-cart (it creates no order), take the visitor from the bag to the guest
+cart and change or take out a line of it (none of that creates an order), take the visitor from the bag to the guest
 checkout ("Terminar pedido", then "Comprar como invitado", never a login), and
 fill the delivery form with what they tell him: email, name, phone, región,
 comuna and address. He never logs in, never asks for, repeats or types a RUT,
@@ -101,6 +101,7 @@ from . import knowledge as kb
 from .app_events import (
     CANNONHOME_EVENTS,
     CannonHomeEvent,
+    CartItem,
     CartState,
     CheckoutState,
     CommandDone,
@@ -536,6 +537,17 @@ class ShowCart(Action):
     open: bool = True
 
 
+class UpdateCartItem(Action):
+    """Set the cart line of the product at ``path`` to ``qty``, or take it
+    out with 0: in the cart drawer with its own minus and plus, or its bin and
+    "Aceptar"; on the cart page (/checkout/cart) with the request those send,
+    then the reload the page's own controls make, the move checked on the page
+    it loads. Reports ``cart_state``. Never the checkout."""
+
+    path: str
+    qty: int
+
+
 class StartCheckout(Action):
     """Take the visitor to the guest checkout's delivery form: on the bag
     (/checkout/cart/, loaded first if it is not in front) press "Terminar
@@ -688,6 +700,16 @@ class AddToCartRequest(BaseModel):
     qty: int = Field(default=1, description="How many, as they said: 1 to 10.")
 
 
+class UpdateCartRequest(BaseModel):
+    line: str = Field(
+        description="The cart line: its product path ('/x.html') from the cart line in square "
+        "brackets, or its name as the cart shows it."
+    )
+    qty: int = Field(
+        description="How many of it they want in the cart now, 1 to 10; 0 takes it out."
+    )
+
+
 class ShowCartRequest(BaseModel):
     open: bool = Field(default=True, description="True to open the cart drawer, false to close it.")
 
@@ -783,7 +805,7 @@ def _topics(k: Knowledge) -> str:
 
 def _prompt(k: Knowledge, today: date | None = None) -> str:
     today = today or datetime.now(TIMEZONE).date()
-    return f"""You are {AGENT_NAME}, the voice guide on Cannon Home's online store, cannonhome.cl. Cannon Home is a Chilean home-textiles brand: sheets, duvets and duvet covers, pillows, quilts and blankets, towels and bathrobes, beds and mattresses. A visitor is shopping on the store right now and has called you from the corner of the page. You can see and move their screen: you type in the store's search, filter a listing, open a product and its tabs, read live prices, add to their cart, open the cart, and take them to the checkout's delivery form and fill in their delivery details. You are warm, calm and practical — the friendly person in the store who knows every sheet, thread count and size, and helps them choose without pushing. Say the name as "Cannon Home".
+    return f"""You are {AGENT_NAME}, the voice guide on Cannon Home's online store, cannonhome.cl. Cannon Home is a Chilean home-textiles brand: sheets, duvets and duvet covers, pillows, quilts and blankets, towels and bathrobes, beds and mattresses. A visitor is shopping on the store right now and has called you from the corner of the page. You can see and move their screen: you type in the store's search, filter a listing, open a product and its tabs, read live prices, add to their cart, change how many of a line they have or take it out, open the cart, and take them to the checkout's delivery form and fill in their delivery details. You are warm, calm and practical — the friendly person in the store who knows every sheet, thread count and size, and helps them choose without pushing. Say the name as "Cannon Home".
 
 # You narrate, and the screen follows your words
 You are giving a guided walk through the store, like someone sitting beside the visitor with their screen in front of you both.
@@ -791,11 +813,11 @@ You are giving a guided walk through the store, like someone sitting beside the 
   - {{page: /path}} opens a page of the store, at its top: an information page from the site pages list, a listing from the listings list, or a product's path.
   - {{show: Heading}} scrolls to a heading on the page they are on, or are taken to by a page cue, and rings it. With other words on the page — a product's name, a price, a line of a policy — it rings those words.
   - {{faq: Question}} opens that FAQ and rings it. The FAQ can be on any page: it is found and opened there.
-- Use headings and words exactly as the site pages list or the screen lines spell them. The store is in Spanish, so cues are in Spanish, also inside an English reply: "{{page: /politicas-de-despacho}} Deliveries arrive Monday to Saturday, with no exact hour."
+- Use headings and words exactly as the site pages list or the screen lines spell them. The store is in Spanish, so cues are in Spanish, also inside an English reply: "{{page: /politicas-de-despacho}} Deliveries come with no exact hour."
 - Never make up a heading or a path.
 - One cue per sentence at most, and only where the screen should change. A cue goes before the sentence, never inside it.
 - When the visitor asks where something is ("muéstrame", "where is that"), your reply starts with the cue for exactly that thing.
-- A reply that calls a move (search_products, filter_listing, open_product, add_to_cart, show_cart, start_checkout, fill_checkout) has no page cue: the move takes them there.
+- A reply that calls a move (search_products, filter_listing, open_product, add_to_cart, update_cart_item, show_cart, start_checkout, fill_checkout) has no page cue: the move takes them there. The cart and the checkout are only ever reached by those moves, never by a cue.
 - Cues move pages; the moves below search, filter, open products and the cart. Nothing waits on a cue.
 
 # A good turn moves them one step closer to the right product
@@ -836,8 +858,9 @@ You speak Spanish as a native of Latin America, and English. The call starts in 
 # Every response starts with words
 Write your answer, with its cues, first; any tool call comes at the end of the same response. What a page move returns reaches you only on your next turn.
 - The exception is a read: read_topic, search_site, find_products and compare_products come straight back to you within this same turn, but each one makes the visitor wait. Answer from what you know below whenever it covers the question. Read only for what is not here, and then call the read first, with nothing written before it.
-- The moves — search_products, filter_listing, open_product, check_prices, add_to_cart, show_cart, start_checkout, fill_checkout — are not done when you call them: the page does them a moment later and tells you in square brackets. In the reply that calls one, say only what you are doing ("Te abro las sábanas king.", "Te lo agrego al carro."), never that it is done. When the page's answer comes, say what it says happened: what is done, and plainly what is not.
+- The moves — search_products, filter_listing, open_product, check_prices, add_to_cart, update_cart_item, show_cart, start_checkout, fill_checkout — are not done when you call them: the page does them a moment later and tells you in square brackets. In the reply that calls one, say only what you are doing ("Te abro las sábanas king.", "Te lo agrego al carro."), never that it is done. When the page's answer comes, say what it says happened: what is done, and plainly what is not.
 - One move at a time: when a tool says the page is still working on the last move, what you asked for follows by itself. Say so in a few words, and never call it again.
+- A move you already called is under way until the page answers it: never call it a second time for the same thing. When the visitor asks for two things at once ("add both"), call both in the same response, in order: the second waits for the first and follows by itself.
 - Never promise more to come ("let me check"): nothing comes after it.
 - A question about the call itself — "can I speak English?", "can you hear me?", "who are you?" — gets an answer and nothing else: no move, no page.
 
@@ -865,6 +888,7 @@ Write your answer, with its cues, first; any tool call comes at the end of the s
 # The cart
 - You may add a product to their cart when they ask, or say yes to your offer: add_to_cart with the product's path, the exact size and colour, and the quantity they said (one unless they said more). It opens the product first if it is not in front. Say what you are adding, never that it is added: the cart's answer comes in square brackets.
 - show_cart opens their cart drawer; with open false it closes it. A cart line tells you what is in it and what is left for free shipping: say that once.
+- You can change their cart too. When they want more or fewer of something in it, or want a line out ("solo uno", "quita las grises", "remove the grey ones"), call update_cart_item with that line's path from the cart line and how many they want now: 0 takes it out. One line per call. It works in the cart drawer, or on the cart page when that is in front. Say what you are changing, never that it is changed: the cart's answer comes in square brackets. Never tell them to change it themselves.
 - When they want to buy, or say yes to your offer, start_checkout takes them from the cart to the checkout's delivery form as a guest. Then the section below.
 
 # The checkout: delivery details are yours, the RUT and the payment are theirs
@@ -886,6 +910,7 @@ Write your answer, with its cues, first; any tool call comes at the end of the s
 
 # What you know
 - Today is {today:%A, %d %B %Y}, in Santiago.
+- Home delivery ("despacho") hours are as the knowledge below says, Saturdays shorter than weekdays: never one span for every day.
 - Topics you can read with read_topic, when the knowledge below does not cover a question:
 {_topics(k)}
 - search_site finds an information page, section or FAQ by its words. Its results name the page and section, which you can then cue.
@@ -1029,6 +1054,8 @@ _LANDED: dict[str, dict[Lang, str]] = {
     },
     "cart_add": {"en": "I'm adding it to your cart.", "es": "Lo agrego a tu carro."},
     "cart_show": {"en": "I'm opening your cart.", "es": "Te abro el carro."},
+    "cart_update": {"en": "I'm changing that in your cart.", "es": "Te lo cambio en el carro."},
+    "cart_remove": {"en": "I'm taking it out of your cart.", "es": "Lo saco de tu carro."},
     "cart_close": {"en": "I'm closing the cart.", "es": "Te cierro el carro."},
     "checkout": {
         "en": "I'm taking you to the delivery details.",
@@ -1186,6 +1213,8 @@ def _product_path(path: str) -> str:
 #: Paths the store always has, whether or not the crawl kept them as pages:
 #: the home, the bag, and the checkout's delivery form (one page, /checkout).
 _FIXED_PAGES = frozenset({"/", "/checkout/cart", "/checkout"})
+#: Pages only a move takes them to: never cued from his own sentence.
+_MOVE_PAGES = frozenset({"/checkout/cart", "/checkout"})
 #: Paths no cue or move may open: past the delivery form (the payment, the
 #: order's success page), the account, the login, a payment's own pages.
 _NEVER = re.compile(
@@ -1207,7 +1236,7 @@ _ASKED_PAGES: tuple[tuple[re.Pattern[str], tuple[str, ...]], ...] = tuple(
         ),
         (
             r"despacho|despachan|envios?\b|cuanto (?:demora|tarda) (?:en )?llegar|shipping"
-            r"|delivery|deliver\b",
+            r"|deliver(?:y|ies|ed|able|s)?\b",
             ("/politicas-de-despacho",),
         ),
         (
@@ -1416,6 +1445,7 @@ _MOVES = frozenset(
         "filter_listing",
         "open_product",
         "add_to_cart",
+        "update_cart_item",
         "show_cart",
         "start_checkout",
         "fill_checkout",
@@ -1431,6 +1461,9 @@ _MOVE_TAKES_S = {
     "filter_listing": 20.0,
     "search_products": 20.0,
     "add_to_cart": 20.0,
+    # The drawer posts each minus or plus by AJAX, about four seconds a press
+    # live; the cart page, one request and a reload, about ten (2026-10-23).
+    "update_cart_item": 45.0,
     # The bag, its login window, then the checkout's heavy full load: about 35 s
     # live (2026-10-23); a fill on the form, with a comuna list by AJAX, 3 s.
     "start_checkout": 45.0,
@@ -1566,7 +1599,10 @@ def _cart_note(e: CartState, lang: Lang) -> str:
     if not e.items and not e.count:
         return "[Their cart is empty.]"
     items = [
-        f"{i.name} x{i.qty}" + (f", {_money(i.price, lang)} each" if i.price is not None else "")
+        f"{i.name}"
+        + (f" ({i.path})" if i.path else "")
+        + f" x{i.qty}"
+        + (f", {_money(i.price, lang)} each" if i.price is not None else "")
         for i in e.items
     ]
     note = f"[Their cart: {e.count or len(e.items)} items — {'; '.join(items)}."
@@ -1584,7 +1620,7 @@ def _cart_note(e: CartState, lang: Lang) -> str:
 
 #: What the cart's lines end with: how far he may go, and what is theirs.
 _CHECKOUT_IS_THEIRS = (
-    " When they want to buy, start_checkout takes them to the delivery form as a guest; "
+    " update_cart_item changes how many of a line they have, or takes it out. When they want to buy, start_checkout takes them to the delivery form as a guest; "
     "the RUT and the payment are theirs."
 )
 
@@ -1861,6 +1897,12 @@ class CannonHomeBrain(GeminiBrain):
         #: since his last turn: talked through together, once, in the next
         #: short quiet spell.
         self._sent: dict[str, float] = {}
+        #: Each move sent and not yet answered, by command: the same move
+        #: asked for again while it runs is refused, not sent twice.
+        self._in_flight: dict[str, Action] = {}
+        #: Turns running with tools off (a quiet spell's): a move called in one
+        #: anyway is refused, never sent.
+        self._tools_off = 0
         self._outcomes: list[str] = []
         #: The move asked for while another was still under way on the page,
         #: sent once that one answers.
@@ -2033,19 +2075,28 @@ class CannonHomeBrain(GeminiBrain):
         self._shown = None
         self._moved = False
         said = ""
-        model = (
-            super().respond(session) if tools is None else self.respond_with(session, tools=tools)
-        )
-        turn = self._fallback.speak_if_silent(self, model)
-        async for event in self._spelled(self._written(session, self._cued(turn))):
-            if isinstance(event, SpeechChunk):
-                said += event.text
-            yield event
-        if not _PROMISE.sub("", _CUE_TEXT.sub(" ", said)).strip(" .,!?¡¿…"):
-            logger.warning("cannonhome: the model returned nothing; asking once more")
-            again = self._written(session, self._cued(self._talk_now(session)))
-            async for event in self._spelled(again):
+        off = tools is ToolChoice.NONE
+        if off:
+            self._tools_off += 1
+        try:
+            model = (
+                super().respond(session)
+                if tools is None
+                else self.respond_with(session, tools=tools)
+            )
+            turn = self._fallback.speak_if_silent(self, model)
+            async for event in self._spelled(self._written(session, self._cued(turn))):
+                if isinstance(event, SpeechChunk):
+                    said += event.text
                 yield event
+            if not _PROMISE.sub("", _CUE_TEXT.sub(" ", said)).strip(" .,!?¡¿…"):
+                logger.warning("cannonhome: the model returned nothing; asking once more")
+                again = self._written(session, self._cued(self._talk_now(session)))
+                async for event in self._spelled(again):
+                    yield event
+        finally:
+            if off:
+                self._tools_off -= 1
 
     async def _written(
         self, session: Session, turn: AsyncGenerator[Speech, None]
@@ -2199,6 +2250,11 @@ class CannonHomeBrain(GeminiBrain):
             asked = asked_page(sentence, self.kb)
             if (
                 asked is not None
+                # The cart and the checkout are moves (show_cart,
+                # start_checkout), never his own sentence's page: "The items
+                # are in your cart" took a visitor who asked about delivery to
+                # the cart page mid-answer (2026-10-23).
+                and asked not in _MOVE_PAGES
                 and asked != self._path
                 and self._known_path(asked) is not None
                 and self._section_for(sentence, self._path) is None
@@ -2543,6 +2599,7 @@ class CannonHomeBrain(GeminiBrain):
         if command not in self._sent:
             return
         del self._sent[command]
+        self._in_flight.pop(command, None)
         if (queued := self._queued) is not None and not self._busy():
             self._queued = None
             name = queued.__voqal_action__
@@ -2566,12 +2623,21 @@ class CannonHomeBrain(GeminiBrain):
         command = action.__voqal_action__
         if command in _CONFIRMED_COMMANDS:
             self._sent[command] = time.monotonic() + _MOVE_TAKES_S.get(command, _MOVE_TAKES_S[""])
+            self._in_flight[command] = action
         self.session.dispatch(action)
 
     def _move(self, action: Action, line: str) -> str | None:
         """Send a page move, or, while the last one is still under way, queue
         it to follow: ``None`` when sent, else what the tool says."""
-        if (running := self._busy()) is None:
+        running = self._busy()
+        if running is not None and action in (self._in_flight.get(running), self._queued):
+            logger.info("cannonhome: {} asked for again while it runs; not sent twice", running)
+            return (
+                f"Not sent again: the page is already doing exactly this ({running}), and its "
+                "answer comes back to you. Never call it again for the same thing; if they asked "
+                "for something else too, offer it once this one is done."
+            )
+        if running is None:
             self._queued = None
             self._moved = True
             self._send(action)
@@ -2631,7 +2697,14 @@ class CannonHomeBrain(GeminiBrain):
         return None
 
     def _meta_turn(self) -> str | None:
-        """The refusal for a move called on a question about the call."""
+        """The refusal for a move called on a question about the call, or in
+        a turn with tools off (the model may call one anyway)."""
+        if self._tools_off:
+            logger.warning("cannonhome: a move called with tools off; refused")
+            return (
+                "Not done, nothing was sent: this turn only talks through what the page answered. "
+                "If something is left to do, say so in a sentence and offer it."
+            )
         if self._heard and about_the_call(self._heard[-1]):
             return (
                 "Not done: they asked about the call itself, not the store. Answer that only "
@@ -2700,6 +2773,7 @@ class CannonHomeBrain(GeminiBrain):
             self.open_product,
             self.check_prices,
             self.add_to_cart,
+            self.update_cart_item,
             self.show_cart,
             self.start_checkout,
             self.fill_checkout,
@@ -2997,6 +3071,55 @@ class CannonHomeBrain(GeminiBrain):
             + _CHECKOUT_IS_THEIRS
         )
 
+    def _cart_line(self, said: str) -> CartItem | None:
+        """The line of their cart ``said`` names: by its path, else its name."""
+        if self.cart is None:
+            return None
+        want = _product_path(said) if said.strip() else ""
+        for item in self.cart.items:
+            if item.path and _product_path(item.path) == want:
+                return item
+        named = _match(said, [i.name for i in self.cart.items if i.name])
+        return next((i for i in self.cart.items if i.name == named), None) if named else None
+
+    async def update_cart_item(self, request: UpdateCartRequest) -> str:
+        """Change how many of one line of their cart they have, or take it out
+        with qty 0: in the cart drawer, or on the cart page when that is in
+        front. Only when they ask, or say yes to your offer. It returns at
+        once; the cart's answer comes back to you. Never the checkout."""
+        if (meta := self._meta_turn()) is not None:
+            return meta
+        if not 0 <= request.qty <= 10:
+            return "Not done: the quantity is 0 (take it out) to 10."
+        item = self._cart_line(request.line)
+        if item is not None and item.path:
+            path = _product_path(item.path)
+        elif self.cart is not None:
+            listed = "; ".join(f"{i.name} ({i.path}) x{i.qty}" for i in self.cart.items)
+            return f"Not done: '{request.line}' is not a line of their cart" + (
+                f", which has: {listed}." if listed else ", which is empty."
+            )
+        elif (known := self._product_known(request.line)) is not None:
+            # No cart report yet: the page finds the line, or says it is not there.
+            path = known
+        else:
+            return self._unknown_product(request.line)
+        name = item.name if item is not None else path
+        if item is not None and item.qty == request.qty:
+            return f"Nothing to change: their cart already has {item.qty} of {name}."
+        queued = self._move(
+            UpdateCartItem(path=path, qty=request.qty),
+            "cart_remove" if request.qty == 0 else "cart_update",
+        )
+        if queued is not None:
+            return queued
+        if request.qty == 0:
+            return f"Taking {name} out of their cart. " + self._sent_note("'Lo saco de tu carro.'")
+        had = f" (it has {item.qty})" if item is not None else ""
+        return f"Setting {name} to {request.qty} in their cart{had}. " + self._sent_note(
+            "'Te lo cambio en el carro.'"
+        )
+
     async def show_cart(self, request: ShowCartRequest) -> str:
         """Open their cart drawer, or close it. Never the checkout."""
         if (meta := self._meta_turn()) is not None:
@@ -3263,4 +3386,5 @@ __all__ = [
     "OpenProduct",
     "SearchProducts",
     "ShowCart",
+    "UpdateCartItem",
 ]

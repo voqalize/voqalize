@@ -85,9 +85,12 @@ export function best<T>(items: T[], text: (t: T) => string, said: string): T | n
  *  the digits of the first amount, or null. Dots group thousands; there are no
  *  decimals. Chrome's translator leaves the figures alone. */
 export function money(text: string | null | undefined): number | null {
-  const m = (text ?? "").match(/\$\s*([\d.]+)/) ?? (text ?? "").match(/(\d[\d.]*)/);
+  // Pesos have no cents, so a dot, a comma or a thin space only groups the
+  // thousands: the store writes "$55.993", and a page the browser has
+  // translated to English shows "$55,993" (a live call, 2026-10-23, read "55").
+  const m = (text ?? "").match(/\$\s*(\d[\d.,  ]*)/) ?? (text ?? "").match(/(\d[\d.,  ]*)/);
   if (!m) return null;
-  const n = Number(m[1].replace(/\./g, ""));
+  const n = Number(m[1].replace(/[.,  ]/g, ""));
   return Number.isFinite(n) ? n : null;
 }
 

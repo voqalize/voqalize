@@ -7,7 +7,7 @@
 
 import { expect, type Page, test } from "@playwright/test";
 
-import { CART_SECTION, CATEGORY, type Emitted, events, listen, open, ORIGIN, PRODUCT, run, serveSite, waitForEvent } from "./site";
+import { type BagLine, CART_SECTION, CATEGORY, type Emitted, events, listen, open, ORIGIN, PRODUCT, run, serveSite, waitForEvent } from "./site";
 
 /** `run` for a move that loads another page: the page may go before it answers. */
 async function runAway(p: Page, command: string, payload: unknown): Promise<void> {
@@ -910,5 +910,132 @@ test.describe("the bag's login window", () => {
     });
     expect(got.guest).toBeNull();
     for (const key of ["login", "google", "create", "forgot", "password", "email"] as const) expect(got[key], key).not.toBeNull();
+  });
+});
+
+// ─── Changing the bag (update_cart_item) ──────────────────────────────────
+//
+// A live call (2026-10-23): the visitor asked Javier to make two grey sets
+// one, and he could not. The drawer posts each − and + by AJAX and its bin
+// asks "¿Seguro…?" first; the bag page reloads on every change.
+
+const PILLOW = "/almohada-viscoelastica-ergo-50x70-cm.html";
+const FOG: BagLine = { id: "11", name: "Sábanas 2 Plazas 300 Hilos Liso Fog", path: PRODUCT, qty: 2, price: 55993 };
+const ERGO: BagLine = { id: "12", name: "Almohada Viscoelástica Ergo 50x70 cm", path: PILLOW, qty: 1, price: 29990 };
+
+/** After a move that reloads the bag page, perhaps more than once: the page
+ *  whose bag `ready` holds, listened to, and the move's answer there. */
+async function settledBagPage(page: Page, ready: () => boolean): Promise<Emitted> {
+  await expect.poll(ready, { timeout: 30_000 }).toBe(true);
+  for (;;) {
+    await page.waitForLoadState("domcontentloaded");
+    try {
+      await listen(page);
+      return await waitForEvent(page, "command_done", (e) => e.payload.command === "update_cart_item", 8000);
+    } catch (error) {
+      if (!/context was destroyed|navigat|no command_done/i.test(String(error))) throw error;
+    }
+  }
+}
+
+test.describe("update_cart_item", () => {
+  test("in the drawer: − sets a line's quantity, the bin and Aceptar take one out; each reports the bag", async ({ page }) => {
+    const seen = await serveSite(page, { bag: [FOG, ERGO] });
+    await open(page, PRODUCT);
+    await listen(page);
+    const fewer = await run(page, "update_cart_item", { path: PRODUCT, qty: 1 });
+    expect(fewer.ok, fewer.error).toBe(true);
+    expect(fewer.detail).toContain("set Sábanas 2 Plazas 300 Hilos Liso Fog to 1 in the bag (it had 2)");
+    expect(fewer.detail).toContain("the bag has 2 items");
+    await expect(page.locator("aside.content-minicart-modal")).toHaveClass(/_show/);
+    const cart = await waitForEvent(page, "cart_state", (e) => e.payload.count === 2);
+    expect(cart.payload.items).toEqual([
+      { name: FOG.name, path: PRODUCT, qty: 1, price: 55993 },
+      { name: ERGO.name, path: PILLOW, qty: 1, price: 29990 },
+    ]);
+    expect(seen.sent).toContain("POST /checkout/sidebar/updateItemQty/");
+
+    const out = await run(page, "update_cart_item", { path: PILLOW, qty: 0 });
+    expect(out.ok, out.error).toBe(true);
+    expect(out.detail).toContain(`took ${ERGO.name} out of the bag`);
+    expect(seen.bag.map((l) => l.id)).toEqual([FOG.id]);
+    expect(seen.sent).toContain("POST /checkout/sidebar/removeItem/");
+    await waitForEvent(page, "cart_state", (e) => e.payload.count === 1);
+    // More of it: + until it has three.
+    const more = await run(page, "update_cart_item", { path: PRODUCT, qty: 3 });
+    expect(more.ok, more.error).toBe(true);
+    expect(seen.bag).toEqual([{ ...FOG, qty: 3 }]);
+    // Nothing reached the checkout.
+    expect(seen.sent.filter((s) => !/sidebar\/(updateItemQty|removeItem)/.test(s))).toEqual([]);
+  });
+
+  test("a line not in the bag, or a quantity out of 0–10, is refused and nothing is pressed", async ({ page }) => {
+    const seen = await serveSite(page, { bag: [FOG] });
+    await open(page, PRODUCT);
+    const missing = await run(page, "update_cart_item", { path: PILLOW, qty: 0 });
+    expect(missing.ok).toBe(false);
+    expect(missing.error).toContain(`${PILLOW} is not in the bag; the bag has ${FOG.name} (${PRODUCT}) ×2`);
+    const many = await run(page, "update_cart_item", { path: PRODUCT, qty: 11 });
+    expect(many.ok).toBe(false);
+    const same = await run(page, "update_cart_item", { path: PRODUCT, qty: 2 });
+    expect(same.ok, same.error).toBe(true);
+    expect(same.detail).toContain("already has 2 in the bag; nothing changed");
+    expect(seen.sent).toEqual([]);
+  });
+
+  test("on the bag page: the line's new quantity is sent as the page's − sends it, and the reloaded page confirms it", async ({ page }) => {
+    const seen = await serveSite(page, { bag: [{ ...FOG, qty: 3 }, ERGO] });
+    await open(page, "/checkout/cart/");
+    await expect(page.locator("tbody.cart.item")).toHaveCount(2);
+    await runAway(page, "update_cart_item", { path: PRODUCT, qty: 1 });
+    const done = await settledBagPage(page, () => seen.bag.find((l) => l.id === FOG.id)?.qty === 1);
+    expect(done.payload.detail).toContain("set Sábanas 2 Plazas 300 Hilos Liso Fog to 1 in the bag");
+    // One request with the quantity asked, whatever the step, and one reload.
+    expect(seen.sent).toEqual(["POST /checkout/sidebar/updateItemQty/"]);
+    const cart = await waitForEvent(page, "cart_state");
+    expect(cart.payload.count).toBe(2);
+    await expect(page.locator("tbody.cart.item input.qty").first()).toHaveValue("1");
+  });
+
+  test("on the bag page: the line is removed as the drawer's Aceptar removes it, and the reloaded page reports it gone", async ({ page }) => {
+    const seen = await serveSite(page, { bag: [FOG, ERGO] });
+    await open(page, "/checkout/cart/");
+    await expect(page.locator("tbody.cart.item")).toHaveCount(2);
+    await runAway(page, "update_cart_item", { path: PRODUCT, qty: 0 });
+    const done = await settledBagPage(page, () => !seen.bag.some((l) => l.id === FOG.id));
+    expect(done.payload.detail).toContain(`took ${FOG.name} out of the bag; the bag has 1 item`);
+    expect(seen.sent).toEqual(["POST /checkout/sidebar/removeItem/"]);
+    const cart = await waitForEvent(page, "cart_state");
+    expect(cart.payload.items).toEqual([{ name: ERGO.name, path: PILLOW, qty: 1, price: 29990 }]);
+  });
+
+  test("from the checkout, the move goes to the bag page first", async ({ page }) => {
+    const seen = await serveSite(page, { bag: [FOG] });
+    await open(page, "/checkout");
+    await runAway(page, "update_cart_item", { path: PRODUCT, qty: 0 });
+    const done = await settledBagPage(page, () => seen.bag.length === 0);
+    expect(done.payload.detail).toContain("the bag is empty");
+    expect(page.url()).toBe(`${ORIGIN}/checkout/cart/`);
+  });
+});
+
+test("a price written the English way (a translated page: $29,990) is read in full, not as 29", async ({ page }) => {
+  await serveSite(page);
+  await page.route(`${ORIGIN}/customer/section/load/**`, (route) => route.fulfill({ status: 500, body: "" }));
+  await open(page, PRODUCT);
+  await page.evaluate(() => {
+    document.querySelectorAll(".mc-price--now, .mc-total-row--grand .mc-total-row__value").forEach((el) => (el.textContent = "$29,990"));
+    const bar = document.querySelector(".main-progress-bar__message");
+    if (bar) bar.textContent = "You are $120,010 away from Free Shipping, RM only";
+  });
+  await listen(page);
+  const opened = await run(page, "show_cart", { open: true });
+  expect(opened.ok, opened.error).toBe(true);
+  const cart = await waitForEvent(page, "cart_state");
+  expect(cart.payload).toEqual({
+    items: [{ name: "Almohada Viscoelástica Ergo 50x70 cm", path: PILLOW, qty: 1, price: 29990 }],
+    count: 1,
+    subtotal: 29990,
+    free_shipping_left: 120010,
   });
 });

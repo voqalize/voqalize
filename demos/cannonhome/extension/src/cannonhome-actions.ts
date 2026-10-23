@@ -76,7 +76,7 @@ export interface RunResult {
 /** The moves the brain waits on, whose success is reported as `command_done`. */
 export const DONE_COMMANDS = new Set([
   "search_products", "filter_listing", "open_product", "check_prices", "add_to_cart", "show_cart",
-  "start_checkout", "fill_checkout",
+  "update_cart_item", "start_checkout", "fill_checkout",
 ]);
 
 export type Kind = "home" | "category" | "search" | "product" | "cart" | "checkout" | "page";
@@ -639,12 +639,10 @@ function cartFromPage(): CartState {
   if (!items.length && kindOf() === "cart") {
     items = [...document.querySelectorAll<HTMLElement>("tbody.cart.item")].map((row) => {
       const a = row.querySelector<HTMLAnchorElement>(".product-item-name a");
-      return {
-        name: clean(a?.textContent),
-        path: pathOf(a?.href),
-        qty: Number(row.querySelector<HTMLInputElement>("input.qty")?.value) || 0,
-        price: money(row.querySelector(".col.price .cart-price .price")?.textContent),
-      };
+      const qty = Number(row.querySelector<HTMLInputElement>("input.qty")?.value) || 0;
+      // The bag page's price column is the line's total: one unit is that over the quantity.
+      const total = money(row.querySelector(".col.price .cart-price .price")?.textContent);
+      return { name: clean(a?.textContent), path: pathOf(a?.href), qty, price: total != null && qty ? Math.round(total / qty) : total };
     });
   }
   const bar = document.querySelector(".main-progress-bar");
@@ -1109,6 +1107,74 @@ async function showCart(p: { open?: boolean }): Promise<string | null> {
     if (!(await waitFor(() => !minicartOpen(), 3000))) throw new Error("the bag drawer did not close");
     return "closed the bag drawer";
   }
+  await openDrawer();
+  const cart = await readCart();
+  reportCart(cart);
+  highlight(document.querySelector("aside.content-minicart-modal._show .modal-inner-wrap") ?? document.querySelector("aside.content-minicart-modal._show")!);
+  return `opened the bag drawer; ${cartLine(cart)}`;
+}
+
+// update_cart_item ──────────────────────────────────────────────────────────
+
+/** How many presses one change may take, across the bag page's reloads. */
+const MAX_CART_STEPS = 12;
+
+interface JQueryish {
+  _data?: (el: Element | Document, key: string) => Record<string, { selector?: string }[]> | undefined;
+}
+const jq = () => (window as unknown as { require?: unknown; jQuery?: JQueryish });
+
+/** Knockout has bound the drawer's control `el` (its click goes through jQuery). */
+function bound(el: Element): boolean {
+  const w = jq();
+  if (!w.require) return true;
+  return Boolean(w.jQuery?._data?.(el, "events")?.click);
+}
+
+const drawerLine = (target: string) =>
+  [...document.querySelectorAll<HTMLElement>("aside.content-minicart-modal._show #minicart-content-wrapper .mc-line")].find((l) =>
+    samePath(l.querySelector<HTMLAnchorElement>(".mc-line__name a")?.href ?? "", target),
+  ) ?? null;
+
+const bagRow = (target: string) =>
+  [...document.querySelectorAll<HTMLElement>("tbody.cart.item")].find((r) => samePath(r.querySelector<HTMLAnchorElement>(".product-item-name a")?.href ?? "", target)) ??
+  null;
+
+/** The bag's line for `target` as the store's cart section has it, polled
+ *  until `done` holds or `ms` passes; the last read either way. */
+async function lineUntil(target: string, done: (qty: number) => boolean, ms: number): Promise<{ cart: CartState; qty: number }> {
+  const until = Date.now() + ms;
+  for (;;) {
+    const cart = await readCart();
+    const qty = cart.items.find((i) => samePath(i.path, target))?.qty ?? 0;
+    if (done(qty) || Date.now() > until) return { cart, qty };
+    await sleep(600);
+  }
+}
+
+/** The page's form key, as the site's own forms post it. */
+const formKey = () =>
+  [...document.querySelectorAll<HTMLInputElement>("input[name=form_key]")].map((i) => i.value).find(Boolean) ||
+  decodeURIComponent(document.cookie.match(/(?:^|;\s*)form_key=([^;]+)/)?.[1] ?? "");
+
+/** Set bag line `id` to `qty`, or remove it with 0, with the request the
+ *  drawer's own − / + and Aceptar send (same origin, the page's form key). */
+async function sendLine(id: string, qty: number): Promise<void> {
+  const key = formKey();
+  if (!key) throw new Error("the page has no form key; nothing was changed");
+  const body = new URLSearchParams(qty === 0 ? { item_id: id, form_key: key } : { item_id: id, item_qty: String(qty), form_key: key });
+  const res = await fetch(qty === 0 ? "/checkout/sidebar/removeItem/" : "/checkout/sidebar/updateItemQty/", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "X-Requested-With": "XMLHttpRequest", "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8", Accept: "application/json" },
+    body: body.toString(),
+  });
+  const answer = (await res.json().catch(() => null)) as { success?: boolean; error_message?: string } | null;
+  if (!res.ok || !answer?.success) throw new Error(`the store did not take the change${answer?.error_message ? `: ${answer.error_message}` : ""}; nothing was changed`);
+}
+
+/** The drawer, opened as the visitor would (the bag button), with its lines up. */
+async function openDrawer(): Promise<void> {
   if (!minicartOpen()) {
     const trigger = [...document.querySelectorAll<HTMLElement>(".minicart-wrapper a.action.showcart")].find(shown);
     if (!trigger) throw new Error("this page has no bag button");
@@ -1119,10 +1185,115 @@ async function showCart(p: { open?: boolean }): Promise<string | null> {
     if (!(await waitFor(minicartOpen, 4000))) throw new Error("the bag drawer did not open");
   }
   await quiet(document.querySelector("#minicart-content-wrapper") ?? document.body, 300, 1500);
-  const cart = await readCart();
-  reportCart(cart);
-  highlight(document.querySelector("aside.content-minicart-modal._show .modal-inner-wrap") ?? document.querySelector("aside.content-minicart-modal._show")!);
-  return `opened the bag drawer; ${cartLine(cart)}`;
+}
+
+/**
+ * Set the bag line of `path` to `qty`, or take it out with 0, as the visitor
+ * would: in the drawer (− and + post the line's new quantity by AJAX; the
+ * bin asks "¿Seguro…?" and its Aceptar removes the line), or, on the bag page
+ * (/checkout/cart), with that same request and the reload the page's own
+ * controls make; the move is checked on the page it loads. The line is found
+ * by its product link, never by its words. Reports `cart_state`.
+ */
+async function updateCartItem(p: { path: string; qty: number; steps?: number; name?: string } & Arrived): Promise<string | null> {
+  if (typeof p.path !== "string" || !p.path.trim()) throw new Error("say which bag line, as its product path like /x.html");
+  const qty = Math.round(Number(p.qty));
+  if (!Number.isFinite(qty) || qty < 0 || qty > 10) throw new Error(`a quantity from 0 (take it out) to 10, not ${p.qty}`);
+  const target = productPath(p.path);
+  const steps = Number(p.steps) || 0;
+  const now = await lineUntil(target, () => true, 0);
+  const line = now.cart.items.find((i) => samePath(i.path, target));
+  const name = line?.name || p.name || target;
+  const finished = (cart: CartState, said: string) => {
+    reportCart(cart);
+    const row = kindOf() === "cart" ? bagRow(target) : drawerLine(target);
+    if (row) highlight(row);
+    return `${said}; ${cartLine(cart)}`;
+  };
+  if (!line) {
+    // Back from the press that took it out: done.
+    if (p.arrived && qty === 0) return finished(now.cart, `took ${name} out of the bag`);
+    const has = now.cart.items.map((i) => `${i.name} (${i.path}) ×${i.qty}`).join("; ");
+    throw new Error(`${target} is not in the bag; ${has ? `the bag has ${has}` : "the bag is empty"}`);
+  }
+  if (line.qty === qty) {
+    return finished(now.cart, p.arrived ? `set ${name} to ${qty} in the bag` : `${name} already has ${qty} in the bag; nothing changed`);
+  }
+  if (steps >= MAX_CART_STEPS) throw new Error(`the bag line of ${name} has ${line.qty}, not ${qty}, after ${steps} presses`);
+  const rest = (): Leftover => ({ command: "update_cart_item", payload: { path: target, qty, name, steps: steps + 1, arrived: true } });
+
+  if (kindOf() === "checkout") {
+    // The checkout's own summary has no controls: the bag page does.
+    leave(rest());
+    go("/checkout/cart/");
+    return null;
+  }
+
+  if (kindOf() === "cart") {
+    // The bag page. Its − and + post the line's new quantity to the same
+    // endpoint the drawer uses and reload the page, and its Quitar is a
+    // `data-post` link; but live, after the first of those reloads, the page's
+    // own handlers stop answering (2026-10-23: − ignored, Quitar followed
+    // `href="#"`). So the row is shown, its id read off it, and the change
+    // sent as the drawer sends it, once, whatever the step; then the page
+    // reloads as the site's own controls do, and the move is checked there.
+    const row = await waitFor(() => bagRow(target), 8000);
+    if (!row) throw new Error(`the bag page shows no row for ${name}`);
+    const id = row.querySelector<HTMLElement>("[data-cart-item]")?.dataset.cartItem ?? row.querySelector<HTMLElement>("[data-item-id]")?.dataset.itemId;
+    if (!id) throw new Error(`the bag page's row for ${name} has no line id`);
+    await scrollTo(row, "center");
+    highlight(row.querySelector(qty === 0 ? "a.action-delete" : ".control.qty") ?? row);
+    await sleep(700);
+    await sendLine(id, qty);
+    leave(rest());
+    location.reload();
+    return null;
+  }
+
+  // Any other page: the drawer. Pressed before its script is up, the bag
+  // button loads the bag page instead, which carries the move on.
+  leave(rest());
+  await openDrawer();
+  leave(null);
+  const el = await waitFor(() => drawerLine(target), 8000);
+  if (!el) {
+    // The drawer is still drawing the bag from before (live, right after an
+    // add): the bag page always shows it, so the move carries on there.
+    leave(rest());
+    go("/checkout/cart/");
+    return null;
+  }
+  await scrollTo(el, "center");
+  highlight(el);
+  if (qty === 0) {
+    const bin = el.querySelector<HTMLElement>("a.mc-line__remove, .action.delete");
+    if (!bin) throw new Error(`the drawer's line for ${name} has no Eliminar`);
+    if (!(await waitFor(() => bound(bin), 10_000))) throw new Error("the bag drawer's own scripts did not start; nothing was removed");
+    press(bin);
+    // "¿Seguro que desea eliminar este artículo…?" — its Aceptar removes it.
+    const accept = await waitFor(() => document.querySelector<HTMLElement>("aside.modal-popup.confirm._show button.action-accept"), 4000);
+    // Taking the line out may reload the page: the rest is left for it.
+    leave(rest());
+    if (accept) press(accept);
+    const after = await lineUntil(target, (n) => n === 0, 12_000);
+    leave(null);
+    if (after.qty !== 0) throw new Error(`pressed Eliminar on ${name}, but it is still in the bag`);
+    return finished(after.cart, `took ${name} out of the bag`);
+  }
+  let have = line.qty;
+  for (let guard = steps; have !== qty && guard < MAX_CART_STEPS; guard++) {
+    const button = el.isConnected ? el : drawerLine(target);
+    const step = button?.querySelector<HTMLElement>(qty > have ? ".mc-qty__btn.btn-plus" : ".mc-qty__btn.btn-min");
+    if (!step) throw new Error(`the drawer's line for ${name} has no ${qty > have ? "+" : "−"} button`);
+    if (!(await waitFor(() => bound(step), 10_000))) throw new Error("the bag drawer's own scripts did not start; nothing was changed");
+    const was = have;
+    press(step);
+    have = (await lineUntil(target, (n) => n !== was, 10_000)).qty;
+    if (have === was) throw new Error(`pressed ${qty > was ? "+" : "−"} on ${name} in the drawer, but the bag still has ${was}`);
+  }
+  const after = await lineUntil(target, () => true, 0);
+  if (have !== qty) throw new Error(`the bag line of ${name} has ${have}, not ${qty}`);
+  return finished(after.cart, `set ${name} to ${qty} in the bag (it had ${line.qty})`);
 }
 
 // start_checkout, fill_checkout ────────────────────────────────────────────
@@ -1548,6 +1719,7 @@ const COMMANDS: Record<string, Command> = {
   check_prices: checkPrices,
   add_to_cart: addToCart,
   show_cart: showCart,
+  update_cart_item: updateCartItem,
   start_checkout: startCheckout,
   fill_checkout: fillCheckout,
   navigate,

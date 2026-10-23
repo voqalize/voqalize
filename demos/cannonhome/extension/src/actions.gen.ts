@@ -106,6 +106,19 @@ export interface ShowCart {
 }
 
 /**
+ * Set the cart line of the product at `path` to `qty`, or take it
+ * out with 0: in the cart drawer with its own minus and plus, or its bin and
+ * "Aceptar"; on the cart page (/checkout/cart) with the request those send,
+ * then the reload the page's own controls make, the move checked on the page
+ * it loads. Reports `cart_state`. Never the checkout.
+ */
+export interface UpdateCartItem {
+  path: string;
+
+  qty: number;
+}
+
+/**
  * Take the visitor to the guest checkout's delivery form: on the bag
  * (/checkout/cart/, loaded first if it is not in front) press "Terminar
  * pedido", then, in the window it opens, "Comprar como invitado" — never its
@@ -367,6 +380,7 @@ export type UiAction =
   | { command: 'check_prices'; payload: CheckPrices }
   | { command: 'add_to_cart'; payload: AddToCart }
   | { command: 'show_cart'; payload: ShowCart }
+  | { command: 'update_cart_item'; payload: UpdateCartItem }
   | { command: 'start_checkout'; payload: StartCheckout }
   | { command: 'fill_checkout'; payload: FillCheckout };
 
@@ -382,6 +396,7 @@ export const UI_ACTION_COMMANDS: readonly UiActionCommand[] = [
   'check_prices',
   'add_to_cart',
   'show_cart',
+  'update_cart_item',
   'start_checkout',
   'fill_checkout',
 ];
