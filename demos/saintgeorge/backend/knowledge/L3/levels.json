@@ -1,0 +1,192 @@
+[
+ {
+  "slug": "infant",
+  "name": "Infant",
+  "path": "/unidad/infant",
+  "url": "https://saintgeorge.cl/unidad/infant/",
+  "cycle": "",
+  "grades": [
+   "PRE KINDER",
+   "KINDER"
+  ],
+  "accordions": [
+   {
+    "label": "Dirección y equipo Infant",
+    "label_shown": "Dirección y equipo Infant",
+    "target": "#collapse_1_1",
+    "nth": 0
+   },
+   {
+    "label": "PRE KINDER",
+    "label_shown": "PRE KINDER",
+    "target": "#collapse_2_1",
+    "nth": 1
+   },
+   {
+    "label": "KINDER",
+    "label_shown": "KINDER",
+    "target": "#collapse_3_1",
+    "nth": 2
+   }
+  ],
+  "intro": "Infant del Saint George’s College es el inicio del camino escolar de nuestros estudiantes, un espacio especialmente diseñado para acompañar sus primeros descubrimientos en un ambiente seguro, acogedor y estimulante.\nEn Pre Kínder y Kínder, cada nivel cuenta con siete cursos de aproximadamente 27 alumnos, guiados por dos educadoras altamente calificadas que acompañan de manera cercana y dedicada cada etapa de su desarrollo. Esta estructura permite una atención personalizada, respetando los tiempos, intereses y necesidades propias de la primera infancia.\nEl aprendizaje en Infant se construye a través del juego, la exploración y la experiencia directa, promoviendo el desarrollo socioemocional, la autonomía y la curiosidad natural de los niños y niñas. Desde el primer día, nuestros estudiantes se acercan al idioma inglés, integrándolo de manera natural en su rutina diaria y en sus experiencias de aprendizaje.\nInfant es mucho más que el comienzo de la vida escolar: es un espacio donde se siembran la confianza, el entusiasmo por aprender y las bases del perfil georgiano, en un entorno que valora el cuidado, el respeto y la alegría por descubrir el mundo.",
+  "facts": [
+   "En Pre Kínder y Kínder, cada nivel cuenta con siete cursos de aproximadamente 27 alumnos, guiados por dos educadoras altamente calificadas que acompañan de manera cercana y dedicada cada etapa de su desarrollo."
+  ],
+  "documents": []
+ },
+ {
+  "slug": "elementary",
+  "name": "Elementary",
+  "path": "/unidad/elementary",
+  "url": "https://saintgeorge.cl/unidad/elementary/",
+  "cycle": "El ciclo de Elementary, que abarca desde 1° hasta 4° Básico, representa una etapa fundamental en el proceso formativo de los estudiantes.",
+  "grades": [
+   "1º BÁSICO",
+   "2º BÁSICO",
+   "3º BÁSICO",
+   "4º BÁSICO"
+  ],
+  "accordions": [
+   {
+    "label": "Dirección y equipo Elementary",
+    "label_shown": "Dirección y equipo Elementary",
+    "target": "#collapse_1_1",
+    "nth": 0
+   },
+   {
+    "label": "1º BÁSICO",
+    "label_shown": "1º BÁSICO",
+    "target": "#collapse_2_1",
+    "nth": 1
+   },
+   {
+    "label": "2º BÁSICO",
+    "label_shown": "2º BÁSICO",
+    "target": "#collapse_3_1",
+    "nth": 2
+   },
+   {
+    "label": "3º BÁSICO",
+    "label_shown": "3º BÁSICO",
+    "target": "#collapse_4_1",
+    "nth": 3
+   },
+   {
+    "label": "4º BÁSICO",
+    "label_shown": "4º BÁSICO",
+    "target": "#collapse_5_1",
+    "nth": 4
+   }
+  ],
+  "intro": "El ciclo de Elementary, que abarca desde 1° hasta 4° Básico, representa una etapa fundamental en el proceso formativo de los estudiantes. Durante estos años, se consolidan aprendizajes esenciales y se promueve el desarrollo progresivo de la autonomía, la curiosidad intelectual, la capacidad de indagación y la convivencia con otros en un entorno seguro, acogedor y desafiante.\nCada nivel está compuesto por cinco cursos de aproximadamente 36 estudiantes. En 1° y 2° Básico, cada curso cuenta con una Headteacher y una Teacher, quienes, desde un trabajo pedagógico colaborativo, lideran la enseñanza de Lenguaje, Matemáticas y World Studies, integrando en esta última los aprendizajes de Ciencias Naturales y Ciencias Sociales. Esta organización permite ofrecer un acompañamiento cercano y una enseñanza intencionada, especialmente relevante en los primeros años de escolaridad.\nEn 3° y 4° Básico, en tanto, la enseñanza es conducida por una profesora jefe, quien asume tanto la responsabilidad académica en estas mismas áreas como el acompañamiento formativo del curso, incorporando progresivamente la dimensión espiritual a través del proceso de preparación para la Primera Comunión. Esta …",
+  "facts": [
+   "El ciclo de Elementary, que abarca desde 1° hasta 4° Básico, representa una etapa fundamental en el proceso formativo de los estudiantes.",
+   "Cada nivel está compuesto por cinco cursos de aproximadamente 36 estudiantes.",
+   "En 1° y 2° Básico, cada curso cuenta con una Headteacher y una Teacher, quienes, desde un trabajo pedagógico colaborativo, lideran la enseñanza de Lenguaje, Matemáticas y World Studies, integrando en esta última los aprendizajes de Ciencias Naturales y Ciencias Sociales.",
+   "En 3° y 4° Básico, en tanto, la enseñanza es conducida por una profesora jefe, quien asume tanto la responsabilidad académica en estas mismas áreas como el acompañamiento formativo del curso, incorporando progresivamente la dimensión espiritual a través del proceso de preparación para la Primera Comunión."
+  ],
+  "documents": []
+ },
+ {
+  "slug": "junior",
+  "name": "Junior",
+  "path": "/unidad/junior",
+  "url": "https://saintgeorge.cl/unidad/junior/",
+  "cycle": "",
+  "grades": [
+   "5º BÁSICO",
+   "6º BÁSICO",
+   "7º BÁSICO",
+   "8º BÁSICO"
+  ],
+  "accordions": [
+   {
+    "label": "Dirección y equipo Junior",
+    "label_shown": "Dirección y equipo Junior",
+    "target": "#collapse_1_1",
+    "nth": 0
+   },
+   {
+    "label": "5º BÁSICO",
+    "label_shown": "5º BÁSICO",
+    "target": "#collapse_2_1",
+    "nth": 1
+   },
+   {
+    "label": "6º BÁSICO",
+    "label_shown": "6º BÁSICO",
+    "target": "#collapse_3_1",
+    "nth": 2
+   },
+   {
+    "label": "7º BÁSICO",
+    "label_shown": "7º BÁSICO",
+    "target": "#collapse_4_1",
+    "nth": 3
+   },
+   {
+    "label": "8º BÁSICO",
+    "label_shown": "8º BÁSICO",
+    "target": "#collapse_5_1",
+    "nth": 4
+   }
+  ],
+  "intro": "El equipo de Junior acompaña a los estudiantes de 5° a 8° básico en una etapa fundamental de su desarrollo, marcada por el inicio de la adolescencia y el desarrollo de su identidad personal, social y académica.\nDesde Junior, en coordinación con los equipos de Psicorientación, Convivencia Escolar y Pastoral, junto a profesores jefes y docentes de asignatura, trabajamos de manera integrada para ofrecer una experiencia educativa coherente, exigente y acogedora.\nContamos con más de 70 profesionales que acompañan a los 20 cursos que conforman este ciclo.\nNuestro propósito es promover el aprendizaje profundo, el bienestar socioemocional y la formación en valores, fortaleciendo el trabajo colaborativo y el sentido de comunidad que caracteriza a nuestro colegio.",
+  "facts": [
+   "El equipo de Junior acompaña a los estudiantes de 5° a 8° básico en una etapa fundamental de su desarrollo, marcada por el inicio de la adolescencia y el desarrollo de su identidad personal, social y académica.",
+   "Contamos con más de 70 profesionales que acompañan a los 20 cursos que conforman este ciclo."
+  ],
+  "documents": []
+ },
+ {
+  "slug": "senior",
+  "name": "Senior",
+  "path": "/unidad/senior",
+  "url": "https://saintgeorge.cl/unidad/senior/",
+  "cycle": "",
+  "grades": [
+   "9°",
+   "10°",
+   "11°",
+   "12°"
+  ],
+  "accordions": [
+   {
+    "label": "Dirección y equipo Senior",
+    "label_shown": "Dirección y equipo Senior",
+    "target": "#collapse_1_1",
+    "nth": 0
+   },
+   {
+    "label": "9°",
+    "label_shown": "9°",
+    "target": "#collapse_2_1",
+    "nth": 1
+   },
+   {
+    "label": "10°",
+    "label_shown": "10°",
+    "target": "#collapse_3_1",
+    "nth": 2
+   },
+   {
+    "label": "11°",
+    "label_shown": "11°",
+    "target": "#collapse_4_1",
+    "nth": 3
+   },
+   {
+    "label": "12°",
+    "label_shown": "12°",
+    "target": "#collapse_5_1",
+    "nth": 4
+   }
+  ],
+  "intro": "Senior es un ciclo que permite consolidar los aprendizajes que las y los estudiantes han desarrollado a lo largo de su recorrido escolar. Esta etapa abre oportunidades para profundizar los intereses académicos y de servicio, a través de las distintas ofertas de actividades y de una propuesta curricular diversificada.\nSon más de 60 profesionales los que acompañan a los 20 cursos que conforman este ciclo.\nEl equipo de profesores —tanto jefes como de asignatura—, junto con los profesionales de las áreas complementarias (Convivencia Escolar, Pastoral y Psicorientación), mantiene un foco en acompañar a los estudiantes en la toma de decisiones vocacionales, orientándolos en la construcción de su proyecto personal y futuro académico, y por sobre todo, en el desarrollo de la autonomía necesaria para dar el paso a la educación superior.",
+  "facts": [
+   "Son más de 60 profesionales los que acompañan a los 20 cursos que conforman este ciclo."
+  ],
+  "documents": []
+ }
+]

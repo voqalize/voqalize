@@ -1,0 +1,1557 @@
+{
+ "/": {
+  "url": "https://saintgeorge.cl/",
+  "title": "Saint George's College | Somos un colegio católico de la Congragción de Santa Cruz",
+  "kind": "home",
+  "headings": [
+   {
+    "text": "Nuestra comunidad",
+    "level": 2,
+    "selector": "#comunidad > div.container > div.row.justify-content-center > div.col-12.text-center > h2.display-3.mb-5"
+   },
+   {
+    "text": "La misión que nos convoca",
+    "level": 2,
+    "selector": "h2.display-4.text-blue"
+   },
+   {
+    "text": "Nuestros valores que guían la acción educativa",
+    "level": 2,
+    "selector": "h2.text-yellow.display-5"
+   },
+   {
+    "text": "Respeto",
+    "level": 3,
+    "selector": "div.col-11.col-sm-8:nth-of-type(1) > h3.fw-bold.fs-5:nth-of-type(1)"
+   },
+   {
+    "text": "Inclusión",
+    "level": 3,
+    "selector": "div.col-11.col-sm-8:nth-of-type(1) > h3.fw-bold.fs-5:nth-of-type(2)"
+   },
+   {
+    "text": "Austeridad",
+    "level": 3,
+    "selector": "div.col-11.col-sm-8:nth-of-type(1) > h3.fw-bold.fs-5:nth-of-type(3)"
+   },
+   {
+    "text": "Justicia",
+    "level": 3,
+    "selector": "h3.fw-bold.fs-5:nth-of-type(4)"
+   },
+   {
+    "text": "Responsabilidad",
+    "level": 3,
+    "selector": "div.col-11.col-sm-8:nth-of-type(2) > h3.fw-bold.fs-5:nth-of-type(1)"
+   },
+   {
+    "text": "Honestidad",
+    "level": 3,
+    "selector": "div.col-11.col-sm-8:nth-of-type(2) > h3.fw-bold.fs-5:nth-of-type(2)"
+   },
+   {
+    "text": "Caridad",
+    "level": 3,
+    "selector": "div.col-11.col-sm-8:nth-of-type(2) > h3.fw-bold.fs-5:nth-of-type(3)"
+   },
+   {
+    "text": "The dragon",
+    "level": 2,
+    "selector": "section:nth-of-type(4) > div.container > div.row.justify-content-center > div.col-12.text-center > h2.display-3.mb-5"
+   }
+  ],
+  "anchors": [
+   {
+    "id": "comunidad",
+    "tag": "section",
+    "heading": "Nuestra comunidad"
+   },
+   {
+    "id": "mision",
+    "tag": "section",
+    "heading": "La misión que nos convoca"
+   },
+   {
+    "id": "valores",
+    "tag": "section",
+    "heading": "Nuestros valores que guían la acción educativa"
+   }
+  ],
+  "accordions": [],
+  "documents": [
+   {
+    "label": "Dragon Septiembre",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2026/10/The-Dragon-Septiembre.pdf",
+    "near": "The dragon",
+    "selector": "div.col-12.col-sm-8:nth-of-type(2) > a.card.card-blog"
+   },
+   {
+    "label": "Dragon Junio",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2026/04/THE-DRAGON-JUNIO.pdf",
+    "near": "The dragon",
+    "selector": "div.col-12.col-sm-8:nth-of-type(3) > a.card.card-blog"
+   },
+   {
+    "label": "DRAGON Julio",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2025/09/THE-DRAGON-JULIO-comprimido-1.pdf",
+    "near": "The dragon",
+    "selector": "div.col-12.col-sm-8:nth-of-type(4) > a.card.card-blog"
+   },
+   {
+    "label": "Dragon Agosto",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2025/09/The-Dragon-Agosto.pdf",
+    "near": "The dragon",
+    "selector": "div.col-12.col-sm-8:nth-of-type(5) > a.card.card-blog"
+   }
+  ],
+  "links": [],
+  "iframes": []
+ },
+ "/admision/admision": {
+  "url": "https://saintgeorge.cl/admision/admision/",
+  "title": "Admisión",
+  "kind": "admission",
+  "headings": [
+   {
+    "text": "Admisión",
+    "level": 1,
+    "selector": "h1.single-page-header-title"
+   },
+   {
+    "text": "Cambridge English Qualifications",
+    "level": 3,
+    "selector": "h3"
+   }
+  ],
+  "anchors": [],
+  "accordions": [],
+  "documents": [],
+  "links": [],
+  "iframes": []
+ },
+ "/admision/admision-programa-moreau": {
+  "url": "https://saintgeorge.cl/admision/admision-programa-moreau/",
+  "title": "Admisión Programa Moreau",
+  "kind": "admission",
+  "headings": [
+   {
+    "text": "Admisión Programa Moreau",
+    "level": 1,
+    "selector": "h1.single-page-header-title"
+   }
+  ],
+  "anchors": [],
+  "accordions": [],
+  "documents": [],
+  "links": [
+   {
+    "label": "admisiones@saintgeorge.cl",
+    "url": "mailto:admisiones@saintgeorge.cl",
+    "near": "Admisión Programa Moreau",
+    "selector": "p:nth-of-type(3) > span > a"
+   }
+  ],
+  "iframes": []
+ },
+ "/colegio": {
+  "url": "https://saintgeorge.cl/colegio/",
+  "title": "Colegio",
+  "kind": "page",
+  "headings": [
+   {
+    "text": "Imagen divisoria",
+    "level": 2,
+    "selector": "h2.article-header-title"
+   },
+   {
+    "text": "El Saint George’s College reconoce, valora y acompaña a la familia como el ente primario de formación y con un rol insustituible en esta.",
+    "level": 2,
+    "selector": "header.col-lg-12 > h2.display-6.text-blue"
+   },
+   {
+    "text": "La misión que nos convoca",
+    "level": 2,
+    "selector": "div.col-lg-6:nth-of-type(1) > h2.display-6.text-blue"
+   }
+  ],
+  "anchors": [],
+  "accordions": [],
+  "documents": [],
+  "links": [
+   {
+    "label": "DESCARGAR DOCUMENTO",
+    "url": "https://bbyte.cl/clientes/wp-sg/colegio/",
+    "near": "",
+    "selector": "section:nth-of-type(1) > div.container > div.row > div.col-12.col-lg-6 > a.btn.btn-blue"
+   },
+   {
+    "label": "LEE EL REGLAMENTO",
+    "url": "https://bbyte.cl/clientes/wp-sg/colegio/",
+    "near": "Imagen divisoria",
+    "selector": "div.col-xl-6:nth-of-type(1) > a.w-100.mb-3"
+   },
+   {
+    "label": "INSCRÍBETE A PASTORAL",
+    "url": "https://bbyte.cl/clientes/wp-sg/colegio/#",
+    "near": "Imagen divisoria",
+    "selector": "div.col-xl-6:nth-of-type(2) > a.w-100.mb-3"
+   }
+  ],
+  "iframes": []
+ },
+ "/colegio/comite-de-escolaridad": {
+  "url": "https://saintgeorge.cl/colegio/comite-de-escolaridad/",
+  "title": "Comité de Escolaridad",
+  "kind": "school",
+  "headings": [
+   {
+    "text": "Comité de Escolaridad",
+    "level": 1,
+    "selector": "h1.single-page-header-title"
+   }
+  ],
+  "anchors": [],
+  "accordions": [],
+  "documents": [
+   {
+    "label": "REVISA EL REGLAMENTO DEL COMITÉ DE ESCOLARIDAD",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2025/09/REGLAMENTO-COMITE%CC%81-DE-ESCOLARIDAD-2026.pdf",
+    "near": "Comité de Escolaridad",
+    "selector": "a.btn.btn-blue"
+   }
+  ],
+  "links": [],
+  "iframes": []
+ },
+ "/colegio/historia": {
+  "url": "https://saintgeorge.cl/colegio/historia/",
+  "title": "Historia",
+  "kind": "school",
+  "headings": [
+   {
+    "text": "Historia",
+    "level": 1,
+    "selector": "h1.single-page-header-title"
+   }
+  ],
+  "anchors": [],
+  "accordions": [],
+  "documents": [],
+  "links": [],
+  "iframes": [
+   {
+    "src": "https://www.youtube.com/embed/InXRNwN3XEs?si=1GFqv4wClVyBVD9U",
+    "selector": "iframe.video-colegio",
+    "class": "video-colegio",
+    "title": "YouTube video player"
+   }
+  ]
+ },
+ "/colegio/plan-curricular": {
+  "url": "https://saintgeorge.cl/colegio/plan-curricular/",
+  "title": "Plan Curricular",
+  "kind": "school",
+  "headings": [
+   {
+    "text": "Plan Curricular",
+    "level": 1,
+    "selector": "h1.single-page-header-title"
+   }
+  ],
+  "anchors": [],
+  "accordions": [],
+  "documents": [
+   {
+    "label": "REVISA EL PLAN CURRICULAR",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2026/03/Plan-Curricular.pdf",
+    "near": "Plan Curricular",
+    "selector": "a.btn.btn-blue"
+   }
+  ],
+  "links": [],
+  "iframes": []
+ },
+ "/colegio/plan-estrategico-2026-2030-plae": {
+  "url": "https://saintgeorge.cl/colegio/plan-estrategico-2026-2030-plae/",
+  "title": "Plan Estratégico 2026-2030 (PLAE)",
+  "kind": "school",
+  "headings": [
+   {
+    "text": "Plan Estratégico 2026-2030 (PLAE)",
+    "level": 1,
+    "selector": "h1.single-page-header-title"
+   }
+  ],
+  "anchors": [],
+  "accordions": [],
+  "documents": [
+   {
+    "label": "REVISA EL PLAE",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2026/03/Saint-Georges-College-%E2%80%93-Plan-Estrategico-2026%E2%80%932030.pdf",
+    "near": "Plan Estratégico 2026-2030 (PLAE)",
+    "selector": "a.btn.btn-blue"
+   }
+  ],
+  "links": [],
+  "iframes": []
+ },
+ "/colegio/plan-integral-de-seguridad-escolar": {
+  "url": "https://saintgeorge.cl/colegio/plan-integral-de-seguridad-escolar/",
+  "title": "Plan Integral de Seguridad Escolar (PISE)",
+  "kind": "school",
+  "headings": [
+   {
+    "text": "Plan Integral de Seguridad Escolar (PISE)",
+    "level": 1,
+    "selector": "h1.single-page-header-title"
+   }
+  ],
+  "anchors": [],
+  "accordions": [],
+  "documents": [
+   {
+    "label": "REVISA EL PISE",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2025/09/PISE-Saint-Georges-College.pdf",
+    "near": "Plan Integral de Seguridad Escolar (PISE)",
+    "selector": "a.btn.btn-blue"
+   }
+  ],
+  "links": [],
+  "iframes": []
+ },
+ "/colegio/programa-de-afectividad-sexualidad-y-genero": {
+  "url": "https://saintgeorge.cl/colegio/programa-de-afectividad-sexualidad-y-genero/",
+  "title": "Programa de Afectividad, Sexualidad y Género",
+  "kind": "school",
+  "headings": [
+   {
+    "text": "Programa de afectividad, sexualidad y género",
+    "level": 1,
+    "selector": "h1.single-page-header-title"
+   }
+  ],
+  "anchors": [],
+  "accordions": [],
+  "documents": [
+   {
+    "label": "REVISA EL PROGRAMA",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2026/06/Programa-de-afectividad-sexualidad-y-genero-2026.pdf",
+    "near": "Programa de afectividad, sexualidad y género",
+    "selector": "a.btn.btn-blue"
+   }
+  ],
+  "links": [],
+  "iframes": []
+ },
+ "/colegio/protocolos-y-estrategias-de-prevencion": {
+  "url": "https://saintgeorge.cl/colegio/protocolos-y-estrategias-de-prevencion/",
+  "title": "Protocolos y Estrategias de Prevención",
+  "kind": "school",
+  "headings": [
+   {
+    "text": "Protocolos y Estrategias de Prevención",
+    "level": 1,
+    "selector": "h1.single-page-header-title"
+   }
+  ],
+  "anchors": [],
+  "accordions": [],
+  "documents": [
+   {
+    "label": "REVISA LOS ANEXOS",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2025/09/Anexos-Protocolos-RICE-SGC.pdf",
+    "near": "Protocolos y Estrategias de Prevención",
+    "selector": "a.btn.btn-blue"
+   }
+  ],
+  "links": [],
+  "iframes": []
+ },
+ "/colegio/proyecto-educativo": {
+  "url": "https://saintgeorge.cl/colegio/proyecto-educativo/",
+  "title": "Proyecto Educativo",
+  "kind": "school",
+  "headings": [
+   {
+    "text": "Proyecto Educativo",
+    "level": 1,
+    "selector": "h1.single-page-header-title"
+   },
+   {
+    "text": "El Saint George’s College reconoce, valora y acompaña a la familia como el ente primario de formación y con un rol insustituible en esta.",
+    "level": 2,
+    "selector": "section:nth-of-type(3) > div.container > div.row > div.col-12 > h2.display-6.text-blue"
+   },
+   {
+    "text": "La Misión que nos convoca",
+    "level": 2,
+    "selector": "div.fs-5 > h2.p1"
+   }
+  ],
+  "anchors": [],
+  "accordions": [],
+  "documents": [
+   {
+    "label": "DESCARGAR DOCUMENTO",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2025/11/proyecto-educativo-institucional_sgc.pdf",
+    "near": "Proyecto Educativo",
+    "selector": "a.btn.btn-blue"
+   }
+  ],
+  "links": [],
+  "iframes": []
+ },
+ "/colegio/reglamento-de-evaluacion-calificacion-y-promocion": {
+  "url": "https://saintgeorge.cl/colegio/reglamento-de-evaluacion-calificacion-y-promocion/",
+  "title": "Reglamento de Evaluación, Calificación y Promoción",
+  "kind": "school",
+  "headings": [
+   {
+    "text": "Reglamento de Evaluación, Calificación y Promoción",
+    "level": 1,
+    "selector": "h1.single-page-header-title"
+   }
+  ],
+  "anchors": [],
+  "accordions": [],
+  "documents": [
+   {
+    "label": "REVISA EL REGLAMENTO",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2025/09/16.01.2026_Reglamento_de_Evaluacion_Cali%EF%AC%81cacion_y_Promocion-1.pdf",
+    "near": "Reglamento de Evaluación, Calificación y Promoción",
+    "selector": "a.btn.btn-blue"
+   }
+  ],
+  "links": [],
+  "iframes": []
+ },
+ "/colegio/reglamento-interno-de-convivencia-escolar-rice": {
+  "url": "https://saintgeorge.cl/colegio/reglamento-interno-de-convivencia-escolar-rice/",
+  "title": "Reglamento Interno de Convivencia Escolar (RICE)",
+  "kind": "school",
+  "headings": [
+   {
+    "text": "Reglamento Interno de Convivencia Escolar (RICE)",
+    "level": 1,
+    "selector": "h1.single-page-header-title"
+   }
+  ],
+  "anchors": [],
+  "accordions": [],
+  "documents": [
+   {
+    "label": "REVISA EL RICE",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2025/09/RICE-SGC-JULIO-2026.pdf",
+    "near": "Reglamento Interno de Convivencia Escolar (RICE)",
+    "selector": "a.btn.btn-blue"
+   }
+  ],
+  "links": [],
+  "iframes": []
+ },
+ "/congregacion/congregacion-santa-cruz-chile": {
+  "url": "https://saintgeorge.cl/congregacion/congregacion-santa-cruz-chile/",
+  "title": "Congregación de Santa Cruz Chile",
+  "kind": "school",
+  "headings": [
+   {
+    "text": "Congregación de Santa Cruz",
+    "level": 1,
+    "selector": "h1.single-page-header-title"
+   }
+  ],
+  "anchors": [],
+  "accordions": [],
+  "documents": [],
+  "links": [
+   {
+    "label": "CONOCE EL DISTRITO",
+    "url": "https://congregaciondesantacruz.cl/new/",
+    "near": "Congregación de Santa Cruz",
+    "selector": "a.btn.btn-blue"
+   }
+  ],
+  "iframes": [
+   {
+    "src": "https://www.youtube.com/embed/yAwdyyctjas?si=aAe3J65eSz6W6ZHC",
+    "selector": "iframe",
+    "class": "",
+    "title": "YouTube video player"
+   }
+  ]
+ },
+ "/equipo-directivo": {
+  "url": "https://saintgeorge.cl/equipo-directivo/",
+  "title": "Equipo Directivo",
+  "kind": "team",
+  "headings": [
+   {
+    "text": "Equipo Directivo",
+    "level": 1,
+    "selector": "h1.single-page-header-title"
+   },
+   {
+    "text": "Paula Noemi C.",
+    "level": 3,
+    "selector": "div.team-card:nth-of-type(1) > div.team-info > h3.team-name"
+   },
+   {
+    "text": "Carolina López E.",
+    "level": 3,
+    "selector": "div.team-card:nth-of-type(2) > div.team-info > h3.team-name"
+   },
+   {
+    "text": "P. Pablo Miranda M.",
+    "level": 3,
+    "selector": "div.team-card:nth-of-type(3) > div.team-info > h3.team-name"
+   },
+   {
+    "text": "María Eliana Carrasco S.",
+    "level": 3,
+    "selector": "div.team-card:nth-of-type(4) > div.team-info > h3.team-name"
+   },
+   {
+    "text": "P. Rodrigo Valenzuela R. C.S.C.",
+    "level": 3,
+    "selector": "div.team-card:nth-of-type(5) > div.team-info > h3.team-name"
+   },
+   {
+    "text": "Javier Mascaró J.",
+    "level": 3,
+    "selector": "div.team-card:nth-of-type(6) > div.team-info > h3.team-name"
+   },
+   {
+    "text": "Francisca Tagle V.",
+    "level": 3,
+    "selector": "div.team-card:nth-of-type(7) > div.team-info > h3.team-name"
+   },
+   {
+    "text": "Yasna Jelincic S.",
+    "level": 3,
+    "selector": "div.team-card:nth-of-type(8) > div.team-info > h3.team-name"
+   },
+   {
+    "text": "Cecilia Fanta F.",
+    "level": 3,
+    "selector": "div.team-card:nth-of-type(9) > div.team-info > h3.team-name"
+   },
+   {
+    "text": "Marisol Corrotea O.",
+    "level": 3,
+    "selector": "div.team-card:nth-of-type(10) > div.team-info > h3.team-name"
+   }
+  ],
+  "anchors": [],
+  "accordions": [],
+  "documents": [],
+  "links": [],
+  "iframes": []
+ },
+ "/familia": {
+  "url": "https://saintgeorge.cl/familia/",
+  "title": "Familia archivo",
+  "kind": "page",
+  "headings": [
+   {
+    "text": "Familia",
+    "level": 1,
+    "selector": "h1.display-5.text-blue"
+   }
+  ],
+  "anchors": [],
+  "accordions": [],
+  "documents": [],
+  "links": [],
+  "iframes": []
+ },
+ "/familia/boletin-the-dragon": {
+  "url": "https://saintgeorge.cl/familia/boletin-the-dragon/",
+  "title": "Boletín The Dragon",
+  "kind": "family",
+  "headings": [
+   {
+    "text": "Boletín The Dragon",
+    "level": 1,
+    "selector": "h1.single-page-header-title"
+   }
+  ],
+  "anchors": [],
+  "accordions": [],
+  "documents": [
+   {
+    "label": "EDICIÓN MARZO",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2026/04/THE-DRAGON-MARZO-2026.pdf",
+    "near": "Boletín The Dragon",
+    "selector": "div.col-12.mb-4:nth-of-type(2) > a.btn.btn-blue"
+   },
+   {
+    "label": "EDICIÓN ABRIL",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2026/04/The-Dragon-Abril.pdf",
+    "near": "Boletín The Dragon",
+    "selector": "div.col-12.mb-4:nth-of-type(3) > a.btn.btn-blue"
+   },
+   {
+    "label": "EDICIÓN MAYO",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2026/04/The-Dragon-Mayo-1.pdf",
+    "near": "Boletín The Dragon",
+    "selector": "div.col-12.mb-4:nth-of-type(4) > a.btn.btn-blue"
+   },
+   {
+    "label": "EDICIÓN JUNIO",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2026/04/THE-DRAGON-JUNIO.pdf",
+    "near": "Boletín The Dragon",
+    "selector": "div.col-12.mb-4:nth-of-type(5) > a.btn.btn-blue"
+   },
+   {
+    "label": "EDICIÓN JULIO",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2025/09/THE-DRAGON-JULIO-comprimido-1.pdf",
+    "near": "Boletín The Dragon",
+    "selector": "div.col-12.mb-4:nth-of-type(6) > a.btn.btn-blue"
+   },
+   {
+    "label": "EDICIÓN AGOSTO",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2025/09/The-Dragon-Agosto.pdf",
+    "near": "Boletín The Dragon",
+    "selector": "div.col-12.mb-4:nth-of-type(7) > a.btn.btn-blue"
+   },
+   {
+    "label": "EDICIÓN SEPTIEMBRE",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2026/10/The-Dragon-Septiembre.pdf",
+    "near": "Boletín The Dragon",
+    "selector": "div.col-12.mb-4:nth-of-type(8) > a.btn.btn-blue"
+   }
+  ],
+  "links": [],
+  "iframes": []
+ },
+ "/familia/calendario": {
+  "url": "https://saintgeorge.cl/familia/calendario/",
+  "title": "Calendario",
+  "kind": "calendar",
+  "headings": [
+   {
+    "text": "Calendario",
+    "level": 1,
+    "selector": "h1.single-page-header-title"
+   }
+  ],
+  "anchors": [],
+  "accordions": [],
+  "documents": [],
+  "links": [],
+  "iframes": [
+   {
+    "src": "https://calendar.google.com/calendar/embed?height=600&wkst=2&ctz=America%2FSantiago&showPrint=0&showCalendars=0&showTitle=0&mode=MONTH&src=YWN0aXZpZGFkZXNAc2FpbnRnZW9yZ2UuY2w&color=%23039be5",
+    "selector": "iframe.calendar-desktop",
+    "class": "calendar-desktop",
+    "title": ""
+   },
+   {
+    "src": "https://calendar.google.com/calendar/embed?height=600&wkst=2&ctz=America%2FSantiago&showPrint=0&showCalendars=0&showTitle=0&mode=AGENDA&src=YWN0aXZpZGFkZXNAc2FpbnRnZW9yZ2UuY2w&color=%23039be5",
+    "selector": "iframe.calendar-mobile",
+    "class": "calendar-mobile",
+    "title": ""
+   }
+  ]
+ },
+ "/familia/casino": {
+  "url": "https://saintgeorge.cl/familia/casino/",
+  "title": "Casino",
+  "kind": "family",
+  "headings": [
+   {
+    "text": "Casino",
+    "level": 1,
+    "selector": "h1.single-page-header-title"
+   }
+  ],
+  "anchors": [],
+  "accordions": [],
+  "documents": [
+   {
+    "label": "CARTA DE BIENVENIDA",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2025/08/Bienvenida-Carta_SG_2026_v2.pdf",
+    "near": "Casino",
+    "selector": "div.col-12.mb-4:nth-of-type(2) > a.btn.btn-blue"
+   },
+   {
+    "label": "MENÚ JUNIOR",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2025/08/SG-JUNIOR_Octubre.pdf",
+    "near": "Casino",
+    "selector": "div.col-12.mb-4:nth-of-type(3) > a.btn.btn-blue"
+   },
+   {
+    "label": "MENÚ SENIOR",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2025/08/SG-SENIOR_Octubre.pdf",
+    "near": "Casino",
+    "selector": "div.col-12.mb-4:nth-of-type(4) > a.btn.btn-blue"
+   }
+  ],
+  "links": [],
+  "iframes": []
+ },
+ "/familia/informativo": {
+  "url": "https://saintgeorge.cl/familia/informativo/",
+  "title": "Informativo",
+  "kind": "family",
+  "headings": [
+   {
+    "text": "Informativo 2026",
+    "level": 1,
+    "selector": "h1.single-page-header-title"
+   }
+  ],
+  "anchors": [],
+  "accordions": [],
+  "documents": [
+   {
+    "label": "REVISA EL INFORMATIVO 2026",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2025/08/Informativo-2026.pdf",
+    "near": "Informativo 2026",
+    "selector": "a.btn.btn-blue"
+   }
+  ],
+  "links": [],
+  "iframes": []
+ },
+ "/familia/materiales": {
+  "url": "https://saintgeorge.cl/familia/materiales/",
+  "title": "Materiales",
+  "kind": "family",
+  "headings": [
+   {
+    "text": "Lista de Materiales",
+    "level": 1,
+    "selector": "h1.single-page-header-title"
+   }
+  ],
+  "anchors": [],
+  "accordions": [],
+  "documents": [
+   {
+    "label": "PK – KK° LISTA DE ÚTILES Y PLAN LECTOR 2026",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2025/08/PK-KK-LISTA-DE-UTILES-2026.pdf",
+    "near": "Lista de Materiales",
+    "selector": "div.col-12.mb-4:nth-of-type(2) > a.btn.btn-blue"
+   },
+   {
+    "label": "1° LISTA DE ÚTILES Y PLAN LECTOR 2026",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2025/08/1%C2%B0-LISTA-DE-UTILES-Y-PLAN-LECTOR-2026.pdf",
+    "near": "Lista de Materiales",
+    "selector": "div.col-12.mb-4:nth-of-type(3) > a.btn.btn-blue"
+   },
+   {
+    "label": "2° LISTA DE ÚTILES Y PLAN LECTOR 2026",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2025/08/2%C2%B0-LISTA-DE-UTILES-Y-PLAN-LECTOR-2026.pdf",
+    "near": "Lista de Materiales",
+    "selector": "div.col-12.mb-4:nth-of-type(4) > a.btn.btn-blue"
+   },
+   {
+    "label": "3° LISTA DE ÚTILES Y PLAN LECTOR 2026",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2025/08/3%C2%B0-LISTA-DE-UTILES-Y-PLAN-LECTOR-2026.pdf",
+    "near": "Lista de Materiales",
+    "selector": "div.col-12.mb-4:nth-of-type(5) > a.btn.btn-blue"
+   },
+   {
+    "label": "4° LISTA DE ÚTILES Y PLAN LECTOR 2026",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2025/08/4%C2%B0-LISTA-DE-UTILES-Y-PLAN-LECTOR-2026.pdf",
+    "near": "Lista de Materiales",
+    "selector": "div.col-12.mb-4:nth-of-type(6) > a.btn.btn-blue"
+   },
+   {
+    "label": "5° LISTA DE ÚTILES Y PLAN LECTOR 2026",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2025/08/5%C2%B0-LISTA-DE-UTILES-Y-PLAN-LECTOR-2026.pdf",
+    "near": "Lista de Materiales",
+    "selector": "div.col-12.mb-4:nth-of-type(7) > a.btn.btn-blue"
+   },
+   {
+    "label": "6° LISTA DE ÚTILES Y PLAN LECTOR 2026",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2025/08/6%C2%B0-LISTA-DE-UTILES-Y-PLAN-LECTOR-2026.pdf",
+    "near": "Lista de Materiales",
+    "selector": "div.col-12.mb-4:nth-of-type(8) > a.btn.btn-blue"
+   },
+   {
+    "label": "7° LISTA DE ÚTILES Y PLAN LECTOR 2026",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2025/08/7%C2%B0-LISTA-DE-UTILES-Y-PLAN-LECTOR-2026.pdf",
+    "near": "Lista de Materiales",
+    "selector": "div.col-12.mb-4:nth-of-type(9) > a.btn.btn-blue"
+   },
+   {
+    "label": "8° LISTA DE ÚTILES Y PLAN LECTOR 2026",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2025/08/8%C2%B0-LISTA-DE-UTILES-Y-PLAN-LECTOR-2026.pdf",
+    "near": "Lista de Materiales",
+    "selector": "div.col-12.mb-4:nth-of-type(10) > a.btn.btn-blue"
+   },
+   {
+    "label": "9° LISTA DE ÚTILES Y PLAN LECTOR 2026",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2025/08/9%C2%B0-LISTA-DE-UTILES-Y-PLAN-LECTOR-2026.pdf",
+    "near": "Lista de Materiales",
+    "selector": "div.col-12.mb-4:nth-of-type(11) > a.btn.btn-blue"
+   },
+   {
+    "label": "10° LISTA DE ÚTILES Y PLAN LECTOR 2026",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2025/08/10%C2%B0-LISTA-DE-UTILES-Y-PLAN-LECTOR-2026.pdf",
+    "near": "Lista de Materiales",
+    "selector": "div.col-12.mb-4:nth-of-type(12) > a.btn.btn-blue"
+   },
+   {
+    "label": "11° LISTA DE ÚTILES Y PLAN LECTOR 2026",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2025/08/11%C2%B0-LISTA-DE-UTILES-Y-PLAN-LECTOR-2026.pdf",
+    "near": "Lista de Materiales",
+    "selector": "div.col-12.mb-4:nth-of-type(13) > a.btn.btn-blue"
+   },
+   {
+    "label": "12° LISTA DE ÚTILES Y PLAN LECTOR 2026",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2025/08/12%C2%B0-LISTA-DE-UTILES-Y-PLAN-LECTOR-2026.pdf",
+    "near": "Lista de Materiales",
+    "selector": "div.col-12.mb-4:nth-of-type(14) > a.btn.btn-blue"
+   }
+  ],
+  "links": [],
+  "iframes": []
+ },
+ "/familia/musical-the-lion-king": {
+  "url": "https://saintgeorge.cl/familia/musical-the-lion-king/",
+  "title": "Musical The Lion King",
+  "kind": "family",
+  "headings": [
+   {
+    "text": "The Lion King Funciones 20 y 21 noviembre",
+    "level": 1,
+    "selector": "h1.single-page-header-title"
+   },
+   {
+    "text": "90 años de historia. Una comunidad. Un mismo escenario.",
+    "level": 2,
+    "selector": "h2.display-6.text-blue"
+   },
+   {
+    "text": "EQUIPO Y ELENCO Un musical hecho por nuestra comunidad",
+    "level": 3,
+    "selector": "h3:nth-of-type(2)"
+   },
+   {
+    "text": "SÚMATE AL EQUIPO Talleres para apoderados y grupo de apoyos",
+    "level": 3,
+    "selector": "h3:nth-of-type(3)"
+   },
+   {
+    "text": "CONTACTO ¿Tienes dudas?",
+    "level": 3,
+    "selector": "div.col-lg-6.texto-admision > div.fs-5 > h3"
+   }
+  ],
+  "anchors": [],
+  "accordions": [],
+  "documents": [
+   {
+    "label": "¡Haz click aquí y conoce al equipo y elenco que hacen posible The Lion King!",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2026/09/The-Lion-King-Elenco-1.pdf",
+    "near": "EQUIPO Y ELENCO Un musical hecho por nuestra comunidad",
+    "selector": "p:nth-of-type(5) > a"
+   },
+   {
+    "label": "MÁS INFORMACIÓN DEL TALLER DE MAQUILLAJE TEATRAL.",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2026/09/TALLER-DE-MAQUILLAJE-TEATRAL.pdf",
+    "near": "SÚMATE AL EQUIPO Talleres para apoderados y grupo de apoyos",
+    "selector": "div.col-12.col-lg-6:nth-of-type(1) > a.btn.btn-blue"
+   },
+   {
+    "label": "MÁS INFORMACIÓN DEL TALLER DE CONFECCIÓN DE VESTUARIO.",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2026/09/TALLER-DE-CONFECCION-DE-VESTUARIO.pdf",
+    "near": "SÚMATE AL EQUIPO Talleres para apoderados y grupo de apoyos",
+    "selector": "div.col-12.col-lg-6:nth-of-type(2) > a.btn.btn-blue"
+   },
+   {
+    "label": "MÁS INFORMACIÓN DEL TALLER DE CREACIÓN DE CORPÓREOS.",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2026/09/TALLER-DE-CREACION-DE-CORPOREOS.pdf",
+    "near": "SÚMATE AL EQUIPO Talleres para apoderados y grupo de apoyos",
+    "selector": "div.col-12.col-lg-6:nth-of-type(3) > a.btn.btn-blue"
+   },
+   {
+    "label": "MÁS INFORMACIÓN DE OPERACIONES.",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2026/08/Sumate-al-Equipo-de-Operaciones.pdf",
+    "near": "SÚMATE AL EQUIPO Talleres para apoderados y grupo de apoyos",
+    "selector": "div.col-12.col-lg-6:nth-of-type(4) > a.btn.btn-blue"
+   },
+   {
+    "label": "BASES CONCURSO DE VENTA DE ENTRADAS",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2026/08/BASES-CONCURSO-DE-VENTA-DE-ENTRADAS-Musical-The-Lion-King-%E2%80%93-Colegio-Saint-George.pdf",
+    "near": "SÚMATE AL EQUIPO Talleres para apoderados y grupo de apoyos",
+    "selector": "div.col-12.col-lg-6:nth-of-type(5) > a.btn.btn-blue"
+   }
+  ],
+  "links": [
+   {
+    "label": "musical-the-lion-king",
+    "url": "https://ticketplus.cl/events/musical-the-lion-king",
+    "near": "90 años de historia. Una comunidad. Un mismo escenario.",
+    "selector": "h3:nth-of-type(1) > a"
+   }
+  ],
+  "iframes": []
+ },
+ "/familia/ropero": {
+  "url": "https://saintgeorge.cl/familia/ropero/",
+  "title": "Ropero",
+  "kind": "family",
+  "headings": [
+   {
+    "text": "Ropero",
+    "level": 1,
+    "selector": "h1.single-page-header-title"
+   },
+   {
+    "text": "¿Qué es el Ropero?",
+    "level": 3,
+    "selector": "div.col-lg-12.texto-admision:nth-of-type(2) > div.fs-5 > h3:nth-of-type(1)"
+   },
+   {
+    "text": "¿Cómo funciona?",
+    "level": 3,
+    "selector": "h3:nth-of-type(2)"
+   },
+   {
+    "text": "Reciclaje, Reparación, Reutilización y Donación:",
+    "level": 3,
+    "selector": "h3:nth-of-type(3)"
+   },
+   {
+    "text": "Conéctate con el Ropero",
+    "level": 3,
+    "selector": "div.col-lg-12.texto-admision:nth-of-type(3) > div.fs-5 > h3"
+   }
+  ],
+  "anchors": [],
+  "accordions": [],
+  "documents": [],
+  "links": [
+   {
+    "label": "@roperosgc",
+    "url": "https://www.instagram.com/roperosgc/",
+    "near": "Conéctate con el Ropero",
+    "selector": "p:nth-of-type(1) > a"
+   }
+  ],
+  "iframes": []
+ },
+ "/formacion-integral/area-de-convivencia-escolar": {
+  "url": "https://saintgeorge.cl/formacion-integral/area-de-convivencia-escolar/",
+  "title": "Área de Convivencia Escolar",
+  "kind": "formation",
+  "headings": [
+   {
+    "text": "Área de Convivencia Escolar",
+    "level": 1,
+    "selector": "h1.single-page-header-title"
+   }
+  ],
+  "anchors": [],
+  "accordions": [],
+  "documents": [],
+  "links": [],
+  "iframes": []
+ },
+ "/formacion-integral/area-deportiva": {
+  "url": "https://saintgeorge.cl/formacion-integral/area-deportiva/",
+  "title": "Área Deportiva",
+  "kind": "formation",
+  "headings": [
+   {
+    "text": "Área Deportiva",
+    "level": 1,
+    "selector": "h1.single-page-header-title"
+   }
+  ],
+  "anchors": [],
+  "accordions": [
+   {
+    "label": "CONOCE AL EQUIPO",
+    "label_shown": "CONOCE AL EQUIPO",
+    "nth": 0,
+    "nth_label": 0,
+    "target": "#collapse_1_1",
+    "group_id": "acc_1",
+    "group_heading": "Área Deportiva",
+    "rows": 34,
+    "find": {
+     "selector": "main button.accordion-button",
+     "label": "conoce al equipo"
+    }
+   }
+  ],
+  "documents": [
+   {
+    "label": "ÁREA DE DEPORTE 2026",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2025/10/Area-de-Deportes-2026.pdf",
+    "near": "Área Deportiva",
+    "selector": "div.col-12.mb-4:nth-of-type(3) > a.btn.btn-blue"
+   },
+   {
+    "label": "HORARIOS DEPORTE 2026",
+    "url": "https://saintgeorge.cl/wp-content/uploads/2025/10/Horario-Deporte-2026.pdf",
+    "near": "Área Deportiva",
+    "selector": "div.col-12.mb-4:nth-of-type(4) > a.btn.btn-blue"
+   }
+  ],
+  "links": [],
+  "iframes": []
+ },
+ "/formacion-integral/direccion_de_estudios": {
+  "url": "https://saintgeorge.cl/formacion-integral/direccion_de_estudios/",
+  "title": "Dirección de Estudios",
+  "kind": "formation",
+  "headings": [
+   {
+    "text": "Dirección de Estudios",
+    "level": 1,
+    "selector": "h1.single-page-header-title"
+   },
+   {
+    "text": "TAREAS DE LA DIRECCIÓN DE ESTUDIOS",
+    "level": 3,
+    "selector": "div.col-lg-12.texto-admision:nth-of-type(2) > div.fs-5 > h3.p1"
+   },
+   {
+    "text": "OBJETIVOS DE LA DIRECCIÓN DE ESTUDIOS",
+    "level": 3,
+    "selector": "div.col-lg-12.texto-admision:nth-of-type(3) > div.fs-5 > h3.p1:nth-of-type(1)"
+   },
+   {
+    "text": "RESPONSABILIDADES DE LA DIRECCIÓN DE ESTUDIOS",
+    "level": 3,
+    "selector": "h3.p1:nth-of-type(2)"
+   },
+   {
+    "text": "CAMBRIDGE ENGLISH QUALIFICATIONS",
+    "level": 3,
+    "selector": "h3:nth-of-type(4)"
+   },
+   {
+    "text": "CONOCE AL EQUIPO:",
+    "level": 3,
+    "selector": "h3.h5.mb-3"
+   }
+  ],
+  "anchors": [],
+  "accordions": [
+   {
+    "label": "EQUIPO DIRECCIÓN DE ESTUDIOS",
+    "label_shown": "EQUIPO DIRECCIÓN DE ESTUDIOS",
+    "nth": 0,
+    "nth_label": 0,
+    "target": "#collapse_1_1",
+    "group_id": "acc_1",
+    "group_heading": "CONOCE AL EQUIPO:",
+    "rows": 6,
+    "find": {
+     "selector": "main button.accordion-button",
+     "label": "equipo direccion de estudios"
+    }
+   },
+   {
+    "label": "Jefes de Área/Coordinadores",
+    "label_shown": "JEFES DE ÁREA/COORDINADORES",
+    "nth": 1,
+    "nth_label": 0,
+    "target": "#collapse_1_2",
+    "group_id": "acc_1",
+    "group_heading": "CONOCE AL EQUIPO:",
+    "rows": 14,
+    "find": {
+     "selector": "main button.accordion-button",
+     "label": "jefes de area/coordinadores"
+    }
+   },
+   {
+    "label": "Centro de Información y Extensión (CIE)",
+    "label_shown": "CENTRO DE INFORMACIÓN Y EXTENSIÓN (CIE)",
+    "nth": 2,
+    "nth_label": 0,
+    "target": "#collapse_1_3",
+    "group_id": "acc_1",
+    "group_heading": "CONOCE AL EQUIPO:",
+    "rows": 5,
+    "find": {
+     "selector": "main button.accordion-button",
+     "label": "centro de informacion y extension (cie)"
+    }
+   },
+   {
+    "label": "Área Psicopedagogía",
+    "label_shown": "ÁREA PSICOPEDAGOGÍA",
+    "nth": 3,
+    "nth_label": 0,
+    "target": "#collapse_1_4",
+    "group_id": "acc_1",
+    "group_heading": "CONOCE AL EQUIPO:",
+    "rows": 10,
+    "find": {
+     "selector": "main button.accordion-button",
+     "label": "area psicopedagogia"
+    }
+   }
+  ],
+  "documents": [],
+  "links": [],
+  "iframes": []
+ },
+ "/formacion-integral/direccion_de_pastoral": {
+  "url": "https://saintgeorge.cl/formacion-integral/direccion_de_pastoral/",
+  "title": "Dirección de Pastoral",
+  "kind": "formation",
+  "headings": [
+   {
+    "text": "Dirección de Pastoral",
+    "level": 1,
+    "selector": "h1.single-page-header-title"
+   },
+   {
+    "text": "PROYECTOS PASTORALES",
+    "level": 3,
+    "selector": "div.col-lg-12.texto-admision:nth-of-type(2) > div.fs-5 > h3.p1"
+   },
+   {
+    "text": "OBJETIVOS",
+    "level": 3,
+    "selector": "div.col-lg-12.texto-admision:nth-of-type(3) > div.fs-5 > h3.p1"
+   }
+  ],
+  "anchors": [],
+  "accordions": [
+   {
+    "label": "CONOCE AL EQUIPO DE DIRECCIÓN PASTORAL",
+    "label_shown": "CONOCE AL EQUIPO DE DIRECCIÓN PASTORAL",
+    "nth": 0,
+    "nth_label": 0,
+    "target": "#collapse_1_1",
+    "group_id": "acc_1",
+    "group_heading": "OBJETIVOS",
+    "rows": 15,
+    "find": {
+     "selector": "main button.accordion-button",
+     "label": "conoce al equipo de direccion pastoral"
+    }
+   }
+  ],
+  "documents": [],
+  "links": [],
+  "iframes": []
+ },
+ "/formacion-integral/introduccion_aprender_a_conocer": {
+  "url": "https://saintgeorge.cl/formacion-integral/introduccion_aprender_a_conocer/",
+  "title": "Introducción",
+  "kind": "formation",
+  "headings": [
+   {
+    "text": "Aprender a Conocer",
+    "level": 1,
+    "selector": "h1.single-page-header-title"
+   }
+  ],
+  "anchors": [],
+  "accordions": [],
+  "documents": [],
+  "links": [],
+  "iframes": []
+ },
+ "/formacion-integral/introduccion_aprender_a_convivir": {
+  "url": "https://saintgeorge.cl/formacion-integral/introduccion_aprender_a_convivir/",
+  "title": "Introducción",
+  "kind": "formation",
+  "headings": [
+   {
+    "text": "Aprender a Convivir",
+    "level": 1,
+    "selector": "h1.single-page-header-title"
+   }
+  ],
+  "anchors": [],
+  "accordions": [],
+  "documents": [],
+  "links": [],
+  "iframes": []
+ },
+ "/formacion-integral/introduccion_aprender_a_ser_y_trascender": {
+  "url": "https://saintgeorge.cl/formacion-integral/introduccion_aprender_a_ser_y_trascender/",
+  "title": "Introducción",
+  "kind": "formation",
+  "headings": [
+   {
+    "text": "Aprender a ser y trascender",
+    "level": 1,
+    "selector": "h1.single-page-header-title"
+   }
+  ],
+  "anchors": [],
+  "accordions": [],
+  "documents": [],
+  "links": [],
+  "iframes": []
+ },
+ "/formacion-integral/psicorientacion": {
+  "url": "https://saintgeorge.cl/formacion-integral/psicorientacion/",
+  "title": "Psicorientación",
+  "kind": "formation",
+  "headings": [
+   {
+    "text": "Psicorientación",
+    "level": 1,
+    "selector": "h1.single-page-header-title"
+   }
+  ],
+  "anchors": [],
+  "accordions": [],
+  "documents": [],
+  "links": [],
+  "iframes": []
+ },
+ "/unidad/elementary": {
+  "url": "https://saintgeorge.cl/unidad/elementary/",
+  "title": "Elementary",
+  "kind": "unit",
+  "headings": [
+   {
+    "text": "Elementary",
+    "level": 1,
+    "selector": "h1.single-page-header-title"
+   },
+   {
+    "text": "Construyendo los cimientos de su formación integral",
+    "level": 4,
+    "selector": "div.col-lg-12.texto-admision:nth-of-type(2) > div.fs-5 > p:nth-of-type(1)",
+    "pseudo": true
+   }
+  ],
+  "anchors": [],
+  "accordions": [
+   {
+    "label": "Dirección y equipo Elementary",
+    "label_shown": "Dirección y equipo Elementary",
+    "nth": 0,
+    "nth_label": 0,
+    "target": "#collapse_1_1",
+    "group_id": "acc_1",
+    "group_heading": "Construyendo los cimientos de su formación integral",
+    "rows": 15,
+    "find": {
+     "selector": "main button.accordion-button",
+     "label": "direccion y equipo elementary"
+    }
+   },
+   {
+    "label": "1º BÁSICO",
+    "label_shown": "1º BÁSICO",
+    "nth": 1,
+    "nth_label": 0,
+    "target": "#collapse_2_1",
+    "group_id": "acc_2",
+    "group_heading": "Construyendo los cimientos de su formación integral",
+    "rows": 6,
+    "find": {
+     "selector": "main button.accordion-button",
+     "label": "1º basico"
+    }
+   },
+   {
+    "label": "2º BÁSICO",
+    "label_shown": "2º BÁSICO",
+    "nth": 2,
+    "nth_label": 0,
+    "target": "#collapse_3_1",
+    "group_id": "acc_3",
+    "group_heading": "Construyendo los cimientos de su formación integral",
+    "rows": 6,
+    "find": {
+     "selector": "main button.accordion-button",
+     "label": "2º basico"
+    }
+   },
+   {
+    "label": "3º BÁSICO",
+    "label_shown": "3º BÁSICO",
+    "nth": 3,
+    "nth_label": 0,
+    "target": "#collapse_4_1",
+    "group_id": "acc_4",
+    "group_heading": "Construyendo los cimientos de su formación integral",
+    "rows": 6,
+    "find": {
+     "selector": "main button.accordion-button",
+     "label": "3º basico"
+    }
+   },
+   {
+    "label": "4º BÁSICO",
+    "label_shown": "4º BÁSICO",
+    "nth": 4,
+    "nth_label": 0,
+    "target": "#collapse_5_1",
+    "group_id": "acc_5",
+    "group_heading": "Construyendo los cimientos de su formación integral",
+    "rows": 6,
+    "find": {
+     "selector": "main button.accordion-button",
+     "label": "4º basico"
+    }
+   }
+  ],
+  "documents": [],
+  "links": [],
+  "iframes": []
+ },
+ "/unidad/infant": {
+  "url": "https://saintgeorge.cl/unidad/infant/",
+  "title": "Infant",
+  "kind": "unit",
+  "headings": [
+   {
+    "text": "Infant",
+    "level": 1,
+    "selector": "h1.single-page-header-title"
+   },
+   {
+    "text": "El primer paso en la vida escolar de nuestros estudiantes",
+    "level": 4,
+    "selector": "div.col-lg-12.texto-admision:nth-of-type(2) > div.fs-5 > p:nth-of-type(1)",
+    "pseudo": true
+   }
+  ],
+  "anchors": [],
+  "accordions": [
+   {
+    "label": "Dirección y equipo Infant",
+    "label_shown": "Dirección y equipo Infant",
+    "nth": 0,
+    "nth_label": 0,
+    "target": "#collapse_1_1",
+    "group_id": "acc_1",
+    "group_heading": "El primer paso en la vida escolar de nuestros estudiantes",
+    "rows": 11,
+    "find": {
+     "selector": "main button.accordion-button",
+     "label": "direccion y equipo infant"
+    }
+   },
+   {
+    "label": "PRE KINDER",
+    "label_shown": "PRE KINDER",
+    "nth": 1,
+    "nth_label": 0,
+    "target": "#collapse_2_1",
+    "group_id": "acc_2",
+    "group_heading": "El primer paso en la vida escolar de nuestros estudiantes",
+    "rows": 8,
+    "find": {
+     "selector": "main button.accordion-button",
+     "label": "pre kinder"
+    }
+   },
+   {
+    "label": "KINDER",
+    "label_shown": "KINDER",
+    "nth": 2,
+    "nth_label": 0,
+    "target": "#collapse_3_1",
+    "group_id": "acc_3",
+    "group_heading": "El primer paso en la vida escolar de nuestros estudiantes",
+    "rows": 8,
+    "find": {
+     "selector": "main button.accordion-button",
+     "label": "kinder"
+    }
+   }
+  ],
+  "documents": [],
+  "links": [],
+  "iframes": []
+ },
+ "/unidad/junior": {
+  "url": "https://saintgeorge.cl/unidad/junior/",
+  "title": "Junior",
+  "kind": "unit",
+  "headings": [
+   {
+    "text": "Junior",
+    "level": 1,
+    "selector": "h1.single-page-header-title"
+   },
+   {
+    "text": "Acompañamos en el desarrollo y crecimiento de nuestros estudiantes",
+    "level": 4,
+    "selector": "div.col-lg-12.texto-admision:nth-of-type(2) > div.fs-5 > p:nth-of-type(1)",
+    "pseudo": true
+   }
+  ],
+  "anchors": [],
+  "accordions": [
+   {
+    "label": "Dirección y equipo Junior",
+    "label_shown": "Dirección y equipo Junior",
+    "nth": 0,
+    "nth_label": 0,
+    "target": "#collapse_1_1",
+    "group_id": "acc_1",
+    "group_heading": "Acompañamos en el desarrollo y crecimiento de nuestros estudiantes",
+    "rows": 14,
+    "find": {
+     "selector": "main button.accordion-button",
+     "label": "direccion y equipo junior"
+    }
+   },
+   {
+    "label": "5º BÁSICO",
+    "label_shown": "5º BÁSICO",
+    "nth": 1,
+    "nth_label": 0,
+    "target": "#collapse_2_1",
+    "group_id": "acc_2",
+    "group_heading": "Acompañamos en el desarrollo y crecimiento de nuestros estudiantes",
+    "rows": 6,
+    "find": {
+     "selector": "main button.accordion-button",
+     "label": "5º basico"
+    }
+   },
+   {
+    "label": "6º BÁSICO",
+    "label_shown": "6º BÁSICO",
+    "nth": 2,
+    "nth_label": 0,
+    "target": "#collapse_3_1",
+    "group_id": "acc_3",
+    "group_heading": "Acompañamos en el desarrollo y crecimiento de nuestros estudiantes",
+    "rows": 6,
+    "find": {
+     "selector": "main button.accordion-button",
+     "label": "6º basico"
+    }
+   },
+   {
+    "label": "7º BÁSICO",
+    "label_shown": "7º BÁSICO",
+    "nth": 3,
+    "nth_label": 0,
+    "target": "#collapse_4_1",
+    "group_id": "acc_4",
+    "group_heading": "Acompañamos en el desarrollo y crecimiento de nuestros estudiantes",
+    "rows": 6,
+    "find": {
+     "selector": "main button.accordion-button",
+     "label": "7º basico"
+    }
+   },
+   {
+    "label": "8º BÁSICO",
+    "label_shown": "8º BÁSICO",
+    "nth": 4,
+    "nth_label": 0,
+    "target": "#collapse_5_1",
+    "group_id": "acc_5",
+    "group_heading": "Acompañamos en el desarrollo y crecimiento de nuestros estudiantes",
+    "rows": 6,
+    "find": {
+     "selector": "main button.accordion-button",
+     "label": "8º basico"
+    }
+   }
+  ],
+  "documents": [],
+  "links": [],
+  "iframes": []
+ },
+ "/unidad/senior": {
+  "url": "https://saintgeorge.cl/unidad/senior/",
+  "title": "Senior",
+  "kind": "unit",
+  "headings": [
+   {
+    "text": "Senior",
+    "level": 1,
+    "selector": "h1.single-page-header-title"
+   },
+   {
+    "text": "Consolidando aprendizajes camino a la adultez",
+    "level": 4,
+    "selector": "div.col-lg-12.texto-admision:nth-of-type(2) > div.fs-5 > p:nth-of-type(1)",
+    "pseudo": true
+   }
+  ],
+  "anchors": [],
+  "accordions": [
+   {
+    "label": "Dirección y equipo Senior",
+    "label_shown": "Dirección y equipo Senior",
+    "nth": 0,
+    "nth_label": 0,
+    "target": "#collapse_1_1",
+    "group_id": "acc_1",
+    "group_heading": "Consolidando aprendizajes camino a la adultez",
+    "rows": 11,
+    "find": {
+     "selector": "main button.accordion-button",
+     "label": "direccion y equipo senior"
+    }
+   },
+   {
+    "label": "9°",
+    "label_shown": "9°",
+    "nth": 1,
+    "nth_label": 0,
+    "target": "#collapse_2_1",
+    "group_id": "acc_2",
+    "group_heading": "Consolidando aprendizajes camino a la adultez",
+    "rows": 6,
+    "find": {
+     "selector": "main button.accordion-button",
+     "label": "9°"
+    }
+   },
+   {
+    "label": "10°",
+    "label_shown": "10°",
+    "nth": 2,
+    "nth_label": 0,
+    "target": "#collapse_3_1",
+    "group_id": "acc_3",
+    "group_heading": "Consolidando aprendizajes camino a la adultez",
+    "rows": 6,
+    "find": {
+     "selector": "main button.accordion-button",
+     "label": "10°"
+    }
+   },
+   {
+    "label": "11°",
+    "label_shown": "11°",
+    "nth": 3,
+    "nth_label": 0,
+    "target": "#collapse_4_1",
+    "group_id": "acc_4",
+    "group_heading": "Consolidando aprendizajes camino a la adultez",
+    "rows": 6,
+    "find": {
+     "selector": "main button.accordion-button",
+     "label": "11°"
+    }
+   },
+   {
+    "label": "12°",
+    "label_shown": "12°",
+    "nth": 4,
+    "nth_label": 0,
+    "target": "#collapse_5_1",
+    "group_id": "acc_5",
+    "group_heading": "Consolidando aprendizajes camino a la adultez",
+    "rows": 6,
+    "find": {
+     "selector": "main button.accordion-button",
+     "label": "12°"
+    }
+   }
+  ],
+  "documents": [],
+  "links": [],
+  "iframes": []
+ }
+}

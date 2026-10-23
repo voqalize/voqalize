@@ -1,0 +1,608 @@
+{
+ "site": "https://saintgeorge.cl",
+ "crawled": "2026-10-22",
+ "nav": [
+  {
+   "label": "Colegio",
+   "href": "https://saintgeorge.cl/colegio/",
+   "toggle": true,
+   "children": [
+    {
+     "label": "Historia",
+     "href": "https://saintgeorge.cl/colegio/historia/"
+    },
+    {
+     "label": "Congregación de Santa Cruz Chile",
+     "href": "https://saintgeorge.cl/congregacion/congregacion-santa-cruz-chile/"
+    },
+    {
+     "label": "Proyecto Educativo",
+     "href": "https://saintgeorge.cl/colegio/proyecto-educativo/"
+    },
+    {
+     "label": "Documentos Institucionales",
+     "href": "https://saintgeorge.cl/documentos-institucionales/",
+     "children": [
+      {
+       "label": "Plan Estratégico 2026-2030 (PLAE)",
+       "href": "https://saintgeorge.cl/colegio/plan-estrategico-2026-2030-plae/"
+      },
+      {
+       "label": "Plan Curricular",
+       "href": "https://saintgeorge.cl/colegio/plan-curricular/"
+      },
+      {
+       "label": "Plan Integral de Seguridad Escolar (PISE)",
+       "href": "https://saintgeorge.cl/colegio/plan-integral-de-seguridad-escolar/"
+      },
+      {
+       "label": "Reglamento Interno de Convivencia Escolar (RICE)",
+       "href": "https://saintgeorge.cl/colegio/reglamento-interno-de-convivencia-escolar-rice/"
+      },
+      {
+       "label": "Comité de Escolaridad",
+       "href": "https://saintgeorge.cl/colegio/comite-de-escolaridad/"
+      },
+      {
+       "label": "Reglamento de Evaluación, Calificación y Promoción",
+       "href": "https://saintgeorge.cl/colegio/reglamento-de-evaluacion-calificacion-y-promocion/"
+      },
+      {
+       "label": "Protocolos y Estrategias de Prevención",
+       "href": "https://saintgeorge.cl/colegio/protocolos-y-estrategias-de-prevencion/"
+      },
+      {
+       "label": "Programa de Afectividad, Sexualidad y Género",
+       "href": "https://saintgeorge.cl/colegio/programa-de-afectividad-sexualidad-y-genero/"
+      }
+     ]
+    },
+    {
+     "label": "Equipo Directivo",
+     "href": "https://saintgeorge.cl/equipo-directivo/"
+    },
+    {
+     "label": "Infant",
+     "href": "https://saintgeorge.cl/unidad/infant/"
+    },
+    {
+     "label": "Elementary",
+     "href": "https://saintgeorge.cl/unidad/elementary/"
+    },
+    {
+     "label": "Junior",
+     "href": "https://saintgeorge.cl/unidad/junior/"
+    },
+    {
+     "label": "Senior",
+     "href": "https://saintgeorge.cl/unidad/senior/"
+    }
+   ]
+  },
+  {
+   "label": "Familia",
+   "href": "https://saintgeorge.cl/familia/",
+   "toggle": true,
+   "children": [
+    {
+     "label": "Postulación opcionales 2027",
+     "href": "https://sistemas.saintgeorge.cl/opcional/postular"
+    },
+    {
+     "label": "Postulación plan diferenciado 11° 2027",
+     "href": "https://sistemas.saintgeorge.cl/diferenciado/postular-11"
+    },
+    {
+     "label": "Postulación plan diferenciado 12° 2027",
+     "href": "https://sistemas.saintgeorge.cl/diferenciado/postular-12"
+    },
+    {
+     "label": "Informativo",
+     "href": "https://saintgeorge.cl/familia/informativo/"
+    },
+    {
+     "label": "Lista de Materiales",
+     "href": "https://saintgeorge.cl/familia/materiales/"
+    },
+    {
+     "label": "Calendario",
+     "href": "https://saintgeorge.cl/familia/calendario/"
+    },
+    {
+     "label": "Schoolnet",
+     "href": "https://schoolnet.colegium.com/webapp/es_CL/login",
+     "target": "_blank"
+    },
+    {
+     "label": "Casino",
+     "href": "https://saintgeorge.cl/familia/casino/"
+    },
+    {
+     "label": "Ropero",
+     "href": "https://saintgeorge.cl/familia/ropero/"
+    },
+    {
+     "label": "Boletín The Dragon",
+     "href": "https://saintgeorge.cl/familia/boletin-the-dragon/"
+    },
+    {
+     "label": "Musical The Lion King",
+     "href": "https://saintgeorge.cl/familia/musical-the-lion-king/"
+    }
+   ]
+  },
+  {
+   "label": "Formación integral",
+   "href": "https://saintgeorge.cl/formacion-integral/",
+   "toggle": true,
+   "children": [
+    {
+     "label": "Aprender a Ser y trascender",
+     "href": "https://saintgeorge.cl/aprender-a-ser-y-trascender/",
+     "children": [
+      {
+       "label": "Introducción",
+       "href": "https://saintgeorge.cl/formacion-integral/introduccion_aprender_a_ser_y_trascender/"
+      },
+      {
+       "label": "Dirección de Pastoral",
+       "href": "https://saintgeorge.cl/formacion-integral/direccion_de_pastoral/"
+      },
+      {
+       "label": "Psicorientación",
+       "href": "https://saintgeorge.cl/formacion-integral/psicorientacion/"
+      }
+     ]
+    },
+    {
+     "label": "Aprender a Conocer",
+     "href": "https://saintgeorge.cl/aprender-a-conocer/",
+     "children": [
+      {
+       "label": "Introducción",
+       "href": "https://saintgeorge.cl/formacion-integral/introduccion_aprender_a_conocer/"
+      },
+      {
+       "label": "Dirección de Estudios",
+       "href": "https://saintgeorge.cl/formacion-integral/direccion_de_estudios/"
+      }
+     ]
+    },
+    {
+     "label": "Aprender a Convivir",
+     "href": "https://saintgeorge.cl/aprender-a-convivir/",
+     "children": [
+      {
+       "label": "Introducción",
+       "href": "https://saintgeorge.cl/formacion-integral/introduccion_aprender_a_convivir/"
+      },
+      {
+       "label": "Área Deportiva",
+       "href": "https://saintgeorge.cl/formacion-integral/area-deportiva/"
+      },
+      {
+       "label": "Área de Convivencia Escolar",
+       "href": "https://saintgeorge.cl/formacion-integral/area-de-convivencia-escolar/"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "label": "Admisión",
+   "href": "https://saintgeorge.cl/admision/",
+   "toggle": true,
+   "children": [
+    {
+     "label": "Admisión",
+     "href": "https://saintgeorge.cl/admision/admision/"
+    },
+    {
+     "label": "Admisión Programa Moreau",
+     "href": "https://saintgeorge.cl/admision/admision-programa-moreau/"
+    }
+   ]
+  },
+  {
+   "label": "Comunidad",
+   "href": "https://saintgeorge.cl/comunidad/",
+   "toggle": true,
+   "children": [
+    {
+     "label": "Centro de Estudiantes (CDE)",
+     "href": "https://sites.google.com/georgian.cl/cde-2025/inicio",
+     "target": "_blank"
+    },
+    {
+     "label": "Centro de Apoderados (CDA)",
+     "href": "https://www.cdasaintgeorge.cl/",
+     "target": "_blank"
+    },
+    {
+     "label": "Old Georgians (OGA)",
+     "href": "https://www.oldgeorgians.cl/",
+     "target": "_blank"
+    }
+   ]
+  },
+  {
+   "label": "Pago Colegiatura",
+   "href": "https://sistemas.saintgeorge.cl/colegiatura/pagar-mensualidad",
+   "target": "_blank"
+  }
+ ],
+ "mobile_menu": "button.navbar-toggler → #offcanvasNavbar",
+ "footer": {
+  "address_lines": [
+   "Av. Santa Cruz 5400",
+   "Vitacura, Santiago.",
+   "Contacto: +56 22 3556100",
+   "Enfermería: +56 22 3556141 / +56 22 3556128",
+   "contacto@saintgeorge.cl",
+   "Todos los derechos reservados © 2026"
+  ],
+  "phones": [
+   "+56 22 3556100",
+   "+56 22 3556141",
+   "+56 22 3556128"
+  ],
+  "emails": [
+   "contacto@saintgeorge.cl"
+  ],
+  "links": [
+   {
+    "label": "contacto@saintgeorge.cl",
+    "href": "mailto:contacto@saintgeorge.cl"
+   },
+   {
+    "label": "Centro de Estudiantes (CDE)",
+    "href": "https://sites.google.com/georgian.cl/cde-2025/inicio"
+   },
+   {
+    "label": "Centro de Apoderados (CDA)",
+    "href": "https://cdasaintgeorge.cl/"
+   },
+   {
+    "label": "Old Georgians (OGA)",
+    "href": "https://www.oldgeorgians.cl/"
+   },
+   {
+    "label": "LIRMI",
+    "href": "https://login.lirmi.com/login"
+   },
+   {
+    "label": "Trabaja con nosotros",
+    "href": "https://saintgeorge.profejobs.cl/trabaja-con-nosotros"
+   },
+   {
+    "label": "instagram.svg",
+    "href": "https://www.instagram.com/gosaintgeorge/"
+   },
+   {
+    "label": "linkedin.svg",
+    "href": "https://www.linkedin.com/company/saint-george-s-college/"
+   }
+  ]
+ },
+ "headers": {
+  "content-type": "text/html; charset=UTF-8",
+  "referrer-policy": "strict-origin-when-cross-origin",
+  "server": "nginx",
+  "strict-transport-security": "max-age=31536000; includeSubDomains",
+  "x-frame-options": "SAMEORIGIN"
+ },
+ "redirects": {},
+ "broken_internal_links": {},
+ "empty_pages": [
+  "/admision",
+  "/aprender-a-conocer",
+  "/aprender-a-convivir",
+  "/aprender-a-ser-y-trascender",
+  "/comunidad",
+  "/documentos-institucionales",
+  "/equipo-directivo/carolina-lopez",
+  "/equipo-directivo/cecilia-fanta",
+  "/equipo-directivo/francisca-tagle-v",
+  "/equipo-directivo/javier-mascaro",
+  "/equipo-directivo/maria-eliana-carrasco",
+  "/equipo-directivo/marisol-corrotea",
+  "/equipo-directivo/p-pablo-miranda",
+  "/equipo-directivo/paula-noemi-callejas",
+  "/equipo-directivo/rodrigo-valenzuela",
+  "/equipo-directivo/yasna-jelincic",
+  "/familia/ropero/img_4371",
+  "/familia/ropero/img_4395",
+  "/familia/ropero/img_4399",
+  "/familia/ropero/img_4571",
+  "/formacion-integral",
+  "/materia/lenguaje",
+  "/materia/matematicas",
+  "/nivel/nivel-1",
+  "/nivel/nivel-2",
+  "/nivel/nivel-3",
+  "/the-dragon/dragon-1",
+  "/the-dragon/dragon-2",
+  "/the-dragon/dragon-3",
+  "/the-dragon/dragon-septiembre",
+  "/tipo_de_categoria_colegio/historia",
+  "/tipo_de_categoria_colegio/proyecto-educativo",
+  "/tipo_de_formacion/formacion-para-equipos-directivos-y-docentes",
+  "/tipo_de_formacion/formacion-para-tutores"
+ ],
+ "page_kinds": {
+  "home": 1,
+  "page": 9,
+  "team": 11,
+  "admission": 2,
+  "school": 11,
+  "formation": 8,
+  "newsletter": 4,
+  "unit": 4,
+  "family": 10,
+  "calendar": 1,
+  "taxonomy": 9
+ },
+ "sitemaps": {
+  "https://saintgeorge.cl/post-sitemap.xml": 1,
+  "https://saintgeorge.cl/page-sitemap.xml": 11,
+  "https://saintgeorge.cl/admision-sitemap.xml": 2,
+  "https://saintgeorge.cl/colegio-sitemap.xml": 10,
+  "https://saintgeorge.cl/congregacion-sitemap.xml": 1,
+  "https://saintgeorge.cl/equipo-directivo-sitemap.xml": 10,
+  "https://saintgeorge.cl/formacion-integral-sitemap.xml": 8,
+  "https://saintgeorge.cl/the-dragon-sitemap.xml": 4,
+  "https://saintgeorge.cl/unidad-sitemap.xml": 4,
+  "https://saintgeorge.cl/familia-sitemap.xml": 8,
+  "https://saintgeorge.cl/category-sitemap.xml": 1,
+  "https://saintgeorge.cl/tipo_de_formacion-sitemap.xml": 2,
+  "https://saintgeorge.cl/materia-sitemap.xml": 2,
+  "https://saintgeorge.cl/nivel-sitemap.xml": 3,
+  "https://saintgeorge.cl/tipo_de_categoria_colegio-sitemap.xml": 2,
+  "https://saintgeorge.cl/author-sitemap.xml": 1
+ },
+ "wp_types": {
+  "pages": 11,
+  "admision": 2,
+  "unidad": 4,
+  "colegio": 10,
+  "familia": 7,
+  "formacion-integral": 8,
+  "the-dragon": 4,
+  "equipo-directivo": 10,
+  "congregacion": 1
+ },
+ "calendar": {
+  "path": "/familia/calendario",
+  "iframes": [
+   {
+    "src": "https://calendar.google.com/calendar/embed?height=600&wkst=2&ctz=America%2FSantiago&showPrint=0&showCalendars=0&showTitle=0&mode=MONTH&src=YWN0aXZpZGFkZXNAc2FpbnRnZW9yZ2UuY2w&color=%23039be5",
+    "selector": "iframe.calendar-desktop",
+    "class": "calendar-desktop",
+    "title": ""
+   },
+   {
+    "src": "https://calendar.google.com/calendar/embed?height=600&wkst=2&ctz=America%2FSantiago&showPrint=0&showCalendars=0&showTitle=0&mode=AGENDA&src=YWN0aXZpZGFkZXNAc2FpbnRnZW9yZ2UuY2w&color=%23039be5",
+    "selector": "iframe.calendar-mobile",
+    "class": "calendar-mobile",
+    "title": ""
+   }
+  ]
+ },
+ "outbound_hosts": {
+  "sistemas.saintgeorge.cl": 264,
+  "sites.google.com": 132,
+  "www.oldgeorgians.cl": 132,
+  "mailto": 67,
+  "www.instagram.com": 67,
+  "schoolnet.colegium.com": 66,
+  "www.cdasaintgeorge.cl": 66,
+  "cdasaintgeorge.cl": 66,
+  "login.lirmi.com": 66,
+  "saintgeorge.profejobs.cl": 66,
+  "www.linkedin.com": 66,
+  "bbyte.cl": 4,
+  "congregaciondesantacruz.cl": 1,
+  "ticketplus.cl": 1
+ },
+ "outbound_links": [
+  {
+   "url": "https://sites.google.com/georgian.cl/cde-2025/inicio",
+   "labels": [
+    "Centro de Estudiantes (CDE)"
+   ],
+   "areas": [
+    "header",
+    "footer"
+   ],
+   "pages": 132
+  },
+  {
+   "url": "https://www.oldgeorgians.cl/",
+   "labels": [
+    "Old Georgians (OGA)"
+   ],
+   "areas": [
+    "header",
+    "footer"
+   ],
+   "pages": 132
+  },
+  {
+   "url": "https://cdasaintgeorge.cl/",
+   "labels": [
+    "Centro de Apoderados (CDA)"
+   ],
+   "areas": [
+    "footer"
+   ],
+   "pages": 66
+  },
+  {
+   "url": "https://login.lirmi.com/login",
+   "labels": [
+    "LIRMI"
+   ],
+   "areas": [
+    "footer"
+   ],
+   "pages": 66
+  },
+  {
+   "url": "https://saintgeorge.profejobs.cl/trabaja-con-nosotros",
+   "labels": [
+    "Trabaja con nosotros"
+   ],
+   "areas": [
+    "footer"
+   ],
+   "pages": 66
+  },
+  {
+   "url": "https://schoolnet.colegium.com/webapp/es_CL/login",
+   "labels": [
+    "Schoolnet"
+   ],
+   "areas": [
+    "header"
+   ],
+   "pages": 66
+  },
+  {
+   "url": "https://sistemas.saintgeorge.cl/colegiatura/pagar-mensualidad",
+   "labels": [
+    "Pago Colegiatura"
+   ],
+   "areas": [
+    "header"
+   ],
+   "pages": 66
+  },
+  {
+   "url": "https://sistemas.saintgeorge.cl/diferenciado/postular-11",
+   "labels": [
+    "Postulación plan diferenciado 11° 2027"
+   ],
+   "areas": [
+    "header"
+   ],
+   "pages": 66
+  },
+  {
+   "url": "https://sistemas.saintgeorge.cl/diferenciado/postular-12",
+   "labels": [
+    "Postulación plan diferenciado 12° 2027"
+   ],
+   "areas": [
+    "header"
+   ],
+   "pages": 66
+  },
+  {
+   "url": "https://sistemas.saintgeorge.cl/opcional/postular",
+   "labels": [
+    "Postulación opcionales 2027"
+   ],
+   "areas": [
+    "header"
+   ],
+   "pages": 66
+  },
+  {
+   "url": "https://www.cdasaintgeorge.cl/",
+   "labels": [
+    "Centro de Apoderados (CDA)"
+   ],
+   "areas": [
+    "header"
+   ],
+   "pages": 66
+  },
+  {
+   "url": "https://www.instagram.com/gosaintgeorge/",
+   "labels": [],
+   "areas": [
+    "footer"
+   ],
+   "pages": 66
+  },
+  {
+   "url": "https://www.linkedin.com/company/saint-george-s-college/",
+   "labels": [],
+   "areas": [
+    "footer"
+   ],
+   "pages": 66
+  },
+  {
+   "url": "mailto:contacto@saintgeorge.cl",
+   "labels": [
+    "contacto@saintgeorge.cl"
+   ],
+   "areas": [
+    "footer"
+   ],
+   "pages": 66
+  },
+  {
+   "url": "https://bbyte.cl/clientes/wp-sg/colegio/",
+   "labels": [
+    "DESCARGAR DOCUMENTO",
+    "LEE EL REGLAMENTO"
+   ],
+   "areas": [
+    "body"
+   ],
+   "pages": 3
+  },
+  {
+   "url": "https://bbyte.cl/clientes/wp-sg/colegio/#",
+   "labels": [
+    "INSCRÍBETE A PASTORAL"
+   ],
+   "areas": [
+    "body"
+   ],
+   "pages": 1
+  },
+  {
+   "url": "https://congregaciondesantacruz.cl/new/",
+   "labels": [
+    "CONOCE EL DISTRITO"
+   ],
+   "areas": [
+    "body"
+   ],
+   "pages": 1
+  },
+  {
+   "url": "https://ticketplus.cl/events/musical-the-lion-king",
+   "labels": [
+    "musical-the-lion-king"
+   ],
+   "areas": [
+    "body"
+   ],
+   "pages": 1
+  },
+  {
+   "url": "https://www.instagram.com/roperosgc/",
+   "labels": [
+    "@roperosgc"
+   ],
+   "areas": [
+    "body"
+   ],
+   "pages": 1
+  },
+  {
+   "url": "mailto:admisiones@saintgeorge.cl",
+   "labels": [
+    "admisiones@saintgeorge.cl"
+   ],
+   "areas": [
+    "body"
+   ],
+   "pages": 1
+  }
+ ]
+}

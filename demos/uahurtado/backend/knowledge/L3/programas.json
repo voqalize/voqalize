@@ -1,0 +1,1735 @@
+[
+ {
+  "slug": "curso-iniciacion-docencia-universitaria",
+  "name": "Curso Iniciación en la Docencia Universitaria",
+  "url": "https://postgrados.uahurtado.cl/programa/curso-iniciacion-docencia-universitaria/",
+  "type": "otro",
+  "especialidad": [
+   "Cursos"
+  ],
+  "area": "Administración",
+  "areas": [
+   "Administración",
+   "Filosofía y Humanidades",
+   "Gestión",
+   "Psicología"
+  ],
+  "faculty": "",
+  "modalidad": "Online sincrónico",
+  "duration": "",
+  "summary": "El curso inicia a profesionales de postgrado en la docencia universitaria, proporcionando los fundamentos pedagógicos esenciales para garantizar una enseñanza de calidad en la educación superior.",
+  "aliases": []
+ },
+ {
+  "slug": "curso-supervision-tesis",
+  "name": "Curso Supervisión de Tesis y Actividades de Graduación de Postgrado",
+  "url": "https://postgrados.uahurtado.cl/programa/curso-supervision-tesis/",
+  "type": "otro",
+  "especialidad": [
+   "Cursos"
+  ],
+  "area": "Administración",
+  "areas": [
+   "Administración",
+   "Ciencias Sociales",
+   "Derecho",
+   "Educación",
+   "Filosofía y Humanidades",
+   "Gobierno y Políticas Públicas",
+   "Psicología"
+  ],
+  "faculty": "",
+  "modalidad": "Online sincrónico",
+  "duration": "",
+  "summary": "El curso forma y profesionaliza a académicos y futuros supervisores en las metodologías y responsabilidades éticas fundamentales para guiar efectivamente procesos de titulación de postgrado.",
+  "aliases": []
+ },
+ {
+  "slug": "diplomado-acompanamiento-psicoespiritual",
+  "name": "Diplomado en Acompañamiento Psicoespiritual",
+  "url": "https://postgrados.uahurtado.cl/programa/diplomado-acompanamiento-psicoespiritual/",
+  "type": "diplomado",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Comunicaciones",
+  "areas": [
+   "Comunicaciones",
+   "Educación"
+  ],
+  "faculty": "",
+  "modalidad": "Online",
+  "duration": "120 horas",
+  "summary": "Formación integral que une fe, psicología y servicio pastoral para el acompañamiento psicoespiritual en el mundo de hoy.",
+  "aliases": [
+   "diplomado de Acompañamiento Psicoespiritual"
+  ]
+ },
+ {
+  "slug": "diplomado-analisis-gestion-constructiva-conflicto-escolar",
+  "name": "Diplomado en Análisis y Gestión Constructiva del Conflicto Escolar",
+  "url": "https://postgrados.uahurtado.cl/programa/diplomado-analisis-gestion-constructiva-conflicto-escolar/",
+  "type": "diplomado",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Ciencias Sociales",
+  "areas": [
+   "Ciencias Sociales",
+   "Educación",
+   "Psicología"
+  ],
+  "faculty": "Facultad de Psicología",
+  "modalidad": "Online sincrónico",
+  "duration": "120 horas",
+  "summary": "Forma profesionales para comprender y transformar el conflicto en oportunidad de aprendizaje y desarrollo de la comunidad escolar, desde una mirada multidimensional y ética.",
+  "aliases": [
+   "diplomado de Análisis y Gestión Constructiva del Conflicto Escolar"
+  ]
+ },
+ {
+  "slug": "diplomado-corporalidad-desarrollo-aprendizaje-bienestar",
+  "name": "Diplomado la Corporalidad en el Desarrollo, Aprendizaje y Bienestar para las Infancias",
+  "url": "https://postgrados.uahurtado.cl/programa/diplomado-corporalidad-desarrollo-aprendizaje-bienestar/",
+  "type": "diplomado",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Educación",
+  "areas": [
+   "Educación"
+  ],
+  "faculty": "Facultad de Educación",
+  "modalidad": "Semipresencial sincrónica (híbrida)",
+  "duration": "92 horas",
+  "summary": "Formar en el uso del juego y el movimiento como herramientas centrales para potenciar el desarrollo multidimensional y el bienestar de las infancias (0-8 años), desde un enfoque de derechos.",
+  "aliases": []
+ },
+ {
+  "slug": "diplomado-criminologia-estrategias-persecucion-penal",
+  "name": "Diplomado en Criminología y Estrategias de Persecución Penal",
+  "url": "https://postgrados.uahurtado.cl/programa/diplomado-criminologia-estrategias-persecucion-penal/",
+  "type": "diplomado",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Administración",
+  "areas": [
+   "Administración",
+   "Derecho",
+   "Gobierno y Políticas Públicas"
+  ],
+  "faculty": "Facultad de Derecho",
+  "modalidad": "Online sincrónico",
+  "duration": "90 horas",
+  "summary": "Capacitar en el uso de herramientas criminológicas y de análisis criminal para elaborar diagnósticos y estrategias de persecución penal que aumenten la imputabilidad frente a nuevas manifestaciones delictivas.",
+  "aliases": [
+   "diplomado de Criminología y Estrategias de Persecución Penal"
+  ]
+ },
+ {
+  "slug": "diplomado-derecho-familias-fundamentos-transformaciones-actuales",
+  "name": "Diplomado en Derecho de las Familias: fundamentos y transformaciones actuales",
+  "url": "https://postgrados.uahurtado.cl/programa/diplomado-derecho-familias-fundamentos-transformaciones-actuales/",
+  "type": "diplomado",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Administración",
+  "areas": [
+   "Administración",
+   "Derecho"
+  ],
+  "faculty": "Facultad de Derecho",
+  "modalidad": "Online sincrónico",
+  "duration": "126 horas",
+  "summary": "Formación integral para el ejercicio del Derecho de las Familias: Analizar, argumentar, litigar y proteger. Un diplomado que desarrolla competencias sustantivas, procesales y éticas al servicio de las nuevas realidades familiares.",
+  "aliases": [
+   "Diplomado en Derecho de las Familias",
+   "diplomado de Derecho de las Familias"
+  ]
+ },
+ {
+  "slug": "diplomado-derecho-patrimonial-familias",
+  "name": "Diplomado en Derecho Patrimonial de las Familias",
+  "url": "https://postgrados.uahurtado.cl/programa/diplomado-derecho-patrimonial-familias/",
+  "type": "diplomado",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Administración",
+  "areas": [
+   "Administración",
+   "Derecho",
+   "Psicología"
+  ],
+  "faculty": "Facultad de Derecho",
+  "modalidad": "Online sincrónico",
+  "duration": "120 horas",
+  "summary": "Diplomado en Derecho Patrimonial de las Familias: especialización en los aspectos económicos y sucesorios de las relaciones familiares, desde una mirada actualizada con enfoque de derechos y justicia distributiva.",
+  "aliases": [
+   "diplomado de Derecho Patrimonial de las Familias"
+  ]
+ },
+ {
+  "slug": "diplomado-derecho-transformacion-digital",
+  "name": "Diplomado en Derecho de la Transformación Digital",
+  "url": "https://postgrados.uahurtado.cl/programa/diplomado-derecho-transformacion-digital/",
+  "type": "diplomado",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Derecho",
+  "areas": [
+   "Derecho"
+  ],
+  "faculty": "Facultad de Derecho",
+  "modalidad": "Online sincrónico",
+  "duration": "80 horas",
+  "summary": "Formar profesionales interdisciplinarios para crear marcos legales que promuevan la innovación digital y protejan los derechos fundamentales, con un enfoque de justicia social.",
+  "aliases": [
+   "diplomado de Derecho de la Transformación Digital"
+  ]
+ },
+ {
+  "slug": "diplomado-derechos-humanos-ausjal-iidh-mencion-acceso-a-la-justicia",
+  "name": "Diplomado Derechos Humanos AUSJAL – IIDH, Mención Acceso a la Justicia",
+  "url": "https://postgrados.uahurtado.cl/programa/diplomado-derechos-humanos-ausjal-iidh-mencion-acceso-a-la-justicia/",
+  "type": "diplomado",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Ciencias Sociales",
+  "areas": [
+   "Ciencias Sociales",
+   "Educación Virtual"
+  ],
+  "faculty": "Facultad de Ciencias Sociales",
+  "modalidad": "Online",
+  "duration": "160 horas",
+  "summary": "Programa interuniversitario en Derechos Humanos con mención en Acceso a la Justicia, surgido de la alianza AUSJAL-IIDH para América Latina y el Caribe.",
+  "aliases": []
+ },
+ {
+  "slug": "diplomado-derechos-humanos-ausjal-iidh-mencion-educacion-en-derechos-humanos",
+  "name": "Diplomado Derechos Humanos AUSJAL – IIDH, Mención Educación en Derechos Humanos",
+  "url": "https://postgrados.uahurtado.cl/programa/diplomado-derechos-humanos-ausjal-iidh-mencion-educacion-en-derechos-humanos/",
+  "type": "diplomado",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Ciencias Sociales",
+  "areas": [
+   "Ciencias Sociales",
+   "Educación Virtual",
+   "Gobierno y Políticas Públicas"
+  ],
+  "faculty": "Facultad de Ciencias Sociales",
+  "modalidad": "Online",
+  "duration": "160 horas",
+  "summary": "Programa interuniversitario en Derechos Humanos con mención en Educación en Derechos Humanos, impartido por la alianza AUSJAL-IIDH para América Latina y el Caribe.",
+  "aliases": []
+ },
+ {
+  "slug": "diplomado-educacion-y-gestion-de-la-convivencia-social-en-la-escuela",
+  "name": "Diplomado Educación y Gestión de la Convivencia Social en la Escuela",
+  "url": "https://postgrados.uahurtado.cl/programa/diplomado-educacion-y-gestion-de-la-convivencia-social-en-la-escuela/",
+  "type": "diplomado",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Educación",
+  "areas": [
+   "Educación"
+  ],
+  "faculty": "Facultad de Educación",
+  "modalidad": "Semipresencial sincrónica (híbrida)",
+  "duration": "120 horas",
+  "summary": "Diseñar estrategias integrales de gestión de la convivencia escolar que promuevan el aprendizaje de vivir juntos, prevengan la violencia y sean coherentes con el proyecto educativo institucional.",
+  "aliases": []
+ },
+ {
+  "slug": "diplomado-en-compras-y-contratacion-publica",
+  "name": "Diplomado en Compras y Contratación Pública",
+  "url": "https://postgrados.uahurtado.cl/programa/diplomado-en-compras-y-contratacion-publica/",
+  "type": "diplomado",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Ciencias Sociales",
+  "areas": [
+   "Ciencias Sociales"
+  ],
+  "faculty": "Facultad de Ciencias Sociales",
+  "modalidad": "Online sincrónico",
+  "duration": "94 horas",
+  "summary": "Formar actores públicos y sociales en la gestión estratégica de compras públicas, agregando valor mediante transparencia, eficiencia y una mirada crítica de los mecanismos de contratación",
+  "aliases": [
+   "diplomado de Compras y Contratación Pública"
+  ]
+ },
+ {
+  "slug": "diplomado-en-conservacion-y-restauracion-de-bienes-culturales-tridimensionales-ceramica-y-madera",
+  "name": "Diplomado en Conservación y Restauración de Bienes Culturales Tridimensionales: Cerámica y Madera",
+  "url": "https://postgrados.uahurtado.cl/programa/diplomado-en-conservacion-y-restauracion-de-bienes-culturales-tridimensionales-ceramica-y-madera/",
+  "type": "diplomado",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Filosofía y Humanidades",
+  "areas": [
+   "Filosofía y Humanidades"
+  ],
+  "faculty": "Facultad de Filosofía y Humanidades",
+  "modalidad": "Online sincrónico",
+  "duration": "90 horas",
+  "summary": "Formación especializada en conservación y restauración de obras tridimensionales de cerámica y madera, actualizada en tratamientos, materiales y criterios contemporáneos.",
+  "aliases": [
+   "Diplomado en Conservación y Restauración de Bienes Culturales Tridimensionales",
+   "diplomado de Conservación y Restauración de Bienes Culturales Tridimensionales"
+  ]
+ },
+ {
+  "slug": "diplomado-en-derecho-penal-y-derecho-procesal-penal",
+  "name": "Diplomado en Derecho Penal y Derecho Procesal Penal",
+  "url": "https://postgrados.uahurtado.cl/programa/diplomado-en-derecho-penal-y-derecho-procesal-penal/",
+  "type": "diplomado",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Derecho",
+  "areas": [
+   "Derecho"
+  ],
+  "faculty": "Facultad de Derecho",
+  "modalidad": "Online sincrónico",
+  "duration": "96 horas cronológicas y 128 horas pedagógicas",
+  "summary": "Brindar herramientas de profundización en Derecho Penal y Procesal Penal para resolver problemas prácticos de la aplicación diaria de la ley",
+  "aliases": [
+   "diplomado de Derecho Penal y Derecho Procesal Penal"
+  ]
+ },
+ {
+  "slug": "diplomado-en-didactica-de-la-historia-y-las-ciencias-sociales",
+  "name": "Diplomado en Didáctica de la Historia y las Ciencias Sociales",
+  "url": "https://postgrados.uahurtado.cl/programa/diplomado-en-didactica-de-la-historia-y-las-ciencias-sociales/",
+  "type": "diplomado",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Educación Virtual",
+  "areas": [
+   "Educación Virtual",
+   "Filosofía y Humanidades"
+  ],
+  "faculty": "Facultad de Filosofía y Humanidades",
+  "modalidad": "Online",
+  "duration": "150 horas",
+  "summary": "Renovar la didáctica de la Historia y las Ciencias Sociales mediante la aplicación de enfoques actualizados y desempeños innovadores para resolver problemas del aula y el currículum actual.",
+  "aliases": [
+   "diplomado de Didáctica de la Historia y las Ciencias Sociales"
+  ]
+ },
+ {
+  "slug": "diplomado-en-didactica-de-la-lengua-y-la-literatura",
+  "name": "Diplomado en Didáctica de la Lengua y la Literatura",
+  "url": "https://postgrados.uahurtado.cl/programa/diplomado-en-didactica-de-la-lengua-y-la-literatura/",
+  "type": "diplomado",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Arte y Cultura",
+  "areas": [
+   "Arte y Cultura",
+   "Educación",
+   "Literatura"
+  ],
+  "faculty": "Facultad de Filosofía y Humanidades",
+  "modalidad": "Online sincrónico",
+  "duration": "108 horas",
+  "summary": "Capacitar a docentes en didáctica específica para el desarrollo integral de la competencia comunicativa y literaria en estudiantes, acercando el currículum a la realidad del aula.",
+  "aliases": [
+   "diplomado de Didáctica de la Lengua y la Literatura"
+  ]
+ },
+ {
+  "slug": "diplomado-en-direccion-y-gestion-de-empresas",
+  "name": "Diplomado en Dirección y Gestión de Empresas",
+  "url": "https://postgrados.uahurtado.cl/programa/diplomado-en-direccion-y-gestion-de-empresas/",
+  "type": "diplomado",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Administración",
+  "areas": [
+   "Administración",
+   "Economía y Negocios"
+  ],
+  "faculty": "Facultad de Economía y Negocios",
+  "modalidad": "Online sincrónico",
+  "duration": "135 horas",
+  "summary": "Desarrollar habilidades directivas mediante una metodología práctica y un proyecto real, integrando herramientas de gestión con una visión ética y humanista.",
+  "aliases": [
+   "diplomado de Dirección y Gestión de Empresas"
+  ]
+ },
+ {
+  "slug": "diplomado-en-educacion-contemporanea-de-las-artes-visuales",
+  "name": "Diplomado en Educación Contemporánea de las Artes Visuales",
+  "url": "https://postgrados.uahurtado.cl/programa/diplomado-en-educacion-contemporanea-de-las-artes-visuales/",
+  "type": "diplomado",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Arte y Cultura",
+  "areas": [
+   "Arte y Cultura",
+   "Educación",
+   "Filosofía y Humanidades"
+  ],
+  "faculty": "Facultad de Filosofía y Humanidades",
+  "modalidad": "Online sincrónico",
+  "duration": "110 horas",
+  "summary": "Renovar la educación artística mediante herramientas conceptuales y procedimentales contemporáneas para diseñar propuestas didácticas innovadoras, inclusivas y efectivas en diversos contextos educativos.",
+  "aliases": [
+   "diplomado de Educación Contemporánea de las Artes Visuales"
+  ]
+ },
+ {
+  "slug": "diplomado-en-filosofia-y-ciencias",
+  "name": "Diplomado en Filosofía y Ciencias",
+  "url": "https://postgrados.uahurtado.cl/programa/diplomado-en-filosofia-y-ciencias/",
+  "type": "diplomado",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Educación",
+  "areas": [
+   "Educación",
+   "Filosofía y Humanidades"
+  ],
+  "faculty": "Facultad de Filosofía y Humanidades",
+  "modalidad": "Online sincrónico",
+  "duration": "112 horas",
+  "summary": "Integrar las ciencias y las humanidades para analizar filosóficamente el impacto de la biología, las neurociencias y la inteligencia artificial en la sociedad y nuestra visión del ser humano.",
+  "aliases": [
+   "diplomado de Filosofía y Ciencias"
+  ]
+ },
+ {
+  "slug": "diplomado-en-gestion-de-las-artes-y-de-las-culturas",
+  "name": "Diplomado en Gestión de las Artes y de las Culturas",
+  "url": "https://postgrados.uahurtado.cl/programa/diplomado-en-gestion-de-las-artes-y-de-las-culturas/",
+  "type": "diplomado",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Arte y Cultura",
+  "areas": [
+   "Arte y Cultura",
+   "Educación Virtual"
+  ],
+  "faculty": "Facultad de Filosofía y Humanidades",
+  "modalidad": "Online",
+  "duration": "160 horas",
+  "summary": "Formar gestores culturales con herramientas teórico-prácticas para impulsar el desarrollo sostenible de los territorios desde una perspectiva participativa y alineada con las políticas públicas.",
+  "aliases": [
+   "diplomado de Gestión de las Artes y de las Culturas"
+  ]
+ },
+ {
+  "slug": "diplomado-en-gestion-documental-electronica",
+  "name": "Diplomado en Gestión Documental Electrónica",
+  "url": "https://postgrados.uahurtado.cl/programa/diplomado-en-gestion-documental-electronica/",
+  "type": "diplomado",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Administración",
+  "areas": [
+   "Administración",
+   "Economía y Negocios",
+   "Tributaria"
+  ],
+  "faculty": "Facultad de Economía y Negocios",
+  "modalidad": "Online sincrónico",
+  "duration": "144 horas",
+  "summary": "Formar profesionales para liderar la Gestión Documental Electrónica como pilar de la transformación digital y la gobernanza de la información en organizaciones.",
+  "aliases": [
+   "diplomado de Gestión Documental Electrónica"
+  ]
+ },
+ {
+  "slug": "diplomado-en-gobierno-y-gestion-publica",
+  "name": "Diplomado en Gobierno y Gestión Pública",
+  "url": "https://postgrados.uahurtado.cl/programa/diplomado-en-gobierno-y-gestion-publica/",
+  "type": "diplomado",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Ciencias Sociales",
+  "areas": [
+   "Ciencias Sociales",
+   "Gestión",
+   "Gobierno y Políticas Públicas"
+  ],
+  "faculty": "Facultad de Ciencias Sociales",
+  "modalidad": "Online sincrónico",
+  "duration": "144 horas",
+  "summary": "Fortalecer capacidades para articular el sector público y la sociedad civil en la formulación de políticas, respondiendo a los nuevos desafíos de gobernanza en una sociedad diversa.",
+  "aliases": [
+   "diplomado de Gobierno y Gestión Pública"
+  ]
+ },
+ {
+  "slug": "diplomado-en-literacidad-inicial",
+  "name": "Diplomado de Literacidad Emergente e Inicial: respondiendo a los desafíos en la enseñanza del lenguaje escrito",
+  "url": "https://postgrados.uahurtado.cl/programa/diplomado-en-literacidad-inicial/",
+  "type": "diplomado",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Educación",
+  "areas": [
+   "Educación"
+  ],
+  "faculty": "Facultad de Educación",
+  "modalidad": "Semipresencial sincrónica (híbrida)",
+  "duration": "5 meses",
+  "summary": "Literacidad inicial: herramientas didácticas basadas en evidencia para educación parvularia y básica",
+  "aliases": [
+   "Diplomado de Literacidad Emergente e Inicial"
+  ]
+ },
+ {
+  "slug": "diplomado-en-litigacion-con-perspectiva-de-genero",
+  "name": "Diplomado en Litigación con Perspectiva de Género",
+  "url": "https://postgrados.uahurtado.cl/programa/diplomado-en-litigacion-con-perspectiva-de-genero/",
+  "type": "diplomado",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Derecho",
+  "areas": [
+   "Derecho"
+  ],
+  "faculty": "Facultad de Derecho",
+  "modalidad": "Online sincrónico",
+  "duration": "92 horas",
+  "summary": "Formar en litigación estratégica con perspectiva de género para la defensa de los derechos de las mujeres, combinando teoría y práctica en el análisis de casos.",
+  "aliases": [
+   "diplomado de Litigación con Perspectiva de Género"
+  ]
+ },
+ {
+  "slug": "diplomado-en-mediacion-y-resolucion-de-conflictos",
+  "name": "Diplomado en Mediación y Resolución de Conflictos",
+  "url": "https://postgrados.uahurtado.cl/programa/diplomado-en-mediacion-y-resolucion-de-conflictos/",
+  "type": "diplomado",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Administración",
+  "areas": [
+   "Administración",
+   "Derecho"
+  ],
+  "faculty": "Facultad de Derecho",
+  "modalidad": "Online sincrónico",
+  "duration": "116 horas",
+  "summary": "Formación de excelencia en métodos colaborativos de gestión de conflictos, con un equipo docente multidisciplinario e internacional en modalidad 100% online.",
+  "aliases": [
+   "diplomado de Mediación y Resolución de Conflictos"
+  ]
+ },
+ {
+  "slug": "diplomado-escritura-narrativa",
+  "name": "Diplomado Escritura Narrativa",
+  "url": "https://postgrados.uahurtado.cl/programa/diplomado-escritura-narrativa/",
+  "type": "diplomado",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Arte y Cultura",
+  "areas": [
+   "Arte y Cultura",
+   "Comunicaciones",
+   "Literatura"
+  ],
+  "faculty": "Facultad de Ciencias Sociales",
+  "modalidad": "Online sincrónico",
+  "duration": "117 horas",
+  "summary": "La escritura narrativa, en ficción y no ficción, domina el panorama literario actual. Su fuerza radica en conectar con la experiencia humana, desdibujando los límites entre lo real y lo imaginado.",
+  "aliases": []
+ },
+ {
+  "slug": "diplomado-gestion-diversidad-inclusion-organizaciones",
+  "name": "Diplomado en Gestión de la Diversidad e Inclusión en las Organizaciones",
+  "url": "https://postgrados.uahurtado.cl/programa/diplomado-gestion-diversidad-inclusion-organizaciones/",
+  "type": "diplomado",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Psicología",
+  "areas": [
+   "Psicología"
+  ],
+  "faculty": "Facultad de Psicología",
+  "modalidad": "Online sincrónico",
+  "duration": "91 horas",
+  "summary": "Desarrollar competencias para liderar estrategias de gestión de la diversidad e inclusión en los espacios de trabajo, a partir de una mirada estratégica, ética, interseccional y crítica de la diversidad y la inclusión.",
+  "aliases": [
+   "diplomado de Gestión de la Diversidad e Inclusión en las Organizaciones"
+  ]
+ },
+ {
+  "slug": "diplomado-gestion-e-investigacion-del-patrimonio-cultural",
+  "name": "Diplomado Gestión e Investigación del Patrimonio Cultural",
+  "url": "https://postgrados.uahurtado.cl/programa/diplomado-gestion-e-investigacion-del-patrimonio-cultural/",
+  "type": "diplomado",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Arte y Cultura",
+  "areas": [
+   "Arte y Cultura",
+   "Ciencias Sociales"
+  ],
+  "faculty": "Facultad de Ciencias Sociales",
+  "modalidad": "Online sincrónico",
+  "duration": "114 horas",
+  "summary": "Formar especialistas en gestión e investigación del patrimonio cultural con competencias para diseñar y ejecutar proyectos participativos que integren identidad, desarrollo y comunidades.",
+  "aliases": []
+ },
+ {
+  "slug": "diplomado-gestion-pedagogica-y-curricular-para-el-desarrollo-profesional-docente",
+  "name": "Diplomado Gestión Pedagógica y Curricular para el Desarrollo Profesional Docente",
+  "url": "https://postgrados.uahurtado.cl/programa/diplomado-gestion-pedagogica-y-curricular-para-el-desarrollo-profesional-docente/",
+  "type": "diplomado",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Arte y Cultura",
+  "areas": [
+   "Arte y Cultura",
+   "Educación"
+  ],
+  "faculty": "Facultad de Educación",
+  "modalidad": "Online sincrónico",
+  "duration": "100 horas",
+  "summary": "Fortalecer la gestión pedagógica y curricular para un liderazgo efectivo en el desarrollo profesional docente, implementando la Ley 20.903 a nivel de escuela.",
+  "aliases": []
+ },
+ {
+  "slug": "diplomado-habilidades-conversacionales",
+  "name": "Diplomado de Habilidades Conversacionales para la Dirección de Equipos y el Trabajo Colaborativo",
+  "url": "https://postgrados.uahurtado.cl/programa/diplomado-habilidades-conversacionales/",
+  "type": "diplomado",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Administración",
+  "areas": [
+   "Administración",
+   "Ciencias Sociales",
+   "Psicología"
+  ],
+  "faculty": "Facultad de Psicología",
+  "modalidad": "Online sincrónico",
+  "duration": "90 horas",
+  "summary": "Habilidades conversacionales para dirigir equipos con enfoque humanista",
+  "aliases": []
+ },
+ {
+  "slug": "diplomado-interdisciplinario-prevencion-violencia-genero",
+  "name": "Diplomado Interdisciplinario en Prevención y Abordaje de la Violencia de Género en Espacios Laborales y Académicos",
+  "url": "https://postgrados.uahurtado.cl/programa/diplomado-interdisciplinario-prevencion-violencia-genero/",
+  "type": "diplomado",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Administración",
+  "areas": [
+   "Administración",
+   "Ciencias Sociales",
+   "Educación",
+   "Filosofía y Humanidades",
+   "Psicología"
+  ],
+  "faculty": "",
+  "modalidad": "Online sincrónico",
+  "duration": "11 semanas",
+  "summary": "Herramientas para prevenir y abordar la violencia de género en entornos laborales y académicos",
+  "aliases": []
+ },
+ {
+  "slug": "diplomado-intervencion-social-proteccion-nna",
+  "name": "Diplomado en Intervención Social para la Protección Integral de la Niñez y Adolescencia",
+  "url": "https://postgrados.uahurtado.cl/programa/diplomado-intervencion-social-proteccion-nna/",
+  "type": "diplomado",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Ciencias Sociales",
+  "areas": [
+   "Ciencias Sociales"
+  ],
+  "faculty": "Facultad de Ciencias Sociales",
+  "modalidad": "Online sincrónico",
+  "duration": "102 horas",
+  "summary": "Programa especializado para profesionales que trabajan con la niñez y adolescencia, entregando herramientas teóricas y prácticas para la intervención social desde el marco del nuevo Sistema de Garantías y Protección Integral de Derechos.",
+  "aliases": [
+   "diplomado de Intervención Social para la Protección Integral de la Niñez y Adolescencia"
+  ]
+ },
+ {
+  "slug": "diplomado-intervenciones-psicologia-perinatal-chile-latinoamerica",
+  "name": "Diplomado en Intervenciones en Psicología Perinatal en Chile y Latinoamérica",
+  "url": "https://postgrados.uahurtado.cl/programa/diplomado-intervenciones-psicologia-perinatal-chile-latinoamerica/",
+  "type": "diplomado",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Gobierno y Políticas Públicas",
+  "areas": [
+   "Gobierno y Políticas Públicas",
+   "Psicología"
+  ],
+  "faculty": "Facultad de Psicología",
+  "modalidad": "Online sincrónico",
+  "duration": "90 horas",
+  "summary": "Salud Mental Perinatal | La respuesta formativa urgente para los desafíos clínicos, comunitarios y legales en Chile y Latinoamérica",
+  "aliases": [
+   "diplomado de Intervenciones en Psicología Perinatal en Chile y Latinoamérica"
+  ]
+ },
+ {
+  "slug": "diplomado-psicoanalisis-clinica-bordes",
+  "name": "Diplomado Psicoanálisis y Clínica de Bordes: herramientas teórico-prácticas para el abordaje terapéutico de lo límite en instituciones",
+  "url": "https://postgrados.uahurtado.cl/programa/diplomado-psicoanalisis-clinica-bordes/",
+  "type": "diplomado",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Psicología",
+  "areas": [
+   "Psicología"
+  ],
+  "faculty": "Facultad de Psicología",
+  "modalidad": "Semipresencial sincrónica (híbrida)",
+  "duration": "96 horas",
+  "summary": "Este diplomado se centra en el estudio profundo y la capacitación en herramientas teórico-prácticas para la intervención en trastornos de la personalidad y patologías fronterizas desde una perspectiva psicoanalítica",
+  "aliases": [
+   "Diplomado Psicoanálisis y Clínica de Bordes"
+  ]
+ },
+ {
+  "slug": "diplomado-psicologia-educacional",
+  "name": "Diplomado en Psicología Educacional: desarrollo humano, bienestar e inclusión",
+  "url": "https://postgrados.uahurtado.cl/programa/diplomado-psicologia-educacional/",
+  "type": "diplomado",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Educación",
+  "areas": [
+   "Educación",
+   "Psicología"
+  ],
+  "faculty": "Facultad de Psicología",
+  "modalidad": "Online sincrónico",
+  "duration": "100 horas",
+  "summary": "Bienestar, inclusión y aprendizaje: Formación práctica en Psicología Educacional para transformar contextos escolares",
+  "aliases": [
+   "Diplomado en Psicología Educacional",
+   "diplomado de Psicología Educacional"
+  ]
+ },
+ {
+  "slug": "doctorado-en-derecho",
+  "name": "Doctorado en Derecho",
+  "url": "https://postgrados.uahurtado.cl/programa/doctorado-en-derecho/",
+  "type": "doctorado",
+  "especialidad": [
+   "Doctorado"
+  ],
+  "area": "Derecho",
+  "areas": [
+   "Derecho",
+   "Gobierno y Políticas Públicas"
+  ],
+  "faculty": "Facultad de Derecho",
+  "modalidad": "Presencial",
+  "duration": "8 semestres",
+  "summary": "El Doctorado en Derecho de la Universidad Alberto Hurtado es un programa que propende al desarrollo de investigación avanzada, entendida como producción de nuevos conocimientos útiles para abordar los desafíos a los que actualmente se enfrenta la profesión jurídica, con altos estándares de calidad.",
+  "aliases": [
+   "doctorado de Derecho"
+  ]
+ },
+ {
+  "slug": "doctorado-en-educacion",
+  "name": "Doctorado en Educación",
+  "url": "https://postgrados.uahurtado.cl/programa/doctorado-en-educacion/",
+  "type": "doctorado",
+  "especialidad": [
+   "Doctorado"
+  ],
+  "area": "Administración",
+  "areas": [
+   "Administración",
+   "Ciencias Sociales",
+   "Educación"
+  ],
+  "faculty": "Facultad de Educación",
+  "modalidad": "Presencial",
+  "duration": "8 semestres",
+  "summary": "Este programa es el primero en el país que se imparte en forma conjunta por dos universidades: la Universidad Alberto Hurtado y la Universidad Diego Portales, poniendo a disposición un cuerpo académico diverso, multidisciplinario y de reconocida trayectoria en investigación y políticas públicas en…",
+  "aliases": [
+   "doctorado de Educación"
+  ]
+ },
+ {
+  "slug": "doctorado-en-estudios-mediales",
+  "name": "Doctorado en Estudios Mediales",
+  "url": "https://postgrados.uahurtado.cl/programa/doctorado-en-estudios-mediales/",
+  "type": "doctorado",
+  "especialidad": [
+   "Doctorado"
+  ],
+  "area": "Arte y Cultura",
+  "areas": [
+   "Arte y Cultura",
+   "Comunicaciones",
+   "Filosofía y Humanidades",
+   "Gestión",
+   "Literatura"
+  ],
+  "faculty": "Facultad de Filosofía y Humanidades",
+  "modalidad": "Presencial",
+  "duration": "4 años",
+  "summary": "El Doctorado en Estudios Mediales es un programa interdisciplinario radicado en la Facultad de Filosofía y Humanidades cuyo objetivo principal es la formación en un conjunto de enfoques que investigan las interacciones entre los medios y los procesos técnicos de mediación por los cuales se…",
+  "aliases": [
+   "doctorado de Estudios Mediales"
+  ]
+ },
+ {
+  "slug": "doctorado-en-filosofia",
+  "name": "Doctorado en Filosofía",
+  "url": "https://postgrados.uahurtado.cl/programa/doctorado-en-filosofia/",
+  "type": "doctorado",
+  "especialidad": [
+   "Doctorado"
+  ],
+  "area": "Filosofía y Humanidades",
+  "areas": [
+   "Filosofía y Humanidades"
+  ],
+  "faculty": "Facultad de Filosofía y Humanidades",
+  "modalidad": "Presencial",
+  "duration": "8 años",
+  "summary": "El doctorado tiene como uno de sus objetivos principales promover la investigación filosófica de alto nivel.",
+  "aliases": [
+   "doctorado de Filosofía"
+  ]
+ },
+ {
+  "slug": "doctorado-en-psicologia",
+  "name": "Doctorado en Psicología",
+  "url": "https://postgrados.uahurtado.cl/programa/doctorado-en-psicologia/",
+  "type": "doctorado",
+  "especialidad": [
+   "Doctorado"
+  ],
+  "area": "Gobierno y Políticas Públicas",
+  "areas": [
+   "Gobierno y Políticas Públicas",
+   "Psicología"
+  ],
+  "faculty": "Facultad de Psicología",
+  "modalidad": "Presencial",
+  "duration": "4 años",
+  "summary": "El Doctorado pretende favorecer el desarrollo de investigación en Psicología con un sello eminentemente social e interdisciplinar, que permita comprender los procesos psicológicos considerando sus dinámicas históricas, culturales, macro y micro-sociales, además de orgánicas, contribuyendo así al…",
+  "aliases": [
+   "doctorado de Psicología"
+  ]
+ },
+ {
+  "slug": "doctorado-en-sociologia",
+  "name": "Doctorado en Sociología",
+  "url": "https://postgrados.uahurtado.cl/programa/doctorado-en-sociologia/",
+  "type": "doctorado",
+  "especialidad": [
+   "Doctorado"
+  ],
+  "area": "Ciencias Sociales",
+  "areas": [
+   "Ciencias Sociales",
+   "Gobierno y Políticas Públicas"
+  ],
+  "faculty": "Facultad de Ciencias Sociales",
+  "modalidad": "Presencial",
+  "duration": "4 años con dedicación exclusiva",
+  "summary": "Es el primer programa en la disciplina en Chile, el primero en obtener acreditación y el que graduó al primer doctor y a la primera doctora en sociología en el país. Con su creación, en 2006, nos motivaba producir una decisiva contribución a la sociología del siglo XXI.",
+  "aliases": [
+   "doctorado de Sociología"
+  ]
+ },
+ {
+  "slug": "doctorado-en-trabajo-social",
+  "name": "Doctorado en Trabajo Social",
+  "url": "https://postgrados.uahurtado.cl/programa/doctorado-en-trabajo-social/",
+  "type": "doctorado",
+  "especialidad": [
+   "Doctorado"
+  ],
+  "area": "Ciencias Sociales",
+  "areas": [
+   "Ciencias Sociales",
+   "Gestión",
+   "Gobierno y Políticas Públicas"
+  ],
+  "faculty": "Facultad de Ciencias Sociales",
+  "modalidad": "Presencial",
+  "duration": "4 años",
+  "summary": "El Doctorado en Trabajo Social de la Universidad Alberto Hurtado es el primero en Chile. Busca otorgar un espacio para el desarrollo de propuestas comprensivas y de transformación social acordes a los complejos escenarios que vivimos.",
+  "aliases": [
+   "doctorado de Trabajo Social"
+  ]
+ },
+ {
+  "slug": "magister-derecho-familias",
+  "name": "Magíster en Derecho de las Familias",
+  "url": "https://postgrados.uahurtado.cl/programa/magister-derecho-familias/",
+  "type": "magister",
+  "especialidad": [
+   "Magíster"
+  ],
+  "area": "Administración",
+  "areas": [
+   "Administración",
+   "Ciencias Sociales",
+   "Derecho"
+  ],
+  "faculty": "Facultad de Derecho",
+  "modalidad": "Online sincrónico",
+  "duration": "6 trimestres",
+  "summary": "Magíster en Derecho de las Familias: Formación especializada, modular y práctica para abordar los conflictos familiares complejos del siglo XXI, desde la diversidad hasta la justicia transnacional, con el sello UAH de compromiso social.",
+  "aliases": [
+   "magíster de Derecho de las Familias",
+   "máster en Derecho de las Familias"
+  ]
+ },
+ {
+  "slug": "magister-derecho-penal",
+  "name": "Magíster en Derecho Penal",
+  "url": "https://postgrados.uahurtado.cl/programa/magister-derecho-penal/",
+  "type": "magister",
+  "especialidad": [
+   "Magíster Online"
+  ],
+  "area": "Administración",
+  "areas": [
+   "Administración",
+   "Derecho"
+  ],
+  "faculty": "Facultad de Derecho",
+  "modalidad": "Online",
+  "duration": "5 trimestres",
+  "summary": "Programa online que profundiza en la dogmática penal y procesal para desarrollar argumentación técnica especializada y resolver problemas prácticos, con respeto a las garantías del Estado de Derecho.",
+  "aliases": [
+   "magíster de Derecho Penal",
+   "derecho penal online"
+  ]
+ },
+ {
+  "slug": "magister-derecho-penal_sinc",
+  "name": "Magíster Derecho Penal",
+  "url": "https://postgrados.uahurtado.cl/programa/magister-derecho-penal_sinc/",
+  "type": "magister",
+  "especialidad": [
+   "Magíster"
+  ],
+  "area": "Administración",
+  "areas": [
+   "Administración",
+   "Derecho"
+  ],
+  "faculty": "Facultad de Derecho",
+  "modalidad": "Semipresencial sincrónica (híbrida)",
+  "duration": "5 trimestres",
+  "summary": "Especialízate en derecho penal y procesal penal con enfoque técnico, dogmático y garantista. Lidera en la práctica jurídica con solidez argumentativa y ética",
+  "aliases": [
+   "derecho penal"
+  ]
+ },
+ {
+  "slug": "magister-derecho-publico",
+  "name": "Magíster en Derecho Público",
+  "url": "https://postgrados.uahurtado.cl/programa/magister-derecho-publico/",
+  "type": "magister",
+  "especialidad": [
+   "Magíster"
+  ],
+  "area": "Derecho",
+  "areas": [
+   "Derecho"
+  ],
+  "faculty": "Facultad de Derecho",
+  "modalidad": "Semipresencial sincrónica (híbrida)",
+  "duration": "3 semestres",
+  "summary": "Profundización teórica y práctica en Derecho Constitucional y Administrativo, con un plan de estudios modular y flexible que aborda problemas emergentes del derecho público.",
+  "aliases": [
+   "magíster de Derecho Público",
+   "máster en Derecho Público"
+  ]
+ },
+ {
+  "slug": "magister-en-antropologias-latinoamericanas",
+  "name": "Magíster en Antropologías Latinoamericanas",
+  "url": "https://postgrados.uahurtado.cl/programa/magister-en-antropologias-latinoamericanas/",
+  "type": "magister",
+  "especialidad": [
+   "Magíster"
+  ],
+  "area": "Arte y Cultura",
+  "areas": [
+   "Arte y Cultura",
+   "Ciencias Sociales"
+  ],
+  "faculty": "Facultad de Ciencias Sociales",
+  "modalidad": "Semipresencial sincrónica (híbrida)",
+  "duration": "4 semestres",
+  "summary": "Magíster en Antropologías Latinoamericanas: teorías propias y metodologías avanzadas para el estudio de realidades culturales",
+  "aliases": [
+   "magíster de Antropologías Latinoamericanas",
+   "máster en Antropologías Latinoamericanas"
+  ]
+ },
+ {
+  "slug": "magister-en-ciencia-tecnologia-y-sociedad",
+  "name": "Magíster en Ciencia, Tecnología y Sociedad",
+  "url": "https://postgrados.uahurtado.cl/programa/magister-en-ciencia-tecnologia-y-sociedad/",
+  "type": "magister",
+  "especialidad": [
+   "Magíster"
+  ],
+  "area": "Ciencias Sociales",
+  "areas": [
+   "Ciencias Sociales"
+  ],
+  "faculty": "Facultad de Ciencias Sociales",
+  "modalidad": "Semipresencial sincrónica (híbrida)",
+  "duration": "4 semestres",
+  "summary": "Programa que forma profesionales e investigadores para analizar críticamente el impacto de la ciencia y tecnología en la sociedad contemporánea, con enfoque en América Latina.",
+  "aliases": [
+   "magíster de Ciencia, Tecnología y Sociedad",
+   "máster en Ciencia, Tecnología y Sociedad"
+  ]
+ },
+ {
+  "slug": "magister-en-clinica-relacional-con-ninos-ninas-y-adolescentes",
+  "name": "Magíster en Clínica Relacional con niños, niñas y adolescentes",
+  "url": "https://postgrados.uahurtado.cl/programa/magister-en-clinica-relacional-con-ninos-ninas-y-adolescentes/",
+  "type": "magister",
+  "especialidad": [
+   "Magíster"
+  ],
+  "area": "Psicología",
+  "areas": [
+   "Psicología"
+  ],
+  "faculty": "Facultad de Psicología",
+  "modalidad": "Semipresencial sincrónica (híbrida)",
+  "duration": "4 semestres",
+  "summary": "Formación clínica especializada en salud mental infanto-juvenil, integrando la teoría psicodinámica relacional con el análisis de los contextos sociales y culturales.",
+  "aliases": [
+   "magíster de Clínica Relacional con niños, niñas y adolescentes",
+   "máster en Clínica Relacional con niños, niñas y adolescentes"
+  ]
+ },
+ {
+  "slug": "magister-en-derecho-procesal-litigacion",
+  "name": "Magíster en Derecho Procesal y Litigación",
+  "url": "https://postgrados.uahurtado.cl/programa/magister-en-derecho-procesal-litigacion/",
+  "type": "magister",
+  "especialidad": [
+   "Magíster"
+  ],
+  "area": "Derecho",
+  "areas": [
+   "Derecho"
+  ],
+  "faculty": "Facultad de Derecho",
+  "modalidad": "Semipresencial sincrónica (híbrida)",
+  "duration": "3 semestres",
+  "summary": "Magíster semipresencial que combina formación teórica en Derecho Procesal con desarrollo práctico de habilidades de Litigación, a través de un currículo flexible.",
+  "aliases": [
+   "magíster de Derecho Procesal y Litigación",
+   "máster en Derecho Procesal y Litigación"
+  ]
+ },
+ {
+  "slug": "magister-en-didactica-de-la-historia-y-ciencias-sociales",
+  "name": "Magíster en Didáctica de la Historia y Ciencias Sociales",
+  "url": "https://postgrados.uahurtado.cl/programa/magister-en-didactica-de-la-historia-y-ciencias-sociales/",
+  "type": "magister",
+  "especialidad": [
+   "Magíster"
+  ],
+  "area": "Arte y Cultura",
+  "areas": [
+   "Arte y Cultura",
+   "Ciencias Sociales",
+   "Educación",
+   "Filosofía y Humanidades"
+  ],
+  "faculty": "Facultad de Filosofía y Humanidades",
+  "modalidad": "Semipresencial sincrónica (híbrida)",
+  "duration": "4 semestres",
+  "summary": "Desarrollar experticia para la investigación e innovación en la enseñanza de la Historia y Ciencias Sociales, basada en el análisis de las prácticas de aula y los desafíos curriculares actuales.",
+  "aliases": [
+   "magíster de Didáctica de la Historia y Ciencias Sociales",
+   "máster en Didáctica de la Historia y Ciencias Sociales"
+  ]
+ },
+ {
+  "slug": "magister-en-didactica-de-la-matematica",
+  "name": "Magíster en Didáctica de la Matemática",
+  "url": "https://postgrados.uahurtado.cl/programa/magister-en-didactica-de-la-matematica/",
+  "type": "magister",
+  "especialidad": [
+   "Magíster"
+  ],
+  "area": "Educación",
+  "areas": [
+   "Educación"
+  ],
+  "faculty": "Facultad de Educación",
+  "modalidad": "Semipresencial sincrónica (híbrida)",
+  "duration": "4 semestres",
+  "summary": "Magíster en Didáctica de la Matemática: análisis didáctico para la enseñanza del álgebra, geometría, números y estadística",
+  "aliases": [
+   "magíster de Didáctica de la Matemática",
+   "máster en Didáctica de la Matemática"
+  ]
+ },
+ {
+  "slug": "magister-en-didactica-de-las-ciencias-experimentales",
+  "name": "Magíster en Didáctica de las Ciencias Experimentales",
+  "url": "https://postgrados.uahurtado.cl/programa/magister-en-didactica-de-las-ciencias-experimentales/",
+  "type": "magister",
+  "especialidad": [
+   "Magíster"
+  ],
+  "area": "Educación",
+  "areas": [
+   "Educación"
+  ],
+  "faculty": "Facultad de Educación",
+  "modalidad": "Semipresencial sincrónica (híbrida)",
+  "duration": "4 semestres",
+  "summary": "Resignificar la enseñanza de las ciencias mediante la integración de conocimiento disciplinar y didáctico, basada en la reflexión crítica y colaborativa de la práctica docente.",
+  "aliases": [
+   "magíster de Didáctica de las Ciencias Experimentales",
+   "máster en Didáctica de las Ciencias Experimentales"
+  ]
+ },
+ {
+  "slug": "magister-en-didactica-del-lenguaje-y-la-literacidad",
+  "name": "Magíster en Didáctica del Lenguaje y la Literacidad",
+  "url": "https://postgrados.uahurtado.cl/programa/magister-en-didactica-del-lenguaje-y-la-literacidad/",
+  "type": "magister",
+  "especialidad": [
+   "Magíster"
+  ],
+  "area": "",
+  "areas": [],
+  "faculty": "Facultad de Educación",
+  "modalidad": "Semipresencial sincrónica (híbrida)",
+  "duration": "4 semestres",
+  "summary": "Formar docentes en un enfoque sociocultural del lenguaje como continuo, para desarrollar la literacidad como práctica social clave en una escuela intercultural.",
+  "aliases": [
+   "magíster de Didáctica del Lenguaje y la Literacidad",
+   "máster en Didáctica del Lenguaje y la Literacidad"
+  ]
+ },
+ {
+  "slug": "magister-en-economia",
+  "name": "Magíster en Economía",
+  "url": "https://postgrados.uahurtado.cl/programa/magister-en-economia/",
+  "type": "magister",
+  "especialidad": [
+   "Magíster"
+  ],
+  "area": "Economía y Negocios",
+  "areas": [
+   "Economía y Negocios"
+  ],
+  "faculty": "Facultad de Economía y Negocios",
+  "modalidad": "Presencial",
+  "duration": "3 semestres académicos",
+  "summary": "Programa de prestigio latinoamericano con tradición desde 1987, que combina excelencia académica, ambiente intelectual activo y acreditación nacional.",
+  "aliases": [
+   "magíster de Economía",
+   "máster en Economía"
+  ]
+ },
+ {
+  "slug": "magister-en-escritura-narrativa",
+  "name": "Magíster en Escritura Narrativa",
+  "url": "https://postgrados.uahurtado.cl/programa/magister-en-escritura-narrativa/",
+  "type": "magister",
+  "especialidad": [
+   "Magíster"
+  ],
+  "area": "Ciencias Sociales",
+  "areas": [
+   "Ciencias Sociales"
+  ],
+  "faculty": "Facultad de Ciencias Sociales",
+  "modalidad": "Semipresencial sincrónica (híbrida)",
+  "duration": "4 semestres",
+  "summary": "Programa Pionero en Latinoamérica | Formamos escritores profesionales especializados en narrativa de no ficción, periodismo y géneros referenciales.",
+  "aliases": [
+   "magíster de Escritura Narrativa",
+   "máster en Escritura Narrativa"
+  ]
+ },
+ {
+  "slug": "magister-en-estudios-de-la-imagen",
+  "name": "Magíster en Estudios de la Imagen",
+  "url": "https://postgrados.uahurtado.cl/programa/magister-en-estudios-de-la-imagen/",
+  "type": "magister",
+  "especialidad": [
+   "Magíster"
+  ],
+  "area": "Arte y Cultura",
+  "areas": [
+   "Arte y Cultura",
+   "Comunicaciones",
+   "Filosofía y Humanidades",
+   "Literatura"
+  ],
+  "faculty": "Facultad de Filosofía y Humanidades",
+  "modalidad": "Presencial",
+  "duration": "4 semestres",
+  "summary": "Reflexionar de manera multidisciplinaria sobre la imagen como fenómeno cultural, histórico y tecnológico, y su influencia en la percepción y el pensamiento.",
+  "aliases": [
+   "magíster de Estudios de la Imagen",
+   "máster en Estudios de la Imagen"
+  ]
+ },
+ {
+  "slug": "magister-en-filosofia",
+  "name": "Magíster en Filosofía",
+  "url": "https://postgrados.uahurtado.cl/programa/magister-en-filosofia/",
+  "type": "magister",
+  "especialidad": [
+   "Magíster"
+  ],
+  "area": "Filosofía y Humanidades",
+  "areas": [
+   "Filosofía y Humanidades"
+  ],
+  "faculty": "Facultad de Filosofía y Humanidades",
+  "modalidad": "Presencial",
+  "duration": "4 semestres",
+  "summary": "Ofrecer una aproximación plural y actual a los problemas filosóficos, articulando el diálogo crítico entre la tradición y cinco líneas de investigación consolidadas.",
+  "aliases": [
+   "magíster de Filosofía",
+   "máster en Filosofía"
+  ]
+ },
+ {
+  "slug": "magister-en-gobierno-y-sociedad",
+  "name": "Magíster en Gobierno y Sociedad",
+  "url": "https://postgrados.uahurtado.cl/programa/magister-en-gobierno-y-sociedad/",
+  "type": "magister",
+  "especialidad": [
+   "Magíster"
+  ],
+  "area": "Ciencias Sociales",
+  "areas": [
+   "Ciencias Sociales",
+   "Gobierno y Políticas Públicas"
+  ],
+  "faculty": "Facultad de Ciencias Sociales",
+  "modalidad": "Semipresencial sincrónica (híbrida)",
+  "duration": "4 semestres",
+  "summary": "Visión integral de la acción gubernamental y política en un contexto de transformaciones tecnológicas, económicas y políticas.",
+  "aliases": [
+   "magíster de Gobierno y Sociedad",
+   "máster en Gobierno y Sociedad"
+  ]
+ },
+ {
+  "slug": "magister-en-investigacion-en-psicologia",
+  "name": "Magíster en Investigación en Psicología",
+  "url": "https://postgrados.uahurtado.cl/programa/magister-en-investigacion-en-psicologia/",
+  "type": "magister",
+  "especialidad": [
+   "Magíster"
+  ],
+  "area": "Psicología",
+  "areas": [
+   "Psicología"
+  ],
+  "faculty": "Facultad de Psicología",
+  "modalidad": "Semipresencial sincrónica (híbrida)",
+  "duration": "4 semestres",
+  "summary": "Formar investigadores en psicología con un sello social, integrando herramientas metodológicas y el análisis de contextos históricos-culturales para abordar problemáticas latinoamericanas.",
+  "aliases": [
+   "magíster de Investigación en Psicología",
+   "máster en Investigación en Psicología"
+  ]
+ },
+ {
+  "slug": "magister-en-musicologia-latinoamericana",
+  "name": "Magíster en Musicología Latinoamericana",
+  "url": "https://postgrados.uahurtado.cl/programa/magister-en-musicologia-latinoamericana/",
+  "type": "magister",
+  "especialidad": [
+   "Magíster"
+  ],
+  "area": "Arte y Cultura",
+  "areas": [
+   "Arte y Cultura",
+   "Filosofía y Humanidades"
+  ],
+  "faculty": "Facultad de Filosofía y Humanidades",
+  "modalidad": "Semipresencial sincrónica (híbrida)",
+  "duration": "4 semestres",
+  "summary": "Formar investigadores multidisciplinarios para el estudio de la música como fenómeno histórico-social en Latinoamérica, con aplicación en docencia, patrimonio e industrias culturales.",
+  "aliases": [
+   "magíster de Musicología Latinoamericana",
+   "máster en Musicología Latinoamericana"
+  ]
+ },
+ {
+  "slug": "magister-en-politica-educativa",
+  "name": "Magíster en Política Educativa",
+  "url": "https://postgrados.uahurtado.cl/programa/magister-en-politica-educativa/",
+  "type": "magister",
+  "especialidad": [
+   "Magíster"
+  ],
+  "area": "Educación",
+  "areas": [
+   "Educación",
+   "Gobierno y Políticas Públicas"
+  ],
+  "faculty": "Facultad de Educación",
+  "modalidad": "Semipresencial sincrónica (híbrida)",
+  "duration": "4 semestres",
+  "summary": "Formar especialistas para el análisis, diseño y evaluación de políticas educativas que promuevan la equidad y la justicia social en el sistema educativo chileno.",
+  "aliases": [
+   "magíster de Política Educativa",
+   "máster en Política Educativa"
+  ]
+ },
+ {
+  "slug": "magister-en-sociologia",
+  "name": "Magíster en Sociología",
+  "url": "https://postgrados.uahurtado.cl/programa/magister-en-sociologia/",
+  "type": "magister",
+  "especialidad": [
+   "Magíster"
+  ],
+  "area": "Ciencias Sociales",
+  "areas": [
+   "Ciencias Sociales"
+  ],
+  "faculty": "Facultad de Ciencias Sociales",
+  "modalidad": "Semipresencial sincrónica (híbrida)",
+  "duration": "4 semestres",
+  "summary": "Formación académica de excelencia para investigadores que buscan analizar críticamente las desigualdades, transformaciones socioculturales y fenómenos globales de la sociedad contemporánea, con articulación directa al Doctorado en Sociología.",
+  "aliases": [
+   "magíster de Sociología",
+   "máster en Sociología"
+  ]
+ },
+ {
+  "slug": "magister-gestion-direccion-educacional-online",
+  "name": "Magíster en Gestión y Dirección Educacional",
+  "url": "https://postgrados.uahurtado.cl/programa/magister-gestion-direccion-educacional-online/",
+  "type": "magister",
+  "especialidad": [
+   "Magíster Online"
+  ],
+  "area": "Administración",
+  "areas": [
+   "Administración",
+   "Educación",
+   "Gestión"
+  ],
+  "faculty": "Facultad de Educación",
+  "modalidad": "Online",
+  "duration": "4 semestres",
+  "summary": "Formamos líderes escolares con 19 años de experiencia para transformar la educación chilena mediante un programa 100% online y basado en evidencia internacional.",
+  "aliases": [
+   "magíster de Gestión y Dirección Educacional"
+  ]
+ },
+ {
+  "slug": "magister-gestion-y-direccion-educacional",
+  "name": "Magíster Gestión y Dirección Educacional",
+  "url": "https://postgrados.uahurtado.cl/programa/magister-gestion-y-direccion-educacional/",
+  "type": "magister",
+  "especialidad": [
+   "Magíster"
+  ],
+  "area": "Administración",
+  "areas": [
+   "Administración",
+   "Educación",
+   "Gestión"
+  ],
+  "faculty": "Facultad de Educación",
+  "modalidad": "Semipresencial sincrónica (híbrida)",
+  "duration": "4 semestres",
+  "summary": "Formar directivos escolares en liderazgo y gestión efectiva mediante el análisis reflexivo de la práctica, para mejorar los resultados educativos.",
+  "aliases": []
+ },
+ {
+  "slug": "magister-gobierno-politicas-publicas-territorio-online",
+  "name": "Magíster en Gobierno, Políticas Públicas y Territorio",
+  "url": "https://postgrados.uahurtado.cl/programa/magister-gobierno-politicas-publicas-territorio-online/",
+  "type": "magister",
+  "especialidad": [
+   "Magíster Online"
+  ],
+  "area": "Administración",
+  "areas": [
+   "Administración",
+   "Ciencias Sociales",
+   "Gobierno y Políticas Públicas"
+  ],
+  "faculty": "Facultad de Ciencias Sociales",
+  "modalidad": "Online",
+  "duration": "4 semestres",
+  "summary": "Modalidad 100% online. Enfocado en descentralización, pobreza y políticas públicas con impacto local.",
+  "aliases": [
+   "magíster de Gobierno, Políticas Públicas y Territorio"
+  ]
+ },
+ {
+  "slug": "magister-gobierno-politicas-publicas-y-territorio",
+  "name": "Magíster Gobierno, Políticas Públicas y Territorio",
+  "url": "https://postgrados.uahurtado.cl/programa/magister-gobierno-politicas-publicas-y-territorio/",
+  "type": "magister",
+  "especialidad": [
+   "Magíster"
+  ],
+  "area": "Administración",
+  "areas": [
+   "Administración",
+   "Ciencias Sociales",
+   "Gobierno y Políticas Públicas"
+  ],
+  "faculty": "Facultad de Ciencias Sociales",
+  "modalidad": "Semipresencial sincrónica (híbrida)",
+  "duration": "4 semestres",
+  "summary": "Formamos agentes de cambio para diseñar políticas públicas con impacto local en un Chile en transformación.",
+  "aliases": []
+ },
+ {
+  "slug": "magister-interdisciplinario-en-intervencion-social",
+  "name": "Magíster Interdisciplinario en Intervención Social",
+  "url": "https://postgrados.uahurtado.cl/programa/magister-interdisciplinario-en-intervencion-social/",
+  "type": "magister",
+  "especialidad": [
+   "Magíster"
+  ],
+  "area": "Ciencias Sociales",
+  "areas": [
+   "Ciencias Sociales"
+  ],
+  "faculty": "Facultad de Ciencias Sociales",
+  "modalidad": "Semipresencial sincrónica (híbrida)",
+  "duration": "3 semestres",
+  "summary": "Formamos profesionales para transformar realidades sociales complejas con enfoque ético, crítico y territorial.",
+  "aliases": [
+   "máster en Interdisciplinario en Intervención Social"
+  ]
+ },
+ {
+  "slug": "magister-intervencion-psicosocial",
+  "name": "Magíster en Intervención Psicosocial",
+  "url": "https://postgrados.uahurtado.cl/programa/magister-intervencion-psicosocial/",
+  "type": "magister",
+  "especialidad": [
+   "Magíster"
+  ],
+  "area": "Gobierno y Políticas Públicas",
+  "areas": [
+   "Gobierno y Políticas Públicas",
+   "Psicología"
+  ],
+  "faculty": "Facultad de Psicología",
+  "modalidad": "Semipresencial sincrónica (híbrida)",
+  "duration": "4 semestres",
+  "summary": "Formación profesional para diseñar, implementar y evaluar intervenciones sociales con enfoque psicosocial y justicia social",
+  "aliases": [
+   "magíster de Intervención Psicosocial",
+   "máster en Intervención Psicosocial"
+  ]
+ },
+ {
+  "slug": "magister-ordenamiento-territorial-y-geografia",
+  "name": "Magíster Ordenamiento Territorial y Geografía",
+  "url": "https://postgrados.uahurtado.cl/programa/magister-ordenamiento-territorial-y-geografia/",
+  "type": "magister",
+  "especialidad": [
+   "Magíster"
+  ],
+  "area": "Ciencias Sociales",
+  "areas": [
+   "Ciencias Sociales"
+  ],
+  "faculty": "Facultad de Ciencias Sociales",
+  "modalidad": "Semipresencial sincrónica (híbrida)",
+  "duration": "4 semestres",
+  "summary": "Formamos especialistas para transformar Chile con una visión integral del territorio, alineados con la Política Nacional de Ordenamiento Territorial 2018-2048",
+  "aliases": [
+   "máster en Ordenamiento Territorial y Geografía"
+  ]
+ },
+ {
+  "slug": "magister-prevencion-seguridad-urbana-politica-criminal",
+  "name": "Magíster en Prevención, Seguridad Urbana y Política Criminal",
+  "url": "https://postgrados.uahurtado.cl/programa/magister-prevencion-seguridad-urbana-politica-criminal/",
+  "type": "magister",
+  "especialidad": [
+   "Magíster"
+  ],
+  "area": "Ciencias Sociales",
+  "areas": [
+   "Ciencias Sociales",
+   "Gobierno y Políticas Públicas"
+  ],
+  "faculty": "Facultad de Ciencias Sociales",
+  "modalidad": "Semipresencial sincrónica (híbrida)",
+  "duration": "4 semestres",
+  "summary": "Magíster pionero en Prevención, Seguridad Urbana y Política Criminal, que forma especialistas para diseñar e implementar soluciones innovadoras frente a la violencia y el delito en contextos urbanos de Chile y América Latina.",
+  "aliases": [
+   "magíster de Prevención, Seguridad Urbana y Política Criminal",
+   "máster en Prevención, Seguridad Urbana y Política Criminal"
+  ]
+ },
+ {
+  "slug": "mba-magister-en-administracion-de-empresas",
+  "name": "MBA – Magíster en Administración de Empresas",
+  "url": "https://postgrados.uahurtado.cl/programa/mba-magister-en-administracion-de-empresas/",
+  "type": "magister",
+  "especialidad": [
+   "Magíster"
+  ],
+  "area": "Administración",
+  "areas": [
+   "Administración",
+   "Economía y Negocios",
+   "Gestión"
+  ],
+  "faculty": "Facultad de Economía y Negocios",
+  "modalidad": "Semipresencial sincrónica (híbrida)",
+  "duration": "3 semestres",
+  "summary": "MBA personalizado con opción de doble grado internacional (Fordham University) y ranking nacional, que combina herramientas de administración con electivos de especialización.",
+  "aliases": [
+   "MBA",
+   "eme be a",
+   "magíster en administración"
+  ]
+ },
+ {
+  "slug": "postitulo-derecho-laboral",
+  "name": "Postítulo en Derecho Laboral",
+  "url": "https://postgrados.uahurtado.cl/programa/postitulo-derecho-laboral/",
+  "type": "postitulo",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Derecho",
+  "areas": [
+   "Derecho"
+  ],
+  "faculty": "Facultad de Derecho",
+  "modalidad": "Online sincrónico",
+  "duration": "102 horas",
+  "summary": "Desarrollar conocimientos y habilidades en Derecho Laboral para una correcta representación de intereses, con un enfoque teórico-práctico impartido por académicos especializados y expertos en litigación oral.",
+  "aliases": [
+   "postítulo de Derecho Laboral"
+  ]
+ },
+ {
+  "slug": "postitulo-en-derecho-administrativo-y-gestion-publica",
+  "name": "Postítulo en Derecho Administrativo y Gestión Pública",
+  "url": "https://postgrados.uahurtado.cl/programa/postitulo-en-derecho-administrativo-y-gestion-publica/",
+  "type": "postitulo",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Administración",
+  "areas": [
+   "Administración",
+   "Derecho",
+   "Gestión"
+  ],
+  "faculty": "Facultad de Derecho",
+  "modalidad": "Online sincrónico",
+  "duration": "102 horas",
+  "summary": "Formar en enfoques jurídicos creativos y rigurosos para abordar los desafíos del Derecho Administrativo tradicional frente a las nuevas demandas sociales y modelos de gestión pública.",
+  "aliases": [
+   "postítulo de Derecho Administrativo y Gestión Pública"
+  ]
+ },
+ {
+  "slug": "postitulo-en-educacion-religiosa-escolar",
+  "name": "Postítulo en Educación Religiosa Escolar",
+  "url": "https://postgrados.uahurtado.cl/programa/postitulo-en-educacion-religiosa-escolar/",
+  "type": "postitulo",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Educación",
+  "areas": [
+   "Educación",
+   "Filosofía y Humanidades"
+  ],
+  "faculty": "Facultad de Filosofía y Humanidades",
+  "modalidad": "Semipresencial sincrónica (híbrida)",
+  "duration": "300 horas",
+  "summary": "Formar a profesores en la integración de la teología católica, la didáctica y las ciencias de la religión para una Educación Religiosa Escolar en línea con el Concilio Vaticano II y la teología latinoamericana.",
+  "aliases": [
+   "postítulo de Educación Religiosa Escolar"
+  ]
+ },
+ {
+  "slug": "postitulo-en-litigacion-penal-estrategica",
+  "name": "Postítulo en Litigación Penal Estratégica",
+  "url": "https://postgrados.uahurtado.cl/programa/postitulo-en-litigacion-penal-estrategica/",
+  "type": "postitulo",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Derecho",
+  "areas": [
+   "Derecho"
+  ],
+  "faculty": "Facultad de Derecho",
+  "modalidad": "Online sincrónico",
+  "duration": "102 horas",
+  "summary": "Desarrollar destrezas y conocimientos para una litigación penal estratégica que asegure una correcta representación de víctimas e imputados, con un equipo docente de excelencia internacional.",
+  "aliases": [
+   "postítulo de Litigación Penal Estratégica"
+  ]
+ },
+ {
+  "slug": "postitulo-en-neuropsicologia-clinica",
+  "name": "Postítulo en Neuropsicología Clínica",
+  "url": "https://postgrados.uahurtado.cl/programa/postitulo-en-neuropsicologia-clinica/",
+  "type": "postitulo",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Psicología",
+  "areas": [
+   "Psicología"
+  ],
+  "faculty": "Facultad de Psicología",
+  "modalidad": "Semipresencial sincrónica (híbrida)",
+  "duration": "121,5 horas",
+  "summary": "Especialización en evaluación neuropsicológica: De la neurobiología al diagnóstico clínico con instrumentos psicométricos avanzados.",
+  "aliases": [
+   "postítulo de Neuropsicología Clínica"
+  ]
+ },
+ {
+  "slug": "postitulo-psicoterapia-sistemica-relacional",
+  "name": "Postítulo en Psicoterapia Sistémica Relacional: Fundamentos y Estrategias para una Clínica del Cambio",
+  "url": "https://postgrados.uahurtado.cl/programa/postitulo-psicoterapia-sistemica-relacional/",
+  "type": "postitulo",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Psicología",
+  "areas": [
+   "Psicología"
+  ],
+  "faculty": "Facultad de Psicología",
+  "modalidad": "Presencial",
+  "duration": "197 horas",
+  "summary": "Formación especializada en psicoterapia sistémica: Integrando teoría actualizada y práctica supervisada para generar cambio terapéutico desde la dinámica de los vínculos.",
+  "aliases": [
+   "Postítulo en Psicoterapia Sistémica Relacional",
+   "postítulo de Psicoterapia Sistémica Relacional"
+  ]
+ },
+ {
+  "slug": "postitulo-teoria-y-practica-del-derecho-penal",
+  "name": "Postítulo Teoría y Práctica del Derecho Penal",
+  "url": "https://postgrados.uahurtado.cl/programa/postitulo-teoria-y-practica-del-derecho-penal/",
+  "type": "postitulo",
+  "especialidad": [
+   "Diplomados"
+  ],
+  "area": "Derecho",
+  "areas": [
+   "Derecho"
+  ],
+  "faculty": "Facultad de Derecho",
+  "modalidad": "Online sincrónico",
+  "duration": "100 horas",
+  "summary": "Actualización en derecho penal: parte general, especial y análisis de casos jurisprudenciales",
+  "aliases": []
+ },
+ {
+  "slug": "taller-etica-investigacion",
+  "name": "Taller de Ética de la Investigación Científica para Ciencias Sociales y Humanidades",
+  "url": "https://postgrados.uahurtado.cl/programa/taller-etica-investigacion/",
+  "type": "otro",
+  "especialidad": [
+   "Cursos"
+  ],
+  "area": "Administración",
+  "areas": [
+   "Administración",
+   "Ciencias Sociales",
+   "Derecho",
+   "Educación",
+   "Filosofía y Humanidades",
+   "Gobierno y Políticas Públicas",
+   "Psicología"
+  ],
+  "faculty": "",
+  "modalidad": "Online sincrónico",
+  "duration": "12 horas",
+  "summary": "Este taller transforma la ética investigativa de un marco teórico en una competencia práctica, capacitando para armonizar la búsqueda de conocimiento con la protección integral de las personas participantes.",
+  "aliases": []
+ },
+ {
+  "slug": "taller-innovacion",
+  "name": "Taller de Innovación: Transformando la Investigación en Impacto Social",
+  "url": "https://postgrados.uahurtado.cl/programa/taller-innovacion/",
+  "type": "otro",
+  "especialidad": [
+   "Cursos"
+  ],
+  "area": "Ciencias Sociales",
+  "areas": [
+   "Ciencias Sociales",
+   "Derecho",
+   "Economía y Negocios",
+   "Educación",
+   "Filosofía y Humanidades",
+   "Gobierno y Políticas Públicas",
+   "Psicología"
+  ],
+  "faculty": "",
+  "modalidad": "Online sincrónico",
+  "duration": "",
+  "summary": "Este taller de innovación social forma a investigadores para transformar su trabajo académico en proyectos con impacto social tangible mediante herramientas prácticas.",
+  "aliases": [
+   "Taller de Innovación"
+  ]
+ }
+]
