@@ -35,30 +35,36 @@ anything goes on them; it is not how a customer would ship it.
   reading text as the page shows it, setting a form field.
 - `src/narration.ts` — the screen follows his voice: each cue fires when the
   call's spoken text (`bot-output`) reaches its words, folded as the brain folds
-  them, one move at a time. A reply whose first cue is another page goes there
-  at once; cues still owed when the page unloads go with it to the next page,
-  on whichever host.
-- `src/hub.ts`, `src/bridge.ts`, `src/background.ts` — the hub, in the
-  extension's service worker. The three hosts are three origins, and
-  `sessionStorage`, a `BroadcastChannel` and a Web Lock each reach one; so the
-  call's relay, its claim, the move kept for the next page, the cues still owed,
-  the transport's saved call and the call's language are all kept here, per
-  browser tab. The worker also reads the site's own REST record of a career
-  (`acf.aranceles_carrera`) or a programme (application window, start, requisitos)
-  by slug, four seconds at most — the site answers CORS only for
-  www.uahurtado.cl — and opens tabs for Javier, uahurtado.cl addresses only.
+  them, one move at a time. It runs in the holder, with the call, so a cue that
+  loads another page ends nothing: the cues after it wait for that tab's next
+  page, on whichever host. A reply whose first cue is another page (than the
+  one the visitor's UAH tab shows) goes there at once.
+- `src/holder.ts`, `src/call.html`, `src/call-client.ts`, `src/relay.ts` — the
+  call, in an offscreen document of the extension (below).
+- `src/hub.ts`, `src/bridge.ts`, `src/follow.ts`, `src/protocol.ts` — each
+  page's port to the holder, its requests of the service worker, and his face
+  fed from the holder's relay.
+- `src/background.ts` — the service worker: it makes the holder, opens and
+  focuses tabs for Javier (uahurtado.cl addresses only), keeps the move a page
+  leaves for the next page of its tab (`sessionStorage` does not cross from one
+  host to another), and reads the site's own REST record of a career
+  (`acf.aranceles_carrera`) or a programme (application window, start,
+  requisitos) by slug, four seconds at most — the site answers CORS only for
+  www.uahurtado.cl.
+- `src/shell.ts`, `src/persist.ts` — in a call, the widget back at once on the
+  next page of the same host, and the load as a view transition under it.
+- `src/grant.ts`, `src/grant.html` — the extension's one-time microphone grant.
 - `src/anchor.ts`, `src/anchors.ts` — from `document_start`, the elements the
   adapter matches on (headings, tab and accordion labels, the Carreras menu, the
   data and fee tables, visit cards, the lead form, the widget) are kept out of
   Chrome's translation, so a visitor who translates the page still gets every
   move. A page translated anyway is reported as `translated`.
-- `src/tabs.ts` — Qween's one-call-every-tab relay, on the hub.
 - `src/widget.ts` — the corner widget, in a shadow root, in the site's own
   orange, black and Rubik, bottom-left, clear of UserWay's accessibility button
   (bottom-right) and of the lead form while Javier fills it.
-- `src/content.ts` — the call: stock pipecat with `@voqalize/client-transport`
-  as its media manager, one `sessions.connect`, the avatar, and the routing of
-  each Action to the tab in front, one at a time.
+- `src/content.ts` — the page's half: the widget, his face, the adapter, the
+  moves the holder sends this page (one at a time), and on the call button the
+  microphone grant and the one `sessions.connect`.
 - `src/actions.gen.ts` — the Action and event unions, generated from
   `../backend/protocol.py` with `pnpm gen`. Never edit it by hand.
 
@@ -75,15 +81,21 @@ pnpm build               # → dist/
 ```
 
 Then `chrome://extensions` → Developer mode → **Load unpacked** → `dist/`, and
-open admision.uahurtado.cl. The first call asks for the microphone; once a call
-is live the extension allows it on all three hosts, so Chrome does not ask
-again as the visitor moves between them. `pnpm build:prod` builds the same
+open admision.uahurtado.cl. The first call asks once for the microphone, for
+the extension (see below), on whichever host. `pnpm build:prod` builds the same
 extension against production into `dist-prod/`, from `.env.prod`.
+
+**The extension id is fixed.** `manifest.json` carries a `key` (an RSA public
+key; it is not a secret), so the unpacked extension has the same id
+(`ologapiamebjfhnlbgemfkhmdnmijjpk`) from any folder and on any machine, and
+the microphone grant made once holds across rebuilds and moves. The private key
+is not in the repo and is not needed to load unpacked (only to pack a `.crx`).
+`dist/` and `dist-prod/` share the id: load one of them at a time.
 
 The publishable key's allowed origins must include
 `https://admision.uahurtado.cl`, `https://postgrados.uahurtado.cl` and
-`https://www.uahurtado.cl`: the session is minted, and rejoined after every page
-load, from whichever of them the visitor is on. The agent id and key are baked
+`https://www.uahurtado.cl`: the session is minted from whichever of them the
+visitor is on when they press the call button. The agent id and key are baked
 into the bundle at build time and are never committed: this repo is public.
 
 The call opens in Spanish, as the site does. A visitor who presses English on
@@ -92,12 +104,13 @@ whatever they speak, until they ask for the other; the choice holds on all three
 hosts.
 
 All three hosts send `Permissions-Policy: geolocation=(), microphone=(),
-camera=()`, which forbids the microphone to the page and to this script with
-it: a call would connect, the agent would speak, and hear nothing. `rules.json`
-rewrites that header on the university's pages to `microphone=(self)` and
-leaves the rest as it was, which is why the extension asks for
-`declarativeNetRequest`. If the microphone still cannot open, the widget says so
-and ends the call rather than showing "live".
+camera=()`, which forbids the microphone to the page and to every frame in it,
+the extension's grant frame included. `rules.json` rewrites that header on the
+university's pages to `microphone=(self "chrome-extension://<this id>")` and
+leaves the rest as it was, so the grant page in the widget's frame may ask for
+it; that is why the extension asks for `declarativeNetRequest`. The pages
+themselves no longer open the microphone. Should the frame not get it, the
+grant page opens in a tab of its own instead (below).
 
 The build works without the id and key. With an empty `.env` it warns, and the
 extension loads with everything but the call: the widget and every page Action
@@ -128,11 +141,6 @@ await u.perform("open_faq", { question: "¿Puedo optar a la gratuidad si ya curs
 await u.perform("show_signup", { title: "Talleres de Primavera" });
 // On a postgrados programme:
 await u.perform("show_program", { url: location.href, slug: location.pathname.split("/")[2] });
-// A narrated turn: cues as the brain sends them, then speech as the voice plays it.
-const n = u.narration;
-n.speaking();
-n.add({ at: "en requisitos y aranceles", word: 0, url: null, heading: "Requisitos y Aranceles", text: null, faq: null });
-n.hear("En Requisitos y Aranceles ves el arancel de 2027.");
 ```
 
 Each call returns the event the brain would receive: `command_done` with what
@@ -141,9 +149,9 @@ is on screen now, `admission_read` / `program_read` with what was read, or
 is not on the page lists the ones that are).
 
 A move that needs another page (`navigate`, or `show_admission` on a career
-that is not in front) keeps itself with the hub and loads that page, so the
-console's next line runs on a page that no longer exists; the move is made on
-the new page once it is up.
+that is not in front) keeps itself with the service worker and loads that page,
+so the console's next line runs on a page that no longer exists; the move is
+made on the new page once it is up.
 
 ## Forms are filled, never sent
 
@@ -163,19 +171,110 @@ offers it; the extension does not run there, and fills nothing: its form is a
 lead too. A visit's "Inscribirse aquí" is rung, never followed: the sign-up is a
 Google or HubSpot form the visitor opens themselves.
 
-## One call, every tab, every host
+## How the call lives through page loads, on every host
 
-The call belongs to the tab it started in. Every other UAH tab shows Javier's
-face and the call's state and can mute or end it; the tab in front is the one he
-sees and moves. While a call is live, a link to another page of the three sites
-that would open a new tab loads in the call's tab instead.
+Every move between the university's pages is a full page load, and a move from
+admision to postgrados or www is a load to another origin. The call therefore
+does not live in a page: it lives in an **offscreen document of the extension**
+(`call.html`, `src/holder.ts`, "the holder"), which no page load touches, on any
+host.
 
-Every move between pages is a full page load, and often a move to another
-origin, mid-sentence. The page going away is not the end of the call: the next
-page in the same tab, on whichever host, takes the saved call back from the hub
-and rejoins the same session, and Voqalize holds the rest of his speech until it
-is back and plays it then. The move he was making and the cues he had not
-reached go with it, and the toggle keeps the call's language.
+- **The holder** runs stock pipecat on `@voqalize/client-transport`, plays his
+  voice, keeps every open UAH tab (by browser tab id, which a load to another
+  host keeps: its port, where it is, whether it is in front) and sends the
+  brain `tabs_changed`, routes each brain Action to the UAH tab in front (else
+  the one last in front, else a new one), fires his cues as he speaks
+  (`src/narration.ts`), holds the microphone muted while the audiomalla plays,
+  and relays to the pages what they need to draw his face (`src/relay.ts`:
+  pipecat's events, the avatar's sync channel, which the holder opens and says
+  hello on, and the mouth clock).
+- **Every page is a follower** (`src/content.ts`): the widget, his face (the
+  unchanged avatar against a stand-in client fed by the relay,
+  `src/follow.ts`), the site adapter, and the moves the holder sends it. It
+  reports what it shows up the port. Each page keeps one port to the holder
+  (`src/bridge.ts` in the isolated world, `src/hub.ts` in the page's world).
+- **The service worker** (`src/background.ts`) makes the holder on the first
+  press of the call button, with the reasons `USER_MEDIA` and `WEB_RTC` (they
+  keep the document alive through any silence; `AUDIO_PLAYBACK` alone closes
+  it after 30 s without sound), one at a time, and tells every UAH tab when it
+  is up (`holder-up`): a port opened before the holder existed has no one at
+  the other end, so pages open theirs on that word.
+- **The session is minted by the page.** On the call button the page calls
+  `sessions.connect` with the publishable key (its fetch carries the UAH
+  host's Origin, which the key allows; a `chrome-extension://` origin cannot be
+  added to a publishable key) and hands the answer to the holder, which
+  connects.
+- **A move for a page that is loading waits for it.** When a page starts
+  loading another document it tells the holder (`leaving`); a move sent to
+  that tab meanwhile is kept and delivered when the next page says `hello`, on
+  whichever host. A move that itself loads a page (a career, the fees there)
+  keeps itself with the service worker and is made on the page it loads, once
+  the brain hears that page.
+- **The call ends** on End (any tab), when the call drops, or when no UAH page
+  has been open for 15 s; the holder then closes. Reloading or updating the
+  extension ends it too. The PAES simulator and a malla PDF open in tabs of
+  their own, where the extension does not run: a visitor who closes every UAH
+  tab and stays there ends the call 15 s later.
+
+Every UAH tab shows Javier's face and the call's state and can mute or end it;
+the tab in front is the one he sees and moves. While a call is live, a link to
+another page of the three sites that would open a new tab loads in the
+visitor's tab instead. The call no longer needs that (it follows any UAH tab),
+but it keeps the visitor, the widget and his face in one tab rather than a new
+tab per career card.
+
+## The widget across a page load
+
+In a call the widget outlives a page load too, as near as a page can: on a load
+within one host it is back the moment the next page shows, not once the page
+has parsed and the site's scripts have run.
+
+- **What the page leaves.** While a call is on, `content.js` keeps a picture of
+  it in the tab's `sessionStorage` (`src/persist.ts`): live or connecting,
+  muted or not, the status line, the language, where the visitor put the widget
+  and whether it is minimised, the character's still, and the last frame his
+  face drew (read from the avatar's canvas every 3 s and as the page leaves).
+  It is taken away when the call ends, and is stale after 60 s.
+- **The early shell.** `shell.js` (`src/shell.ts`) runs in the page's world at
+  `document_start`. Off a call it reads that one key and does nothing else. In
+  a call it mounts the widget on `<html>` at once, as the last page left it,
+  with the last frame of his face as a still. `content.js` adopts that widget,
+  asks the holder for the call's state, and fades the still out once the live
+  face has drawn. Should the holder be gone (no holder, or no word from it in
+  8 s), the carried widget goes back to the invite.
+- **The view transition.** In a call both pages opt in to a cross-document
+  view transition (`@view-transition { navigation: auto }`, Chrome 126+). The
+  widget's host has its own `view-transition-name` (`voqalize-javier`), so the
+  page fades under it in 150 ms while it stays where it is.
+- **Across hosts.** `sessionStorage` and view transitions are per origin, so a
+  load from admision to postgrados or www has no early widget and no
+  transition: the widget comes back at `document_idle`, live, from the
+  holder's state. The call and his voice carry on either way.
+
+## The microphone, once
+
+The microphone is the extension's, not the university's: Chrome keeps the
+permission against `chrome-extension://<id>`, `chrome.contentSettings` cannot
+set it for that origin, and an offscreen document cannot show a prompt. So, on
+each press of the call button, the page asks the holder for the extension's
+microphone permission state first:
+
+- **granted**: the call starts.
+- **prompt** (the first call): the widget shows the extension's own page
+  `grant.html` in a frame (`<iframe allow="microphone">`), which asks at once.
+  Chrome's prompt names the extension; the visitor chooses *Allow*. Should it
+  still not be granted, `grant.html` opens once in a tab of its own, asks the
+  same way, closes itself once answered, and the call starts.
+- **denied**: the widget says Chrome blocks the microphone for the extension,
+  with a button that opens `chrome://settings/content/microphone`.
+
+One grant covers all three hosts: it is the extension's, so Chrome never asks
+again as the visitor moves between them.
+
+**His voice plays from the extension, not from the tab.** Muting the tab does
+not silence him; the widget's *Silenciar* mutes the visitor's microphone, and
+*Colgar* ends the call. Chrome shows the microphone in use for the extension
+rather than for the tab.
 
 ## The page test
 
@@ -187,3 +286,15 @@ cards, a programme's requisitos. It needs Chromium for `playwright-core`
 already installed (it never downloads one). `demos/tests/test_uahurtado_extension.py`
 runs it from the demos suite, and skips where Node, the extension's
 `node_modules` or Chromium is missing.
+
+## The end-to-end tests
+
+`pnpm test:e2e` builds the extension with a stand-in call in the holder
+(`test/fake-call-client.ts`), a stand-in avatar and a made-up API
+(`VOQALIZE_TEST_BUILD=1`, into `test/.build/ext`), loads it in headless
+Chromium with pages served at admision.'s and postgrados.'s addresses, and runs
+`test/holder.spec.ts`: the port protocol, mute, the audiomalla's hold and End;
+a page load and a load to postgrados that leave the call alone, with the moves
+sent meanwhile made on the next page; the 15 s rule; the microphone's three
+branches; and the widget across a load (early shell, view transition, a stale
+carried widget). No network.

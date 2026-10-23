@@ -8,7 +8,7 @@
         {
           "header": "permissions-policy",
           "operation": "set",
-          "value": "geolocation=(), microphone=(self), camera=()"
+          "value": "geolocation=(), microphone=(self \"chrome-extension://ologapiamebjfhnlbgemfkhmdnmijjpk\"), camera=()"
         }
       ]
     },

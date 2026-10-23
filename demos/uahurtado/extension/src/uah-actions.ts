@@ -16,9 +16,9 @@
  * stable ids, and every pane is in the document whether it is open or not. So:
  *
  *   - pages are named by their whole URL; a move that needs another page keeps
- *     itself for the next page of this tab (`hooks.pend`, the extension's hub,
- *     since `sessionStorage` does not cross hosts) and loads it; the next
- *     page's `content.ts` makes it once that page is up;
+ *     itself for the next page of this tab (`hooks.pend`, the extension's
+ *     service worker, since `sessionStorage` does not cross hosts) and loads
+ *     it; the next page's `content.ts` makes it once that page is up;
  *   - a career page (`admision…/carreras/<slug>/`) is read whole at load: its
  *     data table, its tabs, its PAES weights and its 2027 fees, the latter as
  *     the page writes them on screen, never from the `data-sheets-value`
@@ -42,6 +42,7 @@ import {
   styleThePage, textOf, usable, visible, waitFor,
 } from "./dom";
 import { readRecord, type RestRecord, setPendingMove, type Then } from "./hub";
+import { samePageAs } from "./pages";
 
 
 /** Whether this build stops the visitor's own press of "Enviar" (a preview). */
@@ -103,7 +104,7 @@ const MAX_CARDS = 80;
 /** How many labels a failure lists, so the model can try one that is there. */
 const MAX_LISTED = 20;
 const REST_DEADLINE_MS = 4500;
-/** Where a move is kept for the next page when there is no hub (the console). */
+/** Where a move is kept for the next page when the service worker does not answer. */
 export const PENDING_KEY = "voqalize.uahurtado.pending";
 const PENDING_MAX_AGE_MS = 60_000;
 
@@ -122,7 +123,7 @@ const hooks: Hooks = {
   load: (url) => location.assign(url),
 };
 
-/** The move a page of this origin left without the hub, once. */
+/** The move a page of this origin left without the service worker, once. */
 export function takeLocalPending(): Then | null {
   try {
     const raw = sessionStorage.getItem(PENDING_KEY);
@@ -163,20 +164,7 @@ const pathKey = (p: string) => (p || "/").replace(/\/+$/, "").toLowerCase() || "
 
 /** Whether `u` is the page in front: same host (bare is www), path and query. */
 export function samePage(u: URL): boolean {
-  return (
-    hostKey(u.host) === hostKey(location.host) &&
-    pathKey(u.pathname) === pathKey(location.pathname) &&
-    u.search === location.search
-  );
-}
-
-/** Whether `url` names another page than the one in front. */
-export function elsewhere(url: string): boolean {
-  try {
-    return !samePage(new URL(url, location.href));
-  } catch {
-    return false;
-  }
+  return samePageAs(u, new URL(location.href));
 }
 
 /** This page, as the brain names pages: its whole URL without the hash. */
