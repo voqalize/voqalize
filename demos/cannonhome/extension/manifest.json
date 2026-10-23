@@ -3,6 +3,7 @@
   "name": "Javier para Cannon Home — Voqalize preview",
   "version": "0.0.0",
   "description": "A voice guide on cannonhome.cl who finds sheets, towels and duvets with the visitor, filters the shop, reads live prices, adds to the bag and fills the delivery details (never the RUT, a login or the payment), in Spanish or English. A Voqalize preview.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAkgzlHmyc4cjkgip3ftmMNDYt0xpmH1O1tdJ8B5zthaEWXwqSQptJ8q7x77lWTx3lR0t4fRiZnNJRt4ChuqUdXySQSavD+7/60woiaiN7kcVDSJ/816DjotvW0VkAh4vpGK79EicuEXN14x35clv4Zc586KpY67Vxttn1gqmRMrEukRGpy6vd/TEpTLPRpKasCeswVi3SoOVYCqOC+lIG84Syxan92ZUoHLp5qfJ4KaLSwdJCyD1nEDSpJuSzqy1i1pIeniXRUOVkYUhMXCAs06ceGCBJjJa+4z2tFu0lRdsSdSVZ2pe/t09foAEcy5KCfD+1HRfFbqlhYrUkSdGkWwIDAQAB",
   "background": {
     "service_worker": "background.js",
     "type": "module"
@@ -20,8 +21,11 @@
       "world": "MAIN"
     }
   ],
-  "permissions": ["storage", "declarativeNetRequest"],
+  "permissions": ["storage", "declarativeNetRequest", "offscreen"],
   "host_permissions": ["https://cannonhome.cl/*", "https://www.cannonhome.cl/*"],
+  "web_accessible_resources": [
+    { "resources": ["grant.html", "grant.js"], "matches": ["https://cannonhome.cl/*", "https://www.cannonhome.cl/*"] }
+  ],
   "declarative_net_request": {
     "rule_resources": [{ "id": "csp", "enabled": true, "path": "rules.json" }]
   }
