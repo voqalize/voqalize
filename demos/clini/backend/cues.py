@@ -74,6 +74,9 @@ class RawCue:
     word: int
     """How many words of the unit come before it: the page's clock when the
     voice sends no spoken-text events to follow."""
+    sentence: str = ""
+    """The sentence it belongs to, once that sentence was complete when it was
+    anchored (else empty): what the brain checks a cue's heading against."""
 
 
 @dataclass
@@ -166,8 +169,10 @@ class CueParser:
             keep: list[_Waiting] = []
             for w in self._waiting:
                 if w.said_from < end:
-                    at = " ".join(words(self._said[w.said_from : end])[:AT_WORDS])
-                    done.append(RawCue(w.kind, w.value, at, len(words(self._said[: w.said_from]))))
+                    said = self._said[w.said_from : end]
+                    at = " ".join(words(said)[:AT_WORDS])
+                    before = len(words(self._said[: w.said_from]))
+                    done.append(RawCue(w.kind, w.value, at, before, said.strip()))
                 else:
                     keep.append(w)
             self._waiting = keep
@@ -178,7 +183,7 @@ class CueParser:
                 at = " ".join(words(body)[:AT_WORDS])
                 word = len(words(self._said[:first]))
                 for kind, value in self._auto(body.strip(), self._sentences, placed):
-                    done.append(RawCue(kind, value, at, word))
+                    done.append(RawCue(kind, value, at, word, body.strip()))
             self._sentences += 1
 
     def _ready(self, *, final: bool) -> list[RawCue]:
@@ -190,6 +195,7 @@ class CueParser:
             # growing in the next chunk.
             if final or len(after) > AT_WORDS:
                 at = " ".join(after[:AT_WORDS])
+                # Its sentence is not complete yet: no words to check it by.
                 done.append(RawCue(w.kind, w.value, at, len(words(self._said[: w.said_from]))))
             else:
                 keep.append(w)
