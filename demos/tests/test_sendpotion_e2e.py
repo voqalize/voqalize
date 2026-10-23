@@ -39,12 +39,16 @@ discover()
 from voqalize_demos._loaded.sendpotion import brain as sendpotion  # noqa: E402
 from voqalize_demos._loaded.sendpotion import knowledge as kb  # noqa: E402
 from voqalize_demos._loaded.sendpotion.brain import (  # noqa: E402
+    _DETAILS_PATIENCE,
     _IDLE_MS,
     _TALK_THROUGH_MS,
+    SENDPOTION_PATIENCE,
     TOGGLE_CONFIRM,
+    english_twin,
     greeting,
     language_of,
 )
+from voqalize_demos._loaded.sendpotion.cues import RawCue  # noqa: E402
 from voqalize_demos._loaded.sendpotion.knowledge import (  # noqa: E402
     Faq,
     Knowledge,
@@ -265,6 +269,12 @@ def _llm() -> ScriptedGemini:
             # The model came back with nothing at all: asked once more.
             "Hello?": [reply(""), reply("I'm here. Want a quick tour?")],
             "Carry on.": reply("Sure, let's keep going."),
+            # On the site's Spanish copy of /pricing: its own heading is rung
+            # there, and a plan it does not list as a heading opens the English page.
+            "Muéstrame los precios en esta página.": reply(
+                "{show: Precios} Aquí están los planes. {show: Professional} Professional no "
+                "tiene límite."
+            ),
             # A move with no words: the model is asked once more, tools off.
             "Open the sign-up.": [
                 call("open_signup"),
@@ -826,3 +836,136 @@ def test_a_sentence_names_a_plan_a_logo_or_a_customer_on_the_page() -> None:
     # A word that opens the sentence is no name, nor one the page lacks.
     assert named("Sales teams use it daily.", "/", "Sales", ()) is None
     assert named("It works with Orum.", "/reviews", "Andy Svalesen", ()) is None
+
+
+async def test_the_demo_calendar_is_only_opening_until_the_page_says_so() -> None:
+    """Prod, 2026-10-22: "The calendar is open on your screen" over a move that
+    had failed, and "no open dates this month" read from a calendar Calendly
+    had not drawn yet."""
+    llm = _llm()
+    async with demo("sendpotion", llm) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/"})
+        await rig.driver.user_says("I'd like a demo.")
+        # The frame's first answer, before Calendly drew the month.
+        await _page(rig, "demo_state", {"step": "calendar", "month": "", "days": []})
+        assert _idle_windows(rig)[-1] == _IDLE_MS
+        await rig.driver.user_says("Carry on.")
+        seen = _texts(llm.captured_contents[-1])
+        result = _results(llm.captured_contents[-1])["book_demo"]
+        assert "Nothing is confirmed yet" in result
+        assert "is open" not in result
+        assert "The demo calendar is still loading" in seen
+        assert "none this month" not in seen
+        # The drawn month is talked through.
+        await _page(
+            rig,
+            "demo_state",
+            {"step": "calendar", "month": "October 2026", "days": ["Tuesday, October 20"]},
+        )
+        assert _idle_windows(rig)[-1] == _TALK_THROUGH_MS
+
+
+async def test_the_details_step_waits_longer_for_a_spelled_email() -> None:
+    async with demo("sendpotion", _llm()) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/"})
+        await _page(
+            rig,
+            "demo_state",
+            {
+                "step": "details",
+                "date": "Tuesday, October 20",
+                "time": "3:00pm",
+                "missing": ["email"],
+            },
+        )
+        raised = [c for c in _configs(rig) if c.stt is not None][-1]
+        assert raised.stt is not None and raised.stt.patience == _DETAILS_PATIENCE
+        # Both legs, as the pairing rule asks.
+        assert raised.tts is not None and raised.stt.language == raised.tts.language
+        await _page(rig, "demo_scheduled", {"blocked": True})
+        restored = [c for c in _configs(rig) if c.stt is not None][-1]
+        assert restored.stt is not None and restored.stt.patience == SENDPOTION_PATIENCE
+
+
+async def test_page_moves_that_keep_failing_are_said_plainly_and_stop() -> None:
+    """Prod, 2026-10-22: every move on www failed, 21 times in one call, each
+    noted as a miss to carry on from."""
+    llm = _llm()
+    async with demo("sendpotion", llm) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/"})
+        brain = rig.brain  # type: ignore[attr-defined]
+        why = "https://sendpotion.com/pricing/ is not on this tab's site"
+        await _page(rig, "command_failed", {"command": "cue", "reason": why})
+        assert not brain._moves_failing
+        await _page(rig, "command_failed", {"command": "book_demo", "reason": why})
+        assert brain._moves_failing
+        # The rest of this reply opens no page; the page in front still moves.
+        assert brain._resolve_cue(RawCue("page", "/pricing", "plans start", 0)) is None
+        assert brain._resolve_cue(RawCue("show", "Clone yourself", "one video", 0)) is not None
+        await rig.driver.user_says("Carry on.")
+        seen = _texts(llm.captured_contents[-1])
+        assert "Page moves are failing on this tab" in seen
+        assert "never say a page, a section or the calendar is on it" in seen
+        # Their next turn tries again.
+        assert not brain._moves_failing
+
+
+async def test_on_the_spanish_copy_of_a_page_its_own_headings_are_rung_there() -> None:
+    async with demo("sendpotion", _llm()) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/es/pricing/"})
+        await _page(
+            rig,
+            "page_changed",
+            {
+                **PRICING_PAGE,
+                "url": "https://www.sendpotion.com/es/pricing/",
+                "path": "/es/pricing/",
+                "headings": ["Precios", "Preguntas frecuentes"],
+                "faqs": [],
+            },
+        )
+        await rig.driver.user_says("Muéstrame los precios en esta página.")
+        cues = _cues(rig)
+        assert [(c["path"], c["heading"], c["text"]) for c in cues] == [
+            (None, "Precios", None),
+            ("/pricing/", None, "Professional"),
+        ]
+
+
+async def test_no_page_opens_by_itself_over_the_demo_calendar() -> None:
+    async with demo("sendpotion", _llm()) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/demo/"})
+        await rig.driver.user_says("How do marketing teams use it?")
+        assert _cues(rig) == []
+
+
+def test_a_page_in_another_language_is_its_english_twin() -> None:
+    assert english_twin("/es/pricing") == ("/pricing", True)
+    assert english_twin("/es") == ("/", True)
+    assert english_twin("/pricing") == ("/pricing", False)
+    assert english_twin("/escalate") == ("/escalate", False)
+
+
+def test_spanish_asks_reviews_and_the_demo_pick_the_right_page() -> None:
+    """Prod, 2026-10-22: "integraciones" and "planes" opened nothing, "review
+    the pricings" opened /reviews, and "contact sales demo" said on the
+    calendar cued the sales use case."""
+    asked = sendpotion.asked_page
+    assert asked("Me gustaría que mostraras las integraciones") == "/integrations"
+    assert asked("¿Me podría mostrar la página por las integraciones?") == "/integrations"
+    assert asked("Me gustaría ver los planes") == "/pricing"
+    assert asked("¿Cuánto cuesta para un equipo de ventas?") == "/pricing"
+    assert asked("Quiero ver los casos de uso") == "/use-cases"
+    assert asked("Muéstrame las reseñas") == "/reviews"
+    assert asked("I would like to review the pricings.") == "/pricing"
+    assert asked("What do the reviews say?") == "/reviews"
+    assert asked("Okay, here I am in contact sales demo.") is None
+    assert asked("Can I book a demo?") is None
+
+
+def test_a_question_names_nothing_to_ring() -> None:
+    """Prod, 2026-10-22: "¿Usan alguna de esas herramientas?" rang "Usan"."""
+    named = sendpotion.named_on_page
+    assert named("¿Usan alguna de esas herramientas?", "/integrations", "", ()) is None
+    assert named("Do you use HubSpot?", "/integrations", "", ()) is None
+    assert named("¡Funciona con HubSpot y Pipedrive.", "/integrations", "", ()) == "HubSpot"
