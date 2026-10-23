@@ -99,6 +99,7 @@ def _his_spanish_lines() -> list[str]:
         "/12-ropa-de-cama/plumones",
         "/sabanas-king-300-hilos-blanco.html",
         "/checkout/cart",
+        "/checkout",
     ]
     lines += [ch.greeting(path, "es") for path in pages]
     lines += [ch.pesos_said(n, "es") for n in (1, 21, 100, 121000, 231990, 1_000_000, 2_500_000)]
@@ -182,3 +183,20 @@ def test_the_prompt_asks_for_latin_american_spanish_and_tu() -> None:
         '"cuotas sin interés"',
     ):
         assert rule in prompt, rule
+
+
+def test_the_checkout_lines_say_tu_and_leave_the_rut_and_payment_to_the_visitor() -> None:
+    """At the delivery form he says "completar", never "rellenar", and tells
+    the visitor, as "tú", that the RUT and the payment are theirs."""
+    opener = ch.greeting("/checkout", "es")
+    assert "El RUT y el pago los completas tú." in opener
+    lines = [opener, ch._LANDED["checkout"]["es"], ch._LANDED["checkout_fill"]["es"]]
+    for line in lines:
+        assert spain_words(line) == [], line
+        assert not re.search(_USTED, line, re.IGNORECASE), line
+    prompt = ch._prompt(ch.kb.KNOWLEDGE)
+    assert 'say "El RUT y el pago los completas tú." in their language' in prompt
+    said = re.findall(r'"([^"]*[áéíóúñ¿][^"]*)"', prompt.split("# The checkout")[1].split("\n#")[0])
+    assert said, "the checkout section quotes no Spanish"
+    for line in said:
+        assert spain_words(line) == [], line

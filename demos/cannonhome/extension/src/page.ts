@@ -111,16 +111,107 @@ export function pathOf(href: string | null | undefined): string {
 const strip = (p: string) => (p || "/").replace(/\/+$/, "") || "/";
 export const samePath = (a: string, b: string) => strip(pathOf(a)).toLowerCase() === strip(pathOf(b)).toLowerCase();
 
-// ─── Never into checkout ──────────────────────────────────────────────────
+// ─── As far as the delivery form, never past it ───────────────────────────
 
 /**
- * Everything that leads into checkout, a login or a payment, by structure:
- * the minicart's "Finalizar compra" (`#top-cart-btn-checkout`, the drawer's
- * primary button), the cart page's "Terminar pedido"
- * (`[data-role=proceed-to-checkout]`), any `.action.checkout`, the login
- * modal it opens, and the account pages. Structure, not words, because Chrome's
- * translator rewrites the words; the words are checked as well, as a second
- * net.
+ * The checkout is one page, /checkout (`body.checkout-index-index`): the
+ * contact email, the delivery form (`#co-shipping-form`: región, comuna,
+ * address, name, RUT, phone), the delivery method, then "Método de Pago"
+ * (`#payment`) and the sticky "Completa los pasos" / place-order button
+ * (`.co-place-order`). The guest gets there from the bag: "Terminar pedido"
+ * opens a login window whose "Comprar como invitado" is a plain link to
+ * /checkout.
+ *
+ * Javier goes that far and no further. Allowed, by structure: the bag page's
+ * "Terminar pedido", the login window's guest link (and nothing else in that
+ * window), and on /checkout the delivery form's región and comuna pickers and
+ * its phone prefix. Everything else on /checkout is refused, and these are
+ * refused wherever they are, before anything is allowed: the payment step,
+ * the place-order bar, "Continuar compra", the delivery method (the visitor
+ * chooses it; a store pickup asks for a RUT), the coupon and gift-card
+ * boxes, every login control and password field. Words are checked as well,
+ * as a second net, because Chrome's translator rewrites them.
+ */
+const PAST_THE_FORM = [
+  "#payment",
+  "#checkout-step-payment",
+  "#co-payment-form",
+  ".checkout-payment-method",
+  ".payment-method",
+  ".payment-methods",
+  ".co-place-order",
+  ".co-place-order__button",
+  "[data-role='opc-continue']",
+  ".address-confirm-buttons-container",
+  ".checkout-agreements",
+  "#opc-shipping_method",
+  ".split-shipping-container",
+  ".wrapper-who-receive",
+  "#discount-form",
+  "#giftcard-form",
+  ".giftcard",
+  ".block-customer-login",
+  "#login-form-modal",
+  "a.action.remind",
+  "button.action.login",
+  ".btn-social",
+  ".btn-google",
+  "input[type=password]",
+  ".password-view-trigger",
+].join(", ");
+
+/** What the visitor alone types: a RUT (or RUN), a password, a card and its
+ *  code or date, a company's invoice details, a gift card. Matched on a
+ *  field's name, id, autocomplete, placeholder and label. */
+const PRIVATE_FIELD = /\b(?:rut|run)\b|password|contrase|tarjeta|\bcard\b|\bcvv\b|\bcvc\b|\bcc-|vencimiento|expira|raz[oó]n social|\bgiro\b|gift ?card|giftcard/i;
+
+/** Why `el`, a form field, is the visitor's alone to type in, or null. */
+export function privateField(el: Element): string | null {
+  if (el instanceof HTMLInputElement && el.type === "password") return "it is a password field";
+  if (el.closest(PAST_THE_FORM)) return "it is past the delivery form (the payment, the delivery method or a login)";
+  const field = el.closest(".field");
+  const id = el.id;
+  const label = clean(field?.querySelector("label")?.textContent ?? (id ? document.querySelector(`label[for="${CSS.escape(id)}"]`)?.textContent : ""));
+  // Some of the site's fields carry a function's source as `autocomplete`.
+  const auto = el.getAttribute("autocomplete") ?? "";
+  const words = [el.getAttribute("name"), id, /function/.test(auto) ? "" : auto, el.getAttribute("placeholder"), label, field?.getAttribute("name")]
+    .filter(Boolean)
+    .join(" ");
+  if (PRIVATE_FIELD.test(words)) return `its field is the visitor's to type ("${label || el.getAttribute("name") || id}")`;
+  return null;
+}
+
+/** A path on the checkout's one page, /checkout (and Magento's aliases). */
+export function checkoutPage(path: string): boolean {
+  const p = path.toLowerCase().replace(/^\/index\.php(?=\/|$)/, "").replace(/\/+$/, "") || "/";
+  return p === "/checkout" || p === "/checkout/index" || p === "/checkout/index/index";
+}
+
+/** The steps Javier may press on the way to the delivery form, and on it. */
+function guestStep(el: Element): boolean {
+  const body = document.body?.classList;
+  if (el.closest("[data-role='proceed-to-checkout']") && body?.contains("checkout-cart-index")) return true;
+  const guest = el.closest<HTMLAnchorElement>("aside.login-modal a[href]");
+  if (guest) {
+    const to = new URL(guest.getAttribute("href") ?? "", location.href);
+    const words = clean(guest.textContent);
+    return to.origin === location.origin && checkoutPage(to.pathname) && !to.hash && !/sesi[oó]n|log ?in|sign|google|crear|cuenta|account/i.test(words);
+  }
+  if (body?.contains("checkout-index-index")) {
+    return Boolean(
+      el.closest(
+        "#co-shipping-form .field.region_id .cn-region-search, #co-shipping-form .field.city_id .cn-region-search, #co-shipping-form .field.telephone .flag-container",
+      ),
+    );
+  }
+  return false;
+}
+
+/**
+ * Everything else that leads into checkout, a login or a payment, by
+ * structure: the minicart's "Finalizar compra" (`#top-cart-btn-checkout`, the
+ * drawer's primary button), any `.action.checkout`, the login modal, every
+ * control on /checkout, and the account pages.
  */
 const CHECKOUT = [
   "#top-cart-btn-checkout",
@@ -134,21 +225,32 @@ const CHECKOUT = [
   ".block-customer-login",
   "#checkout",
 ].join(", ");
-const CHECKOUT_WORDS = /finalizar compra|terminar pedido|ir a pagar|pagar ahora|comprar como invitado|proceed to checkout|go to checkout|\bcheckout\b|iniciar sesi[oó]n|\blog ?in\b|sign in/i;
+const CHECKOUT_WORDS =
+  /finalizar compra|terminar pedido|ir a pagar|\bpagar\b|pagar ahora|realizar pedido|completa los pasos|continuar compra|comprar como invitado|crear cuenta|webpay|proceed to checkout|go to checkout|place order|pay now|\bcheckout\b|iniciar sesi[oó]n|\blog ?in\b|sign in|google/i;
 
-/** A path Javier never loads: checkout (but not the bag, /checkout/cart/,
- *  nor adding to it), the account and login pages, payment returns. */
+/** A path Javier never loads: past the delivery form (the payment, the
+ *  order's success page, any /checkout/… but the bag), the account and login
+ *  pages, payment returns. The bag (/checkout/cart/, and adding to it) and the
+ *  checkout's one page (/checkout) are allowed. */
 export function forbiddenPath(path: string): boolean {
   // Magento also routes every path under /index.php/ (/index.php/checkout/).
   const p = path.toLowerCase().replace(/^\/index\.php(?=\/|$)/, "").replace(/\/+$/, "") || "/";
   // The bag itself, and the add-to-bag form's own address.
   if (p === "/checkout/cart" || p === "/checkout/cart/index" || p.startsWith("/checkout/cart/add/")) return false;
+  if (checkoutPage(p)) return false;
   if (p.startsWith("/checkout")) return true;
   return /^\/(onestepcheckout|customer\/account|sales\/order|webpay|mercadopago|paypal|braintree)(\/|$)/.test(p);
 }
 
 /** Why `el` must not be pressed, or null. */
 export function intoCheckout(el: Element): string | null {
+  const past = el.closest(PAST_THE_FORM);
+  if (past) return `it is past the delivery form (${past.id ? `#${past.id}` : past.className || past.tagName.toLowerCase()}): a login, the delivery method or the payment, which are the visitor's`;
+  if (el.matches("input, select, textarea")) {
+    const why = privateField(el);
+    if (why) return why;
+  }
+  if (guestStep(el)) return null;
   const hit = el.closest(CHECKOUT);
   if (hit) return `it is the checkout control (${hit.id ? `#${hit.id}` : hit.className || hit.tagName.toLowerCase()})`;
   const link = el.closest<HTMLAnchorElement>("a[href]");
@@ -156,7 +258,8 @@ export function intoCheckout(el: Element): string | null {
     const href = link.getAttribute("href") ?? "";
     if (href && !href.startsWith("#") && !href.startsWith("javascript:")) {
       const to = new URL(href, location.href);
-      if (to.origin === location.origin && forbiddenPath(to.pathname)) return `it links to ${to.pathname}`;
+      // A link to the checkout is pressed only as the login window's guest link.
+      if (to.origin === location.origin && (forbiddenPath(to.pathname) || checkoutPage(to.pathname))) return `it links to ${to.pathname}`;
     }
   }
   const button = el.closest<HTMLButtonElement | HTMLInputElement>("button, input[type=submit]");
@@ -174,7 +277,7 @@ export function intoCheckout(el: Element): string | null {
  *  and nothing is pressed. Every click the adapter makes goes through here. */
 export function press(el: Element): void {
   const why = intoCheckout(el);
-  if (why) throw new Error(`refused to press it: ${why}. Javier never goes into checkout; the visitor does that`);
+  if (why) throw new Error(`refused to press it: ${why}. Javier goes no further than the delivery form; the RUT, a login and the payment are the visitor's`);
   (el as HTMLElement).click();
 }
 
@@ -185,7 +288,10 @@ export function go(path: string): void {
   if (to.host.replace(/^www\./, "") !== location.host.replace(/^www\./, "")) {
     throw new Error(`${to.href} is not on ${location.host}; only this site's own pages open here`);
   }
-  if (forbiddenPath(to.pathname)) throw new Error(`refused to open ${to.pathname}: Javier never goes into checkout or an account`);
+  if (forbiddenPath(to.pathname)) throw new Error(`refused to open ${to.pathname}: Javier never goes into checkout past the delivery form, or an account`);
+  if (checkoutPage(to.pathname) && to.hash && !/^#shipping$/i.test(to.hash)) {
+    throw new Error(`refused to open ${to.pathname}${to.hash}: Javier never goes into checkout past the delivery form`);
+  }
   clearHighlight();
   location.assign(to.pathname + to.search + to.hash);
 }

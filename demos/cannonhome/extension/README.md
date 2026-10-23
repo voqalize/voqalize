@@ -6,7 +6,8 @@ duvets, pillows, beds and mattresses. He talks a visitor through the shop in
 Spanish or English while he moves their screen: he types in the search box
 and reads the dropdown, filters a category by size, colour, thread count and
 material, sorts it, opens a product and its specifications or photos, reads
-live prices, and adds to the bag. One call follows the visitor across every
+live prices, adds to the bag, takes a guest to the checkout's delivery form
+and fills in the delivery details they tell him. One call follows the visitor across every
 Cannon Home tab they have open. Everything he shows is the shop's own; the
 extension adds a corner widget and the ring he draws around what he is
 pointing at.
@@ -40,24 +41,66 @@ anything goes on it; it is not how a customer would ship it.
   and reports `cart_state` (lines, count, subtotal and how far from free
   shipping).
 - **Show the bag** (`show_cart`): opens or closes the bag drawer.
+- **Go to the delivery form** (`start_checkout`): from the bag page (loaded
+  first if needed) presses *Terminar pedido*, then, in the login window it
+  opens, *Comprar como invitado*, a plain link to `/checkout`; if the window
+  does not render its links, it loads that address itself. The move rides
+  `sessionStorage` across both loads and finishes on the form.
+- **Fill the delivery details** (`fill_checkout`): on `/checkout` (reached as
+  above if needed), only the fields the brain sends, in the form's order:
+  email, región and comuna (picked from the form's own searchable lists by
+  their folded label; the comuna's list loads by AJAX once the región is
+  chosen), dirección, número, depto/casa, nombre, apellidos and teléfono (the
+  `+56 9` / `+56 2` prefix from the first of the nine digits, the other eight
+  in the field). Each is set as a finished edit (native setter, `input`,
+  `change`, `blur`, `keyup`: Knockout's bindings need them). Nothing is
+  pressed after the fields.
+- **Report the form** (`checkout_state`, on load, after a fill and whenever
+  the visitor edits it): which fields hold something, never what (only the
+  región and comuna names), which required ones are missing, the form's own
+  validation messages, whether the email's account brought up a password,
+  the delivery methods offered and chosen, and whether the payment step shows.
 - His spoken cues (`cue`): open a page, ring a heading or words, open an FAQ.
 
 ## What he never does
 
 These are rules of the adapter, not of the prompt, so no brain can lift them:
 
-- He never goes into checkout. Every click the adapter makes goes through one
-  guard (`press` in `src/page.ts`) and every page load through another
-  (`go`): both refuse *Finalizar compra* (`#top-cart-btn-checkout`), *Terminar
-  pedido* (`[data-role=proceed-to-checkout]`), any `.action.checkout`, the
-  login modal, and every `/checkout…`, `/customer/account…` or payment
-  address except the bag itself (`/checkout/cart/`). They match by structure
-  first, since Chrome's translator rewrites the words, and by the words as
-  well. Adding to the bag creates no order.
-- He never logs in and never types a RUT, an email, an address or payment
-  data: the adapter has no move that fills a form.
-- The hub opens tabs only on cannonhome.cl (never its checkout or account
-  pages) and on WhatsApp, which the site links as its sales chat.
+- He goes as far as the delivery form and never past it. Every click the
+  adapter makes goes through one guard (`press` in `src/page.ts`) and every
+  page load through another (`go`). Allowed, by structure: the bag page's
+  *Terminar pedido* (`[data-role=proceed-to-checkout]` on
+  `body.checkout-cart-index`), the login window's guest link
+  (`aside.login-modal a[href="/checkout"]`, nothing else in that window), and
+  on `/checkout` only the delivery form's región and comuna pickers and its
+  phone prefix. Refused wherever they are, before anything is allowed: the
+  payment step (`#payment`, `#co-payment-form`), the place-order bar
+  (`.co-place-order`, *Completa los pasos*), *Continuar compra*
+  (`[data-role=opc-continue]`), the delivery method (the visitor chooses it;
+  a store pickup asks for a RUT), the coupon and gift-card boxes, every login
+  control (*Iniciar sesión*, Google, *Crear Cuenta*, the password). Every
+  other control on `/checkout` is refused too, and so are *Finalizar compra*
+  (`#top-cart-btn-checkout`) and any `.action.checkout`. Loads: the bag and
+  `/checkout` (only at `#shipping`); every other `/checkout/…` address (the
+  order's success page among them), `/customer/account…` and the payment
+  returns are refused. Matched by structure first, since Chrome's
+  translator rewrites the words, and by the words as well (*Realizar
+  pedido*, *Ir a pagar*, *Pagar*, Webpay, …).
+- He never logs in and never types a RUT, a password or payment data. The
+  brain's `fill_checkout` has no field for any of them, the adapter fills only
+  its nine named fields, and `fillField` refuses any field whose name, id,
+  autocomplete, placeholder or label says RUT/RUN, password/contraseña,
+  card/tarjeta, CVV and the like, or that sits in the payment step. The RUT
+  is reported only as filled or missing.
+- The hub opens tabs only on cannonhome.cl (the bag and the delivery form,
+  never past them or its account pages) and on WhatsApp, which the site links
+  as its sales chat.
+- Typing an email into the delivery form is the site's own business from
+  then on: Magento checks whether it has an account (a password then shows,
+  which is the visitor's), and the site's GoPersonal block, whose cart
+  reminders are on unless the visitor turns them off, identifies that email
+  for them once the address changes. That is what the visitor's own typing
+  does too.
 
 ## The CSP rule, and why
 
@@ -75,11 +118,11 @@ microphone needs nothing.
 ## What is in it
 
 - `src/cannonhome-actions.ts` — the Magento adapter, `window.voqalizeCannonhome
-  = {run, context, start, commands}`: the six moves above plus the cue moves
+  = {run, context, start, commands}`: the eight moves above plus the cue moves
   (`navigate`, `show_section`, `open_faq`), one at a time (a promise chain),
   and the reporters (`page_changed` with the page's kind from Magento's body
   classes, `product_shown`, `listing_shown`, `search_suggest`, `prices_read`,
-  `cart_state`, `command_done` / `command_failed`). A move that loads another
+  `cart_state`, `checkout_state`, `command_done` / `command_failed`). A move that loads another
   page leaves the rest of itself in `sessionStorage` and the adapter on the
   next page finishes it.
 - `src/page.ts` — the waits (never the `load` event, which the site's
@@ -140,8 +183,13 @@ site's scripts run) are served at their real addresses, `/graphql`, the cart
 section and the search dropdown are answered with fixed bodies, and the few
 site behaviours the adapter leans on (the filter grid's AJAX swap, the
 sorter, the dropdown, − / +, the AJAX add and the drawer) are simulated
-(`test/site.ts`). Each move is driven through `run()` and its events checked,
-along with the moves that survive a page load and the checkout guard.
+(`test/site.ts`). The bag's login window and the guest checkout
+(`test/pages/login-modal.html`, `test/pages/checkout.html`) were saved from
+the live guest checkout with nothing typed and trimmed the same way; the
+form's región/comuna lists (the comuna's by AJAX), the phone prefix and its
+validation messages are simulated. Each move is driven through `run()` and
+its events checked, along with the moves that survive a page load, the guard
+that stops at the delivery form, and the fields that are never filled.
 
 ## Driving it from the console
 
@@ -158,3 +206,6 @@ voqalizeCannonhome.start((event, payload) => console.log(event, payload));
 ```
 
 `add_to_cart` really adds to the visitor's bag; remove the line afterwards.
+`start_checkout` and `fill_checkout` really fill the live form: use obviously
+fake data, with no email (see above), press nothing, and clear the fields and
+empty the bag afterwards.

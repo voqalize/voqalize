@@ -1,0 +1,81 @@
+<aside role="dialog" class="modal-popup login-modal modal-slide _inner-scroll" aria-labelledby="modal-title-2" aria-describedby="modal-content-2" data-role="modal" data-type="popup" tabindex="0" style="z-index: 902;">
+ <div data-role="focusable-start" tabindex="0"></div>
+ <div class="modal-inner-wrap" data-role="focusable-scope">
+ <header class="modal-header">
+ <p id="modal-title-2" class="modal-title" data-role="title">
+ CLIENTES REGISTRADOS
+ </p>
+ <button class="action-close" data-role="closeBtn" type="button">
+ <span>Cerrar</span>
+ </button>
+ </header>
+ <div id="modal-content-2" class="modal-content" data-role="content"><div id="block-login" class="content">
+<div class="form-login-container checkout-section">
+ <div class="form-login-content">
+ <div class="step-title-s" data-role="title">
+ <span>Información de contacto</span>
+ </div>
+<div data-role="checkout-messages" class="messages">
+</div>
+ <form class="form form-login has-password-view" data-role="email-with-possible-login" method="post">
+ <fieldset id="customer-email-fieldset" class="fieldset password-visible">
+ <div class="field required">
+ <label class="label" for="customer-email"><span>Correo Electrónico</span></label>
+ <div class="control">
+ <input class="input-text" type="email" name="username" id="customer-email" title="tu@correo.com" placeholder="tu@correo.com">
+ </div>
+ </div>
+ <div class="field password">
+ <label class="label" for="customer-password"><span>Contraseña</span></label>
+ <div class="control password-view password-view-initialized">
+ <input class="input-text" type="password" name="password" id="customer-password" autocomplete="off" placeholder="Aa12345">
+ <a href="#" class="password-view-trigger" tabindex="-1"></a></div>
+ </div>
+ <div class="actions-toolbar" style="display: none;">
+ <div class="secondary">
+ <a class="action remind">
+ <span>¿Ya tienes cuenta? Inicia Sesión aquí</span>
+ </a>
+ </div>
+ </div>
+ <div class="field note-field">
+ <div class="control">
+ <span class="note" style="display: none;"><span>Por favor, confirma tu correo electrónico. Puedes crear una cuenta después de finalizar la compra.</span></span>
+ <span class="note" style="display: none;"><span>Puedes crear una cuenta una vez finalizada la compra.</span></span>
+ <span class="note">Ya tienes una cuenta con nosotros. Haz click para ingresar o continúa como invitado.</span>
+ </div>
+ </div>
+ <fieldset class="fieldset hidden-fields">
+ <div class="actions-toolbar">
+ <input name="context" type="hidden" value="checkout">
+ <div class="secondary forgot-password">
+ <a class="action remind" href="/customer/account/forgotpassword/">
+ <span>¿Olvidó su contraseña?</span>
+ </a>
+ </div>
+ <div class="primary">
+ <button type="submit" class="action login primary" data-action="checkout-method-login"><span>Iniciar sesión</span></button>
+ </div>
+ </div>
+ <div class="mp-social-links"> <div id="mp-popup-social-content"><div class="block social-login-authentication-channel col-mp mp-5"><div class="block-title">O inicia sesión con</div><div class="block-content"> <div class="actions-toolbar social-btn google-login"><a class="btn btn-block btn-social btn-google"><span class="fa fa-google"></span> Iniciar sesión con Google</a></div></div></div></div> </div>
+ </fieldset>
+ </fieldset>
+ </form>
+ <div class="actions-toolbar new-user">
+ <div class="primary">
+ <a class="button action continue primary" href="/customer/account/create?checkoutredirect=1">
+ <span><span>Crear Cuenta</span></span>
+ </a>
+ </div>
+ <div class="primary">
+ <a class="button action continue primary" href="/checkout">
+ <span><span>Comprar como invitado</span></span>
+ </a>
+ </div>
+ </div>
+ </div>
+</div>
+</div></div>
+ </div>
+ <div data-role="focusable-end" tabindex="0"></div>
+</aside>

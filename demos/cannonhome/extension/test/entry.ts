@@ -7,7 +7,7 @@
 import "../src/cannonhome-actions";
 
 import { watchAnchors } from "../src/anchors";
-import { forbiddenPath, go, intoCheckout, press } from "../src/page";
+import { forbiddenPath, go, intoCheckout, press, privateField } from "../src/page";
 
 watchAnchors();
-(window as unknown as Record<string, unknown>).__voqalizeTest = { press, go, intoCheckout, forbiddenPath };
+(window as unknown as Record<string, unknown>).__voqalizeTest = { press, go, intoCheckout, forbiddenPath, privateField };

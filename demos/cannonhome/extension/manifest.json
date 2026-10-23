@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Javier para Cannon Home — Voqalize preview",
   "version": "0.0.0",
-  "description": "A voice guide on cannonhome.cl who finds sheets, towels and duvets with the visitor, filters the shop, reads live prices and adds to the bag (never past it), in Spanish or English. A Voqalize preview.",
+  "description": "A voice guide on cannonhome.cl who finds sheets, towels and duvets with the visitor, filters the shop, reads live prices, adds to the bag and fills the delivery details (never the RUT, a login or the payment), in Spanish or English. A Voqalize preview.",
   "background": {
     "service_worker": "background.js",
     "type": "module"

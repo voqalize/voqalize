@@ -315,8 +315,8 @@ test.describe("add_to_cart and show_cart", () => {
   });
 });
 
-test.describe("never into checkout", () => {
-  test("the guard refuses Finalizar compra, Terminar pedido and checkout links, and allows the bag", async ({ page }) => {
+test.describe("never past the delivery form", () => {
+  test("the guard refuses Finalizar compra and checkout links, allows the bag and the bag page's Terminar pedido", async ({ page }) => {
     await serveSite(page);
     await open(page, PRODUCT);
     const onProduct = await page.evaluate(() => {
@@ -371,10 +371,11 @@ test.describe("never into checkout", () => {
         ),
       };
     });
-    expect(onCart.pressed).toMatch(/^refused to press it/);
+    // "Terminar pedido" on the bag page opens the login window, nothing more.
+    expect(onCart.pressed).toBe("pressed");
     expect(Object.fromEntries(onCart.paths)).toEqual({
-      "/checkout/": true,
-      "/checkout": true,
+      "/checkout/": false,
+      "/checkout": false,
       "/checkout/cart/": false,
       "/checkout/cart/add/uenc/x/product/1/": false,
       "/customer/account/login/": true,
@@ -383,12 +384,14 @@ test.describe("never into checkout", () => {
     expect(page.url()).toBe(`${ORIGIN}/checkout/cart/`);
   });
 
-  test("no move loads checkout, even when asked", async ({ page }) => {
+  test("no move loads checkout past the delivery form, even when asked", async ({ page }) => {
     await serveSite(page);
     await open(page, PRODUCT);
-    const nav = await run(page, "navigate", { path: "/checkout/" });
-    expect(nav.ok).toBe(false);
-    expect(nav.error).toContain("never goes into checkout");
+    for (const path of ["/checkout/onepage/success/", "/checkout#payment", "/customer/account/login/", "/webpay/return/"]) {
+      const nav = await run(page, "navigate", { path });
+      expect(nav.ok, path).toBe(false);
+      expect(nav.error, path).toContain("never goes into checkout");
+    }
     const product = await run(page, "open_product", { path: "/checkout/index.html", tab: null });
     expect(product.ok).toBe(false);
     expect(page.url()).toBe(`${ORIGIN}${PRODUCT}`);
@@ -500,7 +503,7 @@ test.describe("search_products on GoPersonal's dropdown", () => {
 });
 
 test.describe("never into checkout, by Magento's /index.php/ routes", () => {
-  test("the guard refuses /index.php/checkout/ and /index.php/customer/account/login/, and allows the bag", async ({ page }) => {
+  test("the guard refuses pressing /index.php/checkout/ and loading /index.php/customer/account/login/, and allows the bag", async ({ page }) => {
     await serveSite(page);
     await open(page, PRODUCT);
     const got = await page.evaluate(() => {
@@ -518,7 +521,7 @@ test.describe("never into checkout, by Magento's /index.php/ routes", () => {
       return {
         pressed,
         paths: Object.fromEntries(
-          ["/index.php/checkout/", "/index.php/checkout", "/INDEX.PHP/checkout/onepage/", "/index.php/customer/account/login/", "/index.php/checkout/cart/", "/index.php"].map((p) => [
+          ["/index.php/checkout/", "/index.php/checkout", "/INDEX.PHP/checkout/onepage/", "/index.php/checkout/onepage/success/", "/index.php/customer/account/login/", "/index.php/checkout/cart/", "/index.php"].map((p) => [
             p,
             t.forbiddenPath(p),
           ]),
@@ -527,14 +530,16 @@ test.describe("never into checkout, by Magento's /index.php/ routes", () => {
     });
     expect(got.pressed).toMatch(/^refused to press it: it links to \/index\.php\/checkout\//);
     expect(got.paths).toEqual({
-      "/index.php/checkout/": true,
-      "/index.php/checkout": true,
+      // The checkout's one page is the delivery form: loadable; past it, not.
+      "/index.php/checkout/": false,
+      "/index.php/checkout": false,
       "/INDEX.PHP/checkout/onepage/": true,
+      "/index.php/checkout/onepage/success/": true,
       "/index.php/customer/account/login/": true,
       "/index.php/checkout/cart/": false,
       "/index.php": false,
     });
-    for (const path of ["/index.php/checkout/", "/index.php/customer/account/login/"]) {
+    for (const path of ["/index.php/checkout/onepage/success/", "/index.php/customer/account/login/"]) {
       const nav = await run(page, "navigate", { path });
       expect(nav.ok, path).toBe(false);
       expect(nav.error).toContain("never goes into checkout");
@@ -636,5 +641,274 @@ test.describe("filter_listing, as the live site behaves", () => {
     const last = listings[listings.length - 1].payload;
     expect((last.items as { name: string }[])[0].name).toBe(sortedFirst);
     expect(page.url()).toContain("product_list_order=price_desc");
+  });
+});
+
+// ─── The checkout's delivery form ─────────────────────────────────────────
+
+const CHECKOUT = "/checkout";
+/** Obviously fake test data, as the live check uses. */
+const FAKE = {
+  email: "test@example.com",
+  region: "metropolitana",
+  comuna: "nunoa",
+  street: "Calle Falsa",
+  number: "123",
+  apartment: "45",
+  first_name: "Ana",
+  last_name: "Prueba",
+  phone: "912345678",
+};
+
+interface Guard {
+  press(el: Element): void;
+  intoCheckout(el: Element): string | null;
+  forbiddenPath(p: string): boolean;
+  privateField(el: Element): string | null;
+}
+
+/** The form's fields as they stand, for the tests (the adapter reports none of these values). */
+const formValues = (p: Page) =>
+  p.evaluate(() => {
+    const v = (sel: string) => document.querySelector<HTMLInputElement>(sel)?.value ?? null;
+    const picked = (field: string) => document.querySelector(`#co-shipping-form .field.${field} .cn-region-search__value`)?.textContent?.trim();
+    return {
+      email: v("#customer-email"),
+      password: v("#customer-password"),
+      region: picked("region_id"),
+      comuna: picked("city_id"),
+      street: v("input[name='street[0]']"),
+      number: v("input[name='street[1]']"),
+      apartment: v("input[name='street[2]']"),
+      first_name: v("input[name=firstname]"),
+      last_name: v("input[name=lastname]"),
+      rut: v("input[name='custom_attributes[rut]']"),
+      phone: v(".field.telephone input[name=telephone]:not([type=hidden])"),
+      prefix: document.querySelector(".field.telephone .iti-flag")?.textContent?.trim(),
+      submitted: (window as unknown as { __submitted: string[] }).__submitted,
+    };
+  });
+
+test.describe("start_checkout", () => {
+  test("from the bag, presses Terminar pedido, then Comprar como invitado (never a login), and finishes on the delivery form", async ({ page }) => {
+    const seen = await serveSite(page);
+    await open(page, "/checkout/cart/");
+    await listen(page);
+    await runAway(page, "start_checkout", {});
+    await page.waitForURL(`${ORIGIN}${CHECKOUT}`, { timeout: 25_000 });
+    await listen(page);
+    const done = await waitForEvent(page, "command_done", (e) => e.payload.command === "start_checkout", 20_000);
+    expect(done.payload.detail).toContain("the guest checkout's delivery form is open");
+    const state = await waitForEvent(page, "checkout_state");
+    expect(state.payload.missing).toEqual(["email", "region", "comuna", "street", "number", "first_name", "last_name", "rut", "phone"]);
+    // The guest link was pressed: the checkout, and never a login or account page.
+    expect(seen.pages).toEqual(["/checkout/cart/", CHECKOUT]);
+    expect(seen.sent).toEqual([]);
+  });
+
+  test("from a product page, goes to the bag first and carries the move across both loads", async ({ page }) => {
+    const seen = await serveSite(page);
+    await open(page, PRODUCT);
+    await runAway(page, "start_checkout", {});
+    await page.waitForURL(`${ORIGIN}${CHECKOUT}`, { timeout: 30_000 });
+    await listen(page);
+    await waitForEvent(page, "command_done", (e) => e.payload.command === "start_checkout", 20_000);
+    expect(seen.pages).toEqual([PRODUCT, "/checkout/cart/", CHECKOUT]);
+  });
+
+  test("fill_checkout from the bag opens the guest checkout and fills there (the move survives the load)", async ({ page }) => {
+    await serveSite(page);
+    await open(page, "/checkout/cart/");
+    await runAway(page, "fill_checkout", { email: FAKE.email, region: "Metropolitana", comuna: "Providencia" });
+    await page.waitForURL(`${ORIGIN}${CHECKOUT}`, { timeout: 25_000 });
+    await listen(page);
+    const done = await waitForEvent(page, "command_done", (e) => e.payload.command === "fill_checkout", 20_000);
+    expect(done.payload.detail).toContain("filled email, región Metropolitana, comuna Providencia");
+    const got = await formValues(page);
+    expect([got.email, got.region, got.comuna]).toEqual([FAKE.email, "Metropolitana", "Providencia"]);
+  });
+});
+
+test.describe("fill_checkout", () => {
+  test("fills every allowed field, picks the comuna once its región's list loads, and reports names, never values", async ({ page }) => {
+    const seen = await serveSite(page);
+    await open(page, CHECKOUT);
+    await listen(page);
+    const r = await run(page, "fill_checkout", FAKE);
+    expect(r.ok, r.error).toBe(true);
+    expect(r.detail).toContain("filled email, región Metropolitana, comuna Ñuñoa, dirección, número, depto/casa, nombre, apellidos, teléfono");
+    expect(r.detail).toContain("nothing was pressed after the fields");
+    const got = await formValues(page);
+    expect(got).toEqual({
+      email: FAKE.email,
+      password: "",
+      region: "Metropolitana",
+      comuna: "Ñuñoa",
+      street: "Calle Falsa",
+      number: "123",
+      apartment: "45",
+      first_name: "Ana",
+      last_name: "Prueba",
+      rut: "",
+      // +56 9 is the prefix; the other eight digits go in the field, unchanged.
+      phone: "12345678",
+      prefix: "+56 9",
+      submitted: [],
+    });
+    expect(seen.comunas).toEqual(["664"]);
+    const state = await waitForEvent(page, "checkout_state", (e) => (e.payload.filled as string[]).includes("phone"));
+    expect(state.payload).toMatchObject({
+      filled: ["email", "region", "comuna", "street", "number", "apartment", "first_name", "last_name", "phone"],
+      missing: ["rut", "delivery"],
+      invalid: [],
+      region: "Metropolitana",
+      comuna: "Ñuñoa",
+      email_has_account: false,
+      payment_open: false,
+    });
+    // What the visitor's details are never leaves the page.
+    const wire = JSON.stringify(await events(page));
+    for (const value of [FAKE.email, "Calle Falsa", "Prueba", "912345678", "12345678"]) expect(wire).not.toContain(value);
+    expect(seen.sent).toEqual([]);
+  });
+
+  test("a Santiago landline gets the +56 2 prefix and its own eight digits", async ({ page }) => {
+    await serveSite(page);
+    await open(page, CHECKOUT);
+    const r = await run(page, "fill_checkout", { phone: "223456789" });
+    expect(r.ok, r.error).toBe(true);
+    const got = await formValues(page);
+    expect([got.prefix, got.phone]).toEqual(["+56 2", "23456789"]);
+  });
+
+  test("never fills the RUT, a password or anything of the payment, whatever it is sent", async ({ page }) => {
+    await serveSite(page);
+    await open(page, CHECKOUT);
+    const r = await run(page, "fill_checkout", { first_name: "Ana", rut: "12.345.678-5", password: "secreto", card: "4111111111111111" });
+    expect(r.ok, r.error).toBe(true);
+    expect(r.detail).toMatch(/^filled nombre;/);
+    const got = await formValues(page);
+    expect([got.first_name, got.rut, got.password]).toEqual(["Ana", "", ""]);
+    const fields = await page.evaluate(() => {
+      const t = (window as unknown as { __voqalizeTest: Guard }).__voqalizeTest;
+      const why = (sel: string) => {
+        const el = document.querySelector(sel);
+        return el ? t.privateField(el) : `missing ${sel}`;
+      };
+      return {
+        rut: why("input[name='custom_attributes[rut]']"),
+        password: why("#customer-password"),
+        rutEmpresa: why("#checkout_rut_empresa"),
+        whoReceivesRut: why("#who_receive_rut"),
+        giftcard: why("#giftcard-code"),
+        email: why("#customer-email"),
+        firstname: why("input[name=firstname]"),
+        street: why("input[name='street[0]']"),
+        phone: why(".field.telephone input[name=telephone]:not([type=hidden])"),
+      };
+    });
+    expect(fields.rut).toMatch(/visitor's to type/);
+    expect(fields.password).toMatch(/password/);
+    expect(fields.rutEmpresa).not.toBeNull();
+    expect(fields.whoReceivesRut).not.toBeNull();
+    expect(fields.giftcard).not.toBeNull();
+    expect([fields.email, fields.firstname, fields.street, fields.phone]).toEqual([null, null, null, null]);
+  });
+
+  test("refuses the continue-to-payment and place-order buttons, the delivery method and every login, and allows only the form's pickers", async ({ page }) => {
+    await serveSite(page);
+    await open(page, CHECKOUT);
+    const got = await page.evaluate(() => {
+      const t = (window as unknown as { __voqalizeTest: Guard }).__voqalizeTest;
+      const tryPress = (sel: string) => {
+        const el = document.querySelector(sel);
+        if (!el) return `missing ${sel}`;
+        try {
+          t.press(el);
+          return "pressed";
+        } catch (error) {
+          return String((error as Error).message);
+        }
+      };
+      return {
+        placeOrder: tryPress(".co-place-order__button"),
+        terms: tryPress("#co-place-order-terms"),
+        continueToPayment: tryPress("[data-role=opc-continue]"),
+        homeDelivery: tryPress("#common_shipping_type_homedelivery"),
+        invoice: tryPress("#checkout_request_invoice"),
+        login: tryPress("#checkout a.action.remind"),
+        createAccount: tryPress("#checkout a[href^='/customer/account/create']"),
+        guestLinkHere: tryPress("#checkout .new-user a[href='/checkout']"),
+        coupon: tryPress("#discount-form button"),
+        region: t.intoCheckout(document.querySelector("#co-shipping-form .field.region_id .cn-region-search__trigger")!),
+        comuna: t.intoCheckout(document.querySelector("#co-shipping-form .field.city_id .cn-region-search__trigger")!),
+        prefix: t.intoCheckout(document.querySelector("#co-shipping-form .field.telephone .selected-flag")!),
+        submitted: (window as unknown as { __submitted: string[] }).__submitted,
+      };
+    });
+    for (const key of ["placeOrder", "terms", "continueToPayment", "homeDelivery", "invoice", "login", "createAccount", "guestLinkHere", "coupon"] as const) {
+      expect(got[key], key).toMatch(/^refused to press it/);
+    }
+    expect([got.region, got.comuna, got.prefix]).toEqual([null, null, null]);
+    expect(got.submitted).toEqual([]);
+    expect(page.url()).toBe(`${ORIGIN}${CHECKOUT}`);
+  });
+
+  test("a comuna before any región, or one not in the list, fails and says what the list has", async ({ page }) => {
+    await serveSite(page);
+    await open(page, CHECKOUT);
+    const early = await run(page, "fill_checkout", { comuna: "Providencia" });
+    expect(early.ok).toBe(false);
+    expect(early.error).toContain("choose the región first");
+    const wrong = await run(page, "fill_checkout", { region: "Valparaíso", comuna: "Providencia" });
+    expect(wrong.ok).toBe(true);
+    expect(wrong.detail).toContain("filled región Valparaíso; not filled: comuna: no comuna \"Providencia\" in the form's list; it lists Quilpué, Valparaíso, Viña del Mar");
+    const region = await run(page, "fill_checkout", { region: "Atlántida" });
+    expect(region.ok).toBe(false);
+    expect(region.error).toContain('no región "Atlántida"');
+  });
+
+  test("the form's own messages are reported with the field, and an email with an account brings its password, left empty", async ({ page }) => {
+    await serveSite(page);
+    await open(page, CHECKOUT);
+    await listen(page);
+    const r = await run(page, "fill_checkout", { email: "existe@example.com", phone: "912" });
+    expect(r.ok, r.error).toBe(true);
+    expect(r.detail).toContain("not filled: teléfono: a Chilean number is nine digits");
+    const state = await waitForEvent(page, "checkout_state", (e) => e.payload.email_has_account === true);
+    expect(state.payload.filled).toEqual(["email"]);
+    expect((await formValues(page)).password).toBe("");
+    // The visitor types a short phone themselves: the form's message is read.
+    await page.fill(".field.telephone input[name=telephone]:not([type=hidden])", "123");
+    await page.locator(".field.telephone input[name=telephone]:not([type=hidden])").blur();
+    const flagged = await waitForEvent(page, "checkout_state", (e) => (e.payload.invalid as unknown[]).length > 0);
+    expect(flagged.payload.invalid).toEqual([{ field: "phone", message: "Ingresa un número de teléfono válido." }]);
+  });
+});
+
+test.describe("the bag's login window", () => {
+  test("only Comprar como invitado may be pressed; the login, Google, Crear Cuenta and the password are refused", async ({ page }) => {
+    await serveSite(page);
+    await open(page, "/checkout/cart/");
+    await page.waitForSelector("aside.login-modal a[href='/checkout']", { state: "attached" });
+    await page.click("[data-role=proceed-to-checkout]");
+    const got = await page.evaluate(() => {
+      const t = (window as unknown as { __voqalizeTest: Guard }).__voqalizeTest;
+      const why = (sel: string) => {
+        const el = document.querySelector(`aside.login-modal ${sel}`);
+        return el ? t.intoCheckout(el) : `missing ${sel}`;
+      };
+      return {
+        guest: why("a[href='/checkout']"),
+        login: why("button.action.login"),
+        google: why(".btn-google"),
+        create: why("a[href^='/customer/account/create']"),
+        forgot: why("a[href*='forgotpassword']"),
+        password: why("#customer-password"),
+        email: why("#customer-email"),
+      };
+    });
+    expect(got.guest).toBeNull();
+    for (const key of ["login", "google", "create", "forgot", "password", "email"] as const) expect(got[key], key).not.toBeNull();
   });
 });

@@ -16,8 +16,11 @@ wins over the page's cached copy.
 **A size is another product.** The product page has no size picker: "¿la tienes
 en king?" is the line's King product, found in the catalogue and opened.
 
-**The cart, never the checkout.** He adds to the cart with the quantity said;
-nothing he sends ever reaches the checkout.
+**Delivery details, never the RUT or the payment.** He adds to the cart with
+the quantity said, takes a guest to the checkout's delivery form and fills
+what they tell him there — email, name, phone, región, comuna, address — and
+nothing else: the RUT, a password, a card and every button past the form stay
+the visitor's. A phone is the digits they said, never reshaped.
 
 Run: ``cd demos && uv run pytest tests/test_cannonhome_e2e.py``
 """
@@ -229,7 +232,7 @@ def _llm() -> ScriptedGemini:
             "¿Cuánto demora el despacho?": reply("Llega en dos a cuatro días hábiles."),
             "Muéstrame los plazos.": reply(
                 "{page: /politicas-de-despacho}{show: plazos de entrega} Llega en pocos días. "
-                "{page: /no-existe} {page: /checkout} {faq: cuanto demora mi pedido} "
+                "{page: /no-existe} {page: /checkout/onepage/success} {faq: cuanto demora mi pedido} "
                 "Esa es la pregunta."
             ),
             "¿Y las toallas?": reply("Un momento."),
@@ -464,7 +467,7 @@ async def test_cues_leave_the_speech_and_are_checked_against_the_site() -> None:
         check_turn(rig, turn)
         assert "{" not in turn.text and "}" not in turn.text
         # The page as the store links it; the heading in the site's spelling;
-        # an invented page and the checkout dropped; the FAQ on the page.
+        # an invented page and the checkout past its form dropped; the FAQ on the page.
         cues = _commands(rig, "cue")
         assert cues == [
             {**NONE, "at": "llega en pocos", "word": 0, "path": DESPACHO},
@@ -831,7 +834,8 @@ async def test_add_to_cart_carries_the_quantity_and_nothing_reaches_the_checkout
         seen = _texts(llm.captured_contents[-1])
         assert "add_to_cart done: the cart has 2 items" in seen
         assert "$93.010 (say: noventa y tres mil diez pesos) more for free shipping" in seen
-        assert "Finalizar compra is theirs to press" in seen
+        assert "start_checkout takes them to the delivery form as a guest" in seen
+        assert "the RUT and the payment are theirs" in seen
         # Out of range, or not a product: refused, nothing sent.
         await rig.driver.user_says("Agrégame quince.")
         await rig.driver.user_says("Agrega una que no existe.")
@@ -930,7 +934,8 @@ async def test_the_prompt_carries_the_stores_rules() -> None:
         "# Prices and stock",
         "# Sizes and colours",
         "# The cart",
-        "CHECKOUT IS THEIRS",
+        "THE RUT, ANY PASSWORD AND THE PAYMENT ARE THEIRS",
+        "YOU NEVER PRESS what moves on to the payment",
         'A line that says "Live check" wins',
         "you can't see the price right now, and open the product",
         "no size or colour picker",
@@ -949,3 +954,360 @@ async def test_the_first_suggestion_the_model_names_is_the_pages_index_zero() ->
         await rig.driver.start_session(init={"path": "/"})
         await rig.driver.user_says("Ábreme la primera toalla.")
         assert rig.command("search_products") == {"query": "toalla blanca", "open_index": 0}
+
+
+# ─── The checkout's delivery form ──────────────────────────────────────────────
+
+#: The fields fill_checkout may carry: the delivery form's, and nothing else.
+_FILLABLE = {
+    "email",
+    "first_name",
+    "last_name",
+    "phone",
+    "region",
+    "comuna",
+    "street",
+    "number",
+    "apartment",
+}
+_NO_FILL = dict.fromkeys(_FILLABLE)
+#: A RUT made up for the tests (its check digit is right), as a visitor says it.
+_A_RUT = "12.345.678-5"
+
+CART_ONE = {
+    "items": [{"name": "Sábanas 2 Plazas", "path": S2, "qty": 1, "price": 28495}],
+    "count": 1,
+    "subtotal": 28495,
+    "free_shipping_left": None,
+}
+CHECKOUT_PAGE = {
+    "site": "site",
+    "url": "https://cannonhome.cl/checkout#shipping",
+    "path": "/checkout",
+    "title": "Realizar pedido CannonHome",
+    "kind": "checkout",
+    "headings": [],
+    "faqs": [],
+}
+_ALL_MISSING = ["email", "region", "comuna", "street", "number", "first_name", "last_name"]
+
+
+def _form(**over: Any) -> dict[str, Any]:
+    return {
+        "filled": [],
+        "missing": [*_ALL_MISSING, "rut", "phone"],
+        "invalid": [],
+        "region": "",
+        "comuna": "",
+        "email_has_account": False,
+        "delivery_options": [],
+        "delivery": "",
+        "payment_open": False,
+    } | over
+
+
+def _checkout_llm() -> ScriptedGemini:
+    return ScriptedGemini(
+        {
+            "Quiero comprarlo.": 2
+            * [reply_and_call("Te llevo a los datos de despacho.", "start_checkout")],
+            "Mi correo es test arroba example punto com.": reply_and_call(
+                "Te lo completo: test arroba example punto com.",
+                "fill_checkout",
+                request={"email": "test@example.com"},
+            ),
+            "Mi teléfono es nueve uno dos tres cuatro cinco seis siete ocho.": reply_and_call(
+                "Te lo completo: nueve, uno, dos, tres, cuatro, cinco, seis, siete, ocho.",
+                "fill_checkout",
+                request={"phone": "912345678"},
+            ),
+            "Mi celular es nueve, ochenta y dos, cuarenta y seis, trece, cincuenta y siete.": (
+                reply_and_call(
+                    "Te lo completo.", "fill_checkout", request={"phone": "+56 9 8246 1357"}
+                )
+            ),
+            # The model "fixes" a digit, drops some, or is handed too few.
+            "Es el nueve ocho siete seis cinco cuatro tres dos uno.": reply_and_call(
+                "Te lo completo.", "fill_checkout", request={"phone": "987654322"}
+            ),
+            "Es el doce trece.": reply_and_call(
+                "Te lo completo.", "fill_checkout", request={"phone": "1213"}
+            ),
+            # The visitor says their RUT; the model tries to put it somewhere.
+            f"Mi RUT es {_A_RUT}.": reply_and_call(
+                "El RUT y el pago los completas tú.",
+                "fill_checkout",
+                request={"number": _A_RUT, "phone": "123456785", "apartment": "12345678-5"},
+            ),
+            "Vivo en Providencia, Santiago, en Calle Falsa 123, depto 45.": reply_and_call(
+                "Te lo completo.",
+                "fill_checkout",
+                request={
+                    "region": "Santiago",
+                    "comuna": "Providencia",
+                    "street": "Calle Falsa",
+                    "number": "123",
+                    "apartment": "45",
+                },
+            ),
+            "Vivo en Providencia.": reply_and_call(
+                "Te lo completo.", "fill_checkout", request={"comuna": "Providencia"}
+            ),
+            "Me llamo Ana Prueba.": reply_and_call(
+                "Te lo completo.",
+                "fill_checkout",
+                request={"first_name": "Ana", "last_name": "Prueba"},
+            ),
+            "The page answered what you sent it": reply("Listo, eso es lo que hizo la página."),
+            "The form flags a field": reply("El formulario marca el correo."),
+            "Sigamos.": reply("Claro, sigamos."),
+        }
+    )
+
+
+def test_the_checkout_fill_carries_only_the_delivery_forms_fields() -> None:
+    """There is no field for a RUT, a password or a card: none can be sent."""
+    assert set(ch.CheckoutRequest.model_fields) == _FILLABLE
+    assert set(ch.FillCheckout.model_fields) == _FILLABLE
+    assert set(ch.StartCheckout.model_fields) == set()
+    for name in ("rut", "run", "password", "card", "cvv", "payment"):
+        assert not any(name in f for f in ch.CheckoutRequest.model_fields), name
+
+
+def test_the_paths_a_cue_or_move_may_open_stop_at_the_delivery_form() -> None:
+    allowed = ("/checkout", "/checkout/cart", "/")
+    refused = (
+        "/checkout/onepage/success",
+        "/checkout/onepage",
+        "/customer/account/login",
+        "/customer/account/create",
+        "/sales/order/view",
+        "/webpay/return",
+        "/mercadopago/standard",
+    )
+    for path in allowed:
+        assert not ch._NEVER.match(path), path
+    for path in refused:
+        assert ch._NEVER.match(path), path
+    assert ch.asked_page("¿Me ayudas con los datos de despacho?") == "/checkout"
+
+
+@pytest.mark.parametrize(
+    ("said", "digits"),
+    [
+        ("nueve uno dos tres cuatro cinco seis siete ocho", "912345678"),
+        ("nueve, ochenta y dos, cuarenta y seis, trece, cincuenta y siete", "982461357"),
+        ("+56 9 8246 1357", "56982461357"),
+        ("nine one two three four five six seven eight", "912345678"),
+    ],
+)
+def test_digits_are_read_as_a_chilean_says_them(said: str, digits: str) -> None:
+    assert ch.said_digits(said) == digits
+
+
+@pytest.mark.parametrize(
+    ("said", "phone"),
+    [
+        ("912345678", "912345678"),
+        ("+56 9 1234 5678", "912345678"),
+        ("2 2345 6789", "223456789"),
+        ("12345678", None),
+        ("812345678", None),
+        ("9123456789", None),
+    ],
+)
+def test_a_phone_is_a_chilean_number_never_reshaped(said: str, phone: str | None) -> None:
+    assert ch.chilean_phone(said) == phone
+
+
+@pytest.mark.parametrize(
+    ("said", "label"),
+    [
+        ("Santiago", "Metropolitana"),
+        ("Región Metropolitana", "Metropolitana"),
+        ("valparaiso", "Valparaíso"),
+        ("Biobío", "Bío Bío"),
+        ("O'Higgins", "Libertador General Bernardo OHiggins"),
+        ("Atlántida", None),
+    ],
+)
+def test_a_region_is_the_sites_own_name(said: str, label: str | None) -> None:
+    assert ch.region_label(said) == label
+
+
+async def test_start_checkout_goes_as_a_guest_and_the_form_is_talked_through() -> None:
+    llm = _checkout_llm()
+    async with demo("cannonhome", llm) as rig:
+        await rig.driver.start_session(init={"path": "/checkout/cart"})
+        await _page(rig, "cart_state", CART_ONE)
+        before = len(llm.calls)
+        turn = await rig.driver.user_says("Quiero comprarlo.")
+        check_turn(rig, turn)
+        # Dispatched and returned: one model request, and a move that has no
+        # field to choose a login with.
+        assert len(llm.calls) == before + 1
+        assert rig.command("start_checkout") == {}
+        await _page(rig, "page_changed", CHECKOUT_PAGE)
+        await _page(rig, "checkout_state", _form())
+        assert _idle_windows(rig)[-1] == _TALK_THROUGH_MS
+        turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
+        check_turn(rig, turn)
+        said = _texts(llm.captured_contents[-1])
+        started = _every(llm.captured_contents[-1], "start_checkout")[-1]
+        assert "never that it is done" in started and "As a guest, never a login" in started
+        assert "start_checkout done: the checkout's delivery form is on screen" in said
+        assert (
+            "Still missing: email, región, comuna, dirección, número, nombre, apellidos, "
+            "RUT (theirs to type), teléfono." in said
+        )
+        assert "ask for the first one or two things it needs" in said
+        assert "Never ask for the RUT" in said
+        # On the form already, it does not go again.
+        await rig.driver.user_says("Quiero comprarlo.")
+        await rig.driver.user_says("Sigamos.")
+        assert _every(llm.captured_contents[-1], "start_checkout")[-1].startswith("Already there")
+        assert len(_commands(rig, "start_checkout")) == 1
+
+
+async def test_start_checkout_with_an_empty_cart_moves_nothing() -> None:
+    llm = _checkout_llm()
+    async with demo("cannonhome", llm) as rig:
+        await rig.driver.start_session(init={"path": "/checkout/cart"})
+        await _page(rig, "cart_state", {"items": [], "count": 0, "subtotal": 0})
+        await rig.driver.user_says("Quiero comprarlo.")
+        await rig.driver.user_says("Sigamos.")
+        assert _every(llm.captured_contents[-1], "start_checkout")[-1].startswith(
+            "Not done: their cart is empty"
+        )
+        assert "start_checkout" not in rig.actions()
+
+
+async def test_fill_checkout_returns_at_once_and_the_forms_message_is_talked_through() -> None:
+    llm = _checkout_llm()
+    async with demo("cannonhome", llm) as rig:
+        await rig.driver.start_session(init={"path": "/checkout"})
+        await _page(rig, "page_changed", CHECKOUT_PAGE)
+        # The form as it loaded, before he did anything: a note, nothing said.
+        await _page(rig, "checkout_state", _form())
+        assert _idle_windows(rig)[-1] == _IDLE_MS
+        before = len(llm.calls)
+        turn = await rig.driver.user_says("Mi correo es test arroba example punto com.")
+        check_turn(rig, turn)
+        assert len(llm.calls) == before + 1
+        assert rig.command("fill_checkout") == _NO_FILL | {"email": "test@example.com"}
+        await _page(
+            rig,
+            "command_done",
+            {"command": "fill_checkout", "detail": "filled email; nothing was pressed"},
+        )
+        flagged = _form(
+            filled=["email"],
+            missing=[*_ALL_MISSING[1:], "rut", "phone"],
+            invalid=[
+                {
+                    "field": "email",
+                    "message": "Ingrese una dirección de correo electrónico válida.",
+                }
+            ],
+        )
+        await _page(rig, "checkout_state", flagged)
+        turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
+        check_turn(rig, turn)
+        said = _texts(llm.captured_contents[-1])
+        filled = _every(llm.captured_contents[-1], "fill_checkout")[-1]
+        assert filled.startswith("For the delivery form: email. Sent to the page; it has not")
+        assert "never that it is done" in filled
+        assert "The email sent: test@example.com. Read it back, letter by letter" in filled
+        assert "fill_checkout done: filled email" in said
+        assert (
+            "The form flags: email: “Ingrese una dirección de correo electrónico válida.”" in said
+        )
+        assert "The form flags a field" in said
+        # The page reports names, and the brain's notes carry no value of theirs.
+        notes = [t for t in said.split("\n") if t.startswith("[The checkout's delivery form")]
+        assert notes and all("test@example.com" not in n for n in notes)
+
+
+async def test_a_phone_is_the_digits_they_said_never_reshaped() -> None:
+    llm = _checkout_llm()
+    async with demo("cannonhome", llm) as rig:
+        await rig.driver.start_session(init={"path": "/checkout"})
+        await rig.driver.user_says(
+            "Mi teléfono es nueve uno dos tres cuatro cinco seis siete ocho."
+        )
+        assert rig.command("fill_checkout") == _NO_FILL | {"phone": "912345678"}
+        await _page(rig, "command_done", {"command": "fill_checkout", "detail": "filled teléfono"})
+        # Said in pairs, as Chileans read a celular, with the country's +56.
+        await rig.driver.user_says(
+            "Mi celular es nueve, ochenta y dos, cuarenta y seis, trece, cincuenta y siete."
+        )
+        assert _commands(rig, "fill_checkout")[-1] == _NO_FILL | {"phone": "982461357"}
+        await _page(rig, "command_done", {"command": "fill_checkout", "detail": "filled teléfono"})
+        # A digit changed, or too few: refused, nothing sent.
+        await rig.driver.user_says("Es el nueve ocho siete seis cinco cuatro tres dos uno.")
+        await rig.driver.user_says("Es el doce trece.")
+        await rig.driver.user_says("Sigamos.")
+        results = _every(llm.captured_contents[-1], "fill_checkout")
+        assert "The phone sent: 9 1 2 3 4 5 6 7 8. Read it back digit by digit." in results[0]
+        assert (
+            "phone: 9 8 7 6 5 4 3 2 2 is not what the visitor said (9 8 7 6 5 4 3 2 1)"
+            in results[2]
+        )
+        assert results[3].startswith("Not filled: phone: 1 2 1 3 (they said")
+        assert "is not a Chilean number" in results[3]
+        assert "The phone sent: 9 8 2 4 6 1 3 5 7." in results[1]
+        assert len(_commands(rig, "fill_checkout")) == 2
+
+
+async def test_no_rut_is_ever_sent_even_when_the_visitor_says_one() -> None:
+    llm = _checkout_llm()
+    async with demo("cannonhome", llm) as rig:
+        await rig.driver.start_session(init={"path": "/checkout"})
+        turn = await rig.driver.user_says(f"Mi RUT es {_A_RUT}.")
+        check_turn(rig, turn)
+        assert "El RUT y el pago los completas tú." in turn.text
+        await rig.driver.user_says("Sigamos.")
+        result = _every(llm.captured_contents[-1], "fill_checkout")[-1]
+        assert result.startswith("Not filled:")
+        assert "the RUT is theirs to type" in result and "it looks like a RUT" in result
+        # Nothing reached the page, and the tool never repeats it.
+        assert "fill_checkout" not in rig.actions()
+        for digits in ("12.345.678", "12345678", "123456785"):
+            assert digits not in result
+            assert all(digits not in str(c) for c in rig.driver.ui_commands)  # type: ignore[attr-defined]
+
+
+async def test_region_and_comuna_are_the_sites_names_and_a_comuna_needs_its_region() -> None:
+    llm = _checkout_llm()
+    async with demo("cannonhome", llm) as rig:
+        await rig.driver.start_session(init={"path": "/checkout"})
+        await rig.driver.user_says("Vivo en Providencia.")
+        await rig.driver.user_says("Sigamos.")
+        assert (
+            "comuna: the form lists comunas once a región is chosen"
+            in (_every(llm.captured_contents[-1], "fill_checkout")[-1])
+        )
+        assert "fill_checkout" not in rig.actions()
+        await rig.driver.user_says("Vivo en Providencia, Santiago, en Calle Falsa 123, depto 45.")
+        assert rig.command("fill_checkout") == _NO_FILL | {
+            "region": "Metropolitana",
+            "comuna": "Providencia",
+            "street": "Calle Falsa",
+            "number": "123",
+            "apartment": "45",
+        }
+
+
+async def test_one_checkout_move_at_a_time() -> None:
+    llm = _checkout_llm()
+    async with demo("cannonhome", llm) as rig:
+        await rig.driver.start_session(init={"path": "/checkout"})
+        await rig.driver.user_says("Me llamo Ana Prueba.")
+        await rig.driver.user_says(
+            "Mi teléfono es nueve uno dos tres cuatro cinco seis siete ocho."
+        )
+        assert _commands(rig, "fill_checkout") == [
+            _NO_FILL | {"first_name": "Ana", "last_name": "Prueba"}
+        ]
+        await _page(rig, "command_done", {"command": "fill_checkout", "detail": "filled nombre"})
+        assert _commands(rig, "fill_checkout")[-1] == _NO_FILL | {"phone": "912345678"}

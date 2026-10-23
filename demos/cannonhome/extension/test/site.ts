@@ -13,6 +13,16 @@
  * query and then shows them (test/pages/gp-autocomplete.html), while its
  * stylesheet hides Amasty's dropdown, which Amasty still fills.
  *
+ * The bag's "Terminar pedido" opens the login window the live site renders
+ * (test/pages/login-modal.html), whose "Comprar como invitado" links to the
+ * guest checkout, /checkout (test/pages/checkout.html). Both were saved from
+ * the live guest checkout on 2026-10-23 with one cheap item in the bag and
+ * nothing typed, then trimmed: no scripts, styles, drawings, Knockout bindings
+ * or form key. On the checkout, the delivery form's región and comuna
+ * dropdowns (the comuna's list loads by AJAX once a región is chosen), the
+ * phone prefix and the form's validation messages are simulated, as is the
+ * password a known email brings up (`existe@example.com`).
+ *
  * The adapter bundle (test/.build/adapter.js, `node test/build-adapter.mjs`)
  * is injected into every page at DOMContentLoaded, as `content.js` would be.
  */
@@ -35,6 +45,7 @@ function pageFor(path: string): string | null {
   if (path.startsWith(CATEGORY)) return "category.html";
   if (path.startsWith("/catalogsearch/result")) return "search.html";
   if (path.replace(/\/+$/, "") === "/checkout/cart") return "cart.html";
+  if (path.replace(/\/+$/, "") === "/checkout") return "checkout.html";
   if (/^\/[a-z0-9-]+\.html$/.test(path)) return "product.html";
   return null;
 }
@@ -82,7 +93,26 @@ export interface Seen {
   goPersonal: string[];
   sections: number;
   pages: string[];
+  /** The comuna lists asked for, by región id. */
+  comunas: string[];
+  /** Every request but a GET the pages sent (graphql aside): nothing is ever
+   *  submitted from the checkout. */
+  sent: string[];
 }
+
+/** The site's regions with the ids its comuna lists are asked by, and the
+ *  comunas of two of them (2026-10-23). */
+const REGIONS: [string, number][] = [
+  ["Antofagasta", 652], ["Araucanía", 660], ["Arica y Parinacota", 650], ["Atacama", 653],
+  ["Aysén del General Carlos Ibañez del Campo", 663], ["Bío Bío", 659], ["Coquimbo", 654],
+  ["Libertador General Bernardo OHiggins", 656], ["Los Lagos", 662], ["Los Ríos", 661],
+  ["Magallanes y la Antártica Chilena", 665], ["Maule", 657], ["Metropolitana", 664], ["Ñuble", 658],
+  ["Tarapacá", 651], ["Valparaíso", 655],
+];
+const COMUNAS: Record<string, string[]> = {
+  "664": ["Buin", "Cerrillos", "La Florida", "Las Condes", "Maipú", "Ñuñoa", "Providencia", "Puente Alto", "Santiago", "Vitacura"],
+  "655": ["Quilpué", "Valparaíso", "Viña del Mar"],
+};
 
 async function answerGraphql(route: Route, request: Request, seen: Seen): Promise<void> {
   const body = (request.postDataJSON() ?? {}) as { query?: string; variables?: Record<string, unknown> };
@@ -192,6 +222,19 @@ function simulateSite(): void {
         section.style.display = "block";
       }, 500);
     });
+    // The bag's login window: rendered (hidden) as Knockout renders it, shown
+    // by "Terminar pedido", closed by its ×.
+    if (document.body.classList.contains("checkout-cart-index")) {
+      void fetch("/__fixture/login-modal.html")
+        .then((r) => r.text())
+        .then((html) => document.body.insertAdjacentHTML("beforeend", html));
+      document.addEventListener("click", (e) => {
+        const t = e.target as Element;
+        if (t.closest("[data-role=proceed-to-checkout]")) $("aside.login-modal")?.classList.add("_show");
+        if (t.closest("aside.login-modal .action-close")) $("aside.login-modal")?.classList.remove("_show");
+      });
+    }
+    if (document.body.classList.contains("checkout-index-index")) simulateCheckout();
     // The AJAX add-to-cart: no page load; the bag slides in.
     $<HTMLFormElement>("#product_addtocart_form")?.addEventListener("submit", (e) => {
       e.preventDefault();
@@ -205,6 +248,106 @@ function simulateSite(): void {
   };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", ready, { once: true });
   else ready();
+}
+
+/** The checkout's own scripts, as far as the adapter meets them. Declared
+ *  inside `simulateSite`'s page so it serializes with it. */
+function simulateCheckout(): void {
+  const w = window as unknown as { __submitted: string[]; __regions: [string, number][]; __comunaDelay?: number };
+  w.__submitted = [];
+  const $ = <T extends Element>(sel: string, root: ParentNode = document) => root.querySelector<T>(sel);
+  const form = $<HTMLFormElement>("#co-shipping-form")!;
+  const regionBox = $<HTMLElement>(".field.region_id .cn-region-search", form)!;
+  const comunaBox = $<HTMLElement>(".field.city_id .cn-region-search", form)!;
+  let comunas: string[] = [];
+  const menu = (box: HTMLElement, labels: string[]) => {
+    box.querySelector(".cn-region-search__menu")?.remove();
+    const items = labels.map((l, i) => `<li class="cn-region-search__item" role="option" id="o-${i}"><span class="cn-region-search__item-label">${l}</span></li>`).join("");
+    box.insertAdjacentHTML(
+      "beforeend",
+      `<div class="cn-region-search__menu"><div class="cn-region-search__search"><input class="cn-region-search__input" type="text" placeholder="Buscar"></div><ul class="cn-region-search__list" role="listbox">${items}</ul></div>`,
+    );
+  };
+  const setValue = (box: HTMLElement, label: string, placeholder: boolean) => {
+    const v = box.querySelector(".cn-region-search__value")!;
+    v.textContent = label;
+    v.classList.toggle("is-placeholder", placeholder);
+  };
+  const error = (field: Element | null, message: string | null) => {
+    field?.querySelector(".field-error")?.remove();
+    if (field && message) field.insertAdjacentHTML("beforeend", `<div class="field-error"><span>${message}</span></div>`);
+  };
+  document.addEventListener("click", (e) => {
+    const t = e.target as Element;
+    const trigger = t.closest<HTMLButtonElement>(".cn-region-search__trigger");
+    if (trigger) {
+      const box = trigger.closest<HTMLElement>(".cn-region-search")!;
+      if (trigger.getAttribute("aria-disabled") === "true") return;
+      const open = box.classList.toggle("is-open");
+      trigger.setAttribute("aria-expanded", String(open));
+      if (open) menu(box, box === regionBox ? w.__regions.map(([l]) => l) : comunas);
+      return;
+    }
+    const item = t.closest<HTMLElement>(".cn-region-search__item");
+    if (item) {
+      const box = item.closest<HTMLElement>(".cn-region-search")!;
+      const label = item.textContent!.trim();
+      setValue(box, label, false);
+      box.classList.remove("is-open");
+      error(box.closest(".field"), null);
+      if (box === regionBox) {
+        $<HTMLInputElement>("input[name=region]", form)!.value = label;
+        const id = w.__regions.find(([l]) => l === label)![1];
+        const comunaTrigger = comunaBox.querySelector(".cn-region-search__trigger")!;
+        comunaTrigger.setAttribute("aria-disabled", "true");
+        setValue(comunaBox, "Cargando…", true);
+        comunas = [];
+        setTimeout(async () => {
+          comunas = (await (await fetch(`/rest/V1/zonification/city/getByCodeForCheckout/${id}`)).json()) as string[];
+          comunaTrigger.setAttribute("aria-disabled", "false");
+          setValue(comunaBox, "Por favor, selecciona una comuna", true);
+        }, w.__comunaDelay ?? 600);
+      } else {
+        $<HTMLInputElement>("input[name=city]", form)!.value = label;
+        const splits = $<HTMLElement>(".section-splits", form);
+        if (splits) splits.style.display = "block";
+      }
+      return;
+    }
+    const flag = t.closest(".selected-flag");
+    if (flag) {
+      $(".country-list", form)?.classList.toggle("hide");
+      return;
+    }
+    const country = t.closest<HTMLElement>("li.country");
+    if (country) {
+      $(".iti-flag", form)!.textContent = `+${country.dataset.dialCode}`;
+      $(".country-list", form)?.classList.add("hide");
+      return;
+    }
+    if (t.closest(".co-place-order__button, [data-role=opc-continue], #payment button")) w.__submitted.push(t.closest("button")?.className ?? "button");
+  });
+  document.addEventListener("submit", (e) => {
+    e.preventDefault();
+    w.__submitted.push((e.target as HTMLFormElement).id || "form");
+  });
+  // Knockout's validation, as the visitor finishes an edit.
+  document.addEventListener("change", (e) => {
+    const el = e.target as HTMLInputElement;
+    if (el.id === "customer-email") {
+      document.getElementById("customer-email-error")?.remove();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(el.value)) {
+        el.insertAdjacentHTML("afterend", `<div class="mage-error" id="customer-email-error">Ingrese una dirección de correo electrónico válida (Ej: johndoe@domain.com).</div>`);
+      }
+      const password = $<HTMLElement>("#customer-email-fieldset .field.password");
+      if (password) password.style.display = el.value === "existe@example.com" ? "block" : "none";
+      return;
+    }
+    const field = el.closest(".field");
+    if (!field || !form.contains(el)) return;
+    if (el.name === "telephone") error(field, /^\d{8}$/.test(el.value) ? null : "Ingresa un número de teléfono válido.");
+    else if (field.classList.contains("_required")) error(field, el.value.trim() ? null : "Este es un campo obligatorio.");
+  });
 }
 
 /** The products GoPersonal shows while only "sab…" has been typed: a bath
@@ -263,7 +406,7 @@ const ADAPTER = join(here, ".build", "adapter.js");
 
 /** Serve the site on `page`, with the adapter injected; what it was asked. */
 export async function serveSite(p: Page, opts: { goPersonal?: GoPersonalTiming } = {}): Promise<Seen> {
-  const seen: Seen = { graphql: [], autocomplete: [], goPersonal: [], sections: 0, pages: [] };
+  const seen: Seen = { graphql: [], autocomplete: [], goPersonal: [], sections: 0, pages: [], comunas: [], sent: [] };
   const adapter = readFileSync(ADAPTER, "utf8");
   // The dropdown starts closed, as the site renders it before typing.
   await p.addInitScript(() => {
@@ -275,7 +418,8 @@ export async function serveSite(p: Page, opts: { goPersonal?: GoPersonalTiming }
       }
     });
   });
-  await p.addInitScript(simulateSite);
+  await p.addInitScript(`window.__regions = ${JSON.stringify(REGIONS)};`);
+  await p.addInitScript(`${simulateCheckout.toString()}\n(${simulateSite.toString()})();`);
   if (opts.goPersonal) await p.addInitScript(simulateGoPersonal, { ...opts.goPersonal, partial: GP_PARTIAL });
   await p.addInitScript({
     content: `document.addEventListener("DOMContentLoaded", () => { ${adapter}\n }, { once: true });`,
@@ -284,6 +428,13 @@ export async function serveSite(p: Page, opts: { goPersonal?: GoPersonalTiming }
   await p.route(`${ORIGIN}/**`, async (route, request) => {
     const url = new URL(request.url());
     if (url.pathname === "/graphql") return answerGraphql(route, request, seen);
+    if (request.method() !== "GET") seen.sent.push(`${request.method()} ${url.pathname}`);
+    if (url.pathname === "/__fixture/login-modal.html") return route.fulfill({ status: 200, contentType: "text/html", body: page("login-modal.html") });
+    const comunaList = url.pathname.match(/^\/rest\/V1\/zonification\/city\/getByCodeForCheckout\/(\d+)$/);
+    if (comunaList) {
+      seen.comunas.push(comunaList[1]);
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(COMUNAS[comunaList[1]] ?? []) });
+    }
     if (url.pathname.startsWith("/customer/section/load")) {
       seen.sections++;
       return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(CART_SECTION) });

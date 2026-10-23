@@ -30,6 +30,8 @@ __all__ = [
     "CannonHomeEvent",
     "CartItem",
     "CartState",
+    "CheckoutInvalid",
+    "CheckoutState",
     "CommandDone",
     "CommandFailed",
     "LanguageRequested",
@@ -46,7 +48,7 @@ __all__ = [
 ]
 
 
-PageKind = Literal["home", "category", "search", "product", "cart", "page"]
+PageKind = Literal["home", "category", "search", "product", "cart", "checkout", "page"]
 
 
 class PageChanged(AppEvent):
@@ -198,6 +200,61 @@ class CartState(AppEvent):
     """What is left to spend for free shipping (Región Metropolitana only)."""
 
 
+#: The checkout's delivery-form fields, by the names the brain fills them
+#: with; ``rut`` and ``delivery`` are the visitor's own, reported by name only.
+CheckoutFieldName = Literal[
+    "email",
+    "first_name",
+    "last_name",
+    "rut",
+    "phone",
+    "region",
+    "comuna",
+    "street",
+    "number",
+    "apartment",
+    "delivery",
+]
+
+
+class CheckoutInvalid(BaseModel):
+    field: str
+    message: str = ""
+    """The site's own validation text for the field, as it shows it."""
+
+
+class CheckoutState(AppEvent):
+    """The checkout's delivery form (/checkout, the guest's one-page checkout):
+    on load and after each change, whoever made it (debounced by the page).
+
+    **Names, not values.** What the visitor typed stays on their screen: the
+    form reports which fields hold something, never what, apart from the
+    región and comuna chosen (the site's own option names). The RUT, any
+    password and anything of the payment step are never read at all; ``rut``
+    is named in ``filled`` or ``missing`` only so he knows whether they have
+    typed it."""
+
+    filled: list[str] = Field(default_factory=list[str])
+    """The fields that hold something (see :data:`CheckoutFieldName`)."""
+    missing: list[str] = Field(default_factory=list[str])
+    """The required fields still empty, in the form's order."""
+    invalid: list[CheckoutInvalid] = Field(default_factory=list[CheckoutInvalid])
+    """The fields the form flags, with its message."""
+    region: str = ""
+    comuna: str = ""
+    email_has_account: bool = False
+    """The email belongs to an account: the site shows a password field to sign
+    in. That is a login, and it is the visitor's."""
+    delivery_options: list[str] = Field(default_factory=list[str])
+    """The delivery methods offered once a comuna is chosen ("Despacho a
+    domicilio", "Retiro en Tienda")."""
+    delivery: str = ""
+    """The delivery method the visitor chose, if any."""
+    payment_open: bool = False
+    """Whether the payment step (Método de Pago) shows its options: past the
+    form, and the visitor's alone."""
+
+
 type CannonHomeEvent = (
     PageChanged
     | TabsChanged
@@ -209,6 +266,7 @@ type CannonHomeEvent = (
     | SearchSuggest
     | PricesRead
     | CartState
+    | CheckoutState
 )
 
 CANNONHOME_EVENTS = AppEvents[CannonHomeEvent](
@@ -222,4 +280,5 @@ CANNONHOME_EVENTS = AppEvents[CannonHomeEvent](
     SearchSuggest,
     PricesRead,
     CartState,
+    CheckoutState,
 )

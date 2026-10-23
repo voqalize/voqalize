@@ -15,6 +15,8 @@
  *   - `search_suggest` whenever the search box's dropdown shows products;
  *   - `prices_read` for `check_prices`;
  *   - `cart_state` after an add, when the bag opens, and when it changes;
+ *   - `checkout_state` on the checkout's delivery form: which fields hold
+ *     something (never what), which are missing, what the form flags;
  *   - `command_done` / `command_failed` for each move, which the brain waits on
  *     before he says it happened.
  *
@@ -28,15 +30,19 @@
  * adapter on the next page finishes it. Filters, sort and paging are AJAX with
  * `history.pushState`; add-to-cart is AJAX and slides the bag in by itself.
  *
- * Nothing here ever leads into checkout: every click goes through `press`,
- * every load through `go` (`page.ts`), and both refuse "Finalizar compra",
- * "Terminar pedido", the login modal and every /checkout page but the bag.
+ * Nothing here goes past the checkout's delivery form: every click goes
+ * through `press`, every load through `go` (`page.ts`). They let Javier take a
+ * guest from the bag to the form ("Terminar pedido", then "Comprar como
+ * invitado") and pick the form's región and comuna, and refuse every login,
+ * the delivery method, the payment step and the place-order button. Fields
+ * are filled only through `fillField`, which refuses the RUT, any password and
+ * anything of the payment, whatever the brain sends.
  */
 
 import {
   amount, best, boxOf, clean, clearHighlight, go, headerHeight, highlight, inOrder, leave, type Leftover, money,
-  norm, pathOf, press, quiet, samePath, scrollTo, scrollToTopOfPage, setValue, settled, shown, sleep, styleThePage,
-  takeLeftover, typeInto, visible, waitFor,
+  norm, pathOf, press, privateField, quiet, samePath, scrollTo, scrollToTopOfPage, setValue, settled, shown, sleep,
+  styleThePage, takeLeftover, typeInto, visible, waitFor,
 } from "./page";
 
 declare global {
@@ -70,9 +76,10 @@ export interface RunResult {
 /** The moves the brain waits on, whose success is reported as `command_done`. */
 export const DONE_COMMANDS = new Set([
   "search_products", "filter_listing", "open_product", "check_prices", "add_to_cart", "show_cart",
+  "start_checkout", "fill_checkout",
 ]);
 
-export type Kind = "home" | "category" | "search" | "product" | "cart" | "page";
+export type Kind = "home" | "category" | "search" | "product" | "cart" | "checkout" | "page";
 
 export interface PageContext {
   site: string;
@@ -104,6 +111,7 @@ export function kindOf(): Kind {
   if (b.contains("catalog-category-view")) return "category";
   if (b.contains("catalogsearch-result-index")) return "search";
   if (b.contains("checkout-cart-index")) return "cart";
+  if (b.contains("checkout-index-index")) return "checkout";
   if (b.contains("cms-index-index")) return "home";
   return "page";
 }
@@ -1117,6 +1125,319 @@ async function showCart(p: { open?: boolean }): Promise<string | null> {
   return `opened the bag drawer; ${cartLine(cart)}`;
 }
 
+// start_checkout, fill_checkout ────────────────────────────────────────────
+
+/** The delivery form's fields Javier may fill, by the brain's names, in the
+ *  form's order. The RUT field sits among them and is never one of them. */
+const FILL_ORDER = ["email", "region", "comuna", "street", "number", "apartment", "first_name", "last_name", "phone"] as const;
+type FillKey = (typeof FILL_ORDER)[number];
+type TextKey = Exclude<FillKey, "email" | "region" | "comuna">;
+
+/** The delivery form's `.field[name=…]` (Knockout's data scope) per field. */
+const FIELD_SCOPES: Record<string, string> = {
+  "shippingAddress.firstname": "first_name",
+  "shippingAddress.lastname": "last_name",
+  "shippingAddress.custom_attributes.rut": "rut",
+  "shippingAddress.street.0": "street",
+  "shippingAddress.street.1": "number",
+  "shippingAddress.street.2": "apartment",
+  "shippingAddress.telephone": "phone",
+  "shippingAddress.region_id": "region",
+  "shippingAddress.custom_attributes.city_id": "comuna",
+};
+const TEXT_INPUTS: Record<TextKey, string> = {
+  street: "input[name='street[0]']",
+  number: "input[name='street[1]']",
+  apartment: "input[name='street[2]']",
+  first_name: "input[name='firstname']",
+  last_name: "input[name='lastname']",
+  phone: ".field.telephone input[name='telephone']:not([type=hidden])",
+};
+const FIELD_LABEL: Record<string, string> = {
+  email: "email", region: "región", comuna: "comuna", street: "dirección", number: "número", apartment: "depto/casa",
+  first_name: "nombre", last_name: "apellidos", phone: "teléfono", rut: "RUT", delivery: "método de envío",
+};
+
+const onCheckout = () => kindOf() === "checkout";
+const shippingForm = () => document.querySelector<HTMLFormElement>("#checkout #co-shipping-form, form#co-shipping-form");
+const emailInput = () =>
+  document.querySelector<HTMLInputElement>("#checkout form[data-role='email-with-possible-login'] input[type=email], #checkout input#customer-email");
+const emailForm = () => emailInput()?.closest("form") ?? null;
+const pickerOf = (key: "region" | "comuna") =>
+  shippingForm()?.querySelector<HTMLElement>(`.field.${key === "region" ? "region_id" : "city_id"} .cn-region-search`) ?? null;
+const pickedIn = (box: HTMLElement | null) => {
+  const v = box?.querySelector(".cn-region-search__value");
+  return v && !v.classList.contains("is-placeholder") ? clean(v.textContent) : "";
+};
+const filledIn = (el: HTMLInputElement | null | undefined) => Boolean(el && el.value.trim());
+
+interface CheckoutState {
+  filled: string[];
+  missing: string[];
+  invalid: { field: string; message: string }[];
+  region: string;
+  comuna: string;
+  email_has_account: boolean;
+  delivery_options: string[];
+  delivery: string;
+  payment_open: boolean;
+}
+
+/** The delivery form as it stands: which fields hold something, never what
+ *  (but the región and comuna, the site's own names); what is missing; what
+ *  the form flags, in its words. The RUT is only ever checked for being empty,
+ *  and nothing of the payment step is read. */
+function readCheckout(): CheckoutState {
+  const form = shippingForm();
+  const filled: string[] = [];
+  const missing: string[] = [];
+  const invalid: { field: string; message: string }[] = [];
+  const region = pickedIn(pickerOf("region"));
+  const comuna = pickedIn(pickerOf("comuna"));
+  const has: Record<string, boolean> = {
+    email: filledIn(emailInput()),
+    region: Boolean(region),
+    comuna: Boolean(comuna),
+    rut: filledIn(form?.querySelector<HTMLInputElement>(".field.rut input, input[name*='rut' i]")),
+  };
+  for (const [key, sel] of Object.entries(TEXT_INPUTS)) has[key] = filledIn(form?.querySelector<HTMLInputElement>(sel));
+  const order = ["email", "region", "comuna", "street", "number", "apartment", "first_name", "last_name", "rut", "phone"];
+  const required = new Set(["email", "region", "comuna", "street", "number", "first_name", "last_name", "rut", "phone"]);
+  for (const key of order) {
+    if (has[key]) filled.push(key);
+    else if (required.has(key)) missing.push(key);
+  }
+  // The form's messages, under each field (Magento's `.field-error`, jQuery
+  // validate's `.mage-error`), named by the field's data scope.
+  const errors = [...(form?.querySelectorAll<HTMLElement>(".field-error, div.mage-error") ?? []), ...(emailForm()?.querySelectorAll<HTMLElement>(".field-error, div.mage-error, #customer-email-error") ?? [])];
+  for (const err of errors) {
+    const message = clean(err.textContent);
+    if (!message || !shown(err)) continue;
+    const field = err.closest(".field");
+    const key = field?.closest("#customer-email-fieldset, form[data-role='email-with-possible-login']") ? "email" : FIELD_SCOPES[field?.getAttribute("name") ?? ""];
+    if (key && !invalid.some((i) => i.field === key)) invalid.push({ field: key, message: message.slice(0, 160) });
+  }
+  const methods = [...document.querySelectorAll<HTMLInputElement>("#checkout input[name=common_shipping_type]")].filter((r) => shown(r.closest(".method-content") ?? r));
+  const methodName = (r: HTMLInputElement) =>
+    clean((r.closest(".title-method") ?? r.closest(".method-content"))?.querySelector(".main-method-title p, .method-head-group > span > span")?.textContent ?? r.value);
+  const chosen = methods.find((r) => r.checked);
+  if (methods.length && !chosen) missing.push("delivery");
+  if (chosen) filled.push("delivery");
+  const password = [...(emailForm()?.querySelectorAll<HTMLInputElement>("input[type=password]") ?? [])].some(shown);
+  const payment = document.querySelector("#checkout-step-payment");
+  return {
+    filled,
+    missing,
+    invalid,
+    region,
+    comuna,
+    email_has_account: password,
+    delivery_options: methods.map(methodName),
+    delivery: chosen ? methodName(chosen) : "",
+    payment_open: Boolean(payment && shown(payment)),
+  };
+}
+
+const reportCheckout = () => {
+  if (onCheckout() && shippingForm()) report("checkout_state", readCheckout());
+};
+
+/** The form is up: Knockout has rendered the delivery form and the email. */
+const formReady = () => (shippingForm() && emailInput() && pickerOf("region") ? shippingForm() : null);
+
+/** Take the visitor to the delivery form, then do `then` there (a fill). From
+ *  any page: the bag first; on the bag, "Terminar pedido", then the login
+ *  window's "Comprar como invitado" (a link to /checkout). Each load carries
+ *  the rest in `sessionStorage`. */
+async function toCheckout(then: Leftover | null, arrived: boolean): Promise<string | null> {
+  if (onCheckout()) {
+    const form = await waitFor(formReady, 20_000);
+    if (!form) throw new Error("the checkout opened, but its delivery form did not show");
+    if (/payment/i.test(location.hash)) throw new Error("the checkout is at its payment step, which is the visitor's");
+    if (then) {
+      const r = await perform(then.command, then.payload);
+      if (!r.ok) throw new Error(r.error);
+      return r.detail ?? "";
+    }
+    await scrollTo(emailForm() ?? form, "top");
+    highlight(emailForm() ?? form);
+    reportCheckout();
+    return `the guest checkout's delivery form is open (${describeCheckout(readCheckout())})`;
+  }
+  const as = then?.command ?? "start_checkout";
+  if (arrived) throw new Error(`the checkout did not open (now on ${location.pathname}); the bag may be empty`);
+  if (kindOf() !== "cart") {
+    leave({ command: "start_checkout", payload: { then }, as });
+    go("/checkout/cart/");
+    return null;
+  }
+  if (!document.querySelector("tbody.cart.item") && document.querySelector(".cart-empty")) throw new Error("the bag is empty; there is nothing to check out");
+  const button = await waitFor(() => [...document.querySelectorAll<HTMLElement>("button[data-role='proceed-to-checkout']")].find(shown), 8000);
+  if (!button) throw new Error("the bag page has no Terminar pedido button");
+  // The window "Terminar pedido" opens is Knockout's: pressed before it has
+  // rendered, it opens empty.
+  await waitFor(() => document.querySelector("#block-login a[href]"), 10_000);
+  await scrollTo(button, "center");
+  highlight(button);
+  await sleep(500);
+  press(button);
+  const guest = await waitFor(
+    () =>
+      [...document.querySelectorAll<HTMLAnchorElement>("aside.login-modal._show a[href]")].find((a) => {
+        const to = new URL(a.href, location.href);
+        return /^\/checkout\/?$/i.test(to.pathname) && shown(a);
+      }),
+    12_000,
+  );
+  leave({ command: "start_checkout", payload: { then, arrived: true }, as });
+  if (guest) {
+    highlight(guest);
+    await sleep(700);
+    press(guest);
+  } else {
+    // The window did not render its links: "Comprar como invitado" is only
+    // this link.
+    go("/checkout");
+  }
+  return null;
+}
+
+function describeCheckout(c: CheckoutState): string {
+  const names = (keys: string[]) => keys.map((k) => FIELD_LABEL[k] ?? k).join(", ");
+  const bits = [c.filled.length ? `filled: ${names(c.filled)}` : "nothing filled yet"];
+  if (c.missing.length) bits.push(`missing: ${names(c.missing)}`);
+  if (c.invalid.length) bits.push(`the form flags ${c.invalid.map((i) => `${FIELD_LABEL[i.field] ?? i.field} ("${i.message}")`).join(", ")}`);
+  return bits.join("; ");
+}
+
+async function startCheckout(p: { then?: Leftover | null } & Arrived): Promise<string | null> {
+  return toCheckout(p.then ?? null, Boolean(p.arrived));
+}
+
+/** Type `value` into one of the form's own text fields, as a finished edit
+ *  (Knockout's `value` binding updates on `change` and `keyup`), unless the
+ *  field is the visitor's alone or the value does not fit it. */
+async function fillField(el: HTMLInputElement, value: string, label: string): Promise<void> {
+  const why = privateField(el);
+  if (why) throw new Error(`refused ${label}: ${why}`);
+  const max = el.maxLength > 0 ? el.maxLength : Infinity;
+  if (value.length > max) throw new Error(`${label} takes at most ${max} characters`);
+  await scrollTo(el, "center");
+  el.focus({ preventScroll: true });
+  setValue(el, value);
+  el.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: "Unidentified" }));
+  if (el.value !== value) throw new Error(`${label} did not take what was typed (it shows ${el.value.length} characters)`);
+}
+
+/** Pick `said` in the form's región or comuna list (its own searchable
+ *  dropdown); the comuna's list loads by AJAX once a región is chosen. */
+async function pick(key: "region" | "comuna", said: string): Promise<string> {
+  const box = pickerOf(key);
+  const trigger = box?.querySelector<HTMLButtonElement>(".cn-region-search__trigger");
+  if (!box || !trigger) throw new Error(`the form has no ${FIELD_LABEL[key]} list`);
+  if (norm(pickedIn(box)) === norm(said)) return pickedIn(box);
+  if (key === "comuna" && !pickedIn(pickerOf("region"))) throw new Error("the comuna list opens once a región is chosen; choose the región first");
+  const open = () => trigger.getAttribute("aria-disabled") !== "true" && !trigger.disabled;
+  if (!(await waitFor(open, key === "comuna" ? 8000 : 3000))) {
+    throw new Error(key === "comuna" ? "the comuna list opens once a región is chosen; choose the región first" : "the región list is locked");
+  }
+  await scrollTo(box, "center");
+  if (!box.classList.contains("is-open")) press(trigger);
+  const label = (li: HTMLElement) => clean(li.querySelector(".cn-region-search__item-label")?.textContent ?? li.textContent);
+  const items = await waitFor(() => {
+    const li = [...box.querySelectorAll<HTMLElement>(".cn-region-search__item")];
+    return li.length ? li : null;
+  }, 8000);
+  const hit = items ? best(items, label, said) : null;
+  if (!hit) {
+    if (box.classList.contains("is-open")) press(trigger);
+    const listed = (items ?? []).map(label);
+    const near = listed.filter((l) => norm(l)[0] === norm(said)[0]).slice(0, 12);
+    throw new Error(`no ${FIELD_LABEL[key]} "${said}" in the form's list${listed.length ? `; it lists ${(near.length ? near : listed.slice(0, 12)).join(", ")}${listed.length > 12 ? "…" : ""}` : " (it is empty)"}`);
+  }
+  const name = label(hit);
+  hit.scrollIntoView({ block: "nearest" });
+  press(hit);
+  if (!(await waitFor(() => norm(pickedIn(box)) === norm(name), 4000))) throw new Error(`${FIELD_LABEL[key]} "${name}" did not stay chosen`);
+  return name;
+}
+
+/** Choose the phone's prefix (+56 9 for a mobile, +56 2 for a Santiago line)
+ *  from the first of the nine digits; the other eight go in the field. */
+async function phonePrefix(first: string): Promise<void> {
+  const box = shippingForm()?.querySelector<HTMLElement>(".field.telephone .flag-container");
+  if (!box) return;
+  const want = `56 ${first}`;
+  const now = clean(box.querySelector(".iti-flag, .selected-flag")?.textContent).replace(/^\+/, "");
+  if (now === `+${want}` || now === want) return;
+  const flag = box.querySelector<HTMLElement>(".selected-flag");
+  if (!flag) throw new Error("the phone field has no prefix to choose");
+  press(flag);
+  const li = await waitFor(() => box.querySelector<HTMLElement>(`li.country[data-dial-code="${want}"]`), 3000);
+  if (!li) throw new Error(`the phone field has no +${want} prefix`);
+  press(li);
+  if (!(await waitFor(() => clean(box.querySelector(".iti-flag, .selected-flag")?.textContent).replace(/^\+/, "") === want, 2000))) {
+    throw new Error(`the phone prefix did not change to +${want}`);
+  }
+}
+
+type FillCheckout = Partial<Record<FillKey, string | null>>;
+
+async function fillCheckout(p: FillCheckout & { arrived?: boolean }): Promise<string | null> {
+  const given = FILL_ORDER.filter((k) => typeof p[k] === "string" && p[k]!.trim());
+  if (!given.length) throw new Error("say what to fill: email, región, comuna, dirección, número, depto/casa, nombre, apellidos or teléfono");
+  if (!onCheckout()) {
+    const payload: Record<string, string> = {};
+    for (const k of given) payload[k] = p[k]!;
+    return toCheckout({ command: "fill_checkout", payload }, Boolean(p.arrived));
+  }
+  if (/payment/i.test(location.hash)) throw new Error("the checkout is at its payment step, which is the visitor's; nothing was filled");
+  const form = await waitFor(formReady, 15_000);
+  if (!form) throw new Error("the checkout's delivery form is not on screen");
+  const done: string[] = [];
+  const failed: string[] = [];
+  const touched: Element[] = [];
+  for (const key of given) {
+    const value = clean(p[key]);
+    const label = FIELD_LABEL[key];
+    try {
+      if (key === "email") {
+        const el = emailInput()!;
+        await fillField(el, value, label);
+        touched.push(el);
+      } else if (key === "region" || key === "comuna") {
+        const name = await pick(key, value);
+        touched.push(pickerOf(key)!);
+        done.push(`${label} ${name}`);
+        continue;
+      } else if (key === "phone") {
+        const digits = value.replace(/\D/g, "");
+        if (!/^[92]\d{8}$/.test(digits)) throw new Error("a Chilean number is nine digits, starting with 9 or 2");
+        await phonePrefix(digits[0]);
+        const el = form.querySelector<HTMLInputElement>(TEXT_INPUTS.phone);
+        if (!el) throw new Error("the form has no phone field");
+        await fillField(el, digits.slice(1), label);
+        touched.push(el.closest(".field") ?? el);
+      } else {
+        const el = form.querySelector<HTMLInputElement>(TEXT_INPUTS[key]);
+        if (!el) throw new Error(`the form has no ${label} field`);
+        await fillField(el, value, label);
+        touched.push(el);
+      }
+      done.push(label);
+    } catch (error) {
+      failed.push(`${label}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  // Knockout's validation shows on blur; give it a moment, then report.
+  await quiet(form, 300, 1500);
+  const state = readCheckout();
+  report("checkout_state", state);
+  if (touched.length) highlight(touched);
+  if (!done.length) throw new Error(`nothing was filled: ${failed.join("; ")}`);
+  return `filled ${done.join(", ")}${failed.length ? `; not filled: ${failed.join("; ")}` : ""}; ${describeCheckout(state)}; nothing was pressed after the fields`;
+}
+
 // Cue moves: navigate, show_section, open_faq (clini's) ────────────────────
 
 async function navigate(p: { path: string; heading?: string | null; text?: string | null; faq?: string | null } & Arrived) {
@@ -1227,6 +1548,8 @@ const COMMANDS: Record<string, Command> = {
   check_prices: checkPrices,
   add_to_cart: addToCart,
   show_cart: showCart,
+  start_checkout: startCheckout,
+  fill_checkout: fillCheckout,
   navigate,
   show_section: showSection,
   open_faq: openFaq,
@@ -1331,6 +1654,18 @@ function watchState(): () => void {
       if (!searching && suggestShown()) report("search_suggest", readSuggest());
     });
   }
+  if (onCheckout()) {
+    // The delivery form, whoever types in it: reported as it settles. Its
+    // fields are Knockout's and render late, so the whole checkout is watched,
+    // with the edits the visitor finishes.
+    const again = debounced(reportCheckout, 600, 2500);
+    const root = document.querySelector("#checkout") ?? document.body;
+    const obs = new MutationObserver(again);
+    obs.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "style", "aria-invalid"] });
+    observers.push(obs);
+    for (const type of ["change", "focusout"]) document.addEventListener(type, again, true);
+    observers.push({ disconnect: () => ["change", "focusout"].forEach((type) => document.removeEventListener(type, again, true)) } as MutationObserver);
+  }
   let bag = cartKey();
   watch(document.querySelector("#minicart-content-wrapper"), () => {
     const now = cartKey();
@@ -1356,6 +1691,7 @@ function readState(): void {
   } else if (kind === "category" || kind === "search") {
     report("listing_shown", readListing());
   }
+  if (kind === "checkout") void waitFor(formReady, 20_000).then((form) => form && reportCheckout());
   if (kind === "cart") void readCart().then(reportCart);
   else void cartIfChanged();
 }

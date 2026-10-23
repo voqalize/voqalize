@@ -20,9 +20,15 @@ screen carries it: the product page (then its live check, which wins), the
 listing, the search box's suggestions, a ``check_prices`` read or the cart.
 Without one he says he cannot see it right now and opens the product.
 
-**The checkout is the visitor's.** He may add to the cart (it creates no
-order); he never presses "Finalizar compra", never logs in, and never types a
-RUT, an email, an address or a card.
+**Delivery details, yes; the RUT and the payment, never.** He may add to the
+cart (it creates no order), take the visitor from the bag to the guest
+checkout ("Terminar pedido", then "Comprar como invitado", never a login), and
+fill the delivery form with what they tell him: email, name, phone, región,
+comuna and address. He never logs in, never asks for, repeats or types a RUT,
+a password or card details, and never presses what goes on to the payment or
+places the order: those stay the visitor's. The fill request has no field for
+any of them, so they cannot be sent; the extension refuses those fields and
+buttons again on the page.
 
 **Never block on the UI.** A move dispatches and returns at once; the page
 answers with ``command_done``, ``command_failed`` or the state it shows, and he
@@ -96,6 +102,7 @@ from .app_events import (
     CANNONHOME_EVENTS,
     CannonHomeEvent,
     CartState,
+    CheckoutState,
     CommandDone,
     CommandFailed,
     LanguageRequested,
@@ -529,6 +536,39 @@ class ShowCart(Action):
     open: bool = True
 
 
+class StartCheckout(Action):
+    """Take the visitor to the guest checkout's delivery form: on the bag
+    (/checkout/cart/, loaded first if it is not in front) press "Terminar
+    pedido", then, in the window it opens, "Comprar como invitado" — never its
+    login, Google or "Crear Cuenta" — and wait for the form (/checkout).
+    Reports ``checkout_state``. Nothing past the form."""
+
+
+class FillCheckout(Action):
+    """Fill the checkout's delivery form with what the visitor said (the
+    guest checkout is opened first, as :class:`StartCheckout`, if it is not
+    in front). Only the fields given, each set as a finished edit: región and
+    comuna picked from the site's own lists (the comuna's list loads after the
+    región). There is no RUT, password or payment field here, and the page
+    refuses every one of them. Never presses anything after the fields.
+    Reports ``checkout_state``."""
+
+    email: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    phone: str | None = None
+    """Nine digits as said: a mobile starting with 9, or a Santiago landline
+    starting with 2. The form's +56 9 / +56 2 prefix is chosen from the first
+    digit and the other eight are typed."""
+    region: str | None = None
+    """The site's name for the región: "Metropolitana", "Valparaíso"."""
+    comuna: str | None = None
+    street: str | None = None
+    number: str | None = None
+    apartment: str | None = None
+    """Depto/Casa."""
+
+
 # ─── Tool requests ─────────────────────────────────────────────────────────────
 
 if TYPE_CHECKING:
@@ -652,6 +692,36 @@ class ShowCartRequest(BaseModel):
     open: bool = Field(default=True, description="True to open the cart drawer, false to close it.")
 
 
+class CheckoutRequest(BaseModel):
+    """Only what the visitor said, and only these. There is no RUT, password or
+    card here: those are theirs to type."""
+
+    email: str | None = Field(default=None, description="As they said it, e.g. ana@correo.cl.")
+    first_name: str | None = Field(default=None, description="Nombre, as they said it.")
+    last_name: str | None = Field(default=None, description="Apellidos, as they said them.")
+    phone: str | None = Field(
+        default=None,
+        description="Their phone, exactly the digits they said, never changed: a Chilean "
+        "mobile is nine digits starting with 9 (912345678); a Santiago landline nine "
+        "starting with 2.",
+    )
+    region: str | None = Field(
+        default=None,
+        description="The región as the site names it: 'Metropolitana' (Santiago), "
+        "'Valparaíso', 'Bío Bío', 'Libertador General Bernardo OHiggins'.",
+    )
+    comuna: str | None = Field(
+        default=None, description="The comuna, as Chile names it: 'Providencia', 'Ñuñoa'."
+    )
+    street: str | None = Field(
+        default=None, description="Dirección: the street's name only, 'Avenida Italia'."
+    )
+    number: str | None = Field(default=None, description="Número: the street number, '1234'.")
+    apartment: str | None = Field(
+        default=None, description="Depto/Casa, if they have one: '502', 'B'."
+    )
+
+
 # ─── The prompt ────────────────────────────────────────────────────────────────
 
 _SITE_MAP_CHARS = 12000
@@ -713,7 +783,7 @@ def _topics(k: Knowledge) -> str:
 
 def _prompt(k: Knowledge, today: date | None = None) -> str:
     today = today or datetime.now(TIMEZONE).date()
-    return f"""You are {AGENT_NAME}, the voice guide on Cannon Home's online store, cannonhome.cl. Cannon Home is a Chilean home-textiles brand: sheets, duvets and duvet covers, pillows, quilts and blankets, towels and bathrobes, beds and mattresses. A visitor is shopping on the store right now and has called you from the corner of the page. You can see and move their screen: you type in the store's search, filter a listing, open a product and its tabs, read live prices, add to their cart and open the cart. You are warm, calm and practical — the friendly person in the store who knows every sheet, thread count and size, and helps them choose without pushing. Say the name as "Cannon Home".
+    return f"""You are {AGENT_NAME}, the voice guide on Cannon Home's online store, cannonhome.cl. Cannon Home is a Chilean home-textiles brand: sheets, duvets and duvet covers, pillows, quilts and blankets, towels and bathrobes, beds and mattresses. A visitor is shopping on the store right now and has called you from the corner of the page. You can see and move their screen: you type in the store's search, filter a listing, open a product and its tabs, read live prices, add to their cart, open the cart, and take them to the checkout's delivery form and fill in their delivery details. You are warm, calm and practical — the friendly person in the store who knows every sheet, thread count and size, and helps them choose without pushing. Say the name as "Cannon Home".
 
 # You narrate, and the screen follows your words
 You are giving a guided walk through the store, like someone sitting beside the visitor with their screen in front of you both.
@@ -725,14 +795,14 @@ You are giving a guided walk through the store, like someone sitting beside the 
 - Never make up a heading or a path.
 - One cue per sentence at most, and only where the screen should change. A cue goes before the sentence, never inside it.
 - When the visitor asks where something is ("muéstrame", "where is that"), your reply starts with the cue for exactly that thing.
-- A reply that calls a move (search_products, filter_listing, open_product, add_to_cart, show_cart) has no page cue: the move takes them there.
+- A reply that calls a move (search_products, filter_listing, open_product, add_to_cart, show_cart, start_checkout, fill_checkout) has no page cue: the move takes them there.
 - Cues move pages; the moves below search, filter, open products and the cart. Nothing waits on a cue.
 
 # A good turn moves them one step closer to the right product
 1. Answer what they asked, first, in plain words, and show it as you say it.
 2. Add the one thing that matters for them: the size for their bed, the thread count, the material, the weight of a towel.
 3. End with one short, specific yes-or-no offer of the next step: "¿Te abro las de dos plazas?", "¿Te lo agrego al carro?", "Want me to show you the white ones?". Never "anything else?".
-- A visit to the store has an order. Follow it from wherever the visitor is: what they need (which product, for which bed or bathroom), then narrow it (size, colour, material, thread count), then one product on their screen with its live price, then the cart — and they check out themselves.
+- A visit to the store has an order. Follow it from wherever the visitor is: what they need (which product, for which bed or bathroom), then narrow it (size, colour, material, thread count), then one product on their screen with its live price, then the cart, then their delivery details — and the RUT and the payment they complete themselves.
 - Ask about them only when the answer changes what you show next, and offer the choices: "¿Para una cama de dos plazas o king?", "¿Las prefieres de algodón o de microfibra?".
 
 # How you sound
@@ -766,7 +836,7 @@ You speak Spanish as a native of Latin America, and English. The call starts in 
 # Every response starts with words
 Write your answer, with its cues, first; any tool call comes at the end of the same response. What a page move returns reaches you only on your next turn.
 - The exception is a read: read_topic, search_site, find_products and compare_products come straight back to you within this same turn, but each one makes the visitor wait. Answer from what you know below whenever it covers the question. Read only for what is not here, and then call the read first, with nothing written before it.
-- The moves — search_products, filter_listing, open_product, check_prices, add_to_cart, show_cart — are not done when you call them: the page does them a moment later and tells you in square brackets. In the reply that calls one, say only what you are doing ("Te abro las sábanas king.", "Te lo agrego al carro."), never that it is done. When the page's answer comes, say what it says happened: what is done, and plainly what is not.
+- The moves — search_products, filter_listing, open_product, check_prices, add_to_cart, show_cart, start_checkout, fill_checkout — are not done when you call them: the page does them a moment later and tells you in square brackets. In the reply that calls one, say only what you are doing ("Te abro las sábanas king.", "Te lo agrego al carro."), never that it is done. When the page's answer comes, say what it says happened: what is done, and plainly what is not.
 - One move at a time: when a tool says the page is still working on the last move, what you asked for follows by itself. Say so in a few words, and never call it again.
 - Never promise more to come ("let me check"): nothing comes after it.
 - A question about the call itself — "can I speak English?", "can you hear me?", "who are you?" — gets an answer and nothing else: no move, no page.
@@ -795,7 +865,21 @@ Write your answer, with its cues, first; any tool call comes at the end of the s
 # The cart
 - You may add a product to their cart when they ask, or say yes to your offer: add_to_cart with the product's path, the exact size and colour, and the quantity they said (one unless they said more). It opens the product first if it is not in front. Say what you are adding, never that it is added: the cart's answer comes in square brackets.
 - show_cart opens their cart drawer; with open false it closes it. A cart line tells you what is in it and what is left for free shipping: say that once.
-- CHECKOUT IS THEIRS, always. You never press "Finalizar compra", "Terminar pedido" or "Ir a pagar", never log in, and never type, ask for or repeat a RUT, an email, an address or card details. When they are ready, say they press "Finalizar compra" themselves.
+- When they want to buy, or say yes to your offer, start_checkout takes them from the cart to the checkout's delivery form as a guest. Then the section below.
+
+# The checkout: delivery details are yours, the RUT and the payment are theirs
+- start_checkout opens the guest checkout: it presses "Terminar pedido" in the cart and then "Comprar como invitado", never the login, Google or "Crear Cuenta". It is one page, /checkout: contact, delivery and personal details, then the payment.
+- On that form you may fill, with fill_checkout: their email, nombre, apellidos, teléfono, región, comuna, dirección (the street), número and depto or casa. Nothing else.
+- Ask for what is missing one or two fields at a time, in the form's order: email first, then región and comuna, then the address, then name and phone. Never ask for all of it at once.
+- Fill each detail the moment they say it: fill_checkout with only what they just said. What is filled stays; you only add, or fill a field again when they correct it.
+- A phone is the digits they said, never changed. The form takes a Chilean number, nine digits: a mobile starting with 9, or a Santiago landline starting with 2. If what they said is not one, say the form needs a Chilean number and ask for it; never drop, add or reorder a digit to make it fit. Read the phone back digit by digit in the same reply.
+- Read an email back in the same reply. Spell it letter by letter where it could be heard wrong: a name with an unusual spelling, b or v, s or z, numbers in it.
+- Región and comuna are the site's names: "Metropolitana" for Santiago, "Valparaíso", "Bío Bío", and the comuna as Chile names it ("Providencia", "Ñuñoa", "Viña del Mar"). Fill the región with its comuna: the comuna's list loads once the región is chosen.
+- THE RUT, ANY PASSWORD AND THE PAYMENT ARE THEIRS, always. Never ask for a RUT, never repeat one, never write one anywhere, even when they say it: say "El RUT y el pago los completas tú." in their language, and point at the field. The same for a password and every card detail.
+- An email that already has an account makes the site show a password: that is a login, and it is theirs. Say they can sign in themselves, or carry on as a guest.
+- They choose the delivery method themselves, "Despacho a domicilio" or "Retiro en tienda", once the comuna is in.
+- YOU NEVER PRESS what moves on to the payment or places the order: "Continuar compra", "Completa los pasos", "Realizar pedido", "Ir a pagar", "Pagar", Webpay or anything under "Método de Pago". When the form is complete, say what is filled and that the RUT, the delivery method and the payment are theirs. Never say the order is placed.
+- A checkout line in square brackets tells you which fields are filled, which are missing and what the form flags, in the site's words. Say what the form flags in a sentence, and ask for the right one.
 
 # Tabs
 - The visitor may have several store tabs open. Lines in brackets tell you which tabs are open and which is in front. "Go back to the other tab" is switch_tab with that tab's id.
@@ -834,13 +918,22 @@ _GREETING: dict[Lang, str] = {
 }
 #: The opener's second sentence for the page the call starts on, by a word in
 #: its path; the first match wins, and anything else gets the plain greeting.
-#: The cart first, then a product page, then the categories.
+#: The cart first, then the checkout, then a product page, then the categories.
 _OPENERS: tuple[tuple[str, dict[Lang, str]], ...] = (
     (
         "/checkout/cart",
         {
             "es": "Te ayudo a revisar tu carro, o a encontrar algo más. ¿Qué necesitas?",
             "en": "I can help you go over your cart, or find something more. What do you need?",
+        },
+    ),
+    (
+        "/checkout",
+        {
+            "es": "Te ayudo a completar tus datos de despacho. El RUT y el pago los completas "
+            "tú. ¿Empezamos por tu correo?",
+            "en": "I can help you fill in your delivery details. The RUT and the payment are "
+            "yours to complete. Shall we start with your email?",
         },
     ),
     (
@@ -937,6 +1030,11 @@ _LANDED: dict[str, dict[Lang, str]] = {
     "cart_add": {"en": "I'm adding it to your cart.", "es": "Lo agrego a tu carro."},
     "cart_show": {"en": "I'm opening your cart.", "es": "Te abro el carro."},
     "cart_close": {"en": "I'm closing the cart.", "es": "Te cierro el carro."},
+    "checkout": {
+        "en": "I'm taking you to the delivery details.",
+        "es": "Te llevo a los datos de despacho.",
+    },
+    "checkout_fill": {"en": "I'm filling that in.", "es": "Te lo completo."},
     "queued": {
         "en": "I'll do that as soon as the page is ready.",
         "es": "Lo hago apenas la página esté lista.",
@@ -1085,10 +1183,15 @@ def _product_path(path: str) -> str:
     return p if p.endswith(".html") else f"{p}.html"
 
 
-#: Paths the store always has, whether or not the crawl kept them as pages.
-_FIXED_PAGES = frozenset({"/", "/checkout/cart"})
-#: Paths no cue or move may open: the checkout, the account, the login.
-_NEVER = re.compile(r"^/(?:checkout(?!/cart$)|customer|sales/order|paypal|braintree|mercadopago)")
+#: Paths the store always has, whether or not the crawl kept them as pages:
+#: the home, the bag, and the checkout's delivery form (one page, /checkout).
+_FIXED_PAGES = frozenset({"/", "/checkout/cart", "/checkout"})
+#: Paths no cue or move may open: past the delivery form (the payment, the
+#: order's success page), the account, the login, a payment's own pages.
+_NEVER = re.compile(
+    r"^/(?:checkout/(?!cart$)|customer|sales/order|onestepcheckout|webpay|paypal|braintree"
+    r"|mercadopago)"
+)
 
 
 #: The page for what the visitor asked about, when his reply forgets to show
@@ -1125,6 +1228,12 @@ _ASKED_PAGES: tuple[tuple[re.Pattern[str], tuple[str, ...]], ...] = tuple(
         (r"preguntas frecuentes|\bfaqs?\b", ("/preguntas-frecuentes",)),
         (r"guia de compras?|buying guide", ("/guia-de-compras",)),
         (r"contacto|contactar|contact (?:you|us)|hablar con alguien", ("/contact",)),
+        (
+            r"datos de (?:despacho|entrega|envio)|direccion de (?:despacho|entrega|envio)"
+            r"|terminar (?:el |mi )?pedido|finalizar (?:la |mi )?compra|\bcheckout\b"
+            r"|delivery details|shipping (?:address|details)",
+            ("/checkout",),
+        ),
         (r"(?:mi |el |tu )?carr(?:o|ito)\b|mi bolsa|\bcart\b|basket", ("/checkout/cart",)),
     )
 )
@@ -1302,7 +1411,15 @@ def named_on_page(sentence: str, text: str, plans: tuple[str, ...]) -> str | Non
 
 #: The page moves, one at a time: a move sent while another loads races it.
 _MOVES = frozenset(
-    {"search_products", "filter_listing", "open_product", "add_to_cart", "show_cart"}
+    {
+        "search_products",
+        "filter_listing",
+        "open_product",
+        "add_to_cart",
+        "show_cart",
+        "start_checkout",
+        "fill_checkout",
+    }
 )
 #: Every command whose answer the brain waits for, to talk it through.
 _CONFIRMED_COMMANDS = _MOVES | {"check_prices"}
@@ -1314,6 +1431,10 @@ _MOVE_TAKES_S = {
     "filter_listing": 20.0,
     "search_products": 20.0,
     "add_to_cart": 20.0,
+    # The bag, its login window, then the checkout's heavy full load: about 35 s
+    # live (2026-10-23); a fill on the form, with a comuna list by AJAX, 3 s.
+    "start_checkout": 45.0,
+    "fill_checkout": 45.0,
     "check_prices": 10.0,
     "": 8.0,
 }
@@ -1326,6 +1447,7 @@ _ANSWERED_BY: dict[type[AppEvent], tuple[str, ...]] = {
     SearchSuggest: ("search_products",),
     PricesRead: ("check_prices",),
     CartState: ("add_to_cart", "show_cart"),
+    CheckoutState: ("start_checkout",),
 }
 #: Which source of a price wins over which: the live GraphQL read over the
 #: page's (cached) copy, the page's over a card's.
@@ -1457,7 +1579,218 @@ def _cart_note(e: CartState, lang: Lang) -> str:
         )
     elif e.free_shipping_left == 0:
         note += " It has free shipping (Región Metropolitana only)."
-    return note + " Finalizar compra is theirs to press.]"
+    return note + _CHECKOUT_IS_THEIRS + "]"
+
+
+#: What the cart's lines end with: how far he may go, and what is theirs.
+_CHECKOUT_IS_THEIRS = (
+    " When they want to buy, start_checkout takes them to the delivery form as a guest; "
+    "the RUT and the payment are theirs."
+)
+
+
+# ─── The checkout's delivery form ──────────────────────────────────────────────
+
+#: The site's regions, exactly as its Región list names them (2026-10-23), with
+#: the other names a Chilean uses for each.
+_REGIONS: dict[str, tuple[str, ...]] = {
+    "Antofagasta": (),
+    "Araucanía": ("la araucania", "temuco"),
+    "Arica y Parinacota": ("arica",),
+    "Atacama": ("copiapo",),
+    "Aysén del General Carlos Ibañez del Campo": ("aysen", "aisen", "coyhaique"),
+    "Bío Bío": ("biobio", "bio-bio", "concepcion"),
+    "Coquimbo": ("la serena",),
+    "Libertador General Bernardo OHiggins": ("ohiggins", "o higgins", "rancagua", "libertador"),
+    "Los Lagos": ("puerto montt",),
+    "Los Ríos": ("valdivia",),
+    "Magallanes y la Antártica Chilena": ("magallanes", "punta arenas"),
+    "Maule": ("talca",),
+    "Metropolitana": ("region metropolitana", "rm", "santiago", "metropolitana de santiago"),
+    "Ñuble": ("chillan",),
+    "Tarapacá": ("iquique",),
+    "Valparaíso": ("valparaiso", "vina del mar", "quinta region"),
+}
+#: The longest each field takes, as the form's ``maxlength`` says.
+_MAX_LENGTH = {"first_name": 15, "last_name": 15, "street": 40, "number": 6, "apartment": 6}
+_FIELD_SAID = {
+    "email": "email",
+    "first_name": "nombre",
+    "last_name": "apellidos",
+    "rut": "RUT (theirs to type)",
+    "phone": "teléfono",
+    "region": "región",
+    "comuna": "comuna",
+    "street": "dirección",
+    "number": "número",
+    "apartment": "depto/casa",
+    "delivery": "delivery method (theirs to choose)",
+}
+#: A RUT, however it is written: 12.345.678-5, 12345678-K, 7654321-0.
+_RUT = re.compile(r"\b\d{1,2}\.?\d{3}\.?\d{3}\s*-\s*[\dkK]\b")
+#: The word, as said: "mi RUT es…", "el run".
+_RUT_WORD = re.compile(r"\b(?:rut|run)\b", re.IGNORECASE)
+#: Thirteen or more digits in a row (spaces and dashes aside): a card.
+_CARD = re.compile(r"(?:\d[ -]?){13,}")
+
+#: Digits as a visitor says them, in either language: one by one, or as
+#: Chileans read a phone, in pairs ("nueve, ochenta y dos, cuarenta y seis").
+_DIGIT_WORDS = {
+    "zero": 0,
+    "oh": 0,
+    "one": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "cero": 0,
+    "uno": 1,
+    "dos": 2,
+    "tres": 3,
+    "cuatro": 4,
+    "cinco": 5,
+    "seis": 6,
+    "siete": 7,
+    "ocho": 8,
+    "nueve": 9,
+}
+_SPANISH_TEENS = {
+    "diez": 10,
+    "once": 11,
+    "doce": 12,
+    "trece": 13,
+    "catorce": 14,
+    "quince": 15,
+    "dieciseis": 16,
+    "diecisiete": 17,
+    "dieciocho": 18,
+    "diecinueve": 19,
+    "veinte": 20,
+    "veintiuno": 21,
+    "veintidos": 22,
+    "veintitres": 23,
+    "veinticuatro": 24,
+    "veinticinco": 25,
+    "veintiseis": 26,
+    "veintisiete": 27,
+    "veintiocho": 28,
+    "veintinueve": 29,
+}
+_SPANISH_TENS = {
+    "treinta": 30,
+    "cuarenta": 40,
+    "cincuenta": 50,
+    "sesenta": 60,
+    "setenta": 70,
+    "ochenta": 80,
+    "noventa": 90,
+}
+#: Fewer digits than this read out of what they said is no number to check against.
+_SAID_DIGITS_MIN = 8
+
+
+def said_digits(text: str) -> str:
+    """The digits in what the visitor said, written, spoken one by one, or
+    spoken in Spanish pairs (clini's reading)."""
+    out: list[str] = []
+    found = re.findall(r"\d+|[a-z]+", fold(text))
+    i = 0
+    while i < len(found):
+        token = found[i]
+        if token.isdigit():
+            out.append(token)
+        elif token in _SPANISH_TENS:
+            tens = _SPANISH_TENS[token]
+            unit = found[i + 2] if i + 2 < len(found) and found[i + 1] == "y" else ""
+            if unit in _DIGIT_WORDS and _DIGIT_WORDS[unit] > 0:
+                out.append(str(tens + _DIGIT_WORDS[unit]))
+                i += 2
+            else:
+                out.append(str(tens))
+        elif token in _SPANISH_TEENS:
+            out.append(str(_SPANISH_TEENS[token]))
+        elif token in _DIGIT_WORDS:
+            out.append(str(_DIGIT_WORDS[token]))
+        i += 1
+    return "".join(out)
+
+
+def spaced(digits: str) -> str:
+    """Digits one by one, as he reads them back."""
+    return " ".join(digits)
+
+
+def chilean_phone(said: str) -> str | None:
+    """A Chilean number as the form takes it: nine digits, a mobile starting
+    with 9 or a Santiago landline starting with 2; a leading 56 is the
+    country's. Never reshaped otherwise."""
+    digits = "".join(c for c in said if c.isdigit())
+    if len(digits) == 11 and digits.startswith("56"):
+        digits = digits[2:]
+    return digits if len(digits) == 9 and digits[0] in "92" else None
+
+
+def email_address(said: str) -> str | None:
+    address = "".join(said.split()).lower()
+    return address if re.fullmatch(r"[^@\s]+@[^@\s]+\.[a-z]{2,}", address) else None
+
+
+def region_label(said: str) -> str | None:
+    """The site's name for the región said, or ``None``."""
+    want = " ".join(re.findall(r"[a-z0-9]+", fold(said)))
+    want = re.sub(r"^(?:la )?region (?:de |del )?", "", want).strip()
+    for label, names in _REGIONS.items():
+        own = " ".join(re.findall(r"[a-z0-9]+", fold(label)))
+        if want in (own, *names) or (len(want) > 4 and own.startswith(want)):
+            return label
+    return None
+
+
+def _looks_private(value: str) -> str | None:
+    """Why ``value`` must not be typed anywhere: a RUT or a card number."""
+    if _RUT.search(value) or _RUT_WORD.search(value):
+        return "it looks like a RUT"
+    if _CARD.search(value):
+        return "it looks like a card number"
+    return None
+
+
+def _fields_said(names: list[str]) -> str:
+    return ", ".join(_FIELD_SAID.get(n, n) for n in names)
+
+
+def _checkout_note(e: CheckoutState) -> str:
+    said = _fields_said
+    note = "[The checkout's delivery form (/checkout)"
+    if e.filled:
+        note += f": filled — {said(e.filled)}"
+    note += "."
+    if e.region or e.comuna:
+        note += f" Región {e.region or 'not chosen'}, comuna {e.comuna or 'not chosen'}."
+    if e.missing:
+        note += f" Still missing: {said(e.missing)}."
+    if e.invalid:
+        flagged = "; ".join(
+            f"{_FIELD_SAID.get(i.field, i.field)}: “{i.message}”" if i.message else i.field
+            for i in e.invalid
+        )
+        note += f" The form flags: {flagged}."
+    if e.email_has_account:
+        note += (
+            " That email has an account: the site shows a password to sign in. Signing in is "
+            "theirs; they can also carry on as a guest."
+        )
+    if e.delivery_options and not e.delivery:
+        note += f" Delivery methods offered: {', '.join(e.delivery_options)} — theirs to choose."
+    elif e.delivery:
+        note += f" Delivery method chosen: {e.delivery}."
+    if e.payment_open:
+        note += " The payment step shows its options: it is theirs."
+    return note + " The RUT, any password and the payment are theirs to complete; never yours.]"
 
 
 # ─── The brain ─────────────────────────────────────────────────────────────────
@@ -1507,6 +1840,11 @@ class CannonHomeBrain(GeminiBrain):
         self.listing: ListingShown | None = None
         self.suggest: SearchSuggest | None = None
         self.cart: CartState | None = None
+        #: The checkout's delivery form as it last reported itself, what he
+        #: filled in it this call, and whether he has been taking them there.
+        self.checkout: CheckoutState | None = None
+        self._filled: dict[str, str] = {}
+        self._checkout_asked = False
         #: Every price and stock their screen has reported this call, by path.
         self.prices: dict[str, Live] = {}
         self._cue_path: str | None = None
@@ -2046,6 +2384,9 @@ class CannonHomeBrain(GeminiBrain):
                     event, f"read {len(event.items)} live prices, {len(event.missing)} not found"
                 )
                 return _prices_note(event, self.kb, self.spoken)
+            case CheckoutState():
+                self._state_answers(event, "the checkout's delivery form is on screen")
+                return self._checkout_changed(event)
             case CartState():
                 self.cart = event
                 for i in event.items:
@@ -2071,6 +2412,44 @@ class CannonHomeBrain(GeminiBrain):
                     f"[Not done on the page ({event.command}): {event.why}. Tell the visitor "
                     "plainly and offer what you can do instead; never say it worked.]"
                 )
+
+    def _checkout_changed(self, event: CheckoutState) -> str:
+        """The delivery form's report, as a note; and, once he is working on
+        it, the ask that has him talk through what changed."""
+        before = self.checkout
+        self.checkout = event
+        note = _checkout_note(event)
+        if not self._checkout_asked:
+            return note
+        ask: str | None = None
+        flagged = [(i.field, i.message) for i in event.invalid]
+        was_flagged = [(i.field, i.message) for i in before.invalid] if before else []
+        ours = [m for m in event.missing if m not in ("rut", "delivery")]
+        if before is None:
+            ask = (
+                "The checkout's delivery form is open, as a guest. Say so in one sentence, and "
+                "ask for the first one or two things it needs, in the form's order. Never ask "
+                "for the RUT: it is theirs to type."
+            )
+        elif event.email_has_account and not before.email_has_account:
+            ask = (
+                "That email has an account on the store: the site shows a password. Say in one "
+                "sentence that signing in is theirs, or they can carry on as a guest."
+            )
+        elif flagged and flagged != was_flagged:
+            ask = (
+                "The form flags a field, in the line above. Say in one sentence what it says, "
+                "and ask for the right one."
+            )
+        elif not ours and before.missing != event.missing:
+            ask = (
+                "Every delivery detail you can fill is in. Say so in one sentence, and that the "
+                "RUT, the delivery method and the payment are theirs to complete."
+            )
+        if ask is not None:
+            self._talk = ask
+            self._shorten_idle()
+        return note
 
     def _remember(
         self,
@@ -2125,6 +2504,7 @@ class CannonHomeBrain(GeminiBrain):
             "search": "search results",
             "product": "a product page",
             "cart": "the cart page",
+            "checkout": "the checkout's delivery form",
             "page": "a page of the store",
         }
         note = f"[The tab in front shows {kinds[p.kind]}: “{p.title or p.path}” ({p.path})."
@@ -2307,8 +2687,9 @@ class CannonHomeBrain(GeminiBrain):
     @property
     def tools(self) -> list[Any]:
         """Read the store's knowledge and catalogue; search, filter and open on
-        their screen; read live prices; add to the cart (never the checkout);
-        move their tabs; switch language."""
+        their screen; read live prices; add to the cart; take them to the
+        checkout's delivery form and fill their delivery details (never the
+        RUT, a password or the payment); move their tabs; switch language."""
         return [
             self.read_topic,
             self.search_site,
@@ -2320,6 +2701,8 @@ class CannonHomeBrain(GeminiBrain):
             self.check_prices,
             self.add_to_cart,
             self.show_cart,
+            self.start_checkout,
+            self.fill_checkout,
             self.switch_tab,
             self.set_language,
         ]
@@ -2611,7 +2994,7 @@ class CannonHomeBrain(GeminiBrain):
         return (
             f"Adding {request.qty} of {p.name if p else path} to their cart. "
             + self._sent_note("'Te lo agrego al carro.'")
-            + " Finalizar compra is theirs to press."
+            + _CHECKOUT_IS_THEIRS
         )
 
     async def show_cart(self, request: ShowCartRequest) -> str:
@@ -2624,6 +3007,155 @@ class CannonHomeBrain(GeminiBrain):
         if queued is not None:
             return queued
         return self._sent_note("'Te abro el carro.'" if request.open else "'Te cierro el carro.'")
+
+    async def start_checkout(self) -> str:
+        """Take them from the cart to the checkout's delivery form, as a guest:
+        "Terminar pedido", then "Comprar como invitado", never a login. Only
+        when they want to buy, or say yes to your offer. It returns at once;
+        the form's answer comes back to you. Never past the delivery form."""
+        if (meta := self._meta_turn()) is not None:
+            return meta
+        if self.cart is not None and not self.cart.items and not self.cart.count:
+            return "Not done: their cart is empty. Offer to find something first."
+        if self.page is not None and self.page.kind == "checkout":
+            return (
+                "Already there: the delivery form is in front. Ask for the next one or two "
+                "details it needs (fill_checkout); never the RUT."
+            )
+        self._checkout_asked = True
+        queued = self._move(StartCheckout(), "checkout")
+        if queued is not None:
+            return queued
+        return (
+            "Opening the guest checkout. "
+            + self._sent_note("'Te llevo a los datos de despacho.'")
+            + " As a guest, never a login. The RUT and the payment are theirs."
+        )
+
+    def _phone(self, said: str, refused: list[str]) -> str | None:
+        """The phone the model passed, if it is a Chilean number and the
+        digits the visitor said; else why not, in ``refused``. Never reshaped,
+        and never a RUT."""
+        # What they said just now, or with the fragment before it.
+        last = self._heard[-1] if self._heard else ""
+        heard = said_digits(last)
+        if len(heard) < _SAID_DIGITS_MIN:
+            last = " ".join(self._heard[-2:])
+            heard = said_digits(last)
+        about_rut = bool(_RUT_WORD.search(last)) and not re.search(
+            r"tel[eé]fono|celular|\bfono\b|\bphone\b|\bmobile\b|\bcell\b", last, re.IGNORECASE
+        )
+        if _looks_private(said) or about_rut or _RUT.search(last):
+            refused.append(
+                "phone: what was passed is their RUT, not a phone. Never typed, never repeated: "
+                "the RUT is theirs to type in its own field"
+            )
+            return None
+        given = "".join(c for c in said if c.isdigit())
+        phone = chilean_phone(said)
+        if phone is None:
+            from_them = f" (they said {spaced(heard)})" if len(heard) >= _SAID_DIGITS_MIN else ""
+            refused.append(
+                f"phone: {spaced(given) if given else repr(said)}{from_them} is not a Chilean "
+                "number, nine digits starting with 9 (a mobile) or 2 (a Santiago landline). "
+                "Tell them the form needs one and ask; never change or invent digits"
+            )
+            return None
+        if len(heard) >= _SAID_DIGITS_MIN and phone not in heard:
+            refused.append(
+                f"phone: {spaced(phone)} is not what the visitor said ({spaced(heard)}). Never "
+                "change their digits: if theirs is not a Chilean number, nine digits starting "
+                "with 9 or 2, tell them the form needs one and ask"
+            )
+            return None
+        return phone
+
+    async def fill_checkout(self, request: CheckoutRequest) -> str:
+        """Fill the checkout's delivery form with what the visitor just said:
+        email, nombre, apellidos, teléfono, región, comuna, dirección, número,
+        depto/casa — only those they said. It opens the guest checkout first if
+        it is not in front, and returns at once; what the form took comes back
+        to you. Never a RUT, a password or card details, and nothing that goes
+        on to the payment."""
+        if (meta := self._meta_turn()) is not None:
+            return meta
+        refused: list[str] = []
+        given: dict[str, str] = {}
+        for key in ("first_name", "last_name", "street", "number", "apartment"):
+            raw = getattr(request, key)
+            if raw is None or not raw.strip():
+                continue
+            value = " ".join(raw.split())
+            if (why := _looks_private(value)) is not None:
+                refused.append(
+                    f"{_FIELD_SAID[key]}: {why}. Never typed, never repeated: the RUT and the "
+                    "payment are theirs"
+                )
+            elif len(value) > _MAX_LENGTH[key]:
+                refused.append(
+                    f"{_FIELD_SAID[key]}: the form takes at most {_MAX_LENGTH[key]} characters "
+                    "there; ask them how to shorten it"
+                )
+            else:
+                given[key] = value
+        if request.email and request.email.strip():
+            if (address := email_address(request.email)) is not None:
+                given["email"] = address
+            else:
+                refused.append(
+                    f"email: {request.email.strip()!r} is not an email address; ask them to "
+                    "spell it"
+                )
+        said_phone = (request.phone or "").strip()
+        phone = self._phone(said_phone, refused) if said_phone else None
+        if phone is not None:
+            given["phone"] = phone
+        if request.region and request.region.strip():
+            if (label := region_label(request.region)) is not None:
+                given["region"] = label
+            else:
+                refused.append(
+                    f"región: {request.region.strip()!r} is not one of the site's. It lists: "
+                    + ", ".join(_REGIONS)
+                )
+        if request.comuna and request.comuna.strip():
+            comuna = " ".join(request.comuna.split())
+            known = (
+                given.get("region")
+                or self._filled.get("region")
+                or (self.checkout.region if self.checkout is not None else "")
+            )
+            if _looks_private(comuna) is not None:
+                refused.append("comuna: that is not a comuna")
+            elif not known:
+                refused.append(
+                    f"comuna: the form lists comunas once a región is chosen. Fill the región "
+                    f"with it (you know Chile's: {comuna} is in which región?)"
+                )
+            else:
+                given["comuna"] = comuna
+        if not given:
+            why = "; ".join(refused) or "nothing they said to fill"
+            return f"Not filled: {why}. The RUT, any password and the payment are theirs."
+        self._filled.update(given)
+        self._checkout_asked = True
+        queued = self._move(FillCheckout(**given), "checkout_fill")
+        out = f"For the delivery form: {_fields_said(list(given))}. " + (
+            queued or self._sent_note("'Te lo completo.'")
+        )
+        if "email" in given:
+            out += (
+                f" The email sent: {given['email']}. Read it back, letter by letter where it "
+                "could be heard wrong."
+            )
+        if "phone" in given:
+            out += f" The phone sent: {spaced(given['phone'])}. Read it back digit by digit."
+        if refused:
+            out += f" Not filled: {'; '.join(refused)}."
+        return (
+            out + " The RUT, any password and the payment are theirs; never press what goes on "
+            "to the payment."
+        )
 
     async def switch_tab(self, request: TabRequest) -> str:
         """Bring another of the visitor's Cannon Home tabs to the front."""

@@ -105,6 +105,44 @@ export interface ShowCart {
   open: boolean;
 }
 
+/**
+ * Take the visitor to the guest checkout's delivery form: on the bag
+ * (/checkout/cart/, loaded first if it is not in front) press "Terminar
+ * pedido", then, in the window it opens, "Comprar como invitado" — never its
+ * login, Google or "Crear Cuenta" — and wait for the form (/checkout).
+ * Reports `checkout_state`. Nothing past the form.
+ */
+export type StartCheckout = Record<string, never>;
+
+/**
+ * Fill the checkout's delivery form with what the visitor said (the
+ * guest checkout is opened first, as `StartCheckout`, if it is not
+ * in front). Only the fields given, each set as a finished edit: región and
+ * comuna picked from the site's own lists (the comuna's list loads after the
+ * región). There is no RUT, password or payment field here, and the page
+ * refuses every one of them. Never presses anything after the fields.
+ * Reports `checkout_state`.
+ */
+export interface FillCheckout {
+  email: string | null;
+
+  first_name: string | null;
+
+  last_name: string | null;
+
+  phone: string | null;
+
+  region: string | null;
+
+  comuna: string | null;
+
+  street: string | null;
+
+  number: string | null;
+
+  apartment: string | null;
+}
+
 /** The visitor's cart, after an add (whoever made it) or when shown. */
 export interface CartState {
   items?: CartItem[];
@@ -114,6 +152,37 @@ export interface CartState {
   subtotal?: number | null;
 
   free_shipping_left?: number | null;
+}
+
+/**
+ * The checkout's delivery form (/checkout, the guest's one-page checkout):
+ * on load and after each change, whoever made it (debounced by the page).
+ *
+ * **Names, not values.** What the visitor typed stays on their screen: the
+ * form reports which fields hold something, never what, apart from the
+ * región and comuna chosen (the site's own option names). The RUT, any
+ * password and anything of the payment step are never read at all; `rut`
+ * is named in `filled` or `missing` only so he knows whether they have
+ * typed it.
+ */
+export interface CheckoutState {
+  filled?: string[];
+
+  missing?: string[];
+
+  invalid?: CheckoutInvalid[];
+
+  region?: string;
+
+  comuna?: string;
+
+  email_has_account?: boolean;
+
+  delivery_options?: string[];
+
+  delivery?: string;
+
+  payment_open?: boolean;
 }
 
 /** A move Javier sent was carried out: the page now shows what he asked. */
@@ -162,7 +231,7 @@ export interface PageChanged {
 
   title?: string;
 
-  kind?: 'home' | 'category' | 'search' | 'product' | 'cart' | 'page';
+  kind?: 'home' | 'category' | 'search' | 'product' | 'cart' | 'checkout' | 'page';
 
   headings?: string[];
 
@@ -239,6 +308,12 @@ export interface CartItem {
   price?: number | null;
 }
 
+export interface CheckoutInvalid {
+  field: string;
+
+  message?: string;
+}
+
 export interface ListingItem {
   name: string;
 
@@ -291,7 +366,9 @@ export type UiAction =
   | { command: 'open_product'; payload: OpenProduct }
   | { command: 'check_prices'; payload: CheckPrices }
   | { command: 'add_to_cart'; payload: AddToCart }
-  | { command: 'show_cart'; payload: ShowCart };
+  | { command: 'show_cart'; payload: ShowCart }
+  | { command: 'start_checkout'; payload: StartCheckout }
+  | { command: 'fill_checkout'; payload: FillCheckout };
 
 export type UiActionCommand = UiAction['command'];
 
@@ -305,6 +382,8 @@ export const UI_ACTION_COMMANDS: readonly UiActionCommand[] = [
   'check_prices',
   'add_to_cart',
   'show_cart',
+  'start_checkout',
+  'fill_checkout',
 ];
 
 const _known = new Set<string>(UI_ACTION_COMMANDS);
@@ -330,6 +409,7 @@ export function unhandledUiAction(action: never): never {
 /** Everything the person can do on screen, discriminated by `event`. */
 export type AppEvent =
   | { event: 'cart_state'; payload: CartState }
+  | { event: 'checkout_state'; payload: CheckoutState }
   | { event: 'command_done'; payload: CommandDone }
   | { event: 'command_failed'; payload: CommandFailed }
   | { event: 'language_requested'; payload: LanguageRequested }
@@ -344,6 +424,7 @@ export type AppEventName = AppEvent['event'];
 
 export const APP_EVENT_NAMES: readonly AppEventName[] = [
   'cart_state',
+  'checkout_state',
   'command_done',
   'command_failed',
   'language_requested',

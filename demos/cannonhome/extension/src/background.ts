@@ -48,12 +48,13 @@ const ports = new Map<number, Set<Port>>();
 const LANG_KEY = "lang";
 
 /**
- * Where a tab Javier opens may point: Cannon Home's own pages (never its
- * checkout, its account pages or a payment), and WhatsApp, which the site
- * links as its sales chat. Nothing else, whatever the brain sends.
+ * Where a tab Javier opens may point: Cannon Home's own pages (the bag and the
+ * checkout's delivery form, never past it, its account pages or a payment),
+ * and WhatsApp, which the site links as its sales chat. Nothing else,
+ * whatever the brain sends.
  */
 const OPENABLE = [
-  /^https:\/\/(www\.)?cannonhome\.cl(\/(?!checkout(?!\/cart\/?(\?|#|$))|customer\/account|onestepcheckout)|$)/i,
+  /^https:\/\/(www\.)?cannonhome\.cl(\/(?!checkout(?!\/cart\/?(\?|#|$)|\/?(\?|#shipping$|$))|customer\/account|onestepcheckout)|$)/i,
   /^https:\/\/(wa\.me|api\.whatsapp\.com)\//i,
 ];
 
