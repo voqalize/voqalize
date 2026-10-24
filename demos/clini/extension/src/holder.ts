@@ -33,6 +33,7 @@ import type { PipecatClient, TransportState } from "@pipecat-ai/client-js";
 
 import { type AppEvent, asUiAction, type Cue, sendAppEvent, type UiAction } from "./actions.gen";
 import { makeClient, micState, testHooks } from "./call-client";
+import { CatchUp } from "./catch-up";
 import { Narration } from "./narration";
 import {
   AGENDA, AGENDA_COMMANDS, ANY_TAB, type CallState, type FromPage, type HolderAsk, isAgenda, isSite, OURS, PORT, SITE,
@@ -94,6 +95,8 @@ let agendaMovedAt = 0;
 
 let client: PipecatClient | null = null;
 let relaying: Relaying | null = null;
+/** The reply in progress, for a page that arrives in the middle of it. */
+const catchUp = new CatchUp();
 /** Set once the brain can hear the pages (bot ready). */
 let ready = false;
 const state: CallState = { status: "idle", muted: false, activity: null, language: "es", ready: false };
@@ -448,7 +451,10 @@ async function start(session: unknown, language: Language): Promise<{ ok: boolea
   });
   client = next;
   watch(next);
-  relaying = relayCall(next, broadcast);
+  relaying = relayCall(next, (msg) => {
+    catchUp.saw(msg);
+    broadcast(msg);
+  });
   paint("connecting");
   try {
     await next.connect(withRealHeaders(session) as never);
@@ -498,6 +504,7 @@ function end(message?: string): void {
   state.ready = false;
   relaying?.stop();
   relaying = null;
+  catchUp.clear();
   narration.clear();
   for (const job of [...inFlight.values()]) finish(job, null);
   for (const [, list] of pending) for (const job of [...list]) finish(job, null);
@@ -575,6 +582,11 @@ function handle(tab: Tab, port: Port, msg: FromPage | { ask: HolderAsk; id: numb
       if (moved || msg.k === "hello") sendTabs();
       return;
     }
+    case "catchup":
+      // A face just made on this page: the reply so far, after everything
+      // already sent to it, which it drops for this.
+      post(port, { k: "catchup", msgs: catchUp.replay() });
+      return;
     case "leaving":
       note(`tab ${tab.id} leaving`);
       listening.delete(port);
