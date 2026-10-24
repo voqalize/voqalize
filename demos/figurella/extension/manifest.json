@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "Javier for Figurella — Voqalize preview",
+  "version": "0.0.0",
+  "description": "A voice guide on figurella.cl, in Spanish or English, who walks a visitor through the Figurella method, the plans, the success stories and the agreements while her screen follows his voice, finds her nearest branch, and fills in the booking form for her free body diagnosis as she dictates it; she presses the button herself. A Voqalize preview.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAiYjGdP3TfvNdGUcECMFRtI7WeuSA7BQT1WtNV+i8icY911L8Fy6cUYKIMaYhmEHgNVb8sW0PKedhdNrMTlkds9nwUvJfTHL+QpkVKt7gDgv94yN4OiXGLD7Cpc0IKb67d7NW20ltwVA8tQtepr92V4FtRsA7hq40E7Jhk7cel7AQCt8YKK0AEfb8N4sxrNfiUl0M4iUYqkznOj2ze/laLou2GrOqbGFHYM/4I9ZbszqcTqg4J277kMTRR55h+j6+bGXii4wrf0G9ft7Gj6KSpWcceBwU+F1+uOlMDj6+wFk6iPJTYFRTY09OddIMybC/5Z5XH7ocwJLjlKsW4iCQKQIDAQAB",
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://figurella.cl/*", "https://www.figurella.cl/*"],
+      "js": ["bridge.js", "anchor.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://figurella.cl/*", "https://www.figurella.cl/*"],
+      "js": ["shell.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://figurella.cl/*", "https://www.figurella.cl/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    }
+  ],
+  "permissions": ["storage", "offscreen"],
+  "host_permissions": ["https://figurella.cl/*", "https://www.figurella.cl/*"],
+  "web_accessible_resources": [
+    {
+      "resources": ["grant.html", "grant.js"],
+      "matches": ["https://figurella.cl/*", "https://www.figurella.cl/*"]
+    }
+  ]
+}

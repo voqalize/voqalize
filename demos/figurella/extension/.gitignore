@@ -1,0 +1,4 @@
+# Playwright outputs and the test build of the extension the end-to-end tests load.
+test-results/
+playwright-report/
+test/.build/

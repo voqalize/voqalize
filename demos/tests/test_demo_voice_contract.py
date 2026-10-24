@@ -117,6 +117,11 @@ DEMOS: dict[str, Expected] = {
     # both legs for the toggle or for Spanish heard. Asserted in
     # test_explora_e2e.py.
     "explora": Expected(voice="omnivoice/javier", language="en"),
+    # Javier again, as Figurella Chile's guide on figurella.cl: the site is
+    # Chilean, so he opens in Spanish unless the toggle said English, and moves
+    # both legs for the toggle or for English heard — javier in both. Asserted
+    # in test_figurella_e2e.py.
+    "figurella": Expected(voice="omnivoice/javier", language="es"),
     "forge": Expected(voice="omnivoice/gauri", language="en"),
     "interview_bot": Expected(voice="omnivoice/gauri", language="en"),
     # Aria on karnatakadigital.in opens in English and moves both legs to Kannada

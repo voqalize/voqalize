@@ -23,7 +23,10 @@
  *     busy page too, and read as a stop soon after he stops;
  *   - a page load in the middle of a reply: the next page's face, which
  *     listens only a moment after it is made, gets the reply so far and what
- *     follows, in order, and nothing of a reply that is over or was cut.
+ *     follows, in order, and nothing of a reply that is over or was cut;
+ *   - his still on the next page, until its face draws: it moves (a talking
+ *     head while he speaks, a breath while he listens), and holds still under
+ *     reduced motion.
  */
 
 import { type BrowserContext, chromium, expect, type Page, test as base, type Worker } from "@playwright/test";
@@ -794,6 +797,65 @@ test.describe("a page load in the middle of a reply", () => {
     await load(page, "/nosotros/");
     await page.waitForTimeout(800);
     expect((await faceSaw(page)).map(label)).toEqual([]);
+  });
+});
+
+interface PosterNow {
+  name: string;
+  transform: string;
+  gone: boolean;
+}
+const posterNow = (page: Page) =>
+  page.evaluate(() => {
+    const p = document.querySelector("[data-voqalize=widget]")?.shadowRoot?.querySelector<HTMLElement>(".poster");
+    if (!p || p.hidden) return null;
+    const style = getComputedStyle(p);
+    return { name: style.animationName, transform: style.transform, gone: p.classList.contains("gone") };
+  }) as Promise<PosterNow | null>;
+
+/** In a call, a full load of a page whose parse a script holds for 2 s: the
+ *  early shell's still is what shows his face meanwhile. */
+async function toSlowPage(ext: Ext, page: Page, speaking: boolean): Promise<void> {
+  await callLive(ext, page);
+  if (speaking) {
+    await toHolder(ext.sw, { what: "emit", name: "botStartedSpeaking" });
+    await expect(widget(page)).toHaveAttribute("data-activity", "speaking");
+  }
+  await expect.poll(() => page.evaluate(() => sessionStorage.getItem("voqalize.ssilva.face")?.slice(0, 15) ?? null), { timeout: 8000 }).toBe("data:image/webp");
+  await page.evaluate(() => {
+    location.href = "/lento";
+  });
+  await page.waitForURL(`${ORIGIN}/lento`, { waitUntil: "commit" });
+  await expect.poll(async () => (await posterNow(page)) !== null).toBe(true);
+}
+
+test.describe("his still while the next page's face is not drawing yet", () => {
+  test("it moves as a talking head while he speaks, and keeps moving", async ({ ext }) => {
+    const page = await ext.open("/");
+    await toSlowPage(ext, page, true);
+    await expect.poll(async () => (await posterNow(page))?.name).toBe("poster-talk");
+    const a = (await posterNow(page))!;
+    await page.waitForTimeout(300);
+    const b = (await posterNow(page))!;
+    expect(b.gone).toBe(false);
+    expect(b.transform).not.toBe(a.transform);
+    expect(b.transform).not.toBe("none");
+  });
+
+  test("it breathes, slowly, while he listens", async ({ ext }) => {
+    const page = await ext.open("/");
+    await toSlowPage(ext, page, false);
+    await expect.poll(async () => (await posterNow(page))?.name).toBe("poster-rest");
+    const a = (await posterNow(page))!;
+    await page.waitForTimeout(400);
+    expect((await posterNow(page))!.transform).not.toBe(a.transform);
+  });
+
+  test("it holds still for a visitor who asks for reduced motion", async ({ ext }) => {
+    const page = await ext.open("/");
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await toSlowPage(ext, page, true);
+    expect(await posterNow(page)).toMatchObject({ name: "none", transform: "none" });
   });
 });
 
