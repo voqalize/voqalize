@@ -62,7 +62,9 @@ export type FromPage =
   // meanwhile, whatever the visitor's mute.
   | { k: "hold_mic"; on: boolean }
   | { k: "end" }
-  | { k: "lang"; language: Language };
+  | { k: "lang"; language: Language }
+  // A face was just made on this page: the reply so far, please.
+  | { k: "catchup" };
 
 /** Requests a page makes of the holder, answered with `re`. */
 export type HolderAsk =
@@ -92,7 +94,9 @@ export type ToPage =
   | { k: "sync"; msg: unknown }
   | { k: "ssrc"; timestamp: number; rtpTimestamp: number }
   | { k: "playout"; delay: number; samples: number }
-  | { k: "perform"; id: number; command: string; payload: unknown };
+  | { k: "perform"; id: number; command: string; payload: unknown }
+  // A new face's catch-up on the reply in progress (`catch-up.ts`).
+  | { k: "catchup"; msgs: ToPage[] };
 
 /** The Actions the holder performs itself rather than a page. Every other
  *  Action moves a page of the site, on the UAH tab in front, else the one
