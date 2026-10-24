@@ -52,6 +52,63 @@ const PROJECT = (name: string) => `<body><div class="site__content">
     </div></body>`;
 const API = "https://api.voqalize.test";
 
+const card = (name: string, path: string) =>
+  `<div class="project-card-wrapper" style="height:420px;margin:12px;border:1px solid #ccc">
+    <span class="project-card__opp-condo-name">${name}</span><a href="${ORIGIN}${path}">Ver proyecto</a></div>`;
+const LIST = `<body><main class="site__content"><section class="projects-list">
+    <h2>FIND YOUR NEW HOME</h2>
+    <select id="region"><option value="">Todas</option><option value="17" selected>Región Metropolitana</option><option value="557">Región de Valparaíso</option></select>
+    <select id="property"><option value="">Todos</option><option value="34" selected>Departamento</option></select>
+    <p class="projects-list__results-msg">4 projects found for your search.</p>
+    <div id="cards"></div>
+    <ul class="custom-pagination"><li class="active"><a class="class-icon-scroll-page" href="#" data-p="1">1</a></li><li><a class="class-icon-scroll-page" href="#" data-p="2">2</a></li></ul>
+  </section></main>
+  <script>
+    const pages = {
+      1: ${JSON.stringify(card("ESTOCOLMO", "/estocolmo/") + card("RONDIZZONI BUILDING", "/rondizzoni/"))},
+      2: ${JSON.stringify(card("CARRERA BUILDING", "/edificiocarrera/") + card("BARROSO DISTRICT", "/distrito-barroso/"))},
+    };
+    const show = (n) => {
+      document.getElementById("cards").innerHTML = pages[n];
+      for (const li of document.querySelectorAll(".custom-pagination li")) li.classList.toggle("active", li.textContent.trim() === String(n));
+    };
+    document.querySelector(".custom-pagination").addEventListener("click", (e) => {
+      e.preventDefault();
+      const a = e.target.closest("a");
+      if (a) setTimeout(() => show(a.dataset.p), 150);
+    });
+    show(1);
+  </script></body>`;
+const slide = (src: string) =>
+  `<div class="slick-slide"><button class="img-wrap nsLgSelector" data-src="/content/uploads/${src}"><img src="/content/uploads/${src}" alt=""></button></div>`;
+const GALLERY_PROJECT = `<body class="page-template-landing"><div class="site__content">
+    <section class="l3-hero"><h1>Distrito Barroso</h1><p>FROM 2,582 UF</p></section>
+    <section class="l3-numbered-slider-section"><h2>Galería</h2><div class="numbered-slider">
+      <div class="slick-slide slick-cloned"><button class="nsLgSelector" data-src="/content/uploads/3-salon.jpg"></button></div>
+      ${slide("2.-depto-grande-scaled.jpg").replace("slick-slide", "slick-slide slick-current")}${slide("2-cowork-b.jpg")}${slide("3-salon.jpg")}${slide("4-quincho.jpg")}
+    </div><span class="slide-index" data-slide="0">01</span><span class="slide-index" data-slide="1">02</span></section>
+    <section class="cotizador-l1-section"><h2>Types that adapt to your needs</h2>
+      <ul class="cotizador-l1"><li class="type-item active"><label>2D | 2B</label></li><li class="type-item"><label>2D | 2B BUTTERFLY</label></li></ul>
+      <div id="floorPlanContainer_cotizador_x"><span id="priceValue_cotizador_x">3,453</span>
+        <img id="floorPlanImage_cotizador_x" src="/content/uploads/DB-203-803.png" alt="2D | 2B"></div>
+      <span id="totalAreaValue_cotizador_x">56.65</span>
+      <button id="enlargeImageBtn_cotizador_x" onclick="location.href='/content/uploads/DB-203-803.png'">Agrandar imagen</button></section>
+    <section class="alternate-images-section"><h2>Amenities</h2>
+      <button class="img-wrap aiLgSelector" data-src="/content/uploads/3-piscina-1.jpg"><img src="/content/uploads/3-piscina-1.jpg" alt=""></button>
+      <button class="img-wrap aiLgSelector" data-src="/content/uploads/3-gourmet.jpg"><img src="/content/uploads/3-gourmet.jpg" alt=""></button></section>
+    <section class="l3-other-docs-section"><h2>Brochure</h2>
+      <a class="l3-other-docs__item" href="/content/uploads/Folleto_Barroso.pdf" target="_blank">Descargar Brochure</a></section>
+    <div style="height:1200px"></div>
+  </div>
+  <script>
+    for (const li of document.querySelectorAll("li.type-item")) li.querySelector("label").addEventListener("click", () => {
+      for (const x of document.querySelectorAll("li.type-item")) x.classList.toggle("active", x === li);
+      const mariposa = /BUTTERFLY/.test(li.textContent);
+      document.querySelector("[id^=priceValue_cotizador]").textContent = mariposa ? "3,177" : "3,453";
+      document.querySelector("[id^=floorPlanImage_cotizador]").src = mariposa ? "/content/uploads/DB-204-804.png" : "/content/uploads/DB-203-803.png";
+    });
+  </script></body>`;
+
 const PAGES: Record<string, { body: string; title: string; delay?: number }> = {
   // A page whose load is held 2 s by a script in its body: what is on screen
   // before DOMContentLoaded is the early shell's.
@@ -75,6 +132,13 @@ const PAGES: Record<string, { body: string; title: string; delay?: number }> = {
   },
   "/proyectos/edificio-norte/": { title: "EDIFICIO NORTE | SSilva", delay: 1500, body: PROJECT("Edificio Norte") },
   "/proyectos/edificio-sur/": { title: "EDIFICIO SUR | SSilva", body: PROJECT("Edificio Sur") },
+  // The project list as Chrome's translation leaves it: card names and the
+  // results line in English, two pages of cards, the card he names on the
+  // second.
+  "/proyectos/": { title: "Projects | SSilva", body: LIST },
+  // A project page with its gallery, amenities and typologies, a typology
+  // label translated ("BUTTERFLY" for "MARIPOSA").
+  "/distrito-barroso/": { title: "BARROSO DISTRICT | SSilva", body: GALLERY_PROJECT },
 };
 
 interface Status {
@@ -122,6 +186,9 @@ const test = base.extend<{ ext: Ext }>({
         if (url.pathname === "/slow.js") {
           await new Promise((r) => setTimeout(r, 2000));
           return route.fulfill({ status: 200, contentType: "text/javascript", body: "window.__slow = 1;" });
+        }
+        if (url.pathname.endsWith(".pdf")) {
+          return route.fulfill({ status: 200, contentType: "application/pdf", body: "%PDF-1.4\n%%EOF\n" });
         }
         const page = PAGES[url.pathname];
         if (!page || request.resourceType() !== "document") return route.fulfill({ status: 404, body: "" });
@@ -514,6 +581,85 @@ test.describe("the widget across a page load", () => {
   });
 });
 
+test.describe("the screen follows his words", () => {
+  const CUE = { at: "", word: 0, path: null, heading: null, text: null, typology: null, card: null, photo: null, photos: null };
+  const sentOf = async (ext: Ext, event: string) => (await status(ext.sw)).sent.filter((e) => e.event === event).map((e) => e.payload);
+
+  test("a project he names is rung on the list, found by its link through a translated page, paging to it", async ({ ext }) => {
+    const page = await ext.open("/proyectos/");
+    await callLive(ext, page);
+    await toHolder(ext.sw, { what: "command", command: "cue", payload: { ...CUE, card: "/edificiocarrera/", text: "EDIFICIO CARRERA" } });
+    await toHolder(ext.sw, { what: "emit", name: "botStoppedSpeaking" });
+    await expect.poll(async () => (await status(ext.sw)).log.some((l) => l.includes("done show_card")), { timeout: 10_000 }).toBe(true);
+    await expect(page.locator(".custom-pagination li.active")).toHaveText("2");
+    await expect(page.locator("[data-voqalize=highlight]")).toHaveCount(1);
+    // The list's own ring, by the projects' pages: the translated names do not matter.
+    await page.waitForTimeout(8200);
+    await toHolder(ext.sw, {
+      what: "command",
+      command: "show_projects",
+      payload: { region: "metropolitana", property: "departamento", communes: [], highlight: ["DISTRITO BARROSO", "ESTOCOLMO"], paths: ["/distrito-barroso/", "/estocolmo/"] },
+    });
+    await expect.poll(async () => (await sentOf(ext, "projects_listed")).length, { timeout: 10_000 }).toBeGreaterThan(0);
+    expect((await sentOf(ext, "projects_listed")).at(-1)).toMatchObject({ count: 4 });
+    expect(await sentOf(ext, "command_failed")).toEqual([]);
+    // A project the list does not have fails, in words.
+    await toHolder(ext.sw, { what: "command", command: "cue", payload: { ...CUE, card: "/no-existe/", text: "NO EXISTE" } });
+    await toHolder(ext.sw, { what: "emit", name: "botStoppedSpeaking" });
+    await expect.poll(async () => (await sentOf(ext, "command_failed")).map((p) => String(p.reason)), { timeout: 10_000 }).toContainEqual(expect.stringContaining("NO EXISTE is not among"));
+  });
+
+  test("photos full screen one at a time, a slideshow the visitor's voice stops, and a floor plan", async ({ ext }) => {
+    const page = await ext.open("/distrito-barroso/");
+    await callLive(ext, page);
+    const viewer = page.locator("[data-voqalize=viewer]");
+    const shown = async () => (await sentOf(ext, "photo_shown")).at(-1) as Record<string, unknown> | undefined;
+
+    // The page says what its photos show, from their file names.
+    await expect.poll(async () => (await sentOf(ext, "page_changed")).at(-1)).toMatchObject({
+      photos: ["depto grande", "cowork", "salon", "quincho"],
+      amenity_photos: ["piscina", "gourmet"],
+    });
+
+    await toHolder(ext.sw, { what: "command", command: "show_photos", payload: { which: "gallery", index: 2, fullscreen: true } });
+    await expect(viewer).toHaveCount(1);
+    await expect.poll(shown).toMatchObject({ which: "gallery", index: 2, total: 4, caption: "cowork", playing: false });
+    await toHolder(ext.sw, { what: "command", command: "step_photo", payload: { back: false } });
+    await expect.poll(shown).toMatchObject({ index: 3, caption: "salon" });
+
+    // A slideshow moves on by itself, and stops when the visitor speaks.
+    await toHolder(ext.sw, { what: "command", command: "slideshow", payload: { play: true, which: null, seconds: 3 } });
+    await expect.poll(shown).toMatchObject({ index: 3, playing: true });
+    await expect.poll(shown, { timeout: 5000 }).toMatchObject({ index: 4, playing: true });
+    await toHolder(ext.sw, { what: "emit", name: "userStartedSpeaking" });
+    await expect.poll(shown).toMatchObject({ playing: false });
+    const stopped = (await shown())!.index;
+    await page.waitForTimeout(3500);
+    expect((await shown())!.index).toBe(stopped);
+
+    // A photo cue, as his voice reaches it: that photo of the amenities.
+    await toHolder(ext.sw, { what: "command", command: "cue", payload: { ...CUE, photo: 2, photos: "amenities" } });
+    await toHolder(ext.sw, { what: "emit", name: "botStoppedSpeaking" });
+    await expect.poll(shown).toMatchObject({ which: "amenities", index: 2, caption: "gourmet" });
+
+    // A floor plan, by its Spanish label on a page translated to English.
+    await toHolder(ext.sw, { what: "command", command: "show_floor_plan", payload: { typology: "2D | 2B MARIPOSA" } });
+    await expect.poll(shown, { timeout: 8000 }).toMatchObject({ which: "plan", total: 1 });
+    expect(String((await shown())!.caption)).toContain("2D | 2B BUTTERFLY");
+    await expect.poll(() => viewer.evaluate((h) => h.shadowRoot!.querySelector("img")!.getAttribute("src"))).toContain("DB-204-804.png");
+    expect((await sentOf(ext, "typology_shown")).at(-1)).toMatchObject({ label: "2D | 2B BUTTERFLY" });
+
+    await toHolder(ext.sw, { what: "command", command: "close_overlay", payload: {} });
+    await expect(viewer).toHaveCount(0);
+    expect(await sentOf(ext, "command_failed")).toEqual([]);
+
+    // A price as the translation writes it: "Desde 2.582 UF" is "FROM 2,582 UF".
+    await toHolder(ext.sw, { what: "command", command: "show_section", payload: { heading: null, text: "Desde 2.582 UF" } });
+    await expect.poll(async () => (await status(ext.sw)).log.some((l) => l.includes("done show_section"))).toBe(true);
+    expect(await sentOf(ext, "command_failed")).toEqual([]);
+  });
+});
+
 /** The face shuts the mouth on a delivery older than this when it reads one:
  *  a frame, and the gap it closes over. */
 const STALE_MS = 60;
@@ -710,5 +856,70 @@ test.describe("his still while the next page's face is not drawing yet", () => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await toSlowPage(ext, page, true);
     expect(await posterNow(page)).toMatchObject({ name: "none", transform: "none" });
+  });
+});
+
+test.describe("photos by themselves, the brochure, the site's own enlarge", () => {
+  const sentOf = async (ext: Ext, event: string) => (await status(ext.sw)).sent.filter((e) => e.event === event).map((e) => e.payload);
+
+  test("a slideshow of every photo, the gallery's then the amenities', runs to the last and stops there", async ({ ext }) => {
+    const page = await ext.open("/distrito-barroso/");
+    await callLive(ext, page);
+    const shown = async () => (await sentOf(ext, "photo_shown")).at(-1) as Record<string, unknown> | undefined;
+    // From the gallery's last photo, so the show is short.
+    await toHolder(ext.sw, { what: "command", command: "show_photos", payload: { which: "gallery", index: 4, fullscreen: true } });
+    await expect.poll(shown).toMatchObject({ which: "gallery", index: 4 });
+    await toHolder(ext.sw, { what: "command", command: "slideshow", payload: { play: true, which: null, seconds: 3 } });
+    await expect.poll(shown).toMatchObject({ which: "gallery", index: 4, total: 6, playing: true });
+    await expect.poll(shown, { timeout: 5000 }).toMatchObject({ which: "amenities", index: 5, caption: "piscina", playing: true });
+    await expect.poll(shown, { timeout: 5000 }).toMatchObject({ which: "amenities", index: 6, caption: "gourmet" });
+    await expect.poll(shown, { timeout: 5000 }).toMatchObject({ index: 6, playing: false, ended: true });
+    await expect(page.locator("[data-voqalize=viewer]")).toHaveCount(1);
+  });
+
+  test("the brochure opens over the page at a page of it, and downloads", async ({ ext }) => {
+    const page = await ext.open("/distrito-barroso/");
+    await callLive(ext, page);
+    await toHolder(ext.sw, { what: "command", command: "show_brochure", payload: { url: null, page: 3 } });
+    const brochure = page.locator("[data-voqalize=brochure]");
+    await expect(brochure).toHaveCount(1);
+    expect(await brochure.evaluate((h) => h.shadowRoot!.querySelector("iframe")!.getAttribute("src"))).toBe(`${ORIGIN}/content/uploads/Folleto_Barroso.pdf#page=3`);
+    await expect.poll(async () => (await sentOf(ext, "brochure_shown")).at(-1)).toMatchObject({ page: 3 });
+    const download = page.waitForEvent("download");
+    await toHolder(ext.sw, { what: "command", command: "download_brochure", payload: { url: null } });
+    expect((await download).suggestedFilename()).toBe("Folleto_Barroso.pdf");
+    await expect.poll(async () => (await sentOf(ext, "brochure_downloaded")).length).toBe(1);
+    // A PDF that is not on ssilva.cl is refused for the page's own.
+    await toHolder(ext.sw, { what: "command", command: "show_brochure", payload: { url: "https://evil.example/x.pdf", page: 1 } });
+    await expect.poll(async () => (await sentOf(ext, "brochure_shown")).at(-1)).toMatchObject({ url: `${ORIGIN}/content/uploads/Folleto_Barroso.pdf`, page: 1 });
+    await toHolder(ext.sw, { what: "command", command: "close_overlay", payload: {} });
+    await expect(brochure).toHaveCount(0);
+  });
+
+  test("the site's own 'Agrandar imagen' opens the plan over the page instead of leaving it", async ({ ext }) => {
+    const page = await ext.open("/distrito-barroso/");
+    await page.locator("[id^=enlargeImageBtn_cotizador]").click();
+    await expect(page.locator("[data-voqalize=viewer]")).toHaveCount(1);
+    await page.waitForTimeout(500);
+    expect(page.url()).toBe(`${ORIGIN}/distrito-barroso/`);
+  });
+});
+
+test.describe("back to a page", () => {
+  // Headless Chromium reloads the page here rather than restoring it from the
+  // back/forward cache; the restore (content.ts's pageshow) and the brain's
+  // fallback on tabs_changed are what cover the real browser.
+  test("going back, the page reports itself again", async ({ ext }) => {
+    const page = await ext.open("/proyectos/edificio-sur/");
+    await callLive(ext, page);
+    const reports = async () =>
+      (await status(ext.sw)).sent.filter((e) => e.event === "page_changed").map((e) => String(e.payload.path));
+    await expect.poll(reports).toContain("/proyectos/edificio-sur/");
+    await page.goto(`${ORIGIN}/`);
+    await expect.poll(reports).toContain("/");
+    const before = (await reports()).filter((p) => p === "/proyectos/edificio-sur/").length;
+    await page.goBack();
+    await page.waitForURL(`${ORIGIN}/proyectos/edificio-sur/`);
+    await expect.poll(async () => (await reports()).filter((p) => p === "/proyectos/edificio-sur/").length, { timeout: 10_000 }).toBeGreaterThan(before);
   });
 });

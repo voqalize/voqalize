@@ -270,9 +270,24 @@ def site_path(path: str) -> str:
     return "/" if path == "/" else f"{path}/"
 
 
+#: The words Chrome's page translation puts in a typology's label, and the
+#: site's own: a visitor reading ssilva.cl in English sees "2D | 2B BUTTERFLY"
+#: for "2D | 2B MARIPOSA" (dev call ec152777).
+_TYPOLOGY_WORDS = (
+    (re.compile(r"\bbutterfly\b"), "mariposa"),
+    (re.compile(r"\b(?:studio|study)\b"), "estudio"),
+    (re.compile(r"\boffices?\b"), "oficina"),
+    (re.compile(r"\bliving(?: room)?\b"), "estar"),
+)
+
+
 def typology_key(label: str) -> str:
-    """``2D | 2B`` and ``2d|2b`` are one typology."""
-    return re.sub(r"[\s|\-]+", "", fold(label))
+    """``2D | 2B`` and ``2d|2b`` are one typology, and so are ``2D | 2B
+    MARIPOSA`` and its translation ``2D | 2B BUTTERFLY``."""
+    folded = fold(label)
+    for rx, word in _TYPOLOGY_WORDS:
+        folded = rx.sub(word, folded)
+    return re.sub(r"[\s|\-]+", "", folded)
 
 
 def match_typology(want: str, options: list[str] | tuple[str, ...]) -> str | None:
@@ -362,6 +377,12 @@ class Project:
     status: str = ""
     tour: bool = False
     lead_form: bool = False
+    brochure_pdf: str = ""
+    """The brochure as a PDF on ssilva.cl, which he shows and downloads; empty
+    when the project page offers none (some link "Descargar Brochure" back to
+    the page itself)."""
+    brochure_flipbook: str = ""
+    """The same brochure as the site's 3D flip-book page."""
     gallery_slides: int = 0
     phone: str = ""
     email: str = ""
@@ -836,6 +857,8 @@ def _project(raw: dict[str, Any]) -> Project | None:
         status=_str(raw.get("status")),
         tour=bool(raw.get("tour")),
         lead_form=bool(raw.get("lead_form")),
+        brochure_pdf=_str(raw.get("brochure_pdf")),
+        brochure_flipbook=_str(raw.get("brochure_flipbook")),
         gallery_slides=_int(raw.get("gallery_slides")) or 0,
         phone=_str(raw.get("phone")),
         email=_str(raw.get("email")),

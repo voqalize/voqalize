@@ -20,8 +20,10 @@ at a time. A cue with no words after it (the end of the reply) has an empty
 ``at`` and fires when the voice stops.
 
 Cues are written ``{kind: value}``, one of ``page`` (open a page of the site),
-``show`` (a section, by its heading or its canonical name, or words on the page)
-and ``plan`` (select a typology on a project page: ``{plan: 2D | 2B}``). A
+``show`` (a section, by its heading or its canonical name, words on the page,
+or on the project list a project, whose card is rung), ``plan`` (select a
+typology on a project page: ``{plan: 2D | 2B}``) and ``photo`` (one photo full
+screen: ``{photo: 3}`` of the gallery, ``{photo: amenidades 2}``). A
 brace the model opens and never closes is dropped once it runs past
 :data:`MAX_CUE`, so a stray ``{`` can hold back at most that much speech.
 
@@ -40,14 +42,14 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal
 
-CueKind = Literal["page", "show", "plan"]
+CueKind = Literal["page", "show", "plan", "photo"]
 
 #: The longest a cue may run, braces included, before it is given up as text.
 MAX_CUE = 220
 #: How many of the sentence's opening words the page waits to hear.
 AT_WORDS = 3
 
-_CUE = re.compile(r"^\{\s*(page|show|plan)\s*:\s*(.+?)\s*\}$", re.IGNORECASE | re.DOTALL)
+_CUE = re.compile(r"^\{\s*(page|show|plan|photo)\s*:\s*(.+?)\s*\}$", re.IGNORECASE | re.DOTALL)
 _WORD = re.compile(r"[a-z0-9']+")
 #: A sentence ends at a full stop, question or exclamation mark with a space
 #: after it — so "13.976" and a stop still at the end of a chunk do not end one.

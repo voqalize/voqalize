@@ -607,6 +607,14 @@ def _project(
         "brochure": any(
             "flip-book" in b or b.endswith(".pdf") for b in detail.get("brochure") or []
         ),
+        # The brochure itself: the PDF Javier shows and downloads, and the
+        # 3D flip-book page that holds the same pages.
+        "brochure_pdf": next(
+            (b for b in detail.get("brochure") or [] if b.lower().endswith(".pdf")), ""
+        ),
+        "brochure_flipbook": next(
+            (b for b in detail.get("brochure") or [] if "flip-book" in b), ""
+        ),
         "tour": bool(tour) if isinstance(tour, bool) else "video-tour-section" in sections,
         "lead_form": "cotizador-l1-section" in sections,
         "units": [

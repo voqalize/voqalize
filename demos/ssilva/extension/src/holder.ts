@@ -273,9 +273,15 @@ async function dispatch(command: string, payload: unknown): Promise<string | nul
 /** A cue, as the page Action it stands for. */
 function cueMove(cue: Cue): [string, unknown] {
   if (cue.path) return ["navigate", { path: cue.path, heading: cue.heading, text: cue.text, typology: cue.typology }];
+  // A project's card on the list, as he names it.
+  if (cue.card) return ["show_card", { path: cue.card, name: cue.text }];
+  if (cue.photo) return ["show_photos", { which: cue.photos ?? "gallery", index: cue.photo, fullscreen: true }];
   if (cue.typology) return ["select_typology", { label: cue.typology }];
   return ["show_section", { heading: cue.heading, text: cue.text }];
 }
+
+/** Whether the tab in front is running a slideshow, as its page last said. */
+let slideshowOn = false;
 
 // The screen follows his voice; see `narration.ts`. A cue that misses is
 // reported as `cue`, which the brain takes quietly: he has spoken past it.
@@ -408,6 +414,11 @@ function watch(on: PipecatClient): void {
   on.on("userStartedSpeaking" as never, (() => {
     setActivity("listening");
     narration.interrupted();
+    // The visitor speaking stops the slideshow on the photo they are looking at.
+    if (slideshowOn) {
+      slideshowOn = false;
+      void dispatch("slideshow", { play: false, which: null, seconds: null });
+    }
   }) as never);
   on.on("botLlmStarted" as never, (() => setActivity("thinking")) as never);
   on.on("botStartedSpeaking" as never, (() => {
@@ -521,6 +532,8 @@ function handle(tab: Tab, port: Port, msg: FromPage | { ask: HolderAsk; id: numb
       return;
     case "app":
       if (active === null) active = tab.id;
+      if (msg.event === "photo_shown") slideshowOn = Boolean((msg.payload as { playing?: boolean })?.playing);
+      else if (msg.event === "viewer_closed" || msg.event === "page_changed") slideshowOn = false;
       toBrain(tab.id, { event: msg.event, payload: msg.payload } as AppEvent);
       return;
     case "report":

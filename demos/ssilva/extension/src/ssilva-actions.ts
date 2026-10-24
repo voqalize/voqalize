@@ -64,6 +64,10 @@ export interface PageContext {
   typology: string;
   price: string;
   status: string;
+  /** On a project page, what its gallery's photos and its amenities' photos
+   *  show, in order, as their files name them. */
+  photos: string[];
+  amenity_photos: string[];
 }
 
 /** Ssilva's coral, off their "NUESTROS PROYECTOS" button. */
@@ -90,8 +94,29 @@ const norm = (s: string | null | undefined) =>
     .replace(/^[¿¡\s]+/, "")
     .replace(/[.:?!\s]+$/, "")
     .trim();
+/** Chrome's own page translation rewrites what the visitor reads, and what
+ *  this script reads too: "DISTRITO BARROSO" becomes "BARROSO DISTRICT",
+ *  "Desde 2.582 UF" becomes "From 2,582 UF" and "2D | 2B MARIPOSA" becomes
+ *  "2D | 2B BUTTERFLY" (dev call ec152777, where every cue that named page
+ *  words missed). The brain writes Ssilva's Spanish; these put the usual
+ *  English back into it before comparing. Projects are matched by their
+ *  links, which no translation touches. */
+const SPANISH: [RegExp, string][] = [
+  [/\bbutterfly\b/g, "mariposa"],
+  [/\b(?:studio|study)\b/g, "estudio"],
+  [/\boffices?\b/g, "oficina"],
+  [/\bliving(?: room)?\b/g, "estar"],
+  [/\bfrom\b/g, "desde"],
+];
+const spanish = (s: string) => SPANISH.reduce((t, [re, w]) => t.replace(re, w), s);
+/** For matching words and prices across a translation: "Desde 2.582 UF" is
+ *  "From 2,582 UF". */
+const loose = (s: string | null | undefined) => spanish(norm(s)).replace(/(\d)[.,](?=\d{3}\b)/g, "$1");
 /** A typology label, spelled any way: "2D | 2B", "2d|2b", "2D-2B". */
-const typ = (s: string | null | undefined) => norm(s).replace(/\s*[|/–-]\s*/g, "|").replace(/\s+/g, " ");
+const typ = (s: string | null | undefined) =>
+  spanish(norm(s))
+    .replace(/\s*[|/–-]\s*/g, "|")
+    .replace(/\s+/g, " ");
 const visible = (el: Element | null | undefined): el is HTMLElement => {
   if (!el) return false;
   const r = el.getBoundingClientRect();
@@ -409,6 +434,8 @@ function context(): PageContext {
     typology: items.length ? typologyLabel(items.find((li) => li.classList.contains("active")) ?? items[0]) : "",
     price: k === "project" ? cotizadorPrice() || heroPrice() : "",
     status: clean(document.querySelector(".l3-project-status-section .status-item.active .title")?.textContent),
+    photos: k === "project" ? galleryShots().map((s) => s.caption) : [],
+    amenity_photos: k === "project" ? amenityShots().map((s) => s.caption) : [],
   };
 }
 
@@ -496,17 +523,23 @@ function sectionOf(h: HTMLElement): HTMLElement {
 /** The smallest visible element in `root` whose text contains `text`; a
  *  project's name on /proyectos/ is its whole card. */
 function smallestContaining(root: Element, text: string): HTMLElement | null {
-  const want = norm(text);
+  const want = loose(text);
   if (!want) return null;
-  let best: HTMLElement | null = null;
-  let bestLen = Infinity;
-  for (const el of root.querySelectorAll<HTMLElement>("*")) {
-    if (el.closest("[data-voqalize], script, style, .modal") || !visible(el)) continue;
-    const t = norm(el.textContent);
-    if (!t.includes(want) || t.length >= bestLen) continue;
-    best = el;
-    bestLen = t.length;
-  }
+  const find = (w: string) => {
+    let best: HTMLElement | null = null;
+    let bestLen = Infinity;
+    for (const el of root.querySelectorAll<HTMLElement>("*")) {
+      if (el.closest("[data-voqalize], script, style, .modal") || !visible(el)) continue;
+      const t = loose(el.textContent);
+      if (!t.includes(w) || t.length >= bestLen) continue;
+      best = el;
+      bestLen = t.length;
+    }
+    return best;
+  };
+  // "Desde 2.582 UF" where the page writes the price on a line of its own.
+  const rest = want.replace(/^desde\s+/, "");
+  const best = find(want) ?? (rest !== want && /\d/.test(rest) ? find(rest) : null);
   if (!best) return null;
   const card = best.closest<HTMLElement>(".project-card-wrapper, li.type-item, .status-item");
   return card && root.contains(card) ? card : best;
@@ -519,6 +552,11 @@ function ringSection(section: HTMLElement, h?: HTMLElement | null): void {
 }
 
 async function showSection({ heading, text }: { heading?: string | null; text?: string | null }): Promise<void> {
+  // Moving on to another part of the page closes what is full screen; the
+  // photos' own sections leave it open.
+  const photosPart = heading ? ["galería", "amenidades"].includes(sectionKey(heading)?.key ?? "") : false;
+  if (!photosPart) closeViewer();
+  if (heading && sectionKey(heading)?.key !== "brochure") closeDoc();
   const keyed = heading ? sectionFor(heading) : null;
   const h = keyed ? null : heading ? findHeading(heading) : null;
   const block = keyed ?? (h ? sectionOf(h) : null);
@@ -558,12 +596,14 @@ function findTypology(label: string): HTMLLIElement | null {
   const want = typ(label);
   const all = typologyItems();
   const t = (li: HTMLLIElement) => typ(typologyLabel(li));
+  // The longest label inside what was asked: "2D | 2B MARIPOSA" is not "2D | 2B".
+  const longest = (lis: HTMLLIElement[]) => lis.sort((a, b) => t(b).length - t(a).length)[0];
   return (
     all.find((li) => t(li) === want) ??
     all.find((li) => t(li).replace(/ /g, "") === want.replace(/ /g, "")) ??
     all.find((li) => t(li).startsWith(want)) ??
     all.find((li) => t(li).includes(want)) ??
-    all.find((li) => want.includes(t(li))) ??
+    longest(all.filter((li) => want.includes(t(li)))) ??
     null
   );
 }
@@ -571,8 +611,12 @@ function findTypology(label: string): HTMLLIElement | null {
 const fact = (id: string) => clean(document.querySelector(`[id^=${id}_cotizador]`)?.textContent);
 const spinning = () => !!document.querySelector(".cotizador-spinner-overlay.active");
 
-async function selectTypology({ label }: { label: string }): Promise<void> {
+async function selectTypology({ label }: { label: string }, opts: { forPlan?: boolean } = {}): Promise<void> {
   if (kind() === "quote") return quoteTypology(label);
+  // Over a plan he is showing full screen, the plan follows the typology he
+  // moves to; photos full screen give way to it.
+  const planOpen = viewer?.which === "plan" && !opts.forPlan;
+  if (!planOpen && !opts.forPlan) closeViewer();
   const items = typologyItems();
   if (!items.length) throw new Error(`there are no typologies on ${location.pathname}`);
   const li = findTypology(label);
@@ -591,6 +635,7 @@ async function selectTypology({ label }: { label: string }): Promise<void> {
   const price = value?.closest<HTMLElement>(".price") ?? value;
   const plan = document.querySelector<HTMLElement>("[id^=floorPlanContainer_cotizador], [id^=floorPlanImage_cotizador]");
   highlight([li, ...(price ? [price] : []), ...(plan ? [plan] : [])]);
+  if (planOpen) await showFloorPlan({ typology: null });
   const area = (v: string) => (v ? `${v} m²` : "");
   emit("typology_shown", {
     label: typologyLabel(li),
@@ -654,6 +699,27 @@ const resultsMsg = () => clean(document.querySelector(".projects-list__results-m
 const cards = () => [...document.querySelectorAll<HTMLElement>(".project-card-wrapper")].filter(visible);
 const cardName = (c: Element) =>
   clean([...c.querySelectorAll(".project-card__opp-condo-name")].map((e) => clean(e.textContent)).find(Boolean));
+const pathOf = (href: string) => {
+  try {
+    return new URL(href, location.href).pathname;
+  } catch {
+    return "";
+  }
+};
+/** The project page a card links to: the one thing on it no translation
+ *  rewrites. */
+const cardPaths = (c: Element) => [...c.querySelectorAll<HTMLAnchorElement>("a[href]")].map((a) => pathOf(a.href));
+
+/** The cards on screen of the projects at `paths`, or named `names`. */
+function cardsFor(paths: string[], names: string[]): HTMLElement[] {
+  const ps = paths.filter(Boolean);
+  const ns = names.map(norm).filter(Boolean);
+  return cards().filter((c) => {
+    if (ps.length && cardPaths(c).some((h) => ps.some((p) => samePath(h, p)))) return true;
+    const n = norm(cardName(c));
+    return !!n && ns.some((w) => n === w || n.includes(w) || w.includes(n));
+  });
+}
 
 /** What the list shows, to tell that it changed. */
 const listKey = () => `${location.search}|${resultsMsg()}|${cards().map(cardName).join(",")}`;
@@ -687,19 +753,28 @@ function communeBoxes(): { input: HTMLInputElement; label: string }[] {
 
 function listed() {
   return {
-    count: Number(resultsMsg().match(/(\d+)\s+proyectos?/i)?.[1] ?? cards().length),
+    // "29 proyectos encontrados…", or "29 projects found…" through a translation.
+    count: Number(resultsMsg().match(/(\d+)\s+(?:proyectos?|projects?)/i)?.[1] ?? cards().length),
     region: selectedText(select("region")),
     property: selectedText(select("property")),
     communes: communeBoxes()
       .filter((c) => c.input.checked)
       .map((c) => c.label),
     projects: cards().map(cardName).filter(Boolean),
+    // The cards' project pages, in the same order: what a translated page
+    // calls "THE NAVIGATORS" is /losnavegantes/.
+    paths: cards()
+      .filter((c) => cardName(c))
+      .map((c) => cardPaths(c)[0] ?? ""),
   };
 }
 
 /** The list's own select, set the way a visitor's choice sets it. */
-async function choose(sel: HTMLSelectElement, value: string): Promise<void> {
+async function choose(sel: HTMLSelectElement, value: string, what: string): Promise<void> {
   if (sel.value === value) return;
+  if (![...sel.options].some((o) => o.value === value)) {
+    throw new Error(`the list here has no such ${what} to choose`);
+  }
   const before = listKey();
   sel.value = value;
   sel.dispatchEvent(new Event("change", { bubbles: true }));
@@ -711,6 +786,46 @@ const pageLinks = () =>
     /^\d+$/.test(clean(a.textContent)),
   );
 const currentPage = () => clean(document.querySelector("ul.custom-pagination li.active a")?.textContent) || "1";
+
+/** The cards `match` finds: on this page of the list, else on the others, in
+ *  order, until one has them. With none anywhere, the list goes back to the
+ *  page it was on. */
+async function findOnPages(match: () => HTMLElement[]): Promise<HTMLElement[]> {
+  let found = match();
+  if (found.length) return found;
+  const start = currentPage();
+  for (const n of pageLinks().map((a) => clean(a.textContent))) {
+    if (n === currentPage()) continue;
+    const link = pageLinks().find((a) => clean(a.textContent) === n);
+    if (!link) continue;
+    await clickList(link);
+    found = match();
+    if (found.length) return found;
+  }
+  if (currentPage() !== start) {
+    const back = pageLinks().find((a) => clean(a.textContent) === start);
+    if (back) await clickList(back);
+  }
+  return [];
+}
+
+/** /proyectos/ itself, not /oportunidades/: the same list component with
+ *  other filters, which also writes /proyectos/ into the address (dev call
+ *  87691fcb filtered that one and showed nothing). */
+const theProjectList = () => !!document.querySelector('select#region option[value="17"]');
+
+/** One move on the list at a time: a card he names while the list is still
+ *  being filtered waits for the filter. */
+let listQueue: Promise<unknown> = Promise.resolve();
+function onTheList<T>(fn: () => Promise<T>): Promise<T> {
+  const run = listQueue.then(fn, fn);
+  listQueue = run.catch(() => {});
+  return run;
+}
+/** When a card was last rung as he named it: the list's own ring of several
+ *  stays off it for a while. */
+let cardRungAt = 0;
+const CARD_HOLDS_MS = 8000;
 
 let listing = false;
 let lastListed = "";
@@ -729,6 +844,7 @@ interface ProjectsOrder {
   property?: string | null;
   communes?: string[] | null;
   highlight?: string[] | null;
+  paths?: string[] | null;
 }
 
 async function showProjects(order: ProjectsOrder): Promise<void> {
@@ -736,21 +852,38 @@ async function showProjects(order: ProjectsOrder): Promise<void> {
   // Communes are only offered under Región Metropolitana.
   const region = idFor(REGIONS, order.region || (communes.length ? "metropolitana" : null), "region");
   const property = idFor(PROPERTIES, order.property, "property type");
+  const url = new URL("/proyectos/", location.origin);
+  if (region) url.searchParams.set("region", region);
+  if (property) url.searchParams.set("property", property);
   if (!samePath(location.pathname, "/proyectos/")) {
-    const url = new URL("/proyectos/", location.origin);
-    if (region) url.searchParams.set("region", region);
-    if (property) url.searchParams.set("property", property);
     await load(url, { command: "show_projects", payload: order });
     return;
   }
-  listing = true;
-  try {
+  return onTheList(async () => {
     const regionSel = await waitFor(() => select("region"), WAIT_MS);
     if (!regionSel) throw new Error("the project list did not load");
+    // The opportunities list under /proyectos/'s address: the real list loads.
+    await waitFor(() => regionSel.options.length > 1, 3000);
+    if (!theProjectList() && /oportunidad|opportunit/i.test(document.title)) {
+      return load(url, { command: "show_projects", payload: order });
+    }
+    return filterAndRing(regionSel, order, communes, region, property);
+  });
+}
+
+async function filterAndRing(
+  regionSel: HTMLSelectElement,
+  order: ProjectsOrder,
+  communes: string[],
+  region: string,
+  property: string,
+): Promise<void> {
+  listing = true;
+  try {
     await waitFor(() => resultsMsg() && !loading(), WAIT_MS);
-    await choose(regionSel, region);
+    await choose(regionSel, region, "region");
     const propertySel = select("property");
-    if (propertySel) await choose(propertySel, property);
+    if (propertySel) await choose(propertySel, property, "property type");
     // The list filters by one commune at a time: once one is ticked, it is
     // the only one offered. The first the brain named is ticked; the rest
     // are said back to it.
@@ -789,36 +922,26 @@ async function showProjects(order: ProjectsOrder): Promise<void> {
     }
     const results = document.querySelector<HTMLElement>(".projects-list__results-msg") ?? document.querySelector(".projects-list");
     const wantNames = (order.highlight ?? []).filter(Boolean);
+    const wantPaths = (order.paths ?? []).filter(Boolean);
+    const wanted = wantNames.length || wantPaths.length;
+    // He is ringing the cards one by one as he names them: the list leaves
+    // the one he is on alone.
+    const narrated = Date.now() - cardRungAt < CARD_HOLDS_MS;
     let found: HTMLElement[] = [];
-    if (wantNames.length) {
-      const match = () =>
-        cards().filter((c) => {
-          const n = norm(cardName(c));
-          return n && wantNames.some((w) => n === norm(w) || n.includes(norm(w)) || norm(w).includes(n));
-        });
-      found = match();
-      // Not on this page: the other pages, in order, until it is.
-      if (!found.length) {
-        const start = currentPage();
-        for (const n of pageLinks().map((a) => clean(a.textContent))) {
-          if (n === currentPage()) continue;
-          const link = pageLinks().find((a) => clean(a.textContent) === n);
-          if (!link) continue;
-          await clickList(link);
-          found = match();
-          if (found.length) break;
-        }
-        if (!found.length && currentPage() !== start) {
-          const back = pageLinks().find((a) => clean(a.textContent) === start);
-          if (back) await clickList(back);
-        }
+    if (wanted && !narrated) {
+      found = await findOnPages(() => cardsFor(wantPaths, wantNames));
+      if (found.length) {
+        await scrollTo(found[0], "center");
+        highlight(
+          ...found.map((c) => {
+            const key = cardPaths(c)[0] ?? "";
+            const name = cardName(c);
+            return () => cardsFor(key ? [key] : [], key ? [] : [name]);
+          }),
+        );
       }
     }
-    if (found.length) {
-      await scrollTo(found[0], "center");
-      const names = found.map(cardName);
-      highlight(...names.map((n) => () => cards().filter((c) => cardName(c) === n)));
-    } else if (results) {
+    if (!found.length && !narrated && results) {
       await scrollTo(results, "top");
       highlight(results);
     }
@@ -831,55 +954,546 @@ async function showProjects(order: ProjectsOrder): Promise<void> {
           : `communes can only be chosen in Región Metropolitana; ${skipped.join(", ")} not applied`,
       );
     }
-    if (wantNames.length && !found.length) problems.push(`${wantNames.join(", ")} is not among these ${listed().count} projects`);
+    if (wanted && !narrated && !found.length) {
+      problems.push(`${(wantNames.length ? wantNames : wantPaths).join(", ")} is not among these ${listed().count} projects`);
+    }
     if (problems.length) throw new Error(problems.join("; "));
   } finally {
     listing = false;
   }
 }
 
-// ─── Photos, the tour, overlays ───────────────────────────────────────────
+// ─── A project's card, as he names it ─────────────────────────────────────
 
-async function showPhotos({ which, index }: { which?: string | null; index?: number | null }): Promise<void> {
+/** Ring the card of the project whose page is at `path` (paging the list to
+ *  it), as Javier names that project. Off the list, a card or link to it on
+ *  the page in front. */
+async function showCard({ path, name }: { path: string; name?: string | null }): Promise<void> {
+  if (!path) throw new Error("say which project's card to show");
+  const label = name || path;
+  if (kind() !== "projects") {
+    const a = [...document.querySelectorAll<HTMLAnchorElement>("a[href]")].find(
+      (x) => visible(x) && samePath(pathOf(x.href), path) && !x.closest("header, footer, .modal, [data-voqalize], .header, .footer"),
+    );
+    if (!a) throw new Error(`${label} has no card on ${location.pathname}`);
+    const card = a.closest<HTMLElement>(".project-card-wrapper, .project-card, article, li, .slick-slide") ?? a;
+    await scrollTo(card, "center");
+    highlight(card);
+    return;
+  }
+  return onTheList(async () => {
+    await waitFor(() => select("region") && resultsMsg() && !loading(), WAIT_MS);
+    const match = () => cardsFor([path], name ? [name] : []);
+    const found = await findOnPages(match);
+    if (!found.length) throw new Error(`${label} is not among the ${listed().count} projects the list shows`);
+    cardRungAt = Date.now();
+    await scrollTo(found[0], "center");
+    highlight(match);
+    report(false);
+  });
+}
+
+// ─── Photos, plans, the tour, overlays ────────────────────────────────────
+// The site's own lightbox (lightGallery) does not open for a script's click,
+// and its "Agrandar imagen" loads the bare PNG in place of the page. So the
+// photos and the plans open in a viewer of the extension's own, over the
+// page: one picture at a time, with its caption and its place in the set,
+// next and previous, and a slideshow. The visitor can use it too.
+
+interface Shot {
+  src: string;
+  caption: string;
+  /** Whose photo, in a slideshow of all of them. */
+  which?: "gallery" | "amenities";
+}
+/** "photos": the gallery's and then the amenities', one show. */
+type Which = "gallery" | "amenities" | "plan" | "photos";
+const SLIDE_MS = 5000;
+const SLIDESHOW_MAX_MS = 180_000;
+
+/** What a photo shows, from its file's name where the site gives no alt:
+ *  "2.-depto-grande-scaled.jpg" is "depto grande", "3-piscina-1.jpg" is
+ *  "piscina". */
+function captionOf(src: string): string {
+  let file = (src.split("/").pop() ?? "").split("?")[0];
+  try {
+    file = decodeURIComponent(file);
+  } catch {
+    // Not encoded: as it is.
+  }
+  return clean(
+    file
+      .replace(/\.[a-z0-9]+$/i, "")
+      .replace(/-scaled$/i, "")
+      .replace(/-\d+x\d+$/, "")
+      .replace(/[-_.]+/g, " ")
+      .replace(/^\s*\d+\s+/, "")
+      .replace(/\s+\d+$/, "")
+      .replace(/\s+[a-z]$/i, ""),
+  );
+}
+
+function shotsOf(buttons: Element[]): Shot[] {
+  const seen = new Set<string>();
+  const out: Shot[] = [];
+  for (const b of buttons) {
+    const raw = b.getAttribute("data-src") || b.querySelector("img")?.getAttribute("src") || "";
+    if (!raw) continue;
+    const src = new URL(raw, location.href).href;
+    if (seen.has(src)) continue;
+    seen.add(src);
+    out.push({ src, caption: clean(b.querySelector("img")?.getAttribute("alt")) || captionOf(src) });
+  }
+  return out;
+}
+
+/** The gallery's photos, in order: the slider's own slides, not the copies it
+ *  makes to loop. */
+function galleryShots(): Shot[] {
+  const g = document.querySelector(".l3-numbered-slider-section");
+  if (!g) return [];
+  const real = [...g.querySelectorAll(".slick-slide:not(.slick-cloned) button.nsLgSelector")];
+  return shotsOf(real.length ? real : [...g.querySelectorAll("button.nsLgSelector")]);
+}
+
+function amenityShots(): Shot[] {
+  return shotsOf([...document.querySelectorAll(".alternate-images-section button.aiLgSelector")]);
+}
+
+/** The gallery slider's photo in front, from 1. */
+function sliderIndex(): number {
+  const g = document.querySelector(".l3-numbered-slider-section");
+  const i = Number(g?.querySelector(".slick-slide.slick-current")?.getAttribute("data-slick-index"));
+  const n = galleryShots().length;
+  return Number.isFinite(i) && n ? (((i % n) + n) % n) + 1 : 1;
+}
+
+interface Viewer {
+  host: HTMLElement;
+  img: HTMLImageElement;
+  caption: HTMLElement;
+  count: HTMLElement;
+  playing: HTMLElement;
+  which: Which;
+  shots: Shot[];
+  index: number;
+  timer: ReturnType<typeof setInterval> | null;
+  until: number;
+}
+let viewer: Viewer | null = null;
+
+const VIEWER_CSS = `
+  .v { position: fixed; inset: 0; background: rgba(12, 12, 14, 0.92); display: flex; align-items: center;
+       justify-content: center; font: 15px/1.4 system-ui, sans-serif; color: #fff; }
+  figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 88vw; }
+  img { max-width: 88vw; max-height: 78vh; object-fit: contain; background: #fff; border-radius: 6px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5); transition: opacity 250ms ease; }
+  figcaption { display: flex; gap: 14px; align-items: baseline; }
+  .c { font-weight: 600; }
+  .c::first-letter { text-transform: uppercase; }
+  .n { opacity: 0.75; font-variant-numeric: tabular-nums; }
+  .play { color: ${RING}; font-weight: 600; }
+  .play[hidden] { display: none; }
+  button { position: absolute; border: 0; background: rgba(255, 255, 255, 0.12); color: #fff; cursor: pointer;
+           width: 52px; height: 52px; border-radius: 50%; font-size: 30px; line-height: 52px; padding: 0; }
+  button:hover { background: rgba(255, 255, 255, 0.24); }
+  .x { top: 84px; right: 28px; font-size: 26px; }
+  .p { left: 28px; top: calc(50% - 26px); }
+  .nx { right: 28px; top: calc(50% - 26px); }
+  .p[hidden], .nx[hidden] { display: none; }
+`;
+
+function shownNow(by: "javier" | "visitor", ended = false): void {
+  if (!viewer) return;
+  const v = viewer;
+  const shot = v.shots[v.index];
+  v.img.style.opacity = "0";
+  v.img.onload = () => (v.img.style.opacity = "1");
+  v.img.src = shot.src;
+  v.img.alt = shot.caption;
+  if (v.img.complete) v.img.style.opacity = "1";
+  v.caption.textContent = shot.caption;
+  v.count.textContent = v.shots.length > 1 ? `${v.index + 1} / ${v.shots.length}` : "";
+  v.playing.hidden = !v.timer;
+  for (const b of v.host.shadowRoot!.querySelectorAll<HTMLElement>(".p, .nx")) b.hidden = v.shots.length < 2;
+  emit("photo_shown", {
+    which: shot.which ?? (v.which === "photos" ? "gallery" : v.which),
+    index: v.index + 1,
+    total: v.shots.length,
+    caption: shot.caption,
+    playing: Boolean(v.timer),
+    fullscreen: true,
+    ended,
+    by,
+  });
+}
+
+function openViewer(which: Which, shots: Shot[], index: number): void {
+  if (viewer && viewer.which === which && viewer.shots.map((s) => s.src).join() === shots.map((s) => s.src).join()) {
+    viewer.index = Math.max(0, Math.min(index, shots.length - 1));
+    shownNow("javier");
+    return;
+  }
+  closeViewer();
+  clearHighlight();
+  const host = document.createElement("div");
+  host.setAttribute("data-voqalize", "viewer");
+  Object.assign(host.style, { position: "fixed", inset: "0", zIndex: "2147482500" });
+  const root = host.attachShadow({ mode: "open" });
+  root.innerHTML = `<style>${VIEWER_CSS}</style><div class="v" part="viewer">
+    <figure><img alt=""><figcaption><span class="c"></span><span class="n"></span>
+    <span class="play" hidden>▶ Presentación</span></figcaption></figure>
+    <button class="p" aria-label="Anterior">‹</button><button class="nx" aria-label="Siguiente">›</button>
+    <button class="x" aria-label="Cerrar">✕</button></div>`;
+  const $ = <T extends HTMLElement>(sel: string) => root.querySelector<T>(sel)!;
+  viewer = {
+    host,
+    img: $("img"),
+    caption: $(".c"),
+    count: $(".n"),
+    playing: $(".play"),
+    which,
+    shots,
+    index: Math.max(0, Math.min(index, shots.length - 1)),
+    timer: null,
+    until: 0,
+  };
+  // The visitor's own hands on it.
+  $(".p").addEventListener("click", (e) => (e.stopPropagation(), stepViewer(-1, "visitor")));
+  $(".nx").addEventListener("click", (e) => (e.stopPropagation(), stepViewer(1, "visitor")));
+  $(".x").addEventListener("click", (e) => (e.stopPropagation(), closeViewer("visitor")));
+  $(".v").addEventListener("click", (e) => {
+    if (e.target === e.currentTarget) closeViewer("visitor");
+  });
+  document.documentElement.appendChild(host);
+  shownNow("javier");
+}
+
+function stepViewer(by: number, who: "javier" | "visitor"): void {
+  if (!viewer) return;
+  const n = viewer.shots.length;
+  viewer.index = (((viewer.index + by) % n) + n) % n;
+  shownNow(who);
+}
+
+function stopShow(): void {
+  if (!viewer?.timer) return;
+  clearInterval(viewer.timer);
+  viewer.timer = null;
+}
+
+/** Close the viewer; the gallery's slider is left on the photo it showed. */
+function closeViewer(by: "javier" | "visitor" = "javier"): void {
+  if (!viewer) return;
+  const v = viewer;
+  viewer = null;
+  if (v.timer) clearInterval(v.timer);
+  v.host.remove();
+  const shot = v.shots[v.index];
+  if (shot && (v.which === "gallery" || shot.which === "gallery")) {
+    const chip = document.querySelector<HTMLElement>(`.l3-numbered-slider-section span.slide-index[data-slide="${v.index}"]`);
+    chip?.click();
+  }
+  emit("viewer_closed", { which: v.which === "photos" ? (shot?.which ?? "gallery") : v.which, by });
+}
+
+window.addEventListener(
+  "keydown",
+  (e) => {
+    if (!viewer || !e.isTrusted) return;
+    if (e.key === "Escape") closeViewer("visitor");
+    else if (e.key === "ArrowRight") stepViewer(1, "visitor");
+    else if (e.key === "ArrowLeft") stepViewer(-1, "visitor");
+    else return;
+    e.preventDefault();
+  },
+  true,
+);
+
+async function showPhotos({
+  which,
+  index,
+  fullscreen,
+}: {
+  which?: string | null;
+  index?: number | null;
+  fullscreen?: boolean | null;
+}): Promise<void> {
   if (kind() !== "project") throw new Error("photos are on a project's page");
-  const n = Math.max(1, Math.floor(Number(index) || 1));
+  const asked = index == null ? null : Math.max(1, Math.floor(Number(index) || 1));
   if (which === "amenities") {
-    const section = document.querySelector<HTMLElement>(".alternate-images-section");
-    const buttons = [...(section?.querySelectorAll<HTMLButtonElement>("button.aiLgSelector") ?? [])];
-    if (!section || !buttons.length) throw new Error("this project shows no amenities photos");
-    if (n > buttons.length) throw new Error(`the amenities have ${buttons.length} photos`);
-    await scrollTo(section, "top");
-    clearHighlight();
-    buttons[n - 1].click();
-    if (!(await waitFor(() => document.querySelector(".lg-outer.lg-visible, .lg-outer.lg-show-in"), 3000))) {
-      throw new Error("the photo viewer did not open");
-    }
+    const shots = amenityShots();
+    if (!shots.length) throw new Error("this project shows no amenities photos");
+    if (asked && asked > shots.length) throw new Error(`the amenities have ${shots.length} photos`);
+    openViewer("amenities", shots, (asked ?? 1) - 1);
     return;
   }
   const section = document.querySelector<HTMLElement>(".l3-numbered-slider-section");
   if (!section) throw new Error("this project has no photo gallery");
+  const shots = galleryShots();
+  if (asked && shots.length && asked > shots.length) throw new Error(`the gallery has ${shots.length} photos`);
+  if (fullscreen || viewer?.which === "gallery") {
+    if (!shots.length) throw new Error("this project's gallery has no photos to open");
+    openViewer("gallery", shots, (asked ?? sliderIndex()) - 1);
+    return;
+  }
+  closeViewer();
   const chips = [...section.querySelectorAll<HTMLElement>("span.slide-index")];
   await scrollTo(section, "top");
-  if (index != null && chips.length) {
-    if (n > chips.length) throw new Error(`the gallery has ${chips.length} photos`);
-    const chip = chips.find((c) => c.getAttribute("data-slide") === String(n - 1)) ?? chips[n - 1];
+  if (asked && chips.length) {
+    const chip = chips.find((c) => c.getAttribute("data-slide") === String(asked - 1)) ?? chips[asked - 1];
     chip.click();
     await sleep(700);
   }
   highlight(section);
+  if (shots.length) {
+    const i = asked ?? sliderIndex();
+    emit("photo_shown", { which: "gallery", index: i, total: shots.length, caption: shots[i - 1]?.caption ?? "", playing: false, fullscreen: false, by: "javier" });
+  }
+}
+
+/** The next photo (or with `back`, the one before): in the viewer when it is
+ *  open, else on the gallery's slider. */
+async function stepPhoto({ back }: { back?: boolean | null }): Promise<void> {
+  if (viewer) {
+    stopShow();
+    stepViewer(back ? -1 : 1, "javier");
+    return;
+  }
+  if (kind() !== "project") throw new Error("photos are on a project's page");
+  const n = galleryShots().length;
+  if (!n) throw new Error("no photos are open, and this page has no gallery");
+  const next = ((sliderIndex() - 1 + (back ? -1 : 1) + n) % n) + 1;
+  await showPhotos({ which: "gallery", index: next, fullscreen: false });
+}
+
+/** Every photo, full screen, one after another every few seconds, by
+ *  itself: the gallery's and then the amenities' (or only the ones asked
+ *  for), from the one in front, to the last, where it stops. The visitor
+ *  stops it by speaking (the holder sends the stop), by closing it, or by
+ *  asking him; it never runs more than three minutes. */
+async function slideshow({
+  play,
+  which,
+  seconds,
+}: {
+  play?: boolean | null;
+  which?: string | null;
+  seconds?: number | null;
+}): Promise<void> {
+  if (play === false) {
+    if (!viewer?.timer) return;
+    stopShow();
+    shownNow("javier");
+    return;
+  }
+  if (kind() !== "project") throw new Error("photos are on a project's page");
+  const want: Which = which === "amenities" ? "amenities" : which === "gallery" ? "gallery" : "photos";
+  const gallery = galleryShots().map((x) => ({ ...x, which: "gallery" as const }));
+  const amenities = amenityShots().map((x) => ({ ...x, which: "amenities" as const }));
+  const shots = want === "gallery" ? gallery : want === "amenities" ? amenities : [...gallery, ...amenities];
+  if (shots.length < 2) throw new Error(shots.length ? "there is only one photo here" : "this project shows no photos");
+  // From the photo in front, if it is one of these; else from the first.
+  let from = 0;
+  if (viewer && viewer.which !== "plan") {
+    const here = viewer.shots[viewer.index]?.src;
+    from = Math.max(0, shots.findIndex((x) => x.src === here));
+  } else if (want !== "amenities") {
+    from = sliderIndex() - 1;
+  }
+  openViewer(want, shots, from);
+  const v = viewer as Viewer | null;
+  if (!v) throw new Error("no photos to show");
+  stopShow();
+  const every = Math.max(3, Math.min(15, Number(seconds) || SLIDE_MS / 1000)) * 1000;
+  v.until = Date.now() + SLIDESHOW_MAX_MS;
+  v.timer = setInterval(() => {
+    if (viewer !== v) return clearInterval(v.timer ?? 0);
+    if (Date.now() > v.until || v.index >= v.shots.length - 1) {
+      // The last photo, or long enough: it stays on screen, stopped.
+      stopShow();
+      return shownNow("javier", true);
+    }
+    stepViewer(1, "javier");
+  }, every);
+  shownNow("javier");
+}
+
+/** A typology's floor plan, full screen: on a project page the plan the
+ *  typology section shows; on /proyectos/cotizar/ the unit's plan and where
+ *  it sits on the floor. */
+async function showFloorPlan({ typology }: { typology?: string | null }): Promise<void> {
+  if (kind() === "quote") {
+    if (typology) await quoteTypology(typology);
+    const tab =
+      document.querySelector<HTMLAnchorElement>("ul[id$=tabs] a.nav-link.active") ??
+      [...document.querySelectorAll<HTMLAnchorElement>("ul[id$=tabs] a.nav-link")].find(visible);
+    const pane = tab?.getAttribute("href") ? document.querySelector(tab.getAttribute("href")!) : null;
+    const imgs = [...(pane ?? document).querySelectorAll<HTMLImageElement>(".quote__option-floor-img img")];
+    const label = clean(tab?.textContent);
+    const shots = shotsOf(imgs.map((i) => i.closest("a") ?? i)).map((s) => ({
+      src: s.src,
+      caption: /esq/i.test(s.src) ? `${label}: ubicación en la planta del piso` : `${label}: planta`,
+    }));
+    if (!shots.length) throw new Error(`${label || "this typology"} shows no plan here`);
+    openViewer("plan", shots, 0);
+    return;
+  }
+  if (kind() !== "project") throw new Error("floor plans are on a project's page or its cotizar page");
+  if (!typologyItems().length) throw new Error(`there are no typologies on ${location.pathname}`);
+  if (typology) await selectTypology({ label: typology }, { forPlan: true });
+  const img = await waitFor(() => {
+    const i = document.querySelector<HTMLImageElement>("[id^=floorPlanImage_cotizador]");
+    return i?.getAttribute("src") ? i : null;
+  }, 3000);
+  if (!img) throw new Error("this typology shows no floor plan");
+  const items = typologyItems();
+  const li = items.find((x) => x.classList.contains("active")) ?? items[0];
+  const total = fact("totalAreaValue");
+  openViewer("plan", [{ src: img.src, caption: `${typologyLabel(li)}${total ? ` · ${total} m² totales` : ""}` }], 0);
 }
 
 async function openTour(): Promise<void> {
   const btn = document.querySelector<HTMLElement>(".video-tour-section .tour-btn");
   if (!btn) throw new Error(`this page has no virtual tour${kind() === "project" ? "" : "; tours are on some project pages"}`);
   const section = btn.closest<HTMLElement>(".video-tour-section")!;
+  closeViewer();
   await scrollTo(section, "top");
   clearHighlight();
   btn.click();
   if (!(await waitFor(() => document.querySelector(".modal.show"), 3000))) throw new Error("the tour did not open");
 }
 
+// ─── The brochure ─────────────────────────────────────────────────────────
+// A project's brochure is a PDF on ssilva.cl (under "Descargar Brochure"),
+// and the same pages as a 3D flip-book page that is slow to start and leaves
+// the site. He shows the PDF over the page, in Chrome's own PDF view (the
+// site allows framing it), at the page he names, and downloads it.
+
+let doc: { host: HTMLElement; frame: HTMLIFrameElement; url: string; page: number } | null = null;
+
+/** The project's brochure PDF: the one he names, if it is on ssilva.cl, else
+ *  the page's own "Descargar Brochure". */
+function brochureUrl(asked?: string | null): string {
+  const pdf = (href: string) => {
+    try {
+      const u = new URL(href, location.href);
+      return isSsilva(u.host) && /\.pdf$/i.test(u.pathname) ? ((u.host = location.host), u.href) : "";
+    } catch {
+      return "";
+    }
+  };
+  if (asked && pdf(asked)) return pdf(asked);
+  const links = [
+    ...document.querySelectorAll<HTMLAnchorElement>(".l3-other-docs-section a[href], .files-block-section a[href], a[href$='.pdf']"),
+  ];
+  const own = links.map((a) => pdf(a.href)).find(Boolean);
+  if (own) return own;
+  throw new Error(`there is no brochure to show on ${location.pathname}`);
+}
+
+function closeDoc(by: "javier" | "visitor" = "javier"): void {
+  if (!doc) return;
+  doc.host.remove();
+  doc = null;
+  emit("viewer_closed", { which: "brochure", by });
+}
+
+const DOC_CSS = `
+  .v { position: fixed; inset: 0; background: rgba(12, 12, 14, 0.92); display: flex; flex-direction: column;
+       align-items: center; justify-content: center; gap: 12px; font: 15px/1.4 system-ui, sans-serif; color: #fff; }
+  iframe { width: min(1100px, 88vw); height: 78vh; border: 0; border-radius: 6px; background: #fff;
+           box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5); }
+  .bar { display: flex; gap: 18px; align-items: center; }
+  .bar a { color: #fff; font-weight: 600; text-decoration: none; padding: 8px 14px; border-radius: 18px;
+           background: rgba(255, 255, 255, 0.14); }
+  .bar a.dl { background: ${RING}; }
+  .x { position: absolute; top: 84px; right: 28px; border: 0; background: rgba(255, 255, 255, 0.12); color: #fff;
+       cursor: pointer; width: 52px; height: 52px; border-radius: 50%; font-size: 26px; }
+`;
+
+async function showBrochure({ url, page }: { url?: string | null; page?: number | null }): Promise<void> {
+  const pdf = brochureUrl(url);
+  const n = Math.max(1, Math.floor(Number(page) || 1));
+  closeViewer();
+  clearHighlight();
+  if (doc && doc.url === pdf) {
+    // Another page of the same brochure. Chrome's PDF view ignores a new
+    // #page on the frame it has, so a fresh frame opens it there (the file
+    // is cached).
+    doc.page = n;
+    const fresh = document.createElement("iframe");
+    fresh.title = "Brochure";
+    fresh.src = `${pdf}#page=${n}`;
+    doc.frame.replaceWith(fresh);
+    doc.frame = fresh;
+    emit("brochure_shown", { url: pdf, page: n });
+    return;
+  }
+  closeDoc();
+  const host = document.createElement("div");
+  host.setAttribute("data-voqalize", "brochure");
+  Object.assign(host.style, { position: "fixed", inset: "0", zIndex: "2147482500" });
+  const root = host.attachShadow({ mode: "open" });
+  const name = decodeURIComponent(pdf.split("/").pop() ?? "brochure.pdf");
+  root.innerHTML = `<style>${DOC_CSS}</style><div class="v">
+    <iframe title="Brochure"></iframe>
+    <div class="bar"><a class="dl" download="${name.replace(/"/g, "")}">Descargar brochure</a>
+    <a class="tab" target="_blank" rel="noopener">Abrir en otra pestaña</a></div>
+    <button class="x" aria-label="Cerrar">✕</button></div>`;
+  const frame = root.querySelector("iframe")!;
+  frame.src = `${pdf}#page=${n}`;
+  root.querySelector<HTMLAnchorElement>(".dl")!.href = pdf;
+  root.querySelector<HTMLAnchorElement>(".tab")!.href = pdf;
+  root.querySelector(".x")!.addEventListener("click", () => closeDoc("visitor"));
+  root.querySelector(".v")!.addEventListener("click", (e) => {
+    if (e.target === e.currentTarget) closeDoc("visitor");
+  });
+  document.documentElement.appendChild(host);
+  doc = { host, frame, url: pdf, page: n };
+  emit("brochure_shown", { url: pdf, page: n });
+}
+
+/** Download the brochure to the visitor's computer, as the site's own
+ *  "Descargar Brochure" would if it opened as a file. */
+async function downloadBrochure({ url }: { url?: string | null }): Promise<void> {
+  const pdf = brochureUrl(url);
+  const a = document.createElement("a");
+  a.href = pdf;
+  a.download = decodeURIComponent(pdf.split("/").pop() ?? "brochure.pdf");
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  emit("brochure_downloaded", { url: pdf });
+}
+
+window.addEventListener(
+  "keydown",
+  (e) => {
+    if (doc && e.isTrusted && e.key === "Escape") closeDoc("visitor");
+  },
+  true,
+);
+
+// The site's "Agrandar imagen" loads the bare plan PNG in place of the page
+// (dev call 280b2561: the visitor pressed it, came back, and the brain lost
+// the page). The press opens the plan full screen over the page instead.
+document.addEventListener(
+  "click",
+  (e) => {
+    const btn = (e.target as Element | null)?.closest?.("[id^=enlargeImageBtn_cotizador]");
+    if (!btn || !e.isTrusted) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    void showFloorPlan({ typology: null }).catch(() => {});
+  },
+  true,
+);
+
 async function closeOverlay(): Promise<void> {
+  closeViewer();
+  closeDoc();
   const lg = document.querySelector<HTMLElement>(".lg-outer.lg-visible, .lg-outer.lg-show-in");
   if (lg) {
     lg.querySelector<HTMLElement>(".lg-close")?.click();
@@ -1061,12 +1675,17 @@ function watchRoutes(): void {
 
 /** A typology the visitor clicked themselves is reported as one Javier chose. */
 function watchTypologies(): void {
+  // A press on a typology's label also clicks its input: one press, one report
+  // (dev call ec152777 reported each of the visitor's presses twice).
+  let last: { li: Element; at: number } | null = null;
   document.addEventListener(
     "click",
     (e) => {
       if (!e.isTrusted) return;
       const li = (e.target as Element | null)?.closest?.(".cotizador-l1 li.type-item");
       if (!li) return;
+      if (last && last.li === li && Date.now() - last.at < 600) return;
+      last = { li, at: Date.now() };
       void (async () => {
         await waitFor(spinning, 600);
         await waitFor(() => !spinning(), 5000);
@@ -1104,6 +1723,12 @@ const COMMANDS: Record<string, (payload: never) => Promise<void>> = {
   select_typology: selectTypology,
   show_projects: showProjects,
   show_photos: showPhotos,
+  show_card: showCard,
+  step_photo: stepPhoto,
+  slideshow,
+  show_floor_plan: showFloorPlan,
+  show_brochure: showBrochure,
+  download_brochure: downloadBrochure,
   open_tour: openTour,
   close_overlay: closeOverlay,
   fill_lead_form: fillLeadForm,

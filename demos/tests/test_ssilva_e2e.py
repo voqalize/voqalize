@@ -108,6 +108,14 @@ SITE = Knowledge(
         "/isla-picton": _project_page(
             "/isla-picton", "Isla Picton", "isla-picton", "galería", "tipologías"
         ),
+        "/distrito-barroso": _project_page(
+            "/distrito-barroso",
+            "Distrito Barroso",
+            "distrito-barroso",
+            "galería",
+            "tipologías",
+            "amenidades",
+        ),
     },
     projects={
         "estocolmo": Project(
@@ -125,6 +133,7 @@ SITE = Knowledge(
             perfil=("Para vivir",),
             typologies=("2D | 3B", "3D | 3B"),
             lead_form=True,
+            brochure_pdf="https://www.ssilva.cl/content/uploads/2025/01/Folleto_Estocolmo.pdf",
         ),
         "canal-beagle": Project(
             slug="canal-beagle",
@@ -158,6 +167,22 @@ SITE = Knowledge(
             typologies=("1D | 1B", "2D | 1B", "2D | 2B"),
             lead_form=True,
         ),
+        "distrito-barroso": Project(
+            slug="distrito-barroso",
+            name="Distrito Barroso",
+            site_name="DISTRITO BARROSO",
+            path="/distrito-barroso/",
+            quote_path="/proyectos/cotizar/distrito-barroso/",
+            comuna="Santiago",
+            region="metropolitana",
+            tipos=("departamento",),
+            desde_uf=2582,
+            dormitorios=(1, 2),
+            estado="En verde",
+            perfil=("Para invertir", "Para vivir"),
+            typologies=("1D | 1B", "2D | 1B", "2D | 2B", "2D | 2B MARIPOSA"),
+            lead_form=True,
+        ),
     },
     project_texts={"estocolmo": "# Estocolmo\n- Address: Estocolmo 661, Las Condes.\n"},
 )
@@ -174,6 +199,30 @@ ESTOCOLMO_PAGE = {
     "typology": "2D | 3B",
     "price": "Desde 13.976 UF",
     "status": "Entrega inmediata",
+}
+# Distrito Barroso as a visitor reading ssilva.cl through Chrome's translation
+# sees it (dev call ec152777): the title and a typology label in English.
+BARROSO_PAGE = {
+    "url": "https://www.ssilva.cl/distrito-barroso/",
+    "path": "/distrito-barroso/",
+    "title": "BARROSO DISTRICT | SSilva",
+    "kind": "project",
+    "project": "BARROSO DISTRICT",
+    "headings": ["THE NEW CITY CENTER", "Types that adapt to your needs"],
+    "sections": ["galería", "tipologías", "formulario", "amenidades"],
+    "typologies": ["1D | 1B", "2D | 1B", "2D | 2B", "2D | 2B BUTTERFLY"],
+    "typology": "1D | 1B",
+    "price": "Desde 2,582 UF",
+    "status": "In Green",
+    "photos": ["depto grande", "depto pequeno", "quincho", "cowork"],
+    "amenity_photos": ["piscina", "gourmet"],
+}
+LIST_PAGE = {
+    "url": "https://www.ssilva.cl/proyectos/?region=17",
+    "path": "/proyectos/",
+    "title": "Projects | SSilva",
+    "kind": "projects",
+    "headings": ["FIND YOUR NEW HOME"],
 }
 INGRESOS = [
     "Menos de $1.000.000",
@@ -299,6 +348,55 @@ def _llm() -> ScriptedGemini:
             "Muéstrame la piscina.": reply_and_call(
                 "Aquí están las fotos.", "show_photos", request={"which": "amenities", "index": 2}
             ),
+            # Several projects, talked through as the list opens: each card is
+            # rung as he names it, once the list his show_projects opens is up.
+            "Busco para invertir en Santiago.": reply_and_call(
+                "Hay dos que te sirven. Distrito Barroso está en Santiago centro. "
+                "{show: Estocolmo} Estocolmo está en Las Condes. ¿Cuál te interesa?",
+                "show_projects",
+                request={"region": "metropolitana", "highlight": ["Distrito Barroso", "Estocolmo"]},
+            ),
+            # The same names with no list to ring them on: no card cue at all.
+            "¿Cuáles están en Santiago?": reply("Distrito Barroso está en Santiago centro."),
+            # On the list: his words alone ring the card he talks about.
+            "¿Cuál me recomiendas?": reply(
+                "Para invertir, Distrito Barroso. Está a pasos del metro. ¿Te lo abro?"
+            ),
+            # The floor plan, asked in English on a translated page.
+            "Show me the floor plan of the butterfly one.": reply_and_call(
+                "Here is the butterfly layout. "
+                "This is the two-bedroom, one-bathroom one, for comparison.",
+                "show_floor_plan",
+                request={"typology": "2D | 2B MARIPOSA"},
+            ),
+            "Muéstrame las fotos en grande.": reply_and_call(
+                "{photo: 1} Aquí ves el departamento grande. {photo: amenidades 2} Y esta es la "
+                "zona gourmet. {photo: 9} Y una que no existe.",
+                "show_photos",
+                request={"which": "gallery", "index": 1, "fullscreen": True},
+            ),
+            "Pon una presentación.": reply_and_call(
+                "Van pasando solas.", "slideshow", request={"play": True, "seconds": 30}
+            ),
+            "La siguiente.": reply_and_call("Esta es la siguiente.", "step_photo"),
+            # Every photo, by itself: no "next" to ask for.
+            "Muéstrame las fotos.": reply_and_call(
+                "Te las muestro en grande, y van pasando solas.", "slideshow"
+            ),
+            "Muéstrame el brochure.": reply_and_call(
+                "Aquí está el brochure.", "show_brochure", request={"page": 2}
+            ),
+            "Descárgalo.": reply_and_call("Lo descargo.", "download_brochure"),
+            # His label against his words: the sentence is about three bedrooms.
+            "¿Y el más grande?": reply(
+                "{plan: 2D | 3B} El de tres dormitorios y tres baños es el más amplio."
+            ),
+            # A reply the visitor cut off before a word of it, and the answer
+            # in the quiet after (keyed first: its note quotes those words).
+            "cut off before you answered": reply("Perfecto, busquemos de dos y tres dormitorios."),
+            "Busco dos y tres dormitorios.": reply(
+                chunks=["Perfecto, te muestro esos.", " Hay varios."], chunk_delay=0.6
+            ),
             "Escríbeles por WhatsApp.": reply_and_call("Abro WhatsApp.", "open_whatsapp"),
             "¿Qué es Estocolmo?": [
                 call("read_project", request={"name": "estocolmo"}),
@@ -338,7 +436,15 @@ def _commands(rig: object, name: str) -> list[dict[str, object]]:
     return [c["payload"] for c in rig.driver.ui_commands if c.get("command") == name]  # type: ignore[attr-defined]
 
 
-NONE = {"path": None, "heading": None, "text": None, "typology": None}
+NONE = {
+    "path": None,
+    "heading": None,
+    "text": None,
+    "typology": None,
+    "card": None,
+    "photo": None,
+    "photos": None,
+}
 
 
 async def test_greeting_opens_in_spanish_on_both_legs() -> None:
@@ -426,6 +532,7 @@ async def test_projects_are_found_and_rung_on_the_list() -> None:
             "property": None,
             "communes": [],
             "highlight": ["ISLA PICTON", "CANAL BEAGLE"],
+            "paths": ["/isla-picton/", "/canalbeagle/"],
         }
         await _page(
             rig,
@@ -446,6 +553,7 @@ async def test_projects_are_found_and_rung_on_the_list() -> None:
             "property": "departamento",
             "communes": ["Las Condes"],
             "highlight": [],
+            "paths": [],
         }
 
 
@@ -570,7 +678,7 @@ async def test_the_tour_photos_and_whatsapp_are_checked_against_the_page() -> No
         await rig.driver.user_says("Ábreme el tour.")
         assert "open_tour" not in rig.actions()  # This page has no tour.
         await rig.driver.user_says("Muéstrame la piscina.")
-        assert rig.command("show_photos") == {"which": "amenities", "index": 2}
+        assert rig.command("show_photos") == {"which": "amenities", "index": 2, "fullscreen": True}
         await rig.driver.user_says("Escríbeles por WhatsApp.")
         assert "open_whatsapp" in rig.actions()
 
@@ -624,3 +732,194 @@ async def test_a_reply_that_only_promises_is_asked_again() -> None:
         turn = await rig.driver.user_says("¿Dónde queda?")
         check_turn(rig, turn)
         assert "Queda en Las Condes" in turn.text
+
+
+async def test_projects_he_names_are_rung_on_the_list_as_he_says_them() -> None:
+    llm = _llm()
+    async with demo("ssilva", llm) as rig:
+        await rig.driver.start_session(init={"path": "/"})
+        # Named on the home page, before his show_projects: kept, and sent
+        # after it, so the list it opens rings each card as he names it.
+        await rig.driver.user_says("Busco para invertir en Santiago.")
+        commands = [c["command"] for c in rig.driver.ui_commands]  # type: ignore[attr-defined]
+        cards = [c for c in _cues(rig) if c["card"]]
+        assert [(c["card"], c["text"], c["at"]) for c in cards] == [
+            ("/distrito-barroso/", "DISTRITO BARROSO", "distrito barroso esta"),
+            ("/estocolmo/", "ESTOCOLMO", "estocolmo esta en"),
+        ]
+        assert commands.index("show_projects") < len(commands) - 2
+        assert all(c["path"] is None for c in cards)
+        assert rig.command("show_projects")["paths"] == ["/distrito-barroso/", "/estocolmo/"]
+        # With no list opened, the same sentence rings nothing.
+        before = len(_cues(rig))
+        await rig.driver.user_says("¿Cuáles están en Santiago?")
+        assert not [c for c in _cues(rig)[before:] if c["card"]]
+        # On the list, his words alone ring the card, once.
+        await _page(rig, "page_changed", LIST_PAGE)
+        await rig.driver.user_says("¿Cuál me recomiendas?")
+        assert [c["card"] for c in _cues(rig) if c["card"]][-1] == "/distrito-barroso/"
+        assert [c["card"] for c in _cues(rig)].count("/distrito-barroso/") == 2
+
+
+async def test_a_list_ring_that_missed_is_not_talked_about() -> None:
+    llm = _llm()
+    async with demo("ssilva", llm) as rig:
+        await rig.driver.start_session(init={"path": "/proyectos/"})
+        await _page(
+            rig,
+            "command_failed",
+            {"command": "show_projects", "reason": "ESTOCOLMO is not among these 15 projects"},
+        )
+        await rig.driver.user_says("Sigue.")
+        seen = _texts(llm.captured_contents[-1])
+        assert "Do not mention it" in seen
+        assert "Tell the visitor plainly" not in seen
+
+
+async def test_the_floor_plan_opens_by_its_label_through_a_translated_page() -> None:
+    llm = _llm()
+    async with demo("ssilva", llm) as rig:
+        await rig.driver.start_session(init={"path": "/distrito-barroso/", "lang": "en"})
+        await _page(rig, "page_changed", BARROSO_PAGE)
+        await rig.driver.user_says("Show me the floor plan of the butterfly one.")
+        # The site's own name, not the translated title, and what the photos show.
+        seen = _texts(llm.captured_contents[-1])
+        assert "the project page of Distrito Barroso (/distrito-barroso/)" in seen
+        assert "Gallery photos: 1 depto grande; 2 depto pequeno; 3 quincho; 4 cowork." in seen
+        # The plan in the label the page shows; his words select the typology
+        # they describe, "two-bedroom, one-bathroom" included.
+        assert rig.command("show_floor_plan") == {"typology": "2D | 2B BUTTERFLY"}
+        plans = [c["typology"] for c in _cues(rig) if c["typology"]]
+        assert plans == ["2D | 2B BUTTERFLY", "2D | 1B"]
+        await _page(
+            rig,
+            "photo_shown",
+            {"which": "plan", "index": 1, "total": 1, "caption": "2D | 2B BUTTERFLY · 56.65 m²"},
+        )
+        await rig.driver.user_says("Sigue.")
+        assert "[On screen: the floor plan 2D | 2B BUTTERFLY · 56.65 m²." in _texts(
+            llm.captured_contents[-1]
+        )
+
+
+async def test_photos_full_screen_one_at_a_time_and_a_slideshow() -> None:
+    llm = _llm()
+    async with demo("ssilva", llm) as rig:
+        await rig.driver.start_session(init={"path": "/distrito-barroso/"})
+        await _page(rig, "page_changed", BARROSO_PAGE)
+        await rig.driver.user_says("Muéstrame las fotos en grande.")
+        assert rig.command("show_photos") == {"which": "gallery", "index": 1, "fullscreen": True}
+        # A photo per sentence, as he says it; one the gallery does not have, dropped.
+        photos = [(c["photos"], c["photo"]) for c in _cues(rig) if c["photo"]]
+        assert photos == [("gallery", 1), ("amenities", 2)]
+        await rig.driver.user_says("Pon una presentación.")
+        assert rig.command("slideshow") == {"play": True, "which": None, "seconds": 15}
+        # The slideshow is news when it starts and when it stops, not per photo.
+        show = {"which": "gallery", "total": 4, "playing": True}
+        await _page(rig, "photo_shown", {**show, "index": 1, "caption": "depto grande"})
+        await _page(rig, "photo_shown", {**show, "index": 2, "caption": "depto pequeno"})
+        await _page(
+            rig, "photo_shown", {**show, "index": 3, "caption": "quincho", "playing": False}
+        )
+        await rig.driver.user_says("La siguiente.")
+        assert rig.command("step_photo") == {"back": False}
+        seen = _texts(llm.captured_contents[-1])
+        assert "a slideshow of the gallery photos, from gallery photo 1 of 4 (depto grande)" in seen
+        assert "depto pequeno" not in seen.split("slideshow of the gallery photos")[1]
+        assert "[The slideshow stopped on gallery photo 3 of 4 (quincho).]" in seen
+        await _page(rig, "viewer_closed", {"which": "gallery"})
+        await rig.driver.user_says("Sigue.")
+        assert "[The visitor closed the full-screen view.]" in _texts(llm.captured_contents[-1])
+
+
+async def test_photos_asked_for_run_by_themselves_and_the_end_is_talked_through() -> None:
+    llm = _llm()
+    async with demo("ssilva", llm) as rig:
+        await rig.driver.start_session(init={"path": "/distrito-barroso/"})
+        await _page(rig, "page_changed", BARROSO_PAGE)
+        await rig.driver.user_says("Muéstrame las fotos.")
+        # Every photo, the gallery's then the amenities', with no "next" to ask.
+        assert rig.command("slideshow") == {"play": True, "which": None, "seconds": None}
+        show = {"which": "amenities", "total": 6, "fullscreen": True}
+        await _page(rig, "photo_shown", {**show, "index": 6, "caption": "gourmet", "ended": True})
+        assert _idle_windows(rig)[-1] == _TALK_THROUGH_MS
+        await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
+        assert "The slideshow showed every photo" in _texts(llm.captured_contents[-1])
+
+
+async def test_the_brochure_is_shown_and_downloaded_where_the_project_has_one() -> None:
+    llm = _llm()
+    async with demo("ssilva", llm) as rig:
+        await rig.driver.start_session(init={"path": "/estocolmo/"})
+        await _page(rig, "page_changed", ESTOCOLMO_PAGE)
+        await rig.driver.user_says("Muéstrame el brochure.")
+        pdf = "https://www.ssilva.cl/content/uploads/2025/01/Folleto_Estocolmo.pdf"
+        assert rig.command("show_brochure") == {"url": pdf, "page": 2}
+        assert "Brochure: yes." in _texts(llm.captured_contents[-1])
+        await rig.driver.user_says("Descárgalo.")
+        assert rig.command("download_brochure") == {"url": pdf}
+    async with demo("ssilva", _llm()) as rig:
+        await rig.driver.start_session(init={"path": "/distrito-barroso/"})
+        await _page(rig, "page_changed", BARROSO_PAGE)
+        await rig.driver.user_says("Muéstrame el brochure.")
+        assert "show_brochure" not in rig.actions()
+
+
+async def test_a_plan_cue_that_contradicts_his_words_is_corrected() -> None:
+    async with demo("ssilva", _llm()) as rig:
+        await rig.driver.start_session(init={"path": "/estocolmo/"})
+        await _page(rig, "page_changed", ESTOCOLMO_PAGE)
+        await rig.driver.user_says("¿Y el más grande?")
+        assert [c["typology"] for c in _cues(rig) if c["typology"]] == ["2D | 3B", "3D | 3B"]
+
+
+async def test_back_to_a_page_from_the_browser_cache_follows_the_tab() -> None:
+    llm = _llm()
+    async with demo("ssilva", llm) as rig:
+        await rig.driver.start_session(init={"path": "/estocolmo/"})
+        await _page(rig, "page_changed", ESTOCOLMO_PAGE)
+        # The visitor opened the plan's bare PNG, then went back: the page,
+        # restored from the cache, reports nothing; its tab does.
+        png = "https://www.ssilva.cl/content/uploads/2024/07/plano.png"
+        await _page(rig, "page_changed", {"url": png, "path": "/content/uploads/2024/07/plano.png"})
+        await _page(
+            rig,
+            "tabs_changed",
+            {
+                "tabs": [{"tab_id": "1", "url": ESTOCOLMO_PAGE["url"], "title": "ESTOCOLMO"}],
+                "active": "1",
+            },
+        )
+        await rig.driver.user_says("Muéstrame la piscina.")
+        assert rig.command("show_photos")["which"] == "amenities"
+        assert "the project page of Estocolmo (/estocolmo/)" in _texts(llm.captured_contents[-1])
+
+
+async def test_the_list_names_its_cards_by_their_pages_through_a_translation() -> None:
+    llm = _llm()
+    async with demo("ssilva", llm) as rig:
+        await rig.driver.start_session(init={"path": "/proyectos/"})
+        await _page(
+            rig,
+            "projects_listed",
+            {
+                "count": 2,
+                "projects": ["STOCKHOLM", "PICTON ISLAND"],
+                "paths": ["/estocolmo/", "/isla-picton/"],
+            },
+        )
+        await rig.driver.user_says("Sigue.")
+        assert "On this page: Estocolmo; Isla Picton." in _texts(llm.captured_contents[-1])
+
+
+async def test_a_turn_cut_off_before_his_answer_is_answered_in_a_short_quiet_spell() -> None:
+    llm = _llm()
+    async with demo("ssilva", llm) as rig:
+        await rig.driver.start_session(init={"path": "/"})
+        # A noise cuts the turn before a word of it, and no words follow.
+        await rig.driver.barge_in("Busco dos y tres dormitorios.", wait_for_speech=False)
+        await asyncio.sleep(0.2)
+        assert _idle_windows(rig)[-1] == ssilva._CUT_OFF_MS
+        turn = await rig.driver.user_idle(level=1, idle_ms=ssilva._CUT_OFF_MS)
+        assert "busquemos de dos y tres" in turn.text
+        assert "“Busco dos y tres dormitorios.”" in _texts(llm.captured_contents[-1])
