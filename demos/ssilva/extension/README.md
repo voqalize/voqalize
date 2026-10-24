@@ -229,7 +229,12 @@ loaded and the content script has run.
   where his face goes. `content.js` adopts that widget instead of mounting
   another, asks the holder for the call's state, starts building his face at
   once (`preloadAvatar`), and fades the still out once the live face has
-  drawn. Should the holder be gone (no holder, or no word from it in 8 s), the
+  drawn. The still is never a frozen face: from the page's first paint it
+  moves in CSS alone (`.poster` in `src/widget.ts`), a slow breath while he
+  listens and a talking head while he speaks, held still under reduced
+  motion. Its lips do not move, and the half second or so in which Chrome
+  swaps the documents shows the last page's last frame, where nothing can
+  move. Should the holder be gone (no holder, or no word from it in 8 s), the
   carried widget goes back to the invite.
 - **The view transition.** In a call both pages opt in to a cross-document
   view transition (`@view-transition { navigation: auto }`, Chrome 126+): the
