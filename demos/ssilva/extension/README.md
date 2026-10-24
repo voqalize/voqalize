@@ -3,15 +3,18 @@
 A Chrome extension that puts Javier, a voice guide, on
 [ssilva.cl](https://www.ssilva.cl), the site of SSILVA Gestión Inmobiliaria. He
 talks a visitor through Ssilva's projects while he moves their screen: he
-lists the projects that fit on /proyectos/ and rings the ones he means, opens a
-project's page and scrolls to the section that answers them (the gallery, the
-typologies, the amenities, the tour, the build status, the brochure, the
-contact block), selects a typology to show its price and floor plan, opens the
-photos and the virtual tour, and fills in the project's quote form with them as
-they speak. One call follows the visitor across every Ssilva tab they have
+lists the projects that fit on /proyectos/ and rings each project's card as he
+names it, opens a project's page and scrolls to the section that answers them
+(the gallery, the typologies, the amenities, the tour, the build status, the
+brochure, the contact block), selects a typology to show its price and floor
+plan, opens a floor plan or the photos full screen one at a time or as a
+slideshow, opens the virtual tour, and fills in the project's quote form with
+them as they speak. One call follows the visitor across every Ssilva tab they have
 open, and through every full page load, without reconnecting. Everything he
-shows is a page, section or form Ssilva already has; the extension adds a
-corner widget and the ring he draws around what he is pointing at.
+shows is a page, section, photo or form Ssilva already has; the extension adds a
+corner widget, the ring he draws around what he is pointing at, and a
+full-screen view for photos and plans (the site's own lightbox does not open
+for a script, and its "Agrandar imagen" replaces the page with the bare PNG).
 
 The site is in Spanish, and so is Javier by default; the widget's toggle (and
 speaking English to him) switches him to English, and he explains the Spanish
@@ -29,7 +32,10 @@ on it; it is not how a customer would ship it.
   section, the typology, the project list's filters) with the extension's
   service worker and loads the page; the next page's script makes it once the
   brain can hear that page. The window scrolls, under Ssilva's fixed 70px
-  header.
+  header. Visitors who read the site through Chrome's translation see
+  "BARROSO DISTRICT" and "From 2,582 UF": the adapter finds a project's card
+  by the page it links to, matches prices whatever their separators, and
+  reads "BUTTERFLY" as "MARIPOSA" in a typology's label.
 - `src/hsform.ts` — runs inside the HubSpot quote-form frame (js.hsforms.net),
   only when Ssilva's page holds it. It fills the form the way typing does, so
   HubSpot's React state takes it; picks dropdown options by their text; keeps a
@@ -130,7 +136,13 @@ await __voqalizeSsilva.perform("select_typology", { label: "2D | 2B" });
 await __voqalizeSsilva.perform("show_projects", {
   region: "metropolitana", property: "departamento", communes: ["Las Condes"], highlight: ["Estocolmo"],
 });
-await __voqalizeSsilva.perform("show_photos", { which: "amenities", index: 2 });
+await __voqalizeSsilva.perform("show_card", { path: "/distrito-barroso/", name: "DISTRITO BARROSO" }); // on /proyectos/
+await __voqalizeSsilva.perform("show_photos", { which: "gallery", index: 2, fullscreen: true });
+await __voqalizeSsilva.perform("step_photo", { back: false });
+await __voqalizeSsilva.perform("slideshow", { play: true, which: null, seconds: 5 });
+await __voqalizeSsilva.perform("slideshow", { play: false, which: null, seconds: null });
+await __voqalizeSsilva.perform("show_photos", { which: "amenities", index: 2, fullscreen: true });
+await __voqalizeSsilva.perform("show_floor_plan", { typology: "2D | 2B MARIPOSA" });
 await __voqalizeSsilva.perform("close_overlay", {});
 await __voqalizeSsilva.perform("fill_lead_form", {
   firstname: "Ana", lastname: "Pérez", rut: "12.345.678-5", email: "ana@example.cl", phone: "987654321",
@@ -278,4 +290,9 @@ opened in a tab of its own that never joins the tab list (nor does the quote
 form's frame), the 15 s rule, the widget across a page load, and the
 microphone's branches with the permission query stubbed. The WhatsApp tab is
 opened by the extension before the test's routes reach it, so that one test
-loads wa.me for real.
+loads wa.me for real. Its last two tests drive the screen through the
+holder on a project list and a project page as Chrome's translation leaves
+them: a card he names rung by its link and paged to, the list's own ring by
+the projects' pages, photos full screen one at a time, a slideshow the
+visitor's voice stops, a photo cue, a floor plan by its Spanish label, and a
+price cue written "Desde 2.582 UF" on a page that says "FROM 2,582 UF".

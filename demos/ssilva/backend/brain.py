@@ -96,11 +96,13 @@ from .app_events import (
     LeadFormState,
     LeadSubmitted,
     PageChanged,
+    PhotoShown,
     ProjectsListed,
     SsilvaEvent,
     TabInfo,
     TabsChanged,
     TypologyShown,
+    ViewerClosed,
 )
 from .cues import CueKind, CueParser, RawCue, words
 from .knowledge import (
@@ -115,6 +117,7 @@ from .knowledge import (
     property_of,
     region_of,
     site_path,
+    typology_key,
 )
 
 AGENT_NAME = "Javier"
@@ -417,11 +420,13 @@ class Navigate(Action):
 class Cue(Action):
     """A move for the page to make when the voice reaches ``at`` — the first
     words of the sentence it belongs to (see :mod:`.cues`); empty ``at`` is
-    when the voice stops. With ``path``, it is a :class:`Navigate`; else a
-    section, words or a typology on the page in front. ``heading`` may be a
-    section's heading or its canonical name: ``galería``, ``tipologías``,
-    ``amenidades``, ``tour``, ``estado``, ``brochure``, ``contacto``,
-    ``formulario``."""
+    when the voice stops. With ``path``, it is a :class:`Navigate`; with
+    ``card``, the card of the project whose page is at that path, rung on the
+    project list (paged to) as he names it, ``text`` its name; with
+    ``photo``, that photo of ``photos`` full screen; else a section, words or
+    a typology on the page in front. ``heading`` may be a section's heading
+    or its canonical name: ``galería``, ``tipologías``, ``amenidades``,
+    ``tour``, ``estado``, ``brochure``, ``contacto``, ``formulario``."""
 
     at: str
     word: int = 0
@@ -430,6 +435,9 @@ class Cue(Action):
     heading: str | None = None
     text: str | None = None
     typology: str | None = None
+    card: str | None = None
+    photo: int | None = None
+    photos: Literal["gallery", "amenities"] | None = None
 
 
 class ShowSection(Action):
@@ -455,21 +463,51 @@ class ShowProjects(Action):
     (names as the filter writes them; only the Región Metropolitana has them,
     and it takes one at a time), and ring
     the cards of the ``highlight`` projects (names as the cards write them),
-    paging if needed. The page reports ``projects_listed``."""
+    found by their project pages in ``paths``, which a translated page does
+    not rewrite, paging if needed. The page reports ``projects_listed``."""
 
     region: str | None = None
     property: str | None = None
     communes: list[str] = Field(default_factory=list[str])
     highlight: list[str] = Field(default_factory=list[str])
+    paths: list[str] = Field(default_factory=list[str])
 
 
 class ShowPhotos(Action):
     """On a project page: ``gallery`` scrolls to the photo gallery and moves it
-    to photo ``index`` (1 for the first); ``amenities`` opens the amenities
-    lightbox at photo ``index``."""
+    to photo ``index`` (1 for the first), or with ``fullscreen`` opens it full
+    screen at that photo; ``amenities`` opens the amenities' photos full
+    screen at photo ``index``. The page reports ``photo_shown``."""
 
     which: Literal["gallery", "amenities"]
     index: int | None = None
+    fullscreen: bool = False
+
+
+class StepPhoto(Action):
+    """The next photo (``back``: the previous one) in the full-screen viewer,
+    or on the gallery's slider when it is not open."""
+
+    back: bool = False
+
+
+class Slideshow(Action):
+    """``play``: the photos full screen, one every ``seconds``, from the one
+    shown (the gallery's, unless ``which`` says the amenities'), until
+    stopped. Not ``play``: stop on the photo shown. The visitor starting to
+    speak stops it too."""
+
+    play: bool = True
+    which: Literal["gallery", "amenities"] | None = None
+    seconds: int | None = None
+
+
+class ShowFloorPlan(Action):
+    """A typology's floor plan, full screen: on a project page, select
+    ``typology`` (when given) and open its plan; on a cotizar page, the
+    typology's unit plan and its place on the floor."""
+
+    typology: str | None = None
 
 
 class OpenTour(Action):
@@ -478,7 +516,8 @@ class OpenTour(Action):
 
 
 class CloseOverlay(Action):
-    """Close the lightbox or the modal that is open."""
+    """Close what is open over the page: the full-screen photos or plan, a
+    lightbox, the tour's modal."""
 
 
 class FillLeadForm(Action):
@@ -596,6 +635,33 @@ class PhotosRequest(BaseModel):
         description="'gallery' for the photo gallery, 'amenities' for the amenities photos."
     )
     index: int | None = Field(default=None, description="Which photo, 1 for the first.")
+    fullscreen: bool = Field(
+        default=False,
+        description="True to open the photos full screen, one at a time ('en grande', "
+        "'pantalla completa', 'full screen'). The amenities always open full screen.",
+    )
+
+
+class StepRequest(BaseModel):
+    back: bool = Field(default=False, description="True for the previous photo.")
+
+
+class SlideshowRequest(BaseModel):
+    play: bool = Field(default=True, description="True to start the slideshow, false to stop it.")
+    which: Literal["gallery", "amenities"] | None = Field(
+        default=None, description="Whose photos: the gallery's unless they asked for amenities."
+    )
+    seconds: int | None = Field(
+        default=None, description="Seconds per photo, 3 to 15; leave out for five."
+    )
+
+
+class PlanRequest(BaseModel):
+    typology: str | None = Field(
+        default=None,
+        description="The typology whose plan to open, as the page labels it ('2D | 2B'); "
+        "leave out for the one selected.",
+    )
 
 
 class LeadRequest(BaseModel):
@@ -672,6 +738,8 @@ Like an advisor sitting beside the visitor with their screen between you: as you
   - {{page: /path/}} opens a page of the site, at its top. Every page opens in full, so say what is coming while it loads.
   - {{show: name}} scrolls to a part of the page they are on, or are taken to by a page cue, and rings it. On a project page use the section names: galería, tipologías, amenidades, tour, estado, brochure, contacto (address, hours, phone and map), formulario (the quote form). On other pages use a heading exactly as the site pages list or the screen lines spell it. Words that are not a heading ring those words instead: "{{show: Desde 13.976 UF}}".
   - {{plan: 2D | 2B}} selects that typology on a project page, with its price, floor plan and areas, exactly as the page labels it.
+  - On the project list, {{show: Distrito Barroso}} rings that project's card, going to the page of the list it is on. When you talk through several projects, put one before each sentence about one of them, so each card lights up as you say its name.
+  - {{photo: 3}} opens the gallery's third photo full screen; {{photo: amenidades 2}} the second amenities photo. To show photos one at a time, put one before each sentence about a photo.
 - One cue per sentence at most, before the sentence, and only where the screen should change.
 - When the visitor asks where something is ("muéstrame", "show me", "where is"), your reply starts with the cue for exactly that thing.
 - Cues are the only way you open a page or a section. Nothing waits on a cue.
@@ -693,6 +761,7 @@ You are heard, not read, so keep it light and warm.
 - THE FIRST SENTENCE IS A FEW WORDS. The visitor hears nothing until your first sentence is voiced, so open every reply with a sentence of two to six words that ends in a full stop, with the answer in it. A cue may come before it.
 - Before most replies the visitor has already heard a short acknowledgement of mine ("Claro.", "A ver.", "Happy to help.", "Let me see."), so never open with one: your first word is the answer. No "buena pregunta", no repeating their question back.
 - Spoken words only, apart from cues: no lists, no markdown, no symbols, never an exclamation mark.
+- Talk about what is on their screen, never about how the page works: never "the filter", "the list cleared", "the page did not highlight", "the cue". If something did not show, show it again another way, or open the project.
 - Write every number as spoken words. A price in UF: "tres mil trescientas setenta y cinco UF", "three thousand three hundred seventy-five UF", never "3.375 UF". Pesos: "un millón quinientos mil pesos". A typology: "dos dormitorios y dos baños", "two bedrooms and two bathrooms", never "2D | 2B". Areas: "noventa y nueve metros cuadrados". Phone numbers digit by digit, in pairs.
 - Lines in square brackets come from their screen, not the visitor. Never read them out; use them.
 - Always answer. A reply with no words leaves the visitor in silence.
@@ -726,8 +795,10 @@ Write your answer, with its cues, first; any action call comes at the end of the
 
 # Moving the screen
 - Open a project with its page cue from the roster: {{page: /estocolmo/}}. Cue only paths from the roster or the site pages list.
-- show_projects opens /proyectos/ filtered and rings the projects you name: use it to show the visitor several projects at once. Pass region, property and one comuna as the visitor asked (the list filters one comuna at a time), and highlight the projects you are about to talk about. A comuna on the coast has no filter: its projects are rung instead.
-- show_photos moves the gallery or opens the amenities photos; open_tour opens the virtual tour where the project has one; close_overlay closes a photo viewer or the tour.
+- show_projects opens /proyectos/ filtered and rings the projects you name: use it to show the visitor several projects at once. Pass region, property and one comuna as the visitor asked (the list filters one comuna at a time), and highlight the projects you are about to talk about. A comuna on the coast has no filter: its projects are rung instead. It opens the list itself: never write a page cue in a reply that calls it. Put {{show: name}} before each sentence about one of the projects, so its card is rung as you say it.
+- Photos: show_photos moves the gallery, or with fullscreen opens it full screen ("en grande", "pantalla completa", "full screen"); the amenities always open full screen. step_photo shows the next photo, or the previous one. slideshow runs the photos by themselves, one every few seconds, when they ask for a presentation or a slideshow; it stops when they speak, or with play false. While it runs, do not describe the photos one by one: they change on their own; say it is running and that they can say stop. The screen lines say what each photo shows, from the site's own file names: say it in a few words ("el cowork", "la piscina"), never a file name, and never invent what is not named.
+- Floor plans: show_floor_plan opens a typology's floor plan full screen, at once: say it is on their screen, never offer to open it again. When they ask to see a plan ("el plano", "la planta", "the floor plan", "más grande"), write {{plan: …}} before the sentence about it and call show_floor_plan with that typology. On a cotizar page it shows the unit's plan and where it sits on the floor.
+- open_tour opens the virtual tour where the project has one; close_overlay closes the full-screen photos, the plan or the tour.
 - The visitor can ask you to scroll to or press anything. Do it with a cue, and say what is now on their screen. Never say you cannot scroll or click.
 - open_whatsapp opens a chat with the project's sales executive in a new tab: only when they ask for it, or say yes to your offer.
 - Several ssilva.cl tabs may be open: lines in brackets list them. "Go back to the other tab" is switch_tab.
@@ -745,11 +816,17 @@ Every project page with typologies has a quote form beside them ({{show: formula
 
 # What that sounds like
 Visitor: "Busco un departamento de dos dormitorios en Viña."
-You (after find_projects): "Hay cuatro en Viña del Mar. Isla Picton parte en dos mil trescientas setenta y dos UF, y está en blanco. Vistamar parte en dos mil seiscientas cincuenta y ocho UF. Mira al Mar y Canal Beagle tienen entrega inmediata. ¿Lo buscas para vivir o para invertir?" then show_projects with region valparaiso and those four in highlight.
+You (after find_projects): "Hay cuatro en Viña del Mar. {{show: Isla Picton}} Isla Picton parte en dos mil trescientas setenta y dos UF, y está en blanco. {{show: Vistamar}} Vistamar parte en dos mil seiscientas cincuenta y ocho UF. Mira al Mar y Canal Beagle tienen entrega inmediata. ¿Lo buscas para vivir o para invertir?" then show_projects with region valparaiso and those four in highlight.
 Visitor: "Para vivir. Muéstrame Canal Beagle."
 You: "{{page: /canalbeagle/}} Te abro Canal Beagle. Está en Isla Melinka doscientos veinte, en Viña del Mar. {{show: Desde 3.654 UF}} Parte en tres mil seiscientas cincuenta y cuatro UF. {{show: tipologías}} Tiene departamentos de dos y tres dormitorios. {{show: amenidades}} Arriba hay una terraza panorámica y un lounge bar. ¿Te muestro la tipología de dos dormitorios?"
 Visitor: "Sí."
 You: "{{plan: 2D | 2B}} Este es el de dos dormitorios y dos baños. A la izquierda ves la planta. Las unidades de esta tipología parten en cuatro mil quinientas veintitrés UF. ¿Quieres que te ayude a cotizarlo?"
+Visitor: "Muéstrame el plano en grande."
+You: "{{plan: 2D | 2B}} Aquí tienes la planta en pantalla completa. Los dos dormitorios quedan a cada lado del living. ¿Seguimos con las amenidades?" then show_floor_plan with typology 2D | 2B.
+Visitor: "¿Y las fotos?"
+You: "Te las muestro en grande. {{photo: 1}} Aquí ves el departamento piloto. {{photo: 2}} Y este es el cowork del edificio. ¿Te pongo una presentación con el resto?"
+Visitor: "Sí, dale."
+You: "Perfecto, van pasando solas. Dime cuando quieras parar." then slideshow with play true.
 Visitor: "Quiero cotizar."
 You: "{{show: formulario}} Perfecto, lo completamos juntos. ¿Me dices tu nombre y apellidos?"
 Visitor: "Ana Pérez Soto."
@@ -859,6 +936,13 @@ _LANDED: dict[str, dict[Lang, str]] = {
         "es": "Aquí tienes los proyectos en la lista.",
     },
     "photos": {"en": "Here are the photos.", "es": "Aquí tienes las fotos."},
+    "photo": {"en": "Here's the next one.", "es": "Aquí va la siguiente."},
+    "slideshow": {
+        "en": "The photos will go by on their own.",
+        "es": "Las fotos van pasando solas.",
+    },
+    "stopped": {"en": "I've stopped it here.", "es": "La dejé aquí."},
+    "plan": {"en": "Here's the floor plan, full screen.", "es": "Aquí tienes el plano en grande."},
     "tour": {"en": "The tour is open.", "es": "Abrí el recorrido virtual."},
     "closed": {"en": "I've closed it.", "es": "Listo, lo cerré."},
     "form": {"en": "I've filled that in on the form.", "es": "Ya lo completé en el formulario."},
@@ -1186,22 +1270,55 @@ def _count(word: str) -> int:
     return int(word) if word.isdigit() else _NUMBER_WORDS.get(word, -1)
 
 
+#: The words a label adds to its bedrooms and bathrooms ("2D | 2B MARIPOSA"),
+#: as a sentence says them, in either language.
+_LABEL_EXTRAS: dict[str, tuple[str, ...]] = {
+    "mariposa": ("mariposa", "butterfly"),
+    "penthouse": ("penthouse",),
+    "loft": ("loft",),
+    "suite": ("suite",),
+    "estar": ("estar", "living"),
+}
+
+
+def _plain(label: str) -> bool:
+    """A label that is only bedrooms and bathrooms: "2D | 2B"."""
+    return re.fullmatch(r"\d+d\d+b", typology_key(label)) is not None
+
+
 def typology_in(sentence: str, typologies: tuple[str, ...] | list[str]) -> str | None:
     """The one typology of ``typologies`` that ``sentence`` is about: by its
-    label ("2D | 2B"), by bedrooms and bathrooms said in words, or by its
+    label ("2D | 2B"), by bedrooms and bathrooms said in words ("two-bedroom"
+    too), by a word only its label has ("butterfly", "mariposa"), or by its
     bedrooms alone when only one typology has that many. ``None`` unless one."""
     if not typologies or sentence.rstrip().endswith("?"):
         return None
-    f = fold(sentence)
+    # "two-bedroom, one-bathroom" is two bedrooms and one bathroom.
+    f = fold(sentence).replace("-", " ")
+    extras = [
+        k for k, said in _LABEL_EXTRAS.items() if any(re.search(rf"\b{w}\b", f) for w in said)
+    ]
+
+    def one(fitting: list[str]) -> str | None:
+        if extras:
+            fitting = [t for t in fitting if any(k in typology_key(t) for k in extras)]
+        elif len(fitting) > 1 and [t for t in fitting if _plain(t)]:
+            # "Two bedrooms and two bathrooms" is the plain one, not its mariposa.
+            fitting = [t for t in fitting if _plain(t)]
+        return fitting[0] if len(fitting) == 1 else None
+
     if (m := _LABEL.search(f)) is not None:
-        return match_typology(f"{m.group(1)}D | {m.group(2)}B", typologies)
+        keyed = typology_key(f"{m.group(1)}D | {m.group(2)}B")
+        return one([t for t in typologies if typology_key(t).startswith(keyed)])
     if re.search(r"\b(?:estudio|studio)\b", f):
-        studios = [t for t in typologies if "estudio" in fold(t)]
+        studios = [t for t in typologies if "estudio" in typology_key(t)]
         return studios[0] if len(studios) == 1 else None
     if _SEVERAL_BEDS.search(f):
         return None
     beds = {_count(m.group(1)) for m in _BEDS.finditer(f)}
     baths = {_count(m.group(1)) for m in _BATHS.finditer(f)}
+    if not beds and not baths and extras:
+        return one(list(typologies))
     if len(beds) != 1 or len(baths) > 1:
         return None
     n = next(iter(beds))
@@ -1209,7 +1326,7 @@ def typology_in(sentence: str, typologies: tuple[str, ...] | list[str]) -> str |
     if baths:
         b = next(iter(baths))
         fitting = [t for t in fitting if re.search(rf"\b{b}\s*b\b", fold(t))]
-    return fitting[0] if len(fitting) == 1 else None
+    return one(fitting)
 
 
 def section_in(sentence: str, keys: tuple[str, ...] | list[str]) -> str | None:
@@ -1505,6 +1622,16 @@ class SsilvaBrain(GeminiBrain):
         #: ring it again.
         self._shown: str | None = None
         self._planned: str | None = None
+        #: The card this reply last rang on the project list; the project
+        #: cards he names before this reply's show_projects has opened the
+        #: list, kept for it; and whether it has.
+        self._carded: str | None = None
+        self._cards: list[Cue] = []
+        self._listing_turn = False
+        #: The photo or plan on screen, as the page last reported it, and
+        #: whether this reply put one full screen.
+        self.photo: PhotoShown | None = None
+        self._viewing = False
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -1639,6 +1766,10 @@ class SsilvaBrain(GeminiBrain):
         self._cue_path = self._path
         self._shown = None
         self._planned = None
+        self._carded = None
+        self._cards = []
+        self._listing_turn = False
+        self._viewing = False
         said = ""
         turn = self._fallback.speak_if_silent(
             self, super().respond(session), again=lambda: self._talk_now(session)
@@ -1654,6 +1785,10 @@ class SsilvaBrain(GeminiBrain):
             again = self._written(session, self._cued(self._talk_now(session)))
             async for event in self._spelled(again):
                 yield event
+        if self._cards:
+            # Cards named on a page with no list, and no list opened after.
+            logger.info("ssilva: {} card cue(s) with no list to ring them on", len(self._cards))
+            self._cards = []
 
     async def _written(
         self, session: Session, turn: AsyncGenerator[Speech, None]
@@ -1747,7 +1882,14 @@ class SsilvaBrain(GeminiBrain):
         logger.info("ssilva: cue {} {!r} at {!r} -> {}", raw.kind, raw.value, raw.at, cue)
         if cue is None:
             return
-        if raw.kind == "show":
+        if cue.card is not None:
+            self._carded = canonical_path(cue.card)
+            if not self._on_a_list():
+                # The list this reply is about opens with its show_projects,
+                # which the model calls after its words: kept until then.
+                self._cards.append(cue)
+                return
+        elif raw.kind == "show":
             self._shown = cue.heading or cue.text
         elif raw.kind == "plan":
             self._planned = cue.typology
@@ -1765,7 +1907,9 @@ class SsilvaBrain(GeminiBrain):
         pages = [p for k, v in placed if k == "page" and (p := self._page_for(v)) is not None]
         path = pages[-1] if pages else self._cue_path
         self._cue_path = path
-        if kinds & {"show", "plan"}:
+        if "photo" in kinds:
+            self._viewing = True
+        if kinds & {"show", "plan", "photo"}:
             # Its own cues are sent after this returns: count them as shown now,
             # so the next sentence on the same part does not ring it again.
             for kind, value in placed:
@@ -1776,6 +1920,15 @@ class SsilvaBrain(GeminiBrain):
                     self._planned = match_typology(value, self._typologies(path)) or value
             return []
         page = self.kb.page(path)
+        # Photos or a plan full screen: a sentence about what is in them
+        # ("the barbecue area") is not a move to that part of the page.
+        viewing = self._viewing or (self.photo is not None and self.photo.fullscreen)
+        if not self._is_project_page(path):
+            # The project list, or a reply that opens it: the card of the one
+            # project a sentence is about, as he says it.
+            card = self._card_in(sentence)
+            if card is not None:
+                return [("show", card.site_name)]
         if page is not None and page.kind == "project":
             typologies = self._typologies(path)
             plan = typology_in(sentence, typologies)
@@ -1783,7 +1936,7 @@ class SsilvaBrain(GeminiBrain):
                 self._planned = plan
                 return [("plan", plan)]
             key = section_in(sentence, self._keys(path))
-            if key is not None and key != self._shown:
+            if key is not None and key != self._shown and not viewing:
                 return [("show", key)]
             return []
         if page is None:
@@ -1792,6 +1945,45 @@ class SsilvaBrain(GeminiBrain):
         if heading is not None and heading != self._shown:
             return [("show", heading)]
         return []
+
+    def _card_in(self, sentence: str) -> Project | None:
+        """The one listed project ``sentence`` is about, unless its card is
+        rung already or the sentence is a question (the closing offer)."""
+        if sentence.rstrip().endswith("?"):
+            return None
+        named = named_projects(sentence, self.kb)
+        if len(named) != 1 or not named[0].listed or not named[0].path:
+            return None
+        if canonical_path(named[0].path) == self._carded:
+            return None
+        return named[0]
+
+    def _is_project_page(self, path: str) -> bool:
+        page = self.kb.page(path)
+        live = self._live(path)
+        return (page is not None and page.kind == "project") or (
+            live is not None and live.kind == "project"
+        )
+
+    def _on_a_list(self) -> bool:
+        """Whether this reply's cues land on the project list: it is in front,
+        a page cue opened it, or this reply's show_projects did."""
+        if self._listing_turn:
+            return True
+        target = canonical_path(self._cue_path)
+        page = self.kb.page(target)
+        live = self._live(target)
+        return (
+            target in ("/proyectos", "/oportunidades")
+            or (page is not None and page.kind == "projects")
+            or (live is not None and live.kind == "projects")
+        )
+
+    def _listed_project(self, value: str) -> Project | None:
+        project = self.kb.project(value)
+        if project is None or not project.listed or not project.path:
+            return None
+        return project
 
     def _page_for(self, value: str) -> str | None:
         """The canonical path a page cue's value names: a path of the site, or a
@@ -1849,9 +2041,14 @@ class SsilvaBrain(GeminiBrain):
             if label is None:
                 return None
             return Cue(at=raw.at, word=raw.word, path=path, typology=label)
-        # show: a section by its canonical name, a heading, else those words.
         live = None if moved else self._live(target)
-        if (page is not None and page.kind == "project") or (live and live.kind == "project"):
+        on_project = (page is not None and page.kind == "project") or bool(
+            live and live.kind == "project"
+        )
+        if raw.kind == "photo":
+            return self._photo_cue(raw, path, target) if on_project else None
+        # show: a section by its canonical name, a heading, else those words.
+        if on_project:
             key = section_key(raw.value)
             if key is not None:
                 if key not in self._keys(target):
@@ -1861,8 +2058,37 @@ class SsilvaBrain(GeminiBrain):
         if page is not None:
             headings += [h for h in page.headings if h not in headings]
         heading = _match(raw.value, headings)
+        if heading is None and not on_project:
+            # A project named off its own page: its card, on the list.
+            project = self._listed_project(raw.value)
+            if project is not None:
+                return Cue(
+                    at=raw.at,
+                    word=raw.word,
+                    card=site_path(project.path),
+                    text=project.site_name,
+                )
         text = None if heading else raw.value[:120]
         return Cue(at=raw.at, word=raw.word, path=path, heading=heading, text=text)
+
+    def _photo_cue(self, raw: RawCue, path: str | None, target: str) -> Cue | None:
+        """``{photo: 3}``, ``{photo: amenidades 2}``: that photo, full screen."""
+        value = fold(raw.value)
+        which: Literal["gallery", "amenities"] = (
+            "amenities" if re.search(r"amenid|amenit|equipam", value) else "gallery"
+        )
+        if ("amenidades" if which == "amenities" else "galería") not in self._keys(target):
+            return None
+        digits = re.search(r"\d+", value)
+        number = int(digits.group()) if digits else None
+        if number is None:
+            number = next((n for w, n in _NUMBER_WORDS.items() if re.search(rf"\b{w}\b", value)), 1)
+        total = 0
+        if self.page is not None and path is None:
+            total = len(self.page.photos if which == "gallery" else self.page.amenity_photos)
+        if number < 1 or (total and number > total):
+            return None
+        return Cue(at=raw.at, word=raw.word, path=path, photo=number, photos=which)
 
     def _talk_now(self, session: Session) -> AsyncGenerator[Speech, None]:
         """The one extra request a silent page move gets: tools declared, none
@@ -1880,10 +2106,10 @@ class SsilvaBrain(GeminiBrain):
         args = dict(call.args or {})
         if (
             tool is not None
-            and args
             and "request" not in args
             and "request" in inspect.signature(tool).parameters
         ):
+            # Flat, or none at all ("the next photo"): every field has a default.
             logger.info("ssilva: {} called with flat arguments; wrapping them", call.name)
             call = call.model_copy(update={"args": {"request": args}})
         return await super()._run(tool, call)
@@ -1941,6 +2167,7 @@ class SsilvaBrain(GeminiBrain):
             case PageChanged():
                 if canonical_path(event.path) != self._path:
                     self.typology = None
+                    self.photo = None
                     if self.lead is not None and self.lead.step != "sent":
                         self.lead = None
                 self.page = event
@@ -1988,6 +2215,23 @@ class SsilvaBrain(GeminiBrain):
             case LanguageRequested():
                 # Switched by on_rtvi before it gets here: a toggle is not a note.
                 return None
+            case PhotoShown():
+                was, self.photo = self.photo, event
+                return _photo_line(event, was)
+            case ViewerClosed():
+                self.photo = None
+                if event.by == "javier":
+                    return None  # He moved on; he knows.
+                return "[The visitor closed the full-screen view.]"
+            case CommandFailed() if event.command == "show_projects" and "is not among" in (
+                event.reason
+            ):
+                # The list is up, filtered; only the ring missed.
+                return (
+                    f"[The project list is on their screen, but these cards were not rung "
+                    f"({event.reason}). Do not mention it; if they pick one, open its page "
+                    "with a page cue.]"
+                )
             case CommandFailed() if event.command == "cue":
                 return (
                     f"[A screen cue of yours did not land ({event.reason}). If the visitor "
@@ -2086,6 +2330,9 @@ class SsilvaBrain(GeminiBrain):
             self.search_site,
             self.show_projects,
             self.show_photos,
+            self.step_photo,
+            self.slideshow,
+            self.show_floor_plan,
             self.open_tour,
             self.close_overlay,
             self.fill_lead_form,
@@ -2200,6 +2447,8 @@ class SsilvaBrain(GeminiBrain):
             elif project.site_name not in names:
                 names.append(project.site_name)
         names += [n for n in rung if n not in names]
+        by_name = {p.site_name: p for p in self.kb.projects.values()}
+        paths = [site_path(by_name[n].path) for n in names if n in by_name and by_name[n].path]
         # The site's commune filter takes one comuna at a time.
         others, communes = communes[1:], communes[:1]
         if region is None and names:
@@ -2207,9 +2456,17 @@ class SsilvaBrain(GeminiBrain):
             if len(regions) == 1:
                 region = next(iter(regions))
         self._move(
-            ShowProjects(region=region, property=prop, communes=communes, highlight=names),
+            ShowProjects(
+                region=region, property=prop, communes=communes, highlight=names, paths=paths
+            ),
             "list",
         )
+        # The cards he named before this call, rung on the list as he says them.
+        self._listing_turn = True
+        self._cue_path = "/proyectos"
+        cards, self._cards = self._cards, []
+        for cue in cards:
+            self.session.dispatch(cue)
         parts = [
             REGION_LABELS[region] if region else "every region",
             prop or "",
@@ -2235,10 +2492,59 @@ class SsilvaBrain(GeminiBrain):
         key = "galería" if request.which == "gallery" else "amenidades"
         if key not in self._keys(self._path):
             return f"Not shown: {project.name}'s page has no {key}."
-        self._move(ShowPhotos(which=request.which, index=request.index), "photos")
-        return f"Showing {project.name}'s {key}" + (
-            f" at photo {request.index}." if request.index else "."
+        full = request.fullscreen or request.which == "amenities"
+        self._move(ShowPhotos(which=request.which, index=request.index, fullscreen=full), "photos")
+        return (
+            f"Showing {project.name}'s {key}"
+            + (" full screen" if full else "")
+            + (f" at photo {request.index}." if request.index else ".")
+            + " Say what it shows from the screen line, in a few words."
         )
+
+    async def step_photo(self, request: StepRequest) -> str:
+        """The next photo, or with back the previous one: in the full-screen
+        view, or on the gallery."""
+        if self._on_project() is None:
+            return "Not moved: photos are on a project page. Open the project first."
+        self._move(StepPhoto(back=request.back), "photo")
+        return "Moved. Say what it shows from the screen line, in a few words."
+
+    async def slideshow(self, request: SlideshowRequest) -> str:
+        """Run the photos full screen by themselves, one every few seconds, or
+        stop them. They also stop when the visitor speaks."""
+        project = self._on_project()
+        if project is None:
+            return "Not started: photos are on a project page. Open the project first."
+        if not request.play:
+            self._move(Slideshow(play=False), "stopped")
+            return "Stopped on the photo on screen."
+        which = request.which
+        key = "amenidades" if which == "amenities" else "galería"
+        if key not in self._keys(self._path):
+            return f"Not started: {project.name}'s page has no {key}."
+        seconds = max(3, min(15, request.seconds)) if request.seconds else None
+        self._move(Slideshow(play=True, which=which, seconds=seconds), "slideshow")
+        return (
+            "The slideshow is running. Say in one sentence that the photos go by on their own "
+            "and they can say stop, or ask for any one."
+        )
+
+    async def show_floor_plan(self, request: PlanRequest) -> str:
+        """Open a typology's floor plan full screen, on a project page or its
+        cotizar page."""
+        on_quote = self.page is not None and self.page.kind == "quote"
+        project = self._on_project()
+        if project is None and not on_quote:
+            return "Not shown: floor plans are on a project page. Open the project first."
+        label = request.typology
+        if label and not on_quote:
+            typologies = self._typologies(self._path)
+            matched = match_typology(label, typologies)
+            if matched is None:
+                return f"Not shown: no typology '{label}' here. It has: {'; '.join(typologies)}."
+            label = matched
+        self._move(ShowFloorPlan(typology=label), "plan")
+        return f"Opening the floor plan{f' of {label}' if label else ''} full screen."
 
     async def open_tour(self) -> str:
         """Open the virtual tour on this project's page, where it has one."""
@@ -2387,6 +2693,32 @@ def _typology_line(t: TypologyShown) -> str:
     return ", ".join(f for f in facts if f)
 
 
+_PHOTOS_IN_NOTE = 12
+
+
+def _numbered(items: list[str]) -> str:
+    return _clip([f"{i} {c or 'sin nombre'}" for i, c in enumerate(items, 1)], _PHOTOS_IN_NOTE)
+
+
+def _photo_line(e: PhotoShown, was: PhotoShown | None) -> str | None:
+    """A photo on screen, as the model reads it: each one he or the visitor
+    moved to, and a slideshow once, when it starts and when it stops."""
+    what = {"gallery": "gallery photo", "amenities": "amenities photo", "plan": "floor plan"}
+    shown = (
+        f"the floor plan {e.caption}"
+        if e.which == "plan"
+        else f"{what[e.which]} {e.index} of {e.total}" + (f" ({e.caption})" if e.caption else "")
+    )
+    if e.playing:
+        if was is not None and was.playing:
+            return None  # The slideshow's next photo: no news.
+        return f"[On screen: a slideshow of the {e.which} photos, from {shown}.]"
+    if was is not None and was.playing:
+        return f"[The slideshow stopped on {shown}.]"
+    by = " (the visitor moved to it)" if e.by == "visitor" else ""
+    return f"[On screen: {shown}{by}.]"
+
+
 def _listed_line(e: ProjectsListed) -> str:
     where = ", ".join(x for x in (e.region or "", e.property or "", ", ".join(e.communes)) if x)
     names = "; ".join(e.projects) or "none"
@@ -2402,7 +2734,8 @@ def _page_line(p: PageChanged, k: Knowledge) -> str:
     path = site_path(p.path)
     if p.kind == "project":
         project = k.project_at(p.path)
-        name = p.project or (project.name if project else p.title)
+        # The site's own name: a translated page's title is "BARROSO DISTRICT".
+        name = project.name if project else (p.project or p.title)
         note = f"[The tab in front: the project page of {name} ({path})."
         if p.price:
             note += f" Hero: {p.price}."
@@ -2413,6 +2746,10 @@ def _page_line(p: PageChanged, k: Knowledge) -> str:
             note += f" (selected: {p.typology})." if p.typology else "."
         if p.sections:
             note += f" Sections: {', '.join(p.sections)}."
+        if p.photos:
+            note += f" Gallery photos: {_numbered(p.photos)}."
+        if p.amenity_photos:
+            note += f" Amenities photos: {_numbered(p.amenity_photos)}."
     elif p.kind == "projects":
         note = f"[The tab in front: the project list ({path})."
     elif p.kind == "quote":

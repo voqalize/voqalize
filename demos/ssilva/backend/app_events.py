@@ -25,11 +25,13 @@ __all__ = [
     "LeadFormState",
     "LeadSubmitted",
     "PageChanged",
+    "PhotoShown",
     "ProjectsListed",
     "SsilvaEvent",
     "TabInfo",
     "TabsChanged",
     "TypologyShown",
+    "ViewerClosed",
 ]
 
 
@@ -58,6 +60,11 @@ class PageChanged(AppEvent):
     """The hero's price, as written: "Desde 3.375 UF"."""
     status: str = ""
     """The status bar's active step: "Entrega inmediata"."""
+    photos: list[str] = Field(default_factory=list[str])
+    """On a project page, what each gallery photo shows, in order, as its file
+    names it ("depto grande", "cowork"): the site gives them no captions."""
+    amenity_photos: list[str] = Field(default_factory=list[str])
+    """The same for the amenities' photos ("piscina", "gourmet")."""
 
 
 class TypologyShown(AppEvent):
@@ -71,6 +78,32 @@ class TypologyShown(AppEvent):
     bedrooms: str = ""
     bathrooms: str = ""
     orientation: str = ""
+
+
+class PhotoShown(AppEvent):
+    """A photo or a plan is on screen: in the full-screen viewer, or on the
+    gallery's slider. Sent for every change, the slideshow's included."""
+
+    which: Literal["gallery", "amenities", "plan"]
+    index: int = 1
+    """From 1."""
+    total: int = 1
+    caption: str = ""
+    """What it shows, as the site's file names it, or a plan's typology."""
+    playing: bool = False
+    """The slideshow is running."""
+    fullscreen: bool = True
+    """In the full-screen view; false for the gallery's own slider."""
+    by: Literal["javier", "visitor"] = "javier"
+    """Who moved it: his move, or the visitor's own press in the viewer."""
+
+
+class ViewerClosed(AppEvent):
+    """The full-screen view closed: by the visitor, or as Javier moved on to
+    another part of the page."""
+
+    which: Literal["gallery", "amenities", "plan"]
+    by: Literal["javier", "visitor"] = "visitor"
 
 
 class ProjectsListed(AppEvent):
@@ -141,6 +174,8 @@ type SsilvaEvent = (
     | TabsChanged
     | CommandFailed
     | LanguageRequested
+    | PhotoShown
+    | ViewerClosed
 )
 
 SSILVA_EVENTS = AppEvents[SsilvaEvent](
@@ -152,4 +187,6 @@ SSILVA_EVENTS = AppEvents[SsilvaEvent](
     TabsChanged,
     CommandFailed,
     LanguageRequested,
+    PhotoShown,
+    ViewerClosed,
 )

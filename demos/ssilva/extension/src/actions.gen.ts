@@ -23,11 +23,13 @@ export interface Navigate {
 /**
  * A move for the page to make when the voice reaches `at` — the first
  * words of the sentence it belongs to (see `.cues`); empty `at` is
- * when the voice stops. With `path`, it is a `Navigate`; else a
- * section, words or a typology on the page in front. `heading` may be a
- * section's heading or its canonical name: `galería`, `tipologías`,
- * `amenidades`, `tour`, `estado`, `brochure`, `contacto`,
- * `formulario`.
+ * when the voice stops. With `path`, it is a `Navigate`; with
+ * `card`, the card of the project whose page is at that path, rung on the
+ * project list (paged to) as he names it, `text` its name; with
+ * `photo`, that photo of `photos` full screen; else a section, words or
+ * a typology on the page in front. `heading` may be a section's heading
+ * or its canonical name: `galería`, `tipologías`, `amenidades`,
+ * `tour`, `estado`, `brochure`, `contacto`, `formulario`.
  */
 export interface Cue {
   at: string;
@@ -41,6 +43,12 @@ export interface Cue {
   text: string | null;
 
   typology: string | null;
+
+  card: string | null;
+
+  photo: number | null;
+
+  photos: 'gallery' | 'amenities' | null;
 }
 
 /**
@@ -69,7 +77,8 @@ export interface SelectTypology {
  * (names as the filter writes them; only the Región Metropolitana has them,
  * and it takes one at a time), and ring
  * the cards of the `highlight` projects (names as the cards write them),
- * paging if needed. The page reports `projects_listed`.
+ * found by their project pages in `paths`, which a translated page does
+ * not rewrite, paging if needed. The page reports `projects_listed`.
  */
 export interface ShowProjects {
   region: string | null;
@@ -79,17 +88,53 @@ export interface ShowProjects {
   communes: string[];
 
   highlight: string[];
+
+  paths: string[];
 }
 
 /**
  * On a project page: `gallery` scrolls to the photo gallery and moves it
- * to photo `index` (1 for the first); `amenities` opens the amenities
- * lightbox at photo `index`.
+ * to photo `index` (1 for the first), or with `fullscreen` opens it full
+ * screen at that photo; `amenities` opens the amenities' photos full
+ * screen at photo `index`. The page reports `photo_shown`.
  */
 export interface ShowPhotos {
   which: 'gallery' | 'amenities';
 
   index: number | null;
+
+  fullscreen: boolean;
+}
+
+/**
+ * The next photo (`back`: the previous one) in the full-screen viewer,
+ * or on the gallery's slider when it is not open.
+ */
+export interface StepPhoto {
+  back: boolean;
+}
+
+/**
+ * `play`: the photos full screen, one every `seconds`, from the one
+ * shown (the gallery's, unless `which` says the amenities'), until
+ * stopped. Not `play`: stop on the photo shown. The visitor starting to
+ * speak stops it too.
+ */
+export interface Slideshow {
+  play: boolean;
+
+  which: 'gallery' | 'amenities' | null;
+
+  seconds: number | null;
+}
+
+/**
+ * A typology's floor plan, full screen: on a project page, select
+ * `typology` (when given) and open its plan; on a cotizar page, the
+ * typology's unit plan and its place on the floor.
+ */
+export interface ShowFloorPlan {
+  typology: string | null;
 }
 
 /**
@@ -98,7 +143,10 @@ export interface ShowPhotos {
  */
 export type OpenTour = Record<string, never>;
 
-/** Close the lightbox or the modal that is open. */
+/**
+ * Close what is open over the page: the full-screen photos or plan, a
+ * lightbox, the tour's modal.
+ */
 export type CloseOverlay = Record<string, never>;
 
 /**
@@ -205,6 +253,30 @@ export interface PageChanged {
   price?: string;
 
   status?: string;
+
+  photos?: string[];
+
+  amenity_photos?: string[];
+}
+
+/**
+ * A photo or a plan is on screen: in the full-screen viewer, or on the
+ * gallery's slider. Sent for every change, the slideshow's included.
+ */
+export interface PhotoShown {
+  which: 'gallery' | 'amenities' | 'plan';
+
+  index?: number;
+
+  total?: number;
+
+  caption?: string;
+
+  playing?: boolean;
+
+  fullscreen?: boolean;
+
+  by?: 'javier' | 'visitor';
 }
 
 /** The project list showed its results for a filter. */
@@ -250,6 +322,16 @@ export interface TypologyShown {
   orientation?: string;
 }
 
+/**
+ * The full-screen view closed: by the visitor, or as Javier moved on to
+ * another part of the page.
+ */
+export interface ViewerClosed {
+  which: 'gallery' | 'amenities' | 'plan';
+
+  by?: 'javier' | 'visitor';
+}
+
 // ── Shapes used by the messages above ──────────────────────────────
 
 export interface TabInfo {
@@ -268,6 +350,9 @@ export type UiAction =
   | { command: 'select_typology'; payload: SelectTypology }
   | { command: 'show_projects'; payload: ShowProjects }
   | { command: 'show_photos'; payload: ShowPhotos }
+  | { command: 'step_photo'; payload: StepPhoto }
+  | { command: 'slideshow'; payload: Slideshow }
+  | { command: 'show_floor_plan'; payload: ShowFloorPlan }
   | { command: 'open_tour'; payload: OpenTour }
   | { command: 'close_overlay'; payload: CloseOverlay }
   | { command: 'fill_lead_form'; payload: FillLeadForm }
@@ -284,6 +369,9 @@ export const UI_ACTION_COMMANDS: readonly UiActionCommand[] = [
   'select_typology',
   'show_projects',
   'show_photos',
+  'step_photo',
+  'slideshow',
+  'show_floor_plan',
   'open_tour',
   'close_overlay',
   'fill_lead_form',
@@ -319,9 +407,11 @@ export type AppEvent =
   | { event: 'lead_form'; payload: LeadFormState }
   | { event: 'lead_submitted'; payload: LeadSubmitted }
   | { event: 'page_changed'; payload: PageChanged }
+  | { event: 'photo_shown'; payload: PhotoShown }
   | { event: 'projects_listed'; payload: ProjectsListed }
   | { event: 'tabs_changed'; payload: TabsChanged }
-  | { event: 'typology_shown'; payload: TypologyShown };
+  | { event: 'typology_shown'; payload: TypologyShown }
+  | { event: 'viewer_closed'; payload: ViewerClosed };
 
 export type AppEventName = AppEvent['event'];
 
@@ -331,9 +421,11 @@ export const APP_EVENT_NAMES: readonly AppEventName[] = [
   'lead_form',
   'lead_submitted',
   'page_changed',
+  'photo_shown',
   'projects_listed',
   'tabs_changed',
   'typology_shown',
+  'viewer_closed',
 ];
 
 /**

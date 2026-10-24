@@ -100,3 +100,12 @@ def test_each_sentence_is_offered_for_the_moves_it_did_not_bring() -> None:
         ("plan", "2D | 2B", "hola", 0),
         ("show", "amenidades", "tiene piscina y", 1),
     ]
+
+
+def test_a_photo_cue_leaves_the_speech_and_anchors_to_its_sentence() -> None:
+    spoken, cues = _run("{photo: 2} Este es el cowork. {photo: amenidades 1} Y la piscina.")
+    assert spoken == " Este es el cowork. Y la piscina."
+    assert [(c.kind, c.value, c.at) for c in cues] == [
+        ("photo", "2", "este es el"),
+        ("photo", "amenidades 1", "y la piscina"),
+    ]
