@@ -9,11 +9,17 @@
  * RTP synchronization sample, in wall-clock time, which the page shares with
  * the holder, and the playout-delay totals). The avatar's own reports go back
  * to the holder, which sends the front tab's on to the brain.
+ *
+ * The stand-in receiver answers the face's read with that sample carried
+ * forward to the moment of the read (`mouth-clock.ts`), as a receiver in the
+ * page would: a busy page reads the relay's messages late, and a late answer
+ * is a stop to the face, which shuts his mouth over his voice.
  */
 
 import type { PipecatClient } from "@pipecat-ai/client-js";
 
 import { onHolder, tell } from "./hub";
+import { carriedForward, type Delivery } from "./mouth-clock";
 
 export interface Following {
   /** Enough of a `PipecatClient` for `createAvatar`: `on`, `off`, `tracks`,
@@ -27,7 +33,7 @@ export interface Following {
 
 export function followCall(): Following {
   const handlers = new Map<string, Set<(...a: unknown[]) => void>>();
-  let latest: { timestamp: number; rtpTimestamp: number } | null = null;
+  let latest: Delivery | null = null;
   let playout: { delay: number; samples: number } | null = null;
   let syncSink: ((e: MessageEvent) => void) | null = null;
 
@@ -47,7 +53,10 @@ export function followCall(): Following {
   };
   const receiver = {
     track: { kind: "audio" },
-    getSynchronizationSources: () => (latest ? [{ ...latest, source: 1, audioLevel: 0 }] : []),
+    getSynchronizationSources: () => {
+      const now = carriedForward(latest, performance.timeOrigin + performance.now());
+      return now ? [{ ...now, source: 1, audioLevel: 0 }] : [];
+    },
   };
   const pc = {
     getReceivers: () => [receiver],

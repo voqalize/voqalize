@@ -17,7 +17,10 @@
  *     tab list, and the HubSpot quote-form frame never joins it either;
  *   - the microphone permission's branches (granted, denied, prompt answered
  *     in the frame, prompt that needs the tab), with the permission query
- *     stubbed.
+ *     stubbed;
+ *   - his mouth clock: with his voice on a real WebRTC loopback in the holder,
+ *     the face's reads of the relayed clock are fresh while he speaks, on a
+ *     busy page too, and read as a stop soon after he stops.
  */
 
 import { type BrowserContext, chromium, expect, type Page, test as base, type Worker } from "@playwright/test";
@@ -101,6 +104,8 @@ const test = base.extend<{ ext: Ext }>({
         `--load-extension=${EXT}`,
         "--use-fake-device-for-media-stream",
         "--use-fake-ui-for-media-stream",
+        // His voice in the voice tests is a tone the holder plays unprompted.
+        "--autoplay-policy=no-user-gesture-required",
       ],
     });
     const connects: Ext["connects"] = [];
@@ -500,5 +505,81 @@ test.describe("the widget across a page load", () => {
     expect(await kept(page)).toBeNull();
     expect(await page.evaluate(() => Boolean(document.getElementById("voqalize-transitions")))).toBe(false);
     expect(await holderUp(ext.sw)).toBe(false);
+  });
+});
+
+/** The face shuts the mouth on a delivery older than this when it reads one:
+ *  a frame, and the gap it closes over. */
+const STALE_MS = 60;
+
+interface FaceRead {
+  at: number;
+  timestamp: number | null;
+}
+const faceReads = (page: Page) =>
+  page.evaluate(() => (window as unknown as { __faceReads?: FaceRead[] }).__faceReads ?? []) as Promise<FaceRead[]>;
+const pageNow = (page: Page) => page.evaluate(() => performance.timeOrigin + performance.now());
+const staleShare = (reads: FaceRead[]) =>
+  reads.filter((r) => r.timestamp === null || r.at - r.timestamp > STALE_MS).length / reads.length;
+
+/** Speak, and wait until his voice reaches the face's reads. */
+async function speaking(ext: Ext, page: Page): Promise<void> {
+  expect(await toHolder(ext.sw, { what: "voice", on: true })).toEqual({ ok: true });
+  await expect
+    .poll(async () => (await faceReads(page)).slice(-5).filter((r) => r.timestamp !== null && r.at - r.timestamp <= STALE_MS).length)
+    .toBeGreaterThan(0);
+}
+
+test.describe("his mouth clock on a page", () => {
+  test("while he speaks the face reads a fresh delivery, on a quiet page and on a busy one", async ({ ext }) => {
+    const page = await ext.open("/");
+    await callLive(ext, page);
+    await speaking(ext, page);
+
+    let from = await pageNow(page);
+    await page.waitForTimeout(3000);
+    const quiet = (await faceReads(page)).filter((r) => r.at >= from);
+
+    // A busy page, as a gallery, a scroll or the next page parsing makes one:
+    // 60 ms of work every 120 ms.
+    from = await page.evaluate(() => {
+      (window as unknown as { __busy?: number }).__busy = window.setInterval(() => {
+        const t = performance.now();
+        while (performance.now() - t < 60);
+      }, 120);
+      return performance.timeOrigin + performance.now();
+    });
+    await page.waitForTimeout(4000);
+    const until = await page.evaluate(() => {
+      clearInterval((window as unknown as { __busy?: number }).__busy);
+      return performance.timeOrigin + performance.now();
+    });
+    const busy = (await faceReads(page)).filter((r) => r.at >= from && r.at <= until);
+
+    expect(quiet.length).toBeGreaterThan(50);
+    expect(busy.length).toBeGreaterThan(20);
+    expect(staleShare(quiet)).toBeLessThan(0.05);
+    expect(staleShare(busy)).toBeLessThan(0.05);
+  });
+
+  test("when he stops, the face reads the stop within a moment", async ({ ext }) => {
+    const page = await ext.open("/");
+    await callLive(ext, page);
+    await speaking(ext, page);
+    await page.waitForTimeout(1500);
+
+    expect(await toHolder(ext.sw, { what: "voice", on: false })).toEqual({ ok: true });
+    const stopped = await pageNow(page);
+    await page.waitForTimeout(1000);
+    const after = (await faceReads(page)).filter((r) => r.at >= stopped);
+
+    // The last delivery the face is shown is at most the hold past the real
+    // stop (plus the receiver draining its buffer), and from then on every
+    // read is a stop.
+    const last = Math.max(...after.map((r) => r.timestamp ?? 0));
+    expect(last).toBeLessThan(stopped + 300);
+    const settled = after.filter((r) => r.at >= stopped + 400);
+    expect(settled.length).toBeGreaterThan(10);
+    expect(staleShare(settled)).toBe(1);
   });
 });
