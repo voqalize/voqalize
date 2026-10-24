@@ -15,10 +15,10 @@
  * of words before each, at a speaking pace. When the visitor talks over him,
  * what he had not reached yet is dropped: it was never said.
  *
- * Every move to another page on ssilva.cl is a full page load, which ends
- * this script. So a cue that leaves the page first takes the cues after it
- * (`drain`): the page it loads makes the ones already due on arrival, and
- * waits for his voice to reach the others (`restore`).
+ * This runs in the holder (`holder.ts`), with the call, so a cue that loads
+ * another page in the visitor's tab ends nothing here: the cues after it wait
+ * their turn, and the holder keeps the next one for that tab until its new
+ * page says hello.
  */
 
 import type { Cue } from "./actions.gen";
@@ -33,10 +33,6 @@ const AFTER_STOP_MS = 600;
 /** A cue whose words never come is dropped after this. */
 const STALE_MS = 45_000;
 
-/** A restored cue whose words never come (the voice finished during the
- *  page load) is made after this anyway. */
-const RESTORED_MS = 9000;
-
 /** Words as the voice and the brain both spell them: lower case, accents
  *  folded ("está" is "esta", "año" is "ano"), punctuation gone. */
 export const words = (text: string) =>
@@ -48,12 +44,6 @@ export const words = (text: string) =>
       .replace(/’/g, "'")
       .match(/[a-z0-9']+/g) ?? []
   ).join(" ");
-
-/** The cues a page left for the next: due now, and still waiting for words. */
-export interface Rest {
-  ready: Cue[];
-  waiting: Cue[];
-}
 
 interface Waiting {
   cue: Cue;
@@ -80,6 +70,15 @@ export class Narration {
     this.queue.push({ cue, from: Math.max(0, this.heard.length - 120), born: Date.now() });
     this.check();
     this.tick();
+  }
+
+  /** The call ended: nothing more moves. */
+  clear(): void {
+    this.queue = [];
+    this.due = [];
+    this.speakingSince = 0;
+    if (this.stopTimer) clearTimeout(this.stopTimer);
+    this.stopTimer = null;
   }
 
   /** Spoken text, as the voice plays it. */
@@ -123,32 +122,6 @@ export class Narration {
     this.speakingSince = 0;
   }
 
-  /** Take every cue not made yet — due, and waiting for its words — for the
-   *  page this one is about to load. */
-  drain(): Rest {
-    const rest = { ready: this.due, waiting: this.queue.map((q) => q.cue) };
-    this.due = [];
-    this.queue = [];
-    return rest;
-  }
-
-  /** What the page before left: the due cues are made now, the others when
-   *  the voice reaches their words, or shortly anyway. */
-  restore(rest: Rest): void {
-    for (const cue of rest.ready) this.fire(cue);
-    if (!rest.waiting.length) return;
-    const restored = rest.waiting.map((cue) => ({ cue, from: 0, born: Date.now() }));
-    this.queue.push(...restored);
-    this.check();
-    this.tick();
-    setTimeout(() => {
-      const left = this.queue.filter((q) => restored.includes(q));
-      if (!left.length) return;
-      this.queue = this.queue.filter((q) => !left.includes(q));
-      for (const q of left) this.fire(q.cue);
-    }, RESTORED_MS);
-  }
-
   private check(): void {
     while (this.queue.length) {
       const q = this.queue[0];
@@ -189,7 +162,7 @@ export class Narration {
     this.due.push(cue);
     this.chain = this.chain
       .then(() => {
-        // Drained meanwhile, for the next page: nothing to make here.
+        // Cleared meanwhile (the call ended): nothing to make.
         const next = this.due.shift();
         return next ? this.move(next) : undefined;
       })

@@ -3,6 +3,7 @@
   "name": "Javier for Ssilva — Voqalize preview",
   "version": "0.0.0",
   "description": "A voice guide on ssilva.cl, who answers from Ssilva's own pages, takes visitors to the project, section and typology that answer them, lists the projects that fit, and fills in the quote form with them. A Voqalize preview.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0M6AM9UaE7hmaPiU9lnurzWusPInsL0TSCZorPbWdATnowTL71oCQ0LlUyL341xH9rl4baGskoetZdcMOZXzlBI59QEN3ozePXZA/KSoXRmn3Uo0e9UkxvEEV3HX9cx+jOlMzwx/+8KiGBufY263SZAIVIQYGQH/lOuqXCv3UVzW+ko9CNYvELsg09KvF/b8amKGtLBczvc6zsFaHsetOYzv+ZvPCMm6S1DEfWohm6dvrv1lNK+O6MBzEldR0FFW8tj2In2sFEXfydMI/GCcrSAM9GSShCf0Fqa7XCPV+rPdvWonrrLbRryWpjgPnbMO98tHzmEosSymMv5UA1BIfQIDAQAB",
   "background": {
     "service_worker": "background.js",
     "type": "module"
@@ -12,6 +13,12 @@
       "matches": ["https://www.ssilva.cl/*", "https://ssilva.cl/*"],
       "js": ["bridge.js"],
       "run_at": "document_start"
+    },
+    {
+      "matches": ["https://www.ssilva.cl/*", "https://ssilva.cl/*"],
+      "js": ["shell.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
     },
     {
       "matches": ["https://www.ssilva.cl/*", "https://ssilva.cl/*"],
@@ -27,6 +34,9 @@
       "world": "MAIN"
     }
   ],
-  "permissions": ["storage"],
-  "host_permissions": ["https://www.ssilva.cl/*", "https://ssilva.cl/*"]
+  "permissions": ["storage", "offscreen"],
+  "host_permissions": ["https://www.ssilva.cl/*", "https://ssilva.cl/*"],
+  "web_accessible_resources": [
+    { "resources": ["grant.html", "grant.js"], "matches": ["https://www.ssilva.cl/*", "https://ssilva.cl/*"] }
+  ]
 }
