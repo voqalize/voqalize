@@ -1,16 +1,24 @@
-// Builds the unpacked extension into dist/: four bundles and the manifest,
-// stamped with this package's version.
+// Builds the unpacked extension into dist/: the bundles, their two pages and
+// the manifest, stamped with this package's version.
 //
-//   content.js     the call, the widget and the site adapter, in the page's
-//                  own JavaScript world (MAIN);
+//   holder.js      the call, in the offscreen document `call.html`: pipecat,
+//                  his voice, the relay to the pages, the routing of the
+//                  brain's Actions, the narration and the tab registry;
+//   content.js     the widget, his face and the site adapter, in the page's
+//                  own JavaScript world (MAIN); it mints the session;
+//   shell.js       the early shell (MAIN, document_start): in a call, the
+//                  widget back at once on the next page, as the last page left
+//                  it, and the page load as a view transition under it;
 //   hsform.js      inside the HubSpot quote-form frame on a project page, when
 //                  Ssilva holds it: fills the form and reports it, and stops
 //                  the visitor's "Enviar" while SSILVA_BLOCK_SUBMIT is on;
 //   bridge.js      the isolated-world script that carries the page's messages
-//                  to the hub and back;
-//   background.js  the hub: one call relayed across every Ssilva tab, the
-//                  moves kept across page loads, and new tabs opened for
-//                  Javier's moves.
+//                  to the holder and the service worker, and back;
+//   grant.js       `grant.html`, the extension's one-time microphone grant;
+//   background.js  the service worker: makes the holder, opens and focuses
+//                  tabs (a Ssilva page, or a project's WhatsApp chat), keeps
+//                  the adapter's move for a tab's next page and the language
+//                  choice.
 //
 // The agent id and publishable key are read from the environment (or a local
 // .env beside this file) and baked into content.js. A build without them still
@@ -25,6 +33,10 @@
 // whether the quote form's "Enviar" is stopped. Unset, a dev build stops it
 // and a production build lets it through.
 //
+// VOQALIZE_TEST_BUILD=1 builds the extension the end-to-end tests load
+// (test/.build/ext): a stand-in call in the holder (test/fake-call-client.ts),
+// a stand-in avatar, and a made-up API, so nothing reaches the network.
+//
 // AVATAR_RUNTIME, when set, swaps the avatar runtime the npm shim names for
 // another — `pnpm build` sets it to the dev host's `current.js`, so the dev
 // extension runs the last dev upload. Read from the process alone, never from a
@@ -37,7 +49,10 @@ import { fileURLToPath } from "node:url";
 import { unreleasedRuntime } from "../../shared/avatar-runtime.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const out = process.env.VOQALIZE_OUT_DIR || join(here, "dist");
+const out =
+  process.env.VOQALIZE_TEST_BUILD === "1"
+    ? join(here, "test", ".build", "ext")
+    : process.env.VOQALIZE_OUT_DIR || join(here, "dist");
 
 function readEnv() {
   const env = { ...process.env };
@@ -52,15 +67,18 @@ function readEnv() {
 }
 
 const env = readEnv();
-const avatarRuntime = process.env.AVATAR_RUNTIME || "";
+const testBuild = process.env.VOQALIZE_TEST_BUILD === "1";
+const avatarRuntime = testBuild ? "" : process.env.AVATAR_RUNTIME || "";
 if (avatarRuntime) unreleasedRuntime(avatarRuntime);
-const wiring = {
-  apiBase: env.VOQALIZE_API_BASE || "https://app.dev.voqalize.com/api/v1",
-  agentId: env.VOQALIZE_AGENT_ID || "",
-  publishableKey: env.VOQALIZE_PUBLISHABLE_KEY || "",
-};
+const wiring = testBuild
+  ? { apiBase: "https://api.voqalize.test/api/v1", agentId: "test-agent", publishableKey: "pk_test" }
+  : {
+      apiBase: env.VOQALIZE_API_BASE || "https://app.dev.voqalize.com/api/v1",
+      agentId: env.VOQALIZE_AGENT_ID || "",
+      publishableKey: env.VOQALIZE_PUBLISHABLE_KEY || "",
+    };
 const prod = process.env.VOQALIZE_TARGET === "prod";
-const blockFlag = (env.SSILVA_BLOCK_SUBMIT ?? "").trim();
+const blockFlag = testBuild ? "1" : (env.SSILVA_BLOCK_SUBMIT ?? "").trim();
 if (blockFlag && !/^[01]$/.test(blockFlag)) throw new Error(`SSILVA_BLOCK_SUBMIT is "${blockFlag}"; say 1 or 0`);
 const blockSubmit = blockFlag ? blockFlag === "1" : !prod;
 if (!wiring.agentId || !wiring.publishableKey) {
@@ -90,6 +108,16 @@ const runtimeOverride = {
 
 const common = { bundle: true, minify: true, legalComments: "none", target: "chrome120" };
 
+// The tests' stand-ins: the call in the holder, and the avatar.
+const standIns = {
+  name: "voqalize-test-stand-ins",
+  setup(b) {
+    b.onResolve({ filter: /^\.\/call-client$/ }, () => ({ path: join(here, "test", "fake-call-client.ts") }));
+    b.onResolve({ filter: /^@voqalize\/avatar$/ }, () => ({ path: join(here, "test", "fake-avatar.ts") }));
+  },
+};
+const plugins = testBuild ? [standIns] : avatarRuntime ? [runtimeOverride] : [];
+
 // A MAIN-world content script is a classic script, so the bundle is one IIFE.
 // The avatar's runtime is still a dynamic import from its own host.
 await build({
@@ -97,9 +125,15 @@ await build({
   entryPoints: [join(here, "src/content.ts")],
   format: "iife",
   define: { __VOQALIZE__: JSON.stringify(wiring) },
-  plugins: avatarRuntime ? [runtimeOverride] : [],
+  plugins,
   outfile: join(out, "content.js"),
 });
+// The holder is a classic script in `call.html`.
+await build({ ...common, entryPoints: [join(here, "src/holder.ts")], format: "iife", plugins, outfile: join(out, "holder.js") });
+await build({ ...common, entryPoints: [join(here, "src/grant.ts")], format: "iife", outfile: join(out, "grant.js") });
+// The early shell, also in the page's world, at document_start: in a call,
+// the widget as the last page left it, before the page has parsed.
+await build({ ...common, entryPoints: [join(here, "src/shell.ts")], format: "iife", outfile: join(out, "shell.js") });
 await build({
   ...common,
   entryPoints: [join(here, "src/hsform.ts")],
@@ -115,6 +149,7 @@ const manifest = JSON.parse(readFileSync(join(here, "manifest.json"), "utf8"));
 manifest.version = pkg.version;
 writeFileSync(join(out, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
 copyFileSync(join(here, "README.md"), join(out, "README.md"));
+for (const page of ["call.html", "grant.html"]) copyFileSync(join(here, "src", page), join(out, page));
 if (existsSync(join(here, "rules.json"))) copyFileSync(join(here, "rules.json"), join(out, "rules.json"));
 
 console.log(`built ${out} (${wiring.apiBase})`);

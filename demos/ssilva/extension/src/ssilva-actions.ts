@@ -10,9 +10,10 @@
  * What ssilva.cl is, for a script like this:
  *
  *   - WordPress pages with Vue components in them. **Every link is a full page
- *     load**, so a move to another page stores what to do there in the hub
- *     (`setPendingMove`) and loads it; the next page's script makes the move.
- *     The call itself rejoins on the new page (`keepAcrossPageLoads`).
+ *     load**, so a move to another page leaves what to do there with the
+ *     extension's service worker (`setPendingMove`) and loads it; the next
+ *     page's script makes the move. The call itself lives in the extension
+ *     (`holder.ts`) and is untouched by the load.
  *   - The window scrolls, under a fixed 70px header.
  *   - A project page is a stack of "l3" sections, picked out by class (their
  *     ids carry a random suffix per load): the gallery, the typologies with
@@ -432,10 +433,10 @@ function leaves(path: string): boolean {
   }
 }
 
-/** Load another page, first leaving the move to make there with the hub. */
+/** Load another page, first leaving the move to make there with the extension. */
 async function load(url: URL, then?: { command: string; payload: unknown }): Promise<void> {
   if (then && !(await setPendingMove(then))) {
-    // No hub (the extension reloaded under the page): the page still moves;
+    // No extension to keep it (reloaded under the page): the page still moves;
     // the section on it is lost, and said so.
     location.assign(url.href);
     throw new Error(`opened ${url.pathname}, but could not keep the move to make on it`);
@@ -1013,8 +1014,8 @@ function watchLeadForm(): void {
 // ─── Reporting ────────────────────────────────────────────────────────────
 
 let emitter: ((event: string, payload: unknown) => void) | null = null;
-/** Events from before anyone listens — a move made on a page that loaded
- *  while the call was still rejoining — kept for a short while. */
+/** Events from before anyone listens — the quote form's, on a page that
+ *  loaded before the brain could hear it — kept for a short while. */
 let early: { at: number; event: string; payload: unknown }[] = [];
 const EARLY_MS = 30_000;
 

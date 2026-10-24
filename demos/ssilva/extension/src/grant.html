@@ -1,0 +1,21 @@
+<!doctype html>
+<!-- The microphone grant for the extension (grant.ts): in the widget's frame
+     on ssilva.cl, or in a tab of its own. -->
+<html lang="es">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Javier — micrófono</title>
+<style>
+  html, body { margin: 0; background: transparent; }
+  body { font: 13px/1.4 Heebo, Montserrat, "Helvetica Neue", system-ui, sans-serif; color: #1B2238; padding: 8px 10px; }
+  body.tab { background: #fff; max-width: 34rem; margin: 15vh auto; font-size: 16px; padding: 24px; }
+  p { margin: 0 0 6px; }
+  button { font: inherit; font-weight: 700; color: #fff; background: #F07769; border: 0; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  button[hidden] { display: none; }
+</style>
+<body>
+  <p id="say"></p>
+  <button id="again" type="button" hidden></button>
+  <script src="grant.js"></script>
+</body>
+</html>
