@@ -14,11 +14,20 @@
  * forward to the moment of the read (`mouth-clock.ts`), as a receiver in the
  * page would: a busy page reads the relay's messages late, and a late answer
  * is a stop to the face, which shuts his mouth over his voice.
+ *
+ * A face made in the middle of a reply (a page that loads while he speaks)
+ * would hear only what comes after it. So each new face asks the holder for
+ * the reply so far (`catch-up.ts`). It listens only once the avatar's runtime
+ * has loaded, so from the moment it is made everything waits here: what
+ * arrives before the catch-up is in it and is dropped for it, and the
+ * catch-up and everything after it reach the face, in order, once it listens.
+ * A cue chunk delivered ahead of the one before it would be undone by it.
  */
 
 import type { PipecatClient } from "@pipecat-ai/client-js";
 
 import { onHolder, tell } from "./hub";
+import type { ToPage } from "./protocol";
 import { carriedForward, type Delivery } from "./mouth-clock";
 
 export interface Following {
@@ -31,11 +40,21 @@ export interface Following {
   stop(): void;
 }
 
+/** Messages held for a face that has not started listening; a face that
+ *  never does is not owed the whole call. */
+const MAX_HELD = 2000;
+/** How long a new face waits for the holder's catch-up. */
+const CATCH_UP_WAIT_MS = 2000;
+
 export function followCall(): Following {
   const handlers = new Map<string, Set<(...a: unknown[]) => void>>();
   let latest: Delivery | null = null;
   let playout: { delay: number; samples: number } | null = null;
   let syncSink: ((e: MessageEvent) => void) | null = null;
+  /** What waits for the face: from its making, until the catch-up has come
+   *  and the face listens. */
+  let held: ToPage[] | null = [];
+  let caughtUp = false;
 
   const syncChannel = {
     readyState: "open",
@@ -77,6 +96,8 @@ export function followCall(): Following {
     state: "ready",
     on(name: string, fn: (...a: unknown[]) => void) {
       (handlers.get(name) ?? handlers.set(name, new Set()).get(name)!).add(fn);
+      // The face has started listening: what was held for it goes now.
+      if (name === "serverMessage" && held && caughtUp) flushSoon();
       return client;
     },
     off(name: string, fn: (...a: unknown[]) => void) {
@@ -95,12 +116,44 @@ export function followCall(): Following {
       }
     });
 
-  const off = onHolder((r) => {
+  const deliver = (r: ToPage) => {
     if (r.k === "ev") emit(r.name, r.data);
     else if (r.k === "sync") syncSink?.({ data: JSON.stringify(r.msg) } as MessageEvent);
-    else if (r.k === "playout") playout = { delay: r.delay, samples: r.samples };
+  };
+  const listening = () => (handlers.get("serverMessage")?.size ?? 0) > 0;
+  // After the face's own setup has finished, which opens its sync channel.
+  const flushSoon = () =>
+    setTimeout(() => {
+      if (!held || !caughtUp || !listening()) return;
+      const due = held;
+      held = null;
+      due.forEach(deliver);
+    }, 0);
+
+  // A holder that never answers (one from before the catch-up) does not hold
+  // the face back for long: what came is then what it gets.
+  const noCatchUp = setTimeout(() => {
+    caughtUp = true;
+    flushSoon();
+  }, CATCH_UP_WAIT_MS);
+  const off = onHolder((r) => {
+    if (r.k === "catchup") {
+      if (caughtUp) return;
+      caughtUp = true;
+      clearTimeout(noCatchUp);
+      if (held) held = [...r.msgs];
+      flushSoon();
+    } else if (r.k === "ev" || r.k === "sync") {
+      if (held) {
+        if (held.length < MAX_HELD) held.push(r);
+      } else {
+        deliver(r);
+      }
+    } else if (r.k === "playout") playout = { delay: r.delay, samples: r.samples };
     else if (r.k === "ssrc") latest = { timestamp: r.timestamp, rtpTimestamp: r.rtpTimestamp };
   });
+  // Listening first, so the answer cannot pass us.
+  tell({ k: "catchup" });
 
   return {
     client: client as unknown as PipecatClient,
@@ -109,6 +162,7 @@ export function followCall(): Following {
       emit("botReady", {});
     },
     stop() {
+      clearTimeout(noCatchUp);
       off();
       handlers.clear();
     },

@@ -170,7 +170,12 @@ live in a page: it lives in an **offscreen document of the extension**
   reports what it shows up the port. The stand-in carries the relayed mouth
   clock forward to each read of it, for at most 100 ms (`src/mouth-clock.ts`):
   a busy page reads the relay late, and the face takes a late reading for a
-  stop and shuts his mouth over his voice. Each page keeps one port to the holder
+  stop and shuts his mouth over his voice. A face made in the middle of a
+  reply (a page that loads while he speaks) asks the holder for the reply so
+  far (`src/catch-up.ts`: its place on the stream, its cues, its end, and that
+  he is speaking), since the reply's cues usually went out before the page
+  existed; until that answer has come and the face is listening, the page
+  holds what arrives and then hands it over in order. Each page keeps one port to the holder
   (`src/bridge.ts` in the isolated world, `src/hub.ts` in the page's world).
   The HubSpot form's frame has none: it is part of its page.
 - **The service worker** (`src/background.ts`) makes the holder on the first

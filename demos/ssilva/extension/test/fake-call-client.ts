@@ -6,7 +6,10 @@
  *
  * His voice, when a test asks for it (`voice`): a tone over a real WebRTC
  * loopback in the holder, played as his voice is, so the relay reads the
- * delivery clock of a real receiver, as it does in a call.
+ * delivery clock of a real receiver, as it does in a call. The avatar's
+ * messages, when a test sends them (`avatar`): its server messages through the
+ * client, and `sync`/`end` over the loopback's sync channel, as the voice
+ * runtime sends them.
  */
 
 import type { PipecatClient, PipecatClientOptions } from "@pipecat-ai/client-js";
@@ -27,7 +30,7 @@ interface Fake {
 }
 
 /** The loopback that carries his voice: the receiving end is the call's. */
-let voice: { pc: RTCPeerConnection; sender: RTCRtpSender; track: MediaStreamTrack } | null = null;
+let voice: { pc: RTCPeerConnection; sender: RTCRtpSender; track: MediaStreamTrack; sync: RTCDataChannel } | null = null;
 
 async function speak(on: boolean): Promise<void> {
   if (!voice) {
@@ -44,6 +47,8 @@ async function speak(on: boolean): Promise<void> {
     from.onicecandidate = (e) => void (e.candidate && to.addIceCandidate(e.candidate));
     to.onicecandidate = (e) => void (e.candidate && from.addIceCandidate(e.candidate));
     const sender = from.addTrack(track, out.stream);
+    // The runtime's end of the avatar's sync channel, negotiated at id 200.
+    const sync = from.createDataChannel("avatar-sync", { negotiated: true, id: 200, ordered: false, maxRetransmits: 0 });
     to.ontrack = (e) => {
       const el = document.createElement("audio");
       el.srcObject = e.streams[0] ?? new MediaStream([e.track]);
@@ -54,7 +59,7 @@ async function speak(on: boolean): Promise<void> {
     await to.setRemoteDescription(from.localDescription!);
     await to.setLocalDescription();
     await from.setRemoteDescription(to.localDescription!);
-    voice = { pc: to, sender, track };
+    voice = { pc: to, sender, track, sync };
   }
   if (current) current.transport.pc = voice.pc;
   // Audio flows only while he speaks, as the voice runtime sends it.
@@ -129,7 +134,8 @@ interface Holder {
 interface TestAsk {
   to: "holder";
   op: "test";
-  what: "status" | "mic" | "emit" | "command" | "voice";
+  what: "status" | "mic" | "emit" | "command" | "voice" | "avatar";
+  msg?: { cmd: string } & Record<string, unknown>;
   on?: boolean;
   answers?: MicState[];
   name?: string;
@@ -137,6 +143,8 @@ interface TestAsk {
   command?: string;
   payload?: unknown;
 }
+
+const msg_ = (ask: TestAsk) => ask.msg ?? { cmd: "" };
 
 export function testHooks(holder: Holder): void {
   chrome.runtime.onMessage.addListener((msg: TestAsk, _sender, reply) => {
@@ -170,6 +178,23 @@ export function testHooks(holder: Holder): void {
           (error: unknown) => reply({ ok: false, error: String(error) }),
         );
         return true;
+      case "avatar": {
+        const avatar = { type: "avatar", ...msg_(msg) };
+        if (avatar.cmd === "sync" || avatar.cmd === "end") {
+          const channel = voice?.sync;
+          if (!channel) return reply({ ok: false, error: "no voice" });
+          const go = () => {
+            channel.send(JSON.stringify(avatar));
+            reply({ ok: true });
+          };
+          if (channel.readyState === "open") go();
+          else channel.addEventListener("open", go, { once: true });
+          return true;
+        }
+        (current as unknown as { emit?: (n: string, d?: unknown) => void })?.emit?.("serverMessage", avatar);
+        reply({ ok: Boolean(current) });
+        return;
+      }
       case "command":
         current?.callbacks.onUICommand?.({ command: msg.command!, payload: msg.payload } as never);
         reply({ ok: Boolean(current) });
