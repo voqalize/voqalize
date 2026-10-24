@@ -1,0 +1,753 @@
+[
+ {
+  "path": "/",
+  "url": "https://figurella.cl/",
+  "title": "Figurella – Centro de Modelamiento Corporal",
+  "kind": "home",
+  "sections": [
+   {
+    "key": "hero",
+    "heading": "Carrusel de portada",
+    "text": ""
+   },
+   {
+    "key": "hero_cta",
+    "heading": "Botón «Reserva tu Diagnóstico Corporal sin costo»",
+    "text": "Reserva tu Diagnóstico Corporal sin costo"
+   },
+   {
+    "key": "intro",
+    "heading": "«Sé quien quieras ser»: 15 años en Chile, con los contadores",
+    "text": "SÉ QUIEN QUIERAS SER\nLLEVAMOS 15 AÑOS EN CHILE AYUDANDO A LAS MUJERES A LOGRAR LA FIGURA QUE QUIEREN CON EL MÉTODO ITALIANO FIGURELLA. NUESTROS PLANES SON PERSONALIZADOS DE ACUERDO A TUS OBJETIVOS.\nSEGUIR LEYENDO\nDIAGNÓSTICO SIN COSTO\nAÑOS DE\nSERVICIO\n40\nCENTROS EN EL\nMUNDO\n+\n500\nMUJERES\nFELICES\n+\n5000"
+   },
+   {
+    "key": "counters",
+    "heading": "Contadores: 40 años, +500 centros, +5000 mujeres",
+    "text": "AÑOS DE\nSERVICIO\n40\nCENTROS EN EL\nMUNDO\n+\n500\nMUJERES\nFELICES\n+\n5000"
+   },
+   {
+    "key": "resultados",
+    "heading": "«¡Figurella sí funciona! ¡Resultados garantizados!» y sus tres beneficios",
+    "text": "¡FIGURELLA SÍ FUNCIONA!\n¡Resultados Garantizados!\nBAJA DE PESO Y ELIMINA FLACIDEZ, CELULITIS, RETENCIÓN DE LÍQUIDO Y ADIPOSIDAD LOCALIZADA\nPierde Peso\n¡Pierde peso y baja medidas de forma natural! Trabajamos con ejercicios exclusivos en cápsula térmica y guiamos una dieta equilibrada.\nTonifica\nTonifica, reduce celulitis, y mejora la salud de tu piel con baños de oxígeno, drenaje linfático y ejercicios personalizados.\nSiéntete bien\n¡Ten energía todos los días! Figurella te ayuda a alcanzar y mantener un estilo de vida saludable, activo y en buena forma."
+   },
+   {
+    "key": "benefit_pierde_peso",
+    "heading": "Beneficio «Pierde peso»",
+    "text": "Pierde Peso\n¡Pierde peso y baja medidas de forma natural! Trabajamos con ejercicios exclusivos en cápsula térmica y guiamos una dieta equilibrada."
+   },
+   {
+    "key": "benefit_tonifica",
+    "heading": "Beneficio «Tonifica»",
+    "text": "Tonifica\nTonifica, reduce celulitis, y mejora la salud de tu piel con baños de oxígeno, drenaje linfático y ejercicios personalizados."
+   },
+   {
+    "key": "benefit_sientete_bien",
+    "heading": "Beneficio «Siéntete bien»",
+    "text": "Siéntete bien\n¡Ten energía todos los días! Figurella te ayuda a alcanzar y mantener un estilo de vida saludable, activo y en buena forma."
+   },
+   {
+    "key": "cuerpo_perfecto",
+    "heading": "«Cuerpo perfecto sin centímetros de más»: 30 minutos, 2 o 3 veces por semana",
+    "text": "OBTÉN UN CUERPO PERFECTO DE FORMA NATURAL\nCuerpo perfecto sin\ncentímetros de más\nTRABAJA DURANTE SOLO 30 MINUTOS, 2 O 3 VECES POR SEMANA\nResultados garantizados\nEn Figurella nos comprometemos por escrito con resultados que te garantizamos, gracias a nuestro método de 3 tratamientos en 1.\nRemodela y tonifica\nRealiza ejercicios de bajo impacto en nuestra cápsula térmica patentada por Figurella. Quema grasa, modela y tonifica, activando la circulación y acelerando tu metabolismo.\nVida Sana\nTe enseñaremos a comer, no te daremos dietas estrictas para que mantengas un estilo de vida saludable. Disfruta de la comida y convierte tu alimentación en la mejor aliada de tu cuerpo.\nOptimiza tu tiempo\nHaz en 30 minutos lo mismo que en 1,5 horas de gimnasia tradicional. Nuestro método en módulos térmicos nos permite ahorrar tus tiempos y garantizar resultados.\nAGENDA HOY TU VISITA"
+   },
+   {
+    "key": "feature_garantia",
+    "heading": "«Resultados garantizados» (por escrito)",
+    "text": "Resultados garantizados\nEn Figurella nos comprometemos por escrito con resultados que te garantizamos, gracias a nuestro método de 3 tratamientos en 1."
+   },
+   {
+    "key": "feature_remodela",
+    "heading": "«Remodela y tonifica» (cápsula térmica)",
+    "text": "Remodela y tonifica\nRealiza ejercicios de bajo impacto en nuestra cápsula térmica patentada por Figurella. Quema grasa, modela y tonifica, activando la circulación y acelerando tu metabolismo."
+   },
+   {
+    "key": "feature_vida_sana",
+    "heading": "«Vida sana» (alimentación)",
+    "text": "Vida Sana\nTe enseñaremos a comer, no te daremos dietas estrictas para que mantengas un estilo de vida saludable. Disfruta de la comida y convierte tu alimentación en la mejor aliada de tu cuerpo."
+   },
+   {
+    "key": "feature_optimiza",
+    "heading": "«Optimiza tu tiempo» (30 minutos = 1,5 horas de gimnasio)",
+    "text": "Optimiza tu tiempo\nHaz en 30 minutos lo mismo que en 1,5 horas de gimnasia tradicional. Nuestro método en módulos térmicos nos permite ahorrar tus tiempos y garantizar resultados."
+   },
+   {
+    "key": "metodo",
+    "heading": "«¿Cómo lo hacemos? Método Figurella» con sus cuatro pasos",
+    "text": "¿CÓMO LO HACEMOS?\nMétodo Figurella\nASISTE TRES VECES POR SEMANA A UNO DE NUESTROS CENTROS Y LOGRA TUS OBJETIVOS CON SESIONES QUE INCLUYEN TRES PASOS: EJERCICIOS LOCALIZADOS, OXIGENOTERAPIA Y PRESOTERAPIA\nMOVIMIENTOS LOCALIZADOS\nOXIGENOTERAPIA\nPRESOTERAPIA\nASESORAMIENTO NUTRICIONAL\nVER MÉTODO FIGURELLA\nAGENDA TU EVALUACIÓN GRATIS"
+   },
+   {
+    "key": "metodo_movimientos",
+    "heading": "Paso: movimientos localizados",
+    "text": "MOVIMIENTOS LOCALIZADOS"
+   },
+   {
+    "key": "metodo_oxigenoterapia",
+    "heading": "Paso: oxigenoterapia",
+    "text": "OXIGENOTERAPIA"
+   },
+   {
+    "key": "metodo_presoterapia",
+    "heading": "Paso: presoterapia",
+    "text": "PRESOTERAPIA"
+   },
+   {
+    "key": "metodo_nutricion",
+    "heading": "Paso: asesoramiento nutricional",
+    "text": "ASESORAMIENTO NUTRICIONAL"
+   },
+   {
+    "key": "planes",
+    "heading": "Los planes (resumen)",
+    "text": "Planes\nDiseñamos estos planes en función de tus necesidades\nCurvas\nperfectas\nEstá pensado para las mujeres que solo quieran trabajar puntos específicos de su cuerpo. ¡Resultados visibles en poco tiempo!\nNovias\nCon nuestro programa exclusivo para novias, podrás rediseñar tu silueta, tonificar y eliminar cualquier “rollito” que pueda afectar en la última prueba de tu vestido."
+   },
+   {
+    "key": "plan_curvas_perfectas",
+    "heading": "Plan Curvas perfectas (resumen)",
+    "text": "Curvas\nperfectas\nEstá pensado para las mujeres que solo quieran trabajar puntos específicos de su cuerpo. ¡Resultados visibles en poco tiempo!"
+   },
+   {
+    "key": "plan_novias",
+    "heading": "Plan Novias (resumen)",
+    "text": "Novias\nCon nuestro programa exclusivo para novias, podrás rediseñar tu silueta, tonificar y eliminar cualquier “rollito” que pueda afectar en la última prueba de tu vestido."
+   },
+   {
+    "key": "plan_mama_reciente",
+    "heading": "Plan Mamá reciente (resumen)",
+    "text": "Mamá\nReciente\nHemos desarrollado un programa para que todas las mamás recientes puedan recuperar su figura después del embarazo."
+   },
+   {
+    "key": "plan_rejuvenece",
+    "heading": "Plan Rejuvenece (resumen)",
+    "text": "Rejuvenece\nPrograma estudiado por médicos y profesionales de Figurella para mujeres que tienen más de sesenta años y que desean mantenerse activas."
+   },
+   {
+    "key": "plan_intensivo",
+    "heading": "Plan Intensivo (resumen)",
+    "text": "Intensivo\nPlan basado en una alimentación correcta, movimientos exclusivos en módulos térmicos, baños de oxigenoterapia, asesoramiento y seguimiento de especialistas."
+   },
+   {
+    "key": "historias",
+    "heading": "«¡Más de 5.000 mujeres lo comprobaron!» (botón a las historias)",
+    "text": "¡MÁS DE 5.000 MUJERES LO COMPROBARON!\nHistorias de éxito\nELLAS ESTÁN MUY FELICES CON EL RESULTADO\nVER TODAS LAS HISTORIAS DE ÉXITO"
+   },
+   {
+    "key": "blog",
+    "heading": "«Consejos para tu cuidado»: cuatro artículos del blog",
+    "text": "ENTÉRATE DE TODO EN NUESTRO BLOG\nConsejos para tu\ncuidado\n¡Cuidados de tu cuerpo en verano!\nLEER MÁS »\nCápsula térmica y sus beneficios\nLEER MÁS »\n¿Por qué hacer ejercicios de bajo impacto? ¡Cuida tu cuerpo!\nLEER MÁS »\nOperación verano: ¡Allá vamos!\nLEER MÁS »\nVER MÁS CONSEJOS"
+   },
+   {
+    "key": "garantia",
+    "heading": "«¿Estás lista para redescubrirte?»: grasa localizada garantizada por escrito",
+    "text": "¿ESTÁS LISTA PARA REDESCUBRIRTE A TI MISMA?\nNOS DIRIGIMOS ESPECÍFICAMENTE A LAS ÁREAS PROBLEMÁTICAS Y GARANTIZAMOS LA REDUCCIÓN DE GRASA LOCALIZADA ¡POR ESCRITO!\nVER GARANTÍA FIGURELLA\nPIDE TU EVALUACIÓN GRATIS"
+   },
+   {
+    "key": "sucursales",
+    "heading": "«Estamos donde tú estás»: las siete sucursales",
+    "text": "ESTAMOS DONDE TÚ ESTÁS\nSucursales Figurella\nVISÍTANOS Y DESCONÉCTATE DE LA RUTINA POR UN MOMENTO\nHuérfanos\nHuérfanos 835, Piso 16 Santiago Centro.\n+56 9 3403 3534\nLunes a viernes de 7:30 a 21:30 h.\nSábados de 9:00 a 14:00 h.\n¿CÓMO LLEGAR?\nPEDIR HORA GRATIS\nCostanera\nNueva Tajamar 289, Las Condes.\n+56 9 8529 8379\nLunes a viernes de 8:00 a 21:30 h.\nSábados de 9:00 a 14:00 h.\n¿CÓMO LLEGAR?\nPEDIR HORA GRATIS\nColón\nAv. Cristóbal Colón 4951, Las Condes.\n+56 2 3358 5099\nLunes a viernes de 8:00 a 22:00 h.\nSábados de 9:00 a 14:00 h.\n¿CÓMO LLEGAR?\nPEDIR HORA GRATIS\nChicureo\nAv. Chamisero 10.290 local 15.\n+56 9 4425 2389\nLunes a viernes de 7:30 a 21:00 h.\nSábados de 8:30 a 13:30 h.\n¿CÓMO LLEGAR?\nPEDIR HORA GRATIS\nTabancura\nTabancura 1498.\n+56 9 8195 5403\nLunes a viernes de 8:00 a 21:30 h.\nSábados de 9:00 a 14:00 h.\n¿CÓMO LLEGAR?\nPEDIR HORA GRATIS\nVitacura\nJuan XXIII 6370, Vitacura Santiago de Chile.\n+56 9 6310 1871\nLunes a viernes de 8:00 a 21:30 h.\nSábados de 9:00 a 14:00 h.\n¿CÓMO LLEGAR?\nPEDIR HORA GRATIS\nLas Perdices\nAv. Las Perdices 2990, local 17, Peñalolén.\n+56 9 4190 2523\nLunes a viernes de 7:30 a 21:00 h.\nSábados de 9:00 a 14:00 h.\n¿CÓMO LLEGAR?\nPEDIR HORA GRATIS\nAGENDA TU VISITA"
+   },
+   {
+    "key": "sucursal_huerfanos",
+    "heading": "Sucursal Huérfanos (tarjeta)",
+    "text": "Huérfanos\nHuérfanos 835, Piso 16 Santiago Centro.\n+56 9 3403 3534\nLunes a viernes de 7:30 a 21:30 h.\nSábados de 9:00 a 14:00 h.\n¿CÓMO LLEGAR?\nPEDIR HORA GRATIS"
+   },
+   {
+    "key": "sucursal_costanera",
+    "heading": "Sucursal Costanera (tarjeta)",
+    "text": "Costanera\nNueva Tajamar 289, Las Condes.\n+56 9 8529 8379\nLunes a viernes de 8:00 a 21:30 h.\nSábados de 9:00 a 14:00 h.\n¿CÓMO LLEGAR?\nPEDIR HORA GRATIS"
+   },
+   {
+    "key": "sucursal_colon",
+    "heading": "Sucursal Colón (tarjeta)",
+    "text": "Colón\nAv. Cristóbal Colón 4951, Las Condes.\n+56 2 3358 5099\nLunes a viernes de 8:00 a 22:00 h.\nSábados de 9:00 a 14:00 h.\n¿CÓMO LLEGAR?\nPEDIR HORA GRATIS"
+   },
+   {
+    "key": "sucursal_chicureo",
+    "heading": "Sucursal Chicureo (tarjeta)",
+    "text": "Chicureo\nAv. Chamisero 10.290 local 15.\n+56 9 4425 2389\nLunes a viernes de 7:30 a 21:00 h.\nSábados de 8:30 a 13:30 h.\n¿CÓMO LLEGAR?\nPEDIR HORA GRATIS"
+   },
+   {
+    "key": "sucursal_tabancura",
+    "heading": "Sucursal Tabancura (tarjeta)",
+    "text": "Tabancura\nTabancura 1498.\n+56 9 8195 5403\nLunes a viernes de 8:00 a 21:30 h.\nSábados de 9:00 a 14:00 h.\n¿CÓMO LLEGAR?\nPEDIR HORA GRATIS"
+   },
+   {
+    "key": "sucursal_vitacura",
+    "heading": "Sucursal Vitacura (tarjeta)",
+    "text": "Vitacura\nJuan XXIII 6370, Vitacura Santiago de Chile.\n+56 9 6310 1871\nLunes a viernes de 8:00 a 21:30 h.\nSábados de 9:00 a 14:00 h.\n¿CÓMO LLEGAR?\nPEDIR HORA GRATIS"
+   },
+   {
+    "key": "sucursal_las_perdices",
+    "heading": "Sucursal Las Perdices (tarjeta)",
+    "text": "Las Perdices\nAv. Las Perdices 2990, local 17, Peñalolén.\n+56 9 4190 2523\nLunes a viernes de 7:30 a 21:00 h.\nSábados de 9:00 a 14:00 h.\n¿CÓMO LLEGAR?\nPEDIR HORA GRATIS"
+   }
+  ]
+ },
+ {
+  "path": "/metodo-figurella/",
+  "url": "https://figurella.cl/metodo-figurella/",
+  "title": "Método Figurella – Figurella",
+  "kind": "method",
+  "sections": [
+   {
+    "key": "hero",
+    "heading": "Portada «Método Figurella»",
+    "text": "¿CÓMO LO HACEMOS?\nMétodo\nFigurella\nMétodo italiano 100% natural hecho para mujeres."
+   },
+   {
+    "key": "como_funciona",
+    "heading": "«¿Cómo funciona?»: tres veces a la semana, tres pasos",
+    "text": "¿CÓMO FUNCIONA?\nCON SOLO 3 VECES A LA SEMANA LOGRARÁS TUS OBJETIVOS, LAS SESIONES INCLUYEN TRES PASOS CLAVES:\nEJERCICIOS LOCALIZADOS, OXIGENOTERAPIA Y PRESOTERAPIA.\nPASO UNO\nMovimientos Localizados\nComenzarás dentro de una cápsula térmica que recrea la temperatura que tu cuerpo necesita para disolver células grasas, reducir celulitis y tonificar tus músculos. Con tan solo 30 minutos de movimientos personalizados y localizados, atacarás el problema de raíz y mantendrás los resultados de forma permanente.\nPASO DOS\nOxigenoterapia\nGracias a un baño de oxígeno de 15 minutos, podrás acelerar el proceso de eliminación de grasa y toxinas, también depurarás y oxigenarás internamente el cuerpo. Funciona como un regenerador celular que favorece la circulación y genera la desintoxicación de las células que permiten mejorar la elasticidad y textura de la piel.\nPASO TRES\nPresoterapia\nFinalizarás la sesión con presoterapia secuencial, donde eliminarás las toxinas acumuladas en los tejidos de tu cuerpo y mejorarás la circulación, así evitarás la retención de líquidos. Recibirás un suave masaje de drenaje linfático durante 15 minutos, que activará tu circulación produciendo una intensa sensación de bienestar y ligereza. (La fatiga y el estrés desaparecerán por completo).\nPASO CUATRO\nAsesoramiento Nutricional\nPara completar nuestro programa incluimos a nuestro equipo de Licenciadas en Nutrición,"
+   },
+   {
+    "key": "paso_1",
+    "heading": "Paso uno: movimientos localizados en cápsula térmica",
+    "text": "PASO UNO\nMovimientos Localizados\nComenzarás dentro de una cápsula térmica que recrea la temperatura que tu cuerpo necesita para disolver células grasas, reducir celulitis y tonificar tus músculos. Con tan solo 30 minutos de movimientos personalizados y localizados, atacarás el problema de raíz y mantendrás los resultados de forma permanente."
+   },
+   {
+    "key": "paso_2",
+    "heading": "Paso dos: oxigenoterapia",
+    "text": "PASO DOS\nOxigenoterapia\nGracias a un baño de oxígeno de 15 minutos, podrás acelerar el proceso de eliminación de grasa y toxinas, también depurarás y oxigenarás internamente el cuerpo. Funciona como un regenerador celular que favorece la circulación y genera la desintoxicación de las células que permiten mejorar la elasticidad y textura de la piel."
+   },
+   {
+    "key": "paso_3",
+    "heading": "Paso tres: presoterapia",
+    "text": "PASO TRES\nPresoterapia\nFinalizarás la sesión con presoterapia secuencial, donde eliminarás las toxinas acumuladas en los tejidos de tu cuerpo y mejorarás la circulación, así evitarás la retención de líquidos. Recibirás un suave masaje de drenaje linfático durante 15 minutos, que activará tu circulación produciendo una intensa sensación de bienestar y ligereza. (La fatiga y el estrés desaparecerán por completo)."
+   },
+   {
+    "key": "paso_4",
+    "heading": "Paso cuatro: asesoramiento nutricional",
+    "text": "PASO CUATRO\nAsesoramiento Nutricional\nPara completar nuestro programa incluimos a nuestro equipo de Licenciadas en Nutrición, así aprenderás una correcta alimentación que te llevará a conseguir resultados reales en poco tiempo. Te enseñaremos cómo disfrutar de la comida y elegir con sabiduría los alimentos que llevas a tu cuerpo."
+   }
+  ]
+ },
+ {
+  "path": "/planes/",
+  "url": "https://figurella.cl/planes/",
+  "title": "Planes – Figurella",
+  "kind": "plans",
+  "sections": [
+   {
+    "key": "hero",
+    "heading": "Portada «Planes 100% personalizados para ti»",
+    "text": "Planes\nPlanes 100% personalizados para ti"
+   },
+   {
+    "key": "plan_curvas_perfectas",
+    "heading": "Plan Curvas perfectas",
+    "text": "Curvas\nperfectas\nFigurella curvas perfectas está pensado para las mujeres que solo desean trabajar puntos específicos de su cuerpo. Gracias a los movimientos y oxígeno activo tu piel se volverá más lisa, elástica y tonificada.\n¡Resultados visibles en poco tiempo!\nSi quieres saber cuál es el programa correcto para ti, reserva una hora para evaluar tu figura en el Centro Figurella más cercano a ti.\nRESERVA TU EVALUACIÓN"
+   },
+   {
+    "key": "plan_novias",
+    "heading": "Plan Novias",
+    "text": "Novias\nCon nuestro programa exclusivo para novias, podrás rediseñar tu silueta, tonificar y eliminar cualquier “rollito” que pueda afectar en la última prueba de tu vestido.\nPara ese momento tan importante de tu vida, planear tus medidas es clave.\nSi quieres saber cuál es el programa correcto para ti, reserva una hora para evaluar tu figura en el Centro Figurella más cercano a ti.\nRESERVA TU EVALUACIÓN"
+   },
+   {
+    "key": "plan_mama_reciente",
+    "heading": "Plan Mamá reciente",
+    "text": "Mamá\nreciente\nHemos desarrollado un programa para que todas las mamás recientes puedan recuperar su figura después del embarazo.\nSabemos que durante el proceso de 9 meses el aumento de peso es muy rápido y volver a tu forma de antes puede ser difícil, pero con nuestro método podrás recuperar tu línea y la forma de tu vientre en muy poco tiempo.\nSi quieres saber cuál es el programa correcto para ti, reserva una hora para evaluar tu figura en el Centro Figurella más cercano a ti.\nRESERVA TU EVALUACIÓN"
+   },
+   {
+    "key": "plan_rejuvenece",
+    "heading": "Plan Rejuvenece",
+    "text": "Rejuvenece\nEste programa ha sido estudiado por médicos y profesionales de Figurella para mujeres que tienen más de sesenta años y que desean mantenerse activas. Nuestro método se adapta a tu físico, capacidades y objetivos de bienestar.\nLa actividad física es suave, siempre cuidando tus articulaciones, corazón o musculatura. Acompañamos este programa con un régimen alimenticio completo que te entregará todos los elementos nutritivos necesarios para tu edad.\nSi quieres saber cuál es el programa correcto para ti, reserva una hora para evaluar tu figura en el Centro Figurella más cercano a ti.\nRESERVA TU EVALUACIÓN"
+   },
+   {
+    "key": "plan_intensivo",
+    "heading": "Plan Intensivo",
+    "text": "Intensivo\nAdelgaza y transforma tu cuerpo siguiendo nuestro método 100% natural, basado en una alimentación correcta, movimientos exclusivos en módulos térmicos, baños de oxigenoterapia, asesoramiento y seguimiento de especialistas.\nCambia tu estilo de vida y alcanza las medidas que tanto deseas.\nSi quieres saber cuál es el programa correcto para ti, reserva una hora para evaluar tu figura en el Centro Figurella más cercano a ti.\nRESERVA TU EVALUACIÓN"
+   }
+  ]
+ },
+ {
+  "path": "/historias-de-exito/",
+  "url": "https://figurella.cl/historias-de-exito/",
+  "title": "Historias de éxito – Figurella",
+  "kind": "stories",
+  "sections": [
+   {
+    "key": "hero",
+    "heading": "Portada «Historias de éxito»",
+    "text": "Historias de éxito\n¡Más de 5.000 mujeres lo comprobaron!"
+   },
+   {
+    "key": "testimonios",
+    "heading": "Los testimonios",
+    "text": "ELLAS ESTÁN MUY FELICES CON EL RESULTADO\nLlegué a Figurella en Agosto de 2016, faltando 3 meses para mi boda y tenía sobrepeso. Me recomendaron el Plan Novias, lo tomé y resultó; con ejercicio y de manera saludable, como nunca entes, vi los resultados. IMPRESIONANTE!!! Pero más allá de eso, y de que lo que ofrecen es efectivo si te dedicas, creo que es destacable el profesionalismo, ánimo y buena energía con que todo este equipo hace su trabajo. Mención aparte para Brisa, Paola y Fernanda, que con su ánimo y alegría hicieron que este proceso fuera inmensamente gratificante, siempre atentas, amables y profesionales. Así que un gran y fuerte gracias a las tres por hacer que el día de mi matrimonio me sintiera la más linda de todas.\nPamela Rodríguez\nTengo 66 años y desde hace 30 sufro artritis reumatoidea. Llegué a Figurella con un sobrepeso importante y bastante rigidez producto de la enfermedad que padezco y falta de ejercicios sistemático por casi 6 años. Los logros alcanzados en mi caso superan grandemente la baja de peso. Me siento más ágil y liviana. Los dolores que caracterizan mi enfermedad han disminuido notoriamente. He bajado 10 kilos desde que comencé. Quisiera por sobre todo destacar y agradecer a las profes que me han exigido sin tregua hasta el punto justo de mis posibilidades físicas. Ni más, ni menos. Estoy muy agradecida del equipo de Figurella y conmigo misma po"
+   },
+   {
+    "key": "testimonio_pamela",
+    "heading": "Pamela Rodríguez (Plan Novias, antes de su matrimonio)",
+    "text": "Llegué a Figurella en Agosto de 2016, faltando 3 meses para mi boda y tenía sobrepeso. Me recomendaron el Plan Novias, lo tomé y resultó; con ejercicio y de manera saludable, como nunca entes, vi los resultados. IMPRESIONANTE!!! Pero más allá de eso, y de que lo que ofrecen es efectivo si te dedicas, creo que es destacable el profesionalismo, ánimo y buena energía con que todo este equipo hace su trabajo. Mención aparte para Brisa, Paola y Fernanda, que con su ánimo y alegría hicieron que este proceso fuera inmensamente gratificante, siempre atentas, amables y profesionales. Así que un gran y fuerte gracias a las tres por hacer que el día de mi matrimonio me sintiera la más linda de todas.\nPamela Rodríguez"
+   },
+   {
+    "key": "testimonio_cuca",
+    "heading": "María Elia Valdés «Cuca» (66 años, artritis, bajó 10 kilos)",
+    "text": "Tengo 66 años y desde hace 30 sufro artritis reumatoidea. Llegué a Figurella con un sobrepeso importante y bastante rigidez producto de la enfermedad que padezco y falta de ejercicios sistemático por casi 6 años. Los logros alcanzados en mi caso superan grandemente la baja de peso. Me siento más ágil y liviana. Los dolores que caracterizan mi enfermedad han disminuido notoriamente. He bajado 10 kilos desde que comencé. Quisiera por sobre todo destacar y agradecer a las profes que me han exigido sin tregua hasta el punto justo de mis posibilidades físicas. Ni más, ni menos. Estoy muy agradecida del equipo de Figurella y conmigo misma por lo que he logrado en beneficio de mi salud y mi autoestima.\nMaría Elia Valdés “Cuca”"
+   },
+   {
+    "key": "testimonio_maria_jesus",
+    "heading": "María Jesús Amigoz (el «ambiente Figurella»)",
+    "text": "Me encanta venir a Figurella. Pensé que sería una corta estadía, pero me gustó tanto que casi es como una adicción, una necesidad, tanto así que cuando no puedo venir lo extraño. Mas allá de que haya generado excelentes resultados en mí, tanto en mi cuerpo como en mi ánimo, me encanta el “ambiente Figurella”. Todas las profes son un amor, muy simpáticas, amorosas, pero lo mejor exigentes. Siempre te motivan a dar un paso más allá, motivándote a mejorar, y cuando lo logro, la satisfacción es enorme. Además que las niñas encargadas del local son súper preocupadas de tu ánimo y como te vas sintiendo. Todo complementado con la estricta supervisión de la nutricionista estrella Giselle, que hace que todo sea súper integral. Todas las chicas de Figu ya tienen un lugar en mi corazón.\nMaría Jesús Amigoz"
+   }
+  ]
+ },
+ {
+  "path": "/convenios/",
+  "url": "https://figurella.cl/convenios/",
+  "title": "Convenios – Figurella",
+  "kind": "convenios",
+  "sections": [
+   {
+    "key": "hero",
+    "heading": "Portada «Convenios»: promociones y descuentos",
+    "text": "Convenios\nAprovecha las promociones y descuentos que tenemos para ti"
+   },
+   {
+    "key": "grid",
+    "heading": "Los convenios (primera fila)",
+    "text": "30% de Descuento\nDescuento en todos los planes pagando con tarjetas Banco Santander.\n30% de Descuento\nDescuento en todos los planes pagando con tarjetas Banco Security.\n30% de Descuento\nDescuento en todos los planes pagando con tarjetas Banco BICE.\n30% de Descuento\nDescuento en todos los planes pagando con tarjetas Banco ITAU."
+   },
+   {
+    "key": "convenio_santander",
+    "heading": "Convenio Banco Santander",
+    "text": "30% de Descuento\nDescuento en todos los planes pagando con tarjetas Banco Santander."
+   },
+   {
+    "key": "convenio_security",
+    "heading": "Convenio Banco Security",
+    "text": "30% de Descuento\nDescuento en todos los planes pagando con tarjetas Banco Security."
+   },
+   {
+    "key": "convenio_bice",
+    "heading": "Convenio Banco BICE",
+    "text": "30% de Descuento\nDescuento en todos los planes pagando con tarjetas Banco BICE."
+   },
+   {
+    "key": "convenio_itau",
+    "heading": "Convenio Banco Itaú",
+    "text": "30% de Descuento\nDescuento en todos los planes pagando con tarjetas Banco ITAU."
+   },
+   {
+    "key": "convenio_colmena",
+    "heading": "Convenio Isapre Colmena",
+    "text": "40% de Descuento en Plan Ideal\n30% de descuento otros planes por sesiones."
+   },
+   {
+    "key": "convenio_banmedica",
+    "heading": "Convenio Isapre Banmédica",
+    "text": "30% de Descuento\nDescuento en todos los planes para los clientes de Isapre Banmédica."
+   },
+   {
+    "key": "convenio_vida_tres",
+    "heading": "Convenio Isapre Vida Tres",
+    "text": "30% de Descuento\nDescuento en todos los planes para los clientes de Isapre Vida Tres."
+   },
+   {
+    "key": "convenio_club_mama_ripley",
+    "heading": "Convenio Club Mamá Ripley",
+    "text": "30% de Descuento\nDescuento en todos los planes para socios de Club Mamá Ripley."
+   },
+   {
+    "key": "convenio_club_novios_ripley",
+    "heading": "Convenio Club Novios Ripley",
+    "text": "30% de Descuento\nDescuento en todos los planes para socios de Club Novios Ripley."
+   },
+   {
+    "key": "convenio_santiago_college",
+    "heading": "Convenio Colegio Santiago College",
+    "text": "35% de Descuento\nDescuento en todos los planes a los apoderados del Colegio Santiago College."
+   },
+   {
+    "key": "convenio_wenlock",
+    "heading": "Convenio Colegio Wenlock",
+    "text": "35% de Descuento\nDescuento en todos los planes a los apoderados del Colegio Wenlock."
+   },
+   {
+    "key": "convenio_cencosud_scotiabank",
+    "heading": "Convenio Cencosud Scotiabank",
+    "text": "40% de Descuento\nDescuento en Plan Ideal, pagando con Tarjetas de Crédito Cencosud Scotiabank."
+   },
+   {
+    "key": "convenio_colegio_aleman",
+    "heading": "Convenio Colegio Alemán de Santiago",
+    "text": "35% de Descuento\nDescuento en todos los planes a los apoderados del Colegio Alemán de Santiago."
+   },
+   {
+    "key": "convenio_banco_ripley",
+    "heading": "Convenio Banco Ripley",
+    "text": "30% de Descuento\nDescuento en todos los planes pagando con tarjetas Banco Ripley."
+   }
+  ]
+ },
+ {
+  "path": "/franquicias/",
+  "url": "https://figurella.cl/franquicias/",
+  "title": "Franquicias – Figurella",
+  "kind": "franchise",
+  "sections": [
+   {
+    "key": "hero",
+    "heading": "Portada «Franquicias»: más de 500 centros en el mundo",
+    "text": "Franquicias\nFigurella cuenta con más de 500 centro en el mundo, siendo la empresa líder dedicada a la estética y el bienestar femenino. Buscamos socios estratégicos, que se sumen a nuestro equipo de trabajo."
+   },
+   {
+    "key": "beneficios",
+    "heading": "«Franquicias Figurella»: los ocho beneficios para socios",
+    "text": "SEAMOS SOCIO(A)S\nFranquicias Figurella\nOFRECEMOS LOS SIGUIENTES BENEFICIOS\nDerecho al uso de la marca Figurella\nExclusividad de territorio\nAsesoramiento en el diseño y layout del local\nManuales operativos\nAsesoramiento en la selección del personal\nCapacitación y entrenamiento\nSoporte comercial y publicitario\nSistema de gestión y supervisión\nVER MÉTODO FIGURELLA\nQUIERO SER SOCIO(A)"
+   },
+   {
+    "key": "socios",
+    "heading": "«Comunícate con nosotras»: el formulario de franquicias",
+    "text": "CONTÁCTANOS\nComunícate con nosotras\nNombre\nTeléfono\nCorreo\nCONTÁCTAME AHORA"
+   }
+  ]
+ },
+ {
+  "path": "/preguntas-frecuentes/",
+  "url": "https://figurella.cl/preguntas-frecuentes/",
+  "title": "Preguntas frecuentes – Figurella",
+  "kind": "faq",
+  "sections": [
+   {
+    "key": "hero",
+    "heading": "Portada «Preguntas frecuentes» con su introducción",
+    "text": "Preguntas Frecuentes\nNuestro método Figurella está completamente personalizado para ser aplicado en diferentes objetivos corporales tanto así para:\nBajar de peso, eliminar grasa abdominal, entre otros.\n¡Te invitamos a leer las preguntas más frecuentes sobre nuestro servicio!\ny a recordar que cualquier método es constancia y dedicación y no hay forma de \"adelgazar rápido\" sin ello."
+   },
+   {
+    "key": "accordion_1",
+    "heading": "Primer grupo de preguntas (abdomen, caderas, muslos, mucho peso)",
+    "text": "¿CÓMO PUEDO OBTENER UN ABDOMEN PLANO?\nLos centímetros acumulados en el abdomen son los primeros en aumentar y los más difíciles de perder. También es una de las áreas más afectadas por las alteraciones hormonales típicas de la menopausia.\nPara solucionar este problema no es necesario realizar dietas estrictas que prometen grandes resultados en muy poco tiempo, porque solo reducirán musculatura en otras partes del cuerpo y luego vendrá el temido efecto rebote.\nGracias a nuestra exclusiva cápsula térmica se puede llegar más rápido a la zona de quema de grasa. La temperatura es perfecta para estimular el cuerpo en el proceso de eliminación de grasa, actuando localmente en las áreas problemáticas y garantizando buenos resultados.\n¿CÓMO PUEDO PERDER PESO EN MIS CADERAS?\n¿PUEDE FIGURELLA AYUDAR A MIS MUSLOS Y GLÚTEOS?\nQUIERO PERDER MUCHO PESO. ¿PUEDO?"
+   },
+   {
+    "key": "accordion_2",
+    "heading": "Segundo grupo de preguntas (precio, frecuencia)",
+    "text": "¿CUÁNTO CUESTA FIGURELLA?\n¿CUÁNTAS VECES A LA SEMANA DEBO ASISTIR FIGURELLA? ¿QUÉ PASA SI FALTO?"
+   }
+  ],
+  "faqs": [
+   {
+    "q": "¿Cómo puedo obtener un abdomen plano?",
+    "key": "faq_abdomen",
+    "a": ".elementor-703 .elementor-element.elementor-element-3d8fadc > .elementor-container > .elementor-column > .elementor-widget-wrap{align-content:center;align-items:center;}.elementor-703 .elementor-element.elementor-element-3d8fadc > .elementor-container{max-width:1400px;}.elementor-703 .elementor-element.elementor-element-3d8fadc{padding:0px 0px 0px 0px;}.elementor-703 .elementor-element.elementor-element-98ab83c > .elementor-widget-container{margin:0px 0px 0px 0px;}.elementor-703 .elementor-element.elementor-element-98ab83c{text-align:start;}.elementor-703 .elementor-element.elementor-element-98ab83c .elementor-heading-title{font-family:\"Montserrat\", Sans-serif;font-size:21px;font-weight:400;line-height:32px;color:#41BBA9;}.elementor-703 .elementor-element.elementor-element-aa8419e > .elementor-element-populated{padding:0px 0px 0px 0px;}@media(min-width:1280px){.elementor-703 .elementor-element.elementor-element-65a6176{width:50%;}.elementor-703 .elementor-element.elementor-element-aa8419e{width:50%;}}@media(max-width:1699px){.elementor-703 .elementor-element.elementor-element-98ab83c .elementor-heading-title{font-size:20px;line-height:30px;}}@media(max-width:1279px){.elementor-703 .elementor-element.elementor-element-98ab83c .elementor-heading-title{font-size:17px;line-height:28px;}}@media(max-width:991px){.elementor-703 .elementor-element.elementor-element-65a6176{width:100%;}"
+   },
+   {
+    "q": "¿Cómo puedo perder peso en mis caderas?",
+    "key": "faq_caderas",
+    "a": ".elementor-747 .elementor-element.elementor-element-3d8fadc > .elementor-container > .elementor-column > .elementor-widget-wrap{align-content:center;align-items:center;}.elementor-747 .elementor-element.elementor-element-3d8fadc > .elementor-container{max-width:1400px;}.elementor-747 .elementor-element.elementor-element-3d8fadc{padding:0px 0px 0px 0px;}.elementor-747 .elementor-element.elementor-element-aa8419e > .elementor-element-populated{padding:0px 0px 0px 0px;}.elementor-747 .elementor-element.elementor-element-98ab83c > .elementor-widget-container{margin:0px 0px 0px 0px;}.elementor-747 .elementor-element.elementor-element-98ab83c{text-align:start;}.elementor-747 .elementor-element.elementor-element-98ab83c .elementor-heading-title{font-family:\"Montserrat\", Sans-serif;font-size:21px;font-weight:400;line-height:32px;color:#41BBA9;}@media(min-width:1280px){.elementor-747 .elementor-element.elementor-element-aa8419e{width:50%;}.elementor-747 .elementor-element.elementor-element-65a6176{width:50%;}}@media(max-width:1699px){.elementor-747 .elementor-element.elementor-element-98ab83c .elementor-heading-title{font-size:20px;line-height:30px;}}@media(max-width:1279px){.elementor-747 .elementor-element.elementor-element-98ab83c .elementor-heading-title{font-size:17px;line-height:28px;}}@media(max-width:991px){.elementor-747 .elementor-element.elementor-element-aa8419e{width:100%;}"
+   },
+   {
+    "q": "¿Puede Figurella ayudar a mis muslos y glúteos?",
+    "key": "faq_muslos_gluteos",
+    "a": ".elementor-758 .elementor-element.elementor-element-3d8fadc > .elementor-container > .elementor-column > .elementor-widget-wrap{align-content:center;align-items:center;}.elementor-758 .elementor-element.elementor-element-3d8fadc > .elementor-container{max-width:1400px;}.elementor-758 .elementor-element.elementor-element-3d8fadc{padding:0px 0px 0px 0px;}.elementor-758 .elementor-element.elementor-element-98ab83c > .elementor-widget-container{margin:0px 0px 0px 0px;}.elementor-758 .elementor-element.elementor-element-98ab83c{text-align:start;}.elementor-758 .elementor-element.elementor-element-98ab83c .elementor-heading-title{font-family:\"Montserrat\", Sans-serif;font-size:21px;font-weight:400;line-height:32px;color:#41BBA9;}.elementor-758 .elementor-element.elementor-element-aa8419e > .elementor-element-populated{padding:0px 0px 0px 0px;}@media(min-width:1280px){.elementor-758 .elementor-element.elementor-element-65a6176{width:50%;}.elementor-758 .elementor-element.elementor-element-aa8419e{width:50%;}}@media(max-width:1699px){.elementor-758 .elementor-element.elementor-element-98ab83c .elementor-heading-title{font-size:20px;line-height:30px;}}@media(max-width:1279px){.elementor-758 .elementor-element.elementor-element-98ab83c .elementor-heading-title{font-size:17px;line-height:28px;}}@media(max-width:991px){.elementor-758 .elementor-element.elementor-element-65a6176{width:100%;}"
+   },
+   {
+    "q": "Quiero perder mucho peso. ¿Puedo?",
+    "key": "faq_perder_mucho_peso",
+    "a": ".elementor-761 .elementor-element.elementor-element-3d8fadc > .elementor-container > .elementor-column > .elementor-widget-wrap{align-content:center;align-items:center;}.elementor-761 .elementor-element.elementor-element-3d8fadc > .elementor-container{max-width:1400px;}.elementor-761 .elementor-element.elementor-element-3d8fadc{padding:0px 0px 0px 0px;}.elementor-761 .elementor-element.elementor-element-aa8419e > .elementor-element-populated{padding:0px 0px 0px 0px;}.elementor-761 .elementor-element.elementor-element-98ab83c > .elementor-widget-container{margin:0px 0px 0px 0px;}.elementor-761 .elementor-element.elementor-element-98ab83c{text-align:start;}.elementor-761 .elementor-element.elementor-element-98ab83c .elementor-heading-title{font-family:\"Montserrat\", Sans-serif;font-size:21px;font-weight:400;line-height:32px;color:#41BBA9;}@media(min-width:1280px){.elementor-761 .elementor-element.elementor-element-aa8419e{width:50%;}.elementor-761 .elementor-element.elementor-element-65a6176{width:50%;}}@media(max-width:1699px){.elementor-761 .elementor-element.elementor-element-98ab83c .elementor-heading-title{font-size:20px;line-height:30px;}}@media(max-width:1279px){.elementor-761 .elementor-element.elementor-element-98ab83c .elementor-heading-title{font-size:17px;line-height:28px;}}@media(max-width:991px){.elementor-761 .elementor-element.elementor-element-aa8419e{width:100%;}"
+   },
+   {
+    "q": "¿Cuánto cuesta Figurella?",
+    "key": "faq_precio",
+    "a": "El precio depende de un análisis de tu problema en profundidad, tus expectativas y estilo de vida. Por eso partimos desde una evaluación completamente gratis, sin ningún compromiso de tu parte.No contamos con un precio fijo, todo depende de los objetivos de cada persona."
+   },
+   {
+    "q": "¿Cuántas veces a la semana debo asistir Figurella? ¿Qué pasa si falto?",
+    "key": "faq_frecuencia",
+    "a": "Recomendamos asistir entre 2 o 3 veces por semana, ya que así aceleras el resultado.Cada plan está adaptado y personalizado a tus necesidades, no perderás tus sesiones, solo pagas por las que asistes. El compromiso tuyo es proporcional con los objetivos y tiempos deseados para alcanzarlos.Puedes comprar las sesiones correspondientes a tu plan ideal y definir tus horarios para lograr el resultado que quieres. Si te “saltas” una sesión, la puedes recuperar cuando quieras. (Pero será más largo tu proceso)."
+   }
+  ]
+ },
+ {
+  "path": "/consejos/",
+  "url": "https://figurella.cl/consejos/",
+  "title": "Consejos – Figurella",
+  "kind": "blog",
+  "sections": [
+   {
+    "key": "lista",
+    "heading": "La lista de artículos",
+    "text": "POSTEADO EN\nFIGURELLA\n¡Cuidados de tu cuerpo en verano!\nPOR: CONSULTORIA CONSULTORIA CDE09/01/2023\nLeer más\nPOSTEADO EN\nFIGURELLA\nCápsula térmica y sus beneficios\nPOR: CONSULTORIA CONSULTORIA CDE09/12/2022\nLeer más\nPOSTEADO EN\nFIGURELLA\n¿Por qué hacer ejercicios de bajo impacto? ¡Cuida tu cuerpo!\nPOR: CONSULTORIA CONSULTORIA CDE07/11/2022\nLeer más\nPOSTEADO EN\nFIGURELLA\nOperación verano: ¡Allá vamos!\nPOR: CONSULTORIA CONSULTORIA CDE01/10/2022\nLeer más\nPOSTEADO EN\nFIGURELLA\nFigurella: un espacio 100% para mujeres\nPOR: CONSULTORIA CONSULTORIA CDE08/09/2022\nLeer más\nPOSTEADO EN\nFIGURELLA\n¡Celebremos juntas los 11 años de Figurella!\nPOR: CONSULTORIA CONSULTORIA CDE03/08/2022\nLeer más"
+   }
+  ],
+  "text": "Artículos: ¡Cuidados de tu cuerpo en verano!; Cápsula térmica y sus beneficios; ¿Por qué hacer ejercicios de bajo impacto? ¡Cuida tu cuerpo!; Operación verano: ¡Allá vamos!; Figurella: un espacio 100% para mujeres; ¡Celebremos juntas los 11 años de Figurella!"
+ },
+ {
+  "path": "/politica-de-privacidad/",
+  "url": "https://figurella.cl/politica-de-privacidad/",
+  "title": "Política de privacidad – Figurella",
+  "kind": "privacy",
+  "sections": [
+   {
+    "key": "contenido",
+    "heading": "La política de privacidad",
+    "text": "Política de privacidad\nInicio>Política de privacidad\nÚltima actualización: 23/04/26\nEn Figurella Chile (en adelante, “Figurella”), nos comprometemos a proteger la privacidad y seguridad de los datos personales de nuestras clientas y potenciales clientas, en cumplimiento con la legislación vigente en Chile y las políticas de Meta Platforms, Inc., incluyendo el uso de WhatsApp Business API.\nResponsable del tratamiento de datos\nRazón social: Comercializadora e importadora Beleza Ltda\nRUT: 76.074.411-5\nDirección: Juan XXIII 6370, Vitacura\nCorreo electrónico: info@figurella.cl\nDatos personales que recopilamos\nFigurella podrá recopilar los siguientes datos a través de sus canales digitales (Instagram, Facebook, WhatsApp, formularios y sitio web):\nNombre y apellido\nNúmero de teléfono\nCorreo electrónico\nEdad\nInformación relacionada con hábitos, metabolismo y bienestar\nObjetivos personales (ej: reducción de medidas, activación metabólica, etc.)\nImportante: La información de salud es solicitada únicamente de forma referencial y voluntaria, con el fin de personalizar la orientación inicial.\nFinalidad del tratamiento\nLos datos personales serán utilizados para:\nContactar y dar respuesta a solicitudes de información\nCoordinar evaluaciones personalizadas\nOfrecer programas del método Figurella\nEnviar promociones, campañas y beneficios\nRealizar seguimiento comercial y de experiencia\nMejorar nue"
+   }
+  ]
+ },
+ {
+  "path": "/cuidados-de-tu-cuerpo-en-verano/",
+  "url": "https://figurella.cl/cuidados-de-tu-cuerpo-en-verano/",
+  "title": "¡Cuidados de tu cuerpo en verano!",
+  "kind": "post",
+  "date": "2023-01-09",
+  "sections": [
+   {
+    "key": "titulo",
+    "heading": "¡Cuidados de tu cuerpo en verano!",
+    "text": ""
+   },
+   {
+    "key": "contenido",
+    "heading": "El artículo «¡Cuidados de tu cuerpo en verano!»",
+    "text": "Vernos y sentirnos bien es lo que más queremos en esta temporada.  \n Sol, playa, arena y muchos momentos memorables que vivimos todos los días que estamos en nuestras vacaciones, pero: ¿Cómo pasarlo bien sin desperdiciar el trabajo que hemos hecho en todo el año?  \n Lo primero que tienes que tener en cuenta es tu objetivo, si bien puedes relajarte, disfrutar de las delicias del verano y pasarlo bien, pero siempre con moderación.  \n Relájate, está científicamente comprobado que los episodios de stress puede desequilibrar, dentro de otras situaciones, el alza del azúcar de tu sangre y alterar tu cuerpo.  \n Además, te recomendamos siempre hacer un poco de ejercicio: caminar, trotar, andar en bicicleta, bailar o algún deporte para que así tu cuerpo no olvide el ejercicio físico. \n También es importante cuidar tu piel, por lo cual es necesario que siempre salgas con protector solar, de tal forma de que los rayos UV no dañen las células de tu piel. Además de eso, recuerda que si vas a salir en los momentos más calurosos del día, ten a mano siempre un sombrero que combine con tu outfit, de esa forma podrás protegerte del sol.  \n Mantente siempre fresca, tomando agua, para que así no te deshidrates. Con el calor, las actividades, las idas a la playa o las salidas es normal que te deshidrates, por lo cual te recomendamos que siempre estés hidratada. Esto hace que \n Aunque no lo creas utilizar ropa cómoda te puede ayudar a sentir menos los efectos del calor, ropa que sea liviana, que te ayude a sentirte cómoda y lo más importante, ¡un outfit que te haga ver divina! \n Y si quizás estuvo muy disfrutado el verano, ¡no te preocupes! Siempre podrás volver a empezar. Eso es lo importante, nunca perder la motivación ni las ganas de seguir encontrando la mejor versión de ti. \n ¿Quieres saber más de nuestro método revolucionario? \n Agenda tu evaluación con nosotras y te asignaremos el mejor plan para tus necesidades. \n ¡No esperes más, comienza haciendo un cambio en tu vida ahora! \n Agenda aquí"
+   }
+  ]
+ },
+ {
+  "path": "/capsula-termica-y-sus-beneficios/",
+  "url": "https://figurella.cl/capsula-termica-y-sus-beneficios/",
+  "title": "Cápsula térmica y sus beneficios",
+  "kind": "post",
+  "date": "2022-12-09",
+  "sections": [
+   {
+    "key": "titulo",
+    "heading": "Cápsula térmica y sus beneficios",
+    "text": ""
+   },
+   {
+    "key": "contenido",
+    "heading": "El artículo «Cápsula térmica y sus beneficios»",
+    "text": "Para nosotras la salud es todo, no solo para tener un cuerpo con el cual podamos realizar todas las actividades que queramos sino que también para sentirnos bien. \n Nuestro objetivo es que lo pases bien, te sientas bien y vivas la vida con el mayor bienestar y para eso hemos traído a nuestro país el método Figurella, directamente desde Italia, con 3 aspectos fundamentales para lograrlo: \n 1.- Ejercicios localizados en la cápsula térmica para moldear tu figura como tú quieras. \n 2.- Baños de oxigenoterapia para eliminar grasas y toxinas de tu cuerpo. \n 3.- Sesiones de presoterapia para activar tu circulación produciendo una intensa sensación de bienestar y ligereza. \n Pero, ¿Cómo funciona la cápsula térmica? \n Nuestra cápsula mantiene tu cuerpo a 37º de temperatura, que recrea los grados que necesita tu cuerpo para disolver las células grasas de tu cuerpo, reducir celulitis y tonificar tus músculos. \n Esta maravillosa solución junto a ejercicios localizados por 30 minutos te asegura lograr tonificar tu cuerpo y mantenerte saludable y lo mejor de todo: esta cápsula térmica está patentada 100% por Figurella Internacional, el método revolucionario que ha impactado miles de mujeres alrededor del mundo.  \n ¿Qué otros beneficios podemos obtener de esta maravillosa tecnología?  \n Optimiza la composición corporal reduciendo adiposidades y mejorando tu masa muscular. \n Es un método natural no invasivo, por lo cual no tiene efectos secundarios para tu cuerpo ni tampoco efecto rebote. ¡Tu cuerpo lo agradecerá 100%! \n Los ejercicios que haces dentro de la cápsula térmica son de bajo impacto, lo que cuida tus articulaciones y tu cuerpo. Si quieres saber más de este tema, te recomendamos leer nuestro blog:  ¿Por qué hacer ejercicios de bajo impacto? ¡Cuida tu cuerpo! \n Los ejercicios están pensados previa evaluación, de tal forma que no te sobreexigirás ni tampoco llevarás tu cuerpo a al límite, así estarás segura en todo momento.  \n ¿Quieres venir y probar nuestra cápsula térmica? \n Agenda tu evaluación con nosotras y entregarte el mejor plan para tus necesidades y  así te acompañamos para que logres tu mejor versión. \n Agenda aquí"
+   }
+  ]
+ },
+ {
+  "path": "/por-que-hacer-ejercicios-de-bajo-impacto-cuida-tu-cuerpo/",
+  "url": "https://figurella.cl/por-que-hacer-ejercicios-de-bajo-impacto-cuida-tu-cuerpo/",
+  "title": "¿Por qué hacer ejercicios de bajo impacto? ¡Cuida tu cuerpo!",
+  "kind": "post",
+  "date": "2022-11-07",
+  "sections": [
+   {
+    "key": "titulo",
+    "heading": "¿Por qué hacer ejercicios de bajo impacto? ¡Cuida tu cuerpo!",
+    "text": ""
+   },
+   {
+    "key": "contenido",
+    "heading": "El artículo «¿Por qué hacer ejercicios de bajo impacto? ¡Cuida tu cuerpo!»",
+    "text": "Estamos constantemente expuestas a distintas situaciones en nuestro día a día: el trabajo, la casa, las responsabilidades, el estrés, la ciudad y necesitamos tener un momento para nosotras, es por eso que en Figurella tenemos distintos planes de ejercicios, los cuales se basan en tener un bajo impacto para tus articulaciones y sistema óseo. \n Pero, ¿por qué elegir estos ejercicios por sobre otros?  \n La razón es muy simple: el objetivo de éstos es aumentar gradualmente tu ritmo cardíaco, de tal forma de que no sea una carga demasiado alta y así no sientes la presión, por otro lado, ejercen una menor presión sobre tus articulaciones, todo esto con el fin de evitar lesiones.  \n No queremos que te lesiones ni tampoco que sufras, es por eso que están dentro de nuestros planes de ejercicios que puedes revisar aquí .  \n Además, estos ejercicios ayudan a mantener los músculos debido al paso del tiempo.  \n Cuando vengas a entrenar a Figurella, podrás ejercitarte, cuidar tus articulaciones, hacer ejercicios de bajo impacto y cuidar tu cuerpo. Todo esto con el fin de tener un momento agradable y revitalizador.  \n Y no solamente ejercicios podrás realizar, sino que también tendrás tu sesión de oxigenoterapia, donde podrás acelerar el proceso de eliminación de grasa y toxinas, también depurarás y oxigenarás internamente el cuerpo. Funciona como un regenerador celular que favorece la circulación y genera la desintoxicación de las células que permiten mejorar la elasticidad y textura de la piel. \n Además, recibirás una sesión de presoterapia, donde eliminarás las toxinas acumuladas en los tejidos de tu cuerpo y mejorarás la circulación, así evitarás la retención de líquidos. Recibirás un suave masaje de drenaje linfático durante 15 minutos, que activará tu circulación produciendo una intensa sensación de bienestar y ligereza. \n Lograr los objetivos que necesitas para tu cuerpo no es magia, ¡es Figurella! \n Agenda aquí"
+   }
+  ]
+ },
+ {
+  "path": "/operacion-verano-alla-vamos/",
+  "url": "https://figurella.cl/operacion-verano-alla-vamos/",
+  "title": "Operación verano: ¡Allá vamos!",
+  "kind": "post",
+  "date": "2022-10-01",
+  "sections": [
+   {
+    "key": "titulo",
+    "heading": "Operación verano: ¡Allá vamos!",
+    "text": ""
+   },
+   {
+    "key": "contenido",
+    "heading": "El artículo «Operación verano: ¡Allá vamos!»",
+    "text": "Estamos en plena primavera y comenzamos a usar ropa más liviana, los vestidos vuelven a ser tendencia y sentimos el calor del sol, pero: ¿Cómo llegar de la mejor forma al verano?  \nLo primero que debes tener en cuenta: NO EXISTE EL CUERPO PERFECTO. \nQueremos que te sientas bien contigo y que cumplas tus objetivos, ya que ninguna de nosotras es igual, ni tampoco todas tenemos las mismas necesidades. \n Pero: ¿cómo podemos empezar a lograr lo que nos proponemos? Acá te presentamos algunas ideas que puedes aplicar en tu día a día: \n 1.- Hidrátate: En este tiempo es necesario consumir abundante agua porque tu cuerpo la necesita, sobre todo con las alzas de temperatura, por lo cual, ten siempre tu botella a mano.  \n  ¿Qué beneficios puedo encontrar al tomar agua? \n – Elimina las toxinas de tu organismo. \n – Evitas el dolor de cabeza y migrañas \n – Regula la tempera de tu cuerpo \n – Te ayuda a mantener la elasticidad e hidratación de tu piel, entre muchos más beneficios. \n 2.- Dile adiós a las azúcares y carbohidratos: A veces, a media tarde, es difícil decirle que no a las delicias dulces, sobre todo si estamos en un periodo de cargas laborales extenuantes o presión debido al cierre del año. Intenta eliminar el consumo de estos alimentos y reemplazarlos por otros que sean nutritivos. \n ¿El secreto? Al disminuir su ingesta, consumirás menos calorías que se traducen en grasa y tu cuerpo comenzará a usar la que tienes en tu cuerpo, teniendo un impacto directo en tu silueta.\n 3.- Todo en exceso es malo: Si bien, sabemos que debemos comer de manera saludable, recuerda que el consumo en mayor cantidad de algunos alimentos como las proteínas puede ser perjudicial para tu cuerpo, sin una supervisión de un profesional, es por eso que es necesario hacer un balance entre tus comidas y tener la asesoría de nuestras expertas. \n 4.- Olvídate del peso: Quizás esto suene contradictorio, pero obsesionarte con este tema, puede generarte ansiedad lo cual es más perjudicial porque terminarás generando más estrés a tu cuerpo, impidiéndote lograr tus objetivos.  \n ¿Qué te puede ayudar a bajar la ansiedad? Observa los progresos con tu ropa, probándote el pantalón o esa polera que deseas usar, si sientes que has avanzado sigue así, no te detengas hasta lograrlo.\n 5.- No es no: A veces, hacer cambios en tu vida es solo cuestión de decisión, es por eso que te incentivamos a ser constante: si te invitan a ingerir algún alimento que no sea saludable para ti, aprende a decir que no.  \n Ahora, puedes planificar el día en que te des una licencia, comer otras cosas pero siempre con moderación y disfrutando el momento. \n 6.- Y lo más importante: Ejercita tu cuerpo para potenciar aún más los resultados. Lo recomendado por nuestras profesoras expertas es que ejercites tu cuerpo 3 veces a la semana, de tal forma de tonificar tus músculos, trabajar en las zonas de tu cuerpo que quieras moldear, y para eso, hemos creado distintos planes, los cuales puedes ver aquí . \n ¿Quieres ver cambios en tu vida? Cuídate, ámate, aliméntate y ejercítate.  \n Agenda una asesoría con nuestro equipo de expertas aquí"
+   }
+  ]
+ },
+ {
+  "path": "/figurella-un-espacio-100-para-mujeres/",
+  "url": "https://figurella.cl/figurella-un-espacio-100-para-mujeres/",
+  "title": "Figurella: un espacio 100% para mujeres",
+  "kind": "post",
+  "date": "2022-09-08",
+  "sections": [
+   {
+    "key": "titulo",
+    "heading": "Figurella: un espacio 100% para mujeres",
+    "text": ""
+   },
+   {
+    "key": "contenido",
+    "heading": "El artículo «Figurella: un espacio 100% para mujeres»",
+    "text": "A lo largo del tiempo, te hemos contado todos los beneficios que significa ser parte de Figurella. Si aún no lo has leído, te invitamos a entrar aquí.   \n Hoy queremos compartir con ustedes el secreto que miles de mujeres han descubierto para sentirse bien y mejorar su calidad de vida. \n Para ninguna de nosotras es indiferente que cada día alcanzamos roles protagónicos en nuestra sociedad y eso nos ha dado un salto en muchas materias, ¡pero queremos más! \n Somos fuertes, valientes y nos merecemos tener espacios donde nos sintamos plenas, hacer lo que más nos gusta, transitar de forma libre y estar siempre apoyadas por profesionales que no solo nos entiendan. Bajo esa necesidad es que nace Figurella. \n Además de ver resultados desde la primera sesión, tener una rutina de ejercicios de bajo impacto en una cámara térmica a 37 °C, disfrutar de un momento de oxigenoterapia y finalizar con presoterapia, en Figurella le damos la confianza y seguridad a cada una de nuestras clientas, ya que este es un espacio 100% pensado y diseñado solo para mujeres.  \n ¿Lo mejor de todo? Tendrás siempre la ayuda de nuestras profesionales que te estarán motivando y guiando al hacer tus ejercicios, y así lograrás los mejores objetivos. Además, te acompañarán siempre y serán grandes aliadas en tus sesiones, sólo con la misión de darte el resultado que tanto quieres, ¡lo garantizamos! \n De algo tienes que estar segura, en todo el proceso en nuestras sedes te sentirás cómoda: al entrar, en los camarines, las cámaras térmicas, las máquinas de oxigenoterapia y presoterapia, los lugares comunes, en todo  momento estaremos contigo para que tu experiencia sea inolvidable. \n No esperes más y comprueba que nuestro método funciona y que te cambiará la vida.  \nAgenda con nosotros ahora tu evaluación aquí. \n FUENTES:  \n www.figurella.cl"
+   }
+  ]
+ },
+ {
+  "path": "/celebremos-juntas-los-11-anos-de-figurella/",
+  "url": "https://figurella.cl/celebremos-juntas-los-11-anos-de-figurella/",
+  "title": "¡Celebremos juntas los 11 años de Figurella!",
+  "kind": "post",
+  "date": "2022-08-03",
+  "sections": [
+   {
+    "key": "titulo",
+    "heading": "¡Celebremos juntas los 11 años de Figurella!",
+    "text": ""
+   },
+   {
+    "key": "contenido",
+    "heading": "El artículo «¡Celebremos juntas los 11 años de Figurella!»",
+    "text": "¡Agosto es un mes muy importante para nosotras, y acá te contaremos por qué! \n Hace 11 años, Figurella llegaba a Chile con un solo propósito: brindar a mujeres la posibilidad de trabajar en su figura, de tal forma de lograr el objetivo que ellas necesitaban.  \n Aunque sabemos que cada cuerpo es único y que todas necesitamos sentirnos bien sin seguir un patrón ni una moda, nuestro método se acomoda a tus necesidades y utiliza 3 pasos que son imprescindibles para lograrlo.  \n Ejercicios localizados de bajo impacto en nuestras cápsulas térmicas: Te guiamos con el objetivo de quemar grasa, modelar y tonificar, activando la circulación y acelerando tu metabolismo.\n Oxigenoterapia: luego recibes una vaporización de oxígeno activo que elimina las toxinas de tu cuerpo, regenera tus células y favorece la circulación, dejando tu piel suave y tersa en solo 15 minutos. (Resultados visibles en la primera sesión).\n Presoterapia: finalizas con una sesión de drenaje linfático mecánico, que evita la retención de líquidos y mejora la circulación de tus piernas durante 15 minutos. En este momento, puedes ponerte cómoda, disfrutar del relajo y aprovechar de bajar tus pulsaciones.\n   TIP: ¿Sabías que con 30 minutos de ejercicio de nuestro método, equivale a 1,5 horas de actividad en el gimnasio? \n¡Pero esto no es todo!  \n Nuestras nutricionistas te guiarán por un camino saludable, aprenderás a disfrutar la comida sin la necesidad de seguir dietas estrictas de tal forma que logres tus resultados más rápidamente. \n11 años de grandes resultados \n Este método italiano tiene 40 años dedicado a las mujeres, en donde se ha establecido en más de 500 países del mundo como por ejemplo, Italia, Austria, Alemania, Croacia, Inglaterra, Estados Unidos, Colombia, Perú, Argentina y por supuesto en Chile. \n En todo este tiempo, hemos tenido a más de 5.000 mujeres que han conseguido sus objetivos cuando empezaron a trabajar en ellas. \nAcá te presentamos un testimonio de Pamela Rodríguez, una clienta feliz:\n “Llegué a Figurella en agosto de 2016, faltando 3 meses para mi boda y tenía sobrepeso. Me recomendaron el Plan Novias, lo tomé y funcionó; con ejercicio y de manera saludable, como nunca antes, vi mi cambio: IMPRESIONANTE!!!\n Pero más allá de eso, y de que lo que ofrecen es efectivo si te dedicas, creo que es destacable el profesionalismo, ánimo y buena energía con que todo este equipo hace su trabajo. Mención aparte para Brisa, Paola y Fernanda, que con su ánimo y alegría hicieron que este proceso fuera inmensamente gratificante, siempre atentas, amables y profesionales. \n Así que un gran y fuerte gracias a las tres por hacer que el día de mi matrimonio me sintiera la más linda de todas”. \n ¡Pero las sorpresas no se detienen! \n Te presentamos nuestra nueva sucursal: Figurella Las Perdices, un nuevo lugar donde podrás entrenar y acompañarnos en nuestro aniversario:  \n ¿Dónde? En Av. Las Perdices 2990, local 17, Peñalolén \n ¿Cómo puedo contactarlas? Llama al: +56987794441 \n¡Sigamos juntas en un nuevo año, trabajando para tu mejor versión!\n FUENTES:  \n www.figurella.cl"
+   }
+  ]
+ },
+ {
+  "path": "/adiposidad-localizada-que-es-causas-y-tratamiento/",
+  "url": "https://figurella.cl/adiposidad-localizada-que-es-causas-y-tratamiento/",
+  "title": "Adiposidad localizada: Qué es, causas y tratamiento",
+  "kind": "post",
+  "date": "2022-07-11",
+  "sections": [
+   {
+    "key": "titulo",
+    "heading": "Adiposidad localizada: Qué es, causas y tratamiento",
+    "text": ""
+   },
+   {
+    "key": "contenido",
+    "heading": "El artículo «Adiposidad localizada: Qué es, causas y tratamiento»",
+    "text": "¿Has escuchado alguna vez este término? Te contaré más acerca de cómo la adiposidad se genera y de qué forma podemos combatirla juntas.\n Lo más importante para nosotras es conocer todos los aspectos de nuestro cuerpo, su funcionamiento, distintas etapas y procesos. Es por eso que en el blog hablé, por ejemplo, de los “Beneficios de ejercitar el suelo pélvico para la mujer” . ¡Revísalo!\n Hoy te contaré de este fenómeno y en que podemos trabajar para eliminarla.\n ¿Qué es la adiposidad localizada? \n Es el aumento del tejido graso en partes específicas de tu cuerpo, lo que hace que aparezcan los indeseados “rollitos”.\n Hay un mito entre la adiposidad y la celulitis, que indica que la primera da paso a la segunda, pero esto no es así, es por eso que es crucial diferenciar ambas.\n Si quieres conocer más, acá puedes ver lo que escribimos al respecto: Celulitis, factores que la producen . \n ¿Dónde aparece la adiposidad localizada?\n Las zonas son:\n Tus Caderas\n Tu vientre\n Tus glúteos y muslos\n Causas: \n Los factores se relacionan con hábitos alimenticios que se prolongan a lo largo del tiempo, como por ejemplo: Azúcares en exceso, harinas blancas, cosas fritas, recetas grasosas, alcohol y tabaco. En resumen, una vida poco saludable que se extiende a lo largo de los meses.\n Esto se debe a un hábito prolongado, por lo cual, si pruebas algunos de estos de vez en cuando, no hay problema.\n ¿Se puede combatir la adiposidad localizada? \n Para lograrlo, es necesario tener un estilo de vida saludable, hacer ejercicios específicos, comer de forma correcta, eliminar los hábitos nocivos como el consumo de alimentos en exceso y otros.\n ¡Todo esto puedes conseguirlo en Figurella! Nuestro estilo italiano fue diseñado pensando en tus necesidades y te ayudará a combatir la adiposidad localizada en las partes específicas de tu cuerpo.\n Figurella piensa en tu comodidad, Es por eso que nuestras expertas te asesorarán en todo momento con rutina de ejercicios, oxigenoterapia, presoterapia y tips nutricionales, de manera de que puedas lograr tus objetivos. Lo mejor de todo, es que este método es 100 % natural y sin el temido efecto rebote.\n ¿Quieres conocernos? Escríbenos y agenda una evaluación gratis, tenemos planes personalizados que se ajustan a tus necesidades.\n¡Te esperamos!\n FUENTES:  \n https://medicinaybelleza.com/que-es-la-adiposidad-localizada/"
+   }
+  ]
+ },
+ {
+  "path": "/beneficios-de-ejercitar-el-suelo-pelvico-para-la-mujer/",
+  "url": "https://figurella.cl/beneficios-de-ejercitar-el-suelo-pelvico-para-la-mujer/",
+  "title": "Beneficios de ejercitar el suelo pélvico para la mujer",
+  "kind": "post",
+  "date": "2022-06-08",
+  "sections": [
+   {
+    "key": "titulo",
+    "heading": "Beneficios de ejercitar el suelo pélvico para la mujer",
+    "text": ""
+   },
+   {
+    "key": "contenido",
+    "heading": "El artículo «Beneficios de ejercitar el suelo pélvico para la mujer»",
+    "text": "Como mujer es importante conocer cada parte de tu cuerpo, su funcionamiento y necesidades. Descubre los beneficios de un suelo pélvico ejercitado.\n Parte importante de nuestro proceso para alcanzar la mejor versión de nosotras es conocernos.\n Identificar las necesidades de nuestro cuerpo y qué hacer para solucionarlas.\n Hoy te hablaré sobre un tema que afecta más a las mujeres que a los hombres, y consiste en la debilidad del suelo pélvico.\n ¿Qué es el suelo pélvico? \n Es una estructura formada por músculos y tejido conectivo que se ubica debajo de los órganos de la pelvis. \n Esta estructura ayuda como sostén de los órganos pélvicos y abdominales, manteniendo cada uno en su posición normal.\n Además, favorece el funcionamiento y desempeño de esa zona (continencia urinaria y fecal).\n ¿Cuáles son los órganos pélvicos de la mujer? \n Vejiga y uretra: el sistema urinario\n Útero y vagina: sistema reproductivo\n Recto y ano: sistema digestivo\n Ahora que ya sabes cuál es su función y dónde se encuentra, viene la siguiente pregunta ¿por qué debemos ejercitarlo?\n Resultado de un suelo pélvico débil \n Prolapso o descenso de los órganos pélvicos\n Pesadez o molestias en la parte baja del abdomen\n Incontinencia urinaria y fecal\n Dolor en la región lumbar\n Dificultades durante las relaciones sexuales\n Eso puede ser causado por factores como:\n El aumento de la presión a nivel abdominal: obesidad, enfermedades pulmonares crónicas, fumar y constipación.\n La diabetes.\n Los tumores pélvicos.\n Un embarazo con o sin parto vaginal.\n La menopausia debido a la pérdida de la elasticidad de los tejidos.\n Como vemos, las consecuencias de un suelo pélvico débil pueden afectar tu calidad de vida, y si te identificas con alguno de estos puntos te recomendamos consultar con un especialista. \n Ahora sabes lo importante que es ejercitar esta zona, sobre todo cuando eres mujer.\n Para motivarte a empezar quiero compartir contigo esto: \n Beneficios de ejercitar el suelo pélvico para las mujeres \n Mejora tu vida sexual \n La fuerza que ejercen los músculos del suelo pélvico está relacionada con el orgasmo, mientras más los ejercites mejores serán los orgasmos.\n Ayuda a prevenir la incontinencia urinaria \n Fortalecer el suelo pélvico te ayuda a controlar la pérdida de orina de forma involuntaria, manteniendo una contracción adecuada de los esfínteres.\n Corrige tu postura \n El suelo pélvico trabaja con el abdomen, diafragma y la columna lumbar. Cuando no ejercitas esta zona el resto de los elementos se llevan mucha presión. Trabajarlo te ayudará a mantener un estado de armonía y equilibro en tu postura corporal.\n Protege tu sistema muscular \n Cuando realizas deportes de alto impacto y tienes un suelo pélvico débil se genera incontinencia urinaria y otras disfunciones, si lo tonificas te ayudará a contrarrestar esos impactos sobre tu musculatura y así reducirás el riesgo de sufrir lesiones.\n Favorece los partos naturales \n Un suelo pélvico ejercitado te ayuda a prevenir lesiones en el parto y la incontinencia urinaria post-parto, ya que durante ese momento se activan muchos músculos y el suelo es el principal afectado.\n ¿Cómo y dónde realizar estos ejercicios? \n ¡En Figurella!\n Nuestro método diseñado exclusivamente para mujeres te ayudará a ejercitar y tonificar puntos específicos de tu cuerpo, uno de ellos es el suelo pélvico. \n Estamos comprometidas con la salud y bienestar de las mujeres, mejorando la calidad de vida en todos los sentidos.\n Es 100 % natural y sin efectos secundarios, los resultados son garantizados por escrito.\n Escríbenos y agenda una evaluación gratis, tenemos planes personalizados que se ajustan a tus necesidades.\n FUENTES: \n https://mejorconsalud.as.com/beneficios-fortalecer-suelo-pelvico/ \n https://www.vitonica.com/wellness/beneficios-trabajar-suelo-pelvico"
+   }
+  ]
+ },
+ {
+  "path": "/enamorate-de-ti-y-luego-de-quien-quieras/",
+  "url": "https://figurella.cl/enamorate-de-ti-y-luego-de-quien-quieras/",
+  "title": "Enamórate de ti y luego de quien quieras",
+  "kind": "post",
+  "date": "2021-12-01",
+  "sections": [
+   {
+    "key": "titulo",
+    "heading": "Enamórate de ti y luego de quien quieras",
+    "text": ""
+   },
+   {
+    "key": "contenido",
+    "heading": "El artículo «Enamórate de ti y luego de quien quieras»",
+    "text": "Estamos acostumbradas a buscar el amor afuera y nos olvidamos que donde debemos tenerlo, es dentro de nosotras. El amor propio es el regalo más hermoso que puedes hacerte, porque es como una varita mágica: Comienzas a quererte y desaparece la inseguridad y tu nueva YO es la versión que siempre soñaste tener de ti. Definitivamente sí.\n Los clichés por algo se llaman así, pero deberíamos ser más gentiles con ellos y tomarlos en cuenta, porque nunca está de más repetir las cosas, sobre todo las buenas. Estamos conectados por historias, tomémoslo en cuenta y escuchar a nuestros seres queridos será la súper salvación de tu vida, porque ellos te ven como tú deberías verte.\n Hacer un cambio es un acto de amor. Ser quien quieres ser, es un acto de rebeldía maravilloso. Estás construyendo a la mujer del futuro, la que serás mañana, sé buena contigo, no te critiques, simplemente ámate, conócete.\n Todo lo que hagas para ser feliz, está perfecto.\n Conversa contigo, conócete, enamórate de ti y solo tendrás éxito, el éxito que necesitas, ese que solo debes aprobar tú.\n Algunos consejos que te ayudarán:\n 1.- Dedícate tiempo\n 2.- Preocúpate de lo que tú piensas de ti\n 3.- No te juntes con personas que te opaquen\n 4.- No te sacrifiques por personas que no lo entiendan o no lo valoran\n Esto es solo un camino para empezar, pero cuando llegues a la meta, estarás muy feliz.\n Estamos convencidas de que uno de los principales cambios significativos tienen que ver con nuestra apariencia y también sabemos que cuando nos sentimos bien con nosotras, todo lo demás anda bien.\n Si quieres un cambio físico porque así lo decidiste, si quieres tonificar para sentirte soñada, si viene tu matrimonio o lo que sea para sentirte mejor, avísanos.\n Conversemos 😊 \n Acá amamos el amor propio ❤"
+   }
+  ]
+ },
+ {
+  "path": "/6-tips-para-sentirnos-bien-con-nosotras/",
+  "url": "https://figurella.cl/6-tips-para-sentirnos-bien-con-nosotras/",
+  "title": "6 tips para sentirnos bien con nosotras",
+  "kind": "post",
+  "date": "2021-11-17",
+  "sections": [
+   {
+    "key": "titulo",
+    "heading": "6 tips para sentirnos bien con nosotras",
+    "text": ""
+   },
+   {
+    "key": "contenido",
+    "heading": "El artículo «6 tips para sentirnos bien con nosotras»",
+    "text": "La única persona que debe aceptarte, eres tú. Si todavía no entiendes eso, te podemos ayudar a recordar la importancia de estar bien con una misma. Cuando una está tranquila y conforme, todo de pronto empieza a funcionar y a ser más bonito. En todos los ámbitos.\n A continuación de dejaremos 6 claves para sentirte bien siempre y no seas tan dura contigo.\n Escúchate \n La único voz y opinión que importa respecto a ti, eres tú. Toma atención a tu salud física y mental. Escucha tu cuerpo, escucha tu instinto. Siempre tómate atención.\n No te critiques \n Vivimos en el mundo de las críticas. Tú no puedes ser parte de eso, menos contigo. Si tomaste una mala decisión con respecto a lo que sea, de seguro tiene solución. No te critiques. No te enojes. Resuelve.\n Cuida tu mente \n La mente es clave para estar tranquilas. Si tu mente está bien, lo demás suele estarlo también. Rodéate de gente positiva, real, amiga. Personas que aporten a tu vida y aprende a no absorber la mala energía de otras personas.\n Ama tu forma de ser \n A veces somos tan exigentes con nosotros mismos, que solo le damos importancia a lo peor de nosotros y se nos olvida cómo somos en un 100%. Enamórate de tu forma de ser y aprecia todo lo que tienes. Mira a tu alrededor, mantente tranquila. Si hay algo que no te guste, tienes todo el tiempo para mejorarlo o aceptarlo.\n Apruébate \n Acéptate tal como eres. Si quieres un cambio, hazlo por ti, no por lo que digan los demás. Las personas que critican o se sienten con el derecho de hacerlo, no son personas bienvenidas en la vida de quienes queremos aprobarnos.\n Perdónate \n La clave del amor propio. El resumen de todo lo que dice arriba. Si fallaste, perdónate. Busca ayuda. Aprende a ser feliz con lo que eres y tienes.\n ¿Consejos clichés? Sí, pero demasiado importantes al momento de aceptarnos y querer cambios en nuestra vida.\n En Figurella amamos los cambios, sobre todo los que tienen que ver con sentirnos tal y como queremos y tenemos dibujado en nuestra cabeza.\n ¿Quieres saber más de nuestro método?\n Conversemos 😊"
+   }
+  ]
+ },
+ {
+  "path": "/sigue-estas-rutinas-de-ejercicios-para-bajar-la-ansiedad/",
+  "url": "https://figurella.cl/sigue-estas-rutinas-de-ejercicios-para-bajar-la-ansiedad/",
+  "title": "Sigue estas rutinas de ejercicios para bajar la ansiedad",
+  "kind": "post",
+  "date": "2021-09-26",
+  "sections": [
+   {
+    "key": "titulo",
+    "heading": "Sigue estas rutinas de ejercicios para bajar la ansiedad",
+    "text": ""
+   },
+   {
+    "key": "contenido",
+    "heading": "El artículo «Sigue estas rutinas de ejercicios para bajar la ansiedad»",
+    "text": "La situación actual mundial puede llevar a un estado de ansiedad que afecte la salud mental y física. El ejercicio físico es una gran ayuda para quienes atraviesan esa sensación.\n En días que, tal vez, perdieron el orden que imponen las actividades diarias, hoy en suspenso, una rutina física es el primer paso para recuperar el orden perdido y mejorar el estilo de vida. Es también una forma de p revenir enfermedades crónicas .\n Los expertos aseguran que los ejercicios aeróbicos , de resistencia cardiovascular, y los de fuerza reducen los síntomas de ansiedad . Sus beneficios pueden compararse a los de la meditación o la relajación.\nEn concreto, el ejercicio físico mantiene la mente ocupada, alejando así las preocupaciones del día a día. Además, actúa sobre el cortisol, la serotonina y el sistema de mediadores químicos que reducen la ansiedad y el estrés. Y activa las regiones frontales del cerebro, responsables de las funciones ejecutivas. Las endorfinas que se liberan durante el ejercicio físico generan sensación de bienestar. De esta forma se logra salir del círculo vicioso que producen la actitud y los pensamientos negativos."
+   }
+  ]
+ },
+ {
+  "path": "/celulitis-podemos-ayudarte/",
+  "url": "https://figurella.cl/celulitis-podemos-ayudarte/",
+  "title": "¿Celulitis? Podemos ayudarte",
+  "kind": "post",
+  "date": "2021-09-26",
+  "sections": [
+   {
+    "key": "titulo",
+    "heading": "¿Celulitis? Podemos ayudarte",
+    "text": ""
+   },
+   {
+    "key": "contenido",
+    "heading": "El artículo «¿Celulitis? Podemos ayudarte»",
+    "text": "Figurella te ayuda a combatir la celulitis, la enemiga número uno de las mujeres\n Se define como una simple mancha, pero en realidad la celulitis es mucho más que esto. Afecta a casi el 90% de las mujeres y no hace distinción entre flacas y gordas, entre niñas y mujeres adultas.\n Las cremas, los masajes, las dietas son de poca utilidad: la celulitis es causada por un estancamiento de líquidos en los tejidos y solo se puede combatir con una prevención saludable. Ejercitarse correctamente es esencial para ayudar a la circulación en las piernas y, al menos reducirlo tanto como sea posible.\n Por qué el ejercicio ayuda a combatir la celulitis\n En la mayoría de los casos, lo que comúnmente llamamos «celulitis» es en realidad la aparición de depósitos de grasa localizados (acumulación de grasa en algunas áreas críticas) o retención de agua, dos fenómenos que pueden tratarse con una estrategia específica. Esta condición aparece después de la pubertad, y no antes, porque está relacionada con el aumento de tejido adiposo por el estrógeno. Las causas son muchas y éstas incluyen: herencia, sobrepeso, un estilo de vida sedentario, desequilibrios hormonales o una dieta rica en grasas y azúcares.\n Figurella, contra la celulitis\n El Método Figurella, basado en un estilo de vida saludable y activo, es eficaz para contrarrestar la nunca bien ponderada celulitis. La actividad física controlada, realizada en cápsula térmica patentada de Figurella, ayuda a mejorar la tonicidad muscular y reducir las adiposidades localizadas, contrastando la acumulación de grasa en zonas críticas, que no hacen más que resaltar la celulitis en los muslos, glúteos, abdomen y caderas. La vaporización en la cápsula de Oxigenoterapia con oxígeno activo, por otro lado, ayudan a la microcirculación sanguínea, ayudando a prevenir el estancamiento que puede causar la aparición de la celulitis. Finalmente, el último paso, la Presoterapia, nos ayuda a drenar las piernas y así evita la retención de líquidos y mejorar la circulación.\n El efecto (limitado) de cremas y masajes\n Ciertamente, hay cosméticos que pueden ayudar a mejorar la textura de la piel y los masajes que drenan líquidos a nivel de la microcirculación, pero solo un estilo de vida correcto puede ser realmente útil. Y no solo para combatir la celulitis y recuperar la condición física, sino sobre todo para sentirse bien: por dentro y por fuera. La actividad física propuesta por el Método Figurella, realizado correctamente con una frecuencia de dos a tres veces por semana, ayuda a la mujer a enfrentar mejor al espejo, pero sobre todo con las medidas: ¡porque la salud no es una cuestión de peso, sino de centímetros! Para la Organización Mundial de la Salud, considera el tamaño de la cintura como un índice de salud."
+   }
+  ]
+ },
+ {
+  "path": "/el-secreto-para-perder-peso-la-motivacion/",
+  "url": "https://figurella.cl/el-secreto-para-perder-peso-la-motivacion/",
+  "title": "El Secreto para perder peso: La motivación",
+  "kind": "post",
+  "date": "2021-09-26",
+  "sections": [
+   {
+    "key": "titulo",
+    "heading": "El Secreto para perder peso: La motivación",
+    "text": ""
+   },
+   {
+    "key": "contenido",
+    "heading": "El artículo «El Secreto para perder peso: La motivación»",
+    "text": "El secreto es la motivación \n La verdad que “Querer es poder”. En todas las cosas que hacemos a lo largo de la vida, debemos apoyarnos con una fuerte motivación para alcanzar metas y objetivos. Si realmente no lo crees, nunca lo obtendrás, pero si realmente estas interesada puedes aprender y/o encontrar ayuda.\n La motivación es el secreto del éxito, incluso cuando se trata de deportes, dietas o un estilo de vida saludable. Necesitamos encontrar una motivación propia para alcanzar las metas y no darse por vencida. Tal vez no te das cuenta, pero lo que realmente quieres, si te esfuerzas lo tienes. \n¿Cuántas veces has tirado la esponja? Te inscribiste en el gimnasio y no fuiste. Has decidido perder peso y has hundido la cuchara en un postre. \nEsto sucede cuando no estás motivado decisivamente. No es suficiente «comenzar a estar en la mitad del trabajo», de hecho, el riesgo de rendirse está al acecho: primero debe encontrar la motivación.\n Tengo que \n Hay cosas que queremos hacer, que nos llegan pronto y bien, aquellas a las que no puedes renunciar y luego hay tiempo libre. Incluso si logramos obligarnos a asistir a la piscina o al gimnasio a conciencia, ciertamente no podemos enfrentar la vida pensando que todo es un esfuerzo o una molestia innecesaria. ¡Debería ser un placer! Debemos transformar lo que debo en lo que quiero. La vida ya está tan llena de «Debo», pero lo mejor es hacerlo con un enfoque más positivo y rentable, el «Quiero».\n De 5 a 70 años: «Quiero»\n «Tengo que» una vida saludable no es suficiente, se necesita algo más, de persona a persona. Cada uno de nosotros tiene una personalidad diferente, un cuerpo diferente, las necesidades y objetivos más diversas, que evolucionan durante el curso de la vida. A los 10 años quieres divertirte y soñar con ser veterinaria, a los 13 ser delgada y hermosa como una modelo, a los 15 ser delgada, hermosa y popular, a los 30 ser todavía una adolescente, a los 40 de ser aún joven y fuerte, a los 50 sentirse como de 40… a los 60 sentirse bien el mayor tiempo posible. Inútil forzar a los niños a nadar porque es bueno, tener que arrastrarlos en contra de su voluntad o inscribirse en la menopausia a la clase de aeróbicos juveniles para descubrir que no solo se mantiene el ritmo, sino que todo lo que sube y baja es incluso dolor de espalda.\nLas razones por las que una persona decide practicar un deporte son en realidad muchas y diferentes. Estos pueden, por ejemplo, vincularse a la necesidad individual de divertirse, conocer nuevas personas y formar equipos, tener relaciones, enfrentar nuevos desafíos o, por el contrario, vincularse con presiones externas (de padres, amigos) o con necesidades y necesidades de aprobación estética socialmente impuestas.\n Sin emitir juicios de mérito, las motivaciones principales que empujan a una persona a practicar actividad física deben ser el timón de su elección, ya que serán los parámetros de su satisfacción, la razón de su éxito o la causa de su fracaso.\n No hay soluciones correctas o equivocadas \n Lo importante es no esconderse detrás de motivaciones serias, compartibles, políticamente correctas, así como de fachada, que se desvanecen en una nada: un cuerpo más tonificado, algunos kilos menos… incluso saber que el instructor musculoso es una buena razón para hacer más ejercicios! \nNo es un canto a la superficialidad, sino a la sinceridad: es mejor admitir, al menos para uno mismo, objetivos más prosaicos, como la estética o el entretenimiento puro, pero realmente capaces de movernos en lugar de abandonar una disciplina que es muy válida pero de verdad.\n ¿Cuántas veces te has dejado convencer por tu amigo / instructor / descuento / última moda y te has encontrado en casa en el sofá? ¿Estabas realmente convencida?\n Ayuda desde el exterior\n Si los resultados llegan una se siente satisfecha y esto fortalece la motivación, lo que nos alimenta hacia el logro de metas siempre nuevas. A menudo necesitamos un ángel guardián, ayuda externa que nos recuerde la motivación que nos llevó a comenzar. Esta es la ambición de todas las mujeres que están para apoyarte en los centros de Figurella, que trabajan junto a cada clienta para dar un impulso y la energía p"
+   }
+  ]
+ },
+ {
+  "path": "/sorry-not-sorry-primero-yo/",
+  "url": "https://figurella.cl/sorry-not-sorry-primero-yo/",
+  "title": "Sorry not sorry. Primero yo.",
+  "kind": "post",
+  "date": "2021-09-26",
+  "sections": [
+   {
+    "key": "titulo",
+    "heading": "Sorry not sorry. Primero yo.",
+    "text": ""
+   },
+   {
+    "key": "contenido",
+    "heading": "El artículo «Sorry not sorry. Primero yo.»",
+    "text": "La magia no está en los milagros, está en ti. \n Sabemos lo importante que es para ti sentirte bien. Está difícil quererse mucho cuando vivimos rodeados de estereotipos que a veces nos intimidan, nos insegurizan.\n Lo importante es que estés lo más cómoda posible contigo. Que sea como sea o hagas lo que hagas, sea en pro de amarte a ti misma.\n Cuando hablamos del peso, no hay magia que pueda cumplir nuestros deseos ambiciosos de bajar de forma rápida, y si la hay, a kilómetros sabemos que vendrá con rebote o no será saludable.\n Nuestra invitación es a tomarte todo el tiempo que necesites para estar cómoda y saludable. Mientras más esfuerzo ponemos, los resultados serán mejores, porque te pusiste a prueba, te esforzaste, te sacrificaste, y los resultados serán tu sueño cumplido.\n La mejor fórmula para estar cómoda es un mix de amor propio, esfuerzo y mucha paciencia. Es convencerte de que quieres un cambio, porque así lo decidiste. Es la ayuda de los demás a subirte el ánimo, es un video motivacional para abrazarte, es la motivación que tienes y que no sabes cómo canalizar.\n Decidir un cambio, es algo que nunca olvidarás, porque algo pasó en ese momento, algo te dijo que ya era momento de cambiar.\n El primer signo de cambio eres tú, pensar que todo lo que te propongas lo puedes hacer. Si lo pensaste, hazlo. Si lo soñaste, se puede cumplir. Enfócate en estar bien contigo, con kilos de más o no, porque eso sí tiene solución, eso sí lo puedes cumplir. Es solo una decisión que debes tomar. Es entender que el tiempo pasa rápido, es cada día a su afán.\n Tú eres la protagonista de tu historia, tú decides lo que se puede o no y hasta dónde puedes llegar.\n Te invitamos a nuestra entrevista gratis. Quizás ya sea momento de empezar."
+   }
+  ]
+ }
+]

@@ -1,0 +1,733 @@
+{
+ "_meta": {
+  "site": "https://figurella.cl",
+  "header_px": 130,
+  "note": "Built by build.py; every selector matched exactly one laid-out element on the live page."
+ },
+ "pages": {
+  "/": {
+   "kind": "home",
+   "footer": true,
+   "anchors": [
+    {
+     "key": "hero",
+     "selector": ".elementor-element-1d63aae",
+     "label": "Carrusel de portada"
+    },
+    {
+     "key": "hero_cta",
+     "selector": ".elementor-element-807c743",
+     "label": "Botón «Reserva tu Diagnóstico Corporal sin costo»"
+    },
+    {
+     "key": "intro",
+     "selector": ".elementor-element-a82a4e5",
+     "label": "«Sé quien quieras ser»: 15 años en Chile, con los contadores"
+    },
+    {
+     "key": "counters",
+     "selector": ".elementor-element-1117078",
+     "label": "Contadores: 40 años, +500 centros, +5000 mujeres"
+    },
+    {
+     "key": "resultados",
+     "selector": ".elementor-element-326eb7b",
+     "label": "«¡Figurella sí funciona! ¡Resultados garantizados!» y sus tres beneficios"
+    },
+    {
+     "key": "benefit_pierde_peso",
+     "selector": ".elementor-element-9e1606a",
+     "label": "Beneficio «Pierde peso»"
+    },
+    {
+     "key": "benefit_tonifica",
+     "selector": ".elementor-element-f8e5d65",
+     "label": "Beneficio «Tonifica»"
+    },
+    {
+     "key": "benefit_sientete_bien",
+     "selector": ".elementor-element-93e3a79",
+     "label": "Beneficio «Siéntete bien»"
+    },
+    {
+     "key": "cuerpo_perfecto",
+     "selector": ".elementor-element-8963f1f",
+     "label": "«Cuerpo perfecto sin centímetros de más»: 30 minutos, 2 o 3 veces por semana"
+    },
+    {
+     "key": "feature_garantia",
+     "selector": ".elementor-element-60a5329",
+     "label": "«Resultados garantizados» (por escrito)"
+    },
+    {
+     "key": "feature_remodela",
+     "selector": ".elementor-element-87c6e05",
+     "label": "«Remodela y tonifica» (cápsula térmica)"
+    },
+    {
+     "key": "feature_vida_sana",
+     "selector": ".elementor-element-8dde143",
+     "label": "«Vida sana» (alimentación)"
+    },
+    {
+     "key": "feature_optimiza",
+     "selector": ".elementor-element-bcf2d85",
+     "label": "«Optimiza tu tiempo» (30 minutos = 1,5 horas de gimnasio)"
+    },
+    {
+     "key": "metodo",
+     "selector": ".elementor-element-2c3543a",
+     "label": "«¿Cómo lo hacemos? Método Figurella» con sus cuatro pasos"
+    },
+    {
+     "key": "metodo_movimientos",
+     "selector": ".elementor-element-f40c516",
+     "label": "Paso: movimientos localizados"
+    },
+    {
+     "key": "metodo_oxigenoterapia",
+     "selector": ".elementor-element-547918a",
+     "label": "Paso: oxigenoterapia"
+    },
+    {
+     "key": "metodo_presoterapia",
+     "selector": ".elementor-element-98fff1f",
+     "label": "Paso: presoterapia"
+    },
+    {
+     "key": "metodo_nutricion",
+     "selector": ".elementor-element-10b262b",
+     "label": "Paso: asesoramiento nutricional"
+    },
+    {
+     "key": "planes",
+     "selector": ".elementor-element-fbd04af",
+     "label": "Los planes (resumen)"
+    },
+    {
+     "key": "plan_curvas_perfectas",
+     "selector": ".elementor-element-be5843c",
+     "label": "Plan Curvas perfectas (resumen)"
+    },
+    {
+     "key": "plan_novias",
+     "selector": ".elementor-element-2b02c2b",
+     "label": "Plan Novias (resumen)"
+    },
+    {
+     "key": "plan_mama_reciente",
+     "selector": ".elementor-element-3a212c0",
+     "label": "Plan Mamá reciente (resumen)"
+    },
+    {
+     "key": "plan_rejuvenece",
+     "selector": ".elementor-element-2328b7a",
+     "label": "Plan Rejuvenece (resumen)"
+    },
+    {
+     "key": "plan_intensivo",
+     "selector": ".elementor-element-cf6556e",
+     "label": "Plan Intensivo (resumen)"
+    },
+    {
+     "key": "historias",
+     "selector": ".elementor-element-5f763e7",
+     "label": "«¡Más de 5.000 mujeres lo comprobaron!» (botón a las historias)"
+    },
+    {
+     "key": "blog",
+     "selector": ".elementor-element-b9bb001",
+     "label": "«Consejos para tu cuidado»: cuatro artículos del blog"
+    },
+    {
+     "key": "garantia",
+     "selector": ".elementor-element-967257c",
+     "label": "«¿Estás lista para redescubrirte?»: grasa localizada garantizada por escrito"
+    },
+    {
+     "key": "sucursales",
+     "selector": "#sucursales",
+     "label": "«Estamos donde tú estás»: las siete sucursales"
+    },
+    {
+     "key": "sucursal_huerfanos",
+     "selector": ".elementor-element-613612d",
+     "label": "Sucursal Huérfanos (tarjeta)"
+    },
+    {
+     "key": "sucursal_huerfanos_mapa",
+     "selector": ".elementor-element-cda1cdc",
+     "label": "Huérfanos: botón «¿Cómo llegar?»",
+     "hidden": true
+    },
+    {
+     "key": "sucursal_huerfanos_pedir_hora",
+     "selector": ".elementor-element-c4d3eab",
+     "label": "Huérfanos: botón «Pedir hora gratis»",
+     "hidden": true
+    },
+    {
+     "key": "sucursal_costanera",
+     "selector": ".elementor-element-345047a",
+     "label": "Sucursal Costanera (tarjeta)"
+    },
+    {
+     "key": "sucursal_costanera_mapa",
+     "selector": ".elementor-element-ad61a55",
+     "label": "Costanera: botón «¿Cómo llegar?»",
+     "hidden": true
+    },
+    {
+     "key": "sucursal_costanera_pedir_hora",
+     "selector": ".elementor-element-cd6ab7b",
+     "label": "Costanera: botón «Pedir hora gratis»",
+     "hidden": true
+    },
+    {
+     "key": "sucursal_colon",
+     "selector": ".elementor-element-a6eefa5",
+     "label": "Sucursal Colón (tarjeta)"
+    },
+    {
+     "key": "sucursal_colon_mapa",
+     "selector": ".elementor-element-9ee9db3",
+     "label": "Colón: botón «¿Cómo llegar?»",
+     "hidden": true
+    },
+    {
+     "key": "sucursal_colon_pedir_hora",
+     "selector": ".elementor-element-fad3b81",
+     "label": "Colón: botón «Pedir hora gratis»",
+     "hidden": true
+    },
+    {
+     "key": "sucursal_chicureo",
+     "selector": ".elementor-element-25efdf9",
+     "label": "Sucursal Chicureo (tarjeta)"
+    },
+    {
+     "key": "sucursal_chicureo_mapa",
+     "selector": ".elementor-element-f8ef90c",
+     "label": "Chicureo: botón «¿Cómo llegar?»",
+     "hidden": true
+    },
+    {
+     "key": "sucursal_chicureo_pedir_hora",
+     "selector": ".elementor-element-8fd1bcb",
+     "label": "Chicureo: botón «Pedir hora gratis»",
+     "hidden": true
+    },
+    {
+     "key": "sucursal_tabancura",
+     "selector": ".elementor-element-cc62c82",
+     "label": "Sucursal Tabancura (tarjeta)"
+    },
+    {
+     "key": "sucursal_tabancura_mapa",
+     "selector": ".elementor-element-981e614",
+     "label": "Tabancura: botón «¿Cómo llegar?»",
+     "hidden": true
+    },
+    {
+     "key": "sucursal_tabancura_pedir_hora",
+     "selector": ".elementor-element-047c94e",
+     "label": "Tabancura: botón «Pedir hora gratis»",
+     "hidden": true
+    },
+    {
+     "key": "sucursal_vitacura",
+     "selector": ".elementor-element-0ef47cd",
+     "label": "Sucursal Vitacura (tarjeta)"
+    },
+    {
+     "key": "sucursal_vitacura_mapa",
+     "selector": ".elementor-element-5881821",
+     "label": "Vitacura: botón «¿Cómo llegar?»",
+     "hidden": true
+    },
+    {
+     "key": "sucursal_vitacura_pedir_hora",
+     "selector": ".elementor-element-842e43b",
+     "label": "Vitacura: botón «Pedir hora gratis»",
+     "hidden": true
+    },
+    {
+     "key": "sucursal_las_perdices",
+     "selector": ".elementor-element-6b7aedc",
+     "label": "Sucursal Las Perdices (tarjeta)"
+    },
+    {
+     "key": "sucursal_las_perdices_mapa",
+     "selector": ".elementor-element-5c3bb5e",
+     "label": "Las Perdices: botón «¿Cómo llegar?»",
+     "hidden": true
+    },
+    {
+     "key": "sucursal_las_perdices_pedir_hora",
+     "selector": ".elementor-element-3b01fa0",
+     "label": "Las Perdices: botón «Pedir hora gratis»",
+     "hidden": true
+    },
+    {
+     "key": "sucursales_cta",
+     "selector": ".elementor-element-19d6193",
+     "label": "Botón «Agenda tu visita»",
+     "hidden": true
+    }
+   ]
+  },
+  "/metodo-figurella/": {
+   "kind": "method",
+   "footer": true,
+   "anchors": [
+    {
+     "key": "hero",
+     "selector": ".elementor-element-4007f996",
+     "label": "Portada «Método Figurella»"
+    },
+    {
+     "key": "como_funciona",
+     "selector": ".elementor-element-818794",
+     "label": "«¿Cómo funciona?»: tres veces a la semana, tres pasos"
+    },
+    {
+     "key": "paso_1",
+     "selector": ".elementor-element-6414c91",
+     "label": "Paso uno: movimientos localizados en cápsula térmica"
+    },
+    {
+     "key": "paso_1_video",
+     "selector": ".elementor-element-564141c",
+     "label": "Video del paso uno",
+     "hidden": true
+    },
+    {
+     "key": "paso_2",
+     "selector": ".elementor-element-6d50dd2",
+     "label": "Paso dos: oxigenoterapia"
+    },
+    {
+     "key": "paso_2_video",
+     "selector": ".elementor-element-96b454c",
+     "label": "Video del paso dos",
+     "hidden": true
+    },
+    {
+     "key": "paso_3",
+     "selector": ".elementor-element-ab1e4d4",
+     "label": "Paso tres: presoterapia"
+    },
+    {
+     "key": "paso_3_video",
+     "selector": ".elementor-element-6e4c7c2",
+     "label": "Video del paso tres",
+     "hidden": true
+    },
+    {
+     "key": "paso_4",
+     "selector": ".elementor-element-0aa21e9",
+     "label": "Paso cuatro: asesoramiento nutricional"
+    },
+    {
+     "key": "cta",
+     "selector": ".elementor-element-d7c8743",
+     "label": "Botón «Agenda tu evaluación gratis aquí»",
+     "hidden": true
+    }
+   ]
+  },
+  "/planes/": {
+   "kind": "plans",
+   "footer": true,
+   "anchors": [
+    {
+     "key": "hero",
+     "selector": ".elementor-element-41c3b402",
+     "label": "Portada «Planes 100% personalizados para ti»"
+    },
+    {
+     "key": "plan_curvas_perfectas",
+     "selector": ".elementor-element-fee7108",
+     "label": "Plan Curvas perfectas"
+    },
+    {
+     "key": "plan_curvas_perfectas_cta",
+     "selector": ".elementor-element-ca122d1",
+     "label": "Curvas perfectas: «Reserva tu evaluación»",
+     "hidden": true
+    },
+    {
+     "key": "plan_novias",
+     "selector": ".elementor-element-341a556",
+     "label": "Plan Novias"
+    },
+    {
+     "key": "plan_novias_cta",
+     "selector": ".elementor-element-3dfae26",
+     "label": "Novias: «Reserva tu evaluación»",
+     "hidden": true
+    },
+    {
+     "key": "plan_mama_reciente",
+     "selector": ".elementor-element-2730018",
+     "label": "Plan Mamá reciente"
+    },
+    {
+     "key": "plan_mama_reciente_cta",
+     "selector": ".elementor-element-762cb96",
+     "label": "Mamá reciente: «Reserva tu evaluación»",
+     "hidden": true
+    },
+    {
+     "key": "plan_rejuvenece",
+     "selector": ".elementor-element-cfbf6f4",
+     "label": "Plan Rejuvenece"
+    },
+    {
+     "key": "plan_rejuvenece_cta",
+     "selector": ".elementor-element-b7b8a00",
+     "label": "Rejuvenece: «Reserva tu evaluación»",
+     "hidden": true
+    },
+    {
+     "key": "plan_intensivo",
+     "selector": ".elementor-element-93339e2",
+     "label": "Plan Intensivo"
+    },
+    {
+     "key": "plan_intensivo_cta",
+     "selector": ".elementor-element-d368290",
+     "label": "Intensivo: «Reserva tu evaluación»",
+     "hidden": true
+    }
+   ]
+  },
+  "/historias-de-exito/": {
+   "kind": "stories",
+   "footer": true,
+   "anchors": [
+    {
+     "key": "hero",
+     "selector": ".elementor-element-18980286",
+     "label": "Portada «Historias de éxito»"
+    },
+    {
+     "key": "testimonios",
+     "selector": ".elementor-element-69dc5d0b",
+     "label": "Los testimonios"
+    },
+    {
+     "key": "testimonio_pamela",
+     "selector": ".elementor-element-7f9091f1 .slick-slide[data-slick-index=\"0\"]",
+     "label": "Pamela Rodríguez (Plan Novias, antes de su matrimonio)"
+    },
+    {
+     "key": "testimonio_cuca",
+     "selector": ".elementor-element-7f9091f1 .slick-slide[data-slick-index=\"1\"]",
+     "label": "María Elia Valdés «Cuca» (66 años, artritis, bajó 10 kilos)"
+    },
+    {
+     "key": "testimonio_maria_jesus",
+     "selector": ".elementor-element-7f9091f1 .slick-slide[data-slick-index=\"2\"]",
+     "label": "María Jesús Amigoz (el «ambiente Figurella»)"
+    }
+   ]
+  },
+  "/convenios/": {
+   "kind": "convenios",
+   "footer": true,
+   "anchors": [
+    {
+     "key": "hero",
+     "selector": ".elementor-element-2510a7d8",
+     "label": "Portada «Convenios»: promociones y descuentos"
+    },
+    {
+     "key": "grid",
+     "selector": ".elementor-element-2fa7fbd0",
+     "label": "Los convenios (primera fila)"
+    },
+    {
+     "key": "convenio_santander",
+     "selector": ".elementor-element-a3bfaf5",
+     "label": "Convenio Banco Santander"
+    },
+    {
+     "key": "convenio_security",
+     "selector": ".elementor-element-b913d1e",
+     "label": "Convenio Banco Security"
+    },
+    {
+     "key": "convenio_bice",
+     "selector": ".elementor-element-0bbb8ff",
+     "label": "Convenio Banco BICE"
+    },
+    {
+     "key": "convenio_itau",
+     "selector": ".elementor-element-2165d6d",
+     "label": "Convenio Banco Itaú"
+    },
+    {
+     "key": "convenio_colmena",
+     "selector": ".elementor-element-2ccf9f3",
+     "label": "Convenio Isapre Colmena"
+    },
+    {
+     "key": "convenio_banmedica",
+     "selector": ".elementor-element-0340c15",
+     "label": "Convenio Isapre Banmédica"
+    },
+    {
+     "key": "convenio_vida_tres",
+     "selector": ".elementor-element-e0c6b45",
+     "label": "Convenio Isapre Vida Tres"
+    },
+    {
+     "key": "convenio_club_mama_ripley",
+     "selector": ".elementor-element-a537651",
+     "label": "Convenio Club Mamá Ripley"
+    },
+    {
+     "key": "convenio_club_novios_ripley",
+     "selector": ".elementor-element-169119d",
+     "label": "Convenio Club Novios Ripley"
+    },
+    {
+     "key": "convenio_santiago_college",
+     "selector": ".elementor-element-3401bbd",
+     "label": "Convenio Colegio Santiago College"
+    },
+    {
+     "key": "convenio_wenlock",
+     "selector": ".elementor-element-8f85a54",
+     "label": "Convenio Colegio Wenlock"
+    },
+    {
+     "key": "convenio_cencosud_scotiabank",
+     "selector": ".elementor-element-6ecb455",
+     "label": "Convenio Cencosud Scotiabank"
+    },
+    {
+     "key": "convenio_colegio_aleman",
+     "selector": ".elementor-element-6fff74d",
+     "label": "Convenio Colegio Alemán de Santiago"
+    },
+    {
+     "key": "convenio_banco_ripley",
+     "selector": ".elementor-element-bb5c079",
+     "label": "Convenio Banco Ripley"
+    }
+   ]
+  },
+  "/franquicias/": {
+   "kind": "franchise",
+   "footer": false,
+   "anchors": [
+    {
+     "key": "hero",
+     "selector": ".elementor-element-76a4a3bb",
+     "label": "Portada «Franquicias»: más de 500 centros en el mundo"
+    },
+    {
+     "key": "beneficios",
+     "selector": ".elementor-element-4d7e4b1e",
+     "label": "«Franquicias Figurella»: los ocho beneficios para socios"
+    },
+    {
+     "key": "socios",
+     "selector": "#socios",
+     "label": "«Comunícate con nosotras»: el formulario de franquicias"
+    },
+    {
+     "key": "form_franquicias",
+     "selector": ".elementor-element-5a9d90a7 form",
+     "label": "El formulario de franquicias",
+     "hidden": true
+    },
+    {
+     "key": "franq_nombre",
+     "selector": "#form-field-nombre",
+     "label": "Campo Nombre (franquicias)",
+     "hidden": true
+    },
+    {
+     "key": "franq_telefono",
+     "selector": "#form-field-telefono",
+     "label": "Campo Teléfono (franquicias)",
+     "hidden": true
+    },
+    {
+     "key": "franq_email",
+     "selector": "#form-field-email",
+     "label": "Campo Correo (franquicias)",
+     "hidden": true
+    },
+    {
+     "key": "franq_submit",
+     "selector": "#btn-send",
+     "label": "Botón «Contáctame ahora»",
+     "hidden": true
+    }
+   ]
+  },
+  "/preguntas-frecuentes/": {
+   "kind": "faq",
+   "footer": true,
+   "anchors": [
+    {
+     "key": "hero",
+     "selector": ".elementor-element-7e5a9b3",
+     "label": "Portada «Preguntas frecuentes» con su introducción"
+    },
+    {
+     "key": "accordion_1",
+     "selector": ".elementor-element-123e1c92",
+     "label": "Primer grupo de preguntas (abdomen, caderas, muslos, mucho peso)"
+    },
+    {
+     "key": "accordion_2",
+     "selector": ".elementor-element-addfc3b",
+     "label": "Segundo grupo de preguntas (precio, frecuencia)"
+    }
+   ]
+  },
+  "/consejos/": {
+   "kind": "blog",
+   "footer": true,
+   "anchors": [
+    {
+     "key": "lista",
+     "selector": ".lastudio-posts__list, .la-loop",
+     "label": "La lista de artículos"
+    },
+    {
+     "key": "paginacion",
+     "selector": ".la-pagination",
+     "label": "Paginación del blog",
+     "hidden": true
+    }
+   ]
+  },
+  "/politica-de-privacidad/": {
+   "kind": "privacy",
+   "footer": true,
+   "anchors": [
+    {
+     "key": "contenido",
+     "selector": "#main",
+     "label": "La política de privacidad"
+    }
+   ]
+  }
+ },
+ "footer": [
+  {
+   "key": "contacto",
+   "selector": "#contacto",
+   "label": "Formulario «Reserva tu Diagnóstico Corporal sin costo» (pie de página)"
+  },
+  {
+   "key": "form",
+   "selector": "#form_agendamiento_figurella",
+   "label": "El formulario de reserva",
+   "hidden": true
+  },
+  {
+   "key": "field_first_name",
+   "selector": "#form-field-first_name",
+   "label": "Campo Nombre",
+   "hidden": true
+  },
+  {
+   "key": "field_phone",
+   "selector": "#form-field-phone",
+   "label": "Campo Teléfono",
+   "hidden": true
+  },
+  {
+   "key": "field_email",
+   "selector": "#form-field-email",
+   "label": "Campo Email",
+   "hidden": true
+  },
+  {
+   "key": "field_comuna",
+   "selector": "#form-field-comuna",
+   "label": "Campo Comuna",
+   "hidden": true
+  },
+  {
+   "key": "field_sucursales",
+   "selector": "#form-field-sucursales",
+   "label": "Selector de sucursal",
+   "hidden": true
+  },
+  {
+   "key": "field_message",
+   "selector": "#form-field-message",
+   "label": "Campo Mensaje",
+   "hidden": true
+  },
+  {
+   "key": "field_consent",
+   "selector": ".elementor-field-group-field_826580a",
+   "label": "Casilla de privacidad y WhatsApp",
+   "hidden": true
+  },
+  {
+   "key": "submit",
+   "selector": "#btn-send",
+   "label": "Botón «Reservar mi diagnóstico»",
+   "hidden": true
+  }
+ ],
+ "post": [
+  {
+   "key": "titulo",
+   "selector": "h1.entry-title-single",
+   "label": "Título del artículo"
+  },
+  {
+   "key": "contenido",
+   "selector": ".single-post-article .entry",
+   "label": "El artículo"
+  },
+  {
+   "key": "relacionados",
+   "selector": ".section-related-posts",
+   "label": "Artículos relacionados"
+  }
+ ],
+ "faqs": [
+  {
+   "key": "faq_abdomen",
+   "selector": "#cmo-puedo-obtener-un-abdomen-plano",
+   "label": "¿Cómo puedo obtener un abdomen plano?"
+  },
+  {
+   "key": "faq_caderas",
+   "selector": "#cmo-puedo-perder-peso-en-mis-caderas",
+   "label": "¿Cómo puedo perder peso en mis caderas?"
+  },
+  {
+   "key": "faq_muslos_gluteos",
+   "selector": "#puede-figurella-ayudar-a-mis-muslos-y-glteos",
+   "label": "¿Puede Figurella ayudar a mis muslos y glúteos?"
+  },
+  {
+   "key": "faq_perder_mucho_peso",
+   "selector": "#quiero-perder-mucho-peso-puedo",
+   "label": "Quiero perder mucho peso. ¿Puedo?"
+  },
+  {
+   "key": "faq_precio",
+   "selector": "#cunto-cuesta-figurella",
+   "label": "¿Cuánto cuesta Figurella?"
+  },
+  {
+   "key": "faq_frecuencia",
+   "selector": "#cuntas-veces-a-la-semana-debo-asistir-figurella-qu-pasa-si-falto",
+   "label": "¿Cuántas veces a la semana debo asistir Figurella? ¿Qué pasa si falto?"
+  }
+ ]
+}
