@@ -202,7 +202,15 @@ touches, on either host or between them.
   unchanged avatar against a stand-in client fed by the relay,
   `src/follow.ts`), the adapter of its host, and the moves the holder sends it.
   A move that belongs on the other host it makes by loading that host. It
-  reports what it shows up the port. Each page keeps one port to the holder
+  reports what it shows up the port. The stand-in carries the relayed mouth
+  clock forward to each read of it, for at most 100 ms (`src/mouth-clock.ts`):
+  a busy page reads the relay late, and the face takes a late reading for a
+  stop and shuts his mouth over his voice. A face made in the middle of a
+  reply (a page that loads while he speaks) asks the holder for the reply so
+  far (`src/catch-up.ts`: its place on the stream, its cues, its end, and that
+  he is speaking), since the reply's cues usually went out before the page
+  existed; until that answer has come and the face is listening, the page
+  holds what arrives and then hands it over in order. Each page keeps one port to the holder
   (`src/bridge.ts` in the isolated world, `src/hub.ts` in the page's world).
 - **The service worker** (`src/background.ts`) makes the holder on the first
   press of the call button, with the reasons `USER_MEDIA` and `WEB_RTC` (they
@@ -244,7 +252,12 @@ not once the page has parsed and the site's scripts have run.
   where his face goes. `content.js` (still at `document_idle`) adopts that
   widget instead of mounting another, asks the holder for the call's state as
   before, starts building his face at once (`preloadAvatar`), and fades the
-  still out once the live face has drawn. Should the holder be gone (no
+  still out once the live face has drawn. The still is never a frozen face:
+  from the page's first paint it moves in CSS alone (`.poster` in
+  `src/widget.ts`), a slow breath while he listens and a talking head while
+  he speaks, held still under reduced motion. Its lips do not move, and the
+  half second or so in which Chrome swaps the documents shows the last page's
+  last frame, where nothing can move. Should the holder be gone (no
   holder, or no word from it in 8 s), the carried widget goes back to the
   invite.
 - **The view transition.** In a call both pages opt in to a cross-document
