@@ -20,6 +20,8 @@ from voqalize.sdk import AppEvent, AppEvents
 
 __all__ = [
     "SSILVA_EVENTS",
+    "BrochureDownloaded",
+    "BrochureShown",
     "CommandFailed",
     "LanguageRequested",
     "LeadFormState",
@@ -94,6 +96,8 @@ class PhotoShown(AppEvent):
     """The slideshow is running."""
     fullscreen: bool = True
     """In the full-screen view; false for the gallery's own slider."""
+    ended: bool = False
+    """The slideshow reached its last photo and stopped there by itself."""
     by: Literal["javier", "visitor"] = "javier"
     """Who moved it: his move, or the visitor's own press in the viewer."""
 
@@ -102,7 +106,7 @@ class ViewerClosed(AppEvent):
     """The full-screen view closed: by the visitor, or as Javier moved on to
     another part of the page."""
 
-    which: Literal["gallery", "amenities", "plan"]
+    which: Literal["gallery", "amenities", "plan", "brochure"]
     by: Literal["javier", "visitor"] = "visitor"
 
 
@@ -114,7 +118,23 @@ class ProjectsListed(AppEvent):
     property: str | None = None
     communes: list[str] = Field(default_factory=list[str])
     projects: list[str] = Field(default_factory=list[str])
-    """The names on the page of results in front."""
+    """The names on the page of results in front, as the visitor reads them
+    (a translated page writes "THE NAVIGATORS")."""
+    paths: list[str] = Field(default_factory=list[str])
+    """Each of those cards' project page, in the same order."""
+
+
+class BrochureShown(AppEvent):
+    """The project's brochure (a PDF) is open over the page, at ``page``."""
+
+    url: str
+    page: int = 1
+
+
+class BrochureDownloaded(AppEvent):
+    """The brochure's download was started on the visitor's computer."""
+
+    url: str
 
 
 class LeadFormState(AppEvent, name="lead_form"):
@@ -176,6 +196,8 @@ type SsilvaEvent = (
     | LanguageRequested
     | PhotoShown
     | ViewerClosed
+    | BrochureShown
+    | BrochureDownloaded
 )
 
 SSILVA_EVENTS = AppEvents[SsilvaEvent](
@@ -189,4 +211,6 @@ SSILVA_EVENTS = AppEvents[SsilvaEvent](
     LanguageRequested,
     PhotoShown,
     ViewerClosed,
+    BrochureShown,
+    BrochureDownloaded,
 )

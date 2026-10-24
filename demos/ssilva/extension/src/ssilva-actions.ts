@@ -556,6 +556,7 @@ async function showSection({ heading, text }: { heading?: string | null; text?: 
   // photos' own sections leave it open.
   const photosPart = heading ? ["galería", "amenidades"].includes(sectionKey(heading)?.key ?? "") : false;
   if (!photosPart) closeViewer();
+  if (heading && sectionKey(heading)?.key !== "brochure") closeDoc();
   const keyed = heading ? sectionFor(heading) : null;
   const h = keyed ? null : heading ? findHeading(heading) : null;
   const block = keyed ?? (h ? sectionOf(h) : null);
@@ -760,6 +761,11 @@ function listed() {
       .filter((c) => c.input.checked)
       .map((c) => c.label),
     projects: cards().map(cardName).filter(Boolean),
+    // The cards' project pages, in the same order: what a translated page
+    // calls "THE NAVIGATORS" is /losnavegantes/.
+    paths: cards()
+      .filter((c) => cardName(c))
+      .map((c) => cardPaths(c)[0] ?? ""),
   };
 }
 
@@ -997,8 +1003,11 @@ async function showCard({ path, name }: { path: string; name?: string | null }):
 interface Shot {
   src: string;
   caption: string;
+  /** Whose photo, in a slideshow of all of them. */
+  which?: "gallery" | "amenities";
 }
-type Which = "gallery" | "amenities" | "plan";
+/** "photos": the gallery's and then the amenities', one show. */
+type Which = "gallery" | "amenities" | "plan" | "photos";
 const SLIDE_MS = 5000;
 const SLIDESHOW_MAX_MS = 180_000;
 
@@ -1094,7 +1103,7 @@ const VIEWER_CSS = `
   .p[hidden], .nx[hidden] { display: none; }
 `;
 
-function shownNow(by: "javier" | "visitor"): void {
+function shownNow(by: "javier" | "visitor", ended = false): void {
   if (!viewer) return;
   const v = viewer;
   const shot = v.shots[v.index];
@@ -1108,12 +1117,13 @@ function shownNow(by: "javier" | "visitor"): void {
   v.playing.hidden = !v.timer;
   for (const b of v.host.shadowRoot!.querySelectorAll<HTMLElement>(".p, .nx")) b.hidden = v.shots.length < 2;
   emit("photo_shown", {
-    which: v.which,
+    which: shot.which ?? (v.which === "photos" ? "gallery" : v.which),
     index: v.index + 1,
     total: v.shots.length,
     caption: shot.caption,
     playing: Boolean(v.timer),
     fullscreen: true,
+    ended,
     by,
   });
 }
@@ -1179,11 +1189,12 @@ function closeViewer(by: "javier" | "visitor" = "javier"): void {
   viewer = null;
   if (v.timer) clearInterval(v.timer);
   v.host.remove();
-  if (v.which === "gallery") {
+  const shot = v.shots[v.index];
+  if (shot && (v.which === "gallery" || shot.which === "gallery")) {
     const chip = document.querySelector<HTMLElement>(`.l3-numbered-slider-section span.slide-index[data-slide="${v.index}"]`);
     chip?.click();
   }
-  emit("viewer_closed", { which: v.which, by });
+  emit("viewer_closed", { which: v.which === "photos" ? (shot?.which ?? "gallery") : v.which, by });
 }
 
 window.addEventListener(
@@ -1256,9 +1267,11 @@ async function stepPhoto({ back }: { back?: boolean | null }): Promise<void> {
   await showPhotos({ which: "gallery", index: next, fullscreen: false });
 }
 
-/** The photos one after another, every few seconds, until stopped: by him,
- *  by the visitor closing the viewer, or by the visitor starting to speak
- *  (the holder stops it), and at most three minutes. */
+/** Every photo, full screen, one after another every few seconds, by
+ *  itself: the gallery's and then the amenities' (or only the ones asked
+ *  for), from the one in front, to the last, where it stops. The visitor
+ *  stops it by speaking (the holder sends the stop), by closing it, or by
+ *  asking him; it never runs more than three minutes. */
 async function slideshow({
   play,
   which,
@@ -1274,21 +1287,32 @@ async function slideshow({
     shownNow("javier");
     return;
   }
-  const want = which === "amenities" ? "amenities" : which === "gallery" ? "gallery" : null;
-  if (!viewer || viewer.which === "plan" || (want && viewer.which !== want)) {
-    await showPhotos({ which: want ?? "gallery", index: null, fullscreen: true });
+  if (kind() !== "project") throw new Error("photos are on a project's page");
+  const want: Which = which === "amenities" ? "amenities" : which === "gallery" ? "gallery" : "photos";
+  const gallery = galleryShots().map((x) => ({ ...x, which: "gallery" as const }));
+  const amenities = amenityShots().map((x) => ({ ...x, which: "amenities" as const }));
+  const shots = want === "gallery" ? gallery : want === "amenities" ? amenities : [...gallery, ...amenities];
+  if (shots.length < 2) throw new Error(shots.length ? "there is only one photo here" : "this project shows no photos");
+  // From the photo in front, if it is one of these; else from the first.
+  let from = 0;
+  if (viewer && viewer.which !== "plan") {
+    const here = viewer.shots[viewer.index]?.src;
+    from = Math.max(0, shots.findIndex((x) => x.src === here));
+  } else if (want !== "amenities") {
+    from = sliderIndex() - 1;
   }
+  openViewer(want, shots, from);
   const v = viewer as Viewer | null;
   if (!v) throw new Error("no photos to show");
-  if (v.shots.length < 2) throw new Error("there is only one photo here");
   stopShow();
   const every = Math.max(3, Math.min(15, Number(seconds) || SLIDE_MS / 1000)) * 1000;
   v.until = Date.now() + SLIDESHOW_MAX_MS;
   v.timer = setInterval(() => {
     if (viewer !== v) return clearInterval(v.timer ?? 0);
-    if (Date.now() > v.until) {
+    if (Date.now() > v.until || v.index >= v.shots.length - 1) {
+      // The last photo, or long enough: it stays on screen, stopped.
       stopShow();
-      return shownNow("javier");
+      return shownNow("javier", true);
     }
     stepViewer(1, "javier");
   }, every);
@@ -1340,8 +1364,136 @@ async function openTour(): Promise<void> {
   if (!(await waitFor(() => document.querySelector(".modal.show"), 3000))) throw new Error("the tour did not open");
 }
 
+// ─── The brochure ─────────────────────────────────────────────────────────
+// A project's brochure is a PDF on ssilva.cl (under "Descargar Brochure"),
+// and the same pages as a 3D flip-book page that is slow to start and leaves
+// the site. He shows the PDF over the page, in Chrome's own PDF view (the
+// site allows framing it), at the page he names, and downloads it.
+
+let doc: { host: HTMLElement; frame: HTMLIFrameElement; url: string; page: number } | null = null;
+
+/** The project's brochure PDF: the one he names, if it is on ssilva.cl, else
+ *  the page's own "Descargar Brochure". */
+function brochureUrl(asked?: string | null): string {
+  const pdf = (href: string) => {
+    try {
+      const u = new URL(href, location.href);
+      return isSsilva(u.host) && /\.pdf$/i.test(u.pathname) ? ((u.host = location.host), u.href) : "";
+    } catch {
+      return "";
+    }
+  };
+  if (asked && pdf(asked)) return pdf(asked);
+  const links = [
+    ...document.querySelectorAll<HTMLAnchorElement>(".l3-other-docs-section a[href], .files-block-section a[href], a[href$='.pdf']"),
+  ];
+  const own = links.map((a) => pdf(a.href)).find(Boolean);
+  if (own) return own;
+  throw new Error(`there is no brochure to show on ${location.pathname}`);
+}
+
+function closeDoc(by: "javier" | "visitor" = "javier"): void {
+  if (!doc) return;
+  doc.host.remove();
+  doc = null;
+  emit("viewer_closed", { which: "brochure", by });
+}
+
+const DOC_CSS = `
+  .v { position: fixed; inset: 0; background: rgba(12, 12, 14, 0.92); display: flex; flex-direction: column;
+       align-items: center; justify-content: center; gap: 12px; font: 15px/1.4 system-ui, sans-serif; color: #fff; }
+  iframe { width: min(1100px, 88vw); height: 78vh; border: 0; border-radius: 6px; background: #fff;
+           box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5); }
+  .bar { display: flex; gap: 18px; align-items: center; }
+  .bar a { color: #fff; font-weight: 600; text-decoration: none; padding: 8px 14px; border-radius: 18px;
+           background: rgba(255, 255, 255, 0.14); }
+  .bar a.dl { background: ${RING}; }
+  .x { position: absolute; top: 84px; right: 28px; border: 0; background: rgba(255, 255, 255, 0.12); color: #fff;
+       cursor: pointer; width: 52px; height: 52px; border-radius: 50%; font-size: 26px; }
+`;
+
+async function showBrochure({ url, page }: { url?: string | null; page?: number | null }): Promise<void> {
+  const pdf = brochureUrl(url);
+  const n = Math.max(1, Math.floor(Number(page) || 1));
+  closeViewer();
+  clearHighlight();
+  if (doc && doc.url === pdf) {
+    // Another page of the same brochure. Chrome's PDF view ignores a new
+    // #page on the frame it has, so a fresh frame opens it there (the file
+    // is cached).
+    doc.page = n;
+    const fresh = document.createElement("iframe");
+    fresh.title = "Brochure";
+    fresh.src = `${pdf}#page=${n}`;
+    doc.frame.replaceWith(fresh);
+    doc.frame = fresh;
+    emit("brochure_shown", { url: pdf, page: n });
+    return;
+  }
+  closeDoc();
+  const host = document.createElement("div");
+  host.setAttribute("data-voqalize", "brochure");
+  Object.assign(host.style, { position: "fixed", inset: "0", zIndex: "2147482500" });
+  const root = host.attachShadow({ mode: "open" });
+  const name = decodeURIComponent(pdf.split("/").pop() ?? "brochure.pdf");
+  root.innerHTML = `<style>${DOC_CSS}</style><div class="v">
+    <iframe title="Brochure"></iframe>
+    <div class="bar"><a class="dl" download="${name.replace(/"/g, "")}">Descargar brochure</a>
+    <a class="tab" target="_blank" rel="noopener">Abrir en otra pestaña</a></div>
+    <button class="x" aria-label="Cerrar">✕</button></div>`;
+  const frame = root.querySelector("iframe")!;
+  frame.src = `${pdf}#page=${n}`;
+  root.querySelector<HTMLAnchorElement>(".dl")!.href = pdf;
+  root.querySelector<HTMLAnchorElement>(".tab")!.href = pdf;
+  root.querySelector(".x")!.addEventListener("click", () => closeDoc("visitor"));
+  root.querySelector(".v")!.addEventListener("click", (e) => {
+    if (e.target === e.currentTarget) closeDoc("visitor");
+  });
+  document.documentElement.appendChild(host);
+  doc = { host, frame, url: pdf, page: n };
+  emit("brochure_shown", { url: pdf, page: n });
+}
+
+/** Download the brochure to the visitor's computer, as the site's own
+ *  "Descargar Brochure" would if it opened as a file. */
+async function downloadBrochure({ url }: { url?: string | null }): Promise<void> {
+  const pdf = brochureUrl(url);
+  const a = document.createElement("a");
+  a.href = pdf;
+  a.download = decodeURIComponent(pdf.split("/").pop() ?? "brochure.pdf");
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  emit("brochure_downloaded", { url: pdf });
+}
+
+window.addEventListener(
+  "keydown",
+  (e) => {
+    if (doc && e.isTrusted && e.key === "Escape") closeDoc("visitor");
+  },
+  true,
+);
+
+// The site's "Agrandar imagen" loads the bare plan PNG in place of the page
+// (dev call 280b2561: the visitor pressed it, came back, and the brain lost
+// the page). The press opens the plan full screen over the page instead.
+document.addEventListener(
+  "click",
+  (e) => {
+    const btn = (e.target as Element | null)?.closest?.("[id^=enlargeImageBtn_cotizador]");
+    if (!btn || !e.isTrusted) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    void showFloorPlan({ typology: null }).catch(() => {});
+  },
+  true,
+);
+
 async function closeOverlay(): Promise<void> {
   closeViewer();
+  closeDoc();
   const lg = document.querySelector<HTMLElement>(".lg-outer.lg-visible, .lg-outer.lg-show-in");
   if (lg) {
     lg.querySelector<HTMLElement>(".lg-close")?.click();
@@ -1575,6 +1727,8 @@ const COMMANDS: Record<string, (payload: never) => Promise<void>> = {
   step_photo: stepPhoto,
   slideshow,
   show_floor_plan: showFloorPlan,
+  show_brochure: showBrochure,
+  download_brochure: downloadBrochure,
   open_tour: openTour,
   close_overlay: closeOverlay,
   fill_lead_form: fillLeadForm,

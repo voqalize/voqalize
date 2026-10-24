@@ -14,7 +14,11 @@ open, and through every full page load, without reconnecting. Everything he
 shows is a page, section, photo or form Ssilva already has; the extension adds a
 corner widget, the ring he draws around what he is pointing at, and a
 full-screen view for photos and plans (the site's own lightbox does not open
-for a script, and its "Agrandar imagen" replaces the page with the bare PNG).
+for a script, and its "Agrandar imagen" replaces the page with the bare PNG, so
+a visitor's own press of it opens the plan in that view instead), and the
+project's brochure PDF over the page, in Chrome's PDF view, with a download.
+The photos run as a slideshow by themselves, the gallery's then the
+amenities', to the last; the visitor speaking stops it.
 
 The site is in Spanish, and so is Javier by default; the widget's toggle (and
 speaking English to him) switches him to English, and he explains the Spanish
@@ -143,6 +147,9 @@ await __voqalizeSsilva.perform("slideshow", { play: true, which: null, seconds: 
 await __voqalizeSsilva.perform("slideshow", { play: false, which: null, seconds: null });
 await __voqalizeSsilva.perform("show_photos", { which: "amenities", index: 2, fullscreen: true });
 await __voqalizeSsilva.perform("show_floor_plan", { typology: "2D | 2B MARIPOSA" });
+await __voqalizeSsilva.perform("slideshow", { play: true, which: null, seconds: null }); // every photo, by itself, to the last
+await __voqalizeSsilva.perform("show_brochure", { url: null, page: 3 });  // the page's own PDF, over the page
+await __voqalizeSsilva.perform("download_brochure", { url: null });
 await __voqalizeSsilva.perform("close_overlay", {});
 await __voqalizeSsilva.perform("fill_lead_form", {
   firstname: "Ana", lastname: "Pérez", rut: "12.345.678-5", email: "ana@example.cl", phone: "987654321",

@@ -88,10 +88,13 @@ const GALLERY_PROJECT = `<body class="page-template-landing"><div class="site__c
       <ul class="cotizador-l1"><li class="type-item active"><label>2D | 2B</label></li><li class="type-item"><label>2D | 2B BUTTERFLY</label></li></ul>
       <div id="floorPlanContainer_cotizador_x"><span id="priceValue_cotizador_x">3,453</span>
         <img id="floorPlanImage_cotizador_x" src="/content/uploads/DB-203-803.png" alt="2D | 2B"></div>
-      <span id="totalAreaValue_cotizador_x">56.65</span></section>
+      <span id="totalAreaValue_cotizador_x">56.65</span>
+      <button id="enlargeImageBtn_cotizador_x" onclick="location.href='/content/uploads/DB-203-803.png'">Agrandar imagen</button></section>
     <section class="alternate-images-section"><h2>Amenities</h2>
       <button class="img-wrap aiLgSelector" data-src="/content/uploads/3-piscina-1.jpg"><img src="/content/uploads/3-piscina-1.jpg" alt=""></button>
       <button class="img-wrap aiLgSelector" data-src="/content/uploads/3-gourmet.jpg"><img src="/content/uploads/3-gourmet.jpg" alt=""></button></section>
+    <section class="l3-other-docs-section"><h2>Brochure</h2>
+      <a class="l3-other-docs__item" href="/content/uploads/Folleto_Barroso.pdf" target="_blank">Descargar Brochure</a></section>
     <div style="height:1200px"></div>
   </div>
   <script>
@@ -180,6 +183,9 @@ const test = base.extend<{ ext: Ext }>({
         if (url.pathname === "/slow.js") {
           await new Promise((r) => setTimeout(r, 2000));
           return route.fulfill({ status: 200, contentType: "text/javascript", body: "window.__slow = 1;" });
+        }
+        if (url.pathname.endsWith(".pdf")) {
+          return route.fulfill({ status: 200, contentType: "application/pdf", body: "%PDF-1.4\n%%EOF\n" });
         }
         const page = PAGES[url.pathname];
         if (!page || request.resourceType() !== "document") return route.fulfill({ status: 404, body: "" });
@@ -788,5 +794,70 @@ test.describe("a page load in the middle of a reply", () => {
     await load(page, "/nosotros/");
     await page.waitForTimeout(800);
     expect((await faceSaw(page)).map(label)).toEqual([]);
+  });
+});
+
+test.describe("photos by themselves, the brochure, the site's own enlarge", () => {
+  const sentOf = async (ext: Ext, event: string) => (await status(ext.sw)).sent.filter((e) => e.event === event).map((e) => e.payload);
+
+  test("a slideshow of every photo, the gallery's then the amenities', runs to the last and stops there", async ({ ext }) => {
+    const page = await ext.open("/distrito-barroso/");
+    await callLive(ext, page);
+    const shown = async () => (await sentOf(ext, "photo_shown")).at(-1) as Record<string, unknown> | undefined;
+    // From the gallery's last photo, so the show is short.
+    await toHolder(ext.sw, { what: "command", command: "show_photos", payload: { which: "gallery", index: 4, fullscreen: true } });
+    await expect.poll(shown).toMatchObject({ which: "gallery", index: 4 });
+    await toHolder(ext.sw, { what: "command", command: "slideshow", payload: { play: true, which: null, seconds: 3 } });
+    await expect.poll(shown).toMatchObject({ which: "gallery", index: 4, total: 6, playing: true });
+    await expect.poll(shown, { timeout: 5000 }).toMatchObject({ which: "amenities", index: 5, caption: "piscina", playing: true });
+    await expect.poll(shown, { timeout: 5000 }).toMatchObject({ which: "amenities", index: 6, caption: "gourmet" });
+    await expect.poll(shown, { timeout: 5000 }).toMatchObject({ index: 6, playing: false, ended: true });
+    await expect(page.locator("[data-voqalize=viewer]")).toHaveCount(1);
+  });
+
+  test("the brochure opens over the page at a page of it, and downloads", async ({ ext }) => {
+    const page = await ext.open("/distrito-barroso/");
+    await callLive(ext, page);
+    await toHolder(ext.sw, { what: "command", command: "show_brochure", payload: { url: null, page: 3 } });
+    const brochure = page.locator("[data-voqalize=brochure]");
+    await expect(brochure).toHaveCount(1);
+    expect(await brochure.evaluate((h) => h.shadowRoot!.querySelector("iframe")!.getAttribute("src"))).toBe(`${ORIGIN}/content/uploads/Folleto_Barroso.pdf#page=3`);
+    await expect.poll(async () => (await sentOf(ext, "brochure_shown")).at(-1)).toMatchObject({ page: 3 });
+    const download = page.waitForEvent("download");
+    await toHolder(ext.sw, { what: "command", command: "download_brochure", payload: { url: null } });
+    expect((await download).suggestedFilename()).toBe("Folleto_Barroso.pdf");
+    await expect.poll(async () => (await sentOf(ext, "brochure_downloaded")).length).toBe(1);
+    // A PDF that is not on ssilva.cl is refused for the page's own.
+    await toHolder(ext.sw, { what: "command", command: "show_brochure", payload: { url: "https://evil.example/x.pdf", page: 1 } });
+    await expect.poll(async () => (await sentOf(ext, "brochure_shown")).at(-1)).toMatchObject({ url: `${ORIGIN}/content/uploads/Folleto_Barroso.pdf`, page: 1 });
+    await toHolder(ext.sw, { what: "command", command: "close_overlay", payload: {} });
+    await expect(brochure).toHaveCount(0);
+  });
+
+  test("the site's own 'Agrandar imagen' opens the plan over the page instead of leaving it", async ({ ext }) => {
+    const page = await ext.open("/distrito-barroso/");
+    await page.locator("[id^=enlargeImageBtn_cotizador]").click();
+    await expect(page.locator("[data-voqalize=viewer]")).toHaveCount(1);
+    await page.waitForTimeout(500);
+    expect(page.url()).toBe(`${ORIGIN}/distrito-barroso/`);
+  });
+});
+
+test.describe("back to a page", () => {
+  // Headless Chromium reloads the page here rather than restoring it from the
+  // back/forward cache; the restore (content.ts's pageshow) and the brain's
+  // fallback on tabs_changed are what cover the real browser.
+  test("going back, the page reports itself again", async ({ ext }) => {
+    const page = await ext.open("/proyectos/edificio-sur/");
+    await callLive(ext, page);
+    const reports = async () =>
+      (await status(ext.sw)).sent.filter((e) => e.event === "page_changed").map((e) => String(e.payload.path));
+    await expect.poll(reports).toContain("/proyectos/edificio-sur/");
+    await page.goto(`${ORIGIN}/`);
+    await expect.poll(reports).toContain("/");
+    const before = (await reports()).filter((p) => p === "/proyectos/edificio-sur/").length;
+    await page.goBack();
+    await page.waitForURL(`${ORIGIN}/proyectos/edificio-sur/`);
+    await expect.poll(async () => (await reports()).filter((p) => p === "/proyectos/edificio-sur/").length, { timeout: 10_000 }).toBeGreaterThan(before);
   });
 });

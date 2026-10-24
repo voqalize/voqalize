@@ -133,6 +133,7 @@ SITE = Knowledge(
             perfil=("Para vivir",),
             typologies=("2D | 3B", "3D | 3B"),
             lead_form=True,
+            brochure_pdf="https://www.ssilva.cl/content/uploads/2025/01/Folleto_Estocolmo.pdf",
         ),
         "canal-beagle": Project(
             slug="canal-beagle",
@@ -378,6 +379,24 @@ def _llm() -> ScriptedGemini:
                 "Van pasando solas.", "slideshow", request={"play": True, "seconds": 30}
             ),
             "La siguiente.": reply_and_call("Esta es la siguiente.", "step_photo"),
+            # Every photo, by itself: no "next" to ask for.
+            "Muéstrame las fotos.": reply_and_call(
+                "Te las muestro en grande, y van pasando solas.", "slideshow"
+            ),
+            "Muéstrame el brochure.": reply_and_call(
+                "Aquí está el brochure.", "show_brochure", request={"page": 2}
+            ),
+            "Descárgalo.": reply_and_call("Lo descargo.", "download_brochure"),
+            # His label against his words: the sentence is about three bedrooms.
+            "¿Y el más grande?": reply(
+                "{plan: 2D | 3B} El de tres dormitorios y tres baños es el más amplio."
+            ),
+            # A reply the visitor cut off before a word of it, and the answer
+            # in the quiet after (keyed first: its note quotes those words).
+            "cut off before you answered": reply("Perfecto, busquemos de dos y tres dormitorios."),
+            "Busco dos y tres dormitorios.": reply(
+                chunks=["Perfecto, te muestro esos.", " Hay varios."], chunk_delay=0.6
+            ),
             "Escríbeles por WhatsApp.": reply_and_call("Abro WhatsApp.", "open_whatsapp"),
             "¿Qué es Estocolmo?": [
                 call("read_project", request={"name": "estocolmo"}),
@@ -811,3 +830,96 @@ async def test_photos_full_screen_one_at_a_time_and_a_slideshow() -> None:
         await _page(rig, "viewer_closed", {"which": "gallery"})
         await rig.driver.user_says("Sigue.")
         assert "[The visitor closed the full-screen view.]" in _texts(llm.captured_contents[-1])
+
+
+async def test_photos_asked_for_run_by_themselves_and_the_end_is_talked_through() -> None:
+    llm = _llm()
+    async with demo("ssilva", llm) as rig:
+        await rig.driver.start_session(init={"path": "/distrito-barroso/"})
+        await _page(rig, "page_changed", BARROSO_PAGE)
+        await rig.driver.user_says("Muéstrame las fotos.")
+        # Every photo, the gallery's then the amenities', with no "next" to ask.
+        assert rig.command("slideshow") == {"play": True, "which": None, "seconds": None}
+        show = {"which": "amenities", "total": 6, "fullscreen": True}
+        await _page(rig, "photo_shown", {**show, "index": 6, "caption": "gourmet", "ended": True})
+        assert _idle_windows(rig)[-1] == _TALK_THROUGH_MS
+        await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
+        assert "The slideshow showed every photo" in _texts(llm.captured_contents[-1])
+
+
+async def test_the_brochure_is_shown_and_downloaded_where_the_project_has_one() -> None:
+    llm = _llm()
+    async with demo("ssilva", llm) as rig:
+        await rig.driver.start_session(init={"path": "/estocolmo/"})
+        await _page(rig, "page_changed", ESTOCOLMO_PAGE)
+        await rig.driver.user_says("Muéstrame el brochure.")
+        pdf = "https://www.ssilva.cl/content/uploads/2025/01/Folleto_Estocolmo.pdf"
+        assert rig.command("show_brochure") == {"url": pdf, "page": 2}
+        assert "Brochure: yes." in _texts(llm.captured_contents[-1])
+        await rig.driver.user_says("Descárgalo.")
+        assert rig.command("download_brochure") == {"url": pdf}
+    async with demo("ssilva", _llm()) as rig:
+        await rig.driver.start_session(init={"path": "/distrito-barroso/"})
+        await _page(rig, "page_changed", BARROSO_PAGE)
+        await rig.driver.user_says("Muéstrame el brochure.")
+        assert "show_brochure" not in rig.actions()
+
+
+async def test_a_plan_cue_that_contradicts_his_words_is_corrected() -> None:
+    async with demo("ssilva", _llm()) as rig:
+        await rig.driver.start_session(init={"path": "/estocolmo/"})
+        await _page(rig, "page_changed", ESTOCOLMO_PAGE)
+        await rig.driver.user_says("¿Y el más grande?")
+        assert [c["typology"] for c in _cues(rig) if c["typology"]] == ["2D | 3B", "3D | 3B"]
+
+
+async def test_back_to_a_page_from_the_browser_cache_follows_the_tab() -> None:
+    llm = _llm()
+    async with demo("ssilva", llm) as rig:
+        await rig.driver.start_session(init={"path": "/estocolmo/"})
+        await _page(rig, "page_changed", ESTOCOLMO_PAGE)
+        # The visitor opened the plan's bare PNG, then went back: the page,
+        # restored from the cache, reports nothing; its tab does.
+        png = "https://www.ssilva.cl/content/uploads/2024/07/plano.png"
+        await _page(rig, "page_changed", {"url": png, "path": "/content/uploads/2024/07/plano.png"})
+        await _page(
+            rig,
+            "tabs_changed",
+            {
+                "tabs": [{"tab_id": "1", "url": ESTOCOLMO_PAGE["url"], "title": "ESTOCOLMO"}],
+                "active": "1",
+            },
+        )
+        await rig.driver.user_says("Muéstrame la piscina.")
+        assert rig.command("show_photos")["which"] == "amenities"
+        assert "the project page of Estocolmo (/estocolmo/)" in _texts(llm.captured_contents[-1])
+
+
+async def test_the_list_names_its_cards_by_their_pages_through_a_translation() -> None:
+    llm = _llm()
+    async with demo("ssilva", llm) as rig:
+        await rig.driver.start_session(init={"path": "/proyectos/"})
+        await _page(
+            rig,
+            "projects_listed",
+            {
+                "count": 2,
+                "projects": ["STOCKHOLM", "PICTON ISLAND"],
+                "paths": ["/estocolmo/", "/isla-picton/"],
+            },
+        )
+        await rig.driver.user_says("Sigue.")
+        assert "On this page: Estocolmo; Isla Picton." in _texts(llm.captured_contents[-1])
+
+
+async def test_a_turn_cut_off_before_his_answer_is_answered_in_a_short_quiet_spell() -> None:
+    llm = _llm()
+    async with demo("ssilva", llm) as rig:
+        await rig.driver.start_session(init={"path": "/"})
+        # A noise cuts the turn before a word of it, and no words follow.
+        await rig.driver.barge_in("Busco dos y tres dormitorios.", wait_for_speech=False)
+        await asyncio.sleep(0.2)
+        assert _idle_windows(rig)[-1] == ssilva._CUT_OFF_MS
+        turn = await rig.driver.user_idle(level=1, idle_ms=ssilva._CUT_OFF_MS)
+        assert "busquemos de dos y tres" in turn.text
+        assert "“Busco dos y tres dormitorios.”" in _texts(llm.captured_contents[-1])

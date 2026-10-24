@@ -115,10 +115,10 @@ export interface StepPhoto {
 }
 
 /**
- * `play`: the photos full screen, one every `seconds`, from the one
- * shown (the gallery's, unless `which` says the amenities'), until
- * stopped. Not `play`: stop on the photo shown. The visitor starting to
- * speak stops it too.
+ * `play`: the photos full screen, by themselves, one every
+ * `seconds`, from the one shown to the last, where it stops: the
+ * gallery's and then the amenities', or only `which`'s. Not `play`: stop
+ * on the photo shown. The visitor starting to speak stops it too.
  */
 export interface Slideshow {
   play: boolean;
@@ -126,6 +126,25 @@ export interface Slideshow {
   which: 'gallery' | 'amenities' | null;
 
   seconds: number | null;
+}
+
+/**
+ * Open the project's brochure (`url`, a PDF on ssilva.cl; else the
+ * page's own) over the page, at `page`. The page reports
+ * `brochure_shown`.
+ */
+export interface ShowBrochure {
+  url: string | null;
+
+  page: number | null;
+}
+
+/**
+ * Download the project's brochure (`url`, else the page's own) to the
+ * visitor's computer.
+ */
+export interface DownloadBrochure {
+  url: string | null;
 }
 
 /**
@@ -191,6 +210,18 @@ export interface FocusTab {
  */
 export interface LanguageChanged {
   language: 'en' | 'es';
+}
+
+/** The brochure's download was started on the visitor's computer. */
+export interface BrochureDownloaded {
+  url: string;
+}
+
+/** The project's brochure (a PDF) is open over the page, at `page`. */
+export interface BrochureShown {
+  url: string;
+
+  page?: number;
 }
 
 /** A move Javier sent could not be carried out on the page. */
@@ -276,6 +307,8 @@ export interface PhotoShown {
 
   fullscreen?: boolean;
 
+  ended?: boolean;
+
   by?: 'javier' | 'visitor';
 }
 
@@ -290,6 +323,8 @@ export interface ProjectsListed {
   communes?: string[];
 
   projects?: string[];
+
+  paths?: string[];
 }
 
 /**
@@ -327,7 +362,7 @@ export interface TypologyShown {
  * another part of the page.
  */
 export interface ViewerClosed {
-  which: 'gallery' | 'amenities' | 'plan';
+  which: 'gallery' | 'amenities' | 'plan' | 'brochure';
 
   by?: 'javier' | 'visitor';
 }
@@ -352,6 +387,8 @@ export type UiAction =
   | { command: 'show_photos'; payload: ShowPhotos }
   | { command: 'step_photo'; payload: StepPhoto }
   | { command: 'slideshow'; payload: Slideshow }
+  | { command: 'show_brochure'; payload: ShowBrochure }
+  | { command: 'download_brochure'; payload: DownloadBrochure }
   | { command: 'show_floor_plan'; payload: ShowFloorPlan }
   | { command: 'open_tour'; payload: OpenTour }
   | { command: 'close_overlay'; payload: CloseOverlay }
@@ -371,6 +408,8 @@ export const UI_ACTION_COMMANDS: readonly UiActionCommand[] = [
   'show_photos',
   'step_photo',
   'slideshow',
+  'show_brochure',
+  'download_brochure',
   'show_floor_plan',
   'open_tour',
   'close_overlay',
@@ -402,6 +441,8 @@ export function unhandledUiAction(action: never): never {
 
 /** Everything the person can do on screen, discriminated by `event`. */
 export type AppEvent =
+  | { event: 'brochure_downloaded'; payload: BrochureDownloaded }
+  | { event: 'brochure_shown'; payload: BrochureShown }
   | { event: 'command_failed'; payload: CommandFailed }
   | { event: 'language_requested'; payload: LanguageRequested }
   | { event: 'lead_form'; payload: LeadFormState }
@@ -416,6 +457,8 @@ export type AppEvent =
 export type AppEventName = AppEvent['event'];
 
 export const APP_EVENT_NAMES: readonly AppEventName[] = [
+  'brochure_downloaded',
+  'brochure_shown',
   'command_failed',
   'language_requested',
   'lead_form',

@@ -451,6 +451,16 @@ async function start(): Promise<void> {
     tell({ k: "leaving" });
     keep();
   });
+  // Back (or forward) to this page from the browser's back/forward cache: no
+  // script runs again, so the brain would still think the visitor is on the
+  // page they left (dev call 280b2561: back from the plan's PNG and from the
+  // brochure, and he described pages that were gone). The adapter starts over
+  // once the holder answers the bridge's new hello, and reports this page.
+  window.addEventListener("pageshow", (e) => {
+    if (!e.persisted) return;
+    stopAdapter?.();
+    stopAdapter = null;
+  });
   widget.onLayout(() => keep());
 
   // The quote form is the visitor's to press "Enviar" on: the widget moves

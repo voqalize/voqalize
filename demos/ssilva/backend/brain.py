@@ -91,6 +91,8 @@ from voqalize.sdk.wire import Config, IdleConfig, SttConfig, TtsConfig, Voice
 from . import knowledge as kb
 from .app_events import (
     SSILVA_EVENTS,
+    BrochureDownloaded,
+    BrochureShown,
     CommandFailed,
     LanguageRequested,
     LeadFormState,
@@ -146,6 +148,15 @@ _TALK_THROUGH_MS = 2_000
 #: A little more patience than the demos' default: a buyer thinking aloud about
 #: a budget or a family pauses mid-sentence, and a RUT is read out in pieces.
 SSILVA_PATIENCE = PATIENCE + 2
+#: A visitor asking for what opens over the page: photos, a plan, the brochure.
+_TO_VIEW = re.compile(
+    r"\b(?:fotos?|photos?|im[aá]genes|images?|pictures?|slideshow|presentaci[oó]n|brochure|"
+    r"folleto|planos?|plantas?|floor ?plans?|layouts?|pantalla completa|full ?screen|en grande)\b",
+    re.IGNORECASE,
+)
+#: The quiet spell after a turn cut off before his answer, with no words
+#: after it, before he answers it anyway.
+_CUT_OFF_MS = 4_000
 #: A message this soon after the last one is the rest of the same thought.
 _FRAGMENT_S = 4.0
 
@@ -492,14 +503,30 @@ class StepPhoto(Action):
 
 
 class Slideshow(Action):
-    """``play``: the photos full screen, one every ``seconds``, from the one
-    shown (the gallery's, unless ``which`` says the amenities'), until
-    stopped. Not ``play``: stop on the photo shown. The visitor starting to
-    speak stops it too."""
+    """``play``: the photos full screen, by themselves, one every
+    ``seconds``, from the one shown to the last, where it stops: the
+    gallery's and then the amenities', or only ``which``'s. Not ``play``: stop
+    on the photo shown. The visitor starting to speak stops it too."""
 
     play: bool = True
     which: Literal["gallery", "amenities"] | None = None
     seconds: int | None = None
+
+
+class ShowBrochure(Action):
+    """Open the project's brochure (``url``, a PDF on ssilva.cl; else the
+    page's own) over the page, at ``page``. The page reports
+    ``brochure_shown``."""
+
+    url: str | None = None
+    page: int | None = None
+
+
+class DownloadBrochure(Action):
+    """Download the project's brochure (``url``, else the page's own) to the
+    visitor's computer."""
+
+    url: str | None = None
 
 
 class ShowFloorPlan(Action):
@@ -649,10 +676,18 @@ class StepRequest(BaseModel):
 class SlideshowRequest(BaseModel):
     play: bool = Field(default=True, description="True to start the slideshow, false to stop it.")
     which: Literal["gallery", "amenities"] | None = Field(
-        default=None, description="Whose photos: the gallery's unless they asked for amenities."
+        default=None,
+        description="Leave out for every photo, the gallery's and then the amenities'; "
+        "'gallery' or 'amenities' only when they asked for those.",
     )
     seconds: int | None = Field(
         default=None, description="Seconds per photo, 3 to 15; leave out for five."
+    )
+
+
+class BrochureRequest(BaseModel):
+    page: int | None = Field(
+        default=None, description="The brochure's page to show, 1 for the first."
     )
 
 
@@ -796,9 +831,10 @@ Write your answer, with its cues, first; any action call comes at the end of the
 # Moving the screen
 - Open a project with its page cue from the roster: {{page: /estocolmo/}}. Cue only paths from the roster or the site pages list.
 - show_projects opens /proyectos/ filtered and rings the projects you name: use it to show the visitor several projects at once. Pass region, property and one comuna as the visitor asked (the list filters one comuna at a time), and highlight the projects you are about to talk about. A comuna on the coast has no filter: its projects are rung instead. It opens the list itself: never write a page cue in a reply that calls it. Put {{show: name}} before each sentence about one of the projects, so its card is rung as you say it.
-- Photos: show_photos moves the gallery, or with fullscreen opens it full screen ("en grande", "pantalla completa", "full screen"); the amenities always open full screen. step_photo shows the next photo, or the previous one. slideshow runs the photos by themselves, one every few seconds, when they ask for a presentation or a slideshow; it stops when they speak, or with play false. While it runs, do not describe the photos one by one: they change on their own; say it is running and that they can say stop. The screen lines say what each photo shows, from the site's own file names: say it in a few words ("el cowork", "la piscina"), never a file name, and never invent what is not named.
+- Photos: when they ask to see the photos, the pictures, the images or what the project looks like, call slideshow: it opens every photo full screen, the gallery's and then the amenities', and moves on to the next one by itself every few seconds to the last. Never make them ask for each next photo. In the same reply, say in one or two short sentences what they are about to see (from the screen line's photo names) and that it moves on by itself; they can say stop, go back, or "that one". While it runs, stay quiet about each photo: it changes on its own. When they speak it stops on the photo they are looking at: answer them; "sigue", "continue" is slideshow again; "go back" is step_photo with back; a photo they want by number is show_photos with fullscreen. Only the amenities ("las amenidades", "the pool"): slideshow with which amenities. The screen lines say what each photo shows, from the site's own file names: say it in a few words ("el cowork", "la piscina"), never a file name, and never invent what is not named.
 - Floor plans: show_floor_plan opens a typology's floor plan full screen, at once: say it is on their screen, never offer to open it again. When they ask to see a plan ("el plano", "la planta", "the floor plan", "más grande"), write {{plan: …}} before the sentence about it and call show_floor_plan with that typology. On a cotizar page it shows the unit's plan and where it sits on the floor.
-- open_tour opens the virtual tour where the project has one; close_overlay closes the full-screen photos, the plan or the tour.
+- Brochure: where the screen line or read_project says the project has a brochure, show_brochure opens it over the page (a PDF, at the page you name) and download_brochure saves it to their computer. Offer it when they want details to take away. Where it has none, say so and offer the WhatsApp or the quote instead; never open the flip-book page.
+- open_tour opens the virtual tour where the project has one; close_overlay closes the full-screen photos, the plan, the brochure or the tour.
 - The visitor can ask you to scroll to or press anything. Do it with a cue, and say what is now on their screen. Never say you cannot scroll or click.
 - open_whatsapp opens a chat with the project's sales executive in a new tab: only when they ask for it, or say yes to your offer.
 - Several ssilva.cl tabs may be open: lines in brackets list them. "Go back to the other tab" is switch_tab.
@@ -824,9 +860,11 @@ You: "{{plan: 2D | 2B}} Este es el de dos dormitorios y dos baños. A la izquier
 Visitor: "Muéstrame el plano en grande."
 You: "{{plan: 2D | 2B}} Aquí tienes la planta en pantalla completa. Los dos dormitorios quedan a cada lado del living. ¿Seguimos con las amenidades?" then show_floor_plan with typology 2D | 2B.
 Visitor: "¿Y las fotos?"
-You: "Te las muestro en grande. {{photo: 1}} Aquí ves el departamento piloto. {{photo: 2}} Y este es el cowork del edificio. ¿Te pongo una presentación con el resto?"
-Visitor: "Sí, dale."
-You: "Perfecto, van pasando solas. Dime cuando quieras parar." then slideshow with play true.
+You: "Te las muestro en grande, y van pasando solas. Primero el departamento piloto, después el cowork y la piscina. Dime para cuando quieras." then slideshow.
+Visitor: "Para, ¿qué es esa?"
+You: "Es el quincho de la terraza. ¿Sigo con las demás?"
+Visitor: "Sí."
+You: "Sigo." then slideshow.
 Visitor: "Quiero cotizar."
 You: "{{show: formulario}} Perfecto, lo completamos juntos. ¿Me dices tu nombre y apellidos?"
 Visitor: "Ana Pérez Soto."
@@ -943,6 +981,11 @@ _LANDED: dict[str, dict[Lang, str]] = {
     },
     "stopped": {"en": "I've stopped it here.", "es": "La dejé aquí."},
     "plan": {"en": "Here's the floor plan, full screen.", "es": "Aquí tienes el plano en grande."},
+    "brochure": {"en": "Here's the brochure.", "es": "Aquí tienes el brochure."},
+    "download": {
+        "en": "The brochure is downloading to your computer.",
+        "es": "El brochure se está descargando en tu computador.",
+    },
     "tour": {"en": "The tour is open.", "es": "Abrí el recorrido virtual."},
     "closed": {"en": "I've closed it.", "es": "Listo, lo cerré."},
     "form": {"en": "I've filled that in on the form.", "es": "Ya lo completé en el formulario."},
@@ -1632,6 +1675,11 @@ class SsilvaBrain(GeminiBrain):
         #: whether this reply put one full screen.
         self.photo: PhotoShown | None = None
         self._viewing = False
+        #: The visitor's words this turn is answering, until his answer has
+        #: begun; and those of a turn cut off before it did.
+        self._asked: str | None = None
+        self._cut_off: str | None = None
+        self._to_view = False
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -1675,7 +1723,32 @@ class SsilvaBrain(GeminiBrain):
     ) -> AsyncGenerator[Speech, None]:
         """A visitor who speaks the other language is answered in it from the
         first word, unless they chose the language they are in; the page they
-        moved to is read in with what they said; his nod covers the thinking."""
+        moved to is read in with what they said; his nod covers the thinking.
+
+        A turn cut off before his answer, by a noise whose words came out
+        empty, leaves no message to answer, and the call went silent for 13 s
+        on dev call 6956bc76: such a turn is answered in a short quiet spell
+        (:meth:`on_user_idle`) unless the visitor speaks first."""
+        self._cut_off = None
+        self._asked = msg.text
+        # Photos, a plan or the brochure asked for: they open over the page,
+        # so his sentences about them are not moves to the page's sections.
+        self._to_view = bool(_TO_VIEW.search(msg.text))
+        try:
+            async for event in self._answer(session, msg):
+                yield event
+        finally:
+            # `respond` clears it with his first word, while this waits.
+            if (unanswered := self._unanswered()) is not None:
+                # Closed before a word of the answer: interrupted.
+                self._cut_off, self._asked = unanswered, None
+                configure_soon(session, Config(idle=IdleConfig(timeout_ms=_CUT_OFF_MS)))
+                self._idle_short = True
+
+    def _unanswered(self) -> str | None:
+        return self._asked
+
+    async def _answer(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
         heard = None if self._chosen else language_of(msg.text)
         if heard is not None and heard != self.spoken:
             await session.configure(self._speaking(heard))
@@ -1725,6 +1798,13 @@ class SsilvaBrain(GeminiBrain):
         ordinary quiet spell: a nudge, twice, then silence."""
         self._restore_idle()
         self._backstop = None
+        if self._cut_off is not None:
+            said, self._cut_off = self._cut_off, None
+            self._note(
+                f"[You were cut off before you answered their last words: “{said}”. "
+                "Answer them now, briefly.]"
+            )
+            return self.respond(session)
         if self._talk is not None:
             ask, self._talk = self._talk, None
             self._note(ask)
@@ -1777,6 +1857,8 @@ class SsilvaBrain(GeminiBrain):
         async for event in self._spelled(self._written(session, self._cued(turn))):
             if isinstance(event, SpeechChunk):
                 said += event.text
+                if event.text.strip():
+                    self._asked = None  # Answered: an interruption now is a barge-in.
             yield event
         # Words, and not only a promise: on Explora's dev call ed9846d5 his
         # whole reply was "One moment.", and the visitor sat in silence.
@@ -1912,17 +1994,28 @@ class SsilvaBrain(GeminiBrain):
         if kinds & {"show", "plan", "photo"}:
             # Its own cues are sent after this returns: count them as shown now,
             # so the next sentence on the same part does not ring it again.
+            fix: list[tuple[CueKind, str]] = []
             for kind, value in placed:
                 if kind == "show":
                     self._shown = section_key(value) or value
                 elif kind == "plan":
                     self._shown = "tipologías"
-                    self._planned = match_typology(value, self._typologies(path)) or value
-            return []
+                    typologies = self._typologies(path)
+                    self._planned = match_typology(value, typologies) or value
+                    # The model's label against its own words: on dev call
+                    # 280b2561 "the three-bedroom units" came with {plan: 2D | 2B}.
+                    said = typology_in(sentence, typologies)
+                    if said is not None and said != self._planned:
+                        logger.info("ssilva: plan {!r} is not what he says, {!r}", value, said)
+                        self._planned = said
+                        fix.append(("plan", said))
+            return fix
         page = self.kb.page(path)
         # Photos or a plan full screen: a sentence about what is in them
         # ("the barbecue area") is not a move to that part of the page.
-        viewing = self._viewing or (self.photo is not None and self.photo.fullscreen)
+        viewing = (
+            self._viewing or self._to_view or (self.photo is not None and self.photo.fullscreen)
+        )
         if not self._is_project_page(path):
             # The project list, or a reply that opens it: the card of the one
             # project a sentence is about, as he says it.
@@ -2180,6 +2273,7 @@ class SsilvaBrain(GeminiBrain):
                 self.tabs = event.tabs
                 self._active = event.active
                 self._tabs_unseen = True
+                self._follow_tab()
                 return None
             case TypologyShown():
                 self.typology = event
@@ -2191,7 +2285,7 @@ class SsilvaBrain(GeminiBrain):
                         "The project list on their screen shows no project for that filter. "
                         "Say so in one sentence and offer a nearby area or a wider search."
                     )
-                return f"[{_listed_line(event)}]"
+                return f"[{_listed_line(event, self.kb)}]"
             case LeadFormState():
                 return self._lead_changed(event)
             case LeadSubmitted():
@@ -2217,7 +2311,16 @@ class SsilvaBrain(GeminiBrain):
                 return None
             case PhotoShown():
                 was, self.photo = self.photo, event
+                if event.ended:
+                    self._talk_through(
+                        "The slideshow showed every photo and stopped on the last one. Say so in "
+                        "one short sentence and offer the floor plans or the quote."
+                    )
                 return _photo_line(event, was)
+            case BrochureShown():
+                return f"[On screen, over the page: the project's brochure, page {event.page}.]"
+            case BrochureDownloaded():
+                return "[The brochure's download started on their computer.]"
             case ViewerClosed():
                 self.photo = None
                 if event.by == "javier":
@@ -2276,6 +2379,37 @@ class SsilvaBrain(GeminiBrain):
             )
         return note
 
+    def _follow_tab(self) -> None:
+        """The tab in front shows another page than the last one it reported:
+        the visitor went back or forward to it, and a page restored from the
+        browser's cache reports nothing (dev call 280b2561). Its kind and its
+        project come from the crawl until it reports itself."""
+        tab = next((t for t in self.tabs if t.tab_id == self._active), None)
+        if tab is None or not tab.url:
+            return
+        here = canonical_path(tab.url)
+        if here == self._path or not re.match(r"https?://(www\.)?ssilva\.cl/", tab.url):
+            return
+        page = self.kb.page(here)
+        project = self.kb.project_at(here)
+        kind = page_kind(here, self.kb)
+        self.page = PageChanged(
+            url=tab.url,
+            path=site_path(here),
+            title=tab.title,
+            kind=kind if kind in ("home", "projects", "project", "quote") else "page",  # type: ignore[arg-type]
+            project=project.name if project else "",
+            headings=list(page.headings) if page else [],
+            sections=list(self._keys(here)) if kind == "project" else [],
+            typologies=list(project.typologies) if project and kind == "project" else [],
+        )
+        if here != self._path:
+            self.typology = None
+            self.photo = None
+        self._path = here
+        self._page_unseen = True
+        logger.info("ssilva: the tab in front is back on {} (from its tab)", here)
+
     def _read_in_screen(self) -> None:
         """The tabs and the page in front, once per change, ahead of what they say."""
         if self._tabs_unseen and len(self.tabs) > 1:
@@ -2333,6 +2467,8 @@ class SsilvaBrain(GeminiBrain):
             self.step_photo,
             self.slideshow,
             self.show_floor_plan,
+            self.show_brochure,
+            self.download_brochure,
             self.open_tour,
             self.close_overlay,
             self.fill_lead_form,
@@ -2382,6 +2518,11 @@ class SsilvaBrain(GeminiBrain):
             names = ", ".join(h.title for h in hits) or "none"
             return f"No project '{request.name}' on ssilva.cl. Closest: {names}."
         text = self.kb.project_text(project)
+        text += (
+            "\nBrochure: a PDF on its page (show_brochure, download_brochure)."
+            if project.brochure_pdf
+            else "\nBrochure: none on its page."
+        )
         if project.desde_uf:
             text += f"\nSay the desde price as: {uf_words(project.desde_uf, self.spoken)}."
         if project.path:
@@ -2519,15 +2660,47 @@ class SsilvaBrain(GeminiBrain):
             self._move(Slideshow(play=False), "stopped")
             return "Stopped on the photo on screen."
         which = request.which
+        keys = self._keys(self._path)
+        if which is None and not {"galería", "amenidades"} & set(keys):
+            return f"Not started: {project.name}'s page has no photos."
         key = "amenidades" if which == "amenities" else "galería"
-        if key not in self._keys(self._path):
+        if which is not None and key not in keys:
             return f"Not started: {project.name}'s page has no {key}."
         seconds = max(3, min(15, request.seconds)) if request.seconds else None
         self._move(Slideshow(play=True, which=which, seconds=seconds), "slideshow")
         return (
-            "The slideshow is running. Say in one sentence that the photos go by on their own "
-            "and they can say stop, or ask for any one."
+            "The slideshow is running, every photo to the last. Stay quiet while it runs; when "
+            "they speak it stops on the photo in front."
         )
+
+    async def show_brochure(self, request: BrochureRequest) -> str:
+        """Open this project's brochure over the page, at a page of it."""
+        project = self._on_project()
+        if project is None:
+            return "Not shown: the brochure is on a project page. Open the project first."
+        if not project.brochure_pdf:
+            return (
+                f"Not shown: {project.name} has no brochure on its page. Say so, and offer "
+                "its WhatsApp or the quote."
+            )
+        self._move(ShowBrochure(url=project.brochure_pdf, page=request.page), "brochure")
+        return (
+            f"Opening {project.name}'s brochure"
+            + (f" at page {request.page}" if request.page else "")
+            + ". It also has a button to download it."
+        )
+
+    async def download_brochure(self) -> str:
+        """Download this project's brochure to the visitor's computer."""
+        project = self._on_project()
+        if project is None:
+            return "Not downloaded: the brochure is on a project page. Open the project first."
+        if not project.brochure_pdf:
+            return (
+                f"Not downloaded: {project.name} has no brochure. Say so, and offer its WhatsApp."
+            )
+        self._move(DownloadBrochure(url=project.brochure_pdf), "download")
+        return f"Downloading {project.name}'s brochure, a PDF, to their computer."
 
     async def show_floor_plan(self, request: PlanRequest) -> str:
         """Open a typology's floor plan full screen, on a project page or its
@@ -2719,9 +2892,16 @@ def _photo_line(e: PhotoShown, was: PhotoShown | None) -> str | None:
     return f"[On screen: {shown}{by}.]"
 
 
-def _listed_line(e: ProjectsListed) -> str:
+def _listed_line(e: ProjectsListed, k: Knowledge) -> str:
     where = ", ".join(x for x in (e.region or "", e.property or "", ", ".join(e.communes)) if x)
-    names = "; ".join(e.projects) or "none"
+    # The site's own names, by the cards' pages: a translated list reads
+    # "THE NAVIGATORS" for Los Navegantes.
+    shown = list(e.projects)
+    for i, path in enumerate(e.paths[: len(shown)]):
+        project = k.project_at(path) if path else None
+        if project is not None:
+            shown[i] = project.name
+    names = "; ".join(shown) or "none"
     return (
         f"The project list shows {e.count} project{'s' if e.count != 1 else ''}"
         + (f" for {where}" if where else "")
@@ -2746,6 +2926,8 @@ def _page_line(p: PageChanged, k: Knowledge) -> str:
             note += f" (selected: {p.typology})." if p.typology else "."
         if p.sections:
             note += f" Sections: {', '.join(p.sections)}."
+        if project is not None:
+            note += " Brochure: yes." if project.brochure_pdf else " Brochure: none."
         if p.photos:
             note += f" Gallery photos: {_numbered(p.photos)}."
         if p.amenity_photos:
