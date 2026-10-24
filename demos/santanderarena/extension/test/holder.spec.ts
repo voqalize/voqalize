@@ -14,7 +14,16 @@
  *     the tab list;
  *   - the microphone permission's branches (granted, denied, prompt answered
  *     in the frame, prompt that needs the tab), with the permission query
- *     stubbed.
+ *     stubbed;
+ *   - his mouth clock: with his voice on a real WebRTC loopback in the holder,
+ *     the face's reads of the relayed clock are fresh while he speaks, on a
+ *     busy page too, and read as a stop soon after he stops;
+ *   - a page load in the middle of a reply: the next page's face, which
+ *     listens only a moment after it is made, gets the reply so far and what
+ *     follows, in order, and nothing of a reply that is over or was cut;
+ *   - his still on the next page, until its face draws: it moves (a talking
+ *     head while he speaks, a breath while he listens), and holds still under
+ *     reduced motion.
  */
 
 import { type BrowserContext, chromium, expect, type Page, test as base, type Worker } from "@playwright/test";
@@ -85,6 +94,8 @@ const test = base.extend<{ ext: Ext }>({
         `--load-extension=${EXT}`,
         "--use-fake-device-for-media-stream",
         "--use-fake-ui-for-media-stream",
+        // His voice in the voice tests is a tone the holder plays unprompted.
+        "--autoplay-policy=no-user-gesture-required",
       ],
     });
     const connects: Ext["connects"] = [];
@@ -451,5 +462,204 @@ test.describe("the widget across a page load", () => {
     expect(await kept(page)).toBeNull();
     expect(await page.evaluate(() => Boolean(document.getElementById("voqalize-transitions")))).toBe(false);
     expect(await holderUp(ext.sw)).toBe(false);
+  });
+});
+
+/** The face shuts the mouth on a delivery older than this when it reads one:
+ *  a frame, and the gap it closes over. */
+const STALE_MS = 60;
+
+interface FaceRead {
+  at: number;
+  timestamp: number | null;
+}
+const faceReads = (page: Page) =>
+  page.evaluate(() => (window as unknown as { __faceReads?: FaceRead[] }).__faceReads ?? []) as Promise<FaceRead[]>;
+const pageNow = (page: Page) => page.evaluate(() => performance.timeOrigin + performance.now());
+const staleShare = (reads: FaceRead[]) =>
+  reads.filter((r) => r.timestamp === null || r.at - r.timestamp > STALE_MS).length / reads.length;
+
+/** Speak, and wait until his voice reaches the face's reads. */
+async function speaking(ext: Ext, page: Page): Promise<void> {
+  expect(await toHolder(ext.sw, { what: "voice", on: true })).toEqual({ ok: true });
+  await expect
+    .poll(async () => (await faceReads(page)).slice(-5).filter((r) => r.timestamp !== null && r.at - r.timestamp <= STALE_MS).length)
+    .toBeGreaterThan(0);
+}
+
+test.describe("his mouth clock on a page", () => {
+  test("while he speaks the face reads a fresh delivery, on a quiet page and on a busy one", async ({ ext }) => {
+    const page = await ext.open("/");
+    await callLive(ext, page);
+    await speaking(ext, page);
+
+    let from = await pageNow(page);
+    await page.waitForTimeout(3000);
+    const quiet = (await faceReads(page)).filter((r) => r.at >= from);
+
+    // A busy page, as a gallery, a scroll or the next page parsing makes one:
+    // 60 ms of work every 120 ms.
+    from = await page.evaluate(() => {
+      (window as unknown as { __busy?: number }).__busy = window.setInterval(() => {
+        const t = performance.now();
+        while (performance.now() - t < 60);
+      }, 120);
+      return performance.timeOrigin + performance.now();
+    });
+    await page.waitForTimeout(4000);
+    const until = await page.evaluate(() => {
+      clearInterval((window as unknown as { __busy?: number }).__busy);
+      return performance.timeOrigin + performance.now();
+    });
+    const busy = (await faceReads(page)).filter((r) => r.at >= from && r.at <= until);
+
+    expect(quiet.length).toBeGreaterThan(50);
+    expect(busy.length).toBeGreaterThan(20);
+    expect(staleShare(quiet)).toBeLessThan(0.05);
+    expect(staleShare(busy)).toBeLessThan(0.05);
+  });
+
+  test("when he stops, the face reads the stop within a moment", async ({ ext }) => {
+    const page = await ext.open("/");
+    await callLive(ext, page);
+    await speaking(ext, page);
+    await page.waitForTimeout(1500);
+
+    expect(await toHolder(ext.sw, { what: "voice", on: false })).toEqual({ ok: true });
+    const stopped = await pageNow(page);
+    await page.waitForTimeout(1000);
+    const after = (await faceReads(page)).filter((r) => r.at >= stopped);
+
+    // The last delivery the face is shown is at most the hold past the real
+    // stop (plus the receiver draining its buffer), and from then on every
+    // read is a stop.
+    const last = Math.max(...after.map((r) => r.timestamp ?? 0));
+    expect(last).toBeLessThan(stopped + 300);
+    const settled = after.filter((r) => r.at >= stopped + 400);
+    expect(settled.length).toBeGreaterThan(10);
+    expect(staleShare(settled)).toBe(1);
+  });
+});
+
+interface FaceSaw {
+  what: string;
+  ctx?: string;
+  from_ms?: number;
+}
+const faceSaw = (page: Page) =>
+  page.evaluate(() => (window as unknown as { __faceSaw?: FaceSaw[] }).__faceSaw ?? []) as Promise<FaceSaw[]>;
+const toFace = async (ext: Ext, msg: Record<string, unknown>) =>
+  expect(await toHolder(ext.sw, { what: "avatar", msg })).toEqual({ ok: true });
+const label = (s: FaceSaw) => (s.ctx ? `${s.what} ${s.ctx}${s.from_ms === undefined ? "" : `@${s.from_ms}`}` : s.what);
+
+/** A full page load in a call, and the new page's face up. */
+async function load(page: Page, path: string): Promise<void> {
+  await page.goto(ORIGIN + path, { waitUntil: "domcontentloaded" });
+  await expect(widget(page)).toHaveAttribute("data-status", "live");
+}
+
+test.describe("a page load in the middle of a reply", () => {
+  test("the next page's face gets the reply so far (its place on the stream, its cues) and that he is speaking, then what follows, in order", async ({ ext }) => {
+    const page = await ext.open("/");
+    await callLive(ext, page);
+    await speaking(ext, page);
+
+    // A reply whose cues have all been sent before the load, as a sentence's
+    // phones are, seconds ahead of its audio.
+    await toHolder(ext.sw, { what: "emit", name: "botStartedSpeaking" });
+    await toFace(ext, { cmd: "sync", ctx: "r1", at_ms: 0, rtp: 48000, rate: 48000 });
+    await toFace(ext, { cmd: "cues", ctx: "r1", from_ms: 0, cues: [{ t: 0, v: "B" }] });
+    await toFace(ext, { cmd: "cues", ctx: "r1", from_ms: 900, cues: [{ t: 900, v: "C" }] });
+    await expect.poll(async () => (await faceSaw(page)).map(label)).toEqual(["botStartedSpeaking", "sync r1", "cues r1@0", "cues r1@900"]);
+
+    await load(page, "/bares");
+    await expect.poll(async () => (await faceSaw(page)).map(label)).toEqual(["sync r1", "cues r1@0", "cues r1@900", "botStartedSpeaking"]);
+
+    // What the reply sends next reaches the new face after what it caught up on.
+    await toFace(ext, { cmd: "cues", ctx: "r1", from_ms: 1800, cues: [{ t: 1800, v: "D" }] });
+    await expect.poll(async () => (await faceSaw(page)).map(label).at(-1)).toBe("cues r1@1800");
+  });
+
+  test("a reply that is over, or was cut, is not carried to the next page", async ({ ext }) => {
+    const page = await ext.open("/");
+    await callLive(ext, page);
+    await speaking(ext, page);
+
+    // Heard to its end.
+    await toHolder(ext.sw, { what: "emit", name: "botStartedSpeaking" });
+    await toFace(ext, { cmd: "sync", ctx: "done", at_ms: 0, rtp: 48000, rate: 48000 });
+    await toFace(ext, { cmd: "cues", ctx: "done", from_ms: 0, cues: [{ t: 0, v: "B" }] });
+    await toFace(ext, { cmd: "end", ctx: "done", at_ms: 1200 });
+    await toHolder(ext.sw, { what: "emit", name: "botStoppedSpeaking" });
+    // Cut while he spoke.
+    await toHolder(ext.sw, { what: "emit", name: "botStartedSpeaking" });
+    await toFace(ext, { cmd: "sync", ctx: "cut", at_ms: 0, rtp: 96000, rate: 48000 });
+    await toFace(ext, { cmd: "cues", ctx: "cut", from_ms: 0, cues: [{ t: 0, v: "B" }] });
+    await toFace(ext, { cmd: "action", id: "RESPONSE_INTERRUPTED" });
+    await toHolder(ext.sw, { what: "emit", name: "botStoppedSpeaking" });
+    await expect.poll(async () => (await faceSaw(page)).length).toBe(10);
+
+    await load(page, "/bares");
+    await page.waitForTimeout(800);
+    expect((await faceSaw(page)).map(label)).toEqual([]);
+  });
+});
+
+interface PosterNow {
+  name: string;
+  transform: string;
+  gone: boolean;
+}
+const posterNow = (page: Page) =>
+  page.evaluate(() => {
+    const p = document.querySelector("[data-voqalize=widget]")?.shadowRoot?.querySelector<HTMLElement>(".poster");
+    if (!p || p.hidden) return null;
+    const style = getComputedStyle(p);
+    return { name: style.animationName, transform: style.transform, gone: p.classList.contains("gone") };
+  }) as Promise<PosterNow | null>;
+
+/** In a call, a full load of a page whose parse a script holds for 2 s: the
+ *  early shell's still is what shows his face meanwhile. */
+async function toSlowPage(ext: Ext, page: Page, speaking: boolean): Promise<void> {
+  await callLive(ext, page);
+  if (speaking) {
+    await toHolder(ext.sw, { what: "emit", name: "botStartedSpeaking" });
+    await expect(widget(page)).toHaveAttribute("data-activity", "speaking");
+  }
+  await expect.poll(() => page.evaluate(() => sessionStorage.getItem("voqalize.santanderarena.face")?.slice(0, 15) ?? null), { timeout: 8000 }).toBe("data:image/webp");
+  await page.evaluate(() => {
+    location.href = "/lento";
+  });
+  await page.waitForURL(`${ORIGIN}/lento`, { waitUntil: "commit" });
+  await expect.poll(async () => (await posterNow(page)) !== null).toBe(true);
+}
+
+test.describe("his still while the next page's face is not drawing yet", () => {
+  test("it moves as a talking head while he speaks, and keeps moving", async ({ ext }) => {
+    const page = await ext.open("/");
+    await toSlowPage(ext, page, true);
+    await expect.poll(async () => (await posterNow(page))?.name).toBe("poster-talk");
+    const a = (await posterNow(page))!;
+    await page.waitForTimeout(300);
+    const b = (await posterNow(page))!;
+    expect(b.gone).toBe(false);
+    expect(b.transform).not.toBe(a.transform);
+    expect(b.transform).not.toBe("none");
+  });
+
+  test("it breathes, slowly, while he listens", async ({ ext }) => {
+    const page = await ext.open("/");
+    await toSlowPage(ext, page, false);
+    await expect.poll(async () => (await posterNow(page))?.name).toBe("poster-rest");
+    const a = (await posterNow(page))!;
+    await page.waitForTimeout(400);
+    expect((await posterNow(page))!.transform).not.toBe(a.transform);
+  });
+
+  test("it holds still for a visitor who asks for reduced motion", async ({ ext }) => {
+    const page = await ext.open("/");
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await toSlowPage(ext, page, true);
+    expect(await posterNow(page)).toMatchObject({ name: "none", transform: "none" });
   });
 });
