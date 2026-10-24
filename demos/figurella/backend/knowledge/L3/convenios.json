@@ -1,0 +1,114 @@
+[
+ {
+  "key": "santander",
+  "partner": "Banco Santander",
+  "anchor": "convenio_santander",
+  "discount": "30% de Descuento",
+  "text": "Descuento en todos los planes pagando con tarjetas Banco Santander.",
+  "logo": "https://figurella.cl/wp-content/uploads/2021/10/Logo-Santander.jpg"
+ },
+ {
+  "key": "security",
+  "partner": "Banco Security",
+  "anchor": "convenio_security",
+  "discount": "30% de Descuento",
+  "text": "Descuento en todos los planes pagando con tarjetas Banco Security.",
+  "logo": "https://figurella.cl/wp-content/uploads/2021/10/Logo-Banco-Security.jpg"
+ },
+ {
+  "key": "bice",
+  "partner": "Banco BICE",
+  "anchor": "convenio_bice",
+  "discount": "30% de Descuento",
+  "text": "Descuento en todos los planes pagando con tarjetas Banco BICE.",
+  "logo": "https://figurella.cl/wp-content/uploads/2021/10/Logo-Banco-Bice.jpg"
+ },
+ {
+  "key": "itau",
+  "partner": "Banco Itaú",
+  "anchor": "convenio_itau",
+  "discount": "30% de Descuento",
+  "text": "Descuento en todos los planes pagando con tarjetas Banco ITAU.",
+  "logo": "https://figurella.cl/wp-content/uploads/2021/10/Logo-Banco-Itau.jpg"
+ },
+ {
+  "key": "colmena",
+  "partner": "Isapre Colmena",
+  "anchor": "convenio_colmena",
+  "discount": "40% de Descuento en Plan Ideal",
+  "text": "30% de descuento otros planes por sesiones.",
+  "logo": "https://figurella.cl/wp-content/uploads/2021/10/Logo-Colmena.jpg"
+ },
+ {
+  "key": "banmedica",
+  "partner": "Isapre Banmédica",
+  "anchor": "convenio_banmedica",
+  "discount": "30% de Descuento",
+  "text": "Descuento en todos los planes para los clientes de Isapre Banmédica.",
+  "logo": "https://figurella.cl/wp-content/uploads/2021/10/Logo-Banmedica.jpg"
+ },
+ {
+  "key": "vida_tres",
+  "partner": "Isapre Vida Tres",
+  "anchor": "convenio_vida_tres",
+  "discount": "30% de Descuento",
+  "text": "Descuento en todos los planes para los clientes de Isapre Vida Tres.",
+  "logo": "https://figurella.cl/wp-content/uploads/2021/10/Logo-Vida-Tres.jpg"
+ },
+ {
+  "key": "club_mama_ripley",
+  "partner": "Club Mamá Ripley",
+  "anchor": "convenio_club_mama_ripley",
+  "discount": "30% de Descuento",
+  "text": "Descuento en todos los planes para socios de Club Mamá Ripley.",
+  "logo": "https://figurella.cl/wp-content/uploads/2021/10/Logo-Club-Mama.jpg"
+ },
+ {
+  "key": "club_novios_ripley",
+  "partner": "Club Novios Ripley",
+  "anchor": "convenio_club_novios_ripley",
+  "discount": "30% de Descuento",
+  "text": "Descuento en todos los planes para socios de Club Novios Ripley.",
+  "logo": "https://figurella.cl/wp-content/uploads/2021/10/Logo-Club-Novios.jpg"
+ },
+ {
+  "key": "santiago_college",
+  "partner": "Colegio Santiago College",
+  "anchor": "convenio_santiago_college",
+  "discount": "35% de Descuento",
+  "text": "Descuento en todos los planes a los apoderados del Colegio Santiago College.",
+  "logo": "https://figurella.cl/wp-content/uploads/2021/10/Logo-Santiago-College.jpg"
+ },
+ {
+  "key": "wenlock",
+  "partner": "Colegio Wenlock",
+  "anchor": "convenio_wenlock",
+  "discount": "35% de Descuento",
+  "text": "Descuento en todos los planes a los apoderados del Colegio Wenlock.",
+  "logo": "https://figurella.cl/wp-content/uploads/2021/10/Logo-Wenlock.jpg"
+ },
+ {
+  "key": "cencosud_scotiabank",
+  "partner": "Cencosud Scotiabank",
+  "anchor": "convenio_cencosud_scotiabank",
+  "discount": "40% de Descuento",
+  "text": "Descuento en Plan Ideal, pagando con Tarjetas de Crédito Cencosud Scotiabank.",
+  "logo": "https://figurella.cl/wp-content/uploads/2025/07/Captura-de-Pantalla-2025-07-03-a-las-13.21.31.png"
+ },
+ {
+  "key": "colegio_aleman",
+  "partner": "Colegio Alemán de Santiago",
+  "anchor": "convenio_colegio_aleman",
+  "discount": "35% de Descuento",
+  "text": "Descuento en todos los planes a los apoderados del Colegio Alemán de Santiago.",
+  "logo": "https://figurella.cl/wp-content/uploads/2021/10/Logo-Colegio-Aleman-de-Santiago.jpg"
+ },
+ {
+  "key": "banco_ripley",
+  "partner": "Banco Ripley",
+  "anchor": "convenio_banco_ripley",
+  "discount": "30% de Descuento",
+  "text": "Descuento en todos los planes pagando con tarjetas Banco Ripley.",
+  "logo": "https://figurella.cl/wp-content/uploads/2021/10/Logo-Banco-Ripley.jpg"
+ }
+]

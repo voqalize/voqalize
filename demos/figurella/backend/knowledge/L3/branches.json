@@ -1,0 +1,112 @@
+[
+ {
+  "key": "huerfanos",
+  "name": "Huérfanos",
+  "address": "Huérfanos 835, Piso 16 Santiago Centro.",
+  "phone": "+56 9 3403 3534",
+  "hours": [
+   "Lunes a viernes de 7:30 a 21:30 h.",
+   "Sábados de 9:00 a 14:00 h."
+  ],
+  "maps": "https://goo.gl/maps/ZLwSFVxd4R4eG5FF9",
+  "form_value": "huerfanos@figurella.cl",
+  "anchor": "sucursal_huerfanos",
+  "whatsapp": "+56934033534"
+ },
+ {
+  "key": "costanera",
+  "name": "Costanera",
+  "address": "Nueva Tajamar 289, Las Condes.",
+  "phone": "+56 9 8529 8379",
+  "hours": [
+   "Lunes a viernes de 8:00 a 21:30 h.",
+   "Sábados de 9:00 a 14:00 h."
+  ],
+  "maps": "https://goo.gl/maps/wpndktmeYhFG67Bf8",
+  "form_value": "costanera@figurella.cl",
+  "anchor": "sucursal_costanera",
+  "whatsapp": "+56985298379"
+ },
+ {
+  "key": "colon",
+  "name": "Colón",
+  "address": "Av. Cristóbal Colón 4951, Las Condes.",
+  "phone": "+56 2 3358 5099",
+  "hours": [
+   "Lunes a viernes de 8:00 a 22:00 h.",
+   "Sábados de 9:00 a 14:00 h."
+  ],
+  "maps": "https://goo.gl/maps/wtfisHCNt37RWZ8h8",
+  "form_value": "colon@figurella.cl",
+  "anchor": "sucursal_colon",
+  "whatsapp": "+56963503909"
+ },
+ {
+  "key": "chicureo",
+  "name": "Chicureo",
+  "address": "Av. Chamisero 10.290 local 15.",
+  "phone": "+56 9 4425 2389",
+  "hours": [
+   "Lunes a viernes de 7:30 a 21:00 h.",
+   "Sábados de 8:30 a 13:30 h."
+  ],
+  "maps": "https://goo.gl/maps/NL5T7CuSMBxrVuuL6",
+  "form_value": "chicureo@figurella.cl",
+  "anchor": "sucursal_chicureo",
+  "whatsapp": "+56944252389"
+ },
+ {
+  "key": "tabancura",
+  "name": "Tabancura",
+  "address": "Tabancura 1498.",
+  "phone": "+56 9 8195 5403",
+  "hours": [
+   "Lunes a viernes de 8:00 a 21:30 h.",
+   "Sábados de 9:00 a 14:00 h."
+  ],
+  "maps": "https://goo.gl/maps/wZoYHSn4XmNv4hGNA",
+  "form_value": "tabancura@figurella.cl",
+  "anchor": "sucursal_tabancura",
+  "whatsapp": "+56981955403"
+ },
+ {
+  "key": "vitacura",
+  "name": "Vitacura",
+  "address": "Juan XXIII 6370, Vitacura Santiago de Chile.",
+  "phone": "+56 9 6310 1871",
+  "hours": [
+   "Lunes a viernes de 8:00 a 21:30 h.",
+   "Sábados de 9:00 a 14:00 h."
+  ],
+  "maps": "https://goo.gl/maps/59M2H8SUbz1CEhU76",
+  "form_value": "vitacura@figurella.cl",
+  "anchor": "sucursal_vitacura",
+  "whatsapp": "+56963101871"
+ },
+ {
+  "key": "las_perdices",
+  "name": "Las Perdices",
+  "address": "Av. Las Perdices 2990, local 17, Peñalolén.",
+  "phone": "+56 9 4190 2523",
+  "hours": [
+   "Lunes a viernes de 7:30 a 21:00 h.",
+   "Sábados de 9:00 a 14:00 h."
+  ],
+  "maps": "https://goo.gl/maps/d45Gf3jaYjvh3Qcu9",
+  "form_value": "lasperdices@figurella.cl",
+  "anchor": "sucursal_las_perdices",
+  "whatsapp": "+56987794441"
+ },
+ {
+  "key": "montemar",
+  "name": "Montemar",
+  "address": "Las Pelargonias 842, local 101, Concón",
+  "phone": "",
+  "hours": [],
+  "maps": "",
+  "form_value": "",
+  "anchor": "",
+  "whatsapp": "+56998991355",
+  "note": "Only in the WhatsApp widget: not on the home page's cards, and not an option of the booking form."
+ }
+]
