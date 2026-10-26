@@ -12,8 +12,10 @@
  *     that is leaving fades into this one under a widget that stays put;
  *   - mounts the widget on <html> at once, as the last page left it: live (or
  *     connecting), where the visitor put it, minimised or not, the status line,
- *     the language, muted or not, and a still of his face (the last frame the
- *     avatar drew there, else the character's still) where his face goes;
+ *     the language, muted or not, and a still of his face where his face
+ *     goes: his mouth strip, whose lips move with his voice (`mouth.ts`), or,
+ *     should it not load, the last frame the avatar drew there, else the
+ *     character's still;
  *   - leaves it for `content.ts` (at `document_idle`), which adopts it instead
  *     of mounting another, asks the holder for the call's state as before, and
  *     hands the still over to the live face once the avatar has drawn it.
@@ -22,6 +24,7 @@
  * touches nothing of the page's.
  */
 
+import { MOUTH_STRIP, voiceMouth } from "./mouth";
 import { readFace, readKept, transitions } from "./persist";
 import { mountWidget } from "./widget";
 
@@ -40,5 +43,8 @@ if (kept && !flags[SHELL] && document.documentElement) {
   widget.restore(kept);
   if (kept.still) widget.setStill(kept.still);
   widget.setPoster(readFace() ?? kept.still);
+  // His mouth strip in its place, its lips moving with his voice until the
+  // live face draws (`mouth.ts`).
+  voiceMouth(widget, Boolean(MOUTH_STRIP) && kept.strip === MOUTH_STRIP);
   flags[SHELL] = { widget, kept };
 }

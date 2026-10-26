@@ -105,6 +105,21 @@ const standIns = {
     b.onResolve({ filter: /^@voqalize\/avatar$/ }, () => ({ path: join(here, "test", "fake-avatar.ts") }));
   },
 };
+// His mouth strip for the still a page shows until its face draws
+// (`src/mouth.ts`), on the avatar host this build's runtime comes from: the
+// dev host for `pnpm build` (AVATAR_RUNTIME), the host the npm shim pins for
+// `build:prod`, and the tests' stand-in host for theirs.
+const STRIP_PATH = "/characters/javier-mouth-strip.f0985aa96df7.webp";
+function pinnedRuntime() {
+  const pin = readFileSync(join(here, "node_modules", "@voqalize", "avatar", "dist", "pin.js"), "utf8");
+  const m = pin.match(/export const RUNTIME_URL = "([^"]*)";/);
+  if (!m) throw new Error("@voqalize/avatar/dist/pin.js: no RUNTIME_URL to take the avatar host from");
+  return m[1];
+}
+const mouthStrip = testBuild
+  ? `https://avatar.voqalize.test${STRIP_PATH}`
+  : new URL(STRIP_PATH, avatarRuntime || pinnedRuntime()).href;
+
 const plugins = testBuild ? [standIns] : avatarRuntime ? [runtimeOverride] : [];
 
 // A MAIN-world content script is a classic script, so the bundle is one IIFE.
@@ -113,7 +128,7 @@ await build({
   ...common,
   entryPoints: [join(here, "src/content.ts")],
   format: "iife",
-  define: { __VOQALIZE__: JSON.stringify(wiring) },
+  define: { __VOQALIZE__: JSON.stringify(wiring), __MOUTH_STRIP__: JSON.stringify(mouthStrip) },
   plugins,
   outfile: join(out, "content.js"),
 });
@@ -122,7 +137,13 @@ await build({ ...common, entryPoints: [join(here, "src/holder.ts")], format: "ii
 await build({ ...common, entryPoints: [join(here, "src/grant.ts")], format: "iife", outfile: join(out, "grant.js") });
 // The early shell, also in the page's world, at document_start: in a call,
 // the widget as the last page left it, before the page has parsed.
-await build({ ...common, entryPoints: [join(here, "src/shell.ts")], format: "iife", outfile: join(out, "shell.js") });
+await build({
+  ...common,
+  entryPoints: [join(here, "src/shell.ts")],
+  format: "iife",
+  define: { __MOUTH_STRIP__: JSON.stringify(mouthStrip) },
+  outfile: join(out, "shell.js"),
+});
 await build({ ...common, entryPoints: [join(here, "src/bridge.ts")], format: "iife", outfile: join(out, "bridge.js") });
 await build({ ...common, entryPoints: [join(here, "src/background.ts")], format: "esm", outfile: join(out, "background.js") });
 
@@ -135,3 +156,4 @@ for (const page of ["call.html", "grant.html"]) copyFileSync(join(here, "src", p
 
 console.log(`built ${out} (${wiring.apiBase})`);
 console.log(`avatar runtime: ${avatarRuntime || "the npm pin"}`);
+console.log(`mouth strip: ${mouthStrip}`);
