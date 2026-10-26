@@ -61,19 +61,11 @@ export interface Widget {
   restore(layout: Layout): void;
   /** The visitor moved it or minimised it. */
   onLayout(fn: (layout: Layout) => void): void;
-  /** A still of his face over the face's slot, until the live face is drawn
-   *  (`unveil`); `null` for none. */
-  setPoster(url: string | null): void;
-  /** The live face is drawn: the poster fades out. */
+  /** The face's slot empty, no picture in it, until the live face is drawn
+   *  (`unveil`): during a page load in a call. */
+  veil(): void;
+  /** The live face is drawn: it fades in. */
   unveil(): void;
-  /** His mouth strip (`MOUTH_STRIP`: four frames side by side, closed to
-   *  open) in place of the poster's still, which comes back on `null`. */
-  setMouthStrip(url: string | null): void;
-  /** The strip's frame to show, 0 (closed) to 3 (open). Without a strip it
-   *  changes nothing that shows. */
-  setMouth(shape: 0 | 1 | 2 | 3): void;
-  /** Whether the poster is up (not handed over to the live face). */
-  posterShowing(): boolean;
 }
 
 /** Where the widget sits, as the visitor left it. */
@@ -159,19 +151,8 @@ button { font: inherit; cursor: pointer; }
   width: ${CARD - 2}px; height: ${CARD - 2}px; background: ${SAND};
   transform-origin: 0 0; transition: transform 300ms ${EASE};
 }
-.face > * { width: 100%; height: 100%; }
-.poster {
-  position: absolute; inset: 0; background: ${SAND} center / cover no-repeat;
-  transition: opacity 250ms ease; pointer-events: none;
-}
-.poster.gone { opacity: 0; }
-/* His mouth strip: four frames of the face's box side by side, identical but
-   for the mouth; the frame shown follows his voice's loudness. No transform,
-   no animation: only the lips change. */
-.poster[data-strip] { background-size: 400% 100%; background-position: 0% 0; }
-.poster[data-strip][data-mouth="1"] { background-position-x: 33.333%; }
-.poster[data-strip][data-mouth="2"] { background-position-x: 66.667%; }
-.poster[data-strip][data-mouth="3"] { background-position-x: 100%; }
+.face > * { width: 100%; height: 100%; transition: opacity 250ms ease; }
+.face.veiled > * { opacity: 0; }
 .minimise {
   position: absolute; top: 8px; right: 8px; width: 28px; height: 28px;
   display: grid; place-items: center; padding: 0; border-radius: 2px;
@@ -218,7 +199,7 @@ button { font: inherit; cursor: pointer; }
   50% { box-shadow: 0 0 0 6px rgba(194, 65, 12, 0), 0 16px 40px rgba(0, 0, 0, 0.16); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .root.glide, .card, .frame, .face { transition: none; }
+  .root.glide, .card, .frame, .face, .face > * { transition: none; }
   .root[data-min][data-activity="speaking"] .card { animation: none; }
 }
 [hidden] { display: none !important; }
@@ -256,7 +237,6 @@ export function mountWidget(): Widget {
       <div class="card" hidden>
         <div class="frame">
           <div class="face"></div>
-          <div class="poster" data-mouth="0" hidden></div>
           <button class="minimise" type="button" aria-label="Minimise">
             <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M1 6h10" stroke="currentColor" stroke-width="1.4"/></svg>
           </button>
@@ -304,14 +284,7 @@ export function mountWidget(): Widget {
   const errorText = $<HTMLElement>(".error-text");
   const settings = $<HTMLButtonElement>(".settings");
   const grant = $<HTMLElement>(".grant");
-  const poster = $<HTMLElement>(".poster");
-  let posterUrl: string | null = null;
-  let stripUrl: string | null = null;
-  const drawPoster = () => {
-    const url = stripUrl ?? posterUrl;
-    poster.toggleAttribute("data-strip", Boolean(stripUrl));
-    poster.style.backgroundImage = url ? `url("${url}")` : "";
-  };
+  const face = $<HTMLElement>(".face");
   const mute = $<HTMLButtonElement>(".mute");
   const hang = $<HTMLButtonElement>(".hang");
   const lang = $<HTMLElement>(".lang");
@@ -474,7 +447,7 @@ export function mountWidget(): Widget {
   }
 
   return {
-    face: $<HTMLElement>(".face"),
+    face,
     audio: $<HTMLAudioElement>("audio"),
     paint(status, message) {
       root.dataset.status = status;
@@ -557,26 +530,11 @@ export function mountWidget(): Widget {
     onLayout(fn) {
       layoutFn = fn;
     },
-    setPoster(url) {
-      posterUrl = url;
-      poster.hidden = !url;
-      poster.classList.remove("gone");
-      if (!url) stripUrl = null;
-      drawPoster();
+    veil() {
+      face.classList.add("veiled");
     },
     unveil() {
-      poster.classList.add("gone");
-      setTimeout(() => {
-        if (poster.classList.contains("gone")) poster.hidden = true;
-      }, 300);
+      face.classList.remove("veiled");
     },
-    setMouthStrip(url) {
-      stripUrl = url;
-      drawPoster();
-    },
-    setMouth(shape) {
-      if (poster.dataset.mouth !== String(shape)) poster.dataset.mouth = String(shape);
-    },
-    posterShowing: () => !poster.hidden && !poster.classList.contains("gone"),
   };
 }
