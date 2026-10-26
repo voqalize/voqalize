@@ -6,8 +6,9 @@
  * Kept in the tab's `sessionStorage` (cannonhome.cl's, which the page's world
  * and the extension's isolated world share, and which the next page of the
  * tab reads synchronously at `document_start`): the call's state as the widget
- * shows it, where the visitor put the widget, and a still of his face (the
- * last frame the avatar drew, `FACE_KEY`, else the character's still). Written
+ * shows it, where the visitor put the widget, and the character's still for
+ * the invite (no picture of his face in the call: the next page's face slot
+ * stays empty until its live face draws). Written
  * by `content.ts` while a call is on, and taken away when it ends. It is only a
  * picture of the call: the holder's state, which the next page asks for on its
  * port as before, is what holds.
@@ -28,16 +29,11 @@ export interface Kept extends Layout {
   muted: boolean;
   activity: Activity | null;
   language: Language;
-  /** The character's still, a URL. */
+  /** The character's still, a URL: the invite's picture off a call. */
   still: string | null;
-  /** His mouth strip (`mouth.ts`), once it has loaded on a page of this
-   *  tab: in the cache, so the next page's still is the strip at once. */
-  strip?: string | null;
 }
 
 const KEPT_KEY = "voqalize.cannonhome.call";
-/** The last frame of his face, a data URL, apart: it is the large one. */
-const FACE_KEY = "voqalize.cannonhome.face";
 /** Kept longer ago than this (a tab restored long after, say), it is stale. */
 export const FRESH_MS = 60_000;
 
@@ -65,25 +61,8 @@ export function writeKept(kept: Omit<Kept, "at">): void {
 export function clearKept(): void {
   try {
     sessionStorage.removeItem(KEPT_KEY);
-    sessionStorage.removeItem(FACE_KEY);
   } catch {
     /* Nothing to clear. */
-  }
-}
-
-export function readFace(): string | null {
-  try {
-    return sessionStorage.getItem(FACE_KEY);
-  } catch {
-    return null;
-  }
-}
-
-export function writeFace(url: string): void {
-  try {
-    sessionStorage.setItem(FACE_KEY, url);
-  } catch {
-    /* Full: the character's still stands in. */
   }
 }
 
