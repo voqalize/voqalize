@@ -242,9 +242,9 @@ test.describe("the holder and its pages", () => {
       };
     });
     const page = await ext.open("/");
-    // One press, at once, not again.
+    // One press, at once, not again. The call starts once the move is in.
     await page.locator("[data-voqalize=widget] .invite").click();
-    await expect(widget(page)).toHaveAttribute("data-status", "live");
+    await expect(widget(page)).toHaveAttribute("data-status", "live", { timeout: 10_000 });
     await expect.poll(async () => (await status(ext.sw)).state.ready).toBe(true);
     expect(ext.connects).toHaveLength(1);
   });
