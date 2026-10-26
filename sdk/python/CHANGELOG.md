@@ -15,6 +15,18 @@ The public series has now caught up to them, so **a heading carrying
 are different releases that happen to share a number; the pre-restart entries are
 kept for the history, and nothing installable was ever cut from them.
 
+## Unreleased
+
+### Removed
+
+- **The Kokoro voices.** `Voice.KOKORO_AVA`, `KOKORO_SARAH`, `KOKORO_NOAH`,
+  `KOKORO_LEO`, `KOKORO_EMMA` and `KOKORO_OLIVER` are gone, and their proto
+  values (3 to 8) and names are reserved. Kokoro is retired: dev stopped serving
+  it when it moved to OmniVoice in Rust, and prod stops with the speech release
+  that turns it off. The OmniVoice voices cover American and British English;
+  the catalog page lists them. A brain that names `kokoro/…` as a string is
+  refused by the speech tier with the voices it does serve.
+
 ## 0.11.0
 
 Additive on the wire, and the wire version stays 3: a brain on 0.10.0 is served

@@ -121,12 +121,6 @@ surface as we learn, not in advance.
 <!-- voices:begin -->
 | `Voice` | Voice ID | Sounds like | Speaks |
 |---|---|---|---|
-| `Voice.KOKORO_AVA` | `kokoro/ava` | Ava (American female) | `en` |
-| `Voice.KOKORO_EMMA` | `kokoro/emma` | Emma (British female) | `en` |
-| `Voice.KOKORO_LEO` | `kokoro/leo` | Leo (American male) | `en` |
-| `Voice.KOKORO_NOAH` | `kokoro/noah` | Noah (American male) | `en` |
-| `Voice.KOKORO_OLIVER` | `kokoro/oliver` | Oliver (British male) | `en` |
-| `Voice.KOKORO_SARAH` | `kokoro/sarah` | Sarah (American female) | `en` |
 | `Voice.OMNIVOICE_AALIYAH` | `omnivoice/aaliyah` | Aaliyah (female) | `en` |
 | `Voice.OMNIVOICE_ADITYA` | `omnivoice/aditya` | Aditya (male) | `en`, `hi` |
 | `Voice.OMNIVOICE_AMARA` | `omnivoice/amara` | Amara (female) | `en` |

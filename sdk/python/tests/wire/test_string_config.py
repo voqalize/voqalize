@@ -130,7 +130,9 @@ async def test_catalog_members_travel_on_the_enum_fields() -> None:
     "config",
     [
         Config(tts=TtsConfig(voice="gemini/kore", language="en-IN"), stt=SttConfig(language="ta")),
-        Config(tts=TtsConfig(voice=Voice.KOKORO_AVA, language="en"), stt=SttConfig(language="en")),
+        Config(
+            tts=TtsConfig(voice=Voice.OMNIVOICE_EMILY, language="en"), stt=SttConfig(language="en")
+        ),
         Config(tts=TtsConfig(voice="omnivoice/gauri")),
     ],
 )

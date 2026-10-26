@@ -274,18 +274,6 @@ class Voice(StrEnum):
     OMNIVOICE_GAURI = "omnivoice/gauri"
     #: Male, Indian English and the Indic languages.
     OMNIVOICE_GAURAV = "omnivoice/gaurav"
-    #: American female.
-    KOKORO_AVA = "kokoro/ava"
-    #: American female.
-    KOKORO_SARAH = "kokoro/sarah"
-    #: American male.
-    KOKORO_NOAH = "kokoro/noah"
-    #: American male.
-    KOKORO_LEO = "kokoro/leo"
-    #: British female.
-    KOKORO_EMMA = "kokoro/emma"
-    #: British male.
-    KOKORO_OLIVER = "kokoro/oliver"
     #: Male, Indian English and the Indic languages.
     OMNIVOICE_GAUTAM = "omnivoice/gautam"
     #: Female, Indian English and the Indic languages.

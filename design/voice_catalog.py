@@ -46,6 +46,14 @@ DEFAULT_HOST = "speech.prod.voqalize.com"
 #: rather than quietly reading the fields it recognizes and ignoring the rest.
 CATALOG_VERSION = 1
 
+#: Engines whose voices left the `Voice` enum while a node may still serve them:
+#: a retirement reaches the proto first and each environment with its next
+#: speech release. A node serving one is reported, not failed, and the docs
+#: table leaves it out. Kokoro: retired 2026-10-26, off on dev already, off on
+#: prod with the speech release that sets VQL_TTS__KOKORO_ENABLED=false. Remove
+#: an engine from here once no node serves it.
+RETIRED_ENGINES = frozenset({"kokoro"})
+
 BEGIN = "<!-- voices:begin -->"
 END = "<!-- voices:end -->"
 
@@ -88,10 +96,19 @@ def fetch(host: str, address: str | None = None) -> dict[str, object]:
 
 
 def voices(document: dict[str, object]) -> list[dict[str, object]]:
+    """The voices a client can select: every served voice of an engine not retired."""
     served = document.get("voices")
     if not isinstance(served, list):
         raise SystemExit("the catalog has no `voices` list")
-    return sorted(served, key=lambda v: (str(v["engine"]), str(v["id"])))
+    live = [v for v in served if str(v["engine"]) not in RETIRED_ENGINES]
+    return sorted(live, key=lambda v: (str(v["engine"]), str(v["id"])))
+
+
+def retired(document: dict[str, object]) -> list[str]:
+    """The ids of served voices whose engine is retired."""
+    served = document.get("voices")
+    assert isinstance(served, list)
+    return sorted(str(v["id"]) for v in served if str(v["engine"]) in RETIRED_ENGINES)
 
 
 def proto_voices() -> dict[str, str]:
@@ -161,8 +178,11 @@ def cmd_check(args: argparse.Namespace) -> int:
 
     rosters: dict[str, list[dict[str, object]]] = {}
     for address in addresses:
-        rosters[address] = voices(fetch(args.host, address))
+        document = fetch(args.host, address)
+        rosters[address] = voices(document)
         print(f"  {address}: {', '.join(str(v['id']) for v in rosters[address])}")
+        for voice_id in retired(document):
+            print(f"  · {address} still serves {voice_id}, whose engine is retired")
 
     problems: list[str] = []
 

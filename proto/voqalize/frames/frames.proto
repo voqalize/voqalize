@@ -496,23 +496,13 @@ enum Voice {
   // Male, Indian English and the Indic languages.
   VOICE_OMNIVOICE_GAURAV = 2 [(voice_id) = "omnivoice/gaurav"];
 
-  // American female.
-  VOICE_KOKORO_AVA = 3 [(voice_id) = "kokoro/ava"];
-
-  // American female.
-  VOICE_KOKORO_SARAH = 4 [(voice_id) = "kokoro/sarah"];
-
-  // American male.
-  VOICE_KOKORO_NOAH = 5 [(voice_id) = "kokoro/noah"];
-
-  // American male.
-  VOICE_KOKORO_LEO = 6 [(voice_id) = "kokoro/leo"];
-
-  // British female.
-  VOICE_KOKORO_EMMA = 7 [(voice_id) = "kokoro/emma"];
-
-  // British male.
-  VOICE_KOKORO_OLIVER = 8 [(voice_id) = "kokoro/oliver"];
+  // 3 to 8 were the Kokoro voices (kokoro/ava, sarah, noah, leo, emma, oliver),
+  // retired 2026-10-26: dev never served them after it moved to OmniVoice in
+  // Rust, and prod stops with the speech release that turns Kokoro off. A
+  // brain that still names one by its string is refused by the speech tier.
+  reserved 3 to 8;
+  reserved "VOICE_KOKORO_AVA", "VOICE_KOKORO_SARAH", "VOICE_KOKORO_NOAH",
+    "VOICE_KOKORO_LEO", "VOICE_KOKORO_EMMA", "VOICE_KOKORO_OLIVER";
 
   // Male, Indian English and the Indic languages.
   VOICE_OMNIVOICE_GAUTAM = 9 [(voice_id) = "omnivoice/gautam"];
