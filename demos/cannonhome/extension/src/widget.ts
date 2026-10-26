@@ -107,8 +107,6 @@ const EASE = "cubic-bezier(0.32, 0.72, 0, 1)";
 const CARD = 200;
 /** The minimised face's diameter. */
 const BUBBLE = 64;
-/** How much larger the moving still is drawn than its frame (`.poster`). */
-const POSTER_SCALE = 1.035;
 /** The gap kept from the viewport's edges and from anything it avoids. */
 const GAP = 16;
 /** Below Cannon Home's fixed marquee bar (32 px; the header under it is
@@ -214,29 +212,8 @@ button { font: inherit; cursor: pointer; }
 .poster {
   position: absolute; inset: 0; background: ${RAISED} center / cover no-repeat;
   transition: opacity 250ms ease; pointer-events: none;
-  /* The still is shown while the next page's live face is not yet drawing (a
-     page load in a call): it keeps moving, so he never sits frozen. A slow
-     breath while he listens, a talking head while he speaks. Drawn a little
-     large, so the turn and the nod never show the frame's edges (at most
-     0.8 deg and 0.8 % of the frame, inside the 3.5 % margin, in the bubble
-     too); it keeps moving through the fade to the live face. Lips are not
-     faked: a moving mouth patch on a photograph shows its seam. */
-  animation: poster-rest 4.8s ease-in-out infinite;
 }
-.root[data-activity="speaking"] .poster { animation: poster-talk 2.4s ease-in-out infinite; }
 .poster.gone { opacity: 0; }
-@keyframes poster-rest {
-  0%, 100% { transform: scale(${POSTER_SCALE}) translateY(0) rotate(0deg); }
-  50% { transform: scale(${POSTER_SCALE}) translateY(-0.6%) rotate(0.4deg); }
-}
-@keyframes poster-talk {
-  0%, 100% { transform: scale(${POSTER_SCALE}) translateY(0) rotate(0deg); }
-  14% { transform: scale(${POSTER_SCALE}) translateY(0.7%) rotate(-0.7deg); }
-  30% { transform: scale(${POSTER_SCALE}) translateY(-0.3%) rotate(0.3deg); }
-  46% { transform: scale(${POSTER_SCALE}) translateY(0.8%) rotate(0.8deg); }
-  62% { transform: scale(${POSTER_SCALE}) translateY(0) rotate(-0.3deg); }
-  80% { transform: scale(${POSTER_SCALE}) translateY(0.6%) rotate(0.5deg); }
-}
 .minimise {
   position: absolute; top: 8px; right: 8px; width: 28px; height: 28px;
   display: grid; place-items: center; padding: 0; border-radius: 6px;
@@ -291,7 +268,6 @@ button { font: inherit; cursor: pointer; }
 @media (prefers-reduced-motion: reduce) {
   .root.glide, .card, .frame, .face { transition: none; }
   .root[data-min][data-activity="speaking"] .card { animation: none; }
-  .poster, .root[data-activity="speaking"] .poster { animation: none; transform: none; }
 }
 [hidden] { display: none !important; }
 `;
