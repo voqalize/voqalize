@@ -4,7 +4,7 @@ Sources: ssilva.cl project page /limit/, cotizar page /proyectos/cotizar/limit/,
 - Name on the site: EDIFICIO LIMIT
 - Comuna: Macúl (Región Metropolitana). Type: Departamentos.
 - Address (hero): Mayor Abé 3090, Macul
-- Desde 3.176 UF (the list's starting price).
+- Desde 3.045 UF (the list's starting price).
 - Dormitorios: 1, 2. Baños: 1 y 2 baños.
 - Desde 35 m².
 - Estado (list): Término de obra.
@@ -13,12 +13,24 @@ Sources: ssilva.cl project page /limit/, cotizar page /proyectos/cotizar/limit/,
 - Hero also says: VISITA PILOTOS Y SALA DE VENTAS
 - Description (LIMIT APARTMENTS VIVE A OTRO NIVEL INVIERTE A OTRO NIVEL): LIMIT APARTMENTS VIVE A OTRO NIVEL INVIERTE A OTRO NIVEL Ubicado en Macúl, cada departamento del edificio LIMIT podrás ver los detalles tan funcionales como atractivos, tales como: la decoración, los materiales, colores, texturas y formas crean un espacio que se siente y respira distinto. Vas a amar vivir aquí. Descubre la gran terraza panorámica ubicada en el último piso de LIMIT APARTMENTS: equipamiento de alto estándar, una vista inigualable y la compañía que tú elijas para sentirte de vacaciones los 365 días del año. LIMIT te ofrece una gran oportunidad de inversión. Haz una inversión inteligente de excelente plusvalía.
 - Tipologías on the page: 1D | 1B E / 2D | 2B A / 2D | 2B B1 / 2D | 2B C - SUITE / 2D | 2B D1 / 2D | 2B D2
-- The cotizar page lists no units: quote from the typology section's price on the project page.
+- Each typology on the project page, as its typology section shows it when selected (what the visitor reads beside the plan; quote this on that page):
+  - 1D | 1B E: desde 3.045 UF, área total 35.64 m², área útil 32.32 m²
+  - 2D | 2B A: desde 3.586 UF, área total 67.63 m², área útil 57.83 m²
+  - 2D | 2B B1: desde 3.586 UF, área total 56.88 m², área útil 48.75 m²
+  - 2D | 2B C - SUITE: desde 3.586 UF, área total 57.05 m², área útil 48.59 m²
+  - 2D | 2B D1: desde 3.586 UF, área total 46.83 m², área útil 43.34 m²
+  - 2D | 2B D2: desde 3.586 UF, área total 49.12 m², área útil 41.93 m²
+- Units on the cotizar page (by typology; the cotizar page's own prices, which can differ from the project page's):
+  - A - 2D|2B: 5 unidades, desde 5.332 UF hasta 5.428 UF, total 67.63 m², orientación NorOriente, SurOriente
+  - B1 - 2D|2B: 7 unidades, desde 4.285 UF hasta 4.560 UF, total 56.88 m², orientación NorPoniente
+  - C - 2D|2B SUITE: 9 unidades, desde 3.984 UF hasta 4.553 UF, total 57.05 m², orientación Norte, Sur
+  - D1 - 2D|2B: 8 unidades, desde 3.994 UF hasta 4.087 UF, total 46.83 m², orientación Norte
+  - E - 1D|1B: 39 unidades, desde 3.212 UF hasta 3.492 UF, total 35.64 m², orientación Norte, Sur
 - Amenities section title: INCREÍBLES ESPACIOS
 - Gallery: 5 photos.
 - Virtual tour on the page: yes.
 - Quote form on the page: yes.
-- Sections, top to bottom: LIMIT APARTMENTS VIVE A OTRO NIVEL INVIERTE A OTRO NIVEL; Galería [galería]; Tipologías que se adaptan a tus necesidades [tipologías]; Recorre los espacios desde donde estés [tour]; INCREÍBLES ESPACIOS [amenidades]; Estado del proyecto [estado]; Brochure [brochure]; ¿Te interesó este proyecto? [contacto]
+- Sections, top to bottom: LIMIT APARTMENTS VIVE A OTRO NIVEL INVIERTE A OTRO NIVEL; Galería [galería]; Tipologías que se adaptan a tus necesidades [tipologías]; RECORRE LOS ESPACIOS SIN SALIR DE CASA [tour]; INCREÍBLES ESPACIOS [amenidades]; Estado del proyecto [estado]; BROCHURE [brochure]; Contáctanos [contacto]
 - Horario de atención: LUNES DE 15:00 A 18:00 HRS, MARTES A SÁBADO DE 10:00 A 14:00 Y DE 15:00 A 18:00 HRS. DOMINGO CERRADO
 - Phone: +569 4290 2511. Email: limit@ssilva.cl.
 - Sala de ventas / contact address: Mayor Abe 3090, Macul, Región Metropolitana

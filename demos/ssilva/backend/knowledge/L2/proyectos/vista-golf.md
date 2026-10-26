@@ -13,12 +13,14 @@ Sources: ssilva.cl project page /vista-golf/, cotizar page /proyectos/cotizar/vi
 - Hero also says: Casas| Deptos | Terrenos
 - Description (TODO LO QUE QUIERES A LA VISTA): TODO LO QUE QUIERES A LA VISTA Un proyecto de departamentos, casas y sitios, con una vista privilegiada hacia el campo de golf y el mar. El proyecto se caracteriza por su equipamiento de vanguardia y máximo cuidado en los detalles, con finas terminaciones que otorgan elegancia y carácter al proyecto.
 - Tipologías on the page: 2D | 2B
+- Each typology on the project page, as its typology section shows it when selected (what the visitor reads beside the plan; quote this on that page):
+  - 2D | 2B: desde 10.323 UF, área total 90.6 m², área útil 69.72 m²
 - The cotizar page lists no units: quote from the typology section's price on the project page.
 - Amenities section title: UN ENTORNO INIGUALABLE
 - Gallery: 7 photos.
 - Virtual tour on the page: no.
 - Quote form on the page: yes.
-- Sections, top to bottom: TODO LO QUE QUIERES A LA VISTA; Galería [galería]; Tipologías que se adaptan a tus necesidades [tipologías]; UN ENTORNO INIGUALABLE [amenidades]; Ubicación; Estado del proyecto [estado]; Brochure [brochure]; ¿Te interesó este proyecto? [contacto]
+- Sections, top to bottom: TODO LO QUE QUIERES A LA VISTA; Galería [galería]; TIPOLOGIAS QUE SE ADAPTAN A TUS NECESIDADES [tipologías]; UN ENTORNO INIGUALABLE [amenidades]; Ubicación; Estado del proyecto [estado]; Brochure [brochure]; ¿Te interesó este proyecto? [contacto]
 - Horario de atención: LUNES DE 15:00 A 19:00 HRS - JUEVES A SÁBADO DE 10:45 A 14:00 Y DE 15:00 A 19:00 HRS - MARTES Y MIÉRCOLES CERRADO, DOMINGO CONSULTE POR ATENCIÓN
 - Phone: +56 9 5238 0210. Email: vistagolf@ssilva.cl.
 - Sala de ventas / contact address: Km 35,5, ruta Concón, Zapallar, Marbella

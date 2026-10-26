@@ -18,7 +18,11 @@ directory, by default ``~/.cache/voqalize-ssilva``:
   project's profile (Para vivir, Para invertir, Segunda vivienda).
 - ``project-details.json``: each project page rendered and read: its section
   modules in order, hero, intro, tagline, typologies, gallery, amenities title,
-  status, contact block, WhatsApp, brochure, lead form ids, tour links.
+  status, contact block, WhatsApp, brochure, lead form ids, tour links, and
+  each typology selected in turn with the price and areas its section then
+  shows (``typologyPrices``).
+- ``crawled.json``: when the crawl ran, which ``render`` writes into L1's
+  roster and ``L3/site.json``.
 - ``quote/<slug>.json``: the unit price list a cotizar page carries in its
   ``<quote :data="…">`` attribute, read from the HTML before Vue replaces it.
 - ``pages/<name>.json``: the other pages' headings and text.
@@ -53,6 +57,7 @@ import json
 import re
 import sys
 import unicodedata
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -299,6 +304,24 @@ def uf(text: str) -> int | None:
     return int(m.group(1).replace(".", "")) if m else None
 
 
+def number_of(text: str) -> float | None:
+    """A number as the site (or a translation of it) writes it: ``2.582`` and
+    ``2,582`` are 2582, ``107,06`` and ``107.06`` are 107.06, ``4.977.13`` is
+    4977.13. A separator before exactly three digits groups thousands; before
+    one or two, it is the decimal point."""
+    m = re.search(r"\d[\d.,]*", text or "")
+    if not m:
+        return None
+    digits = m.group(0).rstrip(".,")
+    head, sep, tail = digits, "", ""
+    last = max(digits.rfind("."), digits.rfind(","))
+    if last != -1 and len(digits) - last - 1 in (1, 2):
+        head, sep, tail = digits[:last], digits[last], digits[last + 1 :]
+    whole = re.sub(r"[.,]", "", head)
+    value = float(f"{whole}.{tail}") if sep else float(whole)
+    return value
+
+
 def path_of(url: str) -> str:
     m = re.match(r"https?://[^/]+(/.*)?$", url or "")
     path = (m.group(1) if m else url) or "/"
@@ -354,6 +377,17 @@ DETAIL_JS = r"""() => {
     brochure: [...document.querySelectorAll('.wbct a, .l3-other-docs a')].map(a => a.href).filter(Boolean),
     hsForms: [...document.querySelectorAll('.cotizador-l1 .hs-form-frame')].map(f => f.dataset.formId),
     tour: !!document.querySelector('.video-tour-section .tour-btn'),
+  };
+}"""
+
+#: The typology section after a typology is selected: what it shows.
+TYPOLOGY_JS = r"""() => {
+  const f = id => (document.querySelector(`[id^=${id}_cotizador]`)?.textContent || '').replace(/\s+/g, ' ').trim();
+  const li = document.querySelector('.cotizador-l1 li.type-item.active');
+  return {
+    typology: (li?.querySelector('label')?.textContent || li?.textContent || '').replace(/\s+/g, ' ').trim(),
+    price: f('priceValue'), total: f('totalAreaValue'), useful: f('usefulAreaValue'),
+    bedrooms: f('bedroomsValue'), bathrooms: f('bathroomsValue'),
   };
 }"""
 
@@ -423,6 +457,23 @@ def crawl(raw: Path) -> None:
 
         page = ctx.new_page()
         details: dict[str, Any] = {}
+
+        def typology_prices(page: Any) -> list[dict[str, str]]:
+            """Each typology selected in turn, as a visitor's press selects it:
+            the price and areas its section then shows. These are what the
+            visitor reads beside the plan, and can differ from both the list's
+            "Desde" and the cotizar page's units."""
+            out: list[dict[str, str]] = []
+            items = ".cotizador-l1 li.type-item"
+            for i in range(page.evaluate(f"document.querySelectorAll('{items}').length")):
+                page.evaluate(
+                    f"i => document.querySelectorAll('{items}')[i].querySelector('label')?.click()",
+                    i,
+                )
+                page.wait_for_timeout(1800)
+                out.append(page.evaluate(TYPOLOGY_JS))
+            return out
+
         for p in posts:
             slug = p["project_term_slug"]
             url = (p.get("project_btn") or {}).get("url") or ""
@@ -430,14 +481,24 @@ def crawl(raw: Path) -> None:
                 page.goto(url, wait_until="domcontentloaded", timeout=60000)
                 page.wait_for_timeout(4000)
                 details[slug] = page.evaluate(DETAIL_JS)
+                details[slug]["typologyPrices"] = typology_prices(page)
             except Exception as exc:
                 details[slug] = {"error": str(exc)[:200]}
             quote_url = (p.get("quote_price_btn") or {}).get("url") or ""
             if quote_url:
-                body = req.get(quote_url).text()
+                body = ""
+                for attempt in range(3):
+                    try:
+                        body = req.get(quote_url, timeout=60000).text()
+                        break
+                    except Exception as exc:  # the site's slow moments: try again
+                        print(
+                            f"  {slug}: cotizar page, try {attempt + 1}: {exc!s:.80}",
+                            file=sys.stderr,
+                        )
                 m = re.search(r'<quote[^>]*\s:data="([^"]*)"', body)
-                data = json.loads(html.unescape(m.group(1))) if m else {}
-                dump(f"quote/{slug}.json", data)
+                if body:
+                    dump(f"quote/{slug}.json", json.loads(html.unescape(m.group(1))) if m else {})
             print(f"  {slug}", file=sys.stderr)
         try:
             page.goto(f"{BASE}/alto-quintay/", wait_until="domcontentloaded", timeout=60000)
@@ -446,6 +507,7 @@ def crawl(raw: Path) -> None:
         except Exception as exc:
             details["alto-quintay"] = {"error": str(exc)[:200]}
         dump("project-details.json", details)
+        dump("crawled.json", {"at": datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")})
         for path, info in INFO_PAGES.items():
             page.goto(BASE + path + ("" if path == "/" else "/"), wait_until="domcontentloaded")
             page.wait_for_timeout(3000)
@@ -593,6 +655,8 @@ def _project(
         "tagline": tagline,
         "intro": intro,
         "typologies": [squash(t) for t in detail.get("typologies") or []],
+        "hero_uf": uf(hero.split("DESDE", 1)[1]) if "DESDE" in hero else None,
+        "page_prices": _page_prices(detail),
         "status": status.capitalize() if status else "",
         "gallery_slides": int(detail.get("gallerySlides") or 0),
         "amenities_title": squash(detail.get("amenitiesTitle")),
@@ -626,8 +690,34 @@ def _project(
     }
 
 
-def _uf_text(n: int | None) -> str:
-    return "" if n is None else f"{n:,}".replace(",", ".")
+def _page_prices(detail: dict[str, Any]) -> list[dict[str, Any]]:
+    """Each typology's price and areas as its project page shows them."""
+    out: list[dict[str, Any]] = []
+    for t in detail.get("typologyPrices") or []:
+        label = squash(t.get("typology"))
+        price = number_of(t.get("price") or "")
+        if not label or price is None:
+            continue
+        out.append(
+            {
+                "typology": label,
+                "desde_uf": int(price) if price == int(price) else price,
+                "total_m2": number_of(t.get("total") or ""),
+                "useful_m2": number_of(t.get("useful") or ""),
+            }
+        )
+    return out
+
+
+def _uf_text(n: float | None) -> str:
+    """``2582`` → ``2.582``, ``4977.13`` → ``4.977,13``: as the site writes it."""
+    if n is None:
+        return ""
+    whole = int(n)
+    text = f"{whole:,}".replace(",", ".")
+    if n != whole:
+        text += "," + f"{n:.2f}".split(".")[1].rstrip("0")
+    return text
 
 
 def project_markdown(p: dict[str, Any]) -> str:
@@ -665,8 +755,20 @@ def project_markdown(p: dict[str, Any]) -> str:
         lines.append(f"- Description ({p['tagline'] or 'intro'}): {p['intro']}")
     if p["typologies"]:
         lines.append(f"- Tipologías on the page: {' / '.join(p['typologies'])}")
+    if p.get("page_prices"):
+        lines.append(
+            "- Each typology on the project page, as its typology section shows it when "
+            "selected (what the visitor reads beside the plan; quote this on that page):"
+        )
+        for t in p["page_prices"]:
+            area = f", área total {t['total_m2']:g} m²" if t.get("total_m2") else ""
+            area += f", área útil {t['useful_m2']:g} m²" if t.get("useful_m2") else ""
+            lines.append(f"  - {t['typology']}: desde {_uf_text(t['desde_uf'])} UF{area}")
     if p["units"]:
-        lines.append("- Units on the cotizar page (by typology):")
+        lines.append(
+            "- Units on the cotizar page (by typology; the cotizar page's own prices, which "
+            "can differ from the project page's):"
+        )
         for u in p["units"]:
             price = (
                 f"desde {_uf_text(u['desde_uf'])} UF"
@@ -838,8 +940,10 @@ def render(raw: Path) -> None:
             if found:
                 communes = found
                 break
+    crawled_at = str((_load(raw / "crawled.json", {}) or {}).get("at", ""))
     site = {
         "base": BASE,
+        "crawled": crawled_at,
         "list": "/proyectos/?region=<id>&property=<id> (communes are checkboxes, #commune<id>)",
         "regions": {k: {"id": v, "label": REGION_LABELS[k]} for k, v in REGION_IDS.items()},
         "properties": {k: {"id": v, "label": PROPERTY_LABELS[k]} for k, v in PROPERTY_IDS.items()},
@@ -887,7 +991,8 @@ def render(raw: Path) -> None:
     text = l1.read_text(encoding="utf-8") if l1.exists() else ""
     start, end = "<!-- roster:start -->", "<!-- roster:end -->"
     listed = [p for p in projects if p["listed"]]
-    table = f"{start}\n{_roster_table(listed)}\n{end}"
+    when = f"Crawled from ssilva.cl on {crawled_at}.\n" if crawled_at else ""
+    table = f"{start}\n{when}{_roster_table(listed)}\n{end}"
     if start in text and end in text:
         text = text[: text.index(start)] + table + text[text.index(end) + len(end) :]
     else:

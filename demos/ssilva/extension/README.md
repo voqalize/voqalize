@@ -39,7 +39,19 @@ on it; it is not how a customer would ship it.
   header. Visitors who read the site through Chrome's translation see
   "BARROSO DISTRICT" and "From 2,582 UF": the adapter finds a project's card
   by the page it links to, matches prices whatever their separators, and
-  reads "BUTTERFLY" as "MARIPOSA" in a typology's label.
+  reads "BUTTERFLY" as "MARIPOSA" in a typology's label. The project list is
+  Vue, and through a translation its cards go stale: a filter or a page of
+  the list reuses each card and writes the next project into text nodes the
+  translation has already taken off the page, so the link and the photo
+  change and the name and price do not (dev calls 334b108c and ce7b01c3: the
+  card linking /edificiocarrera/ read "EL RODEO ARRAYAN PARK", "From 9,786
+  UF"). On a translated page the adapter writes each card's words again from
+  the record the site rendered it from (its Vue component's data), and the
+  results count from the list's own; translation then translates them again.
+  It reports the list from those records too (`projects_listed` `cards`: each
+  card's path, name, price, commune, bedrooms and status, in the site's
+  Spanish), and a project page's hero "Desde" (`price`) apart from the
+  selected typology's price beside the plan (`typology_price`).
 - `src/hsform.ts` — runs inside the HubSpot quote-form frame (js.hsforms.net),
   only when Ssilva's page holds it. It fills the form the way typing does, so
   HubSpot's React state takes it; picks dropdown options by their text; keeps a
@@ -315,4 +327,8 @@ holder on a project list and a project page as Chrome's translation leaves
 them: a card he names rung by its link and paged to, the list's own ring by
 the projects' pages, photos full screen one at a time, a slideshow the
 visitor's voice stops, a photo cue, a floor plan by its Spanish label, and a
-price cue written "Desde 2.582 UF" on a page that says "FROM 2,582 UF".
+price cue written "Desde 2.582 UF" on a page that says "FROM 2,582 UF". Two
+more check what the page reports through a translation: a Vue list whose
+cards are re-rendered for other projects reads those projects again and
+reports each card's own record, and a project page reports its hero's desde
+apart from the selected typology's price.

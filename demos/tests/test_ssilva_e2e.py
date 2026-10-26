@@ -46,6 +46,7 @@ from voqalize_demos._loaded.ssilva.brain import (  # noqa: E402
 from voqalize_demos._loaded.ssilva.knowledge import (  # noqa: E402
     Knowledge,
     Page,
+    PagePrice,
     Project,
     Section,
 )
@@ -182,6 +183,12 @@ SITE = Knowledge(
             perfil=("Para invertir", "Para vivir"),
             typologies=("1D | 1B", "2D | 1B", "2D | 2B", "2D | 2B MARIPOSA"),
             lead_form=True,
+            page_prices=(
+                PagePrice("1D | 1B", 2582, 36.41, 32.97),
+                PagePrice("2D | 1B", 2919, 49.52, 41.16),
+                PagePrice("2D | 2B", 3177, 50.02, 50.02),
+                PagePrice("2D | 2B MARIPOSA", 3177, 56.65, 47.38),
+            ),
         ),
     },
     project_texts={"estocolmo": "# Estocolmo\n- Address: Estocolmo 661, Las Condes.\n"},
@@ -403,6 +410,15 @@ def _llm() -> ScriptedGemini:
                 reply("Es un proyecto en Las Condes."),
             ],
             "Sigue.": reply("Claro, seguimos."),
+            # Two bedrooms asked: the two-bedroom typology's price, not the desde.
+            "Busco dos dormitorios en Santiago.": [
+                call("find_projects", request={"comuna": "Santiago", "dormitorios": 2}),
+                reply("Distrito Barroso tiene de dos dormitorios."),
+            ],
+            # A price the model wrote in digits, split across its chunks.
+            "¿Cuánto cuesta?": reply(
+                chunks=["Parte en 2.5", "82 UF. El de dos dormitorios, en 2.919,5 UF."]
+            ),
             # A move with no words: the model is asked once more, tools off.
             "Ábreme WhatsApp.": [
                 call("open_whatsapp"),
@@ -703,7 +719,10 @@ async def test_events_reach_the_model_as_screen_lines() -> None:
         await _page(rig, "command_failed", {"command": "cue", "reason": "no heading X"})
         await rig.driver.user_says("Sigue.")
         seen = _texts(llm.captured_contents[-1])
-        assert "[On screen: typology 2D | 3B, Desde 13.976 UF, área total 147,13" in seen
+        assert (
+            "[On screen: typology 2D | 3B, its price beside the plan: Desde 13.976 UF "
+            '(say: "trece mil novecientas setenta y seis UF"), área total 147,13'
+        ) in seen
         assert "That did not happen on the page (open_tour: no tour)" in seen
         assert "A screen cue of yours did not land (no heading X)" in seen
 
@@ -923,3 +942,129 @@ async def test_a_turn_cut_off_before_his_answer_is_answered_in_a_short_quiet_spe
         turn = await rig.driver.user_idle(level=1, idle_ms=ssilva._CUT_OFF_MS)
         assert "busquemos de dos y tres" in turn.text
         assert "“Busco dos y tres dormitorios.”" in _texts(llm.captured_contents[-1])
+
+
+async def test_the_cards_on_screen_are_what_he_reads_and_beat_the_crawl() -> None:
+    """Dev calls 334b108c and ce7b01c3: the list as the site rendered it, by
+    its cards' own data, prices as the card writes them and as he says them;
+    a card's price that differs from the crawl is the one he quotes."""
+    llm = _llm()
+    async with demo("ssilva", llm) as rig:
+        await rig.driver.start_session(init={"path": "/proyectos/"})
+        await _page(
+            rig,
+            "projects_listed",
+            {
+                "count": 2,
+                "region": "Metropolitan Region",
+                "projects": ["ESTOCOLMO", "DISTRITO BARROSO"],
+                "paths": ["/estocolmo/", "/distrito-barroso/"],
+                "cards": [
+                    {
+                        "path": "/estocolmo/",
+                        "name": "ESTOCOLMO",
+                        "price": "Desde 14.105 UF",
+                        "commune": "Las Condes",
+                        "bedrooms": "2 y 3 dormitorios",
+                        "status": "Entrega inmediata",
+                    },
+                    {
+                        "path": "/distrito-barroso/",
+                        "name": "DISTRITO BARROSO",
+                        "price": "Desde 2.582 UF",
+                        "commune": "Santiago",
+                    },
+                ],
+            },
+        )
+        await rig.driver.user_says("Busco dos dormitorios en Santiago.")
+        seen = _texts(llm.captured_contents[-1])
+        assert (
+            "The cards on this page, as the visitor reads them: Estocolmo — Las Condes, "
+            'card price Desde 14.105 UF (say: "catorce mil ciento cinco UF"), 2 y 3 dormitorios, '
+            "Entrega inmediata; Distrito Barroso — Santiago, card price Desde 2.582 UF "
+            '(say: "dos mil quinientas ochenta y dos UF")'
+        ) in seen
+        found = _results(llm.captured_contents[-1])["find_projects"]
+        # The desde is the project's cheapest unit; two bedrooms is its own price.
+        assert "desde 2.582 UF" in found and "dos mil quinientas ochenta y dos UF" in found
+        assert (
+            "its 2-bedroom typology 2D | 1B is desde 2.919 UF on its page "
+            "(say: dos mil novecientas diecinueve UF)"
+        ) in found
+        await rig.driver.user_says("¿Qué es Estocolmo?")
+        read = _results(llm.captured_contents[-1])["read_project"]
+        # The card on their screen, not the crawl's 13.976.
+        assert "14.105 UF; say it as: catorce mil ciento cinco UF" in read
+        assert "the crawl had 13.976 UF" in read
+
+
+async def test_a_project_page_says_its_desde_and_the_typology_price_apart() -> None:
+    llm = _llm()
+    async with demo("ssilva", llm) as rig:
+        await rig.driver.start_session(init={"path": "/"})
+        # Through Chrome's translation: "FROM 2,582 UF" on the hero.
+        await _page(rig, "page_changed", {**BARROSO_PAGE, "typology_price": "Desde 2,919 UF"})
+        await rig.driver.user_says("Sigue.")
+        seen = _texts(llm.captured_contents[-1])
+        assert (
+            "Hero, the project's desde: Desde 2.582 UF "
+            '(say: "dos mil quinientas ochenta y dos UF")'
+        ) in seen
+        assert (
+            "Selected typology 1D | 1B, its price beside the plan: Desde 2.919 UF "
+            '(say: "dos mil novecientas diecinueve UF")'
+        ) in seen
+        # And read back: the hero's price is the screen's.
+        await rig.driver.user_says("Busco dos dormitorios en Santiago.")
+        assert "desde 2.582 UF" in _results(llm.captured_contents[-1])["find_projects"]
+
+
+async def test_a_price_written_in_digits_is_said_in_words() -> None:
+    llm = _llm()
+    async with demo("ssilva", llm) as rig:
+        await rig.driver.start_session(init={"path": "/distrito-barroso/"})
+        turn = await rig.driver.user_says("¿Cuánto cuesta?")
+        assert "dos mil quinientas ochenta y dos UF" in turn.text
+        assert "dos mil novecientas diecinueve coma cinco UF" in turn.text
+        assert "2.5" not in turn.text and "2.919" not in turn.text
+
+
+def test_uf_words_in_both_languages() -> None:
+    words = ssilva.uf_words
+    assert words(2582, "es") == "dos mil quinientas ochenta y dos UF"
+    assert words(2582, "en") == "two thousand five hundred eighty-two UF"
+    assert words(21_000, "es") == "veintiún mil UF"
+    assert words(4977.13, "es") == "cuatro mil novecientas setenta y siete coma trece UF"
+    assert words(4977.13, "en") == "four thousand nine hundred seventy-seven point one three UF"
+    assert words(2.05, "es") == "dos coma cero cinco UF"
+    said = ssilva.uf_said
+    # As the page shows it, and as Chrome's translation rewrites it.
+    assert (
+        said("Desde 2.582 UF", "es")
+        == 'Desde 2.582 UF (say: "dos mil quinientas ochenta y dos UF")'
+    )
+    assert said("FROM 9,786 UF", "en") == (
+        'Desde 9.786 UF (say: "nine thousand seven hundred eighty-six UF")'
+    )
+    assert said("4.977.13", "es").startswith("4.977,13 UF")
+    for shown, value in [
+        ("2.582", 2582),
+        ("2,582", 2582),
+        ("107,06", 107.06),
+        ("4.977.13", 4977.13),
+    ]:
+        assert kb.number_of(shown) == value
+
+
+def test_digits_split_across_chunks_are_said_in_words() -> None:
+    digits = ssilva.UfWords()
+    out = digits.feed("It starts at 9,7", "en") + digits.feed("86 UF, and the plan", "en")
+    out += digits.flush("en")
+    assert out == "It starts at nine thousand seven hundred eighty-six UF, and the plan"
+    # Numbers that are not prices are left alone.
+    digits = ssilva.UfWords()
+    out = (
+        digits.feed("Isla Melinka 220", "es") + digits.feed(", en Viña.", "es") + digits.flush("es")
+    )
+    assert out == "Isla Melinka 220, en Viña."

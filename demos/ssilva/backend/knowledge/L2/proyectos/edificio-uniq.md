@@ -12,15 +12,19 @@ Sources: ssilva.cl project page /uniq/, cotizar page /proyectos/cotizar/edificio
 - Hero also says: PAGA EL 7% DE PIE HASTA EN 24 CUOTAS* VISITA NUESTRA ¡SALA DE VENTAS Y PILOTOS! DESDE 99,59m² A 198,96m²
 - Description (CREA EXPERIENCIAS ÚNICAS): CREA EXPERIENCIAS ÚNICAS Te invitamos a descubrir un proyecto con espacios amplios y conectados con exclusivos detalles de diseño que se adaptan a tu estilo de vida. Bienvenido a UNIQ Visítanos en Miguel Comas #1795, Vitacura.
 - Tipologías on the page: 2D | 2B SUITE / 2D | 3B / 3D | 3B
-- Units on the cotizar page (by typology):
+- Each typology on the project page, as its typology section shows it when selected (what the visitor reads beside the plan; quote this on that page):
+  - 2D | 2B SUITE: desde 10.761 UF, área total 99.59 m², área útil 83.85 m²
+  - 2D | 3B: desde 13.045 UF, área total 124.26 m², área útil 101.13 m²
+  - 3D | 3B: desde 17.374 UF, área total 175.72 m², área útil 137.65 m²
+- Units on the cotizar page (by typology; the cotizar page's own prices, which can differ from the project page's):
   - 2D SUITE: 1 unidades, desde 11.697 UF, total 99.59 m², orientación Sur
   - 2D|3B: 1 unidades, desde 18.725 UF, total 198.96 m², orientación Norte
-  - 3D|3B: 5 unidades, desde 18.885 UF hasta 19.441 UF, total 175.72–177.45 m², orientación Oriente
-  - PENTHOUSE: 2 unidades, desde 16.617 UF hasta 17.845 UF, total 99.59–100.86 m², orientación Poniente, Sur
+  - 3D|3B: 5 unidades, desde 18.885 UF hasta 19.441 UF, total 175.72 to 177.45 m², orientación Oriente
+  - PENTHOUSE: 2 unidades, desde 16.617 UF hasta 17.845 UF, total 99.59 to 100.86 m², orientación Poniente, Sur
 - Gallery: 9 photos.
 - Virtual tour on the page: no.
 - Quote form on the page: yes.
-- Sections, top to bottom: CREA EXPERIENCIAS ÚNICAS; Galería [galería]; Tipologías que se adaptan a tus necesidades [tipologías]; Amenidades [amenidades]; Brochure [brochure]; ¿Te interesó este proyecto? [contacto]
+- Sections, top to bottom: CREA EXPERIENCIAS ÚNICAS; Galería [galería]; Tipologías que se adaptan a tus necesidades [tipologías]; Amenidades [amenidades]; ESTADO DEL PROYECTO; BROCHURE [brochure]; Contáctanos [contacto]
 - Horario de atención: LUNES DE 15:00 A 19:00 HRS, MARTES A DOMINGO DE 11:00 A 14:00 Y DE 15:00 A 19: 00 HRS. JUEVES CERRADO
 - Phone: +56 9 4285 2876. Email: edificiouniq@ssilva.cl.
 - Sala de ventas / contact address: Miguel Comas 1795, Vitacura, Santiago

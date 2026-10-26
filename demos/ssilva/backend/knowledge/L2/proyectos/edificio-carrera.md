@@ -12,20 +12,24 @@ Sources: ssilva.cl project page /edificiocarrera/, cotizar page /proyectos/cotiz
 - Hero also says: SALA DE VENTAS Augusto Leguía Nte. 201, Las Condes, Región Metropolitana APROVECHA COMPRA HOY SIN PIE PAGA EL PIE HASTA EN 60 CUOTAS
 - Description (EDIFICIO CARRERA): EDIFICIO CARRERA Es un nuevo proyecto en un barrio en expansión y completamente conectado de la comuna de Conchalí. A pasos de la estación de Metro Línea 3 con excelente conectividad a cualquier punto de Santiago y fuera de la ciudad a través de la Ruta 5, con supermercados, instituciones educacionales y mucho más a solo metros de distancia. Este proyecto fue diseñado pensando en tu conectividad y ofreciendo una gran oportunidad de inversión. Haz una inversión inteligente de insuperable plusvalía.
 - Tipologías on the page: ESTUDIO / 1D | 1B / 2D | 2B
-- Units on the cotizar page (by typology):
-  - A - 2D|2B: 10 unidades, desde 3.857 UF hasta 4.086 UF, total 53.18–54.97 m², orientación Norte
-  - A1 - 2D|2B: 13 unidades, desde 3.166 UF hasta 3.950 UF, total 53.17–54.3 m², orientación Sur
-  - A2 - 2D|2B: 19 unidades, desde 2.678 UF hasta 3.684 UF, total 34.17–50.03 m², orientación Norte, Oriente, Poniente, Sur
-  - B - 1D|1B: 48 unidades, desde 2.336 UF hasta 2.678 UF, total 34.08–36.22 m², orientación Oriente, Poniente, Sur
-  - B1 - 1D|1B: 13 unidades, desde 2.461 UF hasta 2.574 UF, total 34.07–34.28 m², orientación Norte
-  - B2 - 1D|1B: 2 unidades, desde 2.434 UF hasta 2.520 UF, total 33.98–34.07 m², orientación Poniente
-  - B3 - 1D|1B: 8 unidades, desde 2.499 UF hasta 2.616 UF, total 35.51–35.7 m², orientación Poniente
-  - C - Estudio: 4 unidades, desde 1.885 UF hasta 2.110 UF, total 27.76–27.84 m², orientación Oriente
+- Each typology on the project page, as its typology section shows it when selected (what the visitor reads beside the plan; quote this on that page):
+  - ESTUDIO: desde 1.753 UF, área total 27.76 m², área útil 23.66 m²
+  - 1D | 1B: desde 2.172 UF, área total 34.16 m², área útil 31.06 m²
+  - 2D | 2B: desde 3.013 UF, área total 49.79 m², área útil 43.44 m²
+- Units on the cotizar page (by typology; the cotizar page's own prices, which can differ from the project page's):
+  - A - 2D|2B: 10 unidades, desde 3.857 UF hasta 4.086 UF, total 53.18 to 54.97 m², orientación Norte
+  - A1 - 2D|2B: 13 unidades, desde 3.166 UF hasta 3.950 UF, total 53.17 to 54.3 m², orientación Sur
+  - A2 - 2D|2B: 19 unidades, desde 2.678 UF hasta 3.684 UF, total 34.17 to 50.03 m², orientación Norte, Oriente, Poniente, Sur
+  - B - 1D|1B: 48 unidades, desde 2.336 UF hasta 2.678 UF, total 34.08 to 36.22 m², orientación Oriente, Poniente, Sur
+  - B1 - 1D|1B: 13 unidades, desde 2.461 UF hasta 2.574 UF, total 34.07 to 34.28 m², orientación Norte
+  - B2 - 1D|1B: 2 unidades, desde 2.434 UF hasta 2.520 UF, total 33.98 to 34.07 m², orientación Poniente
+  - B3 - 1D|1B: 8 unidades, desde 2.499 UF hasta 2.616 UF, total 35.51 to 35.7 m², orientación Poniente
+  - C - Estudio: 4 unidades, desde 1.885 UF hasta 2.110 UF, total 27.76 to 27.84 m², orientación Oriente
 - Amenities section title: ESPACIOS DISEÑADOS PARA DISFRUTAR
 - Gallery: 4 photos.
 - Virtual tour on the page: no.
 - Quote form on the page: yes.
-- Sections, top to bottom: EDIFICIO CARRERA; Galería [galería]; Tipologías que se adaptan a tus necesidades [tipologías]; ESPACIOS DISEÑADOS PARA DISFRUTAR [amenidades]; Brochure [brochure]; ¿Te interesó este proyecto? [contacto]
+- Sections, top to bottom: EDIFICIO CARRERA; Galería [galería]; Tipologías que se adaptan a tus necesidades [tipologías]; ESPACIOS DISEÑADOS PARA DISFRUTAR [amenidades]; CONOCE EL ESTADO DEL PROYECTO; ¿QUÉ DEBO TENER PARA COMPRAR?; BROCHURE [brochure]; Documentos del proyecto que te podrían interesar; ¿Te interesó este proyecto? [contacto]
 - Horario de atención: LUNES A VIERNES 09:00 A 19:00 HRS
 - Phone: +56 9 6599 7861. Email: edificiocarrera@ssilva.cl.
 - Sala de ventas / contact address: Av. Independencia 3540, Conchalí

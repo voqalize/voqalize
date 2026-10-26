@@ -1,5 +1,6 @@
 {
  "base": "https://www.ssilva.cl",
+ "crawled": "2026-10-26 05:33 UTC",
  "list": "/proyectos/?region=<id>&property=<id> (communes are checkboxes, #commune<id>)",
  "regions": {
   "metropolitana": {

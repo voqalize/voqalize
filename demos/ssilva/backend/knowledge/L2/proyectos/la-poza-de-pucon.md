@@ -13,16 +13,21 @@ Sources: ssilva.cl project page /lapoza/, cotizar page /proyectos/cotizar/la-poz
 - Hero also says: Estado Entrega Inmediata A 4 minutos del Centro de Pucón Asesoría Comercial incluida
 - Description (BIENVENIDOS A LA POZA): BIENVENIDOS A LA POZA Ubicado camino a Villarrica, a pasos del centro de Pucón, se encuentra el proyecto LA POZA. Departamentos de 1 · 2 & 3 Dormitorios, con increíbles vistas al lago Villarrica. A sólo pasos del centro de Pucón. Disfruta de la tranquilidad de un entorno natural y privilegiado, sin sacrificar cercanía y comodidad.
 - Tipologías on the page: 1D | 1B / 2D | 1B / 2D | 2B / 3D | 2B
-- Units on the cotizar page (by typology):
+- Each typology on the project page, as its typology section shows it when selected (what the visitor reads beside the plan; quote this on that page):
+  - 1D | 1B: desde 3.482 UF, área total 40.06 m², área útil 37.99 m²
+  - 2D | 1B: desde 3.375 UF, área total 44.61 m², área útil 40.63 m²
+  - 2D | 2B: desde 4.336 UF, área total 49.6 m², área útil 47.46 m²
+  - 3D | 2B: desde 5.774 UF, área total 69.61 m², área útil 67.59 m²
+- Units on the cotizar page (by typology; the cotizar page's own prices, which can differ from the project page's):
   - 1D|1B: 18 unidades, desde 4.327 UF hasta 6.326 UF, total 40.06 m², orientación Sur
-  - 2D|1B: 15 unidades, desde 4.219 UF hasta 7.056 UF, total 44.61–51.44 m², orientación Norte, Oriente, Poniente
-  - 2D|2B: 19 unidades, desde 5.237 UF hasta 8.589 UF, total 49.6–64.31 m², orientación Norte, Oriente, Poniente, Sur
-  - 3D|2B: 37 unidades, desde 5.914 UF hasta 16.544 UF, total 61.93–108.75 m², orientación NorPoniente, Norte, Oriente, Poniente
+  - 2D|1B: 15 unidades, desde 4.219 UF hasta 7.056 UF, total 44.61 to 51.44 m², orientación Norte, Oriente, Poniente
+  - 2D|2B: 19 unidades, desde 5.237 UF hasta 8.589 UF, total 49.6 to 64.31 m², orientación Norte, Oriente, Poniente, Sur
+  - 3D|2B: 37 unidades, desde 5.914 UF hasta 16.544 UF, total 61.93 to 108.75 m², orientación NorPoniente, Norte, Oriente, Poniente
 - Amenities section title: PANORAMAS PARA DISFRUTAR
 - Gallery: 8 photos.
 - Virtual tour on the page: yes.
 - Quote form on the page: yes.
-- Sections, top to bottom: BIENVENIDOS A LA POZA; Galería [galería]; Tipologías que se adaptan a tus necesidades [tipologías]; Recorre los espacios desde donde estés [tour]; PANORAMAS PARA DISFRUTAR [amenidades]; Estado del proyecto [estado]; Brochure [brochure]; ¿Te interesó este proyecto? [contacto]
+- Sections, top to bottom: BIENVENIDOS A LA POZA; Galería [galería]; Tipologías que se adaptan a tus necesidades [tipologías]; RECORRE LOS ESPACIOS DESDE DONDE ESTÉS [tour]; PANORAMAS PARA DISFRUTAR [amenidades]; Estado del proyecto [estado]; BROCHURE [brochure]; ¿TE INTERESÓ ESTE PROYECTO? [contacto]
 - Phone: +56 9 9884 5103. Email: lapoza@ssilva.cl.
 - Sala de ventas / contact address: Camino Villarrica - Pucón 1200, Pucón
 - WhatsApp button: yes.

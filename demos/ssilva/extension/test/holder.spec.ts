@@ -79,6 +79,76 @@ const LIST = `<body><main class="site__content"><section class="projects-list">
     });
     show(1);
   </script></body>`;
+/** The list as the site renders it (Vue, each card holding its AJAX record)
+ *  under Chrome's translation, which swaps each text node for a <font> of
+ *  its English. `rerender()` is a filter as Vue makes it: the same cards, new
+ *  records, new links, and the new words written into the text nodes Vue
+ *  made, which translation has taken off the page (dev calls 334b108c and
+ *  ce7b01c3: the card linking /edificiocarrera/ still read "EL RODEO ARRAYAN
+ *  PARK", "From 9,786 UF"). */
+const VUE_LIST = `<body><main class="site__content"><section class="projects-list">
+    <h2>FIND YOUR NEW HOME</h2>
+    <select id="region"><option value="">Todas</option><option value="17" selected>Región Metropolitana</option></select>
+    <select id="property"><option value="">Todos</option><option value="34" selected>Departamento</option></select>
+    <p class="projects-list__results-msg"><i class="material-icons">check_circle</i><span>15 proyectos encontrados para tu búsqueda.</span></p>
+    <div id="cards"></div>
+  </section></main>
+  <script>
+    const rec = (condo_name, path, cost, commune) => ({ condo_name, cost, commune, region: "Región Metropolitana",
+      category: "Entrega inmediata", bedrooms: "1 y 2 dormitorios", bathrooms: "1 y 2 baños", square_area: "Desde 30m²",
+      project_btn: { url: "${ORIGIN}" + path } });
+    const first = [rec("PARQUE EL RODEO ARRAYAN", "/parque-el-rodeo-arrayan/", "Desde 9.786 UF", "La Dehesa"),
+      rec("LOS NAVEGANTES", "/losnavegantes/", "Desde 12.452 UF", "Las Condes")];
+    const then = [rec("EDIFICIO CARRERA", "/edificiocarrera/", "Desde 1.753 UF", "Conchalí"),
+      rec("DISTRITO BARROSO", "/distrito-barroso/", "Desde 2.582 UF", "Santiago")];
+    const list = { $data: { totalResults: 15 } };
+    const FIELDS = [["category", ".project-card__category"], ["condo_name", ".project-card__opp-condo-name"],
+      ["commune", ".project-card__bottom__heading__commune"], ["cost", ".project-card__bottom__heading__price"]];
+    const made = first.map((d) => {
+      const c = document.createElement("div");
+      c.className = "project-card-wrapper";
+      c.style.cssText = "height:300px;margin:12px;border:1px solid #ccc";
+      c.innerHTML = '<div class="project-card__category"></div><div class="project-card__opp-condo-name"></div>' +
+        '<div class="project-card__bottom__heading__commune"></div><div class="project-card__bottom__heading__price"><!----></div>' +
+        '<a class="project-card__bottom__more">Ver proyecto</a>';
+      const nodes = {};
+      for (const [k, sel] of FIELDS) c.querySelector(sel).append((nodes[k] = document.createTextNode(d[k])));
+      c.querySelector("a").href = d.project_btn.url;
+      c.__vue__ = { $props: { data: d }, $parent: list };
+      document.getElementById("cards").append(c);
+      return { c, nodes };
+    });
+    const EN = { "PARQUE EL RODEO ARRAYAN": "EL RODEO ARRAYAN PARK", "LOS NAVEGANTES": "THE NAVIGATORS",
+      "EDIFICIO CARRERA": "CARRERA BUILDING", "DISTRITO BARROSO": "BARROSO DISTRICT", "Entrega inmediata": "Immediate delivery",
+      "Desde 9.786 UF": "From 9,786 UF", "Desde 12.452 UF": "From 12,452 UF", "Desde 1.753 UF": "From 1,753 UF",
+      "Desde 2.582 UF": "From 2,582 UF", "15 proyectos encontrados para tu búsqueda.": "15 projects found for your search.",
+      "2 proyectos encontrados para tu búsqueda.": "2 projects found for your search." };
+    const translate = (n) => {
+      const t = n.data.trim();
+      if (!t || !n.parentElement || n.parentElement.tagName === "FONT" || n.parentElement.closest("script, i")) return;
+      const f = document.createElement("font");
+      f.textContent = EN[t] ?? t;
+      n.replaceWith(f);
+    };
+    document.documentElement.classList.add("translated-ltr");
+    const section = document.querySelector(".projects-list");
+    const w = document.createTreeWalker(section, NodeFilter.SHOW_TEXT);
+    const all = [];
+    while (w.nextNode()) all.push(w.currentNode);
+    all.forEach(translate);
+    new MutationObserver((ms) => ms.forEach((m) => m.addedNodes.forEach((n) => n.nodeType === 3 && translate(n))))
+      .observe(section, { subtree: true, childList: true });
+    window.rerender = () => {
+      then.forEach((d, i) => {
+        const { c, nodes } = made[i];
+        c.__vue__.$props.data = d;
+        c.querySelector("a").href = d.project_btn.url;
+        for (const k in nodes) nodes[k].data = d[k];
+      });
+      list.$data.totalResults = 2;
+      history.pushState({}, "", "/proyectos/?region=17&property=34&vue=1");
+    };
+  </script></body>`;
 const slide = (src: string) =>
   `<div class="slick-slide"><button class="img-wrap nsLgSelector" data-src="/content/uploads/${src}"><img src="/content/uploads/${src}" alt=""></button></div>`;
 const GALLERY_PROJECT = `<body class="page-template-landing"><div class="site__content">
@@ -136,6 +206,8 @@ const PAGES: Record<string, { body: string; title: string; delay?: number }> = {
   // results line in English, two pages of cards, the card he names on the
   // second.
   "/proyectos/": { title: "Projects | SSilva", body: LIST },
+  // The site's Vue list, translated, that re-renders in place.
+  "/proyectos/?vue": { title: "Projects | SSilva", body: VUE_LIST },
   // A project page with its gallery, amenities and typologies, a typology
   // label translated ("BUTTERFLY" for "MARIPOSA").
   "/distrito-barroso/": { title: "BARROSO DISTRICT | SSilva", body: GALLERY_PROJECT },
@@ -190,7 +262,7 @@ const test = base.extend<{ ext: Ext }>({
         if (url.pathname.endsWith(".pdf")) {
           return route.fulfill({ status: 200, contentType: "application/pdf", body: "%PDF-1.4\n%%EOF\n" });
         }
-        const page = PAGES[url.pathname];
+        const page = (url.searchParams.has("vue") ? PAGES["/proyectos/?vue"] : undefined) ?? PAGES[url.pathname];
         if (!page || request.resourceType() !== "document") return route.fulfill({ status: 404, body: "" });
         if (page.delay) await new Promise((r) => setTimeout(r, page.delay));
         return route.fulfill({
@@ -607,6 +679,43 @@ test.describe("the screen follows his words", () => {
     await toHolder(ext.sw, { what: "command", command: "cue", payload: { ...CUE, card: "/no-existe/", text: "NO EXISTE" } });
     await toHolder(ext.sw, { what: "emit", name: "botStoppedSpeaking" });
     await expect.poll(async () => (await sentOf(ext, "command_failed")).map((p) => String(p.reason)), { timeout: 10_000 }).toContainEqual(expect.stringContaining("NO EXISTE is not among"));
+  });
+
+  test("through a translation, a card re-rendered for another project reads that project, and the list reports what the site rendered", async ({ ext }) => {
+    const page = await ext.open("/proyectos/?vue=1");
+    await callLive(ext, page);
+    const card = (i: number) => page.locator(".project-card-wrapper").nth(i);
+    await expect(card(0)).toContainText("EL RODEO ARRAYAN PARK");
+    await page.evaluate(() => (window as unknown as { rerender(): void }).rerender());
+    // Written again from each card's own record, and translated again.
+    await expect(card(0)).toContainText("CARRERA BUILDING");
+    await expect(card(0)).toContainText("From 1,753 UF");
+    await expect(card(0)).not.toContainText("ARRAYAN");
+    await expect(card(1)).toContainText("BARROSO DISTRICT");
+    await expect(card(1)).toContainText("From 2,582 UF");
+    await expect(page.locator(".projects-list__results-msg")).toContainText("2 projects found");
+    await expect
+      .poll(async () => (await sentOf(ext, "projects_listed")).at(-1)?.count, { timeout: 10_000 })
+      .toBe(2);
+    expect((await sentOf(ext, "projects_listed")).at(-1)).toMatchObject({
+      projects: ["EDIFICIO CARRERA", "DISTRITO BARROSO"],
+      paths: ["/edificiocarrera/", "/distrito-barroso/"],
+      cards: [
+        { path: "/edificiocarrera/", name: "EDIFICIO CARRERA", price: "Desde 1.753 UF", commune: "Conchalí", status: "Entrega inmediata" },
+        { path: "/distrito-barroso/", name: "DISTRITO BARROSO", price: "Desde 2.582 UF", commune: "Santiago" },
+      ],
+    });
+  });
+
+  test("a project page reports its hero's desde and the selected typology's price apart, through a translation", async ({ ext }) => {
+    const page = await ext.open("/distrito-barroso/");
+    await callLive(ext, page);
+    await expect
+      .poll(async () => (await sentOf(ext, "page_changed")).at(-1)?.path, { timeout: 10_000 })
+      .toBe("/distrito-barroso/");
+    // The hero's "FROM 2,582 UF" is the project's desde; "3,453" beside the
+    // plan is the selected typology's (it used to stand in for the hero's).
+    expect((await sentOf(ext, "page_changed")).at(-1)).toMatchObject({ price: "Desde 2,582 UF", typology_price: "Desde 3,453 UF" });
   });
 
   test("photos full screen one at a time, a slideshow the visitor's voice stops, and a floor plan", async ({ ext }) => {

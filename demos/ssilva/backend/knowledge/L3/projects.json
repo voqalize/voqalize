@@ -30,6 +30,27 @@
    "QUILLAY",
    "CHAMIZA"
   ],
+  "hero_uf": 11590,
+  "page_prices": [
+   {
+    "typology": "ALGARROBO",
+    "desde_uf": 11590,
+    "total_m2": 138.34,
+    "useful_m2": null
+   },
+   {
+    "typology": "QUILLAY",
+    "desde_uf": 13110,
+    "total_m2": 147.99,
+    "useful_m2": null
+   },
+   {
+    "typology": "CHAMIZA",
+    "desde_uf": 14250,
+    "total_m2": 156.13,
+    "useful_m2": null
+   }
+  ],
   "status": "Entrega inmediata",
   "gallery_slides": 0,
   "amenities_title": "",
@@ -41,7 +62,7 @@
    },
    {
     "key": "tipologías",
-    "heading": "Tipologías que se adaptan a tus necesidades",
+    "heading": "TIPOLOGIAS QUE SE ADAPTAN A TUS NECESIDADES",
     "module": "cotizador-l1-section"
    },
    {
@@ -51,12 +72,12 @@
    },
    {
     "key": "brochure",
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "module": "wbct-section"
    },
    {
     "key": "contacto",
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "¡Te gustó este proyecto? ¡Contáctanos!",
     "module": "project-actions-section"
    }
   ],
@@ -99,7 +120,7 @@
   ],
   "address": "Av. El Valle 11200, Chicureo, Región Metropolitana",
   "hero_tags": "PAGA EL SALDO DEL PIE HASTA EN 60 CUOTAS info PAGA SÓLO EL 5% DE PIE info",
-  "tagline": "EXCLUSIVO TOWNHOUSE CHICUREO PIEMONTE TOWNHOUSE",
+  "tagline": "EXCLUSIVO TOWNHOUSE CHICUREO",
   "intro": "EXCLUSIVO TOWNHOUSE CHICUREO PIEMONTE TOWNHOUSE ha sido desarrollado bajo un concepto de espacios abiertos en perfecta armonía con un entorno único, para que puedas vivir la naturaleza. Departamentos que privilegian los detalles, fusionando la arquitectura moderna, de líneas simples, integrando el entorno de la manera más noble, para así, ser parte del paisaje con total libertad. Visítanos en Av. El Valle 11200, Chicureo, Colina, Región Metropolitana",
   "typologies": [
    "2D | 2B",
@@ -107,13 +128,40 @@
    "3D | 2B PENTHOUSE",
    "3D | 2B LOFT"
   ],
+  "hero_uf": 7741,
+  "page_prices": [
+   {
+    "typology": "2D | 2B",
+    "desde_uf": 7741,
+    "total_m2": 99.01,
+    "useful_m2": 80.57
+   },
+   {
+    "typology": "3D | 2B",
+    "desde_uf": 8587,
+    "total_m2": 111.79,
+    "useful_m2": 95.46
+   },
+   {
+    "typology": "3D | 2B PENTHOUSE",
+    "desde_uf": 8587,
+    "total_m2": 166.53,
+    "useful_m2": 95.42
+   },
+   {
+    "typology": "3D | 2B LOFT",
+    "desde_uf": 8587,
+    "total_m2": 153.99,
+    "useful_m2": 121.05
+   }
+  ],
   "status": "",
   "gallery_slides": 4,
   "amenities_title": "INCREÍBLES ESPACIOS",
   "outline": [
    {
     "key": "",
-    "heading": "EXCLUSIVO TOWNHOUSE CHICUREO PIEMONTE TOWNHOUSE",
+    "heading": "EXCLUSIVO TOWNHOUSE CHICUREO",
     "module": "main-slider-section"
    },
    {
@@ -132,13 +180,18 @@
     "module": "alternate-images-section"
    },
    {
+    "key": "",
+    "heading": "CONOCE EL ESTADO DEL PROYECTO",
+    "module": "progress-dots-section"
+   },
+   {
     "key": "brochure",
     "heading": "Brochure",
     "module": "wbct-section"
    },
    {
     "key": "contacto",
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "¿Te interesó este proyecto? Contáctanos",
     "module": "project-actions-section"
    },
    {
@@ -157,7 +210,65 @@
   "brochure_flipbook": "https://www.ssilva.cl/3d-flip-book/brochure-piemonte/",
   "tour": true,
   "lead_form": true,
-  "units": [],
+  "units": [
+   {
+    "typology": "2D|2B",
+    "count": 18,
+    "desde_uf": 8148,
+    "hasta_uf": 9566,
+    "total_m2": [
+     99.01,
+     105.35
+    ],
+    "orientations": [
+     "Norte",
+     "Oriente",
+     "Sur"
+    ]
+   },
+   {
+    "typology": "3D|2B",
+    "count": 3,
+    "desde_uf": 9039,
+    "hasta_uf": 10378,
+    "total_m2": [
+     111.79,
+     117.14
+    ],
+    "orientations": [
+     "Norte",
+     "Sur"
+    ]
+   },
+   {
+    "typology": "PENTHOUSE 3D|2B",
+    "count": 2,
+    "desde_uf": 10903,
+    "hasta_uf": 11010,
+    "total_m2": [
+     166.53,
+     166.57
+    ],
+    "orientations": [
+     "Norte",
+     "Sur"
+    ]
+   },
+   {
+    "typology": "LOFT 3D|2B",
+    "count": 12,
+    "desde_uf": 11411,
+    "hasta_uf": 12647,
+    "total_m2": [
+     153.73,
+     162.33
+    ],
+    "orientations": [
+     "Oriente",
+     "Sur"
+    ]
+   }
+  ],
   "notes": ""
  },
  {
@@ -193,6 +304,27 @@
    "1D | 1B",
    "2D | 2B"
   ],
+  "hero_uf": 1753,
+  "page_prices": [
+   {
+    "typology": "ESTUDIO",
+    "desde_uf": 1753,
+    "total_m2": 27.76,
+    "useful_m2": 23.66
+   },
+   {
+    "typology": "1D | 1B",
+    "desde_uf": 2172,
+    "total_m2": 34.16,
+    "useful_m2": 31.06
+   },
+   {
+    "typology": "2D | 2B",
+    "desde_uf": 3013,
+    "total_m2": 49.79,
+    "useful_m2": 43.44
+   }
+  ],
   "status": "",
   "gallery_slides": 4,
   "amenities_title": "ESPACIOS DISEÑADOS PARA DISFRUTAR",
@@ -218,9 +350,24 @@
     "module": "alternate-images-section"
    },
    {
+    "key": "",
+    "heading": "CONOCE EL ESTADO DEL PROYECTO",
+    "module": "progress-dots-section"
+   },
+   {
+    "key": "",
+    "heading": "¿QUÉ DEBO TENER PARA COMPRAR?",
+    "module": "required-docs-section"
+   },
+   {
     "key": "brochure",
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "module": "wbct-section"
+   },
+   {
+    "key": "",
+    "heading": "Documentos del proyecto que te podrían interesar",
+    "module": "files-block-section"
    },
    {
     "key": "contacto",
@@ -234,7 +381,7 @@
   "contact_address": "Av. Independencia 3540, Conchalí",
   "whatsapp": true,
   "brochure": true,
-  "brochure_pdf": "https://www.ssilva.cl/content/uploads/2024/05/Folleto_EDIFICIO-CARRERA_7SEP_26.pdf",
+  "brochure_pdf": "",
   "brochure_flipbook": "https://www.ssilva.cl/3d-flip-book/brochure-carrera/",
   "tour": false,
   "lead_form": true,
@@ -382,6 +529,21 @@
    "2D | 1B",
    "2D | 2B"
   ],
+  "hero_uf": 2485,
+  "page_prices": [
+   {
+    "typology": "2D | 1B",
+    "desde_uf": 2485,
+    "total_m2": 45.75,
+    "useful_m2": 44.05
+   },
+   {
+    "typology": "2D | 2B",
+    "desde_uf": 2738,
+    "total_m2": 51.15,
+    "useful_m2": 49.43
+   }
+  ],
   "status": "Entrega inmediata",
   "gallery_slides": 5,
   "amenities_title": "FACILITIES COMPLETAMENTE EQUIPADAS",
@@ -393,7 +555,7 @@
    },
    {
     "key": "galería",
-    "heading": "Galería",
+    "heading": "GRANDES DEPARTAMENTOS",
     "module": "l3-numbered-slider-section"
    },
    {
@@ -413,12 +575,12 @@
    },
    {
     "key": "brochure",
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "module": "wbct-section"
    },
    {
     "key": "contacto",
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "¿TE INTERESÓ ESTE PROYECTO? CONTÁCTANOS",
     "module": "project-actions-section"
    }
   ],
@@ -496,6 +658,27 @@
    "3D | 2B",
    "3D | 2B + ESTAR"
   ],
+  "hero_uf": 4072,
+  "page_prices": [
+   {
+    "typology": "2D | 2B",
+    "desde_uf": 4072,
+    "total_m2": 71.4,
+    "useful_m2": 65.3
+   },
+   {
+    "typology": "3D | 2B",
+    "desde_uf": 4193,
+    "total_m2": 82.3,
+    "useful_m2": 76.2
+   },
+   {
+    "typology": "3D | 2B + ESTAR",
+    "desde_uf": 4193,
+    "total_m2": 97.6,
+    "useful_m2": 89.9
+   }
+  ],
   "status": "Entrega inmediata",
   "gallery_slides": 9,
   "amenities_title": "ESPACIOS PARA DISFRUTAR",
@@ -527,12 +710,12 @@
    },
    {
     "key": "brochure",
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "module": "wbct-section"
    },
    {
     "key": "contacto",
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "¿Te interesó este proyecto? Contáctanos",
     "module": "project-actions-section"
    }
   ],
@@ -622,6 +805,15 @@
   "typologies": [
    "2D | 2B"
   ],
+  "hero_uf": 9786,
+  "page_prices": [
+   {
+    "typology": "2D | 2B",
+    "desde_uf": 9003,
+    "total_m2": 107.06,
+    "useful_m2": 83.81
+   }
+  ],
   "status": "Entrega inmediata",
   "gallery_slides": 7,
   "amenities_title": "DIVERSIÓN, BIENESTAR Y FUNCIONALIDAD",
@@ -638,12 +830,12 @@
    },
    {
     "key": "tipologías",
-    "heading": "Tipologías que se adaptan a tus necesidades",
+    "heading": "TIPOLOGIAS QUE SE ADAPTAN A TUS NECESIDADES",
     "module": "cotizador-l1-section"
    },
    {
     "key": "tour",
-    "heading": "Recorre los espacios desde donde estés",
+    "heading": "RECORRE LOS ESPACIOS DESDE DONDE ESTÉS",
     "module": "video-tour-section"
    },
    {
@@ -712,6 +904,27 @@
    "1 1/2 D | 2B",
    "2D | 2B"
   ],
+  "hero_uf": 5250,
+  "page_prices": [
+   {
+    "typology": "1D | 1B",
+    "desde_uf": 5250,
+    "total_m2": 60.92,
+    "useful_m2": 46.84
+   },
+   {
+    "typology": "1 1/2 D | 2B",
+    "desde_uf": 6531,
+    "total_m2": 80.77,
+    "useful_m2": 62.29
+   },
+   {
+    "typology": "2D | 2B",
+    "desde_uf": 7843,
+    "total_m2": 93.57,
+    "useful_m2": 71.74
+   }
+  ],
   "status": "En blanco",
   "gallery_slides": 17,
   "amenities_title": "DIVERSIÓN, BIENESTAR Y FUNCIONALIDAD",
@@ -728,12 +941,12 @@
    },
    {
     "key": "tipologías",
-    "heading": "Tipologías que se adaptan a tus necesidades",
+    "heading": "TIPOLOGIAS QUE SE ADAPTAN A TUS NECESIDADES",
     "module": "cotizador-l1-section"
    },
    {
     "key": "tour",
-    "heading": "Recorre los espacios desde donde estés",
+    "heading": "RECORRE LOS ESPACIOS DESDE DONDE ESTÉS",
     "module": "video-tour-section"
    },
    {
@@ -802,6 +1015,21 @@
    "ESTUDIO",
    "2D | 2B"
   ],
+  "hero_uf": 2462,
+  "page_prices": [
+   {
+    "typology": "ESTUDIO",
+    "desde_uf": 2462,
+    "total_m2": 39.4,
+    "useful_m2": 29.7
+   },
+   {
+    "typology": "2D | 2B",
+    "desde_uf": 4252,
+    "total_m2": 77.0,
+    "useful_m2": 60.9
+   }
+  ],
   "status": "Entrega inmediata",
   "gallery_slides": 6,
   "amenities_title": "",
@@ -818,7 +1046,7 @@
    },
    {
     "key": "galería",
-    "heading": "Galería",
+    "heading": "INCREÍBLES ESPACIOS PARA DISFRUTAR",
     "module": "l3-numbered-slider-section"
    },
    {
@@ -828,7 +1056,7 @@
    },
    {
     "key": "tour",
-    "heading": "Recorre los espacios desde donde estés",
+    "heading": "TOUR VIRTUAL",
     "module": "video-tour-section"
    },
    {
@@ -838,8 +1066,18 @@
    },
    {
     "key": "contacto",
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "CONTÁCTANOS",
     "module": "project-actions-section"
+   },
+   {
+    "key": "",
+    "heading": "TRABAJAMOS CON LAS MEJORES MARCAS",
+    "module": "partners-section"
+   },
+   {
+    "key": "",
+    "heading": "TRABAJAMOS CON LAS MEJORES MARCAS",
+    "module": "partners-section"
    }
   ],
   "hours": "SALA DE VENTAS: LUNES A DOMINGO DE 10:00 A 19:00 HRS. HORARIO CONTINUADO",
@@ -930,6 +1168,21 @@
    "2D | 2B",
    "3D | 2B"
   ],
+  "hero_uf": 3994,
+  "page_prices": [
+   {
+    "typology": "2D | 2B",
+    "desde_uf": 3994,
+    "total_m2": 61.59,
+    "useful_m2": 55.15
+   },
+   {
+    "typology": "3D | 2B",
+    "desde_uf": 4561,
+    "total_m2": 80.71,
+    "useful_m2": 70.24
+   }
+  ],
   "status": "Entrega inmediata",
   "gallery_slides": 5,
   "amenities_title": "",
@@ -961,18 +1214,28 @@
    },
    {
     "key": "brochure",
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "module": "wbct-section"
    },
    {
     "key": "",
-    "heading": "Ubicación",
+    "heading": "DOCUMENTOS QUE TE PODRÍAN INTERESAR",
+    "module": "other-docs-section"
+   },
+   {
+    "key": "",
+    "heading": "UBICADO EN UN BARRIO FAMILIAR",
     "module": "map-section"
    },
    {
     "key": "contacto",
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "¿Te interesó este proyecto? Contáctanos",
     "module": "project-actions-section"
+   },
+   {
+    "key": "",
+    "heading": "NUESTRAS ALIANZAS",
+    "module": "partners-section"
    }
   ],
   "hours": "LUNES DE 15:00 A 18:00 HRS, MARTES A SÁBADO DE 10:00 A 14:00 Y DE 15:00 A 18:00 HRS. DOMINGO CERRADO",
@@ -981,7 +1244,7 @@
   "contact_address": "Av. La Florida 10671, La Florida, Región Metropolitana",
   "whatsapp": true,
   "brochure": true,
-  "brochure_pdf": "https://www.ssilva.cl/content/uploads/2025/01/BROCHURE_VISTA-LA-FLORIDA.pdf",
+  "brochure_pdf": "",
   "brochure_flipbook": "https://www.ssilva.cl/3d-flip-book/vista-la-florida-brochure/",
   "tour": false,
   "lead_form": true,
@@ -1063,6 +1326,21 @@
    "2D | 3B",
    "3D | 3B"
   ],
+  "hero_uf": 13976,
+  "page_prices": [
+   {
+    "typology": "2D | 3B",
+    "desde_uf": 13976,
+    "total_m2": 147.13,
+    "useful_m2": 122.98
+   },
+   {
+    "typology": "3D | 3B",
+    "desde_uf": 16986,
+    "total_m2": 162.02,
+    "useful_m2": 137.15
+   }
+  ],
   "status": "Entrega inmediata",
   "gallery_slides": 6,
   "amenities_title": "DIVERSIÓN, BIENESTAR Y FUNCIONALIDAD",
@@ -1079,7 +1357,7 @@
    },
    {
     "key": "tipologías",
-    "heading": "Tipologías que se adaptan a tus necesidades",
+    "heading": "TIPOLOGIAS QUE SE ADAPTAN A TUS NECESIDADES",
     "module": "cotizador-l1-section"
    },
    {
@@ -1146,6 +1424,15 @@
   "typologies": [
    "ESTAR"
   ],
+  "hero_uf": 12452,
+  "page_prices": [
+   {
+    "typology": "ESTAR",
+    "desde_uf": 12452,
+    "total_m2": 155.18,
+    "useful_m2": 120.31
+   }
+  ],
   "status": "Entrega inmediata",
   "gallery_slides": 8,
   "amenities_title": "INCREÍBLES ESPACIOS PARA DISFRUTAR",
@@ -1162,7 +1449,7 @@
    },
    {
     "key": "tipologías",
-    "heading": "Tipologías que se adaptan a tus necesidades",
+    "heading": "TIPOLOGIAS QUE SE ADAPTAN A TUS NECESIDADES",
     "module": "cotizador-l1-section"
    },
    {
@@ -1177,12 +1464,12 @@
    },
    {
     "key": "brochure",
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "module": "wbct-section"
    },
    {
     "key": "contacto",
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "¿Te interesó este proyecto? Contáctanos",
     "module": "project-actions-section"
    }
   ],
@@ -1235,10 +1522,19 @@
   ],
   "address": "Apoquindo 7331, Las Condes",
   "hero_tags": "",
-  "tagline": "APOQUINDO MORO APOQUINDO MORO",
+  "tagline": "APOQUINDO MORO",
   "intro": "APOQUINDO MORO APOQUINDO MORO Es el nuevo polo empresarial de Las Condes. Diseñado con una visión moderna y vanguardista, para ofrecer un entorno de trabajo inspirador y funcional. Con un total de 9 pisos. Dispone de una amplia variedad de oficinas y locales comerciales, lo que brinda una experiencia completa tanto para sus dueños como para quienes lo visitan.",
   "typologies": [
    "OFICINA"
+  ],
+  "hero_uf": 2276,
+  "page_prices": [
+   {
+    "typology": "OFICINA",
+    "desde_uf": 2276,
+    "total_m2": 29.22,
+    "useful_m2": 29.22
+   }
   ],
   "status": "Entrega inmediata",
   "gallery_slides": 9,
@@ -1246,7 +1542,7 @@
   "outline": [
    {
     "key": "",
-    "heading": "APOQUINDO MORO APOQUINDO MORO",
+    "heading": "APOQUINDO MORO",
     "module": "main-slider-section"
    },
    {
@@ -1266,7 +1562,7 @@
    },
    {
     "key": "estado",
-    "heading": "Estado del proyecto",
+    "heading": "ESTADO EL PROYECTO",
     "module": "l3-project-status-section"
    },
    {
@@ -1276,7 +1572,7 @@
    },
    {
     "key": "contacto",
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "¿Te interesó este proyecto? Contáctanos",
     "module": "project-actions-section"
    }
   ],
@@ -1290,7 +1586,24 @@
   "brochure_flipbook": "https://www.ssilva.cl/3d-flip-book/brochure-apoquindo-moro/",
   "tour": false,
   "lead_form": true,
-  "units": [],
+  "units": [
+   {
+    "typology": "OFICINA",
+    "count": 41,
+    "desde_uf": 2563,
+    "hasta_uf": 6358,
+    "total_m2": [
+     29.22,
+     58.56
+    ],
+    "orientations": [
+     "NorOriente",
+     "Oriente",
+     "Poniente",
+     "SurPoniente"
+    ]
+   }
+  ],
   "notes": ""
  },
  {
@@ -1305,7 +1618,7 @@
   "tipos": [
    "departamento"
   ],
-  "desde_uf": 3176,
+  "desde_uf": 3045,
   "dormitorios": [
    1,
    2
@@ -1329,6 +1642,45 @@
    "2D | 2B D1",
    "2D | 2B D2"
   ],
+  "hero_uf": 3045,
+  "page_prices": [
+   {
+    "typology": "1D | 1B E",
+    "desde_uf": 3045,
+    "total_m2": 35.64,
+    "useful_m2": 32.32
+   },
+   {
+    "typology": "2D | 2B A",
+    "desde_uf": 3586,
+    "total_m2": 67.63,
+    "useful_m2": 57.83
+   },
+   {
+    "typology": "2D | 2B B1",
+    "desde_uf": 3586,
+    "total_m2": 56.88,
+    "useful_m2": 48.75
+   },
+   {
+    "typology": "2D | 2B C - SUITE",
+    "desde_uf": 3586,
+    "total_m2": 57.05,
+    "useful_m2": 48.59
+   },
+   {
+    "typology": "2D | 2B D1",
+    "desde_uf": 3586,
+    "total_m2": 46.83,
+    "useful_m2": 43.34
+   },
+   {
+    "typology": "2D | 2B D2",
+    "desde_uf": 3586,
+    "total_m2": 49.12,
+    "useful_m2": 41.93
+   }
+  ],
   "status": "Término de obra",
   "gallery_slides": 5,
   "amenities_title": "INCREÍBLES ESPACIOS",
@@ -1350,7 +1702,7 @@
    },
    {
     "key": "tour",
-    "heading": "Recorre los espacios desde donde estés",
+    "heading": "RECORRE LOS ESPACIOS SIN SALIR DE CASA",
     "module": "video-tour-section"
    },
    {
@@ -1365,12 +1717,12 @@
    },
    {
     "key": "brochure",
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "module": "wbct-section"
    },
    {
     "key": "contacto",
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "Contáctanos",
     "module": "project-actions-section"
    }
   ],
@@ -1384,7 +1736,76 @@
   "brochure_flipbook": "",
   "tour": true,
   "lead_form": true,
-  "units": [],
+  "units": [
+   {
+    "typology": "A - 2D|2B",
+    "count": 5,
+    "desde_uf": 5332,
+    "hasta_uf": 5428,
+    "total_m2": [
+     67.63,
+     67.63
+    ],
+    "orientations": [
+     "NorOriente",
+     "SurOriente"
+    ]
+   },
+   {
+    "typology": "B1 - 2D|2B",
+    "count": 7,
+    "desde_uf": 4285,
+    "hasta_uf": 4560,
+    "total_m2": [
+     56.88,
+     56.88
+    ],
+    "orientations": [
+     "NorPoniente"
+    ]
+   },
+   {
+    "typology": "C - 2D|2B SUITE",
+    "count": 9,
+    "desde_uf": 3984,
+    "hasta_uf": 4553,
+    "total_m2": [
+     57.05,
+     57.05
+    ],
+    "orientations": [
+     "Norte",
+     "Sur"
+    ]
+   },
+   {
+    "typology": "D1 - 2D|2B",
+    "count": 8,
+    "desde_uf": 3994,
+    "hasta_uf": 4087,
+    "total_m2": [
+     46.83,
+     46.83
+    ],
+    "orientations": [
+     "Norte"
+    ]
+   },
+   {
+    "typology": "E - 1D|1B",
+    "count": 39,
+    "desde_uf": 3212,
+    "hasta_uf": 3492,
+    "total_m2": [
+     35.64,
+     35.64
+    ],
+    "orientations": [
+     "Norte",
+     "Sur"
+    ]
+   }
+  ],
   "notes": ""
  },
  {
@@ -1421,6 +1842,33 @@
    "2D | 2B",
    "2D | 2B MARIPOSA"
   ],
+  "hero_uf": 2582,
+  "page_prices": [
+   {
+    "typology": "1D | 1B",
+    "desde_uf": 2582,
+    "total_m2": 36.41,
+    "useful_m2": 32.97
+   },
+   {
+    "typology": "2D | 1B",
+    "desde_uf": 2919,
+    "total_m2": 49.52,
+    "useful_m2": 41.16
+   },
+   {
+    "typology": "2D | 2B",
+    "desde_uf": 3177,
+    "total_m2": 50.02,
+    "useful_m2": 50.02
+   },
+   {
+    "typology": "2D | 2B MARIPOSA",
+    "desde_uf": 3177,
+    "total_m2": 56.65,
+    "useful_m2": 47.38
+   }
+  ],
   "status": "En verde",
   "gallery_slides": 6,
   "amenities_title": "",
@@ -1447,12 +1895,12 @@
    },
    {
     "key": "estado",
-    "heading": "Estado del proyecto",
+    "heading": "ESTADO EL PROYECTO",
     "module": "l3-project-status-section"
    },
    {
     "key": "brochure",
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "module": "wbct-section"
    },
    {
@@ -1568,6 +2016,21 @@
    "1D | 1B",
    "2D | 2B"
   ],
+  "hero_uf": 2674,
+  "page_prices": [
+   {
+    "typology": "1D | 1B",
+    "desde_uf": 2674,
+    "total_m2": null,
+    "useful_m2": null
+   },
+   {
+    "typology": "2D | 2B",
+    "desde_uf": 3544,
+    "total_m2": null,
+    "useful_m2": null
+   }
+  ],
   "status": "Entrega inmediata",
   "gallery_slides": 5,
   "amenities_title": "INCREÍBLES ESPACIOS PARA COMPARTIR",
@@ -1599,12 +2062,12 @@
    },
    {
     "key": "brochure",
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "module": "wbct-section"
    },
    {
     "key": "contacto",
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "¿TE INTERESÓ ESTE PROYECTO? CONTÁCTANOS",
     "module": "project-actions-section"
    }
   ],
@@ -1689,6 +2152,33 @@
    "2D | 2B",
    "TWINS"
   ],
+  "hero_uf": 2599,
+  "page_prices": [
+   {
+    "typology": "ESTUDIO",
+    "desde_uf": 2599,
+    "total_m2": 35.91,
+    "useful_m2": 31.31
+   },
+   {
+    "typology": "1D | 1B",
+    "desde_uf": 3053,
+    "total_m2": 43.31,
+    "useful_m2": 38.92
+   },
+   {
+    "typology": "2D | 2B",
+    "desde_uf": 4449,
+    "total_m2": 73.28,
+    "useful_m2": 62.28
+   },
+   {
+    "typology": "TWINS",
+    "desde_uf": 6615,
+    "total_m2": 116.15,
+    "useful_m2": 98.3
+   }
+  ],
   "status": "",
   "gallery_slides": 8,
   "amenities_title": "",
@@ -1710,17 +2200,22 @@
    },
    {
     "key": "",
-    "heading": "Ubicación",
+    "heading": "UNA EXTRAORDINARIA UBICACIÓN EN SANTIAGO CON GRAN CONECTIVIDAD",
     "module": "map-section"
    },
    {
+    "key": "",
+    "heading": "Estado actual del proyecto",
+    "module": "progress-dots-section"
+   },
+   {
     "key": "brochure",
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "module": "wbct-section"
    },
    {
     "key": "contacto",
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "¿Te interesó el proyecto? Contáctanos",
     "module": "project-actions-section"
    }
   ],
@@ -1820,6 +2315,8 @@
   "tagline": "",
   "intro": "",
   "typologies": [],
+  "hero_uf": null,
+  "page_prices": [],
   "status": "",
   "gallery_slides": 0,
   "amenities_title": "",
@@ -1881,6 +2378,27 @@
    "2D | 3B",
    "3D | 3B"
   ],
+  "hero_uf": 10761,
+  "page_prices": [
+   {
+    "typology": "2D | 2B SUITE",
+    "desde_uf": 10761,
+    "total_m2": 99.59,
+    "useful_m2": 83.85
+   },
+   {
+    "typology": "2D | 3B",
+    "desde_uf": 13045,
+    "total_m2": 124.26,
+    "useful_m2": 101.13
+   },
+   {
+    "typology": "3D | 3B",
+    "desde_uf": 17374,
+    "total_m2": 175.72,
+    "useful_m2": 137.65
+   }
+  ],
   "status": "",
   "gallery_slides": 9,
   "amenities_title": "",
@@ -1906,13 +2424,18 @@
     "module": "alternate-images-section"
    },
    {
+    "key": "",
+    "heading": "ESTADO DEL PROYECTO",
+    "module": "progress-dots-section"
+   },
+   {
     "key": "brochure",
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "module": "wbct-section"
    },
    {
     "key": "contacto",
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "Contáctanos",
     "module": "project-actions-section"
    }
   ],
@@ -2016,6 +2539,21 @@
    "2D | 2B",
    "3D | 2B"
   ],
+  "hero_uf": 6627,
+  "page_prices": [
+   {
+    "typology": "2D | 2B",
+    "desde_uf": 6627,
+    "total_m2": 69.28,
+    "useful_m2": 59.1
+   },
+   {
+    "typology": "3D | 2B",
+    "desde_uf": 7558,
+    "total_m2": 82.8,
+    "useful_m2": 75.8
+   }
+  ],
   "status": "Obra gruesa",
   "gallery_slides": 4,
   "amenities_title": "ESPACIOS VARIADOS PARA DISFRUTAR",
@@ -2042,17 +2580,17 @@
    },
    {
     "key": "estado",
-    "heading": "Estado del proyecto",
+    "heading": "CONOCE EL ESTADO DEL PROYECTO",
     "module": "l3-project-status-section"
    },
    {
     "key": "brochure",
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "module": "wbct-section"
    },
    {
     "key": "contacto",
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "¿Te interesó este proyecto? Contáctanos",
     "module": "project-actions-section"
    }
   ],
@@ -2130,6 +2668,21 @@
    "2D | 2B",
    "3D | 2B"
   ],
+  "hero_uf": 3588,
+  "page_prices": [
+   {
+    "typology": "2D | 2B",
+    "desde_uf": 3588,
+    "total_m2": 63.16,
+    "useful_m2": 57.01
+   },
+   {
+    "typology": "3D | 2B",
+    "desde_uf": 3927,
+    "total_m2": 63.47,
+    "useful_m2": 57.15
+   }
+  ],
   "status": "En blanco",
   "gallery_slides": 6,
   "amenities_title": "DISFRUTA ENTRE EL BOSQUE, LAS DUNAS Y EL MAR",
@@ -2161,12 +2714,12 @@
    },
    {
     "key": "brochure",
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "module": "wbct-section"
    },
    {
     "key": "contacto",
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "¿Te interesó este proyecto? Contáctanos",
     "module": "project-actions-section"
    }
   ],
@@ -2243,6 +2796,21 @@
    "2D | 2B",
    "3D | 2B"
   ],
+  "hero_uf": 3734,
+  "page_prices": [
+   {
+    "typology": "2D | 2B",
+    "desde_uf": 3734,
+    "total_m2": 63.16,
+    "useful_m2": 57.01
+   },
+   {
+    "typology": "3D | 2B",
+    "desde_uf": 3750,
+    "total_m2": 63.47,
+    "useful_m2": 57.15
+   }
+  ],
   "status": "Entrega inmediata",
   "gallery_slides": 7,
   "amenities_title": "INCREÍBLES ESPACIOS PARA DISFRUTAR",
@@ -2259,7 +2827,7 @@
    },
    {
     "key": "tipologías",
-    "heading": "Tipologías que se adaptan a tus necesidades",
+    "heading": "TIPOLOGIAS QUE SE ADAPTAN A TUS NECESIDADES",
     "module": "cotizador-l1-section"
    },
    {
@@ -2269,17 +2837,17 @@
    },
    {
     "key": "estado",
-    "heading": "Estado del proyecto",
+    "heading": "ESTADO DEL PROYECTO",
     "module": "l3-project-status-section"
    },
    {
     "key": "brochure",
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "module": "wbct-section"
    },
    {
     "key": "contacto",
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "¿Te interesó este proyecto? Contáctanos",
     "module": "project-actions-section"
    }
   ],
@@ -2326,6 +2894,15 @@
   "typologies": [
    "2D | 2B"
   ],
+  "hero_uf": 10323,
+  "page_prices": [
+   {
+    "typology": "2D | 2B",
+    "desde_uf": 10323,
+    "total_m2": 90.6,
+    "useful_m2": 69.72
+   }
+  ],
   "status": "Entrega inmediata",
   "gallery_slides": 7,
   "amenities_title": "UN ENTORNO INIGUALABLE",
@@ -2342,7 +2919,7 @@
    },
    {
     "key": "tipologías",
-    "heading": "Tipologías que se adaptan a tus necesidades",
+    "heading": "TIPOLOGIAS QUE SE ADAPTAN A TUS NECESIDADES",
     "module": "cotizador-l1-section"
    },
    {
@@ -2417,6 +2994,27 @@
    "3D | 2B + TERRAZA PANORáMICA",
    "3D | 2B"
   ],
+  "hero_uf": 5761,
+  "page_prices": [
+   {
+    "typology": "2D | 2B",
+    "desde_uf": 5761,
+    "total_m2": 75.53,
+    "useful_m2": 56.31
+   },
+   {
+    "typology": "3D | 2B + TERRAZA PANORáMICA",
+    "desde_uf": 6871,
+    "total_m2": 174.47,
+    "useful_m2": 75.32
+   },
+   {
+    "typology": "3D | 2B",
+    "desde_uf": 6871,
+    "total_m2": 87.26,
+    "useful_m2": 75.32
+   }
+  ],
   "status": "",
   "gallery_slides": 0,
   "amenities_title": "ENCUENTRA NATURALEZA ENTRE EL BOSQUE Y EL MAR",
@@ -2433,7 +3031,7 @@
    },
    {
     "key": "tour",
-    "heading": "Recorre los espacios desde donde estés",
+    "heading": "RECORRE LOS ESPACIOS DESDE DONDE ESTÉS",
     "module": "video-tour-section"
    },
    {
@@ -2443,12 +3041,12 @@
    },
    {
     "key": "brochure",
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "module": "wbct-section"
    },
    {
     "key": "contacto",
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "¿Te interesó este proyecto? Contáctanos",
     "module": "project-actions-section"
    }
   ],
@@ -2506,7 +3104,7 @@
   "tipos": [
    "departamento"
   ],
-  "desde_uf": 7609,
+  "desde_uf": 7162,
   "dormitorios": [
    2,
    3
@@ -2527,6 +3125,21 @@
    "2D | 2B",
    "3D | 2B"
   ],
+  "hero_uf": 7162,
+  "page_prices": [
+   {
+    "typology": "2D | 2B",
+    "desde_uf": 7162,
+    "total_m2": 74.1,
+    "useful_m2": 59.11
+   },
+   {
+    "typology": "3D | 2B",
+    "desde_uf": 11927,
+    "total_m2": 90.08,
+    "useful_m2": 145.84
+   }
+  ],
   "status": "",
   "gallery_slides": 8,
   "amenities_title": "",
@@ -2543,7 +3156,7 @@
    },
    {
     "key": "galería",
-    "heading": "Galería",
+    "heading": "AMPLIOS DEPARTAMENTOS",
     "module": "l3-numbered-slider-section"
    },
    {
@@ -2553,17 +3166,17 @@
    },
    {
     "key": "",
-    "heading": "Ubicación",
+    "heading": "CONECTIVIDAD",
     "module": "map-section"
    },
    {
     "key": "brochure",
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "module": "wbct-section"
    },
    {
     "key": "contacto",
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "¿Te interesó este proyecto? Contáctanos",
     "module": "project-actions-section"
    }
   ],
@@ -2640,6 +3253,15 @@
   "typologies": [
    "2D | 2B"
   ],
+  "hero_uf": 3654,
+  "page_prices": [
+   {
+    "typology": "2D | 2B",
+    "desde_uf": 3654,
+    "total_m2": 60.04,
+    "useful_m2": 55.51
+   }
+  ],
   "status": "Entrega inmediata",
   "gallery_slides": 8,
   "amenities_title": "LOS MEJORES ESPACIOS DISEÑADOS PARA DISFRUTAR",
@@ -2671,12 +3293,12 @@
    },
    {
     "key": "brochure",
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "module": "wbct-section"
    },
    {
     "key": "contacto",
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "¿Te interesó este proyecto? Contáctanos",
     "module": "project-actions-section"
    }
   ],
@@ -2754,6 +3376,27 @@
    "2D | 1B",
    "2D | 2B"
   ],
+  "hero_uf": 2372,
+  "page_prices": [
+   {
+    "typology": "1D | 1B",
+    "desde_uf": 2372,
+    "total_m2": 35.74,
+    "useful_m2": null
+   },
+   {
+    "typology": "2D | 1B",
+    "desde_uf": 2642,
+    "total_m2": 44.76,
+    "useful_m2": null
+   },
+   {
+    "typology": "2D | 2B",
+    "desde_uf": 2896,
+    "total_m2": 58.46,
+    "useful_m2": null
+   }
+  ],
   "status": "En blanco",
   "gallery_slides": 5,
   "amenities_title": "EQUIPAMIENTO",
@@ -2770,7 +3413,7 @@
    },
    {
     "key": "tipologías",
-    "heading": "Tipologías que se adaptan a tus necesidades",
+    "heading": "TIPOLOGIAS QUE SE ADAPTAN A TUS NECESIDADES",
     "module": "cotizador-l1-section"
    },
    {
@@ -2785,12 +3428,12 @@
    },
    {
     "key": "brochure",
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "module": "wbct-section"
    },
    {
     "key": "contacto",
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "¿Te interesó este proyecto? Contáctanos",
     "module": "project-actions-section"
    }
   ],
@@ -2819,7 +3462,7 @@
   "tipos": [
    "departamento"
   ],
-  "desde_uf": 2836,
+  "desde_uf": 3035,
   "dormitorios": [
    1,
    2,
@@ -2840,6 +3483,27 @@
    "1D | 1B",
    "2D | 2B",
    "3D | 2B"
+  ],
+  "hero_uf": 3035,
+  "page_prices": [
+   {
+    "typology": "1D | 1B",
+    "desde_uf": 3035,
+    "total_m2": 39.89,
+    "useful_m2": 32.59
+   },
+   {
+    "typology": "2D | 2B",
+    "desde_uf": 3144,
+    "total_m2": 52.18,
+    "useful_m2": 43.21
+   },
+   {
+    "typology": "3D | 2B",
+    "desde_uf": 4813,
+    "total_m2": 78.43,
+    "useful_m2": 68.44
+   }
   ],
   "status": "Entrega inmediata",
   "gallery_slides": 9,
@@ -2872,12 +3536,12 @@
    },
    {
     "key": "brochure",
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "module": "wbct-section"
    },
    {
     "key": "contacto",
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "¿Te interesó este proyecto? Contáctanos",
     "module": "project-actions-section"
    }
   ],
@@ -2958,6 +3622,27 @@
    "2D | 2B",
    "3D | 2B"
   ],
+  "hero_uf": 2658,
+  "page_prices": [
+   {
+    "typology": "1D | 1B",
+    "desde_uf": 2658,
+    "total_m2": 40.08,
+    "useful_m2": null
+   },
+   {
+    "typology": "2D | 2B",
+    "desde_uf": 3098,
+    "total_m2": 52.51,
+    "useful_m2": null
+   },
+   {
+    "typology": "3D | 2B",
+    "desde_uf": 4452,
+    "total_m2": 78.48,
+    "useful_m2": null
+   }
+  ],
   "status": "En blanco",
   "gallery_slides": 4,
   "amenities_title": "VISTAS INCREÍBLES",
@@ -2974,7 +3659,7 @@
    },
    {
     "key": "tipologías",
-    "heading": "Tipologías que se adaptan a tus necesidades",
+    "heading": "TIPOLOGIAS QUE SE ADAPTAN A TUS NECESIDADES",
     "module": "cotizador-l1-section"
    },
    {
@@ -2984,12 +3669,12 @@
    },
    {
     "key": "estado",
-    "heading": "Estado del proyecto",
+    "heading": "ESTADO DEL PROYECTO",
     "module": "l3-project-status-section"
    },
    {
     "key": "brochure",
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "module": "wbct-section"
    },
    {
@@ -3047,6 +3732,33 @@
    "2D | 2B",
    "3D | 2B"
   ],
+  "hero_uf": 3375,
+  "page_prices": [
+   {
+    "typology": "1D | 1B",
+    "desde_uf": 3482,
+    "total_m2": 40.06,
+    "useful_m2": 37.99
+   },
+   {
+    "typology": "2D | 1B",
+    "desde_uf": 3375,
+    "total_m2": 44.61,
+    "useful_m2": 40.63
+   },
+   {
+    "typology": "2D | 2B",
+    "desde_uf": 4336,
+    "total_m2": 49.6,
+    "useful_m2": 47.46
+   },
+   {
+    "typology": "3D | 2B",
+    "desde_uf": 5774,
+    "total_m2": 69.61,
+    "useful_m2": 67.59
+   }
+  ],
   "status": "Entrega inmediata",
   "gallery_slides": 8,
   "amenities_title": "PANORAMAS PARA DISFRUTAR",
@@ -3068,7 +3780,7 @@
    },
    {
     "key": "tour",
-    "heading": "Recorre los espacios desde donde estés",
+    "heading": "RECORRE LOS ESPACIOS DESDE DONDE ESTÉS",
     "module": "video-tour-section"
    },
    {
@@ -3083,12 +3795,12 @@
    },
    {
     "key": "brochure",
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "module": "wbct-section"
    },
    {
     "key": "contacto",
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "¿TE INTERESÓ ESTE PROYECTO?",
     "module": "project-actions-section"
    }
   ],
@@ -3233,8 +3945,6 @@
   "contact_address": "Av. El Estero con Santa Augusta, Club de Golf Santa Augusta, Quintay",
   "whatsapp": true,
   "brochure": true,
-  "brochure_pdf": "https://www.ssilva.cl/content/uploads/2025/12/Brochure-Alto-Quintay.pdf",
-  "brochure_flipbook": "https://www.ssilva.cl/3d-flip-book/brochure-alto-quintay/",
   "tour": false,
   "lead_form": false,
   "units": [],
