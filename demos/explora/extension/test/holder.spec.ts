@@ -23,9 +23,8 @@
  *   - a page load in the middle of a reply: the next page's face, which
  *     listens only a moment after it is made, gets the reply so far and what
  *     follows, in order, and nothing of a reply that is over or was cut;
- *   - his still on the next page, until its face draws: it moves (a talking
- *     head while he speaks, a breath while he listens), and holds still under
- *     reduced motion;
+ *   - his still on the next page, until its face draws: a plain still, which
+ *     does not move while he speaks or while he listens;
  *   - the widget across a same-host page load (the early shell and the view
  *     transition), and nothing early off a call.
  */
@@ -638,12 +637,17 @@ interface FaceSaw {
   what: string;
   ctx?: string;
   from_ms?: number;
+  at_ms?: number;
 }
 const faceSaw = (page: Page) =>
   page.evaluate(() => (window as unknown as { __faceSaw?: FaceSaw[] }).__faceSaw ?? []) as Promise<FaceSaw[]>;
 const toFace = async (ext: Ext, msg: Record<string, unknown>) =>
   expect(await toHolder(ext.sw, { what: "avatar", msg })).toEqual({ ok: true });
-const label = (s: FaceSaw) => (s.ctx ? `${s.what} ${s.ctx}${s.from_ms === undefined ? "" : `@${s.from_ms}`}` : s.what);
+const label = (s: FaceSaw) => {
+  if (!s.ctx) return s.what;
+  const at = s.what === "sync" ? s.at_ms : s.from_ms;
+  return `${s.what} ${s.ctx}${at === undefined ? "" : `@${at}`}`;
+};
 
 /** A full page load in a call, and the new page's face up. */
 async function load(page: Page, path: string): Promise<void> {
@@ -652,7 +656,7 @@ async function load(page: Page, path: string): Promise<void> {
 }
 
 test.describe("a page load in the middle of a reply", () => {
-  test("the next page's face gets the reply so far (its place on the stream, its cues) and that he is speaking, then what follows, in order", async ({ ext }) => {
+  test("the next page's face gets the reply so far (its place on the stream, its cues) and that he is speaking, then what follows, in order, and never the reply's start", async ({ ext }) => {
     const page = await ext.open("/");
     await callLive(ext, page);
     await speaking(ext, page);
@@ -663,10 +667,18 @@ test.describe("a page load in the middle of a reply", () => {
     await toFace(ext, { cmd: "sync", ctx: "r1", at_ms: 0, rtp: 48000, rate: 48000 });
     await toFace(ext, { cmd: "cues", ctx: "r1", from_ms: 0, cues: [{ t: 0, v: "B" }] });
     await toFace(ext, { cmd: "cues", ctx: "r1", from_ms: 900, cues: [{ t: 900, v: "C" }] });
-    await expect.poll(async () => (await faceSaw(page)).map(label)).toEqual(["botStartedSpeaking", "sync r1", "cues r1@0", "cues r1@900"]);
+    await toFace(ext, { cmd: "sync", ctx: "r1", at_ms: 1000, rtp: 96000, rate: 48000 });
+    await expect
+      .poll(async () => (await faceSaw(page)).map(label))
+      .toEqual(["botStartedSpeaking", "sync r1@0", "cues r1@0", "cues r1@900", "sync r1@1000"]);
+
+    // The reply's start (a sync at 0 ms) is not handed over: a face made
+    // mid-reply that hears it thinks it heard the reply begin, and plays the
+    // mouth from the first word, behind the voice. The resync places it.
 
     await load(page, "/atacama/");
-    await expect.poll(async () => (await faceSaw(page)).map(label)).toEqual(["sync r1", "cues r1@0", "cues r1@900", "botStartedSpeaking"]);
+    await expect.poll(async () => (await faceSaw(page)).map(label)).toEqual(["cues r1@0", "cues r1@900", "sync r1@1000", "botStartedSpeaking"]);
+    expect((await faceSaw(page)).filter((s) => s.what === "sync" && s.at_ms === 0)).toEqual([]);
 
     // What the reply sends next reaches the new face after what it caught up on.
     await toFace(ext, { cmd: "cues", ctx: "r1", from_ms: 1800, cues: [{ t: 1800, v: "D" }] });
@@ -728,31 +740,23 @@ async function toSlowPage(ext: Ext, page: Page, speaking: boolean): Promise<void
 }
 
 test.describe("his still while the next page's face is not drawing yet", () => {
-  test("it moves as a talking head while he speaks, and keeps moving", async ({ ext }) => {
+  /** A plain still: no animation, no transform, and the same a moment later. */
+  async function holdsStill(page: Page): Promise<void> {
+    const a = (await posterNow(page))!;
+    expect(a).toMatchObject({ name: "none", transform: "none", gone: false });
+    await page.waitForTimeout(400);
+    expect(await posterNow(page)).toMatchObject({ name: "none", transform: "none" });
+  }
+
+  test("it does not move while he speaks", async ({ ext }) => {
     const page = await ext.open("/");
     await toSlowPage(ext, page, true);
-    await expect.poll(async () => (await posterNow(page))?.name).toBe("poster-talk");
-    const a = (await posterNow(page))!;
-    await page.waitForTimeout(300);
-    const b = (await posterNow(page))!;
-    expect(b.gone).toBe(false);
-    expect(b.transform).not.toBe(a.transform);
-    expect(b.transform).not.toBe("none");
+    await holdsStill(page);
   });
 
-  test("it breathes, slowly, while he listens", async ({ ext }) => {
+  test("it does not move while he listens", async ({ ext }) => {
     const page = await ext.open("/");
     await toSlowPage(ext, page, false);
-    await expect.poll(async () => (await posterNow(page))?.name).toBe("poster-rest");
-    const a = (await posterNow(page))!;
-    await page.waitForTimeout(400);
-    expect((await posterNow(page))!.transform).not.toBe(a.transform);
-  });
-
-  test("it holds still for a visitor who asks for reduced motion", async ({ ext }) => {
-    const page = await ext.open("/");
-    await page.emulateMedia({ reducedMotion: "reduce" });
-    await toSlowPage(ext, page, true);
-    expect(await posterNow(page)).toMatchObject({ name: "none", transform: "none" });
+    await holdsStill(page);
   });
 });

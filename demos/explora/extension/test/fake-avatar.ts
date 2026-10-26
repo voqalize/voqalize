@@ -18,12 +18,13 @@ const POLL_MS = 23;
 /** How long after it is made the face starts listening. */
 const ATTACH_MS = 300;
 
-/** One thing the face heard: an avatar command (with its context and the
- *  first cue's offset), or a speaking event. */
+/** One thing the face heard: an avatar command (with its context, the
+ *  first cue's offset and a sync's place in the reply), or a speaking event. */
 interface FaceSaw {
   what: string;
   ctx?: string;
   from_ms?: number;
+  at_ms?: number;
 }
 
 /** One read of the mouth clock: when (epoch ms), and the delivery it saw. */
@@ -52,8 +53,8 @@ export function createAvatar(opts: { mount: HTMLElement; client: PipecatClient; 
   const seen: Record<string, number> = {};
   const saw: FaceSaw[] = ((window as unknown as { __faceSaw?: FaceSaw[] }).__faceSaw = []);
   const heard = (msg: unknown) => {
-    const m = (msg ?? {}) as { type?: string; cmd?: string; ctx?: string; from_ms?: number };
-    if (m.type === "avatar" && m.cmd) saw.push({ what: m.cmd, ctx: m.ctx, from_ms: m.from_ms });
+    const m = (msg ?? {}) as { type?: string; cmd?: string; ctx?: string; from_ms?: number; at_ms?: number };
+    if (m.type === "avatar" && m.cmd) saw.push({ what: m.cmd, ctx: m.ctx, from_ms: m.from_ms, at_ms: m.at_ms });
   };
   const attach = setTimeout(() => {
     for (const name of ["botStartedSpeaking", "botStoppedSpeaking", "connected", "botReady", "serverMessage"]) {
