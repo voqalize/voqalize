@@ -12,15 +12,19 @@ Sources: ssilva.cl project page /mirahuechuraba/, cotizar page /proyectos/cotiza
 - Profile: Para invertir, Para vivir.
 - Description (TU DEPTO CON PATIO PRIVADO): TU DEPTO CON PATIO PRIVADO Mira Huechuraba es tener un departamento cómodo y espacioso para tu familia, con un jardín privado a pasos de tu puerta. La arquitectura de los departamentos plantea continuidad en los ambientes de manera de generar un lugar de encuentro. Espacios integrados, de circulación amable y listos para disfrutar, con un diseño actual de gran categoria.
 - Tipologías on the page: 2D | 2B / 3D | 2B / 3D | 2B + ESTAR
-- Units on the cotizar page (by typology):
+- Each typology on the project page, as its typology section shows it when selected (what the visitor reads beside the plan; quote this on that page):
+  - 2D | 2B: desde 4.072 UF, área total 71.4 m², área útil 65.3 m²
+  - 3D | 2B: desde 4.193 UF, área total 82.3 m², área útil 76.2 m²
+  - 3D | 2B + ESTAR: desde 4.193 UF, área total 97.6 m², área útil 89.9 m²
+- Units on the cotizar page (by typology; the cotizar page's own prices, which can differ from the project page's):
   - 2D|2B: 1 unidades, desde 4.977 UF, total 71.3 m², orientación Norte
-  - 3D|2B: 5 unidades, desde 5.201 UF hasta 5.873 UF, total 86.8–94.2 m², orientación Oriente, Poniente, Sur
-  - 3D|2B+Estar: 9 unidades, desde 5.845 UF hasta 8.562 UF, total 97.6–107.9 m², orientación Norte, Oriente, Sur
+  - 3D|2B: 5 unidades, desde 5.201 UF hasta 5.873 UF, total 86.8 to 94.2 m², orientación Oriente, Poniente, Sur
+  - 3D|2B+Estar: 9 unidades, desde 5.845 UF hasta 8.562 UF, total 97.6 to 107.9 m², orientación Norte, Oriente, Sur
 - Amenities section title: ESPACIOS PARA DISFRUTAR
 - Gallery: 9 photos.
 - Virtual tour on the page: no.
 - Quote form on the page: yes.
-- Sections, top to bottom: TU DEPTO CON PATIO PRIVADO; Galería [galería]; Tipologías que se adaptan a tus necesidades [tipologías]; ESPACIOS PARA DISFRUTAR [amenidades]; Estado del proyecto [estado]; Brochure [brochure]; ¿Te interesó este proyecto? [contacto]
+- Sections, top to bottom: TU DEPTO CON PATIO PRIVADO; Galería [galería]; Tipologías que se adaptan a tus necesidades [tipologías]; ESPACIOS PARA DISFRUTAR [amenidades]; Estado del proyecto [estado]; BROCHURE [brochure]; ¿Te interesó este proyecto? Contáctanos [contacto]
 - Horario de atención: LUNES A DOMINGO DE 11:00 A 14:00 Y DE 15:00 A 19:00 HRS
 - Phone: +569 4229 9025. Email: mirahuechuraba@ssilva.cl.
 - Sala de ventas / contact address: Av. Sta. Marta de Huechuraba 7455, Huechuraba, Región Metropolitana

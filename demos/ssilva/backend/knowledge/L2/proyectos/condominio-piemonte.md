@@ -10,14 +10,23 @@ Sources: ssilva.cl project page /piemontechicureo/, cotizar page /proyectos/coti
 - Estado (list): Inicio de obras.
 - Profile: Para invertir, Para vivir.
 - Hero also says: PAGA EL SALDO DEL PIE HASTA EN 60 CUOTAS info PAGA SÓLO EL 5% DE PIE info
-- Description (EXCLUSIVO TOWNHOUSE CHICUREO PIEMONTE TOWNHOUSE): EXCLUSIVO TOWNHOUSE CHICUREO PIEMONTE TOWNHOUSE ha sido desarrollado bajo un concepto de espacios abiertos en perfecta armonía con un entorno único, para que puedas vivir la naturaleza. Departamentos que privilegian los detalles, fusionando la arquitectura moderna, de líneas simples, integrando el entorno de la manera más noble, para así, ser parte del paisaje con total libertad. Visítanos en Av. El Valle 11200, Chicureo, Colina, Región Metropolitana
+- Description (EXCLUSIVO TOWNHOUSE CHICUREO): EXCLUSIVO TOWNHOUSE CHICUREO PIEMONTE TOWNHOUSE ha sido desarrollado bajo un concepto de espacios abiertos en perfecta armonía con un entorno único, para que puedas vivir la naturaleza. Departamentos que privilegian los detalles, fusionando la arquitectura moderna, de líneas simples, integrando el entorno de la manera más noble, para así, ser parte del paisaje con total libertad. Visítanos en Av. El Valle 11200, Chicureo, Colina, Región Metropolitana
 - Tipologías on the page: 2D | 2B / 3D | 2B / 3D | 2B PENTHOUSE / 3D | 2B LOFT
-- The cotizar page lists no units: quote from the typology section's price on the project page.
+- Each typology on the project page, as its typology section shows it when selected (what the visitor reads beside the plan; quote this on that page):
+  - 2D | 2B: desde 7.741 UF, área total 99.01 m², área útil 80.57 m²
+  - 3D | 2B: desde 8.587 UF, área total 111.79 m², área útil 95.46 m²
+  - 3D | 2B PENTHOUSE: desde 8.587 UF, área total 166.53 m², área útil 95.42 m²
+  - 3D | 2B LOFT: desde 8.587 UF, área total 153.99 m², área útil 121.05 m²
+- Units on the cotizar page (by typology; the cotizar page's own prices, which can differ from the project page's):
+  - 2D|2B: 18 unidades, desde 8.148 UF hasta 9.566 UF, total 99.01 to 105.35 m², orientación Norte, Oriente, Sur
+  - 3D|2B: 3 unidades, desde 9.039 UF hasta 10.378 UF, total 111.79 to 117.14 m², orientación Norte, Sur
+  - PENTHOUSE 3D|2B: 2 unidades, desde 10.903 UF hasta 11.010 UF, total 166.53 to 166.57 m², orientación Norte, Sur
+  - LOFT 3D|2B: 12 unidades, desde 11.411 UF hasta 12.647 UF, total 153.73 to 162.33 m², orientación Oriente, Sur
 - Amenities section title: INCREÍBLES ESPACIOS
 - Gallery: 4 photos.
 - Virtual tour on the page: yes.
 - Quote form on the page: yes.
-- Sections, top to bottom: EXCLUSIVO TOWNHOUSE CHICUREO PIEMONTE TOWNHOUSE; Galería [galería]; Tipologías que se adaptan a tus necesidades [tipologías]; INCREÍBLES ESPACIOS [amenidades]; Brochure [brochure]; ¿Te interesó este proyecto? [contacto]; Recorre los espacios desde donde estés [tour]
+- Sections, top to bottom: EXCLUSIVO TOWNHOUSE CHICUREO; Galería [galería]; Tipologías que se adaptan a tus necesidades [tipologías]; INCREÍBLES ESPACIOS [amenidades]; CONOCE EL ESTADO DEL PROYECTO; Brochure [brochure]; ¿Te interesó este proyecto? Contáctanos [contacto]; Recorre los espacios desde donde estés [tour]
 - Horario de atención: LUNES 15:00 A 18:00 HRS - MAR, MIÉ, VIE, SÁB Y DOM: 11:00 A 14:00 Y 15:00 A 18:00 HRS - JUEVES CERRADO
 - Phone: +56 9 4276 0844. Email: piemonte@ssilva.cl.
 - Sala de ventas / contact address: Av. El Valle 11200, Chicureo, Colina, Región Metropolitana

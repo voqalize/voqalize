@@ -206,7 +206,7 @@
     "key": ""
    },
    {
-    "heading": "Tipologías que se adaptan a tus necesidades",
+    "heading": "TIPOLOGIAS QUE SE ADAPTAN A TUS NECESIDADES",
     "key": "tipologías"
    },
    {
@@ -214,11 +214,11 @@
     "key": "estado"
    },
    {
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "key": "brochure"
    },
    {
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "¡Te gustó este proyecto? ¡Contáctanos!",
     "key": "contacto"
    }
   ],
@@ -248,7 +248,7 @@
   "project": "condominio-piemonte",
   "sections": [
    {
-    "heading": "EXCLUSIVO TOWNHOUSE CHICUREO PIEMONTE TOWNHOUSE",
+    "heading": "EXCLUSIVO TOWNHOUSE CHICUREO",
     "key": ""
    },
    {
@@ -264,11 +264,15 @@
     "key": "amenidades"
    },
    {
+    "heading": "CONOCE EL ESTADO DEL PROYECTO",
+    "key": ""
+   },
+   {
     "heading": "Brochure",
     "key": "brochure"
    },
    {
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "¿Te interesó este proyecto? Contáctanos",
     "key": "contacto"
    },
    {
@@ -318,8 +322,20 @@
     "key": "amenidades"
    },
    {
-    "heading": "Brochure",
+    "heading": "CONOCE EL ESTADO DEL PROYECTO",
+    "key": ""
+   },
+   {
+    "heading": "¿QUÉ DEBO TENER PARA COMPRAR?",
+    "key": ""
+   },
+   {
+    "heading": "BROCHURE",
     "key": "brochure"
+   },
+   {
+    "heading": "Documentos del proyecto que te podrían interesar",
+    "key": ""
    },
    {
     "heading": "¿Te interesó este proyecto?",
@@ -356,7 +372,7 @@
     "key": ""
    },
    {
-    "heading": "Galería",
+    "heading": "GRANDES DEPARTAMENTOS",
     "key": "galería"
    },
    {
@@ -372,11 +388,11 @@
     "key": "estado"
    },
    {
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "key": "brochure"
    },
    {
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "¿TE INTERESÓ ESTE PROYECTO? CONTÁCTANOS",
     "key": "contacto"
    }
   ],
@@ -426,11 +442,11 @@
     "key": "estado"
    },
    {
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "key": "brochure"
    },
    {
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "¿Te interesó este proyecto? Contáctanos",
     "key": "contacto"
    }
   ],
@@ -468,11 +484,11 @@
     "key": "galería"
    },
    {
-    "heading": "Tipologías que se adaptan a tus necesidades",
+    "heading": "TIPOLOGIAS QUE SE ADAPTAN A TUS NECESIDADES",
     "key": "tipologías"
    },
    {
-    "heading": "Recorre los espacios desde donde estés",
+    "heading": "RECORRE LOS ESPACIOS DESDE DONDE ESTÉS",
     "key": "tour"
    },
    {
@@ -526,11 +542,11 @@
     "key": "galería"
    },
    {
-    "heading": "Tipologías que se adaptan a tus necesidades",
+    "heading": "TIPOLOGIAS QUE SE ADAPTAN A TUS NECESIDADES",
     "key": "tipologías"
    },
    {
-    "heading": "Recorre los espacios desde donde estés",
+    "heading": "RECORRE LOS ESPACIOS DESDE DONDE ESTÉS",
     "key": "tour"
    },
    {
@@ -584,7 +600,7 @@
     "key": ""
    },
    {
-    "heading": "Galería",
+    "heading": "INCREÍBLES ESPACIOS PARA DISFRUTAR",
     "key": "galería"
    },
    {
@@ -592,7 +608,7 @@
     "key": "tipologías"
    },
    {
-    "heading": "Recorre los espacios desde donde estés",
+    "heading": "TOUR VIRTUAL",
     "key": "tour"
    },
    {
@@ -600,8 +616,16 @@
     "key": "estado"
    },
    {
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "CONTÁCTANOS",
     "key": "contacto"
+   },
+   {
+    "heading": "TRABAJAMOS CON LAS MEJORES MARCAS",
+    "key": ""
+   },
+   {
+    "heading": "TRABAJAMOS CON LAS MEJORES MARCAS",
+    "key": ""
    }
   ],
   "text": "TU NUEVO HOGAR CON LA AMPLITUD QUE SUEÑAS Millalongo 72 es un Edificio de sólo 8 pisos, que ofrece amplios estudios y departamentos de 2 dormitorios, en donde cada detalle ha sido cuidadosamente planeado para ofrecer una experiencia residencial, en donde destacan las entradas de luz natural, la seguridad y la distribución de los espacios."
@@ -650,16 +674,24 @@
     "key": "estado"
    },
    {
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "key": "brochure"
    },
    {
-    "heading": "Ubicación",
+    "heading": "DOCUMENTOS QUE TE PODRÍAN INTERESAR",
     "key": ""
    },
    {
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "UBICADO EN UN BARRIO FAMILIAR",
+    "key": ""
+   },
+   {
+    "heading": "¿Te interesó este proyecto? Contáctanos",
     "key": "contacto"
+   },
+   {
+    "heading": "NUESTRAS ALIANZAS",
+    "key": ""
    }
   ],
   "text": "UN PROYECTO A TU ALTURA Proyecto VISTA LA FLORIDA cuenta con 9 pisos que ofrecen una vida en comunidad y una vista insuperable que marca la diferencia con otros proyectos en la comuna. Disfruta tu departamento con facilities completamente equipadas junto a tu familia y amigos."
@@ -696,7 +728,7 @@
     "key": "galería"
    },
    {
-    "heading": "Tipologías que se adaptan a tus necesidades",
+    "heading": "TIPOLOGIAS QUE SE ADAPTAN A TUS NECESIDADES",
     "key": "tipologías"
    },
    {
@@ -750,7 +782,7 @@
     "key": "galería"
    },
    {
-    "heading": "Tipologías que se adaptan a tus necesidades",
+    "heading": "TIPOLOGIAS QUE SE ADAPTAN A TUS NECESIDADES",
     "key": "tipologías"
    },
    {
@@ -762,11 +794,11 @@
     "key": "estado"
    },
    {
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "key": "brochure"
    },
    {
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "¿Te interesó este proyecto? Contáctanos",
     "key": "contacto"
    }
   ],
@@ -796,7 +828,7 @@
   "project": "apoquindo-moro",
   "sections": [
    {
-    "heading": "APOQUINDO MORO APOQUINDO MORO",
+    "heading": "APOQUINDO MORO",
     "key": ""
    },
    {
@@ -812,7 +844,7 @@
     "key": "amenidades"
    },
    {
-    "heading": "Estado del proyecto",
+    "heading": "ESTADO EL PROYECTO",
     "key": "estado"
    },
    {
@@ -820,7 +852,7 @@
     "key": "brochure"
    },
    {
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "¿Te interesó este proyecto? Contáctanos",
     "key": "contacto"
    }
   ],
@@ -862,7 +894,7 @@
     "key": "tipologías"
    },
    {
-    "heading": "Recorre los espacios desde donde estés",
+    "heading": "RECORRE LOS ESPACIOS SIN SALIR DE CASA",
     "key": "tour"
    },
    {
@@ -874,11 +906,11 @@
     "key": "estado"
    },
    {
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "key": "brochure"
    },
    {
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "Contáctanos",
     "key": "contacto"
    }
   ],
@@ -924,11 +956,11 @@
     "key": "amenidades"
    },
    {
-    "heading": "Estado del proyecto",
+    "heading": "ESTADO EL PROYECTO",
     "key": "estado"
    },
    {
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "key": "brochure"
    },
    {
@@ -982,11 +1014,11 @@
     "key": "estado"
    },
    {
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "key": "brochure"
    },
    {
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "¿TE INTERESÓ ESTE PROYECTO? CONTÁCTANOS",
     "key": "contacto"
    }
   ],
@@ -1028,15 +1060,19 @@
     "key": "tipologías"
    },
    {
-    "heading": "Ubicación",
+    "heading": "UNA EXTRAORDINARIA UBICACIÓN EN SANTIAGO CON GRAN CONECTIVIDAD",
     "key": ""
    },
    {
-    "heading": "Brochure",
+    "heading": "Estado actual del proyecto",
+    "key": ""
+   },
+   {
+    "heading": "BROCHURE",
     "key": "brochure"
    },
    {
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "¿Te interesó el proyecto? Contáctanos",
     "key": "contacto"
    }
   ],
@@ -1099,11 +1135,15 @@
     "key": "amenidades"
    },
    {
-    "heading": "Brochure",
+    "heading": "ESTADO DEL PROYECTO",
+    "key": ""
+   },
+   {
+    "heading": "BROCHURE",
     "key": "brochure"
    },
    {
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "Contáctanos",
     "key": "contacto"
    }
   ],
@@ -1149,15 +1189,15 @@
     "key": "amenidades"
    },
    {
-    "heading": "Estado del proyecto",
+    "heading": "CONOCE EL ESTADO DEL PROYECTO",
     "key": "estado"
    },
    {
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "key": "brochure"
    },
    {
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "¿Te interesó este proyecto? Contáctanos",
     "key": "contacto"
    }
   ],
@@ -1207,11 +1247,11 @@
     "key": "estado"
    },
    {
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "key": "brochure"
    },
    {
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "¿Te interesó este proyecto? Contáctanos",
     "key": "contacto"
    }
   ],
@@ -1249,7 +1289,7 @@
     "key": "galería"
    },
    {
-    "heading": "Tipologías que se adaptan a tus necesidades",
+    "heading": "TIPOLOGIAS QUE SE ADAPTAN A TUS NECESIDADES",
     "key": "tipologías"
    },
    {
@@ -1257,15 +1297,15 @@
     "key": "amenidades"
    },
    {
-    "heading": "Estado del proyecto",
+    "heading": "ESTADO DEL PROYECTO",
     "key": "estado"
    },
    {
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "key": "brochure"
    },
    {
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "¿Te interesó este proyecto? Contáctanos",
     "key": "contacto"
    }
   ],
@@ -1303,7 +1343,7 @@
     "key": "galería"
    },
    {
-    "heading": "Tipologías que se adaptan a tus necesidades",
+    "heading": "TIPOLOGIAS QUE SE ADAPTAN A TUS NECESIDADES",
     "key": "tipologías"
    },
    {
@@ -1361,7 +1401,7 @@
     "key": "tipologías"
    },
    {
-    "heading": "Recorre los espacios desde donde estés",
+    "heading": "RECORRE LOS ESPACIOS DESDE DONDE ESTÉS",
     "key": "tour"
    },
    {
@@ -1369,11 +1409,11 @@
     "key": "amenidades"
    },
    {
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "key": "brochure"
    },
    {
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "¿Te interesó este proyecto? Contáctanos",
     "key": "contacto"
    }
   ],
@@ -1411,7 +1451,7 @@
     "key": "tipologías"
    },
    {
-    "heading": "Galería",
+    "heading": "AMPLIOS DEPARTAMENTOS",
     "key": "galería"
    },
    {
@@ -1419,15 +1459,15 @@
     "key": "amenidades"
    },
    {
-    "heading": "Ubicación",
+    "heading": "CONECTIVIDAD",
     "key": ""
    },
    {
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "key": "brochure"
    },
    {
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "¿Te interesó este proyecto? Contáctanos",
     "key": "contacto"
    }
   ],
@@ -1477,11 +1517,11 @@
     "key": "estado"
    },
    {
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "key": "brochure"
    },
    {
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "¿Te interesó este proyecto? Contáctanos",
     "key": "contacto"
    }
   ],
@@ -1519,7 +1559,7 @@
     "key": "galería"
    },
    {
-    "heading": "Tipologías que se adaptan a tus necesidades",
+    "heading": "TIPOLOGIAS QUE SE ADAPTAN A TUS NECESIDADES",
     "key": "tipologías"
    },
    {
@@ -1531,11 +1571,11 @@
     "key": "estado"
    },
    {
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "key": "brochure"
    },
    {
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "¿Te interesó este proyecto? Contáctanos",
     "key": "contacto"
    }
   ],
@@ -1585,11 +1625,11 @@
     "key": "estado"
    },
    {
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "key": "brochure"
    },
    {
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "¿Te interesó este proyecto? Contáctanos",
     "key": "contacto"
    }
   ],
@@ -1627,7 +1667,7 @@
     "key": "galería"
    },
    {
-    "heading": "Tipologías que se adaptan a tus necesidades",
+    "heading": "TIPOLOGIAS QUE SE ADAPTAN A TUS NECESIDADES",
     "key": "tipologías"
    },
    {
@@ -1635,11 +1675,11 @@
     "key": "amenidades"
    },
    {
-    "heading": "Estado del proyecto",
+    "heading": "ESTADO DEL PROYECTO",
     "key": "estado"
    },
    {
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "key": "brochure"
    },
    {
@@ -1685,7 +1725,7 @@
     "key": "tipologías"
    },
    {
-    "heading": "Recorre los espacios desde donde estés",
+    "heading": "RECORRE LOS ESPACIOS DESDE DONDE ESTÉS",
     "key": "tour"
    },
    {
@@ -1697,11 +1737,11 @@
     "key": "estado"
    },
    {
-    "heading": "Brochure",
+    "heading": "BROCHURE",
     "key": "brochure"
    },
    {
-    "heading": "¿Te interesó este proyecto?",
+    "heading": "¿TE INTERESÓ ESTE PROYECTO?",
     "key": "contacto"
    }
   ],

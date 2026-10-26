@@ -12,15 +12,20 @@ Sources: ssilva.cl project page /edificio-santa-victoria-155/, cotizar page /pro
 - Hero also says: ENTREGA INMEDIATA VISITA SALA DE VENTAS
 - Description (ESPACIOS AMPLIOS, LUMINOSOS Y FUNCIONALES): ESPACIOS AMPLIOS, LUMINOSOS Y FUNCIONALES En una ubicación privilegiada de la comuna de Santiago se encuentra el edificio Santa Victoria 155, emplazado en un sector residencial, tranquilo y bien conectado: a pasos del Parque Bustamante, la estación de metro Santa Isabel y cercano a importantes avenidas para llegar rápidamente a malls, bancos, cines, restaurantes y todo tipo de servicios. Descubre este atractivo proyecto de gran plusvalía al mejor precio por m².
 - Tipologías on the page: ESTUDIO / 1D | 1B / 2D | 2B / TWINS
-- Units on the cotizar page (by typology):
-  - 1 DORM: 49 unidades, desde 2.899 UF hasta 5.679 UF, total 43.17–79.31 m², orientación Norte, Oriente, Poniente, Sur
-  - 2 DORMS: 14 unidades, desde 4.449 UF hasta 5.906 UF, total 62.21–75.02 m², orientación Oriente, Poniente, Sur
+- Each typology on the project page, as its typology section shows it when selected (what the visitor reads beside the plan; quote this on that page):
+  - ESTUDIO: desde 2.599 UF, área total 35.91 m², área útil 31.31 m²
+  - 1D | 1B: desde 3.053 UF, área total 43.31 m², área útil 38.92 m²
+  - 2D | 2B: desde 4.449 UF, área total 73.28 m², área útil 62.28 m²
+  - TWINS: desde 6.615 UF, área total 116.15 m², área útil 98.3 m²
+- Units on the cotizar page (by typology; the cotizar page's own prices, which can differ from the project page's):
+  - 1 DORM: 49 unidades, desde 2.899 UF hasta 5.679 UF, total 43.17 to 79.31 m², orientación Norte, Oriente, Poniente, Sur
+  - 2 DORMS: 14 unidades, desde 4.449 UF hasta 5.906 UF, total 62.21 to 75.02 m², orientación Oriente, Poniente, Sur
   - 2 DORMS EN 1: 3 unidades, desde 7.190 UF hasta 7.281 UF, total 116.15 m², orientación NS
   - ESTUDIO: 1 unidades, desde 3.158 UF, total 35.93 m², orientación Norte
 - Gallery: 8 photos.
 - Virtual tour on the page: no.
 - Quote form on the page: yes.
-- Sections, top to bottom: ESPACIOS AMPLIOS, LUMINOSOS Y FUNCIONALES; Galería [galería]; Tipologías que se adaptan a tus necesidades [tipologías]; Ubicación; Brochure [brochure]; ¿Te interesó este proyecto? [contacto]
+- Sections, top to bottom: ESPACIOS AMPLIOS, LUMINOSOS Y FUNCIONALES; Galería [galería]; Tipologías que se adaptan a tus necesidades [tipologías]; UNA EXTRAORDINARIA UBICACIÓN EN SANTIAGO CON GRAN CONECTIVIDAD; Estado actual del proyecto; BROCHURE [brochure]; ¿Te interesó el proyecto? Contáctanos [contacto]
 - Horario de atención: LUNES A DOMINGO DE 10:00 A 19:00 HRS HRS. HORARIO CONTINUADO
 - Phone: +569 3259 3048 | +569 9945 2273. Email: santavictoria155@ssilva.cl.
 - Sala de ventas / contact address: Sta Victoria 155, Santiago, a pasos de Vicuña Mackenna, Barrio Italia

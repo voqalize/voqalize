@@ -355,6 +355,17 @@ class Units:
 
 
 @dataclass(frozen=True)
+class PagePrice:
+    """One typology as its project page shows it once selected: the price and
+    areas beside its floor plan."""
+
+    typology: str
+    desde_uf: float
+    total_m2: float | None = None
+    useful_m2: float | None = None
+
+
+@dataclass(frozen=True)
 class Project:
     slug: str
     name: str
@@ -388,6 +399,27 @@ class Project:
     email: str = ""
     hours: str = ""
     units: tuple[Units, ...] = ()
+    page_prices: tuple[PagePrice, ...] = ()
+    """Each typology's price on the project page, from the crawl: what the
+    visitor reads beside the plan, which can differ from the list's desde and
+    from the cotizar page's units."""
+
+    def bedroom_prices(self, dormitorios: int) -> tuple[PagePrice, ...]:
+        """The page's typologies with ``dormitorios`` bedrooms ("2D | 2B",
+        "2D | 1B"; 0 is the estudio), cheapest first."""
+
+        def rooms(label: str) -> int | None:
+            if "estudio" in fold(label):
+                return 0
+            m = re.match(r"\s*(\d+)\s*d", fold(label))
+            return int(m.group(1)) if m else None
+
+        return tuple(
+            sorted(
+                (t for t in self.page_prices if rooms(t.typology) == dormitorios),
+                key=lambda t: t.desde_uf,
+            )
+        )
 
     def line(self) -> str:
         """One line of a result list, in the site's words."""
@@ -404,9 +436,31 @@ class Project:
         return " · ".join(p for p in parts if p)
 
 
-def format_uf(n: int | None) -> str:
-    """``13976`` → ``13.976``, as the site writes it."""
-    return "" if n is None else f"{n:,}".replace(",", ".")
+def format_uf(n: float | None) -> str:
+    """``13976`` → ``13.976``, ``4977.13`` → ``4.977,13``: as the site writes it."""
+    if n is None:
+        return ""
+    whole = int(n)
+    text = f"{whole:,}".replace(",", ".")
+    if n != whole:
+        text += "," + f"{n:.2f}".split(".")[1].rstrip("0")
+    return text
+
+
+def number_of(text: str | None) -> float | None:
+    """A number as the site, or Chrome's translation of it, writes it:
+    ``2.582`` and ``2,582`` are 2582, ``107,06`` and ``107.06`` are 107.06,
+    ``4.977.13`` is 4977.13. A separator before exactly three digits groups
+    thousands; before one or two, it is the decimal point."""
+    m = re.search(r"\d[\d.,]*", text or "")
+    if not m:
+        return None
+    digits = m.group(0).rstrip(".,")
+    last = max(digits.rfind("."), digits.rfind(","))
+    if last != -1 and len(digits) - last - 1 in (1, 2):
+        whole = re.sub(r"[.,]", "", digits[:last])
+        return float(f"{whole}.{digits[last + 1 :]}")
+    return float(re.sub(r"[.,]", "", digits))
 
 
 @dataclass(frozen=True)
@@ -787,6 +841,10 @@ def _strs(value: Any) -> tuple[str, ...]:
     return tuple(_str(v) for v in cast(list[Any], value) if _str(v))
 
 
+def _float(value: Any) -> float | None:
+    return float(value) if isinstance(value, int | float) and not isinstance(value, bool) else None
+
+
 def _int(value: Any) -> int | None:
     return int(value) if isinstance(value, int | float) and not isinstance(value, bool) else None
 
@@ -864,6 +922,16 @@ def _project(raw: dict[str, Any]) -> Project | None:
         email=_str(raw.get("email")),
         hours=_str(raw.get("hours")),
         units=tuple(units),
+        page_prices=tuple(
+            PagePrice(
+                _str(t.get("typology")),
+                float(t["desde_uf"]),
+                _float(t.get("total_m2")),
+                _float(t.get("useful_m2")),
+            )
+            for t in cast(list[Any], raw.get("page_prices") or [])
+            if isinstance(t, dict) and isinstance(t.get("desde_uf"), int | float)  # type: ignore[union-attr]
+        ),
     )
 
 
@@ -909,6 +977,7 @@ __all__ = [
     "Hit",
     "Knowledge",
     "Page",
+    "PagePrice",
     "Project",
     "Section",
     "Topic",
@@ -920,6 +989,7 @@ __all__ = [
     "load",
     "match_typology",
     "norm",
+    "number_of",
     "perfil_of",
     "property_of",
     "region_of",

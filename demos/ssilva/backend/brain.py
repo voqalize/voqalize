@@ -97,6 +97,7 @@ from .app_events import (
     LanguageRequested,
     LeadFormState,
     LeadSubmitted,
+    ListedCard,
     PageChanged,
     PhotoShown,
     ProjectsListed,
@@ -115,7 +116,9 @@ from .knowledge import (
     Project,
     canonical_path,
     fold,
+    format_uf,
     match_typology,
+    number_of,
     property_of,
     region_of,
     site_path,
@@ -408,9 +411,72 @@ def number_words(n: int, lang: Lang) -> str:
     return " ".join(out)
 
 
-def uf_words(n: int | None, lang: Lang) -> str:
+def amount_words(n: float, lang: Lang) -> str:
+    """``4977.13`` → "cuatro mil novecientas setenta y siete coma trece" /
+    "four thousand nine hundred seventy-seven point one three"; a whole
+    number as :func:`number_words` says it."""
+    whole = int(n)
+    said = number_words(whole, lang)
+    cents = round((n - whole) * 100)
+    if not cents:
+        return said
+    tail = f"{cents:02d}".rstrip("0") if cents % 10 == 0 else f"{cents:02d}"
+    if lang == "es":
+        # "coma cero cinco", "coma trece", "coma cinco".
+        lead = "cero " if tail.startswith("0") else ""
+        return f"{said} coma {lead}{_es_below_1000(int(tail)) if int(tail) else 'cero'}"
+    digits = " ".join(_EN_UNITS[int(d)] if d != "0" else "zero" for d in tail)
+    return f"{said} point {digits}"
+
+
+def uf_words(n: float | None, lang: Lang) -> str:
     """A price in UF as he says it: "trece mil novecientas setenta y seis UF"."""
-    return "" if n is None else f"{number_words(n, lang)} UF"
+    return "" if n is None else f"{amount_words(n, lang)} UF"
+
+
+def uf_said(shown: str, lang: Lang) -> str:
+    """A price as the page shows it ("Desde 2.582 UF", or "FROM 2,582 UF"
+    through Chrome's translation), as the site writes it and as he says it:
+    'Desde 2.582 UF (say: "dos mil quinientas ochenta y dos UF")'."""
+    value = number_of(shown)
+    if value is None:
+        return shown
+    desde = re.match(r"\s*(desde|from)\b", shown, re.IGNORECASE)
+    return f'{"Desde " if desde else ""}{format_uf(value)} UF (say: "{uf_words(value, lang)}")'
+
+
+#: A price in digits followed by UF: "2.582 UF", "9,786 UF", "4.977,13 UF".
+_UF_DIGITS = re.compile(r"(?<![\w.,])(\d{1,3}(?:[.,]\d{3})+|\d+)(?:[.,](\d{1,2}))?(?=\s*UF\b)")
+#: The end of a chunk that may be a price cut in two: "dos mil 2.5", "2.582 U".
+_UF_TAIL = re.compile(r"\d[\d.,]*\s*U?$")
+
+
+class UfWords:
+    """The voice's backstop for a price written in digits: "2.582 UF" is said
+    "dos mil quinientas ochenta y dos UF", never "two point five eight two".
+    The prompt asks for words; this catches a reply that forgot, including a
+    price split across the model's chunks."""
+
+    def __init__(self) -> None:
+        self._tail = ""
+
+    def feed(self, text: str, lang: Lang) -> str:
+        text = self._tail + text
+        m = _UF_TAIL.search(text)
+        self._tail = text[m.start() :] if m else ""
+        return self._worded(text[: m.start()] if m else text, lang)
+
+    def flush(self, lang: Lang) -> str:
+        out, self._tail = self._tail, ""
+        return self._worded(out, lang)
+
+    @staticmethod
+    def _worded(text: str, lang: Lang) -> str:
+        def said(m: re.Match[str]) -> str:
+            value = number_of(m.group(0))
+            return m.group(0) if value is None else amount_words(value, lang)
+
+        return _UF_DIGITS.sub(said, text)
 
 
 # ─── Actions (brain → page) ────────────────────────────────────────────────────
@@ -821,7 +887,15 @@ Write your answer, with its cues, first; any action call comes at the end of the
 
 # What you know
 - Every fact — a price, a typology, a size, a status, an address, hours, a phone, a payment offer — comes from the knowledge below, a project or guide you read, or what the screen reported. Never from memory. If you cannot find it, say so, and offer the project's sales executive on WhatsApp or by phone.
-- The roster's prices are the list's "desde". On a project page the screen line gives the hero's price and the selected typology's price: quote the page in front.
+- The roster's prices are the list's "desde": each project's cheapest unit.
+
+# Say what is on their screen
+The visitor reads their screen while you talk. A name or a number you say about it must be the one they are reading.
+- A price or a name you say about what is on screen comes from the screen line in square brackets, exactly, said as its "say:" gives it: a card on the list ("card price"), a project page's hero ("the project's desde"), a typology beside its plan ("its price beside the plan"). The screen line wins over the roster and over anything you read.
+- Say which price it is. A project's "desde" is its cheapest unit: "parte en…", "starts at…". A typology's price is that layout's: "este de dos dormitorios parte en…", "this two bedroom layout starts at…". Never give a project's desde as the price of a number of bedrooms: for two bedrooms, give the two-bedroom typology's price from find_projects (with dormitorios), read_project or the screen, or say the project starts at its desde with its smallest units.
+- Say a project's name as the roster or its card writes it, in Spanish, in an English reply too: "Los Navegantes", never "The Navigators"; "Distrito Barroso", never "Barroso District".
+- On a filtered list, talk about the projects its cards show. One that is not on it is in another comuna: say so, and open its page rather than ring its card.
+- The roster and the reads are for what is not on their screen.
 - You do not give financial advice or promise a mortgage, a rate or a subsidy. You explain what the site says and offer the executive.
 - Guides you can read with read_topic:
 {_topics(k)}
@@ -856,7 +930,7 @@ You (after find_projects): "Hay cuatro en Viña del Mar. {{show: Isla Picton}} I
 Visitor: "Para vivir. Muéstrame Canal Beagle."
 You: "{{page: /canalbeagle/}} Te abro Canal Beagle. Está en Isla Melinka doscientos veinte, en Viña del Mar. {{show: Desde 3.654 UF}} Parte en tres mil seiscientas cincuenta y cuatro UF. {{show: tipologías}} Tiene departamentos de dos y tres dormitorios. {{show: amenidades}} Arriba hay una terraza panorámica y un lounge bar. ¿Te muestro la tipología de dos dormitorios?"
 Visitor: "Sí."
-You: "{{plan: 2D | 2B}} Este es el de dos dormitorios y dos baños. A la izquierda ves la planta. Las unidades de esta tipología parten en cuatro mil quinientas veintitrés UF. ¿Quieres que te ayude a cotizarlo?"
+You: "{{plan: 2D | 2B}} Este es el de dos dormitorios y dos baños. A la izquierda ves la planta. Este de dos dormitorios parte en cuatro mil quinientas veintitrés UF. ¿Quieres que te ayude a cotizarlo?"
 Visitor: "Muéstrame el plano en grande."
 You: "{{plan: 2D | 2B}} Aquí tienes la planta en pantalla completa. Los dos dormitorios quedan a cada lado del living. ¿Seguimos con las amenidades?" then show_floor_plan with typology 2D | 2B.
 Visitor: "¿Y las fotos?"
@@ -1647,6 +1721,12 @@ class SsilvaBrain(GeminiBrain):
         #: form as it last reported itself.
         self.typology: TypologyShown | None = None
         self.listed: ProjectsListed | None = None
+        #: Prices the visitor's screen has shown this call: each project's
+        #: desde (its card on the list, its page's hero) and each typology's
+        #: price beside its plan. Where one differs from the crawl, the screen
+        #: is what he quotes.
+        self._screen_desde: dict[str, float] = {}
+        self._screen_typology: dict[tuple[str, str], float] = {}
         self.lead: LeadFormState | None = None
         #: What he has put on the form this call, and what he holds back until
         #: the form can take it (a project page; step two's options).
@@ -1909,13 +1989,26 @@ class SsilvaBrain(GeminiBrain):
                 yield out
 
     def _spelled(self, turn: AsyncGenerator[Speech, None]) -> AsyncGenerator[Speech, None]:
-        """``turn``, with Spanish speech spelled as the voice must read it."""
+        """``turn``, with speech spelled as the voice must read it: a price in
+        digits in words (:class:`UfWords`), and Spanish "video" as "bidéo"."""
+
+        def voiced(text: str) -> str:
+            return for_the_voice(text) if self.spoken == "es" else text
 
         async def spelled() -> AsyncGenerator[Speech, None]:
+            digits = UfWords()
             async for event in turn:
-                if isinstance(event, SpeechChunk) and self.spoken == "es":
-                    event = SpeechChunk(for_the_voice(event.text))
+                if isinstance(event, SpeechChunk):
+                    text = digits.feed(event.text, self.spoken)
+                    if text:
+                        yield SpeechChunk(voiced(text))
+                    continue
+                if rest := digits.flush(self.spoken):
+                    # A unit's start or end: what was held is said first.
+                    yield SpeechChunk(voiced(rest))
                 yield event
+            if rest := digits.flush(self.spoken):
+                yield SpeechChunk(voiced(rest))
 
         return spelled()
 
@@ -2266,6 +2359,8 @@ class SsilvaBrain(GeminiBrain):
                 self.page = event
                 self._path = canonical_path(event.path)
                 self._page_unseen = True
+                if event.kind == "project" and (value := number_of(event.price)) is not None:
+                    self._screen_desde[self._path] = value
                 # Read in with their next message or quiet spell: they may click
                 # on before they speak, and only the last page matters.
                 return None
@@ -2277,15 +2372,20 @@ class SsilvaBrain(GeminiBrain):
                 return None
             case TypologyShown():
                 self.typology = event
-                return f"[On screen: {_typology_line(event)}.]"
+                if (value := number_of(event.price)) is not None:
+                    self._screen_typology[(self._path, typology_key(event.label))] = value
+                return f"[On screen: {_typology_line(event, self.spoken)}.]"
             case ProjectsListed():
                 self.listed = event
+                for card in event.cards:
+                    if card.path and (value := number_of(card.price)) is not None:
+                        self._screen_desde[canonical_path(card.path)] = value
                 if event.count == 0:
                     self._talk_through(
                         "The project list on their screen shows no project for that filter. "
                         "Say so in one sentence and offer a nearby area or a wider search."
                     )
-                return f"[{_listed_line(event, self.kb)}]"
+                return f"[{_listed_line(event, self.kb, self.spoken)}]"
             case LeadFormState():
                 return self._lead_changed(event)
             case LeadSubmitted():
@@ -2423,7 +2523,7 @@ class SsilvaBrain(GeminiBrain):
         if not self._page_unseen or self.page is None:
             return
         self._page_unseen = False
-        self._note(_page_line(self.page, self.kb))
+        self._note(_page_line(self.page, self.kb, self.spoken))
 
     def _note(self, text: str) -> None:
         self.append_to_context(types.Content(role="user", parts=[types.Part(text=text)]))
@@ -2482,7 +2582,6 @@ class SsilvaBrain(GeminiBrain):
         """Filter Ssilva's projects by what the visitor wants: comuna or region,
         type, bedrooms, budget in UF, status, profile. Cheapest first."""
         found = self.kb.find_projects(**request.model_dump())
-        lang = self.spoken
         out: list[str] = []
         if found.unknown:
             comunas = sorted({p.comuna for p in self.kb.projects.values() if p.listed})
@@ -2502,8 +2601,7 @@ class SsilvaBrain(GeminiBrain):
             return "\n".join([*out, "No project matches."])
         out.append(f"{len(found.projects)} projects:")
         for p in found.projects[:_FOUND_SHOWN]:
-            said = f" (say: {uf_words(p.desde_uf, lang)})" if p.desde_uf else ""
-            out.append(f"- {p.line()}{said}")
+            out.append(f"- {self._found_line(p, request.dormitorios)}")
         if len(found.projects) > _FOUND_SHOWN:
             out.append(f"And {len(found.projects) - _FOUND_SHOWN} more.")
         return "\n".join(out)
@@ -2523,13 +2621,64 @@ class SsilvaBrain(GeminiBrain):
             if project.brochure_pdf
             else "\nBrochure: none on its page."
         )
-        if project.desde_uf:
-            text += f"\nSay the desde price as: {uf_words(project.desde_uf, self.spoken)}."
+        desde = self._desde(project)
+        if desde is not None:
+            text += (
+                f"\nThe project's desde (its card and its page's hero): {format_uf(desde)} UF; "
+                f"say it as: {uf_words(desde, self.spoken)}. It is the cheapest unit's price, "
+                "not a price for any number of bedrooms."
+            )
+            if project.desde_uf is not None and desde != project.desde_uf:
+                text += f" The visitor's screen shows it; the crawl had {format_uf(project.desde_uf)} UF."
+        prices = [
+            f"{t.typology}: desde {format_uf(self._typology_price(project, t))} UF "
+            f"(say: {uf_words(self._typology_price(project, t), self.spoken)})"
+            for t in project.page_prices
+        ]
+        if prices:
+            text += (
+                "\nOn its page, each typology's price beside its plan, which is what the "
+                "visitor reads when you show it with {plan: …}: " + "; ".join(prices) + "."
+            )
         if project.path:
             text += f"\nOpen it with {{page: {project.path}}}."
         return text
 
     @needs_result_now
+    def _desde(self, project: Project) -> float | None:
+        """A project's desde: as the visitor's screen showed it this call,
+        else as the crawl found it."""
+        if project.path and (seen := self._screen_desde.get(canonical_path(project.path))):
+            return seen
+        return project.desde_uf
+
+    def _typology_price(self, project: Project, t: kb.PagePrice) -> float:
+        key = (canonical_path(project.path), typology_key(t.typology)) if project.path else None
+        return self._screen_typology.get(key, t.desde_uf) if key else t.desde_uf
+
+    def _found_line(self, p: Project, dormitorios: int | None) -> str:
+        """One project of a find_projects result, with the prices he may say
+        and how to say them: the desde, and with a bedroom count asked, that
+        typology's price on its page."""
+        line = p.line()
+        desde = self._desde(p)
+        if desde is not None:
+            if p.desde_uf is not None and desde != p.desde_uf:
+                line = line.replace(
+                    f"desde {format_uf(p.desde_uf)} UF", f"desde {format_uf(desde)} UF"
+                )
+            line += f" (desde, say: {uf_words(desde, self.spoken)})"
+        if dormitorios is not None:
+            fits = p.bedroom_prices(int(dormitorios))
+            if fits:
+                t = fits[0]
+                price = self._typology_price(p, t)
+                line += (
+                    f"; its {dormitorios}-bedroom typology {t.typology} is desde "
+                    f"{format_uf(price)} UF on its page (say: {uf_words(price, self.spoken)})"
+                )
+        return line
+
     async def read_topic(self, request: TopicRequest) -> str:
         """Read one of the guides before answering from it."""
         topic = self.kb.topics.get(request.topic)
@@ -2853,10 +3002,10 @@ class SsilvaBrain(GeminiBrain):
 # ─── Screen lines ──────────────────────────────────────────────────────────────
 
 
-def _typology_line(t: TypologyShown) -> str:
+def _typology_line(t: TypologyShown, lang: Lang) -> str:
     facts = [
         f"typology {t.label}",
-        t.price,
+        f"its price beside the plan: {uf_said(t.price, lang)}" if t.price else "",
         f"área total {t.total_area}" if t.total_area else "",
         f"área útil {t.useful_area}" if t.useful_area else "",
         f"{t.bedrooms} dormitorios" if t.bedrooms else "",
@@ -2892,24 +3041,44 @@ def _photo_line(e: PhotoShown, was: PhotoShown | None) -> str | None:
     return f"[On screen: {shown}{by}.]"
 
 
-def _listed_line(e: ProjectsListed, k: Knowledge) -> str:
+def _card_line(c: ListedCard, k: Knowledge, lang: Lang) -> str:
+    """One card as the visitor reads it, by the site's own data: its name (in
+    the roster's spelling when the card is a roster project), its comuna, its
+    price as the card writes it and as he says it, bedrooms and status."""
+    project = k.project_at(c.path) if c.path else None
+    name = project.name if project is not None else (c.name or c.path)
+    facts = [
+        c.commune,
+        f"card price {uf_said(c.price, lang)}" if c.price else "",
+        c.bedrooms,
+        c.status,
+    ]
+    return f"{name} — " + ", ".join(f for f in facts if f)
+
+
+def _listed_line(e: ProjectsListed, k: Knowledge, lang: Lang) -> str:
     where = ", ".join(x for x in (e.region or "", e.property or "", ", ".join(e.communes)) if x)
-    # The site's own names, by the cards' pages: a translated list reads
-    # "THE NAVIGATORS" for Los Navegantes.
+    head = f"The project list shows {e.count} project{'s' if e.count != 1 else ''}" + (
+        f" for {where}" if where else ""
+    )
+    if e.cards:
+        cards = "; ".join(_card_line(c, k, lang) for c in e.cards)
+        return (
+            f"{head}. The cards on this page, as the visitor reads them: {cards}. "
+            "A name or a price you say about these cards is the card's, exactly."
+        )
+    # An older page: the names by the cards' pages (a translated list reads
+    # "THE NAVIGATORS" for Los Navegantes).
     shown = list(e.projects)
     for i, path in enumerate(e.paths[: len(shown)]):
         project = k.project_at(path) if path else None
         if project is not None:
             shown[i] = project.name
     names = "; ".join(shown) or "none"
-    return (
-        f"The project list shows {e.count} project{'s' if e.count != 1 else ''}"
-        + (f" for {where}" if where else "")
-        + f". On this page: {names}."
-    )
+    return f"{head}. On this page: {names}."
 
 
-def _page_line(p: PageChanged, k: Knowledge) -> str:
+def _page_line(p: PageChanged, k: Knowledge, lang: Lang) -> str:
     """The page in front, as the model reads it."""
     path = site_path(p.path)
     if p.kind == "project":
@@ -2918,7 +3087,12 @@ def _page_line(p: PageChanged, k: Knowledge) -> str:
         name = project.name if project else (p.project or p.title)
         note = f"[The tab in front: the project page of {name} ({path})."
         if p.price:
-            note += f" Hero: {p.price}."
+            note += f" Hero, the project's desde: {uf_said(p.price, lang)}."
+        if p.typology and p.typology_price:
+            note += (
+                f" Selected typology {p.typology}, its price beside the plan: "
+                f"{uf_said(p.typology_price, lang)}."
+            )
         if p.status:
             note += f" Estado: {p.status}."
         if p.typologies:

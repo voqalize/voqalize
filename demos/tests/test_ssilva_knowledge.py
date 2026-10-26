@@ -57,7 +57,8 @@ def test_the_committed_crawl_loads() -> None:
         ),
         ({"tipo": "house"}, {"Mirador Piedra Roja", "Vista Golf"}),
         ({"tipo": "oficina"}, {"Oficinas Apoquindo Moro"}),
-        ({"region": "playa", "max_uf": 3000}, {"Isla Picton", "Vistamar", "Mira al Mar"}),
+        # Mira al Mar went from 2.836 to 3.035 UF on the list (crawl of 2026-10-26).
+        ({"region": "playa", "max_uf": 3000}, {"Isla Picton", "Vistamar"}),
         (
             {"region": "the coast", "estado": "ready", "dormitorios": 3},
             {"Mira al Mar", "Canal Beagle", "Playa Cochoa"},

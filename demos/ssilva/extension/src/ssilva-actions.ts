@@ -62,7 +62,10 @@ export interface PageContext {
   sections: string[];
   typologies: string[];
   typology: string;
+  /** The hero's price, the project's "desde", as the page shows it. */
   price: string;
+  /** The selected typology's price, beside its plan. */
+  typology_price: string;
   status: string;
   /** On a project page, what its gallery's photos and its amenities' photos
    *  show, in order, as their files name them. */
@@ -395,9 +398,12 @@ function cotizadorPrice(): string {
   return v ? `Desde ${v} UF` : "";
 }
 
+/** The hero's "DESDE 2.582 UF", or "FROM 2,582 UF" through Chrome's
+ *  translation (dev call ce7b01c3): the project's desde, which is not the
+ *  selected typology's price beside the plan. */
 function heroPrice(): string {
   const text = clean(document.querySelector(".l3-hero")?.textContent);
-  const m = text.match(/desde\s+([\d.,]+)\s*UF/i);
+  const m = text.match(/(?:desde|from)\s+([\d.,]+)\s*UF/i);
   return m ? `Desde ${m[1]} UF` : "";
 }
 
@@ -432,7 +438,8 @@ function context(): PageContext {
     sections: sectionKeysHere(),
     typologies: items.map(typologyLabel),
     typology: items.length ? typologyLabel(items.find((li) => li.classList.contains("active")) ?? items[0]) : "",
-    price: k === "project" ? cotizadorPrice() || heroPrice() : "",
+    price: k === "project" ? heroPrice() : "",
+    typology_price: k === "project" ? cotizadorPrice() : "",
     status: clean(document.querySelector(".l3-project-status-section .status-item.active .title")?.textContent),
     photos: k === "project" ? galleryShots().map((s) => s.caption) : [],
     amenity_photos: k === "project" ? amenityShots().map((s) => s.caption) : [],
@@ -697,7 +704,33 @@ const select = (id: string) => document.querySelector<HTMLSelectElement>(`select
 const loading = () => [...document.querySelectorAll(".loading-cloak.active")].some(visible);
 const resultsMsg = () => clean(document.querySelector(".projects-list__results-msg")?.textContent);
 const cards = () => [...document.querySelectorAll<HTMLElement>(".project-card-wrapper")].filter(visible);
+
+/** What the site rendered a card from: the list's AJAX record, held by the
+ *  card's Vue component (this script runs in the page's world). Spanish,
+ *  untouched by any translation. */
+interface CardData {
+  condo_name?: string;
+  cost?: string;
+  commune?: string;
+  region?: string;
+  category?: string;
+  bedrooms?: string;
+  bathrooms?: string;
+  square_area?: string;
+  name?: string;
+  condo_phrase?: string;
+  project_btn?: { url?: string };
+}
+type WithVue = { __vue__?: { $props?: { data?: CardData }; $parent?: { $data?: { totalResults?: number } } } };
+const cardData = (c: Element): CardData | null => (c as unknown as WithVue).__vue__?.$props?.data ?? null;
+/** The list's own count of results, from its Vue data. */
+const listTotal = (): number | null => {
+  const c = document.querySelector(".project-card-wrapper");
+  const n = c ? (c as unknown as WithVue).__vue__?.$parent?.$data?.totalResults : undefined;
+  return typeof n === "number" ? n : null;
+};
 const cardName = (c: Element) =>
+  clean(cardData(c)?.condo_name) ||
   clean([...c.querySelectorAll(".project-card__opp-condo-name")].map((e) => clean(e.textContent)).find(Boolean));
 const pathOf = (href: string) => {
   try {
@@ -708,7 +741,95 @@ const pathOf = (href: string) => {
 };
 /** The project page a card links to: the one thing on it no translation
  *  rewrites. */
-const cardPaths = (c: Element) => [...c.querySelectorAll<HTMLAnchorElement>("a[href]")].map((a) => pathOf(a.href));
+const cardPaths = (c: Element) => {
+  const own = cardData(c)?.project_btn?.url;
+  const links = [...c.querySelectorAll<HTMLAnchorElement>("a[href]")].map((a) => pathOf(a.href));
+  return own ? [pathOf(own), ...links] : links;
+};
+
+// ─── The list through Chrome's translation ────────────────────────────────
+// Chrome's page translation swaps each text node for its translation. The
+// list is Vue, and when it re-renders (every filter, every page, and twice
+// as /proyectos/ loads with the order shuffled) it reuses each card and
+// writes the new project into the text nodes it made, which translation has
+// taken off the page: the links and pictures change, the words do not. On
+// dev calls 334b108c and ce7b01c3 the card linking /edificiocarrera/ still
+// read "EL RODEO ARRAYAN PARK", "From 9,786 UF" while Javier said "Edificio
+// Carrera, one thousand seven hundred fifty-three UF". So on a translated
+// page, each card's words are written again from its own data, which
+// translation then translates again.
+
+const translated = () =>
+  /\btranslated-(?:ltr|rtl)\b/.test(document.documentElement.className) ||
+  !!document.querySelector(".project-card-wrapper font");
+
+/** What each card's words were last written from. */
+const written = new WeakMap<Element, string>();
+
+/** `el`'s words, written as `text`, its icons kept. */
+function writeText(el: Element | null, text: string | undefined): void {
+  if (!el || text === undefined) return;
+  for (const n of [...el.childNodes]) {
+    if (n instanceof Element && n.matches("i.material-icons, img")) continue;
+    if (n.nodeType === Node.COMMENT_NODE) continue;
+    n.remove();
+  }
+  el.append(document.createTextNode(` ${clean(text)} `));
+}
+
+function rewriteCard(c: Element, d: CardData): void {
+  for (const el of c.querySelectorAll(".project-card__opp-condo-name")) writeText(el, d.condo_name);
+  for (const el of c.querySelectorAll(".project-card__opp-condo-phrase")) writeText(el, d.condo_phrase ?? "");
+  for (const el of c.querySelectorAll(".project-card__opp-name")) writeText(el, d.name ?? "");
+  writeText(c.querySelector(".project-card__category"), d.category);
+  writeText(c.querySelector(".project-card__bottom__heading__commune"), d.commune);
+  writeText(c.querySelector(".project-card__bottom__heading__region"), d.region);
+  writeText(c.querySelector(".project-card__bottom__heading__price"), d.cost);
+  const props = c.querySelectorAll(".project-card__bottom__body__property");
+  [d.bedrooms, d.bathrooms, d.square_area].forEach((t, i) => writeText(props[i] ?? null, t));
+}
+
+/** On a translated page, every card whose words may be another project's is
+ *  written again from its data; and the count of results the same way. */
+function repairList(): void {
+  if (!translated()) return;
+  for (const c of document.querySelectorAll(".project-card-wrapper")) {
+    const d = cardData(c);
+    if (!d) continue;
+    const key = `${d.project_btn?.url ?? ""}|${d.condo_name ?? ""}|${d.cost ?? ""}`;
+    if (written.get(c) === key) continue;
+    written.set(c, key);
+    rewriteCard(c, d);
+  }
+  const total = listTotal();
+  const msg = document.querySelector(".projects-list__results-msg");
+  const shownCount = clean(msg?.textContent).match(/\d+/)?.[0];
+  if (msg && total !== null && shownCount !== String(total)) {
+    // The words' own element, not the translation's <font> inside it, which
+    // translation does not translate again.
+    let at = [...msg.querySelectorAll("*")].find((e) => /\d/.test(e.textContent ?? "") && !e.children.length) ?? msg;
+    while (at !== msg && at.tagName === "FONT" && at.parentElement) at = at.parentElement;
+    writeText(at, `${total} proyectos encontrados para tu búsqueda.`);
+  }
+}
+
+function watchTranslatedList(): void {
+  let queued = false;
+  new MutationObserver(() => {
+    if (queued || !document.querySelector(".project-card-wrapper")) return;
+    queued = true;
+    requestAnimationFrame(() => {
+      queued = false;
+      repairList();
+    });
+  }).observe(document.documentElement, {
+    subtree: true,
+    childList: true,
+    characterData: true,
+    attributes: true,
+    attributeFilter: ["href", "src", "class"],
+  });
+}
 
 /** The cards on screen of the projects at `paths`, or named `names`. */
 function cardsFor(paths: string[], names: string[]): HTMLElement[] {
@@ -752,20 +873,33 @@ function communeBoxes(): { input: HTMLInputElement; label: string }[] {
 }
 
 function listed() {
+  repairList();
+  const shown = cards().filter((c) => cardName(c));
   return {
-    // "29 proyectos encontrados…", or "29 projects found…" through a translation.
-    count: Number(resultsMsg().match(/(\d+)\s+(?:proyectos?|projects?)/i)?.[1] ?? cards().length),
+    // The list's own count; else "29 proyectos encontrados…", or "29 projects
+    // found…" through a translation.
+    count: listTotal() ?? Number(resultsMsg().match(/(\d+)\s+(?:proyectos?|projects?)/i)?.[1] ?? cards().length),
     region: selectedText(select("region")),
     property: selectedText(select("property")),
     communes: communeBoxes()
       .filter((c) => c.input.checked)
       .map((c) => c.label),
-    projects: cards().map(cardName).filter(Boolean),
-    // The cards' project pages, in the same order: what a translated page
-    // calls "THE NAVIGATORS" is /losnavegantes/.
-    paths: cards()
-      .filter((c) => cardName(c))
-      .map((c) => cardPaths(c)[0] ?? ""),
+    // The site's own names, from the cards' data: no translation reaches them.
+    projects: shown.map(cardName),
+    paths: shown.map((c) => cardPaths(c)[0] ?? ""),
+    // What each card shows, from what the site rendered it from.
+    cards: shown.map((c) => {
+      const d = cardData(c);
+      const text = (sel: string) => clean(c.querySelector(sel)?.textContent);
+      return {
+        path: cardPaths(c)[0] ?? "",
+        name: cardName(c),
+        price: clean(d?.cost) || text(".project-card__bottom__heading__price"),
+        commune: clean(d?.commune) || text(".project-card__bottom__heading__commune"),
+        bedrooms: clean(d?.bedrooms),
+        status: clean(d?.category) || text(".project-card__category"),
+      };
+    }),
   };
 }
 
@@ -1753,6 +1887,7 @@ if (!window.voqalizeSsilva) {
   watchRoutes();
   watchTypologies();
   watchLeadForm();
+  watchTranslatedList();
   window.voqalizeSsilva = { run, context, leaves, obstacles, start, commands: Object.keys(COMMANDS) };
 }
 

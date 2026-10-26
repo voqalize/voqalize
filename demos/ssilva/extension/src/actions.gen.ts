@@ -283,6 +283,8 @@ export interface PageChanged {
 
   price?: string;
 
+  typology_price?: string;
+
   status?: string;
 
   photos?: string[];
@@ -325,6 +327,8 @@ export interface ProjectsListed {
   projects?: string[];
 
   paths?: string[];
+
+  cards?: ListedCard[];
 }
 
 /**
@@ -368,6 +372,24 @@ export interface ViewerClosed {
 }
 
 // ── Shapes used by the messages above ──────────────────────────────
+
+/**
+ * One card on the project list, as the site rendered it: its own data,
+ * in the site's own Spanish, which no translation of the page rewrites.
+ */
+export interface ListedCard {
+  path: string;
+
+  name?: string;
+
+  price?: string;
+
+  commune?: string;
+
+  bedrooms?: string;
+
+  status?: string;
+}
 
 export interface TabInfo {
   tab_id: string;

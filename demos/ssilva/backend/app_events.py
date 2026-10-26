@@ -26,6 +26,7 @@ __all__ = [
     "LanguageRequested",
     "LeadFormState",
     "LeadSubmitted",
+    "ListedCard",
     "PageChanged",
     "PhotoShown",
     "ProjectsListed",
@@ -59,7 +60,10 @@ class PageChanged(AppEvent):
     typology: str = ""
     """The typology selected now."""
     price: str = ""
-    """The hero's price, as written: "Desde 3.375 UF"."""
+    """The hero's price, the project's "desde", as the page shows it: "Desde
+    3.375 UF" (or "FROM 3,375 UF" through Chrome's translation)."""
+    typology_price: str = ""
+    """The selected typology's price, beside its plan: "Desde 2.919 UF"."""
     status: str = ""
     """The status bar's active step: "Entrega inmediata"."""
     photos: list[str] = Field(default_factory=list[str])
@@ -110,6 +114,22 @@ class ViewerClosed(AppEvent):
     by: Literal["javier", "visitor"] = "visitor"
 
 
+class ListedCard(BaseModel):
+    """One card on the project list, as the site rendered it: its own data,
+    in the site's own Spanish, which no translation of the page rewrites."""
+
+    path: str
+    name: str = ""
+    """The card's project name: "EDIFICIO RONDIZZONI"."""
+    price: str = ""
+    """The card's price: "Desde 2.674 UF"."""
+    commune: str = ""
+    bedrooms: str = ""
+    """"1 y 2 dormitorios"."""
+    status: str = ""
+    """"Entrega inmediata"."""
+
+
 class ProjectsListed(AppEvent):
     """The project list showed its results for a filter."""
 
@@ -122,6 +142,9 @@ class ProjectsListed(AppEvent):
     (a translated page writes "THE NAVIGATORS")."""
     paths: list[str] = Field(default_factory=list[str])
     """Each of those cards' project page, in the same order."""
+    cards: list[ListedCard] = Field(default_factory=list[ListedCard])
+    """The cards on the page of results in front, in order, with what each
+    shows: its name and price as the site wrote them."""
 
 
 class BrochureShown(AppEvent):

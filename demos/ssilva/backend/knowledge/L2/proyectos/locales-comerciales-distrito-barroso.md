@@ -7,8 +7,8 @@ Sources: ssilva.cl project page, cotizar page /proyectos/cotizar/locales-comerci
 - Desde 49 m².
 - Estado (list): En verde.
 - Profile: Para invertir.
-- Units on the cotizar page (by typology):
-  - LOCALES COMERCIALES DISTRITO BARROSO: 10 unidades, desde 5.408 UF hasta 11.047 UF, total 49.78–94.23 m²
+- Units on the cotizar page (by typology; the cotizar page's own prices, which can differ from the project page's):
+  - LOCALES COMERCIALES DISTRITO BARROSO: 10 unidades, desde 5.408 UF hasta 11.047 UF, total 49.78 to 94.23 m²
 - Virtual tour on the page: no.
 - Quote form on the page: no.
 - WhatsApp button: no.
