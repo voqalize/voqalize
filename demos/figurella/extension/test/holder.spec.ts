@@ -23,10 +23,9 @@
  *   - a page load in the middle of a reply: the next page's face, which
  *     listens only a moment after it is made, gets the reply so far and what
  *     follows, in order, and nothing of a reply that is over or was cut;
- *   - his still on the next page, until its face draws: no animation and no
- *     transform; his mouth strip, whose lips (and only they) move with his
- *     voice's loudness and close when he stops; with the strip unavailable,
- *     the last frame of his face, which nothing moves.
+ *   - his face's slot on the next page, until its face draws: the card and
+ *     its buttons are there, and no picture of him at all, then the live face
+ *     fades in.
  */
 
 import { type BrowserContext, chromium, expect, type Page, test as base, type Worker } from "@playwright/test";
@@ -40,12 +39,6 @@ const EXT = join(here, ".build", "ext");
 const ORIGIN = "https://figurella.cl";
 const MAPS = "https://goo.gl";
 const API = "https://api.voqalize.test";
-/** The tests' avatar host, where the test build finds his mouth strip. */
-const AVATAR = "https://avatar.voqalize.test";
-/** A stand-in mouth strip: four 396 px frames side by side, a colour each. */
-const STRIP_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="1584" height="396">${["#222", "#444", "#888", "#ccc"]
-  .map((fill, i) => `<rect x="${i * 396}" width="396" height="396" fill="${fill}"/>`)
-  .join("")}</svg>`;
 
 /** The booking form in the footer, as the site writes it (its fields' ids and
  *  required marks, its branch list's values, the ticked privacy box). */
@@ -67,13 +60,6 @@ const FOOTER = `<div id="contacto"><h2>Reserva tu Diagnóstico Corporal sin cost
 const PAGES: Record<string, { body: string; title: string; delay?: number }> = {
   // A page whose parse is held 2 s by a script in its body: what is on screen
   // before DOMContentLoaded is the early shell's.
-  // The same, held 6 s: long enough to watch his still while he speaks and stops.
-  "/muy-lento/": {
-    title: "Consejos – Figurella",
-    body: `<body><main><h1 class="entry-title-single">Cápsula térmica y sus beneficios</h1>
-      <div class="single-post-article"><div class="entry"><p>La cápsula mantiene tu cuerpo a 37 grados.</p></div></div></main>
-      <script src="/slow.js?ms=6000"></script><p>Fin.</p></body>`,
-  },
   "/lento/": {
     title: "Consejos – Figurella",
     body: `<body><main><h1 class="entry-title-single">Cápsula térmica y sus beneficios</h1>
@@ -117,8 +103,6 @@ interface Ext {
   sw: Worker;
   /** The requests made of the made-up API. */
   connects: { origin: string | undefined; body: unknown }[];
-  /** Whether the avatar host serves his mouth strip. */
-  strip: { ok: boolean };
   open(path: string): Promise<Page>;
 }
 
@@ -140,13 +124,12 @@ const test = base.extend<{ ext: Ext }>({
       ],
     });
     const connects: Ext["connects"] = [];
-    const strip = { ok: true };
     // Only the web: the extension's own pages load as they are.
     await ctx.route(/^https?:/, async (route, request) => {
       const url = new URL(request.url());
       if (url.origin === ORIGIN) {
         if (url.pathname === "/slow.js") {
-          await new Promise((r) => setTimeout(r, Number(url.searchParams.get("ms") ?? 2000)));
+          await new Promise((r) => setTimeout(r, 2000));
           return route.fulfill({ status: 200, contentType: "text/javascript", body: "window.__slow = 1;" });
         }
         const page = PAGES[url.pathname];
@@ -157,10 +140,6 @@ const test = base.extend<{ ext: Ext }>({
           contentType: "text/html; charset=utf-8",
           body: `<!doctype html><html lang="es"><head><title>${page.title}</title></head>${page.body}</html>`,
         });
-      }
-      if (url.origin === AVATAR) {
-        if (!strip.ok || !url.pathname.includes("mouth-strip")) return route.fulfill({ status: 404, body: "" });
-        return route.fulfill({ status: 200, contentType: "image/svg+xml", body: STRIP_SVG });
       }
       if (url.origin === MAPS) {
         return route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: "<!doctype html><title>Mapa</title><p>Mapa</p>" });
@@ -187,7 +166,6 @@ const test = base.extend<{ ext: Ext }>({
       ctx,
       sw,
       connects,
-      strip,
       async open(path) {
         const page = ctx.pages()[0] ?? (await ctx.newPage());
         await page.goto(ORIGIN + path, { waitUntil: "domcontentloaded" });
@@ -419,7 +397,7 @@ test.describe("the extension's microphone", () => {
 interface Early {
   host?: number;
   dcl?: number;
-  first?: { status?: string; min: boolean; muted: boolean; poster: string; text: string; lang: string; transitions: boolean };
+  first?: { status?: string; min: boolean; muted: boolean; veiled: boolean; pictures: number; text: string; lang: string; transitions: boolean };
   vt?: boolean;
   vtWidth?: number;
 }
@@ -432,12 +410,15 @@ async function watchEarly(ctx: BrowserContext): Promise<void> {
       const root = document.querySelector("[data-voqalize=widget]")?.shadowRoot?.querySelector<HTMLElement>(".root");
       if (!root || t.host !== undefined) return;
       t.host = performance.now();
-      const poster = root.querySelector<HTMLElement>(".poster")!;
+      const frame = root.querySelector<HTMLElement>(".frame")!;
       t.first = {
         status: root.dataset.status,
         min: root.hasAttribute("data-min"),
         muted: root.hasAttribute("data-muted"),
-        poster: poster.hidden ? "" : poster.style.backgroundImage,
+        veiled: Boolean(root.querySelector(".face.veiled")),
+        pictures: [...frame.querySelectorAll<HTMLElement>("*")].filter(
+          (el) => el.matches("img, canvas, video") || getComputedStyle(el).backgroundImage !== "none",
+        ).length,
         text: root.querySelector(".status-text")?.textContent ?? "",
         lang: root.lang,
         transitions: Boolean(document.getElementById("voqalize-transitions")),
@@ -473,8 +454,8 @@ test.describe("the widget across a page load", () => {
     await expect(widget(page)).toHaveAttribute("data-muted", "");
     await page.locator("[data-voqalize=widget] .minimise").click({ force: true });
     await expect(widget(page)).toHaveAttribute("data-min", "");
-    // The last frame of his face is kept for the next page.
-    await expect.poll(() => page.evaluate(() => sessionStorage.getItem("voqalize.figurella.face")?.slice(0, 15) ?? null), { timeout: 8000 }).toBe("data:image/webp");
+    // No picture of his face is kept for the next page.
+    expect(await page.evaluate(() => Object.keys(sessionStorage))).toEqual(["voqalize.figurella.call"]);
 
     await page.evaluate(() => {
       location.href = "/lento/";
@@ -486,18 +467,16 @@ test.describe("the widget across a page load", () => {
     expect(e.host).toBeDefined();
     expect(e.dcl! - e.host!).toBeGreaterThan(1500);
     expect(e.first).toMatchObject({ status: "live", min: true, muted: true, text: "Hablando", lang: "es", transitions: true });
-    // His mouth strip, which the last page loaded, from the first paint.
-    expect(e.first!.poster).toContain(`${AVATAR}/characters/javier-mouth-strip.`);
+    // His face's slot is empty: no picture of him while the page loads.
+    expect(e.first).toMatchObject({ veiled: true, pictures: 0 });
     // A cross-document view transition revealed it, with the widget as its own group.
     expect(e.vt).toBe(true);
     await expect.poll(async () => (await early(page)).vtWidth ?? 0).toBe(1280);
 
-    // The page adopts the widget (one of it), and his face takes over from the still.
+    // The page adopts the widget (one of it), and his live face fades in.
     await expect(page.locator("[data-voqalize=widget]")).toHaveCount(1);
     await expect(page.locator("[data-fake-avatar]")).toHaveCount(1);
-    await expect.poll(() => page.evaluate(() =>
-      document.querySelector("[data-voqalize=widget]")!.shadowRoot!.querySelector(".poster")!.classList.contains("gone"),
-    )).toBe(true);
+    await expect(page.locator("[data-voqalize=widget] .face")).not.toHaveClass(/veiled/);
     await expect(widget(page)).toHaveAttribute("data-status", "live");
     await expect(widget(page)).toHaveAttribute("data-min", "");
     await expect(widget(page)).toHaveAttribute("data-muted", "");
@@ -705,144 +684,109 @@ test.describe("a page load in the middle of a reply", () => {
   });
 });
 
-interface PosterNow {
-  name: string;
-  transform: string;
-  gone: boolean;
+/** One look at his face's slot, taken every animation frame of a page from
+ *  its very start (an init script): when (ms since the page began), whether
+ *  the card and its Mute and End buttons are on screen, whether the slot is
+ *  veiled, how many pictures in it can be seen (an image, a canvas or a video
+ *  not faded to nothing, or any background image), whether the live face is
+ *  in it, and that face's opacity. */
+interface FaceLook {
+  t: number;
+  card: boolean;
+  mute: boolean;
+  hang: boolean;
+  veiled: boolean;
+  pictures: number;
+  live: boolean;
+  opacity: number;
 }
-const posterNow = (page: Page) =>
+
+async function watchFace(ctx: BrowserContext): Promise<void> {
+  await ctx.addInitScript(() => {
+    const looks: unknown[] = [];
+    const w = window as unknown as { __looks: unknown[]; __dcl?: number };
+    w.__looks = looks;
+    document.addEventListener("DOMContentLoaded", () => (w.__dcl = performance.now()));
+    const shown = (el: Element | null) => Boolean(el && (el as HTMLElement).getClientRects().length);
+    /** The opacity it is painted with, up to the card's frame. */
+    const seen = (el: Element, frame: Element) => {
+      let o = 1;
+      for (let at: Element | null = el; at && at !== frame; at = at.parentElement) o *= Number(getComputedStyle(at).opacity);
+      return o;
+    };
+    let until = Infinity;
+    const look = () => {
+      const root = document.querySelector("[data-voqalize=widget]")?.shadowRoot?.querySelector<HTMLElement>(".root");
+      const frame = root?.querySelector(".frame");
+      const face = root?.querySelector(".face");
+      if (root && frame && face) {
+        const live = face.querySelector("[data-fake-avatar]");
+        looks.push({
+          t: performance.now(),
+          card: shown(root.querySelector(".card")),
+          mute: shown(root.querySelector(".mute")),
+          hang: shown(root.querySelector(".hang")),
+          veiled: face.classList.contains("veiled"),
+          pictures: [...frame.querySelectorAll("*")].filter((el) =>
+            el.matches("img, canvas, video") ? shown(el) && seen(el, frame) > 0 : getComputedStyle(el).backgroundImage !== "none",
+          ).length,
+          live: Boolean(live),
+          opacity: live ? seen(live, frame) : 0,
+        });
+        if (live && !face.classList.contains("veiled") && until === Infinity) until = performance.now() + 1000;
+      }
+      if (performance.now() < until) requestAnimationFrame(look);
+    };
+    requestAnimationFrame(look);
+  });
+}
+
+const looks = (page: Page) =>
   page.evaluate(() => {
-    const p = document.querySelector("[data-voqalize=widget]")?.shadowRoot?.querySelector<HTMLElement>(".poster");
-    if (!p || p.hidden) return null;
-    const style = getComputedStyle(p);
-    return { name: style.animationName, transform: style.transform, gone: p.classList.contains("gone") };
-  }) as Promise<PosterNow | null>;
+    const w = window as unknown as { __looks: FaceLook[]; __dcl?: number };
+    return { looks: w.__looks, dcl: w.__dcl ?? null };
+  }) as Promise<{ looks: FaceLook[]; dcl: number | null }>;
 
-/** In a call, a full load of a page whose parse a script holds for 2 s: the
- *  early shell's still is what shows his face meanwhile. */
-async function toSlowPage(ext: Ext, page: Page, speaking: boolean): Promise<void> {
-  await callLive(ext, page);
-  if (speaking) {
-    await toHolder(ext.sw, { what: "emit", name: "botStartedSpeaking" });
-    await expect(widget(page)).toHaveAttribute("data-activity", "speaking");
+test.describe("his face's slot while the next page's face is not drawing yet", () => {
+  for (const speaking of [true, false]) {
+    test(`in a call (${speaking ? "he speaks" : "he listens"}), the card and its buttons are there at once, no picture of him until the live face draws, then it fades in`, async ({ ext }) => {
+      await watchFace(ext.ctx);
+      const page = await ext.open("/");
+      await callLive(ext, page);
+      if (speaking) {
+        await toHolder(ext.sw, { what: "emit", name: "botStartedSpeaking" });
+        await expect(widget(page)).toHaveAttribute("data-activity", "speaking");
+      }
+      // A page whose parse a script holds for 2 s: the early shell's widget is
+      // all there is of the call meanwhile.
+      await page.evaluate(() => {
+        location.href = "/lento/";
+      });
+      await page.waitForURL(`${ORIGIN}/lento/`, { waitUntil: "commit" });
+      await expect(page.locator("[data-voqalize=widget] .face")).not.toHaveClass(/veiled/, { timeout: 15_000 });
+      await expect.poll(async () => (await looks(page)).looks.at(-1)?.opacity ?? 0).toBe(1);
+      const { looks: all, dcl } = await looks(page);
+
+      // (1) The card, Mute and End are on screen from the first look, well
+      // before the page has parsed (and so before the live face exists).
+      const loading = all.filter((l) => dcl !== null && l.t < dcl);
+      expect(loading.length).toBeGreaterThan(10);
+      expect(all[0]).toMatchObject({ card: true, mute: true, hang: true, live: false });
+      expect(loading.every((l) => l.card && l.mute && l.hang && !l.live)).toBe(true);
+
+      // (2) No picture of him in the slot while the page loads, nor at any
+      // later look until the live face unveils.
+      expect(loading.map((l) => l.pictures)).toEqual(loading.map(() => 0));
+      const unveiled = all.findIndex((l) => !l.veiled);
+      expect(unveiled).toBeGreaterThan(0);
+      expect(all.slice(0, unveiled).map((l) => l.pictures)).toEqual(all.slice(0, unveiled).map(() => 0));
+
+      // (3) Then the live face fades in: there, part-way, then whole.
+      const after = all.slice(unveiled);
+      expect(after.every((l) => l.live && l.card && l.mute && l.hang)).toBe(true);
+      expect(after.some((l) => l.opacity > 0 && l.opacity < 1)).toBe(true);
+      expect(after.at(-1)!.opacity).toBe(1);
+      await expect(widget(page)).toHaveAttribute("data-status", "live");
+    });
   }
-  await expect.poll(() => page.evaluate(() => sessionStorage.getItem("voqalize.figurella.face")?.slice(0, 15) ?? null), { timeout: 8000 }).toBe("data:image/webp");
-  await page.evaluate(() => {
-    location.href = "/lento/";
-  });
-  await page.waitForURL(`${ORIGIN}/lento/`, { waitUntil: "commit" });
-  await expect.poll(async () => (await posterNow(page)) !== null).toBe(true);
-}
-
-test.describe("his still while the next page's face is not drawing yet", () => {
-  /** A plain still: no animation, no transform, and the same a moment later. */
-  async function holdsStill(page: Page): Promise<void> {
-    const a = (await posterNow(page))!;
-    expect(a).toMatchObject({ name: "none", transform: "none", gone: false });
-    await page.waitForTimeout(400);
-    expect(await posterNow(page)).toMatchObject({ name: "none", transform: "none" });
-  }
-
-  test("it does not move while he speaks", async ({ ext }) => {
-    const page = await ext.open("/");
-    await toSlowPage(ext, page, true);
-    await holdsStill(page);
-  });
-
-  test("it does not move while he listens", async ({ ext }) => {
-    const page = await ext.open("/");
-    await toSlowPage(ext, page, false);
-    await holdsStill(page);
-  });
-});
-
-interface PosterLook {
-  mouth: string | undefined;
-  strip: boolean;
-  image: string;
-  position: string;
-  size: string;
-  animation: string;
-  transform: string;
-}
-
-/** The poster as it looks every 10 ms for `ms`, or until it goes. */
-const watchPoster = (page: Page, ms: number) =>
-  page.evaluate(
-    (ms) =>
-      new Promise<PosterLook[]>((resolve) => {
-        const seen: PosterLook[] = [];
-        const until = performance.now() + ms;
-        const t = setInterval(() => {
-          const p = document.querySelector("[data-voqalize=widget]")?.shadowRoot?.querySelector<HTMLElement>(".poster");
-          if (!p || p.hidden || p.classList.contains("gone") || performance.now() > until) {
-            clearInterval(t);
-            return resolve(seen);
-          }
-          const s = getComputedStyle(p);
-          seen.push({
-            mouth: p.dataset.mouth, strip: p.hasAttribute("data-strip"), image: s.backgroundImage,
-            position: s.backgroundPosition, size: s.backgroundSize, animation: s.animationName, transform: s.transform,
-          });
-        }, 10);
-      }),
-    ms,
-  );
-
-/** In a call, his voice on, the strip kept as loaded (or not), and a full
- *  load of a page held 6 s: the still is what shows his face meanwhile. */
-async function toVeryslowPage(ext: Ext, page: Page): Promise<void> {
-  await callLive(ext, page);
-  expect(await toHolder(ext.sw, { what: "voice", on: true })).toEqual({ ok: true });
-  await toHolder(ext.sw, { what: "emit", name: "botStartedSpeaking" });
-  if (ext.strip.ok) {
-    await expect
-      .poll(() => page.evaluate(() => JSON.parse(sessionStorage.getItem("voqalize.figurella.call") ?? "{}").strip ?? null), { timeout: 8000 })
-      .toContain("javier-mouth-strip");
-  }
-  await expect.poll(() => page.evaluate(() => sessionStorage.getItem("voqalize.figurella.face")?.slice(0, 15) ?? null), { timeout: 8000 }).toBe("data:image/webp");
-  await page.evaluate(() => {
-    location.href = "/muy-lento/";
-  });
-  await page.waitForURL(`${ORIGIN}/muy-lento/`, { waitUntil: "commit" });
-  await expect.poll(async () => (await posterNow(page)) !== null).toBe(true);
-}
-
-test.describe("his lips on the still while the next page's face is not drawing yet", () => {
-  test("the still is his mouth strip; its lips follow his voice and close when he stops; nothing else moves", async ({ ext }) => {
-    const page = await ext.open("/");
-    await toVeryslowPage(ext, page);
-
-    const speaking = await watchPoster(page, 1000);
-    expect(speaking.length).toBeGreaterThan(40);
-    for (const look of speaking) {
-      expect(look).toMatchObject({ strip: true, size: "400% 100%", animation: "none", transform: "none" });
-      expect(look.image).toContain(`${AVATAR}/characters/javier-mouth-strip.`);
-    }
-    const open = new Set(speaking.map((l) => l.mouth).filter((m) => m && m !== "0"));
-    expect(open.size).toBeGreaterThanOrEqual(2);
-    // Each frame of the strip is its own position, and only the position moves.
-    expect(new Set(speaking.map((l) => l.position)).size).toBeGreaterThanOrEqual(2);
-
-    expect(await toHolder(ext.sw, { what: "voice", on: false })).toEqual({ ok: true });
-    const quiet = await watchPoster(page, 1200);
-    const firstClosed = quiet.findIndex((l) => l.mouth === "0");
-    expect(firstClosed).toBeGreaterThanOrEqual(0);
-    // Closed within about 400 ms (10 ms a sample), and closed from then on.
-    expect(firstClosed).toBeLessThan(45);
-    expect(quiet.slice(firstClosed).every((l) => l.mouth === "0" && l.position.startsWith("0%"))).toBe(true);
-    expect(quiet.length - firstClosed).toBeGreaterThan(40);
-  });
-
-  test("with the strip unavailable, the still is the last frame of his face, and his voice moves nothing", async ({ ext }) => {
-    ext.strip.ok = false;
-    const page = await ext.open("/");
-    await toVeryslowPage(ext, page);
-
-    const looks = await watchPoster(page, 1000);
-    expect(looks.length).toBeGreaterThan(40);
-    expect(looks.every((l) => !l.strip && l.image.startsWith('url("data:image/webp'))).toBe(true);
-    expect(new Set(looks.map((l) => `${l.image.length} ${l.position} ${l.size} ${l.animation} ${l.transform}`)).size).toBe(1);
-    expect(looks[0]).toMatchObject({ animation: "none", transform: "none" });
-  });
 });
