@@ -181,13 +181,7 @@ async function makeHolder(sw: Worker): Promise<void> {
 const widget = (page: Page) => page.locator("[data-voqalize=widget] .root");
 
 async function callLive(ext: Ext, page: Page): Promise<void> {
-  // The invite is drawn before the content script is listening for the press
-  // (it first asks for the move the last page left): a press that lands in
-  // that window is not heard, so press again until the widget answers.
-  await expect(async () => {
-    await page.locator("[data-voqalize=widget] .invite").click();
-    await expect(widget(page)).not.toHaveAttribute("data-status", "idle", { timeout: 1000 });
-  }).toPass();
+  await page.locator("[data-voqalize=widget] .invite").click();
   await expect(widget(page)).toHaveAttribute("data-status", "live");
   await expect.poll(async () => (await status(ext.sw)).state.ready).toBe(true);
 }
@@ -234,6 +228,25 @@ test.describe("the holder and its pages", () => {
     s = await status(ext.sw);
     expect(s.hungUp).toBe(true);
     expect(s.state.status).toBe("idle");
+  });
+
+  test("a press made while the page still asks for the last page's move starts the call", async ({ ext }) => {
+    // The worker is slow to hand over the move the last page left, as a busy
+    // one can be: the widget is up, and the content script is still waiting.
+    await ext.sw.evaluate(() => {
+      const session = chrome.storage.session as unknown as { get: (key: unknown) => Promise<unknown> };
+      const get = session.get.bind(session);
+      session.get = async (key) => {
+        if (typeof key === "string" && key.startsWith("pending:")) await new Promise((r) => setTimeout(r, 1200));
+        return get(key);
+      };
+    });
+    const page = await ext.open("/");
+    // One press, at once, not again. The call starts once the move is in.
+    await page.locator("[data-voqalize=widget] .invite").click();
+    await expect(widget(page)).toHaveAttribute("data-status", "live", { timeout: 10_000 });
+    await expect.poll(async () => (await status(ext.sw)).state.ready).toBe(true);
+    expect(ext.connects).toHaveLength(1);
   });
 
   test("a full page load leaves the call alone, and a move sent while the tab loads is made on its next page", async ({ ext }) => {

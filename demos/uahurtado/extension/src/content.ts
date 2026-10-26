@@ -158,6 +158,12 @@ async function start(): Promise<void> {
   let calling = false;
   /** The toggle's wait for the brain to answer a switch. */
   let switchTimer: ReturnType<typeof setTimeout> | null = null;
+  /** The call button is heard from the moment the widget shows: a press made
+   *  while this page still waits for the last page's move below is kept, and
+   *  answered once the button is wired. */
+  let press: (() => void) | null = null;
+  let pressedEarly = false;
+  widget.onCall(() => (press ? press() : (pressedEarly = true)));
 
   // What the last page of this tab left, on whichever host: the move it was
   // loaded to make. Asked for now, so it is forgotten there, and made once the
@@ -443,7 +449,6 @@ async function start(): Promise<void> {
     }, SWITCH_WAIT_MS);
   }
 
-  widget.onCall(() => void call());
   // His face builds once the visitor reaches for the invite, not at page load.
   widget.onReach(() => {
     if (!following) preloadAvatar(CHARACTER);
@@ -557,6 +562,9 @@ async function start(): Promise<void> {
   // A call already on: the holder answers with its state, and with any move
   // it kept for this tab while this page loaded.
   hello();
+  // The call button, and the press made before it was wired.
+  press = () => void call();
+  if (pressedEarly) press();
 }
 
 /** What the university pins over its pages, for the widget to keep clear of:
