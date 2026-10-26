@@ -39,9 +39,8 @@ import { type AvatarInstance, createAvatar, listCharacters, type PreloadedAvatar
 
 import { type AppEvent, UI_ACTION_COMMANDS } from "./actions.gen";
 import { followCall, type Following } from "./follow";
-import { loadStrip, MOUTH_STRIP } from "./mouth";
 import { askHolder, askWorker, onHolder, pendingMove, shareLanguage, sharedLanguage, tell } from "./hub";
-import { clearKept, type Kept, transitions, writeFace, writeKept } from "./persist";
+import { clearKept, type Kept, transitions, writeKept } from "./persist";
 import { ANY_TAB, type CallState, type MicState, OURS, type Where } from "./protocol";
 import { type Language, mountWidget, type Widget } from "./widget";
 
@@ -57,9 +56,8 @@ const SHELL = "__voqalizeSsilvaJavierShell";
 /** How long a widget carried over from the last page waits for the holder's
  *  state before it believes the call is gone. */
 const CARRIED_WAIT_MS = 8000;
-/** How often, in a call, the last frame of his face is kept for the next page. */
-const FRAME_EVERY_MS = 3000;
-/** How long the still waits for the live face before it gives way anyway. */
+/** How long the empty face slot waits for the live face to draw before it
+ *  shows the face anyway. */
 const UNVEIL_WAIT_MS = 10_000;
 /** The language the visitor last chose on the toggle, which the next call
  *  starts in and holds to; and how long the toggle waits for the brain to
@@ -123,13 +121,10 @@ async function start(): Promise<void> {
   // already, as that page left it. Otherwise it mounts now, as always.
   const shell = flags[SHELL] as { widget: Widget; kept: Kept } | undefined;
   const widget = shell?.widget ?? mountWidget();
-  // His face starts building now, to take over from the still.
+  // His face starts building now; its slot stays empty until it has drawn.
   const preloaded: PreloadedAvatar | null = shell ? preloadAvatar(CHARACTER) : null;
   let still: string | null = shell?.kept.still ?? null;
-  /** His mouth strip, once loaded here, for the next page's still. */
-  let strip: string | null = null;
   let heard = false;
-  let frames: ReturnType<typeof setInterval> | null = null;
 
   let state: CallState = { ...IDLE, language: shell?.kept.language ?? storedLanguage() ?? OPENING };
   let following: Following | null = null;
@@ -201,13 +196,6 @@ async function start(): Promise<void> {
     avatar?.destroy();
     avatar = createAvatar({ mount: widget.face, client: following.client, character: CHARACTER });
     if (shell) handOver();
-    frames ??= setInterval(keepFrame, FRAME_EVERY_MS);
-    // His mouth strip, into the cache now, so the next page's still is the
-    // strip from its first paint (`mouth.ts`).
-    void loadStrip().then((ok) => {
-      strip = ok ? MOUTH_STRIP : null;
-      keep();
-    });
   }
 
   function unfollow(): void {
@@ -217,21 +205,20 @@ async function start(): Promise<void> {
     following = null;
     avatar?.destroy();
     avatar = null;
-    if (frames) clearInterval(frames);
-    frames = null;
-    widget.setPoster(null);
+    widget.unveil();
   }
 
   /** The call as this page shows it, for the next page of this tab. */
   function keep(): void {
     if (state.status !== "live" && state.status !== "connecting") return;
     writeKept({
-      status: state.status, muted: state.muted, activity: state.activity, language: state.language, still, strip,
+      status: state.status, muted: state.muted, activity: state.activity, language: state.language, still,
       ...widget.layout(),
     });
   }
 
-  /** The still the shell put up gives way once the live face has drawn. */
+  /** The face's slot the shell left empty: the live face fades in once it
+   *  has drawn. */
   function handOver(): void {
     const since = Date.now();
     let built = !preloaded;
@@ -244,42 +231,33 @@ async function start(): Promise<void> {
       if (!built) return void setTimeout(look, 50);
       const img = widget.face.querySelector("img");
       if (img?.complete && img.naturalWidth) return widget.unveil();
-      void lastFrame().then((frame) => (frame ? widget.unveil() : setTimeout(look, 50)));
+      void drawn().then((yes) => (yes ? widget.unveil() : setTimeout(look, 50)));
     };
     look();
   }
 
-  /** Keep the last frame of his face for the next page's still. */
-  function keepFrame(): void {
-    if (!following) return;
-    void lastFrame("image/webp").then((frame) => {
-      if (frame && following) writeFace(frame);
-    });
-  }
-
-  /** The frame the avatar has just drawn, as a data URL (with `type`; else
-   *  `"drawn"`), or `null` while it has drawn nothing. Read in an animation
-   *  frame, after the avatar's own: a WebGL canvas keeps its picture only
-   *  until the frame is shown. */
-  function lastFrame(type?: string): Promise<string | null> {
+  /** Whether the avatar has drawn a frame yet. Read in an animation frame,
+   *  after the avatar's own: a WebGL canvas keeps its picture only until the
+   *  frame is shown. */
+  function drawn(): Promise<boolean> {
     return new Promise((resolve) =>
       requestAnimationFrame(() => {
         const canvas = widget.face.querySelector("canvas");
-        if (!canvas?.width || !canvas.height) return resolve(null);
+        if (!canvas?.width || !canvas.height) return resolve(false);
         try {
           const probe = document.createElement("canvas");
           probe.width = probe.height = 8;
           const g = probe.getContext("2d", { willReadFrequently: true });
-          if (!g) return resolve(null);
+          if (!g) return resolve(false);
           g.drawImage(canvas, 0, 0, 8, 8);
           const px = g.getImageData(0, 0, 8, 8).data;
           let seen = false;
           for (let i = 3; i < px.length; i += 4) if (px[i] > 0) seen = true;
-          if (!seen) return resolve(null);
-          resolve(type ? canvas.toDataURL(type, 0.85) : "drawn");
+          if (!seen) return resolve(false);
+          resolve(true);
         } catch {
-          // A canvas that cannot be read: the character's still stands in.
-          resolve(null);
+          // A canvas that cannot be read: the wait runs out (`UNVEIL_WAIT_MS`).
+          resolve(false);
         }
       }),
     );
@@ -448,7 +426,6 @@ async function start(): Promise<void> {
   const leaving = () => {
     tell({ k: "leaving" });
     keep();
-    keepFrame();
     setTimeout(hello, 5000);
   };
   const navigation = (window as unknown as { navigation?: EventTarget }).navigation;
