@@ -44,6 +44,7 @@ import { type AvatarInstance, createAvatar, listCharacters, type PreloadedAvatar
 import { type AppEvent, UI_ACTION_COMMANDS } from "./actions.gen";
 import { followCall, type Following } from "./follow";
 import { askHolder, askWorker, onHolder, pendingMove, shareLanguage, sharedLanguage, tell, type Then } from "./hub";
+import { loadStrip, MOUTH_STRIP } from "./mouth";
 import { clearKept, type Kept, transitions, writeFace, writeKept } from "./persist";
 import { ANY_TAB, type CallState, type MicState, OURS, type Where } from "./protocol";
 import { type RunResult, takeLocalPending } from "./uah-actions";
@@ -147,6 +148,8 @@ async function start(): Promise<void> {
   // His face starts building now, to take over from the still.
   const preloaded: PreloadedAvatar | null = shell ? preloadAvatar(CHARACTER) : null;
   let still: string | null = shell?.kept.still ?? null;
+  /** His mouth strip, once loaded here, for the next page's still. */
+  let strip: string | null = null;
   let heard = false;
   let frames: ReturnType<typeof setInterval> | null = null;
 
@@ -215,6 +218,12 @@ async function start(): Promise<void> {
     avatar = createAvatar({ mount: widget.face, client: following.client, character: CHARACTER });
     if (shell) handOver();
     frames ??= setInterval(keepFrame, FRAME_EVERY_MS);
+    // His mouth strip, into the cache now, so the next page's still is the
+    // strip from its first paint (`mouth.ts`).
+    void loadStrip().then((ok) => {
+      strip = ok ? MOUTH_STRIP : null;
+      keep();
+    });
   }
 
   function unfollow(): void {
@@ -233,7 +242,7 @@ async function start(): Promise<void> {
   function keep(): void {
     if (state.status !== "live" && state.status !== "connecting") return;
     writeKept({
-      status: state.status, muted: state.muted, activity: state.activity, language: state.language, still,
+      status: state.status, muted: state.muted, activity: state.activity, language: state.language, still, strip,
       ...widget.layout(),
     });
   }

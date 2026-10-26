@@ -22,8 +22,10 @@
  *   - a page load in the middle of a reply: the next page's face, which
  *     listens only a moment after it is made, gets the reply so far and what
  *     follows, in order, and nothing of a reply that is over or was cut;
- *   - his still on the next page, until its face draws: a plain still, which
- *     does not move while he speaks or while he listens.
+ *   - his still on the next page, until its face draws: no animation and no
+ *     transform; his mouth strip, whose lips (and only they) move with his
+ *     voice's loudness and close when he stops; with the strip unavailable,
+ *     the last frame of his face, which nothing moves.
  */
 
 import { type BrowserContext, chromium, expect, type Page, test as base, type Worker } from "@playwright/test";
@@ -37,10 +39,22 @@ const EXT = join(here, ".build", "ext");
 const ORIGIN = "https://admision.uahurtado.cl";
 const POSGRADO = "https://postgrados.uahurtado.cl";
 const API = "https://api.voqalize.test";
+/** The tests' avatar host, where the test build finds his mouth strip. */
+const AVATAR = "https://avatar.voqalize.test";
+/** A stand-in mouth strip: four 396 px frames side by side, a colour each. */
+const STRIP_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="1584" height="396">${["#222", "#444", "#888", "#ccc"]
+  .map((fill, i) => `<rect x="${i * 396}" width="396" height="396" fill="${fill}"/>`)
+  .join("")}</svg>`;
 
 const page = (title: string, body: string) => ({ title, body: `<body><header class="sticky-top">UAH</header><main>${body}</main></body>` });
 
 const PAGES: Record<string, { body: string; title: string; delay?: number }> = {
+  // The same, held 6 s: long enough to watch his still while he speaks and stops.
+  [`${ORIGIN}/muy-lento/`]: {
+    title: "Becas",
+    body: `<body><main><h1>Becas y beneficios</h1><h2>Gratuidad</h2><p>La UAH está adscrita a la gratuidad.</p></main>
+      <script src="/slow.js?ms=6000"></script><p>Fin.</p></body>`,
+  },
   // A page whose parse is held 2 s by a script in its body, as the site's
   // trackers can: what is on screen before DOMContentLoaded is the early shell's.
   [`${ORIGIN}/lento/`]: {
@@ -84,6 +98,8 @@ interface Ext {
   sw: Worker;
   /** The requests made of the made-up API. */
   connects: { origin: string | undefined; body: unknown }[];
+  /** Whether the avatar host serves his mouth strip. */
+  strip: { ok: boolean };
   open(path: string): Promise<Page>;
 }
 
@@ -105,12 +121,13 @@ const test = base.extend<{ ext: Ext }>({
       ],
     });
     const connects: Ext["connects"] = [];
+    const strip = { ok: true };
     // Only the web: the extension's own pages load as they are.
     await ctx.route(/^https?:/, async (route, request) => {
       const url = new URL(request.url());
       if (url.origin === ORIGIN || url.origin === POSGRADO) {
         if (url.pathname === "/slow.js") {
-          await new Promise((r) => setTimeout(r, 2000));
+          await new Promise((r) => setTimeout(r, Number(url.searchParams.get("ms") ?? 2000)));
           return route.fulfill({ status: 200, contentType: "text/javascript", body: "window.__slow = 1;" });
         }
         const page = PAGES[url.origin + url.pathname];
@@ -121,6 +138,10 @@ const test = base.extend<{ ext: Ext }>({
           contentType: "text/html; charset=utf-8",
           body: `<!doctype html><html lang="es-CL"><head><title>${page.title}</title></head>${page.body}</html>`,
         });
+      }
+      if (url.origin === AVATAR) {
+        if (!strip.ok || !url.pathname.includes("mouth-strip")) return route.fulfill({ status: 404, body: "" });
+        return route.fulfill({ status: 200, contentType: "image/svg+xml", body: STRIP_SVG });
       }
       if (url.origin === API) {
         const cors = {
@@ -144,6 +165,7 @@ const test = base.extend<{ ext: Ext }>({
       ctx,
       sw,
       connects,
+      strip,
       async open(path) {
         const page = ctx.pages()[0] ?? (await ctx.newPage());
         await page.goto(ORIGIN + path, { waitUntil: "domcontentloaded" });
@@ -445,7 +467,8 @@ test.describe("the widget across a page load", () => {
     expect(e.host).toBeDefined();
     expect(e.dcl! - e.host!).toBeGreaterThan(1500);
     expect(e.first).toMatchObject({ status: "live", min: true, muted: true, text: "Hablando", lang: "es", transitions: true });
-    expect(e.first!.poster).toContain("data:image/webp");
+    // His mouth strip, which the last page loaded, from the first paint.
+    expect(e.first!.poster).toContain(`${AVATAR}/characters/javier-mouth-strip.`);
     // A cross-document view transition revealed it, with the widget as its own group.
     expect(e.vt).toBe(true);
     await expect.poll(async () => (await early(page)).vtWidth ?? 0).toBe(1280);
@@ -711,5 +734,96 @@ test.describe("his still while the next page's face is not drawing yet", () => {
     const page = await ext.open("/");
     await toSlowPage(ext, page, false);
     await holdsStill(page);
+  });
+});
+
+interface PosterLook {
+  mouth: string | undefined;
+  strip: boolean;
+  image: string;
+  position: string;
+  size: string;
+  animation: string;
+  transform: string;
+}
+
+/** The poster as it looks every 10 ms for `ms`, or until it goes. */
+const watchPoster = (page: Page, ms: number) =>
+  page.evaluate(
+    (ms) =>
+      new Promise<PosterLook[]>((resolve) => {
+        const seen: PosterLook[] = [];
+        const until = performance.now() + ms;
+        const t = setInterval(() => {
+          const p = document.querySelector("[data-voqalize=widget]")?.shadowRoot?.querySelector<HTMLElement>(".poster");
+          if (!p || p.hidden || p.classList.contains("gone") || performance.now() > until) {
+            clearInterval(t);
+            return resolve(seen);
+          }
+          const s = getComputedStyle(p);
+          seen.push({
+            mouth: p.dataset.mouth, strip: p.hasAttribute("data-strip"), image: s.backgroundImage,
+            position: s.backgroundPosition, size: s.backgroundSize, animation: s.animationName, transform: s.transform,
+          });
+        }, 10);
+      }),
+    ms,
+  );
+
+/** In a call, his voice on, the strip kept as loaded (or not), and a full
+ *  load of a page held 6 s: the still is what shows his face meanwhile. */
+async function toVeryslowPage(ext: Ext, page: Page): Promise<void> {
+  await callLive(ext, page);
+  expect(await toHolder(ext.sw, { what: "voice", on: true })).toEqual({ ok: true });
+  await toHolder(ext.sw, { what: "emit", name: "botStartedSpeaking" });
+  if (ext.strip.ok) {
+    await expect
+      .poll(() => page.evaluate(() => JSON.parse(sessionStorage.getItem("voqalize.uahurtado.call") ?? "{}").strip ?? null), { timeout: 8000 })
+      .toContain("javier-mouth-strip");
+  }
+  await expect.poll(() => page.evaluate(() => sessionStorage.getItem("voqalize.uahurtado.face")?.slice(0, 15) ?? null), { timeout: 8000 }).toBe("data:image/webp");
+  await page.evaluate(() => {
+    location.href = "/muy-lento/";
+  });
+  await page.waitForURL(`${ORIGIN}/muy-lento/`, { waitUntil: "commit" });
+  await expect.poll(async () => (await posterNow(page)) !== null).toBe(true);
+}
+
+test.describe("his lips on the still while the next page's face is not drawing yet", () => {
+  test("the still is his mouth strip; its lips follow his voice and close when he stops; nothing else moves", async ({ ext }) => {
+    const page = await ext.open("/");
+    await toVeryslowPage(ext, page);
+
+    const speaking = await watchPoster(page, 1000);
+    expect(speaking.length).toBeGreaterThan(40);
+    for (const look of speaking) {
+      expect(look).toMatchObject({ strip: true, size: "400% 100%", animation: "none", transform: "none" });
+      expect(look.image).toContain(`${AVATAR}/characters/javier-mouth-strip.`);
+    }
+    const open = new Set(speaking.map((l) => l.mouth).filter((m) => m && m !== "0"));
+    expect(open.size).toBeGreaterThanOrEqual(2);
+    // Each frame of the strip is its own position, and only the position moves.
+    expect(new Set(speaking.map((l) => l.position)).size).toBeGreaterThanOrEqual(2);
+
+    expect(await toHolder(ext.sw, { what: "voice", on: false })).toEqual({ ok: true });
+    const quiet = await watchPoster(page, 1200);
+    const firstClosed = quiet.findIndex((l) => l.mouth === "0");
+    expect(firstClosed).toBeGreaterThanOrEqual(0);
+    // Closed within about 400 ms (10 ms a sample), and closed from then on.
+    expect(firstClosed).toBeLessThan(45);
+    expect(quiet.slice(firstClosed).every((l) => l.mouth === "0" && l.position.startsWith("0%"))).toBe(true);
+    expect(quiet.length - firstClosed).toBeGreaterThan(40);
+  });
+
+  test("with the strip unavailable, the still is the last frame of his face, and his voice moves nothing", async ({ ext }) => {
+    ext.strip.ok = false;
+    const page = await ext.open("/");
+    await toVeryslowPage(ext, page);
+
+    const looks = await watchPoster(page, 1000);
+    expect(looks.length).toBeGreaterThan(40);
+    expect(looks.every((l) => !l.strip && l.image.startsWith('url("data:image/webp'))).toBe(true);
+    expect(new Set(looks.map((l) => `${l.image.length} ${l.position} ${l.size} ${l.animation} ${l.transform}`)).size).toBe(1);
+    expect(looks[0]).toMatchObject({ animation: "none", transform: "none" });
   });
 });

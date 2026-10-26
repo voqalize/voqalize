@@ -12,6 +12,7 @@
  * keeps the visitor's language.
  */
 
+import type { Shape } from "./level";
 import type { Activity, Language, Status } from "./widget";
 
 /** The pipecat events relayed to the pages: the avatar's (`RTVI_EVENTS` in
@@ -96,7 +97,10 @@ export type ToPage =
   | { k: "playout"; delay: number; samples: number }
   | { k: "perform"; id: number; command: string; payload: unknown }
   // A new face's catch-up on the reply in progress (`catch-up.ts`).
-  | { k: "catchup"; msgs: ToPage[] };
+  | { k: "catchup"; msgs: ToPage[] }
+  // How loud his voice is now, as a mouth shape for the still a page shows
+  // until its face draws (`level.ts`): on a change, and every 200 ms while open.
+  | { k: "level"; m: Shape };
 
 /** The Actions the holder performs itself rather than a page. Every other
  *  Action moves a page of the site, on the UAH tab in front, else the one
