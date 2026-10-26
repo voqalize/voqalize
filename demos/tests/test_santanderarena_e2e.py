@@ -1182,7 +1182,8 @@ async def test_next_week_is_monday_to_sunday_and_keeps_the_sunday_show() -> None
         await rig.driver.start_session(init={"path": "/"})
         await rig.driver.user_says("¿Qué shows hay la próxima semana?")
         found = _results(llm.captured_contents[-1])["find_events"]
-        assert found.startswith(f"1 shows next week: {NEXT_MONDAY.isoformat()} (lunes)")
+        # Camilo (SOON) also lands in next week when the suite runs on a Monday or Tuesday.
+        assert f" next week: {NEXT_MONDAY.isoformat()} (lunes)" in found.split("\n")[0]
         assert "OPETH" in found and "TAEMIN" not in found
 
 
