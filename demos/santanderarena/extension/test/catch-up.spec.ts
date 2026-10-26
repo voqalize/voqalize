@@ -22,10 +22,16 @@ function fed(...msgs: ToPage[]): CatchUp {
 }
 
 test.describe("what a page arriving mid-reply is sent", () => {
-  test("the state, the reply being heard (its place on the stream, every cue chunk, in order), then that he is speaking", () => {
+  test("the state, the reply being heard (its place on the stream from its resyncs, every cue chunk, in order), then that he is speaking", () => {
     const state = avatar({ cmd: "state", state: "WORKING" });
-    const c = fed(state, cues("a", 0), sync("a"), ev("botStartedSpeaking"), cues("a", 900), avatar({ cmd: "action", id: "ACKNOWLEDGE" }));
-    expect(c.replay()).toEqual([state, cues("a", 0), sync("a"), cues("a", 900), ev("botStartedSpeaking")]);
+    const c = fed(state, cues("a", 0), sync("a"), ev("botStartedSpeaking"), cues("a", 900), sync("a", 1000), avatar({ cmd: "action", id: "ACKNOWLEDGE" }));
+    expect(c.replay()).toEqual([state, cues("a", 0), cues("a", 900), sync("a", 1000), ev("botStartedSpeaking")]);
+  });
+
+  test("never the reply's start (a sync at 0 ms), from either road: a face handed it would think it heard the reply begin; the resyncs place it", () => {
+    const viaServer = (ctx: string, at_ms: number) => avatar({ cmd: "sync", ctx, at_ms, rtp: 4800, rate: 48000 });
+    const c = fed(ev("botStartedSpeaking"), sync("a", 0), viaServer("a", 0), cues("a", 0), sync("a", 1000), viaServer("a", 1000));
+    expect(c.replay()).toEqual([cues("a", 0), sync("a", 1000), viaServer("a", 1000), ev("botStartedSpeaking")]);
   });
 
   test("the RTVI envelope the client may hand over is read the way the avatar reads it", () => {
@@ -34,8 +40,8 @@ test.describe("what a page arriving mid-reply is sent", () => {
   });
 
   test("a reply whose end is known is let go when he stops speaking; one still going is kept", () => {
-    const c = fed(ev("botStartedSpeaking"), sync("a"), cues("a", 0), end("a", 1600), sync("b"), cues("b", 0), ev("botStoppedSpeaking"));
-    expect(c.replay()).toEqual([sync("b"), cues("b", 0)]);
+    const c = fed(ev("botStartedSpeaking"), sync("a", 1000), cues("a", 0), end("a", 1600), sync("b", 1000), cues("b", 0), ev("botStoppedSpeaking"));
+    expect(c.replay()).toEqual([sync("b", 1000), cues("b", 0)]);
   });
 
   test("an interruption lets every reply go", () => {
@@ -45,8 +51,8 @@ test.describe("what a page arriving mid-reply is sent", () => {
 
   test("the visitor's next turn while he is quiet lets a reply never heard go; while he speaks it does not", () => {
     expect(fed(cues("a", 0), ev("userStartedSpeaking")).replay()).toEqual([]);
-    const speaking = fed(ev("botStartedSpeaking"), sync("a"), cues("a", 0), ev("userStartedSpeaking"));
-    expect(speaking.replay()).toEqual([sync("a"), cues("a", 0), ev("botStartedSpeaking")]);
+    const speaking = fed(ev("botStartedSpeaking"), sync("a", 1000), cues("a", 0), ev("userStartedSpeaking"));
+    expect(speaking.replay()).toEqual([sync("a", 1000), cues("a", 0), ev("botStartedSpeaking")]);
   });
 
   test("nothing else is kept: the relayed clock, playout, other events, other apps' messages", () => {
