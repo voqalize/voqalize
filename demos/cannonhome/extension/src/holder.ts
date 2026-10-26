@@ -37,7 +37,6 @@ import { cueParts, Narration } from "./narration";
 import {
   ANY_TAB, type CallState, type FromPage, type HolderAsk, isSite, OURS, PORT, SITE, SITE_COMMANDS, type ToPage,
 } from "./protocol";
-import { type Metering, meterVoice } from "./meter";
 import { type Relaying, relayCall } from "./relay";
 import type { Activity, Language, Status } from "./widget";
 
@@ -89,8 +88,6 @@ let lastSiteTab: number | null = null;
 
 let client: PipecatClient | null = null;
 let relaying: Relaying | null = null;
-/** His voice's loudness, for the still on a page whose face is not up yet. */
-let metering: Metering | null = null;
 /** The reply in progress, for a page that arrives in the middle of it. */
 const catchUp = new CatchUp();
 /** Set once the brain can hear the pages (bot ready). */
@@ -386,8 +383,6 @@ async function start(session: unknown, language: Language): Promise<{ ok: boolea
       if (participant?.local || track.kind !== "audio") return;
       audio.srcObject = new MediaStream([track]);
       void audio.play().catch((e: unknown) => note(`audio play refused: ${String(e)}`));
-      metering?.stop();
-      metering = meterVoice(track, (m) => broadcast({ k: "level", m }));
     },
     // A microphone that never opened is a call Javier cannot hear: end it
     // and say why, rather than leave a widget that says "live".
@@ -453,8 +448,6 @@ function end(message?: string): void {
   state.ready = false;
   relaying?.stop();
   relaying = null;
-  metering?.stop();
-  metering = null;
   catchUp.clear();
   narration.clear();
   for (const job of [...inFlight.values()]) finish(job, null);
