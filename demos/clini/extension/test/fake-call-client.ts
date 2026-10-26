@@ -4,9 +4,11 @@
  * a microphone permission the test sets, and hooks the test drives through
  * the service worker (`chrome.runtime.sendMessage({to: "holder", op: "test", …})`).
  *
- * His voice, when a test asks for it (`voice`): a tone over a real WebRTC
- * loopback in the holder, played as his voice is, so the relay reads the
- * delivery clock of a real receiver, as it does in a call. The avatar's
+ * His voice, when a test asks for it (`voice`): a tone whose loudness swells
+ * four times a second, over a real WebRTC loopback in the holder, handed to
+ * the holder as pipecat hands it the bot's track and played as his voice is,
+ * so the relay reads the delivery clock of a real receiver and the holder
+ * measures a real remote track, as in a call. The avatar's
  * messages, when a test sends them (`avatar`): its server messages through the
  * client, and `sync`/`end` over the loopback's sync channel, as the voice
  * runtime sends them.
@@ -27,10 +29,13 @@ interface Fake {
   hungUp: boolean;
   micOn: boolean;
   transport: { pc: RTCPeerConnection | null };
+  trackStarted: boolean;
 }
 
 /** The loopback that carries his voice: the receiving end is the call's. */
-let voice: { pc: RTCPeerConnection; sender: RTCRtpSender; track: MediaStreamTrack; sync: RTCDataChannel } | null = null;
+let voice: {
+  pc: RTCPeerConnection; sender: RTCRtpSender; track: MediaStreamTrack; sync: RTCDataChannel; remote: MediaStreamTrack;
+} | null = null;
 
 async function speak(on: boolean): Promise<void> {
   if (!voice) {
@@ -38,9 +43,19 @@ async function speak(on: boolean): Promise<void> {
     await ac.resume();
     const tone = ac.createOscillator();
     tone.frequency.value = 180;
+    // His loudness rises and falls four times a second, as speech does,
+    // between about 0.02 and 0.2 RMS: every open mouth shape (`level.ts`).
+    const loudness = ac.createGain();
+    loudness.gain.value = 0.16;
+    const swell = ac.createOscillator();
+    swell.frequency.value = 4;
+    const depth = ac.createGain();
+    depth.gain.value = 0.13;
+    swell.connect(depth).connect(loudness.gain);
     const out = ac.createMediaStreamDestination();
-    tone.connect(out);
+    tone.connect(loudness).connect(out);
     tone.start();
+    swell.start();
     const track = out.stream.getAudioTracks()[0]!;
     const from = new RTCPeerConnection();
     const to = new RTCPeerConnection();
@@ -49,7 +64,9 @@ async function speak(on: boolean): Promise<void> {
     const sender = from.addTrack(track, out.stream);
     // The runtime's end of the avatar's sync channel, negotiated at id 200.
     const sync = from.createDataChannel("avatar-sync", { negotiated: true, id: 200, ordered: false, maxRetransmits: 0 });
+    let remote: MediaStreamTrack | null = null;
     to.ontrack = (e) => {
+      remote = e.track;
       const el = document.createElement("audio");
       el.srcObject = e.streams[0] ?? new MediaStream([e.track]);
       document.body.append(el);
@@ -59,9 +76,14 @@ async function speak(on: boolean): Promise<void> {
     await to.setRemoteDescription(from.localDescription!);
     await to.setLocalDescription();
     await from.setRemoteDescription(to.localDescription!);
-    voice = { pc: to, sender, track, sync };
+    voice = { pc: to, sender, track, sync, remote: remote! };
   }
   if (current) current.transport.pc = voice.pc;
+  // The bot's track reaches the holder as pipecat hands it one, once per call.
+  if (current && !current.trackStarted) {
+    current.trackStarted = true;
+    current.callbacks.onTrackStarted?.(voice.remote, { local: false } as never);
+  }
   // Audio flows only while he speaks, as the voice runtime sends it.
   await voice.sender.replaceTrack(on ? voice.track : null);
 }
@@ -74,7 +96,7 @@ const micAsked: MicState[] = [];
 export function makeClient(_output: HTMLAudioElement, callbacks: Callbacks): PipecatClient {
   const fake: Fake = {
     callbacks, handlers: new Map(), sent: [], avatarReports: 0, session: null, hungUp: false, micOn: true,
-    transport: { pc: null },
+    transport: { pc: null }, trackStarted: false,
   };
   current = fake;
   const emit = (name: string, data?: unknown) => fake.handlers.get(name)?.forEach((fn) => fn(data));
