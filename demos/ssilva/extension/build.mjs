@@ -78,6 +78,21 @@ const wiring = testBuild
       publishableKey: env.VOQALIZE_PUBLISHABLE_KEY || "",
     };
 const prod = process.env.VOQALIZE_TARGET === "prod";
+
+// His mouth strip for the still a page shows until its face draws
+// (`src/mouth.ts`), on the avatar host this build's runtime comes from: the
+// dev host for `pnpm build` (AVATAR_RUNTIME), the host the npm shim pins for
+// `build:prod`, and the tests' stand-in host for theirs.
+const STRIP_PATH = "/characters/javier-mouth-strip.f0985aa96df7.webp";
+function pinnedRuntime() {
+  const pin = readFileSync(join(here, "node_modules", "@voqalize", "avatar", "dist", "pin.js"), "utf8");
+  const m = pin.match(/export const RUNTIME_URL = "([^"]*)";/);
+  if (!m) throw new Error("@voqalize/avatar/dist/pin.js: no RUNTIME_URL to take the avatar host from");
+  return m[1];
+}
+const mouthStrip = testBuild
+  ? `https://avatar.voqalize.test${STRIP_PATH}`
+  : new URL(STRIP_PATH, avatarRuntime || pinnedRuntime()).href;
 const blockFlag = testBuild ? "1" : (env.SSILVA_BLOCK_SUBMIT ?? "").trim();
 if (blockFlag && !/^[01]$/.test(blockFlag)) throw new Error(`SSILVA_BLOCK_SUBMIT is "${blockFlag}"; say 1 or 0`);
 const blockSubmit = blockFlag ? blockFlag === "1" : !prod;
@@ -124,7 +139,7 @@ await build({
   ...common,
   entryPoints: [join(here, "src/content.ts")],
   format: "iife",
-  define: { __VOQALIZE__: JSON.stringify(wiring) },
+  define: { __VOQALIZE__: JSON.stringify(wiring), __MOUTH_STRIP__: JSON.stringify(mouthStrip) },
   plugins,
   outfile: join(out, "content.js"),
 });
@@ -133,7 +148,13 @@ await build({ ...common, entryPoints: [join(here, "src/holder.ts")], format: "ii
 await build({ ...common, entryPoints: [join(here, "src/grant.ts")], format: "iife", outfile: join(out, "grant.js") });
 // The early shell, also in the page's world, at document_start: in a call,
 // the widget as the last page left it, before the page has parsed.
-await build({ ...common, entryPoints: [join(here, "src/shell.ts")], format: "iife", outfile: join(out, "shell.js") });
+await build({
+  ...common,
+  entryPoints: [join(here, "src/shell.ts")],
+  format: "iife",
+  define: { __MOUTH_STRIP__: JSON.stringify(mouthStrip) },
+  outfile: join(out, "shell.js"),
+});
 await build({
   ...common,
   entryPoints: [join(here, "src/hsform.ts")],
@@ -155,3 +176,4 @@ if (existsSync(join(here, "rules.json"))) copyFileSync(join(here, "rules.json"),
 console.log(`built ${out} (${wiring.apiBase})`);
 console.log(`quote form "Enviar": ${blockSubmit ? "stopped (SSILVA_BLOCK_SUBMIT on)" : "sent to Ssilva"}`);
 console.log(`avatar runtime: ${avatarRuntime || "the npm pin"}`);
+console.log(`mouth strip: ${mouthStrip}`);
