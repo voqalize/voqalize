@@ -59,6 +59,14 @@ export interface Widget {
   setPoster(url: string | null): void;
   /** The live face is drawn: the poster fades out. */
   unveil(): void;
+  /** His mouth strip (`MOUTH_STRIP`: four frames side by side, closed to
+   *  open) in place of the poster's still, which comes back on `null`. */
+  setMouthStrip(url: string | null): void;
+  /** The strip's frame to show, 0 (closed) to 3 (open). Without a strip it
+   *  changes nothing that shows. */
+  setMouth(shape: 0 | 1 | 2 | 3): void;
+  /** Whether the poster is up (not handed over to the live face). */
+  posterShowing(): boolean;
 }
 
 /** Where the widget sits, as the visitor left it. */
@@ -196,6 +204,13 @@ button { font: inherit; cursor: pointer; }
   transition: opacity 250ms ease; pointer-events: none;
 }
 .poster.gone { opacity: 0; }
+/* His mouth strip: four frames of the face's box side by side, identical but
+   for the mouth; the frame shown follows his voice's loudness. No transform,
+   no animation: only the lips change. */
+.poster[data-strip] { background-size: 400% 100%; background-position: 0% 0; }
+.poster[data-strip][data-mouth="1"] { background-position-x: 33.333%; }
+.poster[data-strip][data-mouth="2"] { background-position-x: 66.667%; }
+.poster[data-strip][data-mouth="3"] { background-position-x: 100%; }
 .minimise {
   position: absolute; top: 8px; right: 8px; width: 28px; height: 28px;
   display: grid; place-items: center; padding: 0; border-radius: 6px;
@@ -276,7 +291,7 @@ export function mountWidget(): Widget {
       <div class="card" hidden>
         <div class="frame">
           <div class="face"></div>
-          <div class="poster" hidden></div>
+          <div class="poster" data-mouth="0" hidden></div>
           <button class="minimise" type="button">
             <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M1 6h10" stroke="currentColor" stroke-width="1.4"/></svg>
           </button>
@@ -330,6 +345,13 @@ export function mountWidget(): Widget {
   const langSlot = $<HTMLElement>(".lang-slot");
   const langButtons = [...lang.querySelectorAll<HTMLButtonElement>("button")];
   const poster = $<HTMLElement>(".poster");
+  let posterUrl: string | null = null;
+  let stripUrl: string | null = null;
+  const drawPoster = () => {
+    const url = stripUrl ?? posterUrl;
+    poster.toggleAttribute("data-strip", Boolean(stripUrl));
+    poster.style.backgroundImage = url ? `url("${url}")` : "";
+  };
 
   // ─── Where it sits ────────────────────────────────────────────────────
 
@@ -596,9 +618,11 @@ export function mountWidget(): Widget {
       layoutFn = fn;
     },
     setPoster(url) {
+      posterUrl = url;
       poster.hidden = !url;
       poster.classList.remove("gone");
-      poster.style.backgroundImage = url ? `url("${url}")` : "";
+      if (!url) stripUrl = null;
+      drawPoster();
     },
     unveil() {
       poster.classList.add("gone");
@@ -606,5 +630,13 @@ export function mountWidget(): Widget {
         if (poster.classList.contains("gone")) poster.hidden = true;
       }, 300);
     },
+    setMouthStrip(url) {
+      stripUrl = url;
+      drawPoster();
+    },
+    setMouth(shape) {
+      if (poster.dataset.mouth !== String(shape)) poster.dataset.mouth = String(shape);
+    },
+    posterShowing: () => !poster.hidden && !poster.classList.contains("gone"),
   };
 }
