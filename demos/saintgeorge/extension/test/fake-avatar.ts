@@ -40,8 +40,8 @@ export interface AvatarInstance {
 export function createAvatar(opts: { mount: HTMLElement; client: PipecatClient; character: string }): AvatarInstance {
   const el = document.createElement("div");
   el.dataset.fakeAvatar = opts.character;
-  // A face that draws: a canvas with something on it, which the page keeps
-  // the last frame of.
+  // A face that draws: a canvas with something on it, which the page waits
+  // for before it fades the face in.
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = 16;
   const g = canvas.getContext("2d")!;
