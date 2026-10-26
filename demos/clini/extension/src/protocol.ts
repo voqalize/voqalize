@@ -9,6 +9,7 @@
  * holder, opens and focuses tabs, and keeps the visitor's language.
  */
 
+import type { Shape } from "./level";
 import type { Activity, Language, Status } from "./widget";
 
 /** The pipecat events relayed to the pages: the avatar's (`RTVI_EVENTS` in
@@ -84,7 +85,10 @@ export type ToPage =
   | { k: "playout"; delay: number; samples: number }
   | { k: "perform"; id: number; command: string; payload: unknown }
   // A new face's catch-up on the reply in progress (`catch-up.ts`).
-  | { k: "catchup"; msgs: ToPage[] };
+  | { k: "catchup"; msgs: ToPage[] }
+  // How loud his voice is now, as a mouth shape for the still a page shows
+  // until its face draws (`level.ts`): on a change, and every 200 ms while open.
+  | { k: "level"; m: Shape };
 
 /** The Actions that belong on a www.clini.cl tab: a page of the site, and the
  *  LASIK evaluation's form, which is on /cirugia-lasik. Performed on a site
