@@ -30,6 +30,9 @@ export interface Kept extends Layout {
   language: Language;
   /** The character's still, a URL. */
   still: string | null;
+  /** His mouth strip (`mouth.ts`), once it has loaded on a page of this
+   *  tab: in the cache, so the next page's still is the strip at once. */
+  strip?: string | null;
 }
 
 const KEPT_KEY = "voqalize.saintgeorge.call";
