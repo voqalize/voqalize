@@ -13,7 +13,12 @@
  * So this keeps what the runtime keeps for a reconnect: the avatar's state,
  * and for each reply still being heard, where its audio sits on the stream
  * (`sync`), its cues and its end, in arrival order; and whether he is
- * speaking. A reply is let go as the face lets it go: on `botStoppedSpeaking`
+ * speaking. Of the syncs it keeps only the resyncs (`at_ms` > 0), never the
+ * one sent at the reply's start (`at_ms` 0): a face made mid-reply that is
+ * handed the start believes it heard the reply begin, sees its own late
+ * arrival as a gap of the page-load's length, distrusts the true place on the
+ * stream and plays the mouth from the first word, seconds behind the voice.
+ * The next resync, about a second later, places it right. A reply is let go as the face lets it go: on `botStoppedSpeaking`
  * once its end is known, and every reply on an interruption or on the
  * visitor's next turn while he is quiet.
  */
@@ -22,10 +27,11 @@ import type { ToPage } from "./protocol";
 
 /** Contexts kept at most; a reply is a handful of sentences. */
 const MAX_CONTEXTS = 8;
-/** `sync` messages kept per context: one at its start and one per stall. */
+/** `sync` messages kept per context: the resyncs the runtime sends as the
+ *  reply plays, about one a second. */
 const MAX_SYNCS = 32;
 
-type Avatar = { type?: unknown; cmd?: unknown; ctx?: unknown; id?: unknown };
+type Avatar = { type?: unknown; cmd?: unknown; ctx?: unknown; id?: unknown; at_ms?: unknown };
 
 interface Kept {
   /** In arrival order: its `sync`s, cues and end, as they went to the pages. */
@@ -93,8 +99,11 @@ export class CatchUp {
   }
 
   private context(avatar: unknown, msg: ToPage): void {
-    const { cmd, ctx } = (avatar ?? {}) as Avatar;
+    const { cmd, ctx, at_ms } = (avatar ?? {}) as Avatar;
     if (typeof ctx !== "string" || (cmd !== "cues" && cmd !== "sync" && cmd !== "end")) return;
+    // The reply's start is not replayed: a face that hears it believes it
+    // heard the reply begin (see above). The resyncs place it.
+    if (cmd === "sync" && at_ms === 0) return;
     let kept = this.contexts.get(ctx);
     if (!kept) {
       kept = { sent: [], syncs: 0, ended: false };
