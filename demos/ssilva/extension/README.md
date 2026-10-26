@@ -76,6 +76,8 @@ on it; it is not how a customer would ship it.
   `sessions.connect`.
 - `src/shell.ts`, `src/persist.ts` — in a call, the widget back at once on the
   next page, and the page load as a view transition under it.
+- `src/mouth.ts`, `src/level.ts`, `src/meter.ts` — his lips on the still the
+  next page shows until its face draws, moving with his voice's loudness.
 - `src/bridge.ts`, `src/hub.ts`, `src/protocol.ts` — the page's port to the
   holder and its requests of the service worker, and what they say.
 - `src/background.ts` — the service worker: makes the holder, opens and
@@ -260,8 +262,26 @@ loaded and the content script has run.
   where his face goes. `content.js` adopts that widget instead of mounting
   another, asks the holder for the call's state, starts building his face at
   once (`preloadAvatar`), and fades the still out once the live face has
-  drawn. The still is a plain still: it holds, unmoving, until the live face
-  draws. Should the holder be gone (no holder, or no word from it in 8 s), the
+  drawn.
+- **His lips on the still.** His voice carries on from the holder while the
+  next page parses, so the still is his mouth strip (`src/mouth.ts`): four
+  frames of his face in the widget's box, identical but for the mouth (closed,
+  small, medium, open), served by the avatar host the build's runtime comes
+  from (`build.mjs`: the dev host for `pnpm build`, the host the npm shim pins
+  for `pnpm build:prod`). The holder measures his voice
+  (`src/meter.ts`: an `AnalyserNode` on the bot's track, the RMS of the newest
+  ~20 ms every 23 ms, at the avatar's loudness thresholds, `src/level.ts`) and
+  sends the shape to every page when it changes, and every 200 ms while his
+  mouth is open. The bridge passes it on from `document_start`, so the lips
+  move before `content.js` has loaded; each shape is held at least 60 ms, the
+  mouth closes 150 ms after he goes quiet, and closes when no level has come
+  for 300 ms. Nothing else moves: no transform, no animation, and the lips
+  move with reduced motion too, since they are the conversation. The live
+  face, lip-syncing from the catch-up, takes over through the 250 ms fade.
+  The strip is loaded into the cache while a call is on, so the next page's
+  still is the strip from its first paint; should it not load, the still is
+  the last frame his face drew (else the character's still), and it holds,
+  unmoving, until the live face draws. Should the holder be gone (no holder, or no word from it in 8 s), the
   carried widget goes back to the invite.
 - **The view transition.** In a call both pages opt in to a cross-document
   view transition (`@view-transition { navigation: auto }`, Chrome 126+): the
@@ -328,3 +348,13 @@ more check what the page reports through a translation: a Vue list whose
 cards are re-rendered for other projects reads those projects again and
 reports each card's own record, and a project page reports its hero's desde
 apart from the selected typology's price.
+
+His lips on the still are checked with a stand-in strip (four flat colours,
+served by the tests' own avatar host; no picture of him is in this repo) and
+his voice as a tone whose loudness swells four times a second, handed to the
+holder as the bot's track: on a page whose parse is held 6 s, the still is the
+strip, at least two open shapes show within a second while nothing has a
+transform or an animation, and it closes within about 400 ms of his voice
+stopping and stays closed; with the strip unavailable, the still is the last
+frame of his face and his voice changes nothing that shows.
+`test/level.spec.ts` checks the thresholds and the timing without a browser.
