@@ -11,7 +11,7 @@ the code in your working tree.
     VOQALIZE_AGENT_SECRET=sk_... VOQALIZE_CORTEX_URL=wss://... \\
         uv run python -m uahurtado.backend.dev_cortex
 
-`GEMINI_API_KEY` must be set, as for the demos server. Point the agent back at
+`OPENAI_API_KEY` must be set, as for the demos server. Point the agent back at
 `wss://brain.dev.voqalize.com/uahurtado` (`update_agent` with `brain_url`)
 once the change is merged and deployed.
 """
@@ -21,7 +21,7 @@ from __future__ import annotations
 import asyncio
 import os
 
-from google import genai
+from openai import AsyncOpenAI
 
 from voqalize.sdk import serve
 
@@ -31,10 +31,10 @@ from .brain import UahurtadoBrain
 def main() -> None:
     secret = os.environ.get("VOQALIZE_AGENT_SECRET", "")
     url = os.environ.get("VOQALIZE_CORTEX_URL", "")
-    key = os.environ.get("GEMINI_API_KEY", "")
+    key = os.environ.get("OPENAI_API_KEY", "")
     if not (secret and url and key):
-        raise SystemExit("set VOQALIZE_AGENT_SECRET, VOQALIZE_CORTEX_URL and GEMINI_API_KEY")
-    client = genai.Client(api_key=key)
+        raise SystemExit("set VOQALIZE_AGENT_SECRET, VOQALIZE_CORTEX_URL and OPENAI_API_KEY")
+    client = AsyncOpenAI(api_key=key)
     asyncio.run(
         serve(lambda: UahurtadoBrain(client=client), api_key=secret, cortex_url=url, version="dev")
     )

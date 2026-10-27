@@ -20,7 +20,7 @@ import re
 
 import pytest
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import ScriptedGemini, reply
+from voqalize_demos.testing import ScriptedOpenAI, input_texts, reply
 
 from ._harness import check_turn, check_voice_pair, demo
 
@@ -142,7 +142,7 @@ def test_a_cue_anchor_follows_the_voice() -> None:
 
 
 async def test_the_voice_says_bideo_and_the_model_reads_video() -> None:
-    llm = ScriptedGemini(
+    llm = ScriptedOpenAI(
         {
             "¿Cómo se lavan las toallas?": reply("Hay un video que lo muestra."),
             "¿Y las sábanas?": reply("Igual, con agua fría."),
@@ -155,9 +155,7 @@ async def test_the_voice_says_bideo_and_the_model_reads_video() -> None:
         check_voice_pair(rig, voice="omnivoice/javier", language="es")
         assert "Hay un bidéo que lo muestra." in turn.text, turn.text
         await rig.driver.user_says("¿Y las sábanas?")
-        context = " ".join(
-            part.text or "" for content in llm.captured_contents[-1] for part in content.parts or []
-        )
+        context = input_texts(llm.captured_inputs[-1])
         assert "Hay un video que lo muestra." in context and "bidéo" not in context, context
 
 

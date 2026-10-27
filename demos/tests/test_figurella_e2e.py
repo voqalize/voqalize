@@ -34,11 +34,19 @@ import json
 import re
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 import pytest
-from google.genai import types
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
+from voqalize_demos.testing import (
+    ScriptedOpenAI,
+    call,
+    input_texts,
+    reply,
+    reply_and_call,
+    tool_results,
+    tool_results_of,
+)
 
 from ._harness import _configs, check_greeting, check_turn, check_voice_pair, demo
 
@@ -213,26 +221,16 @@ def _site(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 # ─── Reading the wire ──────────────────────────────────────────────────────────
 
 
-def _results(contents: list[types.Content]) -> dict[str, str]:
-    return {
-        p.function_response.name or "": str((p.function_response.response or {})["result"])
-        for c in contents
-        for p in (c.parts or [])
-        if p.function_response is not None
-    }
+def _results(items: list[Any]) -> dict[str, str]:
+    return tool_results(items)
 
 
-def _all_results(contents: list[types.Content], name: str) -> list[str]:
-    return [
-        str((p.function_response.response or {})["result"])
-        for c in contents
-        for p in (c.parts or [])
-        if p.function_response is not None and p.function_response.name == name
-    ]
+def _all_results(items: list[Any], name: str) -> list[str]:
+    return tool_results_of(items, name)
 
 
-def _texts(contents: list[types.Content]) -> str:
-    return "\n".join(p.text or "" for c in contents for p in (c.parts or []))
+def _texts(items: list[Any]) -> str:
+    return input_texts(items)
 
 
 async def _page(rig: object, event: str, payload: dict[str, object]) -> None:
@@ -278,8 +276,8 @@ READY = {
 # ─── The script ────────────────────────────────────────────────────────────────
 
 
-def _llm() -> ScriptedGemini:
-    return ScriptedGemini(
+def _llm() -> ScriptedOpenAI:
+    return ScriptedOpenAI(
         {
             # English heard: both legs move before he answers.
             "can you tell me how it works": reply(
@@ -297,7 +295,7 @@ def _llm() -> ScriptedGemini:
             ),
             "I am asking you in English now": reply("Claro, te sigo en español. ¿Qué buscas?"),
             "¿Puedes hablar en inglés?": reply_and_call(
-                "Sure, let's continue in English.", "set_language", request={"language": "en"}
+                "Sure, let's continue in English.", "set_language", args={"language": "en"}
             ),
             # A place on another page, and the same place on the page in front.
             "Me caso en marzo.": [
@@ -314,51 +312,51 @@ def _llm() -> ScriptedGemini:
             ),
             # Branches.
             "Vivo en Ñuñoa.": [
-                call("find_branch", request={"comuna": "Ñuñoa"}),
+                call("find_branch", args={"comuna": "Ñuñoa"}),
                 reply("{page: /}{show: sucursal_costanera} La más cercana es Costanera."),
             ],
             "Vivo en Viña del Mar.": [
-                call("find_branch", request={"comuna": "Viña del Mar"}),
+                call("find_branch", args={"comuna": "Viña del Mar"}),
                 reply("Las sucursales están en Santiago."),
             ],
             "¿Cómo llego a Vitacura?": reply_and_call(
-                "Te abrí el mapa.", "open_map", request={"branch": "vitacura"}
+                "Te abrí el mapa.", "open_map", args={"branch": "vitacura"}
             ),
             "¿Y a Saturno?": reply_and_call(
-                "No tengo ese mapa.", "open_map", request={"branch": "Saturno"}
+                "No tengo ese mapa.", "open_map", args={"branch": "Saturno"}
             ),
             # The booking form, field by field.
             "Quiero reservar, me llamo Ana.": reply_and_call(
                 "Perfecto, Ana. ¿Cuál es tu teléfono?",
                 "fill_booking_form",
-                request={"nombre": "Ana"},
+                args={"nombre": "Ana"},
             ),
             "Mi teléfono es nueve ocho siete seis cinco cuatro tres dos uno.": reply_and_call(
                 "Anoté nueve, ocho, siete, seis, cinco, cuatro, tres, dos, uno. ¿Está bien?",
                 "fill_booking_form",
-                request={"telefono": "+56 9 8765 4321"},
+                args={"telefono": "+56 9 8765 4321"},
             ),
             "Mi número es 912345678.": reply_and_call(
-                "Anoté tu número.", "fill_booking_form", request={"telefono": "912345678"}
+                "Anoté tu número.", "fill_booking_form", args={"telefono": "912345678"}
             ),
             "Mi número es 9 1234 5678, cámbialo.": reply_and_call(
-                "Anoté tu número.", "fill_booking_form", request={"telefono": "912345679"}
+                "Anoté tu número.", "fill_booking_form", args={"telefono": "912345679"}
             ),
             "Mi correo es ANA arroba gmail punto com.": reply_and_call(
                 "Anoté a, n, a, arroba, gmail, punto, com.",
                 "fill_booking_form",
-                request={"email": "ANA @gmail.com"},
+                args={"email": "ANA @gmail.com"},
             ),
             "Mi RUT es 12.345.678-5.": reply_and_call(
-                "Gracias.", "fill_booking_form", request={"comuna": "12.345.678-5"}
+                "Gracias.", "fill_booking_form", args={"comuna": "12.345.678-5"}
             ),
             "Quiero Montemar.": reply_and_call(
-                "Te cuento.", "fill_booking_form", request={"sucursal": "Montemar"}
+                "Te cuento.", "fill_booking_form", args={"sucursal": "Montemar"}
             ),
             "En Vitacura, y quiero el plan novias.": reply_and_call(
                 "Listo.",
                 "fill_booking_form",
-                request={
+                args={
                     "comuna": "Vitacura",
                     "sucursal": "vitacura",
                     "mensaje": "Me caso en marzo. Me interesa el Plan Novias.",
@@ -367,10 +365,10 @@ def _llm() -> ScriptedGemini:
             "Márcala, y quiero bajar de peso.": reply_and_call(
                 "Listo. Revisa los datos y presiona Reservar mi diagnóstico.",
                 "fill_booking_form",
-                request={"sucursal": "Vitacura", "mensaje": "Quiero bajar de peso."},
+                args={"sucursal": "Vitacura", "mensaje": "Quiero bajar de peso."},
             ),
             "Me llamo Carla, quiero una franquicia.": reply_and_call(
-                "Te ayudo.", "fill_franchise_form", request={"nombre": "Carla"}
+                "Te ayudo.", "fill_franchise_form", args={"nombre": "Carla"}
             ),
             # Talk-throughs, keyed on the page's answer.
             "The form is complete": reply(
@@ -382,10 +380,10 @@ def _llm() -> ScriptedGemini:
             "¿Y entonces?": reply("Te cuento."),
             # Tabs.
             "Vuelve a la otra pestaña.": reply_and_call(
-                "Ahí está.", "switch_tab", request={"tab_id": "11"}
+                "Ahí está.", "switch_tab", args={"tab_id": "11"}
             ),
             # A move with no words gets his written line at once.
-            "Ábreme el mapa de Vitacura.": [call("open_map", request={"branch": "Vitacura"})],
+            "Ábreme el mapa de Vitacura.": [call("open_map", args={"branch": "Vitacura"})],
             # A reply that only promises more says nothing: asked once more.
             "¿Y los camarines?": [reply("Un momento."), reply("Los camarines son cómodos.")],
         }
@@ -435,7 +433,7 @@ async def test_a_call_started_in_english_opens_in_english_and_holds() -> None:
         turn = await rig.driver.user_says("¿Cuántos planes hay?")
         check_turn(rig, turn)
         check_voice_pair(rig, voice="omnivoice/javier", language="en")
-        assert "The visitor chose English before the call" in _texts(llm.captured_contents[-1])
+        assert "The visitor chose English before the call" in _texts(llm.captured_inputs[-1])
 
 
 async def test_the_toggle_switches_both_legs_and_confirms_each_way() -> None:
@@ -611,7 +609,7 @@ async def test_find_branch_names_the_nearest_with_its_card_and_he_shows_it() -> 
     async with demo("figurella", llm) as rig:
         await rig.driver.start_session(init={"path": METHOD})
         await rig.driver.user_says("Vivo en Ñuñoa.")
-        result = _results(llm.captured_contents[-1])["find_branch"]
+        result = _results(llm.captured_inputs[-1])["find_branch"]
         assert result.startswith(
             "Nearest to Ñuñoa, by address: Costanera (place sucursal_costanera)"
         )
@@ -625,7 +623,7 @@ async def test_find_branch_names_the_nearest_with_its_card_and_he_shows_it() -> 
             "anchor": "sucursal_costanera",
         }
         await rig.driver.user_says("Vivo en Viña del Mar.")
-        result = _results(llm.captured_contents[-1])["find_branch"]
+        result = _results(llm.captured_inputs[-1])["find_branch"]
         assert "Montemar" in result and "not in the booking form" in result
 
 
@@ -637,7 +635,7 @@ async def test_a_branchs_map_opens_in_a_new_tab_and_an_unknown_one_is_refused() 
         await rig.driver.user_says("¿Y a Saturno?")
         assert _commands(rig, "open_link") == [{"url": MAP, "label": "Cómo llegar a Vitacura"}]
         await rig.driver.user_says("¿Y entonces?")
-        assert _results(llm.captured_contents[-1])["open_map"].startswith("Not opened: no map for")
+        assert _results(llm.captured_inputs[-1])["open_map"].startswith("Not opened: no map for")
 
 
 # ─── The booking form ──────────────────────────────────────────────────────────
@@ -680,7 +678,7 @@ async def test_the_form_is_filled_as_she_dictates_only_what_she_said() -> None:
         assert last["sucursal"] == "Vitacura" and last["comuna"] == "Vitacura"
         assert str(last["mensaje"]).startswith("Me caso en marzo.")
         await rig.driver.user_says("¿Y entonces?")
-        result = _results(llm.captured_contents[-1])["fill_booking_form"]
+        result = _results(llm.captured_inputs[-1])["fill_booking_form"]
         assert "Never say it is sent" in result
         # Nothing he can send presses the button.
         assert not [a for a in rig.actions() if "submit" in a or "send" in a]
@@ -693,7 +691,7 @@ async def test_a_phone_that_is_not_what_she_said_is_refused() -> None:
         await rig.driver.user_says("Mi número es 9 1234 5678, cámbialo.")
         assert "fill_booking_form" not in rig.actions()
         await rig.driver.user_says("¿Y entonces?")
-        result = _results(llm.captured_contents[-1])["fill_booking_form"]
+        result = _results(llm.captured_inputs[-1])["fill_booking_form"]
         assert result.startswith("Not filled: telefono 9 1 2 3 4 5 6 7 9 is not what she said")
         assert "(she said 9 1 2 3 4 5 6 7 8)" in result
     assert said_digits("nueve ocho 7 seis") == "9876"
@@ -707,7 +705,7 @@ async def test_never_a_rut_and_never_a_branch_the_form_does_not_have() -> None:
         await rig.driver.user_says("Quiero Montemar.")
         await rig.driver.user_says("¿Y entonces?")
         assert "fill_booking_form" not in rig.actions()
-        results = _all_results(llm.captured_contents[-1], "fill_booking_form")
+        results = _all_results(llm.captured_inputs[-1], "fill_booking_form")
         assert results[0].startswith("Not filled: that looks like a RUT")
         assert "Montemar is only in the WhatsApp button" in results[1]
 
@@ -722,7 +720,7 @@ async def test_a_fill_off_the_form_takes_her_to_it() -> None:
         await rig.driver.user_says("Quiero reservar, me llamo Ana.")
         assert _commands(rig, "fill_booking_form")[0]["nombre"] == "Ana"
         await rig.driver.user_says("¿Y entonces?")
-        result = _results(llm.captured_contents[-1])["fill_booking_form"]
+        result = _results(llm.captured_inputs[-1])["fill_booking_form"]
         assert "the home page is opening with it" in result
 
 
@@ -742,14 +740,7 @@ async def test_a_fill_asked_for_while_the_last_runs_waits_and_keeps_both() -> No
 
 async def test_a_complete_form_is_said_once_in_the_quiet_with_tools_off() -> None:
     llm = _llm()
-    seen: list[types.GenerateContentConfig] = []
-    answer = llm.answer
-
-    def recording(*, model: str, contents: object, config: types.GenerateContentConfig) -> object:
-        seen.append(config)
-        return answer(model=model, contents=contents, config=config)
-
-    llm.answer = recording  # type: ignore[method-assign]
+    seen = llm.requests
     async with demo("figurella", llm) as rig:
         await rig.driver.start_session(init={"path": "/"})
         await _page(rig, "form_state", READY)
@@ -758,15 +749,11 @@ async def test_a_complete_form_is_said_once_in_the_quiet_with_tools_off() -> Non
         turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
         check_turn(rig, turn)
         assert "Presiona Reservar mi diagnóstico" in turn.text
-        context = _texts(llm.captured_contents[-1])
+        context = _texts(llm.captured_inputs[-1])
         assert _SAY_READY in context
         assert "It holds: nombre: Ana; sucursal: Vitacura" in context
         (talk,) = seen[before:]
-        assert talk.tool_config == types.ToolConfig(
-            function_calling_config=types.FunctionCallingConfig(
-                mode=types.FunctionCallingConfigMode.NONE
-            )
-        )
+        assert talk.get("tool_choice") == "none"
         # The same state again is not said twice.
         await _page(rig, "form_state", READY)
         assert _idle_windows(rig)[-1] == _IDLE_MS
@@ -795,7 +782,7 @@ async def test_her_press_confirmed_by_the_site_is_congratulated_with_the_branch(
         turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
         check_turn(rig, turn)
         assert "Felicitaciones" in turn.text
-        context = _texts(llm.captured_contents[-1])
+        context = _texts(llm.captured_inputs[-1])
         assert "the Vitacura branch will contact her by phone or WhatsApp" in context
         assert "[The site confirmed the booking form was sent (Enviado.).]" in context
 
@@ -816,7 +803,7 @@ async def test_the_sites_refusal_is_talked_through_and_never_called_sent() -> No
         )
         turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
         check_turn(rig, turn)
-        context = _texts(llm.captured_contents[-1])
+        context = _texts(llm.captured_inputs[-1])
         assert (
             "The site refused the form when she pressed the button: Hay un error. (fields: telefono)"
             in context
@@ -846,7 +833,7 @@ async def test_the_franchise_form_is_filled_on_its_page() -> None:
         await rig.driver.user_says("¿Y entonces?")
         assert (
             "The franchise page is opening"
-            in _results(llm.captured_contents[-1])["fill_franchise_form"]
+            in _results(llm.captured_inputs[-1])["fill_franchise_form"]
         )
 
 
@@ -949,7 +936,7 @@ async def test_tabs_are_read_in_and_switching_is_checked() -> None:
             },
         )
         await rig.driver.user_says("Vuelve a la otra pestaña.")
-        assert "11: Inicio; 12: Planes (in front)" in _texts(llm.captured_contents[-1])
+        assert "11: Inicio; 12: Planes (in front)" in _texts(llm.captured_inputs[-1])
         assert rig.command("focus_tab") == {"tab_id": "11"}
         assert _cues(rig) == []
 
@@ -976,7 +963,7 @@ async def test_a_missed_cue_is_noted_quietly() -> None:
         await rig.driver.start_session(init={"path": "/"})
         await _page(rig, "command_failed", {"command": "cue", "reason": "no place X"})
         await rig.driver.user_says("¿Y entonces?")
-        seen = _texts(llm.captured_contents[-1])
+        seen = _texts(llm.captured_inputs[-1])
         assert "A screen cue of yours did not land (no place X)" in seen
         assert "Tell the visitor plainly" not in seen
 

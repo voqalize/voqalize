@@ -47,7 +47,6 @@ Spanish, the store's language, and moves both legs of the call together.
 from __future__ import annotations
 
 import dataclasses
-import inspect
 import math
 import random
 import re
@@ -58,14 +57,12 @@ from difflib import SequenceMatcher
 from typing import TYPE_CHECKING, Any, Literal
 from zoneinfo import ZoneInfo
 
-from google import genai
-from google.genai import types
 from loguru import logger
+from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 from voqalize_demos import (
     PATIENCE,
     FallbackLine,
-    GeminiBrain,
     configure_soon,
     landed,
     needs_result_now,
@@ -94,6 +91,7 @@ from voqalize.sdk import (
     UserIdle,
     UserMessage,
 )
+from voqalize.sdk.openai import OpenAIBrain
 from voqalize.sdk.voice import ToolChoice
 from voqalize.sdk.wire import Config, IdleConfig, SttConfig, TtsConfig, Voice
 
@@ -132,11 +130,11 @@ from .knowledge import (
 
 AGENT_NAME = "Javier"
 
-#: LOW, as Saatvik measured: at MINIMAL, Gemini mostly made the page call first
-#: and wrote nothing; at LOW it writes the answer first and calls at the end.
-THINKING = types.ThinkingConfig(thinking_level=types.ThinkingLevel.LOW)
-#: Gemini 3.8 Flash, as clini: first words in about two seconds, no spikes.
-MODEL = "gemini-3.8-flash"
+#: GPT-6.1 Terra at low reasoning, for cost: OpenAI caches every prompt over
+#: 1,024 tokens, where Gemini 3.8 Flash cached nothing under about 16k, so most
+#: of each turn's input is read from the cache.
+MODEL = "gpt-6.1-terra"
+REASONING = "low"
 #: Cannon Home is in Chile: "hoy" and "mañana" are Santiago's.
 TIMEZONE = ZoneInfo("America/Santiago")
 
@@ -1832,7 +1830,7 @@ def _checkout_note(e: CheckoutState) -> str:
 # ─── The brain ─────────────────────────────────────────────────────────────────
 
 
-class CannonHomeBrain(GeminiBrain):
+class CannonHomeBrain(OpenAIBrain):
     """One per session. Javier: Cannon Home's knowledge and catalogue, a mirror
     of the visitor's tabs and of every price their screen has shown, in Spanish
     or English."""
@@ -1840,13 +1838,17 @@ class CannonHomeBrain(GeminiBrain):
     def __init__(
         self,
         *,
-        client: genai.Client,
+        client: AsyncOpenAI,
         model: str = MODEL,
         knowledge: Knowledge | None = None,
     ) -> None:
         self.kb = knowledge if knowledge is not None else kb.KNOWLEDGE
-        super().__init__(client=client, system_instruction=_prompt(self.kb), model=model)
-        self._config = self._config.model_copy(update={"thinking_config": THINKING})
+        super().__init__(
+            client=client,
+            system_instruction=_prompt(self.kb),
+            model=model,
+            reasoning=REASONING,
+        )
         self._heard_at = float("-inf")
         self.spoken: Lang = OPENING
         self._chosen = False
@@ -2324,20 +2326,6 @@ class CannonHomeBrain(GeminiBrain):
         declared, none callable."""
         return self.respond_with(session, tools=ToolChoice.NONE)
 
-    async def _run(self, tool: Any, call: types.FunctionCall) -> types.Part:
-        """Every tool takes one model, ``request``; Gemini sometimes sends its
-        fields flat, which the SDK refuses. Wrap them before the call runs."""
-        args = dict(call.args or {})
-        if (
-            tool is not None
-            and args
-            and "request" not in args
-            and "request" in inspect.signature(tool).parameters
-        ):
-            logger.info("cannonhome: {} called with flat arguments; wrapping them", call.name)
-            call = call.model_copy(update={"args": {"request": args}})
-        return await super()._run(tool, call)
-
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
         """Page→brain events, folded in silently: no floor taken, no turn."""
         event = CANNONHOME_EVENTS.parse(msg)
@@ -2571,7 +2559,7 @@ class CannonHomeBrain(GeminiBrain):
         self._note(note + "]")
 
     def _note(self, text: str) -> None:
-        self.append_to_context(types.Content(role="user", parts=[types.Part(text=text)]))
+        self.append_note(text)
 
     def _holding_floor(self) -> bool:
         playing = self._playing > 0 and time.monotonic() - self._played_at < _PLAYOUT_MAX_S

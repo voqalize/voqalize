@@ -31,11 +31,19 @@ import asyncio
 import re
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 import pytest
-from google.genai import types
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
+from voqalize_demos.testing import (
+    ScriptedOpenAI,
+    call,
+    every_tool_result,
+    input_texts,
+    reply,
+    reply_and_call,
+    tool_results,
+)
 
 from ._harness import _configs, check_greeting, check_turn, check_voice_pair, demo
 
@@ -140,17 +148,12 @@ def _site(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 # ─── Reading the wire ──────────────────────────────────────────────────────────
 
 
-def _results(contents: list[types.Content]) -> dict[str, str]:
-    return {
-        p.function_response.name or "": str((p.function_response.response or {})["result"])
-        for c in contents
-        for p in (c.parts or [])
-        if p.function_response is not None
-    }
+def _results(items: list[Any]) -> dict[str, str]:
+    return tool_results(items)
 
 
-def _texts(contents: list[types.Content]) -> str:
-    return "\n".join(p.text or "" for c in contents for p in (c.parts or []))
+def _texts(items: list[Any]) -> str:
+    return input_texts(items)
 
 
 async def _page(rig: object, event: str, payload: dict[str, object]) -> None:
@@ -236,8 +239,8 @@ EVENTS = {
 # ─── The script ────────────────────────────────────────────────────────────────
 
 
-def _llm() -> ScriptedGemini:
-    return ScriptedGemini(
+def _llm() -> ScriptedOpenAI:
+    return ScriptedOpenAI(
         {
             # English heard: both legs move before he answers.
             "can you tell me about the school": reply(
@@ -252,7 +255,7 @@ def _llm() -> ScriptedGemini:
             ),
             "I am asking you in English now": reply("Claro, te sigo en español. ¿Qué buscas?"),
             "¿Puedes hablar en inglés?": reply_and_call(
-                "Sure, let's continue in English.", "set_language", request={"language": "en"}
+                "Sure, let's continue in English.", "set_language", args={"language": "en"}
             ),
             # The home tour, and a grade by its words whatever its ordinal mark.
             "Cuéntame del colegio.": reply(
@@ -276,20 +279,18 @@ def _llm() -> ScriptedGemini:
                 "Te muestro los valores en la página de admisión.", "show_fees"
             ),
             "¿Cómo es la admisión?": reply_and_call(
-                "Te muestro la admisión.", "show_fees", request={"about": "admission"}
+                "Te muestro la admisión.", "show_fees", args={"about": "admission"}
             ),
             "¿Qué eventos vienen para Kínder?": reply_and_call(
-                "Te muestro el calendario.", "show_events", request={"query": "Kínder"}
+                "Te muestro el calendario.", "show_events", args={"query": "Kínder"}
             ),
             "¿Qué viene en noviembre?": reply_and_call(
-                "Te muestro el calendario.", "show_events", request={"query": "noviembre"}
+                "Te muestro el calendario.", "show_events", args={"query": "noviembre"}
             ),
             "¿Qué viene en diciembre?": reply_and_call(
-                "Te muestro el calendario.", "show_events", request={"query": "diciembre"}
+                "Te muestro el calendario.", "show_events", args={"query": "diciembre"}
             ),
-            "Y los eventos también.": reply_and_call(
-                "Claro.", "show_events", request={"query": ""}
-            ),
+            "Y los eventos también.": reply_and_call("Claro.", "show_events", args={"query": ""}),
             # Talk-throughs, keyed on the page's answer.
             "show_fees done": reply(
                 "La cuota de incorporación es de ochenta y cinco UF. ¿Te ayudo a escribir a admisiones?"
@@ -304,12 +305,12 @@ def _llm() -> ScriptedGemini:
             "Quiero escribirle a admisión.": reply_and_call(
                 "Claro. ¿Cómo te llamas?",
                 "show_contact_card",
-                request={"parent_name": "", "question": ""},
+                args={"parent_name": "", "question": ""},
             ),
             "Me llamo Ana, mi RUT es 12.345.678-5.": reply_and_call(
                 "Gracias, Ana.",
                 "show_contact_card",
-                request={
+                args={
                     "parent_name": "Ana",
                     "child_age": "5",
                     "question": "Mi RUT es 12.345.678-5. ¿Hay vacantes?",
@@ -318,7 +319,7 @@ def _llm() -> ScriptedGemini:
             "Me llamo Ana Pérez, es para mi hija de cinco.": reply_and_call(
                 "Listo, Ana. Te dejé el correo en pantalla.",
                 "show_contact_card",
-                request={
+                args={
                     "parent_name": "Ana Pérez",
                     "child": "daughter",
                     "child_age": "cinco años",
@@ -329,7 +330,7 @@ def _llm() -> ScriptedGemini:
             "Write to admissions for me, I'm Tom.": reply_and_call(
                 "Done, Tom. The email is on your screen.",
                 "show_contact_card",
-                request={
+                args={
                     "parent_name": "Tom",
                     "child": "son",
                     "grade": "3rd grade",
@@ -340,24 +341,24 @@ def _llm() -> ScriptedGemini:
             "Ábreme el horario de deportes.": reply_and_call(
                 "Te lo abrí.",
                 "open_link",
-                request={"kind": "document", "label": "horarios deporte"},
+                args={"kind": "document", "label": "horarios deporte"},
             ),
             "Quiero entradas para el musical.": reply_and_call(
-                "Te abrí las entradas.", "open_link", request={"kind": "musical_tickets"}
+                "Te abrí las entradas.", "open_link", args={"kind": "musical_tickets"}
             ),
             "Ábreme Schoolnet.": reply_and_call(
-                "Te abrí Schoolnet.", "open_link", request={"kind": "schoolnet"}
+                "Te abrí Schoolnet.", "open_link", args={"kind": "schoolnet"}
             ),
             "Ábreme ese documento.": reply_and_call(
-                "Te lo abrí.", "open_link", request={"kind": "document", "label": "Reglamento"}
+                "Te lo abrí.", "open_link", args={"kind": "document", "label": "Reglamento"}
             ),
             "¿Y entonces?": reply("Te cuento."),
             # Tabs.
             "Vuelve a la otra pestaña.": reply_and_call(
-                "Ahí está.", "switch_tab", request={"tab_id": "11"}
+                "Ahí está.", "switch_tab", args={"tab_id": "11"}
             ),
             # A move with no words gets his written line at once.
-            "Ábreme las entradas.": [call("open_link", request={"kind": "musical_tickets"})],
+            "Ábreme las entradas.": [call("open_link", args={"kind": "musical_tickets"})],
             # A reply that only promises more says nothing: asked once more.
             "¿Y el casino?": [reply("Un momento."), reply("El casino tiene menús mensuales.")],
         }
@@ -406,7 +407,7 @@ async def test_a_call_started_in_english_opens_in_english_and_holds() -> None:
         check_turn(rig, turn)
         check_voice_pair(rig, voice="omnivoice/javier", language="en")
         assert _language_changes(rig) == []
-        assert "The visitor chose English before the call" in _texts(llm.captured_contents[-1])
+        assert "The visitor chose English before the call" in _texts(llm.captured_inputs[-1])
 
 
 async def test_the_toggle_switches_both_legs_and_confirms_each_way() -> None:
@@ -587,14 +588,7 @@ def test_the_page_for_what_they_asked_about() -> None:
 
 async def test_the_fees_are_read_on_the_page_and_said_only_from_that_read() -> None:
     llm = _llm()
-    seen: list[types.GenerateContentConfig] = []
-    answer = llm.answer
-
-    def recording(*, model: str, contents: object, config: types.GenerateContentConfig) -> object:
-        seen.append(config)
-        return answer(model=model, contents=contents, config=config)
-
-    llm.answer = recording  # type: ignore[method-assign]
+    seen = llm.requests
     async with demo("saintgeorge", llm) as rig:
         await rig.driver.start_session(init={"path": "/"})
         turn = await rig.driver.user_says("¿Cuánto cuesta?")
@@ -603,7 +597,7 @@ async def test_the_fees_are_read_on_the_page_and_said_only_from_that_read() -> N
         assert rig.command("show_fees") == {"path": ADMISION, "about": "fees"}
         assert _cues(rig) == []
         await rig.driver.user_says("¿Y entonces?")
-        result = _results(llm.captured_contents[-1])["show_fees"]
+        result = _results(llm.captured_inputs[-1])["show_fees"]
         assert result.startswith("Sent: the page is opening the admission page")
         assert "UF" not in result
         # The page reads them and answers; he says them in the next quiet spell.
@@ -613,7 +607,7 @@ async def test_the_fees_are_read_on_the_page_and_said_only_from_that_read() -> N
         turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
         check_turn(rig, turn)
         assert "ochenta y cinco UF" in turn.text
-        context = _texts(llm.captured_contents[-1])
+        context = _texts(llm.captured_inputs[-1])
         assert "Cuota de Incorporación por estudiante: UF 85" in context
         assert (
             "Colegiatura mensual por estudiante: UF 18 (puede variar dependiendo el nivel)"
@@ -622,11 +616,7 @@ async def test_the_fees_are_read_on_the_page_and_said_only_from_that_read() -> N
         assert "Admisión Pre Kínder 2028: Información a partir de noviembre." in context
         assert "Say these values now, exactly as the page writes them" in context
         (talk,) = seen[before:]
-        assert talk.tool_config == types.ToolConfig(
-            function_calling_config=types.FunctionCallingConfig(
-                mode=types.FunctionCallingConfigMode.NONE
-            )
-        )
+        assert talk.get("tool_choice") == "none"
         assert _idle_windows(rig)[-1] == _IDLE_MS
 
 
@@ -638,7 +628,7 @@ async def test_admission_status_asks_for_the_status_lines() -> None:
         assert rig.command("show_fees") == {"path": ADMISION, "about": "admission"}
         await _page(rig, "fees_read", FEES)
         await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
-        assert "Say what the page says about admission now" in _texts(llm.captured_contents[-1])
+        assert "Say what the page says about admission now" in _texts(llm.captured_inputs[-1])
 
 
 async def test_a_failed_read_is_said_as_a_failure_never_guessed() -> None:
@@ -652,7 +642,7 @@ async def test_a_failed_read_is_said_as_a_failure_never_guessed() -> None:
         turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
         check_turn(rig, turn)
         assert "no puedo ver los valores" in turn.text
-        context = _texts(llm.captured_contents[-1])
+        context = _texts(llm.captured_inputs[-1])
         assert "You cannot see the fees right now: never guess them." in context
         assert "never guess a value or a date" in context
 
@@ -717,7 +707,7 @@ async def test_the_calendar_is_read_in_the_browser_and_the_asked_events_said() -
         await _page(rig, "events_read", EVENTS)
         turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
         check_turn(rig, turn)
-        context = _texts(llm.captured_contents[-1])
+        context = _texts(llm.captured_inputs[-1])
         assert (
             "the next events matching 'Kínder': 2026-11-05 (jueves): Reunión de apoderados Kínder."
             in context
@@ -733,7 +723,7 @@ async def test_a_month_with_nothing_says_so_and_names_whats_coming() -> None:
         await rig.driver.user_says("¿Qué viene en diciembre?")
         await _page(rig, "events_read", EVENTS)
         await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
-        context = _texts(llm.captured_contents[-1])
+        context = _texts(llm.captured_inputs[-1])
         assert "None of the coming events matches what they asked" in context
         assert "2026-10-23 (viernes) 08:15: Liturgia de la palabra de 2°E" in context
 
@@ -745,7 +735,7 @@ async def test_an_event_under_way_is_said_by_when_it_ends() -> None:
         await rig.driver.user_says("¿Qué viene en noviembre?")
         await _page(rig, "events_read", EVENTS)
         await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
-        context = _texts(llm.captured_contents[-1])
+        context = _texts(llm.captured_inputs[-1])
         listed = context.split("matching 'noviembre': ")[1].split("]")[0]
         # A span that runs into the month matches it; one over before it does not.
         assert listed.startswith(
@@ -763,7 +753,7 @@ async def test_the_whole_list_puts_a_running_week_first_with_its_end() -> None:
         await rig.driver.user_says("¿Qué viene en diciembre?")
         await _page(rig, "events_read", EVENTS)
         await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
-        context = _texts(llm.captured_contents[-1])
+        context = _texts(llm.captured_inputs[-1])
         assert "under way, until 2026-10-23 (viernes): Semana Amarilla" in context
 
 
@@ -775,7 +765,7 @@ async def test_one_move_at_a_time_the_next_follows_the_answer() -> None:
         await rig.driver.user_says("Y los eventos también.")
         assert _commands(rig, "show_events") == [], "the calendar raced the fees"
         await rig.driver.user_says("¿Y entonces?")
-        queued = _results(llm.captured_contents[-1])["show_events"]
+        queued = _results(llm.captured_inputs[-1])["show_events"]
         assert queued.startswith("Queued, not sent yet: the page is still working on show_fees")
         await _page(rig, "fees_read", FEES)
         assert len(_commands(rig, "show_events")) == 1
@@ -792,12 +782,7 @@ async def test_the_card_needs_their_details_and_never_takes_a_rut() -> None:
         await rig.driver.user_says("Me llamo Ana, mi RUT es 12.345.678-5.")
         await rig.driver.user_says("¿Y entonces?")
         assert "show_contact_card" not in rig.actions()
-        results = [
-            str((p.function_response.response or {})["result"])
-            for c in llm.captured_contents[-1]
-            for p in (c.parts or [])
-            if p.function_response is not None
-        ]
+        results = every_tool_result(llm.captured_inputs[-1])
         assert results[0].startswith("Not shown: ask for their name and the child's age")
         assert results[1].startswith("Not shown: a RUT is never written in the email.")
 
@@ -826,7 +811,7 @@ async def test_the_card_readies_the_email_in_spanish_and_sends_nothing() -> None
         assert _idle_windows(rig)[-1] == _TALK_THROUGH_MS
         turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
         check_turn(rig, turn)
-        context = _texts(llm.captured_contents[-1])
+        context = _texts(llm.captured_inputs[-1])
         assert "The visitor pressed the email button" in context
         assert "never that it was sent" in context
 
@@ -876,7 +861,7 @@ async def test_documents_tickets_and_portals_open_from_the_sites_own_links() -> 
         # Buying is no page move, and a login says they log in themselves.
         assert all(c.get("path") != MUSICAL for c in _cues(rig))
         await rig.driver.user_says("¿Y entonces?")
-        assert "logs in there themselves" in _results(llm.captured_contents[-1])["open_link"]
+        assert "logs in there themselves" in _results(llm.captured_inputs[-1])["open_link"]
 
 
 async def test_a_link_nowhere_on_the_site_or_off_its_hosts_is_refused() -> None:
@@ -893,7 +878,7 @@ async def test_a_link_nowhere_on_the_site_or_off_its_hosts_is_refused() -> None:
         await rig.driver.user_says("Ábreme ese documento.")
         await rig.driver.user_says("¿Y entonces?")
         assert "open_link" not in rig.actions()
-        assert _results(llm.captured_contents[-1])["open_link"].startswith(
+        assert _results(llm.captured_inputs[-1])["open_link"].startswith(
             "Not opened: no document 'Reglamento'"
         )
 
@@ -921,7 +906,7 @@ async def test_tabs_are_read_in_and_switching_is_checked() -> None:
             },
         )
         await rig.driver.user_says("Vuelve a la otra pestaña.")
-        assert "11: Inicio; 12: Infant (in front)" in _texts(llm.captured_contents[-1])
+        assert "11: Inicio; 12: Infant (in front)" in _texts(llm.captured_inputs[-1])
         assert rig.command("focus_tab") == {"tab_id": "11"}
         assert _cues(rig) == []
 
@@ -948,7 +933,7 @@ async def test_a_missed_cue_is_noted_quietly() -> None:
         await rig.driver.start_session(init={"path": "/"})
         await _page(rig, "command_failed", {"command": "cue", "reason": "no heading X"})
         await rig.driver.user_says("¿Y entonces?")
-        seen = _texts(llm.captured_contents[-1])
+        seen = _texts(llm.captured_inputs[-1])
         assert "A screen cue of yours did not land (no heading X)" in seen
         assert "Tell the visitor plainly" not in seen
 

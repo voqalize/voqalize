@@ -1,7 +1,7 @@
 """Saint George's College guide — the demo's own FastAPI brain route.
 
 Voqalize dials `/saintgeorge?session_id=…` once per session (the inbound
-path); the shared `make_brain_router` owns the socket lifecycle and token
+path); the shared `make_openai_brain_router` owns the socket lifecycle and token
 verification, so this file only names the demo and its per-session brain
 factory.
 
@@ -12,8 +12,8 @@ own site, saintgeorge.cl, with the widget injected by the extension in
 
 from __future__ import annotations
 
-from google import genai
-from voqalize_demos.session import make_brain_router
+from openai import AsyncOpenAI
+from voqalize_demos.session import make_openai_brain_router
 
 from .brain import SaintGeorgeBrain
 
@@ -21,9 +21,9 @@ from .brain import SaintGeorgeBrain
 NAME = "saintgeorge"
 
 
-def build(client: genai.Client) -> SaintGeorgeBrain:
-    """Build a fresh brain for one session from the shared Gemini client."""
+def build(client: AsyncOpenAI) -> SaintGeorgeBrain:
+    """Build a fresh brain for one session from the shared OpenAI client."""
     return SaintGeorgeBrain(client=client)
 
 
-router = make_brain_router(NAME, build)
+router = make_openai_brain_router(NAME, build)

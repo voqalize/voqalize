@@ -41,12 +41,12 @@ import random
 import re
 from collections.abc import AsyncGenerator, Callable, Iterable, Mapping
 from dataclasses import dataclass, field
-from typing import Literal, Protocol, cast
+from typing import Any, Literal, Protocol, cast
 
 from loguru import logger
 
 from voqalize.sdk import Speech
-from voqalize.sdk.gemini import GeminiBrain
+from voqalize.sdk.voice import VoiceCore
 
 Kind = Literal["request", "question", "correction", "statement"]
 
@@ -467,7 +467,7 @@ class Floor[L: str](Protocol):
 
 
 async def hold_the_floor[L: str](
-    brain: GeminiBrain,
+    brain: VoiceCore[Any, Any],
     ack: Acknowledger[L] | Floor[L],
     spoken: Callable[[], L],
     turn: AsyncGenerator[Speech, None],

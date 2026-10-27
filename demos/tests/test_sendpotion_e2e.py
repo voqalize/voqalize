@@ -26,11 +26,18 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Iterator
+from typing import Any
 
 import pytest
-from google.genai import types
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
+from voqalize_demos.testing import (
+    ScriptedOpenAI,
+    call,
+    input_texts,
+    reply,
+    reply_and_call,
+    tool_results,
+)
 
 from ._harness import _configs, check_greeting, check_turn, check_voice_pair, demo
 
@@ -127,45 +134,31 @@ def _site(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     yield
 
 
-def _results(contents: list[types.Content]) -> dict[str, str]:
-    return {
-        p.function_response.name or "": str((p.function_response.response or {})["result"])
-        for c in contents
-        for p in (c.parts or [])
-        if p.function_response is not None
-    }
+def _results(items: list[Any]) -> dict[str, str]:
+    return tool_results(items)
 
 
-def _texts(contents: list[types.Content]) -> str:
-    return "\n".join(p.text or "" for c in contents for p in (c.parts or []))
+def _texts(items: list[Any]) -> str:
+    return input_texts(items)
 
 
-def _requests(llm: ScriptedGemini) -> list[types.GenerateContentConfig]:
-    """Every request's config, in call order, recorded as the brain sends it."""
-    seen: list[types.GenerateContentConfig] = []
-    answer = llm.answer
-
-    def recording(*, model: str, contents: object, config: types.GenerateContentConfig) -> object:
-        seen.append(config)
-        return answer(model=model, contents=contents, config=config)
-
-    llm.answer = recording
-    return seen
+def _requests(llm: ScriptedOpenAI) -> list[dict[str, Any]]:
+    """Every request the brain makes, as it made it: the fake's own record."""
+    return llm.requests
 
 
-def _names(config: types.GenerateContentConfig) -> list[str]:
-    """The tools a request declares, by name."""
-    return [getattr(fn, "__name__", "") for fn in config.tools or []]
+def _names(request: dict[str, Any]) -> list[str]:
+    """The tools a request declared, by name."""
+    return [str(t.get("name")) for t in request.get("tools") or []]
 
 
 #: What the one extra request asks of Gemini: function-calling mode NONE.
-_MAY_CALL_NONE = types.ToolConfig(
-    function_calling_config=types.FunctionCallingConfig(mode=types.FunctionCallingConfigMode.NONE)
-)
+#: A request with tools declared and none callable.
+_MAY_CALL_NONE = "none"
 
 
-def _llm() -> ScriptedGemini:
-    return ScriptedGemini(
+def _llm() -> ScriptedOpenAI:
+    return ScriptedOpenAI(
         {
             "How much is it?": reply(
                 "{page: /pricing/}{show: pricing plans} Plans start small. "
@@ -208,11 +201,11 @@ def _llm() -> ScriptedGemini:
                 chunks=[" P", "otion ofrece herramientas muy completas. ¿Quieres verlas?"]
             ),
             "I run an agency and want more clients.": [
-                call("find_blog_posts", request={"use_case": "agency growth cold outreach"}),
+                call("find_blog_posts", args={"use_case": "agency growth cold outreach"}),
                 reply_and_call(
                     "Outreach is your use case. I've opened the best post for you.",
                     "recommend_posts",
-                    request={
+                    args={
                         "heading": "For agency outreach",
                         "posts": [
                             {"url": AGENCY + "/", "why": "How agencies win clients"},
@@ -225,10 +218,10 @@ def _llm() -> ScriptedGemini:
             "Take me to the sequence part.": reply_and_call(
                 "It's three steps.",
                 "open_post",
-                request={"url": AGENCY, "heading": "three-step sequence"},
+                args={"url": AGENCY, "heading": "three-step sequence"},
             ),
             "I'd like a demo.": reply_and_call(
-                "Happy to set that up. Here's the calendar.", "book_demo", request={}
+                "Happy to set that up. Here's the calendar.", "book_demo", args={}
             ),
             "calendar is on their screen": reply(
                 "Tuesday, Wednesday and Thursday are open. Which suits you?"
@@ -236,7 +229,7 @@ def _llm() -> ScriptedGemini:
             "Tuesday at three, I'm Jane, jane@acme.test.": reply_and_call(
                 "I've put jane at acme dot test. Is that right?",
                 "book_demo",
-                request={
+                args={
                     "day": "tuesday october 20",
                     "time": "3:00pm",
                     "name": "Jane",
@@ -244,7 +237,7 @@ def _llm() -> ScriptedGemini:
                 },
             ),
             "Add that we're an agency of ten.": reply_and_call(
-                "Added.", "book_demo", request={"notes": "Agency of ten, wants outreach videos."}
+                "Added.", "book_demo", args={"notes": "Agency of ten, wants outreach videos."}
             ),
             "details step is on their screen": reply(
                 "Tuesday at three it is. Press Schedule Event when ready."
@@ -252,9 +245,9 @@ def _llm() -> ScriptedGemini:
             "pressed Schedule Event": reply("Thanks, Jane. This preview held it back."),
             "Let me sign up.": reply_and_call("Opening the sign-up.", "open_signup"),
             "Go back to the pricing tab.": reply_and_call(
-                "Here's pricing.", "switch_tab", request={"tab_id": "11"}
+                "Here's pricing.", "switch_tab", args={"tab_id": "11"}
             ),
-            "Show me tab ninety.": reply_and_call("Here.", "switch_tab", request={"tab_id": "90"}),
+            "Show me tab ninety.": reply_and_call("Here.", "switch_tab", args={"tab_id": "90"}),
             "What's on this tab?": reply("It's the agency post."),
             # Cues: out of the speech, checked against the site, sent to the page.
             "How does it work?": reply(
@@ -470,7 +463,7 @@ async def test_sections_and_faqs_are_checked_against_the_tab_in_front() -> None:
             "text": "Professional",
         }
         # The page in front was read in with what they said.
-        seen = _texts(llm.captured_contents[-1])
+        seen = _texts(llm.captured_inputs[-1])
         assert "Its headings: Pricing plans; FAQs" in seen
         assert "Its plans: Starter, Professional, Enterprise" in seen
         await rig.driver.user_says("How long can videos be?")
@@ -487,7 +480,7 @@ async def test_blog_posts_are_found_recommended_and_never_invented() -> None:
     async with demo("sendpotion", llm) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/"})
         await rig.driver.user_says("I run an agency and want more clients.")
-        found = _results(llm.captured_contents[-1])["find_blog_posts"]
+        found = _results(llm.captured_inputs[-1])["find_blog_posts"]
         assert f"url: {AGENCY}" in found
         listed = rig.command("open_posts")
         assert listed["heading"] == "For agency outreach"
@@ -565,7 +558,7 @@ async def test_the_demo_fills_as_they_talk_and_is_never_scheduled() -> None:
         )
         turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
         assert "held it back" in turn.text
-        assert "held it back from SendPotion's calendar" in _texts(llm.captured_contents[-1])
+        assert "held it back from SendPotion's calendar" in _texts(llm.captured_inputs[-1])
 
 
 async def test_tabs_are_read_in_and_switching_is_checked() -> None:
@@ -584,7 +577,7 @@ async def test_tabs_are_read_in_and_switching_is_checked() -> None:
             },
         )
         await rig.driver.user_says("What's on this tab?")
-        seen = _texts(llm.captured_contents[-1])
+        seen = _texts(llm.captured_inputs[-1])
         assert "11: Pricing; 12: How agencies win clients (in front)" in seen
         await rig.driver.user_says("Go back to the pricing tab.")
         assert rig.command("focus_tab") == {"tab_id": "11"}
@@ -716,7 +709,7 @@ async def test_a_missed_cue_is_noted_quietly() -> None:
         await rig.driver.start_session(init={"site": "site", "path": "/"})
         await _page(rig, "command_failed", {"command": "cue", "reason": "no heading X"})
         await rig.driver.user_says("Carry on.")
-        seen = _texts(llm.captured_contents[-1])
+        seen = _texts(llm.captured_inputs[-1])
         assert "A screen cue of yours did not land (no heading X)" in seen
         assert "Tell the visitor plainly" not in seen
 
@@ -731,9 +724,9 @@ async def test_a_reply_with_nothing_in_it_is_asked_for_again() -> None:
 
 @pytest.mark.parametrize("said", ["Open the sign-up.", "Hello?"])
 async def test_the_extra_request_declares_the_tools_and_may_call_none(said: str) -> None:
-    """A silent move and an empty reply each get one more request: Gemini's
-    function-calling mode NONE over the same declared tools, where the turn's
-    own request carries no tool config at all."""
+    """A silent move and an empty reply each get one more request: tool choice
+    "none" over the same declared tools, where the turn's own request leaves
+    the choice to the model."""
     llm = _llm()
     requests = _requests(llm)
     async with demo("sendpotion", llm) as rig:
@@ -741,12 +734,12 @@ async def test_the_extra_request_declares_the_tools_and_may_call_none(said: str)
         before = len(requests)
         await rig.driver.user_says(said)
         first, again = requests[before:]
-        assert first.tool_config is None
-        assert again.tool_config == _MAY_CALL_NONE
-        assert again.tools
+        assert first.get("tool_choice") == "auto"
+        assert again.get("tool_choice") == _MAY_CALL_NONE
+        assert again.get("tools")
         assert _names(again) == _names(first)
-        assert again.thinking_config == first.thinking_config
-        assert again.system_instruction == first.system_instruction
+        assert again.get("reasoning") == first.get("reasoning")
+        assert again.get("instructions") == first.get("instructions")
 
 
 async def test_a_page_cue_alone_still_shows_what_he_describes() -> None:
@@ -850,8 +843,8 @@ async def test_the_demo_calendar_is_only_opening_until_the_page_says_so() -> Non
         await _page(rig, "demo_state", {"step": "calendar", "month": "", "days": []})
         assert _idle_windows(rig)[-1] == _IDLE_MS
         await rig.driver.user_says("Carry on.")
-        seen = _texts(llm.captured_contents[-1])
-        result = _results(llm.captured_contents[-1])["book_demo"]
+        seen = _texts(llm.captured_inputs[-1])
+        result = _results(llm.captured_inputs[-1])["book_demo"]
         assert "Nothing is confirmed yet" in result
         assert "is open" not in result
         assert "The demo calendar is still loading" in seen
@@ -903,7 +896,7 @@ async def test_page_moves_that_keep_failing_are_said_plainly_and_stop() -> None:
         assert brain._resolve_cue(RawCue("page", "/pricing", "plans start", 0)) is None
         assert brain._resolve_cue(RawCue("show", "Clone yourself", "one video", 0)) is not None
         await rig.driver.user_says("Carry on.")
-        seen = _texts(llm.captured_contents[-1])
+        seen = _texts(llm.captured_inputs[-1])
         assert "Page moves are failing on this tab" in seen
         assert "never say a page, a section or the calendar is on it" in seen
         # Their next turn tries again.

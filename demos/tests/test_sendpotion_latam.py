@@ -13,13 +13,13 @@ tier's reference clip; the words are this brain's. Two halves, as in
   The page's cue anchors follow that spelling, and the model only ever sees
   "video".
 
-* **What the model writes — opt-in, real model.** Whether Gemini answers in
+* **What the model writes — opt-in, real model.** Whether the model answers in
   Latin American Spanish is a property of the prompt and the model, and only the
   model can show it. Each scenario starts a call in Spanish, asks what a visitor
-  asks, and checks every word he said. Skipped without ``GEMINI_API_KEY``; run it
+  asks, and checks every word he said. Skipped without ``OPENAI_API_KEY``; run it
   after any change to the Spanish in the prompt::
 
-      GEMINI_API_KEY=... uv run pytest tests/test_sendpotion_latam.py -q
+      OPENAI_API_KEY=... uv run pytest tests/test_sendpotion_latam.py -q
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ from typing import Any
 
 import pytest
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import ScriptedGemini, reply
+from voqalize_demos.testing import ScriptedOpenAI, input_texts, reply
 
 from ._harness import check_turn, check_voice_pair, demo
 
@@ -153,7 +153,7 @@ def test_a_cue_anchor_follows_the_voice(sentence: str) -> None:
 async def test_the_voice_says_bideo_and_the_model_reads_video() -> None:
     """The voice is handed "bidéo"; the page's cue is anchored to it; the model's
     next request holds what was said, spelled "video"."""
-    llm = ScriptedGemini(
+    llm = ScriptedOpenAI(
         {
             "¿Qué hace Potion?": reply(
                 chunks=[
@@ -175,29 +175,25 @@ async def test_the_voice_says_bideo_and_the_model_reads_video() -> None:
         cues = [c["payload"] for c in rig.driver.ui_commands if c.get("command") == "cue"]
         assert any(c["at"] == "un bid o para" for c in cues), cues
         await rig.driver.user_says("¿Y cuánto cuesta?")
-        context = " ".join(
-            part.text or "" for content in llm.captured_contents[-1] for part in content.parts or []
-        )
+        context = input_texts(llm.captured_inputs[-1])
         assert "Un video para cada cliente." in context, context
         assert "bidéo" not in context, context
 
 
 async def test_the_spanish_greeting_is_respelled_too() -> None:
-    llm = ScriptedGemini({"Hola.": reply("Claro.")})
+    llm = ScriptedOpenAI({"Hola.": reply("Claro.")})
     async with demo("sendpotion", llm) as rig:
         opener = await rig.driver.start_session(
             init={"site": "site", "path": "/pricing/", "lang": "es"}
         )
         assert opener is not None and "harían bidéos?" in opener.text, opener
         await rig.driver.user_says("Hola.")
-        context = " ".join(
-            part.text or "" for content in llm.captured_contents[-1] for part in content.parts or []
-        )
+        context = input_texts(llm.captured_inputs[-1])
         assert "harían videos?" in context and "bidéo" not in context, context
 
 
 async def test_english_speech_is_left_as_written() -> None:
-    llm = ScriptedGemini({"What does Potion do?": reply("Potion makes videos of you.")})
+    llm = ScriptedOpenAI({"What does Potion do?": reply("Potion makes videos of you.")})
     async with demo("sendpotion", llm) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/"})
         turn = await rig.driver.user_says("What does Potion do?")
@@ -222,8 +218,8 @@ def test_the_prompt_asks_for_latin_american_spanish() -> None:
 
 # ─── What the model writes: the real model ────────────────────────────────────
 
-_KEY = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-live = pytest.mark.skipif(not _KEY, reason="no GEMINI_API_KEY — the live Spanish eval is opt-in")
+_KEY = os.environ.get("OPENAI_API_KEY")
+live = pytest.mark.skipif(not _KEY, reason="no OPENAI_API_KEY — the live Spanish eval is opt-in")
 
 #: How long one real turn may take, tools included.
 _TURN = 45.0
@@ -240,9 +236,9 @@ _ASKS = [
 
 
 def _client() -> Any:
-    from google import genai
+    from openai import AsyncOpenAI
 
-    return genai.Client(api_key=_KEY)
+    return AsyncOpenAI(api_key=_KEY)
 
 
 @live

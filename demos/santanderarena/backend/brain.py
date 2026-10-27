@@ -47,7 +47,6 @@ is written in. The voice is one man, recorded in each.
 from __future__ import annotations
 
 import asyncio
-import inspect
 import math
 import re
 import time
@@ -58,14 +57,12 @@ from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING, Any, Literal
 from zoneinfo import ZoneInfo
 
-from google import genai
-from google.genai import types
 from loguru import logger
+from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 from voqalize_demos import (
     PATIENCE,
     FallbackLine,
-    GeminiBrain,
     configure_soon,
     landed,
     needs_result_now,
@@ -85,6 +82,7 @@ from voqalize.sdk import (
     UserIdle,
     UserMessage,
 )
+from voqalize.sdk.openai import OpenAIBrain
 from voqalize.sdk.voice import ModelChunk, ModelPart, ToolChoice
 from voqalize.sdk.wire import Config, IdleConfig, SttConfig, TtsConfig, Voice
 
@@ -113,13 +111,11 @@ from .knowledge import (
 
 AGENT_NAME = "Javier"
 
-#: LOW, as SendPotion measured: at MINIMAL, Gemini mostly made the page call
-#: first and wrote nothing; at LOW it writes the answer first and calls at the
-#: end, so the page moves while he is still talking.
-THINKING = types.ThinkingConfig(thinking_level=types.ThinkingLevel.LOW)
-#: SendPotion's model, for SendPotion's reason: on its prompt 3.8 had the first
-#: words out in about two seconds where 3.5 spiked to seven.
-MODEL = "gemini-3.8-flash"
+#: GPT-6.1 Terra at low reasoning, for cost: OpenAI caches every prompt over
+#: 1,024 tokens, where Gemini 3.8 Flash cached nothing under about 16k, so most
+#: of each turn's input is read from the cache.
+MODEL = "gpt-6.1-terra"
+REASONING = "low"
 
 #: Santiago, for "tonight" and "this weekend".
 TIMEZONE = ZoneInfo("America/Santiago")
@@ -1173,20 +1169,24 @@ def named_card(sentence: str, cards: list[str] | tuple[str, ...]) -> str | None:
 # ─── The brain ─────────────────────────────────────────────────────────────────
 
 
-class SantanderBrain(GeminiBrain):
+class SantanderBrain(OpenAIBrain):
     """One per session. Javier: Santander Arena's knowledge, its pages and
     events, and a mirror of the visitor's tabs, in Spanish or English."""
 
     def __init__(
         self,
         *,
-        client: genai.Client,
+        client: AsyncOpenAI,
         model: str = MODEL,
         knowledge: Knowledge | None = None,
     ) -> None:
         self.kb = knowledge if knowledge is not None else kb.KNOWLEDGE
-        super().__init__(client=client, system_instruction=_prompt(self.kb), model=model)
-        self._config = self._config.model_copy(update={"thinking_config": THINKING})
+        super().__init__(
+            client=client,
+            system_instruction=_prompt(self.kb),
+            model=model,
+            reasoning=REASONING,
+        )
         self._heard_at = float("-inf")
         #: The language he speaks now, and the toggle's written confirmation
         #: of a switch, said at the start of his next turn.
@@ -1620,10 +1620,8 @@ class SantanderBrain(GeminiBrain):
         path = self._cue_path if moved else None
         return Cue(at=raw.at, word=raw.word, path=path, heading=heading, text=text)
 
-    async def _model_stream(
-        self, contents: list[types.Content], request: types.GenerateContentConfig
-    ) -> AsyncIterator[ModelChunk]:
-        """Gemini's stream, given up when it goes quiet: asked once more when
+    async def _model_stream(self, contents: list[Any], request: Any) -> AsyncIterator[ModelChunk]:
+        """The model's stream, given up when it goes quiet: asked once more when
         it stalled before a word or a call, and else ended with his honest
         line in the call's language. On prod one stream sent two tokens and
         then nothing for sixteen seconds, and the visitor sat through it.
@@ -1658,27 +1656,13 @@ class SantanderBrain(GeminiBrain):
             line = _STALLED[self.spoken]
             line = f" {line}" if spoke else line
             yield ModelChunk(
-                parts=[ModelPart("text", types.Part(text=line), text=line)], finished=True
+                parts=[ModelPart("text", self._new_text_part(line), text=line)], finished=True
             )
             return
 
     def _talk_now(self, session: Session) -> AsyncGenerator[Speech, None]:
         """The one extra request a silent page move gets: tools declared, none callable."""
         return self.respond_with(session, tools=ToolChoice.NONE)
-
-    async def _run(self, tool: Any, call: types.FunctionCall) -> types.Part:
-        """Every tool takes one model, ``request``; Gemini sometimes sends its
-        fields flat, which the SDK refuses. Wrap them before the call runs."""
-        args = dict(call.args or {})
-        if (
-            tool is not None
-            and args
-            and "request" not in args
-            and "request" in inspect.signature(tool).parameters
-        ):
-            logger.info("santanderarena: {} called with flat arguments; wrapping them", call.name)
-            call = call.model_copy(update={"args": {"request": args}})
-        return await super()._run(tool, call)
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
         """Page→brain events, folded in silently: no floor taken, no turn."""
@@ -1790,7 +1774,7 @@ class SantanderBrain(GeminiBrain):
         self._note(note + "]")
 
     def _note(self, text: str) -> None:
-        self.append_to_context(types.Content(role="user", parts=[types.Part(text=text)]))
+        self.append_note(text)
 
     def _restore_idle(self) -> None:
         if self._idle_short:

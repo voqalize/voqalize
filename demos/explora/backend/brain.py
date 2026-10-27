@@ -37,7 +37,6 @@ robot", and then he presses Send Message for them.
 from __future__ import annotations
 
 import asyncio
-import inspect
 import math
 import re
 import time
@@ -45,14 +44,12 @@ from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Literal
 
-from google import genai
-from google.genai import types
 from loguru import logger
+from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 from voqalize_demos import (
     PATIENCE,
     FallbackLine,
-    GeminiBrain,
     configure_soon,
     landed,
     needs_result_now,
@@ -73,6 +70,7 @@ from voqalize.sdk import (
     UserIdle,
     UserMessage,
 )
+from voqalize.sdk.openai import OpenAIBrain
 from voqalize.sdk.voice import ToolChoice
 from voqalize.sdk.wire import Config, IdleConfig, SttConfig, TtsConfig, Voice
 
@@ -97,10 +95,11 @@ from .knowledge import TOPIC_IDS, Knowledge, canonical_path, norm, site_path
 
 AGENT_NAME = "Javier"
 
-#: As SendPotion measured: at LOW, Gemini writes the answer and its cues first.
-THINKING = types.ThinkingConfig(thinking_level=types.ThinkingLevel.LOW)
-#: SendPotion's model, measured there for first words and cue-writing.
-MODEL = "gemini-3.8-flash"
+#: GPT-6.1 Terra at low reasoning, for cost: OpenAI caches every prompt over
+#: 1,024 tokens, where Gemini 3.8 Flash cached nothing under about 16k, so most
+#: of each turn's input is read from the cache.
+MODEL = "gpt-6.1-terra"
+REASONING = "low"
 
 # ─── Voice and timing ──────────────────────────────────────────────────────────
 
@@ -1173,20 +1172,24 @@ def _words_in(text: str) -> int:
 # ─── The brain ─────────────────────────────────────────────────────────────────
 
 
-class ExploraBrain(GeminiBrain):
+class ExploraBrain(OpenAIBrain):
     """One per session. Javier: Explora's knowledge, its pages, its booking
     site, and a mirror of the visitor's tabs, in English or Spanish."""
 
     def __init__(
         self,
         *,
-        client: genai.Client,
+        client: AsyncOpenAI,
         model: str = MODEL,
         knowledge: Knowledge | None = None,
     ) -> None:
         self.kb = knowledge if knowledge is not None else kb.KNOWLEDGE
-        super().__init__(client=client, system_instruction=_prompt(self.kb), model=model)
-        self._config = self._config.model_copy(update={"thinking_config": THINKING})
+        super().__init__(
+            client=client,
+            system_instruction=_prompt(self.kb),
+            model=model,
+            reasoning=REASONING,
+        )
         self._heard_at = float("-inf")
         #: The language he speaks now, whether the visitor chose it, and the
         #: toggle's written confirmation of a switch, said in his next turn.
@@ -1292,29 +1295,31 @@ class ExploraBrain(GeminiBrain):
 
     def _warm_cache(self) -> None:
         """Send the prompt once while the greeting plays, so the first answer
-        finds it in Gemini's cache. On prod call be1f5b9a the first answers
+        finds it in the prompt cache. On prod call be1f5b9a the first answers
         read about seventeen thousand tokens with none cached, and took eight
-        to ten seconds to a first word. Nothing waits on it, and a failure
-        only costs the warm-up."""
-        generate = getattr(self._client.aio.models, "generate_content", None)
-        if generate is None:
-            return
-        config = self._turn_config().model_copy(update={"max_output_tokens": 1})
-        contents = [types.Content(role="user", parts=[types.Part(text="[The call is starting.]")])]
+        to ten seconds to a first word. The request is the turn's own — same
+        instructions, same tools — so its cached prefix is the one the first
+        answer opens with. Nothing waits on it, and a failure only costs the
+        warm-up."""
+        request = self._arguments(
+            [self._new_user_turn("[The call is starting.]")], self._turn_request(None)
+        )
+        request.update(stream=False, max_output_tokens=16)
 
         async def warm() -> None:
             t0 = time.monotonic()
             try:
-                got = await generate(model=self._model, contents=contents, config=config)
+                got = await self._client.responses.create(**request)
             except Exception as error:  # The warm-up is best effort.
                 logger.info("explora: the prompt cache warm-up failed: {}", error)
                 return
-            usage = getattr(got, "usage_metadata", None)
+            usage = getattr(got, "usage", None)
+            details = getattr(usage, "input_tokens_details", None)
             logger.info(
                 "explora: prompt sent ahead in {:.1f} s ({} tokens, {} cached)",
                 time.monotonic() - t0,
-                getattr(usage, "prompt_token_count", None),
-                getattr(usage, "cached_content_token_count", None),
+                getattr(usage, "input_tokens", None),
+                getattr(details, "cached_tokens", None),
             )
 
         self._warming = asyncio.create_task(warm())
@@ -1891,20 +1896,6 @@ class ExploraBrain(GeminiBrain):
         finally:
             await turn.aclose()
 
-    async def _run(self, tool: Any, call: types.FunctionCall) -> types.Part:
-        """Every tool takes one model, ``request``; Gemini sometimes sends its
-        fields flat, which the SDK refuses. Wrap them before the call runs."""
-        args = dict(call.args or {})
-        if (
-            tool is not None
-            and args
-            and "request" not in args
-            and "request" in inspect.signature(tool).parameters
-        ):
-            logger.info("explora: {} called with flat arguments; wrapping them", call.name)
-            call = call.model_copy(update={"args": {"request": args}})
-        return await super()._run(tool, call)
-
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
         """Page→brain events, folded in silently: no floor taken, no turn."""
         event = EXPLORA_EVENTS.parse(msg)
@@ -2122,7 +2113,7 @@ class ExploraBrain(GeminiBrain):
         self._note(note + "]")
 
     def _note(self, text: str) -> None:
-        self.append_to_context(types.Content(role="user", parts=[types.Part(text=text)]))
+        self.append_note(text)
 
     def _talk_through(self, ask: str, line: str | None = None) -> None:
         """Have him talk through what the page just showed, in the next quiet
