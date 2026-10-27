@@ -1,0 +1,451 @@
+# Mapa del sitio: páginas y lugares
+
+Sources: knowledge/L3/anchors.json (generado por knowledge/build.py). Cada lugar con su clave, para {show: clave}.
+
+- /
+  - home_atajos: Bienvenido a Clínicas Uno Salud Dental
+  - home_especialidades: Servicios y especialidades
+  - home_clinicas: Nuestras Clínicas
+  - home_testimonios: Lo que dicen nuestros pacientes
+  - home_planes: El cuidado que tu sonrisa necesita en un solo plan
+  - home_convenios: Seguros y Convenios
+  - home_nosotros: Uno Salud Dental
+  - home_por_que: ¿Por qué elegir Uno Salud Dental?
+  - home_contactanos: ¿Tienes alguna duda? Contáctanos
+  - home_card_limpieza: Tarjeta Limpieza Dental
+  - home_card_ortodoncia: Tarjeta Ortodoncia
+  - home_card_implantes: Tarjeta Implantes Dentales
+  - home_card_endodoncia: Tarjeta Endodoncia – Tratamiento Conducto
+  - home_card_periodoncia: Tarjeta Periodoncia
+  - home_card_odontopediatria: Tarjeta Odontopediatría
+  - home_card_blanqueamiento: Tarjeta Blanqueamiento Dental
+  - home_card_radiografias: Tarjeta Radiografías Dentales
+  - home_card_cirugia: Tarjeta Cirugía Dental Oral
+  - home_card_rehabilitacion: Tarjeta Rehabilitación Oral
+  - home_card_bruxismo: Tarjeta Plano de Relajación Bruxismo
+- /especialidades/
+  - especialidades_lista: Especialidades Odontológicas Dentales
+  - especialidades_card_limpieza: Tarjeta Limpieza Dental
+  - especialidades_card_ortodoncia: Tarjeta Ortodoncia
+  - especialidades_card_implantes: Tarjeta Implantes Dentales
+  - especialidades_card_endodoncia: Tarjeta Endodoncia – Tratamiento Conducto
+  - especialidades_card_periodoncia: Tarjeta Periodoncia
+  - especialidades_card_odontopediatria: Tarjeta Odontopediatría
+  - especialidades_card_blanqueamiento: Tarjeta Blanqueamiento Dental
+  - especialidades_card_radiografias: Tarjeta Radiografías Dentales
+  - especialidades_card_cirugia: Tarjeta Cirugía Dental Oral
+  - especialidades_card_rehabilitacion: Tarjeta Rehabilitación Oral
+  - especialidades_card_bruxismo: Tarjeta Plano de Relajación Bruxismo
+- /especialidades/limpieza-dental/
+  - limpieza_hero: Limpieza Dental
+  - limpieza_consiste_limpieza: ¿En qué consiste la limpieza dental?
+  - limpieza_importante_hacerse_limpieza: ¿Por qué es importante hacerse una limpieza dental?
+  - limpieza_tipos_limpieza: Tipos de Limpieza Dental
+  - limpieza_comite: Contenido revisado y validado por nuestro Comité Clínico
+  - limpieza_preguntas: Preguntas frecuentes
+  - limpieza_beneficios_limpieza: Beneficios de una limpieza dental en Uno Salud
+  - limpieza_proceso: ¿Cuál es el proceso del tratamiento de limpieza dental?
+  - limpieza_testimonios: Lo que opinan nuestros pacientes
+  - limpieza_dudas: Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a
+  - limpieza_articulos: Artículos relacionados de limpieza dental
+  - limpieza_relacionadas: Especialidades relacionadas
+  - limpieza_contactanos: Agenda tu hora con nosotros
+  - faq_limpieza_1: ¿Con qué frecuencia debo realizarme una limpieza dental?
+  - faq_limpieza_2: ¿Duele la limpieza dental?
+  - faq_limpieza_3: ¿Cuáles son los riesgos de no hacerme una limpieza dental?
+  - faq_limpieza_4: ¿Puedo realizarme una limpieza dental si tengo encías sensibles?
+  - faq_limpieza_5: ¿Cómo puedo mantener los resultados de la limpieza dental en casa?
+  - faq_limpieza_6: ¿Cuánto cuesta una limpieza dental?
+  - faq_limpieza_7: ¿Cuál es la diferencia entre limpieza y blanqueamiento dental?
+- /especialidades/ortodoncia/
+  - ortodoncia_hero: Ortodoncia
+  - ortodoncia_tipos_ortodoncia_frenillos: Tipos de ortodoncia y frenillos
+  - ortodoncia_tipo_ortodoncia_mejor: ¿Qué tipo de ortodoncia es mejor para mí?
+  - ortodoncia_cuando_recomienda_ortodoncia: ¿Cuándo se recomienda la ortodoncia?
+  - ortodoncia_ortodoncia_interceptiva: Ortodoncia interceptiva
+  - ortodoncia_tratamiento_ortodoncia_descubre: Tratamiento de ortodoncia: Descubre sus beneficios
+  - ortodoncia_precios: ¿Cuánto cuesta el tratamiento de ortodoncia?
+  - ortodoncia_convenios: ¿Tienes beneficios o convenios?
+  - ortodoncia_comite: Contenido revisado y validado por nuestro Comité Clínico
+  - ortodoncia_por_que: ¿Por qué elegir Uno Salud Dental?
+  - ortodoncia_proceso: ¿Cómo es un tratamiento de ortodoncia?
+  - ortodoncia_testimonios: Lo que opinan nuestros pacientes
+  - ortodoncia_preguntas: Preguntas frecuentes sobre tratamiento de ortodoncia
+  - ortodoncia_relacionadas: Especialidades relacionadas
+  - ortodoncia_articulos: Artículos relacionados de ortodoncia
+  - ortodoncia_contactanos: Agenda tu evaluación de ortodoncia
+  - ortodoncia_tab_metalicos: Precios Ortodoncia metálica
+  - ortodoncia_precios_metalicos: Precios Ortodoncia metálica
+  - ortodoncia_tab_ceramicos: Precios Ortodoncia cerámica (estética)
+  - ortodoncia_precios_ceramicos: Precios Ortodoncia cerámica (estética)
+  - ortodoncia_tab_invisible: Precios Ortodoncia invisible
+  - ortodoncia_precios_invisible: Precios Ortodoncia invisible
+  - faq_ortodoncia_1: ¿Qué es la ortodoncia?
+  - faq_ortodoncia_2: ¿A qué edad se recomienda comenzar un tratamiento?
+  - faq_ortodoncia_3: ¿Cuánto cuesta la ortodoncia?
+  - faq_ortodoncia_4: ¿Cuál es la diferencia entre brackets metálicos y cerámicos?
+  - faq_ortodoncia_5: ¿Qué es mejor: brackets o alineadores invisibles?
+  - faq_ortodoncia_6: ¿La ortodoncia duele?
+  - faq_ortodoncia_7: ¿La ortodoncia tiene cobertura o convenios?
+  - faq_ortodoncia_8: ¿Cuál es el precio de la ortodoncia invisible?
+  - faq_ortodoncia_9: ¿Cuál es el precio de ortodoncia en niños?
+- /especialidades/implantes-dentales/
+  - implantes_hero: Implantes Dentales
+  - implantes_implante: ¿Qué es un implante dental?
+  - implantes_precios: ¿Cuánto cuesta un implante dental en Chile? Precios 2026
+  - implantes_factores_influyen_precio: ¿Qué factores influyen en el precio final?
+  - implantes_convenios: Implantes dentales con Fonasa, Isapre y convenios
+  - implantes_cuando_recomienda_implante: ¿Cuándo se recomienda un implante dental?
+  - implantes_implante_puente_protesis: Implante, puente o prótesis removible: ¿cuál conviene?
+  - implantes_injerto_oseo: Injerto óseo dental
+  - implantes_proceso: ¿Cómo es el procedimiento de un implante dental? Paso a paso
+  - implantes_cuidados_despues_cirugia: Cuidados después de una cirugía de implantes dentales
+  - implantes_senales_alerta_cuando: Señales de alerta: cuándo contactar a tu implantólogo
+  - implantes_beneficios_implantes_dentales: Beneficios de implantes dentales en Uno Salud
+  - implantes_por_que: ¿Por qué elegir Uno Salud Dental para tu implante?
+  - implantes_importancia_tratamiento_implantes: Importancia de un tratamiento de implantes
+  - implantes_testimonios: Lo que opinan nuestros pacientes
+  - implantes_comite: Contenido revisado y validado por nuestro Comité Clínico
+  - implantes_preguntas: Preguntas frecuentes sobre implantes dentales
+  - implantes_relacionadas: Especialidades relacionadas
+  - implantes_articulos: Artículos relacionados de implantes dentales
+  - implantes_contactanos: Agenda tu hora con nosotros
+  - faq_implantes_1: ¿Cuánto cuesta un diente atornillado?
+  - faq_implantes_2: ¿Cuánto cuesta un implante de muela?
+  - faq_implantes_3: ¿Existen implantes dentales gratis o del gobierno en Chile?
+  - faq_implantes_4: ¿De qué material son los implantes dentales?
+  - faq_implantes_5: ¿El implante dental duele?
+  - faq_implantes_6: ¿Cuántos días de reposo necesito después de un implante dental?
+  - faq_implantes_7: ¿Cuánto dura un implante dental?
+  - faq_implantes_8: ¿Qué pasa si pierdo un diente y espero para ponerme un implante?
+  - faq_implantes_9: ¿Hasta qué edad me puedo poner un implante?
+- /especialidades/tratamiento-de-conducto-endodoncia/
+  - endodoncia_hero: Endodoncia – Tratamiento Conducto
+  - endodoncia_beneficios_realizar_endodoncia: Beneficios de realizar una Endodoncia
+  - endodoncia_cuando_podria_necesitar: ¿Cuándo podría necesitar un tratamiento de conducto?
+  - endodoncia_preguntas: Preguntas frecuentes
+  - endodoncia_realizar_endodoncia: ¿Por qué realizar tu Endodoncia en Uno Salud Dental
+  - endodoncia_proceso: ¿Cuál es el proceso del Tratamiento?
+  - endodoncia_testimonios: Lo que opinan nuestros pacientes
+  - endodoncia_dudas: Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a
+  - endodoncia_relacionadas: Especialidades relacionadas
+  - endodoncia_contactanos: Agenda tu hora con nosotros
+  - faq_endodoncia_1: ¿Causa dolor el tratamiento de conducto?
+  - faq_endodoncia_2: ¿Cuántas sesiones son necesarias para realizar el tratamiento de conducto?
+  - faq_endodoncia_3: ¿Qué cuidados debo seguir después del tratamiento de endodoncia?
+  - faq_endodoncia_4: ¿Qué debo hacer si se desprende la tapadura provisoria de mi tratamiento de conducto?
+  - faq_endodoncia_5: Tengo dolor en una muela con un tratamiento de conducto incompleto, ¿debo ir a urgencias?
+  - faq_endodoncia_6: ¿Qué debo hacer si la tapadura provisional de mi endodoncia se está rompiendo?
+  - faq_endodoncia_7: Tengo la tapadura provisional de mi tratamiento de conducto y temo que se me pueda desprender, ¿hasta cuándo puedo tenerla?
+- /especialidades/periodoncia/
+  - periodoncia_hero: Periodoncia
+  - periodoncia_enfermedades_periodontales_gingivitis: Enfermedades Periodontales: Gingivitis y Periodontitis
+  - periodoncia_cuando_deberia_consultar: ¿Cuándo debería consultar a un especialista en Periodoncia
+  - periodoncia_estas_razones_importante: Por estas razones, es importante el chequeo preventivo que está orientado a real
+  - periodoncia_factores_riesgo_desarrollar: Factores de riesgo para desarrollar la enfermedad Periodontal
+  - periodoncia_puede_prevenir_enfermedad: ¿Cómo se puede prevenir la enfermedad Periodontal
+  - periodoncia_preguntas: Preguntas frecuentes
+  - periodoncia_realizar_tratamiento_periodoncia: ¿Por qué realizar tu tratamiento de Periodoncia en Uno Salud Dental?
+  - periodoncia_proceso: ¿Cuál es el proceso del Tratamiento?
+  - periodoncia_testimonios: Lo que opinan nuestros pacientes
+  - periodoncia_dudas: Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a
+  - periodoncia_relacionadas: Especialidades relacionadas
+  - periodoncia_contactanos: Agenda tu hora con nosotros
+  - faq_periodoncia_1: ¿Qué es la gingivitis y cómo puedo prevenirla?
+  - faq_periodoncia_2: ¿Cuáles son los síntomas de la periodontitis y cuándo debo buscar tratamiento?
+  - faq_periodoncia_3: ¿Qué tratamientos se utilizan para tratar la enfermedad periodontal?
+  - faq_periodoncia_4: ¿Qué puedo hacer para mantener mis encías saludables a largo plazo?
+- /especialidades/odontopediatria/
+  - odontopediatria_hero: Odontopediatría
+  - odontopediatria_cuales_son_principales: ¿Cuáles son los principales problemas dentales en niños?
+  - odontopediatria_sintomas_deberian_llevarnos: ¿Qué síntomas deberían llevarnos a consultar al dentista?
+  - odontopediatria_te_recomendamos: Te recomendamos
+  - odontopediatria_preguntas: Preguntas frecuentes
+  - odontopediatria_realizar_tratamiento_hijo: ¿Por qué realizar el tratamiento de tu hijo en Uno Salud Dental?
+  - odontopediatria_proceso: ¿Cuál es el proceso del Tratamiento?
+  - odontopediatria_testimonios: Lo que opinan nuestros pacientes
+  - odontopediatria_dudas: Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a
+  - odontopediatria_relacionadas: Especialidades relacionadas
+  - odontopediatria_contactanos: Agenda tu hora con nosotros
+  - faq_odontopediatria_1: ¿A qué edad debo llevar a mi hijo al primer control dental?
+  - faq_odontopediatria_2: ¿A qué edad salen los primeros dientes temporales (dientes de leche)?
+  - faq_odontopediatria_3: ¿Cuándo debo comenzar a lavar los dientes a mi hijo?
+  - faq_odontopediatria_4: ¿Cuándo empiezan a salir los dientes permanentes?
+  - faq_odontopediatria_5: ¿Cómo afecta la alimentación del niño a la hora de prevenir las caries?
+  - faq_odontopediatria_6: ¿Cada cuánto tiempo debo llevar a mi hijo al dentista?
+- /especialidades/blanqueamiento-dental/
+  - blanqueamiento_hero: Blanqueamiento Dental
+  - blanqueamiento_consiste_blanqueamiento: ¿En qué consiste el blanqueamiento dental
+  - blanqueamiento_quien_puede_realizar: ¿Quién se puede realizar un blanqueamiento dental?
+  - blanqueamiento_cuidados_despues_blanqueamiento: Cuidados después de un blanqueamiento dental
+  - blanqueamiento_preguntas: Preguntas frecuentes
+  - blanqueamiento_ventajas_hacer_blanqueamiento: Ventajas de hacer tu Blanqueamiento en Uno Salud Dental
+  - blanqueamiento_proceso: ¿Cuál es el proceso del Tratamiento?
+  - blanqueamiento_testimonios: Lo que opinan nuestros pacientes
+  - blanqueamiento_dudas: Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a
+  - blanqueamiento_relacionadas: Especialidades relacionadas
+  - blanqueamiento_contactanos: Agenda tu hora con nosotros
+  - faq_blanqueamiento_1: ¿Es normal sentir molestias después de un blanqueamiento dental?
+  - faq_blanqueamiento_2: ¿Cuánto puede durar un blanqueamiento dental?
+  - faq_blanqueamiento_3: ¿Cada cuánto se puede hacer un blanqueamiento dental?
+  - faq_blanqueamiento_4: ¿Cómo calmar la sensibilidad dental después de un blanqueamiento?
+- /especialidades/radiologia/
+  - radiografias_hero: Radiografías Dentales
+  - radiografias_tipos_radiografias: Tipos de radiografías
+  - radiografias_ventajas_hacer_radiografias: Ventajas de hacer tus radiografías en Uno Salud Dental
+  - radiografias_testimonios: Lo que opinan nuestros pacientes
+  - radiografias_dudas: Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a
+  - radiografias_relacionadas: Especialidades relacionadas
+  - radiografias_contactanos: Agenda tu hora con nosotros
+- /especialidades/cirugia-oral/
+  - cirugia_hero: Cirugía Dental Oral
+  - cirugia_tipos_procedimientos: Tipos de procedimientos
+  - cirugia_podrias_necesitar_extraccion: ¿Por qué podrías necesitar una extracción dental?
+  - cirugia_preguntas: Preguntas frecuentes
+  - cirugia_ventajas_hacer_cirugia: Ventajas de hacer tu cirugía oral en Uno Salud Dental
+  - cirugia_proceso: ¿Cuál es el proceso del Tratamiento?
+  - cirugia_testimonios: Lo que opinan nuestros pacientes
+  - cirugia_dudas: Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a
+  - cirugia_relacionadas: Especialidades relacionadas
+  - cirugia_contactanos: Agenda tu hora con nosotros
+  - faq_cirugia_1: ¿Es dolorosa la cirugía oral?
+  - faq_cirugia_2: ¿Cuánto tiempo dura la recuperación después de una cirugía oral?
+  - faq_cirugia_3: ¿Qué cuidados debo seguir después de una cirugía oral?
+  - faq_cirugia_4: ¿Cuándo debo contactar a mi odontólogo después de la cirugía?
+- /especialidades/rehabilitacion-oral/
+  - rehabilitacion_hero: Rehabilitación Oral
+  - rehabilitacion_cuando_necesaria_rehabilitacion: ¿Cuándo es necesaria la Rehabilitación Oral?
+  - rehabilitacion_ventajas_hacer_rehabilitacion: Ventajas de hacer tu Rehabilitación Oral en Uno Salud Dental
+  - rehabilitacion_proceso: ¿Cuál es el proceso del Tratamiento?
+  - rehabilitacion_testimonios: Lo que opinan nuestros pacientes
+  - rehabilitacion_dudas: Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a
+  - rehabilitacion_relacionadas: Especialidades relacionadas
+  - rehabilitacion_contactanos: Agenda tu hora con nosotros
+- /especialidades/planos-de-relajacion-bruxismo/
+  - bruxismo_hero: Plano de Relajación Bruxismo
+  - bruxismo_puede_solucionar_bruxismo: ¿Cómo se puede solucionar el Bruxismo?
+  - bruxismo_ventajas_tratar_bruxismo: Ventajas de tratar tu Bruxismo en Uno Salud Dental
+  - bruxismo_proceso: ¿Cuál es el proceso del Tratamiento?
+  - bruxismo_testimonios: Lo que opinan nuestros pacientes
+  - bruxismo_dudas: Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a
+  - bruxismo_relacionadas: Especialidades relacionadas
+  - bruxismo_contactanos: Agenda tu hora con nosotros
+- /clinicas/*/
+  - clinica_hero: Clínicas Dentales en Santiago
+  - clinica_cta: Realiza tu diagnóstico inicial con nosotros
+  - clinica_testimonios: Lo que dicen nuestros pacientes
+  - clinica_sucursales_cercanas: Sucursales cercanas
+  - clinica_horario: Horario de atención
+  - clinica_referencias: Referencias
+  - clinica_mapa: Mapa
+- /promociones/
+  - promociones_lista: Promociones Dentales
+  - promociones_contactanos: ¿Dudas sobre nuestros tratamientos?
+  - promo_cla_implante: CLA IOI 2026
+  - promo_ortodoncia_oct: Ortodoncia OCT
+  - promo_limpieza_blanqueamiento: Limpieza OCT BLANQ
+  - promo_credito_cla: Credito CLA
+  - promo_mes_implante: Mes del Implante AGO26
+  - promo_planes: Planes Sonrisa Protegida
+  - promo_hualpen: Apertura Hualpen
+  - promo_puerto_montt: GEO Zona Pto Montt
+  - promo_machali: GEO Zona Rancagua Machali
+  - promo_chiguayante: GEO Chiguayante
+- /convenio/
+  - convenios_lista: Convenios Dentales
+  - convenios_beneficios: Beneficios y Reembolsos Dentales
+  - convenios_cajas: Cajas de compensación
+  - convenios_isapres: Fonasa e isapres
+  - convenios_aseguradoras: Aseguradoras
+  - convenios_cooperativas: Cooperativas
+  - convenios_otros: Otros beneficios
+  - convenios_beneficio_pad: PAD
+  - convenios_beneficio_ges: GES
+  - convenios_beneficio_seguro: Seguro Complementario
+  - convenios_beneficio_excedentes: Excedentes
+- /categoria-convenio/fonasa-e-isapres/
+  - conv_isapres_lista: Fonasa e isapres
+- /categoria-convenio/cajas-de-compensacion/
+  - conv_cajas_lista: Cajas de compensación
+- /categoria-convenio/aseguradoras/
+  - conv_aseguradoras_lista: Aseguradoras
+- /categoria-convenio/cooperativas/
+  - conv_cooperativas_lista: Cooperativas
+- /categoria-convenio/otros-beneficios/
+  - conv_otros_lista: Otros beneficios
+- /beneficios-y-reembolso/
+  - beneficios_lista: Beneficios y Reembolsos Dentales
+  - beneficios_card_pad: PAD
+  - beneficios_card_ges: GES
+  - beneficios_card_seguro: Seguro Complementario
+  - beneficios_card_excedentes: Excedentes
+- /beneficios-y-reembolso/pad/
+  - pad_texto: PAD
+  - pad_relacionadas: Beneficios y reembolsos
+  - faq_pad_14421: ¿Cómo acceder al PAD?
+- /beneficios-y-reembolso/ges/
+  - ges_texto: GES
+  - ges_relacionadas: Beneficios y reembolsos
+  - faq_ges_14417: ¿Dónde está mi clínica Uno Salud más cercana con convenio para mi Isapre?
+  - faq_ges_14415: ¿Cuáles son los GES Dentales?
+  - faq_ges_14413: ¿Cómo atenderse por la Isapre?
+  - faq_ges_14402: ¿Qué es el GES?
+- /beneficios-y-reembolso/seguro-complementario/
+  - seguro_texto: Seguro Complementario
+  - seguro_relacionadas: Beneficios y reembolsos
+  - faq_seguro_14410: ¿Cómo realizar el reembolso?
+  - faq_seguro_14408: ¿Qué cubre el seguro complementario?
+  - faq_seguro_12883: ¿Qué es el Seguro Complementario?
+- /beneficios-y-reembolso/excedentes/
+  - excedentes_texto: Excedentes
+  - excedentes_relacionadas: Beneficios y reembolsos
+  - faq_excedentes_14396: ¿Cómo sé si tengo excedentes?
+  - faq_excedentes_14391: ¿Qué son los excedentes?
+- /landing/planes-sonrisa-protegida/
+  - planes_agenda_hora_diagnostico: Agenda tu hora de diagnóstico y evaluaremos el plan que mejor se adapta a tus necesidades.
+  - planes_conviene_elegir_plan: ¿Por qué conviene elegir un Plan Sonrisa Protegida?
+  - planes_limpiezas_dentales_regulares: Limpiezas Dentales Regulares
+  - planes_suscribete_planes_deja: Suscríbete a uno de nuestros planes y deja tu sonrisa en buenas manos. No espere
+  - planes_tabla_titulo: Con Uno Salud Dental, tu sonrisa y la de tu familia están en las mejores manos.
+  - planes_valores_uf_referenciales: Valores UF referenciales calculados al 01-01-2026
+  - planes_no_sabes_plan: ¿No sabes qué plan elegir? Agenda ahora tu cita de diagnóstico con un especialista.
+  - planes_agrega_beneficiarios_plan: Agrega beneficiarios a tu plan y disfruta de descuentos exclusivos para todos. P
+  - planes_revisa_terminos_condiciones: *Revisa términos y condiciones al momento de contratar tu Plan Sonrisa Protegida
+  - planes_nos_esforzamos_brindarte: Nos esforzamos por brindarte una experiencia excepcional en cada visita.
+  - planes_mejores_insumos_mundo: Los mejores insumos del mundo
+  - planes_tenemos_pacientes_no: Tenemos pacientes no clientes
+  - planes_testimonios_pacientes: Testimonios de pacientes
+  - planes_cual_proceso_tratamiento: ¿Cuál es el proceso del tratamiento?
+  - planes_1_recepcion: 1. Recepción
+  - planes_4_diagnostico: 4. Diagnóstico dental
+  - planes_aun_tienes_dudas: ¿Aún tienes dudas?
+  - planes_preguntas: ¿Cómo hago uso de mi Plan Sonrisa Protegida?
+  - planes_terminos_condiciones: TÉRMINOS Y CONDICIONES
+  - planes_precios: Tabla de precios de los planes
+  - faq_planes_1: ¿Cómo hago uso de mi Plan Sonrisa Protegida?
+  - faq_planes_2: ¿Desde cuándo puedo comenzar a utilizar los beneficios del Plan Sonrisa Protegida?
+  - faq_planes_3: ¿Dónde puedo utilizar el Plan Sonrisa Protegida?
+  - faq_planes_4: ¿Cuál es la vigencia del Plan Sonrisa Protegida?
+  - faq_planes_5: ¿El Plan Sonrisa Protegida cubre urgencias dentales ambulatorias?
+  - faq_planes_6: ¿Otros convenios, descuentos o promociones vigentes son acumulables con el Plan Sonrisa Protegida?
+  - faq_planes_7: ¿Qué descuentos NO aplican en el Plan Sonrisa Protegida?
+  - faq_planes_8: ¿Es necesario realizar un Diagnóstico previo para suscribir el Plan Sonrisa Protegida?
+  - faq_planes_9: ¿Desde qué edad puedo ser beneficiario de un Plan Sonrisa Protegida?
+  - faq_planes_10: ¿Los beneficios aplican de forma inmediata en Clínica?
+  - faq_planes_11: ¿Cómo puedo utilizar el abono para las especialidades de Implantología, Ortodoncia, que entregan nuestros planes Sonrisa Protegida Plus y Full?
+- /urgencias/
+  - urgencias_hero: Urgencias Dentales Odontológicas
+  - urgencias_horario: Atención Clínicas Uno Salud Dental
+  - urgencias_formulario: Formulario: un ejecutivo te contacta
+- /quienes-somos/
+  - nosotros_quienes_somos: Quiénes Somos
+  - nosotros_cada_clinica_red: Cada clínica de la red Uno Salud Dental se encuentra aprobada por el SEREMI de S
+  - nosotros_mision: Nuestra Misión
+  - nosotros_nosotros_opinion_sugerencias: Para nosotros tu opinión y tus sugerencias son lo más importante. Nuestros profe
+  - nosotros_promesa: Nuestra Promesa
+  - nosotros_valores: Nuestros Valores
+  - nosotros_comite: Área Clínica
+- /por-que-elegirnos/
+  - porque_hero: ¿Por qué elegirnos?
+  - porque_ventajas: Ventajas
+  - porque_garantias: Garantías
+  - porque_deberes_derechos: Deberes y Derechos
+  - porque_calidad_insumos: Calidad en Insumos
+  - porque_tecnologia: Tecnología
+  - porque_medios_pago: Medios de pago
+  - porque_pago_efectivo: Efectivo o tarjeta de débito
+  - porque_pago_cheques: Cheques
+  - porque_pago_excedentes: Excedentes Isapre
+  - porque_pago_seguro: Seguro Complementario
+  - porque_pago_tarjetas: Tarjetas Bancarias
+  - porque_tab_cerec: Tecnología 3D Cerec
+  - porque_tab_sedacion: Sedación consciente
+- /contactanos/
+  - contacto_ayuda: Teléfono de Contacto y Centro de Ayuda
+  - contacto_preguntas: Preguntas Frecuentes
+  - contacto_relacionadas: Artículos de nuestro blog
+  - faq_contacto_1: ¿Cómo acceder al PAD?
+  - faq_contacto_2: ¿Dónde está mi clínica Uno Salud más cercana con convenio para mi Isapre?
+  - faq_contacto_3: ¿Cuáles son los GES Dentales?
+  - faq_contacto_4: ¿Cómo atenderse por la Isapre?
+  - faq_contacto_5: ¿Qué es el GES?
+  - faq_contacto_6: ¿Cómo realizar el reembolso?
+- /preguntas-frecuentes/
+  - faq_preguntas_frecuentes: Preguntas Frecuentes
+  - faq_lista: Preguntas frecuentes
+  - faq_pad: ¿Cómo acceder al PAD?
+  - faq_isapre_clinica: ¿Dónde está mi clínica Uno Salud más cercana con convenio para mi Isapre?
+  - faq_ges_dentales: ¿Cuáles son los GES Dentales?
+  - faq_isapre: ¿Cómo atenderse por la Isapre?
+  - faq_ges: ¿Qué es el GES?
+  - faq_reembolso: ¿Cómo realizar el reembolso?
+  - faq_sancionados: ¿Dónde encuentro el registro nacional de profesionales sancionados por licencias médicas?
+  - faq_seguro_cubre: ¿Qué cubre el seguro complementario?
+  - faq_tengo_excedentes: ¿Cómo sé si tengo excedentes?
+  - faq_excedentes: ¿Qué son los excedentes?
+  - faq_limpieza: Tengo que hacerme una limpieza: ¿Cada cuanto tiempo?, ¿Qué tan profundo debe ser el tratamiento?, ¿De que depende?, ¿Cuanto cuesta?
+  - faq_radiografias: He oído que uno salud tiene radiografías digitales, ¿Cuáles son sus ventajas?
+  - faq_ninos: ¿Atienden niños? ¿Desde qué edad debo empezar a llevar a mis hijos al odontólogo?
+  - faq_urgencias: ¿Atienden urgencias? ¿De qué tipo son?
+  - faq_muelas_juicio: ¿En qué consiste la extracción de muelas del juicio? ¿El valor depende de la gravedad?
+  - faq_colores_frenillos: ¿Qué colores de frenillos tienen?
+  - faq_duracion_frenillos: ¿Cuánto dura un tratamiento con frenillos?
+  - faq_extraccion: ¿Necesito extraerme una pieza dental, en qué consiste la cirugía específicamente?
+  - faq_conducto_precio: ¿Cuánto cuesta un tratamiento de conducto?
+  - faq_regiones: ¿Cómo puedo acceder a sus servicios, soy de región?
+  - faq_precio_frenillos: ¿Qué precio tiene la instalación de frenillos?
+  - faq_seguro: ¿Qué es el Seguro Complementario?
+- /landing/convenio-empresa/
+  - empresas_te_contactamos: TE CONTACTAMOS
+  - empresas_solicitar_convenio: SOLICITAR CONVENIO
+  - empresas_aumenta_productividad_trabajadores: Aumenta la productividad de tus trabajadores
+  - empresas_contacto: Cuida la sonrisa de tus colaboradores con la red dental más grande de Chile
+  - empresas_marcas_ya_confian: Marcas que ya confian en nostros
+  - empresas_formulario: Formulario Convenio Empresas
+- /landing/ortodoncia-oct-2026-org/
+  - landing_ortodoncia_inicia_tratamiento_ortodoncia: ¡Inicia tu tratamiento de Ortodoncia!
+  - landing_ortodoncia_solo: por solo
+  - landing_ortodoncia_nueva_sonrisa: Tu nueva sonrisa
+  - landing_ortodoncia_quieres_mantener_cubierta: ¿Quieres mantener tu salud dental cubierta en todo momento?
+  - landing_ortodoncia_cuidado_sonrisa_necesita: El cuidado que tu sonrisa necesita en un solo plan
+  - landing_ortodoncia_cuidado_sonrisa_necesita_2: El cuidado que tu sonrisa necesita en un solo plan2 Limpiezadental
+  - landing_ortodoncia_ventajas_elegir: Ventajas de elegir Uno Salud Dental
+  - landing_ortodoncia_insumos_mejor_calidad: Insumos de la mejor calidad a nivel mundial
+  - landing_ortodoncia_tecnologia_vanguardia: Tecnología de vanguardia
+  - landing_ortodoncia_testimonios_pacientes: Testimonios de pacientes
+  - landing_ortodoncia_terminos_condiciones: Términos y condiciones
+- /landing/caja-los-andes-implantes-org/
+  - landing_cla_caja_andes_te: Caja Los Andes te invita a que vuelvas amar tu sonrisa
+  - landing_cla_tratamiento_implantes: ¿Cómo es tu tratamiento de implantes?
+  - landing_cla_ya_estas_listo: Ya estás listo para ser evaluado por el implantólogo
+  - landing_cla_quieres_mantener_cubierta: ¿Quieres mantener tu salud dental cubierta en todo momento?
+  - landing_cla_cuidado_sonrisa_necesita: El cuidado que tu sonrisa necesita en un solo plan
+  - landing_cla_cuidado_sonrisa_necesita_2: El cuidado que tu sonrisa necesita en un solo plan2 Limpiezadental
+  - landing_cla_cuidado_sonrisa_necesita_3: El cuidado que tu sonrisa necesita en un solo plan2 Limpiezadental
+  - landing_cla_ventajas_elegir: Ventajas de elegir Uno Salud Dental
+  - landing_cla_insumos_mejor_calidad: Insumos de la mejor calidad a nivel mundial
+  - landing_cla_tecnologia_vanguardia: Tecnología de vanguardia
+  - landing_cla_testimonios_pacientes: Testimonios de pacientes
+  - landing_cla_terminos_condiciones: TÉRMINOS Y CONDICIONES
+- /landing/terminos-y-condiciones-de-campanas/
+  - tyc_campanas_600_707_1010: 600 707 1010
+  - tyc_campanas_conoce_terminos_condiciones: Conoce los términos y condiciones de nuestras campañas y promociones
+  - tyc_campanas_campana_limpieza_adicional: Campaña Limpieza Dental. Adicional: Flúor (Septiembre de 2026)
+- /landing/solicitar-diagnostico/
+  - tellamamos_600_707_1010: 600 707 1010
+  - tellamamos_te_llamamos: TE LLAMAMOS
+  - tellamamos_te_llamamos_2: TE LLAMAMOS
+  - tellamamos_ventajas_elegir: Ventajas de elegir Uno Salud Dental
+  - tellamamos_mejores_insumos_mundo: Los mejores insumos del mundo
+  - tellamamos_tenemos_pacientes_no: Tenemos pacientes no clientes
+  - tellamamos_agenda_aqui_hora: ¡AGENDA AQUÍ TU HORA!
+  - tellamamos_90_clinicas_todo: Más de 90 clínicas en todo Chile
+  - tellamamos_ver_todas_clinicas: VER TODAS LAS CLÍNICAS
+  - tellamamos_red_lider_especialistas: La red líder de especialistas dentales de Chile
+  - tellamamos_agenda_aqui_hora_2: ¡AGENDA AQUÍ TU HORA!
+  - tellamamos_formulario_bloque: ?
+  - tellamamos_formulario: Formulario Te llamamos
+- /clinicas/
+  - clinicas_buscador: Buscador de clínicas
+  - clinicas_lista: Lista de clínicas
+  - clinicas_mapa: Mapa de clínicas

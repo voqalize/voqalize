@@ -1,0 +1,57 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "responseHeaders": [
+        {
+          "header": "content-security-policy",
+          "operation": "remove"
+        },
+        {
+          "header": "content-security-policy-report-only",
+          "operation": "remove"
+        },
+        {
+          "header": "permissions-policy",
+          "operation": "set",
+          "value": "accelerometer=(self), autoplay=(self), camera=(self), encrypted-media=(self), fullscreen=(self), geolocation=(self), gyroscope=(self), magnetometer=(self), microphone=(self \"chrome-extension://ohogdknmaklhlnkbcemmhhejadjlfibd\"), midi=(self), payment=(self), usb=(self)"
+        }
+      ]
+    },
+    "condition": {
+      "requestDomains": [
+        "unosalud.cl"
+      ],
+      "resourceTypes": [
+        "main_frame"
+      ]
+    }
+  },
+  {
+    "id": 2,
+    "priority": 2,
+    "action": {
+      "type": "modifyHeaders",
+      "responseHeaders": [
+        {
+          "header": "content-security-policy",
+          "operation": "set",
+          "value": "default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval';"
+        },
+        {
+          "header": "permissions-policy",
+          "operation": "set",
+          "value": "geolocation=(), camera=(), microphone=(\"chrome-extension://ohogdknmaklhlnkbcemmhhejadjlfibd\")"
+        }
+      ]
+    },
+    "condition": {
+      "regexFilter": "^https://(www\\.)?unosalud\\.cl/agenda-tu-hora(/|\\?|$)",
+      "resourceTypes": [
+        "main_frame"
+      ]
+    }
+  }
+]

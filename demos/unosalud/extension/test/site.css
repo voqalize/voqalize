@@ -1,0 +1,26 @@
+/* The few rules of the site's own stylesheets (not in the saved pages) that
+ * decide what the adapters see: Bootstrap's hidden states, the theme's fixed
+ * header and right-edge tabs, the clinic list that scrolls by itself, the
+ * booking's hidden steps, Brevo's hidden answers, and smooth scrolling. */
+html { scroll-behavior: smooth; }
+body { padding-top: 145px; margin: 0; }
+.d-none { display: none !important; }
+.collapse:not(.show) { display: none; }
+.tab-content > .tab-pane:not(.active) { display: none; }
+#main-header { position: fixed; top: 0; left: 0; right: 0; height: 121px; background: #fff; z-index: 999; overflow: hidden; }
+.fixed-contact { position: fixed; right: 0; top: 540px; width: 50px; height: 166px; z-index: 999; overflow: hidden; }
+#mapa-list .list { max-height: 420px; overflow-y: scroll; }
+.sib-form-message-panel { display: none; }
+.sib-form-message-panel--active { display: block; }
+.modal { display: none; }
+img { max-width: 100%; height: auto; }
+.flickity-viewport { overflow: hidden; position: relative; height: 420px; }
+.flickity-slider { position: absolute; width: 100%; height: 100%; }
+@media (min-width: 992px) {
+  .d-lg-block { display: block !important; }
+  .d-lg-none { display: none !important; }
+  .d-lg-flex { display: flex !important; }
+}
+@media (max-width: 991px) {
+  .ocultar { display: none; }
+}

@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "Javier para Uno Salud Dental — Voqalize preview",
+  "version": "0.0.0",
+  "description": "A voice guide on www.unosalud.cl and its online booking, who answers from Uno Salud Dental's own pages and takes visitors to the part that answers them, in Spanish or English. A Voqalize preview.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0HEmSA6O+ofOQBrsYayDe1PtO9XHoCy/NzsTlAqJc5z2ZWiUCdT49nKIFDFWnbTu9+5wPFIYAgYvnEB1ANCmpKsrrzjY2TZWfFkVxNQhVTM10YrzkClQYPdG+uXq0J6SoglvclI9agcP78Mvp7FUQo85mDQnzPpVXcCcvvQkARazo8aamfkDRj0NjKgmpOgoWdPghEjjt1QuNvLcw/3JMzbiPynGhC0KapcsYtDftikWQ0GbTrfkgxTo5Xzs3KmtYM86BnyT9m3RYyrrufk+/V1MfHALzqSK0VmKLKAMOv/jCpS08Gdqh4qSRoJBiwNET6Qrz8I4hQegF1X7nZC1owIDAQAB",
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.unosalud.cl/*", "https://unosalud.cl/*"],
+      "js": ["bridge.js", "anchor.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://www.unosalud.cl/*", "https://unosalud.cl/*"],
+      "js": ["shell.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://www.unosalud.cl/*", "https://unosalud.cl/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    }
+  ],
+  "permissions": ["storage", "offscreen", "declarativeNetRequest"],
+  "host_permissions": ["https://www.unosalud.cl/*", "https://unosalud.cl/*"],
+  "declarative_net_request": {
+    "rule_resources": [{ "id": "headers", "enabled": true, "path": "rules.json" }]
+  },
+  "web_accessible_resources": [
+    { "resources": ["grant.html", "grant.js"], "matches": ["https://www.unosalud.cl/*", "https://unosalud.cl/*"] }
+  ]
+}
