@@ -1,0 +1,33 @@
+{
+  "name": "@voqalize/demo-unosalud-extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Puts Javier, the unosalud demo brain's guide, on www.unosalud.cl and its booking: a Chrome extension that injects the call widget and the site adapter, and holds one call, in an offscreen document, across every Uno Salud tab and page load.",
+  "scripts": {
+    "build": "tsc --noEmit && AVATAR_RUNTIME=https://avatar.dev.voqalize.com/runtime/current.js node build.mjs",
+    "typecheck": "tsc --noEmit",
+    "gen": "cd ../.. && uv run voqalize types unosalud/backend/brain.py -o unosalud/extension/src/actions.gen.ts",
+    "build:prod": "tsc --noEmit && VOQALIZE_ENV_FILE=.env.prod VOQALIZE_OUT_DIR=dist-prod node build.mjs",
+    "test:e2e": "VOQALIZE_TEST_BUILD=1 node build.mjs && playwright test"
+  },
+  "dependencies": {
+    "@pipecat-ai/client-js": "^1.13.0",
+    "@pipecat-ai/small-webrtc-transport": "^1.10.6",
+    "@voqalize/avatar": "^0.6.2",
+    "@voqalize/client-transport": "0.4.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.57.0",
+    "@types/chrome": "^0.0.287",
+    "@types/node": "^22.10.0",
+    "esbuild": "^0.25.0",
+    "imask": "7.6.1",
+    "typescript": "^5.8.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

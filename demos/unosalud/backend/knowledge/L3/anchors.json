@@ -1,0 +1,4948 @@
+{
+ "_meta": {
+  "site": "https://www.unosalud.cl",
+  "clinic_page": "/clinicas/*/",
+  "note": "Built by knowledge/build.py from saved pages; every selector on a page with a fixture matches exactly one element there. 'text' is the heading words to fall back on. 'faq' opens #heading-faq-<faq> (Bootstrap), or the <details id=faq>."
+ },
+ "home_atajos": {
+  "path": "/",
+  "selector": "#shortcuts",
+  "text": "Bienvenido a Clínicas Uno Salud Dental",
+  "label": {
+   "es": "Bienvenido a Clínicas Uno Salud Dental",
+   "en": "Shortcuts"
+  }
+ },
+ "home_especialidades": {
+  "path": "/",
+  "selector": "#services",
+  "text": "Servicios y especialidades",
+  "label": {
+   "es": "Servicios y especialidades",
+   "en": "Services and specialties"
+  }
+ },
+ "home_clinicas": {
+  "path": "/",
+  "selector": "#clinicas",
+  "text": "Nuestras Clínicas",
+  "label": {
+   "es": "Nuestras Clínicas",
+   "en": "Our clinics"
+  }
+ },
+ "home_testimonios": {
+  "path": "/",
+  "selector": "#testimonios",
+  "text": "Lo que dicen nuestros pacientes",
+  "label": {
+   "es": "Lo que dicen nuestros pacientes",
+   "en": "Patient reviews"
+  }
+ },
+ "home_planes": {
+  "path": "/",
+  "selector": "#promociones",
+  "text": "El cuidado que tu sonrisa necesita en un solo plan",
+  "label": {
+   "es": "El cuidado que tu sonrisa necesita en un solo plan",
+   "en": "Dental plans"
+  }
+ },
+ "home_convenios": {
+  "path": "/",
+  "selector": "#convenios",
+  "text": "Seguros y Convenios",
+  "label": {
+   "es": "Seguros y Convenios",
+   "en": "Insurers and agreements"
+  }
+ },
+ "home_nosotros": {
+  "path": "/",
+  "selector": "#about",
+  "text": "Uno Salud Dental",
+  "label": {
+   "es": "Uno Salud Dental",
+   "en": "Uno Salud Dental"
+  }
+ },
+ "home_por_que": {
+  "path": "/",
+  "selector": "#features",
+  "text": "¿Por qué elegir Uno Salud Dental?",
+  "label": {
+   "es": "¿Por qué elegir Uno Salud Dental?",
+   "en": "¿Por qué elegir Uno Salud Dental?"
+  }
+ },
+ "home_contactanos": {
+  "path": "/",
+  "selector": "#cta",
+  "text": "¿Tienes alguna duda? Contáctanos",
+  "label": {
+   "es": "¿Tienes alguna duda? Contáctanos",
+   "en": "Contact box"
+  }
+ },
+ "especialidades_lista": {
+  "path": "/especialidades/",
+  "selector": "main > section:nth-of-type(1)",
+  "text": "Especialidades Odontológicas Dentales",
+  "label": {
+   "es": "Especialidades Odontológicas Dentales",
+   "en": "Especialidades Odontológicas Dentales"
+  }
+ },
+ "limpieza_hero": {
+  "path": "/especialidades/limpieza-dental/",
+  "selector": "main > header",
+  "text": "Limpieza Dental",
+  "label": {
+   "es": "Limpieza Dental",
+   "en": "Top of the page: Limpieza Dental"
+  }
+ },
+ "limpieza_consiste_limpieza": {
+  "path": "/especialidades/limpieza-dental/",
+  "selector": "#about",
+  "text": "¿En qué consiste la limpieza dental?",
+  "label": {
+   "es": "¿En qué consiste la limpieza dental?",
+   "en": "¿En qué consiste la limpieza dental?"
+  }
+ },
+ "limpieza_importante_hacerse_limpieza": {
+  "path": "/especialidades/limpieza-dental/",
+  "selector": "main > section:nth-of-type(2)",
+  "text": "¿Por qué es importante hacerse una limpieza dental?",
+  "label": {
+   "es": "¿Por qué es importante hacerse una limpieza dental?",
+   "en": "¿Por qué es importante hacerse una limpieza dental?"
+  }
+ },
+ "limpieza_tipos_limpieza": {
+  "path": "/especialidades/limpieza-dental/",
+  "selector": "main > section:nth-of-type(3)",
+  "text": "Tipos de Limpieza Dental",
+  "label": {
+   "es": "Tipos de Limpieza Dental",
+   "en": "Tipos de Limpieza Dental"
+  }
+ },
+ "limpieza_comite": {
+  "path": "/especialidades/limpieza-dental/",
+  "selector": "#authors",
+  "text": "Contenido revisado y validado por nuestro Comité Clínico",
+  "label": {
+   "es": "Contenido revisado y validado por nuestro Comité Clínico",
+   "en": "Reviewed by the clinical committee"
+  }
+ },
+ "limpieza_preguntas": {
+  "path": "/especialidades/limpieza-dental/",
+  "selector": "#metodologia",
+  "text": "Preguntas frecuentes",
+  "label": {
+   "es": "Preguntas frecuentes",
+   "en": "Frequently asked questions"
+  }
+ },
+ "limpieza_beneficios_limpieza": {
+  "path": "/especialidades/limpieza-dental/",
+  "selector": "main > section:nth-of-type(7)",
+  "text": "Beneficios de una limpieza dental en Uno Salud",
+  "label": {
+   "es": "Beneficios de una limpieza dental en Uno Salud",
+   "en": "Beneficios de una limpieza dental en Uno Salud"
+  }
+ },
+ "limpieza_proceso": {
+  "path": "/especialidades/limpieza-dental/",
+  "selector": "#how",
+  "text": "¿Cuál es el proceso del tratamiento de limpieza dental?",
+  "label": {
+   "es": "¿Cuál es el proceso del tratamiento de limpieza dental?",
+   "en": "How the treatment goes"
+  }
+ },
+ "limpieza_testimonios": {
+  "path": "/especialidades/limpieza-dental/",
+  "selector": "#testimonios",
+  "text": "Lo que opinan nuestros pacientes",
+  "label": {
+   "es": "Lo que opinan nuestros pacientes",
+   "en": "Patient reviews"
+  }
+ },
+ "limpieza_dudas": {
+  "path": "/especialidades/limpieza-dental/",
+  "selector": "#content",
+  "text": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a",
+  "label": {
+   "es": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a",
+   "en": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a"
+  }
+ },
+ "limpieza_articulos": {
+  "path": "/especialidades/limpieza-dental/",
+  "selector": "main > section:nth-of-type(13)",
+  "text": "Artículos relacionados de limpieza dental",
+  "label": {
+   "es": "Artículos relacionados de limpieza dental",
+   "en": "Related blog posts"
+  }
+ },
+ "limpieza_relacionadas": {
+  "path": "/especialidades/limpieza-dental/",
+  "selector": "#related",
+  "text": "Especialidades relacionadas",
+  "label": {
+   "es": "Especialidades relacionadas",
+   "en": "Related"
+  }
+ },
+ "limpieza_contactanos": {
+  "path": "/especialidades/limpieza-dental/",
+  "selector": "#cta",
+  "text": "Agenda tu hora con nosotros",
+  "label": {
+   "es": "Agenda tu hora con nosotros",
+   "en": "Contact box"
+  }
+ },
+ "ortodoncia_hero": {
+  "path": "/especialidades/ortodoncia/",
+  "selector": "main > header",
+  "text": "Ortodoncia",
+  "label": {
+   "es": "Ortodoncia",
+   "en": "Top of the page: Ortodoncia"
+  }
+ },
+ "ortodoncia_tipos_ortodoncia_frenillos": {
+  "path": "/especialidades/ortodoncia/",
+  "selector": "main > section:nth-of-type(1)",
+  "text": "Tipos de ortodoncia y frenillos",
+  "label": {
+   "es": "Tipos de ortodoncia y frenillos",
+   "en": "Types of orthodontics and braces"
+  }
+ },
+ "ortodoncia_tipo_ortodoncia_mejor": {
+  "path": "/especialidades/ortodoncia/",
+  "selector": "main > section:nth-of-type(2)",
+  "text": "¿Qué tipo de ortodoncia es mejor para mí?",
+  "label": {
+   "es": "¿Qué tipo de ortodoncia es mejor para mí?",
+   "en": "¿Qué tipo de ortodoncia es mejor para mí?"
+  }
+ },
+ "ortodoncia_cuando_recomienda_ortodoncia": {
+  "path": "/especialidades/ortodoncia/",
+  "selector": "main > section:nth-of-type(3)",
+  "text": "¿Cuándo se recomienda la ortodoncia?",
+  "label": {
+   "es": "¿Cuándo se recomienda la ortodoncia?",
+   "en": "¿Cuándo se recomienda la ortodoncia?"
+  }
+ },
+ "ortodoncia_ortodoncia_interceptiva": {
+  "path": "/especialidades/ortodoncia/",
+  "selector": "main > section:nth-of-type(4)",
+  "text": "Ortodoncia interceptiva",
+  "label": {
+   "es": "Ortodoncia interceptiva",
+   "en": "Interceptive orthodontics (children)"
+  }
+ },
+ "ortodoncia_tratamiento_ortodoncia_descubre": {
+  "path": "/especialidades/ortodoncia/",
+  "selector": "main > section:nth-of-type(5)",
+  "text": "Tratamiento de ortodoncia: Descubre sus beneficios",
+  "label": {
+   "es": "Tratamiento de ortodoncia: Descubre sus beneficios",
+   "en": "Tratamiento de ortodoncia: Descubre sus beneficios"
+  }
+ },
+ "ortodoncia_precios": {
+  "path": "/especialidades/ortodoncia/",
+  "selector": "main > section:nth-of-type(6)",
+  "text": "¿Cuánto cuesta el tratamiento de ortodoncia?",
+  "label": {
+   "es": "¿Cuánto cuesta el tratamiento de ortodoncia?",
+   "en": "Orthodontics prices"
+  }
+ },
+ "ortodoncia_convenios": {
+  "path": "/especialidades/ortodoncia/",
+  "selector": "main > section:nth-of-type(7)",
+  "text": "¿Tienes beneficios o convenios?",
+  "label": {
+   "es": "¿Tienes beneficios o convenios?",
+   "en": "Benefits and agreements"
+  }
+ },
+ "ortodoncia_comite": {
+  "path": "/especialidades/ortodoncia/",
+  "selector": "#authors",
+  "text": "Contenido revisado y validado por nuestro Comité Clínico",
+  "label": {
+   "es": "Contenido revisado y validado por nuestro Comité Clínico",
+   "en": "Reviewed by the clinical committee"
+  }
+ },
+ "ortodoncia_por_que": {
+  "path": "/especialidades/ortodoncia/",
+  "selector": "main > section:nth-of-type(11)",
+  "text": "¿Por qué elegir Uno Salud Dental?",
+  "label": {
+   "es": "¿Por qué elegir Uno Salud Dental?",
+   "en": "¿Por qué elegir Uno Salud Dental?"
+  }
+ },
+ "ortodoncia_proceso": {
+  "path": "/especialidades/ortodoncia/",
+  "selector": "#how",
+  "text": "¿Cómo es un tratamiento de ortodoncia?",
+  "label": {
+   "es": "¿Cómo es un tratamiento de ortodoncia?",
+   "en": "How the treatment goes"
+  }
+ },
+ "ortodoncia_testimonios": {
+  "path": "/especialidades/ortodoncia/",
+  "selector": "#testimonios",
+  "text": "Lo que opinan nuestros pacientes",
+  "label": {
+   "es": "Lo que opinan nuestros pacientes",
+   "en": "Patient reviews"
+  }
+ },
+ "ortodoncia_preguntas": {
+  "path": "/especialidades/ortodoncia/",
+  "selector": "#metodologia",
+  "text": "Preguntas frecuentes sobre tratamiento de ortodoncia",
+  "label": {
+   "es": "Preguntas frecuentes sobre tratamiento de ortodoncia",
+   "en": "Frequently asked questions"
+  }
+ },
+ "ortodoncia_relacionadas": {
+  "path": "/especialidades/ortodoncia/",
+  "selector": "#related",
+  "text": "Especialidades relacionadas",
+  "label": {
+   "es": "Especialidades relacionadas",
+   "en": "Related"
+  }
+ },
+ "ortodoncia_articulos": {
+  "path": "/especialidades/ortodoncia/",
+  "selector": "main > section:nth-of-type(17)",
+  "text": "Artículos relacionados de ortodoncia",
+  "label": {
+   "es": "Artículos relacionados de ortodoncia",
+   "en": "Related blog posts"
+  }
+ },
+ "ortodoncia_contactanos": {
+  "path": "/especialidades/ortodoncia/",
+  "selector": "#cta",
+  "text": "Agenda tu evaluación de ortodoncia",
+  "label": {
+   "es": "Agenda tu evaluación de ortodoncia",
+   "en": "Contact box"
+  }
+ },
+ "implantes_hero": {
+  "path": "/especialidades/implantes-dentales/",
+  "selector": "main > header",
+  "text": "Implantes Dentales",
+  "label": {
+   "es": "Implantes Dentales",
+   "en": "Top of the page: Implantes Dentales"
+  }
+ },
+ "implantes_implante": {
+  "path": "/especialidades/implantes-dentales/",
+  "selector": "#about",
+  "text": "¿Qué es un implante dental?",
+  "label": {
+   "es": "¿Qué es un implante dental?",
+   "en": "¿Qué es un implante dental?"
+  }
+ },
+ "implantes_precios": {
+  "path": "/especialidades/implantes-dentales/",
+  "selector": "main > section:nth-of-type(2)",
+  "text": "¿Cuánto cuesta un implante dental en Chile? Precios 2026",
+  "label": {
+   "es": "¿Cuánto cuesta un implante dental en Chile? Precios 2026",
+   "en": "Implant prices"
+  }
+ },
+ "implantes_factores_influyen_precio": {
+  "path": "/especialidades/implantes-dentales/",
+  "selector": "main > section:nth-of-type(3)",
+  "text": "¿Qué factores influyen en el precio final?",
+  "label": {
+   "es": "¿Qué factores influyen en el precio final?",
+   "en": "¿Qué factores influyen en el precio final?"
+  }
+ },
+ "implantes_convenios": {
+  "path": "/especialidades/implantes-dentales/",
+  "selector": "main > section:nth-of-type(4)",
+  "text": "Implantes dentales con Fonasa, Isapre y convenios",
+  "label": {
+   "es": "Implantes dentales con Fonasa, Isapre y convenios",
+   "en": "Implants with Fonasa, Isapre and agreements"
+  }
+ },
+ "implantes_cuando_recomienda_implante": {
+  "path": "/especialidades/implantes-dentales/",
+  "selector": "main > section:nth-of-type(6)",
+  "text": "¿Cuándo se recomienda un implante dental?",
+  "label": {
+   "es": "¿Cuándo se recomienda un implante dental?",
+   "en": "¿Cuándo se recomienda un implante dental?"
+  }
+ },
+ "implantes_implante_puente_protesis": {
+  "path": "/especialidades/implantes-dentales/",
+  "selector": "main > section:nth-of-type(7)",
+  "text": "Implante, puente o prótesis removible: ¿cuál conviene?",
+  "label": {
+   "es": "Implante, puente o prótesis removible: ¿cuál conviene?",
+   "en": "Implante, puente o prótesis removible: ¿cuál conviene?"
+  }
+ },
+ "implantes_injerto_oseo": {
+  "path": "/especialidades/implantes-dentales/",
+  "selector": "main > section:nth-of-type(8)",
+  "text": "Injerto óseo dental",
+  "label": {
+   "es": "Injerto óseo dental",
+   "en": "Injerto óseo dental"
+  }
+ },
+ "implantes_proceso": {
+  "path": "/especialidades/implantes-dentales/",
+  "selector": "#how",
+  "text": "¿Cómo es el procedimiento de un implante dental? Paso a paso",
+  "label": {
+   "es": "¿Cómo es el procedimiento de un implante dental? Paso a paso",
+   "en": "How the treatment goes"
+  }
+ },
+ "implantes_cuidados_despues_cirugia": {
+  "path": "/especialidades/implantes-dentales/",
+  "selector": "main > section:nth-of-type(10)",
+  "text": "Cuidados después de una cirugía de implantes dentales",
+  "label": {
+   "es": "Cuidados después de una cirugía de implantes dentales",
+   "en": "Cuidados después de una cirugía de implantes dentales"
+  }
+ },
+ "implantes_senales_alerta_cuando": {
+  "path": "/especialidades/implantes-dentales/",
+  "selector": "main > section:nth-of-type(11)",
+  "text": "Señales de alerta: cuándo contactar a tu implantólogo",
+  "label": {
+   "es": "Señales de alerta: cuándo contactar a tu implantólogo",
+   "en": "Señales de alerta: cuándo contactar a tu implantólogo"
+  }
+ },
+ "implantes_beneficios_implantes_dentales": {
+  "path": "/especialidades/implantes-dentales/",
+  "selector": "main > section:nth-of-type(12)",
+  "text": "Beneficios de implantes dentales en Uno Salud",
+  "label": {
+   "es": "Beneficios de implantes dentales en Uno Salud",
+   "en": "Beneficios de implantes dentales en Uno Salud"
+  }
+ },
+ "implantes_por_que": {
+  "path": "/especialidades/implantes-dentales/",
+  "selector": "main > section:nth-of-type(13)",
+  "text": "¿Por qué elegir Uno Salud Dental para tu implante?",
+  "label": {
+   "es": "¿Por qué elegir Uno Salud Dental para tu implante?",
+   "en": "¿Por qué elegir Uno Salud Dental para tu implante?"
+  }
+ },
+ "implantes_importancia_tratamiento_implantes": {
+  "path": "/especialidades/implantes-dentales/",
+  "selector": "#video",
+  "text": "Importancia de un tratamiento de implantes",
+  "label": {
+   "es": "Importancia de un tratamiento de implantes",
+   "en": "Importancia de un tratamiento de implantes"
+  }
+ },
+ "implantes_testimonios": {
+  "path": "/especialidades/implantes-dentales/",
+  "selector": "#testimonios",
+  "text": "Lo que opinan nuestros pacientes",
+  "label": {
+   "es": "Lo que opinan nuestros pacientes",
+   "en": "Patient reviews"
+  }
+ },
+ "implantes_comite": {
+  "path": "/especialidades/implantes-dentales/",
+  "selector": "#authors",
+  "text": "Contenido revisado y validado por nuestro Comité Clínico",
+  "label": {
+   "es": "Contenido revisado y validado por nuestro Comité Clínico",
+   "en": "Reviewed by the clinical committee"
+  }
+ },
+ "implantes_preguntas": {
+  "path": "/especialidades/implantes-dentales/",
+  "selector": "#metodologia",
+  "text": "Preguntas frecuentes sobre implantes dentales",
+  "label": {
+   "es": "Preguntas frecuentes sobre implantes dentales",
+   "en": "Frequently asked questions"
+  }
+ },
+ "implantes_relacionadas": {
+  "path": "/especialidades/implantes-dentales/",
+  "selector": "#related",
+  "text": "Especialidades relacionadas",
+  "label": {
+   "es": "Especialidades relacionadas",
+   "en": "Related"
+  }
+ },
+ "implantes_articulos": {
+  "path": "/especialidades/implantes-dentales/",
+  "selector": "main > section:nth-of-type(19)",
+  "text": "Artículos relacionados de implantes dentales",
+  "label": {
+   "es": "Artículos relacionados de implantes dentales",
+   "en": "Related blog posts"
+  }
+ },
+ "implantes_contactanos": {
+  "path": "/especialidades/implantes-dentales/",
+  "selector": "#cta",
+  "text": "Agenda tu hora con nosotros",
+  "label": {
+   "es": "Agenda tu hora con nosotros",
+   "en": "Contact box"
+  }
+ },
+ "endodoncia_hero": {
+  "path": "/especialidades/tratamiento-de-conducto-endodoncia/",
+  "selector": "main > header",
+  "text": "Endodoncia – Tratamiento Conducto",
+  "label": {
+   "es": "Endodoncia – Tratamiento Conducto",
+   "en": "Top of the page: Endodoncia – Tratamiento Conducto"
+  }
+ },
+ "endodoncia_beneficios_realizar_endodoncia": {
+  "path": "/especialidades/tratamiento-de-conducto-endodoncia/",
+  "selector": "#about",
+  "text": "Beneficios de realizar una Endodoncia",
+  "label": {
+   "es": "Beneficios de realizar una Endodoncia",
+   "en": "Beneficios de realizar una Endodoncia"
+  }
+ },
+ "endodoncia_cuando_podria_necesitar": {
+  "path": "/especialidades/tratamiento-de-conducto-endodoncia/",
+  "selector": "main > section:nth-of-type(2)",
+  "text": "¿Cuándo podría necesitar un tratamiento de conducto?",
+  "label": {
+   "es": "¿Cuándo podría necesitar un tratamiento de conducto?",
+   "en": "¿Cuándo podría necesitar un tratamiento de conducto?"
+  }
+ },
+ "endodoncia_preguntas": {
+  "path": "/especialidades/tratamiento-de-conducto-endodoncia/",
+  "selector": "#metodologia",
+  "text": "Preguntas frecuentes",
+  "label": {
+   "es": "Preguntas frecuentes",
+   "en": "Frequently asked questions"
+  }
+ },
+ "endodoncia_realizar_endodoncia": {
+  "path": "/especialidades/tratamiento-de-conducto-endodoncia/",
+  "selector": "#features",
+  "text": "¿Por qué realizar tu Endodoncia en Uno Salud Dental",
+  "label": {
+   "es": "¿Por qué realizar tu Endodoncia en Uno Salud Dental",
+   "en": "¿Por qué realizar tu Endodoncia en Uno Salud Dental"
+  }
+ },
+ "endodoncia_proceso": {
+  "path": "/especialidades/tratamiento-de-conducto-endodoncia/",
+  "selector": "#how",
+  "text": "¿Cuál es el proceso del Tratamiento?",
+  "label": {
+   "es": "¿Cuál es el proceso del Tratamiento?",
+   "en": "How the treatment goes"
+  }
+ },
+ "endodoncia_testimonios": {
+  "path": "/especialidades/tratamiento-de-conducto-endodoncia/",
+  "selector": "#testimonios",
+  "text": "Lo que opinan nuestros pacientes",
+  "label": {
+   "es": "Lo que opinan nuestros pacientes",
+   "en": "Patient reviews"
+  }
+ },
+ "endodoncia_dudas": {
+  "path": "/especialidades/tratamiento-de-conducto-endodoncia/",
+  "selector": "#content",
+  "text": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a",
+  "label": {
+   "es": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a",
+   "en": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a"
+  }
+ },
+ "endodoncia_relacionadas": {
+  "path": "/especialidades/tratamiento-de-conducto-endodoncia/",
+  "selector": "#related",
+  "text": "Especialidades relacionadas",
+  "label": {
+   "es": "Especialidades relacionadas",
+   "en": "Related"
+  }
+ },
+ "endodoncia_contactanos": {
+  "path": "/especialidades/tratamiento-de-conducto-endodoncia/",
+  "selector": "#cta",
+  "text": "Agenda tu hora con nosotros",
+  "label": {
+   "es": "Agenda tu hora con nosotros",
+   "en": "Contact box"
+  }
+ },
+ "periodoncia_hero": {
+  "path": "/especialidades/periodoncia/",
+  "selector": "main > header",
+  "text": "Periodoncia",
+  "label": {
+   "es": "Periodoncia",
+   "en": "Top of the page: Periodoncia"
+  }
+ },
+ "periodoncia_enfermedades_periodontales_gingivitis": {
+  "path": "/especialidades/periodoncia/",
+  "selector": "#about",
+  "text": "Enfermedades Periodontales: Gingivitis y Periodontitis",
+  "label": {
+   "es": "Enfermedades Periodontales: Gingivitis y Periodontitis",
+   "en": "Enfermedades Periodontales: Gingivitis y Periodontitis"
+  }
+ },
+ "periodoncia_cuando_deberia_consultar": {
+  "path": "/especialidades/periodoncia/",
+  "selector": "main > section:nth-of-type(2)",
+  "text": "¿Cuándo debería consultar a un especialista en Periodoncia",
+  "label": {
+   "es": "¿Cuándo debería consultar a un especialista en Periodoncia",
+   "en": "¿Cuándo debería consultar a un especialista en Periodoncia"
+  }
+ },
+ "periodoncia_estas_razones_importante": {
+  "path": "/especialidades/periodoncia/",
+  "selector": "main > section:nth-of-type(3)",
+  "text": "Por estas razones, es importante el chequeo preventivo que está orientado a real",
+  "label": {
+   "es": "Por estas razones, es importante el chequeo preventivo que está orientado a real",
+   "en": "Por estas razones, es importante el chequeo preventivo que está orientado a real"
+  }
+ },
+ "periodoncia_factores_riesgo_desarrollar": {
+  "path": "/especialidades/periodoncia/",
+  "selector": "main > section:nth-of-type(4)",
+  "text": "Factores de riesgo para desarrollar la enfermedad Periodontal",
+  "label": {
+   "es": "Factores de riesgo para desarrollar la enfermedad Periodontal",
+   "en": "Factores de riesgo para desarrollar la enfermedad Periodontal"
+  }
+ },
+ "periodoncia_puede_prevenir_enfermedad": {
+  "path": "/especialidades/periodoncia/",
+  "selector": "main > section:nth-of-type(5)",
+  "text": "¿Cómo se puede prevenir la enfermedad Periodontal",
+  "label": {
+   "es": "¿Cómo se puede prevenir la enfermedad Periodontal",
+   "en": "¿Cómo se puede prevenir la enfermedad Periodontal"
+  }
+ },
+ "periodoncia_preguntas": {
+  "path": "/especialidades/periodoncia/",
+  "selector": "#metodologia",
+  "text": "Preguntas frecuentes",
+  "label": {
+   "es": "Preguntas frecuentes",
+   "en": "Frequently asked questions"
+  }
+ },
+ "periodoncia_realizar_tratamiento_periodoncia": {
+  "path": "/especialidades/periodoncia/",
+  "selector": "main > section:nth-of-type(8)",
+  "text": "¿Por qué realizar tu tratamiento de Periodoncia en Uno Salud Dental?",
+  "label": {
+   "es": "¿Por qué realizar tu tratamiento de Periodoncia en Uno Salud Dental?",
+   "en": "¿Por qué realizar tu tratamiento de Periodoncia en Uno Salud Dental?"
+  }
+ },
+ "periodoncia_proceso": {
+  "path": "/especialidades/periodoncia/",
+  "selector": "#how",
+  "text": "¿Cuál es el proceso del Tratamiento?",
+  "label": {
+   "es": "¿Cuál es el proceso del Tratamiento?",
+   "en": "How the treatment goes"
+  }
+ },
+ "periodoncia_testimonios": {
+  "path": "/especialidades/periodoncia/",
+  "selector": "#testimonios",
+  "text": "Lo que opinan nuestros pacientes",
+  "label": {
+   "es": "Lo que opinan nuestros pacientes",
+   "en": "Patient reviews"
+  }
+ },
+ "periodoncia_dudas": {
+  "path": "/especialidades/periodoncia/",
+  "selector": "#content",
+  "text": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a",
+  "label": {
+   "es": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a",
+   "en": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a"
+  }
+ },
+ "periodoncia_relacionadas": {
+  "path": "/especialidades/periodoncia/",
+  "selector": "#related",
+  "text": "Especialidades relacionadas",
+  "label": {
+   "es": "Especialidades relacionadas",
+   "en": "Related"
+  }
+ },
+ "periodoncia_contactanos": {
+  "path": "/especialidades/periodoncia/",
+  "selector": "#cta",
+  "text": "Agenda tu hora con nosotros",
+  "label": {
+   "es": "Agenda tu hora con nosotros",
+   "en": "Contact box"
+  }
+ },
+ "odontopediatria_hero": {
+  "path": "/especialidades/odontopediatria/",
+  "selector": "main > header",
+  "text": "Odontopediatría",
+  "label": {
+   "es": "Odontopediatría",
+   "en": "Top of the page: Odontopediatría"
+  }
+ },
+ "odontopediatria_cuales_son_principales": {
+  "path": "/especialidades/odontopediatria/",
+  "selector": "#about",
+  "text": "¿Cuáles son los principales problemas dentales en niños?",
+  "label": {
+   "es": "¿Cuáles son los principales problemas dentales en niños?",
+   "en": "¿Cuáles son los principales problemas dentales en niños?"
+  }
+ },
+ "odontopediatria_sintomas_deberian_llevarnos": {
+  "path": "/especialidades/odontopediatria/",
+  "selector": "main > section:nth-of-type(2)",
+  "text": "¿Qué síntomas deberían llevarnos a consultar al dentista?",
+  "label": {
+   "es": "¿Qué síntomas deberían llevarnos a consultar al dentista?",
+   "en": "¿Qué síntomas deberían llevarnos a consultar al dentista?"
+  }
+ },
+ "odontopediatria_te_recomendamos": {
+  "path": "/especialidades/odontopediatria/",
+  "selector": "main > section:nth-of-type(3)",
+  "text": "Te recomendamos",
+  "label": {
+   "es": "Te recomendamos",
+   "en": "Te recomendamos"
+  }
+ },
+ "odontopediatria_preguntas": {
+  "path": "/especialidades/odontopediatria/",
+  "selector": "#metodologia",
+  "text": "Preguntas frecuentes",
+  "label": {
+   "es": "Preguntas frecuentes",
+   "en": "Frequently asked questions"
+  }
+ },
+ "odontopediatria_realizar_tratamiento_hijo": {
+  "path": "/especialidades/odontopediatria/",
+  "selector": "main > section:nth-of-type(6)",
+  "text": "¿Por qué realizar el tratamiento de tu hijo en Uno Salud Dental?",
+  "label": {
+   "es": "¿Por qué realizar el tratamiento de tu hijo en Uno Salud Dental?",
+   "en": "¿Por qué realizar el tratamiento de tu hijo en Uno Salud Dental?"
+  }
+ },
+ "odontopediatria_proceso": {
+  "path": "/especialidades/odontopediatria/",
+  "selector": "#how",
+  "text": "¿Cuál es el proceso del Tratamiento?",
+  "label": {
+   "es": "¿Cuál es el proceso del Tratamiento?",
+   "en": "How the treatment goes"
+  }
+ },
+ "odontopediatria_testimonios": {
+  "path": "/especialidades/odontopediatria/",
+  "selector": "#testimonios",
+  "text": "Lo que opinan nuestros pacientes",
+  "label": {
+   "es": "Lo que opinan nuestros pacientes",
+   "en": "Patient reviews"
+  }
+ },
+ "odontopediatria_dudas": {
+  "path": "/especialidades/odontopediatria/",
+  "selector": "#content",
+  "text": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a",
+  "label": {
+   "es": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a",
+   "en": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a"
+  }
+ },
+ "odontopediatria_relacionadas": {
+  "path": "/especialidades/odontopediatria/",
+  "selector": "#related",
+  "text": "Especialidades relacionadas",
+  "label": {
+   "es": "Especialidades relacionadas",
+   "en": "Related"
+  }
+ },
+ "odontopediatria_contactanos": {
+  "path": "/especialidades/odontopediatria/",
+  "selector": "#cta",
+  "text": "Agenda tu hora con nosotros",
+  "label": {
+   "es": "Agenda tu hora con nosotros",
+   "en": "Contact box"
+  }
+ },
+ "blanqueamiento_hero": {
+  "path": "/especialidades/blanqueamiento-dental/",
+  "selector": "main > header",
+  "text": "Blanqueamiento Dental",
+  "label": {
+   "es": "Blanqueamiento Dental",
+   "en": "Top of the page: Blanqueamiento Dental"
+  }
+ },
+ "blanqueamiento_consiste_blanqueamiento": {
+  "path": "/especialidades/blanqueamiento-dental/",
+  "selector": "#about",
+  "text": "¿En qué consiste el blanqueamiento dental",
+  "label": {
+   "es": "¿En qué consiste el blanqueamiento dental",
+   "en": "¿En qué consiste el blanqueamiento dental"
+  }
+ },
+ "blanqueamiento_quien_puede_realizar": {
+  "path": "/especialidades/blanqueamiento-dental/",
+  "selector": "main > section:nth-of-type(2)",
+  "text": "¿Quién se puede realizar un blanqueamiento dental?",
+  "label": {
+   "es": "¿Quién se puede realizar un blanqueamiento dental?",
+   "en": "¿Quién se puede realizar un blanqueamiento dental?"
+  }
+ },
+ "blanqueamiento_cuidados_despues_blanqueamiento": {
+  "path": "/especialidades/blanqueamiento-dental/",
+  "selector": "main > section:nth-of-type(3)",
+  "text": "Cuidados después de un blanqueamiento dental",
+  "label": {
+   "es": "Cuidados después de un blanqueamiento dental",
+   "en": "Cuidados después de un blanqueamiento dental"
+  }
+ },
+ "blanqueamiento_preguntas": {
+  "path": "/especialidades/blanqueamiento-dental/",
+  "selector": "#metodologia",
+  "text": "Preguntas frecuentes",
+  "label": {
+   "es": "Preguntas frecuentes",
+   "en": "Frequently asked questions"
+  }
+ },
+ "blanqueamiento_ventajas_hacer_blanqueamiento": {
+  "path": "/especialidades/blanqueamiento-dental/",
+  "selector": "main > section:nth-of-type(6)",
+  "text": "Ventajas de hacer tu Blanqueamiento en Uno Salud Dental",
+  "label": {
+   "es": "Ventajas de hacer tu Blanqueamiento en Uno Salud Dental",
+   "en": "Ventajas de hacer tu Blanqueamiento en Uno Salud Dental"
+  }
+ },
+ "blanqueamiento_proceso": {
+  "path": "/especialidades/blanqueamiento-dental/",
+  "selector": "#how",
+  "text": "¿Cuál es el proceso del Tratamiento?",
+  "label": {
+   "es": "¿Cuál es el proceso del Tratamiento?",
+   "en": "How the treatment goes"
+  }
+ },
+ "blanqueamiento_testimonios": {
+  "path": "/especialidades/blanqueamiento-dental/",
+  "selector": "#testimonios",
+  "text": "Lo que opinan nuestros pacientes",
+  "label": {
+   "es": "Lo que opinan nuestros pacientes",
+   "en": "Patient reviews"
+  }
+ },
+ "blanqueamiento_dudas": {
+  "path": "/especialidades/blanqueamiento-dental/",
+  "selector": "#content",
+  "text": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a",
+  "label": {
+   "es": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a",
+   "en": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a"
+  }
+ },
+ "blanqueamiento_relacionadas": {
+  "path": "/especialidades/blanqueamiento-dental/",
+  "selector": "#related",
+  "text": "Especialidades relacionadas",
+  "label": {
+   "es": "Especialidades relacionadas",
+   "en": "Related"
+  }
+ },
+ "blanqueamiento_contactanos": {
+  "path": "/especialidades/blanqueamiento-dental/",
+  "selector": "#cta",
+  "text": "Agenda tu hora con nosotros",
+  "label": {
+   "es": "Agenda tu hora con nosotros",
+   "en": "Contact box"
+  }
+ },
+ "radiografias_hero": {
+  "path": "/especialidades/radiologia/",
+  "selector": "main > header",
+  "text": "Radiografías Dentales",
+  "label": {
+   "es": "Radiografías Dentales",
+   "en": "Top of the page: Radiografías Dentales"
+  }
+ },
+ "radiografias_tipos_radiografias": {
+  "path": "/especialidades/radiologia/",
+  "selector": "#about",
+  "text": "Tipos de radiografías",
+  "label": {
+   "es": "Tipos de radiografías",
+   "en": "Tipos de radiografías"
+  }
+ },
+ "radiografias_ventajas_hacer_radiografias": {
+  "path": "/especialidades/radiologia/",
+  "selector": "#features",
+  "text": "Ventajas de hacer tus radiografías en Uno Salud Dental",
+  "label": {
+   "es": "Ventajas de hacer tus radiografías en Uno Salud Dental",
+   "en": "Ventajas de hacer tus radiografías en Uno Salud Dental"
+  }
+ },
+ "radiografias_testimonios": {
+  "path": "/especialidades/radiologia/",
+  "selector": "#testimonios",
+  "text": "Lo que opinan nuestros pacientes",
+  "label": {
+   "es": "Lo que opinan nuestros pacientes",
+   "en": "Patient reviews"
+  }
+ },
+ "radiografias_dudas": {
+  "path": "/especialidades/radiologia/",
+  "selector": "#content",
+  "text": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a",
+  "label": {
+   "es": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a",
+   "en": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a"
+  }
+ },
+ "radiografias_relacionadas": {
+  "path": "/especialidades/radiologia/",
+  "selector": "#related",
+  "text": "Especialidades relacionadas",
+  "label": {
+   "es": "Especialidades relacionadas",
+   "en": "Related"
+  }
+ },
+ "radiografias_contactanos": {
+  "path": "/especialidades/radiologia/",
+  "selector": "#cta",
+  "text": "Agenda tu hora con nosotros",
+  "label": {
+   "es": "Agenda tu hora con nosotros",
+   "en": "Contact box"
+  }
+ },
+ "cirugia_hero": {
+  "path": "/especialidades/cirugia-oral/",
+  "selector": "main > header",
+  "text": "Cirugía Dental Oral",
+  "label": {
+   "es": "Cirugía Dental Oral",
+   "en": "Top of the page: Cirugía Dental Oral"
+  }
+ },
+ "cirugia_tipos_procedimientos": {
+  "path": "/especialidades/cirugia-oral/",
+  "selector": "#about",
+  "text": "Tipos de procedimientos",
+  "label": {
+   "es": "Tipos de procedimientos",
+   "en": "Tipos de procedimientos"
+  }
+ },
+ "cirugia_podrias_necesitar_extraccion": {
+  "path": "/especialidades/cirugia-oral/",
+  "selector": "main > section:nth-of-type(2)",
+  "text": "¿Por qué podrías necesitar una extracción dental?",
+  "label": {
+   "es": "¿Por qué podrías necesitar una extracción dental?",
+   "en": "¿Por qué podrías necesitar una extracción dental?"
+  }
+ },
+ "cirugia_preguntas": {
+  "path": "/especialidades/cirugia-oral/",
+  "selector": "#metodologia",
+  "text": "Preguntas frecuentes",
+  "label": {
+   "es": "Preguntas frecuentes",
+   "en": "Frequently asked questions"
+  }
+ },
+ "cirugia_ventajas_hacer_cirugia": {
+  "path": "/especialidades/cirugia-oral/",
+  "selector": "main > section:nth-of-type(5)",
+  "text": "Ventajas de hacer tu cirugía oral en Uno Salud Dental",
+  "label": {
+   "es": "Ventajas de hacer tu cirugía oral en Uno Salud Dental",
+   "en": "Ventajas de hacer tu cirugía oral en Uno Salud Dental"
+  }
+ },
+ "cirugia_proceso": {
+  "path": "/especialidades/cirugia-oral/",
+  "selector": "#how",
+  "text": "¿Cuál es el proceso del Tratamiento?",
+  "label": {
+   "es": "¿Cuál es el proceso del Tratamiento?",
+   "en": "How the treatment goes"
+  }
+ },
+ "cirugia_testimonios": {
+  "path": "/especialidades/cirugia-oral/",
+  "selector": "#testimonios",
+  "text": "Lo que opinan nuestros pacientes",
+  "label": {
+   "es": "Lo que opinan nuestros pacientes",
+   "en": "Patient reviews"
+  }
+ },
+ "cirugia_dudas": {
+  "path": "/especialidades/cirugia-oral/",
+  "selector": "#content",
+  "text": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a",
+  "label": {
+   "es": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a",
+   "en": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a"
+  }
+ },
+ "cirugia_relacionadas": {
+  "path": "/especialidades/cirugia-oral/",
+  "selector": "#related",
+  "text": "Especialidades relacionadas",
+  "label": {
+   "es": "Especialidades relacionadas",
+   "en": "Related"
+  }
+ },
+ "cirugia_contactanos": {
+  "path": "/especialidades/cirugia-oral/",
+  "selector": "#cta",
+  "text": "Agenda tu hora con nosotros",
+  "label": {
+   "es": "Agenda tu hora con nosotros",
+   "en": "Contact box"
+  }
+ },
+ "rehabilitacion_hero": {
+  "path": "/especialidades/rehabilitacion-oral/",
+  "selector": "main > header",
+  "text": "Rehabilitación Oral",
+  "label": {
+   "es": "Rehabilitación Oral",
+   "en": "Top of the page: Rehabilitación Oral"
+  }
+ },
+ "rehabilitacion_cuando_necesaria_rehabilitacion": {
+  "path": "/especialidades/rehabilitacion-oral/",
+  "selector": "#about",
+  "text": "¿Cuándo es necesaria la Rehabilitación Oral?",
+  "label": {
+   "es": "¿Cuándo es necesaria la Rehabilitación Oral?",
+   "en": "¿Cuándo es necesaria la Rehabilitación Oral?"
+  }
+ },
+ "rehabilitacion_ventajas_hacer_rehabilitacion": {
+  "path": "/especialidades/rehabilitacion-oral/",
+  "selector": "#features",
+  "text": "Ventajas de hacer tu Rehabilitación Oral en Uno Salud Dental",
+  "label": {
+   "es": "Ventajas de hacer tu Rehabilitación Oral en Uno Salud Dental",
+   "en": "Ventajas de hacer tu Rehabilitación Oral en Uno Salud Dental"
+  }
+ },
+ "rehabilitacion_proceso": {
+  "path": "/especialidades/rehabilitacion-oral/",
+  "selector": "#how",
+  "text": "¿Cuál es el proceso del Tratamiento?",
+  "label": {
+   "es": "¿Cuál es el proceso del Tratamiento?",
+   "en": "How the treatment goes"
+  }
+ },
+ "rehabilitacion_testimonios": {
+  "path": "/especialidades/rehabilitacion-oral/",
+  "selector": "#testimonios",
+  "text": "Lo que opinan nuestros pacientes",
+  "label": {
+   "es": "Lo que opinan nuestros pacientes",
+   "en": "Patient reviews"
+  }
+ },
+ "rehabilitacion_dudas": {
+  "path": "/especialidades/rehabilitacion-oral/",
+  "selector": "#content",
+  "text": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a",
+  "label": {
+   "es": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a",
+   "en": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a"
+  }
+ },
+ "rehabilitacion_relacionadas": {
+  "path": "/especialidades/rehabilitacion-oral/",
+  "selector": "#related",
+  "text": "Especialidades relacionadas",
+  "label": {
+   "es": "Especialidades relacionadas",
+   "en": "Related"
+  }
+ },
+ "rehabilitacion_contactanos": {
+  "path": "/especialidades/rehabilitacion-oral/",
+  "selector": "#cta",
+  "text": "Agenda tu hora con nosotros",
+  "label": {
+   "es": "Agenda tu hora con nosotros",
+   "en": "Contact box"
+  }
+ },
+ "bruxismo_hero": {
+  "path": "/especialidades/planos-de-relajacion-bruxismo/",
+  "selector": "main > header",
+  "text": "Plano de Relajación Bruxismo",
+  "label": {
+   "es": "Plano de Relajación Bruxismo",
+   "en": "Top of the page: Plano de Relajación Bruxismo"
+  }
+ },
+ "bruxismo_puede_solucionar_bruxismo": {
+  "path": "/especialidades/planos-de-relajacion-bruxismo/",
+  "selector": "#about",
+  "text": "¿Cómo se puede solucionar el Bruxismo?",
+  "label": {
+   "es": "¿Cómo se puede solucionar el Bruxismo?",
+   "en": "¿Cómo se puede solucionar el Bruxismo?"
+  }
+ },
+ "bruxismo_ventajas_tratar_bruxismo": {
+  "path": "/especialidades/planos-de-relajacion-bruxismo/",
+  "selector": "#features",
+  "text": "Ventajas de tratar tu Bruxismo en Uno Salud Dental",
+  "label": {
+   "es": "Ventajas de tratar tu Bruxismo en Uno Salud Dental",
+   "en": "Ventajas de tratar tu Bruxismo en Uno Salud Dental"
+  }
+ },
+ "bruxismo_proceso": {
+  "path": "/especialidades/planos-de-relajacion-bruxismo/",
+  "selector": "#how",
+  "text": "¿Cuál es el proceso del Tratamiento?",
+  "label": {
+   "es": "¿Cuál es el proceso del Tratamiento?",
+   "en": "How the treatment goes"
+  }
+ },
+ "bruxismo_testimonios": {
+  "path": "/especialidades/planos-de-relajacion-bruxismo/",
+  "selector": "#testimonios",
+  "text": "Lo que opinan nuestros pacientes",
+  "label": {
+   "es": "Lo que opinan nuestros pacientes",
+   "en": "Patient reviews"
+  }
+ },
+ "bruxismo_dudas": {
+  "path": "/especialidades/planos-de-relajacion-bruxismo/",
+  "selector": "#content",
+  "text": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a",
+  "label": {
+   "es": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a",
+   "en": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a"
+  }
+ },
+ "bruxismo_relacionadas": {
+  "path": "/especialidades/planos-de-relajacion-bruxismo/",
+  "selector": "#related",
+  "text": "Especialidades relacionadas",
+  "label": {
+   "es": "Especialidades relacionadas",
+   "en": "Related"
+  }
+ },
+ "bruxismo_contactanos": {
+  "path": "/especialidades/planos-de-relajacion-bruxismo/",
+  "selector": "#cta",
+  "text": "Agenda tu hora con nosotros",
+  "label": {
+   "es": "Agenda tu hora con nosotros",
+   "en": "Contact box"
+  }
+ },
+ "clinicas_clinicas_dentales_chile": {
+  "path": "/clinicas/",
+  "selector": "#sucursales",
+  "text": "CLÍNICAS DENTALES EN CHILE",
+  "label": {
+   "es": "CLÍNICAS DENTALES EN CHILE",
+   "en": "CLÍNICAS DENTALES EN CHILE"
+  }
+ },
+ "clinicas_testimonios": {
+  "path": "/clinicas/",
+  "selector": "#testimonios",
+  "text": "Lo que dicen nuestros pacientes",
+  "label": {
+   "es": "Lo que dicen nuestros pacientes",
+   "en": "Patient reviews"
+  }
+ },
+ "clinica_hero": {
+  "path": "/clinicas/*/",
+  "selector": "main > header",
+  "text": "Clínicas Dentales en Santiago",
+  "label": {
+   "es": "Clínicas Dentales en Santiago",
+   "en": "Top of the page: Clínicas Dentales en Santiago​"
+  }
+ },
+ "clinica_cta": {
+  "path": "/clinicas/*/",
+  "selector": "#cta-primary",
+  "text": "Realiza tu diagnóstico inicial con nosotros",
+  "label": {
+   "es": "Realiza tu diagnóstico inicial con nosotros",
+   "en": "Book your first diagnosis box"
+  }
+ },
+ "clinica_testimonios": {
+  "path": "/clinicas/*/",
+  "selector": "#testimonios",
+  "text": "Lo que dicen nuestros pacientes",
+  "label": {
+   "es": "Lo que dicen nuestros pacientes",
+   "en": "Patient reviews"
+  }
+ },
+ "clinica_sucursales_cercanas": {
+  "path": "/clinicas/*/",
+  "selector": "#clinicas",
+  "text": "Sucursales cercanas",
+  "label": {
+   "es": "Sucursales cercanas",
+   "en": "Sucursales cercanas"
+  }
+ },
+ "promociones_lista": {
+  "path": "/promociones/",
+  "selector": "main > section:nth-of-type(1)",
+  "text": "Promociones Dentales",
+  "label": {
+   "es": "Promociones Dentales",
+   "en": "Promociones Dentales"
+  }
+ },
+ "promociones_contactanos": {
+  "path": "/promociones/",
+  "selector": "#cta",
+  "text": "¿Dudas sobre nuestros tratamientos?",
+  "label": {
+   "es": "¿Dudas sobre nuestros tratamientos?",
+   "en": "Contact box"
+  }
+ },
+ "convenios_lista": {
+  "path": "/convenio/",
+  "selector": "main > section:nth-of-type(1)",
+  "text": "Convenios Dentales",
+  "label": {
+   "es": "Convenios Dentales",
+   "en": "Convenios Dentales"
+  }
+ },
+ "convenios_beneficios": {
+  "path": "/convenio/",
+  "selector": "#beneficios",
+  "text": "Beneficios y Reembolsos Dentales",
+  "label": {
+   "es": "Beneficios y Reembolsos Dentales",
+   "en": "Benefits and reimbursements"
+  }
+ },
+ "conv_isapres_lista": {
+  "path": "/categoria-convenio/fonasa-e-isapres/",
+  "selector": "main > section:nth-of-type(1)",
+  "text": "Fonasa e isapres",
+  "label": {
+   "es": "Fonasa e isapres",
+   "en": "Fonasa e isapres"
+  }
+ },
+ "conv_cajas_lista": {
+  "path": "/categoria-convenio/cajas-de-compensacion/",
+  "selector": "main > section:nth-of-type(1)",
+  "text": "Cajas de compensación",
+  "label": {
+   "es": "Cajas de compensación",
+   "en": "Cajas de compensación"
+  }
+ },
+ "conv_aseguradoras_lista": {
+  "path": "/categoria-convenio/aseguradoras/",
+  "selector": "main > section:nth-of-type(1)",
+  "text": "Aseguradoras",
+  "label": {
+   "es": "Aseguradoras",
+   "en": "Aseguradoras"
+  }
+ },
+ "conv_cooperativas_lista": {
+  "path": "/categoria-convenio/cooperativas/",
+  "selector": "main > section:nth-of-type(1)",
+  "text": "Cooperativas",
+  "label": {
+   "es": "Cooperativas",
+   "en": "Cooperativas"
+  }
+ },
+ "conv_otros_lista": {
+  "path": "/categoria-convenio/otros-beneficios/",
+  "selector": "main > section:nth-of-type(1)",
+  "text": "Otros beneficios",
+  "label": {
+   "es": "Otros beneficios",
+   "en": "Otros beneficios"
+  }
+ },
+ "beneficios_lista": {
+  "path": "/beneficios-y-reembolso/",
+  "selector": "main > section:nth-of-type(1)",
+  "text": "Beneficios y Reembolsos Dentales",
+  "label": {
+   "es": "Beneficios y Reembolsos Dentales",
+   "en": "Benefits and reimbursements"
+  }
+ },
+ "pad_texto": {
+  "path": "/beneficios-y-reembolso/pad/",
+  "selector": "main > section:nth-of-type(1)",
+  "text": "PAD",
+  "label": {
+   "es": "PAD",
+   "en": "PAD"
+  }
+ },
+ "pad_relacionadas": {
+  "path": "/beneficios-y-reembolso/pad/",
+  "selector": "#related",
+  "text": "Beneficios y reembolsos",
+  "label": {
+   "es": "Beneficios y reembolsos",
+   "en": "Related"
+  }
+ },
+ "ges_texto": {
+  "path": "/beneficios-y-reembolso/ges/",
+  "selector": "main > section:nth-of-type(1)",
+  "text": "GES",
+  "label": {
+   "es": "GES",
+   "en": "GES"
+  }
+ },
+ "ges_relacionadas": {
+  "path": "/beneficios-y-reembolso/ges/",
+  "selector": "#related",
+  "text": "Beneficios y reembolsos",
+  "label": {
+   "es": "Beneficios y reembolsos",
+   "en": "Related"
+  }
+ },
+ "seguro_texto": {
+  "path": "/beneficios-y-reembolso/seguro-complementario/",
+  "selector": "main > section:nth-of-type(1)",
+  "text": "Seguro Complementario",
+  "label": {
+   "es": "Seguro Complementario",
+   "en": "Seguro Complementario"
+  }
+ },
+ "seguro_relacionadas": {
+  "path": "/beneficios-y-reembolso/seguro-complementario/",
+  "selector": "#related",
+  "text": "Beneficios y reembolsos",
+  "label": {
+   "es": "Beneficios y reembolsos",
+   "en": "Related"
+  }
+ },
+ "excedentes_texto": {
+  "path": "/beneficios-y-reembolso/excedentes/",
+  "selector": "main > section:nth-of-type(1)",
+  "text": "Excedentes",
+  "label": {
+   "es": "Excedentes",
+   "en": "Excedentes"
+  }
+ },
+ "excedentes_relacionadas": {
+  "path": "/beneficios-y-reembolso/excedentes/",
+  "selector": "#related",
+  "text": "Beneficios y reembolsos",
+  "label": {
+   "es": "Beneficios y reembolsos",
+   "en": "Related"
+  }
+ },
+ "planes_agenda_hora_diagnostico": {
+  "path": "/landing/planes-sonrisa-protegida/",
+  "selector": ".elementor-element-6c1c5b5",
+  "text": "Agenda tu hora de diagnóstico y evaluaremos el plan que mejor se adapta a tus necesidades.",
+  "label": {
+   "es": "Agenda tu hora de diagnóstico y evaluaremos el plan que mejor se adapta a tus necesidades.",
+   "en": "Agenda tu hora de diagnóstico y evaluaremos el plan que mejor se adapta a tus necesidades."
+  }
+ },
+ "planes_conviene_elegir_plan": {
+  "path": "/landing/planes-sonrisa-protegida/",
+  "selector": ".elementor-element-2431987",
+  "text": "¿Por qué conviene elegir un Plan Sonrisa Protegida?",
+  "label": {
+   "es": "¿Por qué conviene elegir un Plan Sonrisa Protegida?",
+   "en": "¿Por qué conviene elegir un Plan Sonrisa Protegida?"
+  }
+ },
+ "planes_limpiezas_dentales_regulares": {
+  "path": "/landing/planes-sonrisa-protegida/",
+  "selector": ".elementor-element-d9385cc",
+  "text": "Limpiezas Dentales Regulares",
+  "label": {
+   "es": "Limpiezas Dentales Regulares",
+   "en": "Limpiezas Dentales Regulares"
+  }
+ },
+ "planes_suscribete_planes_deja": {
+  "path": "/landing/planes-sonrisa-protegida/",
+  "selector": ".elementor-element-0a1ab4e",
+  "text": "Suscríbete a uno de nuestros planes y deja tu sonrisa en buenas manos. No espere",
+  "label": {
+   "es": "Suscríbete a uno de nuestros planes y deja tu sonrisa en buenas manos. No espere",
+   "en": "Suscríbete a uno de nuestros planes y deja tu sonrisa en buenas manos. No espere"
+  }
+ },
+ "planes_tabla_titulo": {
+  "path": "/landing/planes-sonrisa-protegida/",
+  "selector": "#planesm",
+  "text": "Con Uno Salud Dental, tu sonrisa y la de tu familia están en las mejores manos.",
+  "label": {
+   "es": "Con Uno Salud Dental, tu sonrisa y la de tu familia están en las mejores manos.",
+   "en": "Con Uno Salud Dental, tu sonrisa y la de tu familia están en las mejores manos."
+  }
+ },
+ "planes_valores_uf_referenciales": {
+  "path": "/landing/planes-sonrisa-protegida/",
+  "selector": ".elementor-element-38e1e82",
+  "text": "Valores UF referenciales calculados al 01-01-2026",
+  "label": {
+   "es": "Valores UF referenciales calculados al 01-01-2026",
+   "en": "Valores UF referenciales calculados al 01-01-2026"
+  }
+ },
+ "planes_no_sabes_plan": {
+  "path": "/landing/planes-sonrisa-protegida/",
+  "selector": ".elementor-element-c77f502",
+  "text": "¿No sabes qué plan elegir? Agenda ahora tu cita de diagnóstico con un especialista.",
+  "label": {
+   "es": "¿No sabes qué plan elegir? Agenda ahora tu cita de diagnóstico con un especialista.",
+   "en": "¿No sabes qué plan elegir? Agenda ahora tu cita de diagnóstico con un especialista."
+  }
+ },
+ "planes_agrega_beneficiarios_plan": {
+  "path": "/landing/planes-sonrisa-protegida/",
+  "selector": ".elementor-element-46b23da",
+  "text": "Agrega beneficiarios a tu plan y disfruta de descuentos exclusivos para todos. P",
+  "label": {
+   "es": "Agrega beneficiarios a tu plan y disfruta de descuentos exclusivos para todos. P",
+   "en": "Agrega beneficiarios a tu plan y disfruta de descuentos exclusivos para todos. P"
+  }
+ },
+ "planes_revisa_terminos_condiciones": {
+  "path": "/landing/planes-sonrisa-protegida/",
+  "selector": ".elementor-element-3c0f8fd",
+  "text": "*Revisa términos y condiciones al momento de contratar tu Plan Sonrisa Protegida",
+  "label": {
+   "es": "*Revisa términos y condiciones al momento de contratar tu Plan Sonrisa Protegida",
+   "en": "*Revisa términos y condiciones al momento de contratar tu Plan Sonrisa Protegida"
+  }
+ },
+ "planes_nos_esforzamos_brindarte": {
+  "path": "/landing/planes-sonrisa-protegida/",
+  "selector": ".elementor-element-1bae4bd",
+  "text": "Nos esforzamos por brindarte una experiencia excepcional en cada visita.",
+  "label": {
+   "es": "Nos esforzamos por brindarte una experiencia excepcional en cada visita.",
+   "en": "Nos esforzamos por brindarte una experiencia excepcional en cada visita."
+  }
+ },
+ "planes_mejores_insumos_mundo": {
+  "path": "/landing/planes-sonrisa-protegida/",
+  "selector": ".elementor-element-aa6e954",
+  "text": "Los mejores insumos del mundo",
+  "label": {
+   "es": "Los mejores insumos del mundo",
+   "en": "Los mejores insumos del mundo"
+  }
+ },
+ "planes_tenemos_pacientes_no": {
+  "path": "/landing/planes-sonrisa-protegida/",
+  "selector": ".elementor-element-48ee220",
+  "text": "Tenemos pacientes no clientes",
+  "label": {
+   "es": "Tenemos pacientes no clientes",
+   "en": "Tenemos pacientes no clientes"
+  }
+ },
+ "planes_testimonios_pacientes": {
+  "path": "/landing/planes-sonrisa-protegida/",
+  "selector": ".elementor-element-7b10c78",
+  "text": "Testimonios de pacientes",
+  "label": {
+   "es": "Testimonios de pacientes",
+   "en": "Testimonios de pacientes"
+  }
+ },
+ "planes_cual_proceso_tratamiento": {
+  "path": "/landing/planes-sonrisa-protegida/",
+  "selector": ".elementor-element-f667ca6",
+  "text": "¿Cuál es el proceso del tratamiento?",
+  "label": {
+   "es": "¿Cuál es el proceso del tratamiento?",
+   "en": "¿Cuál es el proceso del tratamiento?"
+  }
+ },
+ "planes_1_recepcion": {
+  "path": "/landing/planes-sonrisa-protegida/",
+  "selector": ".elementor-element-0362761",
+  "text": "1. Recepción",
+  "label": {
+   "es": "1. Recepción",
+   "en": "1. Recepción"
+  }
+ },
+ "planes_4_diagnostico": {
+  "path": "/landing/planes-sonrisa-protegida/",
+  "selector": ".elementor-element-2d89407",
+  "text": "4. Diagnóstico dental",
+  "label": {
+   "es": "4. Diagnóstico dental",
+   "en": "4. Diagnóstico dental"
+  }
+ },
+ "planes_aun_tienes_dudas": {
+  "path": "/landing/planes-sonrisa-protegida/",
+  "selector": ".elementor-element-f3cc905",
+  "text": "¿Aún tienes dudas?",
+  "label": {
+   "es": "¿Aún tienes dudas?",
+   "en": "¿Aún tienes dudas?"
+  }
+ },
+ "planes_preguntas": {
+  "path": "/landing/planes-sonrisa-protegida/",
+  "selector": ".elementor-element-582552e",
+  "text": "¿Cómo hago uso de mi Plan Sonrisa Protegida?",
+  "label": {
+   "es": "¿Cómo hago uso de mi Plan Sonrisa Protegida?",
+   "en": "¿Cómo hago uso de mi Plan Sonrisa Protegida?"
+  }
+ },
+ "planes_terminos_condiciones": {
+  "path": "/landing/planes-sonrisa-protegida/",
+  "selector": ".elementor-element-454b662",
+  "text": "TÉRMINOS Y CONDICIONES",
+  "label": {
+   "es": "TÉRMINOS Y CONDICIONES",
+   "en": "TÉRMINOS Y CONDICIONES"
+  }
+ },
+ "urgencias_hero": {
+  "path": "/urgencias/",
+  "selector": "main > header",
+  "text": "Urgencias Dentales Odontológicas",
+  "label": {
+   "es": "Urgencias Dentales Odontológicas",
+   "en": "Top of the page: Urgencias Dentales Odontológicas"
+  }
+ },
+ "urgencias_horario": {
+  "path": "/urgencias/",
+  "selector": "#form-side",
+  "text": "Atención Clínicas Uno Salud Dental",
+  "label": {
+   "es": "Atención Clínicas Uno Salud Dental",
+   "en": "Clinic opening hours and callback form"
+  }
+ },
+ "nosotros_quienes_somos": {
+  "path": "/quienes-somos/",
+  "selector": "#quienes_somos",
+  "text": "Quiénes Somos",
+  "label": {
+   "es": "Quiénes Somos",
+   "en": "Quiénes Somos"
+  }
+ },
+ "nosotros_cada_clinica_red": {
+  "path": "/quienes-somos/",
+  "selector": "main > section:nth-of-type(2)",
+  "text": "Cada clínica de la red Uno Salud Dental se encuentra aprobada por el SEREMI de S",
+  "label": {
+   "es": "Cada clínica de la red Uno Salud Dental se encuentra aprobada por el SEREMI de S",
+   "en": "Cada clínica de la red Uno Salud Dental se encuentra aprobada por el SEREMI de S"
+  }
+ },
+ "nosotros_mision": {
+  "path": "/quienes-somos/",
+  "selector": "main > section:nth-of-type(3)",
+  "text": "Nuestra Misión",
+  "label": {
+   "es": "Nuestra Misión",
+   "en": "Our mission"
+  }
+ },
+ "nosotros_nosotros_opinion_sugerencias": {
+  "path": "/quienes-somos/",
+  "selector": "main > section:nth-of-type(4)",
+  "text": "Para nosotros tu opinión y tus sugerencias son lo más importante. Nuestros profe",
+  "label": {
+   "es": "Para nosotros tu opinión y tus sugerencias son lo más importante. Nuestros profe",
+   "en": "Para nosotros tu opinión y tus sugerencias son lo más importante. Nuestros profe"
+  }
+ },
+ "nosotros_promesa": {
+  "path": "/quienes-somos/",
+  "selector": "main > section:nth-of-type(5)",
+  "text": "Nuestra Promesa",
+  "label": {
+   "es": "Nuestra Promesa",
+   "en": "Our promise"
+  }
+ },
+ "nosotros_valores": {
+  "path": "/quienes-somos/",
+  "selector": "main > section:nth-of-type(6)",
+  "text": "Nuestros Valores",
+  "label": {
+   "es": "Nuestros Valores",
+   "en": "Our values"
+  }
+ },
+ "nosotros_comite": {
+  "path": "/quienes-somos/",
+  "selector": "#authors",
+  "text": "Área Clínica",
+  "label": {
+   "es": "Área Clínica",
+   "en": "Reviewed by the clinical committee"
+  }
+ },
+ "porque_hero": {
+  "path": "/por-que-elegirnos/",
+  "selector": "#quienes_somos",
+  "text": "¿Por qué elegirnos?",
+  "label": {
+   "es": "¿Por qué elegirnos?",
+   "en": "¿Por qué elegirnos?"
+  }
+ },
+ "porque_ventajas": {
+  "path": "/por-que-elegirnos/",
+  "selector": "main > section:nth-of-type(2)",
+  "text": "Ventajas",
+  "label": {
+   "es": "Ventajas",
+   "en": "Advantages"
+  }
+ },
+ "porque_garantias": {
+  "path": "/por-que-elegirnos/",
+  "selector": "main > section:nth-of-type(3)",
+  "text": "Garantías",
+  "label": {
+   "es": "Garantías",
+   "en": "Guarantees"
+  }
+ },
+ "porque_deberes_derechos": {
+  "path": "/por-que-elegirnos/",
+  "selector": "main > section:nth-of-type(4)",
+  "text": "Deberes y Derechos",
+  "label": {
+   "es": "Deberes y Derechos",
+   "en": "Patient rights and duties"
+  }
+ },
+ "porque_calidad_insumos": {
+  "path": "/por-que-elegirnos/",
+  "selector": "#slider_logos",
+  "text": "Calidad en Insumos",
+  "label": {
+   "es": "Calidad en Insumos",
+   "en": "Quality supplies"
+  }
+ },
+ "porque_tecnologia": {
+  "path": "/por-que-elegirnos/",
+  "selector": "main > section:nth-of-type(6)",
+  "text": "Tecnología",
+  "label": {
+   "es": "Tecnología",
+   "en": "Technology"
+  }
+ },
+ "porque_medios_pago": {
+  "path": "/por-que-elegirnos/",
+  "selector": "main > section:nth-of-type(7)",
+  "text": "Medios de pago",
+  "label": {
+   "es": "Medios de pago",
+   "en": "Payment methods"
+  }
+ },
+ "contacto_ayuda": {
+  "path": "/contactanos/",
+  "selector": "#shortcuts",
+  "text": "Teléfono de Contacto y Centro de Ayuda",
+  "label": {
+   "es": "Teléfono de Contacto y Centro de Ayuda",
+   "en": "Teléfono de Contacto y Centro de Ayuda"
+  }
+ },
+ "contacto_preguntas": {
+  "path": "/contactanos/",
+  "selector": "#metodologia",
+  "text": "Preguntas Frecuentes",
+  "label": {
+   "es": "Preguntas Frecuentes",
+   "en": "Frequently asked questions"
+  }
+ },
+ "contacto_relacionadas": {
+  "path": "/contactanos/",
+  "selector": "#related",
+  "text": "Artículos de nuestro blog",
+  "label": {
+   "es": "Artículos de nuestro blog",
+   "en": "Related"
+  }
+ },
+ "faq_preguntas_frecuentes": {
+  "path": "/preguntas-frecuentes/",
+  "selector": "main > section:nth-of-type(1)",
+  "text": "Preguntas Frecuentes",
+  "label": {
+   "es": "Preguntas Frecuentes",
+   "en": "Preguntas Frecuentes"
+  }
+ },
+ "empresas_te_contactamos": {
+  "path": "/landing/convenio-empresa/",
+  "selector": ".elementor-element-5ccf770",
+  "text": "TE CONTACTAMOS",
+  "label": {
+   "es": "TE CONTACTAMOS",
+   "en": "TE CONTACTAMOS"
+  }
+ },
+ "empresas_solicitar_convenio": {
+  "path": "/landing/convenio-empresa/",
+  "selector": ".elementor-element-038ce46",
+  "text": "SOLICITAR CONVENIO",
+  "label": {
+   "es": "SOLICITAR CONVENIO",
+   "en": "SOLICITAR CONVENIO"
+  }
+ },
+ "empresas_aumenta_productividad_trabajadores": {
+  "path": "/landing/convenio-empresa/",
+  "selector": ".elementor-element-e12b564",
+  "text": "Aumenta la productividad de tus trabajadores",
+  "label": {
+   "es": "Aumenta la productividad de tus trabajadores",
+   "en": "Aumenta la productividad de tus trabajadores"
+  }
+ },
+ "empresas_contacto": {
+  "path": "/landing/convenio-empresa/",
+  "selector": "#formulario",
+  "text": "Cuida la sonrisa de tus colaboradores con la red dental más grande de Chile",
+  "label": {
+   "es": "Cuida la sonrisa de tus colaboradores con la red dental más grande de Chile",
+   "en": "Cuida la sonrisa de tus colaboradores con la red dental más grande de Chile"
+  }
+ },
+ "empresas_marcas_ya_confian": {
+  "path": "/landing/convenio-empresa/",
+  "selector": ".elementor-element-9ca8c3e",
+  "text": "Marcas que ya confian en nostros",
+  "label": {
+   "es": "Marcas que ya confian en nostros",
+   "en": "Marcas que ya confian en nostros"
+  }
+ },
+ "landing_ortodoncia_inicia_tratamiento_ortodoncia": {
+  "path": "/landing/ortodoncia-oct-2026-org/",
+  "selector": ".elementor-element-1e8067f",
+  "text": "¡Inicia tu tratamiento de Ortodoncia!",
+  "label": {
+   "es": "¡Inicia tu tratamiento de Ortodoncia!",
+   "en": "¡Inicia tu tratamiento de Ortodoncia!"
+  }
+ },
+ "landing_ortodoncia_solo": {
+  "path": "/landing/ortodoncia-oct-2026-org/",
+  "selector": ".elementor-element-19226f1",
+  "text": "por solo",
+  "label": {
+   "es": "por solo",
+   "en": "por solo"
+  }
+ },
+ "landing_ortodoncia_nueva_sonrisa": {
+  "path": "/landing/ortodoncia-oct-2026-org/",
+  "selector": ".elementor-element-b38f3c3",
+  "text": "Tu nueva sonrisa",
+  "label": {
+   "es": "Tu nueva sonrisa",
+   "en": "Tu nueva sonrisa"
+  }
+ },
+ "landing_ortodoncia_quieres_mantener_cubierta": {
+  "path": "/landing/ortodoncia-oct-2026-org/",
+  "selector": ".elementor-element-88f1233",
+  "text": "¿Quieres mantener tu salud dental cubierta en todo momento?",
+  "label": {
+   "es": "¿Quieres mantener tu salud dental cubierta en todo momento?",
+   "en": "¿Quieres mantener tu salud dental cubierta en todo momento?"
+  }
+ },
+ "landing_ortodoncia_cuidado_sonrisa_necesita": {
+  "path": "/landing/ortodoncia-oct-2026-org/",
+  "selector": ".elementor-element-9f4382d",
+  "text": "El cuidado que tu sonrisa necesita en un solo plan",
+  "label": {
+   "es": "El cuidado que tu sonrisa necesita en un solo plan",
+   "en": "Dental plans"
+  }
+ },
+ "landing_ortodoncia_cuidado_sonrisa_necesita_2": {
+  "path": "/landing/ortodoncia-oct-2026-org/",
+  "selector": ".elementor-element-17fd940",
+  "text": "El cuidado que tu sonrisa necesita en un solo plan2 Limpiezadental",
+  "label": {
+   "es": "El cuidado que tu sonrisa necesita en un solo plan2 Limpiezadental",
+   "en": "El cuidado que tu sonrisa necesita en un solo plan2 Limpiezadental"
+  }
+ },
+ "landing_ortodoncia_ventajas_elegir": {
+  "path": "/landing/ortodoncia-oct-2026-org/",
+  "selector": ".elementor-element-1bae4bd",
+  "text": "Ventajas de elegir Uno Salud Dental",
+  "label": {
+   "es": "Ventajas de elegir Uno Salud Dental",
+   "en": "Ventajas de elegir Uno Salud Dental"
+  }
+ },
+ "landing_ortodoncia_insumos_mejor_calidad": {
+  "path": "/landing/ortodoncia-oct-2026-org/",
+  "selector": ".elementor-element-aa6e954",
+  "text": "Insumos de la mejor calidad a nivel mundial",
+  "label": {
+   "es": "Insumos de la mejor calidad a nivel mundial",
+   "en": "Insumos de la mejor calidad a nivel mundial"
+  }
+ },
+ "landing_ortodoncia_tecnologia_vanguardia": {
+  "path": "/landing/ortodoncia-oct-2026-org/",
+  "selector": ".elementor-element-c51aa6b",
+  "text": "Tecnología de vanguardia",
+  "label": {
+   "es": "Tecnología de vanguardia",
+   "en": "Tecnología de vanguardia"
+  }
+ },
+ "landing_ortodoncia_testimonios_pacientes": {
+  "path": "/landing/ortodoncia-oct-2026-org/",
+  "selector": ".elementor-element-7b10c78",
+  "text": "Testimonios de pacientes",
+  "label": {
+   "es": "Testimonios de pacientes",
+   "en": "Testimonios de pacientes"
+  }
+ },
+ "landing_ortodoncia_terminos_condiciones": {
+  "path": "/landing/ortodoncia-oct-2026-org/",
+  "selector": ".elementor-element-e7ba273",
+  "text": "Términos y condiciones",
+  "label": {
+   "es": "Términos y condiciones",
+   "en": "Términos y condiciones"
+  }
+ },
+ "landing_cla_caja_andes_te": {
+  "path": "/landing/caja-los-andes-implantes-org/",
+  "selector": ".elementor-element-c6ff9b9",
+  "text": "Caja Los Andes te invita a que vuelvas amar tu sonrisa",
+  "label": {
+   "es": "Caja Los Andes te invita a que vuelvas amar tu sonrisa",
+   "en": "Caja Los Andes te invita a que vuelvas amar tu sonrisa"
+  }
+ },
+ "landing_cla_tratamiento_implantes": {
+  "path": "/landing/caja-los-andes-implantes-org/",
+  "selector": ".elementor-element-475a2f0",
+  "text": "¿Cómo es tu tratamiento de implantes?",
+  "label": {
+   "es": "¿Cómo es tu tratamiento de implantes?",
+   "en": "¿Cómo es tu tratamiento de implantes?"
+  }
+ },
+ "landing_cla_ya_estas_listo": {
+  "path": "/landing/caja-los-andes-implantes-org/",
+  "selector": ".elementor-element-1ed1a45",
+  "text": "Ya estás listo para ser evaluado por el implantólogo",
+  "label": {
+   "es": "Ya estás listo para ser evaluado por el implantólogo",
+   "en": "Ya estás listo para ser evaluado por el implantólogo"
+  }
+ },
+ "landing_cla_quieres_mantener_cubierta": {
+  "path": "/landing/caja-los-andes-implantes-org/",
+  "selector": ".elementor-element-6c1c5b5",
+  "text": "¿Quieres mantener tu salud dental cubierta en todo momento?",
+  "label": {
+   "es": "¿Quieres mantener tu salud dental cubierta en todo momento?",
+   "en": "¿Quieres mantener tu salud dental cubierta en todo momento?"
+  }
+ },
+ "landing_cla_cuidado_sonrisa_necesita": {
+  "path": "/landing/caja-los-andes-implantes-org/",
+  "selector": ".elementor-element-5ca85b6",
+  "text": "El cuidado que tu sonrisa necesita en un solo plan",
+  "label": {
+   "es": "El cuidado que tu sonrisa necesita en un solo plan",
+   "en": "Dental plans"
+  }
+ },
+ "landing_cla_cuidado_sonrisa_necesita_2": {
+  "path": "/landing/caja-los-andes-implantes-org/",
+  "selector": ".elementor-element-44bd316",
+  "text": "El cuidado que tu sonrisa necesita en un solo plan2 Limpiezadental",
+  "label": {
+   "es": "El cuidado que tu sonrisa necesita en un solo plan2 Limpiezadental",
+   "en": "El cuidado que tu sonrisa necesita en un solo plan2 Limpiezadental"
+  }
+ },
+ "landing_cla_cuidado_sonrisa_necesita_3": {
+  "path": "/landing/caja-los-andes-implantes-org/",
+  "selector": ".elementor-element-0b77cae",
+  "text": "El cuidado que tu sonrisa necesita en un solo plan2 Limpiezadental",
+  "label": {
+   "es": "El cuidado que tu sonrisa necesita en un solo plan2 Limpiezadental",
+   "en": "El cuidado que tu sonrisa necesita en un solo plan2 Limpiezadental"
+  }
+ },
+ "landing_cla_ventajas_elegir": {
+  "path": "/landing/caja-los-andes-implantes-org/",
+  "selector": ".elementor-element-5789dac",
+  "text": "Ventajas de elegir Uno Salud Dental",
+  "label": {
+   "es": "Ventajas de elegir Uno Salud Dental",
+   "en": "Ventajas de elegir Uno Salud Dental"
+  }
+ },
+ "landing_cla_insumos_mejor_calidad": {
+  "path": "/landing/caja-los-andes-implantes-org/",
+  "selector": ".elementor-element-b8e5ea3",
+  "text": "Insumos de la mejor calidad a nivel mundial",
+  "label": {
+   "es": "Insumos de la mejor calidad a nivel mundial",
+   "en": "Insumos de la mejor calidad a nivel mundial"
+  }
+ },
+ "landing_cla_tecnologia_vanguardia": {
+  "path": "/landing/caja-los-andes-implantes-org/",
+  "selector": ".elementor-element-8d1e0be",
+  "text": "Tecnología de vanguardia",
+  "label": {
+   "es": "Tecnología de vanguardia",
+   "en": "Tecnología de vanguardia"
+  }
+ },
+ "landing_cla_testimonios_pacientes": {
+  "path": "/landing/caja-los-andes-implantes-org/",
+  "selector": ".elementor-element-7b10c78",
+  "text": "Testimonios de pacientes",
+  "label": {
+   "es": "Testimonios de pacientes",
+   "en": "Testimonios de pacientes"
+  }
+ },
+ "landing_cla_terminos_condiciones": {
+  "path": "/landing/caja-los-andes-implantes-org/",
+  "selector": ".elementor-element-9707e75",
+  "text": "TÉRMINOS Y CONDICIONES",
+  "label": {
+   "es": "TÉRMINOS Y CONDICIONES",
+   "en": "TÉRMINOS Y CONDICIONES"
+  }
+ },
+ "tyc_campanas_600_707_1010": {
+  "path": "/landing/terminos-y-condiciones-de-campanas/",
+  "selector": ".elementor-element-db4dd30",
+  "text": "600 707 1010",
+  "label": {
+   "es": "600 707 1010",
+   "en": "600 707 1010"
+  }
+ },
+ "tyc_campanas_conoce_terminos_condiciones": {
+  "path": "/landing/terminos-y-condiciones-de-campanas/",
+  "selector": ".elementor-element-1bae4bd",
+  "text": "Conoce los términos y condiciones de nuestras campañas y promociones",
+  "label": {
+   "es": "Conoce los términos y condiciones de nuestras campañas y promociones",
+   "en": "Conoce los términos y condiciones de nuestras campañas y promociones"
+  }
+ },
+ "tyc_campanas_campana_limpieza_adicional": {
+  "path": "/landing/terminos-y-condiciones-de-campanas/",
+  "selector": ".elementor-element-e7ba273",
+  "text": "Campaña Limpieza Dental. Adicional: Flúor (Septiembre de 2026)",
+  "label": {
+   "es": "Campaña Limpieza Dental. Adicional: Flúor (Septiembre de 2026)",
+   "en": "Campaña Limpieza Dental. Adicional: Flúor (Septiembre de 2026)"
+  }
+ },
+ "tellamamos_600_707_1010": {
+  "path": "/landing/solicitar-diagnostico/",
+  "selector": ".elementor-element-0bfb009",
+  "text": "600 707 1010",
+  "label": {
+   "es": "600 707 1010",
+   "en": "600 707 1010"
+  }
+ },
+ "tellamamos_te_llamamos": {
+  "path": "/landing/solicitar-diagnostico/",
+  "selector": ".elementor-element-18639d3",
+  "text": "TE LLAMAMOS",
+  "label": {
+   "es": "TE LLAMAMOS",
+   "en": "TE LLAMAMOS"
+  }
+ },
+ "tellamamos_te_llamamos_2": {
+  "path": "/landing/solicitar-diagnostico/",
+  "selector": ".elementor-element-d900712",
+  "text": "TE LLAMAMOS",
+  "label": {
+   "es": "TE LLAMAMOS",
+   "en": "TE LLAMAMOS"
+  }
+ },
+ "tellamamos_ventajas_elegir": {
+  "path": "/landing/solicitar-diagnostico/",
+  "selector": ".elementor-element-1bae4bd",
+  "text": "Ventajas de elegir Uno Salud Dental",
+  "label": {
+   "es": "Ventajas de elegir Uno Salud Dental",
+   "en": "Ventajas de elegir Uno Salud Dental"
+  }
+ },
+ "tellamamos_mejores_insumos_mundo": {
+  "path": "/landing/solicitar-diagnostico/",
+  "selector": ".elementor-element-aa6e954",
+  "text": "Los mejores insumos del mundo",
+  "label": {
+   "es": "Los mejores insumos del mundo",
+   "en": "Los mejores insumos del mundo"
+  }
+ },
+ "tellamamos_tenemos_pacientes_no": {
+  "path": "/landing/solicitar-diagnostico/",
+  "selector": ".elementor-element-48ee220",
+  "text": "Tenemos pacientes no clientes",
+  "label": {
+   "es": "Tenemos pacientes no clientes",
+   "en": "Tenemos pacientes no clientes"
+  }
+ },
+ "tellamamos_agenda_aqui_hora": {
+  "path": "/landing/solicitar-diagnostico/",
+  "selector": ".elementor-element-d011140",
+  "text": "¡AGENDA AQUÍ TU HORA!",
+  "label": {
+   "es": "¡AGENDA AQUÍ TU HORA!",
+   "en": "¡AGENDA AQUÍ TU HORA!"
+  }
+ },
+ "tellamamos_90_clinicas_todo": {
+  "path": "/landing/solicitar-diagnostico/",
+  "selector": ".elementor-element-b6bbe10",
+  "text": "Más de 90 clínicas en todo Chile",
+  "label": {
+   "es": "Más de 90 clínicas en todo Chile",
+   "en": "Más de 90 clínicas en todo Chile"
+  }
+ },
+ "tellamamos_ver_todas_clinicas": {
+  "path": "/landing/solicitar-diagnostico/",
+  "selector": ".elementor-element-f8695fd",
+  "text": "VER TODAS LAS CLÍNICAS",
+  "label": {
+   "es": "VER TODAS LAS CLÍNICAS",
+   "en": "VER TODAS LAS CLÍNICAS"
+  }
+ },
+ "tellamamos_red_lider_especialistas": {
+  "path": "/landing/solicitar-diagnostico/",
+  "selector": ".elementor-element-c91eb0b",
+  "text": "La red líder de especialistas dentales de Chile",
+  "label": {
+   "es": "La red líder de especialistas dentales de Chile",
+   "en": "La red líder de especialistas dentales de Chile"
+  }
+ },
+ "tellamamos_agenda_aqui_hora_2": {
+  "path": "/landing/solicitar-diagnostico/",
+  "selector": "#formulario",
+  "text": "¡AGENDA AQUÍ TU HORA!",
+  "label": {
+   "es": "¡AGENDA AQUÍ TU HORA!",
+   "en": "¡AGENDA AQUÍ TU HORA!"
+  }
+ },
+ "tellamamos_formulario_bloque": {
+  "path": "/landing/solicitar-diagnostico/",
+  "selector": ".elementor-element-9fdf190",
+  "text": "?",
+  "label": {
+   "es": "?",
+   "en": "?"
+  }
+ },
+ "especialidades_card_limpieza": {
+  "path": "/especialidades/",
+  "selector": "article.card-servicio-2:has(a[href$=\"/especialidades/limpieza-dental/\"])",
+  "text": "Limpieza Dental",
+  "label": {
+   "es": "Tarjeta Limpieza Dental",
+   "en": "Dental cleaning card"
+  }
+ },
+ "home_card_limpieza": {
+  "path": "/",
+  "selector": "#services article.card-servicio-2:has(a[href$=\"/especialidades/limpieza-dental/\"])",
+  "text": "Limpieza Dental",
+  "label": {
+   "es": "Tarjeta Limpieza Dental",
+   "en": "Dental cleaning card"
+  }
+ },
+ "especialidades_card_ortodoncia": {
+  "path": "/especialidades/",
+  "selector": "article.card-servicio-2:has(a[href$=\"/especialidades/ortodoncia/\"])",
+  "text": "Ortodoncia",
+  "label": {
+   "es": "Tarjeta Ortodoncia",
+   "en": "Orthodontics card"
+  }
+ },
+ "home_card_ortodoncia": {
+  "path": "/",
+  "selector": "#services article.card-servicio-2:has(a[href$=\"/especialidades/ortodoncia/\"])",
+  "text": "Ortodoncia",
+  "label": {
+   "es": "Tarjeta Ortodoncia",
+   "en": "Orthodontics card"
+  }
+ },
+ "especialidades_card_implantes": {
+  "path": "/especialidades/",
+  "selector": "article.card-servicio-2:has(a[href$=\"/especialidades/implantes-dentales/\"])",
+  "text": "Implantes Dentales",
+  "label": {
+   "es": "Tarjeta Implantes Dentales",
+   "en": "Dental implants card"
+  }
+ },
+ "home_card_implantes": {
+  "path": "/",
+  "selector": "#services article.card-servicio-2:has(a[href$=\"/especialidades/implantes-dentales/\"])",
+  "text": "Implantes Dentales",
+  "label": {
+   "es": "Tarjeta Implantes Dentales",
+   "en": "Dental implants card"
+  }
+ },
+ "especialidades_card_endodoncia": {
+  "path": "/especialidades/",
+  "selector": "article.card-servicio-2:has(a[href$=\"/especialidades/tratamiento-de-conducto-endodoncia/\"])",
+  "text": "Endodoncia – Tratamiento Conducto",
+  "label": {
+   "es": "Tarjeta Endodoncia – Tratamiento Conducto",
+   "en": "Root canal (endodontics) card"
+  }
+ },
+ "home_card_endodoncia": {
+  "path": "/",
+  "selector": "#services article.card-servicio-2:has(a[href$=\"/especialidades/tratamiento-de-conducto-endodoncia/\"])",
+  "text": "Endodoncia – Tratamiento Conducto",
+  "label": {
+   "es": "Tarjeta Endodoncia – Tratamiento Conducto",
+   "en": "Root canal (endodontics) card"
+  }
+ },
+ "especialidades_card_periodoncia": {
+  "path": "/especialidades/",
+  "selector": "article.card-servicio-2:has(a[href$=\"/especialidades/periodoncia/\"])",
+  "text": "Periodoncia",
+  "label": {
+   "es": "Tarjeta Periodoncia",
+   "en": "Gum treatment (periodontics) card"
+  }
+ },
+ "home_card_periodoncia": {
+  "path": "/",
+  "selector": "#services article.card-servicio-2:has(a[href$=\"/especialidades/periodoncia/\"])",
+  "text": "Periodoncia",
+  "label": {
+   "es": "Tarjeta Periodoncia",
+   "en": "Gum treatment (periodontics) card"
+  }
+ },
+ "especialidades_card_odontopediatria": {
+  "path": "/especialidades/",
+  "selector": "article.card-servicio-2:has(a[href$=\"/especialidades/odontopediatria/\"])",
+  "text": "Odontopediatría",
+  "label": {
+   "es": "Tarjeta Odontopediatría",
+   "en": "Children's dentistry card"
+  }
+ },
+ "home_card_odontopediatria": {
+  "path": "/",
+  "selector": "#services article.card-servicio-2:has(a[href$=\"/especialidades/odontopediatria/\"])",
+  "text": "Odontopediatría",
+  "label": {
+   "es": "Tarjeta Odontopediatría",
+   "en": "Children's dentistry card"
+  }
+ },
+ "especialidades_card_blanqueamiento": {
+  "path": "/especialidades/",
+  "selector": "article.card-servicio-2:has(a[href$=\"/especialidades/blanqueamiento-dental/\"])",
+  "text": "Blanqueamiento Dental",
+  "label": {
+   "es": "Tarjeta Blanqueamiento Dental",
+   "en": "Teeth whitening card"
+  }
+ },
+ "home_card_blanqueamiento": {
+  "path": "/",
+  "selector": "#services article.card-servicio-2:has(a[href$=\"/especialidades/blanqueamiento-dental/\"])",
+  "text": "Blanqueamiento Dental",
+  "label": {
+   "es": "Tarjeta Blanqueamiento Dental",
+   "en": "Teeth whitening card"
+  }
+ },
+ "especialidades_card_radiografias": {
+  "path": "/especialidades/",
+  "selector": "article.card-servicio-2:has(a[href$=\"/especialidades/radiologia/\"])",
+  "text": "Radiografías Dentales",
+  "label": {
+   "es": "Tarjeta Radiografías Dentales",
+   "en": "Dental X-rays card"
+  }
+ },
+ "home_card_radiografias": {
+  "path": "/",
+  "selector": "#services article.card-servicio-2:has(a[href$=\"/especialidades/radiologia/\"])",
+  "text": "Radiografías Dentales",
+  "label": {
+   "es": "Tarjeta Radiografías Dentales",
+   "en": "Dental X-rays card"
+  }
+ },
+ "especialidades_card_cirugia": {
+  "path": "/especialidades/",
+  "selector": "article.card-servicio-2:has(a[href$=\"/especialidades/cirugia-oral/\"])",
+  "text": "Cirugía Dental Oral",
+  "label": {
+   "es": "Tarjeta Cirugía Dental Oral",
+   "en": "Oral surgery card"
+  }
+ },
+ "home_card_cirugia": {
+  "path": "/",
+  "selector": "#services article.card-servicio-2:has(a[href$=\"/especialidades/cirugia-oral/\"])",
+  "text": "Cirugía Dental Oral",
+  "label": {
+   "es": "Tarjeta Cirugía Dental Oral",
+   "en": "Oral surgery card"
+  }
+ },
+ "especialidades_card_rehabilitacion": {
+  "path": "/especialidades/",
+  "selector": "article.card-servicio-2:has(a[href$=\"/especialidades/rehabilitacion-oral/\"])",
+  "text": "Rehabilitación Oral",
+  "label": {
+   "es": "Tarjeta Rehabilitación Oral",
+   "en": "Oral rehabilitation card"
+  }
+ },
+ "home_card_rehabilitacion": {
+  "path": "/",
+  "selector": "#services article.card-servicio-2:has(a[href$=\"/especialidades/rehabilitacion-oral/\"])",
+  "text": "Rehabilitación Oral",
+  "label": {
+   "es": "Tarjeta Rehabilitación Oral",
+   "en": "Oral rehabilitation card"
+  }
+ },
+ "especialidades_card_bruxismo": {
+  "path": "/especialidades/",
+  "selector": "article.card-servicio-2:has(a[href$=\"/especialidades/planos-de-relajacion-bruxismo/\"])",
+  "text": "Plano de Relajación Bruxismo",
+  "label": {
+   "es": "Tarjeta Plano de Relajación Bruxismo",
+   "en": "Bruxism night guard card"
+  }
+ },
+ "home_card_bruxismo": {
+  "path": "/",
+  "selector": "#services article.card-servicio-2:has(a[href$=\"/especialidades/planos-de-relajacion-bruxismo/\"])",
+  "text": "Plano de Relajación Bruxismo",
+  "label": {
+   "es": "Tarjeta Plano de Relajación Bruxismo",
+   "en": "Bruxism night guard card"
+  }
+ },
+ "ortodoncia_tab_metalicos": {
+  "path": "/especialidades/ortodoncia/",
+  "selector": "#buttab0",
+  "text": "Precios Ortodoncia metálica",
+  "label": {
+   "es": "Precios Ortodoncia metálica",
+   "en": "Metal braces prices"
+  }
+ },
+ "ortodoncia_precios_metalicos": {
+  "path": "/especialidades/ortodoncia/",
+  "selector": "#tab0",
+  "text": "Precios Ortodoncia metálica",
+  "label": {
+   "es": "Precios Ortodoncia metálica",
+   "en": "Metal braces prices"
+  }
+ },
+ "ortodoncia_tab_ceramicos": {
+  "path": "/especialidades/ortodoncia/",
+  "selector": "#buttab1",
+  "text": "Precios Ortodoncia cerámica (estética)",
+  "label": {
+   "es": "Precios Ortodoncia cerámica (estética)",
+   "en": "Ceramic braces prices"
+  }
+ },
+ "ortodoncia_precios_ceramicos": {
+  "path": "/especialidades/ortodoncia/",
+  "selector": "#tab1",
+  "text": "Precios Ortodoncia cerámica (estética)",
+  "label": {
+   "es": "Precios Ortodoncia cerámica (estética)",
+   "en": "Ceramic braces prices"
+  }
+ },
+ "ortodoncia_tab_invisible": {
+  "path": "/especialidades/ortodoncia/",
+  "selector": "#buttab2",
+  "text": "Precios Ortodoncia invisible",
+  "label": {
+   "es": "Precios Ortodoncia invisible",
+   "en": "Invisible aligners prices"
+  }
+ },
+ "ortodoncia_precios_invisible": {
+  "path": "/especialidades/ortodoncia/",
+  "selector": "#tab2",
+  "text": "Precios Ortodoncia invisible",
+  "label": {
+   "es": "Precios Ortodoncia invisible",
+   "en": "Invisible aligners prices"
+  }
+ },
+ "promo_cla_implante": {
+  "path": "/promociones/",
+  "selector": "article.card-promociones.post-46509",
+  "text": "CLA IOI 2026",
+  "label": {
+   "es": "CLA IOI 2026",
+   "en": "Caja Los Andes implant + crown"
+  }
+ },
+ "promo_ortodoncia_oct": {
+  "path": "/promociones/",
+  "selector": "article.card-promociones.post-42398",
+  "text": "Ortodoncia OCT",
+  "label": {
+   "es": "Ortodoncia OCT",
+   "en": "October orthodontics offer"
+  }
+ },
+ "promo_limpieza_blanqueamiento": {
+  "path": "/promociones/",
+  "selector": "article.card-promociones.post-47114",
+  "text": "Limpieza OCT BLANQ",
+  "label": {
+   "es": "Limpieza OCT BLANQ",
+   "en": "Cleaning + whitening offer"
+  }
+ },
+ "promo_credito_cla": {
+  "path": "/promociones/",
+  "selector": "article.card-promociones.post-47556",
+  "text": "Credito CLA",
+  "label": {
+   "es": "Credito CLA",
+   "en": "Caja Los Andes health credit"
+  }
+ },
+ "promo_mes_implante": {
+  "path": "/promociones/",
+  "selector": "article.card-promociones.post-42393",
+  "text": "Mes del Implante AGO26",
+  "label": {
+   "es": "Mes del Implante AGO26",
+   "en": "Implant month credit"
+  }
+ },
+ "promo_planes": {
+  "path": "/promociones/",
+  "selector": "article.card-promociones.post-37208",
+  "text": "Planes Sonrisa Protegida",
+  "label": {
+   "es": "Planes Sonrisa Protegida",
+   "en": "Sonrisa Protegida plans"
+  }
+ },
+ "promo_hualpen": {
+  "path": "/promociones/",
+  "selector": "article.card-promociones.post-46105",
+  "text": "Apertura Hualpen",
+  "label": {
+   "es": "Apertura Hualpen",
+   "en": "Hualpén opening offer"
+  }
+ },
+ "promo_puerto_montt": {
+  "path": "/promociones/",
+  "selector": "article.card-promociones.post-44237",
+  "text": "GEO Zona Pto Montt",
+  "label": {
+   "es": "GEO Zona Pto Montt",
+   "en": "Puerto Montt and Puerto Varas offer"
+  }
+ },
+ "promo_machali": {
+  "path": "/promociones/",
+  "selector": "article.card-promociones.post-40992",
+  "text": "GEO Zona Rancagua Machali",
+  "label": {
+   "es": "GEO Zona Rancagua Machali",
+   "en": "Machalí offer"
+  }
+ },
+ "promo_chiguayante": {
+  "path": "/promociones/",
+  "selector": "article.card-promociones.post-40506",
+  "text": "GEO Chiguayante",
+  "label": {
+   "es": "GEO Chiguayante",
+   "en": "Chiguayante offer"
+  }
+ },
+ "convenios_cajas": {
+  "path": "/convenio/",
+  "selector": "div.container:has(> h2):has(a[href$=\"/convenio/la-araucana/\"])",
+  "text": "Cajas de compensación",
+  "label": {
+   "es": "Cajas de compensación",
+   "en": "Compensation funds (cajas)"
+  }
+ },
+ "convenio_araucana": {
+  "path": "/convenio/",
+  "selector": "div.card:has(> a[href$=\"/convenio/la-araucana/\"])",
+  "text": "",
+  "label": {
+   "es": "Logo La Araucana",
+   "en": "La Araucana logo"
+  }
+ },
+ "convenio_caja_andes": {
+  "path": "/convenio/",
+  "selector": "div.card:has(> a[href$=\"/convenio/caja-los-andes/\"])",
+  "text": "",
+  "label": {
+   "es": "Logo Caja Los Andes",
+   "en": "Caja Los Andes logo"
+  }
+ },
+ "convenio_heroes": {
+  "path": "/convenio/",
+  "selector": "div.card:has(> a[href$=\"/convenio/los-heroes/\"])",
+  "text": "",
+  "label": {
+   "es": "Logo Los Héroes",
+   "en": "Los Héroes logo"
+  }
+ },
+ "convenio_caja_18": {
+  "path": "/convenio/",
+  "selector": "div.card:has(> a[href$=\"/convenio/caja-18/\"])",
+  "text": "",
+  "label": {
+   "es": "Logo Caja 18",
+   "en": "Caja 18 logo"
+  }
+ },
+ "convenios_isapres": {
+  "path": "/convenio/",
+  "selector": "div.container:has(> h2):has(a[href$=\"/convenio/fonasa/\"])",
+  "text": "Fonasa e isapres",
+  "label": {
+   "es": "Fonasa e isapres",
+   "en": "Fonasa and isapres"
+  }
+ },
+ "convenio_fonasa": {
+  "path": "/convenio/",
+  "selector": "div.card:has(> a[href$=\"/convenio/fonasa/\"])",
+  "text": "",
+  "label": {
+   "es": "Logo Fonasa",
+   "en": "Fonasa logo"
+  }
+ },
+ "convenio_consalud": {
+  "path": "/convenio/",
+  "selector": "div.card:has(> a[href$=\"/convenio/consalud/\"])",
+  "text": "",
+  "label": {
+   "es": "Logo Consalud",
+   "en": "Consalud logo"
+  }
+ },
+ "convenio_nuevamasvida": {
+  "path": "/convenio/",
+  "selector": "div.card:has(> a[href$=\"/convenio/isapre-nuevamasvida/\"])",
+  "text": "",
+  "label": {
+   "es": "Logo Nueva Masvida",
+   "en": "Nueva Masvida logo"
+  }
+ },
+ "convenio_cruzblanca": {
+  "path": "/convenio/",
+  "selector": "div.card:has(> a[href$=\"/convenio/cruzblanca/\"])",
+  "text": "",
+  "label": {
+   "es": "Logo Cruz Blanca",
+   "en": "Cruz Blanca logo"
+  }
+ },
+ "convenio_vidatres": {
+  "path": "/convenio/",
+  "selector": "div.card:has(> a[href$=\"/convenio/isapre-vidatres/\"])",
+  "text": "",
+  "label": {
+   "es": "Logo Vida Tres",
+   "en": "Vida Tres logo"
+  }
+ },
+ "convenio_banmedica": {
+  "path": "/convenio/",
+  "selector": "div.card:has(> a[href$=\"/convenio/isapre-banmedica/\"])",
+  "text": "",
+  "label": {
+   "es": "Logo Banmédica",
+   "en": "Banmédica logo"
+  }
+ },
+ "convenio_colmena": {
+  "path": "/convenio/",
+  "selector": "div.card:has(> a[href$=\"/convenio/isapre-colmena/\"])",
+  "text": "",
+  "label": {
+   "es": "Logo Colmena",
+   "en": "Colmena logo"
+  }
+ },
+ "convenios_aseguradoras": {
+  "path": "/convenio/",
+  "selector": "div.container:has(> h2):has(a[href$=\"/convenio/vida-security/\"])",
+  "text": "Aseguradoras",
+  "label": {
+   "es": "Aseguradoras",
+   "en": "Insurers"
+  }
+ },
+ "convenio_vida_security": {
+  "path": "/convenio/",
+  "selector": "div.card:has(> a[href$=\"/convenio/vida-security/\"])",
+  "text": "",
+  "label": {
+   "es": "Logo Vida Security",
+   "en": "Vida Security logo"
+  }
+ },
+ "convenio_help_seguros": {
+  "path": "/convenio/",
+  "selector": "div.card:has(> a[href$=\"/convenio/help-seguros/\"])",
+  "text": "",
+  "label": {
+   "es": "Logo Help Seguros",
+   "en": "Help Seguros logo"
+  }
+ },
+ "convenio_sura": {
+  "path": "/convenio/",
+  "selector": "div.card:has(> a[href$=\"/convenio/sura/\"])",
+  "text": "",
+  "label": {
+   "es": "Logo Sura",
+   "en": "Sura logo"
+  }
+ },
+ "convenio_bice_vida": {
+  "path": "/convenio/",
+  "selector": "div.card:has(> a[href$=\"/convenio/bice-vida/\"])",
+  "text": "",
+  "label": {
+   "es": "Logo Bice Vida",
+   "en": "Bice Vida logo"
+  }
+ },
+ "convenio_consorcio": {
+  "path": "/convenio/",
+  "selector": "div.card:has(> a[href$=\"/convenio/consorcio/\"])",
+  "text": "",
+  "label": {
+   "es": "Logo Consorcio",
+   "en": "Consorcio logo"
+  }
+ },
+ "convenio_vidacamara": {
+  "path": "/convenio/",
+  "selector": "div.card:has(> a[href$=\"/convenio/vidacamara/\"])",
+  "text": "",
+  "label": {
+   "es": "Logo Vida Cámara",
+   "en": "Vida Cámara logo"
+  }
+ },
+ "convenio_bci_seguros": {
+  "path": "/convenio/",
+  "selector": "div.card:has(> a[href$=\"/convenio/bci-seguros/\"])",
+  "text": "",
+  "label": {
+   "es": "Logo BCI Seguros",
+   "en": "BCI Seguros logo"
+  }
+ },
+ "convenio_futuro": {
+  "path": "/convenio/",
+  "selector": "div.card:has(> a[href$=\"/convenio/con-futuro/\"])",
+  "text": "",
+  "label": {
+   "es": "Logo Confuturo",
+   "en": "Confuturo logo"
+  }
+ },
+ "convenio_bupa_seguros": {
+  "path": "/convenio/",
+  "selector": "div.card:has(> a[href$=\"/convenio/bupa-seguros/\"])",
+  "text": "",
+  "label": {
+   "es": "Logo Bupa Seguros",
+   "en": "Bupa Seguros logo"
+  }
+ },
+ "convenio_zurich": {
+  "path": "/convenio/",
+  "selector": "div.card:has(> a[href$=\"/convenio/zurich/\"])",
+  "text": "",
+  "label": {
+   "es": "Logo Zurich",
+   "en": "Zurich logo"
+  }
+ },
+ "convenios_cooperativas": {
+  "path": "/convenio/",
+  "selector": "div.container:has(> h2):has(a[href$=\"/convenio/coopeuch/\"])",
+  "text": "Cooperativas",
+  "label": {
+   "es": "Cooperativas",
+   "en": "Cooperatives"
+  }
+ },
+ "convenio_coopeuch": {
+  "path": "/convenio/",
+  "selector": "div.card:has(> a[href$=\"/convenio/coopeuch/\"])",
+  "text": "",
+  "label": {
+   "es": "Logo Coopeuch",
+   "en": "Coopeuch logo"
+  }
+ },
+ "convenios_otros": {
+  "path": "/convenio/",
+  "selector": "div.container:has(> h2):has(a[href$=\"/convenio/banco-falabella/\"])",
+  "text": "Otros beneficios",
+  "label": {
+   "es": "Otros beneficios",
+   "en": "Other benefits"
+  }
+ },
+ "convenio_banco_falabella": {
+  "path": "/convenio/",
+  "selector": "div.card:has(> a[href$=\"/convenio/banco-falabella/\"])",
+  "text": "",
+  "label": {
+   "es": "Logo Banco Falabella",
+   "en": "Banco Falabella logo"
+  }
+ },
+ "convenio_tarjeta_unionsalud": {
+  "path": "/convenio/",
+  "selector": "div.card:has(> a[href$=\"/convenio/tarjeta-unionsalud/\"])",
+  "text": "",
+  "label": {
+   "es": "Logo Tarjeta UniónSalud",
+   "en": "Tarjeta UniónSalud logo"
+  }
+ },
+ "beneficios_card_pad": {
+  "path": "/beneficios-y-reembolso/",
+  "selector": "article:has(a[href$=\"/beneficios-y-reembolso/pad/\"])",
+  "text": "PAD",
+  "label": {
+   "es": "PAD",
+   "en": "PAD (diagnosis-linked payment)"
+  }
+ },
+ "convenios_beneficio_pad": {
+  "path": "/convenio/",
+  "selector": "#beneficios article:has(a[href$=\"/beneficios-y-reembolso/pad/\"])",
+  "text": "PAD",
+  "label": {
+   "es": "PAD",
+   "en": "PAD (diagnosis-linked payment)"
+  }
+ },
+ "beneficios_card_ges": {
+  "path": "/beneficios-y-reembolso/",
+  "selector": "article:has(a[href$=\"/beneficios-y-reembolso/ges/\"])",
+  "text": "GES",
+  "label": {
+   "es": "GES",
+   "en": "GES (guaranteed coverage)"
+  }
+ },
+ "convenios_beneficio_ges": {
+  "path": "/convenio/",
+  "selector": "#beneficios article:has(a[href$=\"/beneficios-y-reembolso/ges/\"])",
+  "text": "GES",
+  "label": {
+   "es": "GES",
+   "en": "GES (guaranteed coverage)"
+  }
+ },
+ "beneficios_card_seguro": {
+  "path": "/beneficios-y-reembolso/",
+  "selector": "article:has(a[href$=\"/beneficios-y-reembolso/seguro-complementario/\"])",
+  "text": "Seguro Complementario",
+  "label": {
+   "es": "Seguro Complementario",
+   "en": "Supplementary insurance"
+  }
+ },
+ "convenios_beneficio_seguro": {
+  "path": "/convenio/",
+  "selector": "#beneficios article:has(a[href$=\"/beneficios-y-reembolso/seguro-complementario/\"])",
+  "text": "Seguro Complementario",
+  "label": {
+   "es": "Seguro Complementario",
+   "en": "Supplementary insurance"
+  }
+ },
+ "beneficios_card_excedentes": {
+  "path": "/beneficios-y-reembolso/",
+  "selector": "article:has(a[href$=\"/beneficios-y-reembolso/excedentes/\"])",
+  "text": "Excedentes",
+  "label": {
+   "es": "Excedentes",
+   "en": "Isapre surplus (excedentes)"
+  }
+ },
+ "convenios_beneficio_excedentes": {
+  "path": "/convenio/",
+  "selector": "#beneficios article:has(a[href$=\"/beneficios-y-reembolso/excedentes/\"])",
+  "text": "Excedentes",
+  "label": {
+   "es": "Excedentes",
+   "en": "Isapre surplus (excedentes)"
+  }
+ },
+ "porque_pago_efectivo": {
+  "path": "/por-que-elegirnos/",
+  "selector": "main > section:nth-of-type(7) div.row.justify-content-center > div:nth-of-type(1)",
+  "text": "Efectivo o tarjeta de débito",
+  "label": {
+   "es": "Efectivo o tarjeta de débito",
+   "en": "Cash or debit card"
+  }
+ },
+ "porque_pago_cheques": {
+  "path": "/por-que-elegirnos/",
+  "selector": "main > section:nth-of-type(7) div.row.justify-content-center > div:nth-of-type(2)",
+  "text": "Cheques",
+  "label": {
+   "es": "Cheques",
+   "en": "Cheques"
+  }
+ },
+ "porque_pago_excedentes": {
+  "path": "/por-que-elegirnos/",
+  "selector": "main > section:nth-of-type(7) div.row.justify-content-center > div:nth-of-type(3)",
+  "text": "Excedentes Isapre",
+  "label": {
+   "es": "Excedentes Isapre",
+   "en": "Isapre surplus"
+  }
+ },
+ "porque_pago_seguro": {
+  "path": "/por-que-elegirnos/",
+  "selector": "main > section:nth-of-type(7) div.row.justify-content-center > div:nth-of-type(4)",
+  "text": "Seguro Complementario",
+  "label": {
+   "es": "Seguro Complementario",
+   "en": "Supplementary insurance"
+  }
+ },
+ "porque_pago_tarjetas": {
+  "path": "/por-que-elegirnos/",
+  "selector": "main > section:nth-of-type(7) div.row.justify-content-center > div:nth-of-type(5)",
+  "text": "Tarjetas Bancarias",
+  "label": {
+   "es": "Tarjetas Bancarias",
+   "en": "Bank cards"
+  }
+ },
+ "porque_tab_cerec": {
+  "path": "/por-que-elegirnos/",
+  "selector": "#buttab3",
+  "text": "Tecnología 3D Cerec",
+  "label": {
+   "es": "Tecnología 3D Cerec",
+   "en": "3D Cerec technology"
+  }
+ },
+ "porque_tab_sedacion": {
+  "path": "/por-que-elegirnos/",
+  "selector": "#buttab5",
+  "text": "Sedación consciente con oxido nitroso",
+  "label": {
+   "es": "Sedación consciente",
+   "en": "Conscious sedation"
+  }
+ },
+ "planes_precios": {
+  "path": "/landing/planes-sonrisa-protegida/",
+  "selector": "#miseccion",
+  "text": "",
+  "label": {
+   "es": "Tabla de precios de los planes",
+   "en": "Plans price table"
+  }
+ },
+ "clinica_horario": {
+  "path": "/clinicas/*/",
+  "selector": "main > header div.shadow-sm div.col-lg-6:nth-of-type(1)",
+  "text": "Horario de atención",
+  "label": {
+   "es": "Horario de atención",
+   "en": "Opening hours"
+  }
+ },
+ "clinica_referencias": {
+  "path": "/clinicas/*/",
+  "selector": "main > header div.shadow-sm div.col-lg-6:nth-of-type(2)",
+  "text": "Referencias",
+  "label": {
+   "es": "Referencias",
+   "en": "How to find it (landmarks)"
+  }
+ },
+ "clinica_mapa": {
+  "path": "/clinicas/*/",
+  "selector": "#mapa-single",
+  "text": "¿Cómo llegar?",
+  "label": {
+   "es": "Mapa",
+   "en": "Map and directions"
+  }
+ },
+ "clinicas_buscador": {
+  "path": "/clinicas/",
+  "selector": "#sucursales",
+  "text": "Sucursales y Horarios de Atención",
+  "label": {
+   "es": "Buscador de clínicas",
+   "en": "Clinic finder"
+  }
+ },
+ "clinicas_lista": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list",
+  "text": "",
+  "label": {
+   "es": "Lista de clínicas",
+   "en": "Clinic list"
+  }
+ },
+ "clinicas_mapa": {
+  "path": "/clinicas/",
+  "selector": "#mapa",
+  "text": "",
+  "label": {
+   "es": "Mapa de clínicas",
+   "en": "Clinic map"
+  }
+ },
+ "urgencias_formulario": {
+  "path": "/urgencias/",
+  "selector": "#form-side form#sib-form",
+  "text": "",
+  "label": {
+   "es": "Formulario: un ejecutivo te contacta",
+   "en": "Callback form"
+  }
+ },
+ "tellamamos_formulario": {
+  "path": "/landing/solicitar-diagnostico/",
+  "selector": "form#sib-form",
+  "text": "TE LLAMAMOS",
+  "label": {
+   "es": "Formulario Te llamamos",
+   "en": "Callback form"
+  }
+ },
+ "empresas_formulario": {
+  "path": "/landing/convenio-empresa/",
+  "selector": "form#sib-form",
+  "text": "",
+  "label": {
+   "es": "Formulario Convenio Empresas",
+   "en": "Company agreement form"
+  }
+ },
+ "faq_lista": {
+  "path": "/preguntas-frecuentes/",
+  "selector": "#accordionFaqs",
+  "text": "",
+  "label": {
+   "es": "Preguntas frecuentes",
+   "en": "Frequently asked questions"
+  }
+ },
+ "clinicas_patio_quilicura": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"44412\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Patio Quilicura",
+   "en": "Patio Quilicura clinic"
+  }
+ },
+ "clinicas_puente_alto_toros": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"45522\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Puente Alto Los Toros",
+   "en": "Puente Alto Los Toros clinic"
+  }
+ },
+ "clinicas_hualpen": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"41044\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Hualpén",
+   "en": "Hualpén clinic"
+  }
+ },
+ "clinicas_comuna_padre_hurtado": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"41038\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Comuna Padre Hurtado",
+   "en": "Comuna Padre Hurtado clinic"
+  }
+ },
+ "clinicas_san_ramon_lider_santa_rosa": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"39670\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica San Ramón Lider Santa Rosa",
+   "en": "San Ramón Lider Santa Rosa clinic"
+  }
+ },
+ "clinicas_silva_carvallo": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"38465\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Silva Carvallo",
+   "en": "Silva Carvallo clinic"
+  }
+ },
+ "clinicas_chiguayante": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"37769\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Chiguayante",
+   "en": "Chiguayante clinic"
+  }
+ },
+ "clinicas_puerto_montt_antonio_varas": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"38463\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Puerto Montt Antonio Varas",
+   "en": "Puerto Montt Antonio Varas clinic"
+  }
+ },
+ "clinicas_calera": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"34471\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica La Calera",
+   "en": "La Calera clinic"
+  }
+ },
+ "clinicas_machali": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"32097\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Machalí",
+   "en": "Machalí clinic"
+  }
+ },
+ "clinicas_san_antonio": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"22086\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica San Antonio",
+   "en": "San Antonio clinic"
+  }
+ },
+ "clinicas_florida_santa_amalia": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"29920\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Santa Amalia",
+   "en": "Santa Amalia clinic"
+  }
+ },
+ "clinicas_buin": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"28209\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Buin",
+   "en": "Buin clinic"
+  }
+ },
+ "clinicas_pedro_fontova": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"26268\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Pedro Fontova",
+   "en": "Pedro Fontova clinic"
+  }
+ },
+ "clinicas_recoleta": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"26265\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Recoleta",
+   "en": "Recoleta clinic"
+  }
+ },
+ "clinicas_plaza_egana": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"26262\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Plaza Egaña",
+   "en": "Plaza Egaña clinic"
+  }
+ },
+ "clinicas_punta_arenas": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"23921\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Punta Arenas",
+   "en": "Punta Arenas clinic"
+  }
+ },
+ "clinicas_san_bernardo_plaza_armas": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"22081\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica San Bernardo Plaza de Armas",
+   "en": "San Bernardo Plaza de Armas clinic"
+  }
+ },
+ "clinicas_puerto_varas": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20793\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Puerto Varas",
+   "en": "Puerto Varas clinic"
+  }
+ },
+ "clinicas_copiapo": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20779\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Copiapó",
+   "en": "Copiapó clinic"
+  }
+ },
+ "clinicas_pudahuel_sur": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20767\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Pudahuel Sur",
+   "en": "Pudahuel Sur clinic"
+  }
+ },
+ "clinicas_nataniel_cox": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20757\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Nataniel Cox",
+   "en": "Nataniel Cox clinic"
+  }
+ },
+ "clinicas_serena_centro": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20747\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica La Serena Centro",
+   "en": "La Serena Centro clinic"
+  }
+ },
+ "clinicas_rancagua_paseo_independencia": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20735\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Rancagua Paseo Independencia",
+   "en": "Rancagua Paseo Independencia clinic"
+  }
+ },
+ "clinicas_angeles_av_alemania": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20724\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Los Ángeles Av. Alemania",
+   "en": "Los Ángeles Av. Alemania clinic"
+  }
+ },
+ "clinicas_vina_mar_ecuador": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20713\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Viña del Mar Ecuador",
+   "en": "Viña del Mar Ecuador clinic"
+  }
+ },
+ "clinicas_concepcion_barros_arana": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20703\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Concepción Barros Arana",
+   "en": "Concepción Barros Arana clinic"
+  }
+ },
+ "clinicas_puerto_montt_parque_industrial": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20683\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Puerto Montt Parque Industrial",
+   "en": "Puerto Montt Parque Industrial clinic"
+  }
+ },
+ "clinicas_valparaiso_pedro_montt": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20674\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Valparaíso Pedro Montt",
+   "en": "Valparaíso Pedro Montt clinic"
+  }
+ },
+ "clinicas_temuco_caupolican": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20665\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Temuco Caupolicán",
+   "en": "Temuco Caupolicán clinic"
+  }
+ },
+ "clinicas_san_felipe": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20653\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica San Felipe",
+   "en": "San Felipe clinic"
+  }
+ },
+ "clinicas_talca_florida": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20643\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Talca La Florida",
+   "en": "Talca La Florida clinic"
+  }
+ },
+ "clinicas_cerrillos": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20634\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Cerrillos",
+   "en": "Cerrillos clinic"
+  }
+ },
+ "clinicas_puente_alto_plaza_puente_alto": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20625\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Puente Alto Plaza de Puente Alto",
+   "en": "Puente Alto Plaza de Puente Alto clinic"
+  }
+ },
+ "clinicas_quillota": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20618\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Quillota",
+   "en": "Quillota clinic"
+  }
+ },
+ "clinicas_maipu_rosal": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20607\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Maipú El Rosal",
+   "en": "Maipú El Rosal clinic"
+  }
+ },
+ "clinicas_chillan_sargento_aldea": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20595\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Chillán Sargento Aldea",
+   "en": "Chillán Sargento Aldea clinic"
+  }
+ },
+ "clinicas_gran_avenida_departamental": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20584\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Gran Avenida Departamental",
+   "en": "Gran Avenida Departamental clinic"
+  }
+ },
+ "clinicas_vina_mar_libertad": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20575\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Viña del Mar Libertad",
+   "en": "Viña del Mar Libertad clinic"
+  }
+ },
+ "clinicas_chile_espana": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20557\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Chile España",
+   "en": "Chile España clinic"
+  }
+ },
+ "clinicas_quilpue": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20547\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Quilpué",
+   "en": "Quilpué clinic"
+  }
+ },
+ "clinicas_antofagasta_portada": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20530\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Antofagasta La Portada",
+   "en": "Antofagasta La Portada clinic"
+  }
+ },
+ "clinicas_coronel": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20509\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Coronel",
+   "en": "Coronel clinic"
+  }
+ },
+ "clinicas_maipu_monumento": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20495\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Maipú Monumento",
+   "en": "Maipú Monumento clinic"
+  }
+ },
+ "clinicas_antofagasta_centro": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20485\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Antofagasta Centro",
+   "en": "Antofagasta Centro clinic"
+  }
+ },
+ "clinicas_calama": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20473\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Calama",
+   "en": "Calama clinic"
+  }
+ },
+ "clinicas_independencia": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20451\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Independencia",
+   "en": "Independencia clinic"
+  }
+ },
+ "clinicas_quilicura": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20434\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Quilicura",
+   "en": "Quilicura clinic"
+  }
+ },
+ "clinicas_villa_alemana": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20424\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Villa Alemana",
+   "en": "Villa Alemana clinic"
+  }
+ },
+ "clinicas_penalolen": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20412\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Peñalolén",
+   "en": "Peñalolén clinic"
+  }
+ },
+ "clinicas_san_pedro_paz": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20401\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica San Pedro de la Paz",
+   "en": "San Pedro de la Paz clinic"
+  }
+ },
+ "clinicas_manuel_montt": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20390\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Manuel Montt",
+   "en": "Manuel Montt clinic"
+  }
+ },
+ "clinicas_dehesa": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20356\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica La Dehesa",
+   "en": "La Dehesa clinic"
+  }
+ },
+ "clinicas_puerto_montt_benavente": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20335\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Puerto Montt Benavente",
+   "en": "Puerto Montt Benavente clinic"
+  }
+ },
+ "clinicas_arica": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20317\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Arica",
+   "en": "Arica clinic"
+  }
+ },
+ "clinicas_temuco_av_alemania": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20301\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Temuco Av. Alemania",
+   "en": "Temuco Av. Alemania clinic"
+  }
+ },
+ "clinicas_puente_alto_elisa_correa": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20289\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Puente Alto Elisa Correa",
+   "en": "Puente Alto Elisa Correa clinic"
+  }
+ },
+ "clinicas_linares": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20278\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Linares",
+   "en": "Linares clinic"
+  }
+ },
+ "clinicas_melipilla": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20271\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Melipilla",
+   "en": "Melipilla clinic"
+  }
+ },
+ "clinicas_talca_oriente": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20266\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Talca Oriente",
+   "en": "Talca Oriente clinic"
+  }
+ },
+ "clinicas_chillan": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20242\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Chillán",
+   "en": "Chillán clinic"
+  }
+ },
+ "clinicas_coquimbo": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20213\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Coquimbo",
+   "en": "Coquimbo clinic"
+  }
+ },
+ "clinicas_vina_mar_centro": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20181\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Viña del Mar Centro",
+   "en": "Viña del Mar Centro clinic"
+  }
+ },
+ "clinicas_bellavista_florida": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20112\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Bellavista Florida",
+   "en": "Bellavista Florida clinic"
+  }
+ },
+ "clinicas_concepcion_freire": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20104\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Concepción Freire",
+   "en": "Concepción Freire clinic"
+  }
+ },
+ "clinicas_talcahuano": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20093\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Talcahuano",
+   "en": "Talcahuano clinic"
+  }
+ },
+ "clinicas_osorno": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20082\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Osorno",
+   "en": "Osorno clinic"
+  }
+ },
+ "clinicas_iquique": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20061\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Iquique",
+   "en": "Iquique clinic"
+  }
+ },
+ "clinicas_escuela_militar": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"20037\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Escuela Militar",
+   "en": "Escuela Militar clinic"
+  }
+ },
+ "clinicas_vina_mar": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"1938\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Viña del Mar 13 Norte",
+   "en": "Viña del Mar 13 Norte clinic"
+  }
+ },
+ "clinicas_valparaiso": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"1941\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Valparaíso",
+   "en": "Valparaíso clinic"
+  }
+ },
+ "clinicas_rancagua_javiera_carrera": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"1945\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Rancagua Javiera Carrera",
+   "en": "Rancagua Javiera Carrera clinic"
+  }
+ },
+ "clinicas_concepcion_cochrane": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"1950\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Concepción Cochrane",
+   "en": "Concepción Cochrane clinic"
+  }
+ },
+ "clinicas_puerto_montt": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"1953\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Puerto Montt",
+   "en": "Puerto Montt clinic"
+  }
+ },
+ "clinicas_temuco": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"2775\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Temuco",
+   "en": "Temuco clinic"
+  }
+ },
+ "clinicas_curico": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"3109\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Curicó",
+   "en": "Curicó clinic"
+  }
+ },
+ "clinicas_rancagua_centro": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"3449\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Rancagua Centro",
+   "en": "Rancagua Centro clinic"
+  }
+ },
+ "clinicas_valdivia": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"3598\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Valdivia",
+   "en": "Valdivia clinic"
+  }
+ },
+ "clinicas_talca_centro": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"3903\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Talca Centro",
+   "en": "Talca Centro clinic"
+  }
+ },
+ "clinicas_angeles": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"4500\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Los Ángeles",
+   "en": "Los Ángeles clinic"
+  }
+ },
+ "clinicas_maipu": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"1921\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Maipú",
+   "en": "Maipú clinic"
+  }
+ },
+ "clinicas_estacion_central": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"1918\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Estación Central",
+   "en": "Estación Central clinic"
+  }
+ },
+ "clinicas_moneda": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"1910\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Moneda",
+   "en": "Moneda clinic"
+  }
+ },
+ "clinicas_teatinos": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"1915\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Teatinos",
+   "en": "Teatinos clinic"
+  }
+ },
+ "clinicas_santa_lucia": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"1907\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Santa Lucía",
+   "en": "Santa Lucía clinic"
+  }
+ },
+ "clinicas_concepcion": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"1904\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica La Concepción",
+   "en": "La Concepción clinic"
+  }
+ },
+ "clinicas_san_bernardo": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"1924\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica San Bernardo",
+   "en": "San Bernardo clinic"
+  }
+ },
+ "clinicas_florida_frolian_roa": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"1929\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica La Florida Froilán Roa",
+   "en": "La Florida Froilán Roa clinic"
+  }
+ },
+ "clinicas_san_miguel": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"1932\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica San Miguel",
+   "en": "San Miguel clinic"
+  }
+ },
+ "clinicas_merced": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"4027\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Merced",
+   "en": "Merced clinic"
+  }
+ },
+ "clinicas_cisterna": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"3444\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica La Cisterna",
+   "en": "La Cisterna clinic"
+  }
+ },
+ "clinicas_nunoa": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"3263\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Ñuñoa",
+   "en": "Ñuñoa clinic"
+  }
+ },
+ "clinicas_serena": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"3058\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica La Serena",
+   "en": "La Serena clinic"
+  }
+ },
+ "clinicas_antofagasta": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"2568\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Antofagasta",
+   "en": "Antofagasta clinic"
+  }
+ },
+ "clinicas_puente_alto": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"1935\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Puente Alto",
+   "en": "Puente Alto clinic"
+  }
+ },
+ "clinicas_manquehue": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"1898\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Manquehue",
+   "en": "Manquehue clinic"
+  }
+ },
+ "clinicas_coyancuralosleones": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"1901\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Coyancura Los Leones",
+   "en": "Coyancura Los Leones clinic"
+  }
+ },
+ "clinicas_reina": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"2950\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica La Reina",
+   "en": "La Reina clinic"
+  }
+ },
+ "clinicas_tobalaba": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"4345\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Tobalaba",
+   "en": "Tobalaba clinic"
+  }
+ },
+ "clinicas_padre_hurtado": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"4671\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Padre Hurtado Sur – Fleming",
+   "en": "Padre Hurtado Sur – Fleming clinic"
+  }
+ },
+ "clinicas_san_fernando": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"4841\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica San Fernando",
+   "en": "San Fernando clinic"
+  }
+ },
+ "clinicas_macul": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"5016\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Macul",
+   "en": "Macul clinic"
+  }
+ },
+ "clinicas_vitacura": {
+  "path": "/clinicas/",
+  "selector": "#mapa-list [data-target=\"1872\"]",
+  "text": "",
+  "label": {
+   "es": "Clínica Vitacura",
+   "en": "Vitacura clinic"
+  }
+ },
+ "faq_pad": {
+  "path": "/preguntas-frecuentes/",
+  "selector": "#heading-faq-14421",
+  "text": "¿Cómo acceder al PAD?",
+  "label": {
+   "es": "¿Cómo acceder al PAD?",
+   "en": "How to use PAD"
+  },
+  "faq": "14421"
+ },
+ "faq_isapre_clinica": {
+  "path": "/preguntas-frecuentes/",
+  "selector": "#heading-faq-14417",
+  "text": "¿Dónde está mi clínica Uno Salud más cercana con convenio para mi Isapre?",
+  "label": {
+   "es": "¿Dónde está mi clínica Uno Salud más cercana con convenio para mi Isapre?",
+   "en": "Nearest clinic with an Isapre agreement"
+  },
+  "faq": "14417"
+ },
+ "faq_ges_dentales": {
+  "path": "/preguntas-frecuentes/",
+  "selector": "#heading-faq-14415",
+  "text": "¿Cuáles son los GES Dentales?",
+  "label": {
+   "es": "¿Cuáles son los GES Dentales?",
+   "en": "Which dental GES exist"
+  },
+  "faq": "14415"
+ },
+ "faq_isapre": {
+  "path": "/preguntas-frecuentes/",
+  "selector": "#heading-faq-14413",
+  "text": "¿Cómo atenderse por la Isapre?",
+  "label": {
+   "es": "¿Cómo atenderse por la Isapre?",
+   "en": "How to be seen through your Isapre"
+  },
+  "faq": "14413"
+ },
+ "faq_ges": {
+  "path": "/preguntas-frecuentes/",
+  "selector": "#heading-faq-14402",
+  "text": "¿Qué es el GES?",
+  "label": {
+   "es": "¿Qué es el GES?",
+   "en": "What GES is"
+  },
+  "faq": "14402"
+ },
+ "faq_reembolso": {
+  "path": "/preguntas-frecuentes/",
+  "selector": "#heading-faq-14410",
+  "text": "¿Cómo realizar el reembolso?",
+  "label": {
+   "es": "¿Cómo realizar el reembolso?",
+   "en": "How to get reimbursed"
+  },
+  "faq": "14410"
+ },
+ "faq_sancionados": {
+  "path": "/preguntas-frecuentes/",
+  "selector": "#heading-faq-28633",
+  "text": "¿Dónde encuentro el registro nacional de profesionales sancionados por licencias médicas?",
+  "label": {
+   "es": "¿Dónde encuentro el registro nacional de profesionales sancionados por licencias médicas?",
+   "en": "Register of sanctioned professionals"
+  },
+  "faq": "28633"
+ },
+ "faq_seguro_cubre": {
+  "path": "/preguntas-frecuentes/",
+  "selector": "#heading-faq-14408",
+  "text": "¿Qué cubre el seguro complementario?",
+  "label": {
+   "es": "¿Qué cubre el seguro complementario?",
+   "en": "What supplementary insurance covers"
+  },
+  "faq": "14408"
+ },
+ "faq_tengo_excedentes": {
+  "path": "/preguntas-frecuentes/",
+  "selector": "#heading-faq-14396",
+  "text": "¿Cómo sé si tengo excedentes?",
+  "label": {
+   "es": "¿Cómo sé si tengo excedentes?",
+   "en": "How to know if you have excedentes"
+  },
+  "faq": "14396"
+ },
+ "faq_excedentes": {
+  "path": "/preguntas-frecuentes/",
+  "selector": "#heading-faq-14391",
+  "text": "¿Qué son los excedentes?",
+  "label": {
+   "es": "¿Qué son los excedentes?",
+   "en": "What excedentes are"
+  },
+  "faq": "14391"
+ },
+ "faq_limpieza": {
+  "path": "/preguntas-frecuentes/",
+  "selector": "#heading-faq-14339",
+  "text": "Tengo que hacerme una limpieza: ¿Cada cuanto tiempo?, ¿Qué tan profundo debe ser el tratamiento?, ¿De que depende?, ¿Cuanto cuesta?",
+  "label": {
+   "es": "Tengo que hacerme una limpieza: ¿Cada cuanto tiempo?, ¿Qué tan profundo debe ser el tratamiento?, ¿De que depende?, ¿Cuanto cuesta?",
+   "en": "How often to get a cleaning"
+  },
+  "faq": "14339"
+ },
+ "faq_radiografias": {
+  "path": "/preguntas-frecuentes/",
+  "selector": "#heading-faq-14337",
+  "text": "He oído que uno salud tiene radiografías digitales, ¿Cuáles son sus ventajas?",
+  "label": {
+   "es": "He oído que uno salud tiene radiografías digitales, ¿Cuáles son sus ventajas?",
+   "en": "Digital X-rays"
+  },
+  "faq": "14337"
+ },
+ "faq_ninos": {
+  "path": "/preguntas-frecuentes/",
+  "selector": "#heading-faq-14333",
+  "text": "¿Atienden niños? ¿Desde qué edad debo empezar a llevar a mis hijos al odontólogo?",
+  "label": {
+   "es": "¿Atienden niños? ¿Desde qué edad debo empezar a llevar a mis hijos al odontólogo?",
+   "en": "Children: from what age"
+  },
+  "faq": "14333"
+ },
+ "faq_urgencias": {
+  "path": "/preguntas-frecuentes/",
+  "selector": "#heading-faq-14331",
+  "text": "¿Atienden urgencias? ¿De qué tipo son?",
+  "label": {
+   "es": "¿Atienden urgencias? ¿De qué tipo son?",
+   "en": "Emergencies: do you see them"
+  },
+  "faq": "14331"
+ },
+ "faq_muelas_juicio": {
+  "path": "/preguntas-frecuentes/",
+  "selector": "#heading-faq-14329",
+  "text": "¿En qué consiste la extracción de muelas del juicio? ¿El valor depende de la gravedad?",
+  "label": {
+   "es": "¿En qué consiste la extracción de muelas del juicio? ¿El valor depende de la gravedad?",
+   "en": "Wisdom tooth extraction"
+  },
+  "faq": "14329"
+ },
+ "faq_colores_frenillos": {
+  "path": "/preguntas-frecuentes/",
+  "selector": "#heading-faq-14324",
+  "text": "¿Qué colores de frenillos tienen?",
+  "label": {
+   "es": "¿Qué colores de frenillos tienen?",
+   "en": "Brace colours"
+  },
+  "faq": "14324"
+ },
+ "faq_duracion_frenillos": {
+  "path": "/preguntas-frecuentes/",
+  "selector": "#heading-faq-14322",
+  "text": "¿Cuánto dura un tratamiento con frenillos?",
+  "label": {
+   "es": "¿Cuánto dura un tratamiento con frenillos?",
+   "en": "How long braces take"
+  },
+  "faq": "14322"
+ },
+ "faq_extraccion": {
+  "path": "/preguntas-frecuentes/",
+  "selector": "#heading-faq-14320",
+  "text": "¿Necesito extraerme una pieza dental, en qué consiste la cirugía específicamente?",
+  "label": {
+   "es": "¿Necesito extraerme una pieza dental, en qué consiste la cirugía específicamente?",
+   "en": "Tooth extraction"
+  },
+  "faq": "14320"
+ },
+ "faq_conducto_precio": {
+  "path": "/preguntas-frecuentes/",
+  "selector": "#heading-faq-14318",
+  "text": "¿Cuánto cuesta un tratamiento de conducto?",
+  "label": {
+   "es": "¿Cuánto cuesta un tratamiento de conducto?",
+   "en": "Root canal price"
+  },
+  "faq": "14318"
+ },
+ "faq_regiones": {
+  "path": "/preguntas-frecuentes/",
+  "selector": "#heading-faq-14313",
+  "text": "¿Cómo puedo acceder a sus servicios, soy de región?",
+  "label": {
+   "es": "¿Cómo puedo acceder a sus servicios, soy de región?",
+   "en": "Outside Santiago"
+  },
+  "faq": "14313"
+ },
+ "faq_precio_frenillos": {
+  "path": "/preguntas-frecuentes/",
+  "selector": "#heading-faq-14308",
+  "text": "¿Qué precio tiene la instalación de frenillos?",
+  "label": {
+   "es": "¿Qué precio tiene la instalación de frenillos?",
+   "en": "Price of braces"
+  },
+  "faq": "14308"
+ },
+ "faq_seguro": {
+  "path": "/preguntas-frecuentes/",
+  "selector": "#heading-faq-12883",
+  "text": "¿Qué es el Seguro Complementario?",
+  "label": {
+   "es": "¿Qué es el Seguro Complementario?",
+   "en": "What supplementary insurance is"
+  },
+  "faq": "12883"
+ },
+ "faq_limpieza_1": {
+  "path": "/especialidades/limpieza-dental/",
+  "selector": "#heading-faq-1",
+  "text": "¿Con qué frecuencia debo realizarme una limpieza dental?",
+  "label": {
+   "es": "¿Con qué frecuencia debo realizarme una limpieza dental?",
+   "en": "¿Con qué frecuencia debo realizarme una limpieza dental?"
+  },
+  "faq": "1"
+ },
+ "faq_limpieza_2": {
+  "path": "/especialidades/limpieza-dental/",
+  "selector": "#heading-faq-2",
+  "text": "¿Duele la limpieza dental?",
+  "label": {
+   "es": "¿Duele la limpieza dental?",
+   "en": "¿Duele la limpieza dental?"
+  },
+  "faq": "2"
+ },
+ "faq_limpieza_3": {
+  "path": "/especialidades/limpieza-dental/",
+  "selector": "#heading-faq-3",
+  "text": "¿Cuáles son los riesgos de no hacerme una limpieza dental?",
+  "label": {
+   "es": "¿Cuáles son los riesgos de no hacerme una limpieza dental?",
+   "en": "¿Cuáles son los riesgos de no hacerme una limpieza dental?"
+  },
+  "faq": "3"
+ },
+ "faq_limpieza_4": {
+  "path": "/especialidades/limpieza-dental/",
+  "selector": "#heading-faq-4",
+  "text": "¿Puedo realizarme una limpieza dental si tengo encías sensibles?",
+  "label": {
+   "es": "¿Puedo realizarme una limpieza dental si tengo encías sensibles?",
+   "en": "¿Puedo realizarme una limpieza dental si tengo encías sensibles?"
+  },
+  "faq": "4"
+ },
+ "faq_limpieza_5": {
+  "path": "/especialidades/limpieza-dental/",
+  "selector": "#heading-faq-5",
+  "text": "¿Cómo puedo mantener los resultados de la limpieza dental en casa?",
+  "label": {
+   "es": "¿Cómo puedo mantener los resultados de la limpieza dental en casa?",
+   "en": "¿Cómo puedo mantener los resultados de la limpieza dental en casa?"
+  },
+  "faq": "5"
+ },
+ "faq_limpieza_6": {
+  "path": "/especialidades/limpieza-dental/",
+  "selector": "#heading-faq-6",
+  "text": "¿Cuánto cuesta una limpieza dental?",
+  "label": {
+   "es": "¿Cuánto cuesta una limpieza dental?",
+   "en": "¿Cuánto cuesta una limpieza dental?"
+  },
+  "faq": "6"
+ },
+ "faq_limpieza_7": {
+  "path": "/especialidades/limpieza-dental/",
+  "selector": "#heading-faq-7",
+  "text": "¿Cuál es la diferencia entre limpieza y blanqueamiento dental?",
+  "label": {
+   "es": "¿Cuál es la diferencia entre limpieza y blanqueamiento dental?",
+   "en": "¿Cuál es la diferencia entre limpieza y blanqueamiento dental?"
+  },
+  "faq": "7"
+ },
+ "faq_ortodoncia_1": {
+  "path": "/especialidades/ortodoncia/",
+  "selector": "#heading-faq-1",
+  "text": "¿Qué es la ortodoncia?",
+  "label": {
+   "es": "¿Qué es la ortodoncia?",
+   "en": "¿Qué es la ortodoncia?"
+  },
+  "faq": "1"
+ },
+ "faq_ortodoncia_2": {
+  "path": "/especialidades/ortodoncia/",
+  "selector": "#heading-faq-2",
+  "text": "¿A qué edad se recomienda comenzar un tratamiento?",
+  "label": {
+   "es": "¿A qué edad se recomienda comenzar un tratamiento?",
+   "en": "¿A qué edad se recomienda comenzar un tratamiento?"
+  },
+  "faq": "2"
+ },
+ "faq_ortodoncia_3": {
+  "path": "/especialidades/ortodoncia/",
+  "selector": "#heading-faq-3",
+  "text": "¿Cuánto cuesta la ortodoncia?",
+  "label": {
+   "es": "¿Cuánto cuesta la ortodoncia?",
+   "en": "¿Cuánto cuesta la ortodoncia?"
+  },
+  "faq": "3"
+ },
+ "faq_ortodoncia_4": {
+  "path": "/especialidades/ortodoncia/",
+  "selector": "#heading-faq-4",
+  "text": "¿Cuál es la diferencia entre brackets metálicos y cerámicos?",
+  "label": {
+   "es": "¿Cuál es la diferencia entre brackets metálicos y cerámicos?",
+   "en": "¿Cuál es la diferencia entre brackets metálicos y cerámicos?"
+  },
+  "faq": "4"
+ },
+ "faq_ortodoncia_5": {
+  "path": "/especialidades/ortodoncia/",
+  "selector": "#heading-faq-5",
+  "text": "¿Qué es mejor: brackets o alineadores invisibles?",
+  "label": {
+   "es": "¿Qué es mejor: brackets o alineadores invisibles?",
+   "en": "¿Qué es mejor: brackets o alineadores invisibles?"
+  },
+  "faq": "5"
+ },
+ "faq_ortodoncia_6": {
+  "path": "/especialidades/ortodoncia/",
+  "selector": "#heading-faq-6",
+  "text": "¿La ortodoncia duele?",
+  "label": {
+   "es": "¿La ortodoncia duele?",
+   "en": "¿La ortodoncia duele?"
+  },
+  "faq": "6"
+ },
+ "faq_ortodoncia_7": {
+  "path": "/especialidades/ortodoncia/",
+  "selector": "#heading-faq-7",
+  "text": "¿La ortodoncia tiene cobertura o convenios?",
+  "label": {
+   "es": "¿La ortodoncia tiene cobertura o convenios?",
+   "en": "¿La ortodoncia tiene cobertura o convenios?"
+  },
+  "faq": "7"
+ },
+ "faq_ortodoncia_8": {
+  "path": "/especialidades/ortodoncia/",
+  "selector": "#heading-faq-8",
+  "text": "¿Cuál es el precio de la ortodoncia invisible?",
+  "label": {
+   "es": "¿Cuál es el precio de la ortodoncia invisible?",
+   "en": "¿Cuál es el precio de la ortodoncia invisible?"
+  },
+  "faq": "8"
+ },
+ "faq_ortodoncia_9": {
+  "path": "/especialidades/ortodoncia/",
+  "selector": "#heading-faq-9",
+  "text": "¿Cuál es el precio de ortodoncia en niños?",
+  "label": {
+   "es": "¿Cuál es el precio de ortodoncia en niños?",
+   "en": "¿Cuál es el precio de ortodoncia en niños?"
+  },
+  "faq": "9"
+ },
+ "faq_implantes_1": {
+  "path": "/especialidades/implantes-dentales/",
+  "selector": "#heading-faq-1",
+  "text": "¿Cuánto cuesta un diente atornillado?",
+  "label": {
+   "es": "¿Cuánto cuesta un diente atornillado?",
+   "en": "¿Cuánto cuesta un diente atornillado?"
+  },
+  "faq": "1"
+ },
+ "faq_implantes_2": {
+  "path": "/especialidades/implantes-dentales/",
+  "selector": "#heading-faq-2",
+  "text": "¿Cuánto cuesta un implante de muela?",
+  "label": {
+   "es": "¿Cuánto cuesta un implante de muela?",
+   "en": "¿Cuánto cuesta un implante de muela?"
+  },
+  "faq": "2"
+ },
+ "faq_implantes_3": {
+  "path": "/especialidades/implantes-dentales/",
+  "selector": "#heading-faq-3",
+  "text": "¿Existen implantes dentales gratis o del gobierno en Chile?",
+  "label": {
+   "es": "¿Existen implantes dentales gratis o del gobierno en Chile?",
+   "en": "¿Existen implantes dentales gratis o del gobierno en Chile?"
+  },
+  "faq": "3"
+ },
+ "faq_implantes_4": {
+  "path": "/especialidades/implantes-dentales/",
+  "selector": "#heading-faq-4",
+  "text": "¿De qué material son los implantes dentales?",
+  "label": {
+   "es": "¿De qué material son los implantes dentales?",
+   "en": "¿De qué material son los implantes dentales?"
+  },
+  "faq": "4"
+ },
+ "faq_implantes_5": {
+  "path": "/especialidades/implantes-dentales/",
+  "selector": "#heading-faq-5",
+  "text": "¿El implante dental duele?",
+  "label": {
+   "es": "¿El implante dental duele?",
+   "en": "¿El implante dental duele?"
+  },
+  "faq": "5"
+ },
+ "faq_implantes_6": {
+  "path": "/especialidades/implantes-dentales/",
+  "selector": "#heading-faq-6",
+  "text": "¿Cuántos días de reposo necesito después de un implante dental?",
+  "label": {
+   "es": "¿Cuántos días de reposo necesito después de un implante dental?",
+   "en": "¿Cuántos días de reposo necesito después de un implante dental?"
+  },
+  "faq": "6"
+ },
+ "faq_implantes_7": {
+  "path": "/especialidades/implantes-dentales/",
+  "selector": "#heading-faq-7",
+  "text": "¿Cuánto dura un implante dental?",
+  "label": {
+   "es": "¿Cuánto dura un implante dental?",
+   "en": "¿Cuánto dura un implante dental?"
+  },
+  "faq": "7"
+ },
+ "faq_implantes_8": {
+  "path": "/especialidades/implantes-dentales/",
+  "selector": "#heading-faq-8",
+  "text": "¿Qué pasa si pierdo un diente y espero para ponerme un implante?",
+  "label": {
+   "es": "¿Qué pasa si pierdo un diente y espero para ponerme un implante?",
+   "en": "¿Qué pasa si pierdo un diente y espero para ponerme un implante?"
+  },
+  "faq": "8"
+ },
+ "faq_implantes_9": {
+  "path": "/especialidades/implantes-dentales/",
+  "selector": "#heading-faq-9",
+  "text": "¿Hasta qué edad me puedo poner un implante?",
+  "label": {
+   "es": "¿Hasta qué edad me puedo poner un implante?",
+   "en": "¿Hasta qué edad me puedo poner un implante?"
+  },
+  "faq": "9"
+ },
+ "faq_endodoncia_1": {
+  "path": "/especialidades/tratamiento-de-conducto-endodoncia/",
+  "selector": "#heading-faq-1",
+  "text": "¿Causa dolor el tratamiento de conducto?",
+  "label": {
+   "es": "¿Causa dolor el tratamiento de conducto?",
+   "en": "¿Causa dolor el tratamiento de conducto?"
+  },
+  "faq": "1"
+ },
+ "faq_endodoncia_2": {
+  "path": "/especialidades/tratamiento-de-conducto-endodoncia/",
+  "selector": "#heading-faq-2",
+  "text": "¿Cuántas sesiones son necesarias para realizar el tratamiento de conducto?",
+  "label": {
+   "es": "¿Cuántas sesiones son necesarias para realizar el tratamiento de conducto?",
+   "en": "¿Cuántas sesiones son necesarias para realizar el tratamiento de conducto?"
+  },
+  "faq": "2"
+ },
+ "faq_endodoncia_3": {
+  "path": "/especialidades/tratamiento-de-conducto-endodoncia/",
+  "selector": "#heading-faq-3",
+  "text": "¿Qué cuidados debo seguir después del tratamiento de endodoncia?",
+  "label": {
+   "es": "¿Qué cuidados debo seguir después del tratamiento de endodoncia?",
+   "en": "¿Qué cuidados debo seguir después del tratamiento de endodoncia?"
+  },
+  "faq": "3"
+ },
+ "faq_endodoncia_4": {
+  "path": "/especialidades/tratamiento-de-conducto-endodoncia/",
+  "selector": "#heading-faq-4",
+  "text": "¿Qué debo hacer si se desprende la tapadura provisoria de mi tratamiento de conducto?",
+  "label": {
+   "es": "¿Qué debo hacer si se desprende la tapadura provisoria de mi tratamiento de conducto?",
+   "en": "¿Qué debo hacer si se desprende la tapadura provisoria de mi tratamiento de conducto?"
+  },
+  "faq": "4"
+ },
+ "faq_endodoncia_5": {
+  "path": "/especialidades/tratamiento-de-conducto-endodoncia/",
+  "selector": "#heading-faq-5",
+  "text": "Tengo dolor en una muela con un tratamiento de conducto incompleto, ¿debo ir a urgencias?",
+  "label": {
+   "es": "Tengo dolor en una muela con un tratamiento de conducto incompleto, ¿debo ir a urgencias?",
+   "en": "Tengo dolor en una muela con un tratamiento de conducto incompleto, ¿debo ir a urgencias?"
+  },
+  "faq": "5"
+ },
+ "faq_endodoncia_6": {
+  "path": "/especialidades/tratamiento-de-conducto-endodoncia/",
+  "selector": "#heading-faq-6",
+  "text": "¿Qué debo hacer si la tapadura provisional de mi endodoncia se está rompiendo?",
+  "label": {
+   "es": "¿Qué debo hacer si la tapadura provisional de mi endodoncia se está rompiendo?",
+   "en": "¿Qué debo hacer si la tapadura provisional de mi endodoncia se está rompiendo?"
+  },
+  "faq": "6"
+ },
+ "faq_endodoncia_7": {
+  "path": "/especialidades/tratamiento-de-conducto-endodoncia/",
+  "selector": "#heading-faq-7",
+  "text": "Tengo la tapadura provisional de mi tratamiento de conducto y temo que se me pueda desprender, ¿hasta cuándo puedo tenerla?",
+  "label": {
+   "es": "Tengo la tapadura provisional de mi tratamiento de conducto y temo que se me pueda desprender, ¿hasta cuándo puedo tenerla?",
+   "en": "Tengo la tapadura provisional de mi tratamiento de conducto y temo que se me pueda desprender, ¿hasta cuándo puedo tenerla?"
+  },
+  "faq": "7"
+ },
+ "faq_periodoncia_1": {
+  "path": "/especialidades/periodoncia/",
+  "selector": "#heading-faq-1",
+  "text": "¿Qué es la gingivitis y cómo puedo prevenirla?",
+  "label": {
+   "es": "¿Qué es la gingivitis y cómo puedo prevenirla?",
+   "en": "¿Qué es la gingivitis y cómo puedo prevenirla?"
+  },
+  "faq": "1"
+ },
+ "faq_periodoncia_2": {
+  "path": "/especialidades/periodoncia/",
+  "selector": "#heading-faq-2",
+  "text": "¿Cuáles son los síntomas de la periodontitis y cuándo debo buscar tratamiento?",
+  "label": {
+   "es": "¿Cuáles son los síntomas de la periodontitis y cuándo debo buscar tratamiento?",
+   "en": "¿Cuáles son los síntomas de la periodontitis y cuándo debo buscar tratamiento?"
+  },
+  "faq": "2"
+ },
+ "faq_periodoncia_3": {
+  "path": "/especialidades/periodoncia/",
+  "selector": "#heading-faq-3",
+  "text": "¿Qué tratamientos se utilizan para tratar la enfermedad periodontal?",
+  "label": {
+   "es": "¿Qué tratamientos se utilizan para tratar la enfermedad periodontal?",
+   "en": "¿Qué tratamientos se utilizan para tratar la enfermedad periodontal?"
+  },
+  "faq": "3"
+ },
+ "faq_periodoncia_4": {
+  "path": "/especialidades/periodoncia/",
+  "selector": "#heading-faq-4",
+  "text": "¿Qué puedo hacer para mantener mis encías saludables a largo plazo?",
+  "label": {
+   "es": "¿Qué puedo hacer para mantener mis encías saludables a largo plazo?",
+   "en": "¿Qué puedo hacer para mantener mis encías saludables a largo plazo?"
+  },
+  "faq": "4"
+ },
+ "faq_odontopediatria_1": {
+  "path": "/especialidades/odontopediatria/",
+  "selector": "#heading-faq-1",
+  "text": "¿A qué edad debo llevar a mi hijo al primer control dental?",
+  "label": {
+   "es": "¿A qué edad debo llevar a mi hijo al primer control dental?",
+   "en": "¿A qué edad debo llevar a mi hijo al primer control dental?"
+  },
+  "faq": "1"
+ },
+ "faq_odontopediatria_2": {
+  "path": "/especialidades/odontopediatria/",
+  "selector": "#heading-faq-2",
+  "text": "¿A qué edad salen los primeros dientes temporales (dientes de leche)?",
+  "label": {
+   "es": "¿A qué edad salen los primeros dientes temporales (dientes de leche)?",
+   "en": "¿A qué edad salen los primeros dientes temporales (dientes de leche)?"
+  },
+  "faq": "2"
+ },
+ "faq_odontopediatria_3": {
+  "path": "/especialidades/odontopediatria/",
+  "selector": "#heading-faq-3",
+  "text": "¿Cuándo debo comenzar a lavar los dientes a mi hijo?",
+  "label": {
+   "es": "¿Cuándo debo comenzar a lavar los dientes a mi hijo?",
+   "en": "¿Cuándo debo comenzar a lavar los dientes a mi hijo?"
+  },
+  "faq": "3"
+ },
+ "faq_odontopediatria_4": {
+  "path": "/especialidades/odontopediatria/",
+  "selector": "#heading-faq-4",
+  "text": "¿Cuándo empiezan a salir los dientes permanentes?",
+  "label": {
+   "es": "¿Cuándo empiezan a salir los dientes permanentes?",
+   "en": "¿Cuándo empiezan a salir los dientes permanentes?"
+  },
+  "faq": "4"
+ },
+ "faq_odontopediatria_5": {
+  "path": "/especialidades/odontopediatria/",
+  "selector": "#heading-faq-5",
+  "text": "¿Cómo afecta la alimentación del niño a la hora de prevenir las caries?",
+  "label": {
+   "es": "¿Cómo afecta la alimentación del niño a la hora de prevenir las caries?",
+   "en": "¿Cómo afecta la alimentación del niño a la hora de prevenir las caries?"
+  },
+  "faq": "5"
+ },
+ "faq_odontopediatria_6": {
+  "path": "/especialidades/odontopediatria/",
+  "selector": "#heading-faq-6",
+  "text": "¿Cada cuánto tiempo debo llevar a mi hijo al dentista?",
+  "label": {
+   "es": "¿Cada cuánto tiempo debo llevar a mi hijo al dentista?",
+   "en": "¿Cada cuánto tiempo debo llevar a mi hijo al dentista?"
+  },
+  "faq": "6"
+ },
+ "faq_blanqueamiento_1": {
+  "path": "/especialidades/blanqueamiento-dental/",
+  "selector": "#heading-faq-1",
+  "text": "¿Es normal sentir molestias después de un blanqueamiento dental?",
+  "label": {
+   "es": "¿Es normal sentir molestias después de un blanqueamiento dental?",
+   "en": "¿Es normal sentir molestias después de un blanqueamiento dental?"
+  },
+  "faq": "1"
+ },
+ "faq_blanqueamiento_2": {
+  "path": "/especialidades/blanqueamiento-dental/",
+  "selector": "#heading-faq-2",
+  "text": "¿Cuánto puede durar un blanqueamiento dental?",
+  "label": {
+   "es": "¿Cuánto puede durar un blanqueamiento dental?",
+   "en": "¿Cuánto puede durar un blanqueamiento dental?"
+  },
+  "faq": "2"
+ },
+ "faq_blanqueamiento_3": {
+  "path": "/especialidades/blanqueamiento-dental/",
+  "selector": "#heading-faq-3",
+  "text": "¿Cada cuánto se puede hacer un blanqueamiento dental?",
+  "label": {
+   "es": "¿Cada cuánto se puede hacer un blanqueamiento dental?",
+   "en": "¿Cada cuánto se puede hacer un blanqueamiento dental?"
+  },
+  "faq": "3"
+ },
+ "faq_blanqueamiento_4": {
+  "path": "/especialidades/blanqueamiento-dental/",
+  "selector": "#heading-faq-4",
+  "text": "¿Cómo calmar la sensibilidad dental después de un blanqueamiento?",
+  "label": {
+   "es": "¿Cómo calmar la sensibilidad dental después de un blanqueamiento?",
+   "en": "¿Cómo calmar la sensibilidad dental después de un blanqueamiento?"
+  },
+  "faq": "4"
+ },
+ "faq_cirugia_1": {
+  "path": "/especialidades/cirugia-oral/",
+  "selector": "#heading-faq-1",
+  "text": "¿Es dolorosa la cirugía oral?",
+  "label": {
+   "es": "¿Es dolorosa la cirugía oral?",
+   "en": "¿Es dolorosa la cirugía oral?"
+  },
+  "faq": "1"
+ },
+ "faq_cirugia_2": {
+  "path": "/especialidades/cirugia-oral/",
+  "selector": "#heading-faq-2",
+  "text": "¿Cuánto tiempo dura la recuperación después de una cirugía oral?",
+  "label": {
+   "es": "¿Cuánto tiempo dura la recuperación después de una cirugía oral?",
+   "en": "¿Cuánto tiempo dura la recuperación después de una cirugía oral?"
+  },
+  "faq": "2"
+ },
+ "faq_cirugia_3": {
+  "path": "/especialidades/cirugia-oral/",
+  "selector": "#heading-faq-3",
+  "text": "¿Qué cuidados debo seguir después de una cirugía oral?",
+  "label": {
+   "es": "¿Qué cuidados debo seguir después de una cirugía oral?",
+   "en": "¿Qué cuidados debo seguir después de una cirugía oral?"
+  },
+  "faq": "3"
+ },
+ "faq_cirugia_4": {
+  "path": "/especialidades/cirugia-oral/",
+  "selector": "#heading-faq-4",
+  "text": "¿Cuándo debo contactar a mi odontólogo después de la cirugía?",
+  "label": {
+   "es": "¿Cuándo debo contactar a mi odontólogo después de la cirugía?",
+   "en": "¿Cuándo debo contactar a mi odontólogo después de la cirugía?"
+  },
+  "faq": "4"
+ },
+ "faq_pad_14421": {
+  "path": "/beneficios-y-reembolso/pad/",
+  "selector": "#heading-faq-14421",
+  "text": "¿Cómo acceder al PAD?",
+  "label": {
+   "es": "¿Cómo acceder al PAD?",
+   "en": "¿Cómo acceder al PAD?"
+  },
+  "faq": "14421"
+ },
+ "faq_ges_14417": {
+  "path": "/beneficios-y-reembolso/ges/",
+  "selector": "#heading-faq-14417",
+  "text": "¿Dónde está mi clínica Uno Salud más cercana con convenio para mi Isapre?",
+  "label": {
+   "es": "¿Dónde está mi clínica Uno Salud más cercana con convenio para mi Isapre?",
+   "en": "¿Dónde está mi clínica Uno Salud más cercana con convenio para mi Isapre?"
+  },
+  "faq": "14417"
+ },
+ "faq_ges_14415": {
+  "path": "/beneficios-y-reembolso/ges/",
+  "selector": "#heading-faq-14415",
+  "text": "¿Cuáles son los GES Dentales?",
+  "label": {
+   "es": "¿Cuáles son los GES Dentales?",
+   "en": "¿Cuáles son los GES Dentales?"
+  },
+  "faq": "14415"
+ },
+ "faq_ges_14413": {
+  "path": "/beneficios-y-reembolso/ges/",
+  "selector": "#heading-faq-14413",
+  "text": "¿Cómo atenderse por la Isapre?",
+  "label": {
+   "es": "¿Cómo atenderse por la Isapre?",
+   "en": "¿Cómo atenderse por la Isapre?"
+  },
+  "faq": "14413"
+ },
+ "faq_ges_14402": {
+  "path": "/beneficios-y-reembolso/ges/",
+  "selector": "#heading-faq-14402",
+  "text": "¿Qué es el GES?",
+  "label": {
+   "es": "¿Qué es el GES?",
+   "en": "¿Qué es el GES?"
+  },
+  "faq": "14402"
+ },
+ "faq_seguro_14410": {
+  "path": "/beneficios-y-reembolso/seguro-complementario/",
+  "selector": "#heading-faq-14410",
+  "text": "¿Cómo realizar el reembolso?",
+  "label": {
+   "es": "¿Cómo realizar el reembolso?",
+   "en": "¿Cómo realizar el reembolso?"
+  },
+  "faq": "14410"
+ },
+ "faq_seguro_14408": {
+  "path": "/beneficios-y-reembolso/seguro-complementario/",
+  "selector": "#heading-faq-14408",
+  "text": "¿Qué cubre el seguro complementario?",
+  "label": {
+   "es": "¿Qué cubre el seguro complementario?",
+   "en": "¿Qué cubre el seguro complementario?"
+  },
+  "faq": "14408"
+ },
+ "faq_seguro_12883": {
+  "path": "/beneficios-y-reembolso/seguro-complementario/",
+  "selector": "#heading-faq-12883",
+  "text": "¿Qué es el Seguro Complementario?",
+  "label": {
+   "es": "¿Qué es el Seguro Complementario?",
+   "en": "¿Qué es el Seguro Complementario?"
+  },
+  "faq": "12883"
+ },
+ "faq_excedentes_14396": {
+  "path": "/beneficios-y-reembolso/excedentes/",
+  "selector": "#heading-faq-14396",
+  "text": "¿Cómo sé si tengo excedentes?",
+  "label": {
+   "es": "¿Cómo sé si tengo excedentes?",
+   "en": "¿Cómo sé si tengo excedentes?"
+  },
+  "faq": "14396"
+ },
+ "faq_excedentes_14391": {
+  "path": "/beneficios-y-reembolso/excedentes/",
+  "selector": "#heading-faq-14391",
+  "text": "¿Qué son los excedentes?",
+  "label": {
+   "es": "¿Qué son los excedentes?",
+   "en": "¿Qué son los excedentes?"
+  },
+  "faq": "14391"
+ },
+ "faq_contacto_1": {
+  "path": "/contactanos/",
+  "selector": "#heading-faq-1",
+  "text": "¿Cómo acceder al PAD?",
+  "label": {
+   "es": "¿Cómo acceder al PAD?",
+   "en": "¿Cómo acceder al PAD?"
+  },
+  "faq": "1"
+ },
+ "faq_contacto_2": {
+  "path": "/contactanos/",
+  "selector": "#heading-faq-2",
+  "text": "¿Dónde está mi clínica Uno Salud más cercana con convenio para mi Isapre?",
+  "label": {
+   "es": "¿Dónde está mi clínica Uno Salud más cercana con convenio para mi Isapre?",
+   "en": "¿Dónde está mi clínica Uno Salud más cercana con convenio para mi Isapre?"
+  },
+  "faq": "2"
+ },
+ "faq_contacto_3": {
+  "path": "/contactanos/",
+  "selector": "#heading-faq-3",
+  "text": "¿Cuáles son los GES Dentales?",
+  "label": {
+   "es": "¿Cuáles son los GES Dentales?",
+   "en": "¿Cuáles son los GES Dentales?"
+  },
+  "faq": "3"
+ },
+ "faq_contacto_4": {
+  "path": "/contactanos/",
+  "selector": "#heading-faq-4",
+  "text": "¿Cómo atenderse por la Isapre?",
+  "label": {
+   "es": "¿Cómo atenderse por la Isapre?",
+   "en": "¿Cómo atenderse por la Isapre?"
+  },
+  "faq": "4"
+ },
+ "faq_contacto_5": {
+  "path": "/contactanos/",
+  "selector": "#heading-faq-5",
+  "text": "¿Qué es el GES?",
+  "label": {
+   "es": "¿Qué es el GES?",
+   "en": "¿Qué es el GES?"
+  },
+  "faq": "5"
+ },
+ "faq_contacto_6": {
+  "path": "/contactanos/",
+  "selector": "#heading-faq-6",
+  "text": "¿Cómo realizar el reembolso?",
+  "label": {
+   "es": "¿Cómo realizar el reembolso?",
+   "en": "¿Cómo realizar el reembolso?"
+  },
+  "faq": "6"
+ },
+ "faq_planes_1": {
+  "path": "/landing/planes-sonrisa-protegida/",
+  "selector": "#e-n-accordion-item-2910 > summary",
+  "text": "¿Cómo hago uso de mi Plan Sonrisa Protegida?",
+  "label": {
+   "es": "¿Cómo hago uso de mi Plan Sonrisa Protegida?",
+   "en": "¿Cómo hago uso de mi Plan Sonrisa Protegida?"
+  },
+  "faq": "e-n-accordion-item-2910"
+ },
+ "faq_planes_2": {
+  "path": "/landing/planes-sonrisa-protegida/",
+  "selector": "#e-n-accordion-item-2911 > summary",
+  "text": "¿Desde cuándo puedo comenzar a utilizar los beneficios del Plan Sonrisa Protegida?",
+  "label": {
+   "es": "¿Desde cuándo puedo comenzar a utilizar los beneficios del Plan Sonrisa Protegida?",
+   "en": "¿Desde cuándo puedo comenzar a utilizar los beneficios del Plan Sonrisa Protegida?"
+  },
+  "faq": "e-n-accordion-item-2911"
+ },
+ "faq_planes_3": {
+  "path": "/landing/planes-sonrisa-protegida/",
+  "selector": "#e-n-accordion-item-2912 > summary",
+  "text": "¿Dónde puedo utilizar el Plan Sonrisa Protegida?",
+  "label": {
+   "es": "¿Dónde puedo utilizar el Plan Sonrisa Protegida?",
+   "en": "¿Dónde puedo utilizar el Plan Sonrisa Protegida?"
+  },
+  "faq": "e-n-accordion-item-2912"
+ },
+ "faq_planes_4": {
+  "path": "/landing/planes-sonrisa-protegida/",
+  "selector": "#e-n-accordion-item-2913 > summary",
+  "text": "¿Cuál es la vigencia del Plan Sonrisa Protegida?",
+  "label": {
+   "es": "¿Cuál es la vigencia del Plan Sonrisa Protegida?",
+   "en": "¿Cuál es la vigencia del Plan Sonrisa Protegida?"
+  },
+  "faq": "e-n-accordion-item-2913"
+ },
+ "faq_planes_5": {
+  "path": "/landing/planes-sonrisa-protegida/",
+  "selector": "#e-n-accordion-item-2914 > summary",
+  "text": "¿El Plan Sonrisa Protegida cubre urgencias dentales ambulatorias?",
+  "label": {
+   "es": "¿El Plan Sonrisa Protegida cubre urgencias dentales ambulatorias?",
+   "en": "¿El Plan Sonrisa Protegida cubre urgencias dentales ambulatorias?"
+  },
+  "faq": "e-n-accordion-item-2914"
+ },
+ "faq_planes_6": {
+  "path": "/landing/planes-sonrisa-protegida/",
+  "selector": "#e-n-accordion-item-2915 > summary",
+  "text": "¿Otros convenios, descuentos o promociones vigentes son acumulables con el Plan Sonrisa Protegida?",
+  "label": {
+   "es": "¿Otros convenios, descuentos o promociones vigentes son acumulables con el Plan Sonrisa Protegida?",
+   "en": "¿Otros convenios, descuentos o promociones vigentes son acumulables con el Plan Sonrisa Protegida?"
+  },
+  "faq": "e-n-accordion-item-2915"
+ },
+ "faq_planes_7": {
+  "path": "/landing/planes-sonrisa-protegida/",
+  "selector": "#e-n-accordion-item-2916 > summary",
+  "text": "¿Qué descuentos NO aplican en el Plan Sonrisa Protegida?",
+  "label": {
+   "es": "¿Qué descuentos NO aplican en el Plan Sonrisa Protegida?",
+   "en": "¿Qué descuentos NO aplican en el Plan Sonrisa Protegida?"
+  },
+  "faq": "e-n-accordion-item-2916"
+ },
+ "faq_planes_8": {
+  "path": "/landing/planes-sonrisa-protegida/",
+  "selector": "#e-n-accordion-item-2917 > summary",
+  "text": "¿Es necesario realizar un Diagnóstico previo para suscribir el Plan Sonrisa Protegida?",
+  "label": {
+   "es": "¿Es necesario realizar un Diagnóstico previo para suscribir el Plan Sonrisa Protegida?",
+   "en": "¿Es necesario realizar un Diagnóstico previo para suscribir el Plan Sonrisa Protegida?"
+  },
+  "faq": "e-n-accordion-item-2917"
+ },
+ "faq_planes_9": {
+  "path": "/landing/planes-sonrisa-protegida/",
+  "selector": "#e-n-accordion-item-2918 > summary",
+  "text": "¿Desde qué edad puedo ser beneficiario de un Plan Sonrisa Protegida?",
+  "label": {
+   "es": "¿Desde qué edad puedo ser beneficiario de un Plan Sonrisa Protegida?",
+   "en": "¿Desde qué edad puedo ser beneficiario de un Plan Sonrisa Protegida?"
+  },
+  "faq": "e-n-accordion-item-2918"
+ },
+ "faq_planes_10": {
+  "path": "/landing/planes-sonrisa-protegida/",
+  "selector": "#e-n-accordion-item-2919 > summary",
+  "text": "¿Los beneficios aplican de forma inmediata en Clínica?",
+  "label": {
+   "es": "¿Los beneficios aplican de forma inmediata en Clínica?",
+   "en": "¿Los beneficios aplican de forma inmediata en Clínica?"
+  },
+  "faq": "e-n-accordion-item-2919"
+ },
+ "faq_planes_11": {
+  "path": "/landing/planes-sonrisa-protegida/",
+  "selector": "#e-n-accordion-item-29110 > summary",
+  "text": "¿Cómo puedo utilizar el abono para las especialidades de Implantología, Ortodoncia, que entregan nuestros planes Sonrisa Protegida Plus y Full?",
+  "label": {
+   "es": "¿Cómo puedo utilizar el abono para las especialidades de Implantología, Ortodoncia, que entregan nuestros planes Sonrisa Protegida Plus y Full?",
+   "en": "¿Cómo puedo utilizar el abono para las especialidades de Implantología, Ortodoncia, que entregan nuestros planes Sonrisa Protegida Plus y Full?"
+  },
+  "faq": "e-n-accordion-item-29110"
+ }
+}

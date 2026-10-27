@@ -185,6 +185,12 @@ DEMOS: dict[str, Expected] = {
     "support": Expected(voice="omnivoice/gaurav", language="en"),
     "travel": Expected(voice="omnivoice/emily", language="en"),
     "uahurtado": Expected(voice="omnivoice/javier", language="es"),
+    # Javier as Uno Salud Dental's guide on www.unosalud.cl and its booking: a
+    # Chilean site, so he opens in Spanish unless the toggle said English, and
+    # moves both legs for the toggle or for English heard — javier in both. Not
+    # a gallery card (the page is Uno Salud's own site). Asserted in
+    # test_unosalud_e2e.py.
+    "unosalud": Expected(voice="omnivoice/javier", language="es"),
 }
 
 

@@ -1,0 +1,52 @@
+[
+ {
+  "id": 14,
+  "name": "Limpieza Dental",
+  "en": "Dental cleaning"
+ },
+ {
+  "id": 15,
+  "name": "Urgencia (De ortodoncia, dolor agudo o fractura dental)",
+  "en": "Emergency (orthodontic, acute pain or a broken tooth)"
+ },
+ {
+  "id": 16,
+  "name": "Instalación de frenillos o alineadores invisibles",
+  "en": "Braces or invisible aligners"
+ },
+ {
+  "id": 17,
+  "name": "Implantes dentales (solución fija)",
+  "en": "Dental implants (fixed)"
+ },
+ {
+  "id": 18,
+  "name": "Prótesis dental (solución removible)",
+  "en": "Dentures (removable)"
+ },
+ {
+  "id": 19,
+  "name": "Estética dental (blanqueamiento o carillas)",
+  "en": "Cosmetic (whitening or veneers)"
+ },
+ {
+  "id": 20,
+  "name": "Atención infantil (odontopediatría)",
+  "en": "Children's care"
+ },
+ {
+  "id": 21,
+  "name": "Sangrado de encías o mal aliento",
+  "en": "Bleeding gums or bad breath"
+ },
+ {
+  "id": 22,
+  "name": "Chequeo y diagnóstico general",
+  "en": "General check-up and diagnosis"
+ },
+ {
+  "id": 23,
+  "name": "No estoy seguro",
+  "en": "Not sure"
+ }
+]

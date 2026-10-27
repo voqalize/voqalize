@@ -1,0 +1,1975 @@
+[
+ {
+  "path": "/",
+  "title": "Home",
+  "kind": "home",
+  "sections": [
+   {
+    "heading": "Bienvenido a Clínicas Uno Salud Dental",
+    "anchor": "home_atajos",
+    "text": "Bienvenido a Clínicas Uno Salud Dental ¿Qué deseas hacer? Agenda tu hora Urgencias dentales Nuestras clínicas Nuestras promociones Beneficios y convenios Nuestras especialidades"
+   },
+   {
+    "heading": "Servicios y especialidades",
+    "anchor": "home_especialidades",
+    "text": "Servicios y especialidades Confía en nuestro equipo de dentistas y odontólogos expertos y experimenta la diferencia de un cuidado dental personalizado. Limpieza Dental Desmancha, remueve el sarro y placa bacteriana de los dientes ayudando a prevenir caries y problemas de las encías. Ortodoncia Corrige, alinea dientes y mandíbula mediante brackets o alineadores, mejorando problemas de mordida y estética. Implantes Dentales Reemplaza los dientes perdidos por uno o varios implantes (tornillo de titanio) restaurando su funcionalidad y estética. Endodoncia – Tratamiento Conducto Elimina el nervio dañado del diente, además de limpiar y sellar el interior de éste para evitar su extracción. Plano de Relajación Bruxismo Alivia el bruxismo al reducir la presión mandibular, molestias articulares, dolor de cabeza y previene el desgaste dental. Odontopediatría Especialidad que se enfoca en el cuidado y tratamiento dental de niños y adolescentes. Periodoncia Trata el sangrado, dolor y enfermedades que afectan los tejidos de soporte de los dientes, es decir, las encías, hueso y ligamentos. Radiografías Dentales Detecta problemas dentales ocultos como caries y lesiones, asegurando un buen diagnóstico y tratamiento integral. Blanqueamiento Dental Utiliza técnicas avanzadas para obtener dientes más blancos, eliminando manchas y decoloraciones. Cirugía Dental Oral Realiza intervenciones quirúrgicas en la boca, como extracciones complejas, tumores y quistes dentales. Rehabilitación Oral Restaura"
+   },
+   {
+    "heading": "Nuestras Clínicas",
+    "anchor": "home_clinicas",
+    "text": "Nuestras Clínicas Contamos con más de 100 clínicas especializadas a lo largo de todo Chile. Encuentra tu clínica más cercana. [… region/comuna <select> options, clinic cards/list and map — see section 4 …]"
+   },
+   {
+    "heading": "Lo que dicen nuestros pacientes",
+    "anchor": "home_testimonios",
+    "text": ""
+   },
+   {
+    "heading": "El cuidado que tu sonrisa necesita en un solo plan",
+    "anchor": "home_planes",
+    "text": "El cuidado que tu sonrisa necesita en un solo plan Elige el plan ideal para cuidar tu sonrisa con expertos en quienes puedes confiar. Activa hoy tu plan y disfruta de una cobertura completa que incluye prevención, cuidado continuo y beneficios exclusivos."
+   },
+   {
+    "heading": "Seguros y Convenios",
+    "anchor": "home_convenios",
+    "text": "Seguros y Convenios En Uno Salud Dental nos preocupamos por ti y tu familia, por esto contamos con convenios especiales para los afiliados Categoría convenio Convenios destacados Cajas de compensación Fonasa e isapres Aseguradoras Cooperativas Otros beneficios FONASA Hasta 50% dcto si eres afiliado a Fonasa Conoce más La Araucana Hasta 70% dcto para todos los afiliados a Caja La Araucana Conoce más Vida Security 60% dcto si eres asegurado a Vida Security Conoce más Banco Falabella Beneficios dentales por ser cliente Banco Falabella Conoce más Confuturo 53% dcto si eres asegurado a ConFuturo Conoce más Vida Cámara 60% dcto si eres asegurado a Vida Camara Conoce más BCI Seguros 60% dcto si eres asegurado a BCI Seguros Conoce más Coopeuch 60% dcto si eres afiliado a Coopeuch Conoce más Bupa Seguros 60% dcto si eres asegurado a Bupa Seguros Conoce más Consorcio 60% dcto si eres asegurado a Consorcio Conoce más Zurich 60% dcto si eres asegurado a Zurich Conoce más Bice Vida 60% dcto si eres asegurado a Bice Vida Conoce más 60% dcto si eres asegurado a MetLife Conoce más Sura 60% dcto si eres asegurado a Sura Conoce más Tarjeta UniónSalud 60% dcto si eres beneficiario a Tarjeta UniónSalud Conoce más Help Seguros 60% dcto si eres asegurado a Help Seguros Conoce más Ver todos los convenios"
+   },
+   {
+    "heading": "Uno Salud Dental",
+    "anchor": "home_nosotros",
+    "text": "Ver video Sobre Nosotros Uno Salud Dental Queremos verte sonreír Uno Salud Dental es la red dental más importante del país. Con profesionales altamente capacitados, entregando a sus pacientes una excelente y completa atención. +100 Clínicas de Arica a Punta Arenas +2.000.000 Pacientes atendidos +15 Años Tratando Sonrisas +1.600 Odontólogos y especialistas dentales Conoce más sobre nosotros"
+   },
+   {
+    "heading": "¿Por qué elegir Uno Salud Dental?",
+    "anchor": "home_por_que",
+    "text": "¿Por qué elegir Uno Salud Dental? Insumos de la mejor calidad a nivel mundial Trabajamos con insumos de las marcas mejor reconocidas a nivel mundial. Cobertura nacional Crecemos para estar cada día más cerca. Clínicas de Arica a Punta Arenas. Años tratando sonrisas Contamos con la experiencia de cadenas dentales, con profesionales calificados para entregar el mejor servicio. Tecnología de vanguardia La mejor tecnología en radiografías."
+   },
+   {
+    "heading": "¿Tienes alguna duda? Contáctanos",
+    "anchor": "home_contactanos",
+    "text": "¿Tienes alguna duda? Contáctanos Escríbenos mediante nuestro formulario o chat y te responderemos a la brevedad. También puedes llamarnos a nuestro Call Center: 600 707 1010. Escríbenos Llámanos"
+   }
+  ],
+  "faqs": []
+ },
+ {
+  "path": "/especialidades/",
+  "title": "Especialidades index",
+  "kind": "specialties",
+  "sections": [
+   {
+    "heading": "Especialidades Odontológicas Dentales",
+    "anchor": "especialidades_lista",
+    "text": "Especialidades Especialidades Odontológicas Dentales Conoce nuestras especialidades odontológicas y dentales, disponibles para ti. Garantizamos diagnósticos y tratamientos precisos, con profesionales capacitados para brindarte la mejor atención y cuidar de tu salud bucal. Todas las categorías Noticias Periodoncia Implantes Odontopediatría Ortodoncia Limpieza dental Novedades Buscar Buscar Limpieza Dental Desmancha, remueve el sarro y placa bacteriana de los dientes ayudando a prevenir caries y problemas de las encías. Ortodoncia Corrige, alinea dientes y mandíbula mediante brackets o alineadores, mejorando problemas de mordida y estética. Implantes Dentales Reemplaza los dientes perdidos por uno o varios implantes (tornillo de titanio) restaurando su funcionalidad y estética. Endodoncia – Tratamiento Conducto Elimina el nervio dañado del diente, además de limpiar y sellar el interior de éste para evitar su extracción. Plano de Relajación Bruxismo Alivia el bruxismo al reducir la presión mandibular, molestias articulares, dolor de cabeza y previene el desgaste dental. Odontopediatría Especialidad que se enfoca en el cuidado y tratamiento dental de niños y adolescentes. Periodoncia Trata el sangrado, dolor y enfermedades que afectan los tejidos de soporte de los dientes, es decir, las encías, hueso y ligamentos. Radiografías Dentales Detecta problemas dentales ocultos como caries y lesiones, asegurando un buen diagnóstico y tratamiento integral. Blanqueamiento Dental Utiliza té"
+   }
+  ],
+  "faqs": []
+ },
+ {
+  "path": "/especialidades/limpieza-dental/",
+  "title": "Limpieza Dental - Destartraje | Uno Salud Dental",
+  "kind": "specialty",
+  "sections": [
+   {
+    "heading": "Limpieza Dental",
+    "anchor": "limpieza_hero",
+    "text": "Especialidades Limpieza Dental Limpieza Dental ​La limpieza dental profesional, también llamada destartraje, es un cuidado esencial para mantener tu boca sana y tu sonrisa radiante. Este procedimiento elimina sarro, placa bacteriana y manchas que el cepillado diario no logra quitar, ayudando a prevenir caries, gingivitis y periodontitis. Realizarte un destartraje regular no solo mejora la salud de tus encías, sino que también prolonga la vida de tus dientes. Confía en nuestros especialistas y disfruta de una sonrisa limpia, fresca y saludable. ¡Agenda tu Limpieza Dental Profesional ahora! Asegura tu salud bucal completa y elimina el sarro con un precio transparente. Realiza tu diagnóstico inicial con nosotros Agenda tus siguientes citas para iniciar tu plan de tratamiento con nuestros especialistas. Agenda tu hora Te llamamos"
+   },
+   {
+    "heading": "¿En qué consiste la limpieza dental?",
+    "anchor": "limpieza_consiste_limpieza",
+    "text": "¿En qué consiste la limpieza dental? La limpieza dental profesional va mucho más allá del cepillado y el uso de hilo dental. Es un procedimiento clave para mantener tu boca sana y tu sonrisa brillante. Consta de dos pasos principales: Eliminación de sarro y placa bacteriana: el dentista remueve mediante ultrasonido la acumulación en dientes y encías que no se puede quitar en casa. Profilaxis dental: se remueve la placa blanda de la superficie de los dientes para dejarlos más suaves, limpios y con un aspecto renovado. En ciertos casos el dentistas tratante podría indicar una aplicación de flúor, la cual fortalece el esmalte, ayuda a prevenir caries y disminuye la sensibilidad dental.. Con esta rutina regular, tu salud bucal se mantiene protegida y tu sonrisa luce mucho mejor."
+   },
+   {
+    "heading": "¿Por qué es importante hacerse una limpieza dental?",
+    "anchor": "limpieza_importante_hacerse_limpieza",
+    "text": "¿Por qué es importante hacerse una limpieza dental? Realizarse una limpieza dental periódicamente no solo mejora la estética de tu sonrisa, también protege tu salud bucal a largo plazo. Entre sus principales beneficios se encuentran: Prevención de Caries Eliminar la placa bacteriana reduce una de las principales causas de caries y ayuda a mantener tus dientes sanos y fuertes. Cuidado de las encías Disminuye el riesgo de gingivitis y periodontitis, evitando inflamación, sangrado y pérdida de piezas dentales. Mejora del Aliento Al retirar bacterias y residuos acumulados, tu boca se siente más limpia y fresca, mejorando notablemente el aliento. Favorece la salud general Una boca sana contribuye a un cuerpo sano. Mantener una buena higiene oral ayuda a prevenir enfermedades sistémicas como problemas cardíacos y diabetes."
+   },
+   {
+    "heading": "Tipos de Limpieza Dental",
+    "anchor": "limpieza_tipos_limpieza",
+    "text": "Tipos de Limpieza Dental Descubre qué tipo de limpieza dental necesitas para mantener tu boca sana y tu sonrisa saludable. Limpieza dental destartraje ¿Qué es? Es la limpieza dental que ayuda a mantener tu salud oral y prevenir problemas futuros ¿Cómo se hace? El dentista utiliza un equipo de ultrasonido para eliminar sarro y placa bacteriana de la superficie dental (supragingival). Luego, pule los dientes con una pasta especial, dejándolos más suaves, brillantes y limpios. ¿Para quién es? Está indicada para todos los pacientes como parte del cuidado preventivo. En el caso de los pacientes con enfermedad periodontal, requieren una limpieza dental profunda. Beneficios: Previene caries y enfermedades de las encías, aportando una sonrisa más limpia, fresca y saludable. Limpieza dental profunda (raspado y pulido radicular) ¿Qué es? Es un procedimiento especializado para eliminar la acumulación de sarro y placa debajo de las encías. ¿Cómo se hace? El periodoncista realiza un raspado y alisado radicular, limpiando en profundidad las raíces de los dientes para detener el avance de la enfermedad periodontal. ¿Para quién es? Se recomienda a pacientes con problemas de encías como gingivitis o periodontitis. Beneficios Detiene la progresión de la enfermedad de las encías, mejora la salud bucal y ayuda a conservar tus dientes por más tiempo."
+   },
+   {
+    "heading": "Contenido revisado y validado por nuestro Comité Clínico",
+    "anchor": "limpieza_comite",
+    "text": "Contenido revisado y validado por nuestro Comité Clínico Contenido revisado y validado por la Dra. Fernanda Burgos, Cirujano Dentista y especialista en gestión clínica de Uno Salud Dental, parte de nuestro comité clínico. Fernanda Burgos Sepúlveda Subgerente de Contraloría Clínica Uno Salud Dental Fernanda Burgos Sepúlveda es Cirujano Dentista de la Universidad de Concepción, egresada con distinción máxima, y cuenta con un Diplomado en Gestión en Organizaciones de Salud por la Pontificia Universidad Católica de Chile.Actualmente se desempeña como Subgerente de Contraloría Clínica en Uno Salud Dental, donde lidera la supervisión y estandarización de procesos clínico-administrativos a nivel nacional.Su rol se centra en el desarrollo de lineamientos técnicos que garantizan la calidad y seguridad en la atención, articulando además las áreas clínica, comercial y operativa para asegurar la viabilidad de convenios corporativos y la excelencia de la red de especialistas.Su gestión contribuye a mantener estándares homogéneos en toda la red, fortaleciendo la eficiencia operativa y la mejora continua."
+   },
+   {
+    "heading": "Preguntas frecuentes",
+    "anchor": "limpieza_preguntas",
+    "text": "Preguntas frecuentes Limpieza Dental En Uno Salud Dental sabemos que mantener tu boca sana puede generar dudas. Por eso, reunimos las respuestas a las preguntas más comunes sobre la limpieza dental, para que tengas toda la información antes de tu visita. ¿Con qué frecuencia debo realizarme una limpieza dental? ¿Duele la limpieza dental? ¿Cuáles son los riesgos de no hacerme una limpieza dental? ¿Puedo realizarme una limpieza dental si tengo encías sensibles? ¿Cómo puedo mantener los resultados de la limpieza dental en casa? ¿Cuánto cuesta una limpieza dental? ¿Cuál es la diferencia entre limpieza y blanqueamiento dental?"
+   },
+   {
+    "heading": "Beneficios de una limpieza dental en Uno Salud",
+    "anchor": "limpieza_beneficios_limpieza",
+    "text": "Beneficios de una limpieza dental en Uno Salud En Uno Salud Dental nos esforzamos por ofrecerte una experiencia cómoda, segura y efectiva en cada visita. Estas son algunas razones para confiar en nosotros: Equipo altamente especializado Contamos con odontólogos y periodoncistas, garantizando tratamientos seguros y efectivos. Tecnologías e insumos de calidad Usamos tecnología avanzada y materiales reconocidos internacionalmente, lo que asegura mayor precisión y comodidad para el paciente. Enfoque Personalizado Cada paciente es único. Adaptamos nuestros tratamientos según tus necesidades, priorizando tu comodidad y satisfacción en un ambiente relajante. Resultados Duraderos Una limpieza bien realizada no solo deja tu sonrisa fresca, sino que también protege la salud de tus dientes y encías a largo plazo. Precios Convenientes y facilidades de pago Ofrecemos una excelente relación precio-calidad, con la opción de pagar tu limpieza hasta en 12 cuotas sin interés. Compromiso con la Calidad Contamos con la primera clínica dental acreditada y re acreditada por la Superintendencia de Salud, cumpliendo rigurosos protocolos de seguridad y calidad en cada tratamiento, los cuales se aplican en todas nuestras sucursales."
+   },
+   {
+    "heading": "¿Cuál es el proceso del tratamiento de limpieza dental?",
+    "anchor": "limpieza_proceso",
+    "text": "¿Cuál es el proceso del tratamiento de limpieza dental? Te contamos paso a paso cómo será tu experiencia en Uno Salud Dental: 1 Recepción Al llegar, deberás presentarte en recepción e indicar que tienen una cita agendada. Nuestro equipo avisará al odontólogo, quien te recibirá y acompañará a la sala de atención. 2 Evaluación Clínica Inicial Evaluación clínica inicial El odontólogo realizará un examen dental completo y revisará tu historial clínico. 3 Radiografías Tomaremos una radiografía panorámica para evaluar la salud general de tus dientes y encías, y un set de radiografías Bite Wing para examinar con detalle cada pieza dental y los espacios interdentales. 4 Diagnóstico Dental El odontólogo analizará las radiografías y realizará un diagnóstico integral. Aquí se confirmará si puedes realizar la limpieza dental, asegurando que no exista enfermedad periodontal activa. 5 Plan de Tratamiento Te explicaremos el diagnóstico, los pasos a seguir y resolveremos todas tus dudas, para que tengas claridad y confianza antes de iniciar el procedimiento. 6 Limpieza Dental Se procederá a eliminar el sarro y la placa visible en los dientes (destartraje supragingival) y a pulir la superficie dental (profilaxis dental). La limpieza puede realizarse en la misma cita o programarse para otra según disponibilidad."
+   },
+   {
+    "heading": "Lo que opinan nuestros pacientes",
+    "anchor": "limpieza_testimonios",
+    "text": ""
+   },
+   {
+    "heading": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a",
+    "anchor": "limpieza_dudas",
+    "text": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una atención personalizada. ¡No dudes en contactarnos para agendar tu próxima limpieza dental en Uno Salud Dental!"
+   },
+   {
+    "heading": "Artículos relacionados de limpieza dental",
+    "anchor": "limpieza_articulos",
+    "text": ""
+   },
+   {
+    "heading": "Especialidades relacionadas",
+    "anchor": "limpieza_relacionadas",
+    "text": ""
+   },
+   {
+    "heading": "Agenda tu hora con nosotros",
+    "anchor": "limpieza_contactanos",
+    "text": "Agenda tu hora con nosotros ¡Tu salud bucal no espera! Agenda tu Limpieza Dental Completa hoy con nuestros expertos en higiene bucal y previene enfermedades periodontales. Agenda tu hora Te llamamos"
+   }
+  ],
+  "faqs": [
+   {
+    "n": "1",
+    "q": "¿Con qué frecuencia debo realizarme una limpieza dental?",
+    "a": "Se recomienda al menos cada 6 meses, aunque la frecuencia puede variar según las necesidades de cada paciente."
+   },
+   {
+    "n": "2",
+    "q": "¿Duele la limpieza dental?",
+    "a": "Generalmente no duele. Podría causar una leve molestia en pacientes con encías inflamadas o mucha acumulación de sarro."
+   },
+   {
+    "n": "3",
+    "q": "¿Cuáles son los riesgos de no hacerme una limpieza dental?",
+    "a": "El sarro acumulado favorece la gingivitis y periodontitis, lo que puede llevar incluso a la pérdida de dientes."
+   },
+   {
+    "n": "4",
+    "q": "¿Puedo realizarme una limpieza dental si tengo encías sensibles?",
+    "a": "Sí. El dentista adaptará la técnica para que sea un procedimiento cómodo y seguro, incluso en pacientes con encías delicadas."
+   },
+   {
+    "n": "5",
+    "q": "¿Cómo puedo mantener los resultados de la limpieza dental en casa?",
+    "a": "Con un buen cepillado, uso de hilo dental, enjuague bucal y visitas regulares al dentista."
+   },
+   {
+    "n": "6",
+    "q": "¿Cuánto cuesta una limpieza dental?",
+    "a": "El precio puede variar según el tipo de limpieza (de rutina o profunda) y las necesidades de cada paciente, pero siempre es una inversión en salud y prevención. Descubre nuestras promociones acá: LINK"
+   },
+   {
+    "n": "7",
+    "q": "¿Cuál es la diferencia entre limpieza y blanqueamiento dental?",
+    "a": "La limpieza dental elimina sarro, placa y manchas superficiales para mantener la boca sana. El blanqueamiento aclara el color natural de los dientes con productos específicos, mejorando la estética pero sin sustituir la limpieza."
+   }
+  ]
+ },
+ {
+  "path": "/especialidades/ortodoncia/",
+  "title": "Ortodoncia y Brackets: Precios 2026 | Uno Salud Dental",
+  "kind": "specialty",
+  "sections": [
+   {
+    "heading": "Ortodoncia",
+    "anchor": "ortodoncia_hero",
+    "text": "Especialidades Ortodoncia Ortodoncia La ortodoncia es la especialidad dental que corrige la posición de los dientes y la mordida. Además de contribuir a la estética de la sonrisa, una correcta alineación puede facilitar la higiene diaria y favorecer una adecuada función de la mordida. En Uno Salud Dental evaluamos cada caso para definir el tratamiento más adecuado: brackets metálicos, brackets cerámicos o alineadores invisibles. ¡Conoce cuál tratamiento se adecúa mejor a tu sonrisa! Revisado por la Dra. Gabriela Lorca, Jefe de Diagnóstico en Ortodoncia Validado por el Comité Clínico Realiza tu diagnóstico inicial con nosotros Agenda tus siguientes citas para iniciar tu plan de tratamiento con nuestros especialistas. Agenda tu hora Te llamamos"
+   },
+   {
+    "heading": "Tipos de ortodoncia y frenillos",
+    "anchor": "ortodoncia_tipos_ortodoncia_frenillos",
+    "text": "Tipos de ortodoncia y frenillos En Uno Salud Dental trabajamos con 3 tipos de ortodoncia: brackets metálicos, brackets cerámicos y alineadores invisibles. Tu especialista determina cuál se ajusta mejor a tu caso tras una evaluación. Brackets (frenillos) metálicos: Piezas metálicas ajustadas con un arco. Resistentes y eficaces para casos de mayor complejidad. Brackets (frenillos) cerámicos: Misma eficacia que los metálicos, con un acabado del color del diente, más estético. Alineadores invisibles: Alineadores invisibles Keep Smiling, removibles y discretos. El especialista evalúa si aplican a tu caso. La elección del tratamiento dependerá de tus necesidades, estilo de vida y del plan diseñado por tu ortodoncista tras una evaluación completa."
+   },
+   {
+    "heading": "¿Qué tipo de ortodoncia es mejor para mí?",
+    "anchor": "ortodoncia_tipo_ortodoncia_mejor",
+    "text": "¿Qué tipo de ortodoncia es mejor para mí? Cada tratamiento tiene ventajas distintas según tu caso: los metálicos y cerámicos son fijos y de mayor control, mientras que los alineadores son removibles y más discretos. Compara sus características antes de agendar tu evaluación. Característica Metálicos Cerámicos Alineadores Estética Visible Discreta Muy discreta Removible No No Sí Mensualidad $46.900 $48.900 $51.470 Indicación Según diagnóstico Según diagnóstico Según diagnóstico *La elección depende del diagnóstico, complejidad del caso, objetivos, preferencias y presupuesto. El especialista define la alternativa adecuada después de evaluar tu caso."
+   },
+   {
+    "heading": "¿Cuándo se recomienda la ortodoncia?",
+    "anchor": "ortodoncia_cuando_recomienda_ortodoncia",
+    "text": "¿Cuándo se recomienda la ortodoncia? La ortodoncia puede indicarse en niños, adolescentes y adultos. Una evaluación permite detectar alteraciones en la posición de los dientes y la mordida, y determinar si se requiere tratamiento. Más allá de la estética, corregir a tiempo estas alteraciones mejora el habla y la pronunciación, y reduce el riesgo de problemas en la articulación temporomandibular y dolencias asociadas como el bruxismo. Consulta con un especialista si notas: Dientes apiñados o torcidos. Espacios excesivos entre los dientes. Mordida cruzada, abierta o sobremordida. Dificultad para masticar. Alteraciones en la salida de dientes definitivos en niños."
+   },
+   {
+    "heading": "Ortodoncia interceptiva",
+    "anchor": "ortodoncia_ortodoncia_interceptiva",
+    "text": "Ortodoncia interceptiva Con el fin de prevenir problemas en la sonrisa de los más pequeños, se recomienda utilizar ortodoncia interceptiva, la cual ayuda a guiar y/o corregir el desarrollo de los primeros dientes, antes de que maduren completamente. Se aplica generalmente entre los 6 y 12 años, etapa donde sucede la dentición mixta entre los dientes de leche y los definitivos. Si aún no has evaluado a tu hijo, conoce también nuestra especialidad de Odontopediatría, donde se detectan a tiempo estas alteraciones. ¿Cuándo se recomienda esta ortodoncia en niños? Mordida cruzada Apiñamiento dental temprano Respiración bucal Hábitos como chuparse el dedo El valor de la evaluación y el tratamiento de ortodoncia interceptiva es desde $92.210 , según el diagnóstico y el aparato indicado. ¿Qué es mejor para corregir dientes torcidos en niños: brackets o alineadores? En niños, la decisión depende del diagnóstico y la etapa de desarrollo dental. Ambas opciones pueden ser válidas; el especialista determina la alternativa adecuada tras evaluar el caso."
+   },
+   {
+    "heading": "Tratamiento de ortodoncia: Descubre sus beneficios",
+    "anchor": "ortodoncia_tratamiento_ortodoncia_descubre",
+    "text": "Tratamiento de ortodoncia: Descubre sus beneficios La ortodoncia no solo mejora la estética de la sonrisa. Ya sea con brackets metálicos, cerámicos o alineadores invisibles, también aporta importantes beneficios para la salud bucal y la funcionalidad de los dientes como: Corrección de la posición, función y estética dental. Mejora el habla y la pronunciación al corregir la alineación y mordida. Reducción del riesgo de problemas en la articulación temporomandibular y dolencias asociadas (bruxismo)."
+   },
+   {
+    "heading": "¿Cuánto cuesta el tratamiento de ortodoncia?",
+    "anchor": "ortodoncia_precios",
+    "text": "¿Cuánto cuesta el tratamiento de ortodoncia? En Uno Salud Dental, la evaluación inicial de ortodoncia tiene un valor desde $90.210 para brackets metálicos y cerámicos, y desde $119.810 para alineadores invisibles. El plan de tratamiento se define según tu diagnóstico, complejidad del caso y presupuesto. Precios Ortodoncia metálica Precios Ortodoncia cerámica (estética) Precios Ortodoncia invisible Precios Ortodoncia metálica La ortodoncia con brackets metálicos es un tratamiento eficaz para corregir problemas de alineación dental, como apiñamiento o falta de espacio entre los dientes. En Uno Salud Dental, el valor de evaluación inicial es de $90.210, la instalación desde $383.500 y la mensualidad desde $46.900. Concepto Valor Evaluación inicial $90.210 Pago inicial (instalación) $383.500 Mensualidad (controles) $46.900 Retiro $382.080 Los valores pueden cambiar según los beneficios de cada paciente."
+   },
+   {
+    "heading": "¿Tienes beneficios o convenios?",
+    "anchor": "ortodoncia_convenios",
+    "text": "¿Tienes beneficios o convenios? En Uno Salud Dental ofrecemos descuento en Fonasa, Isapres, cajas de compensación, seguros y Planes Sonrisa Protegida para tratamientos de ortodoncia, además de facilidades de pago hasta en 12 cuotas sin interés. Revisa todos los convenios y beneficios disponibles. Agenda tu hora y conoce si tienes algún descuento disponible para empezar tu tratamiento de ortodoncia. Agenda tu hora"
+   },
+   {
+    "heading": "Contenido revisado y validado por nuestro Comité Clínico",
+    "anchor": "ortodoncia_comite",
+    "text": "Contenido revisado y validado por nuestro Comité Clínico Contenido revisado y validado por la Dra. Gabriela Lorca, Cirujano Dentista y líder de la especialidad de Ortodoncia de Uno Salud Dental, parte de nuestro comité clínico. Gabriela Lorca Bocchieri Jefe de Diagnóstico en Ortodoncia Gabriela Lorca Bocchieri es Cirujano Dentista titulada de la Universidad del Desarrollo, con formación de postgrado en la Universidad Andrés Bello, donde obtuvo un MBA con especialización en Salud. Actualmente se desempeña como Jefa de Diagnóstico en Ortodoncia en Uno Salud Dental, liderando la evaluación clínica y la toma de decisiones en tratamientos ortodóncicos.Cuenta con amplia experiencia en gestión de clínicas odontológicas a nivel nacional, supervisando procesos clínicos en más de 30 sucursales a lo largo de Chile. Ha liderado la selección de dentistas generales y el desarrollo de la especialidad de ortodoncia dentro de la organización, contribuyendo a la estandarización y mejora continua de la atención.Su enfoque profesional está orientado a la excelencia clínica, el liderazgo de equipos y la optimización de procesos, integrando una mirada estratégica."
+   },
+   {
+    "heading": "¿Por qué elegir Uno Salud Dental?",
+    "anchor": "ortodoncia_por_que",
+    "text": "¿Por qué elegir Uno Salud Dental? En Uno Salud Dental trabajamos para que cada etapa de tu tratamiento sea cómoda, segura y con los mejores resultados posibles. Estas son algunas de las razones por las que nuestros pacientes confían en nosotros para alinear su sonrisa. Tecnología e insumos Materiales reconocidos internacionalmente y radiografías potenciadas con IA. Equipo especializado Ortodoncistas especializados en cada tratamiento. Enfoque personalizado Tratamiento adaptado a cada paciente. ¡Sonrisas felices! +2.000.000 pacientes atendidos. Precios convenientes Hasta 12 cuotas sin interés. Cobertura nacional +100 clínicas de Arica a Punta Arenas Compromiso con la Calidad Primera clínica dental del país en obtener la acreditación y reacreditación ante la Superintendencia de Salud."
+   },
+   {
+    "heading": "¿Cómo es un tratamiento de ortodoncia?",
+    "anchor": "ortodoncia_proceso",
+    "text": "¿Cómo es un tratamiento de ortodoncia? Te explicamos paso a paso cómo será tu experiencia, desde la evaluación inicial hasta la sonrisa final, para que tengas claridad y confianza en todo el proceso. 1 Recepción Al llegar, el equipo de recepción avisará al odontólogo, quien te recibirá y acompañará a tu cita. 2 Radiografías Luego de un diagnóstico inicial, el odontólogo realizará una evaluación clínica y solicitará dos tipos de radiografías. Una panorámica y otra bite wing. 3 Diagnóstico dental Con las radiografías ya listas, el especialista realizará un diagnóstico integral. Se determinará si necesitas un tratamiento de ortodoncia. 4 Plan de tratamiento Se te explicará detalladamente el diagnóstico y conocerás los pasos a seguir. Serás derivado con el especialista en Ortodoncia. 5 Planificación del tratamiento (estudio) Se completa el estudio con radiografías complementarias (si corresponde) y moldes de tu boca, para definir tu plan de tratamiento. 6 Inicio del tratamiento El ortodoncista te colocará los frenillos y te explicará detalladamente los cuidados que debes mantener. Conoce cómo cepillarte los dientes con brackets paso a paso. 7 Controles Deberás asistir a controles regulares (generalmente 1 vez al mes), donde el especialista evalúa tu progreso, ajusta presión, elásticos y brackets, y resuelve tus dudas. La duración total del tratamiento varía según cada caso, pero en promedio va de 18 a 36 meses. 8 Sesión de retiro Cuando tu especialista te diga que tus dientes est"
+   },
+   {
+    "heading": "Lo que opinan nuestros pacientes",
+    "anchor": "ortodoncia_testimonios",
+    "text": ""
+   },
+   {
+    "heading": "Preguntas frecuentes sobre tratamiento de ortodoncia",
+    "anchor": "ortodoncia_preguntas",
+    "text": "Preguntas frecuentes sobre tratamiento de ortodoncia Sabemos que iniciar un tratamiento de ortodoncia puede generar muchas dudas. En Uno Salud Dental reunimos las respuestas a las consultas más comunes, para que tomes decisiones con tranquilidad y confianza ¿Qué es la ortodoncia? ¿A qué edad se recomienda comenzar un tratamiento? ¿Cuánto cuesta la ortodoncia? ¿Cuál es la diferencia entre brackets metálicos y cerámicos? ¿Qué es mejor: brackets o alineadores invisibles? ¿La ortodoncia duele? ¿La ortodoncia tiene cobertura o convenios? ¿Cuál es el precio de la ortodoncia invisible? ¿Cuál es el precio de ortodoncia en niños?"
+   },
+   {
+    "heading": "Especialidades relacionadas",
+    "anchor": "ortodoncia_relacionadas",
+    "text": ""
+   },
+   {
+    "heading": "Artículos relacionados de ortodoncia",
+    "anchor": "ortodoncia_articulos",
+    "text": ""
+   },
+   {
+    "heading": "Agenda tu evaluación de ortodoncia",
+    "anchor": "ortodoncia_contactanos",
+    "text": "Agenda tu evaluación de ortodoncia Si tienes dudas escríbenos mediante nuestro formulario o chat y te responderemos a la brevedad. También puedes llamarnos a nuestro Call Center: 600 707 1010. Agenda tu hora Te llamamos"
+   }
+  ],
+  "faqs": [
+   {
+    "n": "1",
+    "q": "¿Qué es la ortodoncia?",
+    "a": "Es la especialidad dental que corrige la posición de los dientes y la mordida, mejorando la estética y la salud bucal."
+   },
+   {
+    "n": "2",
+    "q": "¿A qué edad se recomienda comenzar un tratamiento?",
+    "a": "Niños, adolescentes y adultos pueden tratarse, la edad exacta de una primera evaluación es entre 6-7 años."
+   },
+   {
+    "n": "3",
+    "q": "¿Cuánto cuesta la ortodoncia?",
+    "a": "En Uno Salud Dental, la evaluación inicial de ortodoncia tiene un valor desde $90.210. Los brackets metálicos parten desde $383.500 de instalación más $46.900 mensuales, los cerámicos desde $582.800 más $48.900 mensuales, y los alineadores invisibles desde $119.810 de evaluación, $1.273.890 de instalación más $51.470 mensuales."
+   },
+   {
+    "n": "4",
+    "q": "¿Cuál es la diferencia entre brackets metálicos y cerámicos?",
+    "a": "Ambos usan el mismo sistema de corrección. Los cerámicos tienen un acabado del color del diente, más estético."
+   },
+   {
+    "n": "5",
+    "q": "¿Qué es mejor: brackets o alineadores invisibles?",
+    "a": "No existe una opción universalmente mejor. Depende del diagnóstico, la complejidad y tus preferencias."
+   },
+   {
+    "n": "6",
+    "q": "¿La ortodoncia duele?",
+    "a": "No duele instalarla, pero es normal sentir sensibilidad los primeros días, sobre todo tras los ajustes."
+   },
+   {
+    "n": "7",
+    "q": "¿La ortodoncia tiene cobertura o convenios?",
+    "a": "Sí, existen descuentos con Fonasa, Isapres, cajas de compensación, seguros y Planes Sonrisa Protegida. Consulta el detalle de cada convenio disponible."
+   },
+   {
+    "n": "8",
+    "q": "¿Cuál es el precio de la ortodoncia invisible?",
+    "a": "El precio de ortodoncia invisible suele ser más alto que el de los brackets tradicionales, ya que utiliza alineadores transparentes personalizados. Sin embargo, ofrece mayor comodidad y estética al ser removibles y casi imperceptibles. Conoce cómo son los alineadores invisibles y cuánto dura el tratamiento."
+   },
+   {
+    "n": "9",
+    "q": "¿Cuál es el precio de ortodoncia en niños?",
+    "a": "El precio de ortodoncia en niños depende del diagnóstico y del tipo de aparato indicado, este podría ser de Ortopedia. Muchas veces el costo es menor que en adultos, ya que los tratamientos pueden ser más cortos y aprovechar el crecimiento para guiar la alineación dental."
+   }
+  ]
+ },
+ {
+  "path": "/especialidades/implantes-dentales/",
+  "title": "Implantes Dentales - Implantología | Uno Salud Dental",
+  "kind": "specialty",
+  "sections": [
+   {
+    "heading": "Implantes Dentales",
+    "anchor": "implantes_hero",
+    "text": "Especialidades Implantes Dentales Implantes Dentales Un implante dental es un tornillo de titanio que reemplaza la raíz de un diente perdido, sobre el cual se instala una corona para recuperar la función y estética de tu sonrisa. En Uno Salud Dental evaluamos tu caso, te explicamos el proceso paso a paso y te entregamos un presupuesto claro. El implante cuenta con garantía de por vida del fabricante, asistiendo a tus controles. ¿Quieres conocer más sobre precios y opciones de implantología? ¡Agenda tu evaluación de Implantología hoy y conversa con nuestros especialistas! Revisado por la Dra. María José Castro Ávalos, Coordinadora de Diagnóstico de Implantes Validado por el Comité Clínico Realiza tu diagnóstico inicial con nosotros Agenda tus siguientes citas para iniciar tu plan de tratamiento con nuestros especialistas. Agenda tu hora Te llamamos"
+   },
+   {
+    "heading": "¿Qué es un implante dental?",
+    "anchor": "implantes_implante",
+    "text": "¿Qué es un implante dental? Un implante dental es una raíz artificial que se coloca en el hueso maxilar o mandibular para reemplazar un diente perdido. Un tratamiento completo tiene tres partes: Implante: tornillo de titanio que se instala en el hueso y cumple la función de raíz. Pilar o aditamento: pieza que conecta el implante con la corona. Corona: el diente visible, fabricada a medida para que se vea y funcione como un diente natural. Existen distintos tipos de implantes según cada caso, desde implantes unitarios hasta soluciones para personas con poco hueso. Te explicamos las alternativas en Tipos de implantes dentales: ¿cuál es la mejor opción para ti?"
+   },
+   {
+    "heading": "¿Cuánto cuesta un implante dental en Chile? Precios 2026",
+    "anchor": "implantes_precios",
+    "text": "¿Cuánto cuesta un implante dental en Chile? Precios 2026 En Uno Salud Dental, estos son los valores de referencia del tratamiento de implantes: Precios implantes dentales Concepto Valor Scanner extraoral (2 maxilares) $74.900 Scanner extraoral (1 maxilar) $64.900 Implante unitario $361.900 Corona sobre implante atornillada $476.900 Los valores incluyen: derecho a pabellón e insumos necesarios. *El valor final depende de la complejidad del caso, la necesidad de injerto óseo, el tipo de corona y tus convenios de salud."
+   },
+   {
+    "heading": "¿Qué factores influyen en el precio final?",
+    "anchor": "implantes_factores_influyen_precio",
+    "text": "¿Qué factores influyen en el precio final? El valor de tu tratamiento se define en la evaluación y depende de: Cantidad de implantes Reemplazar un diente no es lo mismo que rehabilitar varias piezas. Necesidad de injerto óseo Si no hay hueso suficiente, se suma este procedimiento antes de la cirugía. Tipo de rehabilitación Corona unitaria, puente o prótesis sobre implantes. Exámenes previos Scanner extraoral y radiografías para planificar la cirugía. Convenios y beneficios Tu Isapre, caja de compensación, seguro o promociones vigentes pueden reducir el valor."
+   },
+   {
+    "heading": "Implantes dentales con Fonasa, Isapre y convenios",
+    "anchor": "implantes_convenios",
+    "text": "Implantes dentales con Fonasa, Isapre y convenios ¿Fonasa cubre los implantes dentales? ¿Las Isapres y los seguros dentales cubren implantes? Promociones y formas de pago Agenda tu hora y conoce si tienes algún descuento disponible para empezar tu tratamiento. Agenda tu hora"
+   },
+   {
+    "heading": "¿Cuándo se recomienda un implante dental?",
+    "anchor": "implantes_cuando_recomienda_implante",
+    "text": "¿Cuándo se recomienda un implante dental? Un especialista puede recomendar un implante si presentas: Pérdida de uno o más dientes Necesidad de una solución fija y de mayor duración. Uso de una prótesis removible incómoda o inestable. Extracción reciente y deseo de evitar pérdida de hueso."
+   },
+   {
+    "heading": "Implante, puente o prótesis removible: ¿cuál conviene?",
+    "anchor": "implantes_implante_puente_protesis",
+    "text": "Implante, puente o prótesis removible: ¿cuál conviene? Estas son las principales diferencias entre las alternativas para reemplazar un diente perdido: Cómo se sujeta Implante dental Puente fijo Prótesis removible Se ancla al hueso Se apoya en los dientes vecinos Se apoya en la encía y/o con ganchos en otros dientes Dientes vecinos No se desgastan Se desgastan para sostener el puente Pueden recibir la presión de los ganchos Estabilidad al masticar Fijo, similar a un diente natural Fijo Puede moverse al comer o hablar Hueso de la zona Ayuda a preservarlo No evita la pérdida de hueso No evita la pérdida de hueso Mantención Higiene como un diente natural y controles Higiene especial bajo el puente Se retira para limpiarla y requiere ajustes Si necesitas reemplazar varios dientes o una arcada completa, conoce también nuestras soluciones de rehabilitación oral."
+   },
+   {
+    "heading": "Injerto óseo dental",
+    "anchor": "implantes_injerto_oseo",
+    "text": "Injerto óseo dental Cuando el hueso disponible no tiene el volumen suficiente para sostener un implante, se realiza un injerto óseo que regenera el hueso en la zona. ¿El injerto se hace antes o junto con el implante? Depende de cuánto hueso falte. Si la pérdida es leve, el injerto puede realizarse en la misma cirugía del implante. Si es mayor, primero se realiza el injerto y se espera entre 4 a 6 meses a que el hueso se regenere antes de instalar el implante."
+   },
+   {
+    "heading": "¿Cómo es el procedimiento de un implante dental? Paso a paso",
+    "anchor": "implantes_proceso",
+    "text": "¿Cómo es el procedimiento de un implante dental? Paso a paso El tratamiento completo dura en promedio entre 4 y 6 meses desde la cirugía hasta la instalación de la corona, más el tiempo del injerto óseo si lo necesitas. La cirugía es ambulatoria y se realiza con anestesia local. Te explicamos paso a paso todo el proceso, desde la evaluación inicial hasta la recuperación final de tu sonrisa: 1 Recepción Te damos la bienvenida y te acompañamos a tu cita para iniciar tu evaluación. 2 Diagnóstico Inicial El odontólogo revisa tu salud dental y general, realizando un examen completo. 3 Radiografías Tomamos panorámica y Bite Wing para evaluar tus dientes y huesos con detalle. Además es fundamental realizar la toma de un scanner extraoral. 4 Diagnóstico Dental Analizamos los resultados y entregamos un diagnóstico integral de tu boca. 5 Plan de Tratamiento Te explicamos los pasos a seguir, los tiempos y el presupuesto, y resolvemos todas tus dudas. 6 Diagnóstico con Implantólogo Analizamos el escáner extraoral y planificamos tu cirugía de forma precisa. 7 Cirugía Colocamos el implante bajo anestesia local en un pabellón ambulatorio. 8 Oseointegración Durante 4 a 6 meses el implante se une al hueso. Mientras tanto, en muchos casos puedes usar un diente provisorio. 9 Rehabilitación sobre implante Una vez integrado, colocamos la corona o prótesis para restaurar tu sonrisa. Agenda tu hora"
+   },
+   {
+    "heading": "Cuidados después de una cirugía de implantes dentales",
+    "anchor": "implantes_cuidados_despues_cirugia",
+    "text": "Cuidados después de una cirugía de implantes dentales Sigue estos consejos Dieta y Alimentación Evita comer hasta que el efecto de la anestesia desaparezca por completo. Durante los primeros días, opta por alimentos blandos, líquidos y a temperatura moderada para no irritar la zona intervenida. Control de Inflamación y Dolor Es normal sentir inflamación en el área tratada, que suele disminuir en pocos días. Toma los analgésicos o antiinflamatorios que te indique tu implantólogo para mayor seguridad. Evita Alcohol y Tabaco Ambos pueden afectar la cicatrización y poner en riesgo el éxito del implante, por lo que es recomendable abstenerse durante la recuperación. Actividades Físicas Evita esfuerzos intensos o deportes durante los primeros días, para permitir que la zona sane correctamente y asegurar los mejores resultados."
+   },
+   {
+    "heading": "Señales de alerta: cuándo contactar a tu implantólogo",
+    "anchor": "implantes_senales_alerta_cuando",
+    "text": "Señales de alerta: cuándo contactar a tu implantólogo Es normal sentir molestias e inflamación los primeros días. Contacta a tu clínica si presentas: Dolor que aumenta en vez de disminuir después del tercer día. Inflamación que no cede después de una semana. Fiebre, pus o mal sabor persistente en la zona. Sangrado que no se detiene al presionar con una gasa. Sensación de que el implante se mueve."
+   },
+   {
+    "heading": "Beneficios de implantes dentales en Uno Salud",
+    "anchor": "implantes_beneficios_implantes_dentales",
+    "text": "Beneficios de implantes dentales en Uno Salud En Uno Salud Dental nos dedicamos a ayudarte a recuperar tu sonrisa con cuidado y precisión. Ofrecemos una atención integral en implantología, asegurando que cada procedimiento se realice con máxima calidad y profesionalismo. Nuestro objetivo es proporcionarte una solución duradera, efectiva y adaptada a tus necesidades. Estas son algunas razones para confiar en nosotros: Garantía de por vida El implante está garantizado de por vida por el fabricante, siempre y cuando asistas a los controles y sigas las indicaciones de tu implantólogo. Equipo altamente especializado Contamos con implantólogos especializados que te aseguran un tratamiento seguro y efectivo. Tecnologías e insumos de calidad Utilizamos tecnología avanzada y materiales de reconocimiento internacional, asegurando mayor precisión, comodidad y menor tiempo clínico. Trabajamos con la marca de implantes BioHorizons, una marca estadounidense líder con más de 50 años de experiencia, reconocida por su innovación y fiabilidad. Enfoque Personalizado Cada paciente es único. Adaptamos nuestros servicios a tus necesidades, priorizando tu comodidad y satisfacción en un ambiente relajante y amigable. Precios Convenientes y facilidades de pago Ofrecemos una excelente relación precio calidad y puedes pagar tu tratamiento hasta en 12 cuotas sin interés y utilizar múltiples formas de pagos. Compromiso con la Calidad Somos la primera clínica dental 100% acreditada por la Superintendencia"
+   },
+   {
+    "heading": "¿Por qué elegir Uno Salud Dental para tu implante?",
+    "anchor": "implantes_por_que",
+    "text": "¿Por qué elegir Uno Salud Dental para tu implante? Garantía de por vida en el implante El implante tiene garantía de por vida del fabricante, asistiendo a tus controles y siguiendo las indicaciones de tu implantólogo. La corona sobre implante tiene garantía de 1 año, sujeta a evaluación clínica. Implantes BioHorizons Trabajamos con implantes BioHorizons, marca estadounidense y con presencia internacional. Equipo especializado Implantólogos especializados que planifican y realizan cada tratamiento. Enfoque Personalizado Tratamiento adaptado a las necesidades de cada paciente. ¡Sonrisas felices! +2.000.000 pacientes atendidos. Cobertura nacional +100 clínicas de Arica a Punta Arenas, en ciudades como Santiago, Concepción, Temuco, Viña del Mar y Antofagasta. Encuentra tu clínica más cercana. Precios convenientes Hasta 12 cuotas sin interés y múltiples formas de pago. Compromiso con la calidad Primera clínica dental del país en obtener la acreditación y reacreditación ante la Superintendencia de Salud."
+   },
+   {
+    "heading": "Importancia de un tratamiento de implantes",
+    "anchor": "implantes_importancia_tratamiento_implantes",
+    "text": "Importancia de un tratamiento de implantes"
+   },
+   {
+    "heading": "Lo que opinan nuestros pacientes",
+    "anchor": "implantes_testimonios",
+    "text": ""
+   },
+   {
+    "heading": "Contenido revisado y validado por nuestro Comité Clínico",
+    "anchor": "implantes_comite",
+    "text": "Contenido revisado y validado por nuestro Comité Clínico Contenido revisado y validado por la Dra. María José Castro, Coordinadora de Diagnóstico de Implantes de Uno Salud Dental, parte de nuestro comité clínico. María José Castro Ávalos Coordinadora de Diagnóstico de Implantes María José Castro Ávalos es Cirujano Dentista titulada de la Universidad de Valparaíso, con formación de postgrado en la Universidad Andrés Bello, donde obtuvo un MBA con especialización en Salud.Actualmente se desempeña como Coordinadora de Diagnóstico de Implantes en Uno Salud Dental, liderando la evaluación y planificación de tratamientos implantológicos, asegurando criterios clínicos adecuados y una correcta indicación terapéutica para cada paciente.Cuenta con experiencia en atención odontológica clínica y en gestión de procesos de diagnóstico, contribuyendo a la estandarización de protocolos y mejora continua en la red de clínicas. Su enfoque profesional integra la calidad en la atención y la optimización de resultados clínicos.Se caracteriza por su orientación a la excelencia, trabajo colaborativo y compromiso con una atención odontológica segura, efectiva y centrada en el paciente."
+   },
+   {
+    "heading": "Preguntas frecuentes sobre implantes dentales",
+    "anchor": "implantes_preguntas",
+    "text": "Preguntas frecuentes sobre implantes dentales Sabemos que los implantes dentales pueden generar dudas. A continuación, te damos respuestas claras a las preguntas más comunes, para que tomes decisiones informadas y con tranquilidad sobre tu tratamiento. ¿Cuánto cuesta un diente atornillado? ¿Cuánto cuesta un implante de muela? ¿Existen implantes dentales gratis o del gobierno en Chile? ¿De qué material son los implantes dentales? ¿El implante dental duele? ¿Cuántos días de reposo necesito después de un implante dental? ¿Cuánto dura un implante dental? ¿Qué pasa si pierdo un diente y espero para ponerme un implante? ¿Hasta qué edad me puedo poner un implante?"
+   },
+   {
+    "heading": "Especialidades relacionadas",
+    "anchor": "implantes_relacionadas",
+    "text": ""
+   },
+   {
+    "heading": "Artículos relacionados de implantes dentales",
+    "anchor": "implantes_articulos",
+    "text": ""
+   },
+   {
+    "heading": "Agenda tu hora con nosotros",
+    "anchor": "implantes_contactanos",
+    "text": "Agenda tu hora con nosotros Si tienes dudas escríbenos mediante nuestro formulario o chat y te responderemos a la brevedad. También puedes llamarnos a nuestro Call Center: 600 707 1010. Agenda tu hora Te llamamos"
+   }
+  ],
+  "faqs": [
+   {
+    "n": "1",
+    "q": "¿Cuánto cuesta un diente atornillado?",
+    "a": "Diente atornillado es el nombre popular del implante dental con su corona. En Uno Salud Dental, el implante unitario tiene un valor desde $361.900 y la corona sobre implante desde $476.900, más el scanner extraoral desde $64.900. El valor final se define en tu evaluación."
+   },
+   {
+    "n": "2",
+    "q": "¿Cuánto cuesta un implante de muela?",
+    "a": "En Uno Salud Dental, el implante de muela o molar tiene el mismo valor del implante unitario, desde $361.900, más la corona sobre implante. El presupuesto final se entrega tras la evaluación."
+   },
+   {
+    "n": "3",
+    "q": "¿Existen implantes dentales gratis o del gobierno en Chile?",
+    "a": "No existe un programa público que entregue implantes dentales gratuitos de forma general. La red pública prioriza las prótesis removibles a través de programas específicos. En Uno Salud Dental puedes financiar tu implante hasta en 12 cuotas sin interés y revisar si tienes algún convenio disponible."
+   },
+   {
+    "n": "4",
+    "q": "¿De qué material son los implantes dentales?",
+    "a": "El material más usado es el titanio, porque es biocompatible. El hueso lo acepta y se une a él en un proceso llamado oseointegración, que toma entre 4 y 6 meses. En Uno Salud Dental trabajamos con implantes de titanio BioHorizons."
+   },
+   {
+    "n": "5",
+    "q": "¿El implante dental duele?",
+    "a": "No. En Uno Salud Dental el implante se instala bajo anestesia local, por lo que el procedimiento es prácticamente indoloro. Es normal sentir molestias o inflamación durante los días posteriores."
+   },
+   {
+    "n": "6",
+    "q": "¿Cuántos días de reposo necesito después de un implante dental?",
+    "a": "Generalmente no se requiere reposo prolongado. La mayoría de los pacientes retoma sus actividades el mismo día o al día siguiente, según la indicación de su implantólogo. La entrega de licencia médica depende de cada caso."
+   },
+   {
+    "n": "7",
+    "q": "¿Cuánto dura un implante dental?",
+    "a": "Con buena higiene y controles periódicos, un implante dental puede durar muchos años e incluso toda la vida. En Uno Salud Dental el implante tiene garantía de por vida del fabricante, asistiendo a tus controles."
+   },
+   {
+    "n": "8",
+    "q": "¿Qué pasa si pierdo un diente y espero para ponerme un implante?",
+    "a": "Esperar puede provocar pérdida de hueso y desplazamiento de los dientes vecinos, lo que puede complicar el tratamiento o hacer necesario un injerto óseo. Lo ideal es evaluarte lo antes posible."
+   },
+   {
+    "n": "9",
+    "q": "¿Hasta qué edad me puedo poner un implante?",
+    "a": "No hay un límite de edad estricto. Mientras tu salud general y la calidad del hueso lo permitan, el implante es una opción segura tanto para adultos jóvenes como mayores."
+   }
+  ]
+ },
+ {
+  "path": "/especialidades/tratamiento-de-conducto-endodoncia/",
+  "title": "Endodoncia - Tratamiento Conducto | Uno Salud Dental",
+  "kind": "specialty",
+  "sections": [
+   {
+    "heading": "Endodoncia – Tratamiento Conducto",
+    "anchor": "endodoncia_hero",
+    "text": "Especialidades Endodoncia – Tratamiento Conducto Endodoncia – Tratamiento Conducto En Uno Salud, podemos prevenir, diagnosticar y tratar las enfermedades y complicaciones de la pulpa dental en nuestra especialidad de Endodoncia. Nuestro equipo de especialistas utiliza técnicas avanzadas para brindarte un tratamiento cómodo y efectivo, devolviendo salud y bienestar a tu boca. Realiza tu diagnóstico inicial con nosotros Agenda tus siguientes citas para iniciar tu plan de tratamiento con nuestros especialistas. Agenda tu hora Te llamamos"
+   },
+   {
+    "heading": "Beneficios de realizar una Endodoncia",
+    "anchor": "endodoncia_beneficios_realizar_endodoncia",
+    "text": "Beneficios de realizar una Endodoncia: Conservación del diente natural: Permite salvar el diente afectado por daño o infección, evitando la extracción. Alivio del dolor: Elimina la fuente del dolor intenso causado por nervios dañados o infectados. Mejora de la salud bucal: Previene la propagación de la infección a otras áreas de la boca. Funcionalidad restaurada: Una vez rehabilitada la pieza, se restaura la funcionalidad del diente tratado, permitiendo masticar y hablar sin molestias. Estética mejorada: Mantiene la apariencia natural de la sonrisa al conservar el diente en su lugar original."
+   },
+   {
+    "heading": "¿Cuándo podría necesitar un tratamiento de conducto?",
+    "anchor": "endodoncia_cuando_podria_necesitar",
+    "text": "¿Cuándo podría necesitar un tratamiento de conducto? Caries profundas que afectan el nervio del diente. Traumatismos dentales que dañan el nervio. Dolor al morder o aplicar presión. Sensibilidad prolongada al calor o frío. ¿Cuáles son los signos y síntomas de daño del nervio dental? Dolor agudo o punzante en el diente. Sensibilidad dental intensa al calor o frío. Dolor al morder o aplicar presión sobre el diente. Decoloración o oscurecimiento del diente. Hinchazón o sensibilidad en la encía"
+   },
+   {
+    "heading": "Preguntas frecuentes",
+    "anchor": "endodoncia_preguntas",
+    "text": "Preguntas frecuentes Tratamiento de conducto En Uno Salud Dental, comprendemos que tienes preguntas sobre el tratamiento de conducto. Aquí te proporcionamos respuestas a algunas de las consultas más frecuentes: ¿Causa dolor el tratamiento de conducto? ¿Cuántas sesiones son necesarias para realizar el tratamiento de conducto? ¿Qué cuidados debo seguir después del tratamiento de endodoncia? ¿Qué debo hacer si se desprende la tapadura provisoria de mi tratamiento de conducto? Tengo dolor en una muela con un tratamiento de conducto incompleto, ¿debo ir a urgencias? ¿Qué debo hacer si la tapadura provisional de mi endodoncia se está rompiendo? Tengo la tapadura provisional de mi tratamiento de conducto y temo que se me pueda desprender, ¿hasta cuándo puedo tenerla?"
+   },
+   {
+    "heading": "¿Por qué realizar tu Endodoncia en Uno Salud Dental",
+    "anchor": "endodoncia_realizar_endodoncia",
+    "text": "¿Por qué realizar tu Endodoncia en Uno Salud Dental En Uno Salud Dental, nos esforzamos por brindarte una experiencia excepcional en cada visita. A continuación, te presentamos algunas razones para confiar en nosotros para tu tratamiento de conducto Equipo altamente especializado Nuestro equipo está compuesto por endodoncistas, que son odontólogos especializados. Te garantizamos un tratamiento seguro y efectivo. Tecnologías e insumos de calidad Nuestros tratamientos dentales ofrecen máxima efectividad y precisión gracias a nuestra tecnología avanzada y materiales de calidad internacionalmente reconocidos. Esto asegura menor tiempo clínico y mayor comodidad para el paciente. Enfoque Personalizado Cada paciente es diferente, y adaptamos nuestros servicios según tus necesidades específicas. Tu comodidad y satisfacción son nuestra prioridad. Nuestra clínica está diseñada para brindarte un ambiente relajante y amigable. Resultados Duraderos Un tratamiento de conducto bien realizado no solo alivia el dolor, sino que también salva la pieza dental y asegura la salud a largo plazo de tu diente. Confía en nosotros para obtener resultados duraderos y efectivos. Precios Convenientes y facilidades de pago Excelente relación precio y calidad, además puedes pagar tu endodoncia en hasta en 12 cuotas sin interés. Compromiso con la Calidad Somos la primera clínica dental 100% acreditada por la Superintendencia de Salud, cumpliendo rigurosos protocolos de seguridad y calidad en cada tratamiento"
+   },
+   {
+    "heading": "¿Cuál es el proceso del Tratamiento?",
+    "anchor": "endodoncia_proceso",
+    "text": "¿Cuál es el proceso del Tratamiento? Te contamos cómo funciona el proceso de la endodoncia: 1 Recepción Al llegar, deberás presentarte en recepción e indicar que tienes una cita agendada, luego el equipo de Recepción avisará al odontólogo, quien vendrá a la sala de espera para recibirte y acompañarte a tu cita. 2 Diagnóstico dental inicial El odontólogo realizará una evaluación clínica y radiografías. 3 Radiografías Tomaremos 3 tipos de radiografías: una panorámica para examinar el estado general de las estructuras dentarias y sus alrededores, y un set de radiografías Bite Wing para evaluar de cerca el estado de cada diente y los espacios entre ellos, y Radiografía Periapical para evaluar el estado particular de este diente, su longitud y observar la raíz del diente de forma detallada. 4 Diagnóstico Dental El odontólogo revisará las radiografías, con el fin de entregar un diagnóstico integral. En esta etapa se determinará si se debe realizar una endodoncia. 5 Plan de tratamiento El odontólogo te explicará detalladamente el diagnóstico, te orientará sobre los pasos a seguir y responderá cualquier duda que puedas tener. 6 Endodoncia Durante el tratamiento de conducto, el odontólogo eliminará el nervio afectado del diente y limpiará minuciosamente los conductos radiculares para eliminar cualquier infección. Después, el interior del diente se desinfectará y se preparará para la posterior restauración. Dependiendo de la complejidad del caso, el tratamiento puede completarse en una"
+   },
+   {
+    "heading": "Lo que opinan nuestros pacientes",
+    "anchor": "endodoncia_testimonios",
+    "text": ""
+   },
+   {
+    "heading": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a",
+    "anchor": "endodoncia_dudas",
+    "text": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una atención personalizada. ¡No dudes en contactarnos para agendar tu próximo tratamiento de conducto en Uno Salud Dental!"
+   },
+   {
+    "heading": "Especialidades relacionadas",
+    "anchor": "endodoncia_relacionadas",
+    "text": ""
+   },
+   {
+    "heading": "Agenda tu hora con nosotros",
+    "anchor": "endodoncia_contactanos",
+    "text": "Agenda tu hora con nosotros Si tienes dudas escríbenos mediante nuestro formulario o chat y te responderemos a la brevedad. También puedes llamarnos a nuestro Call Center: 600 707 1010. Agenda tu hora Te llamamos"
+   }
+  ],
+  "faqs": [
+   {
+    "n": "1",
+    "q": "¿Causa dolor el tratamiento de conducto?",
+    "a": "Se realiza bajo anestesia local para garantizar la comodidad del paciente. Los endodoncistas están capacitados para manejar cualquier molestia que pueda surgir durante el procedimiento."
+   },
+   {
+    "n": "2",
+    "q": "¿Cuántas sesiones son necesarias para realizar el tratamiento de conducto?",
+    "a": "Hay casos, en los que la endodoncia se completa en una sola sesión. Sin embargo, en situaciones más complejas donde la infección es severa o en molares por ejemplo, pueden ser necesarias múltiples sesiones para asegurar un tratamiento efectivo."
+   },
+   {
+    "n": "3",
+    "q": "¿Qué cuidados debo seguir después del tratamiento de endodoncia?",
+    "a": "Después del tratamiento, el especialista colocará una obturación temporal que será reemplazada por una definitiva más adelante. Durante los primeros días, es importante evitar masticar en el área tratada y evitar alimentos pegajosos o difíciles de masticar, y asistir a la restauración definitiva para completar el tratamiento."
+   },
+   {
+    "n": "4",
+    "q": "¿Qué debo hacer si se desprende la tapadura provisoria de mi tratamiento de conducto?",
+    "a": "Si la tapadura se desprende, es crucial acudir lo antes posible a un centro dental para completar el tratamiento. Si no es posible completarlo de inmediato, al menos se debe reemplazar la tapadura provisional para evitar la contaminación del tratamiento en proceso."
+   },
+   {
+    "n": "5",
+    "q": "Tengo dolor en una muela con un tratamiento de conducto incompleto, ¿debo ir a urgencias?",
+    "a": "Sí, es recomendable acudir a urgencias para que un endodoncista pueda completar el tratamiento y prevenir problemas futuros."
+   },
+   {
+    "n": "6",
+    "q": "¿Qué debo hacer si la tapadura provisional de mi endodoncia se está rompiendo?",
+    "a": "Si la tapadura provisional se está rompiendo, es importante acudir lo antes posible a un centro dental para repararla o continuar el tratamiento según corresponda y así evitar la contaminación del tratamiento."
+   },
+   {
+    "n": "7",
+    "q": "Tengo la tapadura provisional de mi tratamiento de conducto y temo que se me pueda desprender, ¿hasta cuándo puedo tenerla?",
+    "a": "Las tapaduras provisionales como lo dice su nombre, son provisionales, debes acudir en los plazos indicados por tu odontólogo para su rehabilitación definitiva. Sin embargo, si se fracturan o se desprenden, se debe acudir a urgencias para que sea reemplazada adecuadamente. Recordar que el tratamiento se completa una vez que la rehabilitación definitiva se realice."
+   }
+  ]
+ },
+ {
+  "path": "/especialidades/periodoncia/",
+  "title": "Periodoncia: Tratamientos y prevención | Uno Salud Dental",
+  "kind": "specialty",
+  "sections": [
+   {
+    "heading": "Periodoncia",
+    "anchor": "periodoncia_hero",
+    "text": "Especialidades Periodoncia Periodoncia La periodoncia es la especialidad odontológica dedicada al cuidado de los tejidos que soportan los dientes e implantes, como las encías, el hueso y los ligamentos. Nuestro equipo de periodoncistas está altamente capacitado para diagnosticar y tratar afecciones como gingivitis, periodontitis y recesión gingival. Ofrecemos tratamientos que abordan diversas causas, como infecciones e inflamaciones. Si experimentas sangrado de encías, mal aliento o sensibilidad dental, agenda tu evaluación online con nuestros especialistas. Realiza tu diagnóstico inicial con nosotros Agenda tus siguientes citas para iniciar tu plan de tratamiento con nuestros especialistas. Agenda tu hora Te llamamos"
+   },
+   {
+    "heading": "Enfermedades Periodontales: Gingivitis y Periodontitis",
+    "anchor": "periodoncia_enfermedades_periodontales_gingivitis",
+    "text": "Enfermedades Periodontales: Gingivitis y Periodontitis Gingivitis: Consiste en la inflamación de las encías producto de la acumulación de la placa bacteriana provocando sangramiento, enrojecimiento, hinchazón y sangrado. Para evitar la gingivitis se recomienda mantener una buena higiene y limpieza dental. Periodontitis: Si no se trata la gingivitis esta se puede agravar convirtiéndose en una periodontitis. Esta consiste en el avance de la inflamación hacia el hueso que sostiene los dientes, provocando pérdida ósea, aumento de la movilidad dental y posible pérdida de dientes. La periodontitis se puede tratar de la siguiente manera para evitar su progresión: Destartraje supragingival y subgingival. Pulido radicular. Pueden ser necesarios antibióticos complementarios. En casos avanzados, cirugías complementarias"
+   },
+   {
+    "heading": "¿Cuándo debería consultar a un especialista en Periodoncia",
+    "anchor": "periodoncia_cuando_deberia_consultar",
+    "text": "¿Cuándo debería consultar a un especialista en Periodoncia Encías inflamadas o que sangran durante el cepillado de dientes. Presencia de bolsas periodontales (espacio entre la encía y el diente en el que se acumula placa bacteriana). Encías con aspecto brillante. Mal olor en la cavidad bucal (halitosis) Dientes sueltos (piezas dentarias con movilidad). Sensibilidad dental."
+   },
+   {
+    "heading": "Por estas razones, es importante el chequeo preventivo que está orientado a real",
+    "anchor": "periodoncia_estas_razones_importante",
+    "text": "Por estas razones, es importante el chequeo preventivo que está orientado a realizar acciones que eviten la inflamación de las encías o la detecten de manera temprana. Por su parte, las personas con diagnóstico de enfermedad periodontal deben asistir a control cada tres meses o la frecuencia indicada por el especialista, y seguir las indicaciones entregadas."
+   },
+   {
+    "heading": "Factores de riesgo para desarrollar la enfermedad Periodontal",
+    "anchor": "periodoncia_factores_riesgo_desarrollar",
+    "text": "Factores de riesgo para desarrollar la enfermedad Periodontal El principal factor es la mala higiene oral debido a las bacterias que forman placa bacteriana como también los factores genéticos, tabaquismo y estrés entre otros. Estos factores son importantes considerarlos, ya que pueden estar relacionados con otras condiciones médicas como la diabetes, riesgo de parto prematuro y riesgo cardiovascular."
+   },
+   {
+    "heading": "¿Cómo se puede prevenir la enfermedad Periodontal",
+    "anchor": "periodoncia_puede_prevenir_enfermedad",
+    "text": "¿Cómo se puede prevenir la enfermedad Periodontal Realizarse una limpieza dental periódicamente tiene varios beneficios para tu salud bucal: Buena Higiene Manteniendo una buena higiene oral con un cepillado correcto y usando seda dental y/o cepillo interproximal. Controles periódicos Manteniendo una buena higiene oral con un cepillado correcto y usando seda dental y/o cepillo interproximal. Evitar el cigarrillo Evitar el consumo de cigarrillos te ayudará a cuidar tu salud bucal. Alimentación Mantener hábitos sanos de alimentación contribuirá al cuidado de tu salud bucal."
+   },
+   {
+    "heading": "Preguntas frecuentes",
+    "anchor": "periodoncia_preguntas",
+    "text": "Preguntas frecuentes Periodoncia En Uno Salud Dental, comprendemos que tienes preguntas sobre la periodoncia. Aquí te proporcionamos respuestas a algunas de las consultas más frecuentes: ¿Qué es la gingivitis y cómo puedo prevenirla? ¿Cuáles son los síntomas de la periodontitis y cuándo debo buscar tratamiento? ¿Qué tratamientos se utilizan para tratar la enfermedad periodontal? ¿Qué puedo hacer para mantener mis encías saludables a largo plazo?"
+   },
+   {
+    "heading": "¿Por qué realizar tu tratamiento de Periodoncia en Uno Salud Dental?",
+    "anchor": "periodoncia_realizar_tratamiento_periodoncia",
+    "text": "¿Por qué realizar tu tratamiento de Periodoncia en Uno Salud Dental? En Uno Salud Dental, nos esforzamos por brindarte una experiencia excepcional en cada visita. A continuación, te presentamos algunas razones para confiar en nosotros para tu tratamiento de periodoncia: Equipo altamente especializado Nuestro equipo está compuesto por Periodoncistas, dentistas especializados en el tratamiento de tus encías. Te garantizamos un tratamiento seguro y efectivo. Tecnologías e insumos de calidad Nuestros tratamientos dentales ofrecen máxima efectividad y precisión gracias a nuestra tecnología avanzada y materiales de calidad internacionalmente reconocidos. Esto asegura menor tiempo clínico y mayor comodidad para el paciente. Enfoque Personalizado Cada paciente es diferente, y adaptamos nuestros servicios según tus necesidades específicas. Tu comodidad y satisfacción son nuestra prioridad. Nuestra clínica está diseñada para brindarte un ambiente relajante y amigable. Resultados Duraderos Un tratamiento periodontal efectivo no solo alivia los síntomas actuales, sino que también podría mejorar la salud a largo plazo de tus encías y tejidos de soporte. Confía en nosotros para obtener resultados duraderos y eficaces. Precios Convenientes y facilidades de pago Excelente relación precio y calidad, además puedes pagar tu tratamiento de periodoncia en hasta en 12 cuotas sin interés. Compromiso con la Calidad Somos la primera clínica dental 100% acreditada por la Superintendencia de Salud, cum"
+   },
+   {
+    "heading": "¿Cuál es el proceso del Tratamiento?",
+    "anchor": "periodoncia_proceso",
+    "text": "¿Cuál es el proceso del Tratamiento? Te contamos cómo funciona el proceso del tratamiento de Periodoncia: 1 Recepción Al llegar, deberás presentarte en recepción e indicar que tienes una cita agendada, luego el equipo de Recepción avisará al odontólogo, quien vendrá a la sala de espera para recibirte y acompañarte a tu cita. 2 Diagnóstico dental inicial El odontólogo realizará una evaluación clínica y radiografías. 3 Radiografías Tomaremos dos tipos de radiografías: una panorámica para examinar el estado general de las estructuras dentarias y sus alrededores, y un set de radiografías Bite Wing para evaluar de cerca el estado de cada diente y los espacios entre ellos. 4 Diagnóstico Dental El odontólogo revisará las radiografías, con el fin de entregar un diagnóstico integral. En esta etapa se determinará si se debe realizar un tratamiento de periodoncia. 5 Plan de tratamiento El odontólogo te explicará detalladamente el diagnóstico, te orientará sobre los pasos a seguir y responderá cualquier duda que puedas tener. 6 Tratamiento Durante el tratamiento periodontal, el periodoncista limpiará y desinfectará las encías y los tejidos de soporte afectados para eliminar infecciones y reducir la inflamación. Se realizarán procedimientos para sanar y regenerar los tejidos dañados y se establecerá un plan para el mantenimiento y seguimiento. Dependiendo de la gravedad del caso, el tratamiento puede completarse en una sola sesión o requerir visitas adicionales."
+   },
+   {
+    "heading": "Lo que opinan nuestros pacientes",
+    "anchor": "periodoncia_testimonios",
+    "text": ""
+   },
+   {
+    "heading": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a",
+    "anchor": "periodoncia_dudas",
+    "text": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una atención personalizada. ¡No dudes en contactarnos para agendar tu próxima periodoncia en Uno Salud Dental!"
+   },
+   {
+    "heading": "Especialidades relacionadas",
+    "anchor": "periodoncia_relacionadas",
+    "text": ""
+   },
+   {
+    "heading": "Agenda tu hora con nosotros",
+    "anchor": "periodoncia_contactanos",
+    "text": "Agenda tu hora con nosotros Si tienes dudas escríbenos mediante nuestro formulario o chat y te responderemos a la brevedad. También puedes llamarnos a nuestro Call Center: 600 707 1010. Agenda tu hora Te llamamos"
+   }
+  ],
+  "faqs": [
+   {
+    "n": "1",
+    "q": "¿Qué es la gingivitis y cómo puedo prevenirla?",
+    "a": "La gingivitis es la inflamación de las encías causada por la acumulación de placa bacteriana. Se puede prevenir con una buena higiene bucal que incluya cepillado regular, uso de hilo dental y visitas periódicas al dentista para limpiezas profesionales."
+   },
+   {
+    "n": "2",
+    "q": "¿Cuáles son los síntomas de la periodontitis y cuándo debo buscar tratamiento?",
+    "a": "La periodontitis es una enfermedad más avanzada que puede causar pérdida ósea alrededor de los dientes, movilidad dental y eventual pérdida de los mismos. Los síntomas incluyen encías inflamadas, sensibilidad dental y mal aliento persistente. Es crucial buscar tratamiento al notar estos síntomas para detener su progresión."
+   },
+   {
+    "n": "3",
+    "q": "¿Qué tratamientos se utilizan para tratar la enfermedad periodontal?",
+    "a": "Los tratamientos para la enfermedad periodontal pueden incluir limpiezas profundas para eliminar la placa y el sarro bajo las encías, alisado radicular para suavizar las superficies de las raíces afectadas, y en casos más avanzados, cirugía periodontal para subsanar tejidos dañados."
+   },
+   {
+    "n": "4",
+    "q": "¿Qué puedo hacer para mantener mis encías saludables a largo plazo?",
+    "a": "Para mantener las encías saludables, es importante mantener una excelente higiene bucal con cepillado y uso de hilo dental diarios. Además, realizar visitas regulares al dentista para chequeos y limpiezas dentales profesionales ayuda a prevenir problemas más graves a futuro."
+   }
+  ]
+ },
+ {
+  "path": "/especialidades/odontopediatria/",
+  "title": "Odontopediatría: Dentista Infantil | Uno Salud Dental",
+  "kind": "specialty",
+  "sections": [
+   {
+    "heading": "Odontopediatría",
+    "anchor": "odontopediatria_hero",
+    "text": "Especialidades Odontopediatría Odontopediatría La odontopediatría se especializa en el cuidado oral de niños, niñas y adolescentes, abarcando tanto la prevención como el tratamiento de patologías en dientes, encías y maloclusiones. La primera visita al dentista infantil es crucial, ya que permite detectar y tratar a tiempo problemas como caries, lo que facilita intervenciones menos invasivas y tratamientos más cortos. Además, fomentamos hábitos saludables para lograr una sonrisa sana. ¡Asegura una buena salud bucal para tu hijo desde pequeño! Realiza tu diagnóstico inicial con nosotros Agenda tus siguientes citas para iniciar tu plan de tratamiento con nuestros especialistas. Agenda tu hora Te llamamos"
+   },
+   {
+    "heading": "¿Cuáles son los principales problemas dentales en niños?",
+    "anchor": "odontopediatria_cuales_son_principales",
+    "text": "¿Cuáles son los principales problemas dentales en niños? Caries: Las caries son comunes y pueden surgir desde el primer diente en boca. El Odontopediatra las trata y trabaja en la identificación de factores de riesgo, sellado de fisuras y medidas preventivas para evitar nuevas caries. Trauma: El trauma dental puede causar la rotura o pérdida de un diente por una caída o golpe. Esto puede requerir una restauración, reimplantación del diente, tratamiento pulpar, etc. Mala posición de los dientes: En las primeras visitas al Odontopediatra, se examinan los dientes y maxilares del niño para detectar alteraciones en la mordida o la posición dental que puedan requerir ortodoncia. Necrosis pulpar: Ocurre cuando en un diente temporal se daña la pulpa, ya sea por un traumatismo o por caries profundas. Esto puede dificultar la erupción del diente definitivo. Alteraciones congénitas: Pueden afectar el número, tamaño y forma de los dientes, impidiendo la erupción de la dentición temporal o definitiva, o alterando su tamaño."
+   },
+   {
+    "heading": "¿Qué síntomas deberían llevarnos a consultar al dentista?",
+    "anchor": "odontopediatria_sintomas_deberian_llevarnos",
+    "text": "¿Qué síntomas deberían llevarnos a consultar al dentista? Se debe concurrir a la consulta con un Odontopediatra en caso de que el niño manifieste malestar dental. Entre los signos y síntomas que suelen ser motivo de consulta al odontopediatra, se encuentran: Dolor Caries Inflamación y/o sangramiento de encías Golpes o Fracturas No obstante, la primera visita al especialista debe realizarse cuando aparecen los dientes de leche o dientes temporales. En este caso, el Odontopediatra indicará cómo llevar una correcta higiene dental o cepillado de dientes, con el objetivo de promover una salud bucal óptima. A partir de ese momento, el niño deberá acudir de forma periódica al Odontopediatra para cuidar sus dientes. Esto no sólo le ayudará a prevenir la aparición de caries, sino también el desarrollo de enfermedades en las encías. Además, lo familiariza con la atención dental haciendo más amena su atención y experiencia."
+   },
+   {
+    "heading": "Te recomendamos",
+    "anchor": "odontopediatria_te_recomendamos",
+    "text": "Te recomendamos Higiene bucal Lava sus dientes al menos tres veces al día después de cada comida. Si todavía no tiene dientes, es muy importante limpiar sus encías. A partir de los 2 años, es recomendable que los padres empiecen a enseñar al niño a cepillarse los dientes por sí mismo, pero siempre supervisado. Cepillo adecuado Los niños deben utilizar cepillos de dientes especiales que tienen cerdas suaves y redondeadas para evitar dañar sus dientes y encías. Alimentación saludable El consumo excesivo de golosinas y bebidas azucaradas puede conducir a la formación de placa bacteriana y caries. Es importante controlar su consumo y asegurarse de realizar un buen cepillado dental posteriormente. En caso de fractura dental Si un diente se fractura o se cae por un golpe, colócalo en un vaso de leche o debajo de la lengua del niño. Es crucial acudir rápidamente a una clínica dental o un servicio de salud en menos de 2 horas."
+   },
+   {
+    "heading": "Preguntas frecuentes",
+    "anchor": "odontopediatria_preguntas",
+    "text": "Preguntas frecuentes Odontopediatría En Uno Salud Dental, comprendemos que tienes preguntas sobre la odontopediatría. Aquí te proporcionamos respuestas a algunas de las consultas más frecuentes: ¿A qué edad debo llevar a mi hijo al primer control dental? ¿A qué edad salen los primeros dientes temporales (dientes de leche)? ¿Cuándo debo comenzar a lavar los dientes a mi hijo? ¿Cuándo empiezan a salir los dientes permanentes? ¿Cómo afecta la alimentación del niño a la hora de prevenir las caries? ¿Cada cuánto tiempo debo llevar a mi hijo al dentista?"
+   },
+   {
+    "heading": "¿Por qué realizar el tratamiento de tu hijo en Uno Salud Dental?",
+    "anchor": "odontopediatria_realizar_tratamiento_hijo",
+    "text": "¿Por qué realizar el tratamiento de tu hijo en Uno Salud Dental? En Uno Salud Dental, nos esforzamos por brindarte una experiencia excepcional en cada visita. A continuación, te presentamos algunas razones para confiar en nosotros: Equipo altamente especializado Nuestro equipo está compuesto por Odontopediatras especializados. Te garantizamos un tratamiento seguro y efectivo. Tecnologías e insumos de calidad Nuestros tratamientos dentales ofrecen máxima efectividad y precisión gracias a nuestra tecnología avanzada y materiales de calidad internacionalmente reconocidos. Esto asegura menor tiempo clínico y mayor comodidad para el paciente. Enfoque Personalizado Cada paciente es diferente, y adaptamos nuestros servicios según tus necesidades específicas. La comodidad y satisfacción de tu hijo o hija son nuestra prioridad. Nuestra clínica está diseñada para brindarle un ambiente relajante y amigable. Resultados Duraderos Una atención odontopediátrica bien realizada no sólo trata problemas dentales, sino que también promueve la salud dental a largo plazo de tu hijo o hija. Confía en nosotros para obtener resultados duraderos y efectivos desde una edad temprana. Precios Convenientes y facilidades de pago Excelente relación precio y calidad, además puedes pagar el tratamiento de odontopediatría en hasta 12 cuotas sin interés. Compromiso con la Calidad Somos la primera clínica dental 100% acreditada por la Superintendencia de Salud, cumpliendo rigurosos protocolos de seguridad y cali"
+   },
+   {
+    "heading": "¿Cuál es el proceso del Tratamiento?",
+    "anchor": "odontopediatria_proceso",
+    "text": "¿Cuál es el proceso del Tratamiento? Te contamos cómo funciona el proceso de la odontopediatría: 1 Recepción Al llegar, deberás presentarte en recepción e indicar que tienes una cita agendada, luego el equipo de Recepción avisará al dentista, quien vendrá a la sala de espera para recibirte y acompañarte a tu cita. 2 Diagnóstico dental inicial El odontólogo realizará una evaluación clínica y radiografías. 3 Radiografías Tomaremos dos tipos de radiografías: una panorámica para examinar el estado general de las estructuras dentarias y sus alrededores, y un set de radiografías Bite Wing para evaluar de cerca el estado de cada diente y los espacios entre ellos. 4 Diagnóstico Dental El dentista revisará las radiografías, con el fin de entregar un diagnóstico integral. En esta etapa se determinará si se debe realizar algún tratamiento. 5 Plan de tratamiento El dentista te explicará detalladamente el diagnóstico de tu hijo, te orientará sobre los pasos a seguir y responderá cualquier duda que puedas tener. 6 Limpieza Dental El odontólogo procederá con la limpieza bucal, eliminando el cálculo dental acumulado en la parte visible de los dientes, incluyendo el detartraje supragingival y el pulido coronario. Esta limpieza puede realizarse en la misma cita, si hay disponibilidad, o se programará para otra ocasión."
+   },
+   {
+    "heading": "Lo que opinan nuestros pacientes",
+    "anchor": "odontopediatria_testimonios",
+    "text": ""
+   },
+   {
+    "heading": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a",
+    "anchor": "odontopediatria_dudas",
+    "text": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una atención personalizada. ¡No dudes en contactarnos para agendar la cita de Odonpediatría de tu hijo o hija en Uno Salud Dental!"
+   },
+   {
+    "heading": "Especialidades relacionadas",
+    "anchor": "odontopediatria_relacionadas",
+    "text": ""
+   },
+   {
+    "heading": "Agenda tu hora con nosotros",
+    "anchor": "odontopediatria_contactanos",
+    "text": "Agenda tu hora con nosotros Si tienes dudas escríbenos mediante nuestro formulario o chat y te responderemos a la brevedad. También puedes llamarnos a nuestro Call Center: 600 707 1010. Agenda tu hora Te llamamos"
+   }
+  ],
+  "faqs": [
+   {
+    "n": "1",
+    "q": "¿A qué edad debo llevar a mi hijo al primer control dental?",
+    "a": "La primera visita al dentista debe ser antes de cumplir un año de edad o con la erupción del primer diente."
+   },
+   {
+    "n": "2",
+    "q": "¿A qué edad salen los primeros dientes temporales (dientes de leche)?",
+    "a": "La erupción de los primeros dientes de leche suele comenzar a los 6 meses aproximadamente con los incisivos centrales inferiores (“paletas”) y los últimos en salir son los segundos molares temporales alrededor de los 2 años. Los dientes de leche son tan importantes como los definitivos y se deben conservar sanos."
+   },
+   {
+    "n": "3",
+    "q": "¿Cuándo debo comenzar a lavar los dientes a mi hijo?",
+    "a": "Es crucial iniciar la higiene dental de tu bebé desde temprano, incluso antes de que le salgan sus primeros dientes debes limpiar sus encías con una gasa humedecida en agua envuelta en los dedos para limpiar suavemente sus encías. A medida que aparecen los dientes, utiliza un cepillo pequeño y suave.A partir de los 4 años puedes comenzar a usar pasta dental infantil en pequeñas cantidades (tamaño de una lenteja). Recuerda que los padres juegan un papel fundamental en el cuidado dental de los niños."
+   },
+   {
+    "n": "4",
+    "q": "¿Cuándo empiezan a salir los dientes permanentes?",
+    "a": "A los 6 años (a veces antes, a veces después), comienza el recambio dental con los incisivos centrales inferiores, fácilmente reconocibles por los padres. Sin embargo, el primer molar permanente, conocido como «molar de los 6 años», aparece detrás de los molares temporales sin que otro diente sea reemplazado, lo cual a menudo pasa desapercibido para los padres que pueden pensar que es un diente temporal. Es crucial sellar este molar cuando se vea en boca para protegerlo contra las caries."
+   },
+   {
+    "n": "5",
+    "q": "¿Cómo afecta la alimentación del niño a la hora de prevenir las caries?",
+    "a": "Es fundamental valorar la ingesta de alimentos azucarados siendo los más pegajosos los más propensos a causar caries (como los caramelos blandos o masticables en comparación con las bebidas azucaradas). Es recomendable fomentar snacks saludables como fruta natural, agua o consumir leche baja en azúcares durante el día a día."
+   },
+   {
+    "n": "6",
+    "q": "¿Cada cuánto tiempo debo llevar a mi hijo al dentista?",
+    "a": "La recomendación general es que los niños asistan al dentista cada 6 meses. La periodicidad de estas visitas puede variar caso a caso según la evaluación clínica."
+   }
+  ]
+ },
+ {
+  "path": "/especialidades/blanqueamiento-dental/",
+  "title": "Blanqueamiento Dental | Uno Salud Dental",
+  "kind": "specialty",
+  "sections": [
+   {
+    "heading": "Blanqueamiento Dental",
+    "anchor": "blanqueamiento_hero",
+    "text": "Especialidades Blanqueamiento Dental Blanqueamiento Dental El blanqueamiento dental transforma tu sonrisa, haciéndola más blanca y atractiva. Este tratamiento estético reduce hasta 2 tonos el color original de los dientes. Si buscas información sobre valores en blanqueamiento dental y opciones de tratamiento, agenda online una evaluación con nuestros especialistas. Realiza tu diagnóstico inicial con nosotros Agenda tus siguientes citas para iniciar tu plan de tratamiento con nuestros especialistas. Agenda tu hora Te llamamos"
+   },
+   {
+    "heading": "¿En qué consiste el blanqueamiento dental",
+    "anchor": "blanqueamiento_consiste_blanqueamiento",
+    "text": "¿En qué consiste el blanqueamiento dental El blanqueamiento dental implica proteger las encías y aplicar un gel de premolar a premolar durante un tiempo específico. Se retira el gel y así de simple es el procedimiento. El procedimiento es un poco incómodo y si llegas a sentir molestias durante el procedimiento debes avisar al odontólogo a cargo."
+   },
+   {
+    "heading": "¿Quién se puede realizar un blanqueamiento dental?",
+    "anchor": "blanqueamiento_quien_puede_realizar",
+    "text": "¿Quién se puede realizar un blanqueamiento dental? Para realizar un blanqueamiento dental, es necesario tener las encías y los dientes sanos, sin caries, sensibilidad dental. Para realizar el blanqueamiento es necesario realizar una limpieza dental previamente, y para un resultado óptimo se recomienda una aplicación previa de flúor en los dientes. El blanqueamiento no altera el color de resinas, tapaduras o coronas. Se aconseja esperar dos semanas tras el procedimiento antes de realizar restauraciones estéticas. No se recomienda para embarazadas en el primer trimestre, madres lactantes o menores de 16 años."
+   },
+   {
+    "heading": "Cuidados después de un blanqueamiento dental",
+    "anchor": "blanqueamiento_cuidados_despues_blanqueamiento",
+    "text": "Cuidados después de un blanqueamiento dental Cuidados que debes tener luego de realizarte un blaqueamiento dental: Beber y comer alimentos a temperatura ambiente. Evitar comer o beber alimentos muy calientes, fríos o ácidos. Evitar el consumo de cosas pigmentadas (cigarro, café, té, bebidas Cola, etc.) Seguir las instrucciones del dentista."
+   },
+   {
+    "heading": "Preguntas frecuentes",
+    "anchor": "blanqueamiento_preguntas",
+    "text": "Preguntas frecuentes Blanqueamiento Dental En Uno Salud Dental, comprendemos que tienes preguntas sobre el blanqueamiento dental. Aquí te proporcionamos respuestas a algunas de las consultas más frecuentes: ¿Es normal sentir molestias después de un blanqueamiento dental? ¿Cuánto puede durar un blanqueamiento dental? ¿Cada cuánto se puede hacer un blanqueamiento dental? ¿Cómo calmar la sensibilidad dental después de un blanqueamiento?"
+   },
+   {
+    "heading": "Ventajas de hacer tu Blanqueamiento en Uno Salud Dental",
+    "anchor": "blanqueamiento_ventajas_hacer_blanqueamiento",
+    "text": "Ventajas de hacer tu Blanqueamiento en Uno Salud Dental En Uno Salud Dental, nos esforzamos por brindarte una experiencia excepcional en cada visita. A continuación, te presentamos algunas razones para confiar en nosotros para tu blanqueamiento dental: Equipo altamente especializado Nuestro equipo está compuesto por odontólogos especializados. Te garantizamos un blanqueamiento dental seguro y efectivo. Tecnologías e insumos de calidad Nuestros tratamientos dentales ofrecen máxima efectividad y precisión gracias a nuestra tecnología avanzada y materiales de calidad internacionalmente reconocidos. Esto asegura menor tiempo clínico y mayor comodidad para el paciente. Enfoque Personalizado Cada paciente es diferente, y adaptamos nuestros servicios según tus necesidades específicas. Tu comodidad y satisfacción son nuestra prioridad. Nuestra clínica está diseñada para brindarte un ambiente relajante y amigable. Resultados Duraderos Un tratamiento de blanqueamiento dental no solo te brinda una sonrisa radiante, sino que también ayuda a mantenerla brillante a lo largo del tiempo. Confía en nosotros para obtener resultados que perduren con los cuidados que te indicaremos. Precios Convenientes y facilidades de pago Excelente relación precio y calidad, además puedes pagar tu blanqueamiento hasta en 12 cuotas sin interés. Compromiso con la Calidad Somos la primera clínica dental 100% acreditada por la Superintendencia de Salud, cumpliendo rigurosos protocolos de seguridad y calidad en ca"
+   },
+   {
+    "heading": "¿Cuál es el proceso del Tratamiento?",
+    "anchor": "blanqueamiento_proceso",
+    "text": "¿Cuál es el proceso del Tratamiento? Te contamos cómo funciona el proceso del blanqueamiento dental: 1 Recepción Al llegar, deberás presentarte en recepción e indicar que tienes una cita agendada, luego el equipo de Recepción avisará al odontólogo, quien vendrá a la sala de espera para recibirte y acompañarte a tu cita. 2 Diagnóstico dental inicial El odontólogo realizará una evaluación clínica y radiografías. 3 Radiografías Tomaremos dos tipos de radiografías: una panorámica para examinar el estado general de las estructuras dentarias y sus alrededores, y un set de radiografías Bite Wing para evaluar de cerca el estado de cada diente y los espacios entre ellos. 4 Diagnóstico Dental El odontólogo revisará las radiografías, con el fin de entregar un diagnóstico integral. En esta etapa se determinará si es posible realizar un blanqueamiento dental, la cual requiere que estés libre de enfermedad periodontal y caries 5 Plan de tratamiento El odontólogo te explicará detalladamente el diagnóstico, te orientará sobre los pasos a seguir y responderá cualquier duda que puedas tener. 6 Blanqueamiento Dental El odontólogo realizará el tratamiento de blanqueamiento, aplicando productos específicos para eliminar las manchas y aclarar el esmalte dental. Este procedimiento puede llevarse a cabo en la misma cita, si hay disponibilidad, o se programará para otra ocasión."
+   },
+   {
+    "heading": "Lo que opinan nuestros pacientes",
+    "anchor": "blanqueamiento_testimonios",
+    "text": ""
+   },
+   {
+    "heading": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a",
+    "anchor": "blanqueamiento_dudas",
+    "text": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una atención personalizada. ¡No dudes en contactarnos para agendar tu próximo blanqueamiento en Uno Salud Dental!"
+   },
+   {
+    "heading": "Especialidades relacionadas",
+    "anchor": "blanqueamiento_relacionadas",
+    "text": ""
+   },
+   {
+    "heading": "Agenda tu hora con nosotros",
+    "anchor": "blanqueamiento_contactanos",
+    "text": "Agenda tu hora con nosotros Si tienes dudas escríbenos mediante nuestro formulario o chat y te responderemos a la brevedad. También puedes llamarnos a nuestro Call Center: 600 707 1010. Agenda tu hora Te llamamos"
+   }
+  ],
+  "faqs": [
+   {
+    "n": "1",
+    "q": "¿Es normal sentir molestias después de un blanqueamiento dental?",
+    "a": "Sí, es muy común que exista sensibilidad dental durante y después del tratamiento. Es muy probable que sientas los dientes sensibles, independiente de tu historial dental, aunque generalmente debe ir disminuyendo con el paso de los días. Si no es así, debes acudir a una evaluación con tu dentista."
+   },
+   {
+    "n": "2",
+    "q": "¿Cuánto puede durar un blanqueamiento dental?",
+    "a": "Con los cuidados adecuados, el blanqueamiento dental puede durar años. Sin embargo, no todas las manchas se eliminan con este procedimiento; a veces se requieren otros tratamientos. Es fundamental una evaluación previa por un profesional quien te guiará y explicará las distintas alternativas que tenemos para ofrecerte."
+   },
+   {
+    "n": "3",
+    "q": "¿Cada cuánto se puede hacer un blanqueamiento dental?",
+    "a": "La frecuencia del blanqueamiento dental depende del tipo de esmalte y de tus hábitos. Un esmalte mineralizado tiende a oscurecerse con el tiempo. Fumar o consumir bebidas oscuras como vino, té, café o refrescos de cola acelera el oscurecimiento. Aunque varía según la persona, el blanqueamiento suele durar alrededor de un año, por lo que recomendamos que vayas a una evaluación previa."
+   },
+   {
+    "n": "4",
+    "q": "¿Cómo calmar la sensibilidad dental después de un blanqueamiento?",
+    "a": "La sensibilidad durante y post blanqueamiento es relativamente frecuente. Normalmente, usando pastas y enjuagues desensibilizantes suele ser suficiente. Estas molestias suelen ser muy moderadas, parecidas a lo que podrías sentir cuando tomas agua fría."
+   }
+  ]
+ },
+ {
+  "path": "/especialidades/radiologia/",
+  "title": "Radiografías Dentales Avanzadas | Uno Salud Dental",
+  "kind": "specialty",
+  "sections": [
+   {
+    "heading": "Radiografías Dentales",
+    "anchor": "radiografias_hero",
+    "text": "Especialidades Radiografías Dentales Radiografías Dentales En nuestras clínicas dentales, la tecnología avanzada es clave para un diagnóstico y tratamiento efectivo. Contamos con equipos de radiología de vanguardia, incluyendo radiografías dentales digitales, que nos permiten obtener imágenes precisas y detalladas de tu salud bucal. Esta tecnología de punta asegura una evaluación certera, fundamental para un tratamiento dental preciso y efectivo. Confía en nuestra experiencia y tecnología para el cuidado de tu sonrisa. Realiza tu diagnóstico inicial con nosotros Agenda tus siguientes citas para iniciar tu plan de tratamiento con nuestros especialistas. Agenda tu hora Te llamamos"
+   },
+   {
+    "heading": "Tipos de radiografías",
+    "anchor": "radiografias_tipos_radiografias",
+    "text": "Tipos de radiografías Nuestro respaldo en radiología incluye una gama completa de exámenes necesarios para tu diagnóstico: Radiografía Panorámica: Ofrece una vista completa de los dientes, mandíbula y huesos circundantes en una sola imagen. Radiografía Periapical: Enfoca áreas específicas de los dientes y las raíces para detectar problemas dentales profundos. Radiografía Bite Wing o Aleta Mordida: Permite evaluar el contacto entre los dientes y detectar caries o anomalías entre ellos. Teleradiografía: Ideal para analizar la relación entre los dientes y los huesos faciales, útil en ortodoncia y planificación quirúrgica. Scanner Cone Beam: Proporciona imágenes tridimensionales detalladas para una evaluación exhaustiva de la estructura ósea y los tejidos. Estamos comprometidos con la incorporación constante de nuevas tecnologías para mantenernos a la vanguardia y mejorar significativamente la eficacia de nuestros tratamientos en todas las especialidades odontológicas y así entregar un diagnóstico más preciso para un tratamiento más eficiente."
+   },
+   {
+    "heading": "Ventajas de hacer tus radiografías en Uno Salud Dental",
+    "anchor": "radiografias_ventajas_hacer_radiografias",
+    "text": "Ventajas de hacer tus radiografías en Uno Salud Dental En Uno Salud Dental, nos esforzamos por brindarte una experiencia excepcional en cada visita. A continuación, te presentamos algunas razones para confiar en nosotros para tus radiografías: Equipo altamente especializado Nuestro equipo está compuesto por Odontólogos especializados. Te garantizamos un tratamiento seguro y efectivo. Tecnologías e insumos de calidad Nuestros tratamientos dentales ofrecen máxima efectividad y precisión gracias a nuestra tecnología avanzada y materiales de calidad internacionalmente reconocidos. Esto asegura menor tiempo clínico y mayor comodidad para el paciente. Enfoque Personalizado Cada paciente es diferente, y adaptamos nuestros servicios según tus necesidades específicas. Tu comodidad y satisfacción son nuestra prioridad. Nuestra clínica está diseñada para brindarte un ambiente relajante y amigable. Resultados Duraderos Una radiografía dental bien realizada no solo es clave para un diagnóstico preciso, sino que también es esencial para planificar cualquier tratamiento y garantizar la salud a largo plazo de tus dientes y encías. Precios Convenientes y facilidades de pago Nuestros servicios dentales combinan alta calidad con precios convenientes, garantizando una excelente relación precio y calidad. Compromiso con la Calidad Somos la primera clínica dental 100% acreditada por la Superintendencia de Salud, cumpliendo rigurosos protocolos de seguridad y calidad en cada tratamiento."
+   },
+   {
+    "heading": "Lo que opinan nuestros pacientes",
+    "anchor": "radiografias_testimonios",
+    "text": ""
+   },
+   {
+    "heading": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a",
+    "anchor": "radiografias_dudas",
+    "text": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una atención personalizada. ¡No dudes en contactarnos para agendar tu próxima radiografía en Uno Salud Dental!"
+   },
+   {
+    "heading": "Especialidades relacionadas",
+    "anchor": "radiografias_relacionadas",
+    "text": ""
+   },
+   {
+    "heading": "Agenda tu hora con nosotros",
+    "anchor": "radiografias_contactanos",
+    "text": "Agenda tu hora con nosotros Si tienes dudas escríbenos mediante nuestro formulario o chat y te responderemos a la brevedad. También puedes llamarnos a nuestro Call Center: 600 707 1010. Agenda tu hora Te llamamos"
+   }
+  ],
+  "faqs": []
+ },
+ {
+  "path": "/especialidades/cirugia-oral/",
+  "title": "Cirugía Dental Oral | Uno Salud Dental",
+  "kind": "specialty",
+  "sections": [
+   {
+    "heading": "Cirugía Dental Oral",
+    "anchor": "cirugia_hero",
+    "text": "Especialidades Cirugía Dental Oral Cirugía Dental Oral La cirugía oral se especializa en el diagnóstico y tratamiento quirúrgico de problemas en dientes, boca, maxilares y tejidos circundantes, abarcando aspectos tanto funcionales como estéticos. Entre los procedimientos más comunes de cirugía dental, realizamos la extracción de muelas del juicio, cirugía periodontal (para enfermedades de las encías) y la toma de biopsias, todos realizados bajo anestesia local. Realiza tu diagnóstico inicial con nosotros Agenda tus siguientes citas para iniciar tu plan de tratamiento con nuestros especialistas. Agenda tu hora Te llamamos"
+   },
+   {
+    "heading": "Tipos de procedimientos",
+    "anchor": "cirugia_tipos_procedimientos",
+    "text": "Tipos de procedimientos Exodoncias: Procedimientos para extraer dientes, pueden ser cirugías simples que se realizan en el box dental o cirugías más complejas que requieran el uso de pabellón. Frenectomías: Procedimiento para modificar el frenillo que conecta estructuras dentro de la boca, como labios, lengua, mejillas, encía. Se realiza cuando este afecta la posición de los dientes, las prótesis o la movilidad labial. Cirugías pre protésicas: Procedimientos para preparar el hueso y las encías para una colocación adecuada y duradera de prótesis dentales."
+   },
+   {
+    "heading": "¿Por qué podrías necesitar una extracción dental?",
+    "anchor": "cirugia_podrias_necesitar_extraccion",
+    "text": "¿Por qué podrías necesitar una extracción dental? Caries extensas Cuando una caries ha destruido gran parte del diente y no puede ser reparada con una restauración. Problemas de Alineación Dentaria En caso de que el Ortodoncista determine que necesites una extracción dental, para crear espacio en la boca antes de un tratamiento de ortodoncia. Dientes Impactados Enfermedad Periodontal"
+   },
+   {
+    "heading": "Preguntas frecuentes",
+    "anchor": "cirugia_preguntas",
+    "text": "Preguntas frecuentes Cirugía Oral En Uno Salud Dental, comprendemos que tienes preguntas sobre la cirugía oral. Aquí te proporcionamos respuestas a algunas de las consultas más frecuentes: ¿Es dolorosa la cirugía oral? ¿Cuánto tiempo dura la recuperación después de una cirugía oral? ¿Qué cuidados debo seguir después de una cirugía oral? ¿Cuándo debo contactar a mi odontólogo después de la cirugía?"
+   },
+   {
+    "heading": "Ventajas de hacer tu cirugía oral en Uno Salud Dental",
+    "anchor": "cirugia_ventajas_hacer_cirugia",
+    "text": "Ventajas de hacer tu cirugía oral en Uno Salud Dental En Uno Salud Dental, nos esforzamos por brindarte una experiencia excepcional en cada visita. A continuación, te presentamos algunas razones para confiar en nosotros para tu cirugía oral: Equipo altamente especializado Nuestro equipo está compuesto por Odontólogos especializados. Te garantizamos un tratamiento seguro y efectivo. Tecnologías e insumos de calidad Nuestros tratamientos dentales ofrecen máxima efectividad y precisión gracias a nuestra tecnología avanzada y materiales de calidad internacionalmente reconocidos. Esto asegura menor tiempo clínico y mayor comodidad para el paciente. Enfoque Personalizado Cada paciente es diferente, y adaptamos nuestros servicios según tus necesidades específicas. Tu comodidad y satisfacción son nuestra prioridad. Nuestra clínica está diseñada para brindarte un ambiente relajante y amigable para tu Cirugía Oral. Resultados Duraderos Una intervención quirúrgica bucal bien realizada no solo aborda el problema inmediato, sino que también contribuye a la salud dental a largo plazo. Al confiar en nuestro equipo, te aseguras de obtener resultados duraderos y una mejor salud oral general. Precios Convenientes y facilidades de pago Excelente relación precio y calidad, además puedes pagar tu cirugía oral hasta en 12 cuotas sin interés. Compromiso con la Calidad Somos la primera clínica dental 100% acreditada por la Superintendencia de Salud, cumpliendo rigurosos protocolos de seguridad y cal"
+   },
+   {
+    "heading": "¿Cuál es el proceso del Tratamiento?",
+    "anchor": "cirugia_proceso",
+    "text": "¿Cuál es el proceso del Tratamiento? Te contamos cómo funciona el proceso de la Cirugía Oral: 1 Recepción Al llegar, deberás presentarte en recepción e indicar que tienes una cita agendada, luego el equipo de Recepción avisará al odontólogo, quien vendrá a la sala de espera para recibirte y acompañarte a tu cita. 2 Diagnóstico dental inicial El odontólogo realizará una evaluación clínica y radiografías. 3 Radiografías Tomaremos dos tipos de radiografías: una panorámica para examinar el estado general de las estructuras dentarias y sus alrededores, y un set de radiografías Bite Wing para evaluar de cerca el estado de cada diente y los espacios entre ellos. 4 Diagnóstico Dental El odontólogo revisará las radiografías, con el fin de entregar un diagnóstico integral. 5 Plan de tratamiento El odontólogo te explicará detalladamente el diagnóstico, te orientará sobre los pasos a seguir y responderá cualquier duda que puedas tener."
+   },
+   {
+    "heading": "Lo que opinan nuestros pacientes",
+    "anchor": "cirugia_testimonios",
+    "text": ""
+   },
+   {
+    "heading": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a",
+    "anchor": "cirugia_dudas",
+    "text": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una atención personalizada. ¡No dudes en contactarnos para agendar tu próxima cirugía oral en Uno Salud Dental!"
+   },
+   {
+    "heading": "Especialidades relacionadas",
+    "anchor": "cirugia_relacionadas",
+    "text": ""
+   },
+   {
+    "heading": "Agenda tu hora con nosotros",
+    "anchor": "cirugia_contactanos",
+    "text": "Agenda tu hora con nosotros Si tienes dudas escríbenos mediante nuestro formulario o chat y te responderemos a la brevedad. También puedes llamarnos a nuestro Call Center: 600 707 1010. Agenda tu hora Te llamamos"
+   }
+  ],
+  "faqs": [
+   {
+    "n": "1",
+    "q": "¿Es dolorosa la cirugía oral?",
+    "a": "La cirugía oral se realiza bajo anestesia local para minimizar el dolor durante el procedimiento. Se prescriben además, de ser necesario, medicamentos para el post operatorio."
+   },
+   {
+    "n": "2",
+    "q": "¿Cuánto tiempo dura la recuperación después de una cirugía oral?",
+    "a": "El tiempo de recuperación varía según el tipo de procedimiento. En general, los pacientes pueden experimentar hinchazón y malestar durante unos días. La recuperación completa puede tomar de una a dos semanas, aunque los tiempos pueden variar según la cirugía realizada y el estado de salud del paciente."
+   },
+   {
+    "n": "3",
+    "q": "¿Qué cuidados debo seguir después de una cirugía oral?",
+    "a": "Después de la cirugía, es fundamental seguir las indicaciones del odontólogo. Esto incluye mantener una buena higiene bucal, evitar alimentos duros o calientes, y tomar los medicamentos recetados. También se recomienda evitar fumar, el ejercicio físico intenso y seguir las instrucciones para el cuidado de las áreas intervenidas."
+   },
+   {
+    "n": "4",
+    "q": "¿Cuándo debo contactar a mi odontólogo después de la cirugía?",
+    "a": "Debes contactar a tu odontólogo si experimentas dolor intenso, sangrado excesivo, o signos de infección, como fiebre o pus. También es importante asistir a las citas de seguimiento programadas para asegurar una recuperación adecuada y resolver cualquier problema que pueda surgir."
+   }
+  ]
+ },
+ {
+  "path": "/especialidades/rehabilitacion-oral/",
+  "title": "Rehabilitación Oral | Uno Salud Dental",
+  "kind": "specialty",
+  "sections": [
+   {
+    "heading": "Rehabilitación Oral",
+    "anchor": "rehabilitacion_hero",
+    "text": "Especialidades Rehabilitación Oral Rehabilitación Oral La rehabilitación oral es una especialidad odontológica que se enfoca en restaurar la funcionalidad, estética y salud de la boca. A través de tratamientos personalizados, como prótesis fijas y removibles, ofrecemos soluciones integrales para cada caso. Estos son los principales tratamientos: Prótesis Fijas: Se fijan a los dientes restantes o a implantes, proporcionando seguridad al sonreír y comodidad al comer. ¡No se sacan! Prótesis Removibles: Se pueden retirar para limpieza y durante la noche. Nuestro objetivo es devolver al paciente una función oral óptima y una sonrisa estética. Realiza tu diagnóstico inicial con nosotros Agenda tus siguientes citas para iniciar tu plan de tratamiento con nuestros especialistas. Agenda tu hora Te llamamos"
+   },
+   {
+    "heading": "¿Cuándo es necesaria la Rehabilitación Oral?",
+    "anchor": "rehabilitacion_cuando_necesaria_rehabilitacion",
+    "text": "¿Cuándo es necesaria la Rehabilitación Oral? La Rehabilitación Oral es necesaria cuando se presentan situaciones como: Pérdida de una o varias piezas dentales debido a caries, enfermedades de las encías o accidentes. Dificultades para masticar o hablar debido a dientes ausentes o dañados. Problemas estéticos que afectan la sonrisa y la autoestima. Necesidad de restaurar la función y estética oral mediante prótesis fijas o removibles. Para finalizar el proceso de un implante dental"
+   },
+   {
+    "heading": "Ventajas de hacer tu Rehabilitación Oral en Uno Salud Dental",
+    "anchor": "rehabilitacion_ventajas_hacer_rehabilitacion",
+    "text": "Ventajas de hacer tu Rehabilitación Oral en Uno Salud Dental En Uno Salud Dental, nos esforzamos por brindarte una experiencia excepcional en cada visita. A continuación, te presentamos algunas razones para confiar en nosotros para tu tratamiento de rehabilitación oral: Equipo altamente especializado Nuestro equipo está compuesto por odontólogos especializados. Te garantizamos un tratamiento seguro y efectivo. Tecnologías e insumos de calidad Nuestros tratamientos dentales ofrecen máxima efectividad y precisión gracias a nuestra tecnología avanzada y materiales de calidad internacionalmente reconocidos. Esto asegura menor tiempo clínico y mayor comodidad para el paciente. Enfoque Personalizado Cada paciente es diferente, y adaptamos nuestros servicios según tus necesidades específicas. Tu comodidad y satisfacción son nuestra prioridad. Nuestra clínica está diseñada para brindarte un ambiente relajante y amigable. Resultados Duraderos Una rehabilitación oral completa no solo restaura la funcionalidad y estética de tu boca, sino que también asegura la salud dental a largo plazo. Confía en nosotros para obtener resultados duraderos y efectivos que transformen tu sonrisa y tu bienestar. Precios Convenientes y facilidades de pago Excelente relación precio – calidad, además puedes pagar tu tratamiento en hasta en 12 cuotas sin interés. Compromiso con la Calidad Somos la primera clínica dental 100% acreditada por la Superintendencia de Salud, cumpliendo rigurosos protocolos de segur"
+   },
+   {
+    "heading": "¿Cuál es el proceso del Tratamiento?",
+    "anchor": "rehabilitacion_proceso",
+    "text": "¿Cuál es el proceso del Tratamiento? Te contamos cómo funciona el proceso de la rehabilitación oral: 1 Recepción Al llegar, deberás presentarte en recepción e indicar que tienes una cita agendada, luego el equipo de Recepción avisará al odontólogo, quien vendrá a la sala de espera para recibirte y acompañarte a tu cita. 2 Diagnóstico dental inicial El odontólogo realizará una evaluación clínica y radiografías. 3 Radiografías Tomaremos dos tipos de radiografías: una panorámica para examinar el estado general de las estructuras dentarias y sus alrededores, y un set de radiografías Bite Wing para evaluar de cerca el estado de cada diente y los espacios entre ellos. 4 Diagnóstico Dental El odontólogo revisará las radiografías, con el fin de entregar un diagnóstico integral. En esta etapa se determinará si se debe realizar una endodoncia. 5 Plan de tratamiento El odontólogo te explicará detalladamente el diagnóstico, te orientará sobre los pasos a seguir y responderá cualquier duda que puedas tener. 6 Controles El odontólogo te explicará detalladamente el diagnóstico, te orientará sobre los pasos a seguir y responderá cualquier duda que puedas tener."
+   },
+   {
+    "heading": "Lo que opinan nuestros pacientes",
+    "anchor": "rehabilitacion_testimonios",
+    "text": ""
+   },
+   {
+    "heading": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a",
+    "anchor": "rehabilitacion_dudas",
+    "text": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una atención personalizada. ¡No dudes en contactarnos para agendar tu próximo tratamiento en Uno Salud Dental!"
+   },
+   {
+    "heading": "Especialidades relacionadas",
+    "anchor": "rehabilitacion_relacionadas",
+    "text": ""
+   },
+   {
+    "heading": "Agenda tu hora con nosotros",
+    "anchor": "rehabilitacion_contactanos",
+    "text": "Agenda tu hora con nosotros Si tienes dudas escríbenos mediante nuestro formulario o chat y te responderemos a la brevedad. También puedes llamarnos a nuestro Call Center: 600 707 1010. Agenda tu hora Te llamamos"
+   }
+  ],
+  "faqs": []
+ },
+ {
+  "path": "/especialidades/planos-de-relajacion-bruxismo/",
+  "title": "Plano de Relajación Bruxismo | Uno Salud Dental",
+  "kind": "specialty",
+  "sections": [
+   {
+    "heading": "Plano de Relajación Bruxismo",
+    "anchor": "bruxismo_hero",
+    "text": "Especialidades Plano de Relajación Bruxismo Plano de Relajación Bruxismo El estrés diario puede desencadenar el bruxismo, una condición en la que rechinas o aprietas los dientes, lo que puede dañar tu dentadura y causar molestias como dolores de cabeza y mandíbula. ¿Sabías que un plano de relajación dental puede aliviar la tensión muscular, prevenir el desgaste dental y mejorar tu calidad de vida? Nuestros especialistas te ayudarán a encontrar la solución perfecta para tu caso. Agenda tu evaluación online y mejora tu salud bucal. Realiza tu diagnóstico inicial con nosotros Agenda tus siguientes citas para iniciar tu plan de tratamiento con nuestros especialistas. Agenda tu hora Te llamamos"
+   },
+   {
+    "heading": "¿Cómo se puede solucionar el Bruxismo?",
+    "anchor": "bruxismo_puede_solucionar_bruxismo",
+    "text": "¿Cómo se puede solucionar el Bruxismo? Una medida paliativa, puede ser usar un plano de relajación. Estos dispositivos están diseñados para proteger las piezas dentales del exceso de presión y aliviar la tensión en los músculos de la mandíbula, por otro lado, reduce la fuerza aplicada sobre los dientes logrando una relajación adecuada. Los planos de relajación ayudan a prevenir el desgaste dental y a reducir los síntomas provocados por el bruxismo. También los planos se pueden indicar para proteger restauraciones extensas. Elaboramos planos de relajación personalizados, adaptados a la estructura específica de la dentadura de cada paciente. Esto garantiza un ajuste perfecto y una protección óptima contra el bruxismo. Nuestro equipo se asegura de que cada plano esté diseñado para maximizar el confort y la eficacia, proporcionando una solución que se ajusta perfectamente a tus necesidades individuales."
+   },
+   {
+    "heading": "Ventajas de tratar tu Bruxismo en Uno Salud Dental",
+    "anchor": "bruxismo_ventajas_tratar_bruxismo",
+    "text": "Ventajas de tratar tu Bruxismo en Uno Salud Dental En Uno Salud Dental, nos esforzamos por brindarte una experiencia excepcional en cada visita. A continuación, te presentamos algunas razones para confiar en nosotros para tratar el bruxismo. Equipo altamente especializado Nuestro equipo está compuesto por odontólogos especializados. Te garantizamos un tratamiento seguro y efectivo. Tecnologías e insumos de calidad Nuestros tratamientos dentales ofrecen máxima efectividad y precisión gracias a nuestra tecnología avanzada y materiales de calidad internacionalmente reconocidos. Esto asegura menor tiempo clínico y mayor comodidad para el paciente. Enfoque Personalizado Cada paciente es diferente, y adaptamos nuestros servicios según tus necesidades específicas. Tu comodidad y satisfacción son nuestra prioridad. Nuestra clínica está diseñada para brindarte un ambiente relajante y amigable. Resultados Duraderos Un plano de relajación bien confeccionado no solo alivia los síntomas del bruxismo, sino que también protege tus dientes del desgaste a largo plazo. En Uno Salud Dental, nos aseguramos de ofrecerte soluciones personalizadas que brindan resultados duraderos y contribuyen a la salud general de tu dentadura. Precios Convenientes y facilidades de pago Excelente relación precio y calidad, además puedes pagar tu limpieza hasta en 12 cuotas sin interés. Compromiso con la Calidad Somos la primera clínica dental 100% acreditada por la Superintendencia de Salud, cumpliendo rigurosos p"
+   },
+   {
+    "heading": "¿Cuál es el proceso del Tratamiento?",
+    "anchor": "bruxismo_proceso",
+    "text": "¿Cuál es el proceso del Tratamiento? Te contamos cómo funciona el proceso del plano de relajación: 1 Recepción Al llegar, deberás presentarte en recepción e indicar que tienes una cita agendada, luego el equipo de Recepción avisará al odontólogo, quien vendrá a la sala de espera para recibirte y acompañarte a tu cita. 2 Diagnóstico dental inicial El odontólogo realizará una evaluación clínica y radiografías. 3 Radiografías Tomaremos dos tipos de radiografías: una panorámica para examinar el estado general de las estructuras dentarias y sus alrededores, y un set de radiografías Bite Wing para evaluar de cerca el estado de cada diente y los espacios entre ellos. 4 Diagnóstico Dental El odontólogo te explicará detalladamente el diagnóstico, te orientará sobre los pasos a seguir y responderá cualquier duda que puedas tener. 5 Plan de tratamiento El odontólogo te explicará detalladamente el diagnóstico, te orientará sobre los pasos a seguir y responderá cualquier duda que puedas tener. 6 Controles El odontólogo te explicará detalladamente el diagnóstico, te orientará sobre los pasos a seguir y responderá cualquier duda que puedas tener."
+   },
+   {
+    "heading": "Lo que opinan nuestros pacientes",
+    "anchor": "bruxismo_testimonios",
+    "text": ""
+   },
+   {
+    "heading": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una a",
+    "anchor": "bruxismo_dudas",
+    "text": "Recuerda que estamos aquí para responder a todas tus preguntas y brindarte una atención personalizada. ¡No dudes en contactarnos para agendar tu próximo tratamiento en Uno Salud Dental!"
+   },
+   {
+    "heading": "Especialidades relacionadas",
+    "anchor": "bruxismo_relacionadas",
+    "text": ""
+   },
+   {
+    "heading": "Agenda tu hora con nosotros",
+    "anchor": "bruxismo_contactanos",
+    "text": "Agenda tu hora con nosotros Si tienes dudas escríbenos mediante nuestro formulario o chat y te responderemos a la brevedad. También puedes llamarnos a nuestro Call Center: 600 707 1010. Agenda tu hora Te llamamos"
+   }
+  ],
+  "faqs": []
+ },
+ {
+  "path": "/clinicas/",
+  "title": "Sucursales y Horarios de Atención | Uno Salud Dental",
+  "kind": "clinics",
+  "sections": [
+   {
+    "heading": "CLÍNICAS DENTALES EN CHILE",
+    "anchor": "clinicas_clinicas_dentales_chile",
+    "text": "CLÍNICAS DENTALES EN CHILE Sucursales y Horarios de Atención ¡Uno Salud Dental está más cerca de ti! Con más de 100 clínicas a lo largo de Chile, encuentra la tuya y disfruta de una atención dental de calidad. Consulta nuestros horarios y reserva tu hora. [… region/comuna <select> options, clinic cards/list and map — see section 4 …]"
+   },
+   {
+    "heading": "Lo que dicen nuestros pacientes",
+    "anchor": "clinicas_testimonios",
+    "text": ""
+   }
+  ],
+  "faqs": []
+ },
+ {
+  "path": "/clinicas/*/",
+  "title": "Clinic page example: Moneda",
+  "kind": "clinic",
+  "sections": [
+   {
+    "heading": "Clínicas Dentales en Santiago",
+    "anchor": "clinica_hero",
+    "text": "Clínicas Región Metropolitana Santiago Moneda Clínicas Dentales en Santiago​ Uno Salud Moneda En nuestra clínica dental de Moneda encontrarás dentistas especializados y un centro odontológico con tecnología avanzada para cuidar tu sonrisa. Ofrecemos limpieza dental, ortodoncia, implantes y otras especialidades dentales, siempre con atención integral personalizada. Moneda #953 , Santiago, Región Metropolitana Horario de atención Lunes a viernes: 8:30 a 20:00 hrs. Sábados: 9:00 a 14:00 hrs. Referencias A pasos del Metro Universidad de Chile A pasos del Metro Plaza de Armas Haz clic para ver el mapa Ver ubicación"
+   },
+   {
+    "heading": "Realiza tu diagnóstico inicial con nosotros",
+    "anchor": "clinica_cta",
+    "text": "Realiza tu diagnóstico inicial con nosotros Agenda tus siguientes citas para iniciar tu plan de tratamiento con nuestros especialistas. Agenda tu hora Llámanos"
+   },
+   {
+    "heading": "Lo que dicen nuestros pacientes",
+    "anchor": "clinica_testimonios",
+    "text": ""
+   },
+   {
+    "heading": "Sucursales cercanas",
+    "anchor": "clinica_sucursales_cercanas",
+    "text": "Clínicas Sucursales cercanas Descubre más clínicas de Uno Salud cercanas a Santiago, Región Metropolitana [… region/comuna <select> options, clinic cards/list and map — see section 4 …]"
+   }
+  ],
+  "faqs": []
+ },
+ {
+  "path": "/promociones/",
+  "title": "Promociones Dentales 2026 | Uno Salud Dental",
+  "kind": "promotions",
+  "sections": [
+   {
+    "heading": "Promociones Dentales",
+    "anchor": "promociones_lista",
+    "text": "Promociones Promociones Dentales ¡No te pierdas nuestras promociones en Uno Salud Dental! Descubre nuestros packs y descuentos exclusivos. Agenda tu evaluación online ahora y aprovecha nuestras ofertas. Todas las categorías Novedades Noticias Periodoncia Implantes Odontopediatría Ortodoncia Limpieza dental Buscar Buscar CLA IOI 2026 * Válido hasta: 31/12/2026 Conoce más Ortodoncia OCT * Válido hasta: 31/10/2026 Conoce más Limpieza OCT BLANQ * Válido hasta: 31/10/2026 Conoce más Credito CLA Conoce más Mes del Implante AGO26 * Válido hasta: 31/10/2026 Conoce más Planes Sonrisa Protegida Conoce más Apertura Hualpen * Válido hasta: 31/10/2026 Conoce más GEO Zona Pto Montt * Válido hasta: 31/10/2026 Conoce más GEO Zona Rancagua Machali * Válido hasta: 31/10/2026 Conoce más GEO Chiguayante * Válido hasta: 31/10/2026"
+   },
+   {
+    "heading": "¿Dudas sobre nuestros tratamientos?",
+    "anchor": "promociones_contactanos",
+    "text": "¿Dudas sobre nuestros tratamientos? Revisa nuestras guías de especialidades para conocer en detalle cada tratamiento y sus beneficios. Ortodoncia Implantes Limpieza"
+   }
+  ],
+  "faqs": []
+ },
+ {
+  "path": "/convenio/",
+  "title": "Convenios index",
+  "kind": "convenios",
+  "sections": [
+   {
+    "heading": "Convenios Dentales",
+    "anchor": "convenios_lista",
+    "text": "Convenios Convenios Dentales En Uno Salud Dental valoramos tu bienestar. Por eso, tenemos convenios especiales diseñados para ti y tu familia. ¡Disfruta de beneficios exclusivos y cuida tu sonrisa con precios preferenciales! Todas las categorías Novedades Noticias Periodoncia Implantes Odontopediatría Ortodoncia Limpieza dental Buscar Buscar Cajas de compensación Conoce nuestros beneficios para las diferentes cajas de compensación Fonasa e isapres Conoce nuestros beneficios para las diferentes isapres y fonasa. Aseguradoras Conoce nuestros beneficios para las diferentes aseguradoras Cooperativas Conoce nuestros beneficios para cooperativas de salud y crédito Otros beneficios"
+   },
+   {
+    "heading": "Beneficios y Reembolsos Dentales",
+    "anchor": "convenios_beneficios",
+    "text": "Beneficios y Reembolsos Dentales Revisa los principales beneficios y reembolsos dentales disponibles, incluyendo PAD Dental, GES, seguros complementarios y devolución de excedentes de cotizaciones de salud. PAD PAD Dental: Pago Asociado a Diagnóstico GES Garantías Explícitas en Salud (GES) Seguro Complementario Seguro Complementario de Salud Excedentes Devolución de excedentes y excesos de cotizaciones de salud"
+   }
+  ],
+  "faqs": []
+ },
+ {
+  "path": "/categoria-convenio/fonasa-e-isapres/",
+  "title": "Convenios Dentales con Isapres y Fonasa | Uno Salud Dental",
+  "kind": "convenio",
+  "sections": [
+   {
+    "heading": "Fonasa e isapres",
+    "anchor": "conv_isapres_lista",
+    "text": "Convenios Fonasa e isapres Fonasa e isapres Conoce nuestros beneficios para las diferentes isapres y fonasa. Todas las categorías Novedades Noticias Periodoncia Implantes Odontopediatría Ortodoncia Limpieza dental Buscar Buscar FONASA Hasta 50% dcto si eres afiliado a Fonasa Conoce más Cruz Blanca 60% dcto si eres afiliado a Cruz Blanca Conoce más Vida Tres 60% dcto si eres afiliado a Vida Tres Conoce más Consalud 60% dcto si eres afiliado de Consalud Conoce más Nueva MasVida 60% dcto si eres afiliado a Nueva Masvida Conoce más Colmena hasta 70% dcto si eres afiliado a isapre Colmena Conoce más Banmedica 60% dcto si eres afiliado de Banmédica"
+   }
+  ],
+  "faqs": []
+ },
+ {
+  "path": "/categoria-convenio/cajas-de-compensacion/",
+  "title": "Convenios Dentales con Cajas de Compensación | Uno Salud Dental",
+  "kind": "convenio",
+  "sections": [
+   {
+    "heading": "Cajas de compensación",
+    "anchor": "conv_cajas_lista",
+    "text": "Convenios Cajas de compensación Cajas de compensación Conoce nuestros beneficios para las diferentes cajas de compensación Todas las categorías Ortodoncia Limpieza dental Novedades Noticias Periodoncia Implantes Odontopediatría Buscar Buscar La Araucana Hasta 70% dcto para todos los afiliados a Caja La Araucana Conoce más Caja Los Andes 60% dcto para afiliados a caja Los Andes Conoce más Los Heroes 60% dcto para afiliados a caja Los Héroes Conoce más Caja 18 60% dcto para todos los afiliados de Caja 18"
+   }
+  ],
+  "faqs": []
+ },
+ {
+  "path": "/categoria-convenio/aseguradoras/",
+  "title": "Convenios Dentales con Aseguradoras | Uno Salud Dental",
+  "kind": "convenio",
+  "sections": [
+   {
+    "heading": "Aseguradoras",
+    "anchor": "conv_aseguradoras_lista",
+    "text": "Convenios Aseguradoras Aseguradoras Conoce nuestros beneficios para las diferentes aseguradoras Todas las categorías Novedades Noticias Periodoncia Implantes Odontopediatría Ortodoncia Limpieza dental Buscar Buscar Vida Security 60% dcto si eres asegurado a Vida Security Conoce más Confuturo 53% dcto si eres asegurado a ConFuturo Conoce más Vida Cámara 60% dcto si eres asegurado a Vida Camara Conoce más BCI Seguros 60% dcto si eres asegurado a BCI Seguros Conoce más Bupa Seguros 60% dcto si eres asegurado a Bupa Seguros Conoce más Consorcio 60% dcto si eres asegurado a Consorcio Conoce más Zurich 60% dcto si eres asegurado a Zurich Conoce más Bice Vida 60% dcto si eres asegurado a Bice Vida Conoce más 60% dcto si eres asegurado a MetLife Conoce más Sura 60% dcto si eres asegurado a Sura Conoce más Help Seguros 60% dcto si eres asegurado a Help Seguros"
+   }
+  ],
+  "faqs": []
+ },
+ {
+  "path": "/categoria-convenio/cooperativas/",
+  "title": "Convenios Dentales con Cooperativas | Uno Salud Dental",
+  "kind": "convenio",
+  "sections": [
+   {
+    "heading": "Cooperativas",
+    "anchor": "conv_cooperativas_lista",
+    "text": "Convenios Cooperativas Cooperativas Conoce nuestros beneficios para cooperativas de salud y crédito Todas las categorías Novedades Noticias Periodoncia Implantes Odontopediatría Ortodoncia Limpieza dental Buscar Buscar Coopeuch 60% dcto si eres afiliado a Coopeuch"
+   }
+  ],
+  "faqs": []
+ },
+ {
+  "path": "/categoria-convenio/otros-beneficios/",
+  "title": "Otros beneficios | Uno Salud Dental",
+  "kind": "convenio",
+  "sections": [
+   {
+    "heading": "Otros beneficios",
+    "anchor": "conv_otros_lista",
+    "text": "Convenios Otros beneficios Otros beneficios Todas las categorías Novedades Noticias Periodoncia Implantes Odontopediatría Ortodoncia Limpieza dental Buscar Buscar Banco Falabella Beneficios dentales por ser cliente Banco Falabella Conoce más Tarjeta UniónSalud 60% dcto si eres beneficiario a Tarjeta UniónSalud"
+   }
+  ],
+  "faqs": []
+ },
+ {
+  "path": "/beneficios-y-reembolso/",
+  "title": "Beneficios y reembolsos: GES, PAD y más | Uno Salud Dental",
+  "kind": "benefits",
+  "sections": [
+   {
+    "heading": "Beneficios y Reembolsos Dentales",
+    "anchor": "beneficios_lista",
+    "text": "Beneficios Beneficios y Reembolsos Dentales Revisa los principales beneficios y reembolsos dentales disponibles, incluyendo PAD Dental, GES, seguros complementarios y devolución de excedentes de cotizaciones de salud. Todas las categorías Noticias Periodoncia Implantes Odontopediatría Ortodoncia Limpieza dental Novedades Buscar Buscar PAD PAD Dental: Pago Asociado a Diagnóstico GES Garantías Explícitas en Salud (GES) Seguro Complementario Seguro Complementario de Salud Excedentes Devolución de excedentes y excesos de cotizaciones de salud"
+   }
+  ],
+  "faqs": []
+ },
+ {
+  "path": "/beneficios-y-reembolso/pad/",
+  "title": "PAD Dental: Pago Asociado a Diagnóstico | Uno Salud Dental",
+  "kind": "benefits",
+  "sections": [
+   {
+    "heading": "PAD",
+    "anchor": "pad_texto",
+    "text": "PAD PAD Dental: Pago Asociado a Diagnóstico Son un conjunto de beneficios dentales dirigidos a niños y adolescentes del grupo etario de 12 (doce) años a 17 años, 11 meses y 29 días, para así prevenir y mantener la Salud Oral de los adolescentes. ¿Cómo acceder al PAD?"
+   },
+   {
+    "heading": "Beneficios y reembolsos",
+    "anchor": "pad_relacionadas",
+    "text": ""
+   }
+  ],
+  "faqs": [
+   {
+    "n": "14421",
+    "q": "¿Cómo acceder al PAD?",
+    "a": "Uno Salud Dental es prestador en convenio con Isapres, permitiendo a sus afiliados acceder a beneficios y cobertura en nuestras clínicas a lo largo del país.Contamos con convenio vigente con Cruz Blanca y Nueva Más Vida.Para activar el PAD, debe asistir a cualquiera de nuestras clínicas Uno Salud en todo Chile, y tomar una hora para la realización del diagnóstico. Luego deberá asistir a su Isapre para la generación de Bonos con el formulario PAD e iniciar la atención en nuestras clínicas Uno Salud Dental."
+   }
+  ]
+ },
+ {
+  "path": "/beneficios-y-reembolso/ges/",
+  "title": "GES Dental: Garantías Explícitas en Salud | Uno Salud Dental",
+  "kind": "benefits",
+  "sections": [
+   {
+    "heading": "GES",
+    "anchor": "ges_texto",
+    "text": "GES Garantías Explícitas en Salud (GES) Las Garantías Explicitas en Salud (GES), constituyen un conjunto de Beneficios garantizados por Ley para las personas afiliadas a Fonasa e Isapre. ¿Dónde está mi clínica Uno Salud más cercana con convenio para mi Isapre? ¿Cuáles son los GES Dentales? ¿Cómo atenderse por la Isapre? ¿Qué es el GES?"
+   },
+   {
+    "heading": "Beneficios y reembolsos",
+    "anchor": "ges_relacionadas",
+    "text": ""
+   }
+  ],
+  "faqs": [
+   {
+    "n": "14417",
+    "q": "¿Dónde está mi clínica Uno Salud más cercana con convenio para mi Isapre?",
+    "a": "* Solo activo para Ges Urgencia Odontológica"
+   },
+   {
+    "n": "14415",
+    "q": "¿Cuáles son los GES Dentales?",
+    "a": "La Salud Oral Integral de la embarazada, consiste en una atención odontológica realizada por Cirujano Dentista, según necesidades, dirigida a; educar, prevenir, recuperar y rehabilitar la salud bucal de la mujer gestante.¿Quiénes son beneficiarios?Toda mujer con confirmación de su condición de embarazo por parte del profesional correspondiente y dando aviso a su Isapre.El tratamiento podrá continuarlo hasta 9 meses después de ocurrido el parto o interrupción de este, siempre y cuando se haya dado aviso durante el periodo de gestación de la beneficiaria."
+   },
+   {
+    "n": "14413",
+    "q": "¿Cómo atenderse por la Isapre?",
+    "a": "En caso que el paciente asista a nuestra clínica en desconocimiento del Beneficio GES, será notificado por Uno Salud, y derivado a su Isapre para iniciar el proceso, como se mostró en el recuadro anterior."
+   },
+   {
+    "n": "14402",
+    "q": "¿Qué es el GES?",
+    "a": "Las Garantías Explicitas en Salud (GES), constituyen un conjunto de Beneficios garantizados por Ley para las personas afiliadas a Fonasa e Isapre."
+   }
+  ]
+ },
+ {
+  "path": "/beneficios-y-reembolso/seguro-complementario/",
+  "title": "Reembolso Seguro Complementario de Salud Dental | Uno Salud Dental",
+  "kind": "benefits",
+  "sections": [
+   {
+    "heading": "Seguro Complementario",
+    "anchor": "seguro_texto",
+    "text": "Seguro Complementario Seguro Complementario de Salud El Seguro Complementario de Salud entrega cobertura entre la diferencia en el gasto de salud que se produce entre lo que aporta la Isapre y lo que debe financiar el asegurado, lo que se denomina copago. Esta diferencia es cubierta por este seguro en un determinado porcentaje o en su totalidad dependiendo de la póliza contratada. ¿Cómo realizar el reembolso? ¿Qué cubre el seguro complementario? ¿Qué es el Seguro Complementario?"
+   },
+   {
+    "heading": "Beneficios y reembolsos",
+    "anchor": "seguro_relacionadas",
+    "text": ""
+   }
+  ],
+  "faqs": [
+   {
+    "n": "14410",
+    "q": "¿Cómo realizar el reembolso?",
+    "a": "Una vez finalizado el tratamiento en Uno Salud Dental, se debe rellenar el formulario de la compañía aseguradora, y luego dirigirse con las Boletas y presupuestos a dicha institución para el reembolso.Adicionalmente la compañía podría requerir las radiografías tomadas durante el tratamiento, que puede solicitar en la misma clínica Uno Salud dental donde recibió el tratamiento o bien a contacto@unosalud.com"
+   },
+   {
+    "n": "14408",
+    "q": "¿Qué cubre el seguro complementario?",
+    "a": "Las condiciones de cómo opera su seguro complementario deben ser consultadas directamente con la empresa que brinda dicho servicio. En general, los seguros presentan un tope por monto y un tope anual dependiendo del contrato.Para conocer tu cobertura, consulta con la empresa aseguradora."
+   },
+   {
+    "n": "12883",
+    "q": "¿Qué es el Seguro Complementario?",
+    "a": "El Seguro Complementario de Salud entrega cobertura entre la diferencia en el gasto de salud que se produce entre lo que aporta la Isapre y lo que debe financiar el asegurado, lo que se denomina copago.Esta diferencia es cubierta por este seguro en un determinado porcentaje o en su totalidad dependiendo de la póliza contratada. Actualmente Uno Salud recibe pacientes de todos los seguros complementarios existentes en el mercado, pero contamos con beneficios y descuentos especiales para aquellos que estén asociados a Sura, Metlife, BiceVida y VidaCámara."
+   }
+  ]
+ },
+ {
+  "path": "/beneficios-y-reembolso/excedentes/",
+  "title": "Devolución de excedentes y excesos de cotizaciones | Uno Salud Dental",
+  "kind": "benefits",
+  "sections": [
+   {
+    "heading": "Excedentes",
+    "anchor": "excedentes_texto",
+    "text": "Excedentes Devolución de excedentes y excesos de cotizaciones de salud Corresponde al dinero a favor de las personas afiliadas a una Isapre, que se genera entre la diferencia del 7% de la cotización obligatoria de salud y el valor del plan contratado. ¿Cómo sé si tengo excedentes? ¿Qué son los excedentes?"
+   },
+   {
+    "heading": "Beneficios y reembolsos",
+    "anchor": "excedentes_relacionadas",
+    "text": ""
+   }
+  ],
+  "faqs": [
+   {
+    "n": "14396",
+    "q": "¿Cómo sé si tengo excedentes?",
+    "a": "Para saber si tienes excedentes debes consultar directamente en tu Isapre"
+   },
+   {
+    "n": "14391",
+    "q": "¿Qué son los excedentes?",
+    "a": "Corresponde al dinero a favor de la persona filiada a una ISAPRE, que se genera entre la diferencia del 7% de la cotización obligatoria de salud y el valor del plan contratado."
+   }
+  ]
+ },
+ {
+  "path": "/landing/planes-sonrisa-protegida/",
+  "title": "Planes Sonrisa Protegida | Uno Salud Dental",
+  "kind": "plans",
+  "sections": [
+   {
+    "heading": "Agenda tu hora de diagnóstico y evaluaremos el plan que mejor se adapta a tus necesidades.",
+    "anchor": "planes_agenda_hora_diagnostico",
+    "text": "Agenda tu hora de diagnóstico y evaluaremos el plan que mejor se adapta a tus necesidades. Con los Planes Sonrisa Protegida, aseguras un cuidado dental integral y continuo que fortalece la salud de tus dientes y los de tu familia con una atención personalizada y beneficios exclusivos que te acompañarán en cada etapa de tu vida"
+   },
+   {
+    "heading": "¿Por qué conviene elegir un Plan Sonrisa Protegida?",
+    "anchor": "planes_conviene_elegir_plan",
+    "text": "¿Por qué conviene elegir un Plan Sonrisa Protegida? En Uno Salud Dental, te ofrecemos una protección dental integral que garantiza el cuidado completo y continuo de tu salud bucal, personalizado y centrado en ti. Disfruta de los siguientes beneficios para ti y tu familia:"
+   },
+   {
+    "heading": "Limpiezas Dentales Regulares",
+    "anchor": "planes_limpiezas_dentales_regulares",
+    "text": "Limpiezas Dentales Regulares Fluorización Diagnósticos Integrales Radiografías Atención de Urgencias Descuento en Planes Familiares: Hasta 70% de descuento en una amplia gama de tratamientos dentales. Beneficios y Premios Exclusivos: Accede a ofertas especiales para nuestros miembros, diseñados para hacer tu experiencia aún más valiosa."
+   },
+   {
+    "heading": "Suscríbete a uno de nuestros planes y deja tu sonrisa en buenas manos. No espere",
+    "anchor": "planes_suscribete_planes_deja",
+    "text": "Suscríbete a uno de nuestros planes y deja tu sonrisa en buenas manos. No esperes más, y disfruta hoy mismo una protección dental que combina prevención, cuidado permanente y beneficios exclusivos."
+   },
+   {
+    "heading": "Con Uno Salud Dental, tu sonrisa y la de tu familia están en las mejores manos.",
+    "anchor": "planes_tabla_titulo",
+    "text": "Con Uno Salud Dental, tu sonrisa y la de tu familia están en las mejores manos."
+   },
+   {
+    "heading": "Valores UF referenciales calculados al 01-01-2026",
+    "anchor": "planes_valores_uf_referenciales",
+    "text": "Valores UF referenciales calculados al 01-01-2026 QUIERO CONTRATAR UN PLAN"
+   },
+   {
+    "heading": "¿No sabes qué plan elegir? Agenda ahora tu cita de diagnóstico con un especialista.",
+    "anchor": "planes_no_sabes_plan",
+    "text": "¿No sabes qué plan elegir? Agenda ahora tu cita de diagnóstico con un especialista."
+   },
+   {
+    "heading": "Agrega beneficiarios a tu plan y disfruta de descuentos exclusivos para todos. P",
+    "anchor": "planes_agrega_beneficiarios_plan",
+    "text": "Agrega beneficiarios a tu plan y disfruta de descuentos exclusivos para todos. Protege la salud dental de tu familia y potencia tu ahorro. ¡No dejes pasar esta oportunidad!"
+   },
+   {
+    "heading": "*Revisa términos y condiciones al momento de contratar tu Plan Sonrisa Protegida",
+    "anchor": "planes_revisa_terminos_condiciones",
+    "text": "*Revisa términos y condiciones al momento de contratar tu Plan Sonrisa Protegida"
+   },
+   {
+    "heading": "Nos esforzamos por brindarte una experiencia excepcional en cada visita.",
+    "anchor": "planes_nos_esforzamos_brindarte",
+    "text": "Ventajas de elegir Uno Salud Dental Nos esforzamos por brindarte una experiencia excepcional en cada visita."
+   },
+   {
+    "heading": "Los mejores insumos del mundo",
+    "anchor": "planes_mejores_insumos_mundo",
+    "text": "Los mejores insumos del mundo Tratamientos realizados con productos de la mejor calidad. Cobertura nacional Crecemos para estar cada día más cerca. Clínicas de Arica a Punta Arenas. Años tratando sonrisas Contamos con la experiencia de cadenas dentales, con profesionales calificados para entregar el mejor servicio."
+   },
+   {
+    "heading": "Tenemos pacientes no clientes",
+    "anchor": "planes_tenemos_pacientes_no",
+    "text": "Tenemos pacientes no clientes Nos preocupamos por tu bienestar y seguridad. Tecnología de vanguardia La mejor tecnología 3D en radiografías."
+   },
+   {
+    "heading": "Testimonios de pacientes",
+    "anchor": "planes_testimonios_pacientes",
+    "text": ""
+   },
+   {
+    "heading": "¿Cuál es el proceso del tratamiento?",
+    "anchor": "planes_cual_proceso_tratamiento",
+    "text": "¿Cuál es el proceso del tratamiento? Te contamos como funciona nuestro tratamiento:"
+   },
+   {
+    "heading": "1. Recepción",
+    "anchor": "planes_1_recepcion",
+    "text": "1. Recepción Reserva tu hora de diagnóstico a través de unosalud.cl, llamando al 600 707 1010 o directamente en recepción en cualquiera de nuestras Clínicas. 2. Diagnóstico dental inicial El odontólogo realizará una evaluación clínica y solicitará la toma de radiografías. 3. Sala de rayos Tomaremos dos tipos de radiografías, una Panorámica (para revisar a grandes rasgos el estado de las estructuras dentarias y alrededores) y un set de Bite Wing (para evidenciar de cerca el estado de cada diente y entre medio de ellos)."
+   },
+   {
+    "heading": "4. Diagnóstico dental",
+    "anchor": "planes_4_diagnostico",
+    "text": "4. Diagnóstico dental Agenda tu hora con el especialista correspondiente en la misma clínica para iniciar el tratamiento o limpieza dental en base a tu diagnóstico. 5. Plan de tratamientos Programa tus próximas citas para tu plan de tratamiento con nuestros especialistas en ortodoncia, implantes, rehabilitación, periodoncia, endodoncia, odontopediatría, cirugía y más."
+   },
+   {
+    "heading": "¿Aún tienes dudas?",
+    "anchor": "planes_aun_tienes_dudas",
+    "text": "¿Aún tienes dudas? Revisa nuestras preguntas frecuentes para resolver todas las dudas que tengas acerca de los Planes Sonrisa Protegida."
+   },
+   {
+    "heading": "¿Cómo hago uso de mi Plan Sonrisa Protegida?",
+    "anchor": "faq_planes_1",
+    "text": "¿Cómo hago uso de mi Plan Sonrisa Protegida? Una vez contratado el plan, tus beneficios quedan activados de manera inmediata. Puedes hacer uso de ellos en cualquiera de nuestras clínicas Uno Salud Dental, agendando una hora de forma previa. Puedes agendar aquí ¿Desde cuándo puedo comenzar a utilizar los beneficios del Plan Sonrisa Protegida? ¿Dónde puedo utilizar el Plan Sonrisa Protegida? ¿Cuál es la vigencia del Plan Sonrisa Protegida? ¿El Plan Sonrisa Protegida cubre urgencias dentales ambulatorias? ¿Otros convenios, descuentos o promociones vigentes son acumulables con el Plan Sonrisa Protegida? ¿Qué descuentos NO aplican en el Plan Sonrisa Protegida? ¿Es necesario realizar un Diagnóstico previo para suscribir el Plan Sonrisa Protegida? ¿Desde qué edad puedo ser beneficiario de un Plan Sonrisa Protegida? ¿Los beneficios aplican de forma inmediata en Clínica? ¿Cómo puedo utilizar el abono para las especialidades de Implantología, Ortodoncia, que entregan nuestros planes Sonrisa Protegida Plus y Full?"
+   },
+   {
+    "heading": "TÉRMINOS Y CONDICIONES",
+    "anchor": "planes_terminos_condiciones",
+    "text": "TÉRMINOS Y CONDICIONES"
+   }
+  ],
+  "faqs": []
+ },
+ {
+  "path": "/urgencias/",
+  "title": "Urgencias Dentales Odontológicas | Uno Salud Dental",
+  "kind": "urgencias",
+  "sections": [
+   {
+    "heading": "Urgencias Dentales Odontológicas",
+    "anchor": "urgencias_hero",
+    "text": "Urgencias Dentales Odontológicas Urgencias Dentales Odontológicas Cuando surge una urgencia odontológica, en Uno Salud Dental estamos aquí para ayudarte. Nuestro equipo de expertos te brinda atención inmediata y profesional para aliviar el dolor o resolver problemas dentales y asegurar tu bienestar. Recuerda que la atención de urgencias se encuentra disponible en nuestras más de 100 sucursales de Arica a Punta Arenas. Para mayor información, comunícate con nuestro Call Center al 600 707 1010. Nuestras ejecutivas lo derivarán a nuestras clínicas con mayor disponibilidad. Lunes a Viernes de 9:00 AM a 19:00 PM Sábado de 9:00 AM a 13:00 PM Clínicas de Antofagasta, Valparaíso Pedro Montt, Chile España, Estación Central, Maipú, Padre Hurtado, Puente Alto, La Cisterna, San Bernardo, San Fernando, Curicó, Los Ángeles, Puerto Montt y Osorno tenemos horario extendido los sábados hasta las 18:00 hrs. Realiza tu atención de urgencia con nosotros Agenda tus siguientes citas para iniciar tu plan de tratamiento con nuestros especialistas. Llámanos Ver sucursales"
+   },
+   {
+    "heading": "Atención Clínicas Uno Salud Dental",
+    "anchor": "urgencias_horario",
+    "text": "Si prefieres, puedes dejar tus datos y un ejecutivo se contactará contigo lo antes posible. Nombre RUT Email Teléfono ? ENVIAR Atención Clínicas Uno Salud Dental LUNES a VIERNES 9:00 a 19:00 hrs. SÁBADO de 09:00 a 13:00 hrs. *Horario extendido sábado en algunas clínicas 09:00 a 18:00 hrs. Call Center: 600 707 1010 ¿Cuándo debería ir a un Servicio de Urgencia Dental? Si aparece repentinamente un dolor agudo en tus dientes, es el principal motivo para buscar atención de urgencia. Otros motivos pueden ser fracturas dentales, infecciones que causan hinchazón facial y aumentos de volumen, adicionalmente al dolor agudo. Síntomas y Signos de Urgencia Dental Dolor dental agudo que impide el funcionamiento de la vida diaria. Ejemplo “no pude ir a trabajar” – “No pude dormir” Dificultad para masticar Golpes o fractura de alguna pieza dentaria Limitación en la apertura bucal ️ Sangrado Aumento de volumen o hinchazón en la boca Secreción de pus en la zona bucal Si presentas alguno de estos síntomas, es porque requieres de una atención inmediata por parte de un especialista para un diagnóstico preciso y un tratamiento efectivo. La prontitud en la atención puede determinar el éxito del tratamiento y el pronóstico para la lesión."
+   }
+  ],
+  "faqs": []
+ },
+ {
+  "path": "/quienes-somos/",
+  "title": "Quiénes Somos",
+  "kind": "about",
+  "sections": [
+   {
+    "heading": "Quiénes Somos",
+    "anchor": "nosotros_quienes_somos",
+    "text": "Quiénes Somos Quiénes Somos Clínica Uno Salud Dental es la red dental más importante del país. Con profesionales altamente capacitados, entrega a sus pacientes una excelente y completa atención. Cada clínica cuenta con equipamientos e insumos de primer nivel, además de confortables salas de espera, conexión de internet inalámbrica vía wi-fi , aire acondicionado, calefacción central, entre otros. Sus profesionales y tecnología de punta posicionan a Uno Salud Dental como la red líder en especialistas dentales. Lo esperamos para brindarle el mejor servicio odontológico del país."
+   },
+   {
+    "heading": "Cada clínica de la red Uno Salud Dental se encuentra aprobada por el SEREMI de S",
+    "anchor": "nosotros_cada_clinica_red",
+    "text": "Cada clínica de la red Uno Salud Dental se encuentra aprobada por el SEREMI de Salud, poniendo a disposición de sus pacientes amplios y cómodos box de atención equipados con la más alta tecnología, pabellones de cirugía menor, salas de rayos x con equipos digitales panorámicos, scanner, periapicales, además de contar con sus propias centrales de esterilización."
+   },
+   {
+    "heading": "Nuestra Misión",
+    "anchor": "nosotros_mision",
+    "text": "Nuestra Misión Otorgar salud y estética bucal a precios accesibles con los más altos estándares de calidad, tecnología y servicio a través de constante innovación y capacitación de nuestros profesionales, mejorando la calidad de vida y autoestima de los pacientes, logrando así ser líderes de la industria odontológica en Chile. Nuestra Filosofía En clínica Uno Salud Dental contamos con las últimas tecnologías. Estamos en continuo crecimiento y queremos hacerlo gracias a tí. TODOS los pacientes son tratados de manera individualizada, realizando una historia clínica exhaustiva para descartar posibles patologías, que puedan impedir o retrasar el tratamiento solicitado y disponemos de la más moderna tecnología para aplicar nuestros tratamientos."
+   },
+   {
+    "heading": "Para nosotros tu opinión y tus sugerencias son lo más importante. Nuestros profe",
+    "anchor": "nosotros_nosotros_opinion_sugerencias",
+    "text": "Para nosotros tu opinión y tus sugerencias son lo más importante. Nuestros profesionales poseen una completa formación y están siempre atentos a las últimas novedades. Nos gusta Uno Salud Dental, nos gusta nuestro trabajo y queremos que te guste nuestra clínica."
+   },
+   {
+    "heading": "Nuestra Promesa",
+    "anchor": "nosotros_promesa",
+    "text": "Nuestra Promesa Los mejores Profesionales Los mejores doctores y de las mejores universidades. Productos e insumos Mejores productos Tecnología Mejores equipos y tecnología Precio Precios al alcance de todos Bienestar Hacer de tu visita al dentista una experiencia diferente."
+   },
+   {
+    "heading": "Nuestros Valores",
+    "anchor": "nosotros_valores",
+    "text": "Nuestros Valores Respeto Honestidad Actitud de servicio Responsabilidad Compromiso Lealtad Excelencia"
+   },
+   {
+    "heading": "Área Clínica",
+    "anchor": "nosotros_comite",
+    "text": "Profesionales Área Clínica Conoce a los profesionales que conforman nuestro equipo Francisca Contreras Luna Gerente Clínico y Calidad Uno Salud Dental Francisca Contreras Luna es Cirujano Dentista titulada con distinción máxima de la Universidad de Chile y actualmente se desempeña como Gerente Clínico y Calidad en Uno Salud Dental, liderando la estrategia clínica y los lineamientos de calidad de la red a nivel nacional.Cuenta con más de 10 años de experiencia en gestión clínica, planificación estratégica y liderazgo de equipos de alto rendimiento en el sector odontológico. A lo largo de su trayectoria en Uno Salud Dental ha asumido distintos cargos de liderazgo, incluyendo funciones en diagnóstico, gestión y contraloría clínica, participando activamente en la creación e implementación de procesos clínicos, medición de indicadores, desarrollo de programas de formación continua y fortalecimiento de estándares de calidad en la red.Su experiencia también abarca la gestión estratégica de especialidades odontológicas, la optimización de capacidades clínicas, la asesoría sanitaria y odontológica integral, y la participación transversal con áreas comerciales y de marketing para potenciar el crecimiento sostenible de la organización.Se caracteriza por su enfoque estratégico, capacidad de liderazgo e influencia, así como por su compromiso con la excelencia clínica, la mejora continua y la sustentabilidad de los procesos asistenciales. Gabriela Lorca Bocchieri Jefe de Diagnóstico en Ort"
+   }
+  ],
+  "faqs": []
+ },
+ {
+  "path": "/por-que-elegirnos/",
+  "title": "¿Por qué elegirnos? | Uno Salud Dental",
+  "kind": "why_us",
+  "sections": [
+   {
+    "heading": "¿Por qué elegirnos?",
+    "anchor": "porque_hero",
+    "text": "¿Por qué elegirnos? ¿Por qué elegirnos? Clínica Uno Salud Dental es la red dental más importante del país. Con profesionales altamente capacitados, entrega a sus pacientes una excelente y completa atención. Cada clínica cuenta con equipamientos e insumos de primer nivel, además de confortables salas de espera, conexión de internet inalámbrica vía wi-fi , aire acondicionado, calefacción central, entre otros. Sus profesionales y tecnología de punta posicionan a Uno Salud Dental como la red líder en especialistas dentales. Lo esperamos para brindarle el mejor servicio odontológico del país."
+   },
+   {
+    "heading": "Ventajas",
+    "anchor": "porque_ventajas",
+    "text": "Ventajas Tecnología de vanguardia La mejor tecnología 3D en radiografías. Los mejores insumos del mundo Trabajamos con reconocidas a nivel mundial de insumos dentales. Cobertura nacional Clínicas a lo largo de todo Chile. Crecemos para estar cada día más cerca. Años de experiencia Contamos con más de 15 años de experiencia y somos la red de clínicas dentales más grande del país."
+   },
+   {
+    "heading": "Garantías",
+    "anchor": "porque_garantias",
+    "text": "Garantías La garantía que el Centro Odontológico Uno Salud Dental ofrece por sus tratamientos, se alinea con la norma imperante en las Instituciones de Salud de vanguardia. Debido a la naturaleza dinámica de los procesos de enfermedad/salud, no es posible establecer una garantía única y homogénea para todo tipo de tratamientos, ya que en esa dinámica inestable influyen factores tanto del paciente como del tratamiento, además de los factores del entorno. Ver más"
+   },
+   {
+    "heading": "Deberes y Derechos",
+    "anchor": "porque_deberes_derechos",
+    "text": "Deberes y Derechos Uno Salud Dental en su constante compromiso por mejorar, respetar y cautelar la calidad de atención a sus usuarios suscribe al compromiso de promover la Carta de Derechos y Deberes de los pacientes ( Ley 20.584) y reconoce de acuerdo a su política institucional lo siguiente: Ver más"
+   },
+   {
+    "heading": "Calidad en Insumos",
+    "anchor": "porque_calidad_insumos",
+    "text": "Calidad en Insumos Solventum BioHorizons Kerr KeepSmiling"
+   },
+   {
+    "heading": "Tecnología",
+    "anchor": "porque_tecnologia",
+    "text": "Tecnología En Uno Dental tenemos la mejor tecnología para tu sonrisa. Equipo radiográfico Equipo Scanner Desfibrilador externo automático Tecnología 3D Cerec Autoclaves Sedación consciente con oxido nitroso Anestesia digital computarizada Scanner Intraoral Equipo radiográfico Equipo de excelencia para obtener una imagen que muestra la totalidad de las piezas y huesos maxilares, buscando lesiones, hallazgos, etc. Generalmente usadas para tratamientos de terceros molares, ortodoncia e implantes. Contamos con equipos para radiografías panorámicas, periapicales, bite wing y tele radiografías."
+   },
+   {
+    "heading": "Medios de pago",
+    "anchor": "porque_medios_pago",
+    "text": "Medios de pago En Uno Salud Dental contará con la asistencia por parte de su dentista diagnosticador para buscar la mejor forma de comenzar con su tratamiento. El doctor, luego de haber estudiado el mejor plan de tratamiento junto a Ud, le mostrará de manera fácil y rápida las distintas alternativas y opciones que maneja la clínica en relación a las formas de pago que el paciente disponga. Efectivo o tarjeta de débito Ver detalle Cheques Ver detalle Excedentes Isapre Ver detalle Seguro Complementario Ver detalle Tarjetas Bancarias Ver detalle"
+   }
+  ],
+  "faqs": []
+ },
+ {
+  "path": "/contactanos/",
+  "title": "Teléfono de Contacto y Centro de Ayuda | Uno Salud Dental",
+  "kind": "contact",
+  "sections": [
+   {
+    "heading": "Teléfono de Contacto y Centro de Ayuda",
+    "anchor": "contacto_ayuda",
+    "text": "¿En qué te podemos ayudar? Teléfono de Contacto y Centro de Ayuda En Uno Salud Dental, tu opinión es lo más importante. Queremos mejorar cada día, por eso te invitamos a compartir tus experiencias, sugerencias, felicitaciones o reclamos a través de nuestros diversos canales de contacto. ¡Tu feedback nos ayuda a crecer! Solicitud de radiografías Call center Preguntas frecuentes Reclamos, sugerencias y felicitaciones Trabaja con nosotros Ver clínicas Ver especialidades Convenios y proveedores"
+   },
+   {
+    "heading": "Preguntas Frecuentes",
+    "anchor": "contacto_preguntas",
+    "text": "Preguntas Frecuentes Ver todo ¿Cómo acceder al PAD? ¿Dónde está mi clínica Uno Salud más cercana con convenio para mi Isapre? ¿Cuáles son los GES Dentales? ¿Cómo atenderse por la Isapre? ¿Qué es el GES? ¿Cómo realizar el reembolso?"
+   },
+   {
+    "heading": "Artículos de nuestro blog",
+    "anchor": "contacto_relacionadas",
+    "text": ""
+   }
+  ],
+  "faqs": [
+   {
+    "n": "1",
+    "q": "¿Cómo acceder al PAD?",
+    "a": "Uno Salud Dental es prestador en convenio con Isapres, permitiendo a sus afiliados acceder a beneficios y cobertura en nuestras clínicas a lo largo del país.Contamos con convenio vigente con Cruz Blanca y Nueva Más Vida.Para activar el PAD, debe asistir a cualquiera de nuestras clínicas Uno Salud en todo Chile, y tomar una hora para la realización del diagnóstico. Luego deberá asistir a su Isapre para la generación de Bonos con el formulario PAD e iniciar la atención en nuestras clínicas Uno Salud Dental."
+   },
+   {
+    "n": "2",
+    "q": "¿Dónde está mi clínica Uno Salud más cercana con convenio para mi Isapre?",
+    "a": "* Solo activo para Ges Urgencia Odontológica"
+   },
+   {
+    "n": "3",
+    "q": "¿Cuáles son los GES Dentales?",
+    "a": "La Salud Oral Integral de la embarazada, consiste en una atención odontológica realizada por Cirujano Dentista, según necesidades, dirigida a; educar, prevenir, recuperar y rehabilitar la salud bucal de la mujer gestante.¿Quiénes son beneficiarios?Toda mujer con confirmación de su condición de embarazo por parte del profesional correspondiente y dando aviso a su Isapre.El tratamiento podrá continuarlo hasta 9 meses después de ocurrido el parto o interrupción de este, siempre y cuando se haya dado aviso durante el periodo de gestación de la beneficiaria."
+   },
+   {
+    "n": "4",
+    "q": "¿Cómo atenderse por la Isapre?",
+    "a": "En caso que el paciente asista a nuestra clínica en desconocimiento del Beneficio GES, será notificado por Uno Salud, y derivado a su Isapre para iniciar el proceso, como se mostró en el recuadro anterior."
+   },
+   {
+    "n": "5",
+    "q": "¿Qué es el GES?",
+    "a": "Las Garantías Explicitas en Salud (GES), constituyen un conjunto de Beneficios garantizados por Ley para las personas afiliadas a Fonasa e Isapre."
+   },
+   {
+    "n": "6",
+    "q": "¿Cómo realizar el reembolso?",
+    "a": "Una vez finalizado el tratamiento en Uno Salud Dental, se debe rellenar el formulario de la compañía aseguradora, y luego dirigirse con las Boletas y presupuestos a dicha institución para el reembolso.Adicionalmente la compañía podría requerir las radiografías tomadas durante el tratamiento, que puede solicitar en la misma clínica Uno Salud dental donde recibió el tratamiento o bien a contacto@unosalud.com"
+   }
+  ]
+ },
+ {
+  "path": "/preguntas-frecuentes/",
+  "title": "Preguntas Frecuentes sobre Atención Dental | Uno Salud Dental",
+  "kind": "faq",
+  "sections": [
+   {
+    "heading": "Preguntas Frecuentes",
+    "anchor": "faq_preguntas_frecuentes",
+    "text": "Preguntas Frecuentes Preguntas Frecuentes ¿Tienes alguna duda? Todos Seguro Complementario Tratamientos Dentales PAD Excedentes GES Beneficios y Reembolsos Dentales Buscar Buscar Respuestas a las dudas más frecuentes sobre salud y atención dental ¿Cómo acceder al PAD? ¿Dónde está mi clínica Uno Salud más cercana con convenio para mi Isapre? ¿Cuáles son los GES Dentales? ¿Cómo atenderse por la Isapre? ¿Qué es el GES? ¿Cómo realizar el reembolso? ¿Dónde encuentro el registro nacional de profesionales sancionados por licencias médicas? ¿Qué cubre el seguro complementario? ¿Cómo sé si tengo excedentes? ¿Qué son los excedentes? Tengo que hacerme una limpieza: ¿Cada cuanto tiempo?, ¿Qué tan profundo debe ser el tratamiento?, ¿De que depende?, ¿Cuanto cuesta? He oído que uno salud tiene radiografías digitales, ¿Cuáles son sus ventajas? ¿Atienden niños? ¿Desde qué edad debo empezar a llevar a mis hijos al odontólogo? ¿Atienden urgencias? ¿De qué tipo son? ¿En qué consiste la extracción de muelas del juicio? ¿El valor depende de la gravedad? ¿Qué colores de frenillos tienen? ¿Cuánto dura un tratamiento con frenillos? ¿Necesito extraerme una pieza dental, en qué consiste la cirugía específicamente? ¿Cuánto cuesta un tratamiento de conducto? ¿Cómo puedo acceder a sus servicios, soy de región? ¿Qué precio tiene la instalación de frenillos? ¿Qué es el Seguro Complementario?"
+   }
+  ],
+  "faqs": [
+   {
+    "n": "14421",
+    "q": "¿Cómo acceder al PAD?",
+    "a": "Uno Salud Dental es prestador en convenio con Isapres, permitiendo a sus afiliados acceder a beneficios y cobertura en nuestras clínicas a lo largo del país.Contamos con convenio vigente con Cruz Blanca y Nueva Más Vida.Para activar el PAD, debe asistir a cualquiera de nuestras clínicas Uno Salud en todo Chile, y tomar una hora para la realización del diagnóstico. Luego deberá asistir a su Isapre para la generación de Bonos con el formulario PAD e iniciar la atención en nuestras clínicas Uno Salud Dental."
+   },
+   {
+    "n": "14417",
+    "q": "¿Dónde está mi clínica Uno Salud más cercana con convenio para mi Isapre?",
+    "a": "* Solo activo para Ges Urgencia Odontológica"
+   },
+   {
+    "n": "14415",
+    "q": "¿Cuáles son los GES Dentales?",
+    "a": "La Salud Oral Integral de la embarazada, consiste en una atención odontológica realizada por Cirujano Dentista, según necesidades, dirigida a; educar, prevenir, recuperar y rehabilitar la salud bucal de la mujer gestante.¿Quiénes son beneficiarios?Toda mujer con confirmación de su condición de embarazo por parte del profesional correspondiente y dando aviso a su Isapre.El tratamiento podrá continuarlo hasta 9 meses después de ocurrido el parto o interrupción de este, siempre y cuando se haya dado aviso durante el periodo de gestación de la beneficiaria."
+   },
+   {
+    "n": "14413",
+    "q": "¿Cómo atenderse por la Isapre?",
+    "a": "En caso que el paciente asista a nuestra clínica en desconocimiento del Beneficio GES, será notificado por Uno Salud, y derivado a su Isapre para iniciar el proceso, como se mostró en el recuadro anterior."
+   },
+   {
+    "n": "14402",
+    "q": "¿Qué es el GES?",
+    "a": "Las Garantías Explicitas en Salud (GES), constituyen un conjunto de Beneficios garantizados por Ley para las personas afiliadas a Fonasa e Isapre."
+   },
+   {
+    "n": "14410",
+    "q": "¿Cómo realizar el reembolso?",
+    "a": "Una vez finalizado el tratamiento en Uno Salud Dental, se debe rellenar el formulario de la compañía aseguradora, y luego dirigirse con las Boletas y presupuestos a dicha institución para el reembolso.Adicionalmente la compañía podría requerir las radiografías tomadas durante el tratamiento, que puede solicitar en la misma clínica Uno Salud dental donde recibió el tratamiento o bien a contacto@unosalud.com"
+   },
+   {
+    "n": "28633",
+    "q": "¿Dónde encuentro el registro nacional de profesionales sancionados por licencias médicas?",
+    "a": "El Registro Nacional de Profesionales Sancionados por Licencias Médicas es un listado público administrado por la Superintendencia de Seguridad Social (SUSESO) de Chile. En este registro, puedes encontrar a los profesionales de la salud que han sido sancionados por la emisión irregular de licencias médicas.El registro, se puede consultar en el siguiente enlace"
+   },
+   {
+    "n": "14408",
+    "q": "¿Qué cubre el seguro complementario?",
+    "a": "Las condiciones de cómo opera su seguro complementario deben ser consultadas directamente con la empresa que brinda dicho servicio. En general, los seguros presentan un tope por monto y un tope anual dependiendo del contrato.Para conocer tu cobertura, consulta con la empresa aseguradora."
+   },
+   {
+    "n": "14396",
+    "q": "¿Cómo sé si tengo excedentes?",
+    "a": "Para saber si tienes excedentes debes consultar directamente en tu Isapre"
+   },
+   {
+    "n": "14391",
+    "q": "¿Qué son los excedentes?",
+    "a": "Corresponde al dinero a favor de la persona filiada a una ISAPRE, que se genera entre la diferencia del 7% de la cotización obligatoria de salud y el valor del plan contratado."
+   },
+   {
+    "n": "14339",
+    "q": "Tengo que hacerme una limpieza: ¿Cada cuanto tiempo?, ¿Qué tan profundo debe ser el tratamiento?, ¿De que depende?, ¿Cuanto cuesta?",
+    "a": "Todo depende de que patología o enfermedad tengo. Es recomendable asistir al menos dos veces al año a una limpieza dental preventiva, y ojala sea con el periodoncista, el especialista de las enfermedades de las encías."
+   },
+   {
+    "n": "14337",
+    "q": "He oído que uno salud tiene radiografías digitales, ¿Cuáles son sus ventajas?",
+    "a": "En Uno Salud contamos con radiografías dentales digitales, disponibles en nuestras clínicas, que permiten obtener imágenes tanto intraorales (de dientes específicos) como extraorales (maxilares o cabeza completa, de frente o perfil). Este servicio forma parte de nuestra área de radiología dental.Sus principales ventajas son la mínima exposición a radiación en comparación con las radiografías tradicionales, su rapidez —ya que no requieren procesos de revelado— y su disponibilidad inmediata para análisis clínico. Esto permite diagnósticos más precisos y oportunos para iniciar el tratamiento.Si necesitas una copia de tus exámenes, puedes realizar la solicitud de radiografías directamente a través de nuestro sitio."
+   },
+   {
+    "n": "14333",
+    "q": "¿Atienden niños? ¿Desde qué edad debo empezar a llevar a mis hijos al odontólogo?",
+    "a": "En Uno Salud contamos con atención especializada en odontopediatría, enfocada en la prevención y tratamiento de enfermedades bucales en niños. El cuidado temprano es fundamental para lograr una buena salud oral en la adultez, ya que los dientes de leche cumplen un rol clave en el desarrollo adecuado del hueso y la correcta posición de los dientes definitivos. Muchos tratamientos de ortodoncia podrían evitarse si no se extrajeran prematuramente los dientes temporales.Se recomienda llevar a los niños a su primera revisión cuando ya hayan erupcionado sus 20 dientes de leche (10 superiores y 10 inferiores), aproximadamente a los 2 años y medio. En esta etapa se evalúa su posición, desarrollo y se indican medidas preventivas como técnicas de higiene, sellantes, fluoraciones y limpiezas. Posteriormente, es aconsejable mantener controles cada 6 meses durante la infancia, ya que las caries pueden progresar rápidamente a esta edad."
+   },
+   {
+    "n": "14331",
+    "q": "¿Atienden urgencias? ¿De qué tipo son?",
+    "a": "La urgencia odontológica puede darse en cualquier momento en cualquier persona, y nos esforzamos mucho para resolverla de inmediato. Consideramos una urgencia odontológica a cualquier circunstancia de la cavidad oral que interrumpa la vida normal de una persona, ya sea un dolor agudo, una hemorragia, un diente o prótesis fracturada, la salida de una obturación, la infección severa, un diente que se soltó, una herida de la boca, etc. El paciente que consulta por urgencia recibe un diagnóstico inmediato y es derivado al odontólogo correspondiente dentro de nuestras especialidades dentales para resolver su tratamiento.La Unidad de diagnóstico atiende en forma continua todo el día en todas las sucursales de Lunes a Viernes de 09:00 a 19:00 hrs y los sábados de 09:00 a 13:00 hrs. Si son necesarias radiografías se toman de inmediato. El diagnóstico no tiene costo, sólo se cancelan las radiografías y el tratamiento de la urgencia.Si presentas una urgencia, puedes agendar hora en línea en tu clínica más cercana."
+   },
+   {
+    "n": "14329",
+    "q": "¿En qué consiste la extracción de muelas del juicio? ¿El valor depende de la gravedad?",
+    "a": "La extracción de muelas del juicio corresponde a un procedimiento de cirugía oral, específicamente a la exodoncia de terceros molares, que consiste en retirar la pieza dentaria de la cavidad bucal. Estas piezas pueden encontrarse en distintas posiciones: totalmente erupcionadas (cirugía simple), semi-erupcionadas (requieren abordaje a colgajo) o parcialmente incluidas bajo encía o hueso.Cuando el tercer molar está completamente incluido bajo el hueso, el procedimiento puede requerir la remoción controlada de una pequeña porción ósea o la sección previa de la pieza si se encuentra inclinada. La complejidad del caso determinará el tiempo quirúrgico y la planificación del tratamiento.Si necesitas una evaluación, puedes agendar hora en tu clínica más cercana para recibir un diagnóstico profesional."
+   },
+   {
+    "n": "14324",
+    "q": "¿Qué colores de frenillos tienen?",
+    "a": "Los frenillos puedes ser metálicos (los comunes), o cerámicos (blancos o del color del diente). A esto se le puede agregar colores con los elásticos o ligaduras que se usan mensualmente. Existen transparentes, verdes, rojas, negras y de todos los colores que te imagines."
+   },
+   {
+    "n": "14322",
+    "q": "¿Cuánto dura un tratamiento con frenillos?",
+    "a": "Un tratamiento de ortodoncia con frenillos tiene una duración estimada (promedio) de 1 año y 6 meses dependiendo de los objetivos y severidad de apiñamiento u otras patologías que requiera el paciente. Esta estimación de tiempo se dará a conocer una vez que se haya realizado el estudio por parte del ortodoncista, el que requiere tomar fotografías, radiografías, estudiar modelos de su boca, etc.Puede ser que sea más o menos tiempo, dependiendo de lo requerido, de si el paciente es constante con los controles, etc."
+   },
+   {
+    "n": "14320",
+    "q": "¿Necesito extraerme una pieza dental, en qué consiste la cirugía específicamente?",
+    "a": "La extracción de una pieza dentaria es un procedimiento de cirugía oral que consiste en la remoción del diente desde la cavidad bucal. Puede tratarse de una exodoncia simple o compleja, especialmente en el caso de terceros molares (muelas del juicio) que pueden encontrarse parcial o totalmente incluidos en el hueso.Antes de realizar la cirugía, es necesario un diagnóstico clínico y radiográfico. Posteriormente, el especialista entregará las indicaciones correspondientes y programará el procedimiento según la complejidad del caso.En caso de que la pieza extraída requiera reemplazo posterior, el especialista podrá evaluar alternativas como los implantes dentales, según cada diagnóstico."
+   },
+   {
+    "n": "14318",
+    "q": "¿Cuánto cuesta un tratamiento de conducto?",
+    "a": "El tratamiento de conducto o endodoncia, depende de distintas variables, como el tipo de pieza afectada (anterior, premolar o molar) y el grado de infección. En casos donde la pieza no pueda ser conservada, el especialista evaluará alternativas de rehabilitación como los implantes dentales, según cada diagnóstico.A su vez, la complejidad y sesiones se alargan si estas piezas están con necrosis pulpar (muerte del nervio) o infección del hueso alrededor. Para conocer el costo, puedes asistir a cualquiera de nuestras clínicas dentales en todo Chile de Uno Salud y pedir un diagnóstico gratuito, sólo debe llevar dinero para cancelar las radiografías complementarias al diagnóstico."
+   },
+   {
+    "n": "14313",
+    "q": "¿Cómo puedo acceder a sus servicios, soy de región?",
+    "a": "Te invitamos a conocer nuestras clínicas dentales, donde encontrarás información sobre ubicaciones, horarios y servicios disponibles. También puedes llamarnos al 600 707 1010 o desde celulares al (02) 27638900."
+   },
+   {
+    "n": "14308",
+    "q": "¿Qué precio tiene la instalación de frenillos?",
+    "a": "Los precios dependen del tipo de tratamiento elegido; existen brackets metálicos, cerámicos y sistemas autoligantes, entre otras alternativas. Puedes revisar los valores referenciales de cada tipo en nuestra sección de ortodoncia, donde encontrarás información detallada sobre las distintas opciones disponibles.Es importante considerar que todo tratamiento ortodóncico debe ser evaluado previamente por el especialista, quien realizará un estudio clínico que incluye fotografías, modelos y radiografías para definir el plan adecuado.Para conocer el costo definitivo de instalación y controles, es necesario realizar una evaluación con el ortodoncista, la cual es gratuita."
+   },
+   {
+    "n": "12883",
+    "q": "¿Qué es el Seguro Complementario?",
+    "a": "El Seguro Complementario de Salud entrega cobertura entre la diferencia en el gasto de salud que se produce entre lo que aporta la Isapre y lo que debe financiar el asegurado, lo que se denomina copago.Esta diferencia es cubierta por este seguro en un determinado porcentaje o en su totalidad dependiendo de la póliza contratada. Actualmente Uno Salud recibe pacientes de todos los seguros complementarios existentes en el mercado, pero contamos con beneficios y descuentos especiales para aquellos que estén asociados a Sura, Metlife, BiceVida y VidaCámara."
+   }
+  ]
+ },
+ {
+  "path": "/landing/convenio-empresa/",
+  "title": "Convenio Empresas | Uno Salud Dental",
+  "kind": "company",
+  "sections": [
+   {
+    "heading": "TE CONTACTAMOS",
+    "anchor": "empresas_te_contactamos",
+    "text": "TE CONTACTAMOS"
+   },
+   {
+    "heading": "SOLICITAR CONVENIO",
+    "anchor": "empresas_solicitar_convenio",
+    "text": ""
+   },
+   {
+    "heading": "Aumenta la productividad de tus trabajadores",
+    "anchor": "empresas_aumenta_productividad_trabajadores",
+    "text": "Aumenta la productividad de tus trabajadores Aumenta el bienestar de tus trabajadores con beneficios dentales exclusivos altamente valorados Cobertura nacional Acceso a la red de clínicas dentales más grande de Chile Planes desde $965 mensuales por colaborador Precios accesibles para todo tipo de empresas"
+   },
+   {
+    "heading": "Cuida la sonrisa de tus colaboradores con la red dental más grande de Chile",
+    "anchor": "empresas_contacto",
+    "text": "Cuida la sonrisa de tus colaboradores con la red dental más grande de Chile 1 Agenda una reunión con un asesor Te contactáctaremos para agendar una asesoría personalizada. 2 Tu plan ideal Te ayudaremos a encontrar el mejor plan que se adapte a las necesidades de tu empresa. 3 Mejora la satisfacción de tus trabajadores Crea un entorno de trabajo lleno de sonrisas gracias a los beneficios dentales que te ofrece Uno Salud Dental. Nombre Teléfono de Contacto ? Mail de Contacto Empresa Región Seleccionar Región Arica y Parinacota Tarapacá Antofagasta Atacama Coquimbo Valparaíso Región Metropolitana de Santiago Región del Libertador General Bernardo O'Higgins Maule Ñuble Biobío La Araucanía Los Ríos Los Lagos Región de Aysén del General Carlos Ibáñez del Campo Región de Magallanes y de la Antártica Chilena Cargo Número de Trabajadores Seleccionar Menos de 50 Trabajadores Entre 200 a 500 trabajadores Entre 200 a 500 trabajadores Entre 500 a 1000 trabajadores Más de 1000 trabajadores Comentarios ENVIAR"
+   },
+   {
+    "heading": "Marcas que ya confian en nostros",
+    "anchor": "empresas_marcas_ya_confian",
+    "text": "Marcas que ya confian en nostros"
+   }
+  ],
+  "faqs": []
+ },
+ {
+  "path": "/landing/ortodoncia-oct-2026-org/",
+  "title": "Promo landing: Ortodoncia OCT",
+  "kind": "promo_landing",
+  "sections": [
+   {
+    "heading": "¡Inicia tu tratamiento de Ortodoncia!",
+    "anchor": "landing_ortodoncia_inicia_tratamiento_ortodoncia",
+    "text": "¡Inicia tu tratamiento de Ortodoncia!"
+   },
+   {
+    "heading": "por solo",
+    "anchor": "landing_ortodoncia_solo",
+    "text": "por solo $299.900 Con los Planes Plus y Full Tu tratamiento incluye: Estudio de Ortodoncia Instalación de brackets Pacientes que no obtengan los Planes Sonrisa Protegida Plus y Full el precio final del Estudio + Instalación de Ortodoncia es de $349.900. Agenda tu hora Términos y condiciones"
+   },
+   {
+    "heading": "Tu nueva sonrisa",
+    "anchor": "landing_ortodoncia_nueva_sonrisa",
+    "text": "Tu nueva sonrisa te espera al mejor precio"
+   },
+   {
+    "heading": "¿Quieres mantener tu salud dental cubierta en todo momento?",
+    "anchor": "landing_ortodoncia_quieres_mantener_cubierta",
+    "text": "¿Quieres mantener tu salud dental cubierta en todo momento?"
+   },
+   {
+    "heading": "El cuidado que tu sonrisa necesita en un solo plan",
+    "anchor": "landing_ortodoncia_cuidado_sonrisa_necesita",
+    "text": "El cuidado que tu sonrisa necesita en un solo plan 2 Limpiezas dentales 2 Aplicación Flúor 70% dcto. Tratamientos dentales 100% Cobertura urgencias Conócelos aquí"
+   },
+   {
+    "heading": "El cuidado que tu sonrisa necesita en un solo plan2 Limpiezadental",
+    "anchor": "landing_ortodoncia_cuidado_sonrisa_necesita_2",
+    "text": ""
+   },
+   {
+    "heading": "Ventajas de elegir Uno Salud Dental",
+    "anchor": "landing_ortodoncia_ventajas_elegir",
+    "text": "Ventajas de elegir Uno Salud Dental Nos esforzamos por brindarte una experiencia excepcional en cada visita."
+   },
+   {
+    "heading": "Insumos de la mejor calidad a nivel mundial",
+    "anchor": "landing_ortodoncia_insumos_mejor_calidad",
+    "text": "Insumos de la mejor calidad a nivel mundial Trabajamos con insumos de las marcas mejor reconocidas a nivel mundial. Cobertura nacional Crecemos para estar cada día más cerca. Clínicas de Arica a Punta Arenas. Años tratando sonrisas Contamos con la experiencia de cadenas dentales, con profesionales calificados para entregar el mejor servicio."
+   },
+   {
+    "heading": "Tecnología de vanguardia",
+    "anchor": "landing_ortodoncia_tecnologia_vanguardia",
+    "text": "Tecnología de vanguardia La mejor tecnología en radiografías."
+   },
+   {
+    "heading": "Testimonios de pacientes",
+    "anchor": "landing_ortodoncia_testimonios_pacientes",
+    "text": ""
+   },
+   {
+    "heading": "Términos y condiciones",
+    "anchor": "landing_ortodoncia_terminos_condiciones",
+    "text": "Términos y condiciones"
+   }
+  ],
+  "faqs": []
+ },
+ {
+  "path": "/landing/caja-los-andes-implantes-org/",
+  "title": "Promo landing: Caja Los Andes implantes",
+  "kind": "promo_landing",
+  "sections": [
+   {
+    "heading": "Caja Los Andes te invita a que vuelvas amar tu sonrisa",
+    "anchor": "landing_cla_caja_andes_te",
+    "text": "Caja Los Andes te invita a que vuelvas amar tu sonrisa Implante dental + Corona por solo $279.000 Precio referencial: $838.800 Exclusivo para afiliados titulares a Caja Los Andes. Mayores de 50 años"
+   },
+   {
+    "heading": "¿Cómo es tu tratamiento de implantes?",
+    "anchor": "landing_cla_tratamiento_implantes",
+    "text": "¿Cómo es tu tratamiento de implantes? No todos parten en el mismo lugar. Revisa dónde comienzas tú y cuáles etapas vienen después"
+   },
+   {
+    "heading": "Ya estás listo para ser evaluado por el implantólogo",
+    "anchor": "landing_cla_ya_estas_listo",
+    "text": "Tengo scanner de hace menos de 1 mes Tengo scanner de hace más de 1 mes No tengo scanner Ya estás listo para ser evaluado por el implantólogo Tu scanner está vigente y aún no inicias tratamiento, así te saltas el diagnóstico general. Agenda tu hora al 600 707 1010. Ojo: en tu evaluación con el implantólogo u odontólogo general se te indicará si debes realizar algún otro tratamiento dental antes de comenzar con tu tratamiento de implantes. Ver las etapas del paso a paso Lo que se paga aparte, solo si tu caso lo requiere Pack de diagnóstico y radiografías Tratamiento periodontal Cirugías complementarias Diente provisorio Todo lo demás — evaluación con el implantólogo, cirugía, implante, corona y primer control — está cubierto por tu promoción."
+   },
+   {
+    "heading": "¿Quieres mantener tu salud dental cubierta en todo momento?",
+    "anchor": "landing_cla_quieres_mantener_cubierta",
+    "text": "¿Quieres mantener tu salud dental cubierta en todo momento?"
+   },
+   {
+    "heading": "El cuidado que tu sonrisa necesita en un solo plan",
+    "anchor": "landing_cla_cuidado_sonrisa_necesita",
+    "text": "El cuidado que tu sonrisa necesita en un solo plan 2 Limpiezas dentales 2 Aplicación Flúor 70% dcto. Tratamientos dentales 100% Cobertura urgencias Conócelos aquí"
+   },
+   {
+    "heading": "El cuidado que tu sonrisa necesita en un solo plan2 Limpiezadental",
+    "anchor": "landing_cla_cuidado_sonrisa_necesita_3",
+    "text": ""
+   },
+   {
+    "heading": "El cuidado que tu sonrisa necesita en un solo plan2 Limpiezadental",
+    "anchor": "landing_cla_cuidado_sonrisa_necesita_3",
+    "text": ""
+   },
+   {
+    "heading": "Ventajas de elegir Uno Salud Dental",
+    "anchor": "landing_cla_ventajas_elegir",
+    "text": "Ventajas de elegir Uno Salud Dental Nos esforzamos por brindarte una experiencia excepcional en cada visita."
+   },
+   {
+    "heading": "Insumos de la mejor calidad a nivel mundial",
+    "anchor": "landing_cla_insumos_mejor_calidad",
+    "text": "Insumos de la mejor calidad a nivel mundial Trabajamos con insumos de las marcas mejor reconocidas a nivel mundial. Cobertura nacional Crecemos para estar cada día más cerca. Clínicas de Arica a Punta Arenas. Años tratando sonrisas Contamos con la experiencia de cadenas dentales, con profesionales calificados para entregar el mejor servicio."
+   },
+   {
+    "heading": "Tecnología de vanguardia",
+    "anchor": "landing_cla_tecnologia_vanguardia",
+    "text": "Tecnología de vanguardia La mejor tecnología en radiografías."
+   },
+   {
+    "heading": "Testimonios de pacientes",
+    "anchor": "landing_cla_testimonios_pacientes",
+    "text": ""
+   },
+   {
+    "heading": "TÉRMINOS Y CONDICIONES",
+    "anchor": "landing_cla_terminos_condiciones",
+    "text": "TÉRMINOS Y CONDICIONES"
+   }
+  ],
+  "faqs": []
+ },
+ {
+  "path": "/landing/terminos-y-condiciones-de-campanas/",
+  "title": "Términos y condiciones | Uno Salud Dental",
+  "kind": "promo_landing",
+  "sections": [
+   {
+    "heading": "600 707 1010",
+    "anchor": "tyc_campanas_600_707_1010",
+    "text": "600 707 1010"
+   },
+   {
+    "heading": "Conoce los términos y condiciones de nuestras campañas y promociones",
+    "anchor": "tyc_campanas_conoce_terminos_condiciones",
+    "text": "Conoce los términos y condiciones de nuestras campañas y promociones"
+   },
+   {
+    "heading": "Campaña Limpieza Dental. Adicional: Flúor (Septiembre de 2026)",
+    "anchor": "tyc_campanas_campana_limpieza_adicional",
+    "text": "Campaña Limpieza Dental. Adicional: Flúor (Septiembre de 2026) Campaña Implantes (Septiembre 2026) Blanqueamiento Dental a $29.900 - Banco Falabella (desde el 1 de julio de 2026 hasta el 30 de septiembre de 2026) Campaña Ortodoncia (Septiembre 2026) Planes Sonrisa Protegida Campaña Apertura Puente Alto Los Toros Campaña en Chiguayante, Hualpén, Puerto Montt, Puerto Varas y Machalí (Septiembre 2026) Campaña Diagnóstico y Radiografías a $5.000 (Junio - Septiembre de 2026)"
+   }
+  ],
+  "faqs": []
+ },
+ {
+  "path": "/landing/solicitar-diagnostico/",
+  "title": "Te llamamos (solicitar diagnóstico)",
+  "kind": "callback",
+  "sections": [
+   {
+    "heading": "600 707 1010",
+    "anchor": "tellamamos_600_707_1010",
+    "text": "600 707 1010"
+   },
+   {
+    "heading": "TE LLAMAMOS",
+    "anchor": "tellamamos_te_llamamos_2",
+    "text": ""
+   },
+   {
+    "heading": "TE LLAMAMOS",
+    "anchor": "tellamamos_te_llamamos_2",
+    "text": "TE LLAMAMOS"
+   },
+   {
+    "heading": "Ventajas de elegir Uno Salud Dental",
+    "anchor": "tellamamos_ventajas_elegir",
+    "text": "Ventajas de elegir Uno Salud Dental Nos esforzamos por brindarte una experiencia excepcional en cada visita."
+   },
+   {
+    "heading": "Los mejores insumos del mundo",
+    "anchor": "tellamamos_mejores_insumos_mundo",
+    "text": "Los mejores insumos del mundo Tratamientos realizados con productos de la mejor calidad. Cobertura nacional Crecemos para estar cada día más cerca. Clínicas de Arica a Punta Arenas Años tratando sonrisas Contamos con la experiencia de cadenas dentales, con profesionales calificados para entregar el mejor servicio."
+   },
+   {
+    "heading": "Tenemos pacientes no clientes",
+    "anchor": "tellamamos_tenemos_pacientes_no",
+    "text": "Tenemos pacientes no clientes Nos preocupamos por tu bienestar y seguridad. Tecnología de vanguardia La mejor tecnología 3D en radiografías."
+   },
+   {
+    "heading": "¡AGENDA AQUÍ TU HORA!",
+    "anchor": "tellamamos_agenda_aqui_hora_2",
+    "text": "¡AGENDA AQUÍ TU HORA!"
+   },
+   {
+    "heading": "Más de 90 clínicas en todo Chile",
+    "anchor": "tellamamos_90_clinicas_todo",
+    "text": "Más de 90 clínicas en todo Chile QUILICURA LA FLORIDA F. ROA SAN MIGUEL PUENTE ALTO PUENTE ALTO - ELISA CORREA TOBALABA LA SERENA COQUIMBO"
+   },
+   {
+    "heading": "VER TODAS LAS CLÍNICAS",
+    "anchor": "tellamamos_ver_todas_clinicas",
+    "text": "VER TODAS LAS CLÍNICAS"
+   },
+   {
+    "heading": "La red líder de especialistas dentales de Chile",
+    "anchor": "tellamamos_red_lider_especialistas",
+    "text": "La red líder de especialistas dentales de Chile"
+   },
+   {
+    "heading": "¡AGENDA AQUÍ TU HORA!",
+    "anchor": "tellamamos_agenda_aqui_hora_2",
+    "text": "¡AGENDA AQUÍ TU HORA!"
+   },
+   {
+    "heading": "?",
+    "anchor": "tellamamos_formulario_bloque",
+    "text": "? Introduzca su número de teléfono para registrarse. Ex.: +5695647345 Región Región de Arica y Parinacota Región de Tarapacá Región de Antofagasta Región de Atacama Región de Coquimbo Región de Valparaíso Región Metropolitana de Santiago Región del Libertador Gral. Bernardo O'Higgins Región del Maule Región de Ñuble Región del Biobío Región de La Araucanía Región de Los Ríos Región de Los Lagos Región Aysén del G. Carlos Ibáñez del Campo Región de Magallanes y de la Antártica Chilena Selecciona tu comuna ENVIAR"
+   }
+  ],
+  "faqs": []
+ }
+]

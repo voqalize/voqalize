@@ -1,0 +1,44 @@
+# Periodoncia (encías)
+
+Sources: https://www.unosalud.cl/especialidades/periodoncia/ (texto del sitio, copiado tal cual por knowledge/build.py; no editar a mano).
+
+## Periodoncia
+
+Especialidades Periodoncia Periodoncia La periodoncia es la especialidad odontológica dedicada al cuidado de los tejidos que soportan los dientes e implantes, como las encías, el hueso y los ligamentos. Nuestro equipo de periodoncistas está altamente capacitado para diagnosticar y tratar afecciones como gingivitis, periodontitis y recesión gingival. Ofrecemos tratamientos que abordan diversas causas, como infecciones e inflamaciones. Si experimentas sangrado de encías, mal aliento o sensibilidad dental, agenda tu evaluación online con nuestros especialistas. Realiza tu diagnóstico inicial con nosotros Agenda tus siguientes citas para iniciar tu plan de tratamiento con nuestros especialistas. Agenda tu hora Te llamamos
+
+## Enfermedades Periodontales: Gingivitis y Periodontitis
+
+Enfermedades Periodontales: Gingivitis y Periodontitis Gingivitis: Consiste en la inflamación de las encías producto de la acumulación de la placa bacteriana provocando sangramiento, enrojecimiento, hinchazón y sangrado. Para evitar la gingivitis se recomienda mantener una buena higiene y limpieza dental. Periodontitis: Si no se trata la gingivitis esta se puede agravar convirtiéndose en una periodontitis. Esta consiste en el avance de la inflamación hacia el hueso que sostiene los dientes, provocando pérdida ósea, aumento de la movilidad dental y posible pérdida de dientes. La periodontitis se puede tratar de la siguiente manera para evitar su progresión: Destartraje supragingival y subgingival. Pulido radicular. Pueden ser necesarios antibióticos complementarios. En casos avanzados, cirugías complementarias
+
+## ¿Cuándo debería consultar a un especialista en Periodoncia
+
+¿Cuándo debería consultar a un especialista en Periodoncia Encías inflamadas o que sangran durante el cepillado de dientes. Presencia de bolsas periodontales (espacio entre la encía y el diente en el que se acumula placa bacteriana). Encías con aspecto brillante. Mal olor en la cavidad bucal (halitosis) Dientes sueltos (piezas dentarias con movilidad). Sensibilidad dental.
+
+## Por estas razones, es importante el chequeo preventivo que está orientado a real
+
+Por estas razones, es importante el chequeo preventivo que está orientado a realizar acciones que eviten la inflamación de las encías o la detecten de manera temprana. Por su parte, las personas con diagnóstico de enfermedad periodontal deben asistir a control cada tres meses o la frecuencia indicada por el especialista, y seguir las indicaciones entregadas.
+
+## Factores de riesgo para desarrollar la enfermedad Periodontal
+
+Factores de riesgo para desarrollar la enfermedad Periodontal El principal factor es la mala higiene oral debido a las bacterias que forman placa bacteriana como también los factores genéticos, tabaquismo y estrés entre otros. Estos factores son importantes considerarlos, ya que pueden estar relacionados con otras condiciones médicas como la diabetes, riesgo de parto prematuro y riesgo cardiovascular.
+
+## ¿Cómo se puede prevenir la enfermedad Periodontal
+
+¿Cómo se puede prevenir la enfermedad Periodontal Realizarse una limpieza dental periódicamente tiene varios beneficios para tu salud bucal: Buena Higiene Manteniendo una buena higiene oral con un cepillado correcto y usando seda dental y/o cepillo interproximal. Controles periódicos Manteniendo una buena higiene oral con un cepillado correcto y usando seda dental y/o cepillo interproximal. Evitar el cigarrillo Evitar el consumo de cigarrillos te ayudará a cuidar tu salud bucal. Alimentación Mantener hábitos sanos de alimentación contribuirá al cuidado de tu salud bucal.
+
+## Preguntas frecuentes
+
+Preguntas frecuentes Periodoncia En Uno Salud Dental, comprendemos que tienes preguntas sobre la periodoncia. Aquí te proporcionamos respuestas a algunas de las consultas más frecuentes: ¿Qué es la gingivitis y cómo puedo prevenirla? ¿Cuáles son los síntomas de la periodontitis y cuándo debo buscar tratamiento? ¿Qué tratamientos se utilizan para tratar la enfermedad periodontal? ¿Qué puedo hacer para mantener mis encías saludables a largo plazo?
+
+- **¿Qué es la gingivitis y cómo puedo prevenirla?** La gingivitis es la inflamación de las encías causada por la acumulación de placa bacteriana. Se puede prevenir con una buena higiene bucal que incluya cepillado regular, uso de hilo dental y visitas periódicas al dentista para limpiezas profesionales.
+- **¿Cuáles son los síntomas de la periodontitis y cuándo debo buscar tratamiento?** La periodontitis es una enfermedad más avanzada que puede causar pérdida ósea alrededor de los dientes, movilidad dental y eventual pérdida de los mismos. Los síntomas incluyen encías inflamadas, sensibilidad dental y mal aliento persistente. Es crucial buscar tratamiento al notar estos síntomas para detener su progresión.
+- **¿Qué tratamientos se utilizan para tratar la enfermedad periodontal?** Los tratamientos para la enfermedad periodontal pueden incluir limpiezas profundas para eliminar la placa y el sarro bajo las encías, alisado radicular para suavizar las superficies de las raíces afectadas, y en casos más avanzados, cirugía periodontal para subsanar tejidos dañados.
+- **¿Qué puedo hacer para mantener mis encías saludables a largo plazo?** Para mantener las encías saludables, es importante mantener una excelente higiene bucal con cepillado y uso de hilo dental diarios. Además, realizar visitas regulares al dentista para chequeos y limpiezas dentales profesionales ayuda a prevenir problemas más graves a futuro.
+
+## ¿Por qué realizar tu tratamiento de Periodoncia en Uno Salud Dental?
+
+¿Por qué realizar tu tratamiento de Periodoncia en Uno Salud Dental? En Uno Salud Dental, nos esforzamos por brindarte una experiencia excepcional en cada visita. A continuación, te presentamos algunas razones para confiar en nosotros para tu tratamiento de periodoncia: Equipo altamente especializado Nuestro equipo está compuesto por Periodoncistas, dentistas especializados en el tratamiento de tus encías. Te garantizamos un tratamiento seguro y efectivo. Tecnologías e insumos de calidad Nuestros tratamientos dentales ofrecen máxima efectividad y precisión gracias a nuestra tecnología avanzada y materiales de calidad internacionalmente reconocidos. Esto asegura menor tiempo clínico y mayor comodidad para el paciente. Enfoque Personalizado Cada paciente es diferente, y adaptamos nuestros servicios según tus necesidades específicas. Tu comodidad y satisfacción son nuestra prioridad. Nuestra clínica está diseñada para brindarte un ambiente relajante y amigable. Resultados Duraderos Un tratamiento periodontal efectivo no solo alivia los síntomas actuales, sino que también podría mejorar la salud a largo plazo de tus encías y tejidos de soporte. Confía en nosotros para obtener resultados duraderos y eficaces. Precios Convenientes y facilidades de pago Excelente relación precio y calidad, además puedes pagar tu tratamiento de periodoncia en hasta en 12 cuotas sin interés. Compromiso con la Calidad Somos la primera clínica dental 100% acreditada por la Superintendencia de Salud, cumpliendo rigurosos protocolos de seguridad y calidad en cada tratamiento.
+
+## ¿Cuál es el proceso del Tratamiento?
+
+¿Cuál es el proceso del Tratamiento? Te contamos cómo funciona el proceso del tratamiento de Periodoncia: 1 Recepción Al llegar, deberás presentarte en recepción e indicar que tienes una cita agendada, luego el equipo de Recepción avisará al odontólogo, quien vendrá a la sala de espera para recibirte y acompañarte a tu cita. 2 Diagnóstico dental inicial El odontólogo realizará una evaluación clínica y radiografías. 3 Radiografías Tomaremos dos tipos de radiografías: una panorámica para examinar el estado general de las estructuras dentarias y sus alrededores, y un set de radiografías Bite Wing para evaluar de cerca el estado de cada diente y los espacios entre ellos. 4 Diagnóstico Dental El odontólogo revisará las radiografías, con el fin de entregar un diagnóstico integral. En esta etapa se determinará si se debe realizar un tratamiento de periodoncia. 5 Plan de tratamiento El odontólogo te explicará detalladamente el diagnóstico, te orientará sobre los pasos a seguir y responderá cualquier duda que puedas tener. 6 Tratamiento Durante el tratamiento periodontal, el periodoncista limpiará y desinfectará las encías y los tejidos de soporte afectados para eliminar infecciones y reducir la inflamación. Se realizarán procedimientos para sanar y regenerar los tejidos dañados y se establecerá un plan para el mantenimiento y seguimiento. Dependiendo de la gravedad del caso, el tratamiento puede completarse en una sola sesión o requerir visitas adicionales.

@@ -1,0 +1,82 @@
+[
+ {
+  "key": "cla_implante",
+  "card": "CLA IOI 2026",
+  "landing": "/landing/caja-los-andes-implantes-org/",
+  "valid_until": "2026-12-31",
+  "promo": "",
+  "summary": "Implante + corona por $279.000 (precio referencial $838.800), BioHorizons, garantía de por vida en el implante. Exclusivo para afiliados titulares de Caja Los Andes mayores de 50 años. Válido para agendar, asistir y pagar desde el 28 de septiembre hasta el 31 de diciembre de 2026 o hasta agotar 2.500 cupos. Se paga aparte, si el caso lo requiere: pack de diagnóstico y radiografías, tratamiento periodontal, cirugías complementarias, diente provisorio."
+ },
+ {
+  "key": "ortodoncia_oct",
+  "card": "Ortodoncia OCT",
+  "landing": "/landing/ortodoncia-oct-2026-org/",
+  "valid_until": "2026-10-31",
+  "promo": "ortodonciaoctnov26",
+  "summary": "Estudio de ortodoncia + instalación de brackets metálicos por $299.900, exclusivo al contratar el Plan Sonrisa Protegida Plus o Full; sin esos planes, el estudio + instalación es $349.900. Válido hasta el 31 de octubre de 2026."
+ },
+ {
+  "key": "limpieza_blanqueamiento",
+  "card": "Limpieza OCT BLANQ",
+  "landing": "/landing/limpieza-oct-26-blanqueamiento-org/",
+  "valid_until": "2026-10-31",
+  "promo": "",
+  "summary": "Limpieza dental + radiografías y diagnóstico por $12.900; agrega una sesión de blanqueamiento por $34.900 (antes $79.000). Válido para agendar, asistir y pagar del 1 al 31 de octubre de 2026, agendando desde esa publicación. No aplica para pacientes con enfermedad periodontal."
+ },
+ {
+  "key": "credito_cla",
+  "card": "Credito CLA",
+  "landing": "/landing/caja-los-andes-credito300-org/",
+  "valid_until": "",
+  "promo": "",
+  "summary": "Usa tu Crédito de Salud Caja Los Andes, hasta $300.000, en hasta 6 cuotas, presentando tu carnet."
+ },
+ {
+  "key": "mes_implante",
+  "card": "Mes del Implante AGO26",
+  "landing": "/landing/implantes-agosto-26-org/",
+  "valid_until": "2026-10-31",
+  "promo": "",
+  "summary": "Abono de hasta $150.000 en cada implante dental, con insumos BioHorizons y garantía de por vida en el implante (asistiendo a los controles). El abono máximo es exclusivo al contratar el Plan Sonrisa Protegida Plus o Full. Válido para pagar hasta el 31 de octubre de 2026."
+ },
+ {
+  "key": "planes",
+  "card": "Planes Sonrisa Protegida",
+  "landing": "/landing/planes-sonrisa-protegida/",
+  "valid_until": "",
+  "promo": "Membresia_Feb_2025",
+  "summary": "Planes Lite, Plus y Full: descuentos en tratamientos, limpiezas, flúor y cobertura de urgencias (ver el tema planes)."
+ },
+ {
+  "key": "hualpen",
+  "card": "Apertura Hualpen",
+  "landing": "/landing/campana-geo-hualpen-organico/",
+  "valid_until": "2026-10-31",
+  "promo": "",
+  "summary": "Nueva clínica Hualpén (Av. Colón 7948, strip center): limpieza dental $9.900 + radiografías y diagnóstico, y $30.000 de bonificación en tu tratamiento pagando desde $180.000. Del 1 de septiembre al 31 de octubre de 2026 o hasta agotar cupos. No aplica con enfermedad periodontal."
+ },
+ {
+  "key": "puerto_montt",
+  "card": "GEO Zona Pto Montt",
+  "landing": "/landing/campana-geo-zona-pto-montt-org/",
+  "valid_until": "2026-10-31",
+  "promo": "",
+  "summary": "Puerto Montt y Puerto Varas: limpieza dental $9.900 con diagnóstico y radiografías, y $30.000 de bonificación pagando desde $180.000 en un tratamiento. Hasta el 31 de octubre de 2026 o hasta agotar cupos, agendando desde esa publicación. No aplica con enfermedad periodontal."
+ },
+ {
+  "key": "machali",
+  "card": "GEO Zona Rancagua Machali",
+  "landing": "/landing/campana-geo-machali-organica/",
+  "valid_until": "2026-10-31",
+  "promo": "",
+  "summary": "Machalí: diagnóstico + radiografías y limpieza dental $9.900, y un abono de $30.000 pagando desde $180.000. Hasta el 31 de octubre de 2026 o hasta agotar cupos, agendando desde esa publicación. No aplica con enfermedad periodontal."
+ },
+ {
+  "key": "chiguayante",
+  "card": "GEO Chiguayante",
+  "landing": "/landing/campana-geo-chiguayante-organico/",
+  "valid_until": "2026-10-31",
+  "promo": "",
+  "summary": "Chiguayante (Av. 8 Oriente N°720): limpieza dental $9.900 + radiografías y diagnóstico, y $30.000 de bonificación desde $180.000. Del 1 de septiembre al 31 de octubre de 2026 o hasta agotar cupos, agendando desde esa publicación. Sujeto a evaluación clínica; no aplica con enfermedad periodontal."
+ }
+]
