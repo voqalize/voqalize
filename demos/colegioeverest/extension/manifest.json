@@ -1,0 +1,66 @@
+{
+  "manifest_version": 3,
+  "name": "Javier para Colegio Everest — Voqalize preview",
+  "version": "0.0.0",
+  "description": "A voice guide on colegioeverest.cl, in Spanish or English, who answers families from the school's own pages while their screen follows his voice, finds their child's level and its admission for 2027, opens the online application, the visit booking and the school's documents in a new tab, and fills in the contact form as the visitor dictates it; the visitor presses Enviar. A Voqalize preview.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoVlT4pdZhZPdg4fmEzcYumwANd41JrmfxP6ikOsZOKGF4GyklR1JDspm7USwbo6I8DE3rg6klyLzLy0YVxAT6dFUBVKUOhV10EagdV2A5PcfHFqs5uO6S3tcQxVPg7yPBX8Kuq9q6+86X56QWq9sv2daEe+QnzqQxnj05qh/bw4/i0t5PcAG+SQ51Wlw90fj2JWJy+1rHoHaNkDZcSDTzH1DdGmSJyP45NJuuTMCldc386RKg4+ahkNdLGUHNw4b1JaFKiUbvC8PQNjDKp3bnzmJ6OIa7t6eoYU3kaBljxgRGYvWOOSA+RlNFL5B4kVEcWzNVMj0zuEo8JqhK4VrLQIDAQAB",
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.colegioeverest.cl/*",
+        "https://colegioeverest.cl/*"
+      ],
+      "js": [
+        "bridge.js",
+        "anchor.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://www.colegioeverest.cl/*",
+        "https://colegioeverest.cl/*"
+      ],
+      "js": [
+        "shell.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://www.colegioeverest.cl/*",
+        "https://colegioeverest.cl/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    }
+  ],
+  "permissions": [
+    "storage",
+    "offscreen"
+  ],
+  "host_permissions": [
+    "https://www.colegioeverest.cl/*",
+    "https://colegioeverest.cl/*"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "grant.html",
+        "grant.js"
+      ],
+      "matches": [
+        "https://www.colegioeverest.cl/*",
+        "https://colegioeverest.cl/*"
+      ]
+    }
+  ]
+}

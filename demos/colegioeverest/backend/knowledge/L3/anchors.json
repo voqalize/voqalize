@@ -1,0 +1,2347 @@
+{
+ "_meta": {
+  "site": "https://www.colegioeverest.cl",
+  "header_px": 0,
+  "scroll_gap_px": 20,
+  "viewport": "1440x900",
+  "note": "Built by build.py; every selector matched exactly one laid-out element on the live page (optional ones: exactly one element). GenerateBlocks classes repeat across pages: a key is only valid on its own page. positional places are .entry-content > :nth-child(n)."
+ },
+ "header": [
+  {
+   "key": "menu_superior",
+   "selector": "#secondary-navigation",
+   "label": "Barra superior: Home, Información Práctica, Noticias, Conectados, Exalumnos, Lirmi, Alexia, Buk, Pago Online, Contacto"
+  },
+  {
+   "key": "menu_principal",
+   "selector": "#site-navigation",
+   "label": "Menú principal: Nuestro Colegio, Nuestro Modelo Educativo, Comunidad Everest, Admisión"
+  },
+  {
+   "key": "menu_nuestro_colegio",
+   "selector": "#menu-item-107",
+   "label": "Menú «Nuestro Colegio» (desplegable)"
+  },
+  {
+   "key": "menu_modelo_educativo",
+   "selector": "#menu-item-284",
+   "label": "Menú «Nuestro Modelo Educativo» (desplegable)"
+  },
+  {
+   "key": "menu_comunidad",
+   "selector": "#menu-item-400",
+   "label": "Menú «Comunidad Everest» (desplegable)"
+  },
+  {
+   "key": "menu_admision",
+   "selector": "#menu-item-406",
+   "label": "Menú «Admisión»",
+   "href": "https://www.colegioeverest.cl/bienvenidos-al-proceso-de-admision-del-colegio-everest/"
+  },
+  {
+   "key": "menu_informacion_practica",
+   "selector": "#menu-item-490",
+   "label": "Barra superior: «Información Práctica»"
+  },
+  {
+   "key": "menu_noticias",
+   "selector": "#menu-item-485",
+   "label": "Barra superior: «Noticias»"
+  },
+  {
+   "key": "menu_contacto",
+   "selector": "#menu-item-1254",
+   "label": "Barra superior: «Contacto»",
+   "href": "https://www.colegioeverest.cl/contacto/"
+  },
+  {
+   "key": "menu_alexia",
+   "selector": "#menu-item-5448",
+   "label": "Barra superior: «Alexia» (plataforma de apoderados, externa)",
+   "href": "https://colegioeverest.alexiaeducl.com/"
+  },
+  {
+   "key": "menu_pago_online",
+   "selector": "#menu-item-3907",
+   "label": "Barra superior: «Pago Online» (upago, externo)",
+   "href": "https://pay.upago.cl/go/1395"
+  },
+  {
+   "key": "logo",
+   "selector": ".site-logo",
+   "label": "Logo Colegio Everest"
+  }
+ ],
+ "footer": [
+  {
+   "key": "pie",
+   "selector": ".site-footer",
+   "label": "Pie de página"
+  },
+  {
+   "key": "pie_contacto",
+   "selector": ".gb-container-4efcd0b2",
+   "label": "Pie: dirección Camino Real 4518, Lo Barnechea; teléfono (+56) 2 2757 8800; correo; Facebook e Instagram"
+  },
+  {
+   "key": "pie_mapa",
+   "selector": ".gb-container-9c3eafa7",
+   "label": "Pie: mapa de Google del colegio"
+  },
+  {
+   "key": "pie_links",
+   "selector": ".gb-container-7240a6ad",
+   "label": "Pie: links relacionados (Oak, Cambridge, Regnum Christi, Red RC) y «Trabaja con nosotros»"
+  }
+ ],
+ "post": [
+  {
+   "key": "titulo",
+   "selector": "h1.titulo-pagina",
+   "label": "Título de la noticia"
+  },
+  {
+   "key": "imagen",
+   "selector": ".featured-image",
+   "label": "Imagen de la noticia"
+  },
+  {
+   "key": "contenido",
+   "selector": ".entry-content",
+   "label": "La noticia"
+  }
+ ],
+ "pages": {
+  "/": {
+   "kind": "home",
+   "title": "Bienvenidos al Everest",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "hero",
+     "selector": ".slider-header__content",
+     "label": "Portada: «Bienvenidos al Everest» (video de fondo)",
+     "href": "https://www.colegioeverest.cl/bienvenidos-al-proceso-de-admision-del-colegio-everest/"
+    },
+    {
+     "key": "hero_admision",
+     "selector": ".slider-header__link1",
+     "label": "Botón «Admisión» de la portada",
+     "href": "https://www.colegioeverest.cl/bienvenidos-al-proceso-de-admision-del-colegio-everest/"
+    },
+    {
+     "key": "atributos",
+     "selector": ".gb-container-bfdf2a01",
+     "label": "«Nuestros atributos»: los cinco íconos"
+    },
+    {
+     "key": "atributo_catolico",
+     "selector": ".gb-grid-column-bef6edef",
+     "label": "Atributo «Colegio Católico»",
+     "href": "https://www.colegioeverest.cl/nuestro-colegio/nuestros-atributos/colegio-catolico/"
+    },
+    {
+     "key": "atributo_formacion",
+     "selector": ".gb-grid-column-9d7fd36f",
+     "label": "Atributo «Formación Integral de Excelencia»",
+     "href": "https://www.colegioeverest.cl/nuestro-colegio/nuestros-atributos/formacion-integral-de-excelencia/"
+    },
+    {
+     "key": "atributo_acompanamiento",
+     "selector": ".gb-grid-column-6bb98930",
+     "label": "Atributo «Acompañamiento Centrado en la Persona»",
+     "href": "https://www.colegioeverest.cl/nuestro-colegio/nuestros-atributos/acompanamiento-centrado-en-la-persona/"
+    },
+    {
+     "key": "atributo_apostoles",
+     "selector": ".gb-grid-column-dbe684e6",
+     "label": "Atributo «Apóstoles al Servicio de los demás»",
+     "href": "https://www.colegioeverest.cl/nuestro-colegio/nuestros-atributos/apostoles-al-servicio-de-los-demas/"
+    },
+    {
+     "key": "atributo_comunidad",
+     "selector": ".gb-grid-column-d5412194",
+     "label": "Atributo «Comunidad Educativa»",
+     "href": "https://www.colegioeverest.cl/nuestro-colegio/nuestros-atributos/comunidad-educativa/"
+    },
+    {
+     "key": "treinta_anos",
+     "selector": ".gb-container-9b1f91a9",
+     "label": "«Ya llevamos 30 años de vida», con video y botón «Conocer más»",
+     "href": "https://www.colegioeverest.cl/nuestro-colegio/historia/"
+    },
+    {
+     "key": "treinta_anos_video",
+     "selector": ".gb-grid-column-2347db21",
+     "label": "Video «30 Años Colegio Everest» (YouTube)"
+    },
+    {
+     "key": "noticias",
+     "selector": ".gb-container-25f8ede8",
+     "label": "«Noticias»: carrusel de las últimas noticias"
+    },
+    {
+     "key": "noticias_carrusel",
+     "selector": ".slider-noticias",
+     "label": "Carrusel de noticias (tres a la vista)"
+    },
+    {
+     "key": "noticias_anterior",
+     "selector": ".slider-noticias .slick-prev",
+     "label": "Flecha «anterior» del carrusel de noticias",
+     "hidden": true
+    },
+    {
+     "key": "noticias_siguiente",
+     "selector": ".slider-noticias .slick-next",
+     "label": "Flecha «siguiente» del carrusel de noticias",
+     "hidden": true
+    },
+    {
+     "key": "noticias_todas",
+     "selector": "#main a[href*=\"/noticias/\"]",
+     "label": "Link «Leer todas las noticias»",
+     "href": "https://www.colegioeverest.cl/noticias/"
+    },
+    {
+     "key": "destacados",
+     "selector": ".gb-container-d35e15b6",
+     "label": "«Destacados»: Handing, Admisión Bambolino 2027, app de canchas, tour 360°, energía solar"
+    },
+    {
+     "key": "destacado_handing",
+     "selector": ".gb-grid-column-d76c4564",
+     "label": "Destacado: «Toda la información práctica… en Documentos útiles de Handing»",
+     "href": "https://handing.co/"
+    },
+    {
+     "key": "destacado_admision",
+     "selector": ".gb-grid-column-905e86bc",
+     "label": "Destacado: «Admisión Bambolino 2027»",
+     "href": "https://www.colegioeverest.cl/bienvenidos-al-proceso-de-admision-del-colegio-everest/"
+    },
+    {
+     "key": "destacado_canchas",
+     "selector": ".gb-grid-column-71f4913f",
+     "label": "Destacado: arriendo de canchas con la app «Colegio Everest»"
+    },
+    {
+     "key": "destacado_tour",
+     "selector": ".gb-grid-column-4ede0fb6",
+     "label": "Destacado: «Tour virtual 360°»",
+     "href": "https://www.colegioeverest.cl/tour-virtual/"
+    },
+    {
+     "key": "destacado_solar",
+     "selector": ".gb-grid-column-75b8e931",
+     "label": "Destacado: video «Colegio Everest se ilumina con energía solar»"
+    }
+   ]
+  },
+  "/bienvenidos-al-proceso-de-admision-del-colegio-everest/": {
+   "kind": "admission",
+   "title": "Bienvenidos al Proceso de Admisión del Colegio Everest",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "intro",
+     "selector": ".gb-container-1c045dbd",
+     "label": "Introducción: somos parte de la Red de Colegios Regnum Christi, con video"
+    },
+    {
+     "key": "intro_video",
+     "selector": ".gb-container-a7d1f177",
+     "label": "Video «Colegio Everest, parte de la Red internacional de colegios RC»"
+    },
+    {
+     "key": "fechas",
+     "selector": ".gb-container-27bcc394",
+     "label": "«Fechas de Postulación»"
+    },
+    {
+     "key": "fechas_niveles",
+     "selector": ".gb-container-a372b43a",
+     "label": "Las cinco tarjetas de fechas por nivel"
+    },
+    {
+     "key": "fecha_prekinder",
+     "selector": ".gb-container-db32d6d8",
+     "label": "Fechas: Prekínder 2027 (4 años cumplidos al 31 de marzo 2027)"
+    },
+    {
+     "key": "fecha_playgroup",
+     "selector": ".gb-container-49e6a090",
+     "label": "Fechas: Playgroup 2027 (1 al 15 de abril de 2026; 3 años)"
+    },
+    {
+     "key": "fecha_kinder_iv_medio",
+     "selector": ".gb-container-0339c204",
+     "label": "Fechas: Kínder a IV medio 2027 (julio a septiembre 2026)"
+    },
+    {
+     "key": "fecha_bambolino",
+     "selector": ".gb-container-d9eaa29f",
+     "label": "Fechas: Mini Bambolino y Bambolino 2027 (1° al 20 de octubre 2026)"
+    },
+    {
+     "key": "fecha_mini_bambolino_2s",
+     "selector": ".gb-container-62f080f8",
+     "label": "Fechas: Mini Bambolino II semestre 2026 (1 al 15 de mayo de 2026)"
+    },
+    {
+     "key": "pasos",
+     "selector": ".gb-container-a875bd50",
+     "label": "«Pasos de Postulación»"
+    },
+    {
+     "key": "pasos_grilla",
+     "selector": ".gb-container-716a5e69",
+     "label": "Los ocho pasos de postulación"
+    },
+    {
+     "key": "paso_1_conoce",
+     "selector": ".gb-container-5cd7e937",
+     "label": "Paso 1: Conoce nuestro proyecto educativo",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2022/04/proyecto-educativo-colegio-everest.pdf"
+    },
+    {
+     "key": "paso_2_prepara",
+     "selector": ".gb-container-00b03be9",
+     "label": "Paso 2: Prepara los documentos digitales (carta a la directora, certificado de nacimiento)"
+    },
+    {
+     "key": "paso_3_postula",
+     "selector": ".gb-container-2dfc21a5",
+     "label": "Paso 3: Postula online (botón «Postulación ONLINE», Alexia)",
+     "href": "https://colegioeverest.alexiaeducl.com/AcWeb/paginas/publicas/FormularioMatriculacion.aspx?token=N6NoDSk6C3at5f8TmJg3NQ==&Ejercicio=2026#no-back-button"
+    },
+    {
+     "key": "paso_4_visita",
+     "selector": ".gb-container-a8e15b22",
+     "label": "Paso 4: Visita nuestro colegio (botón «Agenda AQUÍ», Microsoft Bookings)",
+     "href": "https://bookings.cloud.microsoft/bookwithme/user/17ce873c0fb24b9881f8d9260a482879%40colegioeverest.cl?anonymous&ismsaljsauthenabled"
+    },
+    {
+     "key": "paso_5_entrevista",
+     "selector": ".gb-container-0ba9a577",
+     "label": "Paso 5: Entrevista de familia"
+    },
+    {
+     "key": "paso_6_admission_day",
+     "selector": ".gb-container-1357fad0",
+     "label": "Paso 6: Admission Day (valor proceso $45.000)"
+    },
+    {
+     "key": "paso_7_resultados",
+     "selector": ".gb-container-40f29001",
+     "label": "Paso 7: Entrega de resultados"
+    },
+    {
+     "key": "paso_8_incorporacion",
+     "selector": ".gb-container-b571284d",
+     "label": "Paso 8: Incorporación (7 días para matricular)"
+    },
+    {
+     "key": "boton_pei",
+     "selector": "#main a[href*=\"proyecto-educativo-colegio-everest.pdf\"]",
+     "label": "Botón «Proyecto Educativo» del paso 1 (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2022/04/proyecto-educativo-colegio-everest.pdf"
+    },
+    {
+     "key": "cta_postular",
+     "selector": "#main a[href*=\"FormularioMatriculacion\"]",
+     "label": "Botón «Postulación ONLINE» (abre Alexia en pestaña nueva)",
+     "hidden": true,
+     "href": "https://colegioeverest.alexiaeducl.com/AcWeb/paginas/publicas/FormularioMatriculacion.aspx?token=N6NoDSk6C3at5f8TmJg3NQ==&Ejercicio=2026#no-back-button"
+    },
+    {
+     "key": "cta_agendar_visita",
+     "selector": "#main a[href*=\"bookings.cloud.microsoft\"]",
+     "label": "Botón «Agenda AQUÍ» (abre Microsoft Bookings en pestaña nueva)",
+     "hidden": true,
+     "href": "https://bookings.cloud.microsoft/bookwithme/user/17ce873c0fb24b9881f8d9260a482879%40colegioeverest.cl?anonymous&ismsaljsauthenabled"
+    },
+    {
+     "key": "botones_documentos",
+     "selector": ".gb-container-5d80ff91",
+     "label": "Botones «Vacantes 2027», «Resultados de admisión 2026», «Valores 2026»"
+    },
+    {
+     "key": "vacantes",
+     "selector": ".gb-button-30d0568a",
+     "label": "Botón «Vacantes 2027» (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2026/03/VACANTES-EVEREST-2027.pdf"
+    },
+    {
+     "key": "valores",
+     "selector": ".gb-button-2580295e",
+     "label": "Botón «Valores 2026» (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2026/06/Valores_colegio_everest_2026.pdf"
+    },
+    {
+     "key": "ciclos",
+     "selector": ".gb-container-dcf0a5f3",
+     "label": "«Conoce Nuestros Ciclos»"
+    },
+    {
+     "key": "ciclo_i",
+     "selector": ".gb-container-21d572ad",
+     "label": "I Ciclo – Preschool (Bambolino a Kinder)",
+     "href": "https://www.colegioeverest.cl/nuestro-modelo-educativo/ciclos/i-ciclo-preescolar/"
+    },
+    {
+     "key": "ciclo_ii",
+     "selector": ".gb-container-c62f1960",
+     "label": "II Ciclo (1° a 6° básico)",
+     "href": "https://www.colegioeverest.cl/nuestro-modelo-educativo/ciclos/ii-ciclo/"
+    },
+    {
+     "key": "ciclo_iii",
+     "selector": ".gb-container-28b33524",
+     "label": "III Ciclo (7° a IV medio)",
+     "href": "https://www.colegioeverest.cl/nuestro-modelo-educativo/ciclos/iii-ciclo/"
+    },
+    {
+     "key": "encargada_admision",
+     "selector": ".gb-container-6c360a28",
+     "label": "Encargada de Admisión: María Ignacia Fuentes, correo y teléfono"
+    },
+    {
+     "key": "telefono_admision",
+     "selector": "#main a[href*=\"tel:+56227578804\"]",
+     "label": "Teléfono de admisión +56 2 2757 8804",
+     "hidden": true,
+     "href": "tel:+56227578804"
+    }
+   ]
+  },
+  "/bienvenidos-al-proceso-de-admision-del-colegio-everest/resultados-admision/": {
+   "kind": "admission_results",
+   "title": "Resultados admisión",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "resultados_2022",
+     "selector": ".gb-container-f98e2f9e",
+     "label": "Resultados de admisión 2022 (PDF, antiguos)"
+    },
+    {
+     "key": "nota_2023",
+     "selector": ".gb-container-9e6d1ea0",
+     "label": "Nota: los resultados 2023 se entregaron por mail y en la oficina de Admisión"
+    }
+   ]
+  },
+  "/contacto/": {
+   "kind": "contact",
+   "title": "Contacto",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "formulario",
+     "selector": "#wpcf7-f1250-p1251-o1",
+     "label": "Formulario de contacto (Nombre, correo, asunto, mensaje)"
+    },
+    {
+     "key": "field_nombre",
+     "selector": "#wpcf7-f1250-p1251-o1 input[name=\"your-name\"]",
+     "label": "Campo Nombre (requerido)",
+     "hidden": true
+    },
+    {
+     "key": "field_email",
+     "selector": "#wpcf7-f1250-p1251-o1 input[name=\"your-email\"]",
+     "label": "Campo Correo (requerido)",
+     "hidden": true
+    },
+    {
+     "key": "field_asunto",
+     "selector": "#wpcf7-f1250-p1251-o1 input[name=\"your-subject\"]",
+     "label": "Campo Asunto",
+     "hidden": true
+    },
+    {
+     "key": "field_mensaje",
+     "selector": "#wpcf7-f1250-p1251-o1 textarea[name=\"your-message\"]",
+     "label": "Campo Mensaje",
+     "hidden": true
+    },
+    {
+     "key": "captcha",
+     "selector": "#wpcf7-f1250-p1251-o1 .wpcf7-turnstile",
+     "label": "Verificación Cloudflare Turnstile",
+     "hidden": true
+    },
+    {
+     "key": "submit",
+     "selector": "#wpcf7-f1250-p1251-o1 .wpcf7-submit",
+     "label": "Botón «Enviar»",
+     "hidden": true
+    },
+    {
+     "key": "respuesta",
+     "selector": "#wpcf7-f1250-p1251-o1 .wpcf7-response-output",
+     "label": "Línea de respuesta del formulario (aparece al enviar)",
+     "hidden": true,
+     "optional": true
+    }
+   ]
+  },
+  "/trabaja-con-nosotros/": {
+   "kind": "jobs",
+   "title": "Trabaja con nosotros",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "formulario",
+     "selector": "#wpcf7-f1217-p1218-o1",
+     "label": "Formulario «Trabaja con nosotros» (CV; solo mostrar)"
+    }
+   ]
+  },
+  "/nuestro-colegio/nuestra-mision/": {
+   "kind": "school",
+   "title": "Nuestra Misión",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2022/06/2-Ideario-colegios-RC.pdf"
+    },
+    {
+     "key": "pdf_ideario",
+     "selector": ".gb-button-63202ab0",
+     "label": "Botón «Descarga el Ideario de los colegios RC» (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2022/06/2-Ideario-colegios-RC.pdf"
+    }
+   ]
+  },
+  "/nuestro-colegio/nuestros-atributos/": {
+   "kind": "school",
+   "title": "Nuestros Atributos",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "catolico",
+     "selector": ".gb-container-aa9be48b",
+     "label": "Colegio Católico",
+     "href": "https://www.colegioeverest.cl/nuestro-colegio/nuestros-atributos/colegio-catolico/"
+    },
+    {
+     "key": "formacion",
+     "selector": ".gb-container-eed9528a",
+     "label": "Formación Integral de Excelencia",
+     "href": "https://www.colegioeverest.cl/nuestro-colegio/nuestros-atributos/formacion-integral-de-excelencia/"
+    },
+    {
+     "key": "acompanamiento",
+     "selector": ".gb-container-8a1c6ee6",
+     "label": "Acompañamiento Centrado en la Persona",
+     "href": "https://www.colegioeverest.cl/nuestro-colegio/nuestros-atributos/acompanamiento-centrado-en-la-persona/"
+    },
+    {
+     "key": "apostoles",
+     "selector": ".gb-container-dc1eda32",
+     "label": "Apóstoles al Servicio de los demás",
+     "href": "https://www.colegioeverest.cl/nuestro-colegio/nuestros-atributos/apostoles-al-servicio-de-los-demas/"
+    },
+    {
+     "key": "comunidad",
+     "selector": ".gb-container-994f613b",
+     "label": "Comunidad Educativa",
+     "href": "https://www.colegioeverest.cl/nuestro-colegio/nuestros-atributos/comunidad-educativa/"
+    }
+   ]
+  },
+  "/nuestro-colegio/nuestros-atributos/colegio-catolico/": {
+   "kind": "attribute",
+   "title": "Colegio Católico",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "intro",
+     "selector": ".entry-content > :nth-child(1)",
+     "label": "«Nuestro colegio ofrece actividades que… promueven la vida espiritual»",
+     "positional": true
+    },
+    {
+     "key": "lista",
+     "selector": ".entry-content > :nth-child(2)",
+     "label": "Oración, comunión diaria, confesión, Misas, la Virgen María, sacramentos, religión",
+     "positional": true
+    }
+   ]
+  },
+  "/nuestro-colegio/nuestros-atributos/formacion-integral-de-excelencia/": {
+   "kind": "attribute",
+   "title": "Formación integral de excelencia",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "intro",
+     "selector": ".entry-content > :nth-child(1)",
+     "label": "Cita del Ideario: inteligencia, voluntad y afectividad",
+     "positional": true
+    },
+    {
+     "key": "integer_homo",
+     "selector": ".entry-content > :nth-child(2)",
+     "label": "«Integer Homo e Integra Mulier»",
+     "positional": true
+    }
+   ]
+  },
+  "/nuestro-colegio/nuestros-atributos/acompanamiento-centrado-en-la-persona/": {
+   "kind": "attribute",
+   "title": "Acompañamiento centrado en la persona",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "intro",
+     "selector": ".entry-content > :nth-child(1)",
+     "label": "El acompañamiento al estilo de Jesucristo",
+     "positional": true
+    },
+    {
+     "key": "medios",
+     "selector": ".entry-content > :nth-child(4)",
+     "label": "Medios: encargadas de familia, profesor jefe, disciplina formativa, sacerdotes y consagradas, psicología",
+     "positional": true
+    }
+   ]
+  },
+  "/nuestro-colegio/nuestros-atributos/apostoles-al-servicio-de-los-demas/": {
+   "kind": "attribute",
+   "title": "Apóstoles al servicio de los demás",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "intro",
+     "selector": ".entry-content > :nth-child(1)",
+     "label": "«Nuestro colegio promueve la vida apostólica mediante:»",
+     "positional": true
+    },
+    {
+     "key": "lista",
+     "selector": ".entry-content > :nth-child(2)",
+     "label": "Pastoral, Participación Social, orientación, programa COES, amistad",
+     "positional": true
+    }
+   ]
+  },
+  "/nuestro-colegio/nuestros-atributos/comunidad-educativa/": {
+   "kind": "attribute",
+   "title": "Comunidad educativa",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "intro",
+     "selector": ".entry-content > :nth-child(1)",
+     "label": "«En la comunidad educativa todos contribuyen a la formación»",
+     "positional": true
+    },
+    {
+     "key": "lista",
+     "selector": ".entry-content > :nth-child(3)",
+     "label": "Las familias, los alumnos, los profesores, la directora y el equipo directivo",
+     "positional": true
+    }
+   ]
+  },
+  "/nuestro-colegio/historia/": {
+   "kind": "school",
+   "title": "Historia",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "fundacion_1995",
+     "selector": ".entry-content > :nth-child(1)",
+     "label": "1995: se funda con 75 alumnos en el Colegio Cumbres",
+     "positional": true
+    },
+    {
+     "key": "camino_real_1997",
+     "selector": ".entry-content > :nth-child(2)",
+     "label": "1997: primera piedra en Camino Real, La Dehesa",
+     "positional": true
+    },
+    {
+     "key": "edificio_1998",
+     "selector": ".entry-content > :nth-child(3)",
+     "label": "1998: el edificio que hoy ocupa Preescolar",
+     "positional": true
+    },
+    {
+     "key": "primera_generacion_2008",
+     "selector": ".entry-content > :nth-child(4)",
+     "label": "2008: primera promoción; 17 generaciones desde entonces",
+     "positional": true
+    },
+    {
+     "key": "direccion_unica_2016",
+     "selector": ".entry-content > :nth-child(5)",
+     "label": "2016: preescolar, masculino y femenino bajo una sola Dirección",
+     "positional": true
+    },
+    {
+     "key": "gimnasio_2022",
+     "selector": ".entry-content > :nth-child(6)",
+     "label": "2022: se inaugura el gimnasio",
+     "positional": true
+    },
+    {
+     "key": "hoy",
+     "selector": ".entry-content > :nth-child(7)",
+     "label": "Hoy: casi 2000 alumnos, de Mini Bambolino a IV Medio; 30 años en 2025",
+     "positional": true
+    }
+   ]
+  },
+  "/nuestro-colegio/equipo-directivo/": {
+   "kind": "school",
+   "title": "Equipo Directivo",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "equipo",
+     "selector": ".gb-container-b017e162",
+     "label": "Equipo directivo: directora, subdirectora, UTP, coordinadoras, administración"
+    }
+   ]
+  },
+  "/nuestro-colegio/infraestructura/": {
+   "kind": "school",
+   "title": "Infraestructura",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "texto",
+     "selector": ".entry-content > :nth-child(1)",
+     "label": "Las instalaciones: 8 multicanchas, pista atlética, canchas, bibliotecas, laboratorios, capillas, auditorios",
+     "positional": true
+    },
+    {
+     "key": "galeria",
+     "selector": ".slider-for",
+     "label": "Galería de fotos del colegio (20 fotos)"
+    },
+    {
+     "key": "galeria_miniaturas",
+     "selector": ".slider-nav",
+     "label": "Miniaturas de la galería"
+    },
+    {
+     "key": "galeria_anterior",
+     "selector": ".slider-for .slick-prev",
+     "label": "Flecha «anterior» de la galería",
+     "hidden": true
+    },
+    {
+     "key": "galeria_siguiente",
+     "selector": ".slider-for .slick-next",
+     "label": "Flecha «siguiente» de la galería",
+     "hidden": true
+    }
+   ]
+  },
+  "/nuestro-colegio/normativas/": {
+   "kind": "documents",
+   "title": "Normativas",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "reglamentos",
+     "selector": ".gb-container-6caf6aea",
+     "label": "«Reglamentos y Estatutos»"
+    },
+    {
+     "key": "reglamentos_grilla",
+     "selector": ".gb-container-0787cebc",
+     "label": "Reglamentos: PEI, Promoción y Evaluación 2027, disciplina formativa, Formación Ciudadana, Ideario, RICE 2027, Fondo de Becas, biblioteca"
+    },
+    {
+     "key": "protocolos",
+     "selector": ".gb-container-10add672",
+     "label": "«Protocolos»"
+    },
+    {
+     "key": "protocolos_grilla",
+     "selector": ".gb-container-e32135b5",
+     "label": "Los 14 protocolos"
+    },
+    {
+     "key": "comites",
+     "selector": ".gb-container-9d50a6b0",
+     "label": "«Comités»"
+    },
+    {
+     "key": "comites_grilla",
+     "selector": ".gb-container-e94240d5",
+     "label": "Comité de Convivencia Escolar"
+    },
+    {
+     "key": "pdf_pei",
+     "selector": ".gb-grid-column-1f487431",
+     "label": "Proyecto Educativo Institucional (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2022/06/Proyecto-Educativo-Colegio-Everest.pdf"
+    },
+    {
+     "key": "pdf_promocion_evaluacion",
+     "selector": ".gb-grid-column-3a84f04d",
+     "label": "Reglamento de Promoción y Evaluación Escolar 2027 (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2026/10/2027-PROMOCION-Y-EVALUACION-ESCOLAR_edit.pdf"
+    },
+    {
+     "key": "pdf_disciplina_formativa",
+     "selector": ".gb-grid-column-4fe4c2bf",
+     "label": "Principios y pautas de disciplina formativa RC (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2022/06/3-Principios-y-pautas-de-disciplina-formativa-para-los-colegios-RC_.pdf"
+    },
+    {
+     "key": "pdf_formacion_ciudadana",
+     "selector": ".gb-grid-column-ddef68b3",
+     "label": "Plan de Formación Ciudadana (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2023/06/Plan-Formacion-Ciudana-Everest.pdf"
+    },
+    {
+     "key": "pdf_ideario",
+     "selector": ".gb-grid-column-9c16919f",
+     "label": "Ideario Colegios RC (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2022/06/2-Ideario-colegios-RC.pdf"
+    },
+    {
+     "key": "pdf_rice",
+     "selector": ".gb-grid-column-6d01c50a",
+     "label": "Reglamento Interno de Convivencia Escolar (RICE) 2027 (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2026/10/rice-everest_2027.pdf"
+    },
+    {
+     "key": "pdf_fondo_becas",
+     "selector": ".gb-grid-column-d9e4e21a",
+     "label": "Reglamento del Fondo Solidario de Becas (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2026/06/REGLAMENTO-FONDO-SOLIDARIO-DE-BECAS-2026-FINAL.pdf"
+    },
+    {
+     "key": "pdf_biblioteca",
+     "selector": ".gb-grid-column-4c364dbf",
+     "label": "Reglamento biblioteca (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2022/12/Reglamento-biblioteca-2023.pdf"
+    },
+    {
+     "key": "pdf_codigo_ambientes",
+     "selector": ".gb-grid-column-f9474967",
+     "label": "Código de promoción de ambiente sano y seguro (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2023/10/ce-codigo-ambientes-seguro-2024.pdf"
+    },
+    {
+     "key": "pdf_pise",
+     "selector": ".gb-grid-column-ae78a577",
+     "label": "Plan Integral de Seguridad Escolar (PISE) (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2024/09/PISE-2024-.pdf"
+    },
+    {
+     "key": "pdf_medidas_extraordinarias",
+     "selector": ".gb-grid-column-38f3426a",
+     "label": "Plan medidas extraordinarias Ley 21290 (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2022/04/plan-medidas-extraordinarias.pdf"
+    },
+    {
+     "key": "pdf_manual_gimnasio",
+     "selector": ".gb-grid-column-fafb6784",
+     "label": "Manual de procedimientos gimnasio (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2022/11/MANUAL-DE-PROCEDIMIENTOS-GIMNASIO-COLEGIO-EVEREST-noviembre.pdf"
+    },
+    {
+     "key": "pdf_trabajo_colaborativo",
+     "selector": ".gb-grid-column-4ce88d77",
+     "label": "Protocolo trabajo colaborativo III ciclo (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2022/04/protocolo-trabajo-colaborativo-iii-ciclo.pdf"
+    },
+    {
+     "key": "pdf_alcohol_drogas",
+     "selector": ".gb-grid-column-d8edf2fb",
+     "label": "Prevención del consumo de alcohol y drogas (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2022/04/prevencion-consumo-alcohol-drogas.pdf"
+    },
+    {
+     "key": "pdf_entrada_salida",
+     "selector": ".gb-grid-column-78af8c70",
+     "label": "Protocolo entrada y salida del recinto escolar (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2022/04/protocolo-entrada-y-salida-recinto-escolar.pdf"
+    },
+    {
+     "key": "pdf_nee",
+     "selector": ".gb-grid-column-0fac22ff",
+     "label": "Programa de apoyo a alumnos con necesidades educativas especiales (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2022/04/programa-de-apoyo-alumnos-necesidades-educativas-especiales.pdf"
+    },
+    {
+     "key": "pdf_decalogo_deportista",
+     "selector": ".gb-grid-column-3ec32805",
+     "label": "Decálogo deportista Everest (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2022/04/decalogo-deportista-everest.pdf"
+    },
+    {
+     "key": "pdf_acoso_laboral",
+     "selector": ".gb-grid-column-842999ce",
+     "label": "Protocolo de prevención del acoso sexual, laboral y violencia en el trabajo (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2024/11/Everest-Protocolo-de-prevencion-del-acoso-sexual-laboral-y-la-violencia-en-el-trabajo.pdf"
+    },
+    {
+     "key": "pdf_apoyo_deportistas",
+     "selector": ".gb-grid-column-1b4b88de",
+     "label": "Plan de apoyo académico para deportistas seleccionados (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2025/04/PLAN-DE-APOYO-ACADEMICO-PARA-DEPORTISTAS-DESTACADOS-SELECCIONADOS-DEL-COLEGIO-EVEREST-Y-A-NIVEL-NACIONAL-2025.pdf"
+    },
+    {
+     "key": "pdf_protocolo_acompanamiento",
+     "selector": ".gb-grid-column-65277e30",
+     "label": "Protocolo de acompañamiento (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2024/04/PROTOCOLO-ACOMPANAMIENTO-CENTRADO-EN-LA-PERSONA.pdf"
+    },
+    {
+     "key": "pdf_viajes",
+     "selector": ".gb-grid-column-c78695d8",
+     "label": "Protocolo por viaje (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2024/04/Protocolo-de-viajes.pdf"
+    },
+    {
+     "key": "pdf_intercambio",
+     "selector": ".gb-grid-column-40b86d7e",
+     "label": "Protocolo y reglamento para intercambios escolares (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2025/06/Reglamento-y-disposiciones-administrativas-para-alumnos-de-Intercambio-jun.25.pdf"
+    },
+    {
+     "key": "pdf_comite_que_es",
+     "selector": ".gb-grid-column-e782a30b",
+     "label": "¿Qué es el Comité de Convivencia Escolar? (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2022/04/que-es-el-comite-convivencia.pdf"
+    },
+    {
+     "key": "pdf_comite_acta",
+     "selector": ".gb-grid-column-986f50ba",
+     "label": "Acta constitución Comité de Convivencia (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2024/07/Conformacion-Comite-Convivencia-Escolar-2024.pdf"
+    }
+   ]
+  },
+  "/nuestro-colegio/colegios-rc/": {
+   "kind": "school",
+   "title": "Colegios RC",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "intro",
+     "selector": ".gb-container-6f9495c5",
+     "label": "La Red de Colegios Regnum Christi"
+    },
+    {
+     "key": "particulares",
+     "selector": ".gb-container-2323dbd3",
+     "label": "Colegios particulares de la red (seis)"
+    },
+    {
+     "key": "fundacion",
+     "selector": ".gb-container-bf4aff4a",
+     "label": "Colegios Fundación Mano Amiga y el particular subvencionado"
+    }
+   ]
+  },
+  "/tour-virtual/": {
+   "kind": "tour",
+   "title": "Tour virtual",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "tour",
+     "selector": ".gb-container-bfa84f54",
+     "label": "Tour virtual 360° del colegio"
+    }
+   ]
+  },
+  "/nuestro-colegio/ambientes-seguros/": {
+   "kind": "safeguarding",
+   "title": "Ambientes Seguros",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "intro",
+     "selector": ".gb-container-ee7b0614",
+     "label": "«Comprometidos con la cultura del cuidado y la prevención» y el equipo"
+    },
+    {
+     "key": "indice",
+     "selector": ".gb-container-2cd099cd",
+     "label": "Índice: Protocolos, Formulario de denuncias, Certificación Ceprome, Documentos"
+    },
+    {
+     "key": "protocolos",
+     "selector": "#as-protocolos",
+     "label": "Protocolos de Actuación: los cinco principios"
+    },
+    {
+     "key": "activacion",
+     "selector": ".gb-container-20080fa6",
+     "label": "Activación del protocolo AS (quién lo activa)"
+    },
+    {
+     "key": "etapas",
+     "selector": ".gb-container-9d65fe96",
+     "label": "Etapas de nuestros Protocolos",
+     "href": "https://www.colegioeverest.cl/nuestro-colegio/protocolos-de-ambientes-seguros/"
+    },
+    {
+     "key": "etapa_deteccion",
+     "selector": ".gb-grid-column-d0ad2074",
+     "label": "Etapa «Detección»"
+    },
+    {
+     "key": "etapa_acciones",
+     "selector": ".gb-grid-column-ca8a68bf",
+     "label": "Etapa «Acciones inmediatas»"
+    },
+    {
+     "key": "etapa_apoyo",
+     "selector": ".gb-grid-column-f105aae0",
+     "label": "Etapa «Apoyo y seguimiento»"
+    },
+    {
+     "key": "etapa_cierre",
+     "selector": ".gb-grid-column-82e95c4f",
+     "label": "Etapa «Cierre»"
+    },
+    {
+     "key": "denuncias",
+     "selector": "#as-formulario",
+     "label": "Formulario de Denuncias (solo mostrar, nunca llenar)"
+    },
+    {
+     "key": "ceprome",
+     "selector": "#as-ceprome",
+     "label": "Certificación Ceprome (noviembre 2025) y sus 8 estándares"
+    },
+    {
+     "key": "documentos",
+     "selector": "#as-documentos",
+     "label": "Documentos y links de interés"
+    },
+    {
+     "key": "pdf_codigo",
+     "selector": ".gb-button-a5d6eed3",
+     "label": "Código de Promoción de Ambientes Sanos y Seguros (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2023/10/ce-codigo-ambientes-seguro-2024.pdf"
+    },
+    {
+     "key": "pdf_informe_ceprome",
+     "selector": ".gb-button-1deaee36",
+     "label": "Informe de certificación Ceprome (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2026/09/colegio-everest-informe-de-certificacion.pdf"
+    },
+    {
+     "key": "pdf_diploma_ceprome",
+     "selector": ".gb-button-4ad16c3b",
+     "label": "Diploma de certificación Ceprome (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2026/09/colegio-everest-diploma-de-certificacion.pdf"
+    },
+    {
+     "key": "link_as_regnum",
+     "selector": ".gb-button-d346e80a",
+     "label": "Sitio web Ambientes Seguros del Regnum Christi Chile",
+     "href": "https://regnumchristichile.cl/contacto-ambientes-seguros/"
+    },
+    {
+     "key": "link_ceprome",
+     "selector": ".gb-button-f0101964",
+     "label": "Sitio web Ceprome Latinoamérica",
+     "href": "https://cepromelat.com/"
+    }
+   ]
+  },
+  "/nuestro-colegio/protocolos-de-ambientes-seguros/": {
+   "kind": "safeguarding",
+   "title": "Protocolos de Ambientes Seguros",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2023/10/ce-codigo-ambientes-seguro-2024.pdf"
+    },
+    {
+     "key": "esquema",
+     "selector": ".gb-container-935b06da",
+     "label": "Esquema de los protocolos: casos 1, 2 y 3",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2023/10/ce-codigo-ambientes-seguro-2024.pdf"
+    }
+   ]
+  },
+  "/nuestro-modelo-educativo/proyecto-educativo/": {
+   "kind": "education",
+   "title": "Proyecto Educativo",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2022/04/proyecto-educativo-colegio-everest.pdf"
+    },
+    {
+     "key": "adhesion",
+     "selector": ".gb-container-90463eec",
+     "label": "«Adhesión al proyecto educativo del colegio» (requisito para postular)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2022/04/proyecto-educativo-colegio-everest.pdf"
+    }
+   ]
+  },
+  "/nuestro-modelo-educativo/nuestro-modelo-formativo/": {
+   "kind": "education",
+   "title": "Nuestro Modelo Formativo",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "metodologias",
+     "selector": ".gb-container-987cf4c3",
+     "label": "«Metodologías Activas»"
+    },
+    {
+     "key": "ambientes_aprendizaje",
+     "selector": ".gb-container-7f5bcdde",
+     "label": "Ambientes de Aprendizaje y las demás metodologías"
+    }
+   ]
+  },
+  "/nuestro-modelo-educativo/evertics/": {
+   "kind": "education",
+   "title": "Evertics - Colegio Everest Chile",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "vision",
+     "selector": ".gb-container-93ef716a",
+     "label": "«Nuestra visión tecnológica» (estándares ISTE)"
+    },
+    {
+     "key": "inspira",
+     "selector": ".gb-container-8ad1ca07",
+     "label": "Inspira, Imagina, Impacta"
+    }
+   ]
+  },
+  "/nuestro-modelo-educativo/ingles-intensivo/": {
+   "kind": "education",
+   "title": "Inglés Intensivo",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página",
+     "href": "https://www.cambridgeenglish.org/exams-and-tests/cefr/"
+    },
+    {
+     "key": "intro",
+     "selector": ".gb-container-a795356c",
+     "label": "Inglés: 4 habilidades, Marco Común Europeo, B2 al egresar"
+    },
+    {
+     "key": "ruta",
+     "selector": ".gb-container-10329c7b",
+     "label": "Ruta de progreso: 4° A1, 6° A2, 8° B1, III° medio B2; Cambridge FCE y CAE; The Masters"
+    },
+    {
+     "key": "certificaciones",
+     "selector": ".gb-container-c73c9213",
+     "label": "Logos de certificaciones",
+     "href": "https://www.cambridgeenglish.org/exams-and-tests/cefr/"
+    }
+   ]
+  },
+  "/nuestro-modelo-educativo/ciclos/": {
+   "kind": "education",
+   "title": "Ciclos",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "ciclo_i",
+     "selector": ".gb-container-227a8f84",
+     "label": "I ciclo – Preschool (Bambolino a Kinder)",
+     "href": "https://www.colegioeverest.cl/nuestro-modelo-educativo/ciclos/i-ciclo-preescolar/"
+    },
+    {
+     "key": "ciclo_ii",
+     "selector": ".gb-container-942bbb8f",
+     "label": "II ciclo (1º a 6º básico)",
+     "href": "https://www.colegioeverest.cl/nuestro-modelo-educativo/ciclos/ii-ciclo/"
+    },
+    {
+     "key": "ciclo_iii",
+     "selector": ".gb-container-0a1fed7d",
+     "label": "III ciclo (7º básico a IV medio)",
+     "href": "https://www.colegioeverest.cl/nuestro-modelo-educativo/ciclos/iii-ciclo/"
+    }
+   ]
+  },
+  "/nuestro-modelo-educativo/ciclos/i-ciclo-preescolar/": {
+   "kind": "cycle",
+   "title": "I Ciclo – Preschool (Mini Bambolino a kinder)",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "intro",
+     "selector": ".entry-content > :nth-child(1)",
+     "label": "Educar con evidencia científica de cómo aprenden los niños",
+     "positional": true
+    },
+    {
+     "key": "conscious_discipline",
+     "selector": ".entry-content > :nth-child(3)",
+     "label": "Programa socioemocional Conscious Discipline",
+     "positional": true
+    },
+    {
+     "key": "juego",
+     "selector": ".entry-content > :nth-child(4)",
+     "label": "El juego libre y dirigido",
+     "positional": true
+    },
+    {
+     "key": "ingles",
+     "selector": ".entry-content > :nth-child(7)",
+     "label": "Inglés: en Playgroup, Prekínder y Kínder las clases son en inglés casi en su totalidad; Jolly Phonics",
+     "positional": true
+    }
+   ]
+  },
+  "/nuestro-modelo-educativo/ciclos/ii-ciclo/": {
+   "kind": "cycle",
+   "title": "II Ciclo (1°a 6° básico)",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "mision",
+     "selector": ".entry-content > :nth-child(1)",
+     "label": "Misión del II ciclo",
+     "positional": true
+    },
+    {
+     "key": "estrategias",
+     "selector": ".entry-content > :nth-child(2)",
+     "label": "Estrategias innovadoras y estilos de aprendizaje",
+     "positional": true
+    }
+   ]
+  },
+  "/nuestro-modelo-educativo/ciclos/iii-ciclo/": {
+   "kind": "cycle",
+   "title": "III Ciclo (7º a IV medio)",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "mision",
+     "selector": ".entry-content > :nth-child(1)",
+     "label": "Misión del III ciclo",
+     "positional": true
+    },
+    {
+     "key": "valores",
+     "selector": ".entry-content > :nth-child(2)",
+     "label": "Responsabilidad, autonomía, sana convivencia y servicio",
+     "positional": true
+    }
+   ]
+  },
+  "/nuestro-modelo-educativo/ciclos/iv-ciclo/": {
+   "kind": "cycle",
+   "title": "sub ciclo III CICLO (III y IV medio)",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página",
+     "href": "https://www.colegioeverest.cl/cambridge-english/"
+    },
+    {
+     "key": "mision",
+     "selector": ".entry-content > :nth-child(1)",
+     "label": "Misión del IV ciclo (página antigua, fuera del menú)",
+     "positional": true
+    },
+    {
+     "key": "ingles",
+     "selector": ".entry-content > :nth-child(5)",
+     "label": "Inglés: First Certificate en III°, intercambios Oak, The Masters, Stanford, Oxford y Yale",
+     "positional": true,
+     "href": "https://www.colegioeverest.cl/cambridge-english/"
+    },
+    {
+     "key": "selecciones",
+     "selector": ".entry-content > :nth-child(7)",
+     "label": "Selecciones: fútbol, básquetbol, atletismo, voleibol, gimnasia artística y hockey",
+     "positional": true
+    },
+    {
+     "key": "participacion_social",
+     "selector": ".entry-content > :nth-child(8)",
+     "label": "Programa de participación social",
+     "positional": true
+    }
+   ]
+  },
+  "/informacion-practica/": {
+   "kind": "info",
+   "title": "Información Práctica",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "intro",
+     "selector": ".gb-container-d6482b48",
+     "label": "«Estimadas familias: bienvenidas a la sección de Información Práctica»"
+    },
+    {
+     "key": "tarjetas",
+     "selector": ".gb-container-1e1dda51",
+     "label": "Las 14 tarjetas de información práctica"
+    },
+    {
+     "key": "fechas_importantes",
+     "selector": ".gb-grid-column-75b8b7b9",
+     "label": "Tarjeta «Fechas importantes 2026» (imagen)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2026/05/Fechas-importantes-Handing-Web.png"
+    },
+    {
+     "key": "lost_found",
+     "selector": ".gb-grid-column-5b4c08c3",
+     "label": "Tarjeta «Lost & Found»",
+     "href": "https://www.colegioeverest.cl/informacion-practica/lost-found/"
+    },
+    {
+     "key": "calendario_academico",
+     "selector": ".gb-grid-column-7fd91661",
+     "label": "Tarjeta «Calendario académico mensual» (dice que los calendarios están en Handing)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2026/04/Documentos-utiles.pdf"
+    },
+    {
+     "key": "comite_convivencia",
+     "selector": ".gb-grid-column-c69390e0",
+     "label": "Tarjeta «Activación Comité de Convivencia» (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2025/03/Procedimiento-para-Activacion-comite-de-convivencia.pdf"
+    },
+    {
+     "key": "casino",
+     "selector": ".gb-grid-column-c373b60f",
+     "label": "Tarjeta «Casino» (imagen)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2026/05/Casino-Handin-web.png"
+    },
+    {
+     "key": "textos_utiles",
+     "selector": ".gb-grid-column-23b2f3ca",
+     "label": "Tarjeta «Textos y útiles escolares»",
+     "href": "https://www.colegioeverest.cl/textos-y-utiles-escolares/"
+    },
+    {
+     "key": "compra_uniformes",
+     "selector": ".gb-grid-column-73016e16",
+     "label": "Tarjeta «Compra uniformes escolares»",
+     "href": "https://www.colegioeverest.cl/informacion-practica/cima/"
+    },
+    {
+     "key": "uniforme",
+     "selector": ".gb-grid-column-d3739ab7",
+     "label": "Tarjeta «Uniforme»",
+     "href": "https://www.colegioeverest.cl/informacion-practica/uniforme-del-colegio/"
+    },
+    {
+     "key": "arriendo_canchas",
+     "selector": ".gb-grid-column-fed4a071",
+     "label": "Tarjeta «Arriendo de canchas»",
+     "href": "https://www.colegioeverest.cl/informacion-practica/arriendo-de-canchas/"
+    },
+    {
+     "key": "enfermeria",
+     "selector": ".gb-grid-column-97fcbbfd",
+     "label": "Tarjeta «Enfermería»",
+     "href": "https://www.colegioeverest.cl/informacion-practica/enfermeria/"
+    },
+    {
+     "key": "portal_pago",
+     "selector": ".gb-grid-column-5fe7ddca",
+     "label": "Tarjeta «Portal de pago fácil» (upago, externo)",
+     "href": "https://pay.upago.cl/go/1395"
+    },
+    {
+     "key": "atencion_familias",
+     "selector": ".gb-grid-column-04667202",
+     "label": "Tarjeta «Atención de familias»",
+     "href": "https://www.colegioeverest.cl/informacion-practica/atencion-de-familias/"
+    },
+    {
+     "key": "instructivo_alexia",
+     "selector": ".gb-grid-column-57f4c7ff",
+     "label": "Tarjeta «Instructivo Alexia» (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2023/12/ALEXIA-APODERADOS-1.pdf"
+    },
+    {
+     "key": "bus_car",
+     "selector": ".gb-grid-column-83c039ca",
+     "label": "Tarjeta «Bus-Car»",
+     "href": "https://www.colegioeverest.cl/informacion-practica/bus-car/"
+    }
+   ]
+  },
+  "/informacion-practica/lost-found/": {
+   "kind": "info",
+   "title": "Lost & Found",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "intro",
+     "selector": ".gb-container-e0deb280",
+     "label": "Lost & Found: el cuidado de las pertenencias"
+    },
+    {
+     "key": "documentos",
+     "selector": ".gb-container-1e1dda51",
+     "label": "Protocolo, listado y valores de uniformes usados (PDF)"
+    },
+    {
+     "key": "contacto",
+     "selector": ".gb-container-9e5a71f3",
+     "label": "Contacto: Astrid Bascuñán, lostfound@colegioeverest.cl",
+     "href": "mailto:lostfound@colegioeverest.cl"
+    }
+   ]
+  },
+  "/informacion-practica/casino/": {
+   "kind": "info",
+   "title": "Casino",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "valores",
+     "selector": ".gb-container-48918139",
+     "label": "Casino Aramark: valores 2025, registro, contacto, información importante"
+    },
+    {
+     "key": "pdf_aramark",
+     "selector": ".gb-container-8afb06c9",
+     "label": "«Información Aramark Colegio Everest 2025» (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2025/03/Comunicado-Colegio-Everest-def.pdf"
+    }
+   ]
+  },
+  "/textos-y-utiles-escolares/": {
+   "kind": "info",
+   "title": "Textos y útiles escolares",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "listas",
+     "selector": ".gb-container-768b6fbc",
+     "label": "Las tres listas de textos y útiles 2026"
+    },
+    {
+     "key": "pdf_preschool",
+     "selector": ".gb-grid-column-7a95a0a2",
+     "label": "«Preschool (Mini Bambolino a Kínder)»: lista de materiales 2026 (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2025/12/lista_materiales_2026_final.pdf"
+    },
+    {
+     "key": "pdf_ii_ciclo",
+     "selector": ".gb-grid-column-438e8c71",
+     "label": "«II Ciclo (1° a 6° Básico)»: textos y útiles 2026 (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2025/12/Textos-y-utiles-Escolares-1o-a-6o-basico.pdf"
+    },
+    {
+     "key": "pdf_iii_ciclo",
+     "selector": ".gb-grid-column-97a7f9c9",
+     "label": "«III Ciclo (7° Básico a IV Medio)»: textos y útiles 2026 (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2025/12/Textos-y-utiles-Escolares-7%C2%B0-basico-a-IV-medio.pdf"
+    }
+   ]
+  },
+  "/informacion-practica/cima/": {
+   "kind": "info",
+   "title": "compra uniformes escolares",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página",
+     "href": "http://www.cima.cl/"
+    },
+    {
+     "key": "tiendas",
+     "selector": ".gb-container-f58eb968",
+     "label": "Dónde comprar uniformes: Tienda CIMA y Trenino"
+    }
+   ]
+  },
+  "/informacion-practica/uniforme-del-colegio/": {
+   "kind": "info",
+   "title": "Uniforme del Colegio",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "tarjetas",
+     "selector": ".gb-container-768b6fbc",
+     "label": "Uniforme: tarjetas por ciclo"
+    },
+    {
+     "key": "pdf_preschool",
+     "selector": ".gb-grid-column-7a95a0a2",
+     "label": "Tarjeta «Preschool» (enlaza la lista de materiales 2026)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2025/12/lista_materiales_2026_final.pdf"
+    },
+    {
+     "key": "pdf_ii_iii",
+     "selector": ".gb-grid-column-438e8c71",
+     "label": "«II y III Ciclo»: uso del uniforme 2026 (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2025/12/Uniformes-Informacion-Practica-2026-II-y-III-Ciclo.pdf"
+    }
+   ]
+  },
+  "/informacion-practica/arriendo-de-canchas/": {
+   "kind": "info",
+   "title": "Arriendo de Canchas",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "video",
+     "selector": ".gb-container-48610504",
+     "label": "Cómo reservar cancha en la app (video)"
+    },
+    {
+     "key": "pdf_paso_a_paso",
+     "selector": "#main a[href*=\"Guia-paso-a-paso\"]",
+     "label": "Guía «paso a paso» de la app (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2025/08/Guia-paso-a-paso-Colegio-Everest-Easy-Cancha.pdf"
+    },
+    {
+     "key": "app_ios",
+     "selector": ".gb-grid-column-f57b944d",
+     "label": "App Canchas Everest en App Store",
+     "href": "https://apps.apple.com/us/app/canchas-everest/id1476546640?l=es&ls=1"
+    },
+    {
+     "key": "app_android",
+     "selector": ".gb-grid-column-4e64dcb0",
+     "label": "App Canchas Everest en Google Play",
+     "href": "https://play.google.com/store/apps/details?id=es.tpc.matchpoint.appclient.colegioeverest"
+    }
+   ]
+  },
+  "/informacion-practica/enfermeria/": {
+   "kind": "info",
+   "title": "Enfermería",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "documentos",
+     "selector": ".gb-container-446a9566",
+     "label": "Reglamento, protocolo DEA y protocolos de enfermería (PDF)"
+    }
+   ]
+  },
+  "/informacion-practica/atencion-de-familias/": {
+   "kind": "info",
+   "title": "Atención de familias",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "encargadas",
+     "selector": ".gb-container-e4a5d0c6",
+     "label": "Encargadas de Familia: nombres y correos"
+    }
+   ]
+  },
+  "/informacion-practica/bus-car/": {
+   "kind": "info",
+   "title": "BUS-Car",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "texto",
+     "selector": ".entry-content > :nth-child(1)",
+     "label": "Servicio BUS-CAR de la Municipalidad de Lo Barnechea",
+     "positional": true
+    }
+   ]
+  },
+  "/informacion-practica/comunicados/": {
+   "kind": "info",
+   "title": "Canales de Información",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "texto",
+     "selector": ".entry-content > :nth-child(1)",
+     "label": "Cómo se comunica el colegio: redes sociales",
+     "positional": true
+    }
+   ]
+  },
+  "/informacion-practica/conectados/": {
+   "kind": "info",
+   "title": "Conectados",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    }
+   ]
+  },
+  "/calendario-mensual-y-fechas-importantes/": {
+   "kind": "info",
+   "title": "Calendarios y fechas importantes",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "documentos",
+     "selector": ".gb-container-ccc2df1c",
+     "label": "Calendario mensual, calendario académico y fechas importantes (PDF antiguos, 2024–2025)"
+    }
+   ]
+  },
+  "/noticias/": {
+   "kind": "news",
+   "title": "Noticias",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "siguiente",
+     "selector": ".gb-button-f369558d",
+     "label": "Botón «Siguente» de la lista de noticias",
+     "href": "https://www.colegioeverest.cl/noticias/?query-54c839b3-page=2"
+    }
+   ]
+  },
+  "/comunidad-everest/centro-de-alumnos/": {
+   "kind": "community",
+   "title": "Centro de Alumnos",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "texto",
+     "selector": ".entry-content > :nth-child(1)",
+     "label": "La finalidad del Centro de Alumnos",
+     "positional": true
+    }
+   ]
+  },
+  "/comunidad-everest/centro-de-padres/": {
+   "kind": "community",
+   "title": "Centro de Padres",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "documentos",
+     "selector": ".gb-container-56442950",
+     "label": "Protocolo de fiestas y Reglamento del Fondo Solidario de Becas"
+    },
+    {
+     "key": "pdf_fondo_becas",
+     "selector": ".gb-grid-column-dcd481ed",
+     "label": "Reglamento del Fondo Solidario de Becas (PDF)",
+     "href": "https://www.colegioeverest.cl/wp-content/uploads/2026/06/REGLAMENTO-FONDO-SOLIDARIO-DE-BECAS-2026-FINAL.pdf"
+    }
+   ]
+  },
+  "/comunidad-everest/ex-alumnos/": {
+   "kind": "community",
+   "title": "Exalumnos",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "generacion_2013",
+     "selector": ".gb-container-37f79248",
+     "label": "Generación 2013, celebración 10 años de egresados"
+    },
+    {
+     "key": "comunidad",
+     "selector": ".gb-container-1abb04c8",
+     "label": "La comunidad de exalumnos: 2.591 egresados"
+    },
+    {
+     "key": "actualiza_datos",
+     "selector": ".gb-button-892e31ba",
+     "label": "Botón «ACTUALIZA TUS DATOS» (encuesta externa)",
+     "href": "https://es.surveymonkey.com/r/EXACE2025"
+    },
+    {
+     "key": "destacados",
+     "selector": ".gb-container-afab8850",
+     "label": "Destacados de exalumnos (carrusel)"
+    },
+    {
+     "key": "secciones",
+     "selector": ".gb-container-875af3ae",
+     "label": "Anuarios, Liga exalumnos, Noticias, Entrevistas, Eventos"
+    }
+   ]
+  },
+  "/comunidad-everest/ex-alumnos/entrevistas/": {
+   "kind": "community",
+   "title": "ENTREVISTAS",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "lista",
+     "selector": ".gb-container-276b7712",
+     "label": "Entrevistas a exalumnos"
+    }
+   ]
+  },
+  "/comunidad-everest/ex-alumnos/eventos/": {
+   "kind": "community",
+   "title": "EVENTOS",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "lista",
+     "selector": ".gb-container-8fc05116",
+     "label": "Eventos de exalumnos"
+    }
+   ]
+  },
+  "/comunidad-everest/ex-alumnos/noticiasexalumnos/": {
+   "kind": "community",
+   "title": "NOTICIAS EX ALUMNOS",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "lista",
+     "selector": ".gb-container-92ad96c1",
+     "label": "Noticias de exalumnos"
+    }
+   ]
+  },
+  "/comunidad-everest/anuarios/": {
+   "kind": "community",
+   "title": "Anuarios",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    },
+    {
+     "key": "anuarios",
+     "selector": ".gb-container-61a88651",
+     "label": "Anuarios 2018 a 2023"
+    }
+   ]
+  },
+  "/comunidad-everest/anuarios/anuario-2018/": {
+   "kind": "yearbook",
+   "title": "Anuario 2018",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    }
+   ]
+  },
+  "/comunidad-everest/anuarios/anuario-2019/": {
+   "kind": "yearbook",
+   "title": "Anuario 2019",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    }
+   ]
+  },
+  "/comunidad-everest/anuarios/anuario-2020/": {
+   "kind": "yearbook",
+   "title": "Anuario 2020",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    }
+   ]
+  },
+  "/comunidad-everest/anuarios/anuario-2021/": {
+   "kind": "yearbook",
+   "title": "Anuario 2021",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    }
+   ]
+  },
+  "/comunidad-everest/anuarios/anuario-2022/": {
+   "kind": "yearbook",
+   "title": "Anuario 2022",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    }
+   ]
+  },
+  "/comunidad-everest/anuarios/anuario-2023/": {
+   "kind": "yearbook",
+   "title": "Anuario 2023",
+   "header": true,
+   "footer": true,
+   "anchors": [
+    {
+     "key": "titulo",
+     "selector": "h1.titulo-pagina",
+     "label": "Título de la página"
+    },
+    {
+     "key": "contenido",
+     "selector": ".entry-content",
+     "label": "Contenido de la página"
+    }
+   ]
+  }
+ }
+}

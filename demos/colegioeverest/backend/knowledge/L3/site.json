@@ -1,0 +1,398 @@
+{
+ "site": "https://www.colegioeverest.cl",
+ "language": "es (sin versión en inglés)",
+ "platform": "WordPress + GeneratePress + GenerateBlocks; Contact Form 7 con Cloudflare Turnstile",
+ "navigation": "Cada navegación recarga la página completa. El encabezado no es fijo.",
+ "menu": {
+  "top": [
+   {
+    "id": "menu-item-484",
+    "label": "Home",
+    "href": "https://www.colegioeverest.cl/",
+    "dropdown": false,
+    "children": []
+   },
+   {
+    "id": "menu-item-490",
+    "label": "Información Práctica",
+    "href": "https://www.colegioeverest.cl/informacion-practica/",
+    "dropdown": false,
+    "children": []
+   },
+   {
+    "id": "menu-item-485",
+    "label": "Noticias",
+    "href": "https://www.colegioeverest.cl/noticias/",
+    "dropdown": false,
+    "children": []
+   },
+   {
+    "id": "menu-item-782",
+    "label": "Conectados",
+    "href": "https://www.colegioeverest.cl/informacion-practica/conectados/",
+    "dropdown": false,
+    "children": []
+   },
+   {
+    "id": "menu-item-3052",
+    "label": "Exalumnos",
+    "href": "https://www.colegioeverest.cl/comunidad-everest/ex-alumnos/",
+    "dropdown": false,
+    "children": []
+   },
+   {
+    "id": "menu-item-487",
+    "label": "Lirmi",
+    "href": "https://www.lirmi.com/cl",
+    "dropdown": false,
+    "children": []
+   },
+   {
+    "id": "menu-item-5448",
+    "label": "Alexia",
+    "href": "https://colegioeverest.alexiaeducl.com/",
+    "dropdown": false,
+    "children": []
+   },
+   {
+    "id": "menu-item-486",
+    "label": "Buk",
+    "href": "https://mieverest.buk.cl/",
+    "dropdown": false,
+    "children": []
+   },
+   {
+    "id": "menu-item-3907",
+    "label": "Pago Online",
+    "href": "https://pay.upago.cl/go/1395",
+    "dropdown": false,
+    "children": []
+   },
+   {
+    "id": "menu-item-1254",
+    "label": "Contacto",
+    "href": "https://www.colegioeverest.cl/contacto/",
+    "dropdown": false,
+    "children": []
+   }
+  ],
+  "main": [
+   {
+    "id": "menu-item-107",
+    "label": "Nuestro Colegio",
+    "href": "#",
+    "dropdown": true,
+    "children": [
+     {
+      "label": "Nuestra Misión",
+      "href": "https://www.colegioeverest.cl/nuestro-colegio/nuestra-mision/"
+     },
+     {
+      "label": "Nuestros Atributos",
+      "href": "https://www.colegioeverest.cl/nuestro-colegio/nuestros-atributos/"
+     },
+     {
+      "label": "Historia",
+      "href": "https://www.colegioeverest.cl/nuestro-colegio/historia/"
+     },
+     {
+      "label": "Equipo Directivo",
+      "href": "https://www.colegioeverest.cl/nuestro-colegio/equipo-directivo/"
+     },
+     {
+      "label": "Infraestructura",
+      "href": "https://www.colegioeverest.cl/nuestro-colegio/infraestructura/"
+     },
+     {
+      "label": "Normativas",
+      "href": "https://www.colegioeverest.cl/nuestro-colegio/normativas/"
+     },
+     {
+      "label": "Colegios RC",
+      "href": "https://www.colegioeverest.cl/nuestro-colegio/colegios-rc/"
+     },
+     {
+      "label": "Tour virtual",
+      "href": "https://www.colegioeverest.cl/tour-virtual/"
+     },
+     {
+      "label": "Ambientes Seguros",
+      "href": "https://www.colegioeverest.cl/nuestro-colegio/ambientes-seguros/"
+     }
+    ]
+   },
+   {
+    "id": "menu-item-284",
+    "label": "Nuestro Modelo Educativo",
+    "href": "#",
+    "dropdown": true,
+    "children": [
+     {
+      "label": "Proyecto Educativo",
+      "href": "https://www.colegioeverest.cl/nuestro-modelo-educativo/proyecto-educativo/"
+     },
+     {
+      "label": "Nuestro Modelo Formativo",
+      "href": "https://www.colegioeverest.cl/nuestro-modelo-educativo/nuestro-modelo-formativo/"
+     },
+     {
+      "label": "Evertics",
+      "href": "https://www.colegioeverest.cl/nuestro-modelo-educativo/evertics/"
+     },
+     {
+      "label": "Deporte",
+      "href": "https://www.colegioeverest.cl/nuestro-modelo-educativo/deporte/"
+     },
+     {
+      "label": "Inglés Intensivo",
+      "href": "https://www.colegioeverest.cl/nuestro-modelo-educativo/ingles-intensivo/"
+     },
+     {
+      "label": "Ciclos",
+      "href": "https://www.colegioeverest.cl/nuestro-modelo-educativo/ciclos/"
+     }
+    ]
+   },
+   {
+    "id": "menu-item-400",
+    "label": "Comunidad Everest",
+    "href": "#",
+    "dropdown": true,
+    "children": [
+     {
+      "label": "Centro de Alumnos",
+      "href": "https://www.colegioeverest.cl/comunidad-everest/centro-de-alumnos/"
+     },
+     {
+      "label": "Centro de Padres",
+      "href": "https://www.colegioeverest.cl/comunidad-everest/centro-de-padres/"
+     },
+     {
+      "label": "Exalumnos",
+      "href": "https://www.colegioeverest.cl/comunidad-everest/ex-alumnos/"
+     },
+     {
+      "label": "Anuarios",
+      "href": "https://www.colegioeverest.cl/comunidad-everest/anuarios/"
+     }
+    ]
+   },
+   {
+    "id": "menu-item-406",
+    "label": "Admisión",
+    "href": "https://www.colegioeverest.cl/bienvenidos-al-proceso-de-admision-del-colegio-everest/",
+    "dropdown": false,
+    "children": []
+   }
+  ]
+ },
+ "dropdowns": {
+  "menu_nuestro_colegio": "#menu-item-107",
+  "menu_modelo_educativo": "#menu-item-284",
+  "menu_comunidad": "#menu-item-400"
+ },
+ "dropdown_open_class": "sfHover",
+ "footer": {
+  "text": "Camino Real 4518, Lo Barnechea, Santiago de Chile\nT.: (+56) 2 2757 8800\njuntossomoseverest@colegioeverest.cl\nFacebook\nInstagram\nLINKS RELACIONADOS\nAcademias Oak Internacional\nCambridge English\nRegnum Christi Chile\nRed de colegios RC Internacional\nRed de colegios RC Chile\nTrabaja con nosotros",
+  "links": [
+   {
+    "label": "T.: (+56) 2 2757 8800",
+    "href": "tel:+56227578800"
+   },
+   {
+    "label": "juntossomoseverest@colegioeverest.cl",
+    "href": "mailto:juntossomoseverest@colegioeverest.cl"
+   },
+   {
+    "label": "Facebook",
+    "href": "https://www.facebook.com/ColegioEverestSantiago/"
+   },
+   {
+    "label": "Instagram",
+    "href": "https://www.instagram.com/colegioeverestsantiago/"
+   },
+   {
+    "label": "Academias Oak Internacional",
+    "href": "https://www.oakinternational.org/"
+   },
+   {
+    "label": "Cambridge English",
+    "href": "https://www.cambridgeenglish.org/"
+   },
+   {
+    "label": "Regnum Christi Chile",
+    "href": "https://www.regnumchristichile.cl/"
+   },
+   {
+    "label": "Red de colegios RC Internacional",
+    "href": "https://www.redcolegiosrc.com/"
+   },
+   {
+    "label": "Red de colegios RC Chile",
+    "href": "https://www.redcolegiosrc.cl/"
+   },
+   {
+    "label": "Trabaja con nosotros",
+    "href": "https://www.colegioeverest.cl/trabaja-con-nosotros/"
+   }
+  ],
+  "map": "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3333.3767645832145!2d-70.55619897861276!3d-33.33510544008561!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x9662c997d46886eb%3A0xc93ee78e50139114!2sSoc%20Educacional%20Everest!5e0!3m2!1ses-419!2scl!4v1648649471631!5m2!1ses-419!2scl"
+ },
+ "phones": {
+  "principal": "+56 2 2757 8800",
+  "admision": "+56 2 2757 8804",
+  "enfermeria": "+56 2 2757 8800 anexo 210"
+ },
+ "ctas": {
+  "postulacion": {
+   "label": "Postulación ONLINE (Alexia)",
+   "match": "FormularioMatriculacion",
+   "place": "/bienvenidos-al-proceso-de-admision-del-colegio-everest/#cta_postular",
+   "note": "Formulario de postulación en Alexia: pide RUN y datos del postulante. Solo se abre; nunca se llena.",
+   "urls": [
+    "https://colegioeverest.alexiaeducl.com/AcWeb/paginas/publicas/FormularioMatriculacion.aspx?token=N6NoDSk6C3at5f8TmJg3NQ==&Ejercicio=2026#no-back-button"
+   ]
+  },
+  "visita": {
+   "label": "Agenda AQUÍ (Microsoft Bookings)",
+   "match": "bookings.cloud.microsoft",
+   "place": "/bienvenidos-al-proceso-de-admision-del-colegio-everest/#cta_agendar_visita",
+   "note": "Agenda de visitas con la Encargada de Admisión. Solo se abre.",
+   "urls": [
+    "https://bookings.cloud.microsoft/bookwithme/user/17ce873c0fb24b9881f8d9260a482879%40colegioeverest.cl?anonymous&ismsaljsauthenabled"
+   ]
+  },
+  "alexia": {
+   "label": "Alexia (plataforma de apoderados)",
+   "match": "colegioeverest.alexiaeducl.com",
+   "exclude": "FormularioMatriculacion",
+   "place": "header#menu_alexia",
+   "note": "Login de apoderados; también donde se hace la matrícula 2027 (Instructivo Matrícula).",
+   "urls": [
+    "https://colegioeverest.alexiaeducl.com/"
+   ]
+  },
+  "pago_online": {
+   "label": "Pago Online (upago)",
+   "match": "pay.upago.cl",
+   "place": "header#menu_pago_online",
+   "note": "Portal de pago. Solo se abre.",
+   "urls": [
+    "https://pay.upago.cl/go/1395"
+   ]
+  },
+  "handing": {
+   "label": "Handing",
+   "match": "handing.co",
+   "place": "/#destacado_handing",
+   "note": "App de comunicación con las familias; los calendarios académicos están en sus Documentos útiles.",
+   "urls": [
+    "https://handing.co/"
+   ]
+  },
+  "lirmi": {
+   "label": "Lirmi",
+   "match": "lirmi.com",
+   "place": "header#menu_superior",
+   "note": "Login.",
+   "urls": [
+    "https://www.lirmi.com/cl"
+   ]
+  },
+  "buk": {
+   "label": "Buk",
+   "match": "buk.cl",
+   "place": "header#menu_superior",
+   "note": "Portal de colaboradores.",
+   "urls": [
+    "https://mieverest.buk.cl/"
+   ]
+  }
+ },
+ "unguided": {
+  "/nuestro-colegio/": "página padre vacía (el menú solo abre el desplegable)",
+  "/nuestro-modelo-educativo/": "página padre vacía",
+  "/comunidad-everest/": "página padre vacía",
+  "/nuestro-modelo-educativo/deporte/": "está en el menú pero la página está vacía",
+  "/instagram/": "página huérfana con un feed de Instagram roto",
+  "/prueba-resultados-26gtk1/": "página de prueba",
+  "/comunidad-everest/ex-alumnos-antigua/": "versión antigua de Exalumnos, fuera del menú",
+  "/entrega-resultados-admision-2027/": "consulta de resultados por RUT, sin enlace en el sitio: nunca se llena"
+ },
+ "external_hosts": {
+  "apps.apple.com": [
+   "/informacion-practica/arriendo-de-canchas/"
+  ],
+  "bookings.cloud.microsoft": [
+   "/bienvenidos-al-proceso-de-admision-del-colegio-everest/"
+  ],
+  "cepromelat.com": [
+   "/nuestro-colegio/ambientes-seguros/"
+  ],
+  "colegioeverest.alexiaeducl.com": [
+   "/bienvenidos-al-proceso-de-admision-del-colegio-everest/"
+  ],
+  "colegios.aramark.cl": [
+   "/informacion-practica/casino/"
+  ],
+  "cstjla.cl": [
+   "/nuestro-colegio/colegios-rc/"
+  ],
+  "es.surveymonkey.com": [
+   "/comunidad-everest/ex-alumnos/"
+  ],
+  "forms.gle": [
+   "/comunidad-everest/ex-alumnos/"
+  ],
+  "handing.co": [
+   "/"
+  ],
+  "ligaexeverest.cl": [
+   "/comunidad-everest/ex-alumnos/"
+  ],
+  "pay.upago.cl": [
+   "/informacion-practica/"
+  ],
+  "play.google.com": [
+   "/informacion-practica/arriendo-de-canchas/"
+  ],
+  "regnumchristichile.cl": [
+   "/nuestro-colegio/ambientes-seguros/"
+  ],
+  "www.cambridgeenglish.org": [
+   "/nuestro-modelo-educativo/ingles-intensivo/"
+  ],
+  "www.cima.cl": [
+   "/informacion-practica/cima/"
+  ],
+  "www.colegiocumbres.cl": [
+   "/nuestro-colegio/colegios-rc/"
+  ],
+  "www.colegiofernandezleon.cl": [
+   "/nuestro-colegio/colegios-rc/"
+  ],
+  "www.colegiohighlands.cl": [
+   "/nuestro-colegio/colegios-rc/"
+  ],
+  "www.colegiolacruz.cl": [
+   "/nuestro-colegio/colegios-rc/"
+  ],
+  "www.colegiomaitenes.cl": [
+   "/nuestro-colegio/colegios-rc/"
+  ],
+  "www.colegiosanisidro.cl": [
+   "/nuestro-colegio/colegios-rc/"
+  ],
+  "www.colegiosanjuandiego.cl": [
+   "/nuestro-colegio/colegios-rc/"
+  ],
+  "www.colegiosantamariadeguadalupe.cl": [
+   "/nuestro-colegio/colegios-rc/"
+  ]
+ },
+ "rest": {
+  "pages": 64,
+  "posts": 92
+ },
+ "news_listing": "/noticias/ pagina con ?query-54c839b3-page=N; las noticias viven en la raíz (/<slug>/)"
+}
