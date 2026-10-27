@@ -217,7 +217,7 @@ button { font: inherit; cursor: pointer; }
 .ghost:hover { border-color: ${INK}; }
 .solid { background: ${BRAND}; border: 1px solid ${BRAND}; color: ${ON_BRAND}; }
 .solid:hover { background: ${BRAND_HOVER}; border-color: ${BRAND_HOVER}; }
-.ghost[aria-pressed="true"] { background: ${INK}; border-color: ${INK}; color: ${ON_BRAND}; }
+.ghost[aria-pressed="true"] { background: ${INK}; border-color: ${INK}; color: ${CARD_BG}; }
 .buttons button:focus-visible { outline: 2px solid ${BRAND}; outline-offset: 2px; }
 .credit { color: ${MUTED}; font-size: 10px; letter-spacing: 0.08em; text-align: center; }
 .lang { display: flex; gap: 4px; padding: 3px; border-radius: 999px; background: ${CARD_BG};
