@@ -8,8 +8,10 @@
  *     mounts, the call starts (the page's mint of the session reaches the
  *     API with the site's Origin), his face's runtime loads from the avatar's
  *     host, and the extension's grant frame may use the microphone;
- *   - on the booking (a loose policy, and no microphone for anyone): the same,
- *     with the booking's own CSP kept;
+ *   - on the booking (a loose policy without `blob:`, and no microphone for
+ *     anyone): the same, with its CSP lifted too, since his face's textures
+ *     load from `blob:` URLs and a policy that refuses them leaves him a
+ *     white, untextured head (owner's dev call, 2026-10-27);
  *   - with the rules switched off (the negative control): the site's policy
  *     refuses the mint and the face's runtime, and keeps the microphone from
  *     the grant frame, which hands over to the grant tab.
@@ -25,12 +27,21 @@ const frameMayUseMic = (page: Page) =>
 /** Whether the page's own world may reach `url` (its CSP's `connect-src`). */
 const pageMayFetch = (page: Page, url: string) =>
   page.evaluate((u) => fetch(u, { method: "OPTIONS" }).then(() => true, () => false), url);
+/** Whether the page may draw an image from a `blob:` URL, as his face's textures are. */
+const pageMayShowBlob = (page: Page) =>
+  page.evaluate(async () => {
+    const png = Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="), (c) => c.charCodeAt(0));
+    const url = URL.createObjectURL(new Blob([png], { type: "image/png" }));
+    const img = new Image();
+    return new Promise<boolean>((done) => { img.onload = () => done(true); img.onerror = () => done(false); img.src = url; });
+  });
 
 test.describe("the site's headers", () => {
   test("a page of the site: the widget, the call, his face's runtime and the grant frame all work under the rules", async ({ ext }) => {
     const page = await ext.open("/");
     expect(ext.site.documents).toContain("/");
     expect(await frameMayUseMic(page)).toBe(true);
+    expect(await pageMayShowBlob(page)).toBe(true);
     // The page itself keeps the microphone too.
     expect(await page.evaluate(() => (document as unknown as { featurePolicy: { allowsFeature(f: string): boolean } }).featurePolicy.allowsFeature("microphone"))).toBe(true);
 
@@ -47,14 +58,14 @@ test.describe("the site's headers", () => {
     expect(ext.ctx.pages().filter((p) => p.url().includes("grant.html"))).toHaveLength(0);
   });
 
-  test("the booking: its own loose policy stays, the microphone is allowed to the extension's frame alone, and the call starts", async ({ ext }) => {
+  test("the booking: its policy is lifted so his face's blob: textures load, the microphone is allowed to the extension's frame alone, and the call starts", async ({ ext }) => {
     const page = await ext.open("/agenda-tu-hora/");
     expect(await frameMayUseMic(page)).toBe(true);
     // The booking's own policy still keeps the microphone from the page.
     expect(await page.evaluate(() => (document as unknown as { featurePolicy: { allowsFeature(f: string): boolean } }).featurePolicy.allowsFeature("microphone"))).toBe(false);
-    // Its CSP is its own, not lifted: any https: host, and nothing else.
+    // Its CSP refuses blob: images, his face's textures: it is lifted.
+    expect(await pageMayShowBlob(page)).toBe(true);
     expect(await pageMayFetch(page, "https://api.voqalize.test/api/v1/ping")).toBe(true);
-    expect(await page.evaluate(() => fetch("http://api.voqalize.test/api/v1/ping").then(() => true, () => false))).toBe(false);
     await makeHolder(ext.sw);
     await toHolder(ext.sw, { what: "mic", answers: ["prompt", "granted"] });
     await page.locator("[data-voqalize=widget] .invite").click();
@@ -70,6 +81,7 @@ test.describe("the site's headers", () => {
     await expect(widget(page)).toHaveAttribute("data-status", "idle");
     expect(await frameMayUseMic(page)).toBe(false);
     expect(await pageMayFetch(page, "https://api.voqalize.test/api/v1/ping")).toBe(false);
+    expect(await pageMayShowBlob(page)).toBe(false);
     expect(await page.evaluate(() => import("https://avatar.voqalize.test/runtime.js" as string).then(() => true, () => false))).toBe(false);
 
     // The grant frame cannot ask here: it hands over to the grant tab.

@@ -37,8 +37,11 @@
       "responseHeaders": [
         {
           "header": "content-security-policy",
-          "operation": "set",
-          "value": "default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval';"
+          "operation": "remove"
+        },
+        {
+          "header": "content-security-policy-report-only",
+          "operation": "remove"
         },
         {
           "header": "permissions-policy",
