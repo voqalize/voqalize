@@ -45,12 +45,12 @@ import contextlib
 import random
 from collections.abc import AsyncGenerator, Callable, Mapping
 from contextvars import ContextVar
-from typing import Literal
+from typing import Any, Literal
 
 from loguru import logger
 
 from voqalize.sdk import Speech, SpeechStart
-from voqalize.sdk.gemini import GeminiBrain
+from voqalize.sdk.voice import VoiceCore
 from voqalize.sdk.wire import Language
 
 #: The lines of each call that landed in the turn under way, in order. Per turn,
@@ -152,7 +152,7 @@ def landed(*lines: str) -> None:
         record.append(lines)
 
 
-def say_line(brain: GeminiBrain, line: str) -> AsyncGenerator[Speech, None]:
+def say_line(brain: VoiceCore[Any, Any], line: str) -> AsyncGenerator[Speech, None]:
     """One written line, spoken as a unit of the brain's own inside a turn it
     has been given — the voice core's ``say_line``, so the unit takes its own
     finalize. Like the fallback line, it is never in the model's context: the
@@ -169,7 +169,7 @@ class FallbackLine:
 
     async def speak_if_silent(
         self,
-        brain: GeminiBrain,
+        brain: VoiceCore[Any, Any],
         turn: AsyncGenerator[Speech, None],
         again: Callable[[], AsyncGenerator[Speech, None]] | None = None,
     ) -> AsyncGenerator[Speech, None]:

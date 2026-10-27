@@ -21,7 +21,7 @@ import re
 
 import pytest
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import ScriptedGemini, reply
+from voqalize_demos.testing import ScriptedOpenAI, input_texts, reply
 
 from ._harness import check_turn, check_voice_pair, demo
 
@@ -126,7 +126,7 @@ def test_a_cue_anchor_follows_the_voice() -> None:
 
 
 async def test_the_voice_says_bideo_and_the_model_reads_video() -> None:
-    llm = ScriptedGemini(
+    llm = ScriptedOpenAI(
         {
             "¿Tienen algo de la historia?": reply(
                 "{page: /nuestro-colegio/historia/} Hay un video de los treinta años."
@@ -141,9 +141,7 @@ async def test_the_voice_says_bideo_and_the_model_reads_video() -> None:
         check_voice_pair(rig, voice="omnivoice/javier", language="es")
         assert "Hay un bidéo de los treinta años." in turn.text, turn.text
         await rig.driver.user_says("¿Y cuándo se fundó?")
-        context = " ".join(
-            part.text or "" for content in llm.captured_contents[-1] for part in content.parts or []
-        )
+        context = input_texts(llm.captured_inputs[-1])
         assert "Hay un video de los treinta años." in context and "bidéo" not in context, context
 
 

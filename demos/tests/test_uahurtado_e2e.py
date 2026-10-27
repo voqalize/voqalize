@@ -31,9 +31,15 @@ from collections.abc import Iterator
 from typing import Any
 
 import pytest
-from google.genai import types
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
+from voqalize_demos.testing import (
+    ScriptedOpenAI,
+    call,
+    input_texts,
+    reply,
+    reply_and_call,
+    tool_results,
+)
 
 from ._harness import _configs, check_greeting, check_turn, check_voice_pair, demo
 from .test_sendpotion_latam import spain_words
@@ -215,17 +221,12 @@ async def _page(rig: object, event: str, payload: dict[str, object]) -> None:
     await asyncio.sleep(0.1)
 
 
-def _results(contents: list[types.Content]) -> dict[str, str]:
-    return {
-        p.function_response.name or "": str((p.function_response.response or {})["result"])
-        for c in contents
-        for p in (c.parts or [])
-        if p.function_response is not None
-    }
+def _results(items: list[Any]) -> dict[str, str]:
+    return tool_results(items)
 
 
-def _texts(contents: list[types.Content]) -> str:
-    return "\n".join(p.text or "" for c in contents for p in (c.parts or []))
+def _texts(items: list[Any]) -> str:
+    return input_texts(items)
 
 
 def _idle_windows(rig: object) -> list[int | None]:
@@ -247,7 +248,7 @@ NONE = {"url": None, "heading": None, "text": None, "faq": None}
 
 
 async def test_he_greets_in_spanish_with_javier_on_both_legs() -> None:
-    async with demo("uahurtado", ScriptedGemini()) as rig:
+    async with demo("uahurtado", ScriptedOpenAI()) as rig:
         turn = await rig.driver.start_session(init={"url": f"{ADM}/", "path": "/"})
         check_greeting(rig, turn)
         check_voice_pair(rig, voice="omnivoice/javier", language="es")
@@ -264,18 +265,18 @@ async def test_the_opener_follows_the_page_the_call_starts_on() -> None:
 
 
 async def test_a_chosen_english_holds_from_the_start() -> None:
-    llm = ScriptedGemini({"Hola, ¿qué carreras hay?": reply("There are many careers.")})
+    llm = ScriptedOpenAI({"Hola, ¿qué carreras hay?": reply("There are many careers.")})
     async with demo("uahurtado", llm) as rig:
         turn = await rig.driver.start_session(init={"url": f"{ADM}/", "lang": "en"})
         check_voice_pair(rig, voice="omnivoice/javier", language="en")
         assert turn.text.startswith("Hi, I'm Javier")
         await rig.driver.user_says("Hola, ¿qué carreras hay?")
         check_voice_pair(rig, voice="omnivoice/javier", language="en")
-        assert "[The visitor chose English before the call." in _texts(llm.captured_contents[-1])
+        assert "[The visitor chose English before the call." in _texts(llm.captured_inputs[-1])
 
 
 async def test_the_toggle_switches_both_legs_and_confirms() -> None:
-    async with demo("uahurtado", ScriptedGemini()) as rig:
+    async with demo("uahurtado", ScriptedOpenAI()) as rig:
         await rig.driver.start_session(init={"url": f"{ADM}/"})
         await _page(rig, "language_requested", {"language": "en"})
         check_voice_pair(rig, voice="omnivoice/javier", language="en")
@@ -286,7 +287,7 @@ async def test_the_toggle_switches_both_legs_and_confirms() -> None:
 
 
 async def test_english_heard_moves_both_legs_before_he_answers() -> None:
-    llm = ScriptedGemini(
+    llm = ScriptedOpenAI(
         {"What careers do you have in engineering?": reply("There are several in engineering.")}
     )
     async with demo("uahurtado", llm) as rig:
@@ -321,7 +322,7 @@ def test_the_language_is_read_from_words(text: str, lang: str | None) -> None:
 
 
 async def test_cues_leave_the_speech_and_carry_whole_urls() -> None:
-    llm = ScriptedGemini(
+    llm = ScriptedOpenAI(
         {
             "Háblame de Psicología.": reply(
                 "{page: /carreras/psicologia/} Te abro la carrera. Psicología dura diez "
@@ -355,7 +356,7 @@ async def test_cues_leave_the_speech_and_carry_whole_urls() -> None:
 
 
 async def test_an_invented_page_is_dropped_and_he_is_told() -> None:
-    llm = ScriptedGemini(
+    llm = ScriptedOpenAI(
         {
             "¿Tienen medicina?": reply("{page: /carreras/medicina/} No tenemos Medicina."),
             "Ok.": reply("Te cuento otras."),
@@ -366,11 +367,11 @@ async def test_an_invented_page_is_dropped_and_he_is_told() -> None:
         await rig.driver.user_says("¿Tienen medicina?")
         assert _cues(rig) == []
         await rig.driver.user_says("Ok.")
-        assert "named no page of the sites" in _texts(llm.captured_contents[-1])
+        assert "named no page of the sites" in _texts(llm.captured_inputs[-1])
 
 
 async def test_a_tab_on_the_page_in_front_is_a_show_cue() -> None:
-    llm = ScriptedGemini(
+    llm = ScriptedOpenAI(
         {"¿Qué piden?": reply("{show: requisitos y aranceles} Aquí están los requisitos.")}
     )
     async with demo("uahurtado", llm) as rig:
@@ -383,7 +384,7 @@ async def test_a_tab_on_the_page_in_front_is_a_show_cue() -> None:
 
 
 async def test_a_reply_that_forgets_the_page_gets_the_asked_one() -> None:
-    llm = ScriptedGemini(
+    llm = ScriptedOpenAI(
         {"¿Qué becas tienen?": reply("Hay becas por excelencia académica y otras.")}
     )
     async with demo("uahurtado", llm) as rig:
@@ -415,10 +416,10 @@ def test_asked_pages_read_the_visitors_words() -> None:
 
 
 async def test_fees_on_the_page_in_front_are_said_at_once_and_the_tab_opens() -> None:
-    llm = ScriptedGemini(
+    llm = ScriptedOpenAI(
         {
             "¿Cuánto cuesta?": [
-                call("read_fees", request={}),
+                call("read_fees", args={}),
                 reply(
                     "Para dos mil veintisiete la matrícula cuesta doscientos setenta y siete mil."
                 ),
@@ -430,7 +431,7 @@ async def test_fees_on_the_page_in_front_are_said_at_once_and_the_tab_opens() ->
         await _page(rig, "page_changed", _career_page(fees_text=FEES_TEXT))
         turn = await rig.driver.user_says("¿Cuánto cuesta?")
         check_turn(rig, turn)
-        result = _results(llm.captured_contents[-1])["read_fees"]
+        result = _results(llm.captured_inputs[-1])["read_fees"]
         assert "Read just now from Psicología's page" in result
         assert "Matrícula $277.456 — say “doscientos setenta y siete mil cuatrocientos" in result
         assert "Arancel anual $7.167.421 — say “siete millones ciento sesenta y siete mil" in result
@@ -451,10 +452,10 @@ async def test_fees_on_the_page_in_front_are_said_at_once_and_the_tab_opens() ->
 
 
 async def test_fees_not_yet_read_are_never_guessed_and_arrive_from_the_page() -> None:
-    llm = ScriptedGemini(
+    llm = ScriptedOpenAI(
         {
             "¿Cuánto cuesta Derecho?": [
-                call("read_fees", request={"career": "Derecho"}),
+                call("read_fees", args={"career": "Derecho"}),
                 reply("Te abro los aranceles de Derecho."),
             ],
             "The page answered": reply("La matrícula cuesta doscientos mil pesos."),
@@ -464,7 +465,7 @@ async def test_fees_not_yet_read_are_never_guessed_and_arrive_from_the_page() ->
         await rig.driver.start_session(init={"url": f"{ADM}/"})
         turn = await rig.driver.user_says("¿Cuánto cuesta Derecho?")
         check_turn(rig, turn)
-        result = _results(llm.captured_contents[-1])["read_fees"]
+        result = _results(llm.captured_inputs[-1])["read_fees"]
         assert "never a figure yet" in result
         assert "$" not in result
         assert rig.command("show_admission") == {"url": DERECHO, "slug": "derecho", "focus": "fees"}
@@ -481,17 +482,17 @@ async def test_fees_not_yet_read_are_never_guessed_and_arrive_from_the_page() ->
         assert _idle_windows(rig)[-1] == _TALK_THROUGH_MS
         turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
         check_turn(rig, turn)
-        seen = _texts(llm.captured_contents[-1])
+        seen = _texts(llm.captured_inputs[-1])
         assert "Fees for Derecho, read just now from the page" in seen
         assert "say “cinco millones de pesos”" in seen
         assert "say “doscientos mil pesos”" in seen
 
 
 async def test_a_failed_read_is_said_as_one() -> None:
-    llm = ScriptedGemini(
+    llm = ScriptedOpenAI(
         {
             "¿Cuánto cuesta Derecho?": [
-                call("read_fees", request={"career": "Derecho"}),
+                call("read_fees", args={"career": "Derecho"}),
                 reply("Te abro los aranceles."),
             ],
             "not done": reply("No puedo ver los aranceles ahora mismo."),
@@ -507,7 +508,7 @@ async def test_a_failed_read_is_said_as_one() -> None:
         )
         turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
         assert "No puedo ver los aranceles" in turn.text
-        seen = _texts(llm.captured_contents[-1])
+        seen = _texts(llm.captured_inputs[-1])
         assert "you cannot see the fees or the weights right now" in seen
 
 
@@ -515,12 +516,12 @@ async def test_a_failed_read_is_said_as_one() -> None:
 
 
 async def test_the_weighted_score_is_worked_out_from_the_pages_weights() -> None:
-    llm = ScriptedGemini(
+    llm = ScriptedOpenAI(
         {
             "Saqué": [
                 call(
                     "estimate_score",
-                    request={
+                    args={
                         "nem": 700,
                         "ranking": 720,
                         "lectora": 750,
@@ -537,7 +538,7 @@ async def test_the_weighted_score_is_worked_out_from_the_pages_weights() -> None
         await rig.driver.start_session(init={"url": PSICO})
         await _page(rig, "page_changed", _career_page(weights=WEIGHTS))
         await rig.driver.user_says("Saqué 750 en lectora y 680 en matemática.")
-        result = _results(llm.captured_contents[-1])["estimate_score"]
+        result = _results(llm.captured_inputs[-1])["estimate_score"]
         assert "Weighted score 708 — say “setecientos ocho”" in result
         assert "For Historia o Ciencias the higher one counts: Ciencias." in result
         assert "against the minimum of 570: it meets it." in result
@@ -545,10 +546,10 @@ async def test_the_weighted_score_is_worked_out_from_the_pages_weights() -> None
 
 
 async def test_a_grade_average_is_not_taken_for_a_score() -> None:
-    llm = ScriptedGemini(
+    llm = ScriptedOpenAI(
         {
             "NEM": [
-                call("estimate_score", request={"nem": 6, "lectora": 700, "matematica": 650}),
+                call("estimate_score", args={"nem": 6, "lectora": 700, "matematica": 650}),
                 reply("Necesito tu puntaje NEM en puntos."),
             ]
         }
@@ -557,18 +558,18 @@ async def test_a_grade_average_is_not_taken_for_a_score() -> None:
         await rig.driver.start_session(init={"url": PSICO})
         await _page(rig, "page_changed", _career_page(weights=WEIGHTS))
         await rig.driver.user_says("Tengo NEM 6,2.")
-        result = _results(llm.captured_contents[-1])["estimate_score"]
+        result = _results(llm.captured_inputs[-1])["estimate_score"]
         assert "is a grade average, not a score" in result
         assert "Weighted score" not in result
 
 
 async def test_scores_for_a_career_not_in_front_wait_for_its_weights() -> None:
-    llm = ScriptedGemini(
+    llm = ScriptedOpenAI(
         {
             "Derecho": [
                 call(
                     "estimate_score",
-                    request={"career": "Derecho", "lectora": 700, "matematica": 600},
+                    args={"career": "Derecho", "lectora": 700, "matematica": 600},
                 ),
                 reply("Reviso las ponderaciones de Derecho."),
             ],
@@ -578,7 +579,7 @@ async def test_scores_for_a_career_not_in_front_wait_for_its_weights() -> None:
     async with demo("uahurtado", llm) as rig:
         await rig.driver.start_session(init={"url": f"{ADM}/"})
         await rig.driver.user_says("¿Me alcanza para Derecho?")
-        result = _results(llm.captured_contents[-1])["estimate_score"]
+        result = _results(llm.captured_inputs[-1])["estimate_score"]
         assert "never a score yet" in result
         await _page(
             rig,
@@ -594,7 +595,7 @@ async def test_scores_for_a_career_not_in_front_wait_for_its_weights() -> None:
         )
         turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
         check_turn(rig, turn)
-        seen = _texts(llm.captured_contents[-1])
+        seen = _texts(llm.captured_inputs[-1])
         assert "Weighted score 650 — say “seiscientos cincuenta”" in seen
 
 
@@ -602,12 +603,12 @@ async def test_scores_for_a_career_not_in_front_wait_for_its_weights() -> None:
 
 
 async def test_the_careers_menu_opens_at_a_faculty() -> None:
-    llm = ScriptedGemini(
+    llm = ScriptedOpenAI(
         {
             "ingeniería": reply_and_call(
                 "En ingeniería está Ingeniería Civil en Informática.",
                 "show_careers",
-                request={"faculty": "ingenieria"},
+                args={"faculty": "ingenieria"},
             )
         }
     )
@@ -624,7 +625,7 @@ async def test_the_careers_menu_opens_at_a_faculty() -> None:
 
 
 async def test_the_audiomalla_plays_and_he_keeps_quiet_until_it_ends() -> None:
-    llm = ScriptedGemini(
+    llm = ScriptedOpenAI(
         {
             "directora": reply_and_call("Te pongo el audio, escucha.", "play_audiomalla"),
             "audiomalla finished": reply("¿Qué te pareció?"),
@@ -656,14 +657,14 @@ VISITS = [
 
 
 async def test_a_past_visit_is_never_offered_and_a_signup_is_only_rung() -> None:
-    llm = ScriptedGemini(
+    llm = ScriptedOpenAI(
         {
             "ensayo": [
-                call("show_signup", request={"visit": "Ensayo PAES"}),
+                call("show_signup", args={"visit": "Ensayo PAES"}),
                 reply("Ese ya pasó."),
             ],
             "talleres": reply_and_call(
-                "Aquí te puedes inscribir.", "show_signup", request={"visit": "talleres"}
+                "Aquí te puedes inscribir.", "show_signup", args={"visit": "talleres"}
             ),
         }
     )
@@ -671,9 +672,9 @@ async def test_a_past_visit_is_never_offered_and_a_signup_is_only_rung() -> None
         await rig.driver.start_session(init={"url": f"{ADM}/ven-y-conocenos/"})
         await _page(rig, "page_changed", _page_changed(f"{ADM}/ven-y-conocenos/", visits=VISITS))
         await rig.driver.user_says("Quiero ir al ensayo.")
-        assert "already happened" in _results(llm.captured_contents[-1])["show_signup"]
+        assert "already happened" in _results(llm.captured_inputs[-1])["show_signup"]
         assert "show_signup" not in rig.actions()
-        seen = _texts(llm.captured_contents[-1])
+        seen = _texts(llm.captured_inputs[-1])
         assert "Already held (REALIZADO, never offer them): Ensayo PAES." in seen
         await rig.driver.user_says("Me interesan los talleres.")
         assert rig.command("show_signup") == {"title": "Talleres de Primavera"}
@@ -683,12 +684,12 @@ async def test_a_past_visit_is_never_offered_and_a_signup_is_only_rung() -> None
 
 
 async def test_the_form_is_filled_as_dictated_without_a_rut_or_a_send() -> None:
-    llm = ScriptedGemini(
+    llm = ScriptedOpenAI(
         {
             "Me llamo": reply_and_call(
                 "Listo, lo completo.",
                 "fill_lead_form",
-                request={
+                args={
                     "nombre": "Ana",
                     "apellido": "Pérez",
                     "email": "Ana.Perez @Correo.cl",
@@ -725,14 +726,14 @@ async def test_the_form_is_filled_as_dictated_without_a_rut_or_a_send() -> None:
 
 
 async def test_a_rut_is_never_typed_and_a_reshaped_phone_is_refused() -> None:
-    llm = ScriptedGemini(
+    llm = ScriptedOpenAI(
         {
             "RUT": [
-                call("fill_lead_form", request={"nombre": "12.345.678-5"}),
+                call("fill_lead_form", args={"nombre": "12.345.678-5"}),
                 reply("Tu RUT lo escribes tú."),
             ],
             "fono": [
-                call("fill_lead_form", request={"fono": "912345679"}),
+                call("fill_lead_form", args={"fono": "912345679"}),
                 reply("¿Me repites tu número?"),
             ],
         }
@@ -741,21 +742,19 @@ async def test_a_rut_is_never_typed_and_a_reshaped_phone_is_refused() -> None:
         await rig.driver.start_session(init={"url": PSICO})
         await _page(rig, "page_changed", _career_page())
         await rig.driver.user_says("Mi RUT es 12.345.678-5.")
-        assert "You never type a RUT" in _results(llm.captured_contents[-1])["fill_lead_form"]
+        assert "You never type a RUT" in _results(llm.captured_inputs[-1])["fill_lead_form"]
         await rig.driver.user_says("Mi fono es 9 1234 5678.")
-        assert (
-            "is not what the visitor said" in _results(llm.captured_contents[-1])["fill_lead_form"]
-        )
+        assert "is not what the visitor said" in _results(llm.captured_inputs[-1])["fill_lead_form"]
         assert "fill_lead_form" not in rig.actions()
         assert "12.345.678-5" not in str(rig.driver.ui_commands)
 
 
 async def test_a_page_without_the_form_opens_one_and_a_career_is_picked_from_the_list() -> None:
-    llm = ScriptedGemini(
+    llm = ScriptedOpenAI(
         {
-            "contacten": call("fill_lead_form", request={"nombre": "Ana"}),
+            "contacten": call("fill_lead_form", args={"nombre": "Ana"}),
             "derecho": reply_and_call(
-                "Lo completo.", "fill_lead_form", request={"carrera": "derecho"}
+                "Lo completo.", "fill_lead_form", args={"carrera": "derecho"}
             ),
         }
     )
@@ -794,14 +793,14 @@ REQUISITOS = (
 
 
 async def test_a_programme_is_found_and_its_values_read_from_the_page() -> None:
-    llm = ScriptedGemini(
+    llm = ScriptedOpenAI(
         {
             "magíster": [
-                call("find_programs", request={"query": "intervención psicosocial"}),
+                call("find_programs", args={"query": "intervención psicosocial"}),
                 reply("Está el Magíster en Intervención Psicosocial."),
             ],
             "cuesta": [
-                call("read_program", request={}),
+                call("read_program", args={}),
                 reply("El arancel total es cinco millones doscientos cincuenta mil pesos."),
             ],
         }
@@ -809,7 +808,7 @@ async def test_a_programme_is_found_and_its_values_read_from_the_page() -> None:
     async with demo("uahurtado", llm) as rig:
         await rig.driver.start_session(init={"url": f"{POS}/"})
         await rig.driver.user_says("Busco un magíster en psicología.")
-        found = _results(llm.captured_contents[-1])["find_programs"]
+        found = _results(llm.captured_inputs[-1])["find_programs"]
         assert "Magíster en Intervención Psicosocial — postgrados.uahurtado.cl/programa/" in found
         await _page(
             rig,
@@ -826,7 +825,7 @@ async def test_a_programme_is_found_and_its_values_read_from_the_page() -> None:
             ),
         )
         await rig.driver.user_says("¿Cuánto cuesta?")
-        result = _results(llm.captured_contents[-1])["read_program"]
+        result = _results(llm.captured_inputs[-1])["read_program"]
         assert "Arancel Total $5.250.000 — say “cinco millones doscientos cincuenta mil pesos”" in (
             result
         )
@@ -841,13 +840,13 @@ async def test_a_programme_is_found_and_its_values_read_from_the_page() -> None:
 
 
 async def test_a_move_asked_while_another_runs_is_queued_then_sent() -> None:
-    llm = ScriptedGemini(
+    llm = ScriptedOpenAI(
         {
             "Derecho": [
-                call("read_fees", request={"career": "Derecho"}),
+                call("read_fees", args={"career": "Derecho"}),
                 reply("Te abro los aranceles."),
             ],
-            "menú": reply_and_call("Te abro el menú.", "show_careers", request={}),
+            "menú": reply_and_call("Te abro el menú.", "show_careers", args={}),
         }
     )
     async with demo("uahurtado", llm) as rig:
@@ -855,7 +854,7 @@ async def test_a_move_asked_while_another_runs_is_queued_then_sent() -> None:
         await rig.driver.user_says("¿Cuánto cuesta Derecho?")
         await rig.driver.user_says("Y ábreme el menú.")
         assert "open_career_menu" not in rig.actions()
-        assert "Queued, not sent yet" in _results(llm.captured_contents[-1]).get(
+        assert "Queued, not sent yet" in _results(llm.captured_inputs[-1]).get(
             "show_careers", "Queued, not sent yet"
         )
         await _page(
@@ -865,15 +864,15 @@ async def test_a_move_asked_while_another_runs_is_queued_then_sent() -> None:
 
 
 async def test_a_queued_move_survives_a_link_opened_meanwhile() -> None:
-    llm = ScriptedGemini(
+    llm = ScriptedOpenAI(
         {
             "Derecho": [
-                call("read_fees", request={"career": "Derecho"}),
+                call("read_fees", args={"career": "Derecho"}),
                 reply("Te abro los aranceles."),
             ],
-            "menú": reply_and_call("Te abro el menú.", "show_careers", request={}),
+            "menú": reply_and_call("Te abro el menú.", "show_careers", args={}),
             "simulador": reply_and_call(
-                "Te abro el simulador.", "open_link", request={"kind": "simulador"}
+                "Te abro el simulador.", "open_link", args={"kind": "simulador"}
             ),
         }
     )
@@ -891,12 +890,12 @@ async def test_a_queued_move_survives_a_link_opened_meanwhile() -> None:
 
 
 async def test_a_form_fill_after_a_page_cue_waits_for_that_page() -> None:
-    llm = ScriptedGemini(
+    llm = ScriptedOpenAI(
         {
             "contacten": reply_and_call(
                 "{page: /carreras/psicologia/} Te llevo a Psicología y completo el formulario.",
                 "fill_lead_form",
-                request={"nombre": "Ana"},
+                args={"nombre": "Ana"},
             )
         }
     )
@@ -958,10 +957,10 @@ def test_a_visit_asked_in_english_is_the_visits_page() -> None:
 
 
 async def test_a_signup_asked_on_another_page_opens_the_visits_page_then_rings_it() -> None:
-    llm = ScriptedGemini(
+    llm = ScriptedOpenAI(
         {
             "Yeah": reply_and_call(
-                "Here are our upcoming activities.", "show_signup", request={"visit": "visitas"}
+                "Here are our upcoming activities.", "show_signup", args={"visit": "visitas"}
             )
         }
     )
@@ -976,12 +975,12 @@ async def test_a_signup_asked_on_another_page_opens_the_visits_page_then_rings_i
 
 
 async def test_a_signup_after_a_page_cue_waits_for_the_visits_page() -> None:
-    llm = ScriptedGemini(
+    llm = ScriptedOpenAI(
         {
             "card": reply_and_call(
                 "{page: /ven-y-conocenos/} Here is our Ven y Conócenos page.",
                 "show_signup",
-                request={"visit": "Visitas guiadas"},
+                args={"visit": "Visitas guiadas"},
             )
         }
     )
@@ -1002,10 +1001,10 @@ async def test_a_signup_whose_page_never_comes_is_said_as_not_done(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(uah, "_PAGE_WAIT_S", 0.3)
-    llm = ScriptedGemini(
+    llm = ScriptedOpenAI(
         {
             "tour": reply_and_call(
-                "I'm taking you to the visits page.", "show_signup", request={"visit": "visitas"}
+                "I'm taking you to the visits page.", "show_signup", args={"visit": "visitas"}
             ),
             "The page answered": reply("The visits page did not open."),
         }
@@ -1017,18 +1016,16 @@ async def test_a_signup_whose_page_never_comes_is_said_as_not_done(
         await asyncio.sleep(0.5)
         turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
         assert turn.text == "The visits page did not open."
-        assert "show_signup not done" in _texts(llm.captured_contents[-1])
+        assert "show_signup not done" in _texts(llm.captured_inputs[-1])
         assert "show_signup" not in rig.actions()
 
 
 async def test_the_form_asked_on_a_page_without_one_opens_the_career_and_fills_there() -> None:
-    llm = ScriptedGemini(
+    llm = ScriptedOpenAI(
         {
-            "contact form": reply_and_call(
-                "Here is the contact form.", "fill_lead_form", request={}
-            ),
+            "contact form": reply_and_call("Here is the contact form.", "fill_lead_form", args={}),
             "Ana": reply_and_call(
-                "Done, I put your name in.", "fill_lead_form", request={"nombre": "Ana"}
+                "Done, I put your name in.", "fill_lead_form", args={"nombre": "Ana"}
             ),
         }
     )
@@ -1042,16 +1039,16 @@ async def test_the_form_asked_on_a_page_without_one_opens_the_career_and_fills_t
         await _page(rig, "page_changed", _informatica_page())
         assert "fill_lead_form" not in rig.actions()  # nothing to fill yet
         await rig.driver.user_says("My name is Ana.")
-        result = _results(llm.captured_contents[-1])["fill_lead_form"]
+        result = _results(llm.captured_inputs[-1])["fill_lead_form"]
         assert "Ingeniería Civil en Informática's page is opening" in result
         assert rig.command("fill_lead_form")["nombre"] == "Ana"
 
 
 async def test_a_name_given_on_a_page_without_the_form_is_filled_once_the_career_loads() -> None:
-    llm = ScriptedGemini(
+    llm = ScriptedOpenAI(
         {
             "contacten": reply_and_call(
-                "Te llevo al formulario.", "fill_lead_form", request={"nombre": "Ana"}
+                "Te llevo al formulario.", "fill_lead_form", args={"nombre": "Ana"}
             )
         }
     )
@@ -1070,7 +1067,7 @@ async def test_a_name_given_on_a_page_without_the_form_is_filled_once_the_career
 
 
 async def test_prices_in_digits_are_said_in_words_and_uf_as_chile_says_it() -> None:
-    llm = ScriptedGemini(
+    llm = ScriptedOpenAI(
         {
             "precio": reply("La matrícula es $277.456 y la titulación 11 UF."),
             "Gracias": reply("De nada."),
@@ -1083,7 +1080,7 @@ async def test_prices_in_digits_are_said_in_words_and_uf_as_chile_says_it() -> N
         assert "once u efe" in turn.text
         assert "$" not in turn.text
         await rig.driver.user_says("Gracias.")
-        seen = _texts(llm.captured_contents[-1])
+        seen = _texts(llm.captured_inputs[-1])
         assert "u efe" not in seen
 
 

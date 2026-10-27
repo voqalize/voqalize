@@ -26,9 +26,16 @@ from collections.abc import Iterator
 from typing import Any
 
 import pytest
-from google.genai import types
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import Reply, ScriptedGemini, call, reply, reply_and_call
+from voqalize_demos.testing import (
+    Reply,
+    ScriptedOpenAI,
+    call,
+    input_texts,
+    reply,
+    reply_and_call,
+    tool_results,
+)
 
 from ._harness import _configs, check_greeting, check_turn, check_voice_pair, demo
 
@@ -152,21 +159,16 @@ def _site(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     yield
 
 
-def _results(contents: list[types.Content]) -> dict[str, str]:
-    return {
-        p.function_response.name or "": str((p.function_response.response or {})["result"])
-        for c in contents
-        for p in (c.parts or [])
-        if p.function_response is not None
-    }
+def _results(items: list[Any]) -> dict[str, str]:
+    return tool_results(items)
 
 
-def _texts(contents: list[types.Content]) -> str:
-    return "\n".join(p.text or "" for c in contents for p in (c.parts or []))
+def _texts(items: list[Any]) -> str:
+    return input_texts(items)
 
 
-def _llm() -> ScriptedGemini:
-    return ScriptedGemini(
+def _llm() -> ScriptedOpenAI:
+    return ScriptedOpenAI(
         {
             # A page cue mid-reply: the words before it first, the rest on the page.
             "Patagonia.": reply(
@@ -195,7 +197,7 @@ def _llm() -> ScriptedGemini:
             "Can I go in November? Five nights.": reply_and_call(
                 "Let's look at the calendar.",
                 "check_availability",
-                request={"hotel_code": "EATA", "nights": 5},
+                args={"hotel_code": "EATA", "nights": 5},
             ),
             "booking calendar is on their screen": reply(
                 "November sixth or seventh are open. Which suits you?"
@@ -203,17 +205,17 @@ def _llm() -> ScriptedGemini:
             "The sixth.": reply_and_call(
                 "The sixth it is.",
                 "check_availability",
-                request={"hotel_code": "EATA", "date": "2026-11-06", "nights": 5},
+                args={"hotel_code": "EATA", "date": "2026-11-06", "nights": 5},
             ),
             "The fifth of November.": reply_and_call(
                 "Let me pick that.",
                 "check_availability",
-                request={"hotel_code": "EATA", "date": "2026-11-05"},
+                args={"hotel_code": "EATA", "date": "2026-11-05"},
             ),
             "Show me the rooms.": reply_and_call(
                 "Here are the rooms.",
                 "check_availability",
-                request={
+                args={
                     "hotel_code": "EATA",
                     "date": "2026-11-06",
                     "nights": 5,
@@ -226,13 +228,13 @@ def _llm() -> ScriptedGemini:
             "I'd like the Sacred Mountains expedition. I'm Ana Díaz.": reply_and_call(
                 "Wonderful. I've started the form.",
                 "fill_enquiry",
-                request={"expedition_code": "XSCM", "first_name": "Ana", "last_name": "Díaz"},
+                args={"expedition_code": "XSCM", "first_name": "Ana", "last_name": "Díaz"},
             ),
             "enquiry form is on their screen": reply("What's your email?"),
             "ana@example.com, Mexican, plus 52 55 1234 5678.": reply_and_call(
                 "I have ana at example dot com.",
                 "fill_enquiry",
-                request={
+                args={
                     "expedition_code": "XSCM",
                     "email": "ana@example.com",
                     "nationality": "Mexican",
@@ -242,7 +244,7 @@ def _llm() -> ScriptedGemini:
             "I'm from Mexico.": reply_and_call(
                 "Got it.",
                 "fill_enquiry",
-                request={"expedition_code": "XSCM", "nationality": "Mexico", "title": "Ms."},
+                args={"expedition_code": "XSCM", "nationality": "Mexico", "title": "Ms."},
             ),
             "Send it.": reply_and_call("Sending it.", "send_enquiry"),
             "ticked I'm not a robot": reply_and_call("Sending it now.", "send_enquiry"),
@@ -258,7 +260,7 @@ def _llm() -> ScriptedGemini:
                 "Just a moment. {page: /explora-lodge-easter-island-new/} Here are the rooms."
             ),
             "Bring up the pricing tab.": reply_and_call(
-                "Here it is.", "switch_tab", request={"tab_id": "99"}
+                "Here it is.", "switch_tab", args={"tab_id": "99"}
             ),
             # Dev call ed9846d5, turn 6: his whole reply was a promise.
             "Show me the explorations.": [
@@ -284,20 +286,20 @@ def _llm() -> ScriptedGemini:
             "I'll take the suite, two of us, king bed.": reply_and_call(
                 "Good choice.",
                 "choose_room",
-                request={"room": "suite", "travellers": 2, "bed": "King"},
+                args={"room": "suite", "travellers": 2, "bed": "King"},
             ),
             "Pick the penthouse.": reply_and_call(
-                "Let me pick it.", "choose_room", request={"room": "Penthouse"}
+                "Let me pick it.", "choose_room", args={"room": "Penthouse"}
             ),
             "Anything in March?": reply_and_call(
                 "I've opened the calendar.",
                 "check_availability",
-                request={"hotel_code": "EPAT", "month": "2027-03"},
+                args={"hotel_code": "EPAT", "month": "2027-03"},
             ),
             # Live run: a silent booking move, re-asked, made up a calendar and
             # read it out in brackets. Now the written line is said instead.
             "Can I go in March?": [
-                call("check_availability", request={"hotel_code": "EATA"}),
+                call("check_availability", args={"hotel_code": "EATA"}),
                 reply("[The booking calendar shows March 1 and March 2.]"),
             ],
             "What's on the screen?": reply(
@@ -315,16 +317,16 @@ def _llm() -> ScriptedGemini:
             ),
             # Prod call be1f5b9a, turns 13 to 16: four travellers, two rooms.
             "Somos cuatro, queremos dos suites.": reply_and_call(
-                "Perfecto.", "choose_room", request={"room": "suite", "count": 2, "bed": "King"}
+                "Perfecto.", "choose_room", args={"room": "suite", "count": 2, "bed": "King"}
             ),
             "Agrega otra suite.": reply_and_call(
-                "Claro.", "choose_room", request={"room": "suite", "count": 2}
+                "Claro.", "choose_room", args={"room": "suite", "count": 2}
             ),
             "Add it twice.": Reply(
                 text="Adding it.",
                 calls=(
-                    ("choose_room", {"request": {"room": "Yali"}}),
-                    ("choose_room", {"request": {"room": "Yali"}}),
+                    ("choose_room", {"room": "Yali"}),
+                    ("choose_room", {"room": "Yali"}),
                 ),
             ),
             "Show me the rooms again.": Reply(
@@ -333,21 +335,17 @@ def _llm() -> ScriptedGemini:
                     (
                         "check_availability",
                         {
-                            "request": {
-                                "hotel_code": "EATA",
-                                "date": "2026-11-06",
-                                "show_rooms": True,
-                            }
+                            "hotel_code": "EATA",
+                            "date": "2026-11-06",
+                            "show_rooms": True,
                         },
                     ),
                     (
                         "check_availability",
                         {
-                            "request": {
-                                "hotel_code": "EATA",
-                                "date": "2026-11-06",
-                                "show_rooms": True,
-                            }
+                            "hotel_code": "EATA",
+                            "date": "2026-11-06",
+                            "show_rooms": True,
                         },
                     ),
                 ),
@@ -500,7 +498,7 @@ async def test_show_me_the_page_in_spanish_loads_it() -> None:
             "Me está mostrando la página en inglés. ¿Se la puedes mostrar en español?"
         )
         assert _commands(rig, "language_changed")[-1] == {"language": "es", "site": "twin"}
-        assert "loading in Spanish now" in _texts(llm.captured_contents[-1])
+        assert "loading in Spanish now" in _texts(llm.captured_inputs[-1])
         assert _commands(rig, "navigate") == []
 
 
@@ -644,7 +642,7 @@ async def test_cues_are_checked_against_the_tab_in_front() -> None:
         # A tab's label opens the tab; words that are on no heading are rung.
         assert cues[0]["heading"] == "Custom-Made Explorations"
         assert cues[1]["heading"] is None and cues[1]["text"] == "the red door"
-        seen = _texts(llm.captured_contents[-1])
+        seen = _texts(llm.captured_inputs[-1])
         assert "Its tabs and accordions: Award-Winning Lodges; Custom-Made Explorations" in seen
         assert "Its own sub-pages: /lodge/torres-del-paine-lodge/; /el-chalten-lodge/" in seen
         await _page(rig, "page_changed", HOME_PAGE)
@@ -725,7 +723,7 @@ async def test_availability_is_checked_on_the_booking_site_and_stops_at_rooms() 
         turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
         check_turn(rig, turn)
         assert "Which suits you?" in turn.text
-        seen = _texts(llm.captured_contents[-1])
+        seen = _texts(llm.captured_inputs[-1])
         assert "Open arrival days: Friday, November 6, 2026; Saturday, November 7, 2026" in seen
 
         await rig.driver.user_says("The sixth.")
@@ -734,7 +732,7 @@ async def test_availability_is_checked_on_the_booking_site_and_stops_at_rooms() 
         await rig.driver.user_says("The fifth of November.")
         # A tool's result reaches the model with the next request.
         await rig.driver.user_says("Carry on.")
-        refused = _results(llm.captured_contents[-1])["check_availability"]
+        refused = _results(llm.captured_inputs[-1])["check_availability"]
         assert "not an open arrival day" in refused
         assert len(_commands(rig, "check_availability")) == 2
 
@@ -754,7 +752,7 @@ async def test_availability_is_checked_on_the_booking_site_and_stops_at_rooms() 
         )
         turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
         assert "You book it from here." in turn.text
-        assert "Suite (from US$ 1,200 per night)" in _texts(llm.captured_contents[-1])
+        assert "Suite (from US$ 1,200 per night)" in _texts(llm.captured_inputs[-1])
 
 
 async def test_an_expedition_enquiry_fills_and_sends_only_once_ticked() -> None:
@@ -778,7 +776,7 @@ async def test_an_expedition_enquiry_fills_and_sends_only_once_ticked() -> None:
         await rig.driver.user_says("Carry on.")
         assert (
             "not on the form's nationality list"
-            in _results(llm.captured_contents[-1])["fill_enquiry"]
+            in _results(llm.captured_inputs[-1])["fill_enquiry"]
         )
         filled = _commands(rig, "fill_enquiry")[-1]
         assert filled["first_name"] == "Ana" and filled["email"] == "ana@example.com"
@@ -801,7 +799,7 @@ async def test_an_expedition_enquiry_fills_and_sends_only_once_ticked() -> None:
         )
         await rig.driver.user_says("Send it.")
         await rig.driver.user_says("Carry on.")
-        assert "not ticked" in _results(llm.captured_contents[-1])["send_enquiry"]
+        assert "not ticked" in _results(llm.captured_inputs[-1])["send_enquiry"]
         assert _commands(rig, "send_enquiry") == []
 
         # Ticked: he says so and sends it, in the short quiet spell.
@@ -858,12 +856,12 @@ DATES_STATE: dict[str, Any] = {
 
 async def test_a_talk_through_the_model_leaves_silent_is_read_from_the_page() -> None:
     """Prod call be1f5b9a: the calendar's open days were never said."""
-    llm = ScriptedGemini(
+    llm = ScriptedOpenAI(
         {
             "Can I go in November? Five nights.": reply_and_call(
                 "Let's look at the calendar.",
                 "check_availability",
-                request={"hotel_code": "EATA", "nights": 5},
+                args={"hotel_code": "EATA", "nights": 5},
             ),
         },
         default=reply(""),
@@ -979,7 +977,7 @@ async def test_a_room_is_chosen_from_the_rooms_on_screen() -> None:
         ]
         await rig.driver.user_says("Pick the penthouse.")
         await rig.driver.user_says("Carry on.")
-        assert "no room 'Penthouse'" in _results(llm.captured_contents[-1])["choose_room"]
+        assert "no room 'Penthouse'" in _results(llm.captured_inputs[-1])["choose_room"]
         assert len(_commands(rig, "choose_room")) == 1
 
 
@@ -1095,7 +1093,7 @@ async def test_switch_tab_with_one_tab_moves_nothing() -> None:
         await rig.driver.start_session(init={"site": "site", "path": "/"})
         await rig.driver.user_says("Bring up the pricing tab.")
         await rig.driver.user_says("Carry on.")
-        assert "only this one Explora tab" in _results(llm.captured_contents[-1])["switch_tab"]
+        assert "only this one Explora tab" in _results(llm.captured_inputs[-1])["switch_tab"]
         assert _commands(rig, "focus_tab") == []
 
 

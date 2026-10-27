@@ -50,21 +50,18 @@ backstop and the talk-through after a page result are the same machinery.
 from __future__ import annotations
 
 import dataclasses
-import inspect
 import math
 import re
 import time
 from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING, Any, Literal
 
-from google import genai
-from google.genai import types
 from loguru import logger
+from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 from voqalize_demos import (
     PATIENCE,
     FallbackLine,
-    GeminiBrain,
     configure_soon,
     landed,
     needs_result_now,
@@ -85,6 +82,7 @@ from voqalize.sdk import (
     UserIdle,
     UserMessage,
 )
+from voqalize.sdk.openai import OpenAIBrain
 from voqalize.sdk.voice import ToolChoice
 from voqalize.sdk.wire import Config, IdleConfig, SttConfig, TtsConfig, Voice
 
@@ -127,12 +125,11 @@ from .knowledge import (
 
 AGENT_NAME = "Javier"
 
-#: LOW, as SendPotion and Saatvik measured: at MINIMAL, Gemini mostly made the
-#: page call first and wrote nothing; at LOW it writes the answer first.
-THINKING = types.ThinkingConfig(thinking_level=types.ThinkingLevel.LOW)
-#: SendPotion's model: on its prompt it had first words out in about two seconds
-#: and wrote the screen cues correctly.
-MODEL = "gemini-3.8-flash"
+#: GPT-6.1 Terra at low reasoning, for cost: OpenAI caches every prompt over
+#: 1,024 tokens, where Gemini 3.8 Flash cached nothing under about 16k, so most
+#: of each turn's input is read from the cache.
+MODEL = "gpt-6.1-terra"
+REASONING = "low"
 
 # ─── Voice and timing ──────────────────────────────────────────────────────────
 
@@ -1684,20 +1681,24 @@ def option_for(value: str, options: list[str]) -> str | None:
 # ─── The brain ─────────────────────────────────────────────────────────────────
 
 
-class SsilvaBrain(GeminiBrain):
+class SsilvaBrain(OpenAIBrain):
     """One per session. Javier: Ssilva's projects, its pages, and a mirror of
     the visitor's tabs and quote form, in Spanish or English."""
 
     def __init__(
         self,
         *,
-        client: genai.Client,
+        client: AsyncOpenAI,
         model: str = MODEL,
         knowledge: Knowledge | None = None,
     ) -> None:
         self.kb = knowledge if knowledge is not None else kb.KNOWLEDGE
-        super().__init__(client=client, system_instruction=_prompt(self.kb), model=model)
-        self._config = self._config.model_copy(update={"thinking_config": THINKING})
+        super().__init__(
+            client=client,
+            system_instruction=_prompt(self.kb),
+            model=model,
+            reasoning=REASONING,
+        )
         self._heard_at = float("-inf")
         #: The language he speaks now, whether the visitor chose it, and the
         #: toggle's written confirmation of a switch, said at his next turn.
@@ -2278,27 +2279,13 @@ class SsilvaBrain(GeminiBrain):
 
     def _talk_now(self, session: Session) -> AsyncGenerator[Speech, None]:
         """The one extra request a silent page move gets: tools declared, none
-        callable. Gemini refuses a request that ends on its own turn (a reply
-        of thoughts and no words did, live, on 2026-10-22), so the ask is put
-        in words first."""
+        callable. A request that ends on the model's own wordless turn was
+        refused on Gemini (live, 2026-10-22) and leaves any model nothing to
+        answer, so the ask is put in words first."""
         history = self._history
         if history and history[-1].role == "model":
             self._note("[Your last reply had no words. Answer the visitor now, briefly, in words.]")
         return self.respond_with(session, tools=ToolChoice.NONE)
-
-    async def _run(self, tool: Any, call: types.FunctionCall) -> types.Part:
-        """Every tool takes one model, ``request``; Gemini sometimes sends its
-        fields flat, which the SDK refuses. Wrap them before the call runs."""
-        args = dict(call.args or {})
-        if (
-            tool is not None
-            and "request" not in args
-            and "request" in inspect.signature(tool).parameters
-        ):
-            # Flat, or none at all ("the next photo"): every field has a default.
-            logger.info("ssilva: {} called with flat arguments; wrapping them", call.name)
-            call = call.model_copy(update={"args": {"request": args}})
-        return await super()._run(tool, call)
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
         """Page→brain events, folded in silently: no floor taken, no turn."""
@@ -2526,7 +2513,7 @@ class SsilvaBrain(GeminiBrain):
         self._note(_page_line(self.page, self.kb, self.spoken))
 
     def _note(self, text: str) -> None:
-        self.append_to_context(types.Content(role="user", parts=[types.Part(text=text)]))
+        self.append_note(text)
 
     def _talk_through(self, ask: str) -> None:
         self._talk = ask

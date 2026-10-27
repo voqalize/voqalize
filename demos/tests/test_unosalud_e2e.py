@@ -28,9 +28,15 @@ import asyncio
 from typing import Any
 
 import pytest
-from google.genai import types
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
+from voqalize_demos.testing import (
+    ScriptedOpenAI,
+    call,
+    input_texts,
+    reply,
+    reply_and_call,
+    tool_results_of,
+)
 
 from ._harness import _configs, check_greeting, check_turn, check_voice_pair, demo
 
@@ -72,21 +78,16 @@ def _quiet_nods(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(unosalud, "ACK_RATE", 0.0)
 
 
-def _every(contents: list[types.Content], name: str) -> list[str]:
-    return [
-        str((p.function_response.response or {})["result"])
-        for c in contents
-        for p in (c.parts or [])
-        if p.function_response is not None and p.function_response.name == name
-    ]
+def _every(items: list[Any], name: str) -> list[str]:
+    return tool_results_of(items, name)
 
 
-def _texts(contents: list[types.Content]) -> str:
-    return "\n".join(p.text or "" for c in contents for p in (c.parts or []))
+def _texts(items: list[Any]) -> str:
+    return input_texts(items)
 
 
-def _llm() -> ScriptedGemini:
-    return ScriptedGemini(
+def _llm() -> ScriptedOpenAI:
+    return ScriptedOpenAI(
         {
             "Hola, ¿cómo estás?": reply("Muy bien. ¿En qué te ayudo hoy?"),
             "How much are the braces for me?": reply(
@@ -101,36 +102,36 @@ def _llm() -> ScriptedGemini:
             ),
             "¿Atienden urgencias?": reply("Sí, en todas las clínicas."),
             "¿Tienen clínica en Providencia?": [
-                call("find_clinic", request={"query": "Providencia"}),
+                call("find_clinic", args={"query": "Providencia"}),
                 reply(
                     "{page: /clinicas/}{show: clinicas_manuel_montt} Sí, en Manuel Montt "
                     "doscientos diecisiete."
                 ),
             ],
             "Quiero agendar una limpieza.": reply_and_call(
-                "Te abro la reserva.", "open_booking", request={}
+                "Te abro la reserva.", "open_booking", args={}
             ),
             "Quiero la promoción de ortodoncia.": reply_and_call(
                 "Te abro la reserva con la promoción.",
                 "open_booking",
-                request={"promo": "ortodoncia_oct"},
+                args={"promo": "ortodoncia_oct"},
             ),
             "En Manuel Montt, para una limpieza.": reply_and_call(
                 "Perfecto, lo marco apenas puedas.",
                 "booking_pick",
-                request={"motivo": 14, "clinic": "manuel_montt"},
+                args={"motivo": 14, "clinic": "manuel_montt"},
             ),
             "El lunes cuatro.": reply_and_call(
-                "Te marco el lunes.", "booking_pick", request={"date": DAY}
+                "Te marco el lunes.", "booking_pick", args={"date": DAY}
             ),
             "A las nueve de la noche.": reply_and_call(
-                "Veamos.", "booking_pick", request={"time": "21:00"}
+                "Veamos.", "booking_pick", args={"time": "21:00"}
             ),
             "A las diez y media.": reply_and_call(
-                "Te marco las diez y media.", "booking_pick", request={"time": "10:30"}
+                "Te marco las diez y media.", "booking_pick", args={"time": "10:30"}
             ),
             "¿Qué días hay?": 2
-            * [reply_and_call("Reviso los próximos días.", "booking_scan", request={"days": 3})],
+            * [reply_and_call("Reviso los próximos días.", "booking_scan", args={"days": 3})],
             "Soy Ana Pérez Soto, mi celular es nueve uno dos tres cuatro cinco seis siete ocho.": 2
             * [
                 reply_and_call(
@@ -150,13 +151,13 @@ def _llm() -> ScriptedGemini:
                 # Reshaped to look Chilean: refused, never sent.
                 "Adding it.",
                 "fill_booking_patient",
-                request={"phone": "914751417"},
+                args={"phone": "914751417"},
             ),
             "Prefiero que me llamen. Soy Juan Rojas, juan@correo.cl, 912345678, Ñuñoa, Santiago.": (
                 reply_and_call(
                     "Te lo completo.",
                     "fill_callback_form",
-                    request={
+                    args={
                         "nombre": "Juan",
                         "apellidos": "Rojas",
                         "email": " Juan@Correo.cl ",
@@ -169,7 +170,7 @@ def _llm() -> ScriptedGemini:
             "Somos una empresa de 120 personas, Acme, yo soy Carla de RRHH.": reply_and_call(
                 "Te lo completo.",
                 "fill_company_form",
-                request={
+                args={
                     "nombre": "Carla",
                     "empresa": "Acme",
                     "cargo": "RRHH",
@@ -178,13 +179,13 @@ def _llm() -> ScriptedGemini:
                 },
             ),
             "¿Cómo llego a Moneda?": reply_and_call(
-                "Te abro el mapa.", "open_link", request={"clinic": "moneda"}
+                "Te abro el mapa.", "open_link", args={"clinic": "moneda"}
             ),
             "¿Puedes hablar en inglés?": reply_and_call(
-                "Sure, let's continue in English.", "set_language", request={"language": "en"}
+                "Sure, let's continue in English.", "set_language", args={"language": "en"}
             ),
             "Can I speak in English?": reply_and_call(
-                "Sure, let's continue in English.", "booking_pick", request={"motivo": 14}
+                "Sure, let's continue in English.", "booking_pick", args={"motivo": 14}
             ),
             # The page's reports, talked through in the quiet spell.
             "first step, and its RUT field is ringed": reply(
@@ -363,7 +364,7 @@ async def test_a_clinic_is_found_and_its_row_shown() -> None:
         await rig.driver.start_session(init={"path": "/"})
         turn = await rig.driver.user_says("¿Tienen clínica en Providencia?")
         check_turn(rig, turn)
-        (found,) = _every(llm.captured_contents[-1], "find_clinic")
+        (found,) = _every(llm.captured_inputs[-1], "find_clinic")
         assert "Manuel Montt (key manuel_montt): Av. Manuel Montt #217, Providencia" in found
         assert "In the booking: MANUEL MONTT (METRO M. MONTT)" in found
         cues = _commands(rig, "cue")
@@ -393,7 +394,7 @@ async def test_a_clinic_page_reports_its_hours_and_they_reach_him() -> None:
             },
         )
         await rig.driver.user_says("Sigamos.")
-        seen = _texts(llm.captured_contents[-1])
+        seen = _texts(llm.captured_inputs[-1])
         assert "Hours, as its page shows them: Lunes a viernes: 9:00 a 19:00 hrs." in seen
 
 
@@ -423,7 +424,7 @@ async def test_the_booking_opens_and_its_first_step_is_explained_as_theirs() -> 
         turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
         check_turn(rig, turn)
         assert "No soy un robot" in turn.text
-        seen = _texts(llm.captured_contents[-1])
+        seen = _texts(llm.captured_inputs[-1])
         assert "the RUT identifies the patient's clinical record" in seen
 
 
@@ -444,7 +445,7 @@ async def test_choices_before_the_rut_are_kept_and_taken_at_their_step() -> None
         await rig.driver.user_says("En Manuel Montt, para una limpieza.")
         assert "booking_pick" not in rig.actions()
         await rig.driver.user_says("Sigamos.")
-        (kept,) = _every(llm.captured_contents[-1], "booking_pick")
+        (kept,) = _every(llm.captured_inputs[-1], "booking_pick")
         assert kept.startswith("Kept, not sent yet: the booking is still at its first step")
         # The visitor typed their RUT and continued; a known patient confirms.
         await _page(rig, "booking_state", _state("getPAC", rut_entered=True))
@@ -471,7 +472,7 @@ async def test_a_patient_with_an_hour_already_is_a_dead_end_said_kindly() -> Non
         await _page(rig, "booking_state", _state("notsetRH"))
         turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
         assert "seis cero cero, siete cero siete" in turn.text
-        assert "600 707 1010 digit by digit" in _texts(llm.captured_contents[-1])
+        assert "600 707 1010 digit by digit" in _texts(llm.captured_inputs[-1])
 
 
 async def test_the_days_hours_are_read_and_only_a_listed_hour_is_picked() -> None:
@@ -491,14 +492,14 @@ async def test_the_days_hours_are_read_and_only_a_listed_hour_is_picked() -> Non
         turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
         check_turn(rig, turn)
         assert "a las diez y media" in turn.text
-        seen = _texts(llm.captured_contents[-1])
+        seen = _texts(llm.captured_inputs[-1])
         assert (
             "Day selected: 2030-03-04 (lunes 4 de marzo). Its hours: 09:00; 10:30; 11:00." in seen
         )
         # An hour it does not list is refused, never sent.
         await rig.driver.user_says("A las nueve de la noche.")
         await rig.driver.user_says("Sigamos.")
-        refused = _every(llm.captured_contents[-1], "booking_pick")[-1]
+        refused = _every(llm.captured_inputs[-1], "booking_pick")[-1]
         assert refused.startswith("Not picked: 21:00 is not an hour the booking lists")
         await rig.driver.user_says("A las diez y media.")
         assert _commands(rig, "booking_pick")[-1]["time"] == "10:30"
@@ -547,7 +548,7 @@ async def test_the_next_open_days_are_scanned_and_talked_through() -> None:
         turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
         assert "lunes y el martes" in turn.text
         assert "Open days read: 2030-03-04 (lunes 4 de marzo): 09:00" in _texts(
-            llm.captured_contents[-1]
+            llm.captured_inputs[-1]
         )
 
 
@@ -576,7 +577,7 @@ async def test_the_patient_form_is_filled_without_a_rut_and_read_back() -> None:
         wire = str(rig.driver.ui_commands)  # type: ignore[attr-defined]
         assert "12.345.678-5" not in wire
         await rig.driver.user_says("Sigamos.")
-        result = _every(llm.captured_contents[-1], "fill_booking_patient")[-1]
+        result = _every(llm.captured_inputs[-1], "fill_booking_patient")[-1]
         assert "The celular sent: 9 1 2 3 4 5 6 7 8; read it back digit by digit." in result
         assert "'Registrarse' is theirs to press" in result
 
@@ -588,7 +589,7 @@ async def test_a_phone_is_never_reshaped_to_fit() -> None:
         await _page(rig, "booking_state", _state("setPAC", rut_entered=True))
         await rig.driver.user_says("my phone is eight one four seven five one four one seven nine")
         await rig.driver.user_says("Sigamos.")
-        (result,) = _every(llm.captured_contents[-1], "fill_booking_patient")
+        (result,) = _every(llm.captured_inputs[-1], "fill_booking_patient")
         assert "is not what the visitor said (8 1 4 7 5 1 4 1 7 9)" in result
         assert all(c["phone"] == "" for c in _commands(rig, "fill_booking_patient"))
 
@@ -603,7 +604,7 @@ async def test_a_failed_booking_step_is_talked_through() -> None:
         assert _idle_windows(rig)[-1] == _TALK_THROUGH_MS
         turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
         check_turn(rig, turn)
-        seen = _texts(llm.captured_contents[-1])
+        seen = _texts(llm.captured_inputs[-1])
         assert "[Not done on the page (booking_pick): day disabled." in seen
         assert "The page answered what you sent it: booking_pick not done: day disabled." in seen
         assert _idle_windows(rig)[-1] == _IDLE_MS
@@ -634,11 +635,11 @@ async def test_the_callback_form_is_filled_and_the_rut_left_to_them() -> None:
             {"form": "te_llamamos", "filled": ["nombre", "email"], "missing": ["RUT"]},
         )
         await rig.driver.user_says("Sigamos.")
-        seen = _texts(llm.captured_contents[-1])
+        seen = _texts(llm.captured_inputs[-1])
         assert "RUT not typed yet (theirs to type)" in seen
         assert (
             "ENVIAR is theirs to press."
-            in _every(llm.captured_contents[-1], "fill_callback_form")[-1]
+            in _every(llm.captured_inputs[-1], "fill_callback_form")[-1]
         )
 
 
@@ -651,7 +652,7 @@ async def test_the_company_form_takes_the_forms_own_size_option() -> None:
         assert filled["trabajadores"] == "Entre 200 a 500 trabajadores"
         assert filled["empresa"] == "Acme" and filled["region"] == "Región Metropolitana"
         await rig.driver.user_says("Sigamos.")
-        result = _every(llm.captured_contents[-1], "fill_company_form")[-1]
+        result = _every(llm.captured_inputs[-1], "fill_company_form")[-1]
         assert "no option between 50 and 200 employees" in result
 
 
@@ -662,7 +663,7 @@ async def test_a_choice_for_a_step_already_behind_is_left_to_the_visitor() -> No
         await _page(rig, "booking_state", _state("getHor", motivo=14, sucursal="MONEDA"))
         await rig.driver.user_says("En Manuel Montt, para una limpieza.")
         await rig.driver.user_says("Sigamos.")
-        result = _every(llm.captured_contents[-1], "booking_pick")[-1]
+        result = _every(llm.captured_inputs[-1], "booking_pick")[-1]
         assert result.startswith("Not picked: Not sent: the motivo and the clinic")
         assert "they press Volver themselves" in result
         assert "booking_pick" not in rig.actions()

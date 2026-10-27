@@ -34,11 +34,11 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal
 
 import pytest
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import ScriptedGemini
+from voqalize_demos.testing import ScriptedGemini, ScriptedOpenAI
 
 from voqalize.conformance import ConformanceError
 from voqalize.sdk import Brain
@@ -69,6 +69,8 @@ class Expected:
     what makes "which layer owns this demo's language" a written-down answer
     rather than something read off whichever file you happen to open.
 
+    ``provider`` names the model the demo's factory is handed, so the sweep hands
+    it the matching scripted fake.
     """
 
     voice: str | None = None
@@ -76,6 +78,7 @@ class Expected:
     at_connect: bool = False
     payload: dict[str, Any] = field(default_factory=dict)
     build: Callable[[], Brain] | None = None
+    provider: Literal["gemini", "openai"] = "gemini"
 
     def __post_init__(self) -> None:
         stated = self.voice is not None and self.language is not None
@@ -105,28 +108,28 @@ DEMOS: dict[str, Expected] = {
     # legs for the toggle or for English heard — javier in both. Not a gallery
     # card (the page is Cannon Home's own store). Asserted in
     # test_cannonhome_e2e.py.
-    "cannonhome": Expected(voice="omnivoice/javier", language="es"),
+    "cannonhome": Expected(voice="omnivoice/javier", language="es", provider="openai"),
     # Javier, Clini's guide on www.clini.cl and its booking, opens in Spanish
     # (the site's language) unless the page's toggle said English, and moves
     # both legs for the toggle or for English heard — javier in both. Not a
     # gallery card (the page is Clini's own site), so it is not in manifest.json.
     # The switch is asserted in test_clini_e2e.py.
-    "clini": Expected(voice="omnivoice/javier", language="es"),
+    "clini": Expected(voice="omnivoice/javier", language="es", provider="openai"),
     # Javier again, as Colegio Everest's guide on colegioeverest.cl: the site
     # is Chilean, so he opens in Spanish unless the toggle said English, and
     # moves both legs for the toggle or for English heard — javier in both.
     # Asserted in test_colegioeverest_e2e.py.
-    "colegioeverest": Expected(voice="omnivoice/javier", language="es"),
+    "colegioeverest": Expected(voice="omnivoice/javier", language="es", provider="openai"),
     # Javier, Explora's guide on explora.com and its booking site — SendPotion's
     # Javier — opens in English unless the page's toggle said Spanish, and moves
     # both legs for the toggle or for Spanish heard. Asserted in
     # test_explora_e2e.py.
-    "explora": Expected(voice="omnivoice/javier", language="en"),
+    "explora": Expected(voice="omnivoice/javier", language="en", provider="openai"),
     # Javier again, as Figurella Chile's guide on figurella.cl: the site is
     # Chilean, so he opens in Spanish unless the toggle said English, and moves
     # both legs for the toggle or for English heard — javier in both. Asserted
     # in test_figurella_e2e.py.
-    "figurella": Expected(voice="omnivoice/javier", language="es"),
+    "figurella": Expected(voice="omnivoice/javier", language="es", provider="openai"),
     "forge": Expected(voice="omnivoice/gauri", language="en"),
     "interview_bot": Expected(voice="omnivoice/gauri", language="en"),
     # Aria on karnatakadigital.in opens in English and moves both legs to Kannada
@@ -163,21 +166,21 @@ DEMOS: dict[str, Expected] = {
     # site is Chilean, so he opens in Spanish unless the toggle said English,
     # and moves both legs for the toggle or for English heard — javier in both.
     # Asserted in test_saintgeorge_e2e.py.
-    "saintgeorge": Expected(voice="omnivoice/javier", language="es"),
+    "saintgeorge": Expected(voice="omnivoice/javier", language="es", provider="openai"),
     # Javier, SendPotion's guide on sendpotion.com and its blog, opens in
     # English unless the page's toggle said Spanish, and moves both legs for the
     # toggle or for Spanish heard — javier in both. Asserted in
     # test_sendpotion_e2e.py.
-    "sendpotion": Expected(voice="omnivoice/javier", language="en"),
+    "sendpotion": Expected(voice="omnivoice/javier", language="en", provider="openai"),
     # Javier again, as Santander Arena's guide on santanderarena.cl: the site is
     # Chilean, so with no `lang` in the payload he opens in Spanish, and moves
     # both legs for the toggle or for English heard — javier in both. Asserted
     # in test_santanderarena_e2e.py.
-    "santanderarena": Expected(voice="omnivoice/javier", language="es"),
+    "santanderarena": Expected(voice="omnivoice/javier", language="es", provider="openai"),
     # Javier again, as Ssilva's guide on ssilva.cl: the site is Chilean, so he
     # opens in Spanish unless the toggle said English, and moves both legs for
     # the toggle or for English heard. Asserted in test_ssilva_e2e.py.
-    "ssilva": Expected(voice="omnivoice/javier", language="es"),
+    "ssilva": Expected(voice="omnivoice/javier", language="es", provider="openai"),
     "servicing": Expected(voice="omnivoice/emily", language="en"),
     "shopping": Expected(voice="omnivoice/gaurav", language="en"),
     # The patient picks sugar's language on the page, before the call exists, so
@@ -189,13 +192,13 @@ DEMOS: dict[str, Expected] = {
     "sugar": Expected(at_connect=True),
     "support": Expected(voice="omnivoice/gaurav", language="en"),
     "travel": Expected(voice="omnivoice/emily", language="en"),
-    "uahurtado": Expected(voice="omnivoice/javier", language="es"),
+    "uahurtado": Expected(voice="omnivoice/javier", language="es", provider="openai"),
     # Javier as Uno Salud Dental's guide on www.unosalud.cl and its booking: a
     # Chilean site, so he opens in Spanish unless the toggle said English, and
     # moves both legs for the toggle or for English heard — javier in both. Not
     # a gallery card (the page is Uno Salud's own site). Asserted in
     # test_unosalud_e2e.py.
-    "unosalud": Expected(voice="omnivoice/javier", language="es"),
+    "unosalud": Expected(voice="omnivoice/javier", language="es", provider="openai"),
 }
 
 
@@ -204,7 +207,7 @@ def _open(name: str, expected: Expected):
     takes the injected provider, directly where it builds its own model."""
     if expected.build is not None:
         return demo_from(name, expected.build)
-    return demo(name, ScriptedGemini())
+    return demo(name, ScriptedOpenAI() if expected.provider == "openai" else ScriptedGemini())
 
 
 def test_every_discovered_demo_has_a_row() -> None:

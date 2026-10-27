@@ -25,11 +25,19 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Iterator
+from typing import Any
 
 import pytest
-from google.genai import types
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
+from voqalize_demos.testing import (
+    ScriptedOpenAI,
+    call,
+    input_texts,
+    reply,
+    reply_and_call,
+    tool_results,
+    tool_results_of,
+)
 
 from ._harness import _configs, check_greeting, check_turn, check_voice_pair, demo
 
@@ -250,31 +258,20 @@ def _site(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     yield
 
 
-def _results(contents: list[types.Content]) -> dict[str, str]:
-    return {
-        p.function_response.name or "": str((p.function_response.response or {})["result"])
-        for c in contents
-        for p in (c.parts or [])
-        if p.function_response is not None
-    }
+def _results(items: list[Any]) -> dict[str, str]:
+    return tool_results(items)
 
 
-def _all_results(contents: list[types.Content], name: str) -> list[str]:
-    """Every result of tool ``name`` in a request, oldest first."""
-    return [
-        str((p.function_response.response or {})["result"])
-        for c in contents
-        for p in (c.parts or [])
-        if p.function_response is not None and p.function_response.name == name
-    ]
+def _all_results(items: list[Any], name: str) -> list[str]:
+    return tool_results_of(items, name)
 
 
-def _texts(contents: list[types.Content]) -> str:
-    return "\n".join(p.text or "" for c in contents for p in (c.parts or []))
+def _texts(items: list[Any]) -> str:
+    return input_texts(items)
 
 
-def _llm() -> ScriptedGemini:
-    return ScriptedGemini(
+def _llm() -> ScriptedOpenAI:
+    return ScriptedOpenAI(
         {
             # A project walked top to bottom: a page, a section, a typology, and
             # a section this page does not have, dropped.
@@ -295,11 +292,11 @@ def _llm() -> ScriptedGemini:
             # The visitor names a project; the reply forgets to open it.
             "Háblame de Canal Beagle.": reply("Está en Viña del Mar. Tiene entrega inmediata."),
             "Busco un departamento de dos dormitorios en Viña.": [
-                call("find_projects", request={"comuna": "Viña", "dormitorios": 2}),
+                call("find_projects", args={"comuna": "Viña", "dormitorios": 2}),
                 reply_and_call(
                     "Hay dos en Viña del Mar. ¿Lo buscas para vivir o para invertir?",
                     "show_projects",
-                    request={
+                    args={
                         "region": "valparaiso",
                         "highlight": ["isla picton", "Canal Beagle", "Torre Inventada"],
                     },
@@ -308,29 +305,29 @@ def _llm() -> ScriptedGemini:
             "Quiero ver los de Las Condes.": reply_and_call(
                 "Te muestro Las Condes.",
                 "show_projects",
-                request={"communes": ["las condes"], "property": "departamentos"},
+                args={"communes": ["las condes"], "property": "departamentos"},
             ),
             "Quiero cotizar.": reply_and_call(
                 "{show: formulario} Perfecto, lo completamos juntos. ¿Me dices tu RUT y correo?",
                 "fill_lead_form",
-                request={"firstname": "Ana", "lastname": "Pérez Soto"},
+                args={"firstname": "Ana", "lastname": "Pérez Soto"},
             ),
             "Mi RUT es 12.345.678-5 y mi correo ana.perez@gmail.com": reply_and_call(
                 "Anoté el correo ana punto pérez arroba gmail punto com. ¿Está bien?",
                 "fill_lead_form",
-                request={
+                args={
                     "rut": "123456785",
                     "email": "Ana.Perez@gmail.com",
                     "motivo": "para vivir",
                 },
             ),
             "Mi RUT es 12.345.678-9": reply_and_call(
-                "Déjame revisarlo.", "fill_lead_form", request={"rut": "12.345.678-9"}
+                "Déjame revisarlo.", "fill_lead_form", args={"rut": "12.345.678-9"}
             ),
             "Mi celular es 9 1234 5678. Sigamos.": reply_and_call(
                 "Pasamos al segundo paso.",
                 "fill_lead_form",
-                request={"phone": "9 1234 5678", "next_step": True, "ingreso": "un millón y medio"},
+                args={"phone": "9 1234 5678", "next_step": True, "ingreso": "un millón y medio"},
             ),
             "Step two of the quote form": reply(
                 "Ya estamos en el segundo paso. ¿Qué tipología te interesa?"
@@ -338,22 +335,22 @@ def _llm() -> ScriptedGemini:
             "Gano un millón y medio, y tengo tres millones ahorrados.": reply_and_call(
                 "Lo dejé en el rango de un millón y medio. ¿Está bien?",
                 "fill_lead_form",
-                request={"ingreso": "1500000", "pie": "3 millones"},
+                args={"ingreso": "1500000", "pie": "3 millones"},
             ),
             "pressed Enviar": reply("Gracias, Ana. Esta vista previa no lo envió."),
             "Quiero cotizar en la portada.": reply_and_call(
-                "Abramos el proyecto primero.", "fill_lead_form", request={"firstname": "Ana"}
+                "Abramos el proyecto primero.", "fill_lead_form", args={"firstname": "Ana"}
             ),
             # English heard: the call moves to English before he answers.
             "Hi, can you show me projects in Las Condes please?": reply(
                 "There are three in Las Condes. Want to see them?"
             ),
             "¿Puedes hablar en inglés?": reply_and_call(
-                "Sure, I'll speak English.", "set_language", request={"language": "en"}
+                "Sure, I'll speak English.", "set_language", args={"language": "en"}
             ),
             "Ábreme el tour.": reply_and_call("Te abro el recorrido.", "open_tour"),
             "Muéstrame la piscina.": reply_and_call(
-                "Aquí están las fotos.", "show_photos", request={"which": "amenities", "index": 2}
+                "Aquí están las fotos.", "show_photos", args={"which": "amenities", "index": 2}
             ),
             # Several projects, talked through as the list opens: each card is
             # rung as he names it, once the list his show_projects opens is up.
@@ -361,7 +358,7 @@ def _llm() -> ScriptedGemini:
                 "Hay dos que te sirven. Distrito Barroso está en Santiago centro. "
                 "{show: Estocolmo} Estocolmo está en Las Condes. ¿Cuál te interesa?",
                 "show_projects",
-                request={"region": "metropolitana", "highlight": ["Distrito Barroso", "Estocolmo"]},
+                args={"region": "metropolitana", "highlight": ["Distrito Barroso", "Estocolmo"]},
             ),
             # The same names with no list to ring them on: no card cue at all.
             "¿Cuáles están en Santiago?": reply("Distrito Barroso está en Santiago centro."),
@@ -374,16 +371,16 @@ def _llm() -> ScriptedGemini:
                 "Here is the butterfly layout. "
                 "This is the two-bedroom, one-bathroom one, for comparison.",
                 "show_floor_plan",
-                request={"typology": "2D | 2B MARIPOSA"},
+                args={"typology": "2D | 2B MARIPOSA"},
             ),
             "Muéstrame las fotos en grande.": reply_and_call(
                 "{photo: 1} Aquí ves el departamento grande. {photo: amenidades 2} Y esta es la "
                 "zona gourmet. {photo: 9} Y una que no existe.",
                 "show_photos",
-                request={"which": "gallery", "index": 1, "fullscreen": True},
+                args={"which": "gallery", "index": 1, "fullscreen": True},
             ),
             "Pon una presentación.": reply_and_call(
-                "Van pasando solas.", "slideshow", request={"play": True, "seconds": 30}
+                "Van pasando solas.", "slideshow", args={"play": True, "seconds": 30}
             ),
             "La siguiente.": reply_and_call("Esta es la siguiente.", "step_photo"),
             # Every photo, by itself: no "next" to ask for.
@@ -391,7 +388,7 @@ def _llm() -> ScriptedGemini:
                 "Te las muestro en grande, y van pasando solas.", "slideshow"
             ),
             "Muéstrame el brochure.": reply_and_call(
-                "Aquí está el brochure.", "show_brochure", request={"page": 2}
+                "Aquí está el brochure.", "show_brochure", args={"page": 2}
             ),
             "Descárgalo.": reply_and_call("Lo descargo.", "download_brochure"),
             # His label against his words: the sentence is about three bedrooms.
@@ -406,13 +403,13 @@ def _llm() -> ScriptedGemini:
             ),
             "Escríbeles por WhatsApp.": reply_and_call("Abro WhatsApp.", "open_whatsapp"),
             "¿Qué es Estocolmo?": [
-                call("read_project", request={"name": "estocolmo"}),
+                call("read_project", args={"name": "estocolmo"}),
                 reply("Es un proyecto en Las Condes."),
             ],
             "Sigue.": reply("Claro, seguimos."),
             # Two bedrooms asked: the two-bedroom typology's price, not the desde.
             "Busco dos dormitorios en Santiago.": [
-                call("find_projects", request={"comuna": "Santiago", "dormitorios": 2}),
+                call("find_projects", args={"comuna": "Santiago", "dormitorios": 2}),
                 reply("Distrito Barroso tiene de dos dormitorios."),
             ],
             # A price the model wrote in digits, split across its chunks.
@@ -516,7 +513,7 @@ async def test_on_the_page_his_words_ring_what_he_describes() -> None:
         await _page(rig, "page_changed", ESTOCOLMO_PAGE)
         await rig.driver.user_says("¿Qué amenidades tiene?")
         # The page in front was read in with what they said.
-        seen = _texts(llm.captured_contents[-1])
+        seen = _texts(llm.captured_inputs[-1])
         assert "the project page of Estocolmo (/estocolmo/)" in seen
         assert "Typologies: 2D | 3B; 3D | 3B (selected: 2D | 3B)" in seen
         assert _cues(rig) == [
@@ -538,7 +535,7 @@ async def test_projects_are_found_and_rung_on_the_list() -> None:
     async with demo("ssilva", llm) as rig:
         await rig.driver.start_session(init={"path": "/"})
         await rig.driver.user_says("Busco un departamento de dos dormitorios en Viña.")
-        found = _results(llm.captured_contents[-1])["find_projects"]
+        found = _results(llm.captured_inputs[-1])["find_projects"]
         assert "Isla Picton" in found and "Canal Beagle" in found and "Estocolmo" not in found
         assert "path: /canalbeagle/" in found
         assert "dos mil trescientas setenta y dos UF" in found
@@ -561,9 +558,7 @@ async def test_projects_are_found_and_rung_on_the_list() -> None:
             },
         )
         await rig.driver.user_says("Quiero ver los de Las Condes.")
-        assert "The project list shows 2 projects for valparaiso" in _texts(
-            llm.captured_contents[-1]
-        )
+        assert "The project list shows 2 projects for valparaiso" in _texts(llm.captured_inputs[-1])
         assert _commands(rig, "show_projects")[-1] == {
             "region": "metropolitana",
             "property": "departamento",
@@ -609,7 +604,7 @@ async def test_the_quote_form_fills_as_they_talk_and_is_never_sent() -> None:
         assert step["phone"] == "9 1234 5678" and step["next_step"] is True
         assert step["ingreso"] is None
         # His last turn's results reach the model with this one.
-        refused = _all_results(llm.captured_contents[-1], "fill_lead_form")
+        refused = _all_results(llm.captured_inputs[-1], "fill_lead_form")
         assert any("does not check out" in r for r in refused), refused
         # The form's second step, with its options, arrives after his turn.
         await _page(
@@ -629,7 +624,7 @@ async def test_the_quote_form_fills_as_they_talk_and_is_never_sent() -> None:
         assert _idle_windows(rig)[-1] == _TALK_THROUGH_MS
         turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
         check_turn(rig, turn)
-        seen = _texts(llm.captured_contents[-1])
+        seen = _texts(llm.captured_inputs[-1])
         assert "Options for ingreso líquido: Menos de $1.000.000 |" in seen
         assert "un millón y medio" in seen  # What they said before, to fill in now.
         # Amounts as said land on the form's own ranges.
@@ -643,7 +638,7 @@ async def test_the_quote_form_fills_as_they_talk_and_is_never_sent() -> None:
         turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
         assert "no lo envió" in turn.text
         assert "This preview held it back: nothing was sent to Ssilva" in _texts(
-            llm.captured_contents[-1]
+            llm.captured_inputs[-1]
         )
 
 
@@ -654,7 +649,7 @@ async def test_the_form_waits_for_a_project_page() -> None:
         await rig.driver.user_says("Quiero cotizar en la portada.")
         assert "fill_lead_form" not in rig.actions()
         await rig.driver.user_says("Sigue.")
-        assert "Not filled yet" in _results(llm.captured_contents[-1])["fill_lead_form"]
+        assert "Not filled yet" in _results(llm.captured_inputs[-1])["fill_lead_form"]
 
 
 async def test_english_heard_moves_both_legs_before_he_answers() -> None:
@@ -718,7 +713,7 @@ async def test_events_reach_the_model_as_screen_lines() -> None:
         await _page(rig, "command_failed", {"command": "open_tour", "reason": "no tour"})
         await _page(rig, "command_failed", {"command": "cue", "reason": "no heading X"})
         await rig.driver.user_says("Sigue.")
-        seen = _texts(llm.captured_contents[-1])
+        seen = _texts(llm.captured_inputs[-1])
         assert (
             "[On screen: typology 2D | 3B, its price beside the plan: Desde 13.976 UF "
             '(say: "trece mil novecientas setenta y seis UF"), área total 147,13'
@@ -733,7 +728,7 @@ async def test_a_read_comes_back_within_the_turn() -> None:
         await rig.driver.start_session(init={"path": "/"})
         turn = await rig.driver.user_says("¿Qué es Estocolmo?")
         check_turn(rig, turn)
-        read = _results(llm.captured_contents[-1])["read_project"]
+        read = _results(llm.captured_inputs[-1])["read_project"]
         assert "Estocolmo 661" in read and "{page: /estocolmo/}" in read
 
 
@@ -790,7 +785,7 @@ async def test_a_list_ring_that_missed_is_not_talked_about() -> None:
             {"command": "show_projects", "reason": "ESTOCOLMO is not among these 15 projects"},
         )
         await rig.driver.user_says("Sigue.")
-        seen = _texts(llm.captured_contents[-1])
+        seen = _texts(llm.captured_inputs[-1])
         assert "Do not mention it" in seen
         assert "Tell the visitor plainly" not in seen
 
@@ -802,7 +797,7 @@ async def test_the_floor_plan_opens_by_its_label_through_a_translated_page() -> 
         await _page(rig, "page_changed", BARROSO_PAGE)
         await rig.driver.user_says("Show me the floor plan of the butterfly one.")
         # The site's own name, not the translated title, and what the photos show.
-        seen = _texts(llm.captured_contents[-1])
+        seen = _texts(llm.captured_inputs[-1])
         assert "the project page of Distrito Barroso (/distrito-barroso/)" in seen
         assert "Gallery photos: 1 depto grande; 2 depto pequeno; 3 quincho; 4 cowork." in seen
         # The plan in the label the page shows; his words select the typology
@@ -817,7 +812,7 @@ async def test_the_floor_plan_opens_by_its_label_through_a_translated_page() -> 
         )
         await rig.driver.user_says("Sigue.")
         assert "[On screen: the floor plan 2D | 2B BUTTERFLY · 56.65 m²." in _texts(
-            llm.captured_contents[-1]
+            llm.captured_inputs[-1]
         )
 
 
@@ -842,13 +837,13 @@ async def test_photos_full_screen_one_at_a_time_and_a_slideshow() -> None:
         )
         await rig.driver.user_says("La siguiente.")
         assert rig.command("step_photo") == {"back": False}
-        seen = _texts(llm.captured_contents[-1])
+        seen = _texts(llm.captured_inputs[-1])
         assert "a slideshow of the gallery photos, from gallery photo 1 of 4 (depto grande)" in seen
         assert "depto pequeno" not in seen.split("slideshow of the gallery photos")[1]
         assert "[The slideshow stopped on gallery photo 3 of 4 (quincho).]" in seen
         await _page(rig, "viewer_closed", {"which": "gallery"})
         await rig.driver.user_says("Sigue.")
-        assert "[The visitor closed the full-screen view.]" in _texts(llm.captured_contents[-1])
+        assert "[The visitor closed the full-screen view.]" in _texts(llm.captured_inputs[-1])
 
 
 async def test_photos_asked_for_run_by_themselves_and_the_end_is_talked_through() -> None:
@@ -863,7 +858,7 @@ async def test_photos_asked_for_run_by_themselves_and_the_end_is_talked_through(
         await _page(rig, "photo_shown", {**show, "index": 6, "caption": "gourmet", "ended": True})
         assert _idle_windows(rig)[-1] == _TALK_THROUGH_MS
         await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
-        assert "The slideshow showed every photo" in _texts(llm.captured_contents[-1])
+        assert "The slideshow showed every photo" in _texts(llm.captured_inputs[-1])
 
 
 async def test_the_brochure_is_shown_and_downloaded_where_the_project_has_one() -> None:
@@ -874,7 +869,7 @@ async def test_the_brochure_is_shown_and_downloaded_where_the_project_has_one() 
         await rig.driver.user_says("Muéstrame el brochure.")
         pdf = "https://www.ssilva.cl/content/uploads/2025/01/Folleto_Estocolmo.pdf"
         assert rig.command("show_brochure") == {"url": pdf, "page": 2}
-        assert "Brochure: yes." in _texts(llm.captured_contents[-1])
+        assert "Brochure: yes." in _texts(llm.captured_inputs[-1])
         await rig.driver.user_says("Descárgalo.")
         assert rig.command("download_brochure") == {"url": pdf}
     async with demo("ssilva", _llm()) as rig:
@@ -911,7 +906,7 @@ async def test_back_to_a_page_from_the_browser_cache_follows_the_tab() -> None:
         )
         await rig.driver.user_says("Muéstrame la piscina.")
         assert rig.command("show_photos")["which"] == "amenities"
-        assert "the project page of Estocolmo (/estocolmo/)" in _texts(llm.captured_contents[-1])
+        assert "the project page of Estocolmo (/estocolmo/)" in _texts(llm.captured_inputs[-1])
 
 
 async def test_the_list_names_its_cards_by_their_pages_through_a_translation() -> None:
@@ -928,7 +923,7 @@ async def test_the_list_names_its_cards_by_their_pages_through_a_translation() -
             },
         )
         await rig.driver.user_says("Sigue.")
-        assert "On this page: Estocolmo; Isla Picton." in _texts(llm.captured_contents[-1])
+        assert "On this page: Estocolmo; Isla Picton." in _texts(llm.captured_inputs[-1])
 
 
 async def test_a_turn_cut_off_before_his_answer_is_answered_in_a_short_quiet_spell() -> None:
@@ -941,7 +936,7 @@ async def test_a_turn_cut_off_before_his_answer_is_answered_in_a_short_quiet_spe
         assert _idle_windows(rig)[-1] == ssilva._CUT_OFF_MS
         turn = await rig.driver.user_idle(level=1, idle_ms=ssilva._CUT_OFF_MS)
         assert "busquemos de dos y tres" in turn.text
-        assert "“Busco dos y tres dormitorios.”" in _texts(llm.captured_contents[-1])
+        assert "“Busco dos y tres dormitorios.”" in _texts(llm.captured_inputs[-1])
 
 
 async def test_the_cards_on_screen_are_what_he_reads_and_beat_the_crawl() -> None:
@@ -978,14 +973,14 @@ async def test_the_cards_on_screen_are_what_he_reads_and_beat_the_crawl() -> Non
             },
         )
         await rig.driver.user_says("Busco dos dormitorios en Santiago.")
-        seen = _texts(llm.captured_contents[-1])
+        seen = _texts(llm.captured_inputs[-1])
         assert (
             "The cards on this page, as the visitor reads them: Estocolmo — Las Condes, "
             'card price Desde 14.105 UF (say: "catorce mil ciento cinco UF"), 2 y 3 dormitorios, '
             "Entrega inmediata; Distrito Barroso — Santiago, card price Desde 2.582 UF "
             '(say: "dos mil quinientas ochenta y dos UF")'
         ) in seen
-        found = _results(llm.captured_contents[-1])["find_projects"]
+        found = _results(llm.captured_inputs[-1])["find_projects"]
         # The desde is the project's cheapest unit; two bedrooms is its own price.
         assert "desde 2.582 UF" in found and "dos mil quinientas ochenta y dos UF" in found
         assert (
@@ -993,7 +988,7 @@ async def test_the_cards_on_screen_are_what_he_reads_and_beat_the_crawl() -> Non
             "(say: dos mil novecientas diecinueve UF)"
         ) in found
         await rig.driver.user_says("¿Qué es Estocolmo?")
-        read = _results(llm.captured_contents[-1])["read_project"]
+        read = _results(llm.captured_inputs[-1])["read_project"]
         # The card on their screen, not the crawl's 13.976.
         assert "14.105 UF; say it as: catorce mil ciento cinco UF" in read
         assert "the crawl had 13.976 UF" in read
@@ -1006,7 +1001,7 @@ async def test_a_project_page_says_its_desde_and_the_typology_price_apart() -> N
         # Through Chrome's translation: "FROM 2,582 UF" on the hero.
         await _page(rig, "page_changed", {**BARROSO_PAGE, "typology_price": "Desde 2,919 UF"})
         await rig.driver.user_says("Sigue.")
-        seen = _texts(llm.captured_contents[-1])
+        seen = _texts(llm.captured_inputs[-1])
         assert (
             "Hero, the project's desde: Desde 2.582 UF "
             '(say: "dos mil quinientas ochenta y dos UF")'
@@ -1017,7 +1012,7 @@ async def test_a_project_page_says_its_desde_and_the_typology_price_apart() -> N
         ) in seen
         # And read back: the hero's price is the screen's.
         await rig.driver.user_says("Busco dos dormitorios en Santiago.")
-        assert "desde 2.582 UF" in _results(llm.captured_contents[-1])["find_projects"]
+        assert "desde 2.582 UF" in _results(llm.captured_inputs[-1])["find_projects"]
 
 
 async def test_a_price_written_in_digits_is_said_in_words() -> None:

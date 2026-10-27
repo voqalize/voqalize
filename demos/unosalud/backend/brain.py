@@ -43,7 +43,7 @@ from __future__ import annotations
 
 import contextlib
 import dataclasses
-import inspect
+import json
 import math
 import random
 import re
@@ -54,14 +54,12 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING, Any, Literal
 from zoneinfo import ZoneInfo
 
-from google import genai
-from google.genai import types
 from loguru import logger
+from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 from voqalize_demos import (
     PATIENCE,
     FallbackLine,
-    GeminiBrain,
     configure_soon,
     landed,
     needs_result_now,
@@ -89,6 +87,7 @@ from voqalize.sdk import (
     UserIdle,
     UserMessage,
 )
+from voqalize.sdk.openai import OpenAIBrain
 from voqalize.sdk.voice import ToolChoice
 from voqalize.sdk.wire import Config, IdleConfig, SttConfig, TtsConfig, Voice
 
@@ -122,11 +121,11 @@ from .knowledge import (
 
 AGENT_NAME = "Javier"
 
-#: LOW, as Clini: at MINIMAL the model made the page call first and wrote
-#: nothing, and gemini-3.8-flash refuses MINIMAL outright.
-THINKING = types.ThinkingConfig(thinking_level=types.ThinkingLevel.LOW)
-#: Gemini 3.8 Flash, as Clini: its first words come out steadily in about two seconds.
-MODEL = "gemini-3.8-flash"
+#: GPT-6.1 Terra at low reasoning, for cost: OpenAI caches every prompt over
+#: 1,024 tokens, where Gemini 3.8 Flash cached nothing under about 16k, so most
+#: of each turn's input is read from the cache.
+MODEL = "gpt-6.1-terra"
+REASONING = "low"
 #: Uno Salud is in Chile: "mañana" and "el lunes" are counted from Santiago's today.
 TIMEZONE = ZoneInfo("America/Santiago")
 
@@ -1505,20 +1504,24 @@ class _Wanted:
         return bool(self.motivo or self.clinic or self.date or self.time)
 
 
-class UnoSaludBrain(GeminiBrain):
+class UnoSaludBrain(OpenAIBrain):
     """One per session. Javier: Uno Salud's knowledge, its pages, and a mirror of
     the visitor's tabs, in Spanish or English."""
 
     def __init__(
         self,
         *,
-        client: genai.Client,
+        client: AsyncOpenAI,
         model: str = MODEL,
         knowledge: Knowledge | None = None,
     ) -> None:
         self.kb = knowledge if knowledge is not None else kb.KNOWLEDGE
-        super().__init__(client=client, system_instruction=_prompt(self.kb), model=model)
-        self._config = self._config.model_copy(update={"thinking_config": THINKING})
+        super().__init__(
+            client=client,
+            system_instruction=_prompt(self.kb),
+            model=model,
+            reasoning=REASONING,
+        )
         self._heard_at = float("-inf")
         self.spoken: Lang = OPENING
         self._chosen = False
@@ -2043,29 +2046,21 @@ class UnoSaludBrain(GeminiBrain):
     def _talk_now(self, session: Session) -> AsyncGenerator[Speech, None]:
         return _tools_off(self.respond_with(session, tools=ToolChoice.NONE))
 
-    async def _run(self, tool: Any, call: types.FunctionCall) -> types.Part:
-        """Tools off means not run; flat arguments are wrapped in ``request`` (as Clini)."""
+    async def _run(self, tool: Any, call: dict[str, Any]) -> dict[str, Any]:
+        """Tools off means not run (as Clini)."""
         if _TOOLS_OFF.get():
-            logger.warning("unosalud: {} called on a turn with tools off; not run", call.name)
-            return types.Part(
-                function_response=types.FunctionResponse(
-                    id=call.id,
-                    name=call.name,
-                    response={
-                        "result": "Not run: this turn could only speak, so nothing was sent to "
-                        "the page. Never say it was done."
-                    },
-                )
+            logger.warning(
+                "unosalud: {} called on a turn with tools off; not run", call.get("name")
             )
-        args = dict(call.args or {})
-        if (
-            tool is not None
-            and args
-            and "request" not in args
-            and "request" in inspect.signature(tool).parameters
-        ):
-            logger.info("unosalud: {} called with flat arguments; wrapping them", call.name)
-            call = call.model_copy(update={"args": {"request": args}})
+            result = (
+                "Not run: this turn could only speak, so nothing was sent to "
+                "the page. Never say it was done."
+            )
+            return {
+                "type": "function_call_output",
+                "call_id": call.get("call_id", ""),
+                "output": json.dumps({"result": result}),
+            }
         return await super()._run(tool, call)
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
@@ -2364,7 +2359,7 @@ class UnoSaludBrain(GeminiBrain):
         self._note(note + "]")
 
     def _note(self, text: str) -> None:
-        self.append_to_context(types.Content(role="user", parts=[types.Part(text=text)]))
+        self.append_note(text)
 
     def _talk_through(self, ask: str) -> None:
         self._talk = ask

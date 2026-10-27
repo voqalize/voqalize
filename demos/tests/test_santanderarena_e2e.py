@@ -27,11 +27,19 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Iterator
 from datetime import date, datetime, timedelta
+from typing import Any
 
 import pytest
-from google.genai import types
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
+from voqalize_demos.testing import (
+    ScriptedOpenAI,
+    call,
+    every_tool_result,
+    input_texts,
+    reply,
+    reply_and_call,
+    tool_results,
+)
 
 from ._harness import _configs, check_greeting, check_turn, check_voice_pair, demo
 from .test_sendpotion_latam import spain_words
@@ -207,17 +215,12 @@ def _site(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 # ─── Reading the wire ──────────────────────────────────────────────────────────
 
 
-def _results(contents: list[types.Content]) -> dict[str, str]:
-    return {
-        p.function_response.name or "": str((p.function_response.response or {})["result"])
-        for c in contents
-        for p in (c.parts or [])
-        if p.function_response is not None
-    }
+def _results(items: list[Any]) -> dict[str, str]:
+    return tool_results(items)
 
 
-def _texts(contents: list[types.Content]) -> str:
-    return "\n".join(p.text or "" for c in contents for p in (c.parts or []))
+def _texts(items: list[Any]) -> str:
+    return input_texts(items)
 
 
 async def _page(rig: object, event: str, payload: dict[str, object]) -> None:
@@ -262,8 +265,8 @@ def _page_changed(path: str, **fields: object) -> dict[str, object]:
 # ─── The script ────────────────────────────────────────────────────────────────
 
 
-def _llm() -> ScriptedGemini:
-    return ScriptedGemini(
+def _llm() -> ScriptedOpenAI:
+    return ScriptedOpenAI(
         {
             # English heard: both legs move before he answers.
             "can you tell me what is on this weekend": reply(
@@ -299,63 +302,63 @@ def _llm() -> ScriptedGemini:
             "Tell me about Nicky Jam.": reply("He closes the year in style. Want his tickets?"),
             "Can you show me the bars?": reply("There are two bars inside. Want the first one?"),
             "¿Puedes hablar en inglés?": reply_and_call(
-                "Sure, let's continue in English.", "set_language", request={"language": "en"}
+                "Sure, let's continue in English.", "set_language", args={"language": "en"}
             ),
             # Reads come back within the turn.
             "¿Cuándo viene Nicky Jam?": [
-                call("find_events", request={"query": "Nicky Jam"}),
+                call("find_events", args={"query": "Nicky Jam"}),
                 reply("{page: /nuestra-cartelera/conciertos/nicky-jam} Viene pronto."),
             ],
             "¿Algo de rock?": [
-                call("find_events", request={"query": "rock"}),
+                call("find_events", args={"query": "rock"}),
                 reply("Hay un show de pop rock."),
             ],
             "¿Qué hay en el mes?": [
-                call("find_events", request={"query": _MESES[LATER.month - 1]}),
+                call("find_events", args={"query": _MESES[LATER.month - 1]}),
                 reply("Hay un show ese mes."),
             ],
-            "¿Qué viene?": [call("find_events", request={"query": ""}), reply("Mucho.")],
+            "¿Qué viene?": [call("find_events", args={"query": ""}), reply("Mucho.")],
             # Tickets, parking and VIP, on Puntoticket.
             "Quiero entradas para Camilo.": reply_and_call(
-                "Te abrí los tickets.", "open_tickets", request={"event": "Camilo"}
+                "Te abrí los tickets.", "open_tickets", args={"event": "Camilo"}
             ),
             "Y el estacionamiento para Camilo.": reply_and_call(
-                "Listo.", "open_tickets", request={"event": "CAMILO", "kind": "parking"}
+                "Listo.", "open_tickets", args={"event": "CAMILO", "kind": "parking"}
             ),
             "Y la experiencia VIP de Camilo.": reply_and_call(
-                "Listo.", "open_tickets", request={"event": CAMILO, "kind": "vip"}
+                "Listo.", "open_tickets", args={"event": CAMILO, "kind": "vip"}
             ),
             "Compra las de este show.": reply_and_call(
-                "Te los abrí.", "open_tickets", request={"event": "Camilo"}
+                "Te los abrí.", "open_tickets", args={"event": "Camilo"}
             ),
             "Quiero reservar el estacionamiento.": reply_and_call(
-                "Te la abrí.", "open_tickets", request={"label": "Ir a la reservación"}
+                "Te la abrí.", "open_tickets", args={"label": "Ir a la reservación"}
             ),
             "Entradas para Metallica.": reply_and_call(
-                "Déjame ver.", "open_tickets", request={"event": "Metallica"}
+                "Déjame ver.", "open_tickets", args={"event": "Metallica"}
             ),
             "Nicky Jam parking.": reply_and_call(
-                "Let me see.", "open_tickets", request={"event": "Nicky Jam", "kind": "parking"}
+                "Let me see.", "open_tickets", args={"event": "Nicky Jam", "kind": "parking"}
             ),
             "Ábreme ese botón.": reply_and_call(
-                "Déjame ver.", "open_tickets", request={"label": "Comprar tickets"}
+                "Déjame ver.", "open_tickets", args={"label": "Comprar tickets"}
             ),
             "¿Y entonces?": reply("Te cuento."),
             # Tabs.
             "Vuelve a la otra pestaña.": reply_and_call(
-                "Ahí está.", "switch_tab", request={"tab_id": "11"}
+                "Ahí está.", "switch_tab", args={"tab_id": "11"}
             ),
             "Muéstrame la pestaña noventa.": reply_and_call(
-                "Aquí.", "switch_tab", request={"tab_id": "90"}
+                "Aquí.", "switch_tab", args={"tab_id": "90"}
             ),
             # A move with no words: the model is asked once more, tools off; a
             # second silence gets his written line.
             "Ábreme los tickets de Camilo.": [
-                call("open_tickets", request={"event": "Camilo"}),
+                call("open_tickets", args={"event": "Camilo"}),
                 reply("Te los abrí en otra pestaña. ¿Te muestro dónde estacionar?"),
             ],
             "Ábreme el VIP de Camilo.": [
-                call("open_tickets", request={"event": "Camilo", "kind": "vip"}),
+                call("open_tickets", args={"event": "Camilo", "kind": "vip"}),
                 reply(""),
             ],
             # A reply that only promises more says nothing: asked once more.
@@ -411,7 +414,7 @@ async def test_a_call_started_in_english_opens_in_english_and_holds() -> None:
         check_turn(rig, turn)
         check_voice_pair(rig, voice="omnivoice/javier", language="en")
         assert _language_changes(rig) == []
-        assert "The visitor chose English before the call" in _texts(llm.captured_contents[-1])
+        assert "The visitor chose English before the call" in _texts(llm.captured_inputs[-1])
 
 
 async def test_the_toggle_switches_both_legs_and_confirms_each_way() -> None:
@@ -619,7 +622,7 @@ async def test_find_events_by_artist_genre_and_month() -> None:
     async with demo("santanderarena", llm) as rig:
         await rig.driver.start_session(init={"path": "/"})
         await rig.driver.user_says("¿Cuándo viene Nicky Jam?")
-        found = _results(llm.captured_contents[-1])["find_events"]
+        found = _results(llm.captured_inputs[-1])["find_events"]
         # The ISO date and weekday to count with, then the site's own words.
         assert found.startswith(
             f"- NICKY JAM — {LATER.isoformat()} {santander._WEEKDAYS_ES[LATER.weekday()]} — "
@@ -628,11 +631,11 @@ async def test_find_events_by_artist_genre_and_month() -> None:
         assert "can open: tickets" in found
         assert "CAMILO" not in found
         await rig.driver.user_says("¿Algo de rock?")
-        found = _results(llm.captured_contents[-1])["find_events"]
+        found = _results(llm.captured_inputs[-1])["find_events"]
         assert "LA OREJA DE VAN GOGH" in found
         assert "LOS BUNKERS" not in found  # Rock too, but past.
         await rig.driver.user_says("¿Qué hay en el mes?")
-        found = _results(llm.captured_contents[-1])["find_events"]
+        found = _results(llm.captured_inputs[-1])["find_events"]
         assert found.splitlines()[0].startswith("- NICKY JAM")
         assert "CAMILO" not in found and "OREJA" not in found
 
@@ -642,7 +645,7 @@ async def test_an_empty_query_lists_whats_coming_soonest_first() -> None:
     async with demo("santanderarena", llm) as rig:
         await rig.driver.start_session(init={"path": "/"})
         await rig.driver.user_says("¿Qué viene?")
-        found = _results(llm.captured_contents[-1])["find_events"]
+        found = _results(llm.captured_inputs[-1])["find_events"]
         listed = [line.split(" — ")[0] for line in found.splitlines() if line.startswith("- ")]
         assert listed == ["- CAMILO", "- NICKY JAM", "- LA OREJA DE VAN GOGH"]
         # An empty query matched nothing because it asked for nothing.
@@ -734,13 +737,8 @@ async def test_an_unknown_show_or_a_link_off_puntoticket_is_refused() -> None:
         await rig.driver.user_says("Ábreme ese botón.")
         await rig.driver.user_says("¿Y entonces?")
         assert "open_tickets" not in rig.actions()
-        said = _texts(llm.captured_contents[-1])
-        results = [
-            str((p.function_response.response or {})["result"])
-            for c in llm.captured_contents[-1]
-            for p in (c.parts or [])
-            if p.function_response is not None
-        ]
+        said = _texts(llm.captured_inputs[-1])
+        results = every_tool_result(llm.captured_inputs[-1])
         assert results[0].startswith("Not opened: no show 'Metallica'. Shows: CAMILO, NICKY JAM")
         assert results[1].startswith(
             "Not opened: NICKY JAM's page has no 'Comprar estacionamiento'"
@@ -778,7 +776,7 @@ async def test_tabs_are_read_in_and_switching_is_checked() -> None:
             },
         )
         await rig.driver.user_says("Vuelve a la otra pestaña.")
-        assert "11: Bares; 12: CAMILO (in front)" in _texts(llm.captured_contents[-1])
+        assert "11: Bares; 12: CAMILO (in front)" in _texts(llm.captured_inputs[-1])
         assert rig.command("focus_tab") == {"tab_id": "11"}
         await rig.driver.user_says("Muéstrame la pestaña noventa.")
         assert rig.actions().count("focus_tab") == 1
@@ -814,7 +812,7 @@ async def test_a_missed_cue_is_noted_quietly() -> None:
         await rig.driver.start_session(init={"path": "/"})
         await _page(rig, "command_failed", {"command": "cue", "reason": "no heading X"})
         await rig.driver.user_says("¿Y entonces?")
-        seen = _texts(llm.captured_contents[-1])
+        seen = _texts(llm.captured_inputs[-1])
         assert "A screen cue of yours did not land (no heading X)" in seen
         assert "Tell the visitor plainly" not in seen
 
@@ -972,8 +970,8 @@ CALLS = Knowledge(
 )
 
 
-def _calls_llm() -> ScriptedGemini:
-    return ScriptedGemini(
+def _calls_llm() -> ScriptedOpenAI:
+    return ScriptedOpenAI(
         {
             "¿Qué hay para comer?": reply(
                 "{page: /food-trucks} Hay food trucks en cada show. "
@@ -1005,7 +1003,7 @@ def _calls_llm() -> ScriptedGemini:
             ],
             "¿Cuándo es Camilo?": reply(chunks=["Camilo toca pronto."], chunk_delay=0.6),
             "¿Qué shows hay la próxima semana?": [
-                call("find_events", request={"query": "la próxima semana"}),
+                call("find_events", args={"query": "la próxima semana"}),
                 reply("Opeth toca el domingo."),
             ],
         }
@@ -1181,7 +1179,7 @@ async def test_next_week_is_monday_to_sunday_and_keeps_the_sunday_show() -> None
     async with demo("santanderarena", llm) as rig:
         await rig.driver.start_session(init={"path": "/"})
         await rig.driver.user_says("¿Qué shows hay la próxima semana?")
-        found = _results(llm.captured_contents[-1])["find_events"]
+        found = _results(llm.captured_inputs[-1])["find_events"]
         # Camilo (SOON) also lands in next week when the suite runs on a Monday or Tuesday.
         assert f" next week: {NEXT_MONDAY.isoformat()} (lunes)" in found.split("\n")[0]
         assert "OPETH" in found and "TAEMIN" not in found

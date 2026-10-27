@@ -9,9 +9,9 @@ The site is Chilean and the call opens in Spanish. The rules are SendPotion's
   form only Spain uses.
 
 * **What the model writes — opt-in, real model.** Skipped without
-  ``GEMINI_API_KEY``; run it after any change to the Spanish in the prompt::
+  ``OPENAI_API_KEY``; run it after any change to the Spanish in the prompt::
 
-      GEMINI_API_KEY=... uv run pytest tests/test_ssilva_latam.py -q
+      OPENAI_API_KEY=... uv run pytest tests/test_ssilva_latam.py -q
 """
 
 from __future__ import annotations
@@ -136,8 +136,8 @@ def test_prices_in_uf_are_said_in_words(n: int, es: str, en: str) -> None:
 
 # ─── What the model writes: the real model ────────────────────────────────────
 
-_KEY = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-live = pytest.mark.skipif(not _KEY, reason="no GEMINI_API_KEY — the live Spanish eval is opt-in")
+_KEY = os.environ.get("OPENAI_API_KEY")
+live = pytest.mark.skipif(not _KEY, reason="no OPENAI_API_KEY — the live Spanish eval is opt-in")
 _TURN = 45.0
 _ASKS = [
     ["Busco un departamento de dos dormitorios en Viña.", "Muéstrame Canal Beagle."],
@@ -147,9 +147,9 @@ _ASKS = [
 
 
 def _client() -> Any:
-    from google import genai
+    from openai import AsyncOpenAI
 
-    return genai.Client(api_key=_KEY)
+    return AsyncOpenAI(api_key=_KEY)
 
 
 @live

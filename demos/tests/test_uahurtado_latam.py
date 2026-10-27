@@ -9,7 +9,7 @@ In Spanish the voice is handed "bidéo" for "video", amounts in words and "u
 efe" for the UF, and the model only ever sees what it wrote.
 
 What the model writes is a property of the prompt and the model: the prompt's
-rules are checked here, and an opt-in live half (``GEMINI_API_KEY=…``) runs
+rules are checked here, and an opt-in live half (``OPENAI_API_KEY=…``) runs
 real Spanish conversations on the committed knowledge.
 
 Run: ``cd demos && uv run pytest tests/test_uahurtado_latam.py``
@@ -156,8 +156,8 @@ def test_a_cue_anchor_follows_the_voice() -> None:
 
 # ─── What the model writes: the real model ────────────────────────────────────
 
-_KEY = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-live = pytest.mark.skipif(not _KEY, reason="no GEMINI_API_KEY — the live Spanish eval is opt-in")
+_KEY = os.environ.get("OPENAI_API_KEY")
+live = pytest.mark.skipif(not _KEY, reason="no OPENAI_API_KEY — the live Spanish eval is opt-in")
 _TURN = 45.0
 _ASKS = [
     ["¿Qué carreras de ingeniería tienen?", "Háblame de Ingeniería Comercial."],
@@ -167,9 +167,9 @@ _ASKS = [
 
 
 def _client() -> Any:
-    from google import genai
+    from openai import AsyncOpenAI
 
-    return genai.Client(api_key=_KEY)
+    return AsyncOpenAI(api_key=_KEY)
 
 
 @live

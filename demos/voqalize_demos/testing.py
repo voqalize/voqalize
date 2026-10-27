@@ -632,13 +632,66 @@ async def _openai_events(
     )
 
 
+# ─── Reading an OpenAI request back ──────────────────────────────────────
+
+
+def tool_results(items: list[Any]) -> dict[str, str]:
+    """Each tool's latest result in one request's ``input``, by tool name: what
+    the model was told the call returned. A call's result is the JSON text
+    ``{"result": ...}`` the portable layer files, matched to its call by id."""
+    return {name: results[-1] for name, results in _results_by_name(items).items()}
+
+
+def tool_results_of(items: list[Any], name: str) -> list[str]:
+    """Every result of tool ``name`` in one request's ``input``, oldest first."""
+    return _results_by_name(items).get(name, [])
+
+
+def every_tool_result(items: list[Any]) -> list[str]:
+    """Every tool result in one request's ``input``, in the order they were filed."""
+    return [
+        str(json.loads(str(item.get("output") or "{}")).get("result"))
+        for item in items
+        if isinstance(item, dict) and item.get("type") == "function_call_output"
+    ]
+
+
+def input_texts(items: list[Any]) -> str:
+    """Every message's text in one request's ``input``, user and assistant, one
+    per line: the conversation as the model read it, notes included."""
+    return "\n".join(
+        str(item.get("content") or "")
+        for item in items
+        if isinstance(item, dict) and item.get("role") in ("user", "assistant")
+    )
+
+
+def _results_by_name(items: list[Any]) -> dict[str, list[str]]:
+    names = {
+        str(item.get("call_id")): str(item.get("name"))
+        for item in items
+        if isinstance(item, dict) and item.get("type") == "function_call"
+    }
+    out: dict[str, list[str]] = {}
+    for item in items:
+        if isinstance(item, dict) and item.get("type") == "function_call_output":
+            name = names.get(str(item.get("call_id")), "")
+            result = json.loads(str(item.get("output") or "{}")).get("result")
+            out.setdefault(name, []).append(str(result))
+    return out
+
+
 __all__ = [
     "Reply",
     "ScriptedGemini",
     "ScriptedOpenAI",
     "call",
+    "every_tool_result",
     "fail",
+    "input_texts",
     "replies",
     "reply",
     "reply_and_call",
+    "tool_results",
+    "tool_results_of",
 ]

@@ -1,13 +1,13 @@
 """Javier on Explora with the real model — opt-in, like SendPotion's live eval.
 
 Each conversation runs the real ``ExploraBrain`` on the committed knowledge with
-Gemini itself writing the replies; every page he opens loads and reports itself
+the model itself writing the replies; every page he opens loads and reports itself
 the way the extension's next page does, with the headings the crawl has for it.
 What is asserted is what the scripted tests cannot see: that the model writes
 cues, that a page move comes at the start of a reply, that a Spanish reply is
 Latin America's Spanish, and that bookings go through the tools.
 
-Run: ``GEMINI_API_KEY=… uv run pytest tests/test_explora_live.py -s``
+Run: ``OPENAI_API_KEY=… uv run pytest tests/test_explora_live.py -s``
 """
 
 from __future__ import annotations
@@ -27,17 +27,17 @@ discover()
 from voqalize_demos._loaded.explora import brain as explora  # noqa: E402
 from voqalize_demos._loaded.explora import knowledge as kb  # noqa: E402
 
-_KEY = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-live = pytest.mark.skipif(not _KEY, reason="no GEMINI_API_KEY — the live eval is opt-in")
+_KEY = os.environ.get("OPENAI_API_KEY")
+live = pytest.mark.skipif(not _KEY, reason="no OPENAI_API_KEY — the live eval is opt-in")
 
 #: How long one real turn may take, tools and a page load included.
 _TURN = 60.0
 
 
 def _client() -> Any:
-    from google import genai
+    from openai import AsyncOpenAI
 
-    return genai.Client(api_key=_KEY)
+    return AsyncOpenAI(api_key=_KEY)
 
 
 def _page_changed(path: str) -> dict[str, Any]:

@@ -56,7 +56,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import dataclasses
-import inspect
+import json
 import math
 import random
 import re
@@ -67,14 +67,12 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING, Any, Literal, cast
 from zoneinfo import ZoneInfo
 
-from google import genai
-from google.genai import types
 from loguru import logger
+from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 from voqalize_demos import (
     PATIENCE,
     FallbackLine,
-    GeminiBrain,
     configure_soon,
     landed,
     needs_result_now,
@@ -102,6 +100,7 @@ from voqalize.sdk import (
     UserIdle,
     UserMessage,
 )
+from voqalize.sdk.openai import OpenAIBrain
 from voqalize.sdk.voice import ToolChoice
 from voqalize.sdk.wire import Config, IdleConfig, SttConfig, TtsConfig, Voice
 
@@ -134,17 +133,11 @@ from .knowledge import (
 
 AGENT_NAME = "Javier"
 
-#: LOW, as Saatvik measured: at MINIMAL, Gemini mostly made the page call first
-#: and wrote nothing; at LOW it writes the answer first and calls at the end, so
-#: the page moves while he is still talking. LOW is also this model's floor:
-#: gemini-3.8-flash refuses MINIMAL outright ("Thinking level MINIMAL is not
-#: supported for this model", probed 2026-10-23), so no turn can think less.
-THINKING = types.ThinkingConfig(thinking_level=types.ThinkingLevel.LOW)
-#: Gemini 3.8 Flash, not the demos' shared default (3.5). On the prompt this one was ported from, eight
-#: asks each at LOW (2026-10-16): 3.8 had its first words out in 1.8 to 2.3 s,
-#: 3.5 in 1.6 to 6.8 s with spikes of 3.6, 4.0 and 6.8 s, which is the stall
-#: the owner heard on call 67d16b5d. Both wrote the screen cues correctly.
-MODEL = "gemini-3.8-flash"
+#: GPT-6.1 Terra at low reasoning, for cost: OpenAI caches every prompt over
+#: 1,024 tokens, where Gemini 3.8 Flash cached nothing under about 16k, so most
+#: of each turn's input is read from the cache.
+MODEL = "gpt-6.1-terra"
+REASONING = "low"
 #: Clini is in Chile: "mañana" and "el lunes" are counted from Santiago's today.
 TIMEZONE = ZoneInfo("America/Santiago")
 
@@ -1473,7 +1466,7 @@ async def _silence() -> AsyncGenerator[Any, None]:
 
 
 #: Set while a turn runs with tools off (``ToolChoice.NONE``): a call the model
-#: makes anyway is not run. Per turn, not per brain: turns overlap. Gemini does
+#: makes anyway is not run. Per turn, not per brain: turns overlap. A model does
 #: not always honour the mode, and the SDK runs what comes back: on prod
 #: (2026-10-22) an idle turn with tools off sent an ``agenda_pick`` that took
 #: the patient form down and put it back.
@@ -1948,20 +1941,24 @@ def _locked(reason: str) -> bool:
 # ─── The brain ─────────────────────────────────────────────────────────────────
 
 
-class CliniBrain(GeminiBrain):
+class CliniBrain(OpenAIBrain):
     """One per session. Javier: Clini's knowledge, its pages, and a mirror of
     the visitor's tabs, in Spanish or English."""
 
     def __init__(
         self,
         *,
-        client: genai.Client,
+        client: AsyncOpenAI,
         model: str = MODEL,
         knowledge: Knowledge | None = None,
     ) -> None:
         self.kb = knowledge if knowledge is not None else kb.KNOWLEDGE
-        super().__init__(client=client, system_instruction=_prompt(self.kb), model=model)
-        self._config = self._config.model_copy(update={"thinking_config": THINKING})
+        super().__init__(
+            client=client,
+            system_instruction=_prompt(self.kb),
+            model=model,
+            reasoning=REASONING,
+        )
         self._heard_at = float("-inf")
         #: The language he speaks now, and the toggle's written confirmation
         #: of a switch, said at the start of his next turn.
@@ -2616,30 +2613,20 @@ class CliniBrain(GeminiBrain):
         declared, none callable."""
         return _tools_off(self.respond_with(session, tools=ToolChoice.NONE))
 
-    async def _run(self, tool: Any, call: types.FunctionCall) -> types.Part:
-        """Every tool takes one model, ``request``; Gemini sometimes sends its
-        fields flat, which the SDK refuses. Wrap them before the call runs."""
+    async def _run(self, tool: Any, call: dict[str, Any]) -> dict[str, Any]:
+        """Tools off means not run: a call the model makes on a turn that could
+        only speak is answered, and never reaches the page."""
         if _TOOLS_OFF.get():
-            logger.warning("clini: {} called on a turn with tools off; not run", call.name)
-            return types.Part(
-                function_response=types.FunctionResponse(
-                    id=call.id,
-                    name=call.name,
-                    response={
-                        "result": "Not run: this turn could only speak, so nothing was sent to "
-                        "the page. Never say it was done."
-                    },
-                )
+            logger.warning("clini: {} called on a turn with tools off; not run", call.get("name"))
+            result = (
+                "Not run: this turn could only speak, so nothing was sent to "
+                "the page. Never say it was done."
             )
-        args = dict(call.args or {})
-        if (
-            tool is not None
-            and args
-            and "request" not in args
-            and "request" in inspect.signature(tool).parameters
-        ):
-            logger.info("clini: {} called with flat arguments; wrapping them", call.name)
-            call = call.model_copy(update={"args": {"request": args}})
+            return {
+                "type": "function_call_output",
+                "call_id": call.get("call_id", ""),
+                "output": json.dumps({"result": result}),
+            }
         return await super()._run(tool, call)
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
@@ -2929,7 +2916,7 @@ class CliniBrain(GeminiBrain):
         )
 
     def _note(self, text: str) -> None:
-        self.append_to_context(types.Content(role="user", parts=[types.Part(text=text)]))
+        self.append_note(text)
 
     def _talk_through(self, ask: str) -> None:
         self._talk = ask
