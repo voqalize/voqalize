@@ -147,13 +147,15 @@ step loads the other host in the same tab.
 
 - **Paced page cues.** The model writes `{page: …}` into its reply where the
   page should go; the brain takes it out and sends `explora.navigate` with
-  `after_words`, the words of his that come before it. The holder waits before
-  it sends the move to the page: for his voice to start (up to four seconds),
-  then to stop and stay quiet for 300 ms, within `after_words / 2.8` seconds
-  plus six. A booking move from www.explora.com, which loads the booking site,
-  waits for him to be quiet the same way. The brain says nothing more until
-  the new page reports `page_changed`; then his `{show: …}` cues for that page
-  follow, fired as his voice reaches their words.
+  `after_words: 0`, and the holder sends it to the page at once: his voice
+  plays in the holder through the load, and his reply streams on. Given
+  `after_words` above 0, the holder waits for his voice to start (up to four
+  seconds), then to stop and stay quiet for 300 ms, within `after_words / 2.8`
+  seconds plus six. A booking move from www.explora.com, which loads the
+  booking site, waits for him to be quiet that way. His `{show: …}` cues for
+  the new page wait for it on the page side, fired as his voice reaches their
+  words; the brain lets no more than two sentences ahead of a page that has
+  not reported `page_changed`.
 - **The rest of a move, on the next page.** A move that needs the next page is
   kept by the service worker for this browser tab (the next page may be the
   other origin) and made once the call is up there, with the same

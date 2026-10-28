@@ -220,7 +220,8 @@ describe("Moves carried to the next page", () => {
     const moves = new Moves(new Spotlight({ color: "#000" }), { carrier: carry });
     moves.register<{ path: string }>("site.navigate", "navigate", async ({ path }, c) => c.loadThen!(`https://x.test${path}`));
     expect(await moves.run("site.navigate", { path: "/rooms" }, "c7")).toBeNull();
-    expect(carry.kept).toEqual([{ kind: "carried", call_ref: "c7", move: "site.navigate", expect: "https://x.test/rooms" }]);
+    expect(carry.kept).toMatchObject([{ kind: "carried", call_ref: "c7", move: "site.navigate", expect: "https://x.test/rooms" }]);
+    expect(typeof carry.kept[0]!.received_at).toBe("number");
     expect(carry.loaded).toEqual(["https://x.test/rooms"]);
     expect(carry.dropped).toEqual([]);
   });
@@ -263,7 +264,7 @@ describe("Moves carried to the next page", () => {
       return null;
     });
     expect(await moves.run("shop.add", {}, "k1")).toMatchObject({ outcome: "applied", detail: "added" });
-    expect(carry.kept[0]).toEqual({ kind: "carried", call_ref: "k1", move: "shop.add", then: { move: "shop.verify", args: { sku: "1" } } });
+    expect(carry.kept[0]).toMatchObject({ kind: "carried", call_ref: "k1", move: "shop.add", then: { move: "shop.verify", args: { sku: "1" } } });
     expect(carry.dropped).toEqual(["k1"]);
     await moves.run("shop.press", {}, "k2");
     expect(carry.dropped).toEqual(["k1", "k2"]);

@@ -54,12 +54,13 @@ Spanish, the store's language, and moves both legs of the call together.
 
 from __future__ import annotations
 
+import asyncio
 import dataclasses
 import math
 import random
 import re
 import time
-from collections.abc import AsyncGenerator, Callable
+from collections.abc import AsyncGenerator, Callable, Iterable
 from datetime import date, datetime
 from difflib import SequenceMatcher
 from typing import TYPE_CHECKING, Any, Literal
@@ -109,6 +110,7 @@ from voqalize.sdk.stage import (
     Refused,
     Stage,
     StageHello,
+    StageProgress,
     StageResult,
 )
 from voqalize.sdk.voice import ToolChoice
@@ -163,6 +165,9 @@ _IDLE_MS = 20_000
 _IDLE_NUDGES = 2
 #: The idle window while a result the page produced waits to be talked through.
 _TALK_THROUGH_MS = 2_000
+#: The idle window once the page confirms a confirmed move (an add, the
+#: checkout): its written line goes as soon as the floor is free.
+_DONE_MS = 300
 #: A visitor thinking aloud about what they need pauses mid-sentence.
 CANNONHOME_PATIENCE = PATIENCE + 2
 #: A message this soon after the last one is the rest of the same thought.
@@ -196,6 +201,15 @@ _SPANISH_WORDS = frozenset(
     agrega agrégalo agregar ábreme muestra otra otro otras otros
     """.split()  # noqa: SIM905
 )
+#: The store's nouns, which are also its products' names: "Liso Blanco" in an
+#: English reply is a product, not Spanish (dev, 2026-10-28: one such name
+#: switched the call to Spanish twice). Only the visitor's words count them.
+_STORE_NOUNS = frozenset(
+    """sábanas sabanas sábana toalla toallas almohada almohadas plumón plumones cama camas
+    carro bolsa despacho envío tienda tiendas tamaño hilos algodón blanco blancas
+    """.split()  # noqa: SIM905
+)
+_SPANISH_SMALL = _SPANISH_WORDS - _STORE_NOUNS
 _ENGLISH_WORDS = frozenset(
     """the is are was what how can could you your i i'm it it's this that these those do
     does show me my we our for with about and of to have has there here please want
@@ -210,13 +224,36 @@ _LETTERS = re.compile(r"[\wáéíóúüñ']+")
 _CUE_TEXT = re.compile(r"\{[^{}]*\}?")
 
 
-def language_of(text: str, *, sure: bool = True) -> Lang | None:
+def name_words(names: Iterable[str]) -> frozenset[str]:
+    """The words of ``names`` (products, categories) that say nothing of the
+    language around them: all but the small words of either language."""
+    words = {w for n in names for w in _LETTERS.findall(n.lower())}
+    return frozenset(words - _SPANISH_SMALL - _ENGLISH_WORDS)
+
+
+def language_of(
+    text: str,
+    *,
+    sure: bool = True,
+    names: Iterable[str] = (),
+    vocabulary: frozenset[str] = frozenset(),
+) -> Lang | None:
     """The language ``text`` is plainly in, or ``None``. ``sure`` is for what
     the visitor said: Spanish needs two of its words (or its marks and one),
-    English three of its own and none of Spanish's."""
+    English three of its own and none of Spanish's. His own lines (not
+    ``sure``) take one Spanish small word, never a store noun.
+
+    A name is not a language: ``names`` (what is on their screen, in their
+    cart) are taken out of ``text`` first, and their words and those of
+    ``vocabulary`` (the catalogue's names) neither count nor bring marks."""
     text = _CUE_TEXT.sub(" ", text)
-    found = set(_LETTERS.findall(text.lower()))
-    es = len(found & _SPANISH_WORDS) + (1 if _SPANISH_MARKS.search(text) else 0)
+    for name in sorted({n for n in names if n.strip()}, key=len, reverse=True):
+        text = re.sub(re.escape(name), " ", text, flags=re.IGNORECASE)
+    ignored = name_words(names) | vocabulary
+    kept = [w for w in _LETTERS.findall(text.lower()) if w not in ignored]
+    found = set(kept)
+    marks = bool(_SPANISH_MARKS.search(" ".join(kept))) or "¿" in text or "¡" in text
+    es = len(found & (_SPANISH_WORDS if sure else _SPANISH_SMALL)) + (1 if marks else 0)
     en = len(found & _ENGLISH_WORDS)
     if es >= (2 if sure else 1) and es > en:
         return "es"
@@ -866,7 +903,8 @@ You are giving a guided walk through the store, like someone sitting beside the 
 - Never make up a heading or a path.
 - One cue per sentence at most, and only where the screen should change. A cue goes before the sentence, never inside it.
 - When the visitor asks where something is ("muéstrame", "where is that"), your reply starts with the cue for exactly that thing.
-- When the visitor clearly asks to narrow a listing ("las king blancas", "show me the cotton ones"), filter with cues as you say it, one filter per sentence, each sentence about that filter. Open the listing first when it is not in front. "{{page: /12-ropa-de-cama/20-sabanas}} Estas son nuestras sábanas. {{filter: Tamaño | King}} Primero, las de tamaño king. {{filter: Color | Blanco}} Y ahora, solo las blancas." Each filter happens as you say it; what the listing then shows comes to you in square brackets, and if a filter could not be applied you are told, to say so.
+- When the visitor clearly asks to narrow a listing ("las king blancas", "show me the cotton ones"), filter with cues as you say it, one filter per sentence, each sentence about that filter. Open the listing first when it is not in front. "{{page: /12-ropa-de-cama/20-sabanas}} Te abro nuestras sábanas. {{filter: Tamaño | King}} Te las dejo en tamaño king. {{filter: Color | Blanco}} Y te dejo solo las blancas."
+- A filter or sort cue sits on a promise of what you are doing ("Let me narrow it to king size.", "Te las ordeno de la más barata."), never on a statement of the result ("These are for your king bed.", "Estas son las king."): the grid has not changed yet when the voice says it, and the filter may not apply. What the listing then shows comes to you in square brackets: say the result on your next turn, from that line, and if a filter could not be applied you are told, to say so.
 - A reply that calls a move (search_products, filter_listing, open_product, add_to_cart, update_cart_item, show_cart, start_checkout, fill_checkout) has no cue: the move takes them there. The cart and the checkout are only ever reached by those moves, never by a cue.
 - Cues open pages, show what is on them and filter a listing; the moves below search, open products and change the cart. Nothing waits on a cue.
 
@@ -910,6 +948,7 @@ Write your answer, with its cues, first; any tool call comes at the end of the s
 - The exception is a read: read_topic, search_site, find_products and compare_products come straight back to you within this same turn, but each one makes the visitor wait. Answer from what you know below whenever it covers the question. Read only for what is not here, and then call the read first, with nothing written before it.
 - The moves — search_products, filter_listing, open_product, check_prices, add_to_cart, update_cart_item, show_cart, start_checkout, fill_checkout — are not done when you call them: the page does them a moment later and tells you in square brackets. In the reply that calls one, say only what you are doing ("Te abro las sábanas king.", "Te lo agrego al carro."), never that it is done. When the page's answer comes, say what it says happened: what is done, and plainly what is not.
 - One move at a time: when a tool says the page is still working on the last move, what you asked for follows by itself. Say so in a few words, and never call it again.
+- The store can be slow. While a move is still running (a line in square brackets says it is still working), never say you could not confirm it or that it failed: say it is still working on it. If a line later says it was done after all, correct yourself in a few words.
 - A move you already called is under way until the page answers it: never call it a second time for the same thing. When the visitor asks for two things at once ("add both"), call both in the same response, in order: the second waits for the first and follows by itself.
 - Never promise more to come ("let me check"): nothing comes after it.
 - A question about the call itself — "can I speak English?", "can you hear me?", "who are you?" — gets an answer and nothing else: no move, no page.
@@ -1118,6 +1157,88 @@ _LANDED: dict[str, dict[Lang, str]] = {
     },
 }
 
+#: His line once the page confirms a confirmed move, by move: said with no
+#: model request before it. ``{name}`` is the product the page added.
+_DONE: dict[str, dict[Lang, str]] = {
+    "add_to_cart_named": {
+        "en": "Done, {name} is in your cart.",
+        "es": "Listo, {name} ya está en tu carro.",
+    },
+    "add_to_cart": {"en": "Done, it's in your cart.", "es": "Listo, ya está en tu carro."},
+    "update_cart_item": {
+        "en": "Done, your cart is updated.",
+        "es": "Listo, tu carro quedó al día.",
+    },
+    "start_checkout": {
+        "en": "Here's the delivery form.",
+        "es": "Listo, aquí está el formulario de despacho.",
+    },
+    "fill_checkout": {"en": "Done, I filled that in.", "es": "Listo, lo completé."},
+}
+#: The page's detail for an add: "added 1 (times sign) Liso Blanco (the bag line …); …".
+_ADDED = re.compile(r"^added \d+ (?:×|x|of) (.+?)(?: \(the bag line|;|$)")  # noqa: RUF001
+
+
+#: His line for a move still running after Stage's ``HOLDING_LINE_S``, by
+#: move, said once in a quiet spell with no model request before it, so a slow
+#: store is not heard as a failed move; ``""`` is any other move.
+_HOLDING: dict[str, dict[Lang, str]] = {
+    "add_to_cart": {
+        "en": "Still adding it, the store is a bit slow.",
+        "es": "Sigo en eso, la tienda va lenta.",
+    },
+    "update_cart_item": {
+        "en": "Still changing your cart, the store is a bit slow.",
+        "es": "Sigo cambiando tu carro, la tienda va lenta.",
+    },
+    "start_checkout": {
+        "en": "Still opening the checkout, the store is a bit slow.",
+        "es": "Sigo abriendo el formulario, la tienda va lenta.",
+    },
+    "fill_checkout": {
+        "en": "Still filling it in, the form is a bit slow.",
+        "es": "Sigo completándolo, el formulario va lento.",
+    },
+    "": {
+        "en": "Still working on it, the store is a bit slow.",
+        "es": "Sigo en eso, la tienda va lenta.",
+    },
+}
+#: How often the brain looks for a move slow enough for its holding line.
+_HOLD_POLL_S = 0.5
+
+
+def holding_line(move: str, lang: Lang) -> str:
+    """His one line for a move the store is still working on."""
+    return (_HOLDING.get(move) or _HOLDING[""])[lang]
+
+
+def late_done_line(move: str, detail: str, lang: Lang) -> str | None:
+    """:func:`done_line` for a move he was told was not confirmed, which the
+    page then confirmed: "Done after all, Liso Blanco is in your cart."."""
+    line = done_line(move, detail, lang)
+    if line is None:
+        return None
+    rest = line.removeprefix("Listo, " if lang == "es" else "Done, ")
+    if rest.startswith("Here's"):  # A product's name keeps its capital.
+        rest = "here's" + rest.removeprefix("Here's")
+    return f"Al final sí, {rest}" if lang == "es" else f"Done after all, {rest}"
+
+
+def done_line(move: str, detail: str, lang: Lang) -> str | None:
+    """The written line for a confirmed move the page reports done, built
+    from its detail; ``None`` when the detail says part of it is not. (A
+    ``partial`` outcome never asks for one.)"""
+    if "not filled" in detail:
+        return None
+    if move == "add_to_cart" and (m := _ADDED.match(detail)) is not None:
+        name = m.group(1).strip()
+        if name and not name.startswith("/"):
+            return _DONE["add_to_cart_named"][lang].format(name=name)
+    lines = _DONE.get(move)
+    return None if lines is None else lines[lang]
+
+
 #: What a reply that only promises more says: nothing comes after it.
 _PROMISE = re.compile(
     r"\b(?:just |one |un )?(?:moment|momento|momentito|second|segundo)\b"
@@ -1321,6 +1442,25 @@ _ASKED_TAB = re.compile(r"\b(?:tabs?|pestanas?)\b", re.IGNORECASE)
 _ADDS = re.compile(
     r"\b(?:agreg|anad|añad|pon(?:lo|la|er|me)|mete|echa|sum|add|put)\w*", re.IGNORECASE
 )
+#: A move on the cart: an add, a change, a removal, the checkout. With the
+#: cart as recognition hears it: "add this to cut" was an add (dev, 2026-10-28).
+_CART_MOVE = re.compile(
+    r"\b(?:agreg|anad|añad|pon(?:lo|la|er|me)|mete|echa|add|put|quit|sac(?:a|alo|ala|ar)\b"
+    r"|elimin|borr|remove|take (?:it|them|that|one) out|cambi\w* (?:la )?cantidad"
+    r"|change the (?:quantity|amount)|checkout|check out|terminar (?:el |mi )?pedido"
+    r"|finaliz\w* (?:la |mi )?compra)\w*"
+    # "to the cart" and "al carro" go somewhere; "in the cart" is where things are.
+    r"|\b(?:to|into|al|a la|a mi)\s+(?:the |my |mi |el |la )?"
+    r"(?:cart|cut|card|carro|carrito|bolsa)\b",
+    re.IGNORECASE,
+)
+
+
+def asks_cart_move(text: str) -> bool:
+    """Whether ``text`` asks for a move on the cart (an add, a change, the
+    checkout) rather than to see the cart."""
+    return bool(_CART_MOVE.search(fold(text)))
+
 
 _CALL_LANGUAGE = re.compile(
     r"\b(?:speak|talk|switch|change|continue|carry on|answer|reply|respond|go back|"
@@ -1926,6 +2066,12 @@ class CannonHomeBrain(OpenAIBrain):
             reasoning=REASONING,
         )
         self._heard_at = float("-inf")
+        #: The catalogue's product and category names, as words: never a sign
+        #: of the language a line of his is in.
+        self._catalogue_words = name_words(
+            [p.name for p in self.kb.products.values()]
+            + [c.name for c in self.kb.categories.values()]
+        )
         self.spoken: Lang = OPENING
         self._chosen = False
         self._confirm: str | None = None
@@ -1962,7 +2108,10 @@ class CannonHomeBrain(OpenAIBrain):
         #: Every price and stock their screen has reported this call, by path.
         self.prices: dict[str, Live] = {}
         self._cue_path: str | None = None
-        self._idle_short = False
+        #: The short idle window set now (ms; 0: the long one), and the one
+        #: to set once he has finished speaking.
+        self._idle_short = 0
+        self._idle_want = _TALK_THROUGH_MS
         self._nudges = 0
         self._backstop: str | None = None
         self._paged = False
@@ -1970,7 +2119,13 @@ class CannonHomeBrain(OpenAIBrain):
         #: Whether this reply dispatched a page move: a page cue after it
         #: would race the load it started.
         self._moved = False
+        #: Whether this reply sent a confirmed move (an add, a cart change,
+        #: the checkout): the cart page is never cued beside it.
+        self._confirmed_sent = False
         self._heard: list[str] = []
+        #: The written line for a confirmed move the page just confirmed:
+        #: said as soon as the floor is free, before the model's next words.
+        self._done: list[str] = []
         #: Every move on the page, cue or tool: sent, one serial move at a
         #: time, each answered once (:class:`~voqalize.sdk.stage.Stage`).
         self.stage = _VoicedStage(
@@ -1984,8 +2139,13 @@ class CannonHomeBrain(OpenAIBrain):
             sent=self._cue_sent,
         )
         #: What each cue sent said, as he wrote it, by its call_ref: for the
-        #: line about its result.
+        #: line about its result (and a late one after an ``unknown``).
         self._cues: dict[str, str] = {}
+        #: The move the store is slow on and his one line for it, said in the
+        #: next quiet spell if it is still running then.
+        self._hold: tuple[str, str] | None = None
+        #: Expiry on a timer, and the look for slow moves: one task a call.
+        self._watching: asyncio.Task[None] | None = None
         #: Why the listing cannot take the filter or sort cue being resolved:
         #: said to him when Stage drops it (:meth:`_dropped`).
         self._refusal: str | None = None
@@ -2023,6 +2183,55 @@ class CannonHomeBrain(OpenAIBrain):
         )
         if self._chosen:
             self._note(_chosen_note(self.spoken, "before the call"))
+        self._watching = asyncio.create_task(self._watch_stage())
+
+    async def on_session_end(self, session: Session) -> None:
+        if self._watching is not None:
+            self._watching.cancel()
+            self._watching = None
+        await super().on_session_end(session)
+
+    async def _watch_stage(self) -> None:
+        """For the whole call: a move the page never answered is said as
+        unknown when its time is up, not at his next turn; and a confirmed or
+        reversible move the store is slow on gets his one holding line."""
+
+        async def slow() -> None:
+            while True:
+                await asyncio.sleep(_HOLD_POLL_S)
+                self._hold_slow()
+
+        await asyncio.gather(self.stage.watch(self._expired), slow())
+
+    def _expired(self, r: StageResult) -> None:
+        if (note := self._settled(r)) is not None:
+            self._note(note)
+
+    def _hold_slow(self) -> None:
+        """A move running past Stage's holding time, with the floor free: his
+        written line for it, in the next quiet spell, which is made short now.
+        Looked for only while the floor is free, so it is said, not skipped."""
+        if self._holding_floor():
+            return
+        for run in self.stage.holding():
+            line = holding_line(run.move.id, self.spoken)
+            logger.info(
+                "cannonhome: {} {} still running at {:.1f} s ({}); holding line {!r}",
+                run.call_ref,
+                run.move.id,
+                run.seconds,
+                run.phase or "no phase",
+                line,
+            )
+            self._hold = (run.call_ref, line)
+            self._shorten_idle(_DONE_MS)
+
+    def _take_hold(self) -> str | None:
+        """The holding line waiting, if its move is still running."""
+        hold, self._hold = self._hold, None
+        if hold is None or all(r.call_ref != hold[0] for r in self.stage.running()):
+            return None
+        return hold[1]
 
     async def greet(self, session: Session) -> str:
         """The opener, written not generated."""
@@ -2045,7 +2254,7 @@ class CannonHomeBrain(OpenAIBrain):
         """The visitor's turn: the language they speak (unless they chose one),
         the screen read in, a nod over the model's thinking, and his own line
         over any dead air after it (:func:`hold_the_floor`)."""
-        heard = None if self._chosen else language_of(msg.text)
+        heard = None if self._chosen else language_of(msg.text, names=self._names_on_screen())
         if heard is not None and heard != self.spoken:
             await session.configure(self._speaking(heard))
             logger.info("cannonhome: language -> {} (heard)", heard)
@@ -2054,6 +2263,8 @@ class CannonHomeBrain(OpenAIBrain):
         # They spoke first: the page's answers are in the context as notes,
         # and he answers them with what they said.
         self._outcomes.clear()
+        self._done.clear()
+        self._hold = None
         self._idle_deferred = False
         self._playing = 0
         self._nudges = 0
@@ -2063,6 +2274,8 @@ class CannonHomeBrain(OpenAIBrain):
             if asks_call_language(msg.text)
             else asked_page(msg.text, self.kb) or self._backstop
         )
+        if self._backstop in _MOVE_PAGES and self._asked_cart_move():
+            self._backstop = None
         self._restore_idle()
         self._read_in_screen()
         now = time.monotonic()
@@ -2121,9 +2334,17 @@ class CannonHomeBrain(OpenAIBrain):
         self._restore_idle()
         self._backstop = None
         self._expire()
-        if (ask := self._take_ask()) is not None:
+        done = " ".join(self._done)
+        self._done = []
+        hold = self._take_hold()
+        if hold is not None and not done and not self._outcomes and self._talk is None:
+            # The store is slow on a move: said so, written, never asked of
+            # the model, and no nudge counted.
+            respell = for_the_voice if self.spoken == "es" else names_for_the_voice
+            return say_line(self, respell(hold))
+        if (ask := self._take_ask(said=done)) is not None:
             self._note(ask)
-            return self._reply(session, ToolChoice.NONE)
+            return self._reply(session, ToolChoice.NONE, first=done or None)
         if self._confirm is not None:
             line, self._confirm = self._confirm, None
             return say_line(self, line)
@@ -2150,21 +2371,29 @@ class CannonHomeBrain(OpenAIBrain):
         return self._reply(session, None)
 
     async def _reply(
-        self, session: Session, tools: ToolChoice | None
+        self, session: Session, tools: ToolChoice | None, *, first: str | None = None
     ) -> AsyncGenerator[Speech, None]:
         """The model's turn, with its cues taken out of the speech and sent to
         the page; ``tools`` limits it (``None``: any). A move with no words says
         its written line (:func:`landed`); a turn with nothing at all, or only a
-        promise, is asked once more with tools off."""
+        promise, is asked once more with tools off. ``first`` is a written line
+        said before the model is asked (a confirmed move that is done); the
+        model may then add to it, or say nothing."""
         if (line := self._confirm) is not None:
             self._confirm = None
             async for event in say_line(self, line):
+                yield event
+        if first is not None:
+            logger.info("cannonhome: done line {!r}", first)
+            respell = for_the_voice if self.spoken == "es" else names_for_the_voice
+            async for event in say_line(self, respell(first)):
                 yield event
         self._cue_path = self._path
         self._paged = False
         self._shown = None
         self._moved = False
-        said = ""
+        self._confirmed_sent = False
+        said = first or ""
         off = tools is ToolChoice.NONE
         if off:
             self._tools_off += 1
@@ -2198,7 +2427,9 @@ class CannonHomeBrain(OpenAIBrain):
 
         async def release() -> AsyncGenerator[Speech, None]:
             nonlocal held, text
-            written = language_of(text, sure=False)
+            written = language_of(
+                text, sure=False, names=self._names_on_screen(), vocabulary=self._catalogue_words
+            )
             if written is not None and written != self.spoken:
                 await session.configure(self._speaking(written))
                 logger.info("cannonhome: language -> {} (written)", written)
@@ -2223,6 +2454,20 @@ class CannonHomeBrain(OpenAIBrain):
         if held:
             async for out in release():
                 yield out
+
+    def _names_on_screen(self) -> list[str]:
+        """The product and category names their screen and cart show: said in
+        either language, so never what decides it."""
+        names: list[str] = []
+        if self.product is not None:
+            names.append(self.product.name)
+        if self.listing is not None:
+            names += [self.listing.title, *(i.name for i in self.listing.items)]
+        if self.suggest is not None:
+            names += [*(i.name for i in self.suggest.items), *self.suggest.categories]
+        if self.cart is not None:
+            names += [i.name for i in self.cart.items]
+        return names
 
     def _spelled(self, turn: AsyncGenerator[Speech, None]) -> AsyncGenerator[Speech, None]:
         """``turn``, with its speech spelled as the voice must read it."""
@@ -2264,8 +2509,19 @@ class CannonHomeBrain(OpenAIBrain):
         path, self._backstop = self._backstop, None
         if "{" in chunk or self._moved or path == self._path:
             return chunk
+        # The cart and the checkout are reached by their moves, whose tool
+        # call comes after these words: a page cue for them here would take
+        # the visitor to the cart while the add is still under way.
+        if path in _MOVE_PAGES and (self._confirmed_sent or self._asked_cart_move()):
+            logger.info("cannonhome: no backstop to {}: a cart move is asked", path)
+            return chunk
         logger.info("cannonhome: the reply has no cue; showing {} first", path)
         return f"{{page: {path}}}{chunk}"
+
+    def _asked_cart_move(self) -> bool:
+        """Whether the visitor's last two fragments ask for a move on the
+        cart: an add said in one fragment and "to the cart" in the next is one."""
+        return asks_cart_move(" ".join(self._heard[-2:]))
 
     def _known_path(self, value: str) -> str | None:
         """The store path a page cue names, as the store links it, or ``None``."""
@@ -2603,6 +2859,10 @@ class CannonHomeBrain(OpenAIBrain):
             case StageHello():
                 self.stage.handle(event)
                 return None
+            case StageProgress():
+                # A slow move is alive: Stage gives it its time again.
+                self.stage.handle(event)
+                return None
             case StageResult():
                 result = self.stage.handle(event)
                 return None if result is None else self._settled(result)
@@ -2613,7 +2873,9 @@ class CannonHomeBrain(OpenAIBrain):
         line for his next turn, by its class: nothing for a look that landed,
         one line for a page or a filter; a look or a page that missed is a
         quiet line, and a filter or sort that missed is talked through. A cue
-        the visitor talked over, or whose words never came, says nothing."""
+        the visitor talked over, or whose words never came, says nothing. A
+        result that comes ``late``, after he was told the move was unknown,
+        corrects that (:meth:`_late`)."""
         if r.moved:
             return None
         # The move he made: also for one finished on the page it loaded (a
@@ -2621,13 +2883,30 @@ class CannonHomeBrain(OpenAIBrain):
         move = self.stage.moves.get(r.move)
         if move is None:
             return None
+        if self._hold is not None and self._hold[0] == r.call_ref:
+            self._hold = None
+        if r.late:
+            return self._late(r, move)
         landed_ok = r.outcome in ("applied", "partial")
         why = self._why(r)
         if move.verb is None:
             name = move.id
             if landed_ok:
                 detail = r.detail or "done"
-                self._answered(f"{name} done: {detail}")
+                # Some but not all: never taken for the whole of it.
+                if r.outcome == "partial":
+                    detail = self._partial(r)
+                    self._answered(f"{name} only partly done: {detail}")
+                    return (
+                        f"[The page did only part of {name}: {detail}. Say plainly what is done "
+                        "and what is not; never that all of it worked.]"
+                    )
+                done = (
+                    done_line(name, detail, self.spoken)
+                    if move.cls is MoveClass.CONFIRMED
+                    else None
+                )
+                self._answered(f"{name} done: {detail}", done=done)
                 return f"[The page confirms {name}: {detail}.]"
             self._talk = None
             self._answered(f"{name} not done: {why}")
@@ -2635,7 +2914,12 @@ class CannonHomeBrain(OpenAIBrain):
                 f"[Not done on the page ({name}): {why}. Tell the visitor plainly and offer "
                 "what you can do instead; never say it worked.]"
             )
-        cue = self._cues.pop(r.call_ref, f"{{{move.verb}: …}}")
+        # Kept past an unknown: a late result names the cue too.
+        cue = (
+            self._cues.get(r.call_ref, f"{{{move.verb}: …}}")
+            if r.outcome == "unknown"
+            else self._cues.pop(r.call_ref, f"{{{move.verb}: …}}")
+        )
         if landed_ok:
             if POLICY[move.cls].tells_model == "on_failure":
                 return None
@@ -2652,6 +2936,55 @@ class CannonHomeBrain(OpenAIBrain):
             f"[A screen cue of yours did not land ({why}). If the visitor asks where it is, "
             "show it again; otherwise carry on.]"
         )
+
+    def _late(self, r: StageResult, move: Move) -> str | None:
+        """A result after he was told the move was not confirmed: a short
+        correction, and for a confirmed move the page did after all, its
+        written line ("Done after all, …") said as soon as the floor is free."""
+        landed_ok = r.outcome in ("applied", "partial")
+        if move.verb is not None:
+            cue = self._cues.pop(r.call_ref, f"{{{move.verb}: …}}")
+            if landed_ok:
+                return (
+                    f"[Correction: your screen cue {cue} did land after all — "
+                    f"{r.detail or 'done'}.]"
+                )
+            return None  # Already said as not confirmed; nothing to correct.
+        name = move.id
+        if r.outcome == "partial":
+            detail = self._partial(r)
+            self._answered(f"{name} only partly done after all: {detail}")
+            return (
+                f"[Correction: the page did part of {name} after all: {detail}. You said it was "
+                "not confirmed: say in a few words what is done and what is not.]"
+            )
+        if landed_ok:
+            detail = r.detail or "done"
+            done = (
+                late_done_line(name, detail, self.spoken)
+                if move.cls is MoveClass.CONFIRMED
+                else None
+            )
+            self._answered(f"{name} done after all: {detail}", done=done)
+            return (
+                f"[Correction: the page did {name} after all: {detail}. You said it was not "
+                "confirmed: it is done.]"
+            )
+        return (
+            f"[The page has now answered {name}: {self._why(r)}. It is not done; never say "
+            "it worked.]"
+        )
+
+    @staticmethod
+    def _partial(r: StageResult) -> str:
+        """A partial result in the page's words: what it did, then what not."""
+        missed = [
+            refusal.why
+            + (f" (it offers: {', '.join(refusal.options[:12])})" if refusal.options else "")
+            for refusal in r.refused
+        ]
+        done = r.detail or "some of it"
+        return f"{done}; not done: {'; '.join(missed)}" if missed else done
 
     @staticmethod
     def _why(r: StageResult) -> str:
@@ -2744,6 +3077,11 @@ class CannonHomeBrain(OpenAIBrain):
             )
             self._note(f"[The visitor's open Cannon Home tabs — {listed}.]")
         self._tabs_unseen = False
+        if running := self._still_running():
+            self._note(
+                f"[Still working on the page: {running}. Not done yet, and not failed: if it "
+                "comes up, say it is still working on it.]"
+            )
         if not self._page_unseen or self.page is None:
             return
         self._page_unseen = False
@@ -2767,35 +3105,54 @@ class CannonHomeBrain(OpenAIBrain):
     def _note(self, text: str) -> None:
         self.append_note(text)
 
+    def _still_running(self) -> str:
+        """The moves he made that the store is still working on, a while in,
+        for the line that keeps him from calling them failed."""
+        return "; ".join(
+            f"{r.move.id} ({r.phase or 'sent'}, {r.seconds:.0f} s so far)"
+            for r in self.stage.running()
+            if r.move.verb is None and r.move.cls is not MoveClass.LOOK and r.seconds >= 2
+        )
+
     def _holding_floor(self) -> bool:
         playing = self._playing > 0 and time.monotonic() - self._played_at < _PLAYOUT_MAX_S
         return self._turns > 0 or playing
 
-    def _shorten_idle(self) -> None:
+    def _shorten_idle(self, ms: int = _TALK_THROUGH_MS) -> None:
         """The short quiet spell, for something to talk through: set now, or,
-        while he holds the floor, once he has finished."""
+        while he holds the floor, once he has finished. The shortest asked
+        for wins."""
+        self._idle_want = min(ms, self._idle_want) if self._idle_deferred else ms
         if self._holding_floor():
             self._idle_deferred = True
             return
         self._idle_deferred = False
-        if not self._idle_short:
-            self._idle_short = True
-            configure_soon(self.session, Config(idle=IdleConfig(timeout_ms=_TALK_THROUGH_MS)))
+        want, self._idle_want = self._idle_want, _TALK_THROUGH_MS
+        if not self._idle_short or want < self._idle_short:
+            self._idle_short = want
+            configure_soon(self.session, Config(idle=IdleConfig(timeout_ms=want)))
 
     def _floor_free(self) -> None:
         if self._idle_deferred and not self._holding_floor():
-            self._shorten_idle()
+            self._shorten_idle(self._idle_want)
 
-    def _answered(self, outcome: str) -> None:
+    def _answered(self, outcome: str, *, done: str | None = None) -> None:
         """The page answered a move he made: he says what it did in the next
-        short quiet spell, unless the visitor speaks first."""
+        short quiet spell, unless the visitor speaks first. A confirmed move
+        that is done has its written line (``done``), said as soon as the
+        floor is free, with no model request before it."""
         self._outcomes.append(outcome)
-        self._shorten_idle()
+        if done is not None:
+            self._done.append(done)
+        self._shorten_idle(_DONE_MS if done is not None else _TALK_THROUGH_MS)
 
     def _move(self, move: str, args: BaseModel, line: str) -> str | None:
         """Send a tool's move to the page, or, while the last one is still
         under way, queue it to follow: ``None`` when sent, else what the tool
         says."""
+        known = self.stage.moves.get(move)
+        if known is not None and known.cls is MoveClass.CONFIRMED:
+            self._confirmed_sent = True
         try:
             ref = self.stage.send(move, args.model_dump())
         except Refused as again:
@@ -2819,9 +3176,21 @@ class CannonHomeBrain(OpenAIBrain):
         landed(_LANDED[line][self.spoken])
         return None
 
-    def _take_ask(self) -> str | None:
+    def _take_ask(self, *, said: str = "") -> str | None:
+        """What the next quiet spell asks of him; ``said`` is the written
+        line it opens with, which the model must not say again."""
         asks: list[str] = []
-        if self._outcomes:
+        if self._outcomes and said:
+            asks.append(
+                "The page answered what you sent it: "
+                + "; ".join(self._outcomes)
+                + f'. You have just said: "{said}". Never say that again. Add at most one short '
+                "sentence, in the language you speak: what is not done, if anything, or the one "
+                "next step (free shipping, the checkout). Use the screen lines above for names "
+                "and prices. Never say something is done that the page did not confirm."
+            )
+            self._outcomes = []
+        elif self._outcomes:
             asks.append(
                 "The page answered what you sent it: "
                 + "; ".join(self._outcomes)
@@ -2838,7 +3207,7 @@ class CannonHomeBrain(OpenAIBrain):
 
     def _restore_idle(self) -> None:
         if self._idle_short:
-            self._idle_short = False
+            self._idle_short = 0
             configure_soon(self.session, Config(idle=IdleConfig(timeout_ms=_IDLE_MS)))
 
     def _headings(self) -> tuple[str, ...]:

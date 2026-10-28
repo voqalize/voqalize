@@ -250,11 +250,14 @@ export function pinnedHeight(selectors: readonly string[] = FIXED_DEFAULT): numb
   return h;
 }
 
-async function scrollEnded(): Promise<void> {
+/** The least of a scroll a ring waits for (`MoveContext.scrollTo`): a slow
+ *  smooth scroll never holds the cues behind it longer than this. */
+export const RING_SCROLL_MS = 800;
+
+async function scrollEnded(until: number, signal?: AbortSignal): Promise<void> {
   let last = -1;
   let still = 0;
-  const until = Date.now() + 2500;
-  while (Date.now() < until) {
+  while (Date.now() < until && !signal?.aborted) {
     await sleep(80);
     if (Math.abs(window.scrollY - last) < 1) {
       if (++still >= 3) return;
@@ -265,11 +268,24 @@ async function scrollEnded(): Promise<void> {
   }
 }
 
+export interface ScrollOptions {
+  align?: "top" | "center";
+  fixed?: readonly string[];
+  /** Wait for the scroll no longer than this (it carries on by itself). */
+  maxMs?: number;
+  /** Stop waiting at once: the next move is due. */
+  signal?: AbortSignal;
+}
+
 /** Scroll the window so `el` sits under the pinned bars (`top`) or in the
  *  middle of the room left (`center`, the default; a tall element goes to the
- *  top). Measured again after each pass: late images above it move it. */
-export async function scrollToEl(el: Element, opts: { align?: "top" | "center"; fixed?: readonly string[] } = {}): Promise<void> {
+ *  top). Measured again after each pass: late images above it move it. With
+ *  `maxMs` or `signal`, stops waiting when either says so, wherever the
+ *  scroll has got to; the ring follows its target as it moves anyway. */
+export async function scrollToEl(el: Element, opts: ScrollOptions = {}): Promise<void> {
+  const until = Date.now() + (opts.maxMs ?? 7500);
   for (let pass = 0; pass < 3; pass++) {
+    if (opts.signal?.aborted || Date.now() >= until) return;
     const r = el.getBoundingClientRect();
     const head = pinnedHeight(opts.fixed ?? FIXED_DEFAULT);
     const room = window.innerHeight - head;
@@ -281,7 +297,7 @@ export async function scrollToEl(el: Element, opts: { align?: "top" | "center"; 
     if (Math.abs(y - window.scrollY) < 4) return;
     const reduced = matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     window.scrollBy({ top: y - window.scrollY, behavior: pass === 0 && !reduced ? "smooth" : "auto" });
-    await scrollEnded();
+    await scrollEnded(Math.min(until, Date.now() + 2500), opts.signal);
   }
 }
 

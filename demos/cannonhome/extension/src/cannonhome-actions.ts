@@ -39,7 +39,7 @@
  * anything of the payment, whatever the brain sends.
  */
 
-import type { MoveContext, Moves } from "@voqalize/stage";
+import type { MoveContext, Moves, PerformResult, Refusal } from "@voqalize/stage";
 import type { Adapter } from "@voqalize/stage/extension";
 
 import {
@@ -751,6 +751,9 @@ interface FilterListing extends Arrived {
   threads?: string | null;
   material?: string | null;
   sort?: Sort | null;
+  /** Set on the page the combined filter address loaded: the filters are
+   *  checked there, and never loaded a second time. */
+  combined?: boolean;
 }
 
 /** The brain's filter names, as the site's request variables. */
@@ -789,22 +792,59 @@ const onCategory = (category: string) => {
   return here === want || here.startsWith(`${want}/`);
 };
 
-async function waitForGrid(before: string): Promise<boolean> {
-  const changed = await waitFor(() => gridKey() !== before, 10_000);
-  await quiet(productList(), 400, 3000);
+async function waitForGrid(before: string, ms = 10_000): Promise<boolean> {
+  const changed = await waitFor(() => gridKey() !== before, ms);
+  if (changed) await quiet(productList(), 400, 3000);
   return Boolean(changed);
 }
 
-/** How choosing one option went: applied (or already on), or why not. */
-type Applied = { ok: true; label: string } | { ok: false; why: string; arg: "facet" | "value"; options: string[] };
+/** How long a filter's press may change nothing before the option's own
+ *  address is loaded instead; a fetch the site shows under way gets up to
+ *  `FILTER_PRESS_MAX_MS`. */
+const FILTER_PRESS_MS = 3000;
+const FILTER_PRESS_MAX_MS = 10_000;
+/** How long a filter waits for the store's filter scripts after a load. */
+const FILTERS_READY_MS = 10_000;
 
 /**
- * Choose one option of one quick filter, as the visitor would: scroll to the
- * bar, open the filter's pill, ring the option, a beat, press it, and wait for
- * the grid. Should the press load the filter's own page instead (the site's
- * script not up yet), the next page carries `then` on.
+ * The listing's filter scripts are up. The quick-filter bar marks its root
+ * `data-qf-ready` once it is bound, and hands a press on to Amasty's own
+ * filter, whose AJAX widget sits on the body: a press before both does
+ * nothing at all — no grid change and no load (dev, 2026-10-28: "King"
+ * pressed 0.4 s after a load, then 13 s of nothing, where the same press
+ * worked on a page loaded 40 s before). A page without RequireJS (a saved
+ * copy) has nothing to wait for.
  */
-async function applyFacet(c: MoveContext, variable: string, said: string, then: Then, name = FACET_SAID[variable] ?? variable): Promise<Applied> {
+function filtersReady(): boolean {
+  const w = window as unknown as { require?: unknown; jQuery?: { data?: (el: Element, key: string) => unknown } };
+  if (!w.require) return true;
+  if (document.querySelector("[data-qf-root]")?.getAttribute("data-qf-ready") !== "1") return false;
+  const data = w.jQuery?.data;
+  if (!data) return true;
+  // jQuery UI keeps a widget under its full name, "mage-amShopbyAjax".
+  return Boolean(data(document.body, "mage-amShopbyAjax") ?? data(document.body, "mageAmShopbyAjax"));
+}
+
+/** The store is fetching a filtered grid: Amasty's overlay, or an option the
+ *  bar marks pending. */
+function filtering(): boolean {
+  const overlay = document.querySelector("#amasty-shopby-overlay");
+  return Boolean((overlay && shown(overlay)) || document.querySelector(".qf__option-link.-pending-on, .qf__option.-pending-on"));
+}
+
+/** One option of one quick filter, found by what was said. */
+interface Option {
+  variable: string;
+  group: HTMLElement;
+  option: HTMLAnchorElement;
+  label: string;
+}
+
+/** How choosing one option went: applied (or already on), or why not. */
+type Applied = { ok: true; label: string } | Missed;
+type Missed = { ok: false; why: string; arg: "facet" | "value"; options: string[] };
+
+function optionFor(variable: string, said: string, name = FACET_SAID[variable] ?? variable): Option | Missed {
   const group = document.querySelector<HTMLElement>(`.qf__group[data-qf-request-var="${variable}"]`);
   if (!group) {
     return { ok: false, arg: "facet", why: `this listing has no ${name} filter`, options: offeredFacets() };
@@ -814,10 +854,25 @@ async function applyFacet(c: MoveContext, variable: string, said: string, then: 
     const offered = [...group.querySelectorAll<HTMLAnchorElement>("a.qf__option-link")].map(optionTitle).filter(Boolean);
     return { ok: false, arg: "value", why: `no ${name} "${said}" here`, options: offered };
   }
-  const label = optionTitle(option) || said;
+  return { variable, group, option, label: optionTitle(option) || said };
+}
+
+/**
+ * Choose one option of one quick filter, as the visitor would: scroll to the
+ * bar, wait for the store's filter scripts, open the filter's pill, ring the
+ * option, a beat, press it, and wait for the grid. A press that changed
+ * nothing loads the option's own address (the store serves it filtered), as
+ * does a press that loads it by itself: either way the next page carries
+ * `then` on, and this is `null`.
+ */
+async function applyFacet(c: MoveContext, variable: string, said: string, then: Then, name = FACET_SAID[variable] ?? variable): Promise<Applied | null> {
+  const found = optionFor(variable, said, name);
+  if ("ok" in found) return found;
+  const { group, option, label } = found;
   if (option.classList.contains("-active")) return { ok: true, label };
   const pill = group.querySelector<HTMLElement>(".qf__pill");
   await scrollTo(group.closest(".toolbar, .qf-bar") ?? group, "top");
+  await waitFor(filtersReady, FILTERS_READY_MS);
   if (pill && !shown(option)) {
     await ring(c, pill);
     press(pill);
@@ -827,10 +882,33 @@ async function applyFacet(c: MoveContext, variable: string, said: string, then: 
   const before = gridKey();
   await c.keep(then);
   press(option);
-  const landed = await waitForGrid(before);
+  let landed = await waitForGrid(before, FILTER_PRESS_MS);
+  if (!landed && filtering()) landed = await waitForGrid(before, FILTER_PRESS_MAX_MS - FILTER_PRESS_MS);
   await c.drop();
-  if (!landed) return { ok: false, arg: "value", why: `the grid did not change after choosing ${label}`, options: [] };
-  return { ok: true, label };
+  if (landed) return { ok: true, label };
+  // Nothing took the press: the option's own address is the same filter.
+  // Loaded once per move, so a store that ignores it cannot loop it.
+  const args = then.args as { reloaded?: boolean };
+  const href = option.getAttribute("href");
+  if (href && !args.reloaded) return load(c, href, { ...then, args: { ...args, reloaded: true } });
+  return { ok: false, arg: "value", why: `the grid did not change after choosing ${label}`, options: [] };
+}
+
+/** The listing at `path` filtered by every option in `chosen`, as one
+ *  address: the store takes each filter as its request variable and option
+ *  id (`?tamano=5625&hilos=5700`), for any number of them. (Its path form,
+ *  `/king_1-200_hilos`, comes back unfiltered past two, checked on the live
+ *  store on 2026-10-28.) */
+function filteredUrl(path: string, chosen: Option[]): string {
+  const params = new URLSearchParams();
+  for (const o of chosen) {
+    const value = o.option.dataset.qfValue;
+    if (!value) continue;
+    const had = params.get(o.variable);
+    params.set(o.variable, had ? `${had},${value}` : value);
+  }
+  const query = params.toString();
+  return pathOf(path) + (query ? `?${query}` : "");
 }
 
 /** Sort the listing by `sort`, the sorter ringed first. */
@@ -881,7 +959,7 @@ async function onListing(c: MoveContext, path: string | null | undefined, arrive
   return true;
 }
 
-async function filterListing(p: FilterListing, c: MoveContext): Promise<string | null> {
+async function filterListing(p: FilterListing, c: MoveContext): Promise<string | null | PerformResult> {
   if (typeof p.category_path !== "string" || !p.category_path.trim()) c.refuse("category_path", "say which category, as a path like /12-ropa-de-cama/20-sabanas");
   const path = pathOf(p.category_path.trim());
   const wanted = (Object.keys(FILTER_VARS) as (keyof typeof FILTER_VARS)[])
@@ -894,25 +972,52 @@ async function filterListing(p: FilterListing, c: MoveContext): Promise<string |
     const w = wanted.find((x) => x.variable === v);
     return !w || labels.split(", ").some((l) => squash(l) !== squash(w.said));
   });
-  if (!p.arrived && isListing() && onCategory(path) && stray) return load(c, path, again);
+  const here = !p.arrived && isListing() && onCategory(path);
   if ((await onListing(c, path, Boolean(p.arrived), again)) === null) return null;
 
+  // Several options to choose (or this listing's own filters to drop): each
+  // ringed where it sits, then one load of the address that has them all —
+  // about 3 s, where a press each, a grid each, took 13 to 22.
+  if (!p.combined) {
+    await waitFor(() => document.querySelector(".qf__group"), 3000);
+    const chosen = wanted.map((w) => optionFor(w.variable, w.said, w.key)).filter((o): o is Option => !("ok" in o));
+    const todo = chosen.filter((o) => !o.option.classList.contains("-active"));
+    if (chosen.length && (todo.length >= 2 || (here && stray))) {
+      const marks = todo.map((o) => (shown(o.option) ? o.option : (o.group.querySelector<HTMLElement>(".qf__pill") ?? o.group)));
+      if (marks.length) {
+        await scrollTo(marks[0].closest(".toolbar, .qf-bar") ?? marks[0], "top");
+        await c.ring(marks, { separate: true, label: todo.map((o) => o.label).join(" · ") });
+      }
+      return load(c, filteredUrl(path, chosen), { move: c.move, args: { ...p, arrived: true, combined: true } });
+    }
+  }
+  if (here && stray) return load(c, path, again);
+
   const applied: string[] = [];
-  const problems: string[] = [];
+  // What the listing could not take, by the argument that asked for it.
+  const missed: Refusal[] = [];
   for (const w of wanted) {
     const got = await applyFacet(c, w.variable, w.said, again, w.key);
+    if (got === null) return null;
     if (got.ok) applied.push(`${w.key} ${got.label}`);
-    else problems.push(got.options.length ? `${got.why} (it offers: ${got.options.join(", ")})` : got.why);
+    else missed.push({ arg: w.key, why: got.why, options: got.options });
   }
   if (p.sort) {
     const got = await applySort(c, p.sort);
     if (got.ok) applied.push(got.label);
-    else problems.push(got.why);
+    else missed.push({ arg: "sort", why: got.why, options: got.options });
   }
   await closePanels();
   const grid = await showGrid(c);
-  if (wanted.length && !applied.length && problems.length) throw new Error(problems.join("; "));
-  return [grid, applied.length ? `applied ${applied.join(", ")}` : "", ...problems].filter(Boolean).join("; ");
+  if (wanted.length && !applied.length && missed.length) {
+    throw new Error(missed.map((m) => (m.options?.length ? `${m.why} (it offers: ${m.options.join(", ")})` : m.why)).join("; "));
+  }
+  // Some but not all: a partial outcome, never taken for the whole wish; what
+  // it could not take rides in `refused`, with what the listing offers.
+  if (applied.length && missed.length) {
+    return { outcome: "partial", detail: `applied ${applied.join(", ")}; ${grid}`, refused: missed };
+  }
+  return [grid, applied.length ? `applied ${applied.join(", ")}` : ""].filter(Boolean).join("; ");
 }
 
 /** The filter cue: one option of one filter, as its words are said. */
@@ -922,6 +1027,7 @@ async function filterCue(p: { facet: string; value: string | null; path?: string
   if (!p.value?.trim()) c.refuse("value", "say which option, as the listing writes it");
   if ((await onListing(c, p.path, Boolean(p.arrived), { move: c.move, args: { ...p, arrived: true } })) === null) return null;
   const got = await applyFacet(c, variable, p.value, { move: c.move, args: { ...p, arrived: true } });
+  if (got === null) return null;
   if (!got.ok) c.refuse(got.arg, got.why, got.options);
   await closePanels();
   const grid = await showGrid(c);
@@ -975,7 +1081,10 @@ async function openTab(tab: Exclude<Tab, "fotos">, c: MoveContext): Promise<stri
   }
   // The specifications fold under "Ver más".
   const more = panel?.querySelector<HTMLElement>(":scope > .see-more");
-  if (more && shown(more)) press(more);
+  if (more && shown(more)) {
+    await ring(c, more);
+    press(more);
+  }
   await sleep(250);
   const box = boxOf([title, ...(panel ? [panel] : [])]);
   const tall = box ? box.bottom - box.top > window.innerHeight * 0.8 : false;
@@ -1477,7 +1586,7 @@ type FillCheckout = Partial<Record<FillKey, string | null>> & Arrived;
  *  From any page: the bag first; on the bag, "Terminar pedido", then the login
  *  window's "Comprar como invitado" (a link to /checkout). Each load carries
  *  the rest of the move (`args`, this move's own) to the next page. */
-async function toCheckout(c: MoveContext, args: Arrived & Record<string, unknown>, fill: FillCheckout | null): Promise<string | null> {
+async function toCheckout(c: MoveContext, args: Arrived & Record<string, unknown>, fill: FillCheckout | null): Promise<string | null | PerformResult> {
   if (onCheckout()) {
     const form = await waitFor(formReady, 20_000);
     if (!form) throw new Error("the checkout opened, but its delivery form did not show");
@@ -1525,7 +1634,7 @@ function describeCheckout(s: CheckoutState): string {
   return bits.join("; ");
 }
 
-async function startCheckout(p: Arrived, c: MoveContext): Promise<string | null> {
+async function startCheckout(p: Arrived, c: MoveContext): Promise<string | null | PerformResult> {
   return toCheckout(c, { ...p }, null);
 }
 
@@ -1583,7 +1692,7 @@ async function pick(c: MoveContext, key: "region" | "comuna", said: string): Pro
 
 /** Choose the phone's prefix (+56 9 for a mobile, +56 2 for a Santiago line)
  *  from the first of the nine digits; the other eight go in the field. */
-async function phonePrefix(first: string): Promise<void> {
+async function phonePrefix(c: MoveContext, first: string): Promise<void> {
   const box = shippingForm()?.querySelector<HTMLElement>(".field.telephone .flag-container");
   if (!box) return;
   const want = `56 ${first}`;
@@ -1591,6 +1700,8 @@ async function phonePrefix(first: string): Promise<void> {
   if (now === `+${want}` || now === want) return;
   const flag = box.querySelector<HTMLElement>(".selected-flag");
   if (!flag) throw new Error("the phone field has no prefix to choose");
+  // A visible change: rung first, like every other press.
+  await ring(c, box.closest(".field") ?? box);
   press(flag);
   const li = await waitFor(() => box.querySelector<HTMLElement>(`li.country[data-dial-code="${want}"]`), 3000);
   if (!li) throw new Error(`the phone field has no +${want} prefix`);
@@ -1600,7 +1711,7 @@ async function phonePrefix(first: string): Promise<void> {
   }
 }
 
-async function fillCheckout(p: FillCheckout, c: MoveContext): Promise<string | null> {
+async function fillCheckout(p: FillCheckout, c: MoveContext): Promise<string | null | PerformResult> {
   const given = FILL_ORDER.filter((k) => typeof p[k] === "string" && p[k]!.trim());
   if (!given.length) c.refuse("fields", "say what to fill: email, región, comuna, dirección, número, depto/casa, nombre, apellidos or teléfono", [...FILL_ORDER]);
   if (!onCheckout()) {
@@ -1630,7 +1741,7 @@ async function fillCheckout(p: FillCheckout, c: MoveContext): Promise<string | n
       } else if (key === "phone") {
         const digits = value.replace(/\D/g, "");
         if (!/^[92]\d{8}$/.test(digits)) throw new Error("a Chilean number is nine digits, starting with 9 or 2");
-        await phonePrefix(digits[0]);
+        await phonePrefix(c, digits[0]);
         const el = form.querySelector<HTMLInputElement>(TEXT_INPUTS.phone);
         if (!el) throw new Error("the form has no phone field");
         await fillField(c, el, digits.slice(1), label);
@@ -1652,7 +1763,9 @@ async function fillCheckout(p: FillCheckout, c: MoveContext): Promise<string | n
   report("checkout_state", state);
   if (touched.length) await ring(c, touched);
   if (!done.length) throw new Error(`nothing was filled: ${failed.join("; ")}`);
-  return `filled ${done.join(", ")}${failed.length ? `; not filled: ${failed.join("; ")}` : ""}; ${describeCheckout(state)}; nothing was pressed after the fields`;
+  const detail = `filled ${done.join(", ")}${failed.length ? `; not filled: ${failed.join("; ")}` : ""}; ${describeCheckout(state)}; nothing was pressed after the fields`;
+  // Some fields but not all: partial, so it is never taken for the whole form.
+  return failed.length ? { outcome: "partial", detail } : detail;
 }
 
 // The page, show and faq cues ───────────────────────────────────────────────

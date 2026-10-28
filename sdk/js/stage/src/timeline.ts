@@ -23,8 +23,14 @@
  *     performed is dropped and handed back, so each can be reported.
  *
  * Cues fire in order, one move at a time: a page must arrive before a section
- * on it can be found. `clear()` ends everything, including a move already
- * waiting its turn.
+ * on it can be found. A cue that fires while the move before it still runs
+ * is told to `onQueued`, so the host can hurry that move (cut a slow scroll
+ * short) rather than hold the cue behind it. `clear()` ends everything,
+ * including a move already waiting its turn.
+ *
+ * Each cue is performed with a `FireInfo`: how it fired, and when its words
+ * were heard, so its result can say how far the screen ran behind the voice
+ * (`withFire`).
  */
 
 import type { StageCue, StageResult } from "./wire.gen";
@@ -49,6 +55,16 @@ const MAX_HEARD = 4000;
 export type Fired = "anchor" | "fuzzy" | "clock" | "end";
 export type Dropped = "interrupted" | "stale";
 
+/** How and when a cue fired (epoch milliseconds). */
+export interface FireInfo {
+  how: Fired;
+  /** When its words were heard: the first anchor word's arrival; for the
+   *  clock, when they were due; for the end, when the voice stopped. */
+  heardAt: number;
+  /** When the timeline released it to be performed. */
+  firedAt: number;
+}
+
 export interface TimelineOptions {
   /** The call's language, for the segmenter and lower-casing. */
   lang?: string;
@@ -58,7 +74,10 @@ export interface TimelineOptions {
    *  by `interrupted()` instead. */
   onDrop?: (cue: StageCue, why: Dropped) => void;
   /** A cue fired, and how it was matched: for telemetry. */
-  onFire?: (cue: StageCue, how: Fired) => void;
+  onFire?: (cue: StageCue, how: Fired, info: FireInfo) => void;
+  /** A cue fired while the move before it is still being performed: it waits
+   *  its turn. The host may hurry the running move. */
+  onQueued?: (cue: StageCue, info: FireInfo) => void;
 }
 
 interface Waiting {
@@ -80,6 +99,11 @@ export interface TimelineStats {
 
 export class Timeline {
   private heard: string[] = [];
+  /** When each heard word arrived (epoch ms), beside `heard`. */
+  private heardAt: number[] = [];
+  /** Moves started and not yet settled. */
+  private performing = 0;
+  private stoppedAt = 0;
   private queue: Waiting[] = [];
   /** Fired, and waiting their turn behind the move before them. */
   private firing: StageCue[] = [];
@@ -98,7 +122,7 @@ export class Timeline {
 
   /** @param fire performs one cue; the next waits until it settles. */
   constructor(
-    private readonly fire: (cue: StageCue) => Promise<StageResult | void>,
+    private readonly fire: (cue: StageCue, info: FireInfo) => Promise<StageResult | void>,
     private readonly opts: TimelineOptions = {},
   ) {
     this.now = opts.now ?? Date.now;
@@ -128,9 +152,12 @@ export class Timeline {
     this.textSince = true;
     this.runChars += text.trim().length;
     this.heard.push(...w);
+    const at = this.now();
+    for (let i = 0; i < w.length; i++) this.heardAt.push(at);
     if (this.heard.length > MAX_HEARD) {
       const cut = this.heard.length - MAX_HEARD / 2;
       this.heard = this.heard.slice(cut);
+      this.heardAt = this.heardAt.slice(cut);
       for (const q of this.queue) q.from = Math.max(0, q.from - cut);
     }
     this.check();
@@ -149,6 +176,7 @@ export class Timeline {
 
   stopped(): void {
     if (this.stopTimer) clearTimeout(this.stopTimer);
+    this.stoppedAt = this.now();
     this.recalibrate();
     this.stopTimer = setTimeout(() => {
       this.stopTimer = null;
@@ -159,7 +187,7 @@ export class Timeline {
       // were said.
       const keep: Waiting[] = [];
       for (const q of this.queue) {
-        if (!q.anchor.length || (since && this.due(q) <= elapsed)) this.release(q.cue, "end");
+        if (!q.anchor.length || (since && this.due(q) <= elapsed)) this.release(q.cue, "end", this.stoppedAt || this.now());
         else keep.push(q);
       }
       this.queue = keep;
@@ -189,6 +217,7 @@ export class Timeline {
     this.queue = [];
     this.firing = [];
     this.heard = [];
+    this.heardAt = [];
     this.speakingSince = 0;
     this.epoch++;
     if (this.stopTimer) clearTimeout(this.stopTimer);
@@ -231,7 +260,7 @@ export class Timeline {
       // Later cues are searched for from here on, not after these words: two
       // cues before one sentence share its anchor and fire together, in order.
       for (const later of this.queue) later.from = Math.max(later.from, found);
-      this.release(q.cue, how);
+      this.release(q.cue, how, this.heardAt[found] ?? this.now());
     }
   }
 
@@ -256,23 +285,31 @@ export class Timeline {
       const elapsed = this.now() - this.speakingSince;
       if (elapsed < NO_TEXT_MS) return;
       while (this.queue.length && this.queue[0]!.anchor.length && elapsed >= this.due(this.queue[0]!)) {
-        this.release(this.queue.shift()!.cue, "clock");
+        const q = this.queue.shift()!;
+        this.release(q.cue, "clock", this.speakingSince + this.due(q));
       }
     }, 100);
   }
 
-  private release(cue: StageCue, how: Fired): void {
+  private release(cue: StageCue, how: Fired, heardAt: number): void {
     this.stats[how]++;
-    this.opts.onFire?.(cue, how);
+    const info: FireInfo = { how, heardAt: Math.round(heardAt), firedAt: this.now() };
+    this.opts.onFire?.(cue, how, info);
+    if (this.performing > 0 || this.firing.length) this.opts.onQueued?.(cue, info);
     const epoch = this.epoch;
     this.firing.push(cue);
     this.chain = this.chain
-      .then(() => {
+      .then(async () => {
         if (epoch !== this.epoch) return;
         const i = this.firing.indexOf(cue);
         if (i < 0) return; // dropped meanwhile
         this.firing.splice(i, 1);
-        return this.fire(cue);
+        this.performing++;
+        try {
+          return await this.fire(cue, info);
+        } finally {
+          this.performing--;
+        }
       })
       .catch(() => {});
   }
@@ -298,4 +335,13 @@ function fuzzyIndexOf(heard: string[], anchor: string[], from: number): number {
     if (y !== undefined && ((x === a && y === b) || (x === b && y === c) || (x === a && y === c))) return i;
   }
   return -1;
+}
+
+/** `result` with what the timeline knew of its cue: how it fired, when it
+ *  was queued, and how far behind its words the move started (`lag_ms`).
+ *  `receivedAt` is when the cue reached the page (epoch ms). */
+export function withFire(result: StageResult, info: FireInfo, receivedAt: number): StageResult {
+  const out: StageResult = { ...result, fired: info.how, queued_ms: Math.max(0, info.firedAt - receivedAt) };
+  if (result.fired_ms != null) out.lag_ms = Math.round(receivedAt + result.fired_ms - info.heardAt);
+  return out;
 }

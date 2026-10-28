@@ -20,7 +20,7 @@ export {
 } from "./dom";
 export {
   arrived, type Carried, type Carrier, Deferred, type MoveClass, type MoveContext, Moves, type MovesOptions,
-  type Performer, Refused, type Then,
+  type PerformResult, type Performer, Refused, type Then,
 } from "./moves";
 export {
   type Attached, attachStage, type AttachOptions, type ClientHandler, interruptedResult, STAGE_CONTRACT, STAGE_RUNTIME, type StageClient,

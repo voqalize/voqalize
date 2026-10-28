@@ -4,11 +4,18 @@
  * A site registers a performer per move id. The agent names the move and its
  * arguments; the performer finds the target, rings it, brings it out and acts,
  * through the `MoveContext` it is handed. What happened is built here into a
- * `StageResult`: `applied` with the performer's detail, `refused` when the
- * performer called `refuse()` (an argument the page could not use, with what
- * it offers instead), `failed` when it threw, and `moved: true` when it
- * returned `null` because the page went on to another one. Moves run one at a
- * time, in the order they arrive.
+ * `StageResult`: `applied` with the performer's detail (or `partial`, when it
+ * returns a `PerformResult` saying so), `refused` when the performer called
+ * `refuse()` (an argument the page could not use, with what it offers
+ * instead), `failed` when it threw, and `moved: true` when it returned `null`
+ * because the page went on to another one. Moves run one at a time, in the
+ * order they arrive.
+ *
+ * While it runs, a move says where it is (`StageProgress`): `queued` behind
+ * another, `acting`, `ringing` while its ring holds it; a performer adds
+ * `waiting_site` or `confirming` with `progress()`. Each one tells the agent
+ * the move is alive. A result carries when, after the page received the move,
+ * it was queued, started, first rang and finished.
  *
  * A move that loads another page (`loadThen`), or presses something that may
  * (`keep`), carries the rest of itself to the next page through the host's
@@ -17,12 +24,15 @@
  * of one move, once.
  */
 
-import { reveal, scrollToEl, sleep } from "./dom";
+import { RING_SCROLL_MS, reveal, scrollToEl, sleep } from "./dom";
 import type { RingOptions, Spotlight } from "./spotlight";
-import type { Refusal, StageResult } from "./wire.gen";
+import type { Refusal, StageProgress, StageResult } from "./wire.gen";
 
 /** How much a move changes, from nothing to something the person owns. */
 export type MoveClass = "look" | "navigate" | "reversible" | "confirmed";
+
+/** Where a move is, before its result. */
+export type Phase = StageProgress["phase"];
 
 export interface MoveContext {
   /** The move being made (the id its performer is registered under), and the
@@ -38,11 +48,18 @@ export interface MoveContext {
   ring(el: Element | Element[], opts?: string | RingOptions): Promise<void>;
   /** A pause a person can follow (600 ms by default). */
   beat(ms?: number): Promise<void>;
-  /** Scroll `el` into view under the site's pinned bars. */
+  /** Scroll `el` into view under the site's pinned bars. Waits for the
+   *  scroll at most `RING_SCROLL_MS`, and not at all once the next move is
+   *  due: the ring follows its target wherever the scroll gets to. */
   scrollTo(el: Element): Promise<void>;
   /** Give up on one argument: the move ends `refused`, naming it, why, and
    *  what the page offers instead. */
   refuse(arg: string, why: string, options?: string[]): never;
+  /** Say where the move is: `waiting_site` while the site's own scripts work,
+   *  `confirming` while it checks what it did took. The runtime says
+   *  `queued`, `acting` and `ringing` by itself. Each tells the agent the
+   *  move is alive and gives it its time again. */
+  progress(phase: Phase): void;
   /** Load `url` in this tab and finish the move on the page it lands on: with
    *  `then` (another performer, run there under this move's id and
    *  `call_ref`), or, without it, `applied` once that page is up where it
@@ -67,13 +84,15 @@ export interface Then {
 
 /** A move carried to the next page of the tab: reported there as `move`, with
  *  `call_ref`, after `then` runs; or, with no `then`, applied once that page
- *  is up, on `expect` when it names where. */
+ *  is up, on `expect` when it names where. `received_at` is when the first
+ *  page received it (epoch ms), so its timings run from there. */
 export interface Carried {
   kind: "carried";
   call_ref: string;
   move: string;
   then?: Then;
   expect?: string;
+  received_at?: number;
 }
 
 /** How a host carries a move across a page load. */
@@ -86,9 +105,18 @@ export interface Carrier {
   load(url: string): void;
 }
 
-/** Makes one move. Returns a short detail of what it did, or `null` when it
- *  moved on to another page (which reports from there). */
-export type Performer<A> = (args: A, c: MoveContext) => Promise<string | null>;
+/** What a performer may say it did, beyond a bare detail: `partial` when only
+ *  some of it took, with what it could not use in `refused`. */
+export interface PerformResult {
+  outcome?: "applied" | "partial";
+  detail?: string | null;
+  refused?: Refusal[];
+}
+
+/** Makes one move. Returns a short detail of what it did (or a
+ *  `PerformResult`), or `null` when it moved on to another page (which
+ *  reports from there). */
+export type Performer<A> = (args: A, c: MoveContext) => Promise<string | null | PerformResult>;
 
 interface Registered {
   cls: MoveClass;
@@ -120,13 +148,25 @@ export interface MovesOptions {
   carrier?: Carrier;
   /** Adds anything else a host offers. */
   extend?: (c: MoveContext) => Partial<MoveContext>;
+  /** Where each move is, as it changes: send it to the agent. */
+  onProgress?: (p: StageProgress) => void;
   /** Milliseconds now; injectable for tests. */
   now?: () => number;
+}
+
+/** When the page received a move, for its timings (epoch ms; now by default). */
+export interface RunOptions {
+  receivedAt?: number;
 }
 
 export class Moves {
   private readonly registry = new Map<string, Registered>();
   private chain: Promise<unknown> = Promise.resolve();
+  /** Moves queued or running here. */
+  private inQueue = 0;
+  /** Cuts the running move's scroll wait short. */
+  private hurrying: AbortController | null = null;
+  private readonly listeners = new Set<(p: StageProgress) => void>();
 
   constructor(
     readonly spotlight: Spotlight,
@@ -156,10 +196,23 @@ export class Moves {
     return [...this.registry.keys()];
   }
 
+  /** Hear every move's progress (as well as `onProgress`), until the
+   *  returned function is called. */
+  listen(fn: (p: StageProgress) => void): () => void {
+    this.listeners.add(fn);
+    return () => this.listeners.delete(fn);
+  }
+
+  /** The next move is due: the running one stops waiting for its scroll. */
+  hurry(): void {
+    this.hurrying?.abort();
+  }
+
   /** Make one move, after the one before it, and build its result. Never
    *  throws; a move handed to the next page resolves `null`. */
-  run(id: string, args: unknown, callRef: string): Promise<StageResult | null> {
-    return this.queue(() => this.perform(id, args, callRef, id));
+  run(id: string, args: unknown, callRef: string, opts: RunOptions = {}): Promise<StageResult | null> {
+    const receivedAt = opts.receivedAt ?? Date.now();
+    return this.queue(callRef, id, receivedAt, (queuedAt) => this.perform(id, args, callRef, id, receivedAt, queuedAt));
   }
 
   /** Finish a move the last page of this tab carried here, after the one
@@ -167,47 +220,106 @@ export class Moves {
    *  or, with none, `applied` now that this page is up (`partial`, saying
    *  where, when it is not the page asked for). */
   resume(c: Carried): Promise<StageResult | null> {
+    const receivedAt = c.received_at ?? Date.now();
     if (c.then) {
       const then = c.then;
-      return this.queue(() => this.perform(then.move, then.args, c.call_ref, c.move));
+      return this.queue(c.call_ref, c.move, receivedAt, (queuedAt) =>
+        this.perform(then.move, then.args, c.call_ref, c.move, receivedAt, queuedAt),
+      );
     }
-    return this.queue(async () => arrived(c));
+    return this.queue(c.call_ref, c.move, receivedAt, async () => {
+      const r = arrived(c);
+      return { ...r, received_ms: Math.max(0, Date.now() - receivedAt) };
+    });
   }
 
-  private queue(fn: () => Promise<StageResult | null>): Promise<StageResult | null> {
-    const next = this.chain.then(fn);
-    this.chain = next.catch(() => {});
-    return next;
+  private queue(
+    callRef: string,
+    move: string,
+    receivedAt: number,
+    fn: (queuedAt: number) => Promise<StageResult | null>,
+  ): Promise<StageResult | null> {
+    const queuedAt = Date.now();
+    if (this.inQueue > 0) {
+      this.say(callRef, move, "queued", receivedAt);
+      this.hurry();
+    }
+    this.inQueue++;
+    const next = this.chain.then(() => fn(queuedAt));
+    const settled = next.finally(() => this.inQueue--);
+    this.chain = settled.catch(() => {});
+    return settled;
   }
 
-  private async perform(id: string, args: unknown, callRef: string, reportAs: string): Promise<StageResult | null> {
+  private say(callRef: string, move: string, phase: Phase, receivedAt: number): void {
+    const p: StageProgress = { call_ref: callRef, move, phase, ms: Math.max(0, Date.now() - receivedAt) };
+    for (const fn of [this.opts.onProgress, ...this.listeners]) {
+      try {
+        fn?.(p);
+      } catch {
+        /* A host that could not send it: the move goes on. */
+      }
+    }
+  }
+
+  private async perform(
+    id: string,
+    args: unknown,
+    callRef: string,
+    reportAs: string,
+    receivedAt: number,
+    queuedAt: number,
+  ): Promise<StageResult | null> {
     const now = this.opts.now ?? (() => performance.now());
     const t0 = now();
     const ms = () => Math.round(now() - t0);
+    const since = (t: number) => Math.max(0, Math.round(t - receivedAt));
+    const firedAt = Date.now();
+    let ringedAt: number | null = null;
     const base = { call_ref: callRef, move: reportAs };
+    const times = () => ({
+      received_ms: since(Date.now()),
+      queued_ms: since(queuedAt),
+      fired_ms: since(firedAt),
+      ...(ringedAt !== null ? { ringed_ms: since(ringedAt) } : {}),
+    });
     const entry = this.registry.get(id);
     if (!entry) {
-      return { ...base, outcome: "failed", detail: `this page has no move ${id}`, refused: [], moved: false, ms: 0 };
+      return { ...base, outcome: "failed", detail: `this page has no move ${id}`, refused: [], moved: false, ms: 0, ...times() };
     }
     const spotlight = this.spotlight;
     const fixed = this.opts.fixed;
     const carrier = this.opts.carrier;
+    const hurrying = new AbortController();
+    this.hurrying = hurrying;
+    let phase: Phase | null = null;
+    const progress = (next: Phase) => {
+      if (next === phase) return;
+      phase = next;
+      this.say(callRef, reportAs, next, receivedAt);
+    };
     let kept = false;
     const c: MoveContext = {
       move: id,
       callRef,
       spotlight,
       reveal,
-      ring: (el, opts) => spotlight.ring(el, typeof opts === "string" ? { label: opts } : opts),
+      async ring(el, opts) {
+        ringedAt ??= Date.now();
+        progress("ringing");
+        await spotlight.ring(el, typeof opts === "string" ? { label: opts } : opts);
+        progress("acting");
+      },
       beat: (n = 600) => sleep(n),
-      scrollTo: (el) => scrollToEl(el, { fixed }),
+      scrollTo: (el) => scrollToEl(el, { fixed, maxMs: RING_SCROLL_MS, signal: hurrying.signal }),
       refuse(arg, why, options) {
         throw new Refused({ arg, why, ...(options?.length ? { options } : {}) });
       },
+      progress,
       async keep(then) {
         if (!carrier) return;
         kept = true;
-        await carrier.keep({ kind: "carried", call_ref: callRef, move: reportAs, ...(then ? { then } : {}) });
+        await carrier.keep({ kind: "carried", call_ref: callRef, move: reportAs, received_at: receivedAt, ...(then ? { then } : {}) });
       },
       async drop() {
         if (!carrier || !kept) return;
@@ -217,7 +329,9 @@ export class Moves {
       ...(carrier
         ? {
             async loadThen(url: string, then?: Then): Promise<never> {
-              await carrier.keep({ kind: "carried", call_ref: callRef, move: reportAs, ...(then ? { then } : { expect: url }) });
+              await carrier.keep({
+                kind: "carried", call_ref: callRef, move: reportAs, received_at: receivedAt, ...(then ? { then } : { expect: url }),
+              });
               kept = false;
               spotlight.clear();
               carrier.load(url);
@@ -227,21 +341,26 @@ export class Moves {
         : {}),
     };
     Object.assign(c, this.opts.extend?.(c) ?? {});
+    progress("acting");
     let handedOn = false;
     try {
-      const detail = await entry.performer(named(args, entry.params) as never, c);
-      handedOn = detail === null;
-      if (detail === null) return { ...base, outcome: "applied", detail: null, refused: [], moved: true, ms: ms() };
-      return { ...base, outcome: "applied", detail, refused: [], moved: false, ms: ms() };
+      const got = await entry.performer(named(args, entry.params) as never, c);
+      handedOn = got === null;
+      if (got === null) return { ...base, outcome: "applied", detail: null, refused: [], moved: true, ms: ms(), ...times() };
+      if (typeof got === "string") return { ...base, outcome: "applied", detail: got, refused: [], moved: false, ms: ms(), ...times() };
+      const refused = got.refused ?? [];
+      const outcome = got.outcome ?? (refused.length ? "partial" : "applied");
+      return { ...base, outcome, detail: got.detail ?? null, refused, moved: false, ms: ms(), ...times() };
     } catch (error) {
       handedOn = error instanceof Deferred;
       if (error instanceof Deferred) return null;
       if (error instanceof Refused) {
-        return { ...base, outcome: "refused", detail: error.refusal.why, refused: [error.refusal], moved: false, ms: ms() };
+        return { ...base, outcome: "refused", detail: error.refusal.why, refused: [error.refusal], moved: false, ms: ms(), ...times() };
       }
       const text = error instanceof Error ? error.message : String(error);
-      return { ...base, outcome: "failed", detail: text || "failed", refused: [], moved: false, ms: ms() };
+      return { ...base, outcome: "failed", detail: text || "failed", refused: [], moved: false, ms: ms(), ...times() };
     } finally {
+      if (this.hurrying === hurrying) this.hurrying = null;
       // It ended here after all: what it kept for a next page is not owed.
       if (kept && !handedOn) await c.drop().catch(() => {});
     }

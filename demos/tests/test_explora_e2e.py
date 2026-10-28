@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import time
 from collections.abc import AsyncIterator, Iterator
 from typing import Any
 
@@ -113,6 +114,23 @@ SITE = Knowledge(
             "Atacama Explorations | Explora",
             kind="lodge",
             sections=(Section("Explorations", "Nearly fifty guided explorations."),),
+        ),
+        # The lodges' index, in the crawl's shape: one heading, and the lodges
+        # named in its text, each with an "Explore … >" link.
+        "/lodge": Page(
+            "/lodge",
+            "Lodges Archive - Explora Hotels",
+            kind="lodge",
+            sections=(
+                Section(
+                    "OUR LODGES",
+                    "Patagonia El Calafate By the glaciers. Explore El Calafate > "
+                    "Torres del Paine Granite peaks. Explore Torres del Paine > "
+                    "Sacred Valley Inca villages. Explore Sacred Valley > "
+                    "Atacama The driest desert. Explore Atacama > "
+                    "Easter Island In the Pacific. Explore Easter Island >",
+                ),
+            ),
         ),
         "/explora-expeditions": Page(
             "/explora-expeditions",
@@ -367,6 +385,20 @@ def _llm() -> ScriptedOpenAI:
                 "{show: Included with Your Stay} Everything is included."
             ),
             "Slow one.": reply(chunks=["It's an oasis.", " Truly."], chunk_delay=0.6),
+            # A dev test on 2026-10-28: his right cue streamed as a sliver
+            # ("{show"), was read as none, and the backstop's page won.
+            "Is Atacama all inclusive?": reply(
+                chunks=["{show", ": what's included", " in your stay}", " Everything is included."]
+            ),
+            # The lodges' index: one sentence names several things on it.
+            "Where are your lodges?": reply(
+                "Explora has lodges in Chile, Peru and Bolivia. "
+                "In Peru, the Sacred Valley lodge sits among Inca villages. Which suits you?"
+            ),
+            # A heading written blind, close to one the page's crawl lists.
+            "What about the nights?": reply(
+                "{show: Stargaze From Explora Observatory} At night, there's the observatory."
+            ),
         }
     )
 
@@ -525,7 +557,8 @@ ES_PATAGONIA_PAGE: dict[str, Any] = {
 async def test_an_english_page_in_a_spanish_call_is_loaded_again_in_spanish() -> None:
     """Prod call be1f5b9a: every page he opened in a Spanish call came up in
     English, and his Spanish cues all missed. The tab is asked for the page's
-    own twin, and the rest of his reply waits for it."""
+    own twin; his Spanish cue, which only the Spanish page can judge, is sent
+    as he wrote it rather than dropped against the English crawl."""
     async with _explora(_llm()) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/es/", "site_lang": "es"})
         turn = asyncio.create_task(rig.driver.user_says("Quiero ver Patagonia.", quiet_for=1.0))
@@ -534,7 +567,6 @@ async def test_an_english_page_in_a_spanish_call_is_loaded_again_in_spanish() ->
         await _until(rig, TWIN, 1)
         assert _commands(rig, TWIN) == [{"language": "es"}]
         assert [m["when"] for m in _stage(rig, "stage_move") if m["move"] == TWIN] == ["quiet"]
-        assert _cues(rig) == []
         await _page(rig, "page_changed", ES_PATAGONIA_PAGE)
         said = await turn
         check_turn(rig, said)
@@ -610,69 +642,69 @@ async def test_a_reply_opens_one_page_and_keeps_its_words() -> None:
         assert "{" not in turn.text
 
 
-async def test_a_page_cue_splits_the_reply_at_the_page_load() -> None:
-    """The words before the cue are a unit of their own; the page is opened once
-    they are said; the rest, and its cues, come after the new page reports."""
+async def test_a_page_cue_opens_the_page_at_once_and_the_reply_streams_on() -> None:
+    """The page goes the moment the cue is read (``after_words`` 0: the
+    extension keeps his voice playing through the load), in the same unit of
+    speech; the cues after it go out after it, checked against that page."""
     async with _explora(_llm()) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
         turn = await _says_while_pages_load(rig, "Patagonia.", PATAGONIA_PAGE)
-        check_turn(rig, turn, units=2)
+        check_turn(rig, turn, units=1)
         assert turn.text.startswith("Patagonia it is.")
         assert "Explora has five lodges here." in turn.text
         assert "{" not in turn.text
         navigate = _commands(rig, NAVIGATE)
-        assert navigate == [{"path": "/patagonia-travel-argentina-chile/", "after_words": 3}]
-        # Every cue after the page cue went out after the page was opened.
+        assert navigate == [{"path": "/patagonia-travel-argentina-chile/", "after_words": 0}]
         order = [
             c["command"]
             for c in rig.driver.ui_commands
             if c["command"] in ("stage_move", "stage_cue")
         ]
         assert order == ["stage_move", "stage_cue", "stage_cue"]
-        # Checked against the page that reported itself: the page's spelling,
-        # anchored to the raw words that follow each (as many as had streamed).
+        # The page's spelling, anchored to the raw words that follow each.
         cues = _cues(rig)
         assert [c["args"] for c in cues] == [["OUR PATAGONIA LUXURY TRAVEL LODGES"], ["EL CHALTÉN"]]
         assert cues[0]["at"].startswith("Explora has five lodges here. El Chaltén")
         assert cues[1]["at"].startswith("El Chaltén is for hikers.")
 
 
-async def test_the_page_being_left_reporting_again_is_not_the_new_one() -> None:
+async def test_the_page_being_left_reporting_again_is_not_the_new_one(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """The extension re-reports a page whose parts render late; that is not
-    the page he opened."""
+    the page he opened, so the reply still finds its page late."""
+    monkeypatch.setattr(explora, "_PAGE_WAIT_S", 0.6)
     async with _explora(_llm()) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
         await _page(rig, "page_changed", ATACAMA_PAGE)
         task = asyncio.create_task(rig.driver.user_says("Patagonia.", quiet_for=1.5))
-        for _ in range(200):
-            await asyncio.sleep(0.02)
-            if _commands(rig, NAVIGATE):
-                break
+        await _until(rig, NAVIGATE, 1)
         await _page(rig, "page_changed", ATACAMA_PAGE)
-        await asyncio.sleep(0.3)
-        assert _cues(rig) == []
-        await _page(rig, "page_changed", PATAGONIA_PAGE)
         turn = await task
-        check_turn(rig, turn, units=2)
-        assert _shown(rig) == ["OUR PATAGONIA LUXURY TRAVEL LODGES", "EL CHALTÉN"]
+        assert explora._PAGE_LATE["en"] in turn.text
 
 
-async def test_a_page_cue_first_opens_the_page_after_his_line() -> None:
-    """Prod call be1f5b9a: a reply that opens with a page waited 8.5 s, page
-    load and all, in silence. His own line is said, then the page goes."""
+async def test_a_page_cue_first_adds_no_line_of_its_own() -> None:
+    """A dev test on 2026-10-28: his nod, then "Let me show you.", then the
+    page — four to seven seconds from question to page. Now the reply's own
+    first words are said over the load, and nothing is added."""
     async with _explora(_llm()) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
         turn = await _says_while_pages_load(rig, "What is Explora?", HOME_PAGE)
-        check_turn(rig, turn, units=2)
-        assert turn.text.startswith(explora._PAGE_LINE["en"])
-        assert _commands(rig, NAVIGATE)[0]["path"] == "/"
-        assert _commands(rig, NAVIGATE)[0]["after_words"] == 4
+        check_turn(rig, turn, units=1)
+        assert turn.text.split() == (
+            ["Lodges", "at", "the", "edge", "of", "the", "world.", "Everything", "is", "included."]
+        )
+        assert _commands(rig, NAVIGATE) == [{"path": "/", "after_words": 0}]
         assert _shown(rig) == ["Our Destinations", "What's Included in Your Stay"]
 
 
-async def test_a_page_that_never_reports_holds_the_rest_only_so_long(
+async def test_a_page_that_never_reports_lets_him_run_ahead_only_so_far(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """His voice carries on through the load for two sentences; past them the
+    rest waits for the page, and a page that never comes is said plainly
+    (prod call be1f5b9a said a whole reply over a page that never came)."""
     monkeypatch.setattr(explora, "_PAGE_WAIT_S", 0.2)
     async with _explora(_llm()) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
@@ -680,12 +712,10 @@ async def test_a_page_that_never_reports_holds_the_rest_only_so_long(
         # is quiet for the length of the wait.
         turn = await rig.driver.user_says("Patagonia.", quiet_for=2.5)
         check_turn(rig, turn)
-        # Prod call be1f5b9a: the rest, about a page that never came, was
-        # said anyway. Now it is dropped, with its cues, for an honest line.
         assert turn.text.startswith("Patagonia it is.")
+        assert "Explora has five lodges here. El Chaltén is for hikers." in turn.text
         assert explora._PAGE_LATE["en"] in turn.text
-        assert "El Chaltén is for hikers." not in turn.text
-        assert _cues(rig) == []
+        assert "Do you love hiking?" not in turn.text
 
 
 async def test_the_page_in_front_and_an_unknown_page_open_nothing() -> None:
@@ -1199,8 +1229,8 @@ async def test_a_page_its_own_tab_bar_links_opens_though_the_crawl_lacks_it() ->
             {**EASTER_PAGE, "path": "/explora-lodge-easter-island-new/", "headings": ["OUR ROOMS"]},
         )
         assert _commands(rig, NAVIGATE)[0]["path"] == "/explora-lodge-easter-island-new/"
-        # The holding line he copied is not said; his line for the load is.
-        assert turn.text.split() == f"{explora._PAGE_LINE['en']} Here are the rooms.".split()
+        # The holding line he copied is not said, and nothing is added for the load.
+        assert turn.text.split() == ["Here", "are", "the", "rooms."]
 
 
 async def test_switch_tab_with_one_tab_moves_nothing() -> None:
@@ -1237,12 +1267,116 @@ def test_the_sub_page_named_last_is_the_one_wanted(text: str, path: str) -> None
         ("Can you go back to the other lodges available?", "/ibe/paso2", "/destinations/"),
         ("Show me all the lodges", "/", "/destinations/"),
         ("Show me the lodges", "/destinations", None),
+        # A dev test on 2026-10-28: "the lodges" asked on /lodge/ took the
+        # visitor off it, and his cues for its country headings were refused.
+        ("Walk me through the lodges", "/lodge/", None),
+        ("Walk me through the lodges", "/lodge", None),
+        ("Muéstrame los lodges", "/es/lodge/", None),
         # A place named wins over "lodges".
         ("Show me the lodges in Atacama", "/", "/lodge/atacama-lodge/"),
     ],
 )
 def test_all_the_lodges(text: str, here: str, path: str | None) -> None:
     assert asked_page(text, here) == path
+
+
+def test_a_page_that_lists_the_lodges_keeps_them() -> None:
+    assert asked_page("Show me all the lodges", "/explora-hotels", lists_lodges=True) is None
+    assert explora.listed_items(SITE.page("/lodge")) == [
+        "El Calafate",
+        "Torres del Paine",
+        "Sacred Valley",
+        "Atacama",
+        "Easter Island",
+    ]
+
+
+LODGES_PAGE: dict[str, Any] = {
+    "site": "site",
+    "url": "https://www.explora.com/lodge/",
+    "path": "/lodge/",
+    "title": "Lodges Archive - Explora Hotels",
+    "headings": ["OUR LODGES", "BOLIVIA", "CHILE", "PERU"],
+}
+
+
+async def test_the_lodges_asked_for_on_their_own_page_stay_there() -> None:
+    async with _explora(_llm()) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/lodge/"})
+        await _page(rig, "page_changed", LODGES_PAGE)
+        await rig.driver.user_says("Where are your lodges?")
+        assert _commands(rig, NAVIGATE) == []
+
+
+async def test_a_sentence_naming_several_things_rings_each_at_its_word() -> None:
+    """One-word headings the page reports (CHILE, PERU, BOLIVIA) ring, and a
+    sentence that names several gets a cue for each, in spoken order, each
+    anchored at the word that names it; the lodges the page lists by name
+    ring as words."""
+    async with _explora(_llm()) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/lodge/"})
+        await _page(rig, "page_changed", LODGES_PAGE)
+        await rig.driver.user_says("Where are your lodges?")
+        cues = _cues(rig)
+        assert [c["args"] for c in cues] == [
+            ["CHILE"],
+            ["PERU"],
+            ["BOLIVIA"],
+            ["PERU"],
+            ["Sacred Valley"],
+        ]
+        assert [c["at"].split()[0] for c in cues] == [
+            "Chile,",
+            "Peru",
+            "Bolivia.",
+            "Peru,",
+            "Sacred",
+        ]
+        # Each at its own word, not all at the sentence's start.
+        befores = [c["before"] for c in cues]
+        assert befores == sorted(befores) and len(set(befores)) == len(befores)
+        assert all(c["move"] == "core.show" for c in cues)
+
+
+def test_names_in_spoken_order_longest_first() -> None:
+    labels = [("TORRES DEL PAINE", True), ("Torres del Paine C. Reserve", True), ("PERU", True)]
+    sentence = "Torres del Paine C. Reserve is quieter, and Peru is warm."
+    assert explora.names_in(sentence, labels) == [
+        (0, "Torres del Paine C. Reserve"),
+        (sentence.index("Peru"), "PERU"),
+    ]
+    # One word of a crawled heading is not a name; a closing offer names nothing.
+    assert explora.names_in("Peru is warm.", [("PERU", False)]) == []
+    assert explora.names_in("Would Peru suit you?", labels) == []
+
+
+async def test_his_own_cue_streamed_as_slivers_keeps_him_on_the_page() -> None:
+    async with _explora(_llm()) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/"})
+        await _page(rig, "page_changed", HOME_PAGE)
+        turn = await rig.driver.user_says("Is Atacama all inclusive?")
+        assert _commands(rig, NAVIGATE) == []
+        assert _shown(rig) == ["What's Included in Your Stay"]
+        assert "Everything is included." in turn.text
+
+
+async def test_a_heading_written_blind_is_matched_to_the_crawl_before_it_is_dropped() -> None:
+    async with _explora(_llm()) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
+        await _page(rig, "page_changed", ATACAMA_PAGE)
+        await rig.driver.user_says("What about the nights?")
+        assert _shown(rig) == ["Stargaze from Explora\u2019s Observatory"]
+
+
+def test_the_prompt_walks_a_page_of_lodges_item_by_item() -> None:
+    prompt = explora._prompt(SITE)
+    assert "NAME AND CUE EACH ONE" in prompt
+    assert "{show: El Calafate} El Calafate" in prompt
+    assert "Never make up a heading for a page you have not seen." in prompt
+    assert (
+        "(names it lists: El Calafate; Torres del Paine; Sacred Valley; Atacama; Easter Island)"
+        in prompt
+    )
 
 
 def test_countries_and_hotels_are_found_by_name() -> None:
@@ -1285,6 +1419,47 @@ async def test_the_toggle_switches_and_confirms_in_the_new_language() -> None:
 )
 def test_the_language_a_line_is_in(text: str, sure: bool, lang: str | None) -> None:
     assert language_of(text, sure=sure) == lang
+
+
+# ─── A slow booking site is not a failed move ──────────────────────────────────
+
+
+async def test_a_slow_move_gets_one_holding_line_and_a_late_answer_corrects_the_unknown() -> None:
+    llm = _llm()
+    async with _explora(llm, unanswered=("explora.check_availability",)) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
+        # The brain's Stage clock (and only it) runs ahead of the wall clock.
+        ahead = [0.0]
+        rig.brain.stage._clock = lambda: time.monotonic() + ahead[0]  # type: ignore[attr-defined]
+        await rig.driver.user_says("Can I go in November? Five nights.")
+        move = next(m for m in _stage(rig, "stage_move") if m["move"].endswith("availability"))
+        # The page says it is still at it: parsed, and the move given its time again.
+        ahead[0] = 7.0
+        await _page(
+            rig,
+            "stage_progress",
+            {"call_ref": move["call_ref"], "move": move["move"], "phase": "loading", "ms": 7000},
+        )
+        await asyncio.sleep(0.7)  # the brain's look for slow moves
+        assert _idle_windows(rig)[-1] == _TALK_THROUGH_MS
+        asked = len(llm.requests)
+        turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
+        check_turn(rig, turn)
+        assert turn.text == "Still opening the booking calendar, the site is a bit slow."
+        assert len(llm.requests) == asked
+        # Its time runs out on the timer, with no turn of his: unknown.
+        ahead[0] = 7.0 + 21.0
+        await asyncio.sleep(0.5)
+        # The page answers after all: a correction for his next turn.
+        await _answer(rig, move, "applied", "the calendar for Atacama is open")
+        await asyncio.sleep(0.1)
+        await rig.driver.user_says("Carry on.")
+        seen = _texts(llm.captured_inputs[-1])
+        assert "[The page did not answer the booking site's availability" in seen
+        assert (
+            "[Correction: the booking site's availability did happen after all "
+            "(the calendar for Atacama is open)." in seen
+        )
 
 
 # ─── The committed crawl ───────────────────────────────────────────────────────

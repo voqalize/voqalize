@@ -11,6 +11,11 @@
  * jobs meant for it, and keeps them while the page loads; this page makes
  * each one and answers with its result.
  *
+ * A new page first finishes the move the last page carried to it, once the
+ * site's own scripts are up (`SiteHooks.ready`), and only then tells the
+ * holder it is `ready` for the jobs kept for it, which come in the order they
+ * were asked for. Every move's progress goes to the agent as it runs.
+ *
  * On the call button this page does what the holder cannot: it asks the
  * visitor for the extension's microphone the first time (a frame of the
  * extension's own grant page), and mints the session with `sessions.connect`
@@ -58,6 +63,10 @@ export interface SiteHooks {
   start?(emit: (event: string, payload: unknown) => void): () => void;
   /** One of the site's own Actions, sent to this page. */
   command?(command: string, payload: unknown): Promise<void> | void;
+  /** Resolves once the site's own scripts can take a press on this page.
+   *  Without it, the page waits for the document's `load` (at most
+   *  `SITE_READY_MS`). Nothing is pressed on a new page before it. */
+  ready?(): Promise<void>;
 }
 
 export type Adapter = (moves: Moves, kit: PageKit) => SiteHooks | void;
@@ -126,6 +135,9 @@ const GRANT_WAIT_MS = 90_000;
  *  (the agent waits for this page's report, which goes first); with no call,
  *  this long after the page knows there is none; and no later than the last. */
 const MOVE_AFTER_READY_MS = 300;
+/** The most a new page waits for its site's scripts (`load`, or the
+ *  adapter's `ready`) before its first move. */
+const SITE_READY_MS = 4000;
 const MOVE_WITHOUT_CALL_MS = 800;
 const MOVE_AT_THE_LATEST_MS = 10_000;
 /** A move that started a load and is still on this page this long after
@@ -176,10 +188,17 @@ async function start(config: SiteExtensionConfig): Promise<void> {
   let switchTimer: ReturnType<typeof setTimeout> | null = null;
   let keptTaken = false;
   let gone = false;
+  /** This page is ready for jobs: the site is up and the carried move done. */
+  let pageReady = false;
 
   const showing = () => document.visibilityState === "visible";
   const where = (): Where => ({ url: location.href, title: document.title, front: showing() && document.hasFocus() });
-  const hello = () => tell({ k: "hello", ...where() });
+  const hello = () => tell({ k: "hello", ready: pageReady, ...where() });
+  const markReady = () => {
+    if (pageReady) return;
+    pageReady = true;
+    tell({ k: "ready" });
+  };
 
   // ─── Stage on this page ────────────────────────────────────────────────
 
@@ -203,7 +222,11 @@ async function start(config: SiteExtensionConfig): Promise<void> {
       watchUnload(lastCarried);
     },
   };
-  const moves = new Moves(spotlight, { fixed: config.fixed, carrier });
+  const moves = new Moves(spotlight, {
+    fixed: config.fixed,
+    carrier,
+    onProgress: (progress) => tell({ k: "progress", progress }),
+  });
 
   /** A move that loaded another page and is still here a while after: the
    *  agent is told the screen has not moved, and the next page owes nothing. */
@@ -243,13 +266,15 @@ async function start(config: SiteExtensionConfig): Promise<void> {
     if (!moves.has(job.move)) {
       const url = await config.elsewhere?.(job, kit);
       if (url) {
-        await carrier.keep({ kind: "carried", call_ref: job.call_ref, move: job.move, then: { move: job.move, args: job.args } });
+        await carrier.keep({
+          kind: "carried", call_ref: job.call_ref, move: job.move, then: { move: job.move, args: job.args }, received_at: job.received_at,
+        });
         spotlight.clear();
         carrier.load(url);
         return null;
       }
     }
-    return moves.run(job.move, job.args, job.call_ref);
+    return moves.run(job.move, job.args, job.call_ref, { receivedAt: job.received_at });
   }
 
   async function perform(job: Job): Promise<StageResult | null> {
@@ -382,17 +407,42 @@ async function start(config: SiteExtensionConfig): Promise<void> {
     );
   }
 
-  /** Make the job the last page left for this one, once, `delay` from now. */
+  /** The site's own scripts are up, or `SITE_READY_MS` has passed. */
+  function siteUp(): Promise<void> {
+    const up = hooks.ready
+      ? hooks.ready().catch(() => {})
+      : document.readyState === "complete"
+        ? Promise.resolve()
+        : new Promise<void>((r) => window.addEventListener("load", () => r(), { once: true }));
+    return Promise.race([up, sleep(SITE_READY_MS)]);
+  }
+
+  /** Make the job the last page left for this one, once, `delay` from now
+   *  and with the site up; then this page is ready for the jobs the holder
+   *  kept for it, which must not overtake it. */
   function takeKept(delay: number): void {
     if (keptTaken) return;
     keptTaken = true;
-    void keptMove.then(async (then) => {
-      if (!then) return;
-      await sleep(delay);
-      const result = await perform(then);
-      if (result) send(result);
-    });
+    void keptMove
+      .then(async (then) => {
+        await sleep(delay);
+        await siteUp();
+        if (!then) return;
+        const result = await perform(then);
+        if (result) send(result);
+      })
+      .catch((error: unknown) => console.warn("voqalize:", error))
+      .finally(markReady);
   }
+
+  // The page that owes a carried move its result is up: the holder hears so
+  // at once (its wait starts again), and the agent that it is still going.
+  void keptMove.then((then) => {
+    if (then && then.kind !== "site") {
+      const since = then.received_at ?? Date.now();
+      tell({ k: "progress", progress: { call_ref: then.call_ref, move: then.move, phase: "loading", ms: Math.max(0, Date.now() - since) } });
+    }
+  });
 
   onHolder((msg) => {
     switch (msg.k) {
@@ -403,7 +453,10 @@ async function start(config: SiteExtensionConfig): Promise<void> {
       case "state":
         heard = true;
         return apply(msg);
+      case "hurry":
+        return moves.hurry();
       case "perform":
+        if (msg.job.kind === "site") tell({ k: "started", id: msg.id });
         void perform(msg.job).then((result) => {
           // A move handed to the next page: its result is that page's.
           if (msg.job.kind !== "site" && result === null) return tell({ k: "done", id: msg.id, result: null, deferred: true });

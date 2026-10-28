@@ -59,7 +59,24 @@ let spot: Spotlight | null = null;
 /** Ring `target` (one element, or several as one box) and hold the move a
  *  beat: what it acts on next is already ringed. */
 function ring(target: Element | Element[]): Promise<void> {
-  return spot?.ring(target) ?? Promise.resolve();
+  // Through the running move's context when there is one: the brain hears
+  // it is ringing (its time given again) and the result says when it rang.
+  return current ? current.ring(target) : (spot?.ring(target) ?? Promise.resolve());
+}
+
+/** The move running now (Stage runs one at a time), set by `live`. */
+let current: MoveContext | null = null;
+
+/** `fn`, with its rings through its own move's context. */
+function live<A, R>(fn: (args: A, c: MoveContext) => Promise<R>): (args: A, c: MoveContext) => Promise<R> {
+  return async (args, c) => {
+    current = c;
+    try {
+      return await fn(args, c);
+    } finally {
+      if (current === c) current = null;
+    }
+  };
 }
 
 /** The page's own content, as the crawler reads it. */
@@ -868,16 +885,18 @@ export const exploraAdapter: Adapter = (moves, kit) => {
   spot = kit.spotlight;
   styleThePage();
   rememberHere();
-  moves.register<{ target: string | null }>(MOVE.show, "look", (a, c) => showSection({ heading: a.target }, c), {
+  moves.register<{ target: string | null }>(MOVE.show, "look", live((a, c) => showSection({ heading: a.target }, c)), {
     params: ["target"],
   });
-  moves.register<{ question: string }>(MOVE.faq, "look", (a, c) => openFaq(a, c), { params: ["question"] });
-  moves.register<NavigateArgs>(MOVE.navigate, "navigate", (a, c) => navigate(a, c, kit));
-  moves.register<{ language: Lang }>(MOVE.twin, "navigate", twin);
-  moves.register<CheckAvailabilityArgs>(MOVE.checkAvailability, "reversible", (a, c) =>
-    toBooking(MOVE.checkAvailability, a, c, kit),
+  moves.register<{ question: string }>(MOVE.faq, "look", live((a, c) => openFaq(a, c)), { params: ["question"] });
+  moves.register<NavigateArgs>(MOVE.navigate, "navigate", live((a, c) => navigate(a, c, kit)));
+  moves.register<{ language: Lang }>(MOVE.twin, "navigate", live(twin));
+  moves.register<CheckAvailabilityArgs>(
+    MOVE.checkAvailability,
+    "reversible",
+    live((a, c) => toBooking(MOVE.checkAvailability, a, c, kit)),
   );
-  moves.register<FillEnquiryArgs>(MOVE.fillEnquiry, "reversible", (a, c) => toBooking(MOVE.fillEnquiry, a, c, kit));
+  moves.register<FillEnquiryArgs>(MOVE.fillEnquiry, "reversible", live((a, c) => toBooking(MOVE.fillEnquiry, a, c, kit)));
   moves.register(MOVE.chooseRoom, "reversible", async () => {
     throw new Error("the rooms are not open: check a lodge's availability through to its rooms first");
   });

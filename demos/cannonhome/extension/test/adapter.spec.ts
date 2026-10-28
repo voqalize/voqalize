@@ -197,15 +197,29 @@ test.describe("the filter and sort cues", () => {
 });
 
 test.describe("filter_listing", () => {
-  test("applies the pills by request variable and option title, waits for each grid, and sorts", async ({ page }) => {
-    await serveSite(page);
+  test("several options: each ringed, then one load of the address that has them all, checked there, and sorted", async ({ page }) => {
+    const seen = await serveSite(page);
     await open(page, CATEGORY);
-    await listen(page);
-    const result = await run(page, "filter_listing", {
+    await page.evaluate(() => {
+      // The rings drawn before the page goes: one box per option.
+      let most = 0;
+      setInterval(() => {
+        const n = document.querySelector("[data-voqalize=spotlight]")?.shadowRoot?.querySelectorAll(".ring").length ?? 0;
+        if (n > most) sessionStorage.setItem("__rings", String((most = n)));
+      }, 20);
+    });
+    await runAway(page, "filter_listing", {
       category_path: CATEGORY, size: "2 plazas", color: "blanco", threads: null, material: null, sort: "price_asc",
     });
-    expect(result.ok, result.error).toBe(true);
+    await page.waitForURL(/tamano=5624&color=6889/);
+    await listen(page);
+    const done = await waitForEvent(page, "stage_result");
+    expect(done.payload).toMatchObject({ move: "filter_listing", outcome: "applied" });
+    const result = { detail: String(done.payload.detail) };
     expect(result.detail).toContain("applied size 2 Plazas, color Blanco, sorted price_asc");
+    // One load for both, and no press on an option.
+    expect(seen.pages).toContain(`${CATEGORY}?tamano=5624&color=6889`);
+    expect(await page.evaluate(() => sessionStorage.getItem("__rings"))).toBe("2");
     await expect(page.locator('.qf__group[data-qf-request-var="tamano"] a.qf__option-link.-active')).toHaveAttribute("title", "2 Plazas");
     await expect(page.locator('.qf__group[data-qf-request-var="color"] a.qf__option-link.-active')).toHaveAttribute("title", "Blanco");
     expect(await page.inputValue("select#sorter")).toBe("price_asc");
@@ -250,6 +264,54 @@ test.describe("filter_listing", () => {
     expect(String(done.payload.detail)).toContain("applied size King");
     expect(seen.pages).toContain(CATEGORY);
     await expect(page.locator('.qf__group[data-qf-request-var="tamano"] a.qf__option-link.-active')).toHaveAttribute("title", "King");
+  });
+
+  test("some options applied and one the listing lacks: a partial outcome, with what it offers", async ({ page }) => {
+    await serveSite(page);
+    await open(page, CATEGORY);
+    await runAway(page, "filter_listing", { category_path: CATEGORY, size: "King", color: "Blanco", threads: "999", material: null, sort: null });
+    await page.waitForURL(/tamano=5625&color=6889/);
+    await listen(page);
+    const done = await waitForEvent(page, "stage_result");
+    expect(done.payload).toMatchObject({ move: "filter_listing", outcome: "partial" });
+    expect(String(done.payload.detail)).toMatch(/^applied size King, color Blanco; /);
+    const refused = done.payload.refused as { arg: string; why: string; options?: string[] }[];
+    expect(refused).toHaveLength(1);
+    expect(refused[0]).toMatchObject({ arg: "threads", why: 'no threads "999" here' });
+    expect((refused[0].options ?? []).join(", ")).toContain("300 hilos");
+  });
+});
+
+test.describe("a filter pressed before the store's filter scripts are up", () => {
+  test("waits for them, then presses once: the grid changes", async ({ page }) => {
+    await page.addInitScript(() => {
+      (window as unknown as { __qfLate: number }).__qfLate = 1500;
+    });
+    await serveSite(page);
+    await open(page, CATEGORY);
+    const result = await run(page, "listing.filter", ["tamano", "King", CATEGORY]);
+    expect(result.ok, result.error).toBe(true);
+    expect(result.detail).toContain("Tamaño King applied");
+    expect(await page.evaluate(() => (window as unknown as { __deadPresses?: number }).__deadPresses ?? 0)).toBe(0);
+    await expect(page.locator('.qf__group[data-qf-request-var="tamano"] a.qf__option-link.-active')).toHaveAttribute("title", "King");
+  });
+
+  test("a press that changes nothing loads the option's own address, and the move finishes there", async ({ page }) => {
+    await page.addInitScript(() => {
+      (window as unknown as { __qfDead: boolean }).__qfDead = true;
+    });
+    const seen = await serveSite(page);
+    await open(page, CATEGORY);
+    const started = Date.now();
+    await runAway(page, "listing.filter", ["tamano", "King", CATEGORY]);
+    await page.waitForURL(/20-sabanas\/king_1$/);
+    await listen(page);
+    const done = await waitForEvent(page, "stage_result");
+    expect(done.payload).toMatchObject({ move: "listing.filter", outcome: "applied" });
+    expect(String(done.payload.detail)).toContain("Tamaño King applied");
+    expect(seen.pages).toContain(`${CATEGORY}/king_1`);
+    // About 3 s of nothing, not the 13 s the grid wait used to take.
+    expect(Date.now() - started).toBeLessThan(9000);
   });
 });
 
@@ -978,6 +1040,7 @@ test.describe("fill_checkout", () => {
     expect(early.error).toContain("choose the región first");
     const wrong = await run(page, "fill_checkout", { region: "Valparaíso", comuna: "Providencia" });
     expect(wrong.ok).toBe(true);
+    expect(wrong.result?.outcome).toBe("partial");
     expect(wrong.detail).toContain("filled región Valparaíso; not filled: comuna: no comuna \"Providencia\" in the form's list; it lists Quilpué, Valparaíso, Viña del Mar");
     const region = await run(page, "fill_checkout", { region: "Atlántida" });
     expect(region.ok).toBe(false);

@@ -147,7 +147,11 @@ def test_expire_reports_unknown_and_frees_the_queue() -> None:
     assert (late.call_ref, late.move, late.outcome) == ("c1", "core.page", "unknown")
     assert late.detail is not None and "cart.add" in late.detail
     assert stage.queued is None and len(sent) == 1
-    # Its answer, arriving after, is not a second result.
+    # Its answer, arriving after, corrects the unknown once, marked late, and
+    # sends nothing that was dropped; a second copy is a duplicate.
+    corrected = stage.handle(_result("c1", "core.page", detail="Rooms open"))
+    assert corrected is not None and corrected.late and corrected.outcome == "applied"
+    assert len(sent) == 1
     assert stage.handle(_result("c1", "core.page")) is None
 
 

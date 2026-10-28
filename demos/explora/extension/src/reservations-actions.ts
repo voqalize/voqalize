@@ -69,8 +69,13 @@ let spot: Spotlight | null = null;
 /** Ring `target` (one element, several as one box, or each on its own with
  *  `separate`) and hold the move a beat: what it acts on next is ringed. */
 function ring(target: Element | Element[], opts: { separate?: boolean } = {}): Promise<void> {
-  return spot?.ring(target, opts) ?? Promise.resolve();
+  // Through the running move's context when there is one: the brain hears
+  // it is ringing (its time given again) and the result says when it rang.
+  return current ? current.ring(target, opts) : (spot?.ring(target, opts) ?? Promise.resolve());
 }
+
+/** The move running now (Stage runs one at a time), set by `held`. */
+let current: MoveContext | null = null;
 
 /** How many open arrival days a `stay_state` carries. */
 const OPEN_DAYS_MAX = 60;
@@ -1106,10 +1111,12 @@ async function navigate(args: NavigateArgs, c: MoveContext, kit: PageKit): Promi
 function held<A>(fn: (args: A, c: MoveContext) => Promise<string>): (args: A, c: MoveContext) => Promise<string> {
   return async (args, c) => {
     busy++;
+    current = c;
     try {
       return await fn(args, c);
     } finally {
       busy--;
+      if (current === c) current = null;
     }
   };
 }

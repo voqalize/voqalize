@@ -5,7 +5,11 @@ answer back. Cues come out of the reply as the voice streams it
 (:meth:`Stage.cued`); tool moves are sent by :meth:`Stage.send`, one at a time
 when their class says so; each answer arrives at :meth:`Stage.handle`; and a
 move the page never answered comes back from :meth:`Stage.expire` as
-``unknown``. Every move has a ``call_ref`` this director mints, and gets exactly
+``unknown`` (run it on a timer with :meth:`Stage.watch`, or read
+:meth:`Stage.next_deadline`). A page that answers after that is not ignored:
+its result comes back marked ``late``, so the brain can correct what it said.
+A move that is slow says so with :class:`~voqalize.sdk.stage.StageProgress`,
+each of which gives it its time again. Every move has a ``call_ref`` this director mints, and gets exactly
 one final :class:`~voqalize.sdk.stage.StageResult` — under that ``call_ref``
 and its own move id, also when the page carried it on to the next page and
 finished it there. A cue the director could not send is not silent either:
@@ -17,11 +21,14 @@ result is the brain's to write, from what :meth:`Stage.handle` returns.
 
 from __future__ import annotations
 
+import asyncio
+import dataclasses
+import inspect
 import time
-from collections.abc import AsyncGenerator, Callable, Iterable, Mapping
+from collections.abc import AsyncGenerator, Awaitable, Callable, Iterable, Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import Literal
+from typing import Literal, overload
 
 from loguru import logger
 
@@ -30,16 +37,28 @@ from ..events import Speech, SpeechChunk, SpeechStart
 from .cues import AutoCues, CueParser, RawCue
 from .moves import Move, MoveSet
 from .policy import POLICY, MoveClass
-from .wire import STAGE_CONTRACT, StageCue, StageHello, StageMove, StageResult
+from .wire import (
+    STAGE_CONTRACT,
+    Phase,
+    StageCue,
+    StageHello,
+    StageMove,
+    StageProgress,
+    StageResult,
+)
 
 __all__ = [
     "CUE_WAIT_S",
+    "FINISHED_KEEP_S",
+    "HOLDING_LINE_S",
     "RESULT_TIMEOUTS",
     "ArgValue",
     "Dropped",
     "OnDrop",
+    "OnProgress",
     "Refused",
     "Resolve",
+    "Running",
     "Stage",
 ]
 
@@ -61,6 +80,22 @@ Dropped = Literal["unresolved", "unknown_verb", "too_many_args"]
 
 #: ``(cue, why)``: told of every cue the reply wrote that was not sent.
 OnDrop = Callable[[RawCue, Dropped], None]
+
+#: Told of every :class:`StageProgress` for a move still running.
+OnProgress = Callable[[StageProgress], None]
+
+#: How long a finished or expired ``call_ref`` is remembered: a result that
+#: arrives within this after its move was reported ``unknown`` comes back
+#: ``late``, and a duplicate is told from a stranger.
+FINISHED_KEEP_S = 60.0
+
+#: A confirmed or reversible move running this long is worth one written line
+#: from the brain (:meth:`Stage.holding`), so the silence is not taken for a
+#: failure.
+HOLDING_LINE_S = 6.0
+
+#: How often :meth:`Stage.watch` looks, at most, with nothing due sooner.
+_WATCH_POLL_S = 0.25
 
 #: How long the page has to answer a move, by its class, unless the brain says
 #: otherwise: a look is quick, a page load is slow (a site's ``load`` can take
@@ -90,6 +125,18 @@ class Refused(Exception):
         super().__init__(f"{move} is already {why}" + (f" ({call_ref})" if call_ref else ""))
 
 
+@dataclass(frozen=True, slots=True)
+class Running:
+    """One move still waiting for its result, for the brain to describe."""
+
+    move: Move
+    call_ref: str
+    phase: Phase | None
+    """The last phase the page reported, or ``None`` before any."""
+    seconds: float
+    """How long since it was sent."""
+
+
 @dataclass(slots=True)
 class _Flight:
     call_ref: str
@@ -97,6 +144,20 @@ class _Flight:
     args: dict[str, ArgValue] | None
     """A tool move's arguments; ``None`` for a cue."""
     deadline: float
+    sent_at: float = 0.0
+    phase: Phase | None = None
+    held: bool = False
+    """Whether :meth:`Stage.holding` already handed it out."""
+
+
+@dataclass(slots=True)
+class _Finished:
+    move: Move
+    at: float
+    expired: bool
+    """Reported ``unknown`` by :meth:`Stage.expire`, rather than answered."""
+    corrected: bool = False
+    """A late result for it was already handed back."""
 
 
 @dataclass(slots=True)
@@ -119,6 +180,7 @@ class Stage:
     class, whose missing classes keep :data:`RESULT_TIMEOUTS`. ``on_drop``
     is told of every cue the reply wrote that was not sent, with why — so a
     brain can say so rather than let the voice claim a move that never went.
+    ``on_progress`` is told of every :class:`StageProgress` for a running move.
     """
 
     def __init__(
@@ -130,6 +192,7 @@ class Stage:
         backstop: AutoCues | None = None,
         result_timeout_s: float | Mapping[MoveClass, float] = RESULT_TIMEOUTS,
         on_drop: OnDrop | None = None,
+        on_progress: OnProgress | None = None,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._dispatch = dispatch
@@ -141,11 +204,12 @@ class Stage:
         else:
             self._timeouts = dict.fromkeys(MoveClass, float(result_timeout_s))
         self._on_drop = on_drop
+        self._on_progress = on_progress
         self._clock = clock
         self._n = 0
         self._flights: dict[str, _Flight] = {}
         self._refs: dict[str, Move] = {}
-        self._done: set[str] = set()
+        self._finished: dict[str, _Finished] = {}
         self._running: str | None = None
         self._queued: _Queued | None = None
         self.hello: StageHello | None = None
@@ -183,7 +247,13 @@ class Stage:
             await turn.aclose()
 
     def _parser(self, unit: int) -> CueParser:
-        return CueParser(self.moves.verbs, self._backstop, unit=unit, on_unknown=self._unknown_verb)
+        return CueParser(
+            self.moves.verbs,
+            self._backstop,
+            unit=unit,
+            on_unknown=self._unknown_verb,
+            check=self._check,
+        )
 
     def timeout(self, cls: MoveClass) -> float:
         """How long the page has to answer a move of class ``cls``."""
@@ -193,8 +263,50 @@ class Stage:
         self._drop(raw, "unknown_verb")
 
     def _drop(self, raw: RawCue, why: Dropped) -> None:
+        logger.info(
+            "stage: dropped {} ({}){} in {!r}",
+            _written(raw),
+            why,
+            " (backstop)" if raw.auto else "",
+            raw.sentence,
+        )
         if self._on_drop is not None:
             self._on_drop(raw, why)
+
+    def _admit(self, raw: RawCue) -> tuple[Move, list[str]] | None:
+        """The move a cue names and its arguments resolved, or ``None`` when it
+        is dropped (``on_drop`` told)."""
+        move = self.moves.by_verb(raw.verb)
+        if move is None:
+            self._drop(raw, "unknown_verb")
+            return None
+        if len(raw.args) > len(move.args):
+            self._drop(raw, "too_many_args")
+            return None
+        args: list[str] | None
+        if raw.resolved is not None:
+            args = list(raw.resolved)
+        elif self._resolve is not None:
+            args = self._resolve(move, list(raw.args))
+        else:
+            args = list(raw.args)
+        if args is None:
+            self._drop(raw, "unresolved")
+            return None
+        return move, args
+
+    def _check(self, raw: RawCue) -> RawCue | None:
+        """The parser's say on one of the model's cues once its sentence is
+        done: resolved now, so that one the page will never get leaves the
+        sentence to the backstop. Resolved once: not again when sent. The
+        cue's ``args`` stay as written; the resolved ones ride in
+        ``resolved``."""
+        admitted = self._admit(raw)
+        if admitted is None:
+            return None
+        # The arguments as the model wrote them stay on the cue: only the
+        # page gets the resolved ones.
+        return dataclasses.replace(raw, resolved=tuple(admitted[1]))
 
     def _cue_all(self, raw: list[RawCue]) -> None:
         for cue in raw:
@@ -202,40 +314,28 @@ class Stage:
 
     def cue(self, raw: RawCue) -> str | None:
         """Resolve one cue and send it; its ``call_ref``, or ``None`` when it
-        was dropped. :meth:`cued` calls this for every cue it parses."""
-        move = self.moves.by_verb(raw.verb)
-        if move is None:
-            logger.info("stage: cue {} is no move; dropped", raw.verb)
-            self._drop(raw, "unknown_verb")
+        was dropped. :meth:`cued` calls this for every cue it parses. A cue the
+        parser already resolved (``raw.resolved``) is not resolved again. The
+        page gets the resolved arguments; ``raw.args`` — what a brain shows the
+        model of its own cue — stays as the model wrote it."""
+        admitted = self._admit(raw)
+        if admitted is None:
             return None
-        if len(raw.args) > len(move.args):
-            logger.info(
-                "stage: cue {} has {} arguments, {} takes {}; dropped",
-                raw.verb,
-                len(raw.args),
-                move.id,
-                len(move.args),
-            )
-            self._drop(raw, "too_many_args")
-            return None
-        args: list[str] | None = list(raw.args)
-        if self._resolve is not None:
-            args = self._resolve(move, args)
-        if args is None:
-            logger.info("stage: cue {} {} names nothing on the page; dropped", raw.verb, raw.args)
-            self._drop(raw, "unresolved")
-            return None
+        move, args = admitted
         ref = self._mint(move)
-        deadline = self._clock() + CUE_WAIT_S + self.timeout(move.cls)
-        self._flights[ref] = _Flight(ref, move, None, deadline)
+        now = self._clock()
+        deadline = now + CUE_WAIT_S + self.timeout(move.cls)
+        self._flights[ref] = _Flight(ref, move, None, deadline, sent_at=now)
         logger.info(
-            "stage: {} cue {} {} at {!r} before {}{}",
+            "stage: {} cue {} as {} {} at {!r} before {}{} in {!r}",
             ref,
+            _written(raw),
             move.id,
             args,
             raw.at,
             raw.before,
             " (backstop)" if raw.auto else "",
+            raw.sentence,
         )
         self._dispatch(
             StageCue(
@@ -296,7 +396,8 @@ class Stage:
 
     def _send(self, move: Move, args: dict[str, ArgValue], when: Literal["now", "quiet"]) -> str:
         ref = self._mint(move)
-        self._flights[ref] = _Flight(ref, move, args, self._clock() + self.timeout(move.cls))
+        now = self._clock()
+        self._flights[ref] = _Flight(ref, move, args, now + self.timeout(move.cls), sent_at=now)
         if POLICY[move.cls].serial:
             self._running = ref
         logger.info("stage: {} move {} {} ({})", ref, move.id, args, when)
@@ -332,7 +433,15 @@ class Stage:
 
     # ─── answers ───────────────────────────────────────────────────────────
 
-    def handle(self, event: StageResult | StageHello) -> StageResult | None:
+    @overload
+    def handle(self, event: StageResult) -> StageResult | None: ...
+    @overload
+    def handle(self, event: StageHello) -> None: ...
+    @overload
+    def handle(self, event: StageProgress) -> StageProgress | None: ...
+    def handle(
+        self, event: StageResult | StageHello | StageProgress
+    ) -> StageResult | StageProgress | None:
         """Fold an answer from the page.
 
         A final result clears its move, sends the queued move if the running
@@ -342,8 +451,14 @@ class Stage:
         is as received). A result with ``moved`` set is interim — the next page
         finishes the move — and comes back without clearing it, its time
         started again. The result comes back under the move this ``call_ref``
-        was minted for, whichever page answered it. A duplicate, a result after
-        its move expired, or a hello returns ``None``.
+        was minted for, whichever page answered it.
+
+        A result for a move :meth:`expire` already reported ``unknown`` comes
+        back once, with ``late`` set: what the page did after all, for the
+        brain to correct itself ("King is applied after all"). A
+        :class:`StageProgress` for a running move gives it its time again and
+        comes back (``on_progress`` is told too). A duplicate, a stranger, a
+        progress for a move no longer running, or a hello returns ``None``.
         """
         if isinstance(event, StageHello):
             self.hello = event
@@ -357,53 +472,170 @@ class Stage:
             else:
                 logger.info("stage: hello from {} at {}", event.runtime, event.url)
             return None
+        if isinstance(event, StageProgress):
+            return self._progress(event)
         f = self._flights.get(event.call_ref)
         if f is None:
-            why = "after it was answered or expired" if event.call_ref in self._done else "unknown"
-            logger.info("stage: result for {} ({}) {}; ignored", event.call_ref, event.move, why)
-            return None
+            return self._late(event)
         if event.move != f.move.id:
             logger.info(
                 "stage: {} answered as {}, minted for {}", f.call_ref, event.move, f.move.id
             )
             event = event.model_copy(update={"move": f.move.id})
         if event.moved:
-            f.deadline = self._clock() + self.timeout(f.move.cls)
+            f.deadline = max(f.deadline, self._clock() + self.timeout(f.move.cls))
             logger.info("stage: {} {} moved on to another page", f.call_ref, f.move.id)
             return event
-        logger.info(
-            "stage: {} {} -> {}{}",
-            f.call_ref,
-            f.move.id,
-            event.outcome,
-            f": {event.detail}" if event.detail else "",
-        )
+        self._log_result(f.call_ref, f.move, event, self._clock() - f.sent_at)
         note = self._land(f, landed=event.outcome in _LANDED)
         if note:
             detail = f"{event.detail} ({note})" if event.detail else note
             return event.model_copy(update={"detail": detail})
         return event
 
+    def _late(self, event: StageResult) -> StageResult | None:
+        """A result for a move no longer in flight: once, marked ``late``, when
+        :meth:`expire` reported it ``unknown``; otherwise ``None``."""
+        self._prune()
+        done = self._finished.get(event.call_ref)
+        if done is None:
+            logger.info("stage: result for {} ({}) unknown; ignored", event.call_ref, event.move)
+            return None
+        if not done.expired or done.corrected:
+            logger.info(
+                "stage: result for {} ({}) after it was answered; ignored",
+                event.call_ref,
+                event.move,
+            )
+            return None
+        event = event.model_copy(update={"move": done.move.id, "late": True})
+        if event.moved:
+            logger.info("stage: {} {} moved on, after it expired", event.call_ref, done.move.id)
+            return event
+        done.corrected = True
+        self._log_result(event.call_ref, done.move, event, None)
+        return event
+
+    def _progress(self, event: StageProgress) -> StageProgress | None:
+        f = self._flights.get(event.call_ref)
+        if f is None:
+            logger.debug("stage: progress for {} ({}) not running", event.call_ref, event.phase)
+            return None
+        f.phase = event.phase
+        f.deadline = max(f.deadline, self._clock() + self.timeout(f.move.cls))
+        if event.move != f.move.id:
+            event = event.model_copy(update={"move": f.move.id})
+        logger.info(
+            "stage: {} {} {} at {} ms on the page", f.call_ref, f.move.id, event.phase, event.ms
+        )
+        if self._on_progress is not None:
+            self._on_progress(event)
+        return event
+
+    @staticmethod
+    def _log_result(ref: str, move: Move, r: StageResult, took: float | None) -> None:
+        times = [
+            f"{name} {value}"
+            for name, value in (
+                ("received", r.received_ms),
+                ("queued", r.queued_ms),
+                ("fired", r.fired_ms),
+                ("ringed", r.ringed_ms),
+                ("lag", r.lag_ms),
+            )
+            if value is not None
+        ]
+        logger.info(
+            "stage: {} {} -> {}{}{}{} [{} ms acting{}{}{}]",
+            ref,
+            move.id,
+            r.outcome,
+            " (late)" if r.late else "",
+            f": {r.detail}" if r.detail else "",
+            f" refused {[x.arg for x in r.refused]}" if r.refused else "",
+            r.ms,
+            f"; {r.fired}" if r.fired else "",
+            f"; {', '.join(times)} ms" if times else "",
+            f"; sent to answered {took * 1000:.0f} ms" if took is not None else "",
+        )
+
     def expire(self) -> list[StageResult]:
         """Every move whose answer is overdue, as an ``unknown`` result, oldest
-        first. Call it from a periodic tick, or at the start of each turn."""
+        first. Call it often — :meth:`watch` does — or at the start of each
+        turn: a move is reported no later than the gap between calls."""
         now = self._clock()
         out: list[StageResult] = []
         for f in [f for f in self._flights.values() if f.deadline <= now]:
-            logger.warning("stage: {} {} never answered; unknown", f.call_ref, f.move.id)
+            logger.warning(
+                "stage: {} {} never answered (last phase {}); unknown",
+                f.call_ref,
+                f.move.id,
+                f.phase or "none",
+            )
             detail = "the page did not answer in time"
-            if note := self._land(f, landed=False):
+            if note := self._land(f, landed=False, expired=True):
                 detail = f"{detail} ({note})"
             out.append(
                 StageResult(call_ref=f.call_ref, move=f.move.id, outcome="unknown", detail=detail)
             )
         return out
 
-    def _land(self, f: _Flight, *, landed: bool) -> str | None:
+    def next_deadline(self) -> float | None:
+        """When, on this director's clock, the next move falls due for
+        :meth:`expire`; ``None`` with nothing in flight."""
+        return min((f.deadline for f in self._flights.values()), default=None)
+
+    async def watch(
+        self,
+        on_expired: Callable[[StageResult], Awaitable[None] | None],
+        *,
+        poll_s: float = _WATCH_POLL_S,
+        sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+    ) -> None:
+        """Run :meth:`expire` as each deadline falls, for as long as the task
+        lives, and hand each ``unknown`` result to ``on_expired``. Start it
+        once per session (``asyncio.create_task(stage.watch(...))``) and cancel
+        it at the end; nothing is reported more than ``poll_s`` late."""
+        while True:
+            due = self.next_deadline()
+            wait = poll_s if due is None else min(poll_s, max(0.0, due - self._clock()))
+            await sleep(wait)
+            for result in self.expire():
+                got = on_expired(result)
+                if inspect.isawaitable(got):
+                    await got
+
+    def running(self) -> list[Running]:
+        """Every move still waiting for its result, oldest first, with the
+        phase the page last reported: what the brain can describe ("still
+        loading the rooms page")."""
+        now = self._clock()
+        return [
+            Running(f.move, f.call_ref, f.phase, now - f.sent_at)
+            for f in sorted(self._flights.values(), key=lambda f: f.sent_at)
+        ]
+
+    def holding(self, after_s: float = HOLDING_LINE_S) -> list[Running]:
+        """The confirmed and reversible moves running longer than ``after_s``
+        that this has not handed out before: each is worth one written holding
+        line from the brain, once, so a slow move is not heard as a failed one."""
+        now = self._clock()
+        out: list[Running] = []
+        for f in sorted(self._flights.values(), key=lambda f: f.sent_at):
+            if f.held or f.move.cls not in (MoveClass.CONFIRMED, MoveClass.REVERSIBLE):
+                continue
+            if now - f.sent_at < after_s:
+                continue
+            f.held = True
+            out.append(Running(f.move, f.call_ref, f.phase, now - f.sent_at))
+        return out
+
+    def _land(self, f: _Flight, *, landed: bool, expired: bool = False) -> str | None:
         """Retire ``f``; if it was the running move, send or drop the queued
         one. Returns a note when the queued move was dropped."""
         del self._flights[f.call_ref]
-        self._done.add(f.call_ref)
+        self._prune()
+        self._finished[f.call_ref] = _Finished(f.move, self._clock(), expired)
         if self._running != f.call_ref:
             return None
         self._running = None
@@ -417,8 +649,18 @@ class Stage:
         logger.info("stage: {} did not land; the queued {} is dropped", f.move.id, queued.move.id)
         return f"so {queued.move.id}, asked for while it ran, was not sent"
 
+    def _prune(self) -> None:
+        cut = self._clock() - FINISHED_KEEP_S
+        for ref in [r for r, d in self._finished.items() if d.at < cut]:
+            del self._finished[ref]
+
     def _mint(self, move: Move) -> str:
         self._n += 1
         ref = f"c{self._n}"
         self._refs[ref] = move
         return ref
+
+
+def _written(raw: RawCue) -> str:
+    """A cue as the model wrote it, for the logs."""
+    return f"{{{raw.verb}: {' | '.join(raw.args)}}}" if raw.args else f"{{{raw.verb}}}"

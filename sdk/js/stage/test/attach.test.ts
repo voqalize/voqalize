@@ -90,7 +90,13 @@ describe("attachStage", () => {
     f.emit("botStartedSpeaking");
     f.emit("botOutput", { text: "and the rooms are wide" });
     await vi.advanceTimersByTimeAsync(10);
-    expect(f.sent[0]).toMatchObject({ event: "stage_result", payload: { call_ref: "k1", outcome: "applied", detail: "showed Rooms" } });
+    // Progress first (never final), then the one result, saying how it fired.
+    expect(f.sent.map((s) => s.event)).toEqual(["stage_progress", "stage_result"]);
+    expect(f.sent[0]).toMatchObject({ payload: { call_ref: "k1", phase: "acting" } });
+    expect(f.sent[1]).toMatchObject({
+      event: "stage_result",
+      payload: { call_ref: "k1", outcome: "applied", detail: "showed Rooms", fired: "anchor", lag_ms: 0 },
+    });
     p.detach();
   });
 });

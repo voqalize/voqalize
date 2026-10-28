@@ -18,7 +18,13 @@
  *     made on the tab in front, and one `stage_result` per move back to the
  *     agent; the site's own Actions, routed the same way;
  *   - the jobs meant for a tab whose page is loading, kept until that tab's
- *     next page says hello;
+ *     next page is ready for them: up, its site's scripts going, and the
+ *     move the last page carried to it finished — so they run after it, in
+ *     the order they came. A job that page took and never started, because
+ *     the page went, goes to the next page the same way; one it started is
+ *     `unknown`, never `applied`;
+ *   - each move's progress, passed to the agent, so a move that is slow is
+ *     not taken for one that failed;
  *   - the moves a page carried to its next page (`loadThen`, `keep`): each is
  *     owed one final result from there, and fails when no page reports it in
  *     time.
@@ -30,8 +36,8 @@
  */
 
 import { type Attached, attachStage, type ClientHandler, interruptedResult, staleResult, type StageClient } from "../attach";
-import { Timeline } from "../timeline";
-import { sendAppEvent, type StageCue, type StageMove, type StageResult } from "../wire.gen";
+import { type FireInfo, Timeline, withFire } from "../timeline";
+import { sendAppEvent, type StageCue, type StageMove, type StageProgress, type StageResult } from "../wire.gen";
 import { CatchUp } from "./catch-up";
 import type { CallState, FromPage, HolderAsk, Job, MicState, ToPage } from "./protocol";
 import { PORT } from "./protocol";
@@ -72,6 +78,9 @@ const PENDING_MS = 20_000;
 const MOVE_MS = 45_000;
 /** A move carried to the next page is answered from there within this. */
 const CARRIED_MS = PENDING_MS;
+/** A page that said hello and never said it is ready gets its jobs anyway
+ *  after this (a page that cannot say so). */
+const READY_WAIT_MS = 25_000;
 /** A tab whose page went away and never came back is forgotten after this. */
 const AWAY_MS = 20_000;
 /** How long a language asked for on the toggle waits for the agent's answer. */
@@ -149,8 +158,8 @@ interface Tab {
 type Ended =
   | { k: "result"; result: StageResult | null; deferred?: boolean }
   | { k: "failed"; why: string }
-  // The page went away with it (it loaded another), or never answered.
-  | { k: "gone" }
+  // The page went away with it (it loaded another) after starting it.
+  | { k: "gone"; started: boolean }
   | { k: "timeout" };
 
 interface Running {
@@ -160,7 +169,13 @@ interface Running {
   port: Port | null;
   timer: ReturnType<typeof setTimeout>;
   resolve: (ended: Ended) => void;
+  /** The page began it (it rang or acted, or began a site job). */
+  started: boolean;
+  /** Sent on to the next page once already, its first page gone. */
+  requeued: boolean;
 }
+
+const refOf = (job: Job): string | null => (job.kind === "site" ? null : job.call_ref);
 
 export function startHolder(site: SiteConfig, config: HolderConfig): void {
   const audio = (document.getElementById("bot") as HTMLAudioElement | null) ?? document.body.appendChild(document.createElement("audio"));
@@ -170,6 +185,11 @@ export function startHolder(site: SiteConfig, config: HolderConfig): void {
 
   const tabs = new Map<number, Tab>();
   const listening = new WeakSet<Port>();
+  /** Pages ready for jobs (`ready`), and the wait for one that never says so. */
+  const readyPorts = new WeakSet<Port>();
+  const readyWaits = new WeakMap<Port, ReturnType<typeof setTimeout>>();
+  /** When each cue reached the holder, for its timings. */
+  const cueReceived = new Map<string, number>();
   const inFlight = new Map<number, Running>();
   const pending = new Map<number, Running[]>();
   let nextJob = 1;
@@ -315,22 +335,96 @@ export function startHolder(site: SiteConfig, config: HolderConfig): void {
     post(port, { k: "perform", id: job.id, job: job.job });
   }
 
+  /** The tab's newest page that is ready for jobs. */
   function newest(tab: number): Port | null {
-    const ports = [...(tabs.get(tab)?.ports ?? [])].filter((p) => listening.has(p));
+    const ports = [...(tabs.get(tab)?.ports ?? [])].filter((p) => listening.has(p) && readyPorts.has(p));
     return ports.length ? ports[ports.length - 1]! : null;
   }
 
-  /** Make a job on tab `to`: at once when its page is up, else on its next
-   *  page's hello. */
+  /** Whether the tab has a page up that is not ready for jobs yet. */
+  const settling = (tab: number) => [...(tabs.get(tab)?.ports ?? [])].some((p) => listening.has(p) && !readyPorts.has(p));
+
+  /** Tell the agent where a Stage job is, before its result. */
+  function progress(job: Job, phase: StageProgress["phase"]): void {
+    if (job.kind === "site" || !client || !ready) return;
+    const since = job.received_at ?? Date.now();
+    stage?.send({ call_ref: job.call_ref, move: job.move, phase, ms: Math.max(0, Date.now() - since) });
+  }
+
+  /** Keep a job for tab `to`'s next ready page. `first` puts it before the
+   *  rest: it came before them. */
+  function hold(running: Running, why: string, first = false): void {
+    note(`pending for tab ${running.tab}`);
+    running.port = null;
+    clearTimeout(running.timer);
+    running.timer = setTimeout(() => finish(running, { k: "failed", why }), PENDING_MS);
+    const list = pending.get(running.tab) ?? pending.set(running.tab, []).get(running.tab)!;
+    if (first) list.unshift(running);
+    else list.push(running);
+    progress(running.job, settling(running.tab) ? "queued" : "loading");
+  }
+
+  /** Make a job on tab `to`: at once when its page is ready for it, else
+   *  once its next page is. */
   function performOn(to: number, job: Job): Promise<Ended> {
     return new Promise((resolve) => {
-      const running: Running = { id: nextJob++, tab: to, job, port: null, timer: 0 as never, resolve };
+      const running: Running = {
+        id: nextJob++, tab: to, job, port: null, timer: 0 as never, resolve, started: false, requeued: false,
+      };
       const port = newest(to);
       if (port) return send(running, port);
-      note(`pending for tab ${to}`);
-      running.timer = setTimeout(() => finish(running, { k: "failed", why: "the page did not come back" }), PENDING_MS);
-      (pending.get(to) ?? pending.set(to, []).get(to)!).push(running);
+      hold(running, "the page did not come back");
     });
+  }
+
+  /** A page is ready for jobs: the ones kept for its tab go now, in order. */
+  function markReady(tab: Tab, port: Port): void {
+    const wait = readyWaits.get(port);
+    if (wait) clearTimeout(wait);
+    readyWaits.delete(port);
+    if (!listening.has(port)) return;
+    readyPorts.add(port);
+    const kept = pending.get(tab.id) ?? [];
+    pending.delete(tab.id);
+    if (kept.length) note(`tab ${tab.id} ready: ${kept.length} job(s)`);
+    for (const job of kept) send(job, port);
+  }
+
+  /** A page said hello, not yet ready: its jobs wait for it, a while. */
+  function awaitReady(tab: Tab, port: Port): void {
+    readyPorts.delete(port);
+    for (const job of pending.get(tab.id) ?? []) progress(job.job, "queued");
+    armReady(tab, port);
+  }
+
+  /** (Re)start the wait for a page to say it is ready: a page still at work
+   *  on its carried move (it says so with progress) is waited for again. */
+  function armReady(tab: Tab, port: Port): void {
+    const prior = readyWaits.get(port);
+    if (prior) clearTimeout(prior);
+    readyWaits.set(
+      port,
+      setTimeout(() => {
+        note(`tab ${tab.id} never said ready; sending its jobs`);
+        markReady(tab, port);
+      }, READY_WAIT_MS),
+    );
+    for (const job of pending.get(tab.id) ?? []) {
+      clearTimeout(job.timer);
+      job.timer = setTimeout(() => finish(job, { k: "failed", why: "the page never got ready" }), READY_WAIT_MS + PENDING_MS);
+    }
+  }
+
+  /** A job's page went away with it: one it never started goes to the next
+   *  page, once; one it started has an end nobody saw. */
+  function gone(job: Running): void {
+    inFlight.delete(job.id);
+    if (client && !job.started && !job.requeued && tabs.has(job.tab)) {
+      job.requeued = true;
+      note(`${job.job.kind === "site" ? job.job.command : job.job.move}: its page went before it ran; for the next page`);
+      return hold(job, "the page did not come back", true);
+    }
+    finish(job, { k: "gone", started: job.started });
   }
 
   /** Send a job to the tab it belongs on: a site tab (the one in front, else
@@ -363,7 +457,9 @@ export function startHolder(site: SiteConfig, config: HolderConfig): void {
         }
         // Handed to the next page (`loadThen`), or ended there (`null`).
         if (carried.has(job.call_ref)) return awaitCarried(job.call_ref, job.move);
-        return { ...base, outcome: "applied", detail: "the page went on to another", moved: false };
+        // It went on to another page that owes nothing: what it did there
+        // nobody saw.
+        return { ...base, outcome: "unknown", detail: "the page went on to another before it said what it did", moved: false };
       }
       case "failed":
         settleCarried(job.call_ref);
@@ -371,7 +467,13 @@ export function startHolder(site: SiteConfig, config: HolderConfig): void {
       case "gone":
         // The page went with the move: it is the next page's when it kept it.
         if (carried.has(job.call_ref)) return awaitCarried(job.call_ref, job.move);
-        return { ...base, outcome: "applied", detail: "the page went on to another", moved: false };
+        // Never `applied`: a load cut it off, and what it did is not known.
+        return {
+          ...base,
+          outcome: "unknown",
+          detail: ended.started ? "the page left while it ran" : "the page left before it ran",
+          moved: false,
+        };
       case "timeout":
         settleCarried(job.call_ref);
         return { ...base, outcome: "unknown", detail: "the page did not answer", moved: false };
@@ -383,6 +485,13 @@ export function startHolder(site: SiteConfig, config: HolderConfig): void {
   function awaitCarried(callRef: string, move: string): StageResult {
     const entry = carried.get(callRef) ?? { move, timer: null };
     carried.set(callRef, entry);
+    armCarried(callRef, entry);
+    return { call_ref: callRef, move: entry.move, outcome: "applied", detail: "loading the next page", refused: [], moved: true, ms: 0 };
+  }
+
+  /** (Re)start the wait for the page that owes a carried move its result:
+   *  each progress from it starts the wait again. */
+  function armCarried(callRef: string, entry: { move: string; timer: ReturnType<typeof setTimeout> | null }): void {
     if (entry.timer) clearTimeout(entry.timer);
     entry.timer = setTimeout(() => {
       carried.delete(callRef);
@@ -394,7 +503,6 @@ export function startHolder(site: SiteConfig, config: HolderConfig): void {
         });
       }
     }, CARRIED_MS);
-    return { call_ref: callRef, move: entry.move, outcome: "applied", detail: "loading the next page", refused: [], moved: true, ms: 0 };
   }
 
   function settleCarried(callRef: string): void {
@@ -403,31 +511,56 @@ export function startHolder(site: SiteConfig, config: HolderConfig): void {
     carried.delete(callRef);
   }
 
-  async function makeStage(job: Extract<Job, { kind: "stage" }>, move: StageMove | null, on: HolderClient): Promise<void> {
+  async function makeStage(
+    job: Extract<Job, { kind: "stage" }>, move: StageMove | null, on: HolderClient, fired?: FireInfo,
+  ): Promise<void> {
+    const receivedAt = job.received_at ?? Date.now();
+    job.received_at = receivedAt;
+    if (move?.when === "quiet") progress(job, "queued");
     if (config.pace) await config.pace(job, move, api);
     else if (move?.when === "quiet") await settle(QUIET_WAIT_MS, false);
     if (client !== on) return;
+    const queuedAt = Date.now();
     const result = resultOf(job, await route(job));
-    if (result && client === on) stage?.send(result);
+    if (!result || client !== on) return;
+    if (result.moved) return stage?.send(result);
+    const timed: StageResult = { ...result, received_ms: result.received_ms ?? Math.max(0, Date.now() - receivedAt) };
+    stage?.send(
+      fired
+        ? withFire(timed, fired, receivedAt)
+        : { ...timed, fired: move?.when ?? "now", queued_ms: Math.max(0, queuedAt - receivedAt) },
+    );
   }
 
-  const cueJob = (cue: StageCue): Extract<Job, { kind: "stage" }> => ({
-    kind: "stage",
-    move: cue.move,
-    args: cue.args,
-    call_ref: cue.call_ref,
-  });
+  const cueJob = (cue: StageCue): Extract<Job, { kind: "stage" }> => {
+    const received = cueReceived.get(cue.call_ref);
+    cueReceived.delete(cue.call_ref);
+    return { kind: "stage", move: cue.move, args: cue.args, call_ref: cue.call_ref, received_at: received ?? Date.now() };
+  };
+
+  /** The next move is due: whatever a page is making stops waiting for its
+   *  scroll. */
+  function hurry(): void {
+    for (const job of inFlight.values()) if (job.port && job.job.kind !== "site") post(job.port, { k: "hurry" });
+  }
 
   // The screen follows the voice: cues fire as their words are heard, one
   // move at a time, on the tab in front.
   const timeline = new Timeline(
-    async (cue) => {
-      if (client) await makeStage(cueJob(cue), null, client);
+    async (cue, info) => {
+      if (client) await makeStage(cueJob(cue), null, client, info);
     },
     {
       lang: state.language,
-      onDrop: (cue) => stage?.send(staleResult(cue)),
+      onDrop: (cue) => {
+        cueReceived.delete(cue.call_ref);
+        stage?.send(staleResult(cue));
+      },
       onFire: (cue, how) => note(`cue ${cue.verb} (${how})`),
+      onQueued: (cue) => {
+        hurry();
+        progress({ kind: "stage", move: cue.move, args: cue.args, call_ref: cue.call_ref, received_at: cueReceived.get(cue.call_ref) }, "queued");
+      },
     },
   );
 
@@ -571,11 +704,12 @@ export function startHolder(site: SiteConfig, config: HolderConfig): void {
     stage = attachStage(on, {
       timeline,
       onCue: (cue) => {
+        cueReceived.set(cue.call_ref, Date.now());
         if (config.fireEarly?.(cue, api) && !timeline.pending().length) void makeStage(cueJob(cue), null, on);
         else timeline.add(cue);
       },
       onMove: (m) =>
-        void makeStage({ kind: "stage", move: m.move, args: m.args, call_ref: m.call_ref }, m, on),
+        void makeStage({ kind: "stage", move: m.move, args: m.args, call_ref: m.call_ref, received_at: Date.now() }, m, on),
       onSiteCommand: (command, payload) => void siteCommand(on, command, payload),
       onHeard: () => {
         if (state.activity !== "speaking") setActivity("speaking");
@@ -594,6 +728,7 @@ export function startHolder(site: SiteConfig, config: HolderConfig): void {
       },
       onUserStarted: (dropped) => {
         setActivity("listening");
+        for (const cue of dropped) cueReceived.delete(cue.call_ref);
         if (dropped.length) note(`interrupted: ${dropped.length} cue(s) dropped`);
       },
     });
@@ -614,9 +749,10 @@ export function startHolder(site: SiteConfig, config: HolderConfig): void {
     relaying = null;
     catchUp.clear();
     timeline.clear();
+    cueReceived.clear();
     botSpeaking = false;
-    for (const job of [...inFlight.values()]) finish(job, { k: "gone" });
-    for (const [, list] of pending) for (const job of [...list]) finish(job, { k: "gone" });
+    for (const job of [...inFlight.values()]) finish(job, { k: "gone", started: job.started });
+    for (const [, list] of pending) for (const job of [...list]) finish(job, { k: "gone", started: false });
     pending.clear();
     for (const entry of carried.values()) if (entry.timer) clearTimeout(entry.timer);
     carried.clear();
@@ -691,9 +827,10 @@ export function startHolder(site: SiteConfig, config: HolderConfig): void {
         if (msg.k === "hello") {
           listening.add(port);
           post(port, { k: "state", ...state });
-          const kept = pending.get(tab.id) ?? [];
-          pending.delete(tab.id);
-          for (const job of kept) send(job, port);
+          // Its jobs wait until it is ready: the move the last page carried
+          // here goes first.
+          if (msg.ready) markReady(tab, port);
+          else awaitReady(tab, port);
         }
         if (msg.front) {
           if (tab.id !== active) return setActive(tab.id);
@@ -702,12 +839,34 @@ export function startHolder(site: SiteConfig, config: HolderConfig): void {
         if (moved || msg.k === "hello") sendTabs();
         return;
       }
+      case "ready":
+        note(`tab ${tab.id} ready`);
+        return markReady(tab, port);
+      case "progress": {
+        const p = msg.progress;
+        if (p.phase !== "queued" && p.phase !== "loading") {
+          for (const job of inFlight.values()) if (refOf(job.job) === p.call_ref) job.started = true;
+        }
+        // The page that owes a carried move is up and working on it: its
+        // result, and its readiness for the jobs behind it, are waited for again.
+        const entry = carried.get(p.call_ref);
+        if (entry?.timer) armCarried(p.call_ref, entry);
+        if (readyWaits.has(port)) armReady(tab, port);
+        if (client && ready) stage?.send(p);
+        return;
+      }
+      case "started": {
+        const job = inFlight.get(msg.id);
+        if (job) job.started = true;
+        return;
+      }
       case "catchup":
         post(port, { k: "catchup", msgs: catchUp.replay() });
         return;
       case "leaving":
         note(`tab ${tab.id} leaving`);
         listening.delete(port);
+        readyPorts.delete(port);
         return;
       case "app":
         if (active === null) active = tab.id;
@@ -757,8 +916,11 @@ export function startHolder(site: SiteConfig, config: HolderConfig): void {
     port.onMessage.addListener((msg) => handle(mine, port, msg));
     port.onDisconnect.addListener(() => {
       mine.ports.delete(port);
+      readyPorts.delete(port);
+      const wait = readyWaits.get(port);
+      if (wait) clearTimeout(wait);
       // A job that page was making went with it: it loaded the next page.
-      for (const job of [...inFlight.values()]) if (job.port === port) finish(job, { k: "gone" });
+      for (const job of [...inFlight.values()]) if (job.port === port) gone(job);
       if (!mine.ports.size) {
         mine.awaySince = Date.now();
         setTimeout(() => {

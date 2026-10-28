@@ -59,6 +59,35 @@ export interface StageResult {
   moved?: boolean;
 
   ms?: number;
+
+  fired?: 'anchor' | 'fuzzy' | 'clock' | 'end' | 'now' | 'quiet' | null;
+
+  received_ms?: number | null;
+
+  queued_ms?: number | null;
+
+  fired_ms?: number | null;
+
+  ringed_ms?: number | null;
+
+  lag_ms?: number | null;
+
+  late?: boolean;
+}
+
+/**
+ * Where a move is, before its result: never final, sent as its phase
+ * changes. Each one tells the brain the move is alive, so a move that is
+ * slow is not taken for one that failed.
+ */
+export interface StageProgress {
+  call_ref: string;
+
+  move: string;
+
+  phase: 'queued' | 'loading' | 'waiting_site' | 'ringing' | 'acting' | 'confirming';
+
+  ms?: number;
 }
 
 /** A page running Stage, saying what it is — on connect and on every load. */
@@ -118,12 +147,14 @@ export function unhandledUiAction(action: never): never {
 /** Everything the person can do on screen, discriminated by `event`. */
 export type AppEvent =
   | { event: 'stage_result'; payload: StageResult }
+  | { event: 'stage_progress'; payload: StageProgress }
   | { event: 'stage_hello'; payload: StageHello };
 
 export type AppEventName = AppEvent['event'];
 
 export const APP_EVENT_NAMES: readonly AppEventName[] = [
   'stage_result',
+  'stage_progress',
   'stage_hello',
 ];
 

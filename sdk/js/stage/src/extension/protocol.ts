@@ -10,7 +10,7 @@
  */
 
 import type { Carried } from "../moves";
-import type { StageResult } from "../wire.gen";
+import type { StageProgress, StageResult } from "../wire.gen";
 import type { Activity, Language, Status } from "./widget";
 
 /** The port's name. */
@@ -47,19 +47,27 @@ export interface Where {
   front: boolean;
 }
 
-/** One thing a page is asked to do: a Stage move (with the call it answers),
- *  the rest of a move the last page of the tab carried here, or one of the
- *  site's own Actions. */
+/** One thing a page is asked to do: a Stage move (with the call it answers,
+ *  and when the holder received it, epoch ms), the rest of a move the last
+ *  page of the tab carried here, or one of the site's own Actions. */
 export type Job =
-  | { kind: "stage"; move: string; args: unknown; call_ref: string }
+  | { kind: "stage"; move: string; args: unknown; call_ref: string; received_at?: number }
   | Carried
   | { kind: "site"; command: string; payload: unknown };
 
 /** Page → holder, on the port. */
 export type FromPage =
-  // The page is up: where it is. The holder answers with the state and any
-  // jobs it kept for this tab while it was loading.
-  | ({ k: "hello" } & Where)
+  // The page is up: where it is. The holder answers with the state. Jobs it
+  // kept for this tab while it was loading wait for the page to be `ready`
+  // (said here when it already is, as on a hello after the holder came up).
+  | ({ k: "hello"; ready?: boolean } & Where)
+  // The page is ready for jobs: the site's scripts are up and the move the
+  // last page carried here has finished. Jobs kept for it go now, in order.
+  | { k: "ready" }
+  // Where a move is, before its result: for the agent.
+  | { k: "progress"; progress: StageProgress }
+  // The page started a site job: should the page go now, it went mid-way.
+  | { k: "started"; id: number }
   | ({ k: "where" } & Where)
   // A load of another document started: jobs wait for the next page's hello.
   | { k: "leaving" }
@@ -113,5 +121,7 @@ export type ToPage =
   | { k: "ssrc"; timestamp: number; rtpTimestamp: number }
   | { k: "playout"; delay: number; samples: number }
   | { k: "perform"; id: number; job: Job }
+  // The next move is due: the running one stops waiting for its scroll.
+  | { k: "hurry" }
   // A new face's catch-up on the reply in progress.
   | { k: "catchup"; msgs: ToPage[] };

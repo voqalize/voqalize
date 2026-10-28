@@ -181,8 +181,54 @@ function simulateSite(): void {
         history.pushState({}, "", url);
       }, 350);
     };
+    /** Mark `option` chosen, as the bar draws it; the cards it keeps. */
+    const choose = (option: HTMLAnchorElement): ((li: Element) => boolean) => {
+      const title = option.getAttribute("title") ?? "";
+      option.classList.add("-active");
+      const group = option.closest(".qf__group");
+      group?.querySelector(".qf__pill")?.classList.add("-active");
+      const label = group?.querySelector(".qf__pill-label");
+      if (label) label.textContent = `${group?.querySelector(".qf__panel-title")?.textContent}: ${title}`;
+      const word = title.toLowerCase().replace(/ hilos$/, "");
+      return (li) => (li.querySelector(".product-item-link")?.textContent ?? "").toLowerCase().includes(word);
+    };
+    // The store serves a filtered listing at the filters' address: option ids
+    // by request variable (`?tamano=5625&color=6889`), or the options' own
+    // path segments (`/king_1`).
+    const params = new URLSearchParams(location.search);
+    const segments = location.pathname.split("/").pop()?.split("-") ?? [];
+    const keeps: ((li: Element) => boolean)[] = [];
+    for (const option of document.querySelectorAll<HTMLAnchorElement>("a.qf__option-link")) {
+      const asked = params.get(option.dataset.qfRequestVar ?? "")?.split(",") ?? [];
+      const alias = new URL(option.href).pathname.split("/").pop() ?? "";
+      if (asked.includes(option.dataset.qfValue ?? "") || (!location.pathname.endsWith("20-sabanas") && segments.includes(alias))) keeps.push(choose(option));
+    }
+    if (keeps.length) {
+      const cards = [...document.querySelectorAll("ol.products li.product-item")];
+      const kept = cards.filter((li) => keeps.every((k) => k(li)));
+      cards.forEach((li) => !kept.includes(li) && li.remove());
+      setCount(kept.length * 30);
+    }
+    // A test can hold the filters' scripts back (`__qfLate`, ms: until then a
+    // press on an option does nothing, as on the live store just after a
+    // load), or have every press do nothing (`__qfDead`).
+    const w = window as unknown as { __qfLate?: number; __qfDead?: boolean; require?: unknown; jQuery?: unknown };
+    const upAt = Date.now() + (w.__qfLate ?? 0);
+    if (w.__qfLate != null) {
+      const root = $("[data-qf-root]");
+      root?.removeAttribute("data-qf-ready");
+      w.require = () => undefined;
+      w.jQuery = { data: (el: Element, key: string) => (el === document.body && key === "mage-amShopbyAjax" && Date.now() >= upAt ? {} : undefined) };
+      setTimeout(() => root?.setAttribute("data-qf-ready", "1"), w.__qfLate);
+    }
     document.addEventListener("click", (e) => {
       const t = e.target as Element;
+      const dead = t.closest("a.qf__option-link") && (w.__qfDead || Date.now() < upAt);
+      if (dead) {
+        e.preventDefault();
+        (window as unknown as { __deadPresses: number }).__deadPresses = ((window as unknown as { __deadPresses?: number }).__deadPresses ?? 0) + 1;
+        return;
+      }
       const pill = t.closest(".qf__pill");
       if (pill) {
         const open = Boolean(pill.closest(".qf__group")?.classList.toggle("-open"));
@@ -197,14 +243,7 @@ function simulateSite(): void {
       const option = t.closest<HTMLAnchorElement>("a.qf__option-link");
       if (option) {
         e.preventDefault();
-        const title = option.getAttribute("title") ?? "";
-        option.classList.add("-active");
-        const group = option.closest(".qf__group");
-        group?.querySelector(".qf__pill")?.classList.add("-active");
-        const label = group?.querySelector(".qf__pill-label");
-        if (label) label.textContent = `${group?.querySelector(".qf__panel-title")?.textContent}: ${title}`;
-        const word = title.toLowerCase().replace(/ hilos$/, "");
-        swap((li) => (li.querySelector(".product-item-link")?.textContent ?? "").toLowerCase().includes(word), option.href);
+        swap(choose(option), option.href);
         return;
       }
       if (t.closest(".minicart-wrapper a.action.showcart")) {

@@ -22,12 +22,16 @@ from ..app_events import AppEvent, AppEvents
 
 __all__ = [
     "STAGE_CONTRACT",
+    "Fired",
     "Outcome",
+    "Phase",
     "Refusal",
     "StageCue",
     "StageEvents",
     "StageHello",
     "StageMove",
+    "StagePageEvents",
+    "StageProgress",
     "StageResult",
 ]
 
@@ -36,6 +40,17 @@ __all__ = [
 STAGE_CONTRACT = 1
 
 Outcome = Literal["applied", "partial", "refused", "failed", "undone", "unknown"]
+
+#: How a move was set off: a cue by its words (``anchor``; ``fuzzy``, two words
+#: of three), by the clock (``clock``), or when the voice stopped (``end``); a
+#: tool's move at once (``now``) or once the voice was quiet (``quiet``).
+Fired = Literal["anchor", "fuzzy", "clock", "end", "now", "quiet"]
+
+#: Where a move is, before its result: waiting its turn (``queued``), waiting
+#: for a page to load (``loading``), waiting for the site's own scripts
+#: (``waiting_site``), ringing its target (``ringing``), acting (``acting``), or
+#: checking that what it did took (``confirming``).
+Phase = Literal["queued", "loading", "waiting_site", "ringing", "acting", "confirming"]
 
 
 class StageCue(Action, name="stage_cue"):
@@ -93,6 +108,36 @@ class StageResult(AppEvent, name="stage_result"):
     moved: bool = False
     """The move went on to another page, which finishes it and reports again."""
     ms: int = 0
+    """How long the move itself took on the page that finished it."""
+    fired: Fired | None = None
+    """How the move was set off. Absent from a page that does not say."""
+    received_ms: int | None = None
+    """Milliseconds from the page receiving the move to this result."""
+    queued_ms: int | None = None
+    """Milliseconds from receipt to the move being set off (a cue: its words
+    heard; a quiet move: the voice quiet) and queued to run."""
+    fired_ms: int | None = None
+    """Milliseconds from receipt to the move starting to act."""
+    ringed_ms: int | None = None
+    """Milliseconds from receipt to its first ring; absent when it rang nothing."""
+    lag_ms: int | None = None
+    """A cue's start minus when its words were heard: how far the screen ran
+    behind the voice."""
+    late: bool = False
+    """Set by the brain's director, never the page: this result came after the
+    move had already been reported ``unknown``, and corrects it."""
+
+
+class StageProgress(AppEvent, name="stage_progress"):
+    """Where a move is, before its result: never final, sent as its phase
+    changes. Each one tells the brain the move is alive, so a move that is
+    slow is not taken for one that failed."""
+
+    call_ref: str
+    move: str
+    phase: Phase
+    ms: int = 0
+    """Milliseconds since the page received the move."""
 
 
 class StageHello(AppEvent, name="stage_hello"):
@@ -104,4 +149,7 @@ class StageHello(AppEvent, name="stage_hello"):
     title: str = ""
 
 
+#: A page's results and hello: what a brain written before progress parses.
 StageEvents = AppEvents(StageResult, StageHello)
+#: Everything a page running Stage sends: results, hello and progress.
+StagePageEvents = AppEvents(StageResult, StageHello, StageProgress)

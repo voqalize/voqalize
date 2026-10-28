@@ -25,7 +25,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from voqalize.sdk import AppEvent, AppEvents
-from voqalize.sdk.stage import StageHello, StageResult
+from voqalize.sdk.stage import StageHello, StageProgress, StageResult
 
 __all__ = [
     "CANNONHOME_EVENTS",
@@ -246,6 +246,7 @@ type CannonHomeEvent = (
     | CheckoutState
     | StageResult
     | StageHello
+    | StageProgress
 )
 
 CANNONHOME_EVENTS = AppEvents[CannonHomeEvent](
@@ -260,4 +261,5 @@ CANNONHOME_EVENTS = AppEvents[CannonHomeEvent](
     CheckoutState,
     StageResult,
     StageHello,
+    StageProgress,
 )

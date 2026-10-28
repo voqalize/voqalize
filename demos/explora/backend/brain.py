@@ -42,7 +42,7 @@ import re
 import time
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from loguru import logger
 from openai import AsyncOpenAI
@@ -71,8 +71,18 @@ from voqalize.sdk import (
     UserMessage,
 )
 from voqalize.sdk.openai import OpenAIBrain
-from voqalize.sdk.stage import MAX_CUE, ArgValue, Move, MoveClass, Refused, Stage
+from voqalize.sdk.stage import (
+    MAX_CUE,
+    ArgValue,
+    Move,
+    MoveClass,
+    Refused,
+    Stage,
+    StagePageEvents,
+    match_label,
+)
 from voqalize.sdk.stage import wire as stage_wire
+from voqalize.sdk.stage.cues import AutoCue
 from voqalize.sdk.voice import ToolChoice
 from voqalize.sdk.wire import Config, IdleConfig, SttConfig, TtsConfig, Voice
 
@@ -122,12 +132,18 @@ EXPLORA_PATIENCE = PATIENCE + 2
 #: A message this soon after the last one is the rest of the same thought.
 _FRAGMENT_S = 4.0
 
-#: How long the rest of a reply waits for the page a cue opened, beyond the
-#: time his voice needs to finish what came before it. Voqalize holds a call
-#: through a page load for ten seconds; past this the page is not coming.
+#: How long the rest of a reply waits for the page a cue opened. Voqalize
+#: holds a call through a page load for ten seconds; past this the page is not
+#: coming.
 _PAGE_WAIT_S = 9.0
-#: His speaking pace, to tell how long the words before a page cue take to say.
-_WORDS_PER_S = 2.8
+#: How many sentences of a reply may stream after a page cue before the page
+#: has reported itself: his voice carries on through the load, but never
+#: describes much more than the page in front can show.
+_AHEAD_SENTENCES = 2
+#: How much of a reply's opening is read before the backstop decides whether
+#: it brought a cue of its own: a chunk may be a sliver ("{show"), so the
+#: first is never enough. A cue still open at this point is read to its end.
+_LEAD_CHARS = 40
 #: How long the rest of a reply waits for a page's Spanish twin, once the page
 #: a cue opened came up in English in a Spanish call.
 _TWIN_WAIT_S = 6.0
@@ -406,6 +422,9 @@ class LanguageRequest(BaseModel):
 
 _SITE_MAP_CHARS = 26000
 _SECTIONS_PER_PAGE = 12
+#: An index page (the home page, a destination, the lodges) lists more: its
+#: real headings are what a reply that opens it cues, unseen.
+_INDEX_SECTIONS = 30
 #: The order pages are listed in the prompt's site map, most visited first.
 _KIND_ORDER = (
     "home",
@@ -443,9 +462,13 @@ def _site_map(k: Knowledge) -> str:
     size = 0
     order = {kind: i for i, kind in enumerate(_KIND_ORDER)}
     for p in sorted(k.pages.values(), key=lambda p: (order.get(p.kind, 99), p.path)):
-        heads = "; ".join(_useful_headings(p)[:_SECTIONS_PER_PAGE])
-        line = f"- {site_path(p.path)} ({p.kind}) — {_short_title(p.title)}" + (
-            f" (sections: {heads})" if heads else ""
+        items = listed_items(p)
+        index = p.kind in ("home", "destination") or len(items) >= _LODGES_LISTED
+        heads = "; ".join(_useful_headings(p)[: _INDEX_SECTIONS if index else _SECTIONS_PER_PAGE])
+        line = (
+            f"- {site_path(p.path)} ({p.kind}) — {_short_title(p.title)}"
+            + (f" (sections: {heads})" if heads else "")
+            + (f" (names it lists: {'; '.join(items)})" if items else "")
         )
         size += len(line) + 1
         if size > _SITE_MAP_CHARS:
@@ -476,11 +499,13 @@ def _prompt(k: Knowledge) -> str:
 # You narrate, and the screen follows your words
 You are giving a guided tour of the site, like an advisor sitting beside the visitor with their screen between you. As you talk about something, it is on their screen, ringed, at that moment.
 - Put a screen cue in your reply at the start of the sentence it belongs to. The page moves when your voice reaches that sentence. The visitor never hears a cue.
-  - {{page: /path/}} opens another page of the site. Every page of explora.com is a full page load: it takes a few seconds, and the visitor hears nothing while it opens. So a page cue goes at the very start of your reply, never in the middle, at most one per reply, and only when the visitor needs to see another page. Talk about the page you are on whenever it has the answer.
+  - {{page: /path/}} opens another page of the site. Every page of explora.com is a full page load: it takes a few seconds, and your voice carries on while it opens. So a page cue goes at the very start of your reply, never in the middle, at most one per reply, and only when the visitor needs to see another page. Talk about the page you are on whenever it has the answer.
   - {{show: Heading}} scrolls to a heading on the page they are on, or are taken to by a page cue, and rings it. Use the heading exactly as the site pages list or the screen lines spell it. With the label of one of the page's tabs or accordions ("Patagonia [Argentina + Chile]"), it opens it. With words that are not a heading, it rings those words: a room, an exploration, a lodge's name.
   - {{faq: Question}} opens that question's accordion on the page and rings it.
 - One cue per sentence at most, and only where the screen should change. A cue goes before the sentence, never inside it.
 - A page cue opens a page at its top. After it, every sentence about a part of the page brings its own show cue, with that section's heading: the lodge, what's included, the rooms, the explorations, the food.
+- After a page cue you have not seen the new page yet. Show only a heading the site pages list gives for that page under "sections", or a plain name the page shows as text — a lodge's name, a destination, a room — which it rings as words ("names it lists" gives them for a page of lodges). Never make up a heading for a page you have not seen.
+- WHEN THE PAGE LISTS SEVERAL ITEMS — lodges, destinations, rooms, explorations, zones — NAME AND CUE EACH ONE: one short sentence per item, each with its own show cue. Never sum them up in one sentence ("These are Explora's lodges. They span four countries.") with the screen standing still.
 - EVERY ANSWER ABOUT EXPLORA STARTS WITH A CUE: a show cue on the page they are on, or a page cue when the answer is on another page. A reply without a cue leaves their screen where it was while you describe something else.
 - Cues are the only way you move the page. There is no tool for it.
 - Example, on the Atacama lodge's page, for "what's it like?": "{{show: Welcome to Explora Atacama}} It's an oasis in the driest desert on earth. The lodge sits near San Pedro de Atacama. {{show: Included with Your Stay}} Everything is included: meals, drinks, the spa and every exploration. {{show: Embark on Desert Explorations}} There are nearly fifty guided explorations to choose from. {{show: Stargaze from Explora's Observatory}} And at night, the lodge has its own observatory. Shall I check the dates for you?"
@@ -527,6 +552,8 @@ Visitor: "What is Explora?"
 You: "{{page: /}}{{show: Uncover the World's Most Inspiring Destinations}} Lodges at the edge of the world. Explora has lodges in Chile, Peru, Argentina and Bolivia. {{show: What's Included in Your Stay}} Every stay is all-inclusive, explorations too. {{show: Our Destinations}} You pick a place, and guides take you into it each day. Would Patagonia or the desert suit you better?"
 Visitor: "Patagonia."
 You: "{{page: /patagonia-travel-argentina-chile/}} Patagonia it is. {{show: Discover the Largest Network of Lodges in Patagonia}} Explora has more lodges here than anywhere. {{show: OUR PATAGONIA LUXURY TRAVEL LODGES}} Torres del Paine is the classic, with the granite towers. {{show: EL CHALTÉN}} El Chaltén is for hikers, under Mount Fitz Roy. Do you love hiking, or something gentler?"
+Visitor, on the lodges page /lodge/: "Walk me through the lodges."
+You: "{{show: El Calafate}} El Calafate sits on a quiet estancia, near the glaciers. {{show: El Chaltén}} El Chaltén is for hikers and trekkers. {{show: Torres del Paine}} Torres del Paine faces the granite peaks. {{show: Sacred Valley}} In Peru, the Sacred Valley lodge is among Inca villages. {{show: Atacama}} Atacama is an oasis in the driest desert. {{show: Easter Island}} And Easter Island is far out in the Pacific. Which one calls to you?"
 Visitor: "Can I go in mid November? Five nights."
 You: "Let's look at the calendar. I've opened Torres del Paine on the booking site. It shows which days you can arrive." then check_availability with the lodge and the nights.
 
@@ -544,6 +571,7 @@ You: "Let's look at the calendar. I've opened Torres del Paine on the booking si
 - When you talk through several items on a page — zones, rooms, lodges, explorations, steps — cue each one as you name it, by the label the screen lines give it: a heading, a tab or a question. When the visitor asks you to scroll to each one as you talk, that is what they mean.
 - The visitor can ask you to press or scroll to anything: "scroll to the rooms", "open that tab", "go back to the lodge", "show me Easter Island". Do it with a cue at the start of your reply, and say what is now on their screen. Never say you cannot scroll or click.
 - Never say a page opened, changed or switched language, or that a room was added or a field filled, unless a screen line in square brackets or a tool's result says so. A line saying a move did not happen means it did not: say so plainly.
+- The booking site can be slow. While a move is still running (a line in square brackets says it is still working), never say you could not confirm it or that it failed: say it is still working on it. If a line later says it happened after all, correct yourself in a few words.
 
 # Checking availability
 - Offer it where the story reaches it — once a lodge fits them, or when they ask about dates, prices or booking — and not before.
@@ -656,10 +684,49 @@ _LANDED: dict[str, dict[Lang, str]] = {
     "tab": {"en": "There's that tab.", "es": "Ahí tienes esa pestaña."},
 }
 
-#: What he says as a page he opens at the very start of a reply loads, so the
-#: load is not heard as silence: on prod call be1f5b9a the first answer waited
-#: 8.5 s, page load and all, with nothing said.
-_PAGE_LINE: dict[Lang, str] = {"en": "Let me show you.", "es": "Te lo muestro."}
+#: His line for a move still running after Stage's ``HOLDING_LINE_S``, by
+#: move, said once in a quiet spell with no model request before it, so a slow
+#: booking site is not heard as a failed move; ``""`` is any other move.
+_HOLDING: dict[str, dict[Lang, str]] = {
+    CHECK_AVAILABILITY.id: {
+        "en": "Still opening the booking calendar, the site is a bit slow.",
+        "es": "Sigo abriendo el calendario, la página va lenta.",
+    },
+    CHOOSE_ROOM.id: {
+        "en": "Still choosing that room, the site is a bit slow.",
+        "es": "Sigo eligiendo la habitación, la página va lenta.",
+    },
+    FILL_ENQUIRY.id: {
+        "en": "Still filling in the form, the site is a bit slow.",
+        "es": "Sigo completando el formulario, la página va lenta.",
+    },
+    SEND_ENQUIRY.id: {
+        "en": "Still sending it, the site is a bit slow.",
+        "es": "Sigo enviándolo, la página va lenta.",
+    },
+    "": {
+        "en": "Still working on it, the page is a bit slow.",
+        "es": "Sigo en eso, la página va lenta.",
+    },
+}
+#: How often the brain looks for a move slow enough for its holding line.
+_HOLD_POLL_S = 0.5
+
+#: His line when the page confirms, after all, a confirmed move he was told
+#: was not confirmed: said in the next quiet spell, before the model.
+_DONE_AFTER_ALL: dict[str, dict[Lang, str]] = {
+    SEND_ENQUIRY.id: {
+        "en": "Done after all, your enquiry is sent.",
+        "es": "Al final sí, tu consulta quedó enviada.",
+    },
+}
+
+
+def holding_line(move: str, lang: Lang) -> str:
+    """His one line for a move the site is still working on."""
+    return (_HOLDING.get(move) or _HOLDING[""])[lang]
+
+
 #: What he says when a page he opened never came up, instead of the rest of a
 #: reply about it: on prod call be1f5b9a he said "Here's the direct contact"
 #: over the booking site, which had not moved.
@@ -947,14 +1014,28 @@ _ALL_LODGES = re.compile(
 )
 
 
-def asked_page(text: str, here: str) -> str | None:
+#: The pages that list every lodge: "the lodges" asked for on one of them is
+#: answered there. In a dev test on 2026-10-28 "the lodges" asked on /lodge/
+#: sent the visitor to /destinations/, off the page whose country headings his
+#: own cues named, and his {show: PERU} was refused.
+_LODGE_INDEXES = frozenset({"/lodge", "/destinations", "/es/lodge", "/es/destinos"})
+
+
+def asked_page(text: str, here: str, *, lists_lodges: bool = False) -> str | None:
     """The site page for what ``text`` asks about, or ``None`` — never one about
-    the place the tab at ``here`` already shows."""
+    the place the tab at ``here`` already shows, and never the lodges' index
+    from a page that lists them all already (``lists_lodges``)."""
     if asks_call_language(text):
         return None
     named = [(m.start(), path, home) for rx, path, home in _ASKED_PAGES if (m := rx.search(text))]
     if not named:
-        if _ALL_LODGES.search(text) and "destinations" not in here and "destinos" not in here:
+        on_index = (
+            lists_lodges
+            or canonical_path(here) in _LODGE_INDEXES
+            or "destinations" in here
+            or "destinos" in here
+        )
+        if _ALL_LODGES.search(text) and not on_index:
             return "/destinations/"
         return None
     _, path, home = min(named)
@@ -1115,6 +1196,69 @@ def best_section(sentence: str, sections: list[tuple[str, str]]) -> str | None:
     return heading if top >= _SECTION_MIN and top - second >= _SECTION_LEAD else None
 
 
+def _name_words(label: str) -> list[str]:
+    """A label's words as a sentence says them: no "[Argentina + Chile]", no
+    item number ("3. Suni" → "suni")."""
+    core = re.sub(r"\[[^\]]*\]|^\s*\d+\s*[.)]\s*", " ", label)
+    return re.findall(r"[a-z0-9']+", norm(core))
+
+
+def names_in(sentence: str, labels: list[tuple[str, bool]]) -> list[tuple[int, str]]:
+    """Each label of ``labels`` (label, whether one word of it is a name)
+    that ``sentence`` says outright, with the character it starts at, in
+    spoken order. Where two overlap ("Torres del Paine" in "Torres del Paine
+    C. Reserve") the longer wins; the first label given wins a tie, so put
+    the page's own headings first. A question names nothing: it is the
+    closing offer, about what comes next."""
+    if sentence.rstrip().endswith("?"):
+        return []
+    # ``norm`` keeps every word where it was, one for one with the sentence's.
+    said = re.findall(r"[a-z0-9']+", norm(sentence))
+    starts = [m.start() for m in re.finditer(r"[^\W_]+(?:['\u2019][^\W_]+)*", sentence)]
+    if len(starts) != len(said):
+        starts = [0] * len(said)  # Words that do not line up: anchor at the start.
+    hits: list[tuple[int, int, int, str]] = []  # (first word, -length, rank, label)
+    seen: set[str] = set()
+    for rank, (label, single) in enumerate(labels):
+        words = _name_words(label)
+        key = " ".join(words)
+        if not words or key in seen or len(words) > 6:
+            continue
+        if len(words) == 1 and (not single or len(key) < 4 or key in _STOP):
+            continue
+        seen.add(key)
+        for i in range(len(said) - len(words) + 1):
+            if said[i : i + len(words)] == words:
+                hits.append((i, -len(words), rank, label))
+    taken: set[int] = set()
+    out: list[tuple[int, str]] = []
+    for i, neg, _, label in sorted(hits, key=lambda h: (h[1], h[0], h[2])):
+        span = set(range(i, i - neg))
+        if span & taken:
+            continue
+        taken |= span
+        out.append((i, label))
+    return [(starts[i] if i < len(starts) else 0, label) for i, label in sorted(out)]
+
+
+#: The lodges a page of lodges names, from the crawl's own "Explore El
+#: Chaltén >" links: names, not headings, which a show cue rings as words.
+_EXPLORE_LINK = re.compile(r"Explore ([^>;]{3,60}?) >")
+
+
+#: How many lodges a page names for it to be a page of the lodges.
+_LODGES_LISTED = 5
+
+
+def listed_items(page: kb.Page | None) -> list[str]:
+    """The lodges and places ``page`` lists by name (its "Explore … >" links),
+    in the page's order."""
+    if page is None:
+        return []
+    found = (m.group(1).strip() for s in page.sections for m in _EXPLORE_LINK.finditer(s.text))
+    return list(dict.fromkeys(found))
+
+
 #: A ``{page: …}`` cue, as the model writes it, anywhere in a chunk.
 _PAGE_CUE = re.compile(r"\{\s*page\s*:\s*([^{}]*?)\s*\}", re.IGNORECASE)
 
@@ -1133,8 +1277,27 @@ _PROMISE = re.compile(
 )
 
 
-def _words_in(text: str) -> int:
-    return len(re.findall(r"[\w']+", _CUE_TEXT.sub(" ", text)))
+#: What ends a sentence, for how far a reply has run ahead of its page.
+_STOPS = (".", "?", "!", "…")
+
+
+def _sentence_runs(text: str) -> list[str]:
+    """``text`` cut after each sentence end outside a cue ("{show: Torres del
+    Paine C. Reserve}" is not two sentences); the space after one goes with
+    the next."""
+    out: list[str] = []
+    start = depth = 0
+    for i, ch in enumerate(text):
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth = max(0, depth - 1)
+        elif depth == 0 and ch in ".?!…" and text[i + 1 : i + 2].isspace():
+            out.append(text[start : i + 1])
+            start = i + 1
+    if start < len(text):
+        out.append(text[start:])
+    return out
 
 
 # ─── The brain ─────────────────────────────────────────────────────────────────
@@ -1177,6 +1340,8 @@ class ExploraBrain(OpenAIBrain):
         #: page it opened knows when the next one is up.
         self._pages_seen = 0
         self._page_arrived = asyncio.Event()
+        #: Pages opened by replies that ended before the page was up.
+        self._arrivals: set[asyncio.Task[bool]] = set()
         #: Every open Explora tab, and which is in front.
         self.tabs: list[TabInfo] = []
         self._active = ""
@@ -1226,6 +1391,13 @@ class ExploraBrain(OpenAIBrain):
             resolve=self._resolve,
             backstop=self._auto_cues,
         )
+        #: The move the site is slow on and his one line for it, said in the
+        #: next quiet spell if it is still running then.
+        self._hold: tuple[str, str] | None = None
+        #: His written line for a confirmed move the page did after all.
+        self._late_done: str | None = None
+        #: Expiry on a timer, and the look for slow moves: one task a call.
+        self._watching: asyncio.Task[None] | None = None
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -1264,6 +1436,58 @@ class ExploraBrain(OpenAIBrain):
         self._note(f"[Today is {today:%A}, {today:%B} {today.day}, {today.year}.]")
         if self._chosen:
             self._note(_chosen_note(self.spoken, "before the call"))
+        self._watching = asyncio.create_task(self._watch_stage())
+
+    async def on_session_end(self, session: Session) -> None:
+        if self._watching is not None:
+            self._watching.cancel()
+            self._watching = None
+        await super().on_session_end(session)
+
+    async def _watch_stage(self) -> None:
+        """For the whole call: a move the page never answered is said as
+        unknown when its time is up, not at his next turn; and a confirmed or
+        reversible move the site is slow on gets his one holding line."""
+
+        async def slow() -> None:
+            while True:
+                await asyncio.sleep(_HOLD_POLL_S)
+                self._hold_slow()
+
+        await asyncio.gather(self.stage.watch(self._expired), slow())
+
+    def _expired(self, result: stage_wire.StageResult) -> None:
+        if (note := self._result_note(result)) is not None:
+            self._note(note)
+
+    def _hold_slow(self) -> None:
+        """A move running past Stage's holding time: his written line for it,
+        said in the next quiet spell — which only comes once neither he nor
+        the visitor is speaking — if the move is still running then."""
+        for run in self.stage.holding():
+            line = holding_line(run.move.id, self.spoken)
+            logger.info(
+                "explora: {} {} still running at {:.1f} s ({}); holding line {!r}",
+                run.call_ref,
+                run.move.id,
+                run.seconds,
+                run.phase or "no phase",
+                line,
+            )
+            self._hold = (run.call_ref, line)
+            self._shorten_idle()
+
+    def _take_hold(self) -> str | None:
+        """The holding line waiting, if its move is still running."""
+        hold, self._hold = self._hold, None
+        if hold is None or all(r.call_ref != hold[0] for r in self.stage.running()):
+            return None
+        return hold[1]
+
+    def _shorten_idle(self) -> None:
+        if not self._idle_short:
+            self._idle_short = True
+            configure_soon(self.session, Config(idle=IdleConfig(timeout_ms=_TALK_THROUGH_MS)))
 
     async def greet(self, session: Session) -> str:
         """The opener, written not generated."""
@@ -1329,6 +1553,9 @@ class ExploraBrain(OpenAIBrain):
             logger.info("explora: language -> {} (heard)", heard)
         self._talk = None
         self._talk_fallback = None
+        # They spoke first: what the page did is in the context as notes.
+        self._hold = None
+        self._late_done = None
         self._nudges = 0
         self._heard = [*self._heard[-7:], msg.text]
         # "Show me the page in Spanish" is done in code, not left to a model
@@ -1338,7 +1565,7 @@ class ExploraBrain(OpenAIBrain):
         self._backstop = (
             None
             if asks_call_language(msg.text) or page_language is not None
-            else asked_page(msg.text, self._path)
+            else asked_page(msg.text, self._path, lists_lodges=self._lists_lodges())
             or asked_sub_page(msg.text, self.page.links if self.page else [], self._path)
             or self._backstop
         )
@@ -1380,14 +1607,23 @@ class ExploraBrain(OpenAIBrain):
         ordinary quiet spell: a nudge, twice, then silence."""
         self._restore_idle()
         self._backstop = None
+        done, self._late_done = self._late_done, None
+        hold = self._take_hold()
         if self._talk is not None:
             ask, self._talk = self._talk, None
             self._talk_line, self._talk_fallback = self._talk_fallback, None
             self._note(ask)
-            return self.respond(session)
+            return self._line_then(done, self.respond(session))
+        if done is not None:
+            # A confirmed move he was told was not confirmed, done after all.
+            return say_line(self, done)
         if self._confirm is not None:
             line, self._confirm = self._confirm, None
             return say_line(self, line)
+        if hold is not None:
+            # The site is slow on a move: said so, written, never asked of the
+            # model, and no nudge counted.
+            return say_line(self, hold)
         if self._nudges >= _IDLE_NUDGES:
             return _silence()
         self._nudges += 1
@@ -1407,6 +1643,19 @@ class ExploraBrain(OpenAIBrain):
             )
         self._note(f"{quiet} {ask}")
         return self.respond(session)
+
+    async def _line_then(
+        self, line: str | None, turn: AsyncGenerator[Speech, None]
+    ) -> AsyncGenerator[Speech, None]:
+        """``line``, written, when there is one, then ``turn``."""
+        try:
+            if line is not None:
+                async for event in say_line(self, line):
+                    yield event
+            async for event in turn:
+                yield event
+        finally:
+            await turn.aclose()
 
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
         """The model's turn, with its page moves paced to the page loads and its
@@ -1448,10 +1697,7 @@ class ExploraBrain(OpenAIBrain):
                 said += event.text
             yield event
         # Words, and not only a promise: on dev call ed9846d5 his whole reply
-        # was "One moment.", and the visitor sat in silence. The line said as
-        # a page loads is mine, not an answer.
-        for line in _PAGE_LINE.values():
-            said = said.replace(line, "")
+        # was "One moment.", and the visitor sat in silence.
         spoke = bool(_PROMISE.sub("", said).strip(" .,!?¡¿…"))
         if not spoke and talk_line is not None:
             # What the page put on screen, read out from it: on prod call
@@ -1466,18 +1712,27 @@ class ExploraBrain(OpenAIBrain):
                 yield event
 
     async def _paced(self, turn: AsyncGenerator[Speech, None]) -> AsyncGenerator[Speech, None]:
-        """``turn``, split at each ``{page: …}`` cue, which costs a full page load.
+        """``turn``, with its ``{page: …}`` cue taken out and the page opened.
 
-        The words before the cue are spoken and their unit closed; the page is
-        opened, once his voice is quiet (``explora.navigate``); and the rest waits
-        for the new page to report itself, so it is heard on it and its cues
-        land there. A page that never comes holds the rest no longer than
-        :data:`_PAGE_WAIT_S` past the words still being said."""
+        Every page is a full page load, and the extension keeps his voice
+        playing across it, so the page goes at once (``after_words`` 0) and the
+        reply streams on while it loads: the cues after it wait for the new page
+        on the page's side. Only past :data:`_AHEAD_SENTENCES` sentences does
+        the rest wait for the page to report itself, so he never describes more
+        than a sentence or two ahead of the screen. A page that never comes
+        holds the rest no longer than :data:`_PAGE_WAIT_S`, and is said plainly.
+
+        Nothing is added for the load: in a dev test on 2026-10-28 a reply that
+        opened with a page had his nod, then "Let me show you.", and only then
+        the page, four to seven seconds from question to page."""
         buf = ""
-        said = 0
-        opened = False
-        first = True
-        lined = False
+        #: The reply's opening, read until the backstop can tell whether it
+        #: brought a cue of its own (:meth:`_decided`); ``None`` once decided.
+        lead = cast("str | None", "")
+        #: The page this reply opened, on its way: whether it came up.
+        arrival: asyncio.Task[bool] | None = None
+        #: What has been said since the page cue, while the page is not up.
+        ahead = 0
         #: A page this reply opened never came up: the rest of it, which is
         #: about that page, is not said, and its cues are not sent.
         late = False
@@ -1486,100 +1741,135 @@ class ExploraBrain(OpenAIBrain):
         #: Atacama desert page, so the screen jumped past the page he was
         #: describing. A second page cue is dropped; its words are still said.
         moved: str | None = None
+
+        def runs_of(chunk: str, *, final: bool) -> list[tuple[str, bool]]:
+            """``chunk``'s speakable runs, its page cue taken out and the page
+            sent, each with whether it comes after a page still on its way; an
+            open brace's tail is held for the next chunk."""
+            nonlocal buf, moved, arrival, ahead
+            buf += chunk
+            out: list[tuple[str, bool]] = []
+            while (m := _PAGE_CUE.search(buf)) is not None:
+                before, value, buf = buf[: m.start()], m.group(1), buf[m.end() :]
+                if before:
+                    out.append((before, arrival is not None))
+                target = self._page_target(value)
+                if target is None:
+                    logger.info("explora: page cue {!r} names no page; dropped", value)
+                    self._note(
+                        f"[Your page cue {value} named no page of the site, so the "
+                        "screen did not move. Never say it is on their screen: find the "
+                        "page with search_site, or the page's own sub-pages, and cue it.]"
+                    )
+                    continue
+                if self._site == "site" and target == self._path:
+                    continue  # Already there: a show cue after it does the rest.
+                if moved is not None:
+                    logger.info(
+                        "explora: second page cue {!r} in one reply, after {}; dropped",
+                        value,
+                        moved,
+                    )
+                    continue
+                moved = target
+                arrival = self._open_page(target)
+                # Kept until done: a reply over before its page is up leaves
+                # the page to come up (and its Spanish twin to load) by itself.
+                self._arrivals.add(arrival)
+                arrival.add_done_callback(self._arrivals.discard)
+                ahead = 0
+            cut = buf.rfind("{")
+            if not final and cut >= 0 and "}" not in buf[cut:] and len(buf) - cut <= MAX_CUE:
+                head, buf = buf[:cut], buf[cut:]
+            else:
+                head, buf = buf, ""
+            if head:
+                out.append((head, arrival is not None))
+            return out
+
+        async def said(runs: list[tuple[str, bool]]) -> AsyncGenerator[Speech, None]:
+            """``runs``, each held for the page once the reply is far enough
+            ahead of it; the honest line instead, once the page is late."""
+            nonlocal late, ahead, arrival
+            # Sentence by sentence while a page is on its way: a model may
+            # stream a whole reply in one chunk.
+            pieces = [
+                (piece, after)
+                for run, after in runs
+                for piece in (_sentence_runs(run) if after else [run])
+            ]
+            for piece, after in pieces:
+                if arrival is not None and (arrival.done() or ahead >= _AHEAD_SENTENCES):
+                    up = await arrival
+                    arrival = None
+                    if not up:
+                        late = True
+                        yield SpeechChunk(f" {_PAGE_LATE[self.spoken]}")
+                        return
+                if arrival is not None and after and piece.rstrip().endswith(_STOPS):
+                    ahead += 1
+                yield SpeechChunk(piece)
+
+        def opening(text: str, *, final: bool) -> str | None:
+            """The reply's opening, once there is enough of it to decide on."""
+            nonlocal lead
+            whole = (lead or "") + text
+            if not final and not self._decided(whole):
+                lead = whole
+                return None
+            lead = None
+            if not whole.strip():
+                return whole
+            # A holding line is mine to say, not his: he copied it on dev call
+            # 1f6cd8ce ("Just a moment. Here are the rooms").
+            return self._with_backstop(_HOLD_OPENER.sub("", whole, count=1))
+
         try:
             async for event in turn:
-                if isinstance(event, SpeechStart):
-                    opened = True
-                    yield event
+                if late:
+                    if not isinstance(event, SpeechChunk):
+                        yield event
+                    continue
+                if isinstance(event, SpeechChunk):
+                    text = event.text
+                    if lead is not None and (text := opening(text, final=False)) is None:
+                        continue
+                    async for out in said(runs_of(text, final=False)):
+                        yield out
                     continue
                 if isinstance(event, SpeechEnd):
-                    if buf and not late:
-                        yield SpeechChunk(buf)
-                        said += _words_in(buf)
-                    buf = ""
-                    opened = False
-                    yield event
-                    continue
-                if not isinstance(event, SpeechChunk):
-                    yield event
-                    continue
-                if late:
-                    continue
-                text = event.text
-                if first and text.strip():
-                    first = False
-                    # A holding line is mine to say, not his: he copied it on
-                    # dev call 1f6cd8ce ("Just a moment. Here are the rooms").
-                    text = _HOLD_OPENER.sub("", text, count=1)
-                    text = self._with_backstop(text)
-                buf += text
-                while (m := _PAGE_CUE.search(buf)) is not None:
-                    before, value, buf = buf[: m.start()], m.group(1), buf[m.end() :]
-                    if before.strip():
-                        yield SpeechChunk(before)
-                        said += _words_in(before)
-                    target = self._page_target(value)
-                    if target is None:
-                        logger.info("explora: page cue {!r} names no page; dropped", value)
-                        self._note(
-                            f"[Your page cue {value} named no page of the site, so the "
-                            "screen did not move. Never say it is on their screen: find the "
-                            "page with search_site, or the page's own sub-pages, and cue it.]"
-                        )
-                        continue
-                    if self._site == "site" and target == self._path:
-                        continue  # Already there: a show cue after it does the rest.
-                    if moved is not None:
-                        logger.info(
-                            "explora: second page cue {!r} in one reply, after {}; dropped",
-                            value,
-                            moved,
-                        )
-                        continue
-                    moved = target
-                    # Nothing said yet: a line of mine, so the load is not silence.
-                    if opened and not said and not lined:
-                        lined = True
-                        line = _PAGE_LINE[self.spoken]
-                        yield SpeechChunk(f"{line} ")
-                        said += _words_in(line)
-                    # The words so far play out in their own unit, then the page goes.
-                    if opened and said:
-                        yield SpeechEnd()
-                        opened = False
-                    arrived = await self._open_page(target, said)
-                    said = 0
-                    if not opened:
-                        yield SpeechStart()
-                        opened = True
-                    if not arrived:
-                        late, buf = True, ""
-                        yield SpeechChunk(_PAGE_LATE[self.spoken])
-                        break
-                # A cue may still be arriving: hold back an open brace's tail.
-                cut = buf.rfind("{")
-                if cut >= 0 and "}" not in buf[cut:] and len(buf) - cut <= MAX_CUE:
-                    head, buf = buf[:cut], buf[cut:]
-                else:
-                    head, buf = buf, ""
-                if late:
-                    continue
-                if head:
-                    yield SpeechChunk(head)
-                    said += _words_in(head)
-            if buf and not late:
-                yield SpeechChunk(buf)
+                    rest = opening("", final=True) or "" if lead is not None else ""
+                    async for out in said(runs_of(rest, final=True)):
+                        yield out
+                yield event
+            if not late:
+                rest = opening("", final=True) or "" if lead is not None else ""
+                async for out in said(runs_of(rest, final=True)):
+                    yield out
         finally:
             await turn.aclose()
 
-    def _cue_is_here(self, chunk: str) -> bool:
-        """Whether ``chunk`` opens with a show or faq cue that names something
-        on the page in front."""
-        m = re.match(r"\s*\{\s*(show|faq)\s*:\s*([^{}]*?)\s*\}", chunk, re.IGNORECASE)
-        if m is None:
+    @staticmethod
+    def _decided(lead: str) -> bool:
+        """Whether a reply's opening is enough to tell if it brought a cue of
+        its own: its first cue closed, or :data:`_LEAD_CHARS` of words with no
+        cue still open. On a dev test on 2026-10-28 the first chunk was the
+        sliver "{show", read as no cue, and his right one was overridden."""
+        body = lead.lstrip()
+        if not body:
             return False
-        here = (*self._headings(), *self._tab_labels(), *self._faqs())
-        return _match(m.group(2), here) is not None
+        if body.rfind("{") > body.rfind("}"):
+            return len(body) - body.rfind("{") > MAX_CUE
+        return "}" in body or len(body) >= _LEAD_CHARS
+
+    def _cue_is_here(self, lead: str) -> bool:
+        """Whether a reply's opening ``lead`` brings a show or faq cue that
+        names something on the page in front."""
+        here = (*self._headings(), *self._tab_labels(), *self._faqs(), *self._known_labels())
+        return any(
+            _match(m.group(2), here) is not None or match_label(m.group(2), here) is not None
+            for m in re.finditer(r"\{\s*(show|faq)\s*:\s*([^{}]*?)\s*\}", lead, re.IGNORECASE)
+        )
 
     def _page_target(self, value: str) -> str | None:
         """The path a page cue opens: a page of the crawl, or one of the page
@@ -1594,25 +1884,30 @@ class ExploraBrain(OpenAIBrain):
         links = self.page.links if self.page is not None else []
         return want if any(canonical_path(link) == want for link in links) else None
 
-    async def _open_page(self, path: str, words_before: int) -> bool:
-        """Open ``path`` on the tab in front and wait for it to report itself;
-        whether it did. In a Spanish call, an English page that comes up is
-        loaded again as its Spanish twin before the rest is said."""
+    def _open_page(self, path: str) -> asyncio.Task[bool]:
+        """Open ``path`` on the tab in front at once, his voice playing on, and
+        from now check cues against it; the wait for it to report itself."""
         seen = self._pages_seen
         # The page being left may report itself again (late-rendering parts):
         # only a report of another page is the new one.
         leaving = self._path if self._site == "site" else None
         self._page_arrived.clear()
         self._page_failed = False
-        logger.info("explora: opening {} after {} words", path, words_before)
-        self._send_move(NAVIGATE.id, {"path": site_path(path), "after_words": words_before})
+        logger.info("explora: opening {}", path)
+        self._send_move(NAVIGATE.id, {"path": site_path(path), "after_words": 0})
         self._cue_path = path
         self._shown = None
-        deadline = time.monotonic() + _PAGE_WAIT_S + words_before / _WORDS_PER_S
         # On the Spanish site an English path may be the page in front: the
         # page re-reports itself rather than reload, and that is the arrival.
         if leaving is not None and leaving.startswith("/es/"):
             leaving = None
+        return asyncio.ensure_future(self._page_up(path, seen, leaving))
+
+    async def _page_up(self, path: str, seen: int, leaving: str | None) -> bool:
+        """Whether ``path``, opened when ``seen`` pages had reported, came up
+        in time. In a Spanish call, an English page that comes up is loaded
+        again as its Spanish twin."""
+        deadline = time.monotonic() + _PAGE_WAIT_S
         while self._pages_seen == seen or (leaving is not None and self._path == leaving):
             left = deadline - time.monotonic()
             if left <= 0 or self._page_failed:
@@ -1711,8 +2006,9 @@ class ExploraBrain(OpenAIBrain):
         return spelled()
 
     def _with_backstop(self, chunk: str) -> str:
-        """The reply's first words, with the page the visitor asked about cued
-        in front of them when the reply brings no cue of its own."""
+        """The reply's opening (up to its first cue, or :data:`_LEAD_CHARS` of
+        words; :meth:`_decided`), with the page the visitor asked about cued in
+        front of it when the reply brings no cue of its own."""
         if self._backstop is None or not chunk.strip():
             return chunk
         path, self._backstop = self._backstop, None
@@ -1730,47 +2026,70 @@ class ExploraBrain(OpenAIBrain):
 
     def _auto_cues(
         self, sentence: str, index: int, placed: tuple[tuple[str, tuple[str, ...]], ...]
-    ) -> list[tuple[str, list[str]]]:
-        """Stage's backstop: the section a sentence of his describes and did
-        not cue. SendPotion's dev call 56e87ed1 had him describe four sections
-        of a page with no cue at all."""
+    ) -> list[AutoCue]:
+        """Stage's backstop: what a sentence of his names or describes on the
+        page and did not cue. SendPotion's dev call 56e87ed1 had him describe
+        four sections of a page with no cue at all.
+
+        A sentence that names several things the page has ("Patagonia, the
+        Atacama Desert and Easter Island") gets one cue per name, each anchored
+        at the word he names it with, so the ring follows his voice along."""
         if {verb for verb, _ in placed} & {"show", "faq"}:
             return []
-        shown = self._section_for(sentence)
-        if shown is not None:
-            return [("show", [shown])] if shown != self._shown else []
-        # Items the page lists as questions or tabs, named in passing: on dev
-        # call 0a304d89 he talked through the four exploration zones (Janca,
-        # Quechua, Suni, Puna) of a page that lists them only as accordions,
-        # and the screen stayed where it was.
-        named = self._named_label(sentence)
-        if named is None or named[1] == self._shown:
-            return []
-        if named[0] == "faq":
-            self._shown = named[1]
-        return [(named[0], [named[1]])]
+        cues: list[AutoCue] = []
+        last = self._shown
+        for at, verb, label in self._names(sentence):
+            if label != last:
+                cues.append((verb, [label], at))
+                last = label
+        if not cues and (shown := self._section_for(sentence)) is not None and shown != last:
+            cues.append(("show", [shown]))
+            last = shown
+        self._shown = last
+        return cues
 
-    def _named_label(self, sentence: str) -> tuple[Literal["show", "faq"], str] | None:
-        """The question or tab on the page in front whose name ``sentence``
-        says outright ("Suni covers the mid altitudes" names "3. Suni"); the
-        longest, when it names two."""
-        said = " ".join(re.findall(r"[a-z0-9']+", norm(sentence)))
-        best: tuple[int, Literal["show", "faq"], str] | None = None
-        kinds: tuple[tuple[Literal["show", "faq"], tuple[str, ...]], ...] = (
-            ("faq", self._faqs()),
-            ("show", self._tab_labels()),
-        )
-        for kind, labels in kinds:
-            for label in labels:
-                core = re.sub(r"\[[^\]]*\]|^\s*\d+\s*[.)]\s*", " ", label)
-                words = re.findall(r"[a-z0-9']+", norm(core))
-                if not words or len(" ".join(words)) < 4 or len(words) > 6:
-                    continue
-                if re.search(rf"\b{re.escape(' '.join(words))}\b", said):
-                    size = len(" ".join(words))
-                    if best is None or size > best[0]:
-                        best = (size, kind, label)
-        return (best[1], best[2]) if best else None
+    def _names(self, sentence: str) -> list[tuple[int, Literal["show", "faq"], str]]:
+        """Everything on the page in front that ``sentence`` names outright, in
+        the order he says it, as (offset, verb, label): its questions and tabs
+        ("Suni covers the mid altitudes" names "3. Suni" — on dev call 0a304d89
+        he talked through four zones listed only as accordions, and the screen
+        stayed put), its headings (one word too, when the page in front reports
+        it: BOLIVIA, CHILE, PERU on /lodge/), and the lodges a page of lodges
+        lists by name."""
+        if self._cue_path is None:
+            return []
+        live = self._live()
+        page = self.kb.page(self._cue_path)
+        kinds: dict[str, Literal["show", "faq"]] = {}
+        labels: list[tuple[str, bool]] = []
+
+        def add(
+            items: tuple[str, ...] | list[str], single: bool, verb: Literal["show", "faq"]
+        ) -> None:
+            for label in items:
+                if label not in kinds:
+                    kinds[label] = verb
+                    labels.append((label, single or bool(re.match(r"\s*\d+\s*[.)]", label))))
+
+        add(self._faqs(), True, "faq")
+        add(self._headings(), live, "show")
+        add(self._tab_labels(), True, "show")
+        if page is not None:
+            add(_useful_headings(page), False, "show")
+            add(listed_items(page), True, "show")
+        return [(at, kinds[label], label) for at, label in names_in(sentence, labels)]
+
+    def _lists_lodges(self) -> bool:
+        """Whether the page in front lists the lodges by name, as /lodge/ and
+        /destinations/ do: "the lodges" asked for there are answered there."""
+        if self._site != "site":
+            return False
+        return len(listed_items(self.kb.page(self._path))) >= _LODGES_LISTED
+
+    def _live(self) -> bool:
+        """Whether the page in front is the one this turn's cues are on, so its
+        own report is what they are checked against."""
+        return self.page is not None and canonical_path(self.page.path) == self._cue_path
 
     def _section_for(self, sentence: str) -> str | None:
         """The heading on the page in front that ``sentence`` is about."""
@@ -1796,13 +2115,31 @@ class ExploraBrain(OpenAIBrain):
             return None if question is None else [question]
         # show: a heading of the page in front, else a tab's label, else words.
         heading = _match(value, self._headings()) or _match(value, self._tab_labels())
+        if heading is None and self.spoken == "es" and not self._live():
+            # A Spanish heading for a page still loading, and loading again as
+            # its Spanish twin: only the crawl's English is here to judge it
+            # by, so the page judges it when it comes up.
+            self._shown = value
+            return [value]
         if heading is None and self._invented(value):
-            logger.info(
-                "explora: {!r} is on neither {} nor its crawl; dropped", value, self._cue_path
-            )
-            return None
+            # Written blind for a page not yet seen: the nearest heading the
+            # page reports or its crawl lists, by its words, before giving up.
+            heading = match_label(value, self._known_labels())
+            if heading is None:
+                logger.info(
+                    "explora: {!r} is on neither {} nor its crawl; dropped", value, self._cue_path
+                )
+                return None
+            logger.info("explora: {!r} taken as {!r}", value, heading)
         self._shown = heading or value
         return [heading or value]
+
+    def _known_labels(self) -> list[str]:
+        """The headings and tabs of the page this turn's cues are on, as it
+        reports them and as its crawl lists them."""
+        page = self.kb.page(self._cue_path) if self._cue_path else None
+        crawled = [*page.headings, *page.tabs] if page is not None else []
+        return list(dict.fromkeys([*self._headings(), *self._tab_labels(), *crawled]))
 
     def _invented(self, value: str) -> bool:
         """Whether a show cue's words read as a heading ("Our Lodges: Your Home
@@ -1863,7 +2200,8 @@ class ExploraBrain(OpenAIBrain):
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
         """Page→brain events, folded in silently: no floor taken, no turn."""
-        staged = stage_wire.StageEvents.parse(msg)
+        # Results, hello and progress: a slow move's progress keeps it alive.
+        staged = StagePageEvents.parse(msg)
         if staged is not None:
             if (note := self._staged(staged)) is not None:
                 self._note(note)
@@ -2040,6 +2378,16 @@ class ExploraBrain(OpenAIBrain):
             )
             self._note(f"[The visitor's open Explora tabs — {listed}.]")
         self._tabs_unseen = False
+        running = "; ".join(
+            f"{_ACTS.get(r.move.id, r.move.id)} ({r.phase or 'sent'}, {r.seconds:.0f} s so far)"
+            for r in self.stage.running()
+            if r.move.verb is None and r.move.cls is not MoveClass.LOOK and r.seconds >= 2
+        )
+        if running:
+            self._note(
+                f"[Still working on the page: {running}. Not done yet, and not failed: if it "
+                "comes up, say it is still working on it.]"
+            )
         if not self._page_unseen or self.page is None:
             return
         self._page_unseen = False
@@ -2064,9 +2412,7 @@ class ExploraBrain(OpenAIBrain):
         spell: ``ask`` for the model, and ``line`` if its turn says nothing."""
         self._talk = ask
         self._talk_fallback = line
-        if not self._idle_short:
-            self._idle_short = True
-            configure_soon(self.session, Config(idle=IdleConfig(timeout_ms=_TALK_THROUGH_MS)))
+        self._shorten_idle()
 
     def _restore_idle(self) -> None:
         if self._idle_short:
@@ -2095,9 +2441,16 @@ class ExploraBrain(OpenAIBrain):
 
     # ─── Stage's answers ────────────────────────────────────────────────
 
-    def _staged(self, event: stage_wire.StageResult | stage_wire.StageHello) -> str | None:
+    def _staged(
+        self,
+        event: stage_wire.StageResult | stage_wire.StageHello | stage_wire.StageProgress,
+    ) -> str | None:
         """One answer from the page, folded through Stage; the line the model
-        should see, if any."""
+        should see, if any. A progress gives its move its time again and says
+        nothing."""
+        if not isinstance(event, stage_wire.StageResult):
+            self.stage.handle(event)
+            return None
         result = self.stage.handle(event)
         if result is None or result.moved:
             return None
@@ -2106,12 +2459,20 @@ class ExploraBrain(OpenAIBrain):
     def _result_note(self, result: stage_wire.StageResult) -> str | None:
         """What the model hears about a move, as its class says: a look only
         when it failed, any other move one line naming the act, and a failure
-        said plainly."""
+        said plainly. A result that comes ``late``, after the move was said to
+        be unknown, corrects that (:meth:`_late_note`)."""
         move = self.stage.move_of(result.call_ref)
         if move is None:
             return None
+        if self._hold is not None and self._hold[0] == result.call_ref:
+            self._hold = None
+        if result.late:
+            return self._late_note(result, move)
         landed_ = result.outcome in ("applied", "partial")
         detail = result.detail or result.outcome
+        if result.outcome == "partial" and result.refused:
+            missed = "; ".join(r.why for r in result.refused)
+            detail = f"{detail}; not done: {missed}"
         if move.cls is MoveClass.LOOK:
             if landed_ or (result.outcome == "refused" and detail in ("interrupted", "stale")):
                 return None  # Spoken past, or talked over: not a failure.
@@ -2136,6 +2497,11 @@ class ExploraBrain(OpenAIBrain):
         if landed_:
             if move.cls is MoveClass.CONFIRMED:
                 return None  # The page says what happened: enquiry_sent.
+            if result.outcome == "partial":
+                return (
+                    f"[Only part of it is done on their screen, {act}: {detail}. Say plainly "
+                    "what is done and what is not.]"
+                )
             return f"[Done on their screen, {act}: {detail}.]"
         if move.id in _BOOKING_MOVES:
             self._talk = None
@@ -2148,6 +2514,27 @@ class ExploraBrain(OpenAIBrain):
         return (
             f"[That did not happen on the page ({act}: {detail}). Tell the visitor plainly "
             "and offer what you can do instead; never say it worked.]"
+        )
+
+    def _late_note(self, result: stage_wire.StageResult, move: Move) -> str | None:
+        """A result after he was told the move was not confirmed: a short
+        correction, and for a confirmed move the page did after all, his
+        written line ("Done after all, …") in the next quiet spell."""
+        landed_ = result.outcome in ("applied", "partial")
+        detail = result.detail or result.outcome
+        act = _ACTS.get(move.id, "a screen cue of yours")
+        if not landed_:
+            if move.cls is MoveClass.LOOK:
+                return None  # Already said as not landed; nothing to correct.
+            return (
+                f"[The page has now answered {act}: {detail}. It did not happen; never say it did.]"
+            )
+        if move.cls is MoveClass.CONFIRMED and (lines := _DONE_AFTER_ALL.get(move.id)):
+            self._late_done = lines[self.spoken]
+            self._shorten_idle()
+        return (
+            f"[Correction: {act} did happen after all ({detail}). You were told the page did "
+            "not answer: it did.]"
         )
 
     def _site_language(self) -> Literal["EN", "ES"]:

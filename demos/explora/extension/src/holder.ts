@@ -6,8 +6,9 @@
  * and Stage (the timeline that fires his cues as he speaks, one result per
  * move); what is Explora's is here:
  *
- *   - the pacing of a page load against his voice: a `navigate` waits until
- *     the `after_words` words before it have been said, and a booking move
+ *   - the pacing of a page load against his voice: a `navigate` goes at once
+ *     (`after_words` 0; above it, it waits until those words of his have
+ *     been said), and a booking move
  *     that loads the booking site from www.explora.com waits for the sentence
  *     he is on. Neither host routes client-side, so either throws the page
  *     away; his voice plays here and never stops, but the page changes once he
@@ -48,7 +49,12 @@ async function pace(job: Job, when: "now" | "quiet" | null, api: HolderApi): Pro
   if (job.kind !== "stage") return;
   if (job.move === MOVE.navigate) {
     navigations++;
-    await api.paced(Number((job.args as NavigateArgs).after_words ?? 0));
+    // `after_words` 0 is now: his voice plays here through the load, and the
+    // reply that opened the page goes on streaming over it. Waiting for him
+    // to fall quiet first cost a dev test on 2026-10-28 up to three seconds
+    // of a page standing still while he spoke about the next one.
+    const after = Number((job.args as NavigateArgs).after_words ?? 0);
+    if (after > 0) await api.paced(after);
   } else if (BOOKING_MOVES.has(job.move) && !onBooking(api.frontUrl() ?? "") && bookingUrl(job.move, job.args, api.state.language)) {
     // A booking move from www.explora.com loads the booking site: let him
     // finish the sentence he is on first. One that needs a page already open
