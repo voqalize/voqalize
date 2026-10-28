@@ -7,7 +7,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./extension": "./src/extension/index.ts"
+    "./extension": "./src/extension/index.ts",
+    "./conformance": "./src/conformance.ts"
   },
   "files": [
     "src",

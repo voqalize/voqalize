@@ -473,13 +473,22 @@ def _stage_gen(args: argparse.Namespace) -> int:
 
 
 def _stage_check(args: argparse.Namespace) -> int:
+    from .stage.check import check_spec
+
+    errors = warnings = 0
     for path in args.spec:
         spec = _spec_or_exit(path)
         cues = sum(m.verb is not None for m in spec.moves)
         print(
             f"{path}: {_tally(len(spec.moves), 'move')}, {_tally(cues, 'cue')}; {spec.sha256[:12]}"
         )
-    return 0
+        for finding in check_spec(spec, budget_tokens=args.budget):
+            print(f"  {finding}")
+            errors += finding.level == "error"
+            warnings += finding.level == "warning"
+    if errors or warnings:
+        print(f"{_tally(errors, 'error')}, {_tally(warnings, 'warning')}")
+    return 1 if errors or (args.strict and warnings) else 0
 
 
 def _stage_schema(args: argparse.Namespace) -> int:
@@ -524,8 +533,12 @@ def main(argv: list[str] | None = None) -> int:
     gen.add_argument("--ts", help="the page's scene, as a TypeScript module")
     gen.add_argument("--prompt", help="the line each cue is taught with")
     gen.set_defaults(func=_stage_gen)
-    check = stage_sub.add_parser("check", help="validate one or more specs")
+    check = stage_sub.add_parser("check", help="validate and lint one or more specs")
     check.add_argument("spec", nargs="+", help="path to a Stage Spec (JSON)")
+    check.add_argument("--strict", action="store_true", help="fail on a warning too")
+    check.add_argument(
+        "--budget", type=int, default=800, help="tokens the cue lines may take (default 800)"
+    )
     check.set_defaults(func=_stage_check)
     schema = stage_sub.add_parser("schema", help="print stage.schema.json")
     schema.add_argument("-o", "--out", help="file to write; stdout when omitted")

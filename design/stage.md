@@ -473,6 +473,27 @@ that change one slice):
   listing onto slices changes what the model sees (a note naming the act instead of the whole
   cart), so it lands with a dev re-test, and the hosted brain is the first user.
 
+### Conformance (built)
+
+- **Static: `voqalize stage check spec.json… [--strict] [--budget N]`** (`check.py`). Beyond
+  what loading refuses: every cue run through the SDK's own leaked-call guard (`_looks_like_call`
+  at the start of a reply, `_SPOKEN_CALL` in the middle), so a guard change or a verb that trips
+  it fails the build; a cue with no `say` line, or one whose line never writes its verb
+  (warnings), and a line teaching a verb no move declares (error); a move that changes the page
+  with neither `claims` nor `objects` (warning: its promise cannot be caught); the cue lines
+  over the token budget (800 by default, at ~4 characters a token); a slice no event changes.
+  Exit 1 on an error, and on a warning with `--strict`. `demos/tests/test_stage_specs.py` holds
+  each port's spec to no errors.
+- **Dynamic: `@voqalize/stage/conformance`** (`conformance.ts`), run from a test against the
+  page's own performers on a fixture: `checkRegistry(scene, moves)` (every declared move has a
+  performer under its declared class; a performer for an undeclared move is a warning) and
+  `conformance(scene, moves, cases)`, which makes each case's move and checks one result under
+  its own move id and `call_ref`, an outcome from the closed set, **no page change before the
+  first ring** (a `MutationObserver` on the document, its pending records taken synchronously
+  when `ring` is called; the spotlight's own `[data-voqalize]` overlay is not the page), and a
+  look that lands rings something (warning). `observe(moves, id, args)` gives the raw
+  observation. In the ports, `scene.registerAll` makes the registry check a compile error.
+
 Not yet in the spec (next steps): places and things (regions with spoken labels), `effect`,
 `spotlight`, `undo`, the stale-version check on moves (`resolved_at`), and `stage build` for a
 `defineScene` module.

@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 
 from voqalize.sdk.stage import load_spec
+from voqalize.sdk.stage.check import check_spec
 from voqalize.sdk.stage.gen import render_python, render_typescript
 
 DEMOS = Path(__file__).resolve().parent.parent
@@ -23,6 +24,13 @@ SPECS = sorted(p.parent.name for p in DEMOS.glob("*/scene.json"))
 
 def test_the_ported_demos_have_a_spec() -> None:
     assert {"cannonhome", "explora"} <= set(SPECS)
+
+
+@pytest.mark.parametrize("demo", SPECS)
+def test_the_spec_has_nothing_that_fails_in_a_call(demo: str) -> None:
+    """``voqalize stage check``'s errors; its warnings are advice."""
+    errors = [f for f in check_spec(load_spec(DEMOS / demo / "scene.json")) if f.level == "error"]
+    assert errors == []
 
 
 @pytest.mark.parametrize("demo", SPECS)
