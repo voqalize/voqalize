@@ -1,12 +1,12 @@
 /**
- * The page's mouth clock (`src/mouth-clock.ts`): the holder's newest delivery
+ * The page's mouth clock (`carriedForward` in `@voqalize/stage/extension`): the holder's newest delivery
  * of his voice, carried forward to the face's read, and never further than
  * `HOLD_MS` past it. No browser.
  */
 
 import { expect, test } from "@playwright/test";
 
-import { carriedForward, HOLD_MS } from "../src/mouth-clock";
+import { carriedForward, HOLD_MS } from "@voqalize/stage/extension";
 
 const newest = { timestamp: 1_800_000_000_000, rtpTimestamp: 960_000 };
 

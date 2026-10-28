@@ -71,13 +71,14 @@ from voqalize.sdk import (
     UserMessage,
 )
 from voqalize.sdk.openai import OpenAIBrain
+from voqalize.sdk.stage import MAX_CUE, ArgValue, Move, MoveClass, Refused, Stage
+from voqalize.sdk.stage import wire as stage_wire
 from voqalize.sdk.voice import ToolChoice
 from voqalize.sdk.wire import Config, IdleConfig, SttConfig, TtsConfig, Voice
 
 from . import knowledge as kb
 from .app_events import (
     EXPLORA_EVENTS,
-    CommandFailed,
     EnquiryFields,
     EnquirySent,
     EnquiryState,
@@ -90,7 +91,6 @@ from .app_events import (
     TabsChanged,
     TwinLookup,
 )
-from .cues import MAX_CUE, CueKind, CueParser, RawCue
 from .knowledge import TOPIC_IDS, Knowledge, canonical_path, norm, site_path
 
 AGENT_NAME = "Javier"
@@ -131,9 +131,6 @@ _WORDS_PER_S = 2.8
 #: How long the rest of a reply waits for a page's Spanish twin, once the page
 #: a cue opened came up in English in a Spanish call.
 _TWIN_WAIT_S = 6.0
-#: How soon a repeat of the same availability move counts as the same one,
-#: while the page it opened has not reported itself yet.
-_STAY_MOVE_S = 12.0
 
 # ─── Language ──────────────────────────────────────────────────────────────────
 
@@ -217,110 +214,81 @@ def _chosen_note(language: Lang, how: str) -> str:
     )
 
 
-# ─── Actions (brain → page) ────────────────────────────────────────────────────
+# ─── Moves (brain → page) ──────────────────────────────────────────────────────
+#
+# Everything he does on the screen is a Stage move (``voqalize.sdk.stage``): the
+# page rings its target, makes it, and answers each one with a ``stage_result``.
+# Show and faq are cues, written in his reply and made as the voice reaches
+# them. A page cue is not a cue on Explora: every page is a full page load, so
+# the brain splits his reply there and sends ``explora.navigate`` itself, once
+# the words before it are said (:meth:`ExploraBrain._paced`). The rest are made
+# by tools.
 
+SHOW = Move(
+    id="core.show",
+    verb="show",
+    cls=MoveClass.LOOK,
+    args=("target",),
+    say="{show: Heading} scrolls to a heading, opens a tab or accordion, or rings words.",
+)
+FAQ = Move(
+    id="core.faq",
+    verb="faq",
+    cls=MoveClass.LOOK,
+    args=("question",),
+    say="{faq: Question} opens that question's accordion and rings it.",
+)
+NAVIGATE = Move(id="explora.navigate", verb=None, cls=MoveClass.NAVIGATE, args=("path",))
+"""Open a www.explora.com page in the tab in front, once his voice has said
+``after_words`` words: a full page load. The page reports ``page_changed``."""
+TWIN = Move(id="explora.twin", verb=None, cls=MoveClass.NAVIGATE, args=("language",))
+"""Load the page in front's own twin in ``language``, once his voice is quiet;
+refused when it has none."""
+CHECK_AVAILABILITY = Move(
+    id="explora.check_availability", verb=None, cls=MoveClass.REVERSIBLE, args=("hotel_code",)
+)
+"""On reservations.explora.com, the lodge ``hotel_code``, and with them the
+arrival ``date``, ``month``, ``nights``; with ``rooms``, on to the rooms and
+rates. Never past them. The page reports ``stay_state``."""
+CHOOSE_ROOM = Move(id="explora.choose_room", verb=None, cls=MoveClass.REVERSIBLE, args=("room",))
+"""On the rooms and rates, select ``room`` for ``travellers`` with ``bed``,
+``count`` times. Never check-out itself."""
+FILL_ENQUIRY = Move(
+    id="explora.fill_enquiry", verb=None, cls=MoveClass.REVERSIBLE, args=("expedition_code",)
+)
+"""Open an expedition's enquiry form and fill in the fields given."""
+SEND_ENQUIRY = Move(id="explora.send_enquiry", verb=None, cls=MoveClass.CONFIRMED)
+"""Press Send Message on the filled form: the visitor's own data, so only
+after they ticked the reCAPTCHA and the brain checked every field."""
+FOCUS_TAB = Move(id="explora.focus_tab", verb=None, cls=MoveClass.LOOK, args=("tab_id",))
+"""Bring one of the visitor's Explora tabs to the front."""
 
-class Navigate(Action):
-    """Open one of www.explora.com's pages in the tab in front, once his voice
-    is quiet: a full page load. With ``heading``, ``text`` or ``faq``, that is
-    shown once the page is up. The page reports ``page_changed``."""
+MOVES = (
+    SHOW,
+    FAQ,
+    NAVIGATE,
+    TWIN,
+    CHECK_AVAILABILITY,
+    CHOOSE_ROOM,
+    FILL_ENQUIRY,
+    SEND_ENQUIRY,
+    FOCUS_TAB,
+)
 
-    path: str
-    after_words: int = 0
-    """Words of his this turn still to be heard before the page may go: the
-    page waits for them to start and then for the voice to stop."""
-    heading: str | None = None
-    text: str | None = None
-    faq: str | None = None
-
-
-class Cue(Action):
-    """A move on the page in front for when the voice reaches ``at`` — the first
-    words of the sentence it belongs to (see :mod:`.cues`); empty ``at`` is when
-    the voice stops. A heading, an in-page tab or accordion by its label, words
-    to ring, or an accordion question to open."""
-
-    at: str
-    word: int = 0
-    """Words of the unit before it, for a page that times cues by the clock."""
-    heading: str | None = None
-    text: str | None = None
-    faq: str | None = None
-
-
-class ShowSection(Action):
-    """On the tab in front, scroll to the heading named ``heading`` (or open the
-    tab or accordion with that label) and ring it; with ``text``, ring the
-    smallest element containing that text."""
-
-    heading: str | None = None
-    text: str | None = None
-
-
-class OpenFaq(Action):
-    """Open the accordion whose question starts with ``question``, and ring it."""
-
-    question: str
-
-
-class CheckAvailability(Action):
-    """On reservations.explora.com, choose the lodge ``hotel_code`` and, with
-    them, the arrival ``date`` (``YYYY-MM-DD``) and ``nights``. With ``rooms``,
-    press Continue to its rooms and rates. Never past them. The page reports
-    ``stay_state``."""
-
-    hotel_code: str
-    date: str | None = None
-    month: str | None = None
-    """``YYYY-MM``: with no date, the month the calendar turns to, whose open
-    days it reports."""
-    nights: int | None = None
-    rooms: bool = False
-    language: Literal["EN", "ES"] = "EN"
-    """The booking site's language for the pages it opens: the call's."""
-
-
-class ChooseRoom(Action):
-    """On the rooms and rates (step two), choose ``room`` for ``travellers``
-    with ``bed`` and press its select button, which shows the room's summary
-    and its check-out button. Never check-out itself. The page reports
-    ``stay_state``."""
-
-    room: str
-    travellers: int | None = None
-    bed: str | None = None
-    count: int = 1
-    """How many of this room to add, one after the other: the summary popup's
-    "Add more rooms" between them."""
-
-
-class FillEnquiry(Action):
-    """On reservations.explora.com, open the enquiry form of the expedition
-    ``expedition_code`` and fill in the fields given. What is filled stays. The
-    page reports ``enquiry_state``."""
-
-    expedition_code: str
-    title: str | None = None
-    first_name: str | None = None
-    last_name: str | None = None
-    email: str | None = None
-    phone: str | None = None
-    country: str | None = None
-    """The nationality as the form's list names it ("Mexico"): its codes
-    repeat (``AL`` is both Albania and the DR Congo), its names do not."""
-    message: str | None = None
-    language: Literal["EN", "ES"] = "EN"
-    """The booking site's language for the pages it opens: the call's."""
-
-
-class SendEnquiry(Action):
-    """Press Send Message on the filled enquiry form, once its reCAPTCHA is ticked."""
-
-
-class FocusTab(Action):
-    """Bring one of the visitor's Explora tabs to the front."""
-
-    tab_id: str
+#: What each move did, for the line the model hears about it.
+_ACTS: dict[str, str] = {
+    NAVIGATE.id: "opening a page",
+    TWIN.id: "loading the page in the call's language",
+    CHECK_AVAILABILITY.id: "the booking site's availability",
+    CHOOSE_ROOM.id: "choosing a room",
+    FILL_ENQUIRY.id: "filling in the enquiry form",
+    SEND_ENQUIRY.id: "sending the enquiry",
+    FOCUS_TAB.id: "bringing a tab to the front",
+}
+#: The enquiry form's fields, as ``explora.fill_enquiry`` sends them.
+_ENQUIRY_KEYS = ("title", "first_name", "last_name", "email", "phone", "country", "message")
+#: The moves of the booking site: one that failed ends the talk-through.
+_BOOKING_MOVES = frozenset({CHECK_AVAILABILITY.id, FILL_ENQUIRY.id, SEND_ENQUIRY.id})
 
 
 class LanguageChanged(Action):
@@ -329,11 +297,11 @@ class LanguageChanged(Action):
     it for the rest of the call, on every page and both hosts."""
 
     language: Literal["en", "es"]
-    site: Literal["follow", "twin", "stay"] = "follow"
+    site: Literal["follow", "stay"] = "follow"
     """What the page in front does: ``follow`` loads it in that language (its
-    twin, else that language's home page); ``twin`` loads its own twin only,
-    and reports it when it has none; ``stay`` leaves it as it is (the call's
-    start, on the page the visitor opened it on)."""
+    twin, else that language's home page); ``stay`` leaves it as it is (the
+    call's start, on the page the visitor opened it on). Loading only the
+    page's own twin is the ``explora.twin`` move."""
 
 
 # ─── Tool requests ─────────────────────────────────────────────────────────────
@@ -1242,14 +1210,22 @@ class ExploraBrain(OpenAIBrain):
         self._turn = 0
         #: What the visitor said lately, for what a tool may take as said.
         self._heard: list[str] = []
-        #: The availability move last sent, and when, until its page reports.
-        self._stay_move: tuple[dict[str, Any], float] | None = None
         #: The page in front said it has no twin in the call's language.
         self._twin_refused = False
+        #: The page a reply opened answered that it did not open.
+        self._page_failed = False
         #: A talk-through's written line, said if the model's turn says nothing.
         self._talk_fallback: str | None = None
         self._talk_line: str | None = None
         self._warming: asyncio.Task[None] | None = None
+        #: Every move on the page goes through this director, which answers
+        #: each with one result (:meth:`_staged`).
+        self.stage = Stage(
+            dispatch=lambda action: self.session.dispatch(action),
+            moves=MOVES,
+            resolve=self._resolve,
+            backstop=self._auto_cues,
+        )
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -1331,9 +1307,9 @@ class ExploraBrain(OpenAIBrain):
         return "es" if self._path == "/es" or self._path.startswith("/es/") else "en"
 
     def _show_in(self, language: Lang) -> None:
-        """Load the page in front's own twin in ``language``, now."""
+        """Load the page in front's own twin in ``language``, once his voice is quiet."""
         logger.info("explora: the page in front is asked for in {}", language)
-        self.session.dispatch(LanguageChanged(language=language, site="twin"))
+        self._send_move(TWIN.id, {"language": language}, when="quiet")
         name = LANGUAGE_NAMES[language]
         self._note(
             f"[The page in front is loading in {name} now. Say so in a few words, and never "
@@ -1450,6 +1426,9 @@ class ExploraBrain(OpenAIBrain):
             async for event in say_line(self, line):
                 yield event
         self._turn += 1
+        for expired in self.stage.expire():
+            if (note := self._result_note(expired)) is not None:
+                self._note(note)
         self._cue_path = self._path if self._site == "site" else None
         self._shown = None
         self._booked = False
@@ -1460,7 +1439,9 @@ class ExploraBrain(OpenAIBrain):
                 self, super().respond(session), again=lambda: self._talk_again(session)
             )
         )
-        async for event in self._spelled(self._written(session, self._cued(self._paced(turn)))):
+        async for event in self._spelled(
+            self._written(session, self.stage.cued(self._paced(turn)))
+        ):
             # Words, not a unit: a reply that was only a dropped page cue
             # opened a unit and said nothing (dev call 0a304d89, turn 4).
             if isinstance(event, SpeechChunk):
@@ -1480,7 +1461,7 @@ class ExploraBrain(OpenAIBrain):
                 yield event
         elif not spoke:
             logger.warning("explora: the model returned nothing; asking once more")
-            again = self._written(session, self._cued(self._paced(self._talk_now(session))))
+            again = self._written(session, self.stage.cued(self._paced(self._talk_now(session))))
             async for event in self._spelled(again):
                 yield event
 
@@ -1488,7 +1469,7 @@ class ExploraBrain(OpenAIBrain):
         """``turn``, split at each ``{page: …}`` cue, which costs a full page load.
 
         The words before the cue are spoken and their unit closed; the page is
-        opened, once his voice is quiet (:class:`Navigate`); and the rest waits
+        opened, once his voice is quiet (``explora.navigate``); and the rest waits
         for the new page to report itself, so it is heard on it and its cues
         land there. A page that never comes holds the rest no longer than
         :data:`_PAGE_WAIT_S` past the words still being said."""
@@ -1622,8 +1603,9 @@ class ExploraBrain(OpenAIBrain):
         # only a report of another page is the new one.
         leaving = self._path if self._site == "site" else None
         self._page_arrived.clear()
+        self._page_failed = False
         logger.info("explora: opening {} after {} words", path, words_before)
-        self.session.dispatch(Navigate(path=site_path(path), after_words=words_before))
+        self._send_move(NAVIGATE.id, {"path": site_path(path), "after_words": words_before})
         self._cue_path = path
         self._shown = None
         deadline = time.monotonic() + _PAGE_WAIT_S + words_before / _WORDS_PER_S
@@ -1633,8 +1615,8 @@ class ExploraBrain(OpenAIBrain):
             leaving = None
         while self._pages_seen == seen or (leaving is not None and self._path == leaving):
             left = deadline - time.monotonic()
-            if left <= 0:
-                logger.warning("explora: {} did not report itself in time", path)
+            if left <= 0 or self._page_failed:
+                logger.warning("explora: {} did not come up", path)
                 self._cue_path = self._path if self._site == "site" else None
                 where = "the booking site" if self._site == "reservations" else self._path
                 self._note(
@@ -1662,7 +1644,7 @@ class ExploraBrain(OpenAIBrain):
         self._twin_refused = False
         self._page_arrived.clear()
         logger.warning("explora: {} came up in English; loading its Spanish twin", english)
-        self.session.dispatch(LanguageChanged(language="es", site="twin"))
+        self._send_move(TWIN.id, {"language": "es"}, when="quiet")
         deadline = time.monotonic() + _TWIN_WAIT_S
         while (self._pages_seen == seen or self._path == english) and not self._twin_refused:
             left = deadline - time.monotonic()
@@ -1728,32 +1710,6 @@ class ExploraBrain(OpenAIBrain):
 
         return spelled()
 
-    async def _cued(self, turn: AsyncGenerator[Speech, None]) -> AsyncGenerator[Speech, None]:
-        """``turn`` with every ``{show|faq: …}`` taken out of its text and sent
-        to the page as a :class:`Cue`, anchored to the words before it. Page
-        cues were taken out before it, by :meth:`_paced`."""
-        parser = CueParser(self._auto_cues)
-        try:
-            async for event in turn:
-                if isinstance(event, SpeechStart):
-                    parser = CueParser(self._auto_cues)
-                elif isinstance(event, SpeechChunk):
-                    text, raw = parser.feed(event.text)
-                    for cue in raw:
-                        self._send_cue(cue)
-                    if text:
-                        yield SpeechChunk(text)
-                    continue
-                else:  # SpeechEnd
-                    rest, raw = parser.flush()
-                    for cue in raw:
-                        self._send_cue(cue)
-                    if rest:
-                        yield SpeechChunk(rest)
-                yield event
-        finally:
-            await turn.aclose()
-
     def _with_backstop(self, chunk: str) -> str:
         """The reply's first words, with the page the visitor asked about cued
         in front of them when the reply brings no cue of its own."""
@@ -1772,27 +1728,17 @@ class ExploraBrain(OpenAIBrain):
         logger.info("explora: the reply has no cue; showing {} first", path)
         return f"{{page: {path}}}{chunk}"
 
-    def _send_cue(self, raw: RawCue) -> None:
-        """Check a cue against the page, as the tools do, and send it; one that
-        names nothing real is dropped and logged rather than reaching the page."""
-        cue = self._resolve_cue(raw)
-        logger.info("explora: cue {} {!r} at {!r} -> {}", raw.kind, raw.value, raw.at, cue)
-        if cue is not None:
-            if raw.kind == "show":
-                self._shown = cue.heading or cue.text
-            self.session.dispatch(cue)
-
     def _auto_cues(
-        self, sentence: str, index: int, placed: tuple[tuple[CueKind, str], ...]
-    ) -> list[tuple[CueKind, str]]:
-        """The section a sentence of his describes and did not cue (see
-        :mod:`.cues`): SendPotion's dev call 56e87ed1 had him describe four
-        sections of a page with no cue at all."""
-        if {k for k, _ in placed} & {"show", "faq", "page"}:
+        self, sentence: str, index: int, placed: tuple[tuple[str, tuple[str, ...]], ...]
+    ) -> list[tuple[str, list[str]]]:
+        """Stage's backstop: the section a sentence of his describes and did
+        not cue. SendPotion's dev call 56e87ed1 had him describe four sections
+        of a page with no cue at all."""
+        if {verb for verb, _ in placed} & {"show", "faq"}:
             return []
         shown = self._section_for(sentence)
         if shown is not None:
-            return [("show", shown)] if shown != self._shown else []
+            return [("show", [shown])] if shown != self._shown else []
         # Items the page lists as questions or tabs, named in passing: on dev
         # call 0a304d89 he talked through the four exploration zones (Janca,
         # Quechua, Suni, Puna) of a page that lists them only as accordions,
@@ -1802,15 +1748,19 @@ class ExploraBrain(OpenAIBrain):
             return []
         if named[0] == "faq":
             self._shown = named[1]
-        return [named]
+        return [(named[0], [named[1]])]
 
-    def _named_label(self, sentence: str) -> tuple[CueKind, str] | None:
+    def _named_label(self, sentence: str) -> tuple[Literal["show", "faq"], str] | None:
         """The question or tab on the page in front whose name ``sentence``
         says outright ("Suni covers the mid altitudes" names "3. Suni"); the
         longest, when it names two."""
         said = " ".join(re.findall(r"[a-z0-9']+", norm(sentence)))
-        best: tuple[int, CueKind, str] | None = None
-        for kind, labels in (("faq", self._faqs()), ("show", self._tab_labels())):
+        best: tuple[int, Literal["show", "faq"], str] | None = None
+        kinds: tuple[tuple[Literal["show", "faq"], tuple[str, ...]], ...] = (
+            ("faq", self._faqs()),
+            ("show", self._tab_labels()),
+        )
+        for kind, labels in kinds:
             for label in labels:
                 core = re.sub(r"\[[^\]]*\]|^\s*\d+\s*[.)]\s*", " ", label)
                 words = re.findall(r"[a-z0-9']+", norm(core))
@@ -1819,7 +1769,7 @@ class ExploraBrain(OpenAIBrain):
                 if re.search(rf"\b{re.escape(' '.join(words))}\b", said):
                     size = len(" ".join(words))
                     if best is None or size > best[0]:
-                        best = (size, kind, label)  # type: ignore[assignment]
+                        best = (size, kind, label)
         return (best[1], best[2]) if best else None
 
     def _section_for(self, sentence: str) -> str | None:
@@ -1834,23 +1784,25 @@ class ExploraBrain(OpenAIBrain):
             sections += [(h, "") for h in live if h not in known]
         return best_section(sentence, sections)
 
-    def _resolve_cue(self, raw: RawCue) -> Cue | None:
-        if raw.kind == "page":
-            return None  # Paced by _paced, never sent ahead.
-        if raw.kind == "faq":
-            question = _match(raw.value, self._faqs())
-            if question is None:
-                return None
-            return Cue(at=raw.at, word=raw.word, faq=question)
+    def _resolve(self, move: Move, args: list[str]) -> list[str] | None:
+        """Stage's resolver: a cue checked against the page, as the tools are,
+        and rewritten to the page's own spelling; one that names nothing real
+        is dropped and logged rather than reaching the page."""
+        if not args:
+            return None
+        value = args[0]
+        if move.id == FAQ.id:
+            question = _match(value, self._faqs())
+            return None if question is None else [question]
         # show: a heading of the page in front, else a tab's label, else words.
-        heading = _match(raw.value, self._headings()) or _match(raw.value, self._tab_labels())
-        if heading is None and self._invented(raw.value):
+        heading = _match(value, self._headings()) or _match(value, self._tab_labels())
+        if heading is None and self._invented(value):
             logger.info(
-                "explora: {!r} is on neither {} nor its crawl; dropped", raw.value, self._cue_path
+                "explora: {!r} is on neither {} nor its crawl; dropped", value, self._cue_path
             )
             return None
-        text = None if heading else raw.value[:120]
-        return Cue(at=raw.at, word=raw.word, heading=heading, text=text)
+        self._shown = heading or value
+        return [heading or value]
 
     def _invented(self, value: str) -> bool:
         """Whether a show cue's words read as a heading ("Our Lodges: Your Home
@@ -1911,6 +1863,11 @@ class ExploraBrain(OpenAIBrain):
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
         """Page→brain events, folded in silently: no floor taken, no turn."""
+        staged = stage_wire.StageEvents.parse(msg)
+        if staged is not None:
+            if (note := self._staged(staged)) is not None:
+                self._note(note)
+            return
         event = EXPLORA_EVENTS.parse(msg)
         if event is None:
             return
@@ -1963,8 +1920,6 @@ class ExploraBrain(OpenAIBrain):
                 self.page = event
                 self._path = canonical_path(event.path)
                 self._site = event.site
-                if event.site == "reservations":
-                    self._stay_move = None
                 self._page_unseen = True
                 self._pages_seen += 1
                 self._page_arrived.set()
@@ -2000,34 +1955,10 @@ class ExploraBrain(OpenAIBrain):
                         f": {event.error}" if event.error else "",
                     )
                 return None
-            case CommandFailed() if event.command == "language_changed":
-                # The page in front has no twin: whatever waits for one stops.
-                self._twin_refused = True
-                self._page_arrived.set()
-                return (
-                    f"[The page in front stays as it is ({event.reason}). Say so plainly if "
-                    "the visitor asked for it; never say it changed.]"
-                )
-            case CommandFailed() if event.command == "cue":
-                return (
-                    f"[A screen cue of yours did not land ({event.reason}). If the visitor "
-                    "asks where it is, show it again; otherwise carry on.]"
-                )
-            case CommandFailed():
-                if event.command in ("check_availability", "fill_enquiry", "send_enquiry"):
-                    self._talk = None
-                    self._stay_move = None
-                    self._restore_idle()
-                return (
-                    f"[That did not happen on the page ({event.command}: {event.reason}). "
-                    "Tell the visitor plainly and offer what you can do instead; never say it "
-                    "worked.]"
-                )
 
     def _stay_changed(self, event: StayState) -> str | None:
         before = self.stay
         self.stay = event
-        self._stay_move = None
         lodge = event.hotel or event.hotel_code
         if event.step == "rooms":
             rooms = _clip([f"{r.name} ({r.text})" if r.text else r.name for r in event.rooms], 12)
@@ -2142,11 +2073,82 @@ class ExploraBrain(OpenAIBrain):
             self._idle_short = False
             configure_soon(self.session, Config(idle=IdleConfig(timeout_ms=_IDLE_MS)))
 
-    def _move(self, action: Action, line: str = "shown") -> None:
-        """Dispatch ``action``, with the written line for it (one of
-        :data:`_LANDED`, in the language he speaks) should the turn say nothing."""
-        self.session.dispatch(action)
-        landed(_LANDED[line][self.spoken])
+    def _send_move(
+        self,
+        move: str,
+        args: dict[str, ArgValue],
+        *,
+        line: str | None = None,
+        when: Literal["now", "quiet"] = "now",
+    ) -> Literal["sent", "queued", "running"]:
+        """Send a move through Stage, with the written line for it (one of
+        :data:`_LANDED`, in the language he speaks) should the turn say
+        nothing. ``running`` when exactly this move is already on its way,
+        which is not sent twice."""
+        try:
+            ref = self.stage.send(move, args, when=when)
+        except Refused:
+            return "running"
+        if line is not None:
+            landed(_LANDED[line][self.spoken])
+        return "sent" if ref is not None else "queued"
+
+    # ─── Stage's answers ────────────────────────────────────────────────
+
+    def _staged(self, event: stage_wire.StageResult | stage_wire.StageHello) -> str | None:
+        """One answer from the page, folded through Stage; the line the model
+        should see, if any."""
+        result = self.stage.handle(event)
+        if result is None or result.moved:
+            return None
+        return self._result_note(result)
+
+    def _result_note(self, result: stage_wire.StageResult) -> str | None:
+        """What the model hears about a move, as its class says: a look only
+        when it failed, any other move one line naming the act, and a failure
+        said plainly."""
+        move = self.stage.move_of(result.call_ref)
+        if move is None:
+            return None
+        landed_ = result.outcome in ("applied", "partial")
+        detail = result.detail or result.outcome
+        if move.cls is MoveClass.LOOK:
+            if landed_ or (result.outcome == "refused" and detail in ("interrupted", "stale")):
+                return None  # Spoken past, or talked over: not a failure.
+            if move.id == FOCUS_TAB.id:
+                return f"[The tab did not come to the front ({detail}). Never say it did.]"
+            return (
+                f"[A screen cue of yours did not land ({detail}). If the visitor asks where "
+                "it is, show it again; otherwise carry on.]"
+            )
+        act = _ACTS.get(move.id, move.id)
+        if move.id == NAVIGATE.id and not landed_:
+            self._page_failed = True
+            self._page_arrived.set()
+        if move.id == TWIN.id and not landed_:
+            # The page in front has no twin: whatever waits for one stops.
+            self._twin_refused = True
+            self._page_arrived.set()
+            return (
+                f"[The page in front stays as it is ({detail}). Say so plainly if the visitor "
+                "asked for it; never say it changed.]"
+            )
+        if landed_:
+            if move.cls is MoveClass.CONFIRMED:
+                return None  # The page says what happened: enquiry_sent.
+            return f"[Done on their screen, {act}: {detail}.]"
+        if move.id in _BOOKING_MOVES:
+            self._talk = None
+            self._restore_idle()
+        if result.outcome == "unknown":
+            return (
+                f"[The page did not answer {act} ({detail}). Never say it happened; go by "
+                "what the screen lines show.]"
+            )
+        return (
+            f"[That did not happen on the page ({act}: {detail}). Tell the visitor plainly "
+            "and offer what you can do instead; never say it worked.]"
+        )
 
     def _site_language(self) -> Literal["EN", "ES"]:
         return "ES" if self.spoken == "es" else "EN"
@@ -2236,33 +2238,29 @@ class ExploraBrain(OpenAIBrain):
             near = _clip([_spoken_date(d) for d in stay.open_days[:6]], 6)
             return f"Not chosen: {date} is not an open arrival day. Open days include: {near}."
         rooms = request.show_rooms and bool(date or (self.stay and self.stay.date))
-        move = CheckAvailability(
-            hotel_code=hotel.code,
-            date=date,
-            month=request.month[:7] if request.month and not date else None,
-            nights=request.nights,
-            rooms=rooms,
-            language=self._site_language(),
-        )
-        # The same move again while its page is still loading would load it
-        # twice (prod call be1f5b9a sent the rooms twice, 3.7 s apart).
-        sent = move.model_dump()
-        now = time.monotonic()
-        last = self._stay_move
-        if last is not None and last[0] == sent and now - last[1] < _STAY_MOVE_S:
-            return f"Already opening that for {hotel.label}: the page will report itself."
-        self._stay_move = (sent, now)
-        self._booked = True
-        self._move(
-            move,
+        args: dict[str, ArgValue] = {
+            "hotel_code": hotel.code,
+            "date": date,
+            "month": request.month[:7] if request.month and not date else None,
+            "nights": request.nights,
+            "rooms": rooms,
+            "language": self._site_language(),
+        }
+        line = (
             "rooms"
             if rooms
             else "stay_date"
             if date
             else "stay_nights"
             if request.nights
-            else "stay",
+            else "stay"
         )
+        # The same move again while it is still on its way would load the page
+        # twice (prod call be1f5b9a sent the rooms twice, 3.7 s apart): Stage
+        # does not send it twice.
+        if self._send_move(CHECK_AVAILABILITY.id, args, line=line) == "running":
+            return f"Already opening that for {hotel.label}: the page will report itself."
+        self._booked = True
         what = ", ".join(
             x
             for x in (
@@ -2297,14 +2295,20 @@ class ExploraBrain(OpenAIBrain):
         # press twice in one turn is a repeat; in another turn it is another
         # room (prod call be1f5b9a: the second room for four was refused).
         chosen = (room, request.travellers, bed, count)
+        already = f"{room} is already being added, as asked: the summary is on screen."
         if chosen == self._room and self._room_turn == self._turn:
-            return f"{room} is already being added, as asked: the summary is on screen."
+            return already
+        args: dict[str, ArgValue] = {
+            "room": room,
+            "travellers": request.travellers,
+            "bed": bed,
+            "count": count,
+        }
+        if self._send_move(CHOOSE_ROOM.id, args, line="room") == "running":
+            return already
         self._room, self._room_turn = chosen, self._turn
         self._rooms_added += count
         self._booked = True
-        self._move(
-            ChooseRoom(room=room, travellers=request.travellers, bed=bed, count=count), "room"
-        )
         what = f"Adding {count} {room} rooms" if count > 1 else f"Adding {room}"
         return (
             f"{what}; rooms added on these rates so far: {self._rooms_added}. The visitor "
@@ -2334,11 +2338,13 @@ class ExploraBrain(OpenAIBrain):
             if value:
                 self._enquiry_fields[key] = str(value)
         fields = dict(self._enquiry_fields)
+        args: dict[str, ArgValue] = {
+            "expedition_code": hotel.code,
+            **{key: fields.get(key) for key in _ENQUIRY_KEYS},
+            "language": self._site_language(),
+        }
         self._booked = True
-        self._move(
-            FillEnquiry(expedition_code=hotel.code, language=self._site_language(), **fields),
-            "enquiry",
-        )
+        self._send_move(FILL_ENQUIRY.id, args, line="enquiry")
         listed = ", ".join(k for k in fields) or "nothing yet"
         return f"The {hotel.label} enquiry form is open; filled: {listed}.{unknown}"
 
@@ -2352,8 +2358,11 @@ class ExploraBrain(OpenAIBrain):
             return f"Not sent: still empty: {', '.join(state.missing)}."
         if not state.captcha:
             return "Not sent: I'm not a robot is not ticked yet. Ask the visitor to tick it."
+        # The visitor's own details leave the page here: confirmed, and only
+        # behind their tick and every field checked above.
+        if self._send_move(SEND_ENQUIRY.id, {}, line="sent") == "running":
+            return "Already sending it; the page will say when it has gone."
         self._booked = True
-        self._move(SendEnquiry(), "sent")
         return "Pressed Send Message; the page will say when it has gone."
 
     async def switch_tab(self, request: TabRequest) -> str:
@@ -2369,7 +2378,7 @@ class ExploraBrain(OpenAIBrain):
         if tab is None:
             listed = ", ".join(f"{t.tab_id} ({t.title})" for t in self.tabs) or "none"
             return f"Not switched: no tab '{request.tab_id}'. Open tabs: {listed}."
-        self._move(FocusTab(tab_id=tab.tab_id), "tab")
+        self._send_move(FOCUS_TAB.id, {"tab_id": tab.tab_id}, line="tab")
         return f"Brought '{tab.title or tab.url}' to the front."
 
     async def set_language(self, request: LanguageRequest) -> str:
@@ -2393,16 +2402,8 @@ class ExploraBrain(OpenAIBrain):
 
 
 __all__ = [
-    "CheckAvailability",
-    "ChooseRoom",
-    "Cue",
+    "MOVES",
     "EnquiryFields",
     "ExploraBrain",
-    "FillEnquiry",
-    "FocusTab",
     "LanguageChanged",
-    "Navigate",
-    "OpenFaq",
-    "SendEnquiry",
-    "ShowSection",
 ]

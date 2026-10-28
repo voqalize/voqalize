@@ -7,12 +7,13 @@
  *
  *   - the port protocol: hello, the call press, the state on every page, the
  *     page's events up the port, mute and End;
- *   - a full page load leaves the call alone, and a move sent while the tab is
- *     loading is made on its next page, once it says hello;
+ *   - a full page load leaves the call alone, and a Stage cue fired while the
+ *     tab is loading is made on its next page, once it says hello, ringed by
+ *     the spotlight, and answered with one `stage_result`;
  *   - the same across hosts: a move sent while the tab loads from
  *     www.explora.com to reservations.explora.com is made on the booking
- *     site's page, and the move it leaves for www.explora.com (through the
- *     service worker) is made there once the call is up on it;
+ *     site's page, and the rest it leaves for www.explora.com (through the
+ *     service worker) is finished there, which answers for the move;
  *   - no Explora page for 15 s ends the call and closes the holder;
  *   - the microphone permission's branches (granted, denied, prompt answered
  *     in the frame, prompt that needs the tab), with the permission query
@@ -86,6 +87,14 @@ const BOOKING_PAGE: Fixture = {
   delay: 2500,
   body: `<body><main><h1>Book your stay</h1><p>Choose a lodge and a day.</p></main></body>`,
 };
+
+interface Result {
+  call_ref: string;
+  move: string;
+  outcome: string;
+  detail?: string | null;
+  moved?: boolean;
+}
 
 interface Status {
   state: { status: string; muted: boolean; ready: boolean; language: string };
@@ -199,6 +208,23 @@ async function makeHolder(sw: Worker): Promise<void> {
 
 const widget = (page: Page) => page.locator("[data-voqalize=widget] .root");
 
+/** The `stage_result`s the holder sent the brain. */
+const results = (s: Status) => s.sent.filter((e) => e.event === "stage_result").map((e) => e.payload as unknown as Result);
+
+/** A `show` cue, as the brain sends it: fired when the voice stops (`at` empty). */
+const showCue = (call_ref: string, target: string) => ({
+  what: "command",
+  command: "stage_cue",
+  payload: { call_ref, move: "core.show", verb: "show", args: [target], at: "", before: 0, unit: 0 },
+});
+
+/** A tool move, as the brain sends it. */
+const move = (call_ref: string, id: string, args: Record<string, unknown>, when = "now") => ({
+  what: "command",
+  command: "stage_move",
+  payload: { call_ref, move: id, args, when },
+});
+
 async function callLive(ext: Ext, page: Page): Promise<void> {
   await page.locator("[data-voqalize=widget] .invite").click();
   await expect(widget(page)).toHaveAttribute("data-status", "live");
@@ -252,17 +278,20 @@ test.describe("the holder and its pages", () => {
     });
     await expect.poll(async () => (await status(ext.sw)).log.some((l) => l.includes("leaving"))).toBe(true);
 
-    // A cue for a heading on the next page arrives meanwhile: kept for the tab.
-    await toHolder(ext.sw, { what: "command", command: "cue", payload: { at: "", word: 0, heading: "Stargaze from the Observatory", text: null, faq: null } });
+    // A cue for a heading on the next page fires meanwhile: kept for the tab.
+    await toHolder(ext.sw, showCue("c1", "Stargaze from the Observatory"));
     await toHolder(ext.sw, { what: "emit", name: "botStoppedSpeaking" });
     await expect.poll(async () => (await status(ext.sw)).pending, { timeout: 5000 }).toBe(1);
 
-    // The next page says hello, gets it, and makes it.
+    // The next page says hello, gets it, rings the heading, and answers.
     await page.waitForURL(`${ORIGIN}/atacama/`);
-    await expect.poll(async () => (await status(ext.sw)).log.some((l) => l.includes("done show_section"))).toBe(true);
+    // The ring holds for its dwell before the move answers.
+    await expect.poll(async () => (await status(ext.sw)).log.some((l) => l.includes("done core.show applied")), { timeout: 10_000 }).toBe(true);
+    await expect(page.locator("[data-voqalize=spotlight] .ring")).toHaveCount(1);
     let s = await status(ext.sw);
     expect(s.pending).toBe(0);
     expect(s.log.filter((l) => l.includes("failed"))).toEqual([]);
+    expect(results(s)).toEqual([expect.objectContaining({ call_ref: "c1", move: "core.show", outcome: "applied" })]);
 
     // The same call all along: one connect, still live, and the new page follows it.
     expect(s.log.filter((l) => l.includes("connected "))).toHaveLength(1);
@@ -270,13 +299,18 @@ test.describe("the holder and its pages", () => {
     await expect(widget(page)).toHaveAttribute("data-status", "live");
     await expect.poll(async () => (await status(ext.sw)).sent.filter((e) => e.event === "page_changed").map((e) => e.payload.path)).toContain("/atacama/");
 
-    // A heading the page lacks fails, and the brain is told.
-    await toHolder(ext.sw, { what: "command", command: "cue", payload: { at: "", word: 0, heading: "No such heading", text: null, faq: null } });
+    // A heading the page lacks is refused, with what the page shows instead,
+    // and the brain is told: one result for the cue.
+    await toHolder(ext.sw, showCue("c2", "No such heading"));
     await toHolder(ext.sw, { what: "emit", name: "botStoppedSpeaking" });
-    await expect.poll(async () => (await status(ext.sw)).log.some((l) => l.includes("failed show_section"))).toBe(true);
-    await expect.poll(async () => (await status(ext.sw)).sent.some((e) => e.event === "command_failed")).toBe(true);
+    await expect.poll(async () => results(await status(ext.sw)).some((r) => r.call_ref === "c2")).toBe(true);
     s = await status(ext.sw);
-    expect(s.sent.find((e) => e.event === "command_failed")!.payload).toMatchObject({ command: "cue" });
+    const refused = results(s).find((r) => r.call_ref === "c2")!;
+    expect(refused).toMatchObject({ move: "core.show", outcome: "refused" });
+    expect((refused as unknown as { refused: { arg: string; options: string[] }[] }).refused[0]).toMatchObject({
+      arg: "target",
+      options: expect.arrayContaining(["Stargaze from the Observatory"]),
+    });
     expect(ext.connects).toHaveLength(1);
   });
 
@@ -306,33 +340,30 @@ test.describe("the holder and its pages", () => {
     }, `${BOOKING}/ibe/paso1?hotel_code=ATA&language=EN`);
     await expect.poll(async () => (await status(ext.sw)).log.some((l) => l.includes("leaving"))).toBe(true);
 
-    // A `navigate` to a www.explora.com page arrives meanwhile: kept for the tab.
-    await toHolder(ext.sw, {
-      what: "command",
-      command: "navigate",
-      payload: { path: "/atacama/", after_words: 0, heading: "Stargaze from the Observatory", text: null, faq: null },
-    });
+    // An `explora.navigate` to a www.explora.com page arrives meanwhile: kept for the tab.
+    await toHolder(ext.sw, move("c1", "explora.navigate", { path: "/atacama/", after_words: 0 }));
     await expect.poll(async () => (await status(ext.sw)).pending, { timeout: 5000 }).toBe(1);
     let s = await status(ext.sw);
-    expect(s.log.some((l) => l.includes("pending navigate"))).toBe(true);
-    expect(s.log.some((l) => l.includes("perform navigate"))).toBe(false);
+    expect(s.log.some((l) => l.includes("pending for tab"))).toBe(true);
+    expect(s.log.some((l) => l.includes("perform explora.navigate"))).toBe(false);
 
     // The booking site's page says hello on its own port and gets the move:
     // `navigate` belongs on the other host, so it loads www.explora.com with
-    // the heading kept by the service worker for the page it lands on.
+    // the rest of the move kept by the service worker for the page it lands on.
     await page.waitForURL(`${BOOKING}/ibe/paso1?hotel_code=ATA&language=EN`);
-    await expect.poll(async () => (await status(ext.sw)).log.some((l) => l.includes("perform navigate"))).toBe(true);
+    await expect.poll(async () => (await status(ext.sw)).log.some((l) => l.includes("perform explora.navigate"))).toBe(true);
     await expect.poll(async () => (await status(ext.sw)).sent.filter((e) => e.event === "page_changed").map((e) => e.payload.site)).toContain("reservations");
     await page.waitForURL(`${ORIGIN}/atacama/`, { timeout: 15_000 });
 
-    // Back on www.explora.com, once the call is up on the page, the heading is ringed.
-    await expect(page.locator("[data-voqalize=highlight]")).toHaveCount(1, { timeout: 10_000 });
+    // Back on www.explora.com, once the call is up on the page, it finishes
+    // the move and answers for it: one result, from the page it landed on.
+    await expect.poll(async () => results(await status(ext.sw)).map((r) => r.call_ref), { timeout: 10_000 }).toEqual(["c1"]);
     await expect.poll(async () => (await status(ext.sw)).sent.filter((e) => e.event === "page_changed").map((e) => e.payload.path)).toContain("/atacama/");
 
     // The same call all along, across both hosts, and nothing failed.
     s = await status(ext.sw);
+    expect(results(s)[0]).toMatchObject({ move: "explora.arrive", outcome: "applied", moved: false, detail: "opened /atacama/" });
     expect(s.pending).toBe(0);
-    expect(s.sent.filter((e) => e.event === "command_failed")).toEqual([]);
     expect(s.log.filter((l) => l.includes("connected "))).toHaveLength(1);
     expect(s.state.status).toBe("live");
     await expect(widget(page)).toHaveAttribute("data-status", "live");
@@ -372,13 +403,14 @@ test.describe("the holder and its pages", () => {
     await expect(widget(page)).toHaveAttribute("data-status", "live");
     await expect(pressed(page)).toHaveAttribute("data-lang", "es");
     await expect.poll(async () => (await status(ext.sw)).state.ready).toBe(true);
-    await toHolder(ext.sw, { what: "command", command: "language_changed", payload: { language: "es", site: "twin" } });
+    await toHolder(ext.sw, move("c1", "explora.twin", { language: "es" }, "quiet"));
     await page.waitForURL(`${ORIGIN}/es/atacama/`, { timeout: 10_000 });
     await expect.poll(async () => (await status(ext.sw)).sent.filter((e) => e.event === "page_changed").map((e) => e.payload.path)).toContain("/es/atacama/");
+    // The Spanish page answers for the move.
+    await expect.poll(async () => results(await status(ext.sw)).map((r) => [r.call_ref, r.outcome])).toEqual([["c1", "applied"]]);
 
     const s = await status(ext.sw);
     expect(s.state.language).toBe("es");
-    expect(s.sent.filter((e) => e.event === "command_failed")).toEqual([]);
     expect(s.log.filter((l) => l.includes("connected "))).toHaveLength(1);
     expect(ext.connects).toHaveLength(1);
   });

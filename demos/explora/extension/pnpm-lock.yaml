@@ -20,6 +20,9 @@ importers:
       '@voqalize/client-transport':
         specifier: 0.4.0
         version: 0.4.0(@pipecat-ai/client-js@1.13.1)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.13.1))
+      '@voqalize/stage':
+        specifier: link:../../../sdk/js/stage
+        version: link:../../../sdk/js/stage
     devDependencies:
       '@playwright/test':
         specifier: 1.57.0

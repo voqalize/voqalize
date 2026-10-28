@@ -3,11 +3,18 @@
  * (an Art2Fly IBE): Javier checks a lodge's availability with the visitor and
  * fills in, and sends, an expedition's enquiry.
  *
+ * It registers his booking moves with Stage (`Moves`). Each rings what it is
+ * about to change with Stage's spotlight before it changes it, and answers
+ * with one result: what it did, `refuse()` for a day, a number of nights, a
+ * room or a field the page does not offer (with what it does), an error for
+ * anything else. `explora.send_enquiry` sends the visitor's own details, so
+ * it is a confirmed move: the brain sends it only behind their tick.
+ *
  * Every step of the site is a full page load, so a move that spans steps (the
  * lodge's calendar, then its rooms) is carried to the next page with
- * `loadThen`: the call runs the same command again there, and this file picks
- * it up from wherever the page now stands. Every command is idempotent for
- * that reason.
+ * `loadThen`: the same move is made again there, with the same `call_ref`,
+ * and this file picks it up from wherever the page now stands; that page
+ * answers for it. Every move is idempotent for that reason.
  *
  *   /ibe/paso1        the lodge (`select#destination`, whose inline onchange
  *                     reloads), the inline jQuery UI datepicker
@@ -28,32 +35,18 @@
  * and `grecaptcha` are in reach.
  */
 
-import type {
-  CheckAvailability,
-  ChooseRoom,
-  EnquiryFields,
-  EnquiryState,
-  FillEnquiry,
-  NightsOption,
-  RoomOption,
-  StayState,
-} from "./actions.gen";
-import {
-  clean,
-  clearHighlight,
-  highlight,
-  norm,
-  pick,
-  scrollTo,
-  setField,
-  sleep,
-  styleThePage,
-  visible,
-  waitFor,
-  type Adapter,
-  type PageContext,
-} from "./dom";
-import { loadThen, pend, pendingMove } from "./hub";
+import type { MoveContext, Spotlight } from "@voqalize/stage";
+import { type Adapter, type PageKit, pend, pendingMove } from "@voqalize/stage/extension";
+
+import type { EnquiryFields, EnquiryState, NightsOption, RoomOption, StayState } from "./actions.gen";
+import { clean, norm, type PageContext, pick, scrollTo, setField, sleep, styleThePage, visible, waitFor } from "./dom";
+import { focusTab, inCallLanguage } from "./explora-actions";
+import { type CheckAvailabilityArgs, type ChooseRoomArgs, type FillEnquiryArgs, MOVE, type NavigateArgs } from "./site";
+import { pathLang, SITE } from "./site-language";
+
+type CheckAvailability = CheckAvailabilityArgs;
+type ChooseRoom = ChooseRoomArgs;
+type FillEnquiry = FillEnquiryArgs;
 
 /**
  * When true, `send_enquiry` reports `enquiry_sent` (so the conversation goes
@@ -70,6 +63,19 @@ let LANGUAGE: "EN" | "ES" = "EN";
 const speak = (p: { language?: string | null }) => {
   LANGUAGE = p.language === "ES" ? "ES" : "EN";
 };
+/** A ring that the next one replaces at once stays this long; one that ends a
+ *  move stays the spotlight's own dwell. */
+const BEFORE_MS = 700;
+
+/** This page's spotlight (Stage's), set when the adapter starts. */
+let spot: Spotlight | null = null;
+
+/** Ring `target` (one element, or several as one box) and wait out its dwell:
+ *  `before` for a ring the next one replaces. */
+function ring(target: Element | Element[], before = false): Promise<void> {
+  return spot?.ring(target, before ? { dwellMs: BEFORE_MS } : {}) ?? Promise.resolve();
+}
+
 /** How many open arrival days a `stay_state` carries. */
 const OPEN_DAYS_MAX = 60;
 const NIGHTS_MS = 12000;
@@ -500,10 +506,10 @@ function start(next: (event: string, payload: unknown) => void): () => void {
 
 const GO_KEY = "voqalize-explora-resv-go";
 
-/** Load `url` with `then` for the page it lands on. Refuses to load the same
- *  URL twice in a few seconds: the site sent us back somewhere else, and
- *  loading again would loop. */
-async function go(url: string, then: { command: string; payload: unknown }, what: string): Promise<void> {
+/** Load `url` and make `move` again on the page it lands on, which answers
+ *  for it. Refuses to load the same URL twice in a few seconds: the site sent
+ *  us back somewhere else, and loading again would loop. */
+async function go(c: MoveContext, url: string, move: string, args: unknown, what: string): Promise<never> {
   try {
     const last = JSON.parse(sessionStorage.getItem(GO_KEY) ?? "null") as { url: string; at: number } | null;
     if (last && last.url === url && Date.now() - last.at < 15000) {
@@ -515,7 +521,8 @@ async function go(url: string, then: { command: string; payload: unknown }, what
     if (error instanceof Error && error.message.startsWith("the booking site")) throw error;
     // Storage blocked: no loop guard, carry on.
   }
-  await loadThen(url, then);
+  if (!c.loadThen) throw new Error(`this page cannot load ${what}`);
+  return c.loadThen(url, { move, args });
 }
 
 function paso1Url(code: string, date: string | null | undefined): string {
@@ -543,14 +550,7 @@ async function selectDate(date: string): Promise<void> {
   // setDate moves the view to the day's month (and fills the hidden field)
   // but does not fire onSelect; the day's own cell, clicked, does.
   $("#check_in_calendar").datepicker("setDate", date);
-  const [y, m, d] = date.split("-").map(Number);
-  const cell = await waitFor(
-    () =>
-      cal.querySelector<HTMLElement>(
-        `td[data-handler=selectDay][data-year="${y}"][data-month="${m - 1}"] a[data-date="${d}"]`,
-      ),
-    1500,
-  );
+  const cell = await waitFor(() => dayCell(date), 1500);
   if (cell) cell.click();
   else {
     $("#nights").empty().append('<option value="">Please wait...</option>');
@@ -567,13 +567,12 @@ function nightsBox(): Element[] {
   return label && visible(label) ? [label, s] : [s];
 }
 
-async function checkAvailability(p: CheckAvailability): Promise<void> {
+async function checkAvailability(p: CheckAvailability, c: MoveContext): Promise<string> {
   speak(p);
   const code = clean(p.hotel_code).toUpperCase();
-  if (!code) throw new Error("no lodge was named");
+  if (!code) c.refuse("hotel_code", "no lodge was named");
   const date = p.date ? clean(p.date) : "";
-  if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error(`'${p.date}' is not a date (YYYY-MM-DD)`);
-  const then = { command: "check_availability", payload: p };
+  if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) c.refuse("date", `'${p.date}' is not a date (YYYY-MM-DD)`);
   const s = step();
 
   // Already on this stay's rooms: just show them.
@@ -588,32 +587,45 @@ async function checkAvailability(p: CheckAvailability): Promise<void> {
     if (list) {
       await scrollTo(list, "top");
       const items = roomItems();
-      highlight(items.length ? items : list);
+      await ring(items.length ? items : list);
     }
     emit("stay_state", roomsState());
-    return;
+    return `the rooms for ${roomsHotel() || code}`;
   }
 
   if (s !== "paso1" || selectedHotel()?.code !== code) {
-    await go(paso1Url(code, date), then, `the lodge ${code}`);
-    return;
+    // The lodge's own calendar: the lodge picker this page shows goes first.
+    const picker = destination();
+    if (picker && visible(picker)) {
+      await scrollTo(picker);
+      await ring(picker);
+    }
+    return go(c, paso1Url(code, date), MOVE.checkAvailability, p, `the lodge ${code}`);
   }
 
   const hotel = selectedHotel()!;
   const cal = calendar();
   const month = p.month ? clean(p.month).slice(0, 7) : "";
-  if (month && !date && /^\d{4}-\d{2}$/.test(month)) await showMonth(month);
+  if (month && !date && /^\d{4}-\d{2}$/.test(month) && cal) {
+    await scrollTo(cal);
+    await ring(cal, true);
+    await showMonth(month);
+  }
   if (date) {
     const open = openDays();
     if (!open.includes(date)) {
       const near = nearest(date, open);
-      throw new Error(
-        `${date} is not an open arrival day at ${hotel.label}. ` +
-          (near.length ? `The nearest open days: ${near.join(", ")}.` : "It has no open days at all."),
+      c.refuse(
+        "date",
+        `${date} is not an open arrival day at ${hotel.label}` + (near.length ? "" : "; it has no open days at all"),
+        near,
       );
     }
     if (chosenDate() !== date) {
-      if (cal) await scrollTo(cal);
+      if (cal) {
+        await scrollTo(cal);
+        await ring(dayCell(date) ?? cal, true);
+      }
       await selectDate(date);
     }
   }
@@ -621,36 +633,59 @@ async function checkAvailability(p: CheckAvailability): Promise<void> {
   if (p.nights && chosenDate()) {
     const offered = nightsOffered();
     if (!offered.some((o) => o.nights === p.nights)) {
-      throw new Error(
-        `${p.nights} nights are not offered from ${chosenDate()} at ${hotel.label}. ` +
-          (offered.length ? `Offered: ${offered.map((o) => o.nights).join(", ")} nights.` : "No stay is available that day."),
+      c.refuse(
+        "nights",
+        `${p.nights} nights are not offered from ${chosenDate()} at ${hotel.label}` +
+          (offered.length ? "" : "; no stay is available that day"),
+        offered.map((o) => String(o.nights)),
       );
     }
     const s = nightsSelect()!;
-    if (Number(s.value) !== p.nights) setField(s, String(p.nights));
+    if (Number(s.value) !== p.nights) {
+      const box = nightsBox();
+      if (box.length) {
+        await scrollTo(box[box.length - 1]!);
+        await ring(box, true);
+      }
+      setField(s, String(p.nights));
+    }
   }
 
+  // What the page now shows, ringed: the nights for the day, else the calendar.
   const chosen = chosenDate();
   if (chosen) {
     const box = nightsBox();
     if (box.length) {
-      await scrollTo(box[box.length - 1]);
-      highlight(box);
+      await scrollTo(box[box.length - 1]!);
+      await ring(box);
     }
   } else if (cal) {
     await scrollTo(cal);
-    highlight(cal);
+    await ring(cal);
   }
   const state = datesState();
   if (state) emit("stay_state", state);
+  const nights = Number(nightsSelect()?.value) || 0;
 
   if (p.rooms) {
-    const nights = Number(nightsSelect()?.value) || 0;
-    if (!chosen) throw new Error("choose an arrival day first: the rooms need a date and nights");
-    if (nights <= 0) throw new Error(`no stay is available from ${chosen} at ${hotel.label}`);
-    await sleep(900); // Let the visitor see the nights before the page goes.
-    await go(paso2Url(code, chosen, nights), { command: "check_availability", payload: { ...p, date: chosen, nights } }, "the rooms");
+    if (!chosen) c.refuse("rooms", "choose an arrival day first: the rooms need a date and nights");
+    if (nights <= 0) c.refuse("rooms", `no stay is available from ${chosen} at ${hotel.label}`);
+    // The nights stayed ringed long enough to see before the page goes.
+    return go(c, paso2Url(code, chosen, nights), MOVE.checkAvailability, { ...p, date: chosen, nights }, "the rooms");
   }
+  if (!chosen) return `${hotel.label}: the calendar, showing ${state?.month ?? "its first month"}`;
+  return `${hotel.label}: arriving ${chosen}` + (nights > 0 ? `, ${nights} nights selected` : "");
+}
+
+/** The calendar's cell for `date`, when it is in the month on screen. */
+function dayCell(date: string): HTMLElement | null {
+  const [y, m, d] = date.split("-").map(Number);
+  if (!y || !m || !d) return null;
+  return (
+    calendar()?.querySelector<HTMLElement>(
+      `td[data-handler=selectDay][data-year="${y}"][data-month="${m - 1}"] a[data-date="${d}"]`,
+    ) ?? null
+  );
 }
 
 // ─── choose_room ──────────────────────────────────────────────────────────
@@ -731,11 +766,14 @@ const ADD_MORE = /add more rooms|agregar m[aá]s habitaciones|a[nñ]adir m[aá]s
  * load the rooms again, so the rest of this move is kept for the next page
  * first, and taken back if the page stays.
  */
-async function closeSummary(rest: ChooseRoom): Promise<void> {
+async function closeSummary(rest: ChooseRoom, c: MoveContext): Promise<void> {
   if (!document.querySelector(".mfp-wrap")) return;
   const more = popupControl(ADD_MORE);
-  await pend({ command: "choose_room", payload: rest });
-  if (more) more.click();
+  await pend({ kind: "stage", move: MOVE.chooseRoom, args: rest, call_ref: c.callRef });
+  if (more) {
+    await ring(more, true);
+    more.click();
+  }
   else {
     const jq = (window as unknown as { jQuery?: { magnificPopup?: { close?: () => void } } }).jQuery;
     if (jq?.magnificPopup?.close) jq.magnificPopup.close();
@@ -749,59 +787,61 @@ async function closeSummary(rest: ChooseRoom): Promise<void> {
 }
 
 /** Add `p.count` rooms (one by default), one after the other. */
-async function chooseRoom(p: ChooseRoom): Promise<void> {
+async function chooseRoom(p: ChooseRoom, c: MoveContext): Promise<string> {
   const count = Math.max(1, Math.min(4, Math.round(p.count ?? 1)));
+  let name = clean(p.room);
   for (let i = 0; i < count; i++) {
-    await closeSummary({ ...p, count: count - i });
-    await addRoom(p);
+    await closeSummary({ ...p, count: count - i }, c);
+    name = await addRoom(p, c);
   }
+  return count > 1 ? `added ${count} ${name} rooms; the check-out button is on screen` : `added ${name}; the check-out button is on screen`;
 }
 
-async function addRoom(p: ChooseRoom): Promise<void> {
+async function addRoom(p: ChooseRoom, c: MoveContext): Promise<string> {
   if (step() !== "paso2") throw new Error("the rooms are not open: check a lodge's availability through to its rooms first");
   const list = rooms();
   if (!list.length) throw new Error("this stay has no rooms to choose");
+  const names = list.map((r) => r.name);
   const want = clean(p.room);
-  if (!want) throw new Error(`say which room: ${list.map((r) => r.name).join(", ")}`);
+  if (!want) c.refuse("room", "say which room", names);
   const room = pick(want, list, (r) => r.name);
-  if (!room) throw new Error(`no room "${want}" here; the rooms: ${list.map((r) => r.name).join(", ")}`);
+  if (!room) return c.refuse("room", `no room "${want}" here`, names);
   const form = room.item.querySelector<HTMLFormElement>("form.room_form") ?? room.item.querySelector("form");
   const button = room.item.querySelector<HTMLButtonElement>("button.room-select, button[type=submit]");
   if (!form || !button) throw new Error(`${room.name} cannot be added on this page`);
 
   const travellers = document.getElementById(`room_${room.code}_nadults`) as HTMLSelectElement | null;
-  if (p.travellers != null && travellers) {
-    const opt = [...travellers.options].find((o) => Number(o.value) === p.travellers);
-    if (!opt) {
-      const offered = [...travellers.options].map((o) => clean(o.text).toLowerCase()).join(" or ");
-      throw new Error(`${room.name} is for ${offered}, not ${p.travellers}`);
-    }
-    // Its inline onchange (`adjust_price`) shows the price for that many.
-    if (travellers.value !== opt.value) setField(travellers, opt.value);
+  const travellersOpt = p.travellers != null && travellers
+    ? [...travellers.options].find((o) => Number(o.value) === p.travellers)
+    : null;
+  if (p.travellers != null && travellers && !travellersOpt) {
+    const offered = [...travellers.options].map((o) => clean(o.text).toLowerCase());
+    c.refuse("travellers", `${room.name} is for ${offered.join(" or ")}, not ${p.travellers}`, offered);
   }
   const bed = document.getElementById(`room_${room.code}_bedtype`) as HTMLSelectElement | null;
-  if (p.bed && bed) {
-    const opt = bedValue(bed, p.bed);
-    if (!opt) {
-      const offered = [...bed.options].filter((o) => o.value).map((o) => clean(o.text)).join(" or ");
-      throw new Error(`${room.name} has no '${p.bed}' bed; it has ${offered}`);
-    }
-    if (bed.value !== opt.value) setField(bed, opt.value);
+  const bedOpt = p.bed && bed ? bedValue(bed, p.bed) : null;
+  if (p.bed && bed && !bedOpt) {
+    const offered = [...bed.options].filter((o) => o.value).map((o) => clean(o.text));
+    c.refuse("bed", `${room.name} has no '${p.bed}' bed; it has ${offered.join(" or ")}`, offered);
   }
 
+  // The room, ringed long enough to see, before anything on it changes.
   await scrollTo(room.item, "center");
-  highlight(room.item);
+  await ring(room.item);
+  // Its inline onchange (`adjust_price`) shows the price for that many.
+  if (travellers && travellersOpt && travellers.value !== travellersOpt.value) setField(travellers, travellersOpt.value);
+  if (bed && bedOpt && bed.value !== bedOpt.value) setField(bed, bedOpt.value);
   emit("stay_state", roomsState());
   // The site requires the bed type before it adds the room: the visitor says.
   if (bed && !bed.value) {
-    const offered = [...bed.options].filter((o) => o.value).map((o) => clean(o.text)).join(" or ");
-    highlight(bed.closest(".left-label") ?? bed);
-    throw new Error(`${room.name} needs a bed type before it can be added: ${offered}`);
+    const offered = [...bed.options].filter((o) => o.value).map((o) => clean(o.text));
+    await ring(bed.closest(".left-label") ?? bed);
+    c.refuse("bed", `${room.name} needs a bed type before it can be added: ${offered.join(" or ")}`, offered);
   }
 
-  await sleep(900); // Let the visitor see the room before the summary opens.
   // Its own "Add this room": the site validates the form and opens the
   // room's summary in a popup (`add_room`, a GET). Never anything past it.
+  await ring(button, true);
   button.click();
   const popup = await waitFor(() => document.querySelector<HTMLElement>(".mfp-content iframe, .mfp-wrap"), 4000);
   if (!popup) throw new Error(`pressed Add this room for ${room.name}, but its summary did not open`);
@@ -809,13 +849,14 @@ async function addRoom(p: ChooseRoom): Promise<void> {
   if (checkout) {
     // Shown, never pressed: the visitor goes to check-out themselves.
     checkout.scrollIntoView({ block: "center" });
-    highlight(checkout);
+    await ring(checkout);
   } else {
     const content = document.querySelector<HTMLElement>(".mfp-content");
-    if (content) highlight(content);
+    if (content) await ring(content);
   }
   emit("stay_state", roomsState());
   if (!checkout) throw new Error(`${room.name}'s summary opened, but its check-out button did not show`);
+  return room.name;
 }
 
 // ─── fill_enquiry ─────────────────────────────────────────────────────────
@@ -840,19 +881,19 @@ function countryOption(select: HTMLSelectElement, want: string): HTMLOptionEleme
   return pick(want, opts, (o) => o.text);
 }
 
-async function fillEnquiry(p: FillEnquiry): Promise<void> {
+async function fillEnquiry(p: FillEnquiry, c: MoveContext): Promise<string> {
   speak(p);
   const code = clean(p.expedition_code).toUpperCase();
-  if (!code) throw new Error("no expedition was named");
+  if (!code) c.refuse("expedition_code", "no expedition was named");
   const form = enquiryForm();
   if (step() !== "expeditions" || param("expedition_request").toUpperCase() !== code || !form) {
     const url = `${BASE}/ibe/expeditions?expedition_request=${encodeURIComponent(code)}&language=${LANGUAGE}`;
-    await go(url, { command: "fill_enquiry", payload: p }, `the enquiry form for ${code}`);
-    return;
+    return go(c, url, MOVE.fillEnquiry, p, `the enquiry form for ${code}`);
   }
 
-  const problems: string[] = [];
+  const problems: [string, string][] = [];
   const filled: Field[] = [];
+  const row = (el: Element) => el.closest(".control-value") ?? el;
   const values: Partial<Record<FieldKey, string | null>> = {
     title: p.title,
     first_name: p.first_name,
@@ -862,6 +903,14 @@ async function fillEnquiry(p: FillEnquiry): Promise<void> {
     country: p.country,
     message: p.message,
   };
+  // The rows about to be filled, ringed before anything is typed in them.
+  const toFill = FIELDS.filter(([key]) => values[key] != null && clean(String(values[key])) !== "")
+    .map(([, name]) => field(form, name))
+    .filter((el): el is Field => Boolean(el));
+  if (toFill.length) {
+    await scrollTo(row(toFill[0]!));
+    await ring(toFill.map(row), true);
+  }
   for (const [key, name] of FIELDS) {
     const raw = values[key];
     if (raw == null || clean(String(raw)) === "") continue;
@@ -872,7 +921,7 @@ async function fillEnquiry(p: FillEnquiry): Promise<void> {
     if (key === "title") {
       const t = titleValue(want);
       if (!t) {
-        problems.push(`title '${want}' is not on the form (Mr. or Ms.)`);
+        problems.push(["title", `title '${want}' is not on the form (Mr. or Ms.)`]);
         continue;
       }
       value = t;
@@ -880,7 +929,7 @@ async function fillEnquiry(p: FillEnquiry): Promise<void> {
     } else if (key === "country" && el instanceof HTMLSelectElement) {
       const opt = countryOption(el, want);
       if (!opt) {
-        problems.push(`nationality '${want}' is not on the form's list`);
+        problems.push(["country", `nationality '${want}' is not on the form's list`]);
         continue;
       }
       if (el.selectedOptions[0] !== opt) {
@@ -911,23 +960,26 @@ async function fillEnquiry(p: FillEnquiry): Promise<void> {
     .map(([, name]) => field(form, name))
     .find((el): el is Field => Boolean(el));
   const captcha = captchaBox();
-  const row = (el: Element) => el.closest(".control-value") ?? el;
   if (firstEmpty) {
     await scrollTo(row(firstEmpty));
-    highlight(...(filled.length ? filled.map(row) : [row(firstEmpty)]));
+    await ring(filled.length ? filled.map(row) : [row(firstEmpty)]);
   } else if (captcha) {
     await scrollTo(captcha);
-    highlight(captcha);
+    await ring(captcha);
   }
   emit("enquiry_state", state);
-  if (problems.length) throw new Error(`filled the rest, but ${problems.join("; ")}`);
+  if (problems.length) {
+    c.refuse(problems[0]![0], `filled the rest, but ${problems.map(([, why]) => why).join("; ")}`);
+  }
+  const keys = FIELDS.filter(([, name]) => filled.some((el) => el.name === name)).map(([k]) => k);
+  return `the ${expeditionName() || code} enquiry form` + (keys.length ? `; filled ${keys.join(", ")}` : "");
 }
 
 // ─── send_enquiry ─────────────────────────────────────────────────────────
 
 const KEY_OF: Record<string, string> = Object.fromEntries(FIELDS.map(([k, n]) => [n, k]));
 
-async function sendEnquiry(): Promise<void> {
+async function sendEnquiry(c: MoveContext): Promise<string> {
   const form = enquiryForm();
   if (step() !== "expeditions" || !form) throw new Error("no expedition enquiry form is open");
   const state = enquiryState()!;
@@ -956,21 +1008,24 @@ async function sendEnquiry(): Promise<void> {
         .find((el): el is Field => Boolean(el)) ?? captchaBox();
     if (first) {
       await scrollTo(first);
-      highlight(first.closest(".control-value") ?? first);
+      await ring(first.closest(".control-value") ?? first);
     }
-    throw new Error(`Send Message not pressed: ${why.join("; ")}`);
+    return c.refuse("form", `Send Message not pressed: ${why.join("; ")}`);
   }
   const button = form.querySelector<HTMLButtonElement>("button[type=submit]");
   if (!button) throw new Error("the form has no Send Message button");
+  // The visitor's own details leave here: the button, ringed, then pressed.
+  await scrollTo(button);
+  await ring(button);
   javierSending = true;
   emit("enquiry_sent", { expedition: state.expedition, by: "javier" });
   if (BLOCK_SEND) {
     javierSending = false;
-    return;
+    return "Send Message not pressed (sending is blocked in this build)";
   }
-  await scrollTo(button);
   await sleep(200); // Let the event leave the page before it posts.
   button.click();
+  return `pressed Send Message on the ${state.expedition || "expedition"} enquiry`;
 }
 
 // ─── site_language ────────────────────────────────────────────────────────
@@ -999,7 +1054,7 @@ function enquiryTouched(): boolean {
  * the call has moved language either way, and the next page Javier opens is
  * in it.
  */
-async function siteLanguage({ language }: { language: "en" | "es" }) {
+async function siteLanguage({ language }: { language: "en" | "es" }, kit: PageKit): Promise<void> {
   const want = language === "es" ? "ES" : "EN";
   LANGUAGE = want;
   const s = step();
@@ -1022,47 +1077,76 @@ async function siteLanguage({ language }: { language: "en" | "es" }) {
     return;
   }
   url.searchParams.set("language", want);
-  clearHighlight();
-  await loadThen(url.href);
+  kit.spotlight.clear();
+  await kit.loadThen(url.href);
+}
+
+// ─── www.explora.com, from here ───────────────────────────────────────────
+
+/** A www.explora.com page, from the booking site: in the call's language, and
+ *  finished on the page it lands on (`explora.arrive`). Nothing here points at
+ *  it, so nothing is ringed before the page goes. */
+async function navigate(args: NavigateArgs, c: MoveContext, kit: PageKit): Promise<never> {
+  if (typeof args.path !== "string" || !args.path) return c.refuse("path", `not a path: ${String(args.path)}`);
+  let url: URL;
+  try {
+    url = new URL(await inCallLanguage(args.path, kit), SITE);
+  } catch (error) {
+    return c.refuse("path", `not a page: ${args.path} (${String(error)})`);
+  }
+  if (!c.loadThen) throw new Error("this page cannot load www.explora.com");
+  return c.loadThen(url.href, { move: MOVE.arrive, args: { lenient: pathLang(url) !== "en" } });
 }
 
 // ─── The adapter ──────────────────────────────────────────────────────────
 
-const COMMANDS: Record<string, (payload: never) => Promise<void>> = {
-  check_availability: checkAvailability,
-  choose_room: chooseRoom,
-  fill_enquiry: fillEnquiry,
-  send_enquiry: sendEnquiry,
-  // The extension's own, not the brain's: the call's language moved.
-  site_language: siteLanguage,
-};
-
-const WHAT: Record<string, string> = {
-  navigate: "open www.explora.com pages",
-  show_section: "show a section of www.explora.com",
-  open_faq: "open www.explora.com's questions",
-};
-
-async function run(command: string, payload: unknown): Promise<{ ok: boolean; error?: string }> {
-  const fn = COMMANDS[command];
-  if (!fn) return { ok: false, error: `the booking site cannot ${WHAT[command] ?? command.replace(/_/g, " ")}` };
-  busy++;
-  try {
-    await fn((payload ?? {}) as never);
-    return { ok: true };
-  } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : String(error) };
-  } finally {
-    busy--;
-  }
+/** While Javier is moving the page, the watcher holds its reports. */
+function held<A>(fn: (args: A, c: MoveContext) => Promise<string>): (args: A, c: MoveContext) => Promise<string> {
+  return async (args, c) => {
+    busy++;
+    try {
+      return await fn(args, c);
+    } finally {
+      busy--;
+    }
+  };
 }
 
-if (location.host === "reservations.explora.com" && !window.voqalizeExplora) {
+const NOT_HERE = "the booking site cannot show a section of www.explora.com";
+
+/** reservations.explora.com's moves, registered with Stage, and what the page reports. */
+export const reservationsAdapter: Adapter = (moves, kit) => {
+  spot = kit.spotlight;
   styleThePage();
   watch();
   watchEnquiry();
-  window.addEventListener("pagehide", clearHighlight);
-  window.voqalizeExplora = { run, context, start, commands: Object.keys(COMMANDS) } satisfies Adapter;
-}
-
-export {};
+  window.addEventListener("pagehide", () => kit.spotlight.clear());
+  moves.register<CheckAvailability>(MOVE.checkAvailability, "reversible", held(checkAvailability));
+  moves.register<ChooseRoom>(MOVE.chooseRoom, "reversible", held(chooseRoom));
+  moves.register<FillEnquiry>(MOVE.fillEnquiry, "reversible", held(fillEnquiry));
+  moves.register<Record<string, never>>(MOVE.sendEnquiry, "confirmed", held((_, c) => sendEnquiry(c)));
+  moves.register<NavigateArgs>(MOVE.navigate, "navigate", (a, c) => navigate(a, c, kit));
+  moves.register(MOVE.show, "look", (_, c) => c.refuse("target", NOT_HERE), { params: ["target"] });
+  moves.register(MOVE.faq, "look", (_, c) => c.refuse("question", NOT_HERE), { params: ["question"] });
+  moves.register(MOVE.twin, "navigate", (_, c) => c.refuse("language", "the booking site follows the call's language by itself"));
+  moves.register(MOVE.focusTab, "look", focusTab);
+  return {
+    context: () => ({ ...context() }),
+    start(emit) {
+      const stop = start(emit);
+      const back = () => {
+        if (document.visibilityState === "visible") emit("page_changed", context());
+      };
+      document.addEventListener("visibilitychange", back);
+      window.addEventListener("focus", back);
+      return () => {
+        stop();
+        document.removeEventListener("visibilitychange", back);
+        window.removeEventListener("focus", back);
+      };
+    },
+    async command(command, payload) {
+      if (command === "site_language") await siteLanguage(payload as { language: "en" | "es" }, kit);
+    },
+  };
+};

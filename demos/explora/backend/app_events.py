@@ -1,7 +1,8 @@
 """What the visitor's tabs report — the page→brain half of the screen contract.
 
-The other direction is the :class:`~voqalize.sdk.Action` classes in
-``brain.py``. These are sent by the extension on www.explora.com and
+The other direction is the Stage moves and the one
+:class:`~voqalize.sdk.Action` in ``brain.py``; how each move ended comes back
+as Stage's own ``stage_result``, not as an event here. These are sent by the extension on www.explora.com and
 reservations.explora.com, and they fire for the visitor's own clicks as well as
 for Javier's moves, so his picture of their screen is true whoever moved it.
 
@@ -25,7 +26,6 @@ from voqalize.sdk import AppEvent, AppEvents
 
 __all__ = [
     "EXPLORA_EVENTS",
-    "CommandFailed",
     "EnquiryFields",
     "EnquirySent",
     "EnquiryState",
@@ -130,13 +130,6 @@ class EnquirySent(AppEvent):
     by: Literal["javier", "visitor"] = "javier"
 
 
-class CommandFailed(AppEvent):
-    """A move Javier sent could not be carried out on the page."""
-
-    command: str
-    reason: str = ""
-
-
 class LanguageRequested(AppEvent):
     """The visitor pressed the other language on the widget's toggle."""
 
@@ -169,7 +162,6 @@ type ExploraEvent = (
     | StayState
     | EnquiryState
     | EnquirySent
-    | CommandFailed
     | LanguageRequested
     | TwinLookup
 )
@@ -180,7 +172,6 @@ EXPLORA_EVENTS = AppEvents[ExploraEvent](
     StayState,
     EnquiryState,
     EnquirySent,
-    CommandFailed,
     LanguageRequested,
     TwinLookup,
 )

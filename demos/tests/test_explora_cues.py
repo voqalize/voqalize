@@ -1,87 +1,114 @@
-"""The cue parser: cues out of the speech, each anchored to its sentence.
+"""Javier's cues on Stage: out of the speech, each sent as a ``stage_cue``
+anchored to the raw words that follow it, and answered by one ``stage_result``.
 
-Run: ``cd demos && uv run pytest tests/test_sendpotion_cues.py``
+Explora's cue verbs are Stage's ``show`` and ``faq``; a ``{page: …}`` cue is
+not a cue on Explora (the brain splits the reply there, ``test_explora_e2e``).
+
+Run: ``cd demos && uv run pytest tests/test_explora_cues.py``
 """
 
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
+from typing import Any
+
 from voqalize_demos.discovery import discover
+
+from voqalize.sdk import Speech, SpeechChunk, SpeechEnd, SpeechStart
+from voqalize.sdk.stage import MAX_CUE, Stage, StageCue, StageResult
 
 discover()
 
-from voqalize_demos._loaded.explora.cues import MAX_CUE, CueParser, RawCue  # noqa: E402
+from voqalize_demos._loaded.explora.brain import MOVES  # noqa: E402
 
 
-def _run(*chunks: str) -> tuple[str, list[RawCue]]:
-    p = CueParser()
-    spoken = ""
-    cues: list[RawCue] = []
+async def _speech(*chunks: str) -> AsyncGenerator[Speech, None]:
+    yield SpeechStart()
     for c in chunks:
-        text, got = p.feed(c)
-        spoken += text
-        cues += got
-    text, got = p.flush()
-    return spoken + text, cues + got
+        yield SpeechChunk(c)
+    yield SpeechEnd()
 
 
-def test_cues_leave_the_speech_and_anchor_to_their_sentence() -> None:
-    spoken, cues = _run(
-        "{page: /}{show: How Potion works} It takes three steps. "
-        "{show: Train video AI} First, you train the AI on you."
+async def _run(*chunks: str, backstop: Any = None) -> tuple[str, list[StageCue], Stage]:
+    sent: list[Any] = []
+    stage = Stage(dispatch=sent.append, moves=MOVES, backstop=backstop)
+    spoken = ""
+    async for event in stage.cued(_speech(*chunks)):
+        if isinstance(event, SpeechChunk):
+            spoken += event.text
+    return spoken, [c for c in sent if isinstance(c, StageCue)], stage
+
+
+async def test_cues_leave_the_speech_and_anchor_to_the_words_after_them() -> None:
+    spoken, cues, _ = await _run(
+        "{show: How it works} It takes three steps. {show: Train} First, you train it on you."
     )
     assert "{" not in spoken and "}" not in spoken
-    assert spoken == " It takes three steps. First, you train the AI on you."
-    assert [(c.kind, c.value, c.at, c.word) for c in cues] == [
-        ("page", "/", "it takes three", 0),
-        ("show", "How Potion works", "it takes three", 0),
-        ("show", "Train video AI", "first you train", 4),
+    assert spoken == " It takes three steps. First, you train it on you."
+    assert [(c.move, c.verb, c.args, c.at, c.before) for c in cues] == [
+        ("core.show", "show", ["How it works"], "It takes three steps. First, you train it on", 0),
+        ("core.show", "show", ["Train"], "First, you train it on", 23),
     ]
+    assert [c.call_ref for c in cues] == ["c1", "c2"]
 
 
-def test_a_cue_split_across_chunks_still_parses() -> None:
-    spoken, cues = _run(
+async def test_a_cue_split_across_chunks_still_parses() -> None:
+    spoken, cues, _ = await _run(
         "Plans start low. {sh", "ow: Pricing pl", "ans} Thirty-nine dol", "lars a month."
     )
     assert spoken == "Plans start low. Thirty-nine dollars a month."
-    assert [(c.value, c.at) for c in cues] == [("Pricing plans", "thirty nine dollars")]
+    # Released once three words have followed it; a word still growing is left out.
+    assert [(c.args, c.at) for c in cues] == [(["Pricing plans"], "Thirty-nine dollars a")]
 
 
-def test_a_cue_at_the_end_fires_when_the_voice_stops() -> None:
-    spoken, cues = _run("Here is the FAQ. {faq: Can I cancel anytime?}")
+async def test_a_cue_at_the_end_fires_when_the_voice_stops() -> None:
+    spoken, cues, _ = await _run("Here is the FAQ. {faq: Can I cancel anytime?}")
     assert spoken.strip() == "Here is the FAQ."
-    assert [(c.kind, c.at) for c in cues] == [("faq", "")]
+    assert [(c.move, c.at) for c in cues] == [("core.faq", "")]
 
 
-def test_braces_that_are_not_cues_are_not_spoken_and_a_stray_one_is_dropped() -> None:
-    spoken, cues = _run("Hello {mood: happy} there.")
-    assert spoken == "Hello there." and cues == []
+async def test_anchors_are_raw_words_in_any_language() -> None:
+    _, cues, _ = await _run(
+        "{show: Incluido en su estadía} Todo está incluido, también las excursiones."
+    )
+    assert cues[0].at == "Todo está incluido, también las"
+
+
+async def test_braces_that_are_not_cues_are_not_spoken_and_a_stray_one_is_dropped() -> None:
+    spoken, cues, _ = await _run("Hello {mood: happy} there. {page: /lodge/}Fine.")
+    assert spoken == "Hello there. Fine." and cues == []
     long = "word " * (MAX_CUE // 4)
-    spoken, cues = _run("Open { " + long, "and on.")
+    spoken, cues, _ = await _run("Open { " + long, "and on.")
     assert "{" not in spoken and spoken.startswith("Open ") and cues == []
 
 
-def test_each_sentence_is_offered_for_the_moves_it_did_not_bring() -> None:
-    seen: list[tuple[str, int, tuple[tuple[str, str], ...]]] = []
+async def test_each_sentence_is_offered_for_the_moves_it_did_not_bring() -> None:
+    seen: list[tuple[str, int, tuple[tuple[str, tuple[str, ...]], ...]]] = []
 
     def auto(
-        sentence: str, index: int, placed: tuple[tuple[str, str], ...]
-    ) -> list[tuple[str, str]]:
+        sentence: str, index: int, placed: tuple[tuple[str, tuple[str, ...]], ...]
+    ) -> list[tuple[str, list[str]]]:
         seen.append((sentence, index, placed))
-        return [("show", "Re-engage dormant leads")] if "dormant" in sentence else []
+        return [("show", ["Dormant leads"])] if "dormant" in sentence else []
 
-    p = CueParser(auto)  # type: ignore[arg-type]
-    cues: list[RawCue] = []
-    for chunk in ("{page: /sales} Hi. Reps wake up dor", "mant leads, too. Want pricing?"):
-        cues += p.feed(chunk)[1]
-    cues += p.flush()[1]
+    _, cues, _ = await _run(
+        "{show: Sales} Hi. Reps wake up dor", "mant leads, too. Want pricing?", backstop=auto
+    )
     assert seen == [
-        ("Hi.", 0, (("page", "/sales"),)),
+        ("Hi.", 0, (("show", ("Sales",)),)),
         ("Reps wake up dormant leads, too.", 1, ()),
         ("Want pricing?", 2, ()),
     ]
-    # The model's page cue, on a sentence too short to wait out: anchored to
-    # its own word, not the next sentence's. The added cue, to its sentence.
-    assert [(c.kind, c.value, c.at, c.word) for c in cues] == [
-        ("page", "/sales", "hi", 0),
-        ("show", "Re-engage dormant leads", "reps wake up", 1),
+    assert [(c.args, c.at, c.before) for c in cues] == [
+        (["Sales"], "Hi. Reps wake up", 0),
+        (["Dormant leads"], "Reps wake up dormant leads, too. Want", 5),
     ]
+
+
+async def test_each_cue_gets_one_result() -> None:
+    _, cues, stage = await _run("{show: Rooms} Here are the rooms.")
+    ref = cues[0].call_ref
+    done = StageResult(call_ref=ref, move="core.show", outcome="applied", detail="ringed Rooms")
+    assert stage.handle(done) == done
+    # A second answer for the same move is a duplicate.
+    assert stage.handle(done) is None

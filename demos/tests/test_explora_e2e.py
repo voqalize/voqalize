@@ -16,13 +16,19 @@ land, on the page it is about.
 the booking site and stops at the rooms; an expedition's enquiry is filled from
 what they said and sent only once they have ticked the reCAPTCHA.
 
+Every move is a Stage move: cues go out as ``stage_cue`` with the raw words
+after them, tool moves as ``stage_move``, and the page answers each with one
+``stage_result``. :func:`_explora` stands in for that page and answers every
+move as made, unless a test answers one itself.
+
 Run: ``cd demos && uv run pytest tests/test_explora_e2e.py``
 """
 
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Iterator
+import contextlib
+from collections.abc import AsyncIterator, Iterator
 from typing import Any
 
 import pytest
@@ -37,7 +43,7 @@ from voqalize_demos.testing import (
     tool_results,
 )
 
-from ._harness import _configs, check_greeting, check_turn, check_voice_pair, demo
+from ._harness import DemoRig, _configs, check_greeting, check_turn, check_voice_pair, demo
 
 discover()
 
@@ -365,8 +371,49 @@ def _llm() -> ScriptedOpenAI:
     )
 
 
+@contextlib.asynccontextmanager
+async def _explora(
+    llm: ScriptedOpenAI, *, unanswered: tuple[str, ...] = ()
+) -> AsyncIterator[DemoRig]:
+    """The demo, with a stand-in for the page's Stage: every ``stage_move`` is
+    answered ``applied`` as soon as it arrives, as the extension answers a move
+    it made, except the moves in ``unanswered``, which a test answers itself.
+    Cues are never answered: their words are never heard here."""
+    async with demo("explora", llm) as rig:
+        answered: set[str] = set()
+
+        async def page() -> None:
+            while True:
+                for c in list(rig.driver.ui_commands):
+                    if c.get("command") != "stage_move":
+                        continue
+                    move = c["payload"]
+                    if move["call_ref"] in answered or move["move"] in unanswered:
+                        continue
+                    answered.add(move["call_ref"])
+                    await _answer(rig, move, "applied", "made")
+                await asyncio.sleep(0.01)
+
+        task = asyncio.create_task(page())
+        try:
+            yield rig
+        finally:
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+
+
+async def _answer(rig: Any, move: dict[str, Any], outcome: str, detail: str) -> None:
+    """The page's one ``stage_result`` for ``move``."""
+    await rig.driver.send_ui_event(
+        "stage_result",
+        {"call_ref": move["call_ref"], "move": move["move"], "outcome": outcome, "detail": detail},
+    )
+
+
 async def _until(rig: Any, name: str, count: int) -> None:
-    """Until the brain has sent ``count`` ``name`` commands."""
+    """Until the brain has sent ``count`` ``name`` commands (a site Action, or
+    a Stage move by its id)."""
     for _ in range(300):
         if len(_commands(rig, name)) >= count:
             return
@@ -381,11 +428,29 @@ async def _page(rig: Any, event: str, payload: dict[str, Any]) -> None:
 
 
 def _commands(rig: Any, name: str) -> list[dict[str, Any]]:
+    """The payloads of the site Action ``name``, or the arguments of the Stage
+    move with that id (``explora.navigate``)."""
+    if name.startswith("explora."):
+        return [m["args"] for m in _stage(rig, "stage_move") if m["move"] == name]
     return [c["payload"] for c in rig.driver.ui_commands if c.get("command") == name]
 
 
+def _stage(rig: Any, command: str) -> list[dict[str, Any]]:
+    return [c["payload"] for c in rig.driver.ui_commands if c.get("command") == command]
+
+
 def _cues(rig: Any) -> list[dict[str, Any]]:
-    return _commands(rig, "cue")
+    """Every ``stage_cue`` sent."""
+    return _stage(rig, "stage_cue")
+
+
+def _shown(rig: Any) -> list[str]:
+    """What each ``show`` cue names, resolved to the page's own spelling."""
+    return [c["args"][0] for c in _cues(rig) if c["move"] == "core.show"]
+
+
+NAVIGATE = "explora.navigate"
+TWIN = "explora.twin"
 
 
 def _idle_windows(rig: Any) -> list[int | None]:
@@ -397,10 +462,10 @@ async def _says_while_pages_load(rig: Any, text: str, *pages: dict[str, Any]) ->
     as the extension's next page does once the call has rejoined on it."""
     turn = asyncio.create_task(rig.driver.user_says(text))
     for page in pages:
-        opened = len(_commands(rig, "navigate"))
+        opened = len(_commands(rig, NAVIGATE))
         for _ in range(200):
             await asyncio.sleep(0.02)
-            if len(_commands(rig, "navigate")) > opened or turn.done():
+            if len(_commands(rig, NAVIGATE)) > opened or turn.done():
                 break
         await _page(rig, "page_changed", page)
     return await turn
@@ -411,7 +476,7 @@ async def _says_while_pages_load(rig: Any, text: str, *pages: dict[str, Any]) ->
 
 async def test_greeting_and_voice_reach_the_wire() -> None:
     """A written opener, and javier in English on both legs before it."""
-    async with demo("explora", _llm()) as rig:
+    async with _explora(_llm()) as rig:
         greeting_turn = await rig.driver.start_session(
             init={"surface": "explora-ext", "site": "site", "path": "/"}
         )
@@ -430,14 +495,14 @@ def test_the_opener_follows_the_page() -> None:
 
 
 async def test_a_chosen_spanish_starts_in_spanish() -> None:
-    async with demo("explora", _llm()) as rig:
+    async with _explora(_llm()) as rig:
         turn = await rig.driver.start_session(init={"site": "site", "path": "/", "lang": "es"})
         assert turn is not None and turn.text.startswith("Hola, soy Javier")
         check_voice_pair(rig, voice="omnivoice/javier", language="es")
 
 
 async def test_a_call_on_the_spanish_site_starts_in_spanish() -> None:
-    async with demo("explora", _llm()) as rig:
+    async with _explora(_llm()) as rig:
         turn = await rig.driver.start_session(
             init={"site": "site", "path": "/es/desierto-de-atacama/", "site_lang": "es"}
         )
@@ -461,50 +526,53 @@ async def test_an_english_page_in_a_spanish_call_is_loaded_again_in_spanish() ->
     """Prod call be1f5b9a: every page he opened in a Spanish call came up in
     English, and his Spanish cues all missed. The tab is asked for the page's
     own twin, and the rest of his reply waits for it."""
-    async with demo("explora", _llm()) as rig:
+    async with _explora(_llm()) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/es/", "site_lang": "es"})
         turn = asyncio.create_task(rig.driver.user_says("Quiero ver Patagonia.", quiet_for=1.0))
-        await _until(rig, "navigate", 1)
+        await _until(rig, NAVIGATE, 1)
         await _page(rig, "page_changed", PATAGONIA_PAGE)
-        await _until(rig, "language_changed", 2)
-        assert _commands(rig, "language_changed")[-1] == {"language": "es", "site": "twin"}
+        await _until(rig, TWIN, 1)
+        assert _commands(rig, TWIN) == [{"language": "es"}]
+        assert [m["when"] for m in _stage(rig, "stage_move") if m["move"] == TWIN] == ["quiet"]
         assert _cues(rig) == []
         await _page(rig, "page_changed", ES_PATAGONIA_PAGE)
         said = await turn
         check_turn(rig, said)
         assert "Explora tiene cinco lodges aquí." in said.text
-        assert [c["heading"] for c in _cues(rig)] == ["Explora en la Patagonia"]
+        assert _shown(rig) == ["Explora en la Patagonia"]
 
 
 async def test_a_page_with_no_spanish_twin_lets_the_reply_go_on() -> None:
-    async with demo("explora", _llm()) as rig:
+    llm = _llm()
+    async with _explora(llm, unanswered=(TWIN,)) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/es/", "site_lang": "es"})
         turn = asyncio.create_task(rig.driver.user_says("Quiero ver Patagonia.", quiet_for=1.0))
-        await _until(rig, "navigate", 1)
+        await _until(rig, NAVIGATE, 1)
         await _page(rig, "page_changed", PATAGONIA_PAGE)
-        await _until(rig, "language_changed", 2)
-        await _page(
-            rig,
-            "command_failed",
-            {"command": "language_changed", "reason": "/patagonia has no Spanish version"},
-        )
+        await _until(rig, TWIN, 1)
+        twin = next(m for m in _stage(rig, "stage_move") if m["move"] == TWIN)
+        await _answer(rig, twin, "refused", "/patagonia has no Spanish version")
         said = await turn
         assert "Explora tiene cinco lodges aquí." in said.text
+        await rig.driver.user_says("Carry on.")
+        assert "stays as it is (/patagonia has no Spanish version)" in _texts(
+            llm.captured_inputs[-1]
+        )
 
 
 async def test_show_me_the_page_in_spanish_loads_it() -> None:
     """Prod call be1f5b9a, turn 5: "Ya la cambié a español", and nothing was
     sent to the page. Now the page's twin is asked for in code."""
     llm = _llm()
-    async with demo("explora", llm) as rig:
+    async with _explora(llm) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/es/", "site_lang": "es"})
         await _page(rig, "page_changed", PATAGONIA_PAGE)
         await rig.driver.user_says(
             "Me está mostrando la página en inglés. ¿Se la puedes mostrar en español?"
         )
-        assert _commands(rig, "language_changed")[-1] == {"language": "es", "site": "twin"}
+        assert _commands(rig, TWIN) == [{"language": "es"}]
         assert "loading in Spanish now" in _texts(llm.captured_inputs[-1])
-        assert _commands(rig, "navigate") == []
+        assert _commands(rig, NAVIGATE) == []
 
 
 @pytest.mark.parametrize(
@@ -533,11 +601,11 @@ def test_a_request_for_the_page_in_a_language(
 async def test_a_reply_opens_one_page_and_keeps_its_words() -> None:
     """A second page cue in the same reply is dropped: the screen stays on the
     page he is describing, and the words after the cue are still said."""
-    async with demo("explora", _llm()) as rig:
+    async with _explora(_llm()) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/"})
         turn = await _says_while_pages_load(rig, "Show me the desert.", ATACAMA_PAGE)
         check_turn(rig, turn)
-        assert [c["path"] for c in _commands(rig, "navigate")] == ["/lodge/atacama-lodge/"]
+        assert [c["path"] for c in _commands(rig, NAVIGATE)] == ["/lodge/atacama-lodge/"]
         assert "It's an oasis." in turn.text and "Patagonia is green." in turn.text
         assert "{" not in turn.text
 
@@ -545,45 +613,40 @@ async def test_a_reply_opens_one_page_and_keeps_its_words() -> None:
 async def test_a_page_cue_splits_the_reply_at_the_page_load() -> None:
     """The words before the cue are a unit of their own; the page is opened once
     they are said; the rest, and its cues, come after the new page reports."""
-    async with demo("explora", _llm()) as rig:
+    async with _explora(_llm()) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
         turn = await _says_while_pages_load(rig, "Patagonia.", PATAGONIA_PAGE)
         check_turn(rig, turn, units=2)
         assert turn.text.startswith("Patagonia it is.")
         assert "Explora has five lodges here." in turn.text
         assert "{" not in turn.text
-        navigate = _commands(rig, "navigate")
-        assert navigate == [
-            {
-                "path": "/patagonia-travel-argentina-chile/",
-                "after_words": 3,
-                "heading": None,
-                "text": None,
-                "faq": None,
-            }
-        ]
+        navigate = _commands(rig, NAVIGATE)
+        assert navigate == [{"path": "/patagonia-travel-argentina-chile/", "after_words": 3}]
         # Every cue after the page cue went out after the page was opened.
         order = [
-            c["command"] for c in rig.driver.ui_commands if c["command"] in ("navigate", "cue")
+            c["command"]
+            for c in rig.driver.ui_commands
+            if c["command"] in ("stage_move", "stage_cue")
         ]
-        assert order == ["navigate", "cue", "cue"]
-        # Checked against the page that reported itself: the page's spelling.
-        assert [c["heading"] for c in _cues(rig)] == [
-            "OUR PATAGONIA LUXURY TRAVEL LODGES",
-            "EL CHALTÉN",
-        ]
+        assert order == ["stage_move", "stage_cue", "stage_cue"]
+        # Checked against the page that reported itself: the page's spelling,
+        # anchored to the raw words that follow each (as many as had streamed).
+        cues = _cues(rig)
+        assert [c["args"] for c in cues] == [["OUR PATAGONIA LUXURY TRAVEL LODGES"], ["EL CHALTÉN"]]
+        assert cues[0]["at"].startswith("Explora has five lodges here. El Chaltén")
+        assert cues[1]["at"].startswith("El Chaltén is for hikers.")
 
 
 async def test_the_page_being_left_reporting_again_is_not_the_new_one() -> None:
     """The extension re-reports a page whose parts render late; that is not
     the page he opened."""
-    async with demo("explora", _llm()) as rig:
+    async with _explora(_llm()) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
         await _page(rig, "page_changed", ATACAMA_PAGE)
         task = asyncio.create_task(rig.driver.user_says("Patagonia.", quiet_for=1.5))
         for _ in range(200):
             await asyncio.sleep(0.02)
-            if _commands(rig, "navigate"):
+            if _commands(rig, NAVIGATE):
                 break
         await _page(rig, "page_changed", ATACAMA_PAGE)
         await asyncio.sleep(0.3)
@@ -591,33 +654,27 @@ async def test_the_page_being_left_reporting_again_is_not_the_new_one() -> None:
         await _page(rig, "page_changed", PATAGONIA_PAGE)
         turn = await task
         check_turn(rig, turn, units=2)
-        assert [c["heading"] for c in _cues(rig)] == [
-            "OUR PATAGONIA LUXURY TRAVEL LODGES",
-            "EL CHALTÉN",
-        ]
+        assert _shown(rig) == ["OUR PATAGONIA LUXURY TRAVEL LODGES", "EL CHALTÉN"]
 
 
 async def test_a_page_cue_first_opens_the_page_after_his_line() -> None:
     """Prod call be1f5b9a: a reply that opens with a page waited 8.5 s, page
     load and all, in silence. His own line is said, then the page goes."""
-    async with demo("explora", _llm()) as rig:
+    async with _explora(_llm()) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
         turn = await _says_while_pages_load(rig, "What is Explora?", HOME_PAGE)
         check_turn(rig, turn, units=2)
         assert turn.text.startswith(explora._PAGE_LINE["en"])
-        assert _commands(rig, "navigate")[0]["path"] == "/"
-        assert _commands(rig, "navigate")[0]["after_words"] == 4
-        assert [c["heading"] for c in _cues(rig)] == [
-            "Our Destinations",
-            "What's Included in Your Stay",
-        ]
+        assert _commands(rig, NAVIGATE)[0]["path"] == "/"
+        assert _commands(rig, NAVIGATE)[0]["after_words"] == 4
+        assert _shown(rig) == ["Our Destinations", "What's Included in Your Stay"]
 
 
 async def test_a_page_that_never_reports_holds_the_rest_only_so_long(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(explora, "_PAGE_WAIT_S", 0.2)
-    async with demo("explora", _llm()) as rig:
+    async with _explora(_llm()) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
         # The driver calls a turn done after a quarter second of quiet; this one
         # is quiet for the length of the wait.
@@ -632,13 +689,13 @@ async def test_a_page_that_never_reports_holds_the_rest_only_so_long(
 
 
 async def test_the_page_in_front_and_an_unknown_page_open_nothing() -> None:
-    async with demo("explora", _llm()) as rig:
+    async with _explora(_llm()) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
         await _page(rig, "page_changed", ATACAMA_PAGE)
         turn = await rig.driver.user_says("Tell me again.")
         check_turn(rig, turn, units=1)
-        assert _commands(rig, "navigate") == []
-        assert _cues(rig)[0]["heading"] == "Welcome to Explora Atacama"
+        assert _commands(rig, NAVIGATE) == []
+        assert _shown(rig)[0] == "Welcome to Explora Atacama"
         assert "Truly." in turn.text
 
 
@@ -651,32 +708,31 @@ async def test_a_redirected_path_is_the_page_it_lands_on() -> None:
 
 async def test_cues_are_checked_against_the_tab_in_front() -> None:
     llm = _llm()
-    async with demo("explora", llm) as rig:
+    async with _explora(llm) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/"})
         await _page(rig, "page_changed", PATAGONIA_PAGE)
         await rig.driver.user_says("Why Explora?")
-        cues = _cues(rig)
         # A tab's label opens the tab; words that are on no heading are rung.
-        assert cues[0]["heading"] == "Custom-Made Explorations"
-        assert cues[1]["heading"] is None and cues[1]["text"] == "the red door"
+        assert _shown(rig) == ["Custom-Made Explorations", "the red door"]
         seen = _texts(llm.captured_inputs[-1])
         assert "Its tabs and accordions: Award-Winning Lodges; Custom-Made Explorations" in seen
         assert "Its own sub-pages: /lodge/torres-del-paine-lodge/; /el-chalten-lodge/" in seen
         await _page(rig, "page_changed", HOME_PAGE)
         await rig.driver.user_says("Open Patagonia.")
-        assert _cues(rig)[-1]["faq"] == "Patagonia [Argentina + Chile]"
+        assert _cues(rig)[-1]["move"] == "core.faq"
+        assert _cues(rig)[-1]["args"] == ["Patagonia [Argentina + Chile]"]
 
 
 async def test_the_page_they_asked_about_opens_when_his_reply_forgets() -> None:
-    async with demo("explora", _llm()) as rig:
+    async with _explora(_llm()) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/"})
         await _says_while_pages_load(rig, "Tell me about Atacama.", ATACAMA_PAGE)
-        assert _commands(rig, "navigate")[0]["path"] == "/lodge/atacama-lodge/"
+        assert _commands(rig, NAVIGATE)[0]["path"] == "/lodge/atacama-lodge/"
     # Not from a page about the same place.
-    async with demo("explora", _llm()) as rig:
+    async with _explora(_llm()) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/atacama-travel-tips/"})
         await rig.driver.user_says("Tell me about Atacama.")
-        assert _commands(rig, "navigate") == []
+        assert _commands(rig, NAVIGATE) == []
 
 
 @pytest.mark.parametrize(
@@ -712,10 +768,10 @@ def test_a_sentence_names_its_section() -> None:
 
 async def test_availability_is_checked_on_the_booking_site_and_stops_at_rooms() -> None:
     llm = _llm()
-    async with demo("explora", llm) as rig:
+    async with _explora(llm) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
         await rig.driver.user_says("Can I go in November? Five nights.")
-        assert _commands(rig, "check_availability")[-1] == {
+        assert _commands(rig, "explora.check_availability")[-1] == {
             "hotel_code": "EATA",
             "date": None,
             "month": None,
@@ -744,17 +800,17 @@ async def test_availability_is_checked_on_the_booking_site_and_stops_at_rooms() 
         assert "Open arrival days: Friday, November 6, 2026; Saturday, November 7, 2026" in seen
 
         await rig.driver.user_says("The sixth.")
-        assert _commands(rig, "check_availability")[-1]["date"] == "2026-11-06"
+        assert _commands(rig, "explora.check_availability")[-1]["date"] == "2026-11-06"
         # A day the calendar does not list is refused before it reaches the page.
         await rig.driver.user_says("The fifth of November.")
         # A tool's result reaches the model with the next request.
         await rig.driver.user_says("Carry on.")
         refused = _results(llm.captured_inputs[-1])["check_availability"]
         assert "not an open arrival day" in refused
-        assert len(_commands(rig, "check_availability")) == 2
+        assert len(_commands(rig, "explora.check_availability")) == 2
 
         await rig.driver.user_says("Show me the rooms.")
-        assert _commands(rig, "check_availability")[-1]["rooms"] is True
+        assert _commands(rig, "explora.check_availability")[-1]["rooms"] is True
         await _page(
             rig,
             "stay_state",
@@ -774,10 +830,10 @@ async def test_availability_is_checked_on_the_booking_site_and_stops_at_rooms() 
 
 async def test_an_expedition_enquiry_fills_and_sends_only_once_ticked() -> None:
     llm = _llm()
-    async with demo("explora", llm) as rig:
+    async with _explora(llm) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/explora-expeditions/"})
         await rig.driver.user_says("I'd like the Sacred Mountains expedition. I'm Ana Díaz.")
-        assert _commands(rig, "fill_enquiry")[-1] == {
+        assert _commands(rig, "explora.fill_enquiry")[-1] == {
             "expedition_code": "XSCM",
             "title": None,
             "first_name": "Ana",
@@ -795,12 +851,12 @@ async def test_an_expedition_enquiry_fills_and_sends_only_once_ticked() -> None:
             "not on the form's nationality list"
             in _results(llm.captured_inputs[-1])["fill_enquiry"]
         )
-        filled = _commands(rig, "fill_enquiry")[-1]
+        filled = _commands(rig, "explora.fill_enquiry")[-1]
         assert filled["first_name"] == "Ana" and filled["email"] == "ana@example.com"
         assert filled["country"] is None
         await rig.driver.user_says("I'm from Mexico.")
-        assert _commands(rig, "fill_enquiry")[-1]["country"] == "Mexico"
-        assert _commands(rig, "fill_enquiry")[-1]["title"] == "Ms."
+        assert _commands(rig, "explora.fill_enquiry")[-1]["country"] == "Mexico"
+        assert _commands(rig, "explora.fill_enquiry")[-1]["title"] == "Ms."
 
         # Not sent while the reCAPTCHA is not ticked.
         await _page(
@@ -817,7 +873,7 @@ async def test_an_expedition_enquiry_fills_and_sends_only_once_ticked() -> None:
         await rig.driver.user_says("Send it.")
         await rig.driver.user_says("Carry on.")
         assert "not ticked" in _results(llm.captured_inputs[-1])["send_enquiry"]
-        assert _commands(rig, "send_enquiry") == []
+        assert _commands(rig, "explora.send_enquiry") == []
 
         # Ticked: he says so and sends it, in the short quiet spell.
         await _page(
@@ -833,7 +889,7 @@ async def test_an_expedition_enquiry_fills_and_sends_only_once_ticked() -> None:
         )
         assert _idle_windows(rig)[-1] == _TALK_THROUGH_MS
         await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
-        assert _commands(rig, "send_enquiry") == [{}]
+        assert _commands(rig, "explora.send_enquiry") == [{}]
         await _page(
             rig,
             "enquiry_sent",
@@ -843,13 +899,53 @@ async def test_an_expedition_enquiry_fills_and_sends_only_once_ticked() -> None:
         assert "Explora's team will write to you." in turn.text
 
 
+async def test_a_booking_move_the_page_could_not_make_is_said_plainly() -> None:
+    """A ``stage_result`` that failed reaches the model as one plain line, and
+    the next move of the same class goes out: the page answered this one."""
+    llm = _llm()
+    async with _explora(llm, unanswered=("explora.check_availability",)) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
+        await rig.driver.user_says("Can I go in November? Five nights.")
+        move = next(m for m in _stage(rig, "stage_move") if m["move"].endswith("availability"))
+        assert move["call_ref"] and move["when"] == "now"
+        await _answer(rig, move, "failed", "the booking calendar is not on the page")
+        await rig.driver.user_says("Carry on.")
+        seen = _texts(llm.captured_inputs[-1])
+        assert (
+            "That did not happen on the page (the booking site's availability: the booking "
+            "calendar is not on the page)" in seen
+        )
+
+
+async def test_a_cue_the_visitor_talked_over_is_no_failure() -> None:
+    llm = _llm()
+    async with _explora(llm) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
+        await _page(rig, "page_changed", ATACAMA_PAGE)
+        await rig.driver.user_says("Tell me again.")
+        cue = _cues(rig)[0]
+        await rig.driver.send_ui_event(
+            "stage_result",
+            {
+                "call_ref": cue["call_ref"],
+                "move": cue["move"],
+                "outcome": "refused",
+                "detail": "interrupted",
+                "refused": [{"arg": "show", "why": "interrupted"}],
+            },
+        )
+        await asyncio.sleep(0.1)
+        await rig.driver.user_says("Carry on.")
+        assert "did not land" not in _texts(llm.captured_inputs[-1])
+
+
 async def test_a_silent_booking_move_says_its_line_and_no_bracket_is_spoken() -> None:
     llm = _llm()
-    async with demo("explora", llm) as rig:
+    async with _explora(llm) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
         turn = await rig.driver.user_says("Can I go in March?")
         assert turn.text.strip() == "Here's the booking calendar."
-        assert _commands(rig, "check_availability")[-1]["hotel_code"] == "EATA"
+        assert _commands(rig, "explora.check_availability")[-1]["hotel_code"] == "EATA"
         turn = await rig.driver.user_says("What's on the screen?")
         assert "[" not in turn.text and "March 1" not in turn.text
         assert "The calendar is open." in turn.text and "Pick a day." in turn.text
@@ -883,7 +979,7 @@ async def test_a_talk_through_the_model_leaves_silent_is_read_from_the_page() ->
         },
         default=reply(""),
     )
-    async with demo("explora", llm) as rig:
+    async with _explora(llm) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
         await rig.driver.user_says("Can I go in November? Five nights.")
         await _page(rig, "stay_state", DATES_STATE)
@@ -922,7 +1018,7 @@ async def test_a_slow_turn_with_no_nod_still_holds_the_floor(
 ) -> None:
     """Prod call be1f5b9a: the turns the nod skipped were ten seconds of silence."""
     monkeypatch.setattr(explora, "ACK_HOLD_AFTER_S", 0.3)
-    async with demo("explora", _llm()) as rig:
+    async with _explora(_llm()) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
         turn = await rig.driver.user_says("Slow one.", quiet_for=1.5)
         assert turn.text.startswith(explora._ACK_HOLD["en"])
@@ -930,18 +1026,18 @@ async def test_a_slow_turn_with_no_nod_still_holds_the_floor(
 
 
 async def test_a_heading_made_up_for_the_page_is_dropped() -> None:
-    async with demo("explora", _llm()) as rig:
+    async with _explora(_llm()) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
         await _page(rig, "page_changed", ATACAMA_PAGE)
         await rig.driver.user_says("What's here?")
-        assert [c["heading"] for c in _cues(rig)] == ["Included with Your Stay"]
+        assert _shown(rig) == ["Included with Your Stay"]
 
 
 async def test_a_month_they_name_turns_the_calendar_to_it() -> None:
-    async with demo("explora", _llm()) as rig:
+    async with _explora(_llm()) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/", "lang": "es"})
         await rig.driver.user_says("Anything in March?")
-        sent = _commands(rig, "check_availability")[-1]
+        sent = _commands(rig, "explora.check_availability")[-1]
         assert sent["month"] == "2027-03" and sent["date"] is None
         # The booking site opens in the call's language.
         assert sent["language"] == "ES"
@@ -958,15 +1054,18 @@ ZONES_PAGE: dict[str, Any] = {
 
 
 async def test_items_he_names_in_passing_are_shown() -> None:
-    async with demo("explora", _llm()) as rig:
+    async with _explora(_llm()) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/machu-picchu-hiking-tours/"})
         await _page(rig, "page_changed", ZONES_PAGE)
         await rig.driver.user_says("Talk me through the zones.")
-        assert [c["faq"] for c in _cues(rig)] == ["1. Janca", "3. Suni"]
+        assert [(c["move"], c["args"]) for c in _cues(rig)] == [
+            ("core.faq", ["1. Janca"]),
+            ("core.faq", ["3. Suni"]),
+        ]
 
 
 async def test_a_reply_that_was_only_a_dropped_page_cue_is_asked_again() -> None:
-    async with demo("explora", _llm()) as rig:
+    async with _explora(_llm()) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
         await _page(rig, "page_changed", ATACAMA_PAGE)
         turn = await rig.driver.user_says("Show me explorations.")
@@ -975,7 +1074,7 @@ async def test_a_reply_that_was_only_a_dropped_page_cue_is_asked_again() -> None
 
 async def test_a_room_is_chosen_from_the_rooms_on_screen() -> None:
     llm = _llm()
-    async with demo("explora", llm) as rig:
+    async with _explora(llm) as rig:
         await rig.driver.start_session(init={"site": "reservations", "path": "/ibe/paso2"})
         await _page(
             rig,
@@ -989,34 +1088,34 @@ async def test_a_room_is_chosen_from_the_rooms_on_screen() -> None:
             },
         )
         await rig.driver.user_says("I'll take the suite, two of us, king bed.")
-        assert _commands(rig, "choose_room") == [
+        assert _commands(rig, "explora.choose_room") == [
             {"room": "Suite Catur", "travellers": 2, "bed": "King", "count": 1}
         ]
         await rig.driver.user_says("Pick the penthouse.")
         await rig.driver.user_says("Carry on.")
         assert "no room 'Penthouse'" in _results(llm.captured_inputs[-1])["choose_room"]
-        assert len(_commands(rig, "choose_room")) == 1
+        assert len(_commands(rig, "explora.choose_room")) == 1
 
 
 async def test_more_rooms_for_a_bigger_party() -> None:
     """Prod call be1f5b9a: four travellers, and the second room was refused
     as already selected; a King bed was chosen that nobody asked for."""
     llm = _llm()
-    async with demo("explora", llm) as rig:
+    async with _explora(llm) as rig:
         await rig.driver.start_session(
             init={"site": "reservations", "path": "/ibe/paso2", "lang": "es"}
         )
         await _page(rig, "stay_state", ROOMS_STATE)
         await rig.driver.user_says("Somos cuatro, queremos dos suites.")
-        assert _commands(rig, "choose_room") == [
+        assert _commands(rig, "explora.choose_room") == [
             {"room": "Suite Catur", "travellers": None, "bed": None, "count": 2}
         ]
         # The same room again, in another turn, is another room.
         await rig.driver.user_says("Agrega otra suite.")
-        assert len(_commands(rig, "choose_room")) == 2
+        assert len(_commands(rig, "explora.choose_room")) == 2
         # The same press twice in one turn is one press.
         await rig.driver.user_says("Add it twice.")
-        assert [c["room"] for c in _commands(rig, "choose_room")] == [
+        assert [c["room"] for c in _commands(rig, "explora.choose_room")] == [
             "Suite Catur",
             "Suite Catur",
             "Yali",
@@ -1024,11 +1123,11 @@ async def test_more_rooms_for_a_bigger_party() -> None:
 
 
 async def test_the_same_availability_move_twice_while_loading_is_sent_once() -> None:
-    async with demo("explora", _llm()) as rig:
+    async with _explora(_llm()) as rig:
         await rig.driver.start_session(init={"site": "reservations", "path": "/ibe/paso1"})
         await _page(rig, "stay_state", {**DATES_STATE, "date": "2026-11-06"})
         await rig.driver.user_says("Show me the rooms again.")
-        assert len(_commands(rig, "check_availability")) == 1
+        assert len(_commands(rig, "explora.check_availability")) == 1
 
 
 ATACAMA_LODGE_PAGE: dict[str, Any] = {
@@ -1047,7 +1146,7 @@ async def test_a_lodge_sub_page_opens_when_his_reply_only_promises() -> None:
     """Dev call ed9846d5: "Show me the explorations." got "One moment." and
     nothing moved. The lodge's own explorations page opens first, and a
     reply that only promises is asked again."""
-    async with demo("explora", _llm()) as rig:
+    async with _explora(_llm()) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
         await _page(rig, "page_changed", ATACAMA_LODGE_PAGE)
         turn = await _says_while_pages_load(
@@ -1055,7 +1154,7 @@ async def test_a_lodge_sub_page_opens_when_his_reply_only_promises() -> None:
             "Show me the explorations.",
             {**ATACAMA_PAGE, "path": "/atacama-explorations/", "headings": ["Explorations"]},
         )
-        assert _commands(rig, "navigate")[0]["path"] == "/atacama-explorations/"
+        assert _commands(rig, NAVIGATE)[0]["path"] == "/atacama-explorations/"
         assert "Nearly fifty explorations" in turn.text
 
 
@@ -1091,7 +1190,7 @@ EASTER_PAGE: dict[str, Any] = {
 
 
 async def test_a_page_its_own_tab_bar_links_opens_though_the_crawl_lacks_it() -> None:
-    async with demo("explora", _llm()) as rig:
+    async with _explora(_llm()) as rig:
         await rig.driver.start_session(init={"site": "site", "path": EASTER_PAGE["path"]})
         await _page(rig, "page_changed", EASTER_PAGE)
         turn = await _says_while_pages_load(
@@ -1099,19 +1198,19 @@ async def test_a_page_its_own_tab_bar_links_opens_though_the_crawl_lacks_it() ->
             "Show me the room options.",
             {**EASTER_PAGE, "path": "/explora-lodge-easter-island-new/", "headings": ["OUR ROOMS"]},
         )
-        assert _commands(rig, "navigate")[0]["path"] == "/explora-lodge-easter-island-new/"
+        assert _commands(rig, NAVIGATE)[0]["path"] == "/explora-lodge-easter-island-new/"
         # The holding line he copied is not said; his line for the load is.
         assert turn.text.split() == f"{explora._PAGE_LINE['en']} Here are the rooms.".split()
 
 
 async def test_switch_tab_with_one_tab_moves_nothing() -> None:
     llm = _llm()
-    async with demo("explora", llm) as rig:
+    async with _explora(llm) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/"})
         await rig.driver.user_says("Bring up the pricing tab.")
         await rig.driver.user_says("Carry on.")
         assert "only this one Explora tab" in _results(llm.captured_inputs[-1])["switch_tab"]
-        assert _commands(rig, "focus_tab") == []
+        assert _commands(rig, "explora.focus_tab") == []
 
 
 @pytest.mark.parametrize(
@@ -1158,7 +1257,7 @@ def test_countries_and_hotels_are_found_by_name() -> None:
 
 
 async def test_spanish_heard_moves_both_legs_before_he_answers() -> None:
-    async with demo("explora", _llm()) as rig:
+    async with _explora(_llm()) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
         await rig.driver.user_says("¿Cuánto cuesta una noche en Atacama? Quiero ver los precios.")
         check_voice_pair(rig, voice="omnivoice/javier", language="es")
@@ -1166,7 +1265,7 @@ async def test_spanish_heard_moves_both_legs_before_he_answers() -> None:
 
 
 async def test_the_toggle_switches_and_confirms_in_the_new_language() -> None:
-    async with demo("explora", _llm()) as rig:
+    async with _explora(_llm()) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/"})
         await _page(rig, "language_requested", {"language": "es"})
         check_voice_pair(rig, voice="omnivoice/javier", language="es")

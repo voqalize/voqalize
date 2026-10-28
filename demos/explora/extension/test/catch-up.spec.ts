@@ -1,13 +1,12 @@
 /**
  * What the holder sends a page that arrives in the middle of a reply
- * (`src/catch-up.ts`): the state, each reply still being heard, whether he is
+ * (`CatchUp` in `@voqalize/stage/extension`): the state, each reply still being heard, whether he is
  * speaking, and nothing of a reply that is over. No browser.
  */
 
 import { expect, test } from "@playwright/test";
 
-import { CatchUp } from "../src/catch-up";
-import type { ToPage } from "../src/protocol";
+import { CatchUp, type ToPage } from "@voqalize/stage/extension";
 
 const avatar = (cmd: Record<string, unknown>): ToPage => ({ k: "ev", name: "serverMessage", data: { type: "avatar", ...cmd } });
 const ev = (name: string): ToPage => ({ k: "ev", name, data: {} });

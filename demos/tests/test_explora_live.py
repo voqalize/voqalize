@@ -53,16 +53,25 @@ def _page_changed(path: str) -> dict[str, Any]:
     }
 
 
+def _moves(rig: Any) -> list[dict[str, Any]]:
+    return [c["payload"] for c in rig.driver.ui_commands if c.get("command") == "stage_move"]
+
+
 async def _pages_load(rig: Any) -> None:
-    """Every ``navigate`` he sends lands, a moment later, as the extension's
-    next page reporting itself."""
+    """Every move he sends is answered as made, and every ``explora.navigate``
+    lands, a moment later, as the extension's next page reporting itself."""
     seen = 0
     while True:
         await asyncio.sleep(0.05)
-        moves = [c["payload"] for c in rig.driver.ui_commands if c.get("command") == "navigate"]
+        moves = _moves(rig)
         for move in moves[seen:]:
-            await asyncio.sleep(0.3)
-            await rig.driver.send_ui_event("page_changed", _page_changed(move["path"]))
+            if move["move"] == "explora.navigate":
+                await asyncio.sleep(0.3)
+                await rig.driver.send_ui_event("page_changed", _page_changed(move["args"]["path"]))
+            await rig.driver.send_ui_event(
+                "stage_result",
+                {"call_ref": move["call_ref"], "move": move["move"], "outcome": "applied"},
+            )
         seen = len(moves)
 
 
@@ -105,8 +114,8 @@ async def test_live_a_tour_moves_the_page_with_the_story() -> None:
     )
     assert all(s.strip() for s in said), said
     commands = [c["command"] for c in rig.driver.ui_commands]
-    assert commands.count("cue") >= 3, commands
-    assert "navigate" in commands, commands
+    assert commands.count("stage_cue") >= 3, commands
+    assert any(m["move"] == "explora.navigate" for m in _moves(rig)), commands
     assert all("{" not in s for s in said), said
 
 
@@ -117,7 +126,7 @@ async def test_live_he_checks_availability_with_the_tool() -> None:
         path="/lodge/atacama-lodge/",
         lang=None,
     )
-    stays = [c["payload"] for c in rig.driver.ui_commands if c["command"] == "check_availability"]
+    stays = [m["args"] for m in _moves(rig) if m["move"] == "explora.check_availability"]
     assert stays and stays[-1]["hotel_code"] == "EATA", stays
 
 
