@@ -754,10 +754,6 @@ class Brain:
         return when you are done::
 
             async def on_user_message(self, session, msg):
-                yield SpeechStart()
-                yield SpeechChunk("Let me check that")
-                yield SpeechEnd()
-
                 rows = await self.catalog.search(msg.text)
                 session.dispatch(ShowResults(rows=rows))
 

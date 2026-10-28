@@ -58,19 +58,19 @@ One call to `on_user_message` may open and close the floor several times:
 ```python
 async def on_user_message(self, session, msg):
     yield SpeechStart()
-    yield SpeechChunk("Let me check that.")
+    yield SpeechChunk("The blue one is out of stock.")
     yield SpeechEnd()
 
-    rows = await self.catalog.search(msg.text)
+    rows = await self.catalog.similar(msg.text)
 
     yield SpeechStart()
-    yield SpeechChunk(f"I found {len(rows)}.")
+    yield SpeechChunk(f"I found {len(rows)} like it.")
     yield SpeechEnd()
 ```
 
 Two units, one turn. Write it as one unit spanning the `await` and Voqalize
-reports both back as one `Finalize` — the filler and the answer become a single
-entry in your history, under a single heard prefix.
+reports both back as one `Finalize` — the two lines become a single entry in
+your history, under a single heard prefix.
 
 **The unit is the grain of everything downstream.** It is what a user can be
 cut out of mid-word, and it is what Voqalize reports heard truth against — one
@@ -113,14 +113,14 @@ unit two is invisible: there is no error, no dropped frame, no failed check, and
 your logs show a turn that answered. The only instrument that sees it is the
 user, sitting through a database query with the floor held by nobody.
 
-So say something before you await, and mean it:
+Before your first chunk the wait is covered: Voqalize acknowledges the caller
+while your brain works
+([`ack`](/reference/wire/#ack--voqalize-acknowledges-while-the-brain-thinks),
+on unless you turn it off) and the watchdog is armed. So do the slow work before you
+first speak, and open on the answer:
 
 ```python
 async def on_user_message(self, session, msg):
-    yield SpeechStart()
-    yield SpeechChunk("Pulling that up now.")
-    yield SpeechEnd()
-
     booking = await self.crm.fetch(msg.text)   # 400 ms, or 4 seconds
 
     yield SpeechStart()
@@ -128,7 +128,13 @@ async def on_user_message(self, session, msg):
     yield SpeechEnd()
 ```
 
-An `await` with no speech in front of it is dead air you chose. On the
+Do not open with a line of your own like "Pulling that up now." The caller
+already heard Voqalize's, and hears two. A brain that wants its own turns
+`ack` off.
+
+After your first chunk, nothing covers the wait. An `await` there with no
+speech in front of it is dead air you chose, and the line in front of it has
+to carry something, as "The blue one is out of stock." does above. On the
 model-backed brains the SDK writes this shape for a tool marked `@needs_result_now`: the model's
 line is the first unit and its answer from the result is the second. The first
 line is still the model's to say, so it belongs in the prompt —

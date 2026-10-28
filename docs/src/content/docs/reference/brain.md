@@ -103,7 +103,7 @@ You write them as `async def` with `yield` in the body:
 class Concierge(Brain):
     async def on_user_message(self, session, msg):
         yield SpeechStart()
-        yield SpeechChunk("Let me check that")
+        yield SpeechChunk("Your table is booked for eight.")
         yield SpeechEnd()
 ```
 
