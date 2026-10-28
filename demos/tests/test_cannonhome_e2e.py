@@ -887,10 +887,11 @@ async def test_the_pages_answer_is_talked_through_once_with_tools_off() -> None:
         await rig.driver.start_session(init={"path": "/"})
         await rig.driver.user_says("Ábreme las de dos plazas.")
         assert _idle_windows(rig)[-1] == _IDLE_MS
-        # What the page shows is a note; it says nothing of the move.
-        await _page(rig, "product_shown", _shown(source="graphql", price=28495))
+        # Another product than the one he opened: a note, not the move's landing.
+        await _page(rig, "product_shown", _shown(path=SK, source="graphql", price=40000))
         assert _idle_windows(rig)[-1] == _IDLE_MS
-        # The move's one result: talked through in the short quiet spell.
+        # The move's one result, with no landing before it: talked through in
+        # the short quiet spell.
         await _answer(rig, "open_product", detail="the product page shows the sheets at $28495")
         assert _idle_windows(rig)[-1] == _TALK_THROUGH_MS
         before = len(seen)
@@ -913,6 +914,130 @@ async def test_the_pages_answer_is_talked_through_once_with_tools_off() -> None:
         assert (
             "The page answered what you sent it" not in _texts(llm.captured_inputs[-1])[len(said) :]
         )
+
+
+#: No line of his ever blames the store for being slow.
+_BLAMES = re.compile(r"slow|lent[ao]", re.IGNORECASE)
+
+
+def _listing(count: int = 16, **over: Any) -> dict[str, Any]:
+    return {
+        "path": SHEETS,
+        "title": "Sábanas",
+        "count": count,
+        "filters": {"tamano": "King", "color": "Blanco"},
+        "sort": "price_asc",
+        "items": [
+            {"name": "Liso Menta", "path": SK, "price": 41993},
+            {"name": "Liso Blanco", "path": S2, "price": 45990},
+        ],
+    } | over
+
+
+async def test_a_listing_that_lands_is_said_at_once_with_no_model_request_before_it() -> None:
+    llm = _llm()
+    async with demo("cannonhome", llm) as rig:
+        await rig.driver.start_session(init={"path": SHEETS})
+        await rig.driver.user_says("Filtra las king blancas.")
+        # The page loads the listing first, unfiltered: not the move's effect.
+        await _page(rig, "listing_shown", _listing(120, filters={}, sort=""))
+        assert _idle_windows(rig)[-1] == _IDLE_MS
+        # The filtered listing lands: his written line, the floor made short.
+        await _page(rig, "listing_shown", _listing())
+        assert _idle_windows(rig)[-1] == _DONE_MS == 300
+        asked = len(llm.requests)
+        turn = await rig.driver.user_idle(level=1, idle_ms=_DONE_MS)
+        check_turn(rig, turn)
+        assert turn.text.startswith(
+            "Aquí hay 16; el primero es Liso Menta, a cuarenta y un mil novecientos noventa y "
+            "tres pesos."
+        )
+        assert not _BLAMES.search(turn.text)
+        # The model was asked only after the line, tools off, for one sentence at most.
+        (talk,) = llm.requests[asked:]
+        assert talk.get("tool_choice") == _TOOLS_OFF
+        seen = _texts(llm.captured_inputs[-1])
+        assert 'You have just said: "Aquí hay 16; el primero es Liso Menta' in seen
+        assert "at most one short sentence" in seen
+        # Its result later only confirms: nothing more to talk through.
+        await _answer(rig, "filter_listing", detail="Sábanas: 16 products")
+        assert _idle_windows(rig)[-1] == _IDLE_MS
+        assert "The page answered what you sent it" not in _texts(llm.captured_inputs[-1])
+
+
+async def test_a_cue_that_lands_gets_its_line_not_the_twenty_second_nudge() -> None:
+    llm = _llm()
+    async with demo("cannonhome", llm) as rig:
+        await rig.driver.start_session(init={"path": SHEETS})
+        await rig.driver.user_says("Ordénalas por precio.")
+        (sort,) = _cues(rig)
+        # A listing sorted some other way is not its effect.
+        await _page(rig, "listing_shown", _listing(16, sort="price_desc"))
+        assert _idle_windows(rig)[-1] == _IDLE_MS
+        await _page(rig, "listing_shown", _listing(16, sort=sort["args"][0]))
+        assert _idle_windows(rig)[-1] == _DONE_MS
+        asked = len(llm.requests)
+        turn = await rig.driver.user_idle(level=1, idle_ms=_DONE_MS)
+        assert turn.text.startswith("Aquí hay 16; el primero es Liso Menta")
+        assert len(llm.requests) == asked + 1  # only the one sentence after it
+        # Its result: a line for his next turn, nothing more to say now.
+        await _page(
+            rig,
+            "stage_result",
+            {"call_ref": sort["call_ref"], "move": "listing.sort", "outcome": "applied"},
+        )
+        assert _idle_windows(rig)[-1] == _IDLE_MS
+
+
+async def test_a_product_that_lands_is_said_and_gets_no_holding_line() -> None:
+    llm = _llm()
+    async with demo("cannonhome", llm) as rig:
+        await rig.driver.start_session(init={"path": "/"})
+        ahead = _clock_ahead(rig)
+        await rig.driver.user_says("Ábreme las de dos plazas.")
+        await _page(rig, "product_shown", _shown(source="graphql", price=28495))
+        assert _idle_windows(rig)[-1] == _DONE_MS
+        # Past the holding time with its result not in: no holding line, the
+        # page already showed it.
+        ahead[0] = 7.0
+        await asyncio.sleep(0.7)
+        assert rig.brain._hold is None  # type: ignore[attr-defined]
+        turn = await rig.driver.user_idle(level=1, idle_ms=_DONE_MS)
+        assert turn.text.startswith(
+            "Aquí está Sábanas 2 Plazas 300 Hilos Inventadas Blanco, a veintiocho mil "
+            "cuatrocientos noventa y cinco pesos."
+        )
+        assert not _BLAMES.search(turn.text)
+        # Never listed as still running in the next turn's screen lines.
+        await rig.driver.user_says("Sigamos.")
+        assert "Still working on the page: open_product" not in _texts(llm.captured_inputs[-1])
+
+
+async def test_a_landing_line_in_english() -> None:
+    line = ch.listing_line(
+        ch.ListingShown.model_validate(_listing()),
+        "en",
+    )
+    assert (
+        line
+        == "Here are 16; the first is Liso Menta at forty-one thousand nine hundred and ninety-three pesos."
+    )
+    assert ch.listing_line(ch.ListingShown.model_validate(_listing(0, items=[])), "es") == (
+        "No aparece ningún producto con eso."
+    )
+
+
+def test_no_written_line_blames_the_store() -> None:
+    lines = [
+        line
+        for table in (ch._HOLDING, ch._LANDED, ch._DONE)
+        for by_lang in table.values()
+        for said in by_lang.values()
+        for line in ([said] if isinstance(said, str) else said)
+    ]
+    lines += [*ch._ACK_SORRY.values(), *(x for v in ch._ACK_HOLD.values() for x in v)]
+    assert lines
+    assert [line for line in lines if _BLAMES.search(line)] == []
 
 
 async def test_a_failed_move_is_said_plainly_with_what_the_page_offers() -> None:

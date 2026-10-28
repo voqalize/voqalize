@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import asyncio
 import math
+import random
 import re
 import time
 from collections.abc import AsyncGenerator
@@ -72,13 +73,16 @@ from voqalize.sdk import (
 )
 from voqalize.sdk.openai import OpenAIBrain
 from voqalize.sdk.stage import (
+    LANDING_FLOOR_MS,
     MAX_CUE,
     ArgValue,
+    Landing,
     Move,
     MoveClass,
     Refused,
     Stage,
     StagePageEvents,
+    landed_ask,
     match_label,
 )
 from voqalize.sdk.stage import wire as stage_wire
@@ -497,6 +501,33 @@ _TITLE_SUFFIXES = (" | Explora", " - Explora Hotels", " - Explora", " | Official
 _EVERYWHERE = frozenset({"special offers", "unique programs", "discover our destinations"})
 
 
+def _opened(landing: Landing, event: PageChanged) -> bool:
+    """Whether the page up is the one ``landing``'s navigate opened (its
+    Spanish twin counts)."""
+    want = (landing.args or {}).get("path")
+    if not isinstance(want, str) or event.site != "site":
+        return False
+
+    def bare(path: str) -> str:
+        return canonical_path(path).removeprefix("/es") or "/"
+
+    return bare(event.path) == bare(want)
+
+
+def _stay_fits(landing: Landing, event: StayState) -> bool:
+    """Whether the booking site shows what ``landing``'s check asked for: its
+    lodge, and the rooms when it asked for them, or its day."""
+    args = landing.args or {}
+    if args.get("hotel_code") not in (None, event.hotel_code):
+        return False
+    if args.get("rooms"):
+        return event.step == "rooms"
+    date = args.get("date")
+    if isinstance(date, str) and date:
+        return event.date == date and event.step == "dates"
+    return event.step == "dates"
+
+
 def _short_title(title: str) -> str:
     for suffix in _TITLE_SUFFIXES:
         title = title.removesuffix(suffix)
@@ -626,7 +657,7 @@ You: "Let's look at November. I'm opening the Torres del Paine calendar for five
 - When you talk through several items on a page — zones, rooms, lodges, explorations, steps — cue each one as you name it, by the label the screen lines give it: a heading, a tab or a question. When the visitor asks you to scroll to each one as you talk, that is what they mean.
 - The visitor can ask you to press or scroll to anything: "scroll to the rooms", "open that tab", "go back to the lodge", "show me Easter Island". Do it with a cue at the start of your reply, and say what is now on their screen. Never say you cannot scroll or click.
 - Never say a page opened, changed or switched language, or that a room was added or a field filled, unless a screen line in square brackets or a tool's result says so. Saying you are doing it ("I'm opening the calendar", "I'm filling in the form") belongs only in the response that calls its tool. A line saying a move did not happen means it did not: say so plainly.
-- The booking site can be slow. While a move is still running (a line in square brackets says it is still working), never say you could not confirm it or that it failed: say it is still working on it. If a line later says it happened after all, correct yourself in a few words.
+- Some moves take a few seconds. While a move is still running (a line in square brackets says it is still working), never say you could not confirm it or that it failed: say you are still on it. Never say the site, the booking site or the page is slow: that blames Explora, whose site this is. If a line later says it happened after all, correct yourself in a few words.
 
 # Checking availability
 - Offer it where the story reaches it — once a lodge fits them, or when they ask about dates, prices or booking — and not before.
@@ -740,28 +771,39 @@ _LANDED: dict[str, dict[Lang, str]] = {
 }
 
 #: His line for a move still running after Stage's ``HOLDING_LINE_S``, by
-#: move, said once in a quiet spell with no model request before it, so a slow
-#: booking site is not heard as a failed move; ``""`` is any other move.
-_HOLDING: dict[str, dict[Lang, str]] = {
+#: move, said once in a quiet spell with no model request before it, so a move
+#: still under way is not heard as a failed one; ``""`` is any other move. A
+#: line says he is still on it and never blames the site ("the page is slow"
+#: is heard as a fault of Explora's, whose site this is); one of a move's
+#: lines is picked at random, so two in a call are not word for word alike.
+_HOLDING: dict[str, dict[Lang, tuple[str, ...]]] = {
     CHECK_AVAILABILITY.id: {
-        "en": "Still opening the booking calendar, the site is a bit slow.",
-        "es": "Sigo abriendo el calendario, la página va lenta.",
+        "en": (
+            "Still opening the calendar for you, one moment.",
+            "Almost there with the calendar.",
+            "I'm still bringing up the dates.",
+        ),
+        "es": (
+            "Sigo abriendo el calendario, un momento.",
+            "Ya casi tengo el calendario.",
+            "Sigo trayendo las fechas.",
+        ),
     },
     CHOOSE_ROOM.id: {
-        "en": "Still choosing that room, the site is a bit slow.",
-        "es": "Sigo eligiendo la habitación, la página va lenta.",
+        "en": ("Still choosing that room, one moment.", "Almost done with the room."),
+        "es": ("Sigo eligiendo la habitación, un momento.", "Ya casi está la habitación."),
     },
     FILL_ENQUIRY.id: {
-        "en": "Still filling in the form, the site is a bit slow.",
-        "es": "Sigo completando el formulario, la página va lenta.",
+        "en": ("Still filling in the form, one moment.", "Almost done with the form."),
+        "es": ("Sigo completando el formulario, un momento.", "Ya casi termino el formulario."),
     },
     SEND_ENQUIRY.id: {
-        "en": "Still sending it, the site is a bit slow.",
-        "es": "Sigo enviándolo, la página va lenta.",
+        "en": ("Still sending it, one moment.", "Almost there, sending it now."),
+        "es": ("Lo sigo enviando, un momento.", "Ya casi, lo estoy enviando."),
     },
     "": {
-        "en": "Still working on it, the page is a bit slow.",
-        "es": "Sigo en eso, la página va lenta.",
+        "en": ("I'm still on it, one moment.", "Still working on it.", "Almost there."),
+        "es": ("Sigo en eso, un momento.", "Sigo trabajando en eso.", "Ya casi."),
     },
 }
 #: How often the brain looks for a move slow enough for its holding line.
@@ -777,18 +819,65 @@ _DONE_AFTER_ALL: dict[str, dict[Lang, str]] = {
 }
 
 
-def holding_line(move: str, lang: Lang) -> str:
-    """His one line for a move the site is still working on."""
-    return (_HOLDING.get(move) or _HOLDING[""])[lang]
+def holding_line(move: str, lang: Lang, rng: random.Random | None = None) -> str:
+    """His one line for a move still under way, picked at random among the
+    move's lines."""
+    return (rng or random).choice((_HOLDING.get(move) or _HOLDING[""])[lang])
 
 
 #: What he says when a page he opened never came up, instead of the rest of a
 #: reply about it: on prod call be1f5b9a he said "Here's the direct contact"
-#: over the booking site, which had not moved.
-_PAGE_LATE: dict[Lang, str] = {
-    "en": "The page is taking a while to open. Shall I try it again?",
-    "es": "La página está tardando en abrir. ¿La abro de nuevo?",
+#: over the booking site, which had not moved. He is still on it; the page is
+#: never blamed.
+_PAGE_LATE: dict[Lang, tuple[str, ...]] = {
+    "en": (
+        "I haven't got that page up yet. Shall I try it again?",
+        "That page isn't on your screen yet. Shall I open it again?",
+    ),
+    "es": (
+        "Todavía no tengo esa página en pantalla. ¿La abro de nuevo?",
+        "Esa página aún no aparece. ¿La intento abrir otra vez?",
+    ),
 }
+
+
+def page_late_line(lang: Lang, rng: random.Random | None = None) -> str:
+    return (rng or random).choice(_PAGE_LATE[lang])
+
+
+def _month_said(label: str) -> str:
+    """The calendar's month label without its year: "November 2026" → "November"."""
+    return re.sub(r"[\s,]*\d{4}\s*$", "", label).strip()
+
+
+def stay_landed_line(event: StayState, lodge: str, lang: Lang) -> str:
+    """His line the moment the booking site shows what check_availability
+    asked for: the calendar, the nights for a day, or the rooms. Said with no
+    model request before it."""
+    if event.step == "rooms":
+        return (
+            f"Here are the rooms at {lodge}."
+            if lang == "en"
+            else f"Aquí están las habitaciones de {lodge}."
+        )
+    if event.date:
+        day = spoken_day(event.date, lang)
+        return (
+            f"Here are the stays arriving {day}."
+            if lang == "en"
+            else f"Aquí están las estadías llegando {day}."
+        )
+    month = _month_said(event.month)
+    if lang == "en":
+        return f"Here's the {lodge} calendar" + (f" for {month}." if month else ".")
+    return f"Aquí está el calendario de {lodge}" + (f" para {month.lower()}." if month else ".")
+
+
+def page_landed_line(event: PageChanged, lang: Lang) -> str:
+    """His line the moment a page he opened, after his reply was over, is up."""
+    title = _short_title(event.title) or ("the page" if lang == "en" else "la página")
+    return f"Here's {title}." if lang == "en" else f"Aquí está {title}."
+
 
 #: Spoken day numbers, for the written lines that read the calendar out. A
 #: word list reads as words, so each stays a split string.
@@ -1436,7 +1525,8 @@ class ExploraBrain(OpenAIBrain):
         #: The page this turn's cues are on: the one in front, then wherever a
         #: page cue took it. ``None`` on the booking site.
         self._cue_path: str | None = None
-        self._idle_short = False
+        #: The short idle window set now (ms; 0: the long one).
+        self._idle_short = 0
         self._nudges = 0
         #: The page for what the visitor last asked about, opened at the start
         #: of his reply if it has no cue of its own; see :func:`asked_page`.
@@ -1476,7 +1566,11 @@ class ExploraBrain(OpenAIBrain):
             moves=MOVES,
             resolve=self._resolve,
             backstop=self._auto_cues,
+            on_landed=self._landing_line,
         )
+        #: Replies under way: a page one of them opened is described by it,
+        #: not by a landing line.
+        self._replying = 0
         #: The move the site is slow on and his one line for it, said in the
         #: next quiet spell if it is still running then.
         self._hold: tuple[str, str] | None = None
@@ -1570,10 +1664,11 @@ class ExploraBrain(OpenAIBrain):
             return None
         return hold[1]
 
-    def _shorten_idle(self) -> None:
-        if not self._idle_short:
-            self._idle_short = True
-            configure_soon(self.session, Config(idle=IdleConfig(timeout_ms=_TALK_THROUGH_MS)))
+    def _shorten_idle(self, ms: int = _TALK_THROUGH_MS) -> None:
+        """The short quiet spell: the shortest asked for since the last one wins."""
+        if not self._idle_short or ms < self._idle_short:
+            self._idle_short = ms
+            configure_soon(self.session, Config(idle=IdleConfig(timeout_ms=ms)))
 
     async def greet(self, session: Session) -> str:
         """The opener, written not generated."""
@@ -1640,6 +1735,7 @@ class ExploraBrain(OpenAIBrain):
         self._talk = None
         self._talk_fallback = None
         # They spoke first: what the page did is in the context as notes.
+        self.stage.take_lines()
         self._hold = None
         self._late_done = None
         self._nudges = 0
@@ -1697,11 +1793,22 @@ class ExploraBrain(OpenAIBrain):
         self._backstop = None
         done, self._late_done = self._late_done, None
         hold = self._take_hold()
+        # What landed on screen: said first, written, the latest of it.
+        landing = self.stage.take_lines()[-1:]
+        first = " ".join(x for x in (done, *landing) if x) or None
         if self._talk is not None:
             ask, self._talk = self._talk, None
             self._talk_line, self._talk_fallback = self._talk_fallback, None
+            if landing:
+                ask = (
+                    f'You have just said: "{landing[0]}". Never say that again. In one more '
+                    f"sentence at most: {ask}"
+                )
             self._note(ask)
-            return self._line_then(done, self.respond(session))
+            return self._line_then(first, self.respond(session))
+        if landing:
+            self._note(f"[{landed_ask(landing[0])}]")
+            return self._line_then(first, self.respond(session))
         if done is not None:
             # A confirmed move he was told was not confirmed, done after all.
             return say_line(self, done)
@@ -1709,8 +1816,8 @@ class ExploraBrain(OpenAIBrain):
             line, self._confirm = self._confirm, None
             return say_line(self, line)
         if hold is not None:
-            # The site is slow on a move: said so, written, never asked of the
-            # model, and no nudge counted.
+            # A move still under way: he is still on it, written, never asked
+            # of the model, and no nudge counted.
             return say_line(self, hold)
         if self._nudges >= _IDLE_NUDGES:
             return _silence()
@@ -1746,6 +1853,17 @@ class ExploraBrain(OpenAIBrain):
             await turn.aclose()
 
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
+        """:meth:`_respond`, counted while it runs (:attr:`_replying`)."""
+        self._replying += 1
+        turn = self._respond(session)
+        try:
+            async for event in turn:
+                yield event
+        finally:
+            await turn.aclose()
+            self._replying -= 1
+
+    async def _respond(self, session: Session) -> AsyncGenerator[Speech, None]:
         """The model's turn, with its page moves paced to the page loads and its
         other cues taken out of the speech and sent to the page (:mod:`.cues`).
 
@@ -1916,7 +2034,7 @@ class ExploraBrain(OpenAIBrain):
                     arrival = None
                     if not up:
                         late = True
-                        yield SpeechChunk(f" {_PAGE_LATE[self.spoken]}")
+                        yield SpeechChunk(f" {page_late_line(self.spoken)}")
                         return
                 if arrival is not None and after and piece.rstrip().endswith(_STOPS):
                     ahead += 1
@@ -2348,9 +2466,7 @@ class ExploraBrain(OpenAIBrain):
         logger.info("explora: language -> {} (toggle)", event.language)
         self._chosen = True
         self._confirm = TOGGLE_CONFIRM[event.language]
-        if not self._idle_short:
-            self._idle_short = True
-            configure_soon(session, Config(idle=IdleConfig(timeout_ms=_TALK_THROUGH_MS)))
+        self._shorten_idle()
         self._note(_chosen_note(event.language, "on the toggle"))
 
     def _speaking(self, language: Lang) -> Config:
@@ -2376,6 +2492,9 @@ class ExploraBrain(OpenAIBrain):
                 self._page_unseen = True
                 self._pages_seen += 1
                 self._page_arrived.set()
+                self.stage.landed(
+                    NAVIGATE.id, event=event, fits=lambda landing: _opened(landing, event)
+                )
                 # Read in with their next message or quiet spell: they may click
                 # on before they speak, and only the last page matters.
                 return None
@@ -2385,7 +2504,13 @@ class ExploraBrain(OpenAIBrain):
                 self._tabs_unseen = True
                 return None
             case StayState():
-                return self._stay_changed(event)
+                note = self._stay_changed(event)
+                self.stage.landed(
+                    CHECK_AVAILABILITY.id,
+                    event=event,
+                    fits=lambda landing: _stay_fits(landing, event),
+                )
+                return note
             case EnquiryState():
                 return self._enquiry_changed(event)
             case EnquirySent():
@@ -2541,7 +2666,10 @@ class ExploraBrain(OpenAIBrain):
         running = "; ".join(
             f"{_ACTS.get(r.move.id, r.move.id)} ({r.phase or 'sent'}, {r.seconds:.0f} s so far)"
             for r in self.stage.running()
-            if r.move.verb is None and r.move.cls is not MoveClass.LOOK and r.seconds >= 2
+            if r.move.verb is None
+            and r.move.cls is not MoveClass.LOOK
+            and r.seconds >= 2
+            and not r.shown
         )
         if running:
             self._note(
@@ -2576,8 +2704,35 @@ class ExploraBrain(OpenAIBrain):
 
     def _restore_idle(self) -> None:
         if self._idle_short:
-            self._idle_short = False
+            self._idle_short = 0
             configure_soon(self.session, Config(idle=IdleConfig(timeout_ms=_IDLE_MS)))
+
+    def _landing_line(self, landing: Landing) -> str | None:
+        """His written line the moment a move shows on screen: the calendar,
+        the nights or the rooms check_availability asked for, or a page a
+        reply opened after that reply was over (one still under way describes
+        it itself). Said in the next quiet spell, made short now."""
+        event = landing.event
+        if isinstance(event, StayState):
+            hotel = self.kb.hotel(event.hotel_code)
+            # "Atacama, Chile" is said "Atacama".
+            label = hotel.label if hotel is not None else (event.hotel or event.hotel_code)
+            line = stay_landed_line(event, label.split(",")[0].strip(), self.spoken)
+        elif isinstance(event, PageChanged) and not self._replying:
+            line = page_landed_line(event, self.spoken)
+        else:
+            return None
+        if self._hold is not None and self._hold[0] == landing.call_ref:
+            self._hold = None
+        logger.info(
+            "explora: {} {} on screen at {:.1f} s; landing line {!r}",
+            landing.call_ref,
+            landing.move.id,
+            landing.seconds,
+            line,
+        )
+        self._shorten_idle(LANDING_FLOOR_MS)
+        return line
 
     def _send_move(
         self,

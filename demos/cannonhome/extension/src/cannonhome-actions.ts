@@ -724,7 +724,10 @@ async function searchProducts(p: { query: string; open_index?: number | null } &
   }
   const suggest = readSuggest();
   report("search_suggest", suggest);
-  await ring(c, resultSection()!);
+  // The dropdown is the effect: ringed after the result, unless a card of
+  // it is pressed next.
+  if (p.open_index != null) await ring(c, resultSection()!);
+  else c.after(() => ring(c, resultSection()!));
   const list = suggest.items.map((i) => `${i.name} ($${i.price ?? "?"})`).join("; ");
   if (p.open_index != null) {
     const item = suggest.items[p.open_index];
@@ -803,8 +806,10 @@ async function waitForGrid(before: string, ms = 10_000): Promise<boolean> {
  *  `FILTER_PRESS_MAX_MS`. */
 const FILTER_PRESS_MS = 3000;
 const FILTER_PRESS_MAX_MS = 10_000;
-/** How long a filter waits for the store's filter scripts after a load. */
-const FILTERS_READY_MS = 10_000;
+/** How long a filter waits for the store's filter scripts after a load,
+ *  before it presses anyway (a dev call on 2026-10-28 waited out a 10 s cap on
+ *  a listing loaded 21 s before, and the press then worked). */
+const FILTERS_READY_MS = 3000;
 
 /**
  * The listing's filter scripts are up. The quick-filter bar marks its root
@@ -816,13 +821,29 @@ const FILTERS_READY_MS = 10_000;
  * copy) has nothing to wait for.
  */
 function filtersReady(): boolean {
+  return filtersWaitingOn() === null;
+}
+
+/** What the listing's filter scripts are still missing, or `null` when they
+ *  are up: logged when a filter presses without them. */
+function filtersWaitingOn(): string | null {
   const w = window as unknown as { require?: unknown; jQuery?: { data?: (el: Element, key: string) => unknown } };
-  if (!w.require) return true;
-  if (document.querySelector("[data-qf-root]")?.getAttribute("data-qf-ready") !== "1") return false;
+  if (!w.require) return null;
+  const root = document.querySelector("[data-qf-root]");
+  if (!root) return "no [data-qf-root] quick-filter bar";
+  if (root.getAttribute("data-qf-ready") !== "1") return `[data-qf-root] has data-qf-ready=${JSON.stringify(root.getAttribute("data-qf-ready"))}`;
   const data = w.jQuery?.data;
-  if (!data) return true;
+  if (!data) return null;
   // jQuery UI keeps a widget under its full name, "mage-amShopbyAjax".
-  return Boolean(data(document.body, "mage-amShopbyAjax") ?? data(document.body, "mageAmShopbyAjax"));
+  if (data(document.body, "mage-amShopbyAjax") ?? data(document.body, "mageAmShopbyAjax")) return null;
+  return "no amShopbyAjax widget on <body>";
+}
+
+/** Wait a short while for the filter scripts; then press anyway, saying
+ *  which part of them never showed. */
+async function awaitFilters(): Promise<void> {
+  if (await waitFor(filtersReady, FILTERS_READY_MS)) return;
+  console.warn(`voqalize: the filter scripts are not up after ${FILTERS_READY_MS} ms (${filtersWaitingOn()}); pressing anyway`);
 }
 
 /** The store is fetching a filtered grid: Amasty's overlay, or an option the
@@ -872,7 +893,7 @@ async function applyFacet(c: MoveContext, variable: string, said: string, then: 
   if (option.classList.contains("-active")) return { ok: true, label };
   const pill = group.querySelector<HTMLElement>(".qf__pill");
   await scrollTo(group.closest(".toolbar, .qf-bar") ?? group, "top");
-  await waitFor(filtersReady, FILTERS_READY_MS);
+  await awaitFilters();
   if (pill && !shown(option)) {
     await ring(c, pill);
     press(pill);
@@ -939,13 +960,18 @@ async function closePanels(): Promise<void> {
   }
 }
 
-/** The listing as it now stands, reported, its grid ringed: a detail. */
+/** The listing as it now stands, reported: a detail. Its grid is scrolled to
+ *  and ringed after the move's result, which goes as soon as the grid has
+ *  landed: that ring points at the effect, it acts on nothing. */
 async function showGrid(c: MoveContext): Promise<string> {
   const listing = readListing();
   report("listing_shown", listing);
-  const grid = productList().querySelector("ol.products") ?? productList();
-  await scrollTo(grid, "top");
-  await ring(c, grid);
+  // Looked up again when ringed: the store may swap the grid again meanwhile.
+  const grid = () => productList().querySelector("ol.products") ?? productList();
+  c.after(async () => {
+    await scrollTo(grid(), "top");
+    await ring(c, grid());
+  });
   const first = listing.items[0];
   return `${listing.title}: ${listing.count ?? "?"} products; ${first ? `first card ${first.name} ($${first.price ?? "?"})` : "no products"}`;
 }
@@ -1128,9 +1154,13 @@ async function openProduct(p: { path: string; tab?: Tab | null } & Arrived, c: M
   if (p.tab === "fotos") did = await showPhotos(c);
   else if (p.tab) did = await openTab(p.tab, c);
   else {
-    await scrollToTopOfPage();
-    const info = productInfo();
-    if (info) await ring(c, [...info.querySelectorAll(".product-data-container, .product-info-price")]);
+    // The product is the effect: its name and price are ringed after the
+    // result, which goes as soon as the page is up.
+    c.after(async () => {
+      await scrollToTopOfPage();
+      const info = productInfo();
+      if (info) await ring(c, [...info.querySelectorAll(".product-data-container, .product-info-price")]);
+    });
   }
   const product = readProduct();
   if (product) report("product_shown", latestProductFor(product));
@@ -2053,6 +2083,9 @@ export const cannonhome: Adapter = (moves) => {
     },
     report: reportPage,
     start,
+    // The store's own scripts bind late, and its `load` waits on trackers
+    // for over 15 s: a press waits for the page to settle, never for `load`.
+    ready: settled,
   };
 };
 

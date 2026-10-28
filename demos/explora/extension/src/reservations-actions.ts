@@ -35,7 +35,7 @@
  * and `grecaptcha` are in reach.
  */
 
-import type { MoveContext, Spotlight } from "@voqalize/stage";
+import { domSettled, type MoveContext, type Spotlight } from "@voqalize/stage";
 import { type Adapter, type PageKit } from "@voqalize/stage/extension";
 
 import type { EnquiryFields, EnquiryState, NightsOption, RoomOption, StayState } from "./actions.gen";
@@ -589,13 +589,16 @@ async function checkAvailability(p: CheckAvailability, c: MoveContext): Promise<
     (!date || param("check_in_date") === date) &&
     (!p.nights || Number(param("nights")) === p.nights)
   ) {
+    // The rooms are the effect: reported at once, ringed after the result.
+    emit("stay_state", roomsState());
     const list = document.querySelector("#room-list") ?? document.querySelector("#search");
     if (list) {
-      await scrollTo(list, "top");
-      const items = roomItems();
-      await ring(items.length ? items : list);
+      c.after(async () => {
+        await scrollTo(list, "top");
+        const items = roomItems();
+        await ring(items.length ? items : list);
+      });
     }
-    emit("stay_state", roomsState());
     return `the rooms for ${roomsHotel() || code}`;
   }
 
@@ -657,20 +660,26 @@ async function checkAvailability(p: CheckAvailability, c: MoveContext): Promise<
     }
   }
 
-  // What the page now shows, ringed: the nights for the day, else the calendar.
+  // What the page now shows, reported at once, then ringed: the nights for
+  // the day, else the calendar. The ring trails the result, unless the rooms
+  // load next: then the nights stay ringed long enough to see first.
   const chosen = chosenDate();
-  if (chosen) {
-    const box = nightsBox();
-    if (box.length) {
-      await scrollTo(box[box.length - 1]!);
-      await ring(box);
-    }
-  } else if (cal) {
-    await scrollTo(cal);
-    await ring(cal);
-  }
   const state = datesState();
   if (state) emit("stay_state", state);
+  const shown = async () => {
+    if (chosen) {
+      const box = nightsBox();
+      if (box.length) {
+        await scrollTo(box[box.length - 1]!);
+        await ring(box);
+      }
+    } else if (cal) {
+      await scrollTo(cal);
+      await ring(cal);
+    }
+  };
+  if (p.rooms) await shown();
+  else c.after(shown);
   const nights = Number(nightsSelect()?.value) || 0;
 
   if (p.rooms) {
@@ -1146,5 +1155,8 @@ export const reservationsAdapter: Adapter = (moves, kit) => {
     async command(command, payload) {
       if (command === "site_language") await siteLanguage(payload as { language: "en" | "es" }, kit);
     },
+    // The booking site's own calendar and selects bind on DOMContentLoaded;
+    // its `load` waits on trackers. A press waits for the page to settle.
+    ready: () => domSettled(),
   };
 };

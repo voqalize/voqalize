@@ -17,6 +17,12 @@
  * the move is alive. A result carries when, after the page received the move,
  * it was queued, started, first rang and finished.
  *
+ * A move reports as soon as what it did shows: a performer that has more to
+ * point at afterwards (the grid it filtered, the panel it opened) calls
+ * `done()` with its result, or hands that trailing part to `after()`, and the
+ * agent hears at once. Only the act waits for its ring; what follows the
+ * result never holds it. The next move still waits for the trailing part.
+ *
  * A move that loads another page (`loadThen`), or presses something that may
  * (`keep`), carries the rest of itself to the next page through the host's
  * `Carrier`. The next page finishes it with `resume`, and reports it under
@@ -74,6 +80,15 @@ export interface MoveContext {
   keep(then?: Then): Promise<void>;
   /** Discard what `keep` kept: the press did not load a page. */
   drop(): Promise<void>;
+  /** The visible effect has landed: report the move's result now (a detail,
+   *  or a `PerformResult`), and go on with what trails it — a ring on the
+   *  grid it changed, say. What the performer returns after this is not
+   *  reported again. Rings after it still ring, but say no progress. */
+  done(result?: string | PerformResult): void;
+  /** Run `fn` once the move's result has been reported (after `done`, or
+   *  after the performer returns): rings that follow the effect, not ones
+   *  before the act. The next move waits for it; the agent does not. */
+  after(fn: () => Promise<void> | void): void;
 }
 
 /** The rest of a move, for the page it goes on on. */
@@ -117,6 +132,13 @@ export interface PerformResult {
  *  `PerformResult`), or `null` when it moved on to another page (which
  *  reports from there). */
 export type Performer<A> = (args: A, c: MoveContext) => Promise<string | null | PerformResult>;
+
+/** A move under way: its result, as soon as it is reported, and the whole of
+ *  it, trailing rings included, which the next move waits for. */
+interface Run {
+  result: Promise<StageResult | null>;
+  whole: Promise<unknown>;
+}
 
 interface Registered {
   cls: MoveClass;
@@ -227,28 +249,34 @@ export class Moves {
         this.perform(then.move, then.args, c.call_ref, c.move, receivedAt, queuedAt),
       );
     }
-    return this.queue(c.call_ref, c.move, receivedAt, async () => {
-      const r = arrived(c);
-      return { ...r, received_ms: Math.max(0, Date.now() - receivedAt) };
+    return this.queue(c.call_ref, c.move, receivedAt, () => {
+      const result = Promise.resolve({ ...arrived(c), received_ms: Math.max(0, Date.now() - receivedAt) });
+      return { result, whole: result };
     });
   }
 
-  private queue(
-    callRef: string,
-    move: string,
-    receivedAt: number,
-    fn: (queuedAt: number) => Promise<StageResult | null>,
-  ): Promise<StageResult | null> {
+  private queue(callRef: string, move: string, receivedAt: number, fn: (queuedAt: number) => Run): Promise<StageResult | null> {
     const queuedAt = Date.now();
     if (this.inQueue > 0) {
       this.say(callRef, move, "queued", receivedAt);
       this.hurry();
     }
     this.inQueue++;
-    const next = this.chain.then(() => fn(queuedAt));
+    let report!: (r: StageResult | null) => void;
+    const result = new Promise<StageResult | null>((r) => (report = r));
+    const next = this.chain.then(async () => {
+      const run = fn(queuedAt);
+      void run.result.then(report, () => report(null));
+      await run.whole;
+    });
     const settled = next.finally(() => this.inQueue--);
     this.chain = settled.catch(() => {});
-    return settled;
+    // A move that never reported (it threw past its own catch): null.
+    void settled.then(
+      () => report(null),
+      () => report(null),
+    );
+    return result;
   }
 
   private say(callRef: string, move: string, phase: Phase, receivedAt: number): void {
@@ -262,13 +290,41 @@ export class Moves {
     }
   }
 
-  private async perform(
+  private perform(id: string, args: unknown, callRef: string, reportAs: string, receivedAt: number, queuedAt: number): Run {
+    let reported = false;
+    let report!: (r: StageResult | null) => void;
+    const result = new Promise<StageResult | null>((r) => (report = r));
+    const trailing: (() => Promise<void> | void)[] = [];
+    const say = (r: StageResult | null) => {
+      if (reported) return;
+      reported = true;
+      report(r);
+    };
+    const whole = this.act(id, args, callRef, reportAs, receivedAt, queuedAt, {
+      reported: () => reported,
+      say,
+      after: (fn) => trailing.push(fn),
+    }).then(async (final) => {
+      say(final);
+      for (const fn of trailing) {
+        try {
+          await fn();
+        } catch (error) {
+          console.warn("voqalize: after a move's result:", error);
+        }
+      }
+    });
+    return { result, whole };
+  }
+
+  private async act(
     id: string,
     args: unknown,
     callRef: string,
     reportAs: string,
     receivedAt: number,
     queuedAt: number,
+    early: { reported(): boolean; say(r: StageResult): void; after(fn: () => Promise<void> | void): void },
   ): Promise<StageResult | null> {
     const now = this.opts.now ?? (() => performance.now());
     const t0 = now();
@@ -294,11 +350,20 @@ export class Moves {
     this.hurrying = hurrying;
     let phase: Phase | null = null;
     const progress = (next: Phase) => {
-      if (next === phase) return;
+      // Past its result, the move is answered: no more of where it is.
+      if (next === phase || early.reported()) return;
       phase = next;
       this.say(callRef, reportAs, next, receivedAt);
     };
     let kept = false;
+    const built = (got: string | PerformResult | undefined): StageResult => {
+      if (got === undefined || typeof got === "string") {
+        return { ...base, outcome: "applied", detail: got ?? null, refused: [], moved: false, ms: ms(), ...times() };
+      }
+      const refused = got.refused ?? [];
+      const outcome = got.outcome ?? (refused.length ? "partial" : "applied");
+      return { ...base, outcome, detail: got.detail ?? null, refused, moved: false, ms: ms(), ...times() };
+    };
     const c: MoveContext = {
       move: id,
       callRef,
@@ -326,6 +391,13 @@ export class Moves {
         kept = false;
         await carrier.drop(callRef);
       },
+      done(got) {
+        if (early.reported()) return;
+        // Nothing kept for a next page is owed once the move has answered.
+        if (kept) void c.drop().catch(() => {});
+        early.say(built(got));
+      },
+      after: (fn) => early.after(fn),
       ...(carrier
         ? {
             async loadThen(url: string, then?: Then): Promise<never> {
@@ -347,13 +419,15 @@ export class Moves {
       const got = await entry.performer(named(args, entry.params) as never, c);
       handedOn = got === null;
       if (got === null) return { ...base, outcome: "applied", detail: null, refused: [], moved: true, ms: ms(), ...times() };
-      if (typeof got === "string") return { ...base, outcome: "applied", detail: got, refused: [], moved: false, ms: ms(), ...times() };
-      const refused = got.refused ?? [];
-      const outcome = got.outcome ?? (refused.length ? "partial" : "applied");
-      return { ...base, outcome, detail: got.detail ?? null, refused, moved: false, ms: ms(), ...times() };
+      return built(got);
     } catch (error) {
       handedOn = error instanceof Deferred;
       if (error instanceof Deferred) return null;
+      if (early.reported()) {
+        // Answered already: what went wrong after the effect is only logged.
+        console.warn("voqalize: after a move's result:", error);
+        return null;
+      }
       if (error instanceof Refused) {
         return { ...base, outcome: "refused", detail: error.refusal.why, refused: [error.refusal], moved: false, ms: ms(), ...times() };
       }

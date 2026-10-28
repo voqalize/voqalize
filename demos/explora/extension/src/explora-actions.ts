@@ -31,7 +31,7 @@
  * knows from the crawl are the names this page finds.
  */
 
-import type { MoveContext, Spotlight } from "@voqalize/stage";
+import { domSettled, type MoveContext, type Spotlight } from "@voqalize/stage";
 import { type Adapter, askWorker, type PageKit } from "@voqalize/stage/extension";
 
 import { clean, headerHeight, norm, type PageContext, pick, scrollTo, sleep, styleThePage, visible, waitFor } from "./dom";
@@ -911,5 +911,8 @@ export const exploraAdapter: Adapter = (moves, kit) => {
     async command(command, payload) {
       if (command === "site_language") await siteLanguage(payload as { language: Lang }, kit);
     },
+    // WordPress's trackers hold `load` back; the page's own parts are up once
+    // its DOM settles.
+    ready: () => domSettled(),
   };
 };

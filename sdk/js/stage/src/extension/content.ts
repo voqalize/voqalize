@@ -23,6 +23,7 @@
  * allows), then hands the answer to the holder.
  */
 
+import { domSettled } from "../dom";
 import { type Carried, type Carrier, Moves } from "../moves";
 import { Spotlight, type SpotlightTheme } from "../spotlight";
 import type { StageResult } from "../wire.gen";
@@ -63,9 +64,12 @@ export interface SiteHooks {
   start?(emit: (event: string, payload: unknown) => void): () => void;
   /** One of the site's own Actions, sent to this page. */
   command?(command: string, payload: unknown): Promise<void> | void;
-  /** Resolves once the site's own scripts can take a press on this page.
-   *  Without it, the page waits for the document's `load` (at most
-   *  `SITE_READY_MS`). Nothing is pressed on a new page before it. */
+  /** Resolves once the site's own scripts can take a press on this page
+   *  (at most `SITE_READY_MS`). Without it, the page waits only for its DOM
+   *  to settle (`domSettled`: parsed, then still for 300 ms, at most 1.5 s),
+   *  never for the document's `load`, which trackers hold back. Nothing is
+   *  pressed on a new page before it. Give one: a site whose scripts bind
+   *  late knows best when a press takes. */
   ready?(): Promise<void>;
 }
 
@@ -135,9 +139,11 @@ const GRANT_WAIT_MS = 90_000;
  *  (the agent waits for this page's report, which goes first); with no call,
  *  this long after the page knows there is none; and no later than the last. */
 const MOVE_AFTER_READY_MS = 300;
-/** The most a new page waits for its site's scripts (`load`, or the
- *  adapter's `ready`) before its first move. */
+/** The most a new page waits for its site's scripts (the adapter's `ready`)
+ *  before its first move. Without one, `domSettled` waits at most 1.5 s. */
 const SITE_READY_MS = 4000;
+/** Adapters already warned of for having no `ready()`. */
+const warnedNoReady = new WeakSet<Adapter>();
 const MOVE_WITHOUT_CALL_MS = 800;
 const MOVE_AT_THE_LATEST_MS = 10_000;
 /** A move that started a load and is still on this page this long after
@@ -254,6 +260,12 @@ async function start(config: SiteExtensionConfig): Promise<void> {
     loadThen,
   };
   const hooks: SiteHooks = adapterFor(moves, kit) ?? {};
+  if (!hooks.ready && !warnedNoReady.has(adapterFor)) {
+    warnedNoReady.add(adapterFor);
+    console.warn(
+      `voqalize: the ${location.hostname} adapter gives no ready(); a new page's first move waits only for its DOM to settle`,
+    );
+  }
 
   function send(result: StageResult): void {
     if (state.ready) tell({ k: "result", result });
@@ -407,14 +419,11 @@ async function start(config: SiteExtensionConfig): Promise<void> {
     );
   }
 
-  /** The site's own scripts are up, or `SITE_READY_MS` has passed. */
+  /** The site's own scripts are up (`ready()`, at most `SITE_READY_MS`),
+   *  or, with none, the DOM has settled: never the document's `load`. */
   function siteUp(): Promise<void> {
-    const up = hooks.ready
-      ? hooks.ready().catch(() => {})
-      : document.readyState === "complete"
-        ? Promise.resolve()
-        : new Promise<void>((r) => window.addEventListener("load", () => r(), { once: true }));
-    return Promise.race([up, sleep(SITE_READY_MS)]);
+    if (!hooks.ready) return domSettled();
+    return Promise.race([hooks.ready().catch(() => {}), sleep(SITE_READY_MS)]);
   }
 
   /** Make the job the last page left for this one, once, `delay` from now

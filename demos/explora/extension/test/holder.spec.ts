@@ -55,6 +55,14 @@ const PAGES: Record<string, Fixture> = {
       <h2>Explorations</h2><p>Treks and rides from the lodge.</p></main>
       <script src="/slow.js"></script><p>End.</p></body>`,
   },
+  // A page whose `load` its trackers hold back 15 s (an image that never
+  // arrives in time): a move kept for it must not wait for that.
+  "/held/": {
+    title: "Uyuni",
+    body: `<body><main id="content"><h1>Uyuni</h1>
+      <h2>The salt flat</h2><p>Twelve thousand square kilometres of white.</p></main>
+      <img src="/tracker.gif" alt=""></body>`,
+  },
   "/": {
     title: "explora",
     body: `<body><main id="content"><h1>Explora</h1>
@@ -138,6 +146,10 @@ const test = base.extend<{ ext: Ext }>({
     await ctx.route(/^https?:/, async (route, request) => {
       const url = new URL(request.url());
       if (url.origin === ORIGIN || url.origin === BOOKING) {
+        if (url.pathname === "/tracker.gif") {
+          await new Promise((r) => setTimeout(r, 15_000));
+          return route.fulfill({ status: 204, body: "" }).catch(() => {});
+        }
         if (url.pathname === "/slow.js") {
           await new Promise((r) => setTimeout(r, 2000));
           return route.fulfill({ status: 200, contentType: "text/javascript", body: "window.__slow = 1;" });
@@ -330,6 +342,25 @@ test.describe("the holder and its pages", () => {
       options: expect.arrayContaining(["Stargaze from the Observatory"]),
     });
     expect(ext.connects).toHaveLength(1);
+  });
+
+  test("a move kept for a page whose load is held back is made once its DOM settles, not at load", async ({ ext }) => {
+    const page = await ext.open("/");
+    await callLive(ext, page);
+    void page.evaluate(() => {
+      location.href = "/held/";
+    });
+    await expect.poll(async () => (await status(ext.sw)).log.some((l) => l.includes("leaving"))).toBe(true);
+    await toHolder(ext.sw, showCue("h1", "The salt flat"));
+    await toHolder(ext.sw, { what: "emit", name: "botStoppedSpeaking" });
+    await page.waitForURL(`${ORIGIN}/held/`, { waitUntil: "domcontentloaded" });
+    const parsed = Date.now();
+    // Its `load` is 15 s away, and the old 4 s cap on waiting for it is gone:
+    // made and answered in well under that.
+    await expect.poll(async () => results(await status(ext.sw)).some((r) => r.call_ref === "h1"), { timeout: 3000 }).toBe(true);
+    expect(Date.now() - parsed).toBeLessThan(3000);
+    expect(await page.evaluate(() => document.readyState)).not.toBe("complete");
+    expect(results(await status(ext.sw)).find((r) => r.call_ref === "h1")).toMatchObject({ move: "core.show", outcome: "applied" });
   });
 
   test("a page that loads without focus still reports itself: focus elsewhere is not another tab", async ({ ext }) => {

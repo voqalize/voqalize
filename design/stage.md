@@ -22,6 +22,10 @@ Regenerate the page types after changing `wire.py`:
 1. The model names, the runtime moves. No selector, wait or click order ever comes from the model.
 2. Class (look | navigate | reversible | confirmed — `policy.py`) decides delivery, retries, what the model hears. `commit` = human only, never a move.
 3. Every visible move rings its target before it acts (the **spotlight**). `ring()` holds the move only a short beat (`beatMs`, 450 ms; per call `{beatMs}`), so a fast reply never leaves the screen behind the voice; the ring itself stays visible ≥ `dwellMs` (1.5 s) — a display guarantee, not a wait: a `clear()` inside it waits it out — unless the next ring replaces it. A move that changes the page without a ring is a bug.
+   The ring-before-act rule is for the act. A move **reports as soon as its visible effect
+   lands**: a ring that only points at the effect (the grid it filtered, the product it opened,
+   the calendar it showed) trails the result, through `MoveContext.done(result)` or
+   `MoveContext.after(fn)`. The next move still waits for it; the agent does not.
 4. Every move — cue or tool — gets exactly one final `StageResult` per `call_ref`, under the move id it was minted for, also when the page carried it to the next page and another performer finished it there. The brain times out a missing one as `unknown`, after a timeout by class (`RESULT_TIMEOUTS`).
 5. The page segments words; the brain never does. Anchors work in any script (Latin with accents, Devanagari, CJK, Arabic).
 6. Never hold the voice for the page. (The extension holder keeps playing across loads.)
@@ -105,11 +109,14 @@ on to another before it said what it did"); one the page never started goes to t
 page instead, once, and is `unknown` ("the page left before it ran") if that page goes too.
 
 **A new page, in order** (extension): the holder keeps the jobs for a tab whose page is
-loading; the next page says `hello`, waits for its site (`SiteHooks.ready()`, else the
-document's `load`, at most 4 s), finishes the move the last page carried to it, and only then
-says `ready` — and the kept jobs go to it, in the order they were asked for. A page that never
-says `ready` gets them after 25 s with no progress from it. A page already ready when the
-holder appears says so in its `hello`.
+loading; the next page says `hello`, waits for its site (`SiteHooks.ready()`, at most 4 s;
+without one, `domSettled()`: the DOM parsed and then still for 300 ms, at most 1.5 s —
+**never the document's `load`**, which a site's trackers hold back for over 15 s; the host
+warns once per adapter that gives no `ready()`), finishes the move the last page carried to
+it, and only then says `ready` — and the kept jobs go to it, in the order they were asked
+for. A page that never says `ready` gets them after 25 s with no progress from it. A page
+already ready when the holder appears says so in its `hello`. (Dev call ed264469: a `load`
+wait cost ~4.3 s on every navigation.)
 Site-specific typed Actions/AppEvents (page_changed, listing_shown, check_availability, …)
 keep riding the same channels beside these. `command_done` / `command_failed` are replaced
 by `stage_result`.
@@ -140,6 +147,8 @@ class Stage:
                  on_progress: Callable[[StageProgress], None] | None = None,
                  # every claim a turn made and did not keep: (move, phrase, sentence)
                  on_unkept: Callable[[Move, str, str], None] | None = None,
+                 # a move's visible effect was reported: a written line, or None
+                 on_landed: Callable[[Landing], str | None] | None = None,
                  clock: Callable[[], float] = time.monotonic) -> None: ...
     def cued(self, turn: AsyncGenerator[Speech, None]) -> AsyncGenerator[Speech, None]:
         """Strip cues from SpeechChunks, resolve, dispatch StageCue with a fresh call_ref."""
@@ -168,6 +177,13 @@ class Stage:
         holding line apiece."""
     @property
     def busy(self) -> str | None: ...   # the move in flight
+    def landed(self, moves: str | Iterable[str], *, event: object | None = None,
+               call_ref: str | None = None,
+               fits: Callable[[Landing], bool] | None = None) -> str | None:
+        """A site event shows what the newest running move of `moves` did (and `fits` it):
+        marked shown, `on_landed` asked for its line, kept for `take_lines`. Once a move."""
+    def take_lines(self) -> list[str]: ...   # landing lines not yet said (≤ 8 s old), cleared
+    def shown(self, call_ref: str) -> bool: ...  # its effect was reported before its result
     def begin_turn(self) -> None: ...      # optional: forget a turn cut off before it ended
     def end_turn(self) -> list[Unkept]:
         """After the turn's tool calls: each move it claimed and did not keep, once
@@ -220,8 +236,41 @@ class Stage:
   the end (a `quiet` one still waits for the voice to be quiet) and is **reported by its
   result**, like any other, which the brain folds into the context for the next turn. It is
   never cancelled by speech; only its timeout ends it unanswered (`unknown`, then `late`).
+- **Landing lines.** The voice must not wait for a page the visitor can already see. Dev call
+  ed264469 measured 14.7 s from a product landing to his voice after a tool move, and 18.6 s
+  after a filter cue: a `load` wait, rings after the effect, a 2 s quiet window, ~0.6 s of
+  plumbing, the model's 4–4.5 s first token, and a cue's landing that only wrote a note, so
+  nothing spoke until the 20 s nudge. Now, the moment the page shows what a move did, the
+  brain says a **written line** at once, with no model request before it:
+  - The brain maps a site event to the move it shows — `stage.landed(("filter_listing",
+    "listing.filter"), event=listing, fits=…)` — or the move's own `applied` result does it
+    when no event came first (an event up to `LANDED_AFTER_RESULT_S`, 3 s, behind its
+    result still counts). `fits` keeps a load's unfiltered listing from passing for the
+    filter's.
+  - `on_landed(Landing)` returns the line ("Here are 16; the first is Liso Menta at …",
+    "Here's the Atacama calendar for November.") built from what the event carries, or
+    `None`. A `Landing` has the move, its `call_ref`, its age, the event or the result, and
+    the move's arguments (`args` for a tool move, `cue_args` for a cue).
+  - The brain sets its idle window to `LANDING_FLOOR_MS` (300 ms), says `take_lines()` in
+    that quiet spell (the latest one, when several landed), then may ask the model for at
+    most one more sentence (`landed_ask(line)`), tools off. The visitor speaking first
+    discards them (`take_lines()` in its turn).
+  - A move shown this way gets **no holding line** (`holding()` skips it; `Running.shown`),
+    is not listed as still running, and its later `applied` result only confirms: a brain
+    talks a result through only when it failed or was partial.
+  - The quiet window for talking a result through is short (Cannon Home 600 ms, 300 ms when
+    a written line leads): the voice has already stopped when it starts.
+- **Holding and landing lines never blame the site.** "The site is slow", "la página va
+  lenta" is heard as a fault of the site's owner, whose site it is. A holding line says the
+  agent is still on it ("Still opening the calendar for you, one moment.", "Sigo en eso, un
+  momento."), picked at random among two or three per move so two in a call differ; a line
+  for a page that has not come up says it is not up yet and offers to try again. The same
+  goes for the prompt: tell the model a move may take a few seconds and to say it is still
+  on it, and forbid calling the site slow. The ports test that no written line matches
+  `/slow|lent[ao]/i`.
 - Floor policies (nod, silent-turn line, fallback) stay in `demos/voqalize_demos/` — the team
-  kept fillers out of the SDK.
+  kept fillers out of the SDK. A landing line is not a filler: it is what the page showed,
+  and the director only keeps it; the brain writes and says it.
 
 ## Page runtime API (to build)
 
@@ -246,6 +295,7 @@ export function press(el: Element): void; export function setValue(el: Element, 
 export function waitFor<T>(fn: () => T | null | false, ms: number): Promise<T | null>;
 export function quiet(el: Element, quietMs: number, maxMs: number): Promise<void>;
 export interface PerformResult { outcome?: "applied" | "partial"; detail?: string | null; refused?: Refusal[] }
+export function domSettled(quietMs?: number /* 300 */, maxMs?: number /* 1500 */): Promise<void>;  // parsed + DOM still
 // detail, or a PerformResult (refused[] with no outcome = partial); null = moved on to another page
 export type Performer<A> = (args: A, c: MoveContext) => Promise<string | null | PerformResult>;
 export interface MoveContext { move: string; callRef: string; spotlight: Spotlight; reveal(el: Element): Promise<void>;
@@ -259,7 +309,13 @@ export interface MoveContext { move: string; callRef: string; spotlight: Spotlig
   loadThen?(url: string, then?: {move: string; args: unknown}): Promise<never>;
   // A press that may load a page: keep the rest for the next page / discard it. A move that ends on
   // this page drops what it kept by itself. No-ops without a Carrier.
-  keep(then?: {move: string; args: unknown}): Promise<void>; drop(): Promise<void>; }
+  keep(then?: {move: string; args: unknown}): Promise<void>; drop(): Promise<void>;
+  // The visible effect has landed: report the result now; what the performer returns later is
+  // not reported again, and rings after it say no progress.
+  done(result?: string | PerformResult): void;
+  // Run once the result is reported (after done, or after the performer returns): rings that
+  // point at the effect. The next move waits for it; the agent does not.
+  after(fn: () => Promise<void> | void): void; }
 export interface Carrier { keep(c: Carried): Promise<void>; drop(callRef: string): Promise<void>; load(url: string): void }
 export class Moves { constructor(spotlight: Spotlight, opts?: {fixed?: string[]; carrier?: Carrier;
     onProgress?(p: StageProgress): void});
@@ -284,8 +340,9 @@ site adapters registered with `Moves`, and their site AppEvents. An adapter retu
 `SiteHooks`: `context()` for the session's start, `report(emit)` (the page as it stands — run
 once the call can hear the page and again whenever the tab comes back to the front; the host
 owns the `visibilitychange`/`focus` listening), `start(emit)` (watch and report changes),
-`command()` for site Actions, and `ready()` (optional: resolves once the site's own scripts
-can take a press; nothing is pressed on a new page before it). The holder's `makeClient` returns a `HolderClient` (structural:
+`command()` for site Actions, and `ready()` (resolves once the site's own scripts can take a
+press; nothing is pressed on a new page before it; without one the page waits only for
+`domSettled()`, and the host warns). The holder's `makeClient` returns a `HolderClient` (structural:
 the site's own `PipecatClient` fits), and `avatar.create` gets the stand-in client typed loosely
 (`AvatarClient`) so it passes as whichever `PipecatClient` the site's avatar package wants.
 

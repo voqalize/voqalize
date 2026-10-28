@@ -15,8 +15,8 @@ export {
 } from "./timeline";
 export { type RingOptions, Spotlight, type SpotlightTheme } from "./spotlight";
 export {
-  accessibleName, clean, FIXED_DEFAULT, locate, type Locator, pinnedHeight, press, quiet, reveal, scrollToEl, setValue,
-  sleep, type Strategy, visible, waitFor,
+  accessibleName, clean, domSettled, FIXED_DEFAULT, locate, type Locator, pinnedHeight, press, quiet, reveal, scrollToEl, setValue,
+  SETTLE_MAX_MS, SETTLE_QUIET_MS, sleep, type Strategy, visible, waitFor,
 } from "./dom";
 export {
   arrived, type Carried, type Carrier, Deferred, type MoveClass, type MoveContext, Moves, type MovesOptions,

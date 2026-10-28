@@ -315,6 +315,45 @@ test.describe("a filter pressed before the store's filter scripts are up", () =>
   });
 });
 
+test.describe("a move answers as soon as its effect shows", () => {
+  test("a filter's result goes as soon as the grid lands; scrolling to the grid trails it", async ({ page }) => {
+    await serveSite(page);
+    await open(page, CATEGORY);
+    await listen(page);
+    const got = await page.evaluate(async (path) => {
+      const r = await window.voqalizeCannonhome!.run("listing.filter", ["tamano", "King", path]);
+      const rings = document.querySelector("[data-voqalize=spotlight]")?.shadowRoot?.querySelectorAll(".ring").length ?? 0;
+      return { ok: r.ok, detail: r.detail, y: Math.round(window.scrollY), rings };
+    }, CATEGORY);
+    expect(got.ok).toBe(true);
+    expect(got.detail).toContain("Tamaño King applied");
+    // The listing was reported with the result; the option's ring is still up.
+    expect(named(await events(page), "listing_shown").length).toBeGreaterThan(0);
+    expect(got.rings).toBe(1);
+    // Only then does the page go on to the grid.
+    await expect.poll(() => page.evaluate(() => Math.round(window.scrollY)), { timeout: 3000 }).not.toBe(got.y);
+  });
+
+  test("filter scripts that never come up hold a press about 3 s, then it presses, saying which part is missing", async ({ page }) => {
+    await page.addInitScript(() => {
+      (window as unknown as { __qfLate: number }).__qfLate = 60_000;
+    });
+    const warned: string[] = [];
+    page.on("console", (m) => {
+      if (m.type() === "warning") warned.push(m.text());
+    });
+    const seen = await serveSite(page);
+    await open(page, CATEGORY);
+    const started = Date.now();
+    await runAway(page, "listing.filter", ["tamano", "King", CATEGORY]);
+    await page.waitForURL(/20-sabanas\/king_1$/);
+    // About 3 s of waiting and 3 s of a dead press, not the 10 s cap of before.
+    expect(Date.now() - started).toBeLessThan(9000);
+    expect(seen.pages).toContain(`${CATEGORY}/king_1`);
+    expect(warned.some((w) => /filter scripts are not up after 3000 ms .*data-qf-ready.*pressing anyway/.test(w))).toBe(true);
+  });
+});
+
 test.describe("listing_shown after the visitor's own filtering", () => {
   test("a grid swap the visitor made is reported", async ({ page }) => {
     await serveSite(page);

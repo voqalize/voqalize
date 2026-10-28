@@ -368,3 +368,20 @@ export function quiet(el: Node, quietMs = 350, maxMs = 3000): Promise<void> {
     }
   });
 }
+
+/** How long the DOM must be still for `domSettled`, and the most it waits. */
+export const SETTLE_QUIET_MS = 300;
+export const SETTLE_MAX_MS = 1500;
+
+/**
+ * The page is parsed and its DOM has been still for `quietMs` (or `maxMs`
+ * has passed since it was parsed). What a new page waits for before its
+ * first press when its site gives no `ready()`: never the document's `load`,
+ * which a site's trackers can hold back for more than 15 s.
+ */
+export async function domSettled(quietMs = SETTLE_QUIET_MS, maxMs = SETTLE_MAX_MS, doc: Document = document): Promise<void> {
+  if (doc.readyState === "loading") {
+    await new Promise<void>((r) => doc.addEventListener("DOMContentLoaded", () => r(), { once: true }));
+  }
+  await quiet(doc.body ?? doc.documentElement, quietMs, maxMs);
+}

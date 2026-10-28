@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import re
 import time
 from collections.abc import AsyncIterator, Iterator
 from typing import Any
@@ -53,6 +54,7 @@ from voqalize_demos._loaded.explora import knowledge as kb  # noqa: E402
 from voqalize_demos._loaded.explora.brain import (  # noqa: E402
     _IDLE_MS,
     _TALK_THROUGH_MS,
+    LANDING_FLOOR_MS,
     asked_page,
     asked_page_language,
     best_section,
@@ -698,7 +700,7 @@ async def test_the_page_being_left_reporting_again_is_not_the_new_one(
         await _until(rig, NAVIGATE, 1)
         await _page(rig, "page_changed", ATACAMA_PAGE)
         turn = await task
-        assert explora._PAGE_LATE["en"] in turn.text
+        assert any(line in turn.text for line in explora._PAGE_LATE["en"])
 
 
 async def test_a_page_cue_first_adds_no_line_of_its_own() -> None:
@@ -731,7 +733,7 @@ async def test_a_page_that_never_reports_lets_him_run_ahead_only_so_far(
         check_turn(rig, turn)
         assert turn.text.startswith("Patagonia it is.")
         assert "Explora has five lodges here. El Chaltén is for hikers." in turn.text
-        assert explora._PAGE_LATE["en"] in turn.text
+        assert any(line in turn.text for line in explora._PAGE_LATE["en"])
         assert "Do you love hiking?" not in turn.text
 
 
@@ -839,9 +841,11 @@ async def test_availability_is_checked_on_the_booking_site_and_stops_at_rooms() 
                 "open_days": ["2026-11-06", "2026-11-07"],
             },
         )
-        assert _idle_windows(rig)[-1] == _TALK_THROUGH_MS
-        turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
+        # It landed: his written line first, in the short window, then the days.
+        assert _idle_windows(rig)[-1] == LANDING_FLOOR_MS
+        turn = await rig.driver.user_idle(level=1, idle_ms=LANDING_FLOOR_MS)
         check_turn(rig, turn)
+        assert turn.text.startswith("Here's the Atacama calendar for November.")
         assert "Which suits you?" in turn.text
         seen = _texts(llm.captured_inputs[-1])
         assert "Open arrival days: Friday, November 6, 2026; Saturday, November 7, 2026" in seen
@@ -870,7 +874,8 @@ async def test_availability_is_checked_on_the_booking_site_and_stops_at_rooms() 
                 "rooms": [{"name": "Suite", "text": "from US$ 1,200 per night"}],
             },
         )
-        turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
+        turn = await rig.driver.user_idle(level=1, idle_ms=LANDING_FLOOR_MS)
+        assert turn.text.startswith("Here are the rooms at Atacama.")
         assert "You book it from here." in turn.text
         assert "Suite (from US$ 1,200 per night)" in _texts(llm.captured_inputs[-1])
 
@@ -1030,8 +1035,10 @@ async def test_a_talk_through_the_model_leaves_silent_is_read_from_the_page() ->
         await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
         await rig.driver.user_says("Can I go in November? Five nights.")
         await _page(rig, "stay_state", DATES_STATE)
-        turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
-        assert turn.text.strip() == days_line(DATES_STATE["open_days"], "en")
+        turn = await rig.driver.user_idle(level=1, idle_ms=LANDING_FLOOR_MS)
+        assert turn.text.strip() == (
+            "Here's the Atacama calendar for November. " + days_line(DATES_STATE["open_days"], "en")
+        )
 
 
 def test_the_calendar_read_out() -> None:
@@ -1462,7 +1469,8 @@ async def test_a_slow_move_gets_one_holding_line_and_a_late_answer_corrects_the_
         asked = len(llm.requests)
         turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
         check_turn(rig, turn)
-        assert turn.text == "Still opening the booking calendar, the site is a bit slow."
+        assert turn.text in explora._HOLDING["explora.check_availability"]["en"]
+        assert not re.search(r"slow|lent[ao]", turn.text, re.IGNORECASE)
         assert len(llm.requests) == asked
         # Its time runs out on the timer, with no turn of his: unknown.
         ahead[0] = 7.0 + 21.0
@@ -1563,8 +1571,10 @@ async def test_the_nights_they_said_replace_the_sites_without_asking() -> None:
         sent = _commands(rig, "explora.check_availability")[-1]
         assert (sent["date"], sent["nights"]) == ("2026-11-06", 3)
         await _page(rig, "stay_state", {**day, "chosen_nights": 3})
-        assert _idle_windows(rig)[-1] == _TALK_THROUGH_MS
-        await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
+        # The nights landed: his line first, at once.
+        assert _idle_windows(rig)[-1] == LANDING_FLOOR_MS
+        turn = await rig.driver.user_idle(level=1, idle_ms=LANDING_FLOOR_MS)
+        assert turn.text.startswith("Here are the stays arriving Friday the sixth of November.")
         seen = _texts(llm.captured_inputs[-1])
         assert "Selected: 5 nights, the site's choice, not theirs: they asked for 3." in seen
         assert "Setting the 3 nights they asked for now." in seen
@@ -1572,6 +1582,74 @@ async def test_the_nights_they_said_replace_the_sites_without_asking() -> None:
         assert "without asking them about the nights" in seen
         # Once a day: the page's nearest is not fought over.
         assert len(_commands(rig, "explora.check_availability")) == 2
+
+
+# ─── A move that lands is said at once ─────────────────────────────────────────
+
+#: No line of his ever blames the site for being slow.
+_BLAMES = re.compile(r"slow|lent[ao]", re.IGNORECASE)
+
+
+async def test_the_calendar_that_lands_is_said_at_once_and_gets_no_holding_line() -> None:
+    llm = _llm()
+    async with _explora(llm) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
+        ahead = [0.0]
+        rig.brain.stage._clock = lambda: time.monotonic() + ahead[0]  # type: ignore[attr-defined]
+        await rig.driver.user_says("Can I go in November? Five nights.")
+        await _page(rig, "stay_state", DATES_STATE)
+        # Within the short window, not the three-second talk-through.
+        assert _idle_windows(rig)[-1] == LANDING_FLOOR_MS == 300
+        # Past the holding time, its result still out: no holding line.
+        ahead[0] = 7.0
+        await asyncio.sleep(0.7)
+        assert rig.brain._hold is None  # type: ignore[attr-defined]
+        asked = len(llm.requests)
+        turn = await rig.driver.user_idle(level=1, idle_ms=LANDING_FLOOR_MS)
+        check_turn(rig, turn)
+        # Written, said before the model was asked anything.
+        assert turn.text.startswith("Here's the Atacama calendar for November.")
+        assert not _BLAMES.search(turn.text)
+        assert len(llm.requests) == asked + 1
+        seen = _texts(llm.captured_inputs[-1])
+        assert 'You have just said: "Here\'s the Atacama calendar for November."' in seen
+        assert "In one more sentence at most: The booking calendar is on their screen" in seen
+        await rig.driver.user_says("Carry on.")
+        assert "Still working on the page" not in _texts(llm.captured_inputs[-1])
+
+
+async def test_a_page_that_comes_up_after_his_reply_is_said_in_spanish_too(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(explora, "_PAGE_WAIT_S", 0.2)
+    async with _explora(_llm()) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
+        await rig.driver.user_says("Patagonia.", quiet_for=2.5)
+        # The page comes up after all, his reply over: its line, at once.
+        await _page(rig, "page_changed", PATAGONIA_PAGE)
+        assert _idle_windows(rig)[-1] == LANDING_FLOOR_MS
+        turn = await rig.driver.user_idle(level=1, idle_ms=LANDING_FLOOR_MS)
+        assert turn.text.startswith("Here's Explora Patagonia Travel.")
+    event = explora.StayState.model_validate({**DATES_STATE, "month": "Noviembre 2026"})
+    assert explora.stay_landed_line(event, "Atacama", "es") == (
+        "Aquí está el calendario de Atacama para noviembre."
+    )
+
+
+def test_no_written_line_blames_the_site() -> None:
+    lines = [
+        line for by_lang in explora._HOLDING.values() for said in by_lang.values() for line in said
+    ]
+    lines += [line for said in explora._PAGE_LATE.values() for line in said]
+    lines += [line for by_lang in explora._LANDED.values() for line in by_lang.values()]
+    lines += [*explora._ACK_SORRY.values()]
+    assert len(lines) > 20
+    assert [line for line in lines if _BLAMES.search(line)] == []
+    # Two or three lines a move, in each language, so the line varies.
+    assert all(2 <= len(said) <= 3 for v in explora._HOLDING.values() for said in v.values())
+    prompt = explora._prompt(explora.kb.KNOWLEDGE)
+    assert "can be slow" not in prompt
+    assert "Never say the site, the booking site or the page is slow" in prompt
 
 
 async def test_the_backstop_shows_nothing_on_a_booking_sentence() -> None:

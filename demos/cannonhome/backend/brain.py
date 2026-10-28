@@ -101,9 +101,11 @@ from voqalize.sdk import (
 )
 from voqalize.sdk.openai import OpenAIBrain
 from voqalize.sdk.stage import (
+    LANDING_FLOOR_MS,
     POLICY,
     RESULT_TIMEOUTS,
     Dropped,
+    Landing,
     Move,
     MoveClass,
     RawCue,
@@ -112,6 +114,7 @@ from voqalize.sdk.stage import (
     StageHello,
     StageProgress,
     StageResult,
+    landed_ask,
 )
 from voqalize.sdk.voice import ToolChoice
 from voqalize.sdk.wire import Config, IdleConfig, SttConfig, TtsConfig, Voice
@@ -163,11 +166,15 @@ VOICE = Voice.OMNIVOICE_JAVIER
 
 _IDLE_MS = 20_000
 _IDLE_NUDGES = 2
-#: The idle window while a result the page produced waits to be talked through.
-_TALK_THROUGH_MS = 2_000
-#: The idle window once the page confirms a confirmed move (an add, the
-#: checkout): its written line goes as soon as the floor is free.
-_DONE_MS = 300
+#: The idle window while a result the page produced waits to be talked
+#: through: short, since the voice has stopped (dev call ed264469: two
+#: seconds here, then the model's first token, was most of the 15 s from the
+#: page landing to his voice).
+_TALK_THROUGH_MS = 600
+#: The idle window once a written line leads (a confirmed move the page
+#: confirmed, a listing or product that landed): said as soon as the floor is
+#: free, with no model request before it.
+_DONE_MS = LANDING_FLOOR_MS
 #: A visitor thinking aloud about what they need pauses mid-sentence.
 CANNONHOME_PATIENCE = PATIENCE + 2
 #: A message this soon after the last one is the rest of the same thought.
@@ -1217,6 +1224,95 @@ def holding_line(move: str, lang: Lang, rng: random.Random | None = None) -> str
     return (rng or random).choice(lines)
 
 
+#: The moves whose effect a listing on screen is, and a product page's.
+_LISTING_MOVES = ("filter_listing", "listing.filter", "listing.sort")
+_PRODUCT_MOVES = ("open_product", "search_products")
+
+
+def listing_line(e: ListingShown, lang: Lang) -> str:
+    """His line the moment a listing he filtered or sorted lands: how many,
+    and the first card with its price as the screen shows it ("Here are 16;
+    the first is Liso Menta at …"). Said with no model request before it."""
+    n = e.count if e.count is not None else len(e.items)
+    if n == 0 or not e.items:
+        return (
+            "No products show for that." if lang == "en" else "No aparece ningún producto con eso."
+        )
+    first = e.items[0]
+    price = ""
+    if first.price is not None:
+        said = pesos_said(first.price, lang)
+        price = f" at {said}" if lang == "en" else f", a {said}"
+    if lang == "en":
+        return (
+            f"Here's one: {first.name}{price}."
+            if n == 1
+            else (f"Here are {n}; the first is {first.name}{price}.")
+        )
+    return (
+        f"Aquí hay uno: {first.name}{price}."
+        if n == 1
+        else (f"Aquí hay {n}; el primero es {first.name}{price}.")
+    )
+
+
+def product_line(e: ProductShown, lang: Lang) -> str:
+    """His line the moment a product he opened is on screen. A price only from
+    the live check: the page's own may be hours old."""
+    name = e.name or ("the product" if lang == "en" else "el producto")
+    price = ""
+    if e.source == "graphql" and e.price is not None:
+        said = pesos_said(e.price, lang)
+        price = f", at {said}" if lang == "en" else f", a {said}"
+    line = f"Here's {name}{price}." if lang == "en" else f"Aquí está {name}{price}."
+    if e.in_stock is False:
+        line += " It's out of stock right now." if lang == "en" else " Ahora está sin stock."
+    return line
+
+
+def _same_label(a: str, b: str) -> bool:
+    """A filter's option as the listing shows it and as it was asked for."""
+    x, y = norm(a).replace(" hilos", ""), norm(b).replace(" hilos", "")
+    return bool(x and y) and (x == y or x.startswith(y) or y.startswith(x))
+
+
+def lands(landing: Landing, event: ListingShown | ProductShown) -> bool:
+    """Whether ``event`` on screen is what ``landing``'s move asked for: a
+    load shows the listing unfiltered before the move filters it, and that is
+    not its effect."""
+    move, args, cue = landing.move.id, landing.args or {}, landing.cue_args
+    if isinstance(event, ProductShown):
+        if move == "search_products":
+            return args.get("open_index") is not None
+        want = args.get("path")
+        return isinstance(want, str) and _product_path(event.path) == _product_path(want)
+    if move == "filter_listing":
+        path = args.get("category_path")
+        if isinstance(path, str) and not canonical_path(event.path).startswith(
+            canonical_path(path)
+        ):
+            return False
+        wanted = [
+            (var, args.get(key))
+            for key, var in (
+                ("size", "tamano"),
+                ("color", "color"),
+                ("threads", "hilos"),
+                ("material", "material"),
+            )
+        ]
+        for var, value in wanted:
+            if isinstance(value, str) and not _same_label(event.filters.get(var, ""), value):
+                return False
+        sort = args.get("sort")
+        return not isinstance(sort, str) or event.sort == sort
+    if move == "listing.filter" and len(cue) >= 2:
+        return _same_label(event.filters.get(cue[0], ""), cue[1])
+    if move == "listing.sort" and cue:
+        return event.sort == cue[0]
+    return False
+
+
 def late_done_line(move: str, detail: str, lang: Lang) -> str | None:
     """:func:`done_line` for a move he was told was not confirmed, which the
     page then confirmed: "Done after all, Liso Blanco is in your cart."."""
@@ -2139,6 +2235,7 @@ class CannonHomeBrain(OpenAIBrain):
             backstop=self._auto_cues,
             result_timeout_s=_MOVE_TAKES_S,
             on_drop=self._dropped,
+            on_landed=self._landing_line,
             respell=lambda at: _anchor_for_voice(at, self.spoken),
             sent=self._cue_sent,
         )
@@ -2268,6 +2365,7 @@ class CannonHomeBrain(OpenAIBrain):
         # and he answers them with what they said.
         self._outcomes.clear()
         self._done.clear()
+        self.stage.take_lines()
         self._hold = None
         self._idle_deferred = False
         self._playing = 0
@@ -2338,7 +2436,10 @@ class CannonHomeBrain(OpenAIBrain):
         self._restore_idle()
         self._backstop = None
         self._expire()
-        done = " ".join(self._done)
+        # What landed on screen, the latest line of it (a filter's line is
+        # past once the next filter lands), then any confirmed move's.
+        landing = self.stage.take_lines()[-1:]
+        done = " ".join([*landing, *self._done])
         self._done = []
         hold = self._take_hold()
         if hold is not None and not done and not self._outcomes and self._talk is None:
@@ -2346,6 +2447,10 @@ class CannonHomeBrain(OpenAIBrain):
             # the model, and no nudge counted.
             respell = for_the_voice if self.spoken == "es" else names_for_the_voice
             return say_line(self, respell(hold))
+        if landing and not self._outcomes and self._talk is None:
+            # Said first, written; the model may add one sentence.
+            self._note(f"[{landed_ask(done)}]")
+            return self._reply(session, ToolChoice.NONE, first=done)
         if (ask := self._take_ask(said=done)) is not None:
             self._note(ask)
             return self._reply(session, ToolChoice.NONE, first=done or None)
@@ -2835,11 +2940,17 @@ class CannonHomeBrain(OpenAIBrain):
                     event.qty,
                     event.source,
                 )
+                self.stage.landed(
+                    _PRODUCT_MOVES, event=event, fits=lambda landing: lands(landing, event)
+                )
                 return _product_note(event, before, self.spoken)
             case ListingShown():
                 self.listing = event
                 for i in event.items:
                     self._remember(i.path, i.name, i.price, i.regular_price, None, None, "listing")
+                self.stage.landed(
+                    _LISTING_MOVES, event=event, fits=lambda landing: lands(landing, event)
+                )
                 return _listing_note(event, self.spoken)
             case SearchSuggest():
                 self.suggest = event
@@ -2895,6 +3006,9 @@ class CannonHomeBrain(OpenAIBrain):
         why = self._why(r)
         if move.verb is None:
             name = move.id
+            if r.outcome == "applied" and self.stage.shown(r.call_ref):
+                # Its landing line said it already: the result only confirms.
+                return f"[The page confirms {name}: {r.detail or 'done'}.]"
             if landed_ok:
                 detail = r.detail or "done"
                 # Some but not all: never taken for the whole of it.
@@ -3111,12 +3225,41 @@ class CannonHomeBrain(OpenAIBrain):
 
     def _still_running(self) -> str:
         """The moves he made that the store is still working on, a while in,
-        for the line that keeps him from calling them failed."""
+        for the line that keeps him from calling them failed. One whose
+        effect is already on screen is not among them."""
         return "; ".join(
             f"{r.move.id} ({r.phase or 'sent'}, {r.seconds:.0f} s so far)"
             for r in self.stage.running()
-            if r.move.verb is None and r.move.cls is not MoveClass.LOOK and r.seconds >= 2
+            if r.move.verb is None
+            and r.move.cls is not MoveClass.LOOK
+            and r.seconds >= 2
+            and not r.shown
         )
+
+    def _landing_line(self, landing: Landing) -> str | None:
+        """His written line the moment a move he made shows on screen: a
+        listing he filtered or sorted, a product he opened. Said in the next
+        quiet spell, made short now; the model may add one sentence after.
+        A result alone gets none: its talk-through, or its done line, is the
+        result's own."""
+        event = landing.event
+        if isinstance(event, ListingShown):
+            line = listing_line(event, self.spoken)
+        elif isinstance(event, ProductShown):
+            line = product_line(event, self.spoken)
+        else:
+            return None
+        if self._hold is not None and self._hold[0] == landing.call_ref:
+            self._hold = None
+        logger.info(
+            "cannonhome: {} {} on screen at {:.1f} s; landing line {!r}",
+            landing.call_ref,
+            landing.move.id,
+            landing.seconds,
+            line,
+        )
+        self._shorten_idle(_DONE_MS)
+        return line
 
     def _holding_floor(self) -> bool:
         playing = self._playing > 0 and time.monotonic() - self._played_at < _PLAYOUT_MAX_S

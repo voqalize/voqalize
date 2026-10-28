@@ -101,8 +101,19 @@ export async function scrollTo(el: Element, where: "top" | "center" = "center"):
     const want = where === "top" || r.height > room * 0.8 ? head + 16 : head + (room - r.height) / 2;
     const delta = r.top - want;
     if (Math.abs(delta) < 4) return;
+    const from = window.scrollY;
     window.scrollBy({ top: delta, behavior: pass === 0 ? "smooth" : "auto" });
-    await waitFor(() => Math.abs(el.getBoundingClientRect().top - want) < 4, 1200);
+    // A page too short to bring it there never will: stop once the scroll
+    // has stopped, not after 1.2 s a pass.
+    let last = from;
+    let still = 0;
+    const there = await waitFor(() => {
+      if (Math.abs(el.getBoundingClientRect().top - want) < 4) return true;
+      still = window.scrollY === last ? still + 1 : 0;
+      last = window.scrollY;
+      return still >= 3;
+    }, 1200);
+    if (there && Math.abs(el.getBoundingClientRect().top - want) >= 4) return;
     // Lazy images above it may have loaded and pushed it down: go again.
   }
 }

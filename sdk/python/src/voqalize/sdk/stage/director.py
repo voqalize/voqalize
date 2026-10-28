@@ -23,6 +23,14 @@ its response — a claim for a move the turn neither sent nor has running is
 reported, once, to ``on_unkept`` and in the return value, so the brain can ask
 the model to keep it or to say it has not.
 
+**A move that has landed is said at once.** The moment the page shows what a
+move did — its result, or a site event the brain maps to the running move with
+:meth:`Stage.landed` — ``on_landed`` may return a short written line. The
+director keeps it for :meth:`Stage.take_lines`, and the brain says it as soon
+as the floor is free, with no model request before it; the model may then add
+one sentence (:func:`landed_ask`). A move whose effect was reported gets no
+holding line, and its later result only matters if it failed or was partial.
+
 The director decides nothing the brain should: what the model hears about a
 result is the brain's to write, from what :meth:`Stage.handle` returns.
 """
@@ -60,10 +68,15 @@ __all__ = [
     "CUE_WAIT_S",
     "FINISHED_KEEP_S",
     "HOLDING_LINE_S",
+    "LANDED_AFTER_RESULT_S",
+    "LANDING_FLOOR_MS",
+    "LANDING_LINE_KEEP_S",
     "RESULT_TIMEOUTS",
     "ArgValue",
     "Dropped",
+    "Landing",
     "OnDrop",
+    "OnLanded",
     "OnProgress",
     "OnUnkept",
     "Refused",
@@ -71,6 +84,7 @@ __all__ = [
     "Running",
     "Stage",
     "Unkept",
+    "landed_ask",
 ]
 
 #: How long the page waits for a cue's words before it drops the cue. A cue's
@@ -108,6 +122,18 @@ FINISHED_KEEP_S = 60.0
 #: from the brain (:meth:`Stage.holding`), so the silence is not taken for a
 #: failure.
 HOLDING_LINE_S = 6.0
+
+#: The quiet a brain should wait before it says a landing line: the idle
+#: window to set once :meth:`Stage.take_lines` has one (milliseconds).
+LANDING_FLOOR_MS = 300
+
+#: How long a landing line waits to be said: past this, the screen has moved
+#: on, and :meth:`Stage.take_lines` lets it go.
+LANDING_LINE_KEEP_S = 8.0
+
+#: A site event this soon after a move's ``applied`` result may still be its
+#: landing: a page may send the result a moment before the event that shows it.
+LANDED_AFTER_RESULT_S = 3.0
 
 #: How often :meth:`Stage.watch` looks, at most, with nothing due sooner.
 _WATCH_POLL_S = 0.25
@@ -150,6 +176,43 @@ class Running:
     """The last phase the page reported, or ``None`` before any."""
     seconds: float
     """How long since it was sent."""
+    shown: bool = False
+    """Whether the page already showed what it did (:meth:`Stage.landed`, or a
+    landed result): it is not slow, only not answered yet."""
+
+
+@dataclass(frozen=True, slots=True)
+class Landing:
+    """A move whose visible effect the page reported, handed to ``on_landed``
+    for a written line. ``result`` is the page's result when that is what
+    reported it; ``event`` the site event the brain mapped to the move with
+    :meth:`Stage.landed`. At most one of them is set."""
+
+    move: Move
+    call_ref: str
+    seconds: float
+    """How long since the move was sent."""
+    result: StageResult | None = None
+    event: object | None = None
+    args: Mapping[str, ArgValue] | None = None
+    """A tool move's arguments, as sent; ``None`` for a cue."""
+    cue_args: tuple[str, ...] = ()
+    """A cue's arguments, as resolved and sent to the page."""
+
+
+#: ``landing`` → a short written line to say as soon as the floor is free, or
+#: ``None`` for none.
+OnLanded = Callable[[Landing], str | None]
+
+
+def landed_ask(line: str) -> str:
+    """What to ask the model after a landing line was said: at most one more
+    sentence, never the line again. Provider-neutral text for the brain's own
+    note."""
+    return (
+        f'You have just said: "{line}". Never say that again. Add at most one short sentence '
+        "about what is now on their screen, in the language you speak, or say nothing."
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -169,10 +232,14 @@ class _Flight:
     args: dict[str, ArgValue] | None
     """A tool move's arguments; ``None`` for a cue."""
     deadline: float
+    cue_args: tuple[str, ...] = ()
+    """A cue's arguments, as resolved."""
     sent_at: float = 0.0
     phase: Phase | None = None
     held: bool = False
     """Whether :meth:`Stage.holding` already handed it out."""
+    shown: bool = False
+    """Whether the page already showed what it did."""
 
 
 @dataclass(slots=True)
@@ -183,6 +250,12 @@ class _Finished:
     """Reported ``unknown`` by :meth:`Stage.expire`, rather than answered."""
     corrected: bool = False
     """A late result for it was already handed back."""
+    shown: bool = False
+    """The page showed what it did before its result came."""
+    flight: _Flight | None = None
+    """The move as it ran: a site event just behind its ``applied`` result
+    may still be its landing (:data:`LANDED_AFTER_RESULT_S`)."""
+    applied: bool = False
 
 
 @dataclass(slots=True)
@@ -207,7 +280,9 @@ class Stage:
     brain can say so rather than let the voice claim a move that never went.
     ``on_progress`` is told of every :class:`StageProgress` for a running move.
     ``on_unkept`` is told of every claim a turn made and did not keep
-    (:meth:`end_turn`).
+    (:meth:`end_turn`). ``on_landed`` is asked for a written line the moment
+    a move's visible effect is reported (:meth:`landed`, or a landed result);
+    the lines wait in :meth:`take_lines`.
     """
 
     def __init__(
@@ -221,6 +296,7 @@ class Stage:
         on_drop: OnDrop | None = None,
         on_progress: OnProgress | None = None,
         on_unkept: OnUnkept | None = None,
+        on_landed: OnLanded | None = None,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._dispatch = dispatch
@@ -234,7 +310,10 @@ class Stage:
         self._on_drop = on_drop
         self._on_progress = on_progress
         self._on_unkept = on_unkept
+        self._on_landed = on_landed
         self._clock = clock
+        #: Landing lines not said yet: (when, line).
+        self._lines: list[tuple[float, str]] = []
         self._n = 0
         self._flights: dict[str, _Flight] = {}
         self._refs: dict[str, Move] = {}
@@ -401,7 +480,7 @@ class Stage:
         ref = self._mint(move)
         now = self._clock()
         deadline = now + CUE_WAIT_S + self.timeout(move.cls)
-        self._flights[ref] = _Flight(ref, move, None, deadline, sent_at=now)
+        self._flights[ref] = _Flight(ref, move, None, deadline, tuple(args), sent_at=now)
         logger.info(
             "stage: {} cue {} as {} {} at {!r} before {}{} in {!r}",
             ref,
@@ -565,7 +644,9 @@ class Stage:
             logger.info("stage: {} {} moved on to another page", f.call_ref, f.move.id)
             return event
         self._log_result(f.call_ref, f.move, event, self._clock() - f.sent_at)
-        note = self._land(f, landed=event.outcome in _LANDED)
+        if event.outcome == "applied" and not f.shown:
+            self._show(f, result=event)
+        note = self._land(f, landed=event.outcome in _LANDED, applied=event.outcome == "applied")
         if note:
             detail = f"{event.detail} ({note})" if event.detail else note
             return event.model_copy(update={"detail": detail})
@@ -689,18 +770,19 @@ class Stage:
         loading the rooms page")."""
         now = self._clock()
         return [
-            Running(f.move, f.call_ref, f.phase, now - f.sent_at)
+            Running(f.move, f.call_ref, f.phase, now - f.sent_at, f.shown)
             for f in sorted(self._flights.values(), key=lambda f: f.sent_at)
         ]
 
     def holding(self, after_s: float = HOLDING_LINE_S) -> list[Running]:
         """The confirmed and reversible moves running longer than ``after_s``
         that this has not handed out before: each is worth one written holding
-        line from the brain, once, so a slow move is not heard as a failed one."""
+        line from the brain, once, so a slow move is not heard as a failed one.
+        A move whose effect the page already showed is not slow: never one."""
         now = self._clock()
         out: list[Running] = []
         for f in sorted(self._flights.values(), key=lambda f: f.sent_at):
-            if f.held or f.move.cls not in (MoveClass.CONFIRMED, MoveClass.REVERSIBLE):
+            if f.held or f.shown or f.move.cls not in (MoveClass.CONFIRMED, MoveClass.REVERSIBLE):
                 continue
             if now - f.sent_at < after_s:
                 continue
@@ -708,7 +790,119 @@ class Stage:
             out.append(Running(f.move, f.call_ref, f.phase, now - f.sent_at))
         return out
 
-    def _land(self, f: _Flight, *, landed: bool, expired: bool = False) -> str | None:
+    # ─── landings ──────────────────────────────────────────────────────────
+
+    def landed(
+        self,
+        moves: str | Iterable[str],
+        *,
+        event: object | None = None,
+        call_ref: str | None = None,
+        fits: Callable[[Landing], bool] | None = None,
+    ) -> str | None:
+        """The page shows what a running move did: a site event the brain reads
+        as its effect (a listing shown for a filter, the calendar for an
+        availability check). ``moves`` names the move ids it can be the effect
+        of; the newest running one of them not shown yet (or ``call_ref``'s),
+        and that ``fits`` the event when given (the listing has the filter the
+        move asked for, not the unfiltered one a load showed first), is marked
+        shown: it gets no holding line from now, and ``on_landed`` is asked for
+        its written line, kept for :meth:`take_lines`. Once per move: the line,
+        or ``None`` when no such move is running, or the brain has none. A move
+        whose ``applied`` result came in the last :data:`LANDED_AFTER_RESULT_S`
+        with no line for it counts as running here: the page may answer a
+        moment before the event that shows it."""
+        ids = {moves} if isinstance(moves, str) else set(moves)
+        now = self._clock()
+
+        def ok(f: _Flight) -> bool:
+            if f.move.id not in ids or f.shown:
+                return False
+            if call_ref is not None and f.call_ref != call_ref:
+                return False
+            return fits is None or fits(self._landing(f, now, event=event))
+
+        just = [
+            d.flight
+            for d in self._finished.values()
+            if d.flight is not None and d.applied and now - d.at <= LANDED_AFTER_RESULT_S
+        ]
+        candidates = [f for f in (*self._flights.values(), *just) if ok(f)]
+        found = max(candidates, key=lambda f: f.sent_at, default=None)
+        if found is None:
+            return None
+        line = self._show(found, event=event)
+        if (done := self._finished.get(found.call_ref)) is not None:
+            done.shown = True
+        return line
+
+    def shown(self, call_ref: str) -> bool:
+        """Whether the page showed what ``call_ref``'s move did before (or
+        with) its result: a later ``applied`` adds nothing for the voice."""
+        f = self._flights.get(call_ref)
+        if f is not None:
+            return f.shown
+        done = self._finished.get(call_ref)
+        return done is not None and done.shown
+
+    def take_lines(self) -> list[str]:
+        """The landing lines waiting to be said, oldest first, and forgotten:
+        say them in the next floor, with no model request before them. One
+        older than :data:`LANDING_LINE_KEEP_S` is let go unsaid."""
+        cut = self._clock() - LANDING_LINE_KEEP_S
+        lines = [line for at, line in self._lines if at >= cut]
+        if len(lines) < len(self._lines):
+            logger.info("stage: {} landing line(s) too old to say", len(self._lines) - len(lines))
+        self._lines = []
+        return lines
+
+    @property
+    def lines_waiting(self) -> bool:
+        """Whether a landing line is waiting for :meth:`take_lines`."""
+        return bool(self._lines)
+
+    @staticmethod
+    def _landing(
+        f: _Flight, now: float, *, result: StageResult | None = None, event: object | None = None
+    ) -> Landing:
+        return Landing(
+            f.move,
+            f.call_ref,
+            now - f.sent_at,
+            result=result,
+            event=event,
+            args=MappingProxyType(f.args) if f.args is not None else None,
+            cue_args=f.cue_args,
+        )
+
+    def _show(
+        self, f: _Flight, *, result: StageResult | None = None, event: object | None = None
+    ) -> str | None:
+        """``f``'s effect is on the page: shown, and its line asked for. A
+        result shows it only when the brain has a line for it (an event that
+        came first already did): with none, it is simply answered."""
+        now = self._clock()
+        if result is None:
+            f.shown = True
+            logger.info(
+                "stage: {} {} shown on the page at {:.0f} ms ({})",
+                f.call_ref,
+                f.move.id,
+                (now - f.sent_at) * 1000,
+                type(event).__name__,
+            )
+        if self._on_landed is None:
+            return None
+        line = self._on_landed(self._landing(f, now, result=result, event=event))
+        if line:
+            f.shown = True
+            logger.info("stage: {} {} landing line {!r}", f.call_ref, f.move.id, line)
+            self._lines.append((now, line))
+        return line or None
+
+    def _land(
+        self, f: _Flight, *, landed: bool, expired: bool = False, applied: bool = False
+    ) -> str | None:
         """Retire ``f``; if it was the running move, send or drop the queued
         one. Returns a note when the queued move was dropped."""
         del self._flights[f.call_ref]
@@ -716,7 +910,9 @@ class Stage:
             # Answered during this turn: a claim of it this turn is true.
             self._turn_sent.add(f.move.id)
         self._prune()
-        self._finished[f.call_ref] = _Finished(f.move, self._clock(), expired)
+        self._finished[f.call_ref] = _Finished(
+            f.move, self._clock(), expired, shown=f.shown, flight=f, applied=applied
+        )
         if self._running != f.call_ref:
             return None
         self._running = None
