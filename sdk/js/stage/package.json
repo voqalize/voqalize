@@ -1,0 +1,29 @@
+{
+  "name": "@voqalize/stage",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The page half of Stage: makes the moves an agent's reply names as its voice reaches them, rings what it points at, and reports one result per move. Takes a pipecat client that already exists; never makes or wraps one.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./extension": "./src/extension/index.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "@pipecat-ai/client-js": ">=1.13 <2"
+  },
+  "devDependencies": {
+    "@pipecat-ai/client-js": "^1.13.0",
+    "@types/chrome": "^0.0.287",
+    "happy-dom": "^15.11.7",
+    "typescript": "^5.8.3",
+    "vitest": "^2.1.9"
+  }
+}

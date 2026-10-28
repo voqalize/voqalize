@@ -1,0 +1,28 @@
+/**
+ * `@voqalize/stage`: the page half of Stage.
+ *
+ * The agent names moves inside its reply (cues) or through its tools; the page
+ * makes them as the voice reaches them, rings what it points at, and reports
+ * one `StageResult` per move. It works on a pipecat client the page already
+ * has, and never makes, connects or wraps one.
+ */
+
+export * from "./wire.gen";
+export { fold, words } from "./words";
+export {
+  AFTER_STOP_MS, type Dropped, type Fired, FUZZY_AFTER_MS, NO_TEXT_MS, STALE_MS, START_CPS, Timeline,
+  type TimelineOptions, type TimelineStats,
+} from "./timeline";
+export { Spotlight, type SpotlightTheme } from "./spotlight";
+export {
+  accessibleName, clean, FIXED_DEFAULT, locate, type Locator, pinnedHeight, press, quiet, reveal, scrollToEl, setValue,
+  sleep, type Strategy, visible, waitFor,
+} from "./dom";
+export {
+  Deferred, type MoveClass, type MoveContext, Moves, type MovesOptions, type Performer, Refused,
+} from "./moves";
+export {
+  type Attached, attachStage, type AttachOptions, interruptedResult, STAGE_CONTRACT, STAGE_RUNTIME, type StageClient,
+  staleResult,
+} from "./attach";
+export { type StagePage, stagePage } from "./page";

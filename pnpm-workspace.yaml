@@ -1,11 +1,11 @@
-# The root workspace holds the docs site and nothing else, since sdk/react was
-# deleted on 2026-08-24. Each demo UI (demos/<name>/frontend) and the demos
-# landing page are deliberately NOT members — they're self-contained apps with
-# their own lockfiles, built standalone (pnpm install --ignore-workspace) and
-# assembled by demos/build.mjs. See demos/README.md.
-#
-# A one-member workspace is worth keeping rather than collapsing: the next
-# publishable JS package, if there is one, joins here instead of re-deriving
-# the layout.
+# The root workspace holds the docs site and Stage's page runtime
+# (sdk/js/stage, `@voqalize/stage`, private until it is released); sdk/react
+# was deleted on 2026-08-24. Each demo UI (demos/<name>/frontend), each demo
+# extension and the demos landing page are deliberately NOT members — they're
+# self-contained apps with their own lockfiles, built standalone
+# (pnpm install --ignore-workspace) and assembled by demos/build.mjs. See
+# demos/README.md. A demo extension that uses `@voqalize/stage` bundles its
+# TypeScript source with esbuild.
 packages:
   - 'docs'
+  - 'sdk/js/stage'

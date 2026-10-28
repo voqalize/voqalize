@@ -1,0 +1,43 @@
+/**
+ * `@voqalize/stage/extension`: the Chrome MV3 host every site extension
+ * shares. One call lives in an offscreen document (the holder) across every
+ * page load on every host of the site; each page follows it, draws the
+ * widget and the character's face, and makes the moves Stage sends it.
+ *
+ * A site extension writes its `SiteConfig` once and starts each entry point
+ * with it:
+ *
+ *   content.ts     defineSiteExtension({ site, api, adapters, spotlight, … })
+ *   shell.ts       startShell(site)                  (MAIN, document_start)
+ *   bridge.ts      startBridge()                     (isolated, document_start)
+ *   holder.ts      startHolder(site, { makeClient }) (call.html)
+ *   background.ts  startBackground(site, { openable, justification })
+ *   grant.ts       startGrant(words, site.opening)   (grant.html)
+ */
+
+export { type BackgroundConfig, startBackground } from "./background";
+export { startBridge } from "./bridge";
+export { CatchUp } from "./catch-up";
+export {
+  type Adapter, type AvatarHooks, defineSiteExtension, type PageKit, type SiteExtensionConfig, type SiteHooks,
+} from "./content";
+export { followCall, type Following } from "./follow";
+export { type GrantWords, startGrant } from "./grant";
+export { type HolderApi, type HolderConfig, NO_PAGES_MS, QUIET_WAIT_MS, startHolder } from "./holder";
+export {
+  askHolder, askWorker, type FromBridge, loadsStarted, loadThen, onHolder, pend, pendingMove, shareLanguage,
+  sharedLanguage, tell,
+} from "./hub";
+export { carriedForward, type Delivery, HOLD_MS } from "./mouth-clock";
+export { clearKept, FRESH_MS, type Kept, keptKey, readKept, transitions, writeKept } from "./persist";
+export {
+  type CallState, EVENTS, type FromPage, type HolderAsk, type Job, type MicState, PORT, type ToPage, type Where,
+  type WorkerAsk,
+} from "./protocol";
+export { type Relaying, relayCall } from "./relay";
+export { startShell } from "./shell";
+export { defineSite, isSitePage, matchPattern, mountedFlag, type SiteConfig, shellFlag } from "./site";
+export {
+  type Activity, DEFAULT_TRANSITION_NAME, type Language, type Layout, mountWidget, type Rect, type Status,
+  watchObstacles, type Widget, type WidgetConfig, widgetStyles, type WidgetTheme, type WidgetWords,
+} from "./widget";
