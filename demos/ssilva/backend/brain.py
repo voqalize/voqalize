@@ -43,8 +43,8 @@ His Spanish is neutral Latin American Spanish; in English he describes the
 Spanish page and explains the local terms (UF, pie, RUT, "en blanco").
 
 This is SendPotion's guide (``demos/sendpotion``) moved to a new site: the
-nods, the written lines for a silent turn, the language handling, the cue
-backstop and the talk-through after a page result are the same machinery.
+written lines for a silent turn, the language handling, the cue backstop and
+the talk-through after a page result are the same machinery.
 """
 
 from __future__ import annotations
@@ -52,7 +52,6 @@ from __future__ import annotations
 import dataclasses
 import math
 import re
-import time
 from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -67,14 +66,13 @@ from voqalize_demos import (
     needs_result_now,
     say_line,
 )
-from voqalize_demos.acknowledge import Acknowledger, Kind, Vocabulary, hold_the_floor
+from voqalize_demos.language_hold import HELD_NOTE, heard_language, holds_spanish, may_write_english
 
 from voqalize.sdk import (
     Action,
     Finalize,
     RequestRejected,
     RTVIMessage,
-    RTVIType,
     Session,
     Speech,
     SpeechChunk,
@@ -157,8 +155,6 @@ _TO_VIEW = re.compile(
 #: The quiet spell after a turn cut off before his answer, with no words
 #: after it, before he answers it anyway.
 _CUT_OFF_MS = 4_000
-#: A message this soon after the last one is the rest of the same thought.
-_FRAGMENT_S = 4.0
 
 # ─── Language ──────────────────────────────────────────────────────────────────
 
@@ -857,7 +853,7 @@ You are heard, not read, so keep it light and warm.
 - A turn is three to five short sentences. Walking a page top to bottom can run to eight, one part per sentence, each with its cue.
 - Every sentence under fifteen words. Small, everyday words. One idea per sentence. One number per sentence.
 - THE FIRST SENTENCE IS A FEW WORDS. The visitor hears nothing until your first sentence is voiced, so open every reply with a sentence of two to six words that ends in a full stop, with the answer in it. A cue may come before it.
-- Before most replies the visitor has already heard a short acknowledgement of mine ("Claro.", "A ver.", "Happy to help.", "Let me see."), so never open with one: your first word is the answer. No "buena pregunta", no repeating their question back.
+- Your first word is the answer: no filler, no "buena pregunta", no repeating their question back.
 - Spoken words only, apart from cues: no lists, no markdown, no symbols, never an exclamation mark.
 - Talk about what is on their screen, never about how the page works: never "the filter", "the list cleared", "the page did not highlight", "the cue". If something did not show, show it again another way, or open the project.
 - Write every number as spoken words. A price in UF: "tres mil trescientas setenta y cinco UF", "three thousand three hundred seventy-five UF", never "3.375 UF". Pesos: "un millón quinientos mil pesos". A typology: "dos dormitorios y dos baños", "two bedrooms and two bathrooms", never "2D | 2B". Areas: "noventa y nueve metros cuadrados". Phone numbers digit by digit, in pairs.
@@ -866,7 +862,7 @@ You are heard, not read, so keep it light and warm.
 
 # Spanish or English
 You speak Spanish as a native of Latin America, and English. The call starts in Spanish.
-- Answer in the language the visitor speaks to you. If they speak English, answer in English from that reply on; if they go back to Spanish, so do you. Your voice follows the language you write.
+- Answer in Spanish. Move to English only when the visitor says at least two full sentences in English in one turn, or asks for English; then answer in English from that reply on, and if the visitor go back to Spanish, so do you. Speech recognition often hears a short Spanish reply or a Chilean name as English ("See" for "sí", "And lower net here" for "Lo Barnechea"): the visitor is still speaking Spanish, so answer in Spanish. Your voice follows the language you write.
 - Except when they chose a language: a line in square brackets says so. Then answer in that language whatever they speak, until they ask you to switch.
 - When they ask for the other language in words that are not already it ("¿Puedes hablar en inglés?", "Can you speak Spanish?"), answer in that language and call set_language in the same response. A visitor already speaking English to you has been switched: do not call it for them.
 - One language per reply. In Spanish, masculine forms of yourself ("estoy encantado de ayudarte").
@@ -1073,64 +1069,6 @@ _PROMISE = re.compile(
     r"|\blet me (?:see|check|look)(?: (?:that|into it|at that))?\b|\bdéjame ver\b|\ba ver\b",
     re.IGNORECASE,
 )
-
-# ─── His nod ───────────────────────────────────────────────────────────────────
-
-#: His nods, the holding line and the apology — chosen by measurement, not by
-#: ear. Each line is voiced on its own, and always the same way, so a line
-#: either sounds like him in every call or like somebody else in every call:
-#: on dev, "Right." came out at 82 Hz and "One moment." / "Un momento." at
-#: 166 Hz against his 110-132 Hz, and a speaker model put "Certainly.",
-#: "Okay.", "Right." and "Un momentito." well outside his voice (the owner
-#: heard it on Explora, 2026-10-22). Every line here measured within his own spread, with
-#: its pitch within 2.5 semitones of his. Measure a line before adding it; the
-#: measurements hold for his voice as it is today.
-_ACK_LINES: dict[Lang, dict[Kind, tuple[str, ...]]] = {
-    "en": {
-        "request": ("Happy to help.", "Absolutely, let me do that.", "Sure thing."),
-        "question": ("Let me see.", "Good question, let me see."),
-        "correction": ("Got it, thanks for letting me know.", "Ah, I see what you mean."),
-        "statement": ("Okay, that makes sense.", "Got it, thanks for letting me know."),
-    },
-    "es": {
-        "request": (
-            "Claro.",
-            "Con gusto, ya lo hago.",
-            "Por supuesto, déjame revisarlo.",
-            "Claro, ahora mismo.",
-        ),
-        "question": ("A ver.", "Déjame revisarlo un momento."),
-        "correction": ("Entendido, gracias por avisarme.", "Entendido, eso me ayuda."),
-        "statement": ("Entendido, eso me ayuda.", "Claro.", "Entendido, gracias por avisarme."),
-    },
-}
-ACK_RATE = 0.75
-ACK_HOLD_AFTER_S = 4.0
-_ACK_HOLD: dict[Lang, tuple[str, ...]] = {
-    "en": ("Just a moment.", "One moment while I check that for you."),
-    "es": ("Dame un momento mientras lo busco.", "Un momento mientras lo reviso para ti."),
-}
-_ACK_SORRY: dict[Lang, str] = {
-    "en": "Sorry, that's taking a little longer.",
-    "es": "Lo siento, está tardando un poco más de lo normal.",
-}
-#: A visitor's ordinary words about buying a home here, so the reading trusts them.
-_ACK_WORDS = Vocabulary(
-    common=frozenset(
-        # A word list reads as words, so it stays a split string.
-        """ssilva proyecto proyectos departamento departamentos depto casa oficina dormitorios
-        dormitorio baños uf pie cuotas comuna santiago viña las condes vitacura reñaca
-        cotizar cotización tipología tipologías piscina precio apartment apartments project
-        projects bedroom bedrooms bathroom budget quote invest rut
-        """.split()  # noqa: SIM905
-    ),
-)
-
-
-def _avatar_state(session: Session, state: Literal["WORKING"] | None) -> None:
-    """The talking head's working latch: held until speech owed has played."""
-    session.send_rtvi(RTVIType.SERVER_MESSAGE, {"type": "avatar", "cmd": "state", "state": state})
-
 
 _HEADINGS_IN_NOTE = 30
 _SEARCH_HITS = 6
@@ -1699,16 +1637,13 @@ class SsilvaBrain(OpenAIBrain):
             model=model,
             reasoning=REASONING,
         )
-        self._heard_at = float("-inf")
         #: The language he speaks now, whether the visitor chose it, and the
         #: toggle's written confirmation of a switch, said at his next turn.
         self.spoken: Lang = OPENING
         self._chosen = False
+        self._last_heard = ""
         self._confirm: str | None = None
         self._fallback = FallbackLine()
-        self._ack = Acknowledger(
-            _ACK_LINES, _ACK_HOLD, _ACK_SORRY, _ACK_WORDS, ACK_RATE, ACK_HOLD_AFTER_S
-        )
         #: The tab in front as it last reported itself, and whether the model
         #: has seen it since it changed.
         self.page: PageChanged | None = None
@@ -1804,7 +1739,7 @@ class SsilvaBrain(OpenAIBrain):
     ) -> AsyncGenerator[Speech, None]:
         """A visitor who speaks the other language is answered in it from the
         first word, unless they chose the language they are in; the page they
-        moved to is read in with what they said; his nod covers the thinking.
+        moved to is read in with what they said.
 
         A turn cut off before his answer, by a noise whose words came out
         empty, leaves no message to answer, and the call went silent for 13 s
@@ -1830,10 +1765,14 @@ class SsilvaBrain(OpenAIBrain):
         return self._asked
 
     async def _answer(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
-        heard = None if self._chosen else language_of(msg.text)
+        self._last_heard = msg.text
+        heard = None if self._chosen else heard_language(msg.text, self.spoken, language_of)
         if heard is not None and heard != self.spoken:
             await session.configure(self._speaking(heard))
             logger.info("ssilva: language -> {} (heard)", heard)
+        if holds_spanish(msg.text, self.spoken, language_of):
+            logger.info("ssilva: held in Spanish: {!r}", msg.text)
+            self._note(HELD_NOTE)
         self._talk = None
         self._nudges = 0
         self._backstop = (
@@ -1843,30 +1782,6 @@ class SsilvaBrain(OpenAIBrain):
         )
         self._restore_idle()
         self._read_in_screen()
-        now = time.monotonic()
-        fragment, self._heard_at = now - self._heard_at < _FRAGMENT_S, now
-        if not fragment and (nod := self._ack.line(msg.text, self.spoken)) is not None:
-            logger.info("ssilva: ack {!r}", nod)
-            async for event in say_line(self, nod):
-                yield event
-            working = True
-
-            def answered() -> None:
-                nonlocal working
-                if working:
-                    working = False
-                    _avatar_state(session, None)
-
-            _avatar_state(session, "WORKING")
-            try:
-                turn = super().on_user_message(session, msg)
-                async for event in hold_the_floor(
-                    self, self._ack, lambda: self.spoken, turn, answered
-                ):
-                    yield event
-            finally:
-                answered()
-            return
         async for event in super().on_user_message(session, msg):
             yield event
 
@@ -1964,6 +1879,10 @@ class SsilvaBrain(OpenAIBrain):
         async def release() -> AsyncGenerator[Speech, None]:
             nonlocal held, text
             written = None if self._chosen else language_of(text, sure=False)
+            if written == "en" and not may_write_english(
+                self._last_heard, self.spoken, language_of
+            ):
+                written = None
             if written is not None and written != self.spoken:
                 await session.configure(self._speaking(written))
                 logger.info("ssilva: language -> {} (written)", written)

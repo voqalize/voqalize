@@ -6,9 +6,9 @@ belong to Spain ("vale", "vídeo", "te viene bien"). The accent is the speech
 tier's reference clip; the words are this brain's. Two halves, as in
 ``test_kiosk_language.py``:
 
-* **The lines he owns — always run, no model.** His greetings, nods, holding
-  lines and the lines for a page move are written here, and carry no word or
-  form only Spain uses. In Spanish the voice is handed "bidéo" for "video":
+* **The lines he owns — always run, no model.** His greetings and the
+  lines for a page move are written here, and carry no word or form only
+  Spain uses. In Spanish the voice is handed "bidéo" for "video":
   on dev it read plain "video" with Spain's stress in one sentence of three.
   The page's cue anchors follow that spelling, and the model only ever sees
   "video".
@@ -99,9 +99,6 @@ def _his_spanish_lines() -> list[str]:
         sendpotion._BLOG_GREETING["es"],
         *(opener["es"] for _, opener in sendpotion._OPENERS),
         *(landed["es"] for landed in sendpotion._LANDED.values()),
-        *(line for kind in sendpotion._ACK_LINES["es"].values() for line in kind),
-        *sendpotion._ACK_HOLD["es"],
-        sendpotion._ACK_SORRY["es"],
     ]
     pages = ["/", "/pricing", "/demo", "/integrations", "/features", "/use-cases", "/faq"]
     lines += [sendpotion.greeting(path, "site", "es") for path in pages]

@@ -40,10 +40,8 @@ her previous turn (the visitor's next turn is the yes), or when the visitor's
 own words this turn ask to be taken somewhere. ``point_at`` needs no asking: it
 lights up a phrase the brain has checked is on the page they have open.
 
-**She is heard at once, and every move is said.** The moment the visitor stops
-she nods — "Sure.", "Let me see.", "ಸರಿ." — a line of her own, said while the
-model thinks (:mod:`voqalize_demos.acknowledge`, as qween and saatvik do), and
-she holds the floor with "One moment." if the model stays quiet. Each tool
+**Every move is said.** The acknowledgement while the model thinks is the
+runtime's own (``Config.ack``, on by default), not the brain's. Each tool
 lands a written line that names what it did or why it could not ("Taking you
 to the Events page.", "I couldn't find that on this page."); when the model's
 turn says nothing, :class:`~voqalize_demos.FallbackLine` says it. A ``go_to_page``
@@ -73,7 +71,6 @@ from voqalize_demos import (
     needs_result_now,
     say_line,
 )
-from voqalize_demos.acknowledge import Acknowledger, Kind, Vocabulary, hold_the_floor
 
 from voqalize.sdk import (
     Action,
@@ -170,7 +167,7 @@ THE KAN APPLICATION FORM. The Karnataka Acceleration Network page ({path_of(KAN_
 - In Kannada, names stay as they say them, and the location is still one of those six, written as above.
 - At the end, ask them to check the form and press Apply Now themselves: filling it is yours, sending it is theirs.
 
-SOUND LIKE A PERSON, NOT A SCRIPT. Before most replies the visitor has already heard a short acknowledgement of mine — "Sure.", "Let me see.", "ಸರಿ." — the moment they stopped speaking. So never open with one: your first word is the answer, and your first sentence is short, so it is heard quickly.
+SOUND LIKE A PERSON, NOT A SCRIPT. Your first word is the answer, with no filler, and your first sentence is short, so it is heard quickly.
 
 VOICE STYLE. Warm, plain and brief. No markdown, no lists, no symbols, no URLs read aloud — say "the Policies page", not its address. Say numbers as a person would. No throat-clearing: not "Great question", not "Sure, let me". English by default.
 
@@ -220,98 +217,6 @@ SWITCH_LINE: dict[LanguageTag, str] = {
     "en": "Sure, let's continue in English.",
     "kn": "ಸರಿ, ಈಗ ಕನ್ನಡದಲ್ಲಿ ಮಾತಾಡೋಣ. ದಯವಿಟ್ಟು ನಿಮ್ಮ ಪ್ರಶ್ನೆಯನ್ನು ಮತ್ತೊಮ್ಮೆ ಹೇಳಿ.",
 }
-
-# ─── Her nod, and holding the floor ───────────────────────────────────────────
-
-#: Said the moment the visitor stops, while the model thinks: a unit of her
-#: own, never in the model's context. See :mod:`voqalize_demos.acknowledge`.
-#: The Kannada lines are to be checked by a native speaker.
-ACK_LINES: dict[Language, dict[Kind, tuple[str, ...]]] = {
-    Language.EN: {
-        "request": ("Sure.", "Okay.", "Of course.", "Certainly."),
-        "question": ("Let me see.", "Hmm, let me see.", "Okay."),
-        "correction": ("I see.", "Understood.", "Right."),
-        "statement": ("Okay.", "Got it.", "Right."),
-    },
-    Language.KN: {
-        "request": ("ಸರಿ.", "ಖಂಡಿತ.", "ಆಗಲಿ."),
-        "question": ("ನೋಡೋಣ.", "ಒಂದು ನಿಮಿಷ, ನೋಡುತ್ತೇನೆ.", "ಸರಿ."),
-        "correction": ("ಓಹ್, ಸರಿ.", "ಅರ್ಥವಾಯಿತು."),
-        "statement": ("ಸರಿ.", "ಅರ್ಥವಾಯಿತು."),
-    },
-}
-#: The share of readable turns she nods on, and how long the model may stay
-#: quiet after a nod before she holds the floor, then apologises. A nod speaks
-#: for the turn, so Voqalize's own "taking longer" line never fires after one:
-#: these are the floor in its place. Module-level so a test can pin them.
-ACK_RATE = 0.75
-ACK_HOLD_AFTER_S = 4.0
-ACK_SORRY_AFTER_S = 12.0
-ACK_HOLD: dict[Language, tuple[str, ...]] = {
-    Language.EN: ("One moment.", "Just a moment."),
-    Language.KN: ("ಒಂದು ನಿಮಿಷ.", "ಸ್ವಲ್ಪ ಇರಿ."),
-}
-ACK_SORRY: dict[Language, str] = {
-    Language.EN: "Sorry, that's taking a little longer.",
-    Language.KN: "ಕ್ಷಮಿಸಿ, ಸ್ವಲ್ಪ ಸಮಯ ಹಿಡಿಯುತ್ತಿದೆ.",
-}
-#: A visitor's ordinary words about KDEM, so the reading trusts a statement made of them.
-_ACK_WORDS = Vocabulary(
-    common=frozenset(
-        [
-            "kdem",
-            "karnataka",
-            "startup",
-            "startups",
-            "fund",
-            "funding",
-            "seed",
-            "policy",
-            "policies",
-            "scheme",
-            "programme",
-            "program",
-            "programs",
-            "event",
-            "events",
-            "report",
-            "reports",
-            "newsletter",
-            "page",
-            "website",
-            "site",
-            "company",
-            "business",
-            "invest",
-            "investment",
-            "incubator",
-            "accelerator",
-            "kan",
-            "nipuna",
-            "government",
-            "grant",
-            "grants",
-            "bengaluru",
-            "bangalore",
-            "mysuru",
-            "mangaluru",
-            "hubballi",
-            "jobs",
-            "skills",
-            "talent",
-            "apply",
-            "application",
-            "form",
-            "contact",
-            "ಸ್ಟಾರ್ಟಪ್",
-            "ಕರ್ನಾಟಕ",
-            "ನೀತಿ",
-            "ಯೋಜನೆ",
-            "ಕಾರ್ಯಕ್ರಮ",
-            "ಪುಟ",
-        ]
-    ),
-)
 
 # ─── Her own line for each move ───────────────────────────────────────────────
 
@@ -419,9 +324,6 @@ LINES: Mapping[Said, Mapping[Language, str]] = {
 # for every language she speaks — held at import, not on a call.
 assert all({s.code for s in SPEECH.values()} <= set(v) for v in LINES.values()), (
     "a spoken language has no written line for a move"
-)
-assert {s.code for s in SPEECH.values()} <= set(ACK_LINES) & set(ACK_HOLD) & set(ACK_SORRY), (
-    "a spoken language has no nod"
 )
 
 #: The KAN form's fields as she says them in a sentence.
@@ -806,15 +708,6 @@ class KdemBrain(GeminiBrain):
         #: the model's turn acted and said nothing.
         self.spoken: Language = OPENING.code
         self._fallback = FallbackLine()
-        self._ack = Acknowledger(
-            ACK_LINES,
-            ACK_HOLD,
-            ACK_SORRY,
-            _ACK_WORDS,
-            ACK_RATE,
-            ACK_HOLD_AFTER_S,
-            ACK_SORRY_AFTER_S,
-        )
         #: Her own lines this turn that offer a page, by line: said aloud, the
         #: page counts as offered, so the visitor's yes takes them there.
         self._offer_lines: dict[str, str] = {}
@@ -885,27 +778,12 @@ class KdemBrain(GeminiBrain):
     async def on_user_message(
         self, session: Session, msg: UserMessage
     ) -> AsyncGenerator[Speech, None]:
-        """Count the turn and keep what was said, for ``go_to_page``'s rule; nod,
-        in the language the voice speaks; then the model's turn.
-
-        The nod is a unit of her own, said before the model is asked and never
-        in its context (:mod:`voqalize_demos.acknowledge`). It speaks for the
-        turn, so Voqalize's "taking longer" line is disarmed: she holds the
-        floor herself while the model is quiet. A toggle switch waiting to be
-        confirmed gets no nod: its written line is the first thing she says."""
+        """Count the turn and keep what was said, for ``go_to_page``'s rule;
+        then the model's turn."""
         self._turn += 1
         self._heard = msg.text
         self._offer_lines = {}
-        turn = super().on_user_message(session, msg)
-        nod = None if self._confirm is not None else self._ack.line(msg.text, self.spoken)
-        if nod is None:
-            async for event in turn:
-                yield event
-            return
-        logger.info("kdem: ack {!r}", nod)
-        async for event in say_line(self, nod):
-            yield event
-        async for event in hold_the_floor(self, self._ack, lambda: self.spoken, turn):
+        async for event in super().on_user_message(session, msg):
             yield event
 
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:

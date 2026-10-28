@@ -8,7 +8,7 @@ Each case is a real ``SaatvikBrain`` on a real ``brain_server`` socket, driven b
 the conformance driver exactly as the e2e tests drive it, with the real Gemini in
 place of the scripted one and the committed crawl as his knowledge. After each move
 he makes, the runner reports the new page back the way the extension's adapter
-does. His nod is off, so what is graded is the model's own words.
+does.
 
 Two kinds of check:
 
@@ -387,7 +387,6 @@ async def main() -> int:
         return 2
     logger.remove()
     logger.add(sys.stderr, level="INFO" if args.verbose else "ERROR")
-    saatvik.ACK_RATE = 0.0  # grade the model's words, not his nod
     client = genai.Client(api_key=key)
     cases = [c for c in CASES if not args.ids or c.id in args.ids] * args.repeat
     unknown = set(args.ids) - {c.id for c in CASES}

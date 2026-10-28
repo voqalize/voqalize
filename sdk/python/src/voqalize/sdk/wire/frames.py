@@ -486,8 +486,22 @@ class IdleConfig:
 
 
 @dataclass(frozen=True)
+class AckConfig:
+    """Whether Voqalize acknowledges the caller while the brain thinks: a short
+    line such as "Let me check." or "Sure.", said when the caller's turn ends
+    and before the brain's reply begins, chosen from what the caller said. It is
+    said only in the languages Voqalize has a vocabulary for.
+
+    On unless a session turns it off. A brain that opens its replies with its
+    own acknowledgement should set ``enabled=False``, or the caller hears two.
+    A change applies from the next turn."""
+
+    enabled: bool | None = None
+
+
+@dataclass(frozen=True)
 class Config:
-    """One configuration, three sections.
+    """One configuration, in optional sections.
 
     The same shape ``sessions.connect`` accepts immediately before the call
     starts. The agent record does not store it; that record holds the brain URL
@@ -515,6 +529,7 @@ class Config:
     tts: TtsConfig | None = None
     stt: SttConfig | None = None
     idle: IdleConfig | None = None
+    ack: AckConfig | None = None
 
     def __post_init__(self) -> None:
         spoken = self.tts.language if self.tts is not None else None

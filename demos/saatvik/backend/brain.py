@@ -57,7 +57,6 @@ from __future__ import annotations
 
 import math
 import re
-import time
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
@@ -75,13 +74,11 @@ from voqalize_demos import (
     phrase,
     say_line,
 )
-from voqalize_demos.acknowledge import Acknowledger, Kind, Vocabulary, hold_the_floor
 
 from voqalize.sdk import (
     Action,
     RequestRejected,
     RTVIMessage,
-    RTVIType,
     Session,
     Speech,
     SpeechChunk,
@@ -157,10 +154,6 @@ _TALK_THROUGH_MS = 2_000
 #: uplink stalled every 10 to 20 s and, at the demos' patience, "How does this one
 #: compare? … Against the mono." reached Sunny as two turns.
 SAATVIK_PATIENCE = PATIENCE + 2
-#: A message that arrives this soon after the last one is the rest of the same
-#: thought, split by a pause: answered without a nod of its own, so the visitor
-#: does not hear a nod cut off and another start.
-_FRAGMENT_S = 4.0
 
 # ─── Language ──────────────────────────────────────────────────────────────────
 
@@ -733,7 +726,7 @@ You are heard, not read, so keep it light and warm, like a helpful advisor in a 
 - Every sentence under fifteen words. Small, everyday words. One idea per sentence. One number per sentence.
 - THE FIRST SENTENCE IS A FEW WORDS. The visitor hears nothing until your whole first sentence has been voiced, so open every reply, in English or Hindi, with a sentence of two to six words that ends in a full stop, with the answer in it. A cue may come before it.
 - Go longer only when they ask you to explain, tell them more, or just talk about something ("tell me more", "explain this", "कुछ बताइए", "इसके बारे में बात करो"). Then talk properly, with cues: five to eight short sentences about what they asked or what is on their screen, picking what matters for them.
-- Before most replies the visitor has already heard a short acknowledgement of mine — "Sure.", "Let me see.", "जी।" — the moment they stopped speaking. So never open with one: your first word is the answer. No "great question", no repeating their question back.
+- Your first word is the answer: no filler, no "great question", no repeating their question back.
 - Spoken words only, apart from cues: no lists, no markdown, no symbols, never an exclamation mark. Write every number and unit as spoken words, never digits or symbols: "three kilowatts", never "3 kW"; "six hundred and forty watts", never "640 Wp"; "about seventy-eight thousand rupees", never "₹78,000". In Hindi too: "तीन किलोवाट", never "३ किलोवाट" or "3 kW".
 - Never describe the screen in general ("here it is", "here's the page", "ये देखिए।", "यह रहा।"): the screen moving already says that. Name one concrete thing on it that matters for them.
 - Lines in square brackets come from the page, not the visitor: what they opened, what a form or the calculator shows. Never read them out; use them.
@@ -899,93 +892,9 @@ assert all({s.spoken for s in SPEECH.values()} <= set(v) for v in _LANDED_LINES.
     "a spoken language has no written line for a move"
 )
 
-# ─── Her nod ───────────────────────────────────────────────────────────────────
-
-#: Said the moment the visitor stops, while the model thinks. See
-#: :mod:`voqalize_demos.acknowledge`; the Hindi lines are hers, so feminine.
-_ACK_LINES: dict[Language, dict[Kind, tuple[str, ...]]] = {
-    Language.EN: {
-        "request": ("Sure.", "Okay.", "Of course.", "Certainly."),
-        "question": ("Let me see.", "Hmm, let me see.", "Okay."),
-        "correction": ("I see.", "Understood.", "Right."),
-        "statement": ("Okay.", "Got it.", "Right."),
-    },
-    Language.HI: {
-        "request": ("जी।", "ज़रूर।", "ठीक है।", "अच्छा।"),
-        "question": ("जी, बताती हूँ।", "जी।", "हम्म, देखती हूँ।"),
-        "correction": ("अच्छा।", "समझ गई।", "जी।"),
-        "statement": ("जी।", "अच्छा।", "ठीक है।"),
-    },
-}
 #: Whether the widget shows the brief to the visitor (see ``share_brief``).
 #: Module-level so a test can pin it.
 SHARE_BRIEF = False
-
-#: The share of readable turns she nods on, and how long the model may stay
-#: quiet after a nod before she holds the floor. Module-level so a test can pin them.
-ACK_RATE = 0.75
-ACK_HOLD_AFTER_S = 4.0
-_ACK_HOLD = {
-    Language.EN: ("One moment.", "Just a moment."),
-    Language.HI: ("एक पल।", "बस एक पल।"),
-}
-_ACK_SORRY = {
-    Language.EN: "Sorry, that's taking a little longer.",
-    Language.HI: "माफ़ कीजिए, थोड़ा समय लग रहा है।",
-}
-#: A visitor's ordinary words about going solar, so the reading trusts them.
-_ACK_WORDS = Vocabulary(
-    common=frozenset(
-        [
-            "solar",
-            "panel",
-            "panels",
-            "module",
-            "modules",
-            "roof",
-            "rooftop",
-            "house",
-            "home",
-            "bill",
-            "units",
-            "unit",
-            "subsidy",
-            "inverter",
-            "battery",
-            "batteries",
-            "kw",
-            "kilowatt",
-            "price",
-            "cost",
-            "dealer",
-            "installation",
-            "system",
-            "electricity",
-            "monthly",
-            "topcon",
-            "perc",
-            "bifacial",
-            "pump",
-            "warranty",
-            "company",
-            "सोलर",
-            "पैनल",
-            "छत",
-            "घर",
-            "बिल",
-            "यूनिट",
-            "सब्सिडी",
-            "बिजली",
-        ]
-    ),
-)
-
-
-def _avatar_state(session: Session, state: Literal["WORKING"] | None) -> None:
-    """The talking head's working latch, as qween sends it: held until speech
-    owed has played, ended by the reply's own playout."""
-    session.send_rtvi(RTVIType.SERVER_MESSAGE, {"type": "avatar", "cmd": "state", "state": state})
-
 
 #: How much of a page's own text reaches the model in a note.
 _CALC_CHARS = 1200
@@ -1247,13 +1156,8 @@ class SaatvikBrain(OpenAIBrain):
         #: Show the brief in the widget. Off for a visitor, who came to ask
         #: about solar; on for a pitch that shows Saatvik what sales receives.
         self._share_brief = SHARE_BRIEF if share_brief is None else share_brief
-        #: When the visitor's last message arrived, to tell a fragment from a question.
-        self._heard_at = float("-inf")
         self.spoken: Language = SPEECH[OPENING].spoken
         self._fallback = FallbackLine()
-        self._ack = Acknowledger(
-            _ACK_LINES, _ACK_HOLD, _ACK_SORRY, _ACK_WORDS, ACK_RATE, ACK_HOLD_AFTER_S
-        )
         self.lead = Lead()
         #: The page as the adapter last reported it, and whether the model has
         #: seen it since it changed.
@@ -1330,34 +1234,6 @@ class SaatvikBrain(OpenAIBrain):
         self._restore_idle()
         self.lead.asked(msg.text)
         self._read_in_page()
-        now = time.monotonic()
-        fragment, self._heard_at = now - self._heard_at < _FRAGMENT_S, now
-        # Her nod while the model thinks, in the voice now speaking: a unit of
-        # her own, never in the model's context. Once it has played the face
-        # looks away and works until the answer starts. The rest of a split
-        # question gets none: the first half's nod was its nod.
-        if not fragment and (nod := self._ack.line(msg.text, self.spoken)) is not None:
-            logger.info("saatvik: ack {!r}", nod)
-            async for event in say_line(self, nod):
-                yield event
-            working = True
-
-            def answered() -> None:
-                nonlocal working
-                if working:
-                    working = False
-                    _avatar_state(session, None)
-
-            _avatar_state(session, "WORKING")
-            try:
-                turn = super().on_user_message(session, msg)
-                async for event in hold_the_floor(
-                    self, self._ack, lambda: self.spoken, turn, answered
-                ):
-                    yield event
-            finally:
-                answered()
-            return
         async for event in super().on_user_message(session, msg):
             yield event
 

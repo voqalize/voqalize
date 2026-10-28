@@ -205,10 +205,8 @@ SITE = Knowledge(
 
 @pytest.fixture(autouse=True)
 def _site(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """Every session reads the invented arena, and he never nods unless a test
-    asks him to: a nod is a unit of its own."""
+    """Every session reads the invented arena."""
     monkeypatch.setattr(kb, "KNOWLEDGE", SITE)
-    monkeypatch.setattr(santander, "ACK_RATE", 0.0)
     yield
 
 
@@ -448,7 +446,9 @@ async def test_the_toggle_switches_both_legs_and_confirms_each_way() -> None:
 async def test_english_heard_switches_before_he_answers_and_spanish_switches_back() -> None:
     async with demo("santanderarena", _llm()) as rig:
         await rig.driver.start_session(init={"path": "/"})
-        turn = await rig.driver.user_says("Hi, can you tell me what is on this weekend?")
+        turn = await rig.driver.user_says(
+            "Hi, can you tell me what is on this weekend? I would like to know more, please."
+        )
         check_turn(rig, turn)
         check_voice_pair(rig, voice="omnivoice/javier", language="en")
         assert rig.command("language_changed") == {"language": "en"}
@@ -836,9 +836,6 @@ def _his_spanish_lines() -> list[str]:
         santander._EVENT_GREETING["es"],
         *(opener["es"] for _, opener in santander._OPENERS),
         *(line["es"] for line in _LANDED.values()),
-        *(line for kind in santander._ACK_LINES["es"].values() for line in kind),
-        *santander._ACK_HOLD["es"],
-        santander._ACK_SORRY["es"],
         santander._STALLED["es"],
     ]
     pages = ["/", "/cartelera", "/experiencias", "/santander-suites", PARKING, FAQS, CAMILO]
@@ -1046,23 +1043,16 @@ def test_the_home_page_is_a_page_they_can_ask_for() -> None:
 
 
 @pytest.mark.usefixtures("_calls")
-async def test_a_yes_to_his_offer_shows_what_he_offered_and_gets_a_nod(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+async def test_a_yes_to_his_offer_shows_what_he_offered() -> None:
     """Prod: "¿Te gustaría conocer los bares del recinto?" "Por supuesto,
-    mástamelo." — and four bars were described with the food trucks on screen,
-    after four seconds of quiet."""
-    monkeypatch.setattr(santander, "ACK_RATE", 1.0)
-    # The script speaks faster than any visitor: not the rest of a thought.
-    monkeypatch.setattr(santander, "_FRAGMENT_S", 0.0)
+    mástamelo." — and four bars were described with the food trucks on screen."""
     async with demo("santanderarena", _calls_llm()) as rig:
         await rig.driver.start_session(init={"path": "/"})
         await rig.driver.user_says("¿Qué hay para comer?")
         shown = len(_cues(rig))
         assert _cues(rig)[0]["path"] == FOOD
         turn = await rig.driver.user_says("Por supuesto, mástamelo.")
-        check_turn(rig, turn, units=2)
-        assert turn.units[0].text in santander._ACK_LINES["es"]["request"]
+        check_turn(rig, turn)
         assert _cues(rig)[shown:] == [
             {**NONE, "at": "tenemos opciones en", "word": 0, "path": "/bares"},
             {**NONE, "at": "el bar central", "word": 5, "path": "/bares", "text": "Bar Central"},
@@ -1124,31 +1114,6 @@ async def test_he_never_exclaims() -> None:
         turn = await rig.driver.user_says("¿Algo para el show de Camilo?")
         assert "Que disfrutes muchísimo a Camilo." in turn.text
         assert "!" not in turn.text and "¡" not in turn.text
-
-
-async def test_a_slow_turn_with_no_nod_still_holds_the_floor(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Prod: a bare show name got no nod, and nothing in Spanish covered the wait."""
-    monkeypatch.setattr(santander, "ACK_HOLD_AFTER_S", 0.2)
-    async with demo("santanderarena", _calls_llm()) as rig:
-        await rig.driver.start_session(init={"path": "/"})
-        turn = await rig.driver.user_says("¿Cuándo es Camilo?", quiet_for=1.0)
-        check_turn(rig, turn, units=2)
-        assert turn.units[0].text in santander._ACK_HOLD["es"]
-        assert turn.units[1].text == "Camilo toca pronto."
-
-
-async def test_a_nod_is_not_stacked_with_a_holding_line(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Prod: a nod, a holding line at four seconds, then the answer."""
-    monkeypatch.setattr(santander, "ACK_RATE", 1.0)
-    monkeypatch.setattr(santander, "ACK_HOLD_AFTER_S", 0.2)
-    async with demo("santanderarena", _calls_llm()) as rig:
-        await rig.driver.start_session(init={"path": "/"})
-        turn = await rig.driver.user_says("¿Cuándo es Camilo?", quiet_for=1.0)
-        check_turn(rig, turn, units=2)
-        assert turn.units[0].text in santander._ACK_LINES["es"]["question"]
-        assert turn.units[1].text == "Camilo toca pronto."
 
 
 async def test_a_stalled_stream_is_asked_once_more(monkeypatch: pytest.MonkeyPatch) -> None:

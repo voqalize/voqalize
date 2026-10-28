@@ -1,7 +1,7 @@
 """Javier's Spanish is Latin America's, not Spain's, and he says "tú".
 
 Uno Salud's visitors are in Chile. Every Spanish line the brain writes itself —
-the greetings, nods, holding lines, the lines for a move and the lines a fill
+the greetings, the lines for a move and the lines a fill
 says back — carries no word or form only Spain uses, and addresses the visitor
 as "tú", never "usted" (even though some of the site's older pages do). In
 Spanish the voice is handed "bidéo" for "video", and the model only ever sees
@@ -74,9 +74,6 @@ def _his_spanish_lines() -> list[str]:
         *(opener["es"] for _, opener in unosalud._OPENERS),
         *(landed["es"] for landed in unosalud._LANDED.values()),
         *(ask["es"] for ask in unosalud._ASK_AGAIN.values()),
-        *(line for kind in unosalud._ACK_LINES["es"].values() for line in kind),
-        *unosalud._ACK_HOLD["es"],
-        unosalud._ACK_SORRY["es"],
     ]
     pages = ["/", "/especialidades/ortodoncia/", "/clinicas/", "/urgencias/", "/agenda-tu-hora/"]
     lines += [unosalud.greeting(path, "es") for path in pages]

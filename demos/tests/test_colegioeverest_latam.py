@@ -2,8 +2,7 @@
 
 Colegio Everest's visitors are families in Chile. The accent is the speech
 tier's reference clip; the words are this brain's. Every Spanish line the brain
-writes itself — the greetings, nods, holding lines and the lines for a page
-move — carries no word or form only Spain uses and addresses the visitor as
+writes itself — the greetings and the lines for a page move — carries no word or form only Spain uses and addresses the visitor as
 "tú", never "usted". In Spanish the voice is handed "bidéo" for "video", "u
 efe" for "UF", amounts and the grades in words; the model only ever sees
 "video" and "UF".
@@ -77,9 +76,6 @@ def _his_spanish_lines() -> list[str]:
         fg._GREETING["es"],
         *(opener["es"] for _, opener in fg._OPENERS),
         *(landed["es"] for landed in fg._LANDED.values()),
-        *(line for kind in fg._ACK_LINES["es"].values() for line in kind),
-        *fg._ACK_HOLD["es"],
-        fg._ACK_SORRY["es"],
     ]
     pages = [
         "/",

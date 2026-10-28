@@ -20,6 +20,7 @@ Public surface:
 
 from .frames import (
     WIRE_VERSION,
+    AckConfig,
     CancelFrame,
     Capability,
     Config,
@@ -65,6 +66,7 @@ from .transport import (
 
 __all__ = [
     "WIRE_VERSION",
+    "AckConfig",
     "AuthRejected",
     "CancelFrame",
     "Capability",

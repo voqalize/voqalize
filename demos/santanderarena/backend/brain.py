@@ -49,7 +49,6 @@ from __future__ import annotations
 import asyncio
 import math
 import re
-import time
 import unicodedata
 from collections.abc import AsyncGenerator, AsyncIterator
 from dataclasses import dataclass
@@ -68,13 +67,12 @@ from voqalize_demos import (
     needs_result_now,
     say_line,
 )
-from voqalize_demos.acknowledge import Acknowledger, Kind, Vocabulary, hold_the_floor
+from voqalize_demos.language_hold import HELD_NOTE, heard_language, holds_spanish, may_write_english
 
 from voqalize.sdk import (
     Action,
     RequestRejected,
     RTVIMessage,
-    RTVIType,
     Session,
     Speech,
     SpeechChunk,
@@ -136,8 +134,6 @@ _TALK_THROUGH_MS = 2_000
 #: A little more patience than the demos' default: a visitor working out which
 #: night they are free pauses mid-sentence.
 SANTANDER_PATIENCE = PATIENCE + 2
-#: A message this soon after the last one is the rest of the same thought.
-_FRAGMENT_S = 4.0
 
 # ─── Language ──────────────────────────────────────────────────────────────────
 
@@ -533,14 +529,14 @@ You are heard, not read, so keep it light and warm.
 - A turn is three to five short sentences. A walkthrough of a page can run to eight, one item per sentence, each with its cue.
 - Every sentence under fifteen words. Small, everyday words. One idea per sentence. One number per sentence.
 - THE FIRST SENTENCE IS A FEW WORDS. The visitor hears nothing until your first sentence has been voiced, so open every reply with a sentence of two to six words that ends in a full stop, with the answer in it. A cue may come before it.
-- Before most replies the visitor has already heard a short acknowledgement of mine — "Claro.", "A ver.", or in English "Happy to help.", "Let me see." — so never open with one: your first word is the answer. No "great question", no repeating their question back.
+- Your first word is the answer: no filler, no "great question", no repeating their question back.
 - Spoken words only, apart from cues: no lists, no markdown, no symbols, never an exclamation mark. Write dates, times and numbers as spoken words: "the fifth of November at nine at night", "el cinco de noviembre a las nueve de la noche", never "05/11 21:00 hrs".
 - Lines in square brackets come from their screen, not the visitor: the page in front with its headings, cards, FAQs and ticket links. Never read them out; use them.
 - Always answer. A reply with no words leaves the visitor in silence.
 
 # Spanish or English
 You speak Spanish as a native of Latin America, and English. The call starts in Spanish unless the visitor chose English.
-- Answer in the language the visitor speaks to you. If they speak English, answer in English from that reply on; if they go back to Spanish, so do you. Your voice follows the language you write.
+- Answer in Spanish. Move to English only when the visitor says at least two full sentences in English in one turn, or asks for English; then answer in English from that reply on, and if the visitor go back to Spanish, so do you. Speech recognition often hears a short Spanish reply or a Chilean name as English ("See" for "sí", "And lower net here" for "Lo Barnechea"): the visitor is still speaking Spanish, so answer in Spanish. Your voice follows the language you write.
 - Except when they chose a language: a line in square brackets says so. Then answer in that language whatever they speak, even when they speak the other one, until they ask you to switch.
 - When they ask for the other language in words that are not already it ("¿Puedes hablar en inglés?", "Can we speak Spanish?"), answer in that language and call set_language in the same response. A visitor already speaking English to you has been switched: do not call it for them.
 - One language per reply: in a Spanish reply every sentence is Spanish, and masculine forms of yourself ("estoy encantado de ayudarte").
@@ -693,53 +689,6 @@ _LANDED: dict[str, dict[Lang, str]] = {
     "tab": {"en": "There's that tab.", "es": "Ahí tienes esa pestaña."},
 }
 
-# ─── His nod ───────────────────────────────────────────────────────────────────
-
-#: Every line here is voiced on its own, and a given string always comes out
-#: the same way, so a nod either always sounds like Javier or always like
-#: someone else. These are the lines measured to be his voice (speaker
-#: embedding and pitch against his own replies), Explora's set (explora
-#: brain.py, fd30c1c); "Okay.", "Right.", "Un momento." and others were not.
-#: Valid for omnivoice/javier as baked today: measure a new line before adding.
-_ACK_LINES: dict[Lang, dict[Kind, tuple[str, ...]]] = {
-    "en": {
-        "request": ("Happy to help.", "Absolutely, let me do that.", "Sure thing."),
-        "question": ("Let me see.", "Good question, let me see."),
-        "correction": ("Got it, thanks for letting me know.", "Ah, I see what you mean."),
-        # Not "thanks for letting me know": on prod it answered a closing
-        # remark and a decline, which told him nothing.
-        "statement": ("Okay, that makes sense.",),
-    },
-    "es": {
-        # Not "Por supuesto, déjame revisarlo.": a check promised that the
-        # reply never makes.
-        "request": ("Claro.", "Con gusto, ya lo hago.", "Claro, ahora mismo."),
-        "question": ("A ver.", "Déjame revisarlo un momento."),
-        "correction": ("Entendido, gracias por avisarme.", "Entendido, eso me ayuda."),
-        "statement": ("Entendido, eso me ayuda.", "Claro."),
-    },
-}
-#: Higher than SendPotion's 0.75: every page here is a full load, and the nod
-#: is what the visitor hears while the next page comes in.
-ACK_RATE = 0.9
-#: Every turn holds the floor, nod or none: on prod a bare show name ("La María
-#: José Quintanilla.") got no nod, the model stalled, and the visitor heard 18 s
-#: of nothing but the runtime's English apology. With no nod, the holding line
-#: comes at this; after a nod, at :data:`NOD_HOLD_AFTER_S`, since the nod has
-#: already spoken for the turn and a model that calls a tool before it writes
-#: takes two steps (about five seconds on prod), which stacked a second filler
-#: on the nod.
-ACK_HOLD_AFTER_S = 4.0
-NOD_HOLD_AFTER_S = 7.0
-ACK_SORRY_AFTER_S = 12.0
-_ACK_HOLD: dict[Lang, tuple[str, ...]] = {
-    "en": ("Just a moment.", "One moment while I check that for you."),
-    "es": ("Dame un momento mientras lo busco.", "Un momento mientras lo reviso para ti."),
-}
-_ACK_SORRY: dict[Lang, str] = {
-    "en": "Sorry, that's taking a little longer.",
-    "es": "Lo siento, está tardando un poco más de lo normal.",
-}
 #: His line when the model's stream stalls twice (see
 #: :meth:`SantanderBrain._model_stream`): honest, in the call's language.
 _STALLED: dict[Lang, str] = {
@@ -753,35 +702,10 @@ _STALLED: dict[Lang, str] = {
 STREAM_FIRST_S = 8.0
 STREAM_GAP_S = 6.0
 
-#: A visitor's ordinary words about the arena, so the reading trusts them.
-_ACK_WORDS = Vocabulary(
-    common=frozenset(
-        # A word list reads as words, so it stays a split string.
-        """santander arena concert concerts concierto conciertos show shows ticket tickets
-        entradas boletos puntoticket vip suite suites box parking estacionamiento
-        estacionamientos bar bares terraza terrazas food trucks cupula cúpula cartelera
-        experiencia experiencias metro reserva reservas fans
-        """.split()  # noqa: SIM905
-    ),
-)
-
-
-class _Nods(Acknowledger[Lang]):
-    """The shared nod, and one of a given kind for what it cannot read."""
-
-    def line_of(self, kind: Kind, spoken: Lang) -> str | None:
-        """A ``kind`` nod, at the same rate as any other; ``None`` for none."""
-        lines = self.lines.get(spoken, {}).get(kind)
-        if not lines or self.rng.random() >= self.rate:
-            return None
-        return self._pick(lines)
-
-
 #: A yes to his closing offer: "Bueno.", "Sí, claro.", "Por supuesto,
 #: muéstramelo." (which the recognizer wrote "mástamelo"), "Yeah, sí, por
-#: favor." On prod a yes like these got no nod and three to four seconds of
-#: quiet, and his offer's page ("¿Te gustaría conocer los bares?") was not
-#: shown. Matched on folded words.
+#: favor." On prod a yes like these left his offer's page ("¿Te gustaría
+#: conocer los bares?") unshown. Matched on folded words.
 _YES = re.compile(
     r"^\W*(?:(?:eh|ah|mm|oh|ok|okay|okey)\W+)?(?:si|claro|bueno|dale|ya|ok|okay|okey|perfecto|"
     r"por supuesto|obvio|de una|genial|bacan|me encantaria|me parece|vamos|por favor|"
@@ -808,11 +732,6 @@ def _offer_in(said: str) -> str | None:
     sentences = [s for s in re.split(r"(?<=[.?!])\s+", said.strip()) if s.strip()]
     last = sentences[-1].strip() if sentences else ""
     return last if last.endswith("?") else None
-
-
-def _avatar_state(session: Session, state: Literal["WORKING"] | None) -> None:
-    """The talking head's working latch: held until speech owed has played."""
-    session.send_rtvi(RTVIType.SERVER_MESSAGE, {"type": "avatar", "cmd": "state", "state": state})
 
 
 _HEADINGS_IN_NOTE = 40
@@ -1187,16 +1106,15 @@ class SantanderBrain(OpenAIBrain):
             model=model,
             reasoning=REASONING,
         )
-        self._heard_at = float("-inf")
         #: The language he speaks now, and the toggle's written confirmation
         #: of a switch, said at the start of his next turn.
         self.spoken: Lang = OPENING
         #: Whether the visitor chose the language, which then holds whatever
         #: they speak; until they do, it follows what they speak.
         self._chosen = False
+        self._last_heard = ""
         self._confirm: str | None = None
         self._fallback = FallbackLine()
-        self._ack = _Nods(_ACK_LINES, _ACK_HOLD, _ACK_SORRY, _ACK_WORDS, ACK_RATE, ACK_HOLD_AFTER_S)
         #: The tab in front as it last reported itself, and whether the model
         #: has seen it since it changed.
         self.page: PageChanged | None = None
@@ -1262,13 +1180,15 @@ class SantanderBrain(OpenAIBrain):
     ) -> AsyncGenerator[Speech, None]:
         """A visitor who speaks the other language is answered in it from the
         first word, unless they chose the language they are in; the tab they
-        moved to is read in with what they said; his nod covers the model's
-        thinking, and a line of his own holds the floor if the model is slow,
-        whether he nodded or not."""
-        heard = None if self._chosen else language_of(msg.text)
+        moved to is read in with what they said."""
+        self._last_heard = msg.text
+        heard = None if self._chosen else heard_language(msg.text, self.spoken, language_of)
         if heard is not None and heard != self.spoken:
             await session.configure(self._speaking(heard))
             logger.info("santanderarena: language -> {} (heard)", heard)
+        if holds_spanish(msg.text, self.spoken, language_of):
+            logger.info("santanderarena: held in Spanish: {!r}", msg.text)
+            self._note(HELD_NOTE)
         self._nudges = 0
         # A yes to his closing offer takes what he offered.
         yes = self._offered and says_yes(msg.text)
@@ -1283,37 +1203,8 @@ class SantanderBrain(OpenAIBrain):
         )
         self._restore_idle()
         self._read_in_screen()
-        now = time.monotonic()
-        fragment, self._heard_at = now - self._heard_at < _FRAGMENT_S, now
-        nod = None
-        if not fragment:
-            nod = self._ack.line(msg.text, self.spoken)
-            if nod is None and yes:
-                # The shared reading nods at no bare "sí"; a yes to his own
-                # offer is a request.
-                nod = self._ack.line_of("request", self.spoken)
-        working = nod is not None
-
-        def answered() -> None:
-            nonlocal working
-            if working:
-                working = False
-                _avatar_state(session, None)
-
-        if nod is not None:
-            logger.info("santanderarena: ack {!r}", nod)
-            async for event in say_line(self, nod):
-                yield event
-            _avatar_state(session, "WORKING")
-        # This turn's holding line: later after a nod than without.
-        self._ack.hold_after_s = NOD_HOLD_AFTER_S if nod is not None else ACK_HOLD_AFTER_S
-        self._ack.sorry_after_s = ACK_SORRY_AFTER_S
-        try:
-            turn = super().on_user_message(session, msg)
-            async for event in hold_the_floor(self, self._ack, lambda: self.spoken, turn, answered):
-                yield event
-        finally:
-            answered()
+        async for event in super().on_user_message(session, msg):
+            yield event
 
     def on_user_idle(self, session: Session, idle: UserIdle) -> AsyncGenerator[Speech, None]:
         """A quiet spell — the only floor he gets without the visitor speaking:
@@ -1398,6 +1289,10 @@ class SantanderBrain(OpenAIBrain):
         async def release() -> AsyncGenerator[Speech, None]:
             nonlocal held, text
             written = language_of(text, sure=False)
+            if written == "en" and not may_write_english(
+                self._last_heard, self.spoken, language_of
+            ):
+                written = None
             if written is not None and written != self.spoken:
                 await session.configure(self._speaking(written))
                 logger.info("santanderarena: language -> {} (written)", written)

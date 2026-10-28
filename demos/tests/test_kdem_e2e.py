@@ -161,9 +161,7 @@ SNAPSHOT = Snapshot(
 
 @pytest.fixture(autouse=True)
 def _primed(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """Every test answers from the synthetic snapshot unless it primes its own,
-    and Aria never nods unless a test asks her to: a nod is a unit of its own."""
-    monkeypatch.setattr(kdem_brain, "ACK_RATE", 0.0)
+    """Every test answers from the synthetic snapshot unless it primes its own."""
     KNOWLEDGE.prime(SNAPSHOT)
     yield
     KNOWLEDGE.prime(SNAPSHOT)
@@ -810,9 +808,6 @@ def test_nothing_said_in_english_names_the_language() -> None:
         SWITCH_LINE["en"],
         TOGGLE_CONFIRM["en"],
         *(lines[Language.EN] for lines in kdem_brain.LINES.values()),
-        *(line for lines in kdem_brain.ACK_LINES[Language.EN].values() for line in lines),
-        *kdem_brain.ACK_HOLD[Language.EN],
-        kdem_brain.ACK_SORRY[Language.EN],
     ]
     # Every quoted line in the prompt that is not Kannada script.
     english += [
@@ -1320,13 +1315,12 @@ def test_a_named_page_is_taken_from_the_list_and_visited_at_once() -> None:
     assert "Events is /events/" in _SYSTEM_INSTRUCTION
 
 
-# ─── Her nod, holding the floor, and a line for every move ────────────────────
+# ─── A line for every move ────────────────────────────────────────────────────
 #
 # What a visitor heard on 2026-10-19: a turn answered with a call alone, or
 # with a call the brain refused, was silence until Voqalize's own "taking
-# longer" line. Now she nods first, holds the floor while the model is quiet,
-# and every call lands a line that names what happened, said when the model
-# said nothing.
+# longer" line. Now every call lands a line that names what happened, said
+# when the model said nothing.
 
 EVENTS_ASK = "I would like to see what events are going on"
 
@@ -1364,43 +1358,16 @@ def _moves_llm() -> ScriptedGemini:
     )
 
 
-def _nods(kind: str, language: Language = Language.EN) -> tuple[str, ...]:
-    return kdem_brain.ACK_LINES[language][kind]  # type: ignore[index]
-
-
-async def test_a_request_gets_her_nod_before_the_model_and_never_in_its_context(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """The nod is a unit of her own ahead of the model's, and the model's own
-    line follows it unchanged: no second line of hers on a turn that spoke."""
-    monkeypatch.setattr(kdem_brain, "ACK_RATE", 1.0)
-    llm = _moves_llm()
-    async with demo("kdem", llm) as rig:
-        await rig.driver.start_session(init={"page": "/"})
-        turn = await rig.driver.user_says("Can you show me the seed fund?")
-        check_turn(rig, turn, units=2)
-        nod, said = (u.text for u in turn.units)
-        assert nod in _nods("request"), nod
-        assert said == "Here is the seed fund page."
-
-        turn = await rig.driver.user_says("What do you fund?")
-        nod, said = (u.text for u in turn.units)
-        assert nod in _nods("question"), nod
-        assert said == "Startups in the clusters."
-    context = _said([c for c in llm.captured_contents[-1] if c.role == "model"])
-    assert not any(n in context for n in ("Sure.", "Let me see.", "Of course.", "Certainly."))
-
-
-@pytest.mark.parametrize("ask", ["Thank you.", "Yes."])
-async def test_thanks_and_a_yes_get_no_nod(monkeypatch: pytest.MonkeyPatch, ask: str) -> None:
-    monkeypatch.setattr(kdem_brain, "ACK_RATE", 1.0)
+async def test_a_turn_that_spoke_gets_no_second_line_of_hers() -> None:
+    """The model's own line is the turn, unchanged."""
     async with demo("kdem", _moves_llm()) as rig:
         await rig.driver.start_session(init={"page": "/"})
-        turn = await rig.driver.user_says(ask)
-        every_nod = {
-            n for kind in ("request", "question", "correction", "statement") for n in _nods(kind)
-        }
-        assert not every_nod & {u.text for u in turn.units}, [u.text for u in turn.units]
+        turn = await rig.driver.user_says("Can you show me the seed fund?")
+        check_turn(rig, turn, units=1)
+        assert turn.units[0].text == "Here is the seed fund page."
+
+        turn = await rig.driver.user_says("What do you fund?")
+        assert [u.text for u in turn.units] == ["Startups in the clusters."]
 
 
 async def test_an_offer_made_in_silence_is_said_by_name() -> None:
@@ -1471,52 +1438,25 @@ async def test_a_search_that_ends_in_silence_is_the_dont_know_line_and_contact_u
         assert brain._offered is not None and brain._offered[0] == CONTACT  # pyright: ignore[reportPrivateUsage]
 
 
-async def test_a_slow_model_after_the_nod_is_held_then_apologised_for(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """The nod disarms Voqalize's "taking longer" line, so she holds the floor
-    herself: a holding line, then an apology, then the model's answer."""
-    monkeypatch.setattr(kdem_brain, "ACK_RATE", 1.0)
-    monkeypatch.setattr(kdem_brain, "ACK_HOLD_AFTER_S", 0.2)
-    monkeypatch.setattr(kdem_brain, "ACK_SORRY_AFTER_S", 0.4)
-    async with demo("kdem", _moves_llm()) as rig:
-        await rig.driver.start_session(init={"page": "/"})
-        turn = await rig.driver.user_says("Is TOPCon better?", quiet_for=1.0)
-        check_turn(rig, turn, units=4)
-        nod, hold, sorry, answer = (u.text for u in turn.units)
-        assert nod in _nods("question")
-        assert hold in kdem_brain.ACK_HOLD[Language.EN]
-        assert sorry == kdem_brain.ACK_SORRY[Language.EN]
-        assert answer == "The seed fund page says so."
-
-
-async def test_a_slow_silent_move_is_held_and_then_said(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(kdem_brain, "ACK_RATE", 1.0)
-    monkeypatch.setattr(kdem_brain, "ACK_HOLD_AFTER_S", 0.2)
+async def test_a_slow_silent_move_is_said() -> None:
     async with demo("kdem", _moves_llm()) as rig:
         await rig.driver.start_session(init={"page": "/"})
         turn = await rig.driver.user_says("What is the seed fund for?", quiet_for=1.0)
-        nod, hold, line = (u.text for u in turn.units)
-        assert nod in _nods("question")
-        assert hold in kdem_brain.ACK_HOLD[Language.EN]
-        assert line == "Shall I take you to the Beyond Bengaluru Cluster Seed Fund page?"
+        assert [u.text for u in turn.units] == [
+            "Shall I take you to the Beyond Bengaluru Cluster Seed Fund page?"
+        ]
 
 
-async def test_in_kannada_she_nods_and_says_her_moves_in_kannada(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(kdem_brain, "ACK_RATE", 1.0)
+async def test_in_kannada_she_says_her_moves_in_kannada() -> None:
     async with demo("kdem", _moves_llm()) as rig:
         await rig.driver.start_session(init={"page": "/", "lang": "kn"})
         turn = await rig.driver.user_says("ಸೀಡ್ ಫಂಡ್ ಬಗ್ಗೆ ತಿಳಿಸಿ")
-        nod, line = (u.text for u in turn.units)
-        assert nod in _nods("request", Language.KN), nod
+        (line,) = (u.text for u in turn.units)
         assert line == "ನಿಮ್ಮನ್ನು Beyond Bengaluru Cluster Seed Fund ಪುಟಕ್ಕೆ ಕರೆದುಕೊಂಡು ಹೋಗಲೇ?"
 
         # Offered last turn, so this go is the yes: said by name, in Kannada.
         turn = await rig.driver.user_says("ಸೀಡ್ ಫಂಡ್ ಪುಟ ಯಾವುದು?")
-        nod, line = (u.text for u in turn.units)
-        assert nod in _nods("question", Language.KN), nod
+        (line,) = (u.text for u in turn.units)
         assert line == ("ನಿಮ್ಮನ್ನು Beyond Bengaluru Cluster Seed Fund ಪುಟಕ್ಕೆ ಕರೆದುಕೊಂಡು ಹೋಗುತ್ತಿದ್ದೇನೆ.")
         assert _navigations(rig) == [{"url": SEED_FUND}]
 

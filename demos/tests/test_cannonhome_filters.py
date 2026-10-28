@@ -231,18 +231,6 @@ def test_the_landing_line_names_the_options() -> None:
     ]
 
 
-def test_the_hold_line_promises_a_check_only_for_a_question() -> None:
-    ack = ch.Acknowledger(ch._ACK_LINES, ch._ACK_HOLD, ch._ACK_SORRY)
-    for kind in ("request", "statement", None):
-        floor = ch._LateFloor(ack, None, 1, 2, kind)
-        assert floor.hold("en") == "Just a moment."
-        assert floor.hold("es") == "Dame un momento mientras lo busco."
-    question = ch._LateFloor(ack, None, 1, 2, "question")
-    assert {question.hold("en") for _ in range(20)} <= set(ch._ACK_HOLD["en"])
-    # A late nod, when there is one, is the hold line.
-    assert ch._LateFloor(ack, "Sure thing.", 1, 2, "request").hold("en") == "Sure thing."
-
-
 def test_the_prompt_teaches_several_options_of_one_filter() -> None:
     prompt = ch._prompt(STORE, ch.date(2030, 3, 4))
     assert "{filter: Color | Blanco, Beige}" in prompt

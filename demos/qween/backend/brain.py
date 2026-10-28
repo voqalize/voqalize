@@ -52,12 +52,10 @@ from voqalize_demos import (
     needs_result_now,
     phrase,
 )
-from voqalize_demos.acknowledge import hold_the_floor
 
 from voqalize.sdk import (
     Action,
     RTVIMessage,
-    RTVIType,
     Session,
     Speech,
     SpeechChunk,
@@ -67,7 +65,6 @@ from voqalize.sdk import (
 )
 from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
 
-from .acknowledge import Acknowledger
 from .app_events import (
     QWEEN_EVENTS,
     CommandFailed,
@@ -116,13 +113,6 @@ _IDLE_MS = 20_000
 _IDLE_NUDGES = 2
 
 LanguageName = Literal["english", "hindi"]
-
-
-def _avatar_state(session: Session, state: Literal["WORKING"] | None) -> None:
-    """The talking head's working latch: the runtime reads exactly this
-    message, holds it until speech owed has played, and lets the reply's own
-    playout end it. Without an avatar it reaches nothing."""
-    session.send_rtvi(RTVIType.SERVER_MESSAGE, {"type": "avatar", "cmd": "state", "state": state})
 
 
 @dataclass(frozen=True)
@@ -261,7 +251,7 @@ WHAT YOU DO NOT DO. You do not place orders, take payment or personal details, h
 
 THE FIRST SENTENCE IS A FEW WORDS. The shopper hears nothing until your whole first sentence has been voiced, and a long one is a long silence first. So open every reply, in English or Hindi, with a sentence of two to six words that ends in a full stop, then say the rest in the next sentence. Put the answer in it, not a preamble: "Yes, it's hallmarked. Every Qween piece carries the BIS mark." — not "Every piece we make is hallmarked by BIS, which certifies the purity of the gold, so you can…". "A cluster, for her. It looks larger than a solitaire for the price." Never join clauses with commas or a semicolon to stretch the first sentence.
 
-SOUND LIKE A PERSON, NOT A SCRIPT. Before most replies the shopper has already heard a short acknowledgement of mine — "Sure.", "Right.", "I see.", "जी।", "अच्छा।" — the moment they stopped speaking. So never open with one, and never open with a filler: your first word is the answer. Inside a reply, now and then — in about one reply in three, never two in a row — let a small filler in where a person thinking aloud would pause, at a later sentence's start or before the word you are choosing: "Rose gold suits you. It's, well, the lighter of the two." "A pendant works. Or, hmm, a light chain." Use "hmm", "so", "um", "well", "I think"; in Hindi "हम्म", "अच्छा", "तो". Never inside or next to a price, weight, karat, grade or a piece's name — a pause there sounds unsure of the fact. Never on an apology, never twice in one reply, and never "uh-huh" or "like".
+SOUND LIKE A PERSON, NOT A SCRIPT. Never open with a filler: your first word is the answer. Inside a reply, now and then — in about one reply in three, never two in a row — let a small filler in where a person thinking aloud would pause, at a later sentence's start or before the word you are choosing: "Rose gold suits you. It's, well, the lighter of the two." "A pendant works. Or, hmm, a light chain." Use "hmm", "so", "um", "well", "I think"; in Hindi "हम्म", "अच्छा", "तो". Never inside or next to a price, weight, karat, grade or a piece's name — a pause there sounds unsure of the fact. Never on an apology, never twice in one reply, and never "uh-huh" or "like".
 
 VOICE STYLE. Two or three sentences a turn, each under about fifteen words; take more only when they asked for an explanation, or to talk about a piece or a listing you have just shown. No markdown, lists or symbols in speech. No "Great question", no restating what they asked. Call the shopper "you".
 
@@ -733,7 +723,6 @@ class QweenBrain(GeminiBrain):
         self._moved_at = 0.0
         self.spoken: Language = SPEECH[OPENING].spoken
         self._fallback = FallbackLine()
-        self._ack = Acknowledger()
         #: The catalogue of the site this call was placed from, set at session
         #: start; the live site's until then.
         self._feed: FeedCache = FEED
@@ -783,43 +772,6 @@ class QweenBrain(GeminiBrain):
         if self._shopper_moved:
             moved = f"The shopper moved the page themselves. Now: {self._screen()}"
             self.append_to_context(types.Content(role="user", parts=[types.Part(text=moved)]))
-        # A nod of hers while the model thinks, in the voice now speaking. It
-        # is a unit Voqalize finalizes, queued ahead of the model's own, and
-        # never in the model's context. See `.acknowledge`.
-        if (nod := self._ack.line(msg.text, self.spoken)) is not None:
-            logger.info("qween: ack {!r}", nod)
-            async for event in self.say_line(nod):
-                yield event
-            # Heard, then at work: once the nod has played, the face turns to
-            # another screen and types until the answer comes, rather than
-            # holding the caller's eye in a silence it has already explained.
-            # The runtime arms it only after the nod is spoken, and ends it
-            # when the answer starts playing, so a model that answers inside
-            # the nod never shows it at all.
-            # Her own holding line is said from the screen and goes back to it;
-            # only the model's first words end the work.
-            working = True
-
-            def answered() -> None:
-                nonlocal working
-                if working:
-                    working = False
-                    _avatar_state(session, None)
-
-            _avatar_state(session, "WORKING")
-            try:
-                # The nod was the turn's first speech, so the runtime's "taking
-                # longer" line is already disarmed, and a slow model after
-                # "Sure." is silence until the shopper gives up: on 2026-09-29
-                # one sat 22 s after "Hmm.". So she holds the floor herself.
-                turn = super().on_user_message(session, msg)
-                async for event in hold_the_floor(
-                    self, self._ack, lambda: self.spoken, turn, answered
-                ):
-                    yield event
-            finally:
-                answered()
-            return
         async for event in super().on_user_message(session, msg):
             yield event
 

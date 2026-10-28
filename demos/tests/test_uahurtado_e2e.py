@@ -165,11 +165,8 @@ SITE = Knowledge(
 
 @pytest.fixture(autouse=True)
 def _site(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """Every session reads the invented university, and he never nods unless
-    a test asks him to: a nod is a unit of its own."""
+    """Every session reads the invented university."""
     monkeypatch.setattr(kb, "KNOWLEDGE", SITE)
-    monkeypatch.setattr(uah, "ACK_RATE", 0.0)
-    monkeypatch.setattr(uah, "HOLD_WITHOUT_NOD_S", 30.0)
     yield
 
 
@@ -292,7 +289,9 @@ async def test_english_heard_moves_both_legs_before_he_answers() -> None:
     )
     async with demo("uahurtado", llm) as rig:
         await rig.driver.start_session(init={"url": f"{ADM}/"})
-        turn = await rig.driver.user_says("What careers do you have in engineering?")
+        turn = await rig.driver.user_says(
+            "What careers do you have in engineering? I would like to know more, please."
+        )
         check_turn(rig, turn)
         check_voice_pair(rig, voice="omnivoice/javier", language="en")
 

@@ -2,9 +2,9 @@
 
 Cannon Home's visitors are in Chile. The accent is the speech tier's reference
 clip; the words are this brain's. Every Spanish line the brain writes itself —
-the greetings, nods, holding lines and the lines for a page move — carries no
-word or form only Spain uses, says "carro", never "cesta", and addresses the
-visitor as "tú", as the store does, never "usted". In Spanish the voice is
+the greetings and the lines for a page move — carries no word or form only
+Spain uses, says "carro", never "cesta", and addresses the visitor as "tú", as
+the store does, never "usted". In Spanish the voice is
 handed "bidéo" for "video", and the model only ever sees "video".
 
 What the model writes is a property of the prompt and the model; the prompt's
@@ -87,9 +87,6 @@ def _his_spanish_lines() -> list[str]:
         ch._GREETING["es"],
         *(opener["es"] for _, opener in ch._OPENERS),
         *(landed["es"] for landed in ch._LANDED.values()),
-        *(line for kind in ch._ACK_LINES["es"].values() for line in kind),
-        *ch._ACK_HOLD["es"],
-        ch._ACK_SORRY["es"],
     ]
     pages = [
         "/",

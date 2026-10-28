@@ -2,7 +2,7 @@
 
 CLINI's visitors are in Chile. The accent is the speech tier's reference clip;
 the words are this brain's. Every Spanish line the brain writes itself — the
-greetings, nods, holding lines and the lines for a page move — carries no word
+greetings and the lines for a page move — carries no word
 or form only Spain uses, and addresses the visitor as "tú", as the site does
 ("Agenda tu evaluación"), never "usted". In Spanish the voice is handed "bidéo"
 for "video", and the model only ever sees "video".
@@ -74,9 +74,6 @@ def _his_spanish_lines() -> list[str]:
         clini._AGENDA_GREETING["es"],
         *(opener["es"] for _, opener in clini._OPENERS),
         *(landed["es"] for landed in clini._LANDED.values()),
-        *(line for kind in clini._ACK_LINES["es"].values() for line in kind),
-        *clini._ACK_HOLD["es"],
-        clini._ACK_SORRY["es"],
     ]
     pages = ["/", "/cirugia-lasik", "/imagenes", "/laboratorio", "/ubicaciones", "/resultados"]
     lines += [clini.greeting(path, "site", "es") for path in pages]

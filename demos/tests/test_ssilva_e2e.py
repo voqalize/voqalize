@@ -251,10 +251,8 @@ PIES = ["No tengo ahorro", "Menos de $2.000.000", "Entre $2.000.000 a $5.000.000
 
 @pytest.fixture(autouse=True)
 def _site(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """Every session reads the small site, and he never nods unless a test asks
-    him to: a nod is a unit of its own."""
+    """Every session reads the small site."""
     monkeypatch.setattr(kb, "KNOWLEDGE", SITE)
-    monkeypatch.setattr(ssilva, "ACK_RATE", 0.0)
     yield
 
 
@@ -655,7 +653,9 @@ async def test_the_form_waits_for_a_project_page() -> None:
 async def test_english_heard_moves_both_legs_before_he_answers() -> None:
     async with demo("ssilva", _llm()) as rig:
         await rig.driver.start_session(init={"path": "/"})
-        turn = await rig.driver.user_says("Hi, can you show me projects in Las Condes please?")
+        turn = await rig.driver.user_says(
+            "Hi, can you show me projects in Las Condes please? I would like to know more, please."
+        )
         check_turn(rig, turn)
         check_voice_pair(rig, voice="omnivoice/javier", language="en")
         assert rig.command("language_changed") == {"language": "en"}

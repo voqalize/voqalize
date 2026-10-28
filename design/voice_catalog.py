@@ -49,10 +49,10 @@ CATALOG_VERSION = 1
 #: Engines whose voices left the `Voice` enum while a node may still serve them:
 #: a retirement reaches the proto first and each environment with its next
 #: speech release. A node serving one is reported, not failed, and the docs
-#: table leaves it out. Kokoro: retired 2026-10-26, off on dev already, off on
-#: prod with the speech release that sets VQL_TTS__KOKORO_ENABLED=false. Remove
-#: an engine from here once no node serves it.
-RETIRED_ENGINES = frozenset({"kokoro"})
+#: table leaves it out. Remove an engine from here once no node serves it.
+#: Kokoro was listed from its retirement (2026-10-26) until speech prod c0adeea
+#: (2026-10-28) left no node serving it.
+RETIRED_ENGINES: frozenset[str] = frozenset()
 
 BEGIN = "<!-- voices:begin -->"
 END = "<!-- voices:end -->"

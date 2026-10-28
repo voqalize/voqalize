@@ -186,8 +186,7 @@ because nothing after the call is spoken unless the tool is marked
 `@needs_result_now`. `legal` puts it in its prompt: *"SPEAK FIRST, THEN ACT, IN
 THE SAME RESPONSE. Whenever you call a tool, say your one short line first and
 make the call in that same response — never call a tool in silence, and never
-plan to speak after it returns."* `orderdesk` puts the same rule under its
-opening one: *"Start every reply with a tiny phrase so audio begins instantly."*
+plan to speak after it returns."*
 
 A model that calls a tool and says nothing leaves the user listening to silence
 until they speak again. If the turn produces no text at all, Voqalize's

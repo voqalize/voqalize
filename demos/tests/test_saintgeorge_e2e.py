@@ -138,10 +138,8 @@ SITE = Knowledge(
 
 @pytest.fixture(autouse=True)
 def _site(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """Every session reads the invented school, and he never nods unless a
-    test asks him to: a nod is a unit of its own."""
+    """Every session reads the invented school."""
     monkeypatch.setattr(kb, "KNOWLEDGE", SITE)
-    monkeypatch.setattr(sg, "ACK_RATE", 0.0)
     yield
 
 
@@ -437,7 +435,9 @@ async def test_the_toggle_switches_both_legs_and_confirms_each_way() -> None:
 async def test_english_heard_switches_before_he_answers_and_spanish_switches_back() -> None:
     async with demo("saintgeorge", _llm()) as rig:
         await rig.driver.start_session(init={"path": "/"})
-        turn = await rig.driver.user_says("Hi, can you tell me about the school?")
+        turn = await rig.driver.user_says(
+            "Hi, can you tell me about the school? I would like to know more, please."
+        )
         check_turn(rig, turn)
         check_voice_pair(rig, voice="omnivoice/javier", language="en")
         turn = await rig.driver.user_says("¿Qué unidades tienen?")
@@ -943,8 +943,3 @@ def test_his_lines_for_a_move_exist_in_both_languages() -> None:
         assert set(lines) == {"en", "es"}, kind
         assert all(line.strip() for line in lines.values()), kind
     assert set(TOGGLE_CONFIRM) == {"en", "es"}
-
-
-def test_the_floor_is_held_as_the_clini_guide_learned() -> None:
-    assert sg.ACK_HOLD_AFTER_S >= 5.5 and sg.ACK_SORRY_AFTER_S >= 15
-    assert sg.HOLD_WITHOUT_NOD_S <= 3.0

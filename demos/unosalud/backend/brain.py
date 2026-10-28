@@ -45,7 +45,6 @@ import contextlib
 import dataclasses
 import json
 import math
-import random
 import re
 import time
 from collections.abc import AsyncGenerator
@@ -65,21 +64,13 @@ from voqalize_demos import (
     needs_result_now,
     say_line,
 )
-from voqalize_demos.acknowledge import (
-    Acknowledger,
-    Floor,
-    Kind,
-    Vocabulary,
-    classify,
-    hold_the_floor,
-)
+from voqalize_demos.language_hold import HELD_NOTE, heard_language, holds_spanish, may_write_english
 
 from voqalize.sdk import (
     Action,
     Finalize,
     RequestRejected,
     RTVIMessage,
-    RTVIType,
     Session,
     Speech,
     SpeechChunk,
@@ -143,8 +134,6 @@ UNOSALUD_PATIENCE = PATIENCE + 2
 #: While a form is open for them to dictate into: a name, a birth date or a
 #: celular is said in pieces (Clini, prod 2026-10-22).
 FORM_PATIENCE = 9
-#: A message this soon after the last one is the rest of the same thought.
-_FRAGMENT_S = 4.0
 
 # ─── Language ──────────────────────────────────────────────────────────────────
 
@@ -1027,7 +1016,7 @@ You are giving a guided walkthrough, like someone sitting beside the visitor wit
 You are heard, not read.
 - A turn is two to four short sentences. Every sentence under fifteen words. One idea and one number per sentence.
 - THE FIRST SENTENCE IS A FEW WORDS, two to six, ending in a full stop, with the answer in it. A cue may come before it.
-- Before most replies the visitor already heard a short acknowledgement of mine ("Claro.", "A ver.", "Happy to help."), so never open with one, and never repeat their question.
+- Your first word is the answer: no filler, and never repeat their question.
 - Spoken words only, apart from cues: no lists, no markdown, no symbols, no exclamation marks.
 - Every number, price, date and hour as spoken words. "$383.500" is "trescientos ochenta y tres mil quinientos pesos". "2026-10-31" is "el sábado treinta y uno de octubre". "16:30" is "a las cuatro y media de la tarde".
 - A phone number is read digit by digit, never reshaped: 600 707 1010 is "seis cero cero, siete cero siete, uno cero uno cero" (in English "six oh oh, seven oh seven, one oh one oh"). A celular the visitor gave is read back digit by digit, exactly as they said it.
@@ -1036,7 +1025,7 @@ You are heard, not read.
 
 # Spanish or English
 You speak Spanish as a native of Latin America, and English. The call starts in Spanish unless the visitor chose English.
-- Answer in the language the visitor speaks to you; your voice follows the language you write. Except when they chose a language (a bracket line says so): then keep it until they ask to switch.
+- Answer in Spanish. Move to English only when the visitor says at least two full sentences in English in one turn, or asks for English; then answer in English from that reply on, and if the visitor go back to Spanish, so do you. Speech recognition often hears a short Spanish reply or a Chilean name as English ("See" for "sí", "And lower net here" for "Lo Barnechea"): the visitor is still speaking Spanish, so answer in Spanish. Your voice follows the language you write. Except when they chose a language (a bracket line says so): then keep it until they ask to switch.
 - When they ask for the other language in words that are not already it, answer in that language and call set_language in the same response.
 - One language per reply, and masculine forms for yourself ("encantado de ayudarte").
 - Your Spanish is neutral Latin American Spanish, natural for a Chilean visitor, never the Spanish of Spain and never heavy slang:
@@ -1298,106 +1287,6 @@ _PROMISE = re.compile(
     re.IGNORECASE,
 )
 
-# ─── His nod ───────────────────────────────────────────────────────────────────
-
-#: Only lines measured to come out in Javier's own voice (Clini's measured set
-#: for this bake of omnivoice/javier): measure a new line before adding it.
-_ACK_LINES: dict[Lang, dict[Kind, tuple[str, ...]]] = {
-    "en": {
-        "request": ("Happy to help.", "Absolutely, let me do that.", "Sure thing."),
-        "question": ("Let me see.", "Good question, let me see."),
-        "correction": ("Got it, thanks for letting me know.", "Ah, I see what you mean."),
-        "statement": ("Okay, that makes sense.", "Got it, thanks for letting me know."),
-    },
-    "es": {
-        "request": (
-            "Claro.",
-            "Con gusto, ya lo hago.",
-            "Por supuesto, déjame revisarlo.",
-            "Claro, ahora mismo.",
-        ),
-        "question": ("A ver.", "Déjame revisarlo un momento."),
-        "correction": ("Entendido, gracias por avisarme.", "Entendido, eso me ayuda."),
-        "statement": ("Entendido, eso me ayuda.", "Claro."),
-    },
-}
-ACK_RATE = 0.75
-ACK_HOLD_AFTER_S = 5.75
-HOLD_WITHOUT_NOD_S = 3.2
-ACK_SORRY_AFTER_S = 15.0
-_ACK_HOLD: dict[Lang, tuple[str, ...]] = {
-    "en": ("Just a moment.", "One moment while I check that for you."),
-    "es": ("Dame un momento mientras lo busco.", "Un momento mientras lo reviso para ti."),
-}
-_ACK_SORRY: dict[Lang, str] = {
-    "en": "Sorry, that's taking a little longer.",
-    "es": "Lo siento, está tardando un poco más de lo normal.",
-}
-_ACK_WORDS = Vocabulary(
-    common=frozenset(
-        """uno salud dental dentista odontologo clinica clinicas sucursal hora horas agenda
-        agendar reservar reserva cita diagnostico evaluacion limpieza ortodoncia frenillos
-        brackets alineadores implante implantes muela muelas diente dientes encias conducto
-        endodoncia blanqueamiento radiografia radiografias protesis bruxismo urgencia
-        urgencias dolor convenio convenios fonasa isapre caja previsión precio precios valor
-        cuotas promocion promociones plan planes rut comuna region santiago providencia
-        maipu florida concepcion temuco antofagasta appointment booking clinic dentist
-        teeth tooth braces implant cleaning whitening price prices emergency
-        """.split()  # noqa: SIM905
-    ),
-)
-
-
-@dataclasses.dataclass
-class _LateFloor:
-    ack: Acknowledger[Lang]
-    nod: str | None
-    hold_after_s: float
-    sorry_after_s: float
-
-    @property
-    def sorry(self) -> dict[Lang, str]:
-        return _ACK_SORRY
-
-    def hold(self, spoken: Lang) -> str:
-        return self.nod or self.ack.hold(spoken)
-
-
-_WANTS = re.compile(
-    r"\b(?:me gustaria|quiero|quisiera|necesito|i'?d like|i want|i need|i would like)\b"
-)
-_CLOSING = re.compile(r"\b(?:gracias|adios|chao|chau|thanks|thank you|bye|goodbye)\b")
-
-
-def nod_kind(text: str) -> Kind | None:
-    kind = classify(text, _ACK_WORDS)
-    if kind in ("statement", "correction") and _WANTS.search(fold(text)):
-        return "request"
-    return kind
-
-
-def is_closing(text: str) -> bool:
-    return "?" not in text and bool(_CLOSING.search(fold(text)))
-
-
-class _Nods(Acknowledger[Lang]):
-    def line(self, text: str, spoken: Lang) -> str | None:
-        kind = nod_kind(text)
-        lines = self.lines.get(spoken, {}).get(kind) if kind else None
-        if not lines or self.rng.random() >= self.rate:
-            return None
-        return self._pick(lines)
-
-
-def _late_nod(text: str, spoken: Lang) -> str | None:
-    kind = nod_kind(text)
-    lines = _ACK_LINES[spoken].get(kind) if kind else None
-    return random.choice(lines) if lines else None
-
-
-def _avatar_state(session: Session, state: Literal["WORKING"] | None) -> None:
-    session.send_rtvi(RTVIType.SERVER_MESSAGE, {"type": "avatar", "cmd": "state", "state": state})
-
 
 async def _silence() -> AsyncGenerator[Any, None]:
     for _ in ():
@@ -1522,20 +1411,11 @@ class UnoSaludBrain(OpenAIBrain):
             model=model,
             reasoning=REASONING,
         )
-        self._heard_at = float("-inf")
         self.spoken: Lang = OPENING
         self._chosen = False
+        self._last_heard = ""
         self._confirm: str | None = None
         self._fallback = FallbackLine()
-        self._ack: Acknowledger[Lang] = _Nods(
-            _ACK_LINES,
-            _ACK_HOLD,
-            _ACK_SORRY,
-            _ACK_WORDS,
-            ACK_RATE,
-            ACK_HOLD_AFTER_S,
-            ACK_SORRY_AFTER_S,
-        )
         #: The tab in front as it last reported itself.
         self.page: PageChanged | None = None
         self._path = "/"
@@ -1619,12 +1499,17 @@ class UnoSaludBrain(OpenAIBrain):
         return self._own_turn(self._answer(session, msg))
 
     async def _answer(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
-        """As Clini: the language they speak, the screen read in, his nod, and
-        the floor held through the model's thinking."""
-        heard = None if self._chosen else language_of(msg.text)
+        """As Clini: the language they speak, and the screen read in. The
+        runtime acknowledges the visitor while the model thinks (``Config.ack``,
+        on by default)."""
+        self._last_heard = msg.text
+        heard = None if self._chosen else heard_language(msg.text, self.spoken, language_of)
         if heard is not None and heard != self.spoken:
             await session.configure(self._speaking(heard))
             logger.info("unosalud: language -> {} (heard)", heard)
+        if holds_spanish(msg.text, self.spoken, language_of):
+            logger.info("unosalud: held in Spanish: {!r}", msg.text)
+            self._note(HELD_NOTE)
         self._talk = None
         self._led = None
         self._outcomes.clear()
@@ -1648,42 +1533,10 @@ class UnoSaludBrain(OpenAIBrain):
             )
         self._restore_idle()
         self._read_in_screen()
-        now = time.monotonic()
-        fragment, self._heard_at = now - self._heard_at < _FRAGMENT_S, now
-        nod = None if fragment else self._ack.line(msg.text, self.spoken)
-        floor: Floor[Lang] = self._ack
-        lead = self._lead(msg.text)
-        if nod is not None:
-            logger.info("unosalud: ack {!r}", nod)
-            async for event in say_line(self, nod):
-                yield event
-            _avatar_state(session, "WORKING")
-        else:
-            floor = _LateFloor(
-                self._ack,
-                None if fragment else _late_nod(msg.text, self.spoken),
-                HOLD_WITHOUT_NOD_S,
-                ACK_SORRY_AFTER_S,
-            )
-        if lead is not None:
-            self._send_lead(lead, "nod" if nod is not None else "now")
-        working = nod is not None
-        closing = nod is None and is_closing(msg.text)
-
-        def answered() -> None:
-            nonlocal working
-            if working:
-                working = False
-                _avatar_state(session, None)
-
-        try:
-            turn = super().on_user_message(session, msg)
-            if not closing:
-                turn = hold_the_floor(self, floor, lambda: self.spoken, turn, answered)
-            async for event in turn:
-                yield event
-        finally:
-            answered()
+        if (lead := self._lead(msg.text)) is not None:
+            self._send_lead(lead)
+        async for event in super().on_user_message(session, msg):
+            yield event
 
     async def _own_turn(self, turn: AsyncGenerator[Speech, None]) -> AsyncGenerator[Speech, None]:
         self._turns += 1
@@ -1790,6 +1643,10 @@ class UnoSaludBrain(OpenAIBrain):
         async def release() -> AsyncGenerator[Speech, None]:
             nonlocal held, text
             written = language_of(text, sure=False)
+            if written == "en" and not may_write_english(
+                self._last_heard, self.spoken, language_of
+            ):
+                written = None
             if written is not None and written != self.spoken:
                 await session.configure(self._speaking(written))
                 logger.info("unosalud: language -> {} (written)", written)
@@ -1862,7 +1719,7 @@ class UnoSaludBrain(OpenAIBrain):
         return f"{{page: {path}}}{chunk}"
 
     def _lead(self, text: str) -> str | None:
-        """The page to open while his nod plays (as Clini): not for a booking
+        """The page to open while the model thinks (as Clini): not for a booking
         ask, a question about the call, or one the page in front answers."""
         path = self._backstop
         if (
@@ -1878,10 +1735,10 @@ class UnoSaludBrain(OpenAIBrain):
             return None
         return path
 
-    def _send_lead(self, path: str, when: Literal["nod", "now"]) -> None:
+    def _send_lead(self, path: str) -> None:
         self._led = path
-        logger.info("unosalud: opening {} ahead of the answer ({})", path, when)
-        self.session.dispatch(Cue(at="", path=path, lead=when))
+        logger.info("unosalud: opening {} ahead of the answer", path)
+        self.session.dispatch(Cue(at="", path=path, lead="now"))
 
     def _send_cue(self, raw: RawCue, *, first_unit: bool = False) -> None:
         """Check a cue against the catalogue and send it; one that names nothing

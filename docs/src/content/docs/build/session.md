@@ -146,6 +146,14 @@ Content-Type: application/json
 until something sets a timeout, because a nudge nobody asked for talks over a
 user who was thinking.
 
+**`ack.enabled` defaults to on.** While your brain works on its reply, Voqalize
+says a short acknowledgement of its own — "Let me check.", "Sure." — chosen
+from what the caller said, in the languages it has a vocabulary for. Send
+`"ack": { "enabled": false }` to turn it off for this call, or have the brain
+send the same section from `on_session_start` to turn it off for every call to
+the agent. Turn it off if your brain opens its replies with its own
+acknowledgement. See [`ack`](/reference/wire/#ack--voqalize-acknowledges-while-the-brain-thinks).
+
 **`stt.patience` is a scale from 0 to 10** for how long a pause has to run before
 the turn ends. The `9` above is a choice, not the default: this caller is reading
 an order number off a printed slip. Leave the field out and the session runs the
@@ -165,7 +173,7 @@ moving one leaves the call listening in a language it is answering out of. See
 question underneath it.
 
 `record` rides beside them and stays out of the wire `Config`,
-because its lifetime is different: `tts`, `stt` and `idle` move any time, and
+because its lifetime is different: `tts`, `stt`, `idle` and `ack` move any time, and
 recording is decided once, here. A `pk_` key may turn it off and may not turn it
 on — [recordings](/operate/recordings/) says why.
 

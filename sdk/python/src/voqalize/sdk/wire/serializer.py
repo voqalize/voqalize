@@ -24,6 +24,7 @@ from loguru import logger
 from . import _frames_pb2 as pb
 from .frames import (
     WIRE_FRAME_CLASSES,
+    AckConfig,
     CancelFrame,
     Capability,
     Config,
@@ -230,6 +231,10 @@ def _enc_configure(f: ConfigureFrame, env: pb.Envelope) -> None:
         m.idle.SetInParent()
         if c.idle.timeout_ms is not None:
             m.idle.timeout_ms = c.idle.timeout_ms
+    if c.ack is not None:
+        m.ack.SetInParent()
+        if c.ack.enabled is not None:
+            m.ack.enabled = c.ack.enabled
 
 
 def _enc_response(f: ResponseFrame, env: pb.Envelope) -> None:
@@ -379,7 +384,7 @@ def _dec_language(m: pb.TtsConfig | pb.SttConfig) -> Language | str | None:
 
 def _dec_configure(req: pb.Request) -> ConfigureFrame:
     m = req.configure
-    tts = stt = idle = None
+    tts = stt = idle = ack = None
     if m.HasField("tts"):
         tts = TtsConfig(voice=_dec_voice(m.tts), language=_dec_language(m.tts))
     if m.HasField("stt"):
@@ -391,7 +396,11 @@ def _dec_configure(req: pb.Request) -> ConfigureFrame:
         idle = IdleConfig(
             timeout_ms=m.idle.timeout_ms if m.idle.HasField("timeout_ms") else None,
         )
-    return ConfigureFrame(request_id=req.request_id, config=Config(tts=tts, stt=stt, idle=idle))
+    if m.HasField("ack"):
+        ack = AckConfig(enabled=m.ack.enabled if m.ack.HasField("enabled") else None)
+    return ConfigureFrame(
+        request_id=req.request_id, config=Config(tts=tts, stt=stt, idle=idle, ack=ack)
+    )
 
 
 _OP_DECODERS: dict[str, Callable[[pb.Request], Frame]] = {

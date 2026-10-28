@@ -42,8 +42,9 @@ AGENDA = "https://agenda-web.clini.cl/"
 TIMEZONE = ZoneInfo("America/Santiago")
 
 #: How long one tool waits for its lookup, all of its requests together: a
-#: visitor is waiting, with only his nod in the air. A per-request timeout is
-#: not that: one 4 s per phase let a lookup run past 8 s (dev call 2fd742d5).
+#: visitor is waiting, with only the runtime's acknowledgement in the air. A
+#: per-request timeout is not that: one 4 s per phase let a lookup run past
+#: 8 s (dev call 2fd742d5).
 PRICE_DEADLINE_S = 4.0
 AGENDA_DEADLINE_S = 6.0
 #: One request's own ceiling, longer than either deadline: a lookup the tool

@@ -205,10 +205,8 @@ def _shown(
 
 @pytest.fixture(autouse=True)
 def _store(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """Every session reads the invented store, and he never nods unless a test
-    asks him to: a nod is a unit of its own."""
+    """Every session reads the invented store."""
     monkeypatch.setattr(kb, "KNOWLEDGE", STORE)
-    monkeypatch.setattr(ch, "ACK_RATE", 0.0)
     yield
 
 
@@ -456,7 +454,9 @@ async def test_a_call_started_in_english_greets_in_english() -> None:
 async def test_english_heard_moves_the_call_and_spanish_brings_it_back() -> None:
     async with demo("cannonhome", _llm()) as rig:
         await rig.driver.start_session(init={"path": "/"})
-        turn = await rig.driver.user_says("How much is shipping?")
+        turn = await rig.driver.user_says(
+            "How much is shipping? I would like to know more, please."
+        )
         check_turn(rig, turn)
         check_voice_pair(rig, voice="omnivoice/javier", language="en")
         await rig.driver.user_says("Hola, ¿cómo estás?")
@@ -1068,7 +1068,6 @@ def test_no_written_line_blames_the_store() -> None:
         for said in by_lang.values()
         for line in ([said] if isinstance(said, str) else said)
     ]
-    lines += [*ch._ACK_SORRY.values(), *(x for v in ch._ACK_HOLD.values() for x in v)]
     assert lines
     assert [line for line in lines if _BLAMES.search(line)] == []
 

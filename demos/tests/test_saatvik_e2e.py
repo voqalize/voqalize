@@ -177,10 +177,8 @@ NONE: dict[str, Any] = {"path": None, "heading": None, "text": None, "tab": None
 
 @pytest.fixture(autouse=True)
 def _site(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """Every session reads the invented site, not the committed crawl, and she
-    never nods unless a test asks her to: a nod is a unit of its own."""
+    """Every session reads the invented site, not the committed crawl."""
     monkeypatch.setattr(kb, "KNOWLEDGE", SITE)
-    monkeypatch.setattr(saatvik, "ACK_RATE", 0.0)
     yield
 
 
@@ -970,54 +968,6 @@ async def test_a_calculator_with_no_state_asks_for_it_rather_than_guess() -> Non
         check_turn(rig, turn)
         assert turn.text == saatvik._ASK_STATE[saatvik.Language.EN][0]
         assert "run_calculator" not in rig.actions()
-
-
-async def test_the_rest_of_a_split_question_gets_no_second_nod(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(saatvik, "ACK_RATE", 1.0)
-    async with demo("saatvik", _llm()) as rig:
-        await rig.driver.start_session(init={"page": "/modules"})
-        first = await rig.driver.user_says("How does this one compare?")
-        rest = await rig.driver.user_says("Against the mono.")
-        nods = {
-            line for lines in saatvik._ACK_LINES[saatvik.Language.EN].values() for line in lines
-        }
-        assert any(first.text.startswith(n) for n in nods)
-        assert rest.text == "TOPCon beats Mono PERC in heat."
-
-
-async def test_a_question_gets_her_nod_then_the_answer(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The nod is a unit of her own ahead of the model's, and never in its context."""
-    monkeypatch.setattr(saatvik, "ACK_RATE", 1.0)
-    llm = _llm()
-    async with demo("saatvik", llm) as rig:
-        await rig.driver.start_session(init={"page": "/"})
-        turn = await rig.driver.user_says("Is TOPCon better than PERC?")
-        nod = turn.units[0].text
-        assert nod in saatvik._ACK_LINES[saatvik.Language.EN]["question"]
-        assert turn.text.endswith("It handles heat better than PERC.")
-        await rig.driver.user_says("Is TOPCon better than PERC?")
-        said = _texts([i for i in llm.captured_inputs[-1] if i.get("role") == "assistant"])
-        assert "It handles heat better than PERC." in said
-        assert nod not in said
-
-
-async def test_a_slow_model_after_the_nod_is_held(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The nod disarms the runtime's "taking longer" line, so she holds the floor."""
-    monkeypatch.setattr(saatvik, "ACK_RATE", 1.0)
-    monkeypatch.setattr(saatvik, "ACK_HOLD_AFTER_S", 0.2)
-    llm = ScriptedOpenAI(
-        {"Is TOPCon better than PERC?": [reply(chunks=["Yes, TOPCon."], chunk_delay=0.6)]}
-    )
-    async with demo("saatvik", llm) as rig:
-        await rig.driver.start_session(init={"page": "/"})
-        turn = await rig.driver.user_says("Is TOPCon better than PERC?", quiet_for=1.0)
-        check_turn(rig, turn, units=3)
-        nod, hold, answer = (u.text for u in turn.units)
-        assert nod in saatvik._ACK_LINES[saatvik.Language.EN]["question"]
-        assert hold in saatvik._ACK_HOLD[saatvik.Language.EN]
-        assert answer == "Yes, TOPCon."
 
 
 async def test_a_second_fill_adds_to_the_form_and_keeps_what_is_there() -> None:

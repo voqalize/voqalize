@@ -354,9 +354,9 @@ message Response {
 // Voqalize's default*. On the wire it means *leave it alone*: a Request carries
 // a delta, and the runtime is already running.
 //
-// One op carries all three sections rather than three ops carrying one each,
-// because a language change has to touch both legs at once. Three ops would put
-// a turn boundary between the halves.
+// One op carries every section rather than one op per section, because a
+// language change has to touch both legs at once. Separate ops would put a turn
+// boundary between the halves.
 message Config {
   // How the session speaks.
   TtsConfig tts = 1;
@@ -366,6 +366,9 @@ message Config {
 
   // How long it waits before re-engaging.
   IdleConfig idle = 3;
+
+  // Whether the runtime acknowledges the caller while the brain thinks.
+  AckConfig ack = 4;
 }
 
 // The speaking leg. Applies to the next speech unit, never mid-utterance.
@@ -445,6 +448,18 @@ message IdleConfig {
   // Silence after the runtime stops speaking before the brain is handed the
   // floor. 0 disables idle detection entirely.
   optional uint32 timeout_ms = 1;
+}
+
+// The runtime's own acknowledgement: a short line such as "Let me check." or
+// "Sure.", spoken when the caller's turn ends and the brain's reply has not yet
+// begun, chosen from what the caller said. It is said only in the languages
+// the runtime has a vocabulary for, and otherwise nothing is said. A brain that
+// opens its replies with its own nod should turn this off, or the caller hears
+// two.
+message AckConfig {
+  // On or off. Unset at session creation is on; on the wire, unset leaves it
+  // alone. Applies from the next turn.
+  optional bool enabled = 1;
 }
 
 // ─── The catalog ─────────────────────────────────────────────────────────────

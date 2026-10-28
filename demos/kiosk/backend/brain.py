@@ -1209,11 +1209,10 @@ class KioskBrain(GeminiBrain):
         and PAN, pass the characters; the kiosk masks them on screen for you.
 
         Say your line in the same response. A closed answer settles here and
-        needs no reading back: acknowledge in two or three words and ask the next
-        question once — this puts it on screen by itself. After the last of the
-        four, call check_eligibility in the same response. For mobile and PAN,
-        read the value back in words and ask if it is right; pass their reply to
-        confirm.
+        needs no reading back: ask the next question once — this puts it on
+        screen by itself. After the last of the four, call check_eligibility in
+        the same response. For mobile and PAN, read the value back in words and
+        ask if it is right; pass their reply to confirm.
         """
         value = normalise(heard.field, heard.value)
         if value is None:

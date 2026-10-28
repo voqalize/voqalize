@@ -12,8 +12,7 @@ shows as a typed event (:mod:`.app_events`), whoever moved it.
 This is a port of the Saint George's guide (``demos/saintgeorge``), on the
 Figurella guide's catalogue of places (``demos/figurella``), with the
 Universidad Alberto Hurtado guide's form fill and its money-to-voice
-(``demos/uahurtado``): the floor held after the nod, talk-throughs that wait
-for his speech and run with tools off, one page move at a time, the screen
+(``demos/uahurtado``): talk-throughs that wait for his speech and run with tools off, one page move at a time, the screen
 following his voice.
 
 **A guide for a family choosing a school.** Every turn answers what was
@@ -50,7 +49,6 @@ from __future__ import annotations
 
 import dataclasses
 import math
-import random
 import re
 import time
 from collections.abc import AsyncGenerator
@@ -69,21 +67,13 @@ from voqalize_demos import (
     needs_result_now,
     say_line,
 )
-from voqalize_demos.acknowledge import (
-    Acknowledger,
-    Floor,
-    Kind,
-    Vocabulary,
-    classify,
-    hold_the_floor,
-)
+from voqalize_demos.language_hold import HELD_NOTE, heard_language, holds_spanish, may_write_english
 
 from voqalize.sdk import (
     Action,
     Finalize,
     RequestRejected,
     RTVIMessage,
-    RTVIType,
     Session,
     Speech,
     SpeechChunk,
@@ -156,8 +146,6 @@ _TALK_THROUGH_MS = 2_000
 #: A little more patience than the demos' default: an email or a phone number
 #: is dictated with pauses.
 EVEREST_PATIENCE = PATIENCE + 2
-#: A message this soon after the last one is the rest of the same thought.
-_FRAGMENT_S = 4.0
 
 # ─── Language ──────────────────────────────────────────────────────────────────
 
@@ -642,7 +630,7 @@ You are heard, not read, so keep it light and warm.
 - A turn is three to five short sentences. A walkthrough of a page can run to seven, one place per sentence, each with its cue.
 - Every sentence under fifteen words. Small, everyday words. One idea per sentence. One number per sentence.
 - THE FIRST SENTENCE IS A FEW WORDS. The visitor hears nothing until your first sentence has been voiced, so open every reply with a sentence of two to six words that ends in a full stop, with the answer in it. A cue may come before it.
-- Before most replies the visitor has already heard a short acknowledgement of mine — "Claro.", "A ver.", or in English "Happy to help.", "Let me see." — so never open with one: your first word is the answer. No "great question", no repeating their question back.
+- Your first word is the answer: no filler, no "great question", no repeating their question back.
 - Spoken words only, apart from cues: no lists, no markdown, no symbols, never an exclamation mark. Write dates, grades and numbers as spoken words: "el veinte de octubre", "cuarto medio", "primero básico", "ciento dos coma cincuenta y ocho UF", never "20/10", "IV medio", "1°" or "102,58".
 - Lines in square brackets come from their screen, not the visitor. Never read them out; use them.
 - Always answer. A reply with no words leaves the visitor in silence.
@@ -651,7 +639,7 @@ You are heard, not read, so keep it light and warm.
 
 # Spanish or English
 You speak Spanish as a native of Latin America, and English. The call starts in Spanish unless the visitor chose English.
-- Answer in the language the visitor speaks to you. If they speak English, answer in English from that reply on; if they go back to Spanish, so do you.
+- Answer in Spanish. Move to English only when the visitor says at least two full sentences in English in one turn, or asks for English; then answer in English from that reply on, and if the visitor go back to Spanish, so do you. Speech recognition often hears a short Spanish reply or a Chilean name as English ("See" for "sí", "And lower net here" for "Lo Barnechea"): the visitor is still speaking Spanish, so answer in Spanish. Your voice follows the language you write.
 - Except when they chose a language: a line in square brackets says so. Then answer in that language whatever they speak, until they ask you to switch.
 - When they ask for the other language in words that are not already it ("¿Puedes hablar en inglés?", "Can we speak Spanish?"), answer in that language and call set_language in the same response. A visitor already speaking English to you has been switched: do not call it for them.
 - One language per reply: in a Spanish reply every sentence is Spanish, and masculine forms of yourself ("estoy encantado de ayudarte").
@@ -832,101 +820,6 @@ _LANDED: dict[str, dict[Lang, str]] = {
     },
     "tab": {"en": "There's that tab.", "es": "Ahí tienes esa pestaña."},
 }
-
-# ─── His nod ───────────────────────────────────────────────────────────────────
-
-#: Only lines measured to come out in Javier's own voice: each line is voiced
-#: on its own and always the same way, and "Right.", "One moment." or "Un
-#: momento." came out as somebody else (82 Hz and 166 Hz against his 110-132).
-#: This is Explora's measured set (speaker embedding and pitch against his own
-#: replies). It holds for this bake of omnivoice/javier: measure a new line first.
-_ACK_LINES: dict[Lang, dict[Kind, tuple[str, ...]]] = {
-    "en": {
-        "request": ("Happy to help.", "Absolutely, let me do that.", "Sure thing."),
-        "question": ("Let me see.", "Good question, let me see."),
-        "correction": ("Got it, thanks for letting me know.", "Ah, I see what you mean."),
-        "statement": ("Okay, that makes sense.", "Got it, thanks for letting me know."),
-    },
-    "es": {
-        "request": (
-            "Claro.",
-            "Con gusto, ya lo hago.",
-            "Por supuesto, déjame revisarlo.",
-            "Claro, ahora mismo.",
-        ),
-        "question": ("A ver.", "Déjame revisarlo un momento."),
-        "correction": ("Entendido, gracias por avisarme.", "Entendido, eso me ayuda."),
-        "statement": ("Entendido, eso me ayuda.", "Claro.", "Entendido, gracias por avisarme."),
-    },
-}
-#: Santander Arena's rate: every page here is a full load, and the nod is what
-#: the visitor hears while the next page comes in.
-ACK_RATE = 0.9
-#: After a nod, how long the model may stay quiet before he holds the floor.
-#: The brain answers from India; on the Clini guide's calls a turn with a move
-#: took five or six seconds, and at 4 s nearly every one said "Just a moment."
-ACK_HOLD_AFTER_S = 5.75
-#: With no nod, the dead air a turn may leave before his first line: a late nod
-#: for what they said, or a hold line. Without it, a turn the nod skipped sat in
-#: ten seconds of silence on the Clini guide.
-HOLD_WITHOUT_NOD_S = 2.5
-#: "Sorry, that's taking a little longer." only when it really is.
-ACK_SORRY_AFTER_S = 15.0
-_ACK_HOLD: dict[Lang, tuple[str, ...]] = {
-    "en": ("Just a moment.", "One moment while I check that for you."),
-    "es": ("Dame un momento mientras lo busco.", "Un momento mientras lo reviso para ti."),
-}
-_ACK_SORRY: dict[Lang, str] = {
-    "en": "Sorry, that's taking a little longer.",
-    "es": "Lo siento, está tardando un poco más de lo normal.",
-}
-#: A visitor's ordinary words about the school, so the reading trusts them.
-_ACK_WORDS = Vocabulary(
-    common=frozenset(
-        # A word list reads as words, so it stays a split string.
-        """colegio everest admisión admision postular postulación postulacion vacantes vacante
-        cupos matrícula matricula colegiatura valores arancel aranceles uf kínder kinder
-        prekínder prekinder playgroup bambolino mini básico basico medio ciclo curso cursos
-        nivel niveles hijo hija hijos edad años nació nacio inglés ingles cambridge católico
-        catolico religión religion misa formación formacion deporte canchas gimnasio
-        infraestructura instalaciones tour visita agendar entrevista evaluación evaluacion
-        resultados uniforme útiles utiles casino bus enfermería enfermeria contacto correo
-        formulario mensaje teléfono telefono directora encargada school apply admission
-        vacancies fees tuition level grade english visit tour form
-        """.split()  # noqa: SIM905
-    ),
-)
-
-
-@dataclasses.dataclass
-class _LateFloor:
-    """The floor for a turn that had no nod: a nod for what they said, late,
-    else a hold line; then the apology. What :func:`hold_the_floor` reads."""
-
-    ack: Acknowledger[Lang]
-    nod: str | None
-    hold_after_s: float
-    sorry_after_s: float
-
-    @property
-    def sorry(self) -> dict[Lang, str]:
-        return _ACK_SORRY
-
-    def hold(self, spoken: Lang) -> str:
-        return self.nod or self.ack.hold(spoken)
-
-
-def _late_nod(text: str, spoken: Lang) -> str | None:
-    """The nod :class:`Acknowledger` would have chosen, had the dice said yes."""
-    kind = classify(text, _ACK_WORDS)
-    lines = _ACK_LINES[spoken].get(kind) if kind else None
-    return random.choice(lines) if lines else None
-
-
-def _avatar_state(session: Session, state: Literal["WORKING"] | None) -> None:
-    """The talking head's working latch: held until speech owed has played."""
-    session.send_rtvi(RTVIType.SERVER_MESSAGE, {"type": "avatar", "cmd": "state", "state": state})
-
 
 _ANCHORS_IN_NOTE = 40
 _SEARCH_HITS = 6
@@ -1515,24 +1408,15 @@ class ColegioEverestBrain(OpenAIBrain):
             model=model,
             reasoning=REASONING,
         )
-        self._heard_at = float("-inf")
         #: The language he speaks now, and the toggle's written confirmation
         #: of a switch, said at the start of his next turn.
         self.spoken: Lang = OPENING
         #: Whether the visitor chose the language, which then holds whatever
         #: they speak; until they do, it follows what they speak.
         self._chosen = False
+        self._last_heard = ""
         self._confirm: str | None = None
         self._fallback = FallbackLine()
-        self._ack = Acknowledger(
-            _ACK_LINES,
-            _ACK_HOLD,
-            _ACK_SORRY,
-            _ACK_WORDS,
-            ACK_RATE,
-            ACK_HOLD_AFTER_S,
-            ACK_SORRY_AFTER_S,
-        )
         #: The tab in front as it last reported itself, and whether the model
         #: has seen it since it changed.
         self.page: PageChanged | None = None
@@ -1632,12 +1516,16 @@ class ColegioEverestBrain(OpenAIBrain):
     async def _answer(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
         """A visitor who speaks the other language is answered in it from the
         first word, unless they chose the language they are in; the tab they
-        moved to is read in with what they said; his nod covers the model's
-        thinking, and his own line any dead air after it (:func:`hold_the_floor`)."""
-        heard = None if self._chosen else language_of(msg.text)
+        moved to is read in with what they said. The runtime acknowledges the
+        visitor while the model thinks (``Config.ack``, on by default)."""
+        self._last_heard = msg.text
+        heard = None if self._chosen else heard_language(msg.text, self.spoken, language_of)
         if heard is not None and heard != self.spoken:
             await session.configure(self._speaking(heard))
             logger.info("colegioeverest: language -> {} (heard)", heard)
+        if holds_spanish(msg.text, self.spoken, language_of):
+            logger.info("colegioeverest: held in Spanish: {!r}", msg.text)
+            self._note(HELD_NOTE)
         # They spoke first: the page's answers are in the context as notes, and
         # he answers them with what they said.
         self._talk = None
@@ -1656,36 +1544,8 @@ class ColegioEverestBrain(OpenAIBrain):
         self._by_tool = bool(_BY_TOOL.search(fold(msg.text)))
         self._restore_idle()
         self._read_in_screen()
-        now = time.monotonic()
-        fragment, self._heard_at = now - self._heard_at < _FRAGMENT_S, now
-        nod = None if fragment else self._ack.line(msg.text, self.spoken)
-        floor: Floor[Lang] = self._ack
-        if nod is not None:
-            logger.info("colegioeverest: ack {!r}", nod)
-            async for event in say_line(self, nod):
-                yield event
-            _avatar_state(session, "WORKING")
-        else:
-            floor = _LateFloor(
-                self._ack,
-                None if fragment else _late_nod(msg.text, self.spoken),
-                HOLD_WITHOUT_NOD_S,
-                ACK_SORRY_AFTER_S,
-            )
-        working = nod is not None
-
-        def answered() -> None:
-            nonlocal working
-            if working:
-                working = False
-                _avatar_state(session, None)
-
-        try:
-            turn = super().on_user_message(session, msg)
-            async for event in hold_the_floor(self, floor, lambda: self.spoken, turn, answered):
-                yield event
-        finally:
-            answered()
+        async for event in super().on_user_message(session, msg):
+            yield event
 
     async def _own_turn(self, turn: AsyncGenerator[Speech, None]) -> AsyncGenerator[Speech, None]:
         """``turn``, counted while it runs and for each unit until it has
@@ -1798,6 +1658,10 @@ class ColegioEverestBrain(OpenAIBrain):
         async def release() -> AsyncGenerator[Speech, None]:
             nonlocal held, text
             written = language_of(text, sure=False)
+            if written == "en" and not may_write_english(
+                self._last_heard, self.spoken, language_of
+            ):
+                written = None
             if written is not None and written != self.spoken:
                 await session.configure(self._speaking(written))
                 logger.info("colegioeverest: language -> {} (written)", written)

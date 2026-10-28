@@ -238,7 +238,7 @@ async def test_a_spoken_answer_in_kannada_puts_the_next_question_up_itself() -> 
         # Read a turn late, the result can only confirm what she already asked; the
         # instruction to ask in the same response is the prompt's.
         assert "needs no ask_profile" in captured, captured
-        assert "in that same response acknowledge" in SYSTEM_INSTRUCTION
+        assert "in that same response ask the NEXT question" in SYSTEM_INSTRUCTION
 
 
 async def test_the_fourth_answer_goes_straight_to_the_eligibility_check() -> None:
