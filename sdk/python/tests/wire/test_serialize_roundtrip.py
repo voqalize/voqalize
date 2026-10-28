@@ -6,6 +6,7 @@ import pytest
 
 from voqalize.sdk.wire import (
     WIRE_VERSION,
+    AckConfig,
     CancelFrame,
     Capability,
     Config,
@@ -99,6 +100,9 @@ def _frames() -> list[Frame]:
             config=Config(stt=SttConfig(language=Language.OR), tts=TtsConfig(language=Language.HI)),
         ),
         ConfigureFrame(request_id=3, config=Config(tts=TtsConfig(voice=Voice.OMNIVOICE_GAURAV))),
+        # off must survive as off rather than as "unset", which is on.
+        ConfigureFrame(request_id=7, config=Config(ack=AckConfig(enabled=False))),
+        ConfigureFrame(request_id=8, config=Config(ack=AckConfig(enabled=True))),
         # patience alone, with no language on either leg — the pairing rule does
         # not apply to it, and 0 must survive as 0 rather than as "unset".
         ConfigureFrame(request_id=4, config=Config(stt=SttConfig(patience=0))),
@@ -238,6 +242,7 @@ async def test_an_unset_section_stays_unset() -> None:
     )
     assert isinstance(out, ConfigureFrame)
     assert out.config.idle is None
+    assert out.config.ack is None
     assert out.config.stt is None
     assert out.config.tts is not None
     assert out.config.tts.language is None

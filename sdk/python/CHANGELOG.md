@@ -17,6 +17,17 @@ kept for the history, and nothing installable was ever cut from them.
 
 ## Unreleased
 
+### Added
+
+- **`Config.ack` and `AckConfig`.** Voqalize can say a short acknowledgement
+  of its own — "Let me check.", "Sure." — while the brain works on its reply,
+  chosen from what the caller said. It is on unless the session turns it off:
+  `await session.configure(Config(ack=AckConfig(enabled=False)))` from
+  `on_session_start` opts an agent out for every call, and
+  `"ack": {"enabled": false}` at `sessions.connect` opts out one call. A brain
+  that opens its replies with its own acknowledgement should turn it off, or
+  the caller hears two. The wire field is `Config.ack = 4`.
+
 ### Removed
 
 - **The Kokoro voices.** `Voice.KOKORO_AVA`, `KOKORO_SARAH`, `KOKORO_NOAH`,

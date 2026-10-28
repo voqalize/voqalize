@@ -394,22 +394,23 @@ A request is accepted or rejected **whole**. A rejected `Config` applies none of
 its sections, so the call is still coherent afterwards and the previous settings
 are still in force.
 
-### `Config` — `tts`, `stt` and `idle` in one message
+### `Config` — `tts`, `stt`, `idle` and `ack` in one message
 
 ```proto
 message Config {
   TtsConfig  tts  = 1;
   SttConfig  stt  = 2;
   IdleConfig idle = 3;
+  AckConfig  ack  = 4;
 }
 
 message TtsConfig  { optional Voice voice = 1; optional Language language = 2; }
 message SttConfig  { optional Language language = 1; optional uint32 patience = 2; }
 message IdleConfig { optional uint32 timeout_ms = 1; }
+message AckConfig  { optional bool enabled = 1; }
 ```
 
-This message is used twice. `sessions.connect` supplies the starting `tts`,
-`stt` and `idle` sections immediately before the call; the brain sends the same
+This message is used twice. `sessions.connect` supplies the starting sections immediately before the call; the brain sends the same
 shape in this op while the call is running. The agent record holds a connection
 `mode`, a `brain_url` and a recording default, and carries no voice, language or
 idle configuration.
@@ -425,7 +426,8 @@ once. Separate ops would put a turn boundary — and a possible refusal — betw
 the halves, leaving the call heard in one language and spoken in another.
 
 The surface is deliberately narrow: the voice, the language on each leg, how
-long the recognizer waits through a pause, and the idle timeout. The
+long the recognizer waits through a pause, the idle timeout, and whether
+Voqalize acknowledges the caller. The
 recognizer's other thresholds are not settable from here; they keep the voice
 tier's own calibration. It widens as we learn what is worth naming, and a knob
 is far easier to add than to take back.
@@ -437,7 +439,23 @@ is far easier to add than to take back.
 | `tts` | the next speech unit | The synthesizer locks the voice for one synthesis context and Voqalize pins one context per unit, so the sentence being spoken finishes in the old voice. |
 | `stt.language` | once the open turn commits | The recognizer carries per-turn decoder state, so the turn being spoken when the change arrives still transcribes as spoken. |
 | `stt.patience` | immediately | It bounds a silence counter that resets at every word, so there is nothing in flight for it to corrupt — including the pause already running. |
+| `ack` | the next turn | The acknowledgement is chosen when a turn ends, so a turn already answered keeps what it had. |
 | `idle` | immediately | Voqalize owns that timer; one already running restarts on the new duration. `timeout_ms` is the silence after Voqalize stops speaking before it mints an idle turn, and `0` disables idle detection. |
+
+### `ack` — Voqalize acknowledges while the brain thinks
+
+When the caller's turn ends and the brain has not started its reply, Voqalize
+can say a short line of its own — "Let me check.", "Sure.", "Go on." — chosen
+from what the caller said, so the caller is not left in silence while the model
+works. Where nothing fits, it says nothing. It speaks only the languages it has
+a vocabulary for, which today are English, Hindi and Spanish, and stays silent
+in every other.
+
+**It is on unless the session turns it off.** `enabled: false` at
+`sessions.connect` turns it off for one call; the brain can turn it off, or back
+on, with this op at any time — which is how an agent opts out for every call.
+A brain that opens its replies with its own acknowledgement should turn it off,
+or the caller hears two.
 
 ### Both legs carry a language, and both must be set
 
