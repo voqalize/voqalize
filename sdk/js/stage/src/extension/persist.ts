@@ -16,7 +16,7 @@
  * notice.
  */
 
-import type { Activity, Language, Layout, Status } from "./widget";
+import type { Activity, Language, Layout, Status } from "./widget.js";
 
 /** The call as the last page showed it. */
 export interface Kept extends Layout {

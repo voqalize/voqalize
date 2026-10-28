@@ -17,8 +17,8 @@
  * on the new port, and told when the holder went away (`holder-down`).
  */
 
-import { IN, OUT } from "./hub";
-import { PORT } from "./protocol";
+import { IN, OUT } from "./hub.js";
+import { PORT } from "./protocol.js";
 
 interface Out {
   to: "holder" | "sw";

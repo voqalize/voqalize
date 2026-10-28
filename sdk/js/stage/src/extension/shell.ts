@@ -11,9 +11,9 @@
  * property on `window` and adds two elements to `<html>`.
  */
 
-import { readKept, transitions } from "./persist";
-import { type SiteConfig, shellFlag } from "./site";
-import { DEFAULT_TRANSITION_NAME, mountWidget } from "./widget";
+import { readKept, transitions } from "./persist.js";
+import { type SiteConfig, shellFlag } from "./site.js";
+import { DEFAULT_TRANSITION_NAME, mountWidget } from "./widget.js";
 
 export function startShell(site: SiteConfig): void {
   const kept = readKept(site.id);

@@ -4,7 +4,7 @@
  * content script, the early shell, the holder and the service worker.
  */
 
-import type { Language, WidgetConfig } from "./widget";
+import type { Language, WidgetConfig } from "./widget.js";
 
 export interface SiteConfig {
   /** Short and stable: storage keys and window flags are named after it

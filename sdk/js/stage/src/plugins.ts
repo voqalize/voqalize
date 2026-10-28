@@ -15,7 +15,7 @@
  * Plugins are never fetched at run time: there is no loader, only `register`.
  */
 
-import type { ArgSpec, FieldSpec } from "./scene";
+import type { ArgSpec, FieldSpec } from "./scene.js";
 
 export interface PluginSpec {
   readonly name: string;

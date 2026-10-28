@@ -5,10 +5,10 @@
  * browser extension's holder) composes the same parts itself.
  */
 
-import { type Attached, attachStage, staleResult, type StageClient } from "./attach";
-import type { Moves } from "./moves";
-import { Timeline, withFire } from "./timeline";
-import type { StageMove, StageResult } from "./wire.gen";
+import { type Attached, attachStage, staleResult, type StageClient } from "./attach.js";
+import type { Moves } from "./moves.js";
+import { Timeline, withFire } from "./timeline.js";
+import type { StageMove, StageResult } from "./wire.gen.js";
 
 /** How long a `when: "quiet"` move waits for the voice at most. */
 const QUIET_CAP_MS = 8000;

@@ -30,9 +30,9 @@
  * of one move, once.
  */
 
-import { RING_SCROLL_MS, reveal, scrollToEl, sleep } from "./dom";
-import type { RingOptions, Spotlight } from "./spotlight";
-import type { Refusal, StageProgress, StageResult } from "./wire.gen";
+import { RING_SCROLL_MS, reveal, scrollToEl, sleep } from "./dom.js";
+import type { RingOptions, Spotlight } from "./spotlight.js";
+import type { Refusal, StageProgress, StageResult } from "./wire.gen.js";
 
 /** How much a move changes, from nothing to something the person owns. */
 export type MoveClass = "look" | "navigate" | "reversible" | "confirmed";

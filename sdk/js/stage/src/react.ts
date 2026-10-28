@@ -32,11 +32,11 @@
  * move's `call_ref`; anything else is the visitor's.
  */
 
-import type { StageClient } from "./attach";
-import { Moves, type Performer } from "./moves";
-import { type StagePage, stagePage } from "./page";
-import type { ArgsOf, EventData, EventId, MoveId, Scene, SceneSpec } from "./scene";
-import { Spotlight, type SpotlightTheme } from "./spotlight";
+import type { StageClient } from "./attach.js";
+import { Moves, type Performer } from "./moves.js";
+import { type StagePage, stagePage } from "./page.js";
+import type { ArgsOf, EventData, EventId, MoveId, Scene, SceneSpec } from "./scene.js";
+import { Spotlight, type SpotlightTheme } from "./spotlight.js";
 
 /** The hooks this glue uses: any React from 18 on has them. */
 export interface ReactHooks {

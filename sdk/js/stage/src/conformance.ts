@@ -29,9 +29,9 @@
  *   warning.
  */
 
-import type { Moves } from "./moves";
-import type { MoveId, Scene, SceneSpec } from "./scene";
-import type { StageResult } from "./wire.gen";
+import type { Moves } from "./moves.js";
+import type { MoveId, Scene, SceneSpec } from "./scene.js";
+import type { StageResult } from "./wire.gen.js";
 
 export interface Finding {
   level: "error" | "warning";

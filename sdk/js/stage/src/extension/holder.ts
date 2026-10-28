@@ -35,15 +35,15 @@
  * for 15 s; the holder then closes.
  */
 
-import { type Attached, attachStage, type ClientHandler, interruptedResult, staleResult, type StageClient } from "../attach";
-import { type FireInfo, Timeline, withFire } from "../timeline";
-import { sendAppEvent, type StageCue, type StageMove, type StageProgress, type StageResult } from "../wire.gen";
-import { CatchUp } from "./catch-up";
-import type { CallState, FromPage, HolderAsk, Job, MicState, ToPage } from "./protocol";
-import { PORT, takenFromAnyTab } from "./protocol";
-import { type Relaying, relayCall } from "./relay";
-import { isSitePage, type SiteConfig } from "./site";
-import type { Activity, Language, Status } from "./widget";
+import { type Attached, attachStage, type ClientHandler, interruptedResult, staleResult, type StageClient } from "../attach.js";
+import { type FireInfo, Timeline, withFire } from "../timeline.js";
+import { sendAppEvent, type StageCue, type StageMove, type StageProgress, type StageResult } from "../wire.gen.js";
+import { CatchUp } from "./catch-up.js";
+import type { CallState, FromPage, HolderAsk, Job, MicState, ToPage } from "./protocol.js";
+import { PORT, takenFromAnyTab } from "./protocol.js";
+import { type Relaying, relayCall } from "./relay.js";
+import { isSitePage, type SiteConfig } from "./site.js";
+import type { Activity, Language, Status } from "./widget.js";
 
 type Port = chrome.runtime.Port;
 

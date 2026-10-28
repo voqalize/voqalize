@@ -17,12 +17,12 @@
  * `navigated()` after each route change, so the agent hears where it is.
  */
 
-import { type StageClient } from "./attach";
-import { pressParts, showThing } from "./markup";
-import { Moves, type Performer } from "./moves";
-import { type StagePage, stagePage } from "./page";
-import { defineScene, type Scene, type SceneSpec } from "./scene";
-import { Spotlight, type SpotlightTheme } from "./spotlight";
+import { type StageClient } from "./attach.js";
+import { pressParts, showThing } from "./markup.js";
+import { Moves, type Performer } from "./moves.js";
+import { type StagePage, stagePage } from "./page.js";
+import { defineScene, type Scene, type SceneSpec } from "./scene.js";
+import { Spotlight, type SpotlightTheme } from "./spotlight.js";
 
 /** The stock performer for a cue's verb, acting on `data-stage-*` markup. */
 export const STOCK: Readonly<Record<string, Performer<never>>> = {

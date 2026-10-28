@@ -552,8 +552,22 @@ that change one slice):
 - **Example**: `sdk/python/examples/stage_shop/` (spec taking two `commerce` moves, marked-up
   page, brain, generated files, README). `test_example.py` keeps it current and importable;
   `test/example.test.ts` makes its cues on its own markup under the Stage conformance checks.
-- Not built: `stage build` (evaluating a `defineScene` module in Node to write `scene.json`) and
-  a ts-morph pass that every declared thing is bound; Vue and Svelte bindings.
+- **`stage build scene.ts -o scene.json`** (`bin/stage.mjs`, the package's `stage` bin): imports
+  the module on Node's own type stripping and writes `scene.spec`. It needs the package as
+  compiled JS, which is what is published (`dist`, with `.js` relative imports in the source so
+  the output runs on Node).
+- Not built: a ts-morph pass that every declared thing is bound; Vue and Svelte bindings.
+
+### Releasing (release candidates first)
+
+- Python: `voqalize-agent-sdk` `0.12.0-rc1` (PEP 440 `0.12.0rc1`, a pre-release pip installs
+  only when asked), tag `python-sdk-v0.12.0-rc1` on `main` once this PR is merged.
+- npm: `@voqalize/stage` `0.1.0-rc.1`, tag `stage-v0.1.0-rc.1`,
+  `.github/workflows/release-npm-stage.yml`: gate, `pnpm build`, `scripts/publish-manifest.mjs`
+  (exports to `dist`, `private` dropped, on the run's own checkout), `npm publish --provenance`
+  under `next` for a pre-release. Needs the `npm` environment and npm trusted publishing for
+  the package, set up by an owner of the `@voqalize` npm org (a new package needs its first
+  publish before a trusted publisher can be added).
 
 ### The hosted brain (not started: waits on a release)
 

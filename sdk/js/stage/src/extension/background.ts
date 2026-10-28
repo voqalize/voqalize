@@ -20,7 +20,7 @@
  *   - It answers any request the site adds (`ops`).
  */
 
-import { type SiteConfig } from "./site";
+import { type SiteConfig } from "./site.js";
 
 export interface BackgroundConfig {
   /** Where a tab the agent opens may point; nothing else is opened, whatever

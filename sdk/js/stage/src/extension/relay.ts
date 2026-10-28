@@ -11,8 +11,8 @@
  *     playout-delay totals.
  */
 
-import type { ClientHandler } from "../attach";
-import { EVENTS, type ToPage } from "./protocol";
+import type { ClientHandler } from "../attach.js";
+import { EVENTS, type ToPage } from "./protocol.js";
 
 /** What the relay uses of the call's client: its events, and its transport's
  *  peer connection. */

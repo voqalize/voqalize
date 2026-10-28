@@ -5,7 +5,7 @@
  * for the next one (`loadThen`, which may be on another host).
  */
 
-import type { FromPage, HolderAsk, Job, ToPage, WorkerAsk } from "./protocol";
+import type { FromPage, HolderAsk, Job, ToPage, WorkerAsk } from "./protocol.js";
 
 export const OUT = "voqalize:out";
 export const IN = "voqalize:in";

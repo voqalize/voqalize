@@ -24,9 +24,9 @@
  * `voqalize stage gen --ts` writes the same call from a `scene.json`.
  */
 
-import type { MoveClass, Moves, Performer } from "./moves";
-import type { PluginSpec } from "./plugins";
-import type { StageEvent } from "./wire.gen";
+import type { MoveClass, Moves, Performer } from "./moves.js";
+import type { PluginSpec } from "./plugins.js";
+import type { StageEvent } from "./wire.gen.js";
 
 type Scalar = "string" | "integer" | "number" | "boolean";
 

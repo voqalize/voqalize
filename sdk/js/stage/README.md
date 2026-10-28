@@ -4,8 +4,11 @@ The page half of Stage: the agent's moves, made on the page as its voice reaches
 their words, each ringed by the spotlight before anything changes and answered
 with one result. The brain half is `voqalize.sdk.stage` in `voqalize-agent-sdk`.
 
-**Not published.** The package is private in this repository until Stage has
-been proved on our own sites; then it is released together with the SDK.
+**Not published yet.** The first release is a release candidate,
+`0.1.0-rc.1`, published under npm's `next` tag beside `voqalize-agent-sdk`
+`0.12.0rc1`, so `npm install @voqalize/stage` gives nothing unstable by default.
+In this repository the package runs from its TypeScript source; what is
+published is the compiled `dist` (`pnpm build`), with the same entry points.
 
 It attaches to the pipecat client the app already has. It never creates,
 connects, wraps or re-exports one, and it names no pipecat type in its API, so
@@ -47,6 +50,19 @@ const stage = stagePage(client, moves);
 
 Each performer rings before it acts, refuses with the options the page offers
 instead of guessing, and returns one short line the agent can repeat.
+
+## `stage build`
+
+A spec written in TypeScript with `defineScene` becomes the `scene.json` the
+brain reads:
+
+```sh
+npx stage build src/stage/scene.ts -o stage/scene.json
+```
+
+The module exports its scene as `scene` (or as its default export). It runs on
+Node's own TypeScript support, Node 22.18 or later, with nothing compiled. Check
+the result with `voqalize stage check stage/scene.json`.
 
 ## Tests
 

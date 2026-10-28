@@ -33,8 +33,8 @@
  * (`withFire`).
  */
 
-import type { StageCue, StageResult } from "./wire.gen";
-import { words } from "./words";
+import type { StageCue, StageResult } from "./wire.gen.js";
+import { words } from "./words.js";
 
 /** Characters a second, before this call's own rate is known. */
 export const START_CPS = 14;

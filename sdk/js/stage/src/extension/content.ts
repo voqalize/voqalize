@@ -23,18 +23,18 @@
  * allows), then hands the answer to the holder.
  */
 
-import { domSettled } from "../dom";
-import { type Carried, type Carrier, Moves } from "../moves";
-import { Spotlight, type SpotlightTheme } from "../spotlight";
-import type { StageResult } from "../wire.gen";
-import { type FollowedClient, followCall, type Following } from "./follow";
+import { domSettled } from "../dom.js";
+import { type Carried, type Carrier, Moves } from "../moves.js";
+import { Spotlight, type SpotlightTheme } from "../spotlight.js";
+import type { StageResult } from "../wire.gen.js";
+import { type FollowedClient, followCall, type Following } from "./follow.js";
 import {
   askHolder, askWorker, loadThen, onHolder, pend, pendingMove, shareLanguage, sharedLanguage, tell, unpend,
-} from "./hub";
-import { clearKept, type Kept, transitions, writeKept } from "./persist";
-import { type CallState, type Job, type MicState, takenFromAnyTab, type Where } from "./protocol";
-import { mountedFlag, type SiteConfig, shellFlag } from "./site";
-import { DEFAULT_TRANSITION_NAME, type Language, mountWidget, watchObstacles, type Widget } from "./widget";
+} from "./hub.js";
+import { clearKept, type Kept, transitions, writeKept } from "./persist.js";
+import { type CallState, type Job, type MicState, takenFromAnyTab, type Where } from "./protocol.js";
+import { mountedFlag, type SiteConfig, shellFlag } from "./site.js";
+import { DEFAULT_TRANSITION_NAME, type Language, mountWidget, watchObstacles, type Widget } from "./widget.js";
 
 /** What a page's adapter can use. */
 export interface PageKit {

@@ -13,10 +13,10 @@
  * hooks.
  */
 
-import type { Timeline } from "./timeline";
+import type { Timeline } from "./timeline.js";
 import {
   asUiAction, sendAppEvent, type StageCue, type StageEvent, type StageHello, type StageMove, type StageProgress, type StageResult,
-} from "./wire.gen";
+} from "./wire.gen.js";
 
 /** The contract version this runtime speaks, sent in `stage_hello`. */
 export const STAGE_CONTRACT = 1;

@@ -9,9 +9,9 @@
  * each tab's move for its next page and the visitor's language choice.
  */
 
-import type { Carried } from "../moves";
-import type { StageProgress, StageResult } from "../wire.gen";
-import type { Activity, Language, Status } from "./widget";
+import type { Carried } from "../moves.js";
+import type { StageProgress, StageResult } from "../wire.gen.js";
+import type { Activity, Language, Status } from "./widget.js";
 
 /** The port's name. */
 export const PORT = "voqalize";

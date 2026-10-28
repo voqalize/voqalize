@@ -22,9 +22,9 @@
  * then as the label's start.
  */
 
-import { accessibleName, press, visible } from "./dom";
-import type { Performer } from "./moves";
-import { fold } from "./words";
+import { accessibleName, press, visible } from "./dom.js";
+import type { Performer } from "./moves.js";
+import { fold } from "./words.js";
 
 export const ATTR = {
   thing: "data-stage-thing",

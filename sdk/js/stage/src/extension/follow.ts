@@ -24,9 +24,9 @@
  * A cue chunk delivered ahead of the one before it would be undone by it.
  */
 
-import { onHolder, tell } from "./hub";
-import type { ToPage } from "./protocol";
-import { carriedForward, type Delivery } from "./mouth-clock";
+import { onHolder, tell } from "./hub.js";
+import type { ToPage } from "./protocol.js";
+import { carriedForward, type Delivery } from "./mouth-clock.js";
 
 /** The stand-in client a page's face is drawn against: enough of a
  *  `PipecatClient` for `createAvatar`. */

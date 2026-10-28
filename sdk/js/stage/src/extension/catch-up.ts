@@ -23,7 +23,7 @@
  * visitor's next turn while he is quiet.
  */
 
-import type { ToPage } from "./protocol";
+import type { ToPage } from "./protocol.js";
 
 /** Contexts kept at most; a reply is a handful of sentences. */
 const MAX_CONTEXTS = 8;
