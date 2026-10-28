@@ -10,6 +10,11 @@ time, rather than in the middle of a call: a verb is one short lowercase word,
 it is never a word that names a function call (a reply that opens ``{name: …``
 is a call the model wrote out as text, not a move), and only a class that may
 be cued has one.
+
+A move may also name its **claims**: the few words that, said in a reply, tell
+the visitor it is happening ("opening the calendar", "abro el calendario"). A
+turn that says one and never sends the move is a promise the screen does not
+keep; :meth:`~voqalize.sdk.stage.Stage.end_turn` reports it.
 """
 
 from __future__ import annotations
@@ -19,12 +24,16 @@ from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 
 from ..voice import _CALL_KEYS
+from .labels import tokens
 from .policy import MoveClass, cueable
 
-__all__ = ["MAX_ARGS", "Move", "MoveSet"]
+__all__ = ["CLAIM_GAP", "MAX_ARGS", "Move", "MoveSet"]
 
 #: The most arguments a move takes; a cue carries at most this many.
 MAX_ARGS = 4
+
+#: The most words a ``*`` in a claim stands for (none is fine too).
+CLAIM_GAP = 3
 
 _VERB = re.compile(r"[a-z]{2,12}")
 
@@ -36,8 +45,14 @@ class Move:
     ``id`` names it on the wire (``core.show``); ``verb`` is the word the model
     writes for it in a reply, or ``None`` for a move only a tool makes; ``args``
     names its arguments, in the order a cue gives them; ``say`` is the line the
-    prompt teaches it with. Raises :class:`ValueError` when any of it breaks a
-    rule, so a bad move fails where it is written.
+    prompt teaches it with. ``claims`` are the phrases that, said in a reply,
+    assert this move is happening, in any language: matched as whole words,
+    case- and Latin-accent-insensitive, with ``*`` standing for up to
+    :data:`CLAIM_GAP` words ("opening the * calendar" hears "opening the
+    Atacama calendar"). Write them as announcements ("opening", "abro"): a
+    past tense is also true of a move an earlier turn made. Raises
+    :class:`ValueError` when any of it breaks a rule, so a bad move fails
+    where it is written.
     """
 
     id: str
@@ -45,10 +60,17 @@ class Move:
     cls: MoveClass
     args: tuple[str, ...] = ()
     say: str = ""
+    claims: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.id.strip():
             raise ValueError("a move needs an id")
+        for claim in self.claims:
+            if not all(tokens(part) for part in claim.split("*")):
+                raise ValueError(
+                    f"move {self.id!r}: claim {claim!r} needs words, with a '*' only "
+                    "between two of them"
+                )
         if len(self.args) > MAX_ARGS:
             raise ValueError(
                 f"move {self.id!r} takes {len(self.args)} arguments; at most {MAX_ARGS}"

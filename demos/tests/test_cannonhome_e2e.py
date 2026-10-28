@@ -28,6 +28,7 @@ Run: ``cd demos && uv run pytest tests/test_cannonhome_e2e.py``
 from __future__ import annotations
 
 import asyncio
+import re
 import statistics
 import time
 from collections.abc import Iterator
@@ -53,6 +54,7 @@ from voqalize_demos._loaded.cannonhome import brain as ch  # noqa: E402
 from voqalize_demos._loaded.cannonhome import knowledge as kb  # noqa: E402
 from voqalize_demos._loaded.cannonhome.brain import (  # noqa: E402
     _DONE_MS,
+    _HOLDING,
     _IDLE_MS,
     _TALK_THROUGH_MS,
     TOGGLE_CONFIRM,
@@ -1820,7 +1822,9 @@ async def test_a_slow_add_gets_one_holding_line_and_a_late_answer_corrects_the_u
         asked = len(llm.requests)
         turn = await rig.driver.user_idle(level=1, idle_ms=_DONE_MS)
         check_turn(rig, turn)
-        assert turn.text == "Sigo en eso, la tienda va lenta."
+        # One of the add's lines, and never one that blames the store.
+        assert turn.text in _HOLDING["add_to_cart"]["es"]
+        assert not re.search(r"lent[ao]|slow", turn.text, re.IGNORECASE)
         assert len(llm.requests) == asked
         # Once only.
         await asyncio.sleep(0.7)

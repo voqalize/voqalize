@@ -395,6 +395,23 @@ def _llm() -> ScriptedOpenAI:
                 "Explora has lodges in Chile, Peru and Bolivia. "
                 "In Peru, the Sacred Valley lodge sits among Inca villages. Which suits you?"
             ),
+            # Dev call 2f94965e: the calendar claimed, twice, and never opened.
+            "Can I go to Atacama in November? Three nights.": reply(
+                "November is lovely. I'm opening the Atacama calendar for three nights."
+            ),
+            "You said you were opening the calendar but did not do it.": reply_and_call(
+                "Opening it now.",
+                "check_availability",
+                args={"hotel_code": "EATA", "month": "2026-11"},
+            ),
+            # A follow-up that still does not keep it is not asked again.
+            "Check Atacama for me.": reply("I'm checking availability for Atacama."),
+            "You said you were checking availability but did not do it.": reply(
+                "I'm checking availability now."
+            ),
+            # A booking sentence is never given a show cue by the backstop.
+            "What's included?": reply("Everything is included with your stay."),
+            "And the calendar?": reply("The calendar lists every night included with your stay."),
             # A heading written blind, close to one the page's crawl lists.
             "What about the nights?": reply(
                 "{show: Stargaze From Explora Observatory} At night, there's the observatory."
@@ -1473,3 +1490,102 @@ def test_the_committed_crawl_loads_and_every_asked_page_exists() -> None:
     for _, path, _ in explora._ASKED_PAGES:
         assert real.page(path) is not None, path
     assert "OUR DESTINATIONS" in real.page("/destinations/").headings  # type: ignore[union-attr]
+
+
+# ─── Promises, and the nights they said ───────────────────────────────────────
+
+
+async def test_a_claimed_calendar_is_called_in_one_follow_up_with_their_nights() -> None:
+    """Dev call 2f94965e: "I'm opening the Atacama calendar for three nights",
+    and no tool call. The turn is asked once more, with its tools, and the
+    nights the visitor said reach the page though the model left them out."""
+    llm = _llm()
+    async with _explora(llm) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
+        await _page(rig, "page_changed", ATACAMA_PAGE)
+        asked = len(llm.requests)
+        turn = await rig.driver.user_says("Can I go to Atacama in November? Three nights.")
+        assert len(llm.requests) == asked + 2
+        note = (
+            "[You said you were opening the calendar but did not do it. Call "
+            "check_availability now, or say plainly you have not.]"
+        )
+        assert note in _texts(llm.captured_inputs[-1])
+        assert "Atacama calendar" in turn.text and "Opening it now." in turn.text
+        assert _commands(rig, "explora.check_availability") == [
+            {
+                "hotel_code": "EATA",
+                "date": None,
+                "month": "2026-11",
+                "nights": 3,
+                "rooms": False,
+                "language": "EN",
+            }
+        ]
+        # The claim rang nothing: the backstop leaves a booking sentence alone.
+        assert _shown(rig) == []
+
+
+async def test_a_follow_up_is_asked_once_a_turn() -> None:
+    llm = _llm()
+    async with _explora(llm) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
+        asked = len(llm.requests)
+        await rig.driver.user_says("Check Atacama for me.")
+        assert len(llm.requests) == asked + 2
+        assert _commands(rig, "explora.check_availability") == []
+
+
+async def test_the_sites_default_nights_are_never_theirs() -> None:
+    llm = _llm()
+    async with _explora(llm) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
+        await _page(rig, "stay_state", {**DATES_STATE, "date": "2026-11-06", "chosen_nights": 5})
+        await rig.driver.user_says("Carry on.")
+        seen = _texts(llm.captured_inputs[-1])
+        assert "Selected: 5 nights, the site's default, not their choice." in seen
+        assert _commands(rig, "explora.check_availability") == []
+
+
+async def test_the_nights_they_said_replace_the_sites_without_asking() -> None:
+    llm = _llm()
+    async with _explora(llm) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
+        await rig.driver.user_says("Can I go to Atacama in November? Three nights.")
+        nights = [
+            {"nights": 3, "label": "3 nights (from US$ 1,000 / night)"},
+            {"nights": 5, "label": "5 nights (from US$ 900 / night)"},
+        ]
+        day = {**DATES_STATE, "date": "2026-11-06", "nights": nights}
+        await _page(rig, "stay_state", {**day, "chosen_nights": 5})
+        # Set at once, by the brain, with the day the page is on.
+        await _until(rig, "explora.check_availability", 2)
+        sent = _commands(rig, "explora.check_availability")[-1]
+        assert (sent["date"], sent["nights"]) == ("2026-11-06", 3)
+        await _page(rig, "stay_state", {**day, "chosen_nights": 3})
+        assert _idle_windows(rig)[-1] == _TALK_THROUGH_MS
+        await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
+        seen = _texts(llm.captured_inputs[-1])
+        assert "Selected: 5 nights, the site's choice, not theirs: they asked for 3." in seen
+        assert "Setting the 3 nights they asked for now." in seen
+        assert "Selected: 3 nights, as they asked." in seen
+        assert "without asking them about the nights" in seen
+        # Once a day: the page's nearest is not fought over.
+        assert len(_commands(rig, "explora.check_availability")) == 2
+
+
+async def test_the_backstop_shows_nothing_on_a_booking_sentence() -> None:
+    async with _explora(_llm()) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
+        await _page(rig, "page_changed", ATACAMA_PAGE)
+        await rig.driver.user_says("What's included?")
+        assert _shown(rig) == ["Included with Your Stay"]
+        await rig.driver.user_says("And the calendar?")
+        assert _shown(rig) == ["Included with Your Stay"]
+
+
+def test_the_nights_a_visitor_says() -> None:
+    assert explora.nights_said("Can I go in November? Three nights.") == 3
+    assert explora.nights_said("Quiero ir 4 noches, no, cinco noches") == 5
+    assert explora.nights_said("A night under the stars") is None
+    assert explora.nights_said("What's on tonight?") is None

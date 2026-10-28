@@ -15,6 +15,14 @@ and its own move id, also when the page carried it on to the next page and
 finished it there. A cue the director could not send is not silent either:
 ``on_drop`` hears of it, with why.
 
+**A promise is checked too.** A move may name the phrases that claim it
+(``Move.claims``: "opening the calendar"). The director knows what each turn
+said, as the parser released it to the voice, and which moves it sent; at
+:meth:`Stage.end_turn` — after the model's tool calls, which come at the end of
+its response — a claim for a move the turn neither sent nor has running is
+reported, once, to ``on_unkept`` and in the return value, so the brain can ask
+the model to keep it or to say it has not.
+
 The director decides nothing the brain should: what the model hears about a
 result is the brain's to write, from what :meth:`Stage.handle` returns.
 """
@@ -34,8 +42,9 @@ from loguru import logger
 
 from ..actions import Action
 from ..events import Speech, SpeechChunk, SpeechStart
-from .cues import AutoCues, CueParser, RawCue
-from .moves import Move, MoveSet
+from .cues import AutoCues, CueParser, RawCue, sentences
+from .labels import tokens
+from .moves import CLAIM_GAP, Move, MoveSet
 from .policy import POLICY, MoveClass
 from .wire import (
     STAGE_CONTRACT,
@@ -56,10 +65,12 @@ __all__ = [
     "Dropped",
     "OnDrop",
     "OnProgress",
+    "OnUnkept",
     "Refused",
     "Resolve",
     "Running",
     "Stage",
+    "Unkept",
 ]
 
 #: How long the page waits for a cue's words before it drops the cue. A cue's
@@ -83,6 +94,10 @@ OnDrop = Callable[[RawCue, Dropped], None]
 
 #: Told of every :class:`StageProgress` for a move still running.
 OnProgress = Callable[[StageProgress], None]
+
+#: ``(move, phrase, sentence)``: a turn said ``phrase``, a claim of ``move``,
+#: in ``sentence``, and never sent the move.
+OnUnkept = Callable[[Move, str, str], None]
 
 #: How long a finished or expired ``call_ref`` is remembered: a result that
 #: arrives within this after its move was reported ``unknown`` comes back
@@ -137,6 +152,16 @@ class Running:
     """How long since it was sent."""
 
 
+@dataclass(frozen=True, slots=True)
+class Unkept:
+    """A promise a turn made and did not keep: it said ``phrase``, one of
+    ``move``'s claims, in ``sentence``, and never sent ``move``."""
+
+    move: Move
+    phrase: str
+    sentence: str
+
+
 @dataclass(slots=True)
 class _Flight:
     call_ref: str
@@ -181,6 +206,8 @@ class Stage:
     is told of every cue the reply wrote that was not sent, with why — so a
     brain can say so rather than let the voice claim a move that never went.
     ``on_progress`` is told of every :class:`StageProgress` for a running move.
+    ``on_unkept`` is told of every claim a turn made and did not keep
+    (:meth:`end_turn`).
     """
 
     def __init__(
@@ -193,6 +220,7 @@ class Stage:
         result_timeout_s: float | Mapping[MoveClass, float] = RESULT_TIMEOUTS,
         on_drop: OnDrop | None = None,
         on_progress: OnProgress | None = None,
+        on_unkept: OnUnkept | None = None,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._dispatch = dispatch
@@ -205,6 +233,7 @@ class Stage:
             self._timeouts = dict.fromkeys(MoveClass, float(result_timeout_s))
         self._on_drop = on_drop
         self._on_progress = on_progress
+        self._on_unkept = on_unkept
         self._clock = clock
         self._n = 0
         self._flights: dict[str, _Flight] = {}
@@ -214,6 +243,49 @@ class Stage:
         self._queued: _Queued | None = None
         self.hello: StageHello | None = None
         """The last page that said hello, if any."""
+        #: This turn: what it said, and the moves it sent or saw answered.
+        self._turn_said: list[str] = []
+        self._turn_sent: set[str] = set()
+
+    # ─── turns ─────────────────────────────────────────────────────────────
+
+    def begin_turn(self) -> None:
+        """Start a turn: forget what the last one said and sent. Optional —
+        :meth:`end_turn` starts the next turn too — for a brain whose turn
+        was cut off before it could end it."""
+        self._turn_said = []
+        self._turn_sent = set()
+
+    def end_turn(self) -> list[Unkept]:
+        """End the turn, after its tool calls have run: every move the turn
+        claimed in its speech (:attr:`Move.claims`; a question is an offer, not
+        a claim) and did not keep — not sent or cued this turn, not running or
+        queued, not answered since the turn began — once per move, in the
+        order of the moves. Each is logged and told to ``on_unkept``. Then the
+        next turn begins."""
+        said = "".join(self._turn_said)
+        kept = set(self._turn_sent) | {f.move.id for f in self._flights.values()}
+        if self._queued is not None:
+            kept.add(self._queued.move.id)
+        out: list[Unkept] = []
+        for move in self.moves:
+            if not move.claims or move.id in kept:
+                continue
+            hit = _claimed(move.claims, said)
+            if hit is None:
+                continue
+            phrase, sentence = hit
+            logger.info(
+                "stage: unkept {}: the turn said {!r} and never sent it, in {!r}",
+                move.id,
+                phrase,
+                sentence,
+            )
+            if self._on_unkept is not None:
+                self._on_unkept(move, phrase, sentence)
+            out.append(Unkept(move, phrase, sentence))
+        self.begin_turn()
+        return out
 
     # ─── cues ──────────────────────────────────────────────────────────────
 
@@ -229,18 +301,21 @@ class Stage:
                 if isinstance(event, SpeechStart):
                     if opened:
                         unit += 1
+                        self._turn_said.append("\n")
                     opened = True
                     parser = self._parser(unit)
                 elif isinstance(event, SpeechChunk):
                     text, raw = parser.feed(event.text)
                     self._cue_all(raw)
                     if text:
+                        self._turn_said.append(text)
                         yield SpeechChunk(text)
                     continue
                 else:  # SpeechEnd
                     rest, raw = parser.flush()
                     self._cue_all(raw)
                     if rest:
+                        self._turn_said.append(rest)
                         yield SpeechChunk(rest)
                 yield event
         finally:
@@ -322,6 +397,7 @@ class Stage:
         if admitted is None:
             return None
         move, args = admitted
+        self._turn_sent.add(move.id)
         ref = self._mint(move)
         now = self._clock()
         deadline = now + CUE_WAIT_S + self.timeout(move.cls)
@@ -370,6 +446,8 @@ class Stage:
         m = self.moves.get(move)
         if m is None:
             raise KeyError(f"no move {move!r}")
+        # Asked for, this turn: sent, queued, or already on its way.
+        self._turn_sent.add(m.id)
         payload: dict[str, ArgValue] = dict(args or {})
         if not POLICY[m.cls].serial:
             return self._send(m, payload, when)
@@ -634,6 +712,9 @@ class Stage:
         """Retire ``f``; if it was the running move, send or drop the queued
         one. Returns a note when the queued move was dropped."""
         del self._flights[f.call_ref]
+        if not expired:
+            # Answered during this turn: a claim of it this turn is true.
+            self._turn_sent.add(f.move.id)
         self._prune()
         self._finished[f.call_ref] = _Finished(f.move, self._clock(), expired)
         if self._running != f.call_ref:
@@ -659,6 +740,33 @@ class Stage:
         ref = f"c{self._n}"
         self._refs[ref] = move
         return ref
+
+
+def _claim_at(parts: list[list[str]], words: list[str], i: int, k: int) -> bool:
+    """Whether ``parts[k:]`` are said from word ``i`` on, each ``*`` between
+    two parts standing for up to :data:`CLAIM_GAP` words."""
+    part = parts[k]
+    if words[i : i + len(part)] != part:
+        return False
+    j = i + len(part)
+    if k == len(parts) - 1:
+        return True
+    return any(_claim_at(parts, words, j + gap, k + 1) for gap in range(CLAIM_GAP + 1))
+
+
+def _claimed(claims: tuple[str, ...], said: str) -> tuple[str, str] | None:
+    """The first of ``claims`` a sentence of ``said`` makes, as whole words,
+    folded, and that sentence; ``None`` when it makes none. A question is an
+    offer ("Shall I open the calendar?"), not a claim."""
+    for sentence in sentences(said):
+        if sentence.endswith(("?", "\uff1f")):
+            continue
+        words = tokens(sentence)
+        for claim in claims:
+            parts = [tokens(p) for p in claim.split("*")]
+            if any(_claim_at(parts, words, i, 0) for i in range(len(words))):
+                return claim, sentence
+    return None
 
 
 def _written(raw: RawCue) -> str:

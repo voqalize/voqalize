@@ -123,6 +123,9 @@ from voqalize.sdk.stage import (
 
 # A move the brain knows. Cue moves have a verb; tool-only moves have none.
 Move(id="core.show", verb="show", cls=MoveClass.LOOK, args=("target",), say="...")
+# A move may name the phrases that claim it in speech (the promise guard, below).
+Move(id="site.check", verb=None, cls=MoveClass.REVERSIBLE, args=("lodge",),
+     claims=("opening the * calendar", "abro el * calendario"))
 
 class Stage:
     """Composable director. A brain owns one per session."""
@@ -135,6 +138,8 @@ class Stage:
                  # every cue not sent: why ∈ "unresolved" | "unknown_verb" | "too_many_args"
                  on_drop: Callable[[RawCue, Dropped], None] | None = None,
                  on_progress: Callable[[StageProgress], None] | None = None,
+                 # every claim a turn made and did not keep: (move, phrase, sentence)
+                 on_unkept: Callable[[Move, str, str], None] | None = None,
                  clock: Callable[[], float] = time.monotonic) -> None: ...
     def cued(self, turn: AsyncGenerator[Speech, None]) -> AsyncGenerator[Speech, None]:
         """Strip cues from SpeechChunks, resolve, dispatch StageCue with a fresh call_ref."""
@@ -163,6 +168,10 @@ class Stage:
         holding line apiece."""
     @property
     def busy(self) -> str | None: ...   # the move in flight
+    def begin_turn(self) -> None: ...      # optional: forget a turn cut off before it ended
+    def end_turn(self) -> list[Unkept]:
+        """After the turn's tool calls: each move it claimed and did not keep, once
+        (Unkept(move, phrase, sentence)); logged and told to on_unkept. Starts the next turn."""
 ```
 - Parse page events with `StagePageEvents` (result, hello, progress). `StageEvents` is the
   result/hello pair the first ports parse with, kept as it was; a brain on it never sees
@@ -188,6 +197,29 @@ class Stage:
   then unique prefix, then best token overlap ≥ 0.6; None when ambiguous.
 - `StageBrain` is optional sugar for simple brains; explora/cannonhome compose `Stage` inside
   their own respond pipelines.
+- **The promise guard.** A voice that says "I'm opening the calendar" and makes no call
+  is worse than silence, and a backstop ring under it makes the false claim look true (dev
+  call 2f94965e, twice in one call). `Move.claims` are short phrases, any language, that
+  assert the move is happening. They are matched on the turn's spoken text as the parser
+  released it to the voice (cues out), per sentence, folded like `match_label` (NFKC,
+  casefold, Latin accents off) and on whole words: "reopening it" is not "opening it".
+  `*` stands for up to `CLAIM_GAP` (3) words ("opening the * calendar" hears "opening the
+  Atacama calendar"). A question is an offer, not a claim. A claim is kept when its move
+  was cued or `send`-ed this turn (queued and refused-as-running count), is still running
+  or queued, or was answered during the turn. Write claims as announcements ("opening",
+  "abro"): a past tense is also true of a move an earlier turn made. The director does not
+  know turns by itself: the brain calls `end_turn()` when its turn is over — after the
+  model's tool calls, which come at the end of its response — and `begin_turn()` at the
+  start if a turn may have been cut off. What to do with an unkept claim is the brain's:
+  explora appends "[You said you were <phrase> but did not do it. Call <tool> now, or say
+  plainly you have not.]" and asks the model once more with its tools, never more than once
+  a turn; what that follow-up claims is only logged.
+- **Barge-in and tool moves.** When the visitor starts speaking, the page drops every cue
+  not yet fired (`refused`, why `interrupted`, never a failure note). A tool move is not a
+  cue: it was asked for by a call the model already made, so it is **kept** — it runs to
+  the end (a `quiet` one still waits for the voice to be quiet) and is **reported by its
+  result**, like any other, which the brain folds into the context for the next turn. It is
+  never cancelled by speech; only its timeout ends it unanswered (`unknown`, then `late`).
 - Floor policies (nod, silent-turn line, fallback) stay in `demos/voqalize_demos/` — the team
   kept fillers out of the SDK.
 

@@ -56,6 +56,7 @@ __all__ = [
     "CheckCue",
     "CueParser",
     "RawCue",
+    "sentences",
 ]
 
 #: The longest a cue may run, braces included, before it is given up as text.
@@ -75,6 +76,21 @@ _VERB = re.compile(r"[a-z]{2,12}")
 #: danda with whitespace after it — so "$39.99" and a stop still at the end of
 #: a chunk do not end one — or at a full-width stop, which never needs a space.
 _END = re.compile(r"[.!?\u2026\u0964\u0965](?=\s)|[\u3002\uff01\uff1f]")
+
+
+def sentences(text: str) -> list[str]:
+    """``text`` cut into its sentences, by the same ends a cue's sentence has,
+    and at every line break; each one stripped, empty ones left out."""
+    out: list[str] = []
+    for line in text.split("\n"):
+        start = 0
+        for m in _END.finditer(line):
+            out.append(line[start : m.end()])
+            start = m.end()
+        out.append(line[start:])
+    return [s.strip() for s in out if s.strip()]
+
+
 #: Scripts written without spaces between words: Thai, Lao, Myanmar, Khmer,
 #: kana, CJK ideographs, half-width katakana.
 _SPACELESS = re.compile(

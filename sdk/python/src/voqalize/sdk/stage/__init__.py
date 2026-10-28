@@ -21,13 +21,15 @@ from .director import (
     Dropped,
     OnDrop,
     OnProgress,
+    OnUnkept,
     Refused,
     Resolve,
     Running,
     Stage,
+    Unkept,
 )
 from .labels import fold, match_label
-from .moves import MAX_ARGS, Move, MoveSet
+from .moves import CLAIM_GAP, MAX_ARGS, Move, MoveSet
 from .policy import POLICY, Delivery, MoveClass, Policy, cueable
 from .wire import (
     STAGE_CONTRACT,
@@ -45,6 +47,7 @@ from .wire import (
 )
 
 __all__ = [
+    "CLAIM_GAP",
     "CUE_WAIT_S",
     "FINISHED_KEEP_S",
     "HOLDING_LINE_S",
@@ -66,6 +69,7 @@ __all__ = [
     "MoveSet",
     "OnDrop",
     "OnProgress",
+    "OnUnkept",
     "Outcome",
     "Phase",
     "Policy",
@@ -82,6 +86,7 @@ __all__ = [
     "StagePageEvents",
     "StageProgress",
     "StageResult",
+    "Unkept",
     "cueable",
     "fold",
     "match_label",

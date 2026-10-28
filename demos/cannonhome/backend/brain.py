@@ -948,7 +948,7 @@ Write your answer, with its cues, first; any tool call comes at the end of the s
 - The exception is a read: read_topic, search_site, find_products and compare_products come straight back to you within this same turn, but each one makes the visitor wait. Answer from what you know below whenever it covers the question. Read only for what is not here, and then call the read first, with nothing written before it.
 - The moves — search_products, filter_listing, open_product, check_prices, add_to_cart, update_cart_item, show_cart, start_checkout, fill_checkout — are not done when you call them: the page does them a moment later and tells you in square brackets. In the reply that calls one, say only what you are doing ("Te abro las sábanas king.", "Te lo agrego al carro."), never that it is done. When the page's answer comes, say what it says happened: what is done, and plainly what is not.
 - One move at a time: when a tool says the page is still working on the last move, what you asked for follows by itself. Say so in a few words, and never call it again.
-- The store can be slow. While a move is still running (a line in square brackets says it is still working), never say you could not confirm it or that it failed: say it is still working on it. If a line later says it was done after all, correct yourself in a few words.
+- Some moves take a few seconds. While a move is still running (a line in square brackets says it is still working), never say you could not confirm it or that it failed: say you are still on it. Never say the store, the site or the page is slow: that blames the store, whose site this is. If a line later says it was done after all, correct yourself in a few words.
 - A move you already called is under way until the page answers it: never call it a second time for the same thing. When the visitor asks for two things at once ("add both"), call both in the same response, in order: the second waits for the first and follows by itself.
 - Never promise more to come ("let me check"): nothing comes after it.
 - A question about the call itself — "can I speak English?", "can you hear me?", "who are you?" — gets an answer and nothing else: no move, no page.
@@ -1180,37 +1180,41 @@ _ADDED = re.compile(r"^added \d+ (?:×|x|of) (.+?)(?: \(the bag line|;|$)")  # n
 
 
 #: His line for a move still running after Stage's ``HOLDING_LINE_S``, by
-#: move, said once in a quiet spell with no model request before it, so a slow
-#: store is not heard as a failed move; ``""`` is any other move.
-_HOLDING: dict[str, dict[Lang, str]] = {
+#: move, said once in a quiet spell with no model request before it, so a move
+#: still under way is not heard as a failed one; ``""`` is any other move. A
+#: line says he is still at it and never blames the store: "the store is slow"
+#: is heard as a fault of the site's owner, whose site this is.
+_HOLDING: dict[str, dict[Lang, tuple[str, ...]]] = {
     "add_to_cart": {
-        "en": "Still adding it, the store is a bit slow.",
-        "es": "Sigo en eso, la tienda va lenta.",
+        "en": ("Still adding it, one moment.", "Almost there, adding it to your cart."),
+        "es": ("Lo sigo agregando, un momento.", "Ya casi, lo estoy agregando a tu carro."),
     },
     "update_cart_item": {
-        "en": "Still changing your cart, the store is a bit slow.",
-        "es": "Sigo cambiando tu carro, la tienda va lenta.",
+        "en": ("Still updating your cart, one moment.", "Almost done with your cart."),
+        "es": ("Sigo actualizando tu carro, un momento.", "Ya casi termino con tu carro."),
     },
     "start_checkout": {
-        "en": "Still opening the checkout, the store is a bit slow.",
-        "es": "Sigo abriendo el formulario, la tienda va lenta.",
+        "en": ("Getting the checkout ready, one moment.", "Almost there with the checkout."),
+        "es": ("Estoy preparando el pago, un momento.", "Ya casi tengo listo el formulario."),
     },
     "fill_checkout": {
-        "en": "Still filling it in, the form is a bit slow.",
-        "es": "Sigo completándolo, el formulario va lento.",
+        "en": ("Still filling it in, one moment.", "Almost done with the form."),
+        "es": ("Lo sigo completando, un momento.", "Ya casi termino el formulario."),
     },
     "": {
-        "en": "Still working on it, the store is a bit slow.",
-        "es": "Sigo en eso, la tienda va lenta.",
+        "en": ("I'm on it, one moment.", "Still working on it, bear with me.", "Almost there."),
+        "es": ("Estoy en eso, un momento.", "Sigo en eso, dame un segundo.", "Ya casi."),
     },
 }
 #: How often the brain looks for a move slow enough for its holding line.
 _HOLD_POLL_S = 0.5
 
 
-def holding_line(move: str, lang: Lang) -> str:
-    """His one line for a move the store is still working on."""
-    return (_HOLDING.get(move) or _HOLDING[""])[lang]
+def holding_line(move: str, lang: Lang, rng: random.Random | None = None) -> str:
+    """His one line for a move the page is still working on, picked at random
+    among the move's lines so two in one call are not word for word alike."""
+    lines = (_HOLDING.get(move) or _HOLDING[""])[lang]
+    return (rng or random).choice(lines)
 
 
 def late_done_line(move: str, detail: str, lang: Lang) -> str | None:

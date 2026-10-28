@@ -191,6 +191,14 @@ _SENTENCE_END = re.compile(r"[.?!](?:\s|$)")
 #: Letters and marks only Spanish writes, of the two.
 _SPANISH_MARKS = re.compile(r"[¿¡ñáéíóú]", re.IGNORECASE)
 _LETTERS = re.compile(r"[\wáéíóúüñ']+")
+#: A sentence about booking — the calendar, availability, dates, nights — is
+#: never given a show cue by the backstop: on dev call 2f94965e it rang the
+#: lodge's name under "I'm opening the Atacama calendar", a move never made,
+#: and the ring made the claim look true.
+_BOOKING_TALK = re.compile(
+    r"\b(?:calendars?|availability|dates|nights|booking|book|calendario|disponibilidad"
+    r"|fechas|noches|reserva|reservas|reservar)\b"
+)
 #: A cue is the site's own words, in English whatever he speaks.
 _CUE_TEXT = re.compile(r"\{[^{}]*\}?")
 
@@ -261,16 +269,55 @@ TWIN = Move(id="explora.twin", verb=None, cls=MoveClass.NAVIGATE, args=("languag
 """Load the page in front's own twin in ``language``, once his voice is quiet;
 refused when it has none."""
 CHECK_AVAILABILITY = Move(
-    id="explora.check_availability", verb=None, cls=MoveClass.REVERSIBLE, args=("hotel_code",)
+    id="explora.check_availability",
+    verb=None,
+    cls=MoveClass.REVERSIBLE,
+    args=("hotel_code",),
+    # Dev call 2f94965e: "I'm opening the Atacama calendar for three nights",
+    # twice, and no check_availability either time.
+    claims=(
+        "opening the * calendar",
+        "checking availability",
+        "checking the * availability",
+        "checking the * dates",
+        "let me open the * calendar",
+        "abro el * calendario",
+        "abriendo el * calendario",
+        "reviso la * disponibilidad",
+        "revisando la * disponibilidad",
+        "reviso las * fechas",
+        "revisando las * fechas",
+    ),
 )
 """On reservations.explora.com, the lodge ``hotel_code``, and with them the
 arrival ``date``, ``month``, ``nights``; with ``rooms``, on to the rooms and
 rates. Never past them. The page reports ``stay_state``."""
-CHOOSE_ROOM = Move(id="explora.choose_room", verb=None, cls=MoveClass.REVERSIBLE, args=("room",))
+CHOOSE_ROOM = Move(
+    id="explora.choose_room",
+    verb=None,
+    cls=MoveClass.REVERSIBLE,
+    args=("room",),
+    claims=(
+        "selecting the * room",
+        "adding the * room",
+        "selecciono la * habitacion",
+        "agrego la * habitacion",
+    ),
+)
 """On the rooms and rates, select ``room`` for ``travellers`` with ``bed``,
 ``count`` times. Never check-out itself."""
 FILL_ENQUIRY = Move(
-    id="explora.fill_enquiry", verb=None, cls=MoveClass.REVERSIBLE, args=("expedition_code",)
+    id="explora.fill_enquiry",
+    verb=None,
+    cls=MoveClass.REVERSIBLE,
+    args=("expedition_code",),
+    claims=(
+        "filling in the * form",
+        "opening the * form",
+        "abro el * formulario",
+        "completo el * formulario",
+        "completando el * formulario",
+    ),
 )
 """Open an expedition's enquiry form and fill in the fields given."""
 SEND_ENQUIRY = Move(id="explora.send_enquiry", verb=None, cls=MoveClass.CONFIRMED)
@@ -300,6 +347,13 @@ _ACTS: dict[str, str] = {
     FILL_ENQUIRY.id: "filling in the enquiry form",
     SEND_ENQUIRY.id: "sending the enquiry",
     FOCUS_TAB.id: "bringing a tab to the front",
+}
+#: The tool that makes each move a reply can claim, for the note that asks
+#: him to keep the claim (:meth:`ExploraBrain.respond`).
+_TOOL_OF: dict[str, str] = {
+    CHECK_AVAILABILITY.id: "check_availability",
+    CHOOSE_ROOM.id: "choose_room",
+    FILL_ENQUIRY.id: "fill_enquiry",
 }
 #: The enquiry form's fields, as ``explora.fill_enquiry`` sends them.
 _ENQUIRY_KEYS = ("title", "first_name", "last_name", "email", "phone", "country", "message")
@@ -365,7 +419,8 @@ class AvailabilityRequest(BaseModel):
         "and its open days come back to you.",
     )
     nights: int | None = Field(
-        default=None, description="Nights, one the page offers; only if they said."
+        default=None,
+        description="The nights they said; the page picks the nearest it offers.",
     )
     show_rooms: bool = Field(
         default=False,
@@ -543,7 +598,7 @@ You speak English, and Spanish as a native of Latin America. The call starts in 
 - When the visitor says the page is in the wrong language, or asks to see it in Spanish or English, it reloads in the call's language by itself: say so in a few words ("Te la muestro en español.") and nothing more about it until the screen lines show it.
 
 # Every response starts with words
-Write your answer, with its cues, first; any tool call comes at the end of the same response. What a page call returns reaches you only on your next turn.
+Write your answer, with its cues, first; any tool call comes at the end of the same response. A sentence that says you are doing something ("I'm opening the calendar") only announces the tool call that response makes: never say it in a response that does not make the call. What a page call returns reaches you only on your next turn.
 - The exception is a read: read_topic and search_site come straight back to you within this same turn, but each one makes the visitor wait. Answer from what you know below and the site pages list whenever they cover it. Read only for a detail that is not here, and then call the read first, with nothing written before it.
 - Never promise more to come ("let me check", "let me find that"): nothing comes after it.
 
@@ -555,7 +610,7 @@ You: "{{page: /patagonia-travel-argentina-chile/}} Patagonia it is. {{show: Disc
 Visitor, on the lodges page /lodge/: "Walk me through the lodges."
 You: "{{show: El Calafate}} El Calafate sits on a quiet estancia, near the glaciers. {{show: El Chaltén}} El Chaltén is for hikers and trekkers. {{show: Torres del Paine}} Torres del Paine faces the granite peaks. {{show: Sacred Valley}} In Peru, the Sacred Valley lodge is among Inca villages. {{show: Atacama}} Atacama is an oasis in the driest desert. {{show: Easter Island}} And Easter Island is far out in the Pacific. Which one calls to you?"
 Visitor: "Can I go in mid November? Five nights."
-You: "Let's look at the calendar. I've opened Torres del Paine on the booking site. It shows which days you can arrive." then check_availability with the lodge and the nights.
+You: "Let's look at November. I'm opening the Torres del Paine calendar for five nights." and, in that same response, check_availability with the lodge, the month and the five nights. The sentence announces the call it comes with; without the call it is a promise the screen does not keep.
 
 # What you know
 - Every fact — a price, an altitude, an exploration, what is included, a transfer, a season — comes from the knowledge below, a topic you read, a search result, or what the screen reported. Never from memory. If you cannot find it, say so, and say where on the site it might be.
@@ -570,12 +625,12 @@ You: "Let's look at the calendar. I've opened Torres del Paine on the booking si
 - Cue only a path from the site pages list below or a search result, and only headings the list or the screen gives. A lodge's page has its own sub-pages — the lodge itself, its explorations, travel tips, getting there, FAQs — listed in the screen lines as its links: open the one that answers them.
 - When you talk through several items on a page — zones, rooms, lodges, explorations, steps — cue each one as you name it, by the label the screen lines give it: a heading, a tab or a question. When the visitor asks you to scroll to each one as you talk, that is what they mean.
 - The visitor can ask you to press or scroll to anything: "scroll to the rooms", "open that tab", "go back to the lodge", "show me Easter Island". Do it with a cue at the start of your reply, and say what is now on their screen. Never say you cannot scroll or click.
-- Never say a page opened, changed or switched language, or that a room was added or a field filled, unless a screen line in square brackets or a tool's result says so. A line saying a move did not happen means it did not: say so plainly.
+- Never say a page opened, changed or switched language, or that a room was added or a field filled, unless a screen line in square brackets or a tool's result says so. Saying you are doing it ("I'm opening the calendar", "I'm filling in the form") belongs only in the response that calls its tool. A line saying a move did not happen means it did not: say so plainly.
 - The booking site can be slow. While a move is still running (a line in square brackets says it is still working), never say you could not confirm it or that it failed: say it is still working on it. If a line later says it happened after all, correct yourself in a few words.
 
 # Checking availability
 - Offer it where the story reaches it — once a lodge fits them, or when they ask about dates, prices or booking — and not before.
-- check_availability with the lodge opens it on the booking site, in this tab, with its calendar. When they named a month ("March", "next spring"), pass it as month. Say so in a short sentence in the same response — "I've opened the calendar for Atacama." — and name no day yet: you do not know the open days until the screen lists them. Never choose a day for them: the date is the one they picked from the days you offered. They come back to you: say two or three near what they asked, and ask which day suits them. When they pick a day, check_availability with that date: the nights the lodge offers that day come back, each with its price from per night. Read out the one they asked for, or the recommended stay and one other. Never a day or a number of nights the calendar has not listed. Then, when they want, check_availability with show_rooms to show the rooms and rates.
+- check_availability with the lodge opens it on the booking site, in this tab, with its calendar. When they named a month ("March", "next spring"), pass it as month. When they said how many nights, pass them as nights, every time you call it: the page picks the nearest it offers. Never ask them to confirm the nights they already said, and never offer another number. Call it in the response that announces it, in a short sentence — "I'm opening the calendar for Atacama." — and name no day yet: you do not know the open days until the screen lists them. Never choose a day for them: the date is the one they picked from the days you offered. They come back to you: say two or three near what they asked, and ask which day suits them. When they pick a day, check_availability with that date: the nights the lodge offers that day come back, each with its price from per night. Read out the nights they asked for; only when they said none, the recommended stay and one other. Nights the site selected by itself are the site's default, not their choice: never call them theirs. Never a day or a number of nights the calendar has not listed. Then, when they want, check_availability with show_rooms to show the rooms and rates.
 - On the rooms, talk through two or three with their prices, cueing each as you name it. When they pick one, choose_room selects it, with their travellers if they said: the page shows its summary and the check-out button. Check-out, booking and payment are theirs to press: never press them, and never ask for card details.
 - A room sleeps two. For three or more travellers they need one room per two travellers: say so, and when they pick, call choose_room once per room type they want, with count for how many rooms of that type (four travellers in the same type: count two). The site adds each room in turn.
 - Pass bed only when the visitor said King or Twin in words. When a room needs a bed type, the page says so: ask them which.
@@ -761,6 +816,32 @@ def spoken_day(iso: str, lang: Lang) -> str:
         day = _DAYS_ES[d.day - 1].replace("_", " ")
         return f"el {_WEEKDAYS_ES[d.weekday()]} {day} de {_MONTHS_ES[d.month - 1]}"
     return f"{d:%A} the {_ORDINALS_EN[d.day - 1]} of {d:%B}"
+
+
+#: Nights said in words, English and Spanish.
+_NIGHTS_EN = """one two three four five six seven eight nine ten eleven twelve thirteen
+fourteen""".split()  # noqa: SIM905
+_NIGHTS_ES = """una dos tres cuatro cinco seis siete ocho nueve diez once doce trece
+catorce""".split()  # noqa: SIM905
+_NIGHT_NUMBERS: dict[str, int] = {
+    **{w: i for i, w in enumerate(_NIGHTS_EN, 1)},
+    **{w: i for i, w in enumerate(_NIGHTS_ES, 1)},
+    "un": 1,
+    "uno": 1,
+}
+_NIGHTS_SAID = re.compile(r"\b(\d{1,2}|[a-z]+)\s+(?:nights?|noches?)\b")
+
+
+def nights_said(text: str) -> int | None:
+    """How many nights the visitor said they want ("three nights", "3 noches"),
+    the last they said; ``None`` when they named none."""
+    found = None
+    for m in _NIGHTS_SAID.finditer(_fold(text)):
+        word = m.group(1)
+        n = int(word) if word.isdigit() else _NIGHT_NUMBERS.get(word)
+        if n is not None and 0 < n <= 30:
+            found = n
+    return found
 
 
 def days_line(days: list[str], lang: Lang) -> str:
@@ -1365,6 +1446,11 @@ class ExploraBrain(OpenAIBrain):
         self._shown: str | None = None
         #: Whether this turn made a booking move (availability, the enquiry).
         self._booked = False
+        #: The nights the visitor said they want, the last time they said it,
+        #: filled in when the model leaves them out (dev call 2f94965e); and
+        #: the arrival day they were last set for, so that is done once a day.
+        self.stay_wanted: int | None = None
+        self._nights_set_for: str | None = None
         #: The room last chosen, with its travellers, bed and count, and the
         #: model turn it was chosen in: only a repeat in the same turn is the
         #: same press. Rooms added on this stay's rooms, all told.
@@ -1558,6 +1644,8 @@ class ExploraBrain(OpenAIBrain):
         self._late_done = None
         self._nudges = 0
         self._heard = [*self._heard[-7:], msg.text]
+        if (nights := nights_said(msg.text)) is not None:
+            self.stay_wanted = nights
         # "Show me the page in Spanish" is done in code, not left to a model
         # that said it was done and did nothing (prod call be1f5b9a).
         page_language = asked_page_language(msg.text, self.spoken, self._page_language())
@@ -1669,7 +1757,11 @@ class ExploraBrain(OpenAIBrain):
         Except after a booking move: a model asked to talk about a calendar it
         has not seen yet made one up, open days and all, and read it out as a
         line in brackets. There the written line ("Here's the booking
-        calendar.") is said instead, and the real days follow from the page."""
+        calendar.") is said instead, and the real days follow from the page.
+
+        A turn that said a move was happening ("I'm opening the calendar") and
+        never made it is asked once more, with its tools, to make it or to say
+        plainly it has not (:meth:`Stage.end_turn`; dev call 2f94965e)."""
         if (line := self._confirm) is not None:
             self._confirm = None
             async for event in say_line(self, line):
@@ -1681,6 +1773,7 @@ class ExploraBrain(OpenAIBrain):
         self._cue_path = self._path if self._site == "site" else None
         self._shown = None
         self._booked = False
+        self.stage.begin_turn()
         talk_line, self._talk_line = self._talk_line, None
         said = ""
         turn = self._unbracketed(
@@ -1696,6 +1789,8 @@ class ExploraBrain(OpenAIBrain):
             if isinstance(event, SpeechChunk):
                 said += event.text
             yield event
+        # After the turn's tool calls, which come at the end of its response.
+        unkept = self.stage.end_turn()
         # Words, and not only a promise: on dev call ed9846d5 his whole reply
         # was "One moment.", and the visitor sat in silence.
         spoke = bool(_PROMISE.sub("", said).strip(" .,!?¡¿…"))
@@ -1710,6 +1805,23 @@ class ExploraBrain(OpenAIBrain):
             again = self._written(session, self.stage.cued(self._paced(self._talk_now(session))))
             async for event in self._spelled(again):
                 yield event
+        elif unkept:
+            # Once a turn: what the follow-up claims is only logged.
+            first = unkept[0]
+            tool = _TOOL_OF.get(first.move.id, first.move.id)
+            claim = " ".join(first.phrase.replace("*", " ").split())
+            said_it = f"you were {claim}" if self.spoken == "en" else f"“{first.sentence}”"
+            self._note(
+                f"[You said {said_it} but did not do it. Call {tool} now, or say plainly "
+                "you have not.]"
+            )
+            again = self._written(
+                session,
+                self.stage.cued(self._paced(self.respond_with(session, tools=ToolChoice.AUTO))),
+            )
+            async for event in self._spelled(again):
+                yield event
+            self.stage.end_turn()
 
     async def _paced(self, turn: AsyncGenerator[Speech, None]) -> AsyncGenerator[Speech, None]:
         """``turn``, with its ``{page: …}`` cue taken out and the page opened.
@@ -2036,6 +2148,9 @@ class ExploraBrain(OpenAIBrain):
         at the word he names it with, so the ring follows his voice along."""
         if {verb for verb, _ in placed} & {"show", "faq"}:
             return []
+        if _BOOKING_TALK.search(_fold(sentence)):
+            logger.info("explora: backstop: none on a booking sentence {!r}", sentence[:120])
+            return []
         cues: list[AutoCue] = []
         last = self._shown
         for at, verb, label in self._names(sentence):
@@ -2321,9 +2436,35 @@ class ExploraBrain(OpenAIBrain):
             nights = "; ".join(n.label or f"{n.nights} nights" for n in event.nights)
             note += f" Chosen arrival: {_spoken_date(event.date)}."
             note += f" Nights offered: {nights}." if nights else " No stay available that day."
-            if event.chosen_nights:
-                note += f" Selected: {event.chosen_nights} nights."
+            note += self._selected(event)
         note += "]"
+        wanted = self.stay_wanted
+        if (
+            event.date
+            and wanted
+            and event.chosen_nights != wanted
+            and self._nights_set_for != event.date
+        ):
+            # They said how many nights; the site picked its own. Set theirs,
+            # without asking them again: the talk-through follows the page.
+            self._nights_set_for = event.date
+            logger.info(
+                "explora: the site selected {} nights; setting the {} they asked for",
+                event.chosen_nights,
+                wanted,
+            )
+            self._send_move(
+                CHECK_AVAILABILITY.id,
+                {
+                    "hotel_code": event.hotel_code,
+                    "date": event.date,
+                    "month": None,
+                    "nights": wanted,
+                    "rooms": False,
+                    "language": self._site_language(),
+                },
+            )
+            return note[:-1] + f" Setting the {wanted} nights they asked for now.]"
         if before is None or before.hotel_code != event.hotel_code:
             self._talk_through(
                 "The booking calendar is on their screen and they have not spoken. Name two "
@@ -2334,13 +2475,32 @@ class ExploraBrain(OpenAIBrain):
         elif event.date and (
             before.date != event.date or before.chosen_nights != event.chosen_nights
         ):
-            self._talk_through(
-                "The nights for their arrival day are on their screen. Say the price from per "
-                "night for the stay they asked for, or the recommended one, and offer to show "
-                "the rooms.",
-                nights_line(event.nights, event.chosen_nights, self.spoken),
+            ask = (
+                f"The nights for their arrival day are on their screen. They asked for {wanted} "
+                "nights: say the price from per night for the stay selected, which is the "
+                "nearest the site offers to theirs, without asking them about the nights, and "
+                "offer to show the rooms."
+                if wanted
+                else "The nights for their arrival day are on their screen. Say the price from "
+                "per night for the recommended stay, and offer to show the rooms."
             )
+            self._talk_through(ask, nights_line(event.nights, event.chosen_nights, self.spoken))
         return note
+
+    def _selected(self, event: StayState) -> str:
+        """The nights the site has selected, for the stay note: theirs, or the
+        site's own default, never passed off as their choice."""
+        chosen, wanted = event.chosen_nights, self.stay_wanted
+        if not chosen:
+            return ""
+        if wanted == chosen:
+            return f" Selected: {chosen} nights, as they asked."
+        if wanted:
+            return (
+                f" Selected: {chosen} nights, the site's choice, not theirs: they asked for "
+                f"{wanted}."
+            )
+        return f" Selected: {chosen} nights, the site's default, not their choice."
 
     def _enquiry_changed(self, event: EnquiryState) -> str | None:
         before = self.enquiry
@@ -2625,11 +2785,19 @@ class ExploraBrain(OpenAIBrain):
             near = _clip([_spoken_date(d) for d in stay.open_days[:6]], 6)
             return f"Not chosen: {date} is not an open arrival day. Open days include: {near}."
         rooms = request.show_rooms and bool(date or (self.stay and self.stay.date))
+        # The nights they said, when the model left them out: on dev call
+        # 2f94965e "three nights" never reached the page, and the site's own
+        # five were read out as chosen.
+        nights = request.nights or self.stay_wanted
+        if nights and not request.nights:
+            logger.info("explora: nights {} filled in, as the visitor said", nights)
+        if date and nights:
+            self._nights_set_for = date
         args: dict[str, ArgValue] = {
             "hotel_code": hotel.code,
             "date": date,
             "month": request.month[:7] if request.month and not date else None,
-            "nights": request.nights,
+            "nights": nights,
             "rooms": rooms,
             "language": self._site_language(),
         }
@@ -2652,7 +2820,7 @@ class ExploraBrain(OpenAIBrain):
             x
             for x in (
                 f"arriving {_spoken_date(date)}" if date else "",
-                f"{request.nights} nights" if request.nights else "",
+                f"{nights} nights" if nights else "",
                 "going on to the rooms" if rooms else "",
             )
             if x
