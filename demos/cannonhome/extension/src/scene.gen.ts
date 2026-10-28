@@ -46,52 +46,6 @@ export const scene = defineScene({
       ]
     },
     {
-      "id": "listing.filter",
-      "verb": "filter",
-      "class": "reversible",
-      "args": [
-        {
-          "name": "facet"
-        },
-        {
-          "name": "value",
-          "optional": true
-        },
-        {
-          "name": "path",
-          "optional": true
-        }
-      ]
-    },
-    {
-      "id": "listing.sort",
-      "verb": "sort",
-      "class": "reversible",
-      "args": [
-        {
-          "name": "order"
-        },
-        {
-          "name": "path",
-          "optional": true
-        }
-      ]
-    },
-    {
-      "id": "search_products",
-      "class": "reversible",
-      "args": [
-        {
-          "name": "query"
-        },
-        {
-          "name": "open_index",
-          "type": "integer",
-          "optional": true
-        }
-      ]
-    },
-    {
       "id": "filter_listing",
       "class": "reversible",
       "args": [
@@ -175,44 +129,6 @@ export const scene = defineScene({
       ]
     },
     {
-      "id": "show_cart",
-      "class": "look",
-      "args": [
-        {
-          "name": "open",
-          "type": "boolean",
-          "default": true
-        }
-      ]
-    },
-    {
-      "id": "add_to_cart",
-      "class": "confirmed",
-      "args": [
-        {
-          "name": "path"
-        },
-        {
-          "name": "qty",
-          "type": "integer",
-          "default": 1
-        }
-      ]
-    },
-    {
-      "id": "update_cart_item",
-      "class": "confirmed",
-      "args": [
-        {
-          "name": "path"
-        },
-        {
-          "name": "qty",
-          "type": "integer"
-        }
-      ]
-    },
-    {
       "id": "start_checkout",
       "class": "confirmed"
     },
@@ -257,8 +173,385 @@ export const scene = defineScene({
           "optional": true
         }
       ]
+    },
+    {
+      "id": "commerce.filter",
+      "verb": "filter",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "facet"
+        },
+        {
+          "name": "value",
+          "optional": true
+        },
+        {
+          "name": "path",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "id": "commerce.sort",
+      "verb": "sort",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "order",
+          "enum": [
+            "price_asc",
+            "price_desc",
+            "relevance",
+            "newest"
+          ]
+        },
+        {
+          "name": "path",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "id": "commerce.search",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "query"
+        },
+        {
+          "name": "open_index",
+          "type": "integer",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "id": "commerce.cart_add",
+      "class": "confirmed",
+      "args": [
+        {
+          "name": "path"
+        },
+        {
+          "name": "qty",
+          "type": "integer",
+          "default": 1
+        }
+      ]
+    },
+    {
+      "id": "commerce.cart_update",
+      "class": "confirmed",
+      "args": [
+        {
+          "name": "path"
+        },
+        {
+          "name": "qty",
+          "type": "integer"
+        }
+      ]
+    },
+    {
+      "id": "commerce.cart_show",
+      "class": "look",
+      "args": [
+        {
+          "name": "open",
+          "type": "boolean",
+          "default": true
+        }
+      ]
+    }
+  ],
+  "slices": [
+    {
+      "id": "product",
+      "fields": [
+        {
+          "name": "path"
+        },
+        {
+          "name": "sku",
+          "optional": true
+        },
+        {
+          "name": "name"
+        },
+        {
+          "name": "price",
+          "type": "number",
+          "optional": true
+        },
+        {
+          "name": "regular_price",
+          "type": "number",
+          "optional": true
+        },
+        {
+          "name": "in_stock",
+          "type": "boolean",
+          "optional": true
+        },
+        {
+          "name": "qty",
+          "type": "integer",
+          "optional": true
+        },
+        {
+          "name": "specs",
+          "type": "array",
+          "fields": [
+            {
+              "name": "label"
+            },
+            {
+              "name": "value"
+            }
+          ]
+        },
+        {
+          "name": "rating",
+          "type": "number",
+          "optional": true
+        },
+        {
+          "name": "reviews",
+          "type": "integer",
+          "optional": true
+        },
+        {
+          "name": "source",
+          "enum": [
+            "page",
+            "graphql"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "search",
+      "fields": [
+        {
+          "name": "query"
+        },
+        {
+          "name": "items",
+          "type": "array",
+          "fields": [
+            {
+              "name": "name"
+            },
+            {
+              "name": "path"
+            },
+            {
+              "name": "price",
+              "type": "number",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "name": "categories",
+          "type": "array"
+        }
+      ]
+    },
+    {
+      "id": "checkout",
+      "fields": [
+        {
+          "name": "filled",
+          "type": "array"
+        },
+        {
+          "name": "missing",
+          "type": "array"
+        },
+        {
+          "name": "invalid",
+          "type": "array",
+          "fields": [
+            {
+              "name": "field"
+            },
+            {
+              "name": "message"
+            }
+          ]
+        },
+        {
+          "name": "region",
+          "optional": true
+        },
+        {
+          "name": "comuna",
+          "optional": true
+        },
+        {
+          "name": "email_has_account",
+          "type": "boolean",
+          "optional": true
+        },
+        {
+          "name": "delivery_options",
+          "type": "array"
+        },
+        {
+          "name": "delivery",
+          "optional": true
+        },
+        {
+          "name": "payment_open",
+          "type": "boolean",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "id": "listing",
+      "fields": [
+        {
+          "name": "path"
+        },
+        {
+          "name": "title"
+        },
+        {
+          "name": "count",
+          "type": "integer",
+          "optional": true
+        },
+        {
+          "name": "filters",
+          "type": "array",
+          "fields": [
+            {
+              "name": "facet"
+            },
+            {
+              "name": "on",
+              "type": "array"
+            },
+            {
+              "name": "options",
+              "type": "array"
+            }
+          ]
+        },
+        {
+          "name": "sort",
+          "optional": true
+        },
+        {
+          "name": "items",
+          "type": "array",
+          "fields": [
+            {
+              "name": "path"
+            },
+            {
+              "name": "name"
+            },
+            {
+              "name": "price",
+              "type": "number",
+              "optional": true
+            },
+            {
+              "name": "regular_price",
+              "type": "number",
+              "optional": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cart",
+      "fields": [
+        {
+          "name": "count",
+          "type": "integer"
+        },
+        {
+          "name": "subtotal",
+          "type": "number",
+          "optional": true
+        },
+        {
+          "name": "items",
+          "type": "array",
+          "fields": [
+            {
+              "name": "path"
+            },
+            {
+              "name": "name"
+            },
+            {
+              "name": "qty",
+              "type": "integer"
+            },
+            {
+              "name": "price",
+              "type": "number",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "name": "free_shipping_left",
+          "type": "number",
+          "optional": true
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "id": "product.shown",
+      "slice": "product",
+      "op": "set"
+    },
+    {
+      "id": "product.checked",
+      "slice": "product",
+      "op": "set"
+    },
+    {
+      "id": "search.suggested",
+      "slice": "search",
+      "op": "set"
+    },
+    {
+      "id": "checkout.changed",
+      "slice": "checkout",
+      "op": "set"
+    },
+    {
+      "id": "listing.shown",
+      "slice": "listing",
+      "op": "set"
+    },
+    {
+      "id": "listing.filtered",
+      "slice": "listing",
+      "op": "set"
+    },
+    {
+      "id": "listing.sorted",
+      "slice": "listing",
+      "op": "set"
+    },
+    {
+      "id": "cart.changed",
+      "slice": "cart",
+      "op": "set"
     }
   ]
 });
 
-export const SPEC_SHA256 = "997a4a5ac83c4619c97d573bb3104050e1a1b112e5c298850f27b29edb99defe";
+export const SPEC_SHA256 = "6b46f675bf33dd95874ea7565fdc89837ac9e47784f727245b2f9dd6d2fed4fd";

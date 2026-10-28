@@ -43,21 +43,49 @@ class Folded:
     folded in silence."""
 
 
+_SCALARS: dict[str, tuple[type, ...]] = {
+    "string": (str,),
+    "integer": (int,),
+    "number": (int, float),
+    "boolean": (bool,),
+}
+
+
+def _plain(kind: str, value: Any) -> bool:
+    """Whether ``value`` is a plain value of ``kind`` (a bool is not a number)."""
+    if isinstance(value, bool) and kind != "boolean":
+        return False
+    return isinstance(value, _SCALARS[kind])
+
+
 def _keep(fields: Sequence[FieldSpec], data: Mapping[str, Any]) -> dict[str, Any]:
-    """``data`` with only the declared, public fields, nested ones too."""
+    """``data`` with only the declared, public fields, nested ones too, each
+    of the type its spec declares: a value of another shape (an object where
+    names were declared, say) is dropped, whatever it holds, never kept."""
     out: dict[str, Any] = {}
     for f in fields:
         if f.private or f.name not in data:
             continue
-        value = data[f.name]
-        if f.fields is not None and f.type == "object" and isinstance(value, Mapping):
+        value: Any = data[f.name]
+        if value is None:
+            if f.optional:
+                out[f.name] = None
+            continue
+        if f.type == "object":
+            if f.fields is None or not isinstance(value, Mapping):
+                continue
             value = _keep(f.fields, value)  # pyright: ignore[reportUnknownArgumentType]
-        elif f.fields is not None and isinstance(value, list):
-            value = [
-                _keep(f.fields, v)  # pyright: ignore[reportUnknownArgumentType]
-                for v in value  # pyright: ignore[reportUnknownVariableType]
-                if isinstance(v, Mapping)
-            ]
+        elif f.type == "array":
+            if not isinstance(value, list):
+                continue
+            items: list[Any] = value  # pyright: ignore[reportUnknownVariableType]
+            if f.fields is not None:
+                value = [_keep(f.fields, v) for v in items if isinstance(v, Mapping)]
+            else:
+                kind = f.items.type if f.items is not None else "string"
+                value = [v for v in items if _plain(kind, v)]
+        elif not _plain(f.type, value):
+            continue
         out[f.name] = value
     return out
 

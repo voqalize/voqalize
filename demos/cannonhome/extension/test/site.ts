@@ -676,7 +676,26 @@ export async function open(p: Page, path: string): Promise<void> {
 export interface Emitted {
   event: string;
   payload: Record<string, unknown>;
+  /** A state event's author: "visitor", or "agent" for one of his moves. */
+  by?: unknown;
+  call_ref?: unknown;
 }
+
+/** A Stage state event as a test reads it: its name (`listing.filtered`) and
+ *  the data its slice took; every other event as sent. */
+function flat(e: Emitted): Emitted {
+  if (e.event !== "stage_event") return e;
+  const p = e.payload;
+  return { event: String(p.name), payload: (p.data ?? {}) as Record<string, unknown>, by: p.by, call_ref: p.call_ref };
+}
+
+/** Whether `e` is `name`, or, for a name ending in ".", any state event of
+ *  that slice (`"listing."`: shown, filtered or sorted). */
+export const matches = (e: Emitted, name: string) => e.event === name || (name.endsWith(".") && e.event.startsWith(name));
+
+/** A listing's filters as the store reads them: request variable → labels. */
+export const filtersOf = (listing: Record<string, unknown>) =>
+  Object.fromEntries((listing.filters as { facet: string; on: string[] }[]).map((f) => [f.facet, f.on.join(", ")]));
 
 /** Start the adapter's reports on this page, as the call does on bot-ready. */
 export async function listen(p: Page): Promise<void> {
@@ -688,13 +707,14 @@ export async function listen(p: Page): Promise<void> {
   });
 }
 
-export const events = (p: Page) => p.evaluate(() => (window as unknown as { __events?: Emitted[] }).__events ?? []);
+export const events = async (p: Page) =>
+  (await p.evaluate(() => (window as unknown as { __events?: Emitted[] }).__events ?? [])).map(flat);
 
 /** Wait for an event (the `n`th of that name) and return it. */
 export async function waitForEvent(p: Page, name: string, test: (e: Emitted) => boolean = () => true, timeout = 15_000): Promise<Emitted> {
   const until = Date.now() + timeout;
   for (;;) {
-    const hit = (await events(p)).find((e) => e.event === name && test(e));
+    const hit = (await events(p)).find((e) => matches(e, name) && test(e));
     if (hit) return hit;
     if (Date.now() > until) throw new Error(`no ${name} event; got ${JSON.stringify((await events(p)).map((e) => e.event))}`);
     await p.waitForTimeout(100);

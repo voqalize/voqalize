@@ -25,69 +25,9 @@ export interface EnquirySent {
   by?: 'javier' | 'visitor';
 }
 
-/**
- * The expedition enquiry form: what is filled, what is still empty, and
- * whether the visitor has ticked "I'm not a robot".
- */
-export interface EnquiryState {
-  expedition?: string;
-
-  expedition_code?: string;
-
-  filled?: EnquiryFields;
-
-  missing?: string[];
-
-  captcha?: boolean;
-}
-
 /** The visitor pressed the other language on the widget's toggle. */
 export interface LanguageRequested {
   language: 'en' | 'es';
-}
-
-/** The tab in front loaded a page, or came to the front: what is on it now. */
-export interface PageChanged {
-  site?: 'site' | 'reservations';
-
-  url?: string;
-
-  path: string;
-
-  title?: string;
-
-  headings?: string[];
-
-  faqs?: string[];
-
-  tabs?: string[];
-
-  links?: string[];
-}
-
-/**
- * Where an availability check on reservations.explora.com stands: the
- * calendar for a lodge with its open days, the nights offered for the chosen
- * day, or the rooms and rates (step two).
- */
-export interface StayState {
-  step: 'dates' | 'rooms';
-
-  hotel_code?: string;
-
-  hotel?: string;
-
-  month?: string;
-
-  open_days?: string[];
-
-  date?: string;
-
-  nights?: NightsOption[];
-
-  chosen_nights?: number;
-
-  rooms?: RoomOption[];
 }
 
 /**
@@ -121,34 +61,6 @@ export interface TwinLookup {
 }
 
 // ── Shapes used by the messages above ──────────────────────────────
-
-export interface EnquiryFields {
-  title?: string;
-
-  first_name?: string;
-
-  last_name?: string;
-
-  email?: string;
-
-  phone?: string;
-
-  country?: string;
-
-  message?: string;
-}
-
-export interface NightsOption {
-  nights: number;
-
-  label?: string;
-}
-
-export interface RoomOption {
-  name: string;
-
-  text?: string;
-}
 
 export interface TabInfo {
   tab_id: string;
@@ -191,10 +103,7 @@ export function unhandledUiAction(action: never): never {
 /** Everything the person can do on screen, discriminated by `event`. */
 export type AppEvent =
   | { event: 'enquiry_sent'; payload: EnquirySent }
-  | { event: 'enquiry_state'; payload: EnquiryState }
   | { event: 'language_requested'; payload: LanguageRequested }
-  | { event: 'page_changed'; payload: PageChanged }
-  | { event: 'stay_state'; payload: StayState }
   | { event: 'tabs_changed'; payload: TabsChanged }
   | { event: 'twin_lookup'; payload: TwinLookup };
 
@@ -202,10 +111,7 @@ export type AppEventName = AppEvent['event'];
 
 export const APP_EVENT_NAMES: readonly AppEventName[] = [
   'enquiry_sent',
-  'enquiry_state',
   'language_requested',
-  'page_changed',
-  'stay_state',
   'tabs_changed',
   'twin_lookup',
 ];

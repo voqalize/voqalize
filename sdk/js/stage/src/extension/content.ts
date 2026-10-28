@@ -32,7 +32,7 @@ import {
   askHolder, askWorker, loadThen, onHolder, pend, pendingMove, shareLanguage, sharedLanguage, tell, unpend,
 } from "./hub";
 import { clearKept, type Kept, transitions, writeKept } from "./persist";
-import type { CallState, Job, MicState, Where } from "./protocol";
+import { type CallState, type Job, type MicState, takenFromAnyTab, type Where } from "./protocol";
 import { mountedFlag, type SiteConfig, shellFlag } from "./site";
 import { DEFAULT_TRANSITION_NAME, type Language, mountWidget, watchObstacles, type Widget } from "./widget";
 
@@ -112,7 +112,8 @@ export interface SiteExtensionConfig {
    *  host to load, where the move is made once the call is up there; `null`
    *  fails the move. */
   elsewhere?(job: Extract<Job, { kind: "stage" }>, kit: PageKit): string | null | Promise<string | null>;
-  /** The site's events the agent takes from any tab. */
+  /** The site's events the agent takes from any tab: an app event by its
+   *  name, a state event (`stage_event`) by its spec id (`cart.changed`). */
   anyTab?: readonly string[];
   /** What the page pins over its corners, for the widget to keep clear of. */
   obstacles?: readonly { selector: string; fixedOnly?: boolean }[];
@@ -255,7 +256,7 @@ async function start(config: SiteExtensionConfig): Promise<void> {
     language: () => state.language,
     state: () => state,
     emit: (event, payload) => {
-      if (state.ready && (showing() || anyTab.has(event))) tell({ k: "app", event, payload });
+      if (state.ready && (showing() || takenFromAnyTab(anyTab, event, payload))) tell({ k: "app", event, payload });
     },
     loadThen,
   };

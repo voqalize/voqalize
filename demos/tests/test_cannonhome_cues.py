@@ -43,7 +43,7 @@ def test_the_moves_and_their_classes() -> None:
         "sort": MoveClass.REVERSIBLE,
     }
     # What the visitor owns changes only by a tool, after they said yes.
-    for move in ("add_to_cart", "update_cart_item", "start_checkout", "fill_checkout"):
+    for move in ("commerce.cart_add", "commerce.cart_update", "start_checkout", "fill_checkout"):
         assert by_id[move].cls is MoveClass.CONFIRMED and by_id[move].verb is None
     assert by_id["open_product"].cls is MoveClass.NAVIGATE
     assert by_id["filter_listing"].cls is MoveClass.REVERSIBLE

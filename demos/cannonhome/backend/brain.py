@@ -60,7 +60,7 @@ import math
 import random
 import re
 import time
-from collections.abc import AsyncGenerator, Callable, Iterable
+from collections.abc import AsyncGenerator, Callable, Iterable, Mapping
 from datetime import date, datetime
 from difflib import SequenceMatcher
 from typing import TYPE_CHECKING, Annotated, Any, Literal
@@ -98,11 +98,13 @@ from voqalize.sdk.stage import (
     RESULT_TIMEOUTS,
     Dropped,
     Landing,
+    Mirror,
     Move,
     MoveClass,
     RawCue,
     Refused,
     Stage,
+    StageEvent,
     StageHello,
     StageProgress,
     StageResult,
@@ -126,6 +128,10 @@ from .app_events import (
     SearchSuggest,
     TabInfo,
     TabsChanged,
+    cart_view,
+    listing_view,
+    product_view,
+    suggest_view,
 )
 from .knowledge import (
     SIZE_LABELS,
@@ -142,16 +148,18 @@ from .knowledge import (
 )
 from .stage_gen import (
     MOVES,
-    AddToCartArgs,
+    SPEC,
+    CartAddArgs,
+    CartShowArgs,
+    CartUpdateArgs,
     CheckPricesArgs,
     FillCheckoutArgs,
     FilterListingArgs,
     OpenProductArgs,
     ProductTabArgs,
-    SearchProductsArgs,
-    ShowCartArgs,
+    ReadRequest,
+    SearchArgs,
     StartCheckoutArgs,
-    UpdateCartItemArgs,
 )
 
 AGENT_NAME = "Javier"
@@ -673,8 +681,8 @@ class AddToCartRequest(BaseModel):
 
 class UpdateCartRequest(BaseModel):
     line: str = Field(
-        description="The cart line: its product path ('/x.html') from the cart line in square "
-        "brackets, or its name as the cart shows it."
+        description="The cart line: its product path ('/x.html') from read_screen's cart, or "
+        "its name as the cart shows it."
     )
     qty: int = Field(
         description="How many of it they want in the cart now, 1 to 10; 0 takes it out."
@@ -816,7 +824,8 @@ You are heard, not read, so keep it light and warm.
 - Your first word is the answer: no filler, no "great question", no repeating their question back.
 - Spoken words only, apart from cues: no lists, no markdown, no symbols, never an exclamation mark.
 - Write every number, price and measure as spoken words. Prices are Chilean pesos: "$28.495" is "veintiocho mil cuatrocientos noventa y cinco pesos", in English "twenty-eight thousand four hundred and ninety-five pesos". The lines in square brackets give each price with how to say it. "300 hilos" is "trescientos hilos"; "50x70" is "cincuenta por setenta". Never say a SKU or a path.
-- Lines in square brackets come from their screen, not the visitor: the page in front, a product, a listing, the cart. Never read them out; use them.
+- Lines in square brackets come from their screen, not the visitor: the page in front, what changed on it (a listing filtered, the cart changed, a product opened), a move's answer. Never read them out; use them.
+- read_screen reads what their screen shows now: the product page in front (its price, stock, specifications and rating), the listing (its products, in order, with prices), the search box's suggestions, the cart, or the delivery form. A line in square brackets only names what changed: call read_screen before you say a price, a stock, which products a listing shows or what is in the cart. Call it first, with nothing written before it; never say you are looking.
 - Never list what is on screen: name two or three things, and point at the rest.
 - Always answer. A reply with no words leaves the visitor in silence.
 
@@ -854,7 +863,7 @@ Write your answer, with its cues, first; any tool call comes at the end of the s
 - On a product page the tabs are "descripcion", "especificaciones" (measures, thread count, material, filling), "calificaciones" (reviews) and "fotos": open_product with the tab shows it.
 
 # Prices and stock
-- You know no price and no stock of your own: the catalogue has none. A price or stock you say is one their screen just reported, in a line in square brackets: the product page, its live check, a listing, the search box's suggestions, check_prices or the cart.
+- You know no price and no stock of your own: the catalogue has none. A price or stock you say is one their screen reported: read_screen (the product page and its live check, a listing, the search box's suggestions, the cart) or check_prices.
 - A product page is read twice: first from the page, which may be an old cached copy, then live. A line that says "Live check" wins: say that price.
 - Say a price in spoken words, in Chilean pesos. With a discount, say the price and that it was more before, once.
 - When no line has the price: say you can't see the price right now, and open the product (open_product), whose page shows it; for several products at once, check_prices reads them live. Never a price from memory, from the catalogue, or from another size or colour of the line: each has its own price.
@@ -870,8 +879,8 @@ Write your answer, with its cues, first; any tool call comes at the end of the s
 
 # The cart
 - You may add a product to their cart when they ask, or say yes to your offer: add_to_cart with the product's path, the exact size and colour, and the quantity they said (one unless they said more). It opens the product first if it is not in front. Say what you are adding, never that it is added: the cart's answer comes in square brackets.
-- show_cart opens their cart drawer; with open false it closes it. A cart line tells you what is in it and what is left for free shipping: say that once.
-- You can change their cart too. When they want more or fewer of something in it, or want a line out ("solo uno", "quita las grises", "remove the grey ones"), call update_cart_item with that line's path from the cart line and how many they want now: 0 takes it out. One line per call. It works in the cart drawer, or on the cart page when that is in front. Say what you are changing, never that it is changed: the cart's answer comes in square brackets. Never tell them to change it themselves.
+- show_cart opens their cart drawer; with open false it closes it. read_screen with the cart tells you what is in it and what is left for free shipping: say that once.
+- You can change their cart too. When they want more or fewer of something in it, or want a line out ("solo uno", "quita las grises", "remove the grey ones"), call update_cart_item with that line's path from read_screen's cart and how many they want now: 0 takes it out. One line per call. It works in the cart drawer, or on the cart page when that is in front. Say what you are changing, never that it is changed: the cart's answer comes in square brackets. Never tell them to change it themselves.
 - When they want to buy, or say yes to your offer, start_checkout takes them from the cart to the checkout's delivery form as a guest. Then the section below.
 
 # The checkout: delivery details are yours, the RUT and the payment are theirs
@@ -1058,8 +1067,8 @@ _DONE: dict[str, dict[Lang, str]] = {
         "en": "Done, {name} is in your cart.",
         "es": "Listo, {name} ya está en tu carro.",
     },
-    "add_to_cart": {"en": "Done, it's in your cart.", "es": "Listo, ya está en tu carro."},
-    "update_cart_item": {
+    "commerce.cart_add": {"en": "Done, it's in your cart.", "es": "Listo, ya está en tu carro."},
+    "commerce.cart_update": {
         "en": "Done, your cart is updated.",
         "es": "Listo, tu carro quedó al día.",
     },
@@ -1079,11 +1088,11 @@ _ADDED = re.compile(r"^added \d+ (?:×|x|of) (.+?)(?: \(the bag line|;|$)")  # n
 #: line says he is still at it and never blames the store: "the store is slow"
 #: is heard as a fault of the site's owner, whose site this is.
 _HOLDING: dict[str, dict[Lang, tuple[str, ...]]] = {
-    "add_to_cart": {
+    "commerce.cart_add": {
         "en": ("Still adding it, one moment.", "Almost there, adding it to your cart."),
         "es": ("Lo sigo agregando, un momento.", "Ya casi, lo estoy agregando a tu carro."),
     },
-    "update_cart_item": {
+    "commerce.cart_update": {
         "en": ("Still updating your cart, one moment.", "Almost done with your cart."),
         "es": ("Sigo actualizando tu carro, un momento.", "Ya casi termino con tu carro."),
     },
@@ -1111,9 +1120,18 @@ def holding_line(move: str, lang: Lang, rng: random.Random | None = None) -> str
     return (rng or random).choice(lines)
 
 
+#: The tool each ``commerce`` kit move is sent by: what the model called it,
+#: and so what a line about its result names.
+_TOOL_OF: dict[str, str] = {
+    "commerce.search": "search_products",
+    "commerce.cart_add": "add_to_cart",
+    "commerce.cart_update": "update_cart_item",
+    "commerce.cart_show": "show_cart",
+}
+
 #: The moves whose effect a listing on screen is, and a product page's.
-_LISTING_MOVES = ("filter_listing", "listing.filter", "listing.sort")
-_PRODUCT_MOVES = ("open_product", "search_products")
+_LISTING_MOVES = ("filter_listing", "commerce.filter", "commerce.sort")
+_PRODUCT_MOVES = ("open_product", "commerce.search")
 #: ``filter_listing``'s filter arguments, by the listing's request variable.
 _FILTER_ARGS = (
     ("size", "tamano"),
@@ -1172,7 +1190,7 @@ def landed_options(landing: Landing, event: ListingShown) -> list[str]:
     and the ones it kept); ``filter_listing``'s, every filter it asked for. A
     sort names none."""
     move, args, cue = landing.move.id, landing.args or {}, landing.cue_args
-    if move == "listing.filter" and cue:
+    if move == "commerce.filter" and cue:
         return _shown_options(event, cue[0])
     if move == "filter_listing":
         return [x for key, var in _FILTER_ARGS if args.get(key) for x in _shown_options(event, var)]
@@ -1216,7 +1234,7 @@ def lands(landing: Landing, event: ListingShown | ProductShown) -> bool:
     not its effect."""
     move, args, cue = landing.move.id, landing.args or {}, landing.cue_args
     if isinstance(event, ProductShown):
-        if move == "search_products":
+        if move == "commerce.search":
             return args.get("open_index") is not None
         want = args.get("path")
         return isinstance(want, str) and _product_path(event.path) == _product_path(want)
@@ -1237,11 +1255,11 @@ def lands(landing: Landing, event: ListingShown | ProductShown) -> bool:
                 return False
         sort = args.get("sort")
         return not isinstance(sort, str) or event.sort == sort
-    if move == "listing.filter" and len(cue) >= 2:
+    if move == "commerce.filter" and len(cue) >= 2:
         # A cue adds to what is active: each of its options is on.
         want = _option_set(cue[1])
         return bool(want) and want <= _option_set(event.filters.get(cue[0]))
-    if move == "listing.sort" and cue:
+    if move == "commerce.sort" and cue:
         return event.sort == cue[0]
     return False
 
@@ -1264,7 +1282,7 @@ def done_line(move: str, detail: str, lang: Lang) -> str | None:
     ``partial`` outcome never asks for one.)"""
     if "not filled" in detail:
         return None
-    if move == "add_to_cart" and (m := _ADDED.match(detail)) is not None:
+    if move == "commerce.cart_add" and (m := _ADDED.match(detail)) is not None:
         name = m.group(1).strip()
         if name and not name.startswith("/"):
             return _DONE["add_to_cart_named"][lang].format(name=name)
@@ -1968,6 +1986,10 @@ def _checkout_note(e: CheckoutState) -> str:
 
 # ─── The brain ─────────────────────────────────────────────────────────────────
 
+#: The store's Stage Spec: its moves, and the slices of their screen the page
+#: reports as named acts (``listing.filtered``, ``cart.changed``), which the
+#: brain keeps in its mirror and the model reads with ``read_screen``.
+
 
 class _VoicedStage(Stage):
     """Stage, with each cue's anchor spelled as the voice will say it: in
@@ -2034,6 +2056,9 @@ class CannonHomeBrain(OpenAIBrain):
         #: What their screen last showed: the product page, the listing, the
         #: search box, the cart.
         self.product: ProductShown | None = None
+        #: What the screen said of the product in front before its latest
+        #: read: a live check says when the page showed an older price.
+        self._product_was: Live | None = None
         self.listing: ListingShown | None = None
         self.suggest: SearchSuggest | None = None
         self.cart: CartState | None = None
@@ -2075,6 +2100,7 @@ class CannonHomeBrain(OpenAIBrain):
             on_landed=self._landing_line,
             respell=lambda at: _anchor_for_voice(at, self.spoken),
             sent=self._cue_sent,
+            mirror=Mirror(SPEC),
         )
         #: What each cue sent said, as he wrote it, by its call_ref: for the
         #: line about its result (and a late one after an ``unknown``).
@@ -2568,9 +2594,9 @@ class CannonHomeBrain(OpenAIBrain):
                 out = self._resolve_faq(want)
             case "page.show":
                 out = self._resolve_show(want)
-            case "listing.filter":
+            case "commerce.filter":
                 out = self._resolve_filter(want, args[1] if len(args) > 1 else "")
-            case "listing.sort":
+            case "commerce.sort":
                 out = self._resolve_sort(want)
             case _:
                 out = None
@@ -2756,51 +2782,14 @@ class CannonHomeBrain(OpenAIBrain):
                 return None
             case LanguageRequested():
                 return None
-            case ProductShown():
-                path = canonical_path(event.path)
-                before = self.prices.get(path)
-                self.product = event
-                self._path = path
-                self._remember(
-                    path,
-                    event.name,
-                    event.price,
-                    event.regular_price,
-                    event.in_stock,
-                    event.qty,
-                    event.source,
-                )
-                self.stage.landed(
-                    _PRODUCT_MOVES, event=event, fits=lambda landing: lands(landing, event)
-                )
-                return _product_note(event, before, self.spoken)
-            case ListingShown():
-                self.listing = event
-                for i in event.items:
-                    self._remember(i.path, i.name, i.price, i.regular_price, None, None, "listing")
-                self.stage.landed(
-                    _LISTING_MOVES, event=event, fits=lambda landing: lands(landing, event)
-                )
-                return _listing_note(event, self.spoken)
-            case SearchSuggest():
-                self.suggest = event
-                for s in event.items:
-                    self._remember(s.path, s.name, s.price, None, None, None, "search")
-                return _suggest_note(event, self.spoken)
+            case StageEvent():
+                return self._state(event)
             case PricesRead():
                 for i in event.items:
                     self._remember(
                         i.path, i.name, i.price, i.regular_price, i.in_stock, i.qty, "graphql"
                     )
                 return _prices_note(event, self.kb, self.spoken)
-            case CheckoutState():
-                return self._checkout_changed(event)
-            case CartState():
-                self.cart = event
-                for i in event.items:
-                    if i.path:
-                        self._remember(i.path, i.name, i.price, None, None, None, "cart")
-                return _cart_note(event, self.spoken)
             case StageHello():
                 self.stage.handle(event)
                 return None
@@ -2811,6 +2800,77 @@ class CannonHomeBrain(OpenAIBrain):
             case StageResult():
                 result = self.stage.handle(event)
                 return None if result is None else self._settled(result)
+
+    def _state(self, event: StageEvent) -> str | None:
+        """One named act on their screen, folded into the mirror: the typed
+        view the brain's own rules read is rebuilt from the slice, and the
+        model hears the act's one line. What the slice holds it reads with
+        ``read_screen``."""
+        folded = self.stage.handle(event)
+        if folded is None:
+            return None
+        value = self._slice(folded.slice)
+        if value is None:
+            return folded.note
+        match folded.slice:
+            case "product":
+                view = product_view(value)
+                path = canonical_path(view.path)
+                live = self.prices.get(_product_path(path))
+                if view.source == "page" and live is not None and live.source == "graphql":
+                    # A cached copy of the page never undoes the live read.
+                    view = view.model_copy(
+                        update={
+                            "price": live.price,
+                            "regular_price": live.regular_price,
+                            "in_stock": live.in_stock,
+                            "qty": live.qty,
+                            "source": "graphql",
+                        }
+                    )
+                self.product = view
+                self._path = path
+                self._product_was = self.prices.get(_product_path(path))
+                self._remember(
+                    path,
+                    view.name,
+                    view.price,
+                    view.regular_price,
+                    view.in_stock,
+                    view.qty,
+                    view.source,
+                )
+                self.stage.landed(
+                    _PRODUCT_MOVES, event=view, fits=lambda landing: lands(landing, view)
+                )
+            case "listing":
+                view = listing_view(value)
+                self.listing = view
+                for i in view.items:
+                    self._remember(i.path, i.name, i.price, i.regular_price, None, None, "listing")
+                self.stage.landed(
+                    _LISTING_MOVES, event=view, fits=lambda landing: lands(landing, view)
+                )
+            case "search":
+                view = suggest_view(value)
+                self.suggest = view
+                for s in view.items:
+                    self._remember(s.path, s.name, s.price, None, None, None, "search")
+            case "cart":
+                view = cart_view(value)
+                self.cart = view
+                for i in view.items:
+                    if i.path:
+                        self._remember(i.path, i.name, i.price, None, None, None, "cart")
+            case "checkout":
+                return self._checkout_changed(CheckoutState.model_validate(value))
+            case _:
+                pass
+        return folded.note
+
+    def _slice(self, slice_id: str) -> Mapping[str, Any] | None:
+        mirror = self.stage.mirror
+        return None if mirror is None else mirror.value(slice_id)
 
     def _settled(self, r: StageResult) -> str | None:
         """What the model hears of one move's final result. A tool's move is
@@ -2835,7 +2895,7 @@ class CannonHomeBrain(OpenAIBrain):
         landed_ok = r.outcome in ("applied", "partial")
         why = self._why(r)
         if move.verb is None:
-            name = move.id
+            name = _TOOL_OF.get(move.id, move.id)
             if r.outcome == "applied" and self.stage.shown(r.call_ref):
                 # Its landing line said it already: the result only confirms.
                 return f"[The page confirms {name}: {r.detail or 'done'}.]"
@@ -2850,7 +2910,7 @@ class CannonHomeBrain(OpenAIBrain):
                         "and what is not; never that all of it worked.]"
                     )
                 done = (
-                    done_line(name, detail, self.spoken)
+                    done_line(move.id, detail, self.spoken)
                     if move.cls is MoveClass.CONFIRMED
                     else None
                 )
@@ -2907,7 +2967,7 @@ class CannonHomeBrain(OpenAIBrain):
                     f"{r.detail or 'done'}.]"
                 )
             return None  # Already said as not confirmed; nothing to correct.
-        name = move.id
+        name = _TOOL_OF.get(move.id, move.id)
         if r.outcome == "partial":
             detail = self._partial(r)
             self._answered(f"{name} only partly done after all: {detail}")
@@ -2918,7 +2978,7 @@ class CannonHomeBrain(OpenAIBrain):
         if landed_ok:
             detail = r.detail or "done"
             done = (
-                late_done_line(name, detail, self.spoken)
+                late_done_line(move.id, detail, self.spoken)
                 if move.cls is MoveClass.CONFIRMED
                 else None
             )
@@ -3172,8 +3232,8 @@ class CannonHomeBrain(OpenAIBrain):
                 + "; ".join(self._outcomes)
                 + f'. You have just said: "{said}". Never say that again. Add at most one short '
                 "sentence, in the language you speak: what is not done, if anything, or the one "
-                "next step (free shipping, the checkout). Use the screen lines above for names "
-                "and prices. Never say something is done that the page did not confirm."
+                "next step (free shipping, the checkout). For names and prices, read_screen first. "
+                "Never say something is done that the page did not confirm."
             )
             self._outcomes = []
         elif self._outcomes:
@@ -3182,7 +3242,7 @@ class CannonHomeBrain(OpenAIBrain):
                 + "; ".join(self._outcomes)
                 + ". Say in a sentence or two what actually happened, as the page says it, in "
                 "the language you speak: what is done, and plainly what is not, with what you "
-                "can do instead. Use the screen lines above for names and prices. Never say "
+                "can do instead. For names and prices, read_screen first. Never say "
                 "something is done that the page did not confirm."
             )
             self._outcomes = []
@@ -3285,6 +3345,7 @@ class CannonHomeBrain(OpenAIBrain):
         checkout's delivery form and fill their delivery details (never the
         RUT, a password or the payment); move their tabs; switch language."""
         return [
+            self.read_screen,
             self.read_topic,
             self.search_site,
             self.find_products,
@@ -3301,6 +3362,30 @@ class CannonHomeBrain(OpenAIBrain):
             self.switch_tab,
             self.set_language,
         ]
+
+    @needs_result_now
+    async def read_screen(self, request: ReadRequest) -> str:
+        """Read part of their screen as the page last reported it: the product
+        page in front with its price and stock, the listing, the search box's
+        suggestions, the cart, or the delivery form."""
+        match request.slice:
+            case "product":
+                if self.product is not None:
+                    return _product_note(self.product, self._product_was, self.spoken)
+            case "listing":
+                if self.listing is not None:
+                    return _listing_note(self.listing, self.spoken)
+            case "search":
+                if self.suggest is not None:
+                    return _suggest_note(self.suggest, self.spoken)
+            case "cart":
+                if self.cart is not None:
+                    return _cart_note(self.cart, self.spoken)
+            case "checkout":
+                if self.checkout is not None:
+                    return _checkout_note(self.checkout)
+        mirror = self.stage.mirror
+        return mirror.read(request.slice) if mirror is not None else "Nothing to read."
 
     @needs_result_now
     async def read_topic(self, request: TopicRequest) -> str:
@@ -3453,8 +3538,8 @@ class CannonHomeBrain(OpenAIBrain):
         if index is not None and not 1 <= index <= 6:
             return "Not searched: open_index is 1 to 6, the suggested products."
         # The model counts from 1, as the visitor does; the page from 0.
-        action = SearchProductsArgs(query=query, open_index=None if index is None else index - 1)
-        queued = self._move("search_products", action, "search")
+        action = SearchArgs(query=query, open_index=None if index is None else index - 1)
+        queued = self._move("commerce.search", action, "search")
         if queued is not None:
             return queued
         return f"Typing '{query}' in the store's search box. " + self._sent_note(
@@ -3525,9 +3610,7 @@ class CannonHomeBrain(OpenAIBrain):
             return self._unknown_product(request.path)
         here = self.product is not None and canonical_path(self.product.path) == path
         if here and request.tab is None:
-            return (
-                "Not moved: that product is already on their screen. Answer from its lines above."
-            )
+            return "Not moved: that product is already on their screen. Answer from read_screen's product."
         if here and request.tab is not None:
             # The product is in front: only its tab moves.
             queued = self._move("product_tab", ProductTabArgs(tab=request.tab), "tab")
@@ -3588,7 +3671,9 @@ class CannonHomeBrain(OpenAIBrain):
                 "Not added: their screen says it is not available. Say so, and offer another "
                 "size or colour of the line (find_products)."
             )
-        queued = self._move("add_to_cart", AddToCartArgs(path=path, qty=request.qty), "cart_add")
+        queued = self._move(
+            "commerce.cart_add", CartAddArgs(path=path, qty=request.qty), "cart_add"
+        )
         if queued is not None:
             return queued
         p = self.kb.product(path)
@@ -3635,8 +3720,8 @@ class CannonHomeBrain(OpenAIBrain):
         if item is not None and item.qty == request.qty:
             return f"Nothing to change: their cart already has {item.qty} of {name}."
         queued = self._move(
-            "update_cart_item",
-            UpdateCartItemArgs(path=path, qty=request.qty),
+            "commerce.cart_update",
+            CartUpdateArgs(path=path, qty=request.qty),
             "cart_remove" if request.qty == 0 else "cart_update",
         )
         if queued is not None:
@@ -3653,8 +3738,8 @@ class CannonHomeBrain(OpenAIBrain):
         if (meta := self._meta_turn()) is not None:
             return meta
         queued = self._move(
-            "show_cart",
-            ShowCartArgs(open=request.open),
+            "commerce.cart_show",
+            CartShowArgs(open=request.open),
             "cart_show" if request.open else "cart_close",
         )
         if queued is not None:
@@ -3960,8 +4045,11 @@ _LABELERS: dict[str, Callable[[str, tuple[str, ...]], str | None]] = {
 
 __all__ = [
     "MOVES",
-    "AddToCartArgs",
+    "SPEC",
     "CannonHomeBrain",
+    "CartAddArgs",
+    "CartShowArgs",
+    "CartUpdateArgs",
     "CheckPricesArgs",
     "FillCheckoutArgs",
     "FilterListingArgs",
@@ -3969,8 +4057,7 @@ __all__ = [
     "LanguageChanged",
     "OpenProductArgs",
     "ProductTabArgs",
-    "SearchProductsArgs",
-    "ShowCartArgs",
+    "ReadRequest",
+    "SearchArgs",
     "StartCheckoutArgs",
-    "UpdateCartItemArgs",
 ]

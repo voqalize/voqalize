@@ -17,6 +17,23 @@ export interface LanguageChanged {
   language: 'en' | 'es';
 }
 
+/**
+ * A named act that changed one slice of the page's state
+ * (`cart.changed`, `listing.filtered`), as the app's Stage Spec declares
+ * it. Only the fields the slice declares, and none it marks private, are
+ * sent; the brain folds them into its mirror and tells the model one short
+ * line, never the values.
+ */
+export interface StageEvent {
+  name: string;
+
+  by?: 'visitor' | 'agent';
+
+  data?: Record<string, unknown>;
+
+  call_ref?: string | null;
+}
+
 /** A page running Stage, saying what it is — on connect and on every load. */
 export interface StageHello {
   runtime: string;
@@ -74,66 +91,9 @@ export interface StageResult {
   late?: boolean;
 }
 
-/** The visitor's cart, after an add (whoever made it) or when shown. */
-export interface CartState {
-  items?: CartItem[];
-
-  count?: number;
-
-  subtotal?: number | null;
-
-  free_shipping_left?: number | null;
-}
-
-/**
- * The checkout's delivery form (/checkout, the guest's one-page checkout):
- * on load and after each change, whoever made it (debounced by the page).
- *
- * **Names, not values.** What the visitor typed stays on their screen: the
- * form reports which fields hold something, never what, apart from the
- * región and comuna chosen (the site's own option names). The RUT, any
- * password and anything of the payment step are never read at all; `rut`
- * is named in `filled` or `missing` only so he knows whether they have
- * typed it.
- */
-export interface CheckoutState {
-  filled?: string[];
-
-  missing?: string[];
-
-  invalid?: CheckoutInvalid[];
-
-  region?: string;
-
-  comuna?: string;
-
-  email_has_account?: boolean;
-
-  delivery_options?: string[];
-
-  delivery?: string;
-
-  payment_open?: boolean;
-}
-
 /** The visitor pressed the other language on the widget's toggle. */
 export interface LanguageRequested {
   language: 'en' | 'es';
-}
-
-/** A category or search listing is in front, after a load or a filter. */
-export interface ListingShown {
-  path: string;
-
-  title?: string;
-
-  count?: number | null;
-
-  filters?: Record<string, string>;
-
-  sort?: string;
-
-  items?: ListingItem[];
 }
 
 /** The tab in front changed page, or came to the front: what is on it now. */
@@ -165,45 +125,6 @@ export interface PricesRead {
   missing?: string[];
 }
 
-/**
- * A product page is in front: what it shows, read in the visitor's
- * browser. Sent on load from the page (`source` `page`: the HTML may be
- * hours old) and again once the store's GraphQL confirms it (`graphql`,
- * live): the second one wins.
- */
-export interface ProductShown {
-  path: string;
-
-  sku?: string;
-
-  name?: string;
-
-  price?: number | null;
-
-  regular_price?: number | null;
-
-  in_stock?: boolean | null;
-
-  qty?: number | null;
-
-  specs?: Record<string, string>;
-
-  rating?: number | null;
-
-  reviews?: number | null;
-
-  source?: 'page' | 'graphql';
-}
-
-/** The search box's suggestions for what was typed in it. */
-export interface SearchSuggest {
-  query: string;
-
-  items?: SuggestItem[];
-
-  categories?: string[];
-}
-
 /** Every Cannon Home tab the visitor has open, and the one in front. */
 export interface TabsChanged {
   tabs?: TabInfo[];
@@ -212,32 +133,6 @@ export interface TabsChanged {
 }
 
 // ── Shapes used by the messages above ──────────────────────────────
-
-export interface CartItem {
-  name: string;
-
-  path?: string;
-
-  qty?: number;
-
-  price?: number | null;
-}
-
-export interface CheckoutInvalid {
-  field: string;
-
-  message?: string;
-}
-
-export interface ListingItem {
-  name: string;
-
-  path: string;
-
-  price?: number | null;
-
-  regular_price?: number | null;
-}
 
 export interface PriceItem {
   path: string;
@@ -262,14 +157,6 @@ export interface Refusal {
   why: string;
 
   options?: string[];
-}
-
-export interface SuggestItem {
-  name: string;
-
-  path: string;
-
-  price?: number | null;
 }
 
 export interface TabInfo {
@@ -314,33 +201,25 @@ export function unhandledUiAction(action: never): never {
 
 /** Everything the person can do on screen, discriminated by `event`. */
 export type AppEvent =
+  | { event: 'stage_event'; payload: StageEvent }
   | { event: 'stage_hello'; payload: StageHello }
   | { event: 'stage_progress'; payload: StageProgress }
   | { event: 'stage_result'; payload: StageResult }
-  | { event: 'cart_state'; payload: CartState }
-  | { event: 'checkout_state'; payload: CheckoutState }
   | { event: 'language_requested'; payload: LanguageRequested }
-  | { event: 'listing_shown'; payload: ListingShown }
   | { event: 'page_changed'; payload: PageChanged }
   | { event: 'prices_read'; payload: PricesRead }
-  | { event: 'product_shown'; payload: ProductShown }
-  | { event: 'search_suggest'; payload: SearchSuggest }
   | { event: 'tabs_changed'; payload: TabsChanged };
 
 export type AppEventName = AppEvent['event'];
 
 export const APP_EVENT_NAMES: readonly AppEventName[] = [
+  'stage_event',
   'stage_hello',
   'stage_progress',
   'stage_result',
-  'cart_state',
-  'checkout_state',
   'language_requested',
-  'listing_shown',
   'page_changed',
   'prices_read',
-  'product_shown',
-  'search_suggest',
   'tabs_changed',
 ];
 

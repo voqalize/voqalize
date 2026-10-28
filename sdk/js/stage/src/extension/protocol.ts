@@ -125,3 +125,11 @@ export type ToPage =
   | { k: "hurry" }
   // A new face's catch-up on the reply in progress.
   | { k: "catchup"; msgs: ToPage[] };
+
+/** Whether an event from a tab not in front still reaches the agent: an app
+ *  event named in `anyTab`, or a state event (`stage_event`) whose spec id is. */
+export function takenFromAnyTab(anyTab: ReadonlySet<string>, event: string, payload: unknown): boolean {
+  if (anyTab.has(event)) return true;
+  const name = event === "stage_event" ? (payload as { name?: unknown } | null)?.name : undefined;
+  return typeof name === "string" && anyTab.has(name);
+}

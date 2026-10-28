@@ -9,7 +9,7 @@
  * (`site-language.ts`) and what is here.
  */
 
-import type { ArgsOf, MoveId } from "@voqalize/stage";
+import type { ArgsOf, MoveId, SliceOf } from "@voqalize/stage";
 import { defineSite, type WidgetWords } from "@voqalize/stage/extension";
 
 import { scene } from "./scene.gen";
@@ -29,6 +29,54 @@ export const MOVE = {
   sendEnquiry: "explora.send_enquiry",
   focusTab: "explora.focus_tab",
 } as const satisfies Record<string, MoveId<Spec>>;
+
+// ─── The page's state, as Stage state events ──────────────────────────────
+
+/** The `stay` slice: the booking calendar or the rooms and rates. */
+export type StayState = SliceOf<Spec, "stay">;
+export type NightsOption = NonNullable<StayState["nights"]>[number];
+export type RoomOption = NonNullable<StayState["rooms"]>[number];
+/** The `enquiry` slice: which fields are filled, never what they hold. */
+export type EnquiryState = SliceOf<Spec, "enquiry">;
+/** What the enquiry form holds, read on the page for its own checks; only
+ *  the names of the filled fields leave it. */
+export interface EnquiryFields {
+  title?: string;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  phone?: string;
+  country?: string;
+  message?: string;
+}
+/** The enquiry as the page reads it, before it is reported. */
+export type EnquiryReport = Omit<EnquiryState, "filled"> & { filled: EnquiryFields };
+
+type Emit = (event: string, payload: unknown) => void;
+
+/** The adapters report the page's state under these names; each goes to the
+ *  agent as the Stage state event for its slice, through `scene.event`, which
+ *  sends only what the slice declares. */
+const STATE: Record<string, "page.changed" | "stay.changed" | "enquiry.changed"> = {
+  page_changed: "page.changed",
+  stay_state: "stay.changed",
+  enquiry_state: "enquiry.changed",
+};
+
+/** `emit`, with the page's state sent as Stage state events and every other
+ *  report (an act: an enquiry sent, a language asked for) as it is. */
+export function asStage(emit: Emit): Emit {
+  return (event, payload) => {
+    const name = STATE[event];
+    if (!name) return emit(event, payload);
+    let data = payload as Record<string, unknown>;
+    if (name === "enquiry.changed") {
+      const filled = (data.filled ?? {}) as Record<string, unknown>;
+      data = { ...data, filled: Object.keys(filled).filter((k) => filled[k]) };
+    }
+    emit("stage_event", scene.event(name, data as never));
+  };
+}
 
 /** The moves made on the booking site: from www.explora.com they load it first. */
 export const BOOKING_MOVES = new Set<string>([

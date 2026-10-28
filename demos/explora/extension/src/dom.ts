@@ -10,7 +10,7 @@
  * load starts it afresh.
  */
 
-/** What a page reports as `page_changed`. */
+/** What a page reports: the data of its `page.changed` state event (the `page` slice). */
 export interface PageContext {
   site: "site" | "reservations";
   url: string;

@@ -470,8 +470,28 @@ async def _until(rig: Any, name: str, count: int) -> None:
     raise AssertionError(f"no {name} #{count}: {_commands(rig, name)}")
 
 
+#: The page's state, as the extension sends it: a Stage state event per slice.
+_STATE_EVENTS = {
+    "page_changed": "page.changed",
+    "stay_state": "stay.changed",
+    "enquiry_state": "enquiry.changed",
+}
+
+
+def _state_event(event: str, payload: dict[str, Any]) -> dict[str, Any]:
+    """``payload`` as the extension's ``stage_event`` for the slice it changes:
+    an enquiry's fields by name only, never what they hold."""
+    data = dict(payload)
+    if event == "enquiry_state":
+        data["filled"] = [k for k, v in (payload.get("filled") or {}).items() if v]
+    return {"name": _STATE_EVENTS[event], "by": "visitor", "data": data}
+
+
 async def _page(rig: Any, event: str, payload: dict[str, Any]) -> None:
-    await rig.driver.send_ui_event(event, payload)
+    if event in _STATE_EVENTS:
+        await rig.driver.send_ui_event("stage_event", _state_event(event, payload))
+    else:
+        await rig.driver.send_ui_event(event, payload)
     # `on_rtvi` takes no floor and there is nothing to await: give it a moment.
     await asyncio.sleep(0.1)
 
@@ -1054,6 +1074,51 @@ def test_the_calendar_read_out() -> None:
 
 def kb_nights(nights: int, label: str) -> Any:
     return explora.NightsOption(nights=nights, label=label)
+
+
+async def test_the_screen_is_kept_in_the_mirror_and_read_whole() -> None:
+    """The page's state arrives as Stage state events, folded into the
+    mirror; the screen lines are cut short, and read_screen gives it whole."""
+    headings = [f"Section {i}" for i in range(55)]
+    llm = _llm()
+    async with _explora(llm) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
+        await _page(rig, "page_changed", {**ATACAMA_PAGE, "headings": headings})
+        await rig.driver.user_says("What's here?")
+        seen = _texts(llm.captured_inputs[-1])
+        assert "Section 39" in seen and "Section 50" not in seen
+        brain = rig.brain  # type: ignore[attr-defined]
+        assert brain.stage.mirror.version("page") == 1
+        whole = await brain.read_screen(explora.ReadRequest(slice="page"))
+        assert "version 1" in whole and "  - Section 54" in whole
+        assert "read_screen" in [t.__name__ for t in brain.tools]
+        # The old app event carries no state any more: it is not read.
+        await rig.driver.send_ui_event("page_changed", {**ATACAMA_PAGE, "path": "/elsewhere/"})
+        await asyncio.sleep(0.1)
+        assert brain.page.path == "/lodge/atacama-lodge/"
+
+
+async def test_the_enquiry_reaches_the_brain_by_field_name_only() -> None:
+    llm = _llm()
+    async with _explora(llm) as rig:
+        await rig.driver.start_session(init={"site": "reservations", "path": "/ibe/expeditions"})
+        await _page(
+            rig,
+            "enquiry_state",
+            {
+                "expedition": "Sacred Mountains Expedition",
+                "expedition_code": "XSCM",
+                "filled": {"first_name": "Ana", "email": "ana@example.com"},
+                "missing": ["phone"],
+                "captcha": False,
+            },
+        )
+        brain = rig.brain  # type: ignore[attr-defined]
+        assert brain.stage.mirror.value("enquiry")["filled"] == ["first_name", "email"]
+        await rig.driver.user_says("What's left?")
+        seen = _texts(llm.captured_inputs[-1])
+        assert "Filled: first_name, email" in seen
+        assert "Ana" not in seen and "ana@example.com" not in seen
 
 
 async def test_a_heading_made_up_for_the_page_is_dropped() -> None:

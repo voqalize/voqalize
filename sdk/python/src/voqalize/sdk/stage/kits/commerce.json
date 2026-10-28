@@ -1,7 +1,7 @@
 {
   "kit": 1,
   "id": "commerce",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "doc": "A store: its listings filtered, sorted and searched as the agent says so, an item opened, and the cart filled once the visitor said yes. The page writes the performers (where the filters are, how the cart opens); the kit fixes what each move is and how it reports.",
   "moves": [
     {
@@ -9,65 +9,166 @@
       "verb": "filter",
       "class": "reversible",
       "args": [
-        { "name": "facet", "doc": "The filter as the listing names it: Tamaño, Color." },
-        { "name": "value", "optional": true, "doc": "One option as the listing writes it, or several joined by commas." }
+        {
+          "name": "facet",
+          "doc": "The filter as the listing names it: Tamaño, Color."
+        },
+        {
+          "name": "value",
+          "optional": true,
+          "doc": "One option as the listing writes it, or several joined by commas."
+        },
+        {
+          "name": "path",
+          "optional": true,
+          "doc": "The listing's path, when it is not the one in front; it is opened first."
+        }
       ],
       "say": "{filter: Facet | Option} as you name a filter of the listing in front, one per sentence; {filter: Facet | Option, Option} for several options of one filter.",
-      "claims": ["filtering by", "filtro por", "filtrando por"],
-      "objects": ["filter", "filtro"],
+      "claims": [
+        "filtering by",
+        "filtro por",
+        "filtrando por"
+      ],
+      "objects": [
+        "filter",
+        "filtro"
+      ],
       "doc": "Apply one filter of the listing in front, one option or several of it, with the listing's own control."
     },
     {
       "id": "commerce.sort",
       "verb": "sort",
       "class": "reversible",
-      "args": [{ "name": "order", "enum": ["price_asc", "price_desc", "relevance", "newest"] }],
+      "args": [
+        {
+          "name": "order",
+          "enum": [
+            "price_asc",
+            "price_desc",
+            "relevance",
+            "newest"
+          ]
+        },
+        {
+          "name": "path",
+          "optional": true,
+          "doc": "The listing's path, when it is not the one in front; it is opened first."
+        }
+      ],
       "say": "{sort: price_asc} as you say how the listing is ordered: price_asc, price_desc, relevance or newest.",
-      "claims": ["sorting by", "ordenando por", "ordeno por"],
+      "claims": [
+        "sorting by",
+        "ordenando por",
+        "ordeno por"
+      ],
       "doc": "Order the listing in front."
     },
     {
       "id": "commerce.search",
       "class": "reversible",
       "args": [
-        { "name": "query", "doc": "The words to type, in the store's language." },
-        { "name": "open_index", "type": "integer", "optional": true, "doc": "Open the suggestion at this place, 0 for the first." }
+        {
+          "name": "query",
+          "doc": "The words to type, in the store's language."
+        },
+        {
+          "name": "open_index",
+          "type": "integer",
+          "optional": true,
+          "doc": "Open the suggestion at this place, 0 for the first."
+        }
       ],
-      "claims": ["searching for", "buscando", "busco"],
-      "objects": ["search", "busqueda"],
+      "claims": [
+        "searching for",
+        "buscando",
+        "busco"
+      ],
+      "objects": [
+        "search",
+        "busqueda"
+      ],
       "doc": "Type into the store's own search box at a human pace and let its suggestions open; open one when asked."
     },
     {
       "id": "commerce.open_item",
       "class": "navigate",
-      "args": [{ "name": "path", "doc": "The item's path on the store." }],
-      "claims": ["opening the * product", "abro el * producto"],
-      "objects": ["product", "producto"],
+      "args": [
+        {
+          "name": "path",
+          "doc": "The item's path on the store."
+        }
+      ],
+      "claims": [
+        "opening the * product",
+        "abro el * producto"
+      ],
+      "objects": [
+        "product",
+        "producto"
+      ],
       "doc": "Open an item's page."
     },
     {
       "id": "commerce.cart_add",
       "class": "confirmed",
       "args": [
-        { "name": "path", "doc": "The item's path; it is opened first when it is not in front." },
-        { "name": "qty", "type": "integer", "default": 1 }
+        {
+          "name": "path",
+          "doc": "The item's path; it is opened first when it is not in front."
+        },
+        {
+          "name": "qty",
+          "type": "integer",
+          "default": 1
+        }
       ],
-      "claims": ["adding * to your cart", "agrego * al carro", "agregando * al carro"],
-      "objects": ["cart", "carro", "carrito"],
+      "claims": [
+        "adding * to your cart",
+        "agrego * al carro",
+        "agregando * al carro"
+      ],
+      "objects": [
+        "cart",
+        "carro",
+        "carrito"
+      ],
       "doc": "Add an item to the cart, once the visitor said yes. Never the checkout."
     },
     {
       "id": "commerce.cart_update",
       "class": "confirmed",
-      "args": [{ "name": "path" }, { "name": "qty", "type": "integer", "doc": "0 takes it out." }],
-      "claims": ["changing * in your cart", "cambio * en el carro"],
-      "objects": ["cart", "carro", "carrito"],
+      "args": [
+        {
+          "name": "path"
+        },
+        {
+          "name": "qty",
+          "type": "integer",
+          "doc": "0 takes it out."
+        }
+      ],
+      "claims": [
+        "changing * in your cart",
+        "cambio * en el carro"
+      ],
+      "objects": [
+        "cart",
+        "carro",
+        "carrito"
+      ],
       "doc": "Set how many of a cart line they have, or take it out, once the visitor said yes. Never the checkout."
     },
     {
       "id": "commerce.cart_show",
       "class": "look",
-      "args": [{ "name": "open", "type": "boolean", "default": true }],
+      "args": [
+        {
+          "name": "open",
+          "type": "boolean",
+          "default": true
+        }
+      ],
       "doc": "Open the cart's drawer or page, or close it."
     }
   ],
@@ -76,19 +177,60 @@
       "id": "listing",
       "doc": "the listing in front: its title, how many it shows, the filters on and offered, the order, the first items",
       "fields": [
-        { "name": "path" },
-        { "name": "title" },
-        { "name": "count", "type": "integer", "optional": true },
+        {
+          "name": "path"
+        },
+        {
+          "name": "title"
+        },
+        {
+          "name": "count",
+          "type": "integer",
+          "optional": true
+        },
         {
           "name": "filters",
           "type": "array",
-          "fields": [{ "name": "facet" }, { "name": "on", "type": "array" }, { "name": "options", "type": "array" }]
+          "fields": [
+            {
+              "name": "facet"
+            },
+            {
+              "name": "on",
+              "type": "array"
+            },
+            {
+              "name": "options",
+              "type": "array"
+            }
+          ]
         },
-        { "name": "sort", "optional": true },
+        {
+          "name": "sort",
+          "optional": true
+        },
         {
           "name": "items",
           "type": "array",
-          "fields": [{ "name": "path" }, { "name": "name" }, { "name": "price", "type": "number", "optional": true }]
+          "fields": [
+            {
+              "name": "path"
+            },
+            {
+              "name": "name"
+            },
+            {
+              "name": "price",
+              "type": "number",
+              "optional": true
+            },
+            {
+              "name": "regular_price",
+              "type": "number",
+              "optional": true,
+              "doc": "The price before a discount."
+            }
+          ]
         }
       ]
     },
@@ -96,25 +238,69 @@
       "id": "cart",
       "doc": "what is in their cart: each line, how many, the subtotal",
       "fields": [
-        { "name": "count", "type": "integer" },
-        { "name": "subtotal", "type": "number", "optional": true },
+        {
+          "name": "count",
+          "type": "integer"
+        },
+        {
+          "name": "subtotal",
+          "type": "number",
+          "optional": true
+        },
         {
           "name": "items",
           "type": "array",
           "fields": [
-            { "name": "path" },
-            { "name": "name" },
-            { "name": "qty", "type": "integer" },
-            { "name": "price", "type": "number", "optional": true }
+            {
+              "name": "path"
+            },
+            {
+              "name": "name"
+            },
+            {
+              "name": "qty",
+              "type": "integer"
+            },
+            {
+              "name": "price",
+              "type": "number",
+              "optional": true
+            }
           ]
+        },
+        {
+          "name": "free_shipping_left",
+          "type": "number",
+          "optional": true,
+          "doc": "What is left to spend for free shipping, when the store says."
         }
       ]
     }
   ],
   "events": [
-    { "id": "listing.shown", "slice": "listing", "op": "set", "note": "{by} opened the listing {title}: {count} products" },
-    { "id": "listing.filtered", "slice": "listing", "op": "set", "note": "{by} changed the listing's filters: {count} products" },
-    { "id": "listing.sorted", "slice": "listing", "op": "set", "note": "{by} sorted the listing" },
-    { "id": "cart.changed", "slice": "cart", "op": "set", "note": "{by} changed the cart: {count} items" }
+    {
+      "id": "listing.shown",
+      "slice": "listing",
+      "op": "set",
+      "note": "{by} opened the listing {title}: {count} products"
+    },
+    {
+      "id": "listing.filtered",
+      "slice": "listing",
+      "op": "set",
+      "note": "{by} changed the listing's filters: {count} products"
+    },
+    {
+      "id": "listing.sorted",
+      "slice": "listing",
+      "op": "set",
+      "note": "{by} sorted the listing"
+    },
+    {
+      "id": "cart.changed",
+      "slice": "cart",
+      "op": "set",
+      "note": "{by} changed the cart: {count} items"
+    }
   ]
 }

@@ -188,3 +188,18 @@ def test_the_typescript_keeps_private_marks_and_drops_notes() -> None:
     assert '"private": true' in text
     assert "changed the cart" not in text
     assert "what is in their cart" not in text
+
+
+def test_a_value_of_another_shape_is_dropped_whatever_it_holds() -> None:
+    """A page that sends an object where names were declared keeps nothing of it."""
+    mirror = Mirror(load_spec(SPEC))
+    leaky = {
+        "count": "3",
+        "subtotal": True,
+        "items": [{"name": "Toalla", "qty": 1}, "not an item"],
+        "email": "a@b.c",
+    }
+    mirror.fold(StageEvent(name="cart.changed", data=leaky))
+    assert mirror.value("cart") == {"items": [{"name": "Toalla", "qty": 1}]}
+    mirror.fold(StageEvent(name="listing.sorted", data={"title": {"secret": "x"}, "sort": None}))
+    assert mirror.value("listing") == {"sort": None}

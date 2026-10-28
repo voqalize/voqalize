@@ -32,7 +32,9 @@ Explora's own:
   its label, or words to ring), `core.faq` (a question's accordion),
   `explora.navigate` (a page) and `explora.twin` (this page in the call's
   language); a move that loads a page is answered from the page it lands on,
-  under its own id. It reports the page (`page_changed`): its headings, its
+  under its own id. It reports the page (the `page.changed` state event of
+  `scene.json`'s `page` slice; the booking site's `stay.changed` and
+  `enquiry.changed` likewise, the form by field name only): its headings, its
   questions, its tabs and accordions, and its own sub-menu, read with the
   crawler's rules (`../backend/knowledge/L3/build_main.py`), so the names the
   brain knows from the crawl are the names the page finds. What is asked for
@@ -155,7 +157,7 @@ step loads the other host in the same tab.
   booking site, waits for him to be quiet that way. His `{show: …}` cues for
   the new page wait for it on the page side, fired as his voice reaches their
   words; the brain lets no more than two sentences ahead of a page that has
-  not reported `page_changed`.
+  not reported `page.changed`.
 - **The rest of a move, on the next page.** A move that needs the next page is
   kept by the service worker for this browser tab (the next page may be the
   other origin) and made once the call is up there, with the same

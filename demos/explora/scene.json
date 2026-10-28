@@ -147,5 +147,174 @@
       "args": [{ "name": "tab_id" }],
       "doc": "Bring one of the visitor's Explora tabs to the front."
     }
+  ],
+  "slices": [
+    {
+      "id": "page",
+      "doc": "the page in front: its title, every section heading, tab and accordion, question and sub-page",
+      "window": 60,
+      "fields": [
+        {
+          "name": "site",
+          "enum": [
+            "site",
+            "reservations"
+          ],
+          "optional": true
+        },
+        {
+          "name": "url",
+          "optional": true
+        },
+        {
+          "name": "path"
+        },
+        {
+          "name": "title",
+          "optional": true
+        },
+        {
+          "name": "headings",
+          "type": "array",
+          "doc": "The section headings, in order: what a show cue takes.",
+          "optional": true
+        },
+        {
+          "name": "faqs",
+          "type": "array",
+          "doc": "The questions in the page's accordions: what a faq cue takes.",
+          "optional": true
+        },
+        {
+          "name": "tabs",
+          "type": "array",
+          "doc": "The labels of the in-page tabs and accordions.",
+          "optional": true
+        },
+        {
+          "name": "links",
+          "type": "array",
+          "doc": "The page's own sub-menu, as paths.",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "id": "stay",
+      "doc": "the booking calendar or the rooms and rates on reservations.explora.com: the lodge, the month, the open arrival days, the nights offered, the rooms",
+      "window": 40,
+      "fields": [
+        {
+          "name": "step",
+          "enum": [
+            "dates",
+            "rooms"
+          ]
+        },
+        {
+          "name": "hotel_code",
+          "optional": true
+        },
+        {
+          "name": "hotel",
+          "optional": true
+        },
+        {
+          "name": "month",
+          "optional": true
+        },
+        {
+          "name": "open_days",
+          "type": "array",
+          "optional": true
+        },
+        {
+          "name": "date",
+          "optional": true
+        },
+        {
+          "name": "nights",
+          "type": "array",
+          "fields": [
+            {
+              "name": "nights",
+              "type": "integer"
+            },
+            {
+              "name": "label"
+            }
+          ],
+          "optional": true
+        },
+        {
+          "name": "chosen_nights",
+          "type": "integer",
+          "optional": true
+        },
+        {
+          "name": "rooms",
+          "type": "array",
+          "fields": [
+            {
+              "name": "name"
+            },
+            {
+              "name": "text"
+            }
+          ],
+          "optional": true
+        }
+      ]
+    },
+    {
+      "id": "enquiry",
+      "doc": "an expedition's enquiry form: which fields are filled and which are still empty (never what they hold), and whether I'm not a robot is ticked",
+      "fields": [
+        {
+          "name": "expedition",
+          "optional": true
+        },
+        {
+          "name": "expedition_code",
+          "optional": true
+        },
+        {
+          "name": "filled",
+          "type": "array",
+          "doc": "The names of the fields that hold something; never their values.",
+          "optional": true
+        },
+        {
+          "name": "missing",
+          "type": "array",
+          "optional": true
+        },
+        {
+          "name": "captcha",
+          "type": "boolean",
+          "optional": true
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "id": "page.changed",
+      "slice": "page",
+      "op": "set",
+      "doc": "The tab in front loaded a page, or came to the front. Folded in silence: the brain reads the page in with the next thing the visitor says."
+    },
+    {
+      "id": "stay.changed",
+      "slice": "stay",
+      "op": "set",
+      "doc": "The booking calendar or the rooms changed, by the visitor or a move. The brain writes its own line for it."
+    },
+    {
+      "id": "enquiry.changed",
+      "slice": "enquiry",
+      "op": "set",
+      "doc": "The enquiry form changed: a field filled or emptied, the reCAPTCHA ticked. The brain writes its own line for it."
+    }
   ]
 }

@@ -9,15 +9,22 @@
  * `emit(event, payload)`, whoever moved it:
  *
  *   - `page_changed` for every page the visitor lands on, whoever took them;
- *   - `product_shown` on a product page: read from the page at once, then
- *     confirmed by one `POST /graphql` (`source: "graphql"`), because the HTML
+ *   - `prices_read` for `check_prices`.
+ *
+ * What their screen holds is Stage state (`cannonhome/scene.json`): each change
+ * goes as a named `stage_event` (`scene.event`), with only the fields its
+ * slice declares, and `by: "agent"` with the move's `call_ref` when one of
+ * Javier's moves made it:
+ *
+ *   - `product.shown` on a product page, read from the page at once, then
+ *     `product.checked` once one `POST /graphql` confirms it, because the HTML
  *     is served from Fastly's cache and its price and stock can be hours old;
- *   - `listing_shown` on a category or search listing, and again after every
- *     AJAX grid update (filters, sort, paging), whoever made it;
- *   - `search_suggest` whenever the search box's dropdown shows products;
- *   - `prices_read` for `check_prices`;
- *   - `cart_state` after an add, when the bag opens, and when it changes;
- *   - `checkout_state` on the checkout's delivery form: which fields hold
+ *   - `listing.shown` on a category or search listing, and `listing.filtered`
+ *     / `listing.sorted` after an AJAX grid update on the same listing,
+ *     whoever made it;
+ *   - `search.suggested` whenever the search box's dropdown shows products;
+ *   - `cart.changed` after an add, when the bag opens, and when it changes;
+ *   - `checkout.changed` on the checkout's delivery form: which fields hold
  *     something (never what), which are missing, what the form flags.
  *
  * The site, for a script like this: Magento 2.4 (Luma-derived theme
@@ -39,7 +46,7 @@
  * anything of the payment, whatever the brain sends.
  */
 
-import type { MoveContext, Moves, PerformResult, Refusal } from "@voqalize/stage";
+import type { MoveContext, Moves, Performer, PerformResult, Refusal, StageEvent } from "@voqalize/stage";
 import type { Adapter } from "@voqalize/stage/extension";
 
 import { scene } from "./scene.gen";
@@ -199,7 +206,104 @@ function report(event: string, payload: unknown): void {
   if (!mine) sent.set(emitter, (mine = new Map()));
   if (mine.get(event) === key) return;
   mine.set(event, key);
-  emitter(event, payload);
+  emitter(...onTheWire(event, payload));
+}
+
+/** Javier's move in progress, or just finished: a change on the page then is
+ *  his, reported with the move's `call_ref`. */
+let agent: { callRef: string; until: number } | null = null;
+/** A change this soon after his move finished is still the move's. */
+const AGENT_WINDOW_MS = 500;
+
+/** `perform`, with what it changes on the page reported as his. */
+function asAgent<A>(perform: Performer<A>): Performer<A> {
+  return async (args, c) => {
+    agent = { callRef: c.callRef, until: Number.POSITIVE_INFINITY };
+    try {
+      return await perform(args, c);
+    } finally {
+      agent = { callRef: c.callRef, until: Date.now() + AGENT_WINDOW_MS };
+    }
+  };
+}
+
+function who(): { by: "visitor" | "agent"; callRef?: string } {
+  return agent && Date.now() <= agent.until ? { by: "agent", callRef: agent.callRef } : { by: "visitor" };
+}
+
+/** The listing last reported in this tab, kept across a load (a filter link
+ *  may load the page): a new report of the same one is a filter or a sort,
+ *  not a new listing. */
+const LAST_LISTING = "voqalize.cannonhome.listing";
+type Seen = { path: string; filters: string; sort: string };
+
+function lastListing(): Seen | null {
+  try {
+    return JSON.parse(sessionStorage.getItem(LAST_LISTING) ?? "null") as Seen | null;
+  } catch {
+    return null;
+  }
+}
+
+function sawListing(seen: Seen): void {
+  try {
+    sessionStorage.setItem(LAST_LISTING, JSON.stringify(seen));
+  } catch {
+    // No storage here: the next report of it reads as a new listing.
+  }
+}
+
+/** A state report as it goes to the brain: a Stage state event for what the
+ *  screen holds, the site's own event for the rest. */
+function onTheWire(event: string, payload: unknown): [string, unknown] {
+  const by = who();
+  let ev: StageEvent | null = null;
+  switch (event) {
+    case "product_shown": {
+      const p = payload as ProductShown;
+      ev = scene.event(
+        p.source === "graphql" ? "product.checked" : "product.shown",
+        { ...p, specs: Object.entries(p.specs).map(([label, value]) => ({ label, value })) },
+        by,
+      );
+      break;
+    }
+    case "listing_shown": {
+      const l = payload as ReturnType<typeof readListing>;
+      const filters = JSON.stringify(l.filters);
+      const sort = l.sort ?? "";
+      // The listing itself, not its address: a filter may add its options to
+      // the path (`/20-sabanas/rosa`), and taking it off takes them away.
+      const here = l.path.replace(/\/+$/, "");
+      const before = lastListing();
+      const same = before !== null && (here === before.path || here.startsWith(`${before.path}/`) || before.path.startsWith(`${here}/`));
+      const name = same && before.filters !== filters ? "listing.filtered" : same && before.sort !== sort ? "listing.sorted" : "listing.shown";
+      sawListing({ path: same && before.path.length < here.length ? before.path : here, filters, sort });
+      ev = scene.event(
+        name,
+        {
+          path: l.path,
+          title: l.title,
+          count: l.count,
+          filters: Object.entries(l.filters).map(([facet, on]) => ({ facet, on: on.split(", "), options: [] })),
+          sort: l.sort ?? null,
+          items: l.items,
+        },
+        by,
+      );
+      break;
+    }
+    case "search_suggest":
+      ev = scene.event("search.suggested", payload as ReturnType<typeof readSuggest>, by);
+      break;
+    case "cart_state":
+      ev = scene.event("cart.changed", payload as CartState, by);
+      break;
+    case "checkout_state":
+      ev = scene.event("checkout.changed", payload as CheckoutState, by);
+      break;
+  }
+  return ev ? ["stage_event", ev] : [event, payload];
 }
 
 // ─── The product page ─────────────────────────────────────────────────────
@@ -2035,21 +2139,21 @@ async function openFaq(p: { question: string; path?: string | null }, c: MoveCon
  *  `cannonhome/scene.json`, and a move left out does not compile. */
 export function registerMoves(moves: Moves): void {
   scene.registerAll(moves, {
-    "page.open": openPage,
-    "page.show": showSection,
-    "page.faq": openFaq,
-    "listing.filter": filterCue,
-    "listing.sort": sortCue,
-    search_products: searchProducts,
-    filter_listing: filterListing,
-    open_product: openProduct,
-    product_tab: productTab,
-    check_prices: checkPrices,
-    show_cart: showCart,
-    add_to_cart: addToCart,
-    update_cart_item: updateCartItem,
-    start_checkout: startCheckout,
-    fill_checkout: fillCheckout,
+    "page.open": asAgent(openPage),
+    "page.show": asAgent(showSection),
+    "page.faq": asAgent(openFaq),
+    "commerce.filter": asAgent(filterCue),
+    "commerce.sort": asAgent(sortCue),
+    "commerce.search": asAgent(searchProducts),
+    filter_listing: asAgent(filterListing),
+    open_product: asAgent(openProduct),
+    product_tab: asAgent(productTab),
+    check_prices: asAgent(checkPrices),
+    "commerce.cart_show": asAgent(showCart),
+    "commerce.cart_add": asAgent(addToCart),
+    "commerce.cart_update": asAgent(updateCartItem),
+    start_checkout: asAgent(startCheckout),
+    fill_checkout: asAgent(fillCheckout),
   });
 }
 

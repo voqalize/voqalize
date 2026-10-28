@@ -31,7 +31,7 @@ from .test_cannonhome_e2e import (
     _llm,
     _move,
     _moves,
-    _page,
+    _report,
     _store,  # noqa: F401 — the autouse fixture: every session reads the invented store
     _texts,
     ch,
@@ -89,7 +89,7 @@ async def test_a_filter_cue_takes_several_options(said: str) -> None:
         await rig.driver.start_session(init={"path": SHEETS})
         await rig.driver.user_says(said)
         (cue,) = _cues(rig)
-        assert (cue["move"], cue["args"]) == ("listing.filter", ["color", "Blanco, Gris", SHEETS])
+        assert (cue["move"], cue["args"]) == ("commerce.filter", ["color", "Blanco, Gris", SHEETS])
 
 
 async def test_one_filter_cue_per_option_each_adds_and_the_last_line_names_both() -> None:
@@ -100,8 +100,8 @@ async def test_one_filter_cue_per_option_each_adds_and_the_last_line_names_both(
         assert white["args"] == ["color", "Blanco", SHEETS]
         assert grey["args"] == ["color", "Gris", SHEETS]
         # The first lands; then the second, with the first kept on.
-        await _page(rig, "listing_shown", _listing(5, filters={"color": "Blanco"}, sort=""))
-        await _page(rig, "listing_shown", _listing(9, filters={"color": "Blanco, Gris"}, sort=""))
+        await _report(rig, "listing_shown", _listing(5, filters={"color": "Blanco"}, sort=""))
+        await _report(rig, "listing_shown", _listing(9, filters={"color": "Blanco, Gris"}, sort=""))
         turn = await rig.driver.user_idle(level=1, idle_ms=_DONE_MS)
         check_turn(rig, turn)
         assert turn.text.startswith("Aquí hay 9 en Blanco y Gris; el primero es Liso Menta")
@@ -124,10 +124,10 @@ async def test_filter_listing_sends_every_option_and_lands_only_on_all_of_them()
         await rig.driver.user_says("Filtra las blancas y grises.")
         assert _move(rig, "filter_listing")["color"] == ["Blanco", "Gris"]
         # One of the two on screen is not its effect: no line for it.
-        await _page(rig, "listing_shown", _listing(5, filters={"color": "Blanco"}, sort=""))
+        await _report(rig, "listing_shown", _listing(5, filters={"color": "Blanco"}, sort=""))
         assert _idle_windows(rig)[-1] == _IDLE_MS
         # Both, in the page's order: its effect, and the line names both.
-        await _page(rig, "listing_shown", _listing(9, filters={"color": "Gris, Blanco"}, sort=""))
+        await _report(rig, "listing_shown", _listing(9, filters={"color": "Gris, Blanco"}, sort=""))
         assert _idle_windows(rig)[-1] == _DONE_MS
         turn = await rig.driver.user_idle(level=1, idle_ms=_DONE_MS)
         assert turn.text.startswith("Aquí hay 9 en Gris y Blanco; el primero es Liso Menta")
@@ -162,7 +162,7 @@ async def test_a_cue_of_several_options_that_lands_in_part_is_talked_through() -
         await rig.driver.user_says("Muéstrame las blancas y grises.")
         await _answer(
             rig,
-            "listing.filter",
+            "commerce.filter",
             "partial",
             "Color Blanco applied; Sábanas: 5 products",
             refused=[{"arg": "value", "why": "Color Gris is not on after choosing it"}],
@@ -198,12 +198,12 @@ def test_lands_compares_the_options_as_sets_never_as_prefixes() -> None:
     assert ch.lands(one, _colors("Beige"))
     assert not ch.lands(one, _colors("Beige, Blanco"))
     # A cue adds: its options on, whatever else stays on; never a prefix.
-    cue = _landing("listing.filter", cue_args=("color", "Beige", SHEETS))
+    cue = _landing("commerce.filter", cue_args=("color", "Beige", SHEETS))
     assert ch.lands(cue, _colors("Blanco, Beige"))
     assert not ch.lands(cue, _colors("Blanco"))
-    prefix = _landing("listing.filter", cue_args=("color", "Bei", SHEETS))
+    prefix = _landing("commerce.filter", cue_args=("color", "Bei", SHEETS))
     assert not ch.lands(prefix, _colors("Beige"))
-    two = _landing("listing.filter", cue_args=("color", "Blanco, Beige", SHEETS))
+    two = _landing("commerce.filter", cue_args=("color", "Blanco, Beige", SHEETS))
     assert ch.lands(two, _colors("Beige, Blanco"))
     assert not ch.lands(two, _colors("Beige"))
     # "300" is the option "300 hilos".

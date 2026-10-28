@@ -7,7 +7,7 @@
 
 import { expect, type Page, test } from "@playwright/test";
 
-import { type BagLine, CART_SECTION, CATEGORY, type Emitted, events, listen, open, ORIGIN, PRODUCT, run, serveSite, waitForEvent } from "./site";
+import { type BagLine, CART_SECTION, CATEGORY, type Emitted, events, filtersOf, listen, matches, open, ORIGIN, PRODUCT, run, serveSite, waitForEvent } from "./site";
 
 /** `run` for a move that loads another page: the page may go before it answers. */
 async function runAway(p: Page, command: string, payload: unknown): Promise<void> {
@@ -16,7 +16,7 @@ async function runAway(p: Page, command: string, payload: unknown): Promise<void
   });
 }
 
-const named = (list: Emitted[], name: string) => list.filter((e) => e.event === name);
+const named = (list: Emitted[], name: string) => list.filter((e) => matches(e, name));
 
 test.describe("context() and page_changed", () => {
   for (const [path, kind] of [
@@ -49,18 +49,18 @@ test.describe("context() and page_changed", () => {
   });
 });
 
-test.describe("search_products", () => {
+test.describe("commerce.search", () => {
   test("types the query at a visitor's pace and reports the dropdown", async ({ page }) => {
     const seen = await serveSite(page);
     await open(page, "/");
     await listen(page);
-    const result = await run(page, "search_products", { query: "sabanas king", open_index: null });
+    const result = await run(page, "commerce.search", { query: "sabanas king", open_index: null });
     expect(result.ok, result.error).toBe(true);
     expect(result.detail).toContain('typed "sabanas king"');
     expect(await page.inputValue("input.amsearch-input")).toBe("sabanas king");
     // One request per pause, as Amasty makes it, not one per key.
     expect(seen.autocomplete).toContain("sabanas king");
-    const suggest = await waitForEvent(page, "search_suggest");
+    const suggest = await waitForEvent(page, "search.suggested");
     const items = suggest.payload.items as { name: string; path: string; price: number }[];
     expect(suggest.payload.query).toBe("sabanas king");
     expect(items).toHaveLength(6);
@@ -73,20 +73,20 @@ test.describe("search_products", () => {
   test("with open_index, opens that product and finishes there", async ({ page }) => {
     await serveSite(page);
     await open(page, "/");
-    await runAway(page, "search_products", { query: "sabanas king", open_index: 2 });
+    await runAway(page, "commerce.search", { query: "sabanas king", open_index: 2 });
     await page.waitForURL(`${ORIGIN}/sabanas-king-200-hilos-stone.html`);
     await listen(page);
     const done = await waitForEvent(page, "stage_result");
     // Finished on the product page, under the move he made: search_products.
-    expect(done.payload).toMatchObject({ move: "search_products", outcome: "applied" });
-    await waitForEvent(page, "product_shown");
+    expect(done.payload).toMatchObject({ move: "commerce.search", outcome: "applied" });
+    await waitForEvent(page, "product.");
   });
 
   test("a query with no dropdown fails, and says so", async ({ page }) => {
     await serveSite(page);
     await page.route(`${ORIGIN}/amasty_xsearch/**`, (route) => route.fulfill({ status: 200, body: "" }));
     await open(page, "/");
-    const result = await run(page, "search_products", { query: "zzz", open_index: null });
+    const result = await run(page, "commerce.search", { query: "zzz", open_index: null });
     expect(result.ok).toBe(false);
     expect(result.error).toContain("no products");
   });
@@ -135,7 +135,7 @@ test.describe("the filter and sort cues", () => {
     await open(page, CATEGORY);
     await listen(page);
     // As a cue carries it: the facet's request variable and the option, positional.
-    const result = await run(page, "listing.filter", ["tamano", "2 plazas", CATEGORY]);
+    const result = await run(page, "commerce.filter", ["tamano", "2 plazas", CATEGORY]);
     expect(result.ok, result.error).toBe(true);
     expect(result.detail).toContain("Tamaño 2 Plazas applied; Sábanas");
     await expect(page.locator('.qf__group[data-qf-request-var="tamano"] a.qf__option-link.-active')).toHaveAttribute("title", "2 Plazas");
@@ -145,15 +145,15 @@ test.describe("the filter and sort cues", () => {
     expect(pressed.filter((c) => /qf__pill/.test(c.what)).every((c) => c.ringed)).toBe(true);
     // Cannon Home's ring: 3 px of its sale red, as before.
     expect(await ringStyle(page)).toEqual({ width: "3px", color: "rgb(160, 26, 26)", radius: "10px" });
-    const listings = named(await events(page), "listing_shown");
-    expect(listings[listings.length - 1].payload.filters).toEqual({ tamano: "2 Plazas" });
+    const listings = named(await events(page), "listing.");
+    expect(filtersOf(listings[listings.length - 1].payload)).toEqual({ tamano: "2 Plazas" });
   });
 
   test("an option the listing lacks is refused, naming the ones it has; nothing is pressed", async ({ page }) => {
     await watchRings(page);
     await serveSite(page);
     await open(page, CATEGORY);
-    const result = await run(page, "listing.filter", ["Tamaño", "Cuna"]);
+    const result = await run(page, "commerce.filter", ["Tamaño", "Cuna"]);
     expect(result.ok).toBe(false);
     expect(result.result?.outcome).toBe("refused");
     expect(result.result?.refused?.[0]).toMatchObject({ arg: "value", why: 'no Tamaño "Cuna" here' });
@@ -164,11 +164,11 @@ test.describe("the filter and sort cues", () => {
   test("from another page, the filter loads the listing and is made there, with the same call", async ({ page }) => {
     await serveSite(page);
     await open(page, "/");
-    await runAway(page, "listing.filter", ["color", "Blanco", CATEGORY]);
+    await runAway(page, "commerce.filter", ["color", "Blanco", CATEGORY]);
     await page.waitForURL(/20-sabanas/);
     await listen(page);
     const done = await waitForEvent(page, "stage_result");
-    expect(done.payload).toMatchObject({ move: "listing.filter", outcome: "applied" });
+    expect(done.payload).toMatchObject({ move: "commerce.filter", outcome: "applied" });
     expect(String(done.payload.call_ref)).toMatch(/^test-/);
     await expect(page.locator('.qf__group[data-qf-request-var="color"] a.qf__option-link.-active')).toHaveAttribute("title", "Blanco");
   });
@@ -176,11 +176,11 @@ test.describe("the filter and sort cues", () => {
   test("the sort cue rings the sorter and waits for the grid", async ({ page }) => {
     await serveSite(page);
     await open(page, CATEGORY);
-    const result = await run(page, "listing.sort", ["price_asc"]);
+    const result = await run(page, "commerce.sort", ["price_asc"]);
     expect(result.ok, result.error).toBe(true);
     expect(result.detail).toContain("sorted price_asc");
     expect(await page.inputValue("select#sorter")).toBe("price_asc");
-    const bad = await run(page, "listing.sort", ["cheapest"]);
+    const bad = await run(page, "commerce.sort", ["cheapest"]);
     expect(bad.result?.outcome).toBe("refused");
   });
 
@@ -225,9 +225,9 @@ test.describe("filter_listing", () => {
     expect(await page.inputValue("select#sorter")).toBe("price_asc");
     // Amasty pushes the filter's address; the page is reported again.
     expect(page.url()).toContain("product_list_order=price_asc");
-    const listings = named(await events(page), "listing_shown");
+    const listings = named(await events(page), "listing.");
     const last = listings[listings.length - 1].payload;
-    expect(last.filters).toEqual({ tamano: "2 Plazas", color: "Blanco" });
+    expect(filtersOf(last)).toEqual({ tamano: "2 Plazas", color: "Blanco" });
     expect(last.sort).toBe("price_asc");
     expect(last.items).toEqual([
       { name: "Sábanas 2 Plazas 300 Hilos Liso Blanco", path: "/sabanas-2-plaza-300-hilos-liso-1.html", price: 55990, regular_price: 79990 },
@@ -289,7 +289,7 @@ test.describe("a filter pressed before the store's filter scripts are up", () =>
     });
     await serveSite(page);
     await open(page, CATEGORY);
-    const result = await run(page, "listing.filter", ["tamano", "King", CATEGORY]);
+    const result = await run(page, "commerce.filter", ["tamano", "King", CATEGORY]);
     expect(result.ok, result.error).toBe(true);
     expect(result.detail).toContain("Tamaño King applied");
     expect(await page.evaluate(() => (window as unknown as { __deadPresses?: number }).__deadPresses ?? 0)).toBe(0);
@@ -303,11 +303,11 @@ test.describe("a filter pressed before the store's filter scripts are up", () =>
     const seen = await serveSite(page);
     await open(page, CATEGORY);
     const started = Date.now();
-    await runAway(page, "listing.filter", ["tamano", "King", CATEGORY]);
+    await runAway(page, "commerce.filter", ["tamano", "King", CATEGORY]);
     await page.waitForURL(/20-sabanas\/king_1$/);
     await listen(page);
     const done = await waitForEvent(page, "stage_result");
-    expect(done.payload).toMatchObject({ move: "listing.filter", outcome: "applied" });
+    expect(done.payload).toMatchObject({ move: "commerce.filter", outcome: "applied" });
     expect(String(done.payload.detail)).toContain("Tamaño King applied");
     expect(seen.pages).toContain(`${CATEGORY}/king_1`);
     // About 3 s of nothing, not the 13 s the grid wait used to take.
@@ -321,14 +321,14 @@ test.describe("a move answers as soon as its effect shows", () => {
     await open(page, CATEGORY);
     await listen(page);
     const got = await page.evaluate(async (path) => {
-      const r = await window.voqalizeCannonhome!.run("listing.filter", ["tamano", "King", path]);
+      const r = await window.voqalizeCannonhome!.run("commerce.filter", ["tamano", "King", path]);
       const rings = document.querySelector("[data-voqalize=spotlight]")?.shadowRoot?.querySelectorAll(".ring").length ?? 0;
       return { ok: r.ok, detail: r.detail, y: Math.round(window.scrollY), rings };
     }, CATEGORY);
     expect(got.ok).toBe(true);
     expect(got.detail).toContain("Tamaño King applied");
     // The listing was reported with the result; the option's ring is still up.
-    expect(named(await events(page), "listing_shown").length).toBeGreaterThan(0);
+    expect(named(await events(page), "listing.").length).toBeGreaterThan(0);
     expect(got.rings).toBe(1);
     // Only then does the page go on to the grid.
     await expect.poll(() => page.evaluate(() => Math.round(window.scrollY)), { timeout: 3000 }).not.toBe(got.y);
@@ -345,7 +345,7 @@ test.describe("a move answers as soon as its effect shows", () => {
     const seen = await serveSite(page);
     await open(page, CATEGORY);
     const started = Date.now();
-    await runAway(page, "listing.filter", ["tamano", "King", CATEGORY]);
+    await runAway(page, "commerce.filter", ["tamano", "King", CATEGORY]);
     await page.waitForURL(/20-sabanas\/king_1$/);
     // About 3 s of waiting and 3 s of a dead press, not the 10 s cap of before.
     expect(Date.now() - started).toBeLessThan(9000);
@@ -359,10 +359,13 @@ test.describe("listing_shown after the visitor's own filtering", () => {
     await serveSite(page);
     await open(page, CATEGORY);
     await listen(page);
-    await waitForEvent(page, "listing_shown");
+    await waitForEvent(page, "listing.");
     await page.evaluate(() => (document.querySelector('.qf__group[data-qf-request-var="color"] a.qf__option-link[title="Rosa"]') as HTMLElement).click());
-    const swapped = await waitForEvent(page, "listing_shown", (e) => (e.payload.filters as Record<string, string>).color === "Rosa");
+    const swapped = await waitForEvent(page, "listing.", (e) => filtersOf(e.payload).color === "Rosa");
     expect((swapped.payload.items as { name: string }[]).map((i) => i.name)).toEqual(["Sábanas 2 Plazas 300 Hilos Liso Rosado"]);
+    // The same listing, filtered by the visitor's own click.
+    expect(swapped.event).toBe("listing.filtered");
+    expect(swapped.by).toBe("visitor");
   });
 });
 
@@ -376,17 +379,19 @@ test.describe("open_product", () => {
     });
     await open(page, PRODUCT);
     await listen(page);
-    const fromPage = await waitForEvent(page, "product_shown", (e) => e.payload.source === "page");
+    const fromPage = await waitForEvent(page, "product.", (e) => e.payload.source === "page");
     expect(fromPage.payload).toMatchObject({ price: 55993, regular_price: 79990, in_stock: true, qty: 69, sku: "JSRSBH003P20Z" });
-    const live = await waitForEvent(page, "product_shown", (e) => e.payload.source === "graphql");
-    const order = named(await events(page), "product_shown").map((e) => e.payload.source);
+    const live = await waitForEvent(page, "product.", (e) => e.payload.source === "graphql");
+    const order = named(await events(page), "product.").map((e) => e.payload.source);
     expect(order).toEqual(["page", "graphql"]);
     expect(live.payload).toMatchObject({
       path: PRODUCT, sku: "JSRSBH003P20Z", name: "Sábanas 2 Plazas 300 Hilos Liso Fog",
       price: 49990, regular_price: 79990, in_stock: true, qty: 69, rating: 4.7, reviews: 17, source: "graphql",
     });
-    expect((live.payload.specs as Record<string, string>)["Hilos"]).toBe("300 hilos");
-    expect((live.payload.specs as Record<string, string>)["Color"]).toBe("Gris / Blanco");
+    // The Especificaciones tab, as the product slice holds it: label and value, in order.
+    const specs = Object.fromEntries((live.payload.specs as { label: string; value: string }[]).map((r) => [r.label, r.value]));
+    expect(specs["Hilos"]).toBe("300 hilos");
+    expect(specs["Color"]).toBe("Gris / Blanco");
     expect(seen.graphql.every((g) => g.method === "POST")).toBe(true);
     expect(seen.graphql.filter((g) => /route/.test(g.query))).toHaveLength(1);
   });
@@ -422,7 +427,7 @@ test.describe("open_product", () => {
     const done = await waitForEvent(page, "stage_result");
     expect(done.payload).toMatchObject({ move: "open_product", outcome: "applied" });
     expect(String(done.payload.detail)).toContain("calificaciones");
-    await waitForEvent(page, "product_shown");
+    await waitForEvent(page, "product.");
   });
 
   test("a page cue that loads another page, with nothing to do there, still ends with one final result", async ({ page }) => {
@@ -465,17 +470,20 @@ test.describe("add_to_cart and show_cart", () => {
     const seen = await serveSite(page);
     await open(page, PRODUCT);
     await listen(page);
-    const result = await run(page, "add_to_cart", { path: PRODUCT, qty: 2 });
+    const result = await run(page, "commerce.cart_add", { path: PRODUCT, qty: 2 });
     expect(result.ok, result.error).toBe(true);
     expect(await page.inputValue("#qty")).toBe("2");
     await expect(page.locator("aside.content-minicart-modal")).toHaveClass(/_show/);
-    const cart = await waitForEvent(page, "cart_state");
+    const cart = await waitForEvent(page, "cart.changed");
     expect(cart.payload).toEqual({
       items: [{ name: "Sábanas 2 Plazas 300 Hilos Liso Fog", path: PRODUCT, qty: 2, price: 55993 }],
       count: 2,
       subtotal: 111986,
       free_shipping_left: 38014,
     });
+    // His move made it: the agent's, with the move's call_ref.
+    expect(cart.by).toBe("agent");
+    expect(cart.call_ref).toBe(result.result?.call_ref);
     expect(seen.sections).toBeGreaterThan(0);
     expect(result.detail).toContain("added 2 × Sábanas 2 Plazas 300 Hilos Liso Fog");
     expect(result.detail).toContain("$38014 short of free shipping");
@@ -484,18 +492,18 @@ test.describe("add_to_cart and show_cart", () => {
   test("from another page, opens the product first and adds there", async ({ page }) => {
     await serveSite(page);
     await open(page, CATEGORY);
-    await runAway(page, "add_to_cart", { path: PRODUCT, qty: 1 });
+    await runAway(page, "commerce.cart_add", { path: PRODUCT, qty: 1 });
     await page.waitForURL(`${ORIGIN}${PRODUCT}`);
     await listen(page);
     const done = await waitForEvent(page, "stage_result");
-    expect(done.payload).toMatchObject({ move: "add_to_cart", outcome: "applied" });
-    await waitForEvent(page, "cart_state");
+    expect(done.payload).toMatchObject({ move: "commerce.cart_add", outcome: "applied" });
+    await waitForEvent(page, "cart.changed");
   });
 
   test("a quantity out of 1–10 is refused and nothing is pressed", async ({ page }) => {
     await serveSite(page);
     await open(page, PRODUCT);
-    const result = await run(page, "add_to_cart", { path: PRODUCT, qty: 12 });
+    const result = await run(page, "commerce.cart_add", { path: PRODUCT, qty: 12 });
     expect(result.ok).toBe(false);
     await expect(page.locator("aside.content-minicart-modal")).not.toHaveClass(/_show/);
   });
@@ -505,9 +513,9 @@ test.describe("add_to_cart and show_cart", () => {
     await page.route(`${ORIGIN}/customer/section/load/**`, (route) => route.fulfill({ status: 500, body: "" }));
     await open(page, PRODUCT);
     await listen(page);
-    const opened = await run(page, "show_cart", { open: true });
+    const opened = await run(page, "commerce.cart_show", { open: true });
     expect(opened.ok, opened.error).toBe(true);
-    const cart = await waitForEvent(page, "cart_state");
+    const cart = await waitForEvent(page, "cart.changed");
     expect(cart.payload).toEqual({
       items: [{ name: "Almohada Viscoelástica Ergo 50x70 cm", path: "/almohada-viscoelastica-ergo-50x70-cm.html", qty: 1, price: 29990 }],
       count: 1,
@@ -520,12 +528,12 @@ test.describe("add_to_cart and show_cart", () => {
     await serveSite(page);
     await open(page, PRODUCT);
     await listen(page);
-    const opened = await run(page, "show_cart", { open: true });
+    const opened = await run(page, "commerce.cart_show", { open: true });
     expect(opened.ok, opened.error).toBe(true);
     await expect(page.locator("aside.content-minicart-modal")).toHaveClass(/_show/);
-    const cart = await waitForEvent(page, "cart_state");
+    const cart = await waitForEvent(page, "cart.changed");
     expect(cart.payload.count).toBe(CART_SECTION.cart.summary_count);
-    const closed = await run(page, "show_cart", { open: false });
+    const closed = await run(page, "commerce.cart_show", { open: false });
     expect(closed.ok, closed.error).toBe(true);
     await expect(page.locator("aside.content-minicart-modal")).not.toHaveClass(/_show/);
   });
@@ -619,7 +627,7 @@ test.describe("one move at a time", () => {
     await serveSite(page);
     await open(page, CATEGORY);
     await listen(page);
-    await waitForEvent(page, "listing_shown");
+    await waitForEvent(page, "listing.");
     await page.evaluate(() => {
       const w = window as unknown as { __order: string[] };
       w.__order = [];
@@ -665,12 +673,12 @@ test.describe("search_products on GoPersonal's dropdown", () => {
     const seen = await serveSite(page, { goPersonal: GP_TIMING });
     await open(page, "/");
     await listen(page);
-    const result = await run(page, "search_products", { query: "sabanas 300 hilos", open_index: null });
+    const result = await run(page, "commerce.search", { query: "sabanas 300 hilos", open_index: null });
     expect(result.ok, result.error).toBe(true);
     // Amasty filled its own dropdown too, which the page hides.
     expect(seen.autocomplete).toContain("sabanas 300 hilos");
     expect(seen.goPersonal).toContain("sabanas 300 hilos");
-    const suggests = named(await events(page), "search_suggest");
+    const suggests = named(await events(page), "search.suggested");
     const last = suggests[suggests.length - 1].payload;
     expect(last.items).toEqual(GP_ITEMS);
     expect(last.categories).toEqual(["Juego de sábanas", "Toallas de baño"]);
@@ -694,13 +702,13 @@ test.describe("search_products on GoPersonal's dropdown", () => {
       }, 100);
       setTimeout(() => clearInterval(tick), 15_000);
     });
-    const result = await run(page, "search_products", { query: "sabanas 300 hilos", open_index: null });
+    const result = await run(page, "commerce.search", { query: "sabanas 300 hilos", open_index: null });
     expect(result.ok, result.error).toBe(true);
     const shown = await page.evaluate(() => (window as unknown as { __shown: string[] }).__shown);
     expect(shown).toEqual(["Sábana de Baño Aqua", "(empty)", "Sábanas King 300 Hilos Sage"]);
     expect(result.detail).not.toContain("Aqua");
     // Nothing reported the partial dropdown, neither the move nor the watcher.
-    for (const s of named(await events(page), "search_suggest")) {
+    for (const s of named(await events(page), "search.suggested")) {
       expect((s.payload.items as { name: string }[]).map((i) => i.name)).not.toContain("Sábana de Baño Aqua");
     }
   });
@@ -708,13 +716,13 @@ test.describe("search_products on GoPersonal's dropdown", () => {
   test("with open_index, opens that GoPersonal card's product, without its tracking query", async ({ page }) => {
     const seen = await serveSite(page, { goPersonal: GP_TIMING });
     await open(page, "/");
-    await runAway(page, "search_products", { query: "sabanas 300 hilos", open_index: 1 });
+    await runAway(page, "commerce.search", { query: "sabanas 300 hilos", open_index: 1 });
     await page.waitForURL(`${ORIGIN}/sabanas-super-king-300-hilos-sage.html`);
     await listen(page);
     const done = await waitForEvent(page, "stage_result");
     // Finished on the product page, under the move he made: search_products.
-    expect(done.payload).toMatchObject({ move: "search_products", outcome: "applied" });
-    await waitForEvent(page, "product_shown");
+    expect(done.payload).toMatchObject({ move: "commerce.search", outcome: "applied" });
+    await waitForEvent(page, "product.");
     expect(seen.pages).toContain("/sabanas-super-king-300-hilos-sage.html");
   });
 });
@@ -783,9 +791,9 @@ test.describe("the bag, as the live site reports it", () => {
     );
     await open(page, PRODUCT);
     await listen(page);
-    const opened = await run(page, "show_cart", { open: true });
+    const opened = await run(page, "commerce.cart_show", { open: true });
     expect(opened.ok, opened.error).toBe(true);
-    const cart = await waitForEvent(page, "cart_state");
+    const cart = await waitForEvent(page, "cart.changed");
     expect(cart.payload).toEqual({ items: [], count: 0, subtotal: 0, free_shipping_left: null });
     expect(opened.detail).toContain("the bag is empty");
     expect(opened.detail).not.toContain("free shipping reached");
@@ -799,22 +807,22 @@ test.describe("the bag, as the live site reports it", () => {
     );
     await open(page, PRODUCT);
     await listen(page);
-    const added = await run(page, "add_to_cart", { path: PRODUCT, qty: 2 });
+    const added = await run(page, "commerce.cart_add", { path: PRODUCT, qty: 2 });
     expect(added.ok, added.error).toBe(true);
-    await waitForEvent(page, "cart_state", (e) => e.payload.count === 2);
+    await waitForEvent(page, "cart.changed", (e) => e.payload.count === 2);
 
     // The same bag after a load: nothing to say.
     await page.reload({ waitUntil: "domcontentloaded" });
     await listen(page);
-    await waitForEvent(page, "product_shown");
+    await waitForEvent(page, "product.");
     await page.waitForTimeout(2500);
-    expect(named(await events(page), "cart_state")).toEqual([]);
+    expect(named(await events(page), "cart.changed")).toEqual([]);
 
     // The line removed, then the page reloaded: the empty bag is reported.
     section = EMPTY_CART;
     await page.reload({ waitUntil: "domcontentloaded" });
     await listen(page);
-    const empty = await waitForEvent(page, "cart_state");
+    const empty = await waitForEvent(page, "cart.changed");
     expect(empty.payload).toEqual({ items: [], count: 0, subtotal: 0, free_shipping_left: null });
   });
 });
@@ -854,7 +862,7 @@ test.describe("filter_listing, as the live site behaves", () => {
     // The simulated sort reverses the grid after 1.5 s.
     const sortedFirst = before[before.length - 1]!;
     expect(result.detail).toContain(`first card ${sortedFirst}`);
-    const listings = named(await events(page), "listing_shown");
+    const listings = named(await events(page), "listing.");
     const last = listings[listings.length - 1].payload;
     expect((last.items as { name: string }[])[0].name).toBe(sortedFirst);
     expect(page.url()).toContain("product_list_order=price_desc");
@@ -916,7 +924,7 @@ test.describe("start_checkout", () => {
     await listen(page);
     const done = await waitForEvent(page, "stage_result", (e) => e.payload.move === "start_checkout", 20_000);
     expect(done.payload.detail).toContain("the guest checkout's delivery form is open");
-    const state = await waitForEvent(page, "checkout_state");
+    const state = await waitForEvent(page, "checkout.changed");
     expect(state.payload.missing).toEqual(["email", "region", "comuna", "street", "number", "first_name", "last_name", "rut", "phone"]);
     // The guest link was pressed: the checkout, and never a login or account page.
     expect(seen.pages).toEqual(["/checkout/cart/", CHECKOUT]);
@@ -973,7 +981,7 @@ test.describe("fill_checkout", () => {
       submitted: [],
     });
     expect(seen.comunas).toEqual(["664"]);
-    const state = await waitForEvent(page, "checkout_state", (e) => (e.payload.filled as string[]).includes("phone"));
+    const state = await waitForEvent(page, "checkout.changed", (e) => (e.payload.filled as string[]).includes("phone"));
     expect(state.payload).toMatchObject({
       filled: ["email", "region", "comuna", "street", "number", "apartment", "first_name", "last_name", "phone"],
       missing: ["rut", "delivery"],
@@ -1093,13 +1101,13 @@ test.describe("fill_checkout", () => {
     const r = await run(page, "fill_checkout", { email: "existe@example.com", phone: "912" });
     expect(r.ok, r.error).toBe(true);
     expect(r.detail).toContain("not filled: teléfono: a Chilean number is nine digits");
-    const state = await waitForEvent(page, "checkout_state", (e) => e.payload.email_has_account === true);
+    const state = await waitForEvent(page, "checkout.changed", (e) => e.payload.email_has_account === true);
     expect(state.payload.filled).toEqual(["email"]);
     expect((await formValues(page)).password).toBe("");
     // The visitor types a short phone themselves: the form's message is read.
     await page.fill(".field.telephone input[name=telephone]:not([type=hidden])", "123");
     await page.locator(".field.telephone input[name=telephone]:not([type=hidden])").blur();
-    const flagged = await waitForEvent(page, "checkout_state", (e) => (e.payload.invalid as unknown[]).length > 0);
+    const flagged = await waitForEvent(page, "checkout.changed", (e) => (e.payload.invalid as unknown[]).length > 0);
     expect(flagged.payload.invalid).toEqual([{ field: "phone", message: "Ingresa un número de teléfono válido." }]);
   });
 });
@@ -1149,38 +1157,38 @@ async function settledBagPage(page: Page, ready: () => boolean): Promise<Emitted
     await page.waitForLoadState("domcontentloaded");
     try {
       await listen(page);
-      return await waitForEvent(page, "stage_result", (e) => e.payload.move === "update_cart_item", 8000);
+      return await waitForEvent(page, "stage_result", (e) => e.payload.move === "commerce.cart_update", 8000);
     } catch (error) {
       if (!/context was destroyed|navigat|no stage_result/i.test(String(error))) throw error;
     }
   }
 }
 
-test.describe("update_cart_item", () => {
+test.describe("commerce.cart_update", () => {
   test("in the drawer: − sets a line's quantity, the bin and Aceptar take one out; each reports the bag", async ({ page }) => {
     const seen = await serveSite(page, { bag: [FOG, ERGO] });
     await open(page, PRODUCT);
     await listen(page);
-    const fewer = await run(page, "update_cart_item", { path: PRODUCT, qty: 1 });
+    const fewer = await run(page, "commerce.cart_update", { path: PRODUCT, qty: 1 });
     expect(fewer.ok, fewer.error).toBe(true);
     expect(fewer.detail).toContain("set Sábanas 2 Plazas 300 Hilos Liso Fog to 1 in the bag (it had 2)");
     expect(fewer.detail).toContain("the bag has 2 items");
     await expect(page.locator("aside.content-minicart-modal")).toHaveClass(/_show/);
-    const cart = await waitForEvent(page, "cart_state", (e) => e.payload.count === 2);
+    const cart = await waitForEvent(page, "cart.changed", (e) => e.payload.count === 2);
     expect(cart.payload.items).toEqual([
       { name: FOG.name, path: PRODUCT, qty: 1, price: 55993 },
       { name: ERGO.name, path: PILLOW, qty: 1, price: 29990 },
     ]);
     expect(seen.sent).toContain("POST /checkout/sidebar/updateItemQty/");
 
-    const out = await run(page, "update_cart_item", { path: PILLOW, qty: 0 });
+    const out = await run(page, "commerce.cart_update", { path: PILLOW, qty: 0 });
     expect(out.ok, out.error).toBe(true);
     expect(out.detail).toContain(`took ${ERGO.name} out of the bag`);
     expect(seen.bag.map((l) => l.id)).toEqual([FOG.id]);
     expect(seen.sent).toContain("POST /checkout/sidebar/removeItem/");
-    await waitForEvent(page, "cart_state", (e) => e.payload.count === 1);
+    await waitForEvent(page, "cart.changed", (e) => e.payload.count === 1);
     // More of it: + until it has three.
-    const more = await run(page, "update_cart_item", { path: PRODUCT, qty: 3 });
+    const more = await run(page, "commerce.cart_update", { path: PRODUCT, qty: 3 });
     expect(more.ok, more.error).toBe(true);
     expect(seen.bag).toEqual([{ ...FOG, qty: 3 }]);
     // Nothing reached the checkout.
@@ -1190,12 +1198,12 @@ test.describe("update_cart_item", () => {
   test("a line not in the bag, or a quantity out of 0–10, is refused and nothing is pressed", async ({ page }) => {
     const seen = await serveSite(page, { bag: [FOG] });
     await open(page, PRODUCT);
-    const missing = await run(page, "update_cart_item", { path: PILLOW, qty: 0 });
+    const missing = await run(page, "commerce.cart_update", { path: PILLOW, qty: 0 });
     expect(missing.ok).toBe(false);
     expect(missing.error).toContain(`${PILLOW} is not in the bag; the bag has ${FOG.name} (${PRODUCT}) ×2`);
-    const many = await run(page, "update_cart_item", { path: PRODUCT, qty: 11 });
+    const many = await run(page, "commerce.cart_update", { path: PRODUCT, qty: 11 });
     expect(many.ok).toBe(false);
-    const same = await run(page, "update_cart_item", { path: PRODUCT, qty: 2 });
+    const same = await run(page, "commerce.cart_update", { path: PRODUCT, qty: 2 });
     expect(same.ok, same.error).toBe(true);
     expect(same.detail).toContain("already has 2 in the bag; nothing changed");
     expect(seen.sent).toEqual([]);
@@ -1205,12 +1213,12 @@ test.describe("update_cart_item", () => {
     const seen = await serveSite(page, { bag: [{ ...FOG, qty: 3 }, ERGO] });
     await open(page, "/checkout/cart/");
     await expect(page.locator("tbody.cart.item")).toHaveCount(2);
-    await runAway(page, "update_cart_item", { path: PRODUCT, qty: 1 });
+    await runAway(page, "commerce.cart_update", { path: PRODUCT, qty: 1 });
     const done = await settledBagPage(page, () => seen.bag.find((l) => l.id === FOG.id)?.qty === 1);
     expect(done.payload.detail).toContain("set Sábanas 2 Plazas 300 Hilos Liso Fog to 1 in the bag");
     // One request with the quantity asked, whatever the step, and one reload.
     expect(seen.sent).toEqual(["POST /checkout/sidebar/updateItemQty/"]);
-    const cart = await waitForEvent(page, "cart_state");
+    const cart = await waitForEvent(page, "cart.changed");
     expect(cart.payload.count).toBe(2);
     await expect(page.locator("tbody.cart.item input.qty").first()).toHaveValue("1");
   });
@@ -1219,18 +1227,18 @@ test.describe("update_cart_item", () => {
     const seen = await serveSite(page, { bag: [FOG, ERGO] });
     await open(page, "/checkout/cart/");
     await expect(page.locator("tbody.cart.item")).toHaveCount(2);
-    await runAway(page, "update_cart_item", { path: PRODUCT, qty: 0 });
+    await runAway(page, "commerce.cart_update", { path: PRODUCT, qty: 0 });
     const done = await settledBagPage(page, () => !seen.bag.some((l) => l.id === FOG.id));
     expect(done.payload.detail).toContain(`took ${FOG.name} out of the bag; the bag has 1 item`);
     expect(seen.sent).toEqual(["POST /checkout/sidebar/removeItem/"]);
-    const cart = await waitForEvent(page, "cart_state");
+    const cart = await waitForEvent(page, "cart.changed");
     expect(cart.payload.items).toEqual([{ name: ERGO.name, path: PILLOW, qty: 1, price: 29990 }]);
   });
 
   test("from the checkout, the move goes to the bag page first", async ({ page }) => {
     const seen = await serveSite(page, { bag: [FOG] });
     await open(page, "/checkout");
-    await runAway(page, "update_cart_item", { path: PRODUCT, qty: 0 });
+    await runAway(page, "commerce.cart_update", { path: PRODUCT, qty: 0 });
     const done = await settledBagPage(page, () => seen.bag.length === 0);
     expect(done.payload.detail).toContain("the bag is empty");
     expect(page.url()).toBe(`${ORIGIN}/checkout/cart/`);
@@ -1264,9 +1272,9 @@ test.describe("several options of one filter", () => {
     expect(seen.pages).toContain(`${CATEGORY}?color=6889,7018`);
     expect(await page.evaluate(() => sessionStorage.getItem("__rings"))).toBe("2");
     expect(await colorsOn(page)).toEqual(["Blanco", "Rosa"]);
-    const listings = named(await events(page), "listing_shown");
+    const listings = named(await events(page), "listing.");
     const last = listings[listings.length - 1].payload;
-    expect(last.filters).toEqual({ color: "Blanco, Rosa" });
+    expect(filtersOf(last)).toEqual({ color: "Blanco, Rosa" });
     expect(last.count).toBe(60);
   });
 
@@ -1274,22 +1282,22 @@ test.describe("several options of one filter", () => {
     await serveSite(page);
     await open(page, CATEGORY);
     await listen(page);
-    const first = await run(page, "listing.filter", ["color", "Blanco", CATEGORY]);
+    const first = await run(page, "commerce.filter", ["color", "Blanco", CATEGORY]);
     expect(first.ok, first.error).toBe(true);
-    const second = await run(page, "listing.filter", ["color", "Rosa", CATEGORY]);
+    const second = await run(page, "commerce.filter", ["color", "Rosa", CATEGORY]);
     expect(second.ok, second.error).toBe(true);
     expect(second.result?.outcome ?? "applied").toBe("applied");
     expect(second.detail).toContain("Color Rosa applied");
     expect(await colorsOn(page)).toEqual(["Blanco", "Rosa"]);
-    const listings = named(await events(page), "listing_shown");
-    expect(listings[listings.length - 1].payload.filters).toEqual({ color: "Blanco, Rosa" });
+    const listings = named(await events(page), "listing.");
+    expect(filtersOf(listings[listings.length - 1].payload)).toEqual({ color: "Blanco, Rosa" });
     expect(listings[listings.length - 1].payload.count).toBe(60);
   });
 
   test("one cue with two colours puts both on", async ({ page }) => {
     await serveSite(page);
     await open(page, CATEGORY);
-    const result = await run(page, "listing.filter", ["color", "Blanco, Rosa", CATEGORY]);
+    const result = await run(page, "commerce.filter", ["color", "Blanco, Rosa", CATEGORY]);
     expect(result.ok, result.error).toBe(true);
     expect(result.detail).toContain("Color Blanco, Rosa applied");
     expect(await colorsOn(page)).toEqual(["Blanco", "Rosa"]);
@@ -1301,13 +1309,13 @@ test.describe("several options of one filter", () => {
     });
     const seen = await serveSite(page);
     await open(page, CATEGORY);
-    const first = await run(page, "listing.filter", ["color", "Blanco", CATEGORY]);
+    const first = await run(page, "commerce.filter", ["color", "Blanco", CATEGORY]);
     expect(first.ok, first.error).toBe(true);
-    await runAway(page, "listing.filter", ["color", "Rosa", CATEGORY]);
+    await runAway(page, "commerce.filter", ["color", "Rosa", CATEGORY]);
     await page.waitForURL(/color=6889,7018/);
     await listen(page);
     const done = await waitForEvent(page, "stage_result");
-    expect(done.payload).toMatchObject({ move: "listing.filter", outcome: "applied" });
+    expect(done.payload).toMatchObject({ move: "commerce.filter", outcome: "applied" });
     expect(seen.pages).toContain(`${CATEGORY}?color=6889,7018`);
     expect(await colorsOn(page)).toEqual(["Blanco", "Rosa"]);
   });
@@ -1320,7 +1328,7 @@ test.describe("several options of one filter", () => {
     expect(result.result?.outcome).toBe("partial");
     expect(result.result?.detail).toMatch(/^applied color Blanco; /);
     expect(result.result?.refused?.[0]).toMatchObject({ arg: "color", why: 'no color "Fucsia" here' });
-    const cue = await run(page, "listing.filter", ["color", "Rosa, Fucsia", CATEGORY]);
+    const cue = await run(page, "commerce.filter", ["color", "Rosa, Fucsia", CATEGORY]);
     expect(cue.ok, cue.error).toBe(true);
     expect(cue.result?.outcome).toBe("partial");
     expect(cue.result?.refused?.[0]?.why).toBe('no Color "Fucsia" here');
@@ -1365,9 +1373,9 @@ test("a price written the English way (a translated page: $29,990) is read in fu
     if (bar) bar.textContent = "You are $120,010 away from Free Shipping, RM only";
   });
   await listen(page);
-  const opened = await run(page, "show_cart", { open: true });
+  const opened = await run(page, "commerce.cart_show", { open: true });
   expect(opened.ok, opened.error).toBe(true);
-  const cart = await waitForEvent(page, "cart_state");
+  const cart = await waitForEvent(page, "cart.changed");
   expect(cart.payload).toEqual({
     items: [{ name: "Almohada Viscoelástica Ergo 50x70 cm", path: PILLOW, qty: 1, price: 29990 }],
     count: 1,

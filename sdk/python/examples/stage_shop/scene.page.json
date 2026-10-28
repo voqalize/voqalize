@@ -23,6 +23,10 @@
         {
           "name": "value",
           "optional": true
+        },
+        {
+          "name": "path",
+          "optional": true
         }
       ]
     },
@@ -91,6 +95,11 @@
               "name": "price",
               "type": "number",
               "optional": true
+            },
+            {
+              "name": "regular_price",
+              "type": "number",
+              "optional": true
             }
           ]
         }
@@ -128,6 +137,11 @@
               "optional": true
             }
           ]
+        },
+        {
+          "name": "free_shipping_left",
+          "type": "number",
+          "optional": true
         }
       ]
     }

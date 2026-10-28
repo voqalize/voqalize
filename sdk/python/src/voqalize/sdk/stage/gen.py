@@ -37,8 +37,9 @@ _PY_SCALARS = {"string": "str", "integer": "int", "number": "float", "boolean": 
 def _py_str(text: str) -> str:
     """``text`` as a Python literal in the quotes ``ruff format`` would choose."""
     body = json.dumps(text, ensure_ascii=False)[1:-1]
-    if '"' in text and "'" not in text:
-        return "'" + body.replace('\\"', '"') + "'"
+    # Double quotes, unless the text holds more of them than of single ones.
+    if text.count('"') > text.count("'"):
+        return "'" + body.replace('\\"', '"').replace("'", "\\'") + "'"
     return '"' + body + '"'
 
 
@@ -150,8 +151,13 @@ def render_python(spec: StageSpec, *, source: str, command: str) -> str:
         out += ["from typing import Literal", ""]
     out += ["from pydantic import BaseModel" + (", Field" if spec.slices else ""), ""]
     out += [
-        "from voqalize.sdk.stage import Move, MoveClass, MoveSet",
+        "from voqalize.sdk.stage import Move, MoveClass, MoveSet, StageSpec, load_spec",
         "",
+        "#: The spec itself, carried here so the brain never reads the JSON at run",
+        "#: time (and a deploy that ships this file ships the spec with it).",
+        "SPEC: StageSpec = load_spec(",
+        f"    {_py_str(spec.canonical())}",
+        ")",
         "#: The spec's hash: a page reading another spec reports a different one.",
         f'SPEC_SHA256 = "{spec.sha256}"',
     ]

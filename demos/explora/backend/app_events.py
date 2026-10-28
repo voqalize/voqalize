@@ -1,13 +1,18 @@
 """What the visitor's tabs report — the page→brain half of the screen contract.
 
-The other direction is the Stage moves and the one
-:class:`~voqalize.sdk.Action` in ``brain.py``; how each move ended comes back
-as Stage's own ``stage_result``, not as an event here. These are sent by the extension on www.explora.com and
-reservations.explora.com, and they fire for the visitor's own clicks as well as
-for Javier's moves, so his picture of their screen is true whoever moved it.
+The page's **state** is Stage state: three slices declared in
+``explora/scene.json`` (``page``, ``stay``, ``enquiry``), each changed by a
+state event (``page.changed``, ``stay.changed``, ``enquiry.changed``) the
+extension sends as ``stage_event``. The brain folds them into its mirror; the
+models here (:class:`PageChanged`, :class:`StayState`, :class:`EnquiryState`)
+are only typed views of those slices, built from the mirror, never read off the
+wire. The **acts** stay app events: the visitor's tabs (sent by Stage's shared
+extension host), an enquiry sent, a language asked for, how a twin page was
+found. Both fire for the visitor's own clicks as well as for Javier's moves, so
+his picture of their screen is true whoever moved it.
 
 Every move between pages on both hosts is a full page load. A page reports
-itself once the call has rejoined on it, so ``page_changed`` is also the signal
+itself once the call has rejoined on it, so ``page.changed`` is also the signal
 that the next page is up and listening.
 
 The site is Explora's, not ours, and it changes without asking. So the nested
@@ -26,7 +31,6 @@ from voqalize.sdk import AppEvent, AppEvents
 
 __all__ = [
     "EXPLORA_EVENTS",
-    "EnquiryFields",
     "EnquirySent",
     "EnquiryState",
     "ExploraEvent",
@@ -41,8 +45,9 @@ __all__ = [
 ]
 
 
-class PageChanged(AppEvent):
-    """The tab in front loaded a page, or came to the front: what is on it now."""
+class PageChanged(BaseModel):
+    """The ``page`` slice: the tab in front loaded a page, or came to the
+    front; what is on it now."""
 
     site: Literal["site", "reservations"] = "site"
     """``site`` is www.explora.com; ``reservations`` is reservations.explora.com."""
@@ -83,8 +88,8 @@ class RoomOption(BaseModel):
     text: str = ""
 
 
-class StayState(AppEvent):
-    """Where an availability check on reservations.explora.com stands: the
+class StayState(BaseModel):
+    """The ``stay`` slice: where an availability check on reservations.explora.com stands: the
     calendar for a lodge with its open days, the nights offered for the chosen
     day, or the rooms and rates (step two)."""
 
@@ -101,23 +106,15 @@ class StayState(AppEvent):
     rooms: list[RoomOption] = Field(default_factory=list[RoomOption])
 
 
-class EnquiryFields(BaseModel):
-    title: str = ""
-    first_name: str = ""
-    last_name: str = ""
-    email: str = ""
-    phone: str = ""
-    country: str = ""
-    message: str = ""
-
-
-class EnquiryState(AppEvent):
-    """The expedition enquiry form: what is filled, what is still empty, and
-    whether the visitor has ticked "I'm not a robot"."""
+class EnquiryState(BaseModel):
+    """The ``enquiry`` slice: the expedition enquiry form, which fields are
+    filled and which still empty, and whether the visitor has ticked "I'm not
+    a robot". Never what a field holds: the page sends the names only."""
 
     expedition: str = ""
     expedition_code: str = ""
-    filled: EnquiryFields = Field(default_factory=EnquiryFields)
+    filled: list[str] = Field(default_factory=list[str])
+    """The names of the fields that hold something."""
     missing: list[str] = Field(default_factory=list[str])
     captcha: bool = False
 
@@ -156,21 +153,11 @@ class TwinLookup(AppEvent):
     """Why the page's head could not be read, when it could not."""
 
 
-type ExploraEvent = (
-    PageChanged
-    | TabsChanged
-    | StayState
-    | EnquiryState
-    | EnquirySent
-    | LanguageRequested
-    | TwinLookup
-)
+type ExploraEvent = TabsChanged | EnquirySent | LanguageRequested | TwinLookup
 
+#: The acts a page sends as app events; its state comes as Stage state events.
 EXPLORA_EVENTS = AppEvents[ExploraEvent](
-    PageChanged,
     TabsChanged,
-    StayState,
-    EnquiryState,
     EnquirySent,
     LanguageRequested,
     TwinLookup,

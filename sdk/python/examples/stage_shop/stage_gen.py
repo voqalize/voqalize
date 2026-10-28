@@ -8,10 +8,15 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from voqalize.sdk.stage import Move, MoveClass, MoveSet
+from voqalize.sdk.stage import Move, MoveClass, MoveSet, StageSpec, load_spec
 
+#: The spec itself, carried here so the brain never reads the JSON at run
+#: time (and a deploy that ships this file ships the spec with it).
+SPEC: StageSpec = load_spec(
+    '{"events":[{"id":"listing.shown","note":"{by} opened the listing {title}: {count} products","op":"set","slice":"listing"},{"id":"listing.filtered","note":"{by} changed the listing\'s filters: {count} products","op":"set","slice":"listing"},{"id":"listing.sorted","note":"{by} sorted the listing","op":"set","slice":"listing"},{"id":"cart.changed","note":"{by} changed the cart: {count} items","op":"set","slice":"cart"}],"id":"shop","kits":[{"id":"commerce","major":1,"moves":["commerce.filter","commerce.cart_add"]}],"languages":["en"],"moves":[{"args":[{"doc":"A part of the page, by the heading the visitor sees.","name":"target"}],"class":"look","doc":"Scroll to a part of the page and ring it.","id":"core.show","say":"{show: Heading} scrolls to that part of the page and rings it.","verb":"show"},{"args":[{"doc":"The filter as the listing names it: Tamaño, Color.","name":"facet"},{"doc":"One option as the listing writes it, or several joined by commas.","name":"value","optional":true},{"doc":"The listing\'s path, when it is not the one in front; it is opened first.","name":"path","optional":true}],"claims":["filtering by","filtro por","filtrando por"],"class":"reversible","doc":"Apply one filter of the listing in front, one option or several of it, with the listing\'s own control.","id":"commerce.filter","objects":["filter","filtro"],"say":"{filter: Facet | Option} as you name a filter of the listing in front, one per sentence; {filter: Facet | Option, Option} for several options of one filter.","verb":"filter"},{"args":[{"doc":"The item\'s path; it is opened first when it is not in front.","name":"path"},{"default":1,"name":"qty","type":"integer"}],"claims":["adding * to your cart","agrego * al carro","agregando * al carro"],"class":"confirmed","doc":"Add an item to the cart, once the visitor said yes. Never the checkout.","id":"commerce.cart_add","objects":["cart","carro","carrito"]}],"slices":[{"doc":"the listing in front: its title, how many it shows, the filters on and offered, the order, the first items","fields":[{"name":"path"},{"name":"title"},{"name":"count","optional":true,"type":"integer"},{"fields":[{"name":"facet"},{"name":"on","type":"array"},{"name":"options","type":"array"}],"name":"filters","type":"array"},{"name":"sort","optional":true},{"fields":[{"name":"path"},{"name":"name"},{"name":"price","optional":true,"type":"number"},{"doc":"The price before a discount.","name":"regular_price","optional":true,"type":"number"}],"name":"items","type":"array"}],"id":"listing"},{"doc":"what is in their cart: each line, how many, the subtotal","fields":[{"name":"count","type":"integer"},{"name":"subtotal","optional":true,"type":"number"},{"fields":[{"name":"path"},{"name":"name"},{"name":"qty","type":"integer"},{"name":"price","optional":true,"type":"number"}],"name":"items","type":"array"},{"doc":"What is left to spend for free shipping, when the store says.","name":"free_shipping_left","optional":true,"type":"number"}],"id":"cart"}],"stage":1}'
+)
 #: The spec's hash: a page reading another spec reports a different one.
-SPEC_SHA256 = "18ff4de400cf0581951307a2d1aa4379afdace9c5bb569711703af47b531fd61"
+SPEC_SHA256 = "a6cec2f59743668a0918f952f811a72fe1864fc3b2cc29a1381f6d51bb00f3a1"
 
 
 class ShowArgs(BaseModel):
@@ -28,6 +33,8 @@ class FilterArgs(BaseModel):
     """The filter as the listing names it: Tamaño, Color."""
     value: str | None = None
     """One option as the listing writes it, or several joined by commas."""
+    path: str | None = None
+    """The listing's path, when it is not the one in front; it is opened first."""
 
 
 class CartAddArgs(BaseModel):
@@ -54,6 +61,7 @@ FILTER = Move(
     args=(
         "facet",
         "value",
+        "path",
     ),
     say="{filter: Facet | Option} as you name a filter of the listing in front, one per sentence; {filter: Facet | Option, Option} for several options of one filter.",
     claims=(

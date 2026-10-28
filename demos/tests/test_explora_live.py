@@ -53,6 +53,11 @@ def _page_changed(path: str) -> dict[str, Any]:
     }
 
 
+def _page_event(path: str) -> dict[str, Any]:
+    """The extension's ``page.changed`` state event for ``path``."""
+    return {"name": "page.changed", "by": "visitor", "data": _page_changed(path)}
+
+
 def _moves(rig: Any) -> list[dict[str, Any]]:
     return [c["payload"] for c in rig.driver.ui_commands if c.get("command") == "stage_move"]
 
@@ -67,7 +72,7 @@ async def _pages_load(rig: Any) -> None:
         for move in moves[seen:]:
             if move["move"] == "explora.navigate":
                 await asyncio.sleep(0.3)
-                await rig.driver.send_ui_event("page_changed", _page_changed(move["args"]["path"]))
+                await rig.driver.send_ui_event("stage_event", _page_event(move["args"]["path"]))
             await rig.driver.send_ui_event(
                 "stage_result",
                 {"call_ref": move["call_ref"], "move": move["move"], "outcome": "applied"},
@@ -81,7 +86,7 @@ async def _converse(asks: list[str], *, path: str, lang: str | None) -> tuple[An
         if lang:
             init["lang"] = lang
         await rig.driver.start_session(init=init)
-        await rig.driver.send_ui_event("page_changed", _page_changed(path))
+        await rig.driver.send_ui_event("stage_event", _page_event(path))
         loader = asyncio.create_task(_pages_load(rig))
         said: list[str] = []
         try:

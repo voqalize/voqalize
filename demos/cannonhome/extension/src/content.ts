@@ -56,7 +56,7 @@ defineSiteExtension({
   sessionInit: ({ chosen, context }) => ({ surface: "cannonhome-ext", ...context, ...(chosen ? { lang: chosen } : {}) }),
   // What a move read (prices, the bag) answers him whichever tab made it, as
   // does the toggle.
-  anyTab: ["language_requested", "prices_read", "cart_state"],
+  anyTab: ["language_requested", "prices_read", "cart.changed"],
   // What Cannon Home pins over its own pages, for the widget to keep clear
   // of: the WhatsApp button (bottom-right on a desktop, a left-edge tab on a
   // phone), the bag drawer (the right ~400 px, after every add), the filters

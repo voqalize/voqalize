@@ -38,11 +38,13 @@
 import { domSettled, type MoveContext, type Spotlight } from "@voqalize/stage";
 import { type Adapter, type PageKit } from "@voqalize/stage/extension";
 
-import type { EnquiryFields, EnquiryState, NightsOption, RoomOption, StayState } from "./actions.gen";
 import { clean, norm, type PageContext, pick, scrollTo, setField, sleep, styleThePage, visible, waitFor } from "./dom";
 import { focusTab, inCallLanguage } from "./explora-actions";
 import { scene } from "./scene.gen";
-import { type CheckAvailabilityArgs, type ChooseRoomArgs, type FillEnquiryArgs, MOVE, type NavigateArgs } from "./site";
+import {
+  asStage, type CheckAvailabilityArgs, type ChooseRoomArgs, type EnquiryFields, type EnquiryReport, type FillEnquiryArgs, MOVE,
+  type NavigateArgs, type NightsOption, type RoomOption, type StayState,
+} from "./site";
 import { SITE } from "./site-language";
 
 type CheckAvailability = CheckAvailabilityArgs;
@@ -386,7 +388,7 @@ const field = (form: HTMLFormElement, name: string) => form.querySelector<Field>
  *  chose it, Javier or the visitor. */
 let titleChosen = false;
 
-function enquiryState(): EnquiryState | null {
+function enquiryState(): EnquiryReport | null {
   const form = enquiryForm();
   if (!form) return null;
   const filled: EnquiryFields = {};
@@ -492,11 +494,13 @@ function watchEnquiry(): void {
 
 /** Say what the page is: once the call is up on it, and again whenever the
  *  tab comes back to the front (Stage's host runs it). */
-function report(next: (event: string, payload: unknown) => void): void {
+function report(raw: (event: string, payload: unknown) => void): void {
+  const next = asStage(raw);
   next("page_changed", context());
 }
 
-function start(next: (event: string, payload: unknown) => void): () => void {
+function start(raw: (event: string, payload: unknown) => void): () => void {
+  const next = asStage(raw);
   emitter = next;
   // The page's state as it stands now replaces any queued one.
   queued.delete("stay_state");

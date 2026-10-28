@@ -170,7 +170,163 @@ export const scene = defineScene({
         }
       ]
     }
+  ],
+  "slices": [
+    {
+      "id": "page",
+      "fields": [
+        {
+          "name": "site",
+          "enum": [
+            "site",
+            "reservations"
+          ],
+          "optional": true
+        },
+        {
+          "name": "url",
+          "optional": true
+        },
+        {
+          "name": "path"
+        },
+        {
+          "name": "title",
+          "optional": true
+        },
+        {
+          "name": "headings",
+          "type": "array",
+          "optional": true
+        },
+        {
+          "name": "faqs",
+          "type": "array",
+          "optional": true
+        },
+        {
+          "name": "tabs",
+          "type": "array",
+          "optional": true
+        },
+        {
+          "name": "links",
+          "type": "array",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "id": "stay",
+      "fields": [
+        {
+          "name": "step",
+          "enum": [
+            "dates",
+            "rooms"
+          ]
+        },
+        {
+          "name": "hotel_code",
+          "optional": true
+        },
+        {
+          "name": "hotel",
+          "optional": true
+        },
+        {
+          "name": "month",
+          "optional": true
+        },
+        {
+          "name": "open_days",
+          "type": "array",
+          "optional": true
+        },
+        {
+          "name": "date",
+          "optional": true
+        },
+        {
+          "name": "nights",
+          "type": "array",
+          "fields": [
+            {
+              "name": "nights",
+              "type": "integer"
+            },
+            {
+              "name": "label"
+            }
+          ],
+          "optional": true
+        },
+        {
+          "name": "chosen_nights",
+          "type": "integer",
+          "optional": true
+        },
+        {
+          "name": "rooms",
+          "type": "array",
+          "fields": [
+            {
+              "name": "name"
+            },
+            {
+              "name": "text"
+            }
+          ],
+          "optional": true
+        }
+      ]
+    },
+    {
+      "id": "enquiry",
+      "fields": [
+        {
+          "name": "expedition",
+          "optional": true
+        },
+        {
+          "name": "expedition_code",
+          "optional": true
+        },
+        {
+          "name": "filled",
+          "type": "array",
+          "optional": true
+        },
+        {
+          "name": "missing",
+          "type": "array",
+          "optional": true
+        },
+        {
+          "name": "captcha",
+          "type": "boolean",
+          "optional": true
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "id": "page.changed",
+      "slice": "page",
+      "op": "set"
+    },
+    {
+      "id": "stay.changed",
+      "slice": "stay",
+      "op": "set"
+    },
+    {
+      "id": "enquiry.changed",
+      "slice": "enquiry",
+      "op": "set"
+    }
   ]
 });
 
-export const SPEC_SHA256 = "9001cb7b62eac15b24dbc1a537b93ac3f817f975d69634b8b35d1afe8f7029db";
+export const SPEC_SHA256 = "04b965278cbcf62330cc8e8399245c9190e03f5f2bb5b87a56e138a518ce0f2d";

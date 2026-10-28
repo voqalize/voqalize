@@ -40,7 +40,7 @@ import { type FireInfo, Timeline, withFire } from "../timeline";
 import { sendAppEvent, type StageCue, type StageMove, type StageProgress, type StageResult } from "../wire.gen";
 import { CatchUp } from "./catch-up";
 import type { CallState, FromPage, HolderAsk, Job, MicState, ToPage } from "./protocol";
-import { PORT } from "./protocol";
+import { PORT, takenFromAnyTab } from "./protocol";
 import { type Relaying, relayCall } from "./relay";
 import { isSitePage, type SiteConfig } from "./site";
 import type { Activity, Language, Status } from "./widget";
@@ -595,7 +595,7 @@ export function startHolder(site: SiteConfig, config: HolderConfig): void {
 
   function toAgent(from: number | null, event: string, payload: unknown): void {
     if (!client || !ready) return;
-    if (from !== null && from !== active && !anyTab.has(event)) return;
+    if (from !== null && from !== active && !takenFromAnyTab(anyTab, event, payload)) return;
     client.sendUIEvent(event, payload);
   }
 

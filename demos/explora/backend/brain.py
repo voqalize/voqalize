@@ -76,6 +76,7 @@ from voqalize.sdk.stage import (
     MAX_CUE,
     ArgValue,
     Landing,
+    Mirror,
     Move,
     MoveClass,
     Refused,
@@ -92,7 +93,6 @@ from voqalize.sdk.wire import Config, IdleConfig, SttConfig, TtsConfig, Voice
 from . import knowledge as kb
 from .app_events import (
     EXPLORA_EVENTS,
-    EnquiryFields,
     EnquirySent,
     EnquiryState,
     ExploraEvent,
@@ -115,10 +115,16 @@ from .stage_gen import (
     NAVIGATE,
     PROMPT_LINES,
     SEND_ENQUIRY,
+    SPEC,
     TWIN,
+    ReadRequest,
 )
 
 AGENT_NAME = "Javier"
+
+#: Explora's Stage Spec: its moves, and the slices of the screen's state the
+#: extension reports as state events (``page.changed``, ``stay.changed``,
+#: ``enquiry.changed``) and the brain keeps in its mirror.
 
 #: GPT-6.1 Terra at low reasoning, for cost: OpenAI caches every prompt over
 #: 1,024 tokens, where Gemini 3.8 Flash cached nothing under about 16k, so most
@@ -567,7 +573,7 @@ You speak English, and Spanish as a native of Latin America. The call starts in 
 
 # Every response starts with words, except a booking step
 Write your answer, with its cues, first; any other tool call comes at the end of the same response. A booking step is the exception: check_availability, choose_room, fill_enquiry and send_enquiry. For one, call its tool and write NO words in that response. The screen and a line of yours say what is happening; words written beside the call are heard before the screen moves, and words written without it are a promise the screen does not keep. So never say you are doing a booking step ("I'm opening the calendar", "I'm selecting three nights"): do it, with the call alone. What a page call returns reaches you only on your next turn.
-- The exception is a read: read_topic and search_site come straight back to you within this same turn, but each one makes the visitor wait. Answer from what you know below and the site pages list whenever they cover it. Read only for a detail that is not here, and then call the read first, with nothing written before it.
+- The exception is a read: read_topic, search_site and read_screen come straight back to you within this same turn, but each one makes the visitor wait. Answer from what you know below, the site pages list and the screen lines whenever they cover it. Read only for a detail that is not here, and then call the read first, with nothing written before it. read_screen gives their screen whole when the screen lines were cut short: every heading of a long page, every open day, every room.
 - Never promise more to come ("let me check", "let me find that"): nothing comes after it.
 
 # What that sounds like
@@ -1442,6 +1448,7 @@ class ExploraBrain(OpenAIBrain):
         self.stage = Stage(
             dispatch=lambda action: self.session.dispatch(action),
             moves=MOVES,
+            mirror=Mirror(SPEC),
             resolve=self._resolve,
             backstop=self._auto_cues,
             on_landed=self._landing_line,
@@ -2367,8 +2374,26 @@ class ExploraBrain(OpenAIBrain):
 
     # ─── Page → brain ───────────────────────────────────────────────────
 
-    def apply_event(self, event: ExploraEvent) -> str | None:
-        """Patch the mirror; return the line the model should see."""
+    def _view(self, slice_id: str) -> PageChanged | StayState | EnquiryState | None:
+        """The typed view of one slice of the mirror, as the page last reported it."""
+        mirror = self.stage.mirror
+        value = mirror.value(slice_id) if mirror is not None else None
+        if value is None:
+            return None
+        model = {"page": PageChanged, "stay": StayState, "enquiry": EnquiryState}.get(slice_id)
+        if model is None:
+            return None
+        try:
+            return model.model_validate(dict(value))
+        except ValueError as e:
+            logger.warning("explora: the {} slice does not read as {}: {}", slice_id, model, e)
+            return None
+
+    def apply_event(
+        self, event: ExploraEvent | PageChanged | StayState | EnquiryState
+    ) -> str | None:
+        """Act on a change of the screen: an app event, or the typed view of a
+        slice a state event just changed; return the line the model should see."""
         match event:
             case PageChanged():
                 self.page = event
@@ -2515,7 +2540,7 @@ class ExploraBrain(OpenAIBrain):
     def _enquiry_changed(self, event: EnquiryState) -> str | None:
         before = self.enquiry
         self.enquiry = event
-        filled = [k for k, v in event.filled.model_dump().items() if v]
+        filled = list(event.filled)
         note = (
             f"[The {event.expedition or 'expedition'} enquiry form is on their screen. "
             f"Filled: {', '.join(filled) or 'nothing'}. Still empty: "
@@ -2651,6 +2676,17 @@ class ExploraBrain(OpenAIBrain):
         """One answer from the page, folded through Stage; the line the model
         should see, if any. A progress gives its move its time again and says
         nothing."""
+        if isinstance(event, stage_wire.StageEvent):
+            folded = self.stage.handle(event)
+            if folded is None:
+                return None
+            if folded.note:
+                self._note(folded.note)
+            view = self._view(folded.slice)
+            if view is None:
+                return None
+            logger.info("explora: {} v{} — {}", event.name, folded.version, view)
+            return self.apply_event(view)
         if not isinstance(event, stage_wire.StageResult):
             self.stage.handle(event)
             return None
@@ -2770,6 +2806,7 @@ class ExploraBrain(OpenAIBrain):
         return [
             self.read_topic,
             self.search_site,
+            self.read_screen,
             self.check_availability,
             self.choose_room,
             self.fill_enquiry,
@@ -2777,6 +2814,17 @@ class ExploraBrain(OpenAIBrain):
             self.switch_tab,
             self.set_language,
         ]
+
+    @needs_result_now
+    async def read_screen(self, request: ReadRequest) -> str:
+        """Read part of their screen whole, as the page last reported it: every
+        heading, tab and question of the page in front, the open days, nights
+        and rooms of the booking site, or which enquiry fields are filled. The
+        screen lines you already have are cut short; read here for the rest."""
+        mirror = self.stage.mirror
+        if mirror is None:
+            return "Nothing is known about their screen yet."
+        return mirror.read(request.slice)
 
     @needs_result_now
     async def read_topic(self, request: TopicRequest) -> str:
@@ -3010,7 +3058,6 @@ class ExploraBrain(OpenAIBrain):
 
 __all__ = [
     "MOVES",
-    "EnquiryFields",
     "ExploraBrain",
     "LanguageChanged",
 ]

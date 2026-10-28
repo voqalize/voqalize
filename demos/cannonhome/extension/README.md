@@ -18,9 +18,9 @@ anything goes on it; it is not how a customer would ship it.
 
 ## What he does
 
-- **Search** (`search_products`): types the query into the site's search box
+- **Search** (`commerce.search`, the `search_products` tool): types the query into the site's search box
   at a visitor's pace, lets the dropdown open, and reports its products and
-  categories (`search_suggest`); with `open_index`, opens one of them. The
+  categories (`search.suggested`); with `open_index`, opens one of them. The
   dropdown visitors see is goPersonal's (`#gp-ac-dropdown`), whose stylesheet
   hides Amasty's; the adapter reads goPersonal's and falls back to Amasty's.
   goPersonal searches as you type, so the report waits for the final query's
@@ -29,20 +29,21 @@ anything goes on it; it is not how a customer would ship it.
   applies the quick filters one at a time by their request variable
   (`.qf__group[data-qf-request-var=tamano|color|hilos|material]`) and the
   option's `title`, waits for each AJAX grid, then sorts; reports
-  `listing_shown` after every grid, whoever changed it.
+  `listing.shown`, `listing.filtered` or `listing.sorted` after every grid,
+  whoever changed it.
 - **Open a product** (`open_product`): loads it, opens Descripción,
   Especificaciones or Calificaciones, or steps the gallery; reports
-  `product_shown` from the page at once and again from one live
+  `product.shown` from the page at once and `product.checked` from one live
   `POST /graphql` (the page is served from a cache and can be hours old).
 - **Read live prices** (`check_prices`): one `POST /graphql` for up to six
   products (`products(filter: {url_key: {in: …}})`), and `route(url:)` for the
   ones that hides (out of stock); reports `prices_read`. Moves nothing.
-- **Add to the bag** (`add_to_cart`): on the product's page (opened first if
+- **Add to the bag** (`commerce.cart_add`, the `add_to_cart` tool): on the product's page (opened first if
   needed), sets the quantity with − / +, presses *Agregar*, waits for the bag,
-  and reports `cart_state` (lines, count, subtotal and how far from free
+  and reports `cart.changed` (lines, count, subtotal and how far from free
   shipping).
-- **Show the bag** (`show_cart`): opens or closes the bag drawer.
-- **Change the bag** (`update_cart_item`): sets one line, found by its
+- **Show the bag** (`commerce.cart_show`, the `show_cart` tool): opens or closes the bag drawer.
+- **Change the bag** (`commerce.cart_update`, the `update_cart_item` tool): sets one line, found by its
   product link, to a quantity, or takes it out with 0. In the drawer it presses
   the line's own − / + (each posts by AJAX) or its bin and the *Aceptar* of the
   "¿Seguro…?" window, once Knockout has bound them. On the bag page it sends
@@ -50,7 +51,7 @@ anything goes on it; it is not how a customer would ship it.
   `removeItem/`, with the page's form key) and reloads the page as the page's
   own controls do: live, once the bag page has reloaded, its own − and
   *Quitar* stop answering. The move is checked on the page it loads; from the
-  checkout it goes to the bag page first. Reports `cart_state`.
+  checkout it goes to the bag page first. Reports `cart.changed`.
 - **Go to the delivery form** (`start_checkout`): from the bag page (loaded
   first if needed) presses *Terminar pedido*, then, in the login window it
   opens, *Comprar como invitado*, a plain link to `/checkout`; if the window
@@ -65,7 +66,7 @@ anything goes on it; it is not how a customer would ship it.
   in the field). Each is set as a finished edit (native setter, `input`,
   `change`, `blur`, `keyup`: Knockout's bindings need them). Nothing is
   pressed after the fields.
-- **Report the form** (`checkout_state`, on load, after a fill and whenever
+- **Report the form** (`checkout.changed`, on load, after a fill and whenever
   the visitor edits it): which fields hold something, never what (only the
   región and comuna names), which required ones are missing, the form's own
   validation messages, whether the email's account brought up a password,
@@ -211,12 +212,19 @@ grant frame's `allow="microphone"` is enough.
 ## What is in it
 
 - `src/cannonhome-actions.ts` — the Magento adapter: the moves above,
-  registered with Stage's `Moves` by the ids the brain names them with
-  (`page.open`, `page.show`, `page.faq`, `listing.filter`, `listing.sort`, and
-  the tool moves by their tool names), and the reporters (`page_changed` with
-  the page's kind from Magento's body classes, `product_shown`,
-  `listing_shown`, `search_suggest`, `prices_read`, `cart_state`,
-  `checkout_state`). Every visible move rings its target before it acts.
+  registered through the scene (`scene.registerAll`) by the ids
+  `cannonhome/scene.json` declares: the store's own (`page.open`, `page.show`,
+  `page.faq`, `filter_listing`, `open_product`, `product_tab`, `check_prices`,
+  `start_checkout`, `fill_checkout`) and the `commerce` kit's
+  (`commerce.filter`, `commerce.sort`, `commerce.search`, `commerce.cart_add`,
+  `commerce.cart_update`, `commerce.cart_show`); and the reporters:
+  `page_changed` with the page's kind from Magento's body classes,
+  `prices_read`, and what the screen holds as Stage state events
+  (`stage_event`: `product.shown`, `product.checked`, `listing.shown`,
+  `listing.filtered`, `listing.sorted`, `search.suggested`, `cart.changed`,
+  `checkout.changed`), with only the fields each slice declares and
+  `by: "agent"` with the move's `call_ref` when one of his moves made the
+  change. Every visible move rings its target before it acts.
 - `src/page.ts` — the waits (never the `load` event, which the site's
   trackers hold back for more than 15 s), the window scroll under the fixed
   marquee bar, typing, and the checkout guard every press and load goes
@@ -307,16 +315,16 @@ it happens, in Cannon Home's ring.
 With no call, on a Cannon Home page:
 
 ```js
-await __voqalizeCannonhome.move("search_products", { query: "sabanas king", open_index: null });
-await __voqalizeCannonhome.move("listing.filter", ["tamano", "King"]);
+await __voqalizeCannonhome.move("commerce.search", { query: "sabanas king", open_index: null });
+await __voqalizeCannonhome.move("commerce.filter", ["tamano", "King"]);
 await __voqalizeCannonhome.move("filter_listing", { category_path: "/12-ropa-de-cama/20-sabanas", size: "King", color: "Blanco", threads: null, material: null, sort: "price_asc" });
 await __voqalizeCannonhome.move("open_product", { path: "/sabanas-2-plazas-300-hilos-liso-fog.html", tab: "especificaciones" });
 await __voqalizeCannonhome.move("check_prices", { paths: ["/sabanas-king-200-hilos-stone.html"] });
-await __voqalizeCannonhome.move("show_cart", { open: true });
+await __voqalizeCannonhome.move("commerce.cart_show", { open: true });
 __voqalizeCannonhome.moves();
 ```
 
-`add_to_cart` really adds to the visitor's bag; remove the line afterwards.
+`commerce.cart_add` really adds to the visitor's bag; remove the line afterwards.
 `start_checkout` and `fill_checkout` really fill the live form: use obviously
 fake data, with no email (see above), press nothing, and clear the fields and
 empty the bag afterwards.

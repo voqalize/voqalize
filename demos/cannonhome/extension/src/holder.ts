@@ -21,7 +21,7 @@ import { makeClient, micState, testHooks } from "./call-client";
 import { failure, micFailure, ORIGIN, SITE } from "./site";
 
 /** The moves that work on the bag or the checkout: a new tab opens on the bag. */
-const BAG_MOVES = new Set(["start_checkout", "fill_checkout", "update_cart_item"]);
+const BAG_MOVES = new Set(["start_checkout", "fill_checkout", "commerce.cart_update"]);
 
 /** The first page of a new tab, when no Cannon Home tab is open. */
 function firstPage(job: Job): string {
@@ -60,7 +60,7 @@ startHolder(SITE, {
   fireEarly: (cue, api) => cue.move === "page.open" && cue.before === 0 && elsewhere(cue.args[0], api.frontUrl()),
   // What a move read (prices, the bag) answers him whichever tab made it, as
   // does the toggle.
-  anyTab: ["language_requested", "prices_read", "cart_state"],
+  anyTab: ["language_requested", "prices_read", "cart.changed"],
   holderCommands: {
     async focus_tab(payload) {
       const tab = Number((payload as FocusTab).tab_id);

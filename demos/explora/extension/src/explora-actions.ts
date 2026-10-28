@@ -36,7 +36,7 @@ import { type Adapter, askWorker, type PageKit } from "@voqalize/stage/extension
 
 import { clean, headerHeight, norm, type PageContext, pick, scrollTo, sleep, styleThePage, visible, waitFor } from "./dom";
 import { scene } from "./scene.gen";
-import { bookingUrl, type CheckAvailabilityArgs, type FillEnquiryArgs, MOVE, type NavigateArgs } from "./site";
+import { asStage, bookingUrl, type CheckAvailabilityArgs, type FillEnquiryArgs, MOVE, type NavigateArgs } from "./site";
 import {
   alternateHere, type Lang, type Mapped, pageLanguage, pagePath, pathLang, rememberHere, SITE, siteUrlIn, twinHere,
 } from "./site-language";
@@ -839,7 +839,8 @@ export async function focusTab({ tab_id }: { tab_id: string }): Promise<string> 
 
 /** Report the page as it stands: once the call is up on it, and again
  *  whenever the visitor comes back to this tab (Stage's host runs it). */
-function report(emit: (event: string, payload: unknown) => void): void {
+function report(raw: (event: string, payload: unknown) => void): void {
+  const emit = asStage(raw);
   emitter = emit;
   emit("page_changed", context());
 }
@@ -849,7 +850,8 @@ function report(emit: (event: string, payload: unknown) => void): void {
  * there are no route changes to watch: this page is reported again if its
  * headings grow as late parts of it render (a carousel, the reviews).
  */
-function start(emit: (event: string, payload: unknown) => void): () => void {
+function start(raw: (event: string, payload: unknown) => void): () => void {
+  const emit = asStage(raw);
   emitter = emit;
   let last = JSON.stringify(context());
   let timer: ReturnType<typeof setTimeout> | null = null;

@@ -2,13 +2,34 @@
   "$schema": "../../sdk/js/stage/stage.schema.json",
   "stage": 1,
   "id": "cannonhome",
-  "languages": ["es", "en"],
+  "languages": [
+    "es",
+    "en"
+  ],
+  "kits": [
+    {
+      "id": "commerce",
+      "major": 1,
+      "moves": [
+        "commerce.filter",
+        "commerce.sort",
+        "commerce.search",
+        "commerce.cart_add",
+        "commerce.cart_update",
+        "commerce.cart_show"
+      ]
+    }
+  ],
   "moves": [
     {
       "id": "page.open",
       "verb": "page",
       "class": "navigate",
-      "args": [{ "name": "path" }],
+      "args": [
+        {
+          "name": "path"
+        }
+      ],
       "say": "{page: /path}",
       "doc": "Open a page of the store, by its path."
     },
@@ -16,7 +37,15 @@
       "id": "page.show",
       "verb": "show",
       "class": "look",
-      "args": [{ "name": "target" }, { "name": "path", "optional": true }],
+      "args": [
+        {
+          "name": "target"
+        },
+        {
+          "name": "path",
+          "optional": true
+        }
+      ],
       "say": "{show: Heading}",
       "doc": "Scroll to a heading on the page in front and ring it."
     },
@@ -24,120 +53,334 @@
       "id": "page.faq",
       "verb": "faq",
       "class": "look",
-      "args": [{ "name": "question" }, { "name": "path", "optional": true }],
-      "say": "{faq: Question}",
-      "doc": "Open a question's answer and ring it."
-    },
-    {
-      "id": "listing.filter",
-      "verb": "filter",
-      "class": "reversible",
       "args": [
-        { "name": "facet" },
-        { "name": "value", "optional": true },
-        { "name": "path", "optional": true }
-      ],
-      "say": "{filter: Tamaño | King}",
-      "doc": "Apply one filter of the listing in front with its quick-filter pill."
-    },
-    {
-      "id": "listing.sort",
-      "verb": "sort",
-      "class": "reversible",
-      "args": [{ "name": "order" }, { "name": "path", "optional": true }],
-      "say": "{sort: price_asc}",
-      "doc": "Sort the listing in front."
-    },
-    {
-      "id": "search_products",
-      "class": "reversible",
-      "args": [
-        { "name": "query" },
         {
-          "name": "open_index",
-          "type": "integer",
-          "optional": true,
-          "doc": "0-based: 0 is the first suggested product."
+          "name": "question"
+        },
+        {
+          "name": "path",
+          "optional": true
         }
       ],
-      "doc": "Type ``query`` into the store's search box (``input.amsearch-input``) at a\nhuman pace and let its suggestions open; report ``search_suggest``. With\n``open_index``, open that product: the page then reports ``product_shown``."
+      "say": "{faq: Question}",
+      "doc": "Open a question's answer and ring it."
     },
     {
       "id": "filter_listing",
       "class": "reversible",
       "args": [
-        { "name": "category_path" },
-        { "name": "size", "type": "array", "optional": true },
-        { "name": "color", "type": "array", "optional": true },
-        { "name": "threads", "type": "array", "optional": true },
-        { "name": "material", "type": "array", "optional": true },
-        { "name": "sort", "enum": ["price_asc", "price_desc", "relevance", "newest"], "optional": true }
+        {
+          "name": "category_path"
+        },
+        {
+          "name": "size",
+          "type": "array",
+          "optional": true
+        },
+        {
+          "name": "color",
+          "type": "array",
+          "optional": true
+        },
+        {
+          "name": "threads",
+          "type": "array",
+          "optional": true
+        },
+        {
+          "name": "material",
+          "type": "array",
+          "optional": true
+        },
+        {
+          "name": "sort",
+          "enum": [
+            "price_asc",
+            "price_desc",
+            "relevance",
+            "newest"
+          ],
+          "optional": true
+        }
       ],
-      "doc": "Go to the listing at ``category_path`` (a full load, if it is not the one in\nfront), then apply each filter given with its quick-filter pill — the option\nlabels exactly as the listing writes them (\"2 Plazas\", \"Blanco\", \"300\",\n\"100% Algodón\") — one at a time, waiting for the grid; then the sort. Each\nfilter takes one option or several (``[\"Beige\", \"Blanco\"]``: the listing shows\neither), all active together, one address for them all. Reports\n``listing_shown``."
+      "doc": "Go to the listing at ``category_path`` (a full load, if it is not the one in\nfront), then apply each filter given with its quick-filter pill — the option\nlabels exactly as the listing writes them (\"2 Plazas\", \"Blanco\", \"300\",\n\"100% Algodón\") — one at a time, waiting for the grid; then the sort. Each\nfilter takes one option or several (``[\"Beige\", \"Blanco\"]``: the listing shows\neither), all active together, one address for them all. Reports\nthe listing (``listing.shown``, ``listing.filtered``)."
     },
     {
       "id": "open_product",
       "class": "navigate",
       "args": [
-        { "name": "path", "doc": "``/x.html``." },
-        { "name": "tab", "enum": ["descripcion", "especificaciones", "calificaciones", "fotos"], "optional": true }
+        {
+          "name": "path",
+          "doc": "``/x.html``."
+        },
+        {
+          "name": "tab",
+          "enum": [
+            "descripcion",
+            "especificaciones",
+            "calificaciones",
+            "fotos"
+          ],
+          "optional": true
+        }
       ],
-      "doc": "Open the product at ``path`` (a full load), then the tab named, or step\nthrough its photos for ``fotos``. Reports ``product_shown``."
+      "doc": "Open the product at ``path`` (a full load), then the tab named, or step\nthrough its photos for ``fotos``. Reports ``product.shown``."
     },
     {
       "id": "product_tab",
       "class": "look",
-      "args": [{ "name": "tab", "enum": ["descripcion", "especificaciones", "calificaciones", "fotos"] }],
+      "args": [
+        {
+          "name": "tab",
+          "enum": [
+            "descripcion",
+            "especificaciones",
+            "calificaciones",
+            "fotos"
+          ]
+        }
+      ],
       "doc": "On the product page in front, open that tab, or step through its photos\nfor ``fotos``."
     },
     {
       "id": "check_prices",
       "class": "look",
-      "args": [{ "name": "paths", "type": "array" }],
+      "args": [
+        {
+          "name": "paths",
+          "type": "array"
+        }
+      ],
       "doc": "Read the live price and stock of these products (at most six), with one\nsame-origin POST to the store's GraphQL. Moves nothing. Reports\n``prices_read``."
-    },
-    {
-      "id": "show_cart",
-      "class": "look",
-      "args": [{ "name": "open", "type": "boolean", "default": true }],
-      "doc": "Open the cart drawer (``open``), or close it. Never the checkout."
-    },
-    {
-      "id": "add_to_cart",
-      "class": "confirmed",
-      "args": [{ "name": "path" }, { "name": "qty", "type": "integer", "default": 1 }],
-      "doc": "On the product page at ``path`` (opened first if it is not in front), set\nthe quantity to ``qty`` and press Agregar; wait for the cart drawer. Reports\n``cart_state``. Never the checkout."
-    },
-    {
-      "id": "update_cart_item",
-      "class": "confirmed",
-      "args": [{ "name": "path" }, { "name": "qty", "type": "integer" }],
-      "doc": "Set the cart line of the product at ``path`` to ``qty``, or take it out\nwith 0: in the cart drawer with its own minus and plus, or its bin and\n\"Aceptar\"; on the cart page (/checkout/cart) with the request those send,\nthen the reload the page's own controls make, the move checked on the page\nit loads. Reports ``cart_state``. Never the checkout."
     },
     {
       "id": "start_checkout",
       "class": "confirmed",
-      "doc": "Take the visitor to the guest checkout's delivery form: on the bag\n(/checkout/cart/, loaded first if it is not in front) press \"Terminar\npedido\", then, in the window it opens, \"Comprar como invitado\" — never its\nlogin, Google or \"Crear Cuenta\" — and wait for the form (/checkout). Reports\n``checkout_state``. Nothing past the form."
+      "doc": "Take the visitor to the guest checkout's delivery form: on the bag\n(/checkout/cart/, loaded first if it is not in front) press \"Terminar\npedido\", then, in the window it opens, \"Comprar como invitado\" — never its\nlogin, Google or \"Crear Cuenta\" — and wait for the form (/checkout). Reports\n``checkout.changed``. Nothing past the form."
     },
     {
       "id": "fill_checkout",
       "class": "confirmed",
       "args": [
-        { "name": "email", "optional": true },
-        { "name": "first_name", "optional": true },
-        { "name": "last_name", "optional": true },
+        {
+          "name": "email",
+          "optional": true
+        },
+        {
+          "name": "first_name",
+          "optional": true
+        },
+        {
+          "name": "last_name",
+          "optional": true
+        },
         {
           "name": "phone",
           "optional": true,
           "doc": "Nine digits as said: a mobile starting with 9, or a Santiago landline\nstarting with 2. The form's +56 9 / +56 2 prefix is chosen from the first\ndigit and the other eight are typed."
         },
-        { "name": "region", "optional": true, "doc": "The site's name for the región: \"Metropolitana\", \"Valparaíso\"." },
-        { "name": "comuna", "optional": true },
-        { "name": "street", "optional": true },
-        { "name": "number", "optional": true },
-        { "name": "apartment", "optional": true, "doc": "Depto/Casa." }
+        {
+          "name": "region",
+          "optional": true,
+          "doc": "The site's name for the región: \"Metropolitana\", \"Valparaíso\"."
+        },
+        {
+          "name": "comuna",
+          "optional": true
+        },
+        {
+          "name": "street",
+          "optional": true
+        },
+        {
+          "name": "number",
+          "optional": true
+        },
+        {
+          "name": "apartment",
+          "optional": true,
+          "doc": "Depto/Casa."
+        }
       ],
-      "doc": "Fill the checkout's delivery form with what the visitor said (the guest\ncheckout is opened first, as ``start_checkout``, if it is not in front).\nOnly the fields given, each set as a finished edit: región and comuna picked\nfrom the site's own lists (the comuna's list loads after the región). There\nis no RUT, password or payment field here, and the page refuses every one of\nthem. Never presses anything after the fields. Reports ``checkout_state``."
+      "doc": "Fill the checkout's delivery form with what the visitor said (the guest\ncheckout is opened first, as ``start_checkout``, if it is not in front).\nOnly the fields given, each set as a finished edit: región and comuna picked\nfrom the site's own lists (the comuna's list loads after the región). There\nis no RUT, password or payment field here, and the page refuses every one of\nthem. Never presses anything after the fields. Reports ``checkout.changed``."
+    }
+  ],
+  "slices": [
+    {
+      "id": "product",
+      "doc": "the product page in front: its name, price, stock, specifications and rating",
+      "fields": [
+        {
+          "name": "path"
+        },
+        {
+          "name": "sku",
+          "optional": true
+        },
+        {
+          "name": "name"
+        },
+        {
+          "name": "price",
+          "type": "number",
+          "optional": true
+        },
+        {
+          "name": "regular_price",
+          "type": "number",
+          "optional": true
+        },
+        {
+          "name": "in_stock",
+          "type": "boolean",
+          "optional": true
+        },
+        {
+          "name": "qty",
+          "type": "integer",
+          "optional": true
+        },
+        {
+          "name": "specs",
+          "type": "array",
+          "fields": [
+            {
+              "name": "label"
+            },
+            {
+              "name": "value"
+            }
+          ],
+          "doc": "The Especificaciones tab, in order."
+        },
+        {
+          "name": "rating",
+          "type": "number",
+          "optional": true
+        },
+        {
+          "name": "reviews",
+          "type": "integer",
+          "optional": true
+        },
+        {
+          "name": "source",
+          "enum": [
+            "page",
+            "graphql"
+          ],
+          "doc": "page: read from the HTML, which may be hours old; graphql: the store's live read."
+        }
+      ]
+    },
+    {
+      "id": "search",
+      "doc": "what the store's search box suggests for what was typed in it",
+      "fields": [
+        {
+          "name": "query"
+        },
+        {
+          "name": "items",
+          "type": "array",
+          "fields": [
+            {
+              "name": "name"
+            },
+            {
+              "name": "path"
+            },
+            {
+              "name": "price",
+              "type": "number",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "name": "categories",
+          "type": "array"
+        }
+      ]
+    },
+    {
+      "id": "checkout",
+      "doc": "the checkout's delivery form: which fields hold something, never what",
+      "fields": [
+        {
+          "name": "filled",
+          "type": "array"
+        },
+        {
+          "name": "missing",
+          "type": "array"
+        },
+        {
+          "name": "invalid",
+          "type": "array",
+          "fields": [
+            {
+              "name": "field"
+            },
+            {
+              "name": "message"
+            }
+          ]
+        },
+        {
+          "name": "region",
+          "optional": true
+        },
+        {
+          "name": "comuna",
+          "optional": true
+        },
+        {
+          "name": "email_has_account",
+          "type": "boolean",
+          "optional": true
+        },
+        {
+          "name": "delivery_options",
+          "type": "array"
+        },
+        {
+          "name": "delivery",
+          "optional": true
+        },
+        {
+          "name": "payment_open",
+          "type": "boolean",
+          "optional": true
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "id": "product.shown",
+      "slice": "product",
+      "op": "set",
+      "note": "{by} opened the product {name}",
+      "doc": "A product page came up, read from the page."
+    },
+    {
+      "id": "product.checked",
+      "slice": "product",
+      "op": "set",
+      "doc": "The store's live read of the product in front: its price and stock now."
+    },
+    {
+      "id": "search.suggested",
+      "slice": "search",
+      "op": "set",
+      "note": "The search box shows suggestions for “{query}”"
+    },
+    {
+      "id": "checkout.changed",
+      "slice": "checkout",
+      "op": "set",
+      "doc": "The delivery form on load and after each change; the brain writes its own line."
     }
   ]
 }

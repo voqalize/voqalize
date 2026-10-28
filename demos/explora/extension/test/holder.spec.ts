@@ -116,6 +116,13 @@ interface Status {
   micAsked: string[];
 }
 
+/** The pages reported, in order: each a Stage `page.changed` state event's data. */
+function pagesIn(sent: Status["sent"]): Record<string, unknown>[] {
+  return sent
+    .filter((e) => e.event === "stage_event" && e.payload.name === "page.changed")
+    .map((e) => e.payload.data as Record<string, unknown>);
+}
+
 interface Ext {
   ctx: BrowserContext;
   sw: Worker;
@@ -261,9 +268,11 @@ test.describe("the holder and its pages", () => {
     expect(s.tabs[0]).toMatchObject({ url: `${ORIGIN}/`, ports: 1 });
 
     // The brain hears where the visitor is, from the page, through the holder.
-    await expect.poll(async () => (await status(ext.sw)).sent.map((e) => e.event)).toContain("page_changed");
+    await expect.poll(async () => pagesIn((await status(ext.sw)).sent).length).toBeGreaterThan(0);
     s = await status(ext.sw);
-    expect(s.sent.find((e) => e.event === "page_changed")!.payload).toMatchObject({ path: "/", site: "site", headings: expect.arrayContaining(["Our lodges"]) });
+    expect(pagesIn(s.sent)[0]).toMatchObject({ path: "/", site: "site", headings: expect.arrayContaining(["Our lodges"]) });
+    // The page's state goes as a Stage state event, never as the old app event.
+    expect(s.sent.some((e) => e.event === "page_changed")).toBe(false);
     expect(s.sent.find((e) => e.event === "tabs_changed")!.payload).toMatchObject({ tabs: [{ url: `${ORIGIN}/` }] });
 
     // What happens on the call reaches the widget and his face.
@@ -285,7 +294,7 @@ test.describe("the holder and its pages", () => {
   test("a tab back in front reports its page again, once for its focus and visibility together", async ({ ext }) => {
     const page = await ext.open("/");
     await callLive(ext, page);
-    const reports = async () => (await status(ext.sw)).sent.filter((e) => e.event === "page_changed").length;
+    const reports = async () => pagesIn((await status(ext.sw)).sent).length;
     await expect.poll(reports).toBe(1);
     await page.waitForTimeout(300);
     await page.evaluate(() => {
@@ -327,7 +336,7 @@ test.describe("the holder and its pages", () => {
     expect(s.log.filter((l) => l.includes("connected "))).toHaveLength(1);
     expect(s.state.status).toBe("live");
     await expect(widget(page)).toHaveAttribute("data-status", "live");
-    await expect.poll(async () => (await status(ext.sw)).sent.filter((e) => e.event === "page_changed").map((e) => e.payload.path)).toContain("/atacama/");
+    await expect.poll(async () => pagesIn((await status(ext.sw)).sent).map((p) => p.path)).toContain("/atacama/");
 
     // A heading the page lacks is refused, with what the page shows instead,
     // and the brain is told: one result for the cue.
@@ -376,7 +385,7 @@ test.describe("the holder and its pages", () => {
       location.href = "/atacama/";
     });
     await page.waitForURL(`${ORIGIN}/atacama/`);
-    await expect.poll(async () => (await status(ext.sw)).sent.filter((e) => e.event === "page_changed").map((e) => e.payload.path)).toContain("/atacama/");
+    await expect.poll(async () => pagesIn((await status(ext.sw)).sent).map((p) => p.path)).toContain("/atacama/");
   });
 
   test("across hosts: a move sent while the tab loads the booking site is made on its hello, and the move it leaves for www.explora.com is made there", async ({ ext }) => {
@@ -401,14 +410,14 @@ test.describe("the holder and its pages", () => {
     // the rest of the move kept by the service worker for the page it lands on.
     await page.waitForURL(`${BOOKING}/ibe/paso1?hotel_code=ATA&language=EN`);
     await expect.poll(async () => (await status(ext.sw)).log.some((l) => l.includes("perform explora.navigate"))).toBe(true);
-    await expect.poll(async () => (await status(ext.sw)).sent.filter((e) => e.event === "page_changed").map((e) => e.payload.site)).toContain("reservations");
+    await expect.poll(async () => pagesIn((await status(ext.sw)).sent).map((p) => p.site)).toContain("reservations");
     await page.waitForURL(`${ORIGIN}/atacama/`, { timeout: 15_000 });
 
     // Back on www.explora.com, once the call is up on the page, it finishes
     // the move and answers for it, under the move's own id: one final result,
     // from the page it landed on, after the interim one its loading page sent.
     await expect.poll(async () => results(await status(ext.sw)).map((r) => r.call_ref), { timeout: 10_000 }).toEqual(["c1"]);
-    await expect.poll(async () => (await status(ext.sw)).sent.filter((e) => e.event === "page_changed").map((e) => e.payload.path)).toContain("/atacama/");
+    await expect.poll(async () => pagesIn((await status(ext.sw)).sent).map((p) => p.path)).toContain("/atacama/");
 
     // The same call all along, across both hosts, and nothing failed.
     s = await status(ext.sw);
@@ -456,7 +465,7 @@ test.describe("the holder and its pages", () => {
     await expect.poll(async () => (await status(ext.sw)).state.ready).toBe(true);
     await toHolder(ext.sw, move("c1", "explora.twin", { language: "es" }, "quiet"));
     await page.waitForURL(`${ORIGIN}/es/atacama/`, { timeout: 10_000 });
-    await expect.poll(async () => (await status(ext.sw)).sent.filter((e) => e.event === "page_changed").map((e) => e.payload.path)).toContain("/es/atacama/");
+    await expect.poll(async () => pagesIn((await status(ext.sw)).sent).map((p) => p.path)).toContain("/es/atacama/");
     // The Spanish page answers for the move.
     await expect.poll(async () => results(await status(ext.sw)).map((r) => [r.call_ref, r.outcome])).toEqual([["c1", "applied"]]);
 
