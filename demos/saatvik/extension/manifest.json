@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Tushar for Saatvik — Voqalize preview",
+  "name": "Sunny for Saatvik — Voqalize preview",
   "version": "0.0.0",
-  "description": "A voice solar advisor on www.saatvikgroup.com, who answers from Saatvik's own pages and documents, shows them as he talks, and fills in the enquiry form. A Voqalize preview.",
+  "description": "A voice solar advisor on www.saatvikgroup.com, who answers from Saatvik's own pages and documents, shows them as she talks, and fills in the enquiry form. A Voqalize preview.",
   "content_scripts": [
     {
       "matches": [

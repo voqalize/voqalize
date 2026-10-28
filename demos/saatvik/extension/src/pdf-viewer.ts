@@ -1,7 +1,7 @@
 /**
  * The PDF viewer: Saatvik's datasheets, manuals and certificates, opened on
- * their own page beside the call, at the page Tushar is reading from, with the
- * line he quotes marked.
+ * their own page beside the call, at the page Sunny is reading from, with the
+ * line she quotes marked.
  *
  * Their site links each PDF to open in a new tab, which would take the person
  * away from the call and land them on page one. This is pdf.js in an overlay of

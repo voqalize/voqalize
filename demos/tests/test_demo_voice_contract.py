@@ -163,10 +163,10 @@ DEMOS: dict[str, Expected] = {
     # moves both legs to Hindi for Hindi or Hinglish — one woman in two
     # languages, so the voice stays gayatri. Asserted in test_qween_e2e.py.
     "qween": Expected(voice="omnivoice/gayatri", language="en"),
-    # Tushar, Saatvik's solar advisor, opens in English unless the page's toggle
-    # said Hindi, and moves both legs for the toggle or for Hindi heard — gaurav
+    # Sunny, Saatvik's solar advisor, opens in English unless the page's toggle
+    # said Hindi, and moves both legs for the toggle or for Hindi heard — ananya
     # in both. Asserted in test_saatvik_e2e.py.
-    "saatvik": Expected(voice="omnivoice/gaurav", language="en"),
+    "saatvik": Expected(voice="omnivoice/ananya", language="en", provider="openai"),
     # Javier again, as Saint George's College's guide on saintgeorge.cl: the
     # site is Chilean, so he opens in Spanish unless the toggle said English,
     # and moves both legs for the toggle or for English heard — javier in both.

@@ -1,15 +1,15 @@
-# Tushar for Saatvik — the extension
+# Sunny for Saatvik — the extension
 
-A Chrome extension that puts Tushar, a voice solar advisor, on
+A Chrome extension that puts Sunny, a voice solar advisor, on
 [www.saatvikgroup.com](https://www.saatvikgroup.com) in place of the site's chat
-launcher. He talks a visitor through Saatvik's modules, inverters and rooftop
-kits while he moves their pages: he opens a page, rings the section or the
-table row he is talking about, opens the FAQ that answers the question, opens a
-datasheet or policy PDF at the page and line he quotes, runs the savings
+launcher. She talks a visitor through Saatvik's modules, inverters and rooftop
+kits while she moves their pages: she opens a page, rings the section or the
+table row she is talking about, opens the FAQ that answers the question, opens a
+datasheet or policy PDF at the page and line she quotes, runs the savings
 calculator, filters the dealer locator, and fills in the enquiry form with what
-the visitor has told him. Everything he shows is a page, section or form Saatvik
+the visitor has told her. Everything she shows is a page, section or form Saatvik
 already has; the extension adds a corner widget, a PDF viewer, and the orange
-ring he draws around what he is pointing at.
+ring she draws around what she is pointing at.
 
 Behind the conversation the brain builds the brief Saatvik's sales team would
 receive — a score, the reasons for it, where the lead would be routed, and what
@@ -30,10 +30,19 @@ on it; it is not how a customer would ship it.
   the Action classes in `../backend/brain.py`. It also hides the site's own chat
   launcher and moves the WhatsApp button to the bottom-left corner, so neither
   sits under the widget.
+- `src/narration.ts` — the screen follows her voice. The brain sends each
+  screen cue she wrote into her reply (`{page: …}`, `{show: …}`, `{tab: …}`,
+  `{faq: …}`) ahead of the speech, with the first words of the sentence it
+  belongs to; this fires it when the call's spoken-text events (`bot-output`,
+  released as the audio plays) reach those words, one move at a time. Words
+  are Latin letters and digits or Devanagari, so a Hindi reply's cues fire on
+  its own words. With no spoken text, it times cues from the start of the
+  speech instead; when the visitor talks over her, the rest is dropped. This
+  is SendPotion's narration, unchanged but for the Hindi words.
 - `src/actions.gen.ts` — the Action and event unions, generated from the brain
   with `pnpm gen`. Regenerate after changing either.
 - `src/pdf-viewer.ts` — the document viewer: a panel beside the widget that
-  opens one of Saatvik's PDFs at a page and marks the quote Tushar reads from it.
+  opens one of Saatvik's PDFs at a page and marks the quote Sunny reads from it.
   It renders with pdf.js and its own text layer, so the mark sits on the words.
   A quote is looked for on the asked page first, then on the pages either side
   of it, and a quote the model tidied up still lands on its opening or closing
@@ -43,7 +52,7 @@ on it; it is not how a customer would ship it.
 - `src/widget.ts` — the corner widget, in a shadow root, in Saatvik's own navy,
   orange and typefaces: the call, an English | हिंदी toggle, and the lead
   brief when the brain sends it, which can be collapsed. The visitor can drag it anywhere and minimise
-  it to Tushar's face with the call still live.
+  it to Sunny's face with the call still live.
 - `src/content.ts` — the call: stock pipecat with `@voqalize/client-transport`
   as its media manager, one `sessions.connect`, the avatar, and the glue
   between the adapter, the viewer, the widget and the brain.
@@ -90,6 +99,9 @@ send it, from the page's DevTools console, with no call:
 
 ```js
 await __voqalizeSaatvik.perform("navigate", { path: "/modules/n-topcon" });
+// A page, and where to land on it once it is up: a heading or words, a tab, or an FAQ.
+await __voqalizeSaatvik.perform("navigate", { path: "/modules/n-topcon", heading: null, text: null, tab: "WARRANTY", faq: null });
+await __voqalizeSaatvik.perform("show_section", { heading: null, text: "Module Efficiency" });
 await __voqalizeSaatvik.perform("show_section", { heading: "Compare Specifications", text: "Annual Degradation" });
 await __voqalizeSaatvik.perform("open_faq", { question: "How is N-TOPCon better" });
 await __voqalizeSaatvik.perform("open_document", {
@@ -98,6 +110,13 @@ await __voqalizeSaatvik.perform("open_document", {
   quote: "the Company may transfer a portion of its profits to reserves",
 });
 await __voqalizeSaatvik.perform("close_document", {});
+// A narrated turn: cues as the brain sends them, then speech as the voice plays it.
+const n = __voqalizeSaatvik.narration;
+n.speaking();
+n.add({ at: "n topcon is", word: 0, path: "/modules/n-topcon", heading: null, text: null, tab: null, faq: null });
+n.add({ at: "it carries a", word: 6, path: null, heading: null, text: null, tab: "WARRANTY", faq: null });
+n.hear("N-TOPCon is my pick for a home.");
+n.hear("It carries a thirty-year warranty.");
 await __voqalizeSaatvik.perform("run_calculator", { units: 350, state: "Karnataka", rate: 8 });
 await __voqalizeSaatvik.perform("find_dealer", { state: "Karnataka", query: "Bengaluru" });
 await __voqalizeSaatvik.perform("open_enquiry", {
@@ -122,7 +141,7 @@ state.
 
 ## Enquiries are never sent
 
-`DEMO_BLOCK_SUBMIT`, at the top of `src/saatvik-actions.js`, is on. Tushar fills
+`DEMO_BLOCK_SUBMIT`, at the top of `src/saatvik-actions.js`, is on. Sunny fills
 in the enquiry form but never ticks the consent box and never presses SUBMIT;
 that stays the visitor's. When the visitor does press it, on any of the enquiry
 tabs, the page reads the form and sends the brain `enquiry_submitted` with what
@@ -136,5 +155,5 @@ off lets the site's own handlers run after the event is sent.
 Moving between pages keeps the call: the site's own client-side router changes
 the page under it, and a full page load rejoins the same session on the next
 page. The call belongs to one tab: starting a call in a second tab while the first
-holds one says "Tushar is already on a call in another tab." rather than opening a
+holds one says "Sunny is already on a call in another tab." rather than opening a
 second call.

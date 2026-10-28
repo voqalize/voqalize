@@ -1,5 +1,5 @@
-// Generated from demos/saatvik/backend/brain.py by `voqalize types`. Do not edit — regenerate with:
-//   voqalize types demos/saatvik/backend/brain.py -o demos/saatvik/extension/src/actions.gen.ts
+// Generated from saatvik/backend/brain.py by `voqalize types`. Do not edit — regenerate with:
+//   voqalize types saatvik/backend/brain.py -o saatvik/extension/src/actions.gen.ts
 //
 // Every field of an action is present on the wire, `null` included, so nothing
 // there is optional and no runtime validation is needed to narrow on `command`.
@@ -19,17 +19,52 @@ export interface LeadBrief {
   submitted: boolean;
 }
 
-/** Go to one of the site's pages; the page reports `page_changed`. */
+/**
+ * Go to one of the site's pages and, once it is up, scroll to `heading`
+ * or `text` and ring it, open the spec tab `tab`, or open the FAQ
+ * `faq`. The page reports `page_changed`.
+ */
 export interface Navigate {
   path: string;
+
+  heading: string | null;
+
+  text: string | null;
+
+  tab: string | null;
+
+  faq: string | null;
 }
 
 /**
- * Scroll to the `h1` to `h3` named `heading` and ring its section; with
- * `text`, ring the smallest element in it that contains that text.
+ * A move for the page to make when the voice reaches `at` — the first
+ * words of the sentence it belongs to (see `.cues`); empty `at` is
+ * when the voice stops. With `path`, it is a `Navigate`; else a
+ * section, words, spec tab or FAQ on the page in front.
+ */
+export interface Cue {
+  at: string;
+
+  word: number;
+
+  path: string | null;
+
+  heading: string | null;
+
+  text: string | null;
+
+  tab: string | null;
+
+  faq: string | null;
+}
+
+/**
+ * Scroll to the heading named `heading` and ring its section; with
+ * `text`, ring the smallest element in it that contains that text (with no
+ * heading, anywhere on the page: a spec row, a model, a card).
  */
 export interface ShowSection {
-  heading: string;
+  heading: string | null;
 
   text: string | null;
 }
@@ -407,6 +442,7 @@ export interface Score {
 export type UiAction =
   | { command: 'lead_brief'; payload: LeadBrief }
   | { command: 'navigate'; payload: Navigate }
+  | { command: 'cue'; payload: Cue }
   | { command: 'show_section'; payload: ShowSection }
   | { command: 'open_faq'; payload: OpenFaq }
   | { command: 'open_tab'; payload: OpenTab }
@@ -423,6 +459,7 @@ export type UiActionCommand = UiAction['command'];
 export const UI_ACTION_COMMANDS: readonly UiActionCommand[] = [
   'lead_brief',
   'navigate',
+  'cue',
   'show_section',
   'open_faq',
   'open_tab',

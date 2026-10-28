@@ -1,4 +1,4 @@
-"""What Tushar knows about Saatvik, in three layers, read once at import.
+"""What Sunny knows about Saatvik, in three layers, read once at import.
 
 - **L1** (``knowledge/L1.md``) is always in his prompt: the company, the product
   families, the national subsidy scheme, the ways to reach a person.
@@ -13,7 +13,7 @@
 The files are built offline (``knowledge/build.py``) and committed. Every one of
 them may be missing or empty and this module still imports: the demos backend
 serves every brain from one process, and one brain that cannot import takes the
-others down with it. A Tushar without L3 says he cannot find a page; he never
+others down with it. A Sunny without L3 says she cannot find a page; she never
 crashes the server.
 """
 
@@ -68,7 +68,7 @@ def norm(text: str) -> str:
 
 #: Paths the site answers with a permanent redirect, by their targets. Next's
 #: router follows one softly, but with an extra round trip, and the page then
-#: reports the target's path; so a move goes straight there. Found 2026-10-14 by
+#: reports the target's path; so a move goes straight there. Found 2026-10-14 (the last two 2026-10-28) by
 #: fetching every crawled path with ``RSC: 1``: every other path answers with
 #: the router's own payload.
 REDIRECTS: dict[str, str] = {
@@ -76,7 +76,19 @@ REDIRECTS: dict[str, str] = {
     "/saatvik-solar-gti-inverter": "/inverters",
     "/epc-solutions/carport-solar-solutions": "/epc-solutions/carport",
     "/epc-solutions/roof-top": "/epc-solutions/rooftop/commercial",
+    "/modules/mono-perc/mono-perc-modules": "/modules/mono-perc",
+    "/modules/n-topcon/bifacial-g2g": "/modules/bifacial-g2g-m10r",
 }
+
+
+#: Pages the prompt's site map leaves out, by path prefix: blog posts, press
+#: releases and investor filings, which search reaches, and which would crowd
+#: the products out of the map.
+SKIP_IN_MAP: tuple[str, ...] = (
+    "/newsroom/blogs/",
+    "/newsroom/press-release/",
+    "/investors/",
+)
 
 
 def canonical_path(path_or_url: str) -> str:
@@ -104,6 +116,14 @@ class Faq:
 
 
 @dataclass(frozen=True)
+class Section:
+    """A heading and the text under it, up to the next heading."""
+
+    heading: str
+    text: str
+
+
+@dataclass(frozen=True)
 class Page:
     path: str
     title: str
@@ -112,6 +132,9 @@ class Page:
     faqs: tuple[Faq, ...] = ()
     text: str = ""
     documents: tuple[str, ...] = ()
+    sections: tuple[Section, ...] = ()
+    #: The spec tabs the page shows (ELECTRICAL, MECHANICAL, WARRANTY on a module).
+    tabs: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -399,7 +422,19 @@ def _page(raw: dict[str, Any]) -> Page | None:
         faqs=tuple(faqs),
         text=str(raw.get("text") or ""),
         documents=_strs(raw.get("documents")),
+        sections=tuple(_sections(raw.get("sections"))),
+        tabs=_strs(raw.get("tabs")),
     )
+
+
+def _sections(value: Any) -> list[Section]:
+    out: list[Section] = []
+    for s in cast(list[Any], value or []):
+        if isinstance(s, dict):
+            s = cast(dict[str, Any], s)
+            if heading := str(s.get("heading") or "").strip():
+                out.append(Section(heading, str(s.get("text") or "")))
+    return out
 
 
 def _document(raw: dict[str, Any]) -> Document | None:

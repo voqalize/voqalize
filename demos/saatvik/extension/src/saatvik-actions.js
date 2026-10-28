@@ -71,7 +71,7 @@
   }
 
   // ─── Their page, less their chat ──────────────────────────────────────
-  // Tushar replaces Saatvik's chat launcher, so it is hidden for as long as the
+  // Sunny replaces Saatvik's chat launcher, so it is hidden for as long as the
   // extension runs. Their WhatsApp button sits in the corner the widget takes;
   // it moves to the other corner rather than going away.
 
@@ -183,6 +183,8 @@
     "/saatvik-solar-gti-inverter": "/inverters",
     "/epc-solutions/carport-solar-solutions": "/epc-solutions/carport",
     "/epc-solutions/roof-top": "/epc-solutions/rooftop/commercial",
+    "/modules/mono-perc/mono-perc-modules": "/modules/mono-perc",
+    "/modules/n-topcon/bifacial-g2g": "/modules/bifacial-g2g-m10r",
   };
 
   function redirected(url) {
@@ -219,11 +221,11 @@
     return false;
   }
 
-  async function navigate(path) {
+  async function navigate(path, { top = true } = {}) {
     if (typeof path !== "string" || !path.startsWith("/")) throw new Error(`not a path on this site: ${path}`);
     const target = redirected(new URL(path, location.origin));
     if (samePath(location.pathname, target.pathname) && location.search === target.search) {
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      if (top) window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
     const from = location.pathname;
@@ -263,6 +265,23 @@
         resolve();
       }
     });
+  }
+
+  /** A page, and where on it to land once it is up: a heading or words, a
+   *  spec tab, or an FAQ. A cue spoken with the page names the page's own
+   *  headings as the crawl knew them; one the live page has since lost leaves
+   *  the visitor at the top of the page, not on a failed move. */
+  async function navigateTo({ path, heading, text, tab, faq }) {
+    const landing = Boolean(heading || text || tab || faq);
+    await navigate(path, { top: !landing });
+    if (!landing) return;
+    try {
+      if (faq) await openFaq({ question: faq });
+      else if (tab) await openTab({ label: tab });
+      else await showSection({ heading, text });
+    } catch (error) {
+      console.info("voqalize: landed at the top of", location.pathname, "-", error && error.message);
+    }
   }
 
   async function goTo(path) {
@@ -413,6 +432,14 @@
   }
 
   async function showSection({ heading, text }) {
+    if (!heading && text) {
+      // Words with no heading: a model, a spec row, a card, wherever it is.
+      const el = smallestContaining(main(), text);
+      if (!el) throw new Error(`"${text}" is not on ${location.pathname}`);
+      await scrollToCentre(el);
+      highlight(el);
+      return;
+    }
     const h = findHeading(heading);
     if (!h) {
       const known = context().headings.slice(0, 20).join(" | ");
@@ -955,7 +982,7 @@
   }
 
   const COMMANDS = {
-    navigate: ({ path }) => navigate(path),
+    navigate: navigateTo,
     show_section: showSection,
     open_faq: openFaq,
     open_tab: openTab,

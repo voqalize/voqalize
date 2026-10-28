@@ -1,8 +1,8 @@
 /**
- * Tushar on Saatvik's site — the whole browser half of the call.
+ * Sunny on Saatvik's site — the whole browser half of the call.
  *
  * Saatvik's page is theirs and we change nothing in it beyond hiding their chat
- * launcher, which Tushar replaces. This script is injected into the page's own
+ * launcher, which Sunny replaces. This script is injected into the page's own
  * JavaScript world (the manifest's `"world": "MAIN"`) because the site adapter
  * drives Saatvik through their client-side router, which only exists there. It
  * brings:
@@ -16,7 +16,7 @@
  *   - the call: stock pipecat on `@voqalize/client-transport`'s media, one
  *     `sessions.connect`, and the avatar.
  *
- * Nothing here decides what Tushar says or shows. The prompt, the tools and the
+ * Nothing here decides what Sunny says or shows. The prompt, the tools and the
  * knowledge live in the brain, `demos/saatvik/backend/`.
  *
  * Saatvik's navigation is client-side and keeps the call. A full page load
@@ -32,13 +32,14 @@ import { type APIRequest, PipecatClient, type TransportState } from "@pipecat-ai
 import { type AvatarInstance, createAvatar, listCharacters, preloadAvatar } from "@voqalize/avatar";
 import { createVoqalizeTransport, VoqalizeMediaManager } from "@voqalize/client-transport";
 
-import { type AppEvent, asUiAction, sendAppEvent, UI_ACTION_COMMANDS, type UiAction } from "./actions.gen";
+import { type AppEvent, asUiAction, type Cue, sendAppEvent, UI_ACTION_COMMANDS, type UiAction } from "./actions.gen";
+import { Narration } from "./narration";
 import { mountViewer } from "./pdf-viewer";
 import { type Language, mountWidget, type Status } from "./widget";
 
 declare const __VOQALIZE__: { apiBase: string; agentId: string; publishableKey: string };
 
-const CHARACTER = "tushar";
+const CHARACTER = "ananya";
 const AGENT = __VOQALIZE__.agentId;
 /** The language the next call starts in, as the toggle last left it in this
  *  tab: a call rejoined after a page load keeps its own. */
@@ -47,10 +48,10 @@ const LANG_KEY = "voqalize.saatvik.lang";
  *  gives up and shows the language the call is still in. */
 const SWITCH_WAIT_MS = 10_000;
 /** The Actions the widget performs itself, rather than the page adapter. */
-const OURS = ["open_document", "close_document", "lead_brief", "language_changed"];
+const OURS = ["open_document", "close_document", "lead_brief", "language_changed", "cue"];
 /** Set once the widget is up, so a second copy of this script on the page
  *  puts up no second widget. */
-const MOUNTED = "__voqalizeTushar";
+const MOUNTED = "__voqalizeSunny";
 
 /** The request that mints a session — see `docs/client/handshake`. */
 function connectRequest(init: Record<string, unknown>): APIRequest {
@@ -184,13 +185,46 @@ async function start(): Promise<void> {
     widget.setLanguage(next);
   }
 
+  /** A cue, as the page Action it stands for. */
+  function cueMove(cue: Cue): [string, unknown] {
+    if (cue.path) {
+      return ["navigate", { path: cue.path, heading: cue.heading, text: cue.text, tab: cue.tab, faq: cue.faq }];
+    }
+    if (cue.faq) return ["open_faq", { question: cue.faq }];
+    if (cue.tab) return ["open_tab", { label: cue.tab }];
+    return ["show_section", { heading: cue.heading, text: cue.text }];
+  }
+
+  // The screen follows her voice; see `narration.ts`. A cue that misses is
+  // reported as `cue`, which the brain takes quietly: she has spoken past it.
+  const narration = new Narration(async (cue) => {
+    const [command, payload] = cueMove(cue);
+    const result = await adapter!.run(command, payload);
+    if (!result.ok) report({ event: "command_failed", payload: { command: "cue", reason: result.error ?? "failed" } });
+  });
+
+  /** Follow the call's speech for the cues: its spoken text, when it starts
+   *  and stops, and when the visitor talks over it. */
+  function narrate(on: PipecatClient): void {
+    const heard = (data: unknown) => {
+      const d = data as { text?: string; spoken?: boolean; will_be_spoken?: boolean } | undefined;
+      if (!d?.text || d.spoken === false || d.will_be_spoken === false) return;
+      narration.hear(d.text);
+    };
+    on.on("botOutput" as never, heard as never);
+    on.on("botTtsText" as never, heard as never);
+    on.on("botStartedSpeaking" as never, (() => narration.speaking()) as never);
+    on.on("botStoppedSpeaking" as never, (() => narration.stopped()) as never);
+    on.on("userStartedSpeaking" as never, (() => narration.interrupted()) as never);
+  }
+
   function watchActivity(on: PipecatClient): void {
     on.on("userStartedSpeaking" as never, (() => widget.setActivity("listening")) as never);
     on.on("botLlmStarted" as never, (() => widget.setActivity("thinking")) as never);
     on.on("botStartedSpeaking" as never, (() => {
       widget.setActivity("speaking");
       // The brain answers `language_requested` by moving both legs and
-      // confirming aloud in the new language, so his next words are the switch.
+      // confirming aloud in the new language, so her next words are the switch.
       if (asked) showLanguage(asked);
     }) as never);
     on.on("botStoppedSpeaking" as never, (() => widget.setActivity("listening")) as never);
@@ -224,7 +258,7 @@ async function start(): Promise<void> {
           widget.audio.srcObject = new MediaStream([track]);
           void widget.audio.play().catch(() => {});
         },
-        // A microphone that never opened is a call Tushar cannot hear: end it
+        // A microphone that never opened is a call Sunny cannot hear: end it
         // and say why, rather than leave a widget that says "live".
         onDeviceError: (error) => {
           if (client !== next || !error.devices.includes("mic")) return;
@@ -255,7 +289,7 @@ async function start(): Promise<void> {
       // Another tab holds the call; this one's copy of it is not ours to take.
       forgetCopiedCall();
       spare = null;
-      if (!rejoin) paint("error", "Tushar is already on a call in another tab.");
+      if (!rejoin) paint("error", "Sunny is already on a call in another tab.");
       return;
     }
     release = lock;
@@ -265,6 +299,7 @@ async function start(): Promise<void> {
     spare = null;
     client = next;
     watchActivity(next);
+    narrate(next);
     try {
       avatar?.destroy();
       avatar = createAvatar({ mount: widget.face, client: next, character: CHARACTER });
@@ -292,7 +327,7 @@ async function start(): Promise<void> {
   }
 
   /** Perform one of the brain's Actions. Never waits on the person; a failure
-   *  is returned for the brain so he never claims it worked. */
+   *  is returned for the brain so she never claims it worked. */
   async function perform(command: string, payload: unknown): Promise<AppEvent | null> {
     const action = asUiAction(command, payload);
     if (!action) {
@@ -316,6 +351,10 @@ async function start(): Promise<void> {
         case "lead_brief":
           widget.setBrief(action.payload);
           return null;
+        // A move to make when her voice reaches its sentence.
+        case "cue":
+          narration.add(action.payload);
+          return null;
         default: {
           const page: UiAction = action;
           const result = await adapter!.run(page.command, page.payload);
@@ -335,6 +374,7 @@ async function start(): Promise<void> {
       if (failed) report(failed);
       return failed;
     },
+    narration,
   };
 
   function end(): void {
@@ -367,7 +407,7 @@ async function start(): Promise<void> {
   }
 
   /** The toggle. Off a call it picks the next call's language. In a call it
-   *  asks the brain and moves when Tushar next speaks, which is his confirmation
+   *  asks the brain and moves when Sunny next speaks, which is her confirmation
    *  in the new language, or at once on the brain's `language_changed`,
    *  which also follows a switch made by voice. */
   function chooseLanguage(want: Language): void {
@@ -387,7 +427,7 @@ async function start(): Promise<void> {
   widget.setLanguage(language);
   widget.onLanguage(chooseLanguage);
   widget.onCall(() => void connect(false));
-  // His face builds once the person reaches for the invite, not at page load:
+  // Her face builds once the person reaches for the invite, not at page load:
   // this runs on every page of the site, and most visitors never call.
   widget.onReach(() => {
     if (!client) preloadAvatar(CHARACTER);
@@ -400,7 +440,7 @@ async function start(): Promise<void> {
     void client?.disconnect();
   });
 
-  // His face on the button, from the avatar's own host, once the page settles.
+  // Her face on the button, from the avatar's own host, once the page settles.
   const idle = window.requestIdleCallback ?? ((fn: () => void) => setTimeout(fn, 1500));
   idle(() => {
     listCharacters()
@@ -422,7 +462,7 @@ interface Prepared {
 }
 
 const MIC_BLOCKED =
-  "This page blocks the microphone, so Tushar can't hear you. Reload the extension in chrome://extensions, then refresh this page.";
+  "This page blocks the microphone, so Sunny can't hear you. Reload the extension in chrome://extensions, then refresh this page.";
 
 /** Whether this document's Permissions-Policy lets it open the microphone. */
 function micAllowed(): boolean {
@@ -434,10 +474,10 @@ function micAllowed(): boolean {
 function micFailure(type: string): string {
   if (!micAllowed()) return MIC_BLOCKED;
   if (type === "permissions")
-    return "Tushar can't hear you: microphone access was refused. Allow it for this site, then start again.";
-  if (type === "in-use") return "Tushar can't hear you: another app is using the microphone.";
-  if (type === "not-found") return "Tushar can't hear you: no microphone was found.";
-  return "Tushar can't hear you: the microphone did not open.";
+    return "Sunny can't hear you: microphone access was refused. Allow it for this site, then start again.";
+  if (type === "in-use") return "Sunny can't hear you: another app is using the microphone.";
+  if (type === "not-found") return "Sunny can't hear you: no microphone was found.";
+  return "Sunny can't hear you: the microphone did not open.";
 }
 
 function reason(error: unknown): string {
@@ -446,7 +486,7 @@ function reason(error: unknown): string {
 }
 
 // Mount on `load`, but never wait on it for long: a third-party resource on
-// the site can hold `load` back for over a minute, and Tushar would not appear.
+// the site can hold `load` back for over a minute, and Sunny would not appear.
 // `start` mounts once, so whichever comes first wins.
 if (document.readyState === "complete") void start();
 else {

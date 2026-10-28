@@ -2,7 +2,7 @@
 
 Sources: https://www.saatvikgroup.com/investors and its sub-pages (/investors/ipo, /investors/financials/sgel, /investors/annual-report, /investors/shareholding-pattern, /investors/contact, /investors/corporate-announcements), and the results press releases on /newsroom/press-release.
 
-Tushar is not an investment adviser: he can read out what Saatvik has published, point to the filing, and leave opinions on the stock alone.
+Sunny is not an investment adviser: she can read out what Saatvik has published, point to the filing, and leave opinions on the stock alone.
 
 ## Listing
 - Saatvik Green Energy Limited (formerly Saatvik Green Energy Private Limited). NSE: SAATVIKGL. BSE: 544526. ISIN: INE13B501022. CIN: L40106HR2015PLC075578.

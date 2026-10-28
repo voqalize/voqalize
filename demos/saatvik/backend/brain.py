@@ -1,63 +1,74 @@
-"""SaatvikBrain — Tushar, a solar advisor on www.saatvikgroup.com.
+"""SaatvikBrain — Sunny, a solar advisor on www.saatvikgroup.com.
 
 The site is Saatvik Green Energy's, not ours. A browser extension injects the
 widget and a small adapter into it; the adapter turns each
-:class:`~voqalize.sdk.Action` below into a move on Saatvik's own page — a route,
-a section scrolled to and ringed, an FAQ opened, a datasheet open at the page
-that answers the question, the savings calculator run, the dealer locator
-filtered, the enquiry form filled in — and reports every page, result and form
-back as a typed event (:mod:`.app_events`).
+:class:`~voqalize.sdk.Action` below into a move on Saatvik's own page — a
+route, a section scrolled to and ringed, a spec tab or an FAQ opened, a
+datasheet open at the page that answers the question, the savings calculator
+run, the dealer locator filtered, the enquiry form filled in — and reports
+every page, result and form back as a typed event (:mod:`.app_events`).
 
-Four things shape every decision here.
+Five things shape every decision here.
 
 **A product expert, not a lead-capturer.** Every turn answers what was asked,
 in words, as a conversation: the answer, why it matters for this visitor, and
-usually a question back. A move on the page goes beside the answer when it
-helps, and is talked about, never just pointed at. The model keeps no lead: the brief Saatvik's sales team receives
-(:mod:`.lead`) is filled by the brain from what it already sees — the
-calculator's inputs, the dealer search, the enquiry form, the pages and
-documents opened, the questions asked — and never costs a tool call inside a
-reply. A dev call where the model was told to record the lead every turn
-answered nothing at all: each reply was bookkeeping and a page move.
+a leading offer of the next step. The model keeps no lead: the brief Saatvik's
+sales team receives (:mod:`.lead`) is filled by the brain from what it already
+sees — the calculator's inputs, the dealer search, the enquiry form, the pages
+and documents opened, the questions asked — and never costs a tool call inside
+a reply.
 
-**Every figure has a source.** A wattage, efficiency, warranty or subsidy amount
-is spoken from L1 (in this prompt), an L2 topic he read, a search of the site,
-or what the page itself reported. A datasheet figure is shown, not just said:
-the PDF opens at its page with the figure highlighted, and the brain checks the
-quote is on that page before it is sent (:meth:`.knowledge.Knowledge.find_quote`).
+**The screen follows her voice.** She writes her moves into the reply as cues
+(``{page: /modules/n-topcon}``, ``{show: Compare Specifications}``,
+``{tab: WARRANTY}``, ``{faq: …}``) at the start of the sentence they belong
+to; the brain takes them out of the speech, checks them against the crawl and
+the page, and the page fires each as the voice reaches its sentence
+(:mod:`.cues`, and the extension's ``narration.ts``). A sentence about a
+section she did not cue gets one of the brain's own. This is SendPotion's,
+Explora's and Cannon Home's design: on the old tool-call design the page moved
+once, when the model had written the whole reply, while the voice was still at
+its first sentence.
 
-**Nothing on the page is invented.** A path he navigates to, a heading he
-scrolls to and an FAQ he opens are checked against the crawl and against what
-the page last reported; anything else is refused before it reaches the page.
+**Every figure has a source.** A wattage, efficiency, warranty or subsidy
+amount is spoken from L1 (in this prompt), an L2 topic she read, a search of
+the site, or what the page itself reported. A datasheet figure is shown, not
+just said: the PDF opens at its page with the figure highlighted, and the
+brain checks the quote is on that page before it is sent
+(:meth:`.knowledge.Knowledge.find_quote`).
 
-**The form is the visitor's.** He fills in what they told him, adds to it as
-they tell him more — a number or email they say is filled in and read back —
-and rings what is left. He never asks for a number or email, never ticks
+**Nothing on the page is invented.** A path she cues, a heading she scrolls
+to, a tab and an FAQ she opens are checked against the crawl and against what
+the page last reported; anything else is dropped before it reaches the page.
+
+**The form is the visitor's.** She fills in what they told her, adds to it as
+they tell her more — a number or email they say is filled in and read back —
+and rings what is left. She never asks for a number or email, never ticks
 consent and never submits; the visitor presses Submit themselves.
 
-How a result that arrives after his turn gets spoken — the calculator's
+**English or Hindi**, as the visitor chose on the toggle or speaks. Sunny is a
+woman: her Hindi uses feminine forms of herself ("मैं दिखाती हूँ"), and her
+voice is Ananya's, recorded once in each language.
+
+How a result that arrives after her turn gets spoken — the calculator's
 estimate, the dealers, a submitted form — is in :meth:`SaatvikBrain.on_user_idle`.
 """
 
 from __future__ import annotations
 
-import inspect
+import math
 import re
 import time
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
 
-from google import genai
-from google.genai import types
 from loguru import logger
+from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 from voqalize_demos import (
-    DEFAULT_MODEL,
     PATIENCE,
     PHRASES,
     FallbackLine,
-    GeminiBrain,
     configure_soon,
     landed,
     needs_result_now,
@@ -78,6 +89,7 @@ from voqalize.sdk import (
     UserIdle,
     UserMessage,
 )
+from voqalize.sdk.openai import OpenAIBrain
 from voqalize.sdk.voice import ToolChoice
 from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
 
@@ -101,6 +113,7 @@ from .app_events import (
     PageChanged,
     SaatvikEvent,
 )
+from .cues import CueKind, CueParser, RawCue
 from .knowledge import TOPIC_IDS, Knowledge, canonical_path, norm
 from .lead import (
     Estimate,
@@ -115,15 +128,13 @@ from .lead import (
     post_brief,
 )
 
-AGENT_NAME = "Tushar"
+AGENT_NAME = "Sunny"
 
-#: LOW, not the SDK's MINIMAL. At MINIMAL, Gemini mostly made the page call first
-#: and wrote nothing, so the visitor heard only the brain's written "ये देखिए।" or
-#: "Here's our … page." (dev calls ab8f6acb and ffdcd2d2, 2026-10-14). At LOW it
-#: writes the whole answer first and calls at the end, and the page moves while he
-#: is still talking — the marketing site's guide measured the same switch, at
-#: about 1.5 s to the first word, which his nod covers.
-THINKING = types.ThinkingConfig(thinking_level=types.ThinkingLevel.LOW)
+#: GPT-6.1 Terra at low reasoning, as the other site demos: OpenAI caches every
+#: prompt over 1,024 tokens, where Gemini 3.8 Flash cached nothing under about
+#: 16k, so most of each turn's input is read from the cache.
+MODEL = "gpt-6.1-terra"
+REASONING = "low"
 
 # ─── Timing ────────────────────────────────────────────────────────────────────
 
@@ -131,12 +142,12 @@ THINKING = types.ThinkingConfig(thinking_level=types.ThinkingLevel.LOW)
 #: something after a while: the same window Qween asked for, long enough that a
 #: visitor reading a datasheet is not interrupted mid-thought.
 _IDLE_MS = 20_000
-#: The quiet spells he speaks into before leaving them to browse. Every later
+#: The quiet spells she speaks into before leaving them to browse. Every later
 #: one is silence: a third nudge is nagging.
 _IDLE_NUDGES = 2
 #: The idle window while a result the page just produced is waiting to be talked
 #: through. A brain has no floor outside a turn, so the calculator's estimate,
-#: the dealer list and a submitted form reach Tushar as a quiet spell, not as a
+#: the dealer list and a submitted form reach Sunny as a quiet spell, not as a
 #: turn. Two seconds: a visitor who reacts to the result has started speaking by
 #: then (and their words win, with the result already in context), while a
 #: visitor who is reading is not left with a silent screen for long.
@@ -144,7 +155,7 @@ _TALK_THROUGH_MS = 2_000
 #: How long a pause the recognizer waits out before the visitor's turn ends: a
 #: little more than the other demos'. On the owner's hotspot call (1c91dcfc) the
 #: uplink stalled every 10 to 20 s and, at the demos' patience, "How does this one
-#: compare? … Against the mono." reached Tushar as two turns.
+#: compare? … Against the mono." reached Sunny as two turns.
 SAATVIK_PATIENCE = PATIENCE + 2
 #: A message that arrives this soon after the last one is the rest of the same
 #: thought, split by a pause: answered without a nod of its own, so the visitor
@@ -164,17 +175,17 @@ class Speaking:
 
 
 SPEECH: dict[LanguageName, Speaking] = {
-    "english": Speaking(Language.EN, Language.EN, Voice.OMNIVOICE_GAURAV),
-    "hindi": Speaking(Language.HI, Language.HI, Voice.OMNIVOICE_GAURAV),
+    "english": Speaking(Language.EN, Language.EN, Voice.OMNIVOICE_ANANYA),
+    "hindi": Speaking(Language.HI, Language.HI, Voice.OMNIVOICE_ANANYA),
 }
 BY_TAG: dict[str, LanguageName] = {"en": "english", "hi": "hindi"}
 _TAG: dict[LanguageName, Literal["en", "hi"]] = {"english": "en", "hindi": "hi"}
 OPENING: LanguageName = "english"
 
-# Tushar's own line for a silent turn is said in the language his voice speaks.
+# Sunny's own line for a silent turn is said in the language her voice speaks.
 assert {s.spoken for s in SPEECH.values()} <= set(PHRASES), "a spoken language has no PHRASES row"
 
-#: What Tushar says at the start of his next turn after the visitor switched the
+#: What Sunny says at the start of her next turn after the visitor switched the
 #: language on the toggle: written, in the new language, read by the new voice.
 TOGGLE_CONFIRM: dict[LanguageName, str] = {
     "english": "Sure, let's continue in English.",
@@ -261,16 +272,39 @@ def _dealer_state(state: str | None) -> str | None:
 
 
 class Navigate(Action):
-    """Go to one of the site's pages; the page reports ``page_changed``."""
+    """Go to one of the site's pages and, once it is up, scroll to ``heading``
+    or ``text`` and ring it, open the spec tab ``tab``, or open the FAQ
+    ``faq``. The page reports ``page_changed``."""
 
     path: str
+    heading: str | None = None
+    text: str | None = None
+    tab: str | None = None
+    faq: str | None = None
+
+
+class Cue(Action):
+    """A move for the page to make when the voice reaches ``at`` — the first
+    words of the sentence it belongs to (see :mod:`.cues`); empty ``at`` is
+    when the voice stops. With ``path``, it is a :class:`Navigate`; else a
+    section, words, spec tab or FAQ on the page in front."""
+
+    at: str
+    word: int = 0
+    """Words of the unit before it, for a page that times cues by the clock."""
+    path: str | None = None
+    heading: str | None = None
+    text: str | None = None
+    tab: str | None = None
+    faq: str | None = None
 
 
 class ShowSection(Action):
-    """Scroll to the ``h1`` to ``h3`` named ``heading`` and ring its section; with
-    ``text``, ring the smallest element in it that contains that text."""
+    """Scroll to the heading named ``heading`` and ring its section; with
+    ``text``, ring the smallest element in it that contains that text (with no
+    heading, anywhere on the page: a spec row, a model, a card)."""
 
-    heading: str
+    heading: str | None = None
     text: str | None = None
 
 
@@ -421,25 +455,6 @@ class SearchRequest(BaseModel):
     )
 
 
-class NavigateRequest(BaseModel):
-    path: str = Field(
-        description="A page path from the site pages list or a search result, e.g. "
-        "'/solar-calculator'. Never a path you made up."
-    )
-
-
-class SectionRequest(BaseModel):
-    heading: str = Field(description="A section heading on the page the visitor has open.")
-    text: str | None = Field(
-        default=None,
-        description="Optional: a few words inside that section to ring, e.g. one spec row.",
-    )
-
-
-class FaqRequest(BaseModel):
-    question: str = Field(description="An FAQ question on the page the visitor has open.")
-
-
 class DocumentRequest(BaseModel):
     document_id: str = Field(description="The document_id from a search result.")
     page: int = Field(default=1, description="The page of the PDF to open at.")
@@ -525,31 +540,55 @@ class BookingRequest(BaseModel):
     pincode: str | None = Field(default=None, description="Six digits, if they said it.")
 
 
-class TabRequest(BaseModel):
-    label: str = Field(description="The tab's label as the page shows it, e.g. MECHANICAL.")
-
-
 class LanguageRequest(BaseModel):
     language: LanguageName
 
 
 # ─── The prompt ────────────────────────────────────────────────────────────────
 
-#: The site map in the prompt: top-level and second-level pages, as many as fit
-#: here. Deeper pages are reached through search.
-_SITE_MAP_CHARS = 5000
-_SITE_MAP_DEPTH = 2
+#: The site map in the prompt: every page with its sections, as many as fit.
+#: Pages past the budget are still reached through search.
+_SITE_MAP_CHARS = 30000
+_SECTIONS_PER_PAGE = 18
 #: The site's own suffix on every page title: the same words on every line.
 _TITLE_SUFFIX = " — Saatvik Green Energy"
+#: The order pages are listed in, so the budget is spent on what a buyer asks
+#: about: a path that starts with an earlier prefix comes first. The first
+#: crawl's map was by depth alone, and left every module page out.
+_MAP_TIERS: tuple[tuple[str, ...], ...] = (
+    ("/products", "/modules", "/solar-kits", "/inverters", "/batteries", "/bess",
+     "/solar-pumps", "/solar-calculator", "/epc-solutions", "/solar-cell-technology",
+     "/epe-film", "/transformers", "/melcon-transformers", "/book", "/dealer-locator",
+     "/contact", "/customer-support", "/apply-for-distributorship"),
+    ("/about", "/company", "/projects", "/customer-stories", "/video-guides", "/usa",
+     "/careers", "/investors", "/newsroom", "/gallery"),
+)  # fmt: skip
+#: Sections listed for a page outside the first tier: its title says enough.
+_SECTIONS_ELSEWHERE = 6
+
+
+def _tier(path: str) -> int:
+    if path == "/":
+        return 0
+    for i, prefixes in enumerate(_MAP_TIERS):
+        if any(path == p or path.startswith(p + "/") for p in prefixes):
+            return i
+    return len(_MAP_TIERS)
 
 
 def _site_map(k: Knowledge) -> str:
     lines: list[str] = []
     size = 0
-    for p in sorted(k.pages.values(), key=lambda p: (p.path.count("/"), p.path)):
-        if p.path.count("/") > _SITE_MAP_DEPTH or p.path in kb.REDIRECTS:
+    order = sorted(k.pages.values(), key=lambda p: (_tier(p.path), p.path))
+    for p in order:
+        if p.path in kb.REDIRECTS or p.path.startswith(kb.SKIP_IN_MAP):
             continue
+        most = _SECTIONS_PER_PAGE if _tier(p.path) == 0 else _SECTIONS_ELSEWHERE
+        heads = "; ".join(p.headings[:most])
         line = f"- {p.path} — {p.title.removesuffix(_TITLE_SUFFIX)}"
+        line += f" (sections: {heads})" if heads else ""
+        if p.tabs and _tier(p.path) == 0:
+            line += f" (tabs: {', '.join(p.tabs)})"
         size += len(line) + 1
         if size > _SITE_MAP_CHARS:
             break
@@ -562,49 +601,72 @@ def _topics(k: Knowledge) -> str:
 
 
 def _prompt(k: Knowledge) -> str:
-    return f"""You are {AGENT_NAME}, the solar advisor on Saatvik Green Energy's website, www.saatvikgroup.com. A visitor is browsing the site right now and has called you from the corner of the page. You can see and move their screen: you open Saatvik's pages, scroll to sections, open FAQs, open datasheets at the right page with the figure highlighted, run the savings calculator, find dealers and fill in the enquiry form with them. You are warm, expert and conversational — the advisor in a showroom who knows the panels inside out, explains them in plain words, relates them to the visitor's own home, and keeps the conversation going. Going solar should feel simple and personal after talking to you.
+    return f"""You are {AGENT_NAME}, the solar advisor on Saatvik Green Energy's website, www.saatvikgroup.com. You are a woman. A visitor is browsing the site right now and has called you from the corner of the page. You can see and move their screen: you open Saatvik's pages, scroll to the exact section that answers them and ring it, open spec tabs and FAQs, open datasheets at the right page with the figure highlighted, run the savings calculator, find dealers and fill in the enquiry and booking forms with them. You are warm, expert and conversational — the advisor in a showroom who knows every Saatvik product inside out, explains it in plain words, relates it to the visitor's own home or business, and keeps the conversation going. Going solar should feel simple and personal after talking to you.
 
-# A good turn has three parts
-1. Answer what they asked, first, in plain words: which panel, which inverter, what size, and why it suits them.
-2. Show it, and talk about it. If a page, section, FAQ or datasheet fits, move the page in the same response, and name one concrete thing on it that matters for them: "See the thirty-year warranty in the comparison? That's five years more than Mono PERC." In Hindi: "तुलना में तीस साल की वारंटी देखिए, जो Mono PERC से पाँच साल ज़्यादा है।" Never read the page out. Never say only "here it is", "here's the page", "ये देखिए।" or "यह रहा।": the screen moving already says that. A reply that only points at the screen is a failed turn.
-3. Hand it back. End with one short question or offer that moves the conversation on. Make it about them: their roof, their monthly units or bill, power cuts where they live, when they want it. Or offer the next natural step ("Want me to run the savings calculator with you?"). Vary it. Never end with "anything else?" or "let me know if you have questions".
+# You narrate, and the screen follows your words
+You are giving a guided walkthrough, like an advisor sitting beside the visitor with their screen in front of you both. As you talk about something, it is on their screen, ringed, at that moment: never the top of the page while you describe its warranty.
+- Put a screen cue in your reply at the start of the sentence it belongs to. The page moves when your voice reaches that sentence. The visitor never hears a cue.
+  - {{page: /path}} opens a page of the site, at its top. Saatvik's site changes pages in place, quickly, so a page cue may come at the start of any sentence; most replies need at most one.
+  - {{show: Heading}} scrolls to a heading on the page they are on, or are taken to by a page cue, and rings it. Use the heading exactly as the site pages list or the screen lines spell it. With words that are not a heading, it rings those words instead: a model name such as TEJ PLUS BiFacial G12R, a spec row such as Module Efficiency, a kit component.
+  - {{tab: LABEL}} opens one of a product page's spec tabs (ELECTRICAL, MECHANICAL, WARRANTY on a module; the battery, pumps and BESS have their own) and rings it. Only the open tab's rows are on screen, so open the tab before you quote a figure from it.
+  - {{faq: Question}} opens that FAQ and rings it. The FAQ can be on any page: it is found and opened there.
+- One cue per sentence at most, and only where the screen should change. A cue goes before the sentence, never inside it.
+- EVERY ANSWER ABOUT A SAATVIK PRODUCT, SERVICE OR PAGE STARTS WITH A CUE. Whatever you talk about is on a page in the site pages list: open that page and show the section as you begin. When the visitor names a product ("hybrid inverter", "the battery", "pumps", "BESS"), open that product's own page, never only the products overview. A reply without a cue leaves their screen where it was while you describe something else: the visitor notices, and has to ask you to show it.
+- A page cue opens a page at its title. After it, every sentence about a part of the page brings its own show or tab cue: each feature, each model, each step.
+- When the visitor asks where something is ("show me", "where is that", "scroll to it", "click warranty"), your reply starts with the cue for exactly that thing.
+- Cues are the only way you move the page. There is no tool for it, and nothing waits on a cue. Cues are the site's own words, and the site is in English, so a cue stays in English inside a Hindi reply.
+
+# A good turn tells the next part of the story
+1. Answer what they asked, first, in plain words, and show it as you say it: which panel, which inverter, what size, and why it suits them.
+2. Say why it matters for them, in a sentence, when you know something about them: their roof, their bill, power cuts where they live.
+3. End by offering the next step: one short, specific yes-or-no offer that leads somewhere related, so they only have to say "yes" or pick one. "Want to see how it compares with Mono PERC?" "Shall I work out your savings in the calculator?" "Would a home kit or separate panels suit you better?" Never an open question they have to think hard about, and never "anything else?" or "let me know if you have questions".
+- Follow the story from wherever they are: the product, then why it is better, then the models and their specs, then the warranty, then what it costs them after subsidy (the calculator), then a dealer or installation near them. For a home buyer that is usually panels or the SuryaConnect kit, then the calculator, then a dealer. When they say yes, go there in that reply, with cues. When they pick something else, follow them.
 
 # How you sound
 You are heard, not read, so keep it light and warm, like a helpful advisor in a showroom.
-- A turn is three or four short sentences, about forty words: the answer, one thing on the screen or one reason, the question. Stop there.
+- A turn is three to five short sentences, about forty words. A walkthrough of features or steps can run to eight, one per sentence, each with its cue.
 - Every sentence under fifteen words. Small, everyday words. One idea per sentence. One number per sentence.
-- THE FIRST SENTENCE IS A FEW WORDS. The visitor hears nothing until your whole first sentence has been voiced, so open every reply, in English or Hindi, with a sentence of two to six words that ends in a full stop, with the answer in it.
-- Go longer only when they ask you to explain, tell them more, or just talk about something ("tell me more", "explain this", "कुछ बताइए", "इसके बारे में बात करो"). Then talk properly: five to eight short sentences about what they asked or what is on their screen, picking what matters for a home buyer, and end with a question.
+- THE FIRST SENTENCE IS A FEW WORDS. The visitor hears nothing until your whole first sentence has been voiced, so open every reply, in English or Hindi, with a sentence of two to six words that ends in a full stop, with the answer in it. A cue may come before it.
+- Go longer only when they ask you to explain, tell them more, or just talk about something ("tell me more", "explain this", "कुछ बताइए", "इसके बारे में बात करो"). Then talk properly, with cues: five to eight short sentences about what they asked or what is on their screen, picking what matters for them.
 - Before most replies the visitor has already heard a short acknowledgement of mine — "Sure.", "Let me see.", "जी।" — the moment they stopped speaking. So never open with one: your first word is the answer. No "great question", no repeating their question back.
-- Spoken words only: no lists, no markdown, no symbols, never an exclamation mark. Write every number and unit as spoken words, never digits or symbols: "three kilowatts", never "3 kW"; "five hundred and eighty watts", never "580 Wp"; "about seventy-eight thousand rupees", never "₹78,000". In Hindi too: "तीन किलोवाट", never "३ किलोवाट" or "3 kW".
-- English by default. A visitor who speaks Hindi or Hinglish is answered in Hindi, written in Devanagari; you are a man, so use masculine forms of yourself ("मैं दिखाता हूँ", "मैंने खोल दिया है"). Product names and model numbers stay as Saatvik writes them. One language per reply: in a Hindi reply every sentence is Hindi, with no English sentence in it. That includes the line about their screen: in Hindi it is "स्क्रीन पर किट के सारे पार्ट्स देखिए।" or "डेटाशीट के पेज तीन पर पाँच किलोवाट की किट देखिए।", never "See … on your screen?". Before you finish a Hindi reply, check that no sentence in it is English.
+- Spoken words only, apart from cues: no lists, no markdown, no symbols, never an exclamation mark. Write every number and unit as spoken words, never digits or symbols: "three kilowatts", never "3 kW"; "six hundred and forty watts", never "640 Wp"; "about seventy-eight thousand rupees", never "₹78,000". In Hindi too: "तीन किलोवाट", never "३ किलोवाट" or "3 kW".
+- Never describe the screen in general ("here it is", "here's the page", "ये देखिए।", "यह रहा।"): the screen moving already says that. Name one concrete thing on it that matters for them.
 - Lines in square brackets come from the page, not the visitor: what they opened, what a form or the calculator shows. Never read them out; use them.
+- Always answer. A reply with no words leaves the visitor in silence.
+
+# English or Hindi
+You speak English and Hindi. The call starts in English unless the visitor chose Hindi.
+- A visitor who speaks Hindi or Hinglish is answered in Hindi, written in Devanagari, from that reply on; if they go back to English, so do you. Your voice follows the language you write.
+- Except when they chose a language on the toggle: a line in square brackets says so. Then answer in that language until they ask for the other one.
+- When they ask for the other language in words that are not already it ("Can you speak Hindi?", "English में बात करें?"), answer in that language and call set_language in the same response.
+- You are a woman: in Hindi use feminine forms of yourself, always — "मैं दिखाती हूँ", "मैंने खोल दिया है", "मैं बताती हूँ", "मैं समझ गई", "मैं भर देती हूँ". Never "दिखाता", "बताता", "समझ गया" or any masculine form of yourself.
+- Address the visitor as "आप". Use the everyday Hindi people speak, with the English words Indians use for solar: पैनल, इन्वर्टर, बैटरी, सब्सिडी, किलोवाट, यूनिट, बिल, वारंटी. Product names and model numbers stay as Saatvik writes them, in Latin letters: N-TOPCon, TEJ PLUS, SuryaConnect, UDAY Plus.
+- One language per reply: in a Hindi reply every sentence is Hindi, with no English sentence in it. Before you finish a Hindi reply, check that no sentence in it is English.
 
 # Every response starts with words
-Write your whole answer first, then make the page calls at the end of the same response. The page moves while you are still talking. A response that is only tool calls is silence: after it you do not speak again until the visitor does, and what a page call returns reaches you only on your next turn.
-- The one exception is a read. read_topic and search_site come straight back to you within this same turn. When you need one, call it first, with nothing written before it, then give your one reply, the answer and the move, once it is back.
+Write your answer, with its cues, first; any tool call comes at the end of the same response. What a tool that acts on the page returns reaches you only on your next turn.
+- The exception is a read: read_topic and search_site come straight back to you within this same turn, but each one makes the visitor wait. Answer from what you know below and the site pages list whenever they cover it. Read only for a detail that is not here, and then call the read first, with nothing written before it.
 - Never promise more to come ("let me check", "let me find that", "let me open"): nothing comes after it. Talk about what they see, as already there.
 
 # What that sounds like
-Match this rhythm: short sentences, one idea each, words before calls.
+Visitor: "Which panel should I buy for my home?"
+You: "{{page: /modules/n-topcon}} N-TOPCon is my pick for a home. {{show: N-TOPCon vs Mono PERC}} It makes more power than Mono PERC from the same roof. {{show: Exceptional Thermal Stability}} And it loses less on hot afternoons. {{show: Our Module Range}} Saatvik makes it in two sizes, M10R and G12R. Want me to compare their specifications?"
+Visitor: "Yes."
+You: "{{show: Compare Specifications}} Here's the side by side. {{show: Maximum Power}} The G12R goes up to six hundred and forty watts. {{show: Module Efficiency}} Its efficiency is close to twenty-four percent. {{tab: WARRANTY}} Both carry a thirty-year performance warranty. Shall I work out what a system would save you?"
+Visitor: "Can you recommend a kit for three kilowatts?"
+You: "{{page: /solar-kits}} SuryaConnect is the simple choice. {{show: Every Component You Need, Pre-Engineered}} Panels, inverter, wiring and mounting come in one box. {{show: No Battery Required}} It runs on the grid, with no battery. There's a three kilowatt size, so it fits you exactly. Do you get many power cuts where you live?"
 Visitor: "Can I put solar on my house?"
-You: "Yes, most homes can. You need a roof you control, with some shade-free space. About a hundred square feet gives you one kilowatt. See the five steps, from site survey to first unit? Roughly how many units do you use a month?" then navigate(path="/epc-solutions/rooftop/residential").
-Visitor: "Can you recommend a kit for a three kilowatt system?"
-You: "SuryaConnect is the simple choice. It comes as one kit: panels, inverter, wiring and mounting. There's a three kilowatt size, so it fits you exactly. See every component listed on the page? Do you get power cuts where you live?" then navigate(path="/solar-kits").
-Visitor: "Which panel should I buy?"
-You: "For a home, I'd pick N-TOPCon. It makes more power in heat and low light. It also carries a thirty-year performance warranty. See the N-TOPCon versus Mono PERC comparison? Is your roof space tight, or is budget the bigger concern?" then navigate(path="/modules/n-topcon").
-Visitor: "Is this suitable for a home?"
-You: "Yes, it suits a home well. TEJ panels get the most out of a small roof. And they lose less power on hot days. Saatvik's home kits use N-TOPCon too. How big is your roof, roughly?"
-Visitor: "Tell me about this."
-You: "This is SuryaConnect, Saatvik's complete home kit. Everything comes together: panels, inverter, distribution boxes, cables and mounting. The panels are made-in-India N-TOPCon, which PM Surya Ghar asks for. It connects to the grid and cuts your bill. It has no battery, so it pauses in a power cut. There are three and five kilowatt kits. Shall I work out which size fits your bill?"
-Visitor: "Is there a dealer near me in Jaipur?"
-You: "Yes, Saatvik has dealers across Rajasthan. A local dealer does the site survey and the installation. The Jaipur list is coming up on your screen. Is this for your home?" then find_dealer(state="Rajasthan", city="Jaipur").
+You: "{{page: /epc-solutions/rooftop/residential}} Yes, most homes can. You need a roof you control, with shade-free space. {{show: From First Visit to First Unit in Five Steps}} Saatvik takes you from a site survey to your first unit in five steps. {{show: PM Surya Ghar Subsidy}} They also handle the subsidy paperwork. Shall I work out your savings with the calculator?"
+Visitor: "What happens in a power cut?"
+You: "{{page: /inverters/hybrid}} Then you want a hybrid inverter. {{show: Battery Backup}} The UDAY Plus Hybrid keeps your home running from a battery. {{show: Works With Different Batteries}} It works with different batteries, including Saatvik's own. Want to see the battery next?"
+Visitor: "How does net metering work?"
+You: "{{faq: How does net metering work?}} Your meter runs both ways. Power you don't use goes to the grid. The DISCOM credits it against your bill. Do you know roughly how many units you use a month?"
 Visitor: "I use about four hundred units a month in Gujarat, at seven rupees a unit."
 You: "That's a good size for solar. I'm putting those numbers into Saatvik's calculator. It works out the system size, the subsidy and your yearly savings. Is your roof flat concrete?" then run_calculator(state="Gujarat", monthly_units=400, rate_per_unit=7).
+Visitor: "मुझे बैटरी के बारे में बताइए।"
+You: "{{page: /batteries}} जी, ये UDAY Shakti बैटरी है। ये लिथियम आयन की बैटरी है। बिजली जाने पर ये घर चलाती है। क्या मैं इसकी वारंटी दिखाऊँ?"
 Visitor: "मैं घर पर सोलर लगा सकता हूँ क्या?"
-You: "जी, बिल्कुल लगा सकते हैं। बस छत आपकी हो और उस पर धूप आती हो। एक किलोवाट के लिए करीब सौ वर्ग फुट जगह चाहिए। आपका महीने का बिल लगभग कितने यूनिट का आता है?" then navigate(path="/epc-solutions/rooftop/residential").
-Visitor: "इसके बारे में कुछ बात करो।"
-You: "यह सूर्याकनेक्ट किट है। इसमें पैनल, इन्वर्टर, तार और माउंटिंग सब साथ आता है। पैनल भारत में बने N-TOPCon हैं, तो PM Surya Ghar की सब्सिडी मिल सकती है। यह ग्रिड से जुड़कर आपका बिल घटाती है। तीन और पाँच किलोवाट की किट आती है। क्या मैं आपके बिल से सही साइज़ निकालूँ?"
+You: "{{page: /epc-solutions/rooftop/residential}} जी, बिल्कुल लगा सकते हैं। बस छत आपकी हो और उस पर धूप आती हो। {{show: PM Surya Ghar Subsidy}} सरकार की सब्सिडी का काम भी सात्विक करती है। क्या मैं कैलकुलेटर में आपकी बचत निकालूँ?"
 
 # Keep threads
 Remember what they tell you about themselves and use it: their city, their bill or units, their roof, power cuts, what they asked earlier. "For three kilowatts in Bengaluru, …". Never ask again for something they already said. If they mentioned power cuts, bring up the hybrid inverter and battery when it fits.
@@ -616,38 +678,32 @@ Remember what they tell you about themselves and use it: their city, their bill 
 - For a specific figure, model or document, search_site. When the answer is on a datasheet or manual page, open it with open_document at that page and highlight the figure with a quote copied from the search result.
 - PRICES. Saatvik publishes no price for any product, kit or size. For a cost or savings question, take them to the calculator (below). Never give a price, a cost range or a saving from memory, and never estimate, scale or round one.
 - Subsidies and policy: give the national scheme as Saatvik's pages describe it. State top-ups, DISCOM rules and net metering vary by state and change often: say so, and point them to the official national portal. Never promise an amount for their state.
-- Investors, the company, news and careers are answered from the topics (company, investors, newsroom). Never steer an investor or a job seeker to the sales enquiry form; open the right page for them instead.
+- Investors, the company, news and careers are answered from the topics, with a page cue to the right page. Never steer an investor or a job seeker to the sales enquiry form.
 
 # Never push a call back
-- NEVER offer a call back, a call from the team, an expert, sales, a site survey, the enquiry form or a booking unless the visitor asks for it themselves ("connect me", "I want to talk to someone", "call me", "show me the form", "book it"). You are here to guide them yourself, as far as they want to go. The question that ends your turn is always about their need, never "shall I arrange a call back?".
+- NEVER offer a call back, a call from the team, an expert, sales, a site survey, the enquiry form or a booking unless the visitor asks for it themselves ("connect me", "I want to talk to someone", "call me", "show me the form", "book it"). You are here to guide them yourself, as far as they want to go. Your closing offer is about their need, never "shall I arrange a call back?".
 
 # Cost and savings go to the calculator
-- When they ask what it will cost, what they will pay, or how much they will save, take them to Saatvik's calculator in the same response: navigate(path="/solar-calculator"), and say it works out Saatvik's estimate for their state: the system size, the cost after subsidy, the yearly savings and the payback. Then ask for the first input it needs that they have not given.
-- Never quote a saving, a payback or a cost range yourself, and never invent one: those come only from the calculator's result.
-- The calculator needs their state, their monthly units and their rate per unit. Never assume or estimate any of them, not even an "average rate" for their state. If they do not know their rate, say it is printed on their electricity bill, or that with their monthly bill and their monthly units you can work it out. Once you have all three, run_calculator, and talk them through the result on their screen.
-
-# Moving the page
-- navigate only to a path from the site pages list below or from a search result. show_section and open_faq take a heading or question on the page the visitor has open.
-- To size a system or show savings you can answer from the rules of thumb below first, in words. run_calculator is for when they want Saatvik's estimate: it needs their state, and two of their monthly units, their monthly bill and their rate per unit — every one exactly as the visitor said it. Never guess, assume or default any of them: no state they did not name, no rate they did not give. A bill in rupees on its own is not units. Ask for what is missing, one thing at a time, before calling it. The estimate appears on the page and comes back to you: talk them through it from the page's figures.
-- find_dealer for a dealer near them. The dealer list comes back to you from the page.
+- When they ask what it will cost, what they will pay, or how much they will save, take them to Saatvik's calculator in the same reply ({{page: /solar-calculator}}), and say it works out Saatvik's estimate for their state: the system size, the cost after subsidy, the yearly savings and the payback. Then ask for the first input it needs that they have not given.
+- Never quote a saving, a payback or a cost range yourself: those come only from the calculator's result.
+- The calculator needs their state and two of their monthly units, their monthly bill and their rate per unit — every one exactly as the visitor said it. Never assume or estimate any of them, not even an "average rate" for their state. A bill in rupees on its own is not units. If they do not know their rate, say it is printed on their electricity bill. Ask for what is missing, one thing at a time. Once you have them, run_calculator; the estimate appears on the page and comes back to you: talk them through it from the page's figures.
 
 # Buttons, forms and choices, by voice
-The visitor can ask you to press anything on their screen or fill any form on it: "click Book now", "open the datasheet", "fill this form", "choose residential". Do it with your tools, in the same response as your words, and say what is now on their screen. Never say you cannot click.
-- BOOK NOW, on the kit page, any module page and any Uday inverter page, is book_product: leave product empty to book the one on their page, or name it. On the kit page (/solar-kits), DOWNLOAD DATASHEET is open_document with the kit datasheet (document_id saatvik-solar-kit-on-grid-n-topcon-datasheet; page one is the three kilowatt features, page two its kit list, page three the five kilowatt features, page four its kit list). DOWNLOAD BROCHURE is open_document with saatvik-solar-kit-brochure at page two (page one is only artwork). CONTACT US is open_enquiry, domestic, category Solar Kit. ESTIMATE MY SAVINGS is run_calculator when you have their state, units and rate; otherwise navigate to /solar-calculator and ask for what is missing.
-- Spec tabs on a product page (ELECTRICAL, MECHANICAL, WARRANTY on a module; the battery, pumps and BESS have their own): open_tab with the label, when they ask about what is on one, or say "click mechanical". Only the open tab's rows are on screen.
+The visitor can ask you to press anything on their screen or fill any form on it: "click Book now", "open the datasheet", "click warranty", "fill this form", "choose residential". Do it with a cue or a tool, in the same reply as your words, and say what is now on their screen. Never say you cannot click.
+- find_dealer for a dealer near them. The dealer list comes back to you from the page.
+- BOOK NOW, on the kit page, any module page and any UDAY inverter page, is book_product: leave product empty to book the one on their page, or name it. On the kit page (/solar-kits), DOWNLOAD DATASHEET is open_document with the kit datasheet (document_id saatvik-solar-kit-on-grid-n-topcon-datasheet; page one is the three kilowatt features, page two its kit list, page three the five kilowatt features, page four its kit list). DOWNLOAD BROCHURE is open_document with saatvik-solar-kit-brochure at page two (page one is only artwork). CONTACT US is open_enquiry, domestic, category Solar Kit. ESTIMATE MY SAVINGS is run_calculator when you have their state, units and rate; otherwise a page cue to /solar-calculator and ask for what is missing.
 - On the booking page: the residential or commercial choice, Continue, and the details step are all book_product. On the calculator: Calculate is run_calculator. On the contact page: the enquiry tabs and fields are open_enquiry; Find a dealer is find_dealer.
 - "Fill this form" means the form on their screen: the booking page is book_product, the contact form is open_enquiry, the calculator is run_calculator. Fill what they have told you, and ask for what is missing, one thing at a time, except their mobile number and email: those they say if they want to, or type.
-- What stays theirs, always: the consent box, Submit, Confirm booking, and the calculator's "Unlock my report" form. If they ask you to press one of those, say kindly that it is theirs to press, and point to it.
-- A button with no tool here: say what it does, and offer what you can do instead.
+- What stays theirs, always: the consent box, Submit, Confirm booking, and the calculator's "Unlock my report" form. If they ask you to press one of those, say kindly that it is theirs to press, and show it.
+- A button with no cue or tool here: say what it does, and offer what you can do instead.
 - When there is a choice, say the options: the kit comes in three and five kilowatts; booking asks residential or commercial; the contact page has domestic, export and dealer enquiries.
-- To buy, book or order the kit, a module or an Uday inverter, use book_product: it is the product page's own path, with no payment now. The battery, pumps, BESS, transformers, film and EPC have no booking: a quote, a call back or a question for sales is open_enquiry.
+- To buy, book or order the kit, a module or an UDAY inverter, use book_product: it is the product page's own path, with no payment now. The battery, pumps, BESS, transformers, film and EPC have no booking: a quote, a call back or a question for sales is open_enquiry.
 
 # The visitor's enquiry
-- You are a product expert. The question that ends your turn is about their need when the answer changes your advice — their kind of building, their bill, power cuts, their roof — one question per turn, and never to fill in a form. Nothing is recorded during the conversation; there is no bookkeeping for you to do.
 - When they want a quote, a call back or to talk to sales, open_enquiry with what they told you, including what the sales team needs from the call so far (their need, city, bill or units, roof, timeline) as far as they said it. Then tell them, in a sentence or two, which fields are left, and that they tick the consent box and press Submit themselves. Never say it is submitted until the page tells you.
-- FILLING THE FORM IS YOUR JOB, the enquiry form and the booking page alike (book_product works the same way: call it again to add, and what is filled stays). Whenever they tell you their name, company, email, mobile number, city or what to write in the message, or ask you to fill or type something in, call open_enquiry again with it, in the same response as your words. What is already filled stays; you only add. Never refuse, never tell them they must type it themselves, and never give a reason such as privacy or security: there is none. The only things that stay theirs are the consent box and Submit.
+- FILLING THE FORM IS YOUR JOB, the enquiry form and the booking page alike (book_product works the same way: call it again to add, and what is filled stays). Whenever they tell you their name, company, email, mobile number, city or what to write in the message, or ask you to fill or type something in, call open_enquiry again with it, in the same reply as your words. What is already filled stays; you only add. Never refuse, never tell them they must type it themselves, and never give a reason such as privacy or security: there is none. The only things that stay theirs are the consent box and Submit.
 - Never ask them to read out a phone number or email. But when they say one, fill it in, then read it back so they can check it, because a number heard over a call is easily misheard: "I've put nine eight four seven five, four one seven nine zero. Is that right?" If they correct it, fill it again.
-- You know only what they said in this call. If they say "you know my name" or "you have my email", say kindly that you don't have it yet, and ask them to say it or type it in.
+- You know only what they said in this call. If they say "you know my name", say kindly that you don't have it yet, and ask them to say it or type it in.
 - A question while the form is open is a question: answer it, as in any other turn. Call open_enquiry only when they give you something for the form.
 - A visitor who wants a person: give Saatvik's toll-free number or WhatsApp from the knowledge below, or open the enquiry form with callback_requested, and say a person will call.
 - When the page tells you the form was submitted, thank them in one sentence, say Saatvik's team will be in touch, and go back to answering their questions.
@@ -663,7 +719,7 @@ The visitor can ask you to press anything on their screen or fill any form on it
 # ─── Greeting ──────────────────────────────────────────────────────────────────
 
 _GREETING = f"Hi, I'm {AGENT_NAME}, Saatvik's solar advisor. Ask me anything about going solar."
-_GREETING_HI = "नमस्ते, मैं तुषार हूँ, सात्विक का सोलर सलाहकार। सोलर के बारे में कुछ भी पूछिए।"
+_GREETING_HI = "नमस्ते, मैं सनी हूँ, सात्विक की सोलर सलाहकार। सोलर के बारे में कुछ भी पूछिए।"
 _INTRO = f"Hi, I'm {AGENT_NAME}, Saatvik's solar advisor."
 #: The opener's second sentence for the page the call starts on, by a word in
 #: its path; the first match wins, and anything else gets the plain greeting.
@@ -687,16 +743,16 @@ def greeting(path: str | None, spoken: Language) -> str:
 
 # ─── Written lines for moves ───────────────────────────────────────────────────
 
-#: His line for a silent turn whose move is not "here it is": the calculator and
+#: Her line for a silent turn whose move is not "here it is": the calculator and
 #: the dealer list are still loading when the turn ends, and the form waits on them.
 _LANDED_LINES: dict[str, dict[Language, tuple[str, ...]]] = {
     "calculator": {
         Language.EN: ("I'm running the estimate now.",),
-        Language.HI: ("मैं अभी अनुमान निकाल रहा हूँ।",),
+        Language.HI: ("मैं अभी अनुमान निकाल रही हूँ।",),
     },
     "dealers": {
         Language.EN: ("Let me find dealers near you.",),
-        Language.HI: ("मैं आपके पास के डीलर ढूँढता हूँ।",),
+        Language.HI: ("मैं आपके पास के डीलर ढूँढती हूँ।",),
     },
     "enquiry": {
         Language.EN: ("Here's the form, with what you told me filled in.",),
@@ -711,10 +767,10 @@ assert all({s.spoken for s in SPEECH.values()} <= set(v) for v in _LANDED_LINES.
     "a spoken language has no written line for a move"
 )
 
-# ─── His nod ───────────────────────────────────────────────────────────────────
+# ─── Her nod ───────────────────────────────────────────────────────────────────
 
 #: Said the moment the visitor stops, while the model thinks. See
-#: :mod:`voqalize_demos.acknowledge`; the Hindi lines are his, so masculine.
+#: :mod:`voqalize_demos.acknowledge`; the Hindi lines are hers, so feminine.
 _ACK_LINES: dict[Language, dict[Kind, tuple[str, ...]]] = {
     Language.EN: {
         "request": ("Sure.", "Okay.", "Of course.", "Certainly."),
@@ -724,8 +780,8 @@ _ACK_LINES: dict[Language, dict[Kind, tuple[str, ...]]] = {
     },
     Language.HI: {
         "request": ("जी।", "ज़रूर।", "ठीक है।", "अच्छा।"),
-        "question": ("जी, बताता हूँ।", "जी।", "हम्म, देखता हूँ।"),
-        "correction": ("अच्छा।", "समझ गया।", "जी।"),
+        "question": ("जी, बताती हूँ।", "जी।", "हम्म, देखती हूँ।"),
+        "correction": ("अच्छा।", "समझ गई।", "जी।"),
         "statement": ("जी।", "अच्छा।", "ठीक है।"),
     },
 }
@@ -733,8 +789,8 @@ _ACK_LINES: dict[Language, dict[Kind, tuple[str, ...]]] = {
 #: Module-level so a test can pin it.
 SHARE_BRIEF = False
 
-#: The share of readable turns he nods on, and how long the model may stay
-#: quiet after a nod before he holds the floor. Module-level so a test can pin them.
+#: The share of readable turns she nods on, and how long the model may stay
+#: quiet after a nod before she holds the floor. Module-level so a test can pin them.
 ACK_RATE = 0.75
 ACK_HOLD_AFTER_S = 4.0
 _ACK_HOLD = {
@@ -829,7 +885,7 @@ def _short_title(title: str) -> str:
 
 
 async def _silence() -> AsyncGenerator[Any, None]:
-    """Yields nothing: a quiet spell he lets ride."""
+    """Yields nothing: a quiet spell she lets ride."""
     for _ in ():
         yield
 
@@ -857,24 +913,104 @@ def _match(want: str, options: list[str]) -> str | None:
     return None
 
 
+# ─── Sections a sentence is about ──────────────────────────────────────────────
+
+#: Words that say nothing about which section a sentence is about.
+_STOP = frozenset(
+    # A word list reads as words, so it stays a split string.
+    """the a an and or but for with from into onto your you our their this that these
+    those its it's it is are was were be been being can will just also very more most
+    much many some any all each every than then there here what which who how when where
+    why not no yes they them we us i me my so too out off over about of to in on at by up
+    do does did have has had get gets got make makes made use uses used using like let
+    lets want would shall could should see show shows one two section page saatvik solar
+    panel panels module modules system systems home homes power energy
+    """.split()  # noqa: SIM905
+)
+#: How sure a match must be: its score, and its lead over the runner-up.
+#: SendPotion's tuning (dev calls 60e6c24b and 56e87ed1), where every sentence
+#: about a section scored 6.6 or more with a lead of 1.8 or more, and the
+#: closing offers and openers scored under 4.
+_SECTION_MIN = 6.0
+_SECTION_LEAD = 1.5
+_SECTION_MIN_WORDS = 4
+
+
+def _stem(w: str) -> str:
+    for suffix in ("ing", "ers", "er", "ed", "es", "s"):
+        if len(w) > 4 and w.endswith(suffix):
+            return w[: -len(suffix)]
+    return w
+
+
+def _terms(text: str) -> list[str]:
+    return [
+        _stem(w) for w in re.findall(r"[a-z0-9']+", text.lower()) if len(w) > 2 and w not in _STOP
+    ]
+
+
+def best_section(sentence: str, sections: list[tuple[str, str]]) -> str | None:
+    """The heading of the one section ``sentence`` is about, of ``sections``
+    (heading, text) on one page; ``None`` unless it is clearly one. A Hindi
+    sentence has no English terms to score, so it names a section only by
+    saying its heading outright."""
+    if sentence.rstrip().endswith("?"):
+        return None  # The closing offer: about what comes next, not this page.
+    said = " ".join(re.findall(r"[a-z0-9']+", sentence.lower()))
+    quoted = [
+        h
+        for h, _ in sections
+        if h
+        and len(phrase := re.findall(r"[a-z0-9']+", h.lower())) >= 2
+        and re.search(rf"\b{re.escape(' '.join(phrase))}\b", said)
+    ]
+    if quoted:
+        return max(quoted, key=len)
+    if len(sentence.split()) < _SECTION_MIN_WORDS:
+        return None
+    docs = [(h, set(_terms(h)), set(_terms(t))) for h, t in sections if h]
+    if not docs:
+        return None
+    df: dict[str, int] = {}
+    for _, head, text in docs:
+        for w in head | text:
+            df[w] = df.get(w, 0) + 1
+    want = set(_terms(sentence))
+    scored: list[tuple[float, str]] = []
+    for heading, head, text in docs:
+        score = 0.0
+        for w in want:
+            idf = math.log(1 + len(docs) / (1 + df.get(w, 0)))
+            score += 2 * idf if w in head else 0.6 * idf if w in text else 0.0
+        scored.append((score, heading))
+    scored.sort(key=lambda s: -s[0])
+    top, heading = scored[0]
+    second = scored[1][0] if len(scored) > 1 else 0.0
+    return heading if top >= _SECTION_MIN and top - second >= _SECTION_LEAD else None
+
+
 # ─── The brain ─────────────────────────────────────────────────────────────────
 
 
-class SaatvikBrain(GeminiBrain):
-    """One per session. Tushar: Saatvik's knowledge, Saatvik's pages, and a mirror
+class SaatvikBrain(OpenAIBrain):
+    """One per session. Sunny: Saatvik's knowledge, Saatvik's pages, and a mirror
     of what this visitor's screen shows."""
 
     def __init__(
         self,
         *,
-        client: genai.Client,
-        model: str = DEFAULT_MODEL,
+        client: AsyncOpenAI,
+        model: str = MODEL,
         knowledge: Knowledge | None = None,
         share_brief: bool | None = None,
     ) -> None:
         self.kb = knowledge if knowledge is not None else kb.KNOWLEDGE
-        super().__init__(client=client, system_instruction=_prompt(self.kb), model=model)
-        self._config = self._config.model_copy(update={"thinking_config": THINKING})
+        super().__init__(
+            client=client,
+            system_instruction=_prompt(self.kb),
+            model=model,
+            reasoning=REASONING,
+        )
         #: Show the brief in the widget. Off for a visitor, who came to ask
         #: about solar; on for a pitch that shows Saatvik what sales receives.
         self._share_brief = SHARE_BRIEF if share_brief is None else share_brief
@@ -894,7 +1030,7 @@ class SaatvikBrain(GeminiBrain):
         self.document: DocumentOpened | None = None
         #: The document ids search has shown the model this call.
         self._found_docs: list[str] = []
-        #: A result the page produced, waiting for the quiet spell that lets him
+        #: A result the page produced, waiting for the quiet spell that lets her
         #: talk it through; and the toggle's written confirmation.
         self._talk: str | None = None
         self._confirm: str | None = None
@@ -906,6 +1042,12 @@ class SaatvikBrain(GeminiBrain):
         #: The same for the booking page, and the product it books.
         self._booking: BookingPrefill | None = None
         self._booked_product: ProductSlug | None = None
+        #: The page this turn's cues are on: the one in front, then wherever a
+        #: ``{page: …}`` cue took it.
+        self._cue_path = "/"
+        #: What this reply last rang, so a sentence on the same section does
+        #: not ring it again.
+        self._shown: str | None = None
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -913,7 +1055,7 @@ class SaatvikBrain(GeminiBrain):
         init = session.init or {}
         self._path = canonical_path(str(init.get("page") or "/"))
         lang = BY_TAG.get(str(init.get("lang") or ""), OPENING)
-        # His own voice, settled here and not by the page. Both language legs
+        # Her own voice, settled here and not by the page. Both language legs
         # move together; the toggle and `set_language` move them again.
         await session.configure(
             Config(
@@ -954,8 +1096,8 @@ class SaatvikBrain(GeminiBrain):
         self._read_in_page()
         now = time.monotonic()
         fragment, self._heard_at = now - self._heard_at < _FRAGMENT_S, now
-        # His nod while the model thinks, in the voice now speaking: a unit of
-        # his own, never in the model's context. Once it has played the face
+        # Her nod while the model thinks, in the voice now speaking: a unit of
+        # her own, never in the model's context. Once it has played the face
         # looks away and works until the answer starts. The rest of a split
         # question gets none: the first half's nod was its nod.
         if not fragment and (nod := self._ack.line(msg.text, self.spoken)) is not None:
@@ -984,15 +1126,15 @@ class SaatvikBrain(GeminiBrain):
             yield event
 
     def on_user_idle(self, session: Session, idle: UserIdle) -> AsyncGenerator[Speech, None]:
-        """A quiet spell — and the only floor he gets without the visitor speaking.
+        """A quiet spell — and the only floor she gets without the visitor speaking.
 
         Events never speak: ``on_rtvi`` has no floor. So a result the page
-        produced after his turn (the estimate, the dealers, a submitted form)
+        produced after her turn (the estimate, the dealers, a submitted form)
         is put in the context at once, and the idle window is shortened to
         :data:`_TALK_THROUGH_MS`. A visitor who reacts speaks first and is
         answered with the result in hand; one who is reading gets the quiet
-        spell, and he talks the result through in it. The window goes back to
-        :data:`_IDLE_MS` as soon as he has, or as soon as they speak.
+        spell, and she talks the result through in it. The window goes back to
+        :data:`_IDLE_MS` as soon as she has, or as soon as they speak.
 
         Otherwise it is an ordinary quiet spell: a nudge as qween's consultant
         gives one, twice, then silence."""
@@ -1026,10 +1168,14 @@ class SaatvikBrain(GeminiBrain):
         return self.respond(session)
 
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
-        """The model's turn. If it moved the page and said nothing, the model is
-        asked once more with tools off, so he talks about what he just showed;
-        only if that is silent too does he say a written line of his own
-        (:mod:`voqalize_demos.silent_turn`).
+        """The model's turn, with its screen cues taken out of the speech and
+        sent to the page (:mod:`.cues`).
+
+        If it moved the page and said nothing, the model is asked once more with
+        tools off, so she talks about what she just showed; only if that is
+        silent too does she say a written line of her own
+        (:mod:`voqalize_demos.silent_turn`). A turn that came back with nothing
+        at all is asked once more the same way.
 
         A language switched on the toggle is confirmed first, in the new
         language, with its written line. A unit is opened only once its first
@@ -1040,10 +1186,30 @@ class SaatvikBrain(GeminiBrain):
             self._confirm = None
             async for event in say_line(self, line):
                 yield event
-        opening: SpeechStart | None = None
+        self._cue_path = self._path
+        self._shown = None
+        spoke = False
+        # Cues come out before the silence check: a reply that is only a cue
+        # says nothing, and gets the retry and the written line like any other.
         turn = self._fallback.speak_if_silent(
-            self, super().respond(session), again=lambda: self._talk_now(session)
+            self,
+            self._cued(super().respond(session)),
+            again=lambda: self._cued(self._talk_now(session)),
         )
+        async for event in self._scripted(session, turn):
+            spoke = spoke or isinstance(event, SpeechStart)
+            yield event
+        if not spoke:
+            logger.warning("saatvik: the model returned nothing; asking once more")
+            async for event in self._scripted(session, self._cued(self._talk_now(session))):
+                yield event
+
+    async def _scripted(
+        self, session: Session, turn: AsyncGenerator[Speech, None]
+    ) -> AsyncGenerator[Speech, None]:
+        """``turn``, each unit opened once its first words are known, with both
+        legs moved to Hindi first when it is written in Devanagari."""
+        opening: SpeechStart | None = None
         async for event in turn:
             if isinstance(event, SpeechStart):
                 opening = event
@@ -1057,27 +1223,145 @@ class SaatvikBrain(GeminiBrain):
         if opening is not None:
             yield opening
 
+    async def _cued(self, turn: AsyncGenerator[Speech, None]) -> AsyncGenerator[Speech, None]:
+        """``turn`` with every ``{page|show|tab|faq: …}`` taken out of its text
+        and sent to the page as a :class:`Cue`, anchored to the words before it.
+
+        A unit opens only with its first spoken words: one that held nothing but
+        cues is no speech at all, so the silence checks downstream see it as
+        the silent turn it is."""
+        parser = CueParser(self._auto_cues)
+        start: SpeechStart | None = None
+        try:
+            async for event in turn:
+                if isinstance(event, SpeechStart):
+                    parser = CueParser(self._auto_cues)
+                    start = event
+                    continue
+                if isinstance(event, SpeechChunk):
+                    text, raw = parser.feed(event.text)
+                    for cue in raw:
+                        self._send_cue(cue)
+                    if text.strip() or (text and start is None):
+                        if start is not None:
+                            yield start
+                            start = None
+                        yield SpeechChunk(text)
+                    continue
+                # SpeechEnd
+                rest, raw = parser.flush()
+                for cue in raw:
+                    self._send_cue(cue)
+                if rest.strip() and start is not None:
+                    yield start
+                    start = None
+                if start is not None:
+                    start = None  # Nothing was said: no unit to end.
+                    continue
+                if rest:
+                    yield SpeechChunk(rest)
+                yield event
+        finally:
+            await turn.aclose()
+
+    def _send_cue(self, raw: RawCue) -> None:
+        """Check a cue against the site, as the tools do, and send it; one that
+        names nothing real is dropped and logged rather than reaching the page."""
+        cue = self._cue_for(raw)
+        logger.info("saatvik: cue {} {!r} at {!r} -> {}", raw.kind, raw.value, raw.at, cue)
+        if cue is None:
+            return
+        if raw.kind in ("show", "tab"):
+            self._shown = cue.heading or cue.text or cue.tab
+        if cue.path is not None:
+            self.lead.saw_page(cue.path)
+        self.session.dispatch(cue)
+
+    def _auto_cues(
+        self, sentence: str, index: int, placed: tuple[tuple[CueKind, str], ...]
+    ) -> list[tuple[CueKind, str]]:
+        """The section a sentence of hers describes and did not cue (see
+        :mod:`.cues`), on the page the reply is on. On SendPotion's dev call
+        56e87ed1 replies opened a page at its title and stayed there."""
+        kinds = {k for k, _ in placed}
+        pages = [p.path for k, v in placed if k == "page" and (p := self.kb.page(v)) is not None]
+        if pages:
+            self._cue_path = pages[-1]
+        if kinds & {"show", "faq", "tab"}:
+            return []
+        shown = self._section_for(sentence, self._cue_path)
+        if shown is not None and shown != self._shown:
+            return [("show", shown)]
+        return []
+
+    def _section_for(self, sentence: str, path: str) -> str | None:
+        """The heading on ``path`` that ``sentence`` is about."""
+        page = self.kb.page(path)
+        if page is None:
+            return None
+        sections = [(s.heading, s.text) for s in page.sections] or [(h, "") for h in page.headings]
+        return best_section(sentence, sections)
+
+    def _cue_for(self, raw: RawCue) -> Cue | None:
+        if raw.kind == "page":
+            page = self.kb.page(raw.value)
+            if page is None:
+                logger.info("saatvik: no page {!r}; cue dropped", raw.value)
+                return None
+            path = kb.REDIRECTS.get(page.path, page.path)
+            self._cue_path = path
+            return Cue(at=raw.at, word=raw.word, path=path)
+        target = self.kb.page(self._cue_path)
+        moved = self._cue_path != self._path
+        path = self._cue_path if moved else None
+        if raw.kind == "faq":
+            faqs = [f.q for f in target.faqs] if target else []
+            if not moved:
+                faqs = list(dict.fromkeys([*self._faqs(), *faqs]))
+            question = _match(raw.value, faqs)
+            if question is None:
+                found = self._faq_elsewhere(raw.value)
+                if found is None:
+                    return None
+                self._cue_path, question = found
+                return Cue(at=raw.at, word=raw.word, path=found[0], faq=question)
+            return Cue(at=raw.at, word=raw.word, path=path, faq=question)
+        if raw.kind == "tab":
+            tabs = (
+                list(target.tabs)
+                if target and moved
+                else self._tabs() or (list(target.tabs) if target else [])
+            )
+            label = _match(raw.value, tabs)
+            if label is None:
+                return None
+            return Cue(at=raw.at, word=raw.word, path=path, tab=label)
+        # show: a heading of the page the visitor will be on, else those words.
+        headings = (
+            list(target.headings)
+            if moved and target
+            else self._headings() or (list(target.headings) if target else [])
+        )
+        heading = _match(raw.value, headings)
+        text = None if heading else raw.value[:120]
+        return Cue(at=raw.at, word=raw.word, path=path, heading=heading, text=text)
+
+    def _faq_elsewhere(self, asked: str) -> tuple[str, str] | None:
+        """The page and question of an FAQ on another page of the site."""
+        for page in self.kb.pages.values():
+            if page.path in kb.REDIRECTS or not page.faqs:
+                continue
+            if (q := _match(asked, [f.q for f in page.faqs])) is not None and norm(q).startswith(
+                norm(asked)[:24]
+            ):
+                return page.path, q
+        return None
+
     def _talk_now(self, session: Session) -> AsyncGenerator[Speech, None]:
-        """One more model request with tools off: the page has moved, and what he
+        """One more model request with tools off: the page has moved, and what she
         says now is about what is on it. The tools stay declared, so the calls
         already in the context still read, but none may be made."""
         return self.respond_with(session, tools=ToolChoice.NONE)
-
-    async def _run(self, tool: Any, call: types.FunctionCall) -> types.Part:
-        """Every tool takes one model, ``request``. Gemini sometimes sends that
-        model's fields flat (``{"heading": …}`` for ``{"request": {"heading": …}}``),
-        which the SDK refuses: nothing moves, nothing lands, and the turn ends in
-        silence (an eval call sat 90 s on one). Wrap them before the call runs."""
-        args = dict(call.args or {})
-        if (
-            tool is not None
-            and args
-            and "request" not in args
-            and "request" in inspect.signature(tool).parameters
-        ):
-            logger.info("saatvik: {} called with flat arguments; wrapping them", call.name)
-            call = call.model_copy(update={"args": {"request": args}})
-        return await super()._run(tool, call)
 
     async def _follow_script(self, session: Session, text: str) -> None:
         """Move both legs to Hindi when the model writes it and the call is not."""
@@ -1142,6 +1426,12 @@ class SaatvikBrain(GeminiBrain):
                 )
             case BookingSubmitted():
                 return self._booked(event.product, event.installation, event.fields)
+            case CommandFailed() if event.command == "cue":
+                # She has spoken past it, and it may be one of the brain's own.
+                return (
+                    f"[A screen cue of yours did not land ({event.reason}). Its section is not "
+                    "on their screen: never say it is. Say nothing about it unless they ask.]"
+                )
             case CommandFailed():
                 if event.command in ("run_calculator", "find_dealer"):
                     self._talk = None
@@ -1221,7 +1511,7 @@ class SaatvikBrain(GeminiBrain):
     async def _requested(self, session: Session, event: LanguageRequested) -> None:
         """The visitor pressed the other language on the toggle. Switched in
         code, not through the model: both legs move in one awaited request, and
-        the written confirmation is said in his next turn — which, if they stay
+        the written confirmation is said in her next turn — which, if they stay
         quiet, is the short quiet spell :meth:`on_user_idle` turns into it."""
         name = BY_TAG[event.language]
         if SPEECH[name].spoken == self.spoken:
@@ -1258,7 +1548,7 @@ class SaatvikBrain(GeminiBrain):
         self._note(note + "]")
 
     def _note(self, text: str) -> None:
-        self.append_to_context(types.Content(role="user", parts=[types.Part(text=text)]))
+        self.append_note(text)
 
     def _talk_through(self, ask: str) -> None:
         self._talk = ask
@@ -1307,12 +1597,11 @@ class SaatvikBrain(GeminiBrain):
         page = self.kb.page(self._path)
         return [f.q for f in page.faqs] if page else []
 
-    def _faq_answer(self, question: str) -> str | None:
-        """The first sentence of a FAQ's own answer on the page the visitor has open."""
+    def _tabs(self) -> list[str]:
+        if self.page is not None:
+            return self.page.tabs
         page = self.kb.page(self._path)
-        answer = next((f.a for f in page.faqs if f.q == question), "") if page else ""
-        first = re.split(r"(?<=[.!?])\s", answer.strip(), maxsplit=1)[0]
-        return first if 0 < len(first) <= 240 else None
+        return list(page.tabs) if page else []
 
     def _document_by_url(self, url: str) -> kb.Document | None:
         return next((d for d in self.kb.documents.values() if d.url == url), None)
@@ -1321,16 +1610,13 @@ class SaatvikBrain(GeminiBrain):
 
     @property
     def tools(self) -> list[Any]:
-        """Read and search Saatvik's knowledge, move the visitor's page, run the
-        calculator and the dealer locator, fill the enquiry, change language.
+        """Read and search Saatvik's knowledge, open a document, run the
+        calculator and the dealer locator, fill the enquiry and the booking,
+        change language. The page itself moves by cues, not tools.
         Nothing here keeps the lead: the brain does that from what it sees."""
         return [
             self.read_topic,
             self.search_site,
-            self.navigate,
-            self.show_section,
-            self.open_faq,
-            self.open_tab,
             self.open_document,
             self.close_document,
             self.run_calculator,
@@ -1370,63 +1656,6 @@ class SaatvikBrain(GeminiBrain):
             else:
                 out.append(f"[page] {h.title} — path: {h.path}\n  {h.snippet}")
         return "\n".join(out)
-
-    async def navigate(self, request: NavigateRequest) -> str:
-        """Open one of Saatvik's pages on the visitor's screen. In the same
-        response, before the call, tell them what the page shows that answers
-        them and why it matters for their home, then ask what you need next."""
-        page = self.kb.page(request.path)
-        if page is None:
-            near = ", ".join(self.kb.near_paths(request.path)) or "none"
-            return (
-                f"Not opened: {request.path} is not a page on Saatvik's site. Closest: {near}. "
-                "Tell the visitor if you said it was open."
-            )
-        self._move(Navigate(path=page.path), english=f"Here's our {_short_title(page.title)} page.")
-        return f"Opened {page.title} ({page.path})."
-
-    async def show_section(self, request: SectionRequest) -> str:
-        """Scroll the visitor's page to a section and ring it — or, with text, one
-        row or line inside it. In the same response, say what that section or row
-        tells them and why it matters."""
-        headings = self._headings()
-        heading = _match(request.heading, headings)
-        if heading is None:
-            return (
-                f"Not shown: this page has no section '{request.heading}'. "
-                f"Its sections: {_clip(headings, _HEADINGS_IN_NOTE) or 'unknown'}."
-            )
-        text = request.text.strip()[:200] if request.text else None
-        self._move(ShowSection(heading=heading, text=text or None))
-        return f"Showing '{heading}'."
-
-    async def open_faq(self, request: FaqRequest) -> str:
-        """Open one of the FAQs on the visitor's page and ring it. In the same
-        response, give the answer in your own words."""
-        faqs = self._faqs()
-        question = _match(request.question, faqs)
-        if question is None:
-            return (
-                f"Not opened: this page has no FAQ '{request.question}'. "
-                f"Its FAQs: {_clip(faqs, _FAQS_IN_NOTE) or 'none'}."
-            )
-        self._move(OpenFaq(question=question), english=self._faq_answer(question))
-        return f"Opened the FAQ '{question}'."
-
-    async def open_tab(self, request: TabRequest) -> str:
-        """Click one of the spec tabs on the visitor's page (ELECTRICAL,
-        MECHANICAL, WARRANTY on a module; the battery's, a pump's or BESS's own),
-        so its rows are on screen. In the same response, say the one figure on it
-        that answers them."""
-        tabs = self.page.tabs if self.page is not None else []
-        label = _match(request.label, tabs)
-        if label is None:
-            return (
-                f"Not opened: this page has no tab '{request.label}'. "
-                f"Its tabs: {', '.join(tabs) or 'none'}."
-            )
-        self._move(OpenTab(label=label))
-        return f"Opened the '{label}' tab."
 
     async def open_document(self, request: DocumentRequest) -> str:
         """Open a datasheet, manual or other Saatvik PDF on the visitor's screen at
@@ -1600,7 +1829,7 @@ class SaatvikBrain(GeminiBrain):
         return "ok"
 
     def _speaking(self, language: LanguageName) -> Config:
-        """Both legs of ``language``, recorded as the one he speaks now, and
+        """Both legs of ``language``, recorded as the one she speaks now, and
         the widget's toggle moved to it."""
         speech = SPEECH[language]
         if speech.spoken != self.spoken:
@@ -1620,6 +1849,7 @@ def _dealer_line(d: Dealer) -> str:
 __all__ = [
     "BookProduct",
     "CloseDocument",
+    "Cue",
     "FindDealer",
     "LanguageChanged",
     "LeadBrief",
