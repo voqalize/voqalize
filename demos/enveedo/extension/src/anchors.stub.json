@@ -1,0 +1,750 @@
+{
+ "_meta": {
+  "site": "https://enveedo.com",
+  "header_px": 66,
+  "scroll_offset_px": 90,
+  "note": "A stand-in for ../../backend/knowledge/L3/anchors.json, used by build.mjs and the page test only while that file does not exist. Same shape, a few pages."
+ },
+ "header": [
+  {
+   "key": "menu",
+   "selector": "header nav.nav",
+   "label": "The top menu"
+  },
+  {
+   "key": "language_switcher",
+   "selector": ".hs-language-switcher",
+   "label": "Language switcher"
+  }
+ ],
+ "footer": [
+  {
+   "key": "footer",
+   "selector": "footer#footer",
+   "label": "The footer"
+  }
+ ],
+ "post": [],
+ "pages": {
+  "/": {
+   "kind": "home",
+   "lang": "en",
+   "twin": "/es/",
+   "title": "",
+   "header": true,
+   "footer": true,
+   "forms": [],
+   "anchors": [
+    {
+     "key": "hero",
+     "selector": "#hs_cos_wrapper_widget_1752815223713",
+     "label": "Hero",
+     "fallback": "#main-content [class*=\"content_bucket-row-1-\"]"
+    },
+    {
+     "key": "customers",
+     "selector": "#hs_cos_wrapper_module_17512825985702",
+     "label": "Customer logos",
+     "fallback": "#main-content [class*=\"content_bucket-row-2-\"]"
+    },
+    {
+     "key": "problem",
+     "selector": "#hs_cos_wrapper_module_17512822864143",
+     "label": "Problem statement",
+     "fallback": "#main-content [class*=\"content_bucket-row-3-\"]"
+    },
+    {
+     "key": "without_with",
+     "selector": ".cybersecurity-section .cards-container",
+     "label": "Without / With Enveedo"
+    },
+    {
+     "key": "toggle_without",
+     "selector": ".cybersecurity-section .cards-container",
+     "label": "Without Enveedo",
+     "reveal": {
+      "click": "#toggle-switch",
+      "open": "#without-label.active"
+     }
+    },
+    {
+     "key": "toggle_with",
+     "selector": ".cybersecurity-section .cards-container",
+     "label": "With Enveedo",
+     "reveal": {
+      "click": "#toggle-switch",
+      "open": "#with-label.active"
+     }
+    },
+    {
+     "key": "timeline",
+     "selector": "#hs_cos_wrapper_widget_1751480269408",
+     "label": "Impact Timeline",
+     "fallback": "#main-content [class*=\"content_bucket-row-4-\"]"
+    },
+    {
+     "key": "how_it_works",
+     "selector": "#hs_cos_wrapper_module_1745873440679",
+     "label": "How Enveedo Works",
+     "fallback": "#main-content [class*=\"content_bucket-row-5-\"]"
+    },
+    {
+     "key": "how_business_first",
+     "selector": "#featshow_17458729551117 .featshow__items > .featshow__item:nth-child(1)",
+     "label": "Business-First Risk Management",
+     "reveal": {
+      "click": "#featshow_17458729551117 .featshow__nav li:nth-child(1) .featshow__btn",
+      "open": "#featshow_17458729551117 .featshow__nav li:nth-child(1) .featshow__btn--active"
+     }
+    },
+    {
+     "key": "how_integration",
+     "selector": "#featshow_17458729551117 .featshow__items > .featshow__item:nth-child(2)",
+     "label": "Intelligent Integration",
+     "reveal": {
+      "click": "#featshow_17458729551117 .featshow__nav li:nth-child(2) .featshow__btn",
+      "open": "#featshow_17458729551117 .featshow__nav li:nth-child(2) .featshow__btn--active"
+     }
+    },
+    {
+     "key": "how_automation",
+     "selector": "#featshow_17458729551117 .featshow__items > .featshow__item:nth-child(3)",
+     "label": "Workflow Automation",
+     "reveal": {
+      "click": "#featshow_17458729551117 .featshow__nav li:nth-child(3) .featshow__btn",
+      "open": "#featshow_17458729551117 .featshow__nav li:nth-child(3) .featshow__btn--active"
+     }
+    },
+    {
+     "key": "how_reporting",
+     "selector": "#featshow_17458729551117 .featshow__items > .featshow__item:nth-child(4)",
+     "label": "Executive-Ready Reporting",
+     "reveal": {
+      "click": "#featshow_17458729551117 .featshow__nav li:nth-child(4) .featshow__btn",
+      "open": "#featshow_17458729551117 .featshow__nav li:nth-child(4) .featshow__btn--active"
+     }
+    },
+    {
+     "key": "integrations",
+     "selector": "#hs_cos_wrapper_module_17533261030766",
+     "label": "Supported Integrations",
+     "fallback": "#main-content [class*=\"content_bucket-row-10-\"]"
+    },
+    {
+     "key": "final_cta",
+     "selector": "#hs_cos_wrapper_module_1752673479051",
+     "label": "Ready to Transform",
+     "fallback": "#main-content [class*=\"content_bucket-row-18-\"]"
+    }
+   ]
+  },
+  "/es/": {
+   "kind": "home",
+   "lang": "es",
+   "twin": "/",
+   "title": "",
+   "header": true,
+   "footer": true,
+   "forms": [],
+   "anchors": [
+    {
+     "key": "hero",
+     "selector": "#hs_cos_wrapper_widget_1752815599119",
+     "label": "Hero",
+     "fallback": "#main-content [class*=\"content_bucket-row-2-\"]"
+    },
+    {
+     "key": "customers",
+     "selector": "#hs_cos_wrapper_module_17512825985702",
+     "label": "Customer logos",
+     "fallback": "#main-content [class*=\"content_bucket-row-3-\"]"
+    },
+    {
+     "key": "problem",
+     "selector": "#hs_cos_wrapper_module_17512822864143",
+     "label": "Problem statement",
+     "fallback": "#main-content [class*=\"content_bucket-row-4-\"]"
+    },
+    {
+     "key": "without_with",
+     "selector": ".cybersecurity-section .cards-container",
+     "label": "Without / With Enveedo"
+    },
+    {
+     "key": "toggle_without",
+     "selector": ".cybersecurity-section .cards-container",
+     "label": "Without Enveedo",
+     "reveal": {
+      "click": "#toggle-switch",
+      "open": "#without-label.active"
+     }
+    },
+    {
+     "key": "toggle_with",
+     "selector": ".cybersecurity-section .cards-container",
+     "label": "With Enveedo",
+     "reveal": {
+      "click": "#toggle-switch",
+      "open": "#with-label.active"
+     }
+    },
+    {
+     "key": "timeline",
+     "selector": "#hs_cos_wrapper_widget_1751480269408",
+     "label": "Impact Timeline",
+     "fallback": "#main-content [class*=\"content_bucket-row-5-\"]"
+    },
+    {
+     "key": "how_it_works",
+     "selector": "#hs_cos_wrapper_module_1745873440679",
+     "label": "How Enveedo Works",
+     "fallback": "#main-content [class*=\"content_bucket-row-6-\"]"
+    },
+    {
+     "key": "how_business_first",
+     "selector": "#featshow_17458729551117 .featshow__items > .featshow__item:nth-child(1)",
+     "label": "Business-First Risk Management",
+     "reveal": {
+      "click": "#featshow_17458729551117 .featshow__nav li:nth-child(1) .featshow__btn",
+      "open": "#featshow_17458729551117 .featshow__nav li:nth-child(1) .featshow__btn--active"
+     }
+    },
+    {
+     "key": "how_integration",
+     "selector": "#featshow_17458729551117 .featshow__items > .featshow__item:nth-child(2)",
+     "label": "Intelligent Integration",
+     "reveal": {
+      "click": "#featshow_17458729551117 .featshow__nav li:nth-child(2) .featshow__btn",
+      "open": "#featshow_17458729551117 .featshow__nav li:nth-child(2) .featshow__btn--active"
+     }
+    },
+    {
+     "key": "how_automation",
+     "selector": "#featshow_17458729551117 .featshow__items > .featshow__item:nth-child(3)",
+     "label": "Workflow Automation",
+     "reveal": {
+      "click": "#featshow_17458729551117 .featshow__nav li:nth-child(3) .featshow__btn",
+      "open": "#featshow_17458729551117 .featshow__nav li:nth-child(3) .featshow__btn--active"
+     }
+    },
+    {
+     "key": "how_reporting",
+     "selector": "#featshow_17458729551117 .featshow__items > .featshow__item:nth-child(4)",
+     "label": "Executive-Ready Reporting",
+     "reveal": {
+      "click": "#featshow_17458729551117 .featshow__nav li:nth-child(4) .featshow__btn",
+      "open": "#featshow_17458729551117 .featshow__nav li:nth-child(4) .featshow__btn--active"
+     }
+    },
+    {
+     "key": "integrations",
+     "selector": "#hs_cos_wrapper_module_17533261030766",
+     "label": "Supported Integrations",
+     "fallback": "#main-content [class*=\"content_bucket-row-11-\"]"
+    },
+    {
+     "key": "final_cta",
+     "selector": "#hs_cos_wrapper_module_1752673479051",
+     "label": "Ready to Transform",
+     "fallback": "#main-content [class*=\"content_bucket-row-19-\"]"
+    }
+   ]
+  },
+  "/faq": {
+   "kind": "faq",
+   "lang": "en",
+   "twin": "/es/faq",
+   "title": "",
+   "header": true,
+   "footer": true,
+   "forms": [],
+   "anchors": [
+    {
+     "key": "header",
+     "selector": "#hs_cos_wrapper_module_1716931732754",
+     "label": "Enveedopedia FAQ"
+    },
+    {
+     "key": "faq_what_is",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-7-1\"])",
+     "label": "FAQ: What is Enveedo?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-7-1\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-7-1\"][aria-expanded=\"true\"]"
+     }
+    },
+    {
+     "key": "faq_integrate",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-10-2\"])",
+     "label": "FAQ: Can Enveedo integrate with my existing security tools?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-10-2\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-10-2\"][aria-expanded=\"true\"]"
+     }
+    },
+    {
+     "key": "faq_start",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-13-1\"])",
+     "label": "FAQ: How do I start using Enveedo?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-13-1\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-13-1\"][aria-expanded=\"true\"]"
+     }
+    }
+   ]
+  },
+  "/es/faq": {
+   "kind": "faq",
+   "lang": "es",
+   "twin": "/faq",
+   "title": "",
+   "header": true,
+   "footer": true,
+   "forms": [],
+   "anchors": [
+    {
+     "key": "header",
+     "selector": "#hs_cos_wrapper_module_1716931732754",
+     "label": "Enveedopedia FAQ"
+    },
+    {
+     "key": "faq_what_is",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-7-1\"])",
+     "label": "FAQ: What is Enveedo?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-7-1\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-7-1\"][aria-expanded=\"true\"]"
+     }
+    },
+    {
+     "key": "faq_integrate",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-10-2\"])",
+     "label": "FAQ: Can Enveedo integrate with my existing security tools?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-10-2\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-10-2\"][aria-expanded=\"true\"]"
+     }
+    },
+    {
+     "key": "faq_start",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-13-1\"])",
+     "label": "FAQ: How do I start using Enveedo?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-13-1\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-13-1\"][aria-expanded=\"true\"]"
+     }
+    }
+   ]
+  },
+  "/frameworks": {
+   "kind": "frameworks",
+   "lang": "en",
+   "twin": "/es/frameworks",
+   "title": "",
+   "header": true,
+   "footer": true,
+   "forms": [
+    "contact"
+   ],
+   "anchors": [
+    {
+     "key": "intro",
+     "selector": "#hs_cos_wrapper_module_17171691078105",
+     "label": "Frameworks"
+    },
+    {
+     "key": "fw_iso_27001",
+     "selector": "#hs_cos_wrapper_module_17423083193982",
+     "label": "ISO/IEC 27001:2022"
+    },
+    {
+     "key": "fw_nis2",
+     "selector": "#hs_cos_wrapper_module_1753745043604",
+     "label": "NIS2"
+    },
+    {
+     "key": "fw_chile_21719",
+     "selector": "#hs_cos_wrapper_module_174413457910949",
+     "label": "Chile 21.719"
+    },
+    {
+     "key": "contact_form",
+     "selector": "#hs_cos_wrapper_widget_1743178741027",
+     "label": "contact form"
+    },
+    {
+     "key": "contact_consent",
+     "selector": "form.hs-form[id^=\"hsForm_9ab169f1-2d40-4869-9f6f-943c71b98aa7\"] .legal-consent-container",
+     "label": "Consent checkbox",
+     "hidden": true
+    },
+    {
+     "key": "contact_submit",
+     "selector": "form.hs-form[id^=\"hsForm_9ab169f1-2d40-4869-9f6f-943c71b98aa7\"] input.hs-button[type=submit]",
+     "label": "Submit button",
+     "hidden": true
+    }
+   ]
+  },
+  "/es/frameworks": {
+   "kind": "frameworks",
+   "lang": "es",
+   "twin": "/frameworks",
+   "title": "",
+   "header": true,
+   "footer": true,
+   "forms": [
+    "contact"
+   ],
+   "anchors": [
+    {
+     "key": "intro",
+     "selector": "#hs_cos_wrapper_module_17171691078105",
+     "label": "Frameworks"
+    },
+    {
+     "key": "fw_iso_27001",
+     "selector": "#hs_cos_wrapper_module_17423083193982",
+     "label": "ISO/IEC 27001:2022"
+    },
+    {
+     "key": "fw_nis2",
+     "selector": "#hs_cos_wrapper_module_1753745043604",
+     "label": "NIS2"
+    },
+    {
+     "key": "fw_chile_21719",
+     "selector": "#hs_cos_wrapper_module_174413457910949",
+     "label": "Chile 21.719"
+    },
+    {
+     "key": "contact_form",
+     "selector": "#hs_cos_wrapper_widget_1743178741027",
+     "label": "contact form"
+    },
+    {
+     "key": "contact_consent",
+     "selector": "form.hs-form[id^=\"hsForm_9ab169f1-2d40-4869-9f6f-943c71b98aa7\"] .legal-consent-container",
+     "label": "Consent checkbox",
+     "hidden": true
+    },
+    {
+     "key": "contact_submit",
+     "selector": "form.hs-form[id^=\"hsForm_9ab169f1-2d40-4869-9f6f-943c71b98aa7\"] input.hs-button[type=submit]",
+     "label": "Submit button",
+     "hidden": true
+    }
+   ]
+  },
+  "/contact": {
+   "kind": "contact",
+   "lang": "en",
+   "twin": "/es/contact",
+   "title": "",
+   "header": true,
+   "footer": true,
+   "forms": [
+    "contact"
+   ],
+   "anchors": [
+    {
+     "key": "contact_form",
+     "selector": "#hs_cos_wrapper_widget_1716878052199",
+     "label": "How can we help?"
+    },
+    {
+     "key": "contact_info",
+     "selector": "#hs_cos_wrapper_module_1716764386729",
+     "label": "Phone"
+    },
+    {
+     "key": "contact_consent",
+     "selector": "form.hs-form[id^=\"hsForm_9ab169f1-2d40-4869-9f6f-943c71b98aa7\"] .legal-consent-container",
+     "label": "Consent checkbox",
+     "hidden": true
+    },
+    {
+     "key": "contact_submit",
+     "selector": "form.hs-form[id^=\"hsForm_9ab169f1-2d40-4869-9f6f-943c71b98aa7\"] input.hs-button[type=submit]",
+     "label": "Submit button",
+     "hidden": true
+    }
+   ]
+  },
+  "/es/contact": {
+   "kind": "contact",
+   "lang": "es",
+   "twin": "/contact",
+   "title": "",
+   "header": true,
+   "footer": true,
+   "forms": [
+    "contact"
+   ],
+   "anchors": [
+    {
+     "key": "contact_form",
+     "selector": "#hs_cos_wrapper_widget_1716878052199",
+     "label": "How can we help?"
+    },
+    {
+     "key": "contact_info",
+     "selector": "#hs_cos_wrapper_module_1716764386729",
+     "label": "Phone"
+    },
+    {
+     "key": "contact_consent",
+     "selector": "form.hs-form[id^=\"hsForm_9ab169f1-2d40-4869-9f6f-943c71b98aa7\"] .legal-consent-container",
+     "label": "Consent checkbox",
+     "hidden": true
+    },
+    {
+     "key": "contact_submit",
+     "selector": "form.hs-form[id^=\"hsForm_9ab169f1-2d40-4869-9f6f-943c71b98aa7\"] input.hs-button[type=submit]",
+     "label": "Submit button",
+     "hidden": true
+    }
+   ]
+  },
+  "/book-a-demo": {
+   "kind": "demo",
+   "lang": "en",
+   "twin": "/es/book-a-demo",
+   "title": "",
+   "header": true,
+   "footer": true,
+   "forms": [
+    "demo"
+   ],
+   "anchors": [
+    {
+     "key": "hero",
+     "selector": "#hs_cos_wrapper_widget_1791379111352",
+     "label": "Book a Demo"
+    },
+    {
+     "key": "demo_request",
+     "selector": "#hs_cos_wrapper_module_1791381102074",
+     "label": "Request a product demo"
+    },
+    {
+     "key": "demo_calendar",
+     "selector": ".meetings-iframe-container",
+     "label": "The demo scheduler",
+     "optional": true
+    }
+   ]
+  },
+  "/es/book-a-demo": {
+   "kind": "demo",
+   "lang": "es",
+   "twin": "/book-a-demo",
+   "title": "",
+   "header": true,
+   "footer": true,
+   "forms": [
+    "demo"
+   ],
+   "anchors": [
+    {
+     "key": "hero",
+     "selector": "#hs_cos_wrapper_widget_1791379111352",
+     "label": "Book a Demo"
+    },
+    {
+     "key": "demo_request",
+     "selector": "#hs_cos_wrapper_module_1791381102074",
+     "label": "Request a product demo"
+    },
+    {
+     "key": "demo_calendar",
+     "selector": ".meetings-iframe-container",
+     "label": "The demo scheduler",
+     "optional": true
+    }
+   ]
+  },
+  "/about-us": {
+   "kind": "about",
+   "lang": "en",
+   "twin": "/es/about-us",
+   "title": "",
+   "header": true,
+   "footer": true,
+   "forms": [],
+   "anchors": [
+    {
+     "key": "who_we_are",
+     "selector": "#hs_cos_wrapper_module_17158208562238",
+     "label": "Who Are We?"
+    },
+    {
+     "key": "mission",
+     "selector": "#hs_cos_wrapper_module_17170271512727",
+     "label": "Mission tabs"
+    },
+    {
+     "key": "tab_mission",
+     "selector": "#featshow_17170271512727 .featshow__items > .featshow__item:nth-child(1)",
+     "label": "Mission tab",
+     "reveal": {
+      "click": "#featshow_17170271512727 .featshow__nav li:nth-child(1) .featshow__btn",
+      "open": "#featshow_17170271512727 .featshow__nav li:nth-child(1) .featshow__btn--active"
+     }
+    },
+    {
+     "key": "tab_vision",
+     "selector": "#featshow_17170271512727 .featshow__items > .featshow__item:nth-child(2)",
+     "label": "Vision tab",
+     "reveal": {
+      "click": "#featshow_17170271512727 .featshow__nav li:nth-child(2) .featshow__btn",
+      "open": "#featshow_17170271512727 .featshow__nav li:nth-child(2) .featshow__btn--active"
+     }
+    },
+    {
+     "key": "tab_philosophy",
+     "selector": "#featshow_17170271512727 .featshow__items > .featshow__item:nth-child(3)",
+     "label": "Philosophy tab",
+     "reveal": {
+      "click": "#featshow_17170271512727 .featshow__nav li:nth-child(3) .featshow__btn",
+      "open": "#featshow_17170271512727 .featshow__nav li:nth-child(3) .featshow__btn--active"
+     }
+    }
+   ]
+  },
+  "/es/about-us": {
+   "kind": "about",
+   "lang": "es",
+   "twin": "/about-us",
+   "title": "",
+   "header": true,
+   "footer": true,
+   "forms": [],
+   "anchors": [
+    {
+     "key": "who_we_are",
+     "selector": "#hs_cos_wrapper_module_17158208562238",
+     "label": "Who Are We?"
+    },
+    {
+     "key": "mission",
+     "selector": "#hs_cos_wrapper_module_17170271512727",
+     "label": "Mission tabs"
+    },
+    {
+     "key": "tab_mission",
+     "selector": "#featshow_17170271512727 .featshow__items > .featshow__item:nth-child(1)",
+     "label": "Mission tab",
+     "reveal": {
+      "click": "#featshow_17170271512727 .featshow__nav li:nth-child(1) .featshow__btn",
+      "open": "#featshow_17170271512727 .featshow__nav li:nth-child(1) .featshow__btn--active"
+     }
+    },
+    {
+     "key": "tab_vision",
+     "selector": "#featshow_17170271512727 .featshow__items > .featshow__item:nth-child(2)",
+     "label": "Vision tab",
+     "reveal": {
+      "click": "#featshow_17170271512727 .featshow__nav li:nth-child(2) .featshow__btn",
+      "open": "#featshow_17170271512727 .featshow__nav li:nth-child(2) .featshow__btn--active"
+     }
+    },
+    {
+     "key": "tab_philosophy",
+     "selector": "#featshow_17170271512727 .featshow__items > .featshow__item:nth-child(3)",
+     "label": "Philosophy tab",
+     "reveal": {
+      "click": "#featshow_17170271512727 .featshow__nav li:nth-child(3) .featshow__btn",
+      "open": "#featshow_17170271512727 .featshow__nav li:nth-child(3) .featshow__btn--active"
+     }
+    }
+   ]
+  },
+  "/trust-center": {
+   "kind": "trust",
+   "lang": "en",
+   "twin": "/es/trust-center",
+   "title": "",
+   "header": true,
+   "footer": true,
+   "forms": [
+    "soc2"
+   ],
+   "anchors": [
+    {
+     "key": "soc2",
+     "selector": "#hs_cos_wrapper_module_17393868932213",
+     "label": "SOC 2"
+    },
+    {
+     "key": "soc2_form",
+     "selector": "form.hs-form[id^=\"hsForm_8e75d561-509b-4454-a003-d60115042fc9\"]",
+     "label": "SOC 2 form"
+    },
+    {
+     "key": "soc2_consent",
+     "selector": "form.hs-form[id^=\"hsForm_8e75d561-509b-4454-a003-d60115042fc9\"] .legal-consent-container",
+     "label": "Consent checkbox",
+     "hidden": true
+    },
+    {
+     "key": "soc2_submit",
+     "selector": "form.hs-form[id^=\"hsForm_8e75d561-509b-4454-a003-d60115042fc9\"] input.hs-button[type=submit]",
+     "label": "Submit button",
+     "hidden": true
+    }
+   ]
+  },
+  "/es/trust-center": {
+   "kind": "trust",
+   "lang": "es",
+   "twin": "/trust-center",
+   "title": "",
+   "header": true,
+   "footer": true,
+   "forms": [
+    "soc2"
+   ],
+   "anchors": [
+    {
+     "key": "soc2",
+     "selector": "#hs_cos_wrapper_module_17393868932213",
+     "label": "SOC 2"
+    },
+    {
+     "key": "soc2_form",
+     "selector": "form.hs-form[id^=\"hsForm_8e75d561-509b-4454-a003-d60115042fc9\"]",
+     "label": "SOC 2 form"
+    },
+    {
+     "key": "soc2_consent",
+     "selector": "form.hs-form[id^=\"hsForm_8e75d561-509b-4454-a003-d60115042fc9\"] .legal-consent-container",
+     "label": "Consent checkbox",
+     "hidden": true
+    },
+    {
+     "key": "soc2_submit",
+     "selector": "form.hs-form[id^=\"hsForm_8e75d561-509b-4454-a003-d60115042fc9\"] input.hs-button[type=submit]",
+     "label": "Submit button",
+     "hidden": true
+    }
+   ]
+  },
+  "/webinars-and-ebooks": {
+   "kind": "library",
+   "lang": "en",
+   "twin": null,
+   "title": "",
+   "header": true,
+   "footer": true,
+   "forms": [],
+   "anchors": [
+    {
+     "key": "header",
+     "selector": "#hs_cos_wrapper_module_1716931732754",
+     "label": "Webinars and eBooks"
+    }
+   ]
+  }
+ }
+}
