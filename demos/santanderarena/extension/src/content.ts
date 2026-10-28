@@ -89,6 +89,15 @@ function inFront(): boolean {
   return document.visibilityState === "visible" && document.hasFocus();
 }
 
+/** Whether this tab is on screen, which is all a page needs to report: the
+ *  holder keeps only the active tab's events. Not `inFront`, which also wants
+ *  focus. Focus can sit in another window, the address bar or devtools while
+ *  the visitor watches this page, and a page that waited for it never reported
+ *  the load the brain was waiting on, so he said it was taking a while. */
+function showing(): boolean {
+  return document.visibilityState === "visible";
+}
+
 function where(): Where {
   return { url: location.href, title: document.title, front: inFront() };
 }
@@ -156,7 +165,7 @@ async function start(): Promise<void> {
     // this one that could not be made (the adapter's own, in `sessionStorage`).
     if (next.ready && !stopAdapter) {
       stopAdapter = adapter!.start((event, payload) => {
-        if (inFront() || ANY_TAB.has(event)) tell({ k: "app", event, payload });
+        if (showing() || ANY_TAB.has(event)) tell({ k: "app", event, payload });
       });
     }
   }
@@ -385,7 +394,7 @@ async function start(): Promise<void> {
   /** Where this tab is, and the page in front for the brain. */
   const sayWhere = () => {
     tell({ k: "where", ...where() });
-    if (state.ready && inFront()) tell({ k: "app", event: "page_changed", payload: adapter!.context() });
+    if (state.ready && showing()) tell({ k: "app", event: "page_changed", payload: adapter!.context() });
   };
   document.addEventListener("visibilitychange", sayWhere);
   window.addEventListener("focus", sayWhere);

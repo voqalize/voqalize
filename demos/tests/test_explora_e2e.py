@@ -181,6 +181,11 @@ def _llm() -> ScriptedOpenAI:
                 "{page: /}{show: our destinations} Lodges at the edge of the world. "
                 "{show: what's included} Everything is included."
             ),
+            # Two pages in one reply: only the first is opened (prod call 661f3df0).
+            "Show me the desert.": reply(
+                "{page: /lodge/atacama-lodge/}{show: welcome to explora atacama} It's an oasis. "
+                "{page: /patagonia-travel-argentina-chile/} Patagonia is green."
+            ),
             # Already there, and a page that does not exist: neither is opened.
             "Tell me again.": reply(
                 "{page: /lodge/atacama-lodge/}{show: welcome to explora atacama} It's an oasis. "
@@ -523,6 +528,18 @@ def test_a_request_for_the_page_in_a_language(
 
 
 # ─── Full page loads ───────────────────────────────────────────────────────────
+
+
+async def test_a_reply_opens_one_page_and_keeps_its_words() -> None:
+    """A second page cue in the same reply is dropped: the screen stays on the
+    page he is describing, and the words after the cue are still said."""
+    async with demo("explora", _llm()) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/"})
+        turn = await _says_while_pages_load(rig, "Show me the desert.", ATACAMA_PAGE)
+        check_turn(rig, turn)
+        assert [c["path"] for c in _commands(rig, "navigate")] == ["/lodge/atacama-lodge/"]
+        assert "It's an oasis." in turn.text and "Patagonia is green." in turn.text
+        assert "{" not in turn.text
 
 
 async def test_a_page_cue_splits_the_reply_at_the_page_load() -> None:

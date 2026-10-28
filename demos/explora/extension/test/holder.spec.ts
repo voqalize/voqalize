@@ -280,6 +280,22 @@ test.describe("the holder and its pages", () => {
     expect(ext.connects).toHaveLength(1);
   });
 
+  test("a page that loads without focus still reports itself: focus elsewhere is not another tab", async ({ ext }) => {
+    const page = await ext.open("/");
+    await callLive(ext, page);
+    // On screen, never focused: focus is in another window, the address bar or
+    // devtools. On prod call 661f3df0 such a page never said it was up, and the
+    // brain told the visitor it was taking a while.
+    await page.addInitScript(() => {
+      Document.prototype.hasFocus = () => false;
+    });
+    void page.evaluate(() => {
+      location.href = "/atacama/";
+    });
+    await page.waitForURL(`${ORIGIN}/atacama/`);
+    await expect.poll(async () => (await status(ext.sw)).sent.filter((e) => e.event === "page_changed").map((e) => e.payload.path)).toContain("/atacama/");
+  });
+
   test("across hosts: a move sent while the tab loads the booking site is made on its hello, and the move it leaves for www.explora.com is made there", async ({ ext }) => {
     const page = await ext.open("/");
     await callLive(ext, page);
