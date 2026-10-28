@@ -333,6 +333,7 @@ def _llm() -> ScriptedOpenAI:
             "Ten thirty.": reply_and_call(
                 "Ten thirty it is. Your first name?", "book_demo", args={"time": "10:30am"}
             ),
+            "Nine.": reply_and_call("Nine it is.", "book_demo", args={"time": "9:00pm"}),
             "details step": reply("The fourth at ten thirty. Your first name?"),
             "I'm Ana Torres, ana at acme dot com.": reply_and_call(
                 "I've put a, n, a, at acme dot com.",
@@ -545,6 +546,53 @@ async def test_a_walkthrough_cues_reveal_places_and_drops_a_made_up_key() -> Non
         ]
 
 
+async def test_a_walkthrough_of_the_modules_rings_each_card_as_he_names_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The real catalogue: the six module cards are places of their own.
+    real = kb.load()
+    monkeypatch.setattr(kb, "KNOWLEDGE", real)
+    monkeypatch.setattr(ev.kb, "KNOWLEDGE", real)
+    cards = [
+        ("mod_crown_jewel", "Crown Jewel Analysis finds what matters most."),
+        ("mod_risk_register", "Risk Register brings every risk into one place."),
+        ("mod_compliance", "Compliance Management maps a control once."),
+        ("mod_vendor_risk", "Vendor Risk Management scores your suppliers."),
+        ("mod_incident_response", "Incident Response Manager runs your plans."),
+        ("mod_roadmap", "Security Roadmap tracks progress."),
+    ]
+    said = " ".join(f"{{show: {key}}} {line}" for key, line in cards)
+    llm = ScriptedOpenAI(
+        {
+            "What are the modules?": reply(
+                f"{{show: modules}} Six modules, one program. {said} Which one matters most?"
+            ),
+            "Tell me about the risk register.": reply(
+                "{show: mod_risk_register} Every risk in one place. It updates from your tools."
+            ),
+        }
+    )
+    async with demo("enveedo", llm) as rig:
+        await rig.driver.start_session(init={"path": "/enveedo_platform"})
+        await _event(
+            rig,
+            "page_changed",
+            _page_changed(
+                "/enveedo_platform",
+                lang="en",
+                kind="platform",
+                anchors=["modules", *(k for k, _ in cards)],
+            ),
+        )
+        await rig.driver.user_says("What are the modules?")
+        shown = [c["anchor"] for c in _cues(rig) if c.get("anchor")]
+        assert shown == ["modules", *(k for k, _ in cards)]
+        assert all(c["path"] is None for c in _cues(rig)), "no page move: all on this page"
+        rig.driver.ui_commands.clear()
+        await rig.driver.user_says("Tell me about the risk register.")
+        assert _cues(rig)[0]["anchor"] == "mod_risk_register"
+
+
 async def test_a_place_on_one_other_page_takes_them_there() -> None:
     async with demo("enveedo", _llm()) as rig:
         await rig.driver.start_session(init={"path": "/"})
@@ -689,7 +737,9 @@ async def test_the_demo_is_booked_by_voice_and_its_answers_said_in_the_quiet() -
                 missing=["first_name", "last_name", "email"],
             ),
         )
-        await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
+        # His last reply already asked for the first name: the step is noted,
+        # never talked through a second time (dev call f89030a6).
+        assert _idle_windows(rig)[-1] == _IDLE_MS
         await rig.driver.user_says("I'm Ana Torres, ana at acme dot com.")
         last = _commands(rig, "book_demo")[-1]
         assert (last["first_name"], last["last_name"], last["email"]) == (
@@ -703,6 +753,27 @@ async def test_the_demo_is_booked_by_voice_and_its_answers_said_in_the_quiet() -
         assert "Nothing is confirmed yet" in result
         # No Action can press the scheduler's confirm.
         assert not [a for a in rig.actions() if "submit" in a or "confirm" in a or "schedule" in a]
+
+
+async def test_the_details_step_is_talked_through_when_he_has_not_asked_yet() -> None:
+    llm = _llm()
+    async with demo("enveedo", llm) as rig:
+        await rig.driver.start_session(init={"path": "/book-a-demo"})
+        await _event(rig, "demo_state", CALENDAR)
+        await rig.driver.user_says("Nine.")
+        await _event(
+            rig,
+            "demo_state",
+            _demo_state(
+                "details",
+                date="2026-11-04",
+                time="9:00pm",
+                missing=["first_name", "last_name", "email"],
+            ),
+        )
+        assert _idle_windows(rig)[-1] == _TALK_THROUGH_MS
+        turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
+        assert "Your first name?" in turn.text
 
 
 async def test_a_held_back_confirm_is_said_plainly() -> None:
@@ -1143,3 +1214,26 @@ def test_every_key_the_prompt_offers_is_in_the_catalogue() -> None:
     assert real.english_path("/es/book-a-demo-rsa") == "/book-a-demo-grl"
     assert all(not h.path.startswith("/es/") for h in real.search("evaluación de riesgos gratuita"))
     assert real.topics.keys() >= {"platform", "frameworks", "faq", "site-map", "booking-a-demo"}
+
+
+@pytest.mark.parametrize(
+    ("sentence", "key"),
+    [
+        # Dev call f89030a6: the six modules said with no cue rang only the
+        # section's heading.
+        ("Crown Jewel Analysis maps critical business functions to assets.", "mod_crown_jewel"),
+        (
+            "Risk Register tracks risks, while Compliance Management maps controls.",
+            "mod_risk_register",
+        ),
+        ("Vendor Risk Management assesses suppliers.", "mod_vendor_risk"),
+        ("Incident Response Manager organizes response plans.", "mod_incident_response"),
+        ("Security Roadmap prioritizes initiatives and tracks progress.", "mod_roadmap"),
+        ("El Registro de Riesgos consolida tus riesgos.", "mod_risk_register"),
+        ("La Gestión de Cumplimiento mapea los controles una vez.", "mod_compliance"),
+    ],
+)
+def test_a_module_he_names_rings_its_own_card(sentence: str, key: str) -> None:
+    from enveedo.backend.brain import named_place
+
+    assert named_place(sentence) == ("/enveedo_platform", key)

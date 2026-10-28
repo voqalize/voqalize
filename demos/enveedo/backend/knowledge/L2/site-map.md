@@ -24,7 +24,10 @@ Paths are the English site's; every page with a Spanish version has the same slu
 - frameworks_intro: Security, AI, and Privacy Frameworks at Your Fingertips
 - framework_badges: Framework badges (ISO 27001, CIS, GDPR, NIST CSF 2.0, PCI DSS, SOC 2, EU AI Act, …)
 - frameworks_cta: Supporting 45+ frameworks: Explore all Frameworks
-- impact_stats: Real-World Impact: 5x faster risk assessment, 50% more efficiency, 3x more strategic focus
+- impact_stats: Real-World Impact: the section with its three numbers (5x faster risk assessment, 50% more efficiency, 3x more strategic focus)
+- impact_risk_assessment: Impact card: 5x Faster Risk Assessment (weeks of spreadsheets down to days)
+- impact_efficiency: Impact card: 50% More Operational Efficiency (centralized docs, automated data collection)
+- impact_focus: Impact card: 3x More Strategic Focus (top talent freed from admin tasks)
 - integrations: Supported Integrations: logo carousel
 - business_advantage: Turn Security into a Business Advantage
 - outcome_interruption: Reduced Business Interruption
@@ -33,23 +36,50 @@ Paths are the English site's; every page with a Spanish version has the same slu
 - outcome_compliance: Faster Compliance & Audit Readiness
 - testimonials_intro: Security Leaders Trust Enveedo
 - testimonials: Three anonymous testimonials (CISO, VP IT, CTO)
+- testimonial_ciso: Testimonial card: a CISO, e-Commerce Company
+- testimonial_vp_it: Testimonial card: a VP Information Technology, Global Manufacturing Firm
+- testimonial_cto: Testimonial card: a CTO, HR Recruiting Firm
 - final_cta: Ready to Transform Your Security Program? (value within 30 days; Book a Demo)
 
 ## /enveedo_platform — platform (Spanish: /es/enveedo_platform)
 - hero: The Complete Platform for Security Program Management
 - strategy: Build Your Cybersecurity Strategy: the nerve center of your program
 - integrations: Supported Integrations
-- modules: Fully Integrated Security Management: six modules (Crown Jewel Analysis, Risk Register, Compliance Management, Vendor Risk Management, Incident Response Manager, Security Roadmap)
-- integration_capabilities: Integration capabilities: pre-built integrations, API framework, data import/export, identity
-- automation: Smart automation: tasks, evidence collection, control testing, risk updates, reporting
-- dashboards: Dashboard preview: executive, operational, compliance, risk, vendor
+- modules: Fully Integrated Security Management: the heading and its six module cards
+- mod_crown_jewel: Module card: Crown Jewel Analysis (map critical business functions to their assets and processes)
+- mod_risk_register: Module card: Risk Register (every risk in one place, updated from integrated tools)
+- mod_compliance: Module card: Compliance Management (map controls once, apply to many frameworks, automated evidence)
+- mod_vendor_risk: Module card: Vendor Risk Management (automated questionnaires, risk scoring, continuous monitoring)
+- mod_incident_response: Module card: Incident Response Manager (build, test and run response plans tied to critical assets)
+- mod_roadmap: Module card: Security Roadmap (prioritized initiatives, automated progress tracking)
+- integration_capabilities: Integration Capabilities: connect your existing security ecosystem (four capabilities)
+- int_prebuilt: Integration capability: Pre-built Integrations (with leading security tools)
+- int_api: Integration capability: API Framework (for custom integrations)
+- int_data: Integration capability: Data Import/Export
+- int_identity: Integration capability: Authentication (identity management integration)
+- automation: Automation Features: let Enveedo do the heavy lifting (five features)
+- auto_tasks: Automation feature: Task Management (auto-assign and track remediation tasks)
+- auto_evidence: Automation feature: Evidence Collection (gather and organize compliance evidence)
+- auto_control_testing: Automation feature: Control Testing (schedule and document control tests)
+- auto_risk_updates: Automation feature: Risk Updates (risk scores updated from new data)
+- auto_reporting: Automation feature: Reporting (executive and detailed reports on demand)
+- dashboards: Dashboard Preview: real-time security program visibility (five dashboards)
+- dash_executive: Dashboard: Executive Dashboard (high-level posture and risk metrics)
+- dash_operational: Dashboard: Operational Dashboard (day-to-day program management)
+- dash_compliance: Dashboard: Compliance Dashboard (framework status and gaps)
+- dash_risk: Dashboard: Risk Dashboard (risk register with prioritization and trends)
+- dash_vendor: Dashboard: Vendor Dashboard (third-party risk overview)
 - advantage: The Enveedo Advantage
 - comparison: Comparison table: Enveedo vs program management, compliance automation and vCISO platforms
 - channel_partners: Channel Partners logos
 
 ## /security-performance-os — enterprise (Spanish: /es/security-performance-os)
 - hero: Security Performance OS: an integrated, governable, measurable system (Request Executive Briefing)
-- why_stall: Why Enterprise Cybersecurity Programs Stall: fragmentation, duplication, hard-to-defend risk, disruptive audits
+- why_stall: Why Enterprise Cybersecurity Programs Stall: the heading and its four cards
+- stall_fragmentation: Stall card: Operational Fragmentation (controls, risks and audits in separate systems)
+- stall_duplication: Stall card: Multi-Framework Duplication (the same control documented again per framework)
+- stall_risk: Stall card: Hard-to-Defend Risk (isolated scoring, inconsistent methods)
+- stall_audits: Stall card: Disruptive Audits (evidence gathered by hand from many tools)
 - our_platform: Our Platform
 - performance: Enterprise-grade operational performance
 - control_performance: Control Performance
@@ -60,7 +90,12 @@ Paths are the English site's; every page with a Spanish version has the same slu
 - ai_suggestions: AI-powered risk suggestions (only anonymized data is shared)
 - enterprise_complexity: Designed for the real complexity of enterprise environments
 - comparison: Beyond spreadsheets, more agile than generic GRC platforms: comparison
-- strategic_advantage: Turn your cybersecurity program into a strategic advantage
+- strategic_advantage: Turn your cybersecurity program into a strategic advantage: the section with its five results
+- result_exposure: Result: Exposure is reduced in a measurable way
+- result_prioritization: Result: Prioritization becomes strategic
+- result_investment: Result: Investment is justified with greater precision
+- result_executive: Result: Executive conversations become stronger
+- result_sustained: Result: The program sustains performance over time
 - final_cta: Elevate your Cybersecurity Program to the Enterprise Level (Schedule a Strategic Briefing)
 
 ## /frameworks — frameworks (Spanish: /es/frameworks)
@@ -111,8 +146,18 @@ Paths are the English site's; every page with a Spanish version has the same slu
 
 ## /partners — partners (Spanish: /es/partners)
 - hero: A Strategic Security Enabler for MSSPs and MSPs (Become a Partner)
-- why_partner: Why Partner with Enveedo? vCISO services at speed and scale
-- benefits: Partners Benefits: multitenancy, custom marketplace, deploy in minutes, reporting, API
+- why_partner: Why Partner with Enveedo? vCISO services at speed and scale: the heading and its four cards
+- partner_vciso: Partner card: Scalable vCISO Services (vCISO at scale, less manual CISO work)
+- partner_services: Partner card: Advanced Professional Services (a recurring revenue model)
+- partner_insights: Partner card: Leverage Strategic Insights (findings to upsell services)
+- partner_risk_assessment: Partner card: Security Risk Assessment (a strategic risk conversation with customers)
+- benefits: Partners Benefits: the heading and its six benefits
+- benefit_multitenancy: Partner benefit: Multitenancy for Managed Services (many clients, one platform)
+- benefit_marketplace: Partner benefit: Custom Marketplace (your own branded marketplace)
+- benefit_setup: Partner benefit: Instant Set-Up & Risk Posture Awareness (deploy in minutes)
+- benefit_asset_priority: Partner benefit: High-Value Asset Prioritization (critical business assets first)
+- benefit_reporting: Partner benefit: Cyber Risk Reporting & Dashboards (measurable impact)
+- benefit_api: Partner benefit: API & Ecosystem Integrations (your tools and workflows)
 - ecosystem: Include Enveedo in Your Ecosystem
 - integrations: Supported Integrations
 - apply: Start Your Partner Application Process
@@ -120,7 +165,15 @@ Paths are the English site's; every page with a Spanish version has the same slu
 
 ## /book-a-demo — demo (Spanish: /es/book-a-demo)
 - hero: Book a Demo
-- start_with: Start with Enveedo: continuous risk assessment, integrations, 170+ controls, CISO Concierge
+- start_with: Start with Enveedo, your all-in-one cybersecurity solution: the heading and its eight cards
+- start_risk_assessment: Card: Continuous automated risk assessment and exposure analysis
+- start_integrations: Card: Powerful API Integrations (AWS, GCP, Azure, Office 365, Jira, Okta, …)
+- start_monitoring: Card: Automated, continuous monitoring across 170+ security controls
+- start_workflow: Card: Comprehensive Workflow Management (track, delegate, measure)
+- start_workshops: Card: Platform-led workshops to define your crown jewels
+- start_heatmap: Card: Real-time Risk Heatmap of your risk posture
+- start_roadmap: Card: Risk-based Cybersecurity Roadmap to prioritize risk reduction
+- start_concierge: Card: CISO Concierge (a real-life advisor from industry experts)
 - demo_request: Request a product demo: a free risk assessment with a CISO strategist
 - demo_calendar: The demo scheduler (HubSpot Meetings, Elis Martinez)
 - contact_info: Contact Us: phone, address, email
@@ -144,7 +197,13 @@ Paths are the English site's; every page with a Spanish version has the same slu
 - tab_vision: Vision tab
 - tab_philosophy: Philosophy tab
 - team: Meet the Team
-- principles: Our Principles
+- principles: Our Principles: the heading and its six principles
+- principle_build_to_win: Principle: We Build to Win
+- principle_roots: Principle: Think From the Roots
+- principle_decide: Principle: Decide and Move
+- principle_customer: Principle: Customer Obsession
+- principle_ownership: Principle: Extreme Ownership
+- principle_honesty: Principle: Radical Honesty
 - investors: Our Investors (Silverton Partners, Runtime Ventures, Blue Venture)
 
 ## /resources — resources (Spanish: /es/resources)
@@ -159,11 +218,16 @@ Paths are the English site's; every page with a Spanish version has the same slu
 ## /cyber-insurance — insurance (Spanish: /es/cyber-insurance)
 - hero: Cyber Insurance has never been more complex
 - benefits: Benefits of Cyber Insurance
-- approval: Increase Approval Decisions
+- approval: Benefit card: Increase Approval Decisions (a program every stakeholder understands)
+- mitigate_risk: Benefit card: Mitigate Your Business Risk (augment existing security resources)
+- decrease_premium: Benefit card: Decrease Premium Process (technology, processes, people and programs aligned)
 - procuring: Procuring Cyber Insurance
 - reduce_friction: Reduce friction during the procurement process
 - features: Enveedo Features at a Glance
-- program_overview: Program Overview: Crown Jewel Analysis and more
+- program_overview: Feature card: Program Overview (build and manage a complete cyber program from scratch)
+- feature_cja: Feature card: Crown Jewel Analysis (CJA) (insights for planning future defenses)
+- feature_program_management: Feature card: Program Management (keep critical assets resilient)
+- feature_risk_management: Feature card: Risk Management (track, prioritize and mitigate risks)
 - key_benefits: Key Benefits of Cyber Risk Management
 - prioritize_assets: Prioritize Critical Assets (Crown Jewel Analysis)
 - visibility_automation: Continuous visibility and automation
@@ -198,7 +262,12 @@ Paths are the English site's; every page with a Spanish version has the same slu
 ## /trust-center — trust (Spanish: /es/trust-center)
 - hero: Trust Center: Security at the Core of Trust
 - controls: Our Security Controls
-- network_security: Network and application security: scans, pentest, WAF, IDS, TLS
+- network_security: Control card: Network and Application Security (scans, pentest, WAF, IDS, TLS)
+- ctrl_grc: Control card: Governance, Risk & Compliance (annual SOC 2 Type II audit, privacy audit)
+- ctrl_threat_detection: Control card: Threat Detection, Monitoring and Incident Response
+- ctrl_data_protection: Control card: Data Protection & Privacy (TLS encryption, regular backups)
+- ctrl_access: Control card: Access Management and Security Awareness (role-based access, annual review)
+- ctrl_it_change: Control card: IT Infrastructure and Change Management (SDLC with approvals)
 - soc2: SOC 2 Compliance: the SOC 2 Type II report
 - soc2_form: Request the SOC 2 Type II report (form)
 

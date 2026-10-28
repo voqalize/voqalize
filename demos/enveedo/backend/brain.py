@@ -714,9 +714,11 @@ You are giving a guided walkthrough, like someone sitting beside the visitor wit
 - Use only keys from the places list, a search result or find_framework. A show cue for a place on one other page only takes them to that page: on the home page, "{{show: faq_start}}" opens the FAQ at that answer.
 - Never make up a key. One cue per sentence at most, and only where the screen should change. A cue goes before the sentence, never inside it.
 - When they ask where something is ("show me", "muéstrame", "where is"), your reply starts with the cue for exactly that thing.
+- A section of cards or features (the six modules, the automation features, the partner benefits) has a key per card. Walking through it, cue each card as you name it, not the section once for all. A question about one card, such as one module, starts with that card's cue.
 - EVERY ANSWER ABOUT ENVEEDO STARTS WITH A CUE. Whatever you talk about is somewhere on the site, so show it as you begin.
 - Every page of this site loads in full, which takes a few seconds. Never wait for a page and never stop talking because one is loading; keep explaining, and the screen catches up.
 - Example, for "how does it work?": "{{page: /}}{{show: how_it_works}} It starts from your business. {{show: how_business_first}} First it finds your crown jewels, the functions that matter most. {{show: how_integration}} Then it connects the tools you already have. {{show: how_reporting}} And it reports to the board in business terms. Would you like to see the six modules?"
+- Example, for "yes, the modules": "{{page: {PLATFORM_PATH}}}{{show: modules}} Six modules, one program. {{show: mod_crown_jewel}} Crown Jewel Analysis finds what matters most. {{show: mod_risk_register}} Risk Register brings every risk into one place. {{show: mod_compliance}} Compliance Management maps a control once, for every framework. {{show: mod_vendor_risk}} Vendor Risk Management scores your suppliers. {{show: mod_incident_response}} Incident Response Manager runs your response plans. {{show: mod_roadmap}} And Security Roadmap tracks progress. Which one matters most to you?"
 
 # Who you are talking to
 Ask early, lightly, one question at a time, and use the answers: their role, their company (size, industry), their country, and the framework or pain that brought them. Never ask twice for what they said. Then route them:
@@ -1409,7 +1411,24 @@ _NAMED: tuple[tuple[re.Pattern[str], str, str], ...] = tuple(
         (r"multi ?workspace", SPOS_PATH, "multi_workspace"),
         (r"impact timeline", HOME, "timeline"),
         (r"soc 2 type (?:ii|2|two)|soc 2 tipo|informe soc 2|soc 2 report", TRUST_PATH, "soc2"),
-        (r"multitenan\w*|multitenencia", PARTNERS_PATH, "benefits"),
+        (r"multitenan\w*|multitenencia", PARTNERS_PATH, "benefit_multitenancy"),
+        # The platform's six modules, by the names on their cards. On dev call
+        # f89030a6 he named each one with no cue, and only the section's
+        # heading was there to ring.
+        (r"crown jewel analysis|analisis de activos criticos", PLATFORM_PATH, "mod_crown_jewel"),
+        (r"risk register|registro de riesgos", PLATFORM_PATH, "mod_risk_register"),
+        (r"compliance management|gestion de(?:l)? cumplimiento", PLATFORM_PATH, "mod_compliance"),
+        (
+            r"vendor risk management|gestion de(?:l)? riesgo de proveedores",
+            PLATFORM_PATH,
+            "mod_vendor_risk",
+        ),
+        (
+            r"incident response manager|gestor de respuesta a incidentes",
+            PLATFORM_PATH,
+            "mod_incident_response",
+        ),
+        (r"security roadmap|hoja de ruta de seguridad", PLATFORM_PATH, "mod_roadmap"),
     )
 )
 
@@ -1452,6 +1471,19 @@ def _resolve_day(text: str, today: date) -> str | None:
 
 
 # ─── The brain ─────────────────────────────────────────────────────────────────
+
+
+# A question for one of the scheduler's details, in either language. On dev
+# call f89030a6 he chose 9 p.m. and asked for the first name in the same reply;
+# the details step then opened and he asked for it again over the visitor.
+_ASKS_DETAIL = re.compile(
+    r"\b(?:first name|last name|surname|e-?mail|nombre|apellido|correo)\b[^.?!]*\?"
+)
+
+
+def asks_detail(text: str) -> bool:
+    """Whether ``text`` already asks the visitor for a scheduler detail."""
+    return bool(_ASKS_DETAIL.search(fold(text)))
 
 
 class EnveedoBrain(OpenAIBrain):
@@ -1511,6 +1543,8 @@ class EnveedoBrain(OpenAIBrain):
         #: The scheduler's details given so far: what is filled stays.
         self._demo_fields: dict[str, str] = {}
         self._demo_duration: str | None = None
+        self._last_said = ""
+        """His last reply, as written: whether it already asked for a detail."""
         #: The page this turn's cues are on: the one in front, then wherever a
         #: ``{page: …}`` cue took it.
         self._cue_path = HOME
@@ -1760,6 +1794,7 @@ class EnveedoBrain(OpenAIBrain):
             yield event
         # Words, and not only a promise: on Explora's dev call ed9846d5 the whole
         # reply was "One moment.", and the visitor sat in silence.
+        self._last_said = said
         if not _PROMISE.sub("", _CUE_TEXT.sub(" ", said)).strip(" .,!?¡¿…"):
             logger.warning("enveedo: the model returned nothing; asking once more")
             again = self._written(session, self._cued(self._talk_now(session)))
@@ -2125,13 +2160,13 @@ class EnveedoBrain(OpenAIBrain):
                 f"{', '.join(event.missing) or 'nothing required'}. The visitor presses its "
                 "confirm button themselves.]"
             )
-            if before is None or before.step != "details":
+            if (before is None or before.step != "details") and not asks_detail(self._last_said):
                 self._talk_through(
                     "The scheduler's details step is on their screen. Say the day and time back "
                     "to them in one sentence, and ask for the next detail still empty (first "
                     "name, last name, then work email)."
                 )
-            elif not event.missing and before.missing:
+            elif before is not None and not event.missing and before.missing:
                 self._talk_through(
                     "Every detail is in the scheduler now. Say so in a sentence: they check it "
                     "and press its confirm button themselves."
