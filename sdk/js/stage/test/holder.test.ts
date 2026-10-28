@@ -177,10 +177,22 @@ describe("a new page", () => {
     move("m1", "shop.filter");
     await vi.advanceTimersByTimeAsync(0);
     const b = openPage(1);
-    b.say({ k: "hello", url: "https://shop.test/", title: "Shop", front: true });
+    b.say({ k: "hello", url: "https://shop.test/", title: "Shop", front: true, ready: false });
     await vi.advanceTimersByTimeAsync(24_000);
     expect(performs(b)).toEqual([]);
     await vi.advanceTimersByTimeAsync(2_000);
+    expect(performs(b)).toHaveLength(1);
+  });
+
+  it("a page from a build that never says whether it is ready gets its jobs at once", async () => {
+    const { a, move } = await live();
+    a.say({ k: "leaving" });
+    a.leave();
+    move("m1", "shop.filter");
+    await vi.advanceTimersByTimeAsync(0);
+    const b = openPage(1);
+    b.say({ k: "hello", url: "https://shop.test/", title: "Shop", front: true });
+    await vi.advanceTimersByTimeAsync(0);
     expect(performs(b)).toHaveLength(1);
   });
 });

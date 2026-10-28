@@ -828,8 +828,9 @@ export function startHolder(site: SiteConfig, config: HolderConfig): void {
           listening.add(port);
           post(port, { k: "state", ...state });
           // Its jobs wait until it is ready: the move the last page carried
-          // here goes first.
-          if (msg.ready) markReady(tab, port);
+          // here goes first. A page from a build that never says whether it
+          // is ready (no `ready` at all) gets them at once, as before.
+          if (msg.ready !== false) markReady(tab, port);
           else awaitReady(tab, port);
         }
         if (msg.front) {
