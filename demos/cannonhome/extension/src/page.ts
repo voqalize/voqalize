@@ -1,7 +1,8 @@
 /**
  * What the adapter does to a page it does not own: wait for it, find words on
- * it, scroll the window under the fixed bars, draw the ring, type the way a
- * visitor types, and refuse anything that leads into checkout.
+ * it, scroll the window under the fixed bars, type the way a visitor types,
+ * and refuse anything that leads into checkout. The ring is Stage's spotlight
+ * (`site.ts` has its look); the waiting and field helpers are Stage's too.
  *
  * cannonhome.cl is Magento 2 (Luma-derived theme, RequireJS, jQuery,
  * Knockout). Every move between pages is a full page load; listing filters,
@@ -11,17 +12,11 @@
  * has been quiet for a moment.
  */
 
-/** Cannon Home's own "look here" colour: the deep red of every sale price
- *  (`.special-price .price`, #a01a1a in the theme's stylesheet). The brand's
- *  ink (#242128) is the colour of the text, so a dark ring would read as part
- *  of the page; the red reads on white, on the grey product photos and on the
- *  black bars. */
-export const RING = "#a01a1a";
-const RING_MS = 5500;
-export const WAIT_MS = 8000;
+import { clean, quiet, setValue, sleep, visible, waitFor as waitUntil } from "@voqalize/stage";
 
-export const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
-export const clean = (s: string | null | undefined) => (s ?? "").replace(/\s+/g, " ").trim();
+export { clean, quiet, setValue, sleep, visible };
+
+export const WAIT_MS = 8000;
 
 /**
  * For matching what the brain said against what the page shows: lower case,
@@ -42,24 +37,11 @@ export const norm = (s: string | null | undefined) =>
     .replace(/^[\s"']+|[\s"'.:;,?!]+$/g, "")
     .trim();
 
-export const visible = (el: Element | null | undefined): el is HTMLElement => {
-  if (!el) return false;
-  const r = el.getBoundingClientRect();
-  return r.width > 0 && r.height > 0;
-};
-
 /** `visible` as a plain answer, where a narrowing guard would narrow too far. */
 export const shown = (el: Element): boolean => visible(el);
 
-export async function waitFor<T>(fn: () => T | null | undefined | false, ms = WAIT_MS): Promise<T | null> {
-  const until = Date.now() + ms;
-  for (;;) {
-    const v = fn();
-    if (v) return v;
-    if (Date.now() > until) return null;
-    await sleep(100);
-  }
-}
+/** Poll `fn` until it answers, or `ms` pass (8 s by default). */
+export const waitFor = <T>(fn: () => T | null | undefined | false, ms = WAIT_MS): Promise<T | null> => waitUntil(fn, ms);
 
 /** Page order, for lists gathered from several selectors. */
 export const inOrder = (a: Node, b: Node) =>
@@ -284,9 +266,10 @@ export function press(el: Element): void {
   (el as HTMLElement).click();
 }
 
-/** Load another page of this site in this tab, unless it is checkout, an
- *  account page or another host. */
-export function go(path: string): void {
+/** Where `path` loads on this site, unless it is checkout past the delivery
+ *  form, an account page or another host: then refuse. Every load a move
+ *  makes is checked here first. */
+export function target(path: string): string {
   const to = new URL(path, location.origin);
   if (to.host.replace(/^www\./, "") !== location.host.replace(/^www\./, "")) {
     throw new Error(`${to.href} is not on ${location.host}; only this site's own pages open here`);
@@ -295,8 +278,12 @@ export function go(path: string): void {
   if (checkoutPage(to.pathname) && to.hash && !/^#shipping$/i.test(to.hash)) {
     throw new Error(`refused to open ${to.pathname}${to.hash}: Javier never goes into checkout past the delivery form`);
   }
-  clearHighlight();
-  location.assign(to.pathname + to.search + to.hash);
+  return to.origin + to.pathname + to.search + to.hash;
+}
+
+/** Load another page of this site in this tab, unless `target` refuses it. */
+export function go(path: string): void {
+  location.assign(target(path));
 }
 
 // ─── Scrolling ────────────────────────────────────────────────────────────
@@ -368,11 +355,7 @@ export async function scrollToTopOfPage(): Promise<void> {
   await scrollEnded();
 }
 
-// ─── The ring ─────────────────────────────────────────────────────────────
-
-let rings: { el: HTMLElement; targets: Element[] }[] = [];
-let ringFrame = 0;
-let ringTimer: ReturnType<typeof setTimeout> | null = null;
+// ─── Boxes ────────────────────────────────────────────────────────────────
 
 export function boxOf(targets: Element[]) {
   const rs = targets.filter(visible).map((el) => el.getBoundingClientRect());
@@ -385,68 +368,11 @@ export function boxOf(targets: Element[]) {
   };
 }
 
-function follow(): void {
-  for (const ring of rings) {
-    const b = boxOf(ring.targets);
-    if (!b) {
-      ring.el.style.opacity = "0";
-      continue;
-    }
-    ring.el.style.opacity = "1";
-    Object.assign(ring.el.style, {
-      transform: `translate(${b.left - 6}px, ${b.top - 6}px)`,
-      width: `${b.right - b.left + 12}px`,
-      height: `${b.bottom - b.top + 12}px`,
-    });
-  }
-  ringFrame = requestAnimationFrame(follow);
-}
-
-/** Ring each group: one element, or several ringed as one box. */
-export function highlight(...groups: (Element | Element[])[]): void {
-  clearHighlight();
-  for (const group of groups) {
-    const targets = Array.isArray(group) ? group : [group];
-    if (!boxOf(targets)) continue;
-    const el = document.createElement("div");
-    el.setAttribute("data-voqalize", "highlight");
-    Object.assign(el.style, {
-      position: "fixed",
-      left: "0",
-      top: "0",
-      border: "3px solid var(--voqalize-ring)",
-      borderRadius: "10px",
-      pointerEvents: "none",
-      zIndex: "2147483000",
-      opacity: "0",
-      transition: "opacity 300ms ease",
-      animation: "voqalize-ring 1.4s ease-in-out 3",
-    });
-    // Outside <body>, whose `zoom: 0.8` would scale the ring off its target.
-    document.documentElement.appendChild(el);
-    rings.push({ el, targets });
-  }
-  follow();
-  ringTimer = setTimeout(clearHighlight, RING_MS);
-}
-
-export function clearHighlight(): void {
-  if (ringTimer) clearTimeout(ringTimer);
-  cancelAnimationFrame(ringFrame);
-  rings.forEach((r) => r.el.remove());
-  rings = [];
-}
-
 export function styleThePage(): void {
   if (document.querySelector("style[data-voqalize=cannonhome]")) return;
   const style = document.createElement("style");
   style.setAttribute("data-voqalize", "cannonhome");
   style.textContent = `
-    :root { --voqalize-ring: ${RING}; }
-    @keyframes voqalize-ring {
-      0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--voqalize-ring) 55%, transparent); }
-      50% { box-shadow: 0 0 0 10px color-mix(in srgb, var(--voqalize-ring) 0%, transparent); }
-    }
     /* In a call, GoPersonal's own voice and camera search in the search box
        would open the microphone a second time: hidden while Javier listens. */
     html[data-voqalize-call] .gp-amsearch-icons .gp-amsearch-icon:not(#gp-clear-icon) { display: none !important; }
@@ -469,25 +395,6 @@ export async function settled(): Promise<void> {
   await quiet(document.body, 400, 2500);
 }
 
-/** `root` has not changed for `ms`, or `cap` has passed. */
-export function quiet(root: Node, ms = 350, cap = 3000): Promise<void> {
-  return new Promise<void>((resolve) => {
-    let timer = setTimeout(done, ms);
-    const obs = new MutationObserver(() => {
-      clearTimeout(timer);
-      timer = setTimeout(done, ms);
-    });
-    obs.observe(root, { childList: true, subtree: true, attributes: true, characterData: true });
-    const stop = setTimeout(done, cap);
-    function done() {
-      obs.disconnect();
-      clearTimeout(timer);
-      clearTimeout(stop);
-      resolve();
-    }
-  });
-}
-
 // ─── Typing ───────────────────────────────────────────────────────────────
 
 function nativeSet(el: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement, value: string): void {
@@ -498,16 +405,6 @@ function nativeSet(el: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElemen
         ? HTMLTextAreaElement.prototype
         : HTMLInputElement.prototype;
   Object.getOwnPropertyDescriptor(proto, "value")?.set?.call(el, value);
-}
-
-/** Set a field the way a finished edit does: the native setter (so Knockout
- *  sees it), then `input`, `change` and `blur`. Never a key event, so no
- *  Enter ever reaches a form. */
-export function setValue(el: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement, value: string): void {
-  nativeSet(el, value);
-  for (const type of ["input", "change"]) el.dispatchEvent(new Event(type, { bubbles: true }));
-  el.dispatchEvent(new Event("blur"));
-  el.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
 }
 
 /** Type `text` into a focused search box one character at a time, at a
@@ -525,46 +422,5 @@ export async function typeInto(el: HTMLInputElement, text: string, perKeyMs = 11
     el.dispatchEvent(new InputEvent("input", { bubbles: true, data: ch, inputType: "insertText" }));
     el.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: ch }));
     await sleep(perKeyMs);
-  }
-}
-
-// ─── A move left for the next page ────────────────────────────────────────
-
-/** Where a move that loads another page leaves the rest of itself, per tab
- *  and per origin, as `sessionStorage` is: a move never leaves the origin. */
-const THEN_KEY = "voqalize.cannonhome.then";
-/** A move left longer ago than this belongs to some other visit. */
-const THEN_MAX_AGE_MS = 60_000;
-
-export interface Leftover {
-  command: string;
-  payload: unknown;
-  /** The brain's command this finishes, when it is not `command` (a search
-   *  that opened a product finishes as `search_products`). */
-  as?: string;
-}
-
-/** Leave `move` for the next page of this tab (or forget any, with null). */
-export function leave(move: Leftover | null): void {
-  try {
-    if (move) sessionStorage.setItem(THEN_KEY, JSON.stringify({ ...move, at: Date.now() }));
-    else sessionStorage.removeItem(THEN_KEY);
-  } catch {
-    // Storage refused: the page still loads, at its top.
-  }
-}
-
-/** What the last page left to do here, taken once. */
-export function takeLeftover(): Leftover | null {
-  try {
-    const raw = sessionStorage.getItem(THEN_KEY);
-    if (!raw) return null;
-    sessionStorage.removeItem(THEN_KEY);
-    const then = JSON.parse(raw) as Partial<Leftover> & { at?: number };
-    if (typeof then.at === "number" && Date.now() - then.at > THEN_MAX_AGE_MS) return null;
-    if (typeof then.command !== "string") return null;
-    return { command: then.command, payload: then.payload ?? {}, ...(then.as ? { as: then.as } : {}) };
-  } catch {
-    return null;
   }
 }

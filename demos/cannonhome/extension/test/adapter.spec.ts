@@ -76,8 +76,8 @@ test.describe("search_products", () => {
     await runAway(page, "search_products", { query: "sabanas king", open_index: 2 });
     await page.waitForURL(`${ORIGIN}/sabanas-king-200-hilos-stone.html`);
     await listen(page);
-    const done = await waitForEvent(page, "command_done");
-    expect(done.payload.command).toBe("search_products");
+    const done = await waitForEvent(page, "stage_result");
+    expect(done.payload).toMatchObject({ move: "open_product", outcome: "applied" });
     await waitForEvent(page, "product_shown");
   });
 
@@ -88,6 +88,110 @@ test.describe("search_products", () => {
     const result = await run(page, "search_products", { query: "zzz", open_index: null });
     expect(result.ok).toBe(false);
     expect(result.error).toContain("no products");
+  });
+});
+
+/** Every click the page sees, and whether Stage's ring was around what was
+ *  clicked at that moment: a visible move rings its target before it acts. */
+async function watchRings(p: Page): Promise<void> {
+  await p.addInitScript(() => {
+    const w = window as unknown as { __clicks: { what: string; ringed: boolean }[] };
+    w.__clicks = [];
+    document.addEventListener(
+      "click",
+      (e) => {
+        const el = e.target as Element;
+        const r = el.getBoundingClientRect();
+        const x = r.left + r.width / 2;
+        const y = r.top + r.height / 2;
+        const rings = [...(document.querySelector("[data-voqalize=spotlight]")?.shadowRoot?.querySelectorAll(".ring") ?? [])];
+        const ringed = rings.some((ring) => {
+          const b = ring.getBoundingClientRect();
+          return x >= b.left && x <= b.right && y >= b.top && y <= b.bottom;
+        });
+        w.__clicks.push({ what: el.getAttribute("title") || el.className || el.tagName, ringed });
+      },
+      true,
+    );
+  });
+}
+
+const clicks = (p: Page) => p.evaluate(() => (window as unknown as { __clicks: { what: string; ringed: boolean }[] }).__clicks);
+
+/** The ring as it is drawn now: its border, or null. */
+const ringStyle = (p: Page) =>
+  p.evaluate(() => {
+    const ring = document.querySelector("[data-voqalize=spotlight]")?.shadowRoot?.querySelector<HTMLElement>(".ring");
+    if (!ring) return null;
+    const s = getComputedStyle(ring);
+    return { width: s.borderTopWidth, color: s.borderTopColor, radius: s.borderTopLeftRadius };
+  });
+
+test.describe("the filter and sort cues", () => {
+  test("one filter: the pill opened, the option ringed, then pressed, the grid waited for and ringed", async ({ page }) => {
+    await watchRings(page);
+    await serveSite(page);
+    await open(page, CATEGORY);
+    await listen(page);
+    // As a cue carries it: the facet's request variable and the option, positional.
+    const result = await run(page, "listing.filter", ["tamano", "2 plazas", CATEGORY]);
+    expect(result.ok, result.error).toBe(true);
+    expect(result.detail).toContain("Tamaño 2 Plazas applied; Sábanas");
+    await expect(page.locator('.qf__group[data-qf-request-var="tamano"] a.qf__option-link.-active')).toHaveAttribute("title", "2 Plazas");
+    // Ringed before each press: the pill, then the option.
+    const pressed = await clicks(page);
+    expect(pressed.find((c) => c.what === "2 Plazas")).toEqual({ what: "2 Plazas", ringed: true });
+    expect(pressed.filter((c) => /qf__pill/.test(c.what)).every((c) => c.ringed)).toBe(true);
+    // Cannon Home's ring: 3 px of its sale red, as before.
+    expect(await ringStyle(page)).toEqual({ width: "3px", color: "rgb(160, 26, 26)", radius: "10px" });
+    const listings = named(await events(page), "listing_shown");
+    expect(listings[listings.length - 1].payload.filters).toEqual({ tamano: "2 Plazas" });
+  });
+
+  test("an option the listing lacks is refused, naming the ones it has; nothing is pressed", async ({ page }) => {
+    await watchRings(page);
+    await serveSite(page);
+    await open(page, CATEGORY);
+    const result = await run(page, "listing.filter", ["Tamaño", "Cuna"]);
+    expect(result.ok).toBe(false);
+    expect(result.result?.outcome).toBe("refused");
+    expect(result.result?.refused?.[0]).toMatchObject({ arg: "value", why: 'no Tamaño "Cuna" here' });
+    expect(result.result?.refused?.[0]?.options).toContain("King");
+    expect((await clicks(page)).filter((c) => c.what === "King")).toEqual([]);
+  });
+
+  test("from another page, the filter loads the listing and is made there, with the same call", async ({ page }) => {
+    await serveSite(page);
+    await open(page, "/");
+    await runAway(page, "listing.filter", ["color", "Blanco", CATEGORY]);
+    await page.waitForURL(/20-sabanas/);
+    await listen(page);
+    const done = await waitForEvent(page, "stage_result");
+    expect(done.payload).toMatchObject({ move: "listing.filter", outcome: "applied" });
+    expect(String(done.payload.call_ref)).toMatch(/^test-/);
+    await expect(page.locator('.qf__group[data-qf-request-var="color"] a.qf__option-link.-active')).toHaveAttribute("title", "Blanco");
+  });
+
+  test("the sort cue rings the sorter and waits for the grid", async ({ page }) => {
+    await serveSite(page);
+    await open(page, CATEGORY);
+    const result = await run(page, "listing.sort", ["price_asc"]);
+    expect(result.ok, result.error).toBe(true);
+    expect(result.detail).toContain("sorted price_asc");
+    expect(await page.inputValue("select#sorter")).toBe("price_asc");
+    const bad = await run(page, "listing.sort", ["cheapest"]);
+    expect(bad.result?.outcome).toBe("refused");
+  });
+
+  test("the show cue rings a heading's section; words it does not have are refused with the headings it has", async ({ page }) => {
+    await serveSite(page);
+    await open(page, CATEGORY);
+    const shown = await run(page, "page.show", ["Sábanas"]);
+    expect(shown.ok, shown.error).toBe(true);
+    expect(await ringStyle(page)).not.toBeNull();
+    const missing = await run(page, "page.show", ["Nada de esto existe aquí"]);
+    expect(missing.result?.outcome).toBe("refused");
+    expect(missing.result?.refused?.[0]?.options).toContain("Sábanas");
   });
 });
 
@@ -140,8 +244,8 @@ test.describe("filter_listing", () => {
     await runAway(page, "filter_listing", { category_path: CATEGORY, size: "King", color: null, threads: null, material: null, sort: null });
     await page.waitForURL(/20-sabanas/);
     await listen(page);
-    const done = await waitForEvent(page, "command_done");
-    expect(done.payload.command).toBe("filter_listing");
+    const done = await waitForEvent(page, "stage_result");
+    expect(done.payload).toMatchObject({ move: "filter_listing", outcome: "applied" });
     expect(String(done.payload.detail)).toContain("applied size King");
     expect(seen.pages).toContain(CATEGORY);
     await expect(page.locator('.qf__group[data-qf-request-var="tamano"] a.qf__option-link.-active')).toHaveAttribute("title", "King");
@@ -213,8 +317,8 @@ test.describe("open_product", () => {
     await runAway(page, "open_product", { path: "sabanas-2-plazas-300-hilos-liso-fog", tab: "calificaciones" });
     await page.waitForURL(`${ORIGIN}${PRODUCT}`);
     await listen(page);
-    const done = await waitForEvent(page, "command_done");
-    expect(done.payload).toMatchObject({ command: "open_product" });
+    const done = await waitForEvent(page, "stage_result");
+    expect(done.payload).toMatchObject({ move: "open_product", outcome: "applied" });
     expect(String(done.payload.detail)).toContain("calificaciones");
     await waitForEvent(page, "product_shown");
   });
@@ -271,8 +375,8 @@ test.describe("add_to_cart and show_cart", () => {
     await runAway(page, "add_to_cart", { path: PRODUCT, qty: 1 });
     await page.waitForURL(`${ORIGIN}${PRODUCT}`);
     await listen(page);
-    const done = await waitForEvent(page, "command_done");
-    expect(done.payload.command).toBe("add_to_cart");
+    const done = await waitForEvent(page, "stage_result");
+    expect(done.payload).toMatchObject({ move: "add_to_cart", outcome: "applied" });
     await waitForEvent(page, "cart_state");
   });
 
@@ -388,7 +492,7 @@ test.describe("never past the delivery form", () => {
     await serveSite(page);
     await open(page, PRODUCT);
     for (const path of ["/checkout/onepage/success/", "/checkout#payment", "/customer/account/login/", "/webpay/return/"]) {
-      const nav = await run(page, "navigate", { path });
+      const nav = await run(page, "page.open", { path });
       expect(nav.ok, path).toBe(false);
       expect(nav.error, path).toContain("never goes into checkout");
     }
@@ -495,8 +599,8 @@ test.describe("search_products on GoPersonal's dropdown", () => {
     await runAway(page, "search_products", { query: "sabanas 300 hilos", open_index: 1 });
     await page.waitForURL(`${ORIGIN}/sabanas-super-king-300-hilos-sage.html`);
     await listen(page);
-    const done = await waitForEvent(page, "command_done");
-    expect(done.payload.command).toBe("search_products");
+    const done = await waitForEvent(page, "stage_result");
+    expect(done.payload).toMatchObject({ move: "open_product", outcome: "applied" });
     await waitForEvent(page, "product_shown");
     expect(seen.pages).toContain("/sabanas-super-king-300-hilos-sage.html");
   });
@@ -540,7 +644,7 @@ test.describe("never into checkout, by Magento's /index.php/ routes", () => {
       "/index.php": false,
     });
     for (const path of ["/index.php/checkout/onepage/success/", "/index.php/customer/account/login/"]) {
-      const nav = await run(page, "navigate", { path });
+      const nav = await run(page, "page.open", { path });
       expect(nav.ok, path).toBe(false);
       expect(nav.error).toContain("never goes into checkout");
     }
@@ -697,7 +801,7 @@ test.describe("start_checkout", () => {
     await runAway(page, "start_checkout", {});
     await page.waitForURL(`${ORIGIN}${CHECKOUT}`, { timeout: 25_000 });
     await listen(page);
-    const done = await waitForEvent(page, "command_done", (e) => e.payload.command === "start_checkout", 20_000);
+    const done = await waitForEvent(page, "stage_result", (e) => e.payload.move === "start_checkout", 20_000);
     expect(done.payload.detail).toContain("the guest checkout's delivery form is open");
     const state = await waitForEvent(page, "checkout_state");
     expect(state.payload.missing).toEqual(["email", "region", "comuna", "street", "number", "first_name", "last_name", "rut", "phone"]);
@@ -712,7 +816,7 @@ test.describe("start_checkout", () => {
     await runAway(page, "start_checkout", {});
     await page.waitForURL(`${ORIGIN}${CHECKOUT}`, { timeout: 30_000 });
     await listen(page);
-    await waitForEvent(page, "command_done", (e) => e.payload.command === "start_checkout", 20_000);
+    await waitForEvent(page, "stage_result", (e) => e.payload.move === "start_checkout", 20_000);
     expect(seen.pages).toEqual([PRODUCT, "/checkout/cart/", CHECKOUT]);
   });
 
@@ -722,7 +826,7 @@ test.describe("start_checkout", () => {
     await runAway(page, "fill_checkout", { email: FAKE.email, region: "Metropolitana", comuna: "Providencia" });
     await page.waitForURL(`${ORIGIN}${CHECKOUT}`, { timeout: 25_000 });
     await listen(page);
-    const done = await waitForEvent(page, "command_done", (e) => e.payload.command === "fill_checkout", 20_000);
+    const done = await waitForEvent(page, "stage_result", (e) => e.payload.move === "fill_checkout", 20_000);
     expect(done.payload.detail).toContain("filled email, región Metropolitana, comuna Providencia");
     const got = await formValues(page);
     expect([got.email, got.region, got.comuna]).toEqual([FAKE.email, "Metropolitana", "Providencia"]);
@@ -931,9 +1035,9 @@ async function settledBagPage(page: Page, ready: () => boolean): Promise<Emitted
     await page.waitForLoadState("domcontentloaded");
     try {
       await listen(page);
-      return await waitForEvent(page, "command_done", (e) => e.payload.command === "update_cart_item", 8000);
+      return await waitForEvent(page, "stage_result", (e) => e.payload.move === "update_cart_item", 8000);
     } catch (error) {
-      if (!/context was destroyed|navigat|no command_done/i.test(String(error))) throw error;
+      if (!/context was destroyed|navigat|no stage_result/i.test(String(error))) throw error;
     }
   }
 }

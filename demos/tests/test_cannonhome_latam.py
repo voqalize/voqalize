@@ -27,7 +27,6 @@ from ._harness import check_turn, check_voice_pair, demo
 discover()
 
 from voqalize_demos._loaded.cannonhome import brain as ch  # noqa: E402
-from voqalize_demos._loaded.cannonhome.cues import words  # noqa: E402
 
 #: Words and forms only Spain uses, as they would show in what he says.
 _SPAIN = {
@@ -135,16 +134,22 @@ def test_video_is_respelled_for_the_voice_and_back(written: str, for_voice: str)
 
 
 def test_a_cue_anchor_follows_the_voice() -> None:
-    sentence = "Un video muestra cómo se lavan."
-    at = " ".join(words(sentence)[:3])
-    heard = " ".join(words(ch.for_the_voice(sentence)))
-    assert heard.startswith(ch._anchor_for_voice(at)), (at, heard)
+    """A cue's anchor is the spoken text after it: spelled as the voice says
+    it, or the page never hears it."""
+    sentence = "Un video muestra cómo se lavan las toallas de CANNON HOME."
+    at = sentence[:40]
+    heard = ch.for_the_voice(sentence)
+    assert heard.startswith(ch._anchor_for_voice(at, "es")), (at, heard)
+    assert ch._anchor_for_voice(at, "es").startswith("Un bidéo muestra")
+    assert ch._anchor_for_voice("A video of CANNON HOME.", "en") == "A video of Cannon Home."
 
 
 async def test_the_voice_says_bideo_and_the_model_reads_video() -> None:
     llm = ScriptedOpenAI(
         {
-            "¿Cómo se lavan las toallas?": reply("Hay un video que lo muestra."),
+            "¿Cómo se lavan las toallas?": reply(
+                "{page: /politicas-de-despacho} Hay un video que lo muestra."
+            ),
             "¿Y las sábanas?": reply("Igual, con agua fría."),
         }
     )
@@ -154,6 +159,9 @@ async def test_the_voice_says_bideo_and_the_model_reads_video() -> None:
         check_turn(rig, turn)
         check_voice_pair(rig, voice="omnivoice/javier", language="es")
         assert "Hay un bidéo que lo muestra." in turn.text, turn.text
+        # The cue's anchor is what the voice says, so the page hears it.
+        cues = [c["payload"] for c in rig.driver.ui_commands if c.get("command") == "stage_cue"]
+        assert cues and cues[0]["at"].startswith("Hay un bidéo"), cues
         await rig.driver.user_says("¿Y las sábanas?")
         context = input_texts(llm.captured_inputs[-1])
         assert "Hay un video que lo muestra." in context and "bidéo" not in context, context

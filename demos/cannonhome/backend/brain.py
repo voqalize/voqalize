@@ -30,15 +30,23 @@ places the order: those stay the visitor's. The fill request has no field for
 any of them, so they cannot be sent; the extension refuses those fields and
 buttons again on the page.
 
-**Never block on the UI.** A move dispatches and returns at once; the page
-answers with ``command_done``, ``command_failed`` or the state it shows, and he
-talks that through in the next short quiet spell, with tools off. One move at a
-time: a move asked for while another is under way waits for its answer.
+**Every move is a Stage move.** A move on the page — a cue in his reply or a
+tool's move — has a class that decides how it is sent and what he hears of
+it, is ringed on the page before it acts, and is answered by exactly one
+``stage_result`` (:mod:`voqalize.sdk.stage`).
+
+**Never block on the UI.** A tool's move is sent and the tool returns at once;
+the page's result comes back, and he talks it through in the next short quiet
+spell, with tools off. One move at a time: a move asked for while another is
+under way waits for that one to land.
 
 **The screen follows his voice.** He writes his moves into the reply as cues
-(``{page: /politicas-de-despacho}``), at the start of the sentence they belong
-to; the brain takes them out of the speech, checks them against the site, and
-the page fires each as the voice reaches its sentence (:mod:`.cues`).
+(``{page: /politicas-de-despacho}``, ``{filter: Tamaño | King}``), at the
+start of the sentence they belong to; Stage takes them out of the speech, the
+brain checks them against the site, and the page makes each as the voice
+reaches its sentence. A filter written that way is applied as it is said, and
+its result is a line for his next turn; only a filter that failed is talked
+through.
 
 **Spanish or English, as the visitor chose or speaks.** The call opens in
 Spanish, the store's language, and moves both legs of the call together.
@@ -51,7 +59,7 @@ import math
 import random
 import re
 import time
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
 from datetime import date, datetime
 from difflib import SequenceMatcher
 from typing import TYPE_CHECKING, Any, Literal
@@ -79,7 +87,6 @@ from voqalize_demos.acknowledge import (
 
 from voqalize.sdk import (
     Action,
-    AppEvent,
     Finalize,
     RequestRejected,
     RTVIMessage,
@@ -92,6 +99,16 @@ from voqalize.sdk import (
     UserMessage,
 )
 from voqalize.sdk.openai import OpenAIBrain
+from voqalize.sdk.stage import (
+    POLICY,
+    Move,
+    MoveClass,
+    RawCue,
+    Refused,
+    Stage,
+    StageHello,
+    StageResult,
+)
 from voqalize.sdk.voice import ToolChoice
 from voqalize.sdk.wire import Config, IdleConfig, SttConfig, TtsConfig, Voice
 
@@ -102,8 +119,6 @@ from .app_events import (
     CartItem,
     CartState,
     CheckoutState,
-    CommandDone,
-    CommandFailed,
     LanguageRequested,
     ListingShown,
     PageChanged,
@@ -113,7 +128,6 @@ from .app_events import (
     TabInfo,
     TabsChanged,
 )
-from .cues import CueKind, CueParser, RawCue, words
 from .knowledge import (
     SIZE_LABELS,
     TOPIC_IDS,
@@ -226,7 +240,6 @@ def language_of(text: str, *, sure: bool = True) -> Lang | None:
 
 _VIDEO_TO_VOICE = re.compile(r"\b([Vv])[ií]deo(s?)\b")
 _VIDEO_FROM_VOICE = re.compile(r"\b([Bb])idéo(s?)\b")
-_VIDEO_AS_WORDS = re.compile(r"\bv deo(s?)\b")
 _CAPS_TO_VOICE: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\bCANNON HOME\b"), "Cannon Home"),
     (re.compile(r"\bCANNON\b"), "Cannon"),
@@ -264,9 +277,10 @@ def from_the_voice(text: str) -> str:
     return text
 
 
-def _anchor_for_voice(at: str) -> str:
-    """A cue's anchor, in the page's words, for speech spelled :func:`for_the_voice`."""
-    return " ".join(words(for_the_voice(_VIDEO_AS_WORDS.sub(r"video\1", at))))
+def _anchor_for_voice(at: str, lang: Lang = "es") -> str:
+    """A cue's anchor — the spoken text that follows it — spelled as the
+    voice will say it, so the page finds it in what it hears."""
+    return for_the_voice(at) if lang == "es" else names_for_the_voice(at)
 
 
 def _chosen_note(language: Lang, how: str) -> str:
@@ -445,22 +459,6 @@ def _money(amount: int, lang: Lang) -> str:
 # ─── Actions (brain → page) ────────────────────────────────────────────────────
 
 
-class Cue(Action):
-    """A move for the page to make when the voice reaches ``at`` — the first
-    words of the sentence it belongs to (see :mod:`.cues`); empty ``at`` is
-    when the voice stops. With ``path``, open that page of cannonhome.cl first
-    (a full load); then ``heading`` scrolls to that heading and rings it,
-    ``text`` rings the smallest element with those words, ``faq`` opens that FAQ."""
-
-    at: str
-    word: int = 0
-    """Words of the unit before it, for a page that times cues by the clock."""
-    path: str | None = None
-    heading: str | None = None
-    text: str | None = None
-    faq: str | None = None
-
-
 class FocusTab(Action):
     """Bring one of the visitor's Cannon Home tabs to the front."""
 
@@ -474,25 +472,36 @@ class LanguageChanged(Action):
     language: Literal["en", "es"]
 
 
-class SearchProducts(Action):
-    """Type ``query`` into the store's search box (``input.amsearch-input``) at a
-    human pace and let its suggestions open; report ``search_suggest``. With
-    ``open_index`` (0-based: 0 is the first suggested product), open that
-    product: the page then reports ``product_shown``."""
+# ─── Moves (brain → page, through Stage) ───────────────────────────────────────
+#
+# Every move on the page is a Stage move: a cue the model writes inside its
+# reply, made as the voice reaches its words, or a move a tool sends. Each has
+# a class (``MoveClass``) that decides how it is sent and what the model hears
+# of it, and each is answered with exactly one ``stage_result``. The page
+# rings what a move points at before it acts. The models below are the
+# arguments of the tool moves, as the page reads them.
+
+SortOrder = Literal["price_asc", "price_desc", "relevance", "newest"]
+ProductTab = Literal["descripcion", "especificaciones", "calificaciones", "fotos"]
+
+
+class SearchProducts(BaseModel):
+    """``search_products``: type ``query`` into the store's search box
+    (``input.amsearch-input``) at a human pace and let its suggestions open;
+    report ``search_suggest``. With ``open_index`` (0-based: 0 is the first
+    suggested product), open that product: the page then reports
+    ``product_shown``."""
 
     query: str
     open_index: int | None = None
 
 
-SortOrder = Literal["price_asc", "price_desc", "relevance", "newest"]
-
-
-class FilterListing(Action):
-    """Go to the listing at ``category_path`` (a full load, if it is not the one
-    in front), then apply each filter given with its quick-filter pill — the
-    option labels exactly as the listing writes them ("2 Plazas", "Blanco",
-    "300", "100% Algodón") — one at a time, waiting for the grid; then the sort.
-    Reports ``listing_shown``."""
+class FilterListing(BaseModel):
+    """``filter_listing``: go to the listing at ``category_path`` (a full
+    load, if it is not the one in front), then apply each filter given with
+    its quick-filter pill — the option labels exactly as the listing writes
+    them ("2 Plazas", "Blanco", "300", "100% Algodón") — one at a time, waiting
+    for the grid; then the sort. Reports ``listing_shown``."""
 
     category_path: str
     size: str | None = None
@@ -502,66 +511,73 @@ class FilterListing(Action):
     sort: SortOrder | None = None
 
 
-ProductTab = Literal["descripcion", "especificaciones", "calificaciones", "fotos"]
-
-
-class OpenProduct(Action):
-    """Open the product at ``path`` (``/x.html``; a full load), then the tab
-    named, or step through its photos for ``fotos``. Reports ``product_shown``."""
+class OpenProduct(BaseModel):
+    """``open_product``: open the product at ``path`` (``/x.html``; a full
+    load), then the tab named, or step through its photos for ``fotos``.
+    Reports ``product_shown``."""
 
     path: str
     tab: ProductTab | None = None
 
 
-class CheckPrices(Action):
-    """Read the live price and stock of these products (at most six), with one
-    same-origin POST to the store's GraphQL. Moves nothing. Reports ``prices_read``."""
+class ProductTabArgs(BaseModel):
+    """``product_tab``: on the product page in front, open that tab, or step
+    through its photos for ``fotos``."""
+
+    tab: ProductTab
+
+
+class CheckPrices(BaseModel):
+    """``check_prices``: read the live price and stock of these products (at
+    most six), with one same-origin POST to the store's GraphQL. Moves
+    nothing. Reports ``prices_read``."""
 
     paths: list[str]
 
 
-class AddToCart(Action):
-    """On the product page at ``path`` (opened first if it is not in front), set
-    the quantity to ``qty`` and press Agregar; wait for the cart drawer.
-    Reports ``cart_state``. Never the checkout."""
+class AddToCart(BaseModel):
+    """``add_to_cart``: on the product page at ``path`` (opened first if it is
+    not in front), set the quantity to ``qty`` and press Agregar; wait for the
+    cart drawer. Reports ``cart_state``. Never the checkout."""
 
     path: str
     qty: int = 1
 
 
-class ShowCart(Action):
-    """Open the cart drawer (``open``), or close it. Never the checkout."""
+class ShowCart(BaseModel):
+    """``show_cart``: open the cart drawer (``open``), or close it. Never the
+    checkout."""
 
     open: bool = True
 
 
-class UpdateCartItem(Action):
-    """Set the cart line of the product at ``path`` to ``qty``, or take it
-    out with 0: in the cart drawer with its own minus and plus, or its bin and
-    "Aceptar"; on the cart page (/checkout/cart) with the request those send,
-    then the reload the page's own controls make, the move checked on the page
-    it loads. Reports ``cart_state``. Never the checkout."""
+class UpdateCartItem(BaseModel):
+    """``update_cart_item``: set the cart line of the product at ``path`` to
+    ``qty``, or take it out with 0: in the cart drawer with its own minus and
+    plus, or its bin and "Aceptar"; on the cart page (/checkout/cart) with the
+    request those send, then the reload the page's own controls make, the move
+    checked on the page it loads. Reports ``cart_state``. Never the checkout."""
 
     path: str
     qty: int
 
 
-class StartCheckout(Action):
-    """Take the visitor to the guest checkout's delivery form: on the bag
-    (/checkout/cart/, loaded first if it is not in front) press "Terminar
-    pedido", then, in the window it opens, "Comprar como invitado" — never its
-    login, Google or "Crear Cuenta" — and wait for the form (/checkout).
-    Reports ``checkout_state``. Nothing past the form."""
+class StartCheckout(BaseModel):
+    """``start_checkout``: take the visitor to the guest checkout's delivery
+    form: on the bag (/checkout/cart/, loaded first if it is not in front)
+    press "Terminar pedido", then, in the window it opens, "Comprar como
+    invitado" — never its login, Google or "Crear Cuenta" — and wait for the
+    form (/checkout). Reports ``checkout_state``. Nothing past the form."""
 
 
-class FillCheckout(Action):
-    """Fill the checkout's delivery form with what the visitor said (the
-    guest checkout is opened first, as :class:`StartCheckout`, if it is not
-    in front). Only the fields given, each set as a finished edit: región and
-    comuna picked from the site's own lists (the comuna's list loads after the
-    región). There is no RUT, password or payment field here, and the page
-    refuses every one of them. Never presses anything after the fields.
-    Reports ``checkout_state``."""
+class FillCheckout(BaseModel):
+    """``fill_checkout``: fill the checkout's delivery form with what the
+    visitor said (the guest checkout is opened first, as ``start_checkout``,
+    if it is not in front). Only the fields given, each set as a finished
+    edit: región and comuna picked from the site's own lists (the comuna's list
+    loads after the región). There is no RUT, password or payment field here,
+    and the page refuses every one of them. Never presses anything after the
+    fields. Reports ``checkout_state``."""
 
     email: str | None = None
     first_name: str | None = None
@@ -577,6 +593,37 @@ class FillCheckout(Action):
     number: str | None = None
     apartment: str | None = None
     """Depto/Casa."""
+
+
+#: The moves Javier makes. The cue verbs are what a reply may write; the
+#: others only a tool sends. Classes: what is only looked at (a section, a
+#: FAQ, a product's tab, the cart drawer, a price read), what opens another
+#: page (a page, a product), what changes the page and can be undone (a
+#: search, a filter, a sort), and what changes what the visitor owns once they
+#: said yes (the cart and the delivery form).
+MOVES: tuple[Move, ...] = (
+    Move("page.open", "page", MoveClass.NAVIGATE, ("path",), say="{page: /path}"),
+    Move("page.show", "show", MoveClass.LOOK, ("target", "path"), say="{show: Heading}"),
+    Move("page.faq", "faq", MoveClass.LOOK, ("question", "path"), say="{faq: Question}"),
+    Move(
+        "listing.filter",
+        "filter",
+        MoveClass.REVERSIBLE,
+        ("facet", "value", "path"),
+        say="{filter: Tamaño | King}",
+    ),
+    Move("listing.sort", "sort", MoveClass.REVERSIBLE, ("order", "path"), say="{sort: price_asc}"),
+    Move("search_products", None, MoveClass.REVERSIBLE),
+    Move("filter_listing", None, MoveClass.REVERSIBLE),
+    Move("open_product", None, MoveClass.NAVIGATE),
+    Move("product_tab", None, MoveClass.LOOK),
+    Move("check_prices", None, MoveClass.LOOK),
+    Move("show_cart", None, MoveClass.LOOK),
+    Move("add_to_cart", None, MoveClass.CONFIRMED),
+    Move("update_cart_item", None, MoveClass.CONFIRMED),
+    Move("start_checkout", None, MoveClass.CONFIRMED),
+    Move("fill_checkout", None, MoveClass.CONFIRMED),
+)
 
 
 # ─── Tool requests ─────────────────────────────────────────────────────────────
@@ -811,12 +858,15 @@ You are giving a guided walk through the store, like someone sitting beside the 
   - {{page: /path}} opens a page of the store, at its top: an information page from the site pages list, a listing from the listings list, or a product's path.
   - {{show: Heading}} scrolls to a heading on the page they are on, or are taken to by a page cue, and rings it. With other words on the page — a product's name, a price, a line of a policy — it rings those words.
   - {{faq: Question}} opens that FAQ and rings it. The FAQ can be on any page: it is found and opened there.
+  - {{filter: Facet | Option}} narrows the listing in front (or the one a page cue just opened) by one of its filters, with the option exactly as the listings list writes it: {{filter: Tamaño | King}}, {{filter: Color | Blanco}}, {{filter: Hilos | 300}}, {{filter: Material | 100% Algodón}}. The filter's pill opens, the option is ringed and chosen, and the grid follows.
+  - {{sort: price_asc}} sorts the listing in front: price_asc (cheapest first), price_desc, or newest.
 - Use headings and words exactly as the site pages list or the screen lines spell them. The store is in Spanish, so cues are in Spanish, also inside an English reply: "{{page: /politicas-de-despacho}} Deliveries come with no exact hour."
 - Never make up a heading or a path.
 - One cue per sentence at most, and only where the screen should change. A cue goes before the sentence, never inside it.
 - When the visitor asks where something is ("muéstrame", "where is that"), your reply starts with the cue for exactly that thing.
-- A reply that calls a move (search_products, filter_listing, open_product, add_to_cart, update_cart_item, show_cart, start_checkout, fill_checkout) has no page cue: the move takes them there. The cart and the checkout are only ever reached by those moves, never by a cue.
-- Cues move pages; the moves below search, filter, open products and the cart. Nothing waits on a cue.
+- When the visitor clearly asks to narrow a listing ("las king blancas", "show me the cotton ones"), filter with cues as you say it, one filter per sentence, each sentence about that filter. Open the listing first when it is not in front. "{{page: /12-ropa-de-cama/20-sabanas}} Estas son nuestras sábanas. {{filter: Tamaño | King}} Primero, las de tamaño king. {{filter: Color | Blanco}} Y ahora, solo las blancas." Each filter happens as you say it; what the listing then shows comes to you in square brackets, and if a filter could not be applied you are told, to say so.
+- A reply that calls a move (search_products, filter_listing, open_product, add_to_cart, update_cart_item, show_cart, start_checkout, fill_checkout) has no cue: the move takes them there. The cart and the checkout are only ever reached by those moves, never by a cue.
+- Cues open pages, show what is on them and filter a listing; the moves below search, open products and change the cart. Nothing waits on a cue.
 
 # A good turn moves them one step closer to the right product
 1. Answer what they asked, first, in plain words, and show it as you say it.
@@ -864,7 +914,7 @@ Write your answer, with its cues, first; any tool call comes at the end of the s
 
 # Finding products
 - find_products searches the whole catalogue from what they said, in either language — size, colour, material, thread count, towel weight, type — and returns each product's path, its attributes, and its line's other sizes and colours. When it had to drop a wish to find anything, it says which: tell them plainly what is different.
-- Then show what fits: open_product for one product, filter_listing to show a listing narrowed the same way (a strong way to show a choice), or search_products to type their words in the store's search box, where the suggestions show live prices.
+- Then show what fits: open_product for one product, the listing narrowed the same way with filter cues (a strong way to show a choice), or search_products to type their words in the store's search box, where the suggestions show live prices.
 - compare_products puts two to six products side by side from the catalogue, with the prices their screen has already shown.
 - On a product page the tabs are "descripcion", "especificaciones" (measures, thread count, material, filling), "calificaciones" (reviews) and "fotos": open_product with the tab shows it.
 
@@ -881,7 +931,7 @@ Write your answer, with its cues, first; any tool call comes at the end of the s
 - "¿La tienes en king?", "in white?": find_products with the size or colour (sibling_of the product in front is taken when you leave the rest out), then open_product on the sibling's path. Never say you changed the size on the page.
 - Beds go by "plazas", as Chile sells them: 1 plaza, 1,5 plazas ("plaza y media"), 2 plazas (a "matrimonial", a queen-size bed), king, super king. Pillows and towels go by measures, "cincuenta por setenta"; towels by weight, grams per square metre: more grams, a thicker towel.
 - Sheets go by thread count, "hilos": more threads, a denser, softer weave. Say what the catalogue and the knowledge say, no more.
-- filter_listing narrows a listing by tamaño, color, hilos or material, only with the options that listing has (the listings list below), and sorts it by price.
+- A listing narrows by tamaño, color, hilos or material, only with the options that listing has (the listings list below), and sorts by price. Filter with cues as you talk the visitor through it; filter_listing does the same in one move, after your words, when you have nothing to say about each filter.
 
 # The cart
 - You may add a product to their cart when they ask, or say yes to your offer: add_to_cart with the product's path, the exact size and colour, and the quantity they said (one unless they said more). It opens the product first if it is not in front. Say what you are adding, never that it is added: the cart's answer comes in square brackets.
@@ -1436,49 +1486,48 @@ def named_on_page(sentence: str, text: str, plans: tuple[str, ...]) -> str | Non
 
 # ─── Moves and what answers them ───────────────────────────────────────────────
 
-#: The page moves, one at a time: a move sent while another loads races it.
-_MOVES = frozenset(
-    {
-        "search_products",
-        "filter_listing",
-        "open_product",
-        "add_to_cart",
-        "update_cart_item",
-        "show_cart",
-        "start_checkout",
-        "fill_checkout",
-    }
-)
-#: Every command whose answer the brain waits for, to talk it through.
-_CONFIRMED_COMMANDS = _MOVES | {"check_prices"}
-#: How long a move may take on the page before the next one stops waiting for
-#: it. The store's ``load`` takes over 15 s (trackers); the adapter waits for
-#: DOM content and its selectors, a few seconds.
-_MOVE_TAKES_S = {
-    "open_product": 25.0,
-    "filter_listing": 20.0,
-    "search_products": 20.0,
-    "add_to_cart": 20.0,
-    # The drawer posts each minus or plus by AJAX, about four seconds a press
-    # live; the cart page, one request and a reload, about ten (2026-10-23).
-    "update_cart_item": 45.0,
-    # The bag, its login window, then the checkout's heavy full load: about 35 s
-    # live (2026-10-23); a fill on the form, with a comuna list by AJAX, 3 s.
-    "start_checkout": 45.0,
-    "fill_checkout": 45.0,
-    "check_prices": 10.0,
-    "": 8.0,
-}
+#: How long a move may take on the page before it is taken as unknown. The
+#: store's ``load`` takes over 15 s (trackers); the bag, its login window, then
+#: the checkout's heavy full load took about 35 s live (2026-10-23), and the
+#: drawer's minus and plus about four seconds a press.
+_MOVE_TAKES_S = 45.0
 #: A unit of his not reported played this long after it began is taken as done.
 _PLAYOUT_MAX_S = 30.0
-#: The state reports that answer a move, besides ``command_done``.
-_ANSWERED_BY: dict[type[AppEvent], tuple[str, ...]] = {
-    ProductShown: ("open_product", "search_products"),
-    ListingShown: ("filter_listing", "search_products"),
-    SearchSuggest: ("search_products",),
-    PricesRead: ("check_prices",),
-    CartState: ("add_to_cart", "show_cart"),
-    CheckoutState: ("start_checkout",),
+#: A cue's result with this detail says nothing to the model: the visitor
+#: talked over it, or its words were never heard.
+_QUIET_DROPS = frozenset({"interrupted", "stale"})
+#: What a reply may write as the facet of a filter cue, folded, and the
+#: listing's request variable it names.
+_FACETS = {
+    "tamano": "tamano",
+    "tamanos": "tamano",
+    "talla": "tamano",
+    "size": "tamano",
+    "color": "color",
+    "colores": "color",
+    "colour": "color",
+    "hilos": "hilos",
+    "threads": "hilos",
+    "thread count": "hilos",
+    "material": "material",
+    "materiales": "material",
+}
+#: What a reply may write as a sort cue's order, folded.
+_SORTS: dict[str, SortOrder] = {
+    "price_asc": "price_asc",
+    "price asc": "price_asc",
+    "menor precio": "price_asc",
+    "precio ascendente": "price_asc",
+    "cheapest": "price_asc",
+    "price_desc": "price_desc",
+    "price desc": "price_desc",
+    "mayor precio": "price_desc",
+    "precio descendente": "price_desc",
+    "newest": "newest",
+    "nuevos": "newest",
+    "novedades": "newest",
+    "relevance": "relevance",
+    "relevancia": "relevance",
 }
 #: Which source of a price wins over which: the live GraphQL read over the
 #: page's (cached) copy, the page's over a card's.
@@ -1830,6 +1879,29 @@ def _checkout_note(e: CheckoutState) -> str:
 # ─── The brain ─────────────────────────────────────────────────────────────────
 
 
+class _VoicedStage(Stage):
+    """Stage, with each cue's anchor spelled as the voice will say it: in
+    Spanish the voice is handed "bidéo" for "video", and the page compares an
+    anchor with what it hears."""
+
+    def __init__(
+        self,
+        *,
+        respell: Callable[[str], str],
+        sent: Callable[[str, RawCue], None],
+        **kw: Any,
+    ) -> None:
+        super().__init__(**kw)
+        self._respell = respell
+        self._sent = sent
+
+    def cue(self, raw: RawCue) -> str | None:
+        ref = super().cue(dataclasses.replace(raw, at=self._respell(raw.at)))
+        if ref is not None:
+            self._sent(ref, raw)
+        return ref
+
+
 class CannonHomeBrain(OpenAIBrain):
     """One per session. Javier: Cannon Home's knowledge and catalogue, a mirror
     of the visitor's tabs and of every price their screen has shown, in Spanish
@@ -1895,20 +1967,26 @@ class CannonHomeBrain(OpenAIBrain):
         #: would race the load it started.
         self._moved = False
         self._heard: list[str] = []
-        #: The moves sent and not yet answered, and the answers that came in
-        #: since his last turn: talked through together, once, in the next
-        #: short quiet spell.
-        self._sent: dict[str, float] = {}
-        #: Each move sent and not yet answered, by command: the same move
-        #: asked for again while it runs is refused, not sent twice.
-        self._in_flight: dict[str, Action] = {}
+        #: Every move on the page, cue or tool: sent, one serial move at a
+        #: time, each answered once (:class:`~voqalize.sdk.stage.Stage`).
+        self.stage = _VoicedStage(
+            dispatch=lambda action: self.session.dispatch(action),
+            moves=MOVES,
+            resolve=self._resolve,
+            backstop=self._auto_cues,
+            result_timeout_s=_MOVE_TAKES_S,
+            respell=lambda at: _anchor_for_voice(at, self.spoken),
+            sent=self._cue_sent,
+        )
+        #: What each cue sent said, as he wrote it, by its call_ref: for the
+        #: line about its result.
+        self._cues: dict[str, str] = {}
         #: Turns running with tools off (a quiet spell's): a move called in one
         #: anyway is refused, never sent.
         self._tools_off = 0
+        #: The page's answers that came in since his last turn: talked
+        #: through together, once, in the next short quiet spell.
         self._outcomes: list[str] = []
-        #: The move asked for while another was still under way on the page,
-        #: sent once that one answers.
-        self._queued: Action | None = None
         self._turns = 0
         self._playing = 0
         self._played_at = 0.0
@@ -1964,6 +2042,7 @@ class CannonHomeBrain(OpenAIBrain):
             await session.configure(self._speaking(heard))
             logger.info("cannonhome: language -> {} (heard)", heard)
         self._talk = None
+        self._expire()
         # They spoke first: the page's answers are in the context as notes,
         # and he answers them with what they said.
         self._outcomes.clear()
@@ -2033,6 +2112,7 @@ class CannonHomeBrain(OpenAIBrain):
         twice, then silence. Tools are off: a quiet spell never moves the page."""
         self._restore_idle()
         self._backstop = None
+        self._expire()
         if (ask := self._take_ask()) is not None:
             self._note(ask)
             return self._reply(session, ToolChoice.NONE)
@@ -2148,27 +2228,22 @@ class CannonHomeBrain(OpenAIBrain):
 
         return spelled()
 
-    async def _cued(self, turn: AsyncGenerator[Speech, None]) -> AsyncGenerator[Speech, None]:
-        """``turn`` with every ``{page|show|faq: …}`` taken out of its text and
-        sent to the page as a :class:`Cue`, anchored to the words before it."""
-        parser = CueParser(self._auto_cues)
+    def _cued(self, turn: AsyncGenerator[Speech, None]) -> AsyncGenerator[Speech, None]:
+        """``turn`` with every cue taken out of its text and sent to the page
+        as a Stage cue, anchored to the words after it; the page the visitor
+        asked about first, when the reply brings no cue of its own."""
+        return self.stage.cued(self._backstopped(turn))
+
+    def _cue_sent(self, ref: str, raw: RawCue) -> None:
+        self._cues[ref] = f"{{{raw.verb}: {' | '.join(raw.args)}}}"
+
+    async def _backstopped(
+        self, turn: AsyncGenerator[Speech, None]
+    ) -> AsyncGenerator[Speech, None]:
         try:
             async for event in turn:
-                if isinstance(event, SpeechStart):
-                    parser = CueParser(self._auto_cues)
-                elif isinstance(event, SpeechChunk):
-                    text, raw = parser.feed(self._with_backstop(event.text))
-                    for cue in raw:
-                        self._send_cue(cue)
-                    if text:
-                        yield SpeechChunk(text)
-                    continue
-                else:  # SpeechEnd
-                    rest, raw = parser.flush()
-                    for cue in raw:
-                        self._send_cue(cue)
-                    if rest:
-                        yield SpeechChunk(rest)
+                if isinstance(event, SpeechChunk):
+                    event = SpeechChunk(self._with_backstop(event.text))
                 yield event
         finally:
             await turn.aclose()
@@ -2183,26 +2258,6 @@ class CannonHomeBrain(OpenAIBrain):
             return chunk
         logger.info("cannonhome: the reply has no cue; showing {} first", path)
         return f"{{page: {path}}}{chunk}"
-
-    def _send_cue(self, raw: RawCue) -> None:
-        """Check a cue against the site and send it; one that names nothing
-        real, or the checkout, is dropped and logged rather than reaching the page."""
-        if self.spoken == "es" and raw.at:
-            raw = dataclasses.replace(raw, at=_anchor_for_voice(raw.at))
-        if self._moved:
-            logger.info(
-                "cannonhome: cue {} {!r} dropped: a move this reply loads the page",
-                raw.kind,
-                raw.value,
-            )
-            return
-        cue = self._resolve_cue(raw)
-        logger.info("cannonhome: cue {} {!r} at {!r} -> {}", raw.kind, raw.value, raw.at, cue)
-        if cue is not None:
-            self._paged = self._paged or raw.kind == "page"
-            if raw.kind == "show":
-                self._shown = cue.heading or cue.text
-            self.session.dispatch(cue)
 
     def _known_path(self, value: str) -> str | None:
         """The store path a page cue names, as the store links it, or ``None``."""
@@ -2233,20 +2288,22 @@ class CannonHomeBrain(OpenAIBrain):
         )
 
     def _auto_cues(
-        self, sentence: str, index: int, placed: tuple[tuple[CueKind, str], ...]
-    ) -> list[tuple[CueKind, str]]:
+        self, sentence: str, index: int, placed: tuple[tuple[str, tuple[str, ...]], ...]
+    ) -> list[tuple[str, list[str]]]:
         """The moves a sentence of his needs and did not bring: the page its
         first sentence is about, and the section or name on the page it describes."""
-        out: list[tuple[CueKind, str]] = []
-        kinds = {k for k, _ in placed}
-        pages = [p for k, v in placed if k == "page" and (p := self._known_path(v)) is not None]
+        out: list[tuple[str, list[str]]] = []
+        verbs = {v for v, _ in placed}
+        pages = [
+            p for v, a in placed if v == "page" and a and (p := self._known_path(a[0])) is not None
+        ]
         path = pages[-1] if pages else self._cue_path
         if (
             index == 0
             and not self._paged
             and not self._moved
-            and "page" not in kinds
-            and not kinds & {"show", "faq"}
+            and "page" not in verbs
+            and not verbs & {"show", "faq", "filter", "sort"}
             and self._shown is None
         ):
             asked = asked_page(sentence, self.kb)
@@ -2262,14 +2319,15 @@ class CannonHomeBrain(OpenAIBrain):
                 and self._section_for(sentence, self._path) is None
             ):
                 logger.info("cannonhome: he talks about {} with no cue; opening it", asked)
-                out.append(("page", asked))
+                out.append(("page", [asked]))
                 path = asked
         self._cue_path = path
-        if kinds & {"show", "faq"}:
+        # A sentence that filters or sorts is about the grid it changes.
+        if verbs & {"show", "faq", "filter", "sort"}:
             return out
         shown = self._section_for(sentence, path)
         if shown is not None and shown != self._shown:
-            out.append(("show", shown))
+            out.append(("show", [shown]))
         return out
 
     def _section_for(self, sentence: str, path: str | None) -> str | None:
@@ -2289,37 +2347,136 @@ class CannonHomeBrain(OpenAIBrain):
         text = " ".join([page.text, *(f"{s.heading} {s.text}" for s in page.sections)])
         return named_on_page(sentence, text, plans)
 
-    def _resolve_cue(self, raw: RawCue) -> Cue | None:
-        if raw.kind == "page":
-            path = self._known_path(raw.value)
-            if path is None:
-                return None
-            self._cue_path = path
-            return Cue(at=raw.at, word=raw.word, path=path)
-        target = self.kb.page(self._cue_path) if self._cue_path is not None else None
+    def _resolve(self, move: Move, args: list[str]) -> list[str] | None:
+        """A cue's arguments checked against the site, as the page will take
+        them; ``None`` drops it. A move this reply already sent loads the page,
+        so a cue after it would race the load. A filter or sort the listing
+        cannot take is said to him, so he does not say it happened."""
+        if self._moved:
+            logger.info(
+                "cannonhome: cue {} {} dropped: a move this reply loads the page", move.id, args
+            )
+            return None
+        want = args[0] if args else ""
+        out: list[str] | None
+        match move.id:
+            case "page.open":
+                out = self._resolve_page(want)
+            case "page.faq":
+                out = self._resolve_faq(want)
+            case "page.show":
+                out = self._resolve_show(want)
+            case "listing.filter":
+                out = self._resolve_filter(want, args[1] if len(args) > 1 else "")
+            case "listing.sort":
+                out = self._resolve_sort(want)
+            case _:
+                out = None
+        return out
+
+    def _resolve_page(self, value: str) -> list[str] | None:
+        path = self._known_path(value)
+        if path is None:
+            return None
+        self._cue_path = path
+        self._paged = True
+        return [path]
+
+    def _moved_to(self) -> str | None:
+        """The page a cue of this reply took them to, when not the one in front."""
         moved = self._cue_path is not None and self._cue_path != self._path
-        if raw.kind == "faq":
-            faqs = [f.q for f in target.faqs] if target else list(self._faqs())
-            if not moved:
-                faqs = list(dict.fromkeys([*self._faqs(), *faqs]))
-            question = _match(raw.value, faqs)
-            if question is None:
-                found = self._faq_elsewhere(raw.value)
-                if found is None:
-                    return None
-                self._cue_path, question = found
-                return Cue(at=raw.at, word=raw.word, path=found[0], faq=question)
-            path = self._cue_path if moved else None
-            return Cue(at=raw.at, word=raw.word, path=path, faq=question)
+        return self._cue_path if moved else None
+
+    def _resolve_faq(self, asked: str) -> list[str] | None:
+        target = self.kb.page(self._cue_path) if self._cue_path is not None else None
+        elsewhere = self._moved_to()
+        faqs = [f.q for f in target.faqs] if target else list(self._faqs())
+        if elsewhere is None:
+            faqs = list(dict.fromkeys([*self._faqs(), *faqs]))
+        question = _match(asked, faqs)
+        if question is None:
+            found = self._faq_elsewhere(asked)
+            if found is None:
+                return None
+            self._cue_path, question = found
+            return [question[:80], found[0]]
+        return [question[:80], elsewhere] if elsewhere else [question[:80]]
+
+    def _resolve_show(self, asked: str) -> list[str]:
+        target = self.kb.page(self._cue_path) if self._cue_path is not None else None
+        elsewhere = self._moved_to()
         headings = (
             target.headings
-            if moved and target
+            if elsewhere and target
             else self._headings() or (target.headings if target else ())
         )
-        heading = _match(raw.value, headings)
-        text = None if heading else raw.value[:120]
-        path = self._cue_path if moved else None
-        return Cue(at=raw.at, word=raw.word, path=path, heading=heading, text=text)
+        shown = (_match(asked, headings) or asked)[:80]
+        self._shown = shown
+        return [shown, elsewhere] if elsewhere else [shown]
+
+    def _listing_for_cue(self) -> tuple[str, Category | None] | None:
+        """The listing a filter or sort cue applies to: the one a page cue of
+        this reply opens, else the one in front; ``None`` when that is no
+        listing."""
+        path = self._cue_path or self._path
+        cat = self.kb.category(path)
+        if cat is not None:
+            return cat.path, cat
+        if self.listing is not None and canonical_path(self.listing.path) == path:
+            return path, None
+        page = self.page
+        if (
+            page is not None
+            and canonical_path(page.path) == path
+            and page.kind in ("category", "search")
+        ):
+            return path, None
+        return None
+
+    def _cue_refused(self, cue: str, why: str) -> None:
+        """A filter or sort he wrote that the listing cannot take: nothing is
+        sent, and he says so in the next short quiet spell."""
+        logger.info("cannonhome: cue {} refused: {}", cue, why)
+        self._note(f"[Not done on the page ({cue}): {why}. It was not applied.]")
+        self._answered(f"{cue} not done: {why}")
+
+    def _resolve_filter(self, facet: str, value: str) -> list[str] | None:
+        cue = f"{{filter: {facet} | {value}}}"
+        listing = self._listing_for_cue()
+        if listing is None:
+            self._cue_refused(
+                cue,
+                f"the page it applies to ({self._cue_path or self._path}) is not a listing; "
+                "open the listing with a page cue first",
+            )
+            return None
+        path, cat = listing
+        var = _FACETS.get(norm(facet))
+        if var is None:
+            has = ", ".join(_FILTER_NAMES[v] for v in (cat.filters if cat else _FILTER_NAMES))
+            self._cue_refused(cue, f"a listing has no filter '{facet}' (this one has: {has})")
+            return None
+        if not value.strip():
+            self._cue_refused(cue, "say which option, as the listing writes it")
+            return None
+        refused: list[str] = []
+        label = _filter_value(cat, var, value, refused, _LABELERS[var])
+        if label is None:
+            self._cue_refused(cue, "; ".join(refused))
+            return None
+        return [var, label[:80], path]
+
+    def _resolve_sort(self, order: str) -> list[str] | None:
+        cue = f"{{sort: {order}}}"
+        listing = self._listing_for_cue()
+        if listing is None:
+            self._cue_refused(cue, "the page it applies to is not a listing")
+            return None
+        sort = _SORTS.get(norm(order))
+        if sort is None:
+            self._cue_refused(cue, "sort by price_asc, price_desc, newest or relevance")
+            return None
+        return [sort, listing[0]]
 
     def _talk_now(self, session: Session) -> AsyncGenerator[Speech, None]:
         """The one extra request a turn that said and moved nothing gets: tools
@@ -2401,61 +2558,100 @@ class CannonHomeBrain(OpenAIBrain):
                     event.qty,
                     event.source,
                 )
-                note = _product_note(event, before, self.spoken)
-                self._state_answers(event, f"the product page shows “{event.name or path}”")
-                return note
+                return _product_note(event, before, self.spoken)
             case ListingShown():
                 self.listing = event
                 for i in event.items:
                     self._remember(i.path, i.name, i.price, i.regular_price, None, None, "listing")
-                count = f"{event.count} products" if event.count is not None else "products"
-                self._state_answers(event, f"the listing shows {count}")
                 return _listing_note(event, self.spoken)
             case SearchSuggest():
                 self.suggest = event
                 for s in event.items:
                     self._remember(s.path, s.name, s.price, None, None, None, "search")
-                self._state_answers(
-                    event, f"the search box shows {len(event.items)} suggestions for {event.query}"
-                )
                 return _suggest_note(event, self.spoken)
             case PricesRead():
                 for i in event.items:
                     self._remember(
                         i.path, i.name, i.price, i.regular_price, i.in_stock, i.qty, "graphql"
                     )
-                self._state_answers(
-                    event, f"read {len(event.items)} live prices, {len(event.missing)} not found"
-                )
                 return _prices_note(event, self.kb, self.spoken)
             case CheckoutState():
-                self._state_answers(event, "the checkout's delivery form is on screen")
                 return self._checkout_changed(event)
             case CartState():
                 self.cart = event
                 for i in event.items:
                     if i.path:
                         self._remember(i.path, i.name, i.price, None, None, None, "cart")
-                self._state_answers(event, f"the cart has {event.count or len(event.items)} items")
                 return _cart_note(event, self.spoken)
-            case CommandDone():
-                detail = event.detail or "done"
-                self._answered(event.command, f"{event.command} done: {detail}")
-                return f"[The page confirms {event.command}: {detail}.]"
-            case CommandFailed() if event.command == "cue":
-                return (
-                    f"[A screen cue of yours did not land ({event.why}). If the visitor "
-                    "asks where it is, show it again; otherwise carry on.]"
-                )
-            case CommandFailed():
-                if event.command in _CONFIRMED_COMMANDS:
-                    self._talk = None
-                    self._restore_idle()
-                self._answered(event.command, f"{event.command} not done: {event.why}")
-                return (
-                    f"[Not done on the page ({event.command}): {event.why}. Tell the visitor "
-                    "plainly and offer what you can do instead; never say it worked.]"
-                )
+            case StageHello():
+                self.stage.handle(event)
+                return None
+            case StageResult():
+                result = self.stage.handle(event)
+                return None if result is None else self._settled(result)
+
+    def _settled(self, r: StageResult) -> str | None:
+        """What the model hears of one move's final result. A tool's move is
+        talked through, done or not, in the next short quiet spell. A cue is a
+        line for his next turn, by its class: nothing for a look that landed,
+        one line for a page or a filter; a look or a page that missed is a
+        quiet line, and a filter or sort that missed is talked through. A cue
+        the visitor talked over, or whose words never came, says nothing."""
+        if r.moved:
+            return None
+        # The move he made, by its call: a search that opened a product
+        # finishes as that open, on the product's page.
+        move = self.stage.move_of(r.call_ref) or self.stage.moves.get(r.move)
+        if move is None:
+            return None
+        landed_ok = r.outcome in ("applied", "partial")
+        why = self._why(r)
+        if move.verb is None:
+            name = move.id
+            if landed_ok:
+                detail = r.detail or "done"
+                self._answered(f"{name} done: {detail}")
+                return f"[The page confirms {name}: {detail}.]"
+            self._talk = None
+            self._answered(f"{name} not done: {why}")
+            return (
+                f"[Not done on the page ({name}): {why}. Tell the visitor plainly and offer "
+                "what you can do instead; never say it worked.]"
+            )
+        cue = self._cues.pop(r.call_ref, f"{{{move.verb}: …}}")
+        if landed_ok:
+            if POLICY[move.cls].tells_model == "on_failure":
+                return None
+            return f"[On the page, as you said it: {cue} — {r.detail or 'done'}.]"
+        if r.outcome == "refused" and r.detail in _QUIET_DROPS:
+            return None
+        if move.cls is MoveClass.REVERSIBLE:
+            self._answered(f"{cue} not done: {why}")
+            return (
+                f"[Not done on the page ({cue}): {why}. The visitor heard you say it: tell "
+                "them plainly, and offer what the listing has instead.]"
+            )
+        return (
+            f"[A screen cue of yours did not land ({why}). If the visitor asks where it is, "
+            "show it again; otherwise carry on.]"
+        )
+
+    @staticmethod
+    def _why(r: StageResult) -> str:
+        """Why a move did not land, in the page's words, with what it offers."""
+        why = r.detail or r.outcome
+        offers = [o for refusal in r.refused for o in refusal.options]
+        if offers:
+            why += f" (it offers: {', '.join(offers[:12])})"
+        if r.outcome == "unknown":
+            why = f"not confirmed — {why}"
+        return why
+
+    def _expire(self) -> None:
+        """Moves the page never answered, as unknown: said like any result."""
+        for r in self.stage.expire():
+            if (note := self._settled(r)) is not None:
+                self._note(note)
 
     def _checkout_changed(self, event: CheckoutState) -> str:
         """The delivery form's report, as a note; and, once he is working on
@@ -2521,13 +2717,6 @@ class CannonHomeBrain(OpenAIBrain):
             key, name, price, regular_price, in_stock, qty, source, time.monotonic()
         )
 
-    def _state_answers(self, event: CannonHomeEvent, what: str) -> None:
-        """A state report that answers a move he sent is its answer."""
-        for command in _ANSWERED_BY.get(type(event), ()):
-            if command in self._sent:
-                self._answered(command, f"{command} done: {what}")
-                return
-
     def _read_in_screen(self) -> None:
         """The tabs and the page in front, once per change, ahead of what they say."""
         if self._tabs_unseen and len(self.tabs) > 1:
@@ -2580,66 +2769,38 @@ class CannonHomeBrain(OpenAIBrain):
         if self._idle_deferred and not self._holding_floor():
             self._shorten_idle()
 
-    def _answered(self, command: str, outcome: str) -> None:
-        """The page answered a move he sent: he says what it did in the next
-        short quiet spell, unless the visitor speaks first. A move queued behind
-        this one goes to the page now, or, if this one failed, is dropped and said."""
-        if command not in self._sent:
-            return
-        del self._sent[command]
-        self._in_flight.pop(command, None)
-        if (queued := self._queued) is not None and not self._busy():
-            self._queued = None
-            name = queued.__voqal_action__
-            if outcome.startswith(f"{command} done"):
-                logger.info("cannonhome: {} answered; sending the {} queued", command, name)
-                self._send(queued)
-            else:
-                outcome += f" (so {name}, asked for while it ran, was not sent)"
+    def _answered(self, outcome: str) -> None:
+        """The page answered a move he made: he says what it did in the next
+        short quiet spell, unless the visitor speaks first."""
         self._outcomes.append(outcome)
         self._shorten_idle()
 
-    def _busy(self) -> str | None:
-        """The page move that has not answered yet, within its time."""
-        now = time.monotonic()
-        for command, until in self._sent.items():
-            if command in _MOVES and until > now:
-                return command
-        return None
-
-    def _send(self, action: Action) -> None:
-        command = action.__voqal_action__
-        if command in _CONFIRMED_COMMANDS:
-            self._sent[command] = time.monotonic() + _MOVE_TAKES_S.get(command, _MOVE_TAKES_S[""])
-            self._in_flight[command] = action
-        self.session.dispatch(action)
-
-    def _move(self, action: Action, line: str) -> str | None:
-        """Send a page move, or, while the last one is still under way, queue
-        it to follow: ``None`` when sent, else what the tool says."""
-        running = self._busy()
-        if running is not None and action in (self._in_flight.get(running), self._queued):
-            logger.info("cannonhome: {} asked for again while it runs; not sent twice", running)
+    def _move(self, move: str, args: BaseModel, line: str) -> str | None:
+        """Send a tool's move to the page, or, while the last one is still
+        under way, queue it to follow: ``None`` when sent, else what the tool
+        says."""
+        try:
+            ref = self.stage.send(move, args.model_dump())
+        except Refused as again:
+            logger.info("cannonhome: {} asked for again while it runs; not sent twice", move)
+            doing = self.stage.busy or move
             return (
-                f"Not sent again: the page is already doing exactly this ({running}), and its "
-                "answer comes back to you. Never call it again for the same thing; if they asked "
-                "for something else too, offer it once this one is done."
+                f"Not sent again: the page is already doing exactly this ({doing}), and its "
+                f"answer comes back to you{'' if again.why == 'running' else ' once it is sent'}. "
+                "Never call it again for the same thing; if they asked for something else too, "
+                "offer it once this one is done."
             )
-        if running is None:
-            self._queued = None
-            self._moved = True
-            self._send(action)
-            landed(_LANDED[line][self.spoken])
-            return None
-        self._queued = action
-        landed(_LANDED["queued"][self.spoken])
-        logger.info("cannonhome: {} queued behind {}", action.__voqal_action__, running)
-        return (
-            f"Queued, not sent yet: the page is still working on the last move ({running}). It "
-            "goes to the page as soon as the page answers that, and what it did comes back to "
-            "you after. Say in a few words that you will do it as soon as the page is ready; "
-            "never that it is done, and do not call it again."
-        )
+        if ref is None:
+            landed(_LANDED["queued"][self.spoken])
+            return (
+                f"Queued, not sent yet: the page is still working on the last move "
+                f"({self.stage.busy}). It goes to the page as soon as that one is done, and what "
+                "it did comes back to you after. Say in a few words that you will do it as soon "
+                "as the page is ready; never that it is done, and do not call it again."
+            )
+        self._moved = True
+        landed(_LANDED[line][self.spoken])
+        return None
 
     def _take_ask(self) -> str | None:
         asks: list[str] = []
@@ -2921,7 +3082,7 @@ class CannonHomeBrain(OpenAIBrain):
             return "Not searched: open_index is 1 to 6, the suggested products."
         # The model counts from 1, as the visitor does; the page from 0.
         action = SearchProducts(query=query, open_index=None if index is None else index - 1)
-        queued = self._move(action, "search")
+        queued = self._move("search_products", action, "search")
         if queued is not None:
             return queued
         return f"Typing '{query}' in the store's search box. " + self._sent_note(
@@ -2963,7 +3124,7 @@ class CannonHomeBrain(OpenAIBrain):
             material=material,
             sort=request.sort,
         )
-        queued = self._move(action, "filter")
+        queued = self._move("filter_listing", action, "filter")
         if queued is not None:
             return queued
         applied = ", ".join(
@@ -2995,7 +3156,13 @@ class CannonHomeBrain(OpenAIBrain):
             return (
                 "Not moved: that product is already on their screen. Answer from its lines above."
             )
-        queued = self._move(OpenProduct(path=path, tab=request.tab), "product")
+        if here and request.tab is not None:
+            # The product is in front: only its tab moves.
+            queued = self._move("product_tab", ProductTabArgs(tab=request.tab), "tab")
+            if queued is not None:
+                return queued
+            return f"Opening its {request.tab} tab. " + self._sent_note("'Te muestro esa pestaña.'")
+        queued = self._move("open_product", OpenProduct(path=path, tab=request.tab), "product")
         if queued is not None:
             return queued
         p = self.kb.product(path)
@@ -3022,7 +3189,7 @@ class CannonHomeBrain(OpenAIBrain):
             )
         if len(paths) > _MOST_PRICED:
             return f"Not read: at most {_MOST_PRICED} at a time."
-        self._send(CheckPrices(paths=paths))
+        self.stage.send("check_prices", CheckPrices(paths=paths).model_dump())
         landed(_LANDED["prices"][self.spoken])
         out = f"Reading the live prices of {len(paths)} products. " + self._sent_note(
             "'Te reviso los precios.'"
@@ -3049,7 +3216,7 @@ class CannonHomeBrain(OpenAIBrain):
                 "Not added: their screen says it is not available. Say so, and offer another "
                 "size or colour of the line (find_products)."
             )
-        queued = self._move(AddToCart(path=path, qty=request.qty), "cart_add")
+        queued = self._move("add_to_cart", AddToCart(path=path, qty=request.qty), "cart_add")
         if queued is not None:
             return queued
         p = self.kb.product(path)
@@ -3096,6 +3263,7 @@ class CannonHomeBrain(OpenAIBrain):
         if item is not None and item.qty == request.qty:
             return f"Nothing to change: their cart already has {item.qty} of {name}."
         queued = self._move(
+            "update_cart_item",
             UpdateCartItem(path=path, qty=request.qty),
             "cart_remove" if request.qty == 0 else "cart_update",
         )
@@ -3113,7 +3281,7 @@ class CannonHomeBrain(OpenAIBrain):
         if (meta := self._meta_turn()) is not None:
             return meta
         queued = self._move(
-            ShowCart(open=request.open), "cart_show" if request.open else "cart_close"
+            "show_cart", ShowCart(open=request.open), "cart_show" if request.open else "cart_close"
         )
         if queued is not None:
             return queued
@@ -3134,7 +3302,7 @@ class CannonHomeBrain(OpenAIBrain):
                 "details it needs (fill_checkout); never the RUT."
             )
         self._checkout_asked = True
-        queued = self._move(StartCheckout(), "checkout")
+        queued = self._move("start_checkout", StartCheckout(), "checkout")
         if queued is not None:
             return queued
         return (
@@ -3250,7 +3418,7 @@ class CannonHomeBrain(OpenAIBrain):
             return f"Not filled: {why}. The RUT, any password and the payment are theirs."
         self._filled.update(given)
         self._checkout_asked = True
-        queued = self._move(FillCheckout(**given), "checkout_fill")
+        queued = self._move("fill_checkout", FillCheckout(**given), "checkout_fill")
         out = f"For the delivery form: {_fields_said(list(given))}. " + (
             queued or self._sent_note("'Te lo completo.'")
         )
@@ -3363,16 +3531,28 @@ def _filter_value(
     return got
 
 
+#: Each filter's labeler, by the listing's request variable.
+_LABELERS: dict[str, Callable[[str, tuple[str, ...]], str | None]] = {
+    "tamano": _size_label,
+    "color": _color_label,
+    "hilos": _threads_label,
+    "material": _material_label,
+}
+
+
 __all__ = [
+    "MOVES",
     "AddToCart",
     "CannonHomeBrain",
     "CheckPrices",
-    "Cue",
+    "FillCheckout",
     "FilterListing",
     "FocusTab",
     "LanguageChanged",
     "OpenProduct",
+    "ProductTabArgs",
     "SearchProducts",
     "ShowCart",
+    "StartCheckout",
     "UpdateCartItem",
 ]

@@ -291,6 +291,9 @@ def _llm() -> ScriptedOpenAI:
             "Busca toalla blanca.": reply_and_call(
                 "La busco.", "search_products", args={"query": "toalla blanca"}
             ),
+            "Busca toallas otra vez.": reply_and_call(
+                "Las busco.", "search_products", args={"query": "toallas"}
+            ),
             "Ábreme la primera toalla.": reply_and_call(
                 "Te abro la primera.",
                 "search_products",
@@ -306,6 +309,16 @@ def _llm() -> ScriptedOpenAI:
                 "{page: /politicas-de-despacho} Esto es lo que hizo la página."
             ),
             "Sigamos.": reply("Claro, sigamos."),
+            # Filters he narrates: each applied as it is said.
+            "Muéstrame las king blancas.": reply(
+                "{page: /12-ropa-de-cama/20-sabanas} Estas son nuestras sábanas. "
+                "{filter: Tamaño | king} Primero, las de tamaño king. "
+                "{filter: Color | blancas} Y ahora, solo las blancas."
+            ),
+            "¿Y de seda?": reply("{filter: Material | seda} Te muestro las de seda."),
+            "Ordénalas por precio.": reply(
+                "{sort: menor precio} Aquí van de la más barata a la más cara."
+            ),
         }
     )
 
@@ -326,6 +339,41 @@ def _commands(rig: object, name: str) -> list[dict[str, Any]]:
         for c in rig.driver.ui_commands  # type: ignore[attr-defined]
         if c.get("command") == name
     ]
+
+
+def _cues(rig: object) -> list[dict[str, Any]]:
+    """Every Stage cue the brain sent, in order."""
+    return _commands(rig, "stage_cue")
+
+
+def _moves(rig: object, move: str) -> list[dict[str, Any]]:
+    """The arguments of every tool move ``move`` the brain sent, in order."""
+    return [m["args"] for m in _commands(rig, "stage_move") if m["move"] == move]
+
+
+def _move(rig: object, move: str) -> dict[str, Any]:
+    """The arguments of the first tool move ``move``; fails if none was sent."""
+    sent = _moves(rig, move)
+    assert sent, f"no {move} move: {[m['move'] for m in _commands(rig, 'stage_move')]}"
+    return sent[0]
+
+
+async def _answer(
+    rig: object,
+    move: str,
+    outcome: str = "applied",
+    detail: str = "",
+    **more: Any,
+) -> None:
+    """The page's one result for the last ``move`` sent (a tool move's or a cue's)."""
+    sent = [m for m in [*_commands(rig, "stage_move"), *_cues(rig)] if m["move"] == move]
+    assert sent, f"no {move} was sent"
+    await _page(
+        rig,
+        "stage_result",
+        {"call_ref": sent[-1]["call_ref"], "move": move, "outcome": outcome, "detail": detail}
+        | more,
+    )
 
 
 def _recording(llm: ScriptedOpenAI) -> list[dict[str, Any]]:
@@ -446,8 +494,6 @@ def test_pesos_are_said_as_a_chilean_says_them(amount: int, es: str | None, en: 
 
 # ─── Cues ──────────────────────────────────────────────────────────────────────
 
-NONE = {"path": None, "heading": None, "text": None, "faq": None}
-
 
 async def test_cues_leave_the_speech_and_are_checked_against_the_site() -> None:
     async with demo("cannonhome", _llm()) as rig:
@@ -456,37 +502,153 @@ async def test_cues_leave_the_speech_and_are_checked_against_the_site() -> None:
         check_turn(rig, turn)
         assert "{" not in turn.text and "}" not in turn.text
         # The page as the store links it; the heading in the site's spelling;
-        # an invented page and the checkout past its form dropped; the FAQ on the page.
-        cues = _commands(rig, "cue")
-        assert cues == [
-            {**NONE, "at": "llega en pocos", "word": 0, "path": DESPACHO},
-            {
-                **NONE,
-                "at": "llega en pocos",
-                "word": 0,
-                "path": DESPACHO,
-                "heading": "Plazos de entrega",
-            },
-            {
-                **NONE,
-                "at": "esa es la",
-                "word": 4,
-                "path": DESPACHO,
-                "faq": "¿Cuánto demora mi pedido?",
-            },
+        # an invented page and the checkout past its form dropped; the FAQ on
+        # the page the reply opened.
+        cues = _cues(rig)
+        assert [(c["move"], c["verb"], c["args"]) for c in cues] == [
+            ("page.open", "page", [DESPACHO]),
+            ("page.show", "show", ["Plazos de entrega", DESPACHO]),
+            ("page.faq", "faq", ["¿Cuánto demora mi pedido?", DESPACHO]),
         ], cues
+        # Each anchored to the spoken text after it, as the voice says it.
+        assert cues[0]["at"].startswith("Llega en pocos días.") and cues[0]["before"] == 0
+        assert cues[1]["at"] == cues[0]["at"]
+        assert cues[2]["at"].startswith("Esa es la") and cues[2]["before"] > 0
+        assert len({c["call_ref"] for c in cues}) == 3
 
 
 async def test_what_they_asked_about_is_shown_when_his_reply_forgets_to() -> None:
     async with demo("cannonhome", _llm()) as rig:
         await rig.driver.start_session(init={"path": "/"})
         await rig.driver.user_says("¿Cuánto demora el despacho?")
-        assert _commands(rig, "cue")[0] == {
-            **NONE,
-            "at": "llega en dos",
-            "word": 0,
-            "path": DESPACHO,
-        }
+        first = _cues(rig)[0]
+        assert (first["move"], first["args"], first["before"]) == ("page.open", [DESPACHO], 0)
+        assert first["at"].startswith("Llega en dos")
+
+
+# ─── Filters he narrates ───────────────────────────────────────────────────────
+#
+# A filter used to be a tool: "I'll filter…", the page applied it after his
+# words, and a second turn talked the grid through, about twelve seconds in
+# all. Now he writes the filters into the reply he is saying, each applied, its
+# pill opened and its option ringed, as its words are spoken; what it did is a
+# line for his next turn, and only a filter that failed is talked through.
+
+
+async def test_two_filter_cues_are_two_moves_anchored_to_their_own_sentences() -> None:
+    llm = _llm()
+    async with demo("cannonhome", llm) as rig:
+        await rig.driver.start_session(init={"path": "/"})
+        before = len(llm.requests)
+        turn = await rig.driver.user_says("Muéstrame las king blancas.")
+        check_turn(rig, turn)
+        assert "{" not in turn.text and "filter" not in turn.text
+        # One request: no tool, no second turn.
+        assert len(llm.requests) == before + 1
+        assert not _commands(rig, "stage_move")
+        cues = _cues(rig)
+        assert [(c["move"], c["verb"], c["args"]) for c in cues] == [
+            ("page.open", "page", [SHEETS]),
+            # The listing's own request variable and option label, and the
+            # listing the page cue opened.
+            ("listing.filter", "filter", ["tamano", "King", SHEETS]),
+            ("listing.filter", "filter", ["color", "Blanco", SHEETS]),
+        ], cues
+        assert cues[0]["at"].startswith("Estas son nuestras sábanas.")
+        assert cues[1]["at"].startswith("Primero, las de tamaño king.")
+        assert cues[2]["at"].startswith("Y ahora, solo las blancas.")
+        assert 0 < cues[1]["before"] < cues[2]["before"]
+
+        # The first landed: a line for his next turn, and nothing talked through.
+        king, white = cues[1], cues[2]
+        await _page(
+            rig,
+            "stage_result",
+            {
+                "call_ref": king["call_ref"],
+                "move": "listing.filter",
+                "outcome": "applied",
+                "detail": "Tamaño King applied; Sábanas: 8 products",
+            },
+        )
+        assert _idle_windows(rig)[-1] == _IDLE_MS
+        # The second failed: said in the next short quiet spell.
+        await _page(
+            rig,
+            "stage_result",
+            {
+                "call_ref": white["call_ref"],
+                "move": "listing.filter",
+                "outcome": "refused",
+                "detail": "no color Blanco here",
+                "refused": [{"arg": "value", "why": "no color Blanco here", "options": ["Gris"]}],
+            },
+        )
+        assert _idle_windows(rig)[-1] == _TALK_THROUGH_MS
+        turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
+        check_turn(rig, turn)
+        said = _texts(llm.captured_inputs[-1])
+        assert (
+            "[On the page, as you said it: {filter: Tamaño | king} — Tamaño King applied; "
+            "Sábanas: 8 products.]" in said
+        )
+        assert (
+            "[Not done on the page ({filter: Color | blancas}): no color Blanco here "
+            "(it offers: Gris)." in said
+        )
+        assert (
+            "The page answered what you sent it: {filter: Color | blancas} not done: "
+            "no color Blanco here (it offers: Gris)" in said
+        )
+
+
+async def test_a_filter_the_listing_lacks_is_never_sent_and_is_said() -> None:
+    llm = _llm()
+    async with demo("cannonhome", llm) as rig:
+        await rig.driver.start_session(init={"path": SHEETS})
+        await rig.driver.user_says("¿Y de seda?")
+        assert not _cues(rig)
+        # Said once the floor is free: after his reply has played.
+        await asyncio.sleep(0.1)
+        assert _idle_windows(rig)[-1] == _TALK_THROUGH_MS
+        await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
+        assert (
+            "{filter: Material | seda} not done: material 'seda' is not an option of this "
+            "listing (it lists: Polycotton, 100% Algodón)" in _texts(llm.captured_inputs[-1])
+        )
+
+
+async def test_a_sort_cue_and_a_cue_talked_over_say_nothing_more() -> None:
+    llm = _llm()
+    async with demo("cannonhome", llm) as rig:
+        await rig.driver.start_session(init={"path": SHEETS})
+        await rig.driver.user_says("Ordénalas por precio.")
+        (sort,) = _cues(rig)
+        assert (sort["move"], sort["args"]) == ("listing.sort", ["price_asc", SHEETS])
+        # The visitor spoke before the voice reached it: nothing to say.
+        await _page(
+            rig,
+            "stage_result",
+            {
+                "call_ref": sort["call_ref"],
+                "move": "listing.sort",
+                "outcome": "refused",
+                "detail": "interrupted",
+                "refused": [{"arg": "sort", "why": "interrupted"}],
+            },
+        )
+        assert _idle_windows(rig)[-1] == _IDLE_MS
+        await rig.driver.user_says("Sigamos.")
+        assert "{sort:" not in _texts(llm.captured_inputs[-1])
+
+
+def test_the_prompt_teaches_filter_cues_as_the_default() -> None:
+    prompt = ch._prompt(STORE, ch.date(2030, 3, 4))
+    assert "{filter: Tamaño | King}" in prompt
+    assert "{sort: price_asc}" in prompt
+    assert "filter with cues as you say it, one filter per sentence" in prompt
+    verbs = {m.verb for m in ch.MOVES if m.verb}
+    assert verbs == {"page", "show", "faq", "filter", "sort"}
 
 
 def test_the_page_for_what_they_asked_about() -> None:
@@ -590,7 +752,7 @@ async def test_on_a_product_page_another_size_is_its_sibling_opened() -> None:
             f"The line of “Sábanas 2 Plazas 300 Hilos Inventadas Blanco” ({S2}):"
         )
         assert f"— {SK};" in found and "$" not in found.split(SK)[1].split("\n")[0]
-        assert rig.command("open_product") == {"path": SK, "tab": None}
+        assert _move(rig, "open_product") == {"path": SK, "tab": None}
         # A colour the line does not have: said, with the line it does have.
         await rig.driver.user_says("¿Y en morado?")
         found = _every(llm.captured_inputs[-1], "find_products")[-1]
@@ -694,7 +856,7 @@ async def test_a_move_returns_at_once_and_claims_nothing() -> None:
         before = len(llm.requests)
         turn = await rig.driver.user_says("Ábreme las de dos plazas.")
         check_turn(rig, turn)
-        assert rig.command("open_product") == {"path": S2, "tab": None}
+        assert _move(rig, "open_product") == {"path": S2, "tab": None}
         assert len(llm.requests) == before + 1
         await rig.driver.user_says("Sigamos.")
         opened = _every(llm.captured_inputs[-1], "open_product")[-1]
@@ -708,7 +870,7 @@ async def test_a_move_with_no_words_says_its_line_without_asking_again() -> None
         await rig.driver.start_session(init={"path": "/"})
         before = len(llm.requests)
         turn = await rig.driver.user_says("Ábreme las king.")
-        assert rig.command("open_product") == {"path": SK, "tab": None}
+        assert _move(rig, "open_product") == {"path": SK, "tab": None}
         assert turn.text == ch._LANDED["product"]["es"]
         assert len(llm.requests) == before + 1
 
@@ -720,8 +882,11 @@ async def test_the_pages_answer_is_talked_through_once_with_tools_off() -> None:
         await rig.driver.start_session(init={"path": "/"})
         await rig.driver.user_says("Ábreme las de dos plazas.")
         assert _idle_windows(rig)[-1] == _IDLE_MS
-        # The product page answers the move: talked through in the short quiet spell.
+        # What the page shows is a note; it says nothing of the move.
         await _page(rig, "product_shown", _shown(source="graphql", price=28495))
+        assert _idle_windows(rig)[-1] == _IDLE_MS
+        # The move's one result: talked through in the short quiet spell.
+        await _answer(rig, "open_product", detail="the product page shows the sheets at $28495")
         assert _idle_windows(rig)[-1] == _TALK_THROUGH_MS
         before = len(seen)
         turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
@@ -733,6 +898,9 @@ async def test_the_pages_answer_is_talked_through_once_with_tools_off() -> None:
         assert (
             "The page answered what you sent it: open_product done: the product page shows" in said
         )
+        # A result that comes again for the same move is not said again.
+        await _answer(rig, "open_product", detail="again")
+        assert _idle_windows(rig)[-1] == _IDLE_MS
         # His talk-through's page cue: a move is the page they are on, so it may
         # cue; but nothing is talked through twice.
         assert _idle_windows(rig)[-1] == _IDLE_MS
@@ -742,22 +910,37 @@ async def test_the_pages_answer_is_talked_through_once_with_tools_off() -> None:
         )
 
 
-async def test_a_failed_move_is_said_plainly_and_either_field_name_is_read() -> None:
+async def test_a_failed_move_is_said_plainly_with_what_the_page_offers() -> None:
     llm = _llm()
     async with demo("cannonhome", llm) as rig:
         await rig.driver.start_session(init={"path": "/"})
         await rig.driver.user_says("Ábreme las de dos plazas.")
-        await _page(rig, "command_failed", {"command": "open_product", "error": "page not found"})
+        await _answer(rig, "open_product", "failed", "page not found")
         turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
         check_turn(rig, turn)
         seen = _texts(llm.captured_inputs[-1])
         assert "[Not done on the page (open_product): page not found." in seen
         assert "open_product not done: page not found" in seen
-        # The sibling extensions name it `reason`: read too, never dropped.
+        # A refusal names what the page offers instead.
         await rig.driver.user_says("Busca toalla blanca.")
-        await _page(rig, "command_failed", {"command": "search_products", "reason": "no box"})
+        await _answer(
+            rig,
+            "search_products",
+            "refused",
+            "no box",
+            refused=[{"arg": "query", "why": "no box", "options": ["/"]}],
+        )
         await rig.driver.user_says("Sigamos.")
-        assert "(search_products): no box." in _texts(llm.captured_inputs[-1])
+        assert "(search_products): no box (it offers: /)." in _texts(llm.captured_inputs[-1])
+        # A move the page never answers is said as not confirmed, once its time is up.
+        await rig.driver.user_says("Busca toallas otra vez.")
+        for flight in rig.brain.stage._flights.values():  # type: ignore[attr-defined]
+            if flight.move.id == "search_products":
+                flight.deadline = 0
+        await rig.driver.user_says("Sigamos.")
+        assert "(search_products): not confirmed — the page did not answer in time" in _texts(
+            llm.captured_inputs[-1]
+        )
 
 
 async def test_the_pages_answer_is_not_talked_through_when_the_visitor_speaks_first() -> None:
@@ -765,7 +948,7 @@ async def test_the_pages_answer_is_not_talked_through_when_the_visitor_speaks_fi
     async with demo("cannonhome", llm) as rig:
         await rig.driver.start_session(init={"path": "/"})
         await rig.driver.user_says("Busca toalla blanca.")
-        assert rig.command("search_products") == {"query": "toalla blanca", "open_index": None}
+        assert _move(rig, "search_products") == {"query": "toalla blanca", "open_index": None}
         await _page(
             rig,
             "search_suggest",
@@ -775,6 +958,7 @@ async def test_the_pages_answer_is_not_talked_through_when_the_visitor_speaks_fi
                 "categories": ["Toallas de baño"],
             },
         )
+        await _answer(rig, "search_products", detail="typed it; the dropdown shows 1 product")
         assert _idle_windows(rig)[-1] == _TALK_THROUGH_MS
         await rig.driver.user_says("Sigamos.")
         seen = _texts(llm.captured_inputs[-1])
@@ -792,13 +976,16 @@ async def test_one_move_at_a_time_the_next_follows_the_answer() -> None:
         await rig.driver.start_session(init={"path": "/"})
         await rig.driver.user_says("Ábreme las king.")
         await rig.driver.user_says("Y agrégala al carro.")
-        assert _commands(rig, "add_to_cart") == [], "an add was sent while the page loaded"
+        assert _moves(rig, "add_to_cart") == [], "an add was sent while the page loaded"
         await rig.driver.user_says("Sigamos.")
         queued = _every(llm.captured_inputs[-1], "add_to_cart")[-1]
         assert queued.startswith("Queued, not sent yet: the page is still working")
-        # The product page answers the open: the add goes now, and only then.
+        # The product page's report is not the open's answer: nothing goes yet.
         await _page(rig, "product_shown", _shown(path=SK, price=40000))
-        assert _commands(rig, "add_to_cart") == [{"path": SK, "qty": 1}]
+        assert _moves(rig, "add_to_cart") == []
+        # The open landed: the add goes now, and only then.
+        await _answer(rig, "open_product", detail="the product page is on screen")
+        assert _moves(rig, "add_to_cart") == [{"path": SK, "qty": 1}]
 
 
 async def test_add_to_cart_carries_the_quantity_and_nothing_reaches_the_checkout() -> None:
@@ -806,7 +993,7 @@ async def test_add_to_cart_carries_the_quantity_and_nothing_reaches_the_checkout
     async with demo("cannonhome", llm) as rig:
         await rig.driver.start_session(init={"path": S2})
         await rig.driver.user_says("Agrégame dos al carro.")
-        assert rig.command("add_to_cart") == {"path": S2, "qty": 2}
+        assert _move(rig, "add_to_cart") == {"path": S2, "qty": 2}
         await _page(
             rig,
             "cart_state",
@@ -817,10 +1004,11 @@ async def test_add_to_cart_carries_the_quantity_and_nothing_reaches_the_checkout
                 "free_shipping_left": 93010,
             },
         )
+        await _answer(rig, "add_to_cart", detail="added 2 of Sábanas 2 Plazas; the bag has 2 items")
         turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
         check_turn(rig, turn)
         seen = _texts(llm.captured_inputs[-1])
-        assert "add_to_cart done: the cart has 2 items" in seen
+        assert "add_to_cart done: added 2 of Sábanas 2 Plazas; the bag has 2 items" in seen
         assert "$93.010 (say: noventa y tres mil diez pesos) more for free shipping" in seen
         assert "start_checkout takes them to the delivery form as a guest" in seen
         assert "the RUT and the payment are theirs" in seen
@@ -831,7 +1019,7 @@ async def test_add_to_cart_carries_the_quantity_and_nothing_reaches_the_checkout
         refused = _every(llm.captured_inputs[-1], "add_to_cart")
         assert any("the quantity is one to ten" in r for r in refused)
         assert any("is not a product the store has" in r for r in refused)
-        assert len(_commands(rig, "add_to_cart")) == 1
+        assert len(_moves(rig, "add_to_cart")) == 1
         # Nothing he sent names the checkout, the account or a payment.
         for c in rig.driver.ui_commands:  # type: ignore[attr-defined]
             wire = str(c).lower()
@@ -845,7 +1033,7 @@ async def test_filters_are_the_listings_own_options() -> None:
     async with demo("cannonhome", llm) as rig:
         await rig.driver.start_session(init={"path": SHEETS})
         await rig.driver.user_says("Filtra las king blancas.")
-        assert rig.command("filter_listing") == {
+        assert _move(rig, "filter_listing") == {
             "category_path": SHEETS,
             "size": "King",
             "color": "Blanco",
@@ -853,7 +1041,7 @@ async def test_filters_are_the_listings_own_options() -> None:
             "material": None,
             "sort": "price_asc",
         }
-        await _page(rig, "command_done", {"command": "filter_listing", "detail": "filtered"})
+        await _answer(rig, "filter_listing", detail="filtered")
         await rig.driver.user_says("Filtra las de seda.")
         await rig.driver.user_says("Sigamos.")
         refused = _every(llm.captured_inputs[-1], "filter_listing")[-1]
@@ -861,7 +1049,7 @@ async def test_filters_are_the_listings_own_options() -> None:
             "Not done: material 'seda' is not an option of this listing "
             "(it lists: Polycotton, 100% Algodón)."
         )
-        assert len(_commands(rig, "filter_listing")) == 1
+        assert len(_moves(rig, "filter_listing")) == 1
 
 
 async def test_check_prices_reads_live_and_says_what_was_not_found() -> None:
@@ -869,7 +1057,7 @@ async def test_check_prices_reads_live_and_says_what_was_not_found() -> None:
     async with demo("cannonhome", llm) as rig:
         await rig.driver.start_session(init={"path": "/"})
         await rig.driver.user_says("¿Cuánto cuestan las dos?")
-        assert rig.command("check_prices") == {"paths": [S2, SK]}
+        assert _move(rig, "check_prices") == {"paths": [S2, SK]}
         await _page(
             rig,
             "prices_read",
@@ -888,19 +1076,20 @@ async def test_check_prices_reads_live_and_says_what_was_not_found() -> None:
                 "missing": [SK],
             },
         )
+        await _answer(rig, "check_prices", detail=f"Sábanas 2 Plazas: $28495; not found: {SK}")
         turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
         check_turn(rig, turn)
         seen = _texts(llm.captured_inputs[-1])
         assert "[Live prices: Sábanas 2 Plazas" in seen and "$28.495" in seen
         assert f"Not found: {SK} — not buyable right now" in seen
-        assert "check_prices done: read 1 live prices, 1 not found" in seen
+        assert f"check_prices done: Sábanas 2 Plazas: $28495; not found: {SK}" in seen
 
 
 async def test_a_question_about_the_call_moves_nothing() -> None:
     async with demo("cannonhome", _llm()) as rig:
         await rig.driver.start_session(init={"path": S2})
         await rig.driver.user_says("Can I speak in English?")
-        assert "add_to_cart" not in rig.actions()
+        assert not _moves(rig, "add_to_cart")
 
 
 async def test_a_reply_that_only_promises_is_asked_again_with_tools_off() -> None:
@@ -941,7 +1130,7 @@ async def test_the_first_suggestion_the_model_names_is_the_pages_index_zero() ->
     async with demo("cannonhome", _llm()) as rig:
         await rig.driver.start_session(init={"path": "/"})
         await rig.driver.user_says("Ábreme la primera toalla.")
-        assert rig.command("search_products") == {"query": "toalla blanca", "open_index": 0}
+        assert _move(rig, "search_products") == {"query": "toalla blanca", "open_index": 0}
 
 
 # ─── The checkout's delivery form ──────────────────────────────────────────────
@@ -1134,16 +1323,17 @@ async def test_start_checkout_goes_as_a_guest_and_the_form_is_talked_through() -
         # Dispatched and returned: one model request, and a move that has no
         # field to choose a login with.
         assert len(llm.requests) == before + 1
-        assert rig.command("start_checkout") == {}
+        assert _move(rig, "start_checkout") == {}
         await _page(rig, "page_changed", CHECKOUT_PAGE)
         await _page(rig, "checkout_state", _form())
+        await _answer(rig, "start_checkout", detail="the guest checkout's delivery form is open")
         assert _idle_windows(rig)[-1] == _TALK_THROUGH_MS
         turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
         check_turn(rig, turn)
         said = _texts(llm.captured_inputs[-1])
         started = _every(llm.captured_inputs[-1], "start_checkout")[-1]
         assert "never that it is done" in started and "As a guest, never a login" in started
-        assert "start_checkout done: the checkout's delivery form is on screen" in said
+        assert "start_checkout done: the guest checkout's delivery form is open" in said
         assert (
             "Still missing: email, región, comuna, dirección, número, nombre, apellidos, "
             "RUT (theirs to type), teléfono." in said
@@ -1154,7 +1344,7 @@ async def test_start_checkout_goes_as_a_guest_and_the_form_is_talked_through() -
         await rig.driver.user_says("Quiero comprarlo.")
         await rig.driver.user_says("Sigamos.")
         assert _every(llm.captured_inputs[-1], "start_checkout")[-1].startswith("Already there")
-        assert len(_commands(rig, "start_checkout")) == 1
+        assert len(_moves(rig, "start_checkout")) == 1
 
 
 async def test_start_checkout_with_an_empty_cart_moves_nothing() -> None:
@@ -1167,7 +1357,7 @@ async def test_start_checkout_with_an_empty_cart_moves_nothing() -> None:
         assert _every(llm.captured_inputs[-1], "start_checkout")[-1].startswith(
             "Not done: their cart is empty"
         )
-        assert "start_checkout" not in rig.actions()
+        assert not _moves(rig, "start_checkout")
 
 
 async def test_fill_checkout_returns_at_once_and_the_forms_message_is_talked_through() -> None:
@@ -1182,12 +1372,8 @@ async def test_fill_checkout_returns_at_once_and_the_forms_message_is_talked_thr
         turn = await rig.driver.user_says("Mi correo es test arroba example punto com.")
         check_turn(rig, turn)
         assert len(llm.requests) == before + 1
-        assert rig.command("fill_checkout") == _NO_FILL | {"email": "test@example.com"}
-        await _page(
-            rig,
-            "command_done",
-            {"command": "fill_checkout", "detail": "filled email; nothing was pressed"},
-        )
+        assert _move(rig, "fill_checkout") == _NO_FILL | {"email": "test@example.com"}
+        await _answer(rig, "fill_checkout", detail="filled email; nothing was pressed")
         flagged = _form(
             filled=["email"],
             missing=[*_ALL_MISSING[1:], "rut", "phone"],
@@ -1223,14 +1409,14 @@ async def test_a_phone_is_the_digits_they_said_never_reshaped() -> None:
         await rig.driver.user_says(
             "Mi teléfono es nueve uno dos tres cuatro cinco seis siete ocho."
         )
-        assert rig.command("fill_checkout") == _NO_FILL | {"phone": "912345678"}
-        await _page(rig, "command_done", {"command": "fill_checkout", "detail": "filled teléfono"})
+        assert _move(rig, "fill_checkout") == _NO_FILL | {"phone": "912345678"}
+        await _answer(rig, "fill_checkout", detail="filled teléfono")
         # Said in pairs, as Chileans read a celular, with the country's +56.
         await rig.driver.user_says(
             "Mi celular es nueve, ochenta y dos, cuarenta y seis, trece, cincuenta y siete."
         )
-        assert _commands(rig, "fill_checkout")[-1] == _NO_FILL | {"phone": "982461357"}
-        await _page(rig, "command_done", {"command": "fill_checkout", "detail": "filled teléfono"})
+        assert _moves(rig, "fill_checkout")[-1] == _NO_FILL | {"phone": "982461357"}
+        await _answer(rig, "fill_checkout", detail="filled teléfono")
         # A digit changed, or too few: refused, nothing sent.
         await rig.driver.user_says("Es el nueve ocho siete seis cinco cuatro tres dos uno.")
         await rig.driver.user_says("Es el doce trece.")
@@ -1244,7 +1430,7 @@ async def test_a_phone_is_the_digits_they_said_never_reshaped() -> None:
         assert results[3].startswith("Not filled: phone: 1 2 1 3 (they said")
         assert "is not a Chilean number" in results[3]
         assert "The phone sent: 9 8 2 4 6 1 3 5 7." in results[1]
-        assert len(_commands(rig, "fill_checkout")) == 2
+        assert len(_moves(rig, "fill_checkout")) == 2
 
 
 async def test_no_rut_is_ever_sent_even_when_the_visitor_says_one() -> None:
@@ -1259,7 +1445,7 @@ async def test_no_rut_is_ever_sent_even_when_the_visitor_says_one() -> None:
         assert result.startswith("Not filled:")
         assert "the RUT is theirs to type" in result and "it looks like a RUT" in result
         # Nothing reached the page, and the tool never repeats it.
-        assert "fill_checkout" not in rig.actions()
+        assert not _moves(rig, "fill_checkout")
         for digits in ("12.345.678", "12345678", "123456785"):
             assert digits not in result
             assert all(digits not in str(c) for c in rig.driver.ui_commands)  # type: ignore[attr-defined]
@@ -1275,9 +1461,9 @@ async def test_region_and_comuna_are_the_sites_names_and_a_comuna_needs_its_regi
             "comuna: the form lists comunas once a región is chosen"
             in (_every(llm.captured_inputs[-1], "fill_checkout")[-1])
         )
-        assert "fill_checkout" not in rig.actions()
+        assert not _moves(rig, "fill_checkout")
         await rig.driver.user_says("Vivo en Providencia, Santiago, en Calle Falsa 123, depto 45.")
-        assert rig.command("fill_checkout") == _NO_FILL | {
+        assert _move(rig, "fill_checkout") == _NO_FILL | {
             "region": "Metropolitana",
             "comuna": "Providencia",
             "street": "Calle Falsa",
@@ -1294,11 +1480,11 @@ async def test_one_checkout_move_at_a_time() -> None:
         await rig.driver.user_says(
             "Mi teléfono es nueve uno dos tres cuatro cinco seis siete ocho."
         )
-        assert _commands(rig, "fill_checkout") == [
+        assert _moves(rig, "fill_checkout") == [
             _NO_FILL | {"first_name": "Ana", "last_name": "Prueba"}
         ]
-        await _page(rig, "command_done", {"command": "fill_checkout", "detail": "filled nombre"})
-        assert _commands(rig, "fill_checkout")[-1] == _NO_FILL | {"phone": "912345678"}
+        await _answer(rig, "fill_checkout", detail="filled nombre")
+        assert _moves(rig, "fill_checkout")[-1] == _NO_FILL | {"phone": "912345678"}
 
 
 # ─── Changing the cart (a live call, 2026-10-23) ───────────────────────────────
@@ -1378,14 +1564,10 @@ async def test_he_changes_a_cart_line_and_takes_one_out_by_path_or_name() -> Non
         await _page(rig, "cart_state", TWO_LINES)
         turn = await rig.driver.user_says("Deja solo una gris.")
         check_turn(rig, turn)
-        assert _commands(rig, "update_cart_item") == [{"path": S2G, "qty": 1}]
+        assert _moves(rig, "update_cart_item") == [{"path": S2G, "qty": 1}]
         # The page answers: the bag line has one now, talked through once.
         await _page(rig, "cart_state", {**TWO_LINES, "items": [{**S2G_LINE, "qty": 1}, S2_LINE]})
-        await _page(
-            rig,
-            "command_done",
-            {"command": "update_cart_item", "detail": "set it to 1 in the bag (it had 2)"},
-        )
+        await _answer(rig, "update_cart_item", detail="set it to 1 in the bag (it had 2)")
         assert _idle_windows(rig)[-1] == _TALK_THROUGH_MS
         await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
         said = _texts(llm.captured_inputs[-1])
@@ -1399,11 +1581,11 @@ async def test_he_changes_a_cart_line_and_takes_one_out_by_path_or_name() -> Non
         assert f"{STORE.products[S2G].name} ({S2G}) x2" in _texts(llm.captured_inputs[-1])
         # By the name the cart shows: taken out with 0.
         await rig.driver.user_says("Quita las blancas.")
-        assert _commands(rig, "update_cart_item")[-1] == {"path": S2, "qty": 0}
-        await _page(rig, "command_done", {"command": "update_cart_item", "detail": "took it out"})
+        assert _moves(rig, "update_cart_item")[-1] == {"path": S2, "qty": 0}
+        await _answer(rig, "update_cart_item", detail="took it out")
         await _page(rig, "cart_state", {**TWO_LINES, "items": [{**S2G_LINE, "qty": 1}], "count": 1})
         # Not a line of the cart, nothing to change, or out of range: refused.
-        sent = len(_commands(rig, "update_cart_item"))
+        sent = len(_moves(rig, "update_cart_item"))
         await rig.driver.user_says("Quita la toalla.")
         await rig.driver.user_says("Deja dos grises.")
         await rig.driver.user_says("Pon once grises.")
@@ -1416,7 +1598,7 @@ async def test_he_changes_a_cart_line_and_takes_one_out_by_path_or_name() -> Non
         assert not any("Nothing to change" in r for r in refused)
         assert any("the quantity is 0 (take it out) to 10" in r for r in refused)
         # Two grey sets asked for while one is in the bag: that is a change.
-        assert _commands(rig, "update_cart_item")[sent:] == [{"path": S2G, "qty": 2}]
+        assert _moves(rig, "update_cart_item")[sent:] == [{"path": S2G, "qty": 2}]
         assert not {"start_checkout", "fill_checkout"} & set(rig.actions())
 
 
@@ -1431,7 +1613,7 @@ async def test_a_cart_line_already_at_that_quantity_is_left_alone() -> None:
         assert (
             result == f"Nothing to change: their cart already has 2 of {STORE.products[S2G].name}."
         )
-        assert _commands(rig, "update_cart_item") == []
+        assert _moves(rig, "update_cart_item") == []
 
 
 async def test_the_prompt_lets_him_change_the_cart_and_says_saturday_is_shorter() -> None:
@@ -1449,12 +1631,12 @@ async def test_a_move_the_model_calls_with_tools_off_is_refused_and_never_sent()
     async with demo("cannonhome", llm) as rig:
         await rig.driver.start_session(init={"path": S2G})
         await rig.driver.user_says("Agrega las grises.")
-        assert _commands(rig, "add_to_cart") == [{"path": S2G, "qty": 1}]
+        assert _moves(rig, "add_to_cart") == [{"path": S2G, "qty": 1}]
         await _page(rig, "cart_state", {**TWO_LINES, "items": [{**S2G_LINE, "qty": 1}], "count": 1})
-        await _page(rig, "command_done", {"command": "add_to_cart", "detail": "added 1"})
+        await _answer(rig, "add_to_cart", detail="added 1")
         await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
         # The quiet spell's model called add_to_cart again: refused, not sent.
-        assert _commands(rig, "add_to_cart") == [{"path": S2G, "qty": 1}]
+        assert _moves(rig, "add_to_cart") == [{"path": S2G, "qty": 1}]
         await rig.driver.user_says("Sigamos.")
         refused = _every(llm.captured_inputs[-1], "add_to_cart")[-1]
         assert refused.startswith("Not done, nothing was sent: this turn only talks through")
@@ -1467,13 +1649,13 @@ async def test_the_same_move_asked_for_while_it_runs_is_not_sent_twice() -> None
         await rig.driver.user_says("Agrega las grises.")
         # On the call: the same add, called again before the page answered it.
         await rig.driver.user_says("¿Cuándo llegan?")
-        assert _commands(rig, "add_to_cart") == [{"path": S2G, "qty": 1}]
+        assert _moves(rig, "add_to_cart") == [{"path": S2G, "qty": 1}]
         await rig.driver.user_says("Sigamos.")
         again = _every(llm.captured_inputs[-1], "add_to_cart")[-1]
         assert again.startswith("Not sent again: the page is already doing exactly this")
         # Its answer sends nothing more: nothing was queued behind it.
         await _page(rig, "cart_state", {**TWO_LINES, "items": [{**S2G_LINE, "qty": 1}], "count": 1})
-        assert _commands(rig, "add_to_cart") == [{"path": S2G, "qty": 1}]
+        assert _moves(rig, "add_to_cart") == [{"path": S2G, "qty": 1}]
 
 
 async def test_his_own_sentence_about_the_cart_never_opens_the_cart_page() -> None:
@@ -1481,7 +1663,7 @@ async def test_his_own_sentence_about_the_cart_never_opens_the_cart_page() -> No
     async with demo("cannonhome", llm) as rig:
         await rig.driver.start_session(init={"path": S2})
         await rig.driver.user_says("When will these items be deliverable?")
-        paths = [c.get("path") for c in _commands(rig, "cue")]
+        paths = [c["args"][0] for c in _cues(rig) if c["move"] == "page.open"]
         assert "/checkout/cart" not in paths
         # What they asked about is shown instead: the delivery policy.
         assert paths[0] == DESPACHO

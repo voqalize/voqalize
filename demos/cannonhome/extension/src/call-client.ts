@@ -7,9 +7,8 @@
  */
 
 import { PipecatClient, type PipecatClientOptions } from "@pipecat-ai/client-js";
+import type { MicState } from "@voqalize/stage/extension";
 import { createVoqalizeTransport, VoqalizeMediaManager } from "@voqalize/client-transport";
-
-import type { MicState } from "./protocol";
 
 export function makeClient(output: HTMLAudioElement, callbacks: PipecatClientOptions["callbacks"]): PipecatClient {
   // Local media on `@voqalize/client-transport`, not pipecat's default, which
@@ -20,7 +19,7 @@ export function makeClient(output: HTMLAudioElement, callbacks: PipecatClientOpt
   return new PipecatClient({ transport, enableMic: true, enableCam: false, callbacks });
 }
 
-/** The extension's own microphone permission, which is what this document's
+/** The extension's own microphone permission, which is what the holder's
  *  `getUserMedia` is held to (never cannonhome.cl's). */
 export async function micState(): Promise<MicState> {
   try {

@@ -1,9 +1,10 @@
 """What the visitor's tabs report — the page→brain half of the screen contract.
 
-The other direction is the :class:`~voqalize.sdk.Action` classes in
-``brain.py``. These are sent by the extension on cannonhome.cl, and they fire
-for the visitor's own clicks as well as for Javier's moves, so his picture of
-their screen is true whoever moved it.
+The other direction is Stage's moves and the two Actions in ``brain.py``.
+These are sent by the extension on cannonhome.cl, and they fire for the
+visitor's own clicks as well as for Javier's moves, so his picture of their
+screen is true whoever moved it. Each of his moves is answered by Stage's own
+``stage_result``, parsed here beside the site's events.
 
 **Prices and stock come only from here.** The brain never fetches the store
 (its servers cannot reach it, and the HTML it serves is cached for hours): the
@@ -24,6 +25,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from voqalize.sdk import AppEvent, AppEvents
+from voqalize.sdk.stage import StageHello, StageResult
 
 __all__ = [
     "CANNONHOME_EVENTS",
@@ -32,8 +34,6 @@ __all__ = [
     "CartState",
     "CheckoutInvalid",
     "CheckoutState",
-    "CommandDone",
-    "CommandFailed",
     "LanguageRequested",
     "ListingItem",
     "ListingShown",
@@ -80,27 +80,6 @@ class TabsChanged(AppEvent):
 
     tabs: list[TabInfo] = Field(default_factory=list[TabInfo])
     active: str = ""
-
-
-class CommandFailed(AppEvent):
-    """A move Javier sent could not be carried out on the page."""
-
-    command: str
-    error: str = ""
-    reason: str = ""
-    """The same as ``error``: the sibling extensions name it ``reason``."""
-
-    @property
-    def why(self) -> str:
-        return self.error or self.reason or "failed"
-
-
-class CommandDone(AppEvent):
-    """A move Javier sent was carried out: the page now shows what he asked."""
-
-    command: str
-    detail: str = ""
-    """What is on screen now, in a few English words."""
 
 
 class LanguageRequested(AppEvent):
@@ -258,8 +237,6 @@ class CheckoutState(AppEvent):
 type CannonHomeEvent = (
     PageChanged
     | TabsChanged
-    | CommandDone
-    | CommandFailed
     | LanguageRequested
     | ProductShown
     | ListingShown
@@ -267,13 +244,13 @@ type CannonHomeEvent = (
     | PricesRead
     | CartState
     | CheckoutState
+    | StageResult
+    | StageHello
 )
 
 CANNONHOME_EVENTS = AppEvents[CannonHomeEvent](
     PageChanged,
     TabsChanged,
-    CommandDone,
-    CommandFailed,
     LanguageRequested,
     ProductShown,
     ListingShown,
@@ -281,4 +258,6 @@ CANNONHOME_EVENTS = AppEvents[CannonHomeEvent](
     PricesRead,
     CartState,
     CheckoutState,
+    StageResult,
+    StageHello,
 )
