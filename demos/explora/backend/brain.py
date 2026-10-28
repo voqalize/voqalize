@@ -1500,6 +1500,11 @@ class ExploraBrain(OpenAIBrain):
         #: A page this reply opened never came up: the rest of it, which is
         #: about that page, is not said, and its cues are not sent.
         late = False
+        #: The page this reply has opened. One page a reply: on prod call
+        #: 661f3df0 a reply opened the Atacama lodge and then, at once, the
+        #: Atacama desert page, so the screen jumped past the page he was
+        #: describing. A second page cue is dropped; its words are still said.
+        moved: str | None = None
         try:
             async for event in turn:
                 if isinstance(event, SpeechStart):
@@ -1543,6 +1548,14 @@ class ExploraBrain(OpenAIBrain):
                         continue
                     if self._site == "site" and target == self._path:
                         continue  # Already there: a show cue after it does the rest.
+                    if moved is not None:
+                        logger.info(
+                            "explora: second page cue {!r} in one reply, after {}; dropped",
+                            value,
+                            moved,
+                        )
+                        continue
+                    moved = target
                     # Nothing said yet: a line of mine, so the load is not silence.
                     if opened and not said and not lined:
                         lined = True
