@@ -31,7 +31,7 @@ articles those pages link to, and writes, next to this file:
   animated counters as 0 and shows only the first tab of a spec table; a
   counter's 0 is dropped from ``text``.
 - ``L3/documents.json`` — every product PDF (``/docs/datasheets``, ``manuals``,
-  ``guides``, ``product-documents``, ``esg``), read page by page with pypdf:
+  ``guides``, ``product-documents``, ``esg``, ``brochures``), read page by page with pypdf:
   ``[{id, url, title, kind, pages: [{n, text}], linked_from}]``. ``text`` keeps
   pypdf's reading order with whitespace collapsed inside each line, which is
   what pdf.js puts in its text layer, so a quote taken from here can be found
@@ -89,7 +89,7 @@ UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML,
 # /solar-cell-technology, ...): follow every site link any page carries, except
 # into the asset trees.
 SKIP_PREFIXES = ("/_next", "/docs/", "/api/", "/cdn-cgi/")
-PRODUCT_DIRS = ("datasheets", "manuals", "guides", "product-documents", "esg")
+PRODUCT_DIRS = ("datasheets", "manuals", "guides", "product-documents", "esg", "brochures")
 
 PDF_RE = re.compile(
     r"""(?:https?:)?(?:\\?/\\?/(?:www\.)?saatvikgroup\.com)?\\?/docs\\?/[^"'<>\s\\]*?(?:\\/[^"'<>\s\\]*?)*\.pdf""",
@@ -612,6 +612,8 @@ def doc_kind(p: str) -> str:
         return "datasheet"
     if d == "guides":
         return "guide"
+    if d == "brochures":
+        return "brochure"
     if d == "esg":
         return "policy"
     return "manual"

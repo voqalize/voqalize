@@ -68,7 +68,7 @@ def norm(text: str) -> str:
 
 #: Paths the site answers with a permanent redirect, by their targets. Next's
 #: router follows one softly, but with an extra round trip, and the page then
-#: reports the target's path; so a move goes straight there. Found 2026-10-14 by
+#: reports the target's path; so a move goes straight there. Found 2026-10-14 (the last two 2026-10-28) by
 #: fetching every crawled path with ``RSC: 1``: every other path answers with
 #: the router's own payload.
 REDIRECTS: dict[str, str] = {
@@ -76,6 +76,8 @@ REDIRECTS: dict[str, str] = {
     "/saatvik-solar-gti-inverter": "/inverters",
     "/epc-solutions/carport-solar-solutions": "/epc-solutions/carport",
     "/epc-solutions/roof-top": "/epc-solutions/rooftop/commercial",
+    "/modules/mono-perc/mono-perc-modules": "/modules/mono-perc",
+    "/modules/n-topcon/bifacial-g2g": "/modules/bifacial-g2g-m10r",
 }
 
 

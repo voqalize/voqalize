@@ -1299,9 +1299,7 @@ class SaatvikBrain(OpenAIBrain):
         page = self.kb.page(path)
         if page is None:
             return None
-        sections = [(s.heading, s.text) for s in page.sections] or [
-            (h, "") for h in page.headings
-        ]
+        sections = [(s.heading, s.text) for s in page.sections] or [(h, "") for h in page.headings]
         return best_section(sentence, sections)
 
     def _cue_for(self, raw: RawCue) -> Cue | None:
@@ -1329,8 +1327,10 @@ class SaatvikBrain(OpenAIBrain):
                 return Cue(at=raw.at, word=raw.word, path=found[0], faq=question)
             return Cue(at=raw.at, word=raw.word, path=path, faq=question)
         if raw.kind == "tab":
-            tabs = list(target.tabs) if target and moved else self._tabs() or (
-                list(target.tabs) if target else []
+            tabs = (
+                list(target.tabs)
+                if target and moved
+                else self._tabs() or (list(target.tabs) if target else [])
             )
             label = _match(raw.value, tabs)
             if label is None:

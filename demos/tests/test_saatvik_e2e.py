@@ -760,7 +760,7 @@ async def test_a_reply_that_is_only_a_cue_is_asked_to_speak() -> None:
         check_turn(rig, turn, units=1)
         assert turn.text.startswith("This is the Test Panel.")
         assert _cues(rig)[0]["path"] == PANEL
-        first, again = llm.requests[before:]
+        _, again = llm.requests[before:]
         assert again.get("tool_choice") == "none"
 
 

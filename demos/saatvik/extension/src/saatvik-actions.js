@@ -183,6 +183,8 @@
     "/saatvik-solar-gti-inverter": "/inverters",
     "/epc-solutions/carport-solar-solutions": "/epc-solutions/carport",
     "/epc-solutions/roof-top": "/epc-solutions/rooftop/commercial",
+    "/modules/mono-perc/mono-perc-modules": "/modules/mono-perc",
+    "/modules/n-topcon/bifacial-g2g": "/modules/bifacial-g2g-m10r",
   };
 
   function redirected(url) {
