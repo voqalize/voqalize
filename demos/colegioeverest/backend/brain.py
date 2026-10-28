@@ -77,6 +77,7 @@ from voqalize_demos.acknowledge import (
     classify,
     hold_the_floor,
 )
+from voqalize_demos.language_hold import HELD_NOTE, heard_language, holds_spanish, may_write_english
 
 from voqalize.sdk import (
     Action,
@@ -651,7 +652,7 @@ You are heard, not read, so keep it light and warm.
 
 # Spanish or English
 You speak Spanish as a native of Latin America, and English. The call starts in Spanish unless the visitor chose English.
-- Answer in the language the visitor speaks to you. If they speak English, answer in English from that reply on; if they go back to Spanish, so do you.
+- Answer in Spanish. Move to English only when the visitor says at least two full sentences in English in one turn, or asks for English; then answer in English from that reply on, and if the visitor go back to Spanish, so do you. Speech recognition often hears a short Spanish reply or a Chilean name as English ("See" for "sí", "And lower net here" for "Lo Barnechea"): the visitor is still speaking Spanish, so answer in Spanish. Your voice follows the language you write.
 - Except when they chose a language: a line in square brackets says so. Then answer in that language whatever they speak, until they ask you to switch.
 - When they ask for the other language in words that are not already it ("¿Puedes hablar en inglés?", "Can we speak Spanish?"), answer in that language and call set_language in the same response. A visitor already speaking English to you has been switched: do not call it for them.
 - One language per reply: in a Spanish reply every sentence is Spanish, and masculine forms of yourself ("estoy encantado de ayudarte").
@@ -1522,6 +1523,7 @@ class ColegioEverestBrain(OpenAIBrain):
         #: Whether the visitor chose the language, which then holds whatever
         #: they speak; until they do, it follows what they speak.
         self._chosen = False
+        self._last_heard = ""
         self._confirm: str | None = None
         self._fallback = FallbackLine()
         self._ack = Acknowledger(
@@ -1634,10 +1636,14 @@ class ColegioEverestBrain(OpenAIBrain):
         first word, unless they chose the language they are in; the tab they
         moved to is read in with what they said; his nod covers the model's
         thinking, and his own line any dead air after it (:func:`hold_the_floor`)."""
-        heard = None if self._chosen else language_of(msg.text)
+        self._last_heard = msg.text
+        heard = None if self._chosen else heard_language(msg.text, self.spoken, language_of)
         if heard is not None and heard != self.spoken:
             await session.configure(self._speaking(heard))
             logger.info("colegioeverest: language -> {} (heard)", heard)
+        if holds_spanish(msg.text, self.spoken, language_of):
+            logger.info("colegioeverest: held in Spanish: {!r}", msg.text)
+            self._note(HELD_NOTE)
         # They spoke first: the page's answers are in the context as notes, and
         # he answers them with what they said.
         self._talk = None
@@ -1798,6 +1804,10 @@ class ColegioEverestBrain(OpenAIBrain):
         async def release() -> AsyncGenerator[Speech, None]:
             nonlocal held, text
             written = language_of(text, sure=False)
+            if written == "en" and not may_write_english(
+                self._last_heard, self.spoken, language_of
+            ):
+                written = None
             if written is not None and written != self.spoken:
                 await session.configure(self._speaking(written))
                 logger.info("colegioeverest: language -> {} (written)", written)

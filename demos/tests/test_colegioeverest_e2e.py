@@ -629,7 +629,9 @@ async def test_the_toggle_switches_both_legs_and_confirms_each_way() -> None:
 async def test_english_heard_switches_before_he_answers_and_spanish_switches_back() -> None:
     async with demo("colegioeverest", _llm()) as rig:
         await rig.driver.start_session(init={"path": "/"})
-        turn = await rig.driver.user_says("Hi, can you tell me how admission works?")
+        turn = await rig.driver.user_says(
+            "Hi, can you tell me how admission works? I would like to know more, please."
+        )
         check_turn(rig, turn)
         check_voice_pair(rig, voice="omnivoice/javier", language="en")
         turn = await rig.driver.user_says("¿Tienen inglés?")

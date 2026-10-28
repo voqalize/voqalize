@@ -427,7 +427,9 @@ async def test_a_chosen_language_holds_when_the_visitor_speaks_the_other() -> No
 async def test_english_heard_moves_the_call_and_spanish_brings_it_back() -> None:
     async with demo("clini", _llm()) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/"})
-        turn = await rig.driver.user_says("How much is a knee MRI?")
+        turn = await rig.driver.user_says(
+            "How much is a knee MRI? I would like to know more, please."
+        )
         check_turn(rig, turn)
         check_voice_pair(rig, voice="omnivoice/javier", language="en")
         await rig.driver.user_says("Hola, ¿cómo estás?")

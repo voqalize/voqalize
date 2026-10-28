@@ -73,6 +73,7 @@ from voqalize_demos.acknowledge import (
     classify,
     hold_the_floor,
 )
+from voqalize_demos.language_hold import HELD_NOTE, heard_language, holds_spanish, may_write_english
 
 from voqalize.sdk import (
     Action,
@@ -1036,7 +1037,7 @@ You are heard, not read.
 
 # Spanish or English
 You speak Spanish as a native of Latin America, and English. The call starts in Spanish unless the visitor chose English.
-- Answer in the language the visitor speaks to you; your voice follows the language you write. Except when they chose a language (a bracket line says so): then keep it until they ask to switch.
+- Answer in Spanish. Move to English only when the visitor says at least two full sentences in English in one turn, or asks for English; then answer in English from that reply on, and if the visitor go back to Spanish, so do you. Speech recognition often hears a short Spanish reply or a Chilean name as English ("See" for "sí", "And lower net here" for "Lo Barnechea"): the visitor is still speaking Spanish, so answer in Spanish. Your voice follows the language you write. Except when they chose a language (a bracket line says so): then keep it until they ask to switch.
 - When they ask for the other language in words that are not already it, answer in that language and call set_language in the same response.
 - One language per reply, and masculine forms for yourself ("encantado de ayudarte").
 - Your Spanish is neutral Latin American Spanish, natural for a Chilean visitor, never the Spanish of Spain and never heavy slang:
@@ -1525,6 +1526,7 @@ class UnoSaludBrain(OpenAIBrain):
         self._heard_at = float("-inf")
         self.spoken: Lang = OPENING
         self._chosen = False
+        self._last_heard = ""
         self._confirm: str | None = None
         self._fallback = FallbackLine()
         self._ack: Acknowledger[Lang] = _Nods(
@@ -1621,10 +1623,14 @@ class UnoSaludBrain(OpenAIBrain):
     async def _answer(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
         """As Clini: the language they speak, the screen read in, his nod, and
         the floor held through the model's thinking."""
-        heard = None if self._chosen else language_of(msg.text)
+        self._last_heard = msg.text
+        heard = None if self._chosen else heard_language(msg.text, self.spoken, language_of)
         if heard is not None and heard != self.spoken:
             await session.configure(self._speaking(heard))
             logger.info("unosalud: language -> {} (heard)", heard)
+        if holds_spanish(msg.text, self.spoken, language_of):
+            logger.info("unosalud: held in Spanish: {!r}", msg.text)
+            self._note(HELD_NOTE)
         self._talk = None
         self._led = None
         self._outcomes.clear()
@@ -1790,6 +1796,10 @@ class UnoSaludBrain(OpenAIBrain):
         async def release() -> AsyncGenerator[Speech, None]:
             nonlocal held, text
             written = language_of(text, sure=False)
+            if written == "en" and not may_write_english(
+                self._last_heard, self.spoken, language_of
+            ):
+                written = None
             if written is not None and written != self.spoken:
                 await session.configure(self._speaking(written))
                 logger.info("unosalud: language -> {} (written)", written)

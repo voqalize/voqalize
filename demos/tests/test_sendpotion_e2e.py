@@ -380,7 +380,7 @@ async def test_spanish_heard_switches_before_he_answers_and_english_switches_bac
         check_turn(rig, turn)
         check_voice_pair(rig, voice="omnivoice/javier", language="es")
         assert rig.command("language_changed") == {"language": "es"}
-        turn = await rig.driver.user_says("How much is it?")
+        turn = await rig.driver.user_says("How much is it? I would like to know more, please.")
         check_turn(rig, turn)
         check_voice_pair(rig, voice="omnivoice/javier", language="en")
         assert _language_changes(rig) == [{"language": "es"}, {"language": "en"}]
