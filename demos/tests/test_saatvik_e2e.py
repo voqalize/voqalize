@@ -1,4 +1,4 @@
-"""Tushar, Saatvik's solar advisor, end to end over the wire — no network, no LLM key.
+"""Sunny, Saatvik's solar advisor, end to end over the wire — no network, no LLM key.
 
 The real ``SaatvikBrain`` on a real ``brain_server`` socket, driven by the
 conformance ``VoqalizeDriver``, with only the model scripted. The knowledge is a
@@ -7,17 +7,22 @@ so no test depends on what the crawl found this week.
 
 What this demo earns that others do not:
 
-**Nothing on the page is invented.** A path, a heading, an FAQ and a PDF quote
-are checked before they reach the page; the assertion worth making is on what
-crossed the wire, and on what did not.
+**Nothing on the page is invented.** A path, a heading, a spec tab, an FAQ and
+a PDF quote are checked before they reach the page; the assertion worth making
+is on what crossed the wire, and on what did not.
+
+**The screen follows her voice.** The page moves by the cues she writes into
+her reply, never by a tool: each is taken out of the speech, checked, and sent
+anchored to the first words of its sentence. A sentence about a section she
+forgot to cue gets one of the brain's own.
 
 **The form is the visitor's.** The prefill carries what they said and nothing
 else — no consent, no submit — and a submitted form becomes the brief the sales
 team receives, scored.
 
 **A result the page produced is talked through.** The calculator's estimate
-arrives after Tushar's turn; it reaches the model's next request, and a quiet
-visitor hears it from him in a short quiet spell.
+arrives after Sunny's turn; it reaches the model's next request, and a quiet
+visitor hears it from her in a short quiet spell.
 
 Run: ``cd demos && uv run pytest tests/test_saatvik_e2e.py``
 """
@@ -26,11 +31,18 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Iterator
+from typing import Any
 
 import pytest
-from google.genai import types
 from voqalize_demos.discovery import discover
-from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
+from voqalize_demos.testing import (
+    ScriptedOpenAI,
+    call,
+    input_texts,
+    reply,
+    reply_and_call,
+    tool_results,
+)
 
 from ._harness import _configs, check_greeting, check_turn, check_voice_pair, demo
 
@@ -43,6 +55,7 @@ from voqalize_demos._loaded.saatvik.brain import (  # noqa: E402
     _GREETING_HI,
     _IDLE_MS,
     _TALK_THROUGH_MS,
+    MODEL,
     TOGGLE_CONFIRM,
 )
 from voqalize_demos._loaded.saatvik.knowledge import (  # noqa: E402
@@ -50,6 +63,7 @@ from voqalize_demos._loaded.saatvik.knowledge import (  # noqa: E402
     Faq,
     Knowledge,
     Page,
+    Section,
     Word,
 )
 
@@ -66,9 +80,13 @@ def _line(text: str, y: float) -> tuple[Word, ...]:
 
 # A datasheet whose text is drawn as outlines: its words come from OCR, with the
 # OCR's own slips ("(y)" for a gamma), and a quote is marked by its boxes.
-_PMAX = "Temperature coefficient of Pmax (y) -0.30%/\u00b0C"
-_VOC = "Temperature coefficient of Voc (B) -0.26%/\u00b0C"
+_PMAX = "Temperature coefficient of Pmax (y) -0.30%/°C"
+_VOC = "Temperature coefficient of Voc (B) -0.26%/°C"
 _OCR_WORDS = _line(_PMAX, 0.40) + _line(_VOC, 0.45)
+
+PANEL = "/modules/test-panel"
+_HEADINGS = ("Test Panel 600", "Key Features", "Mechanical & Electrical Specifications")
+_TABS = ("ELECTRICAL", "MECHANICAL", "WARRANTY")
 
 # An invented site in the crawl's shape: the names and figures are ours.
 SITE = Knowledge(
@@ -78,13 +96,24 @@ SITE = Knowledge(
         "/": Page("/", "Home"),
         "/solar-calculator": Page("/solar-calculator", "Solar Calculator"),
         "/contact": Page("/contact", "Contact Us"),
-        "/modules/test-panel": Page(
-            "/modules/test-panel",
+        "/faq": Page(
+            "/faq",
+            "FAQs",
+            faqs=(Faq("How does net metering work?", "Your meter runs both ways."),),
+        ),
+        PANEL: Page(
+            PANEL,
             "Test Panel 600",
-            headings=("Test Panel 600", "Key Features", "Mechanical & Electrical Specifications"),
+            headings=_HEADINGS,
             faqs=(Faq("Does it work in the heat?", "Yes, its coefficient is low."),),
             text="A bifacial module for rooftops.",
             documents=("https://example.test/docs/test-panel.pdf",),
+            sections=(
+                Section("Test Panel 600", "A bifacial module for rooftops."),
+                Section("Key Features", "Low temperature coefficient. Rear side gain."),
+                Section("Mechanical & Electrical Specifications", "Anodised frame, glass."),
+            ),
+            tabs=_TABS,
         ),
     },
     documents={
@@ -97,7 +126,7 @@ SITE = Knowledge(
                 1: "Test Panel 600 Bifacial. Maximum Power 600 Wp. Module Efficiency 22.4%.",
                 2: "Temperature Characteristics: Temperature coefficient of Power (Pm) -0.30 %/ºC.",
             },
-            linked_from=("/modules/test-panel",),
+            linked_from=(PANEL,),
         ),
         "outlined-datasheet": Document(
             id="outlined-datasheet",
@@ -111,195 +140,191 @@ SITE = Knowledge(
 )
 
 PANEL_PAGE = {
-    "path": "/modules/test-panel",
+    "path": PANEL,
     "title": "Test Panel 600",
-    "headings": ["Test Panel 600", "Key Features", "Mechanical & Electrical Specifications"],
+    "headings": list(_HEADINGS),
     "faqs": ["Does it work in the heat?"],
+    "tabs": list(_TABS),
 }
+
+#: A cue's payload with nothing set: each test names what it expects.
+NONE: dict[str, Any] = {"path": None, "heading": None, "text": None, "tab": None, "faq": None}
 
 
 @pytest.fixture(autouse=True)
 def _site(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """Every session reads the invented site, not the committed crawl, and he
-    never nods unless a test asks him to: a nod is a unit of its own."""
+    """Every session reads the invented site, not the committed crawl, and she
+    never nods unless a test asks her to: a nod is a unit of its own."""
     monkeypatch.setattr(kb, "KNOWLEDGE", SITE)
     monkeypatch.setattr(saatvik, "ACK_RATE", 0.0)
     yield
 
 
-def _results(contents: list[types.Content]) -> dict[str, str]:
-    return {
-        p.function_response.name or "": str((p.function_response.response or {})["result"])
-        for c in contents
-        for p in (c.parts or [])
-        if p.function_response is not None
-    }
+def _results(items: list[Any]) -> dict[str, str]:
+    return tool_results(items)
 
 
-def _texts(contents: list[types.Content]) -> str:
-    return "\n".join(p.text or "" for c in contents for p in (c.parts or []))
+def _texts(items: list[Any]) -> str:
+    return input_texts(items)
 
 
-def _requests(llm: ScriptedGemini) -> list[types.GenerateContentConfig]:
-    """Every request's config, in call order, recorded as the brain sends it."""
-    seen: list[types.GenerateContentConfig] = []
-    answer = llm.answer
-
-    def recording(*, model: str, contents: object, config: types.GenerateContentConfig) -> object:
-        seen.append(config)
-        return answer(model=model, contents=contents, config=config)
-
-    llm.answer = recording
-    return seen
+def _names(request: dict[str, Any]) -> list[str]:
+    """The tools a request declared, by name."""
+    return [str(t.get("name")) for t in request.get("tools") or []]
 
 
-def _names(config: types.GenerateContentConfig) -> list[str]:
-    """The tools a request declares, by name."""
-    return [getattr(fn, "__name__", "") for fn in config.tools or []]
+def _cues(rig: object) -> list[dict[str, Any]]:
+    return [c["payload"] for c in rig.driver.ui_commands if c.get("command") == "cue"]  # type: ignore[attr-defined]
 
 
-def _llm() -> ScriptedGemini:
-    return ScriptedGemini(
+def _llm() -> ScriptedOpenAI:
+    return ScriptedOpenAI(
         {
-            "Take me to the panel page.": reply_and_call(
-                "Here's the panel.", "navigate", request={"path": "/modules/test-panel/"}
+            # Cues: out of the speech, checked against the site, sent to the page.
+            "Show me the panel.": reply(
+                f"{{page: {PANEL}}}{{show: Key Features}} It stays cool in the heat. "
+                "{show: mechanical} The frame is strong aluminium. Want the warranty next?"
             ),
-            "Take me to the moon page.": reply_and_call(
-                "Here it is.", "navigate", request={"path": "/moon"}
+            "Take me to the moon page.": reply("{page: /moon} That page is not on the site."),
+            "What's the warranty?": reply(
+                "{tab: warranty} It carries thirty years of cover. Shall I open the datasheet?"
             ),
-            "Where are the specs?": reply_and_call(
-                "Here are the specs.", "show_section", request={"heading": "mechanical"}
+            "What about shipping?": reply("{tab: shipping} It ships from the factory."),
+            "Show me the warranty section.": reply("{show: Warranty} Thirty years, in writing."),
+            "Does it like the heat?": reply("{faq: does it work in the heat} It does."),
+            "How does net metering work?": reply(
+                "{faq: how does net metering work} Your meter runs both ways."
             ),
-            "Show me the warranty section.": reply_and_call(
-                "Here.", "show_section", request={"heading": "Warranty"}
+            "मुझे पैनल दिखाइए।": reply(
+                f"{{page: {PANEL}}} जी, यह पैनल गर्मी में ठंडा रहता है। "
+                "{show: Key Features} इसकी खूबियाँ यहाँ हैं।"
             ),
-            "Does it like the heat?": reply_and_call(
-                "It does.", "open_faq", request={"question": "does it work in the heat"}
+            # No cue: the sentence that names a section of the page gets one.
+            "What makes it good?": reply(
+                "It is a bifacial module. Its key features suit hot roofs. Want the specs?"
             ),
             "What is the temperature coefficient?": [
-                call("search_site", request={"query": "temperature coefficient"}),
+                call("search_site", query="temperature coefficient"),
                 reply_and_call(
                     "Minus zero point three percent per degree.",
                     "open_document",
-                    request={
-                        "document_id": "test-panel-datasheet",
-                        "page": 2,
-                        "quote": "temperature coefficient of power (pm)  -0.30",
-                    },
+                    document_id="test-panel-datasheet",
+                    page=2,
+                    quote="temperature coefficient of power (pm)  -0.30",
                 ),
             ],
             "And its efficiency?": reply_and_call(
                 "Twenty-two point four percent.",
                 "open_document",
-                request={
-                    "document_id": "test-panel-datasheet",
-                    "page": 2,
-                    "quote": "Efficiency 22.4%",
-                },
+                document_id="test-panel-datasheet",
+                page=2,
+                quote="Efficiency 22.4%",
             ),
             "And the warranty?": reply_and_call(
                 "Thirty years.",
                 "open_document",
-                request={
-                    "document_id": "test-panel-datasheet",
-                    "page": 1,
-                    "quote": "30 year warranty",
-                },
+                document_id="test-panel-datasheet",
+                page=1,
+                quote="30 year warranty",
             ),
             "And on the outlined sheet?": reply_and_call(
                 "Minus zero point three.",
                 "open_document",
-                request={
-                    "document_id": "outlined-datasheet",
-                    "page": 1,
-                    "quote": "Temperature coefficient of Pmax -0.30%/\u00b0C",
-                },
+                document_id="outlined-datasheet",
+                page=1,
+                quote="Temperature coefficient of Pmax -0.30%/°C",
             ),
             "And both coefficients?": reply_and_call(
                 "Here are both.",
                 "open_document",
-                request={
-                    "document_id": "outlined-datasheet",
-                    "page": 2,
-                    "quote": f"{_PMAX} {_VOC}",
-                },
+                document_id="outlined-datasheet",
+                page=2,
+                quote=f"{_PMAX} {_VOC}",
             ),
-            # What the call told him goes to the lead with the form, once.
+            # What the call told her goes to the lead with the form, once.
             "We're a school in Pune, I'm Asha, and we'd like a quote.": reply_and_call(
                 "Here's the form; add your email and mobile, tick consent and submit.",
                 "open_enquiry",
-                request={
-                    "kind": "domestic",
-                    "category": "Solar EPC - Rooftop",
-                    "state": "Maharashtra",
-                    "name": "Asha",
-                    "segment": "institutional",
-                    "city": "Pune",
-                },
+                kind="domestic",
+                category="Solar EPC - Rooftop",
+                state="Maharashtra",
+                name="Asha",
+                segment="institutional",
+                city="Pune",
             ),
             "I use 500 units, about 4000 rupees, in Gujarat.": reply_and_call(
                 "That's about five hundred units.",
                 "run_calculator",
-                request={"state": "Gujarat", "monthly_units": 500, "monthly_bill_inr": 4000},
+                state="Gujarat",
+                monthly_units=500,
+                monthly_bill_inr=4000,
             ),
             "So how much would I save?": reply("About three thousand a month."),
             "estimate is on their screen": reply("You'd save about three thousand rupees a month."),
-            "just submitted the enquiry": reply("Thank you! When are you hoping to install?"),
+            "just submitted the enquiry": reply("Thank you. When are you hoping to install?"),
             "Find me a dealer in Goa.": reply_and_call(
-                "Here are the dealers.", "find_dealer", request={"state": "Goa", "city": "Panaji"}
+                "Here are the dealers.", "find_dealer", state="Goa", city="Panaji"
             ),
-            # Refused and silent: asked again with tools off, he asks in his own words.
+            # Refused and silent: asked again with tools off, she asks in her own words.
             "I use 350 units in Karnataka.": [
-                call("run_calculator", request={"state": "Karnataka", "monthly_units": 350}),
+                call("run_calculator", state="Karnataka", monthly_units=350),
                 reply("What rate do you pay per unit?"),
             ],
             # A state the visitor never named is not guessed: it is asked for. Silent
             # twice, so the written line asks.
             "I use 500 units at 6 rupees a unit.": [
-                call("run_calculator", request={"monthly_units": 500, "rate_per_unit": 6}),
-                call("run_calculator", request={"monthly_units": 500, "rate_per_unit": 6}),
+                call("run_calculator", monthly_units=500, rate_per_unit=6),
+                call("run_calculator", monthly_units=500, rate_per_unit=6),
             ],
             # BOOK NOW, by voice: the booking fills in as they talk.
             "Book the kit for my home.": reply_and_call(
                 "I've opened the booking for a home.",
                 "book_product",
-                request={"installation": "residential", "name": "Ravi", "city": "Bengaluru"},
+                installation="residential",
+                name="Ravi",
+                city="Bengaluru",
             ),
             "My pincode is 560102.": reply_and_call(
                 "I've added five six zero one zero two.",
                 "book_product",
-                request={"installation": "residential", "pincode": "560102"},
+                installation="residential",
+                pincode="560102",
             ),
             "Book this for my shop.": reply_and_call(
                 "I've opened the booking for a business.",
                 "book_product",
-                request={"installation": "commercial"},
-            ),
-            # Gemini sometimes sends a tool's fields flat, without ``request``.
-            "Show me the specs, flat.": reply_and_call(
-                "Here are the specs.", "show_section", heading="mechanical"
+                installation="commercial",
             ),
             # The form fills in as the visitor talks: each call adds, none clears.
             "I'm Ravi, from Bengaluru, I want a quote.": reply_and_call(
                 "I've put your name in.",
                 "open_enquiry",
-                request={"kind": "domestic", "name": "Ravi", "state": "Karnataka"},
+                kind="domestic",
+                name="Ravi",
+                state="Karnataka",
             ),
             "My mobile is 98475 41790.": reply_and_call(
                 "I've put nine eight four seven five, four one seven nine zero. Is that right?",
                 "open_enquiry",
-                request={"kind": "domestic", "mobile": "9847541790"},
+                kind="domestic",
+                mobile="9847541790",
             ),
-            # A page move with no words: the model is asked once more, tools off.
-            "Show me that panel.": [
-                call("navigate", request={"path": "/modules/test-panel"}),
-                reply("It's a bifacial panel made for rooftops. Do you get much heat there?"),
+            # A move with no words: the model is asked once more, tools off.
+            "Open the datasheet.": [
+                call("open_document", document_id="test-panel-datasheet", page=1),
+                reply("It's the panel's datasheet. Its maximum power is six hundred watts."),
             ],
-            # Silent twice: the second request may not call, so his written line speaks.
-            "Open the panel page.": [
-                call("navigate", request={"path": "/modules/test-panel"}),
-                call("navigate", request={"path": "/modules/test-panel"}),
+            # Silent twice: the second request may not call, so her written line speaks.
+            "Show me the datasheet.": [
+                call("open_document", document_id="test-panel-datasheet", page=1),
+                call("open_document", document_id="test-panel-datasheet", page=1),
             ],
+            # Only a cue, no words: the page moves and she is asked again to speak.
+            "Just the panel page.": [
+                reply("{page: /modules/test-panel}"),
+                reply("This is the Test Panel. It stays cool in the heat."),
+            ],
+            "What about warranty?": reply("Thirty years on performance."),
             "How does this one compare?": reply("TOPCon runs cooler."),
             "Against the mono.": reply("TOPCon beats Mono PERC in heat."),
             "Is TOPCon better than PERC?": reply("Yes, TOPCon. It handles heat better than PERC."),
@@ -321,14 +346,15 @@ def _idle_windows(rig: object) -> list[int | None]:
 
 
 async def test_greeting_and_voice_reach_the_wire() -> None:
-    """A written opener, and gaurav in English on both legs before it."""
+    """A written opener, and ananya in English on both legs before it."""
     async with demo("saatvik", _llm()) as rig:
         greeting = await rig.driver.start_session(
             init={"surface": "saatvik-ext", "page": "/", "lang": "en"}
         )
         check_greeting(rig, greeting)
         assert greeting is not None and greeting.text == _GREETING
-        check_voice_pair(rig, voice="omnivoice/gaurav", language="en")
+        assert greeting.text.startswith("Hi, I'm Sunny")
+        check_voice_pair(rig, voice="omnivoice/ananya", language="en")
         assert _idle_windows(rig) == [_IDLE_MS]
 
 
@@ -338,51 +364,156 @@ async def test_the_opener_follows_the_page_and_the_language() -> None:
             init={"surface": "saatvik-ext", "page": "/solar-calculator", "lang": "en"}
         )
         assert greeting is not None and "calculator" in greeting.text
+        assert greeting.text.startswith("Hi, I'm Sunny")
     async with demo("saatvik", _llm()) as rig:
         greeting = await rig.driver.start_session(
             init={"surface": "saatvik-ext", "page": "/", "lang": "hi"}
         )
         assert greeting is not None and greeting.text == _GREETING_HI
-        check_voice_pair(rig, voice="omnivoice/gaurav", language="hi")
+        # Her name, and a woman's Hindi: "सात्विक की सलाहकार", not "का".
+        assert "सनी" in greeting.text and "सात्विक की सोलर सलाहकार" in greeting.text
+        check_voice_pair(rig, voice="omnivoice/ananya", language="hi")
 
 
-async def test_navigate_goes_to_a_real_page_and_refuses_an_invented_one() -> None:
+async def test_the_page_moves_only_by_cues() -> None:
+    """No tool moves the page: navigate, show_section, open_faq and open_tab are
+    gone, and the model is never told of them."""
     llm = _llm()
     async with demo("saatvik", llm) as rig:
         await rig.driver.start_session(init={"page": "/"})
-        check_turn(rig, await rig.driver.user_says("Take me to the panel page."))
-        assert rig.command("navigate") == {"path": "/modules/test-panel"}
-        await rig.driver.user_says("Take me to the moon page.")
-        assert rig.actions().count("navigate") == 1
+        tools = {t.__name__ for t in rig.brain.tools}  # type: ignore[attr-defined]
+        assert not tools & {"navigate", "show_section", "open_faq", "open_tab"}
         await rig.driver.user_says("So how much would I save?")
-        refused = _results(llm.captured_contents[-1])["navigate"]
-        assert refused.startswith("Not opened: /moon is not a page")
+        declared = set(_names(llm.requests[-1]))
+        assert declared == {
+            "read_topic",
+            "search_site",
+            "open_document",
+            "close_document",
+            "run_calculator",
+            "find_dealer",
+            "open_enquiry",
+            "book_product",
+            "set_language",
+        }
 
 
-async def test_sections_and_faqs_are_checked_against_the_page() -> None:
+async def test_cues_leave_the_speech_and_move_the_page_with_it() -> None:
+    async with demo("saatvik", _llm()) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        turn = await rig.driver.user_says("Show me the panel.")
+        check_turn(rig, turn)
+        assert "{" not in turn.text and "}" not in turn.text
+        assert "page:" not in turn.text and "show:" not in turn.text
+        assert "It stays cool in the heat. The frame is strong aluminium." in turn.text
+        # The page, then its heading as the site spells it, both at the first
+        # sentence; a heading named by its first word, at the second. No cue is
+        # added to the closing offer.
+        assert _cues(rig) == [
+            {**NONE, "at": "it stays cool", "word": 0, "path": PANEL},
+            {**NONE, "at": "it stays cool", "word": 0, "path": PANEL, "heading": "Key Features"},
+            {
+                **NONE,
+                "at": "the frame is",
+                "word": 6,
+                "path": PANEL,
+                "heading": "Mechanical & Electrical Specifications",
+            },
+        ]
+        assert "navigate" not in rig.actions()
+
+
+async def test_a_cue_to_a_page_not_on_the_site_is_dropped() -> None:
+    async with demo("saatvik", _llm()) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        turn = await rig.driver.user_says("Take me to the moon page.")
+        check_turn(rig, turn)
+        assert "{" not in turn.text and "moon}" not in turn.text
+        assert turn.text.strip() == "That page is not on the site."
+        assert _cues(rig) == []
+
+
+async def test_tab_and_faq_cues_are_checked_against_the_page() -> None:
     llm = _llm()
     async with demo("saatvik", llm) as rig:
-        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.start_session(init={"page": PANEL})
         await _page(rig, "page_changed", PANEL_PAGE)
-        await rig.driver.user_says("Where are the specs?")
-        assert rig.command("show_section") == {
-            "heading": "Mechanical & Electrical Specifications",
-            "text": None,
-        }
+        await rig.driver.user_says("What's the warranty?")
+        # The page's own label, from the visitor's lower case.
+        assert _cues(rig) == [{**NONE, "at": "it carries thirty", "word": 0, "tab": "WARRANTY"}]
         # The page the visitor opened was read in with what they said.
-        assert "Its sections: Test Panel 600" in _texts(llm.captured_contents[-1])
+        seen = _texts(llm.captured_inputs[-1])
+        assert "Its sections: Test Panel 600" in seen
+        assert "Its spec tabs: ELECTRICAL, MECHANICAL, WARRANTY" in seen
+        # A tab the page does not have is dropped.
+        await rig.driver.user_says("What about shipping?")
+        assert len(_cues(rig)) == 1
+        # A heading the page does not have rings the words instead.
         await rig.driver.user_says("Show me the warranty section.")
-        assert rig.actions().count("show_section") == 1
+        assert _cues(rig)[-1] == {**NONE, "at": "thirty years in", "word": 0, "text": "Warranty"}
+        # An FAQ on the page in front, in the page's own words.
         await rig.driver.user_says("Does it like the heat?")
-        assert rig.command("open_faq") == {"question": "Does it work in the heat?"}
+        assert _cues(rig)[-1] == {
+            **NONE,
+            "at": "it does",
+            "word": 0,
+            "faq": "Does it work in the heat?",
+        }
+
+
+async def test_an_faq_on_another_page_carries_that_page() -> None:
+    async with demo("saatvik", _llm()) as rig:
+        await rig.driver.start_session(init={"page": PANEL})
+        turn = await rig.driver.user_says("How does net metering work?")
+        check_turn(rig, turn)
+        assert _cues(rig) == [
+            {
+                **NONE,
+                "at": "your meter runs",
+                "word": 0,
+                "path": "/faq",
+                "faq": "How does net metering work?",
+            }
+        ]
+
+
+async def test_a_hindi_reply_anchors_its_cues_to_devanagari_words() -> None:
+    async with demo("saatvik", _llm()) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        turn = await rig.driver.user_says("मुझे पैनल दिखाइए।")
+        check_turn(rig, turn)
+        assert "{" not in turn.text and "Key Features" not in turn.text
+        check_voice_pair(rig, voice="omnivoice/ananya", language="hi")
+        # The cue stays in the site's English; the anchor is what the voice says.
+        assert _cues(rig) == [
+            {**NONE, "at": "जी यह पैनल", "word": 0, "path": PANEL},
+            {
+                **NONE,
+                "at": "इसकी खूबियाँ यहाँ",
+                "word": 8,
+                "path": PANEL,
+                "heading": "Key Features",
+            },
+        ]
+
+
+async def test_a_sentence_about_a_section_she_did_not_cue_gets_one() -> None:
+    async with demo("saatvik", _llm()) as rig:
+        await rig.driver.start_session(init={"page": PANEL})
+        turn = await rig.driver.user_says("What makes it good?")
+        check_turn(rig, turn)
+        # Only the sentence that names a heading: not the opener, not the offer.
+        assert _cues(rig) == [
+            {**NONE, "at": "its key features", "word": 5, "heading": "Key Features"}
+        ]
 
 
 async def test_a_pdf_quote_is_verified_moved_or_dropped() -> None:
     llm = _llm()
     async with demo("saatvik", llm) as rig:
-        await rig.driver.start_session(init={"page": "/modules/test-panel"})
+        await rig.driver.start_session(init={"page": PANEL})
         await rig.driver.user_says("What is the temperature coefficient?")
-        found = _results(llm.captured_contents[-1])["search_site"]
+        found = _results(llm.captured_inputs[-1])["search_site"]
         assert "document_id: test-panel-datasheet, page 2" in found
         opened = [
             c["payload"] for c in rig.driver.ui_commands if c.get("command") == "open_document"
@@ -408,7 +539,7 @@ async def test_a_pdf_quote_is_verified_moved_or_dropped() -> None:
 
 async def test_an_outlined_pdf_quote_is_marked_by_its_ocr_boxes() -> None:
     async with demo("saatvik", _llm()) as rig:
-        await rig.driver.start_session(init={"page": "/modules/test-panel"})
+        await rig.driver.start_session(init={"page": PANEL})
         # The model drops the OCR's "(y)" and asks the wrong page: the quote is
         # still found, on page 2, and its words become one box on their line.
         await rig.driver.user_says("And on the outlined sheet?")
@@ -506,7 +637,7 @@ async def test_a_visitor_never_sees_the_brief_and_the_model_keeps_no_lead() -> N
         )
         assert "lead_brief" not in rig.actions()
         assert not hasattr(saatvik.SaatvikBrain, "update_lead")
-        assert "update_lead" not in llm.captured_system_instructions[-1]
+        assert "update_lead" not in llm.captured_instructions[-1]
 
 
 async def test_the_calculator_result_reaches_the_next_request() -> None:
@@ -525,7 +656,7 @@ async def test_the_calculator_result_reaches_the_next_request() -> None:
         )
         assert _idle_windows(rig)[-1] == _TALK_THROUGH_MS
         await rig.driver.user_says("So how much would I save?")
-        assert "Monthly savings ₹3,100" in _texts(llm.captured_contents[-1])
+        assert "Monthly savings ₹3,100" in _texts(llm.captured_inputs[-1])
         # They spoke first: the window is back to the ordinary one.
         assert _idle_windows(rig)[-1] == _IDLE_MS
 
@@ -557,8 +688,8 @@ async def test_the_toggle_switches_both_legs_and_confirms_in_hindi() -> None:
     async with demo("saatvik", _llm()) as rig:
         await rig.driver.start_session(init={"page": "/"})
         await _page(rig, "language_requested", {"language": "hi"})
-        check_voice_pair(rig, voice="omnivoice/gaurav", language="hi")
-        # The widget's toggle is told at once, not left to guess from his voice.
+        check_voice_pair(rig, voice="omnivoice/ananya", language="hi")
+        # The widget's toggle is told at once, not left to guess from her voice.
         assert rig.command("language_changed") == {"language": "hi"}
         turn = await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
         check_turn(rig, turn)
@@ -572,13 +703,13 @@ async def test_hinglish_switches_before_the_model_answers() -> None:
             "Mujhe solar panel chahiye, kya aap Hindi mein baat kar sakte hain?"
         )
         check_turn(rig, turn)
-        check_voice_pair(rig, voice="omnivoice/gaurav", language="hi")
+        check_voice_pair(rig, voice="omnivoice/ananya", language="hi")
         assert rig.command("language_changed") == {"language": "hi"}
 
 
 async def test_a_calculator_with_no_rate_asks_for_it_aloud() -> None:
     """A speechless call the calculator refused is not a silent turn: asked
-    again, he asks for what it lacked, and nothing runs on the page."""
+    again, she asks for what it lacked, and nothing runs on the page."""
     async with demo("saatvik", _llm()) as rig:
         await rig.driver.start_session(init={"page": "/"})
         turn = await rig.driver.user_says("I use 350 units in Karnataka.")
@@ -588,59 +719,85 @@ async def test_a_calculator_with_no_rate_asks_for_it_aloud() -> None:
 
 
 async def test_a_silent_move_asks_the_model_to_talk_about_it() -> None:
-    """A page move with no words gets one more request, tools off, with the call
-    and its result in the context: he talks about the page, not "Here it is."."""
+    """A move with no words gets one more request, tools off, with the call and
+    its result in the context: she talks about what opened, not "Here it is."."""
     llm = _llm()
     async with demo("saatvik", llm) as rig:
-        await rig.driver.start_session(init={"page": "/"})
-        turn = await rig.driver.user_says("Show me that panel.")
+        await rig.driver.start_session(init={"page": PANEL})
+        turn = await rig.driver.user_says("Open the datasheet.")
         check_turn(rig, turn, units=1)
-        assert turn.text.startswith("It's a bifacial panel made for rooftops.")
-        assert rig.actions().count("navigate") == 1
-        retry = llm.captured_contents[-1]
-        # Gemini takes no request ending on the model's turn.
-        assert retry[-1].role == "user"
-        assert "Opened Test Panel 600" in _results(retry)["navigate"]
+        assert turn.text.startswith("It's the panel's datasheet.")
+        assert rig.actions().count("open_document") == 1
+        retry = llm.captured_inputs[-1]
+        assert "Opened Test Panel 600 Datasheet" in _results(retry)["open_document"]
 
 
 async def test_the_silent_move_retry_declares_the_tools_and_may_call_none() -> None:
-    """The retry is Gemini's function-calling mode NONE over the same declared
-    tools; the turn's own request carries no tool config at all."""
+    """The retry is tool choice "none" over the same declared tools, where the
+    turn's own request leaves the choice to the model."""
     llm = _llm()
-    requests = _requests(llm)
+    async with demo("saatvik", llm) as rig:
+        await rig.driver.start_session(init={"page": PANEL})
+        before = len(llm.requests)
+        await rig.driver.user_says("Open the datasheet.")
+        first, again = llm.requests[before:]
+        assert first.get("tool_choice") == "auto"
+        assert again.get("tool_choice") == "none"
+        assert again.get("tools")
+        assert _names(again) == _names(first)
+        assert again.get("reasoning") == first.get("reasoning")
+        assert again.get("instructions") == first.get("instructions")
+
+
+async def test_a_reply_that_is_only_a_cue_is_asked_to_speak() -> None:
+    """A cue is no speech: a reply of nothing but a cue moves the page, and the
+    model is asked once more, tools off, so she talks about what opened."""
+    llm = _llm()
     async with demo("saatvik", llm) as rig:
         await rig.driver.start_session(init={"page": "/"})
-        before = len(requests)
-        await rig.driver.user_says("Show me that panel.")
-        first, retry = requests[before:]
-        assert first.tool_config is None
-        assert retry.tool_config == types.ToolConfig(
-            function_calling_config=types.FunctionCallingConfig(
-                mode=types.FunctionCallingConfigMode.NONE
-            )
+        before = len(llm.requests)
+        turn = await rig.driver.user_says("Just the panel page.")
+        check_turn(rig, turn, units=1)
+        assert turn.text.startswith("This is the Test Panel.")
+        assert _cues(rig)[0]["path"] == PANEL
+        first, again = llm.requests[before:]
+        assert again.get("tool_choice") == "none"
+
+
+async def test_a_missed_cue_is_noted_quietly() -> None:
+    """A cue the page could not make (perhaps one of the brain's own) is told to
+    the model as a quiet fact, never as something to apologise for aloud."""
+    llm = _llm()
+    async with demo("saatvik", llm) as rig:
+        await rig.driver.start_session(init={"page": PANEL})
+        await _page(
+            rig, "command_failed", {"command": "cue", "reason": "no heading Warranty Terms"}
         )
-        assert retry.tools
-        assert _names(retry) == _names(first)
-        assert retry.thinking_config == first.thinking_config
-        assert retry.system_instruction == first.system_instruction
+        await rig.driver.user_says("What about warranty?")
+        notes = _texts(llm.captured_inputs[-1])
+        assert "screen cue of yours did not land" in notes
+        assert "Tell the visitor plainly" not in notes
 
 
-async def test_twice_silent_falls_back_to_his_written_line() -> None:
+async def test_twice_silent_falls_back_to_her_written_line() -> None:
     """The retry may not call a tool, so a model silent again gets the written
-    line, and the page moved once."""
+    line, and the document opened once."""
     async with demo("saatvik", _llm()) as rig:
-        await rig.driver.start_session(init={"page": "/"})
-        turn = await rig.driver.user_says("Open the panel page.")
+        await rig.driver.start_session(init={"page": PANEL})
+        turn = await rig.driver.user_says("Show me the datasheet.")
         check_turn(rig, turn)
-        assert turn.text == "Here's our Test Panel 600 page."
-        assert rig.actions().count("navigate") == 1
+        assert turn.text == "Here's the Test Panel 600 Datasheet."
+        assert rig.actions().count("open_document") == 1
 
 
-async def test_he_thinks_at_low_so_the_words_come_before_the_calls() -> None:
-    async with demo("saatvik", _llm()) as rig:
+async def test_she_thinks_at_low_on_terra_so_the_words_come_before_the_calls() -> None:
+    llm = _llm()
+    async with demo("saatvik", llm) as rig:
         await rig.driver.start_session(init={"page": "/"})
-        config = rig.brain._config  # type: ignore[attr-defined]
-        assert config.thinking_config.thinking_level == types.ThinkingLevel.LOW
+        await rig.driver.user_says("So how much would I save?")
+        request = llm.requests[-1]
+        assert request.get("model") == MODEL == "gpt-6.1-terra"
+        assert request.get("reasoning") == {"effort": "low"}
 
 
 async def test_a_calculator_with_no_state_asks_for_it_rather_than_guess() -> None:
@@ -667,8 +824,8 @@ async def test_the_rest_of_a_split_question_gets_no_second_nod(
         assert rest.text == "TOPCon beats Mono PERC in heat."
 
 
-async def test_a_question_gets_his_nod_then_the_answer(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The nod is a unit of his own ahead of the model's, and never in its context."""
+async def test_a_question_gets_her_nod_then_the_answer(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The nod is a unit of her own ahead of the model's, and never in its context."""
     monkeypatch.setattr(saatvik, "ACK_RATE", 1.0)
     llm = _llm()
     async with demo("saatvik", llm) as rig:
@@ -678,15 +835,16 @@ async def test_a_question_gets_his_nod_then_the_answer(monkeypatch: pytest.Monke
         assert nod in saatvik._ACK_LINES[saatvik.Language.EN]["question"]
         assert turn.text.endswith("It handles heat better than PERC.")
         await rig.driver.user_says("Is TOPCon better than PERC?")
-        said = _texts([c for c in llm.captured_contents[-1] if c.role == "model"])
+        said = _texts([i for i in llm.captured_inputs[-1] if i.get("role") == "assistant"])
+        assert "It handles heat better than PERC." in said
         assert nod not in said
 
 
 async def test_a_slow_model_after_the_nod_is_held(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The nod disarms the runtime's "taking longer" line, so he holds the floor."""
+    """The nod disarms the runtime's "taking longer" line, so she holds the floor."""
     monkeypatch.setattr(saatvik, "ACK_RATE", 1.0)
     monkeypatch.setattr(saatvik, "ACK_HOLD_AFTER_S", 0.2)
-    llm = ScriptedGemini(
+    llm = ScriptedOpenAI(
         {"Is TOPCon better than PERC?": [reply(chunks=["Yes, TOPCon."], chunk_delay=0.6)]}
     )
     async with demo("saatvik", llm) as rig:
@@ -717,19 +875,9 @@ async def test_a_second_fill_adds_to_the_form_and_keeps_what_is_there() -> None:
         assert fills[1]["state"] == "Karnataka"
 
 
-async def test_flat_arguments_still_move_the_page() -> None:
-    """Fields sent without ``request`` are wrapped, not refused into silence."""
-    async with demo("saatvik", _llm()) as rig:
-        await rig.driver.start_session(init={"page": "/modules/test-panel"})
-        await _page(rig, "page_changed", PANEL_PAGE)
-        turn = await rig.driver.user_says("Show me the specs, flat.")
-        check_turn(rig, turn)
-        assert rig.command("show_section")["heading"] == "Mechanical & Electrical Specifications"
-
-
 async def test_book_now_fills_the_booking_and_adds_to_it() -> None:
     """The kit's BOOK NOW by voice: residential chosen, details filled, a second
-    call adds the pincode and keeps the rest; a confirmed booking reaches him."""
+    call adds the pincode and keeps the rest; a confirmed booking reaches her."""
     llm = _llm()
     async with demo("saatvik", llm) as rig:
         await rig.driver.start_session(init={"page": "/solar-kits"})
@@ -753,7 +901,7 @@ async def test_book_now_fills_the_booking_and_adds_to_it() -> None:
             },
         )
         await rig.driver.user_says("So how much would I save?")
-        assert "confirmed the booking of surya-connect-kit" in _texts(llm.captured_contents[-1])
+        assert "confirmed the booking of surya-connect-kit" in _texts(llm.captured_inputs[-1])
 
 
 async def test_book_now_books_the_product_on_their_page_and_nothing_else() -> None:
@@ -770,4 +918,4 @@ async def test_book_now_books_the_product_on_their_page_and_nothing_else() -> No
         await rig.driver.user_says("Book this for my shop.")
         assert "book_product" not in rig.actions()
         await rig.driver.user_says("So how much would I save?")
-        assert _results(llm.captured_contents[-1])["book_product"].startswith("Not opened")
+        assert _results(llm.captured_inputs[-1])["book_product"].startswith("Not opened")

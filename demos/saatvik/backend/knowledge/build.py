@@ -20,7 +20,11 @@ articles those pages link to, and writes, next to this file:
 - ``L3/pages.json`` — ``[{path, title, description, headings, faqs: [{q, a}],
   stats: [{label, value}], tables: [{caption, header, rows}], text,
   documents}]``. ``text`` is the visible text of ``<main>`` with repeated lines
-  collapsed (the home page repeats its carousels). ``faqs`` are the accordion
+  collapsed (the home page repeats its carousels). ``sections`` is
+  ``[{heading, text}]``: each ``h1``-``h3`` with the text under it up to the
+  next one, which the brain scores a sentence against to ring the section it is
+  about. ``tabs`` are the labels of a product page's spec tabs (ELECTRICAL,
+  MECHANICAL, WARRANTY), the same buttons the extension's ``open_tab`` clicks. ``faqs`` are the accordion
   buttons; their answers ship in the server HTML (collapsed, not absent) and,
   failing that, are looked up in the Next.js flight data. ``stats`` and
   ``tables`` come from the flight data, because the server HTML renders the
@@ -447,6 +451,70 @@ def parse(raw: str) -> Node:
     return b.root
 
 
+#: How much of a section's text is kept: enough to tell it from its neighbours.
+SECTION_CHARS = 600
+
+
+def sections_of(main: Node) -> list[dict[str, str]]:
+    """Each ``h1``-``h3`` of ``main`` and the visible text under it, in page order."""
+    out: list[dict[str, str]] = []
+    cur: dict[str, Any] | None = None
+
+    def walk(n: Node) -> None:
+        nonlocal cur
+        if n.tag in SKIP or in_chrome(n):
+            return
+        if n.tag in ("h1", "h2", "h3"):
+            heading = norm_ws(n.text())
+            if heading:
+                cur = {"heading": heading, "parts": []}
+                out.append(cur)
+            return
+        for c in n.children:
+            if isinstance(c, str):
+                if cur is not None and (t := norm_ws(c)) and not ZERO_COUNTER.match(t):
+                    cur["parts"].append(t)
+            else:
+                walk(c)
+
+    walk(main)
+    merged: dict[str, dict[str, str]] = {}
+    for sec in out:
+        text = " ".join(cast(list[str], sec["parts"]))[:SECTION_CHARS]
+        heading = cast(str, sec["heading"])
+        if heading in merged:
+            continue
+        merged[heading] = {"heading": heading, "text": text}
+    return list(merged.values())
+
+
+def _classes(n: Node) -> set[str]:
+    return set(n.attrs.get("class", "").split())
+
+
+def tabs_of(main: Node) -> list[str]:
+    """The spec tabs' labels: buttons inside ``#specifications``, with
+    ``role=tab``, or styled as the site's spec tabs; never an accordion."""
+    out: list[str] = []
+    for b in main.iter("button"):
+        if "aria-expanded" in b.attrs or in_chrome(b):
+            continue
+        inside_specs = False
+        p = b.parent
+        while p is not None:
+            if p.attrs.get("id") == "specifications":
+                inside_specs = True
+                break
+            p = p.parent
+        styled = {"text-xs", "font-medium", "tracking-widest"} <= _classes(b)
+        if not (inside_specs or b.attrs.get("role") == "tab" or styled):
+            continue
+        label = norm_ws(b.text())
+        if label and len(label) <= 40 and label not in out:
+            out.append(label)
+    return out
+
+
 def extract_page(path: str, raw: str) -> tuple[dict[str, Any], dict[str, str], list[str]]:
     """The page record, the PDF link texts it carries, and the site links it holds."""
     root = parse(raw)
@@ -518,6 +586,8 @@ def extract_page(path: str, raw: str) -> tuple[dict[str, Any], dict[str, str], l
         "stats": flight_stats(flight),
         "tables": flight_tables(flight),
         "text": "\n".join(lines),
+        "sections": sections_of(main),
+        "tabs": tabs_of(main),
         "documents": [],
     }
     return page, link_text, links
