@@ -94,6 +94,141 @@
       "title": "ArgSpec",
       "type": "object"
     },
+    "EventSpec": {
+      "additionalProperties": false,
+      "description": "A named act that changes one slice: ``cart.changed``.",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "slice": {
+          "title": "Slice",
+          "type": "string"
+        },
+        "op": {
+          "default": "merge",
+          "enum": [
+            "set",
+            "merge",
+            "clear"
+          ],
+          "title": "Op",
+          "type": "string"
+        },
+        "note": {
+          "default": "",
+          "title": "Note",
+          "type": "string"
+        },
+        "doc": {
+          "default": "",
+          "title": "Doc",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "slice"
+      ],
+      "title": "EventSpec",
+      "type": "object"
+    },
+    "FieldSpec": {
+      "additionalProperties": false,
+      "description": "One field of a slice. A field the brain must never see is ``private``:\nthe page strips it before anything is sent.",
+      "properties": {
+        "name": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "anyOf": [
+            {
+              "enum": [
+                "string",
+                "integer",
+                "number",
+                "boolean"
+              ],
+              "type": "string"
+            },
+            {
+              "enum": [
+                "array",
+                "object"
+              ],
+              "type": "string"
+            }
+          ],
+          "default": "string",
+          "title": "Type"
+        },
+        "items": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ItemSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "fields": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/FieldSpec"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fields"
+        },
+        "enum": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Enum"
+        },
+        "optional": {
+          "default": false,
+          "title": "Optional",
+          "type": "boolean"
+        },
+        "private": {
+          "default": false,
+          "title": "Private",
+          "type": "boolean"
+        },
+        "doc": {
+          "default": "",
+          "title": "Doc",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "FieldSpec",
+      "type": "object"
+    },
     "ItemSpec": {
       "additionalProperties": false,
       "description": "What an array argument holds.",
@@ -212,6 +347,42 @@
       ],
       "title": "MoveSpec",
       "type": "object"
+    },
+    "SliceSpec": {
+      "additionalProperties": false,
+      "description": "A named, typed piece of the page's state (``cart``, ``listing``), kept\nin the brain's mirror and read by the model on demand.",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "fields": {
+          "items": {
+            "$ref": "#/$defs/FieldSpec"
+          },
+          "title": "Fields",
+          "type": "array"
+        },
+        "window": {
+          "default": 20,
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Window",
+          "type": "integer"
+        },
+        "doc": {
+          "default": "",
+          "title": "Doc",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "fields"
+      ],
+      "title": "SliceSpec",
+      "type": "object"
     }
   },
   "additionalProperties": false,
@@ -252,6 +423,22 @@
         "$ref": "#/$defs/MoveSpec"
       },
       "title": "Moves",
+      "type": "array"
+    },
+    "slices": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/SliceSpec"
+      },
+      "title": "Slices",
+      "type": "array"
+    },
+    "events": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/EventSpec"
+      },
+      "title": "Events",
       "type": "array"
     }
   },

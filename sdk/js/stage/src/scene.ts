@@ -25,6 +25,7 @@
  */
 
 import type { MoveClass, Moves, Performer } from "./moves";
+import type { StageEvent } from "./wire.gen";
 
 type Scalar = "string" | "integer" | "number" | "boolean";
 
@@ -61,6 +62,35 @@ export interface MoveSpec {
   readonly notes?: readonly string[];
 }
 
+/** One field of a slice. A `private` one is stripped here, before anything is sent. */
+export interface FieldSpec {
+  readonly name: string;
+  readonly type?: Scalar | "array" | "object";
+  readonly items?: ItemSpec;
+  readonly fields?: readonly FieldSpec[];
+  readonly enum?: readonly string[];
+  readonly optional?: boolean;
+  readonly private?: boolean;
+  readonly doc?: string;
+}
+
+/** A named, typed piece of the page's state, kept in the brain's mirror. */
+export interface SliceSpec {
+  readonly id: string;
+  readonly fields: readonly FieldSpec[];
+  readonly window?: number;
+  readonly doc?: string;
+}
+
+/** A named act that changes one slice. */
+export interface EventSpec {
+  readonly id: string;
+  readonly slice: string;
+  readonly op?: "set" | "merge" | "clear";
+  readonly note?: string;
+  readonly doc?: string;
+}
+
 /** An app's Stage Spec (`stage.schema.json`). */
 export interface SceneSpec {
   readonly $schema?: string;
@@ -68,6 +98,8 @@ export interface SceneSpec {
   readonly id: string;
   readonly languages?: readonly string[];
   readonly moves: readonly MoveSpec[];
+  readonly slices?: readonly SliceSpec[];
+  readonly events?: readonly EventSpec[];
 }
 
 type ScalarOf<A> = A extends { readonly enum: readonly (infer L)[] }
@@ -78,7 +110,7 @@ type ScalarOf<A> = A extends { readonly enum: readonly (infer L)[] }
       ? boolean
       : string;
 
-type ValueOf<A extends ArgSpec> = A extends { readonly type: "array" }
+type ValueOf<A> = A extends { readonly type: "array" }
   ? A extends { readonly items: infer I }
     ? ScalarOf<I>[]
     : string[]
@@ -105,6 +137,52 @@ export type ArgsOf<S extends SceneSpec, K extends MoveId<S>> =
     ? ArgsFrom<As>
     : Record<never, never>;
 
+type FieldValue<F extends FieldSpec> = F extends { readonly fields: infer Fs extends readonly FieldSpec[] }
+  ? F extends { readonly type: "array" }
+    ? FieldsOf<Fs>[]
+    : FieldsOf<Fs>
+  : ValueOf<F>;
+
+/** What a page sends for these fields: private ones are left out of the type. */
+type FieldsOf<Fs extends readonly FieldSpec[]> = Simplify<
+  {
+    [F in Fs[number] as F extends { readonly private: true }
+      ? never
+      : F extends { readonly optional: true }
+        ? never
+        : F["name"]]: FieldValue<F>;
+  } & {
+    [F in Fs[number] as F extends { readonly private: true }
+      ? never
+      : F extends { readonly optional: true }
+        ? F["name"]
+        : never]?: FieldValue<F> | null;
+  }
+>;
+
+type Events<S extends SceneSpec> = S extends { readonly events: readonly (infer E)[] } ? E : never;
+type Slices<S extends SceneSpec> = S extends { readonly slices: readonly (infer L)[] } ? L : never;
+
+/** The ids of a spec's events. */
+export type EventId<S extends SceneSpec> = Events<S> extends { readonly id: infer I extends string } ? I : never;
+
+/** A slice's value, as the page reports it. */
+export type SliceOf<S extends SceneSpec, L extends string> =
+  Extract<Slices<S>, { readonly id: L }> extends { readonly fields: infer Fs extends readonly FieldSpec[] }
+    ? FieldsOf<Fs>
+    : never;
+
+/** What an event carries: the slice's value (`set`), what changed (`merge`,
+ *  the default), or nothing (`clear`). */
+export type EventData<S extends SceneSpec, E extends EventId<S>> =
+  Extract<Events<S>, { readonly id: E }> extends infer D extends EventSpec
+    ? D extends { readonly op: "clear" }
+      ? Record<never, never>
+      : D extends { readonly op: "set" }
+        ? SliceOf<S, D["slice"]>
+        : Partial<SliceOf<S, D["slice"]>>
+    : never;
+
 /** A performer for every move of a spec, by id. */
 export type Performers<S extends SceneSpec> = { [K in MoveId<S>]: Performer<ArgsOf<S, K>> };
 
@@ -118,6 +196,28 @@ export interface Scene<S extends SceneSpec> {
   /** Register a performer for every move the spec declares: one left out is a
    *  compile error. */
   registerAll(moves: Moves, performers: Performers<S>): void;
+  /** A state event to send (`Attached.send`): only the fields the slice
+   *  declares, and none it marks private, whatever `data` holds. */
+  event<E extends EventId<S>>(
+    id: E,
+    data: EventData<S, E>,
+    opts?: { by?: "visitor" | "agent"; callRef?: string },
+  ): StageEvent;
+}
+
+function keep(fields: readonly FieldSpec[], data: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const f of fields) {
+    if (f.private || !(f.name in data)) continue;
+    let v = data[f.name];
+    if (f.fields && Array.isArray(v)) {
+      v = v.filter((x): x is Record<string, unknown> => !!x && typeof x === "object").map((x) => keep(f.fields!, x));
+    } else if (f.fields && v && typeof v === "object") {
+      v = keep(f.fields, v as Record<string, unknown>);
+    }
+    out[f.name] = v;
+  }
+  return out;
 }
 
 /** A Stage Spec, kept as written so every move's argument type is inferred.
@@ -144,6 +244,19 @@ export function defineScene<const S extends SceneSpec>(spec: S): Scene<S> {
     register: (moves, id, performer) => register(moves, id, performer as Performer<never>),
     registerAll(moves, performers) {
       for (const m of spec.moves) register(moves, m.id, performers[m.id as MoveId<S>] as Performer<never>);
+    },
+    event(id, data, opts = {}) {
+      const ev = spec.events?.find((e) => e.id === id);
+      if (!ev) throw new Error(`scene ${spec.id} declares no event ${id}`);
+      const slice = spec.slices?.find((s) => s.id === ev.slice);
+      if (!slice) throw new Error(`scene ${spec.id} declares no slice ${ev.slice}`);
+      const out: StageEvent = {
+        name: id,
+        by: opts.by ?? "visitor",
+        data: ev.op === "clear" ? {} : keep(slice.fields, data as Record<string, unknown>),
+      };
+      if (opts.callRef) out.call_ref = opts.callRef;
+      return out;
     },
   };
 }

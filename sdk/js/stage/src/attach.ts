@@ -15,7 +15,7 @@
 
 import type { Timeline } from "./timeline";
 import {
-  asUiAction, sendAppEvent, type StageCue, type StageHello, type StageMove, type StageProgress, type StageResult,
+  asUiAction, sendAppEvent, type StageCue, type StageEvent, type StageHello, type StageMove, type StageProgress, type StageResult,
 } from "./wire.gen";
 
 /** The contract version this runtime speaks, sent in `stage_hello`. */
@@ -58,8 +58,9 @@ export interface AttachOptions {
 }
 
 export interface Attached {
-  /** A result, a progress (`phase`), or a hello, as the `ui-event` it is. */
-  send(ev: StageResult | StageHello | StageProgress): void;
+  /** A result, a progress (`phase`), a hello, or a state event
+   *  (`scene.event(...)`), as the `ui-event` it is. */
+  send(ev: StageResult | StageHello | StageProgress | StageEvent): void;
   /** `stage_hello` for this page. */
   hello(): void;
   detach(): void;
@@ -71,9 +72,10 @@ export function attachStage(client: StageClient, opts: AttachOptions): Attached 
   const tl = opts.timeline;
   let outputSeen = false;
 
-  const send = (ev: StageResult | StageHello | StageProgress) => {
+  const send = (ev: StageResult | StageHello | StageProgress | StageEvent) => {
     const sender = (event: string, payload?: unknown) => client.sendUIEvent(event, payload);
-    if ("phase" in ev) sendAppEvent(sender, { event: "stage_progress", payload: ev });
+    if ("name" in ev) sendAppEvent(sender, { event: "stage_event", payload: ev });
+    else if ("phase" in ev) sendAppEvent(sender, { event: "stage_progress", payload: ev });
     else if ("call_ref" in ev) sendAppEvent(sender, { event: "stage_result", payload: ev });
     else sendAppEvent(sender, { event: "stage_hello", payload: ev });
   };

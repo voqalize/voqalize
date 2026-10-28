@@ -57,10 +57,12 @@ from .labels import tokens
 from .moves import Move, MoveSet
 from .policy import POLICY, MoveClass
 from .promises import claim_in, promise_in
+from .state import Folded, Mirror
 from .wire import (
     STAGE_CONTRACT,
     Phase,
     StageCue,
+    StageEvent,
     StageHello,
     StageMove,
     StageProgress,
@@ -302,9 +304,13 @@ class Stage:
         on_progress: OnProgress | None = None,
         on_unkept: OnUnkept | None = None,
         on_landed: OnLanded | None = None,
+        mirror: Mirror | None = None,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._dispatch = dispatch
+        self.mirror = mirror
+        """The page's state as named acts folded it (:mod:`~voqalize.sdk.stage.state`),
+        when the brain keeps one; a :class:`StageEvent` is folded into it."""
         self.moves = moves if isinstance(moves, MoveSet) else MoveSet(moves)
         self._resolve = resolve
         self._backstop = backstop
@@ -631,9 +637,15 @@ class Stage:
     def handle(self, event: StageHello) -> None: ...
     @overload
     def handle(self, event: StageProgress) -> StageProgress | None: ...
+    @overload
+    def handle(self, event: StageEvent) -> Folded | None: ...
+    @overload
     def handle(
-        self, event: StageResult | StageHello | StageProgress
-    ) -> StageResult | StageProgress | None:
+        self, event: StageResult | StageHello | StageProgress | StageEvent
+    ) -> StageResult | StageProgress | Folded | None: ...
+    def handle(
+        self, event: StageResult | StageHello | StageProgress | StageEvent
+    ) -> StageResult | StageProgress | Folded | None:
         """Fold an answer from the page.
 
         A final result clears its move, sends the queued move if the running
@@ -651,7 +663,16 @@ class Stage:
         :class:`StageProgress` for a running move gives it its time again and
         comes back (``on_progress`` is told too). A duplicate, a stranger, a
         progress for a move no longer running, or a hello returns ``None``.
+
+        A :class:`StageEvent` is folded into :attr:`mirror` and comes back as
+        what it did (:class:`Folded`, with the line for the model); without a
+        mirror, or for an event the spec does not declare, ``None``.
         """
+        if isinstance(event, StageEvent):
+            if self.mirror is None:
+                logger.warning("stage: {} came with no mirror to fold it into", event.name)
+                return None
+            return self.mirror.fold(event)
         if isinstance(event, StageHello):
             self.hello = event
             if event.contract != STAGE_CONTRACT:

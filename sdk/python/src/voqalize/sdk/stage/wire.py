@@ -13,7 +13,7 @@ records the outcome as ``unknown`` itself.
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -22,11 +22,13 @@ from ..app_events import AppEvent, AppEvents
 
 __all__ = [
     "STAGE_CONTRACT",
+    "By",
     "Fired",
     "Outcome",
     "Phase",
     "Refusal",
     "StageCue",
+    "StageEvent",
     "StageEvents",
     "StageHello",
     "StageMove",
@@ -51,6 +53,9 @@ Fired = Literal["anchor", "fuzzy", "clock", "end", "now", "quiet"]
 #: (``waiting_site``), ringing its target (``ringing``), acting (``acting``), or
 #: checking that what it did took (``confirming``).
 Phase = Literal["queued", "loading", "waiting_site", "ringing", "acting", "confirming"]
+
+#: Who did an act: the person at the screen, or the agent through a move.
+By = Literal["visitor", "agent"]
 
 
 class StageCue(Action, name="stage_cue"):
@@ -149,7 +154,24 @@ class StageHello(AppEvent, name="stage_hello"):
     title: str = ""
 
 
+class StageEvent(AppEvent, name="stage_event"):
+    """A named act that changed one slice of the page's state
+    (``cart.changed``, ``listing.filtered``), as the app's Stage Spec declares
+    it. Only the fields the slice declares, and none it marks private, are
+    sent; the brain folds them into its mirror and tells the model one short
+    line, never the values."""
+
+    name: str
+    """The event's id in the spec."""
+    by: By = "visitor"
+    data: dict[str, Any] = {}  # noqa: RUF012 -- a pydantic field, copied per instance
+    """The slice's new value (``set``), the fields that changed (``merge``), or
+    nothing (``clear``)."""
+    call_ref: str | None = None
+    """The move that caused it, when the agent did."""
+
+
 #: A page's results and hello: what a brain written before progress parses.
 StageEvents = AppEvents(StageResult, StageHello)
-#: Everything a page running Stage sends: results, hello and progress.
-StagePageEvents = AppEvents(StageResult, StageHello, StageProgress)
+#: Everything a page running Stage sends: results, hello, progress and state events.
+StagePageEvents = AppEvents(StageResult, StageHello, StageProgress, StageEvent)

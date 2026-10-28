@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Literal, Self
@@ -46,9 +47,13 @@ from .policy import MoveClass
 __all__ = [
     "MAX_TOOL_ARGS",
     "SPEC_VERSION",
+    "WINDOW",
     "ArgSpec",
+    "EventSpec",
+    "FieldSpec",
     "ItemSpec",
     "MoveSpec",
+    "SliceSpec",
     "StageSpec",
     "load_spec",
     "spec_schema",
@@ -159,6 +164,87 @@ class MoveSpec(_Strict):
         )
 
 
+#: The most entries of a list a read gives by default; the rest are counted.
+WINDOW = 20
+
+_PLACEHOLDER = re.compile(r"\{([a-z][a-z0-9_]*)\}")
+
+
+def _placeholders(template: str) -> set[str]:
+    return set(_PLACEHOLDER.findall(template))
+
+
+class FieldSpec(_Strict):
+    """One field of a slice. A field the brain must never see is ``private``:
+    the page strips it before anything is sent."""
+
+    name: str = Field(pattern=_IDENT)
+    type: Scalar | Literal["array", "object"] = "string"
+    items: ItemSpec | None = None
+    """What an array of plain values holds; strings when it is not said."""
+    fields: tuple[FieldSpec, ...] | None = None
+    """An ``object``'s fields, or the fields of each entry of an ``array`` of objects."""
+    enum: tuple[str, ...] | None = None
+    optional: bool = False
+    private: bool = False
+    doc: str = ""
+
+    @model_validator(mode="after")
+    def _shape(self) -> Self:
+        if self.type == "object" and not self.fields:
+            raise ValueError(f"field {self.name!r}: an object needs its fields")
+        if self.fields is not None and self.type not in ("object", "array"):
+            raise ValueError(f"field {self.name!r}: only an object or an array has fields")
+        if self.fields is not None and self.items is not None:
+            raise ValueError(f"field {self.name!r}: an array holds items or fields, not both")
+        if self.items is not None and self.type != "array":
+            raise ValueError(f"field {self.name!r}: only an array has items")
+        if self.enum is not None and self.type != "string":
+            raise ValueError(f"field {self.name!r}: only a string takes an enum")
+        if len({f.name for f in self.fields or ()}) != len(self.fields or ()):
+            raise ValueError(f"field {self.name!r} names a field twice")
+        return self
+
+    @property
+    def sayable(self) -> bool:
+        """Whether a note may print it: a plain value nobody marked private."""
+        return not self.private and self.type not in ("array", "object")
+
+
+class SliceSpec(_Strict):
+    """A named, typed piece of the page's state (``cart``, ``listing``), kept
+    in the brain's mirror and read by the model on demand."""
+
+    id: str = Field(pattern=_IDENT)
+    fields: tuple[FieldSpec, ...]
+    window: int = Field(default=WINDOW, ge=1, le=100)
+    """How many entries of a list a read gives; the rest are counted."""
+    doc: str = ""
+    """What it holds, for the read tool's description."""
+
+    @model_validator(mode="after")
+    def _shape(self) -> Self:
+        if len({f.name for f in self.fields}) != len(self.fields):
+            raise ValueError(f"slice {self.id!r} names a field twice")
+        return self
+
+
+class EventSpec(_Strict):
+    """A named act that changes one slice: ``cart.changed``."""
+
+    id: str = Field(pattern=_MOVE_ID)
+    slice: str
+    op: Literal["set", "merge", "clear"] = "merge"
+    """``set`` replaces the slice with the event's data, ``merge`` changes the
+    fields it carries, ``clear`` empties it."""
+    note: str = ""
+    """The one line the model hears, a verb phrase: ``{by} added to the cart:
+    {count} items``. ``{by}`` is who did it; any other placeholder must be a
+    plain, public field of the slice, read after the event is folded. Empty:
+    folded in silence."""
+    doc: str = ""
+
+
 class StageSpec(_Strict):
     """An app's Stage Spec."""
 
@@ -170,11 +256,43 @@ class StageSpec(_Strict):
     languages: tuple[str, ...] = ()
     """The languages its labels and claims are written in (BCP-47)."""
     moves: tuple[MoveSpec, ...]
+    slices: tuple[SliceSpec, ...] = ()
+    events: tuple[EventSpec, ...] = ()
 
     @model_validator(mode="after")
     def _unique(self) -> Self:
         self.move_set()  # one id, one verb
+        slices = {s.id: s for s in self.slices}
+        if len(slices) != len(self.slices):
+            raise ValueError("two slices have one id")
+        if len({e.id for e in self.events}) != len(self.events):
+            raise ValueError("two events have one id")
+        for e in self.events:
+            got = slices.get(e.slice)
+            if got is None:
+                raise ValueError(f"event {e.id!r} changes slice {e.slice!r}, which is not declared")
+            sayable = {f.name for f in got.fields if f.sayable}
+            for name in _placeholders(e.note) - {"by"}:
+                if name not in sayable:
+                    raise ValueError(
+                        f"event {e.id!r}: its note names {{{name}}}, which is not one of "
+                        f"{e.slice!r}'s plain, public fields ({', '.join(sorted(sayable)) or 'none'})"
+                    )
         return self
+
+    def slice(self, slice_id: str) -> SliceSpec:
+        """The slice with this id; :class:`KeyError` when there is none."""
+        for s in self.slices:
+            if s.id == slice_id:
+                return s
+        raise KeyError(slice_id)
+
+    def event(self, event_id: str) -> EventSpec:
+        """The event with this id; :class:`KeyError` when there is none."""
+        for e in self.events:
+            if e.id == event_id:
+                return e
+        raise KeyError(event_id)
 
     def move_set(self) -> MoveSet:
         """Its moves, as the director runs them."""

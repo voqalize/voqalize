@@ -101,6 +101,23 @@ export interface StageHello {
   title?: string;
 }
 
+/**
+ * A named act that changed one slice of the page's state
+ * (`cart.changed`, `listing.filtered`), as the app's Stage Spec declares
+ * it. Only the fields the slice declares, and none it marks private, are
+ * sent; the brain folds them into its mirror and tells the model one short
+ * line, never the values.
+ */
+export interface StageEvent {
+  name: string;
+
+  by?: 'visitor' | 'agent';
+
+  data?: Record<string, unknown>;
+
+  call_ref?: string | null;
+}
+
 // ── Shapes used by the messages above ──────────────────────────────
 
 /** One argument the page could not use, and what it offers instead. */
@@ -148,7 +165,8 @@ export function unhandledUiAction(action: never): never {
 export type AppEvent =
   | { event: 'stage_result'; payload: StageResult }
   | { event: 'stage_progress'; payload: StageProgress }
-  | { event: 'stage_hello'; payload: StageHello };
+  | { event: 'stage_hello'; payload: StageHello }
+  | { event: 'stage_event'; payload: StageEvent };
 
 export type AppEventName = AppEvent['event'];
 
@@ -156,6 +174,7 @@ export const APP_EVENT_NAMES: readonly AppEventName[] = [
   'stage_result',
   'stage_progress',
   'stage_hello',
+  'stage_event',
 ];
 
 /**

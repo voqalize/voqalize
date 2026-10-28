@@ -2643,7 +2643,10 @@ class ExploraBrain(OpenAIBrain):
 
     def _staged(
         self,
-        event: stage_wire.StageResult | stage_wire.StageHello | stage_wire.StageProgress,
+        event: stage_wire.StageResult
+        | stage_wire.StageHello
+        | stage_wire.StageProgress
+        | stage_wire.StageEvent,
     ) -> str | None:
         """One answer from the page, folded through Stage; the line the model
         should see, if any. A progress gives its move its time again and says

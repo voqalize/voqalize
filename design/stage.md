@@ -437,8 +437,45 @@ An app's moves are declared once, as data: `<app>/scene.json`, validated by
   lines); the extensions register with `scene.registerAll` and take their argument types
   from `ArgsOf`. `demos/tests/test_stage_specs.py` regenerates both and fails on a stale file.
 
-Not yet in the spec (next steps): places and things (regions with spoken labels), slices and
-events, `effect`, `spotlight`, `undo`, and `stage build` for a `defineScene` module.
+### State: slices, events, the mirror, the read tool (built)
+
+A spec may declare `slices` (named, typed pieces of the page's state) and `events` (named acts
+that change one slice):
+
+```json
+"slices": [{ "id": "cart", "doc": "what is in their cart", "window": 20,
+             "fields": [{ "name": "count", "type": "integer" },
+                        { "name": "items", "type": "array",
+                          "fields": [{ "name": "name" }, { "name": "gift_note", "private": true }] },
+                        { "name": "email", "private": true }] }],
+"events": [{ "id": "cart.changed", "slice": "cart", "op": "set",
+             "note": "{by} changed the cart: {count} items" }]
+```
+
+- Wire: `stage_event {name, by: visitor|agent, data, call_ref?}` on `ui-event`
+  (`StageEvent`, in `StagePageEvents`). The page never sends a slice whole by any other road.
+- Page: `scene.event(id, data, {by, callRef})` builds it, typed from the slice
+  (`EventData`: the slice's value for `set`, `Partial` of it for `merge`, the default, nothing
+  for `clear`; `SliceOf` leaves private fields out of the type), and strips every field the slice
+  does not declare or marks private, whatever it was handed. `Attached.send` sends it.
+- Brain: `Mirror(spec)` folds each event into its slice, allowlisted again (private dropped
+  here too), versioned per slice, and returns `Folded(slice, version, note)`. The note is the
+  event's template, with `{by}` as "The visitor" or "You", and other placeholders limited to
+  plain, public fields of the slice (checked when the spec loads), in square brackets. A
+  slice nothing has reported reads as unknown, never as empty. `Stage(mirror=...)` folds a
+  `StageEvent` in `handle`.
+- Read tool: `Mirror.read(slice)` answers in plain lines from the mirror, at most `window`
+  entries of a list (the rest counted). The generated Python carries `SliceId` and a
+  `ReadRequest` model whose description lists the slices; a brain's tool is
+  `@needs_result_now async def read_screen(self, request: ReadRequest) -> str: return
+  self.stage.mirror.read(request.slice)`.
+- The ports keep their own screen events and notes for now: moving Cannon Home's cart and
+  listing onto slices changes what the model sees (a note naming the act instead of the whole
+  cart), so it lands with a dev re-test, and the hosted brain is the first user.
+
+Not yet in the spec (next steps): places and things (regions with spoken labels), `effect`,
+`spotlight`, `undo`, the stale-version check on moves (`resolved_at`), and `stage build` for a
+`defineScene` module.
 
 ## Gates
 

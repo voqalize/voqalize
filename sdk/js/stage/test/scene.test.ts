@@ -5,8 +5,9 @@
 
 import { describe, expect, expectTypeOf, it } from "vitest";
 
+import { attachStage } from "../src/attach";
 import { Moves } from "../src/moves";
-import { type ArgsOf, defineScene } from "../src/scene";
+import { type ArgsOf, defineScene, type EventData, type SliceOf } from "../src/scene";
 import { Spotlight } from "../src/spotlight";
 
 const scene = defineScene({
@@ -79,5 +80,59 @@ describe("defineScene", () => {
         ],
       }),
     ).toThrow(/two moves have the id a.b/);
+  });
+});
+
+const shop = defineScene({
+  stage: 1,
+  id: "shop",
+  moves: [{ id: "cart.add", class: "confirmed", args: [{ name: "path" }] }],
+  slices: [
+    {
+      id: "cart",
+      fields: [
+        { name: "count", type: "integer" },
+        { name: "items", type: "array", fields: [{ name: "name" }, { name: "gift_note", private: true }] },
+        { name: "email", private: true },
+        { name: "subtotal", type: "number", optional: true },
+      ],
+    },
+  ],
+  events: [
+    { id: "cart.changed", slice: "cart", op: "set", note: "{by} changed the cart" },
+    { id: "cart.counted", slice: "cart" },
+    { id: "cart.emptied", slice: "cart", op: "clear" },
+  ],
+});
+
+type Shop = typeof shop.spec;
+
+describe("state events", () => {
+  it("types an event's data from its slice, private fields left out", () => {
+    expectTypeOf<SliceOf<Shop, "cart">>().toEqualTypeOf<{
+      count: number;
+      items: { name: string }[];
+      subtotal?: number | null;
+    }>();
+    expectTypeOf<EventData<Shop, "cart.counted">>().toEqualTypeOf<Partial<SliceOf<Shop, "cart">>>();
+    expectTypeOf<EventData<Shop, "cart.emptied">>().toEqualTypeOf<Record<never, never>>();
+  });
+
+  it("sends only the declared, public fields, whatever it was handed", () => {
+    const leaky = { count: 1, items: [{ name: "Toalla", gift_note: "para mamá" }], email: "a@b.c", extra: 1 };
+    const ev = shop.event("cart.changed", leaky as never, { by: "agent", callRef: "c4" });
+    expect(ev).toEqual({ name: "cart.changed", by: "agent", call_ref: "c4", data: { count: 1, items: [{ name: "Toalla" }] } });
+    expect(shop.event("cart.emptied", {})).toEqual({ name: "cart.emptied", by: "visitor", data: {} });
+    // @ts-expect-error: not a declared event
+    expect(() => shop.event("cart.exploded", {})).toThrow(/declares no event/);
+  });
+
+  it("rides the page's ui-event as stage_event", () => {
+    const sent: [string, unknown][] = [];
+    const client = { on() {}, off() {}, sendUIEvent: (e: string, p?: unknown) => sent.push([e, p]) };
+    const att = attachStage(client, { onCue() {}, onMove() {} });
+    att.send(shop.event("cart.counted", { count: 2 }));
+    expect(sent).toEqual([["stage_event", { name: "cart.counted", by: "visitor", data: { count: 2 } }]]);
+    att.detach();
   });
 });

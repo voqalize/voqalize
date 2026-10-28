@@ -29,5 +29,5 @@ export {
 export { type StagePage, stagePage } from "./page";
 export {
   type ArgSpec, type ArgsOf, defineScene, type ItemSpec, type MoveId, type MoveSpec, type Performers, type Scene,
-  type SceneSpec,
+  type SceneSpec, type EventData, type EventId, type EventSpec, type FieldSpec, type SliceOf, type SliceSpec,
 } from "./scene";

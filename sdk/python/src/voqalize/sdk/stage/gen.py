@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 import re
+from typing import Any
 
 from .spec import ArgSpec, MoveSpec, StageSpec
 
@@ -136,7 +137,7 @@ def render_python(spec: StageSpec, *, source: str, command: str) -> str:
     literal = any(
         a.enum or (a.items is not None and a.items.enum) for m in spec.moves for a in m.args
     )
-    models = spec.moves
+
     out = [
         f"# Generated from {source} by `voqalize stage gen`. Do not edit — regenerate with:",
         f"#   {command}",
@@ -145,17 +146,16 @@ def render_python(spec: StageSpec, *, source: str, command: str) -> str:
         "from __future__ import annotations",
         "",
     ]
-    if literal:
+    if literal or spec.slices:
         out += ["from typing import Literal", ""]
-    if models:
-        out += ["from pydantic import BaseModel", ""]
+    out += ["from pydantic import BaseModel" + (", Field" if spec.slices else ""), ""]
     out += [
         "from voqalize.sdk.stage import Move, MoveClass, MoveSet",
         "",
         "#: The spec's hash: a page reading another spec reports a different one.",
         f'SPEC_SHA256 = "{spec.sha256}"',
     ]
-    for move in models:
+    for move in spec.moves:
         out += ["", "", f"class {_camel(names[move.id])}Args(BaseModel):"]
         out += _docstring(
             f"The arguments of ``{move.id}``." if move.args else f"``{move.id}`` takes none.",
@@ -174,13 +174,31 @@ def render_python(spec: StageSpec, *, source: str, command: str) -> str:
     out += ["    )", ")", ""]
     lines = spec.prompt_lines()
     out += ["#: The line each cue is taught with, in the spec's order."]
-    if len(lines) == 1:
+    if not lines:
+        out += ["PROMPT_LINES: tuple[str, ...] = ()"]
+    elif len(lines) == 1:
         out += [f"PROMPT_LINES: tuple[str, ...] = ({_py_str(lines[0])},)"]
     else:
         out += ["PROMPT_LINES: tuple[str, ...] = ("]
         out += [f"    {_py_str(line)}," for line in lines]
         out += [")"]
     out += [""]
+    if spec.slices:
+        ids = ", ".join(_py_str(s.id) for s in spec.slices)
+        what = "; ".join(f"{s.id}: {s.doc}" if s.doc else s.id for s in spec.slices)
+        out += [
+            "#: The slices of the page's state a read may name.",
+            f"SliceId = Literal[{ids}]",
+            "",
+            "",
+            "class ReadRequest(BaseModel):",
+            '    """What the read tool takes: the slice to read, from the brain\'s mirror."""',
+            "",
+            "    slice: SliceId = Field(",
+            f"        description={_py_str('Which part of their screen to read. ' + what + '.')}",
+            "    )",
+            "",
+        ]
     return "\n".join(_tidy(out))
 
 
@@ -195,6 +213,12 @@ def _tidy(lines: list[str]) -> list[str]:
     return out
 
 
+def _drop_docs(fields: list[dict[str, Any]]) -> None:
+    for f in fields:
+        f.pop("doc", None)
+        _drop_docs(f.get("fields", []))
+
+
 def render_typescript(spec: StageSpec, *, source: str, command: str) -> str:
     """The page's half: the spec, handed to ``defineScene``."""
     data = spec.model_dump(mode="json", by_alias=True, exclude_defaults=True)
@@ -206,6 +230,13 @@ def render_typescript(spec: StageSpec, *, source: str, command: str) -> str:
             move.pop(field, None)
         for arg in move.get("args", ()):
             arg.pop("doc", None)
+    for sl in data.get("slices", ()):
+        sl.pop("doc", None)
+        sl.pop("window", None)
+        _drop_docs(sl["fields"])
+    for event in data.get("events", ()):
+        event.pop("note", None)
+        event.pop("doc", None)
     body = json.dumps(data, ensure_ascii=False, indent=2)
     return "\n".join(
         [
