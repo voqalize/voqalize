@@ -51,7 +51,7 @@ defineSiteExtension({
   spotlight: { color: RING },
   fixed: ["header#masthead", ".explora-submenu.sticky-top"],
   avatar: {
-    create: (mount, client) => createAvatar({ mount, client: client as never, character: CHARACTER }),
+    create: (mount, client) => createAvatar({ mount, client, character: CHARACTER }),
     // His face builds once the visitor reaches for the invite, not at page load.
     preload: () => preloadAvatar(CHARACTER),
     still: async () => (await listCharacters()).find((c) => c.name === CHARACTER)?.still ?? null,

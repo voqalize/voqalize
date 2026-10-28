@@ -12,10 +12,7 @@
     "allowJs": true,
     "checkJs": false,
     "noEmit": true,
-    "types": ["chrome", "node"],
-    // `@voqalize/stage` is linked from the repo and only imports pipecat's
-    // types: read them from this package's own copy, so there is one client type.
-    "paths": { "@pipecat-ai/client-js": ["./node_modules/@pipecat-ai/client-js"] }
+    "types": ["chrome", "node"]
   },
   "include": ["src", "test", "playwright.config.ts"]
 }

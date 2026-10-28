@@ -153,11 +153,17 @@ class CueParser:
     """
 
     def __init__(
-        self, verbs: Collection[str], auto: AutoCues | None = None, *, unit: int = 0
+        self,
+        verbs: Collection[str],
+        auto: AutoCues | None = None,
+        *,
+        unit: int = 0,
+        on_unknown: Callable[[RawCue], None] | None = None,
     ) -> None:
         self._verbs = frozenset(verbs)
         self._auto = auto
         self._unit = unit
+        self._on_unknown = on_unknown
         #: Everything the unit has said so far, as text: a word split across
         #: two chunks is still one word here.
         self._said = ""
@@ -205,6 +211,9 @@ class CueParser:
                 self._marks.append((pos, verb, args))
             elif parsed is not None:
                 logger.info("stage: {!r} is not a move of this brain; dropped", body)
+                if self._on_unknown is not None:
+                    pos = len(self._said) + len(out)
+                    self._on_unknown(RawCue(parsed[0], parsed[1], "", pos, self._unit))
             # Anything else in braces is not for the voice either.
             i = end + 1
         self._said += out

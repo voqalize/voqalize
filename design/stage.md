@@ -21,11 +21,11 @@ Regenerate the page types after changing `wire.py`:
 
 1. The model names, the runtime moves. No selector, wait or click order ever comes from the model.
 2. Class (look | navigate | reversible | confirmed — `policy.py`) decides delivery, retries, what the model hears. `commit` = human only, never a move.
-3. Every visible move rings its target before it acts (the **spotlight**), and keeps the ring long enough to see (≥ ~1.5 s dwell unless the next ring replaces it). A move that changes the page without a ring is a bug.
-4. Every move — cue or tool — gets exactly one `StageResult` per `call_ref`. The brain times out a missing one as `unknown`.
+3. Every visible move rings its target before it acts (the **spotlight**). `ring()` holds the move only a short beat (`beatMs`, 450 ms; per call `{beatMs}`), so a fast reply never leaves the screen behind the voice; the ring itself stays visible ≥ `dwellMs` (1.5 s) — a display guarantee, not a wait: a `clear()` inside it waits it out — unless the next ring replaces it. A move that changes the page without a ring is a bug.
+4. Every move — cue or tool — gets exactly one final `StageResult` per `call_ref`, under the move id it was minted for, also when the page carried it to the next page and another performer finished it there. The brain times out a missing one as `unknown`, after a timeout by class (`RESULT_TIMEOUTS`).
 5. The page segments words; the brain never does. Anchors work in any script (Latin with accents, Devanagari, CJK, Arabic).
 6. Never hold the voice for the page. (The extension holder keeps playing across loads.)
-7. `@voqalize/stage` takes a PipecatClient that already exists and only subscribes/sends. It never constructs, connects, wraps or re-exports pipecat's client or hooks.
+7. `@voqalize/stage` takes a PipecatClient that already exists and only subscribes/sends. It never constructs, connects, wraps or re-exports pipecat's client or hooks. It names no pipecat type in its API either: it writes out what it uses (`StageClient`: `on`/`off`, `sendUIEvent`; the holder's `HolderClient`), so a `PipecatClient` of any copy or version in the peer range (`>=1.13 <2`) fits with no cast and no `paths` alias.
 8. No internal service names (gato, pygato, vql-*) in SDK or package prose.
 
 ## Cue grammar (model output)
@@ -41,7 +41,7 @@ arg  := ≤ 80 chars, no braces/newline; trimmed
 - Anything else in braces is not spoken either (as today). An unclosed brace is dropped once
   it runs past 220 chars, and the text is spoken.
 - The verbs a reply may use are the brain's registered moves' verbs. Unknown verbs are dropped
-  (logged), never spoken.
+  (logged, and told to `on_drop`), never spoken.
 - Sentence ends (brain side, for anchoring and backstop): `. ! ? … 。 ！ ？ । ॥` followed by
   whitespace, or the end of the unit.
 
@@ -66,7 +66,8 @@ arg  := ≤ 80 chars, no braces/newline; trimmed
 - Empty `at` fires 600 ms after the voice stops. A cue whose words never come is dropped
   after 45 s. On `userStartedSpeaking` every cue not yet fired is dropped and reported
   `refused` with why `interrupted` (not sent to the model as a failure note).
-- Cues fire in order, one move at a time (a page must arrive before a section on it).
+- Cues fire in order, one move at a time (a page must arrive before a section on it). Each
+  waits only for the move before it, whose rings hold it a beat each, not a dwell.
 
 ## Wire (see `wire.py`)
 
@@ -74,6 +75,11 @@ down `ui-command`: `stage_cue {call_ref, move, verb, args[], at, before, unit}` 
 `stage_move {call_ref, move, args{}, when: now|quiet}`
 up `ui-event`: `stage_result {call_ref, move, outcome, detail?, refused[], moved, ms}` ·
 `stage_hello {runtime, contract, url, title}`
+
+`moved: true` is interim: the move's page went, and its next page owes the final result. The
+extension's holder sends one as a carried move's page goes, and fails the move itself
+(`failed`, "no page came up to finish it after the load") when no page reports it within
+20 s. A move whose page went without carrying anything is final there (`applied`).
 Site-specific typed Actions/AppEvents (page_changed, listing_shown, check_availability, …)
 keep riding the same channels beside these. `command_done` / `command_failed` are replaced
 by `stage_result`.
@@ -93,7 +99,11 @@ class Stage:
     def __init__(self, *, dispatch: Callable[[Action], None], moves: Sequence[Move],
                  resolve: Callable[[Move, list[str]], list[str] | None],   # None = drop
                  backstop: AutoCues | None = None,
-                 result_timeout_s: float = 20.0,
+                 # one number, or by class; missing classes keep RESULT_TIMEOUTS
+                 # (look 10, navigate 25, reversible 20, confirmed 30 s)
+                 result_timeout_s: float | Mapping[MoveClass, float] = RESULT_TIMEOUTS,
+                 # every cue not sent: why ∈ "unresolved" | "unknown_verb" | "too_many_args"
+                 on_drop: Callable[[RawCue, Dropped], None] | None = None,
                  clock: Callable[[], float] = time.monotonic) -> None: ...
     def cued(self, turn: AsyncGenerator[Speech, None]) -> AsyncGenerator[Speech, None]:
         """Strip cues from SpeechChunks, resolve, dispatch StageCue with a fresh call_ref."""
@@ -102,7 +112,11 @@ class Stage:
         None when it was queued behind the running one (it is sent when that one answers)."""
     def handle(self, event: StageResult | StageHello) -> StageResult | None:
         """Fold a result: clears the in-flight move, sends the queued one, returns the result
-        (with outcome as received) so the brain can write its note; None for duplicates."""
+        (with outcome as received, `move` the one minted for its call_ref) so the brain can
+        write its note; None for duplicates. A `moved` result is interim and restarts its
+        time."""
+    def timeout(self, cls: MoveClass) -> float: ...
+    def move_of(self, call_ref: str) -> Move | None: ...  # rarely needed: results name it
     def expire(self) -> list[StageResult]:
         """Results that timed out, as outcome="unknown" (call from a periodic tick or on
         each turn)."""
@@ -128,10 +142,13 @@ export function words(text: string, lang?: string): string[];          // the on
 export class Timeline { constructor(fire: (cue: StageCue) => Promise<StageResult | void>, opts?: {lang?: string; now?: () => number});
   add(cue: StageCue): void; hear(text: string): void; speaking(): void; stopped(): void;
   interrupted(): StageCue[]; clear(): void; }
-export interface SpotlightTheme { color: string; width?: number; radius?: number; glow?: string; dwellMs?: number }
+export interface SpotlightTheme { color: string; width?: number; radius?: number; glow?: string;
+  beatMs?: number /* 450: how long ring() holds the move */; dwellMs?: number /* 1500: least a ring is visible */;
+  holdMs?: number; pad?: number }
+export interface RingOptions { label?: string; beatMs?: number; dwellMs?: number; separate?: boolean /* one box per element */ }
 export class Spotlight { constructor(theme: SpotlightTheme, doc?: Document);
-  ring(target: Element | Element[], opts?: {dwellMs?: number; label?: string}): Promise<void>;
-  clear(): void; }  // shadow-root overlay in document coordinates; follows scroll/resize; never restyles the site; aria-live label; reduced-motion aware
+  ring(target: Element | Element[], opts?: RingOptions): Promise<void>;   // resolves after the beat
+  clear(): void; }  // waits out a young ring's dwell; shadow-root overlay in document coordinates; follows scroll/resize; never restyles the site; aria-live label; reduced-motion aware
 export function locate(spec: Locator, root?: ParentNode): Element | null;   // any_of strategies, unique-or-null
 export function reveal(el: Element): Promise<void>;     // open closed tab/accordion/details/carousel hiding it
 export function scrollToEl(el: Element, opts?: {align?: "top"|"center"; fixed?: string[]}): Promise<void>;
@@ -139,12 +156,24 @@ export function press(el: Element): void; export function setValue(el: Element, 
 export function waitFor<T>(fn: () => T | null | false, ms: number): Promise<T | null>;
 export function quiet(el: Element, quietMs: number, maxMs: number): Promise<void>;
 export type Performer<A> = (args: A, c: MoveContext) => Promise<string | null>;  // detail; null = moved on to another page
-export interface MoveContext { spotlight: Spotlight; reveal(el: Element): Promise<void>;
-  ring(el: Element | Element[], label?: string): Promise<void>; beat(ms?: number): Promise<void>;
-  scrollTo(el: Element): Promise<void>; refuse(arg: string, why: string, options?: string[]): never; }
-export class Moves { register<A>(id: string, cls: MoveClass, performer: Performer<A>): void;
-  run(id: string, args: unknown, call_ref: string): Promise<StageResult>; }   // one at a time; builds the Result
-export function attachStage(client: PipecatClient, opts: { onCue(c: StageCue): void; onMove(m: StageMove): void;
+export interface MoveContext { move: string; callRef: string; spotlight: Spotlight; reveal(el: Element): Promise<void>;
+  ring(el: Element | Element[], opts?: string /* label */ | RingOptions): Promise<void>; beat(ms?: number): Promise<void>;
+  scrollTo(el: Element): Promise<void>; refuse(arg: string, why: string, options?: string[]): never;
+  // With a Carrier (the extension): load url; `then` runs on the next page under this move's id and
+  // call_ref, or, without it, the move is applied once that page is up on the expected host/path
+  // (partial, saying where, when it is not).
+  loadThen?(url: string, then?: {move: string; args: unknown}): Promise<never>;
+  // A press that may load a page: keep the rest for the next page / discard it. A move that ends on
+  // this page drops what it kept by itself. No-ops without a Carrier.
+  keep(then?: {move: string; args: unknown}): Promise<void>; drop(): Promise<void>; }
+export interface Carrier { keep(c: Carried): Promise<void>; drop(callRef: string): Promise<void>; load(url: string): void }
+export class Moves { constructor(spotlight: Spotlight, opts?: {fixed?: string[]; carrier?: Carrier});
+  register<A>(id: string, cls: MoveClass, performer: Performer<A>, opts?: {params?: string[]}): void;
+  run(id: string, args: unknown, call_ref: string): Promise<StageResult | null>;   // one at a time; builds the Result
+  resume(c: Carried): Promise<StageResult | null>; }   // finish a carried move on the page it reached
+export interface StageClient { on(event: string, h: (...a: any[]) => void): unknown;
+  off(event: string, h: (...a: any[]) => void): unknown; sendUIEvent(event: string, payload?: unknown): void }
+export function attachStage(client: StageClient, opts: { onCue(c: StageCue): void; onMove(m: StageMove): void;
   onSiteCommand?(command: string, payload: unknown): void }): { send(ev: StageResult | StageHello): void; detach(): void };
 ```
 `@voqalize/stage/extension` — the Chrome MV3 host shared by every site extension, extracted
@@ -152,7 +181,13 @@ from explora + cannonhome: offscreen holder (call, tab registry, routing to the 
 moves kept for loading tabs / `loadThen` across hosts, Timeline), relay/follow/catch-up/
 mouth-clock for the avatar, call-client, grant flow, page bridge/hub, shell/persist, widget
 shell. Site extensions provide: config (hosts, agent, theme, languages, widget copy), their
-site adapters registered with `Moves`, and their site AppEvents.
+site adapters registered with `Moves`, and their site AppEvents. An adapter returns
+`SiteHooks`: `context()` for the session's start, `report(emit)` (the page as it stands — run
+once the call can hear the page and again whenever the tab comes back to the front; the host
+owns the `visibilitychange`/`focus` listening), `start(emit)` (watch and report changes) and
+`command()` for site Actions. The holder's `makeClient` returns a `HolderClient` (structural:
+the site's own `PipecatClient` fits), and `avatar.create` gets the stand-in client typed loosely
+(`AvatarClient`) so it passes as whichever `PipecatClient` the site's avatar package wants.
 
 ## Gates
 
@@ -160,6 +195,6 @@ site adapters registered with `Moves`, and their site AppEvents.
 uv run ruff format --check . && uv run ruff check . && uv run pyright
 cd sdk/python && uv run pytest -q
 cd demos && uv run pytest tests/test_explora*.py tests/test_cannonhome*.py   # + the cross-demo voice contract
-cd sdk/js/stage && pnpm typecheck && pnpm test
-cd demos/<site>/extension && pnpm install --ignore-workspace && pnpm typecheck && pnpm test:e2e
+cd sdk/js/stage && pnpm typecheck && pnpm test   # incl. catch-up, mouth clock, client types
+cd demos/<site>/extension && pnpm install --ignore-workspace && pnpm typecheck && pnpm build && pnpm test:e2e
 ```

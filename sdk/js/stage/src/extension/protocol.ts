@@ -9,6 +9,7 @@
  * each tab's move for its next page and the visitor's language choice.
  */
 
+import type { Carried } from "../moves";
 import type { StageResult } from "../wire.gen";
 import type { Activity, Language, Status } from "./widget";
 
@@ -47,9 +48,11 @@ export interface Where {
 }
 
 /** One thing a page is asked to do: a Stage move (with the call it answers),
- *  or one of the site's own Actions. */
+ *  the rest of a move the last page of the tab carried here, or one of the
+ *  site's own Actions. */
 export type Job =
   | { kind: "stage"; move: string; args: unknown; call_ref: string }
+  | Carried
   | { kind: "site"; command: string; payload: unknown };
 
 /** Page → holder, on the port. */
@@ -70,6 +73,11 @@ export type FromPage =
   // A Stage result sent outside a job: a move finished on the page after a
   // load, or one that said it would load and did not.
   | { k: "result"; result: StageResult }
+  // A move kept for this tab's next page (`loadThen`, `keep`): its final
+  // result is owed from there once this page goes. `uncarried`: it ended
+  // here after all.
+  | { k: "carried"; call_ref: string; move: string }
+  | { k: "uncarried"; call_ref: string }
   | { k: "mute" }
   | { k: "end" }
   | { k: "lang"; language: Language }
@@ -91,6 +99,7 @@ export type WorkerAsk =
   // by the worker, per browser tab, until that page asks for it.
   | { op: "pend"; then: Job }
   | { op: "pending" }
+  | { op: "unpend"; call_ref: string }
   // The visitor's language choice, for every host of the site.
   | { op: "get_lang" }
   | { op: "set_lang"; lang: Language }

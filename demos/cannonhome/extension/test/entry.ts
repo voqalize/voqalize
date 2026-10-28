@@ -5,15 +5,16 @@
  * checkout guard for the tests to drive directly.
  *
  * With no extension, a move that loads another page carries the rest of
- * itself in this tab's `sessionStorage` (the extension keeps it with its
- * service worker), and this page makes it once settled and reports its one
- * `stage_result`, as the extension's next page does.
+ * itself through a Stage `Carrier` over this tab's `sessionStorage` (the
+ * extension's keeps it with its service worker), and this page finishes it
+ * once settled (`Moves.resume`) and reports its one `stage_result`, under the
+ * move's own id, as the extension's next page does.
  */
 
-import { Deferred, Moves, Spotlight, type StageResult } from "@voqalize/stage";
+import { type Carried, type Carrier, Moves, Spotlight, type StageResult } from "@voqalize/stage";
 
 import { watchAnchors } from "../src/anchors";
-import { context, type PageContext, prepare, registerMoves, start, useCarry } from "../src/cannonhome-actions";
+import { context, type PageContext, prepare, registerMoves, reportPage, start } from "../src/cannonhome-actions";
 import { forbiddenPath, go, intoCheckout, press, privateField, settled } from "../src/page";
 import { SPOTLIGHT } from "../src/site";
 
@@ -41,35 +42,27 @@ declare global {
 }
 
 const KEY = "voqalize.test.then";
-interface Kept {
-  move: string;
-  args: unknown;
-  call_ref: string;
-}
 
-const keepJob = (k: Kept) => sessionStorage.setItem(KEY, JSON.stringify(k));
-function takeJob(): Kept | null {
+function takeJob(): Carried | null {
   const raw = sessionStorage.getItem(KEY);
   sessionStorage.removeItem(KEY);
-  return raw ? (JSON.parse(raw) as Kept) : null;
+  return raw ? (JSON.parse(raw) as Carried) : null;
 }
 
-useCarry({
-  keep: async (callRef, then) => keepJob({ ...then, call_ref: callRef }),
-  drop: () => sessionStorage.removeItem(KEY),
-});
-
 const spotlight = new Spotlight(SPOTLIGHT);
-const moves = new Moves(spotlight, {
-  extend: (c) => ({
-    async loadThen(url: string, then?: { move: string; args: unknown }): Promise<never> {
-      if (then) keepJob({ ...then, call_ref: c.callRef });
-      spotlight.clear();
-      location.assign(url);
-      throw new Deferred();
-    },
-  }),
-});
+const carrier: Carrier = {
+  async keep(c) {
+    sessionStorage.setItem(KEY, JSON.stringify(c));
+  },
+  async drop(callRef) {
+    const raw = sessionStorage.getItem(KEY);
+    if (raw && (JSON.parse(raw) as Carried).call_ref === callRef) sessionStorage.removeItem(KEY);
+  },
+  load(url) {
+    location.assign(url);
+  },
+};
+const moves = new Moves(spotlight, { carrier });
 registerMoves(moves);
 prepare();
 watchAnchors();
@@ -94,7 +87,7 @@ async function run(move: string, args: unknown): Promise<RunResult> {
 const kept = takeJob();
 if (kept) {
   void settled()
-    .then(() => moves.run(kept.move, kept.args, kept.call_ref))
+    .then(() => moves.resume(kept))
     .then((result) => result && emit("stage_result", result));
 }
 
@@ -103,6 +96,7 @@ window.voqalizeCannonhome = {
   context,
   start(next) {
     listener = next;
+    reportPage(next);
     const stop = start(next);
     for (const [event, payload] of backlog.splice(0)) next(event, payload);
     return stop;

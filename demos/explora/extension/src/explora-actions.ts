@@ -3,19 +3,18 @@
  * outside, with no help from Explora's developers.
  *
  * It registers Javier's moves with Stage (`Moves`): his cues `core.show` and
- * `core.faq`, and `explora.navigate`, `explora.twin` and the page's own
- * `explora.arrive`. Every move rings what it points at with Stage's
- * spotlight before it acts, and answers with one result: a short detail of
- * what it did, `refuse()` for a name the page does not have, an error for
- * anything else. `start` reports the page as it stands (`page_changed`) once
- * the call is up on it.
+ * `core.faq`, and `explora.navigate` and `explora.twin`. Every move rings
+ * what it points at with Stage's spotlight before it acts, and answers with
+ * one result: a short detail of what it did, `refuse()` for a name the page
+ * does not have, an error for anything else. `report` says what the page is
+ * (`page_changed`) once the call is up on it, and again whenever the tab
+ * comes back to the front; `start` reports it again as late parts render.
  *
  * What the site is, for a script like this:
  *
  *   - Every move between pages is a full page load: no client-side router. So
- *     `navigate` hands the rest of itself to the next page (`loadThen`, with
- *     `explora.arrive`), whose copy of this script finishes it and reports
- *     how it ended. The pacing of a load against Javier's voice
+ *     `navigate` loads the page with `loadThen`, and Stage answers for the
+ *     move once the next page is up where it should be. The pacing of a load against Javier's voice
  *     (`after_words`) is the call's, in the holder (`holder.ts`).
  *   - The window scrolls (no smooth-scroll library), under a fixed
  *     `header#masthead` and, on destination, lodge and expedition pages, a
@@ -36,9 +35,7 @@ import type { MoveContext, Spotlight } from "@voqalize/stage";
 import { type Adapter, askWorker, type PageKit } from "@voqalize/stage/extension";
 
 import { clean, headerHeight, norm, type PageContext, pick, scrollTo, sleep, styleThePage, visible, waitFor } from "./dom";
-import {
-  type ArriveArgs, bookingUrl, type CheckAvailabilityArgs, type FillEnquiryArgs, MOVE, type NavigateArgs,
-} from "./site";
+import { bookingUrl, type CheckAvailabilityArgs, type FillEnquiryArgs, MOVE, type NavigateArgs } from "./site";
 import {
   alternateHere, type Lang, type Mapped, pageLanguage, pagePath, pathLang, rememberHere, SITE, siteUrlIn, twinHere,
 } from "./site-language";
@@ -54,20 +51,15 @@ const isExplora = (host: string) => /^(www\.)?explora\.com$/i.test(host);
  *  before it loads the English page as named (the brain then asks for the
  *  twin from that page, whose own `<head>` names it). */
 const TWIN_WAIT_MS = 2000;
-/** A ring that the next one replaces at once (the trigger before the pane it
- *  opens) stays this long; a ring that ends a move stays the spotlight's own
- *  dwell. */
-const BEFORE_MS = 700;
-
 // ─── The ring ─────────────────────────────────────────────────────────────
 
 /** This page's spotlight (Stage's), set when the adapter starts. */
 let spot: Spotlight | null = null;
 
-/** Ring `target` (one element, or several as one box) and wait out its dwell:
- *  `before` for a ring the next one replaces. */
-function ring(target: Element | Element[], before = false): Promise<void> {
-  return spot?.ring(target, before ? { dwellMs: BEFORE_MS } : {}) ?? Promise.resolve();
+/** Ring `target` (one element, or several as one box) and hold the move a
+ *  beat: what it acts on next is already ringed. */
+function ring(target: Element | Element[]): Promise<void> {
+  return spot?.ring(target) ?? Promise.resolve();
 }
 
 /** The page's own content, as the crawler reads it. */
@@ -335,7 +327,7 @@ async function openTrigger(t: Trigger): Promise<boolean> {
   if (t.kind !== "collapse" && paneOpen(t.pane)) return true;
   if (visible(t.el)) {
     await scrollTo(t.el, "center");
-    await ring(t.el, true);
+    await ring(t.el);
     t.el.click();
   } else if (t.kind === "collapse") {
     jq()?.(t.pane).collapse("show");
@@ -422,7 +414,7 @@ async function reveal(el: HTMLElement): Promise<HTMLElement | null> {
     const $ = jq();
     if (!carousel || i < 0 || !$ || !visible(carousel)) return null;
     await scrollTo(carousel, "center");
-    await ring(carousel, true);
+    await ring(carousel);
     $(carousel).trigger("to.owl.carousel", [i, 400]);
     const copy = await waitFor(() => showingCopy(el, item), 2000);
     await sleep(450);
@@ -688,7 +680,7 @@ async function openFaq({ question }: { question: string }, c: MoveContext): Prom
 
 // ─── navigate ─────────────────────────────────────────────────────────────
 
-/** Where `start` reports to, for a move that ends on the page already in front. */
+/** Where `report` reports to, for a move that ends on the page already in front. */
 let emitter: ((event: string, payload: unknown) => void) | null = null;
 
 /** A link on screen to `url`, to ring before the page goes to it: the
@@ -733,9 +725,8 @@ export async function inCallLanguage(path: string, kit: PageKit): Promise<string
 
 /**
  * Load one of www.explora.com's pages in this tab, after ringing the link to
- * it when one is on screen. The rest of the move (`explora.arrive`) is kept
- * by the service worker for the next page, which finishes it and answers for
- * it. The wait for his voice before the load is the holder's, not this; so
+ * it when one is on screen. The move is carried to the next page (Stage's
+ * `loadThen`), which answers for it once it is up. The wait for his voice before the load is the holder's, not this; so
  * the page goes once he has said what leads to it. While the call is in
  * Spanish the page's Spanish twin is loaded (`site-language.ts`).
  *
@@ -754,34 +745,13 @@ async function navigate(args: NavigateArgs, c: MoveContext, kit: PageKit): Promi
   }
   const link = linkOnScreen(target.href);
   if (link) await ring(link);
-  return load(c, target.href, { lenient: pathLang(target) !== "en" });
+  return load(c, target.href);
 }
 
-/** Load `url` here, with `then` made on the page it lands on. */
-function load(c: MoveContext, url: string, then: ArriveArgs): Promise<never> {
+/** Load `url` here; the move is answered once the page it lands on is up. */
+export function load(c: MoveContext, url: string): Promise<never> {
   if (!c.loadThen) throw new Error("this page cannot load another and finish the move there");
-  return c.loadThen(url, { move: MOVE.arrive, args: then });
-}
-
-/** The second half of a move that loaded this page: what to show on it, if
- *  anything, then the move's one result. */
-async function arrive(args: ArriveArgs, c: MoveContext): Promise<string> {
-  const here = `opened ${location.pathname}`;
-  if (args.faq) return lenientMove(args.lenient, () => openFaq({ question: args.faq! }, c), here);
-  if (args.heading || args.text) return lenientMove(args.lenient, () => showSection(args, c), here);
-  return here;
-}
-
-/** A move that, when `lenient`, skips what it cannot find rather than fail:
- *  the English names the brain knows, on a page in another language. */
-async function lenientMove(lenient: boolean | undefined, move: () => Promise<string>, skipped: string): Promise<string> {
-  if (!lenient) return move();
-  try {
-    return await move();
-  } catch (error) {
-    console.info("voqalize: skipped on a translated page:", error instanceof Error ? error.message : error);
-    return skipped;
-  }
+  return c.loadThen(url);
 }
 
 // ─── The call's language ─────────────────────────────────────────────────
@@ -811,7 +781,7 @@ async function twin({ language }: { language: Lang }, c: MoveContext): Promise<s
   }
   const link = linkOnScreen(there);
   if (link) await ring(link);
-  return load(c, there, {});
+  return load(c, there);
 }
 
 /** The site follows the call (the holder's `site_language`, once he has
@@ -849,16 +819,21 @@ export async function focusTab({ tab_id }: { tab_id: string }): Promise<string> 
 
 // ─── Reporting ────────────────────────────────────────────────────────────
 
+/** Report the page as it stands: once the call is up on it, and again
+ *  whenever the visitor comes back to this tab (Stage's host runs it). */
+function report(emit: (event: string, payload: unknown) => void): void {
+  emitter = emit;
+  emit("page_changed", context());
+}
+
 /**
- * Report the page, once the call is up on it. Every page is a fresh load, so
- * there are no route changes to watch: this page is reported once, again if
- * its headings grow as late parts of it render (a carousel, the reviews), and
- * again whenever the visitor comes back to this tab.
+ * Watch the page once the call is up on it. Every page is a fresh load, so
+ * there are no route changes to watch: this page is reported again if its
+ * headings grow as late parts of it render (a carousel, the reviews).
  */
 function start(emit: (event: string, payload: unknown) => void): () => void {
   emitter = emit;
   let last = JSON.stringify(context());
-  emit("page_changed", JSON.parse(last));
   let timer: ReturnType<typeof setTimeout> | null = null;
   const obs = new MutationObserver(() => {
     if (timer) clearTimeout(timer);
@@ -878,18 +853,11 @@ function start(emit: (event: string, payload: unknown) => void): () => void {
   });
   obs.observe(root(), { childList: true, subtree: true });
   const stopWatching = setTimeout(() => obs.disconnect(), 20_000);
-  const back = () => {
-    if (document.visibilityState === "visible") emit("page_changed", context());
-  };
-  document.addEventListener("visibilitychange", back);
-  window.addEventListener("focus", back);
   return () => {
-    if (emitter === emit) emitter = null;
+    emitter = null;
     obs.disconnect();
     clearTimeout(stopWatching);
     if (timer) clearTimeout(timer);
-    document.removeEventListener("visibilitychange", back);
-    window.removeEventListener("focus", back);
   };
 }
 
@@ -905,7 +873,6 @@ export const exploraAdapter: Adapter = (moves, kit) => {
   });
   moves.register<{ question: string }>(MOVE.faq, "look", (a, c) => openFaq(a, c), { params: ["question"] });
   moves.register<NavigateArgs>(MOVE.navigate, "navigate", (a, c) => navigate(a, c, kit));
-  moves.register<ArriveArgs>(MOVE.arrive, "navigate", arrive);
   moves.register<{ language: Lang }>(MOVE.twin, "navigate", twin);
   moves.register<CheckAvailabilityArgs>(MOVE.checkAvailability, "reversible", (a, c) =>
     toBooking(MOVE.checkAvailability, a, c, kit),
@@ -920,6 +887,7 @@ export const exploraAdapter: Adapter = (moves, kit) => {
   moves.register(MOVE.focusTab, "look", focusTab);
   return {
     context: () => ({ ...context() }),
+    report,
     start,
     async command(command, payload) {
       if (command === "site_language") await siteLanguage(payload as { language: Lang }, kit);

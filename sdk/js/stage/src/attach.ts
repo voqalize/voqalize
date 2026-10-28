@@ -13,8 +13,6 @@
  * hooks.
  */
 
-import type { PipecatClient } from "@pipecat-ai/client-js";
-
 import type { Timeline } from "./timeline";
 import { asUiAction, sendAppEvent, type StageCue, type StageHello, type StageMove, type StageResult } from "./wire.gen";
 
@@ -22,8 +20,22 @@ import { asUiAction, sendAppEvent, type StageCue, type StageHello, type StageMov
 export const STAGE_CONTRACT = 1;
 export const STAGE_RUNTIME = "@voqalize/stage";
 
-/** What `attachStage` uses of the client: its events and `sendUIEvent`. */
-export type StageClient = Pick<PipecatClient, "on" | "off" | "sendUIEvent">;
+/** A handler of one of the client's events. */
+export type ClientHandler = (...args: any[]) => void;
+
+/**
+ * What `attachStage` uses of a pipecat client, written out rather than
+ * imported, so a `PipecatClient` of any version in the peer range (and of any
+ * copy of the package, which a linked or bundled site may have two of) fits:
+ * `on`/`off` for `uiCommand`, `botOutput`, `botTtsText`,
+ * `botStartedSpeaking`, `botStoppedSpeaking` and `userStartedSpeaking`, and
+ * `sendUIEvent`.
+ */
+export interface StageClient {
+  on(event: string, handler: ClientHandler): unknown;
+  off(event: string, handler: ClientHandler): unknown;
+  sendUIEvent(event: string, payload?: unknown): void;
+}
 
 export interface AttachOptions {
   onCue?(cue: StageCue): void;
@@ -67,7 +79,7 @@ export function attachStage(client: StageClient, opts: AttachOptions): Attached 
     opts.onHeard?.(text);
   };
 
-  const handlers: [string, (...a: never[]) => void][] = [
+  const handlers: [string, ClientHandler][] = [
     [
       "uiCommand",
       (({ command, payload }: { command: string; payload: unknown }) => {
@@ -79,7 +91,7 @@ export function attachStage(client: StageClient, opts: AttachOptions): Attached 
         } else {
           opts.onMove(action.payload);
         }
-      }) as never,
+      }),
     ],
     [
       "botOutput",
@@ -87,28 +99,28 @@ export function attachStage(client: StageClient, opts: AttachOptions): Attached 
         outputSeen = true;
         if (!d?.text || d.spoken === false || d.will_be_spoken === false || d.output_type === "backchannel") return;
         heard(d.text);
-      }) as never,
+      }),
     ],
     [
       "botTtsText",
       ((d: Spoken) => {
         if (outputSeen || !d?.text) return;
         heard(d.text);
-      }) as never,
+      }),
     ],
     [
       "botStartedSpeaking",
       (() => {
         tl?.speaking();
         opts.onBotStarted?.();
-      }) as never,
+      }),
     ],
     [
       "botStoppedSpeaking",
       (() => {
         tl?.stopped();
         opts.onBotStopped?.();
-      }) as never,
+      }),
     ],
     [
       "userStartedSpeaking",
@@ -116,12 +128,10 @@ export function attachStage(client: StageClient, opts: AttachOptions): Attached 
         const dropped = tl?.interrupted() ?? [];
         for (const cue of dropped) send(interruptedResult(cue));
         opts.onUserStarted?.(dropped);
-      }) as never,
+      }),
     ],
   ];
-  const on = client.on.bind(client) as unknown as (name: string, fn: (...a: never[]) => void) => void;
-  const off = client.off.bind(client) as unknown as (name: string, fn: (...a: never[]) => void) => void;
-  for (const [name, fn] of handlers) on(name, fn);
+  for (const [name, fn] of handlers) client.on(name, fn);
 
   return {
     send,
@@ -129,7 +139,7 @@ export function attachStage(client: StageClient, opts: AttachOptions): Attached 
       send({ runtime: STAGE_RUNTIME, contract: STAGE_CONTRACT, url: location.href, title: document.title });
     },
     detach() {
-      for (const [name, fn] of handlers) off(name, fn);
+      for (const [name, fn] of handlers) client.off(name, fn);
     },
   };
 }

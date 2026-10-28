@@ -18,11 +18,13 @@
  * allows), then hands the answer to the holder.
  */
 
-import { Deferred, type MoveContext, Moves } from "../moves";
+import { type Carried, type Carrier, Moves } from "../moves";
 import { Spotlight, type SpotlightTheme } from "../spotlight";
 import type { StageResult } from "../wire.gen";
-import { followCall, type Following } from "./follow";
-import { askHolder, askWorker, loadThen, onHolder, pendingMove, shareLanguage, sharedLanguage, tell } from "./hub";
+import { type FollowedClient, followCall, type Following } from "./follow";
+import {
+  askHolder, askWorker, loadThen, onHolder, pend, pendingMove, shareLanguage, sharedLanguage, tell, unpend,
+} from "./hub";
 import { clearKept, type Kept, transitions, writeKept } from "./persist";
 import type { CallState, Job, MicState, Where } from "./protocol";
 import { mountedFlag, type SiteConfig, shellFlag } from "./site";
@@ -47,8 +49,12 @@ export interface PageKit {
 export interface SiteHooks {
   /** What the visitor is looking at, for the session's start. */
   context?(): Record<string, unknown>;
-  /** Report what the page shows through `emit`, until the returned stop. Run
-   *  once the agent can hear this page. */
+  /** Report the page as it stands through `emit` (`page_changed`, say). Run
+   *  once the agent can hear this page, before `start`, and again each time
+   *  the tab comes back to the front. */
+  report?(emit: (event: string, payload: unknown) => void): void;
+  /** Report what the page shows through `emit` as it changes, until the
+   *  returned stop. Run once the agent can hear this page. */
   start?(emit: (event: string, payload: unknown) => void): () => void;
   /** One of the site's own Actions, sent to this page. */
   command?(command: string, payload: unknown): Promise<void> | void;
@@ -56,10 +62,18 @@ export interface SiteHooks {
 
 export type Adapter = (moves: Moves, kit: PageKit) => SiteHooks | void;
 
+/** The stand-in client handed to `AvatarHooks.create`: a `FollowedClient`,
+ *  assignable to any copy of pipecat's `PipecatClient` class (whose private
+ *  members no structural type could match). */
+export type AvatarClient = FollowedClient & any;
+
 /** The avatar, as the site's package draws it. */
 export interface AvatarHooks {
-  /** Draw the face in `mount` against `client`. */
-  create(mount: HTMLElement, client: Following["client"]): { destroy(): void };
+  /** Draw the face in `mount` against `client`: a stand-in the holder feeds,
+   *  shaped as the avatar reads a `PipecatClient` (`FollowedClient`). Typed
+   *  loosely on purpose, so it passes as the `PipecatClient` of whichever
+   *  pipecat copy the site's avatar package was built against. */
+  create(mount: HTMLElement, client: AvatarClient): { destroy(): void };
   /** Start building the face before it is shown. */
   preload?(): { ready?: Promise<unknown> } | void;
   /** The character's still, for the invite. */
@@ -117,6 +131,9 @@ const MOVE_AT_THE_LATEST_MS = 10_000;
 /** A move that started a load and is still on this page this long after
  *  failed: the screen has not moved. */
 const UNLOAD_WAIT_MS = 8000;
+/** A tab back in front reports again, once for its `visibilitychange` and
+ *  `focus` together. */
+const REPORT_AGAIN_MS = 250;
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -167,37 +184,39 @@ async function start(config: SiteExtensionConfig): Promise<void> {
   // ─── Stage on this page ────────────────────────────────────────────────
 
   const spotlight = new Spotlight(config.spotlight);
-  /** The job being made, so `loadThen` can hand it to the next page. */
-  let current: { id: number | null; job: Extract<Job, { kind: "stage" }> } | null = null;
-  const moves = new Moves(spotlight, {
-    fixed: config.fixed,
-    extend: (c: MoveContext) => ({
-      async loadThen(url: string, then?: { move: string; args: unknown }): Promise<never> {
-        const job = current?.job;
-        if (!job) throw new Error("no move to carry to the next page");
-        const next: Job | undefined = then ? { kind: "stage", move: then.move, args: then.args, call_ref: c.callRef } : undefined;
-        // Its result is the next page's (or, should this page stay, ours).
-        if (next && current?.id != null) tell({ k: "done", id: current.id, result: null, deferred: true });
-        spotlight.clear();
-        await loadThen(url, next);
-        if (next) {
-          watchUnload(c.callRef, c.move);
-          throw new Deferred();
-        }
-        // The page goes, and the holder reports the move as moved. Should it
-        // stay, the move failed.
-        await sleep(UNLOAD_WAIT_MS);
-        throw new Error("the page did not load; the screen has not moved");
-      },
-    }),
-  });
+  /** The move last carried to this tab's next page. */
+  let lastCarried: Carried | null = null;
+  /** Carries a move to this tab's next page: kept by the service worker (the
+   *  next page may be on another host), and owed to the holder from there. */
+  const carrier: Carrier = {
+    async keep(c: Carried) {
+      lastCarried = c;
+      tell({ k: "carried", call_ref: c.call_ref, move: c.move });
+      await pend(c);
+    },
+    async drop(callRef: string) {
+      await unpend(callRef);
+      tell({ k: "uncarried", call_ref: callRef });
+    },
+    load(url: string) {
+      void loadThen(url);
+      watchUnload(lastCarried);
+    },
+  };
+  const moves = new Moves(spotlight, { fixed: config.fixed, carrier });
 
   /** A move that loaded another page and is still here a while after: the
-   *  agent is told the screen has not moved. */
-  function watchUnload(callRef: string, move: string): void {
+   *  agent is told the screen has not moved, and the next page owes nothing. */
+  function watchUnload(c: Carried | null): void {
+    if (!c) return;
     setTimeout(() => {
-      if (gone || !state.ready) return;
-      send({ call_ref: callRef, move, outcome: "failed", detail: "the page did not load; the screen has not moved", refused: [], moved: false, ms: UNLOAD_WAIT_MS });
+      if (gone) return;
+      void unpend(c.call_ref);
+      const result: StageResult = {
+        call_ref: c.call_ref, move: c.move, outcome: "failed", detail: "the page did not load; the screen has not moved",
+        refused: [], moved: false, ms: UNLOAD_WAIT_MS,
+      };
+      if (state.ready) tell({ k: "result", result });
     }, UNLOAD_WAIT_MS);
   }
 
@@ -218,27 +237,22 @@ async function start(config: SiteExtensionConfig): Promise<void> {
     else console.info("voqalize (no call):", result);
   }
 
-  /** Make one Stage job here, or load the host it belongs on. `null` when
-   *  its result is the next page's. */
-  async function makeStage(job: Extract<Job, { kind: "stage" }>, id: number | null): Promise<StageResult | null> {
+  /** Make one Stage job here, or load the host it belongs on, where the same
+   *  move is made. `null` when its result is the next page's. */
+  async function makeStage(job: Extract<Job, { kind: "stage" }>): Promise<StageResult | null> {
     if (!moves.has(job.move)) {
       const url = await config.elsewhere?.(job, kit);
       if (url) {
-        if (id !== null) tell({ k: "done", id, result: null, deferred: true });
-        await loadThen(url, job);
-        watchUnload(job.call_ref, job.move);
+        await carrier.keep({ kind: "carried", call_ref: job.call_ref, move: job.move, then: { move: job.move, args: job.args } });
+        spotlight.clear();
+        carrier.load(url);
         return null;
       }
     }
-    current = { id, job };
-    try {
-      return await moves.run(job.move, job.args, job.call_ref);
-    } finally {
-      current = null;
-    }
+    return moves.run(job.move, job.args, job.call_ref);
   }
 
-  async function perform(id: number | null, job: Job): Promise<StageResult | null> {
+  async function perform(job: Job): Promise<StageResult | null> {
     if (job.kind === "site") {
       try {
         await hooks.command?.(job.command, job.payload);
@@ -247,13 +261,14 @@ async function start(config: SiteExtensionConfig): Promise<void> {
       }
       return null;
     }
-    return makeStage(job, id);
+    if (job.kind === "carried") return moves.resume(job);
+    return makeStage(job);
   }
 
   // Driving the page from the console, with no call.
   flags[config.consoleName ?? `__voqalize_${site.id}`] = {
-    move: (move: string, args: unknown) => perform(null, { kind: "stage", move, args, call_ref: `console-${Date.now()}` }),
-    command: (command: string, payload: unknown) => perform(null, { kind: "site", command, payload }),
+    move: (move: string, args: unknown) => perform({ kind: "stage", move, args, call_ref: `console-${Date.now()}` }),
+    command: (command: string, payload: unknown) => perform({ kind: "site", command, payload }),
     moves: () => moves.ids,
     language: () => state.language,
   };
@@ -289,6 +304,7 @@ async function start(config: SiteExtensionConfig): Promise<void> {
     // The page reports once the agent can hear it, then makes the job the
     // last page left for it.
     if (next.ready && !stopAdapter) {
+      report();
       stopAdapter = hooks.start?.((event, payload) => kit.emit(event, payload)) ?? (() => {});
       takeKept(MOVE_AFTER_READY_MS);
     }
@@ -373,7 +389,7 @@ async function start(config: SiteExtensionConfig): Promise<void> {
     void keptMove.then(async (then) => {
       if (!then) return;
       await sleep(delay);
-      const result = await perform(null, then);
+      const result = await perform(then);
       if (result) send(result);
     });
   }
@@ -388,9 +404,9 @@ async function start(config: SiteExtensionConfig): Promise<void> {
         heard = true;
         return apply(msg);
       case "perform":
-        void perform(msg.id, msg.job).then((result) => {
-          // A deferred move already said so; its result is the next page's.
-          if (msg.job.kind === "stage" && result === null) return;
+        void perform(msg.job).then((result) => {
+          // A move handed to the next page: its result is that page's.
+          if (msg.job.kind !== "site" && result === null) return tell({ k: "done", id: msg.id, result: null, deferred: true });
           tell({ k: "done", id: msg.id, result });
         });
         return;
@@ -520,7 +536,20 @@ async function start(config: SiteExtensionConfig): Promise<void> {
     }
   });
 
-  const sayWhere = () => tell({ k: "where", ...where() });
+  /** The page as it stands, to the agent: once it can hear this page, and
+   *  again each time the tab comes back to the front. */
+  let reportedAt = 0;
+  function report(): void {
+    if (!hooks.report || !state.ready || !showing()) return;
+    if (Date.now() - reportedAt < REPORT_AGAIN_MS) return;
+    reportedAt = Date.now();
+    hooks.report((event, payload) => kit.emit(event, payload));
+  }
+
+  const sayWhere = () => {
+    tell({ k: "where", ...where() });
+    if (stopAdapter) report();
+  };
   document.addEventListener("visibilitychange", sayWhere);
   window.addEventListener("focus", sayWhere);
 

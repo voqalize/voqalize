@@ -45,8 +45,8 @@ defineSiteExtension({
   // header under it.
   fixed: ["#topbarCannonBar", "header.page-header", ".nav-sections", ".sticky-header"],
   avatar: {
-    // The holder's stand-in client, typed by Stage's own copy of pipecat.
-    create: (mount, client) => createAvatar({ mount, client: client as never, character: CHARACTER }),
+    // The holder's stand-in client, for whichever pipecat the avatar has.
+    create: (mount, client) => createAvatar({ mount, client, character: CHARACTER }),
     preload: () => preloadAvatar(CHARACTER),
     still: async () => (await listCharacters()).find((c) => c.name === CHARACTER)?.still ?? null,
   },

@@ -30,9 +30,9 @@ Explora's own:
 - `src/explora-actions.ts` — the www.explora.com adapter. It registers his
   moves with Stage's `Moves`: `core.show` (a heading, a tab or accordion by
   its label, or words to ring), `core.faq` (a question's accordion),
-  `explora.navigate` (a page), `explora.twin` (this page in the call's
-  language) and `explora.arrive` (the half of a move that finishes on the page
-  it loaded). It reports the page (`page_changed`): its headings, its
+  `explora.navigate` (a page) and `explora.twin` (this page in the call's
+  language); a move that loads a page is answered from the page it lands on,
+  under its own id. It reports the page (`page_changed`): its headings, its
   questions, its tabs and accordions, and its own sub-menu, read with the
   crawler's rules (`../backend/knowledge/L3/build_main.py`), so the names the
   brain knows from the crawl are the names the page finds. What is asked for
@@ -69,12 +69,15 @@ at with Stage's spotlight (a terracotta ring drawn over the page, never on
 Explora's own elements) before it acts: the heading he is about to describe,
 the tab before it opens, the calendar before a day is picked, the nights
 before they are set, the room before it is chosen, the form's rows before
-they are filled, Send Message before it is pressed. A ring that the next one
-replaces at once stays 0.7 s; one that ends a move stays 1.5 s, and is up for
-5.5 s unless another replaces it. Each move then answers with one
-`stage_result`: `applied` with what it did, `refused` with the name the page
-did not have and what it offers instead, `failed` with why. A move that goes
-on to another page answers from the page it lands on.
+they are filled (each row its own ring), Send Message before it is pressed.
+The move acts a short beat (0.45 s) after its ring appears, so the screen
+keeps up with his voice; the ring itself stays at least 1.5 s unless the next
+one replaces it, and is up for 5.5 s otherwise. Each move then answers with
+one `stage_result`: `applied` with what it did, `refused` with the name the
+page did not have and what it offers instead, `failed` with why. A move that
+goes on to another page answers from the page it lands on, under its own id
+and call; one that has nothing left to do there is `applied` once that page
+is up where it should be.
 
 ## Build and load
 

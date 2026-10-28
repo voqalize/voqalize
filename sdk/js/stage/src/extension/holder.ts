@@ -18,7 +18,10 @@
  *     made on the tab in front, and one `stage_result` per move back to the
  *     agent; the site's own Actions, routed the same way;
  *   - the jobs meant for a tab whose page is loading, kept until that tab's
- *     next page says hello.
+ *     next page says hello;
+ *   - the moves a page carried to its next page (`loadThen`, `keep`): each is
+ *     owed one final result from there, and fails when no page reports it in
+ *     time.
  *
  * Pages are followers: each draws the widget and the face from the relay,
  * makes the moves sent to it and reports what it shows. The call ends on End
@@ -26,9 +29,7 @@
  * for 15 s; the holder then closes.
  */
 
-import type { PipecatClient, PipecatClientOptions, TransportState } from "@pipecat-ai/client-js";
-
-import { type Attached, attachStage, interruptedResult, staleResult } from "../attach";
+import { type Attached, attachStage, type ClientHandler, interruptedResult, staleResult, type StageClient } from "../attach";
 import { Timeline } from "../timeline";
 import { sendAppEvent, type StageCue, type StageMove, type StageResult } from "../wire.gen";
 import { CatchUp } from "./catch-up";
@@ -39,7 +40,29 @@ import { isSitePage, type SiteConfig } from "./site";
 import type { Activity, Language, Status } from "./widget";
 
 type Port = chrome.runtime.Port;
-type Callbacks = NonNullable<PipecatClientOptions["callbacks"]>;
+
+/**
+ * What the holder uses of the call's pipecat client, written out rather than
+ * imported (as `StageClient` is), so the site's `PipecatClient`, of whatever
+ * version in the peer range, fits as it is.
+ */
+export interface HolderClient extends StageClient {
+  connect(params?: unknown): Promise<unknown>;
+  disconnect(): Promise<void>;
+  disconnectBot(): void;
+  enableMic(enable: boolean): void;
+  sendClientMessage(type: string, data?: unknown): void;
+  /** Read for its peer connection (`pc`), for the face's mouth clock. */
+  readonly transport: unknown;
+}
+
+/** The callbacks the holder hands `makeClient`, for pipecat's options. */
+export interface HolderCallbacks {
+  onTransportStateChanged(state: string): void;
+  onBotReady(): void;
+  onTrackStarted(track: MediaStreamTrack, participant?: { local?: boolean }): void;
+  onDeviceError(error: { devices: string[]; type: string }): void;
+}
 
 /** With no page of the site open this long, the call ends and the holder closes. */
 export const NO_PAGES_MS = 15_000;
@@ -47,6 +70,8 @@ export const NO_PAGES_MS = 15_000;
 const PENDING_MS = 20_000;
 /** A job a page is making answers within this. */
 const MOVE_MS = 45_000;
+/** A move carried to the next page is answered from there within this. */
+const CARRIED_MS = PENDING_MS;
 /** A tab whose page went away and never came back is forgotten after this. */
 const AWAY_MS = 20_000;
 /** How long a language asked for on the toggle waits for the agent's answer. */
@@ -86,7 +111,7 @@ export interface HolderApi {
 export interface HolderConfig {
   /** Make the call's pipecat client, with the site's transport and media.
    *  The voice plays in `output`. */
-  makeClient(output: HTMLAudioElement, callbacks: Callbacks): PipecatClient;
+  makeClient(output: HTMLAudioElement, callbacks: HolderCallbacks): HolderClient;
   /** The extension's microphone permission (the Permissions API by default). */
   micState?(): Promise<MicState>;
   /** The site's own Actions the holder makes itself, rather than a page:
@@ -148,10 +173,13 @@ export function startHolder(site: SiteConfig, config: HolderConfig): void {
   const inFlight = new Map<number, Running>();
   const pending = new Map<number, Running[]>();
   let nextJob = 1;
+  /** Moves a page carried to its next page, by call: the timer that fails
+   *  one no page reported, once its page has gone. */
+  const carried = new Map<string, { move: string; timer: ReturnType<typeof setTimeout> | null }>();
   let active: number | null = null;
   let lastSiteTab: number | null = null;
 
-  let client: PipecatClient | null = null;
+  let client: HolderClient | null = null;
   let stage: Attached | null = null;
   let relaying: Relaying | null = null;
   const catchUp = new CatchUp();
@@ -283,7 +311,7 @@ export function startHolder(site: SiteConfig, config: HolderConfig): void {
     inFlight.set(job.id, job);
     clearTimeout(job.timer);
     job.timer = setTimeout(() => finish(job, { k: "timeout" }), MOVE_MS);
-    note(`perform ${job.job.kind === "stage" ? job.job.move : job.job.command} → tab ${job.tab}`);
+    note(`perform ${job.job.kind === "site" ? job.job.command : job.job.move} → tab ${job.tab}`);
     post(port, { k: "perform", id: job.id, job: job.job });
   }
 
@@ -321,22 +349,61 @@ export function startHolder(site: SiteConfig, config: HolderConfig): void {
     return performOn(to, job);
   }
 
-  /** The one result a Stage job reports, however it ended. */
+  /** The result a Stage job reports, however it ended: its final one, or,
+   *  for a move carried to the next page, an interim `moved` one (the final
+   *  comes from that page, or fails here in `CARRIED_MS`). */
   function resultOf(job: Extract<Job, { kind: "stage" }>, ended: Ended): StageResult | null {
     const base = { call_ref: job.call_ref, move: job.move, refused: [], ms: 0 };
     switch (ended.k) {
-      case "result":
-        return ended.result;
+      case "result": {
+        const r = ended.result;
+        if (r && !r.moved) {
+          settleCarried(r.call_ref);
+          return r;
+        }
+        // Handed to the next page (`loadThen`), or ended there (`null`).
+        if (carried.has(job.call_ref)) return awaitCarried(job.call_ref, job.move);
+        return { ...base, outcome: "applied", detail: "the page went on to another", moved: false };
+      }
       case "failed":
+        settleCarried(job.call_ref);
         return { ...base, outcome: "failed", detail: ended.why, moved: false };
       case "gone":
-        return { ...base, outcome: "applied", detail: "the page loaded another", moved: true };
+        // The page went with the move: it is the next page's when it kept it.
+        if (carried.has(job.call_ref)) return awaitCarried(job.call_ref, job.move);
+        return { ...base, outcome: "applied", detail: "the page went on to another", moved: false };
       case "timeout":
+        settleCarried(job.call_ref);
         return { ...base, outcome: "unknown", detail: "the page did not answer", moved: false };
     }
   }
 
-  async function makeStage(job: Extract<Job, { kind: "stage" }>, move: StageMove | null, on: PipecatClient): Promise<void> {
+  /** A carried move's page has gone: its result is the next page's, and an
+   *  interim one says so now. */
+  function awaitCarried(callRef: string, move: string): StageResult {
+    const entry = carried.get(callRef) ?? { move, timer: null };
+    carried.set(callRef, entry);
+    if (entry.timer) clearTimeout(entry.timer);
+    entry.timer = setTimeout(() => {
+      carried.delete(callRef);
+      note(`carried ${entry.move} (${callRef}): no page reported it`);
+      if (client && ready) {
+        stage?.send({
+          call_ref: callRef, move: entry.move, outcome: "failed", detail: "no page came up to finish it after the load",
+          refused: [], moved: false, ms: CARRIED_MS,
+        });
+      }
+    }, CARRIED_MS);
+    return { call_ref: callRef, move: entry.move, outcome: "applied", detail: "loading the next page", refused: [], moved: true, ms: 0 };
+  }
+
+  function settleCarried(callRef: string): void {
+    const entry = carried.get(callRef);
+    if (entry?.timer) clearTimeout(entry.timer);
+    carried.delete(callRef);
+  }
+
+  async function makeStage(job: Extract<Job, { kind: "stage" }>, move: StageMove | null, on: HolderClient): Promise<void> {
     if (config.pace) await config.pace(job, move, api);
     else if (move?.when === "quiet") await settle(QUIET_WAIT_MS, false);
     if (client !== on) return;
@@ -417,7 +484,7 @@ export function startHolder(site: SiteConfig, config: HolderConfig): void {
     note,
   };
 
-  async function siteCommand(on: PipecatClient, command: string, payload: unknown): Promise<void> {
+  async function siteCommand(on: HolderClient, command: string, payload: unknown): Promise<void> {
     note(`action ${command}`);
     const own = config.holderCommands?.[command];
     const why = own ? await own(payload, api) : await api.dispatch({ kind: "site", command, payload });
@@ -452,8 +519,8 @@ export function startHolder(site: SiteConfig, config: HolderConfig): void {
     state.muted = false;
     ready = false;
     state.ready = false;
-    const next: PipecatClient = config.makeClient(audio, {
-      onTransportStateChanged: (s: TransportState) => {
+    const next: HolderClient = config.makeClient(audio, {
+      onTransportStateChanged: (s: string) => {
         if (client !== next) return;
         note(`transport ${s}`);
         if ((s === "connected" || s === "ready") && state.status !== "live") paint("live");
@@ -489,7 +556,7 @@ export function startHolder(site: SiteConfig, config: HolderConfig): void {
     });
     paint("connecting");
     try {
-      await next.connect(withRealHeaders(session) as never);
+      await next.connect(withRealHeaders(session));
       note(`connected ${(session as { session_id?: string }).session_id ?? ""}`);
       return { ok: true };
     } catch (error) {
@@ -500,7 +567,7 @@ export function startHolder(site: SiteConfig, config: HolderConfig): void {
     }
   }
 
-  function watch(on: PipecatClient): void {
+  function watch(on: HolderClient): void {
     stage = attachStage(on, {
       timeline,
       onCue: (cue) => {
@@ -530,7 +597,8 @@ export function startHolder(site: SiteConfig, config: HolderConfig): void {
         if (dropped.length) note(`interrupted: ${dropped.length} cue(s) dropped`);
       },
     });
-    on.on("botLlmStarted" as never, (() => setActivity("thinking")) as never);
+    const thinking: ClientHandler = () => setActivity("thinking");
+    on.on("botLlmStarted", thinking);
   }
 
   function end(message?: string): void {
@@ -550,6 +618,8 @@ export function startHolder(site: SiteConfig, config: HolderConfig): void {
     for (const job of [...inFlight.values()]) finish(job, { k: "gone" });
     for (const [, list] of pending) for (const job of [...list]) finish(job, { k: "gone" });
     pending.clear();
+    for (const entry of carried.values()) if (entry.timer) clearTimeout(entry.timer);
+    carried.clear();
     audio.srcObject = null;
     state.muted = false;
     asked = null;
@@ -644,17 +714,23 @@ export function startHolder(site: SiteConfig, config: HolderConfig): void {
         toAgent(tab.id, msg.event, msg.payload);
         return;
       case "report":
-        if (tab.id === active) client?.sendClientMessage("avatar", msg.data as never);
+        if (tab.id === active) client?.sendClientMessage("avatar", msg.data);
         return;
       case "done": {
         const job = inFlight.get(msg.id);
         if (!job) return;
-        note(`done ${job.job.kind === "stage" ? `${job.job.move} ${msg.result?.outcome ?? "deferred"}` : job.job.command}`);
+        note(`done ${job.job.kind === "site" ? job.job.command : `${job.job.move} ${msg.result?.outcome ?? "deferred"}`}`);
         return finish(job, { k: "result", result: msg.result, deferred: msg.deferred });
       }
       case "result":
+        if (!msg.result.moved) settleCarried(msg.result.call_ref);
         if (client && ready) stage?.send(msg.result);
         return;
+      case "carried":
+        if (!carried.has(msg.call_ref)) carried.set(msg.call_ref, { move: msg.move, timer: null });
+        return;
+      case "uncarried":
+        return settleCarried(msg.call_ref);
       case "mute":
         return toggleMute();
       case "end":
@@ -710,7 +786,7 @@ export function startHolder(site: SiteConfig, config: HolderConfig): void {
   });
 
   config.testHooks?.({
-    state, tabs, pending, log, end, timeline, api,
+    state, tabs, pending, carried, log, end, timeline, api,
     client: () => client,
     command: (command: string, payload: unknown) => client && siteCommand(client, command, payload),
     interrupted: () => timeline.interrupted().map(interruptedResult),

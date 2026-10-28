@@ -77,7 +77,8 @@ test.describe("search_products", () => {
     await page.waitForURL(`${ORIGIN}/sabanas-king-200-hilos-stone.html`);
     await listen(page);
     const done = await waitForEvent(page, "stage_result");
-    expect(done.payload).toMatchObject({ move: "open_product", outcome: "applied" });
+    // Finished on the product page, under the move he made: search_products.
+    expect(done.payload).toMatchObject({ move: "search_products", outcome: "applied" });
     await waitForEvent(page, "product_shown");
   });
 
@@ -321,6 +322,16 @@ test.describe("open_product", () => {
     expect(done.payload).toMatchObject({ move: "open_product", outcome: "applied" });
     expect(String(done.payload.detail)).toContain("calificaciones");
     await waitForEvent(page, "product_shown");
+  });
+
+  test("a page cue that loads another page, with nothing to do there, still ends with one final result", async ({ page }) => {
+    await serveSite(page);
+    await open(page, CATEGORY);
+    await runAway(page, "page.open", { path: PRODUCT });
+    await page.waitForURL(`${ORIGIN}${PRODUCT}`);
+    await listen(page);
+    const done = await waitForEvent(page, "stage_result");
+    expect(done.payload).toMatchObject({ move: "page.open", outcome: "applied", moved: false, detail: `opened ${PRODUCT}` });
   });
 });
 
@@ -600,7 +611,8 @@ test.describe("search_products on GoPersonal's dropdown", () => {
     await page.waitForURL(`${ORIGIN}/sabanas-super-king-300-hilos-sage.html`);
     await listen(page);
     const done = await waitForEvent(page, "stage_result");
-    expect(done.payload).toMatchObject({ move: "open_product", outcome: "applied" });
+    // Finished on the product page, under the move he made: search_products.
+    expect(done.payload).toMatchObject({ move: "search_products", outcome: "applied" });
     await waitForEvent(page, "product_shown");
     expect(seen.pages).toContain("/sabanas-super-king-300-hilos-sage.html");
   });

@@ -1,16 +1,16 @@
 /**
- * The page's mouth clock (`carriedForward` in `@voqalize/stage/extension`): the holder's newest delivery
+ * The page's mouth clock (`carriedForward`, `src/extension/mouth-clock.ts`): the holder's newest delivery
  * of his voice, carried forward to the face's read, and never further than
  * `HOLD_MS` past it. No browser.
  */
 
-import { expect, test } from "@playwright/test";
+import { describe, expect, it as test } from "vitest";
 
-import { carriedForward, HOLD_MS } from "@voqalize/stage/extension";
+import { carriedForward, HOLD_MS } from "../src/extension/mouth-clock";
 
 const newest = { timestamp: 1_800_000_000_000, rtpTimestamp: 960_000 };
 
-test.describe("the mouth clock a page reads", () => {
+describe("the mouth clock a page reads", () => {
   test("before any delivery there is nothing to read", () => {
     expect(carriedForward(null, newest.timestamp)).toBeNull();
   });

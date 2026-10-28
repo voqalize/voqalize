@@ -40,7 +40,7 @@
  */
 
 import type { MoveContext, Moves } from "@voqalize/stage";
-import { type Adapter, pend, pendingMove } from "@voqalize/stage/extension";
+import type { Adapter } from "@voqalize/stage/extension";
 
 import {
   amount, best, boxOf, clean, headerHeight, inOrder, money, norm, pathOf, press, privateField, quiet, samePath, scrollTo,
@@ -669,45 +669,21 @@ interface Then {
   args: unknown;
 }
 
-/**
- * How a move reaches the next page. In the extension, the next page of this
- * tab makes it with the same call, however the page goes (`c.loadThen` when a
- * move loads it, `pend` when a press may). The end-to-end tests, which run the
- * adapter with no extension, set their own (`useCarry`).
- */
-export interface Carry {
-  /** Keep `then` for this tab's next page, should a press load one. */
-  keep(callRef: string, then: Then): Promise<void>;
-  /** The press did not load a page: forget what was kept. */
-  drop(): void;
-}
-
-let carry: Carry = {
-  keep: (callRef, then) => pend({ kind: "stage", move: then.move, args: then.args, call_ref: callRef }),
-  drop: () => void pendingMove(),
-};
-
-export function useCarry(next: Carry): void {
-  carry = next;
-}
-
 /** Load `path` in this tab, with the rest of the move for the page it lands
- *  on; refused before anything moves if `path` is past the delivery form, an
- *  account page or another host. The move goes on there: `null`. */
+ *  on (without it, the move is done once that page is up); refused before
+ *  anything moves if `path` is past the delivery form, an account page or
+ *  another host. The move goes on there: `null`. */
 async function load(c: MoveContext, path: string, then?: Then): Promise<null> {
   const url = target(path);
   if (!c.loadThen) throw new Error("this page cannot load another and carry the move there");
-  c.spotlight.clear();
   await c.loadThen(url, then);
   return null;
 }
 
-const keep = (c: MoveContext, then: Then) => carry.keep(c.callRef, then);
-
-/** Ring `el` with the spotlight; resolves after `ms` (none by default: the
- *  ring stays up while the move goes on, until the next ring). */
-function ring(c: MoveContext, el: Element | Element[], ms = 0): Promise<void> {
-  return c.spotlight.ring(el, { dwellMs: ms });
+/** Ring `el` with the spotlight; resolves after Stage's beat, so what is
+ *  pressed next is already ringed, and the ring stays up its dwell. */
+function ring(c: MoveContext, el: Element | Element[]): Promise<void> {
+  return c.ring(el);
 }
 
 /** A link on this page to `path`, to ring before loading it. */
@@ -728,7 +704,7 @@ async function searchProducts(p: { query: string; open_index?: number | null } &
     // On a phone's home the box hides behind a button.
     const opener = [...document.querySelectorAll<HTMLElement>("button.btn-search, .block-search .label")].find(shown);
     if (opener) {
-      await ring(c, opener, 300);
+      await ring(c, opener);
       press(opener);
       input = await waitFor(searchInput, 1500);
     }
@@ -756,7 +732,7 @@ async function searchProducts(p: { query: string; open_index?: number | null } &
       c.refuse("open_index", `the dropdown has ${suggest.items.length} products; there is no number ${p.open_index + 1}`, suggest.items.map((i) => i.name));
     }
     const card = [...resultSection()!.querySelectorAll<HTMLElement>(SUGGEST_CARDS)][p.open_index];
-    if (card) await ring(c, card, 700);
+    if (card) await ring(c, card);
     return load(c, item.path, { move: "open_product", args: { path: item.path, tab: null, arrived: true } });
   }
   return `typed "${query}" in the search box; the dropdown shows ${suggest.items.length} products: ${list}${
@@ -847,12 +823,12 @@ async function applyFacet(c: MoveContext, variable: string, said: string, then: 
     press(pill);
     await waitFor(() => shown(option), 1200);
   }
-  await ring(c, shown(option) ? option : (pill ?? group), 500);
+  await ring(c, shown(option) ? option : (pill ?? group));
   const before = gridKey();
-  await keep(c, then);
+  await c.keep(then);
   press(option);
   const landed = await waitForGrid(before);
-  carry.drop();
+  await c.drop();
   if (!landed) return { ok: false, arg: "value", why: `the grid did not change after choosing ${label}`, options: [] };
   return { ok: true, label };
 }
@@ -867,7 +843,7 @@ async function applySort(c: MoveContext, sort: Sort): Promise<Applied> {
   if (sorter.value === value) return { ok: true, label: `sorted ${sort}` };
   const before = gridKey();
   await scrollTo(sorter.closest(".toolbar") ?? sorter, "top");
-  await ring(c, sorter, 500);
+  await ring(c, sorter);
   setValue(sorter, value);
   if (!(await waitForGrid(before))) return { ok: false, arg: "value", why: `the grid did not change after sorting by ${sort}`, options: [] };
   return { ok: true, label: `sorted ${sort}` };
@@ -983,7 +959,7 @@ async function openTab(tab: Exclude<Tab, "fotos">, c: MoveContext): Promise<stri
   await scrollTo(title, "top");
   const open = () => Boolean(panel && shown(panel) && panel.getAttribute("aria-hidden") !== "true");
   if (!open()) {
-    await ring(c, title, 500);
+    await ring(c, title);
     press(title.querySelector("a.data.switch") ?? title);
     if (!(await waitFor(open, 1200)) && panel) {
       for (const other of document.querySelectorAll<HTMLElement>(".product.data.items > .data.item.title")) other.classList.remove("active");
@@ -1034,7 +1010,7 @@ async function openProduct(p: { path: string; tab?: Tab | null } & Arrived, c: M
   if (!p.arrived && !samePath(location.pathname, path)) {
     // Its card or link on this page, when it has one, is ringed first.
     const link = linkTo(path);
-    if (link) await ring(c, link.closest("li.product-item") ?? link, 600);
+    if (link) await ring(c, link.closest("li.product-item") ?? link);
     return load(c, path, { move: c.move, args: { ...p, arrived: true } });
   }
   const form = await waitFor(productForm, 8000);
@@ -1182,7 +1158,7 @@ async function showCart(p: { open?: boolean }, c: MoveContext): Promise<string |
       document.querySelector<HTMLElement>("aside.content-minicart-modal._show .mc-header__close") ??
       document.querySelector<HTMLElement>("aside.content-minicart-modal._show [data-role=closeBtn]");
     if (!close) throw new Error("the bag drawer has no close button");
-    await ring(c, close, 400);
+    await ring(c, close);
     press(close);
     if (!(await waitFor(() => !minicartOpen(), 3000))) throw new Error("the bag drawer did not close");
     c.spotlight.clear();
@@ -1262,7 +1238,7 @@ async function openDrawer(c: MoveContext): Promise<void> {
     const trigger = [...document.querySelectorAll<HTMLElement>(".minicart-wrapper a.action.showcart")].find(shown);
     if (!trigger) throw new Error("this page has no bag button");
     await scrollToTopOfPage();
-    await ring(c, trigger, 400);
+    await ring(c, trigger);
     // Before the drawer's script is up, the same press loads the bag page,
     // which is the bag too.
     press(trigger);
@@ -1325,22 +1301,22 @@ async function updateCartItem(p: { path: string; qty: number; steps?: number; na
     const id = row.querySelector<HTMLElement>("[data-cart-item]")?.dataset.cartItem ?? row.querySelector<HTMLElement>("[data-item-id]")?.dataset.itemId;
     if (!id) throw new Error(`the bag page's row for ${name} has no line id`);
     await scrollTo(row, "center");
-    await ring(c, row.querySelector(qty === 0 ? "a.action-delete" : ".control.qty") ?? row, 700);
+    await ring(c, row.querySelector(qty === 0 ? "a.action-delete" : ".control.qty") ?? row);
     await sendLine(id, qty);
     return load(c, location.pathname + location.search, rest());
   }
 
   // Any other page: the drawer. Pressed before its script is up, the bag
   // button loads the bag page instead, which carries the move on.
-  await keep(c, rest());
+  await c.keep(rest());
   await openDrawer(c);
-  carry.drop();
+  await c.drop();
   const el = await waitFor(() => drawerLine(path), 8000);
   // The drawer is still drawing the bag from before (live, right after an
   // add): the bag page always shows it, so the move carries on there.
   if (!el) return load(c, "/checkout/cart/", rest());
   await scrollTo(el, "center");
-  await ring(c, el, 400);
+  await ring(c, el);
   if (qty === 0) {
     const bin = el.querySelector<HTMLElement>("a.mc-line__remove, .action.delete");
     if (!bin) throw new Error(`the drawer's line for ${name} has no Eliminar`);
@@ -1349,13 +1325,13 @@ async function updateCartItem(p: { path: string; qty: number; steps?: number; na
     // "¿Seguro que desea eliminar este artículo…?" — its Aceptar removes it.
     const accept = await waitFor(() => document.querySelector<HTMLElement>("aside.modal-popup.confirm._show button.action-accept"), 4000);
     // Taking the line out may reload the page: the rest is kept for it.
-    await keep(c, rest());
+    await c.keep(rest());
     if (accept) {
-      await ring(c, accept, 300);
+      await ring(c, accept);
       press(accept);
     }
     const after = await lineUntil(path, (n) => n === 0, 12_000);
-    carry.drop();
+    await c.drop();
     if (after.qty !== 0) throw new Error(`pressed Eliminar on ${name}, but it is still in the bag`);
     return finished(after.cart, `took ${name} out of the bag`);
   }
@@ -1521,7 +1497,7 @@ async function toCheckout(c: MoveContext, args: Arrived & Record<string, unknown
   // rendered, it opens empty.
   await waitFor(() => document.querySelector("#block-login a[href]"), 10_000);
   await scrollTo(button, "center");
-  await ring(c, button, 500);
+  await ring(c, button);
   press(button);
   const guest = await waitFor(
     () =>
@@ -1535,8 +1511,8 @@ async function toCheckout(c: MoveContext, args: Arrived & Record<string, unknown
   // The window did not render its links: "Comprar como invitado" is only
   // this link.
   if (!guest) return load(c, "/checkout", there);
-  await ring(c, guest, 700);
-  await keep(c, there);
+  await ring(c, guest);
+  await c.keep(there);
   press(guest);
   return null;
 }
@@ -1563,7 +1539,7 @@ async function fillField(c: MoveContext, el: HTMLInputElement, value: string, la
   const max = el.maxLength > 0 ? el.maxLength : Infinity;
   if (value.length > max) throw new Error(`${label} takes at most ${max} characters`);
   await scrollTo(el, "center");
-  await ring(c, el.closest(".field") ?? el, 300);
+  await ring(c, el.closest(".field") ?? el);
   el.focus({ preventScroll: true });
   setValue(el, value);
   el.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: "Unidentified" }));
@@ -1584,7 +1560,7 @@ async function pick(c: MoveContext, key: "region" | "comuna", said: string): Pro
     throw new Error(key === "comuna" ? "the comuna list opens once a región is chosen; choose the región first" : "the región list is locked");
   }
   await scrollTo(box, "center");
-  await ring(c, box, 300);
+  await ring(c, box);
   if (!box.classList.contains("is-open")) press(trigger);
   const label = (li: HTMLElement) => clean(li.querySelector(".cn-region-search__item-label")?.textContent ?? li.textContent);
   const items = await waitFor(() => {
@@ -1689,7 +1665,7 @@ async function openPage(p: { path: string }, c: MoveContext): Promise<string | n
   if (!samePath(location.pathname, to.pathname) || (to.search && to.search !== location.search)) {
     target(to.pathname + to.search + to.hash);
     const link = linkTo(to.pathname);
-    if (link) await ring(c, link, 600);
+    if (link) await ring(c, link);
     return load(c, to.pathname + to.search + to.hash);
   }
   await scrollToTopOfPage();
@@ -1773,7 +1749,7 @@ async function openFaq(p: { question: string; path?: string | null }, c: MoveCon
   if (!item) c.refuse("question", `no FAQ "${question}" on ${location.pathname}`, all.map((f) => f.question).slice(0, 15));
   await scrollTo(item.block, "center");
   if (!item.isOpen() && item.toggle) {
-    await ring(c, item.block, 400);
+    await ring(c, item.block);
     press(item.toggle);
     await waitFor(item.isOpen, 2000);
     await sleep(300);
@@ -1921,19 +1897,10 @@ let stopWatching: (() => void) | null = null;
 export function start(next: (event: string, payload: unknown) => void): () => void {
   emitter = next;
   lastUrl = location.origin + location.pathname + location.search;
-  next("page_changed", context());
   for (const [event, payload] of latest) report(event, payload);
   readState();
   stopWatching ??= watchState();
-  // The tab back in front: the page in front, again.
-  const seen = () => {
-    if (emitter === next && document.visibilityState === "visible") next("page_changed", context());
-  };
-  document.addEventListener("visibilitychange", seen);
-  window.addEventListener("focus", seen);
   return () => {
-    document.removeEventListener("visibilitychange", seen);
-    window.removeEventListener("focus", seen);
     if (emitter === next) {
       emitter = null;
       stopWatching?.();
@@ -1954,6 +1921,13 @@ export function prepare(): void {
   void settled().then(readState);
 }
 
+/** The page in front, as it stands: once the agent can hear this page (before
+ *  `start`), and again each time the tab comes back to the front (Stage's
+ *  host runs it). */
+export function reportPage(next: (event: string, payload: unknown) => void): void {
+  next("page_changed", context());
+}
+
 /** Cannon Home's adapter for `@voqalize/stage/extension`: its moves, what the
  *  visitor is looking at for the session's start, and its reports. */
 export const cannonhome: Adapter = (moves) => {
@@ -1964,6 +1938,7 @@ export const cannonhome: Adapter = (moves) => {
       const ctx = context();
       return { site: ctx.site, path: ctx.path, url: ctx.url, title: ctx.title };
     },
+    report: reportPage,
     start,
   };
 };

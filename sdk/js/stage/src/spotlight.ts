@@ -1,8 +1,12 @@
 /**
  * The spotlight: the ring drawn around what the agent is pointing at.
  *
- * Every visible move rings its target before it acts, and keeps the ring up
- * long enough to be seen. The ring is the page runtime's own drawing, never
+ * Every visible move rings its target before it acts, and the ring stays up
+ * long enough to be seen. The two are separate on purpose: `ring()` holds the
+ * move only for a short beat (`beatMs`), so a fast reply never leaves the
+ * screen behind the voice, while the ring itself stays visible for at least
+ * `dwellMs` (a `clear()` inside it waits it out), unless the next ring
+ * replaces it. The ring is the page runtime's own drawing, never
  * the site's: one host element on `<html>` (outside `<body>`, whose zoom or
  * transform a site may set), a shadow root under it so no rule of the site's
  * reaches in and none of ours reaches out, and a box per ring laid in document
@@ -10,7 +14,8 @@
  * it is up, so a carousel that slides, an image that loads late, a scroll or a
  * resize carries the ring along. The targets' own styles are never touched.
  *
- * A group ring is one box around several elements (a row and its price). A
+ * A group ring is one box around several elements (a row and its price);
+ * `separate` draws one box per element instead (the rows a form filled). A
  * target inside a same-origin frame is ringed where the frame shows it. An
  * optional label is announced politely to screen readers. With reduced motion
  * asked for, the ring appears without its pulse or fade.
@@ -25,7 +30,11 @@ export interface SpotlightTheme {
   radius?: number;
   /** The pulse's colour (the ring's colour at 45 %), or "none". */
   glow?: string;
-  /** The least a ring stays before a move goes on (1500 ms). */
+  /** How long `ring()` holds the move before it acts (450 ms): enough to see
+   *  where it is about to act, never long enough to fall behind the voice. */
+  beatMs?: number;
+  /** The least a ring stays visible, unless the next ring replaces it
+   *  (1500 ms). A display guarantee: nothing waits for it. */
   dwellMs?: number;
   /** How long a ring stays up when nothing replaces it (5500 ms). */
   holdMs?: number;
@@ -45,6 +54,17 @@ interface Ring {
   targets: Element[];
 }
 
+export interface RingOptions {
+  /** Announced politely to screen readers. */
+  label?: string;
+  /** How long `ring()` holds the move (the theme's `beatMs` by default). */
+  beatMs?: number;
+  /** The least this ring stays visible (the theme's `dwellMs` by default). */
+  dwellMs?: number;
+  /** One box per element, rather than one around them all. */
+  separate?: boolean;
+}
+
 const Z = "2147483000";
 
 export class Spotlight {
@@ -54,6 +74,9 @@ export class Spotlight {
   private rings: Ring[] = [];
   private frame = 0;
   private holdTimer: ReturnType<typeof setTimeout> | null = null;
+  private clearTimer: ReturnType<typeof setTimeout> | null = null;
+  /** When the rings up now must stay until (epoch ms). */
+  private until = 0;
   private readonly theme: Required<SpotlightTheme>;
 
   constructor(
@@ -64,6 +87,7 @@ export class Spotlight {
       width: 2,
       radius: 10,
       glow: "",
+      beatMs: 450,
       dwellMs: 1500,
       holdMs: 5500,
       pad: 6,
@@ -77,27 +101,37 @@ export class Spotlight {
     return this.host;
   }
 
-  /** How long a ring stays before a move goes on, by default. */
+  /** The least a ring stays visible, by default. */
   get dwellMs(): number {
     return this.theme.dwellMs;
   }
 
+  /** How long `ring()` holds a move, by default. */
+  get beatMs(): number {
+    return this.theme.beatMs;
+  }
+
   /**
-   * Ring `target` (one element, or several as one box), replacing any ring
-   * up now. Resolves once the ring has dwelt (`dwellMs`, default the theme's);
-   * the ring itself stays until the next ring, `clear()`, or `holdMs`.
-   * Nothing to ring (nothing laid out) resolves at once.
+   * Ring `target` (one element, or several: one box round them all, or one
+   * each with `separate`), replacing any ring up now. Resolves after the beat
+   * (`beatMs`), so the move acts with the ring already showing; the ring
+   * itself stays at least `dwellMs` (a `clear()` sooner waits it out), and
+   * then until the next ring, `clear()`, or `holdMs`. Nothing to ring
+   * (nothing laid out) resolves at once.
    */
-  async ring(target: Element | Element[], opts: { dwellMs?: number; label?: string } = {}): Promise<void> {
-    this.clear();
+  async ring(target: Element | Element[], opts: RingOptions = {}): Promise<void> {
+    this.takeDown();
     const targets = (Array.isArray(target) ? target : [target]).filter(Boolean);
-    if (!targets.length || !this.boxOf(targets)) return;
+    const groups = opts.separate ? targets.filter((t) => this.boxOf([t])).map((t) => [t]) : [targets];
+    if (!targets.length || !groups.length || !this.boxOf(targets)) return;
     this.mount();
-    const el = this.doc.createElement("div");
-    el.className = "ring";
-    el.setAttribute("part", "ring");
-    this.layer!.appendChild(el);
-    this.rings.push({ el, targets });
+    for (const group of groups) {
+      const el = this.doc.createElement("div");
+      el.className = "ring";
+      el.setAttribute("part", "ring");
+      this.layer!.appendChild(el);
+      this.rings.push({ el, targets: group });
+    }
     this.follow();
     const show = () => this.rings.forEach((r) => r.el.classList.add("on"));
     if (this.reduced()) show();
@@ -107,24 +141,36 @@ export class Spotlight {
       this.live.textContent = "";
       this.live.textContent = opts.label;
     }
-    this.holdTimer = setTimeout(() => this.clear(), Math.max(this.theme.holdMs, opts.dwellMs ?? 0));
     const dwell = opts.dwellMs ?? this.theme.dwellMs;
-    if (dwell > 0) await new Promise<void>((r) => setTimeout(r, dwell));
+    this.until = Date.now() + dwell;
+    this.holdTimer = setTimeout(() => this.takeDown(), Math.max(this.theme.holdMs, dwell));
+    const beat = opts.beatMs ?? this.theme.beatMs;
+    if (beat > 0) await new Promise<void>((r) => setTimeout(r, beat));
   }
 
-  /** Take every ring down. */
+  /** Take every ring down: now, or once the newest has been up its dwell. */
   clear(): void {
+    const left = this.until - Date.now();
+    if (!this.rings.length || left <= 0) return this.takeDown();
+    if (this.clearTimer) return;
+    this.clearTimer = setTimeout(() => this.takeDown(), left);
+  }
+
+  /** Take every ring down now, dwell or not (the call ended, the page goes). */
+  private takeDown(): void {
     if (this.holdTimer) clearTimeout(this.holdTimer);
-    this.holdTimer = null;
+    if (this.clearTimer) clearTimeout(this.clearTimer);
+    this.holdTimer = this.clearTimer = null;
     if (this.frame) this.view()?.cancelAnimationFrame(this.frame);
     this.frame = 0;
     for (const r of this.rings) r.el.remove();
     this.rings = [];
+    this.until = 0;
   }
 
   /** Remove the overlay from the page altogether. */
   destroy(): void {
-    this.clear();
+    this.takeDown();
     this.host?.remove();
     this.host = this.layer = this.live = null;
   }

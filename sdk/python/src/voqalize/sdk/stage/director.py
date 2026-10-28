@@ -6,7 +6,10 @@ answer back. Cues come out of the reply as the voice streams it
 when their class says so; each answer arrives at :meth:`Stage.handle`; and a
 move the page never answered comes back from :meth:`Stage.expire` as
 ``unknown``. Every move has a ``call_ref`` this director mints, and gets exactly
-one final :class:`~voqalize.sdk.stage.StageResult`.
+one final :class:`~voqalize.sdk.stage.StageResult` — under that ``call_ref``
+and its own move id, also when the page carried it on to the next page and
+finished it there. A cue the director could not send is not silent either:
+``on_drop`` hears of it, with why.
 
 The director decides nothing the brain should: what the model hears about a
 result is the brain's to write, from what :meth:`Stage.handle` returns.
@@ -17,6 +20,7 @@ from __future__ import annotations
 import time
 from collections.abc import AsyncGenerator, Callable, Iterable, Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import Literal
 
 from loguru import logger
@@ -25,10 +29,19 @@ from ..actions import Action
 from ..events import Speech, SpeechChunk, SpeechStart
 from .cues import AutoCues, CueParser, RawCue
 from .moves import Move, MoveSet
-from .policy import POLICY
+from .policy import POLICY, MoveClass
 from .wire import STAGE_CONTRACT, StageCue, StageHello, StageMove, StageResult
 
-__all__ = ["CUE_WAIT_S", "ArgValue", "Refused", "Resolve", "Stage"]
+__all__ = [
+    "CUE_WAIT_S",
+    "RESULT_TIMEOUTS",
+    "ArgValue",
+    "Dropped",
+    "OnDrop",
+    "Refused",
+    "Resolve",
+    "Stage",
+]
 
 #: How long the page waits for a cue's words before it drops the cue. A cue's
 #: answer is due this long, plus the result timeout, after it is sent.
@@ -40,6 +53,27 @@ ArgValue = str | int | float | bool | list[str] | None
 #: ``(move, args)`` → the arguments to send, rewritten to what the page offers,
 #: or ``None`` to drop the cue.
 Resolve = Callable[[Move, list[str]], list[str] | None]
+
+#: Why a cue was not sent: ``resolve`` returned ``None`` (``unresolved``), the
+#: verb is no move of this brain (``unknown_verb``), or it gives more
+#: arguments than its move takes (``too_many_args``).
+Dropped = Literal["unresolved", "unknown_verb", "too_many_args"]
+
+#: ``(cue, why)``: told of every cue the reply wrote that was not sent.
+OnDrop = Callable[[RawCue, Dropped], None]
+
+#: How long the page has to answer a move, by its class, unless the brain says
+#: otherwise: a look is quick, a page load is slow (a site's ``load`` can take
+#: over 15 s), and a confirmed move may go through a cart or a form. A cue's
+#: answer is due :data:`CUE_WAIT_S` later still.
+RESULT_TIMEOUTS: MappingProxyType[MoveClass, float] = MappingProxyType(
+    {
+        MoveClass.LOOK: 10.0,
+        MoveClass.NAVIGATE: 25.0,
+        MoveClass.REVERSIBLE: 20.0,
+        MoveClass.CONFIRMED: 30.0,
+    }
+)
 
 _LANDED = ("applied", "partial")
 
@@ -81,7 +115,10 @@ class Stage:
     adds cues to sentences the model left without one (see
     :class:`~voqalize.sdk.stage.CueParser`). A move the page has not answered
     within ``result_timeout_s`` (cues: :data:`CUE_WAIT_S` more) is reported by
-    :meth:`expire` as ``unknown``.
+    :meth:`expire` as ``unknown``: one number for every move, or a mapping by
+    class, whose missing classes keep :data:`RESULT_TIMEOUTS`. ``on_drop``
+    is told of every cue the reply wrote that was not sent, with why — so a
+    brain can say so rather than let the voice claim a move that never went.
     """
 
     def __init__(
@@ -91,14 +128,19 @@ class Stage:
         moves: Iterable[Move],
         resolve: Resolve | None = None,
         backstop: AutoCues | None = None,
-        result_timeout_s: float = 20.0,
+        result_timeout_s: float | Mapping[MoveClass, float] = RESULT_TIMEOUTS,
+        on_drop: OnDrop | None = None,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._dispatch = dispatch
         self.moves = moves if isinstance(moves, MoveSet) else MoveSet(moves)
         self._resolve = resolve
         self._backstop = backstop
-        self._timeout = result_timeout_s
+        if isinstance(result_timeout_s, Mapping):
+            self._timeouts = {**RESULT_TIMEOUTS, **result_timeout_s}
+        else:
+            self._timeouts = dict.fromkeys(MoveClass, float(result_timeout_s))
+        self._on_drop = on_drop
         self._clock = clock
         self._n = 0
         self._flights: dict[str, _Flight] = {}
@@ -141,7 +183,18 @@ class Stage:
             await turn.aclose()
 
     def _parser(self, unit: int) -> CueParser:
-        return CueParser(self.moves.verbs, self._backstop, unit=unit)
+        return CueParser(self.moves.verbs, self._backstop, unit=unit, on_unknown=self._unknown_verb)
+
+    def timeout(self, cls: MoveClass) -> float:
+        """How long the page has to answer a move of class ``cls``."""
+        return self._timeouts[cls]
+
+    def _unknown_verb(self, raw: RawCue) -> None:
+        self._drop(raw, "unknown_verb")
+
+    def _drop(self, raw: RawCue, why: Dropped) -> None:
+        if self._on_drop is not None:
+            self._on_drop(raw, why)
 
     def _cue_all(self, raw: list[RawCue]) -> None:
         for cue in raw:
@@ -153,6 +206,7 @@ class Stage:
         move = self.moves.by_verb(raw.verb)
         if move is None:
             logger.info("stage: cue {} is no move; dropped", raw.verb)
+            self._drop(raw, "unknown_verb")
             return None
         if len(raw.args) > len(move.args):
             logger.info(
@@ -162,15 +216,18 @@ class Stage:
                 move.id,
                 len(move.args),
             )
+            self._drop(raw, "too_many_args")
             return None
         args: list[str] | None = list(raw.args)
         if self._resolve is not None:
             args = self._resolve(move, args)
         if args is None:
             logger.info("stage: cue {} {} names nothing on the page; dropped", raw.verb, raw.args)
+            self._drop(raw, "unresolved")
             return None
         ref = self._mint(move)
-        self._flights[ref] = _Flight(ref, move, None, self._clock() + CUE_WAIT_S + self._timeout)
+        deadline = self._clock() + CUE_WAIT_S + self.timeout(move.cls)
+        self._flights[ref] = _Flight(ref, move, None, deadline)
         logger.info(
             "stage: {} cue {} {} at {!r} before {}{}",
             ref,
@@ -239,7 +296,7 @@ class Stage:
 
     def _send(self, move: Move, args: dict[str, ArgValue], when: Literal["now", "quiet"]) -> str:
         ref = self._mint(move)
-        self._flights[ref] = _Flight(ref, move, args, self._clock() + self._timeout)
+        self._flights[ref] = _Flight(ref, move, args, self._clock() + self.timeout(move.cls))
         if POLICY[move.cls].serial:
             self._running = ref
         logger.info("stage: {} move {} {} ({})", ref, move.id, args, when)
@@ -269,7 +326,8 @@ class Stage:
         return self._queued.move.id if self._queued is not None else None
 
     def move_of(self, call_ref: str) -> Move | None:
-        """The move a ``call_ref`` was minted for, for logging."""
+        """The move a ``call_ref`` was minted for. A result names it too
+        (``StageResult.move``), also for a move finished on another page."""
         return self._refs.get(call_ref)
 
     # ─── answers ───────────────────────────────────────────────────────────
@@ -282,8 +340,10 @@ class Stage:
         write its note. When the running move did not land, the queued move is
         not sent, and the returned result's ``detail`` says so (its ``outcome``
         is as received). A result with ``moved`` set is interim — the next page
-        finishes the move — and comes back without clearing it. A duplicate, a
-        result after its move expired, or a hello returns ``None``.
+        finishes the move — and comes back without clearing it, its time
+        started again. The result comes back under the move this ``call_ref``
+        was minted for, whichever page answered it. A duplicate, a result after
+        its move expired, or a hello returns ``None``.
         """
         if isinstance(event, StageHello):
             self.hello = event
@@ -302,8 +362,13 @@ class Stage:
             why = "after it was answered or expired" if event.call_ref in self._done else "unknown"
             logger.info("stage: result for {} ({}) {}; ignored", event.call_ref, event.move, why)
             return None
+        if event.move != f.move.id:
+            logger.info(
+                "stage: {} answered as {}, minted for {}", f.call_ref, event.move, f.move.id
+            )
+            event = event.model_copy(update={"move": f.move.id})
         if event.moved:
-            f.deadline = self._clock() + self._timeout
+            f.deadline = self._clock() + self.timeout(f.move.cls)
             logger.info("stage: {} {} moved on to another page", f.call_ref, f.move.id)
             return event
         logger.info(

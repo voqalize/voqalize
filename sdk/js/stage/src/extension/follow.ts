@@ -24,17 +24,26 @@
  * A cue chunk delivered ahead of the one before it would be undone by it.
  */
 
-import type { PipecatClient } from "@pipecat-ai/client-js";
-
 import { onHolder, tell } from "./hub";
 import type { ToPage } from "./protocol";
 import { carriedForward, type Delivery } from "./mouth-clock";
 
+/** The stand-in client a page's face is drawn against: enough of a
+ *  `PipecatClient` for `createAvatar`. */
+export interface FollowedClient {
+  on(event: string, handler: (...args: unknown[]) => void): FollowedClient;
+  off(event: string, handler: (...args: unknown[]) => void): FollowedClient;
+  tracks(): { local: object; bot: object };
+  sendClientMessage(type: string, data?: unknown): void;
+  readonly state: string;
+  /** Serves the relayed mouth clock. */
+  readonly transport: { pc: unknown };
+}
+
 export interface Following {
-  /** Enough of a `PipecatClient` for `createAvatar`: `on`, `off`, `tracks`,
-   *  `state`, `sendClientMessage`, and a `transport.pc` that serves the
-   *  relayed mouth clock. */
-  readonly client: PipecatClient;
+  /** `on`, `off`, `tracks`, `state`, `sendClientMessage`, and a
+   *  `transport.pc` that serves the relayed mouth clock. */
+  readonly client: FollowedClient;
   /** Tell the face the call is up, as a call that has just connected would. */
   joined(): void;
   stop(): void;
@@ -91,7 +100,7 @@ export function followCall(): Following {
     },
     createDataChannel: () => syncChannel,
   };
-  const client = {
+  const client: FollowedClient = {
     transport: { pc },
     state: "ready",
     on(name: string, fn: (...a: unknown[]) => void) {
@@ -156,7 +165,7 @@ export function followCall(): Following {
   tell({ k: "catchup" });
 
   return {
-    client: client as unknown as PipecatClient,
+    client,
     joined() {
       emit("connected");
       emit("botReady", {});

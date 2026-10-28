@@ -12,7 +12,7 @@
  *     offscreen document has no access to), only at the site's own addresses.
  *   - It opens the microphone grant page in a tab of its own when the grant
  *     made in the widget's frame did not hold, and closes it once answered.
- *   - It keeps each tab's job for its next page (`pend`, `pending`), in
+ *   - It keeps each tab's job for its next page (`pend`, `pending`, `unpend`), in
  *     `chrome.storage.session`, per browser tab: the next page may be another
  *     origin, and a worker stopped meanwhile forgets nothing.
  *   - It keeps the visitor's language choice for every host of the site, in
@@ -156,6 +156,13 @@ export function startBackground(site: SiteConfig, config: BackgroundConfig): voi
         if (tabId === undefined) return { ok: false };
         await chrome.storage.session.set({ [`pending:${tabId}`]: ask.then });
         return { ok: true };
+      case "unpend": {
+        if (tabId === undefined) return { ok: false };
+        const key = `pending:${tabId}`;
+        const got = (await chrome.storage.session.get(key))[key] as { call_ref?: string } | undefined;
+        if (got && got.call_ref === ask.call_ref) await chrome.storage.session.remove(key);
+        return { ok: true };
+      }
       case "pending": {
         if (tabId === undefined) return { then: null };
         const key = `pending:${tabId}`;

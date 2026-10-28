@@ -101,6 +101,8 @@ from voqalize.sdk import (
 from voqalize.sdk.openai import OpenAIBrain
 from voqalize.sdk.stage import (
     POLICY,
+    RESULT_TIMEOUTS,
+    Dropped,
     Move,
     MoveClass,
     RawCue,
@@ -1486,11 +1488,13 @@ def named_on_page(sentence: str, text: str, plans: tuple[str, ...]) -> str | Non
 
 # ─── Moves and what answers them ───────────────────────────────────────────────
 
-#: How long a move may take on the page before it is taken as unknown. The
-#: store's ``load`` takes over 15 s (trackers); the bag, its login window, then
-#: the checkout's heavy full load took about 35 s live (2026-10-23), and the
-#: drawer's minus and plus about four seconds a press.
-_MOVE_TAKES_S = 45.0
+#: How long a move may take on the page before it is taken as unknown, by its
+#: class: Stage's own table, but a confirmed move has longer. The store's
+#: ``load`` takes over 15 s (trackers), which a page move's 25 s covers; the
+#: bag, its login window, then the checkout's heavy full load took about 35 s
+#: live (2026-10-23), and the drawer's minus and plus about four seconds a
+#: press.
+_MOVE_TAKES_S = {**RESULT_TIMEOUTS, MoveClass.CONFIRMED: 45.0}
 #: A unit of his not reported played this long after it began is taken as done.
 _PLAYOUT_MAX_S = 30.0
 #: A cue's result with this detail says nothing to the model: the visitor
@@ -1975,12 +1979,16 @@ class CannonHomeBrain(OpenAIBrain):
             resolve=self._resolve,
             backstop=self._auto_cues,
             result_timeout_s=_MOVE_TAKES_S,
+            on_drop=self._dropped,
             respell=lambda at: _anchor_for_voice(at, self.spoken),
             sent=self._cue_sent,
         )
         #: What each cue sent said, as he wrote it, by its call_ref: for the
         #: line about its result.
         self._cues: dict[str, str] = {}
+        #: Why the listing cannot take the filter or sort cue being resolved:
+        #: said to him when Stage drops it (:meth:`_dropped`).
+        self._refusal: str | None = None
         #: Turns running with tools off (a quiet spell's): a move called in one
         #: anyway is refused, never sent.
         self._tools_off = 0
@@ -2352,6 +2360,7 @@ class CannonHomeBrain(OpenAIBrain):
         them; ``None`` drops it. A move this reply already sent loads the page,
         so a cue after it would race the load. A filter or sort the listing
         cannot take is said to him, so he does not say it happened."""
+        self._refusal = None
         if self._moved:
             logger.info(
                 "cannonhome: cue {} {} dropped: a move this reply loads the page", move.id, args
@@ -2433,19 +2442,28 @@ class CannonHomeBrain(OpenAIBrain):
             return path, None
         return None
 
-    def _cue_refused(self, cue: str, why: str) -> None:
-        """A filter or sort he wrote that the listing cannot take: nothing is
-        sent, and he says so in the next short quiet spell."""
-        logger.info("cannonhome: cue {} refused: {}", cue, why)
-        self._note(f"[Not done on the page ({cue}): {why}. It was not applied.]")
-        self._answered(f"{cue} not done: {why}")
+    def _cue_refused(self, why: str) -> None:
+        """A filter or sort he wrote that the listing cannot take: ``None``
+        from the resolver, and :meth:`_dropped` says why."""
+        self._refusal = why
+
+    def _dropped(self, raw: RawCue, why: Dropped) -> None:
+        """A cue Stage did not send. A filter or sort the listing cannot take
+        is said to him, so he does not say it happened: nothing is sent, and
+        he says so in the next short quiet spell. Any other is only logged."""
+        refusal, self._refusal = self._refusal, None
+        if why != "unresolved" or refusal is None:
+            logger.info("cannonhome: cue {} {} dropped ({})", raw.verb, list(raw.args), why)
+            return
+        cue = f"{{{raw.verb}: {' | '.join(raw.args)}}}"
+        logger.info("cannonhome: cue {} refused: {}", cue, refusal)
+        self._note(f"[Not done on the page ({cue}): {refusal}. It was not applied.]")
+        self._answered(f"{cue} not done: {refusal}")
 
     def _resolve_filter(self, facet: str, value: str) -> list[str] | None:
-        cue = f"{{filter: {facet} | {value}}}"
         listing = self._listing_for_cue()
         if listing is None:
             self._cue_refused(
-                cue,
                 f"the page it applies to ({self._cue_path or self._path}) is not a listing; "
                 "open the listing with a page cue first",
             )
@@ -2454,27 +2472,26 @@ class CannonHomeBrain(OpenAIBrain):
         var = _FACETS.get(norm(facet))
         if var is None:
             has = ", ".join(_FILTER_NAMES[v] for v in (cat.filters if cat else _FILTER_NAMES))
-            self._cue_refused(cue, f"a listing has no filter '{facet}' (this one has: {has})")
+            self._cue_refused(f"a listing has no filter '{facet}' (this one has: {has})")
             return None
         if not value.strip():
-            self._cue_refused(cue, "say which option, as the listing writes it")
+            self._cue_refused("say which option, as the listing writes it")
             return None
         refused: list[str] = []
         label = _filter_value(cat, var, value, refused, _LABELERS[var])
         if label is None:
-            self._cue_refused(cue, "; ".join(refused))
+            self._cue_refused("; ".join(refused))
             return None
         return [var, label[:80], path]
 
     def _resolve_sort(self, order: str) -> list[str] | None:
-        cue = f"{{sort: {order}}}"
         listing = self._listing_for_cue()
         if listing is None:
-            self._cue_refused(cue, "the page it applies to is not a listing")
+            self._cue_refused("the page it applies to is not a listing")
             return None
         sort = _SORTS.get(norm(order))
         if sort is None:
-            self._cue_refused(cue, "sort by price_asc, price_desc, newest or relevance")
+            self._cue_refused("sort by price_asc, price_desc, newest or relevance")
             return None
         return [sort, listing[0]]
 
@@ -2599,9 +2616,9 @@ class CannonHomeBrain(OpenAIBrain):
         the visitor talked over, or whose words never came, says nothing."""
         if r.moved:
             return None
-        # The move he made, by its call: a search that opened a product
-        # finishes as that open, on the product's page.
-        move = self.stage.move_of(r.call_ref) or self.stage.moves.get(r.move)
+        # The move he made: also for one finished on the page it loaded (a
+        # search that opened a product), Stage reports it under its own id.
+        move = self.stage.moves.get(r.move)
         if move is None:
             return None
         landed_ok = r.outcome in ("applied", "partial")

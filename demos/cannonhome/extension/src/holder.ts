@@ -52,8 +52,7 @@ function elsewhere(path: unknown, url: string | null): boolean {
 }
 
 startHolder(SITE, {
-  // Stage is typed against its own copy of pipecat: the same client.
-  makeClient: (output, callbacks) => makeClient(output, callbacks as never) as never,
+  makeClient,
   micState,
   firstPage,
   // A reply that opens on another page loads it while his voice starts: the

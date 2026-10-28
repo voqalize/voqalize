@@ -13,13 +13,11 @@ import { defineSite, type WidgetWords } from "@voqalize/stage/extension";
 
 import { BOOKING, SITE } from "./site-language";
 
-/** The moves the brain sends (`backend/brain.py`), by id. `arrive` is the
- *  page's own: the second half of a move that loaded another page. */
+/** The moves the brain sends (`backend/brain.py`), by id. */
 export const MOVE = {
   show: "core.show",
   faq: "core.faq",
   navigate: "explora.navigate",
-  arrive: "explora.arrive",
   twin: "explora.twin",
   checkAvailability: "explora.check_availability",
   chooseRoom: "explora.choose_room",
@@ -46,15 +44,6 @@ export interface NavigateArgs {
   path: string;
   /** Words of his still to be heard before the page may go (the holder's pacing). */
   after_words?: number;
-}
-
-/** What the page a move loaded makes once it is up. */
-export interface ArriveArgs {
-  heading?: string | null;
-  text?: string | null;
-  faq?: string | null;
-  /** On a translated page the English names may not be there: skipped. */
-  lenient?: boolean;
 }
 
 export interface CheckAvailabilityArgs {

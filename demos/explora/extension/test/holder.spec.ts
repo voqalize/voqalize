@@ -209,7 +209,10 @@ async function makeHolder(sw: Worker): Promise<void> {
 const widget = (page: Page) => page.locator("[data-voqalize=widget] .root");
 
 /** The `stage_result`s the holder sent the brain. */
-const results = (s: Status) => s.sent.filter((e) => e.event === "stage_result").map((e) => e.payload as unknown as Result);
+const allResults = (s: Status) => s.sent.filter((e) => e.event === "stage_result").map((e) => e.payload as unknown as Result);
+/** The final results: a move carried to the next page also sends an interim
+ *  one (`moved`) as its page goes. */
+const results = (s: Status) => allResults(s).filter((r) => !r.moved);
 
 /** A `show` cue, as the brain sends it: fired when the voice stops (`at` empty). */
 const showCue = (call_ref: string, target: string) => ({
@@ -265,6 +268,21 @@ test.describe("the holder and its pages", () => {
     s = await status(ext.sw);
     expect(s.hungUp).toBe(true);
     expect(s.state.status).toBe("idle");
+  });
+
+  test("a tab back in front reports its page again, once for its focus and visibility together", async ({ ext }) => {
+    const page = await ext.open("/");
+    await callLive(ext, page);
+    const reports = async () => (await status(ext.sw)).sent.filter((e) => e.event === "page_changed").length;
+    await expect.poll(reports).toBe(1);
+    await page.waitForTimeout(300);
+    await page.evaluate(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+      window.dispatchEvent(new Event("focus"));
+    });
+    await expect.poll(reports).toBe(2);
+    await page.waitForTimeout(500);
+    expect(await reports()).toBe(2);
   });
 
   test("a full page load leaves the call alone, and a move sent while the tab loads is made on its next page", async ({ ext }) => {
@@ -356,13 +374,15 @@ test.describe("the holder and its pages", () => {
     await page.waitForURL(`${ORIGIN}/atacama/`, { timeout: 15_000 });
 
     // Back on www.explora.com, once the call is up on the page, it finishes
-    // the move and answers for it: one result, from the page it landed on.
+    // the move and answers for it, under the move's own id: one final result,
+    // from the page it landed on, after the interim one its loading page sent.
     await expect.poll(async () => results(await status(ext.sw)).map((r) => r.call_ref), { timeout: 10_000 }).toEqual(["c1"]);
     await expect.poll(async () => (await status(ext.sw)).sent.filter((e) => e.event === "page_changed").map((e) => e.payload.path)).toContain("/atacama/");
 
     // The same call all along, across both hosts, and nothing failed.
     s = await status(ext.sw);
-    expect(results(s)[0]).toMatchObject({ move: "explora.arrive", outcome: "applied", moved: false, detail: "opened /atacama/" });
+    expect(results(s)[0]).toMatchObject({ move: "explora.navigate", outcome: "applied", moved: false, detail: "opened /atacama/" });
+    expect(allResults(s).map((r) => [r.call_ref, r.moved])).toEqual([["c1", true], ["c1", false]]);
     expect(s.pending).toBe(0);
     expect(s.log.filter((l) => l.includes("connected "))).toHaveLength(1);
     expect(s.state.status).toBe("live");

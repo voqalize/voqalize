@@ -13,16 +13,17 @@ export {
   AFTER_STOP_MS, type Dropped, type Fired, FUZZY_AFTER_MS, NO_TEXT_MS, STALE_MS, START_CPS, Timeline,
   type TimelineOptions, type TimelineStats,
 } from "./timeline";
-export { Spotlight, type SpotlightTheme } from "./spotlight";
+export { type RingOptions, Spotlight, type SpotlightTheme } from "./spotlight";
 export {
   accessibleName, clean, FIXED_DEFAULT, locate, type Locator, pinnedHeight, press, quiet, reveal, scrollToEl, setValue,
   sleep, type Strategy, visible, waitFor,
 } from "./dom";
 export {
-  Deferred, type MoveClass, type MoveContext, Moves, type MovesOptions, type Performer, Refused,
+  arrived, type Carried, type Carrier, Deferred, type MoveClass, type MoveContext, Moves, type MovesOptions,
+  type Performer, Refused, type Then,
 } from "./moves";
 export {
-  type Attached, attachStage, type AttachOptions, interruptedResult, STAGE_CONTRACT, STAGE_RUNTIME, type StageClient,
+  type Attached, attachStage, type AttachOptions, type ClientHandler, interruptedResult, STAGE_CONTRACT, STAGE_RUNTIME, type StageClient,
   staleResult,
 } from "./attach";
 export { type StagePage, stagePage } from "./page";

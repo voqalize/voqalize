@@ -1,12 +1,13 @@
 /**
  * What the holder sends a page that arrives in the middle of a reply
- * (`CatchUp` in `@voqalize/stage/extension`): the state, each reply still being heard, whether he is
+ * (`CatchUp`, `src/extension/catch-up.ts`): the state, each reply still being heard, whether he is
  * speaking, and nothing of a reply that is over. No browser.
  */
 
-import { expect, test } from "@playwright/test";
+import { describe, expect, it as test } from "vitest";
 
-import { CatchUp, type ToPage } from "@voqalize/stage/extension";
+import { CatchUp } from "../src/extension/catch-up";
+import type { ToPage } from "../src/extension/protocol";
 
 const avatar = (cmd: Record<string, unknown>): ToPage => ({ k: "ev", name: "serverMessage", data: { type: "avatar", ...cmd } });
 const ev = (name: string): ToPage => ({ k: "ev", name, data: {} });
@@ -20,7 +21,7 @@ function fed(...msgs: ToPage[]): CatchUp {
   return c;
 }
 
-test.describe("what a page arriving mid-reply is sent", () => {
+describe("what a page arriving mid-reply is sent", () => {
   test("the state, the reply being heard (its place on the stream from its resyncs, every cue chunk, in order), then that he is speaking", () => {
     const state = avatar({ cmd: "state", state: "WORKING" });
     const c = fed(state, cues("a", 0), sync("a"), ev("botStartedSpeaking"), cues("a", 900), sync("a", 1000), avatar({ cmd: "action", id: "ACKNOWLEDGE" }));

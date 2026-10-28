@@ -36,13 +36,13 @@
  */
 
 import type { MoveContext, Spotlight } from "@voqalize/stage";
-import { type Adapter, type PageKit, pend, pendingMove } from "@voqalize/stage/extension";
+import { type Adapter, type PageKit } from "@voqalize/stage/extension";
 
 import type { EnquiryFields, EnquiryState, NightsOption, RoomOption, StayState } from "./actions.gen";
 import { clean, norm, type PageContext, pick, scrollTo, setField, sleep, styleThePage, visible, waitFor } from "./dom";
 import { focusTab, inCallLanguage } from "./explora-actions";
 import { type CheckAvailabilityArgs, type ChooseRoomArgs, type FillEnquiryArgs, MOVE, type NavigateArgs } from "./site";
-import { pathLang, SITE } from "./site-language";
+import { SITE } from "./site-language";
 
 type CheckAvailability = CheckAvailabilityArgs;
 type ChooseRoom = ChooseRoomArgs;
@@ -63,17 +63,13 @@ let LANGUAGE: "EN" | "ES" = "EN";
 const speak = (p: { language?: string | null }) => {
   LANGUAGE = p.language === "ES" ? "ES" : "EN";
 };
-/** A ring that the next one replaces at once stays this long; one that ends a
- *  move stays the spotlight's own dwell. */
-const BEFORE_MS = 700;
-
 /** This page's spotlight (Stage's), set when the adapter starts. */
 let spot: Spotlight | null = null;
 
-/** Ring `target` (one element, or several as one box) and wait out its dwell:
- *  `before` for a ring the next one replaces. */
-function ring(target: Element | Element[], before = false): Promise<void> {
-  return spot?.ring(target, before ? { dwellMs: BEFORE_MS } : {}) ?? Promise.resolve();
+/** Ring `target` (one element, several as one box, or each on its own with
+ *  `separate`) and hold the move a beat: what it acts on next is ringed. */
+function ring(target: Element | Element[], opts: { separate?: boolean } = {}): Promise<void> {
+  return spot?.ring(target, opts) ?? Promise.resolve();
 }
 
 /** How many open arrival days a `stay_state` carries. */
@@ -488,9 +484,14 @@ function watchEnquiry(): void {
   });
 }
 
+/** Say what the page is: once the call is up on it, and again whenever the
+ *  tab comes back to the front (Stage's host runs it). */
+function report(next: (event: string, payload: unknown) => void): void {
+  next("page_changed", context());
+}
+
 function start(next: (event: string, payload: unknown) => void): () => void {
   emitter = next;
-  next("page_changed", context());
   // The page's state as it stands now replaces any queued one.
   queued.delete("stay_state");
   queued.delete("enquiry_state");
@@ -608,7 +609,7 @@ async function checkAvailability(p: CheckAvailability, c: MoveContext): Promise<
   const month = p.month ? clean(p.month).slice(0, 7) : "";
   if (month && !date && /^\d{4}-\d{2}$/.test(month) && cal) {
     await scrollTo(cal);
-    await ring(cal, true);
+    await ring(cal);
     await showMonth(month);
   }
   if (date) {
@@ -624,7 +625,7 @@ async function checkAvailability(p: CheckAvailability, c: MoveContext): Promise<
     if (chosenDate() !== date) {
       if (cal) {
         await scrollTo(cal);
-        await ring(dayCell(date) ?? cal, true);
+        await ring(dayCell(date) ?? cal);
       }
       await selectDate(date);
     }
@@ -645,7 +646,7 @@ async function checkAvailability(p: CheckAvailability, c: MoveContext): Promise<
       const box = nightsBox();
       if (box.length) {
         await scrollTo(box[box.length - 1]!);
-        await ring(box, true);
+        await ring(box);
       }
       setField(s, String(p.nights));
     }
@@ -769,9 +770,9 @@ const ADD_MORE = /add more rooms|agregar m[aá]s habitaciones|a[nñ]adir m[aá]s
 async function closeSummary(rest: ChooseRoom, c: MoveContext): Promise<void> {
   if (!document.querySelector(".mfp-wrap")) return;
   const more = popupControl(ADD_MORE);
-  await pend({ kind: "stage", move: MOVE.chooseRoom, args: rest, call_ref: c.callRef });
+  await c.keep({ move: MOVE.chooseRoom, args: rest });
   if (more) {
-    await ring(more, true);
+    await ring(more);
     more.click();
   }
   else {
@@ -781,7 +782,7 @@ async function closeSummary(rest: ChooseRoom, c: MoveContext): Promise<void> {
   }
   const closed = await waitFor(() => !document.querySelector(".mfp-wrap"), 6000);
   // Still on this page: the move goes on here, not on the next one.
-  await pendingMove();
+  await c.drop();
   if (!closed) throw new Error("the last room's summary is still open: its Add more rooms did not close it");
   await sleep(600);
 }
@@ -841,7 +842,7 @@ async function addRoom(p: ChooseRoom, c: MoveContext): Promise<string> {
 
   // Its own "Add this room": the site validates the form and opens the
   // room's summary in a popup (`add_room`, a GET). Never anything past it.
-  await ring(button, true);
+  await ring(button);
   button.click();
   const popup = await waitFor(() => document.querySelector<HTMLElement>(".mfp-content iframe, .mfp-wrap"), 4000);
   if (!popup) throw new Error(`pressed Add this room for ${room.name}, but its summary did not open`);
@@ -909,7 +910,7 @@ async function fillEnquiry(p: FillEnquiry, c: MoveContext): Promise<string> {
     .filter((el): el is Field => Boolean(el));
   if (toFill.length) {
     await scrollTo(row(toFill[0]!));
-    await ring(toFill.map(row), true);
+    await ring(toFill.map(row), { separate: true });
   }
   for (const [key, name] of FIELDS) {
     const raw = values[key];
@@ -962,7 +963,8 @@ async function fillEnquiry(p: FillEnquiry, c: MoveContext): Promise<string> {
   const captcha = captchaBox();
   if (firstEmpty) {
     await scrollTo(row(firstEmpty));
-    await ring(filled.length ? filled.map(row) : [row(firstEmpty)]);
+    // Each filled row on its own, as the form marks each.
+    await ring(filled.length ? filled.map(row) : [row(firstEmpty)], { separate: true });
   } else if (captcha) {
     await scrollTo(captcha);
     await ring(captcha);
@@ -1084,8 +1086,8 @@ async function siteLanguage({ language }: { language: "en" | "es" }, kit: PageKi
 // ─── www.explora.com, from here ───────────────────────────────────────────
 
 /** A www.explora.com page, from the booking site: in the call's language, and
- *  finished on the page it lands on (`explora.arrive`). Nothing here points at
- *  it, so nothing is ringed before the page goes. */
+ *  answered once the page it lands on is up. Nothing here points at it, so
+ *  nothing is ringed before the page goes. */
 async function navigate(args: NavigateArgs, c: MoveContext, kit: PageKit): Promise<never> {
   if (typeof args.path !== "string" || !args.path) return c.refuse("path", `not a path: ${String(args.path)}`);
   let url: URL;
@@ -1095,7 +1097,7 @@ async function navigate(args: NavigateArgs, c: MoveContext, kit: PageKit): Promi
     return c.refuse("path", `not a page: ${args.path} (${String(error)})`);
   }
   if (!c.loadThen) throw new Error("this page cannot load www.explora.com");
-  return c.loadThen(url.href, { move: MOVE.arrive, args: { lenient: pathLang(url) !== "en" } });
+  return c.loadThen(url.href);
 }
 
 // ─── The adapter ──────────────────────────────────────────────────────────
@@ -1132,19 +1134,8 @@ export const reservationsAdapter: Adapter = (moves, kit) => {
   moves.register(MOVE.focusTab, "look", focusTab);
   return {
     context: () => ({ ...context() }),
-    start(emit) {
-      const stop = start(emit);
-      const back = () => {
-        if (document.visibilityState === "visible") emit("page_changed", context());
-      };
-      document.addEventListener("visibilitychange", back);
-      window.addEventListener("focus", back);
-      return () => {
-        stop();
-        document.removeEventListener("visibilitychange", back);
-        window.removeEventListener("focus", back);
-      };
-    },
+    report,
+    start,
     async command(command, payload) {
       if (command === "site_language") await siteLanguage(payload as { language: "en" | "es" }, kit);
     },

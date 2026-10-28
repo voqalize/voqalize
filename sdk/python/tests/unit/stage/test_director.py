@@ -11,9 +11,12 @@ from voqalize.sdk import Action
 from voqalize.sdk.events import Speech, SpeechChunk, SpeechEnd, SpeechStart
 from voqalize.sdk.stage import (
     CUE_WAIT_S,
+    RESULT_TIMEOUTS,
     STAGE_CONTRACT,
+    Dropped,
     Move,
     MoveClass,
+    RawCue,
     Refused,
     Stage,
     StageCue,
@@ -253,3 +256,61 @@ async def test_the_backstop_reaches_the_parser() -> None:
     assert [(c.args, c.at) for c in sent if isinstance(c, StageCue)] == [
         (["Spa"], "The spa opens at nine.")
     ]
+
+
+# ─── timeouts by class, drops, carried moves ────────────────────────────────
+
+
+def test_the_default_timeouts_go_by_class() -> None:
+    stage, _, clock = _stage()
+    stage.send("core.show", {"target": "Rooms"})
+    stage.send("core.page", {"path": "/rooms"})
+    clock.t += RESULT_TIMEOUTS[MoveClass.LOOK] + 0.1
+    assert [r.move for r in stage.expire()] == ["core.show"]
+    clock.t += RESULT_TIMEOUTS[MoveClass.NAVIGATE] - RESULT_TIMEOUTS[MoveClass.LOOK]
+    assert [r.move for r in stage.expire()] == ["core.page"]
+    assert RESULT_TIMEOUTS[MoveClass.NAVIGATE] > RESULT_TIMEOUTS[MoveClass.LOOK]
+
+
+def test_a_timeout_mapping_overrides_some_classes_and_keeps_the_rest() -> None:
+    stage, _, _ = _stage(result_timeout_s={MoveClass.CONFIRMED: 45.0})
+    assert stage.timeout(MoveClass.CONFIRMED) == 45.0
+    assert stage.timeout(MoveClass.NAVIGATE) == RESULT_TIMEOUTS[MoveClass.NAVIGATE]
+    flat, _, _ = _stage(result_timeout_s=12.0)
+    assert {flat.timeout(c) for c in MoveClass} == {12.0}
+
+
+async def test_every_dropped_cue_is_told_with_why() -> None:
+    drops: list[tuple[str, tuple[str, ...], str]] = []
+
+    def on_drop(raw: RawCue, why: Dropped) -> None:
+        drops.append((raw.verb, raw.args, why))
+
+    def resolve(move: Move, args: list[str]) -> list[str] | None:
+        return None if args == ["Nowhere"] else args
+
+    stage, sent, _ = _stage(resolve=resolve, on_drop=on_drop)
+    text = "{show: Nowhere} One. {dance: now} Two. {show: a|b} Three. {show: Rooms} Four."
+    out = [e async for e in stage.cued(_turn(SpeechStart(), SpeechChunk(text), SpeechEnd()))]
+    assert "dance" not in "".join(e.text for e in out if isinstance(e, SpeechChunk))
+    assert sorted(drops) == sorted(
+        [
+            ("show", ("Nowhere",), "unresolved"),
+            ("dance", ("now",), "unknown_verb"),
+            ("show", ("a", "b"), "too_many_args"),
+        ]
+    )
+    assert [c.args for c in sent if isinstance(c, StageCue)] == [["Rooms"]]
+
+
+def test_a_carried_move_is_answered_under_its_own_id() -> None:
+    stage, _, clock = _stage()
+    assert stage.send("core.page", {"path": "/rooms"}) == "c1"
+    # The page went on to the next one: interim, its time started again.
+    clock.t += 20
+    assert stage.handle(_result("c1", "core.page", moved=True)) is not None
+    clock.t += 20
+    assert stage.expire() == []
+    # The next page finished it with a performer of its own: still core.page.
+    final = stage.handle(_result("c1", "site.arrive", detail="opened /rooms"))
+    assert final is not None and final.move == "core.page" and stage.busy is None

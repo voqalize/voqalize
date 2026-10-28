@@ -19,14 +19,15 @@ export { type BackgroundConfig, startBackground } from "./background";
 export { startBridge } from "./bridge";
 export { CatchUp } from "./catch-up";
 export {
-  type Adapter, type AvatarHooks, defineSiteExtension, type PageKit, type SiteExtensionConfig, type SiteHooks,
+  type Adapter, type AvatarClient, type AvatarHooks, defineSiteExtension, type PageKit, type SiteExtensionConfig, type SiteHooks,
 } from "./content";
-export { followCall, type Following } from "./follow";
+export { type FollowedClient, followCall, type Following } from "./follow";
 export { type GrantWords, startGrant } from "./grant";
-export { type HolderApi, type HolderConfig, NO_PAGES_MS, QUIET_WAIT_MS, startHolder } from "./holder";
 export {
-  askHolder, askWorker, type FromBridge, loadsStarted, loadThen, onHolder, pend, pendingMove, shareLanguage,
-  sharedLanguage, tell,
+  type HolderApi, type HolderCallbacks, type HolderClient, type HolderConfig, NO_PAGES_MS, QUIET_WAIT_MS, startHolder,
+} from "./holder";
+export {
+  askHolder, askWorker, type FromBridge, loadsStarted, loadThen, onHolder, shareLanguage, sharedLanguage, tell,
 } from "./hub";
 export { carriedForward, type Delivery, HOLD_MS } from "./mouth-clock";
 export { clearKept, FRESH_MS, type Kept, keptKey, readKept, transitions, writeKept } from "./persist";
@@ -34,7 +35,7 @@ export {
   type CallState, EVENTS, type FromPage, type HolderAsk, type Job, type MicState, PORT, type ToPage, type Where,
   type WorkerAsk,
 } from "./protocol";
-export { type Relaying, relayCall } from "./relay";
+export { type RelayedClient, type Relaying, relayCall } from "./relay";
 export { startShell } from "./shell";
 export { defineSite, isSitePage, matchPattern, mountedFlag, type SiteConfig, shellFlag } from "./site";
 export {

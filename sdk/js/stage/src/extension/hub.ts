@@ -94,10 +94,16 @@ export async function loadThen(url: string, then?: Job): Promise<void> {
   location.href = url;
 }
 
-/** Keep a job for this tab's next page, should the page go before it is done
- *  (a button that may load another page); `pendingMove` takes it back. */
+/** Keep a job for this tab's next page, should the page go before it is done;
+ *  `pendingMove` takes it back. Internal: a move keeps the rest of itself
+ *  with `MoveContext.keep`/`drop`. */
 export async function pend(then: Job): Promise<void> {
   await askWorker({ op: "pend", then });
+}
+
+/** Forget the job kept for this tab's next page, if it is `callRef`'s. */
+export async function unpend(callRef: string): Promise<void> {
+  await askWorker({ op: "unpend", call_ref: callRef });
 }
 
 /** The job this tab's last page left for this one (`loadThen`), once. */

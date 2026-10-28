@@ -11,9 +11,16 @@
  *     playout-delay totals.
  */
 
-import type { PipecatClient } from "@pipecat-ai/client-js";
-
+import type { ClientHandler } from "../attach";
 import { EVENTS, type ToPage } from "./protocol";
+
+/** What the relay uses of the call's client: its events, and its transport's
+ *  peer connection. */
+export interface RelayedClient {
+  on(event: string, handler: ClientHandler): unknown;
+  off(event: string, handler: ClientHandler): unknown;
+  readonly transport: unknown;
+}
 
 /** The avatar server's sync channel: negotiated on both ends at this id. */
 const SYNC_CHANNEL_ID = 200;
@@ -24,7 +31,7 @@ export interface Relaying {
   stop(): void;
 }
 
-export function relayCall(client: PipecatClient, send: (msg: ToPage) => void): Relaying {
+export function relayCall(client: RelayedClient, send: (msg: ToPage) => void): Relaying {
   let pc: RTCPeerConnection | null = null;
   let channel: RTCDataChannel | null = null;
   let heard = false;
@@ -107,8 +114,8 @@ export function relayCall(client: PipecatClient, send: (msg: ToPage) => void): R
       poll();
       sample();
     };
-    client.on(name as never, fn as never);
-    offs.push(() => client.off(name as never, fn as never));
+    client.on(name, fn);
+    offs.push(() => client.off(name, fn));
   }
 
   const readPlayout = async () => {
