@@ -551,9 +551,20 @@ that change one slice):
   structurally (`ReactHooks`), as the pipecat client is.
 - **Example**: `sdk/python/examples/stage_shop/` (spec taking two `commerce` moves, marked-up
   page, brain, generated files, README). `test_example.py` keeps it current and importable;
-  `test/example.test.ts` makes its cues on its own markup under the conformance kit.
+  `test/example.test.ts` makes its cues on its own markup under the Stage conformance checks.
 - Not built: `stage build` (evaluating a `defineScene` module in Node to write `scene.json`) and
   a ts-morph pass that every declared thing is bound; Vue and Svelte bindings.
+
+### The hosted brain (not started: waits on a release)
+
+Platform's hosted brain runs on exactly the published `voqalize-agent-sdk==0.11.0`, with "no
+SDK change and no vendored wheel" (its DECISIONS, "LIFECYCLE v2" item 4) and a startup guard
+that refuses any other version; the snippet would need `@voqalize/stage` from npm. So hosting
+Stage there (pack format 3 carrying a Stage Spec, a format-2 adapter, the explorer writing
+specs, the snippet and preview extension on `@voqalize/stage`) starts once both are released,
+or once the owner decides otherwise. What it builds on is here: `StageSpec` as the pack's
+scene, kits for the shared moves, the Stage conformance checks for proofs, the script host
+for the snippet.
 
 Not yet in the spec (next steps): places and things (regions with spoken labels), `effect`,
 `spotlight`, `undo`, the stale-version check on moves (`resolved_at`), and `stage build` for a

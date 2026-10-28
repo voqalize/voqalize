@@ -1078,9 +1078,9 @@ facts:
       - '**/changelog.astro'
 
   docs.pages:
-    value: 33
+    value: 34
     source: docs/src/content/docs/
-    verified: 2026-10-07
+    verified: 2026-10-28
     derive:
       glob: docs/src/content/docs/**/*.md*
     note: >-

@@ -47,4 +47,4 @@ declares (the agent's own changes are reported as the agent's), and
 Both halves are tested: `sdk/python/tests/unit/stage/test_example.py` keeps the
 generated files current and the brain importable, and
 `sdk/js/stage/test/example.test.ts` makes this page's cues on its own markup
-under the conformance kit.
+under the Stage conformance checks.

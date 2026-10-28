@@ -1,5 +1,5 @@
 /**
- * The conformance kit catches a page that breaks Stage's rules: a move with
+ * The Stage conformance checks catches a page that breaks Stage's rules: a move with
  * no performer or the wrong class, a change made before the spotlight rang it,
  * a look that shows nothing.
  */
