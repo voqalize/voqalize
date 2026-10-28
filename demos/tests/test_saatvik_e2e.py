@@ -59,11 +59,17 @@ from voqalize_demos._loaded.saatvik.brain import (  # noqa: E402
     TOGGLE_CONFIRM,
 )
 from voqalize_demos._loaded.saatvik.knowledge import (  # noqa: E402
+    CityRate,
+    Datasheet,
     Document,
     Faq,
     Knowledge,
     Page,
+    ProductLine,
     Section,
+    Step,
+    Tariff,
+    Variant,
     Word,
 )
 
@@ -85,6 +91,7 @@ _VOC = "Temperature coefficient of Voc (B) -0.26%/°C"
 _OCR_WORDS = _line(_PMAX, 0.40) + _line(_VOC, 0.45)
 
 PANEL = "/modules/test-panel"
+KIT = "/test-kit"
 _HEADINGS = ("Test Panel 600", "Key Features", "Mechanical & Electrical Specifications")
 _TABS = ("ELECTRICAL", "MECHANICAL", "WARRANTY")
 
@@ -94,6 +101,17 @@ SITE = Knowledge(
     topics={},
     pages={
         "/": Page("/", "Home"),
+        KIT: Page(
+            KIT,
+            "Test Kit",
+            headings=("Test Kit", "No Battery Required", "DC & AC Cables", "Five Year Warranty"),
+            sections=(
+                Section("Test Kit", "A complete kit."),
+                Section("No Battery Required", "Runs on the grid with no battery."),
+                Section("DC & AC Cables", "Every cable in the box."),
+                Section("Five Year Warranty", "Covered for five years."),
+            ),
+        ),
         "/solar-calculator": Page("/solar-calculator", "Solar Calculator"),
         "/contact": Page("/contact", "Contact Us"),
         "/faq": Page(
@@ -135,6 +153,12 @@ SITE = Knowledge(
             kind="datasheet",
             pages={1: "Outlined Panel", 2: f"{_PMAX}\n{_VOC}"},
             words={2: _OCR_WORDS},
+        ),
+    },
+    tariffs={
+        "Karnataka": Tariff("Karnataka", 7.5, 4.5, 9.0, "BESCOM"),
+        "Maharashtra": Tariff(
+            "Maharashtra", 9.0, 5.0, 15.0, "MSEDCL", (CityRate("Mumbai", "Adani Electricity", 8.0),)
         ),
     },
 )
@@ -266,10 +290,35 @@ def _llm() -> ScriptedOpenAI:
                 "Here are the dealers.", "find_dealer", state="Goa", city="Panaji"
             ),
             # Refused and silent: asked again with tools off, she asks in her own words.
-            "I use 350 units in Karnataka.": [
-                call("run_calculator", state="Karnataka", monthly_units=350),
+            # A state with no typical rate: refused and silent, so asked again
+            # with tools off, she asks in her own words.
+            "I use 350 units in Ladakh.": [
+                call("run_calculator", state="Ladakh", monthly_units=350),
                 reply("What rate do you pay per unit?"),
             ],
+            # No rate: the state's typical rate, and the units from the bill.
+            "My bill is about 4500 in Bengaluru, Karnataka. I don't know the rate.": reply_and_call(
+                "I'm putting your bill into the calculator.",
+                "run_calculator",
+                state="Karnataka",
+                city="Bengaluru",
+                monthly_bill_inr=4500,
+            ),
+            # A city with its own power company has its own rate.
+            "I use 400 units in Mumbai.": reply_and_call(
+                "I'm putting four hundred units into the calculator.",
+                "run_calculator",
+                state="Maharashtra",
+                city="Mumbai",
+                monthly_units=400,
+            ),
+            "इस किट में क्या है?": reply(
+                "जी, यह पूरी किट है। इसमें बैटरी नहीं है, तो रखरखाव कम है। किट में केबल भी शामिल हैं।"
+            ),
+            "What's special about this kit?": reply(
+                "It's a complete kit. No battery is required, so upkeep is low. "
+                "Both the DC and AC cables come in the box."
+            ),
             # A state the visitor never named is not guessed: it is asked for. Silent
             # twice, so the written line asks.
             "I use 500 units at 6 rupees a unit.": [
@@ -712,10 +761,86 @@ async def test_a_calculator_with_no_rate_asks_for_it_aloud() -> None:
     again, she asks for what it lacked, and nothing runs on the page."""
     async with demo("saatvik", _llm()) as rig:
         await rig.driver.start_session(init={"page": "/"})
-        turn = await rig.driver.user_says("I use 350 units in Karnataka.")
+        turn = await rig.driver.user_says("I use 350 units in Ladakh.")
         check_turn(rig, turn)
         assert turn.text == "What rate do you pay per unit?"
         assert "run_calculator" not in rig.actions()
+
+
+async def test_no_rate_runs_on_the_states_typical_rate() -> None:
+    """A visitor who does not know their rate is not sent to find their bill:
+    the calculator runs on their state's typical rate, units from their bill,
+    and she is told to say the rate is typical."""
+    llm = _llm()
+    async with demo("saatvik", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says(
+            "My bill is about 4500 in Bengaluru, Karnataka. I don't know the rate."
+        )
+        run = next(c for c in rig.driver.ui_commands if c.get("command") == "run_calculator")
+        assert run["payload"] == {"units": 600, "state": "Karnataka", "rate": 7.5}
+        await rig.driver.user_says("So how much would I save?")
+        result = _results(llm.captured_inputs[-1])["run_calculator"]
+        assert "typical residential rate" in result and "₹7.5" in result
+
+
+async def test_a_city_with_its_own_power_company_has_its_own_rate() -> None:
+    async with demo("saatvik", _llm()) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says("I use 400 units in Mumbai.")
+        run = next(c for c in rig.driver.ui_commands if c.get("command") == "run_calculator")
+        assert run["payload"] == {"units": 400, "state": "Maharashtra", "rate": 8.0}
+
+
+async def test_a_hindi_sentence_rings_the_card_it_names() -> None:
+    """A Hindi reply has no English words to score: its solar words, read
+    through the glossary, ring the one card each names (the owner's Hindi dev
+    call rang nothing on the kit page)."""
+    async with demo("saatvik", _llm()) as rig:
+        await rig.driver.start_session(init={"page": KIT})
+        await rig.driver.user_says("इस किट में क्या है?")
+        assert [c["heading"] for c in _cues(rig)] == [
+            "Test Kit",
+            "No Battery Required",
+            "DC & AC Cables",
+        ]
+
+
+async def test_a_heading_said_in_other_words_order_is_rung() -> None:
+    async with demo("saatvik", _llm()) as rig:
+        await rig.driver.start_session(init={"page": KIT})
+        await rig.driver.user_says("What's special about this kit?")
+        assert [c["heading"] for c in _cues(rig)] == ["No Battery Required", "DC & AC Cables"]
+
+
+def test_a_playbook_reads_as_the_products_story_to_its_call_to_action() -> None:
+    k = Knowledge(
+        l1="",
+        topics={},
+        pages={},
+        documents={},
+        products=(
+            ProductLine(
+                id="kit",
+                name="Test Kit",
+                path=KIT,
+                pitch="A complete home kit.",
+                story=(Step("Test Kit", "what it is"), Step("No Battery Required")),
+                variants=(Variant("3 kW kit", "for about 400 units", "3 kW"),),
+                datasheets=(Datasheet("kit-datasheet", "Kit", "p1: 3 kW"),),
+                cta="BOOK NOW → book_product(product=surya-connect-kit)",
+                qualify=("home or business", "monthly bill"),
+                next=("batteries",),
+                calculator=True,
+            ),
+        ),
+    )
+    text = saatvik._playbooks(k)
+    assert "## Test Kit (kit) — /test-kit" in text
+    assert "Story: Test Kit (what it is) → No Battery Required" in text
+    assert "3 kW kit: for about 400 units [show: 3 kW]" in text
+    assert "Call to action: BOOK NOW → book_product(product=surya-connect-kit)" in text
+    assert "Ask: home or business; monthly bill" in text
 
 
 async def test_a_silent_move_asks_the_model_to_talk_about_it() -> None:

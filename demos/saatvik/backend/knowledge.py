@@ -646,7 +646,9 @@ def _product(raw: dict[str, Any]) -> ProductLine | None:
             if s.get("heading")
         ),
         variants=tuple(
-            Variant(str(v.get("name")), str(v.get("key") or ""), str(v.get("heading_or_text") or ""))
+            Variant(
+                str(v.get("name")), str(v.get("key") or ""), str(v.get("heading_or_text") or "")
+            )
             for v in map(_dict, _list(raw.get("variants")))
             if v.get("name")
         ),

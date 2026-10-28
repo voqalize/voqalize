@@ -486,8 +486,7 @@ class CalculatorRequest(BaseModel):
     )
     city: str | None = Field(
         default=None,
-        description="Their city, if they said: a few cities have their own power company "
-        "and rate.",
+        description="Their city, if they said: a few cities have their own power company and rate.",
     )
 
 
@@ -625,7 +624,9 @@ def _playbooks(k: Knowledge) -> str:
             lines.append(
                 "Sizes and models: "
                 + "; ".join(
-                    v.name + (f": {v.key}" if v.key else "") + (f" [show: {v.show}]" if v.show else "")
+                    v.name
+                    + (f": {v.key}" if v.key else "")
+                    + (f" [show: {v.show}]" if v.show else "")
                     for v in p.variants
                 )
             )
@@ -1154,6 +1155,9 @@ def best_section(sentence: str, sections: list[tuple[str, str]]) -> str | None:
             hits = [h for h, head, _ in docs if w in head]
             if len(hits) == 1:
                 named.add(hits[0])
+        if len(named) > 1:
+            # The page's own title is its subject ("the kit"), not a card.
+            named.discard(docs[0][0])
         return named.pop() if len(named) == 1 else None
     scored: list[tuple[float, str]] = []
     for heading, head, text in docs:
