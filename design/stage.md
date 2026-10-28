@@ -1,0 +1,165 @@
+# Stage — build contract (v1, branch `feat/stage`)
+
+Internal. This is the contract the Python director, the TypeScript runtime and the first
+two ports (explora, cannonhome) are built against. The architecture this implements is the
+"Stage Architecture" design (owner-approved 2026-10-28). Nothing here is published to PyPI
+or npm yet.
+
+## Where things live
+
+| Piece | Path | Notes |
+|---|---|---|
+| Python director | `sdk/python/src/voqalize/sdk/stage/` | `voqalize.sdk.stage`; NOT added to `voqalize.sdk.__all__`. Pydantic only; pyright strict. |
+| Policy + wire (fixed) | `stage/policy.py`, `stage/wire.py` | Written. `wire.gen.ts` is generated from `wire.py`. |
+| Page runtime | `sdk/js/stage/` | npm `@voqalize/stage`, `"private": true` until release. ESM TypeScript. Subpaths `.` (core) and `./extension` (Chrome extension host). |
+| Ports | `demos/explora/`, `demos/cannonhome/` | Each keeps its own brain, routes, knowledge and extension; their copies of cues/narration/holder/relay/etc. are deleted in favour of Stage. |
+
+Regenerate the page types after changing `wire.py`:
+`cd demos && uv run voqalize types voqalize.sdk.stage.wire -o ../sdk/js/stage/src/wire.gen.ts`
+
+## Ground rules that bind the code
+
+1. The model names, the runtime moves. No selector, wait or click order ever comes from the model.
+2. Class (look | navigate | reversible | confirmed — `policy.py`) decides delivery, retries, what the model hears. `commit` = human only, never a move.
+3. Every visible move rings its target before it acts (the **spotlight**), and keeps the ring long enough to see (≥ ~1.5 s dwell unless the next ring replaces it). A move that changes the page without a ring is a bug.
+4. Every move — cue or tool — gets exactly one `StageResult` per `call_ref`. The brain times out a missing one as `unknown`.
+5. The page segments words; the brain never does. Anchors work in any script (Latin with accents, Devanagari, CJK, Arabic).
+6. Never hold the voice for the page. (The extension holder keeps playing across loads.)
+7. `@voqalize/stage` takes a PipecatClient that already exists and only subscribes/sends. It never constructs, connects, wraps or re-exports pipecat's client or hooks.
+8. No internal service names (gato, pygato, vql-*) in SDK or package prose.
+
+## Cue grammar (model output)
+
+```
+cue  := "{" verb [ ":" SP arg ( SP? "|" SP? arg ){0,3} ] "}"
+verb := [a-z]{2,12}     one lowercase word; no underscore/dot/digit; never one of the SDK's
+                        _CALL_KEYS (name function tool call args arguments action parameters)
+arg  := ≤ 80 chars, no braces/newline; trimmed
+```
+- A cue goes right before the first word of the sentence it belongs to. Several cues before
+  one sentence share its anchor and fire in order.
+- Anything else in braces is not spoken either (as today). An unclosed brace is dropped once
+  it runs past 220 chars, and the text is spoken.
+- The verbs a reply may use are the brain's registered moves' verbs. Unknown verbs are dropped
+  (logged), never spoken.
+- Sentence ends (brain side, for anchoring and backstop): `. ! ? … 。 ！ ？ । ॥` followed by
+  whitespace, or the end of the unit.
+
+## Anchors
+
+- Brain sends `at` = the spoken text that follows the cue, raw (as the voice will say it,
+  cues removed, whitespace collapsed), up to 48 chars, cut on a whitespace boundary when
+  possible; empty when nothing follows in the unit. `before` = characters of the unit's spoken
+  text before the cue. A cue is released to the wire once ≥ 3 whitespace-separated tokens (or
+  ≥ 12 chars for scripts without spaces) have streamed after it, or at unit end.
+- Page normalises with `normalize("NFKC")`, `toLocaleLowerCase()`, strips Latin combining
+  marks only for comparison (NFD → remove U+0300–U+036F → NFC; Devanagari/other marks kept),
+  maps ’ to ', then segments with `Intl.Segmenter(lang, {granularity: "word"})` keeping
+  `isWordLike` segments. Fallback when `Intl.Segmenter` is missing: `/[\p{L}\p{M}\p{N}']+/gu`.
+- Anchor = first 3 word-like segments of `at` (fewer if `at` has fewer). It fires when that
+  sequence appears in the heard word stream at or after the search cursor; 2 of 3 consecutive
+  is accepted after 1.5 s past the expected time (fuzzy), counted as `fuzzy` in telemetry.
+- Heard stream = pipecat `botOutput` (preferred) / `botTtsText`, released as audio plays.
+- Clock fallback when no spoken text has arrived 1.5 s into speech: fire at
+  `before / cps` seconds from speech start; `cps` starts at 14 and is recalibrated from the
+  session's own spoken-text rate.
+- Empty `at` fires 600 ms after the voice stops. A cue whose words never come is dropped
+  after 45 s. On `userStartedSpeaking` every cue not yet fired is dropped and reported
+  `refused` with why `interrupted` (not sent to the model as a failure note).
+- Cues fire in order, one move at a time (a page must arrive before a section on it).
+
+## Wire (see `wire.py`)
+
+down `ui-command`: `stage_cue {call_ref, move, verb, args[], at, before, unit}` ·
+`stage_move {call_ref, move, args{}, when: now|quiet}`
+up `ui-event`: `stage_result {call_ref, move, outcome, detail?, refused[], moved, ms}` ·
+`stage_hello {runtime, contract, url, title}`
+Site-specific typed Actions/AppEvents (page_changed, listing_shown, check_availability, …)
+keep riding the same channels beside these. `command_done` / `command_failed` are replaced
+by `stage_result`.
+
+## Python director API (to build)
+
+```python
+from voqalize.sdk.stage import (
+    Move, MoveClass, Stage, CueParser, RawCue, match_label, StageEvents, StageResult,
+)
+
+# A move the brain knows. Cue moves have a verb; tool-only moves have none.
+Move(id="core.show", verb="show", cls=MoveClass.LOOK, args=("target",), say="...")
+
+class Stage:
+    """Composable director. A brain owns one per session."""
+    def __init__(self, *, dispatch: Callable[[Action], None], moves: Sequence[Move],
+                 resolve: Callable[[Move, list[str]], list[str] | None],   # None = drop
+                 backstop: AutoCues | None = None,
+                 result_timeout_s: float = 20.0,
+                 clock: Callable[[], float] = time.monotonic) -> None: ...
+    def cued(self, turn: AsyncGenerator[Speech, None]) -> AsyncGenerator[Speech, None]:
+        """Strip cues from SpeechChunks, resolve, dispatch StageCue with a fresh call_ref."""
+    def send(self, move: str, args: dict, *, when: Literal["now","quiet"]="now") -> str | None:
+        """Tool-delivered move: one at a time per policy.serial; returns the call_ref, or
+        None when it was queued behind the running one (it is sent when that one answers)."""
+    def handle(self, event: StageResult | StageHello) -> StageResult | None:
+        """Fold a result: clears the in-flight move, sends the queued one, returns the result
+        (with outcome as received) so the brain can write its note; None for duplicates."""
+    def expire(self) -> list[StageResult]:
+        """Results that timed out, as outcome="unknown" (call from a periodic tick or on
+        each turn)."""
+    @property
+    def busy(self) -> str | None: ...   # the move in flight
+```
+- `CueParser` generalises `demos/explora/backend/cues.py`: verbs from the registered moves,
+  args split on `|`, raw `at`/`before` per the anchor rules, an `auto` backstop callback
+  `(sentence, index, placed) -> list[tuple[verb, list[str]]]` as today.
+- `match_label(want, options) -> str | None`: NFKC + casefold + Latin-accent-insensitive; exact,
+  then unique prefix, then best token overlap ≥ 0.6; None when ambiguous.
+- `StageBrain` is optional sugar for simple brains; explora/cannonhome compose `Stage` inside
+  their own respond pipelines.
+- Floor policies (nod, silent-turn line, fallback) stay in `demos/voqalize_demos/` — the team
+  kept fillers out of the SDK.
+
+## Page runtime API (to build)
+
+```ts
+// @voqalize/stage
+export * from "./wire.gen";
+export function words(text: string, lang?: string): string[];          // the one segmenter
+export class Timeline { constructor(fire: (cue: StageCue) => Promise<StageResult | void>, opts?: {lang?: string; now?: () => number});
+  add(cue: StageCue): void; hear(text: string): void; speaking(): void; stopped(): void;
+  interrupted(): StageCue[]; clear(): void; }
+export interface SpotlightTheme { color: string; width?: number; radius?: number; glow?: string; dwellMs?: number }
+export class Spotlight { constructor(theme: SpotlightTheme, doc?: Document);
+  ring(target: Element | Element[], opts?: {dwellMs?: number; label?: string}): Promise<void>;
+  clear(): void; }  // shadow-root overlay in document coordinates; follows scroll/resize; never restyles the site; aria-live label; reduced-motion aware
+export function locate(spec: Locator, root?: ParentNode): Element | null;   // any_of strategies, unique-or-null
+export function reveal(el: Element): Promise<void>;     // open closed tab/accordion/details/carousel hiding it
+export function scrollToEl(el: Element, opts?: {align?: "top"|"center"; fixed?: string[]}): Promise<void>;
+export function press(el: Element): void; export function setValue(el: Element, v: string): void;
+export function waitFor<T>(fn: () => T | null | false, ms: number): Promise<T | null>;
+export function quiet(el: Element, quietMs: number, maxMs: number): Promise<void>;
+export type Performer<A> = (args: A, c: MoveContext) => Promise<string | null>;  // detail; null = moved on to another page
+export interface MoveContext { spotlight: Spotlight; reveal(el: Element): Promise<void>;
+  ring(el: Element | Element[], label?: string): Promise<void>; beat(ms?: number): Promise<void>;
+  scrollTo(el: Element): Promise<void>; refuse(arg: string, why: string, options?: string[]): never; }
+export class Moves { register<A>(id: string, cls: MoveClass, performer: Performer<A>): void;
+  run(id: string, args: unknown, call_ref: string): Promise<StageResult>; }   // one at a time; builds the Result
+export function attachStage(client: PipecatClient, opts: { onCue(c: StageCue): void; onMove(m: StageMove): void;
+  onSiteCommand?(command: string, payload: unknown): void }): { send(ev: StageResult | StageHello): void; detach(): void };
+```
+`@voqalize/stage/extension` — the Chrome MV3 host shared by every site extension, extracted
+from explora + cannonhome: offscreen holder (call, tab registry, routing to the front tab,
+moves kept for loading tabs / `loadThen` across hosts, Timeline), relay/follow/catch-up/
+mouth-clock for the avatar, call-client, grant flow, page bridge/hub, shell/persist, widget
+shell. Site extensions provide: config (hosts, agent, theme, languages, widget copy), their
+site adapters registered with `Moves`, and their site AppEvents.
+
+## Gates
+
+```
+uv run ruff format --check . && uv run ruff check . && uv run pyright
+cd sdk/python && uv run pytest -q
+cd demos && uv run pytest tests/test_explora*.py tests/test_cannonhome*.py   # + the cross-demo voice contract
+cd sdk/js/stage && pnpm typecheck && pnpm test
+cd demos/<site>/extension && pnpm install --ignore-workspace && pnpm typecheck && pnpm test:e2e
+```
