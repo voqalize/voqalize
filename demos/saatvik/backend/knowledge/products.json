@@ -141,7 +141,7 @@
     "inverters",
     "solar-kits"
    ],
-   "calculator": true
+   "calculator": false
   },
   {
    "id": "n-topcon",
@@ -315,7 +315,7 @@
     "inverters",
     "solar-kits"
    ],
-   "calculator": true
+   "calculator": false
   },
   {
    "id": "tej-plus-g12r",
@@ -668,7 +668,7 @@
     "uday-three-phase",
     "epc-commercial"
    ],
-   "calculator": true
+   "calculator": false
   },
   {
    "id": "vega-plus-g2tb",
@@ -982,7 +982,7 @@
     "epc-residential",
     "n-topcon"
    ],
-   "calculator": true
+   "calculator": false
   },
   {
    "id": "vega-g2wb",
@@ -1140,7 +1140,7 @@
     "epc-residential",
     "n-topcon"
    ],
-   "calculator": true
+   "calculator": false
   },
   {
    "id": "solar-cells",
@@ -1401,7 +1401,7 @@
     "uday-plus-hybrid",
     "solar-kits"
    ],
-   "calculator": true
+   "calculator": false
   },
   {
    "id": "uday-single-phase",
@@ -1593,7 +1593,7 @@
     "modules",
     "epc-residential"
    ],
-   "calculator": true
+   "calculator": false
   },
   {
    "id": "uday-three-phase",
@@ -1796,7 +1796,7 @@
     "bess",
     "transformers"
    ],
-   "calculator": true
+   "calculator": false
   },
   {
    "id": "uday-plus-hybrid",
@@ -1956,7 +1956,7 @@
     "modules",
     "solar-kits"
    ],
-   "calculator": true
+   "calculator": false
   },
   {
    "id": "solar-kits",
@@ -3000,7 +3000,7 @@
     "epc-commercial",
     "epc-ground-mounted"
    ],
-   "calculator": true
+   "calculator": false
   },
   {
    "id": "epc-residential",
@@ -3290,7 +3290,7 @@
     "epc-carport",
     "n-topcon"
    ],
-   "calculator": true
+   "calculator": false
   },
   {
    "id": "epc-institutional",
@@ -3409,7 +3409,7 @@
     "bess",
     "epc-carport"
    ],
-   "calculator": true
+   "calculator": false
   },
   {
    "id": "epc-ground-mounted",

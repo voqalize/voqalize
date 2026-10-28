@@ -10,6 +10,16 @@
         "https://saatvikgroup.com/*"
       ],
       "js": [
+        "bridge.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://www.saatvikgroup.com/*",
+        "https://saatvikgroup.com/*"
+      ],
+      "js": [
         "content.js"
       ],
       "run_at": "document_idle",
@@ -17,7 +27,8 @@
     }
   ],
   "permissions": [
-    "declarativeNetRequest"
+    "declarativeNetRequest",
+    "storage"
   ],
   "host_permissions": [
     "https://www.saatvikgroup.com/*",
@@ -31,5 +42,8 @@
         "path": "rules.json"
       }
     ]
+  },
+  "background": {
+    "service_worker": "background.js"
   }
 }

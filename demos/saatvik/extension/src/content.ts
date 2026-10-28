@@ -10,7 +10,9 @@
  *   - the site adapter (`saatvik-actions.js`), which turns the brain's page
  *     Actions into moves on Saatvik's page and reports every route change, form
  *     and result back, whoever caused it;
- *   - the PDF viewer (`pdf-viewer.ts`), for their datasheets and manuals;
+ *   - their datasheets and manuals, opened in a tab of their own beside this
+ *     one (`doc.html`, through the service worker in `background.ts`); when
+ *     Sunny moves the site again, this tab comes back to the front;
  *   - the corner widget (`widget.ts`), with the language toggle and the lead
  *     brief;
  *   - the call: stock pipecat on `@voqalize/client-transport`'s media, one
@@ -34,7 +36,7 @@ import { createVoqalizeTransport, VoqalizeMediaManager } from "@voqalize/client-
 
 import { type AppEvent, asUiAction, type Cue, sendAppEvent, UI_ACTION_COMMANDS, type UiAction } from "./actions.gen";
 import { Narration } from "./narration";
-import { mountViewer } from "./pdf-viewer";
+import { BRIDGE, type WorkerAnswer, type WorkerAsk } from "./tabs-protocol";
 import { type Language, mountWidget, type Status } from "./widget";
 
 declare const __VOQALIZE__: { apiBase: string; agentId: string; publishableKey: string };
@@ -52,6 +54,36 @@ const OURS = ["open_document", "close_document", "lead_brief", "language_changed
 /** Set once the widget is up, so a second copy of this script on the page
  *  puts up no second widget. */
 const MOUNTED = "__voqalizeSunny";
+
+let asks = 0;
+
+/** Ask the service worker, through the isolated bridge (`bridge.ts`). */
+function askWorker(ask: WorkerAsk, ms = 5000): Promise<WorkerAnswer> {
+  const id = ++asks;
+  return new Promise((resolve) => {
+    const done = (answer: WorkerAnswer) => {
+      window.removeEventListener("message", on);
+      clearTimeout(timer);
+      resolve(answer);
+    };
+    const on = (e: MessageEvent) => {
+      const d = e.data as { bridge?: string; id?: number; answer?: WorkerAnswer } | null;
+      if (e.source === window && d?.bridge === BRIDGE && d.id === id && d.answer) done(d.answer);
+    };
+    const timer = setTimeout(() => done({ ok: false, error: "the extension did not answer" }), ms);
+    window.addEventListener("message", on);
+    window.postMessage({ bridge: BRIDGE, id, ask }, location.origin);
+  });
+}
+
+/** This tab in front before Sunny moves it: the visitor may be reading a
+ *  document in the tab beside it, and the move is shown, not made unseen. */
+async function inFront(): Promise<void> {
+  if (!document.hidden) return;
+  await askWorker({ t: "focus_me" });
+  const until = Date.now() + 1500;
+  while (document.hidden && Date.now() < until) await new Promise((r) => setTimeout(r, 50));
+}
 
 /** The request that mints a session — see `docs/client/handshake`. */
 function connectRequest(init: Record<string, unknown>): APIRequest {
@@ -161,11 +193,8 @@ async function start(): Promise<void> {
     else console.info("voqalize (no call):", event.event, event.payload);
   }
 
-  const viewer = mountViewer({
-    opened: (url, page) => report({ event: "document_opened", payload: { url, page } }),
-    closed: (url, page) => report({ event: "document_closed", payload: { url, page } }),
-    covering: (rects) => widget.avoid(rects),
-  });
+  /** The document the tab beside this one shows, if any. */
+  let openDoc: { url: string; page: number } | null = null;
 
   // The adapter reports from page load on: a form submitted before the call
   // reached the brain is logged, not lost silently.
@@ -199,6 +228,7 @@ async function start(): Promise<void> {
   // reported as `cue`, which the brain takes quietly: she has spoken past it.
   const narration = new Narration(async (cue) => {
     const [command, payload] = cueMove(cue);
+    await inFront();
     const result = await adapter!.run(command, payload);
     if (!result.ok) report({ event: "command_failed", payload: { command: "cue", reason: result.error ?? "failed" } });
   });
@@ -343,10 +373,20 @@ async function start(): Promise<void> {
           showLanguage(action.payload.language);
           return null;
         case "open_document":
-          await viewer.open(action.payload);
+          {
+            const opened = await askWorker({ t: "open_doc", req: action.payload });
+            if (!opened.ok) return fail(opened.error ?? "the document tab did not open");
+            openDoc = { url: action.payload.url, page: action.payload.page };
+            report({ event: "document_opened", payload: openDoc });
+          }
           return null;
         case "close_document":
-          if (!viewer.close()) return fail("no document is open");
+          {
+            const closed = await askWorker({ t: "close_doc" });
+            if (!closed.ok) return fail(closed.error ?? "no document is open");
+            report({ event: "document_closed", payload: openDoc ?? { url: "", page: 1 } });
+            openDoc = null;
+          }
           return null;
         case "lead_brief":
           widget.setBrief(action.payload);
@@ -357,6 +397,7 @@ async function start(): Promise<void> {
           return null;
         default: {
           const page: UiAction = action;
+          await inFront();
           const result = await adapter!.run(page.command, page.payload);
           return result.ok ? null : fail(result.error ?? "failed");
         }

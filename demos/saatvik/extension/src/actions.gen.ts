@@ -80,7 +80,9 @@ export interface OpenTab {
 }
 
 /**
- * Open the in-page PDF viewer at `page`, highlighting `quote` when given.
+ * Open one of Saatvik's PDFs in a tab beside the visitor's Saatvik tab, at
+ * `page`, highlighting `quote` when given. The next document reuses that
+ * tab; a later move on the site brings the Saatvik tab back to the front.
  *
  * `boxes` is set on a page whose text is drawn as outlines (Saatvik's module
  * datasheets), where the viewer's text layer has nothing to find: the quote's
@@ -99,7 +101,7 @@ export interface OpenDocument {
   boxes: QuoteBox[] | null;
 }
 
-/** Close the PDF viewer. */
+/** Close the document's tab and bring the visitor's Saatvik tab back. */
 export type CloseDocument = Record<string, never>;
 
 /**

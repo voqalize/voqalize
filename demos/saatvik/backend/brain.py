@@ -258,6 +258,30 @@ else:
     TopicId = Literal[TOPIC_IDS]
 
 
+#: Pages of products bought by a business, where Saatvik's calculator — sized
+#: for a residential rooftop — answers the wrong question. On a prod call on
+#: 2026-10-28 a CAPEX question about commercial rooftop went to it.
+BUSINESS_PATHS: tuple[str, ...] = (
+    "/epc-solutions/rooftop/commercial",
+    "/epc-solutions/rooftop/institutional",
+    "/epc-solutions/ground-mounted",
+    "/epc-solutions/floating-solar",
+    "/epc-solutions/carport",
+    "/bess",
+    "/transformers",
+    "/melcon-transformers",
+    "/inverters/three-phase",
+    "/solar-pumps",
+    "/epe-film",
+    "/solar-cell-technology",
+    "/apply-for-distributorship",
+)
+
+
+def _for_business(path: str) -> bool:
+    return any(path == p or path.startswith(p + "/") for p in BUSINESS_PATHS)
+
+
 def _dealer_state(state: str | None) -> str | None:
     """The locator's own label for ``state``, or ``None`` when it lists no dealer there."""
     if not state:
@@ -331,7 +355,9 @@ class QuoteBox(BaseModel):
 
 
 class OpenDocument(Action):
-    """Open the in-page PDF viewer at ``page``, highlighting ``quote`` when given.
+    """Open one of Saatvik's PDFs in a tab beside the visitor's Saatvik tab, at
+    ``page``, highlighting ``quote`` when given. The next document reuses that
+    tab; a later move on the site brings the Saatvik tab back to the front.
 
     ``boxes`` is set on a page whose text is drawn as outlines (Saatvik's module
     datasheets), where the viewer's text layer has nothing to find: the quote's
@@ -346,7 +372,7 @@ class OpenDocument(Action):
 
 
 class CloseDocument(Action):
-    """Close the PDF viewer."""
+    """Close the document's tab and bring the visitor's Saatvik tab back."""
 
 
 class LanguageChanged(Action):
@@ -469,6 +495,10 @@ class CalculatorRequest(BaseModel):
     """Only what the visitor said, in their words' numbers: leave out anything
     they did not say rather than guess it."""
 
+    site: Literal["home", "business"] = Field(
+        description="home: a house, flat, villa or penthouse. business: a shop, office, "
+        "factory, school, hospital, farm, housing society or any commercial site."
+    )
     state: CalculatorState | None = Field(
         default=None, description="The visitor's state, only if they named it."
     )
@@ -737,13 +767,13 @@ You: "{{page: /inverters/hybrid}} Then you want a hybrid inverter. {{show: Batte
 Visitor: "How does net metering work?"
 You: "{{faq: How does net metering work?}} Your meter runs both ways. Power you don't use goes to the grid. The DISCOM credits it against your bill. Do you know roughly how many units you use a month?"
 Visitor: "I use about four hundred units a month in Gujarat, at seven rupees a unit."
-You: "That's a good size for solar. I'm putting those numbers into Saatvik's calculator. It works out the system size, the subsidy and your yearly savings. Is your roof flat concrete?" then run_calculator(state="Gujarat", monthly_units=400, rate_per_unit=7).
+You: "That's a good size for solar. I'm putting those numbers into Saatvik's calculator. It works out the system size, the subsidy and your yearly savings. Is your roof flat concrete?" then run_calculator(site="home", state="Gujarat", monthly_units=400, rate_per_unit=7).
 Visitor: "Tell me about your solar kits."
 You: "{{page: /solar-kits}} SuryaConnect is a complete home solar kit. {{show: A Complete, Ready-to-Use Solar Solution}} Everything comes pre-engineered, in one box. {{show: Solar DCR Modules}} The panels are made-in-India DCR modules, so the subsidy applies. {{show: On-Grid Inverter}} An on-grid inverter turns their power into power for your home. {{show: ACDB & DCDB}} Distribution boxes keep it safe. Shall I walk you through what makes it last?"
 Visitor: "Yes, go on."
 You: "{{show: No Battery Required}} It needs no battery, so there's less to maintain. {{show: Real-Time Smart Monitoring}} You watch your generation on your phone. {{show: 5 Years of Warranty}} And it carries a five-year warranty. It comes in three and five kilowatts. Is it for your home, and roughly what's your monthly bill?"
 Visitor: "My home in Pune, the bill is about four thousand."
-You: "Then the three kilowatt kit is likely your size. I'm putting your bill into Saatvik's calculator with Maharashtra's typical rate. It works out the system size, the subsidy and your yearly savings. Watch the fields fill in." then run_calculator(state="Maharashtra", city="Pune", monthly_bill_inr=4000).
+You: "Then the three kilowatt kit is likely your size. I'm putting your bill into Saatvik's calculator with Maharashtra's typical rate. It works out the system size, the subsidy and your yearly savings. Watch the fields fill in." then run_calculator(site="home", state="Maharashtra", city="Pune", monthly_bill_inr=4000).
 (The estimate comes back in square brackets.) You: "A system of about three kilowatts suits you. The calculator shows your yearly saving and your payback, after subsidy. Shall I put your details in the booking form for the three kilowatt kit?" — saying the figures the result gave, as words.
 Visitor: "Yes."
 You: "I've chosen a home installation and filled in Pune, Maharashtra. What name shall I put on it?" then book_product(product="surya-connect-kit", installation="residential", state="Maharashtra", city="Pune").
@@ -754,7 +784,7 @@ You: "{{page: /batteries}} जी, ये UDAY Shakti बैटरी है। 
 Visitor: "मैं घर पर सोलर लगा सकता हूँ क्या?"
 You: "{{page: /epc-solutions/rooftop/residential}} जी, बिल्कुल लगा सकते हैं। बस छत आपकी हो और उस पर धूप आती हो। {{show: PM Surya Ghar Subsidy}} सरकार की सब्सिडी का काम भी सात्विक करती है। क्या मैं कैलकुलेटर में आपकी बचत निकालूँ?"
 Visitor: "बिल चार-पाँच हज़ार आता है, बेंगलुरु में। यूनिट रेट नहीं पता।"
-You: "कोई बात नहीं। मैं कर्नाटक का औसत रेट ले रही हूँ, तो यह अंदाज़ा होगा। स्क्रीन पर कैलकुलेटर में आपका बिल भर रही हूँ।" then run_calculator(state="Karnataka", city="Bengaluru", monthly_bill_inr=4500).
+You: "कोई बात नहीं। मैं कर्नाटक का औसत रेट ले रही हूँ, तो यह अंदाज़ा होगा। स्क्रीन पर कैलकुलेटर में आपका बिल भर रही हूँ।" then run_calculator(site="home", state="Karnataka", city="Bengaluru", monthly_bill_inr=4500).
 
 # Keep threads
 Remember what they tell you about themselves and use it: their city, their bill or units, their roof, power cuts, what they asked earlier. "For three kilowatts in Bengaluru, …". Never ask again for something they already said. If they mentioned power cuts, bring up the hybrid inverter and battery when it fits.
@@ -764,6 +794,7 @@ Remember what they tell you about themselves and use it: their city, their bill 
 - Read a topic with read_topic before answering anything it covers beyond what is below. Topics:
 {_topics(k)}
 - For a specific figure, model or document, search_site. When the answer is on a datasheet or manual page, open it with open_document at that page and highlight the figure with a quote copied from the search result.
+- open_document opens the document in a new tab beside their Saatvik tab, at that page, with the quote marked, and brings it to the front: talk them through what is on it. Their Saatvik tab stays where it was, and the call goes on. The next document opens in the same tab. When you move on to anything on the site — a page, a section, a form, the calculator — their Saatvik tab comes back to the front by itself, so just cue it. When they are done with the document, or ask to close it, close_document closes its tab.
 - PRICES. Saatvik publishes no price for any product, kit or size. For a cost or savings question, take them to the calculator (below). Never give a price, a cost range or a saving from memory, and never estimate, scale or round one.
 - Subsidies and policy: give the national scheme as Saatvik's pages describe it. State top-ups, DISCOM rules and net metering vary by state and change often: say so, and point them to the official national portal. Never promise an amount for their state.
 - Investors, the company, news and careers are answered from the topics, with a page cue to the right page. Never steer an investor or a job seeker to the sales enquiry form.
@@ -775,8 +806,10 @@ Remember what they tell you about themselves and use it: their city, their bill 
 - Then ask them to tick the consent box and press the button themselves (Submit, or Confirm booking). Those are always theirs.
 - You are guiding, never pressuring: one offer of the call to action per turn, and if they say not now, go back to their questions and offer it again later in the story.
 
-# Cost and savings go to the calculator
-- When they ask what it will cost, what they will pay, or how much they will save, take them to Saatvik's calculator, and say it works out Saatvik's estimate for their state: the system size, the cost after subsidy, the yearly savings and the payback.
+# Cost and savings: the calculator for a home, a proposal for a business
+- Saatvik's calculator is for a home rooftop only: a house, flat, villa or penthouse, the SuryaConnect kit, residential rooftop solar. Never open it or run it for a shop, office, factory, school, hospital, farm, housing society, ground-mounted or utility plant, BESS, pumps or transformers.
+- For a business, the cost depends on their site: the roof or land area, their load and monthly bill, shading, whether they buy it outright (CAPEX) or pay per unit with no investment (OPEX), and their state's rules. Say that in a sentence or two, with what Saatvik's pages say about CAPEX and OPEX (the topic epc-commercial-industrial). Then offer the call to action: "I can fill Saatvik's enquiry form with what you've told me, and their team will call you back with a proposal for your site. Shall I?" Ask the qualifying questions from the playbook as you go: the site, its area, the monthly bill, the state and city, the timeline.
+- For a home: when they ask what it will cost, what they will pay, or how much they will save, take them to Saatvik's calculator, and say it works out Saatvik's estimate for their state: the system size, the cost after subsidy, the yearly savings and the payback.
 - The calculator needs their state, and their monthly bill or their monthly units. Ask for those, one at a time. Their rate per unit is optional: if they say it, pass it; if they do not know it, never ask them to find it on their bill. Run the calculator without it: the typical residential rate for their state (or for their city, where a city has its own power company) is used. Say plainly that you used a typical rate for their state, so the estimate is approximate.
 - run_calculator fills the calculator's fields one by one on their screen, ringing each, then presses Calculate. In the same reply, say what you are putting in: "I'm putting four thousand rupees a month, Karnataka, into the calculator."
 - Never quote a saving, a payback or a cost range yourself: those come only from the calculator's result, which comes back to you; talk them through it with show cues on its figures, then offer the next step of the story.
@@ -1874,8 +1907,10 @@ class SaatvikBrain(OpenAIBrain):
         return "\n".join(out)
 
     async def open_document(self, request: DocumentRequest) -> str:
-        """Open a datasheet, manual or other Saatvik PDF on the visitor's screen at
-        a page, highlighting a quote. Say the figure with it."""
+        """Open a datasheet, manual or other Saatvik PDF in a new tab beside their
+        Saatvik tab, at a page, highlighting a quote. Talk them through it; the
+        next document opens in the same tab, and any move on the site brings
+        their Saatvik tab back."""
         doc = self.kb.documents.get(request.document_id) or self._document_by_url(
             request.document_id
         )
@@ -1902,7 +1937,7 @@ class SaatvikBrain(OpenAIBrain):
         return result
 
     async def close_document(self) -> str:
-        """Close the PDF viewer."""
+        """Close the document's tab; their Saatvik tab comes back to the front."""
         self.session.dispatch(CloseDocument())
         landed(*phrase(self.spoken, "done"))
         return "Closed."
@@ -1915,6 +1950,14 @@ class SaatvikBrain(OpenAIBrain):
         say so. The estimate comes back from the page. In the same response,
         say what you are filling in for them."""
         units, bill, rate = request.monthly_units, request.monthly_bill_inr, request.rate_per_unit
+        if request.site == "business" or _for_business(self._path):
+            return (
+                "Not run: Saatvik's calculator is for a home rooftop. For a business, the "
+                "cost depends on the site: the roof or land area, the load, the shading, "
+                "CAPEX or OPEX, and the state's rules. Say so in a sentence, and offer to "
+                "fill Saatvik's enquiry form with what they told you, so Saatvik's team "
+                "calls back with a proposal for their site."
+            )
         if request.state is None:
             landed(*_ASK_STATE[self.spoken])
             return "Not run: ask which state they are in."

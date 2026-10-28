@@ -15,6 +15,11 @@
  *
  * pdf.js's worker is bundled with the script and started from a Blob, so the
  * viewer needs nothing from any host but the PDF itself, which is Saatvik's.
+ *
+ * The same viewer runs in a tab of its own (`doc.html`, `{ tab: true }`): it
+ * fills the tab, and its close button takes the visitor back to their Saatvik
+ * tab. That is how Sunny opens a document now: an overlay over the page had to
+ * be closed by hand before she could show anything else (owner, 2026-10-28).
  */
 
 import { getDocument, type PDFDocumentProxy, PDFWorker, TextLayer } from "pdfjs-dist";
@@ -46,6 +51,13 @@ export interface Viewer {
   open(request: OpenRequest): Promise<void>;
   /** Close it; false when nothing was open. */
   close(): boolean;
+}
+
+export interface ViewerOptions {
+  /** Fill a tab of its own (`doc.html`) instead of floating over the page. */
+  tab?: boolean;
+  /** In a tab: what its button does, in place of closing. */
+  back?: () => void;
 }
 
 export interface ViewerEvents {
@@ -82,6 +94,10 @@ const STYLES = `
   animation: rise 220ms ease-out;
 }
 .panel.narrow { right: ${GAP}px; }
+.panel.tab { inset: 0; border-radius: 0; box-shadow: none; animation: none; }
+.back { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; cursor: pointer;
+  background: ${ORANGE}; border: 0; color: #fff; border-radius: 4px; font: 600 13px ${SANS}; white-space: nowrap; }
+.back:hover { filter: brightness(1.08); }
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 .bar {
   display: flex; align-items: center; gap: 14px; padding: 12px 14px 12px 18px;
@@ -274,7 +290,7 @@ function onThisHost(url: string): string {
   return u.href;
 }
 
-export function mountViewer(events: ViewerEvents): Viewer {
+export function mountViewer(events: ViewerEvents, options: ViewerOptions = {}): Viewer {
   let host: HTMLElement | null = null;
   let current: { url: string; page: () => number; stop: () => void } | null = null;
   /** Each open bumps this, so a slow load overtaken by the next one stops. */
@@ -298,7 +314,10 @@ export function mountViewer(events: ViewerEvents): Viewer {
     if (current) close();
     const mine = ++generation;
     startWorker();
-    const url = onThisHost(req.url);
+    // In a tab of the extension the page's own origin is not Saatvik's: the
+    // PDF is fetched from where it lives, which the extension's host
+    // permission allows.
+    const url = options.tab ? new URL(req.url).href : onThisHost(req.url);
 
     host = document.createElement("div");
     host.setAttribute("data-voqalize", "pdf-viewer");
@@ -310,9 +329,13 @@ export function mountViewer(events: ViewerEvents): Viewer {
           <span class="title"></span>
           <span class="where"></span>
           <a class="full" target="_blank" rel="noopener">Open full PDF ↗</a>
-          <button class="close" type="button" aria-label="Close document">
+          ${
+            options.tab
+              ? `<button class="back" type="button">← Back to Saatvik</button>`
+              : `<button class="close" type="button" aria-label="Close document">
             <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.6"/></svg>
-          </button>
+          </button>`
+          }
         </div>
         <div class="pages"><div class="state">Opening…</div></div>
       </div>
@@ -326,7 +349,9 @@ export function mountViewer(events: ViewerEvents): Viewer {
     $<HTMLElement>(".title").textContent = req.title || url.split("/").pop() || "Document";
     full.href = `${url}#page=${req.page}`;
 
+    panel.classList.toggle("tab", Boolean(options.tab));
     const layout = () => {
+      if (options.tab) return;
       panel.classList.toggle("narrow", window.innerWidth < NARROW);
       const r = panel.getBoundingClientRect();
       events.covering(
@@ -336,10 +361,11 @@ export function mountViewer(events: ViewerEvents): Viewer {
     layout();
     window.addEventListener("resize", layout);
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
+      if (e.key === "Escape" && !options.tab) close();
     };
     document.addEventListener("keydown", onKey);
-    $<HTMLButtonElement>(".close").addEventListener("click", () => close());
+    if (options.tab) $<HTMLButtonElement>(".back").addEventListener("click", () => options.back?.());
+    else $<HTMLButtonElement>(".close").addEventListener("click", () => close());
 
     let seen = Math.max(1, req.page | 0);
     const observers: IntersectionObserver[] = [];
