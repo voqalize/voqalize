@@ -48,7 +48,6 @@ from __future__ import annotations
 
 import dataclasses
 import math
-import random
 import re
 import time
 from collections.abc import AsyncGenerator
@@ -68,14 +67,6 @@ from voqalize_demos import (
     needs_result_now,
     say_line,
 )
-from voqalize_demos.acknowledge import (
-    Acknowledger,
-    Floor,
-    Kind,
-    Vocabulary,
-    classify,
-    hold_the_floor,
-)
 from voqalize_demos.language_hold import HELD_NOTE, heard_language, holds_spanish, may_write_english
 
 from voqalize.sdk import (
@@ -84,7 +75,6 @@ from voqalize.sdk import (
     Finalize,
     RequestRejected,
     RTVIMessage,
-    RTVIType,
     Session,
     Speech,
     SpeechChunk,
@@ -150,8 +140,6 @@ _IDLE_NUDGES = 2
 _TALK_THROUGH_MS = 2_000
 #: A visitor thinking aloud about what they need pauses mid-sentence.
 CANNONHOME_PATIENCE = PATIENCE + 2
-#: A message this soon after the last one is the rest of the same thought.
-_FRAGMENT_S = 4.0
 
 # ─── Language ──────────────────────────────────────────────────────────────────
 
@@ -830,7 +818,7 @@ You are giving a guided walk through the store, like someone sitting beside the 
 You are heard, not read, so keep it light and warm.
 - A turn is three to five short sentences. Every sentence under fifteen words. Small, everyday words. One idea per sentence. One number per sentence.
 - THE FIRST SENTENCE IS A FEW WORDS. The visitor hears nothing until your first sentence has been voiced, so open every reply with a sentence of two to six words that ends in a full stop, with the answer in it. A cue may come before it.
-- Before most replies the visitor has already heard a short acknowledgement of mine — "Claro.", "A ver.", or in English "Happy to help.", "Let me see." — so never open with one: your first word is the answer. No "great question", no repeating their question back.
+- Your first word is the answer: no filler, no "great question", no repeating their question back.
 - Spoken words only, apart from cues: no lists, no markdown, no symbols, never an exclamation mark.
 - Write every number, price and measure as spoken words. Prices are Chilean pesos: "$28.495" is "veintiocho mil cuatrocientos noventa y cinco pesos", in English "twenty-eight thousand four hundred and ninety-five pesos". The lines in square brackets give each price with how to say it. "300 hilos" is "trescientos hilos"; "50x70" is "cincuenta por setenta". Never say a SKU or a path.
 - Lines in square brackets come from their screen, not the visitor: the page in front, a product, a listing, the cart. Never read them out; use them.
@@ -1073,93 +1061,6 @@ _PROMISE = re.compile(
     r"|\blet me (?:see|check|look)(?: (?:that|into it|at that))?\b|\bdéjame ver\b|\ba ver\b",
     re.IGNORECASE,
 )
-
-# ─── His nod ───────────────────────────────────────────────────────────────────
-
-#: Only lines measured to come out in Javier's own voice (Explora's measured
-#: set, held by clini): each is voiced on its own, always the same way, and
-#: "Right." or "Un momento." came out as somebody else. Measure a new line first.
-_ACK_LINES: dict[Lang, dict[Kind, tuple[str, ...]]] = {
-    "en": {
-        "request": ("Happy to help.", "Absolutely, let me do that.", "Sure thing."),
-        "question": ("Let me see.", "Good question, let me see."),
-        "correction": ("Got it, thanks for letting me know.", "Ah, I see what you mean."),
-        "statement": ("Okay, that makes sense.", "Got it, thanks for letting me know."),
-    },
-    "es": {
-        "request": (
-            "Claro.",
-            "Con gusto, ya lo hago.",
-            "Por supuesto, déjame revisarlo.",
-            "Claro, ahora mismo.",
-        ),
-        "question": ("A ver.", "Déjame revisarlo un momento."),
-        "correction": ("Entendido, gracias por avisarme.", "Entendido, eso me ayuda."),
-        "statement": ("Entendido, eso me ayuda.", "Claro.", "Entendido, gracias por avisarme."),
-    },
-}
-#: Page loads are silence the nod covers (santanderarena's reason for 0.9);
-#: clini's 0.75 here, since a catalogue read answers in the same turn.
-ACK_RATE = 0.75
-ACK_HOLD_AFTER_S = 5.75
-HOLD_WITHOUT_NOD_S = 2.5
-ACK_SORRY_AFTER_S = 15.0
-_ACK_HOLD: dict[Lang, tuple[str, ...]] = {
-    "en": ("Just a moment.", "One moment while I check that for you."),
-    "es": ("Dame un momento mientras lo busco.", "Un momento mientras lo reviso para ti."),
-}
-_ACK_SORRY: dict[Lang, str] = {
-    "en": "Sorry, that's taking a little longer.",
-    "es": "Lo siento, está tardando un poco más de lo normal.",
-}
-#: A visitor's ordinary words about the store, so the reading trusts them.
-_ACK_WORDS = Vocabulary(
-    common=frozenset(
-        # A word list reads as words, so it stays a split string.
-        """cannon home tienda sábanas sábana sabanas toalla toallas plumón plumones funda fundas
-        almohada almohadas cubrecama cubrecamas cobertor quilt frazada frazadas manta mantas
-        cojín cojines colchón colchones cama camas bata batas alfombra piso hilos algodón
-        microfibra poliéster polycotton tencel pluma plumas tamaño plaza plazas matrimonial
-        king super color colores blanco blanca blancas gris azul beige negro precio precios
-        oferta ofertas descuento carro carrito bolsa despacho envío retiro tiendas cambio
-        cambios devolución cuotas medida medidas gramaje gramos especificaciones opiniones
-        sheets sheet towel towels duvet duvets comforter cover pillow pillows blanket quilt
-        bed mattress cotton thread count size queen white grey gray price prices cart
-        shipping delivery returns store stores discount sale
-        """.split()  # noqa: SIM905
-    ),
-)
-
-
-@dataclasses.dataclass
-class _LateFloor:
-    """The floor for a turn that had no nod: a nod for what they said, late,
-    else a hold line; then the apology. What :func:`hold_the_floor` reads."""
-
-    ack: Acknowledger[Lang]
-    nod: str | None
-    hold_after_s: float
-    sorry_after_s: float
-
-    @property
-    def sorry(self) -> dict[Lang, str]:
-        return _ACK_SORRY
-
-    def hold(self, spoken: Lang) -> str:
-        return self.nod or self.ack.hold(spoken)
-
-
-def _late_nod(text: str, spoken: Lang) -> str | None:
-    """The nod :class:`Acknowledger` would have chosen, had the dice said yes."""
-    kind = classify(text, _ACK_WORDS)
-    lines = _ACK_LINES[spoken].get(kind) if kind else None
-    return random.choice(lines) if lines else None
-
-
-def _avatar_state(session: Session, state: Literal["WORKING"] | None) -> None:
-    """The talking head's working latch: held until speech owed has played."""
-    session.send_rtvi(RTVIType.SERVER_MESSAGE, {"type": "avatar", "cmd": "state", "state": state})
-
 
 _HEADINGS_IN_NOTE = 40
 _FAQS_IN_NOTE = 40
@@ -1850,21 +1751,11 @@ class CannonHomeBrain(OpenAIBrain):
             model=model,
             reasoning=REASONING,
         )
-        self._heard_at = float("-inf")
         self.spoken: Lang = OPENING
         self._chosen = False
         self._last_heard = ""
         self._confirm: str | None = None
         self._fallback = FallbackLine()
-        self._ack = Acknowledger(
-            _ACK_LINES,
-            _ACK_HOLD,
-            _ACK_SORRY,
-            _ACK_WORDS,
-            ACK_RATE,
-            ACK_HOLD_AFTER_S,
-            ACK_SORRY_AFTER_S,
-        )
         #: The tab in front as it last reported itself, and whether the model
         #: has seen it since it changed.
         self.page: PageChanged | None = None
@@ -1959,8 +1850,8 @@ class CannonHomeBrain(OpenAIBrain):
 
     async def _answer(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
         """The visitor's turn: the language they speak (unless they chose one),
-        the screen read in, a nod over the model's thinking, and his own line
-        over any dead air after it (:func:`hold_the_floor`)."""
+        the screen read in. The runtime acknowledges them while the model
+        thinks (``Config.ack``, on by default)."""
         self._last_heard = msg.text
         heard = None if self._chosen else heard_language(msg.text, self.spoken, language_of)
         if heard is not None and heard != self.spoken:
@@ -1984,36 +1875,8 @@ class CannonHomeBrain(OpenAIBrain):
         )
         self._restore_idle()
         self._read_in_screen()
-        now = time.monotonic()
-        fragment, self._heard_at = now - self._heard_at < _FRAGMENT_S, now
-        nod = None if fragment else self._ack.line(msg.text, self.spoken)
-        floor: Floor[Lang] = self._ack
-        if nod is not None:
-            logger.info("cannonhome: ack {!r}", nod)
-            async for event in say_line(self, nod):
-                yield event
-            _avatar_state(session, "WORKING")
-        else:
-            floor = _LateFloor(
-                self._ack,
-                None if fragment else _late_nod(msg.text, self.spoken),
-                HOLD_WITHOUT_NOD_S,
-                ACK_SORRY_AFTER_S,
-            )
-        working = nod is not None
-
-        def answered() -> None:
-            nonlocal working
-            if working:
-                working = False
-                _avatar_state(session, None)
-
-        try:
-            turn = super().on_user_message(session, msg)
-            async for event in hold_the_floor(self, floor, lambda: self.spoken, turn, answered):
-                yield event
-        finally:
-            answered()
+        async for event in super().on_user_message(session, msg):
+            yield event
 
     async def _own_turn(self, turn: AsyncGenerator[Speech, None]) -> AsyncGenerator[Speech, None]:
         """``turn``, counted while it runs and for each unit until it has

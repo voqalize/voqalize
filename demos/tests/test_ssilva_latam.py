@@ -4,9 +4,9 @@ The site is Chilean and the call opens in Spanish. The rules are SendPotion's
 (``test_sendpotion_latam.py``), with the words a home buyer hears: a
 "departamento", never a "piso"; a "celular", never a "móvil". Two halves:
 
-* **The lines he owns — always run, no model.** His greetings, nods, holding
-  lines and the lines for a page move are written here, and carry no word or
-  form only Spain uses.
+* **The lines he owns — always run, no model.** His greetings and the
+  lines for a page move are written here, and carry no word or form only
+  Spain uses.
 
 * **What the model writes — opt-in, real model.** Skipped without
   ``OPENAI_API_KEY``; run it after any change to the Spanish in the prompt::
@@ -82,9 +82,6 @@ def _his_spanish_lines() -> list[str]:
         ssilva._PROJECT_OPENER_NO_PRICE["es"],
         *(opener["es"] for opener in ssilva._OPENERS.values()),
         *(landed["es"] for landed in ssilva._LANDED.values()),
-        *(line for kind in ssilva._ACK_LINES["es"].values() for line in kind),
-        *ssilva._ACK_HOLD["es"],
-        ssilva._ACK_SORRY["es"],
     ]
     k = kb.KNOWLEDGE
     pages = ["/", "/proyectos/", "/estocolmo/", "/proyectos/cotizar/estocolmo/"]

@@ -2,8 +2,7 @@
 
 Figurella's visitors are women in Chile. The accent is the speech tier's
 reference clip; the words are this brain's. Every Spanish line the brain
-writes itself — the greetings, nods, holding lines and the lines for a page
-move — carries no word or form only Spain uses, addresses her as "tú", never
+writes itself — the greetings and the lines for a page move — carries no word or form only Spain uses, addresses her as "tú", never
 "usted", and never judges a body. In Spanish the voice is handed "bidéo" for
 "video", and the model only ever sees "video".
 
@@ -78,9 +77,6 @@ def _his_spanish_lines() -> list[str]:
         fg._GREETING["es"],
         *(opener["es"] for _, opener in fg._OPENERS),
         *(landed["es"] for landed in fg._LANDED.values()),
-        *(line for kind in fg._ACK_LINES["es"].values() for line in kind),
-        *fg._ACK_HOLD["es"],
-        fg._ACK_SORRY["es"],
     ]
     pages = [
         "/",

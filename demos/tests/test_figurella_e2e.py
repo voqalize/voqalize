@@ -211,10 +211,8 @@ SITE = Knowledge(
 
 @pytest.fixture(autouse=True)
 def _site(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """Every session reads the invented Figurella, and he never nods unless a
-    test asks him to: a nod is a unit of its own."""
+    """Every session reads the invented Figurella."""
     monkeypatch.setattr(kb, "KNOWLEDGE", SITE)
-    monkeypatch.setattr(fg, "ACK_RATE", 0.0)
     yield
 
 
@@ -975,8 +973,3 @@ def test_his_lines_for_a_move_exist_in_both_languages() -> None:
         assert set(lines) == {"en", "es"}, kind
         assert all(line.strip() for line in lines.values()), kind
     assert set(TOGGLE_CONFIRM) == {"en", "es"}
-
-
-def test_the_floor_is_held_as_the_clini_guide_learned() -> None:
-    assert fg.ACK_HOLD_AFTER_S >= 5.5 and fg.ACK_SORRY_AFTER_S >= 15
-    assert fg.HOLD_WITHOUT_NOD_S <= 3.0

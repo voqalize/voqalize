@@ -165,11 +165,8 @@ SITE = Knowledge(
 
 @pytest.fixture(autouse=True)
 def _site(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """Every session reads the invented university, and he never nods unless
-    a test asks him to: a nod is a unit of its own."""
+    """Every session reads the invented university."""
     monkeypatch.setattr(kb, "KNOWLEDGE", SITE)
-    monkeypatch.setattr(uah, "ACK_RATE", 0.0)
-    monkeypatch.setattr(uah, "HOLD_WITHOUT_NOD_S", 30.0)
     yield
 
 

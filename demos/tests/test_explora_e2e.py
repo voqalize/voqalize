@@ -152,10 +152,8 @@ ATACAMA_PAGE: dict[str, Any] = {
 
 @pytest.fixture(autouse=True)
 def _site(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """Every session reads the invented site, and he never nods unless a test
-    asks him to: a nod is a unit of its own."""
+    """Every session reads the invented site."""
     monkeypatch.setattr(kb, "KNOWLEDGE", SITE)
-    monkeypatch.setattr(explora, "ACK_RATE", 0.0)
     yield
 
 
@@ -905,28 +903,6 @@ def test_the_calendar_read_out() -> None:
 
 def kb_nights(nights: int, label: str) -> Any:
     return explora.NightsOption(nights=nights, label=label)
-
-
-def test_his_nods_never_promise_an_action() -> None:
-    """Prod call be1f5b9a: "Con gusto, ya lo hago." before a turn that did nothing."""
-    for lines in explora._ACK_LINES.values():
-        for said in lines.values():
-            for line in said:
-                assert not any(
-                    w in line.lower() for w in ("ya lo hago", "ahora mismo", "let me do")
-                ), line
-
-
-async def test_a_slow_turn_with_no_nod_still_holds_the_floor(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Prod call be1f5b9a: the turns the nod skipped were ten seconds of silence."""
-    monkeypatch.setattr(explora, "ACK_HOLD_AFTER_S", 0.3)
-    async with demo("explora", _llm()) as rig:
-        await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
-        turn = await rig.driver.user_says("Slow one.", quiet_for=1.5)
-        assert turn.text.startswith(explora._ACK_HOLD["en"])
-        assert "It's an oasis." in turn.text
 
 
 async def test_a_heading_made_up_for_the_page_is_dropped() -> None:

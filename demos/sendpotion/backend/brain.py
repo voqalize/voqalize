@@ -58,7 +58,6 @@ from __future__ import annotations
 import dataclasses
 import math
 import re
-import time
 from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -73,7 +72,6 @@ from voqalize_demos import (
     needs_result_now,
     say_line,
 )
-from voqalize_demos.acknowledge import Acknowledger, Kind, Vocabulary, hold_the_floor
 from voqalize_demos.language_hold import HELD_NOTE, heard_language, holds_spanish, may_write_english
 
 from voqalize.sdk import (
@@ -81,7 +79,6 @@ from voqalize.sdk import (
     Finalize,
     RequestRejected,
     RTVIMessage,
-    RTVIType,
     Session,
     Speech,
     SpeechChunk,
@@ -137,8 +134,6 @@ SENDPOTION_PATIENCE = PATIENCE + 2
 #: pauses between letters. On a prod call on 2026-10-22 each pause ended the
 #: turn and cancelled the reply in flight, nine times, read-back included.
 _DETAILS_PATIENCE = 8
-#: A message this soon after the last one is the rest of the same thought.
-_FRAGMENT_S = 4.0
 
 # ─── Language ──────────────────────────────────────────────────────────────────
 
@@ -480,7 +475,7 @@ You are heard, not read, so keep it light and warm.
 - A turn is three to five short sentences. A walkthrough of steps or a section can run to eight, one step per sentence, each with its cue.
 - Every sentence under fifteen words. Small, everyday words. One idea per sentence. One number per sentence.
 - THE FIRST SENTENCE IS A FEW WORDS. The visitor hears nothing until your first sentence has been voiced, so open every reply with a sentence of two to six words that ends in a full stop, with the answer in it. A cue may come before it.
-- Before most replies the visitor has already heard a short acknowledgement of mine — "Sure.", "Let me see.", or in Spanish "Claro.", "Déjame ver." — so never open with one: your first word is the answer. No "great question", no repeating their question back.
+- Your first word is the answer: no filler, no "great question", no repeating their question back.
 - Spoken words only, apart from cues: no lists, no markdown, no symbols, never an exclamation mark. Write numbers and prices as spoken words: "thirty-nine dollars a month", never "$39/mo".
 - Lines in square brackets come from their screen, not the visitor: the page in front with its headings and FAQs, what the calendar shows. Never read them out; use them.
 - Always answer. A reply with no words leaves the visitor in silence.
@@ -660,50 +655,6 @@ _LANDED: dict[str, dict[Lang, str]] = {
     },
     "tab": {"en": "There's that tab.", "es": "Ahí tienes esa pestaña."},
 }
-
-# ─── His nod ───────────────────────────────────────────────────────────────────
-
-_ACK_LINES: dict[Lang, dict[Kind, tuple[str, ...]]] = {
-    "en": {
-        "request": ("Sure.", "Okay.", "Of course.", "Certainly."),
-        "question": ("Let me see.", "Hmm, let me see.", "Okay."),
-        "correction": ("I see.", "Understood.", "Right."),
-        "statement": ("Okay.", "Got it.", "Right."),
-    },
-    "es": {
-        "request": ("Claro.", "Por supuesto.", "Perfecto.", "Con gusto."),
-        "question": ("Déjame ver.", "A ver.", "Mmm, déjame ver."),
-        "correction": ("Ya veo.", "Entendido.", "De acuerdo."),
-        "statement": ("Muy bien.", "Entendido.", "Claro."),
-    },
-}
-ACK_RATE = 0.75
-ACK_HOLD_AFTER_S = 4.0
-_ACK_HOLD: dict[Lang, tuple[str, ...]] = {
-    "en": ("One moment.", "Just a moment."),
-    "es": ("Un momento.", "Un momentito."),
-}
-_ACK_SORRY: dict[Lang, str] = {
-    "en": "Sorry, that's taking a little longer.",
-    "es": "Disculpa, está tardando un poco más.",
-}
-#: A visitor's ordinary words about Potion, so the reading trusts them.
-_ACK_WORDS = Vocabulary(
-    common=frozenset(
-        # A word list reads as words, so it stays a split string.
-        """potion sendpotion video videos ai personalized personalised outreach prospect
-        prospects prospecting sales marketing email emails crm hubspot salesforce linkedin
-        pricing price plan plans cost demo agency agencies campaign campaigns blog post
-        posts avatar avatars voice clone integration integrations reply replies leads
-        """.split()  # noqa: SIM905
-    ),
-)
-
-
-def _avatar_state(session: Session, state: Literal["WORKING"] | None) -> None:
-    """The talking head's working latch: held until speech owed has played."""
-    session.send_rtvi(RTVIType.SERVER_MESSAGE, {"type": "avatar", "cmd": "state", "state": state})
-
 
 _HEADINGS_IN_NOTE = 40
 _FAQS_IN_NOTE = 40
@@ -1224,7 +1175,6 @@ class SendPotionBrain(OpenAIBrain):
             model=model,
             reasoning=REASONING,
         )
-        self._heard_at = float("-inf")
         #: The language he speaks now, and the toggle's written confirmation
         #: of a switch, said at the start of his next turn.
         self.spoken: Lang = OPENING
@@ -1234,9 +1184,6 @@ class SendPotionBrain(OpenAIBrain):
         self._last_heard = ""
         self._confirm: str | None = None
         self._fallback = FallbackLine()
-        self._ack = Acknowledger(
-            _ACK_LINES, _ACK_HOLD, _ACK_SORRY, _ACK_WORDS, ACK_RATE, ACK_HOLD_AFTER_S
-        )
         #: The tab in front as it last reported itself, and whether the model
         #: has seen it since it changed.
         self.page: PageChanged | None = None
@@ -1324,8 +1271,8 @@ class SendPotionBrain(OpenAIBrain):
         self, session: Session, msg: UserMessage
     ) -> AsyncGenerator[Speech, None]:
         """A visitor who speaks the other language is answered in it from the
-        first word, unless they chose the language they are in; the tab they moved to is read in with what they said; his
-        nod covers the model's thinking."""
+        first word, unless they chose the language they are in; the tab they
+        moved to is read in with what they said."""
         self._last_heard = msg.text
         heard = None if self._chosen else heard_language(msg.text, self.spoken, language_of)
         if heard is not None and heard != self.spoken:
@@ -1346,30 +1293,6 @@ class SendPotionBrain(OpenAIBrain):
         )
         self._restore_idle()
         self._read_in_screen()
-        now = time.monotonic()
-        fragment, self._heard_at = now - self._heard_at < _FRAGMENT_S, now
-        if not fragment and (nod := self._ack.line(msg.text, self.spoken)) is not None:
-            logger.info("sendpotion: ack {!r}", nod)
-            async for event in say_line(self, nod):
-                yield event
-            working = True
-
-            def answered() -> None:
-                nonlocal working
-                if working:
-                    working = False
-                    _avatar_state(session, None)
-
-            _avatar_state(session, "WORKING")
-            try:
-                turn = super().on_user_message(session, msg)
-                async for event in hold_the_floor(
-                    self, self._ack, lambda: self.spoken, turn, answered
-                ):
-                    yield event
-            finally:
-                answered()
-            return
         async for event in super().on_user_message(session, msg):
             yield event
 

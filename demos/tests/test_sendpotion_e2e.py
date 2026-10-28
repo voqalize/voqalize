@@ -127,10 +127,8 @@ PRICING_PAGE = {
 
 @pytest.fixture(autouse=True)
 def _site(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """Every session reads the invented site, and he never nods unless a test
-    asks him to: a nod is a unit of its own."""
+    """Every session reads the invented site."""
     monkeypatch.setattr(kb, "KNOWLEDGE", SITE)
-    monkeypatch.setattr(sendpotion, "ACK_RATE", 0.0)
     yield
 
 
@@ -334,20 +332,15 @@ def _language_changes(rig: object) -> list[object]:
     ]
 
 
-async def test_a_chosen_language_holds_when_the_visitor_speaks_the_other(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+async def test_a_chosen_language_holds_when_the_visitor_speaks_the_other() -> None:
     """Dev call 826ccd1f: Spanish chosen on the toggle, English spoken. Each
     turn nodded in English, the toggle flicked to English and back, and the last
     reply, whose first chunk was " P", was read by the English voice."""
-    monkeypatch.setattr(sendpotion, "ACK_RATE", 1.0)
     async with demo("sendpotion", _llm()) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/"})
         await _page(rig, "language_requested", {"language": "es"})
         turn = await rig.driver.user_says("I'm asking, can you show me a few features?")
         check_turn(rig, turn)
-        nods = {line for lines in sendpotion._ACK_LINES["es"].values() for line in lines}
-        assert any(turn.text.startswith(nod) for nod in nods), turn.text
         assert "Potion ofrece herramientas" in turn.text
         check_voice_pair(rig, voice="omnivoice/javier", language="es")
         assert _language_changes(rig) == [{"language": "es"}]

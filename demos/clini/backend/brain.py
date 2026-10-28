@@ -58,7 +58,6 @@ import contextlib
 import dataclasses
 import json
 import math
-import random
 import re
 import time
 from collections.abc import AsyncGenerator
@@ -78,14 +77,6 @@ from voqalize_demos import (
     needs_result_now,
     say_line,
 )
-from voqalize_demos.acknowledge import (
-    Acknowledger,
-    Floor,
-    Kind,
-    Vocabulary,
-    classify,
-    hold_the_floor,
-)
 from voqalize_demos.language_hold import HELD_NOTE, heard_language, holds_spanish, may_write_english
 
 from voqalize.sdk import (
@@ -93,7 +84,6 @@ from voqalize.sdk import (
     Finalize,
     RequestRejected,
     RTVIMessage,
-    RTVIType,
     Session,
     Speech,
     SpeechChunk,
@@ -165,8 +155,6 @@ CLINI_PATIENCE = PATIENCE + 2
 #: cancelled the last (prod, 2026-10-22: nine of one call's turns had no
 #: reply, and a celular came in four fragments).
 FORM_PATIENCE = 9
-#: A message this soon after the last one is the rest of the same thought.
-_FRAGMENT_S = 4.0
 
 #: How long a booking with neither days nor hours must stay that way before he
 #: says it has none. A page Chrome is translating, or still loading after the
@@ -986,7 +974,7 @@ You are giving a guided walkthrough, like someone sitting beside the visitor wit
 You are heard, not read, so keep it light and warm.
 - A turn is three to five short sentences. Every sentence under fifteen words. Small, everyday words. One idea per sentence. One number per sentence.
 - THE FIRST SENTENCE IS A FEW WORDS. The visitor hears nothing until your first sentence has been voiced, so open every reply with a sentence of two to six words that ends in a full stop, with the answer in it. A cue may come before it.
-- Before most replies the visitor has already heard a short acknowledgement of mine — "Claro.", "A ver.", or in English "Happy to help.", "Let me see." — so never open with one: your first word is the answer. No "great question", no repeating their question back.
+- Your first word is the answer: no filler, no "great question", no repeating their question back.
 - Spoken words only, apart from cues: no lists, no markdown, no symbols, never an exclamation mark.
 - Write every number, price, date and hour as spoken words. Prices are Chilean pesos: "$88.280" is "ochenta y ocho mil doscientos ochenta pesos", in English "eighty-eight thousand two hundred and eighty pesos". "2026-10-23" is "el viernes veintitrés de octubre"; "07:40" is "a las siete y cuarenta de la mañana"; "15:00" is "a las tres de la tarde". Never say a code, a servicio number or a date in digits.
 - Lines in square brackets come from their screen, not the visitor: the page in front, the booking's step, what a form still needs. Never read them out; use them.
@@ -1312,144 +1300,6 @@ _PROMISE = re.compile(
     r"|\blet me (?:see|check|look)(?: (?:that|into it|at that))?\b|\bdéjame ver\b|\ba ver\b",
     re.IGNORECASE,
 )
-
-# ─── His nod ───────────────────────────────────────────────────────────────────
-
-#: Only lines measured to come out in Javier's own voice: each line is voiced
-#: on its own and always the same way, and "Right.", "One moment." or "Un
-#: momento." came out as somebody else (82 Hz and 166 Hz against his 110-132).
-#: This is Explora's measured set (speaker embedding and pitch against his own
-#: replies). It holds for this bake of omnivoice/javier: measure a new line first.
-_ACK_LINES: dict[Lang, dict[Kind, tuple[str, ...]]] = {
-    "en": {
-        "request": ("Happy to help.", "Absolutely, let me do that.", "Sure thing."),
-        "question": ("Let me see.", "Good question, let me see."),
-        "correction": ("Got it, thanks for letting me know.", "Ah, I see what you mean."),
-        "statement": ("Okay, that makes sense.", "Got it, thanks for letting me know."),
-    },
-    "es": {
-        "request": (
-            "Claro.",
-            "Con gusto, ya lo hago.",
-            "Por supuesto, déjame revisarlo.",
-            "Claro, ahora mismo.",
-        ),
-        "question": ("A ver.", "Déjame revisarlo un momento."),
-        "correction": ("Entendido, gracias por avisarme.", "Entendido, eso me ayuda."),
-        # Not "gracias por avisarme": a plain request read as a statement
-        # ("Me gustaría cotizar mi examen.") was thanked for the news (prod,
-        # 2026-10-22).
-        "statement": ("Entendido, eso me ayuda.", "Claro."),
-    },
-}
-ACK_RATE = 0.75
-#: After a nod, how long the model may stay quiet before he holds the floor. A
-#: booking move or a lookup turn takes five or six seconds from India; at 4 s
-#: nearly every such turn said "Just a moment." (dev call 2fd742d5).
-ACK_HOLD_AFTER_S = 5.75
-#: With no nod, the dead air a turn may leave before his first line: a late nod
-#: for what they said, or a hold line. Without it, a turn the nod skipped sat in
-#: ten seconds of silence (dev call 2fd742d5, T23 to T25). 3.2 s, not 2.5: the
-#: model's first words come at 2.3 to 2.8 s, so at 2.5 the hold line won that
-#: race by a few hundred milliseconds and the visitor sat through two seconds of
-#: filler before an answer that was ready (11 of 33 hold lines on prod,
-#: 2026-10-22, were followed by the answer within a second).
-HOLD_WITHOUT_NOD_S = 3.2
-#: "Sorry, that's taking a little longer." only when it really is.
-ACK_SORRY_AFTER_S = 15.0
-_ACK_HOLD: dict[Lang, tuple[str, ...]] = {
-    "en": ("Just a moment.", "One moment while I check that for you."),
-    "es": ("Dame un momento mientras lo busco.", "Un momento mientras lo reviso para ti."),
-}
-_ACK_SORRY: dict[Lang, str] = {
-    "en": "Sorry, that's taking a little longer.",
-    "es": "Lo siento, está tardando un poco más de lo normal.",
-}
-#: A visitor's ordinary words about Clini, so the reading trusts them: the
-#: site's services, exams, places and the words of booking, in both languages.
-_ACK_WORDS = Vocabulary(
-    common=frozenset(
-        # A word list reads as words, so it stays a split string.
-        """clini hora horas agenda agendar reservar reserva consulta consultas médico médica
-        especialista especialidad examen exámenes sede sedes sucursal convenio convenios
-        fonasa isapre previsión copago bono particular precio precios valor cotizar
-        cotizador laboratorio sangre muestra muestras orina hemograma resonancia scanner
-        tac escáner ecografía eco mamografía radiografía rayos pet holter electrocardiograma
-        ecocardiograma cardiología lasik vista ojos evaluación resultados indicaciones ayuno
-        preparación orden traumatología urología psicología kinesiología matrona
-        nutricionista santiago providencia tobalaba temuco antofagasta maipú florida rut
-        appointment booking exam exams test tests clinic price prices mri ultrasound
-        mammogram x-ray results fasting branch
-        """.split()  # noqa: SIM905
-    ),
-)
-
-
-@dataclasses.dataclass
-class _LateFloor:
-    """The floor for a turn that had no nod: a nod for what they said, late,
-    else a hold line; then the apology. What :func:`hold_the_floor` reads."""
-
-    ack: Acknowledger[Lang]
-    nod: str | None
-    hold_after_s: float
-    sorry_after_s: float
-
-    @property
-    def sorry(self) -> dict[Lang, str]:
-        return _ACK_SORRY
-
-    def hold(self, spoken: Lang) -> str:
-        return self.nod or self.ack.hold(spoken)
-
-
-#: A visitor saying what they want, which the shared reading takes for a
-#: statement ("Me gustaría cotizar mi examen.") or, after a leading "No", for a
-#: correction ("No, yo quiero agendar una resonancia."): a request, here.
-_WANTS = re.compile(
-    r"\b(?:me gustaria|quiero|quisiera|necesito|i'?d like|i want|i need|i would like)\b"
-)
-#: Thanks and goodbyes, which no hold line fits: "Dame un momento mientras lo
-#: busco." answered "Voy a completar el resto. Muchas gracias." (prod, 2026-10-22).
-_CLOSING = re.compile(r"\b(?:gracias|adios|chao|chau|thanks|thank you|bye|goodbye)\b")
-
-
-def nod_kind(text: str) -> Kind | None:
-    """What the visitor's words ask of him, for his nod: the shared reading,
-    with what they want read as a request."""
-    kind = classify(text, _ACK_WORDS)
-    if kind in ("statement", "correction") and _WANTS.search(fold(text)):
-        return "request"
-    return kind
-
-
-def is_closing(text: str) -> bool:
-    """Whether ``text`` thanks him or says goodbye, and asks nothing more."""
-    return "?" not in text and bool(_CLOSING.search(fold(text)))
-
-
-class _Nods(Acknowledger[Lang]):
-    """The shared acknowledger, reading the visitor with :func:`nod_kind`."""
-
-    def line(self, text: str, spoken: Lang) -> str | None:
-        kind = nod_kind(text)
-        lines = self.lines.get(spoken, {}).get(kind) if kind else None
-        if not lines or self.rng.random() >= self.rate:
-            return None
-        return self._pick(lines)
-
-
-def _late_nod(text: str, spoken: Lang) -> str | None:
-    """The nod :class:`Acknowledger` would have chosen, had the dice said yes."""
-    kind = nod_kind(text)
-    lines = _ACK_LINES[spoken].get(kind) if kind else None
-    return random.choice(lines) if lines else None
-
-
-def _avatar_state(session: Session, state: Literal["WORKING"] | None) -> None:
-    """The talking head's working latch: held until speech owed has played."""
-    session.send_rtvi(RTVIType.SERVER_MESSAGE, {"type": "avatar", "cmd": "state", "state": state})
-
 
 _HEADINGS_IN_NOTE = 40
 _FAQS_IN_NOTE = 40
@@ -1960,7 +1810,6 @@ class CliniBrain(OpenAIBrain):
             model=model,
             reasoning=REASONING,
         )
-        self._heard_at = float("-inf")
         #: The language he speaks now, and the toggle's written confirmation
         #: of a switch, said at the start of his next turn.
         self.spoken: Lang = OPENING
@@ -1970,15 +1819,6 @@ class CliniBrain(OpenAIBrain):
         self._last_heard = ""
         self._confirm: str | None = None
         self._fallback = FallbackLine()
-        self._ack: Acknowledger[Lang] = _Nods(
-            _ACK_LINES,
-            _ACK_HOLD,
-            _ACK_SORRY,
-            _ACK_WORDS,
-            ACK_RATE,
-            ACK_HOLD_AFTER_S,
-            ACK_SORRY_AFTER_S,
-        )
         #: The tab in front as it last reported itself, and whether the model
         #: has seen it since it changed.
         self.page: PageChanged | None = None
@@ -2045,7 +1885,7 @@ class CliniBrain(OpenAIBrain):
         #: The identity document the visitor said they use: ``passport`` for one
         #: with no Chilean RUT.
         self._document: Literal["rut", "passport"] | None = None
-        #: The page opened ahead of this turn's answer, while his nod played
+        #: The page opened ahead of this turn's answer, while the model thought
         #: (:meth:`_lead`), as the crawl names it; the reply's own cue for it is not
         #: sent again.
         self._led: str | None = None
@@ -2120,10 +1960,8 @@ class CliniBrain(OpenAIBrain):
     async def _answer(self, session: Session, msg: UserMessage) -> AsyncGenerator[Speech, None]:
         """A visitor who speaks the other language is answered in it from the
         first word, unless they chose the language they are in; the tab they
-        moved to is read in with what they said; his nod covers the model's
-        thinking, and his own line any dead air after it (:func:`hold_the_floor`):
-        after a nod, past :data:`ACK_HOLD_AFTER_S`; with none, a late nod or a
-        hold line past :data:`HOLD_WITHOUT_NOD_S`."""
+        moved to is read in with what they said. The runtime acknowledges the
+        visitor while the model thinks (``Config.ack``, on by default)."""
         self._last_heard = msg.text
         heard = None if self._chosen else heard_language(msg.text, self.spoken, language_of)
         if heard is not None and heard != self.spoken:
@@ -2154,44 +1992,10 @@ class CliniBrain(OpenAIBrain):
         self._read_in_screen()
         # Kept open between questions: a lookup never pays for the connection.
         clini_api.warm()
-        now = time.monotonic()
-        fragment, self._heard_at = now - self._heard_at < _FRAGMENT_S, now
-        nod = None if fragment else self._ack.line(msg.text, self.spoken)
-        floor: Floor[Lang] = self._ack
-        lead = self._lead(msg.text)
-        if nod is not None:
-            logger.info("clini: ack {!r}", nod)
-            async for event in say_line(self, nod):
-                yield event
-            _avatar_state(session, "WORKING")
-        else:
-            floor = _LateFloor(
-                self._ack,
-                None if fragment else _late_nod(msg.text, self.spoken),
-                HOLD_WITHOUT_NOD_S,
-                ACK_SORRY_AFTER_S,
-            )
-        if lead is not None:
-            self._send_lead(lead, "nod" if nod is not None else "now")
-        working = nod is not None
-        # Thanks or a goodbye: no hold line fits it, and the model's own short
-        # reply follows in a couple of seconds.
-        closing = nod is None and is_closing(msg.text)
-
-        def answered() -> None:
-            nonlocal working
-            if working:
-                working = False
-                _avatar_state(session, None)
-
-        try:
-            turn = super().on_user_message(session, msg)
-            if not closing:
-                turn = hold_the_floor(self, floor, lambda: self.spoken, turn, answered)
-            async for event in turn:
-                yield event
-        finally:
-            answered()
+        if (lead := self._lead(msg.text)) is not None:
+            self._send_lead(lead)
+        async for event in super().on_user_message(session, msg):
+            yield event
 
     async def _own_turn(self, turn: AsyncGenerator[Speech, None]) -> AsyncGenerator[Speech, None]:
         """``turn``, counted while it runs and for each unit until it has
@@ -2272,8 +2076,8 @@ class CliniBrain(OpenAIBrain):
         2fd742d5), and asking it again cost a second round trip of silence, 2.3
         to 5.2 s, every time. A turn that came back with nothing at all — no
         words, no move — is asked once more, with tools off: on dev call
-        67d16b5d three such turns left the visitor with a nod and then silence
-        until they spoke again.
+        67d16b5d three such turns left the visitor in silence until they spoke
+        again.
 
         A language switched on the toggle is confirmed first, in the new
         language. A unit is opened only once its first words are known, so the
@@ -2403,14 +2207,14 @@ class CliniBrain(OpenAIBrain):
         return f"{{page: {path}}}{chunk}"
 
     def _lead(self, text: str) -> str | None:
-        """The page to open while his nod plays, ahead of the answer: the one
+        """The page to open while the model thinks, ahead of the answer: the one
         the visitor asked about (:func:`asked_page`), which his reply shows
         first in any case (:meth:`_with_backstop`).
 
         A page of the site is a full page load, and the call drops for 3 to 6 s
         while it rejoins (prod, 2026-10-22, from Chile). Opened at the answer's
         first word, that silence fell on the answer, with the mic dead; opened
-        here it falls on the nod and the model's thinking. Not for a booking
+        here it falls on the model's thinking. Not for a booking
         ask, whose reply opens the booking's own tab and moves no page, nor for
         a question about the call."""
         path = self._backstop
@@ -2429,10 +2233,10 @@ class CliniBrain(OpenAIBrain):
             return None
         return path
 
-    def _send_lead(self, path: str, when: Literal["nod", "now"]) -> None:
+    def _send_lead(self, path: str) -> None:
         self._led = path
-        logger.info("clini: opening {} ahead of the answer ({})", path, when)
-        self.session.dispatch(Cue(at="", path=_site_path(path), lead=when))
+        logger.info("clini: opening {} ahead of the answer", path)
+        self.session.dispatch(Cue(at="", path=_site_path(path), lead="now"))
 
     def _send_cue(self, raw: RawCue, *, first_unit: bool = False) -> None:
         """Check a cue against the site, as the tools do, and send it; one that

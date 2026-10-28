@@ -55,7 +55,6 @@ from voqalize_demos import (
     needs_result_now,
     say_line,
 )
-from voqalize_demos.acknowledge import Acknowledger, Kind, Vocabulary, hold_the_floor
 from voqalize_demos.language_hold import HELD_NOTE, heard_language, holds_spanish, may_write_english
 
 from voqalize.sdk import (
@@ -120,9 +119,6 @@ _IDLE_NUDGES = 2
 _TALK_THROUGH_MS = 3_000
 #: A visitor describing a trip pauses mid-sentence, as SendPotion's did.
 EXPLORA_PATIENCE = PATIENCE + 2
-#: A message this soon after the last one is the rest of the same thought.
-_FRAGMENT_S = 4.0
-
 #: How long the rest of a reply waits for the page a cue opened, beyond the
 #: time his voice needs to finish what came before it. Voqalize holds a call
 #: through a page load for ten seconds; past this the page is not coming.
@@ -531,7 +527,7 @@ You are heard, not read, so keep it light and warm.
 - A turn is three to five short sentences. A tour of a page can run to eight, one part per sentence, each with its cue.
 - Every sentence under fifteen words. Small, everyday words. One idea per sentence. One number per sentence.
 - THE FIRST SENTENCE IS A FEW WORDS. The visitor hears nothing until your first sentence has been voiced, so open every reply with a sentence of two to six words that ends in a full stop, with the answer in it. A cue may come before it.
-- Before most replies the visitor has already heard a short acknowledgement of mine — "Happy to help.", "Let me see.", or in Spanish "Claro.", "A ver." — so never open with one: your first word is the answer. No "great question", no repeating their question back.
+- Your first word is the answer: no filler, no "great question", no repeating their question back.
 - Spoken words only, apart from cues: no lists, no markdown, no symbols, never an exclamation mark. Write numbers, dates and prices as spoken words: "five nights", "the sixth of November", "eleven hundred dollars a night".
 - Lines in square brackets come from their screen, not the visitor: the page in front with its headings, what the booking calendar shows, what the form holds. Never read them out; use them. Never write a line in square brackets yourself.
 - Always answer. A reply with no words leaves the visitor in silence.
@@ -769,60 +765,6 @@ def nights_line(nights: list[NightsOption], chosen: int, lang: Lang) -> str:
         f"For {option.nights} nights, it's from {price} dollars a night per person. "
         "Shall I show you the rooms?"
     )
-
-
-# ─── His nod ───────────────────────────────────────────────────────────────────
-
-#: His nods, the holding line and the apology — chosen by measurement, not by
-#: ear. Each line is voiced on its own, and always the same way, so a line
-#: either sounds like him in every call or like somebody else in every call:
-#: on dev, "Right." came out at 82 Hz and "One moment." / "Un momento." at
-#: 166 Hz against his 110-132 Hz, and a speaker model put "Certainly.",
-#: "Okay.", "Right." and "Un momentito." well outside his voice (the owner
-#: heard it, 2026-10-22). Every line here measured within his own spread, with
-#: its pitch within 2.5 semitones of his. Measure a line before adding it; the
-#: measurements hold for his voice as it is today.
-_ACK_LINES: dict[Lang, dict[Kind, tuple[str, ...]]] = {
-    "en": {
-        # Nods only, never a promise: "Absolutely, let me do that." went
-        # before turns that then did nothing (prod call be1f5b9a).
-        "request": ("Happy to help.", "Sure thing."),
-        "question": ("Let me see.", "Good question, let me see."),
-        "correction": ("Got it, thanks for letting me know.", "Ah, I see what you mean."),
-        "statement": ("Okay, that makes sense.", "Got it, thanks for letting me know."),
-    },
-    "es": {
-        # "Con gusto, ya lo hago." and "Claro, ahora mismo." promised an
-        # action before the model had chosen one, and twice none came (prod
-        # call be1f5b9a): only nods that commit to nothing.
-        "request": ("Claro.", "Por supuesto, déjame revisarlo."),
-        "question": ("A ver.", "Déjame revisarlo un momento."),
-        "correction": ("Entendido, gracias por avisarme.", "Entendido, eso me ayuda."),
-        "statement": ("Entendido, eso me ayuda.", "Claro.", "Entendido, gracias por avisarme."),
-    },
-}
-ACK_RATE = 0.75
-ACK_HOLD_AFTER_S = 4.0
-_ACK_HOLD: dict[Lang, tuple[str, ...]] = {
-    "en": ("Just a moment.", "One moment while I check that for you."),
-    "es": ("Dame un momento mientras lo busco.", "Un momento mientras lo reviso para ti."),
-}
-_ACK_SORRY: dict[Lang, str] = {
-    "en": "Sorry, that's taking a little longer.",
-    "es": "Lo siento, está tardando un poco más de lo normal.",
-}
-#: A visitor's ordinary words about Explora, so the reading trusts them.
-_ACK_WORDS = Vocabulary(
-    common=frozenset(
-        # A word list reads as words, so it stays a split string.
-        """explora lodge lodges hotel hotels patagonia atacama uyuni chalten calafate paine
-        torres easter island rapa nui sacred valley machu picchu cusco peru chile bolivia
-        argentina iceland fuego expedition expeditions exploration explorations hike hiking
-        trek horseback rooms room suite nights night dates availability booking book price
-        prices rates offer offers honeymoon family desert glacier stargazing spa
-        """.split()  # noqa: SIM905
-    ),
-)
 
 
 def _avatar_state(session: Session, state: Literal["WORKING"] | None) -> None:
@@ -1191,7 +1133,6 @@ class ExploraBrain(OpenAIBrain):
             model=model,
             reasoning=REASONING,
         )
-        self._heard_at = float("-inf")
         #: The language he speaks now, whether the visitor chose it, and the
         #: toggle's written confirmation of a switch, said in his next turn.
         self.spoken: Lang = OPENING
@@ -1199,9 +1140,6 @@ class ExploraBrain(OpenAIBrain):
         self._last_heard = ""
         self._confirm: str | None = None
         self._fallback = FallbackLine()
-        self._ack = Acknowledger(
-            _ACK_LINES, _ACK_HOLD, _ACK_SORRY, _ACK_WORDS, ACK_RATE, ACK_HOLD_AFTER_S
-        )
         #: The tab in front as it last reported itself.
         self.page: PageChanged | None = None
         self._path = "/"
@@ -1347,8 +1285,8 @@ class ExploraBrain(OpenAIBrain):
     ) -> AsyncGenerator[Speech, None]:
         """A visitor who speaks the other language is answered in it from the
         first word, unless they chose the language they are in; the tab they
-        moved to is read in with what they said; his nod covers the model's
-        thinking."""
+        moved to is read in with what they said; the talking head works until
+        the model's first words."""
         self._last_heard = msg.text
         heard = None if self._chosen else heard_language(msg.text, self.spoken, language_of)
         if heard is not None and heard != self.spoken:
@@ -1376,15 +1314,6 @@ class ExploraBrain(OpenAIBrain):
         self._read_in_screen()
         if page_language is not None:
             self._show_in(page_language)
-        now = time.monotonic()
-        fragment, self._heard_at = now - self._heard_at < _FRAGMENT_S, now
-        if not fragment and (nod := self._ack.line(msg.text, self.spoken)) is not None:
-            logger.info("explora: ack {!r}", nod)
-            async for event in say_line(self, nod):
-                yield event
-        # The floor is held on every turn, nodded at or not: on prod call
-        # be1f5b9a the turns the nod skipped were the slow ones, and the
-        # visitor heard nothing for ten seconds.
         working = True
 
         def answered() -> None:
@@ -1395,8 +1324,8 @@ class ExploraBrain(OpenAIBrain):
 
         _avatar_state(session, "WORKING")
         try:
-            turn = super().on_user_message(session, msg)
-            async for event in hold_the_floor(self, self._ack, lambda: self.spoken, turn, answered):
+            async for event in super().on_user_message(session, msg):
+                answered()
                 yield event
         finally:
             answered()

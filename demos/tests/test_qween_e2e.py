@@ -27,7 +27,6 @@ Run: ``cd demos && uv run pytest tests/test_qween_e2e.py``
 from __future__ import annotations
 
 import asyncio
-import itertools
 import time
 from collections.abc import Iterator
 
@@ -39,17 +38,13 @@ from voqalize_demos.testing import ScriptedGemini, call, reply, reply_and_call
 
 from voqalize.sdk.wire import (
     ConfigureFrame,
-    RTVIFrame,
-    SpeechChunkFrame,
-    SpeechEndFrame,
     SpeechStartFrame,
 )
 
-from ._harness import DemoRig, _configs, check_greeting, check_turn, check_voice_pair, demo
+from ._harness import _configs, check_greeting, check_turn, check_voice_pair, demo
 
 discover()
 
-from voqalize_demos._loaded.qween import acknowledge  # noqa: E402
 from voqalize_demos._loaded.qween.brain import (  # noqa: E402
     _GREETING,
     _IDLE_MS,
@@ -63,12 +58,6 @@ from voqalize_demos._loaded.qween.catalog import (  # noqa: E402
     Catalog,
     feed_for,
 )
-
-
-@pytest.fixture(autouse=True)
-def _no_nod(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Her nod is random; a test that wants it asks for it."""
-    monkeypatch.setattr(acknowledge, "RATE", 0.0)
 
 
 def _item(
@@ -778,185 +767,3 @@ async def test_patience_stays_at_the_demos_through_a_language_switch() -> None:
 )
 def test_english_is_not_heard_as_hindi(said: str) -> None:
     assert not _sounds_hindi(said)
-
-
-async def test_a_nod_is_heard_before_the_model_and_kept_out_of_its_context(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """A request gets a yes of hers as its own unit, ahead of the model's reply;
-    the model is never shown it, so it cannot learn to leave the nodding to her
-    or repeat it."""
-    monkeypatch.setattr(acknowledge, "RATE", 1.0)
-    llm = _llm()
-    async with demo("qween", llm) as rig:
-        await rig.driver.start_session()
-        turn = await rig.driver.user_says(
-            "Show me rose gold earrings with pink sapphire under a lakh."
-        )
-        check_turn(rig, turn, units=3)
-        nod, answer, _ = (u.text for u in turn.units)
-        assert nod in acknowledge.LINES[acknowledge.Language.EN]["request"]
-        assert answer != nod
-        said = [
-            p.text
-            for c in llm.captured_contents[-1]
-            if c.role == "model"
-            for p in (c.parts or [])
-            if p.text
-        ]
-        assert nod not in said
-
-
-async def test_a_nod_is_in_the_voice_now_speaking(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Hinglish switches both legs before the nod, so it is a Hindi one."""
-    monkeypatch.setattr(acknowledge, "RATE", 1.0)
-    async with demo("qween", _llm()) as rig:
-        await rig.driver.start_session()
-        turn = await rig.driver.user_says("Hindi mein baat karo, mujhe rings dikhao.")
-        check_turn(rig, turn, units=3)
-        assert turn.units[0].text in acknowledge.LINES[acknowledge.Language.HI]["request"]
-
-
-async def test_a_slow_model_after_the_nod_is_held_not_left_silent(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """The nod disarms the runtime's "taking longer" line, so the brain holds
-    the floor itself: a holding line while the model is quiet, heard between
-    the nod and the answer, and like the nod never in the model's context."""
-    monkeypatch.setattr(acknowledge, "RATE", 1.0)
-    monkeypatch.setattr(acknowledge, "HOLD_AFTER_S", 0.2)
-    llm = ScriptedGemini(
-        {
-            "How long does delivery take?": [
-                reply(chunks=["About five working days."], chunk_delay=0.6)
-            ]
-        }
-    )
-    async with demo("qween", llm) as rig:
-        await rig.driver.start_session()
-        turn = await rig.driver.user_says("How long does delivery take?", quiet_for=1.0)
-        check_turn(rig, turn, units=3)
-        nod, hold, answer = (u.text for u in turn.units)
-        assert nod in acknowledge.LINES[acknowledge.Language.EN]["question"]
-        assert hold in acknowledge.HOLD[acknowledge.Language.EN]
-        assert answer == "About five working days."
-        await rig.driver.user_says("How long does delivery take?")
-        said = [
-            p.text
-            for c in llm.captured_contents[-1]
-            if c.role == "model"
-            for p in (c.parts or [])
-            if p.text
-        ]
-        assert answer in said
-        assert nod not in said
-        assert hold not in said
-
-
-def _story(rig: DemoRig) -> list[str]:
-    """Her speech and her avatar states, in wire order: a unit is its text,
-    a state is ``state:<value>``."""
-    story: list[str] = []
-    texts: dict[str, list[str]] = {}
-    for rec in rig.driver.log:
-        frame = rec.frame
-        if isinstance(frame, SpeechChunkFrame):
-            texts.setdefault(frame.speech_id, []).append(frame.text)
-        elif isinstance(frame, SpeechEndFrame):
-            story.append("".join(texts.pop(frame.speech_id, [])))
-        elif (
-            isinstance(frame, RTVIFrame)
-            and isinstance(frame.data, dict)
-            and frame.data.get("type") == "avatar"
-        ):
-            assert set(frame.data) == {"type", "cmd", "state"}
-            story.append(f"state:{frame.data['state']}")
-    return story
-
-
-async def test_after_the_nod_she_works_until_the_model_answers(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Heard, working, answering: WORKING follows the nod, her holding line is
-    said from inside it, and the model's first words end it — sent before
-    those words, so the runtime can end the look as they start playing."""
-    monkeypatch.setattr(acknowledge, "RATE", 1.0)
-    monkeypatch.setattr(acknowledge, "HOLD_AFTER_S", 0.2)
-    llm = ScriptedGemini(
-        {
-            "How long does delivery take?": [
-                reply(chunks=["About five working days."], chunk_delay=0.6)
-            ]
-        }
-    )
-    async with demo("qween", llm) as rig:
-        await rig.driver.start_session()
-        turn = await rig.driver.user_says("How long does delivery take?", quiet_for=1.0)
-        nod, hold, answer = (u.text for u in turn.units)
-        assert _story(rig)[-5:] == [nod, "state:WORKING", hold, "state:None", answer]
-
-
-async def test_without_a_nod_there_is_no_working_look() -> None:
-    """The negative control: a turn she did not acknowledge leaves the face to
-    the runtime's own reading of the wait."""
-    async with demo("qween", _llm()) as rig:
-        await rig.driver.start_session()
-        await rig.driver.user_says("Show me rose gold earrings with pink sapphire under a lakh.")
-        assert not [s for s in _story(rig) if s.startswith("state:")]
-
-
-async def test_a_quick_model_after_the_nod_is_not_held(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The negative control: an answer inside the window gets no holding line."""
-    monkeypatch.setattr(acknowledge, "RATE", 1.0)
-    monkeypatch.setattr(acknowledge, "HOLD_AFTER_S", 0.5)
-    llm = ScriptedGemini(
-        {
-            "How long does delivery take?": [
-                reply(chunks=["About five working days."], chunk_delay=0.05)
-            ]
-        }
-    )
-    async with demo("qween", llm) as rig:
-        await rig.driver.start_session()
-        turn = await rig.driver.user_says("How long does delivery take?")
-        check_turn(rig, turn, units=2)
-
-
-@pytest.mark.parametrize(
-    ("said", "kind"),
-    [
-        ("Show me rose gold earrings.", "request"),
-        ("Can you show me something lighter?", "request"),
-        ("मुझे अपनी बहन की शादी के लिए कुछ चाहिए।", "request"),
-        ("Is it hallmarked?", None),
-        ("How long does delivery take?", "question"),
-        ("What's the difference between VS and SI?", "question"),
-        ("रोज़ पहनने के लिए कौन सा गोल्ड अच्छा है?", "question"),
-        ("No, the yellow one.", "correction"),
-        ("I don't like this one.", "correction"),
-        ("It's for my wife's birthday.", "statement"),
-        # Nothing to nod at.
-        ("Okay.", None),
-        ("Thank you so much, bye.", None),
-        ("Hello?", None),
-        # A mic check, a doubt about the stock, and a complaint dressed as a
-        # question: "Let me see." before any of them reads wrong.
-        ("can you hear me am trying to search", None),
-        ("why making charges are so high for this simple design", None),
-        ("इतना महंगा क्यों है?", None),
-        ("can you scroll down a bit", "request"),
-        # The English recognizer's spelling of Hindi: nodding at it in English
-        # would come before a reply the model writes in Hindi.
-        ("Apindimene bolti?", None),
-        ("Thika Muja lightweight dikhana", None),
-    ],
-)
-def test_the_nod_reads_what_was_asked(said: str, kind: str | None) -> None:
-    assert acknowledge.classify(said) == kind
-
-
-def test_the_nod_never_repeats_itself(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(acknowledge, "RATE", 1.0)
-    ack = acknowledge.Acknowledger()
-    said = [ack.line("Show me rings.", acknowledge.Language.EN) for _ in range(50)]
-    assert all(a != b for a, b in itertools.pairwise(said))

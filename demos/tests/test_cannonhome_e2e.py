@@ -200,10 +200,8 @@ def _shown(
 
 @pytest.fixture(autouse=True)
 def _store(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """Every session reads the invented store, and he never nods unless a test
-    asks him to: a nod is a unit of its own."""
+    """Every session reads the invented store."""
     monkeypatch.setattr(kb, "KNOWLEDGE", STORE)
-    monkeypatch.setattr(ch, "ACK_RATE", 0.0)
     yield
 
 

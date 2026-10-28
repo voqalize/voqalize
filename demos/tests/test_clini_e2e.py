@@ -163,10 +163,8 @@ MON, TUE = "2030-03-04", "2030-03-05"
 
 @pytest.fixture(autouse=True)
 def _site(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """Every session reads the invented site, nothing reaches Clini's hosts, and
-    he never nods unless a test asks him to: a nod is a unit of its own."""
+    """Every session reads the invented site, and nothing reaches Clini's hosts."""
     monkeypatch.setattr(kb, "KNOWLEDGE", SITE)
-    monkeypatch.setattr(clini, "ACK_RATE", 0.0)
     monkeypatch.setattr(clini, "NO_HOURS_HOLD_S", 0.05)
 
     async def offline(url: str, params: dict[str, str], timeout: float) -> Any:
@@ -536,7 +534,7 @@ async def test_what_they_asked_about_is_shown_when_his_reply_forgets_to() -> Non
     async with demo("clini", _llm()) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/"})
         await rig.driver.user_says("¿Cuánto cuesta una resonancia de rodilla?")
-        # Opened ahead of the answer (no nod: at once), and his reply, which
+        # Opened ahead of the answer, at once, and his reply, which
         # brings no cue of its own, does not open it a second time.
         assert _commands(rig, "cue") == [
             {**NONE, "at": "", "word": 0, "path": RM + "/", "lead": "now"}
@@ -553,20 +551,6 @@ async def test_the_page_a_reply_opens_first_is_opened_before_its_words() -> None
         await rig.driver.user_says("Quiero agendar una resonancia.")
         assert _commands(rig, "cue") == [
             {**NONE, "at": "claro te cuento", "word": 0, "path": RM + "/", "lead": "now"}
-        ]
-
-
-async def test_a_page_asked_for_is_opened_while_his_nod_plays(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(clini, "ACK_RATE", 1.0)
-    async with demo("clini", _llm()) as rig:
-        await rig.driver.start_session(init={"site": "site", "path": "/"})
-        turn = await rig.driver.user_says("¿Cuánto cuesta una resonancia de rodilla?")
-        nods = [n for lines in clini._ACK_LINES["es"].values() for n in lines]
-        assert any(turn.text.startswith(n) for n in nods), turn.text
-        assert _commands(rig, "cue") == [
-            {**NONE, "at": "", "word": 0, "path": RM + "/", "lead": "nod"}
         ]
 
 
@@ -1609,24 +1593,6 @@ async def test_a_talk_through_waits_for_his_turn_and_runs_with_tools_off() -> No
         assert talk.get("tool_choice") == "none"
 
 
-async def test_dead_air_with_no_nod_is_held_with_a_late_nod(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Dev call 2fd742d5, T23 to T25: a turn the nod skipped sat in ten seconds
-    of silence, because a hold was only ever said after a nod."""
-    monkeypatch.setattr(clini, "HOLD_WITHOUT_NOD_S", 0.1)
-    llm = _quick_llm()
-    async with demo("clini", llm) as rig:
-        await rig.driver.start_session(init={"site": "site", "path": "/"})
-        turn = await rig.driver.user_says("¿Y qué horario tienen los sábados?", quiet_for=1.0)
-        check_turn(rig, turn)
-        late = [n for n in clini._ACK_LINES["es"]["question"] if turn.text.startswith(n)]
-        assert late, turn.text
-        assert turn.text.endswith("Los sábados abren a las ocho.")
-    # A nod holds longer before its hold line, and the apology waits longer still.
-    assert clini.ACK_HOLD_AFTER_S >= 5.5 and clini.ACK_SORRY_AFTER_S >= 15
-
-
 async def test_a_celular_is_filled_the_moment_it_is_said_then_read_back() -> None:
     """Dev call 2fd742d5, T19 to T21: the read-back rule had him leave the
     phone the visitor had just given empty."""
@@ -1842,25 +1808,6 @@ async def test_patience_is_raised_while_the_patient_form_is_dictated() -> None:
         await _page(rig, "agenda_state", _agenda_state(step="booking", invalid=[], ready=True))
         assert patience()[-1] == clini.CLINI_PATIENCE
         assert all(c.stt.language is None for c in _configs(rig)[1:] if c.stt is not None)
-
-
-def test_nods_fit_what_was_said() -> None:
-    """Prod: "Entendido, gracias por avisarme." for "Me gustaría cotizar mi
-    examen."; "Dame un momento mientras lo busco." for a thank-you."""
-    assert clini.nod_kind("Me gustaría cotizar mi examen.") == "request"
-    assert clini.nod_kind("No, yo Javier, yo quiero agendar una resonancia.") == "request"
-    assert all("avisarme" not in n for n in clini._ACK_LINES["es"]["statement"])
-    assert clini.is_closing("Voy a completar el resto. Muchas gracias.")
-    assert not clini.is_closing("Gracias, ¿y cuánto cuesta?")
-    assert clini.HOLD_WITHOUT_NOD_S >= 3.0
-
-
-async def test_a_thank_you_gets_no_hold_line(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(clini, "HOLD_WITHOUT_NOD_S", 0.1)
-    async with demo("clini", _retro_llm()) as rig:
-        await rig.driver.start_session(init={"site": "site", "path": "/"})
-        turn = await rig.driver.user_says("Perfecto, muchas gracias por tu ayuda.", quiet_for=1.0)
-        assert turn.text == "Un placer ayudarte."
 
 
 async def test_an_faq_rung_on_a_sentence_it_is_not_about_is_dropped() -> None:
