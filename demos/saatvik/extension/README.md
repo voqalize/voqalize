@@ -139,6 +139,25 @@ for different things — the dealer tab has no company, category or message, and
 asks for a city, a district and an investment instead; the export tab has no
 state.
 
+## The visitor sees every move
+
+- **Forms fill where they can be seen.** The calculator, the enquiry form and
+  the booking page are filled one field at a time: each is brought into view,
+  ringed, and typed at a pace a person can follow (about half a second a
+  field), then what is left for the visitor is ringed — the empty fields, the
+  consent box and the button. The calculator's own button is ringed for a
+  moment and then pressed; Submit and Confirm booking never are. On the
+  owner's dev call of 2026-10-28 the calculator filled and ran in one frame,
+  and the first thing on screen was the estimate.
+- **What she talks about is in the middle of the screen.** A heading that
+  heads a card (an icon, a title and a line: a kit component, a feature) is
+  scrolled to the middle of the space under the site's fixed header and
+  ringed whole; a section that fits on the screen is centred and ringed
+  whole; only a section taller than the screen is scrolled to its heading.
+  Every scroll waits for the page to stop moving and corrects for any shift
+  on the way, since a long smooth scroll takes more than a second and the
+  page's images and reveal animations move what is below them.
+
 ## Enquiries are never sent
 
 `DEMO_BLOCK_SUBMIT`, at the top of `src/saatvik-actions.js`, is on. Sunny fills

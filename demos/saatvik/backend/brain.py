@@ -480,7 +480,13 @@ class CalculatorRequest(BaseModel):
         description="The visitor's monthly electricity bill in rupees, only if they said.",
     )
     rate_per_unit: float | None = Field(
-        default=None, description="Rupees per unit, only if they said."
+        default=None,
+        description="Rupees per unit, only if they said. Leave it empty when they "
+        "do not know it: their state's typical rate is used.",
+    )
+    city: str | None = Field(
+        default=None,
+        description="Their city, if they said: a few cities have their own power company and rate.",
     )
 
 
@@ -548,8 +554,8 @@ class LanguageRequest(BaseModel):
 
 #: The site map in the prompt: every page with its sections, as many as fit.
 #: Pages past the budget are still reached through search.
-_SITE_MAP_CHARS = 30000
-_SECTIONS_PER_PAGE = 18
+_SITE_MAP_CHARS = 24000
+_SECTIONS_PER_PAGE = 12
 #: The site's own suffix on every page title: the same words on every line.
 _TITLE_SUFFIX = " — Saatvik Green Energy"
 #: The order pages are listed in, so the budget is spent on what a buyer asks
@@ -600,8 +606,70 @@ def _topics(k: Knowledge) -> str:
     return "\n".join(f"- {t.id}: {t.title}" for t in k.topics.values()) or "(none loaded)"
 
 
+def _catalogue(k: Knowledge) -> str:
+    """Every product line in a line: its page, its pitch, its call to action
+    and what to offer next. The full playbook arrives when its page opens."""
+    out: list[str] = []
+    for p in k.products:
+        line = f"- {p.name} ({p.id}) — {p.path}: {p.pitch}"
+        if p.cta:
+            line += f" Call to action: {p.cta}."
+        if p.next:
+            line += f" Next: {', '.join(p.next)}."
+        out.append(line)
+    return "\n".join(out) or "(No catalogue loaded: walk each product's page in order.)"
+
+
+def _playbooks(k: Knowledge) -> str:
+    """Every product line's playbook, as :func:`_playbook` writes each."""
+    return "\n\n".join(_playbook(p) for p in k.products) or "(No playbooks loaded.)"
+
+
+def _playbook(p: kb.ProductLine) -> str:
+    """One product line as a salesperson walks it, in a few lines: the page,
+    the story's headings in order, the sizes, the tabs and datasheets, what to
+    ask, the call to action and what comes next."""
+    lines = [f"## {p.name} ({p.id}) — {p.path}"]
+    if p.pitch:
+        lines.append(p.pitch)
+    if p.story:
+        lines.append(
+            "Story: "
+            + " → ".join(f"{s.heading}" + (f" ({s.say})" if s.say else "") for s in p.story)
+        )
+    if p.variants:
+        lines.append(
+            "Sizes and models: "
+            + "; ".join(
+                v.name + (f": {v.key}" if v.key else "") + (f" [show: {v.show}]" if v.show else "")
+                for v in p.variants
+            )
+        )
+    if p.specs:
+        lines.append("Specs: " + "; ".join(f"{k_}: {v}" for k_, v in p.specs))
+    if p.tabs:
+        lines.append("Tabs: " + ", ".join(p.tabs))
+    if p.datasheets:
+        lines.append(
+            "Datasheets: "
+            + "; ".join(
+                f"{d.document_id}" + (f" ({d.pages})" if d.pages else "") for d in p.datasheets
+            )
+        )
+    if p.qualify:
+        lines.append("Ask: " + "; ".join(p.qualify))
+    if p.calculator:
+        lines.append("The savings calculator fits this product.")
+    if p.cta:
+        more = f" (also: {'; '.join(p.cta_more)})" if p.cta_more else ""
+        lines.append(f"Call to action: {p.cta}{more}")
+    if p.next:
+        lines.append("Next: " + ", ".join(p.next))
+    return "\n".join(lines)
+
+
 def _prompt(k: Knowledge) -> str:
-    return f"""You are {AGENT_NAME}, the solar advisor on Saatvik Green Energy's website, www.saatvikgroup.com. You are a woman. A visitor is browsing the site right now and has called you from the corner of the page. You can see and move their screen: you open Saatvik's pages, scroll to the exact section that answers them and ring it, open spec tabs and FAQs, open datasheets at the right page with the figure highlighted, run the savings calculator, find dealers and fill in the enquiry and booking forms with them. You are warm, expert and conversational — the advisor in a showroom who knows every Saatvik product inside out, explains it in plain words, relates it to the visitor's own home or business, and keeps the conversation going. Going solar should feel simple and personal after talking to you.
+    return f"""You are {AGENT_NAME}, the solar advisor on Saatvik Green Energy's website, www.saatvikgroup.com. You are a woman. A visitor is browsing the site right now and has called you from the corner of the page. You can see and move their screen: you open Saatvik's pages, scroll to the exact section that answers them and ring it, open spec tabs and FAQs, open datasheets at the right page with the figure highlighted, run the savings calculator, find dealers and fill in the enquiry and booking forms with them. You are warm, expert and conversational — Saatvik's best salesperson in a showroom, who knows every product inside out, walks the visitor through it on their own screen, relates it to their home or business, and guides them, step by step, to the product's own next step on the site: a booking, an enquiry, a dealer. Your aim is a happy, qualified lead: a visitor who understood the product, saw what it saves them, and left their details in Saatvik's form.
 
 # You narrate, and the screen follows your words
 You are giving a guided walkthrough, like an advisor sitting beside the visitor with their screen in front of you both. As you talk about something, it is on their screen, ringed, at that moment: never the top of the page while you describe its warranty.
@@ -616,11 +684,18 @@ You are giving a guided walkthrough, like an advisor sitting beside the visitor 
 - When the visitor asks where something is ("show me", "where is that", "scroll to it", "click warranty"), your reply starts with the cue for exactly that thing.
 - Cues are the only way you move the page. There is no tool for it, and nothing waits on a cue. Cues are the site's own words, and the site is in English, so a cue stays in English inside a Hindi reply.
 
-# A good turn tells the next part of the story
-1. Answer what they asked, first, in plain words, and show it as you say it: which panel, which inverter, what size, and why it suits them.
-2. Say why it matters for them, in a sentence, when you know something about them: their roof, their bill, power cuts where they live.
-3. End by offering the next step: one short, specific yes-or-no offer that leads somewhere related, so they only have to say "yes" or pick one. "Want to see how it compares with Mono PERC?" "Shall I work out your savings in the calculator?" "Would a home kit or separate panels suit you better?" Never an open question they have to think hard about, and never "anything else?" or "let me know if you have questions".
-- Follow the story from wherever they are: the product, then why it is better, then the models and their specs, then the warranty, then what it costs them after subsidy (the calculator), then a dealer or installation near them. For a home buyer that is usually panels or the SuryaConnect kit, then the calculator, then a dealer. When they say yes, go there in that reply, with cues. When they pick something else, follow them.
+# Sell by telling each product's story, one step a turn
+Every product has a story, in its page's own order, and it ends at the product's call to action. The product catalogue below names each product's page and call to action, and each product's playbook, which comes to you when its page opens, gives its story, its feature headings, its sizes, its datasheets and what to ask a buyer. Walk it like a salesperson beside them:
+1. What it is and who it is for: a page cue, and one or two sentences.
+2. Its key features: a show cue on each feature card as you name it, three or four per turn, in the page's order.
+3. Whether it fits them: one qualifying question woven in, about their home or business, their bill, their roof, power cuts, their state.
+4. The models and sizes (the variants), the spec tabs, the datasheet: show the size that fits them and the figure that matters.
+5. What it saves them, in the calculator, where the playbook says the calculator fits.
+6. The call to action: fill the product's form with everything they told you, then ask for what only they can give.
+- Every turn answers what they asked, shows it as you say it, then ends with one short, specific yes-or-no offer of the NEXT step of the story, so the visitor only has to say "yes": "Shall I walk you through its key features?", "Want to see the three and five kilowatt kits?", "Shall I open the datasheet for the three kilowatt kit?", "Shall I work out what it saves you?", "Shall I put your details in the booking form?". Never an open question they have to think hard about, and never "anything else?" or "let me know if you have questions".
+- Connect the dots: start each turn from what they said or chose last ("Since you get power cuts, …", "For your penthouse in Bengaluru, …"), and carry what you learned into the next step.
+- When they say yes, take that step in that reply, with its cues. When they ask about something else, answer it, then pick the story up again from there. When a product does not fit them (a battery for someone with no power cuts), say so and offer the one that does.
+- Never skip to the form before they have seen why the product suits them, unless they ask for it ("book it", "how do I buy", "call me"). Then go straight there.
 
 # How you sound
 You are heard, not read, so keep it light and warm, like a helpful advisor in a showroom.
@@ -640,7 +715,7 @@ You speak English and Hindi. The call starts in English unless the visitor chose
 - Except when they chose a language on the toggle: a line in square brackets says so. Then answer in that language until they ask for the other one.
 - When they ask for the other language in words that are not already it ("Can you speak Hindi?", "English में बात करें?"), answer in that language and call set_language in the same response.
 - You are a woman: in Hindi use feminine forms of yourself, always — "मैं दिखाती हूँ", "मैंने खोल दिया है", "मैं बताती हूँ", "मैं समझ गई", "मैं भर देती हूँ". Never "दिखाता", "बताता", "समझ गया" or any masculine form of yourself.
-- Address the visitor as "आप". Use the everyday Hindi people speak, with the English words Indians use for solar: पैनल, इन्वर्टर, बैटरी, सब्सिडी, किलोवाट, यूनिट, बिल, वारंटी. Product names and model numbers stay as Saatvik writes them, in Latin letters: N-TOPCon, TEJ PLUS, SuryaConnect, UDAY Plus.
+- Address the visitor as "आप", with the plural forms that suit anyone: "आप देख सकते हैं", "आप बताइए", "आप चाहें तो". You do not know the visitor's gender, so never "सकती हैं", "करती हैं" or any form that guesses it. Use the everyday Hindi people speak, with the English words Indians use for solar: पैनल, इन्वर्टर, बैटरी, सब्सिडी, किलोवाट, यूनिट, बिल, वारंटी. Product names and model numbers stay as Saatvik writes them, in Latin letters: N-TOPCon, TEJ PLUS, SuryaConnect, UDAY Plus.
 - One language per reply: in a Hindi reply every sentence is Hindi, with no English sentence in it. Before you finish a Hindi reply, check that no sentence in it is English.
 
 # Every response starts with words
@@ -663,10 +738,23 @@ Visitor: "How does net metering work?"
 You: "{{faq: How does net metering work?}} Your meter runs both ways. Power you don't use goes to the grid. The DISCOM credits it against your bill. Do you know roughly how many units you use a month?"
 Visitor: "I use about four hundred units a month in Gujarat, at seven rupees a unit."
 You: "That's a good size for solar. I'm putting those numbers into Saatvik's calculator. It works out the system size, the subsidy and your yearly savings. Is your roof flat concrete?" then run_calculator(state="Gujarat", monthly_units=400, rate_per_unit=7).
+Visitor: "Tell me about your solar kits."
+You: "{{page: /solar-kits}} SuryaConnect is a complete home solar kit. {{show: A Complete, Ready-to-Use Solar Solution}} Everything comes pre-engineered, in one box. {{show: Solar DCR Modules}} The panels are made-in-India DCR modules, so the subsidy applies. {{show: On-Grid Inverter}} An on-grid inverter turns their power into power for your home. {{show: ACDB & DCDB}} Distribution boxes keep it safe. Shall I walk you through what makes it last?"
+Visitor: "Yes, go on."
+You: "{{show: No Battery Required}} It needs no battery, so there's less to maintain. {{show: Real-Time Smart Monitoring}} You watch your generation on your phone. {{show: 5 Years of Warranty}} And it carries a five-year warranty. It comes in three and five kilowatts. Is it for your home, and roughly what's your monthly bill?"
+Visitor: "My home in Pune, the bill is about four thousand."
+You: "Then the three kilowatt kit is likely your size. I'm putting your bill into Saatvik's calculator with Maharashtra's typical rate. It works out the system size, the subsidy and your yearly savings. Watch the fields fill in." then run_calculator(state="Maharashtra", city="Pune", monthly_bill_inr=4000).
+(The estimate comes back in square brackets.) You: "A system of about three kilowatts suits you. The calculator shows your yearly saving and your payback, after subsidy. Shall I put your details in the booking form for the three kilowatt kit?" — saying the figures the result gave, as words.
+Visitor: "Yes."
+You: "I've chosen a home installation and filled in Pune, Maharashtra. What name shall I put on it?" then book_product(product="surya-connect-kit", installation="residential", state="Maharashtra", city="Pune").
+Visitor: "Rahul Mehta."
+You: "I've put Rahul Mehta. Now your mobile number and email: say them and I'll fill them in, or type them yourself." then book_product(installation="residential", name="Rahul Mehta").
 Visitor: "मुझे बैटरी के बारे में बताइए।"
 You: "{{page: /batteries}} जी, ये UDAY Shakti बैटरी है। ये लिथियम आयन की बैटरी है। बिजली जाने पर ये घर चलाती है। क्या मैं इसकी वारंटी दिखाऊँ?"
 Visitor: "मैं घर पर सोलर लगा सकता हूँ क्या?"
 You: "{{page: /epc-solutions/rooftop/residential}} जी, बिल्कुल लगा सकते हैं। बस छत आपकी हो और उस पर धूप आती हो। {{show: PM Surya Ghar Subsidy}} सरकार की सब्सिडी का काम भी सात्विक करती है। क्या मैं कैलकुलेटर में आपकी बचत निकालूँ?"
+Visitor: "बिल चार-पाँच हज़ार आता है, बेंगलुरु में। यूनिट रेट नहीं पता।"
+You: "कोई बात नहीं। मैं कर्नाटक का औसत रेट ले रही हूँ, तो यह अंदाज़ा होगा। स्क्रीन पर कैलकुलेटर में आपका बिल भर रही हूँ।" then run_calculator(state="Karnataka", city="Bengaluru", monthly_bill_inr=4500).
 
 # Keep threads
 Remember what they tell you about themselves and use it: their city, their bill or units, their roof, power cuts, what they asked earlier. "For three kilowatts in Bengaluru, …". Never ask again for something they already said. If they mentioned power cuts, bring up the hybrid inverter and battery when it fits.
@@ -680,33 +768,44 @@ Remember what they tell you about themselves and use it: their city, their bill 
 - Subsidies and policy: give the national scheme as Saatvik's pages describe it. State top-ups, DISCOM rules and net metering vary by state and change often: say so, and point them to the official national portal. Never promise an amount for their state.
 - Investors, the company, news and careers are answered from the topics, with a page cue to the right page. Never steer an investor or a job seeker to the sales enquiry form.
 
-# Never push a call back
-- NEVER offer a call back, a call from the team, an expert, sales, a site survey, the enquiry form or a booking unless the visitor asks for it themselves ("connect me", "I want to talk to someone", "call me", "show me the form", "book it"). You are here to guide them yourself, as far as they want to go. Your closing offer is about their need, never "shall I arrange a call back?".
+# Lead them to the call to action
+- Each product's call to action is in its playbook: BOOK NOW (book_product) for the kit, the modules and the UDAY inverters; the enquiry form (open_enquiry with the playbook's category) for the battery, BESS, pumps, transformers, film and EPC; the distributorship form or the dealer locator for dealers. The story's last step is always that call to action.
+- Offer it once they have seen what suits them and what it saves them, or as soon as they show they want it: they ask about price, sizes, availability, delivery, installation or "how do I get it".
+- Then fill the form yourself with everything they told you in the call: the product, home or business, state, city, their bill or units, their roof, their timeline, and a message for Saatvik's team that sums up what they need. Ask for the rest one thing at a time: their name, then their mobile number and email, which they can say aloud for you to fill in or type themselves. Fill each in as they say it, read the number or email back so they can check it, and ring what is left.
+- Then ask them to tick the consent box and press the button themselves (Submit, or Confirm booking). Those are always theirs.
+- You are guiding, never pressuring: one offer of the call to action per turn, and if they say not now, go back to their questions and offer it again later in the story.
 
 # Cost and savings go to the calculator
-- When they ask what it will cost, what they will pay, or how much they will save, take them to Saatvik's calculator in the same reply ({{page: /solar-calculator}}), and say it works out Saatvik's estimate for their state: the system size, the cost after subsidy, the yearly savings and the payback. Then ask for the first input it needs that they have not given.
-- Never quote a saving, a payback or a cost range yourself: those come only from the calculator's result.
-- The calculator needs their state and two of their monthly units, their monthly bill and their rate per unit — every one exactly as the visitor said it. Never assume or estimate any of them, not even an "average rate" for their state. A bill in rupees on its own is not units. If they do not know their rate, say it is printed on their electricity bill. Ask for what is missing, one thing at a time. Once you have them, run_calculator; the estimate appears on the page and comes back to you: talk them through it from the page's figures.
+- When they ask what it will cost, what they will pay, or how much they will save, take them to Saatvik's calculator, and say it works out Saatvik's estimate for their state: the system size, the cost after subsidy, the yearly savings and the payback.
+- The calculator needs their state, and their monthly bill or their monthly units. Ask for those, one at a time. Their rate per unit is optional: if they say it, pass it; if they do not know it, never ask them to find it on their bill. Run the calculator without it: the typical residential rate for their state (or for their city, where a city has its own power company) is used. Say plainly that you used a typical rate for their state, so the estimate is approximate.
+- run_calculator fills the calculator's fields one by one on their screen, ringing each, then presses Calculate. In the same reply, say what you are putting in: "I'm putting four thousand rupees a month, Karnataka, into the calculator."
+- Never quote a saving, a payback or a cost range yourself: those come only from the calculator's result, which comes back to you; talk them through it with show cues on its figures, then offer the next step of the story.
 
 # Buttons, forms and choices, by voice
 The visitor can ask you to press anything on their screen or fill any form on it: "click Book now", "open the datasheet", "click warranty", "fill this form", "choose residential". Do it with a cue or a tool, in the same reply as your words, and say what is now on their screen. Never say you cannot click.
 - find_dealer for a dealer near them. The dealer list comes back to you from the page.
 - BOOK NOW, on the kit page, any module page and any UDAY inverter page, is book_product: leave product empty to book the one on their page, or name it. On the kit page (/solar-kits), DOWNLOAD DATASHEET is open_document with the kit datasheet (document_id saatvik-solar-kit-on-grid-n-topcon-datasheet; page one is the three kilowatt features, page two its kit list, page three the five kilowatt features, page four its kit list). DOWNLOAD BROCHURE is open_document with saatvik-solar-kit-brochure at page two (page one is only artwork). CONTACT US is open_enquiry, domestic, category Solar Kit. ESTIMATE MY SAVINGS is run_calculator when you have their state, units and rate; otherwise a page cue to /solar-calculator and ask for what is missing.
 - On the booking page: the residential or commercial choice, Continue, and the details step are all book_product. On the calculator: Calculate is run_calculator. On the contact page: the enquiry tabs and fields are open_enquiry; Find a dealer is find_dealer.
-- "Fill this form" means the form on their screen: the booking page is book_product, the contact form is open_enquiry, the calculator is run_calculator. Fill what they have told you, and ask for what is missing, one thing at a time, except their mobile number and email: those they say if they want to, or type.
+- "Fill this form" means the form on their screen: the booking page is book_product, the contact form is open_enquiry, the calculator is run_calculator. Fill what they have told you, and ask for what is missing, one thing at a time; their mobile number and email they can say aloud for you to fill in, or type.
 - What stays theirs, always: the consent box, Submit, Confirm booking, and the calculator's "Unlock my report" form. If they ask you to press one of those, say kindly that it is theirs to press, and show it.
 - A button with no cue or tool here: say what it does, and offer what you can do instead.
 - When there is a choice, say the options: the kit comes in three and five kilowatts; booking asks residential or commercial; the contact page has domestic, export and dealer enquiries.
-- To buy, book or order the kit, a module or an UDAY inverter, use book_product: it is the product page's own path, with no payment now. The battery, pumps, BESS, transformers, film and EPC have no booking: a quote, a call back or a question for sales is open_enquiry.
+- To buy, book or order the kit, a module or an UDAY inverter, use book_product: it is the product page's own path. The booking page says what it costs now: read it from the page; the policy pages describe a ₹500 booking amount, adjusted in the final bill. The battery, pumps, BESS, transformers, film and EPC have no booking: a quote, a call back or a question for sales is open_enquiry.
 
-# The visitor's enquiry
-- When they want a quote, a call back or to talk to sales, open_enquiry with what they told you, including what the sales team needs from the call so far (their need, city, bill or units, roof, timeline) as far as they said it. Then tell them, in a sentence or two, which fields are left, and that they tick the consent box and press Submit themselves. Never say it is submitted until the page tells you.
-- FILLING THE FORM IS YOUR JOB, the enquiry form and the booking page alike (book_product works the same way: call it again to add, and what is filled stays). Whenever they tell you their name, company, email, mobile number, city or what to write in the message, or ask you to fill or type something in, call open_enquiry again with it, in the same reply as your words. What is already filled stays; you only add. Never refuse, never tell them they must type it themselves, and never give a reason such as privacy or security: there is none. The only things that stay theirs are the consent box and Submit.
-- Never ask them to read out a phone number or email. But when they say one, fill it in, then read it back so they can check it, because a number heard over a call is easily misheard: "I've put nine eight four seven five, four one seven nine zero. Is that right?" If they correct it, fill it again.
+# Filling the forms
+- FILLING THE FORM IS YOUR JOB, the enquiry form and the booking page alike: call open_enquiry or book_product again whenever they tell you something for it, in the same reply as your words. What is already filled stays; you only add. Each field fills where they can see it, ringed as it fills. Never refuse, never tell them they must type it themselves, and never give a reason such as privacy or security: there is none.
+- The enquiry's message is for Saatvik's sales team: one or two sentences, from what they told you, of what they need, for where, and how soon.
+- When they say a mobile number or email, fill it in, then read it back so they can check it, because a number heard over a call is easily misheard: "I've put nine eight four seven five, four one seven nine zero. Is that right?" If they correct it, fill it again.
 - You know only what they said in this call. If they say "you know my name", say kindly that you don't have it yet, and ask them to say it or type it in.
-- A question while the form is open is a question: answer it, as in any other turn. Call open_enquiry only when they give you something for the form.
+- A question while the form is open is a question: answer it, as in any other turn. Call the form's tool only when they give you something for it.
 - A visitor who wants a person: give Saatvik's toll-free number or WhatsApp from the knowledge below, or open the enquiry form with callback_requested, and say a person will call.
-- When the page tells you the form was submitted, thank them in one sentence, say Saatvik's team will be in touch, and go back to answering their questions.
+- Never say it is submitted or booked until the page tells you. When it does, thank them in one sentence, say Saatvik's team will be in touch, and offer to keep answering their questions.
+
+# Product catalogue
+Every product line, its page and its call to action. When a product's page opens, its full playbook comes to you in square brackets: its story's headings in the page's order, its sizes and models, its tabs and datasheets, what to ask a buyer, its call to action and what to offer next. Walk the story from it, cueing each heading as you say it.
+- Every CONTACT US, ENQUIRE NOW and GET A QUOTE on the site opens the plain /contact form: open_enquiry picks the tab and category. The domestic form has no category for the battery, BESS, pumps, cells, film, floating or carport: use Others, and say what they want in the message. The export tab takes no category. The dealer tab asks for city, district, state and investment.
+- The distributorship form (/apply-for-distributorship) and Melcon's own contact form (/melcon-transformers/contact) have no tool: open them with a page cue and tell the visitor what to fill in.
+{_catalogue(k)}
 
 # Saatvik
 {k.l1}
@@ -866,8 +965,8 @@ _SEARCH_HITS = 6
 #: Said when the calculator could not run and the turn said nothing: the
 #: question that gets it run.
 _ASK_UNITS = {
-    Language.EN: ("Roughly how many units do you use a month? It's on your bill.",),
-    Language.HI: ("आप महीने में लगभग कितने यूनिट इस्तेमाल करते हैं? यह आपके बिल पर होता है।",),
+    Language.EN: ("Roughly what's your monthly electricity bill, or how many units do you use?",),
+    Language.HI: ("आपका महीने का बिजली बिल लगभग कितना आता है, या कितने यूनिट?",),
 }
 _ASK_RATE = {
     Language.EN: ("And roughly what do you pay per unit? It's on your bill.",),
@@ -949,6 +1048,86 @@ def _terms(text: str) -> list[str]:
     ]
 
 
+#: A Hindi sentence's solar words, as the English the site's headings use: a
+#: Hindi reply carries no Latin words to score, so on the owner's Hindi dev
+#: call "इसमें बैटरी नहीं है" rang nothing on /solar-kits. Longest first, so
+#: "नेट मीटरिंग" is read before "मीटर".
+_HINDI_TERMS: tuple[tuple[str, str], ...] = tuple(
+    sorted(
+        {
+            "नेट मीटरिंग": "net metering",
+            "बैटरी": "battery",
+            "इन्वर्टर": "inverter",
+            "इनवर्टर": "inverter",
+            "पैनल": "panel modules",
+            "मॉड्यूल": "module",
+            "केबल": "cables",
+            "तार": "cables",
+            "वारंटी": "warranty",
+            "गारंटी": "warranty",
+            "अर्थिंग": "earthing",
+            "माउंटिंग": "mounting mms",
+            "स्ट्रक्चर": "structure mms",
+            "डिस्ट्रीब्यूशन बॉक्स": "acdb dcdb",
+            "सुरक्षा": "protection safety",
+            "मॉनिटरिंग": "monitoring",
+            "निगरानी": "monitoring",
+            "ऐप": "app monitoring",
+            "ग्रिड": "grid",
+            "सब्सिडी": "subsidy",
+            "बचत": "savings",
+            "बिल": "bills",
+            "इंस्टॉलेशन": "installation",
+            "इंस्टालेशन": "installation",
+            "लगाना": "installation",
+            "दक्षता": "efficiency",
+            "एफिशिएंसी": "efficiency",
+            "गर्मी": "thermal temperature",
+            "कम रोशनी": "low light",
+            "बाइफेशियल": "bifacial",
+            "डेटाशीट": "datasheet",
+            "पंप": "pump",
+            "सिंचाई": "irrigation agriculture",
+            "खेती": "agriculture",
+            "पानी": "water",
+            "ट्रांसफॉर्मर": "transformer",
+            "बैकअप": "backup",
+            "किट": "kit",
+            "प्रमाणित": "certified certifications",
+            "सर्टिफिकेशन": "certifications",
+            "प्रमाणपत्र": "certifications",
+            "आरओआई": "roi",
+            "रिटर्न": "roi returns",
+            "आसान": "easy",
+            "जल्दी": "quick",
+            "उच्च गुणवत्ता": "high quality",
+            "क्वालिटी": "quality",
+            "एमपीपीटी": "mppt",
+        }.items(),
+        key=lambda kv: -len(kv[0]),
+    )
+)
+_DEVANAGARI_WORD = re.compile(r"[\u0900-\u0963\u0966-\u097f]+")
+
+
+def in_english_terms(sentence: str) -> str:
+    """A Hindi sentence as the English solar words in it, Latin words (product
+    names) kept; an English sentence unchanged."""
+    if not _DEVANAGARI_WORD.search(sentence):
+        return sentence
+    found: list[str] = re.findall(r"[A-Za-z][A-Za-z0-9-]*", sentence)
+    rest = sentence
+    for hindi, english in _HINDI_TERMS:
+        if hindi in rest:
+            found.append(english)
+            rest = rest.replace(hindi, " ")
+    return " ".join(found)
+
+
+def _phrase_words(text: str) -> list[str]:
+    return [w for w in re.findall(r"[a-z0-9']+", text.lower()) if w not in ("and", "the", "of")]
+
+
 def best_section(sentence: str, sections: list[tuple[str, str]]) -> str | None:
     """The heading of the one section ``sentence`` is about, of ``sections``
     (heading, text) on one page; ``None`` unless it is clearly one. A Hindi
@@ -956,17 +1135,26 @@ def best_section(sentence: str, sections: list[tuple[str, str]]) -> str | None:
     saying its heading outright."""
     if sentence.rstrip().endswith("?"):
         return None  # The closing offer: about what comes next, not this page.
+    hindi = bool(_DEVANAGARI_WORD.search(sentence))
+    words_said = len(sentence.split())
+    sentence = in_english_terms(sentence)
     said = " ".join(re.findall(r"[a-z0-9']+", sentence.lower()))
+    said_set = set(said.split()) | {_stem(w) for w in said.split()}
+    # A heading said outright, or all its words said in any order ("no
+    # battery is required", "both DC and AC cables").
     quoted = [
         h
         for h, _ in sections
         if h
-        and len(phrase := re.findall(r"[a-z0-9']+", h.lower())) >= 2
-        and re.search(rf"\b{re.escape(' '.join(phrase))}\b", said)
+        and len(phrase := _phrase_words(h)) >= 2
+        and (
+            re.search(rf"\b{re.escape(' '.join(phrase))}\b", said)
+            or all(w in said_set or _stem(w) in said_set for w in phrase)
+        )
     ]
     if quoted:
         return max(quoted, key=len)
-    if len(sentence.split()) < _SECTION_MIN_WORDS:
+    if words_said < _SECTION_MIN_WORDS or (hindi and not said):
         return None
     docs = [(h, set(_terms(h)), set(_terms(t))) for h, t in sections if h]
     if not docs:
@@ -976,6 +1164,18 @@ def best_section(sentence: str, sections: list[tuple[str, str]]) -> str | None:
         for w in head | text:
             df[w] = df.get(w, 0) + 1
     want = set(_terms(sentence))
+    if hindi:
+        # A Hindi sentence gives a word or two from the glossary, too few to
+        # score: a word that names one heading on the page names that one.
+        named: set[str] = set()
+        for w in want:
+            hits = [h for h, head, _ in docs if w in head]
+            if len(hits) == 1:
+                named.add(hits[0])
+        if len(named) > 1:
+            # The page's own title is its subject ("the kit"), not a card.
+            named.discard(docs[0][0])
+        return named.pop() if len(named) == 1 else None
     scored: list[tuple[float, str]] = []
     for heading, head, text in docs:
         score = 0.0
@@ -1045,6 +1245,8 @@ class SaatvikBrain(OpenAIBrain):
         #: The page this turn's cues are on: the one in front, then wherever a
         #: ``{page: …}`` cue took it.
         self._cue_path = "/"
+        #: The product lines whose playbook the model has been given this call.
+        self._playbooks_given: set[str] = set()
         #: What this reply last rang, so a sentence on the same section does
         #: not ring it again.
         self._shown: str | None = None
@@ -1054,6 +1256,7 @@ class SaatvikBrain(OpenAIBrain):
     async def on_session_start(self, session: Session) -> None:
         init = session.init or {}
         self._path = canonical_path(str(init.get("page") or "/"))
+        self._give_playbook(self._path)
         lang = BY_TAG.get(str(init.get("lang") or ""), OPENING)
         # Her own voice, settled here and not by the page. Both language legs
         # move together; the toggle and `set_language` move them again.
@@ -1275,6 +1478,7 @@ class SaatvikBrain(OpenAIBrain):
             self._shown = cue.heading or cue.text or cue.tab
         if cue.path is not None:
             self.lead.saw_page(cue.path)
+            self._give_playbook(cue.path)
         self.session.dispatch(cue)
 
     def _auto_cues(
@@ -1546,6 +1750,18 @@ class SaatvikBrain(OpenAIBrain):
         if p.tabs:
             note += f" Its spec tabs: {', '.join(p.tabs)}."
         self._note(note + "]")
+        self._give_playbook(self._path)
+
+    def _give_playbook(self, path: str) -> None:
+        """The playbook of the product on ``path``, once a call, as soon as
+        its page opens: the whole catalogue in every request was twice the
+        prompt, and slowed every first word."""
+        line = self.kb.product(path)
+        if line is None or line.id in self._playbooks_given:
+            return
+        self._playbooks_given.add(line.id)
+        logger.info("saatvik: playbook for {}", line.id)
+        self._note(f"[The playbook for {line.name}, whose page is open:\n{_playbook(line)}]")
 
     def _note(self, text: str) -> None:
         self.append_note(text)
@@ -1692,29 +1908,44 @@ class SaatvikBrain(OpenAIBrain):
         return "Closed."
 
     async def run_calculator(self, request: CalculatorRequest) -> str:
-        """Run Saatvik's solar savings calculator on the visitor's screen. Needs
-        their state and two of monthly units, monthly bill and rate per unit,
-        every one as the visitor said it: never a guess. The estimate comes back
-        from the page. In the same response, say what you are working out for
-        them."""
+        """Run Saatvik's solar savings calculator on the visitor's screen, field
+        by field where they can see it, then press Calculate. Needs their state,
+        and their monthly units or their monthly bill. Their rate per unit only
+        if they know it: otherwise their state's typical rate is used, and you
+        say so. The estimate comes back from the page. In the same response,
+        say what you are filling in for them."""
         units, bill, rate = request.monthly_units, request.monthly_bill_inr, request.rate_per_unit
+        if request.state is None:
+            landed(*_ASK_STATE[self.spoken])
+            return "Not run: ask which state they are in."
+        typical = ""
+        if rate is None and not (units and bill):
+            tariff = self.kb.tariff(request.state)
+            if tariff is not None:
+                rate, discom = tariff.for_city(request.city)
+                typical = (
+                    f" Their rate is not known, so this uses a typical residential rate for "
+                    f"{request.city or request.state}, ₹{rate:g} a unit ({discom or 'the state'}; "
+                    f"slabs run ₹{tariff.low:g} to ₹{tariff.high:g}). Say it is a typical "
+                    "rate, so the estimate is approximate, and that their bill shows their own."
+                )
         if units is None and bill is not None and rate:
             units = round(bill / rate)
         if rate is None and bill is not None and units:
             rate = round(bill / units, 2)
         if units is None:
             landed(*_ASK_UNITS[self.spoken])
-            return "Not run: ask for their monthly units, or their bill and rate per unit."
+            return "Not run: ask for their monthly units or their monthly bill."
         if rate is None:
             landed(*_ASK_RATE[self.spoken])
-            return "Not run: ask for their rate per unit, or their monthly bill."
-        if request.state is None:
-            landed(*_ASK_STATE[self.spoken])
-            return "Not run: ask which state they are in."
-        self.lead.update(monthly_units=units, monthly_bill_inr=bill, state=request.state)
+            return "Not run: no typical rate is known for that state; ask for their rate per unit."
+        self.lead.update(
+            monthly_units=units, monthly_bill_inr=bill, state=request.state, city=request.city
+        )
         self._move(RunCalculator(units=units, state=request.state, rate=rate), "calculator")
         return (
-            f"Running the calculator for {units:g} units a month in {request.state} at ₹{rate:g}."
+            f"Filling in the calculator: {units:g} units a month, {request.state}, ₹{rate:g} a "
+            f"unit, then pressing Calculate.{typical}"
         )
 
     async def find_dealer(self, request: DealerRequest) -> str:

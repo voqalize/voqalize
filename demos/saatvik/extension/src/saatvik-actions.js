@@ -29,7 +29,6 @@
   // Saatvik's own orange, read off their buttons.
   const RING_COLOUR = "#EA7124";
   const RING_MS = 5000;
-  const SETTLE_MS = 600;
   const WAIT_MS = 8000;
   /** Caps on what goes to the brain, so one page cannot flood its context. */
   const MAX_HEADINGS = 60;
@@ -156,15 +155,62 @@
     return pos === "fixed" || pos === "sticky" ? h.getBoundingClientRect().height : 0;
   }
 
+  /** Scroll so `target()` (a document y) is at the top of the window, and
+   *  wait until the page stops moving. A smooth scroll over a long page takes
+   *  more than a second, and images and reveal animations above the element
+   *  shift it on the way: so once still, the place is measured again and
+   *  corrected at once if it moved. */
+  async function scrollSettled(target) {
+    window.scrollTo({ top: Math.max(target(), 0), behavior: "smooth" });
+    let last = -1;
+    let still = 0;
+    const until = Date.now() + 2500;
+    while (Date.now() < until && still < 3) {
+      await sleep(80);
+      still = Math.abs(window.scrollY - last) < 1 ? still + 1 : 0;
+      last = window.scrollY;
+    }
+    const want = Math.max(target(), 0);
+    if (Math.abs(window.scrollY - want) > 40) {
+      window.scrollTo({ top: want, behavior: "instant" });
+      await sleep(120);
+    }
+    await sleep(200);
+  }
+
   async function scrollToTop(el) {
-    const top = el.getBoundingClientRect().top + window.scrollY - headerHeight() - 24;
-    window.scrollTo({ top: Math.max(top, 0), behavior: "smooth" });
-    await sleep(SETTLE_MS + 200);
+    await scrollSettled(() => el.getBoundingClientRect().top + window.scrollY - headerHeight() - 24);
   }
 
   async function scrollToCentre(el) {
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
-    await sleep(SETTLE_MS + 200);
+    // The middle of the space under their fixed header, not of the window.
+    await scrollSettled(() => {
+      const r = el.getBoundingClientRect();
+      const room = window.innerHeight - headerHeight();
+      return r.top + window.scrollY - headerHeight() - Math.max((room - r.height) / 2, 24);
+    });
+  }
+
+  /** Whether all of `el` is on screen, under the header. */
+  function inView(el) {
+    const r = el.getBoundingClientRect();
+    return r.top >= headerHeight() && r.bottom <= window.innerHeight;
+  }
+
+  /** What a heading names on the page, as a visitor sees it: a feature card
+   *  (its icon, title and text), a spec block, a step. The largest box around
+   *  the heading that holds no other heading and is at most half the screen
+   *  tall. Ringing the heading alone, at the top of the screen, hid the icons
+   *  above Solar DCR Modules and its neighbours on the owner's dev call. */
+  function cardOf(h) {
+    let card = h;
+    for (let el = h.parentElement; el && el !== main(); el = el.parentElement) {
+      if (el.getBoundingClientRect().height > window.innerHeight * 0.5) break;
+      const others = [...el.querySelectorAll("h1, h2, h3, h4")].filter((x) => x !== h && visible(x) && !h.contains(x));
+      if (others.length) break;
+      card = el;
+    }
+    return card;
   }
 
   // ─── Navigation ───────────────────────────────────────────────────────
@@ -320,7 +366,7 @@
   // ─── What the page shows ──────────────────────────────────────────────
 
   function headings() {
-    return [...main().querySelectorAll("h1, h2, h3")].filter(visible);
+    return [...main().querySelectorAll("h1, h2, h3, h4")].filter(visible);
   }
 
   /** Their FAQ accordions: a button with `aria-expanded` whose first span is
@@ -434,8 +480,10 @@
   async function showSection({ heading, text }) {
     if (!heading && text) {
       // Words with no heading: a model, a spec row, a card, wherever it is.
-      const el = smallestContaining(main(), text);
-      if (!el) throw new Error(`"${text}" is not on ${location.pathname}`);
+      const found = smallestContaining(main(), text);
+      if (!found) throw new Error(`"${text}" is not on ${location.pathname}`);
+      const head = found.closest("h1, h2, h3, h4");
+      const el = head && found.tagName !== "TR" ? cardOf(head) : found;
       await scrollToCentre(el);
       highlight(el);
       return;
@@ -453,10 +501,23 @@
       highlight(el);
       return;
     }
-    await scrollToTop(h);
+    const card = cardOf(h);
+    if (card !== h) {
+      // A card: in the middle of the screen, ringed whole.
+      await scrollToCentre(card);
+      highlight(card);
+      return;
+    }
     const r = section.getBoundingClientRect();
-    // A section taller than the screen is ringed by its heading alone.
-    highlight(r.height > window.innerHeight * 1.5 ? h : section);
+    if (r.height <= (window.innerHeight - headerHeight()) * 0.9) {
+      await scrollToCentre(section);
+      highlight(section);
+      return;
+    }
+    // A section taller than the screen: its heading near the top, with what
+    // follows it in view, ringed by its heading.
+    await scrollToTop(h);
+    highlight(h);
   }
 
   // ─── open_faq ─────────────────────────────────────────────────────────
@@ -570,6 +631,42 @@
     el.dispatchEvent(new Event("change", { bubbles: true }));
   }
 
+  // ─── Filling a form where the visitor can see it ──────────────────────
+  // Each field is brought into view, ringed, and typed at a pace a person can
+  // follow; a button she presses is ringed a moment before. On the owner's
+  // dev call the calculator filled and ran in one frame, and the first thing
+  // on screen was the estimate.
+  const TYPE_MS = 40;
+  const TYPE_STEPS = 16;
+  const FIELD_HOLD_MS = 450;
+  const PRESS_HOLD_MS = 700;
+
+  async function fillVisibly(el, value) {
+    const was = el.tagName === "SELECT" ? el.value : clean(el.value);
+    if (was === value) return;
+    if (!inView(el)) await scrollToCentre(el);
+    highlight(el);
+    if (el.tagName === "SELECT") {
+      await sleep(250);
+      setNative(el, value);
+    } else {
+      const step = Math.max(1, Math.ceil(value.length / TYPE_STEPS));
+      for (let i = step; i < value.length; i += step) {
+        setNative(el, value.slice(0, i));
+        await sleep(TYPE_MS);
+      }
+      setNative(el, value);
+    }
+    await sleep(FIELD_HOLD_MS);
+  }
+
+  async function pressVisibly(button) {
+    if (!inView(button)) await scrollToCentre(button);
+    highlight(button);
+    await sleep(PRESS_HOLD_MS);
+    button.click();
+  }
+
   /** The option of a select that best matches what the brain said: exact,
    *  then prefix, then the one sharing the most words. */
   function pickOption(select, said) {
@@ -621,6 +718,7 @@
     if (!form) throw new Error(`the ${TABS[kind]} form did not open`);
 
     const skipped = [];
+    if (!inView(form)) await scrollToTop(form);
     for (const [key, value] of Object.entries(prefill || {})) {
       if (value === null || value === undefined || value === "") continue;
       const el = FIELDS[key] && fieldIn(form, key);
@@ -634,18 +732,19 @@
           skipped.push(key);
           continue;
         }
-        setNative(el, opt.value);
+        await fillVisibly(el, opt.value);
       } else {
-        setNative(el, String(value));
+        await fillVisibly(el, String(value));
       }
-      await sleep(30);
     }
     if (skipped.length) console.info("voqalize: the", kind, "form has no place for", skipped);
 
-    await scrollToTop(form);
     const missing = missingIn(form);
+    if (missing[0] && !inView(missing[0])) await scrollToCentre(missing[0]);
     const submit = submitButton(form);
-    highlight(...missing, ...(submit ? [submit] : []));
+    const consent = form.querySelector("input[type=checkbox]");
+    const tick = consent && !consent.checked ? [consent.closest("label") || consent.parentElement || consent] : [];
+    highlight(...missing, ...tick, ...(submit ? [submit] : []));
     emit("enquiry_opened", { kind, missing: missing.map((el) => fieldName(form, el)) });
   }
 
@@ -695,11 +794,11 @@
       const el = bookingField(key);
       if (!el) continue;
       const text = key === "mobile" ? String(value).replace(/\D/g, "").slice(-10) : key === "pincode" ? String(value).replace(/\D/g, "").slice(0, 6) : String(value);
-      setNative(el, text);
-      await sleep(30);
+      await fillVisibly(el, el.tagName === "SELECT" ? (pickOption(el, text) || { value: text }).value : text);
     }
     const missing = BOOK_FIELDS.filter((k) => bookingField(k) && !clean(bookingField(k).value));
-    await scrollToTop(bookingField("name"));
+    const first = missing.length ? bookingField(missing[0]) : bookingField("consent");
+    if (first && !inView(first)) await scrollToCentre(first);
     highlight(...missing.map(bookingField), ...[bookingField("consent"), confirmBooking()].filter(Boolean));
     emit("booking_opened", { product, installation: kind, missing });
   }
@@ -858,20 +957,20 @@
     if (!opt) throw new Error(`the calculator has no state "${state}"`);
     const before = calcResult();
     const beforeText = before ? resultText(before) : "";
-    setNative(unitsEl, String(units));
-    setNative(stateEl, opt.value);
-    setNative(rateEl, String(rate));
-    await sleep(150);
+    await fillVisibly(unitsEl, String(units));
+    await fillVisibly(stateEl, opt.value);
+    await fillVisibly(rateEl, String(rate));
     const go = calcButton();
     if (!go) throw new Error("no calculate button on the page");
-    go.click();
+    await pressVisibly(go);
     const result = await waitFor(() => {
       const el = calcResult();
       return el && resultText(el) !== beforeText ? el : null;
     });
     if (!result) throw new Error("the calculator showed no result");
     await sleep(300);
-    await scrollToTop(result);
+    if (result.getBoundingClientRect().height <= window.innerHeight - headerHeight()) await scrollToCentre(result);
+    else await scrollToTop(result);
     highlight(result);
     emit("calculator_result", {
       inputs: { units: Number(units), state: clean(opt.text), rate: Number(rate) },

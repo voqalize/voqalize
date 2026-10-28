@@ -1,0 +1,386 @@
+{
+  "note": "Approximate typical residential (domestic) electricity rates by state/UT, in rupees per unit (kWh), for a household using roughly 300-500 units a month. 'rate' blends the slabs that household passes through and is rounded to one decimal; 'range' is the low and high slab rate it touches. Unless 'includes' says otherwise, the figure is the energy charge only: fixed charges, electricity duty, and monthly fuel/power-purchase surcharges are excluded. Where a large per-unit add-on is part of almost every bill (Gujarat FPPPA, Delhi PPAC and surcharges, Maharashtra wheeling), it is folded in and 'includes' says so. Figures come from FY2025-26 tariff orders, or FY2026-27 where a newer order was found, taken mainly from news reports on the orders and from tariff aggregators. Rates differ by DISCOM, load, urban/rural category and subsidy eligibility, and state free-unit schemes can lower an actual bill a lot. Use these numbers only as a rough estimate when the visitor does not know their own rate. Gathered 2026-10-28.",
+  "states": {
+    "Andaman & Nicobar": {
+      "rate": 5.5,
+      "range": [2.8, 7.0],
+      "discom": "Electricity Department, A&N Administration",
+      "includes": "Energy charge only; fixed charge and duty excluded.",
+      "cities": [],
+      "source": "https://thewaveandaman.com/jerc-revised-electricity-tariff-andaman-nicobar/",
+      "as_of": "JERC MYT order FY2025-26 to FY2029-30 (effective 1 Nov 2025); slabs from an aggregator, not confirmed against the order",
+      "confidence": "low"
+    },
+    "Andhra Pradesh": {
+      "rate": 6.7,
+      "range": [1.9, 9.8],
+      "discom": "APSPDCL / APCPDCL / APEPDCL",
+      "includes": "Energy charge only on the single telescopic domestic schedule (0-30 1.90, 31-75 3.00, 76-125 4.50, 126-225 6.00, 226-400 8.75, >400 9.75); true-up/FPPCA (about 0.4/unit), fixed charge and duty excluded.",
+      "cities": [],
+      "source": "https://deccanchronicle.com/southern-states/andhra-pradesh/aperc-unveils-retail-supply-tariff-order-for-2025-26-no-tariff-hike-1862489",
+      "as_of": "APERC RST order FY2025-26 (no hike; kept for FY2026-27); slab values from the earlier unchanged schedule",
+      "confidence": "medium"
+    },
+    "Arunachal Pradesh": {
+      "rate": 4.0,
+      "range": [4.0, 4.0],
+      "discom": "Department of Power, Arunachal Pradesh",
+      "includes": "Energy charge only; roughly a flat domestic rate.",
+      "cities": [],
+      "source": "https://calcwise.finance/?p=4550",
+      "as_of": "FY2025-26 (aggregator figure)",
+      "confidence": "low"
+    },
+    "Assam": {
+      "rate": 7.1,
+      "range": [6.0, 7.9],
+      "discom": "APDCL",
+      "includes": "Energy charge only for Domestic-B (1-120 5.99, 121-240 6.99, >240 7.94), after AERC's Re 1/unit cut from 1 Apr 2025; fixed charge, duty and FPPPA excluded.",
+      "cities": [],
+      "source": "https://assamtribune.com/assam/power-tariff-to-drop-from-april-1-domestic-users-to-pay-re-1-less-per-unit-1572319",
+      "as_of": "AERC order FY2025-26 (unchanged for FY2026-27); slab values from an aggregator",
+      "confidence": "medium"
+    },
+    "Bihar": {
+      "rate": 4.1,
+      "range": [4.1, 7.4],
+      "discom": "SBPDCL / NBPDCL",
+      "includes": "Effective urban domestic rate after state subsidy (base tariff 7.42/unit minus about 3.30 subsidy). Range shows subsidised vs unsubsidised. Since Aug 2025 the first 125 units a month are free, so a bill is lower than this rate suggests. Fixed charge and duty excluded.",
+      "cities": [],
+      "source": "https://patnapress.com/bihar-electricity-bill-relief-urban-consumers-may-pay-less-under-new-tariff/",
+      "as_of": "BERC FY2025-26 / FY2026-27 (merged single slab at 7.42 base)",
+      "confidence": "medium"
+    },
+    "Chandigarh": {
+      "rate": 4.6,
+      "range": [2.8, 5.9],
+      "discom": "Chandigarh Power Distribution Ltd (CPDL, private licensee since 2025)",
+      "includes": "Energy charge only; fixed charge and duty excluded. Only the 1-100 slab (2.80) is confirmed; the higher slabs are estimated.",
+      "cities": [],
+      "source": "https://www.tribuneindia.com/news/chandigarh/commission-okays-nearly-1-hike-in-power-tariff-new-rates-from-nov-1",
+      "as_of": "JERC order FY2025-26 (new rates from 1 Nov 2025)",
+      "confidence": "low"
+    },
+    "Chhattisgarh": {
+      "rate": 5.4,
+      "range": [4.4, 6.5],
+      "discom": "CSPDCL",
+      "includes": "Energy charge only (FY2026-27 0-100 4.40, 101-200 about 4.50, 201-400 about 6.0); VCA surcharge, fixed charge and duty excluded. A household above 200 units does not get the half-bill subsidy.",
+      "cities": [],
+      "source": "https://cspdcl.co.in/CSEB/Files/tariff_schedule_fy2627.pdf",
+      "as_of": "CSERC FY2026-27 schedule (FY2025-26 0-100 4.10, 101-200 4.20); higher slabs estimated",
+      "confidence": "medium"
+    },
+    "Dadra & Nagar Haveli and Daman & Diu": {
+      "rate": 3.8,
+      "range": [1.6, 5.9],
+      "discom": "DNH & DD Power Distribution Corporation (Torrent Power)",
+      "includes": "Energy charge only; fixed charge (about 15/kW) and 8% duty excluded.",
+      "cities": [],
+      "source": "https://electricbilltool-com.pages.dev/dadra-nagar-haveli-daman-diu-electricity-bill-calculator",
+      "as_of": "JERC order FY2025-26 (aggregator figures)",
+      "confidence": "low"
+    },
+    "Delhi (NCT)": {
+      "rate": 5.2,
+      "range": [3.0, 6.5],
+      "discom": "BSES Rajdhani / BSES Yamuna / Tata Power-DDL (same DERC schedule)",
+      "includes": "Energy charge (0-200 3.00, 201-400 4.50, 401-800 6.50) plus about 30% for PPAC (about 15-18%), the 8% regulatory surcharge and the pension surcharge. Fixed charge excluded. Range is base energy charge. The state subsidy only covers households up to 400 units.",
+      "cities": [
+        {"city": "Delhi (BSES Rajdhani area)", "discom": "BRPL", "rate": 5.3},
+        {"city": "Delhi (BSES Yamuna area)", "discom": "BYPL", "rate": 5.2},
+        {"city": "North/North-West Delhi", "discom": "Tata Power-DDL", "rate": 5.2}
+      ],
+      "source": "https://housing.com/news/electricity-rates-in-delhi/",
+      "as_of": "DERC tariff schedule in force FY2025-26 (no new order); PPAC levels mid-2026",
+      "confidence": "medium"
+    },
+    "Goa": {
+      "rate": 3.6,
+      "range": [2.0, 5.4],
+      "discom": "Goa Electricity Department",
+      "includes": "Energy charge only (1-100 1.96, 101-200 2.91, 201-300 3.89, 301-400 about 4.9, >400 5.40); fixed charge, FPPCA and duty excluded.",
+      "cities": [],
+      "source": "https://www.heraldgoa.in/?p=450405",
+      "as_of": "JERC MYT order FY2025-26 (effective 1 Nov 2025); slab values from an aggregator",
+      "confidence": "medium"
+    },
+    "Gujarat": {
+      "rate": 7.2,
+      "range": [5.9, 8.1],
+      "discom": "GUVNL discoms (UGVCL / MGVCL / PGVCL / DGVCL)",
+      "includes": "Energy charge (RGP 0-50 3.05, 51-100 3.50, 101-250 4.15, >250 5.20) plus FPPPA of about 2.85/unit, which is on every bill. Fixed charge and duty excluded.",
+      "cities": [
+        {"city": "Ahmedabad / Gandhinagar", "discom": "Torrent Power", "rate": 7.5},
+        {"city": "Surat", "discom": "Torrent Power", "rate": 7.3}
+      ],
+      "source": "https://gercin.org/wp-content/uploads/2025/04/English-Press-Note-2025.pdf",
+      "as_of": "GERC order FY2025-26 (no change to RGP energy charges); FPPPA level approximate",
+      "confidence": "medium"
+    },
+    "Haryana": {
+      "rate": 5.0,
+      "range": [3.0, 6.5],
+      "discom": "UHBVN / DHBVN",
+      "includes": "Energy charge only for Category II (0-150 2.95, 151-300 about 5.25, 301-500 about 6.45). Fixed charge, FSA and duty excluded. Above 500 units a household moves to a non-telescopic category at 6.50-7.50.",
+      "cities": [],
+      "source": "https://www.tribuneindia.com/news/haryana/power-shock-consumers-to-pay-30-paise-more-per-unit",
+      "as_of": "HERC order FY2025-26 (effective 1 Apr 2025)",
+      "confidence": "medium"
+    },
+    "Himachal Pradesh": {
+      "rate": 5.8,
+      "range": [5.5, 5.9],
+      "discom": "HPSEBL",
+      "includes": "Energy charge only (0-125 5.45, above 125 5.90, unsubsidised). Fixed charge, cesses and a fuel surcharge of about 0.34 from 2026 excluded. Households above 300 units lose the state subsidy.",
+      "cities": [],
+      "source": "https://www.tribuneindia.com/news/himachal/energy-charges-cut-for-most-consumer-categories",
+      "as_of": "HPERC order FY2025-26 (FY2026-27 cut by 1 paisa)",
+      "confidence": "medium"
+    },
+    "Jammu & Kashmir": {
+      "rate": 3.5,
+      "range": [2.5, 4.6],
+      "discom": "JPDCL (Jammu) / KPDCL (Kashmir)",
+      "includes": "Subsidised metered domestic rate actually billed (up to 200 2.45, 201-400 4.20, above 400 4.60 after the 6.83% hike; earlier 2.30/4.00/4.35). Fixed charge and duty excluded.",
+      "cities": [],
+      "source": "https://kashmirdespatch.com/jk-electricity-bills-to-rise-from-september-1-as-jerc-approves-6-83-tariff-hike/",
+      "as_of": "JERC (J&K and Ladakh) order FY2025-26",
+      "confidence": "medium"
+    },
+    "Jharkhand": {
+      "rate": 7.4,
+      "range": [6.9, 7.4],
+      "discom": "JBVNL",
+      "includes": "Energy charge only, at a flat urban domestic rate (6.85 in FY2025-26, 7.40 in FY2026-27). Fixed charge excluded. The state free-power scheme only covers households up to 200 units.",
+      "cities": [],
+      "source": "https://thejharkhandstory.co.in/jharkhand-power-tariff-hiked-by-6-12-domestic-users-to-pay-55-paise-more/",
+      "as_of": "JSERC order FY2026-27",
+      "confidence": "medium"
+    },
+    "Karnataka": {
+      "rate": 6.5,
+      "range": [5.8, 6.7],
+      "discom": "BESCOM (also MESCOM, HESCOM, GESCOM, CESC Mysuru; same schedule)",
+      "includes": "Flat domestic energy charge of about 5.80, plus the pension surcharge of about 0.36 and the true-up of about 0.56 from May 2026. Fixed charge (about 145/kW) and 9% tax excluded. Gruha Jyothi free power only covers households up to about 200 units.",
+      "cities": [
+        {"city": "Bengaluru", "discom": "BESCOM", "rate": 6.5}
+      ],
+      "source": "https://www.deccanherald.com/amp/story/india%2Fkarnataka%2Fhike-in-fixed-charge-to-raise-power-bill-in-karnataka-3466600",
+      "as_of": "KERC MYT order FY2025-26 to FY2027-28 (plus 2026 true-up)",
+      "confidence": "medium"
+    },
+    "Kerala": {
+      "rate": 7.5,
+      "range": [6.7, 9.3],
+      "discom": "KSEB",
+      "includes": "Energy charge only. Above 250 units a month all units are billed at one non-telescopic slab rate (0-300 about 6.7, 0-400 about 7.7, 0-500 about 7.9, above 500 about 9.3). Billing is bimonthly. Fixed charge, fuel surcharge and duty excluded.",
+      "cities": [],
+      "source": "https://www.onmanorama.com/news/kerala/2024/12/06/electricity-tariff-hike-in-kerala-impact-on-consumers.html",
+      "as_of": "KSERC order Dec 2024 covering FY2025-26 (+12 paise); upper slabs estimated",
+      "confidence": "medium"
+    },
+    "Ladakh": {
+      "rate": 3.5,
+      "range": [3.0, 4.2],
+      "discom": "Ladakh Power Development Department",
+      "includes": "Energy charge only (201-400 3.80, above 400 4.20; the 0-200 slab is estimated). Fixed charge excluded.",
+      "cities": [],
+      "source": "https://jpdcl.jk.gov.in/downloads/tariff/JPDCL_Tariff_Order_2025_26.pdf",
+      "as_of": "Existing rates shown in the JERC petition for FY2025-26 (petition, not the final order)",
+      "confidence": "low"
+    },
+    "Lakshadweep": {
+      "rate": 4.8,
+      "range": [2.5, 7.0],
+      "discom": "Lakshadweep Electricity Department",
+      "includes": "Energy charge only; fixed charge excluded. Estimated from the JERC structure for small UTs.",
+      "cities": [],
+      "source": "https://desiutility.com/electricity/tariff-report",
+      "as_of": "JERC FY2025-26 (estimate)",
+      "confidence": "low"
+    },
+    "Madhya Pradesh": {
+      "rate": 6.6,
+      "range": [4.7, 7.3],
+      "discom": "MPPKVVCL (Central / East / West discoms)",
+      "includes": "Energy charge only (about 0-50 4.65, 51-150 5.65, 151-300 7.10, above 300 7.30, after the 4.8% FY2026-27 hike). Fixed charge, FCA and duty excluded.",
+      "cities": [],
+      "source": "https://solarquarter.com/2026/03/27/mperc-approves-4-8-tariff-hike-for-fy-2026-27-balancing-discom-finances-and-consumer-relief/",
+      "as_of": "MPERC FY2026-27 (estimated by scaling FY2025-26 slabs)",
+      "confidence": "low"
+    },
+    "Maharashtra": {
+      "rate": 8.8,
+      "range": [5.5, 11.7],
+      "discom": "MSEDCL (Mahavitaran)",
+      "includes": "Energy charge (0-100 4.08, 101-300 7.39, above 300 10.26) plus the wheeling charge of about 1.45/unit. Fixed charge, FAC and duty excluded. A March 2026 fresh MERC order announced further relief that may lower this by about 5-10%.",
+      "cities": [
+        {"city": "Mumbai suburbs", "discom": "Adani Electricity Mumbai", "rate": 8.5},
+        {"city": "Mumbai (Tata Power-D areas)", "discom": "Tata Power Mumbai", "rate": 7.0},
+        {"city": "Mumbai island city", "discom": "BEST", "rate": 8.0}
+      ],
+      "source": "https://www.freepressjournal.in/mumbai/msedcl-revises-maharashtra-power-tariff-from-july-1-unit-rates-slashed-for-some-fixed-charges-up",
+      "as_of": "MERC revised order FY2025-26 (from 1 Jul 2025); Mumbai licensee rates are estimates",
+      "confidence": "medium"
+    },
+    "Manipur": {
+      "rate": 6.0,
+      "range": [5.0, 7.0],
+      "discom": "MSPDCL",
+      "includes": "Energy charge only; estimate.",
+      "cities": [],
+      "source": "https://desiutility.com/electricity/tariff-report",
+      "as_of": "FY2025-26 (estimate)",
+      "confidence": "low"
+    },
+    "Meghalaya": {
+      "rate": 6.5,
+      "range": [5.0, 7.5],
+      "discom": "MePDCL",
+      "includes": "Energy charge only; estimate.",
+      "cities": [],
+      "source": "https://desiutility.com/electricity/tariff-report",
+      "as_of": "FY2025-26 (estimate)",
+      "confidence": "low"
+    },
+    "Mizoram": {
+      "rate": 6.0,
+      "range": [3.5, 7.6],
+      "discom": "Power & Electricity Department, Mizoram",
+      "includes": "Energy charge only; estimate.",
+      "cities": [],
+      "source": "https://desiutility.com/electricity/tariff-report",
+      "as_of": "FY2025-26 (estimate)",
+      "confidence": "low"
+    },
+    "Nagaland": {
+      "rate": 6.5,
+      "range": [4.5, 7.5],
+      "discom": "Department of Power, Nagaland",
+      "includes": "Energy charge only; estimate.",
+      "cities": [],
+      "source": "https://desiutility.com/electricity/tariff-report",
+      "as_of": "FY2025-26 (estimate)",
+      "confidence": "low"
+    },
+    "Odisha": {
+      "rate": 5.1,
+      "range": [2.9, 6.1],
+      "discom": "TP Central / Western / Northern / Southern Odisha Distribution (Tata Power)",
+      "includes": "Energy charge only (0-50 2.90, 51-200 4.70, 201-400 5.70, above 400 6.10). Fixed charge, duty and the digital-payment rebate excluded.",
+      "cities": [],
+      "source": "https://www.deccanchronicle.com/nation/no-power-tariff-hike-in-odisha-for-2025-26-rebate-continues-for-e-bill-payments-1868821",
+      "as_of": "OERC order FY2025-26 (unchanged for FY2026-27)",
+      "confidence": "high"
+    },
+    "Puducherry": {
+      "rate": 5.0,
+      "range": [2.7, 7.5],
+      "discom": "Electricity Department, Puducherry",
+      "includes": "Energy charge actually billed, after the state subsidy on the 101-200 slab (about 2.7 / 3.6 / 6.0 / 7.5). Fixed charge, FPPCA and duty excluded.",
+      "cities": [],
+      "source": "https://www.electrical4u.net/calculator/pondicherry-electricity-bill-calculator-tariff-rate-2020/",
+      "as_of": "JERC FY2025-26 (aggregator figures)",
+      "confidence": "low"
+    },
+    "Punjab": {
+      "rate": 6.0,
+      "range": [5.4, 7.8],
+      "discom": "PSPCL",
+      "includes": "Energy charge only on the two-slab schedule (0-300 about 5.40, above 300 about 7.75 per kVAh). The 300 free units a month apply only while consumption stays within the limit, so a household above it is billed for all units at these rates. Fixed charge and duty excluded.",
+      "cities": [],
+      "source": "https://ptcnews.tv/amp/punjab-2/punjab-electricity-tariff-2025-26-no-hike-lower-bills-for-many-consumers-4407331",
+      "as_of": "PSERC order FY2025-26",
+      "confidence": "low"
+    },
+    "Rajasthan": {
+      "rate": 7.5,
+      "range": [4.8, 8.0],
+      "discom": "JVVNL / AVVNL / JdVVNL",
+      "includes": "Energy charge (0-50 4.75, 51-150 6.00, 151-300 about 7.00, 301-500 about 7.30) plus the 1/unit regulatory surcharge introduced in FY2025-26. Fixed charge, fuel surcharge and duty excluded.",
+      "cities": [],
+      "source": "https://theindiamoves.com/story/good-news-for-consumers-and-industries-in-rajasthan-rates-reduced-for-up-to-500-units",
+      "as_of": "RERC orders FY2025-26 (unchanged for FY2026-27)",
+      "confidence": "medium"
+    },
+    "Sikkim": {
+      "rate": 3.5,
+      "range": [1.5, 5.0],
+      "discom": "Energy & Power Department, Sikkim",
+      "includes": "Energy charge only; estimate. Sikkim has some of India's lowest domestic tariffs.",
+      "cities": [],
+      "source": "https://desiutility.com/electricity/tariff-report",
+      "as_of": "FY2025-26 (estimate)",
+      "confidence": "low"
+    },
+    "Tamil Nadu": {
+      "rate": 6.0,
+      "range": [4.8, 10.7],
+      "discom": "TNPDCL (formerly TANGEDCO)",
+      "includes": "Energy charge only, net of the first 100 units free, on bimonthly slabs (101-400 4.80, 401-500 6.45, 501-600 8.55, 601-800 9.65, 801-1000 10.70) for 600-1000 units per two months. The government absorbed the July 2025 hike for domestic consumers. Fixed charge excluded.",
+      "cities": [
+        {"city": "Chennai", "discom": "TNPDCL", "rate": 6.0}
+      ],
+      "source": "https://www.thehansindia.com/news/national/tamil-nadu-electricity-rates-surge-new-tariffs-effective-july-1-892273",
+      "as_of": "TNERC FY2025-26 (July 2025 revision)",
+      "confidence": "medium"
+    },
+    "Telangana": {
+      "rate": 7.0,
+      "range": [5.1, 9.5],
+      "discom": "TGSPDCL / TGNPDCL",
+      "includes": "Energy charge only for households above 200 units (0-200 5.10, 201-300 7.70, 301-400 9.00, 401-800 9.50). Fixed charge and duty excluded. Gruha Jyothi free power only covers households up to 200 units.",
+      "cities": [
+        {"city": "Hyderabad", "discom": "TGSPDCL", "rate": 7.0}
+      ],
+      "source": "https://www.siasat.com/?p=3214412",
+      "as_of": "TGERC FY2025-26 (no hike; existing schedule)",
+      "confidence": "medium"
+    },
+    "Tripura": {
+      "rate": 6.8,
+      "range": [4.5, 8.0],
+      "discom": "TSECL",
+      "includes": "Energy charge only; estimate anchored on the FY2025-26 average cost of supply (7.61).",
+      "cities": [],
+      "source": "https://newsarenaindia.com/states/tripura-rolls-out-new-electricity-tariff-pushes-smart-metering/62700",
+      "as_of": "TERC FY2025-26 (estimate)",
+      "confidence": "low"
+    },
+    "Uttar Pradesh": {
+      "rate": 6.0,
+      "range": [5.5, 7.0],
+      "discom": "UPPCL discoms (PVVNL, MVVNL, DVVNL, PuVVNL, KESCo)",
+      "includes": "Energy charge only for urban domestic (0-150 5.50, 151-300 6.00, 301-500 6.50, above 500 7.00). Fixed charge and 5% duty excluded.",
+      "cities": [
+        {"city": "Greater Noida", "discom": "Noida Power Company Ltd (NPCL)", "rate": 5.4}
+      ],
+      "source": "https://www.business-standard.com/india-news/up-electricity-commission-keeps-tariffs-unchanged-for-6th-consecutive-year-125112300001_1.html",
+      "as_of": "UPERC order FY2025-26 (unchanged for 6th year; NPCL keeps 10% regulatory rebate)",
+      "confidence": "medium"
+    },
+    "Uttarakhand": {
+      "rate": 6.0,
+      "range": [3.7, 7.8],
+      "discom": "UPCL",
+      "includes": "Energy charge only (0-100 3.65, 101-200 5.25, 201-400 7.15, above 400 7.80). Fixed charge, FPPCA and duty excluded.",
+      "cities": [],
+      "source": "https://www.shriramfinance.in/bbps/articles/how-to-calculate-your-upcl-bill-in-uttarakhand-a-step-by-step-guide",
+      "as_of": "UERC MYT order 11 Apr 2025 (FY2025-26)",
+      "confidence": "medium"
+    },
+    "West Bengal": {
+      "rate": 7.3,
+      "range": [5.3, 8.0],
+      "discom": "WBSEDCL",
+      "includes": "Energy charge only, on quarterly slabs (1-102 5.26, 103-180 6.23, 181-300 6.95, 301-600 7.30, higher up to about 8.0) for 900-1500 units a quarter. Fixed charge and duty excluded.",
+      "cities": [
+        {"city": "Kolkata / Howrah", "discom": "CESC", "rate": 7.8}
+      ],
+      "source": "https://www.businesstoday.in/india/story/would-kolkata-get-respite-from-high-electricity-prices-this-summer-531546-2026-05-14",
+      "as_of": "WBERC MYT FY2023-24 to FY2025-26 (aggregator slab values)",
+      "confidence": "low"
+    }
+  }
+}

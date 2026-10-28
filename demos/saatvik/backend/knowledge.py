@@ -183,6 +183,85 @@ class QuoteMatch:
 
 
 @dataclass(frozen=True)
+class CityRate:
+    city: str
+    discom: str
+    rate: float
+
+
+@dataclass(frozen=True)
+class Tariff:
+    """A state's typical residential rate (₹ a unit) for a household using a
+    few hundred units a month: an approximation for an estimate, never a bill."""
+
+    state: str
+    rate: float
+    low: float
+    high: float
+    discom: str = ""
+    cities: tuple[CityRate, ...] = ()
+
+    def for_city(self, city: str | None) -> tuple[float, str]:
+        """The rate for ``city`` when a different utility serves it, with the
+        utility's name; else the state's."""
+        want = norm(city or "")
+        for c in self.cities:
+            if want and (want in norm(c.city) or norm(c.city) in want):
+                return c.rate, c.discom
+        return self.rate, self.discom
+
+
+@dataclass(frozen=True)
+class Step:
+    """A stop on a product's story: a heading on its page and what to say there."""
+
+    heading: str
+    say: str = ""
+
+
+@dataclass(frozen=True)
+class Variant:
+    name: str
+    key: str = ""
+    show: str = ""
+    """A heading or words on the page that show this variant, for a cue."""
+
+
+@dataclass(frozen=True)
+class Datasheet:
+    document_id: str
+    title: str = ""
+    pages: str = ""
+    """What is on which page, in a line."""
+
+
+@dataclass(frozen=True)
+class ProductLine:
+    """One product line as a salesperson walks it: its page, its story in the
+    page's order, its variants and documents, what it asks a lead, and where
+    the conversation ends — the product's own call to action."""
+
+    id: str
+    name: str
+    path: str
+    family: str = ""
+    pitch: str = ""
+    audience: tuple[str, ...] = ()
+    story: tuple[Step, ...] = ()
+    variants: tuple[Variant, ...] = ()
+    tabs: tuple[str, ...] = ()
+    faqs: tuple[str, ...] = ()
+    datasheets: tuple[Datasheet, ...] = ()
+    specs: tuple[tuple[str, str], ...] = ()
+    cta: str = ""
+    """The primary call to action, as the tool and arguments that make it."""
+    cta_more: tuple[str, ...] = ()
+    qualify: tuple[str, ...] = ()
+    next: tuple[str, ...] = ()
+    calculator: bool = False
+
+
+@dataclass(frozen=True)
 class Hit:
     """One search result: a page, an FAQ on a page, or one page of a PDF."""
 
@@ -210,6 +289,8 @@ class Knowledge:
     topics: dict[str, Topic]
     pages: dict[str, Page]
     documents: dict[str, Document]
+    tariffs: dict[str, Tariff] = field(default_factory=dict[str, Tariff])
+    products: tuple[ProductLine, ...] = ()
     _passages: list[_Passage] = field(default_factory=list[_Passage], repr=False)
     _df: Counter[str] = field(default_factory=Counter[str], repr=False)
     _avg: float = 1.0
@@ -239,6 +320,21 @@ class Knowledge:
         self._passages.append(_Passage(hit, " ".join(text.split()), tf, len(toks)))
 
     # ── Lookups ──
+
+    def tariff(self, state: str | None) -> Tariff | None:
+        """The typical rate table's row for ``state``, by its label or its name."""
+        want = norm(state or "")
+        if not want:
+            return None
+        for label, t in self.tariffs.items():
+            if norm(label) == want or norm(label).startswith(want) or want.startswith(norm(label)):
+                return t
+        return None
+
+    def product(self, id_or_path: str) -> ProductLine | None:
+        want = norm(id_or_path)
+        path = canonical_path(id_or_path) if id_or_path.startswith(("/", "http")) else None
+        return next((p for p in self.products if p.id == want or p.path == path), None)
 
     def page(self, path_or_url: str) -> Page | None:
         """The page at this path or URL, if the site has one; a redirect's target
@@ -478,12 +574,110 @@ def _words(raw: Any) -> tuple[Word, ...]:
     return tuple(out)
 
 
+def _dict(value: Any) -> dict[str, Any]:
+    return cast(dict[str, Any], value) if isinstance(value, dict) else {}
+
+
+def _list(value: Any) -> list[Any]:
+    return cast(list[Any], value) if isinstance(value, list) else []
+
+
+def _num(value: Any) -> float | None:
+    return float(value) if isinstance(value, int | float) and not isinstance(value, bool) else None
+
+
+def _read_obj(path: Path) -> dict[str, Any]:
+    try:
+        return _dict(json.loads(path.read_text(encoding="utf-8")))
+    except (OSError, ValueError) as e:
+        logger.warning("saatvik: {} not loaded: {}", path.name, e)
+        return {}
+
+
+def _tariffs(raw: dict[str, Any]) -> dict[str, Tariff]:
+    out: dict[str, Tariff] = {}
+    for label, row in _dict(raw.get("states")).items():
+        r = _dict(row)
+        if (rate := _num(r.get("rate"))) is None:
+            continue
+        span = [x for v in _list(r.get("range")) if (x := _num(v)) is not None]
+        cities = tuple(
+            CityRate(str(c.get("city") or ""), str(c.get("discom") or ""), cr)
+            for c in map(_dict, _list(r.get("cities")))
+            if (cr := _num(c.get("rate"))) is not None and c.get("city")
+        )
+        out[label] = Tariff(
+            state=label,
+            rate=rate,
+            low=min(span) if span else rate,
+            high=max(span) if span else rate,
+            discom=str(r.get("discom") or ""),
+            cities=cities,
+        )
+    return out
+
+
+def _cta(raw: Any) -> str:
+    c = _dict(raw)
+    if not c:
+        return ""
+    args = ", ".join(f"{k}={v}" for k, v in _dict(c.get("args")).items() if v not in (None, ""))
+    label = str(c.get("label") or "").strip()
+    tool = str(c.get("tool") or "").strip()
+    call = f"{tool}({args})" if tool else ""
+    return f"{label} → {call}" if label and call else label or call
+
+
+def _product(raw: dict[str, Any]) -> ProductLine | None:
+    pid, name, path = raw.get("id"), raw.get("name"), raw.get("path")
+    if not isinstance(pid, str) or not isinstance(name, str) or not isinstance(path, str):
+        return None
+    cta = _dict(raw.get("cta"))
+    return ProductLine(
+        id=pid,
+        name=name,
+        path=canonical_path(path),
+        family=str(raw.get("family") or ""),
+        pitch=str(raw.get("pitch") or ""),
+        audience=_strs(raw.get("for")),
+        story=tuple(
+            Step(str(s.get("heading")), str(s.get("say") or ""))
+            for s in map(_dict, _list(raw.get("story")))
+            if s.get("heading")
+        ),
+        variants=tuple(
+            Variant(
+                str(v.get("name")), str(v.get("key") or ""), str(v.get("heading_or_text") or "")
+            )
+            for v in map(_dict, _list(raw.get("variants")))
+            if v.get("name")
+        ),
+        tabs=_strs(raw.get("tabs")),
+        faqs=_strs(raw.get("faqs")),
+        datasheets=tuple(
+            Datasheet(
+                str(d.get("document_id")),
+                str(d.get("title") or ""),
+                "; ".join(f"p{n}: {t}" for n, t in _dict(d.get("pages")).items()),
+            )
+            for d in map(_dict, _list(raw.get("datasheets")))
+            if d.get("document_id")
+        ),
+        specs=tuple((str(k), str(v)) for k, v in _dict(raw.get("specs")).items()),
+        cta=_cta(cta.get("primary")),
+        cta_more=tuple(x for c in _list(cta.get("secondary")) if (x := _cta(c))),
+        qualify=_strs(raw.get("qualify")),
+        next=_strs(raw.get("next")),
+        calculator=bool(raw.get("calculator")),
+    )
+
+
 def load(root: Path = ROOT) -> Knowledge:
     """Every layer under ``root``; whatever is missing is empty."""
     try:
         l1 = (root / "L1.md").read_text(encoding="utf-8").strip() or _L1_FALLBACK
     except OSError:
-        logger.warning("saatvik: L1.md not found; Tushar runs on the fallback")
+        logger.warning("saatvik: L1.md not found; Sunny runs on the fallback")
         l1 = _L1_FALLBACK
     topics: dict[str, Topic] = {}
     for path in sorted((root / "L2").glob("*.md")) if (root / "L2").is_dir() else []:
@@ -492,7 +686,17 @@ def load(root: Path = ROOT) -> Knowledge:
     documents = {
         d.id: d for raw in _read_json(root / "L3" / "documents.json") if (d := _document(raw))
     }
-    return Knowledge(l1, topics, pages, documents)
+    tariffs = _tariffs(_read_obj(root / "tariffs.json")) if (root / "tariffs.json").exists() else {}
+    products = (
+        tuple(
+            p
+            for raw in _list(_read_obj(root / "products.json").get("lines"))
+            if (p := _product(_dict(raw)))
+        )
+        if (root / "products.json").exists()
+        else ()
+    )
+    return Knowledge(l1, topics, pages, documents, tariffs, products)
 
 
 KNOWLEDGE = load()
@@ -508,13 +712,19 @@ __all__ = [
     "KNOWLEDGE",
     "TOPIC_IDS",
     "Box",
+    "CityRate",
+    "Datasheet",
     "Document",
     "Faq",
     "Hit",
     "Knowledge",
     "Page",
+    "ProductLine",
     "QuoteMatch",
+    "Step",
+    "Tariff",
     "Topic",
+    "Variant",
     "Word",
     "canonical_path",
     "load",
