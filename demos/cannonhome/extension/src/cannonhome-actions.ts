@@ -747,12 +747,16 @@ async function searchProducts(p: { query: string; open_index?: number | null } &
 
 type Sort = "price_asc" | "price_desc" | "relevance" | "newest";
 
+/** One option, or several of one filter (the listing then shows any of them);
+ *  a plain string from an older brain is one. */
+type Said = string | string[] | null;
+
 interface FilterListing extends Arrived {
   category_path: string;
-  size?: string | null;
-  color?: string | null;
-  threads?: string | null;
-  material?: string | null;
+  size?: Said;
+  color?: Said;
+  threads?: Said;
+  material?: Said;
   sort?: Sort | null;
   /** Set on the page the combined filter address loaded: the filters are
    *  checked there, and never loaded a second time. */
@@ -773,6 +777,48 @@ const FACET_SAID: Record<string, string> = { tamano: "Tamaño", color: "Color", 
 const squash = (s: string) => norm(s).replace(/(\d),(\d)/g, "$1.$2").replace(/\bhilos?\b/g, "").replace(/[^a-z0-9.]/g, "");
 
 const optionTitle = (o: HTMLAnchorElement) => o.getAttribute("title") || clean(o.querySelector(".qf__option-label")?.textContent);
+
+/** Each option in what was sent: a list's items, or a cue's labels with ", "
+ *  between them ("Blanco, Beige"). No option label has a comma and a space;
+ *  "1,5" has no space. */
+const saidValues = (said: Said | undefined): string[] =>
+  (Array.isArray(said) ? said : said ? [said] : [])
+    .flatMap((s) => String(s).split(/,\s+/))
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+/** The options on now, in every quick filter. */
+function activeOptions(): Option[] {
+  return [...document.querySelectorAll<HTMLAnchorElement>(".qf__group[data-qf-request-var] a.qf__option-link.-active")].map((option) => {
+    const group = option.closest<HTMLElement>(".qf__group")!;
+    return { variable: group.dataset.qfRequestVar!, group, option, label: optionTitle(option) };
+  });
+}
+
+/** Whether `o` is on now: looked up again, as the store may have redrawn the
+ *  bar since it was found. */
+function isOn(o: Option): boolean {
+  return activeOptions().some((a) => a.variable === o.variable && (o.option.dataset.qfValue ? a.option.dataset.qfValue === o.option.dataset.qfValue : squash(a.label) === squash(o.label)));
+}
+
+/** The listing's own path, without the options' path segments Amasty pushes
+ *  (`/20-sabanas/beige-blanco_1`): the base a filter address is built on. */
+function listingBase(): string {
+  const here = location.pathname.replace(/\/+$/, "");
+  const aliases = new Set(
+    // An option that is on links to the address without it: the listing's own,
+    // on a page filtered by it alone. Only the others name options.
+    [...document.querySelectorAll<HTMLAnchorElement>("a.qf__option-link:not(.-active)")].flatMap((a) => {
+      try {
+        return (new URL(a.href, location.href).pathname.split("/").pop() ?? "").split("-");
+      } catch {
+        return [];
+      }
+    }),
+  );
+  const last = here.split("/").pop() ?? "";
+  return last && last.split("-").every((s) => aliases.has(s)) ? here.slice(0, -last.length - 1) || "/" : here || "/";
+}
 
 function findOption(group: HTMLElement, said: string): HTMLAnchorElement | null {
   const options = [...group.querySelectorAll<HTMLAnchorElement>("a.qf__option-link")];
@@ -885,12 +931,30 @@ function optionFor(variable: string, said: string, name = FACET_SAID[variable] ?
  * nothing loads the option's own address (the store serves it filtered), as
  * does a press that loads it by itself: either way the next page carries
  * `then` on, and this is `null`.
+ *
+ * It adds: every option already on stays on. The live store's quick filters
+ * take several options of one filter (on a Beige listing, Blanco links to
+ * `/beige-blanco_1`, and `?color=6826,6889` shows both, 211 sheets where Beige
+ * alone shows 40; checked 2026-10-28). A press that put this one on and took
+ * another off loads the address with all of them, as does a press that
+ * changed nothing while others are on (the option's own link may not carry
+ * them). `base` is the listing's path, for that address.
  */
-async function applyFacet(c: MoveContext, variable: string, said: string, then: Then, name = FACET_SAID[variable] ?? variable): Promise<Applied | null> {
+async function applyFacet(
+  c: MoveContext,
+  variable: string,
+  said: string,
+  then: Then,
+  name = FACET_SAID[variable] ?? variable,
+  base = listingBase(),
+): Promise<Applied | null> {
   const found = optionFor(variable, said, name);
   if ("ok" in found) return found;
   const { group, option, label } = found;
   if (option.classList.contains("-active")) return { ok: true, label };
+  const kept = activeOptions();
+  const args = then.args as { reloaded?: boolean };
+  const all = () => load(c, filteredUrl(base, [...kept, found]), { ...then, args: { ...args, reloaded: true } });
   const pill = group.querySelector<HTMLElement>(".qf__pill");
   await scrollTo(group.closest(".toolbar, .qf-bar") ?? group, "top");
   await awaitFilters();
@@ -906,11 +970,18 @@ async function applyFacet(c: MoveContext, variable: string, said: string, then: 
   let landed = await waitForGrid(before, FILTER_PRESS_MS);
   if (!landed && filtering()) landed = await waitForGrid(before, FILTER_PRESS_MAX_MS - FILTER_PRESS_MS);
   await c.drop();
-  if (landed) return { ok: true, label };
-  // Nothing took the press: the option's own address is the same filter.
-  // Loaded once per move, so a store that ignores it cannot loop it.
-  const args = then.args as { reloaded?: boolean };
+  if (landed) {
+    // The press replaced what was on: the address with every one of them.
+    const lost = kept.filter((k) => !isOn(k));
+    if (!lost.length) return { ok: true, label };
+    if (!args.reloaded) return all();
+    return { ok: false, arg: "value", why: `choosing ${label} took ${lost.map((k) => k.label).join(", ")} off`, options: [] };
+  }
+  // Nothing took the press: the option's own address is the same filter
+  // (with the others on, the address with all of them). Loaded once per
+  // move, so a store that ignores it cannot loop it.
   const href = option.getAttribute("href");
+  if (!args.reloaded && kept.length) return all();
   if (href && !args.reloaded) return load(c, href, { ...then, args: { ...args, reloaded: true } });
   return { ok: false, arg: "value", why: `the grid did not change after choosing ${label}`, options: [] };
 }
@@ -928,7 +999,9 @@ function filteredUrl(path: string, chosen: Option[]): string {
     const had = params.get(o.variable);
     params.set(o.variable, had ? `${had},${value}` : value);
   }
-  const query = params.toString();
+  // Several options of one filter, by a bare comma, as the store's own links
+  // write them (`?color=6826,6889`; it also takes `%2C`).
+  const query = params.toString().replace(/%2C/gi, ",");
   return pathOf(path) + (query ? `?${query}` : "");
 }
 
@@ -988,22 +1061,25 @@ async function onListing(c: MoveContext, path: string | null | undefined, arrive
 async function filterListing(p: FilterListing, c: MoveContext): Promise<string | null | PerformResult> {
   if (typeof p.category_path !== "string" || !p.category_path.trim()) c.refuse("category_path", "say which category, as a path like /12-ropa-de-cama/20-sabanas");
   const path = pathOf(p.category_path.trim());
-  const wanted = (Object.keys(FILTER_VARS) as (keyof typeof FILTER_VARS)[])
-    .filter((k) => p[k])
-    .map((k) => ({ key: k, variable: FILTER_VARS[k], said: String(p[k]) }));
+  // One entry per option: a filter of several options is several entries.
+  const wanted = (Object.keys(FILTER_VARS) as (keyof typeof FILTER_VARS)[]).flatMap((k) =>
+    saidValues(p[k]).map((said) => ({ key: k, variable: FILTER_VARS[k], said })),
+  );
   const again: Then = { move: c.move, args: { ...p, arrived: true } };
-  // Another page, or this listing with filters the wish does not have: load
-  // the category clean, and finish there.
+  // Another page, or this listing with options on that the wish does not
+  // have (compared as sets, per filter): load the category clean, and finish
+  // there.
   const stray = Object.entries(activeFilters()).some(([v, labels]) => {
-    const w = wanted.find((x) => x.variable === v);
-    return !w || labels.split(", ").some((l) => squash(l) !== squash(w.said));
+    const asked = wanted.filter((x) => x.variable === v).map((x) => squash(x.said));
+    return labels.split(", ").some((l) => !asked.includes(squash(l)));
   });
   const here = !p.arrived && isListing() && onCategory(path);
   if ((await onListing(c, path, Boolean(p.arrived), again)) === null) return null;
 
   // Several options to choose (or this listing's own filters to drop): each
   // ringed where it sits, then one load of the address that has them all —
-  // about 3 s, where a press each, a grid each, took 13 to 22.
+  // about 3 s, where a press each, a grid each, took 13 to 22. Two options of
+  // one filter are one variable with both ids (`?color=6826,6889`).
   if (!p.combined) {
     await waitFor(() => document.querySelector(".qf__group"), 3000);
     const chosen = wanted.map((w) => optionFor(w.variable, w.said, w.key)).filter((o): o is Option => !("ok" in o));
@@ -1019,45 +1095,91 @@ async function filterListing(p: FilterListing, c: MoveContext): Promise<string |
   }
   if (here && stray) return load(c, path, again);
 
-  const applied: string[] = [];
+  // What is on, by the argument that asked for it, as the listing writes it.
+  const on: { key: string; option: Option }[] = [];
   // What the listing could not take, by the argument that asked for it.
   const missed: Refusal[] = [];
   for (const w of wanted) {
-    const got = await applyFacet(c, w.variable, w.said, again, w.key);
+    if (p.combined) {
+      // The address that has them all is loaded: checked, never pressed again.
+      const found = optionFor(w.variable, w.said, w.key);
+      if ("ok" in found) missed.push({ arg: w.key, why: found.why, options: found.options });
+      else if (!found.option.classList.contains("-active")) {
+        missed.push({ arg: w.key, why: `${w.key} ${found.label} is not on after loading the listing with it`, options: [] });
+      } else on.push({ key: w.key, option: found });
+      continue;
+    }
+    const got = await applyFacet(c, w.variable, w.said, again, w.key, path);
     if (got === null) return null;
-    if (got.ok) applied.push(`${w.key} ${got.label}`);
-    else missed.push({ arg: w.key, why: got.why, options: got.options });
+    if (!got.ok) {
+      missed.push({ arg: w.key, why: got.why, options: got.options });
+      continue;
+    }
+    const found = optionFor(w.variable, got.label, w.key);
+    if (!("ok" in found)) on.push({ key: w.key, option: found });
   }
+  // Every option asked for is checked on at the end: a later press may have
+  // taken an earlier one off.
+  const applied = new Map<string, string[]>();
+  for (const { key, option } of on) {
+    if (isOn(option)) applied.set(key, [...(applied.get(key) ?? []), option.label]);
+    else missed.push({ arg: key, why: `${key} ${option.label} is not on any more`, options: [] });
+  }
+  const done = [...applied].map(([key, labels]) => `${key} ${labels.join(" + ")}`);
   if (p.sort) {
     const got = await applySort(c, p.sort);
-    if (got.ok) applied.push(got.label);
+    if (got.ok) done.push(got.label);
     else missed.push({ arg: "sort", why: got.why, options: got.options });
   }
   await closePanels();
   const grid = await showGrid(c);
-  if (wanted.length && !applied.length && missed.length) {
+  if (wanted.length && !done.length && missed.length) {
     throw new Error(missed.map((m) => (m.options?.length ? `${m.why} (it offers: ${m.options.join(", ")})` : m.why)).join("; "));
   }
   // Some but not all: a partial outcome, never taken for the whole wish; what
   // it could not take rides in `refused`, with what the listing offers.
-  if (applied.length && missed.length) {
-    return { outcome: "partial", detail: `applied ${applied.join(", ")}; ${grid}`, refused: missed };
+  if (done.length && missed.length) {
+    return { outcome: "partial", detail: `applied ${done.join(", ")}; ${grid}`, refused: missed };
   }
-  return [grid, applied.length ? `applied ${applied.join(", ")}` : ""].filter(Boolean).join("; ");
+  return [grid, done.length ? `applied ${done.join(", ")}` : ""].filter(Boolean).join("; ");
 }
 
-/** The filter cue: one option of one filter, as its words are said. */
-async function filterCue(p: { facet: string; value: string | null; path?: string | null } & Arrived, c: MoveContext): Promise<string | null> {
+/** The filter cue: one option of one filter, as its words are said, or
+ *  several of one filter (`Color | Blanco, Beige`). Each is added to what is
+ *  on — the options already on stay on — and every one is checked on at the
+ *  end: one that is not makes it `partial`, naming it, never `applied`. */
+async function filterCue(p: { facet: string; value: string | null; path?: string | null } & Arrived, c: MoveContext): Promise<string | null | PerformResult> {
   const variable = FACETS[norm(p.facet ?? "")] ?? (offeredFacets().includes(p.facet) ? p.facet : null);
   if (!variable) c.refuse("facet", `a listing has no filter "${p.facet}"`, offeredFacets());
-  if (!p.value?.trim()) c.refuse("value", "say which option, as the listing writes it");
-  if ((await onListing(c, p.path, Boolean(p.arrived), { move: c.move, args: { ...p, arrived: true } })) === null) return null;
-  const got = await applyFacet(c, variable, p.value, { move: c.move, args: { ...p, arrived: true } });
-  if (got === null) return null;
-  if (!got.ok) c.refuse(got.arg, got.why, got.options);
+  const values = saidValues(p.value);
+  if (!values.length) c.refuse("value", "say which option, as the listing writes it");
+  const then: Then = { move: c.move, args: { ...p, arrived: true } };
+  if ((await onListing(c, p.path, Boolean(p.arrived), then)) === null) return null;
+  const base = p.path ? pathOf(p.path) : listingBase();
+  const name = FACET_SAID[variable] ?? variable;
+  const on: Option[] = [];
+  const missed: Missed[] = [];
+  for (const value of values) {
+    const got = await applyFacet(c, variable, value, then, name, base);
+    if (got === null) return null;
+    if (!got.ok) {
+      missed.push(got);
+      continue;
+    }
+    const found = optionFor(variable, got.label, name);
+    if (!("ok" in found)) on.push(found);
+  }
+  const done: string[] = [];
+  for (const o of on) {
+    if (isOn(o)) done.push(o.label);
+    else missed.push({ ok: false, arg: "value", why: `${name} ${o.label} is not on any more`, options: [] });
+  }
+  if (!done.length) c.refuse(missed[0]?.arg ?? "value", missed.map((m) => m.why).join("; "), missed[0]?.options ?? []);
   await closePanels();
   const grid = await showGrid(c);
-  return `${FACET_SAID[variable] ?? variable} ${got.label} applied; ${grid}`;
+  const detail = `${name} ${done.join(", ")} applied; ${grid}`;
+  if (missed.length) return { outcome: "partial", detail, refused: missed.map((m) => ({ arg: m.arg, why: m.why, options: m.options })) };
+  return detail;
 }
 
 /** The sort cue. */

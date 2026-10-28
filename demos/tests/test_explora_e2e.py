@@ -996,7 +996,8 @@ async def test_a_silent_booking_move_says_its_line_and_no_bracket_is_spoken() ->
     async with _explora(llm) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
         turn = await rig.driver.user_says("Can I go in March?")
-        assert turn.text.strip() == "Here's the booking calendar."
+        # Said before the page moves: it names no calendar not yet there.
+        assert turn.text.strip() == "Let me pull that up."
         assert _commands(rig, "explora.check_availability")[-1]["hotel_code"] == "EATA"
         turn = await rig.driver.user_says("What's on the screen?")
         assert "[" not in turn.text and "March 1" not in turn.text
@@ -1505,8 +1506,8 @@ def test_the_committed_crawl_loads_and_every_asked_page_exists() -> None:
 
 async def test_a_claimed_calendar_is_called_in_one_follow_up_with_their_nights() -> None:
     """Dev call 2f94965e: "I'm opening the Atacama calendar for three nights",
-    and no tool call. The turn is asked once more, with its tools, and the
-    nights the visitor said reach the page though the model left them out."""
+    and no tool call. The turn is asked once more, with the tool forced, and
+    the nights the visitor said reach the page though the model left them out."""
     llm = _llm()
     async with _explora(llm) as rig:
         await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
@@ -1514,11 +1515,9 @@ async def test_a_claimed_calendar_is_called_in_one_follow_up_with_their_nights()
         asked = len(llm.requests)
         turn = await rig.driver.user_says("Can I go to Atacama in November? Three nights.")
         assert len(llm.requests) == asked + 2
-        note = (
-            "[You said you were opening the calendar but did not do it. Call "
-            "check_availability now, or say plainly you have not.]"
-        )
+        note = "[You said you were opening the calendar but did not do it. Do it now.]"
         assert note in _texts(llm.captured_inputs[-1])
+        assert llm.requests[-1]["tool_choice"] == _FORCED
         assert "Atacama calendar" in turn.text and "Opening it now." in turn.text
         assert _commands(rig, "explora.check_availability") == [
             {
@@ -1667,3 +1666,141 @@ def test_the_nights_a_visitor_says() -> None:
     assert explora.nights_said("Quiero ir 4 noches, no, cinco noches") == 5
     assert explora.nights_said("A night under the stars") is None
     assert explora.nights_said("What's on tonight?") is None
+
+
+# ─── Dev call 453f2e19: a promise in words, and no call ────────────────────────
+
+#: The tool choice of a forced follow-up.
+_FORCED = {"type": "function", "name": "check_availability"}
+
+
+def _promising() -> ScriptedOpenAI:
+    """The three responses of dev call 453f2e19 that said the move and called
+    nothing, each followed by the forced call, which comes back silent."""
+    return ScriptedOpenAI(
+        {
+            "Can I see Torres del Paine in November?": reply(
+                "I'll open the calendar. I'm checking Torres del Paine for November."
+            ),
+            "You said \u201cI'll open the calendar.\u201d": call(
+                "check_availability", args={"hotel_code": "EPAT", "month": "2026-11"}
+            ),
+            "We'd like three nights, please.": reply(
+                "I'm selecting three nights to see the rates."
+            ),
+            "You said you were selecting three nights": call(
+                "check_availability",
+                args={"hotel_code": "EATA", "date": "2026-11-06", "nights": 3},
+            ),
+            "Rates for three nights from the sixth?": reply(
+                "Happy to help. I'm opening the rooms and rates for your three nights."
+            ),
+            "You said you were opening the rooms": call(
+                "check_availability",
+                args={
+                    "hotel_code": "EATA",
+                    "date": "2026-11-06",
+                    "nights": 3,
+                    "show_rooms": True,
+                },
+            ),
+            "Show me the rates.": call(
+                "check_availability", args={"hotel_code": "EATA", "nights": 3}
+            ),
+            # On the booking site, a reply that cues the www site's sections.
+            "What's included here?": reply(
+                "{show: Included with Your Stay} Everything is included. "
+                "{faq: Patagonia} Even the explorations."
+            ),
+        }
+    )
+
+
+@pytest.mark.parametrize(
+    ("said", "note", "sent"),
+    [
+        (
+            "Can I see Torres del Paine in November?",
+            "[You said \u201cI'll open the calendar.\u201d but did not do it. Do it now.]",
+            {
+                "hotel_code": "EPAT",
+                "date": None,
+                "month": "2026-11",
+                "nights": None,
+                "rooms": False,
+            },
+        ),
+        (
+            "We'd like three nights, please.",
+            "[You said you were selecting three nights but did not do it. Do it now.]",
+            {
+                "hotel_code": "EATA",
+                "date": "2026-11-06",
+                "month": None,
+                "nights": 3,
+                "rooms": False,
+            },
+        ),
+        (
+            "Rates for three nights from the sixth?",
+            "[You said you were opening the rooms but did not do it. Do it now.]",
+            {"hotel_code": "EATA", "date": "2026-11-06", "month": None, "nights": 3, "rooms": True},
+        ),
+    ],
+)
+async def test_a_promise_in_words_gets_one_forced_call(
+    said: str, note: str, sent: dict[str, Any]
+) -> None:
+    llm = _promising()
+    async with _explora(llm) as rig:
+        await rig.driver.start_session(init={"site": "reservations", "path": "/ibe/paso1"})
+        if sent["date"]:
+            await _page(rig, "stay_state", {**DATES_STATE, "date": "2026-11-06"})
+        asked = len(llm.requests)
+        turn = await rig.driver.user_says(said)
+        # One follow-up, with the tool forced and the note that says why.
+        assert len(llm.requests) == asked + 2
+        assert llm.requests[-1]["tool_choice"] == _FORCED
+        assert note in _texts(llm.captured_inputs[-1])
+        assert _commands(rig, "explora.check_availability") == [{**sent, "language": "EN"}]
+        # The forced call is silent: his written line says it, naming no
+        # screen that has not come up.
+        line = (
+            "Let me pull those up."
+            if sent["rooms"]
+            else "Let me pick that day."
+            if sent["date"]
+            else "Let me pull that up."
+        )
+        assert turn.text.strip().endswith(line)
+
+
+async def test_rates_with_the_day_and_nights_known_go_to_the_rooms() -> None:
+    """Dev call 453f2e19: "show me the rates", the day and nights known, took
+    a nights step instead of the rooms."""
+    llm = _promising()
+    async with _explora(llm) as rig:
+        await rig.driver.start_session(init={"site": "reservations", "path": "/ibe/paso1"})
+        await rig.driver.user_says("We'd like three nights, please.")
+        await _page(rig, "stay_state", {**DATES_STATE, "date": "2026-11-06", "chosen_nights": 3})
+        await rig.driver.user_says("Show me the rates.")
+        sent = _commands(rig, "explora.check_availability")[-1]
+        assert (sent["date"], sent["nights"], sent["rooms"]) == ("2026-11-06", 3, True)
+    assert "show_rooms at once" in explora._prompt(explora.kb.KNOWLEDGE)
+
+
+async def test_no_section_is_cued_on_the_booking_site() -> None:
+    """Dev call 453f2e19: every show cue on reservations.explora.com was
+    refused; none is sent there, the backstop's included."""
+    async with _explora(_promising()) as rig:
+        await rig.driver.start_session(init={"site": "reservations", "path": "/ibe/paso1"})
+        turn = await rig.driver.user_says("What's included here?")
+        assert "Everything is included." in turn.text and "{" not in turn.text
+        assert _cues(rig) == []
+
+
+def test_a_booking_step_is_a_silent_call_in_the_prompt() -> None:
+    prompt = explora._prompt(explora.kb.KNOWLEDGE)
+    assert "call its tool and write NO words in that response" in prompt
+    assert "in the response that announces it" not in prompt
+    assert "say you are sending it, and call send_enquiry" not in prompt

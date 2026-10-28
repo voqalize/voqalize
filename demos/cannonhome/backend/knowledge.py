@@ -1070,11 +1070,16 @@ def _product(raw: dict[str, Any]) -> Product | None:
 
 
 def _options(raw: Any) -> tuple[tuple[str, tuple[str, ...]], ...]:
-    """A category's filter options: ``{var: [labels]}``, or a list of groups
-    (``{var|code, options|labels}``); labels may be strings or ``{label}``."""
+    """A category's filter options: ``{var: [labels]}``, ``{var: {label,
+    values: [labels]}}`` (the crawl's shape: the group's own name beside its
+    options), or a list of groups (``{var|code, options|labels}``); labels may
+    be strings or ``{label}``."""
     out: list[tuple[str, tuple[str, ...]]] = []
     if isinstance(raw, dict):
         for var, labels in cast(dict[str, Any], raw).items():
+            if isinstance(labels, dict):
+                group = cast(dict[str, Any], labels)
+                labels = group.get("values") or group.get("options") or group.get("labels")
             if got := _strs(labels):
                 out.append((var, got))
     elif isinstance(raw, list):

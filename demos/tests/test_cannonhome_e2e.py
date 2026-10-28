@@ -321,6 +321,36 @@ def _llm() -> ScriptedOpenAI:
                 "{filter: Color | blancas} Y ahora, solo las blancas."
             ),
             "¿Y de seda?": reply("{filter: Material | seda} Te muestro las de seda."),
+            # Several options of one filter: one cue listing them, one cue each,
+            # or one filter_listing with a list.
+            "Muéstrame las blancas y grises.": reply(
+                "{filter: Color | Blanco, Gris} Te dejo las blancas y las grises."
+            ),
+            "Las blancas y las grises, por favor.": reply(
+                "{filter: Color | blancas y grises} Te dejo las blancas y las grises."
+            ),
+            "Primero las blancas, después las grises.": reply(
+                "{filter: Color | Blanco} Te dejo las blancas. "
+                "{filter: Color | Gris} Y también las grises."
+            ),
+            "¿Blancas y fucsias?": reply(
+                "{filter: Color | blanco y fucsia} Te dejo las blancas y las fucsias."
+            ),
+            "Filtra las blancas y grises.": reply_and_call(
+                "Te filtro la lista.",
+                "filter_listing",
+                args={"category_path": SHEETS, "color": "blanco y gris"},
+            ),
+            "Filtra las blancas y azules en king.": reply_and_call(
+                "Te filtro la lista.",
+                "filter_listing",
+                args={"category_path": SHEETS, "size": ["king"], "color": ["blancas", "azules"]},
+            ),
+            "Filtra las blancas y fucsias.": reply_and_call(
+                "Te filtro la lista.",
+                "filter_listing",
+                args={"category_path": SHEETS, "color": ["blanco", "fucsia"]},
+            ),
             "Ordénalas por precio.": reply(
                 "{sort: menor precio} Aquí van de la más barata a la más cara."
             ),
@@ -948,17 +978,20 @@ async def test_a_listing_that_lands_is_said_at_once_with_no_model_request_before
         asked = len(llm.requests)
         turn = await rig.driver.user_idle(level=1, idle_ms=_DONE_MS)
         check_turn(rig, turn)
+        # It names what it filtered by, as the listing writes it.
         assert turn.text.startswith(
-            "Aquí hay 16; el primero es Liso Menta, a cuarenta y un mil novecientos noventa y "
-            "tres pesos."
+            "Aquí hay 16 en King y Blanco; el primero es Liso Menta, a cuarenta y un mil "
+            "novecientos noventa y tres pesos."
         )
         assert not _BLAMES.search(turn.text)
         # The model was asked only after the line, tools off, for one sentence at most.
         (talk,) = llm.requests[asked:]
         assert talk.get("tool_choice") == _TOOLS_OFF
         seen = _texts(llm.captured_inputs[-1])
-        assert 'You have just said: "Aquí hay 16; el primero es Liso Menta' in seen
+        assert 'You have just said: "Aquí hay 16 en King y Blanco; el primero es Liso Menta' in seen
         assert "at most one short sentence" in seen
+        # The one sentence after it never says the count or the filters again.
+        assert "Never restate or change its count, its filters or its first product." in seen
         # Its result later only confirms: nothing more to talk through.
         await _answer(rig, "filter_listing", detail="Sábanas: 16 products")
         assert _idle_windows(rig)[-1] == _IDLE_MS
@@ -1173,8 +1206,8 @@ async def test_filters_are_the_listings_own_options() -> None:
         await rig.driver.user_says("Filtra las king blancas.")
         assert _move(rig, "filter_listing") == {
             "category_path": SHEETS,
-            "size": "King",
-            "color": "Blanco",
+            "size": ["King"],
+            "color": ["Blanco"],
             "threads": None,
             "material": None,
             "sort": "price_asc",

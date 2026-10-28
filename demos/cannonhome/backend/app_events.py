@@ -124,7 +124,8 @@ class ListingShown(AppEvent):
     title: str = ""
     count: int | None = None
     filters: dict[str, str] = Field(default_factory=dict[str, str])
-    """The filters applied: request var → label (``tamano`` → ``King``)."""
+    """The filters applied: request var → label (``tamano`` → ``King``); several
+    options of one filter, the labels joined by ", " (``color`` → ``Beige, Blanco``)."""
     sort: str = ""
     items: list[ListingItem] = Field(default_factory=list[ListingItem])
     """The cards on screen, in order (at most 30)."""

@@ -12,9 +12,12 @@ is a call the model wrote out as text, not a move), and only a class that may
 be cued has one.
 
 A move may also name its **claims**: the few words that, said in a reply, tell
-the visitor it is happening ("opening the calendar", "abro el calendario"). A
-turn that says one and never sends the move is a promise the screen does not
-keep; :meth:`~voqalize.sdk.stage.Stage.end_turn` reports it.
+the visitor it is happening ("opening the calendar", "abro el calendario"), and
+its **objects**: the things it acts on ("calendar", "nights", "habitaciones"),
+so that any sentence shaped as a promise about one of them counts as a claim
+too (:mod:`~voqalize.sdk.stage.promises`). A turn that claims a move and never
+sends it is a promise the screen does not keep;
+:meth:`~voqalize.sdk.stage.Stage.end_turn` reports it.
 """
 
 from __future__ import annotations
@@ -26,14 +29,12 @@ from dataclasses import dataclass
 from ..voice import _CALL_KEYS
 from .labels import tokens
 from .policy import MoveClass, cueable
+from .promises import CLAIM_GAP
 
 __all__ = ["CLAIM_GAP", "MAX_ARGS", "Move", "MoveSet"]
 
 #: The most arguments a move takes; a cue carries at most this many.
 MAX_ARGS = 4
-
-#: The most words a ``*`` in a claim stands for (none is fine too).
-CLAIM_GAP = 3
 
 _VERB = re.compile(r"[a-z]{2,12}")
 
@@ -50,7 +51,12 @@ class Move:
     case- and Latin-accent-insensitive, with ``*`` standing for up to
     :data:`CLAIM_GAP` words ("opening the * calendar" hears "opening the
     Atacama calendar"). Write them as announcements ("opening", "abro"): a
-    past tense is also true of a move an earlier turn made. Raises
+    past tense is also true of a move an earlier turn made. ``objects`` are
+    the nouns it acts on, in every language it speaks, in the singular when
+    the plural should count too ("room" hears "rooms"; "rooms" does not hear
+    "room"): a sentence with a first-person lead, a verb and then one of them
+    ("I'm selecting three nights", "te abro el calendario") claims it as well
+    (:func:`~voqalize.sdk.stage.promises.promise_in`). Raises
     :class:`ValueError` when any of it breaks a rule, so a bad move fails
     where it is written.
     """
@@ -61,10 +67,14 @@ class Move:
     args: tuple[str, ...] = ()
     say: str = ""
     claims: tuple[str, ...] = ()
+    objects: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.id.strip():
             raise ValueError("a move needs an id")
+        for obj in self.objects:
+            if not tokens(obj):
+                raise ValueError(f"move {self.id!r}: object {obj!r} needs a word")
         for claim in self.claims:
             if not all(tokens(part) for part in claim.split("*")):
                 raise ValueError(

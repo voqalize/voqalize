@@ -79,6 +79,17 @@ def test_categories_take_their_filter_options_in_either_shape(tmp_path: Path) ->
             "name": "Toallas",
             "filters": [{"var": "color", "options": ["Blanco", "Gris"]}],
         },
+        # The crawl's own shape: each group's name beside its options.
+        {
+            "path": "/12-ropa-de-cama/14-plumones",
+            "name": "Plumones",
+            "filters": ["tamano", "color", "price"],
+            "options": {
+                "tamano": {"label": "Tamaño", "values": ["2 Plazas", "King"]},
+                "color": {"label": "Color", "values": ["Beige", "Blanco"]},
+                "price": {"label": "Precio", "values": []},
+            },
+        },
     ]
     (tmp_path / "L3" / "categories.json").write_text(json.dumps(cats), encoding="utf-8")
     k = kb.load(tmp_path)
@@ -88,6 +99,34 @@ def test_categories_take_their_filter_options_in_either_shape(tmp_path: Path) ->
     towels = k.category("/bano/toallas")
     assert towels is not None and towels.filters == ("color",)
     assert towels.labels("color") == ("Blanco", "Gris")
+    duvets = k.category("/12-ropa-de-cama/14-plumones")
+    assert duvets is not None and duvets.labels("color") == ("Beige", "Blanco")
+    assert duvets.labels("tamano") == ("2 Plazas", "King")
+    assert duvets.labels("price") == ()
+
+
+def test_the_committed_listings_have_their_options_and_the_prompt_lists_them() -> None:
+    """Every option of every listing was read as empty until 2026-10-28 (the
+    crawl's ``{var: {label, values}}`` was taken for ``{var: [labels]}``), so no
+    filter was ever checked and the prompt listed none."""
+    if not (L3 / "categories.json").exists():
+        pytest.skip("the crawl has not committed L3/categories.json yet")
+    k = kb.load()
+    with_options = [c for c in k.categories.values() if c.options]
+    assert len(with_options) >= len(k.categories) // 3, len(with_options)
+    sheets = k.category("/12-ropa-de-cama/20-sabanas")
+    assert sheets is not None
+    assert {"Beige", "Blanco"} <= set(sheets.labels("color"))
+    assert {"King", "2 Plazas"} <= set(sheets.labels("tamano"))
+    listings = ch._listings(k)
+    assert len(listings) <= ch._LISTINGS_CHARS
+    assert "- /12-ropa-de-cama/20-sabanas — Sábanas (tamaño: 1 Plaza" in listings
+    # Colours are named, not listed, on every line: the budget goes on listings.
+    assert "Azul, Beige" not in listings
+    # Every top-level and second-level listing fits.
+    for c in k.categories.values():
+        if c.path.count("/") <= 2:
+            assert f"- {c.path} — " in listings, c.path
 
 
 def _committed() -> list[dict[str, object]]:

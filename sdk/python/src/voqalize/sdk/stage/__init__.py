@@ -37,6 +37,7 @@ from .director import (
 from .labels import fold, match_label
 from .moves import CLAIM_GAP, MAX_ARGS, Move, MoveSet
 from .policy import POLICY, Delivery, MoveClass, Policy, cueable
+from .promises import VERB_REACH, promise_in
 from .wire import (
     STAGE_CONTRACT,
     Fired,
@@ -65,6 +66,7 @@ __all__ = [
     "POLICY",
     "RESULT_TIMEOUTS",
     "STAGE_CONTRACT",
+    "VERB_REACH",
     "ArgValue",
     "AutoCue",
     "AutoCues",
@@ -102,4 +104,5 @@ __all__ = [
     "fold",
     "landed_ask",
     "match_label",
+    "promise_in",
 ]

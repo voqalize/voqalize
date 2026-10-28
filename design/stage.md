@@ -130,9 +130,11 @@ from voqalize.sdk.stage import (
 
 # A move the brain knows. Cue moves have a verb; tool-only moves have none.
 Move(id="core.show", verb="show", cls=MoveClass.LOOK, args=("target",), say="...")
-# A move may name the phrases that claim it in speech (the promise guard, below).
+# A move may name the phrases that claim it in speech, and the things it acts on
+# (the promise guard, below).
 Move(id="site.check", verb=None, cls=MoveClass.REVERSIBLE, args=("lodge",),
-     claims=("opening the * calendar", "abro el * calendario"))
+     claims=("opening the * calendar", "abro el * calendario"),
+     objects=("calendar", "nights", "rooms", "calendario", "noches", "habitaciones"))
 
 class Stage:
     """Composable director. A brain owns one per session."""
@@ -226,10 +228,49 @@ class Stage:
   "abro"): a past tense is also true of a move an earlier turn made. The director does not
   know turns by itself: the brain calls `end_turn()` when its turn is over — after the
   model's tool calls, which come at the end of its response — and `begin_turn()` at the
-  start if a turn may have been cut off. What to do with an unkept claim is the brain's:
-  explora appends "[You said you were <phrase> but did not do it. Call <tool> now, or say
-  plainly you have not.]" and asks the model once more with its tools, never more than once
-  a turn; what that follow-up claims is only logged.
+  start if a turn may have been cut off.
+- **Claims by shape: `Move.objects`.** Hand-written claims miss most promises: dev call
+  453f2e19 said "I'll open the calendar.", "I'm selecting three nights to see the rates."
+  and "I'm opening the rooms and rates for your three nights." with no call, and none
+  matched. So a move also names its **objects** — the nouns it acts on, in every language
+  (explora's check_availability: calendar, availability, dates, days, nights, rooms, rates,
+  prices, and their Spanish) — and any non-question sentence shaped as a promise about one
+  claims it (`stage/promises.py`, `promise_in`): a first-person lead ("I'll", "I will",
+  "let me", "I'm going to", "I'm", "voy a", "déjame", "estoy"), its verb within
+  `VERB_REACH` (3) words (any word after a future lead; an *-ing* after "I'm"; an
+  infinitive after "voy a"; a gerund after "estoy"), then an object within `CLAIM_GAP`
+  words. A Spanish first-person verb is lead and verb at once ("te abro", "reviso",
+  "muestro", "selecciono"…). Folded and whole-word, like claims; an object hears its
+  plural ("room" → "rooms", "habitación" → "habitaciones"), never the reverse, so two moves
+  can split a noun by number. Exact claims still count beside the shape.
+  Not promises: a question; a sentence that only names the thing ("The rooms start at…");
+  a negation between lead and verb, or before the lead ("I'm not opening", "no voy a");
+  a condition before the lead ("If you like, I'll…", "Si quieres, te abro…": an offer);
+  and **the past** ("I opened the calendar"): it reports a move rather than promising
+  one, is true of a move an earlier turn made, and a false report is not a fault a
+  retry fixes. A sentence is **one promise**: when it claims several moves ("the rooms"
+  is both the rates' and a room's), any of them made keeps it, and an unkept one is told
+  as the first in the brain's move order. A shape-only promise is also kept by a cue the
+  model wrote in that sentence ("{show: Rooms} I'll show you the rooms" promised the
+  ring). Unkept claims come back in the order they were said, one per move.
+- **What the brain does with an unkept claim** is the brain's. Explora appends "[You said
+  you were <phrase> but did not do it. Do it now.]" (the quoted sentence instead, when the
+  phrase is not an English *-ing*) and asks the model once more with that move's tool
+  **forced** (`ToolChoice.only(tool)`), never more than once a turn; what that follow-up
+  claims is only logged. Forced, it calls silently, so the follow-up runs through the same
+  silent-turn path as any turn — the move's written line ("Let me pull that up.") — and
+  the landing line follows the page. A follow-up that only *offered* the tool answered in
+  words again.
+- **Some models never speak and act in one response.** gpt-6.1-terra at low reasoning, on
+  dev call 453f2e19, either spoke or called a tool, never both: every promise in words was
+  a response with no call, and every check_availability came with no words (where the
+  silent-turn line, the landing line and the talk-through worked every time). So for a
+  **tool move**, the recommended pattern is a **silent call plus written and landing
+  lines**, not "announce it and call in the same response": the prompt tells the model to
+  call a booking step's tool and write no words; the silent-turn line, said as the call
+  returns, names nothing the page has not shown yet ("Let me pull that up.", "Te lo
+  busco.", never "Here's the booking calendar."); the landing line says what came up. Cue
+  narration (show/page cues inside a spoken reply) is unchanged: a cue rides the words.
 - **Barge-in and tool moves.** When the visitor starts speaking, the page drops every cue
   not yet fired (`refused`, why `interrupted`, never a failure note). A tool move is not a
   cue: it was asked for by a call the model already made, so it is **kept** — it runs to

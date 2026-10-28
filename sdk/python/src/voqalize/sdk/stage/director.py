@@ -16,10 +16,12 @@ finished it there. A cue the director could not send is not silent either:
 ``on_drop`` hears of it, with why.
 
 **A promise is checked too.** A move may name the phrases that claim it
-(``Move.claims``: "opening the calendar"). The director knows what each turn
-said, as the parser released it to the voice, and which moves it sent; at
-:meth:`Stage.end_turn` — after the model's tool calls, which come at the end of
-its response — a claim for a move the turn neither sent nor has running is
+(``Move.claims``: "opening the calendar") and the things it acts on
+(``Move.objects``: "calendar", "nights"), so that "I'll open the calendar" or
+"I'm selecting three nights" claims it with no phrase written for it. The
+director knows what each turn said, as the parser released it to the voice,
+and which moves it sent; at :meth:`Stage.end_turn` — after the model's tool
+calls, which come at the end of its response — a claim for a move the turn neither sent nor has running is
 reported, once, to ``on_unkept`` and in the return value, so the brain can ask
 the model to keep it or to say it has not.
 
@@ -52,8 +54,9 @@ from ..actions import Action
 from ..events import Speech, SpeechChunk, SpeechStart
 from .cues import AutoCues, CueParser, RawCue, sentences
 from .labels import tokens
-from .moves import CLAIM_GAP, Move, MoveSet
+from .moves import Move, MoveSet
 from .policy import POLICY, MoveClass
+from .promises import claim_in, promise_in
 from .wire import (
     STAGE_CONTRACT,
     Phase,
@@ -217,8 +220,10 @@ def landed_ask(line: str) -> str:
 
 @dataclass(frozen=True, slots=True)
 class Unkept:
-    """A promise a turn made and did not keep: it said ``phrase``, one of
-    ``move``'s claims, in ``sentence``, and never sent ``move``."""
+    """A promise a turn made and did not keep: it said ``phrase`` in
+    ``sentence`` and never sent ``move``. ``phrase`` is one of ``move``'s
+    claims, as written, or the folded words from the verb to the object of a
+    promise about one of its objects ("opening the rooms")."""
 
     move: Move
     phrase: str
@@ -325,6 +330,8 @@ class Stage:
         #: This turn: what it said, and the moves it sent or saw answered.
         self._turn_said: list[str] = []
         self._turn_sent: set[str] = set()
+        #: The first words after each cue the model wrote this turn.
+        self._turn_cued: list[list[str]] = []
 
     # ─── turns ─────────────────────────────────────────────────────────────
 
@@ -334,26 +341,44 @@ class Stage:
         was cut off before it could end it."""
         self._turn_said = []
         self._turn_sent = set()
+        self._turn_cued = []
 
     def end_turn(self) -> list[Unkept]:
         """End the turn, after its tool calls have run: every move the turn
-        claimed in its speech (:attr:`Move.claims`; a question is an offer, not
-        a claim) and did not keep — not sent or cued this turn, not running or
-        queued, not answered since the turn began — once per move, in the
-        order of the moves. Each is logged and told to ``on_unkept``. Then the
-        next turn begins."""
+        claimed in its speech and did not keep — not sent or cued this turn,
+        not running or queued, not answered since the turn began — once per
+        move, in the order it was said. Each is logged and told to
+        ``on_unkept``. Then the next turn begins.
+
+        A sentence claims a move by saying one of its :attr:`Move.claims`, or
+        by promising to act on one of its :attr:`Move.objects` ("I'm opening
+        the rooms"); a question is an offer, not a claim. A sentence is one
+        promise: when it claims several moves ("the rooms" may be either the
+        rates or a room), any of them made keeps it, and an unkept one is told
+        as the first of them in the brain's order. A promise heard only by its
+        shape is kept, too, by a cue the model wrote in its sentence: "{show:
+        Rooms} I'll show you the rooms" promised the ring it made."""
         said = "".join(self._turn_said)
         kept = set(self._turn_sent) | {f.move.id for f in self._flights.values()}
         if self._queued is not None:
             kept.add(self._queued.move.id)
         out: list[Unkept] = []
-        for move in self.moves:
-            if not move.claims or move.id in kept:
+        told: set[str] = set()
+        for sentence in sentences(said):
+            if sentence.endswith(("?", "\uff1f")):
                 continue
-            hit = _claimed(move.claims, said)
-            if hit is None:
+            cued = self._cued_in(sentence)
+            hits = [
+                (m, hit[0])
+                for m in self.moves
+                if (hit := _claim_of(m, sentence)) is not None and (hit[1] or not cued)
+            ]
+            if not hits or any(m.id in kept for m, _ in hits):
                 continue
-            phrase, sentence = hit
+            move, phrase = hits[0]
+            if move.id in told:
+                continue
+            told.add(move.id)
             logger.info(
                 "stage: unkept {}: the turn said {!r} and never sent it, in {!r}",
                 move.id,
@@ -365,6 +390,14 @@ class Stage:
             out.append(Unkept(move, phrase, sentence))
         self.begin_turn()
         return out
+
+    def _cued_in(self, sentence: str) -> bool:
+        """Whether a cue the model wrote this turn stands in ``sentence``: the
+        words after it are said there."""
+        words = tokens(sentence)
+        return any(
+            any(words[i : i + len(at)] == at for i in range(len(words))) for at in self._turn_cued
+        )
 
     # ─── cues ──────────────────────────────────────────────────────────────
 
@@ -477,6 +510,8 @@ class Stage:
             return None
         move, args = admitted
         self._turn_sent.add(move.id)
+        if not raw.auto and (at := tokens(raw.at)[:3]):
+            self._turn_cued.append(at)
         ref = self._mint(move)
         now = self._clock()
         deadline = now + CUE_WAIT_S + self.timeout(move.cls)
@@ -938,31 +973,15 @@ class Stage:
         return ref
 
 
-def _claim_at(parts: list[list[str]], words: list[str], i: int, k: int) -> bool:
-    """Whether ``parts[k:]`` are said from word ``i`` on, each ``*`` between
-    two parts standing for up to :data:`CLAIM_GAP` words."""
-    part = parts[k]
-    if words[i : i + len(part)] != part:
-        return False
-    j = i + len(part)
-    if k == len(parts) - 1:
-        return True
-    return any(_claim_at(parts, words, j + gap, k + 1) for gap in range(CLAIM_GAP + 1))
-
-
-def _claimed(claims: tuple[str, ...], said: str) -> tuple[str, str] | None:
-    """The first of ``claims`` a sentence of ``said`` makes, as whole words,
-    folded, and that sentence; ``None`` when it makes none. A question is an
-    offer ("Shall I open the calendar?"), not a claim."""
-    for sentence in sentences(said):
-        if sentence.endswith(("?", "\uff1f")):
-            continue
-        words = tokens(sentence)
-        for claim in claims:
-            parts = [tokens(p) for p in claim.split("*")]
-            if any(_claim_at(parts, words, i, 0) for i in range(len(words))):
-                return claim, sentence
-    return None
+def _claim_of(move: Move, sentence: str) -> tuple[str, bool] | None:
+    """What in ``sentence`` claims ``move``, and whether it is one of its
+    written claims: the first of its claims said, or else the words of a
+    promise about one of its objects; ``None`` when nothing does."""
+    for claim in move.claims:
+        if claim_in(claim, sentence):
+            return claim, True
+    shaped = promise_in(move.objects, sentence) if move.objects else None
+    return None if shaped is None else (shaped, False)
 
 
 def _written(raw: RawCue) -> str:

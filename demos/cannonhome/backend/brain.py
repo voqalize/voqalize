@@ -60,15 +60,15 @@ import math
 import random
 import re
 import time
-from collections.abc import AsyncGenerator, Callable, Iterable
+from collections.abc import AsyncGenerator, Callable, Iterable, Mapping
 from datetime import date, datetime
 from difflib import SequenceMatcher
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Annotated, Any, Literal
 from zoneinfo import ZoneInfo
 
 from loguru import logger
 from openai import AsyncOpenAI
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, BeforeValidator, Field
 from voqalize_demos import (
     PATIENCE,
     FallbackLine,
@@ -547,13 +547,15 @@ class FilterListing(BaseModel):
     load, if it is not the one in front), then apply each filter given with
     its quick-filter pill — the option labels exactly as the listing writes
     them ("2 Plazas", "Blanco", "300", "100% Algodón") — one at a time, waiting
-    for the grid; then the sort. Reports ``listing_shown``."""
+    for the grid; then the sort. Each filter takes one option or several
+    (``["Beige", "Blanco"]``: the listing shows either), all active together,
+    one address for them all. Reports ``listing_shown``."""
 
     category_path: str
-    size: str | None = None
-    color: str | None = None
-    threads: str | None = None
-    material: str | None = None
+    size: list[str] | None = None
+    color: list[str] | None = None
+    threads: list[str] | None = None
+    material: list[str] | None = None
     sort: SortOrder | None = None
 
 
@@ -756,16 +758,29 @@ class SearchProductsRequest(BaseModel):
     )
 
 
+def _as_list(value: Any) -> Any:
+    """One option said as a plain string is a list of one."""
+    return [value] if isinstance(value, str) else value
+
+
+#: A filter's options as the visitor named them: one, or several of the same
+#: filter ("beige y blanco"), each its own item.
+Said = Annotated[list[str] | None, BeforeValidator(_as_list)]
+
+
 class FilterRequest(BaseModel):
-    """Only the filters the visitor asked for."""
+    """Only the filters the visitor asked for. Several options of one filter
+    are several items: the listing then shows any of them."""
 
     category_path: str = Field(
         description="The listing's path, from the listings list: '/12-ropa-de-cama/20-sabanas'."
     )
-    size: str | None = Field(default=None, description="'2 plazas', 'king', '1,5 plazas'…")
-    color: str | None = Field(default=None, description="'blanco', 'gris'…")
-    threads: str | None = Field(default=None, description="A thread count: '300'.")
-    material: str | None = Field(default=None, description="'algodón', 'microfibra'…")
+    size: Said = Field(default=None, description="['2 plazas'], ['king', '1,5 plazas']…")
+    color: Said = Field(
+        default=None, description="Every colour they named: ['blanco'], ['beige', 'blanco']…"
+    )
+    threads: Said = Field(default=None, description="Thread counts: ['300'].")
+    material: Said = Field(default=None, description="['algodón'], ['microfibra']…")
     sort: SortOrder | None = Field(
         default=None, description="'price_asc' cheapest first, 'price_desc', 'newest'."
     )
@@ -839,7 +854,8 @@ class CheckoutRequest(BaseModel):
 
 _SITE_MAP_CHARS = 12000
 _SECTIONS_PER_PAGE = 12
-_LISTINGS_CHARS = 6000
+#: About 2,300 tokens: every top-level and second-level listing, with its options.
+_LISTINGS_CHARS = 9000
 #: How the site's titles end, longest first.
 _TITLE_SUFFIXES = (
     " | Cannon Home Chile",
@@ -874,11 +890,16 @@ _FILTER_NAMES = {"tamano": "tamaño", "color": "color", "hilos": "hilos", "mater
 
 
 def _listings(k: Knowledge) -> str:
+    """Each listing, and the options of each of its filters. A colour is named
+    as the visitor says it and the store writes it the same way, and nearly
+    every listing has most of them: its list is the one left out (the cue's
+    colour is checked against the listing's own), so the budget goes on
+    listings, not on the same colours 141 times."""
     lines: list[str] = []
     size = 0
     for c in sorted(k.categories.values(), key=lambda c: (c.path.count("/"), c.path)):
         opts = "; ".join(
-            f"{_FILTER_NAMES.get(v, v)}: {', '.join(labels[:10])}"
+            "color" if v == "color" else f"{_FILTER_NAMES[v]}: {', '.join(labels[:12])}"
             for v, labels in c.options
             if v in _FILTER_NAMES
         )
@@ -904,13 +925,14 @@ You are giving a guided walk through the store, like someone sitting beside the 
   - {{page: /path}} opens a page of the store, at its top: an information page from the site pages list, a listing from the listings list, or a product's path.
   - {{show: Heading}} scrolls to a heading on the page they are on, or are taken to by a page cue, and rings it. With other words on the page — a product's name, a price, a line of a policy — it rings those words.
   - {{faq: Question}} opens that FAQ and rings it. The FAQ can be on any page: it is found and opened there.
-  - {{filter: Facet | Option}} narrows the listing in front (or the one a page cue just opened) by one of its filters, with the option exactly as the listings list writes it: {{filter: Tamaño | King}}, {{filter: Color | Blanco}}, {{filter: Hilos | 300}}, {{filter: Material | 100% Algodón}}. The filter's pill opens, the option is ringed and chosen, and the grid follows.
+  - {{filter: Facet | Option}} narrows the listing in front (or the one a page cue just opened) by one of its filters, with the option exactly as the listings list writes it: {{filter: Tamaño | King}}, {{filter: Color | Blanco}}, {{filter: Hilos | 300}}, {{filter: Material | 100% Algodón}}. The filter's pill opens, the option is ringed and chosen, and the grid follows. A filter cue adds its option to the ones already on: {{filter: Color | Blanco}} then {{filter: Color | Beige}} shows both colours. Several options of one filter may also go in one cue, a comma between them: {{filter: Color | Blanco, Beige}}.
   - {{sort: price_asc}} sorts the listing in front: price_asc (cheapest first), price_desc, or newest.
 - Use headings and words exactly as the site pages list or the screen lines spell them. The store is in Spanish, so cues are in Spanish, also inside an English reply: "{{page: /politicas-de-despacho}} Deliveries come with no exact hour."
 - Never make up a heading or a path.
 - One cue per sentence at most, and only where the screen should change. A cue goes before the sentence, never inside it.
 - When the visitor asks where something is ("muéstrame", "where is that"), your reply starts with the cue for exactly that thing.
 - When the visitor clearly asks to narrow a listing ("las king blancas", "show me the cotton ones"), filter with cues as you say it, one filter per sentence, each sentence about that filter. Open the listing first when it is not in front. "{{page: /12-ropa-de-cama/20-sabanas}} Te abro nuestras sábanas. {{filter: Tamaño | King}} Te las dejo en tamaño king. {{filter: Color | Blanco}} Y te dejo solo las blancas."
+- When the visitor names several options of one filter ("beige y blanco", "king or super king"), they want all of them: put every one on, one cue per option or one cue listing them, and never ask which one first. "{{filter: Color | Beige}} Te dejo las beige. {{filter: Color | Blanco}} Y también las blancas." With filter_listing, each filter takes a list: color ['beige', 'blanco'].
 - A filter or sort cue sits on a promise of what you are doing ("Let me narrow it to king size.", "Te las ordeno de la más barata."), never on a statement of the result ("These are for your king bed.", "Estas son las king."): the grid has not changed yet when the voice says it, and the filter may not apply. What the listing then shows comes to you in square brackets: say the result on your next turn, from that line, and if a filter could not be applied you are told, to say so.
 - A reply that calls a move (search_products, filter_listing, open_product, add_to_cart, update_cart_item, show_cart, start_checkout, fill_checkout) has no cue: the move takes them there. The cart and the checkout are only ever reached by those moves, never by a cue.
 - Cues open pages, show what is on them and filter a listing; the moves below search, open products and change the cart. Nothing waits on a cue.
@@ -1017,7 +1039,7 @@ Write your answer, with its cues, first; any tool call comes at the end of the s
 # The catalogue (category, how many products, what it carries)
 {k.catalogue_index()}
 
-# Listings (path — name, and the filter options each has)
+# Listings (path — name, and the filter options each has; "color" alone: it filters by colour, named as the visitor says it — Blanco, Beige, Gris)
 {_listings(k)}
 
 # Site pages
@@ -1227,33 +1249,69 @@ def holding_line(move: str, lang: Lang, rng: random.Random | None = None) -> str
 #: The moves whose effect a listing on screen is, and a product page's.
 _LISTING_MOVES = ("filter_listing", "listing.filter", "listing.sort")
 _PRODUCT_MOVES = ("open_product", "search_products")
+#: ``filter_listing``'s filter arguments, by the listing's request variable.
+_FILTER_ARGS = (
+    ("size", "tamano"),
+    ("color", "color"),
+    ("threads", "hilos"),
+    ("material", "material"),
+)
 
 
-def listing_line(e: ListingShown, lang: Lang) -> str:
+def _said_list(items: list[str], lang: Lang) -> str:
+    """ "Beige and Blanco", "Beige, Blanco y Gris"."""
+    if len(items) < 2:
+        return "".join(items)
+    last = " and " if lang == "en" else " y "
+    return ", ".join(items[:-1]) + last + items[-1]
+
+
+def listing_line(e: ListingShown, lang: Lang, named: list[str] | None = None) -> str:
     """His line the moment a listing he filtered or sorted lands: how many,
-    and the first card with its price as the screen shows it ("Here are 16;
-    the first is Liso Menta at …"). Said with no model request before it."""
+    in what (``named``: the options his move put on, as the listing writes
+    them), and the first card with its price as the screen shows it ("Here
+    are 9 in Beige and Blanco; the first is Liso Menta at …"). Said with no
+    model request before it."""
     n = e.count if e.count is not None else len(e.items)
+    what = _said_list(named or [], lang)
     if n == 0 or not e.items:
+        if lang == "en":
+            return f"No products show in {what}." if what else "No products show for that."
         return (
-            "No products show for that." if lang == "en" else "No aparece ningún producto con eso."
+            f"No aparece ningún producto en {what}."
+            if what
+            else ("No aparece ningún producto con eso.")
         )
     first = e.items[0]
     price = ""
     if first.price is not None:
         said = pesos_said(first.price, lang)
         price = f" at {said}" if lang == "en" else f", a {said}"
+    where = f" in {what}" if what and lang == "en" else f" en {what}" if what else ""
     if lang == "en":
         return (
-            f"Here's one: {first.name}{price}."
+            f"Here's one{where}: {first.name}{price}."
             if n == 1
-            else (f"Here are {n}; the first is {first.name}{price}.")
+            else (f"Here are {n}{where}; the first is {first.name}{price}.")
         )
     return (
-        f"Aquí hay uno: {first.name}{price}."
+        f"Aquí hay uno{where}: {first.name}{price}."
         if n == 1
-        else (f"Aquí hay {n}; el primero es {first.name}{price}.")
+        else (f"Aquí hay {n}{where}; el primero es {first.name}{price}.")
     )
+
+
+def landed_options(landing: Landing, event: ListingShown) -> list[str]:
+    """The options a filter move put on, as the listing writes them, for its
+    landing line: a cue's filter, all its options now on (the ones it added
+    and the ones it kept); ``filter_listing``'s, every filter it asked for. A
+    sort names none."""
+    move, args, cue = landing.move.id, landing.args or {}, landing.cue_args
+    if move == "listing.filter" and cue:
+        return _shown_options(event, cue[0])
+    if move == "filter_listing":
+        return [x for key, var in _FILTER_ARGS if args.get(key) for x in _shown_options(event, var)]
+    return []
 
 
 def product_line(e: ProductShown, lang: Lang) -> str:
@@ -1270,10 +1328,21 @@ def product_line(e: ProductShown, lang: Lang) -> str:
     return line
 
 
-def _same_label(a: str, b: str) -> bool:
-    """A filter's option as the listing shows it and as it was asked for."""
-    x, y = norm(a).replace(" hilos", ""), norm(b).replace(" hilos", "")
-    return bool(x and y) and (x == y or x.startswith(y) or y.startswith(x))
+def _label_key(label: str) -> str:
+    """A filter option, folded: "300 hilos" and "300" are one option."""
+    return norm(label).replace(" hilos", "").strip()
+
+
+def _option_set(labels: str | list[str] | None) -> frozenset[str]:
+    """The options in a filter's value — a list, or the page's labels joined
+    by ", " ("Beige, Blanco") — folded, as a set: the order never counts."""
+    items = labels.split(", ") if isinstance(labels, str) else list(labels or [])
+    return frozenset(k for i in items if (k := _label_key(i)))
+
+
+def _shown_options(event: ListingShown, var: str) -> list[str]:
+    """The options active in ``var`` on the listing, as it writes them."""
+    return [x for x in event.filters.get(var, "").split(", ") if x.strip()]
 
 
 def lands(landing: Landing, event: ListingShown | ProductShown) -> bool:
@@ -1292,22 +1361,21 @@ def lands(landing: Landing, event: ListingShown | ProductShown) -> bool:
             canonical_path(path)
         ):
             return False
-        wanted = [
-            (var, args.get(key))
-            for key, var in (
-                ("size", "tamano"),
-                ("color", "color"),
-                ("threads", "hilos"),
-                ("material", "material"),
-            )
-        ]
-        for var, value in wanted:
-            if isinstance(value, str) and not _same_label(event.filters.get(var, ""), value):
+        # Every option asked for, and no other, in each filter asked for: a
+        # set, never a prefix ("Beige" is not "Beige, Blanco").
+        for key, var in _FILTER_ARGS:
+            value = args.get(key)
+            if not value:
+                continue
+            asked = value if isinstance(value, list) else str(value)
+            if _option_set(event.filters.get(var)) != _option_set(asked):
                 return False
         sort = args.get("sort")
         return not isinstance(sort, str) or event.sort == sort
     if move == "listing.filter" and len(cue) >= 2:
-        return _same_label(event.filters.get(cue[0], ""), cue[1])
+        # A cue adds to what is active: each of its options is on.
+        want = _option_set(cue[1])
+        return bool(want) and want <= _option_set(event.filters.get(cue[0]))
     if move == "listing.sort" and cue:
         return event.sort == cue[0]
     return False
@@ -1403,22 +1471,44 @@ _ACK_WORDS = Vocabulary(
 )
 
 
+#: The hold line for a turn that asked nothing to be looked up — a filter, a
+#: sort, "show me": "while I check that" promises a check nobody asked for
+#: (dev, 2026-10-28: said before a plain two-colour filter). Both measured
+#: lines, from :data:`_ACK_HOLD`.
+_ACK_HOLD_PLAIN: dict[Lang, str] = {
+    "en": "Just a moment.",
+    "es": "Dame un momento mientras lo busco.",
+}
+
+
 @dataclasses.dataclass
 class _LateFloor:
-    """The floor for a turn that had no nod: a nod for what they said, late,
-    else a hold line; then the apology. What :func:`hold_the_floor` reads."""
+    """The floor for a turn: a nod for what they said, late, when it had
+    none, else a hold line; then the apology. What :func:`hold_the_floor`
+    reads. A hold line that says he is checking is only for a question,
+    where there is something to check."""
 
     ack: Acknowledger[Lang]
     nod: str | None
     hold_after_s: float
     sorry_after_s: float
+    kind: Kind | None = None
 
     @property
-    def sorry(self) -> dict[Lang, str]:
+    def sorry(self) -> Mapping[Lang, str]:
         return _ACK_SORRY
 
     def hold(self, spoken: Lang) -> str:
-        return self.nod or self.ack.hold(spoken)
+        if self.nod:
+            return self.nod
+        if self.kind == "question":
+            return self.ack.hold(spoken)
+        return _ACK_HOLD_PLAIN[spoken]
+
+
+def _floor(floor: _LateFloor) -> Floor[Lang]:
+    """``floor``, as :func:`hold_the_floor` reads it, in his languages."""
+    return floor
 
 
 def _late_nod(text: str, spoken: Lang) -> str | None:
@@ -2383,18 +2473,22 @@ class CannonHomeBrain(OpenAIBrain):
         now = time.monotonic()
         fragment, self._heard_at = now - self._heard_at < _FRAGMENT_S, now
         nod = None if fragment else self._ack.line(msg.text, self.spoken)
-        floor: Floor[Lang] = self._ack
+        kind = classify(msg.text, _ACK_WORDS)
+        floor = _floor(_LateFloor(self._ack, None, ACK_HOLD_AFTER_S, ACK_SORRY_AFTER_S, kind))
         if nod is not None:
             logger.info("cannonhome: ack {!r}", nod)
             async for event in say_line(self, nod):
                 yield event
             _avatar_state(session, "WORKING")
         else:
-            floor = _LateFloor(
-                self._ack,
-                None if fragment else _late_nod(msg.text, self.spoken),
-                HOLD_WITHOUT_NOD_S,
-                ACK_SORRY_AFTER_S,
+            floor = _floor(
+                _LateFloor(
+                    self._ack,
+                    None if fragment else _late_nod(msg.text, self.spoken),
+                    HOLD_WITHOUT_NOD_S,
+                    ACK_SORRY_AFTER_S,
+                    kind,
+                )
             )
         working = nod is not None
 
@@ -2449,7 +2543,13 @@ class CannonHomeBrain(OpenAIBrain):
             return say_line(self, respell(hold))
         if landing and not self._outcomes and self._talk is None:
             # Said first, written; the model may add one sentence.
-            self._note(f"[{landed_ask(done)}]")
+            # The landing line already said the count, the options and the
+            # first card: a second hop that says them again, or otherwise,
+            # is heard as a correction of it.
+            self._note(
+                f"[{landed_ask(done)} Never restate or change its count, its filters or its "
+                "first product.]"
+            )
             return self._reply(session, ToolChoice.NONE, first=done)
         if (ask := self._take_ask(said=done)) is not None:
             self._note(ask)
@@ -2843,11 +2943,13 @@ class CannonHomeBrain(OpenAIBrain):
             self._cue_refused("say which option, as the listing writes it")
             return None
         refused: list[str] = []
-        label = _filter_value(cat, var, value, refused, _LABELERS[var])
-        if label is None:
-            self._cue_refused("; ".join(refused))
+        labels = _filter_values(cat, var, value, refused)
+        if not labels:
+            self._cue_refused("; ".join(refused) or "say which option, as the listing writes it")
             return None
-        return [var, label[:80], path]
+        # Several options of one filter ride one cue, ", " between them: the
+        # page adds each to what is already active.
+        return [var, ", ".join(labels)[:160], path]
 
     def _resolve_sort(self, order: str) -> list[str] | None:
         listing = self._listing_for_cue()
@@ -3038,6 +3140,15 @@ class CannonHomeBrain(OpenAIBrain):
             if r.outcome == "unknown"
             else self._cues.pop(r.call_ref, f"{{{move.verb}: …}}")
         )
+        if r.outcome == "partial":
+            # A cue of several options that put on only some: the visitor
+            # heard all of them, so what is missing is said.
+            detail = self._partial(r)
+            self._answered(f"{cue} only partly done: {detail}")
+            return (
+                f"[On the page, only part of {cue}: {detail}. Say plainly which are on and "
+                "which are not; never that all of it worked.]"
+            )
         if landed_ok:
             if POLICY[move.cls].tells_model == "on_failure":
                 return None
@@ -3244,7 +3355,7 @@ class CannonHomeBrain(OpenAIBrain):
         result's own."""
         event = landing.event
         if isinstance(event, ListingShown):
-            line = listing_line(event, self.spoken)
+            line = listing_line(event, self.spoken, landed_options(landing, event))
         elif isinstance(event, ProductShown):
             line = product_line(event, self.spoken)
         else:
@@ -3643,10 +3754,10 @@ class CannonHomeBrain(OpenAIBrain):
                 listed = "; ".join(f"{c.path} ({c.name})" for c in near)
                 return f"Not done: no listing at '{request.category_path}'. Closest: {listed}."
         refused: list[str] = []
-        size = _filter_value(cat, "tamano", request.size, refused, _size_label)
-        color = _filter_value(cat, "color", request.color, refused, _color_label)
-        threads = _filter_value(cat, "hilos", request.threads, refused, _threads_label)
-        material = _filter_value(cat, "material", request.material, refused, _material_label)
+        size = _filter_values(cat, "tamano", request.size, refused)
+        color = _filter_values(cat, "color", request.color, refused)
+        threads = _filter_values(cat, "hilos", request.threads, refused)
+        material = _filter_values(cat, "material", request.material, refused)
         if refused:
             return "Not done: " + "; ".join(refused) + "."
         action = FilterListing(
@@ -3661,7 +3772,7 @@ class CannonHomeBrain(OpenAIBrain):
         if queued is not None:
             return queued
         applied = ", ".join(
-            f"{n} {v}"
+            f"{n} {v if isinstance(v, str) else ' + '.join(v)}"
             for n, v in (
                 ("tamaño", size),
                 ("color", color),
@@ -4041,27 +4152,71 @@ def _material_label(said: str, options: tuple[str, ...]) -> str | None:
     return _match(said, options)
 
 
-def _filter_value(
+#: Where one said option ends and the next begins: a comma (not the one in
+#: "1,5 plazas"), "&", or "y"/"e"/"o"/"and"/"or" — but not the "y" of "plaza y
+#: media" or the "and" of "one and a half".
+_SAID_SPLIT = re.compile(
+    r"\s*(?:(?<!\d),|,(?!\d)|&|\b(?:y|e|o|and|or)\b(?!\s+(?:medi[oa]|a half|half)\b))\s*",
+    re.IGNORECASE,
+)
+
+
+def _said_parts(said: str | list[str] | None) -> list[str]:
+    """Each option in what was said, in order: "beige y blanco" → beige,
+    blanco; a list's items each split the same way."""
+    items = [said] if isinstance(said, str) else list(said or [])
+    out: list[str] = []
+    for item in items:
+        out.extend(p for part in _SAID_SPLIT.split(item) if (p := part.strip(" .")))
+    return out
+
+
+def _colour_words(part: str) -> list[str]:
+    """``part`` as one colour, or, when it names several different colours
+    word by word ("beige blanco"), each of them."""
+    stems = [(w, s) for w in part.split() if (s := color_stem(w))]
+    if len({s for _, s in stems}) < 2:
+        return [part]
+    return [w for w, _ in stems]
+
+
+def _filter_values(
     cat: Category | None,
     var: str,
-    said: str | None,
+    said: str | list[str] | None,
     refused: list[str],
-    label: Any,
-) -> str | None:
-    """The option label for what was said, as the listing writes it; a filter
-    the listing lacks, or an option it does not list, is refused with what it has."""
-    if not said or not said.strip():
+) -> list[str] | None:
+    """The option labels for what was said, as the listing writes them, one
+    per option named ("beige y blanco" → Beige, Blanco), in order, once each;
+    ``None`` when nothing was said, or when anything is refused. A filter the
+    listing lacks, or any option it does not list, is refused by name with
+    what it has: the first of several words is never taken for all of them."""
+    parts = _said_parts(said)
+    if not parts:
         return None
     name = _FILTER_NAMES.get(var, var)
     if cat is not None and cat.filters and var not in cat.filters:
         refused.append(f"{cat.name} has no {name} filter (it has: {', '.join(cat.filters)})")
         return None
     options = cat.labels(var) if cat is not None else ()
-    got = label(said, options)
-    if got is None:
+    label = _LABELERS[var]
+    if var == "color":
+        parts = [w for p in parts for w in _colour_words(p)]
+    labels: list[str] = []
+    unknown: list[str] = []
+    for part in parts:
+        got = label(part, options)
+        if got is None:
+            unknown.append(part)
+        elif got not in labels:
+            labels.append(got)
+    if unknown:
         listed = ", ".join(options) if options else "none"
-        refused.append(f"{name} '{said}' is not an option of this listing (it lists: {listed})")
-    return got
+        named = " and ".join(f"'{u}'" for u in unknown)
+        verb = "is not an option" if len(unknown) == 1 else "are not options"
+        refused.append(f"{name} {named} {verb} of this listing (it lists: {listed})")
+        return None
+    return labels
 
 
 #: Each filter's labeler, by the listing's request variable.

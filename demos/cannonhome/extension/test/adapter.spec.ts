@@ -1237,6 +1237,124 @@ test.describe("update_cart_item", () => {
   });
 });
 
+// Several options of one filter (dev, 2026-10-28: "beige y blanco" filtered by
+// Beige alone, and said applied). The live store takes them: `?color=6826,6889`
+// shows Beige or Blanco, both marked on, and on a Beige listing Blanco's link
+// adds it. In the fixture, Blanco (6889) keeps one card and Rosa (7018) one.
+test.describe("several options of one filter", () => {
+  const colorsOn = (p: Page) =>
+    p.locator('.qf__group[data-qf-request-var="color"] a.qf__option-link.-active').evaluateAll((els) => els.map((e) => e.getAttribute("title")));
+
+  test("filter_listing with two colours: both ringed, one address with both ids, both on", async ({ page }) => {
+    const seen = await serveSite(page);
+    await open(page, CATEGORY);
+    await page.evaluate(() => {
+      let most = 0;
+      setInterval(() => {
+        const n = document.querySelector("[data-voqalize=spotlight]")?.shadowRoot?.querySelectorAll(".ring").length ?? 0;
+        if (n > most) sessionStorage.setItem("__rings", String((most = n)));
+      }, 20);
+    });
+    await runAway(page, "filter_listing", { category_path: CATEGORY, size: null, color: ["Blanco", "Rosa"], threads: null, material: null, sort: null });
+    await page.waitForURL(/color=6889,7018/);
+    await listen(page);
+    const done = await waitForEvent(page, "stage_result");
+    expect(done.payload).toMatchObject({ move: "filter_listing", outcome: "applied" });
+    expect(String(done.payload.detail)).toContain("applied color Blanco + Rosa");
+    expect(seen.pages).toContain(`${CATEGORY}?color=6889,7018`);
+    expect(await page.evaluate(() => sessionStorage.getItem("__rings"))).toBe("2");
+    expect(await colorsOn(page)).toEqual(["Blanco", "Rosa"]);
+    const listings = named(await events(page), "listing_shown");
+    const last = listings[listings.length - 1].payload;
+    expect(last.filters).toEqual({ color: "Blanco, Rosa" });
+    expect(last.count).toBe(60);
+  });
+
+  test("a second colour's cue keeps the first on", async ({ page }) => {
+    await serveSite(page);
+    await open(page, CATEGORY);
+    await listen(page);
+    const first = await run(page, "listing.filter", ["color", "Blanco", CATEGORY]);
+    expect(first.ok, first.error).toBe(true);
+    const second = await run(page, "listing.filter", ["color", "Rosa", CATEGORY]);
+    expect(second.ok, second.error).toBe(true);
+    expect(second.result?.outcome ?? "applied").toBe("applied");
+    expect(second.detail).toContain("Color Rosa applied");
+    expect(await colorsOn(page)).toEqual(["Blanco", "Rosa"]);
+    const listings = named(await events(page), "listing_shown");
+    expect(listings[listings.length - 1].payload.filters).toEqual({ color: "Blanco, Rosa" });
+    expect(listings[listings.length - 1].payload.count).toBe(60);
+  });
+
+  test("one cue with two colours puts both on", async ({ page }) => {
+    await serveSite(page);
+    await open(page, CATEGORY);
+    const result = await run(page, "listing.filter", ["color", "Blanco, Rosa", CATEGORY]);
+    expect(result.ok, result.error).toBe(true);
+    expect(result.detail).toContain("Color Blanco, Rosa applied");
+    expect(await colorsOn(page)).toEqual(["Blanco", "Rosa"]);
+  });
+
+  test("a press that replaces the colour on loads the address with both", async ({ page }) => {
+    await page.addInitScript(() => {
+      (window as unknown as { __qfSingle: boolean }).__qfSingle = true;
+    });
+    const seen = await serveSite(page);
+    await open(page, CATEGORY);
+    const first = await run(page, "listing.filter", ["color", "Blanco", CATEGORY]);
+    expect(first.ok, first.error).toBe(true);
+    await runAway(page, "listing.filter", ["color", "Rosa", CATEGORY]);
+    await page.waitForURL(/color=6889,7018/);
+    await listen(page);
+    const done = await waitForEvent(page, "stage_result");
+    expect(done.payload).toMatchObject({ move: "listing.filter", outcome: "applied" });
+    expect(seen.pages).toContain(`${CATEGORY}?color=6889,7018`);
+    expect(await colorsOn(page)).toEqual(["Blanco", "Rosa"]);
+  });
+
+  test("a colour the listing lacks: partial, naming it, never applied", async ({ page }) => {
+    await serveSite(page);
+    await open(page, CATEGORY);
+    const result = await run(page, "filter_listing", { category_path: CATEGORY, size: null, color: ["Blanco", "Fucsia"], threads: null, material: null, sort: null });
+    expect(result.ok, result.error).toBe(true);
+    expect(result.result?.outcome).toBe("partial");
+    expect(result.result?.detail).toMatch(/^applied color Blanco; /);
+    expect(result.result?.refused?.[0]).toMatchObject({ arg: "color", why: 'no color "Fucsia" here' });
+    const cue = await run(page, "listing.filter", ["color", "Rosa, Fucsia", CATEGORY]);
+    expect(cue.ok, cue.error).toBe(true);
+    expect(cue.result?.outcome).toBe("partial");
+    expect(cue.result?.refused?.[0]?.why).toBe('no Color "Fucsia" here');
+    expect(await colorsOn(page)).toEqual(["Blanco", "Rosa"]);
+  });
+
+  test("an option the store leaves off on the address with both: partial, naming it", async ({ page }) => {
+    await page.addInitScript(() => {
+      (window as unknown as { __qfIgnore: string[] }).__qfIgnore = ["7018"];
+    });
+    await serveSite(page);
+    await open(page, CATEGORY);
+    await runAway(page, "filter_listing", { category_path: CATEGORY, size: null, color: ["Blanco", "Rosa"], threads: null, material: null, sort: null });
+    await page.waitForURL(/color=6889,7018/);
+    await listen(page);
+    const done = await waitForEvent(page, "stage_result");
+    expect(done.payload).toMatchObject({ move: "filter_listing", outcome: "partial" });
+    expect(String(done.payload.detail)).toMatch(/^applied color Blanco; /);
+    const refused = done.payload.refused as { arg: string; why: string }[];
+    expect(refused).toEqual([expect.objectContaining({ arg: "color", why: "color Rosa is not on after loading the listing with it" })]);
+  });
+
+  test("filter_listing on a listing with another colour on: that one is dropped, the asked ones put on", async ({ page }) => {
+    await serveSite(page);
+    await open(page, `${CATEGORY}?color=6823`);
+    await runAway(page, "filter_listing", { category_path: CATEGORY, size: null, color: ["Blanco"], threads: null, material: null, sort: null });
+    await page.waitForURL(/color=6889$/);
+    await listen(page);
+    const done = await waitForEvent(page, "stage_result");
+    expect(done.payload).toMatchObject({ move: "filter_listing", outcome: "applied" });
+    expect(await colorsOn(page)).toEqual(["Blanco"]);
+  });
+});
+
 test("a price written the English way (a translated page: $29,990) is read in full, not as 29", async ({ page }) => {
   await serveSite(page);
   await page.route(`${ORIGIN}/customer/section/load/**`, (route) => route.fulfill({ status: 500, body: "" }));

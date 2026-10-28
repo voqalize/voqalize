@@ -153,3 +153,143 @@ def test_a_claim_needs_words_on_both_sides_of_a_gap() -> None:
         Move(id="x.y", verb=None, cls=MoveClass.LOOK, claims=("* calendar",))
     with pytest.raises(ValueError, match="claim"):
         Move(id="x.y", verb=None, cls=MoveClass.LOOK, claims=("...",))
+
+
+# ─── The shape of a promise: a first-person lead, a verb, one of its objects ───
+
+#: Explora's check_availability, as it declares its objects.
+BOOK = Move(
+    id="site.book",
+    verb=None,
+    cls=MoveClass.REVERSIBLE,
+    objects=(
+        "calendar",
+        "availability",
+        "dates",
+        "days",
+        "nights",
+        "rooms",
+        "rates",
+        "prices",
+        "calendario",
+        "disponibilidad",
+        "fechas",
+        "noches",
+        "habitaciones",
+        "tarifas",
+        "precios",
+    ),
+)
+ROOM = Move(id="site.room", verb=None, cls=MoveClass.REVERSIBLE, objects=("room", "habitacion"))
+
+#: Dev call 453f2e19: three responses that promised the move and called nothing.
+LIVE = (
+    "I'll open the calendar. I'm checking Patagonia National Park for November.",
+    "I'm selecting three nights to see the rates.",
+    "Happy to help. I'm opening the rooms and rates for your three nights.",
+)
+
+
+def _booking() -> tuple[Stage, list[Action]]:
+    sent: list[Action] = []
+    return Stage(dispatch=sent.append, moves=(BOOK, ROOM, SHOW)), sent
+
+
+@pytest.mark.parametrize(
+    ("said", "phrase"),
+    [
+        (LIVE[0], "open the calendar"),
+        (LIVE[1], "selecting three nights"),
+        (LIVE[2], "opening the rooms"),
+    ],
+)
+async def test_the_live_promises_are_heard(said: str, phrase: str) -> None:
+    stage, _ = _booking()
+    await _say(stage, said)
+    got = stage.end_turn()
+    # One promise, told as the first move it names: the rates, not a room.
+    assert [(u.move.id, u.phrase) for u in got] == [("site.book", phrase)]
+
+
+@pytest.mark.parametrize(
+    ("said", "phrase"),
+    [
+        ("Te abro el calendario de Atacama.", "abro el calendario"),
+        ("Voy a revisar las fechas para noviembre.", "revisar las fechas"),
+        ("Estoy buscando la disponibilidad de Atacama.", "buscando la disponibilidad"),
+        ("Déjame mostrarte las tarifas.", "mostrarte las tarifas"),
+        ("Sí, reviso las noches que pediste.", "reviso las noches"),
+        ("Let me pull up the prices for you.", "pull up the prices"),
+        ("I will check the Atacama availability now.", "check the atacama availability"),
+        ("I\N{RIGHT SINGLE QUOTATION MARK}m just now opening the dates.", "opening the dates"),
+    ],
+)
+async def test_other_shapes_are_heard(said: str, phrase: str) -> None:
+    stage, _ = _booking()
+    await _say(stage, said)
+    assert [u.phrase for u in stage.end_turn()] == [phrase]
+
+
+@pytest.mark.parametrize(
+    "said",
+    [
+        # A question is an offer.
+        "Shall I open the calendar?",
+        "¿Te abro el calendario?",
+        # The past reports a move; it does not promise a new one. A false
+        # report is a different fault, and a retry would not fix it.
+        "I opened the calendar.",
+        "I've opened the calendar for you.",
+        # Only naming the thing, with no first-person lead.
+        "The rooms start at nine hundred a night.",
+        "Rooms and rates depend on the dates.",
+        # A lead with no verb before the thing.
+        "I'm sorry, the rooms are full.",
+        # A negation, and a condition.
+        "I'm not opening the calendar yet.",
+        "No voy a abrir el calendario todavía.",
+        "If you like, I'll open the calendar.",
+        "Si quieres, te abro el calendario.",
+        # The thing too far from the verb.
+        "I'll tell you more about the lodge and its nights.",
+        # A plural object never hears one: "rooms" is not "room".
+        "I'm reading you the room.",
+    ],
+)
+async def test_what_is_not_a_promise(said: str) -> None:
+    stage, _ = _booking()
+    await _say(stage, said)
+    assert [u.phrase for u in stage.end_turn() if u.move.id == "site.book"] == []
+
+
+async def test_a_sentence_that_names_two_moves_is_kept_by_either() -> None:
+    stage, _ = _booking()
+    await _say(stage, "I'm opening the rooms and rates for your three nights.")
+    stage.send("site.book", {})
+    # The rooms are a room's object too, but the sentence is one promise.
+    assert stage.end_turn() == []
+    await _say(stage, "I'm selecting the Suite room for you.")
+    assert [u.move.id for u in stage.end_turn()] == ["site.room"]
+
+
+async def test_an_exact_claim_still_counts_beside_the_shape() -> None:
+    stage, _, _ = _stage()
+    # CHECK has claims and no objects: only its claims hear it.
+    await _say(stage, "I'll open the calendar.")
+    assert stage.end_turn() == []
+    await _say(stage, "Checking availability for you.")
+    assert [u.phrase for u in stage.end_turn()] == ["checking availability"]
+
+
+def test_an_object_needs_a_word() -> None:
+    with pytest.raises(ValueError, match="object"):
+        Move(id="x.y", verb=None, cls=MoveClass.LOOK, objects=("…",))
+
+
+async def test_a_promise_its_own_cue_made_is_kept() -> None:
+    stage, _ = _booking()
+    await _say(stage, "{show: Rooms} I'll show you the rooms at the lodge.")
+    assert stage.end_turn() == []
+    # A cue in another sentence keeps nothing here.
+    await _say(stage, "{show: Lodge} Here it is. I'll show you the rooms at the lodge.")
+    assert [u.move.id for u in stage.end_turn()] == ["site.book"]
