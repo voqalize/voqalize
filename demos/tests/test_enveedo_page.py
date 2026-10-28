@@ -270,6 +270,71 @@ def test_keys_resolve_on_the_english_and_the_spanish_home(page: Any) -> None:
             assert _rings(page) == 1
 
 
+MODULE_CARDS = (
+    "mod_crown_jewel",
+    "mod_risk_register",
+    "mod_compliance",
+    "mod_vendor_risk",
+    "mod_incident_response",
+    "mod_roadmap",
+)
+
+
+def test_the_modules_ring_the_heading_with_its_cards_and_each_card_rings_alone(
+    page: Any,
+) -> None:
+    _open(page, "/enveedo_platform")
+    assert set(MODULE_CARDS) <= set(_context(page)["anchors"])
+    assert _run(page, "show_section", {"anchor": "modules", "text": None})["ok"]
+    page.wait_for_timeout(100)  # the ring follows its target a frame later
+    ring, heading, last = page.evaluate(
+        """() => [document.querySelector('[data-voqalize=highlight]'),
+                  document.querySelector('#hs_cos_wrapper_module_1752529832940'),
+                  [...document.querySelectorAll('.cyber-card')].at(-1)]
+                 .map((e) => { const r = e.getBoundingClientRect(); return [r.top, r.bottom]; })"""
+    )
+    # The ring holds the heading and runs down past the last card.
+    assert ring[0] <= heading[0] and ring[1] >= last[1]
+    titles = []
+    for key in MODULE_CARDS:
+        assert _run(page, "show_section", {"anchor": key, "text": None})["ok"], key
+        assert _rings(page) == 1
+        titles.append(
+            page.evaluate(
+                """() => { const r = document.querySelector('[data-voqalize=highlight]').getBoundingClientRect();
+                  const x = r.left + r.width / 2, y = r.top + r.height / 2;
+                  const card = [...document.querySelectorAll('.cyber-card')].find((c) => {
+                    const b = c.getBoundingClientRect();
+                    return b.left <= x && x <= b.right && b.top <= y && y <= b.bottom; });
+                  return card ? card.querySelector('.card-title').textContent.trim() : null; }"""
+            )
+        )
+    assert titles == [
+        "Crown Jewel Analysis",
+        "Risk Register",
+        "Compliance Management",
+        "Vendor Risk Management",
+        "Incident Response Manager",
+        "Security Roadmap",
+    ]
+
+
+def test_the_other_pages_card_grids_ring_card_by_card(page: Any) -> None:
+    for path, keys in (
+        ("/enveedo_platform", ("int_api", "auto_evidence", "dash_vendor", "automation")),
+        ("/security-performance-os", ("why_stall", "stall_audits", "result_sustained")),
+        ("/partners", ("why_partner", "partner_vciso", "benefits", "benefit_api")),
+        ("/book-a-demo", ("start_with", "start_concierge")),
+        ("/about-us", ("principles", "principle_honesty")),
+        ("/trust-center", ("ctrl_grc", "ctrl_it_change")),
+        ("/", ("impact_stats", "impact_focus", "testimonial_cto")),
+    ):
+        _open(page, path)
+        for key in keys:
+            assert _run(page, "show_section", {"anchor": key, "text": None})["ok"], (path, key)
+            assert _rings(page) == 1
+
+
 def test_an_unknown_key_fails_with_the_page_s_places(page: Any) -> None:
     _open(page, "/contact")
     got = _run(page, "show_section", {"anchor": "no_such_place", "text": None})

@@ -375,8 +375,11 @@ function styleThePage(): void {
 }
 
 /** What to ring for a place: the place, or, when it is much taller than the
- *  screen, its heading. */
-function ringTarget(el: HTMLElement): HTMLElement {
+ *  screen, its heading. A whole section (the catalogue's `.dnd-section:has(…)`
+ *  places: a heading with its cards) is rung whole, its content box, even past
+ *  the screen's foot: its heading alone is not what was named. */
+function ringTarget(el: HTMLElement, whole = false): HTMLElement {
+  if (whole) return el.querySelector<HTMLElement>(":scope > .row-fluid") ?? el;
   if (el.getBoundingClientRect().height <= window.innerHeight * 0.8) return el;
   // HubSpot's heroes write their title in a styled rich-text div as often as
   // in an h1.
@@ -556,7 +559,8 @@ async function showSection({ anchor, text }: { anchor?: string | null; text?: st
         await bringIntoView(el);
         // The toggle's cards: the switch above them is rung with them.
         const toggle = row.reveal?.click === "#toggle-switch" ? document.querySelector("#toggle-switch") : null;
-        highlight(toggle && visible(toggle) ? [ringTarget(el), toggle] : ringTarget(el));
+        const target = ringTarget(el, el.matches(".dnd-section") && row.selector.includes(".dnd-section:has("));
+        highlight(toggle && visible(toggle) ? [target, toggle] : target);
         return opened ? `opened and showed ${row.key}` : undefined;
       }
     }

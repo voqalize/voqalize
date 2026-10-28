@@ -93,6 +93,13 @@ class Place:
     exist, not to be laid out."""
     row: bool = True
     """Whether a row ``fallback`` is worked out for it."""
+    es: tuple[str, ...] = ()
+    """Candidates for the Spanish page instead of ``ids``, where the Spanish
+    page reuses an English module id for another item (the about page's
+    principles are shifted by one)."""
+
+    def candidates(self, path: str) -> tuple[str, ...]:
+        return self.es if self.es and path.startswith("/es/") else self.ids
 
 
 def mod(*ids: str) -> tuple[str, ...]:
@@ -107,6 +114,31 @@ def P(key: str, label: str, *ids: str, **kw: Any) -> Place:  # noqa: N802
 
 def S(key: str, label: str, *selectors: str, **kw: Any) -> Place:  # noqa: N802
     return Place(key, label, tuple(selectors), **kw)
+
+
+def section(*ids: str) -> tuple[str, ...]:
+    """The whole top-level section (heading and everything under it) that
+    holds a module: ``"module_1752529832940"`` →
+    ``#main-content .dnd-section:has(#hs_cos_wrapper_module_1752529832940)``.
+    For a place whose heading module alone would ring only the heading."""
+    return tuple(f"#main-content .dnd-section:has(#hs_cos_wrapper_{i})" for i in ids)
+
+
+def items(
+    containers: tuple[str, ...], item: str, entries: tuple[tuple[str, str], ...]
+) -> tuple[Place, ...]:
+    """One place per item of a grid (cards, features, pillars): ``entries`` in
+    the page's order, ``item`` the n-th item under a container, with ``{n}``
+    for its position. Each container is tried in order (the English module,
+    the Spanish one, a class-only selector the page holds once)."""
+    return tuple(
+        Place(key, label, tuple(f"{c} {item.format(n=n)}" for c in containers))
+        for n, (key, label) in enumerate(entries, 1)
+    )
+
+
+#: The n-th item of a HubSpot "quickfeat" module (an icon, a title, a line).
+QUICKFEAT = ".quickfeat .row > .col:nth-child({n}) .quickfeat__item"
 
 
 @dataclass(frozen=True)
@@ -257,6 +289,196 @@ def form_places(prefix: str, form: str) -> tuple[Place, ...]:
     )
 
 
+#: The grids of cards and features, in the page's order: (key, label). A
+#: label is the item's title and its one line, as the English page writes it.
+MODULE_CARDS = (
+    (
+        "mod_crown_jewel",
+        "Module card: Crown Jewel Analysis (map critical business functions to their assets and processes)",
+    ),
+    (
+        "mod_risk_register",
+        "Module card: Risk Register (every risk in one place, updated from integrated tools)",
+    ),
+    (
+        "mod_compliance",
+        "Module card: Compliance Management (map controls once, apply to many frameworks, automated evidence)",
+    ),
+    (
+        "mod_vendor_risk",
+        "Module card: Vendor Risk Management (automated questionnaires, risk scoring, continuous monitoring)",
+    ),
+    (
+        "mod_incident_response",
+        "Module card: Incident Response Manager (build, test and run response plans tied to critical assets)",
+    ),
+    (
+        "mod_roadmap",
+        "Module card: Security Roadmap (prioritized initiatives, automated progress tracking)",
+    ),
+)
+INTEGRATION_ITEMS = (
+    (
+        "int_prebuilt",
+        "Integration capability: Pre-built Integrations (with leading security tools)",
+    ),
+    ("int_api", "Integration capability: API Framework (for custom integrations)"),
+    ("int_data", "Integration capability: Data Import/Export"),
+    ("int_identity", "Integration capability: Authentication (identity management integration)"),
+)
+AUTOMATION_ITEMS = (
+    ("auto_tasks", "Automation feature: Task Management (auto-assign and track remediation tasks)"),
+    (
+        "auto_evidence",
+        "Automation feature: Evidence Collection (gather and organize compliance evidence)",
+    ),
+    (
+        "auto_control_testing",
+        "Automation feature: Control Testing (schedule and document control tests)",
+    ),
+    ("auto_risk_updates", "Automation feature: Risk Updates (risk scores updated from new data)"),
+    ("auto_reporting", "Automation feature: Reporting (executive and detailed reports on demand)"),
+)
+DASHBOARD_ITEMS = (
+    ("dash_executive", "Dashboard: Executive Dashboard (high-level posture and risk metrics)"),
+    ("dash_operational", "Dashboard: Operational Dashboard (day-to-day program management)"),
+    ("dash_compliance", "Dashboard: Compliance Dashboard (framework status and gaps)"),
+    ("dash_risk", "Dashboard: Risk Dashboard (risk register with prioritization and trends)"),
+    ("dash_vendor", "Dashboard: Vendor Dashboard (third-party risk overview)"),
+)
+STALL_CARDS = (
+    (
+        "stall_fragmentation",
+        "Stall card: Operational Fragmentation (controls, risks and audits in separate systems)",
+    ),
+    (
+        "stall_duplication",
+        "Stall card: Multi-Framework Duplication (the same control documented again per framework)",
+    ),
+    ("stall_risk", "Stall card: Hard-to-Defend Risk (isolated scoring, inconsistent methods)"),
+    ("stall_audits", "Stall card: Disruptive Audits (evidence gathered by hand from many tools)"),
+)
+SPOS_RESULTS = (
+    ("result_exposure", "Result: Exposure is reduced in a measurable way"),
+    ("result_prioritization", "Result: Prioritization becomes strategic"),
+    ("result_investment", "Result: Investment is justified with greater precision"),
+    ("result_executive", "Result: Executive conversations become stronger"),
+    ("result_sustained", "Result: The program sustains performance over time"),
+)
+PARTNER_CARDS = (
+    (
+        "partner_vciso",
+        "Partner card: Scalable vCISO Services (vCISO at scale, less manual CISO work)",
+    ),
+    (
+        "partner_services",
+        "Partner card: Advanced Professional Services (a recurring revenue model)",
+    ),
+    ("partner_insights", "Partner card: Leverage Strategic Insights (findings to upsell services)"),
+    (
+        "partner_risk_assessment",
+        "Partner card: Security Risk Assessment (a strategic risk conversation with customers)",
+    ),
+)
+PARTNER_BENEFITS = (
+    (
+        "benefit_multitenancy",
+        "Partner benefit: Multitenancy for Managed Services (many clients, one platform)",
+    ),
+    ("benefit_marketplace", "Partner benefit: Custom Marketplace (your own branded marketplace)"),
+    (
+        "benefit_setup",
+        "Partner benefit: Instant Set-Up & Risk Posture Awareness (deploy in minutes)",
+    ),
+    (
+        "benefit_asset_priority",
+        "Partner benefit: High-Value Asset Prioritization (critical business assets first)",
+    ),
+    ("benefit_reporting", "Partner benefit: Cyber Risk Reporting & Dashboards (measurable impact)"),
+    ("benefit_api", "Partner benefit: API & Ecosystem Integrations (your tools and workflows)"),
+)
+DEMO_CARDS = (
+    ("start_risk_assessment", "Card: Continuous automated risk assessment and exposure analysis"),
+    (
+        "start_integrations",
+        "Card: Powerful API Integrations (AWS, GCP, Azure, Office 365, Jira, Okta, …)",
+    ),
+    ("start_monitoring", "Card: Automated, continuous monitoring across 170+ security controls"),
+    ("start_workflow", "Card: Comprehensive Workflow Management (track, delegate, measure)"),
+    ("start_workshops", "Card: Platform-led workshops to define your crown jewels"),
+    ("start_heatmap", "Card: Real-time Risk Heatmap of your risk posture"),
+    ("start_roadmap", "Card: Risk-based Cybersecurity Roadmap to prioritize risk reduction"),
+    ("start_concierge", "Card: CISO Concierge (a real-life advisor from industry experts)"),
+)
+#: (key, label, English module id, Spanish module id): the Spanish page's
+#: first three principles sit in other modules, one of them the English
+#: page's next principle's.
+PRINCIPLES = (
+    (
+        "principle_build_to_win",
+        "Principle: We Build to Win",
+        "module_171695047984921",
+        "module_171694008618415",
+    ),
+    (
+        "principle_roots",
+        "Principle: Think From the Roots",
+        "module_171694008618415",
+        "module_171694008618421",
+    ),
+    (
+        "principle_decide",
+        "Principle: Decide and Move",
+        "module_171694008618421",
+        "module_17169400861852",
+    ),
+    (
+        "principle_customer",
+        "Principle: Customer Obsession",
+        "module_17169504798499",
+        "module_17169504798499",
+    ),
+    (
+        "principle_ownership",
+        "Principle: Extreme Ownership",
+        "module_171695047984913",
+        "module_171695047984913",
+    ),
+    (
+        "principle_honesty",
+        "Principle: Radical Honesty",
+        "module_171695047984917",
+        "module_171695047984917",
+    ),
+)
+TRUST_CONTROLS = (
+    (
+        "ctrl_grc",
+        "Control card: Governance, Risk & Compliance (annual SOC 2 Type II audit, privacy audit)",
+        "module_17399090469163",
+    ),
+    (
+        "ctrl_threat_detection",
+        "Control card: Threat Detection, Monitoring and Incident Response",
+        "module_17399086393473",
+    ),
+    (
+        "ctrl_data_protection",
+        "Control card: Data Protection & Privacy (TLS encryption, regular backups)",
+        "module_1739909201819",
+    ),
+    (
+        "ctrl_access",
+        "Control card: Access Management and Security Awareness (role-based access, annual review)",
+        "module_17399088653143",
+    ),
+    (
+        "ctrl_it_change",
+        "Control card: IT Infrastructure and Change Management (SDLC with approvals)",
+        "module_1739909404473",
+    ),
+)
+
 LEGAL = (
     P("title", "Page title", "module_17158069187937", "module_17158070350337"),
     P("body", "The text", "widget_1715799039480", "module_1733171808937"),
@@ -339,10 +561,26 @@ PAGES: dict[str, PageSpec] = {
                 "Supporting 45+ frameworks: Explore all Frameworks",
                 "module_17458739579293",
             ),
-            P(
+            Place(
                 "impact_stats",
-                "Real-World Impact: 5x faster risk assessment, 50% more efficiency, 3x more strategic focus",
-                "module_1745873602846",
+                "Real-World Impact: the section with its three numbers (5x faster risk assessment, 50% more efficiency, 3x more strategic focus)",
+                (*section("module_1745873602846"), *mod("module_1745873602846")),
+            ),
+            P(
+                "impact_risk_assessment",
+                "Impact card: 5x Faster Risk Assessment (weeks of spreadsheets down to days)",
+                "module_17526866241653",
+            ),
+            P(
+                "impact_efficiency",
+                "Impact card: 50% More Operational Efficiency (centralized docs, automated data collection)",
+                "module_17526866315403",
+                "module_17533271515503",
+            ),
+            P(
+                "impact_focus",
+                "Impact card: 3x More Strategic Focus (top talent freed from admin tasks)",
+                "module_17526866361273",
             ),
             P(
                 "integrations",
@@ -365,6 +603,22 @@ PAGES: dict[str, PageSpec] = {
                 "Three anonymous testimonials (CISO, VP IT, CTO)",
                 "widget_1752694356992",
                 "widget_1752694386938",
+            ),
+            *items(
+                (
+                    "#hs_cos_wrapper_widget_1752694356992",
+                    "#hs_cos_wrapper_widget_1752694386938",
+                    "#main-content",
+                ),
+                ".testimonial-container > .testimonial-card:nth-child({n})",
+                (
+                    ("testimonial_ciso", "Testimonial card: a CISO, e-Commerce Company"),
+                    (
+                        "testimonial_vp_it",
+                        "Testimonial card: a VP Information Technology, Global Manufacturing Firm",
+                    ),
+                    ("testimonial_cto", "Testimonial card: a CTO, HR Recruiting Firm"),
+                ),
             ),
             P(
                 "final_cta",
@@ -389,26 +643,38 @@ PAGES: dict[str, PageSpec] = {
                 "module_1720842160327",
             ),
             P("integrations", "Supported Integrations", "module_17532332226713"),
-            P(
+            Place(
                 "modules",
-                "Fully Integrated Security Management: six modules (Crown Jewel Analysis, Risk Register, Compliance Management, Vendor Risk Management, Incident Response Manager, Security Roadmap)",
-                "module_1752529832940",
+                "Fully Integrated Security Management: the heading and its six module cards",
+                (*section("module_1752529832940"), *mod("module_1752529832940")),
             ),
-            P(
+            *items(
+                (
+                    "#hs_cos_wrapper_widget_1753325472863",
+                    "#hs_cos_wrapper_widget_1753325672760",
+                    "#main-content",
+                ),
+                ".cards-container > .cyber-card:nth-child({n})",
+                MODULE_CARDS,
+            ),
+            Place(
                 "integration_capabilities",
-                "Integration capabilities: pre-built integrations, API framework, data import/export, identity",
-                "module_1752527758938",
+                "Integration Capabilities: connect your existing security ecosystem (four capabilities)",
+                (*section("module_1752527758938"), *mod("module_1752527758938")),
             ),
-            P(
+            *items(("#hs_cos_wrapper_module_17525277643563",), QUICKFEAT, INTEGRATION_ITEMS),
+            Place(
                 "automation",
-                "Smart automation: tasks, evidence collection, control testing, risk updates, reporting",
-                "module_1753234273260",
+                "Automation Features: let Enveedo do the heavy lifting (five features)",
+                (*section("module_1753234273260"), *mod("module_1753234273260")),
             ),
-            P(
+            *items(("#hs_cos_wrapper_module_17525279869767",), QUICKFEAT, AUTOMATION_ITEMS),
+            Place(
                 "dashboards",
-                "Dashboard preview: executive, operational, compliance, risk, vendor",
-                "module_17525283940005",
+                "Dashboard Preview: real-time security program visibility (five dashboards)",
+                (*section("module_17525283940005"), *mod("module_17525283940005")),
             ),
+            *items(("#hs_cos_wrapper_module_17525283940007",), QUICKFEAT, DASHBOARD_ITEMS),
             P("advantage", "The Enveedo Advantage", "module_1721164175389"),
             P(
                 "comparison",
@@ -427,10 +693,15 @@ PAGES: dict[str, PageSpec] = {
                 "Security Performance OS: an integrated, governable, measurable system (Request Executive Briefing)",
                 "widget_1752815223713",
             ),
-            P(
+            Place(
                 "why_stall",
-                "Why Enterprise Cybersecurity Programs Stall: fragmentation, duplication, hard-to-defend risk, disruptive audits",
-                "module_1772628492192",
+                "Why Enterprise Cybersecurity Programs Stall: the heading and its four cards",
+                (*section("module_1772628492192"), *mod("module_1772628492192")),
+            ),
+            *items(
+                ("#hs_cos_wrapper_widget_1772815028243", "#main-content"),
+                ".cards-grid > .info-card:nth-child({n})",
+                STALL_CARDS,
             ),
             P("our_platform", "Our Platform", "module_17727135982866"),
             P("performance", "Enterprise-grade operational performance", "module_1745873440679"),
@@ -470,10 +741,15 @@ PAGES: dict[str, PageSpec] = {
                 "Beyond spreadsheets, more agile than generic GRC platforms: comparison",
                 "module_17533261030766",
             ),
-            P(
+            Place(
                 "strategic_advantage",
-                "Turn your cybersecurity program into a strategic advantage",
-                "module_17458748771523",
+                "Turn your cybersecurity program into a strategic advantage: the section with its five results",
+                (*section("module_17458748771523"), *mod("module_17458748771523")),
+            ),
+            *items(
+                ("#hs_cos_wrapper_widget_1772815605939", "#main-content"),
+                ".cards-list > .list-card:nth-child({n})",
+                SPOS_RESULTS,
             ),
             P(
                 "final_cta",
@@ -527,16 +803,25 @@ PAGES: dict[str, PageSpec] = {
                 "A Strategic Security Enabler for MSSPs and MSPs (Become a Partner)",
                 "module_17534714210569",
             ),
-            P(
+            Place(
                 "why_partner",
-                "Why Partner with Enveedo? vCISO services at speed and scale",
-                "module_1753471456381",
+                "Why Partner with Enveedo? vCISO services at speed and scale: the heading and its four cards",
+                (*section("module_1753471456381"), *mod("module_1753471456381")),
             ),
-            P(
+            *items(
+                ("#hs_cos_wrapper_module_17534714563812", "#main-content"),
+                ".cards-container > .cyber-card:nth-child({n})",
+                PARTNER_CARDS,
+            ),
+            Place(
                 "benefits",
-                "Partners Benefits: multitenancy, custom marketplace, deploy in minutes, reporting, API",
-                "module_175347146068010",
+                "Partners Benefits: the heading and its six benefits",
+                (
+                    "#main-content .span6:has(#hs_cos_wrapper_module_175347146068010)",
+                    *mod("module_175347146068010"),
+                ),
             ),
+            *items(("#hs_cos_wrapper_module_175347146068012",), QUICKFEAT, PARTNER_BENEFITS),
             P("ecosystem", "Include Enveedo in Your Ecosystem", "module_17534714643887"),
             P("integrations", "Supported Integrations", "module_17534714756916"),
             P("apply", "Start Your Partner Application Process", "module_17534714832716"),
@@ -555,10 +840,15 @@ PAGES: dict[str, PageSpec] = {
         "/es/book-a-demo",
         (
             P("hero", "Book a Demo", "widget_1791379111352"),
-            P(
+            Place(
                 "start_with",
-                "Start with Enveedo: continuous risk assessment, integrations, 170+ controls, CISO Concierge",
-                "widget_1716876752676",
+                "Start with Enveedo, your all-in-one cybersecurity solution: the heading and its eight cards",
+                (*section("widget_1716876752676"), *mod("widget_1716876752676")),
+            ),
+            *items(
+                ("#hs_cos_wrapper_widget_1791380816638", "#main-content"),
+                ".cards-container > .cyber-card:nth-child({n})",
+                DEMO_CARDS,
             ),
             P(
                 "demo_request",
@@ -619,7 +909,12 @@ PAGES: dict[str, PageSpec] = {
                 for n, (key, label) in enumerate(ABOUT_TAB_KEYS, 1)
             ),
             P("team", "Meet the Team", "module_1717082556932"),
-            P("principles", "Our Principles", "module_1716939980175"),
+            Place(
+                "principles",
+                "Our Principles: the heading and its six principles",
+                (*section("module_1716939980175"), *mod("module_1716939980175")),
+            ),
+            *(Place(key, label, mod(mid), es=mod(es)) for key, label, mid, es in PRINCIPLES),
             P(
                 "investors",
                 "Our Investors (Silverton Partners, Runtime Ventures, Blue Venture)",
@@ -654,7 +949,21 @@ PAGES: dict[str, PageSpec] = {
         (
             P("hero", "Cyber Insurance has never been more complex", "module_17170151808127"),
             P("benefits", "Benefits of Cyber Insurance", "module_1717044767953"),
-            P("approval", "Increase Approval Decisions", "module_17169623093987"),
+            P(
+                "approval",
+                "Benefit card: Increase Approval Decisions (a program every stakeholder understands)",
+                "module_17169623093987",
+            ),
+            P(
+                "mitigate_risk",
+                "Benefit card: Mitigate Your Business Risk (augment existing security resources)",
+                "module_17169623093989",
+            ),
+            P(
+                "decrease_premium",
+                "Benefit card: Decrease Premium Process (technology, processes, people and programs aligned)",
+                "module_171696230939811",
+            ),
             P("procuring", "Procuring Cyber Insurance", "module_17170448622152"),
             P(
                 "reduce_friction",
@@ -664,8 +973,23 @@ PAGES: dict[str, PageSpec] = {
             P("features", "Enveedo Features at a Glance", "module_17170448238982"),
             P(
                 "program_overview",
-                "Program Overview: Crown Jewel Analysis and more",
+                "Feature card: Program Overview (build and manage a complete cyber program from scratch)",
                 "module_171676249562610",
+            ),
+            P(
+                "feature_cja",
+                "Feature card: Crown Jewel Analysis (CJA) (insights for planning future defenses)",
+                "module_171676249562616",
+            ),
+            P(
+                "feature_program_management",
+                "Feature card: Program Management (keep critical assets resilient)",
+                "module_171676249562622",
+            ),
+            P(
+                "feature_risk_management",
+                "Feature card: Risk Management (track, prioritize and mitigate risks)",
+                "module_171676249562628",
             ),
             P("key_benefits", "Key Benefits of Cyber Risk Management", "module_17170448965962"),
             P(
@@ -733,9 +1057,10 @@ PAGES: dict[str, PageSpec] = {
             P("controls", "Our Security Controls", "module_17389560607146"),
             P(
                 "network_security",
-                "Network and application security: scans, pentest, WAF, IDS, TLS",
+                "Control card: Network and Application Security (scans, pentest, WAF, IDS, TLS)",
                 "module_17393787634927",
             ),
+            *(P(key, label, mid) for key, label, mid in TRUST_CONTROLS),
             P("soc2", "SOC 2 Compliance: the SOC 2 Type II report", "module_17393868932213"),
             S("soc2_form", "Request the SOC 2 Type II report (form)", SOC2_FORM, row=False),
             *form_places("soc2", SOC2_FORM),
@@ -893,8 +1218,8 @@ def _goto(page: Any, url: str) -> int:
     return status
 
 
-def _rows(places: tuple[Place, ...]) -> list[list[Any]]:
-    return [[p.key, list(p.ids), p.row] for p in places]
+def _rows(places: tuple[Place, ...], path: str) -> list[list[Any]]:
+    return [[p.key, list(p.candidates(path)), p.row] for p in places]
 
 
 def render(page: Any, path: str, spec: PageSpec) -> dict[str, Any]:
@@ -902,7 +1227,7 @@ def render(page: Any, path: str, spec: PageSpec) -> dict[str, Any]:
     if status >= 400:
         return {"path": path, "status": status}
     plain = tuple(p for p in spec.places if p.reveal is None)
-    reads = page.evaluate(_READ, _rows(plain + HEADER + FOOTER))
+    reads = page.evaluate(_READ, _rows(plain + HEADER + FOOTER, path))
     # The reveals, in order: each opened by its own control (a tab, an
     # accordion, the toggle), checked open, then read.
     revealed: list[dict[str, Any]] = []
@@ -915,7 +1240,7 @@ def render(page: Any, path: str, spec: PageSpec) -> dict[str, Any]:
             page.evaluate(_CLICK, click)
             page.wait_for_timeout(900)
         result["open"] = page.evaluate(_COUNT, opened)
-        result |= page.evaluate(_READ, _rows((p,)))[0]
+        result |= page.evaluate(_READ, _rows((p,), path))[0]
         revealed.append(result)
     return {
         "path": path,
