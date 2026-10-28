@@ -17,6 +17,13 @@ kept for the history, and nothing installable was ever cut from them.
 
 ## Unreleased
 
+## 0.12.0-rc1
+
+A release candidate, not a stable release: `pip install voqalize-agent-sdk`
+still installs 0.11.0, and this one is installed only by asking for it
+(`voqalize-agent-sdk==0.12.0rc1`). `voqalize.sdk.stage` is new and may change
+before 0.12.0.
+
 ### Added
 
 - **`voqalize.sdk.stage`: the agent shows and does things on a page while it

@@ -166,13 +166,16 @@ facts:
       pattern: '^name = "(.+)"$'
 
   sdk.python.version.tree:
-    value: '0.11.0'
+    value: '0.12.0-rc1'
     source: sdk/python/pyproject.toml:3
-    verified: 2026-10-20
+    verified: 2026-10-29
     derive:
       file: sdk/python/pyproject.toml
       pattern: '^version = "(.+)"$'
     note: >-
+      Bumped to 0.12.0-rc1 on 2026-10-29, a release candidate for Stage
+      (voqalize.sdk.stage) and Config.ack: a pre-release, so pip installs it
+      only when asked and the published line stays 0.11.0. Additive on the wire.
       Bumped to 0.11.0 on 2026-10-20 for the voice core and two more model
       layers: voqalize.sdk.voice (VoiceCore, ToolChoice), OpenAIBrain behind the
       `openai` extra and LiteLLMBrain behind `litellm`, GeminiBrain rebuilt on the

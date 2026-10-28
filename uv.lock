@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.12"
 resolution-markers = [
     "python_full_version >= '3.14' and sys_platform == 'win32'",
@@ -2200,7 +2200,7 @@ wheels = [
 
 [[package]]
 name = "voqalize-agent-sdk"
-version = "0.11.0"
+version = "0.12.0rc1"
 source = { editable = "sdk/python" }
 dependencies = [
     { name = "cryptography" },
