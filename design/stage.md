@@ -494,6 +494,36 @@ that change one slice):
   look that lands rings something (warning). `observe(moves, id, args)` gives the raw
   observation. In the ports, `scene.registerAll` makes the registry check a compile error.
 
+### Kits and plugins (built)
+
+- **Kit**: a spec fragment many apps share, as data shipped in the SDK
+  (`voqalize/sdk/stage/kits/<id>.json`, `KitSpec`: `kit: 1`, `id`, semver `version`, moves named
+  `<id>.…`, slices, events). An app takes it with `"kits": [{"id": "commerce", "major": 1,
+  "moves": [...]?}]`; loading merges the kit's chosen moves and all its slices and events in
+  (a `mode="before"` validator), so the director, `stage gen` and the TS scene see one spec. A
+  part already present exactly as the kit has it is the same part (a dump loads again); one
+  declared otherwise, a wrong major, an unknown kit or move, or a verb clash is refused. A minor
+  version only adds; lowering a class or renaming is a major.
+- **`commerce` 1.0.0**: `commerce.filter` (cue `{filter: Facet | Option[, Option]}`),
+  `commerce.sort` (cue, closed orders), `commerce.search`, `commerce.open_item`,
+  `commerce.cart_add` / `cart_update` (confirmed), `commerce.cart_show`; slices `listing`
+  (path, title, count, filters on/offered, sort, items) and `cart` (count, subtotal, lines);
+  events `listing.shown|filtered|sorted`, `cart.changed`. Claims and objects in en and es. Every
+  shipped kit is held to `stage check` with no errors.
+- **Plugin** (`PluginSpec` in the spec's `plugins`): `name` (`magento.prices`), `major`,
+  `side: brain|page`, `class`, `args`, `output` fields, `egress` (https origins only, no path),
+  `deadline_ms`, `pii`. Bounds checked on load: a brain plugin is `look` only, answers within
+  20 ms (the tool budget) and has no egress (our servers never reach a customer's site; a read of
+  the site runs on the page); a page plugin is at most `reversible` and answers within 5 s.
+- **Page runtime** (`Plugins`, `@voqalize/stage`): `new Plugins(scene.spec.plugins)`,
+  `register(name, impl)` only for a declared page plugin, `run(name, args)` within the
+  declaration: a `fetch` that requests only the `egress` origins, always `credentials: "omit"`,
+  aborted at the deadline (the run fails with `PluginError`), and only the declared, non-private
+  `output` fields returned. No loader: plugins are compiled in, never fetched.
+- The ports keep their own move ids; moving Cannon Home onto `commerce.*` and its live price
+  read onto a `magento.prices` plugin renames moves on both sides, so it lands with a dev
+  re-test. The hosted brain and the explorer are the kit's first users.
+
 Not yet in the spec (next steps): places and things (regions with spoken labels), `effect`,
 `spotlight`, `undo`, the stale-version check on moves (`resolved_at`), and `stage build` for a
 `defineScene` module.

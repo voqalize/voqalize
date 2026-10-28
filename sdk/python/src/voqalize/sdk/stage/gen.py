@@ -225,7 +225,7 @@ def render_typescript(spec: StageSpec, *, source: str, command: str) -> str:
     data.pop("$schema", None)
     data.pop("languages", None)
     # What only the brain reads stays out of the page's bundle.
-    for move in data["moves"]:
+    for move in data.get("moves", ()):
         for field in _BRAIN_ONLY:
             move.pop(field, None)
         for arg in move.get("args", ()):
@@ -237,6 +237,12 @@ def render_typescript(spec: StageSpec, *, source: str, command: str) -> str:
     for event in data.get("events", ()):
         event.pop("note", None)
         event.pop("doc", None)
+    data.pop("kits", None)  # already merged into the moves, slices and events
+    for plugin in data.get("plugins", ()):
+        plugin.pop("doc", None)
+        for arg in plugin.get("args", ()):
+            arg.pop("doc", None)
+        _drop_docs(plugin.get("output", []))
     body = json.dumps(data, ensure_ascii=False, indent=2)
     return "\n".join(
         [

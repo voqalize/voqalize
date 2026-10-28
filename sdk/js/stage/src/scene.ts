@@ -25,6 +25,7 @@
  */
 
 import type { MoveClass, Moves, Performer } from "./moves";
+import type { PluginSpec } from "./plugins";
 import type { StageEvent } from "./wire.gen";
 
 type Scalar = "string" | "integer" | "number" | "boolean";
@@ -100,6 +101,9 @@ export interface SceneSpec {
   readonly moves: readonly MoveSpec[];
   readonly slices?: readonly SliceSpec[];
   readonly events?: readonly EventSpec[];
+  /** The kits taken; their parts are already merged into the lists above. */
+  readonly kits?: readonly { readonly id: string; readonly major: number; readonly moves?: readonly string[] }[];
+  readonly plugins?: readonly PluginSpec[];
 }
 
 type ScalarOf<A> = A extends { readonly enum: readonly (infer L)[] }

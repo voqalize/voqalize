@@ -31,3 +31,4 @@ export {
   type ArgSpec, type ArgsOf, defineScene, type ItemSpec, type MoveId, type MoveSpec, type Performers, type Scene,
   type SceneSpec, type EventData, type EventId, type EventSpec, type FieldSpec, type SliceOf, type SliceSpec,
 } from "./scene";
+export { type PluginContext, PluginError, type PluginImpl, Plugins, type PluginSpec } from "./plugins";

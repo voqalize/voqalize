@@ -263,6 +263,43 @@
       "title": "ItemSpec",
       "type": "object"
     },
+    "KitUse": {
+      "additionalProperties": false,
+      "description": "An app taking a kit: all of it, or the moves it names.",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "major": {
+          "minimum": 1,
+          "title": "Major",
+          "type": "integer"
+        },
+        "moves": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Moves"
+        }
+      },
+      "required": [
+        "id",
+        "major"
+      ],
+      "title": "KitUse",
+      "type": "object"
+    },
     "MoveClass": {
       "description": "How much a move changes, from nothing to something the person owns.",
       "enum": [
@@ -348,6 +385,81 @@
       "title": "MoveSpec",
       "type": "object"
     },
+    "PluginSpec": {
+      "additionalProperties": false,
+      "description": "A plugin: code of ours compiled into the runtime that does one typed\nthing the steps cannot (``magento.prices``: a same-origin read of live\nprices). Never fetched at run time; named here so a pack can require it and\na review can see what it may reach.",
+      "properties": {
+        "name": {
+          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "major": {
+          "minimum": 1,
+          "title": "Major",
+          "type": "integer"
+        },
+        "side": {
+          "enum": [
+            "brain",
+            "page"
+          ],
+          "title": "Side",
+          "type": "string"
+        },
+        "class": {
+          "$ref": "#/$defs/MoveClass"
+        },
+        "args": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ArgSpec"
+          },
+          "title": "Args",
+          "type": "array"
+        },
+        "output": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/FieldSpec"
+          },
+          "title": "Output",
+          "type": "array"
+        },
+        "egress": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Egress",
+          "type": "array"
+        },
+        "deadline_ms": {
+          "minimum": 1,
+          "title": "Deadline Ms",
+          "type": "integer"
+        },
+        "pii": {
+          "default": false,
+          "title": "Pii",
+          "type": "boolean"
+        },
+        "doc": {
+          "default": "",
+          "title": "Doc",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "major",
+        "side",
+        "class",
+        "deadline_ms"
+      ],
+      "title": "PluginSpec",
+      "type": "object"
+    },
     "SliceSpec": {
       "additionalProperties": false,
       "description": "A named, typed piece of the page's state (``cart``, ``listing``), kept\nin the brain's mirror and read by the model on demand.",
@@ -418,7 +530,16 @@
       "title": "Languages",
       "type": "array"
     },
+    "kits": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/KitUse"
+      },
+      "title": "Kits",
+      "type": "array"
+    },
     "moves": {
+      "default": [],
       "items": {
         "$ref": "#/$defs/MoveSpec"
       },
@@ -440,12 +561,19 @@
       },
       "title": "Events",
       "type": "array"
+    },
+    "plugins": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/PluginSpec"
+      },
+      "title": "Plugins",
+      "type": "array"
     }
   },
   "required": [
     "stage",
-    "id",
-    "moves"
+    "id"
   ],
   "type": "object"
 }

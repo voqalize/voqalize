@@ -45,16 +45,23 @@ from .moves import MAX_ARGS, MAX_TOOL_ARGS, Move, MoveSet
 from .policy import MoveClass
 
 __all__ = [
+    "KITS_DIR",
     "MAX_TOOL_ARGS",
+    "PLUGIN_CLASSES",
+    "PLUGIN_DEADLINES_MS",
     "SPEC_VERSION",
     "WINDOW",
     "ArgSpec",
     "EventSpec",
     "FieldSpec",
     "ItemSpec",
+    "KitSpec",
+    "KitUse",
     "MoveSpec",
+    "PluginSpec",
     "SliceSpec",
     "StageSpec",
+    "load_kit",
     "load_spec",
     "spec_schema",
 ]
@@ -245,6 +252,152 @@ class EventSpec(_Strict):
     doc: str = ""
 
 
+class KitSpec(_Strict):
+    """A kit: moves, slices and events many apps share, as data
+    (``kits/commerce.json``). An app takes it by naming it in ``kits``."""
+
+    kit: Literal[1]
+    id: str = Field(pattern=_IDENT)
+    version: str = Field(pattern=r"^\d+\.\d+\.\d+$")
+    """Semver. A minor version only adds; lowering a class or renaming is a major."""
+    doc: str = ""
+    moves: tuple[MoveSpec, ...] = ()
+    slices: tuple[SliceSpec, ...] = ()
+    events: tuple[EventSpec, ...] = ()
+
+    @model_validator(mode="after")
+    def _own(self) -> Self:
+        for m in self.moves:
+            if not m.id.startswith(f"{self.id}."):
+                raise ValueError(f"kit {self.id!r}: move {m.id!r} must be named {self.id}.…")
+        return self
+
+
+class KitUse(_Strict):
+    """An app taking a kit: all of it, or the moves it names."""
+
+    id: str = Field(pattern=_IDENT)
+    major: int = Field(ge=1)
+    """The kit's major version the app was written against."""
+    moves: tuple[str, ...] | None = None
+    """The kit's moves to take; all of them when left out. Its slices and
+    events always come, since moves report into them."""
+
+
+#: The kits this SDK ships, by id: ``kits/<id>.json`` beside this module.
+KITS_DIR = Path(__file__).parent / "kits"
+
+
+def load_kit(kit_id: str) -> KitSpec:
+    """A kit this SDK ships; :class:`KeyError` when there is none by that id."""
+    path = KITS_DIR / f"{kit_id}.json"
+    if not path.is_file():
+        raise KeyError(kit_id)
+    return KitSpec.model_validate_json(path.read_text(encoding="utf-8"))
+
+
+PluginSide = Literal["brain", "page"]
+
+#: The most a plugin may change, by where it runs: a brain plugin only reads; a
+#: page plugin at most makes a change that can be undone.
+PLUGIN_CLASSES: dict[str, frozenset[MoveClass]] = {
+    "brain": frozenset({MoveClass.LOOK}),
+    "page": frozenset({MoveClass.LOOK, MoveClass.NAVIGATE, MoveClass.REVERSIBLE}),
+}
+#: The longest a plugin may run, by where it runs, in milliseconds.
+PLUGIN_DEADLINES_MS: dict[str, int] = {"brain": 20, "page": 5_000}
+
+_ORIGIN = r"^https://[a-z0-9.-]+(:\d+)?$"
+
+
+class PluginSpec(_Strict):
+    """A plugin: code of ours compiled into the runtime that does one typed
+    thing the steps cannot (``magento.prices``: a same-origin read of live
+    prices). Never fetched at run time; named here so a pack can require it and
+    a review can see what it may reach."""
+
+    name: str = Field(pattern=_MOVE_ID)
+    major: int = Field(ge=1)
+    side: PluginSide
+    cls: MoveClass = Field(alias="class")
+    args: tuple[ArgSpec, ...] = ()
+    output: tuple[FieldSpec, ...] = ()
+    """What it returns: only these fields leave it, private ones never."""
+    egress: tuple[str, ...] = ()
+    """The only origins it may request (``https://host``); empty: none."""
+    deadline_ms: int = Field(ge=1)
+    pii: bool = False
+    """Whether what it reads may hold personal data: its output is then kept
+    out of logs."""
+    doc: str = ""
+
+    @model_validator(mode="after")
+    def _bounds(self) -> Self:
+        if self.cls not in PLUGIN_CLASSES[self.side]:
+            most = ", ".join(sorted(c.value for c in PLUGIN_CLASSES[self.side]))
+            raise ValueError(
+                f"plugin {self.name!r}: a {self.side} plugin may be {most}, not {self.cls.value}"
+            )
+        if self.deadline_ms > PLUGIN_DEADLINES_MS[self.side]:
+            raise ValueError(
+                f"plugin {self.name!r}: a {self.side} plugin answers within "
+                f"{PLUGIN_DEADLINES_MS[self.side]} ms, not {self.deadline_ms}"
+            )
+        for origin in self.egress:
+            if re.fullmatch(_ORIGIN, origin) is None:
+                raise ValueError(
+                    f"plugin {self.name!r}: egress {origin!r} must be an https origin, with no path"
+                )
+        if self.side == "brain" and self.egress:
+            raise ValueError(
+                f"plugin {self.name!r}: a brain plugin never reaches a customer's site; "
+                "a read of the site runs on the page"
+            )
+        return self
+
+
+def _with_kits(data: dict[str, Any]) -> dict[str, Any]:
+    """``data`` with the moves, slices and events of the kits it names, each
+    taken once: a part the document already holds as the kit has it is the
+    same part (a spec dumped and loaded again), a different one is refused."""
+    uses = data.get("kits") or ()
+    if not uses:
+        return data
+    lists: dict[str, list[Any]] = {
+        key: list(data.get(key, ())) for key in ("moves", "slices", "events")
+    }
+    out: dict[str, Any] = {**data, **lists}
+    for raw in uses:
+        use = KitUse.model_validate(raw)
+        try:
+            kit = load_kit(use.id)
+        except KeyError:
+            raise ValueError(f"no kit {use.id!r}") from None
+        if int(kit.version.split(".")[0]) != use.major:
+            raise ValueError(
+                f"kit {use.id!r} is version {kit.version}; the spec wants {use.major}.x"
+            )
+        known = {m.id for m in kit.moves}
+        wanted = set(use.moves) if use.moves is not None else known
+        if unknown := wanted - known:
+            raise ValueError(f"kit {use.id!r} has no move {', '.join(sorted(unknown))}")
+        parts: list[tuple[str, BaseModel]] = [
+            *(("moves", m) for m in kit.moves if m.id in wanted),
+            *(("slices", s) for s in kit.slices),
+            *(("events", e) for e in kit.events),
+        ]
+        for key, part in parts:
+            mine = part.model_dump(mode="json", by_alias=True, exclude_defaults=True)
+            got = [p for p in lists[key] if isinstance(p, Mapping) and p.get("id") == mine["id"]]
+            if not got:
+                lists[key].append(mine)
+            elif any(type(part).model_validate(p) != part for p in got):
+                raise ValueError(
+                    f"{mine['id']!r} is kit {use.id!r}'s; the spec declares it otherwise"
+                )
+    return out
+
+
 class StageSpec(_Strict):
     """An app's Stage Spec."""
 
@@ -255,13 +408,23 @@ class StageSpec(_Strict):
     """The app, as one lowercase word."""
     languages: tuple[str, ...] = ()
     """The languages its labels and claims are written in (BCP-47)."""
-    moves: tuple[MoveSpec, ...]
+    kits: tuple[KitUse, ...] = ()
+    """The kits it takes: their moves, slices and events are merged in when it loads."""
+    moves: tuple[MoveSpec, ...] = ()
     slices: tuple[SliceSpec, ...] = ()
     events: tuple[EventSpec, ...] = ()
+    plugins: tuple[PluginSpec, ...] = ()
+
+    @model_validator(mode="before")
+    @classmethod
+    def _merge_kits(cls, data: Any) -> Any:
+        return _with_kits(data) if isinstance(data, dict) else data  # pyright: ignore[reportUnknownArgumentType]
 
     @model_validator(mode="after")
     def _unique(self) -> Self:
         self.move_set()  # one id, one verb
+        if len({p.name for p in self.plugins}) != len(self.plugins):
+            raise ValueError("two plugins have one name")
         slices = {s.id: s for s in self.slices}
         if len(slices) != len(self.slices):
             raise ValueError("two slices have one id")
