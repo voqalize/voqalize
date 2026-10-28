@@ -655,7 +655,9 @@ async def test_the_form_waits_for_a_project_page() -> None:
 async def test_english_heard_moves_both_legs_before_he_answers() -> None:
     async with demo("ssilva", _llm()) as rig:
         await rig.driver.start_session(init={"path": "/"})
-        turn = await rig.driver.user_says("Hi, can you show me projects in Las Condes please?")
+        turn = await rig.driver.user_says(
+            "Hi, can you show me projects in Las Condes please? I would like to know more, please."
+        )
         check_turn(rig, turn)
         check_voice_pair(rig, voice="omnivoice/javier", language="en")
         assert rig.command("language_changed") == {"language": "en"}

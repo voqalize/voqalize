@@ -292,7 +292,9 @@ async def test_english_heard_moves_both_legs_before_he_answers() -> None:
     )
     async with demo("uahurtado", llm) as rig:
         await rig.driver.start_session(init={"url": f"{ADM}/"})
-        turn = await rig.driver.user_says("What careers do you have in engineering?")
+        turn = await rig.driver.user_says(
+            "What careers do you have in engineering? I would like to know more, please."
+        )
         check_turn(rig, turn)
         check_voice_pair(rig, voice="omnivoice/javier", language="en")
 

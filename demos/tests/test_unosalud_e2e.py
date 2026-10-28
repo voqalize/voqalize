@@ -262,7 +262,9 @@ async def test_a_call_started_in_english_greets_in_english() -> None:
 async def test_english_heard_moves_the_call_and_spanish_brings_it_back() -> None:
     async with demo("unosalud", _llm()) as rig:
         await rig.driver.start_session(init={"path": ORTO})
-        turn = await rig.driver.user_says("How much are the braces for me?")
+        turn = await rig.driver.user_says(
+            "How much are the braces for me? I would like to know more, please."
+        )
         check_turn(rig, turn)
         check_voice_pair(rig, voice="omnivoice/javier", language="en")
         await rig.driver.user_says("Hola, ¿cómo estás?")

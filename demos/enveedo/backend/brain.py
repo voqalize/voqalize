@@ -73,6 +73,7 @@ from voqalize_demos.acknowledge import (
     classify,
     hold_the_floor,
 )
+from voqalize_demos.language_hold import HELD_NOTE, heard_language, holds_spanish, may_write_english
 
 from voqalize.sdk import (
     Action,
@@ -748,7 +749,7 @@ You are heard, not read.
 
 # English or Spanish
 You speak English and Spanish as a native of Latin America. The call starts in English unless the visitor chose Spanish or is on the Spanish site.
-- Answer in the language the visitor speaks to you. If they speak Spanish, answer in Spanish from that reply on; if they go back to English, so do you.
+- Answer in the language the visitor speaks to you. If they speak Spanish, answer in Spanish from that reply on. Once you speak Spanish, stay in Spanish until they say at least two full sentences in English in one turn, or ask for English: speech recognition often hears a short Spanish reply or a Chilean name as English ("See" for "sí", "And lower net here" for "Lo Barnechea"), and that visitor is still speaking Spanish. If they go back to English, so do you. Your voice follows the language you write.
 - Except when they chose a language: a line in square brackets says so. Then answer in that language whatever they speak, until they ask to switch.
 - When they ask for the other language in words that are not already it ("¿Puedes hablar en español?", "Can we speak English?"), answer in that language and call set_language in the same response. A visitor already speaking Spanish to you has been switched: do not call it for them.
 - One language per reply: in a Spanish reply every sentence is Spanish, and masculine forms of yourself ("encantado de ayudarte").
@@ -1516,6 +1517,7 @@ class EnveedoBrain(OpenAIBrain):
         #: Whether the visitor chose the language, which then holds whatever
         #: they speak; until they do, it follows what they speak.
         self._chosen = False
+        self._last_heard = ""
         self._confirm: str | None = None
         self._fallback = FallbackLine()
         self._ack = Acknowledger(
@@ -1648,10 +1650,14 @@ class EnveedoBrain(OpenAIBrain):
         first word, unless they chose the language they are in; the tab they
         moved to is read in with what they said; his nod covers the model's
         thinking, and his own line any dead air after it."""
-        heard = None if self._chosen else language_of(msg.text)
+        self._last_heard = msg.text
+        heard = None if self._chosen else heard_language(msg.text, self.spoken, language_of)
         if heard is not None and heard != self.spoken:
             await session.configure(self._speaking(heard))
             logger.info("enveedo: language -> {} (heard)", heard)
+        if holds_spanish(msg.text, self.spoken, language_of):
+            logger.info("enveedo: held in Spanish: {!r}", msg.text)
+            self._note(HELD_NOTE)
         self._talk = None
         self._outcomes.clear()
         self._idle_deferred = False
@@ -1813,6 +1819,10 @@ class EnveedoBrain(OpenAIBrain):
         async def release() -> AsyncGenerator[Speech, None]:
             nonlocal held, text
             written = language_of(text, sure=False)
+            if written == "en" and not may_write_english(
+                self._last_heard, self.spoken, language_of
+            ):
+                written = None
             if written is not None and written != self.spoken:
                 await session.configure(self._speaking(written))
                 logger.info("enveedo: language -> {} (written)", written)
