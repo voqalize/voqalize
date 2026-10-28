@@ -42,6 +42,8 @@
 import type { MoveContext, Moves, PerformResult, Refusal } from "@voqalize/stage";
 import type { Adapter } from "@voqalize/stage/extension";
 
+import { scene } from "./scene.gen";
+
 import {
   amount, best, boxOf, clean, headerHeight, inOrder, money, norm, pathOf, press, privateField, quiet, samePath, scrollTo,
   scrollToTopOfPage, setValue, settled, shown, sleep, styleThePage, target, typeInto, visible, waitFor,
@@ -1148,7 +1150,7 @@ async function filterListing(p: FilterListing, c: MoveContext): Promise<string |
  *  several of one filter (`Color | Blanco, Beige`). Each is added to what is
  *  on — the options already on stay on — and every one is checked on at the
  *  end: one that is not makes it `partial`, naming it, never `applied`. */
-async function filterCue(p: { facet: string; value: string | null; path?: string | null } & Arrived, c: MoveContext): Promise<string | null | PerformResult> {
+async function filterCue(p: { facet: string; value?: string | null; path?: string | null } & Arrived, c: MoveContext): Promise<string | null | PerformResult> {
   const variable = FACETS[norm(p.facet ?? "")] ?? (offeredFacets().includes(p.facet) ? p.facet : null);
   if (!variable) c.refuse("facet", `a listing has no filter "${p.facet}"`, offeredFacets());
   const values = saidValues(p.value);
@@ -2028,24 +2030,27 @@ async function openFaq(p: { question: string; path?: string | null }, c: MoveCon
 
 // ─── Registering the moves ────────────────────────────────────────────────
 
-/** Every move this page makes, by the id the brain names it with, with its
- *  class; a cue's positional arguments by name. */
+/** Every move this page makes, by the id the brain names it with: its class,
+ *  a cue's argument names and the arguments' types come from
+ *  `cannonhome/scene.json`, and a move left out does not compile. */
 export function registerMoves(moves: Moves): void {
-  moves.register("page.open", "navigate", openPage, { params: ["path"] });
-  moves.register("page.show", "look", showSection, { params: ["target", "path"] });
-  moves.register("page.faq", "look", openFaq, { params: ["question", "path"] });
-  moves.register("listing.filter", "reversible", filterCue, { params: ["facet", "value", "path"] });
-  moves.register("listing.sort", "reversible", sortCue, { params: ["order", "path"] });
-  moves.register("search_products", "reversible", searchProducts);
-  moves.register("filter_listing", "reversible", filterListing);
-  moves.register("open_product", "navigate", openProduct);
-  moves.register("product_tab", "look", productTab);
-  moves.register("check_prices", "look", checkPrices);
-  moves.register("show_cart", "look", showCart);
-  moves.register("add_to_cart", "confirmed", addToCart);
-  moves.register("update_cart_item", "confirmed", updateCartItem);
-  moves.register("start_checkout", "confirmed", startCheckout);
-  moves.register("fill_checkout", "confirmed", fillCheckout);
+  scene.registerAll(moves, {
+    "page.open": openPage,
+    "page.show": showSection,
+    "page.faq": openFaq,
+    "listing.filter": filterCue,
+    "listing.sort": sortCue,
+    search_products: searchProducts,
+    filter_listing: filterListing,
+    open_product: openProduct,
+    product_tab: productTab,
+    check_prices: checkPrices,
+    show_cart: showCart,
+    add_to_cart: addToCart,
+    update_cart_item: updateCartItem,
+    start_checkout: startCheckout,
+    fill_checkout: fillCheckout,
+  });
 }
 
 // ─── Watching the page ────────────────────────────────────────────────────

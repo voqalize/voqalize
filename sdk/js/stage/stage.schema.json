@@ -1,0 +1,264 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Stage Spec",
+  "$defs": {
+    "ArgSpec": {
+      "additionalProperties": false,
+      "description": "One argument of a move, in the order a cue gives them.",
+      "properties": {
+        "name": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "anyOf": [
+            {
+              "enum": [
+                "string",
+                "integer",
+                "number",
+                "boolean"
+              ],
+              "type": "string"
+            },
+            {
+              "const": "array",
+              "type": "string"
+            }
+          ],
+          "default": "string",
+          "title": "Type"
+        },
+        "items": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ItemSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "enum": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Enum"
+        },
+        "optional": {
+          "default": false,
+          "title": "Optional",
+          "type": "boolean"
+        },
+        "default": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Default"
+        },
+        "doc": {
+          "default": "",
+          "title": "Doc",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "ArgSpec",
+      "type": "object"
+    },
+    "ItemSpec": {
+      "additionalProperties": false,
+      "description": "What an array argument holds.",
+      "properties": {
+        "type": {
+          "default": "string",
+          "enum": [
+            "string",
+            "integer",
+            "number",
+            "boolean"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "enum": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Enum"
+        }
+      },
+      "title": "ItemSpec",
+      "type": "object"
+    },
+    "MoveClass": {
+      "description": "How much a move changes, from nothing to something the person owns.",
+      "enum": [
+        "look",
+        "navigate",
+        "reversible",
+        "confirmed"
+      ],
+      "title": "MoveClass",
+      "type": "string"
+    },
+    "MoveSpec": {
+      "additionalProperties": false,
+      "description": "One move: what :class:`~voqalize.sdk.stage.Move` holds, plus its\narguments' types and a line of documentation for each generated copy.",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "verb": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Verb"
+        },
+        "class": {
+          "$ref": "#/$defs/MoveClass"
+        },
+        "args": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ArgSpec"
+          },
+          "title": "Args",
+          "type": "array"
+        },
+        "say": {
+          "default": "",
+          "title": "Say",
+          "type": "string"
+        },
+        "claims": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Claims",
+          "type": "array"
+        },
+        "objects": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Objects",
+          "type": "array"
+        },
+        "doc": {
+          "default": "",
+          "title": "Doc",
+          "type": "string"
+        },
+        "notes": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Notes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "class"
+      ],
+      "title": "MoveSpec",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "An app's Stage Spec.",
+  "properties": {
+    "$schema": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "$Schema"
+    },
+    "stage": {
+      "const": 1,
+      "title": "Stage",
+      "type": "integer"
+    },
+    "id": {
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "title": "Id",
+      "type": "string"
+    },
+    "languages": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Languages",
+      "type": "array"
+    },
+    "moves": {
+      "items": {
+        "$ref": "#/$defs/MoveSpec"
+      },
+      "title": "Moves",
+      "type": "array"
+    }
+  },
+  "required": [
+    "stage",
+    "id",
+    "moves"
+  ],
+  "type": "object"
+}

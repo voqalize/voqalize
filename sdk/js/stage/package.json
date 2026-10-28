@@ -10,7 +10,8 @@
     "./extension": "./src/extension/index.ts"
   },
   "files": [
-    "src"
+    "src",
+    "stage.schema.json"
   ],
   "scripts": {
     "typecheck": "tsc --noEmit",

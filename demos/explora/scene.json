@@ -1,0 +1,151 @@
+{
+  "$schema": "../../sdk/js/stage/stage.schema.json",
+  "stage": 1,
+  "id": "explora",
+  "languages": ["en", "es"],
+  "moves": [
+    {
+      "id": "core.show",
+      "verb": "show",
+      "class": "look",
+      "args": [{ "name": "target", "doc": "A heading, tab or accordion as the page writes it, or words on it." }],
+      "say": "{show: Heading} scrolls to a heading on the page they are on, or are taken to by a page cue, and rings it. Use the heading exactly as the site pages list or the screen lines spell it. With the label of one of the page's tabs or accordions (\"Patagonia [Argentina + Chile]\"), it opens it. With words that are not a heading, it rings those words: a room, an exploration, a lodge's name.",
+      "doc": "Scroll to a heading, open a tab or accordion, or ring words, on the page in front."
+    },
+    {
+      "id": "core.faq",
+      "verb": "faq",
+      "class": "look",
+      "args": [{ "name": "question", "doc": "The question as the page writes it." }],
+      "say": "{faq: Question} opens that question's accordion on the page and rings it.",
+      "doc": "Open a question's accordion and ring it."
+    },
+    {
+      "id": "explora.navigate",
+      "class": "navigate",
+      "args": [
+        { "name": "path", "doc": "A www.explora.com path." },
+        {
+          "name": "after_words",
+          "type": "integer",
+          "optional": true,
+          "doc": "Words of his still to be heard before the page may go (the holder's pacing)."
+        }
+      ],
+      "doc": "Open a www.explora.com page in the tab in front, once his voice has said\n``after_words`` words: a full page load. The page reports ``page_changed``.",
+      "notes": [
+        "A page cue is not a cue on Explora: every page is a full page load, so the brain splits his reply there and sends this itself, once the words before it are said."
+      ]
+    },
+    {
+      "id": "explora.twin",
+      "class": "navigate",
+      "args": [{ "name": "language", "enum": ["en", "es"] }],
+      "doc": "Load the page in front's own twin in ``language``, once his voice is quiet;\nrefused when it has none."
+    },
+    {
+      "id": "explora.check_availability",
+      "class": "reversible",
+      "args": [
+        { "name": "hotel_code", "doc": "The lodge's code on the booking site, such as EATA." },
+        { "name": "date", "optional": true, "doc": "The arrival day." },
+        { "name": "month", "optional": true, "doc": "The month the calendar shows." },
+        { "name": "nights", "type": "integer", "optional": true },
+        { "name": "rooms", "type": "boolean", "optional": true, "doc": "Go on to the rooms and rates." },
+        { "name": "language", "enum": ["EN", "ES"], "optional": true }
+      ],
+      "claims": [
+        "opening the * calendar",
+        "checking availability",
+        "checking the * availability",
+        "checking the * dates",
+        "let me open the * calendar",
+        "abro el * calendario",
+        "abriendo el * calendario",
+        "reviso la * disponibilidad",
+        "revisando la * disponibilidad",
+        "reviso las * fechas",
+        "revisando las * fechas"
+      ],
+      "objects": [
+        "calendar",
+        "availability",
+        "dates",
+        "days",
+        "nights",
+        "rooms",
+        "rates",
+        "prices",
+        "calendario",
+        "disponibilidad",
+        "fechas",
+        "dias",
+        "noches",
+        "habitaciones",
+        "tarifas",
+        "precios"
+      ],
+      "doc": "On reservations.explora.com, the lodge ``hotel_code``, and with them the\narrival ``date``, ``month``, ``nights``; with ``rooms``, on to the rooms and\nrates. Never past them. The page reports ``stay_state``.",
+      "notes": [
+        "Dev call 2f94965e: \"I'm opening the Atacama calendar for three nights\", twice, and no check_availability either time: the claims.",
+        "Dev call 453f2e19: \"I'll open the calendar.\", \"I'm selecting three nights to see the rates.\", \"I'm opening the rooms and rates\", and no call each time; no claim matched any of them. The objects do, by the sentence's shape."
+      ]
+    },
+    {
+      "id": "explora.choose_room",
+      "class": "reversible",
+      "args": [
+        { "name": "room", "doc": "The room as the rates page names it." },
+        { "name": "travellers", "type": "integer", "optional": true },
+        { "name": "bed", "optional": true },
+        { "name": "count", "type": "integer", "optional": true }
+      ],
+      "claims": [
+        "selecting the * room",
+        "adding the * room",
+        "selecciono la * habitacion",
+        "agrego la * habitacion"
+      ],
+      "objects": ["room", "habitacion"],
+      "doc": "On the rooms and rates, select ``room`` for ``travellers`` with ``bed``,\n``count`` times. Never check-out itself.",
+      "notes": [
+        "Objects in the singular, so a plural hears them too; \"the rooms\" alone is check_availability's first, and either one made keeps the sentence."
+      ]
+    },
+    {
+      "id": "explora.fill_enquiry",
+      "class": "reversible",
+      "args": [
+        { "name": "expedition_code", "doc": "The expedition's code, such as XSCM." },
+        { "name": "title", "optional": true },
+        { "name": "first_name", "optional": true },
+        { "name": "last_name", "optional": true },
+        { "name": "email", "optional": true },
+        { "name": "phone", "optional": true },
+        { "name": "country", "optional": true },
+        { "name": "message", "optional": true },
+        { "name": "language", "enum": ["EN", "ES"], "optional": true }
+      ],
+      "claims": [
+        "filling in the * form",
+        "opening the * form",
+        "abro el * formulario",
+        "completo el * formulario",
+        "completando el * formulario"
+      ],
+      "objects": ["form", "enquiry", "formulario"],
+      "doc": "Open an expedition's enquiry form and fill in the fields given."
+    },
+    {
+      "id": "explora.send_enquiry",
+      "class": "confirmed",
+      "doc": "Press Send Message on the filled form: the visitor's own data, so only\nafter they ticked the reCAPTCHA and the brain checked every field."
+    },
+    {
+      "id": "explora.focus_tab",
+      "class": "look",
+      "args": [{ "name": "tab_id" }],
+      "doc": "Bring one of the visitor's Explora tabs to the front."
+    }
+  ]
+}

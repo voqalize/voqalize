@@ -9,11 +9,15 @@
  * (`site-language.ts`) and what is here.
  */
 
+import type { ArgsOf, MoveId } from "@voqalize/stage";
 import { defineSite, type WidgetWords } from "@voqalize/stage/extension";
 
+import { scene } from "./scene.gen";
 import { BOOKING, SITE } from "./site-language";
 
-/** The moves the brain sends (`backend/brain.py`), by id. */
+type Spec = typeof scene.spec;
+
+/** The moves the brain sends, by id: declared in `explora/scene.json`. */
 export const MOVE = {
   show: "core.show",
   faq: "core.faq",
@@ -24,7 +28,7 @@ export const MOVE = {
   fillEnquiry: "explora.fill_enquiry",
   sendEnquiry: "explora.send_enquiry",
   focusTab: "explora.focus_tab",
-} as const;
+} as const satisfies Record<string, MoveId<Spec>>;
 
 /** The moves made on the booking site: from www.explora.com they load it first. */
 export const BOOKING_MOVES = new Set<string>([
@@ -40,39 +44,10 @@ export const ANY_TAB = ["language_requested", "enquiry_sent", "twin_lookup"] as 
 
 // ─── The moves' arguments, as the brain sends them ────────────────────────
 
-export interface NavigateArgs {
-  path: string;
-  /** Words of his still to be heard before the page may go (the holder's pacing). */
-  after_words?: number;
-}
-
-export interface CheckAvailabilityArgs {
-  hotel_code: string;
-  date?: string | null;
-  month?: string | null;
-  nights?: number | null;
-  rooms?: boolean;
-  language?: "EN" | "ES";
-}
-
-export interface ChooseRoomArgs {
-  room: string;
-  travellers?: number | null;
-  bed?: string | null;
-  count?: number;
-}
-
-export interface FillEnquiryArgs {
-  expedition_code: string;
-  title?: string | null;
-  first_name?: string | null;
-  last_name?: string | null;
-  email?: string | null;
-  phone?: string | null;
-  country?: string | null;
-  message?: string | null;
-  language?: "EN" | "ES";
-}
+export type NavigateArgs = ArgsOf<Spec, typeof MOVE.navigate>;
+export type CheckAvailabilityArgs = ArgsOf<Spec, typeof MOVE.checkAvailability>;
+export type ChooseRoomArgs = ArgsOf<Spec, typeof MOVE.chooseRoom>;
+export type FillEnquiryArgs = ArgsOf<Spec, typeof MOVE.fillEnquiry>;
 
 /** The page of the booking site a booking move starts on, so the move lands
  *  where the booking adapter would load it itself: one load, not two. */

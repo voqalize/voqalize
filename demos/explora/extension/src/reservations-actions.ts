@@ -41,6 +41,7 @@ import { type Adapter, type PageKit } from "@voqalize/stage/extension";
 import type { EnquiryFields, EnquiryState, NightsOption, RoomOption, StayState } from "./actions.gen";
 import { clean, norm, type PageContext, pick, scrollTo, setField, sleep, styleThePage, visible, waitFor } from "./dom";
 import { focusTab, inCallLanguage } from "./explora-actions";
+import { scene } from "./scene.gen";
 import { type CheckAvailabilityArgs, type ChooseRoomArgs, type FillEnquiryArgs, MOVE, type NavigateArgs } from "./site";
 import { SITE } from "./site-language";
 
@@ -1139,15 +1140,17 @@ export const reservationsAdapter: Adapter = (moves, kit) => {
   watch();
   watchEnquiry();
   window.addEventListener("pagehide", () => kit.spotlight.clear());
-  moves.register<CheckAvailability>(MOVE.checkAvailability, "reversible", held(checkAvailability));
-  moves.register<ChooseRoom>(MOVE.chooseRoom, "reversible", held(chooseRoom));
-  moves.register<FillEnquiry>(MOVE.fillEnquiry, "reversible", held(fillEnquiry));
-  moves.register<Record<string, never>>(MOVE.sendEnquiry, "confirmed", held((_, c) => sendEnquiry(c)));
-  moves.register<NavigateArgs>(MOVE.navigate, "navigate", (a, c) => navigate(a, c, kit));
-  moves.register(MOVE.show, "look", (_, c) => c.refuse("target", NOT_HERE), { params: ["target"] });
-  moves.register(MOVE.faq, "look", (_, c) => c.refuse("question", NOT_HERE), { params: ["question"] });
-  moves.register(MOVE.twin, "navigate", (_, c) => c.refuse("language", "the booking site follows the call's language by itself"));
-  moves.register(MOVE.focusTab, "look", focusTab);
+  scene.registerAll(moves, {
+    [MOVE.checkAvailability]: held(checkAvailability),
+    [MOVE.chooseRoom]: held(chooseRoom),
+    [MOVE.fillEnquiry]: held(fillEnquiry),
+    [MOVE.sendEnquiry]: held((_, c) => sendEnquiry(c)),
+    [MOVE.navigate]: (a, c) => navigate(a, c, kit),
+    [MOVE.show]: (_, c) => c.refuse("target", NOT_HERE),
+    [MOVE.faq]: (_, c) => c.refuse("question", NOT_HERE),
+    [MOVE.twin]: (_, c) => c.refuse("language", "the booking site follows the call's language by itself"),
+    [MOVE.focusTab]: focusTab,
+  });
   return {
     context: () => ({ ...context() }),
     report,

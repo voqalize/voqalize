@@ -35,9 +35,10 @@ from .director import (
     landed_ask,
 )
 from .labels import fold, match_label
-from .moves import CLAIM_GAP, MAX_ARGS, Move, MoveSet
+from .moves import CLAIM_GAP, MAX_ARGS, MAX_TOOL_ARGS, Move, MoveSet
 from .policy import POLICY, Delivery, MoveClass, Policy, cueable
 from .promises import VERB_REACH, promise_in
+from .spec import SPEC_VERSION, ArgSpec, ItemSpec, MoveSpec, StageSpec, load_spec, spec_schema
 from .wire import (
     STAGE_CONTRACT,
     Fired,
@@ -63,10 +64,13 @@ __all__ = [
     "LANDING_LINE_KEEP_S",
     "MAX_ARGS",
     "MAX_CUE",
+    "MAX_TOOL_ARGS",
     "POLICY",
     "RESULT_TIMEOUTS",
+    "SPEC_VERSION",
     "STAGE_CONTRACT",
     "VERB_REACH",
+    "ArgSpec",
     "ArgValue",
     "AutoCue",
     "AutoCues",
@@ -75,10 +79,12 @@ __all__ = [
     "Delivery",
     "Dropped",
     "Fired",
+    "ItemSpec",
     "Landing",
     "Move",
     "MoveClass",
     "MoveSet",
+    "MoveSpec",
     "OnDrop",
     "OnLanded",
     "OnProgress",
@@ -99,10 +105,13 @@ __all__ = [
     "StagePageEvents",
     "StageProgress",
     "StageResult",
+    "StageSpec",
     "Unkept",
     "cueable",
     "fold",
     "landed_ask",
+    "load_spec",
     "match_label",
     "promise_in",
+    "spec_schema",
 ]

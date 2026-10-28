@@ -35,6 +35,7 @@ import { domSettled, type MoveContext, type Spotlight } from "@voqalize/stage";
 import { type Adapter, askWorker, type PageKit } from "@voqalize/stage/extension";
 
 import { clean, headerHeight, norm, type PageContext, pick, scrollTo, sleep, styleThePage, visible, waitFor } from "./dom";
+import { scene } from "./scene.gen";
 import { bookingUrl, type CheckAvailabilityArgs, type FillEnquiryArgs, MOVE, type NavigateArgs } from "./site";
 import {
   alternateHere, type Lang, type Mapped, pageLanguage, pagePath, pathLang, rememberHere, SITE, siteUrlIn, twinHere,
@@ -885,25 +886,21 @@ export const exploraAdapter: Adapter = (moves, kit) => {
   spot = kit.spotlight;
   styleThePage();
   rememberHere();
-  moves.register<{ target: string | null }>(MOVE.show, "look", live((a, c) => showSection({ heading: a.target }, c)), {
-    params: ["target"],
+  scene.registerAll(moves, {
+    [MOVE.show]: live((a, c) => showSection({ heading: a.target }, c)),
+    [MOVE.faq]: live((a, c) => openFaq(a, c)),
+    [MOVE.navigate]: live((a, c) => navigate(a, c, kit)),
+    [MOVE.twin]: live(twin),
+    [MOVE.checkAvailability]: live((a, c) => toBooking(MOVE.checkAvailability, a, c, kit)),
+    [MOVE.fillEnquiry]: live((a, c) => toBooking(MOVE.fillEnquiry, a, c, kit)),
+    [MOVE.chooseRoom]: async () => {
+      throw new Error("the rooms are not open: check a lodge's availability through to its rooms first");
+    },
+    [MOVE.sendEnquiry]: async () => {
+      throw new Error("no expedition enquiry form is open");
+    },
+    [MOVE.focusTab]: focusTab,
   });
-  moves.register<{ question: string }>(MOVE.faq, "look", live((a, c) => openFaq(a, c)), { params: ["question"] });
-  moves.register<NavigateArgs>(MOVE.navigate, "navigate", live((a, c) => navigate(a, c, kit)));
-  moves.register<{ language: Lang }>(MOVE.twin, "navigate", live(twin));
-  moves.register<CheckAvailabilityArgs>(
-    MOVE.checkAvailability,
-    "reversible",
-    live((a, c) => toBooking(MOVE.checkAvailability, a, c, kit)),
-  );
-  moves.register<FillEnquiryArgs>(MOVE.fillEnquiry, "reversible", live((a, c) => toBooking(MOVE.fillEnquiry, a, c, kit)));
-  moves.register(MOVE.chooseRoom, "reversible", async () => {
-    throw new Error("the rooms are not open: check a lodge's availability through to its rooms first");
-  });
-  moves.register(MOVE.sendEnquiry, "confirmed", async () => {
-    throw new Error("no expedition enquiry form is open");
-  });
-  moves.register(MOVE.focusTab, "look", focusTab);
   return {
     context: () => ({ ...context() }),
     report,

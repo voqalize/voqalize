@@ -33,9 +33,12 @@ def test_a_confirmed_move_has_no_verb() -> None:
     assert Move(id="cart.add", verb=None, cls=MoveClass.CONFIRMED).verb is None
 
 
-def test_at_most_four_args() -> None:
-    with pytest.raises(ValueError, match="at most 4"):
+def test_a_cue_takes_at_most_four_args_and_a_tool_move_twelve() -> None:
+    with pytest.raises(ValueError, match="at most 4, since a cue carries them"):
         Move(id="x", verb="show", cls=MoveClass.LOOK, args=("a", "b", "c", "d", "e"))
+    assert len(Move(id="x", verb=None, cls=MoveClass.LOOK, args=tuple("abcde")).args) == 5
+    with pytest.raises(ValueError, match="at most 12"):
+        Move(id="x", verb=None, cls=MoveClass.LOOK, args=tuple("abcdefghijklm"))
 
 
 def test_a_move_set_refuses_duplicates() -> None:

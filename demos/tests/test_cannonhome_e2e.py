@@ -1415,8 +1415,8 @@ def _checkout_llm() -> ScriptedOpenAI:
 def test_the_checkout_fill_carries_only_the_delivery_forms_fields() -> None:
     """There is no field for a RUT, a password or a card: none can be sent."""
     assert set(ch.CheckoutRequest.model_fields) == _FILLABLE
-    assert set(ch.FillCheckout.model_fields) == _FILLABLE
-    assert set(ch.StartCheckout.model_fields) == set()
+    assert set(ch.FillCheckoutArgs.model_fields) == _FILLABLE
+    assert set(ch.StartCheckoutArgs.model_fields) == set()
     for name in ("rut", "run", "password", "card", "cvv", "payment"):
         assert not any(name in f for f in ch.CheckoutRequest.model_fields), name
 

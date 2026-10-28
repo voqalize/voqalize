@@ -27,3 +27,7 @@ export {
   staleResult,
 } from "./attach";
 export { type StagePage, stagePage } from "./page";
+export {
+  type ArgSpec, type ArgsOf, defineScene, type ItemSpec, type MoveId, type MoveSpec, type Performers, type Scene,
+  type SceneSpec,
+} from "./scene";

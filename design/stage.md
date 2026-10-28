@@ -387,12 +387,65 @@ press; nothing is pressed on a new page before it; without one the page waits on
 the site's own `PipecatClient` fits), and `avatar.create` gets the stand-in client typed loosely
 (`AvatarClient`) so it passes as whichever `PipecatClient` the site's avatar package wants.
 
+## The Stage Spec (built)
+
+An app's moves are declared once, as data: `<app>/scene.json`, validated by
+`sdk/js/stage/stage.schema.json`. The schema is generated from the pydantic model
+`voqalize.sdk.stage.StageSpec` (`spec.py`), never written by hand: regenerate it with
+`voqalize stage schema -o sdk/js/stage/stage.schema.json`, and a test fails when it is stale.
+
+```json
+{ "stage": 1, "id": "shop", "languages": ["es", "en"],
+  "moves": [
+    { "id": "listing.filter", "verb": "filter", "class": "reversible",
+      "args": [{ "name": "facet" }, { "name": "value", "optional": true }],
+      "say": "{filter: Tamaño | King}", "claims": ["…"], "objects": ["…"],
+      "doc": "for the performer's author", "notes": ["the call that taught it"] },
+    { "id": "filter_listing", "class": "reversible",
+      "args": [{ "name": "category_path" },
+               { "name": "color", "type": "array", "optional": true },
+               { "name": "sort", "enum": ["price_asc", "price_desc"], "optional": true },
+               { "name": "qty", "type": "integer", "default": 1 }] } ] }
+```
+
+- An argument is `string` (default), `integer`, `number`, `boolean` or `array` (of `items`,
+  strings by default); `enum` fixes a string's values; `optional` lets it be absent or null;
+  `default` makes it optional and never null. A cue takes at most 4 word arguments; a move
+  only a tool makes takes at most 12 (`MAX_TOOL_ARGS`). Every `Move` rule (verb shape, call
+  words, class may be cued, claims) holds when the spec is loaded.
+- `StageSpec.move_set()` is the `MoveSet` the director runs (a hosted brain loads a pack's spec
+  this way, as data); `prompt_lines()` the cues' `say` lines; `sha256` the hash of its
+  canonical JSON (the `$schema` pointer excluded).
+- `voqalize stage gen scene.json --py … --ts … [--prompt …]` writes:
+  - **Python**: a pydantic `…Args` model per move (argless ones too), a `Move` constant per
+    move (named by the id's last part, or the whole id when two share it), `MOVES`,
+    `PROMPT_LINES`, `SPEC_SHA256`. Formatted as `ruff format` leaves it.
+  - **TypeScript**: `export const scene = defineScene({...})` with only what the page reads
+    (no claims, objects, say, doc, notes, languages), and `SPEC_SHA256`.
+  - **Prompt lines**: the `say` lines, one per line.
+  `voqalize types --scene scene.json -o x.py` is the Python half alone. `voqalize stage check`
+  validates specs.
+- `defineScene(spec)` (`@voqalize/stage`, `scene.ts`) keeps the literal (`const` type
+  parameter), so `ArgsOf<typeof scene.spec, "filter_listing">` is inferred:
+  `{category_path: string; color?: string[] | null; sort?: "price_asc" | "price_desc" | null;
+  qty?: number}`. `scene.register(moves, id, performer)` takes the class and a cue's
+  argument names from the declaration; `scene.registerAll(moves, {...})` wants a performer for
+  every move, so one left out does not compile.
+- The ports: `demos/{explora,cannonhome}/scene.json` → `backend/stage_gen.py` and
+  `extension/src/scene.gen.ts`. The brains import their moves and wire models from
+  `stage_gen` (Explora's prompt teaches its cues from `PROMPT_LINES`, byte for byte the old
+  lines); the extensions register with `scene.registerAll` and take their argument types
+  from `ArgsOf`. `demos/tests/test_stage_specs.py` regenerates both and fails on a stale file.
+
+Not yet in the spec (next steps): places and things (regions with spoken labels), slices and
+events, `effect`, `spotlight`, `undo`, and `stage build` for a `defineScene` module.
+
 ## Gates
 
 ```
 uv run ruff format --check . && uv run ruff check . && uv run pyright
 cd sdk/python && uv run pytest -q
-cd demos && uv run pytest tests/test_explora*.py tests/test_cannonhome*.py   # + the cross-demo voice contract
+cd demos && uv run pytest tests/test_explora*.py tests/test_cannonhome*.py tests/test_stage_specs.py   # + the cross-demo voice contract
 cd sdk/js/stage && pnpm typecheck && pnpm test   # incl. catch-up, mouth clock, client types
 cd demos/<site>/extension && pnpm install --ignore-workspace && pnpm typecheck && pnpm build && pnpm test:e2e
 ```

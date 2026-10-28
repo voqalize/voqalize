@@ -140,6 +140,19 @@ from .knowledge import (
     norm,
     size_key,
 )
+from .stage_gen import (
+    MOVES,
+    AddToCartArgs,
+    CheckPricesArgs,
+    FillCheckoutArgs,
+    FilterListingArgs,
+    OpenProductArgs,
+    ProductTabArgs,
+    SearchProductsArgs,
+    ShowCartArgs,
+    StartCheckoutArgs,
+    UpdateCartItemArgs,
+)
 
 AGENT_NAME = "Javier"
 
@@ -521,147 +534,9 @@ SortOrder = Literal["price_asc", "price_desc", "relevance", "newest"]
 ProductTab = Literal["descripcion", "especificaciones", "calificaciones", "fotos"]
 
 
-class SearchProducts(BaseModel):
-    """``search_products``: type ``query`` into the store's search box
-    (``input.amsearch-input``) at a human pace and let its suggestions open;
-    report ``search_suggest``. With ``open_index`` (0-based: 0 is the first
-    suggested product), open that product: the page then reports
-    ``product_shown``."""
-
-    query: str
-    open_index: int | None = None
-
-
-class FilterListing(BaseModel):
-    """``filter_listing``: go to the listing at ``category_path`` (a full
-    load, if it is not the one in front), then apply each filter given with
-    its quick-filter pill — the option labels exactly as the listing writes
-    them ("2 Plazas", "Blanco", "300", "100% Algodón") — one at a time, waiting
-    for the grid; then the sort. Each filter takes one option or several
-    (``["Beige", "Blanco"]``: the listing shows either), all active together,
-    one address for them all. Reports ``listing_shown``."""
-
-    category_path: str
-    size: list[str] | None = None
-    color: list[str] | None = None
-    threads: list[str] | None = None
-    material: list[str] | None = None
-    sort: SortOrder | None = None
-
-
-class OpenProduct(BaseModel):
-    """``open_product``: open the product at ``path`` (``/x.html``; a full
-    load), then the tab named, or step through its photos for ``fotos``.
-    Reports ``product_shown``."""
-
-    path: str
-    tab: ProductTab | None = None
-
-
-class ProductTabArgs(BaseModel):
-    """``product_tab``: on the product page in front, open that tab, or step
-    through its photos for ``fotos``."""
-
-    tab: ProductTab
-
-
-class CheckPrices(BaseModel):
-    """``check_prices``: read the live price and stock of these products (at
-    most six), with one same-origin POST to the store's GraphQL. Moves
-    nothing. Reports ``prices_read``."""
-
-    paths: list[str]
-
-
-class AddToCart(BaseModel):
-    """``add_to_cart``: on the product page at ``path`` (opened first if it is
-    not in front), set the quantity to ``qty`` and press Agregar; wait for the
-    cart drawer. Reports ``cart_state``. Never the checkout."""
-
-    path: str
-    qty: int = 1
-
-
-class ShowCart(BaseModel):
-    """``show_cart``: open the cart drawer (``open``), or close it. Never the
-    checkout."""
-
-    open: bool = True
-
-
-class UpdateCartItem(BaseModel):
-    """``update_cart_item``: set the cart line of the product at ``path`` to
-    ``qty``, or take it out with 0: in the cart drawer with its own minus and
-    plus, or its bin and "Aceptar"; on the cart page (/checkout/cart) with the
-    request those send, then the reload the page's own controls make, the move
-    checked on the page it loads. Reports ``cart_state``. Never the checkout."""
-
-    path: str
-    qty: int
-
-
-class StartCheckout(BaseModel):
-    """``start_checkout``: take the visitor to the guest checkout's delivery
-    form: on the bag (/checkout/cart/, loaded first if it is not in front)
-    press "Terminar pedido", then, in the window it opens, "Comprar como
-    invitado" — never its login, Google or "Crear Cuenta" — and wait for the
-    form (/checkout). Reports ``checkout_state``. Nothing past the form."""
-
-
-class FillCheckout(BaseModel):
-    """``fill_checkout``: fill the checkout's delivery form with what the
-    visitor said (the guest checkout is opened first, as ``start_checkout``,
-    if it is not in front). Only the fields given, each set as a finished
-    edit: región and comuna picked from the site's own lists (the comuna's list
-    loads after the región). There is no RUT, password or payment field here,
-    and the page refuses every one of them. Never presses anything after the
-    fields. Reports ``checkout_state``."""
-
-    email: str | None = None
-    first_name: str | None = None
-    last_name: str | None = None
-    phone: str | None = None
-    """Nine digits as said: a mobile starting with 9, or a Santiago landline
-    starting with 2. The form's +56 9 / +56 2 prefix is chosen from the first
-    digit and the other eight are typed."""
-    region: str | None = None
-    """The site's name for the región: "Metropolitana", "Valparaíso"."""
-    comuna: str | None = None
-    street: str | None = None
-    number: str | None = None
-    apartment: str | None = None
-    """Depto/Casa."""
-
-
-#: The moves Javier makes. The cue verbs are what a reply may write; the
-#: others only a tool sends. Classes: what is only looked at (a section, a
-#: FAQ, a product's tab, the cart drawer, a price read), what opens another
-#: page (a page, a product), what changes the page and can be undone (a
-#: search, a filter, a sort), and what changes what the visitor owns once they
-#: said yes (the cart and the delivery form).
-MOVES: tuple[Move, ...] = (
-    Move("page.open", "page", MoveClass.NAVIGATE, ("path",), say="{page: /path}"),
-    Move("page.show", "show", MoveClass.LOOK, ("target", "path"), say="{show: Heading}"),
-    Move("page.faq", "faq", MoveClass.LOOK, ("question", "path"), say="{faq: Question}"),
-    Move(
-        "listing.filter",
-        "filter",
-        MoveClass.REVERSIBLE,
-        ("facet", "value", "path"),
-        say="{filter: Tamaño | King}",
-    ),
-    Move("listing.sort", "sort", MoveClass.REVERSIBLE, ("order", "path"), say="{sort: price_asc}"),
-    Move("search_products", None, MoveClass.REVERSIBLE),
-    Move("filter_listing", None, MoveClass.REVERSIBLE),
-    Move("open_product", None, MoveClass.NAVIGATE),
-    Move("product_tab", None, MoveClass.LOOK),
-    Move("check_prices", None, MoveClass.LOOK),
-    Move("show_cart", None, MoveClass.LOOK),
-    Move("add_to_cart", None, MoveClass.CONFIRMED),
-    Move("update_cart_item", None, MoveClass.CONFIRMED),
-    Move("start_checkout", None, MoveClass.CONFIRMED),
-    Move("fill_checkout", None, MoveClass.CONFIRMED),
-)
+# The moves themselves, their arguments included, are declared once in
+# ``cannonhome/scene.json`` and generated into ``stage_gen`` for the brain and
+# ``scene.gen.ts`` for the page.
 
 
 # ─── Tool requests ─────────────────────────────────────────────────────────────
@@ -3578,7 +3453,7 @@ class CannonHomeBrain(OpenAIBrain):
         if index is not None and not 1 <= index <= 6:
             return "Not searched: open_index is 1 to 6, the suggested products."
         # The model counts from 1, as the visitor does; the page from 0.
-        action = SearchProducts(query=query, open_index=None if index is None else index - 1)
+        action = SearchProductsArgs(query=query, open_index=None if index is None else index - 1)
         queued = self._move("search_products", action, "search")
         if queued is not None:
             return queued
@@ -3613,7 +3488,7 @@ class CannonHomeBrain(OpenAIBrain):
         material = _filter_values(cat, "material", request.material, refused)
         if refused:
             return "Not done: " + "; ".join(refused) + "."
-        action = FilterListing(
+        action = FilterListingArgs(
             category_path=cat.path if cat is not None else path,
             size=size,
             color=color,
@@ -3659,7 +3534,7 @@ class CannonHomeBrain(OpenAIBrain):
             if queued is not None:
                 return queued
             return f"Opening its {request.tab} tab. " + self._sent_note("'Te muestro esa pestaña.'")
-        queued = self._move("open_product", OpenProduct(path=path, tab=request.tab), "product")
+        queued = self._move("open_product", OpenProductArgs(path=path, tab=request.tab), "product")
         if queued is not None:
             return queued
         p = self.kb.product(path)
@@ -3686,7 +3561,7 @@ class CannonHomeBrain(OpenAIBrain):
             )
         if len(paths) > _MOST_PRICED:
             return f"Not read: at most {_MOST_PRICED} at a time."
-        self.stage.send("check_prices", CheckPrices(paths=paths).model_dump())
+        self.stage.send("check_prices", CheckPricesArgs(paths=paths).model_dump())
         landed(_LANDED["prices"][self.spoken])
         out = f"Reading the live prices of {len(paths)} products. " + self._sent_note(
             "'Te reviso los precios.'"
@@ -3713,7 +3588,7 @@ class CannonHomeBrain(OpenAIBrain):
                 "Not added: their screen says it is not available. Say so, and offer another "
                 "size or colour of the line (find_products)."
             )
-        queued = self._move("add_to_cart", AddToCart(path=path, qty=request.qty), "cart_add")
+        queued = self._move("add_to_cart", AddToCartArgs(path=path, qty=request.qty), "cart_add")
         if queued is not None:
             return queued
         p = self.kb.product(path)
@@ -3761,7 +3636,7 @@ class CannonHomeBrain(OpenAIBrain):
             return f"Nothing to change: their cart already has {item.qty} of {name}."
         queued = self._move(
             "update_cart_item",
-            UpdateCartItem(path=path, qty=request.qty),
+            UpdateCartItemArgs(path=path, qty=request.qty),
             "cart_remove" if request.qty == 0 else "cart_update",
         )
         if queued is not None:
@@ -3778,7 +3653,9 @@ class CannonHomeBrain(OpenAIBrain):
         if (meta := self._meta_turn()) is not None:
             return meta
         queued = self._move(
-            "show_cart", ShowCart(open=request.open), "cart_show" if request.open else "cart_close"
+            "show_cart",
+            ShowCartArgs(open=request.open),
+            "cart_show" if request.open else "cart_close",
         )
         if queued is not None:
             return queued
@@ -3799,7 +3676,7 @@ class CannonHomeBrain(OpenAIBrain):
                 "details it needs (fill_checkout); never the RUT."
             )
         self._checkout_asked = True
-        queued = self._move("start_checkout", StartCheckout(), "checkout")
+        queued = self._move("start_checkout", StartCheckoutArgs(), "checkout")
         if queued is not None:
             return queued
         return (
@@ -3915,7 +3792,7 @@ class CannonHomeBrain(OpenAIBrain):
             return f"Not filled: {why}. The RUT, any password and the payment are theirs."
         self._filled.update(given)
         self._checkout_asked = True
-        queued = self._move("fill_checkout", FillCheckout(**given), "checkout_fill")
+        queued = self._move("fill_checkout", FillCheckoutArgs(**given), "checkout_fill")
         out = f"For the delivery form: {_fields_said(list(given))}. " + (
             queued or self._sent_note("'Te lo completo.'")
         )
@@ -4083,17 +3960,17 @@ _LABELERS: dict[str, Callable[[str, tuple[str, ...]], str | None]] = {
 
 __all__ = [
     "MOVES",
-    "AddToCart",
+    "AddToCartArgs",
     "CannonHomeBrain",
-    "CheckPrices",
-    "FillCheckout",
-    "FilterListing",
+    "CheckPricesArgs",
+    "FillCheckoutArgs",
+    "FilterListingArgs",
     "FocusTab",
     "LanguageChanged",
-    "OpenProduct",
+    "OpenProductArgs",
     "ProductTabArgs",
-    "SearchProducts",
-    "ShowCart",
-    "StartCheckout",
-    "UpdateCartItem",
+    "SearchProductsArgs",
+    "ShowCartArgs",
+    "StartCheckoutArgs",
+    "UpdateCartItemArgs",
 ]

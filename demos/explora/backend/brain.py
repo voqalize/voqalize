@@ -105,6 +105,18 @@ from .app_events import (
     TwinLookup,
 )
 from .knowledge import TOPIC_IDS, Knowledge, canonical_path, norm, site_path
+from .stage_gen import (
+    CHECK_AVAILABILITY,
+    CHOOSE_ROOM,
+    FAQ,
+    FILL_ENQUIRY,
+    FOCUS_TAB,
+    MOVES,
+    NAVIGATE,
+    PROMPT_LINES,
+    SEND_ENQUIRY,
+    TWIN,
+)
 
 AGENT_NAME = "Javier"
 
@@ -247,122 +259,8 @@ def _chosen_note(language: Lang, how: str) -> str:
 # them. A page cue is not a cue on Explora: every page is a full page load, so
 # the brain splits his reply there and sends ``explora.navigate`` itself, once
 # the words before it are said (:meth:`ExploraBrain._paced`). The rest are made
-# by tools.
-
-SHOW = Move(
-    id="core.show",
-    verb="show",
-    cls=MoveClass.LOOK,
-    args=("target",),
-    say="{show: Heading} scrolls to a heading, opens a tab or accordion, or rings words.",
-)
-FAQ = Move(
-    id="core.faq",
-    verb="faq",
-    cls=MoveClass.LOOK,
-    args=("question",),
-    say="{faq: Question} opens that question's accordion and rings it.",
-)
-NAVIGATE = Move(id="explora.navigate", verb=None, cls=MoveClass.NAVIGATE, args=("path",))
-"""Open a www.explora.com page in the tab in front, once his voice has said
-``after_words`` words: a full page load. The page reports ``page_changed``."""
-TWIN = Move(id="explora.twin", verb=None, cls=MoveClass.NAVIGATE, args=("language",))
-"""Load the page in front's own twin in ``language``, once his voice is quiet;
-refused when it has none."""
-CHECK_AVAILABILITY = Move(
-    id="explora.check_availability",
-    verb=None,
-    cls=MoveClass.REVERSIBLE,
-    args=("hotel_code",),
-    # Dev call 2f94965e: "I'm opening the Atacama calendar for three nights",
-    # twice, and no check_availability either time.
-    claims=(
-        "opening the * calendar",
-        "checking availability",
-        "checking the * availability",
-        "checking the * dates",
-        "let me open the * calendar",
-        "abro el * calendario",
-        "abriendo el * calendario",
-        "reviso la * disponibilidad",
-        "revisando la * disponibilidad",
-        "reviso las * fechas",
-        "revisando las * fechas",
-    ),
-    # Dev call 453f2e19: "I'll open the calendar.", "I'm selecting three
-    # nights to see the rates.", "I'm opening the rooms and rates", and no
-    # call each time; no claim above matched any of them. The shape does.
-    objects=(
-        "calendar",
-        "availability",
-        "dates",
-        "days",
-        "nights",
-        "rooms",
-        "rates",
-        "prices",
-        "calendario",
-        "disponibilidad",
-        "fechas",
-        "dias",
-        "noches",
-        "habitaciones",
-        "tarifas",
-        "precios",
-    ),
-)
-"""On reservations.explora.com, the lodge ``hotel_code``, and with them the
-arrival ``date``, ``month``, ``nights``; with ``rooms``, on to the rooms and
-rates. Never past them. The page reports ``stay_state``."""
-CHOOSE_ROOM = Move(
-    id="explora.choose_room",
-    verb=None,
-    cls=MoveClass.REVERSIBLE,
-    args=("room",),
-    claims=(
-        "selecting the * room",
-        "adding the * room",
-        "selecciono la * habitacion",
-        "agrego la * habitacion",
-    ),
-    # Singular, so a plural hears it too; "the rooms" alone is first
-    # check_availability's, and either one made keeps the sentence.
-    objects=("room", "habitacion"),
-)
-"""On the rooms and rates, select ``room`` for ``travellers`` with ``bed``,
-``count`` times. Never check-out itself."""
-FILL_ENQUIRY = Move(
-    id="explora.fill_enquiry",
-    verb=None,
-    cls=MoveClass.REVERSIBLE,
-    args=("expedition_code",),
-    claims=(
-        "filling in the * form",
-        "opening the * form",
-        "abro el * formulario",
-        "completo el * formulario",
-        "completando el * formulario",
-    ),
-    objects=("form", "enquiry", "formulario"),
-)
-"""Open an expedition's enquiry form and fill in the fields given."""
-SEND_ENQUIRY = Move(id="explora.send_enquiry", verb=None, cls=MoveClass.CONFIRMED)
-"""Press Send Message on the filled form: the visitor's own data, so only
-after they ticked the reCAPTCHA and the brain checked every field."""
-FOCUS_TAB = Move(id="explora.focus_tab", verb=None, cls=MoveClass.LOOK, args=("tab_id",))
-"""Bring one of the visitor's Explora tabs to the front."""
-
-MOVES = (
-    SHOW,
-    FAQ,
-    NAVIGATE,
-    TWIN,
-    CHECK_AVAILABILITY,
-    CHOOSE_ROOM,
-    FILL_ENQUIRY,
-    SEND_ENQUIRY,
-    FOCUS_TAB,
-)
+# by tools. Each move is declared once, in ``explora/scene.json``, and
+# generated into ``stage_gen`` for the brain and ``scene.gen.ts`` for the page.
 
 #: What each move did, for the line the model hears about it.
 _ACTS: dict[str, str] = {
@@ -615,6 +513,10 @@ def _hotels(k: Knowledge) -> str:
     )
 
 
+#: The show and faq cues, as the spec teaches them.
+_CUE_LINES = "\n".join(f"  - {line}" for line in PROMPT_LINES)
+
+
 def _prompt(k: Knowledge) -> str:
     return f"""You are {AGENT_NAME}, the guide on Explora's website, explora.com, and its booking site, reservations.explora.com. Explora runs all-inclusive lodges in the most remote places of South America — Patagonia, the Atacama Desert and Uyuni, the Sacred Valley of the Incas, Easter Island — and small-group expeditions, from Iceland to Tierra del Fuego. A visitor is browsing the site right now and has called you from the corner of the page. You can see and move their screen: you open pages, scroll to the exact section you are talking about and ring it, open the site's tabs and accordions, check a lodge's availability with them on the booking site, and fill in and send an expedition's enquiry for them. You are warm, calm and vivid — a seasoned Explora travel advisor who has been to every lodge, paints a place in a few words, relates it to how this visitor likes to travel, and keeps the conversation moving towards their trip.
 
@@ -622,8 +524,7 @@ def _prompt(k: Knowledge) -> str:
 You are giving a guided tour of the site, like an advisor sitting beside the visitor with their screen between you. As you talk about something, it is on their screen, ringed, at that moment.
 - Put a screen cue in your reply at the start of the sentence it belongs to. The page moves when your voice reaches that sentence. The visitor never hears a cue.
   - {{page: /path/}} opens another page of the site. Every page of explora.com is a full page load: it takes a few seconds, and your voice carries on while it opens. So a page cue goes at the very start of your reply, never in the middle, at most one per reply, and only when the visitor needs to see another page. Talk about the page you are on whenever it has the answer.
-  - {{show: Heading}} scrolls to a heading on the page they are on, or are taken to by a page cue, and rings it. Use the heading exactly as the site pages list or the screen lines spell it. With the label of one of the page's tabs or accordions ("Patagonia [Argentina + Chile]"), it opens it. With words that are not a heading, it rings those words: a room, an exploration, a lodge's name.
-  - {{faq: Question}} opens that question's accordion on the page and rings it.
+{_CUE_LINES}
 - One cue per sentence at most, and only where the screen should change. A cue goes before the sentence, never inside it.
 - A page cue opens a page at its top. After it, every sentence about a part of the page brings its own show cue, with that section's heading: the lodge, what's included, the rooms, the explorations, the food.
 - After a page cue you have not seen the new page yet. Show only a heading the site pages list gives for that page under "sections", or a plain name the page shows as text — a lodge's name, a destination, a room — which it rings as words ("names it lists" gives them for a page of lodges). Never make up a heading for a page you have not seen.

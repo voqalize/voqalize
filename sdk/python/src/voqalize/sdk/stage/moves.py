@@ -31,10 +31,12 @@ from .labels import tokens
 from .policy import MoveClass, cueable
 from .promises import CLAIM_GAP
 
-__all__ = ["CLAIM_GAP", "MAX_ARGS", "Move", "MoveSet"]
+__all__ = ["CLAIM_GAP", "MAX_ARGS", "MAX_TOOL_ARGS", "Move", "MoveSet"]
 
-#: The most arguments a move takes; a cue carries at most this many.
+#: The most arguments a cue carries, and so a move with a verb takes.
 MAX_ARGS = 4
+#: The most arguments a move only a tool makes takes.
+MAX_TOOL_ARGS = 12
 
 _VERB = re.compile(r"[a-z]{2,12}")
 
@@ -45,7 +47,8 @@ class Move:
 
     ``id`` names it on the wire (``core.show``); ``verb`` is the word the model
     writes for it in a reply, or ``None`` for a move only a tool makes; ``args``
-    names its arguments, in the order a cue gives them; ``say`` is the line the
+    names its arguments, in the order a cue gives them (at most
+    :data:`MAX_ARGS` for a cue, :data:`MAX_TOOL_ARGS` otherwise); ``say`` is the line the
     prompt teaches it with. ``claims`` are the phrases that, said in a reply,
     assert this move is happening, in any language: matched as whole words,
     case- and Latin-accent-insensitive, with ``*`` standing for up to
@@ -81,9 +84,11 @@ class Move:
                     f"move {self.id!r}: claim {claim!r} needs words, with a '*' only "
                     "between two of them"
                 )
-        if len(self.args) > MAX_ARGS:
+        most = MAX_TOOL_ARGS if self.verb is None else MAX_ARGS
+        if len(self.args) > most:
             raise ValueError(
-                f"move {self.id!r} takes {len(self.args)} arguments; at most {MAX_ARGS}"
+                f"move {self.id!r} takes {len(self.args)} arguments; at most {most}"
+                + ("" if self.verb is None else ", since a cue carries them")
             )
         if self.verb is None:
             return
