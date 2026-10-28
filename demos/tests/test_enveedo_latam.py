@@ -3,7 +3,7 @@
 Enveedo's Spanish-speaking visitors are security and IT leaders across Latin
 America. The accent is the speech tier's reference clip; the words are this
 brain's. Every Spanish line the brain writes itself — the greetings, the
-openers per page, nods, holding lines and the lines for a page move — carries
+openers per page and the lines for a page move — carries
 no word or form only Spain uses and addresses the visitor as "tú", never
 "usted". In Spanish the voice is handed "bidéo" for "video", "sok dos" for "SOC
 2", "siso" for "CISO" and the ISO standards in words; the model only ever sees
@@ -78,9 +78,6 @@ def _his_spanish_lines() -> list[str]:
         ev._GREETING["es"],
         *(opener["es"] for opener in ev._OPENERS.values()),
         *(landed["es"] for landed in ev._LANDED.values()),
-        *(line for kind in ev._ACK_LINES["es"].values() for line in kind),
-        *ev._ACK_HOLD["es"],
-        ev._ACK_SORRY["es"],
     ]
     pages = ["/", "/es/", "/es/frameworks", "/book-a-demo", "/es/contact", "/es/trust-center"]
     return lines + [ev.greeting(path, "es") for path in pages]

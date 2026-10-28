@@ -230,11 +230,9 @@ SITE = Knowledge(
 
 @pytest.fixture(autouse=True)
 def _site(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """Every session reads the invented Enveedo, and he never nods unless a
-    test asks him to: a nod is a unit of its own."""
+    """Every session reads the invented Enveedo."""
     monkeypatch.setattr(kb, "KNOWLEDGE", SITE)
     monkeypatch.setattr(ev.kb, "KNOWLEDGE", SITE)
-    monkeypatch.setattr(ev, "ACK_RATE", 0.0)
     monkeypatch.setattr(ev.EnveedoBrain, "today", property(lambda self: TODAY))
     yield
 
@@ -1130,9 +1128,7 @@ def test_his_lines_for_a_move_exist_in_both_languages() -> None:
     assert set(TOGGLE_CONFIRM) == {"en", "es"}
 
 
-def test_the_floor_is_held_as_the_clini_guide_learned() -> None:
-    assert ev.ACK_HOLD_AFTER_S >= 5.5 and ev.ACK_SORRY_AFTER_S >= 15
-    assert ev.HOLD_WITHOUT_NOD_S <= 3.0
+def test_the_model_is_the_other_site_guides_model() -> None:
     assert (ev.MODEL, ev.REASONING) == ("gpt-6.1-terra", "low")
 
 
