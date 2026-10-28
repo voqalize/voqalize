@@ -1,0 +1,2757 @@
+{
+ "_meta": {
+  "site": "https://enveedo.com",
+  "header_px": 66,
+  "scroll_offset_px": 90,
+  "viewport": "1440x900",
+  "built": "2026-10-28",
+  "note": "Built by build.py. Every page is listed under its English and its Spanish path with the same keys; selectors may differ per path. Each selector matched exactly one laid-out element on the live page (optional ones: exactly one element). fallback is the section's row (index based). reveal: click `click` unless `open` already matches, then ring `selector`."
+ },
+ "header": [
+  {
+   "key": "menu",
+   "selector": "header nav.nav",
+   "label": "The top menu: Platform, Security Performance OS, Partners, Resources, Contact"
+  },
+  {
+   "key": "language_switcher",
+   "selector": ".hs-language-switcher",
+   "label": "The site's English/Español switcher"
+  }
+ ],
+ "footer": [
+  {
+   "key": "footer",
+   "selector": "footer#footer",
+   "label": "The footer: links, newsletter, Trust Center, legal"
+  }
+ ],
+ "post": [],
+ "pages": {
+  "/": {
+   "kind": "home",
+   "lang": "en",
+   "twin": "/es/",
+   "title": "Enveedo | Prove Your Security Program Is Improving",
+   "header": true,
+   "footer": true,
+   "forms": [],
+   "anchors": [
+    {
+     "key": "hero",
+     "selector": "#hs_cos_wrapper_widget_1752815223713",
+     "label": "Hero: Security Program Management. Simplified. (Book a Demo)",
+     "fallback": "#main-content [class*=\"content_bucket-row-1-\"]"
+    },
+    {
+     "key": "customers",
+     "selector": "#hs_cos_wrapper_module_17512825985702",
+     "label": "Trusted by Security Leaders: customer logos (DirecTV, Hail & Cotton, Berel, La Seele, Swiss Medical)",
+     "fallback": "#main-content [class*=\"content_bucket-row-2-\"]"
+    },
+    {
+     "key": "problem",
+     "selector": "#hs_cos_wrapper_module_17512822864143",
+     "label": "Cybersecurity isn't broken because of missing tools: the problem statement",
+     "fallback": "#main-content [class*=\"content_bucket-row-3-\"]"
+    },
+    {
+     "key": "without_with",
+     "selector": ".cybersecurity-section .cards-container",
+     "label": "Without / With Enveedo: four cards (Integration & Visibility, Business Alignment, Compliance & Governance, Operational Efficiency)",
+     "fallback": "#main-content [class*=\"content_bucket-row-3-\"]"
+    },
+    {
+     "key": "toggle_without",
+     "selector": ".cybersecurity-section .cards-container",
+     "label": "The four cards switched to Without Enveedo",
+     "fallback": "#main-content [class*=\"content_bucket-row-3-\"]",
+     "reveal": {
+      "click": "#toggle-switch",
+      "open": "#without-label.active"
+     }
+    },
+    {
+     "key": "toggle_with",
+     "selector": ".cybersecurity-section .cards-container",
+     "label": "The four cards switched to With Enveedo (Unified Security Platform, Strategic Security Partner, Automated Compliance, Optimized Operations)",
+     "fallback": "#main-content [class*=\"content_bucket-row-3-\"]",
+     "reveal": {
+      "click": "#toggle-switch",
+      "open": "#with-label.active"
+     }
+    },
+    {
+     "key": "timeline",
+     "selector": "#hs_cos_wrapper_widget_1751480269408",
+     "label": "Impact Timeline: Understand, Plan, Execute, Evolve",
+     "fallback": "#main-content [class*=\"content_bucket-row-4-\"]"
+    },
+    {
+     "key": "timeline_understand",
+     "selector": "#hs_cos_wrapper_widget_1751480269408 .timeline-section:nth-of-type(1)",
+     "label": "Impact Timeline step 1: Understand (current state)"
+    },
+    {
+     "key": "timeline_plan",
+     "selector": "#hs_cos_wrapper_widget_1751480269408 .timeline-section:nth-of-type(2)",
+     "label": "Impact Timeline step 2: Plan (strategic roadmap)"
+    },
+    {
+     "key": "timeline_execute",
+     "selector": "#hs_cos_wrapper_widget_1751480269408 .timeline-section:nth-of-type(3)",
+     "label": "Impact Timeline step 3: Execute (implementation)"
+    },
+    {
+     "key": "timeline_evolve",
+     "selector": "#hs_cos_wrapper_widget_1751480269408 .timeline-section:nth-of-type(4)",
+     "label": "Impact Timeline step 4: Evolve (continuous improvement)"
+    },
+    {
+     "key": "how_it_works",
+     "selector": "#hs_cos_wrapper_module_1745873440679",
+     "label": "How Enveedo Works: four capability tabs",
+     "fallback": "#main-content [class*=\"content_bucket-row-5-\"]"
+    },
+    {
+     "key": "how_business_first",
+     "selector": "#featshow_17458729551117 .featshow__items > .featshow__item:nth-child(1)",
+     "label": "How Enveedo Works tab: Business-First Risk Management",
+     "reveal": {
+      "click": "#featshow_17458729551117 .featshow__nav li:nth-child(1) .featshow__btn",
+      "open": "#featshow_17458729551117 .featshow__nav li:nth-child(1) .featshow__btn--active"
+     }
+    },
+    {
+     "key": "how_integration",
+     "selector": "#featshow_17458729551117 .featshow__items > .featshow__item:nth-child(2)",
+     "label": "How Enveedo Works tab: Intelligent Integration",
+     "reveal": {
+      "click": "#featshow_17458729551117 .featshow__nav li:nth-child(2) .featshow__btn",
+      "open": "#featshow_17458729551117 .featshow__nav li:nth-child(2) .featshow__btn--active"
+     }
+    },
+    {
+     "key": "how_automation",
+     "selector": "#featshow_17458729551117 .featshow__items > .featshow__item:nth-child(3)",
+     "label": "How Enveedo Works tab: Workflow Automation",
+     "reveal": {
+      "click": "#featshow_17458729551117 .featshow__nav li:nth-child(3) .featshow__btn",
+      "open": "#featshow_17458729551117 .featshow__nav li:nth-child(3) .featshow__btn--active"
+     }
+    },
+    {
+     "key": "how_reporting",
+     "selector": "#featshow_17458729551117 .featshow__items > .featshow__item:nth-child(4)",
+     "label": "How Enveedo Works tab: Executive-Ready Reporting",
+     "reveal": {
+      "click": "#featshow_17458729551117 .featshow__nav li:nth-child(4) .featshow__btn",
+      "open": "#featshow_17458729551117 .featshow__nav li:nth-child(4) .featshow__btn--active"
+     }
+    },
+    {
+     "key": "frameworks_intro",
+     "selector": "#hs_cos_wrapper_module_17526866102234",
+     "label": "Security, AI, and Privacy Frameworks at Your Fingertips",
+     "fallback": "#main-content [class*=\"content_bucket-row-6-\"]"
+    },
+    {
+     "key": "framework_badges",
+     "selector": "#hs_cos_wrapper_module_17525193611194",
+     "label": "Framework badges (ISO 27001, CIS, GDPR, NIST CSF 2.0, PCI DSS, SOC 2, EU AI Act, …)",
+     "fallback": "#main-content [class*=\"content_bucket-row-7-\"]"
+    },
+    {
+     "key": "frameworks_cta",
+     "selector": "#hs_cos_wrapper_module_17458739579293",
+     "label": "Supporting 45+ frameworks: Explore all Frameworks",
+     "fallback": "#main-content [class*=\"content_bucket-row-8-\"]"
+    },
+    {
+     "key": "impact_stats",
+     "selector": "#hs_cos_wrapper_module_1745873602846",
+     "label": "Real-World Impact: 5x faster risk assessment, 50% more efficiency, 3x more strategic focus",
+     "fallback": "#main-content [class*=\"content_bucket-row-9-\"]"
+    },
+    {
+     "key": "integrations",
+     "selector": "#hs_cos_wrapper_module_17533261030766",
+     "label": "Supported Integrations: logo carousel",
+     "fallback": "#main-content [class*=\"content_bucket-row-10-\"]"
+    },
+    {
+     "key": "business_advantage",
+     "selector": "#hs_cos_wrapper_module_17458748771523",
+     "label": "Turn Security into a Business Advantage",
+     "fallback": "#main-content [class*=\"content_bucket-row-11-\"]"
+    },
+    {
+     "key": "outcome_interruption",
+     "selector": "#hs_cos_wrapper_module_17172663113362",
+     "label": "Reduced Business Interruption",
+     "fallback": "#main-content [class*=\"content_bucket-row-12-\"]"
+    },
+    {
+     "key": "outcome_innovation",
+     "selector": "#hs_cos_wrapper_module_17526877148635",
+     "label": "Accelerated Innovation",
+     "fallback": "#main-content [class*=\"content_bucket-row-13-\"]"
+    },
+    {
+     "key": "outcome_confidence",
+     "selector": "#hs_cos_wrapper_module_17458756286825",
+     "label": "Improved Stakeholder Confidence",
+     "fallback": "#main-content [class*=\"content_bucket-row-14-\"]"
+    },
+    {
+     "key": "outcome_compliance",
+     "selector": "#hs_cos_wrapper_module_17526729492405",
+     "label": "Faster Compliance & Audit Readiness",
+     "fallback": "#main-content [class*=\"content_bucket-row-15-\"]"
+    },
+    {
+     "key": "testimonials_intro",
+     "selector": "#hs_cos_wrapper_module_17458757464803",
+     "label": "Security Leaders Trust Enveedo",
+     "fallback": "#main-content [class*=\"content_bucket-row-16-\"]"
+    },
+    {
+     "key": "testimonials",
+     "selector": "#hs_cos_wrapper_widget_1752694356992",
+     "label": "Three anonymous testimonials (CISO, VP IT, CTO)",
+     "fallback": "#main-content [class*=\"content_bucket-row-17-\"]"
+    },
+    {
+     "key": "final_cta",
+     "selector": "#hs_cos_wrapper_module_1752673479051",
+     "label": "Ready to Transform Your Security Program? (value within 30 days; Book a Demo)",
+     "fallback": "#main-content [class*=\"content_bucket-row-18-\"]"
+    }
+   ]
+  },
+  "/es/": {
+   "kind": "home",
+   "lang": "es",
+   "twin": "/",
+   "title": "Enveedo | Mida y demuestre el desempeño de su programa de seguridad",
+   "header": true,
+   "footer": true,
+   "forms": [],
+   "anchors": [
+    {
+     "key": "hero",
+     "selector": "#main-content [class*=\"content_bucket-row-2-\"]",
+     "label": "Hero: Security Program Management. Simplified. (Book a Demo)"
+    },
+    {
+     "key": "customers",
+     "selector": "#hs_cos_wrapper_module_17512825985702",
+     "label": "Trusted by Security Leaders: customer logos (DirecTV, Hail & Cotton, Berel, La Seele, Swiss Medical)",
+     "fallback": "#main-content [class*=\"content_bucket-row-3-\"]"
+    },
+    {
+     "key": "problem",
+     "selector": "#hs_cos_wrapper_module_17512822864143",
+     "label": "Cybersecurity isn't broken because of missing tools: the problem statement",
+     "fallback": "#main-content [class*=\"content_bucket-row-4-\"]"
+    },
+    {
+     "key": "without_with",
+     "selector": ".cybersecurity-section .cards-container",
+     "label": "Without / With Enveedo: four cards (Integration & Visibility, Business Alignment, Compliance & Governance, Operational Efficiency)",
+     "fallback": "#main-content [class*=\"content_bucket-row-4-\"]"
+    },
+    {
+     "key": "toggle_without",
+     "selector": ".cybersecurity-section .cards-container",
+     "label": "The four cards switched to Without Enveedo",
+     "fallback": "#main-content [class*=\"content_bucket-row-4-\"]",
+     "reveal": {
+      "click": "#toggle-switch",
+      "open": "#without-label.active"
+     }
+    },
+    {
+     "key": "toggle_with",
+     "selector": ".cybersecurity-section .cards-container",
+     "label": "The four cards switched to With Enveedo (Unified Security Platform, Strategic Security Partner, Automated Compliance, Optimized Operations)",
+     "fallback": "#main-content [class*=\"content_bucket-row-4-\"]",
+     "reveal": {
+      "click": "#toggle-switch",
+      "open": "#with-label.active"
+     }
+    },
+    {
+     "key": "timeline",
+     "selector": "#hs_cos_wrapper_widget_1751480269408",
+     "label": "Impact Timeline: Understand, Plan, Execute, Evolve",
+     "fallback": "#main-content [class*=\"content_bucket-row-5-\"]"
+    },
+    {
+     "key": "timeline_understand",
+     "selector": "#hs_cos_wrapper_widget_1751480269408 .timeline-section:nth-of-type(1)",
+     "label": "Impact Timeline step 1: Understand (current state)"
+    },
+    {
+     "key": "timeline_plan",
+     "selector": "#hs_cos_wrapper_widget_1751480269408 .timeline-section:nth-of-type(2)",
+     "label": "Impact Timeline step 2: Plan (strategic roadmap)"
+    },
+    {
+     "key": "timeline_execute",
+     "selector": "#hs_cos_wrapper_widget_1751480269408 .timeline-section:nth-of-type(3)",
+     "label": "Impact Timeline step 3: Execute (implementation)"
+    },
+    {
+     "key": "timeline_evolve",
+     "selector": "#hs_cos_wrapper_widget_1751480269408 .timeline-section:nth-of-type(4)",
+     "label": "Impact Timeline step 4: Evolve (continuous improvement)"
+    },
+    {
+     "key": "how_it_works",
+     "selector": "#hs_cos_wrapper_module_1745873440679",
+     "label": "How Enveedo Works: four capability tabs",
+     "fallback": "#main-content [class*=\"content_bucket-row-6-\"]"
+    },
+    {
+     "key": "how_business_first",
+     "selector": "#featshow_17458729551117 .featshow__items > .featshow__item:nth-child(1)",
+     "label": "How Enveedo Works tab: Business-First Risk Management",
+     "reveal": {
+      "click": "#featshow_17458729551117 .featshow__nav li:nth-child(1) .featshow__btn",
+      "open": "#featshow_17458729551117 .featshow__nav li:nth-child(1) .featshow__btn--active"
+     }
+    },
+    {
+     "key": "how_integration",
+     "selector": "#featshow_17458729551117 .featshow__items > .featshow__item:nth-child(2)",
+     "label": "How Enveedo Works tab: Intelligent Integration",
+     "reveal": {
+      "click": "#featshow_17458729551117 .featshow__nav li:nth-child(2) .featshow__btn",
+      "open": "#featshow_17458729551117 .featshow__nav li:nth-child(2) .featshow__btn--active"
+     }
+    },
+    {
+     "key": "how_automation",
+     "selector": "#featshow_17458729551117 .featshow__items > .featshow__item:nth-child(3)",
+     "label": "How Enveedo Works tab: Workflow Automation",
+     "reveal": {
+      "click": "#featshow_17458729551117 .featshow__nav li:nth-child(3) .featshow__btn",
+      "open": "#featshow_17458729551117 .featshow__nav li:nth-child(3) .featshow__btn--active"
+     }
+    },
+    {
+     "key": "how_reporting",
+     "selector": "#featshow_17458729551117 .featshow__items > .featshow__item:nth-child(4)",
+     "label": "How Enveedo Works tab: Executive-Ready Reporting",
+     "reveal": {
+      "click": "#featshow_17458729551117 .featshow__nav li:nth-child(4) .featshow__btn",
+      "open": "#featshow_17458729551117 .featshow__nav li:nth-child(4) .featshow__btn--active"
+     }
+    },
+    {
+     "key": "frameworks_intro",
+     "selector": "#hs_cos_wrapper_module_17526866102234",
+     "label": "Security, AI, and Privacy Frameworks at Your Fingertips",
+     "fallback": "#main-content [class*=\"content_bucket-row-7-\"]"
+    },
+    {
+     "key": "framework_badges",
+     "selector": "#hs_cos_wrapper_module_17525193611194",
+     "label": "Framework badges (ISO 27001, CIS, GDPR, NIST CSF 2.0, PCI DSS, SOC 2, EU AI Act, …)",
+     "fallback": "#main-content [class*=\"content_bucket-row-8-\"]"
+    },
+    {
+     "key": "frameworks_cta",
+     "selector": "#hs_cos_wrapper_module_17458739579293",
+     "label": "Supporting 45+ frameworks: Explore all Frameworks",
+     "fallback": "#main-content [class*=\"content_bucket-row-9-\"]"
+    },
+    {
+     "key": "impact_stats",
+     "selector": "#hs_cos_wrapper_module_1745873602846",
+     "label": "Real-World Impact: 5x faster risk assessment, 50% more efficiency, 3x more strategic focus",
+     "fallback": "#main-content [class*=\"content_bucket-row-10-\"]"
+    },
+    {
+     "key": "integrations",
+     "selector": "#hs_cos_wrapper_module_17533261379964",
+     "label": "Supported Integrations: logo carousel",
+     "fallback": "#main-content [class*=\"content_bucket-row-11-\"]"
+    },
+    {
+     "key": "business_advantage",
+     "selector": "#hs_cos_wrapper_module_17458748771523",
+     "label": "Turn Security into a Business Advantage",
+     "fallback": "#main-content [class*=\"content_bucket-row-12-\"]"
+    },
+    {
+     "key": "outcome_interruption",
+     "selector": "#hs_cos_wrapper_module_17172663113362",
+     "label": "Reduced Business Interruption",
+     "fallback": "#main-content [class*=\"content_bucket-row-13-\"]"
+    },
+    {
+     "key": "outcome_innovation",
+     "selector": "#hs_cos_wrapper_module_17526877148635",
+     "label": "Accelerated Innovation",
+     "fallback": "#main-content [class*=\"content_bucket-row-14-\"]"
+    },
+    {
+     "key": "outcome_confidence",
+     "selector": "#hs_cos_wrapper_module_17458756286825",
+     "label": "Improved Stakeholder Confidence",
+     "fallback": "#main-content [class*=\"content_bucket-row-15-\"]"
+    },
+    {
+     "key": "outcome_compliance",
+     "selector": "#hs_cos_wrapper_module_17526729492405",
+     "label": "Faster Compliance & Audit Readiness",
+     "fallback": "#main-content [class*=\"content_bucket-row-16-\"]"
+    },
+    {
+     "key": "testimonials_intro",
+     "selector": "#hs_cos_wrapper_module_17458757464803",
+     "label": "Security Leaders Trust Enveedo",
+     "fallback": "#main-content [class*=\"content_bucket-row-17-\"]"
+    },
+    {
+     "key": "testimonials",
+     "selector": "#hs_cos_wrapper_widget_1752694386938",
+     "label": "Three anonymous testimonials (CISO, VP IT, CTO)",
+     "fallback": "#main-content [class*=\"content_bucket-row-18-\"]"
+    },
+    {
+     "key": "final_cta",
+     "selector": "#hs_cos_wrapper_module_1752673479051",
+     "label": "Ready to Transform Your Security Program? (value within 30 days; Book a Demo)",
+     "fallback": "#main-content [class*=\"content_bucket-row-19-\"]"
+    }
+   ]
+  },
+  "/enveedo_platform": {
+   "kind": "platform",
+   "lang": "en",
+   "twin": "/es/enveedo_platform",
+   "title": "Enveedo | Prove Your Security Program Is Improving",
+   "header": true,
+   "footer": true,
+   "forms": [],
+   "anchors": [
+    {
+     "key": "hero",
+     "selector": "#hs_cos_wrapper_module_17533669048217",
+     "label": "The Complete Platform for Security Program Management",
+     "fallback": "#main-content [class*=\"content_bucket-row-0-\"]"
+    },
+    {
+     "key": "strategy",
+     "selector": "#hs_cos_wrapper_module_1720842160327",
+     "label": "Build Your Cybersecurity Strategy: the nerve center of your program",
+     "fallback": "#main-content [class*=\"content_bucket-row-1-\"]"
+    },
+    {
+     "key": "integrations",
+     "selector": "#hs_cos_wrapper_module_17532332226713",
+     "label": "Supported Integrations",
+     "fallback": "#main-content [class*=\"content_bucket-row-3-\"]"
+    },
+    {
+     "key": "modules",
+     "selector": "#hs_cos_wrapper_module_1752529832940",
+     "label": "Fully Integrated Security Management: six modules (Crown Jewel Analysis, Risk Register, Compliance Management, Vendor Risk Management, Incident Response Manager, Security Roadmap)",
+     "fallback": "#main-content [class*=\"content_bucket-row-4-\"]"
+    },
+    {
+     "key": "integration_capabilities",
+     "selector": "#hs_cos_wrapper_module_1752527758938",
+     "label": "Integration capabilities: pre-built integrations, API framework, data import/export, identity",
+     "fallback": "#main-content [class*=\"content_bucket-row-5-\"]"
+    },
+    {
+     "key": "automation",
+     "selector": "#hs_cos_wrapper_module_1753234273260",
+     "label": "Smart automation: tasks, evidence collection, control testing, risk updates, reporting",
+     "fallback": "#main-content [class*=\"content_bucket-row-6-\"]"
+    },
+    {
+     "key": "dashboards",
+     "selector": "#hs_cos_wrapper_module_17525283940005",
+     "label": "Dashboard preview: executive, operational, compliance, risk, vendor",
+     "fallback": "#main-content [class*=\"content_bucket-row-7-\"]"
+    },
+    {
+     "key": "advantage",
+     "selector": "#hs_cos_wrapper_module_1721164175389",
+     "label": "The Enveedo Advantage",
+     "fallback": "#main-content [class*=\"content_bucket-row-8-\"]"
+    },
+    {
+     "key": "comparison",
+     "selector": "#hs_cos_wrapper_module_17525886608353",
+     "label": "Comparison table: Enveedo vs program management, compliance automation and vCISO platforms",
+     "fallback": "#main-content [class*=\"content_bucket-row-9-\"]"
+    },
+    {
+     "key": "channel_partners",
+     "selector": "#hs_cos_wrapper_module_1753324203208",
+     "label": "Channel Partners logos",
+     "fallback": "#main-content [class*=\"content_bucket-row-10-\"]"
+    }
+   ]
+  },
+  "/es/enveedo_platform": {
+   "kind": "platform",
+   "lang": "es",
+   "twin": "/enveedo_platform",
+   "title": "plataforma",
+   "header": true,
+   "footer": true,
+   "forms": [],
+   "anchors": [
+    {
+     "key": "hero",
+     "selector": "#hs_cos_wrapper_module_17533671860279",
+     "label": "The Complete Platform for Security Program Management",
+     "fallback": "#main-content [class*=\"content_bucket-row-0-\"]"
+    },
+    {
+     "key": "strategy",
+     "selector": "#hs_cos_wrapper_module_1720842160327",
+     "label": "Build Your Cybersecurity Strategy: the nerve center of your program",
+     "fallback": "#main-content [class*=\"content_bucket-row-1-\"]"
+    },
+    {
+     "key": "integrations",
+     "selector": "#hs_cos_wrapper_module_17532332226713",
+     "label": "Supported Integrations",
+     "fallback": "#main-content [class*=\"content_bucket-row-3-\"]"
+    },
+    {
+     "key": "modules",
+     "selector": "#hs_cos_wrapper_module_1752529832940",
+     "label": "Fully Integrated Security Management: six modules (Crown Jewel Analysis, Risk Register, Compliance Management, Vendor Risk Management, Incident Response Manager, Security Roadmap)",
+     "fallback": "#main-content [class*=\"content_bucket-row-4-\"]"
+    },
+    {
+     "key": "integration_capabilities",
+     "selector": "#hs_cos_wrapper_module_1752527758938",
+     "label": "Integration capabilities: pre-built integrations, API framework, data import/export, identity",
+     "fallback": "#main-content [class*=\"content_bucket-row-5-\"]"
+    },
+    {
+     "key": "automation",
+     "selector": "#hs_cos_wrapper_module_1753234273260",
+     "label": "Smart automation: tasks, evidence collection, control testing, risk updates, reporting",
+     "fallback": "#main-content [class*=\"content_bucket-row-6-\"]"
+    },
+    {
+     "key": "dashboards",
+     "selector": "#hs_cos_wrapper_module_17525283940005",
+     "label": "Dashboard preview: executive, operational, compliance, risk, vendor",
+     "fallback": "#main-content [class*=\"content_bucket-row-7-\"]"
+    },
+    {
+     "key": "advantage",
+     "selector": "#hs_cos_wrapper_module_1721164175389",
+     "label": "The Enveedo Advantage",
+     "fallback": "#main-content [class*=\"content_bucket-row-8-\"]"
+    },
+    {
+     "key": "comparison",
+     "selector": "#hs_cos_wrapper_module_17525886608353",
+     "label": "Comparison table: Enveedo vs program management, compliance automation and vCISO platforms",
+     "fallback": "#main-content [class*=\"content_bucket-row-9-\"]"
+    },
+    {
+     "key": "channel_partners",
+     "selector": "#hs_cos_wrapper_module_1753324203208",
+     "label": "Channel Partners logos",
+     "fallback": "#main-content [class*=\"content_bucket-row-10-\"]"
+    }
+   ]
+  },
+  "/security-performance-os": {
+   "kind": "enterprise",
+   "lang": "en",
+   "twin": "/es/security-performance-os",
+   "title": "Enveedo Cyber Risk Management Platform",
+   "header": true,
+   "footer": true,
+   "forms": [],
+   "anchors": [
+    {
+     "key": "hero",
+     "selector": "#hs_cos_wrapper_widget_1752815223713",
+     "label": "Security Performance OS: an integrated, governable, measurable system (Request Executive Briefing)",
+     "fallback": "#main-content [class*=\"content_bucket-row-1-\"]"
+    },
+    {
+     "key": "why_stall",
+     "selector": "#hs_cos_wrapper_module_1772628492192",
+     "label": "Why Enterprise Cybersecurity Programs Stall: fragmentation, duplication, hard-to-defend risk, disruptive audits",
+     "fallback": "#main-content [class*=\"content_bucket-row-2-\"]"
+    },
+    {
+     "key": "our_platform",
+     "selector": "#hs_cos_wrapper_module_17727135982866",
+     "label": "Our Platform",
+     "fallback": "#main-content [class*=\"content_bucket-row-3-\"]"
+    },
+    {
+     "key": "performance",
+     "selector": "#hs_cos_wrapper_module_1745873440679",
+     "label": "Enterprise-grade operational performance",
+     "fallback": "#main-content [class*=\"content_bucket-row-4-\"]"
+    },
+    {
+     "key": "control_performance",
+     "selector": "#hs_cos_wrapper_module_17172663113362",
+     "label": "Control Performance",
+     "fallback": "#main-content [class*=\"content_bucket-row-5-\"]"
+    },
+    {
+     "key": "risk_performance",
+     "selector": "#hs_cos_wrapper_module_17526877148635",
+     "label": "Risk Performance (qualitative, semi-quantitative, quantitative; financial quantification)",
+     "fallback": "#main-content [class*=\"content_bucket-row-6-\"]"
+    },
+    {
+     "key": "audit_performance",
+     "selector": "#hs_cos_wrapper_module_17726289296364",
+     "label": "Audit Performance",
+     "fallback": "#main-content [class*=\"content_bucket-row-7-\"]"
+    },
+    {
+     "key": "document_management",
+     "selector": "#hs_cos_wrapper_module_17900864545886",
+     "label": "Document Management",
+     "fallback": "#main-content [class*=\"content_bucket-row-8-\"]"
+    },
+    {
+     "key": "multi_workspace",
+     "selector": "#hs_cos_wrapper_module_17900867496555",
+     "label": "Unified Multi-Workspace Console",
+     "fallback": "#main-content [class*=\"content_bucket-row-9-\"]"
+    },
+    {
+     "key": "ai_suggestions",
+     "selector": "#hs_cos_wrapper_module_17901827904957",
+     "label": "AI-powered risk suggestions (only anonymized data is shared)",
+     "fallback": "#main-content [class*=\"content_bucket-row-10-\"]"
+    },
+    {
+     "key": "enterprise_complexity",
+     "selector": "#hs_cos_wrapper_module_17901079806726",
+     "label": "Designed for the real complexity of enterprise environments",
+     "fallback": "#main-content [class*=\"content_bucket-row-11-\"]"
+    },
+    {
+     "key": "comparison",
+     "selector": "#hs_cos_wrapper_module_17533261030766",
+     "label": "Beyond spreadsheets, more agile than generic GRC platforms: comparison",
+     "fallback": "#main-content [class*=\"content_bucket-row-12-\"]"
+    },
+    {
+     "key": "strategic_advantage",
+     "selector": "#hs_cos_wrapper_module_17458748771523",
+     "label": "Turn your cybersecurity program into a strategic advantage",
+     "fallback": "#main-content [class*=\"content_bucket-row-13-\"]"
+    },
+    {
+     "key": "final_cta",
+     "selector": "#hs_cos_wrapper_module_1752673479051",
+     "label": "Elevate your Cybersecurity Program to the Enterprise Level (Schedule a Strategic Briefing)",
+     "fallback": "#main-content [class*=\"content_bucket-row-14-\"]"
+    }
+   ]
+  },
+  "/es/security-performance-os": {
+   "kind": "enterprise",
+   "lang": "es",
+   "twin": "/security-performance-os",
+   "title": "Enveedo Cyber Risk Management Platform",
+   "header": true,
+   "footer": true,
+   "forms": [],
+   "anchors": [
+    {
+     "key": "hero",
+     "selector": "#hs_cos_wrapper_widget_1752815223713",
+     "label": "Security Performance OS: an integrated, governable, measurable system (Request Executive Briefing)",
+     "fallback": "#main-content [class*=\"content_bucket-row-1-\"]"
+    },
+    {
+     "key": "why_stall",
+     "selector": "#hs_cos_wrapper_module_1772628492192",
+     "label": "Why Enterprise Cybersecurity Programs Stall: fragmentation, duplication, hard-to-defend risk, disruptive audits",
+     "fallback": "#main-content [class*=\"content_bucket-row-2-\"]"
+    },
+    {
+     "key": "our_platform",
+     "selector": "#hs_cos_wrapper_module_17727135982866",
+     "label": "Our Platform",
+     "fallback": "#main-content [class*=\"content_bucket-row-3-\"]"
+    },
+    {
+     "key": "performance",
+     "selector": "#hs_cos_wrapper_module_1745873440679",
+     "label": "Enterprise-grade operational performance",
+     "fallback": "#main-content [class*=\"content_bucket-row-4-\"]"
+    },
+    {
+     "key": "control_performance",
+     "selector": "#hs_cos_wrapper_module_17172663113362",
+     "label": "Control Performance",
+     "fallback": "#main-content [class*=\"content_bucket-row-5-\"]"
+    },
+    {
+     "key": "risk_performance",
+     "selector": "#hs_cos_wrapper_module_17526877148635",
+     "label": "Risk Performance (qualitative, semi-quantitative, quantitative; financial quantification)",
+     "fallback": "#main-content [class*=\"content_bucket-row-6-\"]"
+    },
+    {
+     "key": "audit_performance",
+     "selector": "#hs_cos_wrapper_module_17726289296364",
+     "label": "Audit Performance",
+     "fallback": "#main-content [class*=\"content_bucket-row-7-\"]"
+    },
+    {
+     "key": "document_management",
+     "selector": "#hs_cos_wrapper_module_17901075544133",
+     "label": "Document Management",
+     "fallback": "#main-content [class*=\"content_bucket-row-8-\"]"
+    },
+    {
+     "key": "multi_workspace",
+     "selector": "#hs_cos_wrapper_module_17901077027575",
+     "label": "Unified Multi-Workspace Console",
+     "fallback": "#main-content [class*=\"content_bucket-row-9-\"]"
+    },
+    {
+     "key": "ai_suggestions",
+     "selector": "#hs_cos_wrapper_module_17901832133927",
+     "label": "AI-powered risk suggestions (only anonymized data is shared)",
+     "fallback": "#main-content [class*=\"content_bucket-row-10-\"]"
+    },
+    {
+     "key": "enterprise_complexity",
+     "selector": "#hs_cos_wrapper_module_17901077944366",
+     "label": "Designed for the real complexity of enterprise environments",
+     "fallback": "#main-content [class*=\"content_bucket-row-11-\"]"
+    },
+    {
+     "key": "comparison",
+     "selector": "#hs_cos_wrapper_module_17533261030766",
+     "label": "Beyond spreadsheets, more agile than generic GRC platforms: comparison",
+     "fallback": "#main-content [class*=\"content_bucket-row-12-\"]"
+    },
+    {
+     "key": "strategic_advantage",
+     "selector": "#hs_cos_wrapper_module_17458748771523",
+     "label": "Turn your cybersecurity program into a strategic advantage",
+     "fallback": "#main-content [class*=\"content_bucket-row-13-\"]"
+    },
+    {
+     "key": "final_cta",
+     "selector": "#hs_cos_wrapper_module_1752673479051",
+     "label": "Elevate your Cybersecurity Program to the Enterprise Level (Schedule a Strategic Briefing)",
+     "fallback": "#main-content [class*=\"content_bucket-row-14-\"]"
+    }
+   ]
+  },
+  "/frameworks": {
+   "kind": "frameworks",
+   "lang": "en",
+   "twin": "/es/frameworks",
+   "title": "Frameworks Supported by Enveedo",
+   "header": true,
+   "footer": true,
+   "forms": [
+    "contact"
+   ],
+   "anchors": [
+    {
+     "key": "intro",
+     "selector": "#hs_cos_wrapper_module_17171691078105",
+     "label": "Frameworks: simplifying compliance, the Assessment module",
+     "fallback": "#main-content [class*=\"content_bucket-row-2-\"]"
+    },
+    {
+     "key": "infosec",
+     "selector": "#hs_cos_wrapper_widget_1744134422226_",
+     "label": "Information Security Frameworks",
+     "fallback": "#main-content [class*=\"content_bucket-row-3-\"]"
+    },
+    {
+     "key": "ai",
+     "selector": "#hs_cos_wrapper_module_17441345113903_",
+     "label": "AI Frameworks",
+     "fallback": "#main-content [class*=\"content_bucket-row-5-\"]"
+    },
+    {
+     "key": "privacy",
+     "selector": "#hs_cos_wrapper_module_17441345691994_",
+     "label": "Privacy Frameworks (and Latin American data laws)",
+     "fallback": "#main-content [class*=\"content_bucket-row-7-\"]"
+    },
+    {
+     "key": "fw_iso_27001",
+     "selector": "#hs_cos_wrapper_module_17423083193982",
+     "label": "Framework card: ISO/IEC 27001:2022"
+    },
+    {
+     "key": "fw_soc2",
+     "selector": "#hs_cos_wrapper_module_1743177126616",
+     "label": "Framework card: SOC 2 Readiness"
+    },
+    {
+     "key": "fw_tisax",
+     "selector": "#hs_cos_wrapper_module_1743177252147",
+     "label": "Framework card: TISAX ISA"
+    },
+    {
+     "key": "fw_nist_800_82",
+     "selector": "#hs_cos_wrapper_module_1745862175346",
+     "label": "Framework card: NIST SP 800-82"
+    },
+    {
+     "key": "fw_iso_9001",
+     "selector": "#hs_cos_wrapper_module_1764085327487",
+     "label": "Framework card: ISO/IEC 9001:2015"
+    },
+    {
+     "key": "fw_nist_csf",
+     "selector": "#hs_cos_wrapper_module_17431767373473",
+     "label": "Framework card: NIST CSF v2.0"
+    },
+    {
+     "key": "fw_hipaa",
+     "selector": "#hs_cos_wrapper_module_1743177071091",
+     "label": "Framework card: HIPAA Security Rule"
+    },
+    {
+     "key": "fw_iso_27002",
+     "selector": "#hs_cos_wrapper_module_1745848877389",
+     "label": "Framework card: ISO/IEC 27002:2022"
+    },
+    {
+     "key": "fw_nis2",
+     "selector": "#hs_cos_wrapper_module_1753745043604",
+     "label": "Framework card: NIS2 Directive"
+    },
+    {
+     "key": "fw_dora",
+     "selector": "#hs_cos_wrapper_module_1765828830775",
+     "label": "Framework card: DORA"
+    },
+    {
+     "key": "fw_pci_dss",
+     "selector": "#hs_cos_wrapper_module_1743176773560",
+     "label": "Framework card: PCI DSS v4.0.1"
+    },
+    {
+     "key": "fw_iso_31000",
+     "selector": "#hs_cos_wrapper_module_1743176833397",
+     "label": "Framework card: ISO/IEC 31000:2018"
+    },
+    {
+     "key": "fw_iso_27017_csc",
+     "selector": "#hs_cos_wrapper_module_1745848978376",
+     "label": "Framework card: ISO/IEC 27017:2015 (CSC)"
+    },
+    {
+     "key": "fw_ens",
+     "selector": "#hs_cos_wrapper_module_1753745176470",
+     "label": "Framework card: ENS (Spain)"
+    },
+    {
+     "key": "fw_cis",
+     "selector": "#hs_cos_wrapper_module_17431766360223",
+     "label": "Framework card: CIS CSC V8.1"
+    },
+    {
+     "key": "fw_iso_22301",
+     "selector": "#hs_cos_wrapper_module_1743176898816",
+     "label": "Framework card: ISO/IEC 22301:2019"
+    },
+    {
+     "key": "fw_iso_27017_csp",
+     "selector": "#hs_cos_wrapper_module_1745849025140",
+     "label": "Framework card: ISO/IEC 27017:2015 (CSP)"
+    },
+    {
+     "key": "fw_nist_800_171",
+     "selector": "#hs_cos_wrapper_module_1758909788350",
+     "label": "Framework card: NIST SP 800-171 Rev. 3"
+    },
+    {
+     "key": "fw_eu_ai_act",
+     "selector": "#hs_cos_wrapper_module_174413455307345",
+     "label": "Framework card: EU AI Act"
+    },
+    {
+     "key": "fw_nist_ai_rmf",
+     "selector": "#hs_cos_wrapper_module_174413455307346",
+     "label": "Framework card: NIST AI RMF 600-1"
+    },
+    {
+     "key": "fw_iso_42001",
+     "selector": "#hs_cos_wrapper_module_174413455307336",
+     "label": "Framework card: ISO/IEC 42001:2023"
+    },
+    {
+     "key": "fw_gdpr",
+     "selector": "#hs_cos_wrapper_module_17431766853892",
+     "label": "Framework card: GDPR"
+    },
+    {
+     "key": "fw_enveedo_pia",
+     "selector": "#hs_cos_wrapper_module_1743177160817",
+     "label": "Framework card: Enveedo PIA"
+    },
+    {
+     "key": "fw_colombia_data",
+     "selector": "#hs_cos_wrapper_module_174413457910928",
+     "label": "Framework card: Colombia Data Protection Law"
+    },
+    {
+     "key": "fw_mexico_public",
+     "selector": "#hs_cos_wrapper_module_174413457910948",
+     "label": "Framework card: Mexico Data Protection Law (Public)"
+    },
+    {
+     "key": "fw_anexo_28",
+     "selector": "#hs_cos_wrapper_module_1761676097678",
+     "label": "Framework card: Anexo 28 RMF 2024"
+    },
+    {
+     "key": "fw_nist_privacy",
+     "selector": "#hs_cos_wrapper_module_1743177010783",
+     "label": "Framework card: NIST Privacy Framework v1.0"
+    },
+    {
+     "key": "fw_argentina_data",
+     "selector": "#hs_cos_wrapper_module_174413457910916",
+     "label": "Framework card: Argentina Data Protection Law"
+    },
+    {
+     "key": "fw_mexico_private",
+     "selector": "#hs_cos_wrapper_module_174413457910938",
+     "label": "Framework card: Mexico Data Protection Law (Private)"
+    },
+    {
+     "key": "fw_chile_cyber_law",
+     "selector": "#hs_cos_wrapper_module_174413457910917",
+     "label": "Framework card: Chile Cybersecurity Law"
+    },
+    {
+     "key": "fw_circular_co_sa",
+     "selector": "#hs_cos_wrapper_module_1761676101153",
+     "label": "Framework card: Circular CO SA 17.18/24"
+    },
+    {
+     "key": "fw_iso_27701",
+     "selector": "#hs_cos_wrapper_module_1744135444019",
+     "label": "Framework card: ISO/IEC 27701:2025"
+    },
+    {
+     "key": "fw_chile_21719",
+     "selector": "#hs_cos_wrapper_module_174413457910949",
+     "label": "Framework card: Chile Data Protection Law (21.719)"
+    },
+    {
+     "key": "fw_peru_data",
+     "selector": "#hs_cos_wrapper_module_174413457910929",
+     "label": "Framework card: Peru Data Protection Law"
+    },
+    {
+     "key": "fw_chile_19628",
+     "selector": "#hs_cos_wrapper_module_1745849432956",
+     "label": "Framework card: Chile Data Protection Law (No. 19628)"
+    },
+    {
+     "key": "fw_lgpd",
+     "selector": "#hs_cos_wrapper_module_174413457910927",
+     "label": "Framework card: LGPD (Brazil)"
+    },
+    {
+     "key": "fw_ce_007",
+     "selector": "#hs_cos_wrapper_module_174413457910939",
+     "label": "Framework card: CE 007/2018 Requirements"
+    },
+    {
+     "key": "fw_panama_data",
+     "selector": "#hs_cos_wrapper_module_1753116360640",
+     "label": "Framework card: Panama Data Protection Law"
+    },
+    {
+     "key": "fw_costa_rica_data",
+     "selector": "#hs_cos_wrapper_module_1753116428818",
+     "label": "Framework card: Costa Rica Data Protection Law"
+    },
+    {
+     "key": "contact_form",
+     "selector": "#hs_cos_wrapper_widget_1743178741027",
+     "label": "How can we help? The contact form"
+    },
+    {
+     "key": "contact_consent",
+     "selector": "form.hs-form[id^=\"hsForm_9ab169f1-2d40-4869-9f6f-943c71b98aa7\"] .legal-consent-container",
+     "label": "Consent checkbox (the visitor ticks it)",
+     "hidden": true
+    },
+    {
+     "key": "contact_submit",
+     "selector": "form.hs-form[id^=\"hsForm_9ab169f1-2d40-4869-9f6f-943c71b98aa7\"] input.hs-button[type=submit]",
+     "label": "Submit button (the visitor presses it)",
+     "hidden": true
+    }
+   ]
+  },
+  "/es/frameworks": {
+   "kind": "frameworks",
+   "lang": "es",
+   "twin": "/frameworks",
+   "title": "Frameworks compatibles con Enveedo",
+   "header": true,
+   "footer": true,
+   "forms": [
+    "contact"
+   ],
+   "anchors": [
+    {
+     "key": "intro",
+     "selector": "#hs_cos_wrapper_module_17171691078105",
+     "label": "Frameworks: simplifying compliance, the Assessment module",
+     "fallback": "#main-content [class*=\"content_bucket-row-2-\"]"
+    },
+    {
+     "key": "infosec",
+     "selector": "#hs_cos_wrapper_widget_1744134422226_",
+     "label": "Information Security Frameworks",
+     "fallback": "#main-content [class*=\"content_bucket-row-3-\"]"
+    },
+    {
+     "key": "ai",
+     "selector": "#hs_cos_wrapper_module_17441345113903_",
+     "label": "AI Frameworks",
+     "fallback": "#main-content [class*=\"content_bucket-row-5-\"]"
+    },
+    {
+     "key": "privacy",
+     "selector": "#hs_cos_wrapper_module_17441345691994_",
+     "label": "Privacy Frameworks (and Latin American data laws)",
+     "fallback": "#main-content [class*=\"content_bucket-row-7-\"]"
+    },
+    {
+     "key": "fw_iso_27001",
+     "selector": "#hs_cos_wrapper_module_17423083193982",
+     "label": "Framework card: ISO/IEC 27001:2022"
+    },
+    {
+     "key": "fw_soc2",
+     "selector": "#hs_cos_wrapper_module_1743177126616",
+     "label": "Framework card: SOC 2 Readiness"
+    },
+    {
+     "key": "fw_tisax",
+     "selector": "#hs_cos_wrapper_module_1743177252147",
+     "label": "Framework card: TISAX ISA"
+    },
+    {
+     "key": "fw_nist_800_82",
+     "selector": "#hs_cos_wrapper_module_1745862175346",
+     "label": "Framework card: NIST SP 800-82"
+    },
+    {
+     "key": "fw_iso_9001",
+     "selector": "#hs_cos_wrapper_module_1764085576573",
+     "label": "Framework card: ISO/IEC 9001:2015"
+    },
+    {
+     "key": "fw_nist_csf",
+     "selector": "#hs_cos_wrapper_module_17431767373473",
+     "label": "Framework card: NIST CSF v2.0"
+    },
+    {
+     "key": "fw_hipaa",
+     "selector": "#hs_cos_wrapper_module_1743177071091",
+     "label": "Framework card: HIPAA Security Rule"
+    },
+    {
+     "key": "fw_iso_27002",
+     "selector": "#hs_cos_wrapper_module_1745848877389",
+     "label": "Framework card: ISO/IEC 27002:2022"
+    },
+    {
+     "key": "fw_nis2",
+     "selector": "#hs_cos_wrapper_module_1753745263844",
+     "label": "Framework card: NIS2 Directive"
+    },
+    {
+     "key": "fw_dora",
+     "selector": "#hs_cos_wrapper_module_1765828989069",
+     "label": "Framework card: DORA"
+    },
+    {
+     "key": "fw_pci_dss",
+     "selector": "#hs_cos_wrapper_module_1743176773560",
+     "label": "Framework card: PCI DSS v4.0.1"
+    },
+    {
+     "key": "fw_iso_31000",
+     "selector": "#hs_cos_wrapper_module_1743176833397",
+     "label": "Framework card: ISO/IEC 31000:2018"
+    },
+    {
+     "key": "fw_iso_27017_csc",
+     "selector": "#hs_cos_wrapper_module_1745848978376",
+     "label": "Framework card: ISO/IEC 27017:2015 (CSC)"
+    },
+    {
+     "key": "fw_ens",
+     "selector": "#hs_cos_wrapper_module_1753745266514",
+     "label": "Framework card: ENS (Spain)"
+    },
+    {
+     "key": "fw_cis",
+     "selector": "#hs_cos_wrapper_module_17431766360223",
+     "label": "Framework card: CIS CSC V8.1"
+    },
+    {
+     "key": "fw_iso_22301",
+     "selector": "#hs_cos_wrapper_module_1743176898816",
+     "label": "Framework card: ISO/IEC 22301:2019"
+    },
+    {
+     "key": "fw_iso_27017_csp",
+     "selector": "#hs_cos_wrapper_module_1745849025140",
+     "label": "Framework card: ISO/IEC 27017:2015 (CSP)"
+    },
+    {
+     "key": "fw_nist_800_171",
+     "selector": "#hs_cos_wrapper_module_1758909899765",
+     "label": "Framework card: NIST SP 800-171 Rev. 3"
+    },
+    {
+     "key": "fw_eu_ai_act",
+     "selector": "#hs_cos_wrapper_module_174413455307345",
+     "label": "Framework card: EU AI Act"
+    },
+    {
+     "key": "fw_nist_ai_rmf",
+     "selector": "#hs_cos_wrapper_module_174413455307346",
+     "label": "Framework card: NIST AI RMF 600-1"
+    },
+    {
+     "key": "fw_iso_42001",
+     "selector": "#hs_cos_wrapper_module_174413455307336",
+     "label": "Framework card: ISO/IEC 42001:2023"
+    },
+    {
+     "key": "fw_gdpr",
+     "selector": "#hs_cos_wrapper_module_17431766853892",
+     "label": "Framework card: GDPR"
+    },
+    {
+     "key": "fw_enveedo_pia",
+     "selector": "#hs_cos_wrapper_module_1743177160817",
+     "label": "Framework card: Enveedo PIA"
+    },
+    {
+     "key": "fw_colombia_data",
+     "selector": "#hs_cos_wrapper_module_174413457910928",
+     "label": "Framework card: Colombia Data Protection Law"
+    },
+    {
+     "key": "fw_mexico_public",
+     "selector": "#hs_cos_wrapper_module_174413457910948",
+     "label": "Framework card: Mexico Data Protection Law (Public)"
+    },
+    {
+     "key": "fw_anexo_28",
+     "selector": "#hs_cos_wrapper_module_1761676168215",
+     "label": "Framework card: Anexo 28 RMF 2024"
+    },
+    {
+     "key": "fw_nist_privacy",
+     "selector": "#hs_cos_wrapper_module_1743177010783",
+     "label": "Framework card: NIST Privacy Framework v1.0"
+    },
+    {
+     "key": "fw_argentina_data",
+     "selector": "#hs_cos_wrapper_module_174413457910916",
+     "label": "Framework card: Argentina Data Protection Law"
+    },
+    {
+     "key": "fw_mexico_private",
+     "selector": "#hs_cos_wrapper_module_174413457910938",
+     "label": "Framework card: Mexico Data Protection Law (Private)"
+    },
+    {
+     "key": "fw_chile_cyber_law",
+     "selector": "#hs_cos_wrapper_module_174413457910917",
+     "label": "Framework card: Chile Cybersecurity Law"
+    },
+    {
+     "key": "fw_circular_co_sa",
+     "selector": "#hs_cos_wrapper_module_1761676165119",
+     "label": "Framework card: Circular CO SA 17.18/24"
+    },
+    {
+     "key": "fw_iso_27701",
+     "selector": "#hs_cos_wrapper_module_1744135444019",
+     "label": "Framework card: ISO/IEC 27701:2025"
+    },
+    {
+     "key": "fw_chile_21719",
+     "selector": "#hs_cos_wrapper_module_174413457910949",
+     "label": "Framework card: Chile Data Protection Law (21.719)"
+    },
+    {
+     "key": "fw_peru_data",
+     "selector": "#hs_cos_wrapper_module_174413457910929",
+     "label": "Framework card: Peru Data Protection Law"
+    },
+    {
+     "key": "fw_chile_19628",
+     "selector": "#hs_cos_wrapper_module_1745849432956",
+     "label": "Framework card: Chile Data Protection Law (No. 19628)"
+    },
+    {
+     "key": "fw_lgpd",
+     "selector": "#hs_cos_wrapper_module_174413457910927",
+     "label": "Framework card: LGPD (Brazil)"
+    },
+    {
+     "key": "fw_ce_007",
+     "selector": "#hs_cos_wrapper_module_174413457910939",
+     "label": "Framework card: CE 007/2018 Requirements"
+    },
+    {
+     "key": "fw_panama_data",
+     "selector": "#hs_cos_wrapper_module_1753116360640",
+     "label": "Framework card: Panama Data Protection Law"
+    },
+    {
+     "key": "fw_costa_rica_data",
+     "selector": "#hs_cos_wrapper_module_1753116428818",
+     "label": "Framework card: Costa Rica Data Protection Law"
+    },
+    {
+     "key": "contact_form",
+     "selector": "#hs_cos_wrapper_widget_1743178741027",
+     "label": "How can we help? The contact form"
+    },
+    {
+     "key": "contact_consent",
+     "selector": "form.hs-form[id^=\"hsForm_9ab169f1-2d40-4869-9f6f-943c71b98aa7\"] .legal-consent-container",
+     "label": "Consent checkbox (the visitor ticks it)",
+     "hidden": true
+    },
+    {
+     "key": "contact_submit",
+     "selector": "form.hs-form[id^=\"hsForm_9ab169f1-2d40-4869-9f6f-943c71b98aa7\"] input.hs-button[type=submit]",
+     "label": "Submit button (the visitor presses it)",
+     "hidden": true
+    }
+   ]
+  },
+  "/partners": {
+   "kind": "partners",
+   "lang": "en",
+   "twin": "/es/partners",
+   "title": "Enveedo Platform",
+   "header": true,
+   "footer": true,
+   "forms": [],
+   "anchors": [
+    {
+     "key": "hero",
+     "selector": "#hs_cos_wrapper_module_17534714210569",
+     "label": "A Strategic Security Enabler for MSSPs and MSPs (Become a Partner)",
+     "fallback": "#main-content [class*=\"content_bucket-row-0-\"]"
+    },
+    {
+     "key": "why_partner",
+     "selector": "#hs_cos_wrapper_module_1753471456381",
+     "label": "Why Partner with Enveedo? vCISO services at speed and scale",
+     "fallback": "#main-content [class*=\"content_bucket-row-1-\"]"
+    },
+    {
+     "key": "benefits",
+     "selector": "#hs_cos_wrapper_module_175347146068010",
+     "label": "Partners Benefits: multitenancy, custom marketplace, deploy in minutes, reporting, API",
+     "fallback": "#main-content [class*=\"content_bucket-row-2-\"]"
+    },
+    {
+     "key": "ecosystem",
+     "selector": "#hs_cos_wrapper_module_17534714643887",
+     "label": "Include Enveedo in Your Ecosystem",
+     "fallback": "#main-content [class*=\"content_bucket-row-3-\"]"
+    },
+    {
+     "key": "integrations",
+     "selector": "#hs_cos_wrapper_module_17534714756916",
+     "label": "Supported Integrations",
+     "fallback": "#main-content [class*=\"content_bucket-row-4-\"]"
+    },
+    {
+     "key": "apply",
+     "selector": "#hs_cos_wrapper_module_17534714832716",
+     "label": "Start Your Partner Application Process",
+     "fallback": "#main-content [class*=\"content_bucket-row-5-\"]"
+    },
+    {
+     "key": "channel_partners",
+     "selector": "#hs_cos_wrapper_module_17534714876656",
+     "label": "Channel Partners logos",
+     "fallback": "#main-content [class*=\"content_bucket-row-6-\"]"
+    },
+    {
+     "key": "become_partner",
+     "selector": "#hs_cos_wrapper_module_175347142105613 a.hs-button",
+     "label": "Become a Partner button",
+     "hidden": true
+    }
+   ]
+  },
+  "/es/partners": {
+   "kind": "partners",
+   "lang": "es",
+   "twin": "/partners",
+   "title": "Plataforma Enveedo",
+   "header": true,
+   "footer": true,
+   "forms": [],
+   "anchors": [
+    {
+     "key": "hero",
+     "selector": "#hs_cos_wrapper_module_17534714210569",
+     "label": "A Strategic Security Enabler for MSSPs and MSPs (Become a Partner)",
+     "fallback": "#main-content [class*=\"content_bucket-row-0-\"]"
+    },
+    {
+     "key": "why_partner",
+     "selector": "#hs_cos_wrapper_module_1753471456381",
+     "label": "Why Partner with Enveedo? vCISO services at speed and scale",
+     "fallback": "#main-content [class*=\"content_bucket-row-1-\"]"
+    },
+    {
+     "key": "benefits",
+     "selector": "#hs_cos_wrapper_module_175347146068010",
+     "label": "Partners Benefits: multitenancy, custom marketplace, deploy in minutes, reporting, API",
+     "fallback": "#main-content [class*=\"content_bucket-row-2-\"]"
+    },
+    {
+     "key": "ecosystem",
+     "selector": "#hs_cos_wrapper_module_17534714643887",
+     "label": "Include Enveedo in Your Ecosystem",
+     "fallback": "#main-content [class*=\"content_bucket-row-3-\"]"
+    },
+    {
+     "key": "integrations",
+     "selector": "#hs_cos_wrapper_module_17534714756916",
+     "label": "Supported Integrations",
+     "fallback": "#main-content [class*=\"content_bucket-row-4-\"]"
+    },
+    {
+     "key": "apply",
+     "selector": "#hs_cos_wrapper_module_17534714832716",
+     "label": "Start Your Partner Application Process",
+     "fallback": "#main-content [class*=\"content_bucket-row-5-\"]"
+    },
+    {
+     "key": "channel_partners",
+     "selector": "#hs_cos_wrapper_module_17534714876656",
+     "label": "Channel Partners logos",
+     "fallback": "#main-content [class*=\"content_bucket-row-6-\"]"
+    },
+    {
+     "key": "become_partner",
+     "selector": "#hs_cos_wrapper_module_175347142105613 a.hs-button",
+     "label": "Become a Partner button",
+     "hidden": true
+    }
+   ]
+  },
+  "/book-a-demo": {
+   "kind": "demo",
+   "lang": "en",
+   "twin": "/es/book-a-demo",
+   "title": "Book a Demo",
+   "header": true,
+   "footer": true,
+   "forms": [
+    "demo"
+   ],
+   "anchors": [
+    {
+     "key": "hero",
+     "selector": "#hs_cos_wrapper_widget_1791379111352",
+     "label": "Book a Demo",
+     "fallback": "#main-content [class*=\"content_bucket-row-0-\"]"
+    },
+    {
+     "key": "start_with",
+     "selector": "#hs_cos_wrapper_widget_1716876752676",
+     "label": "Start with Enveedo: continuous risk assessment, integrations, 170+ controls, CISO Concierge",
+     "fallback": "#main-content [class*=\"content_bucket-row-1-\"]"
+    },
+    {
+     "key": "demo_request",
+     "selector": "#hs_cos_wrapper_module_1791381102074",
+     "label": "Request a product demo: a free risk assessment with a CISO strategist",
+     "fallback": "#main-content [class*=\"content_bucket-row-2-\"]"
+    },
+    {
+     "key": "demo_calendar",
+     "selector": ".meetings-iframe-container",
+     "label": "The demo scheduler (HubSpot Meetings, Elis Martinez)",
+     "optional": true
+    },
+    {
+     "key": "contact_info",
+     "selector": "#hs_cos_wrapper_module_1791381650751",
+     "label": "Contact Us: phone, address, email",
+     "fallback": "#main-content [class*=\"content_bucket-row-3-\"]"
+    }
+   ]
+  },
+  "/es/book-a-demo": {
+   "kind": "demo",
+   "lang": "es",
+   "twin": "/book-a-demo",
+   "title": "Book a Demo",
+   "header": true,
+   "footer": true,
+   "forms": [
+    "demo"
+   ],
+   "anchors": [
+    {
+     "key": "hero",
+     "selector": "#hs_cos_wrapper_widget_1791379111352",
+     "label": "Book a Demo",
+     "fallback": "#main-content [class*=\"content_bucket-row-0-\"]"
+    },
+    {
+     "key": "start_with",
+     "selector": "#hs_cos_wrapper_widget_1716876752676",
+     "label": "Start with Enveedo: continuous risk assessment, integrations, 170+ controls, CISO Concierge",
+     "fallback": "#main-content [class*=\"content_bucket-row-1-\"]"
+    },
+    {
+     "key": "demo_request",
+     "selector": "#hs_cos_wrapper_module_1791381102074",
+     "label": "Request a product demo: a free risk assessment with a CISO strategist",
+     "fallback": "#main-content [class*=\"content_bucket-row-2-\"]"
+    },
+    {
+     "key": "demo_calendar",
+     "selector": ".meetings-iframe-container",
+     "label": "The demo scheduler (HubSpot Meetings, Elis Martinez)",
+     "optional": true
+    },
+    {
+     "key": "contact_info",
+     "selector": "#hs_cos_wrapper_module_1791381650751",
+     "label": "Contact Us: phone, address, email",
+     "fallback": "#main-content [class*=\"content_bucket-row-3-\"]"
+    }
+   ]
+  },
+  "/book-a-demo-grl": {
+   "kind": "demo_ebook",
+   "lang": "en",
+   "twin": "/es/book-a-demo-rsa",
+   "title": "Book a Demo",
+   "header": true,
+   "footer": true,
+   "forms": [],
+   "anchors": [
+    {
+     "key": "hero",
+     "selector": "#hs_cos_wrapper_widget_1744399024136",
+     "label": "Security Program Management. Simplified.",
+     "fallback": "#main-content [class*=\"content_bucket-row-0-\"]"
+    },
+    {
+     "key": "about",
+     "selector": "#hs_cos_wrapper_widget_1716876752676",
+     "label": "About Enveedo",
+     "fallback": "#main-content [class*=\"content_bucket-row-1-\"]"
+    },
+    {
+     "key": "ebook_form",
+     "selector": "#hs_cos_wrapper_widget_1745500226977",
+     "label": "Request our eBook Now! (form)",
+     "fallback": "#main-content [class*=\"content_bucket-row-2-\"]"
+    }
+   ]
+  },
+  "/es/book-a-demo-rsa": {
+   "kind": "demo_ebook",
+   "lang": "es",
+   "twin": "/book-a-demo-grl",
+   "title": "Reserve una demostración",
+   "header": true,
+   "footer": true,
+   "forms": [],
+   "anchors": [
+    {
+     "key": "hero",
+     "selector": "#hs_cos_wrapper_widget_1744399024136",
+     "label": "Security Program Management. Simplified.",
+     "fallback": "#main-content [class*=\"content_bucket-row-0-\"]"
+    },
+    {
+     "key": "about",
+     "selector": "#hs_cos_wrapper_widget_1716876752676",
+     "label": "About Enveedo",
+     "fallback": "#main-content [class*=\"content_bucket-row-1-\"]"
+    },
+    {
+     "key": "ebook_form",
+     "selector": "#hs_cos_wrapper_widget_1745500226977",
+     "label": "Request our eBook Now! (form)",
+     "fallback": "#main-content [class*=\"content_bucket-row-2-\"]"
+    }
+   ]
+  },
+  "/contact": {
+   "kind": "contact",
+   "lang": "en",
+   "twin": "/es/contact",
+   "title": "Contact",
+   "header": true,
+   "footer": true,
+   "forms": [
+    "contact"
+   ],
+   "anchors": [
+    {
+     "key": "contact_form",
+     "selector": "#hs_cos_wrapper_widget_1716878052199",
+     "label": "How can we help? The contact form",
+     "fallback": "#main-content [class*=\"content_bucket-row-0-\"]"
+    },
+    {
+     "key": "resiliency",
+     "selector": "#hs_cos_wrapper_module_1717112965152",
+     "label": "Building Cyber Resiliency is a Necessity",
+     "fallback": "#main-content [class*=\"content_bucket-row-1-\"]"
+    },
+    {
+     "key": "contact_info",
+     "selector": "#hs_cos_wrapper_module_1716764386729",
+     "label": "Phone, address and email",
+     "fallback": "#main-content [class*=\"content_bucket-row-2-\"]"
+    },
+    {
+     "key": "ecosystem",
+     "selector": "#hs_cos_wrapper_module_17168774779998",
+     "label": "Join an Ecosystem: partnership program and free risk assessment",
+     "fallback": "#main-content [class*=\"content_bucket-row-3-\"]"
+    },
+    {
+     "key": "contact_consent",
+     "selector": "form.hs-form[id^=\"hsForm_9ab169f1-2d40-4869-9f6f-943c71b98aa7\"] .legal-consent-container",
+     "label": "Consent checkbox (the visitor ticks it)",
+     "hidden": true
+    },
+    {
+     "key": "contact_submit",
+     "selector": "form.hs-form[id^=\"hsForm_9ab169f1-2d40-4869-9f6f-943c71b98aa7\"] input.hs-button[type=submit]",
+     "label": "Submit button (the visitor presses it)",
+     "hidden": true
+    }
+   ]
+  },
+  "/es/contact": {
+   "kind": "contact",
+   "lang": "es",
+   "twin": "/contact",
+   "title": "Póngase en contacto con",
+   "header": true,
+   "footer": true,
+   "forms": [
+    "contact"
+   ],
+   "anchors": [
+    {
+     "key": "contact_form",
+     "selector": "#hs_cos_wrapper_widget_1716878052199",
+     "label": "How can we help? The contact form",
+     "fallback": "#main-content [class*=\"content_bucket-row-0-\"]"
+    },
+    {
+     "key": "resiliency",
+     "selector": "#hs_cos_wrapper_module_1717112965152",
+     "label": "Building Cyber Resiliency is a Necessity",
+     "fallback": "#main-content [class*=\"content_bucket-row-1-\"]"
+    },
+    {
+     "key": "contact_info",
+     "selector": "#hs_cos_wrapper_module_1716764386729",
+     "label": "Phone, address and email",
+     "fallback": "#main-content [class*=\"content_bucket-row-2-\"]"
+    },
+    {
+     "key": "ecosystem",
+     "selector": "#hs_cos_wrapper_module_17168774779998",
+     "label": "Join an Ecosystem: partnership program and free risk assessment",
+     "fallback": "#main-content [class*=\"content_bucket-row-3-\"]"
+    },
+    {
+     "key": "contact_consent",
+     "selector": "form.hs-form[id^=\"hsForm_9ab169f1-2d40-4869-9f6f-943c71b98aa7\"] .legal-consent-container",
+     "label": "Consent checkbox (the visitor ticks it)",
+     "hidden": true
+    },
+    {
+     "key": "contact_submit",
+     "selector": "form.hs-form[id^=\"hsForm_9ab169f1-2d40-4869-9f6f-943c71b98aa7\"] input.hs-button[type=submit]",
+     "label": "Submit button (the visitor presses it)",
+     "hidden": true
+    }
+   ]
+  },
+  "/about-us": {
+   "kind": "about",
+   "lang": "en",
+   "twin": "/es/about-us",
+   "title": "About Us",
+   "header": true,
+   "footer": true,
+   "forms": [],
+   "anchors": [
+    {
+     "key": "hero",
+     "selector": "#hs_cos_wrapper_module_17170146204427",
+     "label": "We are Security: One Team. One Mission.",
+     "fallback": "#main-content [class*=\"content_bucket-row-0-\"]"
+    },
+    {
+     "key": "who_we_are",
+     "selector": "#hs_cos_wrapper_module_17158208562238",
+     "label": "Who Are We?",
+     "fallback": "#main-content [class*=\"content_bucket-row-1-\"]"
+    },
+    {
+     "key": "mission",
+     "selector": "#hs_cos_wrapper_module_17170271512727",
+     "label": "Mission, Vision, Philosophy tabs",
+     "fallback": "#main-content [class*=\"content_bucket-row-2-\"]"
+    },
+    {
+     "key": "tab_mission",
+     "selector": "#featshow_17170271512727 .featshow__items > .featshow__item:nth-child(1)",
+     "label": "Mission tab",
+     "reveal": {
+      "click": "#featshow_17170271512727 .featshow__nav li:nth-child(1) .featshow__btn",
+      "open": "#featshow_17170271512727 .featshow__nav li:nth-child(1) .featshow__btn--active"
+     }
+    },
+    {
+     "key": "tab_vision",
+     "selector": "#featshow_17170271512727 .featshow__items > .featshow__item:nth-child(2)",
+     "label": "Vision tab",
+     "reveal": {
+      "click": "#featshow_17170271512727 .featshow__nav li:nth-child(2) .featshow__btn",
+      "open": "#featshow_17170271512727 .featshow__nav li:nth-child(2) .featshow__btn--active"
+     }
+    },
+    {
+     "key": "tab_philosophy",
+     "selector": "#featshow_17170271512727 .featshow__items > .featshow__item:nth-child(3)",
+     "label": "Philosophy tab",
+     "reveal": {
+      "click": "#featshow_17170271512727 .featshow__nav li:nth-child(3) .featshow__btn",
+      "open": "#featshow_17170271512727 .featshow__nav li:nth-child(3) .featshow__btn--active"
+     }
+    },
+    {
+     "key": "team",
+     "selector": "#hs_cos_wrapper_module_1717082556932",
+     "label": "Meet the Team",
+     "fallback": "#main-content [class*=\"content_bucket-row-3-\"]"
+    },
+    {
+     "key": "principles",
+     "selector": "#hs_cos_wrapper_module_1716939980175",
+     "label": "Our Principles",
+     "fallback": "#main-content [class*=\"content_bucket-row-4-\"]"
+    },
+    {
+     "key": "investors",
+     "selector": "#hs_cos_wrapper_module_17169694491009",
+     "label": "Our Investors (Silverton Partners, Runtime Ventures, Blue Venture)",
+     "fallback": "#main-content [class*=\"content_bucket-row-5-\"]"
+    }
+   ]
+  },
+  "/es/about-us": {
+   "kind": "about",
+   "lang": "es",
+   "twin": "/about-us",
+   "title": "Quiénes somos",
+   "header": true,
+   "footer": true,
+   "forms": [],
+   "anchors": [
+    {
+     "key": "hero",
+     "selector": "#hs_cos_wrapper_module_17170146204427",
+     "label": "We are Security: One Team. One Mission.",
+     "fallback": "#main-content [class*=\"content_bucket-row-0-\"]"
+    },
+    {
+     "key": "who_we_are",
+     "selector": "#hs_cos_wrapper_module_17158208562238",
+     "label": "Who Are We?",
+     "fallback": "#main-content [class*=\"content_bucket-row-1-\"]"
+    },
+    {
+     "key": "mission",
+     "selector": "#hs_cos_wrapper_module_17170271512727",
+     "label": "Mission, Vision, Philosophy tabs",
+     "fallback": "#main-content [class*=\"content_bucket-row-2-\"]"
+    },
+    {
+     "key": "tab_mission",
+     "selector": "#featshow_17170271512727 .featshow__items > .featshow__item:nth-child(1)",
+     "label": "Mission tab",
+     "reveal": {
+      "click": "#featshow_17170271512727 .featshow__nav li:nth-child(1) .featshow__btn",
+      "open": "#featshow_17170271512727 .featshow__nav li:nth-child(1) .featshow__btn--active"
+     }
+    },
+    {
+     "key": "tab_vision",
+     "selector": "#featshow_17170271512727 .featshow__items > .featshow__item:nth-child(2)",
+     "label": "Vision tab",
+     "reveal": {
+      "click": "#featshow_17170271512727 .featshow__nav li:nth-child(2) .featshow__btn",
+      "open": "#featshow_17170271512727 .featshow__nav li:nth-child(2) .featshow__btn--active"
+     }
+    },
+    {
+     "key": "tab_philosophy",
+     "selector": "#featshow_17170271512727 .featshow__items > .featshow__item:nth-child(3)",
+     "label": "Philosophy tab",
+     "reveal": {
+      "click": "#featshow_17170271512727 .featshow__nav li:nth-child(3) .featshow__btn",
+      "open": "#featshow_17170271512727 .featshow__nav li:nth-child(3) .featshow__btn--active"
+     }
+    },
+    {
+     "key": "team",
+     "selector": "#hs_cos_wrapper_module_1717082556932",
+     "label": "Meet the Team",
+     "fallback": "#main-content [class*=\"content_bucket-row-3-\"]"
+    },
+    {
+     "key": "principles",
+     "selector": "#hs_cos_wrapper_module_1716939980175",
+     "label": "Our Principles",
+     "fallback": "#main-content [class*=\"content_bucket-row-4-\"]"
+    },
+    {
+     "key": "investors",
+     "selector": "#hs_cos_wrapper_module_17169694491009",
+     "label": "Our Investors (Silverton Partners, Runtime Ventures, Blue Venture)",
+     "fallback": "#main-content [class*=\"content_bucket-row-5-\"]"
+    }
+   ]
+  },
+  "/resources": {
+   "kind": "resources",
+   "lang": "en",
+   "twin": "/es/resources",
+   "title": "Resources",
+   "header": true,
+   "footer": true,
+   "forms": [],
+   "anchors": [
+    {
+     "key": "hero",
+     "selector": "#hs_cos_wrapper_module_1717012785500",
+     "label": "Cyber Risk Resources for MSPs (Visit Our Blog)",
+     "fallback": "#main-content [class*=\"content_bucket-row-0-\"]"
+    },
+    {
+     "key": "blog",
+     "selector": "#hs_cos_wrapper_module_17170553645936",
+     "label": "Cyber Pulse Blog: the latest post",
+     "fallback": "#main-content [class*=\"content_bucket-row-1-\"]"
+    },
+    {
+     "key": "about",
+     "selector": "#hs_cos_wrapper_module_1717055778282",
+     "label": "Meet Enveedo: mission, vision, philosophy",
+     "fallback": "#main-content [class*=\"content_bucket-row-2-\"]"
+    },
+    {
+     "key": "insurance",
+     "selector": "#hs_cos_wrapper_module_17170110182913",
+     "label": "Protect Your Business: Cyber Insurance",
+     "fallback": "#main-content [class*=\"content_bucket-row-3-\"]"
+    },
+    {
+     "key": "faq_glossary",
+     "selector": "#hs_cos_wrapper_module_17170559731104",
+     "label": "Enveedopedia and EncyloCISO: FAQ and glossary",
+     "fallback": "#main-content [class*=\"content_bucket-row-4-\"]"
+    },
+    {
+     "key": "content_guide",
+     "selector": "#hs_cos_wrapper_module_17167640249185",
+     "label": "All-In-One Strategy Execution Guide (the platform PDF)",
+     "fallback": "#main-content [class*=\"content_bucket-row-5-\"]"
+    },
+    {
+     "key": "join",
+     "selector": "#hs_cos_wrapper_module_17170556932258",
+     "label": "Become a Partner / Book a Risk Free Assessment",
+     "fallback": "#main-content [class*=\"content_bucket-row-6-\"]"
+    }
+   ]
+  },
+  "/es/resources": {
+   "kind": "resources",
+   "lang": "es",
+   "twin": "/resources",
+   "title": "Recursos",
+   "header": true,
+   "footer": true,
+   "forms": [],
+   "anchors": [
+    {
+     "key": "hero",
+     "selector": "#hs_cos_wrapper_module_1717012785500",
+     "label": "Cyber Risk Resources for MSPs (Visit Our Blog)",
+     "fallback": "#main-content [class*=\"content_bucket-row-0-\"]"
+    },
+    {
+     "key": "blog",
+     "selector": "#hs_cos_wrapper_module_17170553645936",
+     "label": "Cyber Pulse Blog: the latest post",
+     "fallback": "#main-content [class*=\"content_bucket-row-1-\"]"
+    },
+    {
+     "key": "about",
+     "selector": "#hs_cos_wrapper_module_1717055778282",
+     "label": "Meet Enveedo: mission, vision, philosophy",
+     "fallback": "#main-content [class*=\"content_bucket-row-2-\"]"
+    },
+    {
+     "key": "insurance",
+     "selector": "#hs_cos_wrapper_module_17170110182913",
+     "label": "Protect Your Business: Cyber Insurance",
+     "fallback": "#main-content [class*=\"content_bucket-row-3-\"]"
+    },
+    {
+     "key": "faq_glossary",
+     "selector": "#hs_cos_wrapper_module_17170559731104",
+     "label": "Enveedopedia and EncyloCISO: FAQ and glossary",
+     "fallback": "#main-content [class*=\"content_bucket-row-4-\"]"
+    },
+    {
+     "key": "content_guide",
+     "selector": "#hs_cos_wrapper_module_17167640249185",
+     "label": "All-In-One Strategy Execution Guide (the platform PDF)",
+     "fallback": "#main-content [class*=\"content_bucket-row-5-\"]"
+    },
+    {
+     "key": "join",
+     "selector": "#hs_cos_wrapper_module_17170556932258",
+     "label": "Become a Partner / Book a Risk Free Assessment",
+     "fallback": "#main-content [class*=\"content_bucket-row-6-\"]"
+    }
+   ]
+  },
+  "/cyber-insurance": {
+   "kind": "insurance",
+   "lang": "en",
+   "twin": "/es/cyber-insurance",
+   "title": "Cyber Insurance",
+   "header": true,
+   "footer": true,
+   "forms": [],
+   "anchors": [
+    {
+     "key": "hero",
+     "selector": "#hs_cos_wrapper_module_17170151808127",
+     "label": "Cyber Insurance has never been more complex",
+     "fallback": "#main-content [class*=\"content_bucket-row-0-\"]"
+    },
+    {
+     "key": "benefits",
+     "selector": "#hs_cos_wrapper_module_1717044767953",
+     "label": "Benefits of Cyber Insurance",
+     "fallback": "#main-content [class*=\"content_bucket-row-1-\"]"
+    },
+    {
+     "key": "approval",
+     "selector": "#hs_cos_wrapper_module_17169623093987",
+     "label": "Increase Approval Decisions",
+     "fallback": "#main-content [class*=\"content_bucket-row-2-\"]"
+    },
+    {
+     "key": "procuring",
+     "selector": "#hs_cos_wrapper_module_17170448622152",
+     "label": "Procuring Cyber Insurance",
+     "fallback": "#main-content [class*=\"content_bucket-row-3-\"]"
+    },
+    {
+     "key": "reduce_friction",
+     "selector": "#hs_cos_wrapper_module_17167623970575",
+     "label": "Reduce friction during the procurement process",
+     "fallback": "#main-content [class*=\"content_bucket-row-4-\"]"
+    },
+    {
+     "key": "features",
+     "selector": "#hs_cos_wrapper_module_17170448238982",
+     "label": "Enveedo Features at a Glance",
+     "fallback": "#main-content [class*=\"content_bucket-row-5-\"]"
+    },
+    {
+     "key": "program_overview",
+     "selector": "#hs_cos_wrapper_module_171676249562610",
+     "label": "Program Overview: Crown Jewel Analysis and more",
+     "fallback": "#main-content [class*=\"content_bucket-row-6-\"]"
+    },
+    {
+     "key": "key_benefits",
+     "selector": "#hs_cos_wrapper_module_17170448965962",
+     "label": "Key Benefits of Cyber Risk Management",
+     "fallback": "#main-content [class*=\"content_bucket-row-7-\"]"
+    },
+    {
+     "key": "prioritize_assets",
+     "selector": "#hs_cos_wrapper_module_17172897359946",
+     "label": "Prioritize Critical Assets (Crown Jewel Analysis)",
+     "fallback": "#main-content [class*=\"content_bucket-row-8-\"]"
+    },
+    {
+     "key": "visibility_automation",
+     "selector": "#hs_cos_wrapper_module_17172897468278",
+     "label": "Continuous visibility and automation",
+     "fallback": "#main-content [class*=\"content_bucket-row-9-\"]"
+    },
+    {
+     "key": "incident_response",
+     "selector": "#hs_cos_wrapper_module_17172897793696",
+     "label": "Integrated incident response management",
+     "fallback": "#main-content [class*=\"content_bucket-row-10-\"]"
+    },
+    {
+     "key": "api_integrations",
+     "selector": "#hs_cos_wrapper_module_17172897670088",
+     "label": "Streamline Security with API Integrations",
+     "fallback": "#main-content [class*=\"content_bucket-row-11-\"]"
+    },
+    {
+     "key": "ecosystem",
+     "selector": "#hs_cos_wrapper_module_17168757507576",
+     "label": "Join an Ecosystem (Book Risk Assessment)",
+     "fallback": "#main-content [class*=\"content_bucket-row-12-\"]"
+    }
+   ]
+  },
+  "/es/cyber-insurance": {
+   "kind": "insurance",
+   "lang": "es",
+   "twin": "/cyber-insurance",
+   "title": "Ciberseguro",
+   "header": true,
+   "footer": true,
+   "forms": [],
+   "anchors": [
+    {
+     "key": "hero",
+     "selector": "#hs_cos_wrapper_module_17170151808127",
+     "label": "Cyber Insurance has never been more complex",
+     "fallback": "#main-content [class*=\"content_bucket-row-0-\"]"
+    },
+    {
+     "key": "benefits",
+     "selector": "#hs_cos_wrapper_module_1717044767953",
+     "label": "Benefits of Cyber Insurance",
+     "fallback": "#main-content [class*=\"content_bucket-row-1-\"]"
+    },
+    {
+     "key": "approval",
+     "selector": "#hs_cos_wrapper_module_17169623093987",
+     "label": "Increase Approval Decisions",
+     "fallback": "#main-content [class*=\"content_bucket-row-2-\"]"
+    },
+    {
+     "key": "procuring",
+     "selector": "#hs_cos_wrapper_module_17170448622152",
+     "label": "Procuring Cyber Insurance",
+     "fallback": "#main-content [class*=\"content_bucket-row-3-\"]"
+    },
+    {
+     "key": "reduce_friction",
+     "selector": "#hs_cos_wrapper_module_17167623970575",
+     "label": "Reduce friction during the procurement process",
+     "fallback": "#main-content [class*=\"content_bucket-row-4-\"]"
+    },
+    {
+     "key": "features",
+     "selector": "#hs_cos_wrapper_module_17170448238982",
+     "label": "Enveedo Features at a Glance",
+     "fallback": "#main-content [class*=\"content_bucket-row-5-\"]"
+    },
+    {
+     "key": "program_overview",
+     "selector": "#hs_cos_wrapper_module_171676249562610",
+     "label": "Program Overview: Crown Jewel Analysis and more",
+     "fallback": "#main-content [class*=\"content_bucket-row-6-\"]"
+    },
+    {
+     "key": "key_benefits",
+     "selector": "#hs_cos_wrapper_module_17170448965962",
+     "label": "Key Benefits of Cyber Risk Management",
+     "fallback": "#main-content [class*=\"content_bucket-row-7-\"]"
+    },
+    {
+     "key": "prioritize_assets",
+     "selector": "#hs_cos_wrapper_module_17172897359946",
+     "label": "Prioritize Critical Assets (Crown Jewel Analysis)",
+     "fallback": "#main-content [class*=\"content_bucket-row-8-\"]"
+    },
+    {
+     "key": "visibility_automation",
+     "selector": "#hs_cos_wrapper_module_17172897468278",
+     "label": "Continuous visibility and automation",
+     "fallback": "#main-content [class*=\"content_bucket-row-9-\"]"
+    },
+    {
+     "key": "incident_response",
+     "selector": "#hs_cos_wrapper_module_17172897793696",
+     "label": "Integrated incident response management",
+     "fallback": "#main-content [class*=\"content_bucket-row-10-\"]"
+    },
+    {
+     "key": "api_integrations",
+     "selector": "#hs_cos_wrapper_module_17172897670088",
+     "label": "Streamline Security with API Integrations",
+     "fallback": "#main-content [class*=\"content_bucket-row-11-\"]"
+    },
+    {
+     "key": "ecosystem",
+     "selector": "#hs_cos_wrapper_module_17168757507576",
+     "label": "Join an Ecosystem (Book Risk Assessment)",
+     "fallback": "#main-content [class*=\"content_bucket-row-12-\"]"
+    }
+   ]
+  },
+  "/faq": {
+   "kind": "faq",
+   "lang": "en",
+   "twin": "/es/faq",
+   "title": "FAQ",
+   "header": true,
+   "footer": true,
+   "forms": [],
+   "anchors": [
+    {
+     "key": "header",
+     "selector": "#hs_cos_wrapper_module_1716931732754",
+     "label": "Enveedopedia FAQ",
+     "fallback": "#main-content [class*=\"content_bucket-row-0-\"]"
+    },
+    {
+     "key": "faq_general",
+     "selector": "#hs_cos_wrapper_content_bucket-module-7",
+     "label": "FAQ group: General Information",
+     "fallback": "#main-content [class*=\"content_bucket-row-1-\"]"
+    },
+    {
+     "key": "faq_platform",
+     "selector": "#hs_cos_wrapper_content_bucket-module-10",
+     "label": "FAQ group: Platform Functionality",
+     "fallback": "#main-content [class*=\"content_bucket-row-2-\"]"
+    },
+    {
+     "key": "faq_services",
+     "selector": "#hs_cos_wrapper_content_bucket-module-13",
+     "label": "FAQ group: Services & Support",
+     "fallback": "#main-content [class*=\"content_bucket-row-3-\"]"
+    },
+    {
+     "key": "faq_what_is",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-7-1\"])",
+     "label": "FAQ: What is Enveedo?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-7-1\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-7-1\"][aria-expanded=\"true\"]"
+     }
+    },
+    {
+     "key": "faq_benefit",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-7-2\"])",
+     "label": "FAQ: How can Enveedo benefit my organization?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-7-2\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-7-2\"][aria-expanded=\"true\"]"
+     }
+    },
+    {
+     "key": "faq_different",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-7-3\"])",
+     "label": "FAQ: What makes Enveedo different from other cybersecurity platforms?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-7-3\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-7-3\"][aria-expanded=\"true\"]"
+     }
+    },
+    {
+     "key": "faq_msp_or_business",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-7-4\"])",
+     "label": "FAQ: Is the platform for MSPs and MSSPs or for individual businesses?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-7-4\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-7-4\"][aria-expanded=\"true\"]"
+     }
+    },
+    {
+     "key": "faq_msp_support",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-7-5\"])",
+     "label": "FAQ: Is the platform designed to support MSPs, MSSPs and VARs?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-7-5\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-7-5\"][aria-expanded=\"true\"]"
+     }
+    },
+    {
+     "key": "faq_individual_business",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-7-6\"])",
+     "label": "FAQ: How can individual businesses leverage the platform?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-7-6\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-7-6\"][aria-expanded=\"true\"]"
+     }
+    },
+    {
+     "key": "faq_who_benefits",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-10-1\"])",
+     "label": "FAQ: Who can benefit from using Enveedo?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-10-1\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-10-1\"][aria-expanded=\"true\"]"
+     }
+    },
+    {
+     "key": "faq_integrate",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-10-2\"])",
+     "label": "FAQ: Can Enveedo integrate with my existing security tools?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-10-2\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-10-2\"][aria-expanded=\"true\"]"
+     }
+    },
+    {
+     "key": "faq_prioritize",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-10-3\"])",
+     "label": "FAQ: How does Enveedo prioritize which assets to protect?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-10-3\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-10-3\"][aria-expanded=\"true\"]"
+     }
+    },
+    {
+     "key": "faq_start",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-13-1\"])",
+     "label": "FAQ: How do I start using Enveedo?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-13-1\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-13-1\"][aria-expanded=\"true\"]"
+     }
+    },
+    {
+     "key": "faq_support",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-13-2\"])",
+     "label": "FAQ: What support does Enveedo offer to its partners and clients?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-13-2\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-13-2\"][aria-expanded=\"true\"]"
+     }
+    },
+    {
+     "key": "faq_compliance",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-13-3\"])",
+     "label": "FAQ: How does Enveedo ensure compliance with regulatory requirements?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-13-3\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-13-3\"][aria-expanded=\"true\"]"
+     }
+    },
+    {
+     "key": "faq_incident",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-13-4\"])",
+     "label": "FAQ: What support does Enveedo provide during a cybersecurity incident?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-13-4\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-13-4\"][aria-expanded=\"true\"]"
+     }
+    },
+    {
+     "key": "faq_training",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-13-5\"])",
+     "label": "FAQ: Is there training available for new users?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-13-5\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-13-5\"][aria-expanded=\"true\"]"
+     }
+    },
+    {
+     "key": "faq_data_security",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-13-6\"])",
+     "label": "FAQ: How does Enveedo ensure the security of its clients' data?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-13-6\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-13-6\"][aria-expanded=\"true\"]"
+     }
+    },
+    {
+     "key": "glossary",
+     "selector": "#hs_cos_wrapper_module_17170541173493",
+     "label": "EncyloCISO: glossary of terms",
+     "fallback": "#main-content [class*=\"content_bucket-row-4-\"]"
+    },
+    {
+     "key": "glossary_terms",
+     "selector": "#hs_cos_wrapper_widget_1716932004822",
+     "label": "The glossary's terms (CISO, CJA, CDPO, vCISO, …)",
+     "fallback": "#main-content [class*=\"content_bucket-row-5-\"]"
+    },
+    {
+     "key": "benefits",
+     "selector": "#hs_cos_wrapper_module_17169377610588",
+     "label": "Benefits of Choosing Enveedo: platform report and free risk assessment",
+     "fallback": "#main-content [class*=\"content_bucket-row-6-\"]"
+    }
+   ]
+  },
+  "/es/faq": {
+   "kind": "faq",
+   "lang": "es",
+   "twin": "/faq",
+   "title": "PREGUNTAS FRECUENTES",
+   "header": true,
+   "footer": true,
+   "forms": [],
+   "anchors": [
+    {
+     "key": "header",
+     "selector": "#hs_cos_wrapper_module_1716931732754",
+     "label": "Enveedopedia FAQ",
+     "fallback": "#main-content [class*=\"content_bucket-row-0-\"]"
+    },
+    {
+     "key": "faq_general",
+     "selector": "#hs_cos_wrapper_content_bucket-module-7",
+     "label": "FAQ group: General Information",
+     "fallback": "#main-content [class*=\"content_bucket-row-1-\"]"
+    },
+    {
+     "key": "faq_platform",
+     "selector": "#hs_cos_wrapper_content_bucket-module-10",
+     "label": "FAQ group: Platform Functionality",
+     "fallback": "#main-content [class*=\"content_bucket-row-2-\"]"
+    },
+    {
+     "key": "faq_services",
+     "selector": "#hs_cos_wrapper_content_bucket-module-13",
+     "label": "FAQ group: Services & Support",
+     "fallback": "#main-content [class*=\"content_bucket-row-3-\"]"
+    },
+    {
+     "key": "faq_what_is",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-7-1\"])",
+     "label": "FAQ: What is Enveedo?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-7-1\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-7-1\"][aria-expanded=\"true\"]"
+     }
+    },
+    {
+     "key": "faq_benefit",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-7-2\"])",
+     "label": "FAQ: How can Enveedo benefit my organization?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-7-2\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-7-2\"][aria-expanded=\"true\"]"
+     }
+    },
+    {
+     "key": "faq_different",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-7-3\"])",
+     "label": "FAQ: What makes Enveedo different from other cybersecurity platforms?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-7-3\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-7-3\"][aria-expanded=\"true\"]"
+     }
+    },
+    {
+     "key": "faq_msp_or_business",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-7-4\"])",
+     "label": "FAQ: Is the platform for MSPs and MSSPs or for individual businesses?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-7-4\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-7-4\"][aria-expanded=\"true\"]"
+     }
+    },
+    {
+     "key": "faq_msp_support",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-7-5\"])",
+     "label": "FAQ: Is the platform designed to support MSPs, MSSPs and VARs?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-7-5\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-7-5\"][aria-expanded=\"true\"]"
+     }
+    },
+    {
+     "key": "faq_individual_business",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-7-6\"])",
+     "label": "FAQ: How can individual businesses leverage the platform?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-7-6\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-7-6\"][aria-expanded=\"true\"]"
+     }
+    },
+    {
+     "key": "faq_who_benefits",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-10-1\"])",
+     "label": "FAQ: Who can benefit from using Enveedo?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-10-1\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-10-1\"][aria-expanded=\"true\"]"
+     }
+    },
+    {
+     "key": "faq_integrate",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-10-2\"])",
+     "label": "FAQ: Can Enveedo integrate with my existing security tools?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-10-2\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-10-2\"][aria-expanded=\"true\"]"
+     }
+    },
+    {
+     "key": "faq_prioritize",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-10-3\"])",
+     "label": "FAQ: How does Enveedo prioritize which assets to protect?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-10-3\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-10-3\"][aria-expanded=\"true\"]"
+     }
+    },
+    {
+     "key": "faq_start",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-13-1\"])",
+     "label": "FAQ: How do I start using Enveedo?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-13-1\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-13-1\"][aria-expanded=\"true\"]"
+     }
+    },
+    {
+     "key": "faq_support",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-13-2\"])",
+     "label": "FAQ: What support does Enveedo offer to its partners and clients?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-13-2\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-13-2\"][aria-expanded=\"true\"]"
+     }
+    },
+    {
+     "key": "faq_compliance",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-13-3\"])",
+     "label": "FAQ: How does Enveedo ensure compliance with regulatory requirements?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-13-3\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-13-3\"][aria-expanded=\"true\"]"
+     }
+    },
+    {
+     "key": "faq_incident",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-13-4\"])",
+     "label": "FAQ: What support does Enveedo provide during a cybersecurity incident?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-13-4\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-13-4\"][aria-expanded=\"true\"]"
+     }
+    },
+    {
+     "key": "faq_training",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-13-5\"])",
+     "label": "FAQ: Is there training available for new users?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-13-5\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-13-5\"][aria-expanded=\"true\"]"
+     }
+    },
+    {
+     "key": "faq_data_security",
+     "selector": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-13-6\"])",
+     "label": "FAQ: How does Enveedo ensure the security of its clients' data?",
+     "reveal": {
+      "click": ".accordion__item:has(button[aria-controls=\"accordion-panel-content_bucket-module-13-6\"]) .accordion__header",
+      "open": "button[aria-controls=\"accordion-panel-content_bucket-module-13-6\"][aria-expanded=\"true\"]"
+     }
+    },
+    {
+     "key": "glossary",
+     "selector": "#hs_cos_wrapper_module_17170541173493",
+     "label": "EncyloCISO: glossary of terms",
+     "fallback": "#main-content [class*=\"content_bucket-row-4-\"]"
+    },
+    {
+     "key": "glossary_terms",
+     "selector": "#hs_cos_wrapper_widget_1716932004822",
+     "label": "The glossary's terms (CISO, CJA, CDPO, vCISO, …)",
+     "fallback": "#main-content [class*=\"content_bucket-row-5-\"]"
+    },
+    {
+     "key": "benefits",
+     "selector": "#hs_cos_wrapper_module_17169377610588",
+     "label": "Benefits of Choosing Enveedo: platform report and free risk assessment",
+     "fallback": "#main-content [class*=\"content_bucket-row-6-\"]"
+    }
+   ]
+  },
+  "/trust-center": {
+   "kind": "trust",
+   "lang": "en",
+   "twin": "/es/trust-center",
+   "title": "Enveedo Cyber Risk Management Platform",
+   "header": true,
+   "footer": true,
+   "forms": [
+    "soc2"
+   ],
+   "anchors": [
+    {
+     "key": "hero",
+     "selector": "#hs_cos_wrapper_module_17171691078105",
+     "label": "Trust Center: Security at the Core of Trust",
+     "fallback": "#main-content [class*=\"content_bucket-row-2-\"]"
+    },
+    {
+     "key": "controls",
+     "selector": "#hs_cos_wrapper_module_17389560607146",
+     "label": "Our Security Controls",
+     "fallback": "#main-content [class*=\"content_bucket-row-3-\"]"
+    },
+    {
+     "key": "network_security",
+     "selector": "#hs_cos_wrapper_module_17393787634927",
+     "label": "Network and application security: scans, pentest, WAF, IDS, TLS",
+     "fallback": "#main-content [class*=\"content_bucket-row-4-\"]"
+    },
+    {
+     "key": "soc2",
+     "selector": "#hs_cos_wrapper_module_17393868932213",
+     "label": "SOC 2 Compliance: the SOC 2 Type II report",
+     "fallback": "#main-content [class*=\"content_bucket-row-5-\"]"
+    },
+    {
+     "key": "soc2_form",
+     "selector": "form.hs-form[id^=\"hsForm_8e75d561-509b-4454-a003-d60115042fc9\"]",
+     "label": "Request the SOC 2 Type II report (form)"
+    },
+    {
+     "key": "soc2_consent",
+     "selector": "form.hs-form[id^=\"hsForm_8e75d561-509b-4454-a003-d60115042fc9\"] .legal-consent-container",
+     "label": "Consent checkbox (the visitor ticks it)",
+     "hidden": true
+    },
+    {
+     "key": "soc2_submit",
+     "selector": "form.hs-form[id^=\"hsForm_8e75d561-509b-4454-a003-d60115042fc9\"] input.hs-button[type=submit]",
+     "label": "Submit button (the visitor presses it)",
+     "hidden": true
+    }
+   ]
+  },
+  "/es/trust-center": {
+   "kind": "trust",
+   "lang": "es",
+   "twin": "/trust-center",
+   "title": "Plataforma de gestión de ciberriesgos de Enveedo",
+   "header": true,
+   "footer": true,
+   "forms": [
+    "soc2"
+   ],
+   "anchors": [
+    {
+     "key": "hero",
+     "selector": "#hs_cos_wrapper_module_17171691078105",
+     "label": "Trust Center: Security at the Core of Trust",
+     "fallback": "#main-content [class*=\"content_bucket-row-2-\"]"
+    },
+    {
+     "key": "controls",
+     "selector": "#hs_cos_wrapper_module_17389560607146",
+     "label": "Our Security Controls",
+     "fallback": "#main-content [class*=\"content_bucket-row-3-\"]"
+    },
+    {
+     "key": "network_security",
+     "selector": "#hs_cos_wrapper_module_17393787634927",
+     "label": "Network and application security: scans, pentest, WAF, IDS, TLS",
+     "fallback": "#main-content [class*=\"content_bucket-row-4-\"]"
+    },
+    {
+     "key": "soc2",
+     "selector": "#hs_cos_wrapper_module_17393868932213",
+     "label": "SOC 2 Compliance: the SOC 2 Type II report",
+     "fallback": "#main-content [class*=\"content_bucket-row-5-\"]"
+    },
+    {
+     "key": "soc2_form",
+     "selector": "form.hs-form[id^=\"hsForm_8e75d561-509b-4454-a003-d60115042fc9\"]",
+     "label": "Request the SOC 2 Type II report (form)"
+    },
+    {
+     "key": "soc2_consent",
+     "selector": "form.hs-form[id^=\"hsForm_8e75d561-509b-4454-a003-d60115042fc9\"] .legal-consent-container",
+     "label": "Consent checkbox (the visitor ticks it)",
+     "hidden": true
+    },
+    {
+     "key": "soc2_submit",
+     "selector": "form.hs-form[id^=\"hsForm_8e75d561-509b-4454-a003-d60115042fc9\"] input.hs-button[type=submit]",
+     "label": "Submit button (the visitor presses it)",
+     "hidden": true
+    }
+   ]
+  },
+  "/webinars-and-ebooks": {
+   "kind": "library",
+   "lang": "en",
+   "twin": null,
+   "title": "FAQ",
+   "header": true,
+   "footer": true,
+   "forms": [],
+   "anchors": [
+    {
+     "key": "header",
+     "selector": "#hs_cos_wrapper_module_1716931732754",
+     "label": "Webinars and eBooks",
+     "fallback": "#main-content [class*=\"content_bucket-row-0-\"]"
+    },
+    {
+     "key": "intro",
+     "selector": "#hs_cos_wrapper_widget_1723579818814",
+     "label": "We love telling good stories",
+     "fallback": "#main-content [class*=\"content_bucket-row-1-\"]"
+    },
+    {
+     "key": "library",
+     "selector": "#hs_cos_wrapper_widget_1723575675202",
+     "label": "The eBooks and webinars (gated, open in a new tab)"
+    },
+    {
+     "key": "benefits",
+     "selector": "#hs_cos_wrapper_module_17169377610588",
+     "label": "Benefits of Choosing Enveedo",
+     "fallback": "#main-content [class*=\"content_bucket-row-3-\"]"
+    }
+   ]
+  },
+  "/privacy-policy": {
+   "kind": "legal",
+   "lang": "en",
+   "twin": "/es/privacy-policy",
+   "title": "Privacy Policy",
+   "header": true,
+   "footer": true,
+   "forms": [],
+   "anchors": [
+    {
+     "key": "title",
+     "selector": "#hs_cos_wrapper_module_17158070350337",
+     "label": "Page title",
+     "fallback": "#main-content [class*=\"content_bucket-row-0-\"]"
+    },
+    {
+     "key": "body",
+     "selector": "#hs_cos_wrapper_module_1733171808937",
+     "label": "The text",
+     "fallback": "#main-content [class*=\"content_bucket-row-1-\"]"
+    }
+   ]
+  },
+  "/es/privacy-policy": {
+   "kind": "legal",
+   "lang": "es",
+   "twin": "/privacy-policy",
+   "title": "Política de privacidad",
+   "header": true,
+   "footer": true,
+   "forms": [],
+   "anchors": [
+    {
+     "key": "title",
+     "selector": "#hs_cos_wrapper_module_17158070350337",
+     "label": "Page title",
+     "fallback": "#main-content [class*=\"content_bucket-row-0-\"]"
+    },
+    {
+     "key": "body",
+     "selector": "#hs_cos_wrapper_module_1733171808937",
+     "label": "The text",
+     "fallback": "#main-content [class*=\"content_bucket-row-1-\"]"
+    }
+   ]
+  },
+  "/terms-of-service": {
+   "kind": "legal",
+   "lang": "en",
+   "twin": "/es/terms-of-service",
+   "title": "Terms of Service",
+   "header": true,
+   "footer": true,
+   "forms": [],
+   "anchors": [
+    {
+     "key": "title",
+     "selector": "#hs_cos_wrapper_module_17158069187937",
+     "label": "Page title",
+     "fallback": "#main-content [class*=\"content_bucket-row-0-\"]"
+    },
+    {
+     "key": "body",
+     "selector": "#hs_cos_wrapper_widget_1715799039480",
+     "label": "The text",
+     "fallback": "#main-content [class*=\"content_bucket-row-1-\"]"
+    }
+   ]
+  },
+  "/es/terms-of-service": {
+   "kind": "legal",
+   "lang": "es",
+   "twin": "/terms-of-service",
+   "title": "Condiciones de uso",
+   "header": true,
+   "footer": true,
+   "forms": [],
+   "anchors": [
+    {
+     "key": "title",
+     "selector": "#hs_cos_wrapper_module_17158069187937",
+     "label": "Page title",
+     "fallback": "#main-content [class*=\"content_bucket-row-0-\"]"
+    },
+    {
+     "key": "body",
+     "selector": "#hs_cos_wrapper_widget_1715799039480",
+     "label": "The text",
+     "fallback": "#main-content [class*=\"content_bucket-row-1-\"]"
+    }
+   ]
+  },
+  "/sub-processors": {
+   "kind": "legal",
+   "lang": "en",
+   "twin": "/es/sub-processors",
+   "title": "Sub Processors",
+   "header": true,
+   "footer": true,
+   "forms": [],
+   "anchors": [
+    {
+     "key": "title",
+     "selector": "#hs_cos_wrapper_module_17158069187937",
+     "label": "Page title",
+     "fallback": "#main-content [class*=\"content_bucket-row-0-\"]"
+    },
+    {
+     "key": "body",
+     "selector": "#hs_cos_wrapper_widget_1715799039480",
+     "label": "The text",
+     "fallback": "#main-content [class*=\"content_bucket-row-1-\"]"
+    }
+   ]
+  },
+  "/es/sub-processors": {
+   "kind": "legal",
+   "lang": "es",
+   "twin": "/sub-processors",
+   "title": "Sub Processors",
+   "header": true,
+   "footer": true,
+   "forms": [],
+   "anchors": [
+    {
+     "key": "title",
+     "selector": "#hs_cos_wrapper_module_17158069187937",
+     "label": "Page title",
+     "fallback": "#main-content [class*=\"content_bucket-row-0-\"]"
+    },
+    {
+     "key": "body",
+     "selector": "#hs_cos_wrapper_widget_1715799039480",
+     "label": "The text",
+     "fallback": "#main-content [class*=\"content_bucket-row-1-\"]"
+    }
+   ]
+  },
+  "/responsible-disclosure-policy": {
+   "kind": "legal",
+   "lang": "en",
+   "twin": "/es/responsible-disclosure-policy",
+   "title": "Responsible Disclosure Policy",
+   "header": true,
+   "footer": true,
+   "forms": [],
+   "anchors": [
+    {
+     "key": "title",
+     "selector": "#hs_cos_wrapper_module_17158069187937",
+     "label": "Page title",
+     "fallback": "#main-content [class*=\"content_bucket-row-0-\"]"
+    },
+    {
+     "key": "body",
+     "selector": "#hs_cos_wrapper_widget_1715799039480",
+     "label": "The text",
+     "fallback": "#main-content [class*=\"content_bucket-row-1-\"]"
+    }
+   ]
+  },
+  "/es/responsible-disclosure-policy": {
+   "kind": "legal",
+   "lang": "es",
+   "twin": "/responsible-disclosure-policy",
+   "title": "Política de divulgación responsable",
+   "header": true,
+   "footer": true,
+   "forms": [],
+   "anchors": [
+    {
+     "key": "title",
+     "selector": "#hs_cos_wrapper_module_17158069187937",
+     "label": "Page title",
+     "fallback": "#main-content [class*=\"content_bucket-row-0-\"]"
+    },
+    {
+     "key": "body",
+     "selector": "#hs_cos_wrapper_widget_1715799039480",
+     "label": "The text",
+     "fallback": "#main-content [class*=\"content_bucket-row-1-\"]"
+    }
+   ]
+  }
+ }
+}

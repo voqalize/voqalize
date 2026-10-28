@@ -1,0 +1,77 @@
+{
+  "manifest_version": 3,
+  "name": "Javier for Enveedo — Voqalize preview",
+  "version": "0.0.0",
+  "description": "A voice guide on enveedo.com, in English or Spanish, who walks security leaders through Enveedo's platform, frameworks and proof while their screen follows his voice, and books their demo in the site's scheduler or fills the contact form; the visitor presses the final button. A Voqalize preview.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAkYxZLRqEoBvfI+6g09UGLZLxx2VEGD3XcJGYytM2K7bAsNTnBvc7XE5uRK7e8d03ZKuN/Enee0eh8VgB4P3UiG3ERmSsak9yKKEXl+P8VsKqrjVfEt8HZaSKvvKBFn4OIVDdBL2OjWODC1OjBPbWxp7/Ww0xdJobBoEh0Q9QwU6RTwtnb+IedaWtNe9xFdXBvlF+kbSqzG8LFVF2Zk1aeiAbolBp5pZEnr06WvjsDS97whR9fEL8NhJZczqB1+Idst7TjzXgjDTGolHTB/6uR2kXrR03hqfRwrO2ImcnFQeTb9DVQkRMtw5wsMsn5QhXGDfEVq5kbQp38jlzw3lIgwIDAQAB",
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://enveedo.com/*",
+        "https://www.enveedo.com/*"
+      ],
+      "js": [
+        "bridge.js",
+        "anchor.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://enveedo.com/*",
+        "https://www.enveedo.com/*"
+      ],
+      "js": [
+        "shell.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://enveedo.com/*",
+        "https://www.enveedo.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://meetings.hubspot.com/*"
+      ],
+      "js": [
+        "meetings.js"
+      ],
+      "all_frames": true,
+      "run_at": "document_idle"
+    }
+  ],
+  "permissions": [
+    "storage",
+    "offscreen"
+  ],
+  "host_permissions": [
+    "https://enveedo.com/*",
+    "https://www.enveedo.com/*",
+    "https://meetings.hubspot.com/*"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "grant.html",
+        "grant.js"
+      ],
+      "matches": [
+        "https://enveedo.com/*",
+        "https://www.enveedo.com/*"
+      ]
+    }
+  ]
+}

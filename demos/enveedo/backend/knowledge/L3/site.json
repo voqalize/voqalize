@@ -1,0 +1,84 @@
+{
+ "twins": {
+  "/": "/es/",
+  "/enveedo_platform": "/es/enveedo_platform",
+  "/security-performance-os": "/es/security-performance-os",
+  "/frameworks": "/es/frameworks",
+  "/partners": "/es/partners",
+  "/book-a-demo": "/es/book-a-demo",
+  "/book-a-demo-grl": "/es/book-a-demo-rsa",
+  "/contact": "/es/contact",
+  "/about-us": "/es/about-us",
+  "/resources": "/es/resources",
+  "/cyber-insurance": "/es/cyber-insurance",
+  "/faq": "/es/faq",
+  "/trust-center": "/es/trust-center",
+  "/privacy-policy": "/es/privacy-policy",
+  "/terms-of-service": "/es/terms-of-service",
+  "/sub-processors": "/es/sub-processors",
+  "/responsible-disclosure-policy": "/es/responsible-disclosure-policy"
+ },
+ "exits": {
+  "scheduler": {
+   "label": "Elis Martinez's HubSpot Meetings page",
+   "url": "https://meetings.hubspot.com/elis-martinez"
+  },
+  "sign_in": {
+   "label": "Enveedo sign-in (customers)",
+   "url": "https://app.enveedo.com/login"
+  },
+  "blog": {
+   "label": "Cyber Pulse blog",
+   "url": "https://blog.enveedo.com/"
+  },
+  "blog_es": {
+   "label": "Cyber Pulse blog (Spanish)",
+   "url": "https://blog.enveedo.com/es"
+  },
+  "platform_pdf": {
+   "label": "Enveedo's All-In-One Strategy Security Platform (PDF)",
+   "url": "https://enveedo.com/hubfs/Enveedo%E2%80%99s%20All-In-One%20Strategy%20Security%20Platform.pdf"
+  }
+ },
+ "library": [
+  {
+   "label": "The Gold Standard in Cyber Defense Planning and Optimization",
+   "url": "https://info.enveedo.com/cdpo-ebook"
+  },
+  {
+   "label": "Securing the Future: Hail & Cotton's Cybersecurity Overhaul with Enveedo",
+   "url": "https://info.enveedo.com/hail-and-cotton-customer-story"
+  },
+  {
+   "label": "Scaling vCISO Services: A Masterclass for MSPs and MSSPs",
+   "url": "https://info.enveedo.com/scaling-vciso-gated"
+  },
+  {
+   "label": "Beyond vCISO Platforms: Meet Enveedo",
+   "url": "https://info.enveedo.com/ebook-beyond-vciso-platforms"
+  },
+  {
+   "label": "Reactive to Resilent: How to Build a Future-Proof Cybersecurity Program... Like a Boss",
+   "url": "https://info.enveedo.com/lab-gated"
+  },
+  {
+   "label": "Beyond GRC Platforms: Meet Enveedo",
+   "url": "https://info.enveedo.com/ebook-beyond-grc-2"
+  },
+  {
+   "label": "Cómo Crear Ciber Resiliencia a través de un Programa de Ciberseguridad",
+   "url": "https://www.youtube.com/watch?v=AF4ww16HaUo"
+  },
+  {
+   "label": "Cyber Resiliency What? Simplify building a resilient cybersecurity program for your organization.",
+   "url": "https://info.enveedo.com/watch-vciso-partner-video-0"
+  }
+ ],
+ "contact": {
+  "phone": "+1 786 648 6418",
+  "email": "info@enveedo.com",
+  "privacy_email": "privacy@enveedo.com",
+  "place": "Miami, Florida, United States",
+  "address": "66 West Flagler St. Suite 900, Miami, FL 33130"
+ }
+}
