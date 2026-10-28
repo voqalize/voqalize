@@ -279,6 +279,7 @@ def _llm() -> ScriptedOpenAI:
             "I use 500 units, about 4000 rupees, in Gujarat.": reply_and_call(
                 "That's about five hundred units.",
                 "run_calculator",
+                site="home",
                 state="Gujarat",
                 monthly_units=500,
                 monthly_bill_inr=4000,
@@ -293,13 +294,14 @@ def _llm() -> ScriptedOpenAI:
             # A state with no typical rate: refused and silent, so asked again
             # with tools off, she asks in her own words.
             "I use 350 units in Ladakh.": [
-                call("run_calculator", state="Ladakh", monthly_units=350),
+                call("run_calculator", site="home", state="Ladakh", monthly_units=350),
                 reply("What rate do you pay per unit?"),
             ],
             # No rate: the state's typical rate, and the units from the bill.
             "My bill is about 4500 in Bengaluru, Karnataka. I don't know the rate.": reply_and_call(
                 "I'm putting your bill into the calculator.",
                 "run_calculator",
+                site="home",
                 state="Karnataka",
                 city="Bengaluru",
                 monthly_bill_inr=4500,
@@ -308,6 +310,7 @@ def _llm() -> ScriptedOpenAI:
             "I use 400 units in Mumbai.": reply_and_call(
                 "I'm putting four hundred units into the calculator.",
                 "run_calculator",
+                site="home",
                 state="Maharashtra",
                 city="Mumbai",
                 monthly_units=400,
@@ -322,8 +325,8 @@ def _llm() -> ScriptedOpenAI:
             # A state the visitor never named is not guessed: it is asked for. Silent
             # twice, so the written line asks.
             "I use 500 units at 6 rupees a unit.": [
-                call("run_calculator", monthly_units=500, rate_per_unit=6),
-                call("run_calculator", monthly_units=500, rate_per_unit=6),
+                call("run_calculator", site="home", monthly_units=500, rate_per_unit=6),
+                call("run_calculator", site="home", monthly_units=500, rate_per_unit=6),
             ],
             # BOOK NOW, by voice: the booking fills in as they talk.
             "Book the kit for my home.": reply_and_call(
@@ -374,6 +377,21 @@ def _llm() -> ScriptedOpenAI:
                 reply("This is the Test Panel. It stays cool in the heat."),
             ],
             "What about warranty?": reply("Thirty years on performance."),
+            # A business is not sized by the home calculator.
+            "What would rooftop solar cost my factory in Gujarat, on CAPEX?": reply_and_call(
+                "I'm putting your numbers into the calculator.",
+                "run_calculator",
+                site="business",
+                state="Gujarat",
+                monthly_bill_inr=200000,
+            ),
+            "What would it cost on our roof here?": reply_and_call(
+                "I'm putting your numbers into the calculator.",
+                "run_calculator",
+                site="home",
+                state="Gujarat",
+                monthly_bill_inr=200000,
+            ),
             "How does this one compare?": reply("TOPCon runs cooler."),
             "Against the mono.": reply("TOPCon beats Mono PERC in heat."),
             "Is TOPCon better than PERC?": reply("Yes, TOPCon. It handles heat better than PERC."),
@@ -782,6 +800,26 @@ async def test_no_rate_runs_on_the_states_typical_rate() -> None:
         await rig.driver.user_says("So how much would I save?")
         result = _results(llm.captured_inputs[-1])["run_calculator"]
         assert "typical residential rate" in result and "₹7.5" in result
+
+
+async def test_a_business_is_never_sized_by_the_home_calculator() -> None:
+    """The calculator is Saatvik's home rooftop estimate: for a factory she is
+    told to say the cost depends on the site and to offer the enquiry form."""
+    llm = _llm()
+    async with demo("saatvik", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says("What would rooftop solar cost my factory in Gujarat, on CAPEX?")
+        assert "run_calculator" not in rig.actions()
+        await rig.driver.user_says("So how much would I save?")
+        result = _results(llm.captured_inputs[-1])["run_calculator"]
+        assert result.startswith("Not run") and "enquiry form" in result
+
+
+async def test_a_business_products_page_never_runs_the_home_calculator() -> None:
+    async with demo("saatvik", _llm()) as rig:
+        await rig.driver.start_session(init={"page": "/epc-solutions/rooftop/commercial"})
+        await rig.driver.user_says("What would it cost on our roof here?")
+        assert "run_calculator" not in rig.actions()
 
 
 async def test_a_city_with_its_own_power_company_has_its_own_rate() -> None:

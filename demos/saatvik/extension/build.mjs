@@ -109,6 +109,33 @@ await build({
   outfile: join(out, "content.js"),
 });
 
+// The document tab (`doc.html`) runs the same viewer, with its own copy of
+// pdf.js and its worker; the service worker and the bridge are small and
+// have no dependencies.
+await build({
+  entryPoints: [join(here, "src/doc.ts")],
+  bundle: true,
+  format: "iife",
+  minify: true,
+  legalComments: "none",
+  target: "chrome120",
+  logOverride: { "empty-import-meta": "silent" },
+  plugins: [pdfWorker],
+  outfile: join(out, "doc.js"),
+});
+for (const name of ["background", "bridge"]) {
+  await build({
+    entryPoints: [join(here, `src/${name}.ts`)],
+    bundle: true,
+    format: "iife",
+    minify: true,
+    legalComments: "none",
+    target: "chrome120",
+    outfile: join(out, `${name}.js`),
+  });
+}
+copyFileSync(join(here, "src/doc.html"), join(out, "doc.html"));
+
 const pkg = JSON.parse(readFileSync(join(here, "package.json"), "utf8"));
 const manifest = JSON.parse(readFileSync(join(here, "manifest.json"), "utf8"));
 manifest.version = pkg.version;

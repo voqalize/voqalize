@@ -8,7 +8,7 @@ table row she is talking about, opens the FAQ that answers the question, opens a
 datasheet or policy PDF at the page and line she quotes, runs the savings
 calculator, filters the dealer locator, and fills in the enquiry form with what
 the visitor has told her. Everything she shows is a page, section or form Saatvik
-already has; the extension adds a corner widget, a PDF viewer, and the orange
+already has; the extension adds a corner widget, a document tab, and the orange
 ring she draws around what she is pointing at.
 
 Behind the conversation the brain builds the brief Saatvik's sales team would
@@ -41,14 +41,25 @@ on it; it is not how a customer would ship it.
   is SendPotion's narration, unchanged but for the Hindi words.
 - `src/actions.gen.ts` — the Action and event unions, generated from the brain
   with `pnpm gen`. Regenerate after changing either.
-- `src/pdf-viewer.ts` — the document viewer: a panel beside the widget that
-  opens one of Saatvik's PDFs at a page and marks the quote Sunny reads from it.
-  It renders with pdf.js and its own text layer, so the mark sits on the words.
+- `src/doc.html`, `src/doc.ts`, `src/pdf-viewer.ts` — the document tab. Sunny
+  opens one of Saatvik's PDFs in a tab of its own, beside the Saatvik tab the
+  call is in, at a page, with the quote she reads from it marked; the next
+  document reuses that tab, and its "Back to Saatvik" button returns to the
+  call's tab. The call stays in the Saatvik tab, which keeps playing her voice
+  and hearing the visitor in the background; before any move on the site the
+  page brings itself back to the front (`focus_me`), so the visitor sees it
+  happen. Until 2026-10-28 the viewer was an overlay over the page, which the
+  visitor had to close by hand before she could show anything else.
+  The viewer renders with pdf.js and its own text layer, so the mark sits on the words.
   A quote is looked for on the asked page first, then on the pages either side
   of it, and a quote the model tidied up still lands on its opening or closing
   words. "Open full PDF" opens Saatvik's own file at the same page. Some of
   Saatvik's datasheets are drawn with their text as outlines; those open at the
   page but have nothing to mark.
+- `src/background.ts`, `src/bridge.ts`, `src/tabs-protocol.ts` — the service
+  worker, which opens, reuses, focuses and closes the document tab (a page
+  cannot), and the isolated content script that carries the page's asks to it:
+  the page script runs in the page's own world, which has no `chrome.runtime`.
 - `src/widget.ts` — the corner widget, in a shadow root, in Saatvik's own navy,
   orange and typefaces: the call, an English | हिंदी toggle, and the lead
   brief when the brain sends it, which can be collapsed. The visitor can drag it anywhere and minimise
