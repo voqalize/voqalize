@@ -32,3 +32,4 @@ export {
   type SceneSpec, type EventData, type EventId, type EventSpec, type FieldSpec, type SliceOf, type SliceSpec,
 } from "./scene";
 export { type PluginContext, PluginError, type PluginImpl, Plugins, type PluginSpec } from "./plugins";
+export { ATTR, findPart, findThing, partsOf, place, pressParts, showThing, type Thing, things } from "./markup";

@@ -399,7 +399,9 @@ def _types(args: argparse.Namespace) -> int:
     if args.scene:
         if not args.out:
             raise SystemExit("voqalize types --scene: say where with -o")
-        return _stage_gen(argparse.Namespace(spec=args.scene, py=args.out, ts=None, prompt=None))
+        return _stage_gen(
+            argparse.Namespace(spec=args.scene, py=args.out, ts=None, json=None, prompt=None)
+        )
     if not args.module:
         raise SystemExit("voqalize types: name the module declaring your actions, or --scene")
     module = _load_module(args.module)
@@ -449,16 +451,23 @@ def _write(out: str, text: str, what: str) -> None:
 
 
 def _stage_gen(args: argparse.Namespace) -> int:
-    from .stage.gen import render_prompt, render_python, render_typescript
+    from .stage.gen import render_json, render_prompt, render_python, render_typescript
 
     spec = _spec_or_exit(args.spec)
-    if not (args.py or args.ts or args.prompt):
-        raise SystemExit("voqalize stage gen: say what to write: --py, --ts and/or --prompt")
+    if not (args.py or args.ts or args.json or args.prompt):
+        raise SystemExit(
+            "voqalize stage gen: say what to write: --py, --ts, --json and/or --prompt"
+        )
     command = " ".join(
         ["voqalize stage gen", args.spec]
         + [
             f"--{flag} {out}"
-            for flag, out in (("py", args.py), ("ts", args.ts), ("prompt", args.prompt))
+            for flag, out in (
+                ("py", args.py),
+                ("ts", args.ts),
+                ("json", args.json),
+                ("prompt", args.prompt),
+            )
             if out
         ]
     )
@@ -467,6 +476,8 @@ def _stage_gen(args: argparse.Namespace) -> int:
         _write(args.py, render_python(spec, source=args.spec, command=command), moves)
     if args.ts:
         _write(args.ts, render_typescript(spec, source=args.spec, command=command), moves)
+    if args.json:
+        _write(args.json, render_json(spec), moves)
     if args.prompt:
         _write(args.prompt, render_prompt(spec), _tally(len(spec.prompt_lines()), "cue line"))
     return 0
@@ -531,6 +542,7 @@ def main(argv: list[str] | None = None) -> int:
     gen.add_argument("spec", help="path to the Stage Spec (JSON)")
     gen.add_argument("--py", help="the brain's moves, as a Python module")
     gen.add_argument("--ts", help="the page's scene, as a TypeScript module")
+    gen.add_argument("--json", help="the page's spec, kits merged, for a page with no build step")
     gen.add_argument("--prompt", help="the line each cue is taught with")
     gen.set_defaults(func=_stage_gen)
     check = stage_sub.add_parser("check", help="validate and lint one or more specs")

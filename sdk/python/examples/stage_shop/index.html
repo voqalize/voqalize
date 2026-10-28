@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Linen &amp; Co.</title>
+  </head>
+  <body>
+    <main data-stage-place="catalog">
+      <section data-stage-thing="hero"><h1>Linen &amp; Co.</h1></section>
+      <aside data-stage-thing="filters" data-stage-label="Filters">
+        <h2>Size</h2>
+        <button data-stage-part="Size:Queen">Queen</button>
+        <button data-stage-part="Size:King">King</button>
+        <h2>Colour</h2>
+        <button data-stage-part="Colour:White">White</button>
+        <button data-stage-part="Colour:Sand">Sand</button>
+      </aside>
+      <section data-stage-thing="sheets" data-stage-label="Our sheets">
+        <h2>Our sheets</h2>
+        <article id="p1" data-path="/p/percale-king">Percale, King <button class="add">Add to cart</button></article>
+        <article id="p2" data-path="/p/linen-queen">Linen, Queen <button class="add">Add to cart</button></article>
+      </section>
+      <section data-stage-thing="care" data-stage-label="Caring for linen"><h2>Caring for linen</h2></section>
+      <p id="cart" aria-live="polite">Cart: 0</p>
+    </main>
+
+    <script type="module">
+      // The app's own pipecat client, made and connected the way the app
+      // already does (connect.md); Stage only attaches to it.
+      import { client } from "./call.js";
+      import { attach } from "./stage.js"; // a bundle of @voqalize/stage/script
+
+      let count = 0;
+      await attach(client, {
+        spec: "./scene.page.json", // voqalize stage gen … --json: the kit merged in
+        performers: {
+          // Confirmed: the brain sends it only after the visitor said yes.
+          "commerce.cart_add": async ({ path }, c) => {
+            const item = document.querySelector(`[data-path="${path}"]`);
+            if (!item) return c.refuse("path", `no item ${path} on this page`);
+            const button = item.querySelector(".add");
+            await c.scrollTo(item);
+            await c.ring(button, "Add to cart");
+            await c.beat();
+            button.click();
+            document.getElementById("cart").textContent = `Cart: ${++count}`;
+            return `added ${path}`;
+          },
+        },
+      });
+    </script>
+  </body>
+</html>

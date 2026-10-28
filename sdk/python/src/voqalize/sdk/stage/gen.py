@@ -26,7 +26,7 @@ from typing import Any
 
 from .spec import ArgSpec, MoveSpec, StageSpec
 
-__all__ = ["render_prompt", "render_python", "render_typescript"]
+__all__ = ["page_spec", "render_json", "render_prompt", "render_python", "render_typescript"]
 
 #: A move's fields only the brain reads.
 _BRAIN_ONLY = {"say", "claims", "objects", "doc", "notes"}
@@ -219,8 +219,9 @@ def _drop_docs(fields: list[dict[str, Any]]) -> None:
         _drop_docs(f.get("fields", []))
 
 
-def render_typescript(spec: StageSpec, *, source: str, command: str) -> str:
-    """The page's half: the spec, handed to ``defineScene``."""
+def page_spec(spec: StageSpec) -> dict[str, Any]:
+    """The spec as the page reads it: its kits merged in, and what only the
+    brain reads (claims, objects, prompt lines, notes, docs) left out."""
     data = spec.model_dump(mode="json", by_alias=True, exclude_defaults=True)
     data.pop("$schema", None)
     data.pop("languages", None)
@@ -243,7 +244,18 @@ def render_typescript(spec: StageSpec, *, source: str, command: str) -> str:
         for arg in plugin.get("args", ()):
             arg.pop("doc", None)
         _drop_docs(plugin.get("output", []))
-    body = json.dumps(data, ensure_ascii=False, indent=2)
+    return data
+
+
+def render_json(spec: StageSpec) -> str:
+    """The page's half for a page with no build step: :func:`page_spec` as
+    JSON, for ``attach(client, {spec: "scene.page.json"})``."""
+    return json.dumps(page_spec(spec), ensure_ascii=False, indent=2) + "\n"
+
+
+def render_typescript(spec: StageSpec, *, source: str, command: str) -> str:
+    """The page's half: :func:`page_spec`, handed to ``defineScene``."""
+    body = json.dumps(page_spec(spec), ensure_ascii=False, indent=2)
     return "\n".join(
         [
             f"// Generated from {source} by `voqalize stage gen`. Do not edit — regenerate with:",

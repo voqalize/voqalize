@@ -524,6 +524,37 @@ that change one slice):
   read onto a `magento.prices` plugin renames moves on both sides, so it lands with a dev
   re-test. The hosted brain and the explorer are the kit's first users.
 
+### Developer mode (built)
+
+- **Markup** (`markup.ts`, `@voqalize/stage`): `data-stage-thing="name"` (+ `data-stage-label`,
+  else the accessible name), `data-stage-part="Facet:Option"`, `data-stage-place="name"`.
+  Locators only: no moves, labels or prompt text come from markup. `findThing` matches the name,
+  then the label whole, then its start, folded; `findPart` folds both halves. Stock performers:
+  `showThing` (`{show: Name}`: reveal, scroll, ring; refuses with the labels on the page) and
+  `pressParts` (`{filter: Facet | A, B}`: scroll, ring, beat, press each; refuses with the
+  facet's options).
+- **Script-tag host** (`@voqalize/stage/script`): `attach(client, {spec, theme?, lang?,
+  performers?})`, where `spec` is a spec object or the URL of its page JSON. Each declared move
+  gets the page's own performer, else the stock one for its verb (`STOCK`: show, filter), else
+  is listed in `unbound` and warned about. It runs on `stagePage`; `navigated()` sends hello
+  again for a single-page route change. It is a source module: our snippet and extension
+  bundle it, so a plug-and-play customer never installs npm.
+- **`voqalize stage gen --json page.json`** writes the page's spec for a page with no build
+  step: kits merged, brain-only fields out (`page_spec()`, the same body the TS output hands to
+  `defineScene`).
+- **React** (`@voqalize/stage/react`): `stageHooks(React)` → `useStage(client, scene, opts)`,
+  `useMove(stage, id, performer)` (registered once, runs the latest render's closure, refuses
+  once unmounted), `useSlice(stage, value, toEvent)` (a change named by `toEvent` is sent as the
+  spec's event; within a performer, or `AGENT_WINDOW_MS` = 500 ms after it, it is `by: "agent"`
+  with the move's `call_ref`), `useNavigated(stage, path)`. React is handed in, never imported:
+  the package stays dependency-free, no second copy of React can meet the app's, and it is typed
+  structurally (`ReactHooks`), as the pipecat client is.
+- **Example**: `sdk/python/examples/stage_shop/` (spec taking two `commerce` moves, marked-up
+  page, brain, generated files, README). `test_example.py` keeps it current and importable;
+  `test/example.test.ts` makes its cues on its own markup under the conformance kit.
+- Not built: `stage build` (evaluating a `defineScene` module in Node to write `scene.json`) and
+  a ts-morph pass that every declared thing is bound; Vue and Svelte bindings.
+
 Not yet in the spec (next steps): places and things (regions with spoken labels), `effect`,
 `spotlight`, `undo`, the stale-version check on moves (`resolved_at`), and `stage build` for a
 `defineScene` module.
