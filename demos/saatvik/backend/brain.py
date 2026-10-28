@@ -554,8 +554,8 @@ class LanguageRequest(BaseModel):
 
 #: The site map in the prompt: every page with its sections, as many as fit.
 #: Pages past the budget are still reached through search.
-_SITE_MAP_CHARS = 30000
-_SECTIONS_PER_PAGE = 18
+_SITE_MAP_CHARS = 24000
+_SECTIONS_PER_PAGE = 12
 #: The site's own suffix on every page title: the same words on every line.
 _TITLE_SUFFIX = " — Saatvik Green Energy"
 #: The order pages are listed in, so the budget is spent on what a buyer asks
@@ -606,52 +606,66 @@ def _topics(k: Knowledge) -> str:
     return "\n".join(f"- {t.id}: {t.title}" for t in k.topics.values()) or "(none loaded)"
 
 
-def _playbooks(k: Knowledge) -> str:
-    """Each product line as a salesperson walks it, in a few lines: the page,
-    the story's headings in order, the sizes, the tabs and datasheets, what to
-    ask, the call to action and what comes next."""
+def _catalogue(k: Knowledge) -> str:
+    """Every product line in a line: its page, its pitch, its call to action
+    and what to offer next. The full playbook arrives when its page opens."""
     out: list[str] = []
     for p in k.products:
-        lines = [f"## {p.name} ({p.id}) — {p.path}"]
-        if p.pitch:
-            lines.append(p.pitch)
-        if p.story:
-            lines.append(
-                "Story: "
-                + " → ".join(f"{s.heading}" + (f" ({s.say})" if s.say else "") for s in p.story)
-            )
-        if p.variants:
-            lines.append(
-                "Sizes and models: "
-                + "; ".join(
-                    v.name
-                    + (f": {v.key}" if v.key else "")
-                    + (f" [show: {v.show}]" if v.show else "")
-                    for v in p.variants
-                )
-            )
-        if p.specs:
-            lines.append("Specs: " + "; ".join(f"{k_}: {v}" for k_, v in p.specs))
-        if p.tabs:
-            lines.append("Tabs: " + ", ".join(p.tabs))
-        if p.datasheets:
-            lines.append(
-                "Datasheets: "
-                + "; ".join(
-                    f"{d.document_id}" + (f" ({d.pages})" if d.pages else "") for d in p.datasheets
-                )
-            )
-        if p.qualify:
-            lines.append("Ask: " + "; ".join(p.qualify))
-        if p.calculator:
-            lines.append("The savings calculator fits this product.")
+        line = f"- {p.name} ({p.id}) — {p.path}: {p.pitch}"
         if p.cta:
-            more = f" (also: {'; '.join(p.cta_more)})" if p.cta_more else ""
-            lines.append(f"Call to action: {p.cta}{more}")
+            line += f" Call to action: {p.cta}."
         if p.next:
-            lines.append("Next: " + ", ".join(p.next))
-        out.append("\n".join(lines))
-    return "\n\n".join(out) or "(No playbooks loaded: walk each product's page in order.)"
+            line += f" Next: {', '.join(p.next)}."
+        out.append(line)
+    return "\n".join(out) or "(No catalogue loaded: walk each product's page in order.)"
+
+
+def _playbooks(k: Knowledge) -> str:
+    """Every product line's playbook, as :func:`_playbook` writes each."""
+    return "\n\n".join(_playbook(p) for p in k.products) or "(No playbooks loaded.)"
+
+
+def _playbook(p: kb.ProductLine) -> str:
+    """One product line as a salesperson walks it, in a few lines: the page,
+    the story's headings in order, the sizes, the tabs and datasheets, what to
+    ask, the call to action and what comes next."""
+    lines = [f"## {p.name} ({p.id}) — {p.path}"]
+    if p.pitch:
+        lines.append(p.pitch)
+    if p.story:
+        lines.append(
+            "Story: "
+            + " → ".join(f"{s.heading}" + (f" ({s.say})" if s.say else "") for s in p.story)
+        )
+    if p.variants:
+        lines.append(
+            "Sizes and models: "
+            + "; ".join(
+                v.name + (f": {v.key}" if v.key else "") + (f" [show: {v.show}]" if v.show else "")
+                for v in p.variants
+            )
+        )
+    if p.specs:
+        lines.append("Specs: " + "; ".join(f"{k_}: {v}" for k_, v in p.specs))
+    if p.tabs:
+        lines.append("Tabs: " + ", ".join(p.tabs))
+    if p.datasheets:
+        lines.append(
+            "Datasheets: "
+            + "; ".join(
+                f"{d.document_id}" + (f" ({d.pages})" if d.pages else "") for d in p.datasheets
+            )
+        )
+    if p.qualify:
+        lines.append("Ask: " + "; ".join(p.qualify))
+    if p.calculator:
+        lines.append("The savings calculator fits this product.")
+    if p.cta:
+        more = f" (also: {'; '.join(p.cta_more)})" if p.cta_more else ""
+        lines.append(f"Call to action: {p.cta}{more}")
+    if p.next:
+        lines.append("Next: " + ", ".join(p.next))
+    return "\n".join(lines)
 
 
 def _prompt(k: Knowledge) -> str:
@@ -671,7 +685,7 @@ You are giving a guided walkthrough, like an advisor sitting beside the visitor 
 - Cues are the only way you move the page. There is no tool for it, and nothing waits on a cue. Cues are the site's own words, and the site is in English, so a cue stays in English inside a Hindi reply.
 
 # Sell by telling each product's story, one step a turn
-Every product has a story, in its page's own order, and it ends at the product's call to action. The product playbooks below give each product's story, its feature headings, its variants, its datasheets, its call to action and what to ask a buyer. Walk it like a salesperson beside them:
+Every product has a story, in its page's own order, and it ends at the product's call to action. The product catalogue below names each product's page and call to action, and each product's playbook, which comes to you when its page opens, gives its story, its feature headings, its sizes, its datasheets and what to ask a buyer. Walk it like a salesperson beside them:
 1. What it is and who it is for: a page cue, and one or two sentences.
 2. Its key features: a show cue on each feature card as you name it, three or four per turn, in the page's order.
 3. Whether it fits them: one qualifying question woven in, about their home or business, their bill, their roof, power cuts, their state.
@@ -730,7 +744,7 @@ Visitor: "Yes, go on."
 You: "{{show: No Battery Required}} It needs no battery, so there's less to maintain. {{show: Real-Time Smart Monitoring}} You watch your generation on your phone. {{show: 5 Years of Warranty}} And it carries a five-year warranty. It comes in three and five kilowatts. Is it for your home, and roughly what's your monthly bill?"
 Visitor: "My home in Pune, the bill is about four thousand."
 You: "Then the three kilowatt kit is likely your size. I'm putting your bill into Saatvik's calculator with Maharashtra's typical rate. It works out the system size, the subsidy and your yearly savings. Watch the fields fill in." then run_calculator(state="Maharashtra", city="Pune", monthly_bill_inr=4000).
-(The estimate comes back.) You: "{{show: …the result's heading…}} A system of about three kilowatts suits you. It saves roughly … a year, after subsidy. Shall I put your details in the booking form for the three kilowatt kit?"
+(The estimate comes back in square brackets.) You: "A system of about three kilowatts suits you. The calculator shows your yearly saving and your payback, after subsidy. Shall I put your details in the booking form for the three kilowatt kit?" — saying the figures the result gave, as words.
 Visitor: "Yes."
 You: "I've chosen a home installation and filled in Pune, Maharashtra. What name shall I put on it?" then book_product(product="surya-connect-kit", installation="residential", state="Maharashtra", city="Pune").
 Visitor: "Rahul Mehta."
@@ -787,8 +801,11 @@ The visitor can ask you to press anything on their screen or fill any form on it
 - A visitor who wants a person: give Saatvik's toll-free number or WhatsApp from the knowledge below, or open the enquiry form with callback_requested, and say a person will call.
 - Never say it is submitted or booked until the page tells you. When it does, thank them in one sentence, say Saatvik's team will be in touch, and offer to keep answering their questions.
 
-# Product playbooks
-{_playbooks(k)}
+# Product catalogue
+Every product line, its page and its call to action. When a product's page opens, its full playbook comes to you in square brackets: its story's headings in the page's order, its sizes and models, its tabs and datasheets, what to ask a buyer, its call to action and what to offer next. Walk the story from it, cueing each heading as you say it.
+- Every CONTACT US, ENQUIRE NOW and GET A QUOTE on the site opens the plain /contact form: open_enquiry picks the tab and category. The domestic form has no category for the battery, BESS, pumps, cells, film, floating or carport: use Others, and say what they want in the message. The export tab takes no category. The dealer tab asks for city, district, state and investment.
+- The distributorship form (/apply-for-distributorship) and Melcon's own contact form (/melcon-transformers/contact) have no tool: open them with a page cue and tell the visitor what to fill in.
+{_catalogue(k)}
 
 # Saatvik
 {k.l1}
@@ -1228,6 +1245,8 @@ class SaatvikBrain(OpenAIBrain):
         #: The page this turn's cues are on: the one in front, then wherever a
         #: ``{page: …}`` cue took it.
         self._cue_path = "/"
+        #: The product lines whose playbook the model has been given this call.
+        self._playbooks_given: set[str] = set()
         #: What this reply last rang, so a sentence on the same section does
         #: not ring it again.
         self._shown: str | None = None
@@ -1237,6 +1256,7 @@ class SaatvikBrain(OpenAIBrain):
     async def on_session_start(self, session: Session) -> None:
         init = session.init or {}
         self._path = canonical_path(str(init.get("page") or "/"))
+        self._give_playbook(self._path)
         lang = BY_TAG.get(str(init.get("lang") or ""), OPENING)
         # Her own voice, settled here and not by the page. Both language legs
         # move together; the toggle and `set_language` move them again.
@@ -1458,6 +1478,7 @@ class SaatvikBrain(OpenAIBrain):
             self._shown = cue.heading or cue.text or cue.tab
         if cue.path is not None:
             self.lead.saw_page(cue.path)
+            self._give_playbook(cue.path)
         self.session.dispatch(cue)
 
     def _auto_cues(
@@ -1729,6 +1750,18 @@ class SaatvikBrain(OpenAIBrain):
         if p.tabs:
             note += f" Its spec tabs: {', '.join(p.tabs)}."
         self._note(note + "]")
+        self._give_playbook(self._path)
+
+    def _give_playbook(self, path: str) -> None:
+        """The playbook of the product on ``path``, once a call, as soon as
+        its page opens: the whole catalogue in every request was twice the
+        prompt, and slowed every first word."""
+        line = self.kb.product(path)
+        if line is None or line.id in self._playbooks_given:
+            return
+        self._playbooks_given.add(line.id)
+        logger.info("saatvik: playbook for {}", line.id)
+        self._note(f"[The playbook for {line.name}, whose page is open:\n{_playbook(line)}]")
 
     def _note(self, text: str) -> None:
         self.append_note(text)

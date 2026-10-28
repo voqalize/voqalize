@@ -1,6 +1,6 @@
 # Saatvik knowledge
 
-What the Saatvik agent knows, in three layers. Every fact is Saatvik Green
+What Sunny, the Saatvik agent, knows, in three layers. Every fact is Saatvik Green
 Energy's own, taken from www.saatvikgroup.com and the PDFs it links. Nothing is
 filled in from general knowledge. Where Saatvik's own pages disagree, the files
 record the disagreement and say which page to quote; they do not resolve it.
@@ -18,6 +18,30 @@ record the disagreement and say which page to quote; they do not resolve it.
   - `documents.json` holds every product PDF, page by page.
   - `investor_documents.json` lists the investor filings without their text.
   The schemas are in `build.py`'s docstring.
+
+Beside the three layers, two files a salesperson would keep:
+
+- **`products.json`**: the product catalogue, one entry per product page (36
+  on 2026-10-28). Each has its page, a pitch, its story (the page's own
+  headings in order, each with the fact to say there), its feature cards,
+  sizes and models, spec tabs, FAQs, datasheets by `document_id` and page,
+  headline specs, its call to action (the tool and arguments that make it,
+  checked against the live buttons), what to ask a buyer, and what to offer
+  next. The prompt carries one line per product; the full entry reaches the
+  model when that product's page opens. Every heading, tab, FAQ, document,
+  slug and category in it is held to the crawl by
+  `demos/tests/test_saatvik_catalogue.py`, so a recrawl that renames a heading
+  fails there. Written by hand (with a generator) from L1, L2, L3 and a live
+  check of each page's buttons; update it when the site's products change.
+- **`tariffs.json`**: a typical residential rate (₹ a unit, for a household
+  using 300–500 units a month) for each of the calculator's 36 states and
+  union territories, with the slab range, the main power company, cities a
+  different company serves (Mumbai, Delhi, Ahmedabad, Surat, Greater Noida,
+  Kolkata) and the source, tariff year and confidence of each row. Most rows
+  come from reports of the state commissions' tariff orders, not the orders
+  themselves; seven north-eastern and island rows are estimates. The
+  calculator uses it only when the visitor does not know their rate, and
+  Sunny says the rate is typical. Gathered 2026-10-28.
 
 ## Rebuilding L3
 

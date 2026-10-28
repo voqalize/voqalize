@@ -1,0 +1,4870 @@
+{
+ "note": "Sales catalogue for Sunny, one entry per product page. Every fact comes from www.saatvikgroup.com: L3/pages.json, L3/documents.json, the L2 topics, and a live check of each page's CTA buttons on 2026-10-28. story/features headings are copied exactly from pages.json headings and are listed in page order, so each can be a {show:} cue. tabs and faqs are exact pages.json labels and questions. variants.heading_or_text is an exact heading or string from that page. When the page has no such string, it is left out and the variant cites a datasheet page instead. cta.tool values: book_product / open_enquiry / open_document / run_calculator / find_dealer are brain tools, and 'cue' means navigate with {page:}. CTA QUIRKS: (1) /book?product= only knows the 10 ProductSlug values. Any other slug (e.g. uday-shakti) silently books the TEJ PLUS G12R module, so batteries, pumps, BESS, EPC, film and transformers never use book_product. (2) /modules/n-topcon's BOOK NOW is slug n-topcon ('N-TOPCon Bifacial Module'), and its DOWNLOAD DATASHEET opens the M10R sheet, not the G12R one. /inverters' BOOK NOW books uday-single-phase. /inverters/three-phase's DOWNLOAD DATASHEET opens the 15–25 kW user manual; the real three-phase spec table is the single-phase flyer, page 4. (3) Every product page's CONTACT US / ENQUIRE NOW / GET A QUOTE / Contact Sales / 'Ready to Go Solar?' goes to plain /contact (no query string, no tab or category preselected). open_enquiry must choose the category. (4) The domestic form's categories are only: Module - requirement above 200 KW, Module - requirement below 199 KW, Solar EPC - Rooftop, Solar EPC - Utility Ground Mount, Solar Inverter, Transformer, Solar Kit, Service Support, Others. There is no battery, BESS, pump, cell, film, floating or carport category, so those lines use 'Others' and say the product in the message. Carport and floating could arguably be 'Solar EPC - Rooftop' or '... Utility Ground Mount', which are given as secondaries. Modules split by size: below 199 kW versus above 200 kW (nothing covers 199–200 kW). Commercial and institutional rooftop EPC both use 'Solar EPC - Rooftop'. (5) The EXPORT ENQUIRY tab has different categories (Dealers Distributor, Business Opportunity, Feedback, Inquiry For Service, Inquiry For Module), none of them in brain.py's Category literal, so for kind=export leave category empty. The DEALER ENQUIRY tab has no category. Its fields are name, mobile, email, city, district, state and an investment-capacity select ('50 Lakh - 1 Crore' or '1Crore and above'). (6) /apply-for-distributorship has its own form (business type, optional turnover, territory; SUBMIT APPLICATION). No tool fills it: open_enquiry kind=dealer fills the /contact dealer tab instead. (7) The Melcon pages (/melcon-transformers and its products) send CONTACT US / REQUEST A QUOTE / SEND AN ENQUIRY to /melcon-transformers/contact. That is Melcon's own form (name, email, subject, message; SEND MESSAGE), which no tool fills. Navigate there with a {page:} cue, or use open_enquiry category 'Transformer' on the main /contact. The older /transformers page's ENQUIRE NOW goes to /contact, and its VISIT MELCON leaves the site. (8) Ratings disagree. Transformers: /transformers says 10 MVA, Melcon says 25 MVA, and /melcon-transformers/products says up to 37.5 kV. TEJ M10R: 560–585 Wp / 22.8% on /modules/n-topcon against 560–600 Wp / 23.23% on its own page. G2TB performance warranty: 30 yr on the /modules table against 25 yr on its page. Inverter efficiency: 98.7% on the pages against 97.5–98.8% in the datasheets. Hybrid sizes: 3.6–8 kW on the page against 3–8 kW models and a '3.6 - 10 kw' banner in the datasheet. Kit sizes: 3 and 5 kW in the datasheet, 6 kW in the brochure only. Quote the page on screen and name the source. (9) /modules/mono-perc (linked from /modules) and /modules/mono-facial-g2wb (sitemap only) are the same VEGA G2WB with different book slugs (mono-perc, vega-g2wb). (10) /solar-kits ESTIMATE MY SAVINGS goes to /solar-calculator (run_calculator). /batteries PAIR WITH UDAY PLUS goes to /inverters/hybrid. /bess EXPLORE EPC SOLUTIONS goes to /epc-solutions. Pages with no CTA of their own: /modules (EXPLORE cards only) and /dealer-locator (state filter and search only).",
+ "lines": [
+  {
+   "id": "modules",
+   "name": "Solar PV Modules",
+   "family": "modules",
+   "path": "/modules",
+   "for": [
+    "home",
+    "business",
+    "utility"
+   ],
+   "pitch": "Saatvik's own solar panels in three technologies — Mono PERC monofacial, Mono PERC bifacial and N-TOPCon — from 380 Wp to 640 Wp, for rooftops, commercial plants and utility-scale farms.",
+   "story": [
+    {
+     "heading": "Solar PV Modules",
+     "say": "Saatvik makes the full range on three cell technologies, spanning 380 Wp to 640 Wp."
+    },
+    {
+     "heading": "Built for Every Scale",
+     "say": "Mono PERC 380–555 Wp up to 21.48%; bifacial 525–550 Wp with up to 30% bifacial gain; N-TOPCon 560–640 Wp up to 23.69%."
+    },
+    {
+     "heading": "Our Module Range",
+     "say": "Each technology has its own page to explore."
+    },
+    {
+     "heading": "Residential Rooftop",
+     "say": "For homes, Mono PERC panels deliver reliable performance for 1–10 kW rooftop systems."
+    },
+    {
+     "heading": "Commercial & Industrial",
+     "say": "For factories, warehouses and offices, modules engineered for 50–500 kW commercial installations."
+    },
+    {
+     "heading": "Utility-Scale Power Plants",
+     "say": "For solar farms, N-TOPCon and bifacial modules on ground-mounted tracker systems, with up to 30% bifacial gain."
+    },
+    {
+     "heading": "Compare Specifications",
+     "say": "Every technology carries a 12-year product warranty; performance warranty is 25 years for monofacial and 30 years for bifacial and N-TOPCon in this table."
+    }
+   ],
+   "features": [
+    {
+     "heading": "Mono PERC",
+     "fact": "380–555 Wp, up to 21.48% efficiency"
+    },
+    {
+     "heading": "Bifacial",
+     "fact": "525–550 Wp, up to 30% bifacial gain"
+    },
+    {
+     "heading": "N-TOPCon",
+     "fact": "560–640 Wp, up to 23.69% efficiency"
+    }
+   ],
+   "variants": [
+    {
+     "name": "Mono PERC Monofacial (VEGA G2WB)",
+     "key": "380–555 Wp, up to 21.48%",
+     "heading_or_text": "Mono PERC Monofacial",
+     "line": "mono-perc"
+    },
+    {
+     "name": "Mono PERC Bifacial (VEGA Plus G2TB)",
+     "key": "525–550 Wp, up to 21.29%",
+     "heading_or_text": "Mono PERC Bifacial",
+     "line": "vega-plus-g2tb"
+    },
+    {
+     "name": "N-TOPCon (TEJ M10R and TEJ PLUS G12R)",
+     "key": "560–640 Wp, up to 23.69%",
+     "heading_or_text": "N-TOPCon",
+     "line": "n-topcon"
+    }
+   ],
+   "tabs": [],
+   "faqs": [
+    "What types of solar modules does Saatvik offer?",
+    "What is the maximum power output of Saatvik solar panels?",
+    "What is the warranty on Saatvik solar modules?",
+    "What is the difference between monofacial and bifacial solar panels?",
+    "Are Saatvik modules suitable for utility-scale solar farms?"
+   ],
+   "datasheets": [],
+   "specs": {
+    "power range": "380–640 Wp",
+    "max efficiency": "23.69% (N-TOPCon)",
+    "Mono PERC efficiency": "up to 21.48%",
+    "bifacial gain": "up to 30%",
+    "product warranty": "12 years",
+    "performance warranty": "25 years (Mono PERC) / 30 years (N-TOPCon)",
+    "N-TOPCon size": "2382 x 1134 x 30 mm, 33.5 kg (comparison table)"
+   },
+   "cta": {
+    "primary": {
+     "label": "Contact Us (no button on this page — pick a model first)",
+     "tool": "open_enquiry",
+     "args": {
+      "kind": "domestic",
+      "category": "Module - requirement below 199 KW"
+     }
+    },
+    "secondary": [
+     {
+      "label": "BOOK NOW on a model page",
+      "tool": "book_product",
+      "args": {
+       "product": "n-topcon"
+      }
+     },
+     {
+      "label": "Contact Us — 200 kW and above",
+      "tool": "open_enquiry",
+      "args": {
+       "kind": "domestic",
+       "category": "Module - requirement above 200 KW"
+      }
+     }
+    ],
+    "page_buttons": [
+     "EXPLORE (Mono PERC Monofacial → /modules/mono-perc)",
+     "EXPLORE (Mono PERC Bifacial → /modules/bifacial-g2tb)",
+     "EXPLORE (N-TOPCon → /modules/n-topcon)"
+    ]
+   },
+   "qualify": [
+    "Is it for a home, a business (factory, shop, office) or a ground-mounted / utility project?",
+    "Roughly how many kW do you need — under 199 kW or 200 kW and above? (that picks the form's module category)",
+    "Rooftop or ground-mounted, and is the ground reflective / is it a tracker site (bifacial gain)?",
+    "Which state and city is the site in?",
+    "Do you already have an installer or EPC partner, or do you want Saatvik's team / a dealer to size it?",
+    "When do you want it installed?"
+   ],
+   "next": [
+    "n-topcon",
+    "mono-perc",
+    "vega-plus-g2tb",
+    "inverters",
+    "solar-kits"
+   ],
+   "calculator": true
+  },
+  {
+   "id": "n-topcon",
+   "name": "N-TOPCon Modules (TEJ and TEJ PLUS)",
+   "family": "modules",
+   "path": "/modules/n-topcon",
+   "for": [
+    "home",
+    "business",
+    "utility"
+   ],
+   "pitch": "Saatvik's N-type TOPCon bifacial glass-to-glass modules — higher efficiency, a better temperature coefficient and lower degradation than Mono PERC, with a 30-year performance warranty.",
+   "story": [
+    {
+     "heading": "Inside the TOPCon Cell",
+     "say": "An ultra-thin oxide layer forms a tunnel for electrons; Saatvik's N-type cells reach 25% average conversion efficiency."
+    },
+    {
+     "heading": "N-TOPCon vs Mono PERC",
+     "say": "Up to 23.69% vs 21.48% efficiency, −0.30 vs −0.36 %/°C, under 0.40 vs 0.55 %/yr degradation, 30 vs 25-year performance warranty."
+    },
+    {
+     "heading": "Stronger Low-Light Performance",
+     "say": "N-type cells keep generating in early morning, overcast and low-irradiance conditions."
+    },
+    {
+     "heading": "Better Bifaciality",
+     "say": "Glass-to-glass construction yields 10–30% more energy than comparable P-type modules on reflective ground."
+    },
+    {
+     "heading": "Exceptional Thermal Stability",
+     "say": "A −0.30 %/°C temperature coefficient versus −0.36 for PERC sustains output in India's hottest sites."
+    },
+    {
+     "heading": "Certified & Bankable",
+     "say": "IEC-qualified, CE-marked, 100% EL inspection, 12-year product and 30-year linear performance warranties."
+    },
+    {
+     "heading": "Our Module Range",
+     "say": "Two models: TEJ BiFacial M10R and TEJ PLUS BiFacial G12R."
+    },
+    {
+     "heading": "Compare Specifications",
+     "say": "Both are 1500 V DC, bifacial glass-to-glass, 12-year product and 30-year performance warranty."
+    }
+   ],
+   "features": [
+    {
+     "heading": "Tunnel Oxide Passivated Contact",
+     "fact": "Ultra-thin oxide tunnel minimises recombination and optimises power output."
+    },
+    {
+     "heading": "Stronger Low-Light Performance",
+     "fact": "Keeps generating in early morning, overcast and low irradiance."
+    },
+    {
+     "heading": "Better Bifaciality",
+     "fact": "10–30% more energy than comparable P-type modules on reflective ground."
+    },
+    {
+     "heading": "Exceptional Thermal Stability",
+     "fact": "−0.30 %/°C vs −0.36 %/°C for PERC."
+    },
+    {
+     "heading": "Lower Degradation",
+     "fact": "Under 1% first-year and under 0.40% annual, vs under 2% and 0.55% for PERC."
+    },
+    {
+     "heading": "Certified & Bankable",
+     "fact": "IEC-qualified, CE-marked, 100% EL inspection; 12-year product / 30-year performance warranty."
+    }
+   ],
+   "variants": [
+    {
+     "name": "TEJ BiFacial M10R",
+     "key": "560–585 Wp, up to 22.8% on this page (its own page says 560–600 Wp, 23.23%)",
+     "heading_or_text": "TEJ BiFacial M10R",
+     "line": "tej-m10r"
+    },
+    {
+     "name": "TEJ PLUS BiFacial G12R",
+     "key": "132 cells, 600–640 Wp, up to 23.69%",
+     "heading_or_text": "TEJ PLUS BiFacial G12R",
+     "line": "tej-plus-g12r"
+    }
+   ],
+   "tabs": [],
+   "faqs": [
+    "What is N-Type TOPCon technology?",
+    "How is N-TOPCon better than Mono PERC?",
+    "Which N-TOPCon modules does Saatvik offer?",
+    "Do N-TOPCon modules perform well in hot and low-light conditions?",
+    "Are these modules compatible with standard mounting and inverters?"
+   ],
+   "datasheets": [
+    {
+     "document_id": "saatvik-n-topcon-bifacial-module-datasheet",
+     "title": "TEJ M10R N-TOPCon Bifacial Module Datasheet (this page's DOWNLOAD DATASHEET opens the M10R sheet, not the G12R one)",
+     "pages": {
+      "1": "cover: model range, key features, certifications, warranty graph",
+      "2": "electrical data per wattage bin (STC/NOCT), temperature coefficients, mechanical drawing, packaging"
+     }
+    }
+   ],
+   "specs": {
+    "max module efficiency": "23.69%",
+    "avg cell efficiency": "25%",
+    "temp. coefficient (Pmax)": "−0.30 %/°C",
+    "year-1 degradation": "< 1.0%",
+    "annual degradation": "< 0.40%/yr",
+    "bifacial gain": "10–30% vs P-type",
+    "max system voltage": "1500 V DC",
+    "warranty": "12-yr product / 30-yr performance"
+   },
+   "cta": {
+    "primary": {
+     "label": "BOOK NOW",
+     "tool": "book_product",
+     "args": {
+      "product": "n-topcon"
+     }
+    },
+    "secondary": [
+     {
+      "label": "CONTACT US",
+      "tool": "open_enquiry",
+      "args": {
+       "kind": "domestic",
+       "category": "Module - requirement below 199 KW"
+      }
+     },
+     {
+      "label": "Contact Sales — 200 kW and above",
+      "tool": "open_enquiry",
+      "args": {
+       "kind": "domestic",
+       "category": "Module - requirement above 200 KW"
+      }
+     },
+     {
+      "label": "DOWNLOAD DATASHEET",
+      "tool": "open_document",
+      "args": {
+       "document_id": "saatvik-n-topcon-bifacial-module-datasheet",
+       "page": 1
+      }
+     }
+    ],
+    "page_buttons": [
+     "BOOK NOW",
+     "CONTACT US",
+     "DOWNLOAD DATASHEET",
+     "EXPLORE (TEJ BiFacial M10R)",
+     "EXPLORE (TEJ PLUS BiFacial G12R)",
+     "ALL MODULES",
+     "Contact Us",
+     "Contact Sales"
+    ]
+   },
+   "qualify": [
+    "Is it for a home, a business (factory, shop, office) or a ground-mounted / utility project?",
+    "Roughly how many kW do you need — under 199 kW or 200 kW and above? (that picks the form's module category)",
+    "Rooftop or ground-mounted, and is the ground reflective / is it a tracker site (bifacial gain)?",
+    "Which state and city is the site in?",
+    "Do you already have an installer or EPC partner, or do you want Saatvik's team / a dealer to size it?",
+    "When do you want it installed?"
+   ],
+   "next": [
+    "tej-plus-g12r",
+    "tej-m10r",
+    "inverters",
+    "solar-kits"
+   ],
+   "calculator": true
+  },
+  {
+   "id": "tej-plus-g12r",
+   "name": "TEJ PLUS Bifacial G12R (N-TOPCon)",
+   "family": "modules",
+   "path": "/modules/bifacial-g12r",
+   "for": [
+    "business",
+    "utility"
+   ],
+   "pitch": "Saatvik's highest-output module: N-TOPCon G12R, 132 cells, up to 640 Wp and 23.69% efficiency, bifacial glass-to-glass — made for utility-scale and high-output commercial plants.",
+   "story": [
+    {
+     "heading": "Tej Plus Bifacial G12R",
+     "say": "Up to 640 Wp and 23.69% efficiency, bifacial glass-to-glass, N-TOPCon G12R with 132 cells."
+    },
+    {
+     "heading": "More Power, Unmatched Efficiency",
+     "say": "Generates from both sides for 10–30% more energy; ideal for utility-scale and high-output commercial installations."
+    },
+    {
+     "heading": "Superior Temperature Coefficient",
+     "say": "−0.30 %/°C versus −0.36 %/°C for P-type keeps output up in hot climates."
+    },
+    {
+     "heading": "Bifacial Power Generation",
+     "say": "Glass-to-glass construction yields 10–30% more energy than P-type modules."
+    },
+    {
+     "heading": "Seamless Compatibility",
+     "say": "Plug-and-play with standard racking systems and inverters."
+    },
+    {
+     "heading": "30-Year Performance Warranty",
+     "say": "12-year product and 30-year linear performance warranty, under 0.40% annual degradation."
+    },
+    {
+     "heading": "Proven to the World’s Toughest Standards",
+     "say": "IEC 61215, IEC 61730, IEC 61701, IEC 62716, IEC 62804, CE, ISO, BIS, Make in India, PV CYCLE."
+    },
+    {
+     "heading": "Mechanical & Electrical Specifications",
+     "say": "600–640 Wp, 1500 V DC, 2382 × 1134 × 30 mm, 33 kg, warranty partner Munich RE."
+    }
+   ],
+   "features": [
+    {
+     "heading": "Higher Module Efficiency",
+     "fact": "Up to 23.69%."
+    },
+    {
+     "heading": "Superior Temperature Coefficient",
+     "fact": "−0.30 %/°C vs −0.36 %/°C for P-type."
+    },
+    {
+     "heading": "Long Life & PID Resistance",
+     "fact": "Proven resistance to Potential Induced Degradation."
+    },
+    {
+     "heading": "Bifacial Power Generation",
+     "fact": "10–30% more energy than P-type."
+    },
+    {
+     "heading": "Seamless Compatibility",
+     "fact": "Standard racking and inverters."
+    },
+    {
+     "heading": "30-Year Performance Warranty",
+     "fact": "12-yr product, 30-yr linear performance, < 0.40%/yr."
+    }
+   ],
+   "variants": [
+    {
+     "name": "600–640 Wp in 5 W steps",
+     "key": "22.21% (600 Wp) to 23.69% (640 Wp); datasheet p 2",
+     "heading_or_text": "600 – 640 Wp"
+    }
+   ],
+   "tabs": [
+    "Electrical",
+    "Mechanical",
+    "Warranty"
+   ],
+   "faqs": [],
+   "datasheets": [
+    {
+     "document_id": "saatvik-tejplus-n-topcon-g12r-datasheet-600-640wp",
+     "title": "TEJ PLUS N-TOPCon G12R Datasheet 600–640 Wp",
+     "pages": {
+      "1": "key features, certifications, 12-yr product / 30-yr performance warranty (99% yr 1, 87.4% yr 30)",
+      "2": "electrical data per bin 600–640 Wp, rear-side gain table, temperature coefficients, mechanical drawing, packaging"
+     }
+    },
+    {
+     "document_id": "saatvik-installation-manual-pv-modules",
+     "title": "Installation Manual — PV Modules (PRODUCT MANUAL)",
+     "pages": {
+      "13": "TGG model data: frame, fuse rating, system voltage",
+      "19": "bifaciality 80 ± 5%, module area, diodes"
+     }
+    }
+   ],
+   "specs": {
+    "power": "600–640 Wp",
+    "efficiency": "up to 23.69%",
+    "cells": "132, N-type TOPCon (G12R)",
+    "temp. coefficient": "−0.30 %/°C",
+    "max system voltage": "1500 V DC",
+    "dimensions": "2382 × 1134 × 30 mm",
+    "weight": "33 kg (page tab; /modules table says 33.5 kg)",
+    "wind / snow load": "up to 2400 Pa / 5400 Pa",
+    "warranty": "12-yr product / 30-yr performance, Munich RE"
+   },
+   "cta": {
+    "primary": {
+     "label": "BOOK NOW",
+     "tool": "book_product",
+     "args": {
+      "product": "tej-plus-g12r"
+     }
+    },
+    "secondary": [
+     {
+      "label": "CONTACT US / GET A QUOTE — 200 kW and above",
+      "tool": "open_enquiry",
+      "args": {
+       "kind": "domestic",
+       "category": "Module - requirement above 200 KW"
+      }
+     },
+     {
+      "label": "CONTACT US — under 199 kW",
+      "tool": "open_enquiry",
+      "args": {
+       "kind": "domestic",
+       "category": "Module - requirement below 199 KW"
+      }
+     },
+     {
+      "label": "DOWNLOAD DATASHEET",
+      "tool": "open_document",
+      "args": {
+       "document_id": "saatvik-tejplus-n-topcon-g12r-datasheet-600-640wp",
+       "page": 1
+      }
+     },
+     {
+      "label": "PRODUCT MANUAL",
+      "tool": "open_document",
+      "args": {
+       "document_id": "saatvik-installation-manual-pv-modules",
+       "page": 1
+      }
+     }
+    ],
+    "page_buttons": [
+     "BOOK NOW",
+     "CONTACT US",
+     "DOWNLOAD DATASHEET",
+     "PRODUCT MANUAL",
+     "GET A QUOTE",
+     "EXPLORE ALL MODULES"
+    ]
+   },
+   "qualify": [
+    "Is it for a home, a business (factory, shop, office) or a ground-mounted / utility project?",
+    "Roughly how many kW do you need — under 199 kW or 200 kW and above? (that picks the form's module category)",
+    "Rooftop or ground-mounted, and is the ground reflective / is it a tracker site (bifacial gain)?",
+    "Which state and city is the site in?",
+    "Do you already have an installer or EPC partner, or do you want Saatvik's team / a dealer to size it?",
+    "When do you want it installed?"
+   ],
+   "next": [
+    "inverters",
+    "uday-three-phase",
+    "bess",
+    "epc-ground-mounted"
+   ],
+   "calculator": false
+  },
+  {
+   "id": "tej-m10r",
+   "name": "TEJ Bifacial M10R (N-TOPCon)",
+   "family": "modules",
+   "path": "/modules/bifacial-g2g-m10r",
+   "for": [
+    "home",
+    "business",
+    "utility"
+   ],
+   "pitch": "N-TOPCon M10R bifacial glass-to-glass module, 144 cells, 560–600 Wp and up to 23.23% efficiency, with a 30-year performance warranty.",
+   "story": [
+    {
+     "heading": "Tej Bifacial M10R",
+     "say": "Up to 23.23% efficiency, bifacial glass-to-glass N-TOPCon M10R with a 30-year warranty."
+    },
+    {
+     "heading": "Maximum Output From Both Sides",
+     "say": "Generates from both sides for 10–30% more energy than P-type; works with standard racking and inverters."
+    },
+    {
+     "heading": "Superior Temperature Coefficient",
+     "say": "−0.30 %/°C versus −0.36 %/°C for P-type."
+    },
+    {
+     "heading": "Stringent Quality Control",
+     "say": "3× IEC testing, 100% IV measurement, HiPOT testing and EL inspection on every module shipped."
+    },
+    {
+     "heading": "30-Year Performance Warranty",
+     "say": "12-year product and 30-year linear performance warranty, under 0.40% annual degradation."
+    },
+    {
+     "heading": "Proven to the World’s Toughest Standards",
+     "say": "IEC 61215, IEC 61730, IEC 61701, IEC 62716, IEC 62804, CE, ISO, BIS, Make in India, PV CYCLE."
+    },
+    {
+     "heading": "Mechanical & Electrical Specifications",
+     "say": "560–600 Wp, 144 cells, 1500 V DC, wind 2400 Pa / snow 5400 Pa."
+    }
+   ],
+   "features": [
+    {
+     "heading": "Higher Module Efficiency",
+     "fact": "Up to 23.23%."
+    },
+    {
+     "heading": "Superior Temperature Coefficient",
+     "fact": "−0.30 %/°C."
+    },
+    {
+     "heading": "Long Life & PID Resistance",
+     "fact": "Proven PID resistance for harsh climates."
+    },
+    {
+     "heading": "Bifacial Power Generation",
+     "fact": "10–30% more energy than P-type."
+    },
+    {
+     "heading": "Stringent Quality Control",
+     "fact": "3× IEC testing, 100% IV, HiPOT and EL on every module."
+    },
+    {
+     "heading": "30-Year Performance Warranty",
+     "fact": "12-yr product, 30-yr performance."
+    }
+   ],
+   "variants": [
+    {
+     "name": "560–600 Wp in 5 W steps",
+     "key": "21.68% (560 Wp) to 23.23% (600 Wp); datasheet p 2",
+     "heading_or_text": "560 – 600 Wp"
+    }
+   ],
+   "tabs": [
+    "Electrical",
+    "Mechanical",
+    "Warranty"
+   ],
+   "faqs": [],
+   "datasheets": [
+    {
+     "document_id": "saatvik-n-topcon-bifacial-module-datasheet",
+     "title": "TEJ N-TOPCon Bifacial Module Datasheet 560–600 Wp",
+     "pages": {
+      "1": "key features (N-type, very low LID, positive tolerance), certifications, warranty",
+      "2": "electrical data per bin 560–600 Wp, rear-side gain, mechanical data 2278 × 1134 × 30 mm, 32 kg"
+     }
+    },
+    {
+     "document_id": "saatvik-installation-manual-pv-modules",
+     "title": "Installation Manual — PV Modules (PRODUCT MANUAL)",
+     "pages": {
+      "13": "TGG model data",
+      "19": "bifaciality 80 ± 5%"
+     }
+    }
+   ],
+   "specs": {
+    "power": "560–600 Wp",
+    "efficiency": "up to 23.23%",
+    "cells": "144, N-type TOPCon (M10R)",
+    "temp. coefficient": "−0.30 %/°C",
+    "max system voltage": "1500 V DC",
+    "wind / snow load": "up to 2400 / 5400 Pa",
+    "degradation": "< 1.0% yr 1, < 0.40%/yr yrs 2–30",
+    "warranty": "12-yr product / 30-yr performance"
+   },
+   "cta": {
+    "primary": {
+     "label": "BOOK NOW",
+     "tool": "book_product",
+     "args": {
+      "product": "tej-m10r"
+     }
+    },
+    "secondary": [
+     {
+      "label": "CONTACT US",
+      "tool": "open_enquiry",
+      "args": {
+       "kind": "domestic",
+       "category": "Module - requirement below 199 KW"
+      }
+     },
+     {
+      "label": "CONTACT US — 200 kW and above",
+      "tool": "open_enquiry",
+      "args": {
+       "kind": "domestic",
+       "category": "Module - requirement above 200 KW"
+      }
+     },
+     {
+      "label": "DOWNLOAD DATASHEET",
+      "tool": "open_document",
+      "args": {
+       "document_id": "saatvik-n-topcon-bifacial-module-datasheet",
+       "page": 1
+      }
+     },
+     {
+      "label": "PRODUCT MANUAL",
+      "tool": "open_document",
+      "args": {
+       "document_id": "saatvik-installation-manual-pv-modules",
+       "page": 1
+      }
+     }
+    ],
+    "page_buttons": [
+     "BOOK NOW",
+     "CONTACT US",
+     "DOWNLOAD DATASHEET",
+     "PRODUCT MANUAL",
+     "EXPLORE ALL MODULES"
+    ]
+   },
+   "qualify": [
+    "Is it for a home, a business (factory, shop, office) or a ground-mounted / utility project?",
+    "Roughly how many kW do you need — under 199 kW or 200 kW and above? (that picks the form's module category)",
+    "Rooftop or ground-mounted, and is the ground reflective / is it a tracker site (bifacial gain)?",
+    "Which state and city is the site in?",
+    "Do you already have an installer or EPC partner, or do you want Saatvik's team / a dealer to size it?",
+    "When do you want it installed?"
+   ],
+   "next": [
+    "solar-kits",
+    "uday-single-phase",
+    "uday-three-phase",
+    "epc-commercial"
+   ],
+   "calculator": true
+  },
+  {
+   "id": "vega-plus-g2tb",
+   "name": "VEGA Plus Bifacial G2TB (Mono PERC)",
+   "family": "modules",
+   "path": "/modules/bifacial-g2tb",
+   "for": [
+    "business",
+    "utility",
+    "farm"
+   ],
+   "pitch": "Mono PERC bifacial module, 525–550 Wp and up to 21.29% efficiency, with a transparent backsheet catching reflected light from the rear — built for coastlines, farmland and high-ammonia sites.",
+   "story": [
+    {
+     "heading": "VEGA Plus Bifacial G2TB",
+     "say": "Up to 21.29% efficiency, 70 ± 5% bifaciality, 144 half-cut cells, 25-year warranty."
+    },
+    {
+     "heading": "More Yield From Both Sides",
+     "say": "Half-cut Mono PERC cells on Ga-doped wafers with a transparent backsheet capture reflected light from the rear."
+    },
+    {
+     "heading": "Positive Power Tolerance",
+     "say": "Every module performs at or above its rated output."
+    },
+    {
+     "heading": "Excellent PID Resistance",
+     "say": "Anti-PID performance certified up to 288 hours."
+    },
+    {
+     "heading": "Durable in Harsh Environments",
+     "say": "Built for coastlines, farmland and high-ammonia regions."
+    },
+    {
+     "heading": "Proven to the World’s Toughest Standards",
+     "say": "IEC 61215, 61730, 61701 (salt mist), 62716 (ammonia), 62804 (PID), ISO, BIS, made in India."
+    },
+    {
+     "heading": "Mechanical & Electrical Specifications",
+     "say": "525–550 Wp, −0.36 %/°C, 2278 × 1134 × 35 mm, 28 kg; 12-year product and 25-year performance warranty."
+    }
+   ],
+   "features": [
+    {
+     "heading": "High Conversion Efficiency",
+     "fact": "Up to 21.29%."
+    },
+    {
+     "heading": "Advanced Bifacial Technology",
+     "fact": "Multi-busbar half-cut Mono PERC on Ga-doped wafers, light from both sides."
+    },
+    {
+     "heading": "Positive Power Tolerance",
+     "fact": "At or above rated output."
+    },
+    {
+     "heading": "Superior Low-Light Performance",
+     "fact": "More energy in low irradiance, overcast and early morning."
+    },
+    {
+     "heading": "Excellent PID Resistance",
+     "fact": "Certified up to 288 h."
+    },
+    {
+     "heading": "Durable in Harsh Environments",
+     "fact": "Coastlines, farmland, high-ammonia regions."
+    }
+   ],
+   "variants": [
+    {
+     "name": "525–550 Wp in 5 W steps",
+     "key": "20.32% to 21.29%; datasheet p 2",
+     "heading_or_text": "525 – 550 Wp"
+    }
+   ],
+   "tabs": [
+    "Electrical",
+    "Mechanical",
+    "Warranty"
+   ],
+   "faqs": [],
+   "datasheets": [
+    {
+     "document_id": "saatvik-mono-perc-bifacial-g2tb-module-datasheet",
+     "title": "VEGA Plus Mono PERC Bifacial G2TB Datasheet",
+     "pages": {
+      "1": "525–550 Wp range, key features, certifications, warranty graph (98% yr 1, 84.8% yr 25)",
+      "2": "electrical data per bin, rear-side gain, temperature coefficients, packaging (OCR'd image)"
+     }
+    }
+   ],
+   "specs": {
+    "power": "525–550 Wp",
+    "efficiency": "up to 21.29%",
+    "bifaciality": "70 ± 5%",
+    "temp. coefficient": "−0.36 %/°C",
+    "construction": "glass / transparent backsheet (not dual glass)",
+    "dimensions / weight": "2278 × 1134 × 35 mm, 28 kg",
+    "degradation": "< 2.0% yr 1, < 0.55%/yr",
+    "warranty": "12-yr product / 25-yr performance (/modules table says 30 — quote this page)"
+   },
+   "cta": {
+    "primary": {
+     "label": "BOOK NOW",
+     "tool": "book_product",
+     "args": {
+      "product": "bifacial-g2tb"
+     }
+    },
+    "secondary": [
+     {
+      "label": "GET A QUOTE / CONTACT US",
+      "tool": "open_enquiry",
+      "args": {
+       "kind": "domestic",
+       "category": "Module - requirement below 199 KW"
+      }
+     },
+     {
+      "label": "GET A QUOTE — 200 kW and above",
+      "tool": "open_enquiry",
+      "args": {
+       "kind": "domestic",
+       "category": "Module - requirement above 200 KW"
+      }
+     },
+     {
+      "label": "DOWNLOAD DATASHEET",
+      "tool": "open_document",
+      "args": {
+       "document_id": "saatvik-mono-perc-bifacial-g2tb-module-datasheet",
+       "page": 1
+      }
+     }
+    ],
+    "page_buttons": [
+     "BOOK NOW",
+     "CONTACT US",
+     "DOWNLOAD DATASHEET",
+     "GET A QUOTE",
+     "EXPLORE ALL MODULES"
+    ]
+   },
+   "qualify": [
+    "Is it for a home, a business (factory, shop, office) or a ground-mounted / utility project?",
+    "Roughly how many kW do you need — under 199 kW or 200 kW and above? (that picks the form's module category)",
+    "Rooftop or ground-mounted, and is the ground reflective / is it a tracker site (bifacial gain)?",
+    "Which state and city is the site in?",
+    "Do you already have an installer or EPC partner, or do you want Saatvik's team / a dealer to size it?",
+    "When do you want it installed?"
+   ],
+   "next": [
+    "n-topcon",
+    "inverters",
+    "epc-ground-mounted"
+   ],
+   "calculator": false
+  },
+  {
+   "id": "mono-perc",
+   "name": "VEGA Mono Facial G2WB (Mono PERC) — the page /modules links to",
+   "family": "modules",
+   "path": "/modules/mono-perc",
+   "for": [
+    "home",
+    "business",
+    "utility"
+   ],
+   "pitch": "Saatvik's Mono PERC monofacial module: 144 half-cut cells, 10 busbars, up to 21.48% efficiency, rated for 2400 Pa wind and 5400 Pa snow — for homes, businesses and utility sites.",
+   "story": [
+    {
+     "heading": "VEGA Mono Facial G2WB",
+     "say": "Up to 21.48% efficiency, 144 half-cut cells, 10 multi-busbar, 25-year warranty."
+    },
+    {
+     "heading": "Proven Mono PERC Performance",
+     "say": "Half-cut, 10-busbar layout cuts losses; 3.2 mm tempered glass; −40 °C to +85 °C."
+    },
+    {
+     "heading": "10 Multi-Busbar + Half-Cut",
+     "say": "Lower resistive losses for higher yield and better shade tolerance."
+    },
+    {
+     "heading": "Built for Tough Loads",
+     "say": "Certified for wind loads up to 2400 Pa and snow loads up to 5400 Pa."
+    },
+    {
+     "heading": "Globally Certified",
+     "say": "IEC, CE, BIS and ISO qualified and MNRE ALMM listed."
+    },
+    {
+     "heading": "Proven to the World’s Toughest Standards",
+     "say": "IEC 61215, IEC 61730, IEC 61701 (salt mist), BIS, Make in India, PV CYCLE."
+    },
+    {
+     "heading": "Mechanical & Electrical Specifications",
+     "say": "1500 V DC, 2278 × 1134 × 35 mm, 28 kg; 12-year product and 25-year performance warranty."
+    }
+   ],
+   "features": [
+    {
+     "heading": "High Module Efficiency",
+     "fact": "Up to 21.48%."
+    },
+    {
+     "heading": "10 Multi-Busbar + Half-Cut",
+     "fact": "Lower losses, better shade tolerance."
+    },
+    {
+     "heading": "Reliable Weak-Light Output",
+     "fact": "Dependable in early morning, overcast and low irradiance."
+    },
+    {
+     "heading": "Built for Tough Loads",
+     "fact": "2400 Pa wind / 5400 Pa snow."
+    },
+    {
+     "heading": "Made for Harsh Climates",
+     "fact": "Deserts, farmland and coastlines; salt-mist and corrosion resistance."
+    },
+    {
+     "heading": "Globally Certified",
+     "fact": "IEC, CE, BIS and ISO qualified and MNRE ALMM listed."
+    }
+   ],
+   "variants": [
+    {
+     "name": "525–555 Wp (datasheet)",
+     "key": "20.32% to 21.48%; the page states no wattage, /modules says the line is 380–555 Wp; datasheet p 1–2"
+    }
+   ],
+   "tabs": [
+    "Electrical",
+    "Mechanical",
+    "Warranty"
+   ],
+   "faqs": [],
+   "datasheets": [
+    {
+     "document_id": "saatvik-mono-perc-module-datasheet",
+     "title": "VEGA Mono PERC 144-cell Module Datasheet",
+     "pages": {
+      "1": "525–555 Wp range, key features, certifications, warranty graph (98% yr 1, 84.8% yr 25)",
+      "2": "electrical data per bin, temperature coefficients (−0.36 %/°C), mechanical data (OCR'd image)"
+     }
+    }
+   ],
+   "specs": {
+    "efficiency": "up to 21.48%",
+    "cells": "144 half-cells, Mono PERC (G2WB)",
+    "busbars": "10 MBB",
+    "max system voltage": "1500 V DC",
+    "dimensions / weight": "2278 × 1134 × 35 mm, 28 kg",
+    "wind / snow load": "2400 / 5400 Pa",
+    "degradation": "< 2.0% yr 1, < 0.55%/yr",
+    "warranty": "12-yr product / 25-yr performance"
+   },
+   "cta": {
+    "primary": {
+     "label": "BOOK NOW",
+     "tool": "book_product",
+     "args": {
+      "product": "mono-perc"
+     }
+    },
+    "secondary": [
+     {
+      "label": "GET A QUOTE / CONTACT US",
+      "tool": "open_enquiry",
+      "args": {
+       "kind": "domestic",
+       "category": "Module - requirement below 199 KW"
+      }
+     },
+     {
+      "label": "GET A QUOTE — 200 kW and above",
+      "tool": "open_enquiry",
+      "args": {
+       "kind": "domestic",
+       "category": "Module - requirement above 200 KW"
+      }
+     },
+     {
+      "label": "DOWNLOAD DATASHEET",
+      "tool": "open_document",
+      "args": {
+       "document_id": "saatvik-mono-perc-module-datasheet",
+       "page": 1
+      }
+     }
+    ],
+    "page_buttons": [
+     "BOOK NOW",
+     "CONTACT US",
+     "DOWNLOAD DATASHEET",
+     "GET A QUOTE",
+     "EXPLORE ALL MODULES"
+    ]
+   },
+   "qualify": [
+    "Is it for a home, a business (factory, shop, office) or a ground-mounted / utility project?",
+    "Roughly how many kW do you need — under 199 kW or 200 kW and above? (that picks the form's module category)",
+    "Rooftop or ground-mounted, and is the ground reflective / is it a tracker site (bifacial gain)?",
+    "Which state and city is the site in?",
+    "Do you already have an installer or EPC partner, or do you want Saatvik's team / a dealer to size it?",
+    "When do you want it installed?"
+   ],
+   "next": [
+    "solar-kits",
+    "uday-single-phase",
+    "epc-residential",
+    "n-topcon"
+   ],
+   "calculator": true
+  },
+  {
+   "id": "vega-g2wb",
+   "name": "VEGA Mono Facial G2WB (Mono PERC) — sitemap-only twin of /modules/mono-perc",
+   "family": "modules",
+   "path": "/modules/mono-facial-g2wb",
+   "for": [
+    "home",
+    "business",
+    "utility"
+   ],
+   "pitch": "Saatvik's Mono PERC monofacial module: 144 half-cut cells, 10 busbars, up to 21.48% efficiency, rated for 2400 Pa wind and 5400 Pa snow — for homes, businesses and utility sites.",
+   "story": [
+    {
+     "heading": "VEGA Mono Facial G2WB",
+     "say": "Up to 21.48% efficiency, 144 half-cut cells, 10 multi-busbar, 25-year warranty."
+    },
+    {
+     "heading": "Proven Mono PERC Performance",
+     "say": "Half-cut, 10-busbar layout cuts losses; 3.2 mm tempered glass; −40 °C to +85 °C."
+    },
+    {
+     "heading": "10 Multi-Busbar + Half-Cut",
+     "say": "Lower resistive losses for higher yield and better shade tolerance."
+    },
+    {
+     "heading": "Built for Tough Loads",
+     "say": "Certified for wind loads up to 2400 Pa and snow loads up to 5400 Pa."
+    },
+    {
+     "heading": "Globally Certified",
+     "say": "IEC, UL, TUV, ISO, CE and BIS qualified and MNRE-ALMM listed — DCR-eligible."
+    },
+    {
+     "heading": "Proven to the World’s Toughest Standards",
+     "say": "IEC 61215, 61730, 61701, 62716, 62804, CE, ISO, BIS, Make in India, PV CYCLE."
+    },
+    {
+     "heading": "Mechanical & Electrical Specifications",
+     "say": "1500 V DC, 2278 × 1134 × 35 mm, 28 kg; 12-year product and 25-year performance warranty."
+    }
+   ],
+   "features": [
+    {
+     "heading": "High Module Efficiency",
+     "fact": "Up to 21.48%."
+    },
+    {
+     "heading": "10 Multi-Busbar + Half-Cut",
+     "fact": "Lower losses, better shade tolerance."
+    },
+    {
+     "heading": "Reliable Weak-Light Output",
+     "fact": "Dependable in early morning, overcast and low irradiance."
+    },
+    {
+     "heading": "Built for Tough Loads",
+     "fact": "2400 Pa wind / 5400 Pa snow."
+    },
+    {
+     "heading": "Made for Harsh Climates",
+     "fact": "Deserts, farmland and coastlines; salt-mist and corrosion resistance."
+    },
+    {
+     "heading": "Globally Certified",
+     "fact": "IEC, UL, TUV, ISO, CE and BIS qualified and MNRE-ALMM listed — DCR-eligible."
+    }
+   ],
+   "variants": [
+    {
+     "name": "525–555 Wp (datasheet)",
+     "key": "20.32% to 21.48%; the page states no wattage, /modules says the line is 380–555 Wp; datasheet p 1–2"
+    }
+   ],
+   "tabs": [
+    "Electrical",
+    "Mechanical",
+    "Warranty"
+   ],
+   "faqs": [],
+   "datasheets": [
+    {
+     "document_id": "saatvik-mono-perc-module-datasheet",
+     "title": "VEGA Mono PERC 144-cell Module Datasheet",
+     "pages": {
+      "1": "525–555 Wp range, key features, certifications, warranty graph (98% yr 1, 84.8% yr 25)",
+      "2": "electrical data per bin, temperature coefficients (−0.36 %/°C), mechanical data (OCR'd image)"
+     }
+    }
+   ],
+   "specs": {
+    "efficiency": "up to 21.48%",
+    "cells": "144 half-cells, Mono PERC (G2WB)",
+    "busbars": "10 MBB",
+    "max system voltage": "1500 V DC",
+    "dimensions / weight": "2278 × 1134 × 35 mm, 28 kg",
+    "wind / snow load": "2400 / 5400 Pa",
+    "degradation": "< 2.0% yr 1, < 0.55%/yr",
+    "warranty": "12-yr product / 25-yr performance",
+    "packaging": "31 pcs / pallet · 620 pcs / 40′ HQ container"
+   },
+   "cta": {
+    "primary": {
+     "label": "BOOK NOW",
+     "tool": "book_product",
+     "args": {
+      "product": "vega-g2wb"
+     }
+    },
+    "secondary": [
+     {
+      "label": "GET A QUOTE / CONTACT US",
+      "tool": "open_enquiry",
+      "args": {
+       "kind": "domestic",
+       "category": "Module - requirement below 199 KW"
+      }
+     },
+     {
+      "label": "GET A QUOTE — 200 kW and above",
+      "tool": "open_enquiry",
+      "args": {
+       "kind": "domestic",
+       "category": "Module - requirement above 200 KW"
+      }
+     },
+     {
+      "label": "DOWNLOAD DATASHEET",
+      "tool": "open_document",
+      "args": {
+       "document_id": "saatvik-mono-perc-module-datasheet",
+       "page": 1
+      }
+     }
+    ],
+    "page_buttons": [
+     "BOOK NOW",
+     "CONTACT US",
+     "DOWNLOAD DATASHEET",
+     "GET A QUOTE",
+     "EXPLORE ALL MODULES"
+    ]
+   },
+   "qualify": [
+    "Is it for a home, a business (factory, shop, office) or a ground-mounted / utility project?",
+    "Roughly how many kW do you need — under 199 kW or 200 kW and above? (that picks the form's module category)",
+    "Rooftop or ground-mounted, and is the ground reflective / is it a tracker site (bifacial gain)?",
+    "Which state and city is the site in?",
+    "Do you already have an installer or EPC partner, or do you want Saatvik's team / a dealer to size it?",
+    "When do you want it installed?"
+   ],
+   "next": [
+    "solar-kits",
+    "uday-single-phase",
+    "epc-residential",
+    "n-topcon"
+   ],
+   "calculator": true
+  },
+  {
+   "id": "solar-cells",
+   "name": "TOPCon Solar Cells",
+   "family": "cells",
+   "path": "/solar-cell-technology",
+   "for": [
+    "manufacturer",
+    "business",
+    "utility"
+   ],
+   "pitch": "Saatvik's N-type TOPCon cells — 25% average efficiency, about 9.55 Wp per cell, 182.3 × 210 mm — the cells inside its modules.",
+   "story": [
+    {
+     "heading": "TOPCon Solar Cell Technology",
+     "say": "25% average efficiency, average 9.55 Wp per cell, 182.3 × 210 mm."
+    },
+    {
+     "heading": "What Makes TOPCon Different",
+     "say": "An ultra-thin oxide layer forms a tunnel for electrons, minimising recombination."
+    },
+    {
+     "heading": "Precision Engineering",
+     "say": "Tunnel oxides and polysilicon films layered with atomic-level control."
+    },
+    {
+     "heading": "Automated Quality Checks",
+     "say": "AI-powered inspection ensures defect-free cells at every stage."
+    },
+    {
+     "heading": "Cells for Every Market Need",
+     "say": "Cell designs for residential modules, commercial panels and utility-scale solutions."
+    },
+    {
+     "heading": "Collaborative Innovation",
+     "say": "Partnering with research institutes to explore heterojunction and tandem cells."
+    }
+   ],
+   "features": [
+    {
+     "heading": "Precision Engineering",
+     "fact": "Atomic-level layering of tunnel oxides and polysilicon films."
+    },
+    {
+     "heading": "Automated Quality Checks",
+     "fact": "AI-powered inspection at every stage."
+    },
+    {
+     "heading": "High Throughput",
+     "fact": "Advanced machinery for scale without compromising quality."
+    }
+   ],
+   "variants": [],
+   "tabs": [],
+   "faqs": [],
+   "datasheets": [],
+   "specs": {
+    "avg conversion efficiency": "25%",
+    "power per cell": "avg. 9.55 Wp",
+    "size": "182.3 × 210 mm",
+    "type": "N-type TOPCon"
+   },
+   "cta": {
+    "primary": {
+     "label": "CONTACT US",
+     "tool": "open_enquiry",
+     "args": {
+      "kind": "domestic",
+      "category": "Others"
+     }
+    },
+    "secondary": [
+     {
+      "label": "EXPLORE MODULES",
+      "tool": "cue",
+      "args": {
+       "page": "/modules"
+      }
+     }
+    ],
+    "page_buttons": [
+     "CONTACT US",
+     "EXPLORE MODULES",
+     "Contact Us",
+     "Contact Sales"
+    ]
+   },
+   "qualify": [
+    "Are you buying cells (a module maker) or modules made with them?",
+    "What volume and timeline?",
+    "Which state, or are you outside India (export enquiry)?"
+   ],
+   "next": [
+    "n-topcon",
+    "modules",
+    "epe-film"
+   ],
+   "calculator": false
+  },
+  {
+   "id": "inverters",
+   "name": "Uday Series On-Grid Inverters",
+   "family": "inverters",
+   "path": "/inverters",
+   "for": [
+    "home",
+    "business"
+   ],
+   "pitch": "Saatvik's Uday on-grid string inverters turn solar DC into grid AC, from 1.1 kW single-phase units for homes to 50 kW three-phase units for factories, with a 10-year warranty.",
+   "story": [
+    {
+     "heading": "On-Grid Inverters for Every Scale",
+     "say": "From 1.1 kW rooftops to 50 kW industrial plants, with multi-MPPT and over 98.7% peak efficiency (the page's figure)."
+    },
+    {
+     "heading": "Multi-MPPT Tracking",
+     "say": "Independent MPPTs harvest more from shaded, multi-orientation and partly soiled roofs."
+    },
+    {
+     "heading": "Smart Wi-Fi Monitoring",
+     "say": "Track generation, faults and performance from any device."
+    },
+    {
+     "heading": "Advanced Grid Support",
+     "say": "Reactive-power compensation, low-voltage ride-through and anti-islanding for Indian grid codes."
+    },
+    {
+     "heading": "IP65 & Anti-PID",
+     "say": "Sealed IP65 enclosures and anti-PID for dust, humidity and harsh climates."
+    },
+    {
+     "heading": "Our Inverter Range",
+     "say": "Single-phase Uday 1.1–6 kW for homes; three-phase Uday 6–50 kW for commercial and industrial."
+    },
+    {
+     "heading": "Compare Specifications",
+     "say": "Five power bands, all IP65, IEC 62109, 10-year warranty."
+    }
+   ],
+   "features": [
+    {
+     "heading": "Up to 98.7% Efficiency",
+     "fact": "Page claim; datasheets give 97.5–98.8% max efficiency by model."
+    },
+    {
+     "heading": "Multi-MPPT Tracking",
+     "fact": "Multiple independent MPPTs."
+    },
+    {
+     "heading": "Smart Wi-Fi Monitoring",
+     "fact": "Wi-Fi, RS485 and Ethernet connectivity."
+    },
+    {
+     "heading": "Advanced Grid Support",
+     "fact": "Reactive power, LVRT, anti-islanding."
+    },
+    {
+     "heading": "IP65 & Anti-PID",
+     "fact": "IP65 enclosure, anti-PID."
+    },
+    {
+     "heading": "Wide Voltage Window",
+     "fact": "Wide MPPT range from compact rooftops to large C&I strings."
+    }
+   ],
+   "variants": [
+    {
+     "name": "Uday Single-Phase 1.1–6 kW",
+     "key": "residential rooftop",
+     "heading_or_text": "Single-Phase",
+     "line": "uday-single-phase"
+    },
+    {
+     "name": "Uday Three-Phase 6–50 kW",
+     "key": "commercial & industrial",
+     "heading_or_text": "Three-Phase",
+     "line": "uday-three-phase"
+    },
+    {
+     "name": "UDAY Plus Hybrid 3.6–8 kW",
+     "key": "battery backup; not on this page",
+     "line": "uday-plus-hybrid"
+    }
+   ],
+   "tabs": [],
+   "faqs": [
+    "What is the Uday Series?",
+    "How efficient are Saatvik inverters?",
+    "Can I monitor my inverter remotely?",
+    "Are Uday inverters suited to Indian grid conditions?",
+    "What protection and warranty do they carry?"
+   ],
+   "datasheets": [
+    {
+     "document_id": "saatvik-uday-series-single-phase-inverter-flyer",
+     "title": "Uday Series flyer (single-phase pp 1–2, three-phase pp 3–4)",
+     "pages": {
+      "1": "single-phase range 1.1–6 kW, highlights",
+      "2": "single-phase spec table",
+      "3": "three-phase range 6–50 kW",
+      "4": "three-phase spec table (OCR'd image)"
+     }
+    }
+   ],
+   "specs": {
+    "range": "1.1–50 kW",
+    "peak efficiency (page)": "98.7%",
+    "max power rating": "50 kW",
+    "protection": "IP65",
+    "warranty": "10 years",
+    "certification": "IEC 62109"
+   },
+   "cta": {
+    "primary": {
+     "label": "BOOK NOW (books Uday single-phase)",
+     "tool": "book_product",
+     "args": {
+      "product": "uday-single-phase"
+     }
+    },
+    "secondary": [
+     {
+      "label": "Book Uday three-phase",
+      "tool": "book_product",
+      "args": {
+       "product": "uday-three-phase"
+      }
+     },
+     {
+      "label": "CONTACT US",
+      "tool": "open_enquiry",
+      "args": {
+       "kind": "domestic",
+       "category": "Solar Inverter"
+      }
+     }
+    ],
+    "page_buttons": [
+     "BOOK NOW",
+     "CONTACT US",
+     "EXPLORE (Single-Phase)",
+     "EXPLORE (Three-Phase)",
+     "Contact Us",
+     "Contact Sales"
+    ]
+   },
+   "qualify": [
+    "Home or business?",
+    "Single-phase or three-phase supply, and what system size in kW?",
+    "Do you need backup in power cuts? (then the hybrid)",
+    "Do you already have panels, or need the whole system?",
+    "Which state and city?",
+    "When?"
+   ],
+   "next": [
+    "uday-single-phase",
+    "uday-three-phase",
+    "uday-plus-hybrid",
+    "solar-kits"
+   ],
+   "calculator": true
+  },
+  {
+   "id": "uday-single-phase",
+   "name": "Uday Single-Phase On-Grid Inverter",
+   "family": "inverters",
+   "path": "/inverters/single-phase",
+   "for": [
+    "home",
+    "business"
+   ],
+   "pitch": "A quiet, compact grid-tie inverter for homes, villas and small shops, 1.1 to 6 kW, with app monitoring and a 10-year warranty.",
+   "story": [
+    {
+     "heading": "Switch to On-Grid Inverters, Save More Daily",
+     "say": "Smart, efficient and whisper-quiet; maximises rooftop yield and cuts bills."
+    },
+    {
+     "heading": "Compact Power for Every Home",
+     "say": "Over 98.7% conversion efficiency (page figure) and an 80–500 V MPPT window from morning to dusk."
+    },
+    {
+     "heading": "Whisper-Quiet Operation",
+     "say": "Runs below 25 dB."
+    },
+    {
+     "heading": "IP65 All-Weather Protection",
+     "say": "Sealed against dust and rain, with surge, islanding and earth-fault protection."
+    },
+    {
+     "heading": "10-Year Warranty & Service",
+     "say": "Standard 10-year warranty with pan-India service and spares."
+    },
+    {
+     "heading": "Datasheets, Manuals & Guides",
+     "say": "Two ranges: 1.1–3.3 kW for smaller homes and 3.68–6 kW for villas and small establishments."
+    },
+    {
+     "heading": "Track Everything With Our App",
+     "say": "Live generation, yield history, alerts and savings on your phone."
+    }
+   ],
+   "features": [
+    {
+     "heading": "High Conversion Efficiency",
+     "fact": "Over 98.7% peak (page); flyer gives 97.5–97.9% max."
+    },
+    {
+     "heading": "Wide MPPT Voltage Range",
+     "fact": "80–500 V, 1–2 MPPT channels (page)."
+    },
+    {
+     "heading": "Built-in Wi-Fi Monitoring",
+     "fact": "Saatvik app, no extra dongle (page; the flyer calls Wi-Fi optional)."
+    },
+    {
+     "heading": "Whisper-Quiet Operation",
+     "fact": "Below 25 dB."
+    },
+    {
+     "heading": "Compact Wall-Mount Design",
+     "fact": "Slim, light wall mount."
+    },
+    {
+     "heading": "IP65 All-Weather Protection",
+     "fact": "IP65, surge, islanding, earth-fault protection."
+    }
+   ],
+   "variants": [
+    {
+     "name": "1.1–3.3 kW",
+     "key": "smaller homes; 290 × 220 × 119 mm, 5.5 kg (flyer)",
+     "heading_or_text": "1.1 kW – 3.3 kW"
+    },
+    {
+     "name": "3.68–6 kW",
+     "key": "villas and small establishments; 353 × 320 × 150 mm, 10 kg (flyer)",
+     "heading_or_text": "3.68 kW – 6 kW"
+    }
+   ],
+   "tabs": [],
+   "faqs": [],
+   "datasheets": [
+    {
+     "document_id": "saatvik-uday-series-single-phase-inverter-flyer",
+     "title": "Uday Series Single-Phase Flyer (DOWNLOAD DATASHEET)",
+     "pages": {
+      "1": "range 1.1–6 kW, 150% PV oversizing, IP65",
+      "2": "spec table by model (SS-GTI-1P 1.1–6 kW)"
+     }
+    },
+    {
+     "document_id": "saatvik-single-phase-1-1-3-3kw-inverter-user-manual",
+     "title": "1P 1.1–3.3 kW Series User Manual",
+     "pages": {
+      "1": "installation & operation manual"
+     }
+    },
+    {
+     "document_id": "saatvik-single-phase-3-68-6kw-inverter-user-manual",
+     "title": "1P 3.68–6 kW Series User Manual",
+     "pages": {
+      "1": "installation & operation manual"
+     }
+    },
+    {
+     "document_id": "saatvik-gti-inverter-wifi-setup-guide",
+     "title": "GTI Inverter Wi-Fi Settings",
+     "pages": {
+      "1": "app and Wi-Fi module setup guide (16 pages)"
+     }
+    },
+    {
+     "document_id": "saatvik-solar-pv-installation-dos-and-donts",
+     "title": "Solar PV Installation Do's & Don'ts",
+     "pages": {
+      "1": "safe installation practices"
+     }
+    },
+    {
+     "document_id": "saatvik-on-grid-solar-kit-installation-guide",
+     "title": "On-Grid Solar Kit Installation Guide",
+     "pages": {
+      "1": "kit contents, mounting, earthing",
+      "2": "DC and AC connection step by step"
+     }
+    }
+   ],
+   "specs": {
+    "range": "1.1–6 kW",
+    "peak efficiency (page)": "over 98.7%",
+    "max efficiency (flyer)": "97.5–97.9%",
+    "MPPT window (page)": "80–500 V",
+    "noise": "below 25 dB",
+    "protection": "IP65",
+    "warranty": "10 years"
+   },
+   "cta": {
+    "primary": {
+     "label": "BOOK NOW",
+     "tool": "book_product",
+     "args": {
+      "product": "uday-single-phase"
+     }
+    },
+    "secondary": [
+     {
+      "label": "CONTACT US",
+      "tool": "open_enquiry",
+      "args": {
+       "kind": "domestic",
+       "category": "Solar Inverter"
+      }
+     },
+     {
+      "label": "DOWNLOAD DATASHEET",
+      "tool": "open_document",
+      "args": {
+       "document_id": "saatvik-uday-series-single-phase-inverter-flyer",
+       "page": 1
+      }
+     }
+    ],
+    "page_buttons": [
+     "BOOK NOW",
+     "CONTACT US",
+     "DOWNLOAD DATASHEET",
+     "Uday Series Single-Phase Flyer",
+     "1P 1.1–3.3 kW Series User Manual",
+     "1P 3.68–6 kW Series User Manual",
+     "GTI Inverter Wi-Fi Settings",
+     "Solar PV Installation Do's & Don'ts",
+     "On-Grid Solar Kit Installation Guide",
+     "Contact Us",
+     "Contact Sales"
+    ]
+   },
+   "qualify": [
+    "Is it for your home, or a shop / office / factory?",
+    "What is your monthly electricity bill, or units used a month? (and the rate per unit, if you know it)",
+    "Which state and city?",
+    "What kind of roof — RCC flat, tin sheet, tiled — and roughly how much shadow-free area?",
+    "Do you get power cuts? (an on-grid system shuts down in a cut; backup needs the hybrid inverter and battery)",
+    "Do you own the roof / house?",
+    "When do you want it installed?"
+   ],
+   "next": [
+    "solar-kits",
+    "uday-plus-hybrid",
+    "modules",
+    "epc-residential"
+   ],
+   "calculator": true
+  },
+  {
+   "id": "uday-three-phase",
+   "name": "Uday Three-Phase On-Grid Inverter",
+   "family": "inverters",
+   "path": "/inverters/three-phase",
+   "for": [
+    "business",
+    "utility"
+   ],
+   "pitch": "Bankable 6–50 kW three-phase grid-tie inverters for commercial and industrial rooftops, factories and carports, with multi-MPPT, grid support and a 10-year warranty.",
+   "story": [
+    {
+     "heading": "Switch to On-Grid Power, Scale Without Limits",
+     "say": "Smart, efficient and bankable — the dependable choice for commercial and industrial solar."
+    },
+    {
+     "heading": "Scalable Power for Business & Industry",
+     "say": "6–50 kW with over 98.7% peak efficiency (page figure) and multi-MPPT tracking."
+    },
+    {
+     "heading": "Reactive Power & Grid Support",
+     "say": "Active/reactive power control and low-voltage ride-through keep large plants compliant."
+    },
+    {
+     "heading": "RS485 / Ethernet Comms",
+     "say": "Plant-grade communications with remote monitoring and SCADA integration."
+    },
+    {
+     "heading": "10-Year Warranty & Service",
+     "say": "Standard 10-year warranty with pan-India service and spares."
+    },
+    {
+     "heading": "Datasheets, Manuals & Guides",
+     "say": "Three power bands: 6–12 kW, 15–25 kW and 30–50 kW."
+    },
+    {
+     "heading": "Track Everything With Our App",
+     "say": "Every plant on one dashboard with multi-site performance and alerts."
+    }
+   ],
+   "features": [
+    {
+     "heading": "98.7% Peak Efficiency",
+     "fact": "Page claim; flyer p 4 gives 98.4–98.8% max."
+    },
+    {
+     "heading": "Multi-MPPT Tracking",
+     "fact": "Up to 4 MPPTs."
+    },
+    {
+     "heading": "Reactive Power & Grid Support",
+     "fact": "Active/reactive control, LVRT."
+    },
+    {
+     "heading": "Anti-PID Technology",
+     "fact": "PID recovery (flyer: optional)."
+    },
+    {
+     "heading": "IP65 Heavy-Duty Protection",
+     "fact": "IP65 with smart cooling."
+    },
+    {
+     "heading": "RS485 / Ethernet Comms",
+     "fact": "SCADA-ready."
+    }
+   ],
+   "variants": [
+    {
+     "name": "6–12 kW",
+     "key": "commercial rooftops; 15 kg, natural cooling (flyer)",
+     "heading_or_text": "Commercial Rooftops"
+    },
+    {
+     "name": "15–25 kW",
+     "key": "industrial and factories; 22 kg, fan (flyer)",
+     "heading_or_text": "Industrial & Factories"
+    },
+    {
+     "name": "30–50 kW",
+     "key": "large C&I and carport plants; 37 kg, fan (flyer)",
+     "heading_or_text": "Large C&I & Carport Plants"
+    }
+   ],
+   "tabs": [],
+   "faqs": [],
+   "datasheets": [
+    {
+     "document_id": "saatvik-uday-series-single-phase-inverter-flyer",
+     "title": "Uday Series flyer — the three-phase spec table is page 4 (the page's DOWNLOAD DATASHEET opens the 15–25 kW manual instead)",
+     "pages": {
+      "3": "three-phase range 6–50 kW",
+      "4": "three-phase spec table (OCR'd)"
+     }
+    },
+    {
+     "document_id": "saatvik-three-phase-6-12kw-inverter-user-manual",
+     "title": "3P 6–12 kW Series User Manual",
+     "pages": {
+      "1": "installation & operation manual"
+     }
+    },
+    {
+     "document_id": "saatvik-three-phase-15-25kw-inverter-user-manual",
+     "title": "3P 15–25 kW Series User Manual (what DOWNLOAD DATASHEET opens)",
+     "pages": {
+      "1": "installation & operation manual"
+     }
+    },
+    {
+     "document_id": "saatvik-three-phase-30-50kw-inverter-user-manual",
+     "title": "3P 30–50 kW Series User Manual",
+     "pages": {
+      "1": "installation & operation manual"
+     }
+    },
+    {
+     "document_id": "saatvik-gti-inverter-wifi-setup-guide",
+     "title": "GTI Inverter Wi-Fi Settings",
+     "pages": {
+      "1": "app and Wi-Fi module setup guide (16 pages)"
+     }
+    },
+    {
+     "document_id": "saatvik-solar-pv-installation-dos-and-donts",
+     "title": "Solar PV Installation Do's & Don'ts",
+     "pages": {
+      "1": "safe installation practices"
+     }
+    },
+    {
+     "document_id": "saatvik-on-grid-solar-kit-installation-guide",
+     "title": "On-Grid Solar Kit Installation Guide",
+     "pages": {
+      "1": "kit contents, mounting, earthing",
+      "2": "DC and AC connection step by step"
+     }
+    }
+   ],
+   "specs": {
+    "range": "6–50 kW (6, 8, 10, 12, 15, 20, 25, 30, 40, 50 kW)",
+    "peak efficiency (page)": "98.7%",
+    "max efficiency (flyer)": "98.4–98.8%",
+    "operating window (page)": "200–1500 V",
+    "MPPT (flyer)": "140–1000 V / 180–1000 V, max PV 1100 V",
+    "protection": "IP65",
+    "warranty": "10 years"
+   },
+   "cta": {
+    "primary": {
+     "label": "BOOK NOW",
+     "tool": "book_product",
+     "args": {
+      "product": "uday-three-phase"
+     }
+    },
+    "secondary": [
+     {
+      "label": "CONTACT US",
+      "tool": "open_enquiry",
+      "args": {
+       "kind": "domestic",
+       "category": "Solar Inverter"
+      }
+     },
+     {
+      "label": "Spec table (flyer p 4)",
+      "tool": "open_document",
+      "args": {
+       "document_id": "saatvik-uday-series-single-phase-inverter-flyer",
+       "page": 4
+      }
+     }
+    ],
+    "page_buttons": [
+     "BOOK NOW",
+     "CONTACT US",
+     "DOWNLOAD DATASHEET",
+     "3P 6–12 kW Series User Manual",
+     "3P 15–25 kW Series User Manual",
+     "3P 30–50 kW Series User Manual",
+     "GTI Inverter Wi-Fi Settings",
+     "Solar PV Installation Do's & Don'ts",
+     "On-Grid Solar Kit Installation Guide",
+     "Contact Us",
+     "Contact Sales"
+    ]
+   },
+   "qualify": [
+    "What kind of site — office, shop, warehouse, factory, carport?",
+    "Plant size in kW, or monthly units / bill?",
+    "Rooftop or ground array, and how many roof orientations?",
+    "Do you need SCADA / multi-plant monitoring?",
+    "Which state and city?",
+    "Timeline?"
+   ],
+   "next": [
+    "epc-commercial",
+    "n-topcon",
+    "bess",
+    "transformers"
+   ],
+   "calculator": true
+  },
+  {
+   "id": "uday-plus-hybrid",
+   "name": "UDAY Plus Hybrid Inverter",
+   "family": "inverters",
+   "path": "/inverters/hybrid",
+   "for": [
+    "home",
+    "business",
+    "institution"
+   ],
+   "pitch": "One unit that runs solar panels, the grid and a battery together, keeping essential loads on through power cuts — 3.6 to 8 kW, single phase, for homes, shops, offices, schools and clinics.",
+   "story": [
+    {
+     "heading": "Smart Solar Power with Battery Backup",
+     "say": "Manages solar, grid and battery; 3.6 to 8 kW, up to 99% MPPT efficiency, lead-acid or lithium-ion, IP65."
+    },
+    {
+     "heading": "Battery Backup",
+     "say": "Keeps running during a power cut on battery backup."
+    },
+    {
+     "heading": "Works With Different Batteries",
+     "say": "Works with both lead-acid and lithium-ion batteries."
+    },
+    {
+     "heading": "Better Solar Output",
+     "say": "Dual MPPT uses more of the panels' power."
+    },
+    {
+     "heading": "Saves Electricity Bill",
+     "say": "Designed to meet everyday power needs while cutting the bill."
+    },
+    {
+     "heading": "Certifications & Standards",
+     "say": "IP65, 5-year warranty, IEC, BIS, ISO 9001 & 14001, CE, made in India."
+    },
+    {
+     "heading": "Where the UDAY Plus Fits",
+     "say": "Homes, shops, offices, small businesses, schools, clinics and areas with frequent power cuts."
+    }
+   ],
+   "features": [
+    {
+     "heading": "Easy Monitoring",
+     "fact": "Wi-Fi / 4G."
+    },
+    {
+     "heading": "Battery Backup",
+     "fact": "Runs through power cuts."
+    },
+    {
+     "heading": "Outdoor Installation",
+     "fact": "Installable outdoors."
+    },
+    {
+     "heading": "Works With Different Batteries",
+     "fact": "Lead-acid and lithium-ion."
+    },
+    {
+     "heading": "Better Solar Output",
+     "fact": "Dual MPPT."
+    },
+    {
+     "heading": "Built-in Safety",
+     "fact": "Built-in protection."
+    }
+   ],
+   "variants": [
+    {
+     "name": "3.6–8 kW (page)",
+     "key": "datasheet lists 3, 3.6, 4, 5, 6, 6.6, 7, 7.5, 8 kW and a '3.6 - 10 kw' banner — quote the page, let the team confirm other sizes"
+    }
+   ],
+   "tabs": [],
+   "faqs": [],
+   "datasheets": [
+    {
+     "document_id": "saatvik-hybrid-inverter-datasheet",
+     "title": "Hybrid Inverter Datasheet",
+     "pages": {
+      "1": "full spec table: models, PV input, battery (40–60 V, CAN), backup output, switchover < 10 ms, dimensions 28 kg, standards"
+     }
+    },
+    {
+     "document_id": "saatvik-hybrid-inverter-3-8kw-single-phase-user-manual",
+     "title": "Hybrid Inverter 3–8 kW Single-Phase User Manual",
+     "pages": {
+      "43": "warranty: 5 years from purchase, terms",
+      "44": "warranty exclusions and claims contact"
+     }
+    }
+   ],
+   "specs": {
+    "range": "3.6–8 kW, single phase",
+    "MPPT efficiency": "up to 99%",
+    "batteries": "lead-acid / lithium-ion, 48 V class (40–60 V)",
+    "switchover": "< 10 ms (datasheet)",
+    "protection": "IP65",
+    "monitoring": "Wi-Fi / 4G",
+    "warranty": "5 years"
+   },
+   "cta": {
+    "primary": {
+     "label": "BOOK NOW",
+     "tool": "book_product",
+     "args": {
+      "product": "uday-plus-hybrid"
+     }
+    },
+    "secondary": [
+     {
+      "label": "CONTACT US",
+      "tool": "open_enquiry",
+      "args": {
+       "kind": "domestic",
+       "category": "Solar Inverter"
+      }
+     },
+     {
+      "label": "DOWNLOAD DATASHEET",
+      "tool": "open_document",
+      "args": {
+       "document_id": "saatvik-hybrid-inverter-datasheet",
+       "page": 1
+      }
+     },
+     {
+      "label": "DOWNLOAD USER MANUAL",
+      "tool": "open_document",
+      "args": {
+       "document_id": "saatvik-hybrid-inverter-3-8kw-single-phase-user-manual",
+       "page": 1
+      }
+     }
+    ],
+    "page_buttons": [
+     "BOOK NOW",
+     "CONTACT US",
+     "DOWNLOAD DATASHEET",
+     "DOWNLOAD USER MANUAL",
+     "Contact Us",
+     "Contact Sales"
+    ]
+   },
+   "qualify": [
+    "How often and how long are your power cuts?",
+    "Which appliances must keep running in a cut (fans, lights, fridge, pump, AC)?",
+    "Home, shop, office, school or clinic?",
+    "Monthly bill or units?",
+    "Do you already have a battery or panels?",
+    "Which state and city?",
+    "Timeline?"
+   ],
+   "next": [
+    "batteries",
+    "modules",
+    "solar-kits"
+   ],
+   "calculator": true
+  },
+  {
+   "id": "solar-kits",
+   "name": "SuryaConnect Solar Kit",
+   "family": "kits",
+   "path": "/solar-kits",
+   "for": [
+    "home",
+    "business"
+   ],
+   "pitch": "A complete, ready-to-install on-grid rooftop system in one pre-engineered package — DCR N-TOPCon panels, inverter, ACDB/DCDB, cables and earthing — for homes and businesses, with a 5-year kit warranty.",
+   "story": [
+    {
+     "heading": "A Complete, Ready-to-Use Solar Solution",
+     "say": "A ready-to-install kit for residential and commercial use; everything arrives in a single pre-engineered package."
+    },
+    {
+     "heading": "Every Component You Need, Pre-Engineered",
+     "say": "Solar DCR modules, on-grid inverter, ACDB & DCDB, DC & AC cables, earthing and mounting — matched and tested."
+    },
+    {
+     "heading": "No Battery Required",
+     "say": "No battery, so lower system cost and minimal maintenance."
+    },
+    {
+     "heading": "Protection Embedded",
+     "say": "Anti-islanding, DC isolator, AC isolator and surge protection."
+    },
+    {
+     "heading": "5 Years of Warranty",
+     "say": "5-year warranty on the kit with Saatvik's nationwide service network."
+    },
+    {
+     "heading": "Higher Savings",
+     "say": "Cut upfront cost with PM Surya Ghar and net metering."
+    },
+    {
+     "heading": "Quality You Can Trust",
+     "say": "Independently certified components; Munich RE as warranty partner."
+    },
+    {
+     "heading": "The Saatvik SuryaConnect Kit Is What You’re Looking For",
+     "say": "For price and availability, get in touch with the team — or estimate your savings."
+    }
+   ],
+   "features": [
+    {
+     "heading": "No Battery Required",
+     "fact": "Lower cost, minimal maintenance."
+    },
+    {
+     "heading": "Protection Embedded",
+     "fact": "Anti-islanding, DC/AC isolators, surge protection."
+    },
+    {
+     "heading": "Real-Time Smart Monitoring",
+     "fact": "Wi-Fi and app."
+    },
+    {
+     "heading": "High-Quality Components",
+     "fact": "N-TOPCon modules with a pure sine wave grid-tied inverter."
+    },
+    {
+     "heading": "Advanced MPPT Technology",
+     "fact": "Optimises output across sun and temperature."
+    },
+    {
+     "heading": "5 Years of Warranty",
+     "fact": "5-year kit warranty."
+    }
+   ],
+   "variants": [
+    {
+     "name": "3 kW kit (GCS T-AC 3000/1P)",
+     "key": "6 × 580 Wp N-TOPCon DCR modules, 3.3 kVA single-phase inverter; datasheet p 1–2",
+     "document_page": 2
+    },
+    {
+     "name": "5 kW kit (GCS T-AC 5000/1P)",
+     "key": "9 × 580 Wp modules, 5 kVA single-phase inverter; datasheet p 3–4",
+     "document_page": 4
+    },
+    {
+     "name": "6 kW",
+     "key": "named only in the brochure's product range (p 2); no composition published — send to the team"
+    }
+   ],
+   "tabs": [],
+   "faqs": [],
+   "datasheets": [
+    {
+     "document_id": "saatvik-solar-kit-on-grid-n-topcon-datasheet",
+     "title": "SuryaConnect On-Grid N-TOPCon Kit Datasheet",
+     "pages": {
+      "1": "3 kW kit key features (PM Surya Ghar)",
+      "2": "3 kW kit composition and add-ons",
+      "3": "5 kW kit key features",
+      "4": "5 kW kit composition and add-ons"
+     }
+    },
+    {
+     "document_id": "saatvik-solar-kit-brochure",
+     "title": "Solar Kit Brochure (DOWNLOAD BROCHURE)",
+     "pages": {
+      "1": "cover artwork, no readable text",
+      "2": "what the kit is; product range 3 kW, 5 kW, 6 kW"
+     }
+    },
+    {
+     "document_id": "saatvik-on-grid-solar-kit-installation-guide",
+     "title": "On-Grid Solar Kit Installation Guide",
+     "pages": {
+      "1": "kit contents (mounting/earthing marked optional), mounting, earthing",
+      "2": "DC and AC connection steps"
+     }
+    }
+   ],
+   "specs": {
+    "documented sizes": "3 kW and 5 kW (brochure adds 6 kW)",
+    "modules": "580 Wp N-TOPCon bifacial DCR",
+    "inverter": "3.3 kVA / 5 kVA single phase, pure sine wave, grid-tied",
+    "battery": "none (on-grid; off in a power cut)",
+    "monitoring": "Wi-Fi / SIM / app",
+    "warranty": "5 years on the kit, Munich RE partner"
+   },
+   "cta": {
+    "primary": {
+     "label": "BOOK NOW",
+     "tool": "book_product",
+     "args": {
+      "product": "surya-connect-kit"
+     }
+    },
+    "secondary": [
+     {
+      "label": "ESTIMATE MY SAVINGS",
+      "tool": "run_calculator",
+      "args": {}
+     },
+     {
+      "label": "CONTACT US",
+      "tool": "open_enquiry",
+      "args": {
+       "kind": "domestic",
+       "category": "Solar Kit"
+      }
+     },
+     {
+      "label": "DOWNLOAD DATASHEET",
+      "tool": "open_document",
+      "args": {
+       "document_id": "saatvik-solar-kit-on-grid-n-topcon-datasheet",
+       "page": 1
+      }
+     },
+     {
+      "label": "DOWNLOAD BROCHURE",
+      "tool": "open_document",
+      "args": {
+       "document_id": "saatvik-solar-kit-brochure",
+       "page": 1
+      }
+     }
+    ],
+    "page_buttons": [
+     "BOOK NOW",
+     "DOWNLOAD DATASHEET",
+     "DOWNLOAD BROCHURE",
+     "CONTACT US",
+     "ESTIMATE MY SAVINGS"
+    ]
+   },
+   "qualify": [
+    "Is it for your home, or a shop / office / factory?",
+    "What is your monthly electricity bill, or units used a month? (and the rate per unit, if you know it)",
+    "Which state and city?",
+    "What kind of roof — RCC flat, tin sheet, tiled — and roughly how much shadow-free area?",
+    "Do you get power cuts? (an on-grid system shuts down in a cut; backup needs the hybrid inverter and battery)",
+    "Do you own the roof / house?",
+    "When do you want it installed?"
+   ],
+   "next": [
+    "uday-plus-hybrid",
+    "batteries",
+    "epc-residential"
+   ],
+   "calculator": true
+  },
+  {
+   "id": "batteries",
+   "name": "UDAY Shakti Li-ion Inverter Battery",
+   "family": "storage",
+   "path": "/batteries",
+   "for": [
+    "home",
+    "business"
+   ],
+   "pitch": "A 5.12 kWh wall-mounted LFP battery for homes and small businesses that stores solar power for power cuts and evenings, and pairs with the UDAY Plus hybrid inverter.",
+   "story": [
+    {
+     "heading": "UDAY Shakti",
+     "say": "It banks what your panels make through the day and gives it back when the grid goes; 51.2 V, 100 Ah, 5.12 kWh, 4000+ cycles."
+    },
+    {
+     "heading": "Long Battery Life",
+     "say": "4000+ life cycles at 80% depth of discharge."
+    },
+    {
+     "heading": "Expandable Storage",
+     "say": "Up to 16 modules in parallel as needs grow."
+    },
+    {
+     "heading": "LFP Cell Chemistry",
+     "say": "Lithium iron phosphate — a safer, more stable chemistry."
+    },
+    {
+     "heading": "Wide Temperature Range",
+     "say": "Discharges from −20 °C to 60 °C."
+    },
+    {
+     "heading": "Works With Saatvik Hybrid Inverters",
+     "say": "Pairs with the UDAY Plus hybrid inverter for one solar-plus-storage system."
+    },
+    {
+     "heading": "Technical Specifications",
+     "say": "51.2 V, 100 Ah, 5.12 kWh, current limiter, 16 in parallel."
+    },
+    {
+     "heading": "Where the UDAY Shakti Fits",
+     "say": "Homes with solar, home backup, small shops and offices, areas with regular power cuts."
+    }
+   ],
+   "features": [
+    {
+     "heading": "Long Battery Life",
+     "fact": "4000+ cycles at 80% DoD."
+    },
+    {
+     "heading": "Intelligent Battery Management",
+     "fact": "Smart BMS protects charge and discharge."
+    },
+    {
+     "heading": "Active Balancing",
+     "fact": "Keeps cells in step."
+    },
+    {
+     "heading": "Simple Installation",
+     "fact": "Wall-mounted."
+    },
+    {
+     "heading": "Expandable Storage",
+     "fact": "Up to 16 in parallel."
+    },
+    {
+     "heading": "High Efficiency",
+     "fact": "Charge/discharge efficiency above 95%."
+    },
+    {
+     "heading": "LFP Cell Chemistry",
+     "fact": "LiFePO₄."
+    },
+    {
+     "heading": "Wide Temperature Range",
+     "fact": "−20 °C to 60 °C discharge."
+    },
+    {
+     "heading": "Maintenance-Free Cooling",
+     "fact": "Natural cooling, no fans."
+    }
+   ],
+   "variants": [
+    {
+     "name": "51.2 V 100 Ah, 5.12 kWh module",
+     "key": "one model; capacity grows by paralleling up to 16",
+     "heading_or_text": "5.12 kWh"
+    }
+   ],
+   "tabs": [
+    "Electrical",
+    "BMS",
+    "Charge",
+    "Discharge",
+    "Mechanical",
+    "Temperature",
+    "Front Panel",
+    "Installation"
+   ],
+   "faqs": [],
+   "datasheets": [
+    {
+     "document_id": "saatvik-uday-shakti-li-ion-battery-datasheet",
+     "title": "UDAY Shakti Li-ion Battery Datasheet",
+     "pages": {
+      "1": "key highlights; '5* YEARS WARRANTY' badge (terms not given)",
+      "2": "technical data sheet — same table as the page tabs"
+     }
+    }
+   ],
+   "specs": {
+    "voltage": "51.2 V",
+    "capacity": "100 Ah",
+    "energy": "5.12 kWh",
+    "cycle life": "4000+ at 80% DoD",
+    "efficiency": "> 95%",
+    "parallel": "up to 16",
+    "chemistry": "LFP",
+    "weight / size": "~60 kg, 610 × 384 × 200 mm (datasheet)",
+    "warranty": "datasheet badge: 5 years* (terms not on page)"
+   },
+   "cta": {
+    "primary": {
+     "label": "ENQUIRE NOW",
+     "tool": "open_enquiry",
+     "args": {
+      "kind": "domestic",
+      "category": "Others"
+     }
+    },
+    "secondary": [
+     {
+      "label": "PAIR WITH UDAY PLUS",
+      "tool": "cue",
+      "args": {
+       "page": "/inverters/hybrid"
+      }
+     },
+     {
+      "label": "Book the UDAY Plus hybrid it pairs with",
+      "tool": "book_product",
+      "args": {
+       "product": "uday-plus-hybrid"
+      }
+     },
+     {
+      "label": "DOWNLOAD DATASHEET",
+      "tool": "open_document",
+      "args": {
+       "document_id": "saatvik-uday-shakti-li-ion-battery-datasheet",
+       "page": 1
+      }
+     }
+    ],
+    "page_buttons": [
+     "ENQUIRE NOW",
+     "DOWNLOAD DATASHEET",
+     "PAIR WITH UDAY PLUS",
+     "Contact Us",
+     "Contact Sales"
+    ]
+   },
+   "qualify": [
+    "Do you already have solar, and which inverter? (it pairs with a hybrid inverter such as UDAY Plus)",
+    "How long are your power cuts, and what must run during them?",
+    "Home, shop or office?",
+    "Which state and city?",
+    "Timeline?"
+   ],
+   "next": [
+    "uday-plus-hybrid",
+    "solar-kits"
+   ],
+   "calculator": false
+  },
+  {
+   "id": "bess",
+   "name": "Battery Energy Storage Systems (BESS)",
+   "family": "storage",
+   "path": "/bess",
+   "for": [
+    "business",
+    "utility",
+    "institution"
+   ],
+   "pitch": "Containerised LFP battery storage, delivered as EPC, for grid balancing, peak shaving, renewable firming and diesel-free backup for factories and utilities — up to 5 MWh per 20-ft container.",
+   "story": [
+    {
+     "heading": "Storage That Powers the Energy Transition",
+     "say": "Saatvik delivers BESS to store and dispatch energy for reliability, stability and flexibility."
+    },
+    {
+     "heading": "Grid Stability & Peak Shaving",
+     "say": "Balance supply and demand, regulate frequency and shave expensive peak-demand charges."
+    },
+    {
+     "heading": "Lower Energy Costs",
+     "say": "Cut diesel use, arbitrage time-of-day tariffs and lower bills for C&I."
+    },
+    {
+     "heading": "Scalable & Containerized",
+     "say": "Modular LFP containers scale from one C&I container to multi-hundred-MWh plants."
+    },
+    {
+     "heading": "Renewable Firming & Solar Integration",
+     "say": "Pair with ground or rooftop solar, shift daytime generation to the evening peak, meet FDRE obligations."
+    },
+    {
+     "heading": "C&I Backup & Microgrids",
+     "say": "Replace diesel gensets with silent battery backup for factories, complexes and institutions."
+    },
+    {
+     "heading": "System Specifications",
+     "say": "LFP, 20-ft container up to 5 MWh, ~95% round trip, 6,000+ cycles, 15+ year design life, IEC 62619 / 62477."
+    }
+   ],
+   "features": [
+    {
+     "heading": "Uninterrupted Power Supply",
+     "fact": "Dispatch stored solar in peaks, outages, nights."
+    },
+    {
+     "heading": "Grid Stability & Peak Shaving",
+     "fact": "Frequency regulation, peak shaving."
+    },
+    {
+     "heading": "Renewable Firming",
+     "fact": "Firm, schedulable renewable power."
+    },
+    {
+     "heading": "Lower Energy Costs",
+     "fact": "Less diesel, ToD arbitrage."
+    },
+    {
+     "heading": "Scalable & Containerized",
+     "fact": "Single container to multi-hundred-MWh."
+    },
+    {
+     "heading": "Safety & Smart Management",
+     "fact": "Multi-level BMS, thermal control, EMS."
+    }
+   ],
+   "variants": [
+    {
+     "name": "Single 20-ft container",
+     "key": "up to 5 MWh",
+     "heading_or_text": "up to 5 MWh per container"
+    },
+    {
+     "name": "Multi-container plant",
+     "key": "100+ MWh",
+     "heading_or_text": "Modular — multi-container, 100+ MWh"
+    }
+   ],
+   "tabs": [
+    "Battery System",
+    "Conversion & Controls",
+    "Safety & Delivery"
+   ],
+   "faqs": [
+    "What is a Battery Energy Storage System (BESS)?",
+    "What is peak shaving and how does BESS help?",
+    "Why does Saatvik use LFP battery chemistry?",
+    "Can BESS be combined with an existing solar plant?",
+    "What sizes of BESS does Saatvik deliver?"
+   ],
+   "datasheets": [],
+   "specs": {
+    "chemistry": "LFP",
+    "per container": "up to 5 MWh, 20-ft",
+    "round-trip efficiency": "~95%",
+    "cycle life": "6,000+",
+    "depth of discharge": "up to 90%",
+    "design life": "15+ years",
+    "response time": "< 100 ms",
+    "standards": "IEC 62619 / IEC 62477",
+    "scope": "end-to-end EPC — design, install, O&M"
+   },
+   "cta": {
+    "primary": {
+     "label": "DISCUSS YOUR PROJECT / CONTACT US",
+     "tool": "open_enquiry",
+     "args": {
+      "kind": "domestic",
+      "category": "Others"
+     }
+    },
+    "secondary": [
+     {
+      "label": "EXPLORE EPC SOLUTIONS",
+      "tool": "cue",
+      "args": {
+       "page": "/epc-solutions"
+      }
+     },
+     {
+      "label": "CONTACT US — if paired with a new ground-mount plant",
+      "tool": "open_enquiry",
+      "args": {
+       "kind": "domestic",
+       "category": "Solar EPC - Utility Ground Mount"
+      }
+     }
+    ],
+    "page_buttons": [
+     "CONTACT US",
+     "EXPLORE EPC SOLUTIONS",
+     "DISCUSS YOUR PROJECT",
+     "Contact Us",
+     "Contact Sales"
+    ]
+   },
+   "qualify": [
+    "What is it for — peak shaving, backup instead of diesel, solar firming / FDRE, or grid services?",
+    "Do you have an existing solar plant (AC-coupled retrofit) or a new build?",
+    "Rough size in MWh or MW, or your peak demand and diesel use?",
+    "Company and site location (state)?",
+    "Timeline?"
+   ],
+   "next": [
+    "epc-ground-mounted",
+    "epc-carport",
+    "transformers"
+   ],
+   "calculator": false
+  },
+  {
+   "id": "solar-pumps",
+   "name": "Solar Pumps",
+   "family": "pumps",
+   "path": "/solar-pumps",
+   "for": [
+    "farm",
+    "business",
+    "institution"
+   ],
+   "pitch": "Off-grid DC solar water pumps with Saatvik's MPPT controller — SaurJal submersible for borewells and SuryaNeer surface for open water — 3 to 10 HP, no diesel or grid, 5-year warranty.",
+   "story": [
+    {
+     "heading": "Solar Pumps",
+     "say": "DC-powered submersible and surface pumps: up to 150 m head, 25 m³/h flow, 5-year warranty."
+    },
+    {
+     "heading": "Our Pump Range",
+     "say": "SaurJal Submersible DC and SuryaNeer Surface DC, each 3–10 HP."
+    },
+    {
+     "heading": "Agriculture & Irrigation",
+     "say": "Drip, sprinkler and flood irrigation without diesel or grid; borewells up to 150 m."
+    },
+    {
+     "heading": "Drinking Water Supply",
+     "say": "Clean drinking water for villages and townships at zero running cost."
+    },
+    {
+     "heading": "Compare Specifications",
+     "say": "Submersible: 150 m, 25 m³/h, IP68, borewell. Surface: 30 m, 18 m³/h, IP54, open well. Both MNRE/BIS, 5 years."
+    }
+   ],
+   "features": [],
+   "variants": [
+    {
+     "name": "SaurJal Submersible DC",
+     "key": "3–10 HP, borewell, up to 150 m head",
+     "heading_or_text": "SaurJal Submersible DC",
+     "line": "saurjal-submersible"
+    },
+    {
+     "name": "SuryaNeer Surface DC",
+     "key": "3–10 HP, open water, up to 30 m head",
+     "heading_or_text": "SuryaNeer Surface DC",
+     "line": "suryaneer-surface"
+    }
+   ],
+   "tabs": [],
+   "faqs": [],
+   "datasheets": [],
+   "specs": {
+    "power": "3–10 HP",
+    "max head": "150 m (submersible) / 30 m (surface)",
+    "max flow": "25 / 18 m³/h",
+    "motor": "brushless DC",
+    "controller": "MPPT built in",
+    "warranty": "5 years",
+    "certifications": "MNRE / BIS"
+   },
+   "cta": {
+    "primary": {
+     "label": "ENQUIRE NOW",
+     "tool": "open_enquiry",
+     "args": {
+      "kind": "domestic",
+      "category": "Others"
+     }
+    },
+    "secondary": [],
+    "page_buttons": [
+     "ENQUIRE NOW",
+     "CONTACT US",
+     "EXPLORE (SaurJal Submersible DC)",
+     "EXPLORE (SuryaNeer Surface DC)"
+    ]
+   },
+   "qualify": [
+    "Where is the water — a borewell (how deep?) or an open well, pond, canal or tank?",
+    "What is it for — irrigation (drip, sprinkler, flood), drinking water, livestock?",
+    "What pump size (HP) or how much water a day, and what head?",
+    "Are you applying under PM-KUSUM / your state DISCOM scheme, or buying directly?",
+    "Which state, district and village?",
+    "When do you need it?"
+   ],
+   "next": [
+    "saurjal-submersible",
+    "suryaneer-surface"
+   ],
+   "calculator": false
+  },
+  {
+   "id": "saurjal-submersible",
+   "name": "SaurJal Solar Submersible Pump",
+   "family": "pumps",
+   "path": "/solar-pumps/submersible-dc",
+   "for": [
+    "farm",
+    "institution"
+   ],
+   "pitch": "A stainless steel SS-304 solar borewell pump with a water-filled, sealed-for-life DC motor and remote monitoring — 3, 5, 7.5 and 10 HP.",
+   "story": [
+    {
+     "heading": "Deep-Well Water, Zero Running Cost",
+     "say": "SS-304 pump body for long life against sand and abrasives; 3, 5, 7.5 and 10 HP DC models."
+    },
+    {
+     "heading": "Stainless Steel SS-304 Build",
+     "say": "Pump made entirely of SS-304 for dust, sand and abrasive borewell water."
+    },
+    {
+     "heading": "Water-Filled, Sealed-for-Life Motor",
+     "say": "No oil, no refilling, no maintenance."
+    },
+    {
+     "heading": "Integrated MPPT + Protections",
+     "say": "MPPT maximises daily output, with dry-run and overheating protection."
+    },
+    {
+     "heading": "Remote Monitoring (RMS)",
+     "say": "Switch the pump on or off and track it from a mobile app or browser."
+    },
+    {
+     "heading": "Borewell Irrigation for Agriculture",
+     "say": "Lift water from borewells up to 150 m deep for drip, sprinkler and flood irrigation."
+    },
+    {
+     "heading": "Pump & Controller Specifications",
+     "say": "Up to 150 m head, 25 m³/h, IP68 pump, IP65 controller, MNRE/BIS, 5-year warranty."
+    }
+   ],
+   "features": [
+    {
+     "heading": "Stainless Steel SS-304 Build",
+     "fact": "All SS-304."
+    },
+    {
+     "heading": "Water-Filled, Sealed-for-Life Motor",
+     "fact": "No oil, no maintenance."
+    },
+    {
+     "heading": "High-Efficiency BLDC / PMSM Motors",
+     "fact": "Lift from 150 m borewell depths."
+    },
+    {
+     "heading": "Integrated MPPT + Protections",
+     "fact": "Dry-run and overheating protection."
+    },
+    {
+     "heading": "IP65 Controller, IEC Tested",
+     "fact": "IEC 60068 environment and IEC 61683 efficiency tests, IS 16221 Part-2."
+    },
+    {
+     "heading": "Remote Monitoring (RMS)",
+     "fact": "Remote ON/OFF via app or web."
+    }
+   ],
+   "variants": [
+    {
+     "name": "3 HP",
+     "key": "30/50/70 m head, 3.00 kWp array (datasheet p 2)"
+    },
+    {
+     "name": "5 HP",
+     "key": "30–100 m, 4.80 kWp"
+    },
+    {
+     "name": "7.5 HP",
+     "key": "30–100 m, 6.75 kWp"
+    },
+    {
+     "name": "10 HP",
+     "key": "50–100 m, 9.00 kWp"
+    }
+   ],
+   "tabs": [
+    "Pump & Motor",
+    "Controller",
+    "Compliance & Warranty"
+   ],
+   "faqs": [
+    "What is the SaurJal solar submersible pump?",
+    "How deep can SaurJal pumps lift water from?",
+    "Why is a water-filled, sealed-for-life motor better?",
+    "What protections does the controller provide?",
+    "Can I monitor the pump remotely?"
+   ],
+   "datasheets": [
+    {
+     "document_id": "saatvik-solar-submersible-pump-and-controller-datasheet",
+     "title": "Solar Submersible Pump and Controller Datasheet (57 MB)",
+     "pages": {
+      "1": "description and applications, SS-304 build",
+      "2": "controller features and model table (HP, head to 100 m, array kWp)"
+     }
+    }
+   ],
+   "specs": {
+    "models": "3, 5, 7.5, 10 HP DC",
+    "max head": "150 m (page; datasheet models to 100 m)",
+    "max flow": "25 m³/h",
+    "pump material": "SS-304",
+    "motor": "water-filled BLDC / PMSM, sealed for life",
+    "pump IP": "IP68",
+    "controller": "IP65, MPPT, RMS",
+    "warranty": "5 years"
+   },
+   "cta": {
+    "primary": {
+     "label": "ENQUIRE NOW",
+     "tool": "open_enquiry",
+     "args": {
+      "kind": "domestic",
+      "category": "Others"
+     }
+    },
+    "secondary": [
+     {
+      "label": "DOWNLOAD DATASHEET",
+      "tool": "open_document",
+      "args": {
+       "document_id": "saatvik-solar-submersible-pump-and-controller-datasheet",
+       "page": 2
+      }
+     }
+    ],
+    "page_buttons": [
+     "ENQUIRE NOW",
+     "CONTACT US",
+     "DOWNLOAD DATASHEET",
+     "Contact Us",
+     "Contact Sales"
+    ]
+   },
+   "qualify": [
+    "Where is the water — a borewell (how deep?) or an open well, pond, canal or tank?",
+    "What is it for — irrigation (drip, sprinkler, flood), drinking water, livestock?",
+    "What pump size (HP) or how much water a day, and what head?",
+    "Are you applying under PM-KUSUM / your state DISCOM scheme, or buying directly?",
+    "Which state, district and village?",
+    "When do you need it?"
+   ],
+   "next": [
+    "suryaneer-surface",
+    "solar-pumps"
+   ],
+   "calculator": false
+  },
+  {
+   "id": "suryaneer-surface",
+   "name": "SuryaNeer Solar Surface Pump",
+   "family": "pumps",
+   "path": "/solar-pumps/surface-dc",
+   "for": [
+    "farm",
+    "institution"
+   ],
+   "pitch": "A mono block solar surface pump with a rare-earth BLDC motor for canals, ponds and open wells — 3 to 10 HP, with Saatvik's IP65 MPPT controller.",
+   "story": [
+    {
+     "heading": "Efficient Surface Pumping, Powered by the Sun",
+     "say": "Mono block construction with the impeller on the motor shaft — no couplings."
+    },
+    {
+     "heading": "A Solar Pump Controller Built for Indian Farms",
+     "say": "Saatvik's own IP65 MPPT controller with multifault diagnosis and optional Tank Full / Source Empty sensors."
+    },
+    {
+     "heading": "Rare-Earth PM Motor",
+     "say": "Rare-earth magnets in the BLDC motor turn more solar power into water."
+    },
+    {
+     "heading": "Auto Start / Stop Sensors",
+     "say": "Optional sensors automate operation; protection against dry run, reverse polarity, under voltage and short circuit."
+    },
+    {
+     "heading": "Agriculture & Irrigation",
+     "say": "Draw from canals, ponds and open wells for drip, sprinkler and flood irrigation."
+    },
+    {
+     "heading": "Pump & Controller Specifications",
+     "say": "3–10 HP, up to 30 m head and 18 m³/h, MNRE/BIS, 5-year warranty."
+    }
+   ],
+   "features": [
+    {
+     "heading": "Mono Block Construction",
+     "fact": "No couplings or alignment losses."
+    },
+    {
+     "heading": "Rare-Earth PM Motor",
+     "fact": "High-efficiency BLDC."
+    },
+    {
+     "heading": "Integrated MPPT Controller",
+     "fact": "Matches pump load to sunlight."
+    },
+    {
+     "heading": "IP65 Controller, IEC Tested",
+     "fact": "IS 16221 Part-2."
+    },
+    {
+     "heading": "Auto Start / Stop Sensors",
+     "fact": "Optional Tank Full and Source Empty."
+    },
+    {
+     "heading": "Remote Monitoring (RMS)",
+     "fact": "Remote ON/OFF via app or web."
+    }
+   ],
+   "variants": [
+    {
+     "name": "3 HP",
+     "key": "10/20/30 m head, 2.70 kWp array (datasheet p 2)"
+    },
+    {
+     "name": "5 HP",
+     "key": "10–30 m, 4.80 kWp"
+    },
+    {
+     "name": "7.5 HP",
+     "key": "10–30 m, 6.75 kWp"
+    },
+    {
+     "name": "10 HP",
+     "key": "10–30 m, 9.00 kWp"
+    }
+   ],
+   "tabs": [
+    "Pump & Motor",
+    "Controller",
+    "Compliance & Warranty"
+   ],
+   "faqs": [
+    "What is the SuryaNeer solar surface pump?",
+    "What water sources suit a surface pump?",
+    "Does the pump work in cloudy or low-light conditions?",
+    "Can I monitor and control the pump remotely?",
+    "What protections are built into the controller?"
+   ],
+   "datasheets": [
+    {
+     "document_id": "saatvik-solar-surface-pump-and-controller-datasheet",
+     "title": "Solar Surface Pump and Controller Datasheet (69 MB)",
+     "pages": {
+      "1": "description, applications, build features",
+      "2": "controller features and model table (HP, head, array kWp)"
+     }
+    }
+   ],
+   "specs": {
+    "power": "3–10 HP",
+    "max head": "30 m",
+    "max flow": "18 m³/h",
+    "motor": "BLDC, rare-earth permanent magnet",
+    "construction": "mono block",
+    "controller": "IP65, MPPT, RMS",
+    "warranty": "5 years"
+   },
+   "cta": {
+    "primary": {
+     "label": "ENQUIRE NOW",
+     "tool": "open_enquiry",
+     "args": {
+      "kind": "domestic",
+      "category": "Others"
+     }
+    },
+    "secondary": [
+     {
+      "label": "DOWNLOAD DATASHEET",
+      "tool": "open_document",
+      "args": {
+       "document_id": "saatvik-solar-surface-pump-and-controller-datasheet",
+       "page": 2
+      }
+     }
+    ],
+    "page_buttons": [
+     "ENQUIRE NOW",
+     "CONTACT US",
+     "DOWNLOAD DATASHEET",
+     "Contact Us",
+     "Contact Sales"
+    ]
+   },
+   "qualify": [
+    "Where is the water — a borewell (how deep?) or an open well, pond, canal or tank?",
+    "What is it for — irrigation (drip, sprinkler, flood), drinking water, livestock?",
+    "What pump size (HP) or how much water a day, and what head?",
+    "Are you applying under PM-KUSUM / your state DISCOM scheme, or buying directly?",
+    "Which state, district and village?",
+    "When do you need it?"
+   ],
+   "next": [
+    "saurjal-submersible",
+    "solar-pumps"
+   ],
+   "calculator": false
+  },
+  {
+   "id": "epc-solutions",
+   "name": "Solar EPC Solutions",
+   "family": "epc",
+   "path": "/epc-solutions",
+   "for": [
+    "home",
+    "business",
+    "institution",
+    "utility"
+   ],
+   "pitch": "Saatvik designs, procures, builds and commissions solar turnkey — home rooftops, commercial and institutional rooftops, ground-mounted farms, floating plants and carports with storage.",
+   "story": [
+    {
+     "heading": "Solar EPC for Every Surface & Scale",
+     "say": "From a single home rooftop to utility-scale ground-mount and floating arrays, executed end to end."
+    },
+    {
+     "heading": "Residential Rooftop",
+     "say": "1–10 kW home systems with on-grid inverters and net metering."
+    },
+    {
+     "heading": "Commercial Rooftop",
+     "say": "50 kW–5 MW on factory sheds, warehouses and office roofs."
+    },
+    {
+     "heading": "Ground-Mounted Solar",
+     "say": "Utility-scale solar farms, from site survey to tracker and fixed-tilt design."
+    },
+    {
+     "heading": "Floating Solar",
+     "say": "Reservoirs, lakes and industrial ponds."
+    },
+    {
+     "heading": "Carport & BESS",
+     "say": "Solar carports combined with battery storage."
+    },
+    {
+     "heading": "Delivered on the ground, across India",
+     "say": "Projects include the 7.50 MWp Nabha Power Limited plant and Jindal sites."
+    },
+    {
+     "heading": "From Design to Commissioning",
+     "say": "One five-stage process on every project."
+    }
+   ],
+   "features": [],
+   "variants": [
+    {
+     "name": "Residential Rooftop",
+     "key": "1–10 kW",
+     "heading_or_text": "Residential Rooftop",
+     "line": "epc-residential"
+    },
+    {
+     "name": "Commercial Rooftop",
+     "key": "50 kW–5 MW",
+     "heading_or_text": "Commercial Rooftop",
+     "line": "epc-commercial"
+    },
+    {
+     "name": "Institutional Rooftop",
+     "key": "campuses, hospitals, government",
+     "heading_or_text": "Institutional Rooftop",
+     "line": "epc-institutional"
+    },
+    {
+     "name": "Ground-Mounted Solar",
+     "key": "1 MW to 100 MW+",
+     "heading_or_text": "Ground-Mounted Solar",
+     "line": "epc-ground-mounted"
+    },
+    {
+     "name": "Floating Solar",
+     "key": "reservoirs and ponds",
+     "heading_or_text": "Floating Solar",
+     "line": "epc-floating"
+    },
+    {
+     "name": "Carport & BESS",
+     "key": "parking + storage",
+     "heading_or_text": "Carport & BESS",
+     "line": "epc-carport"
+    }
+   ],
+   "tabs": [],
+   "faqs": [],
+   "datasheets": [],
+   "specs": {
+    "residential": "1–10 kW",
+    "commercial rooftop": "50 kW–5 MW",
+    "process": "5 stages, design to commissioning"
+   },
+   "cta": {
+    "primary": {
+     "label": "CONTACT US",
+     "tool": "open_enquiry",
+     "args": {
+      "kind": "domestic",
+      "category": "Solar EPC - Rooftop"
+     }
+    },
+    "secondary": [
+     {
+      "label": "CONTACT US — ground-mounted",
+      "tool": "open_enquiry",
+      "args": {
+       "kind": "domestic",
+       "category": "Solar EPC - Utility Ground Mount"
+      }
+     }
+    ],
+    "page_buttons": [
+     "CONTACT US",
+     "VIEW MORE DETAILS (one per tile)"
+    ]
+   },
+   "qualify": [
+    "Home, business, institution or a utility / ground-mounted project?",
+    "Rooftop, open land, water body or parking?",
+    "Rough size (kW / MW) or monthly units?",
+    "Which state and city?",
+    "Timeline?"
+   ],
+   "next": [
+    "epc-residential",
+    "epc-commercial",
+    "epc-ground-mounted"
+   ],
+   "calculator": true
+  },
+  {
+   "id": "epc-residential",
+   "name": "Residential Rooftop Solar",
+   "family": "epc",
+   "path": "/epc-solutions/rooftop/residential",
+   "for": [
+    "home"
+   ],
+   "pitch": "Turnkey home rooftop solar, typically 1 to 10 kW: Saatvik surveys, designs, files the PM Surya Ghar subsidy, installs, sets up net metering and supports it for 25+ years.",
+   "story": [
+    {
+     "heading": "Savings You Can Count. Literally.",
+     "say": "Bill savings up to 90%, PM Surya Ghar subsidy up to ₹78K, 25-year module performance warranty, about 4-year payback."
+    },
+    {
+     "heading": "Site Survey & Shadow Analysis",
+     "say": "Engineers size the system to your monthly consumption — typically 1 to 10 kW for homes."
+    },
+    {
+     "heading": "System Design & Subsidy Paperwork",
+     "say": "Saatvik handles the PM Surya Ghar application, DISCOM approvals and documents."
+    },
+    {
+     "heading": "Installation in Days, Not Weeks",
+     "say": "Most home systems go up in 2–3 days."
+    },
+    {
+     "heading": "Net Metering & Commissioning",
+     "say": "Surplus daytime power is exported and credited against your bill."
+    },
+    {
+     "heading": "PM Surya Ghar Subsidy",
+     "say": "₹30,000 per kW for the first 2 kW and ₹18,000 for the third — up to ₹78,000."
+    },
+    {
+     "heading": "Built to Last 25+ Years",
+     "say": "BIS-certified, ALMM-listed modules with a 25-year performance warranty."
+    },
+    {
+     "heading": "Your Home System, Built by India's Solar Leader",
+     "say": "Modules from Saatvik's own 4.8 GW facilities, not traded hardware."
+    }
+   ],
+   "features": [
+    {
+     "heading": "Slash Your Electricity Bills",
+     "fact": "Up to 90%; a typical 3 kW system makes about 360 units a month."
+    },
+    {
+     "heading": "PM Surya Ghar Subsidy",
+     "fact": "Up to ₹78,000; Saatvik manages the application."
+    },
+    {
+     "heading": "Net Metering Credits",
+     "fact": "Export by day, offset night use."
+    },
+    {
+     "heading": "Energy Independence",
+     "fact": "Less dependence on the grid and rising tariffs."
+    },
+    {
+     "heading": "A Greener Home",
+     "fact": "A 3 kW system offsets about 4 tonnes of CO₂ a year."
+    },
+    {
+     "heading": "Built to Last 25+ Years",
+     "fact": "25-year performance warranty."
+    }
+   ],
+   "variants": [
+    {
+     "name": "Typical 3 kW home system",
+     "key": "about 360 units/month; roughly ₹1.8–2.2 lakh before incentives (FAQ)",
+     "heading_or_text": "a typical 3 kW home system produces around 360 units every month"
+    }
+   ],
+   "tabs": [],
+   "faqs": [
+    "How much does a residential rooftop solar system cost after subsidy?",
+    "What size system does my home need?",
+    "How does net metering work?",
+    "Does Saatvik handle the PM Surya Ghar application?",
+    "How much maintenance does a rooftop system need?"
+   ],
+   "datasheets": [],
+   "specs": {
+    "system size": "typically 1–10 kW",
+    "bill savings": "up to 90%",
+    "subsidy": "up to ₹78,000 (PM Surya Ghar)",
+    "payback": "about 4 years",
+    "3 kW output": "about 360 units/month",
+    "roof needed": "80–100 sq ft shadow-free per kW (FAQ)",
+    "install time": "2–3 days for most homes",
+    "module warranty": "12-yr product / 25-yr performance"
+   },
+   "cta": {
+    "primary": {
+     "label": "CONTACT US / Ready to Go Solar?",
+     "tool": "open_enquiry",
+     "args": {
+      "kind": "domestic",
+      "category": "Solar EPC - Rooftop"
+     }
+    },
+    "secondary": [
+     {
+      "label": "ESTIMATE MY SAVINGS",
+      "tool": "run_calculator",
+      "args": {}
+     },
+     {
+      "label": "Book the SuryaConnect kit instead",
+      "tool": "book_product",
+      "args": {
+       "product": "surya-connect-kit"
+      }
+     },
+     {
+      "label": "Find a dealer",
+      "tool": "find_dealer",
+      "args": {}
+     }
+    ],
+    "page_buttons": [
+     "CONTACT US",
+     "Ready to Go Solar? (card → /contact)",
+     "Contact Us",
+     "Contact Sales"
+    ]
+   },
+   "qualify": [
+    "Is it for your home, or a shop / office / factory?",
+    "What is your monthly electricity bill, or units used a month? (and the rate per unit, if you know it)",
+    "Which state and city?",
+    "What kind of roof — RCC flat, tin sheet, tiled — and roughly how much shadow-free area?",
+    "Do you get power cuts? (an on-grid system shuts down in a cut; backup needs the hybrid inverter and battery)",
+    "Do you own the roof / house?",
+    "When do you want it installed?"
+   ],
+   "next": [
+    "solar-kits",
+    "uday-plus-hybrid",
+    "batteries"
+   ],
+   "calculator": true
+  },
+  {
+   "id": "epc-commercial",
+   "name": "Commercial & Industrial Rooftop Solar",
+   "family": "epc",
+   "path": "/epc-solutions/rooftop/commercial",
+   "for": [
+    "business"
+   ],
+   "pitch": "Turnkey C&I rooftop solar on factory sheds, warehouses, malls and offices — own it (CAPEX) or pay per unit with no upfront cost (OPEX/RESCO), with 40% accelerated depreciation and paybacks as short as 3–4 years.",
+   "story": [
+    {
+     "heading": "Numbers Your CFO Will Approve Of",
+     "say": "Power cost reduction up to 70%, 40% accelerated depreciation in year 1, typical CAPEX payback 4 years, 25-year asset life."
+    },
+    {
+     "heading": "CAPEX Model",
+     "say": "Own the plant: solar at ₹2.5–3.5 a unit against grid at ₹8–11."
+    },
+    {
+     "heading": "OPEX / RESCO Model",
+     "say": "No upfront capital — pay only for power generated, below your grid rate."
+    },
+    {
+     "heading": "Energy Audit & Load Profiling",
+     "say": "12 months of consumption, tariff and roof inventory size the system."
+    },
+    {
+     "heading": "Procurement From Our Own Lines",
+     "say": "Mono PERC, bifacial and N-TOPCon modules from Saatvik's 4.8 GW facilities."
+    },
+    {
+     "heading": "Zero-Disruption Installation",
+     "say": "Installed around your operating schedule."
+    },
+    {
+     "heading": "Engineered for Every Roof",
+     "say": "Metal sheet, RCC or membrane roofs."
+    },
+    {
+     "heading": "Trusted by India's Industrial Leaders",
+     "say": "Clients include Jindal Steel & Power, Dalmia Bharat Green Vision and GMR Kamalanga Energy."
+    }
+   ],
+   "features": [
+    {
+     "heading": "Guaranteed Return on Investment",
+     "fact": "Up to 70% lower power cost; 3–4 year paybacks."
+    },
+    {
+     "heading": "40% Accelerated Depreciation",
+     "fact": "40% of asset value in year one for profit-making companies."
+    },
+    {
+     "heading": "CAPEX or OPEX — Your Choice",
+     "fact": "Own it or pay a discounted per-unit tariff."
+    },
+    {
+     "heading": "Engineered for Every Roof",
+     "fact": "Metal, RCC, membrane."
+    },
+    {
+     "heading": "Scalable With Your Business",
+     "fact": "50 kW to multi-MW."
+    },
+    {
+     "heading": "Sustainability Credentials",
+     "fact": "Scope 2, ESG, RE100."
+    }
+   ],
+   "variants": [
+    {
+     "name": "CAPEX",
+     "key": "own the asset, full savings, depreciation",
+     "heading_or_text": "CAPEX Model"
+    },
+    {
+     "name": "OPEX / RESCO",
+     "key": "zero upfront, pay per unit",
+     "heading_or_text": "OPEX / RESCO Model"
+    }
+   ],
+   "tabs": [],
+   "faqs": [
+    "What is the difference between CAPEX and OPEX models?",
+    "How does accelerated depreciation improve returns?",
+    "What payback period can my business expect?",
+    "Will installation disrupt our operations?",
+    "Who maintains the plant after commissioning?"
+   ],
+   "datasheets": [],
+   "specs": {
+    "size": "50 kW to multi-MW (overview: 50 kW–5 MW)",
+    "power cost reduction": "up to 70%",
+    "accelerated depreciation": "40% in year 1",
+    "payback (CAPEX)": "3–4 years",
+    "solar cost": "₹2.5–3.5/unit vs grid ₹8–11",
+    "asset life": "25 years"
+   },
+   "cta": {
+    "primary": {
+     "label": "CONTACT US / Ready to Go Solar?",
+     "tool": "open_enquiry",
+     "args": {
+      "kind": "domestic",
+      "category": "Solar EPC - Rooftop"
+     }
+    },
+    "secondary": [
+     {
+      "label": "ESTIMATE MY SAVINGS",
+      "tool": "run_calculator",
+      "args": {}
+     },
+     {
+      "label": "Book Uday three-phase",
+      "tool": "book_product",
+      "args": {
+       "product": "uday-three-phase"
+      }
+     }
+    ],
+    "page_buttons": [
+     "CONTACT US",
+     "Ready to Go Solar? (card → /contact)",
+     "Contact Us",
+     "Contact Sales"
+    ]
+   },
+   "qualify": [
+    "What kind of site — factory, warehouse, mall, office park?",
+    "Monthly units or bill, and your grid tariff per unit?",
+    "Roof type (metal sheet, RCC, membrane) and roughly how much free roof area?",
+    "Do you want to own the plant (CAPEX) or pay per unit with no upfront cost (OPEX/RESCO)?",
+    "Which state and city?",
+    "When do you want to start?"
+   ],
+   "next": [
+    "uday-three-phase",
+    "bess",
+    "epc-carport",
+    "n-topcon"
+   ],
+   "calculator": true
+  },
+  {
+   "id": "epc-institutional",
+   "name": "Institutional Rooftop Solar",
+   "family": "epc",
+   "path": "/epc-solutions/rooftop/institutional",
+   "for": [
+    "institution"
+   ],
+   "pitch": "Campus-wide rooftop solar for schools, hospitals, government buildings and non-profits — designed for daytime loads, with approvals and scheme help, and OPEX options with no capital outlay.",
+   "story": [
+    {
+     "heading": "Public Money, Better Spent",
+     "say": "Energy cost down up to 50%; solar can meet up to 80% of daytime load."
+    },
+    {
+     "heading": "Campus Energy Assessment",
+     "say": "Map consumption across blocks, wards and hostels; inventory every usable roof."
+    },
+    {
+     "heading": "Design for Daytime Loads",
+     "say": "Nearly every unit generated is used on site."
+    },
+    {
+     "heading": "Approvals & Scheme Assistance",
+     "say": "DISCOM approvals, net metering and applicable central or state schemes."
+    },
+    {
+     "heading": "Safe, Scheduled Installation",
+     "say": "Sequenced around academic calendars and hospital operations."
+    },
+    {
+     "heading": "Tailor-Made Solar for Every Institution",
+     "say": "Schools, hospitals, government buildings and non-profits."
+    },
+    {
+     "heading": "Predictable Energy Budgets",
+     "say": "Lock in generation costs for 25 years."
+    }
+   ],
+   "features": [
+    {
+     "heading": "Educational Institutions",
+     "fact": "Frees budget; the plant becomes a STEM lab."
+    },
+    {
+     "heading": "Hospitals & Healthcare",
+     "fact": "Reliable daytime supply without compromising critical loads."
+    },
+    {
+     "heading": "Government Buildings",
+     "fact": "Meets rooftop solar mandates."
+    },
+    {
+     "heading": "Non-Profits & Trusts",
+     "fact": "OPEX options with no capital outlay."
+    },
+    {
+     "heading": "Predictable Energy Budgets",
+     "fact": "25-year locked generation cost."
+    },
+    {
+     "heading": "Visible Climate Leadership",
+     "fact": "Every 100 kWp offsets about 140 t CO₂ a year."
+    }
+   ],
+   "variants": [],
+   "tabs": [],
+   "faqs": [
+    "Why is solar particularly well-suited to institutions?",
+    "Can government institutions go solar without upfront budget?",
+    "Is installation safe on an operating hospital or school campus?",
+    "What happens on weekends and holidays when consumption drops?",
+    "Who maintains the system after handover?"
+   ],
+   "datasheets": [],
+   "specs": {
+    "energy cost reduction": "up to 50%",
+    "daytime load met": "up to 80%",
+    "CO₂ offset": "140 t per 100 kWp per year",
+    "design life": "25 years",
+    "performance warranty": "25 years"
+   },
+   "cta": {
+    "primary": {
+     "label": "CONTACT US / Ready to Go Solar?",
+     "tool": "open_enquiry",
+     "args": {
+      "kind": "domestic",
+      "category": "Solar EPC - Rooftop"
+     }
+    },
+    "secondary": [
+     {
+      "label": "ESTIMATE MY SAVINGS",
+      "tool": "run_calculator",
+      "args": {}
+     }
+    ],
+    "page_buttons": [
+     "CONTACT US",
+     "Ready to Go Solar? (card → /contact)",
+     "Contact Us",
+     "Contact Sales"
+    ]
+   },
+   "qualify": [
+    "What kind of institution — school, college, hospital, government office, trust?",
+    "How many buildings / roofs, and monthly units or bill?",
+    "Do you need a no-upfront (OPEX) model or scheme funding?",
+    "Which state and city?",
+    "Timeline and approval process on your side?"
+   ],
+   "next": [
+    "uday-three-phase",
+    "bess",
+    "epc-carport"
+   ],
+   "calculator": true
+  },
+  {
+   "id": "epc-ground-mounted",
+   "name": "Ground-Mounted Solar EPC",
+   "family": "epc",
+   "path": "/epc-solutions/ground-mounted",
+   "for": [
+    "utility",
+    "business"
+   ],
+   "pitch": "Utility-scale and captive ground-mounted solar from 1 MW to 100 MW+, engineered, procured, built and commissioned by Saatvik — flagship: 100 MW at Raghanseda Solar Park.",
+   "story": [
+    {
+     "heading": "Utility-Scale, Proven at Scale",
+     "say": "100 MW flagship project, 545 Wp Saatvik modules deployed, 25-year plant design life."
+    },
+    {
+     "heading": "Engineering",
+     "say": "Site survey, geotechnical analysis, fixed-tilt and tracker design."
+    },
+    {
+     "heading": "Procurement",
+     "say": "Annual rate contracts with major manufacturers for modules, inverters and BoS."
+    },
+    {
+     "heading": "Commissioning",
+     "say": "Testing, grid interconnection, monitoring and fine-tuning."
+    },
+    {
+     "heading": "Dedicated EPC Design Team",
+     "say": "Energy yield assessments, PVsyst simulations and grid studies lenders trust."
+    },
+    {
+     "heading": "Complete Balance-of-System",
+     "say": "Foundations, cabling, transformers, switchyards and grid interconnection, 1 MW to 100 MW+."
+    },
+    {
+     "heading": "100 MW at Raghanseda Solar Park",
+     "say": "Saatvik's landmark 100 MW project in Gujarat."
+    },
+    {
+     "heading": "Glimpses of Projects Accomplished by Saatvik",
+     "say": "Dalmia Cement, Dalmia Bharat Green Vision and Jindal Steel & Power sites with 545 Wp Mono PERC."
+    }
+   ],
+   "features": [
+    {
+     "heading": "Highly Skilled Workforce",
+     "fact": "Desert, farmland and coastal sites."
+    },
+    {
+     "heading": "Dedicated EPC Design Team",
+     "fact": "PVsyst, yield and grid studies."
+    },
+    {
+     "heading": "Global ARC Procurement",
+     "fact": "Annual rate contracts worldwide."
+    },
+    {
+     "heading": "In-House R&D",
+     "fact": "Trackers, bifacial gain, robotic cleaning."
+    },
+    {
+     "heading": "Record-Breaking Delivery",
+     "fact": "Self-manufactured modules compress timelines."
+    },
+    {
+     "heading": "Complete Balance-of-System",
+     "fact": "1 MW to 100 MW+."
+    }
+   ],
+   "variants": [],
+   "tabs": [],
+   "faqs": [
+    "What project sizes does Saatvik execute for ground-mounted solar?",
+    "How much land does a ground-mounted solar plant need?",
+    "Does Saatvik handle land studies and grid connectivity?",
+    "Fixed-tilt or tracker — which is right for my project?",
+    "What O&M support is available after commissioning?"
+   ],
+   "datasheets": [],
+   "specs": {
+    "project size": "1 MW to 100 MW+",
+    "flagship": "100 MW, Raghanseda Solar Park, Gujarat",
+    "modules deployed": "545 Wp Saatvik",
+    "EPC phases": "4",
+    "design life": "25 years"
+   },
+   "cta": {
+    "primary": {
+     "label": "CONTACT US",
+     "tool": "open_enquiry",
+     "args": {
+      "kind": "domestic",
+      "category": "Solar EPC - Utility Ground Mount"
+     }
+    },
+    "secondary": [
+     {
+      "label": "Modules only — 200 kW and above",
+      "tool": "open_enquiry",
+      "args": {
+       "kind": "domestic",
+       "category": "Module - requirement above 200 KW"
+      }
+     }
+    ],
+    "page_buttons": [
+     "CONTACT US",
+     "Ready to Go Solar? (card → /contact)",
+     "Contact Us",
+     "Contact Sales"
+    ]
+   },
+   "qualify": [
+    "Captive (for your own plant) or utility / IPP project?",
+    "Target capacity in MW?",
+    "Do you have the land — how many acres, which state and district — and a grid connection point?",
+    "Fixed-tilt or tracker, if decided?",
+    "Do you need EPC end-to-end or modules only?",
+    "Timeline / commissioning date?"
+   ],
+   "next": [
+    "tej-plus-g12r",
+    "bess",
+    "melcon-transformers"
+   ],
+   "calculator": false
+  },
+  {
+   "id": "epc-floating",
+   "name": "Floating Solar EPC",
+   "family": "epc",
+   "path": "/epc-solutions/floating-solar",
+   "for": [
+    "utility",
+    "business",
+    "institution"
+   ],
+   "pitch": "Floating solar on reservoirs, dams, lakes and industrial ponds — up to 10% more yield from water cooling, up to 70% less evaporation, no land used. Reference: 100 MW Ramagundam.",
+   "story": [
+    {
+     "heading": "Power From Water. Proof in Numbers.",
+     "say": "100 MW Ramagundam reference; up to 10% higher yield; up to 70% less evaporation; zero land."
+    },
+    {
+     "heading": "Bathymetric & Hydrological Survey",
+     "say": "Water depth, level variation, wind and wave loads and bed conditions define the safe envelope."
+    },
+    {
+     "heading": "Platform & Mooring Design",
+     "say": "UV-resistant HDPE floats and anchoring rated for 25+ years afloat."
+    },
+    {
+     "heading": "Module & Electrical Engineering",
+     "say": "N-TOPCon and Mono PERC modules from Saatvik's own lines."
+    },
+    {
+     "heading": "Enhanced Energy Yield",
+     "say": "Water cooling lifts yield by up to 10%."
+    },
+    {
+     "heading": "Water Conservation",
+     "say": "Cuts evaporation by up to 70% under the array."
+    },
+    {
+     "heading": "100 MW Ramagundam Floating Solar Project",
+     "say": "About 500 acres of reservoir in Telangana."
+    }
+   ],
+   "features": [
+    {
+     "heading": "Efficient Land Use",
+     "fact": "No land acquisition."
+    },
+    {
+     "heading": "Enhanced Energy Yield",
+     "fact": "Up to 10%."
+    },
+    {
+     "heading": "Water Conservation",
+     "fact": "Up to 70% less evaporation."
+    },
+    {
+     "heading": "Utility-Scale Ready",
+     "fact": "Industrial ponds to multi-MW reservoirs."
+    },
+    {
+     "heading": "Rural Electrification",
+     "fact": "Irrigation tanks and village reservoirs."
+    },
+    {
+     "heading": "Built for Water, For Decades",
+     "fact": "UV-resistant, corrosion-resistant."
+    }
+   ],
+   "variants": [],
+   "tabs": [],
+   "faqs": [
+    "Which water bodies suit floating solar?",
+    "Does floating solar really generate more than land-based solar?",
+    "Does it harm the water body or aquatic life?",
+    "How are the panels anchored and maintained on water?",
+    "What scale can floating solar reach in India?"
+   ],
+   "datasheets": [],
+   "specs": {
+    "reference": "100 MW Ramagundam, ~500 acres",
+    "yield gain": "up to 10%",
+    "evaporation cut": "up to 70%",
+    "land used": "0 acres",
+    "platform life": "25+ years"
+   },
+   "cta": {
+    "primary": {
+     "label": "CONTACT US",
+     "tool": "open_enquiry",
+     "args": {
+      "kind": "domestic",
+      "category": "Others"
+     }
+    },
+    "secondary": [
+     {
+      "label": "CONTACT US — if they call it a utility project",
+      "tool": "open_enquiry",
+      "args": {
+       "kind": "domestic",
+       "category": "Solar EPC - Utility Ground Mount"
+      }
+     }
+    ],
+    "page_buttons": [
+     "CONTACT US",
+     "Ready to Go Solar? (card → /contact)",
+     "Contact Us",
+     "Contact Sales"
+    ]
+   },
+   "qualify": [
+    "What water body — reservoir, dam, irrigation tank, lake, industrial pond — and who owns it?",
+    "Surface area and how much the level varies?",
+    "Target capacity?",
+    "Where (state, district) and where's the grid connection?",
+    "Timeline?"
+   ],
+   "next": [
+    "n-topcon",
+    "epc-ground-mounted",
+    "melcon-transformers"
+   ],
+   "calculator": false
+  },
+  {
+   "id": "epc-carport",
+   "name": "Solar Carport",
+   "family": "epc",
+   "path": "/epc-solutions/carport",
+   "for": [
+    "business",
+    "institution",
+    "home"
+   ],
+   "pitch": "Solar carports that shade parking and generate about 3.5 kWp per bay, ready for EV charging and battery storage — for offices, malls, campuses, housing societies and public parking.",
+   "story": [
+    {
+     "heading": "Every Parking Bay, A Power Plant",
+     "say": "About 3.5 kWp per bay, 100% parking retained, 25-year structural design life."
+    },
+    {
+     "heading": "Customised Design",
+     "say": "Cantilever, single-slope or dual-pitch, with EV-charging and BESS provisions."
+    },
+    {
+     "heading": "Seamless Installation",
+     "say": "Prefabricated steel keeps parking open during construction."
+    },
+    {
+     "heading": "EV Charging & BESS Ready",
+     "say": "Add EV chargers and storage for peak shaving and round-the-clock power."
+    },
+    {
+     "heading": "Government Incentives",
+     "say": "Accelerated depreciation for businesses."
+    },
+    {
+     "heading": "Where Solar Carports Shine",
+     "say": "Corporate offices, commercial spaces, residential projects and public parking."
+    },
+    {
+     "heading": "Pair Your Carport With Battery Storage",
+     "say": "Integrated carport-plus-BESS for parks, airports and campuses."
+    }
+   ],
+   "features": [
+    {
+     "heading": "Efficient Energy Utilisation",
+     "fact": "About 3.5 kWp per covered bay."
+    },
+    {
+     "heading": "Vehicle Protection",
+     "fact": "Sun, rain, hail."
+    },
+    {
+     "heading": "EV Charging & BESS Ready",
+     "fact": "Chargers and storage from the same structure."
+    },
+    {
+     "heading": "Enhanced Aesthetics",
+     "fact": "Modern designs."
+    },
+    {
+     "heading": "Government Incentives",
+     "fact": "Accelerated depreciation."
+    },
+    {
+     "heading": "Durability & Quality",
+     "fact": "Galvanised steel, 25-year service life."
+    }
+   ],
+   "variants": [
+    {
+     "name": "100-bay lot",
+     "key": "300–350 kWp (FAQ)"
+    }
+   ],
+   "tabs": [],
+   "faqs": [
+    "How much power can a solar carport generate?",
+    "Can EV chargers be integrated with the carport?",
+    "Will my parking be unusable during construction?",
+    "Are solar carports safe in high winds and storms?",
+    "What does a solar carport cost compared to rooftop solar?"
+   ],
+   "datasheets": [],
+   "specs": {
+    "per bay": "about 3.5 kWp (FAQ: 3–3.5 kWp)",
+    "parking retained": "100%",
+    "design life": "25 years",
+    "peak demand shaving with storage": "up to 30%"
+   },
+   "cta": {
+    "primary": {
+     "label": "CONTACT US",
+     "tool": "open_enquiry",
+     "args": {
+      "kind": "domestic",
+      "category": "Others"
+     }
+    },
+    "secondary": [
+     {
+      "label": "CONTACT US — if they see it as rooftop",
+      "tool": "open_enquiry",
+      "args": {
+       "kind": "domestic",
+       "category": "Solar EPC - Rooftop"
+      }
+     }
+    ],
+    "page_buttons": [
+     "CONTACT US",
+     "Ready to Go Solar? (card → /contact)",
+     "Contact Us",
+     "Contact Sales"
+    ]
+   },
+   "qualify": [
+    "What kind of site — office, mall, campus, housing society, public parking?",
+    "How many parking bays?",
+    "Do you want EV chargers or battery storage too?",
+    "Which state and city?",
+    "Timeline?"
+   ],
+   "next": [
+    "bess",
+    "uday-three-phase",
+    "epc-commercial"
+   ],
+   "calculator": false
+  },
+  {
+   "id": "epe-film",
+   "name": "EPE Encapsulant Film (SS-EPE UVT-F & UVC-B)",
+   "family": "materials",
+   "path": "/epe-film",
+   "for": [
+    "manufacturer"
+   ],
+   "pitch": "An EVA·POE·EVA encapsulant film for module makers building PID-free P-type and N-type bifacial modules — ≥90.5% transmittance, 288-hour PID tested. B2B, not for homeowners.",
+   "story": [
+    {
+     "heading": "EPE Film for Encapsulating Solar Modules",
+     "say": "≥90.5% transmittance, 288 h PID tested, for P-type and N-type bifacial modules."
+    },
+    {
+     "heading": "Built for PID-Free Bifacial Modules",
+     "say": "Highly transparent, weather-resistant, with strong adhesion to glass and metal."
+    },
+    {
+     "heading": "What the Film Delivers",
+     "say": "High transparency and low haze, high gel content, low WVTR, anti-PID, no bubbling or cell shifting, high volume resistance."
+    },
+    {
+     "heading": "Two Grades, Matched to the Module",
+     "say": "Same EVA·POE·EVA structure; they differ in UV transmittance and module configuration."
+    },
+    {
+     "heading": "Roll Specification",
+     "say": "380 g/m² (0.50 mm) and 560 g/m² (0.65 mm) grades."
+    },
+    {
+     "heading": "Technical Specification",
+     "say": "Transmittance ≥90.5% (1100–380 nm), for both grades."
+    },
+    {
+     "heading": "Storage Conditions",
+     "say": "Store indoors at 0–30 °C below 60% RH."
+    }
+   ],
+   "features": [
+    {
+     "heading": "High Transparency, Low Haze",
+     "fact": "≥90.5% transmittance 1100–380 nm."
+    },
+    {
+     "heading": "High Gel Content",
+     "fact": "75–95% (datasheet)."
+    },
+    {
+     "heading": "Low WVTR",
+     "fact": "Low water-vapour transmission."
+    },
+    {
+     "heading": "Anti-PID",
+     "fact": "≤5.0% power loss after 288 h at 85 °C / 85% RH / 1500 Vdc."
+    },
+    {
+     "heading": "No Bubbling, No Cell Shifting, High Production Efficiency",
+     "fact": "Good handling in lamination."
+    },
+    {
+     "heading": "High Volume Resistance",
+     "fact": "≥1.0 × 10¹⁵ Ω·cm."
+    }
+   ],
+   "variants": [
+    {
+     "name": "SS-EPE UVT-F",
+     "key": "≥80% UV transmittance; glass-to-glass modules",
+     "heading_or_text": "SS-EPE UVT-F"
+    },
+    {
+     "name": "SS-EPE UVC-B",
+     "key": "≤30% UV transmittance; with UVT-F for glass-to-transparent-backsheet",
+     "heading_or_text": "SS-EPE UVC-B"
+    }
+   ],
+   "tabs": [],
+   "faqs": [],
+   "datasheets": [
+    {
+     "document_id": "saatvik-epe-encapsulant-film-datasheet",
+     "title": "EPE Encapsulant Film Datasheet",
+     "pages": {
+      "1": "what the film is; EVA·POE·EVA structure",
+      "2": "characteristics, roll specification, product features",
+      "3": "technical specification table, grade recommendations, precautions and storage",
+      "4": "lamination conditions"
+     }
+    }
+   ],
+   "specs": {
+    "structure": "EVA · POE · EVA",
+    "transmittance": "≥90.5% (1100–380 nm)",
+    "PID": "288 h, ≤5.0% loss",
+    "gram weight": "380 ± 20 / 560 ± 20 g/m²",
+    "thickness": "0.50 / 0.65 ± 0.10 mm",
+    "shelf life": "5 months (L2)",
+    "storage": "0–30 °C, < 60% RH"
+   },
+   "cta": {
+    "primary": {
+     "label": "ENQUIRE NOW",
+     "tool": "open_enquiry",
+     "args": {
+      "kind": "domestic",
+      "category": "Others"
+     }
+    },
+    "secondary": [
+     {
+      "label": "DOWNLOAD DATASHEET",
+      "tool": "open_document",
+      "args": {
+       "document_id": "saatvik-epe-encapsulant-film-datasheet",
+       "page": 1
+      }
+     },
+     {
+      "label": "EXPLORE MODULES",
+      "tool": "cue",
+      "args": {
+       "page": "/modules"
+      }
+     }
+    ],
+    "page_buttons": [
+     "ENQUIRE NOW",
+     "EXPLORE MODULES",
+     "DOWNLOAD DATASHEET",
+     "Contact Us",
+     "Contact Sales"
+    ]
+   },
+   "qualify": [
+    "Are you a module manufacturer — glass-glass or glass-transparent-backsheet, P-type or N-type?",
+    "Which grade and gram weight?",
+    "Monthly volume (rolls / sqm)?",
+    "Where is the factory — in India (domestic) or abroad (export enquiry)?",
+    "Timeline?"
+   ],
+   "next": [
+    "solar-cells",
+    "modules"
+   ],
+   "calculator": false
+  },
+  {
+   "id": "transformers",
+   "name": "Transformers (Saatvik page)",
+   "family": "transformers",
+   "path": "/transformers",
+   "for": [
+    "business",
+    "utility"
+   ],
+   "pitch": "Power, distribution, inverter-duty and dry-type transformers by Melcon, the Saatvik Group transformer company — this older page says 5 kVA to 10 MVA, 33 kV class.",
+   "story": [
+    {
+     "heading": "25+ Years of Transformer Engineering",
+     "say": "Melcon is an ISO 9001 certified maker and exporter of transformers up to 10 MVA, 33 kV class (this page's figure)."
+    },
+    {
+     "heading": "Oil-Immersed Power & Distribution",
+     "say": "5 to 10,000 kVA, up to 33 kV, ONAN / ONAF / OFWF."
+    },
+    {
+     "heading": "Energy Efficient / Star-Rated",
+     "say": "BEE star-rated low-loss distribution transformers."
+    },
+    {
+     "heading": "Special Purpose & Inverter-Duty",
+     "say": "Solar and wind, inverter-duty, Scott-T, furnace-duty and more."
+    },
+    {
+     "heading": "Dry Type (VPI)",
+     "say": "5 to 2,000 kVA for indoor and fire-sensitive sites."
+    },
+    {
+     "heading": "Solar Plants & Inverter-Duty",
+     "say": "Steps inverter output up to grid voltage, handling harmonic-rich PV waveforms."
+    },
+    {
+     "heading": "Compare Specifications",
+     "say": "All up to 33 kV, IS / IEC / BIS."
+    }
+   ],
+   "features": [],
+   "variants": [
+    {
+     "name": "Oil-Immersed",
+     "key": "5–10,000 kVA (Melcon pages: to 25,000 kVA)",
+     "heading_or_text": "Oil-Immersed Power & Distribution",
+     "line": "melcon-oil-immersed"
+    },
+    {
+     "name": "Energy Efficient",
+     "key": "up to 10,000 kVA, BEE star",
+     "heading_or_text": "Energy Efficient / Star-Rated",
+     "line": "melcon-energy-efficient"
+    },
+    {
+     "name": "Special Purpose",
+     "key": "custom (furnace up to 4 MVA)",
+     "heading_or_text": "Special Purpose & Inverter-Duty",
+     "line": "melcon-special-designed"
+    },
+    {
+     "name": "Dry Type (VPI)",
+     "key": "5–2,000 kVA (Melcon: up to 2,500 kVA)",
+     "heading_or_text": "Dry Type (VPI)",
+     "line": "melcon-dry-type"
+    }
+   ],
+   "tabs": [],
+   "faqs": [
+    "Who manufactures Saatvik Group's transformers?",
+    "What is an inverter-duty transformer and why do solar plants need one?",
+    "What ratings and voltage classes are available?",
+    "Can transformers be customized for special applications?"
+   ],
+   "datasheets": [],
+   "specs": {
+    "max rating (this page)": "10 MVA",
+    "voltage class": "33 kV",
+    "range": "5 kVA to 10,000 kVA",
+    "certification": "ISO 9001"
+   },
+   "cta": {
+    "primary": {
+     "label": "ENQUIRE NOW",
+     "tool": "open_enquiry",
+     "args": {
+      "kind": "domestic",
+      "category": "Transformer"
+     }
+    },
+    "secondary": [
+     {
+      "label": "Melcon's own pages",
+      "tool": "cue",
+      "args": {
+       "page": "/melcon-transformers"
+      }
+     }
+    ],
+    "page_buttons": [
+     "ENQUIRE NOW",
+     "CONTACT US",
+     "VISIT MELCON (external: melcontransformers.com)",
+     "Contact Us",
+     "Contact Sales"
+    ]
+   },
+   "qualify": [
+    "What rating (kVA / MVA) and voltage class?",
+    "Oil-immersed or dry type, and indoor or outdoor?",
+    "What duty — distribution, power, solar/inverter-duty, furnace, other special?",
+    "Who is buying — utility/PSU, EPC, private industry, or export?",
+    "How many units, which site/state, and by when?"
+   ],
+   "next": [
+    "melcon-transformers",
+    "uday-three-phase",
+    "epc-ground-mounted"
+   ],
+   "calculator": false
+  },
+  {
+   "id": "melcon-transformers",
+   "name": "Melcon Transformers",
+   "family": "transformers",
+   "path": "/melcon-transformers",
+   "for": [
+    "business",
+    "utility"
+   ],
+   "pitch": "Melcon, 80% owned by Saatvik, makes oil-immersed, dry-type, energy-efficient and special transformers up to 25 MVA, 33 kV class, for utilities, industry, EPCs and export.",
+   "story": [
+    {
+     "heading": "Oil Type & Dry Type Transformers",
+     "say": "Up to 33 kV class, 100+ vendor approvals, 20,000+ transformers delivered."
+    },
+    {
+     "heading": "Reliable Power & Distribution Transformers",
+     "say": "ISO 9001, 14001 and 45001 certified; up to 25 MVA, 33 kV; Saatvik acquired an 80% stake."
+    },
+    {
+     "heading": "Oil-Immersed Transformers",
+     "say": "5 to 25,000 kVA, up to 33 kV, ONAN/ONAF, IS 1180 / IS 2026 / IEC 76."
+    },
+    {
+     "heading": "Dry-Type Transformers (VPI)",
+     "say": "Up to 2,500 kVA, Class F/H, self-extinguishing, for indoor and fire-sensitive sites."
+    },
+    {
+     "heading": "Special-Designed Transformers",
+     "say": "Scott-T, furnace, ultra-isolation, low-harmonics and solar-duty units."
+    },
+    {
+     "heading": "Powering a wide spectrum of industries",
+     "say": "Solar, thermal, hydro, wind, steel, paper, textiles, mining, infrastructure and PSUs."
+    },
+    {
+     "heading": "Serving every kind of buyer",
+     "say": "Private industry, EPC partners, export to 8+ countries, utilities and PSUs."
+    },
+    {
+     "heading": "Ready to work with our team?",
+     "say": "Send an RFQ or enquiry; the technical team responds promptly."
+    }
+   ],
+   "features": [
+    {
+     "heading": "Oil-Immersed Transformers",
+     "fact": "5–25,000 kVA."
+    },
+    {
+     "heading": "Dry-Type Transformers (VPI)",
+     "fact": "Up to 2,500 kVA."
+    },
+    {
+     "heading": "Energy-Efficient Distribution",
+     "fact": "Star-rated, low-loss."
+    },
+    {
+     "heading": "Special-Designed Transformers",
+     "fact": "Scott-T, furnace, solar-duty and more."
+    }
+   ],
+   "variants": [
+    {
+     "name": "Oil-Immersed",
+     "key": "5–25,000 kVA",
+     "heading_or_text": "Oil-Immersed Transformers",
+     "line": "melcon-oil-immersed"
+    },
+    {
+     "name": "Dry-Type (VPI)",
+     "key": "up to 2,500 kVA",
+     "heading_or_text": "Dry-Type Transformers (VPI)",
+     "line": "melcon-dry-type"
+    },
+    {
+     "name": "Energy-Efficient Distribution",
+     "key": "star-rated",
+     "heading_or_text": "Energy-Efficient Distribution",
+     "line": "melcon-energy-efficient"
+    },
+    {
+     "name": "Special-Designed",
+     "key": "application-engineered",
+     "heading_or_text": "Special-Designed Transformers",
+     "line": "melcon-special-designed"
+    }
+   ],
+   "tabs": [],
+   "faqs": [],
+   "datasheets": [
+    {
+     "document_id": "melcon-transformers-flyer",
+     "title": "Melcon Transformers Flyer (DOWNLOAD FLYER) — its ratings differ from the pages",
+     "pages": {
+      "1": "strengths: diverse applications, energy efficient, low maintenance, timely delivery",
+      "2": "product list and ratings, fittings & accessories, contact +91 92530 58802"
+     }
+    }
+   ],
+   "specs": {
+    "max rating": "25 MVA (Melcon pages; /transformers says 10 MVA)",
+    "voltage class": "33 kV",
+    "transformers delivered": "20,000+",
+    "vendor approvals": "100+",
+    "export": "8+ countries",
+    "certifications": "ISO 9001:2015, 14001:2015, 45001:2018"
+   },
+   "cta": {
+    "primary": {
+     "label": "CONTACT US / SEND AN ENQUIRY (Melcon's own RFQ form; no tool fills it)",
+     "tool": "cue",
+     "args": {
+      "page": "/melcon-transformers/contact"
+     }
+    },
+    "secondary": [
+     {
+      "label": "Saatvik's main contact form instead",
+      "tool": "open_enquiry",
+      "args": {
+       "kind": "domestic",
+       "category": "Transformer"
+      }
+     },
+     {
+      "label": "DOWNLOAD FLYER",
+      "tool": "open_document",
+      "args": {
+       "document_id": "melcon-transformers-flyer",
+       "page": 1
+      }
+     }
+    ],
+    "page_buttons": [
+     "EXPLORE RANGE",
+     "CONTACT US",
+     "DOWNLOAD FLYER",
+     "Learn More (per family)",
+     "Discuss your application",
+     "CONTACT (sub-nav)"
+    ]
+   },
+   "qualify": [
+    "What rating (kVA / MVA) and voltage class?",
+    "Oil-immersed or dry type, and indoor or outdoor?",
+    "What duty — distribution, power, solar/inverter-duty, furnace, other special?",
+    "Who is buying — utility/PSU, EPC, private industry, or export?",
+    "How many units, which site/state, and by when?"
+   ],
+   "next": [
+    "melcon-products",
+    "melcon-solar-duty",
+    "epc-ground-mounted"
+   ],
+   "calculator": false
+  },
+  {
+   "id": "melcon-products",
+   "name": "Melcon Transformer Range",
+   "family": "transformers",
+   "path": "/melcon-transformers/products",
+   "for": [
+    "business",
+    "utility"
+   ],
+   "pitch": "All six Melcon families on one page — oil-immersed, dry-type, energy-efficient, power, solar-duty and special-designed — 5 kVA to 25,000 kVA, up to 37.5 kV class on this page.",
+   "story": [
+    {
+     "heading": "Power & distribution transformers for every duty",
+     "say": "Oil-immersed, energy-efficient, special-purpose and dry-type, built to IS, IEC and international standards."
+    },
+    {
+     "heading": "Oil-Immersed Transformers",
+     "say": "The most widely deployed type: oil insulates and cools."
+    },
+    {
+     "heading": "Dry-Type Transformers (VPI)",
+     "say": "No oil hazards; for indoor and fire-sensitive sites."
+    },
+    {
+     "heading": "Power Transformers",
+     "say": "Up to 25 MVA, 33 kV class, for transmission and heavy industry."
+    },
+    {
+     "heading": "Solar-Duty Transformers",
+     "say": "Handle harmonics and cycling to step up inverter output."
+    },
+    {
+     "heading": "Not sure which transformer fits your load?",
+     "say": "Send the rating, voltage class and duty cycle; the team recommends a unit."
+    }
+   ],
+   "features": [],
+   "variants": [
+    {
+     "name": "Oil-Immersed",
+     "key": "5–25,000 kVA",
+     "heading_or_text": "Oil-Immersed Transformers",
+     "line": "melcon-oil-immersed"
+    },
+    {
+     "name": "Dry-Type (VPI)",
+     "key": "indoor, fire-sensitive",
+     "heading_or_text": "Dry-Type Transformers (VPI)",
+     "line": "melcon-dry-type"
+    },
+    {
+     "name": "Energy-Efficient Distribution",
+     "key": "star-rated, low loss",
+     "heading_or_text": "Energy-Efficient Distribution Transformers",
+     "line": "melcon-energy-efficient"
+    },
+    {
+     "name": "Power Transformers",
+     "key": "up to 25 MVA",
+     "heading_or_text": "Power Transformers",
+     "line": "melcon-power"
+    },
+    {
+     "name": "Solar-Duty",
+     "key": "inverter duty",
+     "heading_or_text": "Solar-Duty Transformers",
+     "line": "melcon-solar-duty"
+    },
+    {
+     "name": "Special-Designed",
+     "key": "Scott-T, furnace, etc.",
+     "heading_or_text": "Special-Designed Transformers",
+     "line": "melcon-special-designed"
+    }
+   ],
+   "tabs": [],
+   "faqs": [],
+   "datasheets": [],
+   "specs": {
+    "range": "5 kVA to 25,000 kVA",
+    "voltage class": "up to 37.5 kV (this page's description) / 33 kV elsewhere"
+   },
+   "cta": {
+    "primary": {
+     "label": "CONTACT US / SEND AN ENQUIRY (Melcon's own RFQ form; no tool fills it)",
+     "tool": "cue",
+     "args": {
+      "page": "/melcon-transformers/contact"
+     }
+    },
+    "secondary": [
+     {
+      "label": "Saatvik's main contact form instead",
+      "tool": "open_enquiry",
+      "args": {
+       "kind": "domestic",
+       "category": "Transformer"
+      }
+     }
+    ],
+    "page_buttons": [
+     "View Specification (per family)",
+     "SEND AN ENQUIRY",
+     "CONTACT (sub-nav)"
+    ]
+   },
+   "qualify": [
+    "What rating (kVA / MVA) and voltage class?",
+    "Oil-immersed or dry type, and indoor or outdoor?",
+    "What duty — distribution, power, solar/inverter-duty, furnace, other special?",
+    "Who is buying — utility/PSU, EPC, private industry, or export?",
+    "How many units, which site/state, and by when?"
+   ],
+   "next": [
+    "melcon-solar-duty",
+    "melcon-oil-immersed"
+   ],
+   "calculator": false
+  },
+  {
+   "id": "melcon-oil-immersed",
+   "name": "Melcon Oil-Immersed Transformers",
+   "family": "transformers",
+   "path": "/melcon-transformers/products/oil-immersed",
+   "for": [
+    "utility",
+    "business"
+   ],
+   "pitch": "Oil-immersed transformers whose dielectric oil both insulates and cools — 5 kVA to 25,000 kVA, up to 33 kV — for utilities, industry and power projects.",
+   "story": [
+    {
+     "heading": "Oil-Immersed Transformers",
+     "say": "Oil cools and insulates, with thermal conductivity around six times greater than air; for utility networks, industrial plants and solar, wind, thermal and hydro projects."
+    },
+    {
+     "heading": "Tell us your rating and duty",
+     "say": "Share the kVA, voltage class and site conditions; the team replies with a specification and price."
+    }
+   ],
+   "features": [],
+   "variants": [],
+   "tabs": [],
+   "faqs": [],
+   "datasheets": [],
+   "specs": {
+    "power range": "5 kVA to 25,000 kVA (up to 25 MVA)",
+    "voltage class": "up to 33 kV",
+    "cooling": "ONAN / ONAF / OFAF / OFWF"
+   },
+   "cta": {
+    "primary": {
+     "label": "CONTACT US / SEND AN ENQUIRY (Melcon's own RFQ form; no tool fills it)",
+     "tool": "cue",
+     "args": {
+      "page": "/melcon-transformers/contact"
+     }
+    },
+    "secondary": [
+     {
+      "label": "Saatvik's main contact form instead",
+      "tool": "open_enquiry",
+      "args": {
+       "kind": "domestic",
+       "category": "Transformer"
+      }
+     }
+    ],
+    "page_buttons": [
+     "ALL PRODUCTS",
+     "REQUEST A QUOTE",
+     "SEND AN ENQUIRY",
+     "(links to the other five families)"
+    ]
+   },
+   "qualify": [
+    "What rating (kVA / MVA) and voltage class?",
+    "Oil-immersed or dry type, and indoor or outdoor?",
+    "What duty — distribution, power, solar/inverter-duty, furnace, other special?",
+    "Who is buying — utility/PSU, EPC, private industry, or export?",
+    "How many units, which site/state, and by when?"
+   ],
+   "next": [
+    "melcon-products",
+    "melcon-transformers"
+   ],
+   "calculator": false
+  },
+  {
+   "id": "melcon-dry-type",
+   "name": "Melcon Dry-Type Transformers (VPI)",
+   "family": "transformers",
+   "path": "/melcon-transformers/products/dry-type",
+   "for": [
+    "business",
+    "institution"
+   ],
+   "pitch": "Air-cooled, epoxy or cast-resin VPI transformers with no oil — for hospitals, data centres, malls and high-rises.",
+   "story": [
+    {
+     "heading": "Dry-Type Transformers (VPI)",
+     "say": "No oil hazards: zero fire and explosion risk, compact for indoor placement, lower maintenance; for hospitals, data centres and high-rise buildings."
+    },
+    {
+     "heading": "Tell us your rating and duty",
+     "say": "Share the kVA, voltage class and site conditions; the team replies with a specification and price."
+    }
+   ],
+   "features": [],
+   "variants": [],
+   "tabs": [],
+   "faqs": [],
+   "datasheets": [],
+   "specs": {
+    "power range": "from 25 kVA (rest cut off in the crawl; Melcon home page: up to 2,500 kVA)",
+    "insulation": "epoxy / cast resin, VPI"
+   },
+   "cta": {
+    "primary": {
+     "label": "CONTACT US / SEND AN ENQUIRY (Melcon's own RFQ form; no tool fills it)",
+     "tool": "cue",
+     "args": {
+      "page": "/melcon-transformers/contact"
+     }
+    },
+    "secondary": [
+     {
+      "label": "Saatvik's main contact form instead",
+      "tool": "open_enquiry",
+      "args": {
+       "kind": "domestic",
+       "category": "Transformer"
+      }
+     }
+    ],
+    "page_buttons": [
+     "ALL PRODUCTS",
+     "REQUEST A QUOTE",
+     "SEND AN ENQUIRY",
+     "(links to the other five families)"
+    ]
+   },
+   "qualify": [
+    "What rating (kVA / MVA) and voltage class?",
+    "Oil-immersed or dry type, and indoor or outdoor?",
+    "What duty — distribution, power, solar/inverter-duty, furnace, other special?",
+    "Who is buying — utility/PSU, EPC, private industry, or export?",
+    "How many units, which site/state, and by when?"
+   ],
+   "next": [
+    "melcon-products",
+    "melcon-transformers"
+   ],
+   "calculator": false
+  },
+  {
+   "id": "melcon-energy-efficient",
+   "name": "Melcon Energy-Efficient Distribution Transformers",
+   "family": "transformers",
+   "path": "/melcon-transformers/products/energy-efficient-distribution",
+   "for": [
+    "utility",
+    "business"
+   ],
+   "pitch": "Star-rated, low-loss distribution transformers that cut no-load and load losses — for DISCOMs, PSUs, industrial estates and solar plants.",
+   "story": [
+    {
+     "heading": "Energy-Efficient Distribution Transformers",
+     "say": "Star-rated and low-loss across the operating life; ideal for electricity boards, PSUs, industrial estates and renewable plants."
+    },
+    {
+     "heading": "Tell us your rating and duty",
+     "say": "Share the kVA, voltage class and site conditions; the team replies with a specification and price."
+    }
+   ],
+   "features": [],
+   "variants": [],
+   "tabs": [],
+   "faqs": [],
+   "datasheets": [],
+   "specs": {
+    "type": "distribution",
+    "power range": "5 kVA upwards",
+    "voltage class": "up to 33 kV",
+    "standards": "IS 1180 / IS 2026"
+   },
+   "cta": {
+    "primary": {
+     "label": "CONTACT US / SEND AN ENQUIRY (Melcon's own RFQ form; no tool fills it)",
+     "tool": "cue",
+     "args": {
+      "page": "/melcon-transformers/contact"
+     }
+    },
+    "secondary": [
+     {
+      "label": "Saatvik's main contact form instead",
+      "tool": "open_enquiry",
+      "args": {
+       "kind": "domestic",
+       "category": "Transformer"
+      }
+     }
+    ],
+    "page_buttons": [
+     "ALL PRODUCTS",
+     "REQUEST A QUOTE",
+     "SEND AN ENQUIRY",
+     "(links to the other five families)"
+    ]
+   },
+   "qualify": [
+    "What rating (kVA / MVA) and voltage class?",
+    "Oil-immersed or dry type, and indoor or outdoor?",
+    "What duty — distribution, power, solar/inverter-duty, furnace, other special?",
+    "Who is buying — utility/PSU, EPC, private industry, or export?",
+    "How many units, which site/state, and by when?"
+   ],
+   "next": [
+    "melcon-products",
+    "melcon-transformers"
+   ],
+   "calculator": false
+  },
+  {
+   "id": "melcon-power",
+   "name": "Melcon Power Transformers",
+   "family": "transformers",
+   "path": "/melcon-transformers/products/power-transformers",
+   "for": [
+    "utility",
+    "business"
+   ],
+   "pitch": "Power transformers up to 25 MVA, 33 kV class for substations, heavy industry and renewable evacuation.",
+   "story": [
+    {
+     "heading": "Power Transformers",
+     "say": "Up to 25 MVA and 33 kV, built to withstand short-circuit, impulse and dynamic tests; for grid substations, steel, cement, mining and renewable evacuation."
+    },
+    {
+     "heading": "Tell us your rating and duty",
+     "say": "Share the kVA, voltage class and site conditions; the team replies with a specification and price."
+    }
+   ],
+   "features": [],
+   "variants": [],
+   "tabs": [],
+   "faqs": [],
+   "datasheets": [],
+   "specs": {
+    "max rating": "up to 25 MVA",
+    "voltage class": "up to 33 kV",
+    "cooling": "ONAN / ONAF / OFAF",
+    "standards": "IS 2026, IEC 76"
+   },
+   "cta": {
+    "primary": {
+     "label": "CONTACT US / SEND AN ENQUIRY (Melcon's own RFQ form; no tool fills it)",
+     "tool": "cue",
+     "args": {
+      "page": "/melcon-transformers/contact"
+     }
+    },
+    "secondary": [
+     {
+      "label": "Saatvik's main contact form instead",
+      "tool": "open_enquiry",
+      "args": {
+       "kind": "domestic",
+       "category": "Transformer"
+      }
+     }
+    ],
+    "page_buttons": [
+     "ALL PRODUCTS",
+     "REQUEST A QUOTE",
+     "SEND AN ENQUIRY",
+     "(links to the other five families)"
+    ]
+   },
+   "qualify": [
+    "What rating (kVA / MVA) and voltage class?",
+    "Oil-immersed or dry type, and indoor or outdoor?",
+    "What duty — distribution, power, solar/inverter-duty, furnace, other special?",
+    "Who is buying — utility/PSU, EPC, private industry, or export?",
+    "How many units, which site/state, and by when?"
+   ],
+   "next": [
+    "melcon-products",
+    "melcon-transformers"
+   ],
+   "calculator": false
+  },
+  {
+   "id": "melcon-solar-duty",
+   "name": "Melcon Solar-Duty Transformers",
+   "family": "transformers",
+   "path": "/melcon-transformers/products/solar-duty",
+   "for": [
+    "utility",
+    "business"
+   ],
+   "pitch": "Inverter-duty transformers built for the harmonics and cycling of solar plants, stepping inverter output up for the grid.",
+   "story": [
+    {
+     "heading": "Solar-Duty Transformers",
+     "say": "Built for solar's waveform and cycling; for ground-mounted and rooftop plants, wind and hybrid projects, IPPs, EPC and utility developers."
+    },
+    {
+     "heading": "Tell us your rating and duty",
+     "say": "Share the kVA, voltage class and site conditions; the team replies with a specification and price."
+    }
+   ],
+   "features": [],
+   "variants": [],
+   "tabs": [],
+   "faqs": [],
+   "datasheets": [],
+   "specs": {
+    "duty": "inverter / solar",
+    "voltage class": "up to 33 kV",
+    "cooling": "ONAN / ONAF",
+    "standards": "IS 2026, IEC 76"
+   },
+   "cta": {
+    "primary": {
+     "label": "CONTACT US / SEND AN ENQUIRY (Melcon's own RFQ form; no tool fills it)",
+     "tool": "cue",
+     "args": {
+      "page": "/melcon-transformers/contact"
+     }
+    },
+    "secondary": [
+     {
+      "label": "Saatvik's main contact form instead",
+      "tool": "open_enquiry",
+      "args": {
+       "kind": "domestic",
+       "category": "Transformer"
+      }
+     }
+    ],
+    "page_buttons": [
+     "ALL PRODUCTS",
+     "REQUEST A QUOTE",
+     "SEND AN ENQUIRY",
+     "(links to the other five families)"
+    ]
+   },
+   "qualify": [
+    "What rating (kVA / MVA) and voltage class?",
+    "Oil-immersed or dry type, and indoor or outdoor?",
+    "What duty — distribution, power, solar/inverter-duty, furnace, other special?",
+    "Who is buying — utility/PSU, EPC, private industry, or export?",
+    "How many units, which site/state, and by when?"
+   ],
+   "next": [
+    "melcon-products",
+    "melcon-transformers"
+   ],
+   "calculator": false
+  },
+  {
+   "id": "melcon-special-designed",
+   "name": "Melcon Special-Designed Transformers",
+   "family": "transformers",
+   "path": "/melcon-transformers/products/special-designed",
+   "for": [
+    "business",
+    "utility"
+   ],
+   "pitch": "Application-engineered transformers — Scott-T, heat-tracing, converter-duty, hermetically sealed, furnace, ultra-isolation, low-harmonics and green designs.",
+   "story": [
+    {
+     "heading": "Special-Designed Transformers",
+     "say": "Scott-T, converter-duty, furnace and heat-tracing, hermetically sealed and self-filtration, ultra-isolation and low-harmonics, green transformers, plus monitoring accessories and panels."
+    },
+    {
+     "heading": "Tell us your rating and duty",
+     "say": "Share the kVA, voltage class and site conditions; the team replies with a specification and price."
+    }
+   ],
+   "features": [],
+   "variants": [],
+   "tabs": [],
+   "faqs": [],
+   "datasheets": [],
+   "specs": {
+    "types": "Scott-T, heat-tracing, converter-duty, hermetically sealed, self-filtration, green, furnace, ultra-isolation, low-harmonics"
+   },
+   "cta": {
+    "primary": {
+     "label": "CONTACT US / SEND AN ENQUIRY (Melcon's own RFQ form; no tool fills it)",
+     "tool": "cue",
+     "args": {
+      "page": "/melcon-transformers/contact"
+     }
+    },
+    "secondary": [
+     {
+      "label": "Saatvik's main contact form instead",
+      "tool": "open_enquiry",
+      "args": {
+       "kind": "domestic",
+       "category": "Transformer"
+      }
+     }
+    ],
+    "page_buttons": [
+     "ALL PRODUCTS",
+     "REQUEST A QUOTE",
+     "SEND AN ENQUIRY",
+     "(links to the other five families)"
+    ]
+   },
+   "qualify": [
+    "What rating (kVA / MVA) and voltage class?",
+    "Oil-immersed or dry type, and indoor or outdoor?",
+    "What duty — distribution, power, solar/inverter-duty, furnace, other special?",
+    "Who is buying — utility/PSU, EPC, private industry, or export?",
+    "How many units, which site/state, and by when?"
+   ],
+   "next": [
+    "melcon-products",
+    "melcon-transformers"
+   ],
+   "calculator": false
+  },
+  {
+   "id": "dealer",
+   "name": "Become a Dealer / Find a Dealer",
+   "family": "dealer",
+   "path": "/apply-for-distributorship",
+   "also_paths": [
+    "/dealer-locator"
+   ],
+   "for": [
+    "dealer",
+    "home",
+    "farm",
+    "business"
+   ],
+   "pitch": "For businesses that want to sell Saatvik: margin support, marketing, priority supply from 4.8 GW and shared leads. For buyers, the dealer locator lists Saatvik partners across 17 states.",
+   "story": [
+    {
+     "heading": "Grow With India's Solar Leader",
+     "say": "Become a Saatvik distributor and bring Made-in-India solar to your territory."
+    },
+    {
+     "heading": "Healthy Channel Margins",
+     "say": "Structured, protected pricing across dealer and distributor tiers."
+    },
+    {
+     "heading": "Priority Supply",
+     "say": "Allocation from 4.8 GW of in-house capacity, even in peak season."
+    },
+    {
+     "heading": "Lead Sharing",
+     "say": "Enquiries from national campaigns and the toll-free line go to partners in the territory."
+    },
+    {
+     "heading": "What We Look For",
+     "say": "A GST-registered business; solar, electrical, hardware or agri-equipment experience preferred; warehousing."
+    },
+    {
+     "heading": "The Onboarding Timeline",
+     "say": "Apply on day 0; review in days 1–7; discussion and visit weeks 2–3; agreement week 4; launch weeks 5–6."
+    },
+    {
+     "heading": "Bring Saatvik To Your Territory",
+     "say": "Applications are reviewed in the order they arrive."
+    }
+   ],
+   "features": [
+    {
+     "heading": "Healthy Channel Margins",
+     "fact": "Protected pricing."
+    },
+    {
+     "heading": "Marketing & Branding",
+     "fact": "Co-branded signage, campaigns, exhibitions, digital leads."
+    },
+    {
+     "heading": "Priority Supply",
+     "fact": "From 4.8 GW."
+    },
+    {
+     "heading": "Training & Certification",
+     "fact": "Product, installation and sales training."
+    },
+    {
+     "heading": "Lead Sharing",
+     "fact": "National enquiries routed to partners."
+    },
+    {
+     "heading": "After-Sales Backing",
+     "fact": "Warranty administration handled centrally."
+    }
+   ],
+   "variants": [],
+   "tabs": [],
+   "faqs": [],
+   "datasheets": [],
+   "specs": {
+    "onboarding": "about 5–6 weeks",
+    "dealer-locator states": "17 (Assam … West Bengal)",
+    "supply capacity": "4.8 GW"
+   },
+   "cta": {
+    "primary": {
+     "label": "DEALER ENQUIRY tab on /contact (what open_enquiry kind=dealer fills)",
+     "tool": "open_enquiry",
+     "args": {
+      "kind": "dealer"
+     }
+    },
+    "secondary": [
+     {
+      "label": "Start Your Application (/apply-for-distributorship form; no tool fills it)",
+      "tool": "cue",
+      "args": {
+       "page": "/apply-for-distributorship"
+      }
+     },
+     {
+      "label": "Find a dealer (for buyers)",
+      "tool": "find_dealer",
+      "args": {}
+     }
+    ],
+    "page_buttons": [
+     "Start Your Application",
+     "Talk To Partnerships (mailto sales@)",
+     "SUBMIT APPLICATION",
+     "dealer locator"
+    ]
+   },
+   "qualify": [
+    "Do you want to sell Saatvik, or buy from a dealer near you?",
+    "Your business today — solar dealer, electrical/hardware, EPC/installer, agri/pump dealer, or new to solar?",
+    "Which territory (city, district, state)?",
+    "Warehousing and investment capacity (the dealer tab asks 50 lakh–1 crore or above)?",
+    "Annual turnover (optional on the application)?"
+   ],
+   "next": [
+    "solar-kits",
+    "solar-pumps",
+    "modules"
+   ],
+   "calculator": false
+  }
+ ]
+}
