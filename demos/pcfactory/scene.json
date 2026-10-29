@@ -1,0 +1,191 @@
+{
+  "$schema": "../../sdk/js/stage/stage.schema.json",
+  "stage": 1,
+  "id": "pcfactory",
+  "languages": ["es", "en"],
+  "kits": [
+    {
+      "id": "commerce",
+      "major": 1,
+      "moves": [
+        "commerce.filter",
+        "commerce.sort",
+        "commerce.search",
+        "commerce.cart_add",
+        "commerce.cart_update",
+        "commerce.cart_show"
+      ]
+    }
+  ],
+  "moves": [
+    {
+      "id": "page.open",
+      "verb": "page",
+      "class": "navigate",
+      "args": [{ "name": "path", "doc": "A path on www.pcfactory.cl: /, /tiendas, /centro-de-ayuda/..., /categoria/..., /producto/<id>." }],
+      "say": "{page: /path} at the start of the sentence that takes them there.",
+      "claims": ["te llevo a", "vamos a", "abro la página", "taking you to", "opening the page"],
+      "objects": ["page", "página"],
+      "doc": "Open a page of the store (a full load)."
+    },
+    {
+      "id": "page.show",
+      "verb": "show",
+      "class": "look",
+      "args": [
+        { "name": "target", "doc": "A heading, section or card title exactly as the page writes it." },
+        { "name": "path", "optional": true, "doc": "The page it is on, when it is not the one in front; it is opened first." }
+      ],
+      "say": "{show: Heading} as you start talking about a part of the page.",
+      "doc": "Scroll to a heading, section or card on the page in front and ring it."
+    },
+    {
+      "id": "page.faq",
+      "verb": "faq",
+      "class": "look",
+      "args": [
+        { "name": "question", "doc": "The question as the page writes it." },
+        { "name": "path", "optional": true }
+      ],
+      "say": "{faq: Question} as you answer one of the page's questions.",
+      "doc": "Open one question of the page's FAQ (Centro de ayuda, Cyber, Gamer) and ring its answer."
+    },
+    {
+      "id": "product.tab",
+      "verb": "tab",
+      "class": "look",
+      "args": [{ "name": "tab", "enum": ["about", "specs", "warranty", "stock", "photos"] }],
+      "say": "{tab: specs} as you talk about the product's specifications; about, warranty, stock (by store) or photos likewise.",
+      "doc": "On the product page in front, open a tab (Sobre este producto, Especificaciones, Garantía), scroll to the stock by store (Disponibilidad), or step through the gallery, and ring it."
+    },
+    {
+      "id": "filter_listing",
+      "class": "reversible",
+      "args": [
+        { "name": "category_path", "doc": "/categoria/... from the category list, or /busqueda-avanzada?search=... for a search." },
+        {
+          "name": "filters",
+          "type": "array",
+          "optional": true,
+          "doc": "Each \"Facet: Option\" exactly as the listing writes them (\"Marcas: Lenovo\", \"RAM: 16GB\", \"Tiendas: Costanera Center\"); several options of one facet as separate entries."
+        },
+        { "name": "min_price", "type": "integer", "optional": true, "doc": "Pesos, for Rango de precios." },
+        { "name": "max_price", "type": "integer", "optional": true, "doc": "Pesos, for Rango de precios." },
+        { "name": "sort", "enum": ["price_asc", "price_desc", "relevance"], "optional": true }
+      ],
+      "claims": ["filtrando por", "filtro por", "filtering by"],
+      "objects": ["filter", "filtro", "filtros"],
+      "doc": "Go to the listing at category_path (a full load, if it is not the one in front), then apply each filter with the listing's own checkbox, one at a time, waiting for the grid; then the price range and the sort. Reports listing.shown and listing.filtered."
+    },
+    {
+      "id": "open_product",
+      "class": "navigate",
+      "args": [
+        { "name": "path", "doc": "/producto/<id> or /producto/<id>-<slug>." },
+        { "name": "tab", "enum": ["about", "specs", "warranty", "stock", "photos"], "optional": true }
+      ],
+      "claims": ["abro el producto", "te muestro el", "opening the", "let me open"],
+      "objects": ["product", "producto"],
+      "doc": "Open the product at path (a full load), then the tab named. Reports product.shown, then product.checked from the store's live price and stock."
+    },
+    {
+      "id": "find_products",
+      "class": "look",
+      "args": [
+        { "name": "query", "optional": true, "doc": "Words to search the catalogue for, in Spanish: \"notebook gamer rtx 4060\"." },
+        { "name": "category_id", "type": "integer", "optional": true, "doc": "A category id from the category list." },
+        { "name": "brand", "optional": true },
+        { "name": "min_price", "type": "integer", "optional": true },
+        { "name": "max_price", "type": "integer", "optional": true },
+        { "name": "sort", "enum": ["price_asc", "price_desc", "relevance"], "optional": true }
+      ],
+      "doc": "Read the store's own catalogue search in the visitor's browser, without moving the page: up to eight products with their live prices and stock, and how many match. Reports products_found."
+    },
+    {
+      "id": "check_prices",
+      "class": "look",
+      "args": [{ "name": "paths", "type": "array", "doc": "Up to six /producto/<id> paths." }],
+      "doc": "Read the live price (transferencia, otros medios, referencia) and the online stock of these products in the visitor's browser. Moves nothing. Reports prices_read."
+    },
+    {
+      "id": "check_stock",
+      "class": "look",
+      "args": [
+        { "name": "path", "doc": "/producto/<id>." },
+        { "name": "store", "optional": true, "doc": "A store's name as the store list writes it, or a comuna or city." }
+      ],
+      "doc": "Read the product's stock in every store (and Internet) in the visitor's browser; on its page, scroll to Disponibilidad and ring the store asked about. Reports stock_read."
+    },
+    {
+      "id": "stores.show",
+      "verb": "store",
+      "class": "look",
+      "args": [{ "name": "name", "doc": "A store's name as /tiendas writes it." }],
+      "say": "{store: Name} as you talk about one of the stores.",
+      "doc": "On /tiendas (opened first if needed), find the store, scroll to it, ring it and open its map card (address and hours). Reports store_shown."
+    },
+    {
+      "id": "compare.add",
+      "class": "reversible",
+      "args": [{ "name": "paths", "type": "array", "doc": "Two to four /producto/<id> paths shown on the listing in front, or the product in front." }],
+      "claims": ["comparo", "comparando", "comparing"],
+      "objects": ["comparador", "comparator", "comparison"],
+      "doc": "Tick the store's own Comparar box on each product and bring up its comparator. Reports compare_shown."
+    },
+    {
+      "id": "apply_coupon",
+      "class": "confirmed",
+      "args": [{ "name": "code", "doc": "The coupon code as the site writes it (LEN50)." }],
+      "claims": ["aplico el cupón", "applying the coupon"],
+      "objects": ["cupón", "coupon"],
+      "doc": "On the cart (/carro, opened first), type the code into Cupón de descuento and press Aplicar, once the visitor said yes. Reports cart.changed and the store's message."
+    },
+    {
+      "id": "start_checkout",
+      "class": "confirmed",
+      "claims": ["te llevo al checkout", "vamos a pagar", "taking you to checkout"],
+      "objects": ["checkout", "pago"],
+      "doc": "From the cart (/carro, opened first) press Continuar, then Continuar como invitado (never a login or Crear nueva cuenta), and stop on Tipo de entrega, where the visitor chooses store pickup or delivery. Reports checkout.changed. Nothing past that step."
+    }
+  ],
+  "slices": [
+    {
+      "id": "product",
+      "doc": "the product page in front: its name, three prices, stock and specifications",
+      "fields": [
+        { "name": "path" },
+        { "name": "id", "type": "integer", "optional": true },
+        { "name": "name" },
+        { "name": "brand", "optional": true },
+        { "name": "price", "type": "number", "optional": true, "doc": "Transferencia / Débito, the headline price." },
+        { "name": "card_price", "type": "number", "optional": true, "doc": "Otros medios de pago (credit card)." },
+        { "name": "regular_price", "type": "number", "optional": true, "doc": "The struck reference price the discount is computed against." },
+        { "name": "online_stock", "optional": true, "doc": "Units for delivery, as the store writes them (\"+100\", \"2\")." },
+        { "name": "stores_with_stock", "type": "integer", "optional": true },
+        { "name": "warranty", "optional": true },
+        { "name": "promo_until", "optional": true },
+        {
+          "name": "specs",
+          "type": "array",
+          "fields": [{ "name": "label" }, { "name": "value" }],
+          "doc": "The Especificaciones tab, in order."
+        },
+        { "name": "source", "enum": ["page", "api"], "doc": "page: read from the HTML; api: the store's live read." }
+      ]
+    },
+    {
+      "id": "checkout",
+      "doc": "where they are in the checkout: the step and the delivery options it offers",
+      "fields": [
+        { "name": "step", "enum": ["login", "delivery", "payment", "other"] },
+        { "name": "options", "type": "array", "optional": true },
+        { "name": "chosen", "optional": true }
+      ]
+    }
+  ],
+  "events": [
+    { "id": "product.shown", "slice": "product", "op": "set", "note": "{by} opened the product {name}", "doc": "A product page came up, read from the page." },
+    { "id": "product.checked", "slice": "product", "op": "set", "doc": "The store's live read of the product in front: its prices and stock now." },
+    { "id": "checkout.changed", "slice": "checkout", "op": "set", "doc": "The checkout step on load and after a change; the brain writes its own line." }
+  ]
+}
