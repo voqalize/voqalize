@@ -332,7 +332,9 @@ def names_for_the_voice(text: str) -> str:
 
 def measures_said(text: str, lang: Lang) -> str:
     """The farm's measure codes in ``text`` as they are said: "15W40",
-    "12V", "100Ah", "50 HP" in words of ``lang``."""
+    "12V", "100Ah", "50 HP" in words of ``lang``; and every peso amount
+    (:func:`pesos_in_words`)."""
+    text = pesos_in_words(text, lang)
     say = _es_number if lang == "es" else _en_number
     if lang == "es":
         text = _VISCOSITY.sub(lambda m: f"{say(int(m[1]))} W {say(int(m[2]))}", text)
@@ -544,6 +546,76 @@ def pesos_said(amount: int, lang: Lang) -> str:
     said = _es_number(amount)
     exact_millions = amount >= 1_000_000 and amount % 1_000_000 == 0
     return f"{said} de pesos" if exact_millions else f"{said} pesos"
+
+
+_AMOUNT = r"\$\s?(\d{1,3}(?:\.\d{3})+|\d+)"
+#: A price bucket as the listing writes it: "$50.000 - $149.999".
+_PESOS_RANGE = re.compile(
+    r"(?:\b(?:with|con|in|en)\s+)?" + _AMOUNT + r"\s?(?:-|\u2013|a|to)\s?" + _AMOUNT,
+    re.IGNORECASE,
+)
+_PESOS = re.compile(_AMOUNT)
+
+
+def _amount(raw: str) -> int:
+    return int(raw.replace(".", ""))
+
+
+def _top(amount: int) -> int:
+    """A bucket's top as said: "$149.999" is "ciento cuarenta y nueve mil"."""
+    return amount - 999 if amount >= 1000 and amount % 1000 == 999 else amount
+
+
+def pesos_in_words(text: str, lang: Lang) -> str:
+    """Every peso amount in ``text`` in words of ``lang``: a bucket "$50.000 -
+    $149.999" is "entre cincuenta mil y ciento cuarenta y nueve mil pesos" /
+    "between fifty thousand and one hundred and forty-nine thousand pesos",
+    and "$80.000" "ochenta mil pesos". The voice reads "$50.000 - $149.999"
+    badly (dev call 370ecb04)."""
+    say = _es_number if lang == "es" else _en_number
+
+    def bucket(m: re.Match[str]) -> str:
+        low, high = _amount(m[1]), _top(_amount(m[2]))
+        if lang == "en":
+            return f"between {say(low)} and {pesos_said(high, lang)}"
+        return f"entre {say(low)} y {pesos_said(high, lang)}"
+
+    text = _PESOS_RANGE.sub(bucket, text)
+    return _PESOS.sub(lambda m: pesos_said(_amount(m[1]), lang), text)
+
+
+#: How a price bucket's open end is written, and said.
+_OPEN_BUCKET = re.compile(
+    r"^\s*(?P<how>m[aá]s de|sobre|desde|over|from|menos de|bajo|hasta|under|up to)\s+"
+    + _AMOUNT
+    + r"\s*$",
+    re.IGNORECASE,
+)
+_OPEN_SAID = {
+    "mas de": ("over", "de más de"),
+    "sobre": ("over", "de más de"),
+    "over": ("over", "de más de"),
+    "desde": ("from", "desde"),
+    "from": ("from", "desde"),
+    "menos de": ("under", "de menos de"),
+    "bajo": ("under", "de menos de"),
+    "under": ("under", "de menos de"),
+    "hasta": ("up to", "de hasta"),
+    "up to": ("up to", "de hasta"),
+}
+
+
+def price_option_said(option: str, lang: Lang) -> str | None:
+    """A facet option that is a price bucket, as said in a line of ``lang``
+    ("$50.000 - $149.999" → "entre cincuenta mil y ciento cuarenta y nueve mil
+    pesos", "Más de $500.000" → "over five hundred thousand pesos"); ``None``
+    for an option with no peso amount."""
+    if (m := _OPEN_BUCKET.match(option)) is not None:
+        en, es = _OPEN_SAID[fold(m["how"]).lower()]
+        return f"{en if lang == 'en' else es} {pesos_said(_amount(m[2]), lang)}"
+    if not _PESOS.search(option):
+        return None
+    return pesos_in_words(option.strip(), lang)
 
 
 def _money(amount: int, lang: Lang) -> str:
@@ -878,6 +950,8 @@ You talk the visitor through their screen like an adviser standing beside them, 
 - Never make up a heading, a path or a SKU: a product is opened only by a path you read this call.
 - One cue per sentence at most, before the sentence, never inside it.
 - A filter or sort cue sits on a promise of what you are doing ("Te dejo solo los Lubritek."), never on a statement of the result: the grid changes after. What the listing then shows comes to you in square brackets: say it on your next turn. A filter that could not be applied is said to you, to say so.
+- PRICES ON AGROPLANET ARE CHILEAN PESOS. A price range they say in "dollars", "lucas" or bare numbers ("fifty to one forty-nine", "fifty dollars to one hundred fifty dollars") means thousands of pesos: map it to the listing's price bucket it matches ("$50.000 - $149.999") and apply it at once, saying the range in pesos, in words ("between fifty thousand and one hundred and forty-nine thousand pesos"). Never ask whether they meant pesos. When no bucket fits exactly, apply the nearest bucket or the two it spans, and say which you picked.
+- Say a price bucket, and every amount, in words, never as the listing writes it: "$50.000 - $149.999" is "entre cincuenta mil y ciento cuarenta y nueve mil pesos", "Más de $500.000" is "más de quinientos mil pesos". The cue keeps the option as written.
 - TICK ONLY WHAT THE VISITOR NAMED. "Al menos cien amperes", "100 o más", "minimum 100Ah" is {{filter: Amperaje | 100}}, one option, never every size above it: say that bigger ones exist and offer to add them. Never add an option, a brand or a range they did not say.
 - A facet's options in a line may be cut short, and a listing has more than any line shows: NEVER SAY AN OPTION OR A FILTER IS MISSING unless a line from the page says it refused it. Write the cue with the option as they said it; the page answers. read_screen's listing lists every option of every facet, and read_category a category's.
 - A reply that calls a move tool has no page cue: the move takes them there. The cart and the quote form are only ever reached by their moves, never by a cue.
@@ -1224,11 +1298,11 @@ _LISTING_MOVES = ("filter_listing", "commerce.filter", "commerce.sort", "commerc
 _PRODUCT_MOVES = ("open_product", "commerce.search")
 
 
-def _said_list(items: list[str], lang: Lang) -> str:
-    """ "Lubritek and Shell", "Lubritek, Shell y Mobil"."""
+def _said_list(items: list[str], lang: Lang, joint: str | None = None) -> str:
+    """ "Lubritek and Shell", "Lubritek, Shell y Mobil"; ``joint`` for "or"."""
     if len(items) < 2:
         return "".join(items)
-    last = " and " if lang == "en" else " y "
+    last = f" {joint or ('and' if lang == 'en' else 'y')} "
     return ", ".join(items[:-1]) + last + items[-1]
 
 
@@ -1283,19 +1357,72 @@ def _option_said(option: str) -> str:
     )
 
 
+#: A spec facet's name in English, for "with a mineral base".
+_FACET_EN = {
+    "base": "base",
+    "viscosidad": "viscosity",
+    "amperaje": "amperage",
+    "voltaje": "voltage",
+    "capacidad": "capacity",
+    "tipo": "type",
+    "color": "colour",
+    "tamano": "size",
+    "medida": "size",
+    "aplicacion": "use",
+    "uso": "use",
+    "material": "material",
+    "potencia": "power",
+    "formato": "size",
+    "contenido": "size",
+}
+
+
+def _count_said(n: int, lang: Lang) -> str:
+    """A count as he says it: "five", "cinco"."""
+    return _en_number(n) if lang == "en" else _es_number(n)
+
+
 def filters_said(named: list[tuple[str, str]], lang: Lang) -> str:
     """The filters a move put on, as one natural phrase: "de Lubritek, con
-    15W40 y Mineral" / "from Lubritek, with 15W40 and Mineral". An option
-    another option begins with is said once."""
+    15W40 y base mineral, entre cincuenta mil y ciento cuarenta y nueve mil
+    pesos" / "from Lubritek, with 15W40 and a mineral base, between …". An
+    option another option begins with is said once; a price bucket is said
+    in words, never as the listing writes it."""
     options = [o for _, o in named]
     kept = [
         (f, o)
         for f, o in named
         if not any(other != o and fold(other).startswith(fold(o) + " ") for other in options)
     ]
+    prices = [said for _, o in kept if (said := price_option_said(o, lang)) is not None]
+    kept = [(f, o) for f, o in kept if price_option_said(o, lang) is None]
     brands = [_option_said(o) for f, o in kept if facet_key(f) in _BRAND_FACETS]
     kinds = [o for f, o in kept if facet_key(f) in _KIND_FACETS]
-    specs = [_option_said(o) for f, o in kept if facet_key(f) not in _BRAND_FACETS | _KIND_FACETS]
+    plain = [(f, o) for f, o in kept if facet_key(f) not in _BRAND_FACETS | _KIND_FACETS]
+    # A worded option is said with its facet, where its facet first comes:
+    # "a mineral base", "base mineral".
+    worded: dict[str, list[str]] = {}
+    for f, o in plain:
+        if f and not any(ch.isdigit() for ch in o):
+            worded.setdefault(f, []).append(o)
+    specs: list[str] = []
+    others: list[str] = []
+    said_facets: set[str] = set()
+    for f, o in plain:
+        if f not in worded or any(ch.isdigit() for ch in o):
+            specs.append(_option_said(o))
+            continue
+        if f in said_facets:
+            continue
+        said_facets.add(f)
+        opts = worded[f]
+        if lang == "es":
+            specs.append(f"{f.strip().lower()} {_said_list([x.lower() for x in opts], 'es', 'o')}")
+        elif (en := _FACET_EN.get(facet_key(f))) is not None:
+            said = _said_list([x.lower() for x in opts], "en", "or")
+            specs.append(f"{'an' if said[:1] in 'aeiou' else 'a'} {said} {en}")
+        else:
+            others.append(f"filtered by {f.strip()}: {_said_list(opts, 'en', 'or')}")
     parts: list[str] = []
     if kinds:
         parts.append(("in " if lang == "en" else "en ") + _said_list(kinds, lang))
@@ -1303,6 +1430,7 @@ def filters_said(named: list[tuple[str, str]], lang: Lang) -> str:
         parts.append(("from " if lang == "en" else "de ") + _said_list(brands, lang))
     if specs:
         parts.append(("with " if lang == "en" else "con ") + _said_list(specs, lang))
+    parts += prices + others
     return ", ".join(parts)
 
 
@@ -1329,16 +1457,17 @@ def listing_line(
         said = pesos_said(first.price, lang)
         price = f", at {said}" if lang == "en" else f", a {said}"
     where = f" {what}" if what else ""
+    count = _count_said(n, lang)
     if lang == "en":
         return (
             f"Here's one{where}: {name}{price}."
             if n == 1
-            else f"Here are {n}{where}. The first is {name}{price}."
+            else f"Here are {count}{where}. The first is {name}{price}."
         )
     return (
         f"Aquí hay uno{where}: {name}{price}."
         if n == 1
-        else f"Aquí hay {n}{where}. El primero es {name}{price}."
+        else f"Aquí hay {count}{where}. El primero es {name}{price}."
     )
 
 
@@ -1646,14 +1775,20 @@ _ADDS = re.compile(
     r"\b(?:agreg|anad|añad|pon(?:lo|la|er|me)|mete|echa|sum|add|put)\w*", re.IGNORECASE
 )
 #: A move on the cart: an add, a change, a removal, the quote. With the cart
-#: as recognition hears it ("add this to cut").
+#: as recognition hears it ("add this to cut", dev call 370ecb04) only in the
+#: shape of an add ("add … to the cut/card/car"); alone, "to the card" is not
+#: the cart.
 _CART_MOVE = re.compile(
-    r"\b(?:agreg|anad|añad|pon(?:lo|la|er|me)|mete|echa|add|put|quit|sac(?:a|alo|ala|ar)\b"
+    r"\b(?:agreg|anad|añad|pon(?:lo|la|er|me)|mete|echa|suma(?:lo|la|me|r)?\b|add(?!ress)|put"
+    r"|quit|sac(?:a|alo|ala|ar)\b"
     r"|elimin|borr|remove|take (?:it|them|that|one) out|cambi\w* (?:la )?cantidad"
     r"|change the (?:quantity|amount)|me lo llevo|me la llevo|lo llevo|la llevo|lo compro"
-    r"|la compro|i'?ll take it|cotiz|quote)\w*"
-    r"|\b(?:to|into|al|a la|a mi)\s+(?:the |my |mi |el |la )?"
-    r"(?:cart|cut|card|carro|carrito)\b",
+    r"|la compro|i'?ll take it|(?:lo|la) quiero\b(?!\s+\w)|i want (?:it|this one|that one)\b(?!\s+\w)"
+    r"|cotiz|quote)\w*"
+    r"|\b(?:to|into|al|a la|a mi)\s+(?:the |my |mi |el |la )?(?:cart|carro|carrito)\b"
+    r"|\b(?:add|put|agreg\w*|pon\w*|mete\w*|suma\w*|echa\w*)\b[^.?!]{0,40}?"
+    r"\b(?:to|into|in|al|a la|a mi|en)\s+(?:the |my |mi |el |la )?"
+    r"(?:carts?|cut|cards?|car|kart|carro|carrito)\b",
     re.IGNORECASE,
 )
 
@@ -1666,12 +1801,25 @@ def asks_cart_move(text: str) -> bool:
 
 #: A plain yes, in either language, as recognition hears it.
 _YES = re.compile(
-    r"\b(?:si|dale|ya|ok(?:ay|ey)?|yes|yeah|yep|sure|claro|perfecto|de acuerdo|hazlo"
-    r"|go ahead|do it|listo|obvio|vamos|confirm\w*|correcto|exacto|bueno|ya po)\b",
+    r"\b(?:si|dale|ya|ok(?:ay|ey)?|yes|yeah|yep|yup|sure|claro|perfect[oa]?|de acuerdo|hazlo"
+    r"|go ahead|go for it|do it|please do|sounds good|of course|absolutely|por supuesto"
+    r"|mhm|mm+[- ]?hmm|uh[- ]?huh|listo|obvio|vamos|confirm\w*|correcto|exacto|bueno|ya po)\b",
     re.IGNORECASE,
 )
 _NO = re.compile(
     r"^\W*(?:no|nop|nope|todavia no|aun no|not yet|mejor no|espera|wait)\b", re.IGNORECASE
+)
+#: A no that only corrects him, then asks by name: "No, add it.", "No, can
+#: you add this to cut?" (dev call 370ecb04). The ask is what follows the
+#: first break.
+_CORRECTED = re.compile(
+    r"^\W*(?:(?:no|nop|nope|wait|espera|perdon|sorry|oh|ah)\W*?\s*)+[,.;!]+\s*(?P<ask>\S.*)$",
+    re.IGNORECASE,
+)
+#: An ask turned down in the same breath: "don't add it", "no lo agregues".
+_NEGATED = re.compile(
+    r"\b(?:don'?t|do not|never|nunca|no (?:lo|la|los|las|me|le|les)\b|not (?:yet|now))",
+    re.IGNORECASE,
 )
 #: What asks for each confirmed move by name, without a yes.
 _ASKS_FOR: dict[str, re.Pattern[str]] = {
@@ -1697,10 +1845,14 @@ def consents(kind: str, last: str, before: str = "") -> bool:
     """Whether the visitor's last words let him make a confirmed move of
     ``kind`` (``cart``, ``quote``, ``form``): they asked for it by name (in
     their last words, or the fragment before them), or said yes to his offer
-    of it; never when their last words are a no."""
+    of it; never when their last words are a no, unless the no only corrects
+    him and then asks by name ("No, add it.")."""
     said = fold(last)
-    if _NO.search(said):
+    if _NEGATED.search(said):
         return False
+    if _NO.search(said):
+        fixed = _CORRECTED.match(said)
+        return bool(fixed and _ASKS_FOR[kind].search(fixed["ask"]))
     return bool(_YES.search(said) or _ASKS_FOR[kind].search(fold(f"{before} {last}")))
 
 
@@ -2017,6 +2169,14 @@ def _listing_note(e: ListingShown, lang: Lang) -> str:
             + "; ".join(f"{f.facet} ({', '.join(f.options)})" for f in offered)
             + "."
         )
+        buckets = [
+            f"{o} is “{said}”"
+            for f in offered
+            for o in f.options
+            if (said := price_option_said(o, lang)) is not None
+        ]
+        if buckets:
+            note += f" Its price ranges, as you say them: {'; '.join(buckets)}."
     if e.items:
         cards = [
             f"{i.name} ({i.path}), "
@@ -2322,6 +2482,9 @@ class AgroplanetBrain(OpenAIBrain):
         self._last_heard = ""
         self._confirm: str | None = None
         self._fallback = FallbackLine()
+        #: The confirmed move this turn's model call was refused for want of a
+        #: yes ("add it to the cart"): asked for at once, in the same turn.
+        self._refused: str | None = None
         #: The tab in front as it last reported itself, and whether the model
         #: has seen it since it changed.
         self.page: PageChanged | None = None
@@ -2635,6 +2798,7 @@ class AgroplanetBrain(OpenAIBrain):
         self._shown = None
         self._moved = False
         self._confirmed_sent = False
+        self._refused = None
         said = first or ""
         off = tools is ToolChoice.NONE
         if off:
@@ -2650,7 +2814,20 @@ class AgroplanetBrain(OpenAIBrain):
                 if isinstance(event, SpeechChunk):
                     said += event.text
                 yield event
-            if not _PROMISE.sub("", _CUE_TEXT.sub(" ", said)).strip(" .,!?¡¿…"):
+            if (doing := self._refused) is not None and "?" not in said:
+                # A confirmed move refused for want of a yes is asked for now,
+                # not left for an idle line 25 s later (dev call 370ecb04).
+                self._refused = None
+                logger.info("agroplanet: {} refused; asking for the yes now", doing)
+                self._note(
+                    f"[Not done: they have not yet asked you to {doing}, nor said yes to it, so "
+                    "nothing was sent. Ask for that yes now, in one short yes-or-no question in "
+                    "the call's language; never say it is done or being done.]"
+                )
+                again = self._written(session, self._cued(self._talk_now(session)))
+                async for event in self._spelled(again):
+                    yield event
+            elif not _PROMISE.sub("", _CUE_TEXT.sub(" ", said)).strip(" .,!?¡¿…"):
                 logger.warning("agroplanet: the model returned nothing; asking once more")
                 again = self._written(session, self._cued(self._talk_now(session)))
                 async for event in self._spelled(again):
@@ -3826,6 +4003,7 @@ class AgroplanetBrain(OpenAIBrain):
         if consents(kind, last, before):
             return None
         logger.info("agroplanet: {} without a yes; not sent", doing)
+        self._refused = doing
         return (
             f"Not done, nothing was sent: they have not asked to {doing}, nor said yes to it. "
             "Offer it as a short yes-or-no question, and call it after they say yes."

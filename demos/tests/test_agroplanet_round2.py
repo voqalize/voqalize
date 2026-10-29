@@ -154,7 +154,7 @@ async def test_a_filter_cue_never_lands_on_the_grid_mid_redraw() -> None:
         await _state(rig, "listing.sorted", _listing(count=12, filters=on), by="agent")
         await _answer(rig, "commerce.filter", detail="Marca: LUBRITEK on; 12 products")
         landed = await rig.driver.user_idle(level=1, idle_ms=_DONE_MS)
-        assert landed.text.startswith("Aquí hay 12 de Lubritek. El primero es Aceite LUBRITEK")
+        assert landed.text.startswith("Aquí hay doce de Lubritek. El primero es Aceite LUBRITEK")
         assert "No aparece" not in _said_lines(rig)
 
 
@@ -167,7 +167,7 @@ async def test_a_filter_listing_load_never_lands_on_its_first_empty_report() -> 
         await _state(rig, "listing.sorted", _full_listing(), by="agent")
         await _answer(rig, "filter_listing", detail="Lubricantes: 58 products")
         landed = await rig.driver.user_idle(level=1, idle_ms=_DONE_MS)
-        assert landed.text.startswith("Aquí hay 58. El primero es Aceite LUBRITEK")
+        assert landed.text.startswith("Aquí hay cincuenta y ocho. El primero es Aceite LUBRITEK")
         assert "No aparece" not in _said_lines(rig)
 
 
@@ -197,7 +197,9 @@ async def test_a_the_line_waits_for_the_next_filter_and_says_the_newest_count() 
         visc = {"facet": "Viscosidad", "on": ["15W40"], "options": VISCOSIDAD}
         await _state(rig, "listing.filtered", _listing(count=4, filters=[brand, visc]), by="agent")
         landed = await rig.driver.user_idle(level=1, idle_ms=_DONE_MS)
-        assert landed.text.startswith("Aquí hay 4 de Lubritek, con quince W cuarenta."), landed.text
+        assert landed.text.startswith("Aquí hay cuatro de Lubritek, con quince W cuarenta."), (
+            landed.text
+        )
         assert "12" not in _said_lines(rig)
 
 
@@ -212,7 +214,7 @@ async def test_a_a_waiting_line_is_rebuilt_from_the_listing_as_it_stands() -> No
         visc = {"facet": "Viscosidad", "on": ["15W40"], "options": ["15W40"]}
         await _state(rig, "listing.filtered", _listing(count=4, filters=[brand, visc]))
         landed = await rig.driver.user_idle(level=1, idle_ms=_DONE_MS)
-        assert landed.text.startswith("Aquí hay 4 de Lubritek."), landed.text
+        assert landed.text.startswith("Aquí hay cuatro de Lubritek."), landed.text
 
 
 # ─── B: every option reaches him ───────────────────────────────────────────────
@@ -292,11 +294,11 @@ def test_d_the_filters_are_said_naturally() -> None:
     es = ag.listing_line(listing, "es", named)
     en = ag.listing_line(listing, "en", named)
     assert es == (
-        "Aquí hay 5 de Lubritek, con Mineral y 15W40. "
+        "Aquí hay cinco de Lubritek, con base mineral y 15W40. "
         "El primero es Aceite LUBRITEK UTF Semisintético, a ochenta mil pesos."
     ), es
     assert en == (
-        "Here are 5 from Lubritek, with Mineral and 15W40. "
+        "Here are five from Lubritek, with a mineral base and 15W40. "
         "The first is Aceite LUBRITEK UTF Semisintético, at eighty thousand pesos."
     ), en
 

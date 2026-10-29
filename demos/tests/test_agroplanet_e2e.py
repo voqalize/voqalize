@@ -283,6 +283,12 @@ def _llm() -> ScriptedOpenAI:
                 "Te lo agrego al carro.", "add_to_cart", args={"path": LUBRITEK, "qty": 2}
             ),
             "Sigamos.": reply("Claro, sigamos."),
+            # Dev call 370ecb04: the add asked after a no, "cart" heard as "cut".
+            "No, can you add this to cut?": reply_and_call(
+                "I'll add it to your cart.", "add_to_cart", args={"path": LUBRITEK, "qty": 1}
+            ),
+            # A refused add: the yes is asked for in the same turn.
+            "Ask for that yes now": reply("¿Te lo agrego al carro?"),
             "Sí, quiero cotizar.": reply_and_call(
                 "Te llevo al formulario de cotización.", "start_quote", args={}
             ),
@@ -616,7 +622,7 @@ async def test_filter_cues_are_the_listings_own_facets_and_options() -> None:
         )
         landed = await rig.driver.user_idle(level=1, idle_ms=_DONE_MS)
         assert landed.text.startswith(
-            "Aquí hay 4 de Lubritek, con quince W cuarenta. El primero es Aceite LUBRITEK"
+            "Aquí hay cuatro de Lubritek, con quince W cuarenta. El primero es Aceite LUBRITEK"
         )
 
 
@@ -686,6 +692,32 @@ async def test_add_to_cart_waits_for_a_yes_and_then_says_it_is_done() -> None:
         cart = await brain.read_screen(ag.ReadRequest(slice="cart"))
         assert "Total $160.000 (say: ciento sesenta mil pesos)" in cart
         assert "Agroplanet sells by quote" in cart and "Webpay" in cart
+
+
+async def test_an_add_asked_after_a_no_and_heard_as_cut_is_sent_at_once() -> None:
+    """Dev call 370ecb04: "No, can you add this to cut?" on the product page.
+    The leading no only corrected him, and "cut" is the cart misheard: the
+    move goes at once, with no second ask."""
+    llm = _llm()
+    async with demo("agroplanet", llm) as rig:
+        await rig.driver.start_session(init={"path": LUBRITEK})
+        await _state(rig, "product.shown", _product())
+        await rig.driver.user_says("No, can you add this to cut?")
+        assert _moves(rig, "commerce.cart_add") == [{"path": LUBRITEK, "qty": 1}]
+
+
+async def test_a_refused_add_asks_for_the_yes_in_the_same_turn() -> None:
+    """Dev call 370ecb04: the refusal waited ~25 s for an idle line ("It
+    wasn't added yet"). The brain now asks the yes in the turn it refused."""
+    llm = _llm()
+    async with demo("agroplanet", llm) as rig:
+        await rig.driver.start_session(init={"path": LUBRITEK})
+        await _state(rig, "product.shown", _product())
+        turn = await rig.driver.user_says("¿Me sirve este?")
+        check_turn(rig, turn)
+        assert _moves(rig, "commerce.cart_add") == []
+        assert turn.text.startswith("Te sirve para el hidráulico."), turn.text
+        assert "¿Te lo agrego al carro?" in turn.text, turn.text
 
 
 async def test_the_quote_form_is_reached_after_a_yes_and_filled_with_what_they_said() -> None:
@@ -781,6 +813,35 @@ def test_no_cue_opens_the_quote_form_the_account_or_a_payment() -> None:
         ("cart", "Agrégalo al carro.", True),
         ("cart", "¿Cuánto cuesta?", False),
         ("cart", "No, todavía no.", False),
+        # Dev call 370ecb04, and pcfactory 9ec9601a's natural ways to ask or say yes.
+        ("cart", "No, can you add this to cut?", True),
+        ("cart", "Can you add this to the card?", True),
+        ("cart", "Put it in the car.", True),
+        ("cart", "Add these two to my cards.", True),
+        ("cart", "Oh so sorry, can you add this in the cart first?", True),
+        ("cart", "Sí, agrégalo.", True),
+        ("cart", "Add it.", True),
+        ("cart", "Ok, dale.", True),
+        ("cart", "Ponlo en el carro.", True),
+        ("cart", "Súmalo.", True),
+        ("cart", "Perfect.", True),
+        ("cart", "Sounds good.", True),
+        ("cart", "Of course.", True),
+        ("cart", "Por supuesto.", True),
+        ("cart", "Please do.", True),
+        ("cart", "Mm-hmm.", True),
+        ("cart", "Lo quiero.", True),
+        ("cart", "No, add it to my cart.", True),
+        ("cart", "Wait, add two.", True),
+        ("cart", "No.", False),
+        ("cart", "No, don't add it.", False),
+        ("cart", "No lo agregues.", False),
+        ("cart", "No, mejor no lo agregues.", False),
+        ("cart", "Lo quiero ver.", False),
+        ("cart", "Es sumamente caro.", False),
+        ("cart", "Go to the card section.", False),
+        ("cart", "What is your address?", False),
+        ("cart", "Cut it shorter.", False),
         ("quote", "Quiero cotizar.", True),
         ("quote", "Lo quiero comprar.", True),
         ("quote", "¿Y la garantía?", False),
@@ -864,3 +925,64 @@ def test_the_prompt_teaches_narration_with_cues_and_the_quote() -> None:
     assert "THE RUT IS THEIRS" in prompt
     assert "read it back digit by digit" in prompt
     assert "/politica-despacho — Política de despacho" in prompt
+
+
+# ─── Prices said in words (dev call 370ecb04) ──────────────────────────────────
+
+
+def test_a_price_bucket_lands_said_in_words_and_counts_too() -> None:
+    """ "Here are 3 with $50.000 - $149.999" was read from the facet as the
+    listing writes it; "Here are 5 with Mineral" was no sentence."""
+    bucket = ag.listing_view(
+        _listing(
+            count=3,
+            filters=[{"facet": "Precio", "on": ["$50.000 - $149.999"], "options": []}],
+        )
+    )
+    named = [(f.facet, o) for f in bucket.facets for o in f.on]
+    assert ag.listing_line(bucket, "en", named).startswith(
+        "Here are three between fifty thousand and one hundred and forty-nine thousand pesos. "
+    )
+    assert ag.listing_line(bucket, "es", named).startswith(
+        "Aquí hay tres entre cincuenta mil y ciento cuarenta y nueve mil pesos. "
+    )
+    mineral = ag.listing_view(
+        _listing(count=5, filters=[{"facet": "Base", "on": ["Mineral"], "options": []}])
+    )
+    named = [(f.facet, o) for f in mineral.facets for o in f.on]
+    assert ag.listing_line(mineral, "en", named).startswith("Here are five with a mineral base. ")
+    assert ag.listing_line(mineral, "es", named).startswith("Aquí hay cinco con base mineral. ")
+    assert ag.filters_said([("Precio", "Más de $500.000")], "en") == (
+        "over five hundred thousand pesos"
+    )
+    assert ag.filters_said([("Precio", "Más de $500.000")], "es") == (
+        "de más de quinientos mil pesos"
+    )
+    assert ag.filters_said([("Rareza", "Alta")], "en") == "filtered by Rareza: Alta"
+
+
+def test_any_peso_amount_reaches_the_voice_in_words() -> None:
+    assert ag.english_for_the_voice("Here are 3 with $50.000 - $149.999.") == (
+        "Here are 3 between fifty thousand and one hundred and forty-nine thousand pesos."
+    )
+    assert ag.for_the_voice("Está a $80.000, o más de $1.000.000.") == (
+        "Está a ochenta mil pesos, o más de un millón de pesos."
+    )
+
+
+def test_the_listing_note_says_its_price_buckets_and_the_prompt_maps_dollars() -> None:
+    listing = ag.listing_view(
+        _listing(
+            filters=[
+                {"facet": "Precio", "on": [], "options": ["$50.000 - $149.999", "Más de $500.000"]}
+            ]
+        )
+    )
+    note = ag._listing_note(listing, "en")
+    assert (
+        "$50.000 - $149.999 is “between fifty thousand and one hundred and forty-nine "
+        "thousand pesos”" in note
+    )
+    prompt = ag._prompt(STORE)
+    assert "PRICES ON AGROPLANET ARE CHILEAN PESOS" in prompt
+    assert "Never ask whether they meant pesos" in prompt

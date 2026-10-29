@@ -251,6 +251,14 @@ the widget bottom-left and outside `<app-root>`, kept across routes):
   pressed; then `cart_update` 0 emptied the cart;
 - `stores.show` Osorno (page 2 of the list) and La Serena; `page.faq`
   *Garantía Legal* on /cambios-devoluciones.
+- On a page "translated" to English the way Chrome's translator rewrites it
+  (text nodes only, the anchored ones left alone, and the cart's buttons
+  rewritten anyway: "Add to cart", "Delete", "Quote"): `commerce.cart_add`
+  1, `cart_update` 2, `start_quote`, `cart_update` 0. Every button a cart or
+  quote move presses is found by what it is (its id, its place, its class),
+  never by its Spanish words, and is kept from the translator
+  (`anchors.ts`); the adapter tests run the same moves on a translated
+  fixture.
 
 ## Driving it from the console
 

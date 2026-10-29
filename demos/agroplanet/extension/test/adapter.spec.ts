@@ -8,7 +8,7 @@
 
 import { expect, type Page, test } from "@playwright/test";
 
-import { CATEGORY, type Emitted, events, HIDDEN, listen, matches, open, PRODUCT, run, SEARCH, serveSite, waitForEvent } from "./site";
+import { CATEGORY, type Emitted, events, HIDDEN, listen, matches, open, PRODUCT, run, SEARCH, serveSite, translate, waitForEvent } from "./site";
 
 const named = (list: Emitted[], name: string) => list.filter((e) => matches(e, name));
 
@@ -503,5 +503,109 @@ test.describe("show, faq, stores", () => {
       ["mat-panel-title", "app-plp-grid p.title", "a.mat-menu-trigger"].map((s) => document.querySelector(s)?.getAttribute("translate")),
     );
     expect(marked).toEqual(["no", "no", "no"]);
+  });
+});
+
+// The owner's Chrome translates the store to English (pcfactory dev call
+// 9ec9601a: its "Agregar al carro" read "Add to cart", and the add, matching
+// the Spanish words, found no button). Each move here runs on a page whose
+// visible words the translator rewrote: what it presses is found by what it
+// is (`rude` rewrites those even where they are kept), and what it matches by
+// name is kept from the translator (anchors.ts).
+test.describe("on a page Chrome translated to English", () => {
+  const CART_BUTTONS = "app-product-info #addToCart, app-product-info #addToCart2, app-cart-product a:not([href]), app-cart button";
+  const LINE = { code: "1173221", name: "Aceite LUBRITEK UTF Semisintético 19L", qty: 1 };
+
+  test("commerce.cart_add: Agregar al carro found by what it is, and kept from the translator", async ({ page }) => {
+    const seen = await serveSite(page);
+    await open(page, PRODUCT);
+    await listen(page);
+    const kept = await page.evaluate(() => [...document.querySelectorAll("app-product-info #addToCart, app-product-info #addToCart2")].map((b) => b.getAttribute("translate")));
+    expect(kept.length).toBeGreaterThan(0);
+    expect(kept.every((t) => t === "no")).toBe(true);
+    await translate(page, { rude: CART_BUTTONS });
+    expect(await page.locator("app-product-info #addToCart, app-product-info #addToCart2").first().textContent()).toMatch(/Add to cart/);
+    const result = await run(page, "commerce.cart_add", { path: PRODUCT, qty: 2 });
+    expect(result.ok, result.error).toBe(true);
+    expect(result.detail).toContain("added 2 x Aceite LUBRITEK UTF Semisintético 19L");
+    expect(seen.api.filter((a) => a.startsWith("POST /cart/add"))).toHaveLength(1);
+    const changed = await waitForEvent(page, "cart.changed", (e) => e.payload.count === 2);
+    expect(changed.by).toBe("agent");
+  });
+
+  test("commerce.cart_add on a product page with no Agregar al carro says so, not \"no + for more\"", async ({ page }) => {
+    await serveSite(page);
+    await open(page, PRODUCT);
+    await page.evaluate(() => document.querySelectorAll("app-product-info #addToCart, app-product-info #addToCart2").forEach((b) => b.remove()));
+    const result = await run(page, "commerce.cart_add", { path: PRODUCT, qty: 1 });
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/shows no Agregar al carro .*nothing was added/);
+    expect(result.error).not.toMatch(/no \+ for more/);
+  });
+
+  test("commerce.cart_update: the + by its icon, then Eliminar by what it is", async ({ page }) => {
+    const seen = await serveSite(page, { cart: [LINE] });
+    await open(page, "/carro");
+    await translate(page, { rude: CART_BUTTONS });
+    expect(await page.locator("app-cart-product a:not([href])").first().textContent()).toMatch(/Delete/);
+    const up = await run(page, "commerce.cart_update", { path: "/producto/x/1173221", qty: 3 });
+    expect(up.ok, up.error).toBe(true);
+    expect(up.detail).toContain("set to 3");
+    const gone = await run(page, "commerce.cart_update", { path: "/producto/x/1173221", qty: 0 });
+    expect(gone.ok, gone.error).toBe(true);
+    expect(gone.detail).toContain("removed");
+    expect(seen.api.some((a) => a.startsWith("GET /cart/delete?entryNumber=0"))).toBe(true);
+  });
+
+  test("start_quote: the cart's Cotizar found by what it is; the form reported", async ({ page }) => {
+    await serveSite(page, { cart: [LINE] });
+    await open(page, "/carro");
+    await listen(page);
+    await translate(page, { rude: CART_BUTTONS });
+    expect(await page.locator("app-cart button.btn-round-orange-fill").first().textContent()).toMatch(/Quote/);
+    const started = await run(page, "start_quote", {});
+    expect(started.ok, started.error).toBe(true);
+    expect(new URL(page.url()).pathname).toBe("/cotizacion");
+    const first = await waitForEvent(page, "quote.changed");
+    expect(first.payload).toMatchObject({ step: "form", items: 1, total: 80000 });
+  });
+
+  test("commerce.filter and commerce.sort: the facets, their options and Ordenar por kept in Spanish", async ({ page }) => {
+    await serveSite(page);
+    await open(page, CATEGORY);
+    await listen(page);
+    await waitForEvent(page, "listing.shown");
+    await translate(page);
+    const filtered = await run(page, "commerce.filter", ["Marca", "LUBRITEK", CATEGORY]);
+    expect(filtered.ok, filtered.error).toBe(true);
+    expect(filtered.detail).toMatch(/^Marca: LUBRITEK on/);
+    expect(await page.locator("app-plp-filter mat-panel-title", { hasText: "Marca" }).count()).toBeGreaterThan(0);
+    const sorted = await run(page, "commerce.sort", ["price_asc"]);
+    expect(sorted.ok, sorted.error).toBe(true);
+    expect(sorted.detail).toContain("sorted Menor precio");
+    expect(page.url()).toContain("sort=price-asc");
+    const last = named(await events(page), "listing.").pop()!;
+    expect((last.payload.filters as { facet: string; on: string[] }[]).find((f) => f.facet === "Marca")!.on).toEqual(["LUBRITEK"]);
+  });
+
+  test("commerce.sort: even a translated menu is sorted by its words in English", async ({ page }) => {
+    await serveSite(page);
+    await open(page, CATEGORY);
+    await translate(page, { rude: "a.mat-menu-trigger, .cdk-overlay-container .mat-menu-panel" });
+    const sorted = await run(page, "commerce.sort", ["price_desc"]);
+    expect(sorted.ok, sorted.error).toBe(true);
+    expect(page.url()).toContain("sort=price-desc");
+  });
+
+  test("page.faq and stores.show: the panel titles and the store cards kept in Spanish", async ({ page }) => {
+    await serveSite(page);
+    await open(page, "/cambios-devoluciones");
+    await translate(page);
+    const faq = await run(page, "page.faq", { question: "Garantía Legal", path: null });
+    expect(faq.ok, faq.error).toBe(true);
+    const store = await run(page, "stores.show", { name: "Osorno" });
+    expect(store.ok, store.error).toBe(true);
+    expect(store.detail).toMatch(/^Osorno: /);
+    expect(store.detail).not.toContain("[en]");
   });
 });

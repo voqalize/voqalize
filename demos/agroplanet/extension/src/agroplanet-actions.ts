@@ -224,7 +224,7 @@ function routeUp(kind = kindOf()): boolean {
     case "brand":
       return gridUp();
     case "cart":
-      return Boolean(document.querySelector("app-cart-product") || /vac[ií]o/i.test(clean(document.querySelector("app-cart")?.textContent)));
+      return Boolean(document.querySelector("app-cart-product") || /vac[ií]o|empty/i.test(clean(document.querySelector("app-cart")?.textContent)));
     case "quote":
       return Boolean(document.querySelector("app-form-user-quote form") || (document.querySelector("app-quote") && !document.querySelector("app-form-user-quote")));
     case "stores":
@@ -479,7 +479,7 @@ const pageSku = () => labelled(info(), /^SKU:?$/i) || productSku(location.pathna
 
 /** "Confirmar precio en tienda" in place of a price (the store's
  *  `hidePriceByCategory`). */
-const priceHiddenIn = (el: Element | null | undefined) => /confirmar precio en tienda/i.test(clean(el?.textContent));
+const priceHiddenIn = (el: Element | null | undefined) => /confirmar precio en tienda|confirm (?:the )?price in (?:the )?store/i.test(clean(el?.textContent));
 
 /** A product's Especificaciones on its page: the label/value rows (the
  *  data sheets' "Descargar" rows left out). */
@@ -519,7 +519,7 @@ function readProduct(): ProductState | null {
     sku,
     name,
     brand: clean(box.querySelector("a.black-brand")?.textContent) || null,
-    maker_code: labelled(box, /^c[oó]digo fabricante:?$/i) || null,
+    maker_code: labelled(box, /^(?:c[oó]digo fabricante|manufacturer(?:'s)? code):?$/i) || null,
     price,
     regular_price: old != null && price != null && old > price ? old : null,
     discount: old != null && price != null && old > price ? Math.round(((old - price) * 100) / old) : null,
@@ -614,7 +614,7 @@ interface ListingState {
 }
 
 const isListing = () => ["category", "search", "brand"].includes(kindOf());
-const noResults = () => /no (se )?encontr|sin resultados|0 resultados/i.test(clean(document.querySelector("app-plp-grid, app-product-search, app-category, app-brand-search")?.textContent).slice(0, 2000));
+const noResults = () => /no (se )?encontr|sin resultados|0 resultados|no results|not found/i.test(clean(document.querySelector("app-plp-grid, app-product-search, app-category, app-brand-search")?.textContent).slice(0, 2000));
 /**
  * The listing's grid has drawn, and is the store's answer: cards in it with
  * none of the store's calls still out, or its own "no results" once they are
@@ -977,7 +977,7 @@ function hasValue(el: HTMLElement | null): boolean {
   if (!el) return false;
   if (el.tagName === "MAT-SELECT") {
     const text = clean(el.querySelector(".mat-select-value-text")?.textContent);
-    return Boolean(text) && !/^seleccionar/i.test(text) && !el.querySelector(".mat-select-placeholder");
+    return Boolean(text) && !/^(?:seleccionar|select)/i.test(text) && !el.querySelector(".mat-select-placeholder");
   }
   return Boolean(clean((el as HTMLInputElement).value));
 }
@@ -995,7 +995,7 @@ function readQuote(): QuoteState {
     else if (required) missing.push(field);
   }
   const summary = document.querySelector("app-resumen");
-  const count = clean(summary?.textContent).match(/\((\d+)\s+productos?\)/i);
+  const count = clean(summary?.textContent).match(/\((\d+)\s+(?:productos?|products?)\)/i);
   let total: number | null = null;
   for (const s of summary?.querySelectorAll("span") ?? []) {
     if (/^total:?$/i.test(clean(s.textContent))) total = money(s.parentElement?.nextElementSibling?.textContent);
@@ -1348,12 +1348,18 @@ async function applyOption(c: MoveContext, facet: string, value: string, arg = "
   return { ok: true, label: `${g.name}: ${opt.text}` };
 }
 
-const SORT_WORDS: Record<Sort, RegExp> = { price_asc: /menor precio/i, price_desc: /mayor precio/i, relevance: /relevancia/i };
+/** Each item of "Ordenar por", by its words, or what Chrome's translator
+ *  makes of them should it reach the menu (it is kept from it: anchors.ts). */
+const SORT_WORDS: Record<Sort, RegExp> = {
+  price_asc: /menor precio|(?:lower|lowest) price|price:? low/i,
+  price_desc: /mayor precio|(?:higher|highest) price|price:? high/i,
+  relevance: /relevancia|relevance/i,
+};
 
 /** "Ordenar por": its menu's trigger, which writes the sort in front. */
 const sortTrigger = () =>
   [...document.querySelectorAll<HTMLElement>("app-category a.mat-menu-trigger, app-product-search a.mat-menu-trigger, app-brand-search a.mat-menu-trigger, app-plp-grid a.mat-menu-trigger")].find(
-    (a) => shown(a) && /relevancia|precio/i.test(clean(a.textContent)),
+    (a) => shown(a) && /relevancia|precio|relevance|price/i.test(clean(a.textContent)),
   ) ?? null;
 const sortItems = () => [...document.querySelectorAll<HTMLElement>(".cdk-overlay-container .mat-menu-panel [role=menuitem]")].filter(shown);
 
@@ -1443,7 +1449,7 @@ async function clearFilters(c: MoveContext): Promise<Applied | Missed> {
     listingData().then((api) => (api?.data?.facets ?? []).flatMap((f) => (f.values ?? []).filter((v) => v.selected).map((v) => ({ facet: clean(f.name), value: clean(v.name) }))));
   const first = await on();
   if (!first.length) return { ok: true, label: "no filters were on", already: true };
-  const button = [...document.querySelectorAll<HTMLElement>("app-plp-filter button")].find((b) => /borrar filtros/i.test(clean(b.textContent)) && shown(b));
+  const button = [...document.querySelectorAll<HTMLElement>("app-plp-filter button")].find((b) => /borrar filtros|(?:clear|delete|remove) (?:the )?filters/i.test(clean(b.textContent)) && shown(b));
   if (button) {
     await scrollTo(button, "center");
     await c.ring(button, "Borrar Filtros");
@@ -1591,9 +1597,9 @@ async function ringThere(c: MoveContext, el: HTMLElement | HTMLElement[], label:
 /** "Detalle del Producto" or "Especificaciones": the section scrolled to and
  *  ringed (its "Ver más" pressed first when the card is folded). */
 async function showDetails(tab: "details" | "specs", c: MoveContext): Promise<string> {
-  const section = tabSection(tab === "specs" ? /^especificaciones/ : /^detalle del producto/);
+  const section = tabSection(tab === "specs" ? /^(?:especificaciones|specifications)/ : /^(?:detalle del producto|product detail)/);
   if (!section) c.refuse("tab", `this product page has no ${tab === "specs" ? "Especificaciones" : "Detalle del Producto"}`, TABS);
-  const more = [...document.querySelectorAll<HTMLElement>("app-product-tabs button.swatchButton")].find((b) => shown(b) && /ver m[aá]s/i.test(clean(b.textContent)));
+  const more = [...document.querySelectorAll<HTMLElement>("app-product-tabs button.swatchButton")].find((b) => shown(b) && /ver m[aá]s|(?:see|show|view|read) more/i.test(clean(b.textContent)));
   if (more && tab === "specs") {
     await scrollTo(more, "center");
     await c.ring(more, "Ver más");
@@ -1873,14 +1879,14 @@ function storeCards(): StoreCard[] {
   return [...document.querySelectorAll<HTMLElement>("app-store-list mat-card")]
     .map((el) => {
       const title = el.querySelector(".fs20");
-      const name = clean(title?.querySelectorAll("b")[1]?.textContent ?? title?.textContent?.replace(/^tienda/i, ""));
-      const address = cardField(el, /^direcci[oó]n/i);
+      const name = clean(title?.querySelectorAll("b")[1]?.textContent ?? title?.textContent?.replace(/^(?:tienda|store)/i, ""));
+      const address = cardField(el, /^(?:direcci[oó]n|address)/i);
       const city = clean(address.split(",").slice(-2, -1)[0]);
       const hours = [...el.querySelectorAll<HTMLElement>("span")]
-        .filter((s) => !s.querySelector("span") && /^(lunes|martes|s[aá]bado|domingo)/i.test(clean(s.textContent)))
+        .filter((s) => !s.querySelector("span") && /^(lunes|martes|s[aá]bado|domingo|monday|tuesday|saturday|sunday)/i.test(clean(s.textContent)))
         .map((s) => clean(s.textContent))
         .join("; ");
-      return { el, name, address, city, phone: cardField(el, /^t[eé]l[eé]fono/i), hours };
+      return { el, name, address, city, phone: cardField(el, /^(?:t[eé]l[eé]fono|telephone|phone)/i), hours };
     })
     .filter((s) => s.name);
 }
@@ -1927,6 +1933,10 @@ async function showStore(p: { name: string } & Arrived, c: MoveContext): Promise
 
 // commerce.cart_add, cart_show, cart_update ─────────────────────────────────
 
+/** The product page's "Agregar al carro", by its id, never its words: the
+ *  owner's Chrome translates the page, and a translated "Add to cart" is the
+ *  same button (pcfactory dev call 9ec9601a). Kept from the translator too
+ *  (anchors.ts). */
 const addButton = () => [...document.querySelectorAll<HTMLButtonElement>("app-product-info #addToCart, app-product-info #addToCart2")].find(shown) ?? null;
 const pdpStepper = () => {
   const q = [...document.querySelectorAll<HTMLElement>("app-product-info app-input-update-quantity")].find(shown);
@@ -1952,6 +1962,9 @@ async function addToCart(p: { path: string; qty?: number } & Arrived, c: MoveCon
   if (!(await navigate(c, productPath(sku, p.path.split("/")[2] ?? ""), () => productUp(sku), again(c, p)))) return null;
   if (pageSku() !== sku) throw new Error(`${p.path} did not open as a product page (now on ${location.pathname})`);
   await waitFor(() => addButton() ?? pdpStepper(), 10_000);
+  if (!addButton() && !pdpStepper()) {
+    throw new Error("the product page shows no Agregar al carro (out of stock, or its price is confirmed in store?); nothing was added");
+  }
   const start = (await readCart()).items.find((i) => productSku(i.path) === sku)?.qty ?? 0;
   let left = qty;
   const button = addButton();
@@ -2017,6 +2030,26 @@ async function showCart(p: { open?: boolean } & Arrived, c: MoveContext): Promis
   return `the cart is on screen; ${cartLine(cart)}${cart.items.length ? `: ${cart.items.map((i) => `${i.qty} × ${i.name}`).join("; ")}` : ""}`;
 }
 
+/** A cart line's "Eliminar", by what it is: the line's one link with no
+ *  address (its name links to the product), its words only to choose
+ *  between two. Kept from the translator too (anchors.ts). */
+function removeLink(row: Element): HTMLElement | null {
+  const links = [...row.querySelectorAll<HTMLElement>("a:not([href])")].filter(shown);
+  return (
+    links.find((a) => /^(?:eliminar|delete|remove)$/i.test(clean(a.textContent))) ??
+    (links.length === 1 ? links[0]! : null) ??
+    links.find((a) => a.querySelector("span.text-underline")) ??
+    null
+  );
+}
+
+/** The cart's "Cotizar", by what it is: its orange button (the summary's,
+ *  or the sticky bar's `#cartPay`), never its words. */
+const quoteButton = () =>
+  [...document.querySelectorAll<HTMLElement>("app-cart #cartPay, app-cart button.btn-round-orange-fill")].find(shown) ??
+  [...document.querySelectorAll<HTMLElement>("app-cart button")].find((b) => /^(?:cotizar|quote|get a quote|request a quote)$/i.test(clean(b.textContent)) && shown(b)) ??
+  null;
+
 /** How many presses one change may take. */
 const MAX_CART_STEPS = 20;
 
@@ -2034,13 +2067,16 @@ async function updateCartItem(p: { path: string; qty: number } & Arrived, c: Mov
   const name = rowName(row);
   await scrollTo(row, "center");
   if (qty === 0) {
-    const remove = [...row.querySelectorAll<HTMLElement>("a span.text-underline, a")].find((a) => /^eliminar$/i.test(clean(a.textContent)) && shown(a));
+    const remove = removeLink(row);
     if (!remove) throw new Error("the cart line has no Eliminar");
     await c.ring(row, `Eliminar ${name}`);
     await cartPress(c, remove);
     // A confirmation window, should the app ask.
     const confirm = await waitFor(
-      () => [...document.querySelectorAll<HTMLElement>(".cdk-overlay-container mat-dialog-container button")].find((b) => /eliminar|aceptar|s[ií]/i.test(clean(b.textContent)) && shown(b)),
+      () =>
+        [...document.querySelectorAll<HTMLElement>(".cdk-overlay-container mat-dialog-container button")].find(
+          (b) => /eliminar|aceptar|s[ií]\b|delete|remove|accept|^ok$|yes/i.test(clean(b.textContent)) && shown(b),
+        ),
       800,
     );
     if (confirm) await cartPress(c, confirm);
@@ -2082,7 +2118,7 @@ async function startQuote(p: Arrived, c: MoveContext): Promise<string | null> {
     if (!(await navigate(c, "/carro", cartUp, again(c, p)))) return null;
     await waitFor(() => cartRows().length, 6000);
     if (!cartRows().length) throw new Error("the cart is empty; add something first");
-    const go = [...document.querySelectorAll<HTMLElement>("app-cart button")].find((b) => /^cotizar$/i.test(clean(b.textContent)) && shown(b));
+    const go = quoteButton();
     if (!go) throw new Error("the cart shows no Cotizar");
     await scrollTo(go, "center");
     await c.ring(go, "Cotizar");
@@ -2215,7 +2251,9 @@ async function fillQuote(p: FillQuote, c: MoveContext): Promise<string | null | 
   await quiet(main(), 300, 1500);
   const state = readQuote();
   report("quote_state", state);
-  const button = [...document.querySelectorAll<HTMLElement>("app-form-user-quote button")].find((b) => /crear cotizaci/i.test(clean(b.textContent)));
+  const button =
+    [...document.querySelectorAll<HTMLElement>("app-form-user-quote button")].find((b) => /crear cotizaci|create (?:a |the )?quot/i.test(clean(b.textContent))) ??
+    document.querySelector<HTMLElement>("app-form-user-quote button.btn-round-orange-fill");
   const rut = control("rut");
   // What is left is the visitor's: the RUT, then "Crear cotización".
   c.after(async () => {

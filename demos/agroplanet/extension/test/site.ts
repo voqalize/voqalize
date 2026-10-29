@@ -436,7 +436,9 @@ function simulateSite(data: { regions: string[]; comunes: string[]; stores: stri
         return;
       }
       const trigger = t.closest("a.mat-menu-trigger");
-      if (trigger && /relevancia|precio/i.test(trigger.textContent ?? "")) {
+      // The app's own handlers, not their words: a translated page sorts,
+      // removes and quotes just the same.
+      if (trigger && trigger.closest("app-category, app-product-search, app-brand-search, app-plp-grid")) {
         const pane = document.createElement("div");
         pane.innerHTML = `<div class="mat-menu-panel" role="menu"><div class="mat-menu-content">${["Menor precio", "Mayor precio", "Relevancia"]
           .map((x) => `<button class="mat-menu-item" role="menuitem"><span>${x}</span></button>`)
@@ -446,9 +448,9 @@ function simulateSite(data: { regions: string[]; comunes: string[]; stores: stri
       }
       const item = t.closest(".mat-menu-panel [role=menuitem]");
       if (item) {
-        const words = item.textContent ?? "";
+        const i = [...item.parentElement!.querySelectorAll("[role=menuitem]")].indexOf(item);
         closeOverlay();
-        setListing({ sort: /menor/i.test(words) ? "price-asc" : /mayor/i.test(words) ? "price-desc" : "", page: "0" });
+        setListing({ sort: ["price-asc", "price-desc", ""][i] ?? "", page: "0" });
         return;
       }
       const pageLink = t.closest("app-custom-paginator-controls .item a, app-custom-paginator-controls .pagination-next a");
@@ -505,15 +507,15 @@ function simulateSite(data: { regions: string[]; comunes: string[]; stores: stri
         });
         return;
       }
-      const remove = t.closest("app-cart-product a");
-      if (remove && /eliminar/i.test(remove.textContent ?? "")) {
+      const remove = t.closest("app-cart-product a:not([href])");
+      if (remove) {
         const row = remove.closest("app-cart-product")!;
         const entry = [...document.querySelectorAll("app-cart-product")].indexOf(row);
         void xhr("GET", `${API}/cart/delete?entryNumber=${entry}&serviceData=false`).then(() => syncCart());
         return;
       }
-      const cotizar = t.closest("app-cart button");
-      if (cotizar && /cotizar/i.test(cotizar.textContent ?? "")) {
+      const cotizar = t.closest("app-cart button.btn-round-orange-fill");
+      if (cotizar) {
         navigate("/cotizacion");
         return;
       }
@@ -673,3 +675,88 @@ export async function waitForEvent(p: Page, name: string, test: (e: Emitted) => 
 
 export const run = (p: Page, command: string, payload: unknown) =>
   p.evaluate(([c, a]) => window.voqalizeAgroplanet!.run(c as string, a), [command, payload] as const);
+
+/** What Chrome's translator makes of the store's words, es → en. */
+const ENGLISH: Record<string, string> = {
+  "Agregar al carro": "Add to cart",
+  "Agregar más productos": "Add more products",
+  Cotizar: "Quote",
+  Eliminar: "Delete",
+  "Ordenar por:": "Sort by:",
+  "Ordenar por": "Sort by",
+  "Menor precio": "Lowest price",
+  "Mayor precio": "Highest price",
+  Relevancia: "Relevance",
+  Marca: "Brand",
+  Viscosidad: "Viscosity",
+  "Borrar Filtros": "Clear Filters",
+  Especificaciones: "Specifications",
+  "Detalle del Producto": "Product Detail",
+  "Ver más": "See more",
+  "Todas las categorías": "All categories",
+  "Garantía Legal": "Legal Guarantee",
+  "Restitución de dinero": "Refund of money",
+  "Dirección:": "Address:",
+  "Teléfono:": "Telephone:",
+  "Subtotal:": "Subtotal:",
+  "Confirmar precio en tienda": "Confirm price in store",
+  "Resumen de compra": "Purchase summary",
+  Lubricantes: "Lubricants",
+  Continuar: "Continue",
+  "Crear cotización": "Create quote",
+};
+
+/**
+ * Chrome's translator on the page, es → en, as it rewrites it: each text node
+ * it is not kept from (`translate="no"`, `.notranslate`) becomes a `<font>`
+ * with its English (a word it does not know gets " [en]", so a lookup by
+ * Spanish words shows up); attributes are never touched. It works on a later
+ * task than the page's own changes, as Chrome does, and goes on as the app
+ * draws. `rude` names kept elements it rewrites anyway, to prove a move finds
+ * those by what they are.
+ */
+export async function translate(p: Page, opts: { rude?: string } = {}): Promise<void> {
+  await p.evaluate(
+    ({ rude, dict }) => {
+      const en = new Map(Object.entries(dict).map(([k, v]) => [k.toLowerCase(), v]));
+      const english = (t: string): string | null => {
+        const word = t.trim();
+        if (!word) return null;
+        const known = en.get(word.toLowerCase());
+        if (known) return t.replace(word, known);
+        if (/[\d$]/.test(word) || !/\p{L}{3}/u.test(word) || word.endsWith("[en]")) return null;
+        return `${word} [en]`;
+      };
+      const skip = (el: Element | null) =>
+        !el || Boolean(el.closest("script, style, noscript, [data-voqalize], mat-icon")) ||
+        (Boolean(el.closest('[translate="no"], .notranslate')) && !(rude && el.closest(rude)));
+      const run = (root: Node) => {
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        const nodes: Text[] = [];
+        for (let n = walker.nextNode(); n; n = walker.nextNode()) nodes.push(n as Text);
+        for (const n of nodes) {
+          if (!n.isConnected || skip(n.parentElement) || n.parentElement?.closest("font[data-en]")) continue;
+          const to = english(n.textContent ?? "");
+          if (to === null) continue;
+          const font = document.createElement("font");
+          font.setAttribute("data-en", "");
+          font.style.verticalAlign = "inherit";
+          font.textContent = to;
+          n.replaceWith(font);
+        }
+      };
+      run(document.body);
+      const later = new Set<Node>();
+      new MutationObserver((records) => {
+        for (const r of records) for (const n of r.addedNodes) if (!(n instanceof HTMLElement && n.matches("font[data-en]"))) later.add(n);
+        // A later task than the page's own: the anchors have had their go.
+        setTimeout(() => {
+          const roots = [...later];
+          later.clear();
+          for (const n of roots) if (n.isConnected) run(n);
+        }, 0);
+      }).observe(document.body, { childList: true, subtree: true });
+    },
+    { rude: opts.rude ?? null, dict: ENGLISH },
+  );
+}

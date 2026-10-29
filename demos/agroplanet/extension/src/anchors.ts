@@ -26,7 +26,15 @@
  *  the category menu and its flyout; the filter panel and the sort menu;
  *  product names on cards, the product page, the cart and the quote's
  *  summary; the product page's section titles and specifications; the store
- *  cards; the quote form's labels and its región and comuna options. */
+ *  cards; the quote form's labels and its región and comuna options; and
+ *  every button a cart or quote move presses or reads (Agregar al carro and
+ *  its stepper, the price box with "Confirmar precio en tienda", the cart
+ *  line's Eliminar and its confirmation, the cart's Cotizar and totals, the
+ *  quote's selects, summary and Crear cotización, the product page's Ver
+ *  más, the pagers, the menu's toggle), and every Material icon, whose words
+ *  ("add", "remove") are the stepper's + and −. The moves find these by
+ *  structure where they can; this keeps the words the brain and the moves
+ *  name them by (pcfactory dev call 9ec9601a). */
 const ANCHORS = [
   "mat-sidenav-content h1", "mat-sidenav-content h2", "mat-sidenav-content h3", "mat-sidenav-content h4",
   "app-category-home div.fw-700.fs18", "mat-panel-title",
@@ -36,6 +44,14 @@ const ANCHORS = [
   "app-product-info h2.black-name", "app-product-info a.black-brand", "app-product-tabs .title", "app-product-tabs .mt-20",
   "app-cart-product h3", "app-resumen a", "app-store-list mat-card .fs20", "app-store-list .field-mobile",
   "app-form-user-quote mat-label", ".cdk-overlay-container mat-option", "#suggestContainer",
+  // The buttons and words the cart and quote moves press or read: kept in
+  // Spanish, as the moves name them.
+  "mat-icon", "app-product-info #addToCart", "app-product-info #addToCart2", "app-product-info app-input-update-quantity",
+  "app-product-info .prices-plp", "app-plp-grid .prices", "app-cart-product a:not([href])", "app-cart button",
+  "app-cart .text-right", "app-cart b", ".cdk-overlay-container mat-dialog-container", "app-resumen",
+  "app-form-user-quote mat-select", "app-form-user-quote button", "app-product-tabs button.swatchButton",
+  "app-custom-paginator-controls", "app-store-list pagination-controls", "app-store-list mat-card",
+  "app-menu-desktop .hamburger-menu-icon",
   "[data-voqalize]",
 ].join(", ");
 
