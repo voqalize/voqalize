@@ -169,6 +169,14 @@ state.
   on the way, since a long smooth scroll takes more than a second and the
   page's images and reveal animations move what is below them.
 
+## On a phone
+
+At or below 640 px wide the widget is only Sunny's face: before a call her
+round face with the English | हिंदी toggle below it, and in a call a smaller
+card of her face with the toggle, Mute and End call below; no "Talk to Sunny"
+card, name, status or credit line. Saatvik asked for it after seeing the demo
+(2026-10-29). Wider screens are unchanged.
+
 ## Enquiries are never sent
 
 `DEMO_BLOCK_SUBMIT`, at the top of `src/saatvik-actions.js`, is on. Sunny fills
