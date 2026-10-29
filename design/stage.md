@@ -612,8 +612,11 @@ an app may set). Explora's enquiry form speaks (dev test); Cannon Home takes non
 ### Releasing (release candidates first)
 
 - Python: `voqalize-agent-sdk` `0.12.0-rc1` (PEP 440 `0.12.0rc1`, a pre-release pip installs
-  only when asked), tag `python-sdk-v0.12.0-rc1` on `main` once this PR is merged.
-- npm: `@voqalize/stage` `0.1.0-rc.1`, tag `stage-v0.1.0-rc.1`,
+  only when asked), tag `python-sdk-v0.12.0-rc1`; then `0.12.0-rc2`, tag
+  `python-sdk-v0.12.0-rc2` (the hello's origin and path only; `send(queue=False)` and
+  `abandon`).
+- npm: `@voqalize/stage` `0.1.0-rc.1`, tag `stage-v0.1.0-rc.1`; then `0.1.0-rc.2`, tag
+  `stage-v0.1.0-rc.2`,
   `.github/workflows/release-npm-stage.yml`: gate, `pnpm build`, `scripts/publish-manifest.mjs`
   (exports to `dist`, `private` dropped, on the run's own checkout), `npm publish --provenance`
   under `next` for a pre-release. Needs the `npm` environment and npm trusted publishing for
