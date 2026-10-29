@@ -99,9 +99,12 @@ VER_TODO = "Ver todo"
 #: Not kept per category: "Categoría" is the sub-category list, which a category
 #: page shows as links in its "categoria-box", not as a filter.
 FACETS_DROPPED = {"category"}
-#: Campaign tags ("Accesorios Octubre", C_AG_BUSQUEDA_PLP_ACCESORIOSOCTUBRE) come
-#: back as facets but the page draws no panel for them.
-FACETS_HIDDEN = re.compile(r"^C_AG_BUSQUEDA_")
+#: The month's campaigns ("Agrofertas Octubre", C_AG_BUSQUEDA_PLP_AGROFERRETERIA
+#: OCTUBRE) come back as facets, and the page draws each as an on/off switch
+#: titled with the campaign above "Precio" (not a panel): kept as one facet,
+#: "Campaña", its options the campaigns, as the adapter reports it.
+FACETS_CAMPAIGN = re.compile(r"^C_AG_BUSQUEDA_")
+CAMPAIGN = "Campaña"
 MAX_OPTIONS = 8
 #: An answer longer than this is cut at a sentence: the brain reads the topic
 #: file for the whole text.
@@ -233,10 +236,16 @@ def _facets(listing: dict[str, Any]) -> list[dict[str, Any]]:
     """The listing's filter panels as the page titles them and labels their
     checkboxes (the API's names, verbatim: the page shows them unchanged)."""
     groups: list[dict[str, Any]] = []
+    campaigns: dict[str, str] = {}
     data = cast(dict[str, Any], listing.get("data") or {})
     for f in cast(list[dict[str, Any]], data.get("facets") or []):
         code = str(f.get("code") or "")
-        if code in FACETS_DROPPED or FACETS_HIDDEN.match(code) or not f.get("visible", True):
+        if FACETS_CAMPAIGN.match(code):
+            for v in cast(list[dict[str, Any]], f.get("values") or []):
+                if _clean(v.get("name")):
+                    campaigns.setdefault(_clean(v.get("name")), code)
+            continue
+        if code in FACETS_DROPPED or not f.get("visible", True):
             continue
         values = [
             (_clean(v.get("name")), int(v.get("count") or 0))
@@ -258,6 +267,16 @@ def _facets(listing: dict[str, Any]) -> list[dict[str, Any]]:
                 "options": options,
                 "total": len(values),
             }
+        )
+    if campaigns:
+        groups.insert(
+            0,
+            {
+                "name": CAMPAIGN,
+                "param": next(iter(campaigns.values())),
+                "options": list(campaigns),
+                "total": len(campaigns),
+            },
         )
     return groups
 

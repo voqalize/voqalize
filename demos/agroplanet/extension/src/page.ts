@@ -391,8 +391,11 @@ export function boxOf(targets: Element[]) {
 /**
  * The home's splash window: on every full load of `/` the app opens an empty
  * `mat-dialog` (its CMS slot has no banner) whose backdrop covers the page
- * and whose `cdk-global-scrollblock` on `<html>` stops all scrolling. Closed
- * with its own "×" before any scroll and when a call starts.
+ * and whose `cdk-global-scrollblock` on `<html>` stops all scrolling. It
+ * comes 4 to 6 s after the load, not with it (its banner is fetched twice).
+ * Closed with its own "×" before any scroll and when a call starts, and
+ * watched for (`guardSplash`) for the first seconds after a load while a call
+ * is on.
  */
 export async function closeSplash(): Promise<boolean> {
   const dialog = document.querySelector<HTMLElement>("app-generic-dialog");
@@ -402,6 +405,28 @@ export async function closeSplash(): Promise<boolean> {
   else document.querySelector<HTMLElement>(".cdk-overlay-backdrop")?.click();
   await waitFor(() => !document.querySelector("app-generic-dialog") && !document.documentElement.classList.contains("cdk-global-scrollblock"), 1500);
   return true;
+}
+
+/** How long after a full load the splash may still open. */
+export const SPLASH_WINDOW_MS = 12_000;
+let splashWatch: MutationObserver | null = null;
+
+/**
+ * Close the splash window now, and whenever it opens until `SPLASH_WINDOW_MS`
+ * after the page loaded (about 10 s past the app's first draw): a call that
+ * starts, or carries on, as the home loads must not have its first scroll
+ * stopped by a window that opens a few seconds later. Once only per page.
+ */
+export function guardSplash(windowMs = SPLASH_WINDOW_MS): void {
+  void closeSplash();
+  const left = windowMs - performance.now();
+  if (splashWatch || left <= 0) return;
+  const watch = new MutationObserver(() => {
+    if (document.querySelector("app-generic-dialog")) void closeSplash();
+  });
+  watch.observe(document.documentElement, { childList: true, subtree: true });
+  splashWatch = watch;
+  setTimeout(() => watch.disconnect(), left);
 }
 
 /** The cookie bar's "Entendido", pressed once a call starts, so the bar (100

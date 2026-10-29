@@ -62,9 +62,9 @@
       "id": "product.tab",
       "verb": "tab",
       "class": "look",
-      "args": [{ "name": "tab", "enum": ["details", "specs", "photos", "zoom", "price"] }],
-      "say": "{tab: specs} as you talk about the product's specifications; details (Detalle del Producto), photos, zoom (the big photo) or price likewise.",
-      "doc": "On the product page in front, scroll to Detalle del Producto or Especificaciones, step through the gallery, open the big photo (the page's own zoom), or ring the price and its buttons."
+      "args": [{ "name": "tab", "enum": ["details", "specs", "photos", "zoom", "price", "docs", "related"] }],
+      "say": "{tab: specs} as you talk about the product's specifications; details (Detalle del Producto), photos, zoom (the big photo), price, docs (its Hoja de Seguridad and Ficha Técnica) or related (Complemente su compra) likewise.",
+      "doc": "On the product page in front, scroll to Detalle del Producto or Especificaciones, step through the gallery, open the big photo (the page's own zoom), ring the price and its buttons, ring the data sheets' Descargar rows (never opened: each is a PDF in a new tab), or scroll to the Complemente su compra carousel and ring it. A product without data sheets or related products is refused, saying so."
     },
     {
       "id": "filter_listing",
@@ -75,7 +75,7 @@
           "name": "filters",
           "type": "array",
           "optional": true,
-          "doc": "Each \"Facet: Option\" exactly as the listing writes them (\"Marca: LUBRITEK\", \"Viscosidad: 15W40\", \"Precio: $10.000 - $49.999\"); several options of one facet as separate entries."
+          "doc": "Each \"Facet: Option\" exactly as the listing writes them (\"Marca: LUBRITEK\", \"Viscosidad: 15W40\", \"Precio: $10.000 - $49.999\"); several options of one facet as separate entries. A month's campaign switch (\"Agrofertas Octubre\") is \"Campaña: Agrofertas Octubre\": its toggle is switched on."
         },
         { "name": "sort", "enum": ["price_asc", "price_desc", "relevance"], "optional": true },
         {
@@ -85,18 +85,18 @@
           "doc": "Filters to take off, each \"Facet: Option\" as it is on (\"Marca: LUBRITEK\"): its checkbox unticked, in place."
         },
         { "name": "clear", "type": "boolean", "optional": true, "doc": "True to take every filter off with the listing's own \"Borrar Filtros\", in place." },
-        { "name": "page", "type": "integer", "optional": true, "doc": "The listing's page to show, 1 for the first, by its own page links (40 products a page)." }
+        { "name": "page", "type": "integer", "optional": true, "doc": "The listing's page to show, 1 for the first, by its own page links (40 products a page; 20 on a brand page)." }
       ],
       "claims": ["filtrando por", "filtro por", "filtering by"],
       "objects": ["filter", "filtro", "filtros"],
-      "doc": "Go to the listing at category_path (in the app, if it is not the one in front), take off the filters asked (or Borrar Filtros), then tick each filter with the listing's own checkbox, one at a time, waiting for the grid to settle; then the sort and the page. A filter already on stays on; only the options named are ticked. Reports listing.shown and listing.filtered."
+      "doc": "Go to the listing at category_path (in the app, if it is not the one in front), take off the filters asked (or Borrar Filtros), then tick each filter with the listing's own checkbox (a campaign with its own switch), one at a time, waiting for the grid to settle; then the sort and the page. A filter already on stays on; only the options named are ticked. Reports listing.shown and listing.filtered."
     },
     {
       "id": "open_product",
       "class": "navigate",
       "args": [
         { "name": "path", "doc": "/producto/<slug>/<sku>." },
-        { "name": "tab", "enum": ["details", "specs", "photos", "zoom", "price"], "optional": true }
+        { "name": "tab", "enum": ["details", "specs", "photos", "zoom", "price", "docs", "related"], "optional": true }
       ],
       "claims": ["abro el producto", "te muestro el", "opening the", "let me open"],
       "objects": ["product", "producto"],
@@ -111,13 +111,13 @@
         { "name": "brand", "optional": true },
         { "name": "sort", "enum": ["price_asc", "price_desc", "relevance"], "optional": true }
       ],
-      "doc": "Read the store's own catalogue search in the visitor's browser, without moving the page: up to eight products with their live prices and stock, and how many match. Reports products_found."
+      "doc": "Read the store's own catalogue search in the visitor's browser, without moving the page: up to eight products with their live prices, offers and stock, and how many match. When the words find nothing and the store suggests a spelling, it searches that once instead and says so. Reports products_found."
     },
     {
       "id": "check_prices",
       "class": "look",
       "args": [{ "name": "paths", "type": "array", "doc": "Up to six /producto/<slug>/<sku> paths." }],
-      "doc": "Read the live price, discount and stock of these products in the visitor's browser. Moves nothing. Reports prices_read."
+      "doc": "Read the live price, the offer the cart applies and the stock of these products in the visitor's browser. Moves nothing. Reports prices_read."
     },
     {
       "id": "check_stock",
@@ -127,6 +127,17 @@
         { "name": "store", "optional": true, "doc": "A store's name as /nuestras-tiendas writes it, or a city." }
       ],
       "doc": "Read the product's stock online and in the stores that report it, in the visitor's browser. Moves nothing. Reports stock_read."
+    },
+    {
+      "id": "check_fit",
+      "class": "look",
+      "args": [
+        { "name": "path", "doc": "/producto/<slug>/<sku>." },
+        { "name": "brand", "optional": true, "doc": "The tractor's make, as said: \"Massey Ferguson\", \"John Deere\"." },
+        { "name": "model", "optional": true, "doc": "Its model, as said: \"290\", \"5403\"." },
+        { "name": "year", "optional": true, "doc": "Its year: \"1985\"." }
+      ],
+      "doc": "Read which tractors the store's catalogue lists the part for (its compatibility records: make, then model, year and engine), in the visitor's browser; with a make, model or year, whether that machine is among them. The product page shows none of it. Moves nothing; rings the product's name when it is in front. Reports fit_read."
     },
     {
       "id": "stores.show",
@@ -174,16 +185,34 @@
         { "name": "maker_code", "optional": true, "doc": "Código Fabricante." },
         { "name": "price", "type": "number", "optional": true, "doc": "The price the page shows, CLP." },
         { "name": "regular_price", "type": "number", "optional": true, "doc": "The struck price when there is a discount, CLP." },
-        { "name": "discount", "type": "integer", "optional": true, "doc": "Percent off." },
+        { "name": "discount", "type": "integer", "optional": true, "doc": "Percent off: the struck price's, or the store's offer (offer_price)." },
+        { "name": "offer_price", "type": "number", "optional": true, "doc": "The store's offer price, CLP: the page shows price, the cart's subtotal applies this." },
         { "name": "price_hidden", "type": "boolean", "optional": true, "doc": "The page says Confirmar precio en tienda instead of a price." },
         { "name": "stock", "optional": true, "doc": "inStock, lowStock or outOfStock." },
         { "name": "stock_level", "type": "integer", "optional": true },
         { "name": "description", "optional": true, "doc": "Detalle del Producto, trimmed." },
+        { "name": "label", "optional": true, "doc": "The badge over the brand, as written (\"Venta en Verde\")." },
+        { "name": "category", "optional": true, "doc": "Its place in the store, the breadcrumb: \"Maquinaria > Tractor para Venta > 25 HP\"." },
         {
           "name": "specs",
           "type": "array",
           "fields": [{ "name": "label" }, { "name": "value" }],
           "doc": "Especificaciones, in order."
+        },
+        {
+          "name": "equivalents",
+          "type": "array",
+          "optional": true,
+          "fields": [{ "name": "label" }, { "name": "value" }],
+          "doc": "Equivalencias: each row (\"Equivalencia OEM\") and its codes, as written."
+        },
+        { "name": "docs", "type": "array", "optional": true, "doc": "Its data sheets by their row's name (\"Hoja de Seguridad\", \"Ficha Técnica\")." },
+        {
+          "name": "related",
+          "type": "array",
+          "optional": true,
+          "fields": [{ "name": "name" }, { "name": "path" }, { "name": "price", "type": "number", "optional": true }],
+          "doc": "Complemente su compra: the products its carousel shows."
         },
         { "name": "source", "enum": ["page", "api"], "doc": "page: read from the page; api: the store's live read." }
       ]

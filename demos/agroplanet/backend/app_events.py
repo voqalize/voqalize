@@ -20,7 +20,10 @@ the page and from the store's own public catalogue reads
 (``api.agroplanet.cl/webapi``), and reports them. One price is shown per
 product (``price``), with ``regular_price`` and ``discount`` when it is on
 offer; some products show no price at all ("Confirmar precio en tienda"),
-which is ``price_hidden``. Prices are integers in CLP. Stock is the store's
+which is ``price_hidden``. The store hides its offers on the pages
+(``hideDiscount``): the page shows the full price and the mini-cart's
+subtotal applies the offer, which the API carries, reported as
+``offer_price`` with its ``discount``. Prices are integers in CLP. Stock is the store's
 status (``inStock``, ``lowStock``, ``outOfStock``) and a unit count. A
 product's ``path`` is always ``/producto/<slug>/<sku>``; the slug is
 decorative and the ``sku`` is what names it.
@@ -51,6 +54,8 @@ __all__ = [
     "CartItem",
     "CartState",
     "FacetState",
+    "FitBrand",
+    "FitRead",
     "FoundItem",
     "LanguageRequested",
     "ListingItem",
@@ -61,6 +66,7 @@ __all__ = [
     "ProductShown",
     "ProductsFound",
     "QuoteState",
+    "RelatedItem",
     "StockRead",
     "StoreShown",
     "StoreStock",
@@ -129,7 +135,10 @@ class PriceItem(BaseModel):
     regular_price: int | None = None
     """The price before the discount, CLP, when there is one."""
     discount: int | None = None
-    """Percent off."""
+    """Percent off: the struck price's, or the store's offer's."""
+    offer_price: int | None = None
+    """The store's offer, CLP, when it has one: the page shows ``price``, and
+    the cart's subtotal applies this."""
     price_hidden: bool = False
     """The store shows "Confirmar precio en tienda" instead of a price."""
     stock: StockStatus = ""
@@ -152,6 +161,7 @@ class FoundItem(BaseModel):
     price: int | None = None
     regular_price: int | None = None
     discount: int | None = None
+    offer_price: int | None = None
     price_hidden: bool = False
     stock: StockStatus = ""
     stock_level: int | None = None
@@ -167,6 +177,9 @@ class ProductsFound(AppEvent):
     total: int | None = None
     suggestion: str | None = None
     """The store's own spelling suggestion ("batería"), when it made one."""
+    retried_with: str | None = None
+    """The words searched instead, when ``query`` found nothing and the store
+    suggested a spelling: ``items`` and ``total`` are that search's."""
     items: list[FoundItem] = Field(default_factory=list[FoundItem])
 
 
@@ -192,6 +205,41 @@ class StockRead(AppEvent):
     matched: str | None = None
 
 
+class FitBrand(BaseModel):
+    """One make the part is listed for, with as much below it as was read."""
+
+    brand: str
+    count: int | None = None
+    """How many machines of that make the catalogue lists it for."""
+    models: list[str] = Field(default_factory=list[str])
+    years: list[str] = Field(default_factory=list[str])
+    engines: list[str] = Field(default_factory=list[str])
+
+
+class FitRead(AppEvent):
+    """Which tractors the store's catalogue lists a part for, as
+    ``check_fit`` read it (``product/getPartAppRecords``): the product page
+    shows none of it. ``universal`` when the catalogue lists it as UNIVERSAL
+    (a generic part, for no one machine); no ``brands`` when it lists no
+    machine at all. With a machine asked (``brand``, ``model``, ``year``),
+    ``matched`` says whether the catalogue lists it, ``match`` what it
+    matched and ``missing`` what it did not."""
+
+    path: str
+    sku: str = ""
+    name: str = ""
+    universal: bool = False
+    brands: list[FitBrand] = Field(default_factory=list[FitBrand])
+    total: int | None = None
+    """How many machines the catalogue lists it for, all makes."""
+    brand: str | None = None
+    model: str | None = None
+    year: str | None = None
+    matched: bool | None = None
+    match: str | None = None
+    missing: str | None = None
+
+
 class StoreShown(AppEvent):
     """A store's card on /nuestras-tiendas, rung by ``stores.show``."""
 
@@ -204,6 +252,12 @@ class StoreShown(AppEvent):
 
 
 # ─── The brain's views of the mirror ───────────────────────────────────────────
+
+
+class RelatedItem(BaseModel):
+    name: str
+    path: str = ""
+    price: int | None = None
 
 
 class ProductShown(BaseModel):
@@ -222,9 +276,22 @@ class ProductShown(BaseModel):
     price_hidden: bool = False
     stock: str = ""
     stock_level: int | None = None
+    offer_price: int | None = None
+    """The store's offer, which the cart's subtotal applies; the page shows
+    ``price``."""
     description: str = ""
+    label: str = ""
+    """The badge over the brand ("Venta en Verde")."""
+    category: str = ""
+    """The breadcrumb: "Maquinaria > Tractor para Venta > 25 HP"."""
     specs: dict[str, str] = Field(default_factory=dict[str, str])
     """Especificaciones: label → value, in order."""
+    equivalents: dict[str, str] = Field(default_factory=dict[str, str])
+    """Equivalencias: "Equivalencia OEM" → its codes."""
+    docs: list[str] = Field(default_factory=list[str])
+    """Its data sheets: "Hoja de Seguridad", "Ficha Técnica"."""
+    related: list[RelatedItem] = Field(default_factory=list[RelatedItem])
+    """Complemente su compra."""
     source: Literal["page", "api"] = "page"
 
 
@@ -300,6 +367,7 @@ type AgroplanetEvent = (
     | PricesRead
     | ProductsFound
     | StockRead
+    | FitRead
     | StoreShown
     | StageResult
     | StageHello
@@ -314,6 +382,7 @@ AGROPLANET_EVENTS = AppEvents[AgroplanetEvent](
     PricesRead,
     ProductsFound,
     StockRead,
+    FitRead,
     StoreShown,
     StageResult,
     StageHello,
@@ -351,15 +420,33 @@ def product_view(value: Mapping[str, Any]) -> ProductShown:
         price=_num(value.get("price")),
         regular_price=_num(value.get("regular_price")),
         discount=_num(value.get("discount")),
+        offer_price=_num(value.get("offer_price")),
         price_hidden=value.get("price_hidden") is True,
         stock=_text(value.get("stock")),
         stock_level=_num(value.get("stock_level")),
         description=_text(value.get("description")),
+        label=_text(value.get("label")),
+        category=_text(value.get("category")),
         specs={
             str(r.get("label", "")): str(r.get("value", ""))
             for r in _rows(value.get("specs"))
             if r.get("label")
         },
+        equivalents={
+            str(r.get("label", "")): str(r.get("value", ""))
+            for r in _rows(value.get("equivalents"))
+            if r.get("label")
+        },
+        docs=[d for d in _strings(value.get("docs")) if d],
+        related=[
+            RelatedItem(
+                name=str(r.get("name", "")),
+                path=str(r.get("path") or ""),
+                price=_num(r.get("price")),
+            )
+            for r in _rows(value.get("related"))
+            if r.get("name")
+        ],
         source="api" if value.get("source") == "api" else "page",
     )
 

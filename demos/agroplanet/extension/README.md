@@ -39,7 +39,17 @@ goes on it; it is not how a customer would ship it.
   opened first (`app-filter-element`, Material expansion panels that draw
   their options only when open) and each box ringed before it is pressed;
   a filter already on stays on. Then *Ordenar por* (*Menor precio*, *Mayor
-  precio*, *Relevancia*) and the page (its own page links; 40 a page). The
+  precio*, *Relevancia*) and the page (its own page links; 40 a page, 20 on a
+  brand page, which pages in place without changing its address: the page in
+  front is the pager's own current number).
+- **The month's campaign switch** (`Campaña: Agrofertas Octubre`, the cue
+  `{filter: Campaña | Agrofertas Octubre}`): some listings (Agroferretería,
+  Implementos Agrícolas, Baterías) draw an on/off switch above *Precio*
+  (`.SPECIALFILTER-filter`, a Material slide toggle, not a panel). The store's
+  campaign facets (`C_AG_BUSQUEDA_PLP_*`) are reported as one facet,
+  *Campaña*; the switch is ringed and its own toggle pressed (by its title, or
+  by its place on a translated page), and what is on is read back from the
+  store's answer. The
   app re-draws the filter panel folded after every change, so what is on is
   read back from the store's answer (`category/getCategory`,
   `search/refineSearch`), never from the boxes. Facets and options go by the
@@ -51,7 +61,25 @@ goes on it; it is not how a customer would ship it.
   rings the price with *Cotizar* / *Agregar al carro* (price). Reports
   `product.shown` from the page at once and `product.checked` from
   `product/getProductDetail`. A product that says *Confirmar precio en
-  tienda* is reported `price_hidden`, with no price.
+  tienda* is reported `price_hidden`, with no price. The store hides its
+  offers on the pages (`hideDiscount`): the page shows the full price and the
+  mini-cart's subtotal applies the offer, so the slice carries the shown
+  `price` and, from the API, `offer_price` and `discount`. It also carries the
+  badge over the brand (`label`, "Venta en Verde"), where it sits (`category`,
+  the breadcrumb), the *Equivalencias* block (`equivalents`, "Equivalencia
+  OEM"), the data sheets (`docs`) and *Complemente su compra* (`related`).
+- **Data sheets and related products** (`product.tab` `docs`, `related`):
+  the *Hoja de Seguridad* / *Ficha Técnica* rows with their *Descargar*
+  buttons ringed and never pressed (each opens a PDF in a new tab: the
+  visitor's), or the *Complemente su compra* carousel scrolled to and ringed;
+  a product with none is refused, saying so.
+- **Does it fit my tractor** (`check_fit`): the store's compatibility
+  records (`product/getPartAppRecords`: makes, then a make's models, a
+  model's years, a year's engines), which the product page never draws, read
+  in the visitor's browser; with the machine the visitor named (make, model,
+  year, "MF" for Massey Ferguson), whether it is among them. UNIVERSAL is a
+  generic part; no records is no fit. Reports `fit_read`, and rings the
+  part's name when it is in front.
 - **Show** (`{show: …}`): a heading or section title (the home's
   *CATEGORÍAS* and *Aprovecha estas oportunidades en …*, the cart's and the
   quote's cards), the home's banner or brands, a specification row by its
@@ -64,7 +92,11 @@ goes on it; it is not how a customer would ship it.
 - **Read** (`find_products`, `check_prices`, `check_stock`): the store's own
   API in the visitor's browser, with their cookies; nothing on the page
   moves. Stock is one figure per product (`inStock`, `lowStock`); the store
-  publishes no stock by store, and says so.
+  publishes no stock by store, and says so. Every read carries the offer the
+  cart applies. When `find_products`'s words find nothing and the store
+  suggests a spelling ("cuchiya" → "cuchilla"), it searches that once and
+  reports `retried_with`. A search page that finds nothing ("No logramos
+  encontrar resultados", `app-no-results`) is a listing of 0.
 - **Stores** (`stores.show`): on /nuestras-tiendas, the store's card found by
   its name or its city ("La Serena" is the Coquimbo store), the list paged
   with its own page numbers, ringed; its address, phone and hours reported
@@ -133,7 +165,9 @@ So:
   (0.1.0): so a reload, a typed address or a second tab change nothing on it.
 
 The home opens an empty splash window on every full load of `/` that locks
-scrolling; it is closed before any scroll and when a call starts, and the
+scrolling, 4 to 6 s after the load; it is closed before any scroll and when a
+call starts, and watched for (`guardSplash`) until about 10 s after the load
+once a call is on or a move is made, and the
 cookie bar's *Entendido* is pressed when a call starts, so neither covers
 what he rings.
 
@@ -251,6 +285,37 @@ the widget bottom-left and outside `<app-root>`, kept across routes):
   pressed; then `cart_update` 0 emptied the cart;
 - `stores.show` Osorno (page 2 of the list) and La Serena; `page.faq`
   *Garantía Legal* on /cambios-devoluciones.
+- On a page "translated" to English the way Chrome's translator rewrites it
+  (text nodes only, the anchored ones left alone, and the cart's buttons
+  rewritten anyway: "Add to cart", "Delete", "Quote"): `commerce.cart_add`
+  1, `cart_update` 2, `start_quote`, `cart_update` 0. Every button a cart or
+  quote move presses is found by what it is (its id, its place, its class),
+  never by its Spanish words, and is kept from the translator
+  (`anchors.ts`); the adapter tests run the same moves on a translated
+  fixture.
+
+## Checked live (2026-10-30, second pass)
+
+The adapter bundle injected the same way, headless, nothing pressed beyond
+the moves below, no cart touched:
+
+- `check_fit` on 123794 (a Massey Ferguson hose): Massey Ferguson 290 1985
+  listed, with its engine (Perkins A4.248); "MF" 5400 not listed; 1022747
+  UNIVERSAL; 136045 no records;
+- `filter_listing` on AG15 with `Campaña: Agrofertas Octubre`: the switch
+  pressed, 18 products, then `remove` back to 562;
+- the offer read on 1171555 (page $360.000, offer $288.000, 20 %) and 1173221
+  (7 %), in `product.checked` and `check_prices`;
+- 126615: its Equivalencia OEM rung, `related` rung (five products), `docs`
+  refused; 1173221: `docs` rung (Hoja de Seguridad and Ficha Técnica, no tab
+  opened), `related` refused; 1184899 reports "Venta en Verde"; the tractor
+  1184833 "Maquinaria > Tractor para Venta > 25 HP" with its price hidden;
+- `find_products` "cuchiya" → searched "cuchilla", 136; `commerce.search`
+  "xyzqwe" → no results, "masey ferguson" → 443;
+- /marca/bkt page 2 of 22 by its pager, the address unchanged;
+- a fresh load of /: with a move made at once, the splash that opens about
+  5 s later (it stays open without the adapter) never showed and the page
+  stayed scrollable.
 
 ## Driving it from the console
 
@@ -265,6 +330,10 @@ await __voqalizeAgroplanet.move("menu.open", { category: "Repuestos De Tractor" 
 await __voqalizeAgroplanet.move("open_product", { path: "/producto/aceite_lubritek_utf_semisintetico_19l/1173221", tab: "specs" });
 await __voqalizeAgroplanet.move("stores.show", { name: "Osorno" });
 await __voqalizeAgroplanet.move("page.faq", { question: "Garantía Legal", path: "/cambios-devoluciones" });
+await __voqalizeAgroplanet.move("check_fit", { path: "/producto/x/123794", brand: "Massey Ferguson", model: "290", year: "1985" });
+await __voqalizeAgroplanet.move("filter_listing", { category_path: "/categoria/agroferreteria/AG15", filters: ["Campaña: Agrofertas Octubre"], sort: null, remove: null, clear: null, page: null });
+await __voqalizeAgroplanet.move("product.tab", { tab: "docs" });
+await __voqalizeAgroplanet.move("find_products", { query: "cuchiya", category_code: null, brand: null, sort: null });
 __voqalizeAgroplanet.moves();
 ```
 
