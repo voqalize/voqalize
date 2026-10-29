@@ -1,0 +1,200 @@
+{
+  "$schema": "../../sdk/js/stage/stage.schema.json",
+  "stage": 1,
+  "id": "agroplanet",
+  "languages": ["es", "en"],
+  "kits": [
+    {
+      "id": "commerce",
+      "major": 1,
+      "moves": [
+        "commerce.filter",
+        "commerce.sort",
+        "commerce.search",
+        "commerce.cart_add",
+        "commerce.cart_update",
+        "commerce.cart_show"
+      ]
+    }
+  ],
+  "moves": [
+    {
+      "id": "page.open",
+      "verb": "page",
+      "class": "navigate",
+      "args": [{ "name": "path", "doc": "A path on www.agroplanet.cl: /, /nuestras-tiendas, /politica-despacho, /categoria/<slug>/<code>, /marca/<brand>, /producto/<slug>/<sku>." }],
+      "say": "{page: /path} at the start of the sentence that takes them there.",
+      "claims": ["te llevo a", "vamos a", "abro la página", "taking you to", "opening the page"],
+      "objects": ["page", "página"],
+      "doc": "Open a page of the store, inside the app (no reload)."
+    },
+    {
+      "id": "page.show",
+      "verb": "show",
+      "class": "look",
+      "args": [
+        { "name": "target", "doc": "A heading, section or card title exactly as the page writes it." },
+        { "name": "path", "optional": true, "doc": "The page it is on, when it is not the one in front; it is opened first." }
+      ],
+      "say": "{show: Heading} as you start talking about a part of the page.",
+      "doc": "Scroll to a heading, section or card on the page in front and ring it."
+    },
+    {
+      "id": "page.faq",
+      "verb": "faq",
+      "class": "look",
+      "args": [
+        { "name": "question", "doc": "The panel's title as the page writes it." },
+        { "name": "path", "optional": true }
+      ],
+      "say": "{faq: Question} as you answer from one of the page's panels.",
+      "doc": "Open one panel of a policy page's accordion (Cambios y devoluciones, Despacho, Garantía) and ring its answer."
+    },
+    {
+      "id": "menu.open",
+      "verb": "menu",
+      "class": "look",
+      "args": [{ "name": "category", "doc": "A top category as the menu writes it: Baterías, Rodamientos, Lubricantes Y Fluidos, Repuestos De Tractor…" }],
+      "say": "{menu: Category} as you walk them through what a top category holds.",
+      "doc": "Open Todas las categorías and hover the category, so its flyout of subcategories shows, and ring it. Closes by itself on the next move."
+    },
+    {
+      "id": "product.tab",
+      "verb": "tab",
+      "class": "look",
+      "args": [{ "name": "tab", "enum": ["details", "specs", "photos", "price"] }],
+      "say": "{tab: specs} as you talk about the product's specifications; details (Detalle del Producto), photos or price likewise.",
+      "doc": "On the product page in front, scroll to Detalle del Producto or Especificaciones, step through the gallery, or ring the price and its buttons."
+    },
+    {
+      "id": "filter_listing",
+      "class": "reversible",
+      "args": [
+        { "name": "category_path", "doc": "/categoria/<slug>/<code> from the category list, or /busqueda/<words> for a search." },
+        {
+          "name": "filters",
+          "type": "array",
+          "optional": true,
+          "doc": "Each \"Facet: Option\" exactly as the listing writes them (\"Marca: LUBRITEK\", \"Viscosidad: 15W40\", \"Precio: $10.000 - $49.999\"); several options of one facet as separate entries."
+        },
+        { "name": "sort", "enum": ["price_asc", "price_desc", "relevance"], "optional": true }
+      ],
+      "claims": ["filtrando por", "filtro por", "filtering by"],
+      "objects": ["filter", "filtro", "filtros"],
+      "doc": "Go to the listing at category_path (in the app, if it is not the one in front), then tick each filter with the listing's own checkbox, one at a time, waiting for the grid; then the sort. Reports listing.shown and listing.filtered."
+    },
+    {
+      "id": "open_product",
+      "class": "navigate",
+      "args": [
+        { "name": "path", "doc": "/producto/<slug>/<sku>." },
+        { "name": "tab", "enum": ["details", "specs", "photos", "price"], "optional": true }
+      ],
+      "claims": ["abro el producto", "te muestro el", "opening the", "let me open"],
+      "objects": ["product", "producto"],
+      "doc": "Open the product at path (in the app), then the section named. Reports product.shown, then product.checked from the store's live read."
+    },
+    {
+      "id": "find_products",
+      "class": "look",
+      "args": [
+        { "name": "query", "optional": true, "doc": "Words to search the catalogue for, in Spanish: \"batería 12v 100ah\", \"cuchilla rotofresa\"." },
+        { "name": "category_code", "optional": true, "doc": "A category code from the category list (AG100, 1000902)." },
+        { "name": "brand", "optional": true },
+        { "name": "sort", "enum": ["price_asc", "price_desc", "relevance"], "optional": true }
+      ],
+      "doc": "Read the store's own catalogue search in the visitor's browser, without moving the page: up to eight products with their live prices and stock, and how many match. Reports products_found."
+    },
+    {
+      "id": "check_prices",
+      "class": "look",
+      "args": [{ "name": "paths", "type": "array", "doc": "Up to six /producto/<slug>/<sku> paths." }],
+      "doc": "Read the live price, discount and stock of these products in the visitor's browser. Moves nothing. Reports prices_read."
+    },
+    {
+      "id": "check_stock",
+      "class": "look",
+      "args": [
+        { "name": "path", "doc": "/producto/<slug>/<sku>." },
+        { "name": "store", "optional": true, "doc": "A store's name as /nuestras-tiendas writes it, or a city." }
+      ],
+      "doc": "Read the product's stock online and in the stores that report it, in the visitor's browser. Moves nothing. Reports stock_read."
+    },
+    {
+      "id": "stores.show",
+      "verb": "store",
+      "class": "look",
+      "args": [{ "name": "name", "doc": "A store's name or city as /nuestras-tiendas writes it." }],
+      "say": "{store: Name} as you talk about one of the stores.",
+      "doc": "On /nuestras-tiendas (opened first if needed), find the store's card, scroll to it and ring it. Reports store_shown."
+    },
+    {
+      "id": "start_quote",
+      "class": "confirmed",
+      "claims": ["te llevo a cotizar", "vamos a cotizar", "taking you to the quote"],
+      "objects": ["cotización", "quote"],
+      "doc": "From the cart (/carro, opened first) press Cotizar and stop on the Formulario de cotización (/cotizacion). Agroplanet sells by quote: there is no online payment. Reports quote.changed."
+    },
+    {
+      "id": "fill_quote",
+      "class": "confirmed",
+      "args": [
+        { "name": "name", "optional": true, "doc": "Nombre Completo / Razón Social." },
+        { "name": "phone", "optional": true, "doc": "Teléfono, digits as they said them." },
+        { "name": "email", "optional": true },
+        { "name": "region", "optional": true, "doc": "A Chilean región as the form lists it (Metropolitana, Maule…)." },
+        { "name": "commune", "optional": true, "doc": "A comuna of that región." },
+        { "name": "street", "optional": true },
+        { "name": "number", "optional": true },
+        { "name": "unit", "optional": true, "doc": "Dpto / casa / Oficina." },
+        { "name": "notes", "optional": true, "doc": "Notas sobre tu cotización." }
+      ],
+      "claims": ["lo anoto en el formulario", "completo el formulario", "filling in the form"],
+      "objects": ["formulario", "form"],
+      "doc": "On the Formulario de cotización (/cotizacion), type each field given, once the visitor said yes. Never the RUT, never Crear cotización: those are the visitor's. Reports quote.changed."
+    }
+  ],
+  "slices": [
+    {
+      "id": "product",
+      "doc": "the product page in front: its name, price, stock and specifications",
+      "fields": [
+        { "name": "path" },
+        { "name": "sku", "optional": true },
+        { "name": "name" },
+        { "name": "brand", "optional": true },
+        { "name": "maker_code", "optional": true, "doc": "Código Fabricante." },
+        { "name": "price", "type": "number", "optional": true, "doc": "The price the page shows, CLP." },
+        { "name": "regular_price", "type": "number", "optional": true, "doc": "The struck price when there is a discount, CLP." },
+        { "name": "discount", "type": "integer", "optional": true, "doc": "Percent off." },
+        { "name": "price_hidden", "type": "boolean", "optional": true, "doc": "The page says Confirmar precio en tienda instead of a price." },
+        { "name": "stock", "optional": true, "doc": "inStock, lowStock or outOfStock." },
+        { "name": "stock_level", "type": "integer", "optional": true },
+        { "name": "description", "optional": true, "doc": "Detalle del Producto, trimmed." },
+        {
+          "name": "specs",
+          "type": "array",
+          "fields": [{ "name": "label" }, { "name": "value" }],
+          "doc": "Especificaciones, in order."
+        },
+        { "name": "source", "enum": ["page", "api"], "doc": "page: read from the page; api: the store's live read." }
+      ]
+    },
+    {
+      "id": "quote",
+      "doc": "the Formulario de cotización: which fields are filled and which are still missing (names only, never the values)",
+      "fields": [
+        { "name": "step", "enum": ["form", "done", "other"] },
+        { "name": "filled", "type": "array", "optional": true, "doc": "Field names: name, rut, phone, email, region, commune, street, number, unit, notes." },
+        { "name": "missing", "type": "array", "optional": true, "doc": "Required field names still empty." },
+        { "name": "items", "type": "integer", "optional": true, "doc": "Products in the Resumen del Pedido." },
+        { "name": "total", "type": "number", "optional": true, "doc": "The Total the summary shows, CLP." }
+      ]
+    }
+  ],
+  "events": [
+    { "id": "product.shown", "slice": "product", "op": "set", "note": "{by} opened the product {name}", "doc": "A product page came up, read from the page." },
+    { "id": "product.checked", "slice": "product", "op": "set", "doc": "The store's live read of the product in front: its price and stock now." },
+    { "id": "quote.changed", "slice": "quote", "op": "set", "doc": "The quote form on load and after a change; the brain writes its own line." }
+  ]
+}
