@@ -623,14 +623,10 @@ an app may set). Explora's enquiry form speaks (dev test); Cannon Home takes non
   the package, set up by an owner of the `@voqalize` npm org (a new package needs its first
   publish before a trusted publisher can be added).
 
-### The hosted brain (not started: waits on a release)
+### The hosted brain
 
-Platform's hosted brain runs on exactly the published `voqalize-agent-sdk==0.11.0`, with "no
-SDK change and no vendored wheel" (its DECISIONS, "LIFECYCLE v2" item 4) and a startup guard
-that refuses any other version; the snippet would need `@voqalize/stage` from npm. So hosting
-Stage there (pack format 3 carrying a Stage Spec, a format-2 adapter, the explorer writing
-specs, the snippet and preview extension on `@voqalize/stage`) starts once both are released,
-or once the owner decides otherwise. What it builds on is here: `StageSpec` as the pack's
+The hosted brain runs Stage, on `voqalize-agent-sdk==0.12.0rc2` and `@voqalize/stage@0.1.0-rc.2`,
+and moves to `0.12.0` and `0.1.0` next. What it builds on is here: `StageSpec` as the pack's
 scene, kits for the shared moves, the Stage conformance checks for proofs, the script host
 for the snippet.
 
