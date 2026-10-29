@@ -1,0 +1,2413 @@
+{
+"statusCode": 200,
+"isValid": true,
+"data": {
+"code": null,
+"name": null,
+"data": {
+"results": [
+{
+"code": "126738",
+"name": "Cable de Bateria Negativo 40cm",
+"url": "/Productos/Repuestos-De-Tractor/Sistema-El%C3%A9ctrico/Cables-Y-Ramales/Cable-de-Bateria-Negativo-40cm/p/126738",
+"brand": "AGPO",
+"price": {
+"currencyIso": "CLP",
+"value": 22000.0,
+"priceType": "BUY",
+"formattedValue": "$22.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 22000.0,
+"priceType": "BUY",
+"formattedValue": "$22.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": true,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 20,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "158162",
+"name": "Componentes De Baterias",
+"url": "/Productos/Bater%C3%ADas/Accesorios-De-Bateria/Cargadores-De-Bateria-Y-Cables-Robacorriente/Componentes-De-Baterias/p/158162",
+"brand": "MARCA ALTERNATIVA",
+"price": {
+"currencyIso": "CLP",
+"value": 1500.0,
+"priceType": "BUY",
+"formattedValue": "$1.500",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 1500.0,
+"priceType": "BUY",
+"formattedValue": "$1.500",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 1,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "158919",
+"name": "Componentes De Baterias",
+"url": "/Productos/Bater%C3%ADas/Accesorios-De-Bateria/Cargadores-De-Bateria-Y-Cables-Robacorriente/Componentes-De-Baterias/p/158919",
+"brand": "MARCA ALTERNATIVA",
+"price": {
+"currencyIso": "CLP",
+"value": 5500.0,
+"priceType": "BUY",
+"formattedValue": "$5.500",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 5500.0,
+"priceType": "BUY",
+"formattedValue": "$5.500",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 1,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1113835",
+"name": "Terminal Bateria Liberacion Rapida",
+"url": "/Productos/Accesorios/Accesorios-de-Bater%C3%ADas/Accesorios-y-Herramientas-para-Bater%C3%ADas/Terminal-Bateria-Liberacion-Rapida/p/1113835",
+"brand": "DGP",
+"price": {
+"currencyIso": "CLP",
+"value": 6500.0,
+"priceType": "BUY",
+"formattedValue": "$6.500",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 6500.0,
+"priceType": "BUY",
+"formattedValue": "$6.500",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 12,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1139814",
+"name": "Bateria Gladiator 18V 2.0A",
+"url": "/c/Bateria-Gladiator-18V-2-0A/p/1139814",
+"brand": "GLADIATOR",
+"price": {
+"currencyIso": "CLP",
+"value": 24000.0,
+"priceType": "BUY",
+"formattedValue": "$24.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 24000.0,
+"priceType": "BUY",
+"formattedValue": "$24.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 1,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1004506",
+"name": "Terminal de Bateria Positivo AGPO",
+"url": "/Productos/Bater%C3%ADas/Accesorios-De-Bateria/Cargadores-De-Bateria-Y-Cables-Robacorriente/Terminal-de-Bateria-Positivo-AGPO/p/1004506",
+"brand": "AGPO",
+"price": {
+"currencyIso": "CLP",
+"value": 5500.0,
+"priceType": "BUY",
+"formattedValue": "$5.500",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 5500.0,
+"priceType": "BUY",
+"formattedValue": "$5.500",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 9,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1057395",
+"name": "Bateria MF31S-700 100Ah 700CCA",
+"url": "/c/Bateria-MF31S-700-100Ah-700CCA/p/1057395",
+"brand": "NEXBATT",
+"price": {
+"currencyIso": "CLP",
+"value": 1000000.0,
+"priceType": "BUY",
+"formattedValue": "$1.000.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 1000000.0,
+"priceType": "BUY",
+"formattedValue": "$1.000.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "inStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 421,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1096205",
+"name": "Kit de Mantención de Bateria WYNNS",
+"url": "/Aditivos-y-Qu%C3%ADmicos/Limpiadores-y-Desengrasantes/Kit-de-Mantenci%C3%B3n-de-Bateria-WYNNS/p/1096205",
+"brand": "WYNNS",
+"price": {
+"currencyIso": "CLP",
+"value": 12000.0,
+"priceType": "BUY",
+"formattedValue": "$12.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 12000.0,
+"priceType": "BUY",
+"formattedValue": "$12.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "inStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 34,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1127112",
+"name": "Taladro Inalambrico 18 v 1 Bateria GLADIATOR",
+"url": "/Productos/Herramientas/Herramientas-El%C3%A9ctricas/Taladro-Inalambrico-18-v-1-Bateria-GLADIATOR/p/1127112",
+"brand": "GLADIATOR",
+"price": {
+"currencyIso": "CLP",
+"value": 70000.0,
+"priceType": "BUY",
+"formattedValue": "$70.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 70000.0,
+"priceType": "BUY",
+"formattedValue": "$70.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 2,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1101342",
+"name": "Cargador y Mantenedor Bateria Motorlife 6-12V 1.5A",
+"url": "/Productos/Accesorios/Radios-y-Electr%C3%B3nicos/Dash-Cam-y-Memorias/Cargador-y-Mantenedor-Bateria-Motorlife-6-12V-1-5A/p/1101342",
+"brand": "MOTORLIFE",
+"price": {
+"currencyIso": "CLP",
+"value": 19500.0,
+"priceType": "BUY",
+"formattedValue": "$19.500",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 19500.0,
+"priceType": "BUY",
+"formattedValue": "$19.500",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 2,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1122108",
+"name": "Motosierra Inalambrica 18 V 2 Bateria 1 Cargador",
+"url": "/Productos/Agroferreteria/Equipos-a-Combusti%C3%B3n/Motosierras/Motosierra-Inalambrica-18-V-2-Bateria-1-Cargador/p/1122108",
+"brand": "GLADIATOR",
+"price": {
+"currencyIso": "CLP",
+"value": 111000.0,
+"priceType": "BUY",
+"formattedValue": "$111.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 111000.0,
+"priceType": "BUY",
+"formattedValue": "$111.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 2,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1072372",
+"name": "Bateria para Auto MF160G51 150 AH 840 CCA-BR",
+"url": "/c/Bateria-para-Auto-MF160G51-150-AH-840-CCA-BR/p/1072372",
+"brand": "ENERBOX",
+"price": {
+"currencyIso": "CLP",
+"value": 126000.0,
+"priceType": "BUY",
+"formattedValue": "$126.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 126000.0,
+"priceType": "BUY",
+"formattedValue": "$126.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 1,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1073410",
+"name": "Taladro Percutor Black&Decker 10 MM Bateria 20 Voltios",
+"url": "/Productos/Outlet/Herramientas-El%C3%A9ctricas/Taladro-Percutor-Black%26Decker-10-MM-Bateria-20-Voltios/p/1073410",
+"brand": "BLACK & DECKER",
+"price": {
+"currencyIso": "CLP",
+"value": 117000.0,
+"priceType": "BUY",
+"formattedValue": "$117.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 117000.0,
+"priceType": "BUY",
+"formattedValue": "$117.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 3,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1140837",
+"name": "Bateria para Moto 9-AH 12V 12N9-4B-1",
+"url": "/Productos/Bater%C3%ADas/Bater%C3%ADas-de-Motos/Bateria-para-Moto-9-AH-12V-12N9-4B-1/p/1140837",
+"brand": "ULTRA-X",
+"price": {
+"currencyIso": "CLP",
+"value": 37000.0,
+"priceType": "BUY",
+"formattedValue": "$37.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 37000.0,
+"priceType": "BUY",
+"formattedValue": "$37.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "inStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 7,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1057293",
+"name": "Bateria de Auto 70 AH 580 CCA MF80D26L Positivo Izquierdo",
+"url": "/Productos/Bater%C3%ADas/Bater%C3%ADas-de-Auto/Bateria-de-Auto-70-AH-580-CCA-MF80D26L-Positivo-Izquierdo/p/1057293",
+"brand": "VARTA BLUE",
+"price": {
+"currencyIso": "CLP",
+"value": 99000.0,
+"priceType": "BUY",
+"formattedValue": "$99.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 99000.0,
+"priceType": "BUY",
+"formattedValue": "$99.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 1,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1076838",
+"name": "Cinta Protectora para Terminales de Bateria DGP 2 Pza AP2239B",
+"url": "/Productos/Accesorios/Accesorios-de-Bater%C3%ADas/Accesorios-y-Herramientas-para-Bater%C3%ADas/Cinta-Protectora-para-Terminales-de-Bateria-DGP-2-Pza-AP2239B/p/1076838",
+"brand": "DGP",
+"price": {
+"currencyIso": "CLP",
+"value": 500.0,
+"priceType": "BUY",
+"formattedValue": "$500",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 500.0,
+"priceType": "BUY",
+"formattedValue": "$500",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "inStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 4613,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1057308",
+"name": "Bateria de Auto MF31S-800 100 AH 800 CCA Positivo Izquierdo",
+"url": "/c/Bateria-de-Auto-MF31S-800-100-AH-800-CCA-Positivo-Izquierdo/p/1057308",
+"brand": "VARTA BLUE",
+"price": {
+"currencyIso": "CLP",
+"value": 95000.0,
+"priceType": "BUY",
+"formattedValue": "$95.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 95000.0,
+"priceType": "BUY",
+"formattedValue": "$95.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 1,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1127115",
+"name": "Kit Orillador y Soplador 18 v 1 Bateria 1 Cargador GLADIATOR",
+"url": "/Productos/Agroferreteria/Equipos-a-Combusti%C3%B3n/Desbrozadora/Kit-Orillador-y-Soplador-18-v-1-Bateria-1-Cargador-GLADIATOR/p/1127115",
+"brand": "GLADIATOR",
+"price": {
+"currencyIso": "CLP",
+"value": 90000.0,
+"priceType": "BUY",
+"formattedValue": "$90.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 90000.0,
+"priceType": "BUY",
+"formattedValue": "$90.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 3,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "443382",
+"name": "Voltimetro de Baterías MOTORLIFE",
+"url": "/Productos/Accesorios/Accesorios-Interiores/Cables-USB%2C-Cargadores%2C-Power-Bank%2C-Aud%C3%ADfonos-y-Accesorios/Voltimetro-de-Bater%C3%ADas-MOTORLIFE/p/443382",
+"brand": "MOTORLIFE",
+"price": {
+"currencyIso": "CLP",
+"value": 7500.0,
+"priceType": "BUY",
+"formattedValue": "$7.500",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 7500.0,
+"priceType": "BUY",
+"formattedValue": "$7.500",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 1,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1046937",
+"name": "Batería  Enerbox MF160G51 150AH 840CCA",
+"url": "/Productos/Bater%C3%ADas/Bater%C3%ADas-de-Cami%C3%B3n/Bater%C3%ADa-Enerbox-MF160G51-150AH-840CCA/p/1046937",
+"brand": "ENERBOX",
+"price": {
+"currencyIso": "CLP",
+"value": 130000.0,
+"priceType": "BUY",
+"formattedValue": "$130.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 130000.0,
+"priceType": "BUY",
+"formattedValue": "$130.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 14,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "169682",
+"name": "Batería DGP MF115D31R 100AH 850CCA",
+"url": "/Productos/Bater%C3%ADas/Bater%C3%ADas-de-Auto/Bater%C3%ADa-DGP-MF115D31R-100AH-850CCA/p/169682",
+"brand": "DGP",
+"price": {
+"currencyIso": "CLP",
+"value": 134000.0,
+"priceType": "BUY",
+"formattedValue": "$134.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 134000.0,
+"priceType": "BUY",
+"formattedValue": "$134.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 6,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1005432",
+"name": "Cargador de Batería 50T HYUNDAI",
+"url": "//Cargador-de-Bater%C3%ADa-50T-HYUNDAI/p/1005432",
+"brand": "HYUNDAI",
+"price": {
+"currencyIso": "CLP",
+"value": 109000.0,
+"priceType": "BUY",
+"formattedValue": "$109.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 109000.0,
+"priceType": "BUY",
+"formattedValue": "$109.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 1,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1046947",
+"name": "Batería de Camión DGP MF210H52 200AH 1130CCA",
+"url": "/Productos/Bater%C3%ADa-de-Cami%C3%B3n-DGP-MF210H52-200AH-1130CCA/p/1046947",
+"brand": "DGP",
+"price": {
+"currencyIso": "CLP",
+"value": 190000.0,
+"priceType": "BUY",
+"formattedValue": "$190.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 190000.0,
+"priceType": "BUY",
+"formattedValue": "$190.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "inStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 76,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1046938",
+"name": "Batería de Camión ENERBOX MF210H52 200AH 1040CCA",
+"url": "/Productos/Bater%C3%ADas/Bater%C3%ADas-de-Cami%C3%B3n/Bater%C3%ADa-de-Cami%C3%B3n-ENERBOX-MF210H52-200AH-1040CCA/p/1046938",
+"brand": "ENERBOX",
+"price": {
+"currencyIso": "CLP",
+"value": 177000.0,
+"priceType": "BUY",
+"formattedValue": "$177.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 177000.0,
+"priceType": "BUY",
+"formattedValue": "$177.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "inStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 115,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "141492",
+"name": "Batería de Camión HANKOOK MF210H52 200AH 1200CCA",
+"url": "/Productos/Bater%C3%ADas/Bater%C3%ADas-de-Cami%C3%B3n/Bater%C3%ADa-de-Cami%C3%B3n-HANKOOK-MF210H52-200AH-1200CCA/p/141492",
+"brand": "HANKOOK",
+"price": {
+"currencyIso": "CLP",
+"value": 275000.0,
+"priceType": "BUY",
+"formattedValue": "$275.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 220000.0,
+"priceType": "BUY",
+"formattedValue": "$220.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 20,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 29,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1046945",
+"name": "Batería de Camión DGP MF160G51 150AH 940CCA",
+"url": "/Productos/Bater%C3%ADas/Bater%C3%ADas-de-Cami%C3%B3n/Bater%C3%ADa-de-Cami%C3%B3n-DGP-MF160G51-150AH-940CCA/p/1046945",
+"brand": "DGP",
+"price": {
+"currencyIso": "CLP",
+"value": 161000.0,
+"priceType": "BUY",
+"formattedValue": "$161.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 161000.0,
+"priceType": "BUY",
+"formattedValue": "$161.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "inStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 20,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1046932",
+"name": "Batería de Auto ENERBOX MF55457 55AH 370CCA",
+"url": "/c/Bater%C3%ADa-de-Auto-ENERBOX-MF55457-55AH-370CCA/p/1046932",
+"brand": "ENERBOX",
+"price": {
+"currencyIso": "CLP",
+"value": 58000.0,
+"priceType": "BUY",
+"formattedValue": "$58.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 58000.0,
+"priceType": "BUY",
+"formattedValue": "$58.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "inStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 43,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "110456",
+"name": "Batería De Auto DGP MF75D31L 75AH 600CCA",
+"url": "/Productos/Bater%C3%ADas/Bater%C3%ADas-de-Auto/Bater%C3%ADa-De-Auto-DGP-MF75D31L-75AH-600CCA/p/110456",
+"brand": "DGP",
+"price": {
+"currencyIso": "CLP",
+"value": 115000.0,
+"priceType": "BUY",
+"formattedValue": "$115.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 115000.0,
+"priceType": "BUY",
+"formattedValue": "$115.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "inStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 102,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "123125",
+"name": "Batería de Camión HANKOOK MF160G51 150AH 1000CCA",
+"url": "/Productos/Bater%C3%ADas/Bater%C3%ADas-de-Cami%C3%B3n/Bater%C3%ADa-de-Cami%C3%B3n-HANKOOK-MF160G51-150AH-1000CCA/p/123125",
+"brand": "HANKOOK",
+"price": {
+"currencyIso": "CLP",
+"value": 200000.0,
+"priceType": "BUY",
+"formattedValue": "$200.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 200000.0,
+"priceType": "BUY",
+"formattedValue": "$200.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "inStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 421,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "123122",
+"name": "Batería de Auto HANKOOK MF75D31L 75AH 660CCA",
+"url": "/Productos/Bater%C3%ADas/Bater%C3%ADas-De-Arranque/Bater%C3%ADas-De-Auto/Bater%C3%ADa-de-Auto-HANKOOK-MF75D31L-75AH-660CCA/p/123122",
+"brand": "HANKOOK",
+"price": {
+"currencyIso": "CLP",
+"value": 142000.0,
+"priceType": "BUY",
+"formattedValue": "$142.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 142000.0,
+"priceType": "BUY",
+"formattedValue": "$142.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "inStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 22,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1056763",
+"name": "Batería de Camión DGP MF68032R 150AH 1060CCA",
+"url": "/Productos/Bater%C3%ADas/Bater%C3%ADas-de-Cami%C3%B3n/Bater%C3%ADa-de-Cami%C3%B3n-DGP-MF68032R-150AH-1060CCA/p/1056763",
+"brand": "DGP",
+"price": {
+"currencyIso": "CLP",
+"value": 150000.0,
+"priceType": "BUY",
+"formattedValue": "$150.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 150000.0,
+"priceType": "BUY",
+"formattedValue": "$150.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 15,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1046934",
+"name": "Batería de Camión ENERBOX MF115D31R 100AH 710CCA",
+"url": "/Productos/Bater%C3%ADas/Bater%C3%ADas-de-Auto/Bater%C3%ADa-de-Cami%C3%B3n-ENERBOX-MF115D31R-100AH-710CCA/p/1046934",
+"brand": "ENERBOX",
+"price": {
+"currencyIso": "CLP",
+"value": 95000.0,
+"priceType": "BUY",
+"formattedValue": "$95.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 95000.0,
+"priceType": "BUY",
+"formattedValue": "$95.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "inStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 54,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1046942",
+"name": "Batería de Camión DGP MF68032 150AH 1060CCA",
+"url": "/promobaterias/Bater%C3%ADa-de-Cami%C3%B3n-DGP-MF68032-150AH-1060CCA/p/1046942",
+"brand": "DGP",
+"price": {
+"currencyIso": "CLP",
+"value": 150000.0,
+"priceType": "BUY",
+"formattedValue": "$150.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 150000.0,
+"priceType": "BUY",
+"formattedValue": "$150.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "inStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 41,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1057322",
+"name": "Batería de Camión ENERBOX MF160G51 150AH 900CCA",
+"url": "/c/Bater%C3%ADa-de-Cami%C3%B3n-ENERBOX-MF160G51-150AH-900CCA/p/1057322",
+"brand": "ENERBOX",
+"price": {
+"currencyIso": "CLP",
+"value": 130000.0,
+"priceType": "BUY",
+"formattedValue": "$130.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 130000.0,
+"priceType": "BUY",
+"formattedValue": "$130.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "inStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 404,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1174082",
+"name": "Batería de Camión ENERBOX MF160G51 150Ah 900CCA",
+"url": "/c/Bater%C3%ADa-de-Cami%C3%B3n-ENERBOX-MF160G51-150Ah-900CCA/p/1174082",
+"brand": "ENERBOX",
+"price": {
+"currencyIso": "CLP",
+"value": 130000.0,
+"priceType": "BUY",
+"formattedValue": "$130.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 104000.0,
+"priceType": "BUY",
+"formattedValue": "$104.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 20,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "inStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 262,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1174083",
+"name": "Batería de Camión ENERBOX MF210H52 200Ah 1100CCA",
+"url": "/Productos/Bater%C3%ADas/Bater%C3%ADas-De-Arranque/Bater%C3%ADas-Heavy-Duty/Bater%C3%ADa-de-Cami%C3%B3n-ENERBOX-MF210H52-200Ah-1100CCA/p/1174083",
+"brand": "ENERBOX",
+"price": {
+"currencyIso": "CLP",
+"value": 177000.0,
+"priceType": "BUY",
+"formattedValue": "$177.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 123900.0,
+"priceType": "BUY",
+"formattedValue": "$123.900",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 30,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "inStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 28,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1174085",
+"name": "Batería de Camión ENERBOX MF115D31R 100Ah 800CCA",
+"url": "/c/Bater%C3%ADa-de-Cami%C3%B3n-ENERBOX-MF115D31R-100Ah-800CCA/p/1174085",
+"brand": "ENERBOX",
+"price": {
+"currencyIso": "CLP",
+"value": 95000.0,
+"priceType": "BUY",
+"formattedValue": "$95.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 76000.0,
+"priceType": "BUY",
+"formattedValue": "$76.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 20,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "inStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 175,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1072315",
+"name": "Batería de Camión DGP MF160G51 150Ah 940CCA",
+"url": "/c/Bater%C3%ADa-de-Cami%C3%B3n-DGP-MF160G51-150Ah-940CCA/p/1072315",
+"brand": "DGP",
+"price": {
+"currencyIso": "CLP",
+"value": 161000.0,
+"priceType": "BUY",
+"formattedValue": "$161.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 112700.0,
+"priceType": "BUY",
+"formattedValue": "$112.700",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 30,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "inStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 116,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1072316",
+"name": "Batería de Auto DGP MF68032 150Ah 1060CCA",
+"url": "/c/Bater%C3%ADa-de-Auto-DGP-MF68032-150Ah-1060CCA/p/1072316",
+"brand": "DGP",
+"price": {
+"currencyIso": "CLP",
+"value": 150000.0,
+"priceType": "BUY",
+"formattedValue": "$150.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 150000.0,
+"priceType": "BUY",
+"formattedValue": "$150.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "inStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 105,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "141504",
+"name": "Batería de Camión HANKOOK MF60038 100AH 850CCA",
+"url": "/c/Bater%C3%ADa-de-Cami%C3%B3n-HANKOOK-MF60038-100AH-850CCA/p/141504",
+"brand": "HANKOOK",
+"price": {
+"currencyIso": "CLP",
+"value": 167000.0,
+"priceType": "BUY",
+"formattedValue": "$167.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 167000.0,
+"priceType": "BUY",
+"formattedValue": "$167.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 5,
+"stockThreshold": null
+},
+"manufacturer": null
+}
+],
+"sorts": [
+{
+"code": "relevance",
+"name": "Relevancia",
+"selected": true
+},
+{
+"code": "topRated",
+"name": "Mejor valorados",
+"selected": false
+},
+{
+"code": "name-asc",
+"name": "Nombre (A-Z)",
+"selected": false
+},
+{
+"code": "name-desc",
+"name": "Nombre (Z-A)",
+"selected": false
+},
+{
+"code": "price-asc",
+"name": "Precio (Menor precio primero)",
+"selected": false
+},
+{
+"code": "price-desc",
+"name": "Precio (Mayor precio primero)",
+"selected": false
+}
+],
+"pagination": {
+"pageSize": 40,
+"currentPage": 0,
+"sort": null,
+"numberOfPages": 3,
+"totalNumberOfResults": 88
+},
+"currentQuery": {
+"url": "/search?q=bateria%3A",
+"query": {
+"value": "bateria:",
+"filterQueries": [],
+"searchQueryContext": null
+}
+},
+"facets": [
+{
+"code": "category",
+"name": "Categoría",
+"priority": 2147483647,
+"category": true,
+"multiSelect": false,
+"visible": true,
+"values": [
+{
+"code": "120",
+"name": "Accesorios Interiores",
+"count": 1,
+"query": {
+"query": {
+"value": "bateria::category:120"
+}
+},
+"selected": false
+},
+{
+"code": "115",
+"name": "Accesorios de Baterías",
+"count": 12,
+"query": {
+"query": {
+"value": "bateria::category:115"
+}
+},
+"selected": false
+},
+{
+"code": "1000560",
+"name": "Accesorios y Herramientas para Baterías",
+"count": 6,
+"query": {
+"query": {
+"value": "bateria::category:1000560"
+}
+},
+"selected": false
+},
+{
+"code": "1000560-outlet",
+"name": "Accesorios y Herramientas para Baterías",
+"count": 5,
+"query": {
+"query": {
+"value": "bateria::category:1000560-outlet"
+}
+},
+"selected": false
+},
+{
+"code": "479566",
+"name": "Baterías Start-Stop",
+"count": 1,
+"query": {
+"query": {
+"value": "bateria::category:479566"
+}
+},
+"selected": false
+},
+{
+"code": "1000598",
+"name": "Baterías de Auto",
+"count": 20,
+"query": {
+"query": {
+"value": "bateria::category:1000598"
+}
+},
+"selected": false
+},
+{
+"code": "1000598-outlet",
+"name": "Baterías de Auto",
+"count": 4,
+"query": {
+"query": {
+"value": "bateria::category:1000598-outlet"
+}
+},
+"selected": false
+},
+{
+"code": "474826",
+"name": "Baterías de Camión",
+"count": 12,
+"query": {
+"query": {
+"value": "bateria::category:474826"
+}
+},
+"selected": false
+},
+{
+"code": "474826-outlet",
+"name": "Baterías de Camión",
+"count": 4,
+"query": {
+"query": {
+"value": "bateria::category:474826-outlet"
+}
+},
+"selected": false
+},
+{
+"code": "1000599",
+"name": "Baterías de Motos",
+"count": 1,
+"query": {
+"query": {
+"value": "bateria::category:1000599"
+}
+},
+"selected": false
+},
+{
+"code": "1000848-outlet",
+"name": "Cables USB, Cargadores y Accesorios",
+"count": 1,
+"query": {
+"query": {
+"value": "bateria::category:1000848-outlet"
+}
+},
+"selected": false
+},
+{
+"code": "1000848",
+"name": "Cables USB, Cargadores, Power Bank, Audífonos y Accesorios",
+"count": 1,
+"query": {
+"query": {
+"value": "bateria::category:1000848"
+}
+},
+"selected": false
+},
+{
+"code": "1000631",
+"name": "Cargadores y Cables Roba Corriente",
+"count": 6,
+"query": {
+"query": {
+"value": "bateria::category:1000631"
+}
+},
+"selected": false
+},
+{
+"code": "1000631-outlet",
+"name": "Cargadores y Cables Roba Corriente",
+"count": 2,
+"query": {
+"query": {
+"value": "bateria::category:1000631-outlet"
+}
+},
+"selected": false
+},
+{
+"code": "1000706",
+"name": "Herramientas Eléctricas",
+"count": 2,
+"query": {
+"query": {
+"value": "bateria::category:1000706"
+}
+},
+"selected": false
+},
+{
+"code": "1000706-outlet",
+"name": "Herramientas Eléctricas",
+"count": 1,
+"query": {
+"query": {
+"value": "bateria::category:1000706-outlet"
+}
+},
+"selected": false
+},
+{
+"code": "1000707",
+"name": "Herramientas Especiales",
+"count": 1,
+"query": {
+"query": {
+"value": "bateria::category:1000707"
+}
+},
+"selected": false
+},
+{
+"code": "CATEGORIA01",
+"name": "Radios y Electrónicos",
+"count": 2,
+"query": {
+"query": {
+"value": "bateria::category:CATEGORIA01"
+}
+},
+"selected": false
+}
+],
+"question": false,
+"jobs": false,
+"sortingOrder": 0
+},
+{
+"code": "price",
+"name": "Precio",
+"priority": 2147483644,
+"category": false,
+"multiSelect": true,
+"visible": true,
+"values": [
+{
+"code": "$0 - $9.999",
+"name": "$0 - $9.999",
+"count": 11,
+"query": {
+"query": {
+"value": "bateria::price:%240+-+%249.999"
+}
+},
+"selected": false
+},
+{
+"code": "$10.000 - $49.999",
+"name": "$10.000 - $49.999",
+"count": 9,
+"query": {
+"query": {
+"value": "bateria::price:%2410.000+-+%2449.999"
+}
+},
+"selected": false
+},
+{
+"code": "$150.000 - $249.999",
+"name": "$150.000 - $249.999",
+"count": 23,
+"query": {
+"query": {
+"value": "bateria::price:%24150.000+-+%24249.999"
+}
+},
+"selected": false
+},
+{
+"code": "$250.000 - $499.999",
+"name": "$250.000 - $499.999",
+"count": 1,
+"query": {
+"query": {
+"value": "bateria::price:%24250.000+-+%24499.999"
+}
+},
+"selected": false
+},
+{
+"code": "$50.000 - $149.999",
+"name": "$50.000 - $149.999",
+"count": 43,
+"query": {
+"query": {
+"value": "bateria::price:%2450.000+-+%24149.999"
+}
+},
+"selected": false
+},
+{
+"code": "Más de $500.000",
+"name": "Más de $500.000",
+"count": 1,
+"query": {
+"query": {
+"value": "bateria::price:M%C3%A1s+de+%24500.000"
+}
+},
+"selected": false
+}
+],
+"question": false,
+"jobs": false,
+"sortingOrder": 0
+},
+{
+"code": "C_DTE_POLARIDAD",
+"name": "Polaridad",
+"priority": 2147483636,
+"category": false,
+"multiSelect": true,
+"visible": true,
+"values": [
+{
+"code": "IZQUIERDO",
+"name": "IZQUIERDO",
+"count": 1,
+"query": {
+"query": {
+"value": "bateria::C_DTE_POLARIDAD:IZQUIERDO"
+}
+},
+"selected": false
+}
+],
+"question": false,
+"jobs": false,
+"sortingOrder": 0
+},
+{
+"code": "C_DTE_CCA_18_GRADOS",
+"name": "Cca (-18 Grados)",
+"priority": 2147483624,
+"category": false,
+"multiSelect": true,
+"visible": true,
+"values": [
+{
+"code": "1000",
+"name": "1000",
+"count": 2,
+"query": {
+"query": {
+"value": "bateria::C_DTE_CCA_18_GRADOS:1000"
+}
+},
+"selected": false
+},
+{
+"code": "1040",
+"name": "1040",
+"count": 1,
+"query": {
+"query": {
+"value": "bateria::C_DTE_CCA_18_GRADOS:1040"
+}
+},
+"selected": false
+},
+{
+"code": "1060",
+"name": "1060",
+"count": 1,
+"query": {
+"query": {
+"value": "bateria::C_DTE_CCA_18_GRADOS:1060"
+}
+},
+"selected": false
+},
+{
+"code": "1130",
+"name": "1130",
+"count": 1,
+"query": {
+"query": {
+"value": "bateria::C_DTE_CCA_18_GRADOS:1130"
+}
+},
+"selected": false
+},
+{
+"code": "1200",
+"name": "1200",
+"count": 1,
+"query": {
+"query": {
+"value": "bateria::C_DTE_CCA_18_GRADOS:1200"
+}
+},
+"selected": false
+},
+{
+"code": "800",
+"name": "800",
+"count": 1,
+"query": {
+"query": {
+"value": "bateria::C_DTE_CCA_18_GRADOS:800"
+}
+},
+"selected": false
+},
+{
+"code": "840",
+"name": "840",
+"count": 1,
+"query": {
+"query": {
+"value": "bateria::C_DTE_CCA_18_GRADOS:840"
+}
+},
+"selected": false
+},
+{
+"code": "900",
+"name": "900",
+"count": 1,
+"query": {
+"query": {
+"value": "bateria::C_DTE_CCA_18_GRADOS:900"
+}
+},
+"selected": false
+}
+],
+"question": false,
+"jobs": false,
+"sortingOrder": 0
+},
+{
+"code": "C_DTE_PESTANA_DE_BATERIA",
+"name": "Tipo de Pestaña",
+"priority": 2147483621,
+"category": false,
+"multiSelect": true,
+"visible": true,
+"values": [
+{
+"code": "CON PESTAÑA",
+"name": "CON PESTAÑA",
+"count": 22,
+"query": {
+"query": {
+"value": "bateria::C_DTE_PESTANA_DE_BATERIA:CON+PESTA%C3%91A"
+}
+},
+"selected": false
+},
+{
+"code": "SIN PESTAÑA",
+"name": "SIN PESTAÑA",
+"count": 20,
+"query": {
+"query": {
+"value": "bateria::C_DTE_PESTANA_DE_BATERIA:SIN+PESTA%C3%91A"
+}
+},
+"selected": false
+}
+],
+"question": false,
+"jobs": false,
+"sortingOrder": 0
+},
+{
+"code": "C_DTE_TERMINALES_DE_BATERIA",
+"name": "Terminal",
+"priority": 2147483619,
+"category": false,
+"multiSelect": true,
+"visible": true,
+"values": [
+{
+"code": "A",
+"name": "A",
+"count": 3,
+"query": {
+"query": {
+"value": "bateria::C_DTE_TERMINALES_DE_BATERIA:A"
+}
+},
+"selected": false
+},
+{
+"code": "STANDARD",
+"name": "STANDARD",
+"count": 36,
+"query": {
+"query": {
+"value": "bateria::C_DTE_TERMINALES_DE_BATERIA:STANDARD"
+}
+},
+"selected": false
+},
+{
+"code": "STUD",
+"name": "STUD",
+"count": 2,
+"query": {
+"query": {
+"value": "bateria::C_DTE_TERMINALES_DE_BATERIA:STUD"
+}
+},
+"selected": false
+}
+],
+"question": false,
+"jobs": false,
+"sortingOrder": 0
+},
+{
+"code": "C_DTE_AMPERAJE",
+"name": "Amperaje",
+"priority": 2147483587,
+"category": false,
+"multiSelect": true,
+"visible": true,
+"values": [
+{
+"code": "100 AMP.",
+"name": "100 AMP.",
+"count": 1,
+"query": {
+"query": {
+"value": "bateria::C_DTE_AMPERAJE:100+AMP."
+}
+},
+"selected": false
+},
+{
+"code": "105 AMP.",
+"name": "105 AMP.",
+"count": 3,
+"query": {
+"query": {
+"value": "bateria::C_DTE_AMPERAJE:105+AMP."
+}
+},
+"selected": false
+},
+{
+"code": "150 AMP.",
+"name": "150 AMP.",
+"count": 1,
+"query": {
+"query": {
+"value": "bateria::C_DTE_AMPERAJE:150+AMP."
+}
+},
+"selected": false
+},
+{
+"code": "200 AMP.",
+"name": "200 AMP.",
+"count": 3,
+"query": {
+"query": {
+"value": "bateria::C_DTE_AMPERAJE:200+AMP."
+}
+},
+"selected": false
+},
+{
+"code": "55 AMP.",
+"name": "55 AMP.",
+"count": 1,
+"query": {
+"query": {
+"value": "bateria::C_DTE_AMPERAJE:55+AMP."
+}
+},
+"selected": false
+}
+],
+"question": false,
+"jobs": false,
+"sortingOrder": 0
+},
+{
+"code": "C_DTE_TIPO_DE_BORNE",
+"name": "Tipo de borne",
+"priority": 2147483514,
+"category": false,
+"multiSelect": true,
+"visible": true,
+"values": [
+{
+"code": "ESTANDAR",
+"name": "ESTANDAR",
+"count": 4,
+"query": {
+"query": {
+"value": "bateria::C_DTE_TIPO_DE_BORNE:ESTANDAR"
+}
+},
+"selected": false
+},
+{
+"code": "PERNO",
+"name": "PERNO",
+"count": 3,
+"query": {
+"query": {
+"value": "bateria::C_DTE_TIPO_DE_BORNE:PERNO"
+}
+},
+"selected": false
+}
+],
+"question": false,
+"jobs": false,
+"sortingOrder": 0
+},
+{
+"code": "C_DTE_LADO_POSITIVO",
+"name": "Lado positivo",
+"priority": 2147483508,
+"category": false,
+"multiSelect": true,
+"visible": true,
+"values": [
+{
+"code": "DERECHO",
+"name": "DERECHO",
+"count": 2,
+"query": {
+"query": {
+"value": "bateria::C_DTE_LADO_POSITIVO:DERECHO"
+}
+},
+"selected": false
+},
+{
+"code": "IZQUIERDO",
+"name": "IZQUIERDO",
+"count": 4,
+"query": {
+"query": {
+"value": "bateria::C_DTE_LADO_POSITIVO:IZQUIERDO"
+}
+},
+"selected": false
+},
+{
+"code": "N/A",
+"name": "N/A",
+"count": 2,
+"query": {
+"query": {
+"value": "bateria::C_DTE_LADO_POSITIVO:N%2FA"
+}
+},
+"selected": false
+}
+],
+"question": false,
+"jobs": false,
+"sortingOrder": 0
+},
+{
+"code": "brand_search",
+"name": "Marca",
+"priority": 2147483482,
+"category": false,
+"multiSelect": true,
+"visible": true,
+"values": [
+{
+"code": "AGPO",
+"name": "AGPO",
+"count": 2,
+"query": {
+"query": {
+"value": "bateria::brand_search:AGPO"
+}
+},
+"selected": false
+},
+{
+"code": "ASAHI",
+"name": "ASAHI",
+"count": 1,
+"query": {
+"query": {
+"value": "bateria::brand_search:ASAHI"
+}
+},
+"selected": false
+},
+{
+"code": "BLACK & DECKER",
+"name": "BLACK & DECKER",
+"count": 2,
+"query": {
+"query": {
+"value": "bateria::brand_search:BLACK+%26+DECKER"
+}
+},
+"selected": false
+},
+{
+"code": "DGP",
+"name": "DGP",
+"count": 19,
+"query": {
+"query": {
+"value": "bateria::brand_search:DGP"
+}
+},
+"selected": false
+},
+{
+"code": "DGP PRO",
+"name": "DGP PRO",
+"count": 1,
+"query": {
+"query": {
+"value": "bateria::brand_search:DGP+PRO"
+}
+},
+"selected": false
+},
+{
+"code": "ENERBOX",
+"name": "ENERBOX",
+"count": 16,
+"query": {
+"query": {
+"value": "bateria::brand_search:ENERBOX"
+}
+},
+"selected": false
+},
+{
+"code": "GLADIATOR",
+"name": "GLADIATOR",
+"count": 4,
+"query": {
+"query": {
+"value": "bateria::brand_search:GLADIATOR"
+}
+},
+"selected": false
+},
+{
+"code": "HANKOOK",
+"name": "HANKOOK",
+"count": 21,
+"query": {
+"query": {
+"value": "bateria::brand_search:HANKOOK"
+}
+},
+"selected": false
+},
+{
+"code": "HYUNDAI",
+"name": "HYUNDAI",
+"count": 1,
+"query": {
+"query": {
+"value": "bateria::brand_search:HYUNDAI"
+}
+},
+"selected": false
+},
+{
+"code": "MARCA ALTERNATIVA",
+"name": "MARCA ALTERNATIVA",
+"count": 2,
+"query": {
+"query": {
+"value": "bateria::brand_search:MARCA+ALTERNATIVA"
+}
+},
+"selected": false
+},
+{
+"code": "MOTORLIFE",
+"name": "MOTORLIFE",
+"count": 9,
+"query": {
+"query": {
+"value": "bateria::brand_search:MOTORLIFE"
+}
+},
+"selected": false
+},
+{
+"code": "NEXBATT",
+"name": "NEXBATT",
+"count": 1,
+"query": {
+"query": {
+"value": "bateria::brand_search:NEXBATT"
+}
+},
+"selected": false
+},
+{
+"code": "PILOT",
+"name": "PILOT",
+"count": 2,
+"query": {
+"query": {
+"value": "bateria::brand_search:PILOT"
+}
+},
+"selected": false
+},
+{
+"code": "ULTRA-X",
+"name": "ULTRA-X",
+"count": 1,
+"query": {
+"query": {
+"value": "bateria::brand_search:ULTRA-X"
+}
+},
+"selected": false
+},
+{
+"code": "VARTA BLACK",
+"name": "VARTA BLACK",
+"count": 2,
+"query": {
+"query": {
+"value": "bateria::brand_search:VARTA+BLACK"
+}
+},
+"selected": false
+},
+{
+"code": "VARTA BLUE",
+"name": "VARTA BLUE",
+"count": 2,
+"query": {
+"query": {
+"value": "bateria::brand_search:VARTA+BLUE"
+}
+},
+"selected": false
+},
+{
+"code": "VARTA SILVER",
+"name": "VARTA SILVER",
+"count": 1,
+"query": {
+"query": {
+"value": "bateria::brand_search:VARTA+SILVER"
+}
+},
+"selected": false
+},
+{
+"code": "WYNNS",
+"name": "WYNNS",
+"count": 1,
+"query": {
+"query": {
+"value": "bateria::brand_search:WYNNS"
+}
+},
+"selected": false
+}
+],
+"question": false,
+"jobs": false,
+"sortingOrder": 0
+}
+],
+"freeTextSearch": "bateria",
+"categoryCode": null,
+"spellingSuggestion": {
+"suggestion": "batería",
+"query": {
+"url": "/search?q=bater%C3%ADa%3A",
+"query": {
+"value": "batería:",
+"filterQueries": [],
+"searchQueryContext": null
+}
+}
+},
+"automotiveFilterActive": null
+},
+"pageUrl": null,
+"countProducts": 0
+}
+}

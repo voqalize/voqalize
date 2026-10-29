@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "Javier para Agroplanet — Voqalize preview",
+  "version": "0.0.0",
+  "description": "A voice guide on agroplanet.cl who finds tractor parts, batteries, lubricants, tyres and implements with the visitor, walks the category menu, filters and sorts the listings, opens products and their specifications, reads live prices and stock, fills the cart and takes them to the Formulario de cotización (never the RUT or Crear cotización), in Spanish or English. A Voqalize preview.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0PV/vh0nMw3eH8o6z2bc5041R3HpfMqKJkNTwlMdPv6KS46SFOA/JNQpLlen1t/k+Z7872xUdCTsZtxuS95SRxeg7g/AAD72cRCFFxchiHClUd8fSxt+k0awxdJUk3MAF/Kyx4wDoJMfjWyBqY3IRDW75SgOMCcHAimzzjb9988MG84PF5J4Y5l6NNC5gtHS7hXowX/tOwOrxyGP7ZNMefjqKsuBGhCZ62flmqJY5CTVc8TlY747GJfn0edQpD+WzYwO4D5ZdS+OXi3EFIRvBYgJXX2yxMdnZTJ6s1TeaxccsxNyfydePQgCdzm01TSsMKNyYm4vERe1CuCvaWhoUwIDAQAB",
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.agroplanet.cl/*", "https://agroplanet.cl/*"],
+      "js": ["bridge.js", "anchor.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://www.agroplanet.cl/*", "https://agroplanet.cl/*"],
+      "js": ["shell.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://www.agroplanet.cl/*", "https://agroplanet.cl/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    }
+  ],
+  "permissions": ["storage", "offscreen"],
+  "host_permissions": ["https://www.agroplanet.cl/*", "https://agroplanet.cl/*"],
+  "web_accessible_resources": [
+    { "resources": ["grant.html", "grant.js"], "matches": ["https://www.agroplanet.cl/*", "https://agroplanet.cl/*"] }
+  ]
+}

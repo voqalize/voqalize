@@ -1,0 +1,28 @@
+{
+"entryNumber": 0,
+"quantity": 1,
+"basePrice": {
+"currencyIso": "CLP",
+"value": 80000.0,
+"priceType": "BUY",
+"formattedValue": "$80.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"totalPrice": {
+"currencyIso": "CLP",
+"value": 74000.0,
+"priceType": "BUY",
+"formattedValue": "$74.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"product": {
+"code": "1173221",
+"name": "Aceite LUBRITEK UTF Semisintético 19L"
+}
+}

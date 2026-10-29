@@ -1,0 +1,102 @@
+{
+"statusCode": 200,
+"isValid": true,
+"data": [
+{
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+},
+{
+"isocode": "CL-AN",
+"isocodeShort": "AN",
+"countryIso": "CL",
+"name": "Antofagasta"
+},
+{
+"isocode": "CL-AC",
+"isocodeShort": "AC",
+"countryIso": "CL",
+"name": "Araucania"
+},
+{
+"isocode": "CL-AP",
+"isocodeShort": "AP",
+"countryIso": "CL",
+"name": "Arica y Parinacota"
+},
+{
+"isocode": "CL-AT",
+"isocodeShort": "AT",
+"countryIso": "CL",
+"name": "Atacama"
+},
+{
+"isocode": "CL-AY",
+"isocodeShort": "AY",
+"countryIso": "CL",
+"name": "Aysen"
+},
+{
+"isocode": "CL-BB",
+"isocodeShort": "BB",
+"countryIso": "CL",
+"name": "Bio-Bio"
+},
+{
+"isocode": "CL-CB",
+"isocodeShort": "CB",
+"countryIso": "CL",
+"name": "Coquimbo"
+},
+{
+"isocode": "CL-LB",
+"isocodeShort": "LB",
+"countryIso": "CL",
+"name": "Libertador Bernardo O'Higgins"
+},
+{
+"isocode": "CL-LL",
+"isocodeShort": "LL",
+"countryIso": "CL",
+"name": "Los Lagos"
+},
+{
+"isocode": "CL-LR",
+"isocodeShort": "LR",
+"countryIso": "CL",
+"name": "Los Rios"
+},
+{
+"isocode": "CL-MG",
+"isocodeShort": "MG",
+"countryIso": "CL",
+"name": "Magallanes"
+},
+{
+"isocode": "CL-ML",
+"isocodeShort": "ML",
+"countryIso": "CL",
+"name": "Maule"
+},
+{
+"isocode": "CL-TA",
+"isocodeShort": "TA",
+"countryIso": "CL",
+"name": "Tarapaca"
+},
+{
+"isocode": "CL-VP",
+"isocodeShort": "VP",
+"countryIso": "CL",
+"name": "Valparaiso"
+},
+{
+"isocode": "CL-NB",
+"isocodeShort": "NB",
+"countryIso": "CL",
+"name": "Ñuble"
+}
+]
+}

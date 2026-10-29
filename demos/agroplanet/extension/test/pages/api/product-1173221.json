@@ -1,0 +1,54 @@
+{
+"statusCode": 200,
+"isValid": true,
+"data": {
+"code": "1173221",
+"name": "Aceite LUBRITEK UTF Semisintético 19L",
+"brand": "LUBRITEK",
+"description": "Aceite de uso múltiple tipo UTF (Universal Tractor Fluid) formulado para cajas de cambio, diferenciales, transmisiones con frenos húmedos y circuitos hidráulicos integrados de tractores y equipos de construcción. Su base semisintética ayuda a mantener película lubricante estable y reduce ruido/chirridos en frenos húmedos, mejorando la respuesta del sistema. Ideal para climas variables gracias a su buena fluidez en frío y resistencia al cizallamiento en alta temperatura. Beneficios: protección antidesgaste en engranajes y bombas, control de fricción para frenos y embragues húmedos, excelente limpieza y control de lodos, desempeño suave en levante hidráulico y dirección asistida. Uso: verifique manual del equipo y complete o reemplace según intervalos recomendados del fabricante purgue contaminantes antes del llenado. Compatibilidad: equipos que exijan fluidos tipo UTF no sustituye ATF ni aceites de motor. Precauciones: no mezcle con fluidos no especificados gestione el aceite usado de forma responsable. Formato 19 L, práctico para mantenciones programadas.",
+"summary": "Fluido UTF semisintético para transmisiones, diferenciales y sistemas hidráulicos integrados de maquinaria agrícola/obra.",
+"manufacturer": "AGPLUBLTUTFBLD",
+"manufacturerCode": "AGPLUBLTUTFBLD",
+"price": {
+"currencyIso": "CLP",
+"value": 80000.0,
+"priceType": "BUY",
+"formattedValue": "$80.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 74000.0,
+"priceType": "BUY",
+"formattedValue": "$74.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 7,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "inStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 632,
+"stockThreshold": null
+},
+"unitInBox": 1,
+"country": {
+"isocode": "CL",
+"name": "Chile"
+},
+"ancho": 32.0,
+"altura": 38.0,
+"longitud": 32.0,
+"pesoBruto": 19.0,
+"hidePesoBruto": false,
+"purchasable": true
+}
+}

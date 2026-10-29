@@ -1,0 +1,161 @@
+{
+"statusCode": 200,
+"isValid": true,
+"data": {
+"suggestions": [
+{
+"term": "baterias"
+}
+],
+"products": [
+{
+"code": "126738",
+"name": "Cable de Bateria Negativo 40cm",
+"url": "/Productos/Repuestos-De-Tractor/Sistema-El%C3%A9ctrico/Cables-Y-Ramales/Cable-de-Bateria-Negativo-40cm/p/126738",
+"brand": "AGPO",
+"price": {
+"currencyIso": "CLP",
+"value": 22000.0,
+"priceType": "BUY",
+"formattedValue": "$22.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 22000.0,
+"priceType": "BUY",
+"formattedValue": "$22.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": true,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 20,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "158162",
+"name": "Componentes De Baterias",
+"url": "/Productos/Bater%C3%ADas/Accesorios-De-Bateria/Cargadores-De-Bateria-Y-Cables-Robacorriente/Componentes-De-Baterias/p/158162",
+"brand": "MARCA ALTERNATIVA",
+"price": {
+"currencyIso": "CLP",
+"value": 1500.0,
+"priceType": "BUY",
+"formattedValue": "$1.500",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 1500.0,
+"priceType": "BUY",
+"formattedValue": "$1.500",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 1,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "158919",
+"name": "Componentes De Baterias",
+"url": "/Productos/Bater%C3%ADas/Accesorios-De-Bateria/Cargadores-De-Bateria-Y-Cables-Robacorriente/Componentes-De-Baterias/p/158919",
+"brand": "MARCA ALTERNATIVA",
+"price": {
+"currencyIso": "CLP",
+"value": 5500.0,
+"priceType": "BUY",
+"formattedValue": "$5.500",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 5500.0,
+"priceType": "BUY",
+"formattedValue": "$5.500",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 1,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1113835",
+"name": "Terminal Bateria Liberacion Rapida",
+"url": "/Productos/Accesorios/Accesorios-de-Bater%C3%ADas/Accesorios-y-Herramientas-para-Bater%C3%ADas/Terminal-Bateria-Liberacion-Rapida/p/1113835",
+"brand": "DGP",
+"price": {
+"currencyIso": "CLP",
+"value": 6500.0,
+"priceType": "BUY",
+"formattedValue": "$6.500",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 6500.0,
+"priceType": "BUY",
+"formattedValue": "$6.500",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 12,
+"stockThreshold": null
+},
+"manufacturer": null
+}
+]
+}
+}
