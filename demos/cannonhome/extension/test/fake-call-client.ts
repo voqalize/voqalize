@@ -14,7 +14,7 @@
 
 import type { PipecatClient, PipecatClientOptions } from "@pipecat-ai/client-js";
 
-import type { MicState } from "../src/protocol";
+import type { MicState } from "@voqalize/stage/extension";
 
 type Callbacks = NonNullable<PipecatClientOptions["callbacks"]>;
 
@@ -196,7 +196,7 @@ export function testHooks(holder: Holder): void {
         return;
       }
       case "command":
-        current?.callbacks.onUICommand?.({ command: msg.command!, payload: msg.payload } as never);
+        (current as unknown as { emit?: (n: string, d?: unknown) => void })?.emit?.("uiCommand", { command: msg.command!, payload: msg.payload });
         reply({ ok: Boolean(current) });
         return;
     }

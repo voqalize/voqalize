@@ -135,6 +135,7 @@ export const sidebar = [
           { label: "Tools", slug: "build/brain/tools" },
           { label: "Context and history", slug: "build/brain/context" },
           { label: "Transcripts", slug: "build/brain/transcripts" },
+          { label: "Stage", slug: "build/brain/stage" },
         ],
       },
       { label: "Use another agent framework", slug: "build/existing-agent" },

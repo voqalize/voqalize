@@ -1,0 +1,626 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Stage Spec",
+  "$defs": {
+    "ArgSpec": {
+      "additionalProperties": false,
+      "description": "One argument of a move, in the order a cue gives them.",
+      "properties": {
+        "name": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "anyOf": [
+            {
+              "enum": [
+                "string",
+                "integer",
+                "number",
+                "boolean"
+              ],
+              "type": "string"
+            },
+            {
+              "const": "array",
+              "type": "string"
+            }
+          ],
+          "default": "string",
+          "title": "Type"
+        },
+        "items": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ItemSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "enum": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Enum"
+        },
+        "optional": {
+          "default": false,
+          "title": "Optional",
+          "type": "boolean"
+        },
+        "default": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Default"
+        },
+        "doc": {
+          "default": "",
+          "title": "Doc",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "ArgSpec",
+      "type": "object"
+    },
+    "EventSpec": {
+      "additionalProperties": false,
+      "description": "A named act that changes one slice: ``cart.changed``.",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "slice": {
+          "title": "Slice",
+          "type": "string"
+        },
+        "op": {
+          "default": "merge",
+          "enum": [
+            "set",
+            "merge",
+            "clear"
+          ],
+          "title": "Op",
+          "type": "string"
+        },
+        "note": {
+          "default": "",
+          "title": "Note",
+          "type": "string"
+        },
+        "react": {
+          "default": "note",
+          "enum": [
+            "silent",
+            "note",
+            "speak"
+          ],
+          "title": "React",
+          "type": "string"
+        },
+        "ask": {
+          "default": "",
+          "title": "Ask",
+          "type": "string"
+        },
+        "doc": {
+          "default": "",
+          "title": "Doc",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "slice"
+      ],
+      "title": "EventSpec",
+      "type": "object"
+    },
+    "FieldSpec": {
+      "additionalProperties": false,
+      "description": "One field of a slice. A field the brain must never see is ``private``:\nthe page strips it before anything is sent.",
+      "properties": {
+        "name": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "anyOf": [
+            {
+              "enum": [
+                "string",
+                "integer",
+                "number",
+                "boolean"
+              ],
+              "type": "string"
+            },
+            {
+              "enum": [
+                "array",
+                "object"
+              ],
+              "type": "string"
+            }
+          ],
+          "default": "string",
+          "title": "Type"
+        },
+        "items": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ItemSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "fields": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/FieldSpec"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fields"
+        },
+        "enum": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Enum"
+        },
+        "optional": {
+          "default": false,
+          "title": "Optional",
+          "type": "boolean"
+        },
+        "private": {
+          "default": false,
+          "title": "Private",
+          "type": "boolean"
+        },
+        "doc": {
+          "default": "",
+          "title": "Doc",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "FieldSpec",
+      "type": "object"
+    },
+    "ItemSpec": {
+      "additionalProperties": false,
+      "description": "What an array argument holds.",
+      "properties": {
+        "type": {
+          "default": "string",
+          "enum": [
+            "string",
+            "integer",
+            "number",
+            "boolean"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "enum": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Enum"
+        }
+      },
+      "title": "ItemSpec",
+      "type": "object"
+    },
+    "KitUse": {
+      "additionalProperties": false,
+      "description": "An app taking a kit: all of it, or the moves it names.",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "major": {
+          "minimum": 1,
+          "title": "Major",
+          "type": "integer"
+        },
+        "moves": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Moves"
+        },
+        "events": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Reaction"
+          },
+          "title": "Events",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "major"
+      ],
+      "title": "KitUse",
+      "type": "object"
+    },
+    "MoveClass": {
+      "description": "How much a move changes, from nothing to something the person owns.",
+      "enum": [
+        "look",
+        "navigate",
+        "reversible",
+        "confirmed"
+      ],
+      "title": "MoveClass",
+      "type": "string"
+    },
+    "MoveSpec": {
+      "additionalProperties": false,
+      "description": "One move: what :class:`~voqalize.sdk.stage.Move` holds, plus its\narguments' types and a line of documentation for each generated copy.",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "verb": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Verb"
+        },
+        "class": {
+          "$ref": "#/$defs/MoveClass"
+        },
+        "args": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ArgSpec"
+          },
+          "title": "Args",
+          "type": "array"
+        },
+        "say": {
+          "default": "",
+          "title": "Say",
+          "type": "string"
+        },
+        "claims": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Claims",
+          "type": "array"
+        },
+        "objects": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Objects",
+          "type": "array"
+        },
+        "doc": {
+          "default": "",
+          "title": "Doc",
+          "type": "string"
+        },
+        "notes": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Notes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "class"
+      ],
+      "title": "MoveSpec",
+      "type": "object"
+    },
+    "PluginSpec": {
+      "additionalProperties": false,
+      "description": "A plugin: code of ours compiled into the runtime that does one typed\nthing the steps cannot (``magento.prices``: a same-origin read of live\nprices). Never fetched at run time; named here so a pack can require it and\na review can see what it may reach.",
+      "properties": {
+        "name": {
+          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "major": {
+          "minimum": 1,
+          "title": "Major",
+          "type": "integer"
+        },
+        "side": {
+          "enum": [
+            "brain",
+            "page"
+          ],
+          "title": "Side",
+          "type": "string"
+        },
+        "class": {
+          "$ref": "#/$defs/MoveClass"
+        },
+        "args": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ArgSpec"
+          },
+          "title": "Args",
+          "type": "array"
+        },
+        "output": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/FieldSpec"
+          },
+          "title": "Output",
+          "type": "array"
+        },
+        "egress": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Egress",
+          "type": "array"
+        },
+        "deadline_ms": {
+          "minimum": 1,
+          "title": "Deadline Ms",
+          "type": "integer"
+        },
+        "pii": {
+          "default": false,
+          "title": "Pii",
+          "type": "boolean"
+        },
+        "doc": {
+          "default": "",
+          "title": "Doc",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "major",
+        "side",
+        "class",
+        "deadline_ms"
+      ],
+      "title": "PluginSpec",
+      "type": "object"
+    },
+    "Reaction": {
+      "additionalProperties": false,
+      "description": "An app's choice for one of a kit's events (``EventSpec.react``, ``ask``).",
+      "properties": {
+        "react": {
+          "enum": [
+            "silent",
+            "note",
+            "speak"
+          ],
+          "title": "React",
+          "type": "string"
+        },
+        "ask": {
+          "default": "",
+          "title": "Ask",
+          "type": "string"
+        }
+      },
+      "required": [
+        "react"
+      ],
+      "title": "Reaction",
+      "type": "object"
+    },
+    "SliceSpec": {
+      "additionalProperties": false,
+      "description": "A named, typed piece of the page's state (``cart``, ``listing``), kept\nin the brain's mirror and read by the model on demand.",
+      "properties": {
+        "id": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "fields": {
+          "items": {
+            "$ref": "#/$defs/FieldSpec"
+          },
+          "title": "Fields",
+          "type": "array"
+        },
+        "window": {
+          "default": 20,
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Window",
+          "type": "integer"
+        },
+        "doc": {
+          "default": "",
+          "title": "Doc",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "fields"
+      ],
+      "title": "SliceSpec",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "An app's Stage Spec.",
+  "properties": {
+    "$schema": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "$Schema"
+    },
+    "stage": {
+      "const": 1,
+      "title": "Stage",
+      "type": "integer"
+    },
+    "id": {
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "title": "Id",
+      "type": "string"
+    },
+    "languages": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Languages",
+      "type": "array"
+    },
+    "kits": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/KitUse"
+      },
+      "title": "Kits",
+      "type": "array"
+    },
+    "moves": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/MoveSpec"
+      },
+      "title": "Moves",
+      "type": "array"
+    },
+    "slices": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/SliceSpec"
+      },
+      "title": "Slices",
+      "type": "array"
+    },
+    "events": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/EventSpec"
+      },
+      "title": "Events",
+      "type": "array"
+    },
+    "plugins": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/PluginSpec"
+      },
+      "title": "Plugins",
+      "type": "array"
+    }
+  },
+  "required": [
+    "stage",
+    "id"
+  ],
+  "type": "object"
+}

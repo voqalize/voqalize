@@ -1,0 +1,78 @@
+# Publish `@voqalize/stage` to npm from a tag.
+#
+#   git tag stage-v0.1.0-rc.1 && git push origin stage-v0.1.0-rc.1
+#
+# The tag is package-prefixed, as the Python SDK's is (`python-sdk-v*`): this
+# repository publishes more than one package. A version with a pre-release part
+# (`-rc.1`) is published under the `next` dist-tag, so `npm install
+# @voqalize/stage` never hands out a release candidate; any other under `latest`.
+#
+# No long-lived credential lives here. npm accepts an OIDC token this workflow
+# mints for this repository (trusted publishing), and `--provenance` signs an
+# attestation linking the tarball to this run and this commit. One-time setup:
+# the `npm` environment in this repository's settings, and this workflow added
+# as the package's trusted publisher on npmjs.com.
+name: release npm stage
+
+on:
+  push:
+    tags: ["stage-v[0-9]+.[0-9]+.[0-9]+", "stage-v[0-9]+.[0-9]+.[0-9]+-*"]
+  workflow_dispatch: # re-run a failed publish without re-tagging
+
+# Never `cancel-in-progress`: killing a run mid-publish burns a version number.
+concurrency:
+  group: release-npm-stage-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    name: the tag equals the manifest
+    runs-on: ubuntu-latest
+    outputs:
+      dist-tag: ${{ steps.check.outputs.dist-tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: check
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME#stage-v}"
+          manifest=$(node -p "require('./sdk/js/stage/package.json').version")
+          echo "tag=$tag  package.json=$manifest"
+          if [ "$tag" != "$manifest" ]; then
+            echo "::error::tag $tag disagrees with sdk/js/stage/package.json ($manifest)"
+            exit 1
+          fi
+          case "$tag" in *-*) echo "dist-tag=next" >> "$GITHUB_OUTPUT" ;; *) echo "dist-tag=latest" >> "$GITHUB_OUTPUT" ;; esac
+
+  npm:
+    name: publish @voqalize/stage
+    needs: guard
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write # mints the OIDC token npm exchanges for a publish grant
+    defaults:
+      run:
+        working-directory: sdk/js/stage
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          cache: pnpm
+      # Trusted publishing landed in npm 11.5.1. pnpm installs; npm publishes,
+      # because the OIDC exchange is npm's.
+      - run: npm install -g npm@latest
+      - run: pnpm install --frozen-lockfile
+      # The whole gate first: a published version cannot be taken back.
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - run: node scripts/publish-manifest.mjs
+      - run: npm publish --provenance --access public --tag "${{ needs.guard.outputs.dist-tag }}"

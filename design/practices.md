@@ -247,6 +247,15 @@ Markdown renders the id rather than 17. -->
     `@voqalize/client-react` was deprecated). The owner: "We now ship a client
     library. And we need to make that the default." Stock pipecat stays
     documented as the alternative for a couple more releases, then goes.*
+    ***Amended 2026-10-28:*** *a capability add-on that takes a `PipecatClient`
+    the app already has, and only subscribes to it and sends through it, is
+    allowed beside it; rule 48 is what it must earn. `@voqalize/stage` is the
+    first: it times moves to the agent's words, rings what they point at and
+    reports their results, and never constructs, connects, wraps or re-exports
+    pipecat's client or hooks, nor names a pipecat type in its API. Its React
+    glue lives at `@voqalize/stage/react` and takes the app's own React, so no
+    second React and no second client surface appear. The owner, deciding the
+    Stage architecture: go with the recommendation that 44 be amended this way.*
 45. **All server communication is over stock pipecat.** RTVI `ui-event`,
     `server-message` and `ui-command`, on the data channel the transport already
     has. No second channel and no envelope of ours. — *agreed. What is ours is the

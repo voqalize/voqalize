@@ -1,0 +1,17 @@
+{
+  "$schema": "../../../js/stage/stage.schema.json",
+  "stage": 1,
+  "id": "shop",
+  "languages": ["en"],
+  "kits": [{ "id": "commerce", "major": 1, "moves": ["commerce.filter", "commerce.cart_add"] }],
+  "moves": [
+    {
+      "id": "core.show",
+      "verb": "show",
+      "class": "look",
+      "args": [{ "name": "target", "doc": "A part of the page, by the heading the visitor sees." }],
+      "say": "{show: Heading} scrolls to that part of the page and rings it.",
+      "doc": "Scroll to a part of the page and ring it."
+    }
+  ]
+}

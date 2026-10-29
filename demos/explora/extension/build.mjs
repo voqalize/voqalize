@@ -1,12 +1,14 @@
 // Builds the unpacked extension into dist/: the bundles, their two pages and
 // the manifest, stamped with this package's version.
 //
-//   holder.js      the call, in the offscreen document `call.html`: pipecat,
-//                  his voice, the relay to the pages, the routing of the
-//                  brain's Actions, the narration and the tab registry;
+//   holder.js      the call, in the offscreen document `call.html`: Stage's
+//                  shared holder (pipecat, his voice, the relay to the pages,
+//                  the cue timeline, the tab registry) with Explora's pacing
+//                  of page loads and the site following the call's language;
 //   content.js     the widget, his face and both site adapters (www.explora.com
-//                  and reservations.explora.com), in the page's own
-//                  JavaScript world (MAIN); it mints the session;
+//                  and reservations.explora.com), which register his moves
+//                  with Stage, in the page's own JavaScript world (MAIN); it
+//                  mints the session;
 //   shell.js       the early shell (MAIN, document_start): in a call, the
 //                  widget back at once on the next page, as the last page left
 //                  it, and the page load as a view transition under it;
@@ -17,6 +19,9 @@
 //                  tabs, keeps each tab's move for its next page (which may be
 //                  on the other host) and reads www.explora.com's
 //                  translations for the booking site.
+//
+// The shared parts come from `@voqalize/stage/extension`, linked from the
+// repo's `sdk/js/stage` and bundled in.
 //
 // The agent id and publishable key are read from the environment (or a local
 // .env beside this file) and baked into content.js. A build without them still

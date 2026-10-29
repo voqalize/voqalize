@@ -242,16 +242,21 @@ test.describe("the holder and its pages", () => {
     await expect.poll(async () => (await status(ext.sw)).log.some((l) => l.includes("leaving"))).toBe(true);
 
     // A cue for a heading on the next page arrives meanwhile: kept for the tab.
-    await toHolder(ext.sw, { what: "command", command: "cue", payload: { at: "", word: 0, path: null, heading: "Plumones", text: null, faq: null } });
+    const cue = (call_ref: string, target: string) => ({
+      what: "command",
+      command: "stage_cue",
+      payload: { call_ref, move: "page.show", verb: "show", args: [target], at: "", before: 0, unit: 0 },
+    });
+    await toHolder(ext.sw, cue("c1", "Plumones"));
     await toHolder(ext.sw, { what: "emit", name: "botStoppedSpeaking" });
     await expect.poll(async () => (await status(ext.sw)).pending, { timeout: 5000 }).toBe(1);
 
     // The next page says hello, gets it, and makes it.
     await page.waitForURL(`${ORIGIN}/dormitorio`);
-    await expect.poll(async () => (await status(ext.sw)).log.some((l) => l.includes("done show_section"))).toBe(true);
+    await expect.poll(async () => (await status(ext.sw)).log.some((l) => l.includes("done page.show applied"))).toBe(true);
     let s = await status(ext.sw);
     expect(s.pending).toBe(0);
-    expect(s.log.filter((l) => l.includes("failed"))).toEqual([]);
+    expect(s.sent.find((e) => e.event === "stage_result")?.payload).toMatchObject({ call_ref: "c1", outcome: "applied" });
 
     // The same call all along: one connect, still live, and the new page follows it.
     expect(s.log.filter((l) => l.includes("connected "))).toHaveLength(1);
@@ -259,11 +264,14 @@ test.describe("the holder and its pages", () => {
     await expect(widget(page)).toHaveAttribute("data-status", "live");
     await expect.poll(async () => (await status(ext.sw)).sent.filter((e) => e.event === "page_changed").map((e) => e.payload.path)).toContain("/dormitorio");
 
-    // A heading the page lacks fails, and the brain is told.
-    await toHolder(ext.sw, { what: "command", command: "cue", payload: { at: "", word: 0, path: null, heading: "No existe", text: null, faq: null } });
+    // A heading the page lacks is refused, and the brain is told, with the
+    // headings the page has.
+    await toHolder(ext.sw, cue("c2", "No existe"));
     await toHolder(ext.sw, { what: "emit", name: "botStoppedSpeaking" });
-    await expect.poll(async () => (await status(ext.sw)).log.some((l) => l.includes("failed show_section"))).toBe(true);
-    await expect.poll(async () => (await status(ext.sw)).sent.some((e) => e.event === "command_failed")).toBe(true);
+    await expect.poll(async () => (await status(ext.sw)).log.some((l) => l.includes("done page.show refused"))).toBe(true);
+    await expect
+      .poll(async () => (await status(ext.sw)).sent.find((e) => e.event === "stage_result" && e.payload.call_ref === "c2")?.payload)
+      .toMatchObject({ outcome: "refused", refused: [{ arg: "target", options: expect.arrayContaining(["Plumones"]) }] });
     s = await status(ext.sw);
     expect(ext.connects).toHaveLength(1);
   });

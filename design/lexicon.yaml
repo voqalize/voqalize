@@ -107,6 +107,70 @@ terms:
     word: the watchdog
     retired: []
 
+  # Stage (2026-10-28): the agent shows and does things on a page while it
+  # talks. `voqalize.sdk.stage` in the brain, `@voqalize/stage` on the page. The
+  # architecture cut its vocabulary to the words below; the runtime's internals
+  # (timeline, holder, director) are not words a reader needs.
+  - concept: The framework an agent uses to act on a page while it talks
+    word: Stage
+    retired: [choreography]
+
+  # One JSON document per app, `scene.json`; `defineScene` is its TypeScript
+  # form. "Scene" stays a file and function name, not a second word for it.
+  - concept: An app's declared moves, state slices and state events
+    word: the Stage Spec
+    retired: []
+
+  # "Action" stays the wire message; a move is the declaration it is sent for.
+  - concept: A declared thing the agent can do on a page
+    word: move
+    retired: [site tool, UI tool]
+
+  - concept: A move's tier, which decides how it is delivered and checked
+    word: class
+    retired: [risk level]
+
+  # The avatar's state and cue messages are a different thing, and say so
+  # where both appear. A spotlight rings its target: "ring" is the verb, not
+  # a second name for the spotlight.
+  - concept: A move written inside the agent's reply, made as the voice reaches it
+    word: cue
+    retired: [screen cue]
+
+  - concept: The point in the spoken audio where a cue fires
+    word: mark
+    retired: [anchor point]
+
+  - concept: The one answer a page gives for each move
+    word: result
+    retired: [command done]
+
+  - concept: The ring a page draws around what a move touches, before it acts
+    word: the spotlight
+    retired: []
+
+  - concept: A named, typed piece of the page's state in the brain's mirror
+    word: slice
+    retired: []
+
+  # Not "event" alone: an app event is already the word for any typed
+  # message from the screen to the brain, and a state event is one of them.
+  - concept: A named act that changes one slice
+    word: state event
+    retired: [state push]
+
+  - concept: The page's code that carries out one move
+    word: performer
+    retired: []
+
+  - concept: Moves, slices and state events many apps share, taken by name
+    word: kit
+    retired: []
+
+  - concept: The lint and page checks that hold a Stage app to Stage's rules
+    word: the Stage conformance checks
+    retired: [conformance kit]
+
 # Internal service and repository names. These never appear in customer-facing
 # text; until 2026-08-25 nothing checked it, and three had reached the docs site
 # — one of them into a filename a reader types.

@@ -2,10 +2,10 @@
 // the manifest, stamped with this package's version.
 //
 //   holder.js      the call, in the offscreen document `call.html`: pipecat,
-//                  his voice, the relay to the pages, the routing of the
-//                  brain's Actions, the narration and the tab registry;
-//   content.js     the widget, his face and the site adapter, in the page's
-//                  own JavaScript world (MAIN); it mints the session;
+//                  his voice, the relay to the pages, Stage's timeline that
+//                  fires his cues as he speaks, and the tab registry;
+//   content.js     the widget, his face and the site's moves on Stage, in the
+//                  page's own JavaScript world (MAIN); it mints the session;
 //   shell.js       the early shell (MAIN, document_start): in a call, the
 //                  widget back at once on the next page, as the last page left
 //                  it, and the page load as a view transition under it;

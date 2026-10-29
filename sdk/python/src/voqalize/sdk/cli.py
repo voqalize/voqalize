@@ -396,6 +396,14 @@ def _tally(count: int, noun: str) -> str:
 
 
 def _types(args: argparse.Namespace) -> int:
+    if args.scene:
+        if not args.out:
+            raise SystemExit("voqalize types --scene: say where with -o")
+        return _stage_gen(
+            argparse.Namespace(spec=args.scene, py=args.out, ts=None, json=None, prompt=None)
+        )
+    if not args.module:
+        raise SystemExit("voqalize types: name the module declaring your actions, or --scene")
     module = _load_module(args.module)
     actions = _collect(module, Action)
     events = _collect(module, AppEvent)
@@ -421,6 +429,90 @@ def _types(args: argparse.Namespace) -> int:
     return 0
 
 
+# ── voqalize stage ─────────────────────────────────────────────────────────────
+
+
+def _spec_or_exit(path: str) -> Any:
+    from pydantic import ValidationError
+
+    from .stage.spec import load_spec
+
+    try:
+        return load_spec(Path(path))
+    except FileNotFoundError:
+        raise SystemExit(f"voqalize stage: no spec at {path}") from None
+    except ValidationError as e:
+        raise SystemExit(f"voqalize stage: {path} is not a valid Stage Spec\n{e}") from None
+
+
+def _write(out: str, text: str, what: str) -> None:
+    Path(out).write_text(text, encoding="utf-8")
+    print(f"{what} → {out}", file=sys.stderr)
+
+
+def _stage_gen(args: argparse.Namespace) -> int:
+    from .stage.gen import render_json, render_prompt, render_python, render_typescript
+
+    spec = _spec_or_exit(args.spec)
+    if not (args.py or args.ts or args.json or args.prompt):
+        raise SystemExit(
+            "voqalize stage gen: say what to write: --py, --ts, --json and/or --prompt"
+        )
+    command = " ".join(
+        ["voqalize stage gen", args.spec]
+        + [
+            f"--{flag} {out}"
+            for flag, out in (
+                ("py", args.py),
+                ("ts", args.ts),
+                ("json", args.json),
+                ("prompt", args.prompt),
+            )
+            if out
+        ]
+    )
+    moves = _tally(len(spec.moves), "move")
+    if args.py:
+        _write(args.py, render_python(spec, source=args.spec, command=command), moves)
+    if args.ts:
+        _write(args.ts, render_typescript(spec, source=args.spec, command=command), moves)
+    if args.json:
+        _write(args.json, render_json(spec), moves)
+    if args.prompt:
+        _write(args.prompt, render_prompt(spec), _tally(len(spec.prompt_lines()), "cue line"))
+    return 0
+
+
+def _stage_check(args: argparse.Namespace) -> int:
+    from .stage.check import check_spec
+
+    errors = warnings = 0
+    for path in args.spec:
+        spec = _spec_or_exit(path)
+        cues = sum(m.verb is not None for m in spec.moves)
+        print(
+            f"{path}: {_tally(len(spec.moves), 'move')}, {_tally(cues, 'cue')}; {spec.sha256[:12]}"
+        )
+        for finding in check_spec(spec, budget_tokens=args.budget):
+            print(f"  {finding}")
+            errors += finding.level == "error"
+            warnings += finding.level == "warning"
+    if errors or warnings:
+        print(f"{_tally(errors, 'error')}, {_tally(warnings, 'warning')}")
+    return 1 if errors or (args.strict and warnings) else 0
+
+
+def _stage_schema(args: argparse.Namespace) -> int:
+    from .stage.spec import spec_schema
+
+    text = json.dumps(spec_schema(), indent=2, ensure_ascii=False) + "\n"
+    if args.out:
+        _write(args.out, text, "stage.schema.json")
+    else:
+        sys.stdout.write(text)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="voqalize", description="Voqalize agent SDK developer tools."
@@ -429,12 +521,40 @@ def main(argv: list[str] | None = None) -> int:
 
     types = sub.add_parser("types", help="generate TypeScript action types from a brain module")
     types.add_argument(
-        "module", help="path to the module declaring your actions, or its dotted name"
+        "module",
+        nargs="?",
+        help="path to the module declaring your actions, or its dotted name",
+    )
+    types.add_argument(
+        "--scene",
+        help="a Stage Spec (JSON): write its moves as Python instead (`voqalize stage gen --py`)",
     )
     types.add_argument("-o", "--out", help="file to write; stdout when omitted")
     types.add_argument("--union-name", default="UiAction", help="name of the action union")
     types.add_argument("--event-union-name", default="AppEvent", help="name of the app-event union")
     types.set_defaults(func=_types)
+
+    stage = sub.add_parser("stage", help="Stage Spec tools: generate, check, schema")
+    stage_sub = stage.add_subparsers(dest="stage_command", required=True)
+    gen = stage_sub.add_parser(
+        "gen", help="write a spec out as Python, TypeScript and prompt lines"
+    )
+    gen.add_argument("spec", help="path to the Stage Spec (JSON)")
+    gen.add_argument("--py", help="the brain's moves, as a Python module")
+    gen.add_argument("--ts", help="the page's scene, as a TypeScript module")
+    gen.add_argument("--json", help="the page's spec, kits merged, for a page with no build step")
+    gen.add_argument("--prompt", help="the line each cue is taught with")
+    gen.set_defaults(func=_stage_gen)
+    check = stage_sub.add_parser("check", help="validate and lint one or more specs")
+    check.add_argument("spec", nargs="+", help="path to a Stage Spec (JSON)")
+    check.add_argument("--strict", action="store_true", help="fail on a warning too")
+    check.add_argument(
+        "--budget", type=int, default=800, help="tokens the cue lines may take (default 800)"
+    )
+    check.set_defaults(func=_stage_check)
+    schema = stage_sub.add_parser("schema", help="print stage.schema.json")
+    schema.add_argument("-o", "--out", help="file to write; stdout when omitted")
+    schema.set_defaults(func=_stage_schema)
 
     args = parser.parse_args(argv)
     return int(args.func(args))

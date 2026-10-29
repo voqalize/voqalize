@@ -172,17 +172,68 @@ function simulateSite(): void {
       const numbers = amount?.querySelectorAll(".toolbar-number");
       if (numbers?.length) numbers[numbers.length - 1].textContent = String(n);
     };
-    const swap = (keep: (li: Element) => boolean, url: string) => {
-      setTimeout(() => {
-        const cards = [...document.querySelectorAll("ol.products li.product-item")];
-        const kept = cards.filter(keep);
-        cards.forEach((li) => !kept.includes(li) && li.remove());
-        setCount(kept.length * 30);
-        history.pushState({}, "", url);
-      }, 350);
+    // Every card the listing has, unfiltered: the grid is drawn from these.
+    const all = [...document.querySelectorAll("ol.products li.product-item")];
+    /** Draw the grid as the options on choose it, as the store does: any of
+     *  the options on in one filter (`?color=6826,6889` is Beige or Blanco),
+     *  and every filter that has one. A card has an option when its name
+     *  holds the option's word. */
+    const render = () => {
+      const on = new Map<string, string[]>();
+      for (const group of document.querySelectorAll<HTMLElement>(".qf__group[data-qf-request-var]")) {
+        const titles = [...group.querySelectorAll("a.qf__option-link.-active")].map((a) => a.getAttribute("title") ?? "");
+        group.querySelector(".qf__pill")?.classList.toggle("-active", titles.length > 0);
+        const label = group.querySelector(".qf__pill-label");
+        if (label && titles.length) label.textContent = `${group.querySelector(".qf__panel-title")?.textContent}: ${titles.join(", ")}`;
+        if (titles.length) on.set(group.dataset.qfRequestVar!, titles.map((t) => t.toLowerCase().replace(/ hilos$/, "")));
+      }
+      const name = (li: Element) => (li.querySelector(".product-item-link")?.textContent ?? "").toLowerCase();
+      const kept = all.filter((li) => [...on.values()].every((words) => words.some((w) => name(li).includes(w))));
+      const list = $("ol.products");
+      if (list) {
+        for (const li of all) li.remove();
+        for (const li of kept) list.appendChild(li);
+      }
+      if (on.size) setCount(kept.length * 30);
     };
+    // The store serves a filtered listing at the filters' address: option ids
+    // by request variable (`?tamano=5625&color=6889,6826`), or the options' own
+    // path segments (`/king_1`).
+    const params = new URLSearchParams(location.search);
+    const segments = location.pathname.split("/").pop()?.split("-") ?? [];
+    let marked = false;
+    for (const option of document.querySelectorAll<HTMLAnchorElement>("a.qf__option-link")) {
+      const asked = params.get(option.dataset.qfRequestVar ?? "")?.split(",") ?? [];
+      const alias = new URL(option.href).pathname.split("/").pop() ?? "";
+      // A test can have the store ignore an option it is asked for by id
+      // (`__qfIgnore`: its ids), as a store that drops one would.
+      const ignored = ((window as unknown as { __qfIgnore?: string[] }).__qfIgnore ?? []).includes(option.dataset.qfValue ?? "");
+      if (!ignored && (asked.includes(option.dataset.qfValue ?? "") || (!location.pathname.endsWith("20-sabanas") && segments.includes(alias)))) {
+        option.classList.add("-active");
+        marked = true;
+      }
+    }
+    if (marked) render();
+    // A test can hold the filters' scripts back (`__qfLate`, ms: until then a
+    // press on an option does nothing, as on the live store just after a
+    // load), or have every press do nothing (`__qfDead`).
+    const w = window as unknown as { __qfLate?: number; __qfDead?: boolean; require?: unknown; jQuery?: unknown };
+    const upAt = Date.now() + (w.__qfLate ?? 0);
+    if (w.__qfLate != null) {
+      const root = $("[data-qf-root]");
+      root?.removeAttribute("data-qf-ready");
+      w.require = () => undefined;
+      w.jQuery = { data: (el: Element, key: string) => (el === document.body && key === "mage-amShopbyAjax" && Date.now() >= upAt ? {} : undefined) };
+      setTimeout(() => root?.setAttribute("data-qf-ready", "1"), w.__qfLate);
+    }
     document.addEventListener("click", (e) => {
       const t = e.target as Element;
+      const dead = t.closest("a.qf__option-link") && (w.__qfDead || Date.now() < upAt);
+      if (dead) {
+        e.preventDefault();
+        (window as unknown as { __deadPresses: number }).__deadPresses = ((window as unknown as { __deadPresses?: number }).__deadPresses ?? 0) + 1;
+        return;
+      }
       const pill = t.closest(".qf__pill");
       if (pill) {
         const open = Boolean(pill.closest(".qf__group")?.classList.toggle("-open"));
@@ -196,15 +247,19 @@ function simulateSite(): void {
       }
       const option = t.closest<HTMLAnchorElement>("a.qf__option-link");
       if (option) {
+        // A press adds the option to the ones on in its filter (or takes it
+        // off, if it was on), as the live bar does; a test can make it
+        // replace them instead (`__qfSingle`), as a single-choice bar would.
         e.preventDefault();
-        const title = option.getAttribute("title") ?? "";
-        option.classList.add("-active");
-        const group = option.closest(".qf__group");
-        group?.querySelector(".qf__pill")?.classList.add("-active");
-        const label = group?.querySelector(".qf__pill-label");
-        if (label) label.textContent = `${group?.querySelector(".qf__panel-title")?.textContent}: ${title}`;
-        const word = title.toLowerCase().replace(/ hilos$/, "");
-        swap((li) => (li.querySelector(".product-item-link")?.textContent ?? "").toLowerCase().includes(word), option.href);
+        const on = !option.classList.contains("-active");
+        if (on && (window as unknown as { __qfSingle?: boolean }).__qfSingle) {
+          option.closest(".qf__group")?.querySelectorAll("a.qf__option-link.-active").forEach((a) => a.classList.remove("-active"));
+        }
+        option.classList.toggle("-active", on);
+        setTimeout(() => {
+          render();
+          history.pushState({}, "", option.href);
+        }, 350);
         return;
       }
       if (t.closest(".minicart-wrapper a.action.showcart")) {
@@ -621,7 +676,26 @@ export async function open(p: Page, path: string): Promise<void> {
 export interface Emitted {
   event: string;
   payload: Record<string, unknown>;
+  /** A state event's author: "visitor", or "agent" for one of his moves. */
+  by?: unknown;
+  call_ref?: unknown;
 }
+
+/** A Stage state event as a test reads it: its name (`listing.filtered`) and
+ *  the data its slice took; every other event as sent. */
+function flat(e: Emitted): Emitted {
+  if (e.event !== "stage_event") return e;
+  const p = e.payload;
+  return { event: String(p.name), payload: (p.data ?? {}) as Record<string, unknown>, by: p.by, call_ref: p.call_ref };
+}
+
+/** Whether `e` is `name`, or, for a name ending in ".", any state event of
+ *  that slice (`"listing."`: shown, filtered or sorted). */
+export const matches = (e: Emitted, name: string) => e.event === name || (name.endsWith(".") && e.event.startsWith(name));
+
+/** A listing's filters as the store reads them: request variable → labels. */
+export const filtersOf = (listing: Record<string, unknown>) =>
+  Object.fromEntries((listing.filters as { facet: string; on: string[] }[]).map((f) => [f.facet, f.on.join(", ")]));
 
 /** Start the adapter's reports on this page, as the call does on bot-ready. */
 export async function listen(p: Page): Promise<void> {
@@ -633,13 +707,14 @@ export async function listen(p: Page): Promise<void> {
   });
 }
 
-export const events = (p: Page) => p.evaluate(() => (window as unknown as { __events?: Emitted[] }).__events ?? []);
+export const events = async (p: Page) =>
+  (await p.evaluate(() => (window as unknown as { __events?: Emitted[] }).__events ?? [])).map(flat);
 
 /** Wait for an event (the `n`th of that name) and return it. */
 export async function waitForEvent(p: Page, name: string, test: (e: Emitted) => boolean = () => true, timeout = 15_000): Promise<Emitted> {
   const until = Date.now() + timeout;
   for (;;) {
-    const hit = (await events(p)).find((e) => e.event === name && test(e));
+    const hit = (await events(p)).find((e) => matches(e, name) && test(e));
     if (hit) return hit;
     if (Date.now() > until) throw new Error(`no ${name} event; got ${JSON.stringify((await events(p)).map((e) => e.event))}`);
     await p.waitForTimeout(100);

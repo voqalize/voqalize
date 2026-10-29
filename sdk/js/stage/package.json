@@ -1,0 +1,64 @@
+{
+  "name": "@voqalize/stage",
+  "version": "0.1.0-rc.1",
+  "private": true,
+  "description": "The page half of Stage: makes the moves an agent's reply names as its voice reaches them, rings what it points at, and reports one result per move. Takes a pipecat client that already exists; never makes or wraps one.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "stage": "./bin/stage.mjs"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./extension": "./src/extension/index.ts",
+    "./conformance": "./src/conformance.ts",
+    "./react": "./src/react.ts",
+    "./script": "./src/script.ts"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./extension": {
+        "types": "./dist/extension/index.d.ts",
+        "default": "./dist/extension/index.js"
+      },
+      "./conformance": {
+        "types": "./dist/conformance.d.ts",
+        "default": "./dist/conformance.js"
+      },
+      "./react": {
+        "types": "./dist/react.d.ts",
+        "default": "./dist/react.js"
+      },
+      "./script": {
+        "types": "./dist/script.d.ts",
+        "default": "./dist/script.js"
+      },
+      "./stage.schema.json": "./stage.schema.json"
+    }
+  },
+  "files": [
+    "dist",
+    "bin",
+    "stage.schema.json"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "peerDependencies": {
+    "@pipecat-ai/client-js": ">=1.13 <2"
+  },
+  "devDependencies": {
+    "@pipecat-ai/client-js": "^1.13.0",
+    "@types/chrome": "^0.0.287",
+    "happy-dom": "^15.11.7",
+    "typescript": "^5.8.3",
+    "vitest": "^2.1.9"
+  }
+}

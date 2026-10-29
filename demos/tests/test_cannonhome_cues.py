@@ -1,4 +1,9 @@
-"""The cue parser: cues out of the speech, each anchored to its sentence.
+"""Javier's cues: the moves a reply may write, as Stage parses them.
+
+The parser is Stage's (``voqalize.sdk.stage``); what is Cannon Home's is which
+moves exist, their verbs and classes, and that every cue the prompt teaches
+parses into the move it names. The resolving against the site is the brain's,
+covered end to end in ``test_cannonhome_e2e.py``.
 
 Run: ``cd demos && uv run pytest tests/test_cannonhome_cues.py``
 """
@@ -7,13 +12,17 @@ from __future__ import annotations
 
 from voqalize_demos.discovery import discover
 
+from voqalize.sdk.stage import CueParser, MoveClass, MoveSet, RawCue
+
 discover()
 
-from voqalize_demos._loaded.cannonhome.cues import MAX_CUE, CueParser, RawCue  # noqa: E402
+from voqalize_demos._loaded.cannonhome.brain import MOVES  # noqa: E402
+
+VERBS = MoveSet(MOVES).verbs
 
 
 def _run(*chunks: str) -> tuple[str, list[RawCue]]:
-    p = CueParser()
+    p = CueParser(VERBS)
     spoken = ""
     cues: list[RawCue] = []
     for c in chunks:
@@ -24,86 +33,48 @@ def _run(*chunks: str) -> tuple[str, list[RawCue]]:
     return spoken + text, cues + got
 
 
-def test_cues_leave_the_speech_and_anchor_to_their_sentence() -> None:
+def test_the_moves_and_their_classes() -> None:
+    by_id = {m.id: m for m in MOVES}
+    assert {m.verb: m.cls for m in MOVES if m.verb} == {
+        "page": MoveClass.NAVIGATE,
+        "show": MoveClass.LOOK,
+        "faq": MoveClass.LOOK,
+        "filter": MoveClass.REVERSIBLE,
+        "sort": MoveClass.REVERSIBLE,
+    }
+    # What the visitor owns changes only by a tool, after they said yes.
+    for move in ("commerce.cart_add", "commerce.cart_update", "start_checkout", "fill_checkout"):
+        assert by_id[move].cls is MoveClass.CONFIRMED and by_id[move].verb is None
+    assert by_id["open_product"].cls is MoveClass.NAVIGATE
+    assert by_id["filter_listing"].cls is MoveClass.REVERSIBLE
+    assert by_id["check_prices"].cls is MoveClass.LOOK
+
+
+def test_cues_leave_the_speech_with_their_arguments_and_the_words_after_them() -> None:
     spoken, cues = _run(
-        "{page: /}{show: How Potion works} It takes three steps. "
-        "{show: Train video AI} First, you train the AI on you."
+        "{page: /12-ropa-de-cama/20-sabanas} Estas son las sábanas. "
+        "{filter: Tamaño | King} Primero, las king. {filter: Material|100% Algodón} "
+        "Y de algodón."
     )
     assert "{" not in spoken and "}" not in spoken
-    assert spoken == " It takes three steps. First, you train the AI on you."
-    assert [(c.kind, c.value, c.at, c.word) for c in cues] == [
-        ("page", "/", "it takes three", 0),
-        ("show", "How Potion works", "it takes three", 0),
-        ("show", "Train video AI", "first you train", 4),
+    assert spoken == " Estas son las sábanas. Primero, las king. Y de algodón."
+    assert [(c.verb, c.args) for c in cues] == [
+        ("page", ("/12-ropa-de-cama/20-sabanas",)),
+        ("filter", ("Tamaño", "King")),
+        ("filter", ("Material", "100% Algodón")),
     ]
+    # The anchor is the spoken text as written, accents and all: the page
+    # segments it as it segments what it hears.
+    assert cues[1].at.startswith("Primero, las king.")
+    assert cues[2].at == "Y de algodón."
 
 
 def test_a_cue_split_across_chunks_still_parses() -> None:
-    spoken, cues = _run(
-        "Plans start low. {sh", "ow: Pricing pl", "ans} Thirty-nine dol", "lars a month."
-    )
-    assert spoken == "Plans start low. Thirty-nine dollars a month."
-    assert [(c.value, c.at) for c in cues] == [("Pricing plans", "thirty nine dollars")]
+    spoken, cues = _run("Las ordeno. {so", "rt: price_", "asc} De la más barata", " a la más cara.")
+    assert spoken == "Las ordeno. De la más barata a la más cara."
+    assert [(c.verb, c.args) for c in cues] == [("sort", ("price_asc",))]
 
 
-def test_a_cue_at_the_end_fires_when_the_voice_stops() -> None:
-    spoken, cues = _run("Here is the FAQ. {faq: Can I cancel anytime?}")
-    assert spoken.strip() == "Here is the FAQ."
-    assert [(c.kind, c.at) for c in cues] == [("faq", "")]
-
-
-def test_braces_that_are_not_cues_are_not_spoken_and_a_stray_one_is_dropped() -> None:
-    spoken, cues = _run("Hello {mood: happy} there.")
-    assert spoken == "Hello there." and cues == []
-    long = "word " * (MAX_CUE // 4)
-    spoken, cues = _run("Open { " + long, "and on.")
-    assert "{" not in spoken and spoken.startswith("Open ") and cues == []
-
-
-def test_each_sentence_is_offered_for_the_moves_it_did_not_bring() -> None:
-    seen: list[tuple[str, int, tuple[tuple[str, str], ...]]] = []
-
-    def auto(
-        sentence: str, index: int, placed: tuple[tuple[str, str], ...]
-    ) -> list[tuple[str, str]]:
-        seen.append((sentence, index, placed))
-        return [("show", "Re-engage dormant leads")] if "dormant" in sentence else []
-
-    p = CueParser(auto)  # type: ignore[arg-type]
-    cues: list[RawCue] = []
-    for chunk in ("{page: /sales} Hi. Reps wake up dor", "mant leads, too. Want pricing?"):
-        cues += p.feed(chunk)[1]
-    cues += p.flush()[1]
-    assert seen == [
-        ("Hi.", 0, (("page", "/sales"),)),
-        ("Reps wake up dormant leads, too.", 1, ()),
-        ("Want pricing?", 2, ()),
-    ]
-    # The model's page cue, on a sentence too short to wait out: anchored to
-    # its own word, not the next sentence's. The added cue, to its sentence.
-    assert [(c.kind, c.value, c.at, c.word) for c in cues] == [
-        ("page", "/sales", "hi", 0),
-        ("show", "Re-engage dormant leads", "reps wake up", 1),
-    ]
-
-
-def test_anchors_are_folded_like_the_page_folds_what_it_hears() -> None:
-    """The site and half his replies are Spanish: "Está" and "está" are one
-    word on both sides, or the page never finds the sentence and falls back to
-    the clock."""
-    from voqalize_demos._loaded.cannonhome.cues import words
-
-    assert words("Está en la sección Música, ¿sí?") == [
-        "esta",
-        "en",
-        "la",
-        "seccion",
-        "musica",
-        "si",
-    ]
-    assert words("Ñuñoa y Maipú") == ["nunoa", "y", "maipu"]
-    spoken, cues = _run("{show: Exámenes de Resonancia} Así se agenda tu exámen.")
-    assert spoken == " Así se agenda tu exámen."
-    assert [(c.kind, c.value, c.at) for c in cues] == [
-        ("show", "Exámenes de Resonancia", "asi se agenda")
-    ]
+def test_braces_that_are_no_move_of_his_are_not_spoken() -> None:
+    spoken, cues = _run("Hola {mood: happy} {cart: open} aquí.")
+    assert spoken == "Hola aquí." and cues == []

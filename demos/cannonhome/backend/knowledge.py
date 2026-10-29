@@ -670,6 +670,17 @@ class Knowledge:
         path = canonical_path(path_or_url)
         return self.categories.get(self.redirects.get(path, path))
 
+    def category_of(self, path_or_url: str) -> Category | None:
+        """The category a listing's address belongs to, its filter segments
+        (``/king_1-200_hilos``) set aside: the address itself when it is a
+        category, else the nearest category above it."""
+        path = canonical_path(path_or_url)
+        while path and path != "/":
+            if (cat := self.category(path)) is not None:
+                return cat
+            path = path.rsplit("/", 1)[0] or "/"
+        return None
+
     def search(self, query: str, limit: int = 6) -> list[Hit]:
         """The site's pages, sections and FAQs."""
         return self._site.search(query, limit)
@@ -1070,11 +1081,16 @@ def _product(raw: dict[str, Any]) -> Product | None:
 
 
 def _options(raw: Any) -> tuple[tuple[str, tuple[str, ...]], ...]:
-    """A category's filter options: ``{var: [labels]}``, or a list of groups
-    (``{var|code, options|labels}``); labels may be strings or ``{label}``."""
+    """A category's filter options: ``{var: [labels]}``, ``{var: {label,
+    values: [labels]}}`` (the crawl's shape: the group's own name beside its
+    options), or a list of groups (``{var|code, options|labels}``); labels may
+    be strings or ``{label}``."""
     out: list[tuple[str, tuple[str, ...]]] = []
     if isinstance(raw, dict):
         for var, labels in cast(dict[str, Any], raw).items():
+            if isinstance(labels, dict):
+                group = cast(dict[str, Any], labels)
+                labels = group.get("values") or group.get("options") or group.get("labels")
             if got := _strs(labels):
                 out.append((var, got))
     elif isinstance(raw, list):

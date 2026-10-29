@@ -2,17 +2,20 @@
  * The www.explora.com adapter: drive Explora's WordPress site from the
  * outside, with no help from Explora's developers.
  *
- * The brain sends a Voqalize `ui-command` ({command, payload}) and `run`
- * performs it on the page in front; `start` reports the page as it stands
- * (`page_changed`) once the call is up on it.
+ * It registers Javier's moves with Stage (`Moves`): his cues `core.show` and
+ * `core.faq`, and `explora.navigate` and `explora.twin`. Every move rings
+ * what it points at with Stage's spotlight before it acts, and answers with
+ * one result: a short detail of what it did, `refuse()` for a name the page
+ * does not have, an error for anything else. `report` says what the page is
+ * (`page_changed`) once the call is up on it, and again whenever the tab
+ * comes back to the front; `start` reports it again as late parts render.
  *
  * What the site is, for a script like this:
  *
  *   - Every move between pages is a full page load: no client-side router. So
- *     `navigate` stores the move for the next page with the service worker
- *     (`loadThen`) and sets `location`; the next page's copy of this script
- *     makes it. The pacing of a load against Javier's voice (`after_words`) is
- *     the call's, in the holder (`holder.ts`).
+ *     `navigate` loads the page with `loadThen`, and Stage answers for the
+ *     move once the next page is up where it should be. The pacing of a load against Javier's voice
+ *     (`after_words`) is the call's, in the holder (`holder.ts`).
  *   - The window scrolls (no smooth-scroll library), under a fixed
  *     `header#masthead` and, on destination, lodge and expedition pages, a
  *     sticky `.explora-submenu` (`dom.ts` measures both).
@@ -28,36 +31,54 @@
  * knows from the crawl are the names this page finds.
  */
 
-import {
-  type Adapter,
-  clean,
-  clearHighlight,
-  headerHeight,
-  highlight,
-  norm,
-  type PageContext,
-  pick,
-  scrollTo,
-  sleep,
-  styleThePage,
-  visible,
-  waitFor,
-} from "./dom";
-import { loadThen, type Then } from "./hub";
-import { alternateHere, type Lang, pageLanguage, pagePath, pathLang, rememberHere, twinHere } from "./site-language";
+import { domSettled, type MoveContext, type Spotlight } from "@voqalize/stage";
+import { type Adapter, askWorker, type PageKit } from "@voqalize/stage/extension";
 
-const SITE_ORIGIN = "https://www.explora.com";
+import { clean, headerHeight, norm, type PageContext, pick, scrollTo, sleep, styleThePage, visible, waitFor } from "./dom";
+import { scene } from "./scene.gen";
+import { asStage, attributeTo, bookingUrl, type CheckAvailabilityArgs, type FillEnquiryArgs, MOVE, type NavigateArgs } from "./site";
+import {
+  alternateHere, type Lang, type Mapped, pageLanguage, pagePath, pathLang, rememberHere, SITE, siteUrlIn, twinHere,
+} from "./site-language";
+
+const SITE_ORIGIN = SITE;
 const MAX_HEADINGS = 80;
 const MAX_FAQS = 120;
 const MAX_TABS = 40;
 const MAX_LINKS = 30;
 
 const isExplora = (host: string) => /^(www\.)?explora\.com$/i.test(host);
-/** Links that stay in the tab while a call is live. A new tab would follow
- *  the call too (the holder keeps every Explora tab), but the brain moves the
- *  tab in front and expects the visitor's one tab to be it: the walk through
- *  the site stays in the tab it started in. */
-const OURS = /^https:\/\/(www\.|reservations\.)?explora\.com(\/|$)/i;
+/** How long a page looks for a `navigate`'s twin in the call's language
+ *  before it loads the English page as named (the brain then asks for the
+ *  twin from that page, whose own `<head>` names it). */
+const TWIN_WAIT_MS = 2000;
+// ─── The ring ─────────────────────────────────────────────────────────────
+
+/** This page's spotlight (Stage's), set when the adapter starts. */
+let spot: Spotlight | null = null;
+
+/** Ring `target` (one element, or several as one box) and hold the move a
+ *  beat: what it acts on next is already ringed. */
+function ring(target: Element | Element[]): Promise<void> {
+  // Through the running move's context when there is one: the brain hears
+  // it is ringing (its time given again) and the result says when it rang.
+  return current ? current.ring(target) : (spot?.ring(target) ?? Promise.resolve());
+}
+
+/** The move running now (Stage runs one at a time), set by `live`. */
+let current: MoveContext | null = null;
+
+/** `fn`, with its rings through its own move's context. */
+function live<A, R>(fn: (args: A, c: MoveContext) => Promise<R>): (args: A, c: MoveContext) => Promise<R> {
+  return async (args, c) => {
+    current = c;
+    try {
+      return await fn(args, c);
+    } finally {
+      if (current === c) current = null;
+    }
+  };
+}
 
 /** The page's own content, as the crawler reads it. */
 const root = (): HTMLElement =>
@@ -324,6 +345,7 @@ async function openTrigger(t: Trigger): Promise<boolean> {
   if (t.kind !== "collapse" && paneOpen(t.pane)) return true;
   if (visible(t.el)) {
     await scrollTo(t.el, "center");
+    await ring(t.el);
     t.el.click();
   } else if (t.kind === "collapse") {
     jq()?.(t.pane).collapse("show");
@@ -410,6 +432,7 @@ async function reveal(el: HTMLElement): Promise<HTMLElement | null> {
     const $ = jq();
     if (!carousel || i < 0 || !$ || !visible(carousel)) return null;
     await scrollTo(carousel, "center");
+    await ring(carousel);
     $(carousel).trigger("to.owl.carousel", [i, 400]);
     const copy = await waitFor(() => showingCopy(el, item), 2000);
     await sleep(450);
@@ -507,7 +530,7 @@ async function ringText(text: string, scope: Element = root()): Promise<boolean>
   const target = ringable(el);
   const tall = target.getBoundingClientRect().height > window.innerHeight * 0.7;
   await scrollTo(target, tall ? "top" : "center");
-  highlight(target);
+  await ring(target);
   return true;
 }
 
@@ -523,9 +546,9 @@ async function showTab(label: string): Promise<boolean> {
   const group: HTMLElement[] = visible(t.el) ? [t.el, t.pane] : [t.pane];
   // The home map's accordion: its row, from the destination's name down.
   const row = t.kind === "collapse" ? t.el.closest<HTMLElement>(".card, li, [id^=heading]")?.parentElement : null;
-  const ring = row && row.contains(t.pane) && row.getBoundingClientRect().height < room() ? [row] : group;
-  await scrollTo(ring[0], "top");
-  highlight(ring);
+  const around = row && row.contains(t.pane) && row.getBoundingClientRect().height < room() ? [row] : group;
+  await scrollTo(around[0]!, "top");
+  await ring(around);
   return true;
 }
 
@@ -533,7 +556,7 @@ async function showTab(label: string): Promise<boolean> {
 async function ringBlock(el: HTMLElement): Promise<void> {
   const section = sectionOf(el);
   await scrollTo(section, "top");
-  highlight(section);
+  await ring(section);
 }
 
 const TRIGGER = "[data-toggle], [role=tab], .tab-panels-nav li, .nav-link";
@@ -558,8 +581,8 @@ function laidOutLabel(label: string): HTMLElement | null {
   return hits[0]?.[0] ?? null;
 }
 
-/** What is showing, for an error the model can act on. */
-function shownLabels(n = 20): string {
+/** What is showing, for a refusal the model can act on. */
+function shownList(n = 20): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const l of [...context().headings, ...tabLabels(), ...faqs()]) {
@@ -567,11 +590,17 @@ function shownLabels(n = 20): string {
     seen.add(norm(l));
     out.push(l);
   }
-  return out.slice(0, n).join(" | ");
+  return out.slice(0, n);
 }
 
-async function showSection({ heading, text }: { heading?: string | null; text?: string | null }) {
-  if (!heading && !text) throw new Error("say which heading or text to show");
+/** Scroll to a heading (or open the tab or accordion with that label) and
+ *  ring it; with `text`, ring the smallest element showing those words. What
+ *  is not there is refused, with what the page shows instead. */
+async function showSection(
+  { heading, text }: { heading?: string | null; text?: string | null },
+  c: MoveContext,
+): Promise<string> {
+  if (!heading && !text) c.refuse("target", "say which heading or text to show");
   if (heading) {
     const found = findHeading(heading);
     // A heading that is not laid out gives way to a laid-out label of the
@@ -579,43 +608,46 @@ async function showSection({ heading, text }: { heading?: string | null; text?: 
     const twin = found && !onShow(found) && !text ? laidOutLabel(heading) : null;
     if (twin) {
       await ringBlock(twin);
-      return;
+      return `showed "${heading}"`;
     }
     const h = found && (onShow(found) ? found : await reveal(found));
     if (found && !h && !text) {
-      throw new Error(`"${heading}" is in a part of ${location.pathname} that cannot be opened; it shows: ${shownLabels()}`);
+      c.refuse("target", `"${heading}" is in a part of ${location.pathname} that cannot be opened`, shownList());
     }
     if (h) {
-      if (text && (await ringText(text, sectionOf(h)))) return;
-      if (text && (await ringText(text))) return;
+      if (text && (await ringText(text, sectionOf(h)))) return `showed "${text}"`;
+      if (text && (await ringText(text))) return `showed "${text}"`;
       // The block from its top, which may be above the heading (a picture).
       const section = sectionOf(h);
       await scrollTo(section, "top");
-      highlight(section);
-      return;
+      await ring(section);
+      return `showed "${heading}"`;
     }
     if (await showTab(heading)) {
       if (text) await ringText(text);
-      return;
+      return `opened "${heading}"`;
     }
     if (!text) {
       const label = laidOutLabel(heading);
       if (label) {
         await ringBlock(label);
-        return;
+        return `showed "${heading}"`;
       }
-      if (await ringText(heading)) return;
-      throw new Error(`no heading "${heading}" on ${location.pathname}; it shows: ${shownLabels()}`);
+      if (await ringText(heading)) return `showed "${heading}"`;
+      c.refuse("target", `no heading "${heading}" on ${location.pathname}`, shownList());
     }
   }
-  if (text && (await ringText(text))) return;
-  throw new Error(`"${text}" is not on ${location.pathname}`);
+  if (text && (await ringText(text))) return `showed "${text}"`;
+  return c.refuse("target", `"${text}" is not on ${location.pathname}`, shownList());
 }
 
 // ─── open_faq ─────────────────────────────────────────────────────────────
 
-async function openFaq({ question }: { question: string }) {
-  if (!clean(question)) throw new Error("say which question to open");
+/** Open the accordion for `question` and ring it, or ring a question set as
+ *  a heading. */
+async function openFaq({ question }: { question: string }, c: MoveContext): Promise<string> {
+  if (!clean(question)) c.refuse("question", "say which question to open");
+  const done = `opened "${question}"`;
   // Only triggers laid out at this width, or in a pane that can be opened.
   const triggers = collapseTriggers().filter((t) => !isQuestionLike(t.label));
   let t = pick(question, triggers.filter((x) => visible(x.el)), (x) => x.label);
@@ -623,184 +655,205 @@ async function openFaq({ question }: { question: string }) {
     // Not an accordion that is showing: a question set as a heading, or a
     // laid-out label of that name (the desktop row a mobile accordion
     // copies), before any closed pane is opened for it.
-    const q = pick(question, questionHeadings(new Set()).filter((x) => onShow(x.els[0])), (x) => x.q);
+    const q = pick(question, questionHeadings(new Set()).filter((x) => onShow(x.els[0]!)), (x) => x.q);
     if (q) {
-      await scrollTo(q.els[0], "top");
-      highlight(q.els);
-      return;
+      await scrollTo(q.els[0]!, "top");
+      await ring(q.els);
+      return done;
     }
     const label = laidOutLabel(question);
     if (label) {
       await ringBlock(label);
-      return;
+      return done;
     }
     t = pick(question, triggers, (x) => x.label);
   }
   if (t) {
     // A trigger in a closed pane: open the pane first; one that cannot be
     // opened gives way to a tab of the same name.
-    if (!visible(t.el) && !(await reveal(t.el)) && (await showTab(t.label))) return;
+    if (!visible(t.el) && !(await reveal(t.el)) && (await showTab(t.label))) return done;
     await openTrigger(t);
     const item = t.el.closest<HTMLElement>("li.list-group-item, .card") ?? null;
-    const ring: HTMLElement[] = item && item.contains(t.pane) ? [item] : [t.el, t.pane].filter(visible);
-    if (ring.length) {
-      const tall = ring[0].getBoundingClientRect().height > window.innerHeight * 0.7;
-      await scrollTo(ring[0], tall ? "top" : "center");
-      highlight(ring);
-      return;
+    const around: HTMLElement[] = item && item.contains(t.pane) ? [item] : [t.el, t.pane].filter(visible);
+    if (around.length) {
+      const tall = around[0]!.getBoundingClientRect().height > window.innerHeight * 0.7;
+      await scrollTo(around[0]!, tall ? "top" : "center");
+      await ring(around);
+      return done;
     }
   }
   const q = pick(question, questionHeadings(new Set()), (x) => x.q);
   if (q) {
-    await scrollTo(q.els[0], "top");
-    highlight(q.els);
-    return;
+    await scrollTo(q.els[0]!, "top");
+    await ring(q.els);
+    return done;
   }
-  const known = faqs().slice(0, 15).join(" | ");
-  throw new Error(
-    `no question "${question}" on ${location.pathname}; ` +
-      (known ? `its questions: ${known}` : `it has no questions; it shows: ${shownLabels()}`),
+  const known = faqs().slice(0, 15);
+  return c.refuse(
+    "question",
+    `no question "${question}" on ${location.pathname}` + (known.length ? "" : "; it has no questions"),
+    known.length ? known : shownList(),
   );
 }
 
 // ─── navigate ─────────────────────────────────────────────────────────────
 
+/** Where `report` reports to, for a move that ends on the page already in front. */
+let emitter: ((event: string, payload: unknown) => void) | null = null;
+
+/** A link on screen to `url`, to ring before the page goes to it: the
+ *  sub-menu's or the language selector's own. */
+function linkOnScreen(url: string): HTMLElement | null {
+  const want = pagePath(url);
+  for (const a of document.querySelectorAll<HTMLAnchorElement>("a[href]")) {
+    if (a.closest("[data-voqalize]") || !visible(a)) continue;
+    let href: URL;
+    try {
+      href = new URL(a.href);
+    } catch {
+      continue;
+    }
+    if (!isExplora(href.host) || pagePath(href) !== want) continue;
+    const r = a.getBoundingClientRect();
+    if (r.bottom > headerHeight() && r.top < window.innerHeight) return a;
+  }
+  return null;
+}
+
+/** A `navigate`'s path in the call's language: the brain names the English
+ *  page, and in Spanish the page's Spanish twin is loaded. How it was found
+ *  goes to the brain (`twin_lookup`), so a wrong-language page can be traced. */
+export async function inCallLanguage(path: string, kit: PageKit): Promise<string> {
+  const lang = kit.language();
+  if (!path || pathLang(path) === lang || (lang !== "en" && lang !== "es")) return path;
+  const t0 = performance.now();
+  // Never held up past a moment: on prod call be1f5b9a a page from the
+  // booking site waited on the lookup and never loaded. Late, the English
+  // page loads, and the twin is asked for from it.
+  const late = sleep(TWIN_WAIT_MS).then((): Mapped => ({
+    url: new URL(path, SITE_ORIGIN).href, source: "fallback", ms: Math.round(performance.now() - t0), error: "timeout",
+  }));
+  const mapped = await Promise.race([siteUrlIn(lang, path), late]);
+  kit.emit("twin_lookup", {
+    path, language: lang, url: mapped.url, ms: mapped.ms, error: mapped.error ?? "",
+    source: mapped.error === "timeout" && mapped.source === "fallback" ? "timeout" : mapped.source,
+  });
+  return mapped.url;
+}
+
 /**
- * Load one of www.explora.com's pages in this tab. The move to make on it
- * (a heading, words, a question) is kept by the service worker for the next
- * page, which makes it once it is up (`pendingMove` in `content.ts`). The wait
- * for his voice before the load is the holder's, not this; so is choosing the page's
- * Spanish twin while the call is in Spanish (`site-language.ts`), so `path`
- * may be a whole URL.
+ * Load one of www.explora.com's pages in this tab, after ringing the link to
+ * it when one is on screen. The move is carried to the next page (Stage's
+ * `loadThen`), which answers for it once it is up. The wait for his voice before the load is the holder's, not this; so
+ * the page goes once he has said what leads to it. While the call is in
+ * Spanish the page's Spanish twin is loaded (`site-language.ts`).
  *
  * The page already in front (same path; query, hash and a trailing slash
- * aside) is not loaded again: the move is made on it and the page is reported
- * once more, since the brain waits for a `page_changed` after every
- * `navigate` before it says the rest.
- *
- * On a translated page the brain's English heading, words or question may not
- * be there: the move is made leniently, and one that finds nothing is skipped.
+ * aside) is not loaded again: it is reported once more, since the brain
+ * waits for a `page_changed` after every `navigate` before it says the rest.
  */
-async function navigate({
-  path,
-  heading,
-  text,
-  faq,
-}: {
-  path: string;
-  heading?: string | null;
-  text?: string | null;
-  faq?: string | null;
-}) {
-  if (typeof path !== "string" || !path) throw new Error(`not a path: ${path}`);
-  const target = new URL(path, SITE_ORIGIN);
-  if (!isExplora(target.host)) throw new Error(`${target.href} is not on www.explora.com`);
-  const lenient = pathLang(target) !== "en";
+async function navigate(args: NavigateArgs, c: MoveContext, kit: PageKit): Promise<string | null> {
+  if (typeof args.path !== "string" || !args.path) return c.refuse("path", `not a path: ${String(args.path)}`);
+  const target = new URL(await inCallLanguage(args.path, kit), SITE_ORIGIN);
+  if (!isExplora(target.host)) return c.refuse("path", `${target.href} is not on www.explora.com`);
   if (pagePath(target) === pagePath(location.href)) {
-    try {
-      if (faq) await lenientMove(lenient, () => openFaq({ question: faq }));
-      else if (heading || text) await lenientMove(lenient, () => showSection({ heading, text }));
-      else window.scrollTo({ top: 0, behavior: "smooth" });
-    } finally {
-      emitter?.("page_changed", context());
-    }
-    return;
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    emitter?.("page_changed", context());
+    return `already on ${location.pathname}`;
   }
-  const then: Then | undefined = faq
-    ? { command: "open_faq", payload: { question: faq, ...(lenient ? { lenient } : {}) } }
-    : heading || text
-      ? { command: "show_section", payload: { heading: heading ?? null, text: text ?? null, ...(lenient ? { lenient } : {}) } }
-      : undefined;
-  clearHighlight();
-  await loadThen(target.href, then);
+  const link = linkOnScreen(target.href);
+  if (link) await ring(link);
+  return load(c, target.href);
 }
 
-/** A move that, when `lenient`, skips what it cannot find rather than fail:
- *  the English names the brain knows, on a page in another language. */
-async function lenientMove(lenient: boolean | undefined, move: () => Promise<void>): Promise<void> {
-  if (!lenient) return move();
-  try {
-    await move();
-  } catch (error) {
-    console.info("voqalize: skipped on a translated page:", error instanceof Error ? error.message : error);
-  }
+/** Load `url` here; the move is answered once the page it lands on is up. */
+export function load(c: MoveContext, url: string): Promise<never> {
+  if (!c.loadThen) throw new Error("this page cannot load another and finish the move there");
+  return c.loadThen(url);
 }
 
-// ─── site_language ────────────────────────────────────────────────────────
+// ─── The call's language ─────────────────────────────────────────────────
 
-/** Load this page's twin in `language` when it is in the other one: the
- *  call's language moved. A page in neither English nor Spanish (WPML's
- *  Portuguese, French, German) is the visitor's own choice and stays.
- *
- *  With `twin`, the brain asked for this page's own twin — it came up in the
- *  wrong language, or the visitor asked to see it in theirs — and waits for
- *  the page to report itself: a page already in that language reports itself
- *  again, and one that names no twin is an error, never that language's home
- *  page. */
-async function siteLanguage({ language, twin }: { language: Lang; twin?: boolean }) {
-  if (language !== "en" && language !== "es") throw new Error(`not a site language: ${language}`);
+const NAMES: Record<string, string> = { en: "English", es: "Spanish" };
+
+/**
+ * `explora.twin`: load this page's own twin in `language` — it came up in the
+ * other language, or the visitor asked to see it in theirs — after ringing
+ * the language selector's link when it is on screen. A page already in that
+ * language (or in neither English nor Spanish: the visitor's own choice)
+ * reports itself again; one that names no twin is refused, never sent to that
+ * language's home page.
+ */
+async function twin({ language }: { language: Lang }, c: MoveContext): Promise<string | null> {
+  const name = NAMES[language] ?? language;
   const now = pageLanguage();
   if (!now || now === language) {
-    if (twin) emitter?.("page_changed", context());
-    return;
+    emitter?.("page_changed", context());
+    return `${location.pathname} is already in ${name}`;
   }
-  const there = twin ? twinHere(language) : alternateHere(language);
-  if (!there) throw new Error(`${location.pathname} has no ${language === "es" ? "Spanish" : "English"} version`);
+  const there = twinHere(language);
+  if (!there) return c.refuse("language", `${location.pathname} has no ${name} version`);
   if (pagePath(there) === pagePath(location.href)) {
-    if (twin) emitter?.("page_changed", context());
-    return;
+    emitter?.("page_changed", context());
+    return `${location.pathname} is already in ${name}`;
   }
-  clearHighlight();
-  await loadThen(there);
+  const link = linkOnScreen(there);
+  if (link) await ring(link);
+  return load(c, there);
 }
 
-// ─── Links stay in the tab while a call is live ───────────────────────────
-
-const BLANK = "data-voqalize-target";
-
-function keepInTab(a: HTMLAnchorElement): void {
-  if (a.target !== "_blank" || !OURS.test(a.href)) return;
-  a.setAttribute(BLANK, a.target);
-  a.removeAttribute("target");
+/** The site follows the call (the holder's `site_language`, once he has
+ *  confirmed a switch aloud): this page's twin in `language`, else that
+ *  language's home page. Not a move of his: nothing is ringed. */
+async function siteLanguage({ language }: { language: Lang }, kit: PageKit): Promise<void> {
+  if (language !== "en" && language !== "es") throw new Error(`not a site language: ${String(language)}`);
+  const now = pageLanguage();
+  if (!now || now === language) return;
+  const there = alternateHere(language);
+  if (pagePath(there) === pagePath(location.href)) return;
+  kit.spotlight.clear();
+  await kit.loadThen(there);
 }
 
-function keepLinksInTab(): () => void {
-  document.querySelectorAll<HTMLAnchorElement>("a[target=_blank]").forEach(keepInTab);
-  const obs = new MutationObserver((records) => {
-    for (const r of records) {
-      if (r.type === "attributes" && r.target instanceof HTMLAnchorElement) keepInTab(r.target);
-      for (const n of r.addedNodes) {
-        if (!(n instanceof Element)) continue;
-        if (n instanceof HTMLAnchorElement) keepInTab(n);
-        n.querySelectorAll?.<HTMLAnchorElement>("a[target=_blank]").forEach(keepInTab);
-      }
-    }
-  });
-  obs.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["target", "href"] });
-  return () => {
-    obs.disconnect();
-    document.querySelectorAll<HTMLAnchorElement>(`a[${BLANK}]`).forEach((a) => {
-      a.target = a.getAttribute(BLANK) ?? "_blank";
-      a.removeAttribute(BLANK);
-    });
-  };
+// ─── The booking site's moves, from here ──────────────────────────────────
+
+/** A booking move made from www.explora.com: the booking site's page it
+ *  starts on is loaded, and the move is made there, once the call is up. */
+function toBooking(move: string, args: CheckAvailabilityArgs | FillEnquiryArgs, c: MoveContext, kit: PageKit): Promise<never> {
+  const url = bookingUrl(move, args, kit.language());
+  if (!url) throw new Error(`${move} has no page to start on`);
+  if (!c.loadThen) throw new Error("this page cannot load the booking site");
+  return c.loadThen(url, { move, args });
+}
+
+/** Bring one of the visitor's Explora tabs to the front: the service worker's
+ *  to do. Nothing on the page changes, so nothing is ringed. */
+export async function focusTab({ tab_id }: { tab_id: string }): Promise<string> {
+  const tab = Number(tab_id);
+  const got = Number.isInteger(tab) ? await askWorker<{ ok: boolean }>({ op: "focus_tab", tab }) : null;
+  if (!got?.ok) throw new Error(`no tab ${tab_id} to bring forward`);
+  return `brought tab ${tab_id} to the front`;
 }
 
 // ─── Reporting ────────────────────────────────────────────────────────────
 
-/**
- * Report the page, once the call is up on it. Every page is a fresh load, so
- * there are no route changes to watch: this page is reported once, and again
- * if its headings grow as late parts of it render (a carousel, the reviews).
- */
-/** Where `start` reports to, for a `navigate` to the page already in front. */
-let emitter: ((event: string, payload: unknown) => void) | null = null;
-
-function start(emit: (event: string, payload: unknown) => void): () => void {
+/** Report the page as it stands: once the call is up on it, and again
+ *  whenever the visitor comes back to this tab (Stage's host runs it). */
+function report(raw: (event: string, payload: unknown) => void): void {
+  const emit = asStage(raw);
   emitter = emit;
-  const restore = keepLinksInTab();
+  emit("page_changed", context());
+}
+
+/**
+ * Watch the page once the call is up on it. Every page is a fresh load, so
+ * there are no route changes to watch: this page is reported again if its
+ * headings grow as late parts of it render (a carousel, the reviews).
+ */
+function start(raw: (event: string, payload: unknown) => void): () => void {
+  const emit = asStage(raw);
+  emitter = emit;
   let last = JSON.stringify(context());
-  emit("page_changed", JSON.parse(last));
   let timer: ReturnType<typeof setTimeout> | null = null;
   const obs = new MutationObserver(() => {
     if (timer) clearTimeout(timer);
@@ -821,39 +874,45 @@ function start(emit: (event: string, payload: unknown) => void): () => void {
   obs.observe(root(), { childList: true, subtree: true });
   const stopWatching = setTimeout(() => obs.disconnect(), 20_000);
   return () => {
-    if (emitter === emit) emitter = null;
+    emitter = null;
     obs.disconnect();
     clearTimeout(stopWatching);
     if (timer) clearTimeout(timer);
-    restore();
   };
 }
 
-type Lenient = { lenient?: boolean };
+// ─── The adapter ──────────────────────────────────────────────────────────
 
-const COMMANDS: Record<string, (payload: never) => Promise<void>> = {
-  navigate,
-  show_section: (p: Parameters<typeof showSection>[0] & Lenient) => lenientMove(p.lenient, () => showSection(p)),
-  open_faq: (p: Parameters<typeof openFaq>[0] & Lenient) => lenientMove(p.lenient, () => openFaq(p)),
-  // The extension's own, not the brain's: the call's language moved.
-  site_language: siteLanguage,
-};
-
-async function run(command: string, payload: unknown): Promise<{ ok: boolean; error?: string }> {
-  const fn = COMMANDS[command];
-  if (!fn) return { ok: false, error: `the page cannot ${command}` };
-  try {
-    await fn((payload ?? {}) as never);
-    return { ok: true };
-  } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : String(error) };
-  }
-}
-
-if (isExplora(location.host) && !window.voqalizeExplora) {
+/** www.explora.com's moves, registered with Stage, and what the page reports. */
+export const exploraAdapter: Adapter = (moves, kit) => {
+  attributeTo(kit);
+  spot = kit.spotlight;
   styleThePage();
   rememberHere();
-  window.voqalizeExplora = { run, context, start, commands: Object.keys(COMMANDS) } satisfies Adapter;
-}
-
-export {};
+  scene.registerAll(moves, {
+    [MOVE.show]: live((a, c) => showSection({ heading: a.target }, c)),
+    [MOVE.faq]: live((a, c) => openFaq(a, c)),
+    [MOVE.navigate]: live((a, c) => navigate(a, c, kit)),
+    [MOVE.twin]: live(twin),
+    [MOVE.checkAvailability]: live((a, c) => toBooking(MOVE.checkAvailability, a, c, kit)),
+    [MOVE.fillEnquiry]: live((a, c) => toBooking(MOVE.fillEnquiry, a, c, kit)),
+    [MOVE.chooseRoom]: async () => {
+      throw new Error("the rooms are not open: check a lodge's availability through to its rooms first");
+    },
+    [MOVE.sendEnquiry]: async () => {
+      throw new Error("no expedition enquiry form is open");
+    },
+    [MOVE.focusTab]: focusTab,
+  });
+  return {
+    context: () => ({ ...context() }),
+    report,
+    start,
+    async command(command, payload) {
+      if (command === "site_language") await siteLanguage(payload as { language: Lang }, kit);
+    },
+    // WordPress's trackers hold `load` back; the page's own parts are up once
+    // its DOM settles.
+    ready: () => domSettled(),
+  };
+};

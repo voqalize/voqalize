@@ -1,27 +1,16 @@
 /**
- * What both site adapters share: the ring Javier draws around what he is
- * talking about, scrolling the window under Explora's fixed header, waiting
- * for the page, and setting a form field the way the site's own scripts
- * notice.
+ * What both site adapters share: scrolling the window under Explora's fixed
+ * header, waiting for the page, matching what the brain named against what
+ * the page shows, and setting a form field the way the site's own scripts
+ * notice. The ring Javier draws around what he is talking about is Stage's
+ * spotlight (`@voqalize/stage`), in Explora's terracotta (`site.ts`).
  *
  * Both hosts scroll the window itself (no smooth-scroll library), and both
  * reload the whole page on every move, so nothing here survives a page: each
  * load starts it afresh.
  */
 
-/** What every adapter offers the call (`content.ts`). */
-export interface Adapter {
-  /** Perform one of the brain's page Actions. Never throws. */
-  run(command: string, payload: unknown): Promise<{ ok: boolean; error?: string }>;
-  /** What the visitor is looking at now, as a `page_changed` payload. */
-  context(): PageContext;
-  /** Report what the page shows and every booking step through `emit`, until
-   *  the returned stop. The page as it stands is reported first. */
-  start(emit: (event: string, payload: unknown) => void): () => void;
-  /** The Actions `run` performs. */
-  readonly commands: readonly string[];
-}
-
+/** What a page reports: the data of its `page.changed` state event (the `page` slice). */
 export interface PageContext {
   site: "site" | "reservations";
   url: string;
@@ -33,17 +22,6 @@ export interface PageContext {
   links: string[];
 }
 
-declare global {
-  interface Window {
-    /** The adapter for the host this page is on. */
-    voqalizeExplora?: Adapter;
-  }
-}
-
-/** A warm terracotta, which reads on Explora's black-and-sand pages, for the ring. */
-export const RING = "#C2410C";
-const RING_RGB = "194, 65, 12";
-const RING_MS = 5500;
 export const WAIT_MS = 8000;
 
 export const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -123,102 +101,21 @@ export async function scrollTo(el: Element, where: "top" | "center" = "center"):
     const want = where === "top" || r.height > room * 0.8 ? head + 16 : head + (room - r.height) / 2;
     const delta = r.top - want;
     if (Math.abs(delta) < 4) return;
+    const from = window.scrollY;
     window.scrollBy({ top: delta, behavior: pass === 0 ? "smooth" : "auto" });
-    await waitFor(() => Math.abs(el.getBoundingClientRect().top - want) < 4, 1200);
+    // A page too short to bring it there never will: stop once the scroll
+    // has stopped, not after 1.2 s a pass.
+    let last = from;
+    let still = 0;
+    const there = await waitFor(() => {
+      if (Math.abs(el.getBoundingClientRect().top - want) < 4) return true;
+      still = window.scrollY === last ? still + 1 : 0;
+      last = window.scrollY;
+      return still >= 3;
+    }, 1200);
+    if (there && Math.abs(el.getBoundingClientRect().top - want) >= 4) return;
     // Lazy images above it may have loaded and pushed it down: go again.
   }
-}
-
-// ─── The ring ─────────────────────────────────────────────────────────────
-// Drawn over the page, never on Explora's own elements, and moved with its
-// targets every frame: carousels slide and lazy images grow under it.
-
-let rings: { el: HTMLElement; targets: Element[] }[] = [];
-let ringFrame = 0;
-let ringTimer: ReturnType<typeof setTimeout> | null = null;
-
-/** `el`'s box in this window's viewport, also for an element inside a
- *  same-origin iframe (the booking site's room summary popup). */
-function rectIn(el: Element): { left: number; top: number; right: number; bottom: number } {
-  const r = el.getBoundingClientRect();
-  let { left, top, right, bottom } = r;
-  for (let win: Window | null = el.ownerDocument.defaultView; win && win !== window && win.frameElement; win = win.parent) {
-    const frame = win.frameElement as HTMLElement;
-    const f = frame.getBoundingClientRect();
-    const dx = f.left + frame.clientLeft;
-    const dy = f.top + frame.clientTop;
-    left += dx;
-    right += dx;
-    top += dy;
-    bottom += dy;
-  }
-  return { left, top, right, bottom };
-}
-
-function boxOf(targets: Element[]) {
-  const rs = targets.filter(visible).map(rectIn);
-  if (!rs.length) return null;
-  return {
-    left: Math.min(...rs.map((r) => r.left)),
-    top: Math.min(...rs.map((r) => r.top)),
-    right: Math.max(...rs.map((r) => r.right)),
-    bottom: Math.max(...rs.map((r) => r.bottom)),
-  };
-}
-
-function follow(): void {
-  for (const ring of rings) {
-    const b = boxOf(ring.targets);
-    if (!b) {
-      ring.el.style.opacity = "0";
-      continue;
-    }
-    // A full-bleed block is ringed inside the screen's edges, where it shows.
-    const left = Math.max(b.left - 6, 3);
-    const right = Math.min(b.right + 6, document.documentElement.clientWidth - 3);
-    Object.assign(ring.el.style, {
-      transform: `translate(${left}px, ${b.top - 6}px)`,
-      width: `${Math.max(right - left, 0)}px`,
-      height: `${b.bottom - b.top + 12}px`,
-    });
-  }
-  ringFrame = requestAnimationFrame(follow);
-}
-
-/** Ring each group: one element, or several ringed as one box. */
-export function highlight(...groups: (Element | Element[])[]): void {
-  clearHighlight();
-  styleThePage();
-  for (const group of groups) {
-    const targets = Array.isArray(group) ? group : [group];
-    if (!boxOf(targets)) continue;
-    const el = document.createElement("div");
-    el.setAttribute("data-voqalize", "highlight");
-    Object.assign(el.style, {
-      position: "fixed",
-      left: "0",
-      top: "0",
-      border: `2px solid ${RING}`,
-      borderRadius: "10px",
-      pointerEvents: "none",
-      zIndex: "2147483000",
-      opacity: "0",
-      transition: "opacity 300ms ease",
-      animation: "voqalize-ring 1.4s ease-in-out 3",
-    });
-    document.body.appendChild(el);
-    rings.push({ el, targets });
-  }
-  follow();
-  requestAnimationFrame(() => rings.forEach((r) => (r.el.style.opacity = "1")));
-  ringTimer = setTimeout(clearHighlight, RING_MS);
-}
-
-export function clearHighlight(): void {
-  if (ringTimer) clearTimeout(ringTimer);
-  cancelAnimationFrame(ringFrame);
-  rings.forEach((r) => r.el.remove());
-  rings = [];
 }
 
 /** The page's own corner widgets stand aside while the extension runs: the
@@ -230,10 +127,6 @@ export function styleThePage(): void {
   style.textContent = `
     #tc-button-container, #tc-button-mask, #tc-window-container { display: none !important; }
     .grecaptcha-badge { visibility: hidden !important; }
-    @keyframes voqalize-ring {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(${RING_RGB}, 0.45); }
-      50% { box-shadow: 0 0 0 9px rgba(${RING_RGB}, 0); }
-    }
   `;
   (document.head ?? document.documentElement).appendChild(style);
 }

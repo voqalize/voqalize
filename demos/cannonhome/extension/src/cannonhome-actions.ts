@@ -2,23 +2,30 @@
  * The site adapter: drive cannonhome.cl from the outside, with no help from
  * Cannon Home's developers.
  *
- * The brain sends a Voqalize `ui-command` ({command, payload}) and `run`
- * performs it on the page in front, one move at a time; the page reports back
- * through `start`, which calls `emit(event, payload)`:
+ * Javier's moves arrive through Stage (`@voqalize/stage`): each is a move
+ * registered here (`registerMoves`), made on the page in front, one at a
+ * time, ringed with the spotlight before it acts, and answered with one
+ * `stage_result`. The page reports what it shows through `start`, which calls
+ * `emit(event, payload)`, whoever moved it:
  *
  *   - `page_changed` for every page the visitor lands on, whoever took them;
- *   - `product_shown` on a product page: read from the page at once, then
- *     confirmed by one `POST /graphql` (`source: "graphql"`), because the HTML
+ *   - `prices_read` for `check_prices`.
+ *
+ * What their screen holds is Stage state (`cannonhome/scene.json`): each change
+ * goes as a named `stage_event` (`scene.event`), with only the fields its
+ * slice declares, and `by: "agent"` with the move's `call_ref` when one of
+ * Javier's moves made it:
+ *
+ *   - `product.shown` on a product page, read from the page at once, then
+ *     `product.checked` once one `POST /graphql` confirms it, because the HTML
  *     is served from Fastly's cache and its price and stock can be hours old;
- *   - `listing_shown` on a category or search listing, and again after every
- *     AJAX grid update (filters, sort, paging), whoever made it;
- *   - `search_suggest` whenever the search box's dropdown shows products;
- *   - `prices_read` for `check_prices`;
- *   - `cart_state` after an add, when the bag opens, and when it changes;
- *   - `checkout_state` on the checkout's delivery form: which fields hold
- *     something (never what), which are missing, what the form flags;
- *   - `command_done` / `command_failed` for each move, which the brain waits on
- *     before he says it happened.
+ *   - `listing.shown` on a category or search listing, and `listing.filtered`
+ *     / `listing.sorted` after an AJAX grid update on the same listing,
+ *     whoever made it;
+ *   - `search.suggested` whenever the search box's dropdown shows products;
+ *   - `cart.changed` after an add, when the bag opens, and when it changes;
+ *   - `checkout.changed` on the checkout's delivery form: which fields hold
+ *     something (never what), which are missing, what the form flags.
  *
  * The site, for a script like this: Magento 2.4 (Luma-derived theme
  * `Cannon/cannon`, RequireJS, jQuery, Knockout), Amasty Xsearch for the search
@@ -26,12 +33,12 @@
  * (`.qf__group`), fotorama for the gallery. Every product is a simple product:
  * each size and colour is its own page, so there is no option to pick on a
  * product page. Moving between pages is a full load, so a move to another page
- * leaves the rest of itself in `sessionStorage` (`page.ts leave()`) and the
- * adapter on the next page finishes it. Filters, sort and paging are AJAX with
+ * carries the rest of itself to it (`load`, `keep`), and the next page
+ * finishes it with the same call. Filters, sort and paging are AJAX with
  * `history.pushState`; add-to-cart is AJAX and slides the bag in by itself.
  *
  * Nothing here goes past the checkout's delivery form: every click goes
- * through `press`, every load through `go` (`page.ts`). They let Javier take a
+ * through `press`, every load through `target` (`page.ts`). They let Javier take a
  * guest from the bag to the form ("Terminar pedido", then "Comprar como
  * invitado") and pick the form's región and comuna, and refuse every login,
  * the delivery method, the payment step and the place-order button. Fields
@@ -39,48 +46,17 @@
  * anything of the payment, whatever the brain sends.
  */
 
+import type { MoveContext, Moves, Performer, PerformResult, Refusal, StageEvent } from "@voqalize/stage";
+import type { Adapter } from "@voqalize/stage/extension";
+
+import { scene } from "./scene.gen";
+
 import {
-  amount, best, boxOf, clean, clearHighlight, go, headerHeight, highlight, inOrder, leave, type Leftover, money,
-  norm, pathOf, press, privateField, quiet, samePath, scrollTo, scrollToTopOfPage, setValue, settled, shown, sleep,
-  styleThePage, takeLeftover, typeInto, visible, waitFor,
+  amount, best, boxOf, clean, headerHeight, inOrder, money, norm, pathOf, press, privateField, quiet, samePath, scrollTo,
+  scrollToTopOfPage, setValue, settled, shown, sleep, styleThePage, target, typeInto, visible, waitFor,
 } from "./page";
 
-declare global {
-  interface Window {
-    voqalizeCannonhome?: Adapter;
-  }
-}
-
-export interface Adapter {
-  /** Perform one of the brain's page Actions. Never throws. */
-  run(command: string, payload: unknown): Promise<RunResult>;
-  /** What the visitor is looking at now, as a `page_changed` payload. */
-  context(): PageContext;
-  /** Report the page, the state on it, and a move left over from the last
-   *  page, through `emit`, until the returned stop. */
-  start(emit: (event: string, payload: unknown) => void): () => void;
-  /** The Actions `run` performs. */
-  readonly commands: readonly string[];
-}
-
-/** How a move went. `detail` says in English what is now on screen; `moved`
- *  means it went on to another page, which reports it done or failed from
- *  there. */
-export interface RunResult {
-  ok: boolean;
-  error?: string;
-  detail?: string;
-  moved?: boolean;
-}
-
-/** The moves the brain waits on, whose success is reported as `command_done`. */
-export const DONE_COMMANDS = new Set([
-  "search_products", "filter_listing", "open_product", "check_prices", "add_to_cart", "show_cart",
-  "update_cart_item", "start_checkout", "fill_checkout",
-]);
-
 export type Kind = "home" | "category" | "search" | "product" | "cart" | "checkout" | "page";
-
 export interface PageContext {
   site: string;
   url: string;
@@ -215,18 +191,10 @@ function context(): PageContext {
 // ─── Reporting ────────────────────────────────────────────────────────────
 
 let emitter: ((event: string, payload: unknown) => void) | null = null;
-/** Outcomes that happened before anyone listened (a move left from the last
- *  page, finished before this page heard from the call's holder). */
-const backlog: [string, unknown][] = [];
 /** The latest of each state report on this page, and what each listener was
  *  last sent, so a report is sent once and a late listener gets the latest. */
 const latest = new Map<string, unknown>();
 const sent = new WeakMap<object, Map<string, string>>();
-
-function emit(event: string, payload: unknown): void {
-  if (emitter) emitter(event, payload);
-  else backlog.push([event, payload]);
-}
 
 /** A state report (product, listing, suggestions, bag): sent unless this
  *  listener already has exactly it. */
@@ -238,7 +206,86 @@ function report(event: string, payload: unknown): void {
   if (!mine) sent.set(emitter, (mine = new Map()));
   if (mine.get(event) === key) return;
   mine.set(event, key);
-  emitter(event, payload);
+  emitter(...onTheWire(event, payload));
+}
+
+/** Who changed what the page reports now: the page kit's answer (his move
+ *  acting, just done, or carried here and not yet made; else the visitor). */
+let who: () => { by: "visitor" | "agent"; callRef?: string } = () => ({ by: "visitor" });
+
+/** The listing last reported in this tab, kept across a load (a filter link
+ *  may load the page): a new report of the same one is a filter or a sort,
+ *  not a new listing. */
+const LAST_LISTING = "voqalize.cannonhome.listing";
+type Seen = { path: string; filters: string; sort: string };
+
+function lastListing(): Seen | null {
+  try {
+    return JSON.parse(sessionStorage.getItem(LAST_LISTING) ?? "null") as Seen | null;
+  } catch {
+    return null;
+  }
+}
+
+function sawListing(seen: Seen): void {
+  try {
+    sessionStorage.setItem(LAST_LISTING, JSON.stringify(seen));
+  } catch {
+    // No storage here: the next report of it reads as a new listing.
+  }
+}
+
+/** A state report as it goes to the brain: a Stage state event for what the
+ *  screen holds, the site's own event for the rest. */
+function onTheWire(event: string, payload: unknown): [string, unknown] {
+  const by = who();
+  let ev: StageEvent | null = null;
+  switch (event) {
+    case "product_shown": {
+      const p = payload as ProductShown;
+      ev = scene.event(
+        p.source === "graphql" ? "product.checked" : "product.shown",
+        { ...p, specs: Object.entries(p.specs).map(([label, value]) => ({ label, value })) },
+        by,
+      );
+      break;
+    }
+    case "listing_shown": {
+      const l = payload as ReturnType<typeof readListing>;
+      const filters = JSON.stringify(l.filters);
+      const sort = l.sort ?? "";
+      // The listing itself, not its address: a filter may add its options to
+      // the path (`/20-sabanas/rosa`), and taking it off takes them away.
+      const here = l.path.replace(/\/+$/, "");
+      const before = lastListing();
+      const same = before !== null && (here === before.path || here.startsWith(`${before.path}/`) || before.path.startsWith(`${here}/`));
+      const name = same && before.filters !== filters ? "listing.filtered" : same && before.sort !== sort ? "listing.sorted" : "listing.shown";
+      sawListing({ path: same && before.path.length < here.length ? before.path : here, filters, sort });
+      ev = scene.event(
+        name,
+        {
+          path: l.path,
+          title: l.title,
+          count: l.count,
+          filters: Object.entries(l.filters).map(([facet, on]) => ({ facet, on: on.split(", "), options: [] })),
+          sort: l.sort ?? null,
+          items: l.items,
+        },
+        by,
+      );
+      break;
+    }
+    case "search_suggest":
+      ev = scene.event("search.suggested", payload as ReturnType<typeof readSuggest>, by);
+      break;
+    case "cart_state":
+      ev = scene.event("cart.changed", payload as CartState, by);
+      break;
+    case "checkout_state":
+      ev = scene.event("checkout.changed", payload as CheckoutState, by);
+      break;
+  }
+  return ev ? ["stage_event", ev] : [event, payload];
 }
 
 // ─── The product page ─────────────────────────────────────────────────────
@@ -690,30 +737,69 @@ const cartLine = (c: CartState) =>
     : "the bag is empty";
 
 // ─── Moves ────────────────────────────────────────────────────────────────
+//
+// Every move is a Stage move, registered with `Moves` (`registerMoves`): its
+// performer finds the target, rings it with the spotlight before it acts, and
+// returns a short detail of what it did; a refusal names the argument and
+// what the page offers instead (`c.refuse`); an error is the move failing. A
+// move that loads another page carries the rest of itself to it (`load`,
+// `keep`): the next page makes it, with the same call, and reports it.
 
-/** A payload's extra flag, set when a move is finished on the page it
+/** A move's arguments, with its flag for a move finished on the page it
  *  loaded: it never loads another (a redirect would loop it). */
 interface Arrived {
   arrived?: boolean;
 }
 
+/** The rest of a move, for the next page of this tab. */
+interface Then {
+  move: string;
+  args: unknown;
+}
+
+/** Load `path` in this tab, with the rest of the move for the page it lands
+ *  on (without it, the move is done once that page is up); refused before
+ *  anything moves if `path` is past the delivery form, an account page or
+ *  another host. The move goes on there: `null`. */
+async function load(c: MoveContext, path: string, then?: Then): Promise<null> {
+  const url = target(path);
+  if (!c.loadThen) throw new Error("this page cannot load another and carry the move there");
+  await c.loadThen(url, then);
+  return null;
+}
+
+/** Ring `el` with the spotlight; resolves after Stage's beat, so what is
+ *  pressed next is already ringed, and the ring stays up its dwell. */
+function ring(c: MoveContext, el: Element | Element[]): Promise<void> {
+  return c.ring(el);
+}
+
+/** A link on this page to `path`, to ring before loading it. */
+function linkTo(path: string): HTMLAnchorElement | null {
+  return (
+    [...main().querySelectorAll<HTMLAnchorElement>("a[href]")].find((a) => shown(a) && !inChrome(a) && samePath(a.href, path)) ??
+    null
+  );
+}
+
 // search_products ───────────────────────────────────────────────────────────
 
-async function searchProducts(p: { query: string; open_index?: number | null } & Arrived): Promise<string | null> {
+async function searchProducts(p: { query: string; open_index?: number | null } & Arrived, c: MoveContext): Promise<string | null> {
   const query = clean(p.query);
-  if (!query) throw new Error("say what to search for");
+  if (!query) c.refuse("query", "say what to search for");
   let input = searchInput();
   if (!input) {
     // On a phone's home the box hides behind a button.
     const opener = [...document.querySelectorAll<HTMLElement>("button.btn-search, .block-search .label")].find(shown);
     if (opener) {
+      await ring(c, opener);
       press(opener);
       input = await waitFor(searchInput, 1500);
     }
   }
   if (!input) throw new Error("the search box is not on this page");
   await scrollToTopOfPage();
-  highlight(input.closest("form") ?? input);
+  await ring(c, input.closest("form") ?? input);
   // While he types, the dropdown shows what the box has so far ("sab…"); the
   // watcher stays quiet, and this move reports the products for the query.
   searching = true;
@@ -726,54 +812,115 @@ async function searchProducts(p: { query: string; open_index?: number | null } &
   }
   const suggest = readSuggest();
   report("search_suggest", suggest);
-  highlight(resultSection()!);
+  // The dropdown is the effect: ringed after the result, unless a card of
+  // it is pressed next.
+  if (p.open_index != null) await ring(c, resultSection()!);
+  else c.after(() => ring(c, resultSection()!));
   const list = suggest.items.map((i) => `${i.name} ($${i.price ?? "?"})`).join("; ");
   if (p.open_index != null) {
     const item = suggest.items[p.open_index];
-    if (!item) throw new Error(`the dropdown has ${suggest.items.length} products; there is no number ${p.open_index + 1}`);
+    if (!item) {
+      c.refuse("open_index", `the dropdown has ${suggest.items.length} products; there is no number ${p.open_index + 1}`, suggest.items.map((i) => i.name));
+    }
     const card = [...resultSection()!.querySelectorAll<HTMLElement>(SUGGEST_CARDS)][p.open_index];
-    if (card) highlight(card);
-    await sleep(700);
-    leave({ command: "open_product", payload: { path: item.path, tab: null }, as: "search_products" });
-    go(item.path);
-    return null;
+    if (card) await ring(c, card);
+    return load(c, item.path, { move: "open_product", args: { path: item.path, tab: null, arrived: true } });
   }
   return `typed "${query}" in the search box; the dropdown shows ${suggest.items.length} products: ${list}${
     suggest.categories.length ? `; categories: ${suggest.categories.join(", ")}` : ""
   }`;
 }
 
-// filter_listing ────────────────────────────────────────────────────────────
+// filter_listing, and the filter and sort cues ─────────────────────────────
 
 type Sort = "price_asc" | "price_desc" | "relevance" | "newest";
 
+/** One option, or several of one filter (the listing then shows any of them);
+ *  a plain string from an older brain is one. */
+type Said = string | string[] | null;
+
 interface FilterListing extends Arrived {
   category_path: string;
-  size?: string | null;
-  color?: string | null;
-  threads?: string | null;
-  material?: string | null;
+  size?: Said;
+  color?: Said;
+  threads?: Said;
+  material?: Said;
   sort?: Sort | null;
+  /** Set on the page the combined filter address loaded: the filters are
+   *  checked there, and never loaded a second time. */
+  combined?: boolean;
 }
 
 /** The brain's filter names, as the site's request variables. */
 const FILTER_VARS = { size: "tamano", color: "color", threads: "hilos", material: "material" } as const;
+/** What a filter cue may name its facet, as the site's request variables. */
+const FACETS: Record<string, string> = {
+  tamano: "tamano", talla: "tamano", size: "tamano", color: "color", colour: "color",
+  hilos: "hilos", threads: "hilos", material: "material",
+};
+const FACET_SAID: Record<string, string> = { tamano: "Tamaño", color: "Color", hilos: "Hilos", material: "Material" };
 
 /** For options written several ways ("1,5 plazas", "1.5 Plazas", "Súper
  *  King", "300 hilos" vs "300"). */
 const squash = (s: string) => norm(s).replace(/(\d),(\d)/g, "$1.$2").replace(/\bhilos?\b/g, "").replace(/[^a-z0-9.]/g, "");
 
+const optionTitle = (o: HTMLAnchorElement) => o.getAttribute("title") || clean(o.querySelector(".qf__option-label")?.textContent);
+
+/** Each option in what was sent: a list's items, or a cue's labels with ", "
+ *  between them ("Blanco, Beige"). No option label has a comma and a space;
+ *  "1,5" has no space. */
+const saidValues = (said: Said | undefined): string[] =>
+  (Array.isArray(said) ? said : said ? [said] : [])
+    .flatMap((s) => String(s).split(/,\s+/))
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+/** The options on now, in every quick filter. */
+function activeOptions(): Option[] {
+  return [...document.querySelectorAll<HTMLAnchorElement>(".qf__group[data-qf-request-var] a.qf__option-link.-active")].map((option) => {
+    const group = option.closest<HTMLElement>(".qf__group")!;
+    return { variable: group.dataset.qfRequestVar!, group, option, label: optionTitle(option) };
+  });
+}
+
+/** Whether `o` is on now: looked up again, as the store may have redrawn the
+ *  bar since it was found. */
+function isOn(o: Option): boolean {
+  return activeOptions().some((a) => a.variable === o.variable && (o.option.dataset.qfValue ? a.option.dataset.qfValue === o.option.dataset.qfValue : squash(a.label) === squash(o.label)));
+}
+
+/** The listing's own path, without the options' path segments Amasty pushes
+ *  (`/20-sabanas/beige-blanco_1`): the base a filter address is built on. */
+function listingBase(): string {
+  const here = location.pathname.replace(/\/+$/, "");
+  const aliases = new Set(
+    // An option that is on links to the address without it: the listing's own,
+    // on a page filtered by it alone. Only the others name options.
+    [...document.querySelectorAll<HTMLAnchorElement>("a.qf__option-link:not(.-active)")].flatMap((a) => {
+      try {
+        return (new URL(a.href, location.href).pathname.split("/").pop() ?? "").split("-");
+      } catch {
+        return [];
+      }
+    }),
+  );
+  const last = here.split("/").pop() ?? "";
+  return last && last.split("-").every((s) => aliases.has(s)) ? here.slice(0, -last.length - 1) || "/" : here || "/";
+}
+
 function findOption(group: HTMLElement, said: string): HTMLAnchorElement | null {
   const options = [...group.querySelectorAll<HTMLAnchorElement>("a.qf__option-link")];
-  const title = (o: HTMLAnchorElement) => o.getAttribute("title") || clean(o.querySelector(".qf__option-label")?.textContent);
   const want = squash(said);
   return (
-    options.find((o) => squash(title(o)) === want) ??
-    best(options, title, said) ??
-    options.find((o) => squash(title(o)).startsWith(want) && want.length >= 2) ??
+    options.find((o) => squash(optionTitle(o)) === want) ??
+    best(options, optionTitle, said) ??
+    options.find((o) => squash(optionTitle(o)).startsWith(want) && want.length >= 2) ??
     null
   );
 }
+
+const offeredFacets = () =>
+  [...document.querySelectorAll<HTMLElement>(".qf__group[data-qf-request-var]")].map((g) => g.dataset.qfRequestVar!).filter(Boolean);
 
 /** The listing's path without Amasty's filter segments, as a prefix test. */
 const onCategory = (category: string) => {
@@ -782,92 +929,189 @@ const onCategory = (category: string) => {
   return here === want || here.startsWith(`${want}/`);
 };
 
-async function waitForGrid(before: string): Promise<boolean> {
-  const changed = await waitFor(() => gridKey() !== before, 10_000);
-  await quiet(productList(), 400, 3000);
+async function waitForGrid(before: string, ms = 10_000): Promise<boolean> {
+  const changed = await waitFor(() => gridKey() !== before, ms);
+  if (changed) await quiet(productList(), 400, 3000);
   return Boolean(changed);
 }
 
-async function filterListing(p: FilterListing): Promise<string | null> {
-  if (typeof p.category_path !== "string" || !p.category_path.trim()) throw new Error("say which category, as a path like /12-ropa-de-cama/20-sabanas");
-  const target = pathOf(p.category_path.trim());
-  const wanted = (Object.keys(FILTER_VARS) as (keyof typeof FILTER_VARS)[])
-    .filter((k) => p[k])
-    .map((k) => ({ key: k, variable: FILTER_VARS[k], said: String(p[k]) }));
+/** How long a filter's press may change nothing before the option's own
+ *  address is loaded instead; a fetch the site shows under way gets up to
+ *  `FILTER_PRESS_MAX_MS`. */
+const FILTER_PRESS_MS = 3000;
+const FILTER_PRESS_MAX_MS = 10_000;
+/** How long a filter waits for the store's filter scripts after a load,
+ *  before it presses anyway (a dev call on 2026-10-28 waited out a 10 s cap on
+ *  a listing loaded 21 s before, and the press then worked). */
+const FILTERS_READY_MS = 3000;
 
-  // Another page, or this listing with filters the wish does not have: load
-  // the category clean, and finish there.
-  const active = activeFilters();
-  const stray = Object.entries(active).some(([v, labels]) => {
-    const w = wanted.find((x) => x.variable === v);
-    return !w || labels.split(", ").some((l) => squash(l) !== squash(w.said));
-  });
-  if (!p.arrived && (!isListing() || !onCategory(target) || stray)) {
-    leave({ command: "filter_listing", payload: { ...p, arrived: true } });
-    go(target);
-    return null;
+/**
+ * The listing's filter scripts are up. The quick-filter bar marks its root
+ * `data-qf-ready` once it is bound, and hands a press on to Amasty's own
+ * filter, whose AJAX widget sits on the body: a press before both does
+ * nothing at all — no grid change and no load (dev, 2026-10-28: "King"
+ * pressed 0.4 s after a load, then 13 s of nothing, where the same press
+ * worked on a page loaded 40 s before). A page without RequireJS (a saved
+ * copy) has nothing to wait for.
+ */
+function filtersReady(): boolean {
+  return filtersWaitingOn() === null;
+}
+
+/** What the listing's filter scripts are still missing, or `null` when they
+ *  are up: logged when a filter presses without them. */
+function filtersWaitingOn(): string | null {
+  const w = window as unknown as { require?: unknown; jQuery?: { data?: (el: Element, key: string) => unknown } };
+  if (!w.require) return null;
+  const root = document.querySelector("[data-qf-root]");
+  if (!root) return "no [data-qf-root] quick-filter bar";
+  if (root.getAttribute("data-qf-ready") !== "1") return `[data-qf-root] has data-qf-ready=${JSON.stringify(root.getAttribute("data-qf-ready"))}`;
+  const data = w.jQuery?.data;
+  if (!data) return null;
+  // jQuery UI keeps a widget under its full name, "mage-amShopbyAjax".
+  if (data(document.body, "mage-amShopbyAjax") ?? data(document.body, "mageAmShopbyAjax")) return null;
+  return "no amShopbyAjax widget on <body>";
+}
+
+/** Wait a short while for the filter scripts; then press anyway, saying
+ *  which part of them never showed. */
+async function awaitFilters(): Promise<void> {
+  if (await waitFor(filtersReady, FILTERS_READY_MS)) return;
+  console.warn(`voqalize: the filter scripts are not up after ${FILTERS_READY_MS} ms (${filtersWaitingOn()}); pressing anyway`);
+}
+
+/** The store is fetching a filtered grid: Amasty's overlay, or an option the
+ *  bar marks pending. */
+function filtering(): boolean {
+  const overlay = document.querySelector("#amasty-shopby-overlay");
+  return Boolean((overlay && shown(overlay)) || document.querySelector(".qf__option-link.-pending-on, .qf__option.-pending-on"));
+}
+
+/** One option of one quick filter, found by what was said. */
+interface Option {
+  variable: string;
+  group: HTMLElement;
+  option: HTMLAnchorElement;
+  label: string;
+}
+
+/** How choosing one option went: applied (or already on), or why not. */
+type Applied = { ok: true; label: string } | Missed;
+type Missed = { ok: false; why: string; arg: "facet" | "value"; options: string[] };
+
+function optionFor(variable: string, said: string, name = FACET_SAID[variable] ?? variable): Option | Missed {
+  const group = document.querySelector<HTMLElement>(`.qf__group[data-qf-request-var="${variable}"]`);
+  if (!group) {
+    return { ok: false, arg: "facet", why: `this listing has no ${name} filter`, options: offeredFacets() };
   }
-  if (!isListing()) throw new Error(`${target} did not open as a product listing (now on ${location.pathname})`);
-  await waitFor(() => document.querySelector(".qf__group, ol.products"), 6000);
-
-  const applied: string[] = [];
-  const problems: string[] = [];
-  for (const w of wanted) {
-    const group = document.querySelector<HTMLElement>(`.qf__group[data-qf-request-var="${w.variable}"]`);
-    if (!group) {
-      const offered = [...document.querySelectorAll<HTMLElement>(".qf__group[data-qf-request-var]")].map((g) => g.dataset.qfRequestVar);
-      problems.push(`this listing has no ${w.key} filter (it offers: ${offered.join(", ") || "none"})`);
-      continue;
-    }
-    const option = findOption(group, w.said);
-    if (!option) {
-      const offered = [...group.querySelectorAll("a.qf__option-link")].map((o) => o.getAttribute("title")).filter(Boolean);
-      problems.push(`no ${w.key} "${w.said}" here (it offers: ${offered.join(", ")})`);
-      continue;
-    }
-    const label = option.getAttribute("title") ?? w.said;
-    if (option.classList.contains("-active")) {
-      applied.push(`${w.key} ${label}`);
-      continue;
-    }
-    // Open the pill so the visitor sees the choice, then choose it.
-    const pill = group.querySelector<HTMLElement>(".qf__pill");
-    await scrollTo(group.closest(".toolbar, .qf-bar") ?? group, "top");
-    if (pill && !shown(option)) {
-      press(pill);
-      await waitFor(() => shown(option), 1200);
-    }
-    highlight(shown(option) ? option : (pill ?? group));
-    await sleep(500);
-    const before = gridKey();
-    // Should the click load the filter's own page instead (the site's script
-    // not up yet), the next page carries on from here.
-    leave({ command: "filter_listing", payload: { ...p, arrived: true } });
-    press(option);
-    const landed = await waitForGrid(before);
-    leave(null);
-    if (!landed) problems.push(`the grid did not change after choosing ${label}`);
-    else applied.push(`${w.key} ${label}`);
+  const option = findOption(group, said);
+  if (!option) {
+    const offered = [...group.querySelectorAll<HTMLAnchorElement>("a.qf__option-link")].map(optionTitle).filter(Boolean);
+    return { ok: false, arg: "value", why: `no ${name} "${said}" here`, options: offered };
   }
+  return { variable, group, option, label: optionTitle(option) || said };
+}
 
-  if (p.sort) {
-    const sorter = document.querySelector<HTMLSelectElement>("select#sorter");
-    const values = [...(sorter?.options ?? [])].map((o) => o.value);
-    const want = p.sort === "newest" ? ["new"] : p.sort === "relevance" ? ["relevance", "position"] : [p.sort];
-    const value = want.find((v) => values.includes(v));
-    if (!sorter || !value) problems.push(`this listing cannot sort by ${p.sort}`);
-    else if (sorter.value !== value) {
-      const before = gridKey();
-      await scrollTo(sorter.closest(".toolbar") ?? sorter, "top");
-      highlight(sorter);
-      setValue(sorter, value);
-      if (await waitForGrid(before)) applied.push(`sorted ${p.sort}`);
-      else problems.push(`the grid did not change after sorting by ${p.sort}`);
-    } else applied.push(`sorted ${p.sort}`);
+/**
+ * Choose one option of one quick filter, as the visitor would: scroll to the
+ * bar, wait for the store's filter scripts, open the filter's pill, ring the
+ * option, a beat, press it, and wait for the grid. A press that changed
+ * nothing loads the option's own address (the store serves it filtered), as
+ * does a press that loads it by itself: either way the next page carries
+ * `then` on, and this is `null`.
+ *
+ * It adds: every option already on stays on. The live store's quick filters
+ * take several options of one filter (on a Beige listing, Blanco links to
+ * `/beige-blanco_1`, and `?color=6826,6889` shows both, 211 sheets where Beige
+ * alone shows 40; checked 2026-10-28). A press that put this one on and took
+ * another off loads the address with all of them, as does a press that
+ * changed nothing while others are on (the option's own link may not carry
+ * them). `base` is the listing's path, for that address.
+ */
+async function applyFacet(
+  c: MoveContext,
+  variable: string,
+  said: string,
+  then: Then,
+  name = FACET_SAID[variable] ?? variable,
+  base = listingBase(),
+): Promise<Applied | null> {
+  const found = optionFor(variable, said, name);
+  if ("ok" in found) return found;
+  const { group, option, label } = found;
+  if (option.classList.contains("-active")) return { ok: true, label };
+  const kept = activeOptions();
+  const args = then.args as { reloaded?: boolean };
+  const all = () => load(c, filteredUrl(base, [...kept, found]), { ...then, args: { ...args, reloaded: true } });
+  const pill = group.querySelector<HTMLElement>(".qf__pill");
+  await scrollTo(group.closest(".toolbar, .qf-bar") ?? group, "top");
+  await awaitFilters();
+  if (pill && !shown(option)) {
+    await ring(c, pill);
+    press(pill);
+    await waitFor(() => shown(option), 1200);
   }
+  await ring(c, shown(option) ? option : (pill ?? group));
+  const before = gridKey();
+  await c.keep(then);
+  press(option);
+  let landed = await waitForGrid(before, FILTER_PRESS_MS);
+  if (!landed && filtering()) landed = await waitForGrid(before, FILTER_PRESS_MAX_MS - FILTER_PRESS_MS);
+  await c.drop();
+  if (landed) {
+    // The press replaced what was on: the address with every one of them.
+    const lost = kept.filter((k) => !isOn(k));
+    if (!lost.length) return { ok: true, label };
+    if (!args.reloaded) return all();
+    return { ok: false, arg: "value", why: `choosing ${label} took ${lost.map((k) => k.label).join(", ")} off`, options: [] };
+  }
+  // Nothing took the press: the option's own address is the same filter
+  // (with the others on, the address with all of them). Loaded once per
+  // move, so a store that ignores it cannot loop it.
+  const href = option.getAttribute("href");
+  if (!args.reloaded && kept.length) return all();
+  if (href && !args.reloaded) return load(c, href, { ...then, args: { ...args, reloaded: true } });
+  return { ok: false, arg: "value", why: `the grid did not change after choosing ${label}`, options: [] };
+}
 
-  // Close an open filter panel so the grid shows: its × on a phone; on a
-  // desktop the × is hidden and the pill toggles the panel.
+/** The listing at `path` filtered by every option in `chosen`, as one
+ *  address: the store takes each filter as its request variable and option
+ *  id (`?tamano=5625&hilos=5700`), for any number of them. (Its path form,
+ *  `/king_1-200_hilos`, comes back unfiltered past two, checked on the live
+ *  store on 2026-10-28.) */
+function filteredUrl(path: string, chosen: Option[]): string {
+  const params = new URLSearchParams();
+  for (const o of chosen) {
+    const value = o.option.dataset.qfValue;
+    if (!value) continue;
+    const had = params.get(o.variable);
+    params.set(o.variable, had ? `${had},${value}` : value);
+  }
+  // Several options of one filter, by a bare comma, as the store's own links
+  // write them (`?color=6826,6889`; it also takes `%2C`).
+  const query = params.toString().replace(/%2C/gi, ",");
+  return pathOf(path) + (query ? `?${query}` : "");
+}
+
+/** Sort the listing by `sort`, the sorter ringed first. */
+async function applySort(c: MoveContext, sort: Sort): Promise<Applied> {
+  const sorter = document.querySelector<HTMLSelectElement>("select#sorter");
+  const values = [...(sorter?.options ?? [])].map((o) => o.value);
+  const want = sort === "newest" ? ["new"] : sort === "relevance" ? ["relevance", "position"] : [sort];
+  const value = want.find((v) => values.includes(v));
+  if (!sorter || !value) return { ok: false, arg: "value", why: `this listing cannot sort by ${sort}`, options: values };
+  if (sorter.value === value) return { ok: true, label: `sorted ${sort}` };
+  const before = gridKey();
+  await scrollTo(sorter.closest(".toolbar") ?? sorter, "top");
+  await ring(c, sorter);
+  setValue(sorter, value);
+  if (!(await waitForGrid(before))) return { ok: false, arg: "value", why: `the grid did not change after sorting by ${sort}`, options: [] };
+  return { ok: true, label: `sorted ${sort}` };
+}
+
+/** Close an open filter panel so the grid shows: its × on a phone; on a
+ *  desktop the × is hidden and the pill toggles the panel. */
+async function closePanels(): Promise<void> {
   for (const group of document.querySelectorAll<HTMLElement>(".qf__group.-open")) {
     const close = group.querySelector<HTMLElement>(".qf__panel-close");
     const pill = group.querySelector<HTMLElement>(".qf__pill");
@@ -875,24 +1119,169 @@ async function filterListing(p: FilterListing): Promise<string | null> {
     else if (pill) press(pill);
     await waitFor(() => !group.classList.contains("-open"), 800);
   }
-  const listing = readListing();
-  report("listing_shown", listing);
-  const first = listing.items[0];
-  const grid = productList().querySelector("ol.products") ?? productList();
-  await scrollTo(grid, "top");
-  highlight(grid);
-  if (wanted.length && !applied.length && problems.length) throw new Error(problems.join("; "));
-  return [
-    `${listing.title}: ${listing.count ?? "?"} products`,
-    applied.length ? `applied ${applied.join(", ")}` : "",
-    first ? `first card ${first.name} ($${first.price ?? "?"})` : "no products",
-    ...problems,
-  ]
-    .filter(Boolean)
-    .join("; ");
 }
 
-// open_product ──────────────────────────────────────────────────────────────
+/** The listing as it now stands, reported: a detail. Its grid is scrolled to
+ *  and ringed after the move's result, which goes as soon as the grid has
+ *  landed: that ring points at the effect, it acts on nothing. */
+async function showGrid(c: MoveContext): Promise<string> {
+  const listing = readListing();
+  report("listing_shown", listing);
+  // Looked up again when ringed: the store may swap the grid again meanwhile.
+  const grid = () => productList().querySelector("ol.products") ?? productList();
+  c.after(async () => {
+    await scrollTo(grid(), "top");
+    await ring(c, grid());
+  });
+  const first = listing.items[0];
+  return `${listing.title}: ${listing.count ?? "?"} products; ${first ? `first card ${first.name} ($${first.price ?? "?"})` : "no products"}`;
+}
+
+/** Before a listing move: the listing at `path` must be the one in front, or
+ *  it is loaded and the move carried there. */
+async function onListing(c: MoveContext, path: string | null | undefined, arrived: boolean, then: Then): Promise<null | true> {
+  if (path && !arrived && (!isListing() || !onCategory(path))) return load(c, path, then);
+  if (!isListing()) throw new Error(`${path ?? location.pathname} is not a product listing (now on ${location.pathname})`);
+  await waitFor(() => document.querySelector(".qf__group, ol.products"), 6000);
+  return true;
+}
+
+async function filterListing(p: FilterListing, c: MoveContext): Promise<string | null | PerformResult> {
+  if (typeof p.category_path !== "string" || !p.category_path.trim()) c.refuse("category_path", "say which category, as a path like /12-ropa-de-cama/20-sabanas");
+  const path = pathOf(p.category_path.trim());
+  // One entry per option: a filter of several options is several entries.
+  const wanted = (Object.keys(FILTER_VARS) as (keyof typeof FILTER_VARS)[]).flatMap((k) =>
+    saidValues(p[k]).map((said) => ({ key: k, variable: FILTER_VARS[k], said })),
+  );
+  const again: Then = { move: c.move, args: { ...p, arrived: true } };
+  // Another page, or this listing with options on that the wish does not
+  // have (compared as sets, per filter): load the category clean, and finish
+  // there.
+  const stray = Object.entries(activeFilters()).some(([v, labels]) => {
+    const asked = wanted.filter((x) => x.variable === v).map((x) => squash(x.said));
+    return labels.split(", ").some((l) => !asked.includes(squash(l)));
+  });
+  const here = !p.arrived && isListing() && onCategory(path);
+  if ((await onListing(c, path, Boolean(p.arrived), again)) === null) return null;
+
+  // Several options to choose (or this listing's own filters to drop): each
+  // ringed where it sits, then one load of the address that has them all —
+  // about 3 s, where a press each, a grid each, took 13 to 22. Two options of
+  // one filter are one variable with both ids (`?color=6826,6889`).
+  if (!p.combined) {
+    await waitFor(() => document.querySelector(".qf__group"), 3000);
+    const chosen = wanted.map((w) => optionFor(w.variable, w.said, w.key)).filter((o): o is Option => !("ok" in o));
+    const todo = chosen.filter((o) => !o.option.classList.contains("-active"));
+    if (chosen.length && (todo.length >= 2 || (here && stray))) {
+      const marks = todo.map((o) => (shown(o.option) ? o.option : (o.group.querySelector<HTMLElement>(".qf__pill") ?? o.group)));
+      if (marks.length) {
+        await scrollTo(marks[0].closest(".toolbar, .qf-bar") ?? marks[0], "top");
+        await c.ring(marks, { separate: true, label: todo.map((o) => o.label).join(" · ") });
+      }
+      return load(c, filteredUrl(path, chosen), { move: c.move, args: { ...p, arrived: true, combined: true } });
+    }
+  }
+  if (here && stray) return load(c, path, again);
+
+  // What is on, by the argument that asked for it, as the listing writes it.
+  const on: { key: string; option: Option }[] = [];
+  // What the listing could not take, by the argument that asked for it.
+  const missed: Refusal[] = [];
+  for (const w of wanted) {
+    if (p.combined) {
+      // The address that has them all is loaded: checked, never pressed again.
+      const found = optionFor(w.variable, w.said, w.key);
+      if ("ok" in found) missed.push({ arg: w.key, why: found.why, options: found.options });
+      else if (!found.option.classList.contains("-active")) {
+        missed.push({ arg: w.key, why: `${w.key} ${found.label} is not on after loading the listing with it`, options: [] });
+      } else on.push({ key: w.key, option: found });
+      continue;
+    }
+    const got = await applyFacet(c, w.variable, w.said, again, w.key, path);
+    if (got === null) return null;
+    if (!got.ok) {
+      missed.push({ arg: w.key, why: got.why, options: got.options });
+      continue;
+    }
+    const found = optionFor(w.variable, got.label, w.key);
+    if (!("ok" in found)) on.push({ key: w.key, option: found });
+  }
+  // Every option asked for is checked on at the end: a later press may have
+  // taken an earlier one off.
+  const applied = new Map<string, string[]>();
+  for (const { key, option } of on) {
+    if (isOn(option)) applied.set(key, [...(applied.get(key) ?? []), option.label]);
+    else missed.push({ arg: key, why: `${key} ${option.label} is not on any more`, options: [] });
+  }
+  const done = [...applied].map(([key, labels]) => `${key} ${labels.join(" + ")}`);
+  if (p.sort) {
+    const got = await applySort(c, p.sort);
+    if (got.ok) done.push(got.label);
+    else missed.push({ arg: "sort", why: got.why, options: got.options });
+  }
+  await closePanels();
+  const grid = await showGrid(c);
+  if (wanted.length && !done.length && missed.length) {
+    throw new Error(missed.map((m) => (m.options?.length ? `${m.why} (it offers: ${m.options.join(", ")})` : m.why)).join("; "));
+  }
+  // Some but not all: a partial outcome, never taken for the whole wish; what
+  // it could not take rides in `refused`, with what the listing offers.
+  if (done.length && missed.length) {
+    return { outcome: "partial", detail: `applied ${done.join(", ")}; ${grid}`, refused: missed };
+  }
+  return [grid, done.length ? `applied ${done.join(", ")}` : ""].filter(Boolean).join("; ");
+}
+
+/** The filter cue: one option of one filter, as its words are said, or
+ *  several of one filter (`Color | Blanco, Beige`). Each is added to what is
+ *  on — the options already on stay on — and every one is checked on at the
+ *  end: one that is not makes it `partial`, naming it, never `applied`. */
+async function filterCue(p: { facet: string; value?: string | null; path?: string | null } & Arrived, c: MoveContext): Promise<string | null | PerformResult> {
+  const variable = FACETS[norm(p.facet ?? "")] ?? (offeredFacets().includes(p.facet) ? p.facet : null);
+  if (!variable) c.refuse("facet", `a listing has no filter "${p.facet}"`, offeredFacets());
+  const values = saidValues(p.value);
+  if (!values.length) c.refuse("value", "say which option, as the listing writes it");
+  const then: Then = { move: c.move, args: { ...p, arrived: true } };
+  if ((await onListing(c, p.path, Boolean(p.arrived), then)) === null) return null;
+  const base = p.path ? pathOf(p.path) : listingBase();
+  const name = FACET_SAID[variable] ?? variable;
+  const on: Option[] = [];
+  const missed: Missed[] = [];
+  for (const value of values) {
+    const got = await applyFacet(c, variable, value, then, name, base);
+    if (got === null) return null;
+    if (!got.ok) {
+      missed.push(got);
+      continue;
+    }
+    const found = optionFor(variable, got.label, name);
+    if (!("ok" in found)) on.push(found);
+  }
+  const done: string[] = [];
+  for (const o of on) {
+    if (isOn(o)) done.push(o.label);
+    else missed.push({ ok: false, arg: "value", why: `${name} ${o.label} is not on any more`, options: [] });
+  }
+  if (!done.length) c.refuse(missed[0]?.arg ?? "value", missed.map((m) => m.why).join("; "), missed[0]?.options ?? []);
+  await closePanels();
+  const grid = await showGrid(c);
+  const detail = `${name} ${done.join(", ")} applied; ${grid}`;
+  if (missed.length) return { outcome: "partial", detail, refused: missed.map((m) => ({ arg: m.arg, why: m.why, options: m.options })) };
+  return detail;
+}
+
+/** The sort cue. */
+async function sortCue(p: { order: string; path?: string | null } & Arrived, c: MoveContext): Promise<string | null> {
+  const orders: Sort[] = ["price_asc", "price_desc", "relevance", "newest"];
+  const order = orders.find((o) => o === p.order);
+  if (!order) c.refuse("order", `no sort "${p.order}"`, orders);
+  if ((await onListing(c, p.path, Boolean(p.arrived), { move: c.move, args: { ...p, arrived: true } })) === null) return null;
+  const got = await applySort(c, order);
+  if (!got.ok) c.refuse(got.arg, got.why, got.options);
+  return `${got.label}; ${await showGrid(c)}`;
+}
+
+// open_product, product_tab ─────────────────────────────────────────────────
 
 type Tab = "descripcion" | "especificaciones" | "calificaciones" | "fotos";
 
@@ -902,15 +1291,17 @@ const TAB_IDS: Record<Exclude<Tab, "fotos">, string> = {
   calificaciones: "tab-label-verificado_widget",
 };
 
-/** Open one of the product page's tabs the way a visitor does, by its title;
- *  should Magento's tabs widget not be up yet, show its panel directly. */
-async function openTab(tab: Exclude<Tab, "fotos">): Promise<string> {
+/** Open one of the product page's tabs the way a visitor does, by its title,
+ *  ringed first; should Magento's tabs widget not be up yet, show its panel
+ *  directly. */
+async function openTab(tab: Exclude<Tab, "fotos">, c: MoveContext): Promise<string> {
   const title = document.getElementById(TAB_IDS[tab]);
-  if (!title) throw new Error(`this product page has no ${tab} tab`);
+  if (!title) c.refuse("tab", `this product page has no ${tab} tab`, Object.keys(TAB_IDS).filter((t) => document.getElementById(TAB_IDS[t as keyof typeof TAB_IDS])));
   const panel = document.getElementById(title.getAttribute("aria-controls") ?? "");
   await scrollTo(title, "top");
   const open = () => Boolean(panel && shown(panel) && panel.getAttribute("aria-hidden") !== "true");
   if (!open()) {
+    await ring(c, title);
     press(title.querySelector("a.data.switch") ?? title);
     if (!(await waitFor(open, 1200)) && panel) {
       for (const other of document.querySelectorAll<HTMLElement>(".product.data.items > .data.item.title")) other.classList.remove("active");
@@ -926,22 +1317,25 @@ async function openTab(tab: Exclude<Tab, "fotos">): Promise<string> {
   }
   // The specifications fold under "Ver más".
   const more = panel?.querySelector<HTMLElement>(":scope > .see-more");
-  if (more && shown(more)) press(more);
+  if (more && shown(more)) {
+    await ring(c, more);
+    press(more);
+  }
   await sleep(250);
   const box = boxOf([title, ...(panel ? [panel] : [])]);
   const tall = box ? box.bottom - box.top > window.innerHeight * 0.8 : false;
   await scrollTo(title, tall ? "top" : "center");
-  highlight(tall ? title : [title, ...(panel ? [panel] : [])]);
+  await ring(c, tall ? title : [title, ...(panel ? [panel] : [])]);
   return `opened the ${tab} tab`;
 }
 
-/** Step the gallery through a few photos, by its thumbnails. */
-async function showPhotos(): Promise<string> {
+/** Step the gallery through a few photos, by its thumbnails, ringed first. */
+async function showPhotos(c: MoveContext): Promise<string> {
   const frames = [...document.querySelectorAll<HTMLElement>(".fotorama__nav__frame")];
   const gallery = document.querySelector<HTMLElement>(".product.media, .gallery-placeholder, .fotorama") ?? frames[0];
   if (!gallery) throw new Error("this product page has no gallery");
   await scrollTo(gallery, "top");
-  highlight(gallery);
+  await ring(c, gallery);
   const steps = Math.min(3, Math.max(0, frames.length - 1));
   for (let i = 1; i <= steps; i++) {
     await sleep(1100);
@@ -950,23 +1344,33 @@ async function showPhotos(): Promise<string> {
   return `stepped the gallery through ${steps + 1} of ${frames.length || 1} photos`;
 }
 
-async function openProduct(p: { path: string; tab?: Tab | null } & Arrived): Promise<string | null> {
-  if (typeof p.path !== "string" || !p.path.trim()) throw new Error("say which product, as a path like /x.html");
-  const target = productPath(p.path);
-  if (!p.arrived && !samePath(location.pathname, target)) {
-    leave({ command: "open_product", payload: { ...p, arrived: true } });
-    go(target);
-    return null;
+async function productTab(p: { tab: Tab }, c: MoveContext): Promise<string> {
+  if (kindOf() !== "product") throw new Error(`no product page is on screen (now on ${location.pathname})`);
+  return p.tab === "fotos" ? showPhotos(c) : openTab(p.tab, c);
+}
+
+async function openProduct(p: { path: string; tab?: Tab | null } & Arrived, c: MoveContext): Promise<string | null> {
+  if (typeof p.path !== "string" || !p.path.trim()) c.refuse("path", "say which product, as a path like /x.html");
+  const path = productPath(p.path);
+  if (!p.arrived && !samePath(location.pathname, path)) {
+    // Its card or link on this page, when it has one, is ringed first.
+    const link = linkTo(path);
+    if (link) await ring(c, link.closest("li.product-item") ?? link);
+    return load(c, path, { move: c.move, args: { ...p, arrived: true } });
   }
   const form = await waitFor(productForm, 8000);
-  if (!form || kindOf() !== "product") throw new Error(`${target} did not open as a product page (now on ${location.pathname})`);
+  if (!form || kindOf() !== "product") throw new Error(`${path} did not open as a product page (now on ${location.pathname})`);
   let did = "";
-  if (p.tab === "fotos") did = await showPhotos();
-  else if (p.tab) did = await openTab(p.tab);
+  if (p.tab === "fotos") did = await showPhotos(c);
+  else if (p.tab) did = await openTab(p.tab, c);
   else {
-    await scrollToTopOfPage();
-    const info = productInfo();
-    if (info) highlight([...info.querySelectorAll(".product-data-container, .product-info-price")]);
+    // The product is the effect: its name and price are ringed after the
+    // result, which goes as soon as the page is up.
+    c.after(async () => {
+      await scrollToTopOfPage();
+      const info = productInfo();
+      if (info) await ring(c, [...info.querySelectorAll(".product-data-container, .product-info-price")]);
+    });
   }
   const product = readProduct();
   if (product) report("product_shown", latestProductFor(product));
@@ -985,14 +1389,14 @@ function latestProductFor(page: ProductShown): ProductShown {
   return live?.source === "graphql" && live.path === page.path ? live : page;
 }
 
-// check_prices ──────────────────────────────────────────────────────────────
+// check_prices: a read, nothing on the page moves ──────────────────────────
 
-async function checkPrices(p: { paths: string[] }): Promise<string> {
+async function checkPrices(p: { paths: string[] }, c: MoveContext): Promise<string> {
   const paths = [...new Set((Array.isArray(p.paths) ? p.paths : []).filter((x) => typeof x === "string" && x.trim()).map(productPath))].slice(
     0,
     MAX_PRICED,
   );
-  if (!paths.length) throw new Error("say which products, as paths like /x.html");
+  if (!paths.length) c.refuse("paths", "say which products, as paths like /x.html");
   const keys = paths.map(keyOf);
   const found = new Map<string, GqlProduct>();
   const data = await gql<{ products?: { items?: GqlProduct[] } }>(
@@ -1059,26 +1463,25 @@ async function setQty(qty: number): Promise<number> {
   return now();
 }
 
-async function addToCart(p: { path: string; qty?: number } & Arrived): Promise<string | null> {
-  if (typeof p.path !== "string" || !p.path.trim()) throw new Error("say which product, as a path like /x.html");
+const drawer = () =>
+  document.querySelector("aside.content-minicart-modal._show .modal-inner-wrap") ?? document.querySelector("aside.content-minicart-modal._show");
+
+async function addToCart(p: { path: string; qty?: number } & Arrived, c: MoveContext): Promise<string | null> {
+  if (typeof p.path !== "string" || !p.path.trim()) c.refuse("path", "say which product, as a path like /x.html");
   const qty = Math.round(Number(p.qty ?? 1));
-  if (!Number.isFinite(qty) || qty < 1 || qty > 10) throw new Error(`a quantity from 1 to 10, not ${p.qty}`);
-  const target = productPath(p.path);
-  if (!p.arrived && !samePath(location.pathname, target)) {
-    leave({ command: "add_to_cart", payload: { ...p, arrived: true } });
-    go(target);
-    return null;
-  }
+  if (!Number.isFinite(qty) || qty < 1 || qty > 10) c.refuse("qty", `a quantity from 1 to 10, not ${p.qty}`);
+  const path = productPath(p.path);
+  if (!p.arrived && !samePath(location.pathname, path)) return load(c, path, { move: c.move, args: { ...p, arrived: true } });
   const form = await waitFor(productForm, 8000);
-  if (!form || kindOf() !== "product") throw new Error(`${target} did not open as a product page (now on ${location.pathname})`);
+  if (!form || kindOf() !== "product") throw new Error(`${path} did not open as a product page (now on ${location.pathname})`);
   if (form.querySelector(".stock.unavailable")) throw new Error("the page says this product is out of stock; nothing was added");
   const button = form.querySelector<HTMLButtonElement>("#product-addtocart-button");
   if (!button) throw new Error("this product page has no Agregar button");
   await waitFor(() => addToCartReady(form), 10_000);
   await scrollTo(form.querySelector(".box-tocart") ?? form, "center");
+  await ring(c, form.querySelector(".box-tocart") ?? button);
   const set = await setQty(qty);
   if (set !== qty) throw new Error(`the quantity box shows ${set}, not ${qty}; nothing was added`);
-  highlight(form.querySelector(".box-tocart") ?? button);
   await sleep(400);
   const before = counter();
   press(button);
@@ -1086,16 +1489,17 @@ async function addToCart(p: { path: string; qty?: number } & Arrived): Promise<s
   await sleep(300);
   const cart = await readCart();
   reportCart(cart);
-  const line = cart.items.find((i) => samePath(i.path, target));
+  const line = cart.items.find((i) => samePath(i.path, path));
   if (!confirmed && !line) throw new Error("pressed Agregar, but the bag did not change; ask the visitor to check the bag");
-  if (minicartOpen()) highlight(document.querySelector("aside.content-minicart-modal._show .modal-inner-wrap") ?? document.querySelector("aside.content-minicart-modal._show")!);
-  const name = readProduct()?.name ?? target;
+  const open = drawer();
+  if (open) await ring(c, open);
+  const name = readProduct()?.name ?? path;
   return `added ${qty} × ${name}${line ? ` (the bag line now has ${line.qty})` : ""}; ${cartLine(cart)}${minicartOpen() ? "; the bag drawer is open" : ""}`;
 }
 
 // show_cart ─────────────────────────────────────────────────────────────────
 
-async function showCart(p: { open?: boolean }): Promise<string | null> {
+async function showCart(p: { open?: boolean }, c: MoveContext): Promise<string | null> {
   if (p.open === false) {
     if (!minicartOpen()) return "the bag drawer was already closed";
     // The drawer's own ×, else Magento's modal close.
@@ -1103,14 +1507,17 @@ async function showCart(p: { open?: boolean }): Promise<string | null> {
       document.querySelector<HTMLElement>("aside.content-minicart-modal._show .mc-header__close") ??
       document.querySelector<HTMLElement>("aside.content-minicart-modal._show [data-role=closeBtn]");
     if (!close) throw new Error("the bag drawer has no close button");
+    await ring(c, close);
     press(close);
     if (!(await waitFor(() => !minicartOpen(), 3000))) throw new Error("the bag drawer did not close");
+    c.spotlight.clear();
     return "closed the bag drawer";
   }
-  await openDrawer();
+  await openDrawer(c);
   const cart = await readCart();
   reportCart(cart);
-  highlight(document.querySelector("aside.content-minicart-modal._show .modal-inner-wrap") ?? document.querySelector("aside.content-minicart-modal._show")!);
+  const open = drawer();
+  if (open) await ring(c, open);
   return `opened the bag drawer; ${cartLine(cart)}`;
 }
 
@@ -1131,22 +1538,22 @@ function bound(el: Element): boolean {
   return Boolean(w.jQuery?._data?.(el, "events")?.click);
 }
 
-const drawerLine = (target: string) =>
+const drawerLine = (path: string) =>
   [...document.querySelectorAll<HTMLElement>("aside.content-minicart-modal._show #minicart-content-wrapper .mc-line")].find((l) =>
-    samePath(l.querySelector<HTMLAnchorElement>(".mc-line__name a")?.href ?? "", target),
+    samePath(l.querySelector<HTMLAnchorElement>(".mc-line__name a")?.href ?? "", path),
   ) ?? null;
 
-const bagRow = (target: string) =>
-  [...document.querySelectorAll<HTMLElement>("tbody.cart.item")].find((r) => samePath(r.querySelector<HTMLAnchorElement>(".product-item-name a")?.href ?? "", target)) ??
+const bagRow = (path: string) =>
+  [...document.querySelectorAll<HTMLElement>("tbody.cart.item")].find((r) => samePath(r.querySelector<HTMLAnchorElement>(".product-item-name a")?.href ?? "", path)) ??
   null;
 
-/** The bag's line for `target` as the store's cart section has it, polled
+/** The bag's line for `path` as the store's cart section has it, polled
  *  until `done` holds or `ms` passes; the last read either way. */
-async function lineUntil(target: string, done: (qty: number) => boolean, ms: number): Promise<{ cart: CartState; qty: number }> {
+async function lineUntil(path: string, done: (qty: number) => boolean, ms: number): Promise<{ cart: CartState; qty: number }> {
   const until = Date.now() + ms;
   for (;;) {
     const cart = await readCart();
-    const qty = cart.items.find((i) => samePath(i.path, target))?.qty ?? 0;
+    const qty = cart.items.find((i) => samePath(i.path, path))?.qty ?? 0;
     if (done(qty) || Date.now() > until) return { cart, qty };
     await sleep(600);
   }
@@ -1173,12 +1580,14 @@ async function sendLine(id: string, qty: number): Promise<void> {
   if (!res.ok || !answer?.success) throw new Error(`the store did not take the change${answer?.error_message ? `: ${answer.error_message}` : ""}; nothing was changed`);
 }
 
-/** The drawer, opened as the visitor would (the bag button), with its lines up. */
-async function openDrawer(): Promise<void> {
+/** The drawer, opened as the visitor would (the bag button, ringed first),
+ *  with its lines up. */
+async function openDrawer(c: MoveContext): Promise<void> {
   if (!minicartOpen()) {
     const trigger = [...document.querySelectorAll<HTMLElement>(".minicart-wrapper a.action.showcart")].find(shown);
     if (!trigger) throw new Error("this page has no bag button");
     await scrollToTopOfPage();
+    await ring(c, trigger);
     // Before the drawer's script is up, the same press loads the bag page,
     // which is the bag too.
     press(trigger);
@@ -1193,40 +1602,39 @@ async function openDrawer(): Promise<void> {
  * bin asks "¿Seguro…?" and its Aceptar removes the line), or, on the bag page
  * (/checkout/cart), with that same request and the reload the page's own
  * controls make; the move is checked on the page it loads. The line is found
- * by its product link, never by its words. Reports `cart_state`.
+ * by its product link, never by its words, and ringed before it changes.
+ * Reports `cart_state`.
  */
-async function updateCartItem(p: { path: string; qty: number; steps?: number; name?: string } & Arrived): Promise<string | null> {
-  if (typeof p.path !== "string" || !p.path.trim()) throw new Error("say which bag line, as its product path like /x.html");
+async function updateCartItem(p: { path: string; qty: number; steps?: number; name?: string } & Arrived, c: MoveContext): Promise<string | null> {
+  if (typeof p.path !== "string" || !p.path.trim()) c.refuse("path", "say which bag line, as its product path like /x.html");
   const qty = Math.round(Number(p.qty));
-  if (!Number.isFinite(qty) || qty < 0 || qty > 10) throw new Error(`a quantity from 0 (take it out) to 10, not ${p.qty}`);
-  const target = productPath(p.path);
+  if (!Number.isFinite(qty) || qty < 0 || qty > 10) c.refuse("qty", `a quantity from 0 (take it out) to 10, not ${p.qty}`);
+  const path = productPath(p.path);
   const steps = Number(p.steps) || 0;
-  const now = await lineUntil(target, () => true, 0);
-  const line = now.cart.items.find((i) => samePath(i.path, target));
-  const name = line?.name || p.name || target;
-  const finished = (cart: CartState, said: string) => {
+  const now = await lineUntil(path, () => true, 0);
+  const line = now.cart.items.find((i) => samePath(i.path, path));
+  const name = line?.name || p.name || path;
+  const finished = async (cart: CartState, said: string) => {
     reportCart(cart);
-    const row = kindOf() === "cart" ? bagRow(target) : drawerLine(target);
-    if (row) highlight(row);
+    const row = kindOf() === "cart" ? bagRow(path) : drawerLine(path);
+    if (row) await ring(c, row);
     return `${said}; ${cartLine(cart)}`;
   };
   if (!line) {
     // Back from the press that took it out: done.
     if (p.arrived && qty === 0) return finished(now.cart, `took ${name} out of the bag`);
-    const has = now.cart.items.map((i) => `${i.name} (${i.path}) ×${i.qty}`).join("; ");
-    throw new Error(`${target} is not in the bag; ${has ? `the bag has ${has}` : "the bag is empty"}`);
+    const has = now.cart.items.map((i) => `${i.name} (${i.path}) ×${i.qty}`);
+    c.refuse("path", `${path} is not in the bag; ${has.length ? `the bag has ${has.join("; ")}` : "the bag is empty"}`, now.cart.items.map((i) => i.path));
   }
   if (line.qty === qty) {
     return finished(now.cart, p.arrived ? `set ${name} to ${qty} in the bag` : `${name} already has ${qty} in the bag; nothing changed`);
   }
   if (steps >= MAX_CART_STEPS) throw new Error(`the bag line of ${name} has ${line.qty}, not ${qty}, after ${steps} presses`);
-  const rest = (): Leftover => ({ command: "update_cart_item", payload: { path: target, qty, name, steps: steps + 1, arrived: true } });
+  const rest = (): Then => ({ move: c.move, args: { path, qty, name, steps: steps + 1, arrived: true } });
 
   if (kindOf() === "checkout") {
     // The checkout's own summary has no controls: the bag page does.
-    leave(rest());
-    go("/checkout/cart/");
-    return null;
+    return load(c, "/checkout/cart/", rest());
   }
 
   if (kindOf() === "cart") {
@@ -1237,34 +1645,27 @@ async function updateCartItem(p: { path: string; qty: number; steps?: number; na
     // `href="#"`). So the row is shown, its id read off it, and the change
     // sent as the drawer sends it, once, whatever the step; then the page
     // reloads as the site's own controls do, and the move is checked there.
-    const row = await waitFor(() => bagRow(target), 8000);
+    const row = await waitFor(() => bagRow(path), 8000);
     if (!row) throw new Error(`the bag page shows no row for ${name}`);
     const id = row.querySelector<HTMLElement>("[data-cart-item]")?.dataset.cartItem ?? row.querySelector<HTMLElement>("[data-item-id]")?.dataset.itemId;
     if (!id) throw new Error(`the bag page's row for ${name} has no line id`);
     await scrollTo(row, "center");
-    highlight(row.querySelector(qty === 0 ? "a.action-delete" : ".control.qty") ?? row);
-    await sleep(700);
+    await ring(c, row.querySelector(qty === 0 ? "a.action-delete" : ".control.qty") ?? row);
     await sendLine(id, qty);
-    leave(rest());
-    location.reload();
-    return null;
+    return load(c, location.pathname + location.search, rest());
   }
 
   // Any other page: the drawer. Pressed before its script is up, the bag
   // button loads the bag page instead, which carries the move on.
-  leave(rest());
-  await openDrawer();
-  leave(null);
-  const el = await waitFor(() => drawerLine(target), 8000);
-  if (!el) {
-    // The drawer is still drawing the bag from before (live, right after an
-    // add): the bag page always shows it, so the move carries on there.
-    leave(rest());
-    go("/checkout/cart/");
-    return null;
-  }
+  await c.keep(rest());
+  await openDrawer(c);
+  await c.drop();
+  const el = await waitFor(() => drawerLine(path), 8000);
+  // The drawer is still drawing the bag from before (live, right after an
+  // add): the bag page always shows it, so the move carries on there.
+  if (!el) return load(c, "/checkout/cart/", rest());
   await scrollTo(el, "center");
-  highlight(el);
+  await ring(c, el);
   if (qty === 0) {
     const bin = el.querySelector<HTMLElement>("a.mc-line__remove, .action.delete");
     if (!bin) throw new Error(`the drawer's line for ${name} has no Eliminar`);
@@ -1272,26 +1673,29 @@ async function updateCartItem(p: { path: string; qty: number; steps?: number; na
     press(bin);
     // "¿Seguro que desea eliminar este artículo…?" — its Aceptar removes it.
     const accept = await waitFor(() => document.querySelector<HTMLElement>("aside.modal-popup.confirm._show button.action-accept"), 4000);
-    // Taking the line out may reload the page: the rest is left for it.
-    leave(rest());
-    if (accept) press(accept);
-    const after = await lineUntil(target, (n) => n === 0, 12_000);
-    leave(null);
+    // Taking the line out may reload the page: the rest is kept for it.
+    await c.keep(rest());
+    if (accept) {
+      await ring(c, accept);
+      press(accept);
+    }
+    const after = await lineUntil(path, (n) => n === 0, 12_000);
+    await c.drop();
     if (after.qty !== 0) throw new Error(`pressed Eliminar on ${name}, but it is still in the bag`);
     return finished(after.cart, `took ${name} out of the bag`);
   }
   let have = line.qty;
   for (let guard = steps; have !== qty && guard < MAX_CART_STEPS; guard++) {
-    const button = el.isConnected ? el : drawerLine(target);
+    const button = el.isConnected ? el : drawerLine(path);
     const step = button?.querySelector<HTMLElement>(qty > have ? ".mc-qty__btn.btn-plus" : ".mc-qty__btn.btn-min");
     if (!step) throw new Error(`the drawer's line for ${name} has no ${qty > have ? "+" : "−"} button`);
     if (!(await waitFor(() => bound(step), 10_000))) throw new Error("the bag drawer's own scripts did not start; nothing was changed");
     const was = have;
     press(step);
-    have = (await lineUntil(target, (n) => n !== was, 10_000)).qty;
+    have = (await lineUntil(path, (n) => n !== was, 10_000)).qty;
     if (have === was) throw new Error(`pressed ${qty > was ? "+" : "−"} on ${name} in the drawer, but the bag still has ${was}`);
   }
-  const after = await lineUntil(target, () => true, 0);
+  const after = await lineUntil(path, () => true, 0);
   if (have !== qty) throw new Error(`the bag line of ${name} has ${have}, not ${qty}`);
   return finished(after.cart, `set ${name} to ${qty} in the bag (it had ${line.qty})`);
 }
@@ -1416,32 +1820,25 @@ const reportCheckout = () => {
 /** The form is up: Knockout has rendered the delivery form and the email. */
 const formReady = () => (shippingForm() && emailInput() && pickerOf("region") ? shippingForm() : null);
 
-/** Take the visitor to the delivery form, then do `then` there (a fill). From
- *  any page: the bag first; on the bag, "Terminar pedido", then the login
+type FillCheckout = Partial<Record<FillKey, string | null>> & Arrived;
+
+/** Take the visitor to the delivery form, then fill it with `fill`, if given.
+ *  From any page: the bag first; on the bag, "Terminar pedido", then the login
  *  window's "Comprar como invitado" (a link to /checkout). Each load carries
- *  the rest in `sessionStorage`. */
-async function toCheckout(then: Leftover | null, arrived: boolean): Promise<string | null> {
+ *  the rest of the move (`args`, this move's own) to the next page. */
+async function toCheckout(c: MoveContext, args: Arrived & Record<string, unknown>, fill: FillCheckout | null): Promise<string | null | PerformResult> {
   if (onCheckout()) {
     const form = await waitFor(formReady, 20_000);
     if (!form) throw new Error("the checkout opened, but its delivery form did not show");
     if (/payment/i.test(location.hash)) throw new Error("the checkout is at its payment step, which is the visitor's");
-    if (then) {
-      const r = await perform(then.command, then.payload);
-      if (!r.ok) throw new Error(r.error);
-      return r.detail ?? "";
-    }
+    if (fill) return fillCheckout({ ...fill, arrived: true }, c);
     await scrollTo(emailForm() ?? form, "top");
-    highlight(emailForm() ?? form);
+    await ring(c, emailForm() ?? form);
     reportCheckout();
     return `the guest checkout's delivery form is open (${describeCheckout(readCheckout())})`;
   }
-  const as = then?.command ?? "start_checkout";
-  if (arrived) throw new Error(`the checkout did not open (now on ${location.pathname}); the bag may be empty`);
-  if (kindOf() !== "cart") {
-    leave({ command: "start_checkout", payload: { then }, as });
-    go("/checkout/cart/");
-    return null;
-  }
+  if (args.arrived) throw new Error(`the checkout did not open (now on ${location.pathname}); the bag may be empty`);
+  if (kindOf() !== "cart") return load(c, "/checkout/cart/", { move: c.move, args });
   if (!document.querySelector("tbody.cart.item") && document.querySelector(".cart-empty")) throw new Error("the bag is empty; there is nothing to check out");
   const button = await waitFor(() => [...document.querySelectorAll<HTMLElement>("button[data-role='proceed-to-checkout']")].find(shown), 8000);
   if (!button) throw new Error("the bag page has no Terminar pedido button");
@@ -1449,8 +1846,7 @@ async function toCheckout(then: Leftover | null, arrived: boolean): Promise<stri
   // rendered, it opens empty.
   await waitFor(() => document.querySelector("#block-login a[href]"), 10_000);
   await scrollTo(button, "center");
-  highlight(button);
-  await sleep(500);
+  await ring(c, button);
   press(button);
   const guest = await waitFor(
     () =>
@@ -1460,40 +1856,39 @@ async function toCheckout(then: Leftover | null, arrived: boolean): Promise<stri
       }),
     12_000,
   );
-  leave({ command: "start_checkout", payload: { then, arrived: true }, as });
-  if (guest) {
-    highlight(guest);
-    await sleep(700);
-    press(guest);
-  } else {
-    // The window did not render its links: "Comprar como invitado" is only
-    // this link.
-    go("/checkout");
-  }
+  const there: Then = { move: c.move, args: { ...args, arrived: true } };
+  // The window did not render its links: "Comprar como invitado" is only
+  // this link.
+  if (!guest) return load(c, "/checkout", there);
+  await ring(c, guest);
+  await c.keep(there);
+  press(guest);
   return null;
 }
 
-function describeCheckout(c: CheckoutState): string {
+function describeCheckout(s: CheckoutState): string {
   const names = (keys: string[]) => keys.map((k) => FIELD_LABEL[k] ?? k).join(", ");
-  const bits = [c.filled.length ? `filled: ${names(c.filled)}` : "nothing filled yet"];
-  if (c.missing.length) bits.push(`missing: ${names(c.missing)}`);
-  if (c.invalid.length) bits.push(`the form flags ${c.invalid.map((i) => `${FIELD_LABEL[i.field] ?? i.field} ("${i.message}")`).join(", ")}`);
+  const bits = [s.filled.length ? `filled: ${names(s.filled)}` : "nothing filled yet"];
+  if (s.missing.length) bits.push(`missing: ${names(s.missing)}`);
+  if (s.invalid.length) bits.push(`the form flags ${s.invalid.map((i) => `${FIELD_LABEL[i.field] ?? i.field} ("${i.message}")`).join(", ")}`);
   return bits.join("; ");
 }
 
-async function startCheckout(p: { then?: Leftover | null } & Arrived): Promise<string | null> {
-  return toCheckout(p.then ?? null, Boolean(p.arrived));
+async function startCheckout(p: Arrived, c: MoveContext): Promise<string | null | PerformResult> {
+  return toCheckout(c, { ...p }, null);
 }
 
-/** Type `value` into one of the form's own text fields, as a finished edit
- *  (Knockout's `value` binding updates on `change` and `keyup`), unless the
- *  field is the visitor's alone or the value does not fit it. */
-async function fillField(el: HTMLInputElement, value: string, label: string): Promise<void> {
+/** Type `value` into one of the form's own text fields, ringed first, as a
+ *  finished edit (Knockout's `value` binding updates on `change` and
+ *  `keyup`), unless the field is the visitor's alone or the value does not
+ *  fit it. */
+async function fillField(c: MoveContext, el: HTMLInputElement, value: string, label: string): Promise<void> {
   const why = privateField(el);
   if (why) throw new Error(`refused ${label}: ${why}`);
   const max = el.maxLength > 0 ? el.maxLength : Infinity;
   if (value.length > max) throw new Error(`${label} takes at most ${max} characters`);
   await scrollTo(el, "center");
+  await ring(c, el.closest(".field") ?? el);
   el.focus({ preventScroll: true });
   setValue(el, value);
   el.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: "Unidentified" }));
@@ -1501,8 +1896,9 @@ async function fillField(el: HTMLInputElement, value: string, label: string): Pr
 }
 
 /** Pick `said` in the form's región or comuna list (its own searchable
- *  dropdown); the comuna's list loads by AJAX once a región is chosen. */
-async function pick(key: "region" | "comuna", said: string): Promise<string> {
+ *  dropdown), ringed first; the comuna's list loads by AJAX once a región is
+ *  chosen. */
+async function pick(c: MoveContext, key: "region" | "comuna", said: string): Promise<string> {
   const box = pickerOf(key);
   const trigger = box?.querySelector<HTMLButtonElement>(".cn-region-search__trigger");
   if (!box || !trigger) throw new Error(`the form has no ${FIELD_LABEL[key]} list`);
@@ -1513,6 +1909,7 @@ async function pick(key: "region" | "comuna", said: string): Promise<string> {
     throw new Error(key === "comuna" ? "the comuna list opens once a región is chosen; choose the región first" : "the región list is locked");
   }
   await scrollTo(box, "center");
+  await ring(c, box);
   if (!box.classList.contains("is-open")) press(trigger);
   const label = (li: HTMLElement) => clean(li.querySelector(".cn-region-search__item-label")?.textContent ?? li.textContent);
   const items = await waitFor(() => {
@@ -1535,7 +1932,7 @@ async function pick(key: "region" | "comuna", said: string): Promise<string> {
 
 /** Choose the phone's prefix (+56 9 for a mobile, +56 2 for a Santiago line)
  *  from the first of the nine digits; the other eight go in the field. */
-async function phonePrefix(first: string): Promise<void> {
+async function phonePrefix(c: MoveContext, first: string): Promise<void> {
   const box = shippingForm()?.querySelector<HTMLElement>(".field.telephone .flag-container");
   if (!box) return;
   const want = `56 ${first}`;
@@ -1543,6 +1940,8 @@ async function phonePrefix(first: string): Promise<void> {
   if (now === `+${want}` || now === want) return;
   const flag = box.querySelector<HTMLElement>(".selected-flag");
   if (!flag) throw new Error("the phone field has no prefix to choose");
+  // A visible change: rung first, like every other press.
+  await ring(c, box.closest(".field") ?? box);
   press(flag);
   const li = await waitFor(() => box.querySelector<HTMLElement>(`li.country[data-dial-code="${want}"]`), 3000);
   if (!li) throw new Error(`the phone field has no +${want} prefix`);
@@ -1552,15 +1951,13 @@ async function phonePrefix(first: string): Promise<void> {
   }
 }
 
-type FillCheckout = Partial<Record<FillKey, string | null>>;
-
-async function fillCheckout(p: FillCheckout & { arrived?: boolean }): Promise<string | null> {
+async function fillCheckout(p: FillCheckout, c: MoveContext): Promise<string | null | PerformResult> {
   const given = FILL_ORDER.filter((k) => typeof p[k] === "string" && p[k]!.trim());
-  if (!given.length) throw new Error("say what to fill: email, región, comuna, dirección, número, depto/casa, nombre, apellidos or teléfono");
+  if (!given.length) c.refuse("fields", "say what to fill: email, región, comuna, dirección, número, depto/casa, nombre, apellidos or teléfono", [...FILL_ORDER]);
   if (!onCheckout()) {
-    const payload: Record<string, string> = {};
-    for (const k of given) payload[k] = p[k]!;
-    return toCheckout({ command: "fill_checkout", payload }, Boolean(p.arrived));
+    const fill: FillCheckout = {};
+    for (const k of given) fill[k] = p[k]!;
+    return toCheckout(c, { ...p }, fill);
   }
   if (/payment/i.test(location.hash)) throw new Error("the checkout is at its payment step, which is the visitor's; nothing was filled");
   const form = await waitFor(formReady, 15_000);
@@ -1574,25 +1971,25 @@ async function fillCheckout(p: FillCheckout & { arrived?: boolean }): Promise<st
     try {
       if (key === "email") {
         const el = emailInput()!;
-        await fillField(el, value, label);
+        await fillField(c, el, value, label);
         touched.push(el);
       } else if (key === "region" || key === "comuna") {
-        const name = await pick(key, value);
+        const name = await pick(c, key, value);
         touched.push(pickerOf(key)!);
         done.push(`${label} ${name}`);
         continue;
       } else if (key === "phone") {
         const digits = value.replace(/\D/g, "");
         if (!/^[92]\d{8}$/.test(digits)) throw new Error("a Chilean number is nine digits, starting with 9 or 2");
-        await phonePrefix(digits[0]);
+        await phonePrefix(c, digits[0]);
         const el = form.querySelector<HTMLInputElement>(TEXT_INPUTS.phone);
         if (!el) throw new Error("the form has no phone field");
-        await fillField(el, digits.slice(1), label);
+        await fillField(c, el, digits.slice(1), label);
         touched.push(el.closest(".field") ?? el);
       } else {
         const el = form.querySelector<HTMLInputElement>(TEXT_INPUTS[key]);
         if (!el) throw new Error(`the form has no ${label} field`);
-        await fillField(el, value, label);
+        await fillField(c, el, value, label);
         touched.push(el);
       }
       done.push(label);
@@ -1604,33 +2001,37 @@ async function fillCheckout(p: FillCheckout & { arrived?: boolean }): Promise<st
   await quiet(form, 300, 1500);
   const state = readCheckout();
   report("checkout_state", state);
-  if (touched.length) highlight(touched);
+  if (touched.length) await ring(c, touched);
   if (!done.length) throw new Error(`nothing was filled: ${failed.join("; ")}`);
-  return `filled ${done.join(", ")}${failed.length ? `; not filled: ${failed.join("; ")}` : ""}; ${describeCheckout(state)}; nothing was pressed after the fields`;
+  const detail = `filled ${done.join(", ")}${failed.length ? `; not filled: ${failed.join("; ")}` : ""}; ${describeCheckout(state)}; nothing was pressed after the fields`;
+  // Some fields but not all: partial, so it is never taken for the whole form.
+  return failed.length ? { outcome: "partial", detail } : detail;
 }
 
-// Cue moves: navigate, show_section, open_faq (clini's) ────────────────────
+// The page, show and faq cues ───────────────────────────────────────────────
 
-async function navigate(p: { path: string; heading?: string | null; text?: string | null; faq?: string | null } & Arrived) {
-  if (typeof p.path !== "string" || !p.path.trim()) throw new Error("say which page to go to, as a path");
-  const target = new URL(p.path.trim(), location.origin);
-  const rest: Leftover | null = p.faq
-    ? { command: "open_faq", payload: { question: p.faq } }
-    : p.heading || p.text
-      ? { command: "show_section", payload: { heading: p.heading ?? null, text: p.text ?? null } }
-      : null;
-  if (!samePath(location.pathname, target.pathname) || (target.search && target.search !== location.search)) {
-    leave(rest);
-    go(target.pathname + target.search + target.hash);
-    return null;
-  }
-  if (rest) {
-    const r = await perform(rest.command, rest.payload);
-    if (!r.ok) throw new Error(r.error);
-    return r.detail ?? "";
+/** The page cue: open `path` at its top, its link on this page ringed first
+ *  when it has one; on it already, its top. */
+async function openPage(p: { path: string }, c: MoveContext): Promise<string | null> {
+  if (typeof p.path !== "string" || !p.path.trim()) c.refuse("path", "say which page to go to, as a path");
+  const to = new URL(p.path.trim(), location.origin);
+  if (!samePath(location.pathname, to.pathname) || (to.search && to.search !== location.search)) {
+    target(to.pathname + to.search + to.hash);
+    const link = linkTo(to.pathname);
+    if (link) await ring(c, link);
+    return load(c, to.pathname + to.search + to.hash);
   }
   await scrollToTopOfPage();
+  const title = headings()[0]?.el;
+  if (title) await ring(c, title);
   return `${location.pathname} is on screen`;
+}
+
+/** On `path` first, when the cue names another page: the rest goes there. */
+async function onPage(c: MoveContext, path: string | null | undefined, then: Then): Promise<boolean> {
+  if (!path || samePath(location.pathname, new URL(path, location.origin).pathname)) return true;
+  await load(c, path, then);
+  return false;
 }
 
 const original = (el: Element | null | undefined) => el?.getAttribute("data-voqalize-text") ?? "";
@@ -1667,36 +2068,41 @@ function smallestContaining(root: Element, text: string): HTMLElement | null {
   return found;
 }
 
-async function showSection(p: { heading?: string | null; text?: string | null }) {
-  const h = p.heading ? findHeading(p.heading) : null;
-  if (p.heading && !h && !p.text) {
-    throw new Error(`no heading "${p.heading}" on ${location.pathname}; it has: ${context().headings.slice(0, 25).join(" | ") || "no headings"}`);
+/** The show cue: a heading of the page, scrolled to and ringed with what it
+ *  heads; or, when no heading is called that, the smallest block with those
+ *  words. */
+async function showSection(p: { target: string; path?: string | null }, c: MoveContext): Promise<string | null> {
+  const want = clean(p.target);
+  if (!want) c.refuse("target", "say which heading or words to show");
+  if (!(await onPage(c, p.path, { move: c.move, args: { target: want, path: null } }))) return null;
+  const h = findHeading(want);
+  if (h) {
+    const section = sectionOf(h);
+    const box = boxOf(section);
+    const height = box ? box.bottom - box.top : Infinity;
+    const room = window.innerHeight - headerHeight() - 32;
+    await scrollTo(height <= room ? section[0] : h, height <= room ? "center" : "top");
+    await ring(c, height > window.innerHeight * 1.3 ? h : section);
+    return `showed "${clean(h.textContent)}"`;
   }
-  if (p.text) {
-    const el = (h && sectionOf(h).map((s) => smallestContaining(s, p.text!)).find(Boolean)) || smallestContaining(main(), p.text);
-    if (!el) throw new Error(`"${p.text}" is not on ${location.pathname}`);
-    await scrollTo(el, el.getBoundingClientRect().height > window.innerHeight * 0.7 ? "top" : "center");
-    highlight(el);
-    return `showed "${p.text}"`;
-  }
-  if (!h) throw new Error("say which heading or text to show");
-  const section = sectionOf(h);
-  const box = boxOf(section);
-  const height = box ? box.bottom - box.top : Infinity;
-  const room = window.innerHeight - headerHeight() - 32;
-  await scrollTo(height <= room ? section[0] : h, height <= room ? "center" : "top");
-  highlight(height > window.innerHeight * 1.3 ? h : section);
-  return `showed "${clean(h.textContent)}"`;
+  const el = smallestContaining(main(), want);
+  if (!el) c.refuse("target", `no heading or words "${want}" on ${location.pathname}`, context().headings.slice(0, 25));
+  await scrollTo(el, el.getBoundingClientRect().height > window.innerHeight * 0.7 ? "top" : "center");
+  await ring(c, el);
+  return `showed "${want}"`;
 }
 
-async function openFaq(p: { question: string }) {
+/** The faq cue: the question ringed, opened, and ringed with its answer. */
+async function openFaq(p: { question: string; path?: string | null }, c: MoveContext): Promise<string | null> {
+  const question = clean(p.question);
+  if (!question) c.refuse("question", "say which question");
+  if (!(await onPage(c, p.path, { move: c.move, args: { question, path: null } }))) return null;
   const all = faqItems();
-  const item = best(all, (f) => f.question, p.question ?? "") ?? best(all, (f) => original(f.block), p.question ?? "");
-  if (!item) {
-    throw new Error(`no FAQ "${p.question}" on ${location.pathname}${all.length ? `; it has: ${all.map((f) => f.question).slice(0, 15).join(" | ")}` : ""}`);
-  }
+  const item = best(all, (f) => f.question, question) ?? best(all, (f) => original(f.block), question);
+  if (!item) c.refuse("question", `no FAQ "${question}" on ${location.pathname}`, all.map((f) => f.question).slice(0, 15));
   await scrollTo(item.block, "center");
   if (!item.isOpen() && item.toggle) {
+    await ring(c, item.block);
     press(item.toggle);
     await waitFor(item.isOpen, 2000);
     await sleep(300);
@@ -1704,61 +2110,36 @@ async function openFaq(p: { question: string }) {
   const group = [item.block, ...item.answer()];
   const box = boxOf(group);
   await scrollTo(item.block, box && box.bottom - box.top > window.innerHeight * 0.7 ? "top" : "center");
-  highlight(group);
+  await ring(c, group);
   return `opened "${item.question}"`;
 }
 
-// ─── Running moves, one at a time ─────────────────────────────────────────
+// ─── Registering the moves ────────────────────────────────────────────────
 
-type Command = (payload: never) => Promise<string | null>;
-
-const COMMANDS: Record<string, Command> = {
-  search_products: searchProducts,
-  filter_listing: filterListing,
-  open_product: openProduct,
-  check_prices: checkPrices,
-  add_to_cart: addToCart,
-  show_cart: showCart,
-  update_cart_item: updateCartItem,
-  start_checkout: startCheckout,
-  fill_checkout: fillCheckout,
-  navigate,
-  show_section: showSection,
-  open_faq: openFaq,
-};
-
-async function perform(command: string, payload: unknown): Promise<RunResult> {
-  const fn = COMMANDS[command];
-  if (!fn) return { ok: false, error: `the page on ${location.host} cannot ${command}` };
-  try {
-    const detail = await fn((payload ?? {}) as never);
-    // `null`: the move went on to another page, which finishes it.
-    if (detail === null) return { ok: true, moved: true };
-    return { ok: true, detail };
-  } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : String(error) };
-  }
-}
-
-/** One move at a time: a move waits for the one before it to finish (a
- *  filter for its grid, an add for the bag), whoever sent them. */
-let running: Promise<unknown> = Promise.resolve();
-function run(command: string, payload: unknown): Promise<RunResult> {
-  const turn = running.then(() => perform(command, payload));
-  running = turn.catch(() => undefined);
-  return turn;
-}
-
-/** Finish the move a page of this tab started before it loaded this one,
- *  once this page has settled. */
-async function finishLeftover(): Promise<void> {
-  const then = takeLeftover();
-  if (!then) return;
-  await settled();
-  const result = await run(then.command, then.payload);
-  const command = then.as ?? (then.command === "show_section" || then.command === "open_faq" || then.command === "navigate" ? "cue" : then.command);
-  if (!result.ok) emit("command_failed", { command, error: result.error ?? "failed" });
-  else if (!result.moved && DONE_COMMANDS.has(command)) emit("command_done", { command, detail: result.detail ?? "" });
+/** Every move this page makes, by the id the brain names it with: its class,
+ *  a cue's argument names and the arguments' types come from
+ *  `cannonhome/scene.json`, and a move left out does not compile. */
+export function registerMoves(moves: Moves): void {
+  // His moves here are his; the extension host's kit, when there is one,
+  // adds a move the last page carried here (the adapter, below).
+  who = () => moves.author();
+  scene.registerAll(moves, {
+    "page.open": openPage,
+    "page.show": showSection,
+    "page.faq": openFaq,
+    "commerce.filter": filterCue,
+    "commerce.sort": sortCue,
+    "commerce.search": searchProducts,
+    filter_listing: filterListing,
+    open_product: openProduct,
+    product_tab: productTab,
+    check_prices: checkPrices,
+    "commerce.cart_show": showCart,
+    "commerce.cart_add": addToCart,
+    "commerce.cart_update": updateCartItem,
+    start_checkout: startCheckout,
+    fill_checkout: fillCheckout,
+  });
 }
 
 // ─── Watching the page ────────────────────────────────────────────────────
@@ -1870,12 +2251,12 @@ function readState(): void {
 
 let stopWatching: (() => void) | null = null;
 
-function start(next: (event: string, payload: unknown) => void): () => void {
+/** Report the page and the state on it through `next`, as it changes, until
+ *  the returned stop: from the moment the agent can hear this page. */
+export function start(next: (event: string, payload: unknown) => void): () => void {
   emitter = next;
   lastUrl = location.origin + location.pathname + location.search;
-  next("page_changed", context());
   for (const [event, payload] of latest) report(event, payload);
-  for (const [event, payload] of backlog.splice(0)) next(event, payload);
   readState();
   stopWatching ??= watchState();
   return () => {
@@ -1887,15 +2268,43 @@ function start(next: (event: string, payload: unknown) => void): () => void {
   };
 }
 
-if (!window.voqalizeCannonhome) {
+let prepared = false;
+
+/** Ready the page, once: its style, the URL watch, and its state read as soon
+ *  as it settles (a page that loads mid-call reports it the moment it listens). */
+export function prepare(): void {
+  if (prepared) return;
+  prepared = true;
   styleThePage();
   watchUrl();
-  // The state is read at once (a page that loads mid-call reports it the
-  // moment it listens), and the move left from the last page is finished.
   void settled().then(readState);
-  void finishLeftover();
-  window.voqalizeCannonhome = { run, context, start, commands: Object.keys(COMMANDS) };
 }
 
+/** The page in front, as it stands: once the agent can hear this page (before
+ *  `start`), and again each time the tab comes back to the front (Stage's
+ *  host runs it). */
+export function reportPage(next: (event: string, payload: unknown) => void): void {
+  next("page_changed", context());
+}
+
+/** Cannon Home's adapter for `@voqalize/stage/extension`: its moves, what the
+ *  visitor is looking at for the session's start, and its reports. */
+export const cannonhome: Adapter = (moves, kit) => {
+  registerMoves(moves);
+  who = () => kit.author();
+  prepare();
+  return {
+    context: () => {
+      const ctx = context();
+      return { site: ctx.site, path: ctx.path, url: ctx.url, title: ctx.title };
+    },
+    report: reportPage,
+    start,
+    // The store's own scripts bind late, and its `load` waits on trackers
+    // for over 15 s: a press waits for the page to settle, never for `load`.
+    ready: settled,
+  };
+};
+
 // Exported for the end-to-end tests.
-export { readCart, readListing, readProduct, readSuggest };
+export { context, readCart, readListing, readProduct, readSuggest };

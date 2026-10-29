@@ -18,9 +18,9 @@ anything goes on it; it is not how a customer would ship it.
 
 ## What he does
 
-- **Search** (`search_products`): types the query into the site's search box
+- **Search** (`commerce.search`, the `search_products` tool): types the query into the site's search box
   at a visitor's pace, lets the dropdown open, and reports its products and
-  categories (`search_suggest`); with `open_index`, opens one of them. The
+  categories (`search.suggested`); with `open_index`, opens one of them. The
   dropdown visitors see is goPersonal's (`#gp-ac-dropdown`), whose stylesheet
   hides Amasty's; the adapter reads goPersonal's and falls back to Amasty's.
   goPersonal searches as you type, so the report waits for the final query's
@@ -29,20 +29,21 @@ anything goes on it; it is not how a customer would ship it.
   applies the quick filters one at a time by their request variable
   (`.qf__group[data-qf-request-var=tamano|color|hilos|material]`) and the
   option's `title`, waits for each AJAX grid, then sorts; reports
-  `listing_shown` after every grid, whoever changed it.
+  `listing.shown`, `listing.filtered` or `listing.sorted` after every grid,
+  whoever changed it.
 - **Open a product** (`open_product`): loads it, opens Descripción,
   Especificaciones or Calificaciones, or steps the gallery; reports
-  `product_shown` from the page at once and again from one live
+  `product.shown` from the page at once and `product.checked` from one live
   `POST /graphql` (the page is served from a cache and can be hours old).
 - **Read live prices** (`check_prices`): one `POST /graphql` for up to six
   products (`products(filter: {url_key: {in: …}})`), and `route(url:)` for the
   ones that hides (out of stock); reports `prices_read`. Moves nothing.
-- **Add to the bag** (`add_to_cart`): on the product's page (opened first if
+- **Add to the bag** (`commerce.cart_add`, the `add_to_cart` tool): on the product's page (opened first if
   needed), sets the quantity with − / +, presses *Agregar*, waits for the bag,
-  and reports `cart_state` (lines, count, subtotal and how far from free
+  and reports `cart.changed` (lines, count, subtotal and how far from free
   shipping).
-- **Show the bag** (`show_cart`): opens or closes the bag drawer.
-- **Change the bag** (`update_cart_item`): sets one line, found by its
+- **Show the bag** (`commerce.cart_show`, the `show_cart` tool): opens or closes the bag drawer.
+- **Change the bag** (`commerce.cart_update`, the `update_cart_item` tool): sets one line, found by its
   product link, to a quantity, or takes it out with 0. In the drawer it presses
   the line's own − / + (each posts by AJAX) or its bin and the *Aceptar* of the
   "¿Seguro…?" window, once Knockout has bound them. On the bag page it sends
@@ -50,12 +51,12 @@ anything goes on it; it is not how a customer would ship it.
   `removeItem/`, with the page's form key) and reloads the page as the page's
   own controls do: live, once the bag page has reloaded, its own − and
   *Quitar* stop answering. The move is checked on the page it loads; from the
-  checkout it goes to the bag page first. Reports `cart_state`.
+  checkout it goes to the bag page first. Reports `cart.changed`.
 - **Go to the delivery form** (`start_checkout`): from the bag page (loaded
   first if needed) presses *Terminar pedido*, then, in the login window it
   opens, *Comprar como invitado*, a plain link to `/checkout`; if the window
-  does not render its links, it loads that address itself. The move rides
-  `sessionStorage` across both loads and finishes on the form.
+  does not render its links, it loads that address itself. The move is carried
+  across both loads and finishes on the form.
 - **Fill the delivery details** (`fill_checkout`): on `/checkout` (reached as
   above if needed), only the fields the brain sends, in the form's order:
   email, región and comuna (picked from the form's own searchable lists by
@@ -65,12 +66,18 @@ anything goes on it; it is not how a customer would ship it.
   in the field). Each is set as a finished edit (native setter, `input`,
   `change`, `blur`, `keyup`: Knockout's bindings need them). Nothing is
   pressed after the fields.
-- **Report the form** (`checkout_state`, on load, after a fill and whenever
+- **Report the form** (`checkout.changed`, on load, after a fill and whenever
   the visitor edits it): which fields hold something, never what (only the
   región and comuna names), which required ones are missing, the form's own
   validation messages, whether the email's account brought up a password,
   the delivery methods offered and chosen, and whether the payment step shows.
-- His spoken cues (`cue`): open a page, ring a heading or words, open an FAQ.
+- His spoken cues, made as his voice reaches their words: open a page
+  (`{page: …}`), ring a heading or words (`{show: …}`), open an FAQ
+  (`{faq: …}`), and filter or sort the listing in front (`{filter: Tamaño |
+  King}`, `{sort: price_asc}`). A filter cue applies one option the way
+  `filter_listing` does: it scrolls to the filter bar, opens the filter's pill,
+  rings the option, waits a beat, chooses it and waits for the grid; an option
+  the listing lacks is refused with the ones it has.
 
 ## What he never does
 
@@ -116,89 +123,43 @@ These are rules of the adapter, not of the prompt, so no brain can lift them:
 
 Magento loads a whole page for most moves (a product, a category, a search
 result, the bag). The call therefore does not live in a page: it lives in an
-**offscreen document of the extension** (`call.html`, `src/holder.ts`, "the
-holder"), which no page load touches.
+**offscreen document of the extension** (`call.html`, "the holder"), which no
+page load touches. The extension is built on `@voqalize/stage/extension`,
+the host every site extension shares, and only Cannon Home's own parts live
+here.
 
-- **The holder** runs stock pipecat on `@voqalize/client-transport`, plays his
-  voice, keeps every open Cannon Home tab (by browser tab id: its port, where
-  it is, whether it is in front) and sends the brain `tabs_changed`, routes
-  each brain Action to the tab it belongs on, fires his cues as he speaks
-  (`src/narration.ts`) and relays to the pages what they need to draw his
-  face (`src/relay.ts`: pipecat's events, the avatar's sync channel, which the
-  holder opens and says hello on, and the mouth clock).
-- **Every page is a follower** (`src/content.ts`): the widget, his face
-  (the unchanged avatar against a stand-in client fed by the relay,
-  `src/follow.ts`), the site adapter, and the moves the holder sends it. It
-  reports what it shows up the port. The stand-in carries the relayed mouth
-  clock forward to each read of it, for at most 100 ms (`src/mouth-clock.ts`):
-  a busy page reads the relay late, and the face takes a late reading for a
-  stop and shuts his mouth over his voice. A face made in the middle of a
-  reply (a page that loads while he speaks) asks the holder for the reply so
-  far (`src/catch-up.ts`: its place on the stream, its cues, its end, and that
-  he is speaking), since the reply's cues usually went out before the page
-  existed; until that answer has come and the face is listening, the page
-  holds what arrives and then hands it over in order. Each page keeps one port to the holder
-  (`src/bridge.ts` in the isolated world, `src/hub.ts` in the page's world).
-- **The service worker** (`src/background.ts`) makes the holder on the first
-  press of the call button, with the reasons `USER_MEDIA` and `WEB_RTC` (they
-  keep the document alive through any silence; `AUDIO_PLAYBACK` alone closes
-  it after 30 s without sound), one at a time, and tells every Cannon Home
-  tab when it is up (`holder-up`): a port opened before the holder existed has
-  no one at the other end, so pages open theirs on that word. It also opens and
-  focuses tabs for his moves (an offscreen document has no `chrome.tabs`) and
-  keeps the language choice.
+- **The holder** (`src/holder.ts` → `startHolder`) runs stock pipecat on
+  `@voqalize/client-transport`, plays his voice, keeps every open Cannon Home
+  tab and sends the brain `tabs_changed`, fires his cues as he speaks (Stage's
+  timeline), sends each move to the tab it belongs on, and relays to the pages
+  what they need to draw his face. A reply that opens on another page loads
+  it as his voice starts (the store takes seconds to load).
+- **Every page is a follower** (`src/content.ts` →
+  `defineSiteExtension`): the widget, his face, and Stage on the page: the
+  moves `src/cannonhome-actions.ts` registers, made one at a time, each ringed
+  with the spotlight before it acts and answered with one `stage_result`.
+- **The service worker** (`src/background.ts` → `startBackground`) makes the
+  holder on the first press of the call button, opens and focuses tabs for his
+  moves (only Cannon Home's own pages, never past the delivery form, and
+  WhatsApp), keeps each tab's move for its next page and keeps the language
+  choice.
 - **The session is minted by the page.** On the call button the page calls
   `sessions.connect` with the publishable key (its fetch carries
-  cannonhome.cl's Origin, which the key allows; a `chrome-extension://` origin
-  cannot be added to a publishable key) and hands the answer to the holder,
-  which connects.
-- **A move for a page that is loading waits for it.** When a page starts
-  loading another document it tells the holder (`leaving`); a move sent to
-  that tab meanwhile is kept and delivered when the next page says `hello`.
-  A move that itself loads a page finishes there (the adapter's
-  `sessionStorage` leftover, as before).
+  cannonhome.cl's Origin, which the key allows) and hands the answer to the
+  holder, which connects.
+- **A move that loads a page finishes there.** A move sent while a tab loads
+  is kept and made on its next page; a move that itself loads a page (a
+  product, a listing, the bag, the checkout) carries the rest of itself there
+  with the same call, and the next page reports its result.
 - **The call ends** on End (any tab), when the call drops, or when no Cannon
-  Home page has been open for 15 s; the holder then closes. Reloading or
-  updating the extension ends it too.
+  Home page has been open for 15 s.
 
 ## The widget across a page load
 
-The call outlives a page load, and in a call the widget does too, as near as a
-page can: it is back the moment the next page shows, not once the page has
-parsed and Magento's scripts have run (that wait was 1 to 3 s with no widget
-and no face).
-
-- **What the page leaves.** While a call is on, `content.js` keeps a picture of
-  it in the tab's `sessionStorage` (`src/persist.ts`): live or connecting,
-  muted or not, the status line, the language, where the visitor put the widget
-  and whether it is minimised, and the character's still for the invite. No
-  picture of his face is kept. It is taken away when the call ends, and is
-  stale after 60 s.
-- **The early shell.** `shell.js` (`src/shell.ts`) runs in the page's world at
-  `document_start`, before any of the page's scripts. Off a call it reads that
-  one key and does nothing else. In a call it mounts the widget on `<html>` at
-  once, as the last page left it: the card, the status line and its buttons,
-  so the visitor can always mute or end the call. Where his face goes there is
-  nothing, no picture of him, while the page loads: his face returns when the
-  live face has drawn, and his voice never stops. `content.js` (still at
-  `document_idle`) adopts that widget instead of mounting another, asks the
-  holder for the call's state as before, starts building his face at once
-  (`preloadAvatar`), and fades the live face in once it has drawn, already
-  moving with the reply he is in the middle of (the catch-up). A frozen or
-  made-up face in the meantime was tried and dropped: an empty slot for a
-  second reads better than a face that does not match his voice. Should the
-  holder be gone (no holder, or no word from it in 8 s), the carried widget
-  goes back to the invite.
-- **The view transition.** In a call both pages opt in to a cross-document
-  view transition (`@view-transition { navigation: auto }`, Chrome 126+): the
-  page that leaves (`content.js`, while a call is on) and the page that arrives
-  (`shell.js`, from what was kept). The widget's host has its own
-  `view-transition-name` (`voqalize-javier`), so the page fades under it in
-  150 ms while it stays where it is. The host is a see-through, fixed box over
-  the viewport that takes no pointer events (the widget inside it does), so it
-  is captured whole and in place. Older Chrome ignores the rule and loads the
-  page as before, with the widget still up early. Off a call no transition is
-  asked for.
+In a call the widget is back the moment the next page shows, as the last page
+left it (the early shell, `src/shell.ts` → `startShell`), with an empty face
+slot until the live face has drawn, and the page load is a view transition
+under it (`voqalize-javier`). Off a call nothing mounts early.
 
 ## The microphone, once
 
@@ -250,50 +211,35 @@ grant frame's `allow="microphone"` is enough.
 
 ## What is in it
 
-- `src/cannonhome-actions.ts` — the Magento adapter, `window.voqalizeCannonhome
-  = {run, context, start, commands}`: the eight moves above plus the cue moves
-  (`navigate`, `show_section`, `open_faq`), one at a time (a promise chain),
-  and the reporters (`page_changed` with the page's kind from Magento's body
-  classes, `product_shown`, `listing_shown`, `search_suggest`, `prices_read`,
-  `cart_state`, `checkout_state`, `command_done` / `command_failed`). A move that loads another
-  page leaves the rest of itself in `sessionStorage` and the adapter on the
-  next page finishes it.
+- `src/cannonhome-actions.ts` — the Magento adapter: the moves above,
+  registered through the scene (`scene.registerAll`) by the ids
+  `cannonhome/scene.json` declares: the store's own (`page.open`, `page.show`,
+  `page.faq`, `filter_listing`, `open_product`, `product_tab`, `check_prices`,
+  `start_checkout`, `fill_checkout`) and the `commerce` kit's
+  (`commerce.filter`, `commerce.sort`, `commerce.search`, `commerce.cart_add`,
+  `commerce.cart_update`, `commerce.cart_show`); and the reporters:
+  `page_changed` with the page's kind from Magento's body classes,
+  `prices_read`, and what the screen holds as Stage state events
+  (`stage_event`: `product.shown`, `product.checked`, `listing.shown`,
+  `listing.filtered`, `listing.sorted`, `search.suggested`, `cart.changed`,
+  `checkout.changed`), with only the fields each slice declares and
+  `by: "agent"` with the move's `call_ref` when one of his moves made the
+  change. Every visible move rings its target before it acts.
 - `src/page.ts` — the waits (never the `load` event, which the site's
   trackers hold back for more than 15 s), the window scroll under the fixed
-  marquee bar, the ring in Cannon Home's sale red, typing, the checkout
-  guard, and the move left for the next page.
+  marquee bar, typing, and the checkout guard every press and load goes
+  through.
+- `src/site.ts` — who the site is: its hosts, its language, the widget's
+  words and colours (Cannon Home's ink and sale red, in Lato, bottom-left), and
+  the spotlight's look (3 px of the sale red).
 - `src/anchors.ts`, `src/anchor.ts` — Chrome's translator kept off what the
   adapter matches on and reports (headings, filters, product names, the
   specifications, tab titles), from `document_start`.
-- `src/holder.ts`, `src/call.html` — the holder: the call, his voice, the
-  tab registry, the routing of each Action, the moves kept for loading tabs,
-  the 15 s rule (above); `src/call-client.ts` makes the pipecat client and
-  reads the microphone permission.
-- `src/relay.ts`, `src/follow.ts` — what crosses from the holder to the pages
-  for his face, and the stand-in client the avatar draws against.
-- `src/narration.ts` — the screen follows his voice: each cue fires when the
-  call's spoken text reaches the first words of its sentence; a cue to
-  another page fires at once, so the load overlaps his reply. It runs in the
-  holder, so a load ends nothing.
-- `src/protocol.ts` — the messages between the pages, the holder and the
-  service worker.
-- `src/bridge.ts`, `src/hub.ts` — the page's port to the holder and its
-  requests of the service worker.
-- `src/background.ts` — the service worker (above).
-- `src/grant.ts`, `src/grant.html` — the extension's one-time microphone
-  grant (above).
-- `src/widget.ts` — the widget, in a shadow root, in Cannon Home's ink and
-  sale red, in Lato. It sits bottom-left (WhatsApp owns the bottom-right),
-  and moves up or minimises to keep clear of the WhatsApp tab, the bag drawer,
-  the filters drawer and the phone's sticky add-to-cart bar. It has no
-  microphone glyph, so it is not confused with the search box's own voice
-  search (GoPersonal's), which is hidden while a call is live. It also holds
-  the grant frame and the "microphone blocked" message.
-- `src/shell.ts`, `src/persist.ts` — the early shell, what a page in a call
-  leaves for the next one, and the view transition (above).
-- `src/content.ts` — the page: the widget, his face, the adapter, the moves
-  the holder sends, and on the call button the microphone check and
-  `sessions.connect` (`surface: "cannonhome-ext"`).
+- `src/holder.ts`, `src/call.html`, `src/call-client.ts` — the holder, and
+  the pipecat client it makes.
+- `src/content.ts`, `src/shell.ts`, `src/bridge.ts`, `src/background.ts`,
+  `src/grant.ts`, `src/grant.html` — the shared host's entry points, with
+  Cannon Home's configuration.
 - `src/actions.gen.ts` — the Action and event unions, generated from the brain
   with `pnpm gen`. Regenerate after changing either.
 
@@ -356,25 +302,29 @@ sorter, the dropdown, − / +, the AJAX add and the drawer) are simulated
 (`test/pages/login-modal.html`, `test/pages/checkout.html`) were saved from
 the live guest checkout with nothing typed and trimmed the same way; the
 form's región/comuna lists (the comuna's by AJAX), the phone prefix and its
-validation messages are simulated. Each move is driven through `run()` and
-its events checked, along with the moves that survive a page load, the guard
-that stops at the delivery form, and the fields that are never filled.
+validation messages are simulated. The adapter runs there on Stage's `Moves`
+and spotlight, as in the extension, with a move that loads a page carried in
+the tab's `sessionStorage` (`test/entry.ts`). Each move is driven through
+`run()` and its result and events checked, along with the moves that survive
+a page load, the guard that stops at the delivery form, the fields that are
+never filled, the filter and sort cues, and that each press is ringed before
+it happens, in Cannon Home's ring.
 
 ## Driving it from the console
 
 With no call, on a Cannon Home page:
 
 ```js
-await voqalizeCannonhome.run("search_products", { query: "sabanas king", open_index: null });
-await voqalizeCannonhome.run("filter_listing", { category_path: "/12-ropa-de-cama/20-sabanas", size: "King", color: "Blanco", threads: null, material: null, sort: "price_asc" });
-await voqalizeCannonhome.run("open_product", { path: "/sabanas-2-plazas-300-hilos-liso-fog.html", tab: "especificaciones" });
-await voqalizeCannonhome.run("check_prices", { paths: ["/sabanas-king-200-hilos-stone.html"] });
-await voqalizeCannonhome.run("show_cart", { open: true });
-voqalizeCannonhome.context();
-voqalizeCannonhome.start((event, payload) => console.log(event, payload));
+await __voqalizeCannonhome.move("commerce.search", { query: "sabanas king", open_index: null });
+await __voqalizeCannonhome.move("commerce.filter", ["tamano", "King"]);
+await __voqalizeCannonhome.move("filter_listing", { category_path: "/12-ropa-de-cama/20-sabanas", size: "King", color: "Blanco", threads: null, material: null, sort: "price_asc" });
+await __voqalizeCannonhome.move("open_product", { path: "/sabanas-2-plazas-300-hilos-liso-fog.html", tab: "especificaciones" });
+await __voqalizeCannonhome.move("check_prices", { paths: ["/sabanas-king-200-hilos-stone.html"] });
+await __voqalizeCannonhome.move("commerce.cart_show", { open: true });
+__voqalizeCannonhome.moves();
 ```
 
-`add_to_cart` really adds to the visitor's bag; remove the line afterwards.
+`commerce.cart_add` really adds to the visitor's bag; remove the line afterwards.
 `start_checkout` and `fill_checkout` really fill the live form: use obviously
 fake data, with no email (see above), press nothing, and clear the fields and
 empty the bag afterwards.

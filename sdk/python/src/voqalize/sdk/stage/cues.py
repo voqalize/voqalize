@@ -1,0 +1,401 @@
+"""Cues in a reply: the page moves when the voice says the sentence.
+
+A tool call moves the page once, when the model has finished writing — and a
+model writes a whole reply in about a second, which the voice then takes
+fifteen to say. A reply that walks through three steps would have the page at
+the first and the voice at the third. So the model writes its moves *into* the
+reply, right before the first word of the sentence they belong to::
+
+    It's an oasis in the desert. {show: Included with Your Stay} Everything
+    is included. {show: Explorations} There are nearly fifty to choose from.
+
+:class:`CueParser` takes one unit of speech as it streams, chunk by chunk, and
+hands back the text with the cues taken out — the voice never reads one — and
+each cue as a :class:`RawCue`, with the spoken text that follows it (``at``)
+and how many characters were said before it (``before``). The page segments
+``at`` into words the same way it segments what it hears, so the brain never
+splits words itself and anchors work in any script.
+
+The grammar::
+
+    cue  := "{" verb [ ":" arg ( "|" arg ){0,3} ] "}"
+    verb := [a-z]{2,12}      one of the brain's registered verbs
+    arg  := at most 80 characters, no braces or newline; trimmed
+
+Anything else in braces is not spoken either, and a cue whose verb is not
+registered is dropped. A brace the model opens and never closes is given up
+once it runs past :data:`MAX_CUE`, and what followed it is spoken.
+
+The model does not always write cues. Each sentence, once complete, is handed
+to an optional ``auto`` backstop with the cues the model placed in it that
+will actually be sent — a ``check`` (the director's resolver) runs on them
+first, so a cue it drops leaves the sentence to the backstop rather than
+silencing it. Whatever cues the backstop returns are anchored to the
+sentence's start like the model's own, or, with a character offset, to the
+word at that offset: a sentence naming four places can ring four times.
+"""
+
+from __future__ import annotations
+
+import re
+from collections.abc import Callable, Collection, Sequence
+from dataclasses import dataclass
+
+from loguru import logger
+
+from .moves import MAX_ARGS
+
+__all__ = [
+    "AT_CHARS",
+    "MAX_ARG",
+    "MAX_CUE",
+    "RELEASE_CHARS",
+    "RELEASE_TOKENS",
+    "AutoCue",
+    "AutoCues",
+    "CheckCue",
+    "CueParser",
+    "RawCue",
+    "sentences",
+]
+
+#: The longest a cue may run, braces included, before it is given up as text.
+MAX_CUE = 220
+#: The longest one argument may be.
+MAX_ARG = 80
+#: How much of the following spoken text a cue carries as ``at``.
+AT_CHARS = 48
+#: A cue is released once this many whitespace-separated tokens follow it...
+RELEASE_TOKENS = 3
+#: ...or this many characters, in a script written without spaces.
+RELEASE_CHARS = 12
+
+_CUE = re.compile(r"\{\s*([A-Za-z]+)\s*(?::(.*))?\}", re.DOTALL)
+_VERB = re.compile(r"[a-z]{2,12}")
+#: A sentence ends at a full stop, question or exclamation mark, ellipsis or
+#: danda with whitespace after it — so "$39.99" and a stop still at the end of
+#: a chunk do not end one — or at a full-width stop, which never needs a space.
+_END = re.compile(r"[.!?\u2026\u0964\u0965](?=\s)|[\u3002\uff01\uff1f]")
+
+
+def sentences(text: str) -> list[str]:
+    """``text`` cut into its sentences, by the same ends a cue's sentence has,
+    and at every line break; each one stripped, empty ones left out."""
+    out: list[str] = []
+    for line in text.split("\n"):
+        start = 0
+        for m in _END.finditer(line):
+            out.append(line[start : m.end()])
+            start = m.end()
+        out.append(line[start:])
+    return [s.strip() for s in out if s.strip()]
+
+
+#: Scripts written without spaces between words: Thai, Lao, Myanmar, Khmer,
+#: kana, CJK ideographs, half-width katakana.
+_SPACELESS = re.compile(
+    r"[\u0e00-\u0eff\u1000-\u109f\u1780-\u17ff\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f]"
+)
+
+#: One cue a backstop adds: ``(verb, args)``, anchored at its sentence's start,
+#: or ``(verb, args, offset)``, anchored at the word at character ``offset`` of
+#: the sentence it was handed.
+AutoCue = tuple[str, list[str]] | tuple[str, list[str], int]
+
+#: ``(sentence, index in the unit, the model's own cues in it that will be
+#: sent, as (verb, args))`` → cues to add, in order.
+AutoCues = Callable[[str, int, tuple[tuple[str, tuple[str, ...]], ...]], Sequence[AutoCue]]
+
+#: The director's say on one of the model's cues, once its sentence is done:
+#: the cue to send (its arguments resolved into ``resolved``), or ``None`` when
+#: it will be dropped (and the director has said why).
+CheckCue = Callable[["RawCue"], "RawCue | None"]
+
+#: The most of a cue's sentence a :class:`RawCue` carries, for the logs.
+_SENTENCE_CHARS = 160
+
+
+@dataclass(frozen=True, slots=True)
+class RawCue:
+    """A cue taken out of the speech, not yet resolved against the page."""
+
+    verb: str
+    args: tuple[str, ...]
+    at: str
+    """The spoken text that follows the cue, whitespace collapsed, up to
+    :data:`AT_CHARS` characters cut on a space where one falls; empty when
+    nothing was said after it."""
+    before: int
+    """How many characters of the unit's spoken text come before it: the
+    page's clock when it hears no spoken text to follow."""
+    unit: int = 0
+    """Which unit of speech of the turn it belongs to."""
+    auto: bool = False
+    """Whether the backstop added it, rather than the model."""
+    resolved: tuple[str, ...] | None = None
+    """The arguments ``check`` already resolved them to, sent as they are and
+    not resolved again; ``None`` before that. ``args`` stays as the model wrote
+    it, so what the brain shows the model of its own cue is its own grammar."""
+    sentence: str = ""
+    """The sentence it belongs to, as far as it was said: for the logs."""
+
+
+@dataclass(slots=True)
+class _Waiting:
+    verb: str
+    args: tuple[str, ...]
+    pos: int
+    """Where in the unit's spoken text the words after it begin."""
+    seq: int
+    auto: bool
+    resolved: tuple[str, ...] | None = None
+
+
+def _clip(text: str) -> str:
+    """``text`` cut to :data:`AT_CHARS`, on a space when one falls inside."""
+    if len(text) <= AT_CHARS:
+        return text
+    if text[AT_CHARS] == " ":
+        return text[:AT_CHARS]
+    cut = text[:AT_CHARS]
+    space = cut.rfind(" ")
+    return cut[:space] if space > 0 else cut
+
+
+def _parse(body: str) -> tuple[str, tuple[str, ...]] | None:
+    """A cue's verb and arguments, or ``None`` when ``body`` is not one."""
+    m = _CUE.fullmatch(body)
+    if m is None:
+        return None
+    verb = m.group(1).lower()
+    if _VERB.fullmatch(verb) is None:
+        return None
+    raw = m.group(2)
+    if raw is None:
+        return verb, ()
+    if "\n" in raw or "\r" in raw:
+        return None
+    args = tuple(" ".join(a.split()) for a in raw.split("|"))
+    if len(args) > MAX_ARGS or any(not a or len(a) > MAX_ARG for a in args):
+        return None
+    return verb, args
+
+
+class CueParser:
+    """One unit of speech: feed it chunks, get spoken text and cues back.
+
+    A cue comes back once :data:`RELEASE_TOKENS` whitespace-separated tokens
+    (or :data:`RELEASE_CHARS` characters of a script written without spaces)
+    have followed it, or at :meth:`flush`, in the order of where it sits in the
+    speech. With a backstop, a cue also waits for its sentence to finish, so
+    that a cue the backstop adds at that sentence's start is sent before it.
+    """
+
+    def __init__(
+        self,
+        verbs: Collection[str],
+        auto: AutoCues | None = None,
+        *,
+        unit: int = 0,
+        on_unknown: Callable[[RawCue], None] | None = None,
+        check: CheckCue | None = None,
+    ) -> None:
+        self._verbs = frozenset(verbs)
+        self._auto = auto
+        self._unit = unit
+        self._on_unknown = on_unknown
+        self._check = check
+        #: Everything the unit has said so far, as text: a word split across
+        #: two chunks is still one word here.
+        self._said = ""
+        self._pending = ""
+        self._waiting: list[_Waiting] = []
+        self._seq = 0
+        #: Where the next sentence starts, and how many came before it.
+        self._sentence_from = 0
+        self._sentences = 0
+        #: Where each finished sentence ends.
+        self._ends: list[int] = []
+
+    def feed(self, chunk: str) -> tuple[str, list[RawCue]]:
+        """The speakable part of ``chunk`` and the cues now anchored."""
+        out = ""
+        text = self._pending + chunk
+        self._pending = ""
+        i = 0
+        while i < len(text):
+            # A space already said, then a cue taken out: the space after the
+            # cue would be a second one. Skipped here rather than tidied after,
+            # so every recorded position stays true.
+            if (out or self._said).endswith((" ", "\t")):
+                while i < len(text) and text[i] in " \t":
+                    i += 1
+            start = text.find("{", i)
+            if start < 0:
+                out += text[i:]
+                break
+            out += text[i:start]
+            end = text.find("}", start)
+            if end < 0:
+                if len(text) - start > MAX_CUE:
+                    # Never closed: not a cue. Drop the brace, speak the rest.
+                    out += text[start + 1 :]
+                else:
+                    self._pending = text[start:]
+                break
+            body = text[start : end + 1]
+            parsed = _parse(body)
+            if parsed is not None and parsed[0] in self._verbs:
+                verb, args = parsed
+                pos = len(self._said) + len(out)
+                self._wait(verb, args, pos, auto=False)
+            elif parsed is not None:
+                logger.info("stage: {!r} is not a move of this brain; dropped", body)
+                if self._on_unknown is not None:
+                    pos = len(self._said) + len(out)
+                    self._on_unknown(RawCue(parsed[0], parsed[1], "", pos, self._unit))
+            # Anything else in braces is not for the voice either.
+            i = end + 1
+        self._said += out
+        self._complete(final=False)
+        return out, self._release(final=False)
+
+    def flush(self) -> tuple[str, list[RawCue]]:
+        """The end of the unit: an unclosed brace is text, and every cue still
+        waiting comes back with what followed it."""
+        rest = self._pending.lstrip("{")
+        self._pending = ""
+        self._said += rest
+        self._complete(final=True)
+        return rest, self._release(final=True)
+
+    def _wait(self, verb: str, args: tuple[str, ...], pos: int, *, auto: bool) -> None:
+        self._waiting.append(_Waiting(verb, args, pos, self._seq, auto))
+        self._seq += 1
+
+    def _complete(self, *, final: bool) -> None:
+        """Offer each sentence finished since the last call to ``auto``, with
+        the model's cues inside it, and queue what it adds at its start."""
+        while True:
+            m = _END.search(self._said, self._sentence_from)
+            if m is not None:
+                end = m.end()
+            elif final and self._said[self._sentence_from :].strip():
+                end = len(self._said)
+            else:
+                return
+            start, self._sentence_from = self._sentence_from, end
+            self._ends.append(end)
+            body = self._said[start:end]
+            if self._auto is not None and body.strip():
+                self._backstop(start, end, body)
+            self._sentences += 1
+
+    def _backstop(self, start: int, end: int, body: str) -> None:
+        """Settle the model's cues in one finished sentence, then offer it to
+        ``auto`` with the ones that will be sent, and queue what it adds."""
+        assert self._auto is not None
+        mine = [w for w in self._waiting if not w.auto and start <= w.pos < end]
+        if self._check is not None:
+            for w in mine:
+                if w.resolved is not None:
+                    continue
+                raw = RawCue(
+                    w.verb,
+                    w.args,
+                    self._at(w.pos, final=False),
+                    w.pos,
+                    self._unit,
+                    sentence=self._sentence_at(w.pos),
+                )
+                got = self._check(raw)
+                if got is None:
+                    self._waiting.remove(w)
+                    continue
+                w.resolved = got.resolved if got.resolved is not None else got.args
+            mine = [w for w in mine if w in self._waiting]
+        placed = tuple(
+            (w.verb, w.resolved if w.resolved is not None else w.args)
+            for w in sorted(mine, key=lambda w: (w.pos, w.seq))
+        )
+        text = body.strip()
+        first = start + len(body) - len(body.lstrip())
+        added = self._auto(text, self._sentences, placed)
+        if not added:
+            logger.info(
+                "stage: backstop sentence {}: none ({}) {!r}",
+                self._sentences,
+                f"the model placed {', '.join(v for v, _ in placed)}" if placed else "nothing fits",
+                text[:_SENTENCE_CHARS],
+            )
+            return
+        for cue in added:
+            verb, args = cue[0], cue[1]
+            if verb not in self._verbs:
+                logger.info("stage: backstop cue {!r} is not a move; dropped", verb)
+                continue
+            pos = first
+            if len(cue) == 3:
+                pos = first + self._word_start(text, cue[2])
+            logger.info(
+                "stage: backstop sentence {}: added {{{}: {}}} at {} {!r}",
+                self._sentences,
+                verb,
+                " | ".join(args),
+                pos - first,
+                text[:_SENTENCE_CHARS],
+            )
+            self._wait(verb, tuple(args), pos, auto=True)
+
+    @staticmethod
+    def _word_start(text: str, offset: int) -> int:
+        """``offset`` moved back to the start of the word it falls in."""
+        at = max(0, min(offset, len(text)))
+        while at > 0 and not text[at - 1].isspace():
+            at -= 1
+        return at
+
+    def _sentence_at(self, pos: int) -> str:
+        """The sentence ``pos`` sits in, as far as it has been said."""
+        start = max((e for e in self._ends if e <= pos), default=0)
+        end = min((e for e in self._ends if e > pos), default=len(self._said))
+        return " ".join(self._said[start:end].split())[:_SENTENCE_CHARS]
+
+    def _ready(self, pos: int) -> bool:
+        if self._auto is not None and pos >= self._sentence_from:
+            # Its sentence is not finished, so the backstop has not yet had
+            # its say: a cue it adds at the sentence's start must go first.
+            return False
+        after = self._said[pos:]
+        tokens = after.split()
+        complete = len(tokens) if after[-1:].isspace() else len(tokens) - 1
+        if complete >= RELEASE_TOKENS:
+            return True
+        return _SPACELESS.search(after) is not None and len("".join(tokens)) >= RELEASE_CHARS
+
+    def _at(self, pos: int, *, final: bool) -> str:
+        after = self._said[pos:]
+        if not final and _SPACELESS.search(after) is None and not after[-1:].isspace():
+            # The last token may still be growing in the next chunk.
+            after = after[: max(after.rfind(" "), after.rfind("\t"), after.rfind("\n"), 0)]
+        return _clip(" ".join(after.split()))
+
+    def _release(self, *, final: bool) -> list[RawCue]:
+        self._waiting.sort(key=lambda w: (w.pos, w.seq))
+        done: list[RawCue] = []
+        while self._waiting and (final or self._ready(self._waiting[0].pos)):
+            w = self._waiting.pop(0)
+            at = self._at(w.pos, final=final)
+            done.append(
+                RawCue(
+                    w.verb,
+                    w.args,
+                    at,
+                    w.pos,
+                    self._unit,
+                    w.auto,
+                    resolved=w.resolved,
+                    sentence=self._sentence_at(w.pos),
+                )
+            )
+        return done

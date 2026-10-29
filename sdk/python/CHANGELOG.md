@@ -17,7 +17,29 @@ kept for the history, and nothing installable was ever cut from them.
 
 ## Unreleased
 
+## 0.12.0-rc1
+
+A release candidate, not a stable release: `pip install voqalize-agent-sdk`
+still installs 0.11.0, and this one is installed only by asking for it
+(`voqalize-agent-sdk==0.12.0rc1`). `voqalize.sdk.stage` is new and may change
+before 0.12.0.
+
 ### Added
+
+- **`voqalize.sdk.stage`: the agent shows and does things on a page while it
+  talks.** Not part of `voqalize.sdk.__all__`; import it as `voqalize.sdk.stage`.
+  A move's class (`MoveClass`: look, navigate, reversible, confirmed) decides how
+  it is delivered; cues in a reply (`{show: Rooms}`) are taken out of its words by
+  `Stage.cued` and sent to the page ahead of the voice; every move gets one
+  `StageResult`, and a missing one is reported `unknown`. A turn that promises a
+  move and never sends it is reported (`Stage.end_turn`). The page's state comes
+  back as `StageEvent`s folded into a `Mirror`, read through a tool. Moves, slices
+  and state events are declared in a Stage Spec (`StageSpec`, `load_spec`, the
+  `commerce` kit), with `stage.schema.json` generated from it.
+- **`voqalize stage gen | check | schema`** and **`voqalize types --scene`**:
+  a spec written out as Python (moves, argument models, the read tool's request),
+  TypeScript (`defineScene`) and page JSON; a lint that runs every cue through
+  the leaked-call guard.
 
 - **`Config.ack` and `AckConfig`.** Voqalize can say a short acknowledgement
   of its own — "Let me check.", "Sure." — while the brain works on its reply,

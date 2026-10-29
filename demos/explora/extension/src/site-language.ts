@@ -16,12 +16,14 @@
  * English.
  */
 
+import { askWorker } from "@voqalize/stage/extension";
+
 import { fetchAlternates } from "./hreflang";
-import { askWorker } from "./hub";
 
 export type Lang = "en" | "es";
 
 export const SITE = "https://www.explora.com";
+export const BOOKING = "https://reservations.explora.com";
 const CACHE_KEY = "voqalize.explora.alternates";
 
 export const onSite = (host = location.host) => /^(www\.)?explora\.com$/i.test(host);
