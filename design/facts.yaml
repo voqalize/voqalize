@@ -218,13 +218,20 @@ facts:
       two are deliberately apart between a bump and the tag that publishes it.
 
   sdk.python.version.published:
-    value: '0.9.0'
+    value: '0.12.0'
     source: https://pypi.org/pypi/voqalize-agent-sdk/json
-    verified: 2026-10-16
+    verified: 2026-10-29
     reproduce: >-
       curl -s https://pypi.org/pypi/voqalize-agent-sdk/json
       | python3 -c "import sys,json;print(json.load(sys.stdin)['info']['version'])"
     note: >-
+      Published 2026-10-29 by the `python-sdk-v0.12.0` tag, after the
+      pre-releases 0.12.0rc1 and 0.12.0rc2 the same day, and level with
+      sdk.python.version.tree again; the install lines across the docs moved
+      from 0.11.0 to 0.12.0, and the Stage page gained its install lines, with
+      @voqalize/stage 0.1.0 published on npm alongside. 0.12.0 adds Stage
+      (voqalize.sdk.stage) and Config.ack and retires the Kokoro voices.
+      0.11.0 was published 2026-10-21 and 0.10.0 on 2026-10-16.
       Published 2026-10-16 by the `python-sdk-v0.9.0` tag, and level with
       sdk.python.version.tree again; the install lines across the docs moved
       from 0.6.0 to 0.9.0 the same day. 0.9.0 puts the thirty character voices
@@ -271,8 +278,8 @@ facts:
             Speech, SpeechChunk, SpeechEnd, SpeechStart, TurnStep, Unsupported,
             UserIdle, UserMessage, WireError, configure_logging, run_session, serve,
             session_context]
-    source: https://pypi.org/pypi/voqalize-agent-sdk/0.11.0/json
-    verified: 2026-10-21
+    source: https://pypi.org/pypi/voqalize-agent-sdk/0.12.0/json
+    verified: 2026-10-29
     reproduce: >-
       uv venv /tmp/v -q --python 3.12
       && VIRTUAL_ENV=/tmp/v uv pip install -q voqalize-agent-sdk==0.6.0
