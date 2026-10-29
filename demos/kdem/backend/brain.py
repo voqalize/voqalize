@@ -201,7 +201,8 @@ WHAT YOU DO NOT DO. Each of these gets one polite sentence and, where it helps, 
 
 LANGUAGE. The call starts in English, and English stays the main language. Besides English you speak Kannada, the language of Karnataka, in a Kannada voice.
 - NEVER SAY ITS NAME IN ENGLISH. In English speech, never say the name of the Kannada language: the English voice cannot say it. If you must refer to it, say "Karnataka's own language"; usually, simply switch. If they ask which languages you speak, or whether you speak it, say: "I speak English, and Karnataka's own language too. Just speak to me in it, or tap ಕನ್ನಡ at the top of my panel."
-- SWITCHING TO KANNADA. If the visitor asks for Kannada, or a turn looks like Kannada, call set_language with kannada at once, in that turn, and say NOTHING yourself: no line before the call and none after. The voice changes first, and then a written Kannada line is said for you, asking them to say it again. From their next turn on, speak Kannada, in Kannada script. While you are in English the recognizer only knows English, so Kannada arrives as English words forced onto Kannada sounds; a turn that makes no sense as English is usually Kannada, and the sounds that survive are words like "naanu", "nanna", "beku", "illa", "enu", "hesaru", "maadi", "gottilla". Do not ask whether to switch: switch. If you were wrong, the visitor speaks English and you switch back, or they tap English on the page.
+- SWITCHING TO KANNADA. If the visitor asks for Kannada, or a turn looks like Kannada, call set_language with kannada at once, in that turn, and say NOTHING yourself: no line before the call and none after. The voice changes first, and then a written Kannada line is said for you, asking them to say it again. From their next turn on, speak Kannada, in Kannada script. While you are in English the recognizer only knows English, so Kannada arrives as English words forced onto Kannada sounds, and the sounds that survive are words like "naanu", "nanna", "beku", "illa", "enu", "hesaru", "maadi", "gottilla". A turn with such words in it is Kannada: do not ask whether to switch, switch. If you were wrong, the visitor speaks English and you switch back, or they tap English on the page.
+- MISHEARD. A turn that reads as neither English nor Kannada (garbled words, or words that look like another language) was misheard, often over noise. Say only: "Sorry, I didn't catch that. Could you say it again?" Do not search on it, do not answer a guess at it, and never switch the language on it.
 - SWITCHING BACK. In Kannada mode English arrives spelled in Kannada script ("ಐ ವಾಂಟ್ ..." is "I want ..."); judge by the small grammar words, not by nouns. When they speak English or ask for it, call set_language with english, again saying nothing yourself: a written English line is said for you in the English voice.
 - What does NOT count as switching: one borrowed English word inside a Kannada sentence ("ನನಗೆ startup fund ಬೇಕು" is still Kannada), or one Kannada word inside an English sentence. Judge by the whole sentence, not a word.
 - Only English and Kannada are offered; if they ask for another language, say so in English. The site is in English, so always write search_kdem queries in English, whatever language the call is in.
@@ -332,7 +333,7 @@ LINES: dict[Said, Mapping[Language, str]] = {
         Language.KN: "ಫಾರ್ಮ್ {title} ಪುಟದಲ್ಲಿದೆ. ಅಲ್ಲಿಗೆ ಕರೆದುಕೊಂಡು ಹೋಗಲೇ?",
     },
     "say_again": {
-        Language.EN: "Sorry, could you say that again?",
+        Language.EN: "Sorry, I didn't catch that. Could you say it again?",
         Language.KN: "ಕ್ಷಮಿಸಿ, ಅದನ್ನು ಮತ್ತೊಮ್ಮೆ ಹೇಳುತ್ತೀರಾ?",
     },
     "dont_know": {
@@ -613,6 +614,19 @@ the yes that ``go_to_page`` otherwise waits for. A plain question ("what events
 are going on?", "tell me about the seed fund") is not one: she answers it, and
 offers the page."""
 
+
+_KANNADA_HEARD = re.compile(
+    r"[\u0c80-\u0cff]|\bkannad"
+    r"|\b(?:naanu|nanu|nanna|nange|nanage|nimma|beku|beda|illa|ilva|enu|yenu|hesaru|maadi"
+    r"|madi|gottilla|gothilla|haudu|howdu|swalpa|bagge|hegide|hegiddira|yaake|elli|yavaga"
+    r"|kodi|helkodi|heli|banni|namaskara|dhanyavada|dhanyavadagalu)\b",
+    re.IGNORECASE,
+)
+"""What Kannada heard by the English recognizer still shows: the script, the
+language's name, or a common Kannada word that survives as English letters.
+A switch to Kannada by voice needs one of them in what the visitor said: a
+garbled turn ("Ferro vai la dar agua") switched a call once, and the visitor
+then heard a language they had not spoken."""
 
 _SEARCHES_PER_TURN = 2
 """A broad question may take a second search in other words; never a third."""
@@ -1414,6 +1428,14 @@ class KdemBrain(GeminiBrain):
         if speech.code == self.spoken:
             self._pending = None
             return f"Already in {speech.name}. Carry on."
+        if speech.code == Language.KN and not _KANNADA_HEARD.search(self._heard):
+            # Nothing Kannada in it: a misheard turn, not a language.
+            logger.info("kdem: set_language kannada refused: nothing Kannada was heard")
+            self._say("say_again")
+            return (
+                "Not switched: nothing in what was heard is Kannada, so it was most likely "
+                "misheard. Ask them to say it again, in English, and keep the call in English."
+            )
         # Not sent here: a tool returns within its budget, and the switch has to
         # land before the line the new voice says. respond() makes it, awaited,
         # once this response has streamed.

@@ -1728,3 +1728,52 @@ async def test_a_silent_point_while_the_page_opens_says_it_will_highlight() -> N
         assert [u.text for u in turn.units] == [
             "I'll highlight early-stage startups in Mysuru once the page opens."
         ]
+
+
+# ─── A misheard turn never switches the language ─────────────────────────────
+
+
+GARBLED = "Ferro vai lá dar água."
+
+
+async def test_a_garbled_turn_does_not_switch_to_kannada_and_she_asks_again() -> None:
+    """A noisy, misheard line that looked like another language was taken for
+    Kannada, and the call switched. Now a switch to Kannada by voice needs
+    something Kannada in what was heard; this one is refused, nothing moves,
+    and she asks them to say it again, in English."""
+    llm = ScriptedGemini({GARBLED: call("set_language", request={"language": "kannada"})})
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        before = len(rig.driver.requests)
+        turn = await rig.driver.user_says(GARBLED)
+        check_turn(rig, turn, units=1)
+        assert [u.text for u in turn.units] == [
+            "Sorry, I didn't catch that. Could you say it again?"
+        ]
+        assert len(rig.driver.requests) == before  # no configure: both legs stay
+        assert _changes(rig) == []
+        brain = rig.brain
+        assert isinstance(brain, KdemBrain) and brain.spoken == Language.EN
+        check_voice_pair(rig, voice=VOICE, language="en")
+
+
+@pytest.mark.parametrize(
+    "heard",
+    ["Naanu startup fund bagge beku", "Can we speak in Kannada?", "ನನಗೆ ಮಾಹಿತಿ ಬೇಕು", "enu idu"],
+)
+def test_what_counts_as_kannada_heard(heard: str) -> None:
+    assert kdem_brain._KANNADA_HEARD.search(heard)  # pyright: ignore[reportPrivateUsage]
+
+
+@pytest.mark.parametrize(
+    "heard",
+    [GARBLED, "Answer Punjab or E.", "Uh highway in Greece.", "Okay. How does that all right?"],
+)
+def test_what_does_not(heard: str) -> None:
+    assert not kdem_brain._KANNADA_HEARD.search(heard)  # pyright: ignore[reportPrivateUsage]
+
+
+def test_the_prompt_asks_again_on_a_misheard_turn() -> None:
+    assert "MISHEARD." in _SYSTEM_INSTRUCTION
+    assert "never switch the language on it" in _SYSTEM_INSTRUCTION
+    assert "a turn that makes no sense as English is usually Kannada" not in _SYSTEM_INSTRUCTION
