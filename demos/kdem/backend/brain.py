@@ -255,6 +255,7 @@ Said = Literal[
     "offer",
     "go",
     "point",
+    "point_soon",
     "document",
     "filled",
     "already_here",
@@ -285,6 +286,10 @@ LINES: dict[Said, Mapping[Language, str]] = {
     "point": {
         Language.EN: "Here's {text}, highlighted on the page.",
         Language.KN: "{text} ಇಲ್ಲಿದೆ, ಪುಟದಲ್ಲಿ ಗುರುತಿಸಿದ್ದೇನೆ.",
+    },
+    "point_soon": {
+        Language.EN: "I'll highlight {text} once the page opens.",
+        Language.KN: "ಪುಟ ತೆರೆದ ಮೇಲೆ {text} ಅನ್ನು ಗುರುತಿಸುತ್ತೇನೆ.",
     },
     "document": {
         Language.EN: "I've opened {title} beside you.",
@@ -788,8 +793,11 @@ class KdemBrain(GeminiBrain):
         self._heard = ""
         #: The page Aria offered to take them to, and in which turn.
         self._offered: tuple[str, int] | None = None
-        #: The page she took them to, until they arrive there.
+        #: The page she took them to, until they arrive there, and in which turn.
         self._took_to: str | None = None
+        self._took_turn = 0
+        #: A phrase to point at on that page, sent when they arrive there.
+        self._point_on_arrival: str | None = None
         #: The phrase she last pointed at, for a page that could not show it.
         self._pointed: str | None = None
         #: KAN form: who filled each field ("aria" or "visitor"), and a mobile
@@ -999,12 +1007,21 @@ class KdemBrain(GeminiBrain):
             return
         self.here = here
         line = self._where = _where_they_are(event.path, moved=True)
+        waiting, self._point_on_arrival = self._point_on_arrival, None
         if self._took_to is not None and ALLOWLIST.canonical(here) == self._took_to:
             self._took_to = None
             line += (
                 " You took them here: carry on the conversation where it was, pointing at "
                 "the part they need, and do not greet them again."
             )
+            if waiting is not None:
+                # The point she made while the page was loading: shown now it is here.
+                self._pointed = waiting
+                self.session.dispatch(PointAt(text=waiting))
+                logger.info("kdem: point_at {!r} on {} (on arrival)", waiting, path_of(here))
+                line += f' What you pointed at ("{waiting}") is highlighted now.'
+        elif waiting is not None:
+            logger.info("kdem: point_at {!r} dropped: they went elsewhere", waiting)
         logger.info(
             "kdem: page_viewed {} ({})", path_of(here), "named" if _page(here) else "unnamed"
         )
@@ -1047,6 +1064,15 @@ class KdemBrain(GeminiBrain):
 
     def _here(self) -> str | None:
         return ALLOWLIST.canonical(self.here) if self.here else None
+
+    def _going_to(self) -> str | None:
+        """The page she sent them to that has not opened yet: sent this turn or
+        the one before, and no page_viewed for it since. Older than that, the
+        move is taken not to have happened."""
+        took = self._took_to
+        if took is None or took == self._here() or self._turn - self._took_turn > 1:
+            return None
+        return took
 
     def _cant_open(self) -> None:
         """Her line for a page she may not open: Contact Us instead, as the
@@ -1175,7 +1201,8 @@ class KdemBrain(GeminiBrain):
                 "go_to_page with it."
             )
         self._offered = None
-        self._took_to = dest
+        self._took_to, self._took_turn = dest, self._turn
+        self._point_on_arrival = None
         self.session.dispatch(Navigate(url=dest))
         logger.info(
             "kdem: go_to_page {} ({})", path_of(dest), "a yes" if said_yes else "they asked"
@@ -1196,7 +1223,11 @@ class KdemBrain(GeminiBrain):
             logger.info("kdem: point_at refused: {} characters", len(text))
             self._say("point_miss")
             return f"Not shown: pass a shorter phrase, under {_POINT_CHARS} characters."
-        page = KNOWLEDGE.kb.page(self.here) if self.here else None
+        # The page she has just taken them to is still loading: the point is
+        # checked against that page, and sent when it has opened.
+        going = self._going_to()
+        where = going or self.here
+        page = KNOWLEDGE.kb.page(where) if where else None
         if page is None:
             logger.info("kdem: point_at {!r} refused: no text for the page they are on", text)
             self._say("point_miss")
@@ -1205,9 +1236,15 @@ class KdemBrain(GeminiBrain):
             logger.info("kdem: point_at {!r} refused: not on {}", text, path_of(page.url))
             self._say("point_miss")
             return (
-                f"Not shown: {text!r} is not on the page they are on now ({page.title}). "
+                f"Not shown: {text!r} is not on the page they are "
+                f"{'going to' if going else 'on now'} ({page.title}). "
                 "Pass a phrase from that page, or offer to take them to the page that has it."
             )
+        if going is not None:
+            self._point_on_arrival = text
+            logger.info("kdem: point_at {!r} waits for {} to open", text, path_of(page.url))
+            self._say("point_soon", text=_spoken_text(text))
+            return "ok: the page is still opening; it lights up as soon as it has."
         self._pointed = text
         self.session.dispatch(PointAt(text=text))
         logger.info("kdem: point_at {!r} on {}", text, path_of(page.url))

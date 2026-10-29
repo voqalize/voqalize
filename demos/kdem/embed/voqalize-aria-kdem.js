@@ -201,10 +201,13 @@
       return null;
     }
     let pointed = null, pointTimer = 0;
-    function pointAt(text) {
+    // A page that has only just opened may still be drawing its sections:
+    // one more look a moment later before the brain is told it missed.
+    function pointAt(text, again = true) {
       const want = squash(text);
       const el = want && squash(document.body.innerText).includes(want) ? holding(document.body, want) : null;
       if (!el) {
+        if (again) { setTimeout(() => { if (client) pointAt(text, false); }, 1200); return; }
         try { client?.sendUIEvent("point_missed", { text }); } catch {}
         return;
       }

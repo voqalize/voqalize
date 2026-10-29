@@ -1665,3 +1665,66 @@ def test_portal_problems_are_the_kdem_teams_said_plainly() -> None:
     assert "a form that will not submit, a login or a password" in _SYSTEM_INSTRUCTION
     assert "the KDEM team handles them. Say so plainly" in _SYSTEM_INSTRUCTION
     assert "never twice running" in _SYSTEM_INSTRUCTION
+
+
+# ─── Pointing while the page she took them to is still opening ────────────────
+
+
+async def test_a_point_made_while_the_page_opens_waits_for_it() -> None:
+    """A visitor heard "I couldn't find that on this page" while the page she
+    had taken them to was still loading: the point was checked against the page
+    they were leaving. Now a point made before that page's page_viewed is
+    checked against the page they are going to, and sent when it opens."""
+    llm = _llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says("Take me to the seed fund page.")
+        assert _navigations(rig) == [{"url": SEED_FUND}]
+        await rig.driver.user_says("Where are the startups listed?")
+        assert _points(rig) == []  # not yet: the page has not opened
+        await _viewed(rig, {"path": "/beyond-bengaluru-cluster-seed-fund/", "title": "x"})
+        assert _points(rig) == [{"text": "early-stage STARTUPS in Mysuru"}]
+        await rig.driver.user_says("Thank you.")
+    seen = _said(llm.captured_contents[-1])
+    assert "You took them here" in seen and "is highlighted now" in seen
+    assert _result(llm, "point_at").startswith("ok: the page is still opening")
+
+
+async def test_while_the_page_opens_the_old_pages_text_is_not_pointed_at() -> None:
+    llm = _llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": "/resource/"})
+        await rig.driver.user_says("Take me to the seed fund page.")
+        await rig.driver.user_says("Where are the reports?")  # on the page they are leaving
+        await _viewed(rig, {"path": "/beyond-bengaluru-cluster-seed-fund/", "title": "x"})
+        assert _points(rig) == []
+        await rig.driver.user_says("Thank you.")
+    assert "the page they are going to" in _result(llm, "point_at")
+
+
+async def test_a_waiting_point_is_dropped_when_they_open_another_page() -> None:
+    async with demo("kdem", _llm()) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says("Take me to the seed fund page.")
+        await rig.driver.user_says("Where are the startups listed?")
+        await _viewed(rig, {"path": "/contact-us/", "title": "x"})
+        await _viewed(rig, {"path": "/beyond-bengaluru-cluster-seed-fund/", "title": "x"})
+        assert _points(rig) == []
+
+
+async def test_a_silent_point_while_the_page_opens_says_it_will_highlight() -> None:
+    llm = ScriptedGemini(
+        {
+            "Take me to the seed fund page.": reply_and_call(
+                "Taking you there.", "go_to_page", request={"url": SEED_FUND}
+            ),
+            "Who is it for?": call("point_at", request={"text": "early-stage startups in Mysuru"}),
+        }
+    )
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says("Take me to the seed fund page.")
+        turn = await rig.driver.user_says("Who is it for?")
+        assert [u.text for u in turn.units] == [
+            "I'll highlight early-stage startups in Mysuru once the page opens."
+        ]
