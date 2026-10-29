@@ -96,6 +96,25 @@ voice; `stage.handle` takes the page's results and state events. A sentence that
 promises a move ("I'm opening the calendar") and a turn that never sends it is
 reported, so the brain can make the move after all.
 
+### When your app runs its own actions
+
+Some apps already have an action runner of their own, with its own gates, queue
+and timeouts. Let it decide when a move goes, and let Stage only keep count:
+
+```python
+ref = self.stage.send("cart.add", {"product": sku}, queue=False)
+# ... later, if your runner gives up on it:
+result = self.stage.abandon(ref, "the checkout step timed out")
+```
+
+With `queue=False` the move is sent at once and never queued or refused, so
+`send` always returns its `call_ref`. Stage still times it, counts it toward the
+turn's promises and matches the page's result to it. `abandon` tells Stage your
+runner stopped waiting: that one move comes back as an `unknown` result now, the
+same as a move whose time ran out, and if the page answers it after all,
+`stage.handle` returns that answer once with `late` set. Every other move keeps
+its time.
+
 ## The page
 
 `@voqalize/stage` attaches to the pipecat client the app already has. It never

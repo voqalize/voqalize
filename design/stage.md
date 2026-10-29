@@ -160,9 +160,14 @@ class Stage:
                  clock: Callable[[], float] = time.monotonic) -> None: ...
     def cued(self, turn: AsyncGenerator[Speech, None]) -> AsyncGenerator[Speech, None]:
         """Strip cues from SpeechChunks, resolve, dispatch StageCue with a fresh call_ref."""
-    def send(self, move: str, args: dict, *, when: Literal["now","quiet"]="now") -> str | None:
+    def send(self, move: str, args: dict, *, when: Literal["now","quiet"]="now",
+             queue: bool = True) -> str | None:
         """Tool-delivered move: one at a time per policy.serial; returns the call_ref, or
-        None when it was queued behind the running one (it is sent when that one answers)."""
+        None when it was queued behind the running one (it is sent when that one answers).
+        queue=False (overload -> str): sent now, never queued or refused, for an app whose
+        own action runner schedules moves; still minted, timed, counted for the turn and
+        matched. A serial one becomes the running move: later queued sends wait behind it,
+        and the move it overtook no longer holds the queue."""
     # overloads: StageResult -> StageResult | None; StageHello -> None;
     # StageProgress -> StageProgress | None
     def handle(self, event: StageResult | StageHello | StageProgress) -> ...:
@@ -176,6 +181,10 @@ class Stage:
     def move_of(self, call_ref: str) -> Move | None: ...  # rarely needed: results name it
     def expire(self) -> list[StageResult]:
         """Results that timed out, as outcome="unknown"."""
+    def abandon(self, call_ref: str, detail: str | None = None) -> StageResult | None:
+        """The app's runner stopped waiting: that one move as expire() reports it
+        (unknown now, queue and promises settled the same way, a later answer `late`);
+        None when it is not in flight. Other moves keep their time."""
     def next_deadline(self) -> float | None: ...       # on the director's clock
     async def watch(self, on_expired, *, poll_s=0.25) -> None:
         """expire() as each deadline falls (≤ poll_s late), forever; one task per session."""

@@ -156,6 +156,130 @@ def test_expire_reports_unknown_and_frees_the_queue() -> None:
     assert stage.handle(_result("c1", "core.page")) is None
 
 
+# ─── an app's own action runner: queue=False and abandon ─────────────────────
+
+
+def test_unqueued_moves_are_sent_now_even_behind_a_running_serial_move() -> None:
+    stage, sent, _ = _stage()
+    assert stage.send("core.page", {"path": "/rooms"}) == "c1"
+    # Serial, with a serial move running: sent anyway, never queued.
+    assert stage.send("cart.add", {"product": "p1"}, queue=False) == "c2"
+    # The exact move already running: sent again, never refused.
+    assert stage.send("cart.add", {"product": "p1"}, queue=False) == "c3"
+    assert stage.queued is None
+    assert [a.call_ref for a in sent if isinstance(a, StageMove)] == ["c1", "c2", "c3"]
+    assert [r.call_ref for r in stage.running()] == ["c1", "c2", "c3"]
+
+
+def test_an_unqueued_serial_move_holds_the_queue_like_any_running_move() -> None:
+    stage, sent, _ = _stage()
+    stage.send("core.page", {"path": "/rooms"})
+    stage.send("cart.add", {"product": "p1"}, queue=False)
+    assert stage.busy == "cart.add"
+    # A queued send waits behind the newest serial move, the unqueued one,
+    # and is refused for exactly it.
+    with pytest.raises(Refused):
+        stage.send("cart.add", {"product": "p1"})
+    assert stage.send("shop.filter", {"facet": "size", "value": "L"}) is None
+    assert stage.queued == "shop.filter"
+    # The overtaken move lands: still answered, but it no longer holds the queue.
+    got = stage.handle(_result("c1", "core.page"))
+    assert got is not None and got.outcome == "applied" and len(sent) == 2
+    assert stage.queued == "shop.filter"
+    assert stage.handle(_result("c2", "cart.add")) is not None
+    assert sent[-1] == StageMove(
+        call_ref="c3", move="shop.filter", args={"facet": "size", "value": "L"}
+    )
+
+
+def test_an_unqueued_move_is_timed_and_answered_like_any_other() -> None:
+    stage, _, clock = _stage(result_timeout_s=20.0)
+    ref = stage.send("shop.filter", {"facet": "size", "value": "L"}, queue=False)
+    got = stage.handle(_result(ref, "shop.filter", detail="8 products"))
+    assert got is not None and got.detail == "8 products" and stage.running() == []
+    ref = stage.send("shop.filter", {"facet": "size", "value": "M"}, queue=False)
+    clock.t += 20.1
+    [unknown] = stage.expire()
+    assert (unknown.call_ref, unknown.outcome) == (ref, "unknown")
+
+
+async def test_an_unqueued_move_keeps_the_turn_s_promise() -> None:
+    told: list[str] = []
+    claimed = Move(
+        id="cart.add", verb=None, cls=MoveClass.CONFIRMED, args=("product",), claims=("adding it",)
+    )
+    stage = Stage(
+        dispatch=lambda _: None,
+        moves=(*MOVES[:3], claimed),
+        on_unkept=lambda move, phrase, sentence: told.append(move.id),
+    )
+    said = "I'm adding it to your cart."
+    [_ async for _ in stage.cued(_turn(SpeechStart(), SpeechChunk(said), SpeechEnd()))]
+    ref = stage.send("cart.add", {"product": "p1"}, queue=False)
+    stage.handle(_result(ref, "cart.add"))
+    assert stage.end_turn() == [] and told == []
+    # The same words in a turn that sends nothing are a promise not kept.
+    [_ async for _ in stage.cued(_turn(SpeechStart(), SpeechChunk(said), SpeechEnd()))]
+    assert [u.move.id for u in stage.end_turn()] == ["cart.add"] and told == ["cart.add"]
+
+
+def test_abandon_reports_unknown_now_and_the_answer_after_comes_back_late() -> None:
+    stage, sent, _ = _stage()
+    ref = stage.send("core.page", {"path": "/rooms"}, queue=False)
+    stage.send("cart.add", {"product": "p1"})
+    assert stage.queued == "cart.add"
+    got = stage.abandon(ref, "the app's runner timed out")
+    assert got is not None and (got.call_ref, got.move, got.outcome) == (
+        ref,
+        "core.page",
+        "unknown",
+    )
+    # Settled as an expiry settles it: the queued move behind it is dropped.
+    assert got.detail == (
+        "the app's runner timed out (so cart.add, asked for while it ran, was not sent)"
+    )
+    assert stage.busy is None and stage.queued is None and len(sent) == 1
+    late = stage.handle(_result(ref, "core.page", detail="Rooms open"))
+    assert late is not None and late.late and late.outcome == "applied"
+    assert stage.handle(_result(ref, "core.page")) is None
+
+
+def test_abandon_without_a_detail_says_the_app_stopped_waiting() -> None:
+    stage, _, _ = _stage()
+    ref = stage.send("core.show", {"target": "Rooms"})
+    assert ref is not None
+    got = stage.abandon(ref)
+    assert got is not None and got.detail == "the app stopped waiting for it"
+
+
+def test_abandon_of_a_move_not_in_flight_is_none() -> None:
+    stage, _, clock = _stage(result_timeout_s=20.0)
+    assert stage.abandon("c99") is None
+    answered = stage.send("core.show", {"target": "Rooms"}, queue=False)
+    stage.handle(_result(answered, "core.show"))
+    assert stage.abandon(answered) is None
+    expired = stage.send("core.show", {"target": "Spa"}, queue=False)
+    clock.t += 20.1
+    assert len(stage.expire()) == 1
+    assert stage.abandon(expired) is None
+    abandoned = stage.send("core.show", {"target": "Bar"}, queue=False)
+    assert stage.abandon(abandoned) is not None
+    assert stage.abandon(abandoned) is None
+
+
+def test_abandon_leaves_every_other_move_in_flight() -> None:
+    stage, _, clock = _stage(result_timeout_s=20.0)
+    a = stage.send("core.show", {"target": "Rooms"}, queue=False)
+    b = stage.send("core.page", {"path": "/rooms"}, queue=False)
+    clock.t += 25  # both overdue; abandon reports only the one it names
+    got = stage.abandon(a)
+    assert got is not None and got.call_ref == a
+    assert [r.call_ref for r in stage.running()] == [b]
+    assert stage.busy is None  # past its time, but still for expire to report
+    [expired] = stage.expire()
+    assert expired.call_ref == b and expired.detail == "the page did not answer in time"
+
+
 def test_a_hello_is_kept_and_not_a_result() -> None:
     stage, _, _ = _stage()
     hello = StageHello(runtime="test", contract=STAGE_CONTRACT, url="https://x.test/")

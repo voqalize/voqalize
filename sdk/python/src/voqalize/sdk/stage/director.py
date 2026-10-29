@@ -584,12 +584,31 @@ class Stage:
 
     # ─── tool moves ────────────────────────────────────────────────────────
 
+    @overload
     def send(
         self,
         move: str,
         args: Mapping[str, ArgValue] | None = None,
         *,
         when: Literal["now", "quiet"] = "now",
+        queue: Literal[False],
+    ) -> str: ...
+    @overload
+    def send(
+        self,
+        move: str,
+        args: Mapping[str, ArgValue] | None = None,
+        *,
+        when: Literal["now", "quiet"] = "now",
+        queue: bool = True,
+    ) -> str | None: ...
+    def send(
+        self,
+        move: str,
+        args: Mapping[str, ArgValue] | None = None,
+        *,
+        when: Literal["now", "quiet"] = "now",
+        queue: bool = True,
     ) -> str | None:
         """Send a move because a tool asked for it.
 
@@ -598,6 +617,19 @@ class Stage:
         sent once that one lands. A newer queued move replaces an older one.
         Raises :class:`Refused` for exactly the move already running or
         queued, and :class:`KeyError` for a move id the brain does not know.
+
+        ``queue=False`` is for an app whose own action runner already decides
+        when a move goes (its own gates, queue and timeouts): the move is sent
+        now, and only accounted for here — given a ``call_ref``, counted for
+        this turn's promises, timed, and matched to the page's result. It is
+        never queued and never refused, so it always returns a ``call_ref``.
+        A serial move sent this way becomes the running move, as any serial
+        move sent now does: a later ``send`` with the default ``queue=True``
+        waits behind it, and a move already queued is sent when it lands (or
+        dropped when it does not) rather than behind the move it overtook.
+        The move it overtook is still timed and answered, but no longer holds
+        the queue. Tell the director when your runner stops waiting
+        (:meth:`abandon`).
         """
         m = self.moves.get(move)
         if m is None:
@@ -605,7 +637,7 @@ class Stage:
         # Asked for, this turn: sent, queued, or already on its way.
         self._turn_sent.add(m.id)
         payload: dict[str, ArgValue] = dict(args or {})
-        if not POLICY[m.cls].serial:
+        if not queue or not POLICY[m.cls].serial:
             return self._send(m, payload, when)
         running = self._live_running()
         if running is not None and running.move.id == m.id and running.args == payload:
@@ -821,21 +853,39 @@ class Stage:
         first. Call it often — :meth:`watch` does — or at the start of each
         turn: a move is reported no later than the gap between calls."""
         now = self._clock()
-        out: list[StageResult] = []
-        for f in [f for f in self._flights.values() if f.deadline <= now]:
-            logger.warning(
-                "stage: {} {} never answered (last phase {}); unknown",
-                f.call_ref,
-                f.move.id,
-                f.phase or "none",
-            )
-            detail = "the page did not answer in time"
-            if note := self._land(f, landed=False, expired=True):
-                detail = f"{detail} ({note})"
-            out.append(
-                StageResult(call_ref=f.call_ref, move=f.move.id, outcome="unknown", detail=detail)
-            )
-        return out
+        return [
+            self._expire(f, "the page did not answer in time", "never answered")
+            for f in [f for f in self._flights.values() if f.deadline <= now]
+        ]
+
+    def abandon(self, call_ref: str, detail: str | None = None) -> StageResult | None:
+        """The app's own action runner stopped waiting for ``call_ref``'s move
+        (its timeout, a cancel): the move is reported ``unknown`` now, exactly
+        as :meth:`expire` would report it when its time ran out — the queue
+        and this turn's promises are settled the same way, and a result the
+        page sends after all comes back from :meth:`handle` once, with
+        ``late`` set. ``detail`` says why, for the brain's note. Only this
+        move: every other one keeps its time. ``None`` when ``call_ref`` is
+        not in flight — unknown, answered, or already expired."""
+        f = self._flights.get(call_ref)
+        if f is None:
+            logger.info("stage: abandon {}: not in flight; nothing to do", call_ref)
+            return None
+        return self._expire(f, detail or "the app stopped waiting for it", "abandoned")
+
+    def _expire(self, f: _Flight, detail: str, why: str) -> StageResult:
+        """Retire ``f`` unanswered, as an ``unknown`` result whose answer, if
+        it comes, is ``late``."""
+        logger.warning(
+            "stage: {} {} {} (last phase {}); unknown",
+            f.call_ref,
+            f.move.id,
+            why,
+            f.phase or "none",
+        )
+        if note := self._land(f, landed=False, expired=True):
+            detail = f"{detail} ({note})"
+        return StageResult(call_ref=f.call_ref, move=f.move.id, outcome="unknown", detail=detail)
 
     def next_deadline(self) -> float | None:
         """When, on this director's clock, the next move falls due for
