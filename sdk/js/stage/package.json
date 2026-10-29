@@ -4,6 +4,11 @@
   "private": true,
   "description": "The page half of Stage: makes the moves an agent's reply names as its voice reaches them, rings what it points at, and reports one result per move. Takes a pipecat client that already exists; never makes or wraps one.",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/voqalize/voqalize.git",
+    "directory": "sdk/js/stage"
+  },
   "type": "module",
   "bin": {
     "stage": "bin/stage.mjs"

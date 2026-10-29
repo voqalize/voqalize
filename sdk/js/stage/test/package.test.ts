@@ -12,4 +12,12 @@ describe("package.json", () => {
     expect(Object.keys(bin)).toEqual(["stage"]);
     for (const path of Object.values(bin)) expect(path).toMatch(/^[a-z][\w/.-]*\.mjs$/);
   });
+
+  // npm refuses a provenance-signed publish whose repository does not match the
+  // repository that built it (0.1.0-rc.2's first publish: E422).
+  it("names the repository the release workflow builds it in", () => {
+    const { repository } = JSON.parse(manifest) as { repository?: { url?: string; directory?: string } };
+    expect(repository?.url).toBe("git+https://github.com/voqalize/voqalize.git");
+    expect(repository?.directory).toBe("sdk/js/stage");
+  });
 });
