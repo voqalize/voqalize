@@ -71,7 +71,9 @@ jobs:
         run: |
           set -euo pipefail
           ls -la dist
-          v="${{ needs.guard.outputs.version }}"
+          # The file names carry the version as packaging normalises it: a
+          # pre-release tagged 0.12.0-rc1 builds voqalize_agent_sdk-0.12.0rc1.
+          v=$(echo "${{ needs.guard.outputs.version }}" | sed -E 's/[-_.]?(a|b|rc)[-_.]?([0-9]+)$/\1\2/')
           test -f "dist/voqalize_agent_sdk-${v}.tar.gz"      || { echo "::error::no sdist for ${v}"; exit 1; }
           test -f "dist/voqalize_agent_sdk-${v}-py3-none-any.whl" || { echo "::error::no pure wheel for ${v}"; exit 1; }
           [ "$(ls dist/*.whl | wc -l)" -eq 1 ] || { echo "::error::expected exactly one wheel"; exit 1; }
