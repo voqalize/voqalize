@@ -629,6 +629,10 @@ _BLOCK_TAGS = _words(
     "h3 h4 h5 h6 hr li main ol p pre section summary table tbody td tfoot th thead tr "
     "ul"
 )
+#: Inline elements that stand apart from the text beside them, so their words
+#: are never glued to the next ones. A card's label in ``<small>`` followed by
+#: its value in ``<strong>`` read "Who it is forPrivate Limited Companies".
+_SPACED_TAGS = _words("a small span td th")
 _CHROME_LINES = frozenset(
     s.casefold()
     for s in (
@@ -869,7 +873,7 @@ def _lines(node: _Node) -> list[str]:
                 walk(c)
                 if block:
                     flush()
-                elif c.tag in ("td", "th", "span", "a"):
+                elif c.tag in _SPACED_TAGS:
                     buf.append(" ")
 
     walk(node)
