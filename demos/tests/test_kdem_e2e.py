@@ -397,9 +397,12 @@ async def test_greeting_and_voice_reach_the_wire() -> None:
         )
         check_greeting(rig, greeting)
         assert greeting is not None and greeting.text == _GREETING
+        # Business and jobs alike: job seekers had to correct her.
         assert _GREETING == (
-            "Hello, I'm Aria from KDEM. How can we help you grow your business in Karnataka?"
+            "Hello, I'm Aria from KDEM. I can help with growing a business, "
+            "or with jobs and skills in Karnataka. What are you looking for?"
         )
+        assert len(_GREETING) <= 130
         assert "English" not in _GREETING and "language" not in _GREETING
         check_voice_pair(rig, voice=VOICE, language="en")
 

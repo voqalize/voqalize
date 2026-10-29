@@ -31,8 +31,8 @@ For the pilot the brain is hosted on dev: the agent's `brain_url` is
 and changing `api` in the script to `app.voqalize.com`. Aria's voice is
 `omnivoice/gauri` in both languages. The brain sets it on both legs in
 `on_session_start`, before the greeting. The opening line is written in the
-brain, not generated: "Hello, I'm Aria from KDEM. How can we help you grow your
-business in Karnataka?" A call the visitor started with ಕನ್ನಡ picked on the
+brain, not generated: "Hello, I'm Aria from KDEM. I can help with growing a
+business, or with jobs and skills in Karnataka. What are you looking for?" A call the visitor started with ಕನ್ನಡ picked on the
 toggle opens with a written Kannada greeting instead.
 
 English is the main language, and **Aria never says the name of the Kannada

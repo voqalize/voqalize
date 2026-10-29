@@ -197,14 +197,19 @@ THE PAGES. These are the approved pages, by path, with their titles. Newer news 
 
 # The opener. Written, not generated: the visitor has just clicked, and a first
 # word that waits on a model makes the site feel slow.
+# It names both reasons people come: a business to grow, and jobs and skills.
 _GREETING = (
-    f"Hello, I'm {AGENT_NAME} from KDEM. How can we help you grow your business in Karnataka?"
+    f"Hello, I'm {AGENT_NAME} from KDEM. I can help with growing a business, "
+    "or with jobs and skills in Karnataka. What are you looking for?"
 )
 
 
 #: The opener when the visitor picked ಕನ್ನಡ on the toggle before the call.
 #: Written, like the English one. To be checked by a native speaker.
-_GREETING_KN = "ನಮಸ್ಕಾರ, ನಾನು KDEM ನ ಆರಿಯಾ. ಕರ್ನಾಟಕದಲ್ಲಿ ನಿಮ್ಮ ವ್ಯವಹಾರ ಬೆಳೆಸಲು ನಾವು ಹೇಗೆ ಸಹಾಯ ಮಾಡಬಹುದು?"
+_GREETING_KN = (
+    "ನಮಸ್ಕಾರ, ನಾನು KDEM ನ ಆರಿಯಾ. ಕರ್ನಾಟಕದಲ್ಲಿ ವ್ಯವಹಾರ ಬೆಳೆಸಲು, ಅಥವಾ ಉದ್ಯೋಗ ಮತ್ತು "
+    "ಕೌಶಲ್ಯಗಳ ಬಗ್ಗೆ ನಾನು ಸಹಾಯ ಮಾಡಬಲ್ಲೆ. ನಿಮಗೆ ಏನು ಬೇಕು?"
+)
 
 #: What Aria says, at the start of her next turn, after the visitor switched the
 #: language on the toggle. Written, in the new language, read by the new voice.
