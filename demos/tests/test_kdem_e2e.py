@@ -1606,3 +1606,62 @@ def test_the_prompt_has_her_answer_first_and_point_after() -> None:
     answer, never instead of one."""
     assert "Pointing goes with an answer and never replaces it" in _SYSTEM_INSTRUCTION
     assert "say the answer first" in _SYSTEM_INSTRUCTION
+
+
+# ─── The don't-know line, never twice running ─────────────────────────────────
+
+
+def _unanswerable_llm(*, model_says: bool = False) -> ScriptedGemini:
+    """Three questions the pages do not answer. The model either says nothing
+    after its search (her own line is said) or says the don't-know line itself."""
+    said = reply(DONT_KNOW) if model_says else reply()
+    return ScriptedGemini(
+        {
+            q: [call("search_kdem", request={"query": "weather on Mars"}), said]
+            for q in ("What is the weather on Mars?", "And on Venus?", "And on Jupiter?")
+        }
+    )
+
+
+async def test_after_one_dont_know_she_offers_the_team_and_never_repeats_a_line() -> None:
+    """One call heard the same don't-know line three times running. Now the
+    first is the don't-know line; after it, the KDEM team's line with Contact
+    Us offered, and the two team lines take turns."""
+    lead_a, lead_b = kdem_brain.TEAM_LEADS[Language.EN]
+    async with demo("kdem", _unanswerable_llm()) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        heard = []
+        for q in ("What is the weather on Mars?", "And on Venus?", "And on Jupiter?"):
+            turn = await rig.driver.user_says(q)
+            check_turn(rig, turn, units=1)
+            heard.append(turn.units[0].text)
+        brain = rig.brain
+        assert isinstance(brain, KdemBrain)
+        assert brain._offered is not None and brain._offered[0] == CONTACT  # pyright: ignore[reportPrivateUsage]
+    offer = " Shall I take you to the Contact Us page?"
+    assert heard == [DONT_KNOW + offer, lead_a + offer, lead_b + offer]
+    assert len(set(heard)) == len(heard)
+
+
+async def test_the_model_is_told_not_to_say_the_dont_know_line_again() -> None:
+    """The model said the line itself; the next search result tells it to say
+    the team's line instead."""
+    llm = _unanswerable_llm(model_says=True)
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says("What is the weather on Mars?")
+        first = _results(llm.captured_contents[-1])["search_kdem"]
+        await rig.driver.user_says("And on Venus?")
+        second = _results(llm.captured_contents[-1])["search_kdem"]
+    assert f'say: "{DONT_KNOW}"' in first
+    assert f'do not say "{DONT_KNOW}" again' in second
+    assert kdem_brain.TEAM_LEADS[Language.EN][0] in second
+
+
+def test_portal_problems_are_the_kdem_teams_said_plainly() -> None:
+    """A visitor whose registration failed with a server error heard the
+    don't-know line. Portal errors, logins and application status are the
+    KDEM team's: she says so and offers Contact Us, without searching."""
+    assert "a form that will not submit, a login or a password" in _SYSTEM_INSTRUCTION
+    assert "the KDEM team handles them. Say so plainly" in _SYSTEM_INSTRUCTION
+    assert "never twice running" in _SYSTEM_INSTRUCTION

@@ -134,6 +134,20 @@ _PASSAGES = 3
 #: so the prompt and the tool results say the same words.
 DONT_KNOW = "I don't have that on our website. The KDEM team can help."
 
+#: After the first don't-know in a call, what she says instead, taking turns so
+#: no line comes twice running: the question is the KDEM team's, and Contact
+#: Us is offered. Kept short; the offer follows from the line it is said with.
+TEAM_LEADS: Mapping[Language, tuple[str, str]] = {
+    Language.EN: (
+        "That one is best answered by the KDEM team.",
+        "The KDEM team can help you with that directly.",
+    ),
+    Language.KN: (
+        "ಅದಕ್ಕೆ KDEM ತಂಡವೇ ಸರಿಯಾಗಿ ಉತ್ತರಿಸಬಲ್ಲದು.",
+        "ಅದರ ಬಗ್ಗೆ KDEM ತಂಡ ನೇರವಾಗಿ ಸಹಾಯ ಮಾಡಬಲ್ಲದು.",
+    ),
+}
+
 #: What she says she is. Never a model or a vendor: she is KDEM's assistant.
 IDENTITY = "I'm Aria, KDEM's voice assistant, built by Voqalize."
 
@@ -147,7 +161,7 @@ EVERY MOVE COMES WITH WORDS. Whenever you offer a page, take them to one, point 
   Visitor: "Do you have a seed fund for startups outside Bengaluru?" You: (search_kdem first, then) "Yes, the Beyond Bengaluru Cluster Seed Fund backs startups in the clusters. Shall I take you to its page?" — and offer_page with that page, in the same response.
 search_kdem and set_language are the two calls that take no line. search_kdem is silent and comes straight back to you in the same turn, so call it first and then answer from it. set_language is answered by a line of its own, in the new voice, so call it alone and say nothing.
 
-ANSWER ONLY FROM THE SITE. Everything you may say about KDEM, its programmes, policies, events, reports and news comes from ABOUT KDEM below or from what search_kdem returns. "What is KDEM", "what do you do" and "what programmes do you run" are answered from ABOUT KDEM, with no search; for anything else, search before you answer — even a question you think you know. When what comes back does not answer a broad question, search once more with different words, such as the programme names in THE PAGES, before you give the don't-know line; two searches in a turn at most. Never add a figure, a date, a deadline, an amount, an eligibility rule or a name that is not in what came back. If the search returns nothing that answers the question, say exactly: "{DONT_KNOW}" and offer to take them to the Contact Us page with offer_page ({CONTACT_PATH}), or point at it with point_at if they are already there.
+ANSWER ONLY FROM THE SITE. Everything you may say about KDEM, its programmes, policies, events, reports and news comes from ABOUT KDEM below or from what search_kdem returns. "What is KDEM", "what do you do" and "what programmes do you run" are answered from ABOUT KDEM, with no search; for anything else, search before you answer — even a question you think you know. When what comes back does not answer a broad question, search once more with different words, such as the programme names in THE PAGES, before you give the don't-know line; two searches in a turn at most. Never add a figure, a date, a deadline, an amount, an eligibility rule or a name that is not in what came back. When what came back answers part of the question, say that part, and that the KDEM team can tell them the rest. If the search returns nothing that answers the question, say exactly: "{DONT_KNOW}" and offer to take them to the Contact Us page with offer_page ({CONTACT_PATH}), or point at it with point_at if they are already there. Say that line once in a call, never twice running: after it, what search_kdem returns tells you what to say instead.
 
 THE SHAPE OF AN ANSWER. One or two short sentences that answer the question, then, in the same response:
 - when the page that says it in full is another page, offer to take them there with offer_page: "Shall I take you to the Seed Fund page?";
@@ -180,7 +194,7 @@ VOICE STYLE. Warm, plain and brief. No markdown, no lists, no symbols, no URLs r
 WHAT YOU DO NOT DO. Each of these gets one polite sentence and, where it helps, the Contact Us page:
 - Politics, government decisions, ministers or officials, and opinions about any of them. You talk about what the site says, not about who decided it.
 - Commitments on behalf of KDEM or the Government of Karnataka: no promises of funding, approval, a meeting, a timeline or an outcome.
-- The status of any individual application, registration, payment or tender. You cannot see them; the KDEM team can.
+- Problems on the site or a portal (an error, a form that will not submit, a login or a password) and the status of any individual application, registration, payment or tender. You cannot see them; the KDEM team handles them. Say so plainly in one sentence, without searching, and offer the Contact Us page.
 - Legal, tax or investment advice beyond what the site's own documents say. Say what the document says and suggest they take advice.
 - Personal details. The details you take are the six on the KAN application form, while the visitor is applying on that page (see THE KAN APPLICATION FORM): the startup's name and sector, a founder's name, a mobile number, an email ID and a location. Those go into the form and nowhere else. For anything beyond them — an address, an ID number, an OTP, a password — tell them you do not need it.
 - Anything unrelated to KDEM and doing business in Karnataka: say briefly that it is outside what you can help with here.
@@ -255,8 +269,11 @@ Said = Literal[
     "dont_know",
     "dont_know_offer",
     "dont_know_here",
+    "team",
+    "team_offer",
+    "team_here",
 ]
-LINES: Mapping[Said, Mapping[Language, str]] = {
+LINES: dict[Said, Mapping[Language, str]] = {
     "offer": {
         Language.EN: "Shall I take you to the {title} page?",
         Language.KN: "ನಿಮ್ಮನ್ನು {title} ಪುಟಕ್ಕೆ ಕರೆದುಕೊಂಡು ಹೋಗಲೇ?",
@@ -331,10 +348,31 @@ LINES: Mapping[Said, Mapping[Language, str]] = {
         ),
     },
 }
+LINES["team"] = dict.fromkeys(TEAM_LEADS, "{lead}")
+LINES["team_offer"] = {
+    Language.EN: "{lead} Shall I take you to the {title} page?",
+    Language.KN: "{lead} ನಿಮ್ಮನ್ನು {title} ಪುಟಕ್ಕೆ ಕರೆದುಕೊಂಡು ಹೋಗಲೇ?",
+}
+LINES["team_here"] = {
+    Language.EN: "{lead} Their email address and a contact form are on this page.",
+    Language.KN: "{lead} ಅವರ ಇಮೇಲ್ ವಿಳಾಸ ಮತ್ತು ಸಂಪರ್ಕ ಫಾರ್ಮ್ ಇದೇ ಪುಟದಲ್ಲಿವೆ.",
+}
 # Her own lines are said in the language her voice speaks, so each needs a row
 # for every language she speaks — held at import, not on a call.
 assert all({s.code for s in SPEECH.values()} <= set(v) for v in LINES.values()), (
     "a spoken language has no written line for a move"
+)
+assert {s.code for s in SPEECH.values()} <= set(TEAM_LEADS)
+
+#: What marks a reply as a don't-know, in either language: the line itself or
+#: one of the team's leads, as the model or the brain said it.
+_NOT_KNOWN = tuple(
+    _m.casefold()
+    for _m in (
+        "I don't have that on our website",
+        "ಅದರ ಬಗ್ಗೆ ನಮ್ಮ ವೆಬ್‌ಸೈಟ್‌ನಲ್ಲಿ ಮಾಹಿತಿ ಇಲ್ಲ",
+        *(lead for leads in TEAM_LEADS.values() for lead in leads),
+    )
 )
 
 #: The KAN form's fields as she says them in a sentence.
@@ -760,6 +798,10 @@ class KdemBrain(GeminiBrain):
         self._kan_pending: dict[KanField, tuple[str, int]] = {}
         #: Searches made in the latest visitor turn: (turn, how many).
         self._searches: tuple[int, int] = (0, 0)
+        #: Don't-know replies this call, and the team lead said last, so the
+        #: same line is never said twice running.
+        self._dont_knows = 0
+        self._last_lead: str | None = None
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -832,11 +874,15 @@ class KdemBrain(GeminiBrain):
             self._confirm = None
             async for event in say_line(self, line):
                 yield event
+        said: list[str] = []
         async for event in self._fallback.speak_if_silent(self, super().respond(session)):
-            if isinstance(event, SpeechChunk) and (url := self._offer_lines.get(event.text)):
-                # Her own line offered this page: the visitor's yes takes them there.
-                self._offered = (url, self._turn)
+            if isinstance(event, SpeechChunk):
+                said.append(event.text)
+                if url := self._offer_lines.get(event.text):
+                    # Her own line offered this page: the visitor's yes takes them there.
+                    self._offered = (url, self._turn)
             yield event
+        self._count_dont_know("".join(said))
         if (speech := self._pending) is not None:
             self._pending = None
             if await self._move(session, speech, by="you, on what the visitor said"):
@@ -1013,16 +1059,61 @@ class KdemBrain(GeminiBrain):
         else:
             self._say("cant_open_offer", offers=contact[0], title=_spoken_title(contact[1]))
 
+    def _count_dont_know(self, said: str) -> None:
+        """Count a reply that was a don't-know, the model's or her own, and
+        remember which team lead it used."""
+        text = said.casefold()
+        if not any(marker in text for marker in _NOT_KNOWN):
+            return
+        self._dont_knows += 1
+        for leads in TEAM_LEADS.values():
+            for lead in leads:
+                if lead.casefold() in text:
+                    self._last_lead = lead
+        logger.info("kdem: dont_know #{} this call", self._dont_knows)
+
+    def _team_lead(self) -> str:
+        """The team lead for the next don't-know: not the one said last."""
+        leads = TEAM_LEADS[self.spoken]
+        return leads[1] if self._last_lead == leads[0] else leads[0]
+
     def _dont_know(self) -> None:
         """Her line for a search with nothing to say: the don't-know line, with
-        Contact Us offered, or pointed out when they are on it."""
+        Contact Us offered, or pointed out when they are on it. After the first
+        in a call, the team's line instead, never the same one twice running."""
         contact = _page(ALLOWLIST.contact_url)
-        if contact is None:
+        if self._dont_knows:
+            lead = self._team_lead()
+            if contact is None:
+                self._say("team", lead=lead)
+            elif contact[0] == self._here():
+                self._say("team_here", lead=lead)
+            else:
+                self._say(
+                    "team_offer", offers=contact[0], lead=lead, title=_spoken_title(contact[1])
+                )
+        elif contact is None:
             self._say("dont_know")
         elif contact[0] == self._here():
             self._say("dont_know_here")
         else:
             self._say("dont_know_offer", offers=contact[0], title=_spoken_title(contact[1]))
+
+    def _not_known(self) -> str:
+        """What a search result tells the model to say when the pages do not
+        answer: the don't-know line the first time in a call, the team's line
+        after that, so she never says the same thing twice running."""
+        offer = (
+            f"offer to take them to the Contact Us page ({CONTACT_PATH}) with offer_page, or "
+            "point at it with point_at if they are already there"
+        )
+        if not self._dont_knows:
+            return f'say: "{DONT_KNOW}" and {offer}.'
+        return (
+            "you have already told them once in this call that the website does not have "
+            f'something, so do not say "{DONT_KNOW}" again. Say: "{self._team_lead()}" and '
+            f"{offer}."
+        )
 
     def _destination(self, url: str, tool: str) -> tuple[str, str] | str:
         """The page ``url`` would take the visitor to, as ``(url, title)``, or the
@@ -1138,32 +1229,26 @@ class KdemBrain(GeminiBrain):
             logger.info("kdem: search {!r} refused: a third search this turn", request.query)
             return (
                 "Not searched: that is two searches this turn. Answer from what came back, "
-                f'or say: "{DONT_KNOW}" and offer to take them to the Contact Us page '
-                f"({CONTACT_PATH}) with offer_page."
+                f"or {self._not_known()}"
             )
         kb = KNOWLEDGE.kb
         if len(kb) == 0:
             logger.warning("kdem: search with an empty knowledge base")
             return (
                 "The website's pages are not available right now, so there is nothing to "
-                f'answer from. Say: "{DONT_KNOW}" and offer to take them to the Contact '
-                f"Us page ({CONTACT_PATH}) with offer_page, or point at it with point_at if "
-                "they are already there."
+                f"answer from. So {self._not_known()}"
             )
         passages = kb.search(request.query, k=_PASSAGES)
         logger.info("kdem: search {!r} -> {} passages", request.query, len(passages))
         if not passages:
-            return (
-                f'Nothing on the approved pages matches. Say: "{DONT_KNOW}" and offer to '
-                f"take them to the Contact Us page ({CONTACT_PATH}) with offer_page, or "
-                "point at it with point_at if they are already there."
-            )
+            return f"Nothing on the approved pages matches. So {self._not_known()}"
         found = "\n\n".join(
             f"[{i}] {_source(p)}\nurl: {p.url}\n{p.snippet}" for i, p in enumerate(passages, 1)
         )
         return (
-            "From karnatakadigital.in. Answer only from this; if it does not answer the "
-            f'question, say: "{DONT_KNOW}"\n\n{found}'
+            "From karnatakadigital.in. Answer only from this. If it answers part of the "
+            "question, say that part and that the KDEM team can tell them the rest; if it "
+            f"answers none of it, {self._not_known()}\n\n{found}"
         )
 
     def _kan_next(self) -> str:
