@@ -264,6 +264,12 @@ def _llm() -> ScriptedOpenAI:
             ),
             "check_stock done": reply("{store: Maipú} En Maipú quedan tres."),
             "¿Cuánto tiempo tengo para retirar?": reply("Tienes quince días hábiles."),
+            # Dev call 9ec9601a: two short answers, then the add, on the product.
+            "No.": reply("Of course."),
+            "Thank you.": reply("You're welcome."),
+            "Oh so sorry, can you add this in the cart first?": reply_and_call(
+                "I'll add it to your cart.", "add_to_cart", args={"path": LENOVO, "qty": 1}
+            ),
         }
     )
 
@@ -596,6 +602,35 @@ async def test_add_to_cart_waits_for_a_yes_and_then_says_it_is_done() -> None:
         assert "Delivery is priced only in the checkout; store pickup is free." in cart
 
 
+async def test_an_add_asked_after_a_no_is_sent_at_once() -> None:
+    """Dev call 9ec9601a: on the product page, after "No." and "Thank you.",
+    the visitor asked for the add in so many words. The brain must send the
+    move with the product in front, no second ask; the page reports it done."""
+    llm = _llm()
+    async with demo("pcfactory", llm) as rig:
+        await rig.driver.start_session(init={"path": LENOVO})
+        await _state(rig, "product.shown", _product())
+        await rig.driver.user_says("No.")
+        await rig.driver.user_says("Thank you.")
+        assert _moves(rig, "commerce.cart_add") == []
+        await rig.driver.user_says("Oh so sorry, can you add this in the cart first?")
+        assert _moves(rig, "commerce.cart_add") == [{"path": LENOVO, "qty": 1}]
+        await _state(
+            rig,
+            "cart.changed",
+            {
+                "count": 1,
+                "subtotal": 599990,
+                "items": [{"path": LENOVO, "name": LENOVO_NAME, "qty": 1, "price": 599990}],
+            },
+            by="agent",
+        )
+        await _answer(rig, "commerce.cart_add", detail=f"added 1 x {LENOVO_NAME}; the cart has 1")
+        done = await rig.driver.user_idle(level=1, idle_ms=_DONE_MS)
+        check_turn(rig, done)
+        assert "in your cart" in done.text or "en tu carro" in done.text
+
+
 async def test_checkout_goes_as_a_guest_and_stops_at_tipo_de_entrega() -> None:
     llm = _llm()
     async with demo("pcfactory", llm) as rig:
@@ -672,6 +707,29 @@ def test_no_cue_opens_the_checkout_the_account_or_a_payment() -> None:
         ("cart", "Agrégalo al carro.", True),
         ("cart", "¿Cuánto cuesta?", False),
         ("cart", "No, todavía no.", False),
+        # Dev call 9ec9601a's ask, and the natural ways to say it or yes to it.
+        ("cart", "Oh so sorry, can you add this in the cart first?", True),
+        ("cart", "Sí, agrégalo.", True),
+        ("cart", "Add it.", True),
+        ("cart", "Ok, dale.", True),
+        ("cart", "Ponlo en el carro.", True),
+        ("cart", "Add this one to my cart.", True),
+        ("cart", "Súmalo.", True),
+        ("cart", "Perfect.", True),
+        ("cart", "Sounds good.", True),
+        ("cart", "Of course.", True),
+        ("cart", "Por supuesto.", True),
+        ("cart", "Please do.", True),
+        ("cart", "Mm-hmm.", True),
+        ("cart", "Lo quiero.", True),
+        ("cart", "No, add it to my cart.", True),
+        ("cart", "Wait, add two.", True),
+        ("cart", "No.", False),
+        ("cart", "No, don't add it.", False),
+        ("cart", "No lo agregues.", False),
+        ("cart", "No, mejor no lo agregues.", False),
+        ("cart", "Lo quiero ver.", False),
+        ("cart", "Es sumamente caro.", False),
         ("coupon", "Aplica el cupón LEN50.", True),
         ("checkout", "Quiero pagar.", True),
         ("checkout", "¿Y la garantía?", False),
