@@ -2645,9 +2645,13 @@ class CannonHomeBrain(OpenAIBrain):
     def _listing_for_cue(self) -> tuple[str, Category | None] | None:
         """The listing a filter or sort cue applies to: the one a page cue of
         this reply opens, else the one in front; ``None`` when that is no
-        listing."""
+        listing. Named by its category, never by the address with its filters
+        on: a filter cue that runs after another one of the same reply finds
+        the listing already filtered, and must not load the address the reply
+        was written on (dev call 84c62a64: the threads were undone that way,
+        and the colours applied without them)."""
         path = self._cue_path or self._path
-        cat = self.kb.category(path)
+        cat = self.kb.category_of(path)
         if cat is not None:
             return cat.path, cat
         if self.listing is not None and canonical_path(self.listing.path) == path:

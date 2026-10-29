@@ -47,6 +47,11 @@ export interface PageKit {
   /** Report one of the site's events to the agent: sent while the call can
    *  hear this page and it is on screen (or the event is an any-tab one). */
   emit(event: string, payload: unknown): void;
+  /** Who made a change the page shows now, for a state event's `by`: the
+   *  agent (with the move's `call_ref`) while a move acts here, just after
+   *  one, or while this page still owes the move the last page carried to it;
+   *  else the visitor. */
+  author(): { by: "visitor" | "agent"; callRef?: string };
   /** Load `url` in this tab, with a job for the page it lands on. */
   loadThen(url: string, then?: Job): Promise<void>;
 }
@@ -178,6 +183,13 @@ async function start(config: SiteExtensionConfig): Promise<void> {
   const idle = (language: Language): CallState => ({ status: "idle", muted: false, activity: null, language, ready: false });
 
   const keptMove = pendingMove();
+  /** The carried move this page owes its result, until it is made: what the
+   *  page reports meanwhile (the listing the move opened) is the move's. */
+  let owed: string | null = null;
+  let keptDone = false;
+  void keptMove.then((then) => {
+    if (then && then.kind !== "site" && !keptDone) owed = then.call_ref;
+  });
   const shell = flags[shellFlag(site)] as { widget: Widget; kept: Kept } | undefined;
   const widget = shell?.widget ?? mountWidget(site.widget);
   const preloaded = shell ? (config.avatar?.preload?.() ?? null) : null;
@@ -255,6 +267,7 @@ async function start(config: SiteExtensionConfig): Promise<void> {
     spotlight,
     language: () => state.language,
     state: () => state,
+    author: () => (owed ? { by: "agent", callRef: owed } : moves.author()),
     emit: (event, payload) => {
       if (state.ready && (showing() || takenFromAnyTab(anyTab, event, payload))) tell({ k: "app", event, payload });
     },
@@ -442,7 +455,11 @@ async function start(config: SiteExtensionConfig): Promise<void> {
         if (result) send(result);
       })
       .catch((error: unknown) => console.warn("voqalize:", error))
-      .finally(markReady);
+      .finally(() => {
+        keptDone = true;
+        owed = null;
+        markReady();
+      });
   }
 
   // The page that owes a carried move its result is up: the holder hears so

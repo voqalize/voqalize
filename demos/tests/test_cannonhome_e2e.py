@@ -606,6 +606,29 @@ async def test_what_they_asked_about_is_shown_when_his_reply_forgets_to() -> Non
 # line for his next turn, and only a filter that failed is talked through.
 
 
+async def test_filter_cues_on_a_filtered_listing_name_its_category() -> None:
+    """Dev call 84c62a64: two filter cues in one reply, on a listing already
+    filtered. The second carried the address the reply was written on, so it
+    loaded that address back — undoing the first filter — before applying
+    its own. Both name the category; the page stays on whatever filters the
+    first one left."""
+    llm = ScriptedOpenAI(
+        {
+            "Las king, blancas.": reply(
+                "{filter: Tamaño | King} Primero, las king. {filter: Color | Blanco} Y ahora, las blancas."
+            ),
+        }
+    )
+    async with demo("cannonhome", llm) as rig:
+        await rig.driver.start_session(init={"path": f"{SHEETS}/600_hilos"})
+        turn = await rig.driver.user_says("Las king, blancas.")
+        check_turn(rig, turn)
+        assert [(c["move"], c["args"]) for c in _cues(rig)] == [
+            ("commerce.filter", ["tamano", "King", SHEETS]),
+            ("commerce.filter", ["color", "Blanco", SHEETS]),
+        ]
+
+
 async def test_two_filter_cues_are_two_moves_anchored_to_their_own_sentences() -> None:
     llm = _llm()
     async with demo("cannonhome", llm) as rig:

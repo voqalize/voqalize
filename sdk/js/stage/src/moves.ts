@@ -181,11 +181,19 @@ export interface RunOptions {
   receivedAt?: number;
 }
 
+/** A change on the page this soon after a move finished is still the move's:
+ *  the site's own scripts finish what the move set off (a grid redrawn, a cart
+ *  re-read) a beat later. */
+export const AGENT_WINDOW_MS = 500;
+
 export class Moves {
   private readonly registry = new Map<string, Registered>();
   private chain: Promise<unknown> = Promise.resolve();
   /** Moves queued or running here. */
   private inQueue = 0;
+  /** The move acting now, or the one that just finished: whose a change on
+   *  the page is (`author`). */
+  private acting: { callRef: string; until: number } | null = null;
   /** Cuts the running move's scroll wait short. */
   private hurrying: AbortController | null = null;
   private readonly listeners = new Set<(p: StageProgress) => void>();
@@ -211,6 +219,14 @@ export class Moves {
 
   classOf(id: string): MoveClass | null {
     return this.registry.get(id)?.cls ?? null;
+  }
+
+  /** Who made a change the page sees now: the agent, with the move's
+   *  `call_ref`, while a move acts here or within `AGENT_WINDOW_MS` of its
+   *  end; else the visitor. A state event takes it as its `by`. */
+  author(now: number = Date.now()): { by: "visitor" | "agent"; callRef?: string } {
+    const a = this.acting;
+    return a && now <= a.until ? { by: "agent", callRef: a.callRef } : { by: "visitor" };
   }
 
   /** The ids registered. */
@@ -265,9 +281,14 @@ export class Moves {
     let report!: (r: StageResult | null) => void;
     const result = new Promise<StageResult | null>((r) => (report = r));
     const next = this.chain.then(async () => {
-      const run = fn(queuedAt);
-      void run.result.then(report, () => report(null));
-      await run.whole;
+      this.acting = { callRef, until: Number.POSITIVE_INFINITY };
+      try {
+        const run = fn(queuedAt);
+        void run.result.then(report, () => report(null));
+        await run.whole;
+      } finally {
+        this.acting = { callRef, until: Date.now() + AGENT_WINDOW_MS };
+      }
     });
     const settled = next.finally(() => this.inQueue--);
     this.chain = settled.catch(() => {});

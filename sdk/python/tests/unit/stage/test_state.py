@@ -203,3 +203,18 @@ def test_a_value_of_another_shape_is_dropped_whatever_it_holds() -> None:
     assert mirror.value("cart") == {"items": [{"name": "Toalla", "qty": 1}]}
     mirror.fold(StageEvent(name="listing.sorted", data={"title": {"secret": "x"}, "sort": None}))
     assert mirror.value("listing") == {"sort": None}
+
+
+def test_the_same_state_reported_again_changes_nothing() -> None:
+    """Dev call 84c62a64: the cart, unchanged, came again with every page load
+    the agent's moves made, and the model was told three times it had changed
+    the cart."""
+    mirror = Mirror(load_spec(SPEC))
+    first = mirror.fold(StageEvent(name="cart.changed", by="agent", data=CART))
+    again = mirror.fold(StageEvent(name="cart.changed", by="agent", data=CART))
+    assert first is not None and first.changed and first.note
+    assert again is not None and not again.changed and again.note is None
+    assert again.version == first.version == 1
+    mirror.fold(StageEvent(name="listing.sorted", data={"sort": "price_asc"}))
+    same = mirror.fold(StageEvent(name="listing.sorted", data={"sort": "price_asc"}))
+    assert same is not None and not same.changed

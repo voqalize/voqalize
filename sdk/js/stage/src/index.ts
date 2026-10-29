@@ -19,7 +19,7 @@ export {
   SETTLE_MAX_MS, SETTLE_QUIET_MS, sleep, type Strategy, visible, waitFor,
 } from "./dom.js";
 export {
-  arrived, type Carried, type Carrier, Deferred, type MoveClass, type MoveContext, Moves, type MovesOptions,
+  AGENT_WINDOW_MS, arrived, type Carried, type Carrier, Deferred, type MoveClass, type MoveContext, Moves, type MovesOptions,
   type PerformResult, type Performer, Refused, type Then,
 } from "./moves.js";
 export {

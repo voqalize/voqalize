@@ -670,6 +670,17 @@ class Knowledge:
         path = canonical_path(path_or_url)
         return self.categories.get(self.redirects.get(path, path))
 
+    def category_of(self, path_or_url: str) -> Category | None:
+        """The category a listing's address belongs to, its filter segments
+        (``/king_1-200_hilos``) set aside: the address itself when it is a
+        category, else the nearest category above it."""
+        path = canonical_path(path_or_url)
+        while path and path != "/":
+            if (cat := self.category(path)) is not None:
+                return cat
+            path = path.rsplit("/", 1)[0] or "/"
+        return None
+
     def search(self, query: str, limit: int = 6) -> list[Hit]:
         """The site's pages, sections and FAQs."""
         return self._site.search(query, limit)

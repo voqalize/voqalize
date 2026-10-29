@@ -36,7 +36,7 @@ import { type Adapter, askWorker, type PageKit } from "@voqalize/stage/extension
 
 import { clean, headerHeight, norm, type PageContext, pick, scrollTo, sleep, styleThePage, visible, waitFor } from "./dom";
 import { scene } from "./scene.gen";
-import { asStage, bookingUrl, type CheckAvailabilityArgs, type FillEnquiryArgs, MOVE, type NavigateArgs } from "./site";
+import { asStage, attributeTo, bookingUrl, type CheckAvailabilityArgs, type FillEnquiryArgs, MOVE, type NavigateArgs } from "./site";
 import {
   alternateHere, type Lang, type Mapped, pageLanguage, pagePath, pathLang, rememberHere, SITE, siteUrlIn, twinHere,
 } from "./site-language";
@@ -885,6 +885,7 @@ function start(raw: (event: string, payload: unknown) => void): () => void {
 
 /** www.explora.com's moves, registered with Stage, and what the page reports. */
 export const exploraAdapter: Adapter = (moves, kit) => {
+  attributeTo(kit);
   spot = kit.spotlight;
   styleThePage();
   rememberHere();

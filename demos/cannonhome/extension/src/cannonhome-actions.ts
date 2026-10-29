@@ -209,27 +209,9 @@ function report(event: string, payload: unknown): void {
   emitter(...onTheWire(event, payload));
 }
 
-/** Javier's move in progress, or just finished: a change on the page then is
- *  his, reported with the move's `call_ref`. */
-let agent: { callRef: string; until: number } | null = null;
-/** A change this soon after his move finished is still the move's. */
-const AGENT_WINDOW_MS = 500;
-
-/** `perform`, with what it changes on the page reported as his. */
-function asAgent<A>(perform: Performer<A>): Performer<A> {
-  return async (args, c) => {
-    agent = { callRef: c.callRef, until: Number.POSITIVE_INFINITY };
-    try {
-      return await perform(args, c);
-    } finally {
-      agent = { callRef: c.callRef, until: Date.now() + AGENT_WINDOW_MS };
-    }
-  };
-}
-
-function who(): { by: "visitor" | "agent"; callRef?: string } {
-  return agent && Date.now() <= agent.until ? { by: "agent", callRef: agent.callRef } : { by: "visitor" };
-}
+/** Who changed what the page reports now: the page kit's answer (his move
+ *  acting, just done, or carried here and not yet made; else the visitor). */
+let who: () => { by: "visitor" | "agent"; callRef?: string } = () => ({ by: "visitor" });
 
 /** The listing last reported in this tab, kept across a load (a filter link
  *  may load the page): a new report of the same one is a filter or a sort,
@@ -2138,22 +2120,25 @@ async function openFaq(p: { question: string; path?: string | null }, c: MoveCon
  *  a cue's argument names and the arguments' types come from
  *  `cannonhome/scene.json`, and a move left out does not compile. */
 export function registerMoves(moves: Moves): void {
+  // His moves here are his; the extension host's kit, when there is one,
+  // adds a move the last page carried here (the adapter, below).
+  who = () => moves.author();
   scene.registerAll(moves, {
-    "page.open": asAgent(openPage),
-    "page.show": asAgent(showSection),
-    "page.faq": asAgent(openFaq),
-    "commerce.filter": asAgent(filterCue),
-    "commerce.sort": asAgent(sortCue),
-    "commerce.search": asAgent(searchProducts),
-    filter_listing: asAgent(filterListing),
-    open_product: asAgent(openProduct),
-    product_tab: asAgent(productTab),
-    check_prices: asAgent(checkPrices),
-    "commerce.cart_show": asAgent(showCart),
-    "commerce.cart_add": asAgent(addToCart),
-    "commerce.cart_update": asAgent(updateCartItem),
-    start_checkout: asAgent(startCheckout),
-    fill_checkout: asAgent(fillCheckout),
+    "page.open": openPage,
+    "page.show": showSection,
+    "page.faq": openFaq,
+    "commerce.filter": filterCue,
+    "commerce.sort": sortCue,
+    "commerce.search": searchProducts,
+    filter_listing: filterListing,
+    open_product: openProduct,
+    product_tab: productTab,
+    check_prices: checkPrices,
+    "commerce.cart_show": showCart,
+    "commerce.cart_add": addToCart,
+    "commerce.cart_update": updateCartItem,
+    start_checkout: startCheckout,
+    fill_checkout: fillCheckout,
   });
 }
 
@@ -2304,8 +2289,9 @@ export function reportPage(next: (event: string, payload: unknown) => void): voi
 
 /** Cannon Home's adapter for `@voqalize/stage/extension`: its moves, what the
  *  visitor is looking at for the session's start, and its reports. */
-export const cannonhome: Adapter = (moves) => {
+export const cannonhome: Adapter = (moves, kit) => {
   registerMoves(moves);
+  who = () => kit.author();
   prepare();
   return {
     context: () => {

@@ -63,6 +63,18 @@ const STATE: Record<string, "page.changed" | "stay.changed" | "enquiry.changed">
   enquiry_state: "enquiry.changed",
 };
 
+type Author = { by: "visitor" | "agent"; callRef?: string };
+/** Who changed what the page reports now: the page kit's answer (the agent
+ *  while a move of his acts, just after one, or while this page owes the move
+ *  the last page carried here; else the visitor). */
+let authorOf: () => Author = () => ({ by: "visitor" });
+
+/** The page kit this page's adapter runs with: its `author` says who made a
+ *  change. */
+export function attributeTo(kit: { author(): Author }): void {
+  authorOf = () => kit.author();
+}
+
 /** `emit`, with the page's state sent as Stage state events and every other
  *  report (an act: an enquiry sent, a language asked for) as it is. */
 export function asStage(emit: Emit): Emit {
@@ -74,7 +86,7 @@ export function asStage(emit: Emit): Emit {
       const filled = (data.filled ?? {}) as Record<string, unknown>;
       data = { ...data, filled: Object.keys(filled).filter((k) => filled[k]) };
     }
-    emit("stage_event", scene.event(name, data as never));
+    emit("stage_event", scene.event(name, data as never, authorOf()));
   };
 }
 

@@ -33,7 +33,7 @@
  */
 
 import type { StageClient } from "./attach.js";
-import { Moves, type Performer } from "./moves.js";
+import { AGENT_WINDOW_MS, Moves, type Performer } from "./moves.js";
 import { type StagePage, stagePage } from "./page.js";
 import type { ArgsOf, EventData, EventId, MoveId, Scene, SceneSpec } from "./scene.js";
 import { Spotlight, type SpotlightTheme } from "./spotlight.js";
@@ -45,8 +45,7 @@ export interface ReactHooks {
   useState<T>(initial: T): [T, (value: T) => void];
 }
 
-/** A state change this soon after the agent's move finished is the move's. */
-export const AGENT_WINDOW_MS = 500;
+export { AGENT_WINDOW_MS } from "./moves.js";
 
 /** Stage, attached to the app's client. */
 export interface AppStage<S extends SceneSpec> {

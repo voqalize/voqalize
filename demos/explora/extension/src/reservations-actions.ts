@@ -42,7 +42,7 @@ import { clean, norm, type PageContext, pick, scrollTo, setField, sleep, styleTh
 import { focusTab, inCallLanguage } from "./explora-actions";
 import { scene } from "./scene.gen";
 import {
-  asStage, type CheckAvailabilityArgs, type ChooseRoomArgs, type EnquiryFields, type EnquiryReport, type FillEnquiryArgs, MOVE,
+  asStage, attributeTo, type CheckAvailabilityArgs, type ChooseRoomArgs, type EnquiryFields, type EnquiryReport, type FillEnquiryArgs, MOVE,
   type NavigateArgs, type NightsOption, type RoomOption, type StayState,
 } from "./site";
 import { SITE } from "./site-language";
@@ -1139,6 +1139,7 @@ const NOT_HERE = "the booking site cannot show a section of www.explora.com";
 
 /** reservations.explora.com's moves, registered with Stage, and what the page reports. */
 export const reservationsAdapter: Adapter = (moves, kit) => {
+  attributeTo(kit);
   spot = kit.spotlight;
   styleThePage();
   watch();

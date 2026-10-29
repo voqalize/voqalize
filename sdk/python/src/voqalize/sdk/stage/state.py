@@ -41,6 +41,10 @@ class Folded:
     note: str | None
     """The line for the model, in square brackets; ``None`` when the event is
     folded in silence."""
+    changed: bool = True
+    """Whether the slice is different for it. A page that reports the same
+    state again (a cart re-read on every page load) changed nothing: no new
+    version, and no line, since nobody did anything."""
 
 
 _SCALARS: dict[str, tuple[type, ...]] = {
@@ -162,12 +166,17 @@ class Mirror:
             return None
         sl = self._slices[spec.slice]
         kept = _keep(sl.fields, event.data)
+        before = self._values.get(sl.id)
         if spec.op == "set":
-            self._values[sl.id] = kept
+            after = kept
         elif spec.op == "merge":
-            self._values[sl.id] = {**self._values.get(sl.id, {}), **kept}
+            after = {**(before or {}), **kept}
         else:
-            self._values[sl.id] = {}
+            after = {}
+        if after == before:
+            logger.info("stage: {} by {} -> {} unchanged", event.name, event.by, sl.id)
+            return Folded(sl.id, self._versions[sl.id], None, changed=False)
+        self._values[sl.id] = after
         self._versions[sl.id] += 1
         version = self._versions[sl.id]
         note = None

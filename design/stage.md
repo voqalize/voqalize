@@ -469,9 +469,21 @@ that change one slice):
   `ReadRequest` model whose description lists the slices; a brain's tool is
   `@needs_result_now async def read_screen(self, request: ReadRequest) -> str: return
   self.stage.mirror.read(request.slice)`.
-- The ports keep their own screen events and notes for now: moving Cannon Home's cart and
-  listing onto slices changes what the model sees (a note naming the act instead of the whole
-  cart), so it lands with a dev re-test, and the hosted brain is the first user.
+- An event that leaves its slice as it was is no act: `Folded.changed` is false, the version
+  stays, and there is no line (dev call 84c62a64: the unchanged cart, re-read on every page load
+  a move made, told the model three times it had changed the cart).
+- Who made a change is the page runtime's to say, once: `Moves.author()` is the agent (with the
+  move's `call_ref`) while a move acts and for `AGENT_WINDOW_MS` (500 ms) after, and the
+  extension host's `PageKit.author()` adds a move the last page carried here, until this page
+  makes it (the listing a `{page:}` cue opened is the agent's, not the visitor's). Sites pass it
+  to `scene.event` as `by`.
+- A cue's "where" is the place, never its address with state in it: Cannon Home's filter and
+  sort cues name the category (`category_of`), so a second filter in one reply runs on the
+  listing the first one left (dev call 84c62a64: it reloaded the address the reply was written
+  on, which undid the first filter).
+- Both ports now report their screen state as state events (Explora: page, stay, enquiry;
+  Cannon Home: the kit's listing and cart, and product, search, checkout) and answer
+  `read_screen` from the mirror.
 
 ### Conformance (built)
 
