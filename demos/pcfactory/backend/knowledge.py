@@ -802,6 +802,13 @@ def _nav(site: Any) -> tuple[str, ...]:
     return _strs(cast(dict[str, Any], site).get("nav"))
 
 
+#: L2 files that are not topics to read whole. ``categorias`` is the whole
+#: category tree with every filter (95 KB): read once on dev call 2a2304d8, it
+#: carried ~34k tokens into every later request of the call. The brain reads
+#: one category at a time instead (``read_category``), from categories.json.
+_NOT_TOPICS = frozenset({"categorias"})
+
+
 def load(root: Path = ROOT) -> Knowledge:
     """Every layer under ``root``; whatever is missing is empty."""
     try:
@@ -811,6 +818,8 @@ def load(root: Path = ROOT) -> Knowledge:
         l1 = _L1_FALLBACK
     topics: dict[str, Topic] = {}
     for path in sorted((root / "L2").glob("*.md")) if (root / "L2").is_dir() else []:
+        if path.stem in _NOT_TOPICS:
+            continue
         topics[path.stem] = _topic(path)
     l3 = root / "L3"
     pages = {p.path: p for raw in _read_json(l3 / "pages.json") if (p := _page(raw))}

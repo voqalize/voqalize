@@ -54,9 +54,9 @@
       "id": "product.tab",
       "verb": "tab",
       "class": "look",
-      "args": [{ "name": "tab", "enum": ["about", "specs", "warranty", "stock", "photos"] }],
-      "say": "{tab: specs} as you talk about the product's specifications; about, warranty, stock (by store) or photos likewise.",
-      "doc": "On the product page in front, open a tab (Sobre este producto, Especificaciones, Garantía), scroll to the stock by store (Disponibilidad), or step through the gallery, and ring it."
+      "args": [{ "name": "tab", "enum": ["about", "specs", "warranty", "stock", "photos", "zoom", "pickup", "price_note"] }],
+      "say": "{tab: specs} as you talk about the product's specifications; about, warranty, stock (by store), photos, zoom (the big photos), pickup (which stores have it for pickup) or price_note (what Transferencia means) likewise.",
+      "doc": "On the product page in front, open a tab (Sobre este producto, Especificaciones, Garantía), scroll to the stock by store (Disponibilidad), step through the gallery, open the big photos (zoom, the gallery's own lightbox), open \"Disponibilidad de retiro en tienda\" (pickup, only when a store has it) or the ⓘ beside Transferencia / Débito (price_note), and ring it."
     },
     {
       "id": "filter_listing",
@@ -71,11 +71,20 @@
         },
         { "name": "min_price", "type": "integer", "optional": true, "doc": "Pesos, for Rango de precios." },
         { "name": "max_price", "type": "integer", "optional": true, "doc": "Pesos, for Rango de precios." },
-        { "name": "sort", "enum": ["price_asc", "price_desc", "relevance"], "optional": true }
+        { "name": "sort", "enum": ["price_asc", "price_desc", "relevance"], "optional": true },
+        {
+          "name": "remove",
+          "type": "array",
+          "optional": true,
+          "doc": "Filters to take off, each \"Facet: Option\" as it is on (\"Marcas: Lenovo\"): its chip's ⊗ under Filtros, in place."
+        },
+        { "name": "clear", "type": "boolean", "optional": true, "doc": "True to take every filter off with the listing's own \"Limpiar todos\", in place." },
+        { "name": "page", "type": "integer", "optional": true, "doc": "The listing's page to show, 1 for the first (a full load, by its own page links)." },
+        { "name": "size", "type": "integer", "optional": true, "doc": "How many products per page: 12, 24 or 32, with \"Productos por página\", in place." }
       ],
       "claims": ["filtrando por", "filtro por", "filtering by"],
       "objects": ["filter", "filtro", "filtros"],
-      "doc": "Go to the listing at category_path (a full load, if it is not the one in front), then apply each filter with the listing's own checkbox, one at a time, waiting for the grid; then the price range and the sort. Reports listing.shown and listing.filtered."
+      "doc": "Go to the listing at category_path (a full load, if it is not the one in front; a category, a search, or a /busqueda?productos=… list), take off the filters asked (its chips, or Limpiar todos), then apply each filter with the listing's own checkbox, one at a time, waiting for the grid; then the price range, the sort, the page size and the page. A filter already on stays on. Reports listing.shown and listing.filtered."
     },
     {
       "id": "open_product",
@@ -127,10 +136,54 @@
     {
       "id": "compare.add",
       "class": "reversible",
-      "args": [{ "name": "paths", "type": "array", "doc": "Two to four /producto/<id> paths shown on the listing in front, or the product in front." }],
-      "claims": ["comparo", "comparando", "comparing"],
-      "objects": ["comparador", "comparator", "comparison"],
-      "doc": "Tick the store's own Comparar box on each product and bring up its comparator. Reports compare_shown."
+      "args": [
+        {
+          "name": "paths",
+          "type": "array",
+          "doc": "Two or three /producto/<id> paths of one category; those not on the page in front are opened to tick them."
+        },
+        {
+          "name": "open",
+          "type": "boolean",
+          "default": true,
+          "doc": "Press the comparator's own Comparar once it holds two or more (the default), which opens the comparison page."
+        }
+      ],
+      "claims": ["comparo", "comparando", "te los comparo", "abro la comparación", "comparing", "opening the comparison"],
+      "objects": ["comparador", "comparación", "comparator", "comparison"],
+      "doc": "Tick the store's own Comparar box on each product (the card's box on a listing, the Comparar button on a product page), so the comparator's bar comes up; then ring its Comparar, press it, and finish on /comparador (a full load), reading the table. Refuses a fourth product or one of another category with the comparator's own reason. Reports compare_shown for the bar and compare.shown for the comparison page."
+    },
+    {
+      "id": "compare.show",
+      "verb": "compare",
+      "class": "look",
+      "args": [
+        {
+          "name": "row",
+          "doc": "A row of the comparison table by its label as the table writes it (\"RAM\", \"Procesador\", \"Pantalla\"), or \"diferencias\" for Destacar diferencias, or \"precio\" for the prices."
+        }
+      ],
+      "say": "{compare: RAM} on the comparison page as you contrast one spec across the products; {compare: diferencias} as you say what changes between them.",
+      "doc": "On /comparador, scroll one spec row under the products' cards and ring it across them; with diferencias, switch on Destacar diferencias and ring the first row that differs; with precio, ring the prices."
+    },
+    {
+      "id": "compare.remove",
+      "class": "reversible",
+      "args": [
+        { "name": "path", "optional": true, "doc": "The /producto/<id> to take out of the comparator." },
+        { "name": "all", "type": "boolean", "optional": true, "doc": "True to empty the comparator with its own Limpiar selección." }
+      ],
+      "claims": ["lo saco de la comparación", "limpio el comparador", "quito del comparador", "removing it from the comparison", "clearing the comparator"],
+      "objects": ["comparador", "comparación", "comparator", "comparison"],
+      "doc": "Take one product out of the comparator (its ✕ on the comparison page or on the bar), or empty it with Limpiar selección. Reports compare_shown, and compare.shown on the comparison page."
+    },
+    {
+      "id": "menu.open",
+      "verb": "menu",
+      "class": "look",
+      "args": [{ "name": "category", "optional": true, "doc": "A top category as the Categorías menu writes it (\"Computación\", \"Partes y Piezas / Componentes\")." }],
+      "say": "{menu: Categoría} as you walk them through what the store sells, one top category per sentence.",
+      "doc": "Open the header's Categorías menu and show that category's panel (its sub-categories), ringed; left open until the next move."
     },
     {
       "id": "apply_coupon",
@@ -181,11 +234,47 @@
         { "name": "options", "type": "array", "optional": true },
         { "name": "chosen", "optional": true }
       ]
+    },
+    {
+      "id": "compare",
+      "doc": "the comparison page in front (/comparador): its products with their prices, and the specification rows side by side",
+      "fields": [
+        { "name": "path" },
+        { "name": "category", "optional": true },
+        {
+          "name": "items",
+          "type": "array",
+          "fields": [
+            { "name": "path" },
+            { "name": "name" },
+            { "name": "brand", "optional": true },
+            { "name": "price", "type": "number", "optional": true, "doc": "Transferencia." },
+            { "name": "card_price", "type": "number", "optional": true, "doc": "Otros medios de pago." },
+            { "name": "regular_price", "type": "number", "optional": true }
+          ],
+          "doc": "The products, left to right."
+        },
+        {
+          "name": "rows",
+          "type": "array",
+          "fields": [{ "name": "group" }, { "name": "label" }, { "name": "values", "type": "array" }],
+          "doc": "Each row with a value, in the table's order; values left to right, \"\" where a product has none."
+        },
+        { "name": "differs", "type": "array", "doc": "The labels of the rows whose values differ." },
+        { "name": "highlighted", "type": "boolean", "optional": true, "doc": "Whether Destacar diferencias is on." }
+      ]
     }
   ],
   "events": [
     { "id": "product.shown", "slice": "product", "op": "set", "note": "{by} opened the product {name}", "doc": "A product page came up, read from the page." },
     { "id": "product.checked", "slice": "product", "op": "set", "doc": "The store's live read of the product in front: its prices and stock now." },
-    { "id": "checkout.changed", "slice": "checkout", "op": "set", "doc": "The checkout step on load and after a change; the brain writes its own line." }
+    { "id": "checkout.changed", "slice": "checkout", "op": "set", "doc": "The checkout step on load and after a change; the brain writes its own line." },
+    {
+      "id": "compare.shown",
+      "slice": "compare",
+      "op": "set",
+      "note": "{by} opened the comparison",
+      "doc": "The comparison page came up, or a product left it, or Destacar diferencias changed: the table read from the page."
+    }
   ]
 }

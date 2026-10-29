@@ -6,7 +6,8 @@ parts, phones, monitors and everything else with a plug. He talks a visitor
 through the store in Spanish or English while he moves their screen: he scrolls
 to and rings what he is talking about as he says it, types in the search box,
 filters and sorts a listing with its own checkboxes, opens a product and its
-specifications, reads live prices and stock by store, compares, adds to the
+specifications, reads live prices and stock by store, compares products on
+the store's own comparison page and walks the table row by row, adds to the
 cart and takes a guest as far as *Tipo de entrega*. One call follows the
 visitor across every pcFactory tab they have open, and through every full page
 load, without reconnecting. Everything he shows is the store's own; the
@@ -25,20 +26,38 @@ goes on it; it is not how a customer would ship it.
   result and opens it, another load, and reports `product.shown`. pcFactory has
   no suggestions dropdown.
 - **Filter a listing** (`filter_listing`, the `{filter: Facet | Option}` cue):
-  loads the listing if needed (a clean one if it has filters the wish does not),
-  then for each "Facet: Option" opens the group in the filter panel (`h4 >
-  button`, `h3` on a search), rings the option and presses its label, and waits
-  for the store's `productos/query` call and the grid; then the price range
-  (its two sliders, one after the other) and the sort. Facets and options go by
-  the page's own words (`Marcas`, `RAM`, `Tiendas`); an unknown one is refused
-  with what the listing offers.
+  loads the listing if needed (a category, a search, or a curated list
+  `/busqueda?productos=…`), takes off what is asked (`remove`, each with its
+  chip's ⊗ under *Filtros*; `clear`, *Limpiar todos*) and any filter on that the
+  wish does not have (its chip, in place; a clean load only when there is no
+  chip), then for each "Facet: Option" opens the group in the filter panel
+  (`h4 > button`, `h3` on a search), rings the option and presses its label,
+  and waits for the store's `productos/query` call and the grid; then the price
+  range (its two sliders, one after the other), the sort, *Productos por
+  página* (`size`: 12, 24 or 32, in place) and the page (`page`: the pager's
+  own link, a load the move finishes on). Facets and options go by the page's
+  own words (`Marcas`, `RAM`, `Tiendas`), with every option of every facet
+  reported (Procesador has 27 on the notebooks); an unknown one is refused with
+  what the listing offers, while one the listing offered before and the
+  filters on now leave out is a note in the result, not a refusal.
+- **A listing is reported only once the store has answered**: while the
+  widget redraws (the grid empty, Ordenar por gone, the counter stale, its
+  call still out) nothing is reported, and an empty listing only when the
+  store's own "Aun no hay productos" / "No se encontraron resultados" shows.
+  While one of his moves waits for its grid, the page's watch stays quiet and
+  the move reports the settled listing itself (dev calls 31a45613, 8b363867).
 - **Sort** (`commerce.sort`, the `{sort: …}` cue): *Ordenar por*
   (`#dropdown-order`), then *Precio menor a mayor*, *Precio mayor a menor* or
   *Recomendados*. Reported as `price_asc`, `price_desc` or `relevance`.
 - **Open a product** (`open_product`, `product.tab`): loads `/producto/<id>`,
   then *Sobre este producto*, *Especificaciones* or *Garantía* (`#about-tab`,
   `#specifics-tab`, `#warranty-tab`), the *Disponibilidad* list (stock), or steps
-  the gallery (photos). Reports `product.shown` from the page at once and
+  the gallery (photos). On the product in front, `{tab: zoom}` opens the
+  gallery's own window of big photos and steps through a few, `{tab: pickup}`
+  opens *Disponibilidad de retiro en tienda* (only a link when some store has
+  it) and rings the stores that do, and `{tab: price_note}` presses the ⓘ
+  beside *Transferencia / Débito* and reads the store's own words. The windows
+  stay open for the visitor and the next move closes them. Reports `product.shown` from the page at once and
   `product.checked` from the store's API (`/productos/{id}`, `/precio`,
   `/stock`): the HTML is cached at the edge.
 - **Show** (`{show: …}`): a section heading (the home's *Te recomendamos*,
@@ -59,11 +78,31 @@ goes on it; it is not how a customer would ship it.
 - **Stores** (`{store: …}`): on /tiendas, the store's card ringed and its *Ver
   tienda* pressed; the map card's address and hours reported (`store_shown`),
   never the name of the store's manager it also shows.
-- **Compare** (`compare.add`): ticks each card's own box
-  (`input#product-checkbox<ID>`, never its label, whose click reaches the card's
-  link and opens the product), or the product page's *Comparar*; the
-  comparator's bar comes up. It holds three, and only products of one category:
-  its own message is the refusal. Reports `compare_shown`.
+- **Compare, through the store's own controls** (`compare.add`): first the
+  comparator's limits (three at most, one category, read as the comparator
+  keeps it), refused in its own words before a box is ticked; then each card's
+  own box (`input#product-checkbox<ID>`, never its label, whose click reaches
+  the card's link and opens the product), or the product page's *Comparar*,
+  opening a product's page to tick it when it is not on the page in front; the
+  bar comes up ("Comparador (2/3)"). Then its *Comparar* (`.compare-btn`) is
+  ringed, left a beat for the visitor to see, and pressed: the site loads
+  `/comparador?prod1=…`, and the move finishes there, reading the table into
+  `compare.shown` (each product with its prices; every row with a value, as
+  `{group, label, values}`, left to right by the table's own ID row; the rows
+  that differ, as *Destacar diferencias* marks them) and ringing it. Only when
+  the bar's button is missing is the comparison opened by its address, and the
+  detail says so. Products held from before that were not asked for are taken
+  out of the bar first.
+- **Walk the comparison** (`{compare: Label}`): on /comparador, one row of the
+  table scrolled just under the products' cards (which stick under the header)
+  and ringed across them; `{compare: diferencias}` switches on *Destacar
+  diferencias* and rings the first green row; `{compare: precio}` rings the
+  prices. `compare.remove` takes a product out (its ✕ on the comparison page,
+  the address rewritten so a reload is honest; on the bar its ✕) or empties
+  the comparator with *Limpiar selección*.
+- **The menu** (`{menu: Categoría}`): the header's *Categorías* opened and a
+  top category's panel shown (hovered, as a visitor does) and ringed; its
+  sub-categories reported. Left open; the next move closes it.
 - **Cart** (`commerce.cart_add`, `cart_update`, `cart_show`, `apply_coupon`):
   *Agregar al carro* on the product page or a card (no quantity box: on the
   product page the button turns into − / + after the first add, and more go in
@@ -107,6 +146,11 @@ These are rules of the adapter, not of the prompt, so no brain can lift them:
 - While he is on the call, pcFactory's own assistance button
   (`#pcfAssistanceWrapper`, its chat and video advisers) is hidden: one voice
   on the page.
+- What is the visitor's own elsewhere on the store is never pressed:
+  *Usar mi ubicación actual* on /tiendas (the device's location), the order
+  tracking form on /estado-despacho (a RUT and a boleta), a coupon's *Copiar
+  código* (the clipboard), the newsletter and business quote forms, and the
+  human advisor's button (`offLimits` in `src/page.ts`).
 
 ## How the call lives through page loads
 
@@ -166,7 +210,8 @@ header and comparator bar.
 - `src/site.ts` — who the site is: hosts, language, the widget's words and
   colours, the ring.
 - `src/anchors.ts`, `src/anchor.ts` — Chrome's translator kept off the filter
-  panel, product names, tabs, specifications, stock and store cards.
+  panel and its chips, product names, tabs, specifications, stock, the
+  comparison table, the Categorías menu and store cards.
 - `src/holder.ts`, `src/call.html`, `src/call-client.ts`, `src/content.ts`,
   `src/shell.ts`, `src/bridge.ts`, `src/background.ts`, `src/grant.ts`,
   `src/grant.html` — the shared host's entry points, with pcFactory's
@@ -228,6 +273,12 @@ await __voqalizePcfactory.move("open_product", { path: "/producto/57233", tab: "
 await __voqalizePcfactory.move("page.show", ["Procesador"]);
 await __voqalizePcfactory.move("check_stock", { path: "/producto/57233", store: "La Serena" });
 await __voqalizePcfactory.move("stores.show", ["Mall Cenco Costanera"]);
+await __voqalizePcfactory.move("compare.add", { paths: ["/producto/57695", "/producto/58436"], open: true });
+await __voqalizePcfactory.move("compare.show", ["RAM"]);       // on /comparador
+await __voqalizePcfactory.move("compare.show", ["diferencias"]);
+await __voqalizePcfactory.move("filter_listing", { category_path: "/categoria/computadores-y-tablets/notebooks/notebooks", remove: ["Marcas: Lenovo"], size: 32 });
+await __voqalizePcfactory.move("product.tab", ["pickup"]);     // on a product page
+await __voqalizePcfactory.move("menu.open", ["Computadores y Tablets"]);
 __voqalizePcfactory.moves();
 ```
 

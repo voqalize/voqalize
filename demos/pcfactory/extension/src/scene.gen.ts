@@ -57,7 +57,10 @@ export const scene = defineScene({
             "specs",
             "warranty",
             "stock",
-            "photos"
+            "photos",
+            "zoom",
+            "pickup",
+            "price_note"
           ]
         }
       ]
@@ -91,6 +94,26 @@ export const scene = defineScene({
             "price_desc",
             "relevance"
           ],
+          "optional": true
+        },
+        {
+          "name": "remove",
+          "type": "array",
+          "optional": true
+        },
+        {
+          "name": "clear",
+          "type": "boolean",
+          "optional": true
+        },
+        {
+          "name": "page",
+          "type": "integer",
+          "optional": true
+        },
+        {
+          "name": "size",
+          "type": "integer",
           "optional": true
         }
       ]
@@ -193,6 +216,47 @@ export const scene = defineScene({
         {
           "name": "paths",
           "type": "array"
+        },
+        {
+          "name": "open",
+          "type": "boolean",
+          "default": true
+        }
+      ]
+    },
+    {
+      "id": "compare.show",
+      "verb": "compare",
+      "class": "look",
+      "args": [
+        {
+          "name": "row"
+        }
+      ]
+    },
+    {
+      "id": "compare.remove",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "path",
+          "optional": true
+        },
+        {
+          "name": "all",
+          "type": "boolean",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "id": "menu.open",
+      "verb": "menu",
+      "class": "look",
+      "args": [
+        {
+          "name": "category",
+          "optional": true
         }
       ]
     },
@@ -396,6 +460,74 @@ export const scene = defineScene({
       ]
     },
     {
+      "id": "compare",
+      "fields": [
+        {
+          "name": "path"
+        },
+        {
+          "name": "category",
+          "optional": true
+        },
+        {
+          "name": "items",
+          "type": "array",
+          "fields": [
+            {
+              "name": "path"
+            },
+            {
+              "name": "name"
+            },
+            {
+              "name": "brand",
+              "optional": true
+            },
+            {
+              "name": "price",
+              "type": "number",
+              "optional": true
+            },
+            {
+              "name": "card_price",
+              "type": "number",
+              "optional": true
+            },
+            {
+              "name": "regular_price",
+              "type": "number",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "name": "rows",
+          "type": "array",
+          "fields": [
+            {
+              "name": "group"
+            },
+            {
+              "name": "label"
+            },
+            {
+              "name": "values",
+              "type": "array"
+            }
+          ]
+        },
+        {
+          "name": "differs",
+          "type": "array"
+        },
+        {
+          "name": "highlighted",
+          "type": "boolean",
+          "optional": true
+        }
+      ]
+    },
+    {
       "id": "listing",
       "fields": [
         {
@@ -512,6 +644,11 @@ export const scene = defineScene({
       "op": "set"
     },
     {
+      "id": "compare.shown",
+      "slice": "compare",
+      "op": "set"
+    },
+    {
       "id": "listing.shown",
       "slice": "listing",
       "op": "set"
@@ -534,4 +671,4 @@ export const scene = defineScene({
   ]
 });
 
-export const SPEC_SHA256 = "093066655cac2c866735a8820205e12fb4822e59ecf761a7e974db6a2bcb975b";
+export const SPEC_SHA256 = "68425cb8c5bd2dd23a1b8a6f22bd127c996e60de44de7824cd28e4746416b5a7";
