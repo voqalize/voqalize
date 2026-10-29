@@ -45,7 +45,7 @@ from google.genai import types
 from voqalize_demos.discovery import discover
 from voqalize_demos.testing import Reply, ScriptedGemini, call, reply, reply_and_call
 
-from voqalize.sdk.wire import Language
+from voqalize.sdk.wire import EndFrame, Language, SpeechEndFrame
 
 from ._harness import check_greeting, check_turn, check_voice_pair, demo
 
@@ -1777,3 +1777,49 @@ def test_the_prompt_asks_again_on_a_misheard_turn() -> None:
     assert "MISHEARD." in _SYSTEM_INSTRUCTION
     assert "never switch the language on it" in _SYSTEM_INSTRUCTION
     assert "a turn that makes no sense as English is usually Kannada" not in _SYSTEM_INSTRUCTION
+
+
+# ─── Goodbye ends the call ────────────────────────────────────────────────────
+
+
+def _goodbye_llm() -> ScriptedGemini:
+    return ScriptedGemini(
+        {
+            "Bye.": reply_and_call("Goodbye! Have a great day.", "end_call"),
+            "Okay, that's all, bye bye.": call("end_call"),
+            "Thank you.": reply_and_call("You're welcome.", "end_call"),
+        }
+    )
+
+
+async def test_a_goodbye_closes_the_call_after_it_is_heard() -> None:
+    """She said goodbye and the call stayed open; what the microphone picked up
+    next got don't-know replies. Now her goodbye is the end: the brain hangs up
+    once the goodbye is on the wire, so nothing after it is answered."""
+    async with demo("kdem", _goodbye_llm()) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        turn = await rig.driver.user_says("Bye.")
+        assert [u.text for u in turn.units] == ["Goodbye! Have a great day."]
+        kinds = [type(r.frame) for r in rig.driver.log]
+        assert EndFrame in kinds, "the call stayed open after the goodbye"
+        assert kinds.index(EndFrame) > len(kinds) - 1 - kinds[::-1].index(SpeechEndFrame)
+
+
+async def test_a_silent_goodbye_gets_her_written_one() -> None:
+    async with demo("kdem", _goodbye_llm()) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        turn = await rig.driver.user_says("Okay, that's all, bye bye.")
+        assert [u.text for u in turn.units] == ["Thank you for visiting. Goodbye."]
+        assert EndFrame in [type(r.frame) for r in rig.driver.log]
+
+
+async def test_a_plain_thank_you_never_ends_the_call() -> None:
+    llm = _goodbye_llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says("Thank you.")
+        assert EndFrame not in [type(r.frame) for r in rig.driver.log]
+        brain = rig.brain
+        assert isinstance(brain, KdemBrain)
+        await rig.driver.user_says("Bye.")
+    assert _result(llm, "end_call").startswith("Not ended")

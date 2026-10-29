@@ -187,6 +187,8 @@ THE KAN APPLICATION FORM. The Karnataka Acceleration Network page ({path_of(KAN_
 - In Kannada, names stay as they say them, and the location is still one of those six, written as above.
 - At the end, ask them to check the form and press Apply Now themselves: filling it is yours, sending it is theirs.
 
+SAYING GOODBYE. When the visitor says goodbye, or that they are done, say a short goodbye ("Thank you for visiting. Goodbye.") and call end_call in the same response. Nothing is said after it: the call closes when your goodbye has been heard. Never call it for a plain "thank you" in the middle of a conversation.
+
 SOUND LIKE A PERSON, NOT A SCRIPT. Your first word is the answer, with no filler, and your first sentence is short, so it is heard quickly.
 
 VOICE STYLE. Warm, plain and brief. No markdown, no lists, no symbols, no URLs read aloud — say "the Policies page", not its address. Say numbers as a person would. No throat-clearing: not "Great question", not "Sure, let me". English by default.
@@ -268,6 +270,7 @@ Said = Literal[
     "document_refused",
     "kan_elsewhere",
     "say_again",
+    "goodbye",
     "dont_know",
     "dont_know_offer",
     "dont_know_here",
@@ -335,6 +338,10 @@ LINES: dict[Said, Mapping[Language, str]] = {
     "say_again": {
         Language.EN: "Sorry, I didn't catch that. Could you say it again?",
         Language.KN: "ಕ್ಷಮಿಸಿ, ಅದನ್ನು ಮತ್ತೊಮ್ಮೆ ಹೇಳುತ್ತೀರಾ?",
+    },
+    "goodbye": {
+        Language.EN: "Thank you for visiting. Goodbye.",
+        Language.KN: "ಭೇಟಿ ನೀಡಿದ್ದಕ್ಕೆ ಧನ್ಯವಾದಗಳು. ನಮಸ್ಕಾರ.",
     },
     "dont_know": {
         Language.EN: DONT_KNOW,
@@ -628,6 +635,16 @@ A switch to Kannada by voice needs one of them in what the visitor said: a
 garbled turn ("Ferro vai la dar agua") switched a call once, and the visitor
 then heard a language they had not spoken."""
 
+_GOODBYE_HEARD = re.compile(
+    r"\b(?:good\s*-?\s*bye|bye(?:\s*-?\s*bye)?|that'?s\s+(?:all|it)|that\s+is\s+all"
+    r"|nothing\s+(?:else|more)|i'?m\s+done|we'?re\s+done|see\s+you|end\s+(?:the\s+)?call"
+    r"|hang\s+up)\b|ಬೈ|ಹೋಗಿ\s*ಬರ|ಅಷ್ಟೇ|ಸಾಕು",
+    re.IGNORECASE,
+)
+"""Words with which a visitor ends the call: "bye", "that's all", "nothing
+else", "ಬೈ", "ಅಷ್ಟೇ" (that's all). ``end_call`` closes the call only after them,
+so a model that misreads a plain "thank you" cannot hang up on a visitor."""
+
 _SEARCHES_PER_TURN = 2
 """A broad question may take a second search in other words; never a third."""
 
@@ -820,6 +837,9 @@ class KdemBrain(GeminiBrain):
         self._kan_pending: dict[KanField, tuple[str, int]] = {}
         #: Searches made in the latest visitor turn: (turn, how many).
         self._searches: tuple[int, int] = (0, 0)
+        #: The visitor said goodbye and she said hers: the call closes once the
+        #: turn's speech is out, so nothing after it is answered.
+        self._ending = False
         #: Don't-know replies this call, and the team lead said last, so the
         #: same line is never said twice running.
         self._dont_knows = 0
@@ -910,6 +930,11 @@ class KdemBrain(GeminiBrain):
             if await self._move(session, speech, by="you, on what the visitor said"):
                 async for event in say_line(self, SWITCH_LINE[speech.tag]):
                     yield event
+        if self._ending:
+            # After everything yielded is on the wire, so the goodbye is heard
+            # in full; whatever the microphone picks up after it gets no reply.
+            logger.info("kdem: call ended after the goodbye")
+            session.end("goodbye")
 
     async def _move(self, session: Session, speech: LanguageSpeech, *, by: str) -> bool:
         """Move both legs to ``speech`` in one awaited request, and record it.
@@ -1060,6 +1085,7 @@ class KdemBrain(GeminiBrain):
             self.go_to_page,
             self.point_at,
             self.set_language,
+            self.end_call,
         ]
 
     def _say(self, what: Said, *, offers: str | None = None, **names: str) -> None:
@@ -1418,6 +1444,19 @@ class KdemBrain(GeminiBrain):
         logger.info("kdem: show_document {}", path_of(url))
         self._say("document", title=_spoken_title(title))
         return "ok"
+
+    async def end_call(self) -> str:
+        """End the call after the visitor says goodbye. Say your short goodbye and
+        call this in the same response; the call closes once it has been heard.
+        Only when they said goodbye or that they are done, never on a plain thank
+        you."""
+        if not _GOODBYE_HEARD.search(self._heard):
+            logger.info("kdem: end_call refused: the visitor did not say goodbye")
+            return "Not ended: they did not say goodbye. Carry on the conversation."
+        self._ending = True
+        logger.info("kdem: end_call")
+        self._say("goodbye")
+        return "ok: the call closes after your goodbye."
 
     async def set_language(self, request: LanguageRequest) -> str:
         """Conduct the rest of the call in English or Kannada — both the listening and
