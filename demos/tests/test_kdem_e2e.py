@@ -1569,3 +1569,40 @@ async def test_she_is_kdems_assistant_and_never_names_a_model_or_vendor() -> Non
     ).lower()
     for name in ("gemini", "google", "openai", "gpt", "anthropic", "claude", "llama"):
         assert name not in written, name
+
+
+# ─── Her pointing line ────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("pointed", "said"),
+    [
+        # The live failure: a label cut mid-phrase, said with its dash.
+        (
+            "SEBI-registered Category I AIF \u2013 Karnataka Startup Fund of Funds",
+            "SEBI-registered Category I AIF",
+        ),
+        ("SEBI-registered Category I AIF \u2013", "SEBI-registered Category I AIF"),
+        ("Who it is for:", "Who it is for"),
+        ("Apply Now \u2192", "Apply Now"),
+        ("Eligibility -", "Eligibility"),
+        (
+            "Eligibility, documents and the steps to apply for it",
+            "Eligibility, documents and the steps to",
+        ),
+        ("How to apply", "How to apply"),
+    ],
+)
+def test_a_pointed_label_is_said_in_whole_words_with_no_trailing_dash(
+    pointed: str, said: str
+) -> None:
+    assert kdem_brain._spoken_text(pointed) == said  # pyright: ignore[reportPrivateUsage]
+    line = kdem_brain.LINES["point"][Language.EN].format(text=kdem_brain._spoken_text(pointed))  # pyright: ignore[reportPrivateUsage]
+    assert ", highlighted" in line and "\u2013," not in line and " ," not in line
+
+
+def test_the_prompt_has_her_answer_first_and_point_after() -> None:
+    """The pointing line was heard as the whole reply. Pointing goes with an
+    answer, never instead of one."""
+    assert "Pointing goes with an answer and never replaces it" in _SYSTEM_INSTRUCTION
+    assert "say the answer first" in _SYSTEM_INSTRUCTION

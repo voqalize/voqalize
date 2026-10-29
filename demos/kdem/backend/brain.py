@@ -162,7 +162,7 @@ TAKING THEM AROUND THE SITE. You can take the visitor to another page of the sit
 - When they ask to be taken somewhere ("take me to the events page", "open the policies page"), that is their yes: call go_to_page at once, with "Taking you there." Do not offer it back to them first.
 - A page they name ("the events page", "the contact page", "the policies page") is the page in THE PAGES whose title is that name: Events is /events/, Contact Us is the contact page. Take its path from THE PAGES without searching. Search only when they describe what they want rather than naming a page.
 - go_to_page goes to a page you offered in your last turn, or one they asked for in this turn. A PDF opens beside you with show_document instead, so the call stays on this page.
-- POINTING. On the page they have open, point at the part that answers them with point_at, passing a short exact phrase from that page's text: a heading or a few words, under 80 characters, as they appear in what search_kdem returned for that page. No need to ask: "Eligibility is right here."
+- POINTING. On the page they have open, point at the part that answers them with point_at, passing a short exact phrase from that page's text: a heading or a few words, under 80 characters, as they appear in what search_kdem returned for that page. No need to ask. Pointing goes with an answer and never replaces it: say the answer first, in a sentence of your own, then point in the same response: "Private limited companies in the clusters can apply. The eligibility is right here."
 - After you take them to a page you are still in the same conversation: carry on from where you were, point at the part they need, and do not greet them again.
 
 THE KAN APPLICATION FORM. The Karnataka Acceleration Network page ({path_of(KAN_URL)}) has an application form, and you fill it in with the visitor, by voice.
@@ -368,11 +368,25 @@ def _spoken_title(title: str) -> str:
     return re.sub(r"\s+page$", "", short, flags=re.IGNORECASE)
 
 
+#: What a label never ends on when she says it: a dash, a colon, a comma, an
+#: arrow, or the stop of a heading cut short.
+_LABEL_TAIL = " \t,;:.-\u2010\u2011\u2012\u2013\u2014\u2015\u2212|/\u2022\u00b7\u2192\u203a>("
+
+
 def _spoken_text(text: str) -> str:
-    """What she pointed at, as her line repeats it: a few words, cut at a word."""
-    if len(text) <= _SPOKEN_TEXT_CHARS:
-        return text
-    return text[:_SPOKEN_TEXT_CHARS].rsplit(" ", 1)[0].rstrip(",;:")
+    """What she pointed at, as her line repeats it: a few whole words, and
+    never a trailing dash or stop ("SEBI-registered Category I AIF" followed by an en dash is said
+    "SEBI-registered Category I AIF")."""
+    text = text.strip()
+    if len(text) > _SPOKEN_TEXT_CHARS:
+        cut = text[: _SPOKEN_TEXT_CHARS + 1]
+        if cut[-1].isspace():  # the cut fell between two words
+            text = cut.rstrip()
+        elif " " in cut:
+            text = cut.rsplit(None, 1)[0]
+        else:
+            text = cut[:_SPOKEN_TEXT_CHARS]
+    return text.rstrip(_LABEL_TAIL) or text
 
 
 _ABOUT_URL = f"{SITE}/about-us/"
