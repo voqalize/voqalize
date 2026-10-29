@@ -64,6 +64,13 @@ const EASE = "cubic-bezier(0.32, 0.72, 0, 1)";
 const CARD = 200;
 /** The minimised face's diameter. */
 const BUBBLE = 64;
+/** At or below this viewport width the widget is a phone's: Saatvik asked
+ *  for only her face and the buttons below it there, with no card of text
+ *  beside the face (customer feedback, 2026-10-29). */
+const PHONE = 640;
+/** The card's width, and so the face's, on a phone. */
+const PHONE_CARD = 132;
+const onPhone = () => window.matchMedia(`(max-width: ${PHONE}px)`).matches;
 /** The gap kept from the viewport's edges and from anything it avoids. */
 const GAP = 16;
 /** Pointer travel below this is a click, above it a drag. */
@@ -190,6 +197,26 @@ button { font: inherit; cursor: pointer; }
 @keyframes breathe {
   0%, 100% { box-shadow: 0 0 0 0 rgba(234, 113, 36, 0.45), 0 16px 40px rgba(19, 48, 107, 0.18); }
   50% { box-shadow: 0 0 0 6px rgba(234, 113, 36, 0), 0 16px 40px rgba(19, 48, 107, 0.18); }
+}
+/* A phone: her face alone before the call, and in the call her face with the
+   buttons below; no name, status or credit lines, no card of text. */
+@media (max-width: ${PHONE}px) {
+  .invite { width: auto; padding: 0; gap: 0; background: transparent; border: 0; border-radius: 50%; box-shadow: none; }
+  .invite:hover { transform: none; }
+  .invite-text { display: none; }
+  .still { width: ${BUBBLE}px; height: ${BUBBLE}px;
+    box-shadow: 0 0 0 2px #fff, 0 0 0 4px ${ORANGE}, 0 10px 24px rgba(19, 48, 107, 0.28); }
+  .lang { width: auto; }
+  .lang button { min-height: 28px; padding: 3px 9px; font-size: 12px; }
+  .card { width: ${PHONE_CARD}px; }
+  .frame, .face { width: ${PHONE_CARD - 2}px; height: ${PHONE_CARD - 2}px; }
+  .body { width: ${PHONE_CARD - 2}px; padding: 8px; gap: 8px; }
+  .head, .credit { display: none; }
+  .buttons { gap: 6px; }
+  .buttons button { height: 32px; font-size: 10px; letter-spacing: 0.02em; padding: 0 2px; white-space: nowrap; }
+  .minimise { opacity: 1; width: 24px; height: 24px; top: 6px; right: 6px; }
+  .root[data-min] .face { transform: scale(${(BUBBLE - 2) / (PHONE_CARD - 2)}); }
+  .brief { width: ${PHONE_CARD + 56}px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .root.glide, .card, .frame, .face { transition: none; }
@@ -336,8 +363,9 @@ export function mountWidget(): Widget {
     let w = 0;
     for (const child of [brief, invite, card, lang, error]) {
       if (child.hidden) continue;
-      const cw = child === card ? CARD : child.offsetWidth;
-      const ch = child === card ? CARD + $<HTMLElement>(".body").offsetHeight : child.offsetHeight;
+      const side = onPhone() ? PHONE_CARD : CARD;
+      const cw = child === card ? side : child.offsetWidth;
+      const ch = child === card ? side + $<HTMLElement>(".body").offsetHeight : child.offsetHeight;
       w = Math.max(w, cw);
       h += ch + (h ? 10 : 0);
     }
