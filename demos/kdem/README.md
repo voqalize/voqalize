@@ -16,8 +16,8 @@ never looks for a frontend here and it is not a card on `/demos`.
 
 | Path | What it is |
 |---|---|
-| `backend/brain.py` | Aria: the prompt, the greeting and the tools (`search_kdem`, `offer_page`, `go_to_page`, `point_at`, `show_document`, `fill_kan_field`, `set_language`) |
-| `backend/app_events.py` | The events the snippet sends the brain: `page_viewed`, `language_requested`, `point_missed`, `kan_field_changed`, `kan_fill_failed` |
+| `backend/brain.py` | Aria: the prompt, the greeting and the tools (`search_kdem`, `offer_page`, `go_to_page`, `point_at`, `show_document`, `fill_kan_field`, `set_language`, `end_call`) |
+| `backend/app_events.py` | The events the snippet sends the brain: `page_viewed`, `language_requested`, `point_missed`, `kan_field_changed`, `kan_fill_failed`, `mic_permission` |
 | `backend/content.py` | The languages table and the page list in the prompt |
 | `backend/knowledge.py` | The approved-page list, visible-text extraction, PDF text extraction, sitemap and PDF refresh, and in-memory search |
 | `backend/knowledge/` | `approved_pages.json`, which KDEM reviews, `core_pages.json` (the frozen core), and its README |
@@ -51,6 +51,11 @@ English, and she switches back the same way, saying "Sure, let's continue in
 English." in the English voice. One borrowed English word inside a Kannada
 sentence does not count as switching.
 
+When the visitor says goodbye, she says hers and calls `end_call`, and the
+brain ends the call once the goodbye has been heard, so nothing the
+microphone picks up afterwards is answered. It ends only after the visitor's
+own words do ("bye", "that's all"), never on a plain thank you.
+
 Recording audio is off, which is the agent default. The platform keeps the
 transcripts.
 
@@ -71,6 +76,14 @@ pasted into Elementor Pro → Custom Code inside a script tag, with the same two
 `data-` attributes on that tag. Nothing downloads until a visitor clicks "Talk
 to Aria", except Aria's picture for the button (her still image, from the
 avatar's `listCharacters()`), fetched once the page has settled.
+
+The panel says "Listening. Just talk." only once the browser has given it a
+live microphone. While the browser's prompt is open it says "Allow the
+microphone to talk to Aria."; when the microphone is blocked it says so and
+where to turn it back on (the icon at the left of the address bar; on an
+iPhone or iPad, aA, then Website Settings, Microphone). Once per call it sends
+the brain `mic_permission` with the outcome (`granted`, `denied`,
+`unavailable`, or `no_answer` after ten seconds), which the brain logs.
 
 It sits at the bottom right at 1.3x (1.1x up to 768px wide), where KDEM placed
 it on their site; on a short screen it shrinks just enough that the open
@@ -100,7 +113,8 @@ page they are on.
   visitor has open, ignoring case and spacing. A phrase from another page is
   refused. After she takes them to a page, `page_viewed` tells her they
   arrived, and she carries on the conversation there, pointing at what they
-  need, without greeting them again.
+  need, without greeting them again. A point she makes while that page is
+  still opening is checked against it and sent when it has opened.
 
 **KDEM has to update the script tag on the site** to this version for any of
 this to work: the same single file, now with the agent and key on the tag. An older script ignores `navigate` and `point_at`, so Aria's line
