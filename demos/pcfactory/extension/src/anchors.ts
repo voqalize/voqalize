@@ -20,11 +20,13 @@
  *      checkout by its path and its cards (`page.ts`).
  */
 
-/** Headings and FAQ questions in the main column; the filter panel and the
- *  sort menu; product names on cards, rails, the product page, the cart, the
- *  "Producto agregado" window and the comparator; the product page's tab
- *  titles, specifications and stock by store; the store cards; coupon codes;
- *  the listing's count. */
+/** Headings and FAQ questions in the main column; the filter panel, its
+ *  applied-filter chips, the sort and page-size menus; product names on
+ *  cards, rails, the product page, the cart, the "Producto agregado" window
+ *  and the comparator; the comparison page's table (its row labels, values
+ *  and group titles); the product page's tab titles, specifications and stock
+ *  by store, and its pickup window; the Categorías menu; the store cards;
+ *  coupon codes; the listing's count. */
 const ANCHORS = [
   "#main-layout h1", "#main-layout h2", "#main-layout h3", "#main-layout h4",
   "#main-layout .accordion-button",
@@ -33,6 +35,8 @@ const ANCHORS = [
   "#product-title", "#tabs", "#specifics", "#stock",
   ".card-list-product__name", ".title-count-cart", ".purchase-summary",
   "#pcf-modal-added-product .modal-body", "#pcf-comparator-summary h2",
+  "section.panel-filters-applied", "#pcf-comparator .comparator-table", "#pcf-comparator .table-title-custom",
+  "#pickup-modal .stock__list", "#categories-dropdown-list", ".categories-dropdown-list__panel",
   ".card-tabs h3", ".card-tabs h6", ".ticket-cupon-text",
   "p.d-block.mb-12",
   "[data-voqalize]",

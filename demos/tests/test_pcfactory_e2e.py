@@ -524,8 +524,25 @@ async def test_filter_cues_are_the_listings_own_facets_and_options() -> None:
             ),
             by="agent",
         )
+        # The sort of the same reply is still to land: his line waits for it,
+        # and then names every filter of the turn, the facets said naturally.
+        await _state(
+            rig,
+            "listing.sorted",
+            _listing(
+                filters=[
+                    {"facet": "Marcas", "on": ["Lenovo"], "options": []},
+                    {"facet": "RAM", "on": ["16GB"], "options": []},
+                ],
+                count=12,
+                sort="price_asc",
+            ),
+            by="agent",
+        )
         landed = await rig.driver.user_idle(level=1, idle_ms=_DONE_MS)
-        assert landed.text.startswith("Aquí hay 12 en Lenovo y 16GB; el primero es Notebook Lenovo")
+        assert landed.text.startswith(
+            "Aquí hay 12 de Lenovo, con 16GB de RAM. El primero es el Notebook Lenovo IdeaPad"
+        ), landed.text
 
 
 async def test_a_facet_the_listing_lacks_is_never_sent_and_is_said() -> None:

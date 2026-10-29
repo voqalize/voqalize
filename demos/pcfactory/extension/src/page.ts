@@ -192,8 +192,41 @@ function guestStep(el: Element): boolean {
 const CHECKOUT_WORDS =
   /ir a pagar|\bpagar\b|webpay|finalizar compra|inicia(r)? sesi[oó]n|ingresa\b|crear (nueva )?cuenta|reg[ií]strate|mi cuenta|log ?in|sign (in|up)|create account|\bpay\b|place order/i;
 
+/**
+ * What a visitor does for themselves on the rest of the store, never Javier:
+ * "Usar mi ubicación actual" on /tiendas (the device's location), the order
+ * tracking form on /estado-despacho (a RUT and a boleta), the coupon cards'
+ * "Copiar código" (the clipboard), the newsletter and the business quote
+ * forms, and the human advisor's button.
+ */
+const OFF_LIMITS = [
+  "#rut-purchase",
+  "#folio-purchase",
+  ".ticket-cupon-boton",
+  "#pcfAssistanceWrapper",
+  "form[action*='suscribe'] button",
+  "form[action*='contacto-b2b'] button",
+].join(", ");
+const OFF_LIMITS_WORDS = /usar mi ubicaci[oó]n|copiar c[oó]digo|suscr[ií]b|cotiza con nosotros|^buscar$/i;
+
+/** Why `el` is the visitor's own to press elsewhere on the store, or null. */
+export function offLimits(el: Element): string | null {
+  const hit = el.closest(OFF_LIMITS);
+  if (hit) return `it is the visitor's own to press (${hit.id ? `#${hit.id}` : hit.className || hit.tagName.toLowerCase()})`;
+  const words = clean(`${el.textContent ?? ""} ${el.getAttribute("aria-label") ?? ""}`);
+  if (words.length < 40 && OFF_LIMITS_WORDS.test(words)) {
+    // "Buscar" is off-limits only on the order tracking form; the header's search button is Javier's.
+    if (/^buscar$/i.test(words) && norm2(location.pathname) !== "/estado-despacho") return null;
+    return `it is the visitor's own to press ("${words}")`;
+  }
+  if (norm2(location.pathname) === "/estado-despacho" && el.closest("form")) return "the order tracking form is the visitor's (their RUT and boleta)";
+  return null;
+}
+
 /** Why `el` must not be pressed, or null. */
 export function intoCheckout(el: Element): string | null {
+  const off = offLimits(el);
+  if (off) return off;
   const never = el.closest(NEVER);
   if (never) return `it is a login control or the delivery choice (${never.id ? `#${never.id}` : never.className || never.tagName.toLowerCase()}), which are the visitor's`;
   if (el.matches("input:not([type=checkbox]), select, textarea")) {
@@ -404,6 +437,10 @@ export function watchApi(): void {
     return send.call(this, body);
   };
 }
+
+/** No call of the site's to its API is running, and none ended in the last
+ *  `idleMs`: what the page shows is its answer, not a moment of a redraw. */
+export const apiIdle = (idleMs = 250): boolean => inFlight === 0 && Date.now() - lastDone >= idleMs;
 
 /** The site's calls to its API are back and none has run for `idleMs`, or
  *  `ms` passed. True when at least one call ended since `since`. */

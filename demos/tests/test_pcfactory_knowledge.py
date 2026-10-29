@@ -305,3 +305,16 @@ def test_the_prompt_fits() -> None:
     # About four characters a token: the whole prompt under ~15k tokens.
     assert len(prompt) < 60_000, len(prompt)
     assert kb.KNOWLEDGE.l1 in prompt
+
+
+async def test_the_category_tree_is_read_one_category_at_a_time() -> None:
+    # Dev call 2a2304d8: the whole tree read as a topic carried ~34k tokens
+    # into every later request. It is not a topic; read_category reads one.
+    assert "categorias" not in kb.KNOWLEDGE.topics
+    brain = pc.PcFactoryBrain(client=None)  # pyright: ignore[reportArgumentType]
+    text = await brain.read_category(pc.CategoryRequest(name="notebooks gamer"))
+    assert "/categoria/" in text
+    assert "Marcas:" in text
+    assert len(text) < 6000
+    missing = await brain.read_category(pc.CategoryRequest(name="zzz nada"))
+    assert missing.startswith("No category matches")

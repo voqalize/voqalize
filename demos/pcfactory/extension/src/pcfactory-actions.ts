@@ -10,7 +10,7 @@
  *
  *   - `page_changed` for every page the visitor lands on, whoever took them;
  *   - `prices_read`, `products_found`, `stock_read`, `store_shown` and
- *     `compare_shown` for the moves that read them.
+ *     `compare_shown` (the comparator's bar) for the moves that read them.
  *
  * What their screen holds is Stage state (`pcfactory/scene.json`): each change
  * goes as a named `stage_event` (`scene.event`), with only the fields its
@@ -20,9 +20,14 @@
  *   - `product.shown` on a product page, read from the page at once, then
  *     `product.checked` from the store's own API (`/productos/{id}`, its
  *     `/precio` and `/stock`), because the HTML is cached at the edge;
- *   - `listing.shown` on a category or search listing, and `listing.filtered`
- *     / `listing.sorted` after the grid changes on the same listing, whoever
- *     changed it;
+ *   - `listing.shown` on a category, a search or a curated list
+ *     (`/busqueda?productos=…`), and `listing.filtered` / `listing.sorted`
+ *     after the grid changes on the same listing, whoever changed it; never
+ *     while the grid is redrawing (no cards, the store's call still out),
+ *     and an empty listing only when the store's own "no products" shows;
+ *   - `compare.shown` on the comparison page (`/comparador`): its products,
+ *     their prices and the specification rows side by side, whoever opened
+ *     it, and again when a product leaves it or Destacar diferencias moves;
  *   - `cart.changed` whenever the cart (`localStorage.cartProducts`) changes;
  *   - `checkout.changed` on the checkout's first step and on Tipo de entrega.
  *
@@ -48,11 +53,11 @@ import type { CompareShown, PricesRead, ProductsFound, StockRead, StoreShown } f
 import { scene } from "./scene.gen";
 
 import {
-  apiSettled, best, boxOf, checkoutStep, clean, headerHeight, inOrder, money, norm, pathOf, press, productId, productPath, quiet,
+  apiIdle, apiSettled, best, boxOf, checkoutStep, clean, headerHeight, inOrder, money, norm, pathOf, press, productId, productPath, quiet,
   samePath, scrollTo, scrollToTopOfPage, setRange, settled, shown, sleep, styleThePage, target, typeInto, visible, waitFor, watchApi,
 } from "./page";
 
-export type Kind = "home" | "category" | "search" | "product" | "cart" | "checkout" | "stores" | "help" | "page";
+export type Kind = "home" | "category" | "search" | "product" | "cart" | "checkout" | "stores" | "help" | "compare" | "page";
 export interface PageContext {
   site: string;
   url: string;
@@ -71,7 +76,10 @@ const CART_API = "https://api.pcfactory.cl/pcfactory-services-carro-compra/v1/ca
 const MAX_HEADINGS = 80;
 const MAX_FAQS = 120;
 const MAX_LISTED = 12;
-const MAX_OPTIONS = 25;
+/** A facet's options, all of them: Procesador alone has 25 and more on the
+ *  notebooks, and an option cut from the report is one Javier says is not
+ *  there (dev call 8b363867). The cap only guards against a runaway list. */
+const MAX_OPTIONS = 120;
 const MAX_SPECS = 40;
 const MAX_FOUND = 8;
 const MAX_PRICED = 6;
@@ -90,6 +98,9 @@ export function kindOf(): Kind {
   if (b?.contains("context-custom-show-producto") || p.startsWith("/producto/")) return "product";
   if (b?.contains("context-custom-show-categoria") || p.startsWith("/categoria/")) return "category";
   if (b?.contains("context-custom-show-busqueda-avanzada") || p === "/busqueda-avanzada") return "search";
+  // A curated list (the home's slides link to them): a listing like any other.
+  if (b?.contains("context-custom-show-busqueda") || p === "/busqueda") return "category";
+  if (b?.contains("context-custom-show-comparador") || p === "/comparador") return "compare";
   if (b?.contains("context-custom-show-carro") || p === "/carro") return "cart";
   if (b?.contains("context-custom-show-checkout") || p.startsWith("/checkout")) return "checkout";
   if (b?.contains("context-custom-show-tiendas") || p === "/tiendas") return "stores";
@@ -280,6 +291,9 @@ function onTheWire(event: string, payload: unknown): [string, unknown] {
     case "checkout_state":
       ev = scene.event("checkout.changed", payload as CheckoutState, by);
       break;
+    case "compare_state":
+      ev = scene.event("compare.shown", payload as ComparisonState, by);
+      break;
   }
   return ev ? ["stage_event", ev] : [event, payload];
 }
@@ -301,6 +315,7 @@ interface ApiPrice {
 interface ApiProduct {
   id: number;
   nombre?: string;
+  categoria?: { id?: number; nombre?: string };
   marca?: { nombre?: string } | string;
   stock?: { aproximado?: string };
   especificaciones?: { grupo?: string; detalle?: { nombre?: string; valor?: string }[] }[];
@@ -562,8 +577,40 @@ interface ListingState {
 }
 
 const isListing = () => kindOf() === "category" || kindOf() === "search";
-/** The listing's grid has rendered (the Vue widget fills it after load). */
-const gridUp = () => cards().length > 0 || listingCount() === 0;
+/** A curated list of products: `/busqueda?productos=…`. */
+const isCurated = () => location.pathname.replace(/\/+$/, "") === "/busqueda";
+
+/** The store's own "no products" for this listing ("Aun no hay productos en
+ *  esta categoría", "No se encontraron resultados"), shown in place of the
+ *  grid. */
+function emptyState(): HTMLElement | null {
+  const view = [...main().querySelectorAll<HTMLElement>(".error-view")].find(shown);
+  if (view) return view;
+  return [...main().querySelectorAll<HTMLElement>("p, h1, h2, h3")].find((p) => shown(p) && /no se encontraron resultados|a[uú]n no hay productos/i.test(clean(p.textContent))) ?? null;
+}
+
+/**
+ * The listing's grid has rendered, and is the store's answer: cards in it
+ * with none of the store's calls still out, or the store's own "no
+ * products" once its calls are back. While the widget redraws (after a
+ * filter, a sort, a load) the grid is empty for a moment, the counter still
+ * shows the old count and Ordenar por is gone: that moment is never a
+ * listing (dev calls 31a45613, 8b363867: "No products show", then
+ * "Correction: there are").
+ */
+const gridUp = () => (cards().length > 0 && apiIdle()) || (emptyState() !== null && apiIdle());
+
+/** While one of his moves waits for the grid it changed, the page's own
+ *  watch does not report it: the move reports the settled listing itself. */
+let gridPending = 0;
+async function changingGrid<T>(fn: () => Promise<T>): Promise<T> {
+  gridPending++;
+  try {
+    return await fn();
+  } finally {
+    gridPending--;
+  }
+}
 const gridSection = () =>
   document.querySelector<HTMLElement>('section[data-section-name="Lista productos"]') ?? document.querySelector<HTMLElement>("section.products");
 
@@ -632,6 +679,7 @@ function options(g: Group): Opt[] {
 }
 
 function listingCount(): number | null {
+  if (!cards().length && emptyState()) return 0;
   for (const el of main().querySelectorAll<HTMLElement>("p")) {
     const m = clean(el.textContent).match(/de\s+([\d.]+)\s+resultados/i);
     if (m) return Number(m[1]!.replace(/\./g, ""));
@@ -654,11 +702,42 @@ function sortOf(): Sort | null {
 }
 
 const searchWords = () => clean(new URLSearchParams(location.search).get("search")?.replace(/\+/g, " "));
+const curatedIds = () => clean(new URLSearchParams(location.search).get("productos"));
 
-/** A listing's own address: the category path, or the search with its words. */
+/** A listing's own address: the category path, the search with its words,
+ *  or the curated list with its products. */
 function listingPath(): string {
   if (kindOf() === "search") return `/busqueda-avanzada?search=${searchWords().toLowerCase().split(" ").filter(Boolean).join("+")}`;
+  if (isCurated()) return `/busqueda?productos=${curatedIds()}`;
   return location.pathname.replace(/\/+$/, "");
+}
+
+/** Every option this tab has seen each facet of a listing offer, by listing:
+ *  an option asked for that the listing no longer offers was left out by the
+ *  filters on (a note), one it never offered is not there (a refusal). */
+const SEEN_OPTIONS = "voqalize.pcfactory.options";
+function seenOptions(): Record<string, Record<string, string[]>> {
+  try {
+    return JSON.parse(sessionStorage.getItem(SEEN_OPTIONS) ?? "{}") as Record<string, Record<string, string[]>>;
+  } catch {
+    return {};
+  }
+}
+function sawOptions(path: string, facets: ListingFilter[]): void {
+  const all = seenOptions();
+  const here = (all[path] ??= {});
+  for (const f of facets) here[norm(f.facet)] = [...new Set([...(here[norm(f.facet)] ?? []), ...f.options.map(norm)])];
+  try {
+    sessionStorage.setItem(SEEN_OPTIONS, JSON.stringify({ [path]: here }));
+  } catch {
+    // No storage: an option the filters left out reads as one never offered.
+  }
+}
+/** Whether the listing in front offered `value` of `facet` before (its
+ *  filters since then left it out). */
+function offeredBefore(facet: string, value: string): boolean {
+  const seen = seenOptions()[listingPath()]?.[norm(facet)] ?? [];
+  return best(seen, (x) => x, value) !== null;
 }
 
 function readListing(): ListingState {
@@ -668,11 +747,14 @@ function readListing(): ListingState {
       const opts = options(g);
       return { facet: g.name, on: opts.filter((o) => o.input.checked).map((o) => o.text), options: opts.map((o) => o.text).slice(0, MAX_OPTIONS) };
     });
+  sawOptions(listingPath(), facets);
   const q = new URLSearchParams(location.search);
   const title =
     kindOf() === "search"
       ? `Resultados para "${searchWords()}"`
-      : clean(document.querySelector(".panel-filters-header__childcategory")?.textContent) || clean(main().querySelector("h1")?.textContent) || document.title;
+      : isCurated()
+        ? clean(main().querySelector("h1")?.textContent) || "Productos seleccionados"
+        : clean(document.querySelector(".panel-filters-header__childcategory")?.textContent) || clean(main().querySelector("h1")?.textContent) || document.title;
   return {
     path: listingPath(),
     title,
@@ -693,9 +775,10 @@ const gridKey = () => JSON.stringify([cards().map(cardId), listingCount(), sortO
 /** The grid has changed from `before` and the store's calls since `since`
  *  are back, then the DOM has been quiet a moment. */
 async function waitForGrid(before: string, since: number, ms = 10_000): Promise<boolean> {
-  const changed = await waitFor(() => gridKey() !== before, ms);
+  const changed = await waitFor(() => gridKey() !== before && gridUp(), ms);
   await apiSettled(since, 2500);
-  await quiet(gridSection() ?? main(), 300, 1500);
+  await quiet(gridSection() ?? main(), 300, 800);
+  await waitFor(gridUp, 3000);
   return Boolean(changed) || gridKey() !== before;
 }
 
@@ -999,14 +1082,25 @@ async function searchProducts(p: { query: string; open_index?: number | null } &
 
 // filter_listing, and the filter and sort cues ─────────────────────────────
 
-/** A listing the brain named: a category path, or a search with its words. */
-function wantedListing(raw: string): { path: string; search: string | null } | null {
+/** A listing the brain named: a category path, a search with its words, or
+ *  a curated list with its products. */
+interface Wanted {
+  path: string;
+  search: string | null;
+  productos?: string;
+}
+
+function wantedListing(raw: string): Wanted | null {
   try {
     const u = new URL(raw.trim(), location.origin);
     const path = u.pathname.replace(/\/+$/, "");
     if (path === "/busqueda-avanzada") {
       const words = clean(u.searchParams.get("search")?.replace(/\+/g, " "));
       return words ? { path, search: words } : null;
+    }
+    if (path === "/busqueda") {
+      const productos = clean(u.searchParams.get("productos"));
+      return productos ? { path, search: null, productos } : null;
     }
     if (!path.startsWith("/categoria/")) return null;
     return { path, search: null };
@@ -1015,13 +1109,14 @@ function wantedListing(raw: string): { path: string; search: string | null } | n
   }
 }
 
-function onWantedListing(w: { path: string; search: string | null }): boolean {
+function onWantedListing(w: Wanted): boolean {
   if (!isListing()) return false;
   if (w.search !== null) return kindOf() === "search" && norm(searchWords()) === norm(w.search);
+  if (w.productos) return isCurated() && curatedIds() === w.productos;
   return samePath(location.pathname, w.path);
 }
 
-const listingUrl = (w: { path: string; search: string | null }) => (w.search !== null ? searchUrl(w.search) : w.path);
+const listingUrl = (w: Wanted) => (w.search !== null ? searchUrl(w.search) : w.productos ? `/busqueda?productos=${w.productos}` : w.path);
 
 /** The group the brain named, by the panel's words ("Marcas", "RAM"), with
  *  the singulars and English a brain may say. */
@@ -1052,7 +1147,12 @@ async function openGroup(c: MoveContext, g: Group): Promise<Group> {
 }
 
 type Applied = { ok: true; label: string; already?: boolean };
-type Missed = { ok: false; arg: string; why: string; options: string[] };
+/** `narrowed`: the listing had filters on, so an option it lacks may only be
+ *  one those filters left out. */
+type Missed = { ok: false; arg: string; why: string; options: string[]; narrowed?: boolean };
+
+/** How many options are ticked now, over every group. */
+const filtersOn = () => groups().reduce((n, g) => n + (isPriceGroup(g) ? 0 : options(g).filter((o) => o.input.checked).length), 0);
 
 /** Tick one option of one group with the listing's own checkbox, as a visitor
  *  does: the group opened if folded, the option scrolled to and ringed, its
@@ -1064,15 +1164,17 @@ async function applyOption(c: MoveContext, facet: string, value: string, arg = "
   if (isPriceGroup(g)) return { ok: false, arg: facetArg, why: `"${g.name}" takes a minimum and a maximum price, not an option`, options: names };
   await openGroup(c, g);
   const opt = best(options(g), (o) => o.text, value);
-  if (!opt) return { ok: false, arg, why: `${g.name} has no option "${value}"`, options: options(g).map((o) => o.text).slice(0, MAX_OPTIONS) };
+  if (!opt) return { ok: false, arg, why: `${g.name} has no option "${value}"`, options: options(g).map((o) => o.text).slice(0, MAX_OPTIONS), narrowed: filtersOn() > 0 && offeredBefore(g.name, value) };
   if (opt.input.checked) return { ok: true, label: `${g.name}: ${opt.text}`, already: true };
   await scrollTo(opt.label, "center");
   await c.ring(opt.label.closest(".form-check") ?? opt.label, `${g.name}: ${opt.text}`);
   const before = gridKey();
   const since = Date.now();
   c.progress("waiting_site");
-  press(opt.label);
-  await waitForGrid(before, since);
+  await changingGrid(async () => {
+    press(opt.label);
+    await waitForGrid(before, since);
+  });
   // The panel re-renders after each filter: the option is looked up again.
   const now = findGroup(g.name);
   const back = now ? best(options(now), (o) => o.text, opt.text) : null;
@@ -1097,8 +1199,10 @@ async function applyPrice(c: MoveContext, min: number | null | undefined, max: n
     const before = gridKey();
     const since = Date.now();
     c.progress("waiting_site");
-    setRange(ranges()[i]!, Math.min(Math.max(v, lo), hi));
-    await waitForGrid(before, since);
+    await changingGrid(async () => {
+      setRange(ranges()[i]!, Math.min(Math.max(v, lo), hi));
+      await waitForGrid(before, since);
+    });
   };
   // A bound at or past the range's own end is no filter at all.
   if (min != null && min > lo) await set(0, min);
@@ -1134,8 +1238,10 @@ async function applySort(c: MoveContext, sort: string): Promise<Applied | Missed
   const before = gridKey();
   const since = Date.now();
   c.progress("waiting_site");
-  press(item);
-  await waitForGrid(before, since);
+  await changingGrid(async () => {
+    press(item);
+    await waitForGrid(before, since);
+  });
   if (sortOf() !== sort) return { ok: false, arg: "order", why: `the listing still shows ${clean(toggle.textContent)}`, options: offered };
   return { ok: true, label: `sorted ${clean(item.textContent)}` };
 }
@@ -1150,19 +1256,128 @@ function parseFilter(raw: unknown): { facet: string; value: string } | null {
   return facet && value ? { facet, value } : null;
 }
 
-/** Filters on now that the brain did not ask for: ticked options, or a price
- *  range in the address. */
-function strayFilters(wanted: { facet: string; value: string }[], min: unknown, max: unknown): boolean {
+/** Options ticked now that the brain did not ask for, as "Facet: Option". */
+function strayOptions(wanted: { facet: string; value: string }[]): { facet: string; value: string }[] {
+  const out: { facet: string; value: string }[] = [];
   for (const g of groups()) {
     if (isPriceGroup(g)) continue;
     for (const o of options(g)) {
       if (!o.input.checked) continue;
       const asked = wanted.some((w) => findGroup(w.facet) === g && best([o], (x) => x.text, w.value));
-      if (!asked) return true;
+      if (!asked) out.push({ facet: g.name, value: o.text });
     }
   }
+  return out;
+}
+
+/** A price range in the address the brain did not ask for. */
+function strayPrice(min: unknown, max: unknown): boolean {
   const q = new URLSearchParams(location.search);
   return (q.has("precioMin") && min == null) || (q.has("precioMax") && max == null);
+}
+
+// The applied filters' chips ─────────────────────────────────────────────────
+
+/** "Filtros: Lenovo ⊗ … Limpiar todos" above the grid: one chip per option
+ *  on, written as the option alone. */
+const chipBar = () => [...document.querySelectorAll<HTMLElement>("section.panel-filters-applied")].find(shown) ?? null;
+const chips = () =>
+  [...(chipBar()?.querySelectorAll<HTMLElement>(".panel-filters-applied__filter") ?? [])]
+    .filter(shown)
+    .map((el) => ({ el, text: clean(el.querySelector("span")?.textContent ?? el.textContent), del: el.querySelector<HTMLElement>(".panel-filters-applied__delete-btn") }));
+const resetButton = () => [...document.querySelectorAll<HTMLElement>("button.panel-filters-applied__reset-btn")].find(shown) ?? null;
+
+/** Take one filter off with its chip's ⊗, in place, the grid waited for. */
+async function removeFilter(c: MoveContext, facet: string, value: string): Promise<Applied | Missed> {
+  const g = findGroup(facet);
+  const on = g ? options(g).filter((o) => o.input.checked) : [];
+  const opt = best(on, (o) => o.text, value);
+  const offered = chips().map((x) => x.text);
+  if (!g || !opt) return { ok: false, arg: "remove", why: `"${facet}: ${value}" is not on`, options: offered };
+  const chip = best(chips(), (x) => x.text, opt.text);
+  const before = gridKey();
+  const since = Date.now();
+  if (chip?.del) {
+    await scrollTo(chip.el, "center");
+    await c.ring(chip.el, `${g.name}: ${opt.text}`);
+    c.progress("waiting_site");
+    await changingGrid(async () => {
+      press(chip.del!);
+      await waitForGrid(before, since);
+    });
+  } else {
+    // No chip for it (a narrow window hides the bar): its own box, unticked.
+    await openGroup(c, g);
+    await scrollTo(opt.label, "center");
+    await c.ring(opt.label.closest(".form-check") ?? opt.label, `${g.name}: ${opt.text}`);
+    c.progress("waiting_site");
+    await changingGrid(async () => {
+      press(opt.label);
+      await waitForGrid(before, since);
+    });
+  }
+  const now = findGroup(g.name);
+  const still = now ? best(options(now).filter((o) => o.input.checked), (o) => o.text, opt.text) : null;
+  if (still) return { ok: false, arg: "remove", why: `${g.name} ${opt.text} stayed on`, options: [] };
+  return { ok: true, label: `${g.name}: ${opt.text} off` };
+}
+
+/** Every filter off with the listing's own "Limpiar todos", in place. */
+async function clearFilters(c: MoveContext): Promise<Applied | Missed> {
+  if (!filtersOn()) return { ok: true, label: "no filters were on", already: true };
+  const button = resetButton();
+  if (!button) return { ok: false, arg: "clear", why: "the listing shows no Limpiar todos", options: [] };
+  await scrollTo(chipBar() ?? button, "center");
+  await c.ring(chipBar() ?? button, "Limpiar todos");
+  const before = gridKey();
+  const since = Date.now();
+  c.progress("waiting_site");
+  await changingGrid(async () => {
+    press(button);
+    await waitForGrid(before, since);
+  });
+  return filtersOn() ? { ok: false, arg: "clear", why: "filters stayed on after Limpiar todos", options: [] } : { ok: true, label: "every filter off (Limpiar todos)" };
+}
+
+// Productos por página, and the pages ───────────────────────────────────────
+
+const SIZES = [12, 24, 32];
+const sizeNow = () => Number(new URLSearchParams(location.search).get("size")) || Number(clean(document.querySelector("#dropdown-size")?.textContent)) || 12;
+
+/** "Productos por página": its menu opened, then the size pressed, in place. */
+async function applySize(c: MoveContext, size: number): Promise<Applied | Missed> {
+  if (!SIZES.includes(size)) return { ok: false, arg: "size", why: `the listing shows 12, 24 or 32 per page, not ${size}`, options: SIZES.map(String) };
+  if (sizeNow() === size) return { ok: true, label: `${size} per page`, already: true };
+  const toggle = [...document.querySelectorAll<HTMLElement>("#dropdown-size")].find(shown);
+  if (!toggle) return { ok: false, arg: "size", why: "the listing shows no Productos por página", options: [] };
+  const menu = toggle.closest(".dropdown");
+  const item = [...(menu?.querySelectorAll<HTMLElement>(".dropdown-item") ?? [])].find((i) => clean(i.textContent) === String(size));
+  if (!item) return { ok: false, arg: "size", why: `Productos por página has no ${size}`, options: [...(menu?.querySelectorAll(".dropdown-item") ?? [])].map((i) => clean(i.textContent)) };
+  await scrollTo(menu ?? toggle, "center");
+  await c.ring(menu ?? toggle, "Productos por página");
+  press(toggle);
+  await waitFor(() => shown(item), 1200);
+  if (shown(item)) await c.ring(item, String(size));
+  const before = gridKey();
+  const since = Date.now();
+  c.progress("waiting_site");
+  await changingGrid(async () => {
+    press(item);
+    await waitForGrid(before, since);
+  });
+  return sizeNow() === size ? { ok: true, label: `${size} per page` } : { ok: false, arg: "size", why: `the listing still shows ${sizeNow()} per page`, options: SIZES.map(String) };
+}
+
+const pageNow = () => Number(new URLSearchParams(location.search).get("page")) || 1;
+/** The number of pages the listing's pager offers, from its last numbered link. */
+const lastPage = () => Math.max(1, ...[...document.querySelectorAll<HTMLAnchorElement>("nav.pcf-pagination a[title^='Página ']")].map((a) => Number(a.title.replace(/\D+/g, "")) || 1));
+
+/** The pager's link to page `n`, or the address of it. */
+function pageLink(n: number): { link: HTMLAnchorElement | null; url: string } {
+  const link = [...document.querySelectorAll<HTMLAnchorElement>(`nav.pcf-pagination a[title="Página ${n}"]`)].find(shown) ?? null;
+  const u = new URL(location.href);
+  u.searchParams.set("page", String(n));
+  return { link, url: link ? pathOf(link.href) + new URL(link.href).search : u.pathname + u.search };
 }
 
 interface FilterListing extends Arrived {
@@ -1171,44 +1386,90 @@ interface FilterListing extends Arrived {
   min_price?: number | null;
   max_price?: number | null;
   sort?: Sort | null;
+  remove?: unknown[] | null;
+  clear?: boolean | null;
+  page?: number | null;
+  size?: number | null;
+  /** Carried: loaded clean once already. */
   clean?: boolean;
+  /** Carried to the page the pager opened: what was done before it. */
+  did?: string[];
+  missed?: Refusal[];
 }
 
 async function filterListing(p: FilterListing, c: MoveContext): Promise<string | null | PerformResult> {
   if (typeof p.category_path !== "string" || !p.category_path.trim()) c.refuse("category_path", "say which listing, as /categoria/... or /busqueda-avanzada?search=...");
   const want = wantedListing(p.category_path);
-  if (!want) c.refuse("category_path", `"${p.category_path}" is not a listing; use a /categoria/... path from the category list, or /busqueda-avanzada?search=...`);
+  if (!want) c.refuse("category_path", `"${p.category_path}" is not a listing; use a /categoria/... path from the category list, /busqueda-avanzada?search=..., or /busqueda?productos=...`);
   const raw = Array.isArray(p.filters) ? p.filters : [];
   const wanted = raw.map(parseFilter).filter((x): x is { facet: string; value: string } => x !== null);
   const bad = raw.filter((x) => !parseFilter(x));
+  const off = (Array.isArray(p.remove) ? p.remove : []).map(parseFilter).filter((x): x is { facet: string; value: string } => x !== null);
+  if (p.page != null && (!Number.isInteger(p.page) || p.page < 1)) c.refuse("page", `a page from 1, not ${p.page}`);
   if (!p.arrived && !onWantedListing(want)) return load(c, listingUrl(want), again(c, p));
   if (!isListing()) throw new Error(`${listingUrl(want)} did not open as a listing (now on ${location.pathname})`);
   await waitFor(() => document.querySelector("#panel-filters .panel-filters__filter") && gridUp(), 10_000);
   await quiet(main(), 300, 1500);
-  // This listing with filters on that the wish does not have: loaded clean
-  // once, and finished there.
-  if (!p.clean && strayFilters(wanted, p.min_price, p.max_price)) return load(c, listingUrl(want), { move: c.move, args: { ...p, arrived: true, clean: true } });
+
+  // Arrived on the page the pager opened: everything else was done before it.
+  if (p.did) {
+    const grid = showGrid(c);
+    const missed = p.missed ?? [];
+    const detail = `page ${pageNow()} of ${lastPage()}; ${[...p.did].filter(Boolean).join(", ")}${p.did.length ? "; " : ""}${grid}`;
+    return missed.length ? { outcome: "partial", detail, refused: missed } : detail;
+  }
 
   const done: string[] = [];
   const missed: Refusal[] = bad.map((x) => ({ arg: "filters", why: `"${String(x)}" is not "Facet: Option"`, options: [] }));
+  const take = (got: Applied | Missed, arg?: string) => {
+    if (got.ok) done.push(got.label);
+    else missed.push({ arg: arg ?? got.arg, why: got.why, options: got.options });
+  };
+  // Off first, in place: Limpiar todos, the chips asked for, then any filter
+  // on that the wish does not have (the chips, as a visitor would; a load of
+  // the clean listing only when there are none to press).
+  if (p.clear) take(await clearFilters(c));
+  for (const o of off) take(await removeFilter(c, o.facet, o.value));
+  // A call that only adjusts (takes off, sizes, pages, sorts) keeps the rest
+  // on; a call with filters is the whole wish, and what else is on goes.
+  const adjusting = !raw.length && (off.length > 0 || Boolean(p.clear) || p.size != null || p.page != null || Boolean(p.sort) || p.min_price != null || p.max_price != null);
+  const stray = adjusting ? [] : strayOptions(wanted);
+  if (stray.length && !p.clean) {
+    if (!chips().length) return load(c, listingUrl(want), { move: c.move, args: { ...p, arrived: true, clean: true } });
+    for (const o of stray) take(await removeFilter(c, o.facet, o.value));
+  }
+  if (!p.clean && !adjusting && strayPrice(p.min_price, p.max_price)) return load(c, listingUrl(want), { move: c.move, args: { ...p, arrived: true, clean: true } });
+
   for (const w of wanted) {
     const got = await applyOption(c, w.facet, w.value, "filters", "filters");
-    if (got.ok) done.push(got.label);
-    else missed.push({ arg: got.arg, why: got.why, options: got.options });
+    if (!got.ok && got.narrowed && done.length && got.why.includes("has no option")) {
+      done.push(`${w.facet}: ${w.value} not offered with the filters on`);
+      continue;
+    }
+    take(got, got.ok ? undefined : got.arg);
   }
-  if (p.min_price != null || p.max_price != null) {
-    const got = await applyPrice(c, p.min_price, p.max_price);
-    if (got.ok) done.push(got.label);
-    else missed.push({ arg: got.arg, why: got.why, options: got.options });
+  if (p.min_price != null || p.max_price != null) take(await applyPrice(c, p.min_price, p.max_price));
+  if (p.sort) take(await applySort(c, p.sort), "sort");
+  if (p.size != null) take(await applySize(c, p.size));
+  const asked = wanted.length + bad.length + off.length + (p.clear ? 1 : 0) + (p.min_price != null || p.max_price != null ? 1 : 0) + (p.sort ? 1 : 0) + (p.size != null ? 1 : 0);
+
+  if (p.page != null && p.page !== pageNow()) {
+    const last = lastPage();
+    if (p.page > last) missed.push({ arg: "page", why: `the listing has ${last} page${last === 1 ? "" : "s"}`, options: Array.from({ length: Math.min(last, 12) }, (_, i) => String(i + 1)) });
+    else {
+      // The pager's own link is a full load: the move finishes on that page.
+      const { link, url } = pageLink(p.page);
+      const pager = link?.closest<HTMLElement>("nav.pcf-pagination") ?? null;
+      if (pager) {
+        await scrollTo(pager, "center");
+        await c.ring(link!, `Página ${p.page}`);
+      }
+      return load(c, url, { move: c.move, args: { ...p, arrived: true, clean: true, did: done, missed } });
+    }
   }
-  if (p.sort) {
-    const got = await applySort(c, p.sort);
-    if (got.ok) done.push(got.label);
-    else missed.push({ arg: "sort", why: got.why, options: got.options });
-  }
+
   const grid = showGrid(c);
-  const asked = wanted.length + bad.length + (p.min_price != null || p.max_price != null ? 1 : 0) + (p.sort ? 1 : 0);
-  if (asked && !done.length && missed.length) {
+  if ((asked || p.page != null) && !done.length && missed.length) {
     const first = missed[0]!;
     c.refuse(first.arg, missed.map((m) => m.why).join("; "), first.options ?? []);
   }
@@ -1226,7 +1487,7 @@ async function onListing(c: MoveContext, path: string | null | undefined, arrive
     return false;
   }
   if (!isListing()) throw new Error(`no product listing is on screen (now on ${location.pathname})`);
-  await waitFor(() => document.querySelector("#panel-filters .panel-filters__filter") && cards().length, 8000);
+  await waitFor(() => document.querySelector("#panel-filters .panel-filters__filter") && gridUp(), 8000);
   return true;
 }
 
@@ -1251,8 +1512,14 @@ async function filterCue(p: { facet: string; value?: string | null; path?: strin
     else missed.push(got);
   }
   if (!done.length) c.refuse(missed[0]!.arg, missed.map((m) => m.why).join("; "), missed[0]!.options);
-  const detail = `${done.join(", ")} on; ${showGrid(c)}`;
-  if (missed.length) return { outcome: "partial", detail, refused: missed.map((m) => ({ arg: m.arg, why: m.why, options: m.options })) };
+  // An option the filters already on left out is not a refusal: the listing
+  // no longer offers it, and that is a note (dev call 8b363867: "RAM 16GB,
+  // 24GB…" after Lenovo, which has no 24GB).
+  const gone = missed.filter((m) => m.narrowed && m.why.includes("has no option"));
+  const refused = missed.filter((m) => !gone.includes(m));
+  const note = gone.length ? `; not offered with the filters on: ${gone.map((m) => m.why.replace(/^.* has no option "(.*)"$/, "$1")).join(", ")}` : "";
+  const detail = `${done.join(", ")} on${note}; ${showGrid(c)}`;
+  if (refused.length) return { outcome: "partial", detail, refused: refused.map((m) => ({ arg: m.arg, why: m.why, options: m.options })) };
   return detail;
 }
 
@@ -1266,7 +1533,8 @@ async function sortCue(p: { order: string; path?: string | null } & Arrived, c: 
 
 // open_product, product.tab ─────────────────────────────────────────────────
 
-type Tab = "about" | "specs" | "warranty" | "stock" | "photos";
+type Tab = "about" | "specs" | "warranty" | "stock" | "photos" | "zoom" | "pickup" | "price_note";
+const TABS: Tab[] = ["about", "specs", "warranty", "stock", "photos", "zoom", "pickup", "price_note"];
 
 const TAB_IDS: Record<"about" | "specs" | "warranty", string> = { about: "about-tab", specs: "specifics-tab", warranty: "warranty-tab" };
 
@@ -1337,12 +1605,78 @@ async function showPhotos(c: MoveContext): Promise<string> {
   return `stepped the gallery through ${steps + 1} photos${total ? ` of ${Math.max(total, steps + 1)}` : ""}`;
 }
 
+/** The gallery's own lightbox (the main photo's expand button): opened,
+ *  stepped through a few of its big photos, and left open for the visitor;
+ *  the next move closes it. */
+async function zoomPhotos(c: MoveContext): Promise<string> {
+  const gallery = document.querySelector<HTMLElement>("#gallery");
+  const trigger = [...document.querySelectorAll<HTMLElement>('#gallery button.modal-trigger[data-target="#gallery-modal"]')].find(shown) ?? document.querySelector<HTMLElement>('#gallery button.modal-trigger[data-target="#gallery-modal"]');
+  if (!gallery || !trigger) c.refuse("tab", "this product page has no big photos to open", TABS.filter((t) => t !== "zoom"));
+  await scrollTo(gallery, "center");
+  await c.ring(gallery, "Fotos");
+  press(trigger);
+  const modal = await waitFor(() => document.querySelector<HTMLElement>("#gallery-modal.show"), 2500);
+  if (!modal) throw new Error("pressed the gallery's expand, but its photos did not open");
+  const total = modal.querySelectorAll(".carousel-item").length;
+  const next = modal.querySelector<HTMLElement>(".carousel-control-next");
+  const steps = next ? Math.min(2, Math.max(0, total - 1)) : 0;
+  await sleep(500);
+  await c.ring(modal.querySelector(".modal-content") ?? modal, "Fotos");
+  for (let i = 0; i < steps; i++) {
+    await sleep(1400);
+    press(next!);
+  }
+  return `opened the big photos (${total} photos) and stepped through ${steps + 1}; left open for the visitor`;
+}
+
+/** "Retiro en tienda — Disponible": its window, "Disponibilidad de retiro en
+ *  tienda", the stores that have it ringed. Only a link when a store has
+ *  stock; else nothing to open. */
+async function showPickup(c: MoveContext): Promise<string> {
+  const trigger = [...document.querySelectorAll<HTMLElement>('.detail__shipping-options a[data-target="#pickup-modal"], a[data-target="#pickup-modal"]')].find(shown);
+  if (!trigger) c.refuse("tab", "no store has it for pickup right now (Retiro en tienda is not a link): only Internet", TABS.filter((t) => t !== "pickup"));
+  await scrollTo(trigger, "center");
+  await c.ring(trigger.closest("li") ?? trigger, "Retiro en tienda");
+  press(trigger);
+  const modal = await waitFor(() => document.querySelector<HTMLElement>("#pickup-modal.show"), 2500);
+  if (!modal) throw new Error("pressed Retiro en tienda, but its window did not open");
+  await sleep(300);
+  const rows = [...modal.querySelectorAll<HTMLElement>(".stock__list__location")]
+    .map((el) => ({ el, name: clean(el.querySelector(".bullets")?.textContent), qty: Number(clean(el.querySelector("strong")?.textContent).replace(/\D+/g, "")) || 0 }))
+    .filter((r) => r.name && r.qty > 0);
+  const content = modal.querySelector<HTMLElement>(".modal-content") ?? modal;
+  await c.ring(rows.length ? rows.slice(0, 8).map((r) => r.el) : [content], "Disponibilidad de retiro en tienda");
+  return `opened Disponibilidad de retiro en tienda: ${rows.length} stores have it${rows.length ? ` (${rows.slice(0, 10).map((r) => `${r.name} ${r.qty}`).join(", ")})` : ""}; left open for the visitor`;
+}
+
+/** The ⓘ beside "Transferencia / Débito": the store's own words for that
+ *  price, ringed while they show, then folded again. */
+async function priceNote(c: MoveContext): Promise<string> {
+  const button = [...document.querySelectorAll<HTMLElement>(".detail__prices__cash-text button.tooltip-custom")].find(shown);
+  if (!button) c.refuse("tab", "this product page shows no ⓘ beside Transferencia / Débito", TABS.filter((t) => t !== "price_note"));
+  const line = button.closest<HTMLElement>(".detail__prices__cash-text") ?? button;
+  await scrollTo(line, "center");
+  await c.ring(line, "Transferencia / Débito");
+  press(button);
+  const tip = await waitFor(() => [...button.querySelectorAll<HTMLElement>(".tooltip-custom__text")].find((t) => clean(t.textContent)) ?? null, 2000);
+  const text = clean(tip?.textContent);
+  if (tip) await c.ring([line, tip], "Transferencia / Débito");
+  c.after(async () => {
+    await sleep(4000);
+    if (tip && shown(tip)) button.click();
+  });
+  return text ? `the store says of Transferencia / Débito: "${text}"` : "pressed the ⓘ, but it showed no text";
+}
+
 async function productTab(p: { tab: Tab }, c: MoveContext): Promise<string> {
   if (!onProductPage()) throw new Error(`no product page is on screen (now on ${location.pathname})`);
   if (p.tab === "photos") return showPhotos(c);
+  if (p.tab === "zoom") return zoomPhotos(c);
+  if (p.tab === "pickup") return showPickup(c);
+  if (p.tab === "price_note") return priceNote(c);
   if (p.tab === "stock") return showStock(c);
   if (p.tab in TAB_IDS) return openTab(p.tab as keyof typeof TAB_IDS, c);
-  c.refuse("tab", `no tab "${p.tab}"`, ["about", "specs", "warranty", "stock", "photos"]);
+  c.refuse("tab", `no tab "${p.tab}"`, TABS);
 }
 
 const productUp = () => document.querySelector("#product-title .product-title__product-name") && document.querySelector(".detail__prices__cash, .detail__prices");
@@ -1624,81 +1958,472 @@ async function showStore(p: { name: string } & Arrived, c: MoveContext): Promise
   return `${card.name}: ${card.address}, ${card.city}${map?.hours ? `; hours ${map.hours}` : "; the map card shows no hours"}`;
 }
 
-// compare.add ───────────────────────────────────────────────────────────────
+// The comparator ────────────────────────────────────────────────────────────
+//
+// The store's own: each card's (or product page's) "Comparar" adds a product
+// to `localStorage["comparator-items"]`, and the bar at the bottom
+// (`#pcf-comparator-summary`, "Comparador (n/3)") comes up; its "Comparar",
+// enabled from two, loads /comparador?prod1=…&prod2=…, the comparison table.
+// At most three, all of one category ("Notebooks" and "Notebooks Gamer" are
+// two). The tab's ✕ empties it; "Limpiar selección" too.
+
+interface Held {
+  id: number;
+  name: string;
+  category: { id: number | null; name: string };
+}
 
 /** What the comparator holds, as the site keeps it (`comparator-items`). */
-function compared(): { id: number; name: string }[] {
+function compared(): Held[] {
   try {
-    const raw = JSON.parse(localStorage.getItem("comparator-items") ?? "[]") as { id?: number; nombre?: string }[];
-    return raw.filter((x) => Number.isInteger(x.id)).map((x) => ({ id: x.id!, name: clean(x.nombre) }));
+    const raw = JSON.parse(localStorage.getItem("comparator-items") ?? "[]") as { id?: number; nombre?: string; categoria?: { id?: number; nombre?: string }; cat?: string }[];
+    return raw
+      .filter((x) => Number.isInteger(x.id))
+      .map((x) => ({ id: x.id!, name: clean(x.nombre), category: { id: x.categoria?.id ?? null, name: clean(x.categoria?.nombre ?? x.cat) } }));
   } catch {
     return [];
   }
 }
 
 const comparatorPanel = () => document.querySelector<HTMLElement>("#pcf-comparator-summary.show");
+const compareButton = () => document.querySelector<HTMLButtonElement>("#pcf-comparator-summary .compare-btn");
+const barAlert = () => clean(document.querySelector("#pcf-comparator-summary")?.getAttribute("data-alert"));
+const comparisonUrl = (ids: number[]) => `/comparador?${ids.map((id, i) => `prod${i + 1}=${id}`).join("&")}`;
 
-async function compareAdd(p: { paths: string[] }, c: MoveContext): Promise<string | PerformResult> {
+type Category = { id: number | null; name: string };
+
+/** Each product's category as the comparator judges it: the card's own data,
+ *  else the store's listing read of the products (the shape the comparator
+ *  keeps in `comparator-items`), else the product's own read. */
+async function categoriesOf(ids: number[]): Promise<Map<number, Category>> {
+  const out = new Map<number, Category>();
+  for (const id of ids) {
+    const img = document.querySelector<HTMLElement>(`input#product-checkbox${id}`)?.closest("a.products__item")?.querySelector<HTMLElement>("img[data-gtag-category-id]");
+    if (img) out.set(id, { id: Number(img.getAttribute("data-gtag-category-id")) || null, name: clean(img.getAttribute("data-gtag-category")) });
+  }
+  const rest = ids.filter((id) => !out.has(id));
+  if (rest.length) {
+    const listed = await getJson<{ content?: { items?: (ApiItem & { categoria?: { id?: number; nombre?: string } })[] } }>(
+      `${API}/productos/query?productos=${rest.join(",")}&page=0&size=${rest.length}`,
+    ).catch(() => ({ content: { items: [] } }));
+    for (const i of listed.content?.items ?? []) if (rest.includes(i.id) && i.categoria) out.set(i.id, { id: i.categoria.id ?? null, name: clean(i.categoria.nombre) });
+  }
+  for (const id of ids.filter((x) => !out.has(x))) {
+    const p = await productApi(id).catch(() => null);
+    if (p?.categoria) out.set(id, { id: p.categoria.id ?? null, name: clean(p.categoria.nombre) });
+  }
+  return out;
+}
+
+/** Tick product `id` into the comparator on this page: its card's box (the
+ *  input itself: its label's click reaches the card's link and opens the
+ *  product), or the product page's own Comparar. `null` when it is not on
+ *  this page; else whether it went in, or the comparator's refusal. */
+async function tickCompared(c: MoveContext, id: number): Promise<true | string | null> {
+  if (compared().some((h) => h.id === id)) return true;
+  const pdp = onProductPage() && productId(location.pathname) === id;
+  if (pdp) {
+    await waitFor(() => [...document.querySelectorAll<HTMLElement>("#product-title button.pcf-link-btn")].find((b) => /compar/i.test(clean(b.textContent)) && shown(b)), 6000);
+    const button = [...document.querySelectorAll<HTMLElement>("#product-title button.pcf-link-btn")].find((b) => /compar/i.test(clean(b.textContent)) && shown(b));
+    if (!button) return null;
+    await scrollTo(button, "center");
+    await c.ring(button, "Comparar");
+    press(button);
+  } else {
+    const input = document.querySelector<HTMLInputElement>(`input#product-checkbox${id}`);
+    const card = input?.closest<HTMLElement>("a.products__item");
+    if (!input || !card) return null;
+    await scrollTo(card, "center");
+    await c.ring(card.querySelector(".products__item__compare") ?? card, `Comparar ${cardName(card)}`);
+    if (!input.checked) press(input);
+  }
+  c.progress("confirming");
+  const took = await waitFor(() => compared().some((h) => h.id === id) || barAlert(), 3000);
+  return took === true ? true : typeof took === "string" && took ? took : "the comparator did not take it";
+}
+
+/** The bar's products in it, left to right, with their ✕. */
+const barBoxes = () => [...document.querySelectorAll<HTMLElement>("#pcf-comparator-summary .product-box")].filter(shown);
+
+/** Take product `id` out of the bar with its ✕ (the box at its place). */
+async function untickFromBar(c: MoveContext, id: number): Promise<boolean> {
+  const at = compared().findIndex((h) => h.id === id);
+  const box = at >= 0 ? barBoxes()[at] : undefined;
+  const close = box?.querySelector<HTMLElement>("button.comparator-close-btn");
+  if (box && close) {
+    await c.ring(box, `Quitar ${compared()[at]!.name}`);
+    press(close);
+  } else {
+    const input = document.querySelector<HTMLInputElement>(`input#product-checkbox${id}`);
+    if (!input?.checked) return false;
+    await c.ring(input.closest("a.products__item")?.querySelector(".products__item__compare") ?? input, "Comparar");
+    press(input);
+  }
+  return Boolean(await waitFor(() => !compared().some((h) => h.id === id), 2500));
+}
+
+interface CompareAdd extends Arrived {
+  paths: string[];
+  open?: boolean;
+  /** Carried to /comparador: how it got there. */
+  opened?: "bar" | "address";
+}
+
+async function compareAdd(p: CompareAdd, c: MoveContext): Promise<string | null | PerformResult> {
   const ids = [...new Set((Array.isArray(p.paths) ? p.paths : []).map((x) => productId(x)).filter((x): x is number => x !== null))];
   if (!ids.length) c.refuse("paths", "say which products, as /producto/<id> paths");
-  const holding = compared();
-  const adding = ids.filter((id) => !holding.some((h) => h.id === id));
-  if (holding.length + adding.length > MAX_COMPARED) {
-    c.refuse("paths", `the comparator holds ${MAX_COMPARED} products and already has ${holding.length}; take some out with its "Limpiar selección" first`, holding.map((h) => h.name));
+  if (kindOf() === "compare") {
+    if (!p.opened) {
+      // Already on the comparison: it is these, or the bar on another page
+      // makes it these.
+      const here = comparisonIds();
+      if (ids.every((id) => here.includes(id))) return finishComparison(c, "already on the comparison page");
+      // Another comparison: from the first product's page, with the bar.
+      return load(c, productPath(ids[0]!), again(c, p));
+    }
+    return finishComparison(c, p.opened === "bar" ? "pressed the comparator's Comparar" : "the comparator's Comparar was not on the page, so the comparison was opened by its address");
   }
-  const missing: number[] = [];
-  const added: number[] = [];
+  if (ids.length > MAX_COMPARED) c.refuse("paths", `the comparator holds at most ${MAX_COMPARED}: "Debes borrar uno de los productos y luego seleccionar otro producto para poder compararlos."`, ids.map(productPath));
+  // The site's own limits first, before a box is ticked that it would refuse.
+  const cats = new Map<number, Category>();
+  for (const h of compared()) if (h.category.name || h.category.id) cats.set(h.id, h.category);
+  for (const [id, cat] of await categoriesOf(ids.filter((id) => !cats.has(id)))) cats.set(id, cat);
+  const named = ids.map((id) => cats.get(id)).filter((x): x is Category => Boolean(x));
+  const kinds = [...new Set(named.map((x) => (x.name ? norm(x.name) : String(x.id))))];
+  if (kinds.length > 1) {
+    c.refuse(
+      "paths",
+      `the comparator compares products of one category only: "Sólo puedes comparar productos que pertenezcan a la misma categoría." These are ${[...new Set(named.map((x) => x.name))].join(" and ")}`,
+      ids.map((id) => `${productPath(id)} (${cats.get(id)?.name ?? "?"})`),
+    );
+  }
+  // Products held from before that are not asked for: out, or the
+  // comparison would show them too (or not fit).
+  const before = compared().filter((h) => !ids.includes(h.id));
+  const cleared: string[] = [];
+  if (before.length && comparatorPanel()) {
+    await scrollTo(comparatorPanel()!, "center");
+    for (const h of before) if (await untickFromBar(c, h.id)) cleared.push(h.name);
+  }
+  if (compared().filter((h) => !ids.includes(h.id)).length + ids.length > MAX_COMPARED) {
+    c.refuse("paths", `the comparator already holds ${compared().length}; take some out with its "Limpiar selección" first (remove_from_comparison)`, compared().map((h) => h.name));
+  }
+  // Each product ticked where it is on this page; the first one not on it is
+  // opened, and the move goes on from its page.
   const refusedBy = new Map<number, string>();
-  for (const id of adding) {
-    const pdp = onProductPage() && productId(location.pathname) === id;
-    if (pdp) {
-      const button = [...document.querySelectorAll<HTMLElement>("#product-title button.pcf-link-btn")].find((b) => /compar/i.test(clean(b.textContent)) && shown(b));
-      if (!button) {
-        missing.push(id);
-        continue;
+  for (const id of ids) {
+    if (compared().some((h) => h.id === id)) continue;
+    const got = await tickCompared(c, id);
+    if (got === true) continue;
+    if (got === null) {
+      if (p.arrived && onProductPage() && productId(location.pathname) === id) throw new Error(`${productPath(id)}'s page shows no Comparar`);
+      const link = productLink(id);
+      if (link) {
+        await scrollTo(link, "center");
+        await c.ring(link);
       }
-      await scrollTo(button, "center");
-      await c.ring(button, "Comparar");
-      press(button);
-    } else {
-      // The card's box itself, never its label: the label's click reaches the
-      // card's link and opens the product.
-      const input = document.querySelector<HTMLInputElement>(`input#product-checkbox${id}`);
-      const card = input?.closest<HTMLElement>("a.products__item");
-      if (!input || !card) {
-        missing.push(id);
-        continue;
-      }
-      await scrollTo(card, "center");
-      await c.ring(card.querySelector(".products__item__compare") ?? card, `Comparar ${cardName(card)}`);
-      if (!input.checked) press(input);
+      return load(c, productPath(id), again(c, p));
     }
-    c.progress("confirming");
-    const took = await waitFor(() => compared().some((h) => h.id === id) || clean(document.querySelector("#pcf-comparator-summary")?.getAttribute("data-alert")), 3000);
-    if (took === true) added.push(id);
-    else {
-      // The comparator's own refusal ("Sólo puedes comparar productos que
-      // pertenezcan a la misma categoría…").
-      const alert = typeof took === "string" ? took : "";
-      if (alert) refusedBy.set(id, alert);
-      missing.push(id);
-    }
+    refusedBy.set(id, got);
   }
   const now = compared();
-  const offered = cards().map(cardName).slice(0, 12);
-  const why = (ids: number[]) =>
-    ids
-      .map((id) => (refusedBy.has(id) ? `${productPath(id)}: the comparator says "${refusedBy.get(id)}"` : `${productPath(id)} is not on the page in front (open its listing or its page first)`))
-      .join("; ");
-  if (adding.length && !added.length) c.refuse("paths", why(missing), refusedBy.size ? now.map((h) => h.name) : offered);
   told("compare_shown", { items: now.map((h) => ({ path: productPath(h.id), name: h.name })) } satisfies CompareShown);
-  const panel = comparatorPanel();
-  if (panel) c.after(() => c.ring(panel, `Comparador (${now.length}/${MAX_COMPARED})`));
-  const detail = `the comparator holds ${now.length}/${MAX_COMPARED}: ${now.map((h) => h.name).join("; ")}`;
-  if (missing.length) {
-    return { outcome: "partial", detail, refused: [{ arg: "paths", why: why(missing), options: refusedBy.size ? [] : offered }] };
+  if (refusedBy.size && now.filter((h) => ids.includes(h.id)).length < 2) {
+    const [id, why] = [...refusedBy][0]!;
+    c.refuse("paths", `${productPath(id)}: the comparator says "${why}"`, now.map((h) => h.name));
   }
-  return detail;
+  const held = now.filter((h) => ids.includes(h.id));
+  const detail = `the comparator holds ${now.length}/${MAX_COMPARED}: ${now.map((h) => h.name).join("; ")}${cleared.length ? `; took out ${cleared.join("; ")}` : ""}`;
+  if (p.open === false || held.length < 2) {
+    const panel = comparatorPanel();
+    if (panel) c.after(() => c.ring(panel, `Comparador (${now.length}/${MAX_COMPARED})`));
+    return held.length < 2 && p.open !== false ? `${detail}; Comparar opens with two or more` : detail;
+  }
+  // The bar's own Comparar: ringed, a beat for the visitor to see it, then
+  // pressed; the site loads /comparador itself, and the move finishes there.
+  const button = await waitFor(() => {
+    const b = compareButton();
+    return b && shown(b) && !b.disabled ? b : null;
+  }, 3000);
+  const url = comparisonUrl(now.map((h) => h.id));
+  if (!button) return load(c, url, { move: c.move, args: { ...p, arrived: true, opened: "address" } });
+  await scrollTo(button, "center");
+  await c.ring(button, "Comparar");
+  await c.beat(700);
+  target(url);
+  await c.keep({ move: c.move, args: { ...p, arrived: true, opened: "bar" } });
+  c.progress("waiting_site");
+  press(button);
+  if (await waitFor(() => document.visibilityState === "hidden" || location.pathname === "/comparador", 4000)) await sleep(4000);
+  await c.drop();
+  return load(c, url, { move: c.move, args: { ...p, arrived: true, opened: "address" } });
+}
+
+// The comparison page ─────────────────────────────────────────────────────────
+
+interface ComparisonItem {
+  path: string;
+  name: string;
+  brand: string | null;
+  price: number | null;
+  card_price: number | null;
+  regular_price: number | null;
+}
+interface ComparisonRow {
+  group: string;
+  label: string;
+  values: string[];
+}
+interface ComparisonState {
+  path: string;
+  category: string | null;
+  items: ComparisonItem[];
+  rows: ComparisonRow[];
+  differs: string[];
+  highlighted: boolean;
+}
+
+const comparisonIds = () =>
+  [...new URLSearchParams(location.search).entries()]
+    .filter(([k]) => /^prod\d+$/.test(k))
+    .map(([, v]) => Number(v))
+    .filter((n) => Number.isInteger(n) && n > 0);
+const comparisonCards = () => [...document.querySelectorAll<HTMLElement>("#pcf-comparator .comparator-product-card")].filter(shown);
+const switchInput = () => document.querySelector<HTMLInputElement>("#pcf-comparator label.pcf-switch input");
+const tableUp = () => document.querySelector("#pcf-comparator .comparator-table tr") && comparisonCards().length > 0 && comparisonCards().every((c) => clean(c.querySelector("h2")?.textContent));
+
+/** Every row of the table with a value, as `{group, label, values}`, and the
+ *  row elements by label. */
+function comparisonRows(): (ComparisonRow & { el: HTMLElement })[] {
+  const out: (ComparisonRow & { el: HTMLElement })[] = [];
+  for (const w of document.querySelectorAll<HTMLElement>("#pcf-comparator .table-wrapper")) {
+    const group = clean(w.querySelector(".table-title-custom")?.textContent);
+    for (const tr of w.querySelectorAll<HTMLElement>("tr")) {
+      const label = clean(tr.querySelector("th.spec-name, th")?.textContent);
+      const values = [...tr.querySelectorAll("td.spec-value:not(.empty-column-cell)")].map((td) => clean(td.textContent));
+      if (label && values.some(Boolean)) out.push({ group, label, values, el: tr });
+    }
+  }
+  return out;
+}
+
+/** The product id of each column, left to right: the table's own "ID" row
+ *  (the page orders the columns itself, not as the address lists them), else
+ *  each card's photo, else the address. */
+function columnIds(): number[] {
+  const idRow = comparisonRows().find((r) => /^id$/i.test(r.label));
+  const fromRow = idRow?.values.map((v) => Number(v.replace(/\D+/g, ""))) ?? [];
+  return comparisonCards().map((card, i) => {
+    if (fromRow[i]) return fromRow[i]!;
+    const img = Number(card.querySelector("img")?.getAttribute("src")?.match(/\/foto\/(\d+)\//)?.[1]);
+    return img || comparisonIds()[i] || 0;
+  });
+}
+
+function readComparison(): ComparisonState {
+  const ids = columnIds();
+  const items = comparisonCards().map((card, i) => {
+    const price = money(card.querySelector(".main-price-compare")?.textContent);
+    const ref = money(card.querySelector(".text-strikethrough")?.textContent);
+    const id = ids[i] ?? 0;
+    return {
+      path: productPath(id),
+      name: clean(card.querySelector("h2")?.textContent),
+      brand: clean(card.querySelector(".products__item__info p")?.textContent) || null,
+      price,
+      card_price: money(card.querySelector(".second-price-compare")?.textContent),
+      regular_price: ref != null && price != null && ref > price ? ref : null,
+    };
+  });
+  const rows = comparisonRows().map(({ group, label, values }) => ({ group, label, values }));
+  return {
+    path: location.pathname + location.search,
+    category: clean(document.querySelector("#pcf-comparator p.pcf-heading--5")?.textContent).replace(/^Estás comparando:\s*/i, "") || null,
+    items,
+    rows,
+    // As the page's own Destacar diferencias: two values or more that are not
+    // the same. A row only one product has a value for is not a difference
+    // (some spec sheets use other labels, and leave most rows blank).
+    differs: rows
+      .filter((r) => {
+        const said = r.values.map((v) => norm(v)).filter(Boolean);
+        return said.length >= 2 && new Set(said).size > 1;
+      })
+      .map((r) => r.label),
+    highlighted: Boolean(switchInput()?.checked),
+  };
+}
+
+/** compare.shown for the table in front, once it is drawn. */
+async function reportComparison(): Promise<ComparisonState | null> {
+  if (kindOf() !== "compare") return null;
+  if (!(await waitFor(tableUp, 10_000))) return null;
+  const state = readComparison();
+  report("compare_state", state);
+  return state;
+}
+
+/** The comparison page is the move's effect: read, reported, ringed after. */
+async function finishComparison(c: MoveContext, how: string): Promise<string> {
+  if (!(await waitFor(tableUp, 12_000))) throw new Error("the comparison page did not draw its table");
+  await quiet(main(), 300, 1500);
+  const state = (await reportComparison()) ?? readComparison();
+  const box = document.querySelector<HTMLElement>("#products-container");
+  c.after(async () => {
+    await scrollToTopOfPage();
+    if (box) await c.ring(box, `Comparando ${state.items.length}`);
+  });
+  const partly = state.rows.filter((r) => r.values.some((v) => !v)).length;
+  const same = state.rows.length - state.differs.length - partly;
+  return `${how}; the comparison is on screen: ${state.items.map((i) => `${i.name} ($${i.price ?? "?"})`).join(" vs ")}; ${state.rows.length} rows with values: ${state.differs.length} differ (${state.differs.slice(0, 10).join(", ")}), ${same} the same, ${partly} with a value for only some`;
+}
+
+/** Scroll a table row just under the products' cards, which stick under the
+ *  header once the window scrolls (they cover a row scrolled to the middle),
+ *  and ring it. Measured after each scroll, as they move. */
+async function ringRow(c: MoveContext, rows: HTMLElement[], label: string): Promise<void> {
+  const cover = () => {
+    const box = document.querySelector<HTMLElement>("#products-container")?.getBoundingClientRect();
+    return Math.max(headerHeight(), box && box.bottom > 0 && box.top < window.innerHeight / 2 ? box.bottom : 0);
+  };
+  for (let i = 0; i < 3; i++) {
+    const top = rows[0]!.getBoundingClientRect().top;
+    const want = cover() + 24;
+    if (i > 0 && Math.abs(top - want) < 8) break;
+    window.scrollTo({ top: window.scrollY + top - want, behavior: i === 0 ? "smooth" : "auto" });
+    await sleep(i === 0 ? 500 : 250);
+  }
+  await c.ring(rows, label);
+}
+
+const DIFFERENCES = /^(diferencias?|differences?|destacar diferencias|lo que cambia)$/i;
+const PRICES = /^(precios?|prices?|price)$/i;
+
+async function compareShow(p: { row: string }, c: MoveContext): Promise<string> {
+  if (kindOf() !== "compare") throw new Error(`no comparison page is on screen (now on ${location.pathname})`);
+  const want = clean(p.row);
+  if (!want) c.refuse("row", "say which row of the comparison");
+  if (!(await waitFor(tableUp, 8000))) throw new Error("the comparison page did not draw its table");
+  if (DIFFERENCES.test(norm(want))) {
+    const input = switchInput();
+    const sw = input?.closest<HTMLElement>("label.pcf-switch")?.parentElement ?? input;
+    if (!input || !sw) throw new Error("the comparison page shows no Destacar diferencias");
+    if (!input.checked) {
+      await scrollToTopOfPage();
+      await c.ring(sw, "Destacar diferencias");
+      press(input);
+      await waitFor(() => input.checked && document.querySelector("#pcf-comparator tr.highlight-row"), 2000);
+    }
+    const state = readComparison();
+    report("compare_state", state);
+    const first = [...document.querySelectorAll<HTMLElement>("#pcf-comparator tr.highlight-row")].find(shown);
+    if (first) c.after(() => ringRow(c, [first], clean(first.querySelector("th")?.textContent)));
+    return `Destacar diferencias is on: ${state.differs.length} rows differ (${state.differs.slice(0, 12).join(", ")})`;
+  }
+  if (PRICES.test(norm(want))) {
+    const prices = comparisonCards().map((card) => card.querySelector<HTMLElement>(".price-section") ?? card);
+    await scrollToTopOfPage();
+    await c.ring(prices, "Precios");
+    return `showed the prices: ${readComparison().items.map((i) => `$${i.price ?? "?"}`).join(" | ")}`;
+  }
+  const rows = comparisonRows();
+  const row = best(rows, (r) => r.label, want) ?? best(rows, (r) => original(r.el.querySelector("th")), want);
+  if (!row) c.refuse("row", `the comparison has no row "${want}"`, [...new Set(rows.map((r) => r.label))].slice(0, 40));
+  await ringRow(c, [row.el], row.label);
+  return `showed ${row.label}: ${row.values.map((v) => v || "—").join(" | ")}`;
+}
+
+async function compareRemove(p: { path?: string | null; all?: boolean | null }, c: MoveContext): Promise<string> {
+  const id = p.path ? productId(p.path) : null;
+  if (!p.all && !id) c.refuse("path", "say which product, as /producto/<id>, or all");
+  if (kindOf() === "compare") {
+    const ids = columnIds();
+    const drop = p.all ? ids.slice(1) : [id!];
+    for (const d of drop) {
+      const at = columnIds().indexOf(d);
+      const card = at >= 0 ? comparisonCards()[at] : undefined;
+      const close = card?.parentElement?.querySelector<HTMLElement>("button.comparator-close-btn");
+      if (!card || !close) c.refuse("path", `${productPath(d)} is not in the comparison`, readComparison().items.map((i) => `${i.name} (${i.path})`));
+      await scrollToTopOfPage();
+      await c.ring(card, `Quitar ${clean(card.querySelector("h2")?.textContent)}`);
+      const n = comparisonCards().length;
+      press(close);
+      await waitFor(() => comparisonCards().length < n, 3000);
+      // The address keeps the product; it is rewritten so a reload is honest.
+      const left = comparisonIds().filter((x) => x !== d);
+      history.replaceState(history.state, "", comparisonUrl(left));
+      await sleep(300);
+    }
+    const state = readComparison();
+    report("compare_state", state);
+    const left = state.items.map((i) => i.name);
+    return `${p.all ? "took every product but the first out of the comparison" : `took ${productPath(id!)} out of the comparison`}; it shows ${left.length}: ${left.join("; ")}`;
+  }
+  const panel = comparatorPanel();
+  if (!panel) return "the comparator was already empty";
+  await scrollTo(panel, "center");
+  if (p.all) {
+    const clear = [...panel.querySelectorAll<HTMLElement>("p.pointer, u")].find((x) => /limpiar selecci/i.test(clean(x.textContent)));
+    if (!clear) throw new Error("the comparator shows no Limpiar selección");
+    await c.ring(clear, "Limpiar selección");
+    press(clear.closest("p") ?? clear);
+    await waitFor(() => !compared().length, 2500);
+  } else if (!(await untickFromBar(c, id!))) c.refuse("path", `${productPath(id!)} is not in the comparator`, compared().map((h) => `${h.name} (${productPath(h.id)})`));
+  const now = compared();
+  told("compare_shown", { items: now.map((h) => ({ path: productPath(h.id), name: h.name })) } satisfies CompareShown);
+  return `the comparator holds ${now.length}/${MAX_COMPARED}${now.length ? `: ${now.map((h) => h.name).join("; ")}` : ""}`;
+}
+
+// The Categorías menu ──────────────────────────────────────────────────────────
+
+const menuOpen = () => document.querySelector<HTMLElement>("#categories-dropdown.show");
+
+async function openMenu(p: { category?: string | null }, c: MoveContext): Promise<string> {
+  if (!menuOpen()) {
+    const button = [...document.querySelectorAll<HTMLElement>("#categories-btn")].find(shown);
+    if (!button) throw new Error("this page shows no Categorías button");
+    await scrollToTopOfPage();
+    await c.ring(button, "Categorías");
+    press(button);
+    if (!(await waitFor(menuOpen, 2500))) throw new Error("pressed Categorías, but its menu did not open");
+    await sleep(300);
+  }
+  const items = [...document.querySelectorAll<HTMLElement>("#categories-dropdown-list > li[data-content-category]")];
+  const names = items.map((li) => li.getAttribute("data-content-category") ?? "");
+  const want = clean(p.category);
+  if (!want) {
+    const list = document.querySelector<HTMLElement>("#categories-dropdown-list") ?? menuOpen()!;
+    await c.ring(list, "Categorías");
+    return `opened Categorías: ${names.join(", ")}`;
+  }
+  const li = best(items, (x) => x.getAttribute("data-content-category") ?? "", want) ?? best(items, (x) => clean(x.textContent), want);
+  if (!li) c.refuse("category", `the Categorías menu has no "${want}"`, names);
+  const name = li.getAttribute("data-content-category") ?? clean(li.textContent);
+  await c.ring(li, name);
+  li.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+  li.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+  const panel = await waitFor(() => [...document.querySelectorAll<HTMLElement>(".categories-dropdown-list__panel")].find(shown), 1500);
+  if (!panel) throw new Error(`the Categorías menu showed no panel for ${name}`);
+  const under = [...panel.querySelectorAll<HTMLElement>(".categories-dropdown-list__panel__children-list > li > a")].map((a) => clean(a.textContent)).filter(Boolean);
+  await c.ring(panel, name);
+  return `opened Categorías on ${name}: ${under.slice(0, 16).join(", ")}`;
+}
+
+/** The site's windows a move left open (the menu, the big photos, the
+ *  pickup list): closed before the next move, as the visitor would. */
+async function closeOverlays(keepMenu = false): Promise<void> {
+  const open = [...document.querySelectorAll<HTMLElement>("#gallery-modal.show, #pickup-modal.show" + (keepMenu ? "" : ", #categories-dropdown.show"))];
+  for (const m of open) {
+    const close = m.querySelector<HTMLElement>("button.close, [data-dismiss=modal], .close");
+    if (close && shown(close)) close.click();
+    else document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    if (!(await waitFor(() => !m.classList.contains("show"), 1200))) {
+      m.classList.remove("show");
+      m.style.display = "none";
+      document.querySelectorAll(".modal-backdrop").forEach((b) => b.remove());
+      document.body.classList.remove("modal-open");
+    }
+  }
 }
 
 // commerce.cart_add, cart_show, cart_update ─────────────────────────────────
@@ -2166,26 +2891,34 @@ async function openFaq(p: { question: string; path?: string | null }, c: MoveCon
  *  `pcfactory/scene.json`, and a move left out does not compile. */
 export function registerMoves(moves: Moves): void {
   who = () => moves.author();
+  /** `fn`, after the windows the last move left open are closed. */
+  const first = <A, R>(fn: (p: A, c: MoveContext) => Promise<R>, keepMenu = false) => async (p: A, c: MoveContext): Promise<R> => {
+    await closeOverlays(keepMenu);
+    return fn(p, c);
+  };
   scene.registerAll(moves, {
-    "page.open": openPage,
-    "page.show": showSection,
-    "page.faq": openFaq,
-    "product.tab": productTab,
-    "stores.show": showStore,
-    "commerce.filter": filterCue,
-    "commerce.sort": sortCue,
-    "commerce.search": searchProducts,
-    "commerce.cart_add": addToCart,
-    "commerce.cart_update": updateCartItem,
-    "commerce.cart_show": showCart,
-    "compare.add": compareAdd,
-    filter_listing: filterListing,
-    open_product: openProduct,
+    "page.open": first(openPage),
+    "page.show": first(showSection),
+    "page.faq": first(openFaq),
+    "product.tab": first(productTab),
+    "stores.show": first(showStore),
+    "menu.open": first(openMenu, true),
+    "commerce.filter": first(filterCue),
+    "commerce.sort": first(sortCue),
+    "commerce.search": first(searchProducts),
+    "commerce.cart_add": first(addToCart),
+    "commerce.cart_update": first(updateCartItem),
+    "commerce.cart_show": first(showCart),
+    "compare.add": first(compareAdd),
+    "compare.show": first(compareShow),
+    "compare.remove": first(compareRemove),
+    filter_listing: first(filterListing),
+    open_product: first(openProduct),
     find_products: findProducts,
     check_prices: checkPrices,
     check_stock: checkStock,
-    apply_coupon: applyCoupon,
-    start_checkout: startCheckout,
+    apply_coupon: first(applyCoupon),
+    start_checkout: first(startCheckout),
   });
 }
 
@@ -2266,9 +2999,11 @@ function watchState(): () => void {
   if (isListing()) {
     watch(main(), () => {
       urlChanged();
-      if (gridUp()) report("listing_shown", readListing());
+      // A move of his that changed the grid reports it itself, once settled.
+      if (!gridPending && gridUp()) report("listing_shown", readListing());
     });
   }
+  if (kindOf() === "compare") watch(main(), () => void reportComparison(), 600);
   if (kindOf() === "product") {
     watch(main(), () => {
       const product = readProduct();
@@ -2292,8 +3027,12 @@ function readState(): void {
       void confirmProduct();
     });
   } else if (kind === "category" || kind === "search") {
-    if (gridUp()) report("listing_shown", readListing());
-  } else if (kind === "checkout") reportCheckout();
+    // Up now, or once its first grid is in (never the moment before it is).
+    void waitFor(gridUp, 10_000).then((up) => {
+      if (up && !gridPending) report("listing_shown", readListing());
+    });
+  } else if (kind === "compare") void reportComparison();
+  else if (kind === "checkout") reportCheckout();
   if (kind === "cart") void readCart().then(reportCart);
   else void cartIfChanged();
 }
@@ -2359,4 +3098,4 @@ export const pcfactory: Adapter = (moves, kit) => {
 };
 
 // Exported for the end-to-end tests.
-export { context, readCart, readCheckout, readListing, readProduct };
+export { context, readCart, readCheckout, readComparison, readListing, readProduct };

@@ -7,7 +7,7 @@
 
 import { expect, type Page, test } from "@playwright/test";
 
-import { CATEGORY, type Emitted, events, listen, matches, open, ORIGIN, PRODUCT, run, SEARCH, serveSite, waitForEvent } from "./site";
+import { CABLE, CATEGORY, type Emitted, events, listen, matches, open, ORIGIN, PRODUCT, run, SEARCH, serveSite, waitForEvent } from "./site";
 
 /** `run` for a move that loads another page: the page may go before it answers. */
 async function runAway(p: Page, command: string, payload: unknown): Promise<void> {
@@ -102,7 +102,13 @@ test.describe("listings", () => {
     expect(filters.map((f) => f.facet)).toEqual(expect.arrayContaining(["Tiendas", "Marcas", "RAM"]));
     expect(filters.map((f) => f.facet)).not.toContain("Rango de precios");
     expect(filters.find((f) => f.facet === "Marcas")!.options).toContain("Lenovo");
-    expect(filters.every((f) => f.options.length <= 25)).toBe(true);
+    // Every option of every facet: none cut (dev call 8b363867).
+    const inDom = await page.evaluate(() =>
+      [...document.querySelectorAll("#panel-filters .panel-filters__filter")]
+        .filter((g) => !g.querySelector("input[type=range]") && !/precio/i.test(g.textContent ?? ""))
+        .map((g) => g.querySelectorAll(".form-check input[type=checkbox]").length),
+    );
+    expect(filters.map((f) => f.options.length).reduce((a, b) => a + b, 0)).toBe(inDom.reduce((a, b) => a + b, 0));
     const items = shown.payload.items as { path: string; name: string; price: number }[];
     expect(items[0]).toMatchObject({ path: "/producto/57695", price: 729990, regular_price: 1049990 });
     expect(items[0]!.name).toContain("Notebook 14-ep1330la");
@@ -340,23 +346,73 @@ test.describe("show and faq cues, stores", () => {
   });
 });
 
-test.describe("compare.add", () => {
-  test("ticks each card's box (never its label) and brings up the comparator", async ({ page }) => {
+test.describe("the comparator, through its own bar", () => {
+  test("compare.add ticks each card's box, rings the bar's Comparar, presses it and finishes on /comparador with the table", async ({ page }) => {
     await serveSite(page);
     await open(page, CATEGORY);
     await listen(page);
-    const result = await run(page, "compare.add", { paths: ["/producto/57695", "/producto/58436"] });
-    expect(result.ok, result.error).toBe(true);
-    expect(result.detail).toMatch(/^the comparator holds 2\/3: /);
-    expect(page.url()).toContain(CATEGORY);
-    const shown = await waitForEvent(page, "compare_shown");
-    expect((shown.payload.items as { path: string }[]).map((i) => i.path)).toEqual(["/producto/57695", "/producto/58436"]);
-    const more = await run(page, "compare.add", { paths: ["/producto/55409", "/producto/57948"] });
-    expect(more.ok).toBe(false);
-    expect(more.error).toContain("the comparator holds 3 products and already has 2");
+    await watchClicks(page);
+    await runAway(page, "compare.add", { paths: ["/producto/57695", "/producto/58436"], open: true });
+    const done = await carried(page, /\/comparador\?prod1=57695&prod2=58436$/);
+    expect(done.move).toBe("compare.add");
+    expect(done.outcome, String(done.detail)).toBe("applied");
+    expect(String(done.detail)).toMatch(/^pressed the comparator's Comparar; the comparison is on screen: .+ vs .+; \d+ rows with values: \d+ differ \(ID, Marca\), \d+ the same, \d+ with a value for only some$/);
+    const shown = await waitForEvent(page, "compare.shown");
+    const table = shown.payload as { items: { path: string; price: number }[]; rows: { label: string; values: string[] }[]; differs: string[]; category: string };
+    expect(table.items.map((i) => i.path)).toEqual(["/producto/57695", "/producto/58436"]);
+    expect(table.items.every((i) => i.price > 0)).toBe(true);
+    expect(table.category).toBe("Notebooks");
+    expect(table.rows.find((r) => r.label === "RAM")?.values).toHaveLength(2);
+    expect(table.rows.every((r) => r.values.some(Boolean))).toBe(true);
+    expect(table.differs).toContain("Marca");
   });
 
-  test("a product of another category: the comparator's own refusal", async ({ page }) => {
+  test("the bar's Comparar is ringed before it is pressed", async ({ page }) => {
+    await serveSite(page);
+    await open(page, CATEGORY);
+    await page.evaluate(() => {
+      const w = window as unknown as { __rang: boolean[] };
+      w.__rang = [];
+      const button = document.querySelector("#pcf-comparator-summary .compare-btn")!;
+      button.addEventListener(
+        "click",
+        () => {
+          const ring = document.querySelector("[data-voqalize=spotlight]")?.shadowRoot?.querySelector(".ring");
+          w.__rang.push(Boolean(ring));
+          sessionStorage.setItem("rang", JSON.stringify(w.__rang));
+        },
+        true,
+      );
+    });
+    await runAway(page, "compare.add", { paths: ["/producto/57695", "/producto/58436"] });
+    await page.waitForURL(/\/comparador/, { waitUntil: "domcontentloaded" });
+    expect(await page.evaluate(() => sessionStorage.getItem("rang"))).toBe("[true]");
+  });
+
+  test("a product not on the listing is ticked on its own page, then the bar is used there", async ({ page }) => {
+    await serveSite(page);
+    await open(page, CATEGORY);
+    await runAway(page, "compare.add", { paths: ["/producto/57695", PRODUCT] });
+    await page.waitForURL(`${ORIGIN}${PRODUCT}`, { waitUntil: "domcontentloaded" });
+    const done = await carried(page, /\/comparador\?prod1=57695&prod2=57233$/);
+    expect(done.outcome, String(done.detail)).toBe("applied");
+    expect(String(done.detail)).toContain("pressed the comparator's Comparar");
+  });
+
+  test("the site's limits first: a fourth is refused, and so is a product of another category, before a box is ticked", async ({ page }) => {
+    await serveSite(page);
+    await open(page, CATEGORY);
+    const four = await run(page, "compare.add", { paths: ["/producto/57695", "/producto/58436", "/producto/55409", "/producto/57948"] });
+    expect(four.ok).toBe(false);
+    expect(four.error).toContain("the comparator holds at most 3");
+    const mixed = await run(page, "compare.add", { paths: ["/producto/57695", CABLE] });
+    expect(mixed.ok).toBe(false);
+    expect(mixed.error).toContain("Sólo puedes comparar productos que pertenezcan a la misma categoría");
+    expect(mixed.error).toContain("Notebooks and Cables Datos / USB");
+    expect(await page.evaluate(() => localStorage.getItem("comparator-items") ?? "[]")).toBe("[]");
+  });
+
+  test("a product the comparator refuses: its own reason", async ({ page }) => {
     await serveSite(page);
     await page.addInitScript(() => localStorage.setItem("comparator-items", JSON.stringify([{ id: 1, nombre: "Cable", cat: "Cables" }])));
     await open(page, CATEGORY);
@@ -365,11 +421,178 @@ test.describe("compare.add", () => {
     expect(result.error).toContain("Sólo puedes comparar productos que pertenezcan a la misma categoría");
   });
 
-  test("on the product page, its own Comparar", async ({ page }) => {
+  test("on the product page, its own Comparar; one product leaves the bar up", async ({ page }) => {
     await serveSite(page);
     await open(page, PRODUCT);
     const result = await run(page, "compare.add", { paths: [PRODUCT] });
-    expect(result.detail, result.error).toMatch(/^the comparator holds 1\/3: Notebook Gamer LOQe/);
+    expect(result.detail, result.error).toMatch(/^the comparator holds 1\/3: Notebook Gamer LOQe.*; Comparar opens with two or more$/);
+  });
+
+  test("compare.show rings a row across the products, switches on Destacar diferencias, rings the prices, refuses a row it lacks", async ({ page }) => {
+    await serveSite(page);
+    await open(page, "/comparador?prod1=57695&prod2=58436");
+    await listen(page);
+    const ram = await run(page, "compare.show", ["ram"]);
+    expect(ram.detail, ram.error).toMatch(/^showed RAM: \S+ \| \S+$/);
+    const top = await page.evaluate(() => [...document.querySelectorAll("#pcf-comparator tr")].find((r) => r.querySelector("th")?.textContent?.trim() === "RAM")!.getBoundingClientRect().top);
+    expect(top).toBeGreaterThan(0);
+    expect(top).toBeLessThan(900);
+    const diff = await run(page, "compare.show", ["diferencias"]);
+    expect(diff.detail).toMatch(/^Destacar diferencias is on: \d+ rows differ \(/);
+    expect(await page.locator("#pcf-comparator tr.highlight-row").count()).toBeGreaterThan(0);
+    const again = await waitForEvent(page, "compare.shown", (e) => e.payload.highlighted === true);
+    expect(again.by).toBe("agent");
+    expect((await run(page, "compare.show", ["precio"])).detail).toMatch(/^showed the prices: \$\d+ \| \$\d+$/);
+    const none = await run(page, "compare.show", ["Unicornio"]);
+    expect(none.ok).toBe(false);
+    expect(none.result!.refused![0]!.options).toContain("RAM");
+  });
+
+  test("compare.remove takes a product out of the comparison and keeps the address honest; on a listing, Limpiar selección", async ({ page }) => {
+    await serveSite(page);
+    await open(page, "/comparador?prod1=57695&prod2=58436");
+    await listen(page);
+    const out = await run(page, "compare.remove", { path: "/producto/58436" });
+    expect(out.detail, out.error).toMatch(/^took \/producto\/58436 out of the comparison; it shows 1: /);
+    expect(page.url()).toBe(`${ORIGIN}/comparador?prod1=57695`);
+    await open(page, CATEGORY);
+    await page.evaluate(() => document.querySelector<HTMLInputElement>("#product-checkbox57695")!.click());
+    const all = await run(page, "compare.remove", { all: true });
+    expect(all.detail, all.error).toBe("the comparator holds 0/3");
+  });
+});
+
+test.describe("the listing's own controls", () => {
+  test("a redraw that empties the grid is never reported: no listing with 0 products, one listing.filtered", async ({ page }) => {
+    await serveSite(page);
+    await open(page, CATEGORY);
+    await listen(page);
+    await waitForEvent(page, "listing.shown");
+    await page.evaluate(() => ((window as unknown as { __slowRedraw: boolean }).__slowRedraw = true));
+    const result = await run(page, "commerce.filter", ["Marcas", "Lenovo"]);
+    expect(result.ok, result.error).toBe(true);
+    await page.waitForTimeout(1500);
+    const his = named(await events(page), "listing.").filter((e) => e.by === "agent");
+    expect(his.map((e) => e.event)).toEqual(["listing.filtered"]);
+    expect(his[0]!.call_ref).toBeTruthy();
+    // And the visitor's own tick, which the page's watch reports.
+    await page.evaluate(() => {
+      const label = [...document.querySelectorAll("#panel-filters label")].find((l) => /^HP/.test(l.textContent?.trim() ?? ""))!;
+      (label as HTMLElement).click();
+    });
+    await page.waitForTimeout(2500);
+    const listings = named(await events(page), "listing.");
+    expect(listings.filter((e) => e.payload.count === 0 || (e.payload.items as unknown[]).length === 0)).toEqual([]);
+    expect(listings.some((e) => (e.payload.filters as { on: string[] }[]).some((f) => f.on.includes("HP")))).toBe(true);
+  });
+
+  test("an option the filters on left out is a note, not a refusal; one never offered is refused", async ({ page }) => {
+    await serveSite(page);
+    await open(page, CATEGORY);
+    await listen(page);
+    await waitForEvent(page, "listing.shown");
+    expect((await run(page, "commerce.filter", ["Marcas", "Lenovo"])).ok).toBe(true);
+    // Lenovo narrowed the panel: it no longer offers 24GB (dev call 8b363867).
+    await page.evaluate(() => {
+      const box = [...document.querySelectorAll("#panel-filters .form-check")].find((b) => b.textContent?.trim().startsWith("24GB"));
+      box?.remove();
+    });
+    const result = await run(page, "commerce.filter", ["RAM", "16GB, 24GB"]);
+    expect(result.ok, result.error).toBe(true);
+    expect(result.result!.outcome).toBe("applied");
+    expect(result.detail).toMatch(/^RAM: 16GB on; not offered with the filters on: 24GB; /);
+    const never = await run(page, "commerce.filter", ["RAM", "8GB, 3GB"]);
+    expect(never.result!.outcome).toBe("partial");
+  });
+
+  test("filter_listing takes a filter off with its chip, every one with Limpiar todos, in place", async ({ page }) => {
+    const seen = await serveSite(page);
+    await open(page, CATEGORY);
+    await run(page, "commerce.filter", ["Marcas", "Lenovo, HP"]);
+    const loads = seen.pages.length;
+    const off = await run(page, "filter_listing", { category_path: CATEGORY, remove: ["Marcas: HP"] });
+    expect(off.detail, off.error).toContain("applied Marcas: HP off");
+    expect(await page.locator("#panel-filters input:checked").count()).toBe(1);
+    const clear = await run(page, "filter_listing", { category_path: CATEGORY, clear: true });
+    expect(clear.detail, clear.error).toContain("applied every filter off (Limpiar todos)");
+    expect(await page.locator("#panel-filters input:checked").count()).toBe(0);
+    expect(seen.pages.length).toBe(loads);
+  });
+
+  test("filter_listing takes off a filter the wish lacks with its chip, not a reload", async ({ page }) => {
+    const seen = await serveSite(page);
+    await open(page, CATEGORY);
+    await run(page, "commerce.filter", ["Marcas", "HP"]);
+    const loads = seen.pages.length;
+    const result = await run(page, "filter_listing", { category_path: CATEGORY, filters: ["Marcas: Lenovo"] });
+    expect(result.detail, result.error).toContain("applied Marcas: HP off, Marcas: Lenovo");
+    expect(seen.pages.length).toBe(loads);
+  });
+
+  test("filter_listing sets Productos por página in place, and turns the page with the pager (a load)", async ({ page }) => {
+    await serveSite(page);
+    await open(page, CATEGORY);
+    const size = await run(page, "filter_listing", { category_path: CATEGORY, size: 32 });
+    expect(size.detail, size.error).toContain("applied 32 per page");
+    expect(page.url()).toContain("size=32");
+    const bad = await run(page, "filter_listing", { category_path: CATEGORY, size: 50 });
+    expect(bad.ok).toBe(false);
+    await runAway(page, "filter_listing", { category_path: CATEGORY, page: 2 });
+    const done = await carried(page, /[?&]page=2/);
+    expect(String(done.detail)).toMatch(/^page 2 of \d+; /);
+  });
+
+  test("a curated list (/busqueda?productos=…) is a listing", async ({ page }) => {
+    await serveSite(page);
+    await open(page, "/busqueda?productos=57695,58436&size=12&sort=sugeridos");
+    expect((await page.evaluate(() => window.voqalizePcfactory!.context())).kind).toBe("category");
+    await listen(page);
+    const shown = await waitForEvent(page, "listing.shown");
+    expect(shown.payload.path).toBe("/busqueda?productos=57695,58436");
+  });
+});
+
+test.describe("the menu and the product page's windows", () => {
+  test("menu.open opens Categorías on a category's panel, ringed; the next move closes it", async ({ page }) => {
+    await serveSite(page);
+    await open(page, "/");
+    const result = await run(page, "menu.open", ["computadores"]);
+    expect(result.detail, result.error).toBe("opened Categorías on Computadores y Tablets: Notebooks, Tablets y eReaders");
+    const none = await run(page, "menu.open", ["Juguetes"]);
+    expect(none.ok).toBe(false);
+    expect(none.result!.refused![0]!.options).toContain("Partes y Piezas / Componentes");
+    await run(page, "page.show", ["Cupones"]);
+    expect(await page.locator("#categories-dropdown.show").count()).toBe(0);
+  });
+
+  test("product.tab zoom, pickup and price_note: the gallery's photos, the pickup window, the ⓘ's words", async ({ page }) => {
+    await serveSite(page);
+    await open(page, PRODUCT);
+    const zoom = await run(page, "product.tab", ["zoom"]);
+    expect(zoom.detail, zoom.error).toBe("opened the big photos (3 photos) and stepped through 3; left open for the visitor");
+    const pickup = await run(page, "product.tab", ["pickup"]);
+    expect(await page.locator("#gallery-modal.show").count()).toBe(0);
+    expect(pickup.detail, pickup.error).toBe("opened Disponibilidad de retiro en tienda: 2 stores have it (La Serena 1, Mall Plaza Vespucio 3); left open for the visitor");
+    const note = await run(page, "product.tab", ["price_note"]);
+    expect(note.detail, note.error).toBe('the store says of Transferencia / Débito: "Aplica cuando la compra es pagada en efectivo, depósito, débito o transferencia."');
+  });
+});
+
+test.describe("what stays the visitor's", () => {
+  test("Copiar código, Usar mi ubicación actual and the order tracking form are never pressed", async ({ page }) => {
+    await serveSite(page);
+    await open(page, "/");
+    const why = await page.evaluate(() => {
+      const t = (window as unknown as { __voqalizeTest: Record<string, (x: unknown) => unknown> }).__voqalizeTest;
+      const copy = document.querySelector(".ticket-cupon-boton") ?? Object.assign(document.createElement("button"), { className: "ticket-cupon-boton", textContent: "Copiar código" });
+      const where = Object.assign(document.createElement("button"), { className: "pcf-link-btn", textContent: "Usar mi ubicación actual" });
+      const rut = Object.assign(document.createElement("input"), { id: "rut-purchase" });
+      document.body.append(where, rut);
+      return { copy: t.intoCheckout!(copy), where: t.intoCheckout!(where), rut: t.intoCheckout!(rut) };
+    });
+    expect(why.copy).toMatch(/visitor's own/);
+    expect(why.where).toMatch(/visitor's own/);
+    expect(why.rut).toMatch(/visitor's own/);
   });
 });
 
@@ -564,7 +787,8 @@ test.describe("the page itself", () => {
     expect(ids.sort()).toEqual(
       [
         "page.open", "page.show", "page.faq", "product.tab", "filter_listing", "open_product", "find_products", "check_prices", "check_stock",
-        "stores.show", "compare.add", "apply_coupon", "start_checkout", "commerce.filter", "commerce.sort", "commerce.search",
+        "stores.show", "compare.add", "compare.show", "compare.remove", "menu.open", "apply_coupon", "start_checkout",
+        "commerce.filter", "commerce.sort", "commerce.search",
         "commerce.cart_add", "commerce.cart_update", "commerce.cart_show",
       ].sort(),
     );

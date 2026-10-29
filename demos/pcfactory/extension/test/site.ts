@@ -17,8 +17,15 @@
  *   - the cart page's − / +, "Eliminar" and its ¿Confirmas…? window, the
  *     coupon box ("Cupón inválido."), and "Continuar" to /checkout;
  *   - "Continuar como invitado" to /checkout/tipo-entrega;
- *   - the comparator (`comparator-items`, its panel, and its refusal of a
- *     product of another category);
+ *   - the comparator (`comparator-items`, its panel, its refusal of a
+ *     product of another category, its Comparar from two products to
+ *     /comparador, Limpiar selección), and the comparison page's Destacar
+ *     diferencias and ✕;
+ *   - the listing's applied-filter chips and Limpiar todos, Productos por
+ *     página, and (with `window.__slowRedraw`) a redraw that empties the grid
+ *     and shows "0 resultados" while the store's call is out;
+ *   - the Categorías menu and its panels, the product page's big photos, its
+ *     pickup window and the ⓘ beside Transferencia;
  *   - /tiendas' "Ver tienda", which opens Google's map card.
  *
  * Everything else on the network is refused. The adapter bundle
@@ -54,6 +61,8 @@ function pageFor(path: string): string | null {
   if (p.startsWith("/centro-de-ayuda")) return "help.html";
   if (p === "/checkout") return "checkout.html";
   if (p === "/checkout/tipo-entrega") return "tipo-entrega.html";
+  if (p === "/comparador") return "comparador.html";
+  if (p === "/busqueda") return "category.html";
   return null;
 }
 
@@ -79,6 +88,8 @@ async function answerApi(route: Route, seen: Seen): Promise<void> {
   seen.api.push(`${request.method()} ${url.pathname}${url.search}`);
   const json = (body: string, status = 200) => route.fulfill({ status, headers: { ...CORS, "content-type": "application/json" }, body });
   const p = url.pathname;
+  // A redraw the test slows down: the store's call stays out a while.
+  if (url.searchParams.get("slow") === "1") await new Promise((r) => setTimeout(r, 700));
   let m: RegExpMatchArray | null;
   if ((m = p.match(/\/catalogo\/productos\/(\d+)(\/precio|\/stock)?$/))) {
     const id = m[1];
@@ -108,10 +119,10 @@ async function answerApi(route: Route, seen: Seen): Promise<void> {
  */
 function simulateSite(): void {
   const SIM_API = "https://api.pcfactory.cl/pcfactory-services-catalogo/v1/catalogo/productos/query?page=0&size=12&categorias=425";
-  const xhr = () =>
+  const xhr = (slow = false) =>
     new Promise<void>((r) => {
       const x = new XMLHttpRequest();
-      x.open("GET", SIM_API);
+      x.open("GET", SIM_API + (slow ? "&slow=1" : ""));
       x.onloadend = () => r();
       x.send();
     });
@@ -151,9 +162,54 @@ function simulateSite(): void {
   /** The listing widget's answer to a change: the API called, then the grid
    *  redrawn a moment later. */
   const regrid = async (change: () => void) => {
-    await xhr();
+    const slow = Boolean((window as unknown as { __slowRedraw?: boolean }).__slowRedraw);
+    const call = xhr(slow);
+    // Live, the grid empties and the counter can read 0 while the call is
+    // out (dev calls 31a45613, 8b363867); Ordenar por goes with it.
+    const kept = slow ? cardEls() : [];
+    const order = slow ? document.querySelector("#dropdown-order")?.closest(".dropdown") : null;
+    const orderAt = order?.parentElement;
+    if (slow) {
+      kept.forEach((c) => c.remove());
+      setCount(0);
+      order?.remove();
+    }
+    await call;
     await new Promise((r) => setTimeout(r, 120));
+    if (slow) {
+      kept.forEach((c) => grid()!.appendChild(c));
+      if (order && orderAt) orderAt.appendChild(order);
+    }
     change();
+    chipsBar();
+  };
+  /** "Filtros: Lenovo ⊗ … Limpiar todos", as the widget draws it from the
+   *  ticked options. */
+  const chipsBar = () => {
+    if (!document.querySelector("#panel-filters")) return;
+    let bar = document.querySelector<HTMLElement>("section.panel-filters-applied");
+    const on = [...document.querySelectorAll<HTMLInputElement>("#panel-filters .form-check input:checked")];
+    if (!bar) {
+      bar = document.createElement("section");
+      bar.className = "panel-filters-applied w-100";
+      (grid()?.parentElement ?? document.body).insertBefore(bar, grid());
+    }
+    bar.innerHTML = on.length
+      ? `<p class="panel-filters-applied__title">Filtros:</p>${on
+          .map((i) => {
+            const text = (i.closest(".form-check")?.querySelector("label span")?.textContent ?? "").trim();
+            return `<div class="panel-filters-applied__filter" data-for="${i.id}"><span>${text}</span><span class="ml-1 panel-filters-applied__delete-btn">x</span></div>`;
+          })
+          .join("")}<button class="pcf-link-btn panel-filters-applied__reset-btn">Limpiar todos</button>`
+      : "";
+  };
+  const untick = (inputs: HTMLInputElement[]) => {
+    for (const i of inputs) i.checked = false;
+    void regrid(() => {
+      const on = [...document.querySelectorAll<HTMLInputElement>("#panel-filters input:checked")].map((i) => i.id).join(",");
+      setParam("f", on || null);
+      setCount(cardEls().length + 20);
+    });
   };
   const productIdHere = () => Number(location.pathname.match(/\/producto\/(\d+)/)?.[1] ?? 0);
 
@@ -182,12 +238,89 @@ function simulateSite(): void {
         pane?.classList.add("active", "show");
         return;
       }
-      if (t.closest("#dropdown-order")) {
+      if (t.closest("#dropdown-order, #dropdown-size")) {
         e.preventDefault();
         t.closest(".dropdown")?.querySelector(".dropdown-menu")?.classList.toggle("show");
         return;
       }
-      const item = t.closest(".pcf-select__dropdown .dropdown-item");
+      const sizeItem = t.closest("[aria-labelledby=dropdown-size] .dropdown-item");
+      if (sizeItem) {
+        const dd = sizeItem.closest(".dropdown")!;
+        dd.querySelector(".dropdown-menu")?.classList.remove("show");
+        const n = (sizeItem.textContent ?? "").trim();
+        void regrid(() => {
+          dd.querySelector("#dropdown-size")!.firstChild!.textContent = ` ${n} `;
+          setParam("size", n);
+        });
+        return;
+      }
+      const chipX = t.closest(".panel-filters-applied__delete-btn");
+      if (chipX) {
+        const id = chipX.closest<HTMLElement>(".panel-filters-applied__filter")?.getAttribute("data-for");
+        const input = id ? document.getElementById(id) : null;
+        if (input) untick([input as HTMLInputElement]);
+        return;
+      }
+      if (t.closest(".panel-filters-applied__reset-btn")) {
+        untick([...document.querySelectorAll<HTMLInputElement>("#panel-filters input:checked")]);
+        return;
+      }
+      const go = t.closest("#pcf-comparator-summary .compare-btn") as HTMLButtonElement | null;
+      if (go) {
+        if (go.disabled) return;
+        const ids = (JSON.parse(localStorage.getItem("comparator-items") ?? "[]") as { id: number }[]).map((i, n) => `prod${n + 1}=${i.id}`);
+        location.href = `/comparador?${ids.join("&")}`;
+        return;
+      }
+      if (t.closest("#pcf-comparator-summary p.pointer")) {
+        localStorage.setItem("comparator-items", "[]");
+        document.querySelectorAll<HTMLInputElement>("input[id^=product-checkbox]").forEach((i) => (i.checked = false));
+        syncBar();
+        return;
+      }
+      const cmpClose = t.closest("#pcf-comparator button.comparator-close-btn");
+      if (cmpClose) {
+        const col = cmpClose.closest(".position-relative")!;
+        const at = [...col.parentElement!.children].indexOf(col);
+        col.remove();
+        document.querySelectorAll("#pcf-comparator tr").forEach((tr) => tr.querySelectorAll("td")[at]?.remove());
+        return;
+      }
+      if (t.closest("#categories-btn")) {
+        document.querySelector("#categories-dropdown")?.classList.add("show");
+        return;
+      }
+      const trigger = t.closest("[data-target='#gallery-modal'], [data-target='#pickup-modal']");
+      if (trigger) {
+        e.preventDefault();
+        const id = trigger.getAttribute("data-target")!.slice(1);
+        let m = document.getElementById(id);
+        if (!m) {
+          m = document.createElement("div");
+          m.id = id;
+          m.className = "modal fade";
+          m.innerHTML =
+            id === "gallery-modal"
+              ? '<div class="modal-content"><button class="close" data-dismiss="modal">x</button><div class="carousel-item active">1</div><div class="carousel-item">2</div><div class="carousel-item">3</div><a class="carousel-control-next" href="#">›</a></div>'
+              : '<div class="modal-content"><p>Disponibilidad de retiro en tienda</p><button class="close" data-dismiss="modal">x</button><ul class="stock__list"><li><p class="stock__list__location stock__list__location--no-stock"><span class="bullets">Antofagasta</span><strong> 0 unidades</strong></p></li><li><p class="stock__list__location"><span class="bullets">La Serena</span><strong> 1 unidades</strong></p></li><li><p class="stock__list__location"><span class="bullets">Mall Plaza Vespucio</span><strong> 3 unidades</strong></p></li></ul></div>';
+          document.body.appendChild(m);
+        }
+        show(m);
+        return;
+      }
+      const tip = t.closest(".detail__prices__cash-text button.tooltip-custom");
+      if (tip) {
+        const text = tip.querySelector(".tooltip-custom__text");
+        if (text) text.remove();
+        else tip.insertAdjacentHTML("beforeend", '<span class="tooltip-custom__text"> Aplica cuando la compra es pagada en efectivo, depósito, débito o transferencia. </span>');
+        return;
+      }
+      const dismiss = t.closest("#gallery-modal [data-dismiss=modal], #pickup-modal [data-dismiss=modal]");
+      if (dismiss) {
+        hide(dismiss.closest(".modal"));
+        return;
+      }
+      const item = t.closest("[aria-labelledby=dropdown-order] .dropdown-item");
       if (item) {
         const dd = item.closest(".dropdown")!;
         dd.querySelector(".dropdown-menu")?.classList.remove("show");
@@ -337,8 +470,17 @@ function simulateSite(): void {
     panel?.setAttribute("data-alert", "");
     if (!items.some((i) => i.id === id)) items.push({ id, nombre, cat });
     localStorage.setItem("comparator-items", JSON.stringify(items));
-    panel?.classList.remove("hide");
-    panel?.classList.add("show");
+    syncBar();
+  }
+
+  /** The bar: shown with products in it, its Comparar enabled from two. */
+  function syncBar(): void {
+    const panel = document.querySelector("#pcf-comparator-summary");
+    const n = (JSON.parse(localStorage.getItem("comparator-items") ?? "[]") as unknown[]).length;
+    panel?.classList.toggle("show", n > 0);
+    panel?.classList.toggle("hide", n === 0);
+    const go = panel?.querySelector<HTMLButtonElement>(".compare-btn");
+    if (go) go.disabled = n < 2;
   }
 
   document.addEventListener(
@@ -354,12 +496,52 @@ function simulateSite(): void {
           setParam("f", on || null);
         });
       }
+      if (input.id?.startsWith("product-checkbox") && !input.checked) {
+        const id = Number(input.id.replace("product-checkbox", ""));
+        const items = (JSON.parse(localStorage.getItem("comparator-items") ?? "[]") as { id: number }[]).filter((i) => i.id !== id);
+        localStorage.setItem("comparator-items", JSON.stringify(items));
+        syncBar();
+        return;
+      }
+      if (input.closest("#pcf-comparator label.pcf-switch")) {
+        for (const tr of document.querySelectorAll("#pcf-comparator tr")) {
+          const values = [...tr.querySelectorAll("td.spec-value:not(.empty-column-cell)")].map((td) => (td.textContent ?? "").trim());
+          const differ = input.checked && new Set(values).size > 1;
+          tr.classList.toggle("highlight-row", differ);
+        }
+        return;
+      }
       if (input.id?.startsWith("product-checkbox")) {
         const card = input.closest("a.products__item");
         const name = card?.getAttribute("data-content-name") ?? "";
         const cat = card?.querySelector("img")?.getAttribute("data-gtag-category") ?? "";
         addCompared(Number(input.id.replace("product-checkbox", "")), name, cat, input);
       }
+    },
+    true,
+  );
+
+  // The bar as the comparator's widget draws it on each page, from what it holds.
+  document.addEventListener("DOMContentLoaded", () => syncBar());
+
+  // The Categorías menu: a top category's panel on hover, as its own script draws it.
+  document.addEventListener(
+    "mouseover",
+    (e) => {
+      const li = (e.target as Element).closest?.("#categories-dropdown-list > li[data-content-category]");
+      if (!li) return;
+      const name = li.getAttribute("data-content-category") ?? "";
+      const slug = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      document.querySelectorAll<HTMLElement>(".categories-dropdown-list__panel").forEach((p) => (p.style.display = "none"));
+      let panel = document.getElementById(slug);
+      if (!panel) {
+        panel = document.createElement("div");
+        panel.id = slug;
+        panel.className = "categories-dropdown-list__panel";
+        panel.innerHTML = `<p>${name}</p><ul class="categories-dropdown-list__panel__children-list"><li><a href="#">Notebooks</a></li><li><a href="#">Tablets y eReaders</a></li></ul>`;
+        document.querySelector("#categories-dropdown .modal-dialog")?.appendChild(panel);
+      }
+      panel.style.display = "block";
     },
     true,
   );
