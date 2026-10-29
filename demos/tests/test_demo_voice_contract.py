@@ -93,6 +93,12 @@ class Expected:
 # test below fails if a demo is discovered and not listed here, so adding a demo
 # without declaring its voice is a red suite, not a silent gap.
 DEMOS: dict[str, Expected] = {
+    # Javier, Agroplanet's parts adviser on www.agroplanet.cl: the store is
+    # Chilean, so he opens in Spanish unless the toggle said English, and moves
+    # both legs for the toggle or for English heard — javier in both. Not a
+    # gallery card (the page is Agroplanet's own store). Asserted in
+    # test_agroplanet_e2e.py.
+    "agroplanet": Expected(voice="omnivoice/javier", language="es", provider="openai"),
     # The avatar demo takes its voice from the connect request: the page sends
     # the face the visitor picked with that face's suggested voice, so a face
     # and a voice are one choice. This sweep sends no `init`, so what is checked

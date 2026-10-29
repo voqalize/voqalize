@@ -1,0 +1,54 @@
+{
+"statusCode": 200,
+"isValid": true,
+"data": {
+"code": "139083",
+"name": "Bujes de Biela 55-4107-SEMI FEDERAL MOGUL",
+"brand": "FEDERAL MOGUL",
+"description": "Buje es una pieza cilíndrica montada en el interior de los elementos mecánicos que giran alrededor de un eje, es decir, son puntos de apoyo que brindan protección a los componentes para girar libremente. Estos elementos tienen la característica de reducir las vibraciones producidas por el movimiento de las partes.",
+"summary": "Buje es una pieza cilíndrica montada en el interior de los elementos mecánicos que giran alrededor de un eje.",
+"manufacturer": "55-4107-SEMI",
+"manufacturerCode": "55-4107-SEMI",
+"price": {
+"currencyIso": "CLP",
+"value": 12000.0,
+"priceType": "BUY",
+"formattedValue": "$12.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 12000.0,
+"priceType": "BUY",
+"formattedValue": "$12.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": true,
+"stock": {
+"stockLevelStatus": {
+"code": "inStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 113,
+"stockThreshold": null
+},
+"unitInBox": null,
+"country": {
+"isocode": "CL",
+"name": "Chile"
+},
+"ancho": 6.0,
+"altura": 5.0,
+"longitud": 6.0,
+"pesoBruto": 0.3,
+"hidePesoBruto": false,
+"purchasable": true
+}
+}

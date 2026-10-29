@@ -1,0 +1,229 @@
+{
+ "site": "www.agroplanet.cl",
+ "crawled": "2026-10-29",
+ "nav": [
+  {
+   "code": "AG02",
+   "name": "Baterías",
+   "path": "/categoria/baterias/AG02"
+  },
+  {
+   "code": "AG04",
+   "name": "Rodamientos",
+   "path": "/categoria/rodamientos/AG04"
+  },
+  {
+   "code": "AG01",
+   "name": "Lubricantes Y Fluidos",
+   "path": "/categoria/lubricantes_y_fluidos/AG01"
+  },
+  {
+   "code": "AG05",
+   "name": "Neumáticos, Cámaras Y Llantas.",
+   "path": "/categoria/neumaticos_camaras_y_llantas./AG05"
+  },
+  {
+   "code": "AG15",
+   "name": "Agroferretería",
+   "path": "/categoria/agroferreteria/AG15"
+  },
+  {
+   "code": "AG10",
+   "name": "Repuestos De Tractor",
+   "path": "/categoria/repuestos_de_tractor/AG10"
+  },
+  {
+   "code": "AG12",
+   "name": "Implementos Agrícolas",
+   "path": "/categoria/implementos_agricolas/AG12"
+  },
+  {
+   "code": "AG16",
+   "name": "Insumos Agrícolas",
+   "path": "/categoria/insumos_agricolas/AG16"
+  },
+  {
+   "code": "AG17",
+   "name": "Repuestos de Implementos",
+   "path": "/categoria/repuestos_de_implementos/AG17"
+  },
+  {
+   "code": "AG18",
+   "name": "Maquinaria",
+   "path": "/categoria/maquinaria/AG18"
+  }
+ ],
+ "shortcuts": [
+  {
+   "code": "AG01",
+   "name": "Lubricantes",
+   "path": "/categoria/lubricantes/AG01"
+  },
+  {
+   "code": "AG05",
+   "name": "Neumáticos",
+   "path": "/categoria/neumaticos/AG05"
+  },
+  {
+   "code": "AG02",
+   "name": "Baterías",
+   "path": "/categoria/baterias/AG02"
+  },
+  {
+   "code": "AG15",
+   "name": "Agroferretería",
+   "path": "/categoria/agroferreteria/AG15"
+  },
+  {
+   "code": "AG10",
+   "name": "Repuestos De Tractor",
+   "path": "/categoria/repuestos_de_tractor/AG10"
+  },
+  {
+   "code": "AG12",
+   "name": "Implementos Agrícolas",
+   "path": "/categoria/implementos_agricolas/AG12"
+  }
+ ],
+ "top_bar": [
+  {
+   "text": "Ayuda al cliente",
+   "href": "https://ayuda.agroplanet.cl/",
+   "new_tab": true
+  },
+  {
+   "text": "Tiendas",
+   "href": "/nuestras-tiendas",
+   "new_tab": false
+  },
+  {
+   "text": "webpay",
+   "href": "https://www.webpay.cl/form-pay/53532",
+   "new_tab": true
+  }
+ ],
+ "footer": [
+  {
+   "text": "Sobre Nosotros",
+   "href": "/sobre-nosotros",
+   "new_tab": false
+  },
+  {
+   "text": "Encuentra tu tienda",
+   "href": "/nuestras-tiendas",
+   "new_tab": false
+  },
+  {
+   "text": "Ayuda al Cliente",
+   "href": "https://ayuda.agroplanet.cl/",
+   "new_tab": true
+  },
+  {
+   "text": "Escríbenos",
+   "href": "https://webapp.resolucionenlinea.com/claims/new/agroplanet/step1/problem",
+   "new_tab": true
+  },
+  {
+   "text": "Trabaja con nosotros",
+   "href": "https://www.autoplanet.cl/trabaja-con-nosotros",
+   "new_tab": true
+  },
+  {
+   "text": "webpay",
+   "href": "https://www.webpay.cl/form-pay/53532",
+   "new_tab": true
+  },
+  {
+   "text": "Politicas de Privacidad",
+   "href": "https://ayuda.agroplanet.cl/politica-de-proteccion-de-datos/",
+   "new_tab": true
+  },
+  {
+   "text": "Terminos y Condiciones",
+   "href": "https://ayuda.agroplanet.cl/terminos-y-condiciones/",
+   "new_tab": true
+  },
+  {
+   "text": "Bases Legales",
+   "href": "/bases-promociones-vigentes",
+   "new_tab": false
+  },
+  {
+   "text": "Línea Ética",
+   "href": "https://ap-ag.eticaenlinea.cl/denuncias",
+   "new_tab": true
+  },
+  {
+   "text": "política de uso de datos personales",
+   "href": "/politicas-de-privacidad",
+   "new_tab": true
+  },
+  {
+   "text": "Autoplanet",
+   "href": "https://www.autoplanet.cl/",
+   "new_tab": true
+  },
+  {
+   "text": "Repuestos y accesorios para vehículos",
+   "href": "https://www.autoplanet.cl/",
+   "new_tab": true
+  },
+  {
+   "text": "Agroplanet",
+   "href": "https://agroplanet.cl/",
+   "new_tab": true
+  },
+  {
+   "text": "Repuestos y accesorios para el agro",
+   "href": "https://agroplanet.cl/",
+   "new_tab": true
+  }
+ ],
+ "footer_text": [
+  "TE AYUDAMOS",
+  "Sobre Nosotros",
+  "Encuentra tu tienda",
+  "Ayuda al Cliente",
+  "Escríbenos",
+  "Trabaja con nosotros",
+  "HORARIOS DE TIENDAS",
+  "Lunes a Viernes",
+  "09:15 am – 18:15 pm",
+  "Sábados",
+  "09:15 am – 11:30 am",
+  "NUESTRA EMPRESA",
+  "Politicas de Privacidad",
+  "Terminos y Condiciones",
+  "Bases Legales",
+  "Línea Ética",
+  "ACERCA DE AGROPLANET",
+  "Por más de 70 años, nuestra pasión y compromiso por el campo, nos ha permitido ser líderes en la industria de implementos, insumos y repuestos de maquinaria agrícola en Chile.",
+  "SUSCRÍBETE Y RECIBE NUESTRAS OFERTAS",
+  "+56",
+  "Acepto la política de uso de datos personales",
+  "Suscríbete",
+  "Repuestos y accesorios para",
+  "vehículos",
+  "Repuestos y accesorios para",
+  "el agro",
+  "© 2026 . Todos los derechos reservados"
+ ],
+ "whatsapp": "https://wa.me/56947948310?text=%C2%A1Hola!%20Necesito%20informaci%C3%B3n%20sobre%20sus%20productos",
+ "redirects": {
+  "/inicio": "/",
+  "/productos": "/"
+ },
+ "notes": [
+  "Angular SPA (Angular Material) on Firebase Hosting; data from api.agroplanet.cl/webapi (SAP Hybris behind a JSON facade; public GET; the cart is the JSESSIONID cookie, so fetch(url, {credentials: 'include'}) from the page shares the visitor's cart).",
+  "Every in-site navigation is client-side: category, product, search (/busqueda/<text>), listing state (?q=<hybris query>&page=<0-based>&sort=), /carro, /cotizacion. Only a reload or a typed URL loads the document. Menu entries are <a> without href (router clicks); product cards, breadcrumbs, sub-category links and footer links have real hrefs.",
+  "Category URL = /categoria/<any slug>/<code>: the router resolves by code, so the flyout's and the red bar's different slugs (lubricantes_y_fluidos vs lubricantes, both AG01) are the same page. Codes: level 1 AGnn, level 2 AGnnn, level 3 numeric.",
+  "The flyout names a category one way and its listing another ('Lubricantes Y Fluidos' is titled 'Lubricantes y Grasas' on its page): categories.json keeps both, name and page_name.",
+  "Listing filters are mat-expansion panels titled as the API names them ('Precio', 'Marca', 'Viscosidad', 'Cca (-18 Grados)'…); only 'Precio' is open by default; option labels are the API's names without counts. A category page shows its sub-categories as links, not as a 'Categoría' filter (search results do show 'Categoría'). Sort: 'Relevancia', 'Menor precio', 'Mayor precio'. No result count is printed on the page.",
+  "No checkout and no online payment: the cart's only action is 'Cotizar' → /cotizacion, the 'Formulario de cotización', ending in 'Crear cotización' (needs RUT). Payment for a quote is off-site, through the Webpay link in the top bar and footer.",
+  "Some products show 'Confirmar precio en tienda' instead of a price (hidePriceByCategory). Every product page says the price may change with another pickup store or delivery mode.",
+  "A full load of / opens an empty dialog (app-generic-dialog) that blocks scrolling until closed. Cookie bar 'Entendido' at the bottom. After scrollY ≈150 a 64 px sticky header appears.",
+  "The home's titled blocks are 'Aprovecha estas oportunidades en <Mes>' (changes monthly) and 'CATEGORÍAS'; the other blocks are image banners and carousels with no text heading.",
+  "Much of the policy text is shared with the sister site Autoplanet and names Autoplanet / autoplanet.cl; pages.json marks those pages autoplanet_text.",
+  "ayuda.agroplanet.cl (help centre, T&C) opens in a new tab and did not answer from India; its 2023 copies on the Wayback Machine are the source of the 'terminos' topic."
+ ]
+}

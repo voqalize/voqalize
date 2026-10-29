@@ -2,7 +2,7 @@
  * The adapter as the end-to-end tests inject it: the anchors (`anchor.js` in
  * the extension) and Agroplanet's moves on Stage's `Moves` and spotlight, as
  * `content.js` registers them, without the call or the widget; plus the
- * checkout guard for the tests to drive directly.
+ * guard for the tests to drive directly.
  *
  * With no extension, a move that loads another page carries the rest of
  * itself through a Stage `Carrier` over this tab's `sessionStorage` (the
@@ -15,7 +15,7 @@ import { type Carried, type Carrier, Moves, Spotlight, type StageResult } from "
 
 import { watchAnchors } from "../src/anchors";
 import { context, type PageContext, prepare, registerMoves, reportPage, start } from "../src/agroplanet-actions";
-import { forbiddenPath, go, intoCheckout, press, privateField, settled, target } from "../src/page";
+import { forbiddenPath, go, press, privateField, refusal, settled, target, typeInto } from "../src/page";
 import { SPOTLIGHT } from "../src/site";
 
 /** How a move went, for the tests: `moved` when it went on to another page,
@@ -103,4 +103,4 @@ window.voqalizeAgroplanet = {
   },
   commands: moves.ids,
 };
-(window as unknown as Record<string, unknown>).__voqalizeTest = { press, go, target, intoCheckout, forbiddenPath, privateField };
+(window as unknown as Record<string, unknown>).__voqalizeTest = { press, go, target, refusal, forbiddenPath, privateField, typeInto };

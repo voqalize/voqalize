@@ -1,0 +1,2074 @@
+{
+"statusCode": 200,
+"isValid": true,
+"data": {
+"code": "AG100",
+"name": "Lubricantes",
+"data": {
+"results": [
+{
+"code": "1173221",
+"name": "Aceite LUBRITEK UTF Semisintético 19L",
+"url": "/Productos/Lubricantes-y-Grasas/Lubricantes/Aceite-De-Transmisi%C3%B3n/Aceite-LUBRITEK-UTF-Semisint%C3%A9tico-19L/p/1173221",
+"brand": "LUBRITEK",
+"price": {
+"currencyIso": "CLP",
+"value": 80000.0,
+"priceType": "BUY",
+"formattedValue": "$80.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 74000.0,
+"priceType": "BUY",
+"formattedValue": "$74.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 7,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "inStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 632,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1173220",
+"name": "Aceite LUBRITEK UTF Semisintético 208L",
+"url": "/Productos/Lubricantes-y-Grasas/Lubricantes/Aceite-Hidr%C3%A1ulico/Aceite-LUBRITEK-UTF-Semisint%C3%A9tico-208L/p/1173220",
+"brand": "LUBRITEK",
+"price": {
+"currencyIso": "CLP",
+"value": 850000.0,
+"priceType": "BUY",
+"formattedValue": "$850.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 780000.0,
+"priceType": "BUY",
+"formattedValue": "$780.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 8,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 20,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "476466",
+"name": "Bolsa Reciclable Autoplanet 476466 BOLSAAP",
+"url": "/Productos/Lubricantes-y-Grasas/Lubricantes/Aceite-De-Motor/Bolsa-Reciclable-Autoplanet-476466-BOLSAAP/p/476466",
+"brand": "Marca Alternativa",
+"price": {
+"currencyIso": "CLP",
+"value": 890.0,
+"priceType": "BUY",
+"formattedValue": "$890",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 890.0,
+"priceType": "BUY",
+"formattedValue": "$890",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 4,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1008275",
+"name": "Fluido de Transmisión Automática ATF MAX LIFE MultiVehículo 946ml",
+"url": "/Lubricantes/Aceite-ATF/Fluido-de-Transmisi%C3%B3n-Autom%C3%A1tica-ATF-MAX-LIFE-MultiVeh%C3%ADculo-946ml/p/1008275",
+"brand": "VALVOLINE",
+"price": {
+"currencyIso": "CLP",
+"value": 13000.0,
+"priceType": "BUY",
+"formattedValue": "$13.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 13000.0,
+"priceType": "BUY",
+"formattedValue": "$13.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 2,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "125394",
+"name": "Lubricante MOTORLIFE 80w90 Gl5 Mineral 19l",
+"url": "/Lubricantes/Aceite-de-Diferencial/Lubricante-MOTORLIFE-80w90-Gl5-Mineral-19l/p/125394",
+"brand": "MOTORLIFE",
+"price": {
+"currencyIso": "CLP",
+"value": 90000.0,
+"priceType": "BUY",
+"formattedValue": "$90.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 90000.0,
+"priceType": "BUY",
+"formattedValue": "$90.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 1,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "124330",
+"name": "Aceite de Motor Mobilube GX-A SAE 80 Balde 19LT",
+"url": "/Productos/Lubricantes-y-Grasas/Lubricantes/Aceite-De-Transmisi%C3%B3n/Aceite-de-Motor-Mobilube-GX-A-SAE-80-Balde-19LT/p/124330",
+"brand": "MOBIL",
+"price": {
+"currencyIso": "CLP",
+"value": 93000.0,
+"priceType": "BUY",
+"formattedValue": "$93.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 93000.0,
+"priceType": "BUY",
+"formattedValue": "$93.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 2,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "126025",
+"name": "Aceite de Motor Troop Mineral 20W50 1L",
+"url": "/Lubricantes/Aceite-Motor/Aceite-de-Motor-Troop-Mineral-20W50-1L/p/126025",
+"brand": "TROOP",
+"price": {
+"currencyIso": "CLP",
+"value": 4000.0,
+"priceType": "BUY",
+"formattedValue": "$4.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 4000.0,
+"priceType": "BUY",
+"formattedValue": "$4.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 1,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1088940",
+"name": "Balde de Aceite Transmisión LUBRITEK SAE 30W 19L",
+"url": "/Productos/Lubricantes-y-Grasas/Lubricantes/Aceite-De-Transmisi%C3%B3n/Balde-de-Aceite-Transmisi%C3%B3n-LUBRITEK-SAE-30W-19L/p/1088940",
+"brand": "LUBRITEK ACTIVE",
+"price": {
+"currencyIso": "CLP",
+"value": 90000.0,
+"priceType": "BUY",
+"formattedValue": "$90.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 90000.0,
+"priceType": "BUY",
+"formattedValue": "$90.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 11,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "125637",
+"name": "Aceite para Transmisión LUBRITEK 75W90 GL5 Sintético 19L",
+"url": "/Productos/Lubricantes-y-Grasas/Lubricantes/Aceite-De-Transmisi%C3%B3n/Aceite-para-Transmisi%C3%B3n-LUBRITEK-75W90-GL5-Sint%C3%A9tico-19L/p/125637",
+"brand": "LUBRITEK",
+"price": {
+"currencyIso": "CLP",
+"value": 120000.0,
+"priceType": "BUY",
+"formattedValue": "$120.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 120000.0,
+"priceType": "BUY",
+"formattedValue": "$120.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "inStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 57,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "125390",
+"name": "Lubricante MOTORLIFE 20w50 Cf4/sg Mineral 19l",
+"url": "/Lubricantes/Aceite-Motor/Lubricante-MOTORLIFE-20w50-Cf4-sg-Mineral-19l/p/125390",
+"brand": "MOTORLIFE",
+"price": {
+"currencyIso": "CLP",
+"value": 59000.0,
+"priceType": "BUY",
+"formattedValue": "$59.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 59000.0,
+"priceType": "BUY",
+"formattedValue": "$59.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 1,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "169580",
+"name": "Liquido Direccion Hidraulica PRESTONE con tapa fuga 356ml",
+"url": "/Aditivos-y-Qu%C3%ADmicos/Aditivos-para-Liquido-Hidr%C3%A1ulico/Liquido-Direccion-Hidraulica-PRESTONE-con-tapa-fuga-356ml/p/169580",
+"brand": "PRESTONE",
+"price": {
+"currencyIso": "CLP",
+"value": 6000.0,
+"priceType": "BUY",
+"formattedValue": "$6.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 6000.0,
+"priceType": "BUY",
+"formattedValue": "$6.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 4,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "260290",
+"name": "Multiuso LOCTITE 300ml",
+"url": "/Aditivos-y-Qu%C3%ADmicos/Lubricantes-en-Spray/Multiuso-LOCTITE-300ml/p/260290",
+"brand": "LOCTITE",
+"price": {
+"currencyIso": "CLP",
+"value": 6000.0,
+"priceType": "BUY",
+"formattedValue": "$6.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 6000.0,
+"priceType": "BUY",
+"formattedValue": "$6.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 1,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "125618",
+"name": "Balde de Aceite LUBRITEK Sintético 5W40 Acea A3/B4 19L",
+"url": "/Lubricantes/Aceite-Motor/Balde-de-Aceite-LUBRITEK-Sint%C3%A9tico-5W40-Acea-A3-B4-19L/p/125618",
+"brand": "LUBRITEK",
+"price": {
+"currencyIso": "CLP",
+"value": 129000.0,
+"priceType": "BUY",
+"formattedValue": "$129.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 129000.0,
+"priceType": "BUY",
+"formattedValue": "$129.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 3,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1072098",
+"name": "Aceite Hidraulico ISO 68 LUBRITEK ACTIVE Mineral 19L",
+"url": "/Hidr%C3%A1ulico/Aceite-Hidraulico-ISO-68-LUBRITEK-ACTIVE-Mineral-19L/p/1072098",
+"brand": "LUBRITEK ACTIVE",
+"price": {
+"currencyIso": "CLP",
+"value": 50000.0,
+"priceType": "BUY",
+"formattedValue": "$50.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 50000.0,
+"priceType": "BUY",
+"formattedValue": "$50.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 2,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1088936",
+"name": "Aceite Hidraulico ISO 32 LUBRITEK ACTIVE Mineral 19L",
+"url": "/Lubricantes/Aceite-Motor/Aceite-Hidraulico-ISO-32-LUBRITEK-ACTIVE-Mineral-19L/p/1088936",
+"brand": "LUBRITEK ACTIVE",
+"price": {
+"currencyIso": "CLP",
+"value": 66000.0,
+"priceType": "BUY",
+"formattedValue": "$66.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 66000.0,
+"priceType": "BUY",
+"formattedValue": "$66.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 24,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1109965",
+"name": "Lubricante Delvac 1 Gear Oil 75W-90. 19LT",
+"url": "/Productos/Lubricantes-y-Grasas/Lubricantes/Aceite-De-Transmisi%C3%B3n/Lubricante-Delvac-1-Gear-Oil-75W-90-19LT/p/1109965",
+"brand": "MOBIL",
+"price": {
+"currencyIso": "CLP",
+"value": 195000.0,
+"priceType": "BUY",
+"formattedValue": "$195.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 195000.0,
+"priceType": "BUY",
+"formattedValue": "$195.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 13,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1008274",
+"name": "Lubricante VALVOLINE 80w90 Mineral Gl-5 4gl",
+"url": "/Lubricantes/Aceite-de-Diferencial/Lubricante-VALVOLINE-80w90-Mineral-Gl-5-4gl/p/1008274",
+"brand": "VALVOLINE",
+"price": {
+"currencyIso": "CLP",
+"value": 9000.0,
+"priceType": "BUY",
+"formattedValue": "$9.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 9000.0,
+"priceType": "BUY",
+"formattedValue": "$9.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 1,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1073714",
+"name": "Tambor de Aceite LUBRITEK Active 15W40 208L CI4",
+"url": "/Productos/Tambor-de-Aceite-LUBRITEK-Active-15W40-208L-CI4/p/1073714",
+"brand": "LUBRITEK ACTIVE",
+"price": {
+"currencyIso": "CLP",
+"value": 670000.0,
+"priceType": "BUY",
+"formattedValue": "$670.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 670000.0,
+"priceType": "BUY",
+"formattedValue": "$670.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "outOfStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 0,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1050277",
+"name": "Aceite VALVOLINE Hidráulico ISO 68 19L AW",
+"url": "/Productos/Lubricantes-y-Grasas/Lubricantes/Aceite-Hidr%C3%A1ulico/Aceite-VALVOLINE-Hidr%C3%A1ulico-ISO-68-19L-AW/p/1050277",
+"brand": "VALVOLINE",
+"price": {
+"currencyIso": "CLP",
+"value": 74000.0,
+"priceType": "BUY",
+"formattedValue": "$74.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 70000.0,
+"priceType": "BUY",
+"formattedValue": "$70.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 5,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "inStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 132,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1050274",
+"name": "Aceite VALVOLINE Euro diésel 15W40 19L CI-4",
+"url": "/Productos/Lubricantes-y-Grasas/Lubricantes/Aceite-De-Motor/Aceite-VALVOLINE-Euro-di%C3%A9sel-15W40-19L-CI-4/p/1050274",
+"brand": "VALVOLINE",
+"price": {
+"currencyIso": "CLP",
+"value": 97000.0,
+"priceType": "BUY",
+"formattedValue": "$97.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 82000.0,
+"priceType": "BUY",
+"formattedValue": "$82.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 15,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "inStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 178,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1088880",
+"name": "Aceite de Motor LUBRITEK ULTIMATE 15W40 Semi-Sintético CK4/SN 19L",
+"url": "/Lubricantes/Aceite-Motor/Aceite-de-Motor-LUBRITEK-ULTIMATE-15W40-Semi-Sint%C3%A9tico-CK4-SN-19L/p/1088880",
+"brand": "LUBRITEK ULTIMATE",
+"price": {
+"currencyIso": "CLP",
+"value": 100000.0,
+"priceType": "BUY",
+"formattedValue": "$100.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 80000.0,
+"priceType": "BUY",
+"formattedValue": "$80.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 20,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "inStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 181,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1088891",
+"name": "Aceite de Motor LUBRITEK 5W40 Sintético A3/B4 19L",
+"url": "/Productos/Lubricantes-y-Grasas/Lubricantes/Aceite-De-Motor/Aceite-de-Motor-LUBRITEK-5W40-Sint%C3%A9tico-A3-B4-19L/p/1088891",
+"brand": "LUBRITEK ULTIMATE",
+"price": {
+"currencyIso": "CLP",
+"value": 209000.0,
+"priceType": "BUY",
+"formattedValue": "$209.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 209000.0,
+"priceType": "BUY",
+"formattedValue": "$209.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 15,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1062398",
+"name": "Aceite Motor 15W40 CK 208 Litros VALVOLINE",
+"url": "/Productos/Lubricantes-y-Grasas/Lubricantes/Aceite-De-Motor/Aceite-Motor-15W40-CK-208-Litros-VALVOLINE/p/1062398",
+"brand": "VALVOLINE",
+"price": {
+"currencyIso": "CLP",
+"value": 999000.0,
+"priceType": "BUY",
+"formattedValue": "$999.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 999000.0,
+"priceType": "BUY",
+"formattedValue": "$999.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "outOfStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 0,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1062395",
+"name": "LUBRICANTE VALVOLINE 15W40 CI 208 LT",
+"url": "/Productos/Lubricantes-y-Grasas/Lubricantes/Aceite-De-Motor/LUBRICANTE-VALVOLINE-15W40-CI-208-LT/p/1062395",
+"brand": "VALVOLINE",
+"price": {
+"currencyIso": "CLP",
+"value": 899000.0,
+"priceType": "BUY",
+"formattedValue": "$899.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 899000.0,
+"priceType": "BUY",
+"formattedValue": "$899.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "outOfStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 0,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1089814",
+"name": "Aceite de Motor SHELL Rimula R4X 15W40 Mineral CI4 20L",
+"url": "/Productos/Aceite-de-Motor-SHELL-Rimula-R4X-15W40-Mineral-CI4-20L/p/1089814",
+"brand": "SHELL",
+"price": {
+"currencyIso": "CLP",
+"value": 110000.0,
+"priceType": "BUY",
+"formattedValue": "$110.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 110000.0,
+"priceType": "BUY",
+"formattedValue": "$110.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 7,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1090150",
+"name": "Aceite TOTAL Hydraulic AW 68 20L",
+"url": "/Productos/Aceite-TOTAL-Hydraulic-AW-68-20L/p/1090150",
+"brand": "TOTAL",
+"price": {
+"currencyIso": "CLP",
+"value": 68000.0,
+"priceType": "BUY",
+"formattedValue": "$68.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 62000.0,
+"priceType": "BUY",
+"formattedValue": "$62.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 9,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "inStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 92,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1090148",
+"name": "Aceite TOTAL Rubia TIR 7400 de Motor 15W40 CI-4",
+"url": "/Productos/Aceite-TOTAL-Rubia-TIR-7400-de-Motor-15W40-CI-4/p/1090148",
+"brand": "TOTAL",
+"price": {
+"currencyIso": "CLP",
+"value": 95000.0,
+"priceType": "BUY",
+"formattedValue": "$95.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 80000.0,
+"priceType": "BUY",
+"formattedValue": "$80.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 16,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "inStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 169,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1088899",
+"name": "Aceite para Transmisión LUBRITEK ULTIMATE 80W90 Mineral GL5 LS 946ml",
+"url": "/Lubricantes/Aceite-de-Diferencial/Aceite-para-Transmisi%C3%B3n-LUBRITEK-ULTIMATE-80W90-Mineral-GL5-LS-946ml/p/1088899",
+"brand": "LUBRITEK ULTIMATE",
+"price": {
+"currencyIso": "CLP",
+"value": 8000.0,
+"priceType": "BUY",
+"formattedValue": "$8.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 8000.0,
+"priceType": "BUY",
+"formattedValue": "$8.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "inStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 25,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1088923",
+"name": "Aceite de Motor LUBRITEK ACTIVE 15W40 Mineral 946ml",
+"url": "/Productos/Aceite-de-Motor-LUBRITEK-ACTIVE-15W40-Mineral-946ml/p/1088923",
+"brand": "LUBRITEK ACTIVE",
+"price": {
+"currencyIso": "CLP",
+"value": 5500.0,
+"priceType": "BUY",
+"formattedValue": "$5.500",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 5500.0,
+"priceType": "BUY",
+"formattedValue": "$5.500",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 1,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1088905",
+"name": "Aceite UTF LUBRITEK ULTIMATE Mineral 19L",
+"url": "/Lubricantes/Aceite-Motor/Aceite-UTF-LUBRITEK-ULTIMATE-Mineral-19L/p/1088905",
+"brand": "LUBRITEK ULTIMATE",
+"price": {
+"currencyIso": "CLP",
+"value": 62000.0,
+"priceType": "BUY",
+"formattedValue": "$62.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 62000.0,
+"priceType": "BUY",
+"formattedValue": "$62.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 1,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1088937",
+"name": "Aceite Hidraulico ISO 46 LUBRITEK ACTIVE Mineral 19L",
+"url": "/Productos/Aceite-Hidraulico-ISO-46-LUBRITEK-ACTIVE-Mineral-19L/p/1088937",
+"brand": "LUBRITEK ACTIVE",
+"price": {
+"currencyIso": "CLP",
+"value": 77000.0,
+"priceType": "BUY",
+"formattedValue": "$77.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 77000.0,
+"priceType": "BUY",
+"formattedValue": "$77.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 13,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1088897",
+"name": "Aceite para Transmisión LUBRITEK ULTIMATE 75W90 Sintético GL5 LS 19L",
+"url": "/Lubricantes/Aceite-de-Diferencial/Aceite-para-Transmisi%C3%B3n-LUBRITEK-ULTIMATE-75W90-Sint%C3%A9tico-GL5-LS-19L/p/1088897",
+"brand": "LUBRITEK ULTIMATE",
+"price": {
+"currencyIso": "CLP",
+"value": 209000.0,
+"priceType": "BUY",
+"formattedValue": "$209.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 209000.0,
+"priceType": "BUY",
+"formattedValue": "$209.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "inStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 46,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1088934",
+"name": "Fluido de Transmisión Automática ATF LUBRITEK ACTIVE Mineral DIII 19L",
+"url": "/Industrial-y-Fuera-de-Borda/Fluido-de-Transmisi%C3%B3n-Autom%C3%A1tica-ATF-LUBRITEK-ACTIVE-Mineral-DIII-19L/p/1088934",
+"brand": "LUBRITEK ACTIVE",
+"price": {
+"currencyIso": "CLP",
+"value": 85000.0,
+"priceType": "BUY",
+"formattedValue": "$85.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 68000.0,
+"priceType": "BUY",
+"formattedValue": "$68.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 20,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 40,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1088944",
+"name": "Aceite de Motor LUBRITEK ACTIVE 25W60 Mineral 19L",
+"url": "/Lubricantes/Aceite-Motor/Aceite-de-Motor-LUBRITEK-ACTIVE-25W60-Mineral-19L/p/1088944",
+"brand": "LUBRITEK ACTIVE",
+"price": {
+"currencyIso": "CLP",
+"value": 76000.0,
+"priceType": "BUY",
+"formattedValue": "$76.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 60800.0,
+"priceType": "BUY",
+"formattedValue": "$60.800",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 20,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "inStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 377,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "126027",
+"name": "Aceite de Motor Troop Mineral 15W40 1L",
+"url": "/Lubricantes/Aceite-Motor/Aceite-de-Motor-Troop-Mineral-15W40-1L/p/126027",
+"brand": "TROOP",
+"price": {
+"currencyIso": "CLP",
+"value": 6000.0,
+"priceType": "BUY",
+"formattedValue": "$6.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 6000.0,
+"priceType": "BUY",
+"formattedValue": "$6.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 1,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "124340",
+"name": "Fluido de Transmisión Automática ATF MOBIL 220 Mineral 1L",
+"url": "/Lubricantes/Aceite-ATF/Fluido-de-Transmisi%C3%B3n-Autom%C3%A1tica-ATF-MOBIL-220-Mineral-1L/p/124340",
+"brand": "MOBIL",
+"price": {
+"currencyIso": "CLP",
+"value": 7500.0,
+"priceType": "BUY",
+"formattedValue": "$7.500",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 7500.0,
+"priceType": "BUY",
+"formattedValue": "$7.500",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "inStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 2378,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1173692",
+"name": "Aceite WULKAN 2T 1000cc",
+"url": "/Productos/Agroferreteria/Ferreter%C3%ADa/Lubricacion/Aceite-WULKAN-2T-1000cc/p/1173692",
+"brand": "WULKAN",
+"price": {
+"currencyIso": "CLP",
+"value": 13000.0,
+"priceType": "BUY",
+"formattedValue": "$13.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 13000.0,
+"priceType": "BUY",
+"formattedValue": "$13.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "inStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 123,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1173693",
+"name": "Aceite WULKAN 2T 500cc",
+"url": "/Productos/Agroferreteria/Ferreter%C3%ADa/Lubricacion/Aceite-WULKAN-2T-500cc/p/1173693",
+"brand": "WULKAN",
+"price": {
+"currencyIso": "CLP",
+"value": 10000.0,
+"priceType": "BUY",
+"formattedValue": "$10.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 10000.0,
+"priceType": "BUY",
+"formattedValue": "$10.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "inStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 163,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "1175433",
+"name": "Aceite Hidráulico VALVOLINE Unitrac 10W30 208 Litros",
+"url": "/Productos/Lubricantes/Aceites/Aceites-Hidr%C3%A1ulicos/Aceite-Hidr%C3%A1ulico-VALVOLINE-Unitrac-10W30-208-Litros/p/1175433",
+"brand": "VALVOLINE",
+"price": {
+"currencyIso": "CLP",
+"value": 1019000.0,
+"priceType": "BUY",
+"formattedValue": "$1.019.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 1019000.0,
+"priceType": "BUY",
+"formattedValue": "$1.019.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "outOfStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 0,
+"stockThreshold": null
+},
+"manufacturer": null
+},
+{
+"code": "125379",
+"name": "Aceite de Motor MOTORLIFE 10W30 Semi-Sintético 3,78L",
+"url": "/Lubricantes/Aceite-Motor/Aceite-de-Motor-MOTORLIFE-10W30-Semi-Sint%C3%A9tico-3%2C78L/p/125379",
+"brand": "MOTORLIFE",
+"price": {
+"currencyIso": "CLP",
+"value": 16000.0,
+"priceType": "BUY",
+"formattedValue": "$16.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountedPrice": {
+"currencyIso": "CLP",
+"value": 16000.0,
+"priceType": "BUY",
+"formattedValue": "$16.000",
+"minQuantity": null,
+"maxQuantity": null,
+"sapUnit": null,
+"priceGroup": null
+},
+"discountPercentage": 0,
+"hidePriceByCategory": false,
+"stock": {
+"stockLevelStatus": {
+"code": "lowStock",
+"type": "StockLevelStatus"
+},
+"stockLevel": 1,
+"stockThreshold": null
+},
+"manufacturer": null
+}
+],
+"sorts": [
+{
+"code": "relevance",
+"name": "Relevancia",
+"selected": true
+},
+{
+"code": "topRated",
+"name": "Mejor valorados",
+"selected": false
+},
+{
+"code": "name-asc",
+"name": "Nombre (A-Z)",
+"selected": false
+},
+{
+"code": "name-desc",
+"name": "Nombre (Z-A)",
+"selected": false
+},
+{
+"code": "price-asc",
+"name": "Precio (Menor precio primero)",
+"selected": false
+},
+{
+"code": "price-desc",
+"name": "Precio (Mayor precio primero)",
+"selected": false
+}
+],
+"pagination": {
+"pageSize": 40,
+"currentPage": 0,
+"sort": null,
+"numberOfPages": 2,
+"totalNumberOfResults": 58
+},
+"currentQuery": {
+"url": "/Productos/Lubricantes-y-Grasas/Lubricantes/c/AG100",
+"query": {
+"value": "",
+"filterQueries": [],
+"searchQueryContext": null
+}
+},
+"facets": [
+{
+"code": "category",
+"name": "Categoría",
+"priority": 2147483645,
+"category": true,
+"multiSelect": false,
+"visible": true,
+"values": [
+{
+"code": "1000902",
+"name": "Aceite De Motor",
+"count": 27,
+"query": {
+"query": {
+"value": "::category:1000902"
+}
+},
+"selected": false
+},
+{
+"code": "1000982",
+"name": "Aceite De Transmisión",
+"count": 19,
+"query": {
+"query": {
+"value": "::category:1000982"
+}
+},
+"selected": false
+},
+{
+"code": "1000901",
+"name": "Aceite Del Diferencial",
+"count": 2,
+"query": {
+"query": {
+"value": "::category:1000901"
+}
+},
+"selected": false
+},
+{
+"code": "1000900",
+"name": "Aceite Hidráulico",
+"count": 10,
+"query": {
+"query": {
+"value": "::category:1000900"
+}
+},
+"selected": false
+},
+{
+"code": "1000983",
+"name": "Lubricante Multiuso",
+"count": 4,
+"query": {
+"query": {
+"value": "::category:1000983"
+}
+},
+"selected": false
+}
+],
+"question": false,
+"jobs": false,
+"sortingOrder": 0
+},
+{
+"code": "price",
+"name": "Precio",
+"priority": 2147483642,
+"category": false,
+"multiSelect": true,
+"visible": true,
+"values": [
+{
+"code": "$0 - $9.999",
+"name": "$0 - $9.999",
+"count": 12,
+"query": {
+"query": {
+"value": "::price:%240+-+%249.999"
+}
+},
+"selected": false
+},
+{
+"code": "$10.000 - $49.999",
+"name": "$10.000 - $49.999",
+"count": 7,
+"query": {
+"query": {
+"value": "::price:%2410.000+-+%2449.999"
+}
+},
+"selected": false
+},
+{
+"code": "$150.000 - $249.999",
+"name": "$150.000 - $249.999",
+"count": 1,
+"query": {
+"query": {
+"value": "::price:%24150.000+-+%24249.999"
+}
+},
+"selected": false
+},
+{
+"code": "$50.000 - $149.999",
+"name": "$50.000 - $149.999",
+"count": 31,
+"query": {
+"query": {
+"value": "::price:%2450.000+-+%24149.999"
+}
+},
+"selected": false
+},
+{
+"code": "Más de $500.000",
+"name": "Más de $500.000",
+"count": 7,
+"query": {
+"query": {
+"value": "::price:M%C3%A1s+de+%24500.000"
+}
+},
+"selected": false
+}
+],
+"question": false,
+"jobs": false,
+"sortingOrder": 0
+},
+{
+"code": "C_DTE_BASE",
+"name": "Base",
+"priority": 2147483608,
+"category": false,
+"multiSelect": true,
+"visible": true,
+"values": [
+{
+"code": "MINERAL",
+"name": "MINERAL",
+"count": 5,
+"query": {
+"query": {
+"value": "::C_DTE_BASE:MINERAL"
+}
+},
+"selected": false
+},
+{
+"code": "SEMI-SINTETICO",
+"name": "SEMI-SINTETICO",
+"count": 3,
+"query": {
+"query": {
+"value": "::C_DTE_BASE:SEMI-SINTETICO"
+}
+},
+"selected": false
+},
+{
+"code": "SINTETICO",
+"name": "SINTETICO",
+"count": 1,
+"query": {
+"query": {
+"value": "::C_DTE_BASE:SINTETICO"
+}
+},
+"selected": false
+}
+],
+"question": false,
+"jobs": false,
+"sortingOrder": 0
+},
+{
+"code": "C_DTE_VISCOSIDAD",
+"name": "Viscosidad",
+"priority": 2147483510,
+"category": false,
+"multiSelect": true,
+"visible": true,
+"values": [
+{
+"code": "10W30",
+"name": "10W30",
+"count": 1,
+"query": {
+"query": {
+"value": "::C_DTE_VISCOSIDAD:10W30"
+}
+},
+"selected": false
+},
+{
+"code": "15W40",
+"name": "15W40",
+"count": 9,
+"query": {
+"query": {
+"value": "::C_DTE_VISCOSIDAD:15W40"
+}
+},
+"selected": false
+},
+{
+"code": "20W50",
+"name": "20W50",
+"count": 3,
+"query": {
+"query": {
+"value": "::C_DTE_VISCOSIDAD:20W50"
+}
+},
+"selected": false
+},
+{
+"code": "25W60",
+"name": "25W60",
+"count": 1,
+"query": {
+"query": {
+"value": "::C_DTE_VISCOSIDAD:25W60"
+}
+},
+"selected": false
+},
+{
+"code": "30W",
+"name": "30W",
+"count": 1,
+"query": {
+"query": {
+"value": "::C_DTE_VISCOSIDAD:30W"
+}
+},
+"selected": false
+},
+{
+"code": "5W40",
+"name": "5W40",
+"count": 2,
+"query": {
+"query": {
+"value": "::C_DTE_VISCOSIDAD:5W40"
+}
+},
+"selected": false
+},
+{
+"code": "75W90",
+"name": "75W90",
+"count": 3,
+"query": {
+"query": {
+"value": "::C_DTE_VISCOSIDAD:75W90"
+}
+},
+"selected": false
+},
+{
+"code": "80W",
+"name": "80W",
+"count": 1,
+"query": {
+"query": {
+"value": "::C_DTE_VISCOSIDAD:80W"
+}
+},
+"selected": false
+},
+{
+"code": "80W90",
+"name": "80W90",
+"count": 4,
+"query": {
+"query": {
+"value": "::C_DTE_VISCOSIDAD:80W90"
+}
+},
+"selected": false
+},
+{
+"code": "ATF",
+"name": "ATF",
+"count": 2,
+"query": {
+"query": {
+"value": "::C_DTE_VISCOSIDAD:ATF"
+}
+},
+"selected": false
+},
+{
+"code": "ISO 32",
+"name": "ISO 32",
+"count": 1,
+"query": {
+"query": {
+"value": "::C_DTE_VISCOSIDAD:ISO+32"
+}
+},
+"selected": false
+},
+{
+"code": "ISO 46",
+"name": "ISO 46",
+"count": 1,
+"query": {
+"query": {
+"value": "::C_DTE_VISCOSIDAD:ISO+46"
+}
+},
+"selected": false
+},
+{
+"code": "ISO 68",
+"name": "ISO 68",
+"count": 1,
+"query": {
+"query": {
+"value": "::C_DTE_VISCOSIDAD:ISO+68"
+}
+},
+"selected": false
+},
+{
+"code": "UTF",
+"name": "UTF",
+"count": 2,
+"query": {
+"query": {
+"value": "::C_DTE_VISCOSIDAD:UTF"
+}
+},
+"selected": false
+}
+],
+"question": false,
+"jobs": false,
+"sortingOrder": 0
+},
+{
+"code": "brand_search",
+"name": "Marca",
+"priority": 2147483480,
+"category": false,
+"multiSelect": true,
+"visible": true,
+"values": [
+{
+"code": "LOCTITE",
+"name": "LOCTITE",
+"count": 1,
+"query": {
+"query": {
+"value": "::brand_search:LOCTITE"
+}
+},
+"selected": false
+},
+{
+"code": "LUBRITEK",
+"name": "LUBRITEK",
+"count": 4,
+"query": {
+"query": {
+"value": "::brand_search:LUBRITEK"
+}
+},
+"selected": false
+},
+{
+"code": "LUBRITEK ACTIVE",
+"name": "LUBRITEK ACTIVE",
+"count": 10,
+"query": {
+"query": {
+"value": "::brand_search:LUBRITEK+ACTIVE"
+}
+},
+"selected": false
+},
+{
+"code": "LUBRITEK EVO",
+"name": "LUBRITEK EVO",
+"count": 2,
+"query": {
+"query": {
+"value": "::brand_search:LUBRITEK+EVO"
+}
+},
+"selected": false
+},
+{
+"code": "LUBRITEK ULTIMATE",
+"name": "LUBRITEK ULTIMATE",
+"count": 8,
+"query": {
+"query": {
+"value": "::brand_search:LUBRITEK+ULTIMATE"
+}
+},
+"selected": false
+},
+{
+"code": "MOBIL",
+"name": "MOBIL",
+"count": 3,
+"query": {
+"query": {
+"value": "::brand_search:MOBIL"
+}
+},
+"selected": false
+},
+{
+"code": "MOTORLIFE",
+"name": "MOTORLIFE",
+"count": 4,
+"query": {
+"query": {
+"value": "::brand_search:MOTORLIFE"
+}
+},
+"selected": false
+},
+{
+"code": "Marca Alternativa",
+"name": "Marca Alternativa",
+"count": 1,
+"query": {
+"query": {
+"value": "::brand_search:Marca+Alternativa"
+}
+},
+"selected": false
+},
+{
+"code": "PRESTONE",
+"name": "PRESTONE",
+"count": 1,
+"query": {
+"query": {
+"value": "::brand_search:PRESTONE"
+}
+},
+"selected": false
+},
+{
+"code": "SHELL",
+"name": "SHELL",
+"count": 2,
+"query": {
+"query": {
+"value": "::brand_search:SHELL"
+}
+},
+"selected": false
+},
+{
+"code": "TOTAL",
+"name": "TOTAL",
+"count": 4,
+"query": {
+"query": {
+"value": "::brand_search:TOTAL"
+}
+},
+"selected": false
+},
+{
+"code": "TROOP",
+"name": "TROOP",
+"count": 2,
+"query": {
+"query": {
+"value": "::brand_search:TROOP"
+}
+},
+"selected": false
+},
+{
+"code": "VALVOLINE",
+"name": "VALVOLINE",
+"count": 12,
+"query": {
+"query": {
+"value": "::brand_search:VALVOLINE"
+}
+},
+"selected": false
+},
+{
+"code": "WD-40",
+"name": "WD-40",
+"count": 2,
+"query": {
+"query": {
+"value": "::brand_search:WD-40"
+}
+},
+"selected": false
+},
+{
+"code": "WULKAN",
+"name": "WULKAN",
+"count": 2,
+"query": {
+"query": {
+"value": "::brand_search:WULKAN"
+}
+},
+"selected": false
+}
+],
+"question": false,
+"jobs": false,
+"sortingOrder": 0
+}
+],
+"freeTextSearch": "",
+"categoryCode": "AG100",
+"spellingSuggestion": null,
+"automotiveFilterActive": null
+},
+"pageUrl": "Lubricantes",
+"countProducts": 40
+}
+}

@@ -66,6 +66,7 @@ export const scene = defineScene({
             "details",
             "specs",
             "photos",
+            "zoom",
             "price"
           ]
         }
@@ -91,6 +92,21 @@ export const scene = defineScene({
             "relevance"
           ],
           "optional": true
+        },
+        {
+          "name": "remove",
+          "type": "array",
+          "optional": true
+        },
+        {
+          "name": "clear",
+          "type": "boolean",
+          "optional": true
+        },
+        {
+          "name": "page",
+          "type": "integer",
+          "optional": true
         }
       ]
     },
@@ -107,6 +123,7 @@ export const scene = defineScene({
             "details",
             "specs",
             "photos",
+            "zoom",
             "price"
           ],
           "optional": true
@@ -558,4 +575,4 @@ export const scene = defineScene({
   ]
 });
 
-export const SPEC_SHA256 = "d4a68fda7d48d2d1bb148580037b86fbaf051121913fe17c662548db18409a5a";
+export const SPEC_SHA256 = "760a59d821467a4af12851fa71cf66e0472e55ce1830002c5942e3a3dc26b37e";

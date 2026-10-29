@@ -1,0 +1,496 @@
+{
+"statusCode": 200,
+"isValid": true,
+"data": [
+{
+"code": "CL-322",
+"name": "Buin",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-323",
+"name": "Calera de Tango",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-324",
+"name": "Cerrillos",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-325",
+"name": "Cerro Navia",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-326",
+"name": "Colina",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-327",
+"name": "Conchali",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-328",
+"name": "Curacavi",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-329",
+"name": "El Bosque",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-330",
+"name": "El Monte",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-331",
+"name": "Estacion Central",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-332",
+"name": "Huechuraba",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-333",
+"name": "Independencia",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-334",
+"name": "Isla de Maipo",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-335",
+"name": "La Cisterna",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-336",
+"name": "La Florida",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-337",
+"name": "La Granja",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-338",
+"name": "La Pintana",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-339",
+"name": "La Reina",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-340",
+"name": "Lampa",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-341",
+"name": "Las Condes",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-342",
+"name": "Lo Barnechea",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-343",
+"name": "Lo Espejo",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-344",
+"name": "Lo Prado",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-345",
+"name": "Macul",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-346",
+"name": "Maipu",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-348",
+"name": "Melipilla",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-350",
+"name": "Padre Hurtado",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-351",
+"name": "Paine",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-352",
+"name": "Pedro Aguirre Cerda",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-353",
+"name": "Penaflor",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-354",
+"name": "Penalolen",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-355",
+"name": "Pirque",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-356",
+"name": "Providencia",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-357",
+"name": "Pudahuel",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-358",
+"name": "Puente Alto",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-359",
+"name": "Quilicura",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-360",
+"name": "Quinta Normal",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-361",
+"name": "Recoleta",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-362",
+"name": "Renca",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-363",
+"name": "San Bernardo",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-364",
+"name": "San Joaquin",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-366",
+"name": "San Miguel",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-367",
+"name": "San Pedro",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-368",
+"name": "San Ramon",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-369",
+"name": "Santiago centro",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-370",
+"name": "Talagante",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-371",
+"name": "Til Til",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-372",
+"name": "Vitacura",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+},
+{
+"code": "CL-349",
+"name": "Ñuñoa",
+"region": {
+"isocode": "CL-MP",
+"isocodeShort": "RM",
+"countryIso": "CL",
+"name": "Metropolitana"
+}
+}
+]
+}

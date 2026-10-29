@@ -1,5 +1,5 @@
 /**
- * Who the site is, for every part of the extension: PC Factory's hosts, the
+ * Who the site is, for every part of the extension: Agroplanet's hosts, the
  * page a new tab opens on, the language a call opens in, and the widget's
  * words and colours. Written once here and handed to each entry point.
  */
@@ -7,15 +7,15 @@
 import type { SpotlightTheme } from "@voqalize/stage";
 import { defineSite } from "@voqalize/stage/extension";
 
-/** The ring around what Javier points at: pcFactory's own bright blue
- *  (`--blue-semilight`, #3F59FA in the theme's `:root`). The site's green is
- *  too pale on its white product photos, and its near-black would read as
- *  part of the header; this blue holds on white (5:1) and on the near-black
- *  header and the comparator's dark bar (3.4:1), and the site uses it for
- *  nothing a ring would be mistaken for. */
-export const RING = "#3F59FA";
+/** The ring around what Javier points at: Agroplanet's own orange (#E65100,
+ *  the page's `theme-color` and the logo's planet). The site's green
+ *  (#AECA3A, every button) would read as one of its buttons and is too pale
+ *  on white; its red menu bar (#CC0000) would vanish against the bar. The
+ *  orange holds on white (3.8:1), on the green buttons and on the red bar,
+ *  and the site rings nothing in it. */
+export const RING = "#E65100";
 
-/** 3 px of that blue, with its pulse, held 5.5 s unless the next ring
+/** 3 px of that orange, with its pulse, held 5.5 s unless the next ring
  *  replaces it. */
 export const SPOTLIGHT: SpotlightTheme = {
   color: RING,
@@ -25,21 +25,19 @@ export const SPOTLIGHT: SpotlightTheme = {
   holdMs: 5500,
 };
 
-export const ORIGIN = "https://www.pcfactory.cl";
+export const ORIGIN = "https://www.agroplanet.cl";
 
-// pcFactory's palette, read off the theme's `:root` and computed styles
-// (2026-10-29): the header's near-black (`--black-dark`, #212425, the
-// "Categorías" button and the main menu bar) for the card, the brand green
-// (`--green-normal`, #43D87E, the price-range track and the promo band's
-// family) for what the visitor presses, with the site's dark ink on it as its
-// green buttons have; the dark grey of its "Agregar al carro" buttons
-// (`--gray-dark`, #2E3538) for the raised parts; and the site's own face,
-// Ubuntu, which every page has already loaded.
-const SANS = `Ubuntu, Arial, system-ui, sans-serif`;
+// Agroplanet's palette, read off its computed styles (2026-10-29): the top
+// bar's near-black (#212121) for the card, the brand green (#AECA3A, its
+// "Agregar al carro", "Entendido" and every action button) for what the
+// visitor presses, with dark ink on it for contrast (the site's white on that
+// green is 2:1); a lifted grey for the raised parts; and the site's own face,
+// Roboto, which every page has already loaded.
+const SANS = `Roboto, "Helvetica Neue", Arial, system-ui, sans-serif`;
 
 export const SITE = defineSite({
-  id: "pcfactory",
-  matches: ["https://www.pcfactory.cl/*", "https://pcfactory.cl/*"],
+  id: "agroplanet",
+  matches: ["https://www.agroplanet.cl/*", "https://agroplanet.cl/*"],
   home: `${ORIGIN}/`,
   // The store is Spanish (Chile): a call with no choice made opens in Spanish.
   opening: "es",
@@ -49,32 +47,32 @@ export const SITE = defineSite({
       { code: "es", label: "ES" },
       { code: "en", label: "EN" },
     ],
-    // pcFactory's own assistance button (#pcfAssistanceWrapper, the green
-    // "pc" launcher of its chat and video advisers) owns the bottom-right.
+    // The WhatsApp button, the scroll-to-top square and, on the quote form,
+    // reCAPTCHA's badge own the bottom-right.
     corner: "left",
-    // Below the main menu bar, which pins itself to the top (86 px) as the
-    // visitor scrolls up, for the last resort.
-    topClear: 100,
+    // Below the compact header, which pins itself to the top (64 px) once
+    // the page is scrolled, for the last resort.
+    topClear: 80,
     transitionName: "voqalize-javier",
     theme: {
-      brand: "#43D87E",
-      brandHover: "#51EE8F",
-      onBrand: "#212425",
-      card: "#212425",
+      brand: "#AECA3A",
+      brandHover: "#BFD957",
+      onBrand: "#1B1F0A",
+      card: "#212121",
       ink: "#ffffff",
       line: "rgba(255, 255, 255, 0.16)",
       muted: "rgba(255, 255, 255, 0.72)",
-      raised: "#2E3538",
-      live: "#43D87E",
+      raised: "#2F2F2F",
+      live: "#AECA3A",
       font: SANS,
       boldFont: SANS,
-      radius: 4,
+      radius: 6,
     },
     words: {
       es: {
         invite: "Habla con Javier",
         role: "Tu asesor por voz",
-        inviteLabel: "Habla por voz con Javier, el asesor de PC Factory",
+        inviteLabel: "Habla por voz con Javier, el asesor de Agroplanet",
         minimise: "Minimizar",
         mute: "Silenciarme",
         unmute: "Activarme",
@@ -86,14 +84,14 @@ export const SITE = defineSite({
         failed: "No se pudo iniciar la llamada.",
         grant: "La primera vez, Chrome pide el micrófono para la extensión de Javier.",
         blocked:
-          "Chrome bloquea el micrófono para la extensión «Javier para PC Factory». En la configuración del micrófono, quítala de «No pueden usar el micrófono» y vuelve a llamar.",
+          "Chrome bloquea el micrófono para la extensión «Javier para Agroplanet». En la configuración del micrófono, quítala de «No pueden usar el micrófono» y vuelve a llamar.",
         settings: "Abrir la configuración",
         activity: { listening: "Escuchando", thinking: "Pensando", speaking: "Hablando" },
       },
       en: {
         invite: "Talk to Javier",
         role: "Your voice adviser",
-        inviteLabel: "Talk to Javier, PC Factory's adviser, by voice",
+        inviteLabel: "Talk to Javier, Agroplanet's adviser, by voice",
         minimise: "Minimise",
         mute: "Mute me",
         unmute: "Unmute me",
@@ -105,7 +103,7 @@ export const SITE = defineSite({
         failed: "Could not start the call.",
         grant: "The first time, Chrome asks for the microphone for Javier's extension.",
         blocked:
-          "Chrome blocks the microphone for the “Javier para PC Factory” extension. In the microphone settings, take it off “Not allowed to use your microphone”, then call again.",
+          "Chrome blocks the microphone for the “Javier para Agroplanet” extension. In the microphone settings, take it off “Not allowed to use your microphone”, then call again.",
         settings: "Open the settings",
         activity: { listening: "Listening", thinking: "Thinking", speaking: "Speaking" },
       },

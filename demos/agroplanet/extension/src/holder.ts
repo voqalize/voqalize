@@ -1,14 +1,14 @@
 /**
  * The holder: Javier's call, in an offscreen document of the extension
- * (`call.html`), so it lives through every page load on www.pcfactory.cl
- * (the site loads a page for every move between pages). The shared holder
+ * (`call.html`), so it lives through every reload and typed address on
+ * www.agroplanet.cl, and across its tabs. The shared holder
  * from `@voqalize/stage/extension` does the call, the tabs, the relay to his
  * face and Stage (the timeline that fires his cues as he speaks, one result
- * per move); what is pcFactory's is here:
+ * per move); what is Agroplanet's is here:
  *
- *   - a reply that opens on another page loads it as his voice starts, not
- *     at its first words: the store's pages take seconds to load;
- *   - the page a new tab opens on, when no pcFactory tab is open;
+ *   - a reply that opens on another page moves there as his voice starts,
+ *     not at its first words: a route takes a second or two to draw;
+ *   - the page a new tab opens on, when no Agroplanet tab is open;
  *   - the two Actions the holder makes itself: `focus_tab` and
  *     `language_changed`;
  *   - the words for a call or a microphone that did not start.
@@ -20,17 +20,18 @@ import type { FocusTab, LanguageChanged } from "./actions.gen";
 import { makeClient, micState, testHooks } from "./call-client";
 import { failure, micFailure, ORIGIN, SITE } from "./site";
 
-/** The moves that work on the cart or the checkout: a new tab opens on it. */
-const CART_MOVES = new Set(["start_checkout", "apply_coupon", "commerce.cart_update", "commerce.cart_show"]);
+/** The moves that work on the cart: a new tab opens on it. */
+const CART_MOVES = new Set(["start_quote", "commerce.cart_update", "commerce.cart_show"]);
 
-/** The first page of a new tab, when no pcFactory tab is open. */
+/** The first page of a new tab, when no Agroplanet tab is open. */
 function firstPage(job: Job): string {
   if (job.kind !== "stage") return `${ORIGIN}/`;
   const args = (job.args ?? {}) as Record<string, unknown>;
   let path: unknown = "/";
   if (CART_MOVES.has(job.move)) path = "/carro";
   else if (job.move === "filter_listing") path = args.category_path;
-  else if (job.move === "stores.show") path = "/tiendas";
+  else if (job.move === "fill_quote") path = "/cotizacion";
+  else if (job.move === "stores.show") path = "/nuestras-tiendas";
   else if (job.move === "page.open" && Array.isArray(job.args)) path = job.args[0];
   else if (Array.isArray(job.args) && typeof job.args[1] === "string") path = job.args[1];
   else if (typeof args.path === "string") path = args.path;
@@ -58,8 +59,8 @@ startHolder(SITE, {
   makeClient,
   micState,
   firstPage,
-  // A reply that opens on another page loads it while his voice starts: the
-  // store takes seconds to load a page, and a little early is better than late.
+  // A reply that opens on another page moves there while his voice starts:
+  // a route takes a moment to draw, and a little early is better than late.
   fireEarly: (cue, api) => cue.move === "page.open" && cue.before === 0 && elsewhere(cue.args[0], api.frontUrl()),
   // What a move read (prices, products, stock, the cart) answers him whichever
   // tab made it, as does the toggle.

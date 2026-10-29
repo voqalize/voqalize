@@ -62,9 +62,9 @@
       "id": "product.tab",
       "verb": "tab",
       "class": "look",
-      "args": [{ "name": "tab", "enum": ["details", "specs", "photos", "price"] }],
-      "say": "{tab: specs} as you talk about the product's specifications; details (Detalle del Producto), photos or price likewise.",
-      "doc": "On the product page in front, scroll to Detalle del Producto or Especificaciones, step through the gallery, or ring the price and its buttons."
+      "args": [{ "name": "tab", "enum": ["details", "specs", "photos", "zoom", "price"] }],
+      "say": "{tab: specs} as you talk about the product's specifications; details (Detalle del Producto), photos, zoom (the big photo) or price likewise.",
+      "doc": "On the product page in front, scroll to Detalle del Producto or Especificaciones, step through the gallery, open the big photo (the page's own zoom), or ring the price and its buttons."
     },
     {
       "id": "filter_listing",
@@ -77,18 +77,26 @@
           "optional": true,
           "doc": "Each \"Facet: Option\" exactly as the listing writes them (\"Marca: LUBRITEK\", \"Viscosidad: 15W40\", \"Precio: $10.000 - $49.999\"); several options of one facet as separate entries."
         },
-        { "name": "sort", "enum": ["price_asc", "price_desc", "relevance"], "optional": true }
+        { "name": "sort", "enum": ["price_asc", "price_desc", "relevance"], "optional": true },
+        {
+          "name": "remove",
+          "type": "array",
+          "optional": true,
+          "doc": "Filters to take off, each \"Facet: Option\" as it is on (\"Marca: LUBRITEK\"): its checkbox unticked, in place."
+        },
+        { "name": "clear", "type": "boolean", "optional": true, "doc": "True to take every filter off with the listing's own \"Borrar Filtros\", in place." },
+        { "name": "page", "type": "integer", "optional": true, "doc": "The listing's page to show, 1 for the first, by its own page links (40 products a page)." }
       ],
       "claims": ["filtrando por", "filtro por", "filtering by"],
       "objects": ["filter", "filtro", "filtros"],
-      "doc": "Go to the listing at category_path (in the app, if it is not the one in front), then tick each filter with the listing's own checkbox, one at a time, waiting for the grid; then the sort. Reports listing.shown and listing.filtered."
+      "doc": "Go to the listing at category_path (in the app, if it is not the one in front), take off the filters asked (or Borrar Filtros), then tick each filter with the listing's own checkbox, one at a time, waiting for the grid to settle; then the sort and the page. A filter already on stays on; only the options named are ticked. Reports listing.shown and listing.filtered."
     },
     {
       "id": "open_product",
       "class": "navigate",
       "args": [
         { "name": "path", "doc": "/producto/<slug>/<sku>." },
-        { "name": "tab", "enum": ["details", "specs", "photos", "price"], "optional": true }
+        { "name": "tab", "enum": ["details", "specs", "photos", "zoom", "price"], "optional": true }
       ],
       "claims": ["abro el producto", "te muestro el", "opening the", "let me open"],
       "objects": ["product", "producto"],

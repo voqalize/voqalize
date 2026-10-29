@@ -2,8 +2,8 @@
  * What the adapter matches on and reports, kept out of Chrome's translation.
  *
  * The owner's Chrome translates Spanish pages into English. Translated,
- * "Marcas" can become "Brands", "Especificaciones" "Specifications", "Precio
- * menor a mayor" "Price low to high", and a heading or option Javier was told
+ * "Marca" can become "Brand", "Especificaciones" "Specifications", "Menor
+ * precio" "Lowest price", and a heading or option Javier was told
  * by the brain no longer matches; the names he reports would no longer match
  * the catalogue either. Two layers keep the moves working whatever the
  * visitor reads:
@@ -11,30 +11,31 @@
  *   1. The elements the adapter matches on or reads aloud carry
  *      `translate="no"` and class `notranslate`, which Chrome's translator
  *      honours, from `document_start` (`anchor.ts`) and again on every change
- *      (the Vue widgets render after load and re-render on every filter),
+ *      (the Angular app draws every route after the document and re-draws
+ *      the filter panel on every filter),
  *      before the translator gets to them. The rest of the page still
  *      translates.
  *   2. The logic never depends on a Spanish label where a structural signal
- *      exists: filter groups by their header's id, product ids from links and
- *      `data-gtag-id`, tabs by id (`#specifics-tab`), stock rows by class, the
- *      checkout by its path and its cards (`page.ts`).
+ *      exists: products by the SKU in their links, the page's kind by its
+ *      route, the quote form's fields by their `formcontrolname`, the
+ *      stepper's − and + by their icons, what a filter put on by the store's
+ *      own answer (`page.ts`, `agroplanet-actions.ts`).
  */
 
-/** Headings and FAQ questions in the main column; the filter panel and the
- *  sort menu; product names on cards, rails, the product page, the cart, the
- *  "Producto agregado" window and the comparator; the product page's tab
- *  titles, specifications and stock by store; the store cards; coupon codes;
- *  the listing's count. */
+/** Headings and the home's section titles; the policy pages' panel titles;
+ *  the category menu and its flyout; the filter panel and the sort menu;
+ *  product names on cards, the product page, the cart and the quote's
+ *  summary; the product page's section titles and specifications; the store
+ *  cards; the quote form's labels and its región and comuna options. */
 const ANCHORS = [
-  "#main-layout h1", "#main-layout h2", "#main-layout h3", "#main-layout h4",
-  "#main-layout .accordion-button",
-  "#panel-filters .panel-filters__filter__header", "#panel-filters label", ".pcf-select__dropdown",
-  "a.products__item h3", ".products__item__info__brand", ".rr-item__name",
-  "#product-title", "#tabs", "#specifics", "#stock",
-  ".card-list-product__name", ".title-count-cart", ".purchase-summary",
-  "#pcf-modal-added-product .modal-body", "#pcf-comparator-summary h2",
-  ".card-tabs h3", ".card-tabs h6", ".ticket-cupon-text",
-  "p.d-block.mb-12",
+  "mat-sidenav-content h1", "mat-sidenav-content h2", "mat-sidenav-content h3", "mat-sidenav-content h4",
+  "app-category-home div.fw-700.fs18", "mat-panel-title",
+  "#acordeon-main .item-menu-headline", "#acordeon-main app-submenu-desktop",
+  "app-plp-filter", ".cdk-overlay-container .mat-menu-panel", "a.mat-menu-trigger",
+  "app-plp-grid p.title", "app-plp-grid .black-text", "app-product-card p.title",
+  "app-product-info h2.black-name", "app-product-info a.black-brand", "app-product-tabs .title", "app-product-tabs .mt-20",
+  "app-cart-product h3", "app-resumen a", "app-store-list mat-card .fs20", "app-store-list .field-mobile",
+  "app-form-user-quote mat-label", ".cdk-overlay-container mat-option", "#suggestContainer",
   "[data-voqalize]",
 ].join(", ");
 
@@ -56,7 +57,7 @@ export function anchor(root: ParentNode = document): void {
  * move still finds it by the words the brain knows it by.
  */
 export function remember(root: ParentNode = document): void {
-  for (const el of root.querySelectorAll("#main-layout h1, #main-layout h2, #main-layout h3, #main-layout h4")) {
+  for (const el of root.querySelectorAll("mat-sidenav-content h1, mat-sidenav-content h2, mat-sidenav-content h3, mat-sidenav-content h4, app-category-home div.fw-700.fs18, mat-panel-title > *")) {
     if (el.hasAttribute("data-voqalize-text") || el.closest("[data-voqalize]")) continue;
     const text = (el.textContent ?? "").replace(/\s+/g, " ").trim();
     if (text) el.setAttribute("data-voqalize-text", text);
@@ -75,7 +76,12 @@ export function watchAnchors(): void {
     queued = false;
     const roots = [...pending];
     pending.clear();
-    for (const r of roots) if (!(r instanceof Node) || r.isConnected) anchor(r);
+    for (const r of roots) {
+      if (r instanceof Node && !r.isConnected) continue;
+      anchor(r);
+      // A route the app just drew: its headings' own words kept too.
+      if (document.readyState !== "loading") remember(r);
+    }
   };
   const obs = new MutationObserver((records) => {
     for (const r of records) {
@@ -90,8 +96,9 @@ export function watchAnchors(): void {
   });
   obs.observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
   if (document.documentElement) anchor(document);
-  // The Vue widgets render their headings after the page is parsed, so they
-  // are remembered then and once more when they have come in.
+  // The app draws its routes after the document is parsed, so headings are
+  // remembered then and once more when they have come in, and again as each
+  // route draws (the watcher above sees them come).
   const later = () => {
     remember();
     setTimeout(() => remember(), 2500);
