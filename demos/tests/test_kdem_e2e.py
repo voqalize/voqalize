@@ -1823,3 +1823,12 @@ async def test_a_plain_thank_you_never_ends_the_call() -> None:
         assert isinstance(brain, KdemBrain)
         await rig.driver.user_says("Bye.")
     assert _result(llm, "end_call").startswith("Not ended")
+
+
+def test_she_knows_contact_us_has_an_email_and_a_form_and_no_phone() -> None:
+    """Asked for a phone number, she pointed at "Bengaluru" in the address.
+    The Contact Us page (checked 2026-10-29) has an email address, a contact
+    form and the office address, and no phone number; she says so."""
+    assert "The site gives no phone number." in _SYSTEM_INSTRUCTION
+    assert "info@karnatakadigital.in" in _SYSTEM_INSTRUCTION
+    assert "a contact form" in _SYSTEM_INSTRUCTION
