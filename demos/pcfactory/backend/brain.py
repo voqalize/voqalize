@@ -44,6 +44,18 @@ the start of the sentence they belong to; Stage takes them out of the speech,
 the brain checks them against the site and what the page in front reports,
 and the page makes each as the voice reaches its sentence.
 
+**A listing he moved is said as it stands.** A listing the page reports with
+no products lands only with the move's own result, never as the grid is
+drawn; the line that says it is built from the newest report when it is
+spoken, and waits for a later filter of the same turn. Every option of every
+facet reaches him, and a filter cue keeps only the options the visitor named.
+
+**Comparing is the store's own comparator.** ``compare_products`` ticks each
+product's Comparar, presses the bar's Comparar and opens the comparison page
+(``/comparador``); its table comes back as the ``compare`` slice, the rows that
+differ first, and he walks it row by row with ``{compare: Label}`` cues before
+he recommends one.
+
 **Spanish or English, as the visitor chose or speaks.** The call opens in
 Spanish, the store's language, and moves both legs of the call together.
 """
@@ -115,6 +127,8 @@ from .app_events import (
     CartState,
     CheckoutState,
     CompareShown,
+    ComparisonRow,
+    ComparisonShown,
     LanguageRequested,
     ListingShown,
     PageChanged,
@@ -128,6 +142,7 @@ from .app_events import (
     TabsChanged,
     cart_view,
     checkout_view,
+    comparison_view,
     listing_view,
     product_view,
 )
@@ -159,6 +174,7 @@ from .stage_gen import (
     FindProductsArgs,
     OpenProductArgs,
     ReadRequest,
+    RemoveArgs,
     SearchArgs,
     StartCheckoutArgs,
     StoresShowArgs,
@@ -542,7 +558,9 @@ class LanguageChanged(Action):
 # ``scene.gen.ts`` for the page.
 
 SortOrder = Literal["price_asc", "price_desc", "relevance"]
-ProductTab = Literal["about", "specs", "warranty", "stock", "photos"]
+ProductTab = Literal[
+    "about", "specs", "warranty", "stock", "photos", "zoom", "pickup", "price_note"
+]
 
 
 # ─── Tool requests ─────────────────────────────────────────────────────────────
@@ -556,6 +574,13 @@ else:
 
 class TopicRequest(BaseModel):
     topic: TopicId = Field(description="The topic to read, by its name.")
+
+
+class CategoryRequest(BaseModel):
+    name: str = Field(
+        description="The category, by its name in either language, its id or its path: "
+        "'notebooks gamer', 'tarjetas de video', 'monitores', 995."
+    )
 
 
 class SearchRequest(BaseModel):
@@ -623,6 +648,18 @@ class FilterRequest(BaseModel):
     sort: SortOrder | None = Field(
         default=None, description="'price_asc' cheapest first, 'price_desc', 'relevance'."
     )
+    remove: list[str] | None = Field(
+        default=None,
+        description="Filters to take off the listing in front, each 'Facet: Option' as it is on: "
+        "['Marcas: Lenovo']. Its chip is pressed, in place.",
+    )
+    clear: bool | None = Field(
+        default=None, description="True to take every filter off ('Limpiar todos'), in place."
+    )
+    page: int | None = Field(default=None, description="The listing's page to show, 1 the first.")
+    size: Literal[12, 24, 32] | None = Field(
+        default=None, description="Products per page: 12, 24 or 32 ('Productos por página')."
+    )
 
 
 class OpenProductRequest(BaseModel):
@@ -632,7 +669,8 @@ class OpenProductRequest(BaseModel):
     tab: ProductTab | None = Field(
         default=None,
         description="'specs' for its Especificaciones, 'about', 'warranty', 'stock' for its "
-        "stock by store, or 'photos'.",
+        "stock by store, 'photos', 'zoom' for the big photos, 'pickup' for the stores that have "
+        "it for pickup, or 'price_note' for what Transferencia / Débito means.",
     )
 
 
@@ -658,9 +696,16 @@ class ShowStoreRequest(BaseModel):
 
 class CompareRequest(BaseModel):
     paths: list[str] = Field(
-        description="Two to four '/producto/<id>' paths shown on the listing in front, or the "
-        "product in front."
+        description="Two or three '/producto/<id>' paths of one category, from their screen or "
+        "your reads; the page opens those not in front to tick them."
     )
+
+
+class UncompareRequest(BaseModel):
+    path: str | None = Field(
+        default=None, description="The '/producto/<id>' to take out of the comparison."
+    )
+    all: bool = Field(default=False, description="True to empty the comparator.")
 
 
 class AddToCartRequest(BaseModel):
@@ -693,6 +738,8 @@ _SECTIONS_PER_PAGE = 10
 #: About 2,000 tokens: the top levels of the tree and the facets that matter.
 _CATEGORIES_CHARS = 8000
 _FACETS_SHOWN = 6
+#: The categories ``read_category`` lists under one, at most.
+_UNDER_SHOWN = 20
 _OPTIONS_SHOWN = 6
 #: Facets every listing has, which say nothing about one category.
 _COMMON_FACETS = frozenset({"tiendas", "rango de precios", "marcas", "categorias"})
@@ -740,13 +787,18 @@ def _categories(k: Knowledge) -> str:
         facets = [f for f in c.facets if facet_key(f.name) not in _COMMON_FACETS]
         opts = "; ".join(
             f"{f.name}: {', '.join(f.options[:_OPTIONS_SHOWN])}"
+            + (
+                f" +{len(f.options) - _OPTIONS_SHOWN} more"
+                if len(f.options) > _OPTIONS_SHOWN
+                else ""
+            )
             for f in facets[:_FACETS_SHOWN]
             if f.options
         )
         line = f"- {c.name} (id {c.id}) {c.path}" + (f" — {opts}" if opts and c.level >= 2 else "")
         size += len(line) + 1
         if size > _CATEGORIES_CHARS:
-            lines.append("- … more in the categorias topic (read_topic).")
+            lines.append("- … more: read_category with its name.")
             break
         lines.append(line)
     return "\n".join(lines) or "(The categories are not loaded: use find_products with words.)"
@@ -770,18 +822,20 @@ def _topics(k: Knowledge) -> str:
 
 def _prompt(k: Knowledge, today: date | None = None) -> str:
     today = today or datetime.now(TIMEZONE).date()
-    return f"""You are {AGENT_NAME}, the voice tech advisor on PC Factory's online store, www.pcfactory.cl. PC Factory is Chile's best-known technology retailer: notebooks, gamer gear, graphics cards, monitors, smartphones, components and much more, with stores across Chile, and "Compra y retira de inmediato". A visitor is shopping on the store right now and has called you from the corner of the page. You can see and move their screen: you search the catalogue live, open products and their specifications, filter and sort a listing, read live prices and each store's stock, show a store, compare products, add to their cart, apply a coupon, and take them to the checkout's delivery step. You are the best advisor in the store: quick, warm and concrete, you know what matters in a machine and you recommend, you don't recite. Say the store's name as "PC Factory".
+    return f"""You are {AGENT_NAME}, the voice tech advisor on PC Factory's online store, www.pcfactory.cl. PC Factory is Chile's best-known technology retailer: notebooks, gamer gear, graphics cards, monitors, smartphones, components and much more, with stores across Chile, and "Compra y retira de inmediato". A visitor is shopping on the store right now and has called you from the corner of the page. You can see and move their screen: you search the catalogue live, open products and their specifications, filter and sort a listing, read live prices and each store's stock, show a store, compare products side by side on the store's own comparison page, add to their cart, apply a coupon, and take them to the checkout's delivery step. You are the best advisor in the store: quick, warm and concrete, you know what matters in a machine and you recommend, you don't recite. Say the store's name as "PC Factory".
 
 # You narrate, and the screen follows your words
 You talk the visitor through their screen like an advisor standing beside them, pointing as you talk. Fast: you talk and act at the same time.
 - Put a screen cue at the start of the sentence it belongs to. The page moves when your voice reaches that sentence. The visitor never hears a cue.
   - {{page: /path}} opens a page of the store at its top: a page from the site pages list, a category's path, a product's /producto/<id> from what you read this call, or the store list /tiendas.
   - {{show: Heading}} scrolls to a heading, section, card or specification on the page in front (or the one a page cue just opened) and rings it. On a product page it rings a row of the Especificaciones table by its label ("Procesador", "Memoria RAM", "Tarjeta de Video", "Almacenamiento", "Pantalla").
-  - {{tab: specs}} opens a tab of the product in front: specs (Especificaciones), about (Sobre este producto), warranty (Garantía), stock (its stock by store, Disponibilidad) or photos.
+  - {{tab: specs}} opens a tab of the product in front: specs (Especificaciones), about (Sobre este producto), warranty (Garantía), stock (its stock by store, Disponibilidad), photos, zoom (the big photos, in the gallery's own window), pickup (the stores that have it for pickup, "Disponibilidad de retiro en tienda") or price_note (the store's own words on what Transferencia / Débito means).
   - {{faq: Question}} opens that question of a FAQ (Centro de ayuda, Cyber, Gamer) and rings its answer.
   - {{store: Name}} shows one store on /tiendas, with its address and hours.
-  - {{filter: Facet | Option}} narrows the listing in front by one of its facets, the option exactly as the listing or the category list writes it: {{filter: Marcas | Lenovo}}, {{filter: RAM | 16GB}}, {{filter: Tiendas | Maipú}}. Several options of one facet go in one cue: {{filter: Marcas | Lenovo, HP}}.
+  - {{filter: Facet | Option}} narrows the listing in front by one of its facets, the option exactly as the listing or the category list writes it: {{filter: Marcas | Lenovo}}, {{filter: RAM | 16GB}}, {{filter: Tiendas | Maipú}}. Two options of one facet go in one cue only when the visitor named both: "Lenovo o HP" is {{filter: Marcas | Lenovo, HP}}.
   - {{sort: price_asc}} sorts the listing in front: price_asc (cheapest first), price_desc or relevance.
+  - {{compare: Label}} on the comparison page rings one row of the table across the products, by its label as the table writes it ("Procesador", "RAM", "Almacenamiento", "Pantalla", "Tarjeta de Video"); {{compare: diferencias}} switches on "Destacar diferencias", which marks in green what changes; {{compare: precio}} rings the prices.
+  - {{menu: Categoría}} opens the store's Categorías menu on a top category ("Computadores y Tablets", "Partes y Piezas / Componentes", "Gamer y Poder Gráfico") and shows what is under it.
 - OPEN WITH A CUE, then one cue at the start of each sentence that talks about something on screen. Talk about what you ring, as you ring it:
   - On a product: "{{tab: specs}} Mira las especificaciones. {{show: Procesador}} Trae un Ryzen siete, rápido para todo. {{show: Memoria RAM}} Con dieciséis gigas de RAM, de sobra para la U. {{show: Almacenamiento}} Y un SSD de quinientos doce gigas."
   - On the home page: "{{show: Cupones}} Hoy hay cupones de Lenovo. {{show: Ofertas y Lanzamientos}} Y aquí están las ofertas de la semana."
@@ -791,6 +845,9 @@ You talk the visitor through their screen like an advisor standing beside them, 
 - Never make up a heading, a path or a product id: a product is opened only by an id you read this call.
 - One cue per sentence at most, before the sentence, never inside it.
 - A filter or sort cue sits on a promise of what you are doing ("Te dejo solo los Lenovo."), never on a statement of the result: the grid changes after. What the listing then shows comes to you in square brackets: say it on your next turn. A filter that could not be applied is said to you, to say so.
+- TICK ONLY WHAT THE VISITOR NAMED. "Al menos dieciséis gigas", "16 o más", "minimum 16GB" is {{filter: RAM | 16GB}}, one option, never 16GB, 24GB and 32GB: say that bigger ones exist and offer to add them. Never add an option, a brand or a range they did not say.
+- A facet's options in a line may be cut short, and a listing has more than any line shows: NEVER SAY AN OPTION OR A FILTER IS MISSING unless a line from the page says it refused it. Write the cue with the option as they said it; the page answers. read_screen's listing lists every option of every facet.
+- A search results listing (/busqueda-avanzada) filters only by Tiendas, Categorías and Marcas. For a spec (processor, RAM, screen, graphics card), open the category's listing with filter_listing and its filters: "notebooks Lenovo con i7" is filter_listing on Notebooks with ["Marcas: Lenovo", "Procesador: INTEL Core i7"].
 - A reply that calls a move tool has no page cue: the move takes them there. The cart and the checkout are only ever reached by their moves, never by a cue.
 
 # A tech advisor, not a brochure
@@ -831,8 +888,8 @@ You speak Spanish as a native of Latin America, and English. The call starts in 
 
 # Every response starts with words
 Write your answer, with its cues, first; any tool call comes at the end of the same response.
-- read_topic, search_site and read_screen come straight back to you within this same turn, but each one makes the visitor wait. Answer from what you know below whenever it covers the question. Read only for what is not here, and then call the read first, with nothing written before it.
-- Every other tool is a move: find_products, check_prices, check_stock, search_products, filter_listing, open_product, show_store, compare_products, add_to_cart, update_cart_item, show_cart, apply_coupon, start_checkout. The page does it a moment later and tells you in square brackets, and you talk it through then. In the reply that calls one, say only what you are doing ("Te busco opciones.", "Te reviso el stock en Maipú.", "Te lo agrego al carro."), never that it is done and never a result.
+- read_topic, read_category, search_site and read_screen come straight back to you within this same turn, but each one makes the visitor wait. Answer from what you know below whenever it covers the question. Read only for what is not here, and then call the read first, with nothing written before it.
+- Every other tool is a move: find_products, check_prices, check_stock, search_products, filter_listing, open_product, show_store, compare_products, remove_from_comparison, add_to_cart, update_cart_item, show_cart, apply_coupon, start_checkout. The page does it a moment later and tells you in square brackets, and you talk it through then. In the reply that calls one, say only what you are doing ("Te busco opciones.", "Te reviso el stock en Maipú.", "Te lo agrego al carro."), never that it is done and never a result.
 - One move at a time: when a tool says the page is still working on the last move, what you asked for follows by itself. Say so in a few words, and never call it again.
 - While a move is still running (a line says so), never say it failed: say you are still on it. Never say the store, the site or the page is slow: it is the store's own site. If a line later says it was done after all, correct yourself in a few words.
 - A question about the call itself — "can I speak English?", "can you hear me?", "who are you?" — gets an answer and nothing else: no move, no page.
@@ -840,17 +897,20 @@ Write your answer, with its cues, first; any tool call comes at the end of the s
 # Finding products
 - find_products reads the store's own catalogue in their browser: up to eight products with their live prices and stock, and how many match. It is how you answer "¿tienen…?", "¿qué me recomiendas?" and "¿cuál es más barato?". Search with the store's Spanish words ("notebook gamer rtx 4060", "monitor 27"), a category from the list below when you know it, a brand and their budget.
 - search_products types their words into the store's own search box so the results page shows on their screen; with open_index it opens one of the results. Use it when they want to see the results themselves.
-- filter_listing opens a category's listing with its facets already on, in one move. On the listing in front, filter with cues as you talk instead.
+- filter_listing opens a category's listing with its facets already on, in one move. On the listing in front, filter with cues as you talk instead. filter_listing also takes filters off in place (remove, or clear for "Limpiar todos"), shows 12, 24 or 32 per page (size) and turns the page (page): "saca la marca" is remove, "muéstrame todos" is size 32, "la página siguiente" is page.
 - open_product opens a product, with a tab when you name one; on the product in front, use a tab cue.
 
 # Prices and stock
 - The store shows three prices. The headline is "Transferencia / Débito": the one you say. "Otros medios de pago" is the price with a credit card: say it when they ask about paying with a card or in cuotas, or when the difference matters. The struck "precio de referencia" and its percentage, only when the lines say it is a real saving.
 - A price or stock you say is one a line from this call gives. Without one, say you will check it, and call check_prices; never a price from memory.
 - Stock is "aprox." and twenty minutes behind, as the store says: say "tiene stock" or "quedan pocas", never a promise. "¿Lo tienen en la tienda de Maipú?" is check_stock with the store: say what it found for that store, and offer to show the store ({{store: Name}}) or nearby stores that have it.
-- Delivery is priced only in the checkout, once they choose despacho and their address: never quote a delivery cost. Store pickup ("retiro en tienda") is free.
+- Delivery is priced only in the checkout, once they choose despacho and their address: never quote a delivery cost; the store has no delivery estimator. Store pickup ("retiro en tienda") is free. The store shows no cuotas calculator: never promise cuotas or their number.
+- Never press, and never offer to press, what is the visitor's own: "Usar mi ubicación actual" (ask for their comuna instead), the order tracking form on /estado-despacho (their RUT and boleta), "Copiar código" on a coupon (apply_coupon does it in the cart), the newsletter and the business quote forms, and the human advisor's button ("Asesórate Online", a person, Monday to Friday 9:00 to 18:30, which you may mention).
 
 # Comparing
-- compare_products ticks the store's own Comparar box on two to four products and brings up its comparator, and gives you their specs side by side as far as you have read them. Then compare in words, on the two or three specs that matter for their use, and say which you would pick and why.
+- compare_products uses the store's own comparator, as the visitor would: it ticks each product's Comparar box (opening a product's page when it is not in front), so the comparator's bar comes up, presses its Comparar, and opens the comparison page with their specs side by side. Two or three products, all of one category: the store refuses a fourth, and refuses mixing categories ("Notebooks" and "Notebooks Gamer" are two). In the reply that calls it, say only that you are comparing them.
+- When the comparison page is in front, a line gives you its rows, the ones that differ first. Walk them through it with cues, ROW BY ROW, ONE ROW PER SENTENCE, on the two to four rows that matter for their use, the cue first: "{{compare: Procesador}} El primero trae un Core i siete, el segundo un i cinco. {{compare: RAM}} Los dos tienen dieciséis gigas. {{compare: diferencias}} Te marco en verde lo que cambia." Then recommend one for their use, with the reason, and offer the next step ("¿Te abro el primero?", "¿Lo agregamos al carro?").
+- Say only values the comparison line gives. When one product has no value for a row, say so, never guess it. remove_from_comparison takes a product out of the comparison, or empties the comparator.
 
 # The cart, the coupon and the checkout
 - add_to_cart, update_cart_item, apply_coupon and start_checkout change what is theirs: call one only when the visitor asked for exactly that in their last words, or said yes to your offer of it. Otherwise offer it as a yes-or-no question and wait for the yes.
@@ -872,6 +932,7 @@ Write your answer, with its cues, first; any tool call comes at the end of the s
 {k.l1}
 
 # Categories (name, id, path — and for the listings, the facets that tell them apart)
+A few options of each facet are shown ("+N more" are not); read_category gives one category's full filters, all their options and the categories under it, and read_screen the listing in front's.
 {_categories(k)}
 
 # Stores
@@ -1020,6 +1081,10 @@ _LANDED: dict[str, dict[Lang, str]] = {
     "stock": {"en": "I'm checking the stock.", "es": "Te reviso el stock."},
     "store": {"en": "I'm showing you the store.", "es": "Te muestro la tienda."},
     "compare": {"en": "I'm putting them side by side.", "es": "Te los comparo."},
+    "uncompare": {
+        "en": "I'm taking that out of the comparison.",
+        "es": "Lo saco de la comparación.",
+    },
     "cart_add": {"en": "I'm adding it to your cart.", "es": "Lo agrego a tu carro."},
     "cart_show": {"en": "I'm opening your cart.", "es": "Te abro el carro."},
     "cart_update": {"en": "I'm changing that in your cart.", "es": "Te lo cambio en el carro."},
@@ -1072,6 +1137,10 @@ _HOLDING: dict[str, dict[Lang, tuple[str, ...]]] = {
         "en": ("Still updating your cart, one moment.", "Almost done with your cart."),
         "es": ("Sigo actualizando tu carro, un momento.", "Ya casi termino con tu carro."),
     },
+    "compare.add": {
+        "en": ("Still setting up the comparison, one moment.", "Almost there with the comparison."),
+        "es": ("Sigo armando la comparación, un momento.", "Ya casi está la comparación."),
+    },
     "commerce.search": {
         "en": ("Still searching, one moment.", "Almost there with the results."),
         "es": ("Sigo buscando, un momento.", "Ya casi tengo los resultados."),
@@ -1108,6 +1177,7 @@ _TOOL_OF: dict[str, str] = {
     "commerce.cart_update": "update_cart_item",
     "commerce.cart_show": "show_cart",
     "compare.add": "compare_products",
+    "compare.remove": "remove_from_comparison",
     "stores.show": "show_store",
     "product.tab": "open_product",
 }
@@ -1134,47 +1204,121 @@ _NAME_CODES = re.compile(
 )
 
 
+#: Words a said name never ends on: they lead into what was cut ("ThinkPad
+#: T14 Gen" was "ThinkPad T14 Gen 6", dev call 31a45613).
+_DANGLING = frozenset(
+    "gen generation generación serie series de del con y and with for para - / + |".split()  # noqa: SIM905
+)
+
+
 def short_name(name: str, words: int = 6) -> str:
     """A product's name as said aloud: up to its first code or spec, at most
     ``words`` words ("Notebook Lenovo IdeaPad Slim 3 Intel Core i5…" →
-    "Notebook Lenovo IdeaPad Slim 3")."""
+    "Notebook Lenovo IdeaPad Slim 3"), never ending on a word that leads into
+    the cut ("Gen" keeps its number: "ThinkPad T14 Gen 6")."""
     head = _NAME_CODES.split(name.strip(), maxsplit=1)[0].strip(" ,-")
-    kept = (head or name).split()
-    return " ".join(kept[:words]) if len(kept) >= 2 else " ".join(name.split()[:words])
+    all_words = (head or name).split() if len((head or name).split()) >= 2 else name.split()
+    kept = all_words[:words]
+    rest = all_words[words:]
+    if (
+        kept
+        and kept[-1].lower() in {"gen", "generation", "generación"}
+        and rest
+        and rest[0].isdigit()
+    ):
+        kept.append(rest[0])
+    while len(kept) > 1 and kept[-1].lower().strip(".,") in _DANGLING:
+        kept.pop()
+    if len(kept) >= 2 and kept[-1].lower() in {"gen", "generation", "generación"}:
+        kept.pop()
+    return " ".join(kept)
 
 
-def listing_line(e: ListingShown, lang: Lang, named: list[str] | None = None) -> str:
+#: Facets whose options read as a brand ("de Lenovo"), a place ("en
+#: Maipú") or a category ("en Notebooks"); every other is a spec ("con 16GB").
+_BRAND_FACETS = frozenset({"marcas", "marca"})
+_PLACE_FACETS = frozenset({"tiendas", "tienda"})
+_KIND_FACETS = frozenset({"categorias", "categoria"})
+#: An option that is only a size ("16GB", "512 GB") says which facet it is.
+_BARE_SIZE = re.compile(r"^\d+(?:[.,]\d+)?\s?(?:GB|TB|MB)$", re.IGNORECASE)
+
+
+def _option_said(option: str) -> str:
+    """An option as said: all-capital words of four letters or more in
+    ordinary case ("INTEL Core i7" → "Intel Core i7"); codes stay."""
+    return " ".join(
+        w.capitalize() if len(w) >= 4 and w.isalpha() and w.isupper() else w for w in option.split()
+    )
+
+
+def filters_said(named: list[tuple[str, str]], lang: Lang) -> str:
+    """The filters a move put on, as one natural phrase: "de Lenovo, con
+    Intel Core i7 y 16GB de RAM" / "from Lenovo, with Intel Core i7 and 16GB
+    of RAM". A manufacturer an option of another facet already names is left
+    out ("INTEL" beside "INTEL Core i7")."""
+    options = [o for _, o in named]
+    kept = [
+        (f, o)
+        for f, o in named
+        if not any(other != o and fold(other).startswith(fold(o) + " ") for other in options)
+    ]
+    brands = [_option_said(o) for f, o in kept if facet_key(f) in _BRAND_FACETS]
+    places = [o for f, o in kept if facet_key(f) in _PLACE_FACETS]
+    kinds = [o for f, o in kept if facet_key(f) in _KIND_FACETS]
+    specs: list[str] = []
+    for f, o in kept:
+        key = facet_key(f)
+        if key in _BRAND_FACETS | _PLACE_FACETS | _KIND_FACETS:
+            continue
+        said = _option_said(o)
+        if _BARE_SIZE.match(o) and key in ("ram", "memoria ram", "memoria"):
+            said = f"{said} of RAM" if lang == "en" else f"{said} de RAM"
+        specs.append(said)
+    parts: list[str] = []
+    if kinds:
+        parts.append(("in " if lang == "en" else "en ") + _said_list(kinds, lang))
+    if brands:
+        parts.append(("from " if lang == "en" else "de ") + _said_list(brands, lang))
+    if specs:
+        parts.append(("with " if lang == "en" else "con ") + _said_list(specs, lang))
+    if places:
+        parts.append(("at " if lang == "en" else "en ") + _said_list(places, lang))
+    return ", ".join(parts)
+
+
+def listing_line(
+    e: ListingShown, lang: Lang, named: list[tuple[str, str]] | list[str] | None = None
+) -> str:
     """His line the moment a listing he filtered, sorted or searched lands: how
-    many, in what (``named``: the options his move put on, as the listing
-    writes them), and the first card with its transfer price. Said with no
-    model request before it."""
+    many, with what (``named``: the (facet, option) pairs his move put on, as
+    the listing writes them), and the first card with its transfer price. Said
+    with no model request before it."""
     n = e.count if e.count is not None else len(e.items)
-    what = _said_list(named or [], lang)
+    pairs = [x if isinstance(x, tuple) else ("", x) for x in (named or [])]
+    what = filters_said(pairs, lang)
     if n == 0 or not e.items:
         if lang == "en":
-            return f"No products show in {what}." if what else "No products show for that."
+            return f"No products show {what}." if what else "No products show for that."
         return (
-            f"No aparece ningún producto en {what}."
-            if what
-            else "No aparece ningún producto con eso."
+            f"No aparece ningún producto {what}." if what else "No aparece ningún producto con eso."
         )
     first = e.items[0]
     name = short_name(first.name)
     price = ""
     if first.price is not None:
         said = pesos_said(first.price, lang)
-        price = f" at {said}" if lang == "en" else f", a {said}"
-    where = f" in {what}" if what and lang == "en" else f" en {what}" if what else ""
+        price = f", at {said}" if lang == "en" else f", a {said}"
+    where = f" {what}" if what else ""
     if lang == "en":
         return (
-            f"Here's one{where}: {name}{price}."
+            f"Here's one{where}: the {name}{price}."
             if n == 1
-            else f"Here are {n}{where}; the first is {name}{price}."
+            else f"Here are {n}{where}. The first is the {name}{price}."
         )
     return (
-        f"Aquí hay uno{where}: {name}{price}."
+        f"Aquí hay uno{where}: el {name}{price}."
         if n == 1
-        else f"Aquí hay {n}{where}; el primero es {name}{price}."
+        else f"Aquí hay {n}{where}. El primero es el {name}{price}."
     )
 
 
@@ -1204,6 +1348,46 @@ def _option_set(labels: str | list[str] | None) -> frozenset[str]:
     return frozenset(k for i in items if (k := _option_key(i)))
 
 
+def _number_words() -> dict[str, str]:
+    """Spoken numbers to digits, folded, both languages, up to 2048 (the
+    sizes a visitor says: "dieciséis", "thirty-two", "quinientos doce")."""
+    out: dict[str, str] = {}
+    for n in [*range(1, 129), 256, 512, 1024, 2048]:
+        for said in (_es_number(n), _en_number(n)):
+            out[fold(said)] = str(n)
+            out[fold(said).replace("-", " ")] = str(n)
+    return out
+
+
+_SAID_NUMBERS = _number_words()
+_SAID_NUMBER = re.compile(
+    r"\b(?:" + "|".join(re.escape(w) for w in sorted(_SAID_NUMBERS, key=len, reverse=True)) + r")\b"
+)
+
+
+def _heard_tokens(said: str) -> tuple[set[str], str]:
+    """What the visitor said, folded, numbers as digits: its words, and all of
+    them run together."""
+    text = _SAID_NUMBER.sub(lambda m: _SAID_NUMBERS[m.group(0)], fold(said))
+    words = re.findall(r"[a-z0-9]+", text)
+    return set(words), "".join(words)
+
+
+def named_in(option: str, said: str) -> bool:
+    """Whether the visitor's words ``said`` name ``option`` of a facet: its
+    words run together ("intelcorei7" in "intel core i7"), a word of it with a
+    digit ("i7"), or its number ("16" for "16GB", "dieciséis gigas")."""
+    words, tight = _heard_tokens(said)
+    key = _option_key(option)
+    if key and key in tight:
+        return True
+    parts = re.findall(r"[a-z0-9]+", fold(option))
+    if any(any(ch.isdigit() for ch in p) and p in words for p in parts):
+        return True
+    number = re.match(r"\d+", option.strip())
+    return number is not None and number.group(0) in words
+
+
 def _on_of(event: ListingShown, facet: str) -> list[str]:
     """The options checked in ``facet`` on the listing, as it writes them."""
     want = facet_key(facet)
@@ -1221,22 +1405,41 @@ def _asked_filters(raw: Any) -> dict[str, list[str]]:
     return out
 
 
-def landed_options(landing: Landing, event: ListingShown) -> list[str]:
-    """The options a filter move put on, as the listing writes them, for its
-    landing line. A sort names none."""
+def landed_options(
+    landing: Landing, event: ListingShown, facets: Iterable[str] = ()
+) -> list[tuple[str, str]]:
+    """The (facet, option) pairs a filter move put on, as the listing writes
+    them, for its landing line: those of the facets this move asked for, and
+    of ``facets`` (the other filters of the same turn). A sort names none."""
     move, args, cue = landing.move.id, landing.args or {}, landing.cue_args
+    asked: list[str] = list(facets)
     if move == "commerce.filter" and cue:
-        # One listing answers every filter cue of the reply: it names them all.
-        return [x for f in event.facets for x in f.on]
-    if move == "filter_listing":
-        return [x for facet in _asked_filters(args.get("filters")) for x in _on_of(event, facet)]
-    return []
+        asked.append(cue[0])
+    elif move == "filter_listing":
+        asked += list(_asked_filters(args.get("filters")))
+    elif not asked:
+        return []
+    keys = {facet_key(f) for f in asked}
+    return [(f.facet, x) for f in event.facets if facet_key(f.facet) in keys for x in f.on]
+
+
+def empty_listing(event: ListingShown) -> bool:
+    """A listing with no products in it: a real answer only once the move's own
+    result confirms it, never as it is drawn (the grid is empty for a moment
+    while the store redraws it, dev calls 31a45613 and 8b363867)."""
+    return event.count == 0 or not event.items
+
+
+_CURATED = re.compile(r"^(?:https?://[^/]+)?/busqueda/?\?(?:.*&)?productos=([\d,]+)", re.IGNORECASE)
 
 
 def _listing_base(path: str) -> str:
-    """A listing's address without its query, but a search's with its words."""
+    """A listing's address without its query, but a search's with its words
+    and a curated list's (``/busqueda?productos=…``) with its products."""
     if (q := search_query(path)) is not None:
         return search_path(q)
+    if (m := _CURATED.match(path.strip())) is not None:
+        return f"/busqueda?productos={m.group(1)}"
     return canonical_path(path)
 
 
@@ -1250,6 +1453,8 @@ def lands(landing: Landing, event: ListingShown | ProductShown) -> bool:
             return args.get("open_index") is not None
         want = args.get("path")
         return isinstance(want, str) and product_path(event.path) == product_path(want)
+    if empty_listing(event) and not landing.result:
+        return False
     if move == "commerce.search":
         return args.get("open_index") is None and search_query(event.path) is not None
     if move == "filter_listing":
@@ -1674,6 +1879,16 @@ _TABS: dict[str, ProductTab] = {
     "photos": "photos",
     "fotos": "photos",
     "galeria": "photos",
+    "zoom": "zoom",
+    "fotos grandes": "zoom",
+    "big photos": "zoom",
+    "pickup": "pickup",
+    "retiro": "pickup",
+    "retiro en tienda": "pickup",
+    "disponibilidad de retiro en tienda": "pickup",
+    "price_note": "price_note",
+    "price note": "price_note",
+    "transferencia": "price_note",
 }
 #: Which source of a price wins over which: the store's live read over the
 #: page's, the page's over a card's.
@@ -1755,11 +1970,15 @@ def _listing_note(e: ListingShown, lang: Lang) -> str:
     note += "."
     offered = [f for f in e.facets if f.options]
     if offered:
+        # Every option of every facet: a facet cut short is an option he says
+        # is not there (dev call 8b363867, "INTEL Core i7" was the 19th).
         note += (
-            " Its facets: "
-            + _clip([f"{f.facet} ({', '.join(f.options[:8])})" for f in offered], _FACETS_IN_NOTE)
+            " Its facets, with every option (cue them as written): "
+            + "; ".join(f"{f.facet} ({', '.join(f.options)})" for f in offered)
             + "."
         )
+        if search_query(e.path) is not None:
+            note += " A search filters by these only: for a spec, filter_listing on the category."
     if e.items:
         cards = [
             f"{i.name} ({i.path})" + (f", {_money(i.price, lang)}" if i.price is not None else "")
@@ -1863,7 +2082,68 @@ def _store_note(e: StoreShown) -> str:
 
 def _compare_note(e: CompareShown) -> str:
     names = [f"{i.name or i.path} ({i.path})" for i in e.items]
-    return f"[The store's comparator shows: {'; '.join(names) or 'nothing'}.]"
+    return f"[The store's comparator bar holds: {'; '.join(names) or 'nothing'}.]"
+
+
+_COMPARED_ROWS = 40
+_SAME_ROWS = 25
+
+
+def _comparison_note(e: ComparisonShown, lang: Lang) -> str:
+    """The comparison page for the model: the products left to right with
+    their prices, the rows that differ first with every value, then the rows
+    that are the same."""
+    items = [
+        f"{n}. {i.name or i.path} ({i.path})"
+        + (f", {i.brand}" if i.brand else "")
+        + (f": Transferencia {_money(i.price, lang)}" if i.price is not None else "")
+        + (
+            f", otros medios {_money(i.card_price, lang)}"
+            if i.card_price is not None and i.card_price != i.price
+            else ""
+        )
+        for n, i in enumerate(e.items, 1)
+    ]
+    note = (
+        f"[The comparison page is in front ({e.category or 'one category'}), left to right: "
+        + "; ".join(items)
+        + "."
+    )
+
+    def values(r: ComparisonRow) -> str:
+        return " | ".join(v or "(none)" for v in r.values)
+
+    differs = set(e.differs)
+    differ = [r for r in e.rows if r.label in differs]
+    partly = [r for r in e.rows if r.label not in differs and not all(r.values)]
+    same = [r for r in e.rows if r.label not in differs and all(r.values)]
+    if differ:
+        note += (
+            " Rows that differ (cue one with {compare: Label}): "
+            + _clip([f"{r.label}: {values(r)}" for r in differ], _COMPARED_ROWS)
+            + "."
+        )
+    if partly:
+        note += (
+            " Rows the store fills for only some of them (say plainly that one has no value): "
+            + _clip([f"{r.label}: {values(r)}" for r in partly], _COMPARED_ROWS)
+            + "."
+        )
+    if same:
+        note += (
+            " The same in all: "
+            + _clip([f"{r.label}: {r.values[0] if r.values else ''}" for r in same], _SAME_ROWS)
+            + "."
+        )
+    note += (
+        " Destacar diferencias is on."
+        if e.highlighted
+        else " {compare: diferencias} turns on Destacar diferencias."
+    )
+    return (
+        note + " Walk them through the rows that matter for their use, one cue per sentence, then "
+        "recommend one.]"
+    )
 
 
 def _cart_note(e: CartState, lang: Lang) -> str:
@@ -1981,6 +2261,12 @@ class PcFactoryBrain(OpenAIBrain):
         self.checkout: CheckoutState | None = None
         self.found: ProductsFound | None = None
         self.compared: CompareShown | None = None
+        #: The comparison page in front, as it last reported its table.
+        self.comparison: ComparisonShown | None = None
+        #: The facets the moves of the visitor's turn asked for, for the
+        #: landing line; and the listing move whose line waits to be said.
+        self._turn_facets: list[str] = []
+        self._landing: tuple[Landing, str, float] | None = None
         self._checkout_asked = False
         #: Every price and stock read this call, by /producto/<id>; and every
         #: product's specifications as its page showed them.
@@ -2157,6 +2443,8 @@ class PcFactoryBrain(OpenAIBrain):
         self._playing = 0
         self._nudges = 0
         self._heard = [*self._heard[-3:], msg.text]
+        self._turn_facets = []
+        self._landing = None
         self._backstop = (
             None
             if asks_call_language(msg.text) or self._in_flow()
@@ -2199,8 +2487,9 @@ class PcFactoryBrain(OpenAIBrain):
         self._restore_idle()
         self._backstop = None
         self._expire()
-        # What landed on screen, the latest line of it, then any confirmed move's.
-        landing = self.stage.take_lines()[-1:]
+        # What landed on screen, the latest line of it (rebuilt from the
+        # listing as it stands now), then any confirmed move's.
+        landing = self._fresh_lines(self.stage.take_lines())[-1:]
         done = " ".join([*landing, *self._done])
         self._done = []
         hold = self._take_hold()
@@ -2525,6 +2814,10 @@ class PcFactoryBrain(OpenAIBrain):
                 return self._resolve_filter(want, args[1] if len(args) > 1 else "")
             case "commerce.sort":
                 return self._resolve_sort(want)
+            case "compare.show":
+                return self._resolve_compare(want)
+            case "menu.open":
+                return self._resolve_menu(want)
             case _:
                 return None
 
@@ -2663,6 +2956,7 @@ class PcFactoryBrain(OpenAIBrain):
             self._cue_refused(labels)
             return None
         name, options = labels
+        self._turn_facets.append(name)
         # Several options of one facet ride one cue, ", " between them: the
         # page adds each to what is already on.
         return [name, ", ".join(options)[:160], path]
@@ -2671,7 +2965,10 @@ class PcFactoryBrain(OpenAIBrain):
         self, path: str, cat: Category | None, facet: str, value: str | list[str]
     ) -> tuple[str, list[str]] | str:
         """The facet as the listing writes it and each option asked for, as it
-        writes them; or why not, naming what the listing has."""
+        writes them; or why not, naming what the listing has. Several options
+        of one facet keep only those the visitor named in their last words
+        (and those already on): "at least sixteen" is 16GB, never 16, 24, 32,
+        48 and 64GB (dev call 8b363867)."""
         facets = self._facets_for(path, cat)
         want = facet_key(facet)
         hit = next((f for f in facets if facet_key(f[0]) == want), None)
@@ -2710,7 +3007,66 @@ class PcFactoryBrain(OpenAIBrain):
             return (
                 f"{name} has no {' or '.join(repr(u) for u in unknown)} here (it lists: {listed})"
             )
-        return name, out
+        return name, self._named_only(path, name, out)
+
+    def _named_only(self, path: str, facet: str, options: list[str]) -> list[str]:
+        """Of several options of one facet, those the visitor named in their
+        last words, and those already on; the first alone when they named
+        none of them."""
+        if len(options) < 2 or not self._heard:
+            return options
+        said = " ".join(self._heard)
+        on: set[str] = set()
+        if self.listing is not None and _listing_base(self.listing.path) == path:
+            on = {_option_key(o) for o in _on_of(self.listing, facet)}
+        new = [o for o in options if _option_key(o) not in on]
+        named = [o for o in new if named_in(o, said)]
+        if new and not named:
+            named = new[:1]
+        kept = [o for o in options if _option_key(o) in on or o in named]
+        if kept != options:
+            logger.info(
+                "pcfactory: {} options {} cut to {}: the visitor named only those ({!r})",
+                facet,
+                options,
+                kept,
+                said,
+            )
+        return kept or options[:1]
+
+    def _resolve_compare(self, asked: str) -> list[str] | None:
+        """A row of the comparison page in front, as the table writes it; or
+        diferencias, or precio."""
+        table = self.comparison
+        if table is None or self._moved_to() is not None:
+            self._cue_refused("no comparison page is in front; compare_products opens it")
+            return None
+        said = norm(asked)
+        if said in (
+            "diferencias",
+            "diferencia",
+            "differences",
+            "difference",
+            "destacar diferencias",
+        ):
+            return ["diferencias"]
+        if said in ("precio", "precios", "price", "prices"):
+            return ["precio"]
+        labels = [r.label for r in table.rows]
+        row = _match(asked, labels)
+        if row is None:
+            self._cue_refused(
+                f"the comparison has no row '{asked}' (it has: {', '.join(labels[:40])})"
+            )
+            return None
+        return [row]
+
+    def _resolve_menu(self, asked: str) -> list[str]:
+        """A top category of the Categorías menu, as the store names it."""
+        if not asked.strip():
+            return []
+        tops = [c.name for c in self.kb.unique_categories() if c.level == 1]
+        return [(_match(asked, tops) or asked.strip())[:60]]
 
     def _resolve_sort(self, order: str) -> list[str] | None:
         listing = self._listing_for_cue()
@@ -2779,7 +3135,7 @@ class PcFactoryBrain(OpenAIBrain):
                 self.page = event
                 self._path = (
                     _listing_base(event.url or event.path)
-                    if event.kind == "search"
+                    if event.kind in ("search", "category")
                     else canonical_path(event.path)
                 )
                 self._page_unseen = True
@@ -2787,6 +3143,8 @@ class PcFactoryBrain(OpenAIBrain):
                     self.product = None
                 if event.kind not in ("category", "search"):
                     self.listing = None
+                if event.kind != "compare":
+                    self.comparison = None
                 return None
             case TabsChanged():
                 self.tabs = event.tabs
@@ -2884,6 +3242,14 @@ class PcFactoryBrain(OpenAIBrain):
                 state = checkout_view(value)
                 self.checkout = state
                 return _checkout_note(state)
+            case "compare":
+                table = comparison_view(value)
+                self.comparison = table
+                for i in table.items:
+                    self._remember(
+                        i.path, i.name, i.price, i.card_price, i.regular_price, "", "page"
+                    )
+                return f"{folded.note or 'The comparison page is in front'}. {_comparison_note(table, self.spoken)}"
             case _:
                 pass
         return folded.note
@@ -3122,6 +3488,7 @@ class PcFactoryBrain(OpenAIBrain):
             "checkout": "the checkout",
             "stores": "the store list",
             "help": "a Centro de ayuda page",
+            "compare": "the comparison page",
             "page": "a page of the store",
         }
         note = f"[The tab in front shows {kinds[p.kind]}: “{p.title or p.path}” ({self._path})."
@@ -3141,7 +3508,7 @@ class PcFactoryBrain(OpenAIBrain):
         return "; ".join(
             f"{r.move.id} ({r.phase or 'sent'}, {r.seconds:.0f} s so far)"
             for r in self.stage.running()
-            if r.call_ref not in self._cues
+            if (r.call_ref not in self._cues or r.move.cls is MoveClass.REVERSIBLE)
             and r.move.cls is not MoveClass.LOOK
             and r.seconds >= 2
             and not r.shown
@@ -3152,8 +3519,22 @@ class PcFactoryBrain(OpenAIBrain):
         listing he filtered, sorted or searched, a product he opened. Said in
         the next quiet spell, made short now; the model may add one sentence."""
         event = landing.event
+        if (
+            event is None
+            and landing.result is not None
+            and landing.move.id in _LISTING_MOVES
+            and self.listing is not None
+            and lands(landing, self.listing)
+        ):
+            # The move's own result, with the listing it left: an empty one
+            # lands only here, once the page says the move is done.
+            event = self.listing
         if isinstance(event, ListingShown):
-            line = listing_line(event, self.spoken, landed_options(landing, event))
+            line = listing_line(
+                event, self.spoken, landed_options(landing, event, self._turn_facets)
+            )
+            # When its move was sent, to tell the moves sent after it.
+            self._landing = (landing, line, time.monotonic() - landing.seconds)
         elif isinstance(event, ProductShown):
             line = product_line(event, self.spoken)
         else:
@@ -3169,6 +3550,37 @@ class PcFactoryBrain(OpenAIBrain):
         )
         self._shorten_idle(_DONE_MS)
         return line
+
+    def _fresh_lines(self, lines: list[str]) -> list[str]:
+        """The landing lines to say now. A listing's is rebuilt from the
+        listing as it stands, never from an older report (dev call 8b363867:
+        "Here are 38 in Lenovo" said after the screen showed 21); and while
+        another listing move of his is still to land, his line waits for
+        that one's."""
+        waiting, self._landing = self._landing, None
+        if not lines or waiting is None or self.listing is None or lines[-1] != waiting[1]:
+            return lines
+        landing, _, sent_at = waiting
+        now = time.monotonic()
+        # Only a move sent after this one: an earlier one this listing
+        # already answers lands with its own result.
+        if any(
+            r.move.id in _LISTING_MOVES and not r.shown and now - r.seconds > sent_at + 0.001
+            for r in self.stage.running()
+        ):
+            logger.info("pcfactory: landing line held: another listing move is still running")
+            return lines[:-1]
+        event = landing.event if isinstance(landing.event, ListingShown) else None
+        newer = event is not None and event is not self.listing
+        if newer and not empty_listing(self.listing):
+            line = listing_line(
+                self.listing,
+                self.spoken,
+                landed_options(landing, self.listing, self._turn_facets),
+            )
+            logger.info("pcfactory: landing line rebuilt from the newest listing: {!r}", line)
+            return [*lines[:-1], line]
+        return lines
 
     def _holding_floor(self) -> bool:
         playing = self._playing > 0 and time.monotonic() - self._played_at < _PLAYOUT_MAX_S
@@ -3371,6 +3783,7 @@ class PcFactoryBrain(OpenAIBrain):
         return [
             self.read_screen,
             self.read_topic,
+            self.read_category,
             self.search_site,
             self.find_products,
             self.check_prices,
@@ -3380,6 +3793,7 @@ class PcFactoryBrain(OpenAIBrain):
             self.open_product,
             self.show_store,
             self.compare_products,
+            self.remove_from_comparison,
             self.add_to_cart,
             self.update_cart_item,
             self.show_cart,
@@ -3407,6 +3821,9 @@ class PcFactoryBrain(OpenAIBrain):
             case "checkout":
                 if self.checkout is not None:
                     return _checkout_note(self.checkout)
+            case "compare":
+                if self.comparison is not None:
+                    return _comparison_note(self.comparison, self.spoken)
         mirror = self.stage.mirror
         return mirror.read(request.slice) if mirror is not None else "Nothing to read."
 
@@ -3417,6 +3834,32 @@ class PcFactoryBrain(OpenAIBrain):
         if topic is None:
             return f"No topic '{request.topic}' is written yet: use search_site."
         return topic.text
+
+    @needs_result_now
+    async def read_category(self, request: CategoryRequest) -> str:
+        """Read one category of the store: its path, the categories under it,
+        and every filter its listing offers with all their options, written as
+        the listing writes them. For a category or a filter the list below
+        does not show."""
+        said = request.name.strip()
+        c = self.kb.category_by_id(int(said)) if said.isdigit() else self.kb.find_category(said)
+        if c is None:
+            return f"No category matches '{said}'. Use find_products with words instead."
+        out = [f"{c.name} (id {c.id}) {c.path}"]
+        under = [
+            k
+            for k in self.kb.unique_categories()
+            if k.parent == c.path or any(k.parent == a for a in c.aliases)
+        ]
+        if under:
+            out.append(
+                "Under it: "
+                + "; ".join(f"{k.name} (id {k.id}) {k.path}" for k in under[:_UNDER_SHOWN])
+            )
+        for f in c.facets:
+            if f.options:
+                out.append(f"{f.name}: {', '.join(f.options)}")
+        return "\n".join(out)
 
     @needs_result_now
     async def search_site(self, request: SearchRequest) -> str:
@@ -3601,6 +4044,11 @@ class PcFactoryBrain(OpenAIBrain):
                 refused.append(got)
             else:
                 filters += [f"{got[0]}: {o}" for o in got[1]]
+                self._turn_facets.append(got[0])
+        removed = [r for r in (request.remove or []) if ":" in r]
+        refused += [f"'{r}' is not 'Facet: Option'" for r in request.remove or [] if ":" not in r]
+        if request.page is not None and request.page < 1:
+            refused.append("page is 1 or more")
         if refused:
             return "Not done: " + "; ".join(refused) + "."
         action = FilterListingArgs(
@@ -3609,6 +4057,10 @@ class PcFactoryBrain(OpenAIBrain):
             min_price=request.min_price,
             max_price=request.max_price,
             sort=request.sort,
+            remove=removed or None,
+            clear=request.clear or None,
+            page=request.page,
+            size=request.size,
         )
         queued = self._move("filter_listing", action, "filter")
         if queued is not None:
@@ -3620,6 +4072,13 @@ class PcFactoryBrain(OpenAIBrain):
             bits.append(f"up to {pesos(request.max_price)}")
         if request.sort:
             bits.append(f"sorted {request.sort}")
+        bits += [f"without {r}" for r in removed]
+        if request.clear:
+            bits.append("every filter off")
+        if request.size:
+            bits.append(f"{request.size} per page")
+        if request.page:
+            bits.append(f"page {request.page}")
         applied = ", ".join(bits)
         return (
             f"Opening {cat.name if cat else path}" + (f" with {applied}" if applied else "") + ". "
@@ -3643,12 +4102,26 @@ class PcFactoryBrain(OpenAIBrain):
             if queued is not None:
                 return queued
             return f"Opening its {request.tab} tab. " + self._sent_note("'Te muestro esa pestaña.'")
-        queued = self._move("open_product", OpenProductArgs(path=path, tab=request.tab), "product")
+        # The big photos, the pickup window and the price's ⓘ are cues on the
+        # product in front: opened first, then cued.
+        tab = (
+            request.tab
+            if request.tab in ("about", "specs", "warranty", "stock", "photos")
+            else None
+        )
+        queued = self._move("open_product", OpenProductArgs(path=path, tab=tab), "product")
         if queued is not None:
             return queued
         live = self._price_of(path)
-        return f"Opening {live.name if live and live.name else path}. " + self._sent_note(
-            "'Te abro el producto.'"
+        then = (
+            f" Once it is in front, {{tab: {request.tab}}} opens that."
+            if request.tab and not tab
+            else ""
+        )
+        return (
+            f"Opening {live.name if live and live.name else path}. "
+            + self._sent_note("'Te abro el producto.'")
+            + then
         )
 
     async def show_store(self, request: ShowStoreRequest) -> str:
@@ -3672,19 +4145,24 @@ class PcFactoryBrain(OpenAIBrain):
         return f"Showing the {name} store{where}. " + self._sent_note("'Te muestro la tienda.'")
 
     async def compare_products(self, request: CompareRequest) -> str:
-        """Tick the store's own Comparar box on two to four products of the
-        listing in front (or the product in front) and bring up its
-        comparator; returns their prices and specs side by side as far as you
-        have read them, to compare in words once the page answers."""
+        """Compare two or three products of one category with the store's own
+        comparator, through its visible controls: each product's Comparar box
+        ticked (its page opened first when it is not in front), the bar's
+        Comparar pressed, and the comparison page opened with their specs side
+        by side. It returns at once; the comparison comes back to you to walk
+        them through, row by row, with {compare: Label} cues."""
         if (meta := self._meta_turn()) is not None:
             return meta
         paths = list(dict.fromkeys(p for raw in request.paths if (p := product_path(raw))))
-        if not 2 <= len(paths) <= 4:
-            return "Not compared: give two to four '/producto/<id>' paths."
+        if not 2 <= len(paths) <= 3:
+            return (
+                "Not compared: the store's comparator takes two or three '/producto/<id>' "
+                "paths of one category."
+            )
         unknown = [p for p in paths if not self._seen(p)]
         if unknown:
             return self._unknown_product(", ".join(unknown))
-        queued = self._move("compare.add", AddArgs(paths=paths), "compare", loads=False)
+        queued = self._move("compare.add", AddArgs(paths=paths, open=True), "compare")
         if queued is not None:
             return queued
         return (
@@ -3692,6 +4170,27 @@ class PcFactoryBrain(OpenAIBrain):
             + self._side_by_side(paths)
             + " "
             + self._sent_note("'Te los comparo.'")
+        )
+
+    async def remove_from_comparison(self, request: UncompareRequest) -> str:
+        """Take one product out of the comparison (its ✕), or empty the
+        comparator ("Limpiar selección") with all. It returns at once; what
+        the comparison shows then comes back to you."""
+        if (meta := self._meta_turn()) is not None:
+            return meta
+        path = product_path(request.path) if request.path else None
+        if path is None and not request.all:
+            return "Not done: give the '/producto/<id>' to take out, or all."
+        queued = self._move(
+            "compare.remove",
+            RemoveArgs(path=path, all=request.all or None),
+            "uncompare",
+            loads=False,
+        )
+        if queued is not None:
+            return queued
+        return ("Emptying the comparator. " if request.all else f"Taking {path} out. ") + (
+            self._sent_note("'Lo saco de la comparación.'")
         )
 
     def _side_by_side(self, paths: list[str]) -> str:

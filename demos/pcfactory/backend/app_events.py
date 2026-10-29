@@ -45,6 +45,9 @@ __all__ = [
     "CheckoutState",
     "CompareItem",
     "CompareShown",
+    "ComparisonItem",
+    "ComparisonRow",
+    "ComparisonShown",
     "FacetState",
     "FoundItem",
     "LanguageRequested",
@@ -63,13 +66,14 @@ __all__ = [
     "TabsChanged",
     "cart_view",
     "checkout_view",
+    "comparison_view",
     "listing_view",
     "product_view",
 ]
 
 
 PageKind = Literal[
-    "home", "category", "search", "product", "cart", "checkout", "stores", "help", "page"
+    "home", "category", "search", "product", "cart", "checkout", "stores", "help", "compare", "page"
 ]
 
 
@@ -81,9 +85,11 @@ class PageChanged(AppEvent):
     path: str
     title: str = ""
     kind: PageKind = "page"
-    """``category`` a listing, ``search`` the search results, ``product`` a
+    """``category`` a listing (a category, or a curated list
+    ``/busqueda?productos=…``), ``search`` the search results, ``product`` a
     product page, ``cart`` /carro, ``checkout`` /checkout/…, ``stores``
-    /tiendas, ``help`` the Centro de ayuda, ``page`` anything else."""
+    /tiendas, ``help`` the Centro de ayuda, ``compare`` the comparison page
+    (/comparador), ``page`` anything else."""
     headings: list[str] = Field(default_factory=list[str])
     """The page's headings, in order, as it renders them."""
     faqs: list[str] = Field(default_factory=list[str])
@@ -193,7 +199,8 @@ class CompareItem(BaseModel):
 
 
 class CompareShown(AppEvent):
-    """The store's comparator, with the products in it."""
+    """The store's comparator bar ("Comparador (n/3)"), with the products in
+    it; the comparison page itself is the ``compare`` slice."""
 
     items: list[CompareItem] = Field(default_factory=list[CompareItem])
 
@@ -252,6 +259,40 @@ class ListingShown(BaseModel):
     def filters(self) -> dict[str, str]:
         """The filters on: facet → its checked options joined by ", "."""
         return {f.facet: ", ".join(f.on) for f in self.facets if f.on}
+
+
+class ComparisonItem(BaseModel):
+    path: str
+    name: str = ""
+    brand: str = ""
+    price: int | None = None
+    """Transferencia, CLP."""
+    card_price: int | None = None
+    regular_price: int | None = None
+
+
+class ComparisonRow(BaseModel):
+    group: str = ""
+    label: str
+    values: list[str] = Field(default_factory=list[str])
+    """Left to right, as the products; ``""`` where one has none."""
+
+
+class ComparisonShown(BaseModel):
+    """The comparison page (/comparador) is in front: its products and the
+    specification rows with a value, in the table's order."""
+
+    path: str = "/comparador"
+    category: str = ""
+    items: list[ComparisonItem] = Field(default_factory=list[ComparisonItem])
+    rows: list[ComparisonRow] = Field(default_factory=list[ComparisonRow])
+    differs: list[str] = Field(default_factory=list[str])
+    """The labels of the rows whose values differ."""
+    highlighted: bool = False
+    """Whether Destacar diferencias is on."""
+
+    def row(self, label: str) -> ComparisonRow | None:
+        return next((r for r in self.rows if r.label == label), None)
 
 
 class CartItem(BaseModel):
@@ -403,4 +444,34 @@ def checkout_view(value: Mapping[str, Any]) -> CheckoutState:
         step=step if step in ("login", "delivery", "payment", "other") else "other",
         options=_strings(value.get("options")),
         chosen=_text(value.get("chosen")),
+    )
+
+
+def comparison_view(value: Mapping[str, Any]) -> ComparisonShown:
+    """The ``compare`` slice, as the brain's rules read it."""
+    return ComparisonShown(
+        path=str(value.get("path") or "/comparador"),
+        category=_text(value.get("category")),
+        items=[
+            ComparisonItem(
+                path=str(i.get("path") or ""),
+                name=str(i.get("name") or ""),
+                brand=_text(i.get("brand")),
+                price=_num(i.get("price")),
+                card_price=_num(i.get("card_price")),
+                regular_price=_num(i.get("regular_price")),
+            )
+            for i in _rows(value.get("items"))
+        ],
+        rows=[
+            ComparisonRow(
+                group=_text(r.get("group")),
+                label=str(r.get("label")),
+                values=_strings(r.get("values")),
+            )
+            for r in _rows(value.get("rows"))
+            if r.get("label")
+        ],
+        differs=_strings(value.get("differs")),
+        highlighted=value.get("highlighted") is True,
     )

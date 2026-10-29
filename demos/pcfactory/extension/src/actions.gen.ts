@@ -91,7 +91,10 @@ export interface StageResult {
   late?: boolean;
 }
 
-/** The store's comparator, with the products in it. */
+/**
+ * The store's comparator bar ("Comparador (n/3)"), with the products in
+ * it; the comparison page itself is the `compare` slice.
+ */
 export interface CompareShown {
   items?: CompareItem[];
 }
@@ -111,7 +114,7 @@ export interface PageChanged {
 
   title?: string;
 
-  kind?: 'home' | 'category' | 'search' | 'product' | 'cart' | 'checkout' | 'stores' | 'help' | 'page';
+  kind?: 'home' | 'category' | 'search' | 'product' | 'cart' | 'checkout' | 'stores' | 'help' | 'compare' | 'page';
 
   headings?: string[];
 
