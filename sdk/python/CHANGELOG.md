@@ -15,42 +15,13 @@ The public series has now caught up to them, so **a heading carrying
 are different releases that happen to share a number; the pre-restart entries are
 kept for the history, and nothing installable was ever cut from them.
 
-## 0.12.0-rc2
+## 0.12.0
 
-The second release candidate; `pip install voqalize-agent-sdk` still installs
-0.11.0, and this one is installed only by asking for it
-(`voqalize-agent-sdk==0.12.0rc2`). It pairs with `@voqalize/stage` `0.1.0-rc.2`.
-
-### Added
-
-- **`Stage.send(..., queue=False)` and `Stage.abandon(call_ref, detail=None)`,
-  for an app with its own action runner.** `send` both accounts for a move and
-  schedules it; an app whose runner already has its own gates, queue and
-  timeouts wants only the accounting. With `queue=False` the move is sent now —
-  never queued, never refused, so it always returns its `call_ref` (and types as
-  `str`) — and is still timed, counted for the turn's promises and matched to
-  the page's result. A serial move sent that way becomes the running move, so a
-  later queued `send` waits behind it. `abandon` reports one move `unknown` now,
-  exactly as `expire` would when its time ran out, and a later answer from the
-  page comes back `late`; every other move keeps its time. The default `send`
-  is unchanged.
-
-### Changed
-
-- **`StageHello` carries the page's origin and path, and no title.** The page
-  half (`@voqalize/stage`, from `0.1.0-rc.2`) no longer sends a page's query
-  string, fragment or title in its hello, in a carried move's result, or in the
-  extension's `tabs_changed`: that is where a page keeps tokens, order numbers
-  and the visitor's name. `url` and `title` were already optional, so a brain
-  parses both the old and the new hello; `title` is empty unless the page sends
-  its own hello. The contract stays at 1.
-
-## 0.12.0-rc1
-
-A release candidate, not a stable release: `pip install voqalize-agent-sdk`
-still installs 0.11.0, and this one is installed only by asking for it
-(`voqalize-agent-sdk==0.12.0rc1`). `voqalize.sdk.stage` is new and may change
-before 0.12.0.
+Stage, Voqalize's own acknowledgement, and the Kokoro voices retired. Additive on
+the wire except for the retired voices, and the wire version stays 3. It pairs with
+`@voqalize/stage` `0.1.0`, the page half of Stage, released with it.
+Two release candidates came first, `0.12.0rc1` and `0.12.0rc2`; this entry is
+everything in both.
 
 ### Added
 
@@ -64,11 +35,28 @@ before 0.12.0.
   back as `StageEvent`s folded into a `Mirror`, read through a tool. Moves, slices
   and state events are declared in a Stage Spec (`StageSpec`, `load_spec`, the
   `commerce` kit), with `stage.schema.json` generated from it.
+- **`Stage.send(..., queue=False)` and `Stage.abandon(call_ref, detail=None)`,
+  for an app with its own action runner.** `send` both accounts for a move and
+  schedules it; an app whose runner already has its own gates, queue and
+  timeouts wants only the accounting. With `queue=False` the move is sent now —
+  never queued, never refused, so it always returns its `call_ref` (and types as
+  `str`) — and is still timed, counted for the turn's promises and matched to
+  the page's result. A serial move sent that way becomes the running move, so a
+  later queued `send` waits behind it. `abandon` reports one move `unknown` now,
+  exactly as `expire` would when its time ran out, and a later answer from the
+  page comes back `late`; every other move keeps its time. The default `send`
+  is unchanged.
+- **The page says only where it is.** `StageHello` carries the page's origin
+  and path, and no title: `@voqalize/stage` never sends a page's query string,
+  fragment or title in its hello, in a carried move's result, or in the
+  extension's `tabs_changed`, because that is where a page keeps tokens, order
+  numbers and the visitor's name. `url` and `title` are optional, so a brain
+  parses a hello with or without them; `title` is empty unless the page sends
+  its own hello. The Stage contract is at 1.
 - **`voqalize stage gen | check | schema`** and **`voqalize types --scene`**:
   a spec written out as Python (moves, argument models, the read tool's request),
   TypeScript (`defineScene`) and page JSON; a lint that runs every cue through
   the leaked-call guard.
-
 - **`Config.ack` and `AckConfig`.** Voqalize can say a short acknowledgement
   of its own — "Let me check.", "Sure." — while the brain works on its reply,
   chosen from what the caller said. It is on unless the session turns it off:
