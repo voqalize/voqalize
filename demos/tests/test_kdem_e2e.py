@@ -45,7 +45,7 @@ from google.genai import types
 from voqalize_demos.discovery import discover
 from voqalize_demos.testing import Reply, ScriptedGemini, call, reply, reply_and_call
 
-from voqalize.sdk.wire import Language
+from voqalize.sdk.wire import EndFrame, Language, SpeechEndFrame
 
 from ._harness import check_greeting, check_turn, check_voice_pair, demo
 
@@ -57,6 +57,7 @@ from voqalize_demos._loaded.kdem.brain import (  # noqa: E402
     _GREETING_KN,
     _SYSTEM_INSTRUCTION,
     DONT_KNOW,
+    IDENTITY,
     SWITCH_LINE,
     TOGGLE_CONFIRM,
     KdemBrain,
@@ -396,9 +397,12 @@ async def test_greeting_and_voice_reach_the_wire() -> None:
         )
         check_greeting(rig, greeting)
         assert greeting is not None and greeting.text == _GREETING
+        # Business and jobs alike: job seekers had to correct her.
         assert _GREETING == (
-            "Hello, I'm Aria from KDEM. How can we help you grow your business in Karnataka?"
+            "Hello, I'm Aria from KDEM. I can help with growing a business, "
+            "or with jobs and skills in Karnataka. What are you looking for?"
         )
+        assert len(_GREETING) <= 130
         assert "English" not in _GREETING and "language" not in _GREETING
         check_voice_pair(rig, voice=VOICE, language="en")
 
@@ -1509,3 +1513,393 @@ async def test_asking_in_her_words_takes_them_there() -> None:
         assert [u.text for u in turn.units] == [
             "Taking you to the Beyond Bengaluru Cluster Seed Fund page."
         ]
+
+
+# ─── The microphone ───────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize("outcome", ["granted", "denied", "unavailable", "no_answer"])
+async def test_the_microphone_outcome_is_logged_and_not_put_to_the_model(outcome: str) -> None:
+    """The snippet says once per call whether the browser gave it a microphone.
+    The brain logs it, so the calls that never had one can be counted, and the
+    model is not told: nothing about it changes what she says."""
+    from loguru import logger
+
+    lines: list[str] = []
+    sink = logger.add(lambda m: lines.append(str(m)), level="INFO")
+    llm = _llm()
+    try:
+        async with demo("kdem", llm) as rig:
+            await rig.driver.start_session(init={"page": "/"})
+            before = len(llm.captured_contents)
+            await rig.driver.send_ui_event(
+                "mic_permission", {"outcome": outcome, "waited_ms": 10000}
+            )
+            await rig.driver.send_ui_event("mic_permission", {"outcome": "maybe"})
+            await asyncio.sleep(0.1)
+            assert len(llm.captured_contents) == before
+            await rig.driver.user_says("Thank you.")
+    finally:
+        logger.remove(sink)
+    log = "\n".join(lines)
+    assert f"kdem: mic_permission {outcome} after 10000 ms" in log
+    assert "mic_permission maybe" not in log
+    assert "microphone" not in _said(llm.captured_contents[-1]).lower()
+
+
+# ─── Who she is ───────────────────────────────────────────────────────────────
+
+
+async def test_she_is_kdems_assistant_and_never_names_a_model_or_vendor() -> None:
+    """A visitor asked who built her and heard a vendor's name and "a large
+    language model". The prompt every request carries says who she is, in one
+    written line, and forbids naming a model or a vendor; and nothing in her
+    own written lines names one either."""
+    llm = _llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says("Thank you.")
+    prompt = llm.captured_system_instructions[-1]
+    assert IDENTITY == "I'm Aria, KDEM's voice assistant, built by Voqalize."
+    assert f'say: "{IDENTITY}"' in prompt
+    assert "Never name a model, an AI company or any vendor" in prompt
+    written = "\n".join(
+        [_SYSTEM_INSTRUCTION, _GREETING, _GREETING_KN, IDENTITY]
+        + [line for lines in kdem_brain.LINES.values() for line in lines.values()]
+    ).lower()
+    for name in ("gemini", "google", "openai", "gpt", "anthropic", "claude", "llama"):
+        assert name not in written, name
+
+
+# ─── Her pointing line ────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("pointed", "said"),
+    [
+        # The live failure: a label cut mid-phrase, said with its dash.
+        (
+            "SEBI-registered Category I AIF \u2013 Karnataka Startup Fund of Funds",
+            "SEBI-registered Category I AIF",
+        ),
+        ("SEBI-registered Category I AIF \u2013", "SEBI-registered Category I AIF"),
+        ("Who it is for:", "Who it is for"),
+        ("Apply Now \u2192", "Apply Now"),
+        ("Eligibility -", "Eligibility"),
+        (
+            "Eligibility, documents and the steps to apply for it",
+            "Eligibility, documents and the steps to",
+        ),
+        ("How to apply", "How to apply"),
+    ],
+)
+def test_a_pointed_label_is_said_in_whole_words_with_no_trailing_dash(
+    pointed: str, said: str
+) -> None:
+    assert kdem_brain._spoken_text(pointed) == said  # pyright: ignore[reportPrivateUsage]
+    line = kdem_brain.LINES["point"][Language.EN].format(text=kdem_brain._spoken_text(pointed))  # pyright: ignore[reportPrivateUsage]
+    assert ", highlighted" in line and "\u2013," not in line and " ," not in line
+
+
+def test_the_prompt_has_her_answer_first_and_point_after() -> None:
+    """The pointing line was heard as the whole reply. Pointing goes with an
+    answer, never instead of one."""
+    assert "Pointing goes with an answer and never replaces it" in _SYSTEM_INSTRUCTION
+    assert "say the answer first" in _SYSTEM_INSTRUCTION
+
+
+# ─── The don't-know line, never twice running ─────────────────────────────────
+
+
+def _unanswerable_llm(*, model_says: bool = False) -> ScriptedGemini:
+    """Three questions the pages do not answer. The model either says nothing
+    after its search (her own line is said) or says the don't-know line itself."""
+    said = reply(DONT_KNOW) if model_says else reply()
+    return ScriptedGemini(
+        {
+            q: [call("search_kdem", request={"query": "weather on Mars"}), said]
+            for q in ("What is the weather on Mars?", "And on Venus?", "And on Jupiter?")
+        }
+    )
+
+
+async def test_after_one_dont_know_she_offers_the_team_and_never_repeats_a_line() -> None:
+    """One call heard the same don't-know line three times running. Now the
+    first is the don't-know line; after it, the KDEM team's line with Contact
+    Us offered, and the two team lines take turns."""
+    lead_a, lead_b = kdem_brain.TEAM_LEADS[Language.EN]
+    async with demo("kdem", _unanswerable_llm()) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        heard = []
+        for q in ("What is the weather on Mars?", "And on Venus?", "And on Jupiter?"):
+            turn = await rig.driver.user_says(q)
+            check_turn(rig, turn, units=1)
+            heard.append(turn.units[0].text)
+        brain = rig.brain
+        assert isinstance(brain, KdemBrain)
+        assert brain._offered is not None and brain._offered[0] == CONTACT  # pyright: ignore[reportPrivateUsage]
+    offer = " Shall I take you to the Contact Us page?"
+    assert heard == [DONT_KNOW + offer, lead_a + offer, lead_b + offer]
+    assert len(set(heard)) == len(heard)
+
+
+async def test_the_model_is_told_not_to_say_the_dont_know_line_again() -> None:
+    """The model said the line itself; the next search result tells it to say
+    the team's line instead."""
+    llm = _unanswerable_llm(model_says=True)
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says("What is the weather on Mars?")
+        first = _results(llm.captured_contents[-1])["search_kdem"]
+        await rig.driver.user_says("And on Venus?")
+        second = _results(llm.captured_contents[-1])["search_kdem"]
+    assert f'say: "{DONT_KNOW}"' in first
+    assert f'do not say "{DONT_KNOW}" again' in second
+    assert kdem_brain.TEAM_LEADS[Language.EN][0] in second
+
+
+def test_portal_problems_are_the_kdem_teams_said_plainly() -> None:
+    """A visitor whose registration failed with a server error heard the
+    don't-know line. Portal errors, logins and application status are the
+    KDEM team's: she says so and offers Contact Us, without searching."""
+    assert "a form that will not submit, a login or a password" in _SYSTEM_INSTRUCTION
+    assert "the KDEM team handles them. Say so plainly" in _SYSTEM_INSTRUCTION
+    assert "never twice running" in _SYSTEM_INSTRUCTION
+
+
+# ─── Pointing while the page she took them to is still opening ────────────────
+
+
+async def test_a_point_made_while_the_page_opens_waits_for_it() -> None:
+    """A visitor heard "I couldn't find that on this page" while the page she
+    had taken them to was still loading: the point was checked against the page
+    they were leaving. Now a point made before that page's page_viewed is
+    checked against the page they are going to, and sent when it opens."""
+    llm = _llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says("Take me to the seed fund page.")
+        assert _navigations(rig) == [{"url": SEED_FUND}]
+        await rig.driver.user_says("Where are the startups listed?")
+        assert _points(rig) == []  # not yet: the page has not opened
+        await _viewed(rig, {"path": "/beyond-bengaluru-cluster-seed-fund/", "title": "x"})
+        assert _points(rig) == [{"text": "early-stage STARTUPS in Mysuru"}]
+        await rig.driver.user_says("Thank you.")
+    seen = _said(llm.captured_contents[-1])
+    assert "You took them here" in seen and "is highlighted now" in seen
+    assert _result(llm, "point_at").startswith("ok: the page is still opening")
+
+
+async def test_while_the_page_opens_the_old_pages_text_is_not_pointed_at() -> None:
+    llm = _llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": "/resource/"})
+        await rig.driver.user_says("Take me to the seed fund page.")
+        await rig.driver.user_says("Where are the reports?")  # on the page they are leaving
+        await _viewed(rig, {"path": "/beyond-bengaluru-cluster-seed-fund/", "title": "x"})
+        assert _points(rig) == []
+        await rig.driver.user_says("Thank you.")
+    assert "the page they are going to" in _result(llm, "point_at")
+
+
+async def test_a_waiting_point_is_dropped_when_they_open_another_page() -> None:
+    async with demo("kdem", _llm()) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says("Take me to the seed fund page.")
+        await rig.driver.user_says("Where are the startups listed?")
+        await _viewed(rig, {"path": "/contact-us/", "title": "x"})
+        await _viewed(rig, {"path": "/beyond-bengaluru-cluster-seed-fund/", "title": "x"})
+        assert _points(rig) == []
+
+
+async def test_a_silent_point_while_the_page_opens_says_it_will_highlight() -> None:
+    llm = ScriptedGemini(
+        {
+            "Take me to the seed fund page.": reply_and_call(
+                "Taking you there.", "go_to_page", request={"url": SEED_FUND}
+            ),
+            "Who is it for?": call("point_at", request={"text": "early-stage startups in Mysuru"}),
+        }
+    )
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says("Take me to the seed fund page.")
+        turn = await rig.driver.user_says("Who is it for?")
+        assert [u.text for u in turn.units] == [
+            "I'll highlight early-stage startups in Mysuru once the page opens."
+        ]
+
+
+# ─── A misheard turn never switches the language ─────────────────────────────
+
+
+GARBLED = "Ferro vai lá dar água."
+
+
+async def test_a_garbled_turn_does_not_switch_to_kannada_and_she_asks_again() -> None:
+    """A noisy, misheard line that looked like another language was taken for
+    Kannada, and the call switched. Now a switch to Kannada by voice needs
+    something Kannada in what was heard; this one is refused, nothing moves,
+    and she asks them to say it again, in English."""
+    llm = ScriptedGemini({GARBLED: call("set_language", request={"language": "kannada"})})
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        before = len(rig.driver.requests)
+        turn = await rig.driver.user_says(GARBLED)
+        check_turn(rig, turn, units=1)
+        assert [u.text for u in turn.units] == [
+            "Sorry, I didn't catch that. Could you say it again?"
+        ]
+        assert len(rig.driver.requests) == before  # no configure: both legs stay
+        assert _changes(rig) == []
+        brain = rig.brain
+        assert isinstance(brain, KdemBrain) and brain.spoken == Language.EN
+        check_voice_pair(rig, voice=VOICE, language="en")
+
+
+@pytest.mark.parametrize(
+    "heard",
+    ["Naanu startup fund bagge beku", "Can we speak in Kannada?", "ನನಗೆ ಮಾಹಿತಿ ಬೇಕು", "enu idu"],
+)
+def test_what_counts_as_kannada_heard(heard: str) -> None:
+    assert kdem_brain._KANNADA_HEARD.search(heard)  # pyright: ignore[reportPrivateUsage]
+
+
+@pytest.mark.parametrize(
+    "heard",
+    [GARBLED, "Answer Punjab or E.", "Uh highway in Greece.", "Okay. How does that all right?"],
+)
+def test_what_does_not(heard: str) -> None:
+    assert not kdem_brain._KANNADA_HEARD.search(heard)  # pyright: ignore[reportPrivateUsage]
+
+
+def test_the_prompt_asks_again_on_a_misheard_turn() -> None:
+    assert "MISHEARD." in _SYSTEM_INSTRUCTION
+    assert "never switch the language on it" in _SYSTEM_INSTRUCTION
+    assert "a turn that makes no sense as English is usually Kannada" not in _SYSTEM_INSTRUCTION
+
+
+# ─── Goodbye ends the call ────────────────────────────────────────────────────
+
+
+def _goodbye_llm() -> ScriptedGemini:
+    return ScriptedGemini(
+        {
+            "Bye.": reply_and_call("Goodbye! Have a great day.", "end_call"),
+            "Okay, that's all, bye bye.": call("end_call"),
+            "Thank you.": reply_and_call("You're welcome.", "end_call"),
+        }
+    )
+
+
+async def test_a_goodbye_closes_the_call_after_it_is_heard() -> None:
+    """She said goodbye and the call stayed open; what the microphone picked up
+    next got don't-know replies. Now her goodbye is the end: the brain hangs up
+    once the goodbye is on the wire, so nothing after it is answered."""
+    async with demo("kdem", _goodbye_llm()) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        turn = await rig.driver.user_says("Bye.")
+        assert [u.text for u in turn.units] == ["Goodbye! Have a great day."]
+        kinds = [type(r.frame) for r in rig.driver.log]
+        assert EndFrame in kinds, "the call stayed open after the goodbye"
+        assert kinds.index(EndFrame) > len(kinds) - 1 - kinds[::-1].index(SpeechEndFrame)
+
+
+async def test_a_silent_goodbye_gets_her_written_one() -> None:
+    async with demo("kdem", _goodbye_llm()) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        turn = await rig.driver.user_says("Okay, that's all, bye bye.")
+        assert [u.text for u in turn.units] == ["Thank you for visiting. Goodbye."]
+        assert EndFrame in [type(r.frame) for r in rig.driver.log]
+
+
+async def test_a_plain_thank_you_never_ends_the_call() -> None:
+    llm = _goodbye_llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says("Thank you.")
+        assert EndFrame not in [type(r.frame) for r in rig.driver.log]
+        brain = rig.brain
+        assert isinstance(brain, KdemBrain)
+        await rig.driver.user_says("Bye.")
+    assert _result(llm, "end_call").startswith("Not ended")
+
+
+def test_she_knows_contact_us_has_an_email_and_a_form_and_no_phone() -> None:
+    """Asked for a phone number, she pointed at "Bengaluru" in the address.
+    The Contact Us page (checked 2026-10-29) has an email address, a contact
+    form and the office address, and no phone number; she says so."""
+    assert "The site gives no phone number." in _SYSTEM_INSTRUCTION
+    assert "info@karnatakadigital.in" in _SYSTEM_INSTRUCTION
+    assert "a contact form" in _SYSTEM_INSTRUCTION
+
+
+# ─── A policy KDEM hands out through its own page's form ──────────────────────
+
+POLICIES = f"{SITE}/policies/"
+GUIDELINES_PDF = (
+    f"{SITE}/wp-content/uploads/2026/05/"
+    "Draft-Operational-Guidelines-for-Karnataka-Startup-Policy-2025-2030_1.pdf"
+)
+
+
+async def test_a_policy_behind_the_download_form_is_cited_and_its_page_is_the_card() -> None:
+    """The startup guidelines (where the PF and ESI affidavit annexure is) are
+    on the site only behind the policies page's download form. Aria answers
+    from them, says where, and the card is the policies page, so the visitor
+    gets the document the way KDEM hands it out."""
+    pages = dict(SNAPSHOT.pages)
+    pages[POLICIES] = _stored(POLICIES, "Policies", "policies-resources", "Our policies.")
+    pages[GUIDELINES_PDF] = StoredPage(
+        GUIDELINES_PDF,
+        "Draft Operational Guidelines for the Karnataka Startup Policy 2025-30",
+        "policies-resources",
+        "auto",
+        "",
+        "",
+        "",
+        (
+            "Reimbursement of PF and ESI. Documents: a notarised affidavit executed on "
+            "stamp paper as presented in Annexure 10.2.",
+        ),
+        kind="pdf",
+    )
+    KNOWLEDGE.prime(replace(SNAPSHOT, pages=pages))
+    llm = ScriptedGemini(
+        {
+            "Where is the PF and ESI affidavit annexure?": [
+                call("search_kdem", request={"query": "PF ESI reimbursement affidavit annexure"}),
+                reply_and_call(
+                    "It is Annexure 10.2 of the startup guidelines, on page 1.",
+                    "show_document",
+                    request={"url": GUIDELINES_PDF},
+                ),
+            ],
+        }
+    )
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says("Where is the PF and ESI affidavit annexure?")
+        found = _results(llm.captured_contents[-1])["search_kdem"]
+        assert 'downloaded from the KDEM page "Policies"' in found
+        assert rig.command("show_link") == {"url": POLICIES, "title": "Policies"}
+
+
+def test_the_prompt_says_where_to_look_for_what_visitors_asked_last_week() -> None:
+    """Questions the site answers were sent to Contact Us because the search
+    used the visitor's words, not the site's. The prompt names where each kind
+    of question is answered, by the names the site uses."""
+    for name in (
+        "Karnataka Startup Policy",
+        "AVGC-XR policy",
+        "Future Digital Jobs",
+        "Events page",
+    ):
+        assert name in _SYSTEM_INSTRUCTION, name
+    for path in (
+        "/futuredigitaljobs/",
+        "/nipuna-karnataka/",
+        "/talent-accelerator/",
+        "/womenatwork/",
+    ):
+        assert ALLOWLIST.approved(SITE + path) is not None, path

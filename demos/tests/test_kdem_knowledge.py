@@ -1166,3 +1166,16 @@ def test_ranked_search_stays_inside_the_tool_budget() -> None:
         kb.search(query, 3)
         worst = max(worst, (time.perf_counter() - started) * 1000)
     assert worst < TOOL_BUDGET_MS / 4, f"{worst:.1f} ms"
+
+
+def test_a_cards_label_and_value_are_not_glued_together() -> None:
+    """The seed fund page's card is ``<small>Who it is for</small><strong>…``.
+    Extracted, the label ran into the value ("Who it is forPrivate Limited
+    Companies"), so a phrase across the two never matched the page."""
+    html = _page(
+        '<main id="main"><div class="who-card"><small>Who it is for</small>'
+        "<strong>Private Limited Companies incorporated in Karnataka.</strong></div></main>"
+    )
+    text = extract(html).text
+    assert "Who it is for Private Limited Companies" in " ".join(text.split())
+    assert "forPrivate" not in text

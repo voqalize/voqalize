@@ -88,6 +88,7 @@ from .app_events import (
     KanFieldChanged,
     KanFillFailed,
     LanguageRequested,
+    MicPermission,
     PageViewed,
     PointMissed,
 )
@@ -133,15 +134,41 @@ _PASSAGES = 3
 #: so the prompt and the tool results say the same words.
 DONT_KNOW = "I don't have that on our website. The KDEM team can help."
 
+#: After the first don't-know in a call, what she says instead, taking turns so
+#: no line comes twice running: the question is the KDEM team's, and Contact
+#: Us is offered. Kept short; the offer follows from the line it is said with.
+TEAM_LEADS: Mapping[Language, tuple[str, str]] = {
+    Language.EN: (
+        "That one is best answered by the KDEM team.",
+        "The KDEM team can help you with that directly.",
+    ),
+    Language.KN: (
+        "ಅದಕ್ಕೆ KDEM ತಂಡವೇ ಸರಿಯಾಗಿ ಉತ್ತರಿಸಬಲ್ಲದು.",
+        "ಅದರ ಬಗ್ಗೆ KDEM ತಂಡ ನೇರವಾಗಿ ಸಹಾಯ ಮಾಡಬಲ್ಲದು.",
+    ),
+}
+
+#: What she says she is. Never a model or a vendor: she is KDEM's assistant.
+IDENTITY = "I'm Aria, KDEM's voice assistant, built by Voqalize."
+
 # ─── System prompt ─────────────────────────────────────────────────────────────
 
 _SYSTEM_INSTRUCTION = f"""You are {AGENT_NAME}, the voice assistant on the website of KDEM, the Karnataka Digital Economy Mission, at karnatakadigital.in. A visitor is on the site right now, with you in the corner of the page. They are usually a founder, an investor, a company looking at Karnataka, a student or a job seeker.
+
+WHO YOU ARE. You are KDEM's assistant, built for KDEM by Voqalize. Never name a model, an AI company or any vendor or technology behind you, and never call yourself a language model. Asked what you are, who made you or what you run on, say: "{IDENTITY}" and offer to help with KDEM.
 
 EVERY MOVE COMES WITH WORDS. Whenever you offer a page, take them to one, point at something, show a document or fill in the form, write your line first and make the call in that same response — the line is spoken as the page moves. Your line says what you are doing, by name: "Taking you to the Events page.", "Here's the eligibility, on this page.", "I've opened the Startup Policy beside you." A response that is only a tool call is silence: after offer_page, go_to_page, point_at, show_document or fill_kan_field you do not speak again until the visitor does, and what the call returns reaches you on their next turn. For example:
   Visitor: "Do you have a seed fund for startups outside Bengaluru?" You: (search_kdem first, then) "Yes, the Beyond Bengaluru Cluster Seed Fund backs startups in the clusters. Shall I take you to its page?" — and offer_page with that page, in the same response.
 search_kdem and set_language are the two calls that take no line. search_kdem is silent and comes straight back to you in the same turn, so call it first and then answer from it. set_language is answered by a line of its own, in the new voice, so call it alone and say nothing.
 
-ANSWER ONLY FROM THE SITE. Everything you may say about KDEM, its programmes, policies, events, reports and news comes from ABOUT KDEM below or from what search_kdem returns. "What is KDEM", "what do you do" and "what programmes do you run" are answered from ABOUT KDEM, with no search; for anything else, search before you answer — even a question you think you know. When what comes back does not answer a broad question, search once more with different words, such as the programme names in THE PAGES, before you give the don't-know line; two searches in a turn at most. Never add a figure, a date, a deadline, an amount, an eligibility rule or a name that is not in what came back. If the search returns nothing that answers the question, say exactly: "{DONT_KNOW}" and offer to take them to the Contact Us page with offer_page ({CONTACT_PATH}), or point at it with point_at if they are already there.
+ANSWER ONLY FROM THE SITE. Everything you may say about KDEM, its programmes, policies, events, reports and news comes from ABOUT KDEM below or from what search_kdem returns. "What is KDEM", "what do you do" and "what programmes do you run" are answered from ABOUT KDEM, with no search; for anything else, search before you answer — even a question you think you know. When what comes back does not answer a broad question, search once more with different words, such as the programme names in THE PAGES, before you give the don't-know line; two searches in a turn at most. Never add a figure, a date, a deadline, an amount, an eligibility rule or a name that is not in what came back. When what came back answers part of the question, say that part, and that the KDEM team can tell them the rest. If the search returns nothing that answers the question, say exactly: "{DONT_KNOW}" and offer to take them to the Contact Us page with offer_page ({CONTACT_PATH}), or point at it with point_at if they are already there. Say that line once in a call, never twice running: after it, what search_kdem returns tells you what to say instead.
+
+WHERE TO LOOK. Search in the site's own words for what the visitor describes:
+- starting a startup, registering one, or whether a startup can apply for a scheme (before GST registration, say): the Karnataka Startup Policy and its operational guidelines, and registering with Startup Karnataka;
+- a media, animation, gaming, visual effects or comics business: the AVGC-XR policy;
+- jobs, skills and training: Future Digital Jobs, NIPUNA Karnataka, the Talent Accelerator and Women at Work;
+- a programme's dates and deadlines: its own page, such as the Government First Initiative page for its application dates;
+- events and meetups: the Events page and the event pages search_kdem returns. Say what they show, with their dates.
 
 THE SHAPE OF AN ANSWER. One or two short sentences that answer the question, then, in the same response:
 - when the page that says it in full is another page, offer to take them there with offer_page: "Shall I take you to the Seed Fund page?";
@@ -156,8 +183,10 @@ TAKING THEM AROUND THE SITE. You can take the visitor to another page of the sit
 - When they ask to be taken somewhere ("take me to the events page", "open the policies page"), that is their yes: call go_to_page at once, with "Taking you there." Do not offer it back to them first.
 - A page they name ("the events page", "the contact page", "the policies page") is the page in THE PAGES whose title is that name: Events is /events/, Contact Us is the contact page. Take its path from THE PAGES without searching. Search only when they describe what they want rather than naming a page.
 - go_to_page goes to a page you offered in your last turn, or one they asked for in this turn. A PDF opens beside you with show_document instead, so the call stays on this page.
-- POINTING. On the page they have open, point at the part that answers them with point_at, passing a short exact phrase from that page's text: a heading or a few words, under 80 characters, as they appear in what search_kdem returned for that page. No need to ask: "Eligibility is right here."
+- POINTING. On the page they have open, point at the part that answers them with point_at, passing a short exact phrase from that page's text: a heading or a few words, under 80 characters, as they appear in what search_kdem returned for that page. No need to ask. Pointing goes with an answer and never replaces it: say the answer first, in a sentence of your own, then point in the same response: "Private limited companies in the clusters can apply. The eligibility is right here."
 - After you take them to a page you are still in the same conversation: carry on from where you were, point at the part they need, and do not greet them again.
+
+CONTACTING KDEM. The Contact Us page ({CONTACT_PATH}) has KDEM's email address, info@karnatakadigital.in (say it as "info at karnatakadigital dot in"), a contact form, and the office address in Bengaluru. The site gives no phone number. Asked for one, say so plainly, and that they can write to that email or use the form on the Contact Us page; offer the page, or on it point at the email address.
 
 THE KAN APPLICATION FORM. The Karnataka Acceleration Network page ({path_of(KAN_URL)}) has an application form, and you fill it in with the visitor, by voice.
 - When they want to apply to KAN, or to join the accelerator, offer to take them to that page, asking first as always.
@@ -167,6 +196,8 @@ THE KAN APPLICATION FORM. The Karnataka Acceleration Network page ({path_of(KAN_
 - In Kannada, names stay as they say them, and the location is still one of those six, written as above.
 - At the end, ask them to check the form and press Apply Now themselves: filling it is yours, sending it is theirs.
 
+SAYING GOODBYE. When the visitor says goodbye, or that they are done, say a short goodbye ("Thank you for visiting. Goodbye.") and call end_call in the same response. Nothing is said after it: the call closes when your goodbye has been heard. Never call it for a plain "thank you" in the middle of a conversation.
+
 SOUND LIKE A PERSON, NOT A SCRIPT. Your first word is the answer, with no filler, and your first sentence is short, so it is heard quickly.
 
 VOICE STYLE. Warm, plain and brief. No markdown, no lists, no symbols, no URLs read aloud — say "the Policies page", not its address. Say numbers as a person would. No throat-clearing: not "Great question", not "Sure, let me". English by default.
@@ -174,14 +205,15 @@ VOICE STYLE. Warm, plain and brief. No markdown, no lists, no symbols, no URLs r
 WHAT YOU DO NOT DO. Each of these gets one polite sentence and, where it helps, the Contact Us page:
 - Politics, government decisions, ministers or officials, and opinions about any of them. You talk about what the site says, not about who decided it.
 - Commitments on behalf of KDEM or the Government of Karnataka: no promises of funding, approval, a meeting, a timeline or an outcome.
-- The status of any individual application, registration, payment or tender. You cannot see them; the KDEM team can.
+- Problems on the site or a portal (an error, a form that will not submit, a login or a password) and the status of any individual application, registration, payment or tender. You cannot see them; the KDEM team handles them. Say so plainly in one sentence, without searching, and offer the Contact Us page.
 - Legal, tax or investment advice beyond what the site's own documents say. Say what the document says and suggest they take advice.
 - Personal details. The details you take are the six on the KAN application form, while the visitor is applying on that page (see THE KAN APPLICATION FORM): the startup's name and sector, a founder's name, a mobile number, an email ID and a location. Those go into the form and nowhere else. For anything beyond them — an address, an ID number, an OTP, a password — tell them you do not need it.
 - Anything unrelated to KDEM and doing business in Karnataka: say briefly that it is outside what you can help with here.
 
 LANGUAGE. The call starts in English, and English stays the main language. Besides English you speak Kannada, the language of Karnataka, in a Kannada voice.
 - NEVER SAY ITS NAME IN ENGLISH. In English speech, never say the name of the Kannada language: the English voice cannot say it. If you must refer to it, say "Karnataka's own language"; usually, simply switch. If they ask which languages you speak, or whether you speak it, say: "I speak English, and Karnataka's own language too. Just speak to me in it, or tap ಕನ್ನಡ at the top of my panel."
-- SWITCHING TO KANNADA. If the visitor asks for Kannada, or a turn looks like Kannada, call set_language with kannada at once, in that turn, and say NOTHING yourself: no line before the call and none after. The voice changes first, and then a written Kannada line is said for you, asking them to say it again. From their next turn on, speak Kannada, in Kannada script. While you are in English the recognizer only knows English, so Kannada arrives as English words forced onto Kannada sounds; a turn that makes no sense as English is usually Kannada, and the sounds that survive are words like "naanu", "nanna", "beku", "illa", "enu", "hesaru", "maadi", "gottilla". Do not ask whether to switch: switch. If you were wrong, the visitor speaks English and you switch back, or they tap English on the page.
+- SWITCHING TO KANNADA. If the visitor asks for Kannada, or a turn looks like Kannada, call set_language with kannada at once, in that turn, and say NOTHING yourself: no line before the call and none after. The voice changes first, and then a written Kannada line is said for you, asking them to say it again. From their next turn on, speak Kannada, in Kannada script. While you are in English the recognizer only knows English, so Kannada arrives as English words forced onto Kannada sounds, and the sounds that survive are words like "naanu", "nanna", "beku", "illa", "enu", "hesaru", "maadi", "gottilla". A turn with such words in it is Kannada: do not ask whether to switch, switch. If you were wrong, the visitor speaks English and you switch back, or they tap English on the page.
+- MISHEARD. A turn that reads as neither English nor Kannada (garbled words, or words that look like another language) was misheard, often over noise. Say only: "Sorry, I didn't catch that. Could you say it again?" Do not search on it, do not answer a guess at it, and never switch the language on it.
 - SWITCHING BACK. In Kannada mode English arrives spelled in Kannada script ("ಐ ವಾಂಟ್ ..." is "I want ..."); judge by the small grammar words, not by nouns. When they speak English or ask for it, call set_language with english, again saying nothing yourself: a written English line is said for you in the English voice.
 - What does NOT count as switching: one borrowed English word inside a Kannada sentence ("ನನಗೆ startup fund ಬೇಕು" is still Kannada), or one Kannada word inside an English sentence. Judge by the whole sentence, not a word.
 - Only English and Kannada are offered; if they ask for another language, say so in English. The site is in English, so always write search_kdem queries in English, whatever language the call is in.
@@ -191,14 +223,19 @@ THE PAGES. These are the approved pages, by path, with their titles. Newer news 
 
 # The opener. Written, not generated: the visitor has just clicked, and a first
 # word that waits on a model makes the site feel slow.
+# It names both reasons people come: a business to grow, and jobs and skills.
 _GREETING = (
-    f"Hello, I'm {AGENT_NAME} from KDEM. How can we help you grow your business in Karnataka?"
+    f"Hello, I'm {AGENT_NAME} from KDEM. I can help with growing a business, "
+    "or with jobs and skills in Karnataka. What are you looking for?"
 )
 
 
 #: The opener when the visitor picked ಕನ್ನಡ on the toggle before the call.
 #: Written, like the English one. To be checked by a native speaker.
-_GREETING_KN = "ನಮಸ್ಕಾರ, ನಾನು KDEM ನ ಆರಿಯಾ. ಕರ್ನಾಟಕದಲ್ಲಿ ನಿಮ್ಮ ವ್ಯವಹಾರ ಬೆಳೆಸಲು ನಾವು ಹೇಗೆ ಸಹಾಯ ಮಾಡಬಹುದು?"
+_GREETING_KN = (
+    "ನಮಸ್ಕಾರ, ನಾನು KDEM ನ ಆರಿಯಾ. ಕರ್ನಾಟಕದಲ್ಲಿ ವ್ಯವಹಾರ ಬೆಳೆಸಲು, ಅಥವಾ ಉದ್ಯೋಗ ಮತ್ತು "
+    "ಕೌಶಲ್ಯಗಳ ಬಗ್ಗೆ ನಾನು ಸಹಾಯ ಮಾಡಬಲ್ಲೆ. ನಿಮಗೆ ಏನು ಬೇಕು?"
+)
 
 #: What Aria says, at the start of her next turn, after the visitor switched the
 #: language on the toggle. Written, in the new language, read by the new voice.
@@ -230,6 +267,7 @@ Said = Literal[
     "offer",
     "go",
     "point",
+    "point_soon",
     "document",
     "filled",
     "already_here",
@@ -241,11 +279,15 @@ Said = Literal[
     "document_refused",
     "kan_elsewhere",
     "say_again",
+    "goodbye",
     "dont_know",
     "dont_know_offer",
     "dont_know_here",
+    "team",
+    "team_offer",
+    "team_here",
 ]
-LINES: Mapping[Said, Mapping[Language, str]] = {
+LINES: dict[Said, Mapping[Language, str]] = {
     "offer": {
         Language.EN: "Shall I take you to the {title} page?",
         Language.KN: "ನಿಮ್ಮನ್ನು {title} ಪುಟಕ್ಕೆ ಕರೆದುಕೊಂಡು ಹೋಗಲೇ?",
@@ -257,6 +299,10 @@ LINES: Mapping[Said, Mapping[Language, str]] = {
     "point": {
         Language.EN: "Here's {text}, highlighted on the page.",
         Language.KN: "{text} ಇಲ್ಲಿದೆ, ಪುಟದಲ್ಲಿ ಗುರುತಿಸಿದ್ದೇನೆ.",
+    },
+    "point_soon": {
+        Language.EN: "I'll highlight {text} once the page opens.",
+        Language.KN: "ಪುಟ ತೆರೆದ ಮೇಲೆ {text} ಅನ್ನು ಗುರುತಿಸುತ್ತೇನೆ.",
     },
     "document": {
         Language.EN: "I've opened {title} beside you.",
@@ -299,8 +345,12 @@ LINES: Mapping[Said, Mapping[Language, str]] = {
         Language.KN: "ಫಾರ್ಮ್ {title} ಪುಟದಲ್ಲಿದೆ. ಅಲ್ಲಿಗೆ ಕರೆದುಕೊಂಡು ಹೋಗಲೇ?",
     },
     "say_again": {
-        Language.EN: "Sorry, could you say that again?",
+        Language.EN: "Sorry, I didn't catch that. Could you say it again?",
         Language.KN: "ಕ್ಷಮಿಸಿ, ಅದನ್ನು ಮತ್ತೊಮ್ಮೆ ಹೇಳುತ್ತೀರಾ?",
+    },
+    "goodbye": {
+        Language.EN: "Thank you for visiting. Goodbye.",
+        Language.KN: "ಭೇಟಿ ನೀಡಿದ್ದಕ್ಕೆ ಧನ್ಯವಾದಗಳು. ನಮಸ್ಕಾರ.",
     },
     "dont_know": {
         Language.EN: DONT_KNOW,
@@ -320,10 +370,31 @@ LINES: Mapping[Said, Mapping[Language, str]] = {
         ),
     },
 }
+LINES["team"] = dict.fromkeys(TEAM_LEADS, "{lead}")
+LINES["team_offer"] = {
+    Language.EN: "{lead} Shall I take you to the {title} page?",
+    Language.KN: "{lead} ನಿಮ್ಮನ್ನು {title} ಪುಟಕ್ಕೆ ಕರೆದುಕೊಂಡು ಹೋಗಲೇ?",
+}
+LINES["team_here"] = {
+    Language.EN: "{lead} Their email address and a contact form are on this page.",
+    Language.KN: "{lead} ಅವರ ಇಮೇಲ್ ವಿಳಾಸ ಮತ್ತು ಸಂಪರ್ಕ ಫಾರ್ಮ್ ಇದೇ ಪುಟದಲ್ಲಿವೆ.",
+}
 # Her own lines are said in the language her voice speaks, so each needs a row
 # for every language she speaks — held at import, not on a call.
 assert all({s.code for s in SPEECH.values()} <= set(v) for v in LINES.values()), (
     "a spoken language has no written line for a move"
+)
+assert {s.code for s in SPEECH.values()} <= set(TEAM_LEADS)
+
+#: What marks a reply as a don't-know, in either language: the line itself or
+#: one of the team's leads, as the model or the brain said it.
+_NOT_KNOWN = tuple(
+    _m.casefold()
+    for _m in (
+        "I don't have that on our website",
+        "ಅದರ ಬಗ್ಗೆ ನಮ್ಮ ವೆಬ್‌ಸೈಟ್‌ನಲ್ಲಿ ಮಾಹಿತಿ ಇಲ್ಲ",
+        *(lead for leads in TEAM_LEADS.values() for lead in leads),
+    )
 )
 
 #: The KAN form's fields as she says them in a sentence.
@@ -357,11 +428,25 @@ def _spoken_title(title: str) -> str:
     return re.sub(r"\s+page$", "", short, flags=re.IGNORECASE)
 
 
+#: What a label never ends on when she says it: a dash, a colon, a comma, an
+#: arrow, or the stop of a heading cut short.
+_LABEL_TAIL = " \t,;:.-\u2010\u2011\u2012\u2013\u2014\u2015\u2212|/\u2022\u00b7\u2192\u203a>("
+
+
 def _spoken_text(text: str) -> str:
-    """What she pointed at, as her line repeats it: a few words, cut at a word."""
-    if len(text) <= _SPOKEN_TEXT_CHARS:
-        return text
-    return text[:_SPOKEN_TEXT_CHARS].rsplit(" ", 1)[0].rstrip(",;:")
+    """What she pointed at, as her line repeats it: a few whole words, and
+    never a trailing dash or stop ("SEBI-registered Category I AIF" followed by an en dash is said
+    "SEBI-registered Category I AIF")."""
+    text = text.strip()
+    if len(text) > _SPOKEN_TEXT_CHARS:
+        cut = text[: _SPOKEN_TEXT_CHARS + 1]
+        if cut[-1].isspace():  # the cut fell between two words
+            text = cut.rstrip()
+        elif " " in cut:
+            text = cut.rsplit(None, 1)[0]
+        else:
+            text = cut[:_SPOKEN_TEXT_CHARS]
+    return text.rstrip(_LABEL_TAIL) or text
 
 
 _ABOUT_URL = f"{SITE}/about-us/"
@@ -546,6 +631,29 @@ are going on?", "tell me about the seed fund") is not one: she answers it, and
 offers the page."""
 
 
+_KANNADA_HEARD = re.compile(
+    r"[\u0c80-\u0cff]|\bkannad"
+    r"|\b(?:naanu|nanu|nanna|nange|nanage|nimma|beku|beda|illa|ilva|enu|yenu|hesaru|maadi"
+    r"|madi|gottilla|gothilla|haudu|howdu|swalpa|bagge|hegide|hegiddira|yaake|elli|yavaga"
+    r"|kodi|helkodi|heli|banni|namaskara|dhanyavada|dhanyavadagalu)\b",
+    re.IGNORECASE,
+)
+"""What Kannada heard by the English recognizer still shows: the script, the
+language's name, or a common Kannada word that survives as English letters.
+A switch to Kannada by voice needs one of them in what the visitor said: a
+garbled turn ("Ferro vai la dar agua") switched a call once, and the visitor
+then heard a language they had not spoken."""
+
+_GOODBYE_HEARD = re.compile(
+    r"\b(?:good\s*-?\s*bye|bye(?:\s*-?\s*bye)?|that'?s\s+(?:all|it)|that\s+is\s+all"
+    r"|nothing\s+(?:else|more)|i'?m\s+done|we'?re\s+done|see\s+you|end\s+(?:the\s+)?call"
+    r"|hang\s+up)\b|ಬೈ|ಹೋಗಿ\s*ಬರ|ಅಷ್ಟೇ|ಸಾಕು",
+    re.IGNORECASE,
+)
+"""Words with which a visitor ends the call: "bye", "that's all", "nothing
+else", "ಬೈ", "ಅಷ್ಟೇ" (that's all). ``end_call`` closes the call only after them,
+so a model that misreads a plain "thank you" cannot hang up on a visitor."""
+
 _SEARCHES_PER_TURN = 2
 """A broad question may take a second search in other words; never a third."""
 
@@ -633,6 +741,10 @@ def _page(url: str) -> tuple[str, str] | None:
         # A PDF on another site: the snippet shows only karnatakadigital.in, so
         # the card is the approved page that links it, if the index holds it.
         return _via(theirs)
+    if theirs is not None and (offered := ALLOWLIST.offered_by(theirs)) is not None:
+        # A policy KDEM hands out through its own page's download form: the
+        # card is that page, so the visitor gets it the way KDEM offers it.
+        return _page(offered.url) if KNOWLEDGE.kb.page(theirs) is not None else None
     canonical = ALLOWLIST.canonical(url)
     if canonical is None or ALLOWLIST.is_excluded(canonical):
         return None
@@ -662,6 +774,8 @@ def _source(p: Passage) -> str:
     source = f"{p.title} ({where})"
     if off_site(p.url) and (via := _via(p.url)) is not None:
         source += f', linked from the KDEM page "{via[1]}"'
+    elif (offered := ALLOWLIST.offered_by(p.url)) is not None:
+        source += f', downloaded from the KDEM page "{offered.title}"'
     return source
 
 
@@ -725,8 +839,11 @@ class KdemBrain(GeminiBrain):
         self._heard = ""
         #: The page Aria offered to take them to, and in which turn.
         self._offered: tuple[str, int] | None = None
-        #: The page she took them to, until they arrive there.
+        #: The page she took them to, until they arrive there, and in which turn.
         self._took_to: str | None = None
+        self._took_turn = 0
+        #: A phrase to point at on that page, sent when they arrive there.
+        self._point_on_arrival: str | None = None
         #: The phrase she last pointed at, for a page that could not show it.
         self._pointed: str | None = None
         #: KAN form: who filled each field ("aria" or "visitor"), and a mobile
@@ -735,6 +852,13 @@ class KdemBrain(GeminiBrain):
         self._kan_pending: dict[KanField, tuple[str, int]] = {}
         #: Searches made in the latest visitor turn: (turn, how many).
         self._searches: tuple[int, int] = (0, 0)
+        #: The visitor said goodbye and she said hers: the call closes once the
+        #: turn's speech is out, so nothing after it is answered.
+        self._ending = False
+        #: Don't-know replies this call, and the team lead said last, so the
+        #: same line is never said twice running.
+        self._dont_knows = 0
+        self._last_lead: str | None = None
 
     # ─── Callbacks ──────────────────────────────────────────────────────
 
@@ -807,16 +931,25 @@ class KdemBrain(GeminiBrain):
             self._confirm = None
             async for event in say_line(self, line):
                 yield event
+        said: list[str] = []
         async for event in self._fallback.speak_if_silent(self, super().respond(session)):
-            if isinstance(event, SpeechChunk) and (url := self._offer_lines.get(event.text)):
-                # Her own line offered this page: the visitor's yes takes them there.
-                self._offered = (url, self._turn)
+            if isinstance(event, SpeechChunk):
+                said.append(event.text)
+                if url := self._offer_lines.get(event.text):
+                    # Her own line offered this page: the visitor's yes takes them there.
+                    self._offered = (url, self._turn)
             yield event
+        self._count_dont_know("".join(said))
         if (speech := self._pending) is not None:
             self._pending = None
             if await self._move(session, speech, by="you, on what the visitor said"):
                 async for event in say_line(self, SWITCH_LINE[speech.tag]):
                     yield event
+        if self._ending:
+            # After everything yielded is on the wire, so the goodbye is heard
+            # in full; whatever the microphone picks up after it gets no reply.
+            logger.info("kdem: call ended after the goodbye")
+            session.end("goodbye")
 
     async def _move(self, session: Session, speech: LanguageSpeech, *, by: str) -> bool:
         """Move both legs to ``speech`` in one awaited request, and record it.
@@ -851,6 +984,10 @@ class KdemBrain(GeminiBrain):
                 await self._requested(session, event)
             case KanFieldChanged():
                 self._kan_changed(event)
+            case MicPermission():
+                # Counted from the log; the model is not told: a visitor with no
+                # microphone cannot speak the turn it would answer.
+                logger.info("kdem: mic_permission {} after {} ms", event.outcome, event.waited_ms)
             case KanFillFailed():
                 label = KAN_LABELS[event.field]
                 logger.info("kdem: kan_fill_failed {} ({})", event.field, event.reason)
@@ -924,12 +1061,21 @@ class KdemBrain(GeminiBrain):
             return
         self.here = here
         line = self._where = _where_they_are(event.path, moved=True)
+        waiting, self._point_on_arrival = self._point_on_arrival, None
         if self._took_to is not None and ALLOWLIST.canonical(here) == self._took_to:
             self._took_to = None
             line += (
                 " You took them here: carry on the conversation where it was, pointing at "
                 "the part they need, and do not greet them again."
             )
+            if waiting is not None:
+                # The point she made while the page was loading: shown now it is here.
+                self._pointed = waiting
+                self.session.dispatch(PointAt(text=waiting))
+                logger.info("kdem: point_at {!r} on {} (on arrival)", waiting, path_of(here))
+                line += f' What you pointed at ("{waiting}") is highlighted now.'
+        elif waiting is not None:
+            logger.info("kdem: point_at {!r} dropped: they went elsewhere", waiting)
         logger.info(
             "kdem: page_viewed {} ({})", path_of(here), "named" if _page(here) else "unnamed"
         )
@@ -954,6 +1100,7 @@ class KdemBrain(GeminiBrain):
             self.go_to_page,
             self.point_at,
             self.set_language,
+            self.end_call,
         ]
 
     def _say(self, what: Said, *, offers: str | None = None, **names: str) -> None:
@@ -973,6 +1120,15 @@ class KdemBrain(GeminiBrain):
     def _here(self) -> str | None:
         return ALLOWLIST.canonical(self.here) if self.here else None
 
+    def _going_to(self) -> str | None:
+        """The page she sent them to that has not opened yet: sent this turn or
+        the one before, and no page_viewed for it since. Older than that, the
+        move is taken not to have happened."""
+        took = self._took_to
+        if took is None or took == self._here() or self._turn - self._took_turn > 1:
+            return None
+        return took
+
     def _cant_open(self) -> None:
         """Her line for a page she may not open: Contact Us instead, as the
         don't-know answer offers it, or its details when they are on it."""
@@ -984,16 +1140,61 @@ class KdemBrain(GeminiBrain):
         else:
             self._say("cant_open_offer", offers=contact[0], title=_spoken_title(contact[1]))
 
+    def _count_dont_know(self, said: str) -> None:
+        """Count a reply that was a don't-know, the model's or her own, and
+        remember which team lead it used."""
+        text = said.casefold()
+        if not any(marker in text for marker in _NOT_KNOWN):
+            return
+        self._dont_knows += 1
+        for leads in TEAM_LEADS.values():
+            for lead in leads:
+                if lead.casefold() in text:
+                    self._last_lead = lead
+        logger.info("kdem: dont_know #{} this call", self._dont_knows)
+
+    def _team_lead(self) -> str:
+        """The team lead for the next don't-know: not the one said last."""
+        leads = TEAM_LEADS[self.spoken]
+        return leads[1] if self._last_lead == leads[0] else leads[0]
+
     def _dont_know(self) -> None:
         """Her line for a search with nothing to say: the don't-know line, with
-        Contact Us offered, or pointed out when they are on it."""
+        Contact Us offered, or pointed out when they are on it. After the first
+        in a call, the team's line instead, never the same one twice running."""
         contact = _page(ALLOWLIST.contact_url)
-        if contact is None:
+        if self._dont_knows:
+            lead = self._team_lead()
+            if contact is None:
+                self._say("team", lead=lead)
+            elif contact[0] == self._here():
+                self._say("team_here", lead=lead)
+            else:
+                self._say(
+                    "team_offer", offers=contact[0], lead=lead, title=_spoken_title(contact[1])
+                )
+        elif contact is None:
             self._say("dont_know")
         elif contact[0] == self._here():
             self._say("dont_know_here")
         else:
             self._say("dont_know_offer", offers=contact[0], title=_spoken_title(contact[1]))
+
+    def _not_known(self) -> str:
+        """What a search result tells the model to say when the pages do not
+        answer: the don't-know line the first time in a call, the team's line
+        after that, so she never says the same thing twice running."""
+        offer = (
+            f"offer to take them to the Contact Us page ({CONTACT_PATH}) with offer_page, or "
+            "point at it with point_at if they are already there"
+        )
+        if not self._dont_knows:
+            return f'say: "{DONT_KNOW}" and {offer}.'
+        return (
+            "you have already told them once in this call that the website does not have "
+            f'something, so do not say "{DONT_KNOW}" again. Say: "{self._team_lead()}" and '
+            f"{offer}."
+        )
 
     def _destination(self, url: str, tool: str) -> tuple[str, str] | str:
         """The page ``url`` would take the visitor to, as ``(url, title)``, or the
@@ -1055,7 +1256,8 @@ class KdemBrain(GeminiBrain):
                 "go_to_page with it."
             )
         self._offered = None
-        self._took_to = dest
+        self._took_to, self._took_turn = dest, self._turn
+        self._point_on_arrival = None
         self.session.dispatch(Navigate(url=dest))
         logger.info(
             "kdem: go_to_page {} ({})", path_of(dest), "a yes" if said_yes else "they asked"
@@ -1076,7 +1278,11 @@ class KdemBrain(GeminiBrain):
             logger.info("kdem: point_at refused: {} characters", len(text))
             self._say("point_miss")
             return f"Not shown: pass a shorter phrase, under {_POINT_CHARS} characters."
-        page = KNOWLEDGE.kb.page(self.here) if self.here else None
+        # The page she has just taken them to is still loading: the point is
+        # checked against that page, and sent when it has opened.
+        going = self._going_to()
+        where = going or self.here
+        page = KNOWLEDGE.kb.page(where) if where else None
         if page is None:
             logger.info("kdem: point_at {!r} refused: no text for the page they are on", text)
             self._say("point_miss")
@@ -1085,9 +1291,15 @@ class KdemBrain(GeminiBrain):
             logger.info("kdem: point_at {!r} refused: not on {}", text, path_of(page.url))
             self._say("point_miss")
             return (
-                f"Not shown: {text!r} is not on the page they are on now ({page.title}). "
+                f"Not shown: {text!r} is not on the page they are "
+                f"{'going to' if going else 'on now'} ({page.title}). "
                 "Pass a phrase from that page, or offer to take them to the page that has it."
             )
+        if going is not None:
+            self._point_on_arrival = text
+            logger.info("kdem: point_at {!r} waits for {} to open", text, path_of(page.url))
+            self._say("point_soon", text=_spoken_text(text))
+            return "ok: the page is still opening; it lights up as soon as it has."
         self._pointed = text
         self.session.dispatch(PointAt(text=text))
         logger.info("kdem: point_at {!r} on {}", text, path_of(page.url))
@@ -1109,32 +1321,26 @@ class KdemBrain(GeminiBrain):
             logger.info("kdem: search {!r} refused: a third search this turn", request.query)
             return (
                 "Not searched: that is two searches this turn. Answer from what came back, "
-                f'or say: "{DONT_KNOW}" and offer to take them to the Contact Us page '
-                f"({CONTACT_PATH}) with offer_page."
+                f"or {self._not_known()}"
             )
         kb = KNOWLEDGE.kb
         if len(kb) == 0:
             logger.warning("kdem: search with an empty knowledge base")
             return (
                 "The website's pages are not available right now, so there is nothing to "
-                f'answer from. Say: "{DONT_KNOW}" and offer to take them to the Contact '
-                f"Us page ({CONTACT_PATH}) with offer_page, or point at it with point_at if "
-                "they are already there."
+                f"answer from. So {self._not_known()}"
             )
         passages = kb.search(request.query, k=_PASSAGES)
         logger.info("kdem: search {!r} -> {} passages", request.query, len(passages))
         if not passages:
-            return (
-                f'Nothing on the approved pages matches. Say: "{DONT_KNOW}" and offer to '
-                f"take them to the Contact Us page ({CONTACT_PATH}) with offer_page, or "
-                "point at it with point_at if they are already there."
-            )
+            return f"Nothing on the approved pages matches. So {self._not_known()}"
         found = "\n\n".join(
             f"[{i}] {_source(p)}\nurl: {p.url}\n{p.snippet}" for i, p in enumerate(passages, 1)
         )
         return (
-            "From karnatakadigital.in. Answer only from this; if it does not answer the "
-            f'question, say: "{DONT_KNOW}"\n\n{found}'
+            "From karnatakadigital.in. Answer only from this. If it answers part of the "
+            "question, say that part and that the KDEM team can tell them the rest; if it "
+            f"answers none of it, {self._not_known()}\n\n{found}"
         )
 
     def _kan_next(self) -> str:
@@ -1254,6 +1460,19 @@ class KdemBrain(GeminiBrain):
         self._say("document", title=_spoken_title(title))
         return "ok"
 
+    async def end_call(self) -> str:
+        """End the call after the visitor says goodbye. Say your short goodbye and
+        call this in the same response; the call closes once it has been heard.
+        Only when they said goodbye or that they are done, never on a plain thank
+        you."""
+        if not _GOODBYE_HEARD.search(self._heard):
+            logger.info("kdem: end_call refused: the visitor did not say goodbye")
+            return "Not ended: they did not say goodbye. Carry on the conversation."
+        self._ending = True
+        logger.info("kdem: end_call")
+        self._say("goodbye")
+        return "ok: the call closes after your goodbye."
+
     async def set_language(self, request: LanguageRequest) -> str:
         """Conduct the rest of the call in English or Kannada — both the listening and
         the speaking. Call it when they ask, and when a turn looks like the other
@@ -1263,6 +1482,14 @@ class KdemBrain(GeminiBrain):
         if speech.code == self.spoken:
             self._pending = None
             return f"Already in {speech.name}. Carry on."
+        if speech.code == Language.KN and not _KANNADA_HEARD.search(self._heard):
+            # Nothing Kannada in it: a misheard turn, not a language.
+            logger.info("kdem: set_language kannada refused: nothing Kannada was heard")
+            self._say("say_again")
+            return (
+                "Not switched: nothing in what was heard is Kannada, so it was most likely "
+                "misheard. Ask them to say it again, in English, and keep the call in English."
+            )
         # Not sent here: a tool returns within its budget, and the switch has to
         # land before the line the new voice says. respond() makes it, awaited,
         # once this response has streamed.
@@ -1276,6 +1503,7 @@ class KdemBrain(GeminiBrain):
 
 __all__ = [
     "DONT_KNOW",
+    "IDENTITY",
     "SWITCH_LINE",
     "TOGGLE_CONFIRM",
     "KanFill",

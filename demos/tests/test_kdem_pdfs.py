@@ -1382,3 +1382,52 @@ def test_concurrent_snapshot_writes_never_leave_a_torn_file(tmp_path: Path) -> N
     assert not errors
     assert Snapshot.load(path) is not None
     assert not list(tmp_path.glob("*.tmp"))
+
+
+# ─── Documents a page offers behind its own form ──────────────────────────────
+
+
+def _with_documents(*docs: dict[str, str]) -> dict[str, object]:
+    doc = _allowlist_doc()
+    pages = doc["pages"]
+    assert isinstance(pages, list)
+    pages[1] = {**pages[1], "documents": list(docs)}
+    return doc
+
+
+def test_a_pdf_a_page_offers_behind_its_form_is_read_as_if_linked() -> None:
+    """KDEM's policies page hands each policy out through a download form, so
+    no link to the PDF is ever in its text. Listed under the page's
+    ``documents``, the PDF is read as if the page linked it, named by its
+    title; and the brain shows that page, not the file, as its card."""
+    url = f"{SITE}{UP}/sample-policy.pdf"
+    al = Allowlist.from_json(_with_documents({"url": url, "title": "Sample Policy 2025-30"}))
+    hub = StoredPage(f"{SITE}/policies/", "Policies", "docs", "approved", "", "", "", ("Docs.",))
+    linked = knowledge.linked_pdfs(al, {hub.url: hub})
+    assert set(linked) == {url}
+    assert linked[url].text == "Sample Policy 2025-30" and linked[url].via == hub.url
+    offered = al.offered_by(url)
+    assert offered is not None and offered.url == hub.url
+    assert al.offered_by(f"{SITE}{UP}/other.pdf") is None
+
+
+@pytest.mark.parametrize(
+    "url", ["https://elsewhere.example/policy.pdf", f"{SITE}/policies/not-a-pdf/"]
+)
+def test_a_document_must_be_a_pdf_on_the_site(url: str) -> None:
+    with pytest.raises(RuntimeError, match="is not a PDF on"):
+        Allowlist.from_json(_with_documents({"url": url, "title": "x"}))
+
+
+def test_the_real_list_reads_the_policies_behind_the_download_form() -> None:
+    """The startup and AVGC-XR policies and the startup guidelines (with the
+    PF and ESI affidavit annexure) are on the site only behind the policies
+    page's download form."""
+    al = knowledge.ALLOWLIST
+    policies = al.approved(f"{SITE}/policies/")
+    assert policies is not None
+    titles = {t for _u, t in policies.documents}
+    assert "Draft Operational Guidelines for the Karnataka Startup Policy 2025-30" in titles
+    assert "Karnataka AVGC-XR Policy 2024-29" in titles
+    for u, _t in policies.documents:
+        assert al.offered_by(u) == policies

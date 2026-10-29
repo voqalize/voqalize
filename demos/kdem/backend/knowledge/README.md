@@ -38,6 +38,11 @@ approved pages in a section with `read_pdfs` (today `policies-resources` and
   name is refused, and a redirect is never followed to somewhere else: a PDF
   or page that now redirects is reported as moved, its new address unread. The excluded and held patterns apply to PDFs as to
   pages, so a PDF whose path matches a held pattern waits for review;
+- a page that hands its PDFs out through a download form, with no link in
+  its text (the policies page does), lists them under its own `documents`, as
+  `{"url", "title"}`: each must be a PDF on karnatakadigital.in. They are read
+  as if the page linked them, named by that title, and the card Aria shows for
+  one is the page itself, so the visitor gets it the way KDEM offers it;
 - a PDF is named by its link text. When the link says nothing ("View More",
   "Download Now", an icon), it is named by the heading of its own card, then
   by the title inside the file, then by its file name;
