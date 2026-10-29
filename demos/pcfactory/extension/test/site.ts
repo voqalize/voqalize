@@ -352,16 +352,31 @@ function simulateSite(): void {
         }, 150);
         return;
       }
+      // The site's own handler is the button's, not its words: a translated
+      // "Add to cart" adds just the same.
       const pdpAdd = t.closest("#product-detail button.pcf-btn--five");
-      if (pdpAdd && /agregar/i.test(pdpAdd.textContent ?? "")) {
+      if (pdpAdd && /addToBasket/.test(pdpAdd.getAttribute("onmousedown") ?? "")) {
         const id = productIdHere();
         setTimeout(() => {
           bump(id, 1);
           show(document.querySelector("#pcf-modal-added-product"));
           // The button becomes the page's − / +, as it does live.
           for (const b of document.querySelectorAll("#product-detail button.pcf-btn--five")) {
-            if (/agregar/i.test(b.textContent ?? "")) b.outerHTML = '<div class="counter-input d-flex"><button class="btn-minus">−</button><input id="input-desk" type="number" value="1"><button class="btn-plus">+</button></div>';
+            if (/addToBasket/.test(b.getAttribute("onmousedown") ?? "")) b.outerHTML = '<div class="counter-input d-flex"><button class="btn-minus">−</button><input id="input-desk" type="number" value="1"><button class="btn-plus">+</button></div>';
           }
+        }, 150);
+        return;
+      }
+      // A comparison column's Agregar al carro: one more each press, the
+      // window each time; the button stays as it was.
+      const columnAdd = t.closest("#pcf-comparator button.cart-main-btn");
+      if (columnAdd) {
+        const cards = [...document.querySelectorAll("#pcf-comparator .comparator-product-card")];
+        const i = cards.indexOf(columnAdd.closest(".comparator-product-card")!);
+        const ids = [...new URLSearchParams(location.search).entries()].filter(([k]) => /^prod\d+$/.test(k)).map(([, v]) => Number(v));
+        setTimeout(() => {
+          bump(ids[i]!, 1);
+          show(document.querySelector("#pcf-modal-added-product"));
         }, 150);
         return;
       }

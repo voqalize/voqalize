@@ -26,7 +26,9 @@
  *  and the comparator; the comparison page's table (its row labels, values
  *  and group titles); the product page's tab titles, specifications and stock
  *  by store, and its pickup window; the Categorías menu; the store cards;
- *  coupon codes; the listing's count. */
+ *  coupon codes; the listing's count; and the buttons a cart move presses
+ *  (Agregar al carro on the product page, a card and a comparison column;
+ *  Seguir comprando; Eliminar's confirmation; the comparator's bar). */
 const ANCHORS = [
   "#main-layout h1", "#main-layout h2", "#main-layout h3", "#main-layout h4",
   "#main-layout .accordion-button",
@@ -39,6 +41,10 @@ const ANCHORS = [
   "#pickup-modal .stock__list", "#categories-dropdown-list", ".categories-dropdown-list__panel",
   ".card-tabs h3", ".card-tabs h6", ".ticket-cupon-text",
   "p.d-block.mb-12",
+  // The buttons the cart moves press: kept in Spanish, as the moves name them.
+  "#product-detail button.pcf-btn--five", ".add-to-cart-fixed button", "button.products__item__info__add-to-cart",
+  "#pcf-comparator button.cart-main-btn", "#pcf-modal-added-product button", "#delete-product-modal",
+  "#pcf-comparator-summary",
   "[data-voqalize]",
 ].join(", ");
 

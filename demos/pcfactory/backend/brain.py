@@ -1619,9 +1619,11 @@ _ADDS = re.compile(
 #: A move on the cart: an add, a change, a removal, the checkout. With the
 #: cart as recognition hears it ("add this to cut").
 _CART_MOVE = re.compile(
-    r"\b(?:agreg|anad|añad|pon(?:lo|la|er|me)|mete|echa|add|put|quit|sac(?:a|alo|ala|ar)\b"
+    r"\b(?:agreg|anad|añad|pon(?:lo|la|er|me)|mete|echa|suma(?:lo|la|me|r)?\b|add|put|quit"
+    r"|sac(?:a|alo|ala|ar)\b"
     r"|elimin|borr|remove|take (?:it|them|that|one) out|cambi\w* (?:la )?cantidad"
     r"|change the (?:quantity|amount)|me lo llevo|lo llevo|lo compro|i'?ll take it"
+    r"|(?:lo|la) quiero\b(?!\s+\w)|i want (?:it|this one|that one)\b(?!\s+\w)"
     r"|checkout|check out)\w*"
     r"|\b(?:to|into|al|a la|a mi)\s+(?:the |my |mi |el |la )?"
     r"(?:cart|cut|card|carro|carrito)\b",
@@ -1637,12 +1639,24 @@ def asks_cart_move(text: str) -> bool:
 
 #: A plain yes, in either language, as recognition hears it.
 _YES = re.compile(
-    r"\b(?:si|dale|ya|ok(?:ay|ey)?|yes|yeah|yep|sure|claro|perfecto|de acuerdo|hazlo"
-    r"|go ahead|do it|listo|obvio|vamos|confirm\w*|correcto|exacto)\b",
+    r"\b(?:si|dale|ya|ok(?:ay|ey)?|yes|yeah|yep|yup|sure|claro|perfect[oa]?|de acuerdo|hazlo"
+    r"|go ahead|go for it|do it|please do|sounds good|of course|absolutely|por supuesto"
+    r"|mhm|mm+[- ]?hmm|uh[- ]?huh|listo|obvio|vamos|confirm\w*|correcto|exacto)\b",
     re.IGNORECASE,
 )
 _NO = re.compile(
     r"^\W*(?:no|nop|nope|todavia no|aun no|not yet|mejor no|espera|wait)\b", re.IGNORECASE
+)
+#: A no that only corrects him, then asks by name: "No, add it.", "No wait,
+#: add two." The ask is what follows the first break.
+_CORRECTED = re.compile(
+    r"^\W*(?:(?:no|nop|nope|wait|espera|perdon|sorry|oh|ah)\W*?\s*)+[,.;!]+\s*(?P<ask>\S.*)$",
+    re.IGNORECASE,
+)
+#: An ask turned down in the same breath: "don't add it", "no lo agregues".
+_NEGATED = re.compile(
+    r"\b(?:don'?t|do not|never|nunca|no (?:lo|la|los|las|me|le|les)\b|not (?:yet|now))",
+    re.IGNORECASE,
 )
 #: What asks for each confirmed move by name, without a yes.
 _ASKS_FOR: dict[str, re.Pattern[str]] = {
@@ -1660,10 +1674,14 @@ def consents(kind: str, last: str, before: str = "") -> bool:
     """Whether the visitor's last words let him make a confirmed move of
     ``kind`` (``cart``, ``coupon``, ``checkout``): they asked for it by name
     (in their last words, or the fragment before them), or said yes to his
-    offer of it; never when their last words are a no."""
+    offer of it; never when their last words are a no, unless the no only
+    corrects him and then asks by name ("No, add it.")."""
     said = fold(last)
-    if _NO.search(said):
+    if _NEGATED.search(said):
         return False
+    if _NO.search(said):
+        fixed = _CORRECTED.match(said)
+        return bool(fixed and _ASKS_FOR[kind].search(fixed["ask"]))
     return bool(_YES.search(said) or _ASKS_FOR[kind].search(fold(f"{before} {last}")))
 
 

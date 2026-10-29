@@ -2363,7 +2363,7 @@ async function compareRemove(p: { path?: string | null; all?: boolean | null }, 
   if (!panel) return "the comparator was already empty";
   await scrollTo(panel, "center");
   if (p.all) {
-    const clear = [...panel.querySelectorAll<HTMLElement>("p.pointer, u")].find((x) => /limpiar selecci/i.test(clean(x.textContent)));
+    const clear = [...panel.querySelectorAll<HTMLElement>("p.pointer, u")].find((x) => /limpiar selecci|clear (?:the )?selection/i.test(clean(x.textContent)));
     if (!clear) throw new Error("the comparator shows no Limpiar selección");
     await c.ring(clear, "Limpiar selección");
     press(clear.closest("p") ?? clear);
@@ -2428,10 +2428,29 @@ async function closeOverlays(keepMenu = false): Promise<void> {
 
 // commerce.cart_add, cart_show, cart_update ─────────────────────────────────
 
+/** "Agregar al carro", or what Chrome's translator makes of it, for a button
+ *  found without its own structural mark. */
+const ADD_WORDS = /agregar al carr|add to (?:the |my )?(?:cart|car|basket)/i;
+
+/** The product page's "Agregar al carro", found by what it is, not what it
+ *  says: the button that calls the site's `rrApi.addToBasket(<id>)`, else the
+ *  detail's dark-grey button with those words. The owner's Chrome translates
+ *  the page, and a translated "Add to cart" is the same button (dev call
+ *  9ec9601a: matched by its Spanish words, it was never found). */
 const pdpAddButton = () =>
-  [...document.querySelectorAll<HTMLButtonElement>("#product-detail button.pcf-btn--five, .add-to-cart-fixed button")].find(
-    (b) => /agregar al carro/i.test(clean(b.textContent)) && shown(b),
+  [...document.querySelectorAll<HTMLButtonElement>("#product-detail button.pcf-btn--five, .add-to-cart-fixed button, #product-detail button[onmousedown*=addToBasket]")].find(
+    (b) => shown(b) && !b.closest(".rr-item") && (/addToBasket/.test(b.getAttribute("onmousedown") ?? "") || ADD_WORDS.test(clean(b.textContent))),
   ) ?? null;
+
+/** On /comparador: each column's own "Agregar al carro", by the product id
+ *  of its column. */
+function comparisonAddButton(id: number): HTMLElement | null {
+  const ids = columnIds();
+  const i = ids.indexOf(id);
+  if (i < 0) return null;
+  const card = comparisonCards()[i];
+  return [...(card?.querySelectorAll<HTMLElement>("button.cart-main-btn") ?? [])].find(shown) ?? null;
+}
 
 /** The product page's own − / + once the product is in the cart: its
  *  "Agregar al carro" turns into this stepper after the first add. */
@@ -2444,7 +2463,8 @@ async function addToCart(p: { path: string; qty?: number } & Arrived, c: MoveCon
   if (!Number.isFinite(qty) || qty < 1 || qty > 10) c.refuse("qty", `a quantity from 1 to 10, not ${p.qty}`);
   const pdp = onProductPage() && productId(location.pathname) === id;
   const card = !pdp ? cards().find((a) => cardId(a) === id && shown(a)) : undefined;
-  if (!pdp && !card) {
+  const column = !pdp && !card && kindOf() === "compare" ? comparisonAddButton(id) : null;
+  if (!pdp && !card && !column) {
     if (p.arrived) throw new Error(`${productPath(id)} did not open as a product page (now on ${location.pathname})`);
     return load(c, productPath(id), again(c, p));
   }
@@ -2453,6 +2473,9 @@ async function addToCart(p: { path: string; qty?: number } & Arrived, c: MoveCon
   if (pdp) {
     await waitFor(() => pdpAddButton() ?? pdpStepper(), 10_000);
     const button = pdpAddButton();
+    if (!button && !pdpStepper()) {
+      throw new Error("the product page shows no Agregar al carro (out of stock, or not sold online?); nothing was added");
+    }
     if (button) {
       await scrollTo(button, "center");
       await c.ring(button, "Agregar al carro");
@@ -2480,10 +2503,13 @@ async function addToCart(p: { path: string; qty?: number } & Arrived, c: MoveCon
       }
     }
   } else {
-    const button = card!.querySelector<HTMLElement>("button.products__item__info__add-to-cart");
+    const button = column ?? card!.querySelector<HTMLElement>("button.products__item__info__add-to-cart");
     if (!button) throw new Error("this card shows no Agregar al carro (out of stock?); nothing was added");
-    await scrollTo(card!, "center");
-    await c.ring(card!, "Agregar al carro");
+    // On /comparador the column's button stays "Agregar al carro" after an
+    // add, so it is pressed once per unit, as a card's is.
+    const around = column ? (column.closest<HTMLElement>(".comparator-product-card") ?? column) : card!;
+    await scrollTo(around, "center");
+    await c.ring(around, "Agregar al carro");
     // A card's button adds one each press; the window that confirms it is
     // closed before the next.
     for (; left > 0; left--) {
@@ -2505,7 +2531,10 @@ async function addToCart(p: { path: string; qty?: number } & Arrived, c: MoveCon
   const cart = await readCart();
   reportCart(cart);
   const line = cart.items.find((l) => l.path === productPath(id));
-  const name = line?.name || (pdp ? readProduct()?.name : cardName(card!)) || productPath(id);
+  const name =
+    line?.name ||
+    (pdp ? readProduct()?.name : card ? cardName(card) : clean(column?.closest(".comparator-product-card")?.querySelector("h2")?.textContent)) ||
+    productPath(id);
   const added = storedQty(id) - start;
   // The confirmation is the effect: ringed, left up long enough to read, then
   // closed with its own "Seguir comprando" (`commerce.cart_show` opens the
@@ -2585,7 +2614,7 @@ async function updateCartItem(p: { path: string; qty: number } & Arrived, c: Mov
     await c.ring(row, `Eliminar ${name}`);
     press(remove);
     const dialog = await waitFor(() => document.querySelector<HTMLElement>("#delete-product-modal.show"), 3000);
-    const confirm = [...(dialog ?? document).querySelectorAll<HTMLElement>("#delete-product-modal button")].find((b) => /^eliminar$/i.test(clean(b.textContent)));
+    const confirm = [...(dialog ?? document).querySelectorAll<HTMLElement>("#delete-product-modal button")].find((b) => /^(?:eliminar|delete|remove)$/i.test(clean(b.textContent)));
     if (!confirm) throw new Error("the cart's ¿Confirmas…? window did not open; nothing was removed");
     if (dialog) await c.ring(dialog.querySelector(".modal-content") ?? dialog, "Eliminar");
     c.progress("waiting_site");

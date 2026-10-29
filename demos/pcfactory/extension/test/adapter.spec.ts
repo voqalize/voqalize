@@ -621,6 +621,56 @@ test.describe("the cart", () => {
     expect(await page.evaluate(() => localStorage.getItem("cartProducts"))).toBe('{"items":[{"id":8941,"cantidad":3,"origin":"PCF"}]}');
   });
 
+  // Dev call 9ec9601a: the owner's Chrome had translated the product page, its
+  // "Agregar al carro" read "Add to cart", and the move, matching the Spanish
+  // words, found no button: 14 s, then "added 0, but the page shows no + for
+  // more". The visitor then added it himself with the same button.
+  test("commerce.cart_add on a product page Chrome translated: the button is found by what it is, and kept from the translator", async ({ page }) => {
+    await serveSite(page);
+    await open(page, PRODUCT);
+    await listen(page);
+    const kept = await page.evaluate(() => [...document.querySelectorAll("#product-detail button.pcf-btn--five")].map((b) => b.getAttribute("translate")));
+    expect(kept.length).toBeGreaterThan(0);
+    expect(kept.every((t) => t === "no")).toBe(true);
+    // The translator, as it rewrites a button it was not kept from.
+    await page.evaluate(() => {
+      for (const b of document.querySelectorAll("#product-detail button.pcf-btn--five")) {
+        for (const n of [...b.childNodes]) if (n.nodeType === Node.TEXT_NODE && /agregar/i.test(n.textContent ?? "")) n.remove();
+        b.insertAdjacentHTML("beforeend", '<font style="vertical-align: inherit;"><font style="vertical-align: inherit;">Add to cart</font></font>');
+      }
+    });
+    const result = await run(page, "commerce.cart_add", { path: PRODUCT, qty: 1 });
+    expect(result.ok, result.error).toBe(true);
+    expect(result.detail).toMatch(/^added 1 x Notebook Gamer LOQe/);
+    expect(await page.evaluate(() => localStorage.getItem("cartProducts"))).toBe('{"items":[{"id":57233,"cantidad":1,"origin":"PCF"}]}');
+    const changed = await waitForEvent(page, "cart.changed", (e) => e.payload.count === 1);
+    expect(changed.by).toBe("agent");
+  });
+
+  test("commerce.cart_add on a product page with no Agregar al carro says so, not 'no + for more'", async ({ page }) => {
+    await serveSite(page);
+    await open(page, PRODUCT);
+    await page.evaluate(() => document.querySelectorAll("#product-detail button.pcf-btn--five").forEach((b) => b.remove()));
+    const result = await run(page, "commerce.cart_add", { path: PRODUCT, qty: 1 });
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/shows no Agregar al carro .*nothing was added/);
+    expect(result.error).not.toMatch(/no \+ for more/);
+  });
+
+  test("commerce.cart_add on /comparador presses that column's own Agregar al carro, once per unit, and stays there", async ({ page }) => {
+    await serveSite(page);
+    await open(page, "/comparador?prod1=57695&prod2=58436");
+    await listen(page);
+    const result = await run(page, "commerce.cart_add", { path: "/producto/58436", qty: 2 });
+    expect(result.ok, result.error).toBe(true);
+    expect(result.detail).toMatch(/^added 2 x /);
+    expect(result.moved).toBeFalsy();
+    expect(page.url()).toBe(`${ORIGIN}/comparador?prod1=57695&prod2=58436`);
+    expect(await page.evaluate(() => localStorage.getItem("cartProducts"))).toBe('{"items":[{"id":58436,"cantidad":2,"origin":"PCF"}]}');
+    const changed = await waitForEvent(page, "cart.changed", (e) => e.payload.count === 2);
+    expect(changed.by).toBe("agent");
+  });
+
   test("commerce.cart_show: closes the Producto agregado window, and opens /carro", async ({ page }) => {
     await serveSite(page, { cart: [{ id: 8941, cantidad: 1 }] });
     await open(page, CATEGORY);
