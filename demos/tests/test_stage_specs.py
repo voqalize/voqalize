@@ -23,7 +23,7 @@ SPECS = sorted(p.parent.name for p in DEMOS.glob("*/scene.json"))
 
 
 def test_the_ported_demos_have_a_spec() -> None:
-    assert {"cannonhome", "explora"} <= set(SPECS)
+    assert {"cannonhome", "explora", "pcfactory"} <= set(SPECS)
 
 
 @pytest.mark.parametrize("demo", SPECS)

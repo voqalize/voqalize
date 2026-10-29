@@ -1,0 +1,721 @@
+<!doctype html>
+<html class="no-js wf-ubuntu-n4-active wf-ubuntu-n5-active wf-active" lang="es-cl"><head>
+<title>Compra con retiro en tienda - pcfactory.cl </title>
+<style data-fixture="">
+ /* Ours, standing in for the site's stylesheet: Bootstrap's display classes
+ at a desktop width, and what it hides until a click. */
+ body { margin: 0; font-family: Ubuntu, Arial, sans-serif; }
+ .d-flex { display: flex; } .d-block { display: block; } .d-grid { display: grid; } .d-inline-block { display: inline-block; }
+ .d-none { display: none !important; }
+ .d-md-block, .d-lg-block, .d-xl-block { display: block !important; }
+ .d-md-flex, .d-lg-flex, .d-xl-flex { display: flex !important; }
+ .d-md-inline-block, .d-lg-inline-block, .d-xl-inline-block { display: inline-block !important; }
+ .d-md-none, .d-lg-none, .d-xl-none { display: none !important; }
+ .collapse:not(.show) { display: none; }
+ .modal { display: none; }
+ .modal.show { display: block; position: fixed; inset: 10% 20% auto 20%; background: #fff; z-index: 1050; }
+ .tab-pane:not(.active) { display: none; }
+ .dropdown-menu { display: none; }
+ .dropdown-menu.show { display: block; }
+ #pcf-comparator-summary { display: none; }
+ #pcf-comparator-summary.show { display: flex; position: fixed; left: 0; right: 0; bottom: 0; height: 200px; background: #212425; color: #fff; z-index: 1030; }
+ img { width: 120px; height: 120px; }
+ section[data-section-name="Lista productos"] { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+ .gm-style-iw { display: block; padding: 8px; border: 1px solid #ccc; }
+</style></head>
+ <body id="custom" class="context-custom context-custom-show context-custom-show-compra-con-retiro-en-tienda">
+<div id="modyo-site-alert-wrapper"></div>
+<header role="banner" id="header" class="page-header">
+	<div data-retailrocket-markup-block="6525fa03ff0453f92c67422e" initialized="true"></div>
+<nav class="navbar navbar-mobile d-block d-xl-none py-3" role="navigation" data-section-name="Menú Principal Mobile">
+	<div class="container p-0 mx-auto row align-items-center justify-content-around text-center">
+ <div class="col-2 col-md-2 p-0">
+ <a class="pt-2 container-mobile" href="https://www.pcfactory.cl">
+ <figure>
+ <picture>
+ <source srcset="https://assets-v3.pcfactory.cl/uploads/e964d6b9-e816-439f-8b97-ad2149772b7b/original/pcfactory-isotipo.svg" media="(max-width: 768px)">
+ <img class="logo-mobile" alt="Logo pc Factory">
+ </picture>
+ <figcaption class="sr-only">pc Factory</figcaption>
+ </figure>
+ </a>
+ </div> 
+ <div class="col-1 mr-3 px-0 hamburguer-resize">
+ <button id="categorias-btn" class="menu-trigger" aria-label="Abrir menú">
+ <span class="icon icon-hamburguer" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span>
+ </button> 
+ </div>
+ <div class="col-6 px-0">
+ <div class="form-inline searchbar w-100">
+ <input id="search-input-mobile" class="form-control d-flex pcf-input" type="text" placeholder="Busca aquí la tecnología para ti" aria-label="Search">
+ <button id="search-btn-mobile" class="pcf-btn pcf-btn--primary" type="submit" aria-label="Buscar"><span class="icon icon-search" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></button>
+ </div>
+ </div>
+ <div class="col-2 pl-0">
+ <a href="https://www.pcfactory.cl/carro" onclick="localStorage.setItem('datalayerListName','Carrito de compra');" class="cart-btn-mobile p-0 position-relative">
+ <span class="icon icon-cart" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span>
+ <p class="sr-only">Carrito de compra</p>
+ <span class="cart-btn-mobile__qty" style="display: none !important">0</span>
+ </a>
+ </div>
+	</div>
+</nav>
+ <nav id="sup-menu" class="navbar py-1 d-none d-xl-block" role="navigation" data-section-name="Menú Superior Desktop">
+	<div class="navbar-inner container d-flex justify-items-end justify-content-end w-100">
+ <ul class="sup-menu-links py-1">
+ <li><a href="https://www.pcfactory.cl/empresas">Venta Empresas</a></li>
+ <li><a href="https://www.pcfactory.cl/servicios/asesorate-online">Asesórate Online</a></li>
+ <li><a href="https://www.pcfactory.cl/estado-despacho">Estado de mi despacho</a></li>
+ <li><a href="https://www.pcfactory.cl/tiendas">Tiendas</a></li>
+ <li><a href="https://www.pcfactory.cl/centro-de-ayuda">Centro de ayuda</a></li>
+ </ul>
+	</div>
+</nav>
+ <nav id="main-menu" class="navbar d-none d-xl-block pt-3 pb-4" role="navigation" data-section-name="Menú Principal Desktop">
+	<div class="navbar-inner container d-flex justify-content-between">
+ <div class="navbar-inner__left d-flex align-items-center w-100" aria-label="Logo Menú principal" rel="Logo Menú principal">
+ <a id="logotype" class="container-logo" href="https://www.pcfactory.cl" aria-label="Logo PcFactory"> 
+ <img alt="">
+ </a>
+ <div id="categories" data-section-name="Menú de Categorias">
+ <button id="categories-btn" class="pcf-btn pcf-btn--nine border-0" data-toggle="modal" data-target="#categories-dropdown"><span class="icon icon-hamburguer" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span>Categorías</button>
+ <div class="modal_img modal fade" id="categories-dropdown" tabindex="-1" aria-labelledby="categories-dropdown" aria-hidden="true">
+	<div class="container"> 
+ <div class="modal-dialog row w-100 no-gutters">
+ <div class="col-4 container-categories-dropdown-list"> 
+ <ul id="categories-dropdown-list" class="categories-dropdown-list d-flex flex-column">
+ <li>
+ <a href="https://www.pcfactory.cl/categorias" class="categories-dropdown-list__main-link d-flex justify-content-between align-items-center" data-content-category="Todas las Categorias">Todas las categorías <span class="icon icon-arrow-right" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span>
+ </a>
+ </li>
+ <li id="category0" data-content-category="Computadores y Tablets"><a href="https://www.pcfactory.cl/categoria/computadores-y-tablets" class="categories-dropdown-list__main-link d-flex justify-content-between align-items-center">Computadores y Tablets <span class="icon icon-arrow-right" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></a></li><li id="category1" data-content-category="Partes y Piezas / Componentes"><a href="https://www.pcfactory.cl/categoria/partes-y-piezas-componentes" class="categories-dropdown-list__main-link d-flex justify-content-between align-items-center">Partes y Piezas / Componentes <span class="icon icon-arrow-right" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></a></li><li id="category2" data-content-category="Smartphones y Wearables"><a href="https://www.pcfactory.cl/categoria/smartphones-y-wearables" class="categories-dropdown-list__main-link d-flex justify-content-between align-items-center">Smartphones y Wearables <span class="icon icon-arrow-right" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></a></li><li id="category3" data-content-category="Gamer y Poder Gráfico"><a href="https://www.pcfactory.cl/categoria/gamer-y-poder-grafico" class="categories-dropdown-list__main-link d-flex justify-content-between align-items-center">Gamer y Poder Gráfico <span class="icon icon-arrow-right" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></a></li><li id="category4" data-content-category="UPS / Energía y Energía Solar"><a href="https://www.pcfactory.cl/categoria/ups-energia-y-energia-solar" class="categories-dropdown-list__main-link d-flex justify-content-between align-items-center">UPS / Energía y Energía Solar <span class="icon icon-arrow-right" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></a></li><li id="category5" data-content-category="Accesorios y Periféricos"><a href="https://www.pcfactory.cl/categoria/accesorios-y-perifericos" class="categories-dropdown-list__main-link d-flex justify-content-between align-items-center">Accesorios y Periféricos <span class="icon icon-arrow-right" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></a></li><li id="category6" data-content-category="Monitores y Proyectores"><a href="https://www.pcfactory.cl/categoria/monitores-y-proyectores" class="categories-dropdown-list__main-link d-flex justify-content-between align-items-center">Monitores y Proyectores <span class="icon icon-arrow-right" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></a></li><li id="category7" data-content-category="Almacenamiento y Discos Duros"><a href="https://www.pcfactory.cl/categoria/almacenamiento-y-discos-duros" class="categories-dropdown-list__main-link d-flex justify-content-between align-items-center">Almacenamiento y Discos Duros <span class="icon icon-arrow-right" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></a></li><li id="category8" data-content-category="Impresoras y Suministros"><a href="https://www.pcfactory.cl/categoria/impresoras-y-suministros" class="categories-dropdown-list__main-link d-flex justify-content-between align-items-center">Impresoras y Suministros <span class="icon icon-arrow-right" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></a></li><li id="category9" data-content-category="Smart TV y Audio"><a href="https://www.pcfactory.cl/categoria/smart-tv-y-audio" class="categories-dropdown-list__main-link d-flex justify-content-between align-items-center">Smart TV y Audio <span class="icon icon-arrow-right" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></a></li><li id="category10" data-content-category="Oficinas y Puntos de Venta"><a href="https://www.pcfactory.cl/categoria/oficinas-y-punto-de-venta" class="categories-dropdown-list__main-link d-flex justify-content-between align-items-center">Oficinas y Puntos de Venta <span class="icon icon-arrow-right" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></a></li><li id="category11" data-content-category="Conectividad y Redes"><a href="https://www.pcfactory.cl/categoria/conectividad-y-redes" class="categories-dropdown-list__main-link d-flex justify-content-between align-items-center">Conectividad y Redes <span class="icon icon-arrow-right" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></a></li><li id="category12" data-content-category="Video, Fotografía y Drones"><a href="https://www.pcfactory.cl/categoria/video-fotografia-y-drones" class="categories-dropdown-list__main-link d-flex justify-content-between align-items-center">Video, Fotografía y Drones <span class="icon icon-arrow-right" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></a></li><li id="category13" data-content-category="Hogar y Seguridad"><a href="https://www.pcfactory.cl/categoria/hogar-y-seguridad" class="categories-dropdown-list__main-link d-flex justify-content-between align-items-center">Hogar y Seguridad <span class="icon icon-arrow-right" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></a></li><li id="category14" data-content-category="Automóvil / GPS y Outdoor"><a href="https://www.pcfactory.cl/categoria/automovil-gps-y-outdoor" class="categories-dropdown-list__main-link d-flex justify-content-between align-items-center">Automóvil / GPS y Outdoor <span class="icon icon-arrow-right" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></a></li><li id="category15" data-content-category="Electrónica y Robótica"><a href="https://www.pcfactory.cl/categoria/electronica-y-robotica" class="categories-dropdown-list__main-link d-flex justify-content-between align-items-center">Electrónica y Robótica <span class="icon icon-arrow-right" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></a></li></ul>
+ </div>
+ <div id="subcategories-panel" class="col-8"></div>
+ </div>
+	</div>
+</div>
+ </div>
+ <div class="navbar-inner__middle d-flex flex-fill px-4">
+ <div class="form-inline searchbar flex-fill">
+ <input id="search-input-desktop" class="form-control flex-fill" type="text" placeholder="Busca aquí la tecnología para ti" aria-label="Search">
+ <button id="search-btn-desktop" class="" type="submit" aria-label="Buscar">
+ <span class="icon icon-search" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></button>
+ </div>
+ </div>
+ <div class="navbar-inner__right d-flex align-items-center justify-content-lg-between">
+ <div class="dropdown login-btn">
+ <button class="dropdown-toggle" type="button" id="login-dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" data-content-name="Hola, ingresa">
+ Hola,
+ <strong class="ml-1">ingresa</strong>
+ </button>
+ <div class="dropdown-menu pcf-box-shadow" aria-labelledby="login-dropdown">
+ <a class="dropdown-item" href="https://www.pcfactory.cl/login">Inicia sesión</a>
+ <a class="dropdown-item" href="https://auth.pcfactory.cl/auth/realms/PCFactory/protocol/openid-connect/registrations?client_id=modyo&amp;response_type=code&amp;scope=openid&amp;redirect_uri=https%3A%2F%2Fww3.pcfactory.cl%2Frealms%2Fprincipal%2Fauth%2Fopenidc%2Fcallback&amp;kc_locale=es">
+ Regístrate
+ </a>
+ </div>
+ </div>
+ <a onclick="goToMisCompras();" class="header-btn my-shopping-list clickable">Mis compras</a>
+ <a href="https://www.pcfactory.cl/carro" onclick="localStorage.setItem('datalayerListName','Carrito de compra');" aria-label="ir al carrito de compra" class="cart-btn p-0 position-relative">
+ <span class="icon icon-cart" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span>
+ <span class="cart-btn__qty d-none">0</span>
+ </a>
+ </div>
+ </div>
+	</div>
+</nav>
+</header>
+<section id="huincha_cyber" class="container-fluid px-0 py-2" style="background-color: #8EE8B2;">
+	<div class="contenedor_huincha_cyber text-center d-flex justify-content-center align-items-center">
+ <a class="link d-block w-100" href="https://www.pcfactory.cl/lenovo-week">
+ <picture>
+ <source media="(min-width: 768px)" srcset="https://assets-v3.pcfactory.cl/uploads/2edcec9f-f626-4888-b7cf-a77bbe083fb8/original/unicos-con-retiro-en-tienda-pcfactory-desktop.png">
+ <img class="img-fluid" alt="Unicos Con Retiro En Tienda Pcfactory Desktop">
+ </picture>
+ </a>
+	</div>
+</section>
+<div id="tag-express-sale" class="pcf-link-btn w-100 justify-content-center align-items-center text-sm-center d-none">
+	<span class="icon icon-transfer" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span>
+	<a href="javascript:void(0)" class="pcf-link-btn p-0" onclick="showListBank()">Haz aquí tus transferencias bancarias</a>
+</div>
+<div id="main-layout" class="">
+<div data-widget-name="Breadcrumb"><div class="container">
+ <div class="row justify-content-start align-items-center">
+ <div class="col-12 py-2 ">
+ <div class="breadcrumb">
+ <a class="first item-0" href="https://www.pcfactory.cl">Home</a> <span class="separator">/</span> <a class="item-1" href="https://www.pcfactory.cl/centro-de-ayuda">Centro de Ayuda | Preguntas frecuentes y soporte</a> <span class="separator">/</span> <span class="last item-2">Compra con retiro en tienda</span>
+</div>
+ </div>
+ </div>
+</div></div>
+<div data-widget-name="Contenido Landing"> <div class="landing bs-5 p-0">
+ <div class="container">
+ <div class="pcf-bg-gray-light-3">
+ <div class="row">
+ <div class="col-6 px-4 py-2 text-center d-flex justify-content-center align-items-center">
+ <div class="w-100 card-pcf p-2">
+ <a class="pcf-text-black fw-bold mb-0" href="https://www.pcfactory.cl/centro-de-ayuda/compra-con-retiro-en-tienda">Preguntas frecuentes</a>
+ </div>
+ </div>
+ <div class="col-6 px-4 py-2 text-center d-flex justify-content-center align-items-center">
+ <div class="w-100 p-2">
+ <a class="pcf-text-black fw-bold mb-0" href="https://www.pcfactory.cl/centro-de-ayuda/terminos-y-condiciones">Términos y Condiciones</a>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div></div>
+<div class="widget-definition" id="modyo-73b98c77-3bfc-4ebd-b31b-562c3c21ca37/c37af03ab18057fca7a0cedabe1e0472d71a797d6121fcc613ab02ee70d24465" data-widget-name="menu-centro-de-ayuda">
+<div class="landing bs-5">
+ <div class="container">
+ <div class="row">
+ <div class="col-md-5">
+ <div class="accordion accordion-flush main-accordion" id="accordionMainFAQ">
+ <div class="accordion-item">
+ <div class="accordion-header" id="flush-heading">
+ <button id="main-accordion" class="accordion-button collapsed pcf-bg-green-light p-0 custom-accordion-button d-flex justify-content-between justify-content-md-start" type="button" data-bs-toggle="collapse" data-bs-target="#flush-collapse" aria-expanded="false" aria-controls="flush-collapse">
+ <div class="position-relative pcf-bg-green">
+ <img id="img-faq" class="p-3" alt="">
+ </div>
+ <h4 class="fw-bold px-4 mx-2 mb-0 pcf-text-black">¿En qué podemos ayudarte?</h4>
+ </button>
+ </div>
+ <div id="flush-collapse" class="accordion-collapse collapse card-pcf pcf-bg-white" aria-labelledby="flush-heading" data-bs-parent="#accordionMainFAQ">
+ <div class="accordion-body p-0">
+ <div class="accordion accordion-flush p-4" id="accordionMenuFAQ">
+ <div class="accordion-item">
+ <h2 class="accordion-header" data-slug="direcciones-y-horarios-de-tiendas" id="flush-headingInner-1">
+ <button id="menu-meta-name" class="accordion-button collapsed pcf-text-black fw-bold pcf-bg-white custom-accordion-button py-0 py-md-3 d-flex justify-content-between" type="button" data-bs-toggle="collapse" data-bs-target="#flush-collapseInner-1" aria-expanded="false" aria-controls="flush-collapseInner-1">
+ Direcciones y horarios de tiendas
+ </button>
+ </h2>
+ <div id="flush-collapseInner-1" class="accordion-collapse collapse" aria-labelledby="flush-headingInner-1" data-bs-parent="#accordionMenuFAQ">
+ <div class="accordion-body p-0">
+ <ul class="nav flex-column nav-collapse p-0">
+ <li class="nav-item">
+ <a id="enlace-donde-estan-las-tiendas-pc-factory-y-cuales-son-los-horarios-de-atencion" href="
+ https://www.pcfactory.cl/centro-de-ayuda/direcciones-y-horarios-de-tiendas#donde-estan-las-tiendas-pc-factory-y-cuales-son-los-horarios-de-atencion
+ " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ ¿Dónde están las tiendas pc Factory y cuáles son los horarios de atención?
+ </p>
+ </a>
+ </li>
+ </ul>
+ </div>
+ </div>
+ </div>
+ <div class="accordion-item">
+ <h2 class="accordion-header" data-slug="stock-de-productos" id="flush-headingInner-2">
+ <button id="menu-meta-name" class="accordion-button collapsed pcf-text-black fw-bold pcf-bg-white custom-accordion-button py-0 py-md-3 d-flex justify-content-between" type="button" data-bs-toggle="collapse" data-bs-target="#flush-collapseInner-2" aria-expanded="false" aria-controls="flush-collapseInner-2">
+ Stock de productos
+ </button>
+ </h2>
+ <div id="flush-collapseInner-2" class="accordion-collapse collapse" aria-labelledby="flush-headingInner-2" data-bs-parent="#accordionMenuFAQ">
+ <div class="accordion-body p-0">
+ <ul class="nav flex-column nav-collapse p-0">
+ <li class="nav-item">
+ <a id="enlace-como-puedo-verificar-si-hay-stock-del-producto-que-estoy-buscando" href="
+ https://www.pcfactory.cl/centro-de-ayuda/stock-de-productos#como-puedo-verificar-si-hay-stock-del-producto-que-estoy-buscando
+ " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ ¿Cómo puedo verificar si hay stock del producto que estoy buscando?
+ </p>
+ </a>
+ </li>
+ <li class="nav-item">
+ <a id="enlace-hay-ofertas-y-promociones-en-pc-factory" href="
+ https://www.pcfactory.cl/centro-de-ayuda/stock-de-productos#hay-ofertas-y-promociones-en-pc-factory
+ " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ ¿Hay ofertas y promociones en pc Factory?
+ </p>
+ </a>
+ </li>
+ </ul>
+ </div>
+ </div>
+ </div>
+ <div class="accordion-item">
+ <h2 class="accordion-header" data-slug="precios-y-medios-de-pago" id="flush-headingInner-3">
+ <button id="menu-meta-name" class="accordion-button collapsed pcf-text-black fw-bold pcf-bg-white custom-accordion-button py-0 py-md-3 d-flex justify-content-between" type="button" data-bs-toggle="collapse" data-bs-target="#flush-collapseInner-3" aria-expanded="false" aria-controls="flush-collapseInner-3">
+ Precios y medios de pago
+ </button>
+ </h2>
+ <div id="flush-collapseInner-3" class="accordion-collapse collapse" aria-labelledby="flush-headingInner-3" data-bs-parent="#accordionMenuFAQ">
+ <div class="accordion-body p-0">
+ <ul class="nav flex-column nav-collapse p-0">
+ <li class="nav-item">
+ <a id="enlace-como-funcionan-los-precios-y-pagos-en-pc-factory" href="
+ https://www.pcfactory.cl/centro-de-ayuda/precios-y-medios-de-pago#como-funcionan-los-precios-y-pagos-en-pc-factory
+ " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ ¿Cómo funcionan los precios y pagos en pc Factory?
+ </p>
+ </a>
+ </li>
+ <li class="nav-item">
+ <a id="enlace-tengo-inconvenientes-con-el-pago-podrian-ayudarme" href="
+ https://www.pcfactory.cl/centro-de-ayuda/precios-y-medios-de-pago#tengo-inconvenientes-con-el-pago-podrian-ayudarme
+ " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ Tengo inconvenientes con el pago, ¿podrían ayudarme?
+ </p>
+ </a>
+ </li>
+ </ul>
+ </div>
+ </div>
+ </div>
+ <div class="accordion-item">
+ <h2 class="accordion-header" data-slug="garantia-de-productos" id="flush-headingInner-4">
+ <button id="menu-meta-name" class="accordion-button collapsed pcf-text-black fw-bold pcf-bg-white custom-accordion-button py-0 py-md-3 d-flex justify-content-between" type="button" data-bs-toggle="collapse" data-bs-target="#flush-collapseInner-4" aria-expanded="false" aria-controls="flush-collapseInner-4">
+ Garantía de productos
+ </button>
+ </h2>
+ <div id="flush-collapseInner-4" class="accordion-collapse collapse" aria-labelledby="flush-headingInner-4" data-bs-parent="#accordionMenuFAQ">
+ <div class="accordion-body p-0">
+ <ul class="nav flex-column nav-collapse p-0">
+ <li class="nav-item">
+ <a id="enlace-como-funciona-la-garantia-legal" href="
+ https://www.pcfactory.cl/centro-de-ayuda/garantia-de-productos#como-funciona-la-garantia-legal
+ " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ ¿Cómo funciona la garantía legal?
+ </p>
+ </a>
+ </li>
+ <li class="nav-item">
+ <a id="enlace-que-es-garantia-del-fabricante" href="
+ https://www.pcfactory.cl/centro-de-ayuda/garantia-de-productos#que-es-garantia-del-fabricante
+ " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ ¿Qué es la garantía del fabricante?
+ </p>
+ </a>
+ </li>
+ <li class="nav-item">
+ <a id="enlace-que-es-la-garantia-extendida" href="
+ https://www.pcfactory.cl/centro-de-ayuda/garantia-de-productos#que-es-la-garantia-extendida
+ " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ ¿Qué es la garantía extendida?
+ </p>
+ </a>
+ </li>
+ <li class="nav-item">
+ <a id="enlace-que-es-el-servicio-tecnico-de-pc-factory-y-como-puedo-utilizarlo" href="
+ https://www.pcfactory.cl/centro-de-ayuda/garantia-de-productos#que-es-el-servicio-tecnico-de-pc-factory-y-como-puedo-utilizarlo
+ " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ ¿Qué es el servicio técnico de pc Factory y cómo puedo utilizarlo?
+ </p>
+ </a>
+ </li>
+ <li class="nav-item">
+ <a id="enlace-que-debo-hacer-para-realizar-cambio-de-un-producto-comprado-en-pc-factory" href="
+ https://www.pcfactory.cl/centro-de-ayuda/garantia-de-productos#que-debo-hacer-para-realizar-cambio-de-un-producto-comprado-en-pc-factory
+ " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ ¿Qué debo hacer para realizar cambio de un producto comprado en pc Factory?
+ </p>
+ </a>
+ </li>
+ <li class="nav-item">
+ <a id="enlace-que-pasa-si-el-nuevo-producto-tiene-un-valor-diferente" href="
+ https://www.pcfactory.cl/centro-de-ayuda/garantia-de-productos#que-pasa-si-el-nuevo-producto-tiene-un-valor-diferente
+ " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ ¿Qué pasa si el nuevo producto tiene un valor diferente?
+ </p>
+ </a>
+ </li>
+ <li class="nav-item">
+ <a id="enlace-puedo-devolver-un-producto-comprado-en-pc-factory-y-anular-mi-compra" href="
+ https://www.pcfactory.cl/centro-de-ayuda/garantia-de-productos#puedo-devolver-un-producto-comprado-en-pc-factory-y-anular-mi-compra
+ " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ ¿Puedo devolver un producto comprado en pc Factory y anular mi compra?
+ </p>
+ </a>
+ </li>
+ <li class="nav-item">
+ <a id="enlace-que-debo-hacer-si-tengo-inconvenientes-con-la-reversa" href="
+ https://www.pcfactory.cl/centro-de-ayuda/garantia-de-productos#que-debo-hacer-si-tengo-inconvenientes-con-la-reversa
+ " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ ¿Qué debo hacer si tengo inconvenientes con la reversa?
+ </p>
+ </a>
+ </li>
+ </ul>
+ </div>
+ </div>
+ </div>
+ <div class="accordion-item">
+ <h2 class="accordion-header" data-slug="como-comprar" id="flush-headingInner-5">
+ <button id="menu-meta-name" class="accordion-button collapsed pcf-text-black fw-bold pcf-bg-white custom-accordion-button py-0 py-md-3 d-flex justify-content-between" type="button" data-bs-toggle="collapse" data-bs-target="#flush-collapseInner-5" aria-expanded="false" aria-controls="flush-collapseInner-5">
+ Cómo comprar
+ </button>
+ </h2>
+ <div id="flush-collapseInner-5" class="accordion-collapse collapse" aria-labelledby="flush-headingInner-5" data-bs-parent="#accordionMenuFAQ">
+ <div class="accordion-body p-0">
+ <ul class="nav flex-column nav-collapse p-0">
+ <li class="nav-item">
+ <a id="enlace-soy-nuevo-por-aqui" href="
+ https://www.pcfactory.cl/centro-de-ayuda/como-comprar#soy-nuevo-por-aqui
+ " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ Soy nuevo por aqui
+ </p>
+ </a>
+ </li>
+ <li class="nav-item">
+ <a id="enlace-deseo-crear-una-cuenta-que-debo-hacer-para-registrarme" href="
+ https://www.pcfactory.cl/centro-de-ayuda/como-comprar#deseo-crear-una-cuenta-que-debo-hacer-para-registrarme
+ " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ Deseo crear una cuenta. ¿Qué debo hacer para registrarme?
+ </p>
+ </a>
+ </li>
+ <li class="nav-item">
+ <a id="enlace-ya-estoy-registrado-que-debo-hacer" href="
+ https://www.pcfactory.cl/centro-de-ayuda/como-comprar#ya-estoy-registrado-que-debo-hacer
+ " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ Ya estoy registrado, ¿qué debo hacer?
+ </p>
+ </a>
+ </li>
+ <li class="nav-item">
+ <a id="enlace-puedo-comprar-sin-registrarme" href="
+ https://www.pcfactory.cl/centro-de-ayuda/como-comprar#puedo-comprar-sin-registrarme
+ " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ ¿Puedo comprar sin registrarme?
+ </p>
+ </a>
+ </li>
+ <li class="nav-item">
+ <a id="enlace-puedo-actualizar-mis-datos-personales" href="
+ https://www.pcfactory.cl/centro-de-ayuda/como-comprar#puedo-actualizar-mis-datos-personales
+ " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ ¿Puedo actualizar mis datos personales?
+ </p>
+ </a>
+ </li>
+ <li class="nav-item">
+ <a id="enlace-puedo-cambiar-mi-contrasena" href="
+ https://www.pcfactory.cl/centro-de-ayuda/como-comprar#puedo-cambiar-mi-contrasena
+ " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ ¿Puedo cambiar mi contraseña?
+ </p>
+ </a>
+ </li>
+ <li class="nav-item">
+ <a id="enlace-como-recupero-mi-contrasena" href="
+ https://www.pcfactory.cl/centro-de-ayuda/como-comprar#como-recupero-mi-contrasena
+ " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ ¿Cómo recupero mi contraseña?
+ </p>
+ </a>
+ </li>
+ <li class="nav-item">
+ <a id="enlace-necesito-copia-de-mi-boleta-factura-de-compra-que-debo-hacer" href="
+ https://www.pcfactory.cl/centro-de-ayuda/como-comprar#necesito-copia-de-mi-boleta-factura-de-compra-que-debo-hacer
+ " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ Necesito copia de mi boleta / factura de compra, ¿que debo hacer?
+ </p>
+ </a>
+ </li>
+ <li class="nav-item">
+ <a id="enlace-no-me-llego-la-boleta-factura-de-compra-me-ayudan" href="
+ https://www.pcfactory.cl/centro-de-ayuda/como-comprar#no-me-llego-la-boleta-factura-de-compra-me-ayudan
+ " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ No me llegó la boleta / factura de compra, ¿me ayudan?
+ </p>
+ </a>
+ </li>
+ </ul>
+ </div>
+ </div>
+ </div>
+ <div class="accordion-item">
+ <h2 class="accordion-header" data-slug="compra-con-despacho-a-domicilio" id="flush-headingInner-6">
+ <button id="menu-meta-name" class="accordion-button collapsed pcf-text-black fw-bold pcf-bg-white custom-accordion-button py-0 py-md-3 d-flex justify-content-between" type="button" data-bs-toggle="collapse" data-bs-target="#flush-collapseInner-6" aria-expanded="false" aria-controls="flush-collapseInner-6">
+ Compra con despacho a domicilio
+ </button>
+ </h2>
+ <div id="flush-collapseInner-6" class="accordion-collapse collapse" aria-labelledby="flush-headingInner-6" data-bs-parent="#accordionMenuFAQ">
+ <div class="accordion-body p-0">
+ <ul class="nav flex-column nav-collapse p-0">
+ <li class="nav-item">
+ <a id="enlace-puedo-comprar-con-despacho-a-domicilio" href="
+ https://www.pcfactory.cl/centro-de-ayuda/compra-con-despacho-a-domicilio#puedo-comprar-con-despacho-a-domicilio
+ " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ ¿Puedo comprar con despacho a domicilio?
+ </p>
+ </a>
+ </li>
+ <li class="nav-item">
+ <a id="enlace-pc-factory-despacha-a-mi-comuna" href="
+ https://www.pcfactory.cl/centro-de-ayuda/compra-con-despacho-a-domicilio#pc-factory-despacha-a-mi-comuna
+ " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ ¿pc Factory despacha a mi comuna? 
+ </p>
+ </a>
+ </li>
+ <li class="nav-item">
+ <a id="enlace-cuales-son-los-horarios-de-entrega" href="
+ https://www.pcfactory.cl/centro-de-ayuda/compra-con-despacho-a-domicilio#cuales-son-los-horarios-de-entrega
+ " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ ¿Cuales son los horarios de entrega?
+ </p>
+ </a>
+ </li>
+ <li class="nav-item">
+ <a id="enlace-puedo-pedir-a-otra-persona-que-reciba-mi-pedido" href="
+ https://www.pcfactory.cl/centro-de-ayuda/compra-con-despacho-a-domicilio#puedo-pedir-a-otra-persona-que-reciba-mi-pedido
+ " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ ¿Puedo pedir a otra persona que reciba mi pedido?
+ </p>
+ </a>
+ </li>
+ <li class="nav-item">
+ <a id="enlace-puedo-realizar-seguimiento-de-mi-pedido" href="
+ https://www.pcfactory.cl/centro-de-ayuda/compra-con-despacho-a-domicilio#puedo-realizar-seguimiento-de-mi-pedido
+ " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ ¿Puedo realizar seguimiento de mi pedido?
+ </p>
+ </a>
+ </li>
+ <li class="nav-item">
+ <a id="enlace-puedo-cambiar-la-fecha-de-despacho-a-domicilio-de-mi-pedido" href="
+ https://www.pcfactory.cl/centro-de-ayuda/compra-con-despacho-a-domicilio#puedo-cambiar-la-fecha-de-despacho-a-domicilio-de-mi-pedido
+ " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ ¿Puedo cambiar la fecha de despacho a domicilio de mi pedido?
+ </p>
+ </a>
+ </li>
+ <li class="nav-item">
+ <a id="enlace-puedo-cambiar-la-direccion-de-despacho-a-domicilio" href="
+ https://www.pcfactory.cl/centro-de-ayuda/compra-con-despacho-a-domicilio#puedo-cambiar-la-direccion-de-despacho-a-domicilio
+ " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ ¿Puedo cambiar la dirección de despacho a domicilio?
+ </p>
+ </a>
+ </li>
+ <li class="nav-item">
+ <a id="enlace-mi-pedido-no-llego-conforme-que-debo-hacer" href="
+ https://www.pcfactory.cl/centro-de-ayuda/compra-con-despacho-a-domicilio#mi-pedido-no-llego-conforme-que-debo-hacer
+ " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ Mi pedido no llegó conforme, ¿qué debo hacer?
+ </p>
+ </a>
+ </li>
+ <li class="nav-item">
+ <a id="enlace-no-estaba-en-el-domicilio-para-recibir-mi-pedido-volveran-otro-dia" href="
+ https://www.pcfactory.cl/centro-de-ayuda/compra-con-despacho-a-domicilio#no-estaba-en-el-domicilio-para-recibir-mi-pedido-volveran-otro-dia
+ " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ No estaba en el domicilio para recibir mi pedido, ¿volverán otro día?
+ </p>
+ </a>
+ </li>
+ <li class="nav-item">
+ <a id="enlace-mi-pedido-no-llego-que-debo-hacer" href="
+ https://www.pcfactory.cl/centro-de-ayuda/compra-con-despacho-a-domicilio#mi-pedido-no-llego-que-debo-hacer
+ " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ Mi pedido no llegó, ¿qué debo hacer?
+ </p>
+ </a>
+ </li>
+ </ul>
+ </div>
+ </div>
+ </div>
+ <div class="accordion-item">
+ <h2 class="accordion-header border-active" data-slug="compra-con-retiro-en-tienda" id="flush-headingInner-7">
+ <button id="menu-meta-name" class="accordion-button collapsed pcf-text-black fw-bold pcf-bg-white custom-accordion-button py-0 py-md-3 d-flex justify-content-between" type="button" data-bs-toggle="collapse" data-bs-target="#flush-collapseInner-7" aria-expanded="false" aria-controls="flush-collapseInner-7">
+ Compra con retiro en tienda
+ </button>
+ </h2>
+ <div id="flush-collapseInner-7" class="accordion-collapse collapse show" aria-labelledby="flush-headingInner-7" data-bs-parent="#accordionMenuFAQ">
+ <div class="accordion-body p-0">
+ <ul class="nav flex-column nav-collapse p-0">
+ <li class="nav-item">
+ <a id="enlace-puedo-comprar-con-retiro-en-tienda" href="
+ #puedo-comprar-con-retiro-en-tienda " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ ¿Puedo comprar con retiro en tienda?
+ </p>
+ </a>
+ </li>
+ <li class="nav-item">
+ <a id="enlace-cuantos-dias-tengo-para-hacer-el-retiro-de-mi-compra-en-tienda" href="
+ #cuantos-dias-tengo-para-hacer-el-retiro-de-mi-compra-en-tienda " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ ¿Cuántos días tengo para hacer el retiro de mi compra en tienda?
+ </p>
+ </a>
+ </li>
+ <li class="nav-item">
+ <a id="enlace-que-pasa-si-se-excede-el-plazo-y-no-puedo-ir-a-retirar" href="
+ #que-pasa-si-se-excede-el-plazo-y-no-puedo-ir-a-retirar " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ ¿Qué pasa si se excede el plazo y no puedo ir a retirar?
+ </p>
+ </a>
+ </li>
+ <li class="nav-item">
+ <a id="enlace-puedo-pedir-a-otra-persona-que-retire-mi-pedido-en-tienda" href="
+ #puedo-pedir-a-otra-persona-que-retire-mi-pedido-en-tienda " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ ¿Puedo pedir a otra persona que retire mi pedido en tienda?
+ </p>
+ </a>
+ </li>
+ <li class="nav-item">
+ <a id="enlace-que-documentos-son-necesarios-para-retirar-mi-pedido-en-tienda" href="
+ #que-documentos-son-necesarios-para-retirar-mi-pedido-en-tienda " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ ¿Qué documentos son necesarios para retirar mi pedido en tienda?
+ </p>
+ </a>
+ </li>
+ <li class="nav-item">
+ <a id="enlace-puedo-retirar-mi-pedido-en-otra-tienda" href="
+ #puedo-retirar-mi-pedido-en-otra-tienda " class="nav-link"> 
+ <p class="mb-0 px-3 py-3">
+ ¿Puedo retirar mi pedido en otra tienda?
+ </p>
+ </a>
+ </li>
+ </ul>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="col-md-7 my-4 my-md-0">
+ <div id="puedo-comprar-con-retiro-en-tienda" class="pregunta-container">
+ <h4 class="fw-bold">¿Puedo comprar con retiro en tienda?</h4>
+ <p></p><p>
+¿Prefieres retirar tu pedido en nuestras tiendas? En pc Factory entregamos la mejor experiencia de compra para nuestros clientes. Para compras presenciales en nuestras tiendas o compras on line a través de nuestra web, consulta por la opción retiro en tienda. A continuación, más información para proceder con tu retiro en tienda.</p><p></p>
+ </div>
+ <div id="cuantos-dias-tengo-para-hacer-el-retiro-de-mi-compra-en-tienda" class="pregunta-container">
+ <h4 class="fw-bold">¿Cuántos días tengo para hacer el retiro de mi compra en tienda?</h4>
+ <p></p><p>Tu compra estará disponible para retiro en la tienda elegida durante el proceso de compra, en horario de funcionamiento de la tienda, durante 15 días hábiles después de la emisión de la boleta o factura. Recuerda que cada tienda tiene distintos días y horarios de funcionamiento según la ciudad y ubicación, verifica en <a href="https://www.pcfactory.cl/tiendas" id="isPasted"><strong><u><span style="color: rgb(21, 230, 127);">https://www.pcfactory.cl/tiendas</span></u></strong></a></p><p></p>
+ </div>
+ <div id="que-pasa-si-se-excede-el-plazo-y-no-puedo-ir-a-retirar" class="pregunta-container">
+ <h4 class="fw-bold">¿Qué pasa si se excede el plazo y no puedo ir a retirar?</h4>
+ <p></p><p>En caso de que transcurran 15 días hábiles sin que se retire el producto, éste podrá ser trasladado a la bodega central de pc Factory y se emitirá nota de crédito para anular la compra. Te invitamos a revisar las condiciones y los plazos de anulación y devolución en los Términos y Condiciones <a href="https://www.pcfactory.cl/centro-de-ayuda/terminos-y-condiciones" id="isPasted"><strong><u><span style="color: rgb(21, 230, 127);">https://www.pcfactory.cl/centro-de-ayuda/terminos-y-condiciones</span></u></strong></a></p><p></p>
+ </div>
+ <div id="puedo-pedir-a-otra-persona-que-retire-mi-pedido-en-tienda" class="pregunta-container">
+ <h4 class="fw-bold">¿Puedo pedir a otra persona que retire mi pedido en tienda?</h4>
+ <p></p><p>Puedes asignar otra persona para que realice el retiro de tu pedido, antes de finalizar el proceso de compra en la web. Debes hacerlo durante el proceso de compra, en el paso 2: <strong>Tipo de entrega - Retiro en tienda</strong>. Después de perfeccionada la compra, para tu seguridad, no está permitido asignar un tercero para que retire la compra en tu lugar.</p><p></p>
+ </div>
+ <div id="que-documentos-son-necesarios-para-retirar-mi-pedido-en-tienda" class="pregunta-container">
+ <h4 class="fw-bold">¿Qué documentos son necesarios para retirar mi pedido en tienda?</h4>
+ <p></p><p id="isPasted">Para realizar el retiro en tienda, sea a través del titular de la compra o de un tercero, para todos los casos siempre vamos a pedir la presentación del Rut y de la boleta o factura para asegurar la entrega. Si es un tercero quien va a retirar, ten en cuenta que la entrega solo se realizará a la persona indicada por el titular antes de finalizar la compra.</p>
+<ul>
+<li>
+<p>Si es persona natural quien retira, será solicitado exhibir la cédula de identidad de quien retira, de la cual se guardará una copia virtual, o exhibir código QR, ambas en versión digital y también su cédula de identidad que debe ser el mismo indicado en el e-RUT. Asimismo, podrá pedirse la exhibición de la tarjeta de crédito con la cual se hizo la compra.&nbsp;</p>
+</li>
+</ul>
+<ul>
+<li>
+<p>Si es persona jurídica quien retira, será solicitado exhibir la cédula Rut electrónica (e-RUT) o exhibir código QR, ambas en versión digital y también su cédula de identidad que debe ser el mismo indicado en el e-RUT.</p>
+</li>
+</ul><p></p>
+ </div>
+ <div id="puedo-retirar-mi-pedido-en-otra-tienda" class="pregunta-container">
+ <h4 class="fw-bold">¿Puedo retirar mi pedido en otra tienda?</h4>
+ <p></p><p>Cada una de nuestras tiendas tiene stock diferente. Hemos reservado los productos que elegiste, exclusivamente para ti en la tienda que seleccionaste al realizar tu compra.</p><p></p>
+ </div>
+ <div id="contacto-centroayuda" class="col-12 my-4 text-center">
+ <p class="fw-bold mb-0">
+ ¿Te podemos ayudar en algo más? Comunícate con nosotros <a href="https://www.pcfactory.cl/contactenos" class="fw-bold">aquí</a>
+ </p>
+ </div>
+ </div>
+ </div>
+ </div>
+</div>
+</div>
+<div class="widget-definition" id="modyo-326166c6-2bf2-476e-b22c-e7ac1c9be682/72537e62d29f27ab8a6e94b8d9fa52a0747f1020629fcb3d2d0fc41371736a22" data-widget-name="Modal Producto agregado carrito"><div role="dialog" id="pcf-modal-added-product" tabindex="-1" aria-labelledby="pcf-modal-added-product" aria-hidden="true" class="modal modal-added-product fade"><div role="document" class="modal-dialog"><div class="modal-content"><div class="modal-header px-4 pt-3"><div class="row w-100 mx-0 align-items-center"><div class="col-11 px-0"><p class="modal-title pcf-text--md pcf-fw-bold pr-3"><span aria-hidden="true" class="icon icon-check"><svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg></span>
+ Producto agregado al carro de compras
+ </p></div> <div class="col-1 px-0"><button type="button" data-dismiss="modal" aria-label="Close" class="btn-close-cart"><span aria-hidden="true" class="icon icon-close"><svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg></span></button></div></div></div> <div class="modal-footer"><div class="row w-100 justify-content-lg-end mx-0"><div class="col-12 col-lg-10 px-0"><div class="row"><div class="col-12 col-lg-6 order-lg-2"><a href="https://www.pcfactory.cl/carro" aria-label="ir al carrito de compra" class="pcf-btn pcf-btn--five border-0">Ir al carro</a></div> <div class="col-12 col-lg-6 mt-2 mt-lg-0 order-lg-1"><button type="button" data-dismiss="modal" onclick="restaurarBoton()" class="pcf-btn pcf-btn--seven">Seguir comprando</button></div></div></div></div></div></div></div></div></div>
+<div class="widget-definition" id="modyo-9a225232-9728-43ce-87f2-5304f1763c5d/b4ecc3da8e7dbf9442479daeb7e0c39b78189c60d9f5e0a60aef419db8efc2fb" data-widget-name="Chatbot - Centro de ayuda"></div>
+</div>
+<footer class=" mt-md-5"></footer>
+<div id="talkcenter"><div id="tc-button-mask" class="tc-button-mask tc-right-side"></div><div id="tc-button-container" class="tc-button-container tc-right-side show"></div><div id="tc-help-message-mask" class="tc-help-message-mask tc-right-side"><div id="tc-help-message-container" class="tc-help-message-container tc-right-side"><button class="tc-close-button">x</button><span>¡Hola! ¿Necesitas ayuda?</span></div></div><div id="tc-welcome-message-container" class="tc-welcome-message-container tc-right-side-welcome"></div><div id="tc-window-container" class="tc-window-container tc-right-side-chat"></div><div id="tc-min-window-container" class="tc-min-window-container show tc-right-side-chat"></div></div></body></html>

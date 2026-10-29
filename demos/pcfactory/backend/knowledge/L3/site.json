@@ -1,0 +1,106 @@
+{
+ "site": "www.pcfactory.cl",
+ "crawled": "2026-10-29",
+ "nav": [
+  {
+   "id": 636,
+   "name": "Computadores y Tablets",
+   "path": "/categoria/computadores-y-tablets"
+  },
+  {
+   "id": 633,
+   "name": "Partes y Piezas / Componentes",
+   "path": "/categoria/partes-y-piezas-componentes"
+  },
+  {
+   "id": 645,
+   "name": "Smartphones y Wearables",
+   "path": "/categoria/smartphones-y-wearables"
+  },
+  {
+   "id": 1320,
+   "name": "Gamer y Poder Gráfico",
+   "path": "/categoria/gamer-y-poder-grafico"
+  },
+  {
+   "id": 1321,
+   "name": "UPS / Energía y Energía Solar",
+   "path": "/categoria/ups-energia-y-energia-solar"
+  },
+  {
+   "id": 296,
+   "name": "Accesorios y Periféricos",
+   "path": "/categoria/accesorios-y-perifericos"
+  },
+  {
+   "id": 256,
+   "name": "Monitores y Proyectores",
+   "path": "/categoria/monitores-y-proyectores"
+  },
+  {
+   "id": 706,
+   "name": "Almacenamiento y Discos Duros",
+   "path": "/categoria/almacenamiento-y-discos-duros"
+  },
+  {
+   "id": 638,
+   "name": "Impresoras y Suministros",
+   "path": "/categoria/impresoras-y-suministros"
+  },
+  {
+   "id": 788,
+   "name": "Smart TV y Audio",
+   "path": "/categoria/smart-tv-y-audio"
+  },
+  {
+   "id": 818,
+   "name": "Oficinas y Puntos de Venta",
+   "path": "/categoria/oficinas-y-punto-de-venta"
+  },
+  {
+   "id": 634,
+   "name": "Conectividad y Redes",
+   "path": "/categoria/conectividad-y-redes"
+  },
+  {
+   "id": 643,
+   "name": "Video, Fotografía y Drones",
+   "path": "/categoria/video-fotografia-y-drones"
+  },
+  {
+   "id": 746,
+   "name": "Hogar y Seguridad",
+   "path": "/categoria/hogar-y-seguridad"
+  },
+  {
+   "id": 642,
+   "name": "Automóvil / GPS y Outdoor",
+   "path": "/categoria/automovil-gps-y-outdoor"
+  },
+  {
+   "id": 914,
+   "name": "Electrónica y Robótica",
+   "path": "/categoria/electronica-y-robotica"
+  }
+ ],
+ "path_checks": {
+  "/categoria/computadores-y-tablets/notebooks/notebooks": "200",
+  "/categoria/partes-y-piezas-componentes/tarjetas-graficas": "200",
+  "/categoria/monitores-y-proyectores/monitores": "200",
+  "/computadores-y-tablets/notebooks/notebooks": "302 https://www.pcfactory.cl"
+ },
+ "notes": [
+  "Modyo DXP pages (Rails, Bootstrap, jQuery) with Vue 2 widgets mounted after load; catalogue, prices and stock come from api.pcfactory.cl (public GET, CORS *).",
+  "Every navigation between page types is a full document load: category, product, search (/busqueda-avanzada?search=a+b), pagination (&page=N, 1-based), /carro, /checkout. Filters, sort, add to cart and cart quantity stay in the page (replaceState).",
+  "Category URL = /categoria + the menu's link; the bare link without /categoria redirects (302) to home. The same category id can sit under several parents (aliases).",
+  "Listing facets: the API's 'Sucursales' is written 'Tiendas' on the page, and an option the API leaves blank is written 'Otros'. The Tiendas list shows 'Internet' and the 28 stores (with a 'Santiago' group label among them). Category listings filter brands by id (marcas=299), search results by name (marcas=Acer).",
+  "There is no search autocomplete: typing fires no request; Enter or the magnifier loads /busqueda-avanzada.",
+  "Three prices on every card and product: 'Transferencia / Débito' (efectivo, the headline), 'Otros medios de pago' (normal, credit card) and the struck precio de referencia the -N% badge is computed against. The PDP JSON-LD offers.price is the 'Otros medios' price.",
+  "Product pages note 'Stock desfasado 20 minutos'. Stock reads 'N disponibles' / '+100 Unid.'.",
+  "The cart lives in localStorage.cartProducts; the delivery cost is never shown before checkout ('El valor del despacho se calculará cuando se seleccione el tipo de entrega').",
+  "Store zones disagree: /tiendas files the stores under Norte (5), Santiago (13) and Sur (10), with Viña del Mar in Norte; the stock API groups them Norte, Santiago, Centro and Sur.",
+  "Some store names differ between /tiendas and the stock API and listing filter (stores.json keeps both: name, stock_name).",
+  "A store's map card ('Ver tienda') shows the schedule of the store's group (Mall Plaza, calle, Cenco …) when it has one, which can differ from the store entry's own text (stores.json: hours = the card, entry_hours = the entry).",
+  "No cookie banner, no first-visit modal, no CSP. pcFactory's own assistance button (#pcfAssistanceWrapper: Ocular video advisors and TalkCenter chat) sits bottom-right."
+ ]
+}

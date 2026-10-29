@@ -158,6 +158,12 @@ DEMOS: dict[str, Expected] = {
     # payload ⇒ the Hindi default.
     "lead_qual": Expected(voice="omnivoice/gauri", language="hi"),
     "orderdesk": Expected(voice="omnivoice/gauri", language="hi"),
+    # Javier, PC Factory's tech advisor on www.pcfactory.cl: the store is
+    # Chilean, so he opens in Spanish unless the toggle said English, and moves
+    # both legs for the toggle or for English heard — javier in both. Not a
+    # gallery card (the page is pcFactory's own store). Asserted in
+    # test_pcfactory_e2e.py.
+    "pcfactory": Expected(voice="omnivoice/javier", language="es", provider="openai"),
     "petwell": Expected(voice="omnivoice/gaurav", language="en"),
     # Trisha, Qween's jewellery consultant, opens a shopper's call in English and
     # moves both legs to Hindi for Hindi or Hinglish — one woman in two

@@ -1,0 +1,874 @@
+<!doctype html>
+<html class="no-js wf-ubuntu-n5-active wf-ubuntu-n4-active wf-active" lang="es-cl"><head>
+<title>pc Factory, Compra y retira de inmediato en tienda - pcfactory.cl </title>
+<style data-fixture="">
+ /* Ours, standing in for the site's stylesheet: Bootstrap's display classes
+ at a desktop width, and what it hides until a click. */
+ body { margin: 0; font-family: Ubuntu, Arial, sans-serif; }
+ .d-flex { display: flex; } .d-block { display: block; } .d-grid { display: grid; } .d-inline-block { display: inline-block; }
+ .d-none { display: none !important; }
+ .d-md-block, .d-lg-block, .d-xl-block { display: block !important; }
+ .d-md-flex, .d-lg-flex, .d-xl-flex { display: flex !important; }
+ .d-md-inline-block, .d-lg-inline-block, .d-xl-inline-block { display: inline-block !important; }
+ .d-md-none, .d-lg-none, .d-xl-none { display: none !important; }
+ .collapse:not(.show) { display: none; }
+ .modal { display: none; }
+ .modal.show { display: block; position: fixed; inset: 10% 20% auto 20%; background: #fff; z-index: 1050; }
+ .tab-pane:not(.active) { display: none; }
+ .dropdown-menu { display: none; }
+ .dropdown-menu.show { display: block; }
+ #pcf-comparator-summary { display: none; }
+ #pcf-comparator-summary.show { display: flex; position: fixed; left: 0; right: 0; bottom: 0; height: 200px; background: #212425; color: #fff; z-index: 1030; }
+ img { width: 120px; height: 120px; }
+ section[data-section-name="Lista productos"] { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+ .gm-style-iw { display: block; padding: 8px; border: 1px solid #ccc; }
+</style></head>
+ <body id="home" class="context-home context-home-show">
+<div id="modyo-site-alert-wrapper"></div>
+<header role="banner" id="header" class="page-header">
+	<div data-retailrocket-markup-block="6525fa03ff0453f92c67422e" initialized="true"></div>
+<nav class="navbar navbar-mobile d-block d-xl-none py-3" role="navigation" data-section-name="Menú Principal Mobile">
+	<div class="container p-0 mx-auto row align-items-center justify-content-around text-center">
+ <div class="col-2 col-md-2 p-0">
+ <a class="pt-2 container-mobile" href="https://www.pcfactory.cl">
+ <figure>
+ <picture>
+ <source srcset="https://assets-v3.pcfactory.cl/uploads/e964d6b9-e816-439f-8b97-ad2149772b7b/original/pcfactory-isotipo.svg" media="(max-width: 768px)">
+ <img class="logo-mobile" alt="Logo pc Factory">
+ </picture>
+ <figcaption class="sr-only">pc Factory</figcaption>
+ </figure>
+ </a>
+ </div> 
+ <div class="col-1 mr-3 px-0 hamburguer-resize">
+ <button id="categorias-btn" class="menu-trigger" aria-label="Abrir menú">
+ <span class="icon icon-hamburguer" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span>
+ </button> 
+ </div>
+ <div class="col-6 px-0">
+ <div class="form-inline searchbar w-100">
+ <input id="search-input-mobile" class="form-control d-flex pcf-input" type="text" placeholder="Busca aquí la tecnología para ti" aria-label="Search">
+ <button id="search-btn-mobile" class="pcf-btn pcf-btn--primary" type="submit" aria-label="Buscar"><span class="icon icon-search" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></button>
+ </div>
+ </div>
+ <div class="col-2 pl-0">
+ <a href="https://www.pcfactory.cl/carro" onclick="localStorage.setItem('datalayerListName','Carrito de compra');" class="cart-btn-mobile p-0 position-relative">
+ <span class="icon icon-cart" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span>
+ <p class="sr-only">Carrito de compra</p>
+ <span class="cart-btn-mobile__qty" style="display: none !important">0</span>
+ </a>
+ </div>
+	</div>
+</nav>
+ <nav id="sup-menu" class="navbar py-1 d-none d-xl-block" role="navigation" data-section-name="Menú Superior Desktop">
+	<div class="navbar-inner container d-flex justify-items-end justify-content-end w-100">
+ <ul class="sup-menu-links py-1">
+ <li><a href="https://www.pcfactory.cl/empresas">Venta Empresas</a></li>
+ <li><a href="https://www.pcfactory.cl/servicios/asesorate-online">Asesórate Online</a></li>
+ <li><a href="https://www.pcfactory.cl/estado-despacho">Estado de mi despacho</a></li>
+ <li><a href="https://www.pcfactory.cl/tiendas">Tiendas</a></li>
+ <li><a href="https://www.pcfactory.cl/centro-de-ayuda">Centro de ayuda</a></li>
+ </ul>
+	</div>
+</nav>
+ <nav id="main-menu" class="navbar d-none d-xl-block pt-3 pb-4" role="navigation" data-section-name="Menú Principal Desktop">
+	<div class="navbar-inner container d-flex justify-content-between">
+ <div class="navbar-inner__left d-flex align-items-center w-100" aria-label="Logo Menú principal" rel="Logo Menú principal">
+ <a id="logotype" class="container-logo" href="https://www.pcfactory.cl" aria-label="Logo PcFactory"> 
+ <img alt="">
+ </a>
+ <div id="categories" data-section-name="Menú de Categorias">
+ <button id="categories-btn" class="pcf-btn pcf-btn--nine border-0" data-toggle="modal" data-target="#categories-dropdown"><span class="icon icon-hamburguer" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span>Categorías</button>
+ <div class="modal_img modal fade" id="categories-dropdown" tabindex="-1" aria-labelledby="categories-dropdown" aria-hidden="true">
+	<div class="container"> 
+ <div class="modal-dialog row w-100 no-gutters">
+ <div class="col-4 container-categories-dropdown-list"> 
+ <ul id="categories-dropdown-list" class="categories-dropdown-list d-flex flex-column">
+ <li>
+ <a href="https://www.pcfactory.cl/categorias" class="categories-dropdown-list__main-link d-flex justify-content-between align-items-center" data-content-category="Todas las Categorias">Todas las categorías <span class="icon icon-arrow-right" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span>
+ </a>
+ </li>
+ <li id="category0" data-content-category="Computadores y Tablets"><a href="https://www.pcfactory.cl/categoria/computadores-y-tablets" class="categories-dropdown-list__main-link d-flex justify-content-between align-items-center">Computadores y Tablets <span class="icon icon-arrow-right" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></a></li><li id="category1" data-content-category="Partes y Piezas / Componentes"><a href="https://www.pcfactory.cl/categoria/partes-y-piezas-componentes" class="categories-dropdown-list__main-link d-flex justify-content-between align-items-center">Partes y Piezas / Componentes <span class="icon icon-arrow-right" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></a></li><li id="category2" data-content-category="Smartphones y Wearables"><a href="https://www.pcfactory.cl/categoria/smartphones-y-wearables" class="categories-dropdown-list__main-link d-flex justify-content-between align-items-center">Smartphones y Wearables <span class="icon icon-arrow-right" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></a></li><li id="category3" data-content-category="Gamer y Poder Gráfico"><a href="https://www.pcfactory.cl/categoria/gamer-y-poder-grafico" class="categories-dropdown-list__main-link d-flex justify-content-between align-items-center">Gamer y Poder Gráfico <span class="icon icon-arrow-right" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></a></li><li id="category4" data-content-category="UPS / Energía y Energía Solar"><a href="https://www.pcfactory.cl/categoria/ups-energia-y-energia-solar" class="categories-dropdown-list__main-link d-flex justify-content-between align-items-center">UPS / Energía y Energía Solar <span class="icon icon-arrow-right" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></a></li><li id="category5" data-content-category="Accesorios y Periféricos"><a href="https://www.pcfactory.cl/categoria/accesorios-y-perifericos" class="categories-dropdown-list__main-link d-flex justify-content-between align-items-center">Accesorios y Periféricos <span class="icon icon-arrow-right" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></a></li><li id="category6" data-content-category="Monitores y Proyectores"><a href="https://www.pcfactory.cl/categoria/monitores-y-proyectores" class="categories-dropdown-list__main-link d-flex justify-content-between align-items-center">Monitores y Proyectores <span class="icon icon-arrow-right" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></a></li><li id="category7" data-content-category="Almacenamiento y Discos Duros"><a href="https://www.pcfactory.cl/categoria/almacenamiento-y-discos-duros" class="categories-dropdown-list__main-link d-flex justify-content-between align-items-center">Almacenamiento y Discos Duros <span class="icon icon-arrow-right" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></a></li><li id="category8" data-content-category="Impresoras y Suministros"><a href="https://www.pcfactory.cl/categoria/impresoras-y-suministros" class="categories-dropdown-list__main-link d-flex justify-content-between align-items-center">Impresoras y Suministros <span class="icon icon-arrow-right" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></a></li><li id="category9" data-content-category="Smart TV y Audio"><a href="https://www.pcfactory.cl/categoria/smart-tv-y-audio" class="categories-dropdown-list__main-link d-flex justify-content-between align-items-center">Smart TV y Audio <span class="icon icon-arrow-right" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></a></li><li id="category10" data-content-category="Oficinas y Puntos de Venta"><a href="https://www.pcfactory.cl/categoria/oficinas-y-punto-de-venta" class="categories-dropdown-list__main-link d-flex justify-content-between align-items-center">Oficinas y Puntos de Venta <span class="icon icon-arrow-right" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></a></li><li id="category11" data-content-category="Conectividad y Redes"><a href="https://www.pcfactory.cl/categoria/conectividad-y-redes" class="categories-dropdown-list__main-link d-flex justify-content-between align-items-center">Conectividad y Redes <span class="icon icon-arrow-right" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></a></li><li id="category12" data-content-category="Video, Fotografía y Drones"><a href="https://www.pcfactory.cl/categoria/video-fotografia-y-drones" class="categories-dropdown-list__main-link d-flex justify-content-between align-items-center">Video, Fotografía y Drones <span class="icon icon-arrow-right" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></a></li><li id="category13" data-content-category="Hogar y Seguridad"><a href="https://www.pcfactory.cl/categoria/hogar-y-seguridad" class="categories-dropdown-list__main-link d-flex justify-content-between align-items-center">Hogar y Seguridad <span class="icon icon-arrow-right" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></a></li><li id="category14" data-content-category="Automóvil / GPS y Outdoor"><a href="https://www.pcfactory.cl/categoria/automovil-gps-y-outdoor" class="categories-dropdown-list__main-link d-flex justify-content-between align-items-center">Automóvil / GPS y Outdoor <span class="icon icon-arrow-right" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></a></li><li id="category15" data-content-category="Electrónica y Robótica"><a href="https://www.pcfactory.cl/categoria/electronica-y-robotica" class="categories-dropdown-list__main-link d-flex justify-content-between align-items-center">Electrónica y Robótica <span class="icon icon-arrow-right" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></a></li></ul>
+ </div>
+ <div id="subcategories-panel" class="col-8"></div>
+ </div>
+	</div>
+</div>
+ </div>
+ <div class="navbar-inner__middle d-flex flex-fill px-4">
+ <div class="form-inline searchbar flex-fill">
+ <input id="search-input-desktop" class="form-control flex-fill" type="text" placeholder="Busca aquí la tecnología para ti" aria-label="Search">
+ <button id="search-btn-desktop" class="" type="submit" aria-label="Buscar">
+ <span class="icon icon-search" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></button>
+ </div>
+ </div>
+ <div class="navbar-inner__right d-flex align-items-center justify-content-lg-between">
+ <div class="dropdown login-btn">
+ <button class="dropdown-toggle" type="button" id="login-dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" data-content-name="Hola, ingresa">
+ Hola,
+ <strong class="ml-1">ingresa</strong>
+ </button>
+ <div class="dropdown-menu pcf-box-shadow" aria-labelledby="login-dropdown">
+ <a class="dropdown-item" href="https://www.pcfactory.cl/login">Inicia sesión</a>
+ <a class="dropdown-item" href="https://auth.pcfactory.cl/auth/realms/PCFactory/protocol/openid-connect/registrations?client_id=modyo&amp;response_type=code&amp;scope=openid&amp;redirect_uri=https%3A%2F%2Fww3.pcfactory.cl%2Frealms%2Fprincipal%2Fauth%2Fopenidc%2Fcallback&amp;kc_locale=es">
+ Regístrate
+ </a>
+ </div>
+ </div>
+ <a onclick="goToMisCompras();" class="header-btn my-shopping-list clickable">Mis compras</a>
+ <a href="https://www.pcfactory.cl/carro" onclick="localStorage.setItem('datalayerListName','Carrito de compra');" aria-label="ir al carrito de compra" class="cart-btn p-0 position-relative">
+ <span class="icon icon-cart" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span>
+ <span class="cart-btn__qty d-none">0</span>
+ </a>
+ </div>
+ </div>
+	</div>
+</nav>
+</header>
+<section id="huincha_cyber" class="container-fluid px-0 py-2" style="background-color: #8EE8B2;">
+	<div class="contenedor_huincha_cyber text-center d-flex justify-content-center align-items-center">
+ <a class="link d-block w-100" href="https://www.pcfactory.cl/lenovo-week">
+ <picture>
+ <source media="(min-width: 768px)" srcset="https://assets-v3.pcfactory.cl/uploads/2edcec9f-f626-4888-b7cf-a77bbe083fb8/original/unicos-con-retiro-en-tienda-pcfactory-desktop.png">
+ <img class="img-fluid" alt="Unicos Con Retiro En Tienda Pcfactory Desktop">
+ </picture>
+ </a>
+	</div>
+</section>
+<div id="tag-express-sale" class="pcf-link-btn w-100 justify-content-center align-items-center text-sm-center d-none">
+	<span class="icon icon-transfer" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span>
+	<a href="javascript:void(0)" class="pcf-link-btn p-0" onclick="showListBank()">Haz aquí tus transferencias bancarias</a>
+</div>
+<div id="main-layout" class="">
+<div data-widget-name="Checkout Login Redirect"></div>
+<div data-widget-name="Home Huincha Metas"><div id="tag-meta"></div>
+</div>
+<section class="overflow-hidden pb-5" data-section-name="Home Web Banner Principal Nav">
+ <div class="w-100">
+ <div id="carousel-home-desktop" class="data-banner-parent-carousel--active carousel-promo carousel slide carousel-home d-none d-sm-block gta-view-banner" data-ride="carousel" data-touch="true" data-interval="3000">
+ <ol class="carousel-indicators mb-0">
+ <li data-target=".carousel-promo" data-slide-to="0" class="data-banner-carousel-controller gtm-link default-carousel-1b2ce6ec-baf2-415b-8de5-b3b05703908d" aria-label="Indicador Banner Desktop 0"></li>
+ <li data-target=".carousel-promo" data-slide-to="1" class="data-banner-carousel-controller gtm-link default-carousel-ee6e7cd7-b0ce-48f3-9d33-5f7fc43be8b7" aria-label="Indicador Banner Desktop 1"></li>
+ <li data-target=".carousel-promo" data-slide-to="2" class="data-banner-carousel-controller gtm-link default-carousel-6f40af9a-5237-4528-8f65-711eba1434b7" aria-label="Indicador Banner Desktop 2"></li>
+ <li data-target=".carousel-promo" data-slide-to="3" class="data-banner-carousel-controller gtm-link default-carousel-97548f9c-a597-408a-8369-3e975805bb9d" aria-label="Indicador Banner Desktop 3"></li>
+ <li data-target=".carousel-promo" data-slide-to="4" class="data-banner-carousel-controller gtm-link default-carousel-5c3a665e-4bf3-41e9-a13a-11a1f2cbf539 active" aria-label="Indicador Banner Desktop 4"></li>
+ <li data-target=".carousel-promo" data-slide-to="5" class="data-banner-carousel-controller gtm-link default-carousel-62926d29-0d66-488b-8b3e-1ead347d5117" aria-label="Indicador Banner Desktop 5"></li>
+ <li data-target=".carousel-promo" data-slide-to="6" class="data-banner-carousel-controller gtm-link default-carousel-74866bec-badb-43c3-9339-a01e08690fc2" aria-label="Indicador Banner Desktop 6"></li>
+ <li data-target=".carousel-promo" data-slide-to="7" class="data-banner-carousel-controller gtm-link default-carousel-975eba0d-6bd6-48de-b596-09c94865f243" aria-label="Indicador Banner Desktop 7"></li>
+ <li data-target=".carousel-promo" data-slide-to="8" class="data-banner-carousel-controller gtm-link default-carousel-f575e7cb-a573-4d69-b20c-4a0afc07e1cf" aria-label="Indicador Banner Desktop 8"></li>
+ <li data-target=".carousel-promo" data-slide-to="9" class="data-banner-carousel-controller gtm-link default-carousel-b98c84e3-1338-4daa-a87e-181468db9fc4" aria-label="Indicador Banner Desktop 9"></li>
+ </ol>
+ <div class="gtm-link pause-carousel" id="pauseCarousel" aria-label="Botton Pausa Banner"><span class="icon icon-pause" aria-hidden="true">
+	<svg role="img" width="30px" height="30px" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></div>
+ <div class="gtm-link play-carousel d-none" id="playCarousel" aria-label="Botton Play Banner"><span class="icon icon-play" aria-hidden="true">
+	<svg role="img" width="30px" height="30px" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></div>
+ <div class="carousel-inner">
+ <div class="control-prev carousel-control-prev d-none d-sm-block" data-target=".carousel-promo" data-item-name="prev carrusel _Banner Principal" data-slide="prev"><span class="icon icon-arrow-left" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></div>
+ <div class="control-next carousel-control-next d-none d-sm-block" data-target=".carousel-promo" data-item-name="next carrusel _Banner Principal" data-slide="next"><span class="icon icon-arrow-right" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span></div>
+ <div class="data-banner-default-carousel carousel-item default-carousel-5c3a665e-4bf3-41e9-a13a-11a1f2cbf539 active" data-content-name="Principal-SUBASTA12-SKU:56570-56674-58260" data-banner-id="" data-banner-price="" data-banner-class="default-carousel-5c3a665e-4bf3-41e9-a13a-11a1f2cbf539">
+ <a href="https://www.pcfactory.cl/busqueda?productos=56570,56674,58260&amp;size=12&amp;sort=sugeridos" class="carousel-item-link gta-btn-select-promo" aria-label="Principal-SUBASTA12-SKU:56570-56674-58260" rel="carousel home" data-section-name="Home Web Banner Principal">
+ <div class="carousel-item-img ">
+ <img aria-hidden="true" class="d-none d-sm-block" loading="lazy" title="Monitor Gamer ASUS TUF 27&quot; FHD 200Hz IPS 0 3ms VG279Q5R Monitor Gamer ASUS ROG 32&quot; OLED UHD 240Hz IPS XG32UQWMS Monitor gaming LG UltraGear™ G4 de 24 pulgadas 144 Hz" alt="Monitor Gamer ASUS TUF 27&quot; FHD 200Hz IPS 0 3ms VG279Q5R Monitor Gamer ASUS ROG 32&quot; OLED UHD 240Hz IPS XG32UQWMS Monitor gaming LG UltraGear™ G4 de 24 pulgadas 144 Hz" data-gtag-id="" data-gtag-idd="" data-gtag-name="Principal-SUBASTA12-SKU:56570-56674-58260" data-gtag-promotion="Genérica|" data-gtag-price="," data-gtag-brand="[]" data-gtag-widget="Home Banner Principal" data-gtag-creativename="Modyo Banner Ppal Triple 1792x490 56570 56674" data-gtag-category="" data-gtag-class="Imbatible" data-gtag-index="5" data-gtag-banner="true" data-view="web">
+ </div>
+ </a>
+ </div>
+ </div>
+ </div>
+ </div>
+</section>
+<div class="container position-relative">
+	<div class="row justify-content-between align-items-center pt-1 pt-md-0 mx-0 overflow-hidden" id="home-piso-productos-relacionados">
+ <div class="col-12 px-lg-0 ">
+ <h2 class="section-title-products">Te recomendamos</h2>
+ </div>
+	</div>
+ <div id="retail-te-recomendamos" class="tam_cont">
+ <div id="dynamic-cart-rocket" data-retailrocket-markup-block="6419bd842c15491a1833e944" data-product-id="" data-product-ids="" initialized="true">
+<div class="rr-widget rr-widget-6419bd842c15491a1833e944 rr-active" data-algorithm="popular" data-algorithm-argument="0" data-template-param-number-of-items="36" data-template-param-item-image-width="320" data-template-param-item-image-height="320" data-on-pre-render="retailrocket['pcfactory6419bd842c15491a1833e944'].preRenderFn(this, data, renderFn)" data-on-post-render="retailrocket['pcfactory6419bd842c15491a1833e944'].postRenderFn(this)" data-template-container-id="widget-template-6419bd842c15491a1833e944" data-s="6419bd842c15491a1833e944" data-widget-applied="true" data-rr-render-started="true" data-number-of-rendered-items="36" data-rendered-items-ids="58172,50766,54507,25468,55491,47611,57124,53902,58024,57489,56750,46746,58044,57155,54434,24826,19839,55856,53814,54512,53675,54440,53269,55376,57676,56442,53201,54690,33852,56558,57149,56453,22677,56703,56419,54234"> <div class="rr-items rr-swiper-container swiper-container-initialized swiper-container-horizontal"> <div class="rr-swiper-wrapper" style="transition-duration: 0ms; transform: translate3d(-1335px, 0px, 0px);"> <div class="rr-swiper-slide swiper-slide-visible swiper-slide-active" onclick="retailrocket['pcfactory6419bd842c15491a1833e944'].googleAnaliticClick(58172, 'Consola Portátil ROG Xbox Ally X20', '1899990.00', 'consolas', 0, 'Asus', 2399990);" data-item-id="58172" data-vendor="Asus" data-name="Consola Portátil ROG Xbox Ally X20" data-categories="consolas" data-price="1899990" data-index="0" data-price-reference="2399990" data-swiper-slide-index="0" style="width: 252px; margin-right: 15px;"> <div class="rr-item"> <a class="rr-item__image" href="//www.pcfactory.cl//producto/58172" onmousedown="rrApi.recomMouseDown(58172, { suggester: '6419bd842c15491a1833e944', methodName: 'popular' });"> <img class="swiper-lazy swiper-lazy-loaded"> </a> <div class="rr-item__vendor">Asus®</div> <a class="rr-item__name" href="//www.pcfactory.cl//producto/58172" onmousedown="rrApi.recomMouseDown(58172, { suggester: '6419bd842c15491a1833e944', methodName: 'popular' });"> Consola Portátil ROG Xbox Ally X20 </a> <div class="rr-item__info"> <div class="rr-item__id">ID <strong>58172</strong></div> <div class="rr-item__quantity"> 17 Unid. </div> </div> <div class="rr-item__block-price"> <div class="rr-item__price-group"> <div class="rr-item__discount">-21%</div> <div class="rr-item__old-price">$2.399.990</div> </div> <div class="rr-item__price">$1.899.990</div> <div class="rr-item__price-label">Transferencia / Débito</div> <div class="rr-item__special-price"> $1.899.990 </div> <div class="rr-item__special-price-label">Otros medios de pago</div> </div> <button class="rr-item__action" type="button" id="addtocart_58172_1" onclick="rrApi.recomAddToCart(58172, { suggester: '6419bd842c15491a1833e944', methodName: 'popular' }); retailrocket['pcfactory6419bd842c15491a1833e944'].rrButtonAnim(this); "> <svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="pcf-icon-sm"></svg> Agregar al carro </button> </div> </div> <div class="rr-swiper-slide swiper-slide-visible swiper-slide-next" onclick="retailrocket['pcfactory6419bd842c15491a1833e944'].googleAnaliticClick(50766, 'Impresora 3D Ender-3 V3 SE', '179990.00', 'impresoras-3d', 1, 'Creality', 329990);" data-item-id="50766" data-vendor="Creality" data-name="Impresora 3D Ender-3 V3 SE" data-categories="impresoras-3d" data-price="179990" data-index="1" data-price-reference="329990" data-swiper-slide-index="1" style="width: 252px; margin-right: 15px;"> <div class="rr-item"> <a class="rr-item__image" href="//www.pcfactory.cl/producto/50766-creality-impresora-3d-ender-3-v3-se" onmousedown="rrApi.recomMouseDown(50766, { suggester: '6419bd842c15491a1833e944', methodName: 'popular' });"> <img class="swiper-lazy swiper-lazy-loaded"> </a> <div class="rr-item__vendor">Creality®</div> <a class="rr-item__name" href="//www.pcfactory.cl/producto/50766-creality-impresora-3d-ender-3-v3-se" onmousedown="rrApi.recomMouseDown(50766, { suggester: '6419bd842c15491a1833e944', methodName: 'popular' });"> Impresora 3D Ender-3 V3 SE </a> <div class="rr-item__info"> <div class="rr-item__id">ID <strong>50766</strong></div> <div class="rr-item__quantity"> 26 Unid. </div> </div> <div class="rr-item__block-price"> <div class="rr-item__price-group"> <div class="rr-item__discount">-45%</div> <div class="rr-item__old-price">$329.990</div> </div> <div class="rr-item__price">$179.990</div> <div class="rr-item__price-label">Transferencia / Débito</div> <div class="rr-item__special-price"> $189.490 </div> <div class="rr-item__special-price-label">Otros medios de pago</div> </div> <button class="rr-item__action" type="button" id="addtocart_50766_1" onclick="rrApi.recomAddToCart(50766, { suggester: '6419bd842c15491a1833e944', methodName: 'popular' }); retailrocket['pcfactory6419bd842c15491a1833e944'].rrButtonAnim(this); "> <svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="pcf-icon-sm"></svg> Agregar al carro </button> </div> </div> <div class="rr-swiper-slide swiper-slide-visible" onclick="retailrocket['pcfactory6419bd842c15491a1833e944'].googleAnaliticClick(54507, 'Unidad SSD 1TB NV3 M.2 2280 PCIe 4.0 NVMe SSD', '177990.00', 'discos-internos-ssd', 2, 'Kingston', 209990);" data-item-id="54507" data-vendor="Kingston" data-name="Unidad SSD 1TB NV3 M.2 2280 PCIe 4.0 NVMe SSD" data-categories="discos-internos-ssd" data-price="177990" data-index="2" data-price-reference="209990" data-swiper-slide-index="2" style="width: 252px; margin-right: 15px;"> <div class="rr-item"> <a class="rr-item__image" href="//www.pcfactory.cl/producto/54507-kingston-unidad-ssd-1tb-nv3-m-2-2280-pcie-4-0-nvme-ssd" onmousedown="rrApi.recomMouseDown(54507, { suggester: '6419bd842c15491a1833e944', methodName: 'popular' });"> <img class="swiper-lazy swiper-lazy-loaded"> </a> <div class="rr-item__vendor">Kingston®</div> <a class="rr-item__name" href="//www.pcfactory.cl/producto/54507-kingston-unidad-ssd-1tb-nv3-m-2-2280-pcie-4-0-nvme-ssd" onmousedown="rrApi.recomMouseDown(54507, { suggester: '6419bd842c15491a1833e944', methodName: 'popular' });"> Unidad SSD 1TB NV3 M.2 2280 PCIe 4.0 NVMe SSD </a> <div class="rr-item__info"> <div class="rr-item__id">ID <strong>54507</strong></div> <div class="rr-item__quantity"> +100 Unid. </div> </div> <div class="rr-item__block-price"> <div class="rr-item__price-group"> <div class="rr-item__discount">-15%</div> <div class="rr-item__old-price">$209.990</div> </div> <div class="rr-item__price">$177.990</div> <div class="rr-item__price-label">Transferencia / Débito</div> <div class="rr-item__special-price"> $183.490 </div> <div class="rr-item__special-price-label">Otros medios de pago</div> </div> <button class="rr-item__action" type="button" id="addtocart_54507_1" onclick="rrApi.recomAddToCart(54507, { suggester: '6419bd842c15491a1833e944', methodName: 'popular' }); retailrocket['pcfactory6419bd842c15491a1833e944'].rrButtonAnim(this); "> <svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="pcf-icon-sm"></svg> Agregar al carro </button> </div> </div> <div class="rr-swiper-slide swiper-slide-visible" onclick="retailrocket['pcfactory6419bd842c15491a1833e944'].googleAnaliticClick(25468, 'Estuche Disco Duro 2,5&quot; Soft Black', '3990.00', 'bolsos-y-fundas', 3, 'Leaf', 7990);" data-item-id="25468" data-vendor="Leaf" data-name="Estuche Disco Duro 2,5&quot; Soft Black" data-categories="bolsos-y-fundas" data-price="3990" data-index="3" data-price-reference="7990" data-swiper-slide-index="3" style="width: 252px; margin-right: 15px;"> <div class="rr-item"> <a class="rr-item__image" href="//www.pcfactory.cl/producto/25468-leaf-estuche-disco-duro-2-5-soft-black" onmousedown="rrApi.recomMouseDown(25468, { suggester: '6419bd842c15491a1833e944', methodName: 'popular' });"> <img class="swiper-lazy swiper-lazy-loaded"> </a> <div class="rr-item__vendor">Leaf®</div> <a class="rr-item__name" href="//www.pcfactory.cl/producto/25468-leaf-estuche-disco-duro-2-5-soft-black" onmousedown="rrApi.recomMouseDown(25468, { suggester: '6419bd842c15491a1833e944', methodName: 'popular' });"> Estuche Disco Duro 2,5" Soft Black </a> <div class="rr-item__info"> <div class="rr-item__id">ID <strong>25468</strong></div> <div class="rr-item__quantity"> +100 Unid. </div> </div> <div class="rr-item__block-price"> <div class="rr-item__price-group"> <div class="rr-item__discount">-50%</div> <div class="rr-item__old-price">$7.990</div> </div> <div class="rr-item__price">$3.990</div> <div class="rr-item__price-label">Transferencia / Débito</div> <div class="rr-item__special-price"> $4.090 </div> <div class="rr-item__special-price-label">Otros medios de pago</div> </div> <button class="rr-item__action" type="button" id="addtocart_25468_1" onclick="rrApi.recomAddToCart(25468, { suggester: '6419bd842c15491a1833e944', methodName: 'popular' }); retailrocket['pcfactory6419bd842c15491a1833e944'].rrButtonAnim(this); "> <svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="pcf-icon-sm"></svg> Agregar al carro </button> </div> </div> <div class="rr-swiper-slide swiper-slide-visible" onclick="retailrocket['pcfactory6419bd842c15491a1833e944'].googleAnaliticClick(55491, 'Bateria Externa Master G 30.000 mAh (UCP30LPD)', '26990.00', 'baterias-externas', 4, 'Master G', 32990);" data-item-id="55491" data-vendor="Master G" data-name="Bateria Externa Master G 30.000 mAh (UCP30LPD)" data-categories="baterias-externas" data-price="26990" data-index="4" data-price-reference="32990" data-swiper-slide-index="4" style="width: 252px; margin-right: 15px;"> <div class="rr-item"> <a class="rr-item__image" href="//www.pcfactory.cl/producto/55491-master-g-bateria-externa-master-g-30-000-mah-ucp30lpd" onmousedown="rrApi.recomMouseDown(55491, { suggester: '6419bd842c15491a1833e944', methodName: 'popular' });"> <img class="swiper-lazy swiper-lazy-loaded"> </a> <div class="rr-item__vendor">Master G®</div> <a class="rr-item__name" href="//www.pcfactory.cl/producto/55491-master-g-bateria-externa-master-g-30-000-mah-ucp30lpd" onmousedown="rrApi.recomMouseDown(55491, { suggester: '6419bd842c15491a1833e944', methodName: 'popular' });"> Bateria Externa Master G 30.000 mAh (UCP30LPD) </a> <div class="rr-item__info"> <div class="rr-item__id">ID <strong>55491</strong></div> <div class="rr-item__quantity"> +100 Unid. </div> </div> <div class="rr-item__block-price"> <div class="rr-item__price-group"> <div class="rr-item__discount">-18%</div> <div class="rr-item__old-price">$32.990</div> </div> <div class="rr-item__price">$26.990</div> <div class="rr-item__price-label">Transferencia / Débito</div> <div class="rr-item__special-price"> $27.790 </div> <div class="rr-item__special-price-label">Otros medios de pago</div> </div> <button class="rr-item__action" type="button" id="addtocart_55491_1" onclick="rrApi.recomAddToCart(55491, { suggester: '6419bd842c15491a1833e944', methodName: 'popular' }); retailrocket['pcfactory6419bd842c15491a1833e944'].rrButtonAnim(this); "> <svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="pcf-icon-sm"></svg> Agregar al carro </button> </div> </div> </div> <span class="swiper-notification" aria-live="assertive" aria-atomic="true"></span></div> <div class="rr-slider-arrow"> <div class="rr-arrow swiper-prev" tabindex="0" role="button" aria-label="Previous slide"></div> <div class="rr-arrow swiper-next" tabindex="0" role="button" aria-label="Next slide"></div> </div> </div>
+</div>
+ </div>
+</div>
+<div class="widget-definition" id="modyo-0c84ac1f-6033-42d3-b638-d490a82f421e/486e89cf846a2edc046c03e6c7bed6b2da0f2d1107db8fb7110b436c4db01087" data-widget-name="secondary-banners-widget">
+<div class="container bs-5">
+	<div class="banner-secundario-wrapper my-3">
+ <a href="https://www.pcfactory.cl/producto/58172">
+ <picture>
+ <source media="(max-width: 767px)" srcset="https://assets-v3.pcfactory.cl/uploads/6d017680-79ce-4101-acf9-03e373c21a06/original/WEB-Secundario-Mobile-390x160_1_.webp">
+ <img alt="Secundario-Asus Consola Portatil XBOX ROG ALLY X20" class="img-fluid w-100">
+ </picture>
+ </a>
+	</div>
+</div>
+</div>
+<div id="banners-oyl" class="home-productos" data-ids="56111, 57284, 58022, 55576, 19839, 57489">
+	<div class="container position-relative my-4">
+ <div class="row justify-content-between align-items-center pt-1 pt-md-0 mx-0 overflow-hidden" id="home-piso-productos-relacionados">
+ <div class="col-12 px-lg-0 ">
+ <a href="https://www.pcfactory.cl/busqueda-avanzada?search=*">
+ <h2 class="section-title-products">Ofertas y Lanzamientos</h2>
+ </a>
+ </div>
+ </div>
+ <div class="skeleton-loader " style="display: none;">
+ <div class="my-2 col-6 col-md-3 col-lg-2">
+ <div class="skeleton-banner skeleton-small"></div>
+ </div>
+ <div class="my-2 col-6 col-md-3 col-lg-2">
+ <div class="skeleton-banner skeleton-small"></div>
+ </div>
+ <div class="my-2 col-12 col-md-6 col-lg-8">
+ <div class="skeleton-banner skeleton-big"></div>
+ </div>
+ <div class="my-2 col-12 col-md-6 col-lg-8">
+ <div class="skeleton-banner skeleton-big"></div>
+ </div>
+ <div class="my-2 col-6 col-md-3 col-lg-2">
+ <div class="skeleton-banner skeleton-small"></div>
+ </div>
+ <div class="my-2 col-6 col-md-3 col-lg-2">
+ <div class="skeleton-banner skeleton-small"></div>
+ </div>
+ </div>
+ <div class="bannerHomeProd row d-flex align-items-lg-start justify-content-lg-between px-2 gta-view-banner" style="">
+ <div class="my-2 col-6 col-md-3 col-lg-2 banner-small--1 d-lg-flex align-self-lg-stretch">
+ <a href="https://www.pcfactory.cl/producto/58022" class="banner--link d-flex justify-content-center w-100" data-product-id="58022" data-product-id-backup="" data-image-index="0" data-custom-image-setting="0" data-custom-image-url="" data-remove-installments="true" data-nombre-personalizado="false" data-titulo-personalizado="" data-enlace-personalizado="false" data-urlgenerico="https://www.pcfactory.cl/">
+ <img loading="lazy" class="w-100 img-fluid background" alt="Banner Precio Producto" data-banner-url="/producto/58022" data-banner-id="58022" data-banner-price="129990" data-gtag-img-title="OYL-Small1-Computacion-SKU:58022" data-gtag-title="OYL-Small1-Computacion-SKU:58022" data-gtag-id="58022" data-gtag-name="OYL-Small1-Computacion-SKU:58022" data-gtag-promotion="58022" data-gtag-price="129990" data-gtag-widget="Home Banner Principal" data-gtag-brand="Honor" data-gtag-creativename="OYL-Small1-Computacion-SKU:58022" data-gtag-category="" data-gtag-class="banner-small" data-gtag-index="1" data-gtag-banner-mobile="true" data-gtag-banner="true" data-gtag-group="">
+ <div class="position-absolute d-flex justify-content-center align-items-center flex-column w-100 h-100">
+ <div class="w-small d-flex justify-content-center align-items-center">
+ <img loading="lazy" class="img-producto-small" alt="Banner Precio Producto" data-banner-price="129990" data-gtag-price="129990" data-gtag-brand="Honor">
+ </div>
+ <div class="w-small d-flex justify-content-center flex-column align-items-center">
+ <div class="container-small-names">
+ <p class="titulo-small-producto">Smartphone Honor</p>
+ <p class="subtitulo-small-producto">Celular Honor Play 20A 64GB/4GB Negro Liberado</p>
+ </div>
+ <div class="w-100">
+ <div class="price-container d-flex col-11">
+ <div class="col-8 p-0 pl-1 main-price-container">
+ <p class="d-flex main-price my-1"><span class="currency-symbol">$</span>129.990</p>
+ <p class="referencial-price-small">$299.990</p>
+ </div>
+ <div class="price-container-discount-percentage col-4">
+ <span></span>
+ <p class="discount-percentage-label mt-percentage">-57%</p>
+ </div>
+ </div>
+ <div class="flex fee-container" style="display: none;">
+ <p class="mb-0 col-7 text-fee">O <span class="resp-text-fee">llévalo hasta</span> en <br class="resp-text-fee"> <span class="fw-bold">24 cuotas sin interés</span></p>
+ <p class="mb-0 col-5 fee-price">$5.416</p>
+ </div>
+ </div>
+ </div>
+ </div>
+ </a>
+ </div>
+ <div class="my-2 col-6 col-md-3 col-lg-2 banner-small--1 d-lg-flex align-self-lg-stretch">
+ <a href="https://www.pcfactory.cl/producto/56111" class="banner--link d-flex justify-content-center w-100" data-product-id="56111" data-product-id-backup="" data-image-index="0" data-custom-image-setting="0" data-custom-image-url="" data-remove-installments="true" data-nombre-personalizado="false" data-titulo-personalizado="" data-enlace-personalizado="false" data-urlgenerico="https://www.pcfactory.cl/">
+ <img loading="lazy" class="w-100 img-fluid background" alt="Banner Precio Producto" data-banner-url="/producto/56111" data-banner-id="56111" data-banner-price="499990" data-gtag-img-title="OYL-Small2-Ecommerce-SKU:56111" data-gtag-title="OYL-Small2-Ecommerce-SKU:56111" data-gtag-id="56111" data-gtag-name="OYL-Small2-Ecommerce-SKU:56111" data-gtag-promotion="56111" data-gtag-price="499990" data-gtag-widget="Home Banner Principal" data-gtag-brand="DJI" data-gtag-creativename="OYL-Small2-Ecommerce-SKU:56111" data-gtag-category="" data-gtag-class="banner-small" data-gtag-index="2" data-gtag-banner-mobile="true" data-gtag-banner="true" data-gtag-group="">
+ <div class="position-absolute d-flex justify-content-center align-items-center flex-column w-100 h-100">
+ <div class="w-small d-flex justify-content-center align-items-center">
+ <img loading="lazy" class="img-producto-small" alt="Banner Precio Producto" data-banner-price="499990" data-gtag-price="499990" data-gtag-brand="DJI">
+ </div>
+ <div class="w-small d-flex justify-content-center flex-column align-items-center">
+ <div class="container-small-names">
+ <p class="titulo-small-producto">Drone DJI</p>
+ <p class="subtitulo-small-producto">Dron Neo 2 Fly More Combo (Incluye Kit)</p>
+ </div>
+ <div class="w-100">
+ <div class="price-container d-flex col-11">
+ <div class="col-8 p-0 pl-1 main-price-container">
+ <p class="d-flex main-price my-1"><span class="currency-symbol">$</span>499.990</p>
+ <p class="referencial-price-small">$699.990</p>
+ </div>
+ <div class="price-container-discount-percentage col-4">
+ <span></span>
+ <p class="discount-percentage-label mt-percentage">-29%</p>
+ </div>
+ </div>
+ <div class="flex fee-container" style="display: none;">
+ <p class="mb-0 col-7 text-fee">O <span class="resp-text-fee">llévalo hasta</span> en <br class="resp-text-fee"> <span class="fw-bold">24 cuotas sin interés</span></p>
+ <p class="mb-0 col-5 fee-price">$20.833</p>
+ </div>
+ </div>
+ </div>
+ </div>
+ </a>
+ </div>
+ <div class="my-2 col-12 col-md-6 col-lg-8 banner-big">
+ <a href="https://www.pcfactory.cl/producto/57489" class="banner--link d-flex justify-content-center w-100" data-product-id="57489" data-product-id-backup="" data-image-index="0" data-custom-image-setting="0" data-custom-image-url="" data-remove-installments="true" data-nombre-personalizado="false" data-titulo-personalizado="" data-enlace-personalizado="false" data-urlgenerico="https://www.pcfactory.cl/">
+ <picture>
+ <source srcset="https://assets-v3.pcfactory.cl/uploads/240ffa88-c1cf-4f19-b688-c38f4e9ed5c8/original/fondo-big-mob-oyl-html.webp" media="(max-width: 991px)">
+ <img loading="lazy" class="w-100 img-fluid background" alt="Banner Precio Producto" data-banner-url="/producto/57489" data-banner-id="57489" data-banner-price="99990" data-gtag-img-title="OYL-Big5-Ecommerce-SKU:57489" data-gtag-title="OYL-Big5-Ecommerce-SKU:57489" data-gtag-id="57489" data-gtag-name="OYL-Big5-Ecommerce-SKU:57489" data-gtag-promotion="57489" data-gtag-price="99990" data-gtag-widget="Home Banner Principal" data-gtag-brand="Gigabyte" data-gtag-creativename="OYL-Big5-Ecommerce-SKU:57489" data-gtag-category="" data-gtag-class="banner-big" data-gtag-index="3" data-gtag-banner-mobile="true" data-gtag-banner="true" data-gtag-group="">
+ </picture>
+ <div class="position-absolute d-flex justify-content-center align-items-center flex-column w-100 h-100">
+ <div class="w-big d-flex align-items-center justify-content-start">
+ <img loading="lazy" class="img-producto-big" alt="Banner Precio Producto" data-banner-price="99990" data-gtag-price="99990" data-gtag-brand="Gigabyte">
+ </div>
+ <div class="w-big d-flex flex-column align-items-center justify-content-start">
+ <div class="container-big-names">
+ <p class="titulo-big-producto">Monitor Gigabyte</p>
+ <p class="subtitulo-big-producto">gamer 25" GS25F2 200hz IPS</p>
+ </div>
+ <div class="w-100">
+ <div class="price-container d-flex col-11">
+ <div class="col-8 p-0 pl-1 main-price-container">
+ <p class="d-flex main-price my-1"><span class="currency-symbol">$</span>99.990</p>
+ <p class="referencial-price-big">$169.990</p>
+ </div>
+ <div class="price-container-discount-percentage col-4">
+ <span></span>
+ <p class="discount-percentage-label mt-percentage">-41%</p>
+ </div>
+ </div>
+ <div class="flex fee-container" style="display: none;">
+ <p class="mb-0 col-7 text-fee">O <span class="resp-text-fee">llévalo hasta</span> en <br class="resp-text-fee"> <span class="fw-bold">24 cuotas sin interés</span></p>
+ <p class="mb-0 col-5 fee-price">$4.166</p>
+ </div>
+ </div>
+ </div>
+ </div>
+ </a>
+ </div>
+ <div class="my-2 col-12 col-md-6 col-lg-8 banner-big">
+ <a href="https://www.pcfactory.cl/producto/19839" class="banner--link d-flex justify-content-center w-100" data-product-id="19839" data-product-id-backup="" data-image-index="0" data-custom-image-setting="0" data-custom-image-url="" data-remove-installments="true" data-nombre-personalizado="false" data-titulo-personalizado="" data-enlace-personalizado="false" data-urlgenerico="https://www.pcfactory.cl/">
+ <picture>
+ <source srcset="https://assets-v3.pcfactory.cl/uploads/240ffa88-c1cf-4f19-b688-c38f4e9ed5c8/original/fondo-big-mob-oyl-html.webp" media="(max-width: 991px)">
+ <img loading="lazy" class="w-100 img-fluid background" alt="Banner Precio Producto" data-banner-url="/producto/19839" data-banner-id="19839" data-banner-price="57990" data-gtag-img-title="OYL-Big6-Ecommerce-SKU:19839" data-gtag-title="OYL-Big6-Ecommerce-SKU:19839" data-gtag-id="19839" data-gtag-name="OYL-Big6-Ecommerce-SKU:19839" data-gtag-promotion="19839" data-gtag-price="57990" data-gtag-widget="Home Banner Principal" data-gtag-brand="Brother" data-gtag-creativename="OYL-Big6-Ecommerce-SKU:19839" data-gtag-category="" data-gtag-class="banner-big" data-gtag-index="4" data-gtag-banner-mobile="true" data-gtag-banner="true" data-gtag-group="">
+ </picture>
+ <div class="position-absolute d-flex justify-content-center align-items-center flex-column w-100 h-100">
+ <div class="w-big d-flex align-items-center justify-content-start">
+ <img loading="lazy" class="img-producto-big" alt="Banner Precio Producto" data-banner-price="57990" data-gtag-price="57990" data-gtag-brand="Brother">
+ </div>
+ <div class="w-big d-flex flex-column align-items-center justify-content-start">
+ <div class="container-big-names">
+ <p class="titulo-big-producto">Impresora Láser Brother</p>
+ <p class="subtitulo-big-producto">Blanco y Negro HL-1202</p>
+ </div>
+ <div class="w-100">
+ <div class="price-container d-flex col-11">
+ <div class="col-8 p-0 pl-1 main-price-container">
+ <p class="d-flex main-price my-1"><span class="currency-symbol">$</span>57.990</p>
+ <p class="referencial-price-big">$69.990</p>
+ </div>
+ <div class="price-container-discount-percentage col-4">
+ <span></span>
+ <p class="discount-percentage-label mt-percentage">-17%</p>
+ </div>
+ </div>
+ <div class="flex fee-container" style="display: none;">
+ <p class="mb-0 col-7 text-fee">O <span class="resp-text-fee">llévalo hasta</span> en <br class="resp-text-fee"> <span class="fw-bold">24 cuotas sin interés</span></p>
+ <p class="mb-0 col-5 fee-price">$2.416</p>
+ </div>
+ </div>
+ </div>
+ </div>
+ </a>
+ </div>
+ <div class="my-2 col-6 col-md-3 col-lg-2 banner-small--1 d-lg-flex align-self-lg-stretch">
+ <a href="https://www.pcfactory.cl/producto/57284" class="banner--link d-flex justify-content-center w-100" data-product-id="57284" data-product-id-backup="" data-image-index="0" data-custom-image-setting="0" data-custom-image-url="" data-remove-installments="true" data-nombre-personalizado="false" data-titulo-personalizado="" data-enlace-personalizado="false" data-urlgenerico="https://www.pcfactory.cl/">
+ <img loading="lazy" class="w-100 img-fluid background" alt="Banner Precio Producto" data-banner-url="/producto/57284" data-banner-id="57284" data-banner-price="89990" data-gtag-img-title="OYL-Small3-Audio-Especialista-SKU:57284" data-gtag-title="OYL-Small3-Audio-Especialista-SKU:57284" data-gtag-id="57284" data-gtag-name="OYL-Small3-Audio-Especialista-SKU:57284" data-gtag-promotion="57284" data-gtag-price="89990" data-gtag-widget="Home Banner Principal" data-gtag-brand="KingSpec" data-gtag-creativename="OYL-Small3-Audio-Especialista-SKU:57284" data-gtag-category="" data-gtag-class="banner-small" data-gtag-index="5" data-gtag-banner-mobile="true" data-gtag-banner="true" data-gtag-group="">
+ <div class="position-absolute d-flex justify-content-center align-items-center flex-column w-100 h-100">
+ <div class="w-small d-flex justify-content-center align-items-center">
+ <img loading="lazy" class="img-producto-small" alt="Banner Precio Producto" data-banner-price="89990" data-gtag-price="89990" data-gtag-brand="KingSpec">
+ </div>
+ <div class="w-small d-flex justify-content-center flex-column align-items-center">
+ <div class="container-small-names">
+ <p class="titulo-small-producto">Discos Internos SSD KingSpec</p>
+ <p class="subtitulo-small-producto">Unidad SSD 512GB SATA III 2.5"</p>
+ </div>
+ <div class="w-100">
+ <div class="price-container d-flex col-11">
+ <div class="col-8 p-0 pl-1 main-price-container">
+ <p class="d-flex main-price my-1"><span class="currency-symbol">$</span>89.990</p>
+ <p class="referencial-price-small">$109.990</p>
+ </div>
+ <div class="price-container-discount-percentage col-4">
+ <span></span>
+ <p class="discount-percentage-label mt-percentage">-18%</p>
+ </div>
+ </div>
+ <div class="flex fee-container" style="display: none;">
+ <p class="mb-0 col-7 text-fee">O <span class="resp-text-fee">llévalo hasta</span> en <br class="resp-text-fee"> <span class="fw-bold">24 cuotas sin interés</span></p>
+ <p class="mb-0 col-5 fee-price">$3.750</p>
+ </div>
+ </div>
+ </div>
+ </div>
+ </a>
+ </div>
+ <div class="my-2 col-6 col-md-3 col-lg-2 banner-small--1 d-lg-flex align-self-lg-stretch">
+ <a href="https://www.pcfactory.cl/producto/55576" class="banner--link d-flex justify-content-center w-100" data-product-id="55576" data-product-id-backup="" data-image-index="0" data-custom-image-setting="0" data-custom-image-url="" data-remove-installments="true" data-nombre-personalizado="false" data-titulo-personalizado="" data-enlace-personalizado="false" data-urlgenerico="https://www.pcfactory.cl/">
+ <img loading="lazy" class="w-100 img-fluid background" alt="Banner Precio Producto" data-banner-url="/producto/55576" data-banner-id="55576" data-banner-price="49990" data-gtag-img-title="OYL-Small4-Suministros-Monitores-SKU:55576" data-gtag-title="OYL-Small4-Suministros-Monitores-SKU:55576" data-gtag-id="55576" data-gtag-name="OYL-Small4-Suministros-Monitores-SKU:55576" data-gtag-promotion="55576" data-gtag-price="49990" data-gtag-widget="Home Banner Principal" data-gtag-brand="Hollyland" data-gtag-creativename="OYL-Small4-Suministros-Monitores-SKU:55576" data-gtag-category="" data-gtag-class="banner-small" data-gtag-index="6" data-gtag-banner-mobile="true" data-gtag-banner="true" data-gtag-group="">
+ <div class="position-absolute d-flex justify-content-center align-items-center flex-column w-100 h-100">
+ <div class="w-small d-flex justify-content-center align-items-center">
+ <img loading="lazy" class="img-producto-small" alt="Banner Precio Producto" data-banner-price="49990" data-gtag-price="49990" data-gtag-brand="Hollyland">
+ </div>
+ <div class="w-small d-flex justify-content-center flex-column align-items-center">
+ <div class="container-small-names">
+ <p class="titulo-small-producto">Micrófono Hollyland</p>
+ <p class="subtitulo-small-producto">Inálambrico Lark A1 DUO (USB C RX) con Estuche de Carga</p>
+ </div>
+ <div class="w-100">
+ <div class="price-container d-flex col-11">
+ <div class="col-8 p-0 pl-1 main-price-container">
+ <p class="d-flex main-price my-1"><span class="currency-symbol">$</span>49.990</p>
+ <p class="referencial-price-small">$79.990</p>
+ </div>
+ <div class="price-container-discount-percentage col-4">
+ <span></span>
+ <p class="discount-percentage-label mt-percentage">-38%</p>
+ </div>
+ </div>
+ <div class="flex fee-container" style="display: none;">
+ <p class="mb-0 col-7 text-fee">O <span class="resp-text-fee">llévalo hasta</span> en <br class="resp-text-fee"> <span class="fw-bold">24 cuotas sin interés</span></p>
+ <p class="mb-0 col-5 fee-price">$2.083</p>
+ </div>
+ </div>
+ </div>
+ </div>
+ </a>
+ </div>
+ </div>
+	</div>
+</div>
+<div class="widget-definition" id="modyo-7f7902ea-d77a-41fd-b5e9-4d750b551eb9/a94ea3944707b555411cb288bb3290ebba201f9fdda43e2790b511533ac7b95b" data-widget-name="promo-codes-widget">
+<div class="px-3 container">
+	<div class="d-flex align-items-center mt-4">
+ <h2 class="section-title-coupons">Cupones</h2>
+	</div>
+	<div class="container bs-5 mb-3 container-coupons p-0">
+ <div class="ticket-wrapper" data-total="3">
+ <button class="ticket-nav ticket-nav-prev" type="button" aria-label="Anterior" disabled="">
+ <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"></svg>
+ </button>
+ <div class="ticket-grid" data-total="3">
+ <div class="ticket-col ticket-col-3">
+ <div class="ticket-pseudo" style="--ticket-bg: #000000; --ticket-color: #ffffff; background-color: #000000; color: #ffffff;">
+ <div class="ticket-card-multi">
+ <div class="ticket-card-header d-flex justify-content-between align-items-center w-100">
+ <span class="ticket-card-badge-title" style="color: #ffffff;">Cupón</span>
+ <span class="ticket-card-badge-online" style="color: #ffffff;">Exclusivo Online</span>
+ </div>
+ <div class="ticket-card-body d-flex flex-column align-items-center w-100 text-center mt-2">
+ <div class="ticket-card-monto">$50.000</div>
+ <div class="ticket-card-subtitle" style="color: #ffffff;">dcto. <span class="fw-bold">Adicional</span></div>
+ <p class="ticket-card-productos mb-1" style="color: #ffffff;">Notebooks Seleccionados*</p>
+ <div class="ticket-card-subtitle" style="color: #ffffff;"></div>
+ <button class="ticket-cupon-boton col-lg-6" type="button">
+ <span class="ticket-cupon-text me-2">LEN50</span>
+ <span class="icon-copy-state">
+ <span class="icon icon-copy-paste" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span>
+ </span>
+ <span class="icon-check-state" aria-hidden="true">✓</span>
+ </button>
+ <p class="ticket-cupon-mensaje-uso mt-1 mb-1" style="color: #ffffff;">Usa este código</p>
+ <a href="https://www.pcfactory.cl/lenovo-week/cupones?cupones=LEN50" class="ticket-card-link my-1">
+ Ver Productos &gt;
+ </a>
+ </div>
+ <div class="ticket-card-divider my-2 w-100" style="background-image: repeating-linear-gradient(to right, #ffffff 0, #ffffff 8px, transparent 8px, transparent 16px);"></div>
+ <div class="ticket-card-footer text-center w-100 d-flex justify-content-center align-items-end">
+ <span class="ticket-card-vencimiento" style="color: #ffffff;" data-unpublish="1793588340">
+ <svg class="me-1" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2"></svg>
+ <span class="vencimiento-texto"> Vence el 02 de Noviembre o hasta agotar stock.</span>
+ </span>
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="ticket-col ticket-col-3">
+ <div class="ticket-pseudo" style="--ticket-bg: #000000; --ticket-color: #ffffff; background-color: #000000; color: #ffffff;">
+ <div class="ticket-card-multi">
+ <div class="ticket-card-header d-flex justify-content-between align-items-center w-100">
+ <span class="ticket-card-badge-title" style="color: #ffffff;">Cupón</span>
+ <span class="ticket-card-badge-online" style="color: #ffffff;">Exclusivo Online</span>
+ </div>
+ <div class="ticket-card-body d-flex flex-column align-items-center w-100 text-center mt-2">
+ <div class="ticket-card-monto">$20.000</div>
+ <div class="ticket-card-subtitle" style="color: #ffffff;">dcto. <span class="fw-bold">Adicional</span></div>
+ <p class="ticket-card-productos mb-1" style="color: #ffffff;">Tablets Seleccionadas*</p>
+ <div class="ticket-card-subtitle" style="color: #ffffff;"></div>
+ <button class="ticket-cupon-boton col-lg-6" type="button">
+ <span class="ticket-cupon-text me-2">LEN20</span>
+ <span class="icon-copy-state">
+ <span class="icon icon-copy-paste" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span>
+ </span>
+ <span class="icon-check-state" aria-hidden="true">✓</span>
+ </button>
+ <p class="ticket-cupon-mensaje-uso mt-1 mb-1" style="color: #ffffff;">Usa este código</p>
+ <a href="https://www.pcfactory.cl/lenovo-week/cupones?cupones=LEN20" class="ticket-card-link my-1">
+ Ver Productos &gt;
+ </a>
+ </div>
+ <div class="ticket-card-divider my-2 w-100" style="background-image: repeating-linear-gradient(to right, #ffffff 0, #ffffff 8px, transparent 8px, transparent 16px);"></div>
+ <div class="ticket-card-footer text-center w-100 d-flex justify-content-center align-items-end">
+ <span class="ticket-card-vencimiento" style="color: #ffffff;" data-unpublish="1793588340">
+ <svg class="me-1" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2"></svg>
+ <span class="vencimiento-texto"> Vence el 02 de Noviembre o hasta agotar stock.</span>
+ </span>
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="ticket-col ticket-col-3">
+ <div class="ticket-pseudo" style="--ticket-bg: #000000; --ticket-color: #ffffff; background-color: #000000; color: #ffffff;">
+ <div class="ticket-card-multi">
+ <div class="ticket-card-header d-flex justify-content-between align-items-center w-100">
+ <span class="ticket-card-badge-title" style="color: #ffffff;">Cupón</span>
+ <span class="ticket-card-badge-online" style="color: #ffffff;">Exclusivo Online</span>
+ </div>
+ <div class="ticket-card-body d-flex flex-column align-items-center w-100 text-center mt-2">
+ <div class="ticket-card-monto"> $20.000 </div>
+ <div class="ticket-card-subtitle" style="color: #ffffff;">dcto. <span class="fw-bold">Adicional</span></div>
+ <p class="ticket-card-productos mb-1" style="color: #ffffff;">Monitores Seleccionados*</p>
+ <div class="ticket-card-subtitle" style="color: #ffffff;"></div>
+ <button class="ticket-cupon-boton col-lg-6" type="button">
+ <span class="ticket-cupon-text me-2">LEN20M</span>
+ <span class="icon-copy-state">
+ <span class="icon icon-copy-paste" aria-hidden="true">
+	<svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg>
+</span>
+ </span>
+ <span class="icon-check-state" aria-hidden="true">✓</span>
+ </button>
+ <p class="ticket-cupon-mensaje-uso mt-1 mb-1" style="color: #ffffff;">Usa este código</p>
+ <a href="https://www.pcfactory.cl/lenovo-week/cupones?cupones=LEN20M" class="ticket-card-link my-1">
+ Ver Productos &gt;
+ </a>
+ </div>
+ <div class="ticket-card-divider my-2 w-100" style="background-image: repeating-linear-gradient(to right, #ffffff 0, #ffffff 8px, transparent 8px, transparent 16px);"></div>
+ <div class="ticket-card-footer text-center w-100 d-flex justify-content-center align-items-end">
+ <span class="ticket-card-vencimiento" style="color: #ffffff;" data-unpublish="1793588340">
+ <svg class="me-1" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2"></svg>
+ <span class="vencimiento-texto"> Vence el 02 de Noviembre o hasta agotar stock.</span>
+ </span>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div>
+ <button class="ticket-nav ticket-nav-next" type="button" aria-label="Siguiente" disabled="">
+ <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"></svg>
+ </button>
+ </div>
+	</div>
+</div>
+<div id="coupon-toast" class="coupon-success-toast" aria-hidden="true">
+	<span class="coupon-success-toast__icon">✓</span>
+	<span id="coupon-toast-message" class="coupon-success-toast__message"></span>
+</div></div>
+<div class="container position-relative">
+	<div class="row justify-content-between align-items-center pt-1 pt-md-0 mx-0 overflow-hidden" id="home-piso-productos-relacionados">
+ <div class="col-12 px-lg-0 ">
+ <a href="https://www.pcfactory.cl/categoria/computadores-y-tablets">
+ <h2 class="section-title-products">Computación</h2>
+ </a>
+ </div>
+	</div>
+ <div id="retail-computacion" class="tam_cont">
+ <div data-retailrocket-markup-block="64cbec8ea85e9b54a571a033" data-product-id="56691,56671,54834,56686" initialized="true">
+<div class="rr-widget rr-widget-64cbec8ea85e9b54a571a033 rr-active" data-algorithm="popular" data-algorithm-argument="0" data-template-param-number-of-items="36" data-template-param-item-image-width="320" data-template-param-item-image-height="320" data-on-pre-render="retailrocket['pcfactory64cbec8ea85e9b54a571a033'].preRenderFn(this, data, renderFn)" data-on-post-render="retailrocket['pcfactory64cbec8ea85e9b54a571a033'].postRenderFn(this)" data-template-container-id="widget-template-64cbec8ea85e9b54a571a033" data-s="64cbec8ea85e9b54a571a033" data-widget-applied="true" data-rr-render-started="true" data-number-of-rendered-items="36" data-rendered-items-ids="56691,56671,54834,56686,55935,56774,54201,54790,56693,56687,58186,55940,57853,58290,57286,55838,56797,55035,53810,56743,57121,54789,58512,56344,56685,55409,56683,57841,58230,55567,58306,55428,57465,55178,56433,57716"> <div class="rr-items rr-swiper-container swiper-container-initialized swiper-container-horizontal"> <div class="rr-swiper-wrapper" style="transition-duration: 0ms; transform: translate3d(-1335px, 0px, 0px);"> <div class="rr-swiper-slide swiper-slide-visible swiper-slide-active" onclick="retailrocket['pcfactory64cbec8ea85e9b54a571a033'].googleAnaliticClick(56691, 'Notebook Ideapad Slim 3 Intel Core i5-13420H 15.3&quot; 60 Hz Touch 8GB 512GB Windows 11 Home Luna Grey 83K101LJCL ', '619990.00', 'notebooks', 0, 'Lenovo', 1029990);" data-item-id="56691" data-vendor="Lenovo" data-name="Notebook Ideapad Slim 3 Intel Core i5-13420H 15.3&quot; 60 Hz Touch 8GB 512GB Windows 11 Home Luna Grey 83K101LJCL " data-categories="notebooks" data-price="619990" data-index="0" data-price-reference="1029990" data-swiper-slide-index="0" style="width: 252px; margin-right: 15px;"> <div class="rr-item"> <a class="rr-item__image" href="//www.pcfactory.cl/producto/56691-lenovo-notebook-ideapad-slim-3-intel-core-i5-13420h-15-3-60-hz-touch-8gb-512gb-windows-11-home-luna-grey-83k101ljcl" onmousedown="rrApi.recomMouseDown(56691, { suggester: '64cbec8ea85e9b54a571a033', methodName: 'popular' });"> <img class="swiper-lazy swiper-lazy-loaded"> </a> <div class="rr-item__vendor">Lenovo®</div> <a class="rr-item__name" href="//www.pcfactory.cl/producto/56691-lenovo-notebook-ideapad-slim-3-intel-core-i5-13420h-15-3-60-hz-touch-8gb-512gb-windows-11-home-luna-grey-83k101ljcl" onmousedown="rrApi.recomMouseDown(56691, { suggester: '64cbec8ea85e9b54a571a033', methodName: 'popular' });"> Notebook Ideapad Slim 3 Intel Core i5-13420H 15.3" 60 Hz Touch 8GB 512GB Windows 11 Home Luna Grey 83K101LJCL </a> <div class="rr-item__info"> <div class="rr-item__id">ID <strong>56691</strong></div> <div class="rr-item__quantity"> +100 Unid. </div> </div> <div class="rr-item__block-price"> <div class="rr-item__price-group"> <div class="rr-item__discount">-40%</div> <div class="rr-item__old-price">$1.029.990</div> </div> <div class="rr-item__price">$619.990</div> <div class="rr-item__price-label">Transferencia / Débito</div> <div class="rr-item__special-price"> $639.190 </div> <div class="rr-item__special-price-label">Otros medios de pago</div> </div> <button class="rr-item__action" type="button" id="addtocart_56691_1" onclick="rrApi.recomAddToCart(56691, { suggester: '64cbec8ea85e9b54a571a033', methodName: 'popular' }); retailrocket['pcfactory64cbec8ea85e9b54a571a033'].rrButtonAnim(this);"> <svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="pcf-icon-sm"></svg> Agregar al carro </button> </div> </div> <div class="rr-swiper-slide swiper-slide-visible swiper-slide-next" onclick="retailrocket['pcfactory64cbec8ea85e9b54a571a033'].googleAnaliticClick(56671, 'Notebook Zenbook 14 Intel Ultra 9-285H 14&quot; OLED 16GB 512GB SSD Windows 11 Home Azul UX3405CA-SU1633W ', '1600490.00', 'notebooks', 1, 'Asus', 1999990);" data-item-id="56671" data-vendor="Asus" data-name="Notebook Zenbook 14 Intel Ultra 9-285H 14&quot; OLED 16GB 512GB SSD Windows 11 Home Azul UX3405CA-SU1633W " data-categories="notebooks" data-price="1600490" data-index="1" data-price-reference="1999990" data-swiper-slide-index="1" style="width: 252px; margin-right: 15px;"> <div class="rr-item"> <a class="rr-item__image" href="//www.pcfactory.cl/producto/56671-asus-notebook-zenbook-14-intel-ultra-9-285h-14-oled-16gb-512gb-ssd-windows-11-home-azul-ux3405ca-su1633w" onmousedown="rrApi.recomMouseDown(56671, { suggester: '64cbec8ea85e9b54a571a033', methodName: 'popular' });"> <img class="swiper-lazy swiper-lazy-loaded"> </a> <div class="rr-item__vendor">Asus®</div> <a class="rr-item__name" href="//www.pcfactory.cl/producto/56671-asus-notebook-zenbook-14-intel-ultra-9-285h-14-oled-16gb-512gb-ssd-windows-11-home-azul-ux3405ca-su1633w" onmousedown="rrApi.recomMouseDown(56671, { suggester: '64cbec8ea85e9b54a571a033', methodName: 'popular' });"> Notebook Zenbook 14 Intel Ultra 9-285H 14" OLED 16GB 512GB SSD Windows 11 Home Azul UX3405CA-SU1633W </a> <div class="rr-item__info"> <div class="rr-item__id">ID <strong>56671</strong></div> <div class="rr-item__quantity"> +100 Unid. </div> </div> <div class="rr-item__block-price"> <div class="rr-item__price-group"> <div class="rr-item__discount">-20%</div> <div class="rr-item__old-price">$1.999.990</div> </div> <div class="rr-item__price">$1.600.490</div> <div class="rr-item__price-label">Transferencia / Débito</div> <div class="rr-item__special-price"> $1.649.990 </div> <div class="rr-item__special-price-label">Otros medios de pago</div> </div> <button class="rr-item__action" type="button" id="addtocart_56671_1" onclick="rrApi.recomAddToCart(56671, { suggester: '64cbec8ea85e9b54a571a033', methodName: 'popular' }); retailrocket['pcfactory64cbec8ea85e9b54a571a033'].rrButtonAnim(this);"> <svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="pcf-icon-sm"></svg> Agregar al carro </button> </div> </div> <div class="rr-swiper-slide swiper-slide-visible" onclick="retailrocket['pcfactory64cbec8ea85e9b54a571a033'].googleAnaliticClick(54834, 'All in One IdeaCentre Intel Core i7-13620H 27&quot; 60Hz FHD 16GB 1TB SSD Windows 11 Home Gris&nbsp;F0HM00JKCL', '1199990.00', 'all-in-one', 2, 'Lenovo', 1439990);" data-item-id="54834" data-vendor="Lenovo" data-name="All in One IdeaCentre Intel Core i7-13620H 27&quot; 60Hz FHD 16GB 1TB SSD Windows 11 Home Gris&nbsp;F0HM00JKCL" data-categories="all-in-one" data-price="1199990" data-index="2" data-price-reference="1439990" data-swiper-slide-index="2" style="width: 252px; margin-right: 15px;"> <div class="rr-item"> <a class="rr-item__image" href="//www.pcfactory.cl/producto/54834-lenovo-all-in-one-ideacentre-intel-core-i7-13620h-27-60hz-fhd-16gb-1tb-ssd-windows-11-home-gris-f0hm00jkcl" onmousedown="rrApi.recomMouseDown(54834, { suggester: '64cbec8ea85e9b54a571a033', methodName: 'popular' });"> <img class="swiper-lazy swiper-lazy-loaded"> </a> <div class="rr-item__vendor">Lenovo®</div> <a class="rr-item__name" href="//www.pcfactory.cl/producto/54834-lenovo-all-in-one-ideacentre-intel-core-i7-13620h-27-60hz-fhd-16gb-1tb-ssd-windows-11-home-gris-f0hm00jkcl" onmousedown="rrApi.recomMouseDown(54834, { suggester: '64cbec8ea85e9b54a571a033', methodName: 'popular' });"> All in One IdeaCentre Intel Core i7-13620H 27" 60Hz FHD 16GB 1TB SSD Windows 11 Home Gris&nbsp;F0HM00JKCL </a> <div class="rr-item__info"> <div class="rr-item__id">ID <strong>54834</strong></div> <div class="rr-item__quantity"> +50 Unid. </div> </div> <div class="rr-item__block-price"> <div class="rr-item__price-group"> <div class="rr-item__discount">-17%</div> <div class="rr-item__old-price">$1.439.990</div> </div> <div class="rr-item__price">$1.199.990</div> <div class="rr-item__price-label">Transferencia / Débito</div> <div class="rr-item__special-price"> $1.237.090 </div> <div class="rr-item__special-price-label">Otros medios de pago</div> </div> <button class="rr-item__action" type="button" id="addtocart_54834_1" onclick="rrApi.recomAddToCart(54834, { suggester: '64cbec8ea85e9b54a571a033', methodName: 'popular' }); retailrocket['pcfactory64cbec8ea85e9b54a571a033'].rrButtonAnim(this);"> <svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="pcf-icon-sm"></svg> Agregar al carro </button> </div> </div> <div class="rr-swiper-slide swiper-slide-visible" onclick="retailrocket['pcfactory64cbec8ea85e9b54a571a033'].googleAnaliticClick(56686, 'Tablet IdeaTab 11&quot; 6GB 128GB Wifi Octa Core Android Luna Grey + Folio + Pen', '239990.00', 'tablets', 3, 'Lenovo', 299990);" data-item-id="56686" data-vendor="Lenovo" data-name="Tablet IdeaTab 11&quot; 6GB 128GB Wifi Octa Core Android Luna Grey + Folio + Pen" data-categories="tablets" data-price="239990" data-index="3" data-price-reference="299990" data-swiper-slide-index="3" style="width: 252px; margin-right: 15px;"> <div class="rr-item"> <a class="rr-item__image" href="//www.pcfactory.cl/producto/56686-lenovo-tablet-ideatab-11-6gb-128gb-wifi-octa-core-android-luna-grey--folio--pen" onmousedown="rrApi.recomMouseDown(56686, { suggester: '64cbec8ea85e9b54a571a033', methodName: 'popular' });"> <img class="swiper-lazy swiper-lazy-loaded"> </a> <div class="rr-item__vendor">Lenovo®</div> <a class="rr-item__name" href="//www.pcfactory.cl/producto/56686-lenovo-tablet-ideatab-11-6gb-128gb-wifi-octa-core-android-luna-grey--folio--pen" onmousedown="rrApi.recomMouseDown(56686, { suggester: '64cbec8ea85e9b54a571a033', methodName: 'popular' });"> Tablet IdeaTab 11" 6GB 128GB Wifi Octa Core Android Luna Grey + Folio + Pen </a> <div class="rr-item__info"> <div class="rr-item__id">ID <strong>56686</strong></div> <div class="rr-item__quantity"> +100 Unid. </div> </div> <div class="rr-item__block-price"> <div class="rr-item__price-group"> <div class="rr-item__discount">-20%</div> <div class="rr-item__old-price">$299.990</div> </div> <div class="rr-item__price">$239.990</div> <div class="rr-item__price-label">Transferencia / Débito</div> <div class="rr-item__special-price"> $247.390 </div> <div class="rr-item__special-price-label">Otros medios de pago</div> </div> <button class="rr-item__action" type="button" id="addtocart_56686_1" onclick="rrApi.recomAddToCart(56686, { suggester: '64cbec8ea85e9b54a571a033', methodName: 'popular' }); retailrocket['pcfactory64cbec8ea85e9b54a571a033'].rrButtonAnim(this);"> <svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="pcf-icon-sm"></svg> Agregar al carro </button> </div> </div> <div class="rr-swiper-slide swiper-slide-visible" onclick="retailrocket['pcfactory64cbec8ea85e9b54a571a033'].googleAnaliticClick(55935, 'Notebook V14 G5 Intel Core i7-13620H 16GB RAM 512GB SSD 14″ Windows 11 Pro', '1119990.00', 'notebooks', 4, 'Lenovo', 1599990);" data-item-id="55935" data-vendor="Lenovo" data-name="Notebook V14 G5 Intel Core i7-13620H 16GB RAM 512GB SSD 14″ Windows 11 Pro" data-categories="notebooks" data-price="1119990" data-index="4" data-price-reference="1599990" data-swiper-slide-index="4" style="width: 252px; margin-right: 15px;"> <div class="rr-item"> <a class="rr-item__image" href="//www.pcfactory.cl/producto/55935-lenovo-notebook-v14-g5-intel-core-i7-13620h-16gb-ram-512gb-ssd-14-windows-11-pro" onmousedown="rrApi.recomMouseDown(55935, { suggester: '64cbec8ea85e9b54a571a033', methodName: 'popular' });"> <img class="swiper-lazy swiper-lazy-loaded"> </a> <div class="rr-item__vendor">Lenovo®</div> <a class="rr-item__name" href="//www.pcfactory.cl/producto/55935-lenovo-notebook-v14-g5-intel-core-i7-13620h-16gb-ram-512gb-ssd-14-windows-11-pro" onmousedown="rrApi.recomMouseDown(55935, { suggester: '64cbec8ea85e9b54a571a033', methodName: 'popular' });"> Notebook V14 G5 Intel Core i7-13620H 16GB RAM 512GB SSD 14″ Windows 11 Pro </a> <div class="rr-item__info"> <div class="rr-item__id">ID <strong>55935</strong></div> <div class="rr-item__quantity"> +50 Unid. </div> </div> <div class="rr-item__block-price"> <div class="rr-item__price-group"> <div class="rr-item__discount">-30%</div> <div class="rr-item__old-price">$1.599.990</div> </div> <div class="rr-item__price">$1.119.990</div> <div class="rr-item__price-label">Transferencia / Débito</div> <div class="rr-item__special-price"> $1.154.590 </div> <div class="rr-item__special-price-label">Otros medios de pago</div> </div> <button class="rr-item__action" type="button" id="addtocart_55935_1" onclick="rrApi.recomAddToCart(55935, { suggester: '64cbec8ea85e9b54a571a033', methodName: 'popular' }); retailrocket['pcfactory64cbec8ea85e9b54a571a033'].rrButtonAnim(this);"> <svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="pcf-icon-sm"></svg> Agregar al carro </button> </div> </div> </div> <span class="swiper-notification" aria-live="assertive" aria-atomic="true"></span></div> <div class="rr-slider-arrow"> <div class="rr-arrow swiper-prev" tabindex="0" role="button" aria-label="Previous slide"></div> <div class="rr-arrow swiper-next" tabindex="0" role="button" aria-label="Next slide"></div> </div> </div>
+</div>
+ </div>
+</div>
+<div class="container position-relative">
+	<div class="row justify-content-between align-items-center pt-1 pt-md-0 mx-0 overflow-hidden" id="home-piso-productos-relacionados">
+ <div class="col-12 px-lg-0 ">
+ <a href="https://www.pcfactory.cl/categoria/smartphones-y-wearables">
+ <h2 class="section-title-products">Telefonía</h2>
+ </a>
+ </div>
+	</div>
+ <div id="retail-telefonia" class="tam_cont">
+ <div data-retailrocket-markup-block="64cbece43f6ab2bd35cbeb1e" data-product-id="58084,58044,55290,53155,56250" initialized="true">
+<div class="rr-widget rr-widget-64cbece43f6ab2bd35cbeb1e rr-active" data-algorithm="popular" data-algorithm-argument="0" data-template-param-number-of-items="36" data-template-param-item-image-width="320" data-template-param-item-image-height="320" data-on-pre-render="retailrocket['pcfactory64cbece43f6ab2bd35cbeb1e'].preRenderFn(this, data, renderFn)" data-on-post-render="retailrocket['pcfactory64cbece43f6ab2bd35cbeb1e'].postRenderFn(this)" data-template-container-id="widget-template-64cbece43f6ab2bd35cbeb1e" data-s="64cbece43f6ab2bd35cbeb1e" data-widget-applied="true" data-rr-render-started="true" data-number-of-rendered-items="34" data-rendered-items-ids="58084,58044,55290,53155,56250,55492,56464,57189,55062,56455,57643,53116,54836,56203,56456,53238,58022,53269,57363,58045,57701,56074,58040,53115,58042,39419,56872,46651,55491,58068,58048,56294,56515,54071"> <div class="rr-items rr-swiper-container swiper-container-initialized swiper-container-horizontal"> <div class="rr-swiper-wrapper" style="transition-duration: 0ms; transform: translate3d(-1335px, 0px, 0px);"> <div class="rr-swiper-slide swiper-slide-visible swiper-slide-active" onclick="retailrocket['pcfactory64cbece43f6ab2bd35cbeb1e'].googleAnaliticClick(58084, 'Celular Galaxy A27 256GB/8GB 5G Negro Liberado', '279990.00', 'smartphones', 0, 'Samsung', 439990);" data-item-id="58084" data-vendor="Samsung" data-name="Celular Galaxy A27 256GB/8GB 5G Negro Liberado" data-categories="smartphones" data-price="279990" data-index="0" data-price-reference="439990" data-swiper-slide-index="0" style="width: 252px; margin-right: 15px;"> <div class="rr-item"> <a class="rr-item__image" href="//www.pcfactory.cl/producto/58084-samsung-celular-galaxy-a27-256gb-8gb-5g-negro-liberado" onmousedown="rrApi.recomMouseDown(58084, { suggester: '64cbece43f6ab2bd35cbeb1e', methodName: 'popular' });"> <img class="swiper-lazy swiper-lazy-loaded"> </a> <div class="rr-item__vendor">Samsung®</div> <a class="rr-item__name" href="//www.pcfactory.cl/producto/58084-samsung-celular-galaxy-a27-256gb-8gb-5g-negro-liberado" onmousedown="rrApi.recomMouseDown(58084, { suggester: '64cbece43f6ab2bd35cbeb1e', methodName: 'popular' });"> Celular Galaxy A27 256GB/8GB 5G Negro Liberado </a> <div class="rr-item__info"> <div class="rr-item__id">ID <strong>58084</strong></div> <div class="rr-item__quantity"> +100 Unid. </div> </div> <div class="rr-item__block-price"> <div class="rr-item__price-group"> <div class="rr-item__discount">-36%</div> <div class="rr-item__old-price">$439.990</div> </div> <div class="rr-item__price">$279.990</div> <div class="rr-item__price-label">Transferencia / Débito</div> <div class="rr-item__special-price"> $288.690 </div> <div class="rr-item__special-price-label">Otros medios de pago</div> </div> <button class="rr-item__action" type="button" id="addtocart_58084_1" onclick="rrApi.recomAddToCart(58084, { suggester: '64cbece43f6ab2bd35cbeb1e', methodName: 'popular' }); retailrocket['pcfactory64cbece43f6ab2bd35cbeb1e'].rrButtonAnim(this);"> <svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="pcf-icon-sm"></svg> Agregar al carro </button> </div> </div> <div class="rr-swiper-slide swiper-slide-visible swiper-slide-next" onclick="retailrocket['pcfactory64cbece43f6ab2bd35cbeb1e'].googleAnaliticClick(58044, 'Celular Redmi Note 17 Pro 256GB/6G 5G Negro Liberado', '299990.00', 'smartphones', 1, 'Xiaomi', 599990);" data-item-id="58044" data-vendor="Xiaomi" data-name="Celular Redmi Note 17 Pro 256GB/6G 5G Negro Liberado" data-categories="smartphones" data-price="299990" data-index="1" data-price-reference="599990" data-swiper-slide-index="1" style="width: 252px; margin-right: 15px;"> <div class="rr-item"> <a class="rr-item__image" href="//www.pcfactory.cl/producto/58044-xiaomi-celular-redmi-note-17-pro-256gb-6g-5g-negro-liberado" onmousedown="rrApi.recomMouseDown(58044, { suggester: '64cbece43f6ab2bd35cbeb1e', methodName: 'popular' });"> <img class="swiper-lazy swiper-lazy-loaded"> </a> <div class="rr-item__vendor">Xiaomi®</div> <a class="rr-item__name" href="//www.pcfactory.cl/producto/58044-xiaomi-celular-redmi-note-17-pro-256gb-6g-5g-negro-liberado" onmousedown="rrApi.recomMouseDown(58044, { suggester: '64cbece43f6ab2bd35cbeb1e', methodName: 'popular' });"> Celular Redmi Note 17 Pro 256GB/6G 5G Negro Liberado </a> <div class="rr-item__info"> <div class="rr-item__id">ID <strong>58044</strong></div> <div class="rr-item__quantity"> +100 Unid. </div> </div> <div class="rr-item__block-price"> <div class="rr-item__price-group"> <div class="rr-item__discount">-50%</div> <div class="rr-item__old-price">$599.990</div> </div> <div class="rr-item__price">$299.990</div> <div class="rr-item__price-label">Transferencia / Débito</div> <div class="rr-item__special-price"> $309.290 </div> <div class="rr-item__special-price-label">Otros medios de pago</div> </div> <button class="rr-item__action" type="button" id="addtocart_58044_1" onclick="rrApi.recomAddToCart(58044, { suggester: '64cbece43f6ab2bd35cbeb1e', methodName: 'popular' }); retailrocket['pcfactory64cbece43f6ab2bd35cbeb1e'].rrButtonAnim(this);"> <svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="pcf-icon-sm"></svg> Agregar al carro </button> </div> </div> <div class="rr-swiper-slide swiper-slide-visible" onclick="retailrocket['pcfactory64cbece43f6ab2bd35cbeb1e'].googleAnaliticClick(55290, 'Celular ZTE A76 128GB/4G 5G Negro Liberado', '109990.00', 'smartphones', 2, 'ZTE', 199990);" data-item-id="55290" data-vendor="ZTE" data-name="Celular ZTE A76 128GB/4G 5G Negro Liberado" data-categories="smartphones" data-price="109990" data-index="2" data-price-reference="199990" data-swiper-slide-index="2" style="width: 252px; margin-right: 15px;"> <div class="rr-item"> <a class="rr-item__image" href="//www.pcfactory.cl/producto/55290-zte-celular-zte-a76-128gb-4g-5g-negro-liberado" onmousedown="rrApi.recomMouseDown(55290, { suggester: '64cbece43f6ab2bd35cbeb1e', methodName: 'popular' });"> <img class="swiper-lazy swiper-lazy-loaded"> </a> <div class="rr-item__vendor">ZTE®</div> <a class="rr-item__name" href="//www.pcfactory.cl/producto/55290-zte-celular-zte-a76-128gb-4g-5g-negro-liberado" onmousedown="rrApi.recomMouseDown(55290, { suggester: '64cbece43f6ab2bd35cbeb1e', methodName: 'popular' });"> Celular ZTE A76 128GB/4G 5G Negro Liberado </a> <div class="rr-item__info"> <div class="rr-item__id">ID <strong>55290</strong></div> <div class="rr-item__quantity"> +100 Unid. </div> </div> <div class="rr-item__block-price"> <div class="rr-item__price-group"> <div class="rr-item__discount">-45%</div> <div class="rr-item__old-price">$199.990</div> </div> <div class="rr-item__price">$109.990</div> <div class="rr-item__price-label">Transferencia / Débito</div> <div class="rr-item__special-price"> $113.390 </div> <div class="rr-item__special-price-label">Otros medios de pago</div> </div> <button class="rr-item__action" type="button" id="addtocart_55290_1" onclick="rrApi.recomAddToCart(55290, { suggester: '64cbece43f6ab2bd35cbeb1e', methodName: 'popular' }); retailrocket['pcfactory64cbece43f6ab2bd35cbeb1e'].rrButtonAnim(this);"> <svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="pcf-icon-sm"></svg> Agregar al carro </button> </div> </div> <div class="rr-swiper-slide swiper-slide-visible" onclick="retailrocket['pcfactory64cbece43f6ab2bd35cbeb1e'].googleAnaliticClick(53155, 'Audífonos True Wireless Bluetooth WF-C510 Sony Negro', '29990.00', 'audifonos-in-ear', 3, 'Sony', 49990);" data-item-id="53155" data-vendor="Sony" data-name="Audífonos True Wireless Bluetooth WF-C510 Sony Negro" data-categories="audifonos-in-ear" data-price="29990" data-index="3" data-price-reference="49990" data-swiper-slide-index="3" style="width: 252px; margin-right: 15px;"> <div class="rr-item"> <a class="rr-item__image" href="//www.pcfactory.cl/producto/53155-sony-audifonos-true-wireless-bluetooth-wf-c510-sony-negro" onmousedown="rrApi.recomMouseDown(53155, { suggester: '64cbece43f6ab2bd35cbeb1e', methodName: 'popular' });"> <img class="swiper-lazy swiper-lazy-loaded"> </a> <div class="rr-item__vendor">Sony®</div> <a class="rr-item__name" href="//www.pcfactory.cl/producto/53155-sony-audifonos-true-wireless-bluetooth-wf-c510-sony-negro" onmousedown="rrApi.recomMouseDown(53155, { suggester: '64cbece43f6ab2bd35cbeb1e', methodName: 'popular' });"> Audífonos True Wireless Bluetooth WF-C510 Sony Negro </a> <div class="rr-item__info"> <div class="rr-item__id">ID <strong>53155</strong></div> <div class="rr-item__quantity"> +100 Unid. </div> </div> <div class="rr-item__block-price"> <div class="rr-item__price-group"> <div class="rr-item__discount">-40%</div> <div class="rr-item__old-price">$49.990</div> </div> <div class="rr-item__price">$29.990</div> <div class="rr-item__price-label">Transferencia / Débito</div> <div class="rr-item__special-price"> $30.890 </div> <div class="rr-item__special-price-label">Otros medios de pago</div> </div> <button class="rr-item__action" type="button" id="addtocart_53155_1" onclick="rrApi.recomAddToCart(53155, { suggester: '64cbece43f6ab2bd35cbeb1e', methodName: 'popular' }); retailrocket['pcfactory64cbece43f6ab2bd35cbeb1e'].rrButtonAnim(this);"> <svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="pcf-icon-sm"></svg> Agregar al carro </button> </div> </div> <div class="rr-swiper-slide swiper-slide-visible" onclick="retailrocket['pcfactory64cbece43f6ab2bd35cbeb1e'].googleAnaliticClick(56250, 'Audifonos Xiaomi Redmi Buds 8 Active Negro', '17990.00', 'audifonos-in-ear', 4, 'Xiaomi', 27990);" data-item-id="56250" data-vendor="Xiaomi" data-name="Audifonos Xiaomi Redmi Buds 8 Active Negro" data-categories="audifonos-in-ear" data-price="17990" data-index="4" data-price-reference="27990" data-swiper-slide-index="4" style="width: 252px; margin-right: 15px;"> <div class="rr-item"> <a class="rr-item__image" href="//www.pcfactory.cl/producto/56250-xiaomi-audifonos-xiaomi-redmi-buds-8-active-negro" onmousedown="rrApi.recomMouseDown(56250, { suggester: '64cbece43f6ab2bd35cbeb1e', methodName: 'popular' });"> <img class="swiper-lazy swiper-lazy-loaded"> </a> <div class="rr-item__vendor">Xiaomi®</div> <a class="rr-item__name" href="//www.pcfactory.cl/producto/56250-xiaomi-audifonos-xiaomi-redmi-buds-8-active-negro" onmousedown="rrApi.recomMouseDown(56250, { suggester: '64cbece43f6ab2bd35cbeb1e', methodName: 'popular' });"> Audifonos Xiaomi Redmi Buds 8 Active Negro </a> <div class="rr-item__info"> <div class="rr-item__id">ID <strong>56250</strong></div> <div class="rr-item__quantity"> +100 Unid. </div> </div> <div class="rr-item__block-price"> <div class="rr-item__price-group"> <div class="rr-item__discount">-36%</div> <div class="rr-item__old-price">$27.990</div> </div> <div class="rr-item__price">$17.990</div> <div class="rr-item__price-label">Transferencia / Débito</div> <div class="rr-item__special-price"> $18.590 </div> <div class="rr-item__special-price-label">Otros medios de pago</div> </div> <button class="rr-item__action" type="button" id="addtocart_56250_1" onclick="rrApi.recomAddToCart(56250, { suggester: '64cbece43f6ab2bd35cbeb1e', methodName: 'popular' }); retailrocket['pcfactory64cbece43f6ab2bd35cbeb1e'].rrButtonAnim(this);"> <svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="pcf-icon-sm"></svg> Agregar al carro </button> </div> </div> </div> <span class="swiper-notification" aria-live="assertive" aria-atomic="true"></span></div> <div class="rr-slider-arrow"> <div class="rr-arrow swiper-prev" tabindex="0" role="button" aria-label="Previous slide"></div> <div class="rr-arrow swiper-next" tabindex="0" role="button" aria-label="Next slide"></div> </div> </div>
+</div>
+ </div>
+</div>
+<div class="container position-relative">
+	<div class="row justify-content-between align-items-center pt-1 pt-md-0 mx-0 overflow-hidden" id="home-piso-productos-relacionados">
+ <div class="col-12 px-lg-0 ">
+ <a href="https://www.pcfactory.cl/categoria/smart-tv-y-audio">
+ <h2 class="section-title-products">TV, Consolas y Audio</h2>
+ </a>
+ </div>
+	</div>
+ <div id="retail-tv-consolas-y-audio" class="tam_cont">
+ <div data-retailrocket-markup-block="64cbecfa3f6ab2bd35cbeb1f" data-product-id="58172,54253,49917,54257,54256" initialized="true">
+<div class="rr-widget rr-widget-64cbecfa3f6ab2bd35cbeb1f rr-active" data-algorithm="popular" data-algorithm-argument="0" data-template-param-number-of-items="36" data-template-param-item-image-width="320" data-template-param-item-image-height="320" data-on-pre-render="retailrocket['pcfactory64cbecfa3f6ab2bd35cbeb1f'].preRenderFn(this, data, renderFn)" data-on-post-render="retailrocket['pcfactory64cbecfa3f6ab2bd35cbeb1f'].postRenderFn(this)" data-template-container-id="widget-template-64cbecfa3f6ab2bd35cbeb1f" data-s="64cbecfa3f6ab2bd35cbeb1f" data-widget-applied="true" data-rr-render-started="true" data-number-of-rendered-items="36" data-rendered-items-ids="58172,54253,49917,54257,54256,56963,57871,56889,54650,54193,54829,57870,52000,56075,57755,57718,57872,57656,56902,52505,57985,55804,57987,56239,57149,53466,56832,56356,54864,56115,57507,57983,57508,56485,53840,56483"> <div class="rr-items rr-swiper-container swiper-container-initialized swiper-container-horizontal"> <div class="rr-swiper-wrapper" style="transition-duration: 0ms; transform: translate3d(-1335px, 0px, 0px);"> <div class="rr-swiper-slide swiper-slide-visible swiper-slide-active" onclick="retailrocket['pcfactory64cbecfa3f6ab2bd35cbeb1f'].googleAnaliticClick(58172, 'Consola Portátil ROG Xbox Ally X20', '1899990.00', 'consolas', 0, 'Asus', 2399990);" data-item-id="58172" data-vendor="Asus" data-name="Consola Portátil ROG Xbox Ally X20" data-categories="consolas" data-price="1899990" data-index="0" data-price-reference="2399990" data-swiper-slide-index="0" style="width: 252px; margin-right: 15px;"> <div class="rr-item"> <a class="rr-item__image" href="//www.pcfactory.cl//producto/58172" onmousedown="rrApi.recomMouseDown(58172, { suggester: '64cbecfa3f6ab2bd35cbeb1f', methodName: 'popular' });"> <img class="swiper-lazy swiper-lazy-loaded"> </a> <div class="rr-item__vendor">Asus®</div> <a class="rr-item__name" href="//www.pcfactory.cl//producto/58172" onmousedown="rrApi.recomMouseDown(58172, { suggester: '64cbecfa3f6ab2bd35cbeb1f', methodName: 'popular' });"> Consola Portátil ROG Xbox Ally X20 </a> <div class="rr-item__info"> <div class="rr-item__id">ID <strong>58172</strong></div> <div class="rr-item__quantity"> 17 Unid. </div> </div> <div class="rr-item__block-price"> <div class="rr-item__price-group"> <div class="rr-item__discount">-21%</div> <div class="rr-item__old-price">$2.399.990</div> </div> <div class="rr-item__price">$1.899.990</div> <div class="rr-item__price-label">Transferencia / Débito</div> <div class="rr-item__special-price"> $1.899.990 </div> <div class="rr-item__special-price-label">Otros medios de pago</div> </div> <button class="rr-item__action" type="button" id="addtocart_58172_1" onclick="rrApi.recomAddToCart(58172, { suggester: '64cbecfa3f6ab2bd35cbeb1f', methodName: 'popular' }); retailrocket['pcfactory64cbecfa3f6ab2bd35cbeb1f'].rrButtonAnim(this); "> <svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="pcf-icon-sm"></svg> Agregar al carro </button> </div> </div> <div class="rr-swiper-slide swiper-slide-visible swiper-slide-next" onclick="retailrocket['pcfactory64cbecfa3f6ab2bd35cbeb1f'].googleAnaliticClick(54253, 'Consola PlayStation 5 Digital Slim ', '678990.00', 'consolas', 1, 'Sony', 899990);" data-item-id="54253" data-vendor="Sony" data-name="Consola PlayStation 5 Digital Slim " data-categories="consolas" data-price="678990" data-index="1" data-price-reference="899990" data-swiper-slide-index="1" style="width: 252px; margin-right: 15px;"> <div class="rr-item"> <a class="rr-item__image" href="//www.pcfactory.cl/producto/54253-sony-consola-playstation-5-digital-slim" onmousedown="rrApi.recomMouseDown(54253, { suggester: '64cbecfa3f6ab2bd35cbeb1f', methodName: 'popular' });"> <img class="swiper-lazy swiper-lazy-loaded"> </a> <div class="rr-item__vendor">Sony®</div> <a class="rr-item__name" href="//www.pcfactory.cl/producto/54253-sony-consola-playstation-5-digital-slim" onmousedown="rrApi.recomMouseDown(54253, { suggester: '64cbecfa3f6ab2bd35cbeb1f', methodName: 'popular' });"> Consola PlayStation 5 Digital Slim </a> <div class="rr-item__info"> <div class="rr-item__id">ID <strong>54253</strong></div> <div class="rr-item__quantity"> +100 Unid. </div> </div> <div class="rr-item__block-price"> <div class="rr-item__price-group"> <div class="rr-item__discount">-25%</div> <div class="rr-item__old-price">$899.990</div> </div> <div class="rr-item__price">$678.990</div> <div class="rr-item__price-label">Transferencia / Débito</div> <div class="rr-item__special-price"> $699.990 </div> <div class="rr-item__special-price-label">Otros medios de pago</div> </div> <button class="rr-item__action" type="button" id="addtocart_54253_1" onclick="rrApi.recomAddToCart(54253, { suggester: '64cbecfa3f6ab2bd35cbeb1f', methodName: 'popular' }); retailrocket['pcfactory64cbecfa3f6ab2bd35cbeb1f'].rrButtonAnim(this); "> <svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="pcf-icon-sm"></svg> Agregar al carro </button> </div> </div> <div class="rr-swiper-slide swiper-slide-visible" onclick="retailrocket['pcfactory64cbecfa3f6ab2bd35cbeb1f'].googleAnaliticClick(49917, 'Audífonos Gamer HyperX Cloud Alpha Red - Wireless', '99990.00', 'audifonos-gamer', 2, 'HyperX', 199990);" data-item-id="49917" data-vendor="HyperX" data-name="Audífonos Gamer HyperX Cloud Alpha Red - Wireless" data-categories="audifonos-gamer" data-price="99990" data-index="2" data-price-reference="199990" data-swiper-slide-index="2" style="width: 252px; margin-right: 15px;"> <div class="rr-item"> <a class="rr-item__image" href="//www.pcfactory.cl/producto/49917-hyperx-audifonos-gamer-hyperx-cloud-alpha-red--wireless" onmousedown="rrApi.recomMouseDown(49917, { suggester: '64cbecfa3f6ab2bd35cbeb1f', methodName: 'popular' });"> <img class="swiper-lazy swiper-lazy-loaded"> </a> <div class="rr-item__vendor">HyperX®</div> <a class="rr-item__name" href="//www.pcfactory.cl/producto/49917-hyperx-audifonos-gamer-hyperx-cloud-alpha-red--wireless" onmousedown="rrApi.recomMouseDown(49917, { suggester: '64cbecfa3f6ab2bd35cbeb1f', methodName: 'popular' });"> Audífonos Gamer HyperX Cloud Alpha Red - Wireless </a> <div class="rr-item__info"> <div class="rr-item__id">ID <strong>49917</strong></div> <div class="rr-item__quantity"> +100 Unid. </div> </div> <div class="rr-item__block-price"> <div class="rr-item__price-group"> <div class="rr-item__discount">-50%</div> <div class="rr-item__old-price">$199.990</div> </div> <div class="rr-item__price">$99.990</div> <div class="rr-item__price-label">Transferencia / Débito</div> <div class="rr-item__special-price"> $103.090 </div> <div class="rr-item__special-price-label">Otros medios de pago</div> </div> <button class="rr-item__action" type="button" id="addtocart_49917_1" onclick="rrApi.recomAddToCart(49917, { suggester: '64cbecfa3f6ab2bd35cbeb1f', methodName: 'popular' }); retailrocket['pcfactory64cbecfa3f6ab2bd35cbeb1f'].rrButtonAnim(this); "> <svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="pcf-icon-sm"></svg> Agregar al carro </button> </div> </div> <div class="rr-swiper-slide swiper-slide-visible" onclick="retailrocket['pcfactory64cbecfa3f6ab2bd35cbeb1f'].googleAnaliticClick(54257, ' Smart TV Caixun LED 50&quot; UHD 4K Roku TV C50V1UR ', '239990.00', 'smart-tv', 3, 'Caixun', 349990);" data-item-id="54257" data-vendor="Caixun" data-name=" Smart TV Caixun LED 50&quot; UHD 4K Roku TV C50V1UR " data-categories="smart-tv" data-price="239990" data-index="3" data-price-reference="349990" data-swiper-slide-index="3" style="width: 252px; margin-right: 15px;"> <div class="rr-item"> <a class="rr-item__image" href="//www.pcfactory.cl/producto/54257-caixun--smart-tv-caixun-led-50-uhd-4k-roku-tv-c50v1ur" onmousedown="rrApi.recomMouseDown(54257, { suggester: '64cbecfa3f6ab2bd35cbeb1f', methodName: 'popular' });"> <img class="swiper-lazy swiper-lazy-loaded"> </a> <div class="rr-item__vendor">Caixun®</div> <a class="rr-item__name" href="//www.pcfactory.cl/producto/54257-caixun--smart-tv-caixun-led-50-uhd-4k-roku-tv-c50v1ur" onmousedown="rrApi.recomMouseDown(54257, { suggester: '64cbecfa3f6ab2bd35cbeb1f', methodName: 'popular' });"> Smart TV Caixun LED 50" UHD 4K Roku TV C50V1UR </a> <div class="rr-item__info"> <div class="rr-item__id">ID <strong>54257</strong></div> <div class="rr-item__quantity"> +50 Unid. </div> </div> <div class="rr-item__block-price"> <div class="rr-item__price-group"> <div class="rr-item__discount">-31%</div> <div class="rr-item__old-price">$349.990</div> </div> <div class="rr-item__price">$239.990</div> <div class="rr-item__price-label">Transferencia / Débito</div> <div class="rr-item__special-price"> $247.390 </div> <div class="rr-item__special-price-label">Otros medios de pago</div> </div> <button class="rr-item__action" type="button" id="addtocart_54257_1" onclick="rrApi.recomAddToCart(54257, { suggester: '64cbecfa3f6ab2bd35cbeb1f', methodName: 'popular' }); retailrocket['pcfactory64cbecfa3f6ab2bd35cbeb1f'].rrButtonAnim(this); "> <svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="pcf-icon-sm"></svg> Agregar al carro </button> </div> </div> <div class="rr-swiper-slide swiper-slide-visible" onclick="retailrocket['pcfactory64cbecfa3f6ab2bd35cbeb1f'].googleAnaliticClick(54256, ' Smart TV Caixun LED 43&quot; FHD Roku TV C43V1FR ', '179990.00', 'smart-tv', 4, 'Caixun', 239990);" data-item-id="54256" data-vendor="Caixun" data-name=" Smart TV Caixun LED 43&quot; FHD Roku TV C43V1FR " data-categories="smart-tv" data-price="179990" data-index="4" data-price-reference="239990" data-swiper-slide-index="4" style="width: 252px; margin-right: 15px;"> <div class="rr-item"> <a class="rr-item__image" href="//www.pcfactory.cl/producto/54256" onmousedown="rrApi.recomMouseDown(54256, { suggester: '64cbecfa3f6ab2bd35cbeb1f', methodName: 'popular' });"> <img class="swiper-lazy swiper-lazy-loaded"> </a> <div class="rr-item__vendor">Caixun®</div> <a class="rr-item__name" href="//www.pcfactory.cl/producto/54256" onmousedown="rrApi.recomMouseDown(54256, { suggester: '64cbecfa3f6ab2bd35cbeb1f', methodName: 'popular' });"> Smart TV Caixun LED 43" FHD Roku TV C43V1FR </a> <div class="rr-item__info"> <div class="rr-item__id">ID <strong>54256</strong></div> <div class="rr-item__quantity"> +30 Unid. </div> </div> <div class="rr-item__block-price"> <div class="rr-item__price-group"> <div class="rr-item__discount">-25%</div> <div class="rr-item__old-price">$239.990</div> </div> <div class="rr-item__price">$179.990</div> <div class="rr-item__price-label">Transferencia / Débito</div> <div class="rr-item__special-price"> $185.590 </div> <div class="rr-item__special-price-label">Otros medios de pago</div> </div> <button class="rr-item__action" type="button" id="addtocart_54256_1" onclick="rrApi.recomAddToCart(54256, { suggester: '64cbecfa3f6ab2bd35cbeb1f', methodName: 'popular' }); retailrocket['pcfactory64cbecfa3f6ab2bd35cbeb1f'].rrButtonAnim(this); "> <svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="pcf-icon-sm"></svg> Agregar al carro </button> </div> </div> </div> <span class="swiper-notification" aria-live="assertive" aria-atomic="true"></span></div> <div class="rr-slider-arrow"> <div class="rr-arrow swiper-prev" tabindex="0" role="button" aria-label="Previous slide"></div> <div class="rr-arrow swiper-next" tabindex="0" role="button" aria-label="Next slide"></div> </div> </div>
+</div>
+ </div>
+</div>
+<div class="container position-relative">
+	<div class="row justify-content-between align-items-center pt-1 pt-md-0 mx-0 overflow-hidden" id="home-piso-productos-relacionados">
+ <div class="col-12 px-lg-0 ">
+ <a href="https://www.pcfactory.cl/categoria/oficinas-y-punto-de-venta">
+ <h2 class="section-title-products">Oficinas y Puntos de Venta</h2>
+ </a>
+ </div>
+	</div>
+ <div id="retail-home-office" class="tam_cont">
+ <div data-retailrocket-markup-block="64cbed363f6ab2bd35cbeb21" data-product-id="53517,57489,56747,19839" initialized="true">
+<div class="rr-widget rr-widget-64cbed363f6ab2bd35cbeb21 rr-active" data-algorithm="popular" data-algorithm-argument="0" data-template-param-header-text="" data-template-param-number-of-items="36" data-template-param-item-image-width="320" data-template-param-item-image-height="320" data-on-pre-render="retailrocket['pcfactory64cbed363f6ab2bd35cbeb21'].preRenderFn(this, data, renderFn)" data-on-post-render="retailrocket['pcfactory64cbed363f6ab2bd35cbeb21'].postRenderFn(this)" data-template-container-id="widget-template-64cbed363f6ab2bd35cbeb21" data-s="64cbed363f6ab2bd35cbeb21" data-widget-applied="true" data-rr-render-started="true" data-number-of-rendered-items="36" data-rendered-items-ids="53517,57489,56747,19839,55092,56805,40512,53581,36490,45905,44204,45906,56470,54339,51445,55472,51710,50617,56495,57311,53598,53621,44205,55364,54268,56471,55336,56679,57170,55306,18879,51741,57663,57515,50619,55343"> <div class="rr-items rr-swiper-container swiper-container-initialized swiper-container-horizontal"> <div class="rr-swiper-wrapper" style="transition-duration: 0ms; transform: translate3d(-1335px, 0px, 0px);"> <div class="rr-swiper-slide swiper-slide-visible swiper-slide-active" onclick="retailrocket['pcfactory64cbed363f6ab2bd35cbeb21'].googleAnaliticClick(53517, 'Monitor Samsung Curvo 27&quot;, FHD, 100Hz, VA, 4ms, S36GD', '119990.00', 'monitores', 0, 'Samsung', 159990);" data-item-id="53517" data-vendor="Samsung" data-name="Monitor Samsung Curvo 27&quot;, FHD, 100Hz, VA, 4ms, S36GD" data-categories="monitores" data-price="119990" data-index="0" data-price-reference="159990" data-swiper-slide-index="0" style="width: 252px; margin-right: 15px;"> <div class="rr-item"> <a class="rr-item__image" href="//www.pcfactory.cl/producto/53517-samsung-monitor-samsung-curvo-27--fhd-100hz-va-4ms-s36gd" onmousedown="rrApi.recomMouseDown(53517, { suggester: '64cbed363f6ab2bd35cbeb21', methodName: 'popular' });"> <img class="swiper-lazy swiper-lazy-loaded"> </a> <div class="rr-item__vendor">Samsung®</div> <a class="rr-item__name" href="//www.pcfactory.cl/producto/53517-samsung-monitor-samsung-curvo-27--fhd-100hz-va-4ms-s36gd" onmousedown="rrApi.recomMouseDown(53517, { suggester: '64cbed363f6ab2bd35cbeb21', methodName: 'popular' });"> Monitor Samsung Curvo 27", FHD, 100Hz, VA, 4ms, S36GD </a> <div class="rr-item__info"> <div class="rr-item__id">ID <strong>53517</strong></div> <div class="rr-item__quantity"> +100 Unid. </div> </div> <div class="rr-item__block-price"> <div class="rr-item__price-group"> <div class="rr-item__discount">-25%</div> <div class="rr-item__old-price">$159.990</div> </div> <div class="rr-item__price">$119.990</div> <div class="rr-item__price-label">Transferencia / Débito</div> <div class="rr-item__special-price"> $123.690 </div> <div class="rr-item__special-price-label">Otros medios de pago</div> </div> <button class="rr-item__action" type="button" id="addtocart_53517_1" onclick="rrApi.recomAddToCart(53517, { suggester: '64cbed363f6ab2bd35cbeb21', methodName: 'popular' }); retailrocket['pcfactory64cbed363f6ab2bd35cbeb21'].rrButtonAnim(this); "> <svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="pcf-icon-sm"></svg> Agregar al carro </button> </div> </div> <div class="rr-swiper-slide swiper-slide-visible swiper-slide-next" onclick="retailrocket['pcfactory64cbed363f6ab2bd35cbeb21'].googleAnaliticClick(57489, 'Monitor gamer 25&quot; Gigabyte GS25F2 200hz IPS', '99990.00', 'monitores', 1, 'Gigabyte', 169990);" data-item-id="57489" data-vendor="Gigabyte" data-name="Monitor gamer 25&quot; Gigabyte GS25F2 200hz IPS" data-categories="monitores" data-price="99990" data-index="1" data-price-reference="169990" data-swiper-slide-index="1" style="width: 252px; margin-right: 15px;"> <div class="rr-item"> <a class="rr-item__image" href="//www.pcfactory.cl/producto/57489" onmousedown="rrApi.recomMouseDown(57489, { suggester: '64cbed363f6ab2bd35cbeb21', methodName: 'popular' });"> <img class="swiper-lazy swiper-lazy-loaded"> </a> <div class="rr-item__vendor">Gigabyte®</div> <a class="rr-item__name" href="//www.pcfactory.cl/producto/57489" onmousedown="rrApi.recomMouseDown(57489, { suggester: '64cbed363f6ab2bd35cbeb21', methodName: 'popular' });"> Monitor gamer 25" Gigabyte GS25F2 200hz IPS </a> <div class="rr-item__info"> <div class="rr-item__id">ID <strong>57489</strong></div> <div class="rr-item__quantity"> +100 Unid. </div> </div> <div class="rr-item__block-price"> <div class="rr-item__price-group"> <div class="rr-item__discount">-41%</div> <div class="rr-item__old-price">$169.990</div> </div> <div class="rr-item__price">$99.990</div> <div class="rr-item__price-label">Transferencia / Débito</div> <div class="rr-item__special-price"> $103.090 </div> <div class="rr-item__special-price-label">Otros medios de pago</div> </div> <button class="rr-item__action" type="button" id="addtocart_57489_1" onclick="rrApi.recomAddToCart(57489, { suggester: '64cbed363f6ab2bd35cbeb21', methodName: 'popular' }); retailrocket['pcfactory64cbed363f6ab2bd35cbeb21'].rrButtonAnim(this); "> <svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="pcf-icon-sm"></svg> Agregar al carro </button> </div> </div> <div class="rr-swiper-slide swiper-slide-visible" onclick="retailrocket['pcfactory64cbed363f6ab2bd35cbeb21'].googleAnaliticClick(56747, 'Multifuncional Tinta Continua EcoTank L3310 Hi-Speed USB', '179990.00', 'multifuncionales-tinta', 2, 'Epson', 239990);" data-item-id="56747" data-vendor="Epson" data-name="Multifuncional Tinta Continua EcoTank L3310 Hi-Speed USB" data-categories="multifuncionales-tinta" data-price="179990" data-index="2" data-price-reference="239990" data-swiper-slide-index="2" style="width: 252px; margin-right: 15px;"> <div class="rr-item"> <a class="rr-item__image" href="//www.pcfactory.cl/producto/56747-epson-multifuncional-tinta-continua-ecotank-l3310-hi-speed-usb" onmousedown="rrApi.recomMouseDown(56747, { suggester: '64cbed363f6ab2bd35cbeb21', methodName: 'popular' });"> <img class="swiper-lazy swiper-lazy-loaded"> </a> <div class="rr-item__vendor">Epson®</div> <a class="rr-item__name" href="//www.pcfactory.cl/producto/56747-epson-multifuncional-tinta-continua-ecotank-l3310-hi-speed-usb" onmousedown="rrApi.recomMouseDown(56747, { suggester: '64cbed363f6ab2bd35cbeb21', methodName: 'popular' });"> Multifuncional Tinta Continua EcoTank L3310 Hi-Speed USB </a> <div class="rr-item__info"> <div class="rr-item__id">ID <strong>56747</strong></div> <div class="rr-item__quantity"> +50 Unid. </div> </div> <div class="rr-item__block-price"> <div class="rr-item__price-group"> <div class="rr-item__discount">-25%</div> <div class="rr-item__old-price">$239.990</div> </div> <div class="rr-item__price">$179.990</div> <div class="rr-item__price-label">Transferencia / Débito</div> <div class="rr-item__special-price"> $185.590 </div> <div class="rr-item__special-price-label">Otros medios de pago</div> </div> <button class="rr-item__action" type="button" id="addtocart_56747_1" onclick="rrApi.recomAddToCart(56747, { suggester: '64cbed363f6ab2bd35cbeb21', methodName: 'popular' }); retailrocket['pcfactory64cbed363f6ab2bd35cbeb21'].rrButtonAnim(this); "> <svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="pcf-icon-sm"></svg> Agregar al carro </button> </div> </div> <div class="rr-swiper-slide swiper-slide-visible" onclick="retailrocket['pcfactory64cbed363f6ab2bd35cbeb21'].googleAnaliticClick(19839, 'Impresora Láser Blanco y Negro HL-1202', '57990.00', 'impresoras-laser', 3, 'Brother', 69990);" data-item-id="19839" data-vendor="Brother" data-name="Impresora Láser Blanco y Negro HL-1202" data-categories="impresoras-laser" data-price="57990" data-index="3" data-price-reference="69990" data-swiper-slide-index="3" style="width: 252px; margin-right: 15px;"> <div class="rr-item"> <a class="rr-item__image" href="//www.pcfactory.cl/producto/19839-brother-impresora-laser-blanco-y-negro-hl-1202" onmousedown="rrApi.recomMouseDown(19839, { suggester: '64cbed363f6ab2bd35cbeb21', methodName: 'popular' });"> <img class="swiper-lazy swiper-lazy-loaded"> </a> <div class="rr-item__vendor">Brother®</div> <a class="rr-item__name" href="//www.pcfactory.cl/producto/19839-brother-impresora-laser-blanco-y-negro-hl-1202" onmousedown="rrApi.recomMouseDown(19839, { suggester: '64cbed363f6ab2bd35cbeb21', methodName: 'popular' });"> Impresora Láser Blanco y Negro HL-1202 </a> <div class="rr-item__info"> <div class="rr-item__id">ID <strong>19839</strong></div> <div class="rr-item__quantity"> +100 Unid. </div> </div> <div class="rr-item__block-price"> <div class="rr-item__price-group"> <div class="rr-item__discount">-17%</div> <div class="rr-item__old-price">$69.990</div> </div> <div class="rr-item__price">$57.990</div> <div class="rr-item__price-label">Transferencia / Débito</div> <div class="rr-item__special-price"> $59.790 </div> <div class="rr-item__special-price-label">Otros medios de pago</div> </div> <button class="rr-item__action" type="button" id="addtocart_19839_1" onclick="rrApi.recomAddToCart(19839, { suggester: '64cbed363f6ab2bd35cbeb21', methodName: 'popular' }); retailrocket['pcfactory64cbed363f6ab2bd35cbeb21'].rrButtonAnim(this); "> <svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="pcf-icon-sm"></svg> Agregar al carro </button> </div> </div> <div class="rr-swiper-slide swiper-slide-visible" onclick="retailrocket['pcfactory64cbed363f6ab2bd35cbeb21'].googleAnaliticClick(55092, 'Monitor Gamer LG 24&quot; FHD, 144 Hz, IPS, 24G411A-B.AWH', '99990.00', 'monitores', 4, 'LG', 199990);" data-item-id="55092" data-vendor="LG" data-name="Monitor Gamer LG 24&quot; FHD, 144 Hz, IPS, 24G411A-B.AWH" data-categories="monitores" data-price="99990" data-index="4" data-price-reference="199990" data-swiper-slide-index="4" style="width: 252px; margin-right: 15px;"> <div class="rr-item"> <a class="rr-item__image" href="//www.pcfactory.cl/producto/55092-lg-monitor-gamer-lg-24-fhd-144-hz-ips-24g411a-b-awh" onmousedown="rrApi.recomMouseDown(55092, { suggester: '64cbed363f6ab2bd35cbeb21', methodName: 'popular' });"> <img class="swiper-lazy swiper-lazy-loaded"> </a> <div class="rr-item__vendor">LG®</div> <a class="rr-item__name" href="//www.pcfactory.cl/producto/55092-lg-monitor-gamer-lg-24-fhd-144-hz-ips-24g411a-b-awh" onmousedown="rrApi.recomMouseDown(55092, { suggester: '64cbed363f6ab2bd35cbeb21', methodName: 'popular' });"> Monitor Gamer LG 24" FHD, 144 Hz, IPS, 24G411A-B.AWH </a> <div class="rr-item__info"> <div class="rr-item__id">ID <strong>55092</strong></div> <div class="rr-item__quantity"> 14 Unid. </div> </div> <div class="rr-item__block-price"> <div class="rr-item__price-group"> <div class="rr-item__discount">-50%</div> <div class="rr-item__old-price">$199.990</div> </div> <div class="rr-item__price">$99.990</div> <div class="rr-item__price-label">Transferencia / Débito</div> <div class="rr-item__special-price"> $103.090 </div> <div class="rr-item__special-price-label">Otros medios de pago</div> </div> <button class="rr-item__action" type="button" id="addtocart_55092_1" onclick="rrApi.recomAddToCart(55092, { suggester: '64cbed363f6ab2bd35cbeb21', methodName: 'popular' }); retailrocket['pcfactory64cbed363f6ab2bd35cbeb21'].rrButtonAnim(this); "> <svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="pcf-icon-sm"></svg> Agregar al carro </button> </div> </div> </div> <span class="swiper-notification" aria-live="assertive" aria-atomic="true"></span></div> <div class="rr-slider-arrow"> <div class="rr-arrow swiper-prev" tabindex="0" role="button" aria-label="Previous slide"></div> <div class="rr-arrow swiper-next" tabindex="0" role="button" aria-label="Next slide"></div> </div> </div>
+</div>
+ </div>
+</div>
+<div class="container position-relative">
+	<div class="row justify-content-between align-items-center pt-1 pt-md-0 mx-0 overflow-hidden" id="home-piso-productos-relacionados">
+ <div class="col-12 px-lg-0 ">
+ <a href="https://www.pcfactory.cl/categoria/partes-y-piezas-componentes">
+ <h2 class="section-title-products">Partes y Piezas / Componentes</h2>
+ </a>
+ </div>
+	</div>
+ <div id="retail-partes-y-piezas" class="tam_cont">
+ <div data-retailrocket-markup-block="64cbed253f6ab2bd35cbeb20" data-product-id="54507,58010,56531,49205" initialized="true">
+<div class="rr-widget rr-widget-64cbed253f6ab2bd35cbeb20 rr-active" data-algorithm="popular" data-algorithm-argument="0" data-template-param-header-text="" data-template-param-number-of-items="36" data-template-param-item-image-width="320" data-template-param-item-image-height="320" data-on-pre-render="retailrocket['pcfactory64cbed253f6ab2bd35cbeb20'].preRenderFn(this, data, renderFn)" data-on-post-render="retailrocket['pcfactory64cbed253f6ab2bd35cbeb20'].postRenderFn(this)" data-template-container-id="widget-template-64cbed253f6ab2bd35cbeb20" data-s="64cbed253f6ab2bd35cbeb20" data-widget-applied="true" data-rr-render-started="true" data-number-of-rendered-items="36" data-rendered-items-ids="35485,46746,46284,48978,55486,53878,55479,52201,56946,54690,57571,56453,54594,57676,57172,53672,48283,55485,37934,58275,58199,54511,49080,54513,56381,58089,56703,49205,56192,44534,58109,55856,58302,2415,40090,33852"> <div class="rr-items rr-swiper-container swiper-container-initialized swiper-container-horizontal"> <div class="rr-swiper-wrapper" style="transition-duration: 0ms; transform: translate3d(-1335px, 0px, 0px);"> <div class="rr-swiper-slide swiper-slide-visible swiper-slide-active" onclick="retailrocket['pcfactory64cbed253f6ab2bd35cbeb20'].googleAnaliticClick(35485, 'Ventilador 120mm - Red RF120', '3990.00', 'ventiladores-pc', 0, 'Deepcool', 9990);" data-item-id="35485" data-vendor="Deepcool" data-name="Ventilador 120mm - Red RF120" data-categories="ventiladores-pc" data-price="3990" data-index="0" data-price-reference="9990" data-swiper-slide-index="0" style="width: 252px; margin-right: 15px;"> <div class="rr-item"> <a class="rr-item__image" href="//www.pcfactory.cl/producto/35485-deepcool-ventilador-120mm--red-rf120" onmousedown="rrApi.recomMouseDown(35485, { suggester: '64cbed253f6ab2bd35cbeb20', methodName: 'popular' });"> <img class="swiper-lazy swiper-lazy-loaded"> </a> <div class="rr-item__vendor">Deepcool®</div> <a class="rr-item__name" href="//www.pcfactory.cl/producto/35485-deepcool-ventilador-120mm--red-rf120" onmousedown="rrApi.recomMouseDown(35485, { suggester: '64cbed253f6ab2bd35cbeb20', methodName: 'popular' });"> Ventilador 120mm - Red RF120 </a> <div class="rr-item__info"> <div class="rr-item__id">ID <strong>35485</strong></div> <div class="rr-item__quantity"> +100 Unid. </div> </div> <div class="rr-item__block-price"> <div class="rr-item__price-group"> <div class="rr-item__discount">-60%</div> <div class="rr-item__old-price">$9.990</div> </div> <div class="rr-item__price">$3.990</div> <div class="rr-item__price-label">Transferencia / Débito</div> <div class="rr-item__special-price"> $4.190 </div> <div class="rr-item__special-price-label">Otros medios de pago</div> </div> <button class="rr-item__action" type="button" id="addtocart_35485_1" onclick="rrApi.recomAddToCart(35485, { suggester: '64cbed253f6ab2bd35cbeb20', methodName: 'popular' }); retailrocket['pcfactory64cbed253f6ab2bd35cbeb20'].rrButtonAnim(this); "> <svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="pcf-icon-sm"></svg> Agregar al carro </button> </div> </div> <div class="rr-swiper-slide swiper-slide-visible swiper-slide-next" onclick="retailrocket['pcfactory64cbed253f6ab2bd35cbeb20'].googleAnaliticClick(46746, 'CPU AMD Ryzen 7 5700X (AM4)', '252990.00', 'cpu-amd', 1, 'AMD', 279990);" data-item-id="46746" data-vendor="AMD" data-name="CPU AMD Ryzen 7 5700X (AM4)" data-categories="cpu-amd" data-price="252990" data-index="1" data-price-reference="279990" data-swiper-slide-index="1" style="width: 252px; margin-right: 15px;"> <div class="rr-item"> <a class="rr-item__image" href="//www.pcfactory.cl/producto/46746-amd-cpu-amd-ryzen-7-5700x-am4" onmousedown="rrApi.recomMouseDown(46746, { suggester: '64cbed253f6ab2bd35cbeb20', methodName: 'popular' });"> <img class="swiper-lazy swiper-lazy-loaded"> </a> <div class="rr-item__vendor">AMD®</div> <a class="rr-item__name" href="//www.pcfactory.cl/producto/46746-amd-cpu-amd-ryzen-7-5700x-am4" onmousedown="rrApi.recomMouseDown(46746, { suggester: '64cbed253f6ab2bd35cbeb20', methodName: 'popular' });"> CPU AMD Ryzen 7 5700X (AM4) </a> <div class="rr-item__info"> <div class="rr-item__id">ID <strong>46746</strong></div> <div class="rr-item__quantity"> +30 Unid. </div> </div> <div class="rr-item__block-price"> <div class="rr-item__price-group"> <div class="rr-item__discount">-10%</div> <div class="rr-item__old-price">$279.990</div> </div> <div class="rr-item__price">$252.990</div> <div class="rr-item__price-label">Transferencia / Débito</div> <div class="rr-item__special-price"> $260.790 </div> <div class="rr-item__special-price-label">Otros medios de pago</div> </div> <button class="rr-item__action" type="button" id="addtocart_46746_1" onclick="rrApi.recomAddToCart(46746, { suggester: '64cbed253f6ab2bd35cbeb20', methodName: 'popular' }); retailrocket['pcfactory64cbed253f6ab2bd35cbeb20'].rrButtonAnim(this); "> <svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="pcf-icon-sm"></svg> Agregar al carro </button> </div> </div> <div class="rr-swiper-slide swiper-slide-visible" onclick="retailrocket['pcfactory64cbed253f6ab2bd35cbeb20'].googleAnaliticClick(46284, 'CPU AMD Ryzen 5 5500 (AM4)', '124990.00', 'cpu-amd', 2, 'AMD', 149990);" data-item-id="46284" data-vendor="AMD" data-name="CPU AMD Ryzen 5 5500 (AM4)" data-categories="cpu-amd" data-price="124990" data-index="2" data-price-reference="149990" data-swiper-slide-index="2" style="width: 252px; margin-right: 15px;"> <div class="rr-item"> <a class="rr-item__image" href="//www.pcfactory.cl/producto/46284-amd-cpu-amd-ryzen-5-5500-am4" onmousedown="rrApi.recomMouseDown(46284, { suggester: '64cbed253f6ab2bd35cbeb20', methodName: 'popular' });"> <img class="swiper-lazy swiper-lazy-loaded"> </a> <div class="rr-item__vendor">AMD®</div> <a class="rr-item__name" href="//www.pcfactory.cl/producto/46284-amd-cpu-amd-ryzen-5-5500-am4" onmousedown="rrApi.recomMouseDown(46284, { suggester: '64cbed253f6ab2bd35cbeb20', methodName: 'popular' });"> CPU AMD Ryzen 5 5500 (AM4) </a> <div class="rr-item__info"> <div class="rr-item__id">ID <strong>46284</strong></div> <div class="rr-item__quantity"> +100 Unid. </div> </div> <div class="rr-item__block-price"> <div class="rr-item__price-group"> <div class="rr-item__discount">-17%</div> <div class="rr-item__old-price">$149.990</div> </div> <div class="rr-item__price">$124.990</div> <div class="rr-item__price-label">Transferencia / Débito</div> <div class="rr-item__special-price"> $128.890 </div> <div class="rr-item__special-price-label">Otros medios de pago</div> </div> <button class="rr-item__action" type="button" id="addtocart_46284_1" onclick="rrApi.recomAddToCart(46284, { suggester: '64cbed253f6ab2bd35cbeb20', methodName: 'popular' }); retailrocket['pcfactory64cbed253f6ab2bd35cbeb20'].rrButtonAnim(this); "> <svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="pcf-icon-sm"></svg> Agregar al carro </button> </div> </div> <div class="rr-swiper-slide swiper-slide-visible" onclick="retailrocket['pcfactory64cbed253f6ab2bd35cbeb20'].googleAnaliticClick(48978, 'Extensor Cable 1 x 8 pines (4+4) EPS Blanco', '7990.00', 'accesorios-desktop', 3, 'Silverstone', 8990);" data-item-id="48978" data-vendor="Silverstone" data-name="Extensor Cable 1 x 8 pines (4+4) EPS Blanco" data-categories="accesorios-desktop" data-price="7990" data-index="3" data-price-reference="8990" data-swiper-slide-index="3" style="width: 252px; margin-right: 15px;"> <div class="rr-item"> <a class="rr-item__image" href="//www.pcfactory.cl/producto/48978-silverstone-extensor-cable-1-x-8-pines-4-4-eps-blanco" onmousedown="rrApi.recomMouseDown(48978, { suggester: '64cbed253f6ab2bd35cbeb20', methodName: 'popular' });"> <img class="swiper-lazy swiper-lazy-loaded"> </a> <div class="rr-item__vendor">Silverstone®</div> <a class="rr-item__name" href="//www.pcfactory.cl/producto/48978-silverstone-extensor-cable-1-x-8-pines-4-4-eps-blanco" onmousedown="rrApi.recomMouseDown(48978, { suggester: '64cbed253f6ab2bd35cbeb20', methodName: 'popular' });"> Extensor Cable 1 x 8 pines (4+4) EPS Blanco </a> <div class="rr-item__info"> <div class="rr-item__id">ID <strong>48978</strong></div> <div class="rr-item__quantity"> 18 Unid. </div> </div> <div class="rr-item__block-price"> <div class="rr-item__price-group"> <div class="rr-item__discount">-11%</div> <div class="rr-item__old-price">$8.990</div> </div> <div class="rr-item__price">$7.990</div> <div class="rr-item__price-label">Transferencia / Débito</div> <div class="rr-item__special-price"> $8.290 </div> <div class="rr-item__special-price-label">Otros medios de pago</div> </div> <button class="rr-item__action" type="button" id="addtocart_48978_1" onclick="rrApi.recomAddToCart(48978, { suggester: '64cbed253f6ab2bd35cbeb20', methodName: 'popular' }); retailrocket['pcfactory64cbed253f6ab2bd35cbeb20'].rrButtonAnim(this); "> <svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="pcf-icon-sm"></svg> Agregar al carro </button> </div> </div> <div class="rr-swiper-slide swiper-slide-visible" onclick="retailrocket['pcfactory64cbed253f6ab2bd35cbeb20'].googleAnaliticClick(55486, 'Fuente de Poder 650W 80 Plus Silver', '59990.00', 'fuentes-de-poder-psu', 4, 'Gigabyte', 74990);" data-item-id="55486" data-vendor="Gigabyte" data-name="Fuente de Poder 650W 80 Plus Silver" data-categories="fuentes-de-poder-psu" data-price="59990" data-index="4" data-price-reference="74990" data-swiper-slide-index="4" style="width: 252px; margin-right: 15px;"> <div class="rr-item"> <a class="rr-item__image" href="//www.pcfactory.cl/producto/55486-gigabyte-fuente-de-poder-650w-80-plus-silver" onmousedown="rrApi.recomMouseDown(55486, { suggester: '64cbed253f6ab2bd35cbeb20', methodName: 'popular' });"> <img class="swiper-lazy swiper-lazy-loaded"> </a> <div class="rr-item__vendor">Gigabyte®</div> <a class="rr-item__name" href="//www.pcfactory.cl/producto/55486-gigabyte-fuente-de-poder-650w-80-plus-silver" onmousedown="rrApi.recomMouseDown(55486, { suggester: '64cbed253f6ab2bd35cbeb20', methodName: 'popular' });"> Fuente de Poder 650W 80 Plus Silver </a> <div class="rr-item__info"> <div class="rr-item__id">ID <strong>55486</strong></div> <div class="rr-item__quantity"> +30 Unid. </div> </div> <div class="rr-item__block-price"> <div class="rr-item__price-group"> <div class="rr-item__discount">-20%</div> <div class="rr-item__old-price">$74.990</div> </div> <div class="rr-item__price">$59.990</div> <div class="rr-item__price-label">Transferencia / Débito</div> <div class="rr-item__special-price"> $61.890 </div> <div class="rr-item__special-price-label">Otros medios de pago</div> </div> <button class="rr-item__action" type="button" id="addtocart_55486_1" onclick="rrApi.recomAddToCart(55486, { suggester: '64cbed253f6ab2bd35cbeb20', methodName: 'popular' }); retailrocket['pcfactory64cbed253f6ab2bd35cbeb20'].rrButtonAnim(this); "> <svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="pcf-icon-sm"></svg> Agregar al carro </button> </div> </div> </div> <span class="swiper-notification" aria-live="assertive" aria-atomic="true"></span></div> <div class="rr-slider-arrow"> <div class="rr-arrow swiper-prev" tabindex="0" role="button" aria-label="Previous slide"></div> <div class="rr-arrow swiper-next" tabindex="0" role="button" aria-label="Next slide"></div> </div> </div>
+</div>
+ </div>
+</div>
+<section class="home-productos home-productos_md home-productos_gray pb-5 position-relative home-productos_a" id="7c304954-da3a-4cda-8d0c-ebea503fc6ea" data-gtag-location_id="Home Piso productos A" data-content-category="Servicios y Sustentabilidad">
+ <div class="container position-relative">
+<div class="row justify-content-between align-items-center pt-lg-5 mx-0 overflow-hidden" id="home-piso-productos-relacionados">
+ <div class="col-12 col-md-12 col-lg-12 px-lg-0 ">
+ <h2 class="section-title-products">Servicios y Sustentabilidad</h2>
+ </div>
+</div>
+ <div id="" class="bannerHomeProd row d-flex align-items-lg-start justify-content-lg-between px-2 gta-view-banner">
+ <div class="col-6 col-sm-3 col-lg-2 banner-small--1 d-lg-flex align-self-lg-stretch " data-content-name="">
+ <a href="https://www.pcfactory.cl/actualiza-tu-notebook-con-enter-pro" class="banner--link d-lg-flex justify-content-center gta-btn-select-promo">
+ <img loading="lazy" alt="" width="206" height="289" class="data-banner-default-image" data-banner-url="https://assets-v3.pcfactory.cl/uploads/3ef90bd8-7632-4870-936f-bd51ba2a1e7b/original/-Modyo-WEB-Banner-Small-206x289px-_9_.webp" data-banner-id="" data-banner-price="" data-gtag-img-title="Modyo Web Banner Small 206x289px 9" data-gtag-title="Enter Pro" data-gtag-id="Liquid::Drops::Content::Entry::AssetField" data-gtag-name="Enter Pro" data-gtag-promotion="Servicios" data-gtag-price="" data-gtag-widget="Banner Small Big A" data-gtag-brand="" data-gtag-creativename="Modyo Web Banner Small 206x289px 9" data-gtag-category="servicios" data-gtag-class="Small 1" data-gtag-index="1" data-gtag-banner-mobile="true" data-gtag-banner="true" data-gtag-group="Servicios">
+ </a>
+ </div>
+ <div class="col-6 col-sm-3 col-lg-2 banner-small--1 d-lg-flex align-self-lg-stretch " data-content-name="">
+ <a href="https://www.pcfactory.cl/estado-despacho" class="banner--link d-lg-flex justify-content-center gta-btn-select-promo">
+ <img loading="lazy" alt="" width="206" height="289" class="data-banner-default-image" data-banner-url="https://assets-v3.pcfactory.cl/uploads/0ca790c8-d19b-43d7-82f1-93cd62b761cb/original/small2-seguir_mi_pedido-206x289px.webp" data-banner-id="" data-banner-price="" data-gtag-img-title="Small2 Seguir Mi Pedido 206x289px" data-gtag-title="Seguir mi pedido" data-gtag-id="Liquid::Drops::Content::Entry::AssetField" data-gtag-name="Seguir mi pedido" data-gtag-promotion="Servicios" data-gtag-price="" data-gtag-widget="Banner Small Big A" data-gtag-brand="" data-gtag-creativename="Small2 Seguir Mi Pedido 206x289px" data-gtag-category="servicios" data-gtag-class="Small 1" data-gtag-index="2" data-gtag-banner-mobile="true" data-gtag-banner="true" data-gtag-group="Servicios">
+ </a>
+ </div>
+ <div class="col-12 col-sm-6 col-lg-8 mt-3 mt-sm-0 banner-big " data-content-name="">
+ <a href="https://www.pcfactory.cl/servicios/asesorate-online" class="banner--link d-lg-flex justify-content-center gta-btn-select-promo">
+ <img loading="lazy" alt="" width="345" height="230" class="d-block d-lg-none data-banner-default-image" data-banner-url="https://assets-v3.pcfactory.cl/uploads/15df4b5b-9e98-4cbf-ac26-939efd2e397b/original/Big6-asesorate_online-345x230px.webp" data-banner-id="" data-banner-price="" data-gtag-img-title="Big6 Asesorate Online 345x230px" data-gtag-title="Asesórate con un experto" data-gtag-id="" data-gtag-name="Asesórate con un experto" data-gtag-promotion="Factory Days" data-gtag-price="" data-gtag-widget="Banner Small Big A" data-gtag-brand="" data-gtag-category="servicios" data-gtag-class="Big 1" data-gtag-creativename="Big6 Asesorate Online 345x230px" data-gtag-index="3" data-gtag-banner-mobile="true" data-gtag-group="Servicios">
+ <img loading="lazy" alt="" width="1320" height="280" class="data-banner-default-image d-none d-lg-block" data-banner-url="https://assets-v3.pcfactory.cl/uploads/75daa77c-d40f-4401-b7d8-953b561a4428/original/Big5-asesorate_online-875x289px.webp" data-banner-id="" data-banner-price="" data-gtag-img-title="Big5 Asesorate Online 875x289px" data-gtag-title="Asesórate con un experto" data-gtag-id="" data-gtag-name="Asesórate con un experto" data-gtag-promotion="Factory Days" data-gtag-price="" data-gtag-widget="Banner Small Big A" data-gtag-brand="" data-gtag-category="servicios" data-gtag-class="Big 1" data-gtag-creativename="Big5 Asesorate Online 875x289px" data-gtag-index="3" data-view="web" data-gtag-banner="true" data-gtag-group="Servicios">
+ </a>
+ </div>	
+ <div class="col-12 col-sm-6 col-lg-8 mt-3 mt-sm-0 banner-big mt-3 mt-sm-3" data-content-name="">
+ <a href="https://www.pcfactory.cl/sustentabilidad" class="banner--link d-lg-flex justify-content-center gta-btn-select-promo">
+ <img loading="lazy" alt="" width="345" height="230" class="d-block d-lg-none data-banner-default-image" data-banner-url="https://assets-v3.pcfactory.cl/uploads/8a1d065d-4dd6-43ad-8f7b-71edf859a0e8/original/Big5-sustentabilidad-345x230px.webp" data-banner-id="" data-banner-price="" data-gtag-img-title="Big5 Sustentabilidad 345x230px" data-gtag-title="Sustentabilidad_" data-gtag-id="" data-gtag-name="Sustentabilidad_" data-gtag-promotion="Verano" data-gtag-price="" data-gtag-widget="Banner Small Big A" data-gtag-brand="" data-gtag-category="servicios" data-gtag-class="Big 1" data-gtag-creativename="Big5 Sustentabilidad 345x230px" data-gtag-index="4" data-gtag-banner-mobile="true" data-gtag-group="Servicios">
+ <img loading="lazy" alt="" width="1320" height="280" class="data-banner-default-image d-none d-lg-block" data-banner-url="https://assets-v3.pcfactory.cl/uploads/0951690f-aa56-403d-8be0-20a95d811df0/original/Big5-sustentabilidad-875x289px.webp" data-banner-id="" data-banner-price="" data-gtag-img-title="Big5 Sustentabilidad 875x289px" data-gtag-title="Sustentabilidad_" data-gtag-id="" data-gtag-name="Sustentabilidad_" data-gtag-promotion="Verano" data-gtag-price="" data-gtag-widget="Banner Small Big A" data-gtag-brand="" data-gtag-category="servicios" data-gtag-class="Big 1" data-gtag-creativename="Big5 Sustentabilidad 875x289px" data-gtag-index="4" data-view="web" data-gtag-banner="true" data-gtag-group="Servicios">
+ </a>
+ </div>	
+ <div class="col-6 col-sm-3 col-lg-2 banner-small--1 d-lg-flex align-self-lg-stretch mt-3" data-content-name="">
+ <a href="https://www.pcfactory.cl/servicios/puntos-verdes" class="banner--link d-lg-flex justify-content-center gta-btn-select-promo">
+ <img loading="lazy" alt="" width="206" height="289" class="data-banner-default-image" data-banner-url="https://assets-v3.pcfactory.cl/uploads/fd04054d-253d-4dca-8c80-3e0052e8d9f7/original/small3-puntos-verdes-206x289px.webp" data-banner-id="" data-banner-price="" data-gtag-img-title="Small3 Puntos Verdes 206x289px" data-gtag-title="Puntos verdes" data-gtag-id="Liquid::Drops::Content::Entry::AssetField" data-gtag-name="Puntos verdes" data-gtag-promotion="Servicios" data-gtag-price="" data-gtag-widget="Banner Small Big A" data-gtag-brand="" data-gtag-creativename="Small3 Puntos Verdes 206x289px" data-gtag-category="servicios" data-gtag-class="Small 1" data-gtag-index="5" data-gtag-banner-mobile="true" data-gtag-banner="true" data-gtag-group="Servicios">
+ </a>
+ </div>
+ <div class="col-6 col-sm-3 col-lg-2 banner-small--1 d-lg-flex align-self-lg-stretch mt-3" data-content-name="">
+ <a href="https://www.pcfactory.cl/sustentabilidad/medio-ambiente" class="banner--link d-lg-flex justify-content-center gta-btn-select-promo">
+ <img loading="lazy" alt="" width="206" height="289" class="data-banner-default-image" data-banner-url="https://assets-v3.pcfactory.cl/uploads/5d58681a-7b63-4517-9af1-32f08f3301e2/original/small4-medio_ambiente-206x289px.webp" data-banner-id="" data-banner-price="" data-gtag-img-title="Small4 Medio Ambiente 206x289px" data-gtag-title="Medio Ambiente" data-gtag-id="Liquid::Drops::Content::Entry::AssetField" data-gtag-name="Medio Ambiente" data-gtag-promotion="Servicios" data-gtag-price="" data-gtag-widget="Banner Small Big A" data-gtag-brand="" data-gtag-creativename="Small4 Medio Ambiente 206x289px" data-gtag-category="servicios" data-gtag-class="Small 1" data-gtag-index="6" data-gtag-banner-mobile="true" data-gtag-banner="true" data-gtag-group="Servicios">
+ </a>
+ </div>
+ </div>
+ </div>
+</section>
+<section id="home-enterate">
+	<div class="container">
+ <div class="row">
+ <div class="col-12 col-md-6 col-lg-5 px-md- 0">
+ <h2 class="title-label">
+ Consejos y tips tecnológicos_
+ </h2>
+ </div>
+ <div class="col-12 px-2">
+ <div class="row mx-0">
+ <div class="col-6 col-md-3 pcf-gap" data-content-name="La Guía del Notebook">
+ <a class="card card-home_enterate" href="https://www.pcfactory.cl/servicios/consejos-y-tips-tecnologicos/guia-del-notebook">
+ <div class="card-home_enterate__img">
+ <img loading="lazy" class="card-img-top" alt="Card Home" data-gtag-img-title="Card Home" data-gtag-title="La Guía del Notebook">
+ </div>
+ <div class="pcf-box-msg-icon">
+ <div class="card-home_enterate__icon">
+ <img alt="">
+ </div>
+ </div>
+ <div class="card-body card-home_enterate__body d-flex flex-column justify-content-center">
+ <h2 class="pcf-heading--4 m-0">La Guía del Notebook</h2>
+ </div>
+ </a>
+ </div>
+ <div class="col-6 col-md-3 pcf-gap" data-content-name="Guía del Smartphone">
+ <a class="card card-home_enterate" href="https://www.pcfactory.cl/servicios/consejos-y-tips-tecnologicos/que-es-un-smartphone">
+ <div class="card-home_enterate__img">
+ <img loading="lazy" class="card-img-top" alt="Card Home Smartphone" data-gtag-img-title="Card Home Smartphone" data-gtag-title="Guía del Smartphone">
+ </div>
+ <div class="pcf-box-msg-icon">
+ <div class="card-home_enterate__icon">
+ <img alt="">
+ </div>
+ </div>
+ <div class="card-body card-home_enterate__body d-flex flex-column justify-content-center">
+ <h2 class="pcf-heading--4 m-0">Guía del Smartphone</h2>
+ </div>
+ </a>
+ </div>
+ <div class="col-6 col-md-3 pcf-gap" data-content-name="La guía del monitor gamer">
+ <a class="card card-home_enterate" href="https://www.pcfactory.cl/servicios/consejos-y-tips-tecnologicos/guia-de-monitores-gamer">
+ <div class="card-home_enterate__img">
+ <img loading="lazy" class="card-img-top" alt="Gamer Card Home" data-gtag-img-title="Gamer Card Home" data-gtag-title="La guía del monitor gamer">
+ </div>
+ <div class="pcf-box-msg-icon">
+ <div class="card-home_enterate__icon">
+ <img alt="">
+ </div>
+ </div>
+ <div class="card-body card-home_enterate__body d-flex flex-column justify-content-center">
+ <h2 class="pcf-heading--4 m-0">La guía del monitor gamer</h2>
+ </div>
+ </a>
+ </div>
+ <div class="col-6 col-md-3 pcf-gap" data-content-name="Guía de la impresoras 3d_">
+ <a class="card card-home_enterate" href="https://www.pcfactory.cl/servicios/consejos-y-tips-tecnologicos/guia-de-impresoras-3d">
+ <div class="card-home_enterate__img">
+ <img loading="lazy" class="card-img-top" alt="Banner Home Consejos Y Tips Tecnol Gicos 315x233" data-gtag-img-title="Banner Home Consejos Y Tips Tecnol Gicos 315x233" data-gtag-title="Guía de la impresoras 3d_">
+ </div>
+ <div class="pcf-box-msg-icon">
+ <div class="card-home_enterate__icon">
+ <img alt="">
+ </div>
+ </div>
+ <div class="card-body card-home_enterate__body d-flex flex-column justify-content-center">
+ <h2 class="pcf-heading--4 m-0">Guía de la impresoras 3d_</h2>
+ </div>
+ </a>
+ </div>
+ <div class="col-12 text-right my-3">
+ <a href="https://www.pcfactory.cl/servicios/consejos-y-tips-tecnologicos" class="pcf-link-btn px-0">
+ Ver todos </a>
+ </div>
+ </div>	
+ </div>
+ </div>
+	</div>
+</section>
+	<div id="pcf-comparator-summary" data-products="" data-alert="" class="comparator-panel hide"><div class="container position-relative"><div class="row no-gutters comparator-tab-counter"><div class="col"><p class="pcf-subtitle pcf-color--white m-0 text-white"><span class="pcf-fw-bold ">Comparador</span> (0/3)
+ </p></div> <div class="col-auto ml-4"><button class="comparator-tab-close-btn">✕</button></div></div> <div class="row w-100 px-0 mx-0"><div class="row no-gutters align-items-center justify-content-center col-md-9 col-lg-10 px-3 mx-0"><div class="h-100 col-lg-4 px-3 col-5"><div class="product-box-empty d-flex flex-column align-items-center justify-content-center h-100"><span class="product-box-empty-plus">+</span> <p class="pcf-text--sm pcf-color--white text-center m-0 mt-1">Agregar otro producto</p></div></div><div class="h-100 col-lg-4 px-3 col-5"><div class="product-box-empty d-flex flex-column align-items-center justify-content-center h-100"><span class="product-box-empty-plus">+</span> <p class="pcf-text--sm pcf-color--white text-center m-0 mt-1">Agregar otro producto</p></div></div><div class="h-100 col-lg-4 px-3 col-5"><div class="product-box-empty d-flex flex-column align-items-center justify-content-center h-100"><span class="product-box-empty-plus">+</span> <p class="pcf-text--sm pcf-color--white text-center m-0 mt-1">Agregar otro producto</p></div></div></div> <div class="col-md-3 col-lg-2 text-center px-2 mx-0 mt-4 mt-md-0 d-flex flex-md-column flex-row-reverse justify-content-center"><div class="mb-0 px-0 mb-md-2 col-7 col-md-12 d-flex justify-content-center align-items-end"><button disabled="disabled" class="btn compare-btn pcf-fw-bold py-2">Comparar
+ </button></div> <div class="col-5 px-0 col-md-12 d-flex justify-content-center align-items-md-start align-items-center"><p class="pcf-text--md pcf-color--white pointer mb-0"><u>Limpiar selección</u></p></div></div></div></div> <div class="toast-wrapper"><div class="container"><div class="pcf-toast row align-items-center pcf-toast--comparator pcf-toast--warning"><span aria-hidden="true" class="icon icon-info"><svg role="img" width="24px" height="24px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg></span> <p class="mb-0 ml-2 pcf-text--sm">
+ </p></div></div></div></div>
+	<div role="dialog" id="pcf-modal-added-product" tabindex="-1" aria-labelledby="pcf-modal-added-product" aria-hidden="true" class="modal modal-added-product fade"><div role="document" class="modal-dialog"><div class="modal-content"><div class="modal-header px-4 pt-3"><div class="row w-100 mx-0 align-items-center"><div class="col-11 px-0"><p class="modal-title pcf-text--md pcf-fw-bold pr-3"><span aria-hidden="true" class="icon icon-check"><svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg></span>
+ Producto agregado al carro de compras
+ </p></div> <div class="col-1 px-0"><button type="button" data-dismiss="modal" aria-label="Close" class="btn-close-cart"><span aria-hidden="true" class="icon icon-close"><svg role="img" width="64px" height="64px" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"></svg></span></button></div></div></div> <div class="modal-footer"><div class="row w-100 justify-content-lg-end mx-0"><div class="col-12 col-lg-10 px-0"><div class="row"><div class="col-12 col-lg-6 order-lg-2"><a href="https://www.pcfactory.cl/carro" aria-label="ir al carrito de compra" class="pcf-btn pcf-btn--five border-0">Ir al carro</a></div> <div class="col-12 col-lg-6 mt-2 mt-lg-0 order-lg-1"><button type="button" data-dismiss="modal" onclick="restaurarBoton()" class="pcf-btn pcf-btn--seven">Seguir comprando</button></div></div></div></div></div></div></div></div>
+<div data-widget-name="Home enhaced events (view_promotion, select_promotion)">
+</div>
+<div data-widget-name="Home enhaced events RR (view_item_list, select_item) "></div>
+<div data-widget-name="tageo | gtag_enhanced_event_cart_js"> </div>
+ <title>Asistentes PCFactory</title>
+ <div class="pcf-modal-backdrop" id="pcfModalBackdrop"></div>
+ <div class="pcf-adereso-header" id="pcfAderesoHeader">
+ <div class="pcf-chat-header-info">
+ <div class="pcf-chat-header-logo">
+ <img alt="">
+ </div>
+ <span class="pcf-adereso-title">Servicio al Cliente</span>
+ </div>
+ <button class="pcf-chat-close" id="pcfAderesoClose" aria-label="Cerrar chat">✕</button>
+ </div>
+ <div class="pcf-assistance-wrapper" id="pcfAssistanceWrapper" style="display: block;">
+ <button class="pcf-floating-button" id="pcfFloatingBtn" aria-label="Abrir asistencia">
+ <img alt="">
+ </button>
+ <div class="pcf-assistant-modal" id="pcfAssistantModal">
+ <div class="pcf-assistant-modal__header">
+ <span class="pcf-assistant-modal__title">¿En qué podemos ayudarte?</span>
+ <button class="pcf-assistant-modal__close" id="pcfModalClose" aria-label="Cerrar">✕</button>
+ </div>
+ <button class="pcf-assistant-option" id="pcfOptionLaura">
+ <div class="pcf-assistant-option__icon pcf-assistant-option__icon--laura">
+ <img alt="">
+ </div>
+ <div class="pcf-assistant-option__info">
+ <div class="pcf-assistant-option__label">
+ <img style="max-width: 70px;">
+ </div>
+ <div class="pcf-assistant-option__desc">Asesora tu compra con inteligencia artificial</div>
+ </div>
+ </button>
+ <button class="pcf-assistant-option" id="pcfOptionOcular">
+ <div class="pcf-assistant-option__icon pcf-assistant-option__icon--ocular">
+ <img>
+ </div>
+ <div class="pcf-assistant-option__info">
+ <div class="pcf-assistant-option__label">Videollamada</div>
+ <div class="pcf-assistant-option__desc">Conéctate directamente con un asesor</div>
+ </div>
+ </button>
+ <button class="pcf-assistant-option" id="pcfOptionAdereso">
+ <div class="pcf-assistant-option__icon pcf-assistant-option__icon--adereso">
+ <img>
+ </div>
+ <div class="pcf-assistant-option__info">
+ <div class="pcf-assistant-option__label">Servicio al Cliente</div>
+ <div class="pcf-assistant-option__desc">Resuelve tus dudas con nuestro asistente virtual</div>
+ </div>
+ </button>
+ </div>
+ </div>
+</div>
+<footer class=" mt-md-5"></footer>
+</body></html>

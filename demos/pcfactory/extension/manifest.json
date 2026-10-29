@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "Javier para PC Factory — Voqalize preview",
+  "version": "0.0.0",
+  "description": "A voice guide on pcfactory.cl who finds notebooks, parts and phones with the visitor, filters and sorts the listings, opens products and their specifications, reads live prices and stock by store, adds to the cart and takes a guest as far as Tipo de entrega (never a login, a RUT or the payment), in Spanish or English. A Voqalize preview.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAskYo2K4o2KQDi0BXGcpDSI/1tccZTS/uIqer0cUPq5cVhKXLZfgAlaWLy8D9YYWfyTMaI444fZU4jGBQj8gpk3Yp6YWkeaauYvX+kHQsM5znm4717MTzBh5T0fJbL08NNyAKJgy3WU2GUpbY+rcbpBq+IhAJeI815Yy8djtZxqwgPAYxMA37J/DVpVhqtNeWogeMr0HsM/4430fnDYJHenfXD1r/BBxzqtGKcZs/XUSY4a99t4mGVJ/EnXmykna+HfkFgCKMejHOiNxX97NbwCSebPZk/jJa7Y/zjtuZVpqKyHREnpUPaPUYECyU4OHnpBBqWYXVCF1nSvvoFRKy/wIDAQAB",
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.pcfactory.cl/*", "https://pcfactory.cl/*"],
+      "js": ["bridge.js", "anchor.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://www.pcfactory.cl/*", "https://pcfactory.cl/*"],
+      "js": ["shell.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://www.pcfactory.cl/*", "https://pcfactory.cl/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    }
+  ],
+  "permissions": ["storage", "offscreen"],
+  "host_permissions": ["https://www.pcfactory.cl/*", "https://pcfactory.cl/*"],
+  "web_accessible_resources": [
+    { "resources": ["grant.html", "grant.js"], "matches": ["https://www.pcfactory.cl/*", "https://pcfactory.cl/*"] }
+  ]
+}
