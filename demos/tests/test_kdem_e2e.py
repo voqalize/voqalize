@@ -1509,3 +1509,35 @@ async def test_asking_in_her_words_takes_them_there() -> None:
         assert [u.text for u in turn.units] == [
             "Taking you to the Beyond Bengaluru Cluster Seed Fund page."
         ]
+
+
+# ─── The microphone ───────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize("outcome", ["granted", "denied", "unavailable", "no_answer"])
+async def test_the_microphone_outcome_is_logged_and_not_put_to_the_model(outcome: str) -> None:
+    """The snippet says once per call whether the browser gave it a microphone.
+    The brain logs it, so the calls that never had one can be counted, and the
+    model is not told: nothing about it changes what she says."""
+    from loguru import logger
+
+    lines: list[str] = []
+    sink = logger.add(lambda m: lines.append(str(m)), level="INFO")
+    llm = _llm()
+    try:
+        async with demo("kdem", llm) as rig:
+            await rig.driver.start_session(init={"page": "/"})
+            before = len(llm.captured_contents)
+            await rig.driver.send_ui_event(
+                "mic_permission", {"outcome": outcome, "waited_ms": 10000}
+            )
+            await rig.driver.send_ui_event("mic_permission", {"outcome": "maybe"})
+            await asyncio.sleep(0.1)
+            assert len(llm.captured_contents) == before
+            await rig.driver.user_says("Thank you.")
+    finally:
+        logger.remove(sink)
+    log = "\n".join(lines)
+    assert f"kdem: mic_permission {outcome} after 10000 ms" in log
+    assert "mic_permission maybe" not in log
+    assert "microphone" not in _said(llm.captured_contents[-1]).lower()

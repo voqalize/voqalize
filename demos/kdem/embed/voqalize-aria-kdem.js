@@ -40,6 +40,9 @@
   const MUTED = "vq-aria:muted";
   // The language the call is in (or the next one starts in): "en" or "kn".
   const LANG = "vq-aria:lang";
+  // The microphone outcome already reported for this call, so a rejoin on the
+  // next page does not count it twice.
+  const MIC_SENT = "vq-aria:mic";
 
   function boot() {
     // ── 2. Styles, scoped to #vq-aria ────────────────────────────────────────
@@ -159,7 +162,7 @@
     // navigate: another KDEM page in this tab. The call carries over to it
     // (keepAcrossPageLoads), and the move waits for the line Aria says with it,
     // so "Taking you there." is heard before the page changes.
-    let speaking = false, pendingNav = null, navTimer = 0;
+    let pendingNav = null, navTimer = 0;
     function navNow() {
       clearTimeout(navTimer);
       const go = pendingNav;
@@ -298,6 +301,97 @@
       muteBtn.setAttribute("aria-pressed", String(muted));
     }
 
+    // ── The microphone ───────────────────────────────────────────────────────
+    // "Listening" only once the browser has given us a live microphone track.
+    // Until then the panel says what the visitor has to do: allow it in the
+    // browser's prompt, or, when it is blocked, where to turn it back on.
+    // The outcome goes to Aria's brain once per call (mic_permission), so
+    // calls that never had a microphone can be counted.
+    const MIC_WAIT_MS = 10000; // no answer to the prompt by then: reported as such
+    const touch = matchMedia("(pointer: coarse)").matches;
+    const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const MIC_TEXT = {
+      asking: "Allow the microphone to talk to Aria.",
+      blocked: ios
+        ? "Microphone blocked. Tap aA in the address bar, then Website Settings, Microphone, Allow, and reload."
+        : `Microphone blocked. ${touch ? "Tap" : "Click"} the icon at the left of the address bar and allow the microphone.`,
+      missing: "Aria can't reach your microphone. Check that one is connected and not in use.",
+    };
+    let mic = "unknown"; // unknown | asking | live | blocked | missing
+    let ready = false, speaking = false, botReady = false;
+    let micTimer = 0, micAsked = 0, micOutcome = null;
+    // The media manager is the page's, so its own track is the truth: the
+    // callbacks it fires stay bound to the first call made on this page.
+    const micLive = () => media?.tracks().local.audio?.readyState === "live";
+    function showStatus() {
+      if (!client) return;
+      if (!ready) return;
+      if (mic === "live") say(muted ? "Muted." : speaking ? "Aria is speaking…" : "Listening. Just talk.");
+      else if (mic === "blocked" || mic === "missing") say(MIC_TEXT[mic]);
+      else say(muted ? "Muted." : MIC_TEXT.asking);
+    }
+    function setMic(next) {
+      if (mic === next) return;
+      mic = next;
+      if (next === "live") report("granted");
+      if (next === "blocked") report("denied");
+      if (next === "missing") report("unavailable");
+      showStatus();
+    }
+    // One outcome per call; a later grant after "no_answer" is reported too.
+    function report(outcome) {
+      const sent = store.get(MIC_SENT);
+      if (sent === outcome || (sent && outcome === "no_answer")) return;
+      micOutcome = outcome;
+      flushMic();
+    }
+    function flushMic() {
+      if (!micOutcome || !client || !botReady) return;
+      const outcome = micOutcome;
+      micOutcome = null;
+      try {
+        client.sendUIEvent("mic_permission", { outcome, waited_ms: Math.max(0, Math.round(performance.now() - micAsked)) });
+        store.set(MIC_SENT, outcome);
+      } catch {}
+    }
+    // What the browser says about the permission, where it can say it. Safari
+    // before 16 and some webviews do not know the "microphone" name: then the
+    // track (or the error) decides alone.
+    let micStatus = null;
+    function permissionSeen() {
+      if (!client || !micStatus || mic === "live") return;
+      if (micStatus.state === "denied") setMic("blocked");
+      else if (micStatus.state === "granted" && mic === "blocked") {
+        // Turned back on in the browser's settings: ask for the track again.
+        mic = "asking"; showStatus();
+        client.enableMic(!muted);
+      } else if (micStatus.state === "prompt" && mic === "unknown") setMic("asking");
+    }
+    async function watchPermission() {
+      if (!micStatus && navigator.permissions?.query) {
+        try {
+          micStatus = await navigator.permissions.query({ name: "microphone" });
+          micStatus.addEventListener?.("change", permissionSeen);
+        } catch {}
+      }
+      permissionSeen();
+    }
+    // Until the track is live or refused: look twice a second. No answer
+    // after MIC_WAIT_MS is reported, and the panel keeps asking.
+    function micCheck() {
+      if (!client) return;
+      if (micLive()) return setMic("live");
+      if (performance.now() - micAsked > MIC_WAIT_MS && mic !== "blocked" && mic !== "missing") report("no_answer");
+      micTimer = setTimeout(micCheck, 500);
+    }
+    function micStart() {
+      mic = "unknown"; ready = false; speaking = false; botReady = false; micOutcome = null;
+      micAsked = performance.now();
+      clearTimeout(micTimer);
+      micTimer = setTimeout(micCheck, 500);
+      watchPermission();
+    }
+
     // The page the visitor is on, for Aria. Sent on every (re)connect, so after
     // a page load she knows where the conversation has moved to.
     function reportPage() {
@@ -314,6 +408,7 @@
       label.textContent = "Talk to Aria";
       say(rejoin ? "Reconnecting…" : "Connecting…");
       links.replaceChildren();
+      if (!rejoin) store.set(MIC_SENT, null); // a new call: its outcome is not yet known
 
       try {
         const { PipecatClient, createVoqalizeTransport, createAvatar } = await load();
@@ -327,19 +422,28 @@
           callbacks: {
             onTransportStateChanged: (state) => {
               if (client !== next) return;
-              if (state === "ready") { say("Listening. Just talk."); if (muted) next.enableMic(false); }
+              if (state === "ready") { ready = true; showStatus(); if (muted) next.enableMic(false); }
               if (state === "disconnected") stop(false);
             },
-            onBotReady: () => { if (client === next) reportPage(); },
-            // Aria's voice. The media manager keeps it playing (speaker routing,
+            onBotReady: () => { if (client !== next) return; botReady = true; reportPage(); flushMic(); },
+            // A live microphone track is what "Listening" waits for. Aria's
+            // voice: the media manager keeps it playing (speaker routing,
             // re-attaching it if the browser drops it), but the page attaches it.
             onTrackStarted: (track, participant) => {
-              if (participant?.local || track.kind !== "audio") return;
+              if (track.kind !== "audio") return;
+              if (participant?.local) { if (client && micLive()) setMic("live"); return; }
+              if (client !== next) return;
               audio.srcObject = new MediaStream([track]);
               audio.play().catch(() => {});
             },
-            onBotStartedSpeaking: () => { speaking = true; say("Aria is speaking…"); navWaitForLine(); },
-            onBotStoppedSpeaking: () => { speaking = false; say(muted ? "Muted." : "Listening. Just talk."); navNow(); },
+            // The browser refused the microphone, or there is none to use.
+            onDeviceError: (error) => {
+              if (!client || mic === "live") return;
+              if (error?.devices && !error.devices.includes("mic")) return;
+              setMic(error?.type === "permissions" ? "blocked" : "missing");
+            },
+            onBotStartedSpeaking: () => { speaking = true; showStatus(); navWaitForLine(); },
+            onBotStoppedSpeaking: () => { speaking = false; showStatus(); navNow(); },
             // Aria can offer a KDEM page as a link card; it opens in a new tab
             // so the conversation keeps going here.
             onUICommand: ({ command, payload }) => {
@@ -365,6 +469,7 @@
           },
         });
         client = next;
+        micStart();
 
         // Mount the face before connecting, so it is ready for Aria's first word.
         avatar = createAvatar({ mount: face, client: next, character: VQ.character });
@@ -414,6 +519,8 @@
       client = null;
       pendingNav = null; // a move she had not made yet goes with the call
       clearTimeout(navTimer);
+      clearTimeout(micTimer);
+      if (endCall) store.set(MIC_SENT, null);
       if (endCall && live) { try { await live.disconnectBot(); } catch {} }
       avatar?.destroy(); avatar = null;
       setMuted(false);
@@ -437,7 +544,7 @@
       if (!client) return;
       setMuted(!muted);
       client.enableMic(!muted);
-      say(muted ? "Muted." : "Listening. Just talk.");
+      showStatus();
     });
     // No hang-up when the page goes away: that is what lets the call carry on
     // to the next page. A page restored from the back/forward cache has lost its

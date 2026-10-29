@@ -88,6 +88,7 @@ from .app_events import (
     KanFieldChanged,
     KanFillFailed,
     LanguageRequested,
+    MicPermission,
     PageViewed,
     PointMissed,
 )
@@ -851,6 +852,10 @@ class KdemBrain(GeminiBrain):
                 await self._requested(session, event)
             case KanFieldChanged():
                 self._kan_changed(event)
+            case MicPermission():
+                # Counted from the log; the model is not told: a visitor with no
+                # microphone cannot speak the turn it would answer.
+                logger.info("kdem: mic_permission {} after {} ms", event.outcome, event.waited_ms)
             case KanFillFailed():
                 label = KAN_LABELS[event.field]
                 logger.info("kdem: kan_fill_failed {} ({})", event.field, event.reason)

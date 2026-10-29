@@ -14,6 +14,9 @@ the site and keep talking. On every (re)connect it sends ``page_viewed`` with
 the page it is on, and that is how Aria learns the visitor moved. It carries
 the path and the page's own ``<title>``; the brain names a page only by the
 title on its own approved list, never by what the browser sent.
+
+Once per call it also sends ``mic_permission``: whether the browser gave it a
+live microphone. The panel says "Listening" only once it has.
 """
 
 from __future__ import annotations
@@ -32,6 +35,7 @@ __all__ = [
     "KanFillFailed",
     "KdemEvent",
     "LanguageRequested",
+    "MicPermission",
     "PageViewed",
     "PointMissed",
 ]
@@ -75,8 +79,22 @@ class KanFillFailed(AppEvent):
     reason: Literal["form_missing", "field_missing", "option_missing"]
 
 
-type KdemEvent = PageViewed | LanguageRequested | PointMissed | KanFieldChanged | KanFillFailed
+class MicPermission(AppEvent):
+    """What became of the visitor's microphone, sent once per call: ``granted``
+    (a live track), ``denied`` (the browser refused it), ``unavailable`` (no
+    microphone, or one in use elsewhere) or ``no_answer`` (the browser's prompt
+    still unanswered after ten seconds; a later grant is sent too). Logged, so
+    calls that never had a microphone can be counted; never put to the model."""
+
+    outcome: Literal["granted", "denied", "unavailable", "no_answer"]
+    waited_ms: int = Field(default=0, ge=0, le=86_400_000)
+    """How long after the call started the outcome was known."""
+
+
+type KdemEvent = (
+    PageViewed | LanguageRequested | PointMissed | KanFieldChanged | KanFillFailed | MicPermission
+)
 
 KDEM_EVENTS = AppEvents[KdemEvent](
-    PageViewed, LanguageRequested, PointMissed, KanFieldChanged, KanFillFailed
+    PageViewed, LanguageRequested, PointMissed, KanFieldChanged, KanFillFailed, MicPermission
 )
