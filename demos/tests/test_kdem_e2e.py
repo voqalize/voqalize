@@ -1883,3 +1883,23 @@ async def test_a_policy_behind_the_download_form_is_cited_and_its_page_is_the_ca
         found = _results(llm.captured_contents[-1])["search_kdem"]
         assert 'downloaded from the KDEM page "Policies"' in found
         assert rig.command("show_link") == {"url": POLICIES, "title": "Policies"}
+
+
+def test_the_prompt_says_where_to_look_for_what_visitors_asked_last_week() -> None:
+    """Questions the site answers were sent to Contact Us because the search
+    used the visitor's words, not the site's. The prompt names where each kind
+    of question is answered, by the names the site uses."""
+    for name in (
+        "Karnataka Startup Policy",
+        "AVGC-XR policy",
+        "Future Digital Jobs",
+        "Events page",
+    ):
+        assert name in _SYSTEM_INSTRUCTION, name
+    for path in (
+        "/futuredigitaljobs/",
+        "/nipuna-karnataka/",
+        "/talent-accelerator/",
+        "/womenatwork/",
+    ):
+        assert ALLOWLIST.approved(SITE + path) is not None, path
