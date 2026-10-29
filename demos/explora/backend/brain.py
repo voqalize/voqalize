@@ -1614,6 +1614,7 @@ class ExploraBrain(OpenAIBrain):
         moved to is read in with what they said. The runtime acknowledges them
         while the model thinks (``Config.ack``, on by default)."""
         self._last_heard = msg.text
+        self.stage.visitor_spoke()
         heard = None if self._chosen else heard_language(msg.text, self.spoken, language_of)
         if heard is not None and heard != self.spoken:
             await session.configure(self._speaking(heard))
@@ -2686,7 +2687,13 @@ class ExploraBrain(OpenAIBrain):
             if view is None:
                 return None
             logger.info("explora: {} v{} — {}", event.name, folded.version, view)
-            return self.apply_event(view)
+            note = self.apply_event(view)
+            # What the visitor did by themselves, that the spec lets him speak
+            # up about (the enquiry): once they pause, now and then, unless
+            # he already has something of his own to talk through.
+            if folded.ask and self._talk is None and (ask := self.stage.take_reaction()):
+                self._talk_through(f"[{ask}]")
+            return note
         if not isinstance(event, stage_wire.StageResult):
             self.stage.handle(event)
             return None

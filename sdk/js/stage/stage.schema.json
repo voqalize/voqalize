@@ -122,6 +122,21 @@
           "title": "Note",
           "type": "string"
         },
+        "react": {
+          "default": "note",
+          "enum": [
+            "silent",
+            "note",
+            "speak"
+          ],
+          "title": "React",
+          "type": "string"
+        },
+        "ask": {
+          "default": "",
+          "title": "Ask",
+          "type": "string"
+        },
         "doc": {
           "default": "",
           "title": "Doc",
@@ -291,6 +306,13 @@
           ],
           "default": null,
           "title": "Moves"
+        },
+        "events": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Reaction"
+          },
+          "title": "Events",
+          "type": "object"
         }
       },
       "required": [
@@ -458,6 +480,31 @@
         "deadline_ms"
       ],
       "title": "PluginSpec",
+      "type": "object"
+    },
+    "Reaction": {
+      "additionalProperties": false,
+      "description": "An app's choice for one of a kit's events (``EventSpec.react``, ``ask``).",
+      "properties": {
+        "react": {
+          "enum": [
+            "silent",
+            "note",
+            "speak"
+          ],
+          "title": "React",
+          "type": "string"
+        },
+        "ask": {
+          "default": "",
+          "title": "Ask",
+          "type": "string"
+        }
+      },
+      "required": [
+        "react"
+      ],
+      "title": "Reaction",
       "type": "object"
     },
     "SliceSpec": {

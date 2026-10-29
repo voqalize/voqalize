@@ -969,6 +969,40 @@ async def test_an_expedition_enquiry_fills_and_sends_only_once_ticked() -> None:
         assert "Explora's team will write to you." in turn.text
 
 
+async def test_he_speaks_up_once_about_an_enquiry_the_visitor_fills_in_by_themselves() -> None:
+    """The spec lets him speak about the enquiry form (``react: speak``): the
+    visitor types part of it and pauses, and he offers help in the next short
+    quiet spell; another pause soon after is not commented on; their own words
+    first always win. Nothing they typed is in what he is told."""
+    llm = _llm()
+    partial = {
+        "expedition": "Sacred Mountains Expedition",
+        "expedition_code": "XSCM",
+        "filled": {"first_name": "Ana"},
+        "missing": ["email", "phone"],
+        "captcha": False,
+    }
+    async with _explora(llm) as rig:
+        await rig.driver.start_session(init={"site": "site", "path": "/lodge/atacama-lodge/"})
+        # The form comes up: his own line for it (what he needs from them)
+        # comes first, as it always has.
+        await _page(rig, "enquiry_state", {**partial, "filled": {}, "missing": ["first_name"]})
+        await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
+        assert "filling in the enquiry form by themselves" not in _texts(llm.captured_inputs[-1])
+
+        # They fill part of it themselves and pause: he speaks up about it.
+        await _page(rig, "enquiry_state", partial)
+        assert _idle_windows(rig)[-1] == _TALK_THROUGH_MS
+        await rig.driver.user_idle(level=1, idle_ms=_TALK_THROUGH_MS)
+        said = _texts(llm.captured_inputs[-1])
+        assert "filling in the enquiry form by themselves" in said
+        assert "Ana" not in said
+
+        # Another pause soon after: kept for its line, not spoken about.
+        await _page(rig, "enquiry_state", {**partial, "missing": ["phone"]})
+        assert _idle_windows(rig)[-1] != _TALK_THROUGH_MS
+
+
 async def test_a_booking_move_the_page_could_not_make_is_said_plainly() -> None:
     """A ``stage_result`` that failed reaches the model as one plain line, and
     the next move of the same class goes out: the page answered this one."""

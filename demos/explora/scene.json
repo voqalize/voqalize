@@ -314,7 +314,9 @@
       "id": "enquiry.changed",
       "slice": "enquiry",
       "op": "set",
-      "doc": "The enquiry form changed: a field filled or emptied, the reCAPTCHA ticked. The brain writes its own line for it."
+      "react": "speak",
+      "ask": "The visitor has been filling in the enquiry form by themselves. If they paused with required fields still empty, offer once, in one short sentence, to fill in the rest for them; if it is complete, say they can tick I'm not a robot and you will send it. Never read back what they typed.",
+      "doc": "The enquiry form changed: a field filled or emptied, the reCAPTCHA ticked. The brain writes its own line for it; done by the visitor, the agent may also speak up about it once they pause."
     }
   ]
 }

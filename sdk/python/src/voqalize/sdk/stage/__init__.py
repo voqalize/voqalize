@@ -40,6 +40,8 @@ from .policy import POLICY, Delivery, MoveClass, Policy, cueable
 from .promises import VERB_REACH, promise_in
 from .spec import (
     KITS_DIR,
+    REACT_GAP_S,
+    REACT_QUIET_MS,
     SPEC_VERSION,
     WINDOW,
     ArgSpec,
@@ -87,6 +89,8 @@ __all__ = [
     "MAX_CUE",
     "MAX_TOOL_ARGS",
     "POLICY",
+    "REACT_GAP_S",
+    "REACT_QUIET_MS",
     "RESULT_TIMEOUTS",
     "SPEC_VERSION",
     "STAGE_CONTRACT",

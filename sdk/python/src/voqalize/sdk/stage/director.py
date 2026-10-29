@@ -57,6 +57,7 @@ from .labels import tokens
 from .moves import Move, MoveSet
 from .policy import POLICY, MoveClass
 from .promises import claim_in, promise_in
+from .spec import REACT_GAP_S
 from .state import Folded, Mirror
 from .wire import (
     STAGE_CONTRACT,
@@ -309,6 +310,10 @@ class Stage:
     ) -> None:
         self._dispatch = dispatch
         self.mirror = mirror
+        #: An act of the visitor's the agent may speak up about, and when it
+        #: last did.
+        self._reaction: str | None = None
+        self._reacted_at = float("-inf")
         """The page's state as named acts folded it (:mod:`~voqalize.sdk.stage.state`),
         when the brain keeps one; a :class:`StageEvent` is folded into it."""
         self.moves = moves if isinstance(moves, MoveSet) else MoveSet(moves)
@@ -340,6 +345,37 @@ class Stage:
         self._turn_cued: list[list[str]] = []
 
     # ─── turns ─────────────────────────────────────────────────────────────
+
+    # ─── Speaking up about what the visitor did ──────────────────────────
+
+    def reaction(self) -> str | None:
+        """What the agent may speak up about now, of its own accord: the
+        ``ask`` of the latest act of the visitor's that the spec lets it speak
+        about (``react: speak``), unless it spoke up less than
+        :data:`~voqalize.sdk.stage.spec.REACT_GAP_S` ago. A brain that has one
+        waits :data:`~voqalize.sdk.stage.spec.REACT_QUIET_MS` of quiet (its
+        idle window), then takes it (:meth:`take_reaction`) and lets the model
+        say a sentence or two."""
+        if self._reaction is None:
+            return None
+        if self._clock() - self._reacted_at < REACT_GAP_S:
+            return None
+        return self._reaction
+
+    def take_reaction(self) -> str | None:
+        """:meth:`reaction`, taken: it is not offered again, and the next
+        waits out the gap."""
+        ask = self.reaction()
+        if ask is not None:
+            self._reaction = None
+            self._reacted_at = self._clock()
+        return ask
+
+    def visitor_spoke(self) -> None:
+        """The visitor said something: what they did before it is in the
+        context as its line, and their words come first; nothing is spoken up
+        about it."""
+        self._reaction = None
 
     def begin_turn(self) -> None:
         """Start a turn: forget what the last one said and sent. Optional —
@@ -672,7 +708,13 @@ class Stage:
             if self.mirror is None:
                 logger.warning("stage: {} came with no mirror to fold it into", event.name)
                 return None
-            return self.mirror.fold(event)
+            folded = self.mirror.fold(event)
+            if folded is not None and folded.ask:
+                self._reaction = folded.ask
+                logger.info(
+                    "stage: {} by the visitor; the agent may speak: {!r}", event.name, folded.ask
+                )
+            return folded
         if isinstance(event, StageHello):
             self.hello = event
             if event.contract != STAGE_CONTRACT:

@@ -1,0 +1,41 @@
+{
+  "kit": 1,
+  "id": "watch",
+  "version": "1.0.0",
+  "doc": "What the visitor does on the page by themselves, for a site that wants the agent to know: the part of the page they stay on, and the forms they fill in (field names only, never what they type). The page's watchers report them (`watchThings`, `watchForms` in @voqalize/stage); by default the agent keeps where they are reading to itself and hears one line when a form changes. A site makes either speak by choosing `react` for it when it takes the kit.",
+  "slices": [
+    {
+      "id": "view",
+      "doc": "the part of the page the visitor has stayed on, by its heading",
+      "fields": [{ "name": "thing" }, { "name": "label" }]
+    },
+    {
+      "id": "form",
+      "doc": "the form the visitor is filling in: which fields hold something and which required ones are still empty, by name, never their values",
+      "fields": [
+        { "name": "form" },
+        { "name": "filled", "type": "array" },
+        { "name": "missing", "type": "array" },
+        { "name": "left", "type": "integer" },
+        { "name": "done", "type": "boolean" }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "id": "view.changed",
+      "slice": "view",
+      "op": "set",
+      "note": "{by} is reading {label}",
+      "react": "silent",
+      "doc": "The visitor stayed on another part of the page."
+    },
+    {
+      "id": "form.changed",
+      "slice": "form",
+      "op": "set",
+      "note": "{by} is filling in {form}: {left} required fields left",
+      "doc": "The visitor filled or emptied fields of a form, and then paused."
+    }
+  ]
+}

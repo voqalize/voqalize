@@ -89,6 +89,9 @@ export interface EventSpec {
   readonly slice: string;
   readonly op?: "set" | "merge" | "clear";
   readonly note?: string;
+  /** What the agent makes of it when the visitor does it (the brain's). */
+  readonly react?: "silent" | "note" | "speak";
+  readonly ask?: string;
   readonly doc?: string;
 }
 
@@ -102,7 +105,12 @@ export interface SceneSpec {
   readonly slices?: readonly SliceSpec[];
   readonly events?: readonly EventSpec[];
   /** The kits taken; their parts are already merged into the lists above. */
-  readonly kits?: readonly { readonly id: string; readonly major: number; readonly moves?: readonly string[] }[];
+  readonly kits?: readonly {
+    readonly id: string;
+    readonly major: number;
+    readonly moves?: readonly string[];
+    readonly events?: Readonly<Record<string, { readonly react: "silent" | "note" | "speak"; readonly ask?: string }>>;
+  }[];
   readonly plugins?: readonly PluginSpec[];
 }
 

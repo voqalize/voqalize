@@ -33,3 +33,4 @@ export {
 } from "./scene.js";
 export { type PluginContext, PluginError, type PluginImpl, Plugins, type PluginSpec } from "./plugins.js";
 export { ATTR, findPart, findThing, partsOf, place, pressParts, showThing, type Thing, things } from "./markup.js";
+export { type FormState, formState, type Viewed, watchForms, type WatchOptions, watchThings } from "./watch.js";

@@ -49,6 +49,8 @@ __all__ = [
     "MAX_TOOL_ARGS",
     "PLUGIN_CLASSES",
     "PLUGIN_DEADLINES_MS",
+    "REACT_GAP_S",
+    "REACT_QUIET_MS",
     "SPEC_VERSION",
     "WINDOW",
     "ArgSpec",
@@ -249,7 +251,33 @@ class EventSpec(_Strict):
     {count} items``. ``{by}`` is who did it; any other placeholder must be a
     plain, public field of the slice, read after the event is folded. Empty:
     folded in silence."""
+    react: Literal["silent", "note", "speak"] = "note"
+    """What the agent does when the **visitor** does it (the agent's own moves
+    report through their results): ``silent`` keeps it in the mirror only;
+    ``note`` gives the model its line for the next turn; ``speak`` also lets
+    the agent say something short of its own accord once the visitor is quiet,
+    as ``ask`` says, at most once a while (:data:`REACT_GAP_S`). A site opts in
+    to a live conversation about what the visitor does event by event."""
+    ask: str = ""
+    """For ``speak``: what the agent should do, as an instruction to the
+    model ("If they stopped part way, offer to help with what is missing").
+    Placeholders as in ``note``."""
     doc: str = ""
+
+    @model_validator(mode="after")
+    def _react(self) -> Self:
+        if self.react == "speak" and not self.ask.strip():
+            raise ValueError(f"event {self.id!r} speaks: say what about, in 'ask'")
+        if self.react != "speak" and self.ask:
+            raise ValueError(f"event {self.id!r}: 'ask' is only for react 'speak'")
+        return self
+
+
+#: The least time between two things the agent says of its own accord about
+#: what the visitor did: a live conversation, not a commentary.
+REACT_GAP_S = 30.0
+#: How long the visitor is quiet before the agent speaks up about what they did.
+REACT_QUIET_MS = 1500
 
 
 class KitSpec(_Strict):
@@ -282,6 +310,17 @@ class KitUse(_Strict):
     moves: tuple[str, ...] | None = None
     """The kit's moves to take; all of them when left out. Its slices and
     events always come, since moves report into them."""
+    events: dict[str, Reaction] = Field(default_factory=dict)
+    """How much the agent makes of each of the kit's events, where this app
+    wants other than the kit's default: ``{"form.changed": {"react": "speak",
+    "ask": "…"}}``. The only part of a kit an app may set."""
+
+
+class Reaction(_Strict):
+    """An app's choice for one of a kit's events (``EventSpec.react``, ``ask``)."""
+
+    react: Literal["silent", "note", "speak"]
+    ask: str = ""
 
 
 #: The kits this SDK ships, by id: ``kits/<id>.json`` beside this module.
@@ -356,6 +395,15 @@ class PluginSpec(_Strict):
         return self
 
 
+def _reacting(event: EventSpec, choice: Reaction | None) -> EventSpec:
+    """A kit's event, with the reaction the app chose for it."""
+    if choice is None:
+        return event
+    return event.model_validate(
+        {**event.model_dump(by_alias=True), "react": choice.react, "ask": choice.ask}
+    )
+
+
 def _with_kits(data: dict[str, Any]) -> dict[str, Any]:
     """``data`` with the moves, slices and events of the kits it names, each
     taken once: a part the document already holds as the kit has it is the
@@ -381,10 +429,12 @@ def _with_kits(data: dict[str, Any]) -> dict[str, Any]:
         wanted = set(use.moves) if use.moves is not None else known
         if unknown := wanted - known:
             raise ValueError(f"kit {use.id!r} has no move {', '.join(sorted(unknown))}")
+        if stray := set(use.events) - {e.id for e in kit.events}:
+            raise ValueError(f"kit {use.id!r} has no event {', '.join(sorted(stray))}")
         parts: list[tuple[str, BaseModel]] = [
             *(("moves", m) for m in kit.moves if m.id in wanted),
             *(("slices", s) for s in kit.slices),
-            *(("events", e) for e in kit.events),
+            *(("events", _reacting(e, use.events.get(e.id))) for e in kit.events),
         ]
         for key, part in parts:
             mine = part.model_dump(mode="json", by_alias=True, exclude_defaults=True)
@@ -435,7 +485,7 @@ class StageSpec(_Strict):
             if got is None:
                 raise ValueError(f"event {e.id!r} changes slice {e.slice!r}, which is not declared")
             sayable = {f.name for f in got.fields if f.sayable}
-            for name in _placeholders(e.note) - {"by"}:
+            for name in (_placeholders(e.note) | _placeholders(e.ask)) - {"by"}:
                 if name not in sayable:
                     raise ValueError(
                         f"event {e.id!r}: its note names {{{name}}}, which is not one of "

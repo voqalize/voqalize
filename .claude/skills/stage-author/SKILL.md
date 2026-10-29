@@ -87,6 +87,14 @@ async def read_screen(self, request: ReadRequest) -> str:  # ReadRequest from st
     return self.stage.mirror.read(request.slice)
 ```
 
+To let the agent follow what the visitor does by themselves, take the `watch` kit
+(the part of the page they stay on, the forms they fill in, by field name) and set,
+per event, `react`: `silent`, `note` (the default) or `speak` with an `ask`. Use
+`speak` sparingly: the agent then talks of its own accord, once the visitor pauses,
+at most once every 30 s. In the brain, call `stage.visitor_spoke()` when they speak,
+and when an event's fold carries an `ask`, `stage.take_reaction()` and say it in the
+next short quiet spell.
+
 A session starts from the backend, not from the screen: load what the app owns (an
 account, a cart) from its API when the call starts, and let the page report only what the
 visitor does.

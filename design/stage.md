@@ -485,6 +485,30 @@ that change one slice):
   Cannon Home: the kit's listing and cart, and product, search, checkout) and answer
   `read_screen` from the mirror.
 
+### What the visitor does by themselves (built; opt-in per site)
+
+State events already carry the visitor's own acts (`by: "visitor"`); a site decides, event by
+event, how much the agent makes of them (`EventSpec.react`):
+
+- `silent`: kept in the mirror only (read with `read_screen`), no line;
+- `note` (the default): one line for the model's next turn, as before;
+- `speak`: also an `ask` (an instruction for the model, placeholders as in `note`) that the
+  director offers once the **visitor** did it and it changed something (`Folded.ask`;
+  never for the agent's own moves, which report through their results): `Stage.reaction()`
+  / `take_reaction()`, at most once per `REACT_GAP_S` (30 s), dropped when the visitor speaks
+  (`Stage.visitor_spoke()`). The brain says it in its next short quiet spell
+  (`REACT_QUIET_MS`, 1.5 s), and a line of its own for the same moment comes first.
+
+The page's side: the `watch` kit (`view` and `form` slices; `view.changed` silent,
+`form.changed` a note by default) and its watchers in `@voqalize/stage`: `watchThings` (the
+`data-stage-thing` taking most of the window, held `dwellMs`, 1.5 s: a part scrolled past is
+nothing) and `watchForms` (`form[data-stage-form]`, reported once typing pauses `quietMs`,
+1.2 s: the names of the fields that hold something and of the required ones still empty,
+never a value). The script host starts them when the spec takes the kit. A site takes the kit
+and picks each event's reaction: `"kits": [{"id": "watch", "major": 1, "events":
+{"form.changed": {"react": "speak", "ask": "…"}}}]` (`KitUse.events`, the only part of a kit
+an app may set). Explora's enquiry form speaks (dev test); Cannon Home takes none of it.
+
 ### Conformance (built)
 
 - **Static: `voqalize stage check spec.json… [--strict] [--budget N]`** (`check.py`). Beyond

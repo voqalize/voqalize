@@ -45,6 +45,10 @@ class Folded:
     """Whether the slice is different for it. A page that reports the same
     state again (a cart re-read on every page load) changed nothing: no new
     version, and no line, since nobody did anything."""
+    ask: str | None = None
+    """For an event the spec lets the agent speak about (``react: speak``),
+    done by the visitor and changing something: what the agent should say,
+    as an instruction for the model. ``None`` otherwise."""
 
 
 _SCALARS: dict[str, tuple[type, ...]] = {
@@ -179,13 +183,16 @@ class Mirror:
         self._values[sl.id] = after
         self._versions[sl.id] += 1
         version = self._versions[sl.id]
+        values = _Blank({k: _say(v) for k, v in {**after, "by": _WHO[event.by]}.items()})
         note = None
-        if spec.note:
-            values = {**self._values[sl.id], "by": _WHO[event.by]}
-            text = spec.note.format_map(_Blank({k: _say(v) for k, v in values.items()}))
+        if spec.note and spec.react != "silent":
+            text = spec.note.format_map(values)
             note = f"[{text[:1].upper()}{text[1:]}]"
+        ask = None
+        if spec.react == "speak" and event.by == "visitor":
+            ask = spec.ask.format_map(values)
         logger.info("stage: {} by {} -> {} v{}", event.name, event.by, sl.id, version)
-        return Folded(sl.id, version, note)
+        return Folded(sl.id, version, note, ask=ask)
 
     def read(self, slice_id: str) -> str:
         """The slice in plain lines, for the model: at most the slice's window

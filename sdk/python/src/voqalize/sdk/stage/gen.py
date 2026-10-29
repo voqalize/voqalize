@@ -242,8 +242,8 @@ def page_spec(spec: StageSpec) -> dict[str, Any]:
         sl.pop("window", None)
         _drop_docs(sl["fields"])
     for event in data.get("events", ()):
-        event.pop("note", None)
-        event.pop("doc", None)
+        for field in ("note", "doc", "react", "ask"):
+            event.pop(field, None)
     data.pop("kits", None)  # already merged into the moves, slices and events
     for plugin in data.get("plugins", ()):
         plugin.pop("doc", None)

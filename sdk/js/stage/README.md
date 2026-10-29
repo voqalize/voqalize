@@ -51,6 +51,14 @@ const stage = stagePage(client, moves);
 Each performer rings before it acts, refuses with the options the page offers
 instead of guessing, and returns one short line the agent can repeat.
 
+## What the visitor does
+
+For a site that wants the agent to know, `watchThings(report)` reports the
+`data-stage-thing` the visitor stays on, and `watchForms(report)` each
+`form[data-stage-form]` once they pause typing, by field name only. A spec that
+takes the `watch` kit gets both from the script host, and chooses per event
+whether the agent stays silent, hears a line, or speaks up.
+
 ## `stage build`
 
 A spec written in TypeScript with `defineScene` becomes the `scene.json` the

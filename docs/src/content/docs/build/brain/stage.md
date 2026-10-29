@@ -35,6 +35,16 @@ tour of a page is one reply, with no tool round trip between its parts.
   and the model hears one line naming each act, never the values; it reads the
   values through a tool when it needs them.
 
+## What the visitor does
+
+A state event done by the visitor (`by: "visitor"`) reaches the agent too, and the
+site decides how much it makes of it, event by event: `silent` (kept, read on
+demand), `note` (one line for its next turn, the default) or `speak` (it may also
+say something short of its own accord once the visitor pauses, as the event's
+`ask` says, now and then and never over the visitor). The `watch` kit reports the
+part of the page the visitor stays on and the forms they fill in, by field name
+only. Nothing is reported unless a site takes it.
+
 ## The Stage Spec
 
 An app's moves, slices and state events are declared once, in `scene.json`, and

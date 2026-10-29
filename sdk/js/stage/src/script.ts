@@ -22,6 +22,7 @@ import { pressParts, showThing } from "./markup.js";
 import { Moves, type Performer } from "./moves.js";
 import { type StagePage, stagePage } from "./page.js";
 import { defineScene, type Scene, type SceneSpec } from "./scene.js";
+import { watchForms, type WatchOptions, watchThings } from "./watch.js";
 import { Spotlight, type SpotlightTheme } from "./spotlight.js";
 
 /** The stock performer for a cue's verb, acting on `data-stage-*` markup. */
@@ -37,6 +38,8 @@ export interface ScriptOptions {
   lang?: string;
   /** The page's own performers, by move id; they win over the stock ones. */
   performers?: Readonly<Record<string, Performer<never>>>;
+  /** Timing for the watchers a spec taking the `watch` kit starts. */
+  watch?: WatchOptions;
 }
 
 export interface ScriptStage {
@@ -70,12 +73,22 @@ export async function attach(client: StageClient, opts: ScriptOptions): Promise<
   }
   if (unbound.length) console.warn(`stage: nothing on this page performs ${unbound.join(", ")}`);
   const page = stagePage(client, moves, { lang: opts.lang });
+  // A spec that takes the `watch` kit wants the agent to know what the
+  // visitor does here: the parts they stay on, the forms they fill in.
+  const declares = (id: string) => scene.spec.events?.some((e) => e.id === id) ?? false;
+  const send = (id: string, data: unknown) => page.send(scene.event(id as never, data as never, moves.author()));
+  const stops: (() => void)[] = [];
+  if (declares("view.changed")) stops.push(watchThings((v) => send("view.changed", v), opts.watch));
+  if (declares("form.changed")) stops.push(watchForms((f) => send("form.changed", f), opts.watch));
   return {
     scene,
     moves,
     page,
     unbound,
     navigated: () => page.hello(),
-    detach: () => page.detach(),
+    detach: () => {
+      for (const stop of stops) stop();
+      page.detach();
+    },
   };
 }
