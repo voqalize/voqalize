@@ -1832,3 +1832,54 @@ def test_she_knows_contact_us_has_an_email_and_a_form_and_no_phone() -> None:
     assert "The site gives no phone number." in _SYSTEM_INSTRUCTION
     assert "info@karnatakadigital.in" in _SYSTEM_INSTRUCTION
     assert "a contact form" in _SYSTEM_INSTRUCTION
+
+
+# ─── A policy KDEM hands out through its own page's form ──────────────────────
+
+POLICIES = f"{SITE}/policies/"
+GUIDELINES_PDF = (
+    f"{SITE}/wp-content/uploads/2026/05/"
+    "Draft-Operational-Guidelines-for-Karnataka-Startup-Policy-2025-2030_1.pdf"
+)
+
+
+async def test_a_policy_behind_the_download_form_is_cited_and_its_page_is_the_card() -> None:
+    """The startup guidelines (where the PF and ESI affidavit annexure is) are
+    on the site only behind the policies page's download form. Aria answers
+    from them, says where, and the card is the policies page, so the visitor
+    gets the document the way KDEM hands it out."""
+    pages = dict(SNAPSHOT.pages)
+    pages[POLICIES] = _stored(POLICIES, "Policies", "policies-resources", "Our policies.")
+    pages[GUIDELINES_PDF] = StoredPage(
+        GUIDELINES_PDF,
+        "Draft Operational Guidelines for the Karnataka Startup Policy 2025-30",
+        "policies-resources",
+        "auto",
+        "",
+        "",
+        "",
+        (
+            "Reimbursement of PF and ESI. Documents: a notarised affidavit executed on "
+            "stamp paper as presented in Annexure 10.2.",
+        ),
+        kind="pdf",
+    )
+    KNOWLEDGE.prime(replace(SNAPSHOT, pages=pages))
+    llm = ScriptedGemini(
+        {
+            "Where is the PF and ESI affidavit annexure?": [
+                call("search_kdem", request={"query": "PF ESI reimbursement affidavit annexure"}),
+                reply_and_call(
+                    "It is Annexure 10.2 of the startup guidelines, on page 1.",
+                    "show_document",
+                    request={"url": GUIDELINES_PDF},
+                ),
+            ],
+        }
+    )
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says("Where is the PF and ESI affidavit annexure?")
+        found = _results(llm.captured_contents[-1])["search_kdem"]
+        assert 'downloaded from the KDEM page "Policies"' in found
+        assert rig.command("show_link") == {"url": POLICIES, "title": "Policies"}

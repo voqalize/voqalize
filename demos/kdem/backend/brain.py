@@ -734,6 +734,10 @@ def _page(url: str) -> tuple[str, str] | None:
         # A PDF on another site: the snippet shows only karnatakadigital.in, so
         # the card is the approved page that links it, if the index holds it.
         return _via(theirs)
+    if theirs is not None and (offered := ALLOWLIST.offered_by(theirs)) is not None:
+        # A policy KDEM hands out through its own page's download form: the
+        # card is that page, so the visitor gets it the way KDEM offers it.
+        return _page(offered.url) if KNOWLEDGE.kb.page(theirs) is not None else None
     canonical = ALLOWLIST.canonical(url)
     if canonical is None or ALLOWLIST.is_excluded(canonical):
         return None
@@ -763,6 +767,8 @@ def _source(p: Passage) -> str:
     source = f"{p.title} ({where})"
     if off_site(p.url) and (via := _via(p.url)) is not None:
         source += f', linked from the KDEM page "{via[1]}"'
+    elif (offered := ALLOWLIST.offered_by(p.url)) is not None:
+        source += f', downloaded from the KDEM page "{offered.title}"'
     return source
 
 

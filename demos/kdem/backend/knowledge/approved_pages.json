@@ -115,7 +115,13 @@
     {"url": "https://karnatakadigital.in/nipuna-karnataka-guidelines/", "title": "NIPUNA Karnataka Guidelines", "section": "focus-areas-programmes", "aliases": []},
     {"url": "https://karnatakadigital.in/nipuna-karnataka-proposal/", "title": "NIPUNA Karnataka Proposal", "section": "focus-areas-programmes", "aliases": []},
     {"url": "https://karnatakadigital.in/government-first/", "title": "Government First Initiative", "section": "focus-areas-programmes", "aliases": [], "hub_for": "focus-areas-programmes"},
-    {"url": "https://karnatakadigital.in/policies/", "title": "Policies", "section": "policies-resources", "aliases": ["https://karnatakadigital.in/ourpolicies/"], "hub_for": "policies-resources"},
+    {"url": "https://karnatakadigital.in/policies/", "title": "Policies", "section": "policies-resources", "aliases": ["https://karnatakadigital.in/ourpolicies/"], "hub_for": "policies-resources", "documents": [
+       {"url": "https://karnatakadigital.in/wp-content/uploads/2026/01/KA_Start-up-Policy-2025-30_Book-A4-Main.pdf", "title": "Karnataka Startup Policy 2025-30"},
+       {"url": "https://karnatakadigital.in/wp-content/uploads/2026/05/Draft-Operational-Guidelines-for-Karnataka-Startup-Policy-2025-2030_1.pdf", "title": "Draft Operational Guidelines for the Karnataka Startup Policy 2025-30"},
+       {"url": "https://karnatakadigital.in/wp-content/uploads/2024/06/Karnataka-Startup-Policy-2022-2027.pdf", "title": "Karnataka Startup Policy 2022-27"},
+       {"url": "https://karnatakadigital.in/wp-content/uploads/2026/02/Operational-Guidelines-for-Karnataka-Startup-Policy-2022-2027_compressed.pdf", "title": "Operational Guidelines for the Karnataka Startup Policy 2022-27"},
+       {"url": "https://karnatakadigital.in/wp-content/uploads/2024/06/Karnataka-AVGC-XR-Policy-2024-2029.pdf", "title": "Karnataka AVGC-XR Policy 2024-29"}
+     ]},
     {"url": "https://karnatakadigital.in/guidelines/", "title": "Guidelines", "section": "policies-resources", "aliases": [], "hub_for": "policies-resources"},
     {"url": "https://karnatakadigital.in/resource/", "title": "KDEM Resources and Reports", "section": "policies-resources", "aliases": ["https://karnatakadigital.in/resources/", "https://karnatakadigital.in/reports/"], "hub_for": "policies-resources"},
     {"url": "https://karnatakadigital.in/newsletter-2024/", "title": "KDEM Monthly Newsletter", "section": "policies-resources", "aliases": []},

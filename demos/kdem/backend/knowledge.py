@@ -330,6 +330,9 @@ class ApprovedPage:
     hub_for: str | None = None
     """A new page this page links to is added to that section, when the section
     is approved for automatic additions."""
+    documents: tuple[tuple[str, str], ...] = ()
+    """PDFs this page offers without a link in its text, as ``(url, title)``:
+    the policies behind its download form. Read as if the page linked them."""
 
 
 @dataclass(frozen=True)
@@ -389,6 +392,11 @@ class Allowlist:
             for a in page.aliases:
                 if normalize(a) != a:
                     raise _fail(f"alias {a} of {page.url} is not in canonical form")
+            for doc_url, _title in page.documents:
+                if not doc_url.startswith(SITE + "/") or pdf_url(doc_url) is None:
+                    raise _fail(f"document {doc_url} of {page.url} is not a PDF on {SITE}")
+            if page.documents and not section.read_pdfs:
+                raise _fail(f"{page.url} lists documents, but {page.section!r} reads no PDFs")
             if page.hub_for is not None:
                 target = self.sections.get(page.hub_for)
                 if target is None or not (target.approved and target.auto_add):
@@ -429,6 +437,10 @@ class Allowlist:
         for i, value in enumerate(_list(doc.get("pages"), "pages")):
             p = _obj(value, f"pages[{i}]")
             hub = p.get("hub_for")
+            documents: list[tuple[str, str]] = []
+            for j, d in enumerate(_list(p.get("documents", []), f"pages[{i}].documents")):
+                doc_ = _obj(d, f"pages[{i}].documents[{j}]")
+                documents.append((_str(doc_, "url"), _str(doc_, "title")))
             pages.append(
                 ApprovedPage(
                     url=_str(p, "url"),
@@ -436,6 +448,7 @@ class Allowlist:
                     section=_str(p, "section"),
                     aliases=tuple(_strs(p.get("aliases", []), f"pages[{i}].aliases")),
                     hub_for=hub if isinstance(hub, str) else None,
+                    documents=tuple(documents),
                 )
             )
         return cls(
@@ -528,6 +541,16 @@ class Allowlist:
     def hubs(self) -> dict[str, str]:
         """Approved hub URL → the section its new links are added to."""
         return {p.url: p.hub_for for p in self.pages if p.hub_for is not None}
+
+    def offered_by(self, url: str) -> ApprovedPage | None:
+        """The approved page that offers the PDF ``url`` behind its own form
+        (its ``documents``), if one does. Such a PDF is read and cited, and the
+        card for it is that page, so the visitor gets it the way KDEM offers it."""
+        target = pdf_url(url)
+        for page in self.pages:
+            if any(pdf_url(d) == target for d, _title in page.documents):
+                return page
+        return None
 
     @property
     def pdf_sources(self) -> tuple[ApprovedPage, ...]:
@@ -2457,7 +2480,7 @@ def linked_pdfs(allowlist: Allowlist, pages: Mapping[str, StoredPage]) -> dict[s
         page = pages.get(ap.url)
         if page is None:
             continue
-        for link, text in page.pdf_links or ():
+        for link, text in (*(page.pdf_links or ()), *ap.documents):
             url = pdf_url(link)
             if url is None:
                 continue
