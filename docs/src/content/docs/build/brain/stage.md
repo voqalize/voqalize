@@ -3,11 +3,12 @@ title: Stage
 description: Stage lets the agent show and do things on a page while it talks. Moves are declared once in a Stage Spec; cues in the agent's reply fire as the voice reaches their words, and every move is ringed by the spotlight and answered with one result.
 ---
 
-:::caution[Not released yet]
-Stage is being proved on our own sites first. `voqalize.sdk.stage` and
-`@voqalize/stage` are not in a published release, so nothing on this page can be
-installed yet. It describes what the next release adds.
-:::
+Stage ships in two packages, one for each half. Pin both:
+
+```bash
+pip install voqalize-agent-sdk==0.12.0      # the brain: voqalize.sdk.stage
+pnpm add @voqalize/stage@0.1.0              # the page
+```
 
 [Actions](/build/brain/actions/) move a screen when a tool runs. Stage moves it
 **as the agent speaks**: the agent says "These are the king-size sheets", and
