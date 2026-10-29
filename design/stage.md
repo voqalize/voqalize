@@ -83,7 +83,13 @@ down `ui-command`: `stage_cue {call_ref, move, verb, args[], at, before, unit}` 
 `stage_move {call_ref, move, args{}, when: now|quiet}`
 up `ui-event`: `stage_result {call_ref, move, outcome, detail?, refused[], moved, ms, fired?,
 received_ms?, queued_ms?, fired_ms?, ringed_ms?, lag_ms?, late}` ·
-`stage_progress {call_ref, move, phase, ms}` · `stage_hello {runtime, contract, url, title}`
+`stage_progress {call_ref, move, phase, ms}` · `stage_hello {runtime, contract, url?, title?}`
+
+What the page says of its own address is origin and path only (`sdk/js/stage/src/address.ts`):
+`hello`'s `url`, a carried move's `arrived` detail and the extension's `tabs_changed` drop the
+query and fragment and cut the path at 160 characters, and none of them sends the title. Both
+are where a page keeps the person's data (a platform consumer caught `?key=tok_…` and
+"Order #KT1001" in a hello). A page that wants more sends its own `StageHello` through `send`.
 
 Every field added since the first port is optional, so a page that does not send it still
 parses. Result telemetry, all milliseconds from the page's receipt of the move: `received_ms`
@@ -154,9 +160,14 @@ class Stage:
                  clock: Callable[[], float] = time.monotonic) -> None: ...
     def cued(self, turn: AsyncGenerator[Speech, None]) -> AsyncGenerator[Speech, None]:
         """Strip cues from SpeechChunks, resolve, dispatch StageCue with a fresh call_ref."""
-    def send(self, move: str, args: dict, *, when: Literal["now","quiet"]="now") -> str | None:
+    def send(self, move: str, args: dict, *, when: Literal["now","quiet"]="now",
+             queue: bool = True) -> str | None:
         """Tool-delivered move: one at a time per policy.serial; returns the call_ref, or
-        None when it was queued behind the running one (it is sent when that one answers)."""
+        None when it was queued behind the running one (it is sent when that one answers).
+        queue=False (overload -> str): sent now, never queued or refused, for an app whose
+        own action runner schedules moves; still minted, timed, counted for the turn and
+        matched. A serial one becomes the running move: later queued sends wait behind it,
+        and the move it overtook no longer holds the queue."""
     # overloads: StageResult -> StageResult | None; StageHello -> None;
     # StageProgress -> StageProgress | None
     def handle(self, event: StageResult | StageHello | StageProgress) -> ...:
@@ -170,6 +181,10 @@ class Stage:
     def move_of(self, call_ref: str) -> Move | None: ...  # rarely needed: results name it
     def expire(self) -> list[StageResult]:
         """Results that timed out, as outcome="unknown"."""
+    def abandon(self, call_ref: str, detail: str | None = None) -> StageResult | None:
+        """The app's runner stopped waiting: that one move as expire() reports it
+        (unknown now, queue and promises settled the same way, a later answer `late`);
+        None when it is not in flight. Other moves keep their time."""
     def next_deadline(self) -> float | None: ...       # on the director's clock
     async def watch(self, on_expired, *, poll_s=0.25) -> None:
         """expire() as each deadline falls (≤ poll_s late), forever; one task per session."""
@@ -597,8 +612,11 @@ an app may set). Explora's enquiry form speaks (dev test); Cannon Home takes non
 ### Releasing (release candidates first)
 
 - Python: `voqalize-agent-sdk` `0.12.0-rc1` (PEP 440 `0.12.0rc1`, a pre-release pip installs
-  only when asked), tag `python-sdk-v0.12.0-rc1` on `main` once this PR is merged.
-- npm: `@voqalize/stage` `0.1.0-rc.1`, tag `stage-v0.1.0-rc.1`,
+  only when asked), tag `python-sdk-v0.12.0-rc1`; then `0.12.0-rc2`, tag
+  `python-sdk-v0.12.0-rc2` (the hello's origin and path only; `send(queue=False)` and
+  `abandon`).
+- npm: `@voqalize/stage` `0.1.0-rc.1`, tag `stage-v0.1.0-rc.1`; then `0.1.0-rc.2`, tag
+  `stage-v0.1.0-rc.2`,
   `.github/workflows/release-npm-stage.yml`: gate, `pnpm build`, `scripts/publish-manifest.mjs`
   (exports to `dist`, `private` dropped, on the run's own checkout), `npm publish --provenance`
   under `next` for a pre-release. Needs the `npm` environment and npm trusted publishing for

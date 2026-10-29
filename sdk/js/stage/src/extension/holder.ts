@@ -35,6 +35,7 @@
  * for 15 s; the holder then closes.
  */
 
+import { pageAddress } from "../address.js";
 import { type Attached, attachStage, type ClientHandler, interruptedResult, staleResult, type StageClient } from "../attach.js";
 import { type FireInfo, Timeline, withFire } from "../timeline.js";
 import { sendAppEvent, type StageCue, type StageMove, type StageProgress, type StageResult } from "../wire.gen.js";
@@ -277,7 +278,9 @@ export function startHolder(site: SiteConfig, config: HolderConfig): void {
   function sendTabs(): void {
     if (!client || !ready) return;
     if (active === null || !tabs.has(active)) active = tabs.keys().next().value ?? null;
-    const list = [...tabs.values()].filter((t) => t.url).map((t) => ({ tab_id: String(t.id), url: t.url, title: t.title }));
+    // The agent hears each tab's origin and path, never its query, fragment
+    // or title (`address.ts`); the holder keeps the whole address for itself.
+    const list = [...tabs.values()].filter((t) => t.url).map((t) => ({ tab_id: String(t.id), url: pageAddress(t.url) }));
     client.sendUIEvent("tabs_changed", { tabs: list, active: active === null ? "" : String(active) });
   }
 

@@ -151,7 +151,12 @@ class StageHello(AppEvent, name="stage_hello"):
     runtime: str
     contract: int
     url: str = ""
+    """The page's origin and path. ``@voqalize/stage`` never sends its query or
+    fragment, where a page keeps tokens, order ids and emails; a page that
+    wants the agent told more sends its own hello."""
     title: str = ""
+    """Empty unless the page sends it itself: a title is often the person's own
+    data ("Order #1234 — Jane"), so ``@voqalize/stage`` leaves it out."""
 
 
 class StageEvent(AppEvent, name="stage_event"):

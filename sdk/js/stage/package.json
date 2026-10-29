@@ -1,6 +1,6 @@
 {
   "name": "@voqalize/stage",
-  "version": "0.1.0-rc.1",
+  "version": "0.1.0-rc.2",
   "private": true,
   "description": "The page half of Stage: makes the moves an agent's reply names as its voice reaches them, rings what it points at, and reports one result per move. Takes a pipecat client that already exists; never makes or wraps one.",
   "license": "Apache-2.0",

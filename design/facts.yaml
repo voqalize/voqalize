@@ -166,13 +166,16 @@ facts:
       pattern: '^name = "(.+)"$'
 
   sdk.python.version.tree:
-    value: '0.12.0-rc1'
+    value: '0.12.0-rc2'
     source: sdk/python/pyproject.toml:3
     verified: 2026-10-29
     derive:
       file: sdk/python/pyproject.toml
       pattern: '^version = "(.+)"$'
     note: >-
+      Bumped to 0.12.0-rc2 on 2026-10-29, the second release candidate: the
+      page's hello carries its origin and path only, and Stage.send(queue=False)
+      and Stage.abandon for an app with its own action runner. Additive.
       Bumped to 0.12.0-rc1 on 2026-10-29, a release candidate for Stage
       (voqalize.sdk.stage) and Config.ack: a pre-release, so pip installs it
       only when asked and the published line stays 0.11.0. Additive on the wire.

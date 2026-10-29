@@ -13,6 +13,7 @@
  * hooks.
  */
 
+import { pageAddress } from "./address.js";
 import type { Timeline } from "./timeline.js";
 import {
   asUiAction, sendAppEvent, type StageCue, type StageEvent, type StageHello, type StageMove, type StageProgress, type StageResult,
@@ -61,7 +62,9 @@ export interface Attached {
   /** A result, a progress (`phase`), a hello, or a state event
    *  (`scene.event(...)`), as the `ui-event` it is. */
   send(ev: StageResult | StageHello | StageProgress | StageEvent): void;
-  /** `stage_hello` for this page. */
+  /** `stage_hello` for this page: its origin and path, never its query,
+   *  fragment or title (`address.ts`). A page that wants the agent told more
+   *  sends its own `StageHello` through `send`. */
   hello(): void;
   detach(): void;
 }
@@ -142,7 +145,7 @@ export function attachStage(client: StageClient, opts: AttachOptions): Attached 
   return {
     send,
     hello() {
-      send({ runtime: STAGE_RUNTIME, contract: STAGE_CONTRACT, url: location.href, title: document.title });
+      send({ runtime: STAGE_RUNTIME, contract: STAGE_CONTRACT, url: pageAddress(location.href) });
     },
     detach() {
       for (const [name, fn] of handlers) client.off(name, fn);

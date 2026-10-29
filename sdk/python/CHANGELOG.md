@@ -15,7 +15,35 @@ The public series has now caught up to them, so **a heading carrying
 are different releases that happen to share a number; the pre-restart entries are
 kept for the history, and nothing installable was ever cut from them.
 
-## Unreleased
+## 0.12.0-rc2
+
+The second release candidate; `pip install voqalize-agent-sdk` still installs
+0.11.0, and this one is installed only by asking for it
+(`voqalize-agent-sdk==0.12.0rc2`). It pairs with `@voqalize/stage` `0.1.0-rc.2`.
+
+### Added
+
+- **`Stage.send(..., queue=False)` and `Stage.abandon(call_ref, detail=None)`,
+  for an app with its own action runner.** `send` both accounts for a move and
+  schedules it; an app whose runner already has its own gates, queue and
+  timeouts wants only the accounting. With `queue=False` the move is sent now —
+  never queued, never refused, so it always returns its `call_ref` (and types as
+  `str`) — and is still timed, counted for the turn's promises and matched to
+  the page's result. A serial move sent that way becomes the running move, so a
+  later queued `send` waits behind it. `abandon` reports one move `unknown` now,
+  exactly as `expire` would when its time ran out, and a later answer from the
+  page comes back `late`; every other move keeps its time. The default `send`
+  is unchanged.
+
+### Changed
+
+- **`StageHello` carries the page's origin and path, and no title.** The page
+  half (`@voqalize/stage`, from `0.1.0-rc.2`) no longer sends a page's query
+  string, fragment or title in its hello, in a carried move's result, or in the
+  extension's `tabs_changed`: that is where a page keeps tokens, order numbers
+  and the visitor's name. `url` and `title` were already optional, so a brain
+  parses both the old and the new hello; `title` is empty unless the page sends
+  its own hello. The contract stays at 1.
 
 ## 0.12.0-rc1
 
