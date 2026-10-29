@@ -4,9 +4,8 @@ The page half of Stage: the agent's moves, made on the page as its voice reaches
 their words, each ringed by the spotlight before anything changes and answered
 with one result. The brain half is `voqalize.sdk.stage` in `voqalize-agent-sdk`.
 
-**Release candidates only.** The current one is `0.1.0-rc.2`, published under
-npm's `next` tag beside `voqalize-agent-sdk` `0.12.0rc2`, so
-`npm install @voqalize/stage` gives nothing unstable by default.
+**`0.1.0` is the first stable release**, published under npm's `latest` tag
+beside `voqalize-agent-sdk` `0.12.0`, so `npm install @voqalize/stage` installs it.
 In this repository the package runs from its TypeScript source; what is
 published is the compiled `dist` (`pnpm build`), with the same entry points.
 
