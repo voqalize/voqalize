@@ -30,6 +30,7 @@
  * of one move, once.
  */
 
+import { clipPath } from "./address.js";
 import { RING_SCROLL_MS, reveal, scrollToEl, sleep } from "./dom.js";
 import type { RingOptions, Spotlight } from "./spotlight.js";
 import type { Refusal, StageProgress, StageResult } from "./wire.gen.js";
@@ -462,24 +463,26 @@ export class Moves {
   }
 }
 
-/** The result of a carried move with no `then`, on the page it landed on. */
+/** The result of a carried move with no `then`, on the page it landed on.
+ *  Its detail names hosts and paths only, never a query or a fragment. */
 export function arrived(c: Carried, here: string = location.href): StageResult {
   const base = { call_ref: c.call_ref, move: c.move, refused: [], moved: false, ms: 0 };
   const now = new URL(here);
-  if (!c.expect) return { ...base, outcome: "applied", detail: `the page loaded ${now.pathname}` };
+  const at = clipPath(now.pathname);
+  if (!c.expect) return { ...base, outcome: "applied", detail: `the page loaded ${at}` };
   let want: URL;
   try {
     want = new URL(c.expect, now);
   } catch {
-    return { ...base, outcome: "applied", detail: `opened ${now.pathname}` };
+    return { ...base, outcome: "applied", detail: `opened ${at}` };
   }
   const host = (u: URL) => u.host.replace(/^www\./i, "").toLowerCase();
   const path = (u: URL) => u.pathname.replace(/\/+$/, "") || "/";
-  if (host(want) === host(now) && path(want) === path(now)) return { ...base, outcome: "applied", detail: `opened ${now.pathname}` };
+  if (host(want) === host(now) && path(want) === path(now)) return { ...base, outcome: "applied", detail: `opened ${at}` };
   return {
     ...base,
     outcome: "partial",
-    detail: `asked for ${host(want)}${want.pathname}; the page that came up is ${host(now)}${now.pathname}`,
+    detail: `asked for ${host(want)}${clipPath(want.pathname)}; the page that came up is ${host(now)}${at}`,
   };
 }
 

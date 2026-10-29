@@ -110,6 +110,13 @@ creates, connects or wraps one.
 - **React**: `stageHooks(React)` from `@voqalize/stage/react` gives `useStage`,
   `useMove`, `useSlice` and `useNavigated`. The app hands its own React in.
 
+On connect and on every page load the page says hello: the runtime, its contract
+version and the page's address, as origin and path only. The query string, the
+fragment and the page's title are never sent, because that is where a page keeps
+sign-in tokens, order numbers and the visitor's name; a path longer than 160
+characters is cut. A page that wants the agent told more sends its own
+`stage_hello` with `send`.
+
 A **performer** is the page's code for one move. It rings its target, acts, and
 returns one short line the agent can repeat:
 

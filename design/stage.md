@@ -83,7 +83,13 @@ down `ui-command`: `stage_cue {call_ref, move, verb, args[], at, before, unit}` 
 `stage_move {call_ref, move, args{}, when: now|quiet}`
 up `ui-event`: `stage_result {call_ref, move, outcome, detail?, refused[], moved, ms, fired?,
 received_ms?, queued_ms?, fired_ms?, ringed_ms?, lag_ms?, late}` ·
-`stage_progress {call_ref, move, phase, ms}` · `stage_hello {runtime, contract, url, title}`
+`stage_progress {call_ref, move, phase, ms}` · `stage_hello {runtime, contract, url?, title?}`
+
+What the page says of its own address is origin and path only (`sdk/js/stage/src/address.ts`):
+`hello`'s `url`, a carried move's `arrived` detail and the extension's `tabs_changed` drop the
+query and fragment and cut the path at 160 characters, and none of them sends the title. Both
+are where a page keeps the person's data (a platform consumer caught `?key=tok_…` and
+"Order #KT1001" in a hello). A page that wants more sends its own `StageHello` through `send`.
 
 Every field added since the first port is optional, so a page that does not send it still
 parses. Result telemetry, all milliseconds from the page's receipt of the move: `received_ms`

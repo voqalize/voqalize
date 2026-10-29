@@ -8,7 +8,7 @@ from collections.abc import AsyncGenerator
 import pytest
 
 from voqalize.sdk import Action
-from voqalize.sdk.events import Speech, SpeechChunk, SpeechEnd, SpeechStart
+from voqalize.sdk.events import RTVIMessage, RTVIType, Speech, SpeechChunk, SpeechEnd, SpeechStart
 from voqalize.sdk.stage import (
     CUE_WAIT_S,
     RESULT_TIMEOUTS,
@@ -22,6 +22,7 @@ from voqalize.sdk.stage import (
     StageCue,
     StageHello,
     StageMove,
+    StagePageEvents,
     StageResult,
 )
 
@@ -159,6 +160,27 @@ def test_a_hello_is_kept_and_not_a_result() -> None:
     stage, _, _ = _stage()
     hello = StageHello(runtime="test", contract=STAGE_CONTRACT, url="https://x.test/")
     assert stage.handle(hello) is None and stage.hello == hello
+
+
+def test_a_hello_with_no_title_and_no_query_parses_and_is_kept() -> None:
+    # What @voqalize/stage sends by default: origin and path, no title.
+    msg = RTVIMessage(
+        type=RTVIType.UI_EVENT,
+        data={
+            "event": "stage_hello",
+            "payload": {
+                "runtime": "@voqalize/stage",
+                "contract": STAGE_CONTRACT,
+                "url": "https://x.test/orders",
+            },
+        },
+    )
+    hello = StagePageEvents.parse(msg)
+    assert isinstance(hello, StageHello) and hello.title == ""
+    stage, _, _ = _stage()
+    assert stage.handle(hello) is None and stage.hello == hello
+    bare = StageHello.model_validate({"runtime": "x", "contract": STAGE_CONTRACT})
+    assert bare.url == "" and bare.title == ""
 
 
 # ─── cues ───────────────────────────────────────────────────────────────────

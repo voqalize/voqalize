@@ -252,3 +252,15 @@ describe("a job a page load cut off", () => {
     expect(results()).toMatchObject([{ call_ref: "m1", fired: "now", queued_ms: 0, received_ms: 700, fired_ms: 50 }]);
   });
 });
+
+describe("what the agent hears of the tabs", () => {
+  it("tells tabs_changed each tab's origin and path, never its query, fragment or title", async () => {
+    const { call, a } = await live();
+    a.say({ k: "where", url: "https://shop.test/orders/KT1001?key=tok_secret#jane@example.com", title: "Order #KT1001 — Jane", front: true });
+    await vi.advanceTimersByTimeAsync(0);
+    const all = call.sent.filter((s) => s.event === "tabs_changed");
+    expect(all.at(-1)!.payload).toEqual({ tabs: [{ tab_id: "1", url: "https://shop.test/orders/KT1001" }], active: "1" });
+    const text = JSON.stringify(all);
+    for (const leak of ["tok_secret", "jane@", "Jane", "Shop", "title"]) expect(text).not.toContain(leak);
+  });
+});

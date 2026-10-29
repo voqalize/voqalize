@@ -17,6 +17,16 @@ kept for the history, and nothing installable was ever cut from them.
 
 ## Unreleased
 
+### Changed
+
+- **`StageHello` carries the page's origin and path, and no title.** The page
+  half (`@voqalize/stage`, from `0.1.0-rc.2`) no longer sends a page's query
+  string, fragment or title in its hello, in a carried move's result, or in the
+  extension's `tabs_changed`: that is where a page keeps tokens, order numbers
+  and the visitor's name. `url` and `title` were already optional, so a brain
+  parses both the old and the new hello; `title` is empty unless the page sends
+  its own hello. The contract stays at 1.
+
 ## 0.12.0-rc1
 
 A release candidate, not a stable release: `pip install voqalize-agent-sdk`
