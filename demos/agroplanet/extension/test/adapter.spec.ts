@@ -8,7 +8,10 @@
 
 import { expect, type Page, test } from "@playwright/test";
 
-import { CATEGORY, type Emitted, events, HIDDEN, listen, matches, open, PRODUCT, run, SEARCH, serveSite, translate, waitForEvent } from "./site";
+import {
+  AG15, BRAND, CATEGORY, EMPTY_SEARCH, type Emitted, events, HIDDEN, LABELLED, listen, matches, MF_PART, open, PRODUCT, RELATED, run, SEARCH, serveSite, TRACTOR, translate,
+  UNIVERSAL, waitForEvent,
+} from "./site";
 
 const named = (list: Emitted[], name: string) => list.filter((e) => matches(e, name));
 
@@ -293,7 +296,8 @@ test.describe("the product page", () => {
     expect(shown.by).toBe("agent");
     expect((shown.payload.specs as { label: string }[]).map((s) => s.label)).toContain("Peso bruto de caja (kg)");
     const checked = await waitForEvent(page, "product.checked");
-    expect(checked.payload).toMatchObject({ sku: "1173221", price: 80000, price_hidden: false, stock: "inStock", stock_level: 632, discount: null });
+    // The page shows $80.000; the store's offer (the cart applies it) is 7%.
+    expect(checked.payload).toMatchObject({ sku: "1173221", price: 80000, price_hidden: false, stock: "inStock", stock_level: 632, discount: 7, offer_price: 74000, regular_price: null });
   });
 
   test("a hidden price is reported hidden, never as a number", async ({ page }) => {
@@ -607,5 +611,251 @@ test.describe("on a page Chrome translated to English", () => {
     expect(store.ok, store.error).toBe(true);
     expect(store.detail).toMatch(/^Osorno: /);
     expect(store.detail).not.toContain("[en]");
+  });
+});
+
+test.describe("does it fit my tractor: check_fit", () => {
+  test("a Massey Ferguson part: the make, the model and the year drilled; the engine read; the name ringed on its page", async ({ page }) => {
+    const seen = await serveSite(page);
+    await open(page, MF_PART);
+    await listen(page);
+    await watchClicks(page);
+    const fit = await run(page, "check_fit", { path: MF_PART, brand: "MF", model: "290", year: "1985" });
+    expect(fit.ok, fit.error).toBe(true);
+    expect(fit.detail).toContain("MASSEY FERGUSON 290 1985 is listed");
+    const read = await waitForEvent(page, "fit_read");
+    expect(read.payload).toMatchObject({ sku: "123794", universal: false, matched: true, match: "MASSEY FERGUSON 290 1985", total: 197, brand: "MF", model: "290", year: "1985" });
+    const brands = read.payload.brands as { brand: string; models: string[]; years: string[]; engines: string[] }[];
+    expect(brands).toEqual([expect.objectContaining({ brand: "MASSEY FERGUSON", models: ["290"], years: ["1985"] })]);
+    expect(brands[0]!.engines[0]).toContain("PERKINS");
+    // Read, nothing pressed: the page's own calls, by GET.
+    expect(seen.api.filter((a) => a.includes("getPartAppRecords")).every((a) => a.startsWith("GET "))).toBe(true);
+    expect(await clicks(page)).toEqual([]);
+    expect(await page.evaluate(() => document.querySelector("[data-voqalize=spotlight]")?.shadowRoot?.querySelectorAll(".ring").length ?? 0)).toBeGreaterThan(0);
+  });
+
+  test("a model the catalogue does not list is said not to be, with the ones it lists", async ({ page }) => {
+    await serveSite(page);
+    await open(page, PRODUCT);
+    await listen(page);
+    const fit = await run(page, "check_fit", { path: MF_PART, brand: "Massey Ferguson", model: "5400" });
+    expect(fit.ok, fit.error).toBe(true);
+    const read = await waitForEvent(page, "fit_read");
+    expect(read.payload).toMatchObject({ matched: false, missing: "MASSEY FERGUSON 5400" });
+    expect((read.payload.brands as { models: string[] }[])[0]!.models).toEqual(expect.arrayContaining(["265", "290", "4275"]));
+    const other = await run(page, "check_fit", { path: MF_PART, brand: "John Deere" });
+    expect(other.ok, other.error).toBe(true);
+    expect((await waitForEvent(page, "fit_read", (e) => e.payload.brand === "John Deere")).payload).toMatchObject({ matched: false, missing: "John Deere" });
+  });
+
+  test("UNIVERSAL is a generic part; no records is no fit; two makes are each drilled to their models", async ({ page }) => {
+    await serveSite(page);
+    await open(page, CATEGORY);
+    await listen(page);
+    expect((await run(page, "check_fit", { path: UNIVERSAL, brand: "Ford" })).ok).toBe(true);
+    expect((await waitForEvent(page, "fit_read", (e) => e.payload.sku === "1022747")).payload).toMatchObject({ universal: true, brands: [], matched: null });
+    expect((await run(page, "check_fit", { path: "/producto/x/136045" })).ok).toBe(true);
+    expect((await waitForEvent(page, "fit_read", (e) => e.payload.sku === "136045")).payload).toMatchObject({ universal: false, brands: [], matched: null });
+    expect((await run(page, "check_fit", { path: RELATED })).ok).toBe(true);
+    const two = await waitForEvent(page, "fit_read", (e) => e.payload.sku === "126615");
+    const brands = two.payload.brands as { brand: string; models: string[] }[];
+    expect(brands.map((b) => b.brand)).toEqual(["DEUTZ-FAHR", "SAME"]);
+    expect(brands.every((b) => b.models.length > 0)).toBe(true);
+  });
+});
+
+test.describe("the month's campaign switch", () => {
+  test("AG15 reports Campaña: Agrofertas Octubre; filter_listing switches it on with its own toggle, ringed first, and off again", async ({ page }) => {
+    await serveSite(page);
+    await open(page, AG15);
+    await listen(page);
+    const shown = await waitForEvent(page, "listing.shown");
+    const facets = shown.payload.filters as { facet: string; on: string[]; options: string[] }[];
+    expect(facets[0]).toEqual({ facet: "Campaña", on: [], options: ["Agrofertas Octubre"] });
+    await watchClicks(page);
+    const on = await run(page, "filter_listing", { category_path: AG15, filters: ["Campaña: Agrofertas Octubre"], sort: null, remove: null, clear: null, page: null });
+    expect(on.ok, on.error).toBe(true);
+    expect(on.detail).toContain("applied Campaña: Agrofertas Octubre");
+    expect(page.url()).toContain("C_AG_BUSQUEDA_PLP_AGROFERRETERIAOCTUBRE");
+    expect(await page.locator(".SPECIALFILTER-filter mat-slide-toggle.mat-checked").count()).toBe(1);
+    expect((await clicks(page)).every((c) => c.ringed)).toBe(true);
+    const filtered = await waitForEvent(page, "listing.filtered");
+    expect(filtered.payload).toMatchObject({ count: 18 });
+    expect((filtered.payload.filters as { facet: string; on: string[] }[])[0]).toMatchObject({ facet: "Campaña", on: ["Agrofertas Octubre"] });
+    const off = await run(page, "filter_listing", { category_path: AG15, filters: null, sort: null, remove: ["Campaña: Agrofertas Octubre"], clear: null, page: null });
+    expect(off.ok, off.error).toBe(true);
+    expect(await page.locator(".SPECIALFILTER-filter mat-slide-toggle.mat-checked").count()).toBe(0);
+  });
+
+  test("the filter cue takes the campaign by its name; a listing with no switch says so", async ({ page }) => {
+    await serveSite(page);
+    await open(page, AG15);
+    const cue = await run(page, "commerce.filter", ["Agrofertas Octubre", "", AG15]);
+    expect(cue.ok, cue.error).toBe(true);
+    expect(cue.detail).toMatch(/^Campaña: Agrofertas Octubre on/);
+    await open(page, CATEGORY);
+    const none = await run(page, "commerce.filter", ["Campaña", "Agrofertas Octubre", CATEGORY]);
+    expect(none.ok).toBe(false);
+    expect(none.error).toContain("no campaign switch");
+  });
+
+  test("on a translated page the switch is found by its place", async ({ page }) => {
+    await serveSite(page);
+    await open(page, AG15);
+    await listen(page);
+    await waitForEvent(page, "listing.shown");
+    await translate(page, { rude: ".SPECIALFILTER-filter" });
+    expect(await page.locator(".SPECIALFILTER-filter span").first().textContent()).toContain("[en]");
+    const on = await run(page, "commerce.filter", ["Campaña", "Agrofertas Octubre", AG15]);
+    expect(on.ok, on.error).toBe(true);
+    expect(await page.locator(".SPECIALFILTER-filter mat-slide-toggle.mat-checked").count()).toBe(1);
+  });
+});
+
+test.describe("offers, equivalents, data sheets, related products, badges", () => {
+  test("the offer the cart applies is read with the price the page shows: check_prices and find_products", async ({ page }) => {
+    await serveSite(page);
+    await open(page, PRODUCT);
+    await listen(page);
+    expect((await run(page, "check_prices", { paths: ["/producto/x/1171555", HIDDEN] })).ok).toBe(true);
+    const items = (await waitForEvent(page, "prices_read")).payload.items as { sku: string; price: number | null; offer_price: number | null; discount: number | null }[];
+    expect(items.find((i) => i.sku === "1171555")).toMatchObject({ price: 360000, offer_price: 288000, discount: 20 });
+    // A hidden price has no offer either.
+    expect(items.find((i) => i.sku === "139083")).toMatchObject({ price: null, offer_price: null, discount: null });
+    expect((await run(page, "find_products", { query: null, category_code: "AG100", brand: null, sort: null })).ok).toBe(true);
+    const found = (await waitForEvent(page, "products_found")).payload.items as { sku: string; price: number; offer_price: number | null }[];
+    expect(found.find((i) => i.sku === "1173221")).toMatchObject({ price: 80000, offer_price: 74000 });
+  });
+
+  test("a part's Equivalencias, its related products, ringed; no data sheets is refused, saying so", async ({ page }) => {
+    await serveSite(page);
+    await open(page, CATEGORY);
+    await listen(page);
+    expect((await run(page, "open_product", { path: RELATED, tab: null })).ok).toBe(true);
+    const shown = await waitForEvent(page, "product.shown", (e) => e.payload.sku === "126615");
+    expect(shown.payload.equivalents).toEqual([{ label: "Equivalencia OEM", value: "0.014.3346.4, 1433464" }]);
+    expect((shown.payload.related as { name: string }[]).map((r) => r.name)).toContain("Silicona Gris 88ml. PROSEAL");
+    const checked = await waitForEvent(page, "product.checked", (e) => e.payload.sku === "126615");
+    expect(checked.payload).toMatchObject({ price_hidden: true, price: null, offer_price: null, equivalents: [{ label: "Equivalencia OEM", value: "0.014.3346.4, 1433464" }] });
+    expect((checked.payload.related as unknown[]).length).toBeGreaterThan(0);
+    const eq = await run(page, "page.show", { target: "Equivalencia OEM" });
+    expect(eq.detail).toBe("showed Equivalencia OEM: 0.014.3346.4, 1433464");
+    const related = await run(page, "product.tab", { tab: "related" });
+    expect(related.ok, related.error).toBe(true);
+    expect(related.detail).toContain("Silicona Gris 88ml. PROSEAL ($6000)");
+    const docs = await run(page, "product.tab", { tab: "docs" });
+    expect(docs.ok).toBe(false);
+    expect(docs.error).toContain("no data sheet");
+  });
+
+  test("docs rings Hoja de Seguridad and Ficha Técnica and opens neither; no related products is refused", async ({ page }) => {
+    await serveSite(page);
+    await open(page, PRODUCT);
+    await listen(page);
+    const shown = await waitForEvent(page, "product.shown");
+    expect(shown.payload.docs).toEqual(["Hoja de Seguridad", "Ficha Técnica"]);
+    await watchClicks(page);
+    const docs = await run(page, "product.tab", { tab: "docs" });
+    expect(docs.ok, docs.error).toBe(true);
+    expect(docs.detail).toContain("showed Hoja de Seguridad and Ficha Técnica");
+    expect((await clicks(page)).filter((c) => /Descargar/.test(c.what))).toEqual([]);
+    expect(page.context().pages()).toHaveLength(1);
+    const related = await run(page, "product.tab", { tab: "related" });
+    expect(related.ok).toBe(false);
+    expect(related.error).toContain("no related products");
+  });
+
+  test("the Venta en Verde badge, and the tractor's place in the store with its hidden price", async ({ page }) => {
+    await serveSite(page);
+    await open(page, LABELLED);
+    await listen(page);
+    expect((await waitForEvent(page, "product.shown")).payload).toMatchObject({ sku: "1184899", label: "Venta en Verde" });
+    expect((await waitForEvent(page, "product.checked")).payload).toMatchObject({ label: "Venta en Verde", stock: "outOfStock" });
+    expect((await run(page, "open_product", { path: TRACTOR, tab: null })).ok).toBe(true);
+    const tractor = await waitForEvent(page, "product.checked", (e) => e.payload.sku === "1184833");
+    expect(tractor.payload).toMatchObject({ price: null, price_hidden: true, category: "Maquinaria > Tractor para Venta > 25 HP" });
+  });
+});
+
+test.describe("search outcomes", () => {
+  test("find_products searches the store's suggested spelling once when the words find nothing; nothing at all is said as nothing", async ({ page }) => {
+    const seen = await serveSite(page);
+    await open(page, "/");
+    await listen(page);
+    const retried = await run(page, "find_products", { query: "cuchiya", category_code: null, brand: null, sort: null });
+    expect(retried.ok, retried.error).toBe(true);
+    expect(retried.detail).toMatch(/^nothing for "cuchiya"; searched the store's suggestion "cuchilla"/);
+    expect((await waitForEvent(page, "products_found")).payload).toMatchObject({ query: "cuchiya", retried_with: "cuchilla", suggestion: "cuchilla", total: 136 });
+    expect(seen.api.filter((a) => a.includes("refineSearch"))).toHaveLength(2);
+    const nothing = await run(page, "find_products", { query: "xyzqwe", category_code: null, brand: null, sort: null });
+    expect(nothing.ok, nothing.error).toBe(true);
+    expect((await waitForEvent(page, "products_found", (e) => e.payload.query === "xyzqwe")).payload).toMatchObject({ total: 0, items: [], retried_with: null });
+  });
+
+  test("commerce.search reports the count, and the page's own No logramos encontrar resultados", async ({ page }) => {
+    await serveSite(page);
+    await open(page, "/");
+    await listen(page);
+    const empty = await run(page, "commerce.search", { query: "xyzqwe", open_index: null });
+    expect(empty.ok, empty.error).toBe(true);
+    expect(empty.detail).toContain('no results (the page says "No logramos encontrar resultados")');
+    expect((await waitForEvent(page, "listing.shown", (e) => String(e.payload.path).includes("xyzqwe"))).payload).toMatchObject({ count: 0, items: [] });
+    await open(page, EMPTY_SEARCH);
+    expect(await page.evaluate(() => window.voqalizeAgroplanet!.context().kind)).toBe("search");
+  });
+});
+
+test.describe("a brand page", () => {
+  test("pages in place, 20 a page: page 2 by its own pager, the address unchanged", async ({ page }) => {
+    const seen = await serveSite(page);
+    await open(page, BRAND);
+    await listen(page);
+    const first = await waitForEvent(page, "listing.shown");
+    expect(first.payload).toMatchObject({ path: BRAND, count: 428 });
+    const before = (first.payload.items as { path: string }[]).map((i) => i.path);
+    const turned = await run(page, "filter_listing", { category_path: BRAND, filters: null, sort: null, remove: null, clear: null, page: 2 });
+    expect(turned.ok, turned.error).toBe(true);
+    expect(turned.detail).toContain("applied page 2 of 22");
+    expect(new URL(page.url()).pathname).toBe(BRAND);
+    expect(seen.api.some((a) => /brand_search:BKT&page=1&.*pageSize=0/.test(a))).toBe(true);
+    const after = named(await events(page), "listing.").pop()!;
+    expect((after.payload.items as { path: string }[]).map((i) => i.path)).not.toEqual(before);
+    const beyond = await run(page, "filter_listing", { category_path: BRAND, filters: null, sort: null, remove: null, clear: null, page: 30 });
+    expect(beyond.ok).toBe(false);
+    expect(beyond.error).toContain("the listing has 22 pages");
+  });
+});
+
+test.describe("the splash window that opens late", () => {
+  test("a move starts the watch: the window that opens seconds after the load is closed at once", async ({ page }) => {
+    await serveSite(page, { splash: true, splashAfter: 1500 });
+    await open(page, "/");
+    expect(await page.locator("app-generic-dialog").count()).toBe(0);
+    const r = await run(page, "page.show", { target: "CATEGORÍAS" });
+    expect(r.ok, r.error).toBe(true);
+    await expect.poll(() => page.evaluate(() => Number((window as unknown as { __splashes?: number }).__splashes) || 0), { timeout: 5000 }).toBe(1);
+    await expect.poll(() => page.locator("app-generic-dialog").count(), { timeout: 3000 }).toBe(0);
+    expect(await page.evaluate(() => document.documentElement.classList.contains("cdk-global-scrollblock"))).toBe(false);
+  });
+});
+
+test.describe("round two on a translated page", () => {
+  test("Equivalencias, Complemente su compra and the data sheets keep the store's words", async ({ page }) => {
+    await serveSite(page);
+    await open(page, RELATED);
+    await listen(page);
+    await waitForEvent(page, "product.checked");
+    await translate(page);
+    const eq = await run(page, "page.show", { target: "Equivalencia OEM" });
+    expect(eq.ok, eq.error).toBe(true);
+    expect(eq.detail).toBe("showed Equivalencia OEM: 0.014.3346.4, 1433464");
+    const related = await run(page, "product.tab", { tab: "related" });
+    expect(related.ok, related.error).toBe(true);
+    expect(related.detail).not.toContain("[en]");
+    await open(page, PRODUCT);
+    await translate(page);
+    const docs = await run(page, "product.tab", { tab: "docs" });
+    expect(docs.ok, docs.error).toBe(true);
+    expect(docs.detail).toContain("Hoja de Seguridad and Ficha Técnica");
   });
 });

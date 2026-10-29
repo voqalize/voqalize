@@ -10,8 +10,8 @@
  *
  *   - `page_changed` for every page the visitor lands on, whoever took them,
  *     on every route change of the app as well as on a load;
- *   - `prices_read`, `products_found`, `stock_read` and `store_shown` for the
- *     moves that read them.
+ *   - `prices_read`, `products_found`, `stock_read`, `fit_read` and
+ *     `store_shown` for the moves that read them.
  *
  * What their screen holds is Stage state (`agroplanet/scene.json`): each
  * change goes as a named `stage_event` (`scene.event`), with only the fields
@@ -48,11 +48,11 @@
 import type { MoveContext, Moves, PerformResult, Refusal, StageEvent } from "@voqalize/stage";
 import type { Adapter } from "@voqalize/stage/extension";
 
-import type { FoundItem, PriceItem, PricesRead, ProductsFound, StockRead, StoreShown } from "./actions.gen";
+import type { FitBrand, FitRead, FoundItem, PriceItem, PricesRead, ProductsFound, StockRead, StoreShown } from "./actions.gen";
 import { scene } from "./scene.gen";
 
 import {
-  apiIdle, apiSettled, bare, best, boxOf, clean, closeSplash, enter, headerHeight, hover, inOrder, leave, money, norm, onApi, ownFetch, pathOf, press, productPath,
+  apiIdle, apiSettled, bare, best, boxOf, clean, closeSplash, enter, guardSplash, headerHeight, hover, inOrder, leave, money, norm, onApi, ownFetch, pathOf, press, productPath,
   productSku, QUOTE_FIELDS, quiet, routeTo, samePath, scrollTo, scrollToTopOfPage, SEARCH_BOX, settled, shown, sleep, styleThePage, target,
   typeInto, visible, waitFor, watchApi,
 } from "./page";
@@ -364,6 +364,17 @@ interface ApiProduct {
   longitud?: number | null;
   pesoBruto?: number | null;
   hidePesoBruto?: boolean | null;
+  /** The store's offer: the pages hide it (`hideDiscount`), the mini-cart's
+   *  subtotal applies it. */
+  discountedPrice?: ApiPrice | null;
+  discountPercentage?: number | null;
+  /** The badges over the brand: `{LABEL1: {value: "Venta en Verde", visible}}`. */
+  labelProductInfoMap?: Record<string, { value?: string | null; visible?: boolean | null } | null> | null;
+  breadCrumb?: { name?: string | null; categoryCode?: string | null }[] | null;
+  /** The data sheets: `[{name: "Ficha Técnica", url}]`. */
+  data_sheet?: { name?: string | null; url?: string | null }[] | null;
+  /** Feature groups; `C_DTE_EQUIVALENCIA_*` are the Equivalencias. */
+  classifications?: { code?: string; name?: string; features?: { name?: string; featureValues?: { value?: string }[] | null }[] | null }[] | null;
 }
 
 const productApi = (sku: string) => getJson<ApiProduct>(`${API}/product/getProductDetail?productCode=${encodeURIComponent(sku)}`);
@@ -376,6 +387,41 @@ const stockStatus = (s: ApiStock | null | undefined): StockStatus => {
   const code = s?.stockLevelStatus?.code ?? "";
   return code === "inStock" || code === "lowStock" || code === "outOfStock" ? code : "";
 };
+
+/** The store's offer on a product, when it has a real one below the price
+ *  its page shows: the price the mini-cart's subtotal charges and its
+ *  percentage. A hidden price has none. */
+function offerOf(p: ApiProduct): { offer_price: number; discount: number } | null {
+  if (p.hidePriceByCategory === true) return null;
+  const price = pesos(p.price?.value);
+  const offer = pesos(p.discountedPrice?.value);
+  if (price == null || offer == null || offer >= price) return null;
+  const pct = typeof p.discountPercentage === "number" && p.discountPercentage > 0 ? Math.round(p.discountPercentage) : Math.round(((price - offer) * 100) / price);
+  return pct >= 1 ? { offer_price: offer, discount: pct } : null;
+}
+
+/** The badge over the brand ("Venta en Verde"), from the API. */
+const apiLabel = (p: ApiProduct) =>
+  clean(
+    Object.values(p.labelProductInfoMap ?? {})
+      .filter((l) => l && l.visible !== false && clean(l.value))
+      .map((l) => l!.value)[0],
+  ) || null;
+
+/** Where the product sits in the store, from the API's breadcrumb. */
+const apiCategory = (p: ApiProduct) =>
+  (p.breadCrumb ?? [])
+    .filter((b) => b.categoryCode && b.categoryCode !== "agroplanetProducts" && clean(b.name))
+    .map((b) => clean(b.name))
+    .join(" > ") || null;
+
+/** Equivalencias, from the API's feature groups. */
+function apiEquivalents(p: ApiProduct): { label: string; value: string }[] {
+  return (p.classifications ?? [])
+    .filter((c) => /EQUIVALENCIA/i.test(c.code ?? ""))
+    .flatMap((c) => (c.features ?? []).map((f) => ({ label: clean(f.name), value: (f.featureValues ?? []).map((v) => clean(v.value)).filter(Boolean).join(", ") })))
+    .filter((r) => r.label && r.value);
+}
 
 /** The Especificaciones the product page draws, from the same fields. */
 function apiSpecs(p: ApiProduct): { label: string; value: string }[] {
@@ -454,11 +500,17 @@ interface ProductState {
   price: number | null;
   regular_price: number | null;
   discount: number | null;
+  offer_price: number | null;
   price_hidden: boolean;
   stock: string | null;
   stock_level: number | null;
   description: string | null;
+  label: string | null;
+  category: string | null;
   specs: { label: string; value: string }[];
+  equivalents: { label: string; value: string }[];
+  docs: string[];
+  related: { name: string; path: string; price: number | null }[];
   source: "page" | "api";
 }
 
@@ -495,6 +547,65 @@ function specRows(): { row: HTMLElement; label: string; value: string }[] {
   return out;
 }
 
+/** The Equivalencias block under Especificaciones (some parts): each row's
+ *  label ("Equivalencia OEM") and its codes. */
+function equivalenceRows(): { row: HTMLElement; label: string; value: string }[] {
+  const out: { row: HTMLElement; label: string; value: string }[] = [];
+  const title = [...document.querySelectorAll<HTMLElement>("app-product-tabs .title")].find((t) => /^(?:equivalencias?|equivalen)/.test(norm(t.textContent)));
+  const block = title?.parentElement;
+  if (!block) return out;
+  for (const row of block.querySelectorAll<HTMLElement>("div")) {
+    const cells = [...row.querySelectorAll<HTMLElement>(":scope > .p-20")];
+    if (cells.length !== 2) continue;
+    const label = clean(cells[0]!.textContent);
+    const value = clean(cells[1]!.textContent);
+    if (label && value) out.push({ row, label, value });
+  }
+  return out;
+}
+
+/** The data sheets' rows: "Hoja de Seguridad", "Ficha Técnica", each with its
+ *  "Descargar" link (a PDF in a new tab, never opened here). */
+function docRows(): { row: HTMLElement; label: string; link: HTMLAnchorElement }[] {
+  const out: { row: HTMLElement; label: string; link: HTMLAnchorElement }[] = [];
+  for (const link of document.querySelectorAll<HTMLAnchorElement>("app-product-tabs .ficha_tecnica a, app-product-tabs a[href*='documento-tecnico']")) {
+    const cell = link.closest<HTMLElement>(".p-15, .p-20");
+    const row = cell?.parentElement;
+    const label = clean(row?.querySelector(":scope > .p-15, :scope > .p-20")?.textContent);
+    // The phone's copy of the card repeats them: one row per data sheet.
+    if (row && label && !out.some((d) => d.row === row || (norm(d.label) === norm(label) && (shown(d.row) || !shown(row))))) out.push({ row, label, link });
+  }
+  return out;
+}
+
+/** "Complemente su compra": the carousel of products the store suggests with
+ *  this one (some products only). */
+const relatedBox = () =>
+  [...document.querySelectorAll<HTMLElement>("app-products-carousel")].find((c) => !c.closest("app-category-home") && clean(c.textContent).length > 0) ?? null;
+
+function relatedItems(): { name: string; path: string; price: number | null }[] {
+  const box = relatedBox();
+  const out: { name: string; path: string; price: number | null }[] = [];
+  for (const card of box?.querySelectorAll<HTMLElement>("app-product-card") ?? []) {
+    const a = card.querySelector<HTMLAnchorElement>("a[href*='/producto/']");
+    const sku = productSku(pathOf(a?.href));
+    const name = clean(card.querySelector("p.h-p, p.title")?.textContent) || clean(card.querySelector("img")?.getAttribute("alt"));
+    if (!sku || !name || out.some((r) => productSku(r.path) === sku)) continue;
+    out.push({ name, path: productPath(sku, name), price: priceHiddenIn(card) ? null : money(card.querySelector(".new-price")?.textContent) });
+  }
+  return out.slice(0, 8);
+}
+
+/** The badge over the brand ("Venta en Verde"). */
+const pageLabel = () => clean(info()?.querySelector("p[class*='label-'] span, p[class*='label-']")?.textContent) || null;
+
+/** Where the product sits, from the breadcrumb (its own name and "inicio"
+ *  left out). */
+function pageCategory(): string | null {
+  const links = [...document.querySelectorAll<HTMLAnchorElement>("app-breadcrumb li a")].filter((a) => pathOf(a.href) !== "/");
+  return links.map((a) => clean(a.textContent)).filter(Boolean).join(" > ") || null;
+}
+
 /** A section of the product page's details card, by its title: "Detalle del
  *  Producto" or "Especificaciones" (both always drawn, one after the other). */
 function tabSection(title: RegExp): { title: HTMLElement; block: HTMLElement } | null {
@@ -523,23 +634,30 @@ function readProduct(): ProductState | null {
     price,
     regular_price: old != null && price != null && old > price ? old : null,
     discount: old != null && price != null && old > price ? Math.round(((old - price) * 100) / old) : null,
+    offer_price: null,
     price_hidden: hidden,
     stock: null,
     stock_level: null,
     description: clean(document.querySelector("app-product-tabs p.format")?.textContent).slice(0, 400) || null,
+    label: pageLabel(),
+    category: pageCategory(),
     specs: specRows()
       .slice(0, MAX_SPECS)
       .map(({ label, value }) => ({ label, value })),
+    equivalents: equivalenceRows().map(({ label, value }) => ({ label, value })),
+    docs: docRows().map((d) => d.label),
+    related: relatedItems(),
     source: "page",
   };
 }
 
 /**
  * The store's live read of product `sku`. The price is the one its page and
- * its cart write (`price`); the API also carries a `discountedPrice` that
- * only the mini-cart's subtotal applies, which no page shows as an offer, so
- * it is not reported as one. A hidden price ("Confirmar precio en tienda") is
- * reported as hidden, never as a number.
+ * its cart write (`price`); the store hides its offers on the pages
+ * (`hideDiscount`) and the mini-cart's subtotal applies them: the API's
+ * `discountedPrice` and `discountPercentage`, reported as `offer_price` and
+ * `discount`. A hidden price ("Confirmar precio en tienda") is reported as
+ * hidden, never as a number, and has no offer.
  */
 async function productFromApi(sku: string): Promise<ProductState> {
   const p = await productApi(sku);
@@ -553,12 +671,18 @@ async function productFromApi(sku: string): Promise<ProductState> {
     maker_code: clean(p.manufacturerCode ?? p.manufacturer) || null,
     price: hidden ? null : pesos(p.price?.value),
     regular_price: null,
-    discount: null,
+    discount: offerOf(p)?.discount ?? null,
+    offer_price: offerOf(p)?.offer_price ?? null,
     price_hidden: hidden,
     stock: stockStatus(p.stock) || null,
     stock_level: typeof p.stock?.stockLevel === "number" ? p.stock.stockLevel : null,
-    description: clean(p.description ?? p.summary).slice(0, 400) || null,
+    description: clean((p.description ?? p.summary)?.replace(/<[^>]+>/g, " ")).slice(0, 400) || null,
+    label: apiLabel(p),
+    category: apiCategory(p),
     specs: apiSpecs(p),
+    equivalents: apiEquivalents(p),
+    docs: (p.data_sheet ?? []).map((d) => clean(d.name)).filter(Boolean),
+    related: [],
     source: "api",
   };
 }
@@ -571,7 +695,10 @@ function confirmProduct(): Promise<void> {
   if (confirming?.sku === sku) return confirming.done;
   const done = productFromApi(sku)
     .then((p) => {
-      if (productSku(location.pathname) === sku) report("product_shown", p);
+      if (productSku(location.pathname) !== sku) return;
+      latest.set("product_shown", p);
+      const page = readProduct();
+      report("product_shown", page && page.sku === p.sku ? latestProductFor(page) : p);
     })
     .catch(() => {
       if (confirming?.sku === sku) confirming = null;
@@ -580,10 +707,19 @@ function confirmProduct(): Promise<void> {
   return done;
 }
 
-/** The live read wins over the page's once it is in. */
+/** The live read wins over the page's once it is in; what only the page
+ *  draws (the related products, rows the API lacks) is kept from the page. */
 function latestProductFor(page: ProductState): ProductState {
   const live = latest.get("product_shown") as ProductState | undefined;
-  return live?.source === "api" && live.sku === page.sku ? live : page;
+  if (live?.source !== "api" || live.sku !== page.sku) return page;
+  return {
+    ...live,
+    related: live.related.length ? live.related : page.related,
+    equivalents: live.equivalents.length ? live.equivalents : page.equivalents,
+    docs: live.docs.length ? live.docs : page.docs,
+    label: live.label ?? page.label,
+    category: live.category ?? page.category,
+  };
 }
 
 const productUp = (sku?: string | null) => {
@@ -614,7 +750,22 @@ interface ListingState {
 }
 
 const isListing = () => ["category", "search", "brand"].includes(kindOf());
-const noResults = () => /no (se )?encontr|sin resultados|0 resultados|no results|not found/i.test(clean(document.querySelector("app-plp-grid, app-product-search, app-category, app-brand-search")?.textContent).slice(0, 2000));
+/** The listing's own "no results": a search's `app-no-results` ("No logramos
+ *  encontrar resultados"), or the words. */
+const noResults = () =>
+  Boolean(document.querySelector("app-no-results")) ||
+  /no logramos encontrar|no (se )?encontr|sin resultados|0 resultados|no results|not found|could not find/i.test(
+    clean(document.querySelector("app-plp-grid, app-product-search, app-category, app-brand-search")?.textContent).slice(0, 2000),
+  );
+
+/** The count a search page shows ("( 443 )"); a category shows none. */
+function shownCount(): number | null {
+  for (const el of document.querySelectorAll<HTMLElement>("app-product-search .gray-search")) {
+    const m = clean(el.textContent).match(/^\(\s*([\d.]+)\s*\)$/);
+    if (m) return Number(m[1]!.replace(/\./g, ""));
+  }
+  return null;
+}
 /**
  * The listing's grid has drawn, and is the store's answer: cards in it with
  * none of the store's calls still out, or its own "no results" once they are
@@ -658,6 +809,88 @@ interface Group {
   name: string;
   header: HTMLElement;
   panel: HTMLElement;
+}
+
+/** The facet a listing's campaign switches are reported as: one switch per
+ *  campaign ("Agrofertas Octubre"), its options the campaigns. */
+const CAMPAIGN = "Campaña";
+const CAMPAIGN_CODE = /^C_AG_BUSQUEDA_/;
+const CAMPAIGN_WORDS = /^(?:campana|campanas|campaign|campaigns|oferta|ofertas|offer|offers|promocion|promociones)$/;
+
+/** The listing's facets as the store's API answers them, its campaign
+ *  facets (one per campaign, each with one value) folded into "Campaña". */
+function facetsOf(api: ApiListing | null): { name: string; values: ApiFacetValue[] }[] {
+  const out: { name: string; values: ApiFacetValue[] }[] = [];
+  let campaigns: { name: string; values: ApiFacetValue[] } | null = null;
+  for (const f of api?.data?.facets ?? []) {
+    if (!clean(f.name)) continue;
+    if (CAMPAIGN_CODE.test(f.code ?? "")) {
+      if (!campaigns) out.unshift((campaigns = { name: CAMPAIGN, values: [] }));
+      campaigns.values.push(...(f.values ?? []));
+      continue;
+    }
+    out.push({ name: clean(f.name), values: f.values ?? [] });
+  }
+  return out;
+}
+
+interface Toggle {
+  name: string;
+  el: HTMLElement;
+  toggle: HTMLElement;
+  label: HTMLElement;
+  on: boolean;
+}
+
+/** The listing's campaign switches (`.SPECIALFILTER-filter`: the campaign's
+ *  title and a Material slide toggle; a press on the title does nothing, on
+ *  the toggle's label switches it). */
+function toggles(): Toggle[] {
+  const out: Toggle[] = [];
+  for (const el of document.querySelectorAll<HTMLElement>("app-plp-filter .SPECIALFILTER-filter")) {
+    const toggle = el.querySelector<HTMLElement>("mat-slide-toggle");
+    if (!toggle) continue;
+    const name = clean(el.querySelector("span.fw-700, span")?.textContent) || clean(el.textContent);
+    const input = toggle.querySelector<HTMLInputElement>("input");
+    const on = toggle.classList.contains("mat-checked") || input?.getAttribute("aria-checked") === "true" || Boolean(input?.checked);
+    out.push({ name, el, toggle, label: toggle.querySelector<HTMLElement>("label") ?? toggle, on });
+  }
+  return out;
+}
+
+/** The campaign the brain named: "Campaña: Agrofertas Octubre", or the
+ *  campaign as the facet ("Agrofertas Octubre: sí"). */
+function campaignMeant(facet: string, value: string, offered: string[]): string | null {
+  const byValue = best(offered, (x) => x, value);
+  if (CAMPAIGN_WORDS.test(norm(facet).replace(/\s+/g, "")) || norm(facet) === norm(CAMPAIGN)) return byValue ?? (offered.length === 1 && !value ? offered[0]! : null);
+  return best(offered, (x) => x, facet) ? (byValue ?? best(offered, (x) => x, facet)) : null;
+}
+
+/** Switch one campaign on or off with its own toggle, as a visitor does: the
+ *  switch scrolled to and ringed, its label pressed, the grid waited for,
+ *  then what is on read back from the store's answer. */
+async function flipCampaign(c: MoveContext, name: string, on: boolean, arg: string): Promise<Applied | Missed> {
+  const known = await apiOptions(CAMPAIGN);
+  const offered = known?.options ?? [];
+  const already = known ? Boolean(best(known.on, (x) => x, name)) : false;
+  if (already === on) return on ? { ok: true, label: `${CAMPAIGN}: ${name}`, already: true } : { ok: false, arg, why: `"${CAMPAIGN}: ${name}" is not on`, options: known?.on ?? [] };
+  // By its title, or, on a page whose words a translator rewrote, by its place.
+  const all = toggles();
+  const t = best(all, (x) => x.name, name) ?? (all.length === offered.length ? all[offered.findIndex((o) => o === name)] : undefined) ?? (all.length === 1 ? all[0] : undefined);
+  if (!t) return { ok: false, arg, why: `this listing shows no switch "${name}"`, options: offered };
+  await scrollTo(t.el, "center");
+  await c.ring(t.el, name);
+  const before = gridKey();
+  const since = Date.now();
+  c.progress("waiting_site");
+  await changingGrid(async () => {
+    press(t.label);
+    await waitForGrid(before, since);
+  });
+  const now = await apiOptions(CAMPAIGN);
+  const isOn = Boolean(now && best(now.on, (x) => x, name));
+  if (isOn !== on) return { ok: false, arg, why: `${name} stayed ${on ? "off" : "on"}`, options: [] };
+  return { ok: true, label: on ? `${CAMPAIGN}: ${name}` : `${CAMPAIGN}: ${name} off` };
 }
 
 /** The filter panel's facets (`app-filter-element`, each a Material
@@ -723,10 +956,12 @@ function listingPath(): string {
   return m ? `/categoria/${m[1]!.toLowerCase()}/${m[2]}` : path.toLowerCase();
 }
 
-/** The API call the app makes for the listing in front, as it makes it. */
+/** The API call the app makes for the listing in front, as it makes it. A
+ *  brand page keeps its page out of the address (it pages in place, 20 a
+ *  page: `pageSize=0`), so its page is the pager's. */
 function listingRequest(): string | null {
   const q = new URLSearchParams(location.search);
-  const page = q.get("page") || "0";
+  const page = kindOf() === "brand" ? String(pageNow() - 1) : q.get("page") || "0";
   const sort = q.get("sort") ?? "";
   const kind = kindOf();
   if (kind === "category") return `${API}/category/getCategory?code=${categoryCode()}&q=${q.get("q") ?? ""}&page=${page}&sort=${sort}&pageSize=40`;
@@ -793,13 +1028,11 @@ async function listingData(): Promise<ApiListing | null> {
 async function readListing(): Promise<ListingState> {
   const kind = kindOf();
   const api = await listingData();
-  const facets: ListingFilter[] = (api?.data?.facets ?? [])
-    .filter((f) => clean(f.name))
-    .map((f) => ({
-      facet: clean(f.name),
-      on: (f.values ?? []).filter((v) => v.selected).map((v) => clean(v.name)),
-      options: (f.values ?? []).map((v) => clean(v.name)).filter(Boolean).slice(0, MAX_OPTIONS),
-    }));
+  const facets: ListingFilter[] = facetsOf(api).map((f) => ({
+    facet: f.name,
+    on: f.values.filter((v) => v.selected).map((v) => clean(v.name)),
+    options: f.values.map((v) => clean(v.name)).filter(Boolean).slice(0, MAX_OPTIONS),
+  }));
   const title =
     kind === "search"
       ? `Resultados para "${searchWords()}"`
@@ -811,7 +1044,7 @@ async function readListing(): Promise<ListingState> {
   return {
     path: listingPath(),
     title,
-    count: api?.data?.pagination?.totalNumberOfResults ?? (cards().length || (noResults() ? 0 : null)),
+    count: api?.data?.pagination?.totalNumberOfResults ?? shownCount() ?? (cards().length || (noResults() ? 0 : null)),
     filters: facets,
     sort: sortOf(),
     items: cards()
@@ -828,7 +1061,7 @@ const reportListing = async () => {
 };
 
 /** What the grid shows now, to tell when it changed. */
-const gridKey = () => JSON.stringify([cards().map(cardSku), location.search]);
+const gridKey = () => JSON.stringify([cards().map(cardSku), location.search, kindOf() === "brand" ? pageNow() : 0]);
 
 /** The grid has changed from `before` and the store's calls since `since`
  *  are back, then the DOM has been quiet a moment. */
@@ -1129,6 +1362,7 @@ async function showGrid(c: MoveContext): Promise<string> {
     await c.ring(row);
   });
   const first = listing.items[0];
+  if (listing.count === 0 || (!first && noResults())) return `${listing.title}: no results (the page says "No logramos encontrar resultados")`;
   return `${listing.title}: ${listing.count ?? "?"} products${listing.sort && listing.sort !== "relevance" ? `, sorted ${listing.sort}` : ""}; ${
     first ? `first card ${first.name} (${first.price != null ? `$${first.price}` : "precio a confirmar en tienda"})` : "no products"
   }`;
@@ -1312,10 +1546,10 @@ type Missed = { ok: false; arg: string; why: string; options: string[] };
 /** The options of a facet as the store's API lists them for the listing in
  *  front (a folded panel draws none). */
 async function apiOptions(facet: string): Promise<{ name: string; options: string[]; on: string[] } | null> {
-  const api = await listingData();
-  const f = best(api?.data?.facets ?? [], (x) => clean(x.name), FACET_ALIASES[norm(facet)] ?? facet);
+  const all = facetsOf(await listingData());
+  const f = best(all, (x) => x.name, FACET_ALIASES[norm(facet)] ?? facet);
   if (!f) return null;
-  return { name: clean(f.name), options: (f.values ?? []).map((v) => clean(v.name)), on: (f.values ?? []).filter((v) => v.selected).map((v) => clean(v.name)) };
+  return { name: f.name, options: f.values.map((v) => clean(v.name)), on: f.values.filter((v) => v.selected).map((v) => clean(v.name)) };
 }
 
 /** Tick one option of one facet with the listing's own checkbox, as a
@@ -1324,6 +1558,12 @@ async function apiOptions(facet: string): Promise<{ name: string; options: strin
  *  panel folded after each filter, so what is on is read back from the
  *  store's answer. */
 async function applyOption(c: MoveContext, facet: string, value: string, arg = "value", facetArg = "facet"): Promise<Applied | Missed> {
+  const campaigns = (await apiOptions(CAMPAIGN))?.options ?? [];
+  const campaign = campaigns.length ? campaignMeant(facet, value, campaigns) : null;
+  if (campaign) return flipCampaign(c, campaign, true, arg);
+  if (CAMPAIGN_WORDS.test(norm(facet).replace(/\s+/g, "")) || norm(facet) === norm(CAMPAIGN)) {
+    return { ok: false, arg: facetArg, why: campaigns.length ? `${CAMPAIGN} has no "${value}"` : "this listing has no campaign switch", options: campaigns };
+  }
   const g = findGroup(facet);
   const names = groups().map((x) => x.name);
   if (!g) return { ok: false, arg: facetArg, why: `this listing has no filter "${facet}"`, options: names };
@@ -1418,9 +1658,12 @@ async function onListing(c: MoveContext, want: { path: string; kind: string }, p
 /** Take one filter off with its own checkbox, unticked in place (the panel
  *  opened first), the grid waited for; read back from the store's answer. */
 async function removeFilter(c: MoveContext, facet: string, value: string): Promise<Applied | Missed> {
+  const campaigns = (await apiOptions(CAMPAIGN))?.options ?? [];
+  const campaign = campaigns.length ? campaignMeant(facet, value, campaigns) : null;
+  if (campaign) return flipCampaign(c, campaign, false, "remove");
   const known = await apiOptions(facet);
   const on = known ? best(known.on, (x) => x, value) : null;
-  const offered = ((await listingData())?.data?.facets ?? []).flatMap((f) => (f.values ?? []).filter((v) => v.selected).map((v) => `${clean(f.name)}: ${clean(v.name)}`));
+  const offered = facetsOf(await listingData()).flatMap((f) => f.values.filter((v) => v.selected).map((v) => `${f.name}: ${clean(v.name)}`));
   if (!known || !on) return { ok: false, arg: "remove", why: `"${facet}: ${value}" is not on`, options: offered };
   const g = findGroup(known.name);
   if (!g) return { ok: false, arg: "remove", why: `this listing shows no filter "${known.name}"`, options: offered };
@@ -1446,7 +1689,7 @@ async function removeFilter(c: MoveContext, facet: string, value: string): Promi
  *  visitor on a desktop does. */
 async function clearFilters(c: MoveContext): Promise<Applied | Missed> {
   const on = () =>
-    listingData().then((api) => (api?.data?.facets ?? []).flatMap((f) => (f.values ?? []).filter((v) => v.selected).map((v) => ({ facet: clean(f.name), value: clean(v.name) }))));
+    listingData().then((api) => facetsOf(api).flatMap((f) => f.values.filter((v) => v.selected).map((v) => ({ facet: f.name, value: clean(v.name) }))));
   const first = await on();
   if (!first.length) return { ok: true, label: "no filters were on", already: true };
   const button = [...document.querySelectorAll<HTMLElement>("app-plp-filter button")].find((b) => /borrar filtros|(?:clear|delete|remove) (?:the )?filters/i.test(clean(b.textContent)) && shown(b));
@@ -1469,8 +1712,15 @@ async function clearFilters(c: MoveContext): Promise<Applied | Missed> {
   return (await on()).length ? { ok: false, arg: "clear", why: "filters stayed on", options: [] } : { ok: true, label: "every filter off" };
 }
 
-/** The page in front, 1 for the first (the address counts from 0). */
-const pageNow = () => (Number(new URLSearchParams(location.search).get("page")) || 0) + 1;
+/** The page in front, 1 for the first: the pager's current number (a brand
+ *  page never writes its page in the address), else the address's (which
+ *  counts from 0). */
+function pageNow(): number {
+  const current = [...document.querySelectorAll<HTMLElement>("app-custom-paginator-controls .item.current")].find(shown);
+  const n = Number(clean(current?.textContent));
+  if (Number.isInteger(n) && n > 0) return n;
+  return (Number(new URLSearchParams(location.search).get("page")) || 0) + 1;
+}
 const pageLinks = () => [...document.querySelectorAll<HTMLElement>("app-custom-paginator-controls .item a")].filter(shown);
 const pagerNext = () => [...document.querySelectorAll<HTMLElement>("app-custom-paginator-controls .pagination-next a")].find(shown) ?? null;
 
@@ -1557,8 +1807,15 @@ async function filterCue(p: { facet: string; value?: string | null; path?: strin
   let value = clean(p.value);
   if (!value && facet.includes(":")) [facet, value] = [clean(facet.split(":")[0]), clean(facet.split(":").slice(1).join(":"))];
   if (!(await cueListing(c, p.path, p))) return null;
+  // A campaign's switch ("{filter: Campaña | Agrofertas Octubre}").
+  const campaigns = (await apiOptions(CAMPAIGN))?.options ?? [];
+  if (campaignMeant(facet, value, campaigns) || CAMPAIGN_WORDS.test(norm(facet).replace(/\s+/g, "")) || norm(facet) === norm(CAMPAIGN)) {
+    const got = await applyOption(c, facet, value, "value", "facet");
+    if (!got.ok) c.refuse(got.arg, got.why, got.options);
+    return `${got.label} on; ${await showGrid(c)}`;
+  }
   const g = findGroup(facet);
-  if (!g) c.refuse("facet", `this listing has no filter "${facet}"`, groups().map((x) => x.name));
+  if (!g) c.refuse("facet", `this listing has no filter "${facet}"`, [...(campaigns.length ? [CAMPAIGN] : []), ...groups().map((x) => x.name)]);
   if (!value) c.refuse("value", `say which ${g.name}`, ((await apiOptions(g.name))?.options ?? []).slice(0, MAX_OPTIONS));
   const done: string[] = [];
   const missed: Missed[] = [];
@@ -1583,8 +1840,8 @@ async function sortCue(p: { order: string; path?: string | null } & Arrived, c: 
 
 // open_product, product.tab ─────────────────────────────────────────────────
 
-type Tab = "details" | "specs" | "photos" | "zoom" | "price";
-const TABS: Tab[] = ["details", "specs", "photos", "zoom", "price"];
+type Tab = "details" | "specs" | "photos" | "zoom" | "price" | "docs" | "related";
+const TABS: Tab[] = ["details", "specs", "photos", "zoom", "price", "docs", "related"];
 
 async function ringThere(c: MoveContext, el: HTMLElement | HTMLElement[], label: string): Promise<void> {
   const els = Array.isArray(el) ? el : [el];
@@ -1698,9 +1955,49 @@ async function showPrice(c: MoveContext): Promise<string> {
   return hidden ? "the page says Confirmar precio en tienda: no price is published for it" : `showed the price $${p?.price ?? "?"} and its buttons`;
 }
 
+/** The data sheets: their rows ("Hoja de Seguridad", "Ficha Técnica") with
+ *  their "Descargar" buttons, ringed and never pressed (each opens a PDF in
+ *  a new tab, the visitor's to open). The specifications' "Ver más" is
+ *  pressed first when the card is folded. */
+async function showDocs(c: MoveContext): Promise<string> {
+  let rows = docRows().filter((d) => shown(d.row));
+  if (!rows.length && docRows().length) {
+    const more = [...document.querySelectorAll<HTMLElement>("app-product-tabs button.swatchButton")].find((b) => shown(b) && /ver m[aá]s|(?:see|show|view|read) more/i.test(clean(b.textContent)));
+    if (more) {
+      await scrollTo(more, "center");
+      await c.ring(more, "Ver más");
+      press(more);
+      await waitFor(() => docRows().some((d) => shown(d.row)), 1500);
+    }
+    rows = docRows().filter((d) => shown(d.row));
+  }
+  if (!rows.length) c.refuse("tab", "this product has no data sheet (no Hoja de Seguridad or Ficha Técnica)", TABS.filter((t) => t !== "docs"));
+  const labels = rows.map((r) => r.label);
+  await ringThere(c, rows.map((r) => r.row), labels.join(" · "));
+  return `showed ${labels.join(" and ")} with their Descargar buttons (each opens a PDF in a new tab; not opened)`;
+}
+
+/** "Complemente su compra": the carousel scrolled to and ringed. */
+async function showRelated(c: MoveContext): Promise<string> {
+  const box = relatedBox();
+  const items = relatedItems();
+  if (!box || !items.length) c.refuse("tab", "this product has no related products (no Complemente su compra)", TABS.filter((t) => t !== "related"));
+  await ringThere(c, box, clean(box.querySelector("span.fs-18, span")?.textContent) || "Complemente su compra");
+  return `showed Complemente su compra: ${items
+    .slice(0, 5)
+    .map((i) => `${i.name}${i.price != null ? ` ($${i.price})` : ""}`)
+    .join("; ")}`;
+}
+
 async function productTab(p: { tab: Tab }, c: MoveContext): Promise<string> {
   if (!onProductPage()) throw new Error(`no product page is on screen (now on ${location.pathname})`);
   await waitFor(() => productUp(), 8000);
+  if (p.tab === "docs") return showDocs(c);
+  if (p.tab === "related") {
+    // The carousel draws after the product (its own call).
+    await waitFor(() => relatedItems().length, 3000);
+    return showRelated(c);
+  }
   if (p.tab === "photos") return showPhotos(c);
   if (p.tab === "zoom") return zoomPhoto(c);
   if (p.tab === "price") return showPrice(c);
@@ -1757,7 +2054,8 @@ const itemOf = (r: ApiProduct): FoundItem => {
     brand: clean(r.brand),
     price: hidden ? null : pesos(r.price?.value),
     regular_price: null,
-    discount: null,
+    discount: offerOf(r)?.discount ?? null,
+    offer_price: offerOf(r)?.offer_price ?? null,
     price_hidden: hidden,
     stock: stockStatus(r.stock),
     stock_level: typeof r.stock?.stockLevel === "number" ? r.stock.stockLevel : null,
@@ -1773,8 +2071,21 @@ async function findProducts(p: FindProducts, c: MoveContext): Promise<string> {
     query
       ? `${API}/search/refineSearch?q=${encodeURIComponent(q)}&page=0&sort=${sort}&pageSize=40`
       : `${API}/category/getCategory?code=${encodeURIComponent(category || "agroplanetProducts")}&q=${encodeURIComponent(q)}&page=0&sort=${sort}&pageSize=40`;
-  let q = query ? (category ? `${query}::category:${category}` : query) : "";
+  const scoped = (words: string) => (words ? (category ? `${words}::category:${category}` : words) : "");
+  let q = scoped(query);
   let answer = await getJson<ApiListing>(request(q));
+  // Nothing for the words as said, and the store suggests a spelling
+  // ("cuchiya" → "cuchilla"): that, once, said so in the report.
+  const suggested = clean(answer.data?.spellingSuggestion?.suggestion);
+  let retried: string | null = null;
+  if (query && !(answer.data?.pagination?.totalNumberOfResults ?? answer.data?.results?.length ?? 0) && suggested && norm(suggested) !== norm(query)) {
+    const again = await getJson<ApiListing>(request(scoped(suggested))).catch(() => null);
+    if (again) {
+      answer = again;
+      q = scoped(suggested);
+      retried = suggested;
+    }
+  }
   if (p.brand) {
     // A brand by the store's own facet for these products.
     const facet = (answer.data?.facets ?? []).find((f) => f.code === "brand_search" || /^marca$/i.test(clean(f.name)));
@@ -1791,10 +2102,11 @@ async function findProducts(p: FindProducts, c: MoveContext): Promise<string> {
     category_code: category || null,
     brand: p.brand ?? null,
     total,
-    suggestion: clean(answer.data?.spellingSuggestion?.suggestion) || null,
+    suggestion: suggested || clean(answer.data?.spellingSuggestion?.suggestion) || null,
+    retried_with: retried,
     items,
   } satisfies ProductsFound);
-  return `${total} products match; ${items
+  return `${retried ? `nothing for "${query}"; searched the store's suggestion "${retried}": ` : ""}${total} products match; ${items
     .slice(0, 4)
     .map((i) => `${i.name} (${i.price_hidden ? "precio a confirmar en tienda" : `$${i.price ?? "?"}`}, ${i.path})`)
     .join("; ") || "none"}`;
@@ -1854,6 +2166,110 @@ async function checkStock(p: { path: string; store?: string | null }, c: MoveCon
     if (box) await ringThere(c, box, clean(prod.name));
   }
   return `${payload.name}: stock ${online || "unknown"}${level != null ? ` (${level} units)` : ""}; the store does not publish stock by store${matched.length ? ` (asked about ${matched.join(", ")})` : ""}`;
+}
+
+// check_fit ─────────────────────────────────────────────────────────────────
+
+/** The store's compatibility records for a part (`product/getPartAppRecords`,
+ *  the drill the Autoplanet site draws as "Compatibilidad" and Agroplanet's
+ *  product page leaves out): makes, then a make's models, a model's years, a
+ *  year's engines. "No existen resultados" is no records. */
+interface FitTree {
+  lstBrand?: { brand?: string; count?: number }[] | null;
+  lstModel?: { brand?: string; model?: string; count?: number }[] | null;
+  lstYear?: { year?: string | number; count?: number }[] | null;
+  lstEngine?: { engine?: string; notas?: unknown[] | null }[] | null;
+}
+const fitApi = (sku: string, drill: { brand?: string; model?: string; year?: string } = {}) => {
+  const q = new URLSearchParams({ productCode: sku });
+  for (const [k, v] of Object.entries(drill)) if (v) q.set(k, v);
+  return getJson<FitTree>(`${API}/product/getPartAppRecords?${q.toString().replace(/\+/g, "%20")}`).catch(() => ({}) as FitTree);
+};
+
+/** What a farmer calls a make: "MF", "Massey", "John Deere", "JD". */
+const MAKE_ALIASES: Record<string, string> = {
+  mf: "massey ferguson", massey: "massey ferguson", masey: "massey ferguson", "masey ferguson": "massey ferguson", jd: "john deere", deere: "john deere", nh: "new holland",
+  case: "case international", "case ih": "case international", deutz: "deutz-fahr", "deutz fahr": "deutz-fahr", valtra: "valtra-valmet", valmet: "valtra-valmet",
+};
+const MAX_FIT_BRANDS = 4;
+const MAX_FIT_MODELS = 30;
+
+/** A model as the catalogue writes it, from what was said: "290" is "290",
+ *  "MF 290" too; never "2900". */
+function modelMeant(said: string, models: string[]): string | null {
+  const want = bare(said);
+  if (!want) return null;
+  const exact = models.find((m) => bare(m) === want);
+  if (exact) return exact;
+  const token = models.find((m) => norm(m).split(/[\s/-]+/).some((t) => bare(t) === want));
+  return token ?? models.find((m) => want.endsWith(bare(m)) && bare(m).length >= 3) ?? null;
+}
+
+async function checkFit(p: { path: string; brand?: string | null; model?: string | null; year?: string | null }, c: MoveContext): Promise<string> {
+  const sku = productSku(p.path);
+  if (!sku) c.refuse("path", "say which product, as /producto/<slug>/<sku>");
+  const asked = { brand: clean(p.brand) || null, model: clean(p.model) || null, year: clean(p.year) || null };
+  const [tree, prod] = await Promise.all([fitApi(sku), productApi(sku).catch(() => null)]);
+  const name = clean(prod?.name) || (onProductPage() && pageSku() === sku ? clean(info()?.querySelector("h2.black-name")?.textContent) : "");
+  const makes = (tree.lstBrand ?? []).filter((b) => clean(b.brand));
+  const universal = makes.length > 0 && makes.every((b) => norm(b.brand) === "universal");
+  const brands: FitBrand[] = [];
+  const out: FitRead = { path: productPath(sku, name), sku, name, universal, brands, total: makes.reduce((n, b) => n + (Number(b.count) || 0), 0) || null, ...asked, matched: null, match: null, missing: null };
+  if (!universal && makes.length) {
+    const said = asked.brand ? (MAKE_ALIASES[norm(asked.brand)] ?? asked.brand) : null;
+    const make = said ? (best(makes, (b) => clean(b.brand), said) ?? makes.find((b) => bare(b.brand).startsWith(bare(said)))) : null;
+    if (asked.brand && !make) {
+      out.matched = false;
+      out.missing = asked.brand;
+    }
+    // The makes it is listed for; below the one asked (or each, when few),
+    // its models; below the model asked, its years; below the year, engines.
+    const drill = make ? [make] : !asked.brand && makes.length <= MAX_FIT_BRANDS ? makes : [];
+    for (const b of makes) brands.push({ brand: clean(b.brand), count: Number(b.count) || null, models: [], years: [], engines: [] });
+    for (const b of drill) {
+      const row = brands.find((x) => x.brand === clean(b.brand))!;
+      const models = ((await fitApi(sku, { brand: clean(b.brand) })).lstModel ?? []).map((m) => clean(m.model)).filter(Boolean);
+      row.models = models.slice(0, MAX_FIT_MODELS);
+      // The model asked, under the make asked (or under any make, when none was).
+      if (!asked.model || out.matched === true || (make && b !== make)) continue;
+      const model = modelMeant(asked.model, models);
+      if (!model) {
+        if (make) [out.matched, out.missing] = [false, `${row.brand} ${asked.model}`];
+        continue;
+      }
+      row.models = [model];
+      const years = ((await fitApi(sku, { brand: row.brand, model })).lstYear ?? []).map((y) => clean(String(y.year ?? ""))).filter(Boolean);
+      row.years = years;
+      const wantYear = asked.year;
+      const year = wantYear ? (years.find((y) => y === wantYear) ?? (wantYear.length === 2 ? years.find((y) => y.endsWith(wantYear)) : undefined)) : undefined;
+      if (wantYear && !year) {
+        [out.matched, out.missing] = [false, `${row.brand} ${model} del ${wantYear}`];
+        continue;
+      }
+      if (year) {
+        row.years = [year];
+        row.engines = ((await fitApi(sku, { brand: row.brand, model, year })).lstEngine ?? []).map((e) => clean(e.engine)).filter(Boolean).slice(0, 6);
+      }
+      out.matched = true;
+      out.missing = null;
+      out.match = [row.brand, model, year ?? (years.length > 1 ? `${years[0]} to ${years[years.length - 1]}` : (years[0] ?? ""))].filter(Boolean).join(" ");
+    }
+    if (asked.model && !make && !asked.brand && out.matched === null) [out.matched, out.missing] = [false, asked.model];
+    if (make && !asked.model && out.matched === null) [out.matched, out.match] = [true, clean(make.brand)];
+  } else if (universal || asked.brand) {
+    out.matched = universal ? null : false;
+  }
+  if (universal) brands.splice(0);
+  told("fit_read", out);
+  // On the part's own page: its name ringed while he answers.
+  if (onProductPage() && pageSku() === sku) {
+    const box = info();
+    const parts = [box?.querySelector<HTMLElement>("h2.black-name"), box?.querySelector<HTMLElement>("a.black-brand")].filter((x): x is HTMLElement => Boolean(x));
+    if (parts.length) await ringThere(c, parts, name);
+  }
+  const listed = universal ? "UNIVERSAL (a generic part)" : makes.length ? makes.map((b) => clean(b.brand)).join(", ") : "no machine (no records)";
+  const verdict = out.matched === true ? `; ${out.match} is listed` : out.matched === false ? `; ${out.missing} is not listed` : "";
+  return `${name || sku}: listed for ${listed}${verdict}`;
 }
 
 // stores.show ───────────────────────────────────────────────────────────────
@@ -2382,10 +2798,13 @@ async function showSection(p: { target: string; path?: string | null } & Arrived
   await waitFor(() => findHeading(want) || smallestContaining(main(), want), 3000);
 
   if (onProductPage()) {
-    const tabs: Record<string, Tab> = { "detalle del producto": "details", detalle: "details", especificaciones: "specs", fotos: "photos", foto: "zoom", zoom: "zoom", precio: "price" };
+    const tabs: Record<string, Tab> = {
+      "detalle del producto": "details", detalle: "details", especificaciones: "specs", fotos: "photos", foto: "zoom", zoom: "zoom", precio: "price",
+      "hoja de seguridad": "docs", "ficha tecnica": "docs", "complemente su compra": "related",
+    };
     const tab = tabs[norm(want)];
     if (tab) return productTab({ tab }, c);
-    const row = best(specRows(), (r) => r.label, want);
+    const row = best([...specRows(), ...equivalenceRows()], (r) => r.label, want);
     if (row && norm(row.label).length >= Math.min(4, norm(want).length)) {
       await ringThere(c, row.row, `${row.label}: ${row.value}`);
       return `showed ${row.label}: ${row.value}`;
@@ -2454,10 +2873,12 @@ async function openFaq(p: { question: string; path?: string | null } & Arrived, 
 // ─── Registering the moves ────────────────────────────────────────────────
 
 /** A move made with the category menu folded first: the flyout one move
- *  opened closes itself on the next. */
+ *  opened closes itself on the next. A move means a call: the home's late
+ *  splash window is watched for from then (`guardSplash`). */
 const menuFolded =
   <A, R>(fn: (p: A, c: MoveContext) => Promise<R>) =>
   async (p: A, c: MoveContext): Promise<R> => {
+    guardSplash();
     await closeMenu().catch(() => false);
     return fn(p, c);
   };
@@ -2485,6 +2906,7 @@ export function registerMoves(moves: Moves): void {
     find_products: menuFolded(findProducts),
     check_prices: menuFolded(checkPrices),
     check_stock: menuFolded(checkStock),
+    check_fit: menuFolded(checkFit),
     start_quote: menuFolded(startQuote),
     fill_quote: menuFolded(fillQuote),
   });

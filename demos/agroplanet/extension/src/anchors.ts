@@ -52,6 +52,11 @@ const ANCHORS = [
   "app-form-user-quote mat-select", "app-form-user-quote button", "app-product-tabs button.swatchButton",
   "app-custom-paginator-controls", "app-store-list pagination-controls", "app-store-list mat-card",
   "app-menu-desktop .hamburger-menu-icon",
+  // What the product's slice reads beyond its specifications (its badge,
+  // where it sits, Complemente su compra) and the search's own count and
+  // "no results": kept as the store writes them.
+  "app-product-info p[class*='label-']", "app-breadcrumb", "app-products-carousel .h-name", "app-product-card p.h-p",
+  "app-product-search .search-box", "app-product-search .gray-search", "app-no-results",
   "[data-voqalize]",
 ].join(", ");
 

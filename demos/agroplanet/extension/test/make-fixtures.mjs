@@ -10,7 +10,14 @@
 // product-hidden.html (/producto/…/139083, "Confirmar precio en tienda"),
 // tiendas.html (/nuestras-tiendas), cambios-devoluciones.html, cart.html
 // (/carro with 1173221 in it) and cotizacion.html (/cotizacion, nothing
-// typed).
+// typed). The second pass (2026-10-29) added category-ag15.html
+// (/categoria/agroferreteria/AG15, its "Agrofertas Octubre" switch off),
+// brand.html (/marca/bkt, 20 a page), search-empty.html (/busqueda/xyzqwe,
+// "No logramos encontrar resultados"), product-related.html (126615: its
+// Equivalencias and "Complemente su compra"), product-tractor.html (1184833,
+// the tractor for sale) and product-label.html (1184899, "Venta en Verde").
+// A page missing from the folder is skipped, so one pass's pages can be
+// trimmed again without the other's.
 //
 // Every <script>, stylesheet, inline <style>, iframe, comment and SVG drawing
 // goes; so do images' addresses, Angular's `_ngcontent-*` / `_nghost-*`
@@ -25,7 +32,7 @@
 // it hides until a press (folded panels, `hidden`, the overlays).
 
 import { chromium } from "@playwright/test";
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -47,6 +54,12 @@ const PAGES = [
   { from: "cambios-devoluciones.html", to: "cambios-devoluciones.html" },
   { from: "cart.html", to: "cart.html" },
   { from: "cotizacion.html", to: "cotizacion.html" },
+  { from: "category-ag15.html", to: "category-ag15.html", cards: 8 },
+  { from: "brand.html", to: "brand.html", cards: 8, options: 12 },
+  { from: "search-empty.html", to: "search-empty.html" },
+  { from: "product-related.html", to: "product-related.html" },
+  { from: "product-tractor.html", to: "product-tractor.html" },
+  { from: "product-label.html", to: "product-label.html" },
 ];
 
 const FIXTURE_CSS = `
@@ -69,7 +82,7 @@ const FIXTURE_CSS = `
   .whatsapp-float { display: none; }
 `;
 
-function trim({ cards, slides }) {
+function trim({ cards, slides, options }) {
   const drop = (sel) => document.querySelectorAll(sel).forEach((el) => el.remove());
   drop("script, style, link, noscript, iframe, object, embed, template, meta, base, .cdk-live-announcer-element");
   const walker = document.createTreeWalker(document, NodeFilter.SHOW_COMMENT);
@@ -89,6 +102,12 @@ function trim({ cards, slides }) {
   if (cards) {
     const all = [...document.querySelectorAll("app-plp-grid a[href*='/producto/']")];
     all.forEach((a, i) => i >= cards && (a.closest(".m-04") ?? a).remove());
+  }
+  // A brand's panels list every option (hundreds): the first few kept.
+  if (options) {
+    for (const panel of document.querySelectorAll("app-filter-element mat-expansion-panel")) {
+      [...panel.querySelectorAll("mat-checkbox")].forEach((box, i) => i >= options && (box.closest("li, .ng-star-inserted") ?? box).remove());
+    }
   }
   // The filter panels as the app first draws them: "Precio" open, the rest
   // folded (they were opened for the save, so their options are here).
@@ -130,6 +149,7 @@ await context.route("**/*", (route) => route.abort());
 const page = await context.newPage();
 
 for (const spec of PAGES) {
+  if (!existsSync(join(src, spec.from))) continue;
   const html = readFileSync(join(src, spec.from), "utf8");
   await page.setContent(html, { waitUntil: "domcontentloaded" });
   // JavaScript is off for the page, not for `evaluate`.

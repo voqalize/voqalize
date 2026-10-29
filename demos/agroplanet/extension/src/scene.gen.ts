@@ -67,7 +67,9 @@ export const scene = defineScene({
             "specs",
             "photos",
             "zoom",
-            "price"
+            "price",
+            "docs",
+            "related"
           ]
         }
       ]
@@ -124,7 +126,9 @@ export const scene = defineScene({
             "specs",
             "photos",
             "zoom",
-            "price"
+            "price",
+            "docs",
+            "related"
           ],
           "optional": true
         }
@@ -176,6 +180,27 @@ export const scene = defineScene({
         },
         {
           "name": "store",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "id": "check_fit",
+      "class": "look",
+      "args": [
+        {
+          "name": "path"
+        },
+        {
+          "name": "brand",
+          "optional": true
+        },
+        {
+          "name": "model",
+          "optional": true
+        },
+        {
+          "name": "year",
           "optional": true
         }
       ]
@@ -365,6 +390,11 @@ export const scene = defineScene({
           "optional": true
         },
         {
+          "name": "offer_price",
+          "type": "number",
+          "optional": true
+        },
+        {
           "name": "price_hidden",
           "type": "boolean",
           "optional": true
@@ -383,6 +413,14 @@ export const scene = defineScene({
           "optional": true
         },
         {
+          "name": "label",
+          "optional": true
+        },
+        {
+          "name": "category",
+          "optional": true
+        },
+        {
           "name": "specs",
           "type": "array",
           "fields": [
@@ -393,6 +431,42 @@ export const scene = defineScene({
               "name": "value"
             }
           ]
+        },
+        {
+          "name": "equivalents",
+          "type": "array",
+          "fields": [
+            {
+              "name": "label"
+            },
+            {
+              "name": "value"
+            }
+          ],
+          "optional": true
+        },
+        {
+          "name": "docs",
+          "type": "array",
+          "optional": true
+        },
+        {
+          "name": "related",
+          "type": "array",
+          "fields": [
+            {
+              "name": "name"
+            },
+            {
+              "name": "path"
+            },
+            {
+              "name": "price",
+              "type": "number",
+              "optional": true
+            }
+          ],
+          "optional": true
         },
         {
           "name": "source",
@@ -575,4 +649,4 @@ export const scene = defineScene({
   ]
 });
 
-export const SPEC_SHA256 = "760a59d821467a4af12851fa71cf66e0472e55ce1830002c5942e3a3dc26b37e";
+export const SPEC_SHA256 = "a0cefa61550159755d7e40db7fa01404b9d2252140249276d85401894bea0aa9";

@@ -22,8 +22,13 @@
  *     the app's are), the cart page's − / +, "Eliminar" and "Cotizar";
  *   - the quote form: its región and comuna selects, the validation that
  *     enables "Crear cotización" (pressing it is recorded, never answered);
- *   - the store list's pages, the policy panels, the home's splash window,
- *     the cookie bar's "Entendido", the product photo's zoom.
+ *   - the store list's pages, the policy panels, the home's splash window
+ *     (at the load, or a few seconds after it, as the live site opens it),
+ *     the cookie bar's "Entendido", the product photo's zoom;
+ *   - a campaign's switch ("Agrofertas Octubre" on AG15), a brand page that
+ *     pages in place (20 a page, its address unchanged), a search with no
+ *     results and one the store suggests a spelling for, and the part's
+ *     compatibility records (`product/getPartAppRecords`).
  *
  * Everything else on the network is refused. The adapter bundle
  * (test/.build/adapter.js, `node test/build-adapter.mjs`) is injected into
@@ -31,7 +36,7 @@
  */
 
 import type { Page, Route } from "@playwright/test";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -45,16 +50,32 @@ export const PRODUCT = "/producto/aceite_lubritek_utf_semisintetico_19l/1173221"
 export const HIDDEN = "/producto/bujes_de_biela_55_4107_semi_federal_mogul/139083";
 export const CATEGORY = "/categoria/lubricantes/AG100";
 export const SEARCH = "/busqueda/bateria";
+export const AG15 = "/categoria/agroferreteria/AG15";
+export const BRAND = "/marca/bkt";
+export const EMPTY_SEARCH = "/busqueda/xyzqwe";
+/** A part with Equivalencias, "Complemente su compra" and a hidden price. */
+export const RELATED = "/producto/bomba_de_agua_0.014.3346.4_same/126615";
+export const TRACTOR = "/producto/tractor_lovol_te254_25hp/1184833";
+export const LABELLED = "/producto/neumatico_bkt_8.3_36_8pr_tr135_tt/1184899";
+/** A Massey Ferguson part, and a universal one. */
+export const MF_PART = "/producto/manguera_de_filtro_hidraulico_massey_ferguson_290/123794";
+export const UNIVERSAL = "/producto/neumatico_speedways_r1_18.4x34/1022747";
 
 /** What each address serves; any other product is the saved one under its
  *  own SKU. */
 function pageFor(path: string): string | null {
   const p = decodeURIComponent(path).replace(/\/+$/, "").toLowerCase() || "/";
   if (p === "/" || p === "/inicio") return page("home.html");
+  if (p.startsWith("/categoria/") && p.endsWith("/ag15")) return page("category-ag15.html");
   if (p.startsWith("/categoria/")) return page("category.html");
+  if (p.startsWith("/marca/")) return page("brand.html");
+  if (/^\/busqueda\/(xyzqwe|cuchiya)$/.test(p)) return page("search-empty.html").replaceAll("xyzqwe", p.split("/").pop()!);
   if (p.startsWith("/busqueda/")) return page("search.html");
   const sku = p.match(/^\/producto\/(?:[^/]*\/)?(\d+)$/)?.[1];
   if (sku === "139083") return page("product-hidden.html");
+  if (sku === "126615") return page("product-related.html");
+  if (sku === "1184833") return page("product-tractor.html");
+  if (sku === "1184899") return page("product-label.html");
   if (sku) return page("product.html").replaceAll("1173221", sku);
   if (p === "/carro") return page("cart.html");
   if (p === "/cotizacion") return page("cotizacion.html");
@@ -93,7 +114,7 @@ type Listing = {
 /** The listing the API answers for `q`, `sort` and `page`: the saved one, its
  *  results narrowed to the brands ticked and ordered by price, each facet
  *  value marked and carrying the query that toggles it, as Hybris does. */
-function listingFor(name: "category-AG100" | "search-bateria", q: string, sort: string, page: number): Listing {
+function listingFor(name: string, q: string, sort: string, page: number, perPage = 40): Listing {
   const body = api<Listing>(name);
   const d = body.data.data;
   const parts = q.split(":");
@@ -113,15 +134,21 @@ function listingFor(name: "category-AG100" | "search-bateria", q: string, sort: 
   }
   const brands = pairs.filter(([c]) => c === "brand_search").map(([, v]) => v);
   let results = brands.length ? d.results.filter((r) => brands.includes(r.brand ?? "")) : [...d.results];
-  const total = pairs.length ? results.length : d.pagination.totalNumberOfResults;
+  // A campaign's or a brand page's own answer is saved as it is: its count stands.
+  const own = (c: string) => /^C_AG_BUSQUEDA_/.test(c) || (perPage === 20 && c === "brand_search");
+  const total = pairs.some(([c]) => !own(c)) ? results.length : d.pagination.totalNumberOfResults;
   if (sort === "price-asc") results.sort((a, b) => (a.price?.value ?? 0) - (b.price?.value ?? 0));
   if (sort === "price-desc") results.sort((a, b) => (b.price?.value ?? 0) - (a.price?.value ?? 0));
   // A second page: the saved first, the other way round.
-  if (page > 0) results = results.reverse();
+  if (page > 0 && perPage === 40) results = results.reverse();
   d.results = results;
-  d.pagination = { ...d.pagination, totalNumberOfResults: total, numberOfPages: Math.max(1, Math.ceil(total / 40)), currentPage: page };
+  d.pagination = { ...d.pagination, totalNumberOfResults: total, numberOfPages: total ? Math.max(1, Math.ceil(total / perPage)) : 0, currentPage: page };
   return body;
 }
+
+/** The compatibility records saved for a part, by `sku|brand|model|year`. */
+const FIT = api<Record<string, unknown>>("fit");
+const hasApi = (name: string) => existsSync(join(here, "pages", "api", `${name}.json`));
 
 async function answerApi(route: Route, seen: Seen, cart: Line[]): Promise<void> {
   const request = route.request();
@@ -134,12 +161,27 @@ async function answerApi(route: Route, seen: Seen, cart: Line[]): Promise<void> 
   const p = url.pathname.replace(/^\/webapi\/+/, "/");
   const q = url.searchParams;
   const form = new URLSearchParams(post);
-  if (p === "/category/getCategory") return json(listingFor("category-AG100", q.get("q") ?? "", q.get("sort") ?? "", Number(q.get("page")) || 0));
-  if (p === "/search/refineSearch") return json(listingFor("search-bateria", q.get("q") ?? "bateria", q.get("sort") ?? "", Number(q.get("page")) || 0));
+  const page = Number(q.get("page")) || 0;
+  if (p === "/category/getCategory") {
+    const query = q.get("q") ?? "";
+    if (q.get("code") === "AG15") return json(listingFor(/AGROFERRETERIAOCTUBRE/.test(query) ? "category-AG15-agrofertas" : "category-AG15", query, q.get("sort") ?? "", page));
+    // A brand page: 20 a page, each page the store's own.
+    if (/brand_search:BKT/.test(query) && q.get("code") === "agroplanetProducts") return json(listingFor(`brand-BKT-${Math.min(page, 1)}`, query, q.get("sort") ?? "", page, 20));
+    return json(listingFor("category-AG100", query, q.get("sort") ?? "", page));
+  }
+  if (p === "/search/refineSearch") {
+    const words = (q.get("q") ?? "bateria").split(":")[0]!.trim();
+    const saved = ["cuchiya", "cuchilla", "xyzqwe"].includes(words) ? `search-${words}` : "search-bateria";
+    return json(listingFor(saved, q.get("q") ?? "bateria", q.get("sort") ?? "", page));
+  }
+  if (p === "/product/getPartAppRecords") {
+    const key = [q.get("productCode"), q.get("brand"), q.get("model"), q.get("year")].filter(Boolean).join("|");
+    return json(FIT[key] ?? { statusCode: 200, isValid: false, data: { message: "No existen resultados para su consulta" } });
+  }
   if (p === "/search/autocomplete/SearchBox") return json(api("autocomplete-bateria"));
   if (p === "/product/getProductDetail") {
     const sku = q.get("productCode") ?? "";
-    if (sku === "1173221" || sku === "139083") return json(api(`product-${sku}`));
+    if (hasApi(`product-${sku}`)) return json(api(`product-${sku}`));
     if (/^\d+$/.test(sku)) {
       const body = api<{ data: Record<string, unknown> }>("product-1173221");
       return json({ ...body, data: { ...body.data, code: sku, name: `Producto ${sku}` } });
@@ -192,7 +234,7 @@ function fixtureData() {
  * The app's own scripts, as far as the adapter leans on them. Declared here
  * and serialized into each page, so everything it uses is inside it.
  */
-function simulateSite(data: { regions: string[]; comunes: string[]; stores: string[][] }, opts: { splash: boolean }): void {
+function simulateSite(data: { regions: string[]; comunes: string[]; stores: string[][] }, opts: { splash: boolean; splashAfter: number }): void {
   const API = "https://api.agroplanet.cl/webapi";
   const w = window as unknown as Record<string, unknown>;
   w.__pressedCrear = 0;
@@ -217,6 +259,7 @@ function simulateSite(data: { regions: string[]; comunes: string[]; stores: stri
     const p = decodeURIComponent(location.pathname).toLowerCase();
     if (p.startsWith("/categoria/")) return "category";
     if (p.startsWith("/busqueda/")) return "search";
+    if (p.startsWith("/marca/")) return "brand";
     if (p.startsWith("/producto/")) return "product";
     if (p === "/carro") return "cart";
     if (p === "/cotizacion") return "quote";
@@ -245,7 +288,8 @@ function simulateSite(data: { regions: string[]; comunes: string[]; stores: stri
     await afterRoute();
   }
   async function afterRoute(): Promise<void> {
-    if (kind() === "category" || kind() === "search") await syncListing();
+    brandPage = 0;
+    if (kind() === "category" || kind() === "search" || kind() === "brand") await syncListing();
     if (kind() === "cart") await syncCart();
   }
   const navigate = (path: string) => {
@@ -259,9 +303,12 @@ function simulateSite(data: { regions: string[]; comunes: string[]; stores: stri
   type Answer = { data: { name?: string; data: { results: { code: string; name: string; brand?: string; price?: { value?: number }; hidePriceByCategory?: boolean }[]; facets: Facet[] } } };
   let template: Element | null = null;
   let facets: Facet[] = [];
+  /** A brand page pages in place: its page is kept here, not in the address. */
+  let brandPage = 0;
   const listingUrl = () => {
     const q = new URLSearchParams(location.search);
     const code = location.pathname.split("/").pop();
+    if (kind() === "brand") return `${API}/category/getCategory?code=agroplanetProducts&q=${q.get("q") || `:relevance:brand_search:${(code ?? "").toUpperCase()}`}&page=${brandPage}&sort=${q.get("sort") ?? ""}&pageSize=0`;
     if (kind() === "search") return `${API}/search/refineSearch?q=${q.get("q") || decodeURIComponent(location.pathname.split("/").pop() ?? "")}&page=${q.get("page") || 0}&sort=${q.get("sort") ?? ""}&pageSize=40`;
     return `${API}/category/getCategory?code=${code}&q=${q.get("q") ?? ""}&page=${q.get("page") || 0}&sort=${q.get("sort") ?? ""}&pageSize=40`;
   };
@@ -286,6 +333,23 @@ function simulateSite(data: { regions: string[]; comunes: string[]; stores: stri
       const prices = card.querySelector(".prices");
       if (prices) prices.innerHTML = r.hidePriceByCategory ? `<p class="bg-yellow fw-500 mt-1 p-05"><span>Confirmar precio en tienda</span></p>` : `<div><span class="new-price">${pesos(r.price?.value ?? 0)}</span></div>`;
       holder.appendChild(card);
+    }
+    // The campaign switches, on or off as the answer says (in the answer's
+    // order: the app's own handlers, not their words).
+    const campaigns = facets.filter((f) => /^C_AG_BUSQUEDA_/.test(f.code));
+    for (const [i, el] of [...document.querySelectorAll(".SPECIALFILTER-filter")].entries()) {
+      const on = Boolean(campaigns[i]?.values.some((v) => v.selected));
+      el.querySelector("mat-slide-toggle")?.classList.toggle("mat-checked", on);
+      el.querySelector("input")?.setAttribute("aria-checked", String(on));
+    }
+    // The pager: the page in front a number, the others links.
+    const now = kind() === "brand" ? brandPage : Number(new URLSearchParams(location.search).get("page")) || 0;
+    for (const item of document.querySelectorAll("app-custom-paginator-controls .item")) {
+      const n = Number(item.textContent?.trim());
+      if (!n) continue;
+      const current = n === now + 1;
+      item.className = current ? "item current ng-star-inserted" : "item ng-star-inserted";
+      item.innerHTML = current ? `<div class="ng-star-inserted"><span>${n}</span></div>` : `<a class="ng-star-inserted"><span>${n}</span></a>`;
     }
     // The panels drawn again, folded but Precio, each box as the answer says.
     for (const el of document.querySelectorAll("app-filter-element")) {
@@ -426,6 +490,14 @@ function simulateSite(data: { regions: string[]; comunes: string[]; stores: stri
         header.closest("mat-expansion-panel")?.classList.toggle("mat-expanded");
         return;
       }
+      const slide = t.closest(".SPECIALFILTER-filter mat-slide-toggle label");
+      if (slide) {
+        e.preventDefault();
+        const i = [...document.querySelectorAll(".SPECIALFILTER-filter")].indexOf(slide.closest(".SPECIALFILTER-filter")!);
+        const value = facets.filter((f) => /^C_AG_BUSQUEDA_/.test(f.code))[i]?.values[0];
+        if (value) setListing({ q: value.query.query.value, page: "0" });
+        return;
+      }
       const box = t.closest("app-filter-element mat-checkbox");
       if (box) {
         e.preventDefault();
@@ -455,9 +527,12 @@ function simulateSite(data: { regions: string[]; comunes: string[]; stores: stri
       }
       const pageLink = t.closest("app-custom-paginator-controls .item a, app-custom-paginator-controls .pagination-next a");
       if (pageLink) {
-        const now = Number(new URLSearchParams(location.search).get("page")) || 0;
+        const now = kind() === "brand" ? brandPage : Number(new URLSearchParams(location.search).get("page")) || 0;
         const n = pageLink.closest(".pagination-next") ? now + 1 : Number(pageLink.textContent?.trim()) - 1;
-        setListing({ page: String(n) });
+        if (kind() === "brand") {
+          brandPage = n;
+          void syncListing();
+        } else setListing({ page: String(n) });
         return;
       }
       const storePage = t.closest("app-store-list pagination-controls li a");
@@ -590,9 +665,14 @@ function simulateSite(data: { regions: string[]; comunes: string[]; stores: stri
   });
 
   document.addEventListener("DOMContentLoaded", () => {
-    if (opts.splash && kind() === "page" && location.pathname === "/") {
+    const splash = () => {
       overlay().innerHTML = `<div class="cdk-overlay-backdrop"></div><div class="cdk-overlay-pane video-dialog"><mat-dialog-container><app-generic-dialog><span class="close">×</span></app-generic-dialog></mat-dialog-container></div>`;
       document.documentElement.classList.add("cdk-global-scrollblock");
+      w.__splashes = (Number(w.__splashes) || 0) + 1;
+    };
+    if (opts.splash && kind() === "page" && location.pathname === "/") {
+      if (opts.splashAfter) setTimeout(splash, opts.splashAfter);
+      else splash();
     }
     validate();
     void afterRoute();
@@ -601,11 +681,11 @@ function simulateSite(data: { regions: string[]; comunes: string[]; stores: stri
 
 const ADAPTER = join(here, ".build", "adapter.js");
 
-export async function serveSite(p: Page, opts: { cart?: Line[]; splash?: boolean } = {}): Promise<Seen> {
+export async function serveSite(p: Page, opts: { cart?: Line[]; splash?: boolean; splashAfter?: number } = {}): Promise<Seen> {
   const seen: Seen = { api: [], pages: [] };
   const cart: Line[] = (opts.cart ?? []).map((l) => ({ ...l }));
   const adapter = readFileSync(ADAPTER, "utf8");
-  await p.addInitScript(`(${simulateSite.toString()})(${JSON.stringify(fixtureData())}, ${JSON.stringify({ splash: Boolean(opts.splash) })});`);
+  await p.addInitScript(`(${simulateSite.toString()})(${JSON.stringify(fixtureData())}, ${JSON.stringify({ splash: Boolean(opts.splash), splashAfter: opts.splashAfter ?? 0 })});`);
   await p.addInitScript({ content: `document.addEventListener("DOMContentLoaded", () => { ${adapter}\n }, { once: true });` });
   await p.context().route("**/*", (route) => route.abort());
   await p.route(`${API_HOST}/**`, (route) => answerApi(route, seen, cart));

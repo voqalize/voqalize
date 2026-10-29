@@ -91,6 +91,41 @@ export interface StageResult {
   late?: boolean;
 }
 
+/**
+ * Which tractors the store's catalogue lists a part for, as
+ * `check_fit` read it (`product/getPartAppRecords`): the product page
+ * shows none of it. `universal` when the catalogue lists it as UNIVERSAL
+ * (a generic part, for no one machine); no `brands` when it lists no
+ * machine at all. With a machine asked (`brand`, `model`, `year`),
+ * `matched` says whether the catalogue lists it, `match` what it
+ * matched and `missing` what it did not.
+ */
+export interface FitRead {
+  path: string;
+
+  sku?: string;
+
+  name?: string;
+
+  universal?: boolean;
+
+  brands?: FitBrand[];
+
+  total?: number | null;
+
+  brand?: string | null;
+
+  model?: string | null;
+
+  year?: string | null;
+
+  matched?: boolean | null;
+
+  match?: string | null;
+
+  missing?: string | null;
+}
+
 /** The visitor pressed the other language on the widget's toggle. */
 export interface LanguageRequested {
   language: 'en' | 'es';
@@ -143,6 +178,8 @@ export interface ProductsFound {
 
   suggestion?: string | null;
 
+  retried_with?: string | null;
+
   items?: FoundItem[];
 }
 
@@ -191,6 +228,19 @@ export interface TabsChanged {
 
 // ── Shapes used by the messages above ──────────────────────────────
 
+/** One make the part is listed for, with as much below it as was read. */
+export interface FitBrand {
+  brand: string;
+
+  count?: number | null;
+
+  models?: string[];
+
+  years?: string[];
+
+  engines?: string[];
+}
+
 export interface FoundItem {
   path: string;
 
@@ -205,6 +255,8 @@ export interface FoundItem {
   regular_price?: number | null;
 
   discount?: number | null;
+
+  offer_price?: number | null;
 
   price_hidden?: boolean;
 
@@ -225,6 +277,8 @@ export interface PriceItem {
   regular_price?: number | null;
 
   discount?: number | null;
+
+  offer_price?: number | null;
 
   price_hidden?: boolean;
 
@@ -298,6 +352,7 @@ export type AppEvent =
   | { event: 'stage_hello'; payload: StageHello }
   | { event: 'stage_progress'; payload: StageProgress }
   | { event: 'stage_result'; payload: StageResult }
+  | { event: 'fit_read'; payload: FitRead }
   | { event: 'language_requested'; payload: LanguageRequested }
   | { event: 'page_changed'; payload: PageChanged }
   | { event: 'prices_read'; payload: PricesRead }
@@ -313,6 +368,7 @@ export const APP_EVENT_NAMES: readonly AppEventName[] = [
   'stage_hello',
   'stage_progress',
   'stage_result',
+  'fit_read',
   'language_requested',
   'page_changed',
   'prices_read',

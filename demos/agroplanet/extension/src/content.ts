@@ -31,7 +31,7 @@ import { createAvatar, listCharacters, preloadAvatar } from "@voqalize/avatar";
 import { defineSiteExtension } from "@voqalize/stage/extension";
 
 import { agroplanet } from "./agroplanet-actions";
-import { acceptCookies, closeSplash } from "./page";
+import { acceptCookies, guardSplash } from "./page";
 import { failure, SITE, SPOTLIGHT } from "./site";
 
 declare const __VOQALIZE__: { apiBase: string; agentId: string; publishableKey: string };
@@ -70,13 +70,15 @@ defineSiteExtension({
     { selector: ".cdk-overlay-container .mat-select-panel" },
     { selector: "app-product-info .navbar", fixedOnly: true },
   ],
-  // When a call starts: the home's empty splash window closed (it locks
-  // scrolling) and the cookie bar's "Entendido" pressed, so neither covers
-  // what he rings. The page's style for the call is in `page.ts`.
+  // When a call starts, and on each page it carries on to: the home's empty
+  // splash window closed (it locks scrolling), and watched for until ~10 s
+  // after the load, since it opens a few seconds late; and the cookie bar's
+  // "Entendido" pressed, so neither covers what he rings. The page's style
+  // for the call is in `page.ts`.
   onCallState: (on) => {
     document.documentElement.toggleAttribute("data-voqalize-call", on);
     if (on) {
-      void closeSplash();
+      guardSplash();
       acceptCookies();
     }
   },

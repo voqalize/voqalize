@@ -117,6 +117,7 @@ from .app_events import (
     AgroplanetEvent,
     CartItem,
     CartState,
+    FitRead,
     LanguageRequested,
     ListingShown,
     PageChanged,
@@ -155,6 +156,7 @@ from .stage_gen import (
     CartAddArgs,
     CartShowArgs,
     CartUpdateArgs,
+    CheckFitArgs,
     CheckPricesArgs,
     CheckStockArgs,
     FillQuoteArgs,
@@ -652,7 +654,7 @@ class LanguageChanged(Action):
 # ``scene.gen.ts`` for the page.
 
 SortOrder = Literal["price_asc", "price_desc", "relevance"]
-ProductTab = Literal["details", "specs", "photos", "zoom", "price"]
+ProductTab = Literal["details", "specs", "photos", "zoom", "price", "docs", "related"]
 
 
 # ─── Tool requests ─────────────────────────────────────────────────────────────
@@ -726,7 +728,8 @@ class FilterRequest(BaseModel):
         default=None,
         description="Each 'Facet: Option', as the category list or the listing writes them: "
         "['Marca: LUBRITEK', 'Viscosidad: 15W40', 'Precio: $10.000 - $49.999']; several "
-        "options of one facet as separate entries.",
+        "options of one facet as separate entries. The month's offers switch is "
+        "'Campaña: Agrofertas Octubre' (as the category list or the listing names it).",
     )
     sort: SortOrder | None = Field(
         default=None, description="'price_asc' cheapest first, 'price_desc', 'relevance'."
@@ -740,7 +743,8 @@ class FilterRequest(BaseModel):
         default=None, description="True to take every filter off ('Borrar Filtros'), in place."
     )
     page: int | None = Field(
-        default=None, description="The listing's page to show, 1 the first (40 a page)."
+        default=None,
+        description="The listing's page to show, 1 the first (40 a page; 20 on a brand page).",
     )
 
 
@@ -759,7 +763,8 @@ class OpenProductRequest(BaseModel):
     tab: ProductTab | None = Field(
         default=None,
         description="'specs' for its Especificaciones, 'details' for Detalle del Producto, "
-        "'photos', 'zoom' for the big photo, or 'price' for its price and buttons.",
+        "'photos', 'zoom' for the big photo, 'price' for its price and buttons, 'docs' for its "
+        "Hoja de Seguridad and Ficha Técnica, or 'related' for Complemente su compra.",
     )
 
 
@@ -778,6 +783,21 @@ class CheckStockRequest(BaseModel):
         description="The store they asked about, as said: a store's name or its city "
         "('Talca', 'Los Ángeles', 'Puerto Varas').",
     )
+
+
+class CheckFitRequest(BaseModel):
+    """Only the machine the visitor named: leave the rest out."""
+
+    path: str | None = Field(
+        default=None,
+        description="The part's '/producto/<slug>/<sku>'; leave it out for the product in front.",
+    )
+    brand: str | None = Field(
+        default=None,
+        description="The tractor's make, as said: 'Massey Ferguson', 'John Deere', 'New Holland'.",
+    )
+    model: str | None = Field(default=None, description="Its model, as said: '290', '5403'.")
+    year: str | None = Field(default=None, description="Its year, as said: '1985'.")
 
 
 class ShowStoreRequest(BaseModel):
@@ -935,11 +955,11 @@ You talk the visitor through their screen like an adviser standing beside them, 
 - Put a screen cue at the start of the sentence it belongs to. The page moves when your voice reaches that sentence. The visitor never hears a cue.
   - {{page: /path}} opens a page of the store at its top: a page from the site pages list, a category's path, a brand's /marca/<brand>, a product's /producto/<slug>/<sku> from what you read this call, or the store list /nuestras-tiendas.
   - {{show: Heading}} scrolls to a heading, section or card on the page in front (or the one a page cue just opened) and rings it. On a product page it rings a row of the Especificaciones by its label ("Unidades por caja", "País").
-  - {{tab: specs}} shows a part of the product in front: specs (Especificaciones), details (Detalle del Producto), photos (the gallery), zoom (the big photo, in the page's own zoom) or price (its price and the Cotizar and Agregar al carro buttons).
+  - {{tab: specs}} shows a part of the product in front: specs (Especificaciones), details (Detalle del Producto), photos (the gallery), zoom (the big photo, in the page's own zoom), price (its price and the Cotizar and Agregar al carro buttons), docs (its "Hoja de Seguridad" and "Ficha Técnica" rows with their Descargar buttons) or related ("Complemente su compra", the products the store suggests with it). docs and related only when the product's line lists them.
   - {{faq: Panel}} opens one panel of a policy page (Despacho, Cambios y devoluciones, Garantía) and rings its answer.
   - {{menu: Category}} opens "Todas las categorías" on that top category, so its subcategories show: {{menu: Baterías}}, {{menu: Repuestos De Tractor}}.
   - {{store: Name}} shows one store on /nuestras-tiendas.
-  - {{filter: Facet | Option}} narrows the listing in front by one of its facets, the option exactly as the listing or the category list writes it: {{filter: Marca | LUBRITEK}}, {{filter: Viscosidad | 15W40}}, {{filter: Precio | $10.000 - $49.999}}. Two options of one facet go in one cue only when the visitor named both: "Lubritek o Shell" is {{filter: Marca | LUBRITEK, SHELL}}.
+  - {{filter: Facet | Option}} narrows the listing in front by one of its facets, the option exactly as the listing or the category list writes it: {{filter: Marca | LUBRITEK}}, {{filter: Viscosidad | 15W40}}, {{filter: Precio | $10.000 - $49.999}}. Two options of one facet go in one cue only when the visitor named both: "Lubritek o Shell" is {{filter: Marca | LUBRITEK, SHELL}}. A listing with this month's offers switch has the facet "Campaña": {{filter: Campaña | Agrofertas Octubre}} switches it on.
   - {{sort: price_asc}} sorts the listing in front: price_asc (cheapest first), price_desc or relevance.
 - OPEN WITH A CUE, then one cue at the start of each sentence that talks about something on screen. Talk about what you ring, as you ring it:
   - On a product: "{{tab: price}} Esta batería está a ochenta mil pesos. {{tab: specs}} Mira las especificaciones. {{show: País}} Viene de Corea."
@@ -961,7 +981,7 @@ You talk the visitor through their screen like an adviser standing beside them, 
 - Farmers ask by machine and job. Find out what you need to find the right part, one short question at a time, only what you do not know yet: the machine ("¿Qué tractor es, marca y modelo?", "¿De cuántos caballos?"), the measure ("¿Qué medida tiene el neumático?", "¿Tienes el código del rodamiento?"), or the use ("¿Es para el motor o para el hidráulico?"). If they already said, go straight to options.
 - Then find_products with the words that matter and the category when you know it. When the products come back, name two or three that fit, each with its price and whether it is available, recommend one with the reason that matters for their machine or job, and open it with a page cue: "{{page: /producto/bateria_12v_100ah/1234567}} Te abro la de cien amperes hora, que es la que le sirve a tu tractor."
 - What matters, by part: a battery, the voltage, the amperes hora and the cold-cranking amps (CCA) for the machine, and the terminal side; an oil, the use (motor, hidráulico, transmisión) and the viscosity the maker asks for; a tyre, the size written on its side and conventional or radial; a bearing, its code or its measures; a blade or a spare for an implement, the implement's make and model. Say why in plain words.
-- Compatibility is the visitor's to confirm: say what the page or the specs say, and when the store does not state that a part fits their machine, say so and suggest checking the code, or asking a seller by WhatsApp or in store.
+- Compatibility: see "Does it fit my tractor" below. Never claim a fit the store's data does not show.
 - Every spec and every price you say is one you read this call: from find_products, the product page's lines, check_prices or the cart. Never from memory, never invented, never from another product.
 - End every turn with one short, useful next step as a yes-or-no question: "¿Te la abro?", "¿Te reviso si está disponible?", "¿Te la agrego al carro?", "¿Pedimos la cotización?". Never "anything else?".
 
@@ -992,28 +1012,46 @@ You speak Spanish as a native of Latin America, and English. The call starts in 
 
 # Every fact has a source
 - Every fact comes from the knowledge below, a topic you read, a search result, or what their screen and your moves reported. If you cannot find it, say so, and offer a seller by WhatsApp or in store.
-- Never promise stock, a delivery date, a delivery cost, a discount or that a part fits a machine when the site does not state it.
+- Never promise stock, a delivery date, a delivery cost, a final price or that a part fits a machine the store's catalogue does not list it for.
 
 # Every response starts with words
 Write your answer, with its cues, first; any tool call comes at the end of the same response.
 - read_topic, read_category, search_site and read_screen come straight back to you within this same turn, but each one makes the visitor wait. Answer from what you know below whenever it covers the question. Read only for what is not here, and then call the read first, with nothing written before it.
-- Every other tool is a move: find_products, check_prices, check_stock, search_products, filter_listing, open_product, show_store, add_to_cart, update_cart_item, show_cart, start_quote, fill_quote. The page does it a moment later and tells you in square brackets, and you talk it through then. In the reply that calls one, say only what you are doing ("Te busco opciones.", "Te reviso el stock en Talca.", "Te la agrego al carro."), never that it is done and never a result.
+- Every other tool is a move: find_products, check_prices, check_stock, check_fit, search_products, filter_listing, open_product, show_store, add_to_cart, update_cart_item, show_cart, start_quote, fill_quote. The page does it a moment later and tells you in square brackets, and you talk it through then. In the reply that calls one, say only what you are doing ("Te busco opciones.", "Te reviso el stock en Talca.", "Te la agrego al carro."), never that it is done and never a result.
 - One move at a time: when a tool says the page is still working on the last move, what you asked for follows by itself. Say so in a few words, and never call it again.
 - While a move is still running (a line says so), never say it failed: say you are still on it. Never say the store, the site or the page is slow: it is the store's own site. If a line later says it was done after all, correct yourself in a few words.
 - A question about the call itself — "can I speak English?", "can you hear me?", "who are you?" — gets an answer and nothing else: no move, no page.
 
 # Finding products
 - find_products reads the store's own catalogue in their browser: up to eight products with their live prices and stock, and how many match. It is how you answer "¿tienen…?", "¿qué me recomiendas?" and "¿cuál es más barato?". Search with the store's Spanish words ("bateria 12v 100ah", "aceite hidraulico", "rodamiento 6205", "cuchilla rotofresa"), a category from the list below when you know it, and a brand.
+- When the words find nothing and the store suggests a spelling, find_products searches that once by itself, and the line says so: say what you searched ("No encontré 'cuchiya', pero sí 'cuchilla'."). When nothing comes back at all, say so plainly and offer other words, the part's code or a category.
+- PART NUMBERS. A farmer often reads a code off the old part or its box: an OEM number (RE45827, 3641481M1, 0.014.3346.4) or a filter maker's (Donaldson P551354, Fleetguard LF3000, Mann W 950, CNH, AGCO, John Deere, Perkins). Search it with find_products exactly as they read it, letters and digits together ("RE45827"), never guessing the part's name. Product names carry codes, and a product page's "Equivalencias" lists the OEM codes it replaces: when the line gives them, say the code matches and ring it ({{show: Equivalencia OEM}}). Filter listings also have "Equivalencia <marca>" facets (Equivalencia Donaldson, Equivalencia Fleetguard…) with codes as options: read_category gives them. When a code finds nothing, say so and offer to search by the machine and the part instead. Spell a code you say back letter by letter.
 - search_products types their words into the store's own search box so the results page shows on their screen; with open_index it opens one of the results. Use it when they want to see the results themselves.
-- filter_listing opens a category's listing with its facets already on, in one move. On the listing in front, filter with cues as you talk instead. filter_listing also takes filters off in place (remove, or clear for "Borrar Filtros") and turns the page (page, forty products a page): "saca la marca" is remove, "la página siguiente" is page.
+- filter_listing opens a category's listing with its facets already on, in one move. On the listing in front, filter with cues as you talk instead. filter_listing also takes filters off in place (remove, or clear for "Borrar Filtros") and turns the page (page, forty products a page, twenty on a brand page /marca/<brand>): "saca la marca" is remove, "la página siguiente" is page.
 - open_product opens a product, with a section when you name one; on the product in front, use a tab cue.
+
+# Does it fit my tractor
+- The store's catalogue lists, for many parts, the tractors they fit (make, model, year and engine). The product page does not show it; check_fit reads it in their browser.
+- WHEN A FARMER NAMES HIS MACHINE ("¿le sirve a mi Massey Ferguson 290?", "es para un John Deere 5403 del 2010"), call check_fit with the part and the machine as he said it, before you recommend or add the part. Say only what its line says: "Según el catálogo de Agroplanet, sirve para el Massey Ferguson 290, del 80 al 95." When the line says the catalogue does not list his machine, say so plainly and offer to look for the part for his machine; never say it fits.
+- "UNIVERSAL" in the catalogue means a generic part, listed for no one machine: say it is universal and that what matters is the measure or the code, not the tractor's make.
+- No records at all means the catalogue does not say: never guess a fit from the name. Suggest checking the Código Fabricante or the old part's code with a seller, by WhatsApp or in store.
+- "¿Qué repuestos tienen para mi MF 290?" is the other way round: product names carry the machine, so call find_products with the make and model in the words ("filtro massey ferguson 290"), then check_fit on the one or two you would recommend.
 
 # Prices and stock
 - Each product has one price, and when it is on offer, the struck price and its percentage: say the offer only when the lines say it is a real saving.
+- THE STORE'S OFFERS ARE APPLIED IN THE CART. The pages show the full price; when a line gives an offer, say the price the page shows, then that the store applies a discount of that percentage in the cart, which leaves it around the offer price: "En la página está a trescientos sesenta mil pesos, y la tienda aplica un veinte por ciento de descuento en el carro: queda en unos doscientos ochenta y ocho mil." Never promise it as the final price: the firm price comes with the quote.
 - Some products show "Confirmar precio en tienda" instead of a price. NEVER say a price for those, not even one you read elsewhere: say the store confirms the price, and that the quote is the way to get it.
 - A price or stock you say is one a line from this call gives. Without one, say you will check it, and call check_prices; never a price from memory.
 - Say stock in words, never as a promise and never as a count: "está disponible", "quedan pocas unidades", "no tiene stock online". "¿La tienen en la tienda de Talca?" is check_stock with the store: say what it found for that store, and offer to show the store ({{store: Name}}).
 - The price may change with the store or the delivery chosen, as the product page says: never quote a delivery cost.
+
+# This month's offers
+- The home's big banner carries the month's offers by category ("hasta tantos por ciento de descuento en…, en productos seleccionados"): read_topic ofertas has them, with the category each goes to. They are this month's banners and change: say "este mes, el banner de la tienda dice…", never a promise for a given product.
+- Some listings have the month's offers switch (facet "Campaña", like "Agrofertas Octubre" on Agroferretería): when they want offers, take them to that category with the switch on (filter_listing with 'Campaña: Agrofertas Octubre', or the cue on the listing in front), and offer "solo las ofertas". There is no offers page and searching "ofertas" finds nothing.
+
+# Special products
+- "Venta en Verde" is a badge the store puts on some products (some BKT tyres). The site never explains it: never explain or guess what it means. Say it is how the store labels that product, and that a seller confirms the details (WhatsApp or the quote).
+- Maquinaria: the store lists a tractor for sale (LOVOL TE254, 25 HP). Its price is confirmed in store ("Confirmar precio en tienda"): never a price; its specifications are in its Detalle del Producto. It is quoted like any product: Agregar al carro, then the quote.
 
 # The cart and the quote
 - Agroplanet sells by quote: there is no online payment. The cart's "Cotizar" opens the "Formulario de cotización"; the visitor sends it with "Crear cotización", Agroplanet validates it (the stock and a formal price) and confirms it in writing to their email. There is no checkout, no payment on the site and no delivery cost before the quote. Explain this simply when they want to buy.
@@ -1201,6 +1239,10 @@ _LANDED: dict[str, dict[Lang, str]] = {
     "product": {"en": "I'm opening the product.", "es": "Te abro el producto."},
     "prices": {"en": "I'm checking the prices.", "es": "Te reviso los precios."},
     "stock": {"en": "I'm checking the stock.", "es": "Te reviso el stock."},
+    "fit": {
+        "en": "I'm checking which tractors it fits.",
+        "es": "Te reviso para qué tractores sirve.",
+    },
     "store": {"en": "I'm showing you the store.", "es": "Te muestro la tienda."},
     "cart_add": {"en": "I'm adding it to your cart.", "es": "Lo agrego a tu carro."},
     "cart_show": {"en": "I'm opening your cart.", "es": "Te abro el carro."},
@@ -1344,7 +1386,7 @@ def short_name(name: str, words: int = 6) -> str:
 #: Facets whose options read as a brand ("de Lubritek") or a category ("en
 #: Lubricantes"); every other is a spec ("con 15W40").
 _BRAND_FACETS = frozenset({"marca"})
-_KIND_FACETS = frozenset({"categoria"})
+_KIND_FACETS = frozenset({"categoria", "campana"})
 
 
 def _option_said(option: str) -> str:
@@ -2053,7 +2095,6 @@ _TABS: dict[str, ProductTab] = {
     "specs": "specs",
     "especificaciones": "specs",
     "specifications": "specs",
-    "ficha tecnica": "specs",
     "caracteristicas": "specs",
     "details": "details",
     "detalle": "details",
@@ -2074,6 +2115,24 @@ _TABS: dict[str, ProductTab] = {
     "precio": "price",
     "prices": "price",
     "cotizar": "price",
+    "docs": "docs",
+    "documentos": "docs",
+    "documents": "docs",
+    "ficha tecnica": "docs",
+    "fichas": "docs",
+    "hoja de seguridad": "docs",
+    "hojas de seguridad": "docs",
+    "data sheet": "docs",
+    "data sheets": "docs",
+    "safety sheet": "docs",
+    "pdf": "docs",
+    "descargar": "docs",
+    "related": "related",
+    "relacionados": "related",
+    "productos relacionados": "related",
+    "complemente su compra": "related",
+    "complementos": "related",
+    "complementary": "related",
 }
 #: Which source of a price wins over which: the store's live read over the
 #: page's, the page's over a card's.
@@ -2110,6 +2169,7 @@ class Live:
     stock: str = ""
     source: str = "page"
     at: float = 0.0
+    offer_price: int | None = None
 
     def line(self, lang: Lang) -> str:
         bits: list[str] = []
@@ -2122,11 +2182,39 @@ class Live:
                 pct = self.discount if self.regular_price else None
             if pct is not None and self.regular_price:
                 bits.append(f"before {pesos(self.regular_price)}, a real saving of {pct}%")
+            elif (offer := self.offer) is not None:
+                bits.append(offer_said(self.price, *offer, lang))
         if self.stock:
             bits.append(_stock_said(self.stock))
         if not bits:
             bits.append("no price read")
         return ", ".join(bits) + f" ({_SOURCE_SAID.get(self.source, self.source)})"
+
+    @property
+    def offer(self) -> tuple[int, int] | None:
+        """The store's offer the cart applies — its price and percentage —
+        when it is a real one; else ``None``."""
+        return offer_of(self.price, self.offer_price, self.discount)
+
+
+def offer_of(price: int | None, offer: int | None, pct: int | None) -> tuple[int, int] | None:
+    """The offer price and its whole percentage, when the store has a real
+    one below the price the page shows (5% or more)."""
+    if price is None or offer is None or not 0 < offer < price:
+        return None
+    off = pct if pct is not None and pct >= 5 else saving(offer, price)
+    return (offer, off) if off is not None and off >= 5 else None
+
+
+def offer_said(price: int, offer: int, pct: int, lang: Lang) -> str:
+    """The note's words for an offer the cart applies: the page shows the
+    full price."""
+    return (
+        f"OFFER: the page shows {pesos(price)}; the store applies {pct}% off in the cart, about "
+        f"{_money(offer, lang)} — say the shown price, then that the store applies a {pct}% "
+        "discount in the cart (around the offer price); never promise it as the final price, "
+        "which comes with the quote"
+    )
 
 
 def _stock_said(stock: str) -> str:
@@ -2139,15 +2227,59 @@ def _product_note(e: ProductShown, lang: Lang) -> str:
     note = f"[{head} “{name}” ({e.path})" + (f", brand {e.brand}" if e.brand else "")
     note += (f", Código Fabricante {e.maker_code}" if e.maker_code else "") + ". "
     seen = Live(
-        e.path, name, e.price, e.regular_price, e.discount, e.price_hidden, e.stock, e.source
+        e.path,
+        name,
+        e.price,
+        e.regular_price,
+        e.discount,
+        e.price_hidden,
+        e.stock,
+        e.source,
+        offer_price=e.offer_price,
     )
     note += seen.line(lang) + "."
+    if e.category:
+        note += f" In the store under: {e.category}."
+    if e.label:
+        note += f' Its badge: "{e.label}".'
+        if fold(e.label) == "venta en verde":
+            note += (
+                " The site never explains Venta en Verde: never explain or guess it; say it is "
+                "how the store labels it, and that a seller confirms the details."
+            )
+    if _is_machine(e):
+        note += (
+            " It is machinery the store sells: its price is confirmed in store, and it is "
+            "quoted like any product."
+        )
     if e.description:
         note += f" Detalle del Producto: {e.description[:600]}."
     if e.specs:
         specs = [f"{k}: {v}" for k, v in e.specs.items()]
         note += f" Especificaciones (cue a row by its label): {_clip(specs, _SPECS_IN_NOTE)}."
+    if e.equivalents:
+        eq = [f"{k}: {v}" for k, v in e.equivalents.items()]
+        note += f" Equivalencias (the codes it replaces; cue a row by its label): {'; '.join(eq)}."
+    if e.docs:
+        note += (
+            f" Data sheets: {', '.join(e.docs)} ({{tab: docs}} rings their Descargar buttons; "
+            "each opens a PDF in a new tab, which the visitor presses)."
+        )
+    if e.related:
+        rel = [
+            f"{r.name} ({r.path})" + (f", {_money(r.price, lang)}" if r.price is not None else "")
+            for r in e.related
+        ]
+        note += f" Complemente su compra ({{tab: related}}): {_clip(rel, 6)}."
     return note + "]"
+
+
+#: The store's machinery, by its place in the store.
+_MACHINE = re.compile(r"\b(?:maquinaria|tractor para venta)\b")
+
+
+def _is_machine(e: ProductShown) -> bool:
+    return bool(_MACHINE.search(fold(e.category))) or fold(e.name).startswith("tractor ")
 
 
 def _listing_note(e: ListingShown, lang: Lang) -> str:
@@ -2194,7 +2326,15 @@ def _prices_note(e: PricesRead, lang: Lang) -> str:
     for i in e.items:
         path = product_path(i.path) or i.path
         live = Live(
-            path, i.name, i.price, i.regular_price, i.discount, i.price_hidden, i.stock, "api"
+            path,
+            i.name,
+            i.price,
+            i.regular_price,
+            i.discount,
+            i.price_hidden,
+            i.stock,
+            "api",
+            offer_price=i.offer_price,
         )
         lines.append(f"{i.name or path} ({path}): {live.line(lang)}")
     note = f"[Live prices: {'; '.join(lines) or 'none'}."
@@ -2215,20 +2355,34 @@ def _found_note(e: ProductsFound, lang: Lang) -> str:
     what = ", ".join(a for a in asked if a) or "everything"
     suggestion = (
         f' The store suggests the spelling "{e.suggestion}".'
-        if e.suggestion and norm(e.suggestion) != norm(e.query or "")
+        if e.suggestion and norm(e.suggestion) != norm(e.query or "") and not e.retried_with
         else ""
     )
+    if e.retried_with:
+        suggestion = (
+            f' “{e.query}” found nothing, so the store\'s suggested spelling "{e.retried_with}" '
+            "was searched instead: say so in a few words (what you searched)."
+        )
+        what = f"“{e.retried_with}”" + what.removeprefix(f"“{e.query}”")
     if not e.items:
         return (
-            f"[find_products found nothing for {what}.{suggestion} Say so plainly, and offer "
-            "to widen it: other words, the part's code, or a category.]"
+            f"[find_products found nothing for {what}: the store has no product for it.{suggestion} "
+            "Say so plainly, and offer to widen it: other words, the part's code, or a category.]"
         )
     total = f"{e.total} match" if e.total is not None else "Some match"
     lines: list[str] = []
     for n, i in enumerate(e.items, 1):
         path = product_path(i.path) or i.path
         live = Live(
-            path, i.name, i.price, i.regular_price, i.discount, i.price_hidden, i.stock, "found"
+            path,
+            i.name,
+            i.price,
+            i.regular_price,
+            i.discount,
+            i.price_hidden,
+            i.stock,
+            "found",
+            offer_price=i.offer_price,
         )
         lines.append(
             f"{n}. {i.name} ({path})" + (f", {i.brand}" if i.brand else "") + f": {live.line(lang)}"
@@ -2240,6 +2394,79 @@ def _found_note(e: ProductsFound, lang: Lang) -> str:
         "that the store confirms it) and whether it is available, recommend one for their "
         "machine or job, and open it with {page: /producto/<slug>/<sku>}.]"
     )
+
+
+#: Models, years and engines a fit line names, at most.
+_FIT_MODELS = 20
+_FIT_YEARS = 3
+
+
+def _years_said(years: list[str]) -> str:
+    """Years as a span when they run on ("1980 to 1995"), else listed."""
+    nums = sorted({int(y) for y in years if y.isdigit()})
+    if len(nums) >= _FIT_YEARS and nums[-1] - nums[0] + 1 == len(nums):
+        return f"{nums[0]} to {nums[-1]}"
+    return ", ".join(str(n) for n in nums) or ", ".join(years)
+
+
+def _fit_note(e: FitRead) -> str:
+    name = e.name or e.path
+    head = f"[Fit of “{name}” ({product_path(e.path) or e.path}), from the store's catalogue"
+    asked = " ".join(x for x in (e.brand, e.model, e.year) if x)
+    tail = (
+        ' Say it as the catalogue\'s ("según el catálogo de Agroplanet"), and suggest confirming '
+        "the Código Fabricante with a seller when it matters.]"
+    )
+    if e.universal:
+        return (
+            head
+            + ": listed as UNIVERSAL — a generic part, for no one machine"
+            + (f"; it names no {asked}" if asked else "")
+            + ". Say it is universal: what matters is the measure or the code, not the make."
+            + tail
+        )
+    if not e.brands:
+        return (
+            head
+            + ": it lists no machine for this part. NEVER say it fits"
+            + (f" a {asked}" if asked else " a machine")
+            + "; say the catalogue does not say, and suggest checking the Código Fabricante or "
+            "the old part's code with a seller, by WhatsApp or in store.]"
+        )
+    makes: list[str] = []
+    for b in e.brands:
+        bit = b.brand + (f" ({b.count} machines)" if b.count else "")
+        if b.models:
+            more = len(b.models) - _FIT_MODELS
+            bit += (
+                ": models "
+                + ", ".join(b.models[:_FIT_MODELS])
+                + (f" and {more} more" if more > 0 else "")
+            )
+        if b.years:
+            bit += f"; years {_years_said(b.years)}"
+        if b.engines:
+            bit += f"; engines {'; '.join(b.engines[:3])}"
+        makes.append(bit)
+    note = head + f": listed for {' | '.join(makes)}"
+    if e.total:
+        note += f" ({e.total} machines in all)"
+    note += "."
+    if asked:
+        if e.matched:
+            note += (
+                f" They asked about a {asked}: the catalogue LISTS IT"
+                + (f" ({e.match})" if e.match else "")
+                + "."
+            )
+        else:
+            note += (
+                f" They asked about a {asked}: the catalogue does NOT list it"
+                + (f" ({e.missing} is not among them)" if e.missing else "")
+                + ". Never say it fits: say so plainly, and offer to look for the part for "
+                "their machine."
+            )
+    return note + tail
 
 
 _STORE_STOCK = {"inStock": "available", "lowStock": "few units", "outOfStock": "none"}
@@ -3133,7 +3360,7 @@ class AgroplanetBrain(OpenAIBrain):
         )
         labels: tuple[str, ...] = ()
         if elsewhere is None and self.product is not None and self._on_product():
-            labels = tuple(self.product.specs)
+            labels = (*self.product.specs, *self.product.equivalents)
         shown = (_match(asked, labels) or _match(asked, headings) or asked)[:80]
         self._shown = shown
         return [shown, elsewhere] if elsewhere else [shown]
@@ -3259,6 +3486,11 @@ class AgroplanetBrain(OpenAIBrain):
         writes them; or why not, naming what the listing has."""
         facets = self._facets_for(path, cat)
         want = facet_key(facet)
+        if want in _CAMPAIGN_WORDS or self._campaign(path, cat, facet) is not None:
+            # "Ofertas: Agrofertas Octubre", "Agrofertas Octubre: sí": the switch.
+            want = facet_key(CAMPAIGN)
+            if self._campaign(path, cat, value if isinstance(value, str) else "") is None:
+                value = self._campaign(path, cat, facet) or value
         hit = next((f for f in facets if facet_key(f[0]) == want), None)
         if hit is None:
             hit = next(
@@ -3295,6 +3527,20 @@ class AgroplanetBrain(OpenAIBrain):
                 f"{name} has no {' or '.join(repr(u) for u in unknown)} here (it lists: {listed})"
             )
         return name, self._named_only(path, name, out)
+
+    def _campaign(self, path: str, cat: Category | None, said: str) -> str | None:
+        """The listing's campaign switch ``said`` names ("agrofertas octubre",
+        "agrofertas"), as the listing writes it; else ``None``."""
+        options = next(
+            (o for f, o, _ in self._facets_for(path, cat) if facet_key(f) == facet_key(CAMPAIGN)),
+            (),
+        )
+        want = norm(said)
+        if not want or not options:
+            return None
+        return _match(said, options) or next(
+            (o for o in options if len(want) >= 5 and norm(o).startswith(want)), None
+        )
 
     def _named_only(self, path: str, facet: str, options: list[str]) -> list[str]:
         """Of several options of one facet, those the visitor named in their
@@ -3436,6 +3682,7 @@ class AgroplanetBrain(OpenAIBrain):
                         i.price_hidden,
                         i.stock,
                         "api",
+                        offer_price=i.offer_price,
                     )
                 return _prices_note(event, self.spoken)
             case ProductsFound():
@@ -3451,11 +3698,15 @@ class AgroplanetBrain(OpenAIBrain):
                         i.price_hidden,
                         i.stock,
                         "found",
+                        offer_price=i.offer_price,
                     )
                 return _found_note(event, self.spoken)
             case StockRead():
                 self._link(event.path)
                 return _stock_note(event, self.kb)
+            case FitRead():
+                self._link(event.path)
+                return _fit_note(event)
             case StoreShown():
                 return _store_note(event)
             case StageHello():
@@ -3498,6 +3749,7 @@ class AgroplanetBrain(OpenAIBrain):
                     view.price_hidden,
                     view.stock,
                     view.source,
+                    offer_price=view.offer_price,
                 )
                 self.stage.landed(
                     _PRODUCT_MOVES, event=view, fits=lambda landing: lands(landing, view)
@@ -3537,20 +3789,22 @@ class AgroplanetBrain(OpenAIBrain):
         if before is None or not same_product(before.path, view.path):
             return view
         keep: dict[str, Any] = {}
-        if not view.specs and before.specs:
-            keep["specs"] = before.specs
+        for many in ("specs", "equivalents", "docs", "related"):
+            if not getattr(view, many) and getattr(before, many):
+                keep[many] = getattr(before, many)
         if view.source == "page" and before.source == "api":
             # The page's own copy never undoes the live read.
             keep |= {
                 "price": before.price,
                 "regular_price": before.regular_price,
                 "discount": before.discount,
+                "offer_price": before.offer_price,
                 "price_hidden": before.price_hidden,
                 "stock": before.stock,
                 "stock_level": before.stock_level,
                 "source": "api",
             }
-        for name in ("brand", "maker_code", "description", "sku"):
+        for name in ("brand", "maker_code", "description", "sku", "label", "category"):
             if not getattr(view, name) and getattr(before, name):
                 keep[name] = getattr(before, name)
         return view.model_copy(update=keep) if keep else view
@@ -3713,6 +3967,8 @@ class AgroplanetBrain(OpenAIBrain):
         price_hidden: bool,
         stock: str,
         source: str,
+        *,
+        offer_price: int | None = None,
     ) -> None:
         """One more thing their screen or a read said of a product's price or
         stock, by its SKU. A live read is not overwritten by a page or card
@@ -3737,6 +3993,7 @@ class AgroplanetBrain(OpenAIBrain):
             stock or (before.stock if before else ""),
             source,
             time.monotonic(),
+            offer_price,
         )
 
     def _read_in_screen(self) -> None:
@@ -4067,6 +4324,7 @@ class AgroplanetBrain(OpenAIBrain):
             self.find_products,
             self.check_prices,
             self.check_stock,
+            self.check_fit,
             self.search_products,
             self.filter_listing,
             self.open_product,
@@ -4253,6 +4511,38 @@ class AgroplanetBrain(OpenAIBrain):
             out += f" No store on the list is named '{store_said}': the page matches it by city."
         return out
 
+    async def check_fit(self, request: CheckFitRequest) -> str:
+        """Read which tractors the store's catalogue lists a part for (make,
+        model, year, engine), in their browser, without moving their screen;
+        with the machine they named, whether it is among them. Call it before
+        you recommend a part for a machine they named. It returns at once;
+        the fit comes back to you after."""
+        if (meta := self._meta_turn()) is not None:
+            return meta
+        path = self._product_path(request.path) if request.path else self._in_front()
+        if path is None or product_sku(path) is None:
+            return (
+                "Not read: which part? Give its '/producto/<slug>/<sku>' from find_products or "
+                "their screen; no product page is in front."
+            )
+        said = {
+            k: " ".join(v.split())
+            for k, v in (("brand", request.brand), ("model", request.model), ("year", request.year))
+            if v and v.strip()
+        }
+        if (private := self._private_arg(*said.values())) is not None:
+            return private
+        args = CheckFitArgs(path=path, **said)
+        self.stage.send("check_fit", args.model_dump())
+        landed(_LANDED["fit"][self.spoken])
+        machine = " ".join(said.values())
+        return (
+            f"Reading the catalogue's fit for {path}"
+            + (f" ({machine})" if machine else "")
+            + ". "
+            + self._sent_note("'Te reviso para qué tractores sirve.'")
+        )
+
     async def search_products(self, request: SearchProductsRequest) -> str:
         """Type their words into the store's own search box, at a human pace,
         and show the results page on their screen; with open_index, then open
@@ -4310,6 +4600,8 @@ class AgroplanetBrain(OpenAIBrain):
         refused: list[str] = []
         by_facet: dict[str, list[str]] = {}
         for item in request.filters or []:
+            if ":" not in item and (campaign := self._campaign(path, cat, item)) is not None:
+                item = f"{CAMPAIGN}: {campaign}"
             if ":" not in item:
                 refused.append(f"'{item}' is not 'Facet: Option'")
                 continue
@@ -4607,6 +4899,14 @@ _EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)*\.[a-z]{2,}")
 _REGION_WORDS = re.compile(r"^(?:la\s+)?(?:regi[oó]n\s+(?:(?:de|del)\s+)?)?", re.IGNORECASE)
 #: The most of one product a cart line takes from him.
 _MOST_IN_CART = 50
+
+
+#: The listings' campaign switches, as the page reports their facet.
+CAMPAIGN = "Campaña"
+#: What a reply may write as the campaign facet, folded.
+_CAMPAIGN_WORDS = frozenset(
+    {"campana", "campanas", "campaign", "oferta", "ofertas", "offers", "offer", "promocion"}
+)
 
 
 #: Where one said option ends and the next begins: a comma (not the one in
