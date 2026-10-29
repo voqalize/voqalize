@@ -6,7 +6,7 @@
   "license": "Apache-2.0",
   "type": "module",
   "bin": {
-    "stage": "./bin/stage.mjs"
+    "stage": "bin/stage.mjs"
   },
   "exports": {
     ".": "./src/index.ts",

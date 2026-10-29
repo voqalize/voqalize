@@ -75,4 +75,13 @@ jobs:
       - run: pnpm test
       - run: pnpm build
       - run: node scripts/publish-manifest.mjs
+      # npm corrects a manifest it does not like as it publishes, and may drop
+      # what it cannot correct (a `./` bin path lost `stage` its command):
+      # publish only what we wrote.
+      - run: |
+          npm publish --dry-run --access public --tag "${{ needs.guard.outputs.dist-tag }}" 2>&1 | tee dry-run.log
+          if grep -q "npm warn publish" dry-run.log; then
+            echo "::error::npm would change the manifest as it publishes; fix package.json"
+            exit 1
+          fi
       - run: npm publish --provenance --access public --tag "${{ needs.guard.outputs.dist-tag }}"
