@@ -57,6 +57,7 @@ from voqalize_demos._loaded.kdem.brain import (  # noqa: E402
     _GREETING_KN,
     _SYSTEM_INSTRUCTION,
     DONT_KNOW,
+    IDENTITY,
     SWITCH_LINE,
     TOGGLE_CONFIRM,
     KdemBrain,
@@ -1541,3 +1542,27 @@ async def test_the_microphone_outcome_is_logged_and_not_put_to_the_model(outcome
     assert f"kdem: mic_permission {outcome} after 10000 ms" in log
     assert "mic_permission maybe" not in log
     assert "microphone" not in _said(llm.captured_contents[-1]).lower()
+
+
+# ─── Who she is ───────────────────────────────────────────────────────────────
+
+
+async def test_she_is_kdems_assistant_and_never_names_a_model_or_vendor() -> None:
+    """A visitor asked who built her and heard a vendor's name and "a large
+    language model". The prompt every request carries says who she is, in one
+    written line, and forbids naming a model or a vendor; and nothing in her
+    own written lines names one either."""
+    llm = _llm()
+    async with demo("kdem", llm) as rig:
+        await rig.driver.start_session(init={"page": "/"})
+        await rig.driver.user_says("Thank you.")
+    prompt = llm.captured_system_instructions[-1]
+    assert IDENTITY == "I'm Aria, KDEM's voice assistant, built by Voqalize."
+    assert f'say: "{IDENTITY}"' in prompt
+    assert "Never name a model, an AI company or any vendor" in prompt
+    written = "\n".join(
+        [_SYSTEM_INSTRUCTION, _GREETING, _GREETING_KN, IDENTITY]
+        + [line for lines in kdem_brain.LINES.values() for line in lines.values()]
+    ).lower()
+    for name in ("gemini", "google", "openai", "gpt", "anthropic", "claude", "llama"):
+        assert name not in written, name
