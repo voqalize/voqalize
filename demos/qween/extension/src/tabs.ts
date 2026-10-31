@@ -25,7 +25,7 @@
  * the call there is instead of starting another; and every tab that knows of
  * the call answers a newcomer, even while the holder is between pages.
  *
- * This is the Qween prove-out of `apps/voqalize/multi-tab/DESIGN.md`. It lives
+ * This is the Qween prove-out of the multi-tab design. It lives
  * in the demo on purpose: nothing in `@voqalize/client-transport` or
  * `@voqalize/avatar` changes until we know what the libraries should offer.
  */
