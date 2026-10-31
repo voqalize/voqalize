@@ -18,7 +18,7 @@ importers:
         specifier: ^1.8.0
         version: 1.8.2(@babel/core@7.29.7)(@babel/template@7.29.7)(@pipecat-ai/client-js@1.13.1)(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@pipecat-ai/small-webrtc-transport':
-        specifier: ^1.10.6
+        specifier: ~1.10.8
         version: 1.10.8(@pipecat-ai/client-js@1.13.1)
       '@pipecat-ai/voice-ui-kit':
         specifier: ^0.13.0
@@ -1019,7 +1019,7 @@ packages:
     resolution: {directory: ../../shared, type: directory}
     peerDependencies:
       '@pipecat-ai/client-js': '>=1.5.0 <2'
-      '@pipecat-ai/small-webrtc-transport': '>=1.10.6 <2'
+      '@pipecat-ai/small-webrtc-transport': '>=1.10.7 <2'
       '@voqalize/client-transport': 0.4.0
       react: ^19.0.0
 
