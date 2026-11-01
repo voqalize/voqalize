@@ -227,10 +227,11 @@ defaults. `patience` came back in 0.5.0 as a step on a 0-to-10 scale rather than
 a duration, so it survives a retune of the tier underneath it; unset takes the
 deployment's calibration, which is 7. We widen as we learn.
 
-The catalog is small and closed, and the `Voice` enum is the one copy of the
-voice half we keep on purpose — it is what gives a brain author autocompletion.
-`design/voice_catalog.py check` holds it to what the speech tier serves, and
-renders the docs table from the same fetch. `vql-stt` routes English and the
+The `Voice` enum is deprecated and frozen, like `Language`: a brain names a voice
+by its `voice_id` string, so a voice added to the speech tier needs no proto
+release. `design/voice_catalog.py check` holds each enum value to what the speech
+tier serves, notes a served voice the enum has no value for rather than failing,
+and renders the docs table from the same fetch. `vql-stt` routes English and the
 European languages to Parakeet TDT 0.6B v3 and the Indic codes to
 IndicConformer, and publishes that route table at `GET /v2/languages`; the
 control plane reads it to refuse an unheard `stt.language` at connect and to
@@ -423,7 +424,9 @@ customer prose — and `check_facts.py` reads it against every governed page.
 A-record, because `speech.*` is round-robin across nodes and one fetch proves
 one node — and holds the `Voice` enum's `voice_id` options to it, and each
 voice's languages to the `Language` enum, then renders `reference/catalog.md`'s
-table from the same document. Run `render` after adding a voice; `check` is what
+table from the same document. Both enums are frozen, so a served voice or
+language they cannot name is printed, not failed; an enum value naming a voice
+nothing serves still fails. Run `render` after adding a voice; `check` is what
 fails when somebody didn't, and `voice-catalog.yml` runs it every morning against
 each environment so nobody has to remember. It needs the generated protobuf
 module, so it runs from `sdk/python`.
