@@ -50,8 +50,9 @@ facts:
       pattern: '^WIRE_VERSION = (\d+)$'
     note: >-
       Both ends carry their own constant and refuse a mismatch
-      (ERROR_CODE_WIRE_VERSION). PyGato's copy is
-      platform/backend/pygato/src/pygato/wire/frames.py:33 and must equal this.
+      (ERROR_CODE_WIRE_VERSION). Gato's copy is
+      platform/gato/internal/brain/wire/frames.go:20 `Version` and must equal
+      this (PyGato's, retired 2026-10-31, was wire/frames.py:33).
       The address said :30 until 2026-08-25 — the value was right and the line
       was three off, which is the failure "address before assertion" exists to
       stop, in the one file whose whole job is being addressable.
@@ -593,7 +594,7 @@ facts:
     note: >-
       The ends of the `stt.patience` scale, written out at every seat that can
       refuse one — the speech tier that owns the mapping, the control plane at
-      `sessions.connect`, PyGato mid-call, and `SttConfig.__post_init__` in the
+      `sessions.connect`, gato mid-call, and `SttConfig.__post_init__` in the
       SDK. They are duplicated because protobuf cannot carry a bound on a
       `uint32`, so unlike the languages and the voices there is no descriptor to
       read them off; the refusal sentence is derived from the constants at each
@@ -636,10 +637,14 @@ facts:
 
   pipecat.version:
     value: '1.7.0'
-    source: platform/backend/pygato/pyproject.toml:15
+    source: platform/backend/pygato/pyproject.toml:15 (deleted; platform 5c0b8c23)
     verified: 2026-08-24
-    reproduce: grep pipecat-ai ../platform/backend/pygato/pyproject.toml
+    reproduce: git -C ../platform show 5c0b8c23:backend/pygato/pyproject.toml | grep pipecat-ai
     note: >-
+      **History since 2026-10-31.** The voice tier is gato, written in Go, and
+      depends on no pipecat package; it speaks pipecat's client protocol, which
+      `pipecat.client.floor` below is the number for. Do not print this one as
+      a current dependency.
       A floor (>=1.7.0), not a pin, and it is the voice tier's dependency rather
       than the customer's. 1.7.0 is load-bearing history: every conformance lane
       that passed before it had passed on 1.5.0, the version carrying L7, so all
@@ -718,10 +723,10 @@ facts:
 
   speech.stt.model:
     value: vql-stt
-    source: platform/backend/pygato/src/pygato/session.py:98
-    verified: 2026-08-25
+    source: platform/gato/internal/stt/service.go:70 DefaultModel
+    verified: 2026-11-01
     reproduce: >-
-      grep -n '_STT_MODEL = ' ../platform/backend/pygato/src/pygato/session.py
+      grep -n 'DefaultModel *= ' ../platform/gato/internal/stt/service.go
     note: >-
       A composite router, the default, and the only one. Language selects the
       engine underneath; a brain never names an engine. Until 2026-08-25 this
@@ -795,12 +800,14 @@ facts:
 
   speech.turn.eot_timeout_share:
     value: '8.6%'
-    source: platform/backend/pygato/src/pygato/turn_strategies.py:44 (measured over 14 days of production)
+    source: platform/backend/pygato/src/pygato/turn_strategies.py:44 (measured over 14 days of production; deleted, platform 5c0b8c23)
     verified: 2026-08-26
     reproduce: >-
-      grep -n '8.6% of real turns'
-      ../platform/backend/pygato/src/pygato/turn_strategies.py
+      git -C ../platform show 5c0b8c23:backend/pygato/src/pygato/turn_strategies.py
+      | grep -n '8.6% of real turns'
     note: >-
+      **History: measured on PyGato, retired 2026-10-31.** Gato and the speech
+      tier close turns differently; re-measure before repeating it.
       The share of real turns closed by the silence deadline rather than by the
       turn detector being confident — which is why a committed turn is not
       always a finished thought. Load-bearing for the trade it justifies:
@@ -812,12 +819,15 @@ facts:
 
   speech.interrupt.confidence:
     value: 0.45
-    source: platform/backend/pygato/src/pygato/session.py:116 _INTERRUPT_CONFIDENCE
+    source: platform/backend/pygato/src/pygato/session.py:116 _INTERRUPT_CONFIDENCE (removed, platform e2e88500)
     verified: 2026-08-26
     reproduce: >-
-      grep -n '_INTERRUPT_CONFIDENCE = '
-      ../platform/backend/pygato/src/pygato/session.py
+      git -C ../platform show e2e88500^:backend/pygato/src/pygato/session.py
+      | grep -n '_INTERRUPT_CONFIDENCE = '
     note: >-
+      **History.** PyGato replaced this bar with a duration on 2026-09-07
+      (platform e2e88500), and gato kept the duration
+      (platform/gato/internal/turn/bar.go). Do not print 0.45 as current.
       The bar a transcription must clear to cut off speech in progress.
       Confidence ramps with how long real speech has been sustained, so a
       backchannel or a one-word garble stays under it and a sustained barge-in
@@ -878,13 +888,13 @@ facts:
 
   brain.connect.deadline_secs:
     value: 10.0
-    source: platform/backend/pygato/src/pygato/brain_bridge.py:251 _FIRST_CONNECT_DEADLINE_S
-    verified: 2026-09-21
+    source: platform/gato/internal/brain/wire/transport.go:101 FirstConnect
+    verified: 2026-11-01
     reproduce: >-
-      grep -n '_FIRST_CONNECT_DEADLINE_S\|_DEAD_AIR_TIMEOUT_S'
-      ../platform/backend/pygato/src/pygato/brain_bridge.py &&
-      grep -n 'initial_backoff_seconds'
-      ../platform/backend/pygato/src/pygato/wire/transport.py
+      grep -n 'FirstConnect\|InitialBackoff'
+      ../platform/gato/internal/brain/wire/transport.go &&
+      grep -n 'cfg.DeadAir = '
+      ../platform/gato/internal/brain/bridge.go
     note: >-
       How long Voqalize keeps dialling a brain that does not answer, starting
       at 100 ms (wire/transport.py:154 initial_backoff_seconds) and backing off
@@ -896,11 +906,11 @@ facts:
 
   brain.watchdog_secs:
     value: 10.0
-    source: platform/backend/pygato/src/pygato/brain_bridge.py:270 _DEAD_AIR_TIMEOUT_S
-    verified: 2026-09-26
+    source: platform/gato/internal/brain/bridge.go:290 DeadAir
+    verified: 2026-11-01
     reproduce: >-
-      grep -n '_DEAD_AIR_TIMEOUT_S = \|_DEAD_AIR_SPEECH = '
-      ../platform/backend/pygato/src/pygato/brain_bridge.py
+      grep -n 'cfg.DeadAir = \|DeadAirSpeech = '
+      ../platform/gato/internal/brain/bridge.go
     note: >-
       The watchdog: armed per committed user turn, disarmed by the first text
       the brain sends for it or by a barge-in, and at the end it says "Sorry —
@@ -952,11 +962,10 @@ facts:
 
   video.codec:
     value: VP8
-    source: platform/backend/pygato/src/pygato/_video.py
-    verified: 2026-10-07
+    source: platform/gato/internal/smallwebrtc/server.go:382
+    verified: 2026-11-01
     reproduce: >-
-      grep -n -i 'vp8' ../platform/backend/pygato/src/pygato/_video.py
-      ../platform/backend/pygato/src/pygato/signaling.py
+      grep -n 'MimeTypeVP8' ../platform/gato/internal/smallwebrtc/server.go
     note: >-
       The only video codec accepted on the wire and recorded, whatever the
       offer lists. A browser that cannot send VP8 still connects with audio and
@@ -964,11 +973,11 @@ facts:
 
   video.max_kbps.default:
     value: 5000
-    source: platform/backend/pygato/src/pygato/_video.py:141 DEFAULT_MAX_KBPS
-    verified: 2026-10-07
+    source: platform/gato/internal/smallwebrtc/server.go:192 CameraMaxKbps
+    verified: 2026-11-01
     reproduce: >-
-      grep -n 'DEFAULT_MAX_KBPS\b.*=\|MIN_MAX_KBPS = '
-      ../platform/backend/pygato/src/pygato/_video.py
+      grep -n 'MaxKbps = \|MinVideoKbps = '
+      ../platform/gato/internal/smallwebrtc/server.go
     note: >-
       Per lane, camera and screen alike, when requestData.video does not set a
       cap. A safety ceiling, not a quality target: the browser sends what the
@@ -976,10 +985,10 @@ facts:
 
   video.max_kbps.min:
     value: 300
-    source: platform/backend/pygato/src/pygato/_video.py:145 MIN_MAX_KBPS
-    verified: 2026-10-07
+    source: platform/gato/internal/smallwebrtc/server.go:161 MinVideoKbps
+    verified: 2026-11-01
     reproduce: >-
-      grep -n 'MIN_MAX_KBPS' ../platform/backend/pygato/src/pygato/_video.py
+      grep -n 'MinVideoKbps' ../platform/gato/internal/smallwebrtc/server.go
     note: >-
       The lowest cap requestData.video.{camera,screen}.max_kbps may set. Below
       it the first offer is refused with HTTP 400, code invalid_config, and an
@@ -987,11 +996,11 @@ facts:
 
   video.capture.recommended:
     value: camera up to 1280×720; screen native, up to 1920×1080
-    source: platform/backend/pygato/src/pygato/recording_composite.py:162 CAMERA, :164 SCREEN
-    verified: 2026-10-07
+    source: platform/gato/internal/recording/render/composite.go:70 specCamera, :71 specScreen
+    verified: 2026-11-01
     reproduce: >-
-      grep -n '^CAMERA = \|^SCREEN = \|^SCREEN_CAMERA' 
-      ../platform/backend/pygato/src/pygato/recording_composite.py
+      grep -n 'specCamera  *=\|specScreen  *=\|specScreenCamera  *='
+      ../platform/gato/internal/recording/render/composite.go
     note: >-
       A recommendation, not a limit: Voqalize records whatever arrives. The
       numbers are the composite's own canvases — a camera composite is
@@ -1036,11 +1045,10 @@ facts:
 
   session.rejoin_grace_secs:
     value: 10
-    source: platform/backend/pygato/src/pygato/lifecycle.py:90 RESUME_GRACE_SECS
-    verified: 2026-10-07
+    source: platform/gato/cmd/gato/config.go:150 ResumeGrace
+    verified: 2026-11-01
     reproduce: >-
-      grep -n 'RESUME_GRACE_SECS = '
-      ../platform/backend/pygato/src/pygato/lifecycle.py
+      grep -n 'PYGATO_RESUME_GRACE_SECS' ../platform/gato/cmd/gato/config.go
     note: >-
       How long a call outlives its peer connection closing, for a fresh offer
       with the same session token and no pc_id to take it back: a page load mid
@@ -1050,11 +1058,11 @@ facts:
 
   speech.idle.default_ms:
     value: 0
-    source: platform/backend/pygato/src/pygato/session_config.py:108 DEFAULT_IDLE_TIMEOUT_MS
-    verified: 2026-08-25
+    source: platform/gato/internal/brain/config.go:104 (unset stays 0), :10 MaxIdleTimeoutMs
+    verified: 2026-11-01
     reproduce: >-
-      grep -n 'DEFAULT_IDLE_TIMEOUT_MS\|MAX_IDLE_TIMEOUT_MS'
-      ../platform/backend/pygato/src/pygato/session_config.py
+      grep -n 'MaxIdleTimeoutMs\|IdleTimeoutMs = '
+      ../platform/gato/internal/brain/config.go
     note: >-
       **Idle detection is off unless you ask for it.** Zero, because a nudge
       nobody asked for talks over a user who was thinking. The ceiling is

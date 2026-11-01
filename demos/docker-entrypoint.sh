@@ -5,11 +5,11 @@
 #
 #   - Cloud Run, which hands multi-line values (the RS256 pubkey PEM bundle) to
 #     the process natively. Nothing to do — this script is a no-op there.
-#   - A Docker container on the pygato VM, where the deploy writes an
+#   - A Docker container on the voice node, where the deploy writes an
 #     `--env-file`. Docker's env-file parser is strictly one KEY=value per LINE:
 #     a multi-line PEM cannot survive it at all, and the escape-and-quote dance
 #     that makes it survive *systemd's* EnvironmentFile parser (see
-#     voqalcloud backend/pygato/deploy/deploy.py::_quote_escaped_values) does
+#     platform infra/nodes, gsm.quote_escaped_values) does
 #     NOT transfer — Docker and Compose each strip quotes differently, and both
 #     differ from systemd. That mismatch is the classic "green deploy, every
 #     session closes 4000" failure.

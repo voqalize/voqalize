@@ -70,7 +70,7 @@ class Settings:
     openai_api_key: str
     # PEM public key(s) to verify Voqalize's brain token against; empty → the SDK's
     # embedded platform keys (prod signer only). A dev deploy MUST set this to dev
-    # PyGato's signer — dev and prod sign with different keys, so the embedded prod
+    # voice runtime's signer — dev and prod sign with different keys, so the embedded prod
     # key rejects every dev session. Accepts a multi-key PEM bundle (rotation).
     brain_pubkeys: tuple[str, ...]
     # Local dev escape hatch: skip token verification entirely.
@@ -173,7 +173,7 @@ def _brain_router(name: str, build: Callable[[_Runtime], Brain]) -> APIRouter:
                 session_id=session_id,
                 token=token,
                 # Verify Voqalize's RS256 brain token. Prefer configured pubkeys
-                # (dev PyGato's signer); with none, fall back to the SDK's embedded
+                # (the dev voice runtime's signer); with none, fall back to the SDK's embedded
                 # platform keys — the prod signer only, never fail open.
                 public_keys=list(rt.settings.brain_pubkeys) or None,
                 allow_unverified=rt.settings.allow_unverified,

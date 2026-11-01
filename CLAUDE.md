@@ -205,8 +205,7 @@ on purpose:**
   release, an SDK release and a redeploy to add a language.
 
 **The pairing is refused wherever a configuration is written down** — the
-control plane at `sessions.connect`, the voice runtime (PyGato's `session_config.py`,
-gato's `internal/brain/catalog.go`), and the
+control plane at `sessions.connect`, the voice runtime (gato's `internal/brain/catalog.go`), and the
 speech tier itself as a backstop — and every tier says the same sentence,
 because none of them owns the roster. The speech tier publishes it at
 `/voices.json`; the others fetch it at boot, in the background, and a fetch that
@@ -497,7 +496,7 @@ needs. All three steps have shipped: the demo cut, the SDK type, and the fleet �
 
 **There is no third step — the wire cannot earn one** (traced 2026-09-09, once the demo cut
 was in). `state_sync` is a string a demo invented: it appears nowhere in `proto/`, the
-control plane or PyGato. The browser sends it with stock `client.sendClientMessage`, which
+control plane or the voice runtime. The browser sends it with stock `client.sendClientMessage`, which
 makes it an RTVI `client-message` whose payload the wire carries as an opaque JSON string,
 and the typed events ride that identical envelope. Even moving them onto the reserved
 `ui-event` / `ui-snapshot` types is an SDK choice, not a proto edit — both are already

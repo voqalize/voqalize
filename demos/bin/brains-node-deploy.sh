@@ -4,12 +4,12 @@
 # The single unit demos/cloudbuild.brains-vm.yaml invokes (once per host). Same
 # idiom as vql-speech's bin/node-deploy.sh — ship config, pin the image, replace,
 # health-gate, prune — with two deliberate divergences, both because this node is
-# the *pygato voice node* and not a dedicated app box:
+# the *voice node* (gato) and not a dedicated app box:
 #
 #   1. The node holds NO durable GCP credential. vql-speech keeps an
-#      artifactregistry.reader SA JSON key on disk; pygato's node invariant is
-#      "the node never authenticates to GCP" (voqalcloud
-#      backend/pygato/deploy/README.md). So the pull uses an EPHEMERAL
+#      artifactregistry.reader SA JSON key on disk; the voice node's invariant is
+#      "the node never authenticates to GCP" (platform
+#      infra/nodes/README.md). So the pull uses an EPHEMERAL
 #      `oauth2accesstoken` minted from the *build* SA, piped over stdin, and
 #      `docker logout` wipes it from ~/.docker/config.json before we exit. The
 #      token lives ~1h and never touches the disk of a public-facing VM.
@@ -29,14 +29,14 @@
 # Usage:
 #   demos/bin/brains-node-deploy.sh <host> <port> <image> <ssh_key> <project> <region>
 #
-#   host     the pygato node's address
+#   host     the voice node's address
 #   port     loopback port Caddy reverse-proxies to, e.g. 8091
 #   image    full AR ref pinned to an immutable tag (…/demos:<short_sha>)
 #   ssh_key  path to the brains deploy private key (GSM brains-deploy-ssh-key)
 #   project  GCP project holding the runtime secrets
 #   region   AR region, e.g. asia-south1
 #
-# SSHes as `brains` — a distinct, independently revocable identity from pygato's
+# SSHes as `brains` — a distinct, independently revocable identity from the voice runtime's
 # root deploy key. It is in the `docker` group, which is trivially escalatable to
 # root: this is a blast-radius/audit boundary between the two pipelines, NOT a
 # security boundary. Say so out loud rather than implying otherwise.
@@ -70,7 +70,7 @@ fetch_secret() {
 GEMINI_API_KEY="$(fetch_secret gemini-api-key)"
 # The existing demos run on Gemini; new ones start on OpenAI (OpenAIBrain).
 OPENAI_API_KEY="$(fetch_secret openai-api-key)"
-# The dev/prod PyGato RS256 signer(s) this brain verifies session tokens against.
+# The dev/prod voice runtime's RS256 signer(s) this brain verifies session tokens against.
 # REQUIRED in dev: dev and prod sign with different keys and the SDK's embedded
 # fallback is the PROD signer only, so a dev deploy without this closes every
 # session 4000.
@@ -99,19 +99,19 @@ trap registry_logout EXIT
 info "image pulled"
 
 # --- 3. Replace the container. --------------------------------------------
-# Caps exist because this box is the voice node: pygato is latency- and
+# Caps exist because this box is the voice node: gato is latency- and
 # loss-sensitive, so the brains must be *physically unable* to starve it.
 #   --cpus 1.0            hard 25%-of-box ceiling (4 vCPU); a runaway demo brain
-#                         still leaves 3 cores for pygato's sessions.
+#                         still leaves 3 cores for gato's sessions.
 #   --cpu-shares 256      soft backstop for the other 75%. Docker maps shares to
 #                         cgroup v2 cpu.weight (2..262144 -> 1..10000), so 256 is
-#                         weight ~10 against pygato.service's systemd default
-#                         CPUWeight=100: under contention pygato wins ~10:1
+#                         weight ~10 against gato.service's systemd default
+#                         CPUWeight=100: under contention gato wins ~10:1
 #                         before the hard cap is even reached.
 #   --memory 1g           2x the Cloud Run limit this same image runs fine on. An
 #                         OOM at 1g is a leak to find, not a limit to raise.
 #   --memory-swap 1g      == memory ⇒ swap disabled for the container, so a brains
-#                         leak can never induce swap thrash into pygato's jitter
+#                         leak can never induce swap thrash into gato's jitter
 #                         budget. (The box has no swap today; this makes it
 #                         explicit rather than incidental.)
 #   --pids-limit 512      fork-bomb guard; the app is one uvicorn process.

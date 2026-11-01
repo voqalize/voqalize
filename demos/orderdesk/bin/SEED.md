@@ -64,7 +64,7 @@ prod `06a71907-1d6a-7bab-8000-9812748d2673`. They differ, as they must: the
 MCP is created with platform defaults — **English** STT (`stt.language_hint`
 unset ⇒ Parakeet) and the English `omnivoice/gaurav` voice. That is survivable:
 this demo sets its pipeline **per session** from the browser
-(`frontend/src/config.ts` → `pipeline`), which PyGato layers over the record
+(`frontend/src/config.ts` → `pipeline`), which the voice runtime layers over the record
 field by field.
 
 The **console UI does expose them**, though — an agent's Configuration panel has
@@ -81,7 +81,7 @@ works from `draft`, so don't chase it.
 Two things must stay true either way, or the call breaks in a way that looks like
 bad recognition rather than bad config:
 
-- `stt.language_hint: "hi"` — PyGato reads `language_hint`, **not** `language`,
+- `stt.language_hint: "hi"` — the voice runtime reads `language_hint`, **not** `language`,
   when choosing the recognition engine. Sending only `language: "hi"` silently
   transcribes Hindi with an English model.
 - `tts.voice: "omnivoice/gauri"` + `tts.language: "hi"` — both read from the
