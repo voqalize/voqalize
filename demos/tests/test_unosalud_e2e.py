@@ -25,6 +25,8 @@ Run: ``cd demos && uv run pytest tests/test_unosalud_e2e.py``
 from __future__ import annotations
 
 import asyncio
+import importlib
+from datetime import datetime, tzinfo
 from typing import Any
 
 import pytest
@@ -49,6 +51,17 @@ from voqalize_demos._loaded.unosalud.brain import (  # noqa: E402
     greeting,
     language_of,
 )
+
+brain = importlib.import_module("voqalize_demos._loaded.unosalud.brain")
+
+
+class _FixedNow(datetime):
+    """A day the ortodoncia promotion in promotions.json is still valid."""
+
+    @classmethod
+    def now(cls, tz: tzinfo | None = None) -> _FixedNow:
+        return cls(2026, 10, 15, 12, 0, tzinfo=tz)
+
 
 ORTO = "/especialidades/ortodoncia/"
 HOME = {
@@ -423,7 +436,12 @@ async def test_the_booking_opens_and_its_first_step_is_explained_as_theirs() -> 
         assert "the RUT identifies the patient's clinical record" in seen
 
 
-async def test_a_promotion_carries_its_code_into_the_booking() -> None:
+async def test_a_promotion_carries_its_code_into_the_booking(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The brain refuses a promotion past its valid_until, so the clock is held inside
+    # this one's window; the real date would expire the test with the promotion.
+    monkeypatch.setattr(brain, "datetime", _FixedNow)
     llm = _llm()
     async with demo("unosalud", llm) as rig:
         await rig.driver.start_session(init={"path": "/promociones/"})
