@@ -113,7 +113,7 @@ _IDLE_MS = 5000
 
 # Short sentences, because the first thing a visitor learns is how long this
 # face talks for. The greeting sets the pace every model turn is asked to keep.
-# "Hi," not "Hi!": PyGato synthesises a sentence at a time, and gayatri given a
+# "Hi," not "Hi!": the voice runtime synthesises a sentence at a time, and gayatri given a
 # lone "Hi!" opens on an R and adds a stray syllable after it, so the face's
 # first word was its worst (measured on speech.dev, ira/m2/START-OF-SPEECH.md).
 _GREETING = "Hi, I'm a face for AI voice calls. Ask me how I work, and I'll show you."

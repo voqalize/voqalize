@@ -16,9 +16,8 @@ FakeCortex inserts the 16-byte session_id prefix on the pygato→agent path
 and strips it on the agent→pygato path. Test session ids are arbitrary
 strings; we hash them to 16 bytes via uuid5.
 
-A counterpart lives in PyGato's ``tests/fakes/cortex.py``. Keep its routing
-behaviour aligned with this one; the usage examples differ because this suite
-may exercise private SDK construction seams directly.
+Its routing matches the real Cortex relay; this suite may also exercise
+private SDK construction seams directly.
 
 Usage::
 

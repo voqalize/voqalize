@@ -5,7 +5,7 @@ Every demo is a ``GeminiBrain`` subclass now — ADK is gone from the repo, and 
 is the last brain on the experimental ``GeminiInteractionsBrain``, and every demo, travel and orderdesk included,
 is hosted through :func:`demo` with the same
 :class:`voqalize_demos.testing.ScriptedGemini` fake. The ``brain_server``
-WebSocket, the minted PyGato token, and the driver's playout/heard-truth model
+WebSocket, the minted brain token, and the driver's playout/heard-truth model
 are identical across every one of them, which is the point: these tests exercise the
 same wire a production session runs on.
 
@@ -107,7 +107,7 @@ class DemoRig:
 @contextlib.asynccontextmanager
 async def demo(name: str, llm: ScriptedGemini | ScriptedOpenAI) -> AsyncIterator[DemoRig]:
     """Host demo ``name``'s real brain (scripted model) on localhost and open a
-    PyGato-side driver against it. Tears both down on the way out. ``llm`` is the
+    runtime-side driver against it. Tears both down on the way out. ``llm`` is the
     fake for the demo's provider: ``ScriptedGemini`` for a ``GeminiBrain`` demo,
     ``ScriptedOpenAI`` for an ``OpenAIBrain`` one.
 

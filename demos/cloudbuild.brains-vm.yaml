@@ -1,8 +1,8 @@
-# Build A' — the demos BRAINS image → the pygato VM (Docker on the node).
+# Build A' — the demos BRAINS image → the voice node (Docker on the node).
 #
 # Successor to the now-removed demos/cloudbuild.brains.yaml (Cloud Run). Same
 # image, same registry, same path filter, same trigger shape — only the deploy
-# target moves: instead of `gcloud run deploy`, the build SSHes into the pygato
+# target moves: instead of `gcloud run deploy`, the build SSHes into the voice
 # node and rolls a container that Caddy fronts at brain.<env>.voqalize.com. The
 # Cloud Run fallback (service, trigger, demos-runtime SA) has been decommissioned
 # — this is now the only brains deploy path.
@@ -40,11 +40,11 @@ substitutions:
   _REGION: YOUR_REGION
   _PROJECT: YOUR_GCP_PROJECT
   _ENV: dev
-  # The pygato node this env's brains run on. Comma-separate if it ever becomes
+  # The voice node this env's brains run on. Comma-separate if it ever becomes
   # more than one (each is deployed in turn).
   _BRAIN_HOSTS: YOUR_BRAIN_HOST
   # Loopback port the node's Caddy reverse-proxies brain.<env>.voqalize.com to.
-  # Must match config.BRAINS_PORT in the private repo's pygato/deploy.
+  # Must match config.BRAINS_PORT in the private repo's infra/nodes.
   _BRAINS_PORT: "8091"
   # Public hostname, for the post-deploy gate over real DNS + TLS.
   _BRAIN_DOMAIN: YOUR_BRAIN_DOMAIN

@@ -35,5 +35,5 @@ SDK that consumes it — the Python stub into
 `*.proto`. The generated `gen/` tree is git-ignored; the copied-in stub is
 committed with the SDK.
 
-The private platform repo vendors that same committed stub into PyGato with its
-own `make proto`; it does not hold a second copy of the schema.
+The private platform repo's control plane and voice runtime are built against
+this same schema.
