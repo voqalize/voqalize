@@ -8,11 +8,13 @@ could name, and a page told readers the catalog was two personas long after it
 was not. There is now one record of it. The speech tier publishes what its
 running process has loaded at ``/voices.json``; everything else reads that.
 
-The proto enum is the one copy we keep on purpose (it is what gives a developer
-autocompletion and a name their editor can underline), so it is the one copy
-this checks. ``voice_id`` on each enum value is the join: a voice served under
-an id no enum value claims is a voice nobody can select, and an enum value
-claiming an id nothing serves is a name that fails on a live call.
+The proto enum is the one copy this checks, and ``voice_id`` on each enum value
+is the join. The enum is deprecated and frozen (``frames.proto``, 2026-10-16): a
+brain names a voice by its ``voice_id`` string, so a voice added to the speech
+tier needs no proto release. A served voice no enum value claims is therefore
+printed, not failed, and the docs table lists it by its id alone. The other
+direction still fails: an enum value claiming an id nothing serves is a name
+that fails on a live call.
 
     python3 design/voice_catalog.py check     # the proto and the docs, against every node
     python3 design/voice_catalog.py render    # rewrite the docs table from the catalog
@@ -145,15 +147,10 @@ def table(document: dict[str, object]) -> str:
     for voice in voices(document):
         voice_id = str(voice["id"])
         member = names.get(voice_id)
-        if member is None:
-            raise SystemExit(
-                f"the speech tier serves {voice_id!r} and no `Voice` value claims it. "
-                f"Add one to proto/voqalize/frames/frames.proto and run `make proto`."
-            )
+        # The enum is frozen, so a voice added since has no value: it is named by its id.
+        name = f"`Voice.{member.removeprefix('VOICE_')}`" if member else "—"
         spoken = ", ".join(f"`{code}`" for code in voice["languages"])  # type: ignore[union-attr]
-        rows.append(
-            f"| `Voice.{member.removeprefix('VOICE_')}` | `{voice_id}` | {voice['display']} | {spoken} |"
-        )
+        rows.append(f"| {name} | `{voice_id}` | {voice['display']} | {spoken} |")
     return "\n".join(rows)
 
 
@@ -195,8 +192,12 @@ def cmd_check(args: argparse.Namespace) -> int:
 
     served = {str(v["id"]) for v in rosters[first]}
     declared = set(proto_voices())
+    # The `Voice` enum is frozen and a voice is selected by its `voice_id`
+    # string, the way a language past the `Language` enum is (below). A voice
+    # added to the speech tier since is reachable without a proto release, so
+    # it is printed, not failed.
     for voice_id in sorted(served - declared):
-        problems.append(f"{voice_id} is served and no `Voice` value claims it")
+        print(f"  · {voice_id} is a string id only; the frozen `Voice` enum has no value for it")
     for voice_id in sorted(declared - served):
         problems.append(f"`Voice` claims {voice_id} and {args.host} does not serve it")
 
