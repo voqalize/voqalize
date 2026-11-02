@@ -129,6 +129,7 @@ export function ListingView({ title, intro, crumbs, base, pills, isSearch, empty
         <header className="listing-head">
           <h1 className="h1">{title}</h1>
           {intro ? <p className="lede">{intro}</p> : null}
+          {isSearch ? <SearchField /> : null}
         </header>
         {pills?.length ? (
           <div className="pills" role="list">
@@ -217,6 +218,32 @@ export function ListingView({ title, intro, crumbs, base, pills, isSearch, empty
         </div>
       </div>
     </div>
+  );
+}
+
+function SearchField() {
+  const [sp, setSp] = useSearchParams();
+  const [q, setQ] = useState(sp.get("q") ?? "");
+  useEffect(() => setQ(sp.get("q") ?? ""), [sp]);
+  return (
+    <form
+      className="search-page-form"
+      role="search"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const next = new URLSearchParams();
+        if (q.trim()) next.set("q", q.trim());
+        setSp(next);
+      }}
+    >
+      <label className="sr-only" htmlFor="search-page-q">
+        Search the store
+      </label>
+      <input id="search-page-q" className="input" type="search" placeholder="Search sofas, oak, linen…" value={q} onChange={(e) => setQ(e.target.value)} />
+      <button type="submit" className="btn btn-primary">
+        Search
+      </button>
+    </form>
   );
 }
 

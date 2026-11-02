@@ -10,6 +10,7 @@ import { Home } from "./pages/Home";
 import { CategoryPage, RoomPage, SalePage, SearchPage, ShopPage } from "./pages/Listing";
 import { BoardPage, ComparePage, PicksPage } from "./pages/MiraViews";
 import { ProductPage } from "./pages/ProductPage";
+import { ReturnsConfirmation, ReturnsForm, ReturnsHome } from "./pages/Returns";
 import { bindRouter, navigatedBy } from "./voice/controller";
 import { debugMode, emit } from "./voice/events";
 import { VoiceDock } from "./voice/VoiceDock";
@@ -81,6 +82,9 @@ export function App() {
           <Route path="faq" element={<InfoPage slug="faq" />} />
           <Route path="policy/:topic" element={<InfoPage />} />
           <Route path="contact" element={<ContactPage />} />
+          <Route path="returns" element={<ReturnsHome />} />
+          <Route path="returns/start" element={<ReturnsForm />} />
+          <Route path="returns/confirmation" element={<ReturnsConfirmation />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

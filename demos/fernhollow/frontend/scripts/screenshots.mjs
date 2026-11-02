@@ -24,6 +24,43 @@ const fire = async (page, command) => {
 };
 
 const SHOTS = [
+  { name: "returns-home", path: "/returns" },
+  {
+    name: "returns-form",
+    path: "/returns/start?order=FH-20418",
+    run: async (page) => {
+      await page.fill('input[name="email"]', "sam.rivera@example.com");
+      await page.click(".rstep.is-open >> text=Continue");
+      await settle(page, 300);
+      await page.click('[data-stage-part="items:desk-chair-with-aluminum-frame"]');
+      await page.click(".rstep.is-open >> text=Continue");
+      await settle(page, 300);
+      await page.click('[data-stage-part="reason:doesnt_suit_room"]');
+      await settle(page, 400);
+    },
+  },
+  {
+    name: "returns-confirmation",
+    path: "/returns/start?order=FH-20418",
+    run: async (page) => {
+      await page.fill('input[name="email"]', "sam.rivera@example.com");
+      await page.click(".rstep.is-open >> text=Continue");
+      await page.click('[data-stage-part="items:desk-chair-with-aluminum-frame"]');
+      await page.click(".rstep.is-open >> text=Continue");
+      await page.click('[data-stage-part="reason:doesnt_suit_room"]');
+      await page.click('[data-stage-part="condition:unused_in_packaging"]');
+      await page.click(".rstep.is-open >> text=Continue");
+      await page.click('[data-stage-part="resolution:exchange"]');
+      await page.click('[data-stage-part="exchange_variant_desk-chair-with-aluminum-frame:Walnut"]');
+      await page.click(".rstep.is-open >> text=Continue");
+      await page.click('[data-stage-part="collection:pickup"]');
+      await page.click('[data-stage-part="pickup_window:saturday"]');
+      await page.click(".rstep.is-open >> text=Continue");
+      await settle(page, 300);
+      await page.click('button:has-text("Submit return")');
+      await settle(page, 700);
+    },
+  },
   { name: "home", path: "/", full: true },
   { name: "room", path: "/room/living" },
   { name: "category-filters", path: "/category/dining-tables?opt=Finish%3AOak&max=3000", full: false },

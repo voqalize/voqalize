@@ -18,6 +18,7 @@ import { type VoqalizeMedia, useVoqalizeMedia } from "@voqalize/demo-kit";
 import { Mic, MicOff, PhoneOff } from "lucide-react";
 import { connectRequest, withRealHeaders } from "../config";
 import { dispatch } from "./controller";
+import { setVoiceBegin, setVoiceClient, setVoiceLive } from "../stage/client";
 import { setEventSender } from "./events";
 import { useDockMode } from "./useDockMode";
 
@@ -35,6 +36,11 @@ function useCall(media: VoqalizeMedia, params: APIRequest) {
     call.bound = true;
     media.onClient(call.client);
   }, [call, media]);
+  // Stage (the returns form) attaches to this same client.
+  useEffect(() => {
+    setVoiceClient(call.client as unknown as Parameters<typeof setVoiceClient>[0]);
+    return () => setVoiceClient(null);
+  }, [call]);
   useEffect(() => {
     if (call.rejoining || !call.transport.hasLiveCall) return;
     call.rejoining = true;
@@ -118,6 +124,14 @@ function Dock({ call }: { call: ReturnType<typeof useCall> }) {
 
   const on = activity !== "idle" && activity !== "error";
   const mode = useDockMode(on);
+  useEffect(() => {
+    setVoiceBegin(() => {
+      setActivity("connecting");
+      void call.begin();
+    });
+    return () => setVoiceBegin(null);
+  }, [call]);
+  useEffect(() => setVoiceLive(on), [on]);
   const STATUS: Record<Activity, string> = {
     idle: "Design adviser",
     connecting: "Connecting…",

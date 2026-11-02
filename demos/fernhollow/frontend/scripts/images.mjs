@@ -18,7 +18,7 @@
  * It also copies the gallery favicon from `demos/public`, because this app has
  * its own `public/` for the images.
  */
-import { copyFile, mkdir, readFile, readdir, stat } from "node:fs/promises";
+import { copyFile, mkdir, readFile, readdir, rm, stat } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
@@ -101,6 +101,9 @@ async function main() {
     }
   }
   await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+  // Renditions of products no longer in the catalog (a renamed id) go.
+  const ids = new Set(catalog.products.map((p) => p.id));
+  for (const dir of await readdir(out)) if (!ids.has(dir)) await rm(join(out, dir), { recursive: true, force: true });
   const secs = ((Date.now() - started) / 1000).toFixed(1);
   console.log(`images: ${jobs.length} images, ${made} rendered, ${failed} failed, ${secs}s`);
   if (failed) process.exitCode = 1;

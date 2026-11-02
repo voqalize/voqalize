@@ -3,14 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Fernhollow — a home & furniture store where Mira, a design adviser, talks and drives the screen. A standalone Vite app served at /demos/fernhollow.",
+  "description": "Fernhollow \u2014 a home & furniture store where Mira, a design adviser, talks and drives the screen. A standalone Vite app served at /demos/fernhollow.",
   "scripts": {
     "dev": "node scripts/images.mjs && vite",
     "images": "node scripts/images.mjs",
     "build": "node scripts/images.mjs && tsc --noEmit && vite build && node scripts/route-shells.mjs",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
-    "screenshots": "node scripts/screenshots.mjs"
+    "screenshots": "node scripts/screenshots.mjs",
+    "test": "vitest run"
   },
   "dependencies": {
     "@fontsource-variable/hanken-grotesk": "^5.2.5",
@@ -27,7 +28,8 @@
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.6.2",
     "yaml": "^2.8.0",
-    "zustand": "^5.0.5"
+    "zustand": "^5.0.5",
+    "@voqalize/stage": "link:../../../sdk/js/stage"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
@@ -37,6 +39,8 @@
     "playwright": "^1.56.1",
     "sharp": "^0.34.2",
     "typescript": "^5.8.3",
-    "vite": "^6.3.5"
+    "vite": "^6.3.5",
+    "vitest": "^2.1.9",
+    "happy-dom": "^15.11.7"
   }
 }
