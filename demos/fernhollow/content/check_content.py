@@ -90,7 +90,7 @@ def count_words(body: str) -> int:
             continue
         s = re.sub(r"^#+\s*", "", s)
         s = re.sub(r"^[-*]\s+", "", s)
-        words += len(re.findall(r"[A-Za-z0-9][A-Za-z0-9'’-]*", s))
+        words += len(re.findall(r"[A-Za-z0-9][A-Za-z0-9'\u2019-]*", s))
     return words
 
 
@@ -110,7 +110,9 @@ def main() -> int:
     cat_slugs = {c["slug"] for c in catalog["categories"]}
 
     # Journal articles
-    journal = sorted((HERE / "journal").glob("*.md"))
+    journal = sorted(
+        p for p in (HERE / "journal").glob("*.md") if not p.name.startswith("_")
+    )  # `_` = dev-only samples
     if len(journal) != 9:
         fail("journal", f"expected 9 articles, found {len(journal)}")
     seen_dates: set[str] = set()

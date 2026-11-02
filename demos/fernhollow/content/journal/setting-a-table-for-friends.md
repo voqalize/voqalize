@@ -12,7 +12,7 @@ products:
   - linen-cotton-blend-napkins-set-of-four-undyed
   - olive-wood-serving-board
   - hand-turned-honeyed-oak-candlestick-holder
-  - bougeoirs-effiles-en-bronze-ancien
+  - antique-bronze-tapered-candle-holders
   - porcelain-bud-vase-with-olive-stems
   - antique-bronze-cocktail-glass-set
 ---
@@ -77,7 +77,7 @@ Turn the overhead light down or off, and let candles do the work. Candlelight is
 
 Wood and candlelight are natural partners. This candlestick holder is hand-turned from honey-hued oak, sanded to a satiny finish, with a weighted base. It takes both tapers and pillar candles.
 
-::product{id="bougeoirs-effiles-en-bronze-ancien"}
+::product{id="antique-bronze-tapered-candle-holders"}
 
 Mixing a little metal in catches the flame. These tapered candle holders in antique bronze have a hand-worked patina and slender lines.
 
