@@ -1,7 +1,7 @@
 /* Fernhollow — the store's whole visual system.
  *
  * White paper and the photographs' own warm plaster carry the palette; ink is
- * a deep fern-black. One colour, iris, is reserved for Mira: her ring, her tag
+ * a deep fern-black. One colour, iris, is reserved for Emily: her ring, her tag
  * and her dock. Nothing else on the page uses it, so wherever it appears the
  * shopper can tell she did that.
  */
@@ -16,9 +16,9 @@
   --ink-2: #48504a;
   --muted: #777d77;
   --moss: #3e5444;
-  --mira: #4b45c6;
-  --mira-ink: #3a35a8;
-  --mira-soft: #efeefc;
+  --emily: #4b45c6;
+  --emily-ink: #3a35a8;
+  --emily-soft: #efeefc;
   --danger: #9c3a2a;
 
   --serif: "Newsreader Variable", "Iowan Old Style", Georgia, serif;
@@ -372,29 +372,29 @@ button {
   color: #fff;
 }
 
-/* ── Mira: tag, ring ──────────────────────────────────────────────────── */
+/* ── Emily: tag, ring ──────────────────────────────────────────────────── */
 
-.mira-tag {
+.emily-tag {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   height: 20px;
   padding: 0 8px 0 6px;
   border-radius: 999px;
-  background: var(--mira-soft);
-  color: var(--mira-ink);
+  background: var(--emily-soft);
+  color: var(--emily-ink);
   font-size: 11px;
   font-weight: 650;
   letter-spacing: 0.01em;
   white-space: nowrap;
   vertical-align: middle;
 }
-.mira-tag::before {
+.emily-tag::before {
   content: "";
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--mira);
+  background: var(--emily);
 }
 
 .spotlight {
@@ -402,7 +402,7 @@ button {
   z-index: 70;
   pointer-events: none;
   border-radius: 10px;
-  box-shadow: 0 0 0 2px var(--mira), 0 0 0 7px rgba(75, 69, 198, 0.16);
+  box-shadow: 0 0 0 2px var(--emily), 0 0 0 7px rgba(75, 69, 198, 0.16);
   animation: spot-in 300ms var(--ease) both, spot-out 700ms ease 1500ms forwards;
 }
 @keyframes spot-in {

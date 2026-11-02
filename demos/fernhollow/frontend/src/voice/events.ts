@@ -4,9 +4,9 @@
  * logged (with `?debug=1`) — a gesture made off-call has no brain that missed it.
  *
  * Every event the shopper caused carries `by: "visitor"`; events that merely
- * report what Mira just did on screen carry `by: "mira"`.
+ * report what Emily just did on screen carry `by: "emily"`.
  */
-export type By = "visitor" | "mira";
+export type By = "visitor" | "emily";
 
 export interface CartLine {
   product_id: string;

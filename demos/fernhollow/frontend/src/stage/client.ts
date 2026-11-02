@@ -1,7 +1,7 @@
 /**
  * The live call's pipecat client, for the parts of the page that attach to it
  * (Stage on the returns form), and the dock's own "start the call", for the
- * returns desk's "Start a return with Mira". The voice dock owns both and puts
+ * returns desk's "Start a return with Emily". The voice dock owns both and puts
  * them here; with no agent configured they stay null and nothing attaches.
  */
 import type { StageClient } from "@voqalize/stage";

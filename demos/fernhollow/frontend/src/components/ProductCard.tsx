@@ -15,7 +15,7 @@ export function ProductCard({
   eager?: boolean;
   /** Extra badges over the photo (e.g. look-alike differences). */
   badges?: React.ReactNode;
-  /** A line under the price (e.g. Mira's reason). */
+  /** A line under the price (e.g. Emily's reason). */
   note?: React.ReactNode;
   sizes?: string;
 }) {

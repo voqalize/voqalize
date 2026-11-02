@@ -25,7 +25,7 @@ export const useShortlist = create<ShortlistState>()(
         emit("shortlist_changed", { product_ids: ids });
       },
       set(ids, by = "visitor") {
-        set({ ids, by, open: by === "mira" ? true : get().open });
+        set({ ids, by, open: by === "emily" ? true : get().open });
         if (by === "visitor") emit("shortlist_changed", { product_ids: ids });
       },
     }),

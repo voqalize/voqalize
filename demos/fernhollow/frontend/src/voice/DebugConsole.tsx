@@ -6,7 +6,8 @@
 import { Bug, ChevronDown, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { bestSaving, defaultVariant, getProduct, matchContractFilters, products, productsInCategory } from "../data/catalog";
-import { dispatch, useMira } from "./controller";
+import { dispatch, useEmily } from "./controller";
+import { useFakeCall } from "./VoiceDock";
 import { eventLog, onEventLog } from "./events";
 import { buildCompare, buildRoomSet, findSavings, goesWith, moreLike, pieceFor } from "./local";
 import { COMMAND_NAMES, type CommandName, type Commands } from "./types";
@@ -22,7 +23,7 @@ export function samplePayloads(): { [K in CommandName]: Commands[K] } {
   const anchor = getProduct(currentProductId())!;
   const sofas = productsInCategory("sofas").slice(0, 3);
   const set = buildRoomSet("living", 4500);
-  const board = useMira.getState().board ?? set;
+  const board = useEmily.getState().board ?? set;
   const swapSlot = board.pieces[1] ?? board.pieces[0];
   const swapTo = productsInCategory(getProduct(swapSlot.product_id)?.categorySlug ?? "rugs").find((p) => p.id !== swapSlot.product_id)!;
   const swappedPiece = pieceFor(swapTo, "Warmer tone, and it sits lower beside the sofa", swapSlot.slot);
@@ -123,6 +124,24 @@ export function DebugConsole() {
           </li>
         ))}
       </ul>
+      <div className="debug-fake">
+        <p className="small">Fake call (no voice)</p>
+        <div className="debug-fake-row">
+          <button type="button" data-fake="connect" onClick={() => useFakeCall.setState({ on: true, state: "listening" })}>
+            connect
+          </button>
+          <button
+            type="button"
+            data-fake="speak"
+            onClick={() => useFakeCall.setState({ state: "speaking", heard: "Something calm for the bedroom, under two thousand." })}
+          >
+            speak
+          </button>
+          <button type="button" data-fake="end" onClick={() => useFakeCall.setState({ on: false, heard: "" })}>
+            end
+          </button>
+        </div>
+      </div>
       <div className="debug-events">
         <p className="small">UI → brain (latest)</p>
         <ul>

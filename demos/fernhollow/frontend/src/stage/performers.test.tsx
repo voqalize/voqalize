@@ -70,7 +70,7 @@ describe("returns performers", () => {
     expect(s.items[CHAIR]).toBe(1);
     expect(s.exchange[CHAIR]).toBe("Walnut");
     expect(s.pickup_window).toBe("saturday");
-    expect(s.by.reason).toBe("mira");
+    expect(s.by.reason).toBe("emily");
   });
 
   it("answers with one short line", async () => {

@@ -35,17 +35,17 @@ export function Photo({
   );
 }
 
-export function MiraTag({ label = "Mira" }: { label?: string }) {
+export function EmilyTag({ label = "Emily" }: { label?: string }) {
   return (
-    <span className="mira-tag" title="Mira, our design adviser, made this change">
+    <span className="emily-tag" title="Emily, our design adviser, made this change">
       {label}
     </span>
   );
 }
 
-/** Shows the Mira tag while a mark is fresh. */
-export function MiraMark({ k, label }: { k: string; label?: string }) {
-  return useMarked(k) ? <MiraTag label={label} /> : null;
+/** Shows the Emily tag while a mark is fresh. */
+export function EmilyMark({ k, label }: { k: string; label?: string }) {
+  return useMarked(k) ? <EmilyTag label={label} /> : null;
 }
 
 export function PriceLine({ price, compare, from = false }: { price: number; compare?: number | null; from?: boolean }) {

@@ -24,6 +24,30 @@ const fire = async (page, command) => {
 };
 
 const SHOTS = [
+  {
+    name: "call-connected",
+    path: "/product/weathered-oak-dining-table?debug=1",
+    run: async (page) => {
+      await page.click('[data-fake="connect"]');
+      await page.click('[data-fake="speak"]');
+      await settle(page, 900);
+    },
+  },
+  {
+    name: "call-dragged",
+    path: "/?debug=1",
+    run: async (page) => {
+      await page.click('[data-fake="connect"]');
+      await page.click('.debug [aria-label="Close action console"]');
+      await settle(page, 900);
+      const box = await page.locator(".call-tile").boundingBox();
+      await page.mouse.move(box.x + box.width / 2, box.y + 40);
+      await page.mouse.down();
+      await page.mouse.move(80, 300, { steps: 8 });
+      await page.mouse.up();
+      await settle(page, 900);
+    },
+  },
   { name: "returns-home", path: "/returns" },
   {
     name: "returns-form",
@@ -139,7 +163,7 @@ for (const width of [1440, 390]) {
     await settle(page);
     if (shot.run) await shot.run(page);
     // The console has done its job once the commands are fired; get it out of the picture.
-    if (await page.$(".debug")) await page.click('.debug [aria-label="Close action console"]');
+    if (await page.$(".debug [aria-label=\"Close action console\"]")) await page.click('.debug [aria-label="Close action console"]');
     if (shot.full) {
       // Walk the page so lazy images load before a full-page capture.
       const h = await page.evaluate(() => document.body.scrollHeight);

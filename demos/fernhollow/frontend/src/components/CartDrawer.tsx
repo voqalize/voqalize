@@ -4,8 +4,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { getProduct, money } from "../data/catalog";
 import { DELIVERY_FREE_OVER, deliveryFor } from "../data/content";
 import { priced, useCart } from "../state/cart";
-import { mira, useMarked, useMira } from "../voice/controller";
-import { MiraTag, Photo, PriceLine } from "./bits";
+import { emily, useMarked, useEmily } from "../voice/controller";
+import { EmilyTag, Photo, PriceLine } from "./bits";
 
 export function useFocusTrap(active: boolean) {
   const ref = useRef<HTMLDivElement>(null);
@@ -60,10 +60,10 @@ export function CartLines({ compact = false }: { compact?: boolean }) {
             </div>
             <p className="small">
               {Object.values(variant.options).join(", ")}
-              {line.by === "mira" ? (
+              {line.by === "emily" ? (
                 <>
                   {" "}
-                  <MiraTag label="Added by Mira" />
+                  <EmilyTag label="Added by Emily" />
                 </>
               ) : null}
             </p>
@@ -89,7 +89,7 @@ export function CartLines({ compact = false }: { compact?: boolean }) {
 }
 
 export function Suggestion() {
-  const s = useMira((x) => x.suggestion);
+  const s = useEmily((x) => x.suggestion);
   const p = getProduct(s?.product_id);
   if (!s || !p) return null;
   return (
@@ -97,7 +97,7 @@ export function Suggestion() {
       <Photo file={p.images[0]} alt="" sizes="64px" />
       <div>
         <p className="suggestion-head">
-          <Sparkles size={14} aria-hidden /> <MiraTag label="Mira suggests" />
+          <Sparkles size={14} aria-hidden /> <EmilyTag label="Emily suggests" />
         </p>
         <p className="suggestion-title">{p.title}</p>
         <p className="small">{s.reason}</p>
@@ -105,7 +105,7 @@ export function Suggestion() {
           <Link to={`/product/${p.id}`} className="link small">
             View finishes
           </Link>
-          <button type="button" className="link small" onClick={() => mira.dismissSuggestion()}>
+          <button type="button" className="link small" onClick={() => emily.dismissSuggestion()}>
             Dismiss
           </button>
         </div>
@@ -159,7 +159,7 @@ export function CartDrawer() {
       <div className="drawer drawer-right" ref={ref}>
         <div className="drawer-head">
           <h2 className="h3">
-            Your cart {marked ? <MiraTag label="Updated by Mira" /> : null}
+            Your cart {marked ? <EmilyTag label="Updated by Emily" /> : null}
           </h2>
           <button type="button" className="icon-btn" aria-label="Close cart" onClick={() => setOpen(false)} data-autofocus>
             <X size={20} strokeWidth={1.6} />
@@ -168,7 +168,7 @@ export function CartDrawer() {
         {lines.length === 0 ? (
           <div className="drawer-body cart-empty">
             <p className="h3">Nothing here yet.</p>
-            <p className="small">Start with a room, or ask Mira to put one together for you.</p>
+            <p className="small">Start with a room and find the pieces that suit it.</p>
             <button
               type="button"
               className="btn btn-ghost"

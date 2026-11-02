@@ -1,12 +1,12 @@
 /**
  * The returns form's state, one store for both hands: the shopper's clicks and
- * Mira's Stage moves (src/stage/performers.ts) write the same fields, and
- * `by` remembers who set each one for the "Mira" tag.
+ * Emily's Stage moves (src/stage/performers.ts) write the same fields, and
+ * `by` remembers who set each one for the "Emily" tag.
  */
 import { create } from "zustand";
 import { type ChoiceField, findOrder, type DemoOrder, normalOrderNumber } from "./orders";
 
-export type Who = "visitor" | "mira";
+export type Who = "visitor" | "emily";
 
 export interface ReturnsForm {
   step: number;

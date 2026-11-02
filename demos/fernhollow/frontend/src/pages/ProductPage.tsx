@@ -14,11 +14,11 @@ import {
   variantForOptions,
 } from "../data/catalog";
 import { POLICY_TOPICS, getPage } from "../data/content";
-import { Crumbs, MiraMark, MiraTag, Photo, PriceLine, SectionHead } from "../components/bits";
+import { Crumbs, EmilyMark, EmilyTag, Photo, PriceLine, SectionHead } from "../components/bits";
 import { ProductCard, Rail } from "../components/ProductCard";
 import { AddButton } from "../components/Overlays";
 import { useShortlist } from "../state/shortlist";
-import { mira, navigatedBy, useMira } from "../voice/controller";
+import { emily, navigatedBy, useEmily } from "../voice/controller";
 import { emit } from "../voice/events";
 import { goesWith, moreLike } from "../voice/local";
 import { useTitle } from "./usePage";
@@ -32,8 +32,8 @@ export function ProductPage() {
 
 function ProductView({ p }: { p: Product }) {
   useTitle(p.title);
-  const commanded = useMira((s) => s.variants[p.id]);
-  const focus = useMira((s) => s.focus);
+  const commanded = useEmily((s) => s.variants[p.id]);
+  const focus = useEmily((s) => s.focus);
   const [variantId, setVariantId] = useState(() => getVariant(p, commanded?.id).id);
   const [qty, setQty] = useState(1);
   const [shot, setShot] = useState(0);
@@ -49,13 +49,12 @@ function ProductView({ p }: { p: Product }) {
 
   useEffect(() => {
     emit("product_viewed", { product_id: p.id, variant_id: variantId }, navigatedBy());
-    window.scrollTo({ top: 0 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [p.id]);
 
   useEffect(() => {
     if (focus && focus.productId === p.id && Date.now() - focus.stamp < 4000) {
-      const t = window.setTimeout(() => void mira.highlight({ target: `section:${focus.section}` }), 250);
+      const t = window.setTimeout(() => void emily.highlight({ target: `section:${focus.section}` }), 250);
       return () => window.clearTimeout(t);
     }
   }, [focus, p.id]);
@@ -64,7 +63,7 @@ function ProductView({ p }: { p: Product }) {
     const next = variantForOptions(p, { ...variant.options, [name]: value }) ?? variantForOptions(p, { [name]: value });
     if (!next) return;
     setVariantId(next.id);
-    void mira.select_variant({ product_id: p.id, variant_id: next.id }, "visitor");
+    void emily.select_variant({ product_id: p.id, variant_id: next.id }, "visitor");
   };
 
   const pct = savePct(variant.price, variant.compareAtPrice);
@@ -122,7 +121,7 @@ function ProductView({ p }: { p: Product }) {
                 {p.options.map((o) => (
                   <fieldset key={o.name} className="option">
                     <legend className="option-name">
-                      {o.name}: <span>{variant.options[o.name]}</span> <MiraMark k={`variant:${p.id}`} />
+                      {o.name}: <span>{variant.options[o.name]}</span> <EmilyMark k={`variant:${p.id}`} />
                     </legend>
                     <div className="option-values">
                       {o.values.map((v) => {
@@ -182,7 +181,7 @@ function ProductView({ p }: { p: Product }) {
               <ul className="pdp-policies" aria-label="Store policies">
                 {POLICY_TOPICS.map((t) => (
                   <li key={t}>
-                    <button type="button" className="policy-link" onClick={() => mira.open_policy({ topic: t })}>
+                    <button type="button" className="policy-link" onClick={() => emily.open_policy({ topic: t })}>
                       <span>{getPage(t)?.title ?? t}</span>
                       <span className="small">{getPage(t)?.dek}</span>
                     </button>
@@ -206,8 +205,8 @@ function ProductView({ p }: { p: Product }) {
 }
 
 function ProductRails({ p }: { p: Product }) {
-  const gw = useMira((s) => s.goesWith);
-  const ml = useMira((s) => s.moreLike);
+  const gw = useEmily((s) => s.goesWith);
+  const ml = useEmily((s) => s.moreLike);
   const goes = useMemo(() => (gw && gw.anchorId === p.id ? gw : { ...goesWith(p), anchorId: p.id, by: "visitor" as const }), [gw, p]);
   const like = useMemo(() => (ml && ml.anchorId === p.id ? ml : { ...moreLike(p), anchorId: p.id, by: "visitor" as const }), [ml, p]);
   const room = moreFromRoom(p);
@@ -217,7 +216,7 @@ function ProductRails({ p }: { p: Product }) {
       {goes.items.length ? (
         <section className="section strip" data-spot="section:goes-with">
           <div className="wrap">
-            <SectionHead title="Goes with" action={goes.by === "mira" ? <MiraTag label="Picked by Mira" /> : undefined}>
+            <SectionHead title="Goes with" action={goes.by === "emily" ? <EmilyTag label="Picked by Emily" /> : undefined}>
               Pieces that sit well beside the {p.title.toLowerCase()}.
             </SectionHead>
           </div>
@@ -238,7 +237,7 @@ function ProductRails({ p }: { p: Product }) {
       {like.items.length ? (
         <section className="section strip" data-spot="section:more-like">
           <div className="wrap">
-            <SectionHead title="Similar, and how they differ" action={like.by === "mira" ? <MiraTag label="Picked by Mira" /> : undefined}>
+            <SectionHead title="Similar, and how they differ" action={like.by === "emily" ? <EmilyTag label="Picked by Emily" /> : undefined}>
               Other {p.category.toLowerCase()}, closest in price first.
             </SectionHead>
           </div>

@@ -1,18 +1,17 @@
 /**
- * The returns desk: a start page, a six-step form Mira helps fill through
+ * The returns desk: a start page, a six-step form Emily helps fill through
  * Stage, and a confirmation. The form works entirely by hand; with a call
- * live, Mira's moves (src/stage/performers.ts) set the same fields as she
+ * live, Emily's moves (src/stage/performers.ts) set the same fields as she
  * says them, and the shopper always presses Submit return themselves.
  */
 import * as React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, Check, CheckCircle2, Mic, PackageCheck } from "lucide-react";
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { stageHooks } from "@voqalize/stage/react";
 import { watchForms } from "@voqalize/stage";
 import { getProduct, money } from "../data/catalog";
 import { policies } from "../data/content";
-import { Crumbs, MiraTag, Photo } from "../components/bits";
+import { Crumbs, EmilyTag, Photo } from "../components/bits";
 import {
   CHOICES,
   type ChoiceField,
@@ -29,32 +28,31 @@ import {
 } from "../returns/orders";
 import { type StoredReturn, currentOrder, filledNames, saveReturn, storedReturns, useReturns } from "../returns/store";
 import { useVoiceClient } from "../stage/client";
+import { useAppStage, useMove, useSlice } from "../stage/host";
 import { returnsPerformers } from "../stage/performers";
 import { scene } from "../stage/scene.gen";
 import { navigatedBy } from "../voice/controller";
 import { voiceReady } from "../voice/VoiceDock";
 import { useTitle } from "./usePage";
 
-const { useStage, useMove, useSlice } = stageHooks(React);
 const R = policies.returns as Record<string, string>;
-const MIRA = "#4b45c6";
 
 // ── /returns ───────────────────────────────────────────────────────────────
 
-function MiraCta({ label = "Start a return with Mira" }: { label?: string }) {
+function EmilyCta({ label = "Start a return with Emily" }: { label?: string }) {
   const begin = useVoiceClient((s) => s.begin);
   const live = useVoiceClient((s) => s.live);
   const ready = voiceReady();
   return (
-    <div className="mira-cta">
-      <button type="button" className="btn mira-btn" disabled={!ready || !begin || live} onClick={() => begin?.()}>
-        <Mic size={18} /> {live ? "Mira is listening" : label}
+    <div className="emily-cta">
+      <button type="button" className="btn emily-btn" disabled={!ready || !begin || live} onClick={() => begin?.()}>
+        <Mic size={18} /> {live ? "Emily is listening" : label}
       </button>
       <p className="small">
         {ready
           ? live
             ? "Tell her your order number. She fills the form with you; you press Submit."
-            : "Tell Mira your order number. She checks it against the policy and fills the form with you; you press Submit."
+            : "Tell Emily your order number. She checks it against the policy and fills the form with you; you press Submit."
           : "Voice is coming soon on this preview. The form below works by hand."}
       </p>
     </div>
@@ -89,7 +87,7 @@ export function ReturnsHome() {
             one step at a time.
           </p>
         </div>
-        <MiraCta />
+        <EmilyCta />
       </header>
 
       <div className="returns-grid">
@@ -193,7 +191,7 @@ export function ReturnsForm() {
   const [emailError, setEmailError] = useState("");
   const [stepError, setStepError] = useState("");
 
-  // A link (or Mira's start_return) names the order: begin with it.
+  // A link (or Emily's start_return) names the order: begin with it.
   useEffect(() => {
     const asked = sp.get("order");
     if (asked && normalOrderNumber(asked) !== normalOrderNumber(useReturns.getState().order_number)) {
@@ -202,11 +200,10 @@ export function ReturnsForm() {
       useReturns.getState().setStep(1);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [sp.get("order")]);
 
-  // Stage on the call's client, when there is one.
-  const client = useVoiceClient((s) => s.client);
-  const stage = useStage(client, scene, { theme: { color: MIRA } });
+  // Stage on the call's client (attached in the shell), when there is one.
+  const stage = useAppStage((s) => s.stage);
   const performers = useMemo(() => returnsPerformers(), []);
   useMove(stage, "returns.open_step", performers["returns.open_step"]);
   useMove(stage, "returns.fill", performers["returns.fill"]);
@@ -229,7 +226,7 @@ export function ReturnsForm() {
     return watchForms((s) => stage.page.send(scene.event("form.changed", s)));
   }, [stage]);
 
-  // A step left untouched for a while: Mira may offer to fill it in.
+  // A step left untouched for a while: Emily may offer to fill it in.
   const stepEmpty = (STEP_FIELDS[form.step] ?? []).every((f) => !filled.includes(f));
   const offered = useRef(new Set<number>());
   useEffect(() => {
@@ -328,7 +325,7 @@ export function ReturnsForm() {
     navigate(`/returns/confirmation?ref=${stored.reference}`, { state: stored });
   };
 
-  const tag = (field: string) => (form.by[field] === "mira" ? <MiraTag /> : null);
+  const tag = (field: string) => (form.by[field] === "emily" ? <EmilyTag /> : null);
 
   const summary = (step: number): string => {
     switch (step) {
@@ -506,7 +503,7 @@ export function ReturnsForm() {
                           </select>
                         </label>
                       ) : null}
-                      {qty && form.by[`qty_${l.product_id}`] === "mira" ? <MiraTag /> : null}
+                      {qty && form.by[`qty_${l.product_id}`] === "emily" ? <EmilyTag /> : null}
                     </li>
                   );
                 })}
@@ -583,12 +580,12 @@ export function ReturnsForm() {
             <button type="submit" className="btn btn-primary co-next" data-dock-avoid>
               Submit return
             </button>
-            <p className="small">You press Submit yourself; Mira never sends a return for you.</p>
+            <p className="small">You press Submit yourself; Emily never sends a return for you.</p>
           </>)}
         </form>
 
         <aside className="returns-aside">
-          <MiraCta label="Fill this in with Mira" />
+          <EmilyCta label="Fill this in with Emily" />
           <ol className="rprogress" aria-label="Steps">
             {STEPS.map((s) => (
               <li key={s.n} aria-current={form.step === s.n ? "step" : undefined} className={!missing(s.n) && summary(s.n) ? "is-done" : undefined}>

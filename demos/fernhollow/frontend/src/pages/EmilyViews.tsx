@@ -1,5 +1,5 @@
 /**
- * The surfaces Mira builds: the room board, the compare board and her listing.
+ * The surfaces Emily builds: the room board, the compare board and her listing.
  * Each also works by hand — a shopper can plan a room, swap pieces, find
  * savings and compare saved pieces without saying a word.
  */
@@ -8,11 +8,11 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ROOMS, type RoomId, getCategory, getProduct, getRoom, imgUrl, money, productsByIds, roomName } from "../data/catalog";
 import { site } from "../data/content";
-import { Crumbs, MiraMark, MiraTag, PriceLine } from "../components/bits";
+import { Crumbs, EmilyMark, EmilyTag, PriceLine } from "../components/bits";
 import { ProductCard, ProductGrid } from "../components/ProductCard";
 import { AddButton } from "../components/Overlays";
 import { useShortlist } from "../state/shortlist";
-import { mira, useMira } from "../voice/controller";
+import { emily, useEmily } from "../voice/controller";
 import { buildCompare, buildRoomSet, findSavings, nextInSlot, pieceFor, suggestedBudget, totalOf } from "../voice/local";
 import type { Piece } from "../voice/types";
 import { useTitle, useVisibleProducts } from "./usePage";
@@ -21,7 +21,7 @@ import { useTitle, useVisibleProducts } from "./usePage";
 
 export function BoardPage() {
   useTitle("Plan a room");
-  const board = useMira((s) => s.board);
+  const board = useEmily((s) => s.board);
   const [sp] = useSearchParams();
   const asked = getRoom(sp.get("room") ?? undefined)?.id;
   const [room, setRoom] = useState<RoomId>(asked ?? (board?.room as RoomId) ?? "living");
@@ -34,7 +34,7 @@ export function BoardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room]);
 
-  // A new board (from Mira or by hand) carries its own room and budget.
+  // A new board (from Emily or by hand) carries its own room and budget.
   useEffect(() => {
     if (!board) return;
     setRoom(board.room as RoomId);
@@ -45,7 +45,7 @@ export function BoardPage() {
   const [editing, setEditing] = useState(false);
   const build = () => {
     setEditing(false);
-    mira.show_room_set(buildRoomSet(room, budget), "visitor");
+    emily.show_room_set(buildRoomSet(room, budget), "visitor");
   };
 
   return (
@@ -57,10 +57,10 @@ export function BoardPage() {
           <p className="lede">
             {board
               ? "A first set of pieces within your budget. Swap any of them, ask for savings, then add the room to your cart."
-              : "Pick a room and a budget, and we lay out a first set of pieces. Or ask Mira to do it while you talk."}
+              : "Pick a room and a budget, and we lay out a first set of pieces. Or ask Emily to do it while you talk."}
           </p>
         </div>
-        {board?.by === "mira" ? <MiraTag label="Built by Mira" /> : null}
+        {board?.by === "emily" ? <EmilyTag label="Built by Emily" /> : null}
       </header>
 
       {board ? (
@@ -112,7 +112,7 @@ export function BoardPage() {
 }
 
 export function RoomBoardView() {
-  const board = useMira((s) => s.board)!;
+  const board = useEmily((s) => s.board)!;
   const over = board.total > board.budget;
   const pct = Math.min(100, (board.total / Math.max(1, board.budget)) * 100);
   const lines = board.pieces.map((p) => ({ product_id: p.product_id, variant_id: p.variant_id, qty: 1 }));
@@ -134,7 +134,7 @@ export function RoomBoardView() {
         {board.saved > 0 ? (
           <p className="savings-line">
             <PiggyBank size={16} aria-hidden /> Saved {money(board.saved)} with {board.savings.length} swap{board.savings.length === 1 ? "" : "s"}
-            {board.movedTo ? `, moved to ${board.movedTo}` : ""} <MiraMark k="savings" />
+            {board.movedTo ? `, moved to ${board.movedTo}` : ""} <EmilyMark k="savings" />
           </p>
         ) : null}
       </div>
@@ -151,7 +151,7 @@ export function RoomBoardView() {
           className="btn btn-ghost"
           onClick={() => {
             const s = findSavings(board.pieces);
-            if (s.swaps.length) void mira.show_savings(s, "visitor");
+            if (s.swaps.length) void emily.show_savings(s, "visitor");
           }}
         >
           <PiggyBank size={16} /> Find savings
@@ -171,7 +171,7 @@ export function RoomBoardView() {
 }
 
 function BoardTile({ piece, index }: { piece: Piece; index: number }) {
-  const board = useMira((s) => s.board)!;
+  const board = useEmily((s) => s.board)!;
   const p = getProduct(piece.product_id);
   const changed = board.changed.includes(piece.slot);
   const swap = board.savings.find((s) => s.slot === piece.slot);
@@ -181,7 +181,7 @@ function BoardTile({ piece, index }: { piece: Piece; index: number }) {
     if (!next) return;
     const np = pieceFor(next, "Swapped by you", piece.slot);
     const pieces = board.pieces.map((x) => (x.slot === piece.slot ? np : x));
-    void mira.swap_piece({ slot: piece.slot, old_product_id: piece.product_id, piece: np, total: totalOf(pieces) }, "visitor");
+    void emily.swap_piece({ slot: piece.slot, old_product_id: piece.product_id, piece: np, total: totalOf(pieces) }, "visitor");
   };
   return (
     <li className={`tile${changed ? " is-changed" : ""}`} style={{ animationDelay: `${index * 160}ms` }} data-spot={`slot:${piece.slot}`}>
@@ -195,7 +195,7 @@ function BoardTile({ piece, index }: { piece: Piece; index: number }) {
       </Link>
       <div className="tile-body">
         <p className="tile-slot small">
-          {slotName} {changed && board.by === "mira" ? <MiraTag /> : null}
+          {slotName} {changed && board.by === "emily" ? <EmilyTag /> : null}
         </p>
         <Link to={`/product/${piece.product_id}`} className="tile-title">
           {piece.title}
@@ -209,7 +209,7 @@ function BoardTile({ piece, index }: { piece: Piece; index: number }) {
           <button type="button" className="tile-btn" onClick={() => swapTo(1)} aria-label={`Swap ${slotName.toLowerCase()}`}>
             <ArrowLeftRight size={13} /> Swap
           </button>
-          <button type="button" className="tile-btn" onClick={() => mira.removePiece(piece.slot)} aria-label={`Remove ${slotName.toLowerCase()}`}>
+          <button type="button" className="tile-btn" onClick={() => emily.removePiece(piece.slot)} aria-label={`Remove ${slotName.toLowerCase()}`}>
             <Trash2 size={13} />
           </button>
         </div>
@@ -222,7 +222,7 @@ function BoardTile({ piece, index }: { piece: Piece; index: number }) {
 
 export function ComparePage() {
   useTitle("Compare");
-  const compare = useMira((s) => s.compare);
+  const compare = useEmily((s) => s.compare);
   const saved = useShortlist((s) => s.ids);
   const list = productsByIds(compare?.ids ?? []);
   return (
@@ -230,13 +230,13 @@ export function ComparePage() {
       <Crumbs items={[{ label: "Home", to: "/" }, { label: "Compare" }]} />
       <header className="listing-head board-head">
         <h1 className="h1">Side by side</h1>
-        {compare?.by === "mira" ? <MiraTag label="Compared by Mira" /> : null}
+        {compare?.by === "emily" ? <EmilyTag label="Compared by Emily" /> : null}
       </header>
       {!compare || list.length === 0 ? (
         <div className="empty">
           <p className="h3">Nothing to compare yet.</p>
           <p className="small">Save two to four pieces with the heart, then compare them here.</p>
-          <button type="button" className="btn btn-ghost btn-sm" disabled={saved.length < 2} onClick={() => mira.show_compare(buildCompare(saved.slice(0, 4)), "visitor")}>
+          <button type="button" className="btn btn-ghost btn-sm" disabled={saved.length < 2} onClick={() => emily.show_compare(buildCompare(saved.slice(0, 4)), "visitor")}>
             Compare saved pieces
           </button>
         </div>
@@ -248,7 +248,7 @@ export function ComparePage() {
 }
 
 export function CompareBoard() {
-  const compare = useMira((s) => s.compare)!;
+  const compare = useEmily((s) => s.compare)!;
   const list = productsByIds(compare.ids);
   return (
     <section className="compare" data-spot="section:compare" aria-label="Comparison">
@@ -301,10 +301,10 @@ export function CompareBoard() {
   );
 }
 
-// ── Mira's listing (show_products / apply_filters) ─────────────────────────
+// ── Emily's listing (show_products / apply_filters) ─────────────────────────
 
 export function PicksPage() {
-  const listing = useMira((s) => s.listing);
+  const listing = useEmily((s) => s.listing);
   useTitle(listing?.title ?? "Picked for you");
   const list = useMemo(() => productsByIds(listing?.ids ?? []), [listing]);
   useVisibleProducts(list.map((p) => p.id));
@@ -312,7 +312,7 @@ export function PicksPage() {
     return (
       <div className="wrap page-pad empty-page">
         <h1 className="h1">Picked for you</h1>
-        <p className="lede">When Mira shows you a set of pieces, they appear here. Ask her for something, or browse every piece.</p>
+        <p className="lede">When Emily shows you a set of pieces, they appear here. Ask her for something, or browse every piece.</p>
         <Link to="/shop" className="btn btn-ghost">
           Browse all pieces
         </Link>
@@ -325,18 +325,18 @@ export function PicksPage() {
       <Crumbs items={[{ label: "Home", to: "/" }, { label: listing.title }]} />
       <header className="listing-head">
         <h1 className="h1">
-          {listing.title} {listing.by === "mira" ? <MiraTag /> : null}
+          {listing.title} {listing.by === "emily" ? <EmilyTag /> : null}
         </h1>
         {listing.query ? <p className="lede">For “{listing.query}”</p> : null}
       </header>
       {chips.length || listing.assumption ? (
         <div className="active-filters" data-spot="section:filters">
           {chips.map((c) => (
-            <button key={c.key} type="button" className="chip is-on" data-spot={`filter:${c.key}`} onClick={() => mira.removeFilterByHand(c.key)} aria-label={`Remove filter ${c.label}`}>
+            <button key={c.key} type="button" className="chip is-on" data-spot={`filter:${c.key}`} onClick={() => emily.removeFilterByHand(c.key)} aria-label={`Remove filter ${c.label}`}>
               {c.label} <X size={13} className="x" />
             </button>
           ))}
-          <MiraMark k="filters" />
+          <EmilyMark k="filters" />
           {listing.assumption ? <p className="assumption small">{listing.assumption}</p> : null}
         </div>
       ) : null}

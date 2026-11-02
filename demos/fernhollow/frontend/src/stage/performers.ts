@@ -1,5 +1,5 @@
 /**
- * The returns form's Stage performers: Mira's moves, made on the form as her
+ * The returns form's Stage performers: Emily's moves, made on the form as her
  * voice reaches them. Each rings what it touches before anything changes,
  * refuses with the values the form offers instead of guessing, and returns one
  * short line she can repeat. They write the same store the shopper's clicks
@@ -57,7 +57,7 @@ const STEP_OF: Record<string, number> = {
   pickup_window: 5,
 };
 
-/** A label as Mira would say it back: "It doesn't suit the room" → "doesn't suit the room". */
+/** A label as Emily would say it back: "It doesn't suit the room" → "doesn't suit the room". */
 const spoken = (label: string) => label.replace(/^(It's|It|I'll|I)\s+/, "").replace(/^./, (ch) => ch.toLowerCase());
 
 export function returnsPerformers(): Performers<Spec> {
@@ -85,7 +85,7 @@ export function returnsPerformers(): Performers<Spec> {
         const input = (await appear(() => document.querySelector('input[name="order_number"]'))) ?? c.refuse("field", "the order field is not on screen");
         await c.scrollTo(input);
         await c.ring(input, "Order number");
-        useReturns.getState().setOrderNumber(number, "mira");
+        useReturns.getState().setOrderNumber(number, "emily");
         return `order number set to ${number}`;
       }
 
@@ -100,13 +100,13 @@ export function returnsPerformers(): Performers<Spec> {
         if (s.resolution !== "exchange" || !s.items[productId]) {
           const res = (await appear(() => partEl("resolution", "exchange"))) ?? c.refuse("field", "the resolution step is not on screen");
           await c.ring(res, "Exchange");
-          if (!s.items[productId]) useReturns.getState().setItem(productId, 1, "mira");
-          useReturns.getState().setChoice("resolution", "exchange", "mira");
+          if (!s.items[productId]) useReturns.getState().setItem(productId, 1, "emily");
+          useReturns.getState().setChoice("resolution", "exchange", "emily");
         }
         const el = (await appear(() => partEl(f, pick))) ?? c.refuse("field", "the exchange options are not on screen");
         await c.scrollTo(el);
         await c.ring(el, `${line.title}: ${pick}`);
-        useReturns.getState().setExchange(productId, pick, "mira");
+        useReturns.getState().setExchange(productId, pick, "emily");
         return `exchange set to ${pick} for the ${line.title.toLowerCase()}`;
       }
 
@@ -123,7 +123,7 @@ export function returnsPerformers(): Performers<Spec> {
       const el = (await appear(() => partEl(choice, v))) ?? c.refuse("field", `${choice} is not on screen`);
       await c.scrollTo(el);
       await c.ring(el, labelOf(choice, v));
-      useReturns.getState().setChoice(choice, v, "mira");
+      useReturns.getState().setChoice(choice, v, "emily");
       return `${choice.replace("_", " ")} set to ${spoken(labelOf(choice, v))}`;
     },
 
@@ -143,7 +143,7 @@ export function returnsPerformers(): Performers<Spec> {
       await c.scrollTo(el);
       const title = getProduct(line.product_id)?.title ?? line.title;
       await c.ring(el, title);
-      useReturns.getState().setItem(line.product_id, n, "mira");
+      useReturns.getState().setItem(line.product_id, n, "emily");
       return n === 0 ? `took the ${title.toLowerCase()} off the return` : `returning ${n} × ${title.toLowerCase()}`;
     },
   };

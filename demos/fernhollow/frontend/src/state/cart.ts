@@ -5,7 +5,7 @@ import { type By, type CartLine, emit } from "../voice/events";
 import { safeStorage } from "./storage";
 
 export interface Line extends CartLine {
-  /** Who put it there, for the Mira tag. */
+  /** Who put it there, for the Emily tag. */
   by?: By;
 }
 
@@ -68,7 +68,7 @@ export const useCart = create<CartState>()(
         set({ lines });
         report(lines, by);
       },
-      replace(lines, by = "mira", quiet = false) {
+      replace(lines, by = "emily", quiet = false) {
         set({ lines: lines.map((l) => ({ ...l, by })) });
         if (!quiet) report(lines, by);
       },

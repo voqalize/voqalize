@@ -1,7 +1,7 @@
 /**
  * The click path for every voice surface. Each builder returns exactly the
  * payload the brain would send for the same surface, from catalog fields only,
- * so one component renders both — Mira's version and the shopper's own.
+ * so one component renders both — Emily's version and the shopper's own.
  */
 import {
   type Product,

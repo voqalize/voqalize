@@ -1,16 +1,23 @@
 import { Link } from "react-router-dom";
-import { ROOMS, getCategory, getProduct, productsInCategory, roomCover, sortProducts, products } from "../data/catalog";
+import { ROOMS, categoriesIn, getCategory, getProduct, productsInCategory, roomCover, sortProducts, products } from "../data/catalog";
 import { formatDate, journal, site } from "../data/content";
 import { Photo, ProductPrice, SectionHead } from "../components/bits";
 import { Rail } from "../components/ProductCard";
 import { useTitle } from "./usePage";
 
 /** The three pieces in the opening triptych, by id. */
-const HERO_IDS = ["oak-and-rattan-floor-lamp", "weathered-oak-dining-table", "solid-oak-platform-bed-with-linen-headboard"];
+/** The opening four: a sofa, a bed, a dining table and a desk, by id. */
+const HERO_IDS = [
+  "hand-stitched-stone-linen-sofa",
+  "solid-oak-platform-bed-with-linen-headboard",
+  "weathered-oak-dining-table",
+  "modern-home-office-desk-with-chestnut-brown-finish",
+];
 const FEATURED_CATEGORIES = ["sofas", "dining-tables", "beds-bed-frames", "floor-lamps", "rugs"];
 
 export function Home() {
   useTitle(null);
+  const feature = productsInCategory("sofas").find((p) => p.images.length > 1) ?? productsInCategory("sofas")[0];
   const hero = HERO_IDS.map((id) => getProduct(id)).filter((p) => !!p);
   const onSale = sortProducts(
     products.filter((p) => p.onSale),
@@ -31,15 +38,15 @@ export function Home() {
               <Link to={site.hero.cta.href} className="btn btn-primary">
                 {site.hero.cta.label}
               </Link>
-              <Link to="/board" className="btn btn-ghost">
-                Plan a room with Mira
+              <Link to="/sale" className="btn btn-ghost">
+                Shop the sale
               </Link>
             </div>
           </div>
           <div className="hero-photos">
             {hero.map((p, i) => (
               <Link key={p.id} to={`/product/${p.id}`} className={`hero-photo hero-photo-${i + 1}`}>
-                <Photo file={p.images[0]} alt={p.title} eager size={i === 1 ? 1000 : 400} sizes="(min-width: 900px) 22vw, 33vw" />
+                <Photo file={p.images[0]} alt={p.title} eager size={1000} sizes="(min-width: 900px) 16vw, 45vw" />
                 <span className="hero-cap">
                   <span>{p.title}</span>
                   <ProductPrice p={p} />
@@ -71,22 +78,30 @@ export function Home() {
         </div>
       </section>
 
-      <section className="section mira-band">
-        <div className="wrap mira-band-grid">
-          <div>
-            <p className="mira-band-name">
-              <span className="mira-dot" aria-hidden /> Mira, design adviser
-            </p>
-            <h2 className="h1">Tell her the room and the budget. She lays it out while you talk.</h2>
-          </div>
-          <div className="mira-band-copy">
-            <p className="lede">
-              Mira knows every piece in the store. Ask for a calm bedroom under two thousand, a desk that suits a small corner, or what goes
-              with the sofa you are looking at. Everything she shows you, you can change by hand.
-            </p>
+      <section className="section room-feature">
+        <div className="wrap room-feature-grid">
+          {feature ? (
+            <Link to={`/product/${feature.id}`} className="room-feature-photo" tabIndex={-1} aria-hidden>
+              <Photo file={feature.images[1] ?? feature.images[0]} alt="" size={1000} sizes="(min-width: 900px) 55vw, 100vw" />
+            </Link>
+          ) : null}
+          <div className="room-feature-copy">
+            <h2 className="h1">The living room</h2>
+            <p className="lede">{site.rooms.living}</p>
+            <ul className="room-feature-cats">
+              {categoriesIn("living")
+                .slice(0, 6)
+                .map((c) => (
+                  <li key={c.slug}>
+                    <Link to={`/category/${c.slug}`} className="chip">
+                      {c.name}
+                    </Link>
+                  </li>
+                ))}
+            </ul>
             <div className="hero-ctas">
-              <Link to="/board" className="btn btn-ghost">
-                Plan a room by hand
+              <Link to="/room/living" className="btn btn-primary">
+                Shop the living room
               </Link>
             </div>
           </div>

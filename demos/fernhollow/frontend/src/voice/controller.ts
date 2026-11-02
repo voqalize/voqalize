@@ -4,11 +4,11 @@
  * Each brain → UI command in CONTRACT.md is a method here with the same name
  * and payload. The voice layer is a thin adapter (`dispatch(command, payload)`),
  * the `?debug=1` console calls the same methods by hand, and the shop's own
- * buttons call them too, with `by: "visitor"` — so every surface Mira can drive
+ * buttons call them too, with `by: "visitor"` — so every surface Emily can drive
  * is also one a shopper can drive by click, and both paths render through the
  * same component.
  *
- * Things Mira changed carry a "Mira" tag (`marks`). A change that moves
+ * Things Emily changed carry a "Emily" tag (`marks`). A change that moves
  * something already on screen is preceded by a 300 ms spotlight ring on the
  * target (`ring`). `undo` reverts the last screen-changing command.
  */
@@ -38,7 +38,7 @@ export interface RoomBoard {
   savings: Swap[];
   saved: number;
   movedTo: string | null;
-  /** Slots Mira just changed, for the tag and the arrival animation. */
+  /** Slots Emily just changed, for the tag and the arrival animation. */
   changed: string[];
   by: By;
   /** Bumps on every new set, so the tiles replay their one-by-one entrance. */
@@ -65,12 +65,12 @@ export interface Spotlight {
 
 interface Snapshot {
   path: string;
-  slice: Partial<MiraState>;
+  slice: Partial<EmilyState>;
   cart: CartLine[];
   shortlist: string[];
 }
 
-export interface MiraState {
+export interface EmilyState {
   brief: (Brief & { productsLeft: number; by: By }) | null;
   listing: Listing | null;
   board: RoomBoard | null;
@@ -85,14 +85,14 @@ export interface MiraState {
   variants: Record<string, { id: string; by: By; stamp: number }>;
   /** Product page section to ring after open_product. */
   focus: { productId: string; section: string; stamp: number } | null;
-  /** Keys of things Mira changed: "filters", "variant:<id>", "cart", "board", "compare"… */
+  /** Keys of things Emily changed: "filters", "variant:<id>", "cart", "board", "compare"… */
   marks: Record<string, number>;
   history: Snapshot[];
 }
 
 const SLICE_KEYS = ["brief", "listing", "board", "compare", "goesWith", "moreLike", "suggestion", "policy", "variants"] as const;
 
-export const useMira = create<MiraState>(() => ({
+export const useEmily = create<EmilyState>(() => ({
   brief: null,
   listing: null,
   board: null,
@@ -109,8 +109,8 @@ export const useMira = create<MiraState>(() => ({
   history: [],
 }));
 
-const set = useMira.setState;
-const get = useMira.getState;
+const set = useEmily.setState;
+const get = useEmily.getState;
 
 // ── Router seam ───────────────────────────────────────────────────────────
 
@@ -162,15 +162,15 @@ const unmark = (...keys: string[]) =>
     return { marks };
   });
 
-let miraActedAt = 0;
-/** Who caused the page change that is landing now: Mira if she acted in the last moment. */
-export const navigatedBy = (): By => (Date.now() - miraActedAt < 1500 ? "mira" : "visitor");
+let emilyActedAt = 0;
+/** Who caused the page change that is landing now: Emily if she acted in the last moment. */
+export const navigatedBy = (): By => (Date.now() - emilyActedAt < 1500 ? "emily" : "visitor");
 
 /** Remember the screen before a change, so `undo` can put it back. */
 function snapshot() {
-  miraActedAt = Date.now();
+  emilyActedAt = Date.now();
   const s = get();
-  const slice = Object.fromEntries(SLICE_KEYS.map((k) => [k, s[k]])) as Partial<MiraState>;
+  const slice = Object.fromEntries(SLICE_KEYS.map((k) => [k, s[k]])) as Partial<EmilyState>;
   const snap: Snapshot = {
     path: currentPath(),
     slice,
@@ -180,7 +180,7 @@ function snapshot() {
   set({ history: [...s.history.slice(-19), snap] });
 }
 
-const isMira = (by: By) => by === "mira";
+const isEmily = (by: By) => by === "emily";
 
 /** Bring the room board on screen before changing it. */
 async function toBoard() {
@@ -191,9 +191,9 @@ async function toBoard() {
 
 // ── Commands (names and payloads mirror CONTRACT.md) ──────────────────────
 
-export const mira = {
-  navigate({ page }: Commands["navigate"], by: By = "mira") {
-    if (isMira(by)) snapshot();
+export const emily = {
+  navigate({ page }: Commands["navigate"], by: By = "emily") {
+    if (isEmily(by)) snapshot();
     const clean = page.replace(/^\/+/, "");
     if (clean === "home" || clean === "") return go("/");
     if (clean.startsWith("policy/")) {
@@ -203,15 +203,15 @@ export const mira = {
     go(`/${clean}`);
   },
 
-  show_products(p: Commands["show_products"], by: By = "mira") {
-    if (isMira(by)) snapshot();
+  show_products(p: Commands["show_products"], by: By = "emily") {
+    if (isEmily(by)) snapshot();
     set({ listing: { title: p.title, query: p.query, ids: p.product_ids, count: p.count, filters: null, assumption: null, by } });
-    if (isMira(by)) mark("listing");
+    if (isEmily(by)) mark("listing");
     go("/picks");
   },
 
-  apply_filters(p: Commands["apply_filters"], by: By = "mira") {
-    if (isMira(by)) snapshot();
+  apply_filters(p: Commands["apply_filters"], by: By = "emily") {
+    if (isEmily(by)) snapshot();
     const prev = get().listing;
     set({
       listing: {
@@ -224,21 +224,21 @@ export const mira = {
         by,
       },
     });
-    if (isMira(by)) mark("filters");
+    if (isEmily(by)) mark("filters");
     else emit("filter_changed", { filters: p.filters as Record<string, unknown> });
     go("/picks");
   },
 
-  async remove_filter(p: Commands["remove_filter"], by: By = "mira") {
+  async remove_filter(p: Commands["remove_filter"], by: By = "emily") {
     const listing = get().listing;
     if (!listing?.filters) return;
-    if (isMira(by)) {
+    if (isEmily(by)) {
       snapshot();
       await ring(`filter:${p.key}`);
     }
     const filters = withoutFilter(listing.filters, p.key);
     set({ listing: { ...listing, filters, ids: p.product_ids, count: p.count, by } });
-    if (!isMira(by)) emit("filter_changed", { filters: filters as Record<string, unknown> });
+    if (!isEmily(by)) emit("filter_changed", { filters: filters as Record<string, unknown> });
   },
 
   /** The click path for a chip: recompute the list locally, then remove. */
@@ -246,19 +246,19 @@ export const mira = {
     const listing = get().listing;
     if (!listing?.filters) return;
     const ids = matchContractFilters(withoutFilter(listing.filters, key)).map((x) => x.id);
-    void mira.remove_filter({ key, product_ids: ids, count: ids.length }, "visitor");
+    void emily.remove_filter({ key, product_ids: ids, count: ids.length }, "visitor");
   },
 
-  open_product(p: Commands["open_product"], by: By = "mira") {
-    if (isMira(by)) snapshot();
+  open_product(p: Commands["open_product"], by: By = "emily") {
+    if (isEmily(by)) snapshot();
     if (p.variant_id) set((s) => ({ variants: { ...s.variants, [p.product_id]: { id: p.variant_id!, by, stamp: Date.now() } } }));
     if (p.focus) set({ focus: { productId: p.product_id, section: p.focus, stamp: Date.now() } });
-    if (isMira(by) && p.variant_id) mark(`variant:${p.product_id}`);
+    if (isEmily(by) && p.variant_id) mark(`variant:${p.product_id}`);
     go(`/product/${p.product_id}`);
   },
 
-  async select_variant(p: Commands["select_variant"], by: By = "mira") {
-    if (isMira(by)) {
+  async select_variant(p: Commands["select_variant"], by: By = "emily") {
+    if (isEmily(by)) {
       snapshot();
       await ring("section:options");
       mark(`variant:${p.product_id}`);
@@ -271,18 +271,18 @@ export const mira = {
     await ring(p.target);
   },
 
-  update_brief(p: Commands["update_brief"], by: By = "mira") {
-    if (isMira(by)) snapshot();
+  update_brief(p: Commands["update_brief"], by: By = "emily") {
+    if (isEmily(by)) snapshot();
     set({ brief: { ...p.brief, productsLeft: p.products_left, by } });
-    if (isMira(by)) mark("brief");
+    if (isEmily(by)) mark("brief");
   },
 
   clearBrief() {
     set({ brief: null });
   },
 
-  show_room_set(p: Commands["show_room_set"], by: By = "mira") {
-    if (isMira(by)) snapshot();
+  show_room_set(p: Commands["show_room_set"], by: By = "emily") {
+    if (isEmily(by)) snapshot();
     const version = (get().board?.version ?? 0) + 1;
     set({
       board: {
@@ -298,14 +298,14 @@ export const mira = {
         version,
       },
     });
-    if (isMira(by)) mark("board");
+    if (isEmily(by)) mark("board");
     go("/board");
   },
 
-  async swap_piece(p: Commands["swap_piece"], by: By = "mira") {
+  async swap_piece(p: Commands["swap_piece"], by: By = "emily") {
     const board = get().board;
     if (!board) return;
-    if (isMira(by)) {
+    if (isEmily(by)) {
       snapshot();
       await toBoard();
       await ring(`slot:${p.slot}`);
@@ -315,13 +315,13 @@ export const mira = {
       board: {
         ...board,
         pieces,
-        total: isMira(by) ? p.total : totalOf(pieces),
+        total: isEmily(by) ? p.total : totalOf(pieces),
         savings: board.savings.filter((s) => s.slot !== p.slot),
-        changed: isMira(by) ? [...new Set([...board.changed, p.slot])] : board.changed.filter((s) => s !== p.slot),
+        changed: isEmily(by) ? [...new Set([...board.changed, p.slot])] : board.changed.filter((s) => s !== p.slot),
         by,
       },
     });
-    if (!isMira(by)) emit("room_board_edited", { slot: p.slot, action: "swap" });
+    if (!isEmily(by)) emit("room_board_edited", { slot: p.slot, action: "swap" });
   },
 
   removePiece(slot: string) {
@@ -337,37 +337,37 @@ export const mira = {
     if (board) set({ board: { ...board, budget } });
   },
 
-  show_compare(p: Commands["show_compare"], by: By = "mira") {
-    if (isMira(by)) snapshot();
+  show_compare(p: Commands["show_compare"], by: By = "emily") {
+    if (isEmily(by)) snapshot();
     set({ compare: { ids: p.product_ids, rows: p.rows, summary: p.summary, by } });
-    if (isMira(by)) mark("compare");
+    if (isEmily(by)) mark("compare");
     go("/compare");
   },
 
-  show_goes_with(p: Commands["show_goes_with"], by: By = "mira") {
-    if (isMira(by)) snapshot();
+  show_goes_with(p: Commands["show_goes_with"], by: By = "emily") {
+    if (isEmily(by)) snapshot();
     set({ goesWith: { anchorId: p.anchor_id, items: p.items, by } });
-    if (isMira(by)) {
+    if (isEmily(by)) {
       mark("goes-with");
       go(`/product/${p.anchor_id}`);
       setTimeout(() => void ring("section:goes-with"), 60);
     }
   },
 
-  show_more_like(p: Commands["show_more_like"], by: By = "mira") {
-    if (isMira(by)) snapshot();
+  show_more_like(p: Commands["show_more_like"], by: By = "emily") {
+    if (isEmily(by)) snapshot();
     set({ moreLike: { anchorId: p.anchor_id, items: p.items, by } });
-    if (isMira(by)) {
+    if (isEmily(by)) {
       mark("more-like");
       go(`/product/${p.anchor_id}`);
       setTimeout(() => void ring("section:more-like"), 60);
     }
   },
 
-  async show_savings(p: Commands["show_savings"], by: By = "mira") {
+  async show_savings(p: Commands["show_savings"], by: By = "emily") {
     const board = get().board;
     if (!board) return;
-    if (isMira(by)) {
+    if (isEmily(by)) {
       snapshot();
       await toBoard();
       await ring("section:budget");
@@ -388,24 +388,24 @@ export const mira = {
         savings: p.swaps,
         saved: p.saved,
         movedTo: p.moved_to ?? null,
-        changed: isMira(by) ? [...new Set([...board.changed, ...p.swaps.map((s) => s.slot)])] : board.changed,
+        changed: isEmily(by) ? [...new Set([...board.changed, ...p.swaps.map((s) => s.slot)])] : board.changed,
         by,
       },
     });
-    if (isMira(by)) mark("savings");
+    if (isEmily(by)) mark("savings");
     else p.swaps.forEach((s) => emit("room_board_edited", { slot: s.slot, action: "save" }));
   },
 
-  update_shortlist(p: Commands["update_shortlist"], by: By = "mira") {
-    if (isMira(by)) {
+  update_shortlist(p: Commands["update_shortlist"], by: By = "emily") {
+    if (isEmily(by)) {
       snapshot();
       mark("shortlist");
     }
     useShortlist.getState().set(p.product_ids, by);
   },
 
-  async confirm_add(p: Commands["confirm_add"], by: By = "mira") {
-    if (isMira(by)) await ring("button:add-to-cart");
+  async confirm_add(p: Commands["confirm_add"], by: By = "emily") {
+    if (isEmily(by)) await ring("button:add-to-cart");
     set({ confirm: { ...p, by } });
   },
 
@@ -418,8 +418,8 @@ export const mira = {
     emit("confirm_result", { confirmed });
   },
 
-  cart_updated(p: Commands["cart_updated"], by: By = "mira") {
-    if (isMira(by)) {
+  cart_updated(p: Commands["cart_updated"], by: By = "emily") {
+    if (isEmily(by)) {
       snapshot();
       mark("cart");
     }
@@ -474,12 +474,12 @@ function withoutFilter(f: ContractFilters, key: string): ContractFilters {
 
 /** The voice adapter: one ui-command off the wire → one method. Unknown commands are ignored. */
 export function dispatch(command: string, payload: unknown): boolean {
-  const fn = (mira as unknown as Record<string, ((p: unknown, by?: By) => unknown) | undefined>)[command];
+  const fn = (emily as unknown as Record<string, ((p: unknown, by?: By) => unknown) | undefined>)[command];
   if (!fn || !isCommand(command)) {
     console.info(`[fernhollow] ignoring unknown command ${command}`);
     return false;
   }
-  void fn(payload ?? {}, "mira");
+  void fn(payload ?? {}, "emily");
   return true;
 }
 
@@ -490,10 +490,10 @@ const COMMANDS = new Set<string>([
 ]);
 const isCommand = (c: string): c is CommandName => COMMANDS.has(c);
 
-/** True while a Mira mark is fresh enough to show its tag. */
+/** True while a Emily mark is fresh enough to show its tag. */
 export const MARK_MS = 1000 * 60 * 10;
 export function useMarked(key: string): boolean {
-  return useMira((s) => {
+  return useEmily((s) => {
     const t = s.marks[key];
     return t != null && Date.now() - t < MARK_MS;
   });

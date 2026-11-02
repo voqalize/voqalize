@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "screenshots": "node scripts/screenshots.mjs",
-    "test": "vitest run"
+    "test": "vitest run",
+    "spa-check": "node scripts/spa-check.mjs"
   },
   "dependencies": {
     "@fontsource-variable/hanken-grotesk": "^5.2.5",

@@ -222,7 +222,7 @@ function ReturnsDeskLink() {
     <Link to="/returns" className="returns-link">
       <span>
         <span className="returns-link-title">Start a return online</span>
-        <span className="small">Find your order and send it back in six short steps, by hand or with Mira.</span>
+        <span className="small">Find your order and send it back in six short steps.</span>
       </span>
       <span className="btn btn-primary btn-sm">Returns desk</span>
     </Link>
@@ -253,7 +253,7 @@ export function ContactPage() {
         <div className="contact">
           <header className="info-head">
             <h1 className="h1">Write to the studio</h1>
-            <p className="lede">Questions about a piece, an order or a room you are planning. Mira can answer most of them out loud, too.</p>
+            <p className="lede">Questions about a piece, an order or a room you are planning.</p>
           </header>
           {sent ? (
             <div className="thanks" role="status">

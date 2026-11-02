@@ -5,7 +5,7 @@
  * The browser half is pipecat's: a stock `PipecatClient` over
  * `@voqalize/client-transport` (with `keepAcrossPageLoads`, so a reload or a
  * full page navigation mid-call rejoins it), the connect request in
- * `src/config.ts`, and Mira's face from `@voqalize/avatar` (`character="emily"`),
+ * `src/config.ts`, and Emily's face from `@voqalize/avatar` (`character="emily"`),
  * which reads its state off the same client. Every `ui-command` goes to the
  * controller's `dispatch`; every UI event goes out through `events.ts`.
  */
@@ -19,7 +19,8 @@ import { Mic, MicOff, PhoneOff } from "lucide-react";
 import { connectRequest, withRealHeaders } from "../config";
 import { dispatch } from "./controller";
 import { setVoiceBegin, setVoiceClient, setVoiceLive } from "../stage/client";
-import { setEventSender } from "./events";
+import { debugMode, setEventSender } from "./events";
+import { CallTile } from "./CallTile";
 import { useDockMode } from "./useDockMode";
 
 type Activity = "idle" | "connecting" | "listening" | "thinking" | "speaking" | "error";
@@ -38,6 +39,10 @@ function useCall(media: VoqalizeMedia, params: APIRequest) {
   }, [call, media]);
   // Stage (the returns form) attaches to this same client.
   useEffect(() => {
+    if (debugMode()) {
+      const w = window as unknown as { __fhVoice?: Record<string, unknown> };
+      w.__fhVoice = { ...w.__fhVoice, client: call.client };
+    }
     setVoiceClient(call.client as unknown as Parameters<typeof setVoiceClient>[0]);
     return () => setVoiceClient(null);
   }, [call]);
@@ -58,7 +63,7 @@ function useCall(media: VoqalizeMedia, params: APIRequest) {
       await client.connect(withRealHeaders(response));
     } catch (err) {
       console.error("Connection error:", err);
-      setError("Mira could not connect. Check your microphone permission and try again.");
+      setError("Emily could not connect. Check your microphone permission and try again.");
     }
   }, [call, params]);
   const end = useCallback(async () => {
@@ -142,12 +147,24 @@ function Dock({ call }: { call: ReturnType<typeof useCall> }) {
   };
 
   return (
-    <div className={`dock${on ? " is-live" : ""} is-${activity}${mode.classes}`} role="region" aria-label="Talk to Mira">
-      <div className="dock-face">
-        <Avatar className="dock-avatar" client={call.client} character="emily" aria-label="Mira" />
-      </div>
+    <>
+    <CallTile
+      live={on}
+      state={activity === "idle" ? "connecting" : activity}
+      heard={heard}
+      muted={muted}
+      onMute={() => {
+        setMuted(!muted);
+        call.client.enableMic(muted);
+      }}
+      onEnd={() => void call.end()}
+    >
+      <Avatar className="dock-avatar" client={call.client} character="emily" aria-label="Emily" />
+    </CallTile>
+    <div className={`dock${on ? " is-live is-calling" : ""} is-${activity}${mode.classes}`} role="region" aria-label="Talk to Emily">
+      <div className="dock-face dock-face-slot" aria-hidden />
       <div className="dock-text">
-        <p className="dock-name">Mira</p>
+        <p className="dock-name">Emily</p>
         <p className="dock-status" aria-live="polite">
           {call.error ?? (on && heard ? `“${heard}”` : STATUS[activity])}
         </p>
@@ -179,9 +196,10 @@ function Dock({ call }: { call: ReturnType<typeof useCall> }) {
             void call.begin();
           }}
         >
-          <Mic size={16} /> <span className="dock-cta-label">Talk to Mira</span>
+          <Mic size={16} /> <span className="dock-cta-label">Talk to Emily</span>
         </button>
       )}
     </div>
+    </>
   );
 }
