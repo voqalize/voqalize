@@ -444,11 +444,24 @@ def resolve(
             return Resolution("one", selection[0], source="selection")
         return Resolution("many", candidates=tuple(selection), source="selection")
     if _DEICTIC.match(said):
-        single = selection[0] if len(selection) == 1 else None
-        pid = fresh or single or open_product or (visible[0] if len(visible) == 1 else None)
+        # "this": what they circled, then what they point at, then the one
+        # choice or the one product open or listed — never "I can't see it".
+        if len(selection) == 1:
+            return Resolution("one", selection[0], source="selection")
+        if len(selection) > 1:
+            cands = tuple(selection[:4])
+            return Resolution(
+                "choose", candidates=cands, question=question(cands, ()), source="selection"
+            )
+        if fresh:
+            return Resolution("one", fresh, source="pointing")
+        pid = (
+            (choices[0] if len(choices) == 1 else None)
+            or open_product
+            or (visible[0] if len(visible) == 1 else None)
+        )
         if pid:
-            source = "pointing" if pid == fresh else "selection" if pid == single else "screen"
-            return Resolution("one", pid, source=source)
+            return Resolution("one", pid, source="screen")
         return Resolution("none", source="pointing")
     if choices:
         where = _position(spoken, choices, [x for x in layout if x.product_id in choices])

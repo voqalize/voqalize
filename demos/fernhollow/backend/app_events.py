@@ -29,6 +29,9 @@ __all__ = [
     "FilterChanged",
     "FiltersIn",
     "LayoutIn",
+    "OrderIn",
+    "OrderLineIn",
+    "OrdersKnown",
     "PageViewed",
     "Pointing",
     "ProductViewed",
@@ -120,6 +123,40 @@ class ThingIn(BaseModel):
     id: str = ""
 
 
+class OrderLineIn(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    product_id: str
+    variant_id: str = ""
+    title: str = ""
+    variant: str = ""
+    qty: int = 1
+    unit_price: float = 0
+
+
+class OrderIn(BaseModel):
+    """One order the page holds (a placed order counts as delivered when placed)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    number: str = ""
+    email: str = ""
+    name: str = ""
+    placed_at: str = ""
+    lines: list[OrderLineIn] = Field(default_factory=list[OrderLineIn])
+    total: float = 0
+    status: str = "delivered"
+    placed_days_ago: int = 0
+    delivered_days_ago: int | None = 0
+
+
+class OrdersKnown(AppEvent):
+    """The orders the page holds — on connect and whenever the list changes. Silent."""
+
+    orders: list[OrderIn] = Field(default_factory=list[OrderIn])
+    by: str = "visitor"
+
+
 class Selection(AppEvent):
     """The shopper circled things on screen (Show Emily: circle to ask). Kept
     until cleared, across pages; acted on only when they speak about it."""
@@ -189,9 +226,11 @@ class CartChanged(AppEvent):
 
 
 class ConfirmResult(AppEvent):
-    """The shopper's answer on the Add-to-cart confirmation."""
+    """The shopper's answer on a confirmation: Add to cart, or Place order —
+    which carries the order number the page used."""
 
     confirmed: bool = False
+    order_number: str | None = None
     by: str = "visitor"
 
 
@@ -218,6 +257,7 @@ type FernhollowEvent = (
     | CheckoutStepReached
     | Selection
     | SelectionCleared
+    | OrdersKnown
 )
 
 FERNHOLLOW_EVENTS = AppEvents[FernhollowEvent](
@@ -236,4 +276,5 @@ FERNHOLLOW_EVENTS = AppEvents[FernhollowEvent](
     CheckoutStepReached,
     Selection,
     SelectionCleared,
+    OrdersKnown,
 )

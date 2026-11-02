@@ -313,9 +313,14 @@ export interface ChoiceMade {
   by?: string;
 }
 
-/** The shopper's answer on the Add-to-cart confirmation. */
+/**
+ * The shopper's answer on a confirmation: Add to cart, or Place order —
+ * which carries the order number the page used.
+ */
 export interface ConfirmResult {
   confirmed?: boolean;
+
+  order_number?: string | null;
 
   by?: string;
 }
