@@ -111,3 +111,42 @@ Everything else is cues.
 agent (the default) and covers the wait while the brain looks an order up. So Emily NEVER opens a reply
 with her own acknowledgement ("Let me check that", "One moment", "Sure!") anywhere in the demo — she
 opens on the answer. Tested: no reply's first sentence is an ack phrase.
+
+## v2 — Emily drives everything, and asks when it's unclear (owner, 2026-11-02)
+
+**This is a demo with nothing real behind it, so Emily is not held back.** She can complete checkout
+and the returns form end to end. This deliberately overrides Stage's default "paying, consent and
+personal data are never moves" for this demo only: values come from what the shopper says, and the
+final step (place order, submit return) still needs the shopper's spoken **yes** first (a confirmed
+tool, never a cue).
+
+New brain → UI commands:
+
+| command | payload | UI |
+| --- | --- | --- |
+| `checkout_fill` | `field` (`email, first_name, last_name, address1, address2, city, region, postcode, country, phone, delivery`), `value` | rings the checkout input and sets it; works on the cart → checkout → review flow |
+| `checkout_step` | `step` (`contact`, `shipping`, `review`) | moves the checkout to that step |
+| `confirm_place_order` | `total`, `label` | confirm prompt on Place order |
+| `order_placed` | `order_number`, `total` | confirmation page (demo order, stored like a manual one) |
+| `show_choices` | `product_ids[]` (2–4, all on screen), `label` | numbered badges 1..n on those product cards + ring; cleared by `choice_made` or the next navigation |
+| `clear_choices` | — | badges removed |
+
+Returns form: `email` may now be filled (a `returns.fill` cue for `email` is allowed), and
+`returns.submit` is a confirmed tool after the shopper's yes.
+
+New UI → brain events (all `by: "visitor"`):
+
+- `pointing{product_id, how: "hover"|"focus"|"tap"}` — the product card or product page under the
+  pointer/finger/keyboard focus, debounced 300 ms, `silent` (kept for "this one", never spoken about).
+- `visible_products{product_ids[], layout: [{product_id, row, col}]}` — now carries screen order, so
+  "the one on the left", "the second one", "the bottom row" resolve against what is visible.
+- `choice_made{product_id}` — the shopper clicked a numbered product while choices were showing.
+- `checkout_changed{field}` / `checkout_step_reached{step}` — field names only, like the returns form.
+
+**Reference resolution (brain).** Every spoken product reference is resolved against, in order: the
+product being pointed at (≤ 5 s old), the products visible on screen (with layout), the shortlist and
+room set, then the catalog. Fuzzy title + option matching tolerates transcription noise. If one
+candidate is clearly best, use it. If two to four are close — e.g. a listing of similarly named sofas
+and a garbled name — dispatch `show_choices` and ask one short question that names the difference
+("Which one: one, the oak one on the left, or two, the walnut one?"). Never guess between close
+candidates; never ask when one is clearly meant.
