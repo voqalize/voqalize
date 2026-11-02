@@ -4127,3 +4127,345 @@ main {
   border: 1px solid var(--line-strong);
   font-size: 12px;
 }
+.steps button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: inherit;
+  font-weight: inherit;
+}
+.co-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.place-wrap {
+  max-width: 420px;
+}
+
+/* Emily's numbered choices */
+.card.is-choice .card-media {
+  box-shadow: 0 0 0 2px var(--emily), 0 0 0 7px rgba(75, 69, 198, 0.16);
+  animation: spot-in 300ms var(--ease) both;
+}
+.choice-badge {
+  position: absolute;
+  z-index: 3;
+  top: -12px;
+  left: -12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--emily);
+  color: #fff;
+  font-family: var(--serif);
+  font-size: 19px;
+  font-weight: 500;
+  box-shadow: 0 0 0 3px var(--paper), 0 8px 18px -6px rgba(75, 69, 198, 0.6);
+  animation: pop 0.35s var(--ease) both;
+  pointer-events: none;
+}
+.card.is-choice .card-badges {
+  left: 30px;
+}
+@media (max-width: 599px) {
+  .choice-badge {
+    top: -8px;
+    left: -6px;
+    width: 30px;
+    height: 30px;
+    font-size: 16px;
+  }
+}
+
+/* ── Circle to ask ────────────────────────────────────────────────────── */
+
+body.is-circling,
+body.is-circling * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -webkit-touch-callout: none !important;
+  cursor: crosshair !important;
+}
+.circle-ink {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 85;
+  pointer-events: none;
+  overflow: visible;
+  animation: ink-shimmer 2.4s linear infinite;
+}
+/* The rainbow drifts round the loop while it is drawn. */
+@keyframes ink-shimmer {
+  to {
+    filter: hue-rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .circle-ink {
+    animation: none;
+  }
+}
+.circle-glow {
+  fill: none;
+  stroke: url(#fh-ink);
+  stroke-width: 20;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.6;
+}
+.circle-line {
+  fill: rgba(255, 255, 255, 0.03);
+  stroke: url(#fh-ink);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.circle-head {
+  fill: #fff;
+  stroke: url(#fh-ink);
+  stroke-width: 3;
+  filter: drop-shadow(0 0 6px rgba(255, 154, 31, 0.8)) drop-shadow(0 0 10px rgba(34, 195, 238, 0.6));
+}
+.circle-lit {
+  fill: rgba(255, 255, 255, 0.08);
+  stroke: url(#fh-ink);
+  stroke-width: 2.5;
+  animation: lit-in 0.22s var(--ease) both;
+}
+@keyframes lit-in {
+  from {
+    opacity: 0;
+  }
+}
+.circle-ink.is-fading {
+  animation: ink-out 0.7s ease forwards;
+}
+.circle-ink.is-fading .circle-line {
+  fill: rgba(255, 255, 255, 0.06);
+}
+@keyframes ink-out {
+  0% {
+    opacity: 1;
+  }
+  35% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    filter: blur(2px);
+  }
+}
+.selection-marks {
+  position: fixed;
+  inset: 0;
+  z-index: 52;
+  pointer-events: none;
+}
+/* Circled things keep the circle's rainbow (owner, 2026-11-02), kept minimal: a 2 px
+   rainbow edge and a faint soft halo. The halo blurs an outer box and masks only an inner
+   band, so it stays soft and never tints the product. */
+.selection-ring {
+  --rainbow: conic-gradient(from 0deg, #ff3b5c, #ff9a1f, #ffd60a, #34d399, #22c3ee, #4f6bff, #a855f7, #ff3b5c);
+  position: fixed;
+  border-radius: 10px;
+  animation: spot-in 0.35s var(--ease) both;
+}
+.selection-edge,
+.selection-band {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--rainbow);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+.selection-edge {
+  padding: 2px;
+  animation: rainbow-drift 3s linear infinite;
+}
+.selection-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  filter: blur(6px);
+  opacity: 0.45;
+  animation: rainbow-drift 3s linear infinite;
+}
+.selection-band {
+  padding: 3px;
+}
+@keyframes rainbow-drift {
+  to {
+    filter: hue-rotate(360deg);
+  }
+}
+.selection-glow {
+  animation-name: rainbow-glow;
+}
+@keyframes rainbow-glow {
+  from {
+    filter: blur(6px) hue-rotate(0deg);
+  }
+  to {
+    filter: blur(6px) hue-rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .selection-edge,
+  .selection-glow {
+    animation: none;
+  }
+}
+.selection-badge {
+  position: absolute;
+  z-index: 2;
+  top: -13px;
+  left: -13px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #7b6cf0, var(--emily));
+  color: #fff;
+  font-family: var(--serif);
+  font-size: 17px;
+  box-shadow: 0 0 0 3px var(--paper), 0 8px 18px -6px rgba(75, 69, 198, 0.7);
+  animation: pop 0.35s var(--ease) both;
+}
+.selection-chip {
+  position: fixed;
+  left: 50%;
+  bottom: calc(92px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 56;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 7px 7px 8px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 520;
+  white-space: nowrap;
+  box-shadow: 0 18px 40px -16px rgba(29, 37, 32, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  animation: chip-in 0.4s var(--ease) both;
+}
+@keyframes chip-in {
+  from {
+    opacity: 0;
+    translate: 0 12px;
+  }
+}
+.selection-count {
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #7b6cf0, var(--emily));
+  font-family: var(--serif);
+  font-size: 15px;
+}
+.selection-sep {
+  margin: 0 7px;
+  opacity: 0.5;
+}
+.selection-chip button {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+.selection-chip button:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+.circle-hint {
+  position: fixed;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 56;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--paper);
+  color: var(--ink-2);
+  font-size: 13px;
+  box-shadow: 0 18px 40px -18px rgba(29, 37, 32, 0.4), 0 0 0 1px rgba(75, 69, 198, 0.18);
+  animation: chip-in 0.5s var(--ease) both;
+}
+.circle-hint svg {
+  color: var(--emily);
+  flex: none;
+}
+@media (max-width: 699px) {
+  .selection-chip {
+    font-size: 13px;
+    bottom: calc(80px + env(safe-area-inset-bottom));
+  }
+  .circle-hint {
+    left: 12px;
+    right: 12px;
+    max-width: none;
+    transform: none;
+    bottom: calc(84px + env(safe-area-inset-bottom));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .circle-ink.is-fading {
+    animation: none;
+    opacity: 0;
+  }
+}
+.demo-order-yours {
+  font-size: 11px;
+  font-weight: 650;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--moss);
+}
+.known-orders .small {
+  margin: 0 0 8px;
+}
+.selection-chip .selection-add {
+  width: auto;
+  height: 28px;
+  padding: 0 11px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.selection-chip .selection-add.is-on {
+  background: linear-gradient(135deg, #7b6cf0, var(--emily));
+}
+@media (max-width: 420px) {
+  .selection-chip {
+    font-size: 12.5px;
+    gap: 7px;
+  }
+  .selection-sep {
+    margin: 0 4px;
+  }
+  .selection-chip .selection-add {
+    padding: 0 9px;
+    font-size: 12px;
+  }
+}

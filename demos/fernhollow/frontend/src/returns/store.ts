@@ -4,12 +4,14 @@
  * `by` remembers who set each one for the "Emily" tag.
  */
 import { create } from "zustand";
-import { type ChoiceField, findOrder, type DemoOrder, normalOrderNumber } from "./orders";
+import { type ChoiceField, type DemoOrder, RETURN_WINDOW_DAYS, eligibility, exchangeOptions, findOrder, normalOrderNumber } from "./orders";
 
 export type Who = "visitor" | "emily";
 
 export interface ReturnsForm {
   step: number;
+  /** The furthest step the form has reached; a step up to it can be reopened. */
+  reached: number;
   order_number: string;
   email: string;
   /** product_id → how many to return. */
@@ -28,6 +30,7 @@ export interface ReturnsForm {
 
 const EMPTY: Omit<ReturnsForm, "by" | "changed"> = {
   step: 1,
+  reached: 1,
   order_number: "",
   email: "",
   items: {},
@@ -42,7 +45,7 @@ const EMPTY: Omit<ReturnsForm, "by" | "changed"> = {
 interface Api extends ReturnsForm {
   setStep(step: number): void;
   setOrderNumber(value: string, by?: Who): void;
-  setEmail(value: string): void;
+  setEmail(value: string, by?: Who): void;
   setChoice(field: ChoiceField, value: string, by?: Who): void;
   setItem(productId: string, qty: number, by?: Who): void;
   setExchange(productId: string, value: string, by?: Who): void;
@@ -53,7 +56,11 @@ export const useReturns = create<Api>((set, get) => ({
   ...EMPTY,
   by: {},
   changed: null,
-  setStep: (step) => set({ step: Math.max(1, Math.min(6, step)) }),
+  setStep: (step) =>
+    set((s) => {
+      const next = Math.max(1, Math.min(6, step));
+      return { step: next, reached: Math.max(s.reached, next) };
+    }),
   setOrderNumber(value, by = "visitor") {
     const prev = get().order_number;
     const next = value;
@@ -67,7 +74,7 @@ export const useReturns = create<Api>((set, get) => ({
       changed: { field: "order_number", stamp: Date.now() },
     }));
   },
-  setEmail: (email) => set((s) => ({ email, by: { ...s.by, email: "visitor" }, changed: { field: "email", stamp: Date.now() } })),
+  setEmail: (email, by = "visitor") => set((s) => ({ email, by: { ...s.by, email: by }, changed: { field: "email", stamp: Date.now() } })),
   setChoice(field, value, by = "visitor") {
     set((s) => {
       const next: Partial<ReturnsForm> = { [field]: value };
@@ -92,6 +99,68 @@ export const useReturns = create<Api>((set, get) => ({
     set({ ...EMPTY, order_number: orderNumber, items: {}, exchange: {}, by: orderNumber ? { order_number: by } : {}, changed: null });
   },
 }));
+
+/** What a step still needs, in the shopper's words; "" when it is complete. */
+export function missingInStep(form: ReturnsForm, step: number): string {
+  const order = currentOrder(form);
+  const elig = order ? eligibility(order) : null;
+  const chosen = order?.lines.filter((l) => form.items[l.product_id]) ?? [];
+  switch (step) {
+    case 1:
+      if (!order) return "Enter an order number from your confirmation email.";
+      if (!form.email.trim()) return "Enter the email you used for the order.";
+      if (form.email.trim().toLowerCase() !== order.email.toLowerCase()) return "That email does not match this order.";
+      if (elig?.kind === "not_delivered") return "This order has not been delivered yet. You can start a return once it arrives.";
+      if (elig?.kind === "outside_window") return `This order was delivered ${elig.days} days ago, outside the ${RETURN_WINDOW_DAYS}-day window.`;
+      return "";
+    case 2:
+      return chosen.length ? "" : "Choose at least one item to return.";
+    case 3:
+      return !form.reason ? "Choose a reason." : !form.condition ? "Tell us the condition of the items." : "";
+    case 4:
+      if (!form.resolution) return "Choose how you would like this resolved.";
+      if (form.resolution === "exchange" && chosen.some((l) => !form.exchange[l.product_id] && exchangeOptions(l).length)) {
+        return "Pick the option you would like instead for each item.";
+      }
+      return "";
+    case 5:
+      return !form.collection ? "Choose collection or drop-off." : form.collection === "pickup" && !form.pickup_window ? "Choose a collection window." : "";
+    default:
+      return "";
+  }
+}
+
+/** The fields a step still needs, by the form's names (for a refusal that names them). */
+export function missingFields(form: ReturnsForm, step: number): string[] {
+  const order = currentOrder(form);
+  const chosen = order?.lines.filter((l) => form.items[l.product_id]) ?? [];
+  switch (step) {
+    case 1:
+      return [...(order ? [] : ["order_number"]), ...(form.email.trim() && order && form.email.trim().toLowerCase() === order.email.toLowerCase() ? [] : ["email"])];
+    case 2:
+      return chosen.length ? [] : ["items"];
+    case 3:
+      return [...(form.reason ? [] : ["reason"]), ...(form.condition ? [] : ["condition"])];
+    case 4:
+      if (!form.resolution) return ["resolution"];
+      return form.resolution === "exchange"
+        ? chosen.filter((l) => !form.exchange[l.product_id] && exchangeOptions(l).length).map((l) => `exchange_variant_${l.product_id}`)
+        : [];
+    case 5:
+      return [...(form.collection ? [] : ["collection"]), ...(form.collection === "pickup" && !form.pickup_window ? ["pickup_window"] : [])];
+    default:
+      return [];
+  }
+}
+
+/** The first step that still needs something, or null when the form is complete. */
+export function firstMissing(form: ReturnsForm): { step: number; why: string } | null {
+  for (let step = 1; step <= 5; step++) {
+    const why = missingInStep(form, step);
+    if (why) return { step, why };
+  }
+  return null;
+}
 
 export const currentOrder = (s: ReturnsForm): DemoOrder | undefined => findOrder(s.order_number);
 

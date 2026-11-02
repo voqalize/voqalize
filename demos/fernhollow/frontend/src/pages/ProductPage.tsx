@@ -21,6 +21,7 @@ import { useShortlist } from "../state/shortlist";
 import { emily, navigatedBy, useEmily } from "../voice/controller";
 import { emit } from "../voice/events";
 import { goesWith, moreLike } from "../voice/local";
+import { pointHandlers } from "../voice/screen";
 import { useTitle } from "./usePage";
 
 export function ProductPage() {
@@ -80,7 +81,7 @@ function ProductView({ p }: { p: Product }) {
             { label: p.title },
           ]}
         />
-        <div className="pdp-grid">
+        <div className="pdp-grid" data-fh-thing={`product:${p.id}`} {...pointHandlers(p.id)}>
           <div className="gallery">
             {p.images.length > 1 ? (
               <div className="gallery-thumbs" role="tablist" aria-label="Photos">

@@ -150,3 +150,63 @@ candidate is clearly best, use it. If two to four are close — e.g. a listing o
 and a garbled name — dispatch `show_choices` and ask one short question that names the difference
 ("Which one: one, the oak one on the left, or two, the walnut one?"). Never guess between close
 candidates; never ask when one is clearly meant.
+
+## v3 — Show Emily: circle to ask (owner, 2026-11-02)
+
+**Things.** Every selectable element on every page carries `data-fh-thing="<kind>:<id>"` with kind
+`product` (catalog id), `category` (slug), `room` (room), `article` (slug). Home: hero photos, room
+tiles, on-sale rail, category tiles, journal cards. Listings: cards. Product page: the product, its
+look-alike / same-room rails. Articles: inline product cards. Emily's surfaces: room-board pieces,
+compare columns, choices. Cart lines.
+
+**Circle to ask.** Hold Shift (desktop) or long-press 350 ms (touch), then draw a loop; a glowing
+stroke follows the pointer; things whose box is ≥ 50% inside the closed loop light up while drawing.
+On release: numbered badges on the selected things (max 8), a small chip "4 selected · say what you
+want" with a clear (×) button, and one event:
+
+- `selection{things: [{kind, id}], gesture: "circle", page}` — `by: "visitor"`, `note`. Cleared by
+  `selection_cleared{}` (×, Esc, a new circle, or navigating to another page: the selection is cleared on navigation). Shift + Alt (Option) while circling, or "+ Add more" on the chip on touch, adds to the current selection instead (deduplicated, numbering continues, at most 8) and sends one `selection` with the full set.
+- Brain → UI `clear_selection{}`.
+
+**Brain.** "These / those / all of them / the circled ones" resolve to the last selection (ranked
+above pointing). Products → compare (2–4), cheapest/attribute questions, add to room set, shortlist;
+rooms/categories → navigate/show; mixed or > 4 products for a compare → say what is selected in one
+line and ask which to compare. Never act on a selection the shopper did not speak about.
+
+## v4 — Returns that actually work by voice (owner, 2026-11-03)
+
+Found in a live session: (1) orders the shopper placed were invisible to the brain (`find_order` read only
+`demo_orders.json`); (2) step 1 (order number + email) was never filled, so steps 2–6 stayed locked and
+`returns.submit` was refused; (3) `returns.select_item` refused a valid `qty` ("between 1 and 1") — a
+string-vs-number compare; (4) there was no move to advance a step; (5) many turns acted with no words.
+
+**Orders on the client.** Every placed order (by hand or by `order_placed`) is saved in localStorage
+`fernhollow-orders`: `{number, email, name, placed_at, lines[{product_id, variant_id, title, variant, qty,
+unit_price}], total, status}`. This is a demo store with no delivery, so a placed order counts as
+**delivered at the moment it is placed** (eligible for 30 days from then). The returns pages list these
+orders first, then the demo orders. The page tells the brain what it holds:
+
+- `orders_known{orders:[…same shape, with placed_days_ago and delivered_days_ago computed…]}` — sent on
+  connect and whenever the list changes (`silent`; values are demo data, never personal).
+
+**Brain:** `find_order` searches, in order, orders the brain placed this session, `orders_known`, then the
+demo orders; "my last order" / "the order I just placed" means the newest one.
+
+**Form moves (Stage), all `reversible`, all answer with one line:**
+
+- `returns.find` `{order_number, email}` — fills step 1 and looks the order up exactly as the Find button
+  does; on success the form moves to step 2; refused with the reason (no such order, email mismatch,
+  not delivered, outside window).
+- `returns.next_step` `{}` — validates the current step like the Continue button and advances; refused
+  naming the missing fields.
+- `returns.open_step` `{step}` — jumps back to any step already reached.
+- `returns.select_item` `{product_id, qty}` — `qty` is coerced to an integer before validation.
+- `returns.fill` `{field, value}` — unchanged; `email` allowed.
+- `returns.submit` — confirmed tool after a spoken yes (unchanged).
+
+**Brain tool `prepare_return(order_number, items[{product_id, qty}], reason, condition, resolution,
+collection, pickup_window?, exchange_variant?)`** — after the shopper's answers are known, it sends the
+whole sequence deterministically with `stage.send(..., queue=False)`: find → select items → next →
+reason + condition → next → resolution → next → collection (+ window) → next → review, and reports back
+which step it reached and any refusal. Emily asks only for what is missing, one question at a time, then
+calls it; she never relies on many spoken cues to fill a form. Every turn that acts also says one line.

@@ -47,7 +47,7 @@ export function CartLines({ compact = false }: { compact?: boolean }) {
   return (
     <ul className={`cart-lines${compact ? " is-compact" : ""}`}>
       {rows.map(({ line, product, variant }) => (
-        <li key={`${line.product_id}:${line.variant_id}`} className="cart-line" data-spot={`product:${product.id}`}>
+        <li key={`${line.product_id}:${line.variant_id}`} className="cart-line" data-spot={`product:${product.id}`} data-fh-thing={`product:${product.id}`}>
           <Link to={`/product/${product.id}`} className="cart-thumb">
             <Photo file={product.images[0]} alt={product.title} sizes="96px" />
           </Link>

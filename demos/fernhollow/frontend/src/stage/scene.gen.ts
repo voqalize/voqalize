@@ -8,6 +8,25 @@ export const scene = defineScene({
   "id": "fernhollow_returns",
   "moves": [
     {
+      "id": "returns.find",
+      "verb": "find",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "order_number"
+        },
+        {
+          "name": "email",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "id": "returns.next_step",
+      "verb": "next",
+      "class": "reversible"
+    },
+    {
       "id": "returns.open_step",
       "verb": "step",
       "class": "look",
@@ -45,6 +64,10 @@ export const scene = defineScene({
           "default": 1
         }
       ]
+    },
+    {
+      "id": "returns.submit",
+      "class": "confirmed"
     }
   ],
   "slices": [
@@ -132,4 +155,4 @@ export const scene = defineScene({
   ]
 });
 
-export const SPEC_SHA256 = "c2228bce90ec2e32da99e34073a166359b49066a4e5f902acce89a7d06d7776f";
+export const SPEC_SHA256 = "77c054e830ae17299aadaecf873f95e32370987f1b33662425ac6aa19b544cdc";

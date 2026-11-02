@@ -167,6 +167,45 @@ export interface OpenPolicy {
   topic: 'returns' | 'delivery' | 'assembly' | 'care';
 }
 
+/** Ring a checkout input and set it. */
+export interface CheckoutFill {
+  field: 'email' | 'first_name' | 'last_name' | 'address1' | 'address2' | 'city' | 'region' | 'postcode' | 'country' | 'phone' | 'delivery';
+
+  value: string;
+}
+
+/** Move the checkout to a step. */
+export interface CheckoutStep {
+  step: 'contact' | 'shipping' | 'review';
+}
+
+/** The confirm prompt on Place order. */
+export interface ConfirmPlaceOrder {
+  total: number;
+
+  label: string;
+}
+
+/** The confirmation page, with the demo order's number. */
+export interface OrderPlaced {
+  order_number: string;
+
+  total: number;
+}
+
+/** Numbered badges 1..n on these product cards (2-4, all on screen). */
+export interface ShowChoices {
+  product_ids: string[];
+
+  label: string;
+}
+
+/** The choice badges removed. */
+export type ClearChoices = Record<string, never>;
+
+/** The circled selection's badges and chip removed. */
+export type ClearSelection = Record<string, never>;
+
 /** Revert the last screen-changing action. */
 export type Undo = Record<string, never>;
 
@@ -253,9 +292,35 @@ export interface CartChanged {
   by?: string;
 }
 
-/** The shopper's answer on the Add-to-cart confirmation. */
+/** The shopper filled or changed a checkout field — its name, never its value. */
+export interface CheckoutChanged {
+  field?: string;
+
+  by?: string;
+}
+
+/** The checkout moved to a step: contact, shipping or review. */
+export interface CheckoutStepReached {
+  step?: string;
+
+  by?: string;
+}
+
+/** The shopper clicked one of the numbered products Emily asked between. */
+export interface ChoiceMade {
+  product_id?: string;
+
+  by?: string;
+}
+
+/**
+ * The shopper's answer on a confirmation: Add to cart, or Place order —
+ * which carries the order number the page used.
+ */
 export interface ConfirmResult {
   confirmed?: boolean;
+
+  order_number?: string | null;
 
   by?: string;
 }
@@ -267,12 +332,31 @@ export interface FilterChanged {
   by?: string;
 }
 
+/** The orders the page holds — on connect and whenever the list changes. Silent. */
+export interface OrdersKnown {
+  orders?: OrderIn[];
+
+  by?: string;
+}
+
 /**
  * The shopper opened a page (`home`, `room/<room>`, `category/<slug>`,
  * `product/<id>`, `journal`, `cart`, `policy/<topic>`…).
  */
 export interface PageViewed {
   path?: string;
+
+  by?: string;
+}
+
+/**
+ * The product card or page under the shopper's pointer, finger or keyboard
+ * focus (debounced). Kept for "this one"; never spoken about.
+ */
+export interface Pointing {
+  product_id?: string;
+
+  how?: string;
 
   by?: string;
 }
@@ -295,6 +379,25 @@ export interface RoomBoardEdited {
   by?: string;
 }
 
+/**
+ * The shopper circled things on screen (Show Emily: circle to ask). Kept
+ * until cleared, across pages; acted on only when they speak about it.
+ */
+export interface Selection {
+  things?: ThingIn[];
+
+  gesture?: string;
+
+  page?: string;
+
+  by?: string;
+}
+
+/** The circled selection was cleared (its clear button, Esc, or a new circle). */
+export interface SelectionCleared {
+  by?: string;
+}
+
 /** The shortlist tray as it now stands. */
 export interface ShortlistChanged {
   product_ids?: string[];
@@ -311,9 +414,14 @@ export interface VariantSelected {
   by?: string;
 }
 
-/** The products the grid or strip now shows, in screen order. */
+/**
+ * The products the grid or strip now shows, in screen order, with where
+ * each sits — so "the left one" and "the bottom row" resolve.
+ */
 export interface VisibleProducts {
   product_ids?: string[];
+
+  layout?: LayoutIn[];
 
   by?: string;
 }
@@ -417,10 +525,54 @@ export interface GoesWithItem {
   reason: string;
 }
 
+/** Where one visible product sits: row and column from the top left. */
+export interface LayoutIn {
+  product_id: string;
+
+  row?: number;
+
+  col?: number;
+}
+
 export interface MoreLikeItem {
   product_id: string;
 
   differences: string[];
+}
+
+/** One order the page holds (a placed order counts as delivered when placed). */
+export interface OrderIn {
+  number?: string;
+
+  email?: string;
+
+  name?: string;
+
+  placed_at?: string;
+
+  lines?: OrderLineIn[];
+
+  total?: number;
+
+  status?: string;
+
+  placed_days_ago?: number;
+
+  delivered_days_ago?: number | null;
+}
+
+export interface OrderLineIn {
+  product_id: string;
+
+  variant_id?: string;
+
+  title?: string;
+
+  variant?: string;
+
+  qty?: number;
+
+  unit_price?: number;
 }
 
 /** One room-board tile. */
@@ -463,6 +615,13 @@ export interface SavingSwap {
   now: number;
 }
 
+/** One thing the shopper circled: a product, category, room or article. */
+export interface ThingIn {
+  kind?: string;
+
+  id?: string;
+}
+
 /** Everything the brain can put on screen, discriminated by `command`. */
 export type UiAction =
   | { command: 'navigate'; payload: Navigate }
@@ -484,6 +643,13 @@ export type UiAction =
   | { command: 'cart_updated'; payload: CartUpdated }
   | { command: 'suggest_finish'; payload: SuggestFinish }
   | { command: 'open_policy'; payload: OpenPolicy }
+  | { command: 'checkout_fill'; payload: CheckoutFill }
+  | { command: 'checkout_step'; payload: CheckoutStep }
+  | { command: 'confirm_place_order'; payload: ConfirmPlaceOrder }
+  | { command: 'order_placed'; payload: OrderPlaced }
+  | { command: 'show_choices'; payload: ShowChoices }
+  | { command: 'clear_choices'; payload: ClearChoices }
+  | { command: 'clear_selection'; payload: ClearSelection }
   | { command: 'undo'; payload: Undo };
 
 export type UiActionCommand = UiAction['command'];
@@ -508,6 +674,13 @@ export const UI_ACTION_COMMANDS: readonly UiActionCommand[] = [
   'cart_updated',
   'suggest_finish',
   'open_policy',
+  'checkout_fill',
+  'checkout_step',
+  'confirm_place_order',
+  'order_placed',
+  'show_choices',
+  'clear_choices',
+  'clear_selection',
   'undo',
 ];
 
@@ -538,11 +711,18 @@ export type AppEvent =
   | { event: 'stage_progress'; payload: StageProgress }
   | { event: 'stage_result'; payload: StageResult }
   | { event: 'cart_changed'; payload: CartChanged }
+  | { event: 'checkout_changed'; payload: CheckoutChanged }
+  | { event: 'checkout_step_reached'; payload: CheckoutStepReached }
+  | { event: 'choice_made'; payload: ChoiceMade }
   | { event: 'confirm_result'; payload: ConfirmResult }
   | { event: 'filter_changed'; payload: FilterChanged }
+  | { event: 'orders_known'; payload: OrdersKnown }
   | { event: 'page_viewed'; payload: PageViewed }
+  | { event: 'pointing'; payload: Pointing }
   | { event: 'product_viewed'; payload: ProductViewed }
   | { event: 'room_board_edited'; payload: RoomBoardEdited }
+  | { event: 'selection'; payload: Selection }
+  | { event: 'selection_cleared'; payload: SelectionCleared }
   | { event: 'shortlist_changed'; payload: ShortlistChanged }
   | { event: 'variant_selected'; payload: VariantSelected }
   | { event: 'visible_products'; payload: VisibleProducts };
@@ -555,11 +735,18 @@ export const APP_EVENT_NAMES: readonly AppEventName[] = [
   'stage_progress',
   'stage_result',
   'cart_changed',
+  'checkout_changed',
+  'checkout_step_reached',
+  'choice_made',
   'confirm_result',
   'filter_changed',
+  'orders_known',
   'page_viewed',
+  'pointing',
   'product_viewed',
   'room_board_edited',
+  'selection',
+  'selection_cleared',
   'shortlist_changed',
   'variant_selected',
   'visible_products',

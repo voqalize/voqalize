@@ -2,6 +2,7 @@ import { Suspense, lazy, useEffect, useRef } from "react";
 import { BrowserRouter, Outlet, Route, Routes, useLocation, useNavigate, useNavigationType } from "react-router-dom";
 import { useStageHost } from "./stage/host";
 import { CartDrawer } from "./components/CartDrawer";
+import { CircleLayer, fakeCircle } from "./components/CircleLayer";
 import { Footer } from "./components/Footer";
 import { Header } from "./components/Header";
 import { BriefBar, FloatingConfirm, PolicyPanel, ShortlistTray, Spotlight } from "./components/Overlays";
@@ -12,7 +13,8 @@ import { CategoryPage, RoomPage, SalePage, SearchPage, ShopPage } from "./pages/
 import { BoardPage, ComparePage, PicksPage } from "./pages/EmilyViews";
 import { ProductPage } from "./pages/ProductPage";
 import { ReturnsConfirmation, ReturnsForm, ReturnsHome } from "./pages/Returns";
-import { bindRouter, dispatch, navigatedBy } from "./voice/controller";
+import { bindRouter, dispatch, emily, navigatedBy } from "./voice/controller";
+import { useScreenReport } from "./voice/screen";
 import { debugMode, emit } from "./voice/events";
 import { VoiceDock } from "./voice/VoiceDock";
 
@@ -32,9 +34,16 @@ function Shell() {
   // Every move — a click, or Emily's navigate — is a history push through the router.
   useEffect(() => bindRouter((to) => navigate(to), () => path.current), [navigate]);
   useStageHost(location.pathname);
+  useScreenReport(location.key);
+  // Numbered choices belong to the screen they were shown on.
+  useEffect(() => emily.clear_choices(), [location.key]);
   useEffect(() => {
     // Dev-only handle (?debug=1): fire a brain command from a test.
-    if (debugMode()) (window as unknown as { __fhDispatch?: typeof dispatch }).__fhDispatch = dispatch;
+    if (debugMode()) {
+      const w = window as unknown as { __fhDispatch?: typeof dispatch; __fhCircle?: typeof fakeCircle };
+      w.__fhDispatch = dispatch;
+      w.__fhCircle = fakeCircle;
+    }
   }, []);
 
   // Scroll: top on a push, the remembered place on Back / Forward.
@@ -96,6 +105,7 @@ function Shell() {
       <PolicyPanel />
       <FloatingConfirm />
       <Spotlight />
+      <CircleLayer />
       <VoiceDock />
       {debugMode() ? (
         <Suspense fallback={null}>

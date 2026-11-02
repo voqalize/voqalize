@@ -495,8 +495,10 @@ def test_marks_are_reads() -> None:
         "suggest_finish",
         "find_order",
         "check_exchange",
+        "resolve_product",
+        "fill_checkout",
     }
-    assert len(brain.tools) == 19
+    assert len(brain.tools) == 26
 
 
 def test_prompt_names_only_what_exists() -> None:
@@ -604,7 +606,7 @@ def test_emily_never_opens_on_an_acknowledgement() -> None:
     from voqalize_demos._loaded.fernhollow.prompt import ACK_OPENER
 
     lines = [GREETING]
-    for script in (_story(), _returns(), _form()):
+    for script in (_story(), _returns(), _form(), _v4_llm(), _circle_llm()):
         for cursor in script._cursors.values():  # pyright: ignore[reportPrivateUsage]
             lines += [step.spoken for step in cursor.steps if step.spoken]
     source = inspect.getsource(fb)
@@ -666,7 +668,7 @@ def _cues(rig: DemoRig) -> list[dict[str, Any]]:
 async def test_the_returns_form_fills_by_cue_and_the_shopper_submits() -> None:
     """FH-20418: the order is found eligible and the form opens with it; Emily's
     cues select the item and fill reason, condition, resolution and collection
-    as she says them — never the email, which is dropped. The shopper presses
+    as she says them, the email too (a demo, CONTRACT v2). The shopper presses
     Submit return themselves; that act reaches Emily, and in the next quiet spell
     she thanks them in one line."""
     llm = _form()
@@ -680,7 +682,7 @@ async def test_the_returns_form_fills_by_cue_and_the_shopper_submits() -> None:
         turn = await rig.driver.user_says("It just doesn't suit the room, and it's still boxed.")
         check_turn(rig, turn, units=1)
         spoken = turn.units[0].text
-        assert "{" not in spoken and "sam@example.com" not in spoken
+        assert "{" not in spoken
         turn = await rig.driver.user_says("A refund, and pick it up on a weekday morning.")
         check_turn(rig, turn, units=1)
 
@@ -689,6 +691,7 @@ async def test_the_returns_form_fills_by_cue_and_the_shopper_submits() -> None:
             ("returns.select_item", [DESK_LINE, "1"]),
             ("returns.fill", ["reason", "doesnt_suit_room"]),
             ("returns.fill", ["condition", "unused_in_packaging"]),
+            ("returns.fill", ["email", "sam@example.com"]),
             ("returns.fill", ["resolution", "refund"]),
             ("returns.fill", ["collection", "pickup"]),
             ("returns.fill", ["pickup_window", "weekday_morning"]),
@@ -811,3 +814,562 @@ async def test_emilys_own_changes_are_followed_but_not_told() -> None:
         await asyncio.sleep(0.1)
         assert brain.screen.product == desks[2]
         assert len(told()) == 1 and desks[2] in told()[0]
+
+
+# ─── v2: references, and checkout by voice ────────────────────────────────────
+
+OAK_SOFAS = [p for p in CATALOG.by_category["sofas"] if "oak" in p]
+GRID = [{"product_id": p, "row": i // 3, "col": i % 3} for i, p in enumerate(OAK_SOFAS)]
+DEEP = ("modular-oak-sofa-with-deep-seating", "modular-oak-sofa-with-deep-seats")
+
+
+async def _show_grid(rig: DemoRig) -> None:
+    await rig.driver.send_ui_event(
+        "visible_products", {"product_ids": OAK_SOFAS, "layout": GRID, "by": "visitor"}
+    )
+    await asyncio.sleep(0.1)
+
+
+async def test_a_garbled_name_between_look_alikes_is_asked_not_guessed() -> None:
+    """A sofa listing, and a name the recognizer garbled that fits two of them:
+    both are numbered on screen and Emily asks one question naming the
+    difference; "the second one" then resolves to the second, and the badges go."""
+    llm = ScriptedGemini(
+        {
+            "the moduler oak sofa with deep seat": [
+                reply_and_call(
+                    "Two of these fit that.",
+                    "resolve_product",
+                    request={"spoken": "the moduler oak sofa with deep seat"},
+                ),
+                reply("Which one: one, top right, or two, in the middle?"),
+            ],
+            "The second one.": [
+                reply_and_call(
+                    "The second.", "resolve_product", request={"spoken": "the second one"}
+                ),
+                reply("Good choice — the deep-seat modular in oak."),
+            ],
+        }
+    )
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        await _show_grid(rig)
+        await rig.driver.user_says("I like the moduler oak sofa with deep seat")
+        choices = rig.command("show_choices")
+        assert tuple(choices["product_ids"]) == DEEP
+        assert choices["label"].startswith("Which one:")
+        asked = _results(llm.captured_contents[-1])["resolve_product"]
+        assert "Ask exactly this" in asked and choices["label"] in asked
+        assert "open_product" not in rig.actions(), "it guessed between close candidates"
+
+        await rig.driver.user_says("The second one.")
+        said = _results(llm.captured_contents[-1])["resolve_product"]
+        assert f"[id {DEEP[1]}]" in said
+        assert rig.actions()[-1] == "clear_choices"
+
+
+async def test_a_clear_reference_is_not_questioned() -> None:
+    """One sofa clearly meant — by name, or by its place on screen — is used
+    at once, with no choices and no question."""
+    llm = ScriptedGemini(
+        {
+            "the oak sectional": [
+                reply_and_call(
+                    "The sectional.", "resolve_product", request={"spoken": "the oak sectional"}
+                ),
+                reply("The modular oak sectional, here."),
+            ],
+            "the bottom left one": [
+                reply_and_call(
+                    "That one.", "resolve_product", request={"spoken": "the bottom left one"}
+                ),
+                reply("That's it."),
+            ],
+        }
+    )
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        await _show_grid(rig)
+        await rig.driver.user_says("Tell me about the oak sectional")
+        assert (
+            "[id modular-oak-sectional-sofa]"
+            in _results(llm.captured_contents[-1])["resolve_product"]
+        )
+        await rig.driver.user_says("And the bottom left one")
+        bottom_left = next(g["product_id"] for g in GRID if g["row"] == 2 and g["col"] == 0)
+        assert f"[id {bottom_left}]" in _results(llm.captured_contents[-1])["resolve_product"]
+        assert "show_choices" not in rig.actions()
+
+
+async def test_pointing_is_this_one() -> None:
+    """What the shopper points at (fresh) is "this", silently."""
+    llm = ScriptedGemini(
+        {
+            "Add this one.": reply_and_call(
+                "Shall I add it?", "add_to_cart", request={"what": "product", "product": "this"}
+            )
+        }
+    )
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.send_ui_event(
+            "pointing", {"product_id": OAK_SOFAS[0], "how": "hover", "by": "visitor"}
+        )
+        await asyncio.sleep(0.1)
+        brain = rig.brain
+        assert isinstance(brain, FernhollowBrain)
+        assert not any(
+            "pointing" in (p.text or "").lower()
+            for c in brain._history  # pyright: ignore[reportPrivateUsage]
+            for p in c.parts or []
+        ), "a pointing was spoken about"
+        await rig.driver.user_says("Add this one.")
+        assert rig.command("confirm_add")["lines"][0]["product_id"] == OAK_SOFAS[0]
+
+
+DESK_ID = "modern-home-office-desk-with-chestnut-brown-finish"
+
+
+async def test_checkout_fully_by_voice_with_the_yes() -> None:
+    """Emily fills checkout from what the shopper says, reads the email and
+    postcode back, asks before placing the order, and places it only on the
+    shopper's yes in a later turn — with the authored delivery charge."""
+    llm = ScriptedGemini(
+        {
+            "Email's sam dot rivera at example dot com, I'm Sam Rivera.": [
+                reply_and_call(
+                    "Sam Rivera, noted.",
+                    "fill_checkout",
+                    fields={
+                        "email": "sam dot rivera at example dot com",
+                        "first_name": "Sam",
+                        "last_name": "Rivera",
+                    },
+                ),
+                reply("That's s a m dot r i v e r a, at example dot com. And the address?"),
+            ],
+            "12 Elm Street, Portland, 97201, United States.": [
+                Reply(
+                    text="Twelve Elm Street, Portland.",
+                    calls=(
+                        (
+                            "fill_checkout",
+                            {
+                                "fields": {
+                                    "address1": "12 Elm Street",
+                                    "city": "Portland",
+                                    "postcode": "97201",
+                                    "country": "United States",
+                                }
+                            },
+                        ),
+                        ("place_order", {"request": {"confirmed_by_voice": True}}),
+                    ),
+                ),
+                reply("Postcode nine seven two zero one."),
+            ],
+            "Looks right.": [
+                reply_and_call("The total is up.", "place_order", request={}),
+                reply("Shall I place the order?"),
+            ],
+            "Yes, place it.": reply_and_call(
+                "Placing it now.", "place_order", request={"confirmed_by_voice": True}
+            ),
+        }
+    )
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        brain = rig.brain
+        assert isinstance(brain, FernhollowBrain)
+        await rig.driver.send_ui_event(
+            "cart_changed",
+            {
+                "lines": [{"product_id": DESK_ID, "variant_id": "27504", "qty": 1}],
+                "total": 499.99,
+                "by": "visitor",
+            },
+        )
+        await asyncio.sleep(0.1)
+
+        await rig.driver.user_says("Email's sam dot rivera at example dot com, I'm Sam Rivera.")
+        first = _results(llm.captured_contents[-1])["fill_checkout"]
+        assert "s a m dot r i v e r a, at example dot com" in first
+        fills = [
+            c["payload"] for c in rig.driver.ui_commands if c.get("command") == "checkout_fill"
+        ]
+        assert {"field": "email", "value": "sam.rivera@example.com"} in fills
+
+        await rig.driver.user_says("12 Elm Street, Portland, 97201, United States.")
+        second = _results(llm.captured_contents[-1])
+        assert "9 7 2 0 1" in second["fill_checkout"]
+        assert "nothing — offer the review step" in second["fill_checkout"]
+        assert "NOT DONE" in second["place_order"], "a yes it was never asked for placed an order"
+        assert "order_placed" not in rig.actions()
+
+        await rig.driver.user_says("Looks right.")
+        confirm = rig.command("confirm_place_order")
+        assert confirm["total"] == 548.99  # $499.99 is not over $500: the flat $49 applies
+        assert "order_placed" not in rig.actions()
+
+        await rig.driver.user_says("Yes, place it.")
+        placed = rig.command("order_placed")
+        assert placed["order_number"] == "FH-30001" and placed["total"] == 548.99
+        assert brain.cart == {} and brain.pending_order is None
+
+
+async def test_the_return_is_submitted_only_on_a_spoken_yes() -> None:
+    """The confirmed returns.submit goes to the page only after Emily asked
+    and the shopper said yes on a later turn."""
+    llm = ScriptedGemini(
+        {
+            "Return the desk from FH-20418.": [
+                reply_and_call(
+                    "Order FH-20418.", "find_order", request={"order_number": "FH-20418"}
+                ),
+                reply("All three can go back."),
+            ],
+            "Submit it.": Reply(
+                text="Shall I submit the return?",
+                calls=(
+                    ("submit_return", {"request": {}}),
+                    ("submit_return", {"request": {"confirmed_by_voice": True}}),
+                ),
+            ),
+            "Yes.": reply_and_call(
+                "Submitting it.", "submit_return", request={"confirmed_by_voice": True}
+            ),
+        }
+    )
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("Return the desk from FH-20418.")
+        await rig.driver.user_says("Submit it.")
+        moves = lambda: [  # noqa: E731
+            c["payload"]["move"] for c in rig.driver.ui_commands if c.get("command") == "stage_move"
+        ]
+        assert moves() == [], "submitted before the shopper said yes"
+        await rig.driver.user_says("Yes.")
+        assert moves() == ["returns.submit"]
+
+
+# ─── v3: circle to ask ────────────────────────────────────────────────────────
+
+SOFAS = CATALOG.by_category["sofas"]
+
+
+async def _circle(rig: DemoRig, things: list[dict[str, str]], page: str = "home") -> None:
+    await rig.driver.send_ui_event(
+        "selection", {"things": things, "gesture": "circle", "page": page, "by": "visitor"}
+    )
+    await asyncio.sleep(0.1)
+
+
+def _circle_llm() -> ScriptedGemini:
+    return ScriptedGemini(
+        {
+            "Compare these.": [
+                reply_and_call("Side by side.", "compare", request={"products": ["these"]}),
+                reply("The first is the cheapest."),
+            ],
+            "Show me this.": reply_and_call("Here it is.", "show", request={"page": "this"}),
+            "Compare them.": [
+                reply_and_call("Six are circled.", "compare", request={"products": ["them"]}),
+                reply("You've circled six sofas — which two to four shall I compare?"),
+            ],
+        }
+    )
+
+
+async def test_circling_three_sofas_then_compare_these() -> None:
+    """Three sofas circled on the home page: nothing happens until the shopper
+    speaks; the selection survives a page change; "compare these" compares
+    exactly those three."""
+    llm = _circle_llm()
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        picked = SOFAS[:3]
+        await _circle(rig, [{"kind": "product", "id": i} for i in picked])
+        assert rig.actions() == [], "acted on a selection the shopper did not speak about"
+        await rig.driver.send_ui_event("page_viewed", {"path": "category/sofas", "by": "visitor"})
+        await asyncio.sleep(0.1)
+        check_turn(rig, await rig.driver.user_says("Compare these."), units=2)
+        assert set(rig.command("show_compare")["product_ids"]) == set(picked)
+        note = " ".join(
+            p.text or "" for c in llm.captured_contents[0] for p in c.parts or [] if p.text
+        )
+        assert "circled 3 things" in note and "do nothing yet" in note
+
+
+async def test_a_circled_room_tile_and_show_me_this() -> None:
+    llm = _circle_llm()
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        await _circle(rig, [{"kind": "room", "id": "home-office"}])
+        await rig.driver.user_says("Show me this.")
+        assert rig.command("navigate")["page"] == "room/home-office"
+
+
+async def test_six_circled_for_a_compare_is_asked_about() -> None:
+    llm = _circle_llm()
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        await _circle(rig, [{"kind": "product", "id": i} for i in SOFAS[:6]], page="category/sofas")
+        check_turn(rig, await rig.driver.user_says("Compare them."), units=2)
+        assert "show_compare" not in rig.actions()
+        said = _results(llm.captured_contents[-1])["compare"]
+        assert "6 products are circled" in said and "ask which to compare" in said
+        assert CATALOG.products[SOFAS[5]].title in said
+
+
+async def test_a_cleared_selection_is_not_these() -> None:
+    llm = ScriptedGemini(
+        {
+            "Compare these.": [
+                reply_and_call("Side by side.", "compare", request={"products": ["these"]}),
+                reply("Which ones?"),
+            ]
+        }
+    )
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        await _circle(rig, [{"kind": "product", "id": i} for i in SOFAS[:2]])
+        await rig.driver.send_ui_event("selection_cleared", {"by": "visitor"})
+        await asyncio.sleep(0.1)
+        await rig.driver.user_says("Compare these.")
+        assert "show_compare" not in rig.actions()
+
+
+# ─── v4: returns that work by voice ───────────────────────────────────────────
+
+CHAIR_ID = "desk-chair-with-aluminum-frame"
+CHAIR_VARIANT = CATALOG.products[CHAIR_ID].variants[0].id
+
+
+def _v4_llm() -> ScriptedGemini:
+    return ScriptedGemini(
+        {
+            "I'm sam dot rivera at example dot com, Sam Rivera, 12 Elm Street, Portland 97201, United States.": [
+                reply_and_call(
+                    "All of that is going in now.",
+                    "fill_checkout",
+                    fields={
+                        "email": "sam dot rivera at example dot com",
+                        "first_name": "Sam",
+                        "last_name": "Rivera",
+                        "address1": "12 Elm Street",
+                        "city": "Portland",
+                        "postcode": "97201",
+                        "country": "United States",
+                    },
+                ),
+                reply_and_call(
+                    "That's s a m dot r i v e r a at example dot com, postcode 9 7 2 0 1. "
+                    "Shall I place the order?",
+                    "place_order",
+                    request={},
+                ),
+            ],
+            "Yes, please.": reply("It's placed — your order number is FH-30001."),
+            "I want to return the chair from the order I just placed.": [
+                reply_and_call(
+                    "Your newest order, coming up.",
+                    "find_order",
+                    request={"order_number": "the order I just placed"},
+                ),
+                reply("The chair can go back. What's the reason?"),
+            ],
+            "It doesn't suit the room. Still boxed. A refund, and I'll drop it off.": reply_and_call(
+                "Filling in your return now. Shall I submit it?",
+                "prepare_return",
+                request={
+                    "order_number": "the order I just placed",
+                    "items": [{"product_id": CHAIR_ID, "qty": 1}],
+                    "reason": "doesnt_suit_room",
+                    "condition": "unused_in_packaging",
+                    "resolution": "refund",
+                    "collection": "drop_off",
+                },
+            ),
+            "Yes.": reply("Submitting it now."),
+            "submitted the return": reply(
+                "Thanks — once the chair is back and checked, the refund goes to your card."
+            ),
+        }
+    )
+
+
+def _stage_moves(rig: DemoRig) -> list[dict[str, Any]]:
+    return [dict(c["payload"]) for c in rig.driver.ui_commands if c.get("command") == "stage_move"]
+
+
+async def _answer(rig: DemoRig, moves: list[dict[str, Any]], outcome: str = "applied") -> None:
+    for m in moves:
+        await rig.driver.send_ui_event(
+            "stage_result", {"call_ref": m["call_ref"], "move": m["move"], "outcome": outcome}
+        )
+    await asyncio.sleep(0.1)
+
+
+async def test_a_placed_order_is_returned_by_voice_end_to_end() -> None:
+    """Order by voice, then "return the chair from the order I just placed":
+    found among the session's own orders, the form filled by one deterministic
+    sequence (find with the order's own email first), submitted on a spoken
+    yes, thanked when the page says it landed. No turn is silent."""
+    from loguru import logger
+
+    silent: list[str] = []
+    sink = logger.add(
+        lambda m: silent.append(m.record["message"]),
+        level="WARNING",
+        filter=lambda r: "said nothing" in r["message"],
+    )
+    llm = _v4_llm()
+    try:
+        async with demo("fernhollow", llm) as rig:
+            await rig.driver.start_session()
+            await rig.driver.send_ui_event(
+                "cart_changed",
+                {
+                    "lines": [{"product_id": CHAIR_ID, "variant_id": CHAIR_VARIANT, "qty": 1}],
+                    "total": 289.0,
+                    "by": "visitor",
+                },
+            )
+            await asyncio.sleep(0.1)
+            check_turn(
+                rig,
+                await rig.driver.user_says(
+                    "I'm sam dot rivera at example dot com, Sam Rivera, 12 Elm Street, Portland 97201, United States."
+                ),
+                units=2,
+            )
+            assert rig.actions().count("confirm_place_order") == 1
+            check_turn(rig, await rig.driver.user_says("Yes, please."), units=1)
+            assert rig.command("order_placed")["order_number"] == "FH-30001"
+
+            check_turn(
+                rig,
+                await rig.driver.user_says(
+                    "I want to return the chair from the order I just placed."
+                ),
+                units=2,
+            )
+            found = _results(llm.captured_contents[-1])["find_order"]
+            assert "Order FH-30001: 1 of 1 lines can be returned" in found
+            assert "sam.rivera" not in found
+
+            check_turn(
+                rig,
+                await rig.driver.user_says(
+                    "It doesn't suit the room. Still boxed. A refund, and I'll drop it off."
+                ),
+                units=1,
+            )
+            moves = _stage_moves(rig)
+            assert [m["move"] for m in moves] == [
+                "returns.find",
+                "returns.select_item",
+                "returns.next_step",
+                "returns.fill",
+                "returns.fill",
+                "returns.next_step",
+                "returns.fill",
+                "returns.next_step",
+                "returns.fill",
+                "returns.next_step",
+            ]
+            assert moves[0]["args"] == {
+                "order_number": "FH-30001",
+                "email": "sam.rivera@example.com",
+            }
+            assert moves[1]["args"] == {"product_id": CHAIR_ID, "qty": 1}
+            await _answer(rig, moves)
+
+            check_turn(rig, await rig.driver.user_says("Yes."), units=1)
+            submit = _stage_moves(rig)[-1]
+            assert submit["move"] == "returns.submit"
+            await _answer(rig, [submit])
+            await rig.driver.send_ui_event(
+                "stage_event",
+                {
+                    "name": "returns.return_submitted",
+                    "by": "visitor",
+                    "data": {"reference": "RT-30001-1", "filled": ["order_number", "email"]},
+                },
+            )
+            await asyncio.sleep(0.1)
+            thanks = await rig.driver.user_idle()
+            check_turn(rig, thanks, units=1)
+            assert thanks.units[0].text.startswith("Thanks")
+            notes = " ".join(
+                p.text or "" for c in llm.captured_contents[-1] for p in c.parts or [] if p.text
+            )
+            assert "reached the review step" in notes
+    finally:
+        logger.remove(sink)
+    assert silent == [], f"a turn acted and said nothing: {silent}"
+
+
+async def test_a_refusal_mid_sequence_is_told_honestly() -> None:
+    llm = ScriptedGemini(
+        {
+            "Return the chair from FH-20418, it doesn't suit, still boxed, refund, drop off.": reply_and_call(
+                "Filling in your return now.",
+                "prepare_return",
+                request={
+                    "order_number": "FH-20418",
+                    "items": [{"product_id": CHAIR_ID, "qty": 1}],
+                    "reason": "doesnt_suit_room",
+                    "condition": "unused_in_packaging",
+                    "resolution": "refund",
+                    "collection": "drop_off",
+                },
+            ),
+            "So is it done?": reply("Not yet — step 2 needs an item chosen."),
+        }
+    )
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says(
+            "Return the chair from FH-20418, it doesn't suit, still boxed, refund, drop off."
+        )
+        moves = _stage_moves(rig)
+        await _answer(rig, moves[:2])
+        await rig.driver.send_ui_event(
+            "stage_result",
+            {
+                "call_ref": moves[2]["call_ref"],
+                "move": "returns.next_step",
+                "outcome": "refused",
+                "detail": "step 2 needs an item",
+                "refused": [{"arg": "items", "why": "choose at least one item"}],
+            },
+        )
+        await asyncio.sleep(0.1)
+        await rig.driver.user_says("So is it done?")
+        notes = " ".join(
+            p.text or "" for c in llm.captured_contents[-1] for p in c.parts or [] if p.text
+        )
+        assert "stopped at step 2 items" in notes and "choose at least one item" in notes
+        assert "returns.submit" not in [m["move"] for m in _stage_moves(rig)]
+
+
+async def test_this_never_means_i_cannot_see() -> None:
+    """A circled product is "this", ahead of a pointing."""
+    llm = ScriptedGemini(
+        {
+            "Can you tell me about this?": [
+                reply_and_call("This one's a good pick.", "show", request={"product": "this"}),
+                reply("It's the cream linen sofa."),
+            ]
+        }
+    )
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.send_ui_event(
+            "pointing", {"product_id": SOFAS[4], "how": "hover", "by": "visitor"}
+        )
+        await _circle(rig, [{"kind": "product", "id": SOFAS[1]}])
+        await rig.driver.user_says("Can you tell me about this?")
+        assert rig.command("open_product")["product_id"] == SOFAS[1]

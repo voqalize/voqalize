@@ -25,6 +25,58 @@ const fire = async (page, command) => {
 
 const SHOTS = [
   {
+    name: "circle-added",
+    path: "/?debug=1",
+    run: async (page) => {
+      await page.click('.debug [aria-label="Close action console"]');
+      await page.evaluate(async () => {
+        const tiles = [...document.querySelectorAll(".rooms-row [data-fh-thing]")].filter((e) => e.getBoundingClientRect().right <= window.innerWidth);
+        await window.__fhCircle({ els: tiles.slice(0, 2) });
+        await new Promise((r) => setTimeout(r, 300));
+        await window.__fhCircle({ els: tiles.slice(-1), additive: true });
+      });
+      await settle(page, 1000);
+    },
+  },
+  {
+    name: "circle-drawing",
+    path: "/?debug=1",
+    run: async (page) => {
+      await page.click('.debug [aria-label="Close action console"]');
+      await page.evaluate(() => window.__fhCircle({ upTo: 0.78, hold: true }));
+      await settle(page, 120);
+    },
+  },
+  {
+    name: "circle-selected",
+    path: "/?debug=1",
+    run: async (page) => {
+      await page.click('.debug [aria-label="Close action console"]');
+      await page.evaluate(() => window.__fhCircle());
+      await settle(page, 1100);
+    },
+  },
+  {
+    name: "choices",
+    path: "/category/sofas?debug=1",
+    run: async (page) => {
+      await page.mouse.wheel(0, 380);
+      await settle(page, 900);
+      await fire(page, "show_choices");
+    },
+  },
+  {
+    name: "checkout-fill",
+    path: "/product/weathered-oak-dining-table?debug=1",
+    run: async (page) => {
+      await page.click(".add-btn");
+      await settle(page, 300);
+      await page.keyboard.press("Escape");
+      for (let i = 0; i < 5; i++) await fire(page, "checkout_fill");
+      await settle(page, 300);
+    },
+  },
+  {
     name: "call-connected",
     path: "/product/weathered-oak-dining-table?debug=1",
     run: async (page) => {

@@ -2,6 +2,8 @@ import { Heart } from "lucide-react";
 import { Link } from "react-router-dom";
 import { type Product, bestSaving } from "../data/catalog";
 import { useShortlist } from "../state/shortlist";
+import { emily, useEmily } from "../voice/controller";
+import { pointHandlers } from "../voice/screen";
 import { Photo, ProductPrice } from "./bits";
 
 export function ProductCard({
@@ -23,9 +25,21 @@ export function ProductCard({
   const saved = useShortlist((s) => s.ids.includes(p.id));
   const toggle = useShortlist((s) => s.toggle);
   const second = p.images[1];
+  const choice = useEmily((s) => (s.choices ? s.choices.ids.indexOf(p.id) : -1));
   const values = p.options.flatMap((o) => o.values);
   return (
-    <article className="card" data-spot={`product:${p.id}`}>
+    <article
+      className={`card${choice >= 0 ? " is-choice" : ""}`}
+      data-spot={`product:${p.id}`}
+      data-fh-thing={`product:${p.id}`}
+      {...pointHandlers(p.id)}
+      onClickCapture={() => choice >= 0 && emily.choiceMade(p.id)}
+    >
+      {choice >= 0 ? (
+        <span className="choice-badge" aria-label={`Choice ${choice + 1}`}>
+          {choice + 1}
+        </span>
+      ) : null}
       <div className="card-media">
         <Link to={`/product/${p.id}`} className="card-photo" tabIndex={-1} aria-hidden>
           <Photo file={p.images[0]} alt="" eager={eager} sizes={sizes} />

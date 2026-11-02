@@ -8,7 +8,7 @@
 import type { MoveContext, Performers } from "@voqalize/stage";
 import { getProduct } from "../data/catalog";
 import { CHOICE_FIELDS, CHOICES, type ChoiceField, eligibility, exchangeOptions, findOrder, labelOf, normalOrderNumber, STEPS } from "../returns/orders";
-import { currentOrder, useReturns } from "../returns/store";
+import { currentOrder, firstMissing, missingFields, missingInStep, storedReturns, useReturns } from "../returns/store";
 import type { scene } from "./scene.gen";
 
 type Spec = typeof scene.spec;
@@ -17,7 +17,7 @@ type Spec = typeof scene.spec;
 function fillableFields(): string[] {
   const order = currentOrder(useReturns.getState());
   const exchange = order?.lines.map((l) => `exchange_variant_${l.product_id}`) ?? [];
-  return ["order_number", ...CHOICE_FIELDS, ...exchange];
+  return ["order_number", "email", ...CHOICE_FIELDS, ...exchange];
 }
 
 const stepEl = (n: number) => document.querySelector(`[data-stage-thing="step-${n}"]`);
@@ -65,6 +65,10 @@ export function returnsPerformers(): Performers<Spec> {
     "returns.open_step": async ({ step }, c) => {
       const n = Number(step);
       if (!Number.isInteger(n) || n < 1 || n > 6) c.refuse("step", "the form has six steps", ["1", "2", "3", "4", "5", "6"]);
+      const reached = useReturns.getState().reached;
+      if (n > reached) {
+        c.refuse("step", `step ${n} is not reached yet; the form has reached step ${reached}`, Array.from({ length: reached }, (_, i) => String(i + 1)));
+      }
       const el = stepEl(n) ?? c.refuse("step", "the returns form is not on screen");
       await c.scrollTo(el);
       await c.ring(el, STEPS[n - 1].title);
@@ -75,8 +79,17 @@ export function returnsPerformers(): Performers<Spec> {
     "returns.fill": async ({ field, value }, c) => {
       const f = field.trim();
       const v = value.trim();
-      if (f === "email") c.refuse("field", "the shopper types their email themselves", fillableFields());
       if (!stepEl(1)) c.refuse("field", "the returns form is not on screen");
+
+      if (f === "email") {
+        if (!/^\S+@\S+\.\S+$/.test(v)) c.refuse("value", `"${v}" is not an email address`);
+        await openStep(1, c);
+        const input = (await appear(() => document.querySelector('input[name="email"]'))) ?? c.refuse("field", "the email field is not on screen");
+        await c.scrollTo(input);
+        await c.ring(input, "Email");
+        useReturns.getState().setEmail(v, "emily");
+        return "email set";
+      }
 
       if (f === "order_number") {
         const number = normalOrderNumber(v);
@@ -127,6 +140,66 @@ export function returnsPerformers(): Performers<Spec> {
       return `${choice.replace("_", " ")} set to ${spoken(labelOf(choice, v))}`;
     },
 
+    "returns.submit": async (_args, c) => {
+      if (!stepEl(1)) c.refuse("form", "the returns form is not on screen");
+      const gap = firstMissing(useReturns.getState());
+      if (gap) c.refuse("form", `step ${gap.step}, ${STEPS[gap.step - 1].title.toLowerCase()}: ${gap.why}`);
+      await openStep(6, c);
+      const button = (await appear(() => document.querySelector('.rform button[type="submit"]'))) ?? c.refuse("form", "the review step is not on screen");
+      await c.scrollTo(button);
+      await c.ring(button, "Submit return");
+      const before = storedReturns().length;
+      (button as HTMLButtonElement).click();
+      const made = await appear(() => (storedReturns().length > before ? document.body : null), 1500);
+      const ref = storedReturns().at(-1)?.reference;
+      return made && ref ? `return submitted, reference ${ref}` : "submit pressed";
+    },
+
+    "returns.find": async ({ order_number, email }, c) => {
+      if (!stepEl(1)) c.refuse("order_number", "the returns form is not on screen");
+      const number = normalOrderNumber(order_number);
+      const mail = (email ?? "").trim();
+      await openStep(1, c);
+      const numberInput = (await appear(() => document.querySelector('input[name="order_number"]'))) ?? c.refuse("order_number", "the order field is not on screen");
+      await c.scrollTo(numberInput);
+      await c.ring(numberInput, "Order number");
+      useReturns.getState().setOrderNumber(number, "emily");
+      if (mail) {
+        const emailInput = (await appear(() => document.querySelector('input[name="email"]'))) ?? c.refuse("email", "the email field is not on screen");
+        await c.ring(emailInput, "Email");
+        useReturns.getState().setEmail(mail, "emily");
+      }
+      // The same lookup as the Find / Continue button.
+      const order = findOrder(number) ?? c.refuse("order_number", `there is no order ${number}`);
+      if (!mail) c.refuse("email", `say the email used for order ${number}`);
+      if (mail.toLowerCase() !== order.email.toLowerCase()) c.refuse("email", `that email does not match order ${number}`);
+      const e = eligibility(order);
+      if (e.kind === "not_delivered") c.refuse("order_number", `order ${number} has not been delivered yet, so it cannot be returned yet`);
+      if (e.kind === "outside_window") c.refuse("order_number", `order ${number} was delivered ${e.days} days ago, outside the 30-day window`);
+      useReturns.getState().setStep(2);
+      const items = order.lines.reduce((n, l) => n + l.qty, 0);
+      return `found ${number}, ${items} item${items === 1 ? "" : "s"}; on step 2, items`;
+    },
+
+    "returns.next_step": async (_args, c) => {
+      if (!stepEl(1)) c.refuse("step", "the returns form is not on screen");
+      const s = useReturns.getState();
+      if (s.step >= 6) c.refuse("step", "the form is already on step 6, review; the shopper's yes submits it");
+      const missing = missingFields(s, s.step);
+      const why = missingInStep(s, s.step);
+      if (missing.length || why) {
+        c.refuse("step", `step ${s.step}, ${STEPS[s.step - 1].title.toLowerCase()}, still needs ${missing.join(", ") || "attention"}: ${why}`, missing);
+      }
+      const button = document.querySelector('.rstep.is-open .rstep-actions [data-dock-avoid]') ?? stepEl(s.step);
+      if (button) {
+        await c.scrollTo(button);
+        await c.ring(button, "Continue");
+      }
+      const next = s.step + 1;
+      useReturns.getState().setStep(next);
+      return `on step ${next}, ${STEPS[next - 1].title.toLowerCase()}`;
+    },
+
     "returns.select_item": async ({ product_id, qty }, c) => {
       const order = currentOrder(useReturns.getState()) ?? c.refuse("product_id", "find the order first: fill order_number");
       const ids = order.lines.map((l) => l.product_id);
@@ -134,7 +207,9 @@ export function returnsPerformers(): Performers<Spec> {
       const ok = eligibility(order);
       if (ok.kind === "not_delivered") c.refuse("product_id", "this order has not been delivered yet, so it cannot be returned yet");
       if (ok.kind === "outside_window") c.refuse("product_id", `this order was delivered ${ok.days} days ago, outside the 30-day window`);
-      const n = qty ?? 1;
+      // The wire may carry "1" for 1: coerce before judging it.
+      const raw = qty as unknown;
+      const n = raw == null || raw === "" ? 1 : Number(String(raw).trim());
       if (!Number.isInteger(n) || n < 0 || n > line.qty) {
         c.refuse("qty", `between 1 and ${line.qty}, or 0 to take it off`, Array.from({ length: line.qty + 1 }, (_, i) => String(i)));
       }

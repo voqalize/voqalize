@@ -63,6 +63,13 @@ export interface Commands {
   suggest_finish: { product_id: string; reason: string };
   open_policy: { topic: string };
   undo: Record<string, never>;
+  checkout_fill: { field: string; value: string };
+  checkout_step: { step: string };
+  confirm_place_order: { total: number; label: string };
+  order_placed: { order_number: string; total: number };
+  show_choices: { product_ids: string[]; label: string };
+  clear_choices: Record<string, never>;
+  clear_selection: Record<string, never>;
 }
 
 export type CommandName = keyof Commands;
@@ -88,4 +95,11 @@ export const COMMAND_NAMES: CommandName[] = [
   "suggest_finish",
   "open_policy",
   "undo",
+  "checkout_fill",
+  "checkout_step",
+  "confirm_place_order",
+  "order_placed",
+  "show_choices",
+  "clear_choices",
+  "clear_selection",
 ];

@@ -16,6 +16,8 @@ import { create } from "zustand";
 import { type ContractFilters, getProduct, matchContractFilters } from "../data/catalog";
 import { useCart } from "../state/cart";
 import { useShortlist } from "../state/shortlist";
+import { useSelection } from "./circle";
+import { CHECKOUT_FIELDS, CHECKOUT_STEPS, type CheckoutField, type CheckoutStep, STEP_OF_FIELD, placeOrder, useCheckout } from "../state/checkout";
 import { type By, type CartLine, emit } from "./events";
 import { totalOf } from "./local";
 import type { Brief, CommandName, Commands, CompareRow, Piece, Swap } from "./types";
@@ -88,6 +90,8 @@ export interface EmilyState {
   /** Keys of things Emily changed: "filters", "variant:<id>", "cart", "board", "compare"… */
   marks: Record<string, number>;
   history: Snapshot[];
+  /** Numbered products Emily asked the shopper to pick between. */
+  choices: { ids: string[]; label: string } | null;
 }
 
 const SLICE_KEYS = ["brief", "listing", "board", "compare", "goesWith", "moreLike", "suggestion", "policy", "variants"] as const;
@@ -107,6 +111,7 @@ export const useEmily = create<EmilyState>(() => ({
   focus: null,
   marks: {},
   history: [],
+  choices: null,
 }));
 
 const set = useEmily.setState;
@@ -181,6 +186,13 @@ function snapshot() {
 }
 
 const isEmily = (by: By) => by === "emily";
+
+/** Bring checkout on screen before filling it. */
+async function toCheckout() {
+  if (currentPath() === "/checkout") return;
+  go("/checkout");
+  await wait(350);
+}
 
 /** Bring the room board on screen before changing it. */
 async function toBoard() {
@@ -444,6 +456,79 @@ export const emily = {
     set({ policy: null });
   },
 
+  // ── v2: checkout, choices ──
+
+  async checkout_fill(p: Commands["checkout_fill"]) {
+    const field = p.field as CheckoutField;
+    if (!(CHECKOUT_FIELDS as readonly string[]).includes(field)) {
+      console.info(`[fernhollow] checkout has no field ${p.field}`);
+      return;
+    }
+    if (!useCart.getState().lines.length) {
+      console.info("[fernhollow] checkout_fill with an empty cart");
+      return;
+    }
+    await toCheckout();
+    const step = STEP_OF_FIELD[field];
+    if (useCheckout.getState().step !== step) {
+      useCheckout.getState().setStep(step, "emily");
+      await wait(160);
+    }
+    await ring(`field:${field}`);
+    useCheckout.getState().set(field, p.value, "emily");
+  },
+
+  async checkout_step(p: Commands["checkout_step"]) {
+    if (!(CHECKOUT_STEPS as readonly string[]).includes(p.step) || !useCart.getState().lines.length) return;
+    await toCheckout();
+    useCheckout.getState().setStep(p.step as CheckoutStep, "emily");
+    window.scrollTo({ top: 0 });
+  },
+
+  async confirm_place_order(p: Commands["confirm_place_order"]) {
+    if (!useCart.getState().lines.length) return;
+    await toCheckout();
+    if (useCheckout.getState().step !== "review") {
+      useCheckout.getState().setStep("review", "emily");
+      await wait(160);
+    }
+    await ring("button:place-order");
+    useCheckout.setState({ confirm: { total: p.total, label: p.label } });
+  },
+
+  async order_placed(p: Commands["order_placed"]) {
+    const order = placeOrder(p.order_number);
+    if (!order) return;
+    go("/checkout/confirmation");
+    await wait(60);
+    useCart.getState().clear();
+  },
+
+  async show_choices(p: Commands["show_choices"]) {
+    const ids = p.product_ids.slice(0, 4);
+    set({ choices: { ids, label: p.label } });
+    const first = document.querySelector(`[data-spot="product:${CSS.escape(ids[0] ?? "")}"]`);
+    if (first) {
+      const r = first.getBoundingClientRect();
+      if (r.top < 80 || r.bottom > window.innerHeight) first.scrollIntoView({ block: "center", behavior: reduced() ? "auto" : "smooth" });
+    }
+  },
+
+  clear_choices() {
+    set({ choices: null });
+  },
+
+  clear_selection() {
+    useSelection.getState().clear("emily");
+  },
+
+  /** The shopper clicked a numbered card. */
+  choiceMade(productId: string) {
+    if (!get().choices?.ids.includes(productId)) return;
+    set({ choices: null });
+    emit("choice_made", { product_id: productId });
+  },
+
   undo() {
     const history = get().history;
     const last = history[history.length - 1];
@@ -487,6 +572,7 @@ const COMMANDS = new Set<string>([
   "navigate", "show_products", "apply_filters", "remove_filter", "open_product", "select_variant", "highlight",
   "update_brief", "show_room_set", "swap_piece", "show_compare", "show_goes_with", "show_more_like", "show_savings",
   "update_shortlist", "confirm_add", "cart_updated", "suggest_finish", "open_policy", "undo",
+  "checkout_fill", "checkout_step", "confirm_place_order", "order_placed", "show_choices", "clear_choices", "clear_selection",
 ]);
 const isCommand = (c: string): c is CommandName => COMMANDS.has(c);
 

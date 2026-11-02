@@ -36,6 +36,7 @@ states a dimension, a stock level or a delivery date.
 from __future__ import annotations
 
 import re
+import time
 from collections.abc import AsyncGenerator, Callable, Sequence
 from dataclasses import dataclass, field, replace
 from typing import Any, Literal
@@ -54,7 +55,7 @@ from voqalize_demos import (
 )
 
 from voqalize.sdk import Action, AppEvents, RTVIMessage, Session, Speech, UserIdle, UserMessage
-from voqalize.sdk.stage import Mirror, Move, Stage
+from voqalize.sdk.stage import Mirror, Stage
 from voqalize.sdk.stage.wire import StageEvent, StageHello, StageProgress, StageResult
 from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
 
@@ -62,23 +63,42 @@ from . import engine as eng
 from .app_events import (
     FERNHOLLOW_EVENTS,
     CartChanged,
+    CheckoutChanged,
+    CheckoutStepReached,
+    ChoiceMade,
     ConfirmResult,
     FernhollowEvent,
     FilterChanged,
+    OrdersKnown,
     PageViewed,
+    Pointing,
     ProductViewed,
     RoomBoardEdited,
+    Selection,
+    SelectionCleared,
     ShortlistChanged,
     VariantSelected,
     VisibleProducts,
 )
 from .catalog import CATALOG, JOURNAL_DIR, Product, money
+from .checkout import (
+    FIELDS,
+    REQUIRED,
+    STEPS,
+    CheckoutField,
+    CheckoutStepName,
+    check,
+    delivery_fee,
+    spell_back,
+)
 from .policies import Topic, policy_page, policy_text
 from .prompt import GREETING, system_instruction
 from .recipes import FINISHING, RECIPES
-from .returns import WINDOW_DAYS, Order, exchange_options
-from .returns import find_order as lookup_order
-from .stage_gen import FILL, MOVES, SPEC
+from .resolve import SELECTED, Layout, Resolution
+from .resolve import resolve as resolve_reference
+from .returns import WINDOW_DAYS, Order, exchange_options, order_from, plan_return
+from .returns import find_order as find_any_order
+from .stage_gen import MOVES, SPEC
 
 #: Every event the page sends: the store's own typed events and Stage's.
 _EVENTS = AppEvents(*FERNHOLLOW_EVENTS, StageResult, StageHello, StageProgress, StageEvent)
@@ -316,6 +336,48 @@ class OpenPolicy(Action):
     topic: Topic
 
 
+class CheckoutFill(Action):
+    """Ring a checkout input and set it."""
+
+    field: CheckoutField
+    value: str
+
+
+class CheckoutStep(Action):
+    """Move the checkout to a step."""
+
+    step: CheckoutStepName
+
+
+class ConfirmPlaceOrder(Action):
+    """The confirm prompt on Place order."""
+
+    total: float
+    label: str
+
+
+class OrderPlaced(Action):
+    """The confirmation page, with the demo order's number."""
+
+    order_number: str
+    total: float
+
+
+class ShowChoices(Action):
+    """Numbered badges 1..n on these product cards (2-4, all on screen)."""
+
+    product_ids: list[str]
+    label: str
+
+
+class ClearChoices(Action):
+    """The choice badges removed."""
+
+
+class ClearSelection(Action):
+    """The circled selection's badges and chip removed."""
+
+
 class Undo(Action):
     """Revert the last screen-changing action."""
 
@@ -455,6 +517,72 @@ class OrderRequest(BaseModel):
     )
 
 
+class ReturnItem(BaseModel):
+    product_id: str = Field(description="An order line's product id, as find_order gives it.")
+    qty: int = Field(default=1, description="How many of it go back.")
+
+
+class PrepareReturn(BaseModel):
+    """Every answer the returns form needs, once the shopper has given them."""
+
+    order_number: str = Field(description="As find_order gave it, or 'my last order'.")
+    items: list[ReturnItem]
+    reason: Literal[
+        "changed_mind", "doesnt_suit_room", "arrived_damaged", "wrong_item", "not_as_expected"
+    ]
+    condition: Literal["unused_in_packaging", "unused_unpacked", "damaged_on_arrival"]
+    resolution: Literal["refund", "exchange", "store_credit"]
+    collection: Literal["pickup", "drop_off"]
+    pickup_window: Literal["weekday_morning", "weekday_afternoon", "saturday"] | None = None
+    exchange_variant: str | None = Field(
+        default=None, description="For an exchange: the variant id check_exchange gave."
+    )
+
+
+class ResolveRequest(BaseModel):
+    spoken: str = Field(description="The shopper's words for the product, as heard.")
+    scope: Literal["auto", "screen", "catalog"] = Field(
+        default="auto",
+        description="auto: the screen first, then the catalog; screen: only what is on screen.",
+    )
+
+
+class CheckoutFields(BaseModel):
+    """Checkout fields the shopper just gave, in their words; leave the rest empty."""
+
+    email: str | None = Field(
+        default=None, description="As heard, e.g. 'sam dot rivera at example dot com'."
+    )
+    first_name: str | None = None
+    last_name: str | None = None
+    address1: str | None = None
+    address2: str | None = None
+    city: str | None = None
+    region: str | None = None
+    postcode: str | None = None
+    country: str | None = None
+    phone: str | None = None
+    delivery: str | None = Field(default=None, description="Delivery notes for the driver, if any.")
+
+
+class CheckoutStepRequest(BaseModel):
+    step: CheckoutStepName
+
+
+class PlaceOrderRequest(BaseModel):
+    confirmed_by_voice: bool = Field(
+        default=False,
+        description="True only when the shopper said yes to the Place order confirmation on screen.",
+    )
+
+
+class SubmitReturnRequest(BaseModel):
+    confirmed_by_voice: bool = Field(
+        default=False,
+        description="True only when the shopper said yes to submitting the return.",
+    )
+
+
 class ExchangeRequest(BaseModel):
     product: str = Field(description="A line of the order: its product id, or its title.")
 
@@ -547,14 +675,35 @@ class FernhollowBrain(GeminiBrain):
         self.ahead: dict[tuple[Any, ...], Any] = {}
         self.hits = 0
         self.order: Order | None = None  # the order the returns desk is working on
+        # What is under the shopper's pointer, and when; the visible grid's layout;
+        # the numbered choices Emily asked between.
+        self.pointing: tuple[str, float] | None = None
+        self.layout: tuple[Layout, ...] = ()
+        self.choices: tuple[str, ...] = ()
+        # Checkout as Emily filled it (values) and as the page reports it (names).
+        self.checkout: dict[str, str] = {}
+        self.checkout_filled: set[str] = set()
+        self.checkout_step_now: str | None = None
+        self.pending_order: tuple[float, int] | None = None  # (total, turn asked)
+        self.orders_placed = 0
+        self.pending_submit: int | None = None  # the turn the submit was asked
+        # What the shopper last circled, as (kind, id): kept across pages until
+        # cleared, and acted on only when they speak about it.
+        self.selection: tuple[tuple[str, str], ...] = ()
+        # Orders this session placed, and the ones the page says it holds: both
+        # come before the demo orders when the shopper names one.
+        self.placed_orders: list[Order] = []
+        self.known_orders: list[Order] = []
+        # The returns form's moves prepare_return sent: call_ref → (step, what).
+        self.return_run: dict[str, tuple[str, str]] = {}
+        self.return_last: str | None = None
+        self.submit_ref: str | None = None
         # The returns form is driven by Stage: cues in Emily's words fill it as
-        # she says them. Email is never a move — a cue for it is dropped here,
-        # and the page refuses it too.
+        # she says them — this is a demo, so the email too (CONTRACT.md, v2).
         self.stage = Stage(
             dispatch=lambda a: self.session.dispatch(a),
             moves=MOVES,
             mirror=Mirror(SPEC),
-            resolve=_never_email,
         )
         self._talk: str | None = None  # an ask the page left for the next quiet spell
         self._fallback = FallbackLine()
@@ -584,10 +733,48 @@ class FernhollowBrain(GeminiBrain):
         self.turns += 1
         self.stage.visitor_spoke()
         self._talk = None
+        done = self._spoken_yes(msg.text)
         self.append_note(self.screen_now())
+        if done is not None:
+            self.append_note(done)
         self.append_note(msg.text)
         async for speech in self.respond(session):
             yield speech
+
+    def _spoken_yes(self, text: str) -> str | None:
+        """A plain yes to the confirmation Emily asked for on an earlier turn
+        is acted on here, before the model runs, so a "Yes, please." can never
+        be a turn that says nothing and places nothing. Returns the note that
+        tells the model what was done."""
+        if not _YES.match(text) or _NOT_YES.search(text):
+            return None
+        if self.pending_order is not None and self.pending_order[1] < self.turns:
+            self._place()
+            placed = self.placed_orders[-1]
+            return (
+                f"[The shopper said yes: order {placed.number} is placed, {money(placed.total)}. "
+                "Say so in one line with the order number. Do not call place_order again.]"
+            )
+        if (
+            self.pending_submit is not None
+            and self.pending_submit < self.turns
+            and self.order is not None
+        ):
+            if self.stage.moves.get("returns.submit") is None:
+                return None
+            self._submit_now()
+            return (
+                "[The shopper said yes: the return is being submitted. Say 'Submitting it now' "
+                "in a few words; the page's answer follows. Do not call submit_return again.]"
+            )
+        if self.pending is not None and self.pending.turn < self.turns:
+            label = self.pending.label
+            self._commit_cart()
+            return (
+                f"[The shopper said yes: {label} is in the cart. Say so in one line. "
+                "Do not call add_to_cart again.]"
+            )
+        return None
 
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
         """The model's turn, a landed line if it acted in silence, then the
@@ -649,6 +836,10 @@ class FernhollowBrain(GeminiBrain):
             self.stage.handle(event)
             return None
         result = self.stage.handle(event)
+        if result is not None and result.call_ref in self.return_run:
+            return self._return_result(result)
+        if result is not None and result.call_ref == self.submit_ref:
+            return self._submit_result(result)
         if result is None or result.moved or result.outcome in ("applied", "partial", "undone"):
             return None
         move = self.stage.move_of(result.call_ref)
@@ -661,6 +852,47 @@ class FernhollowBrain(GeminiBrain):
             f"[Your {what} cue did not land ({result.detail or result.outcome}"
             + (f"; {offers}" if offers else "")
             + "). Never say it did; use one of the options, or ask.]"
+        )
+
+    def _submit_result(self, result: StageResult) -> str | None:
+        """The page's answer to returns.submit: a landed submit is thanked when
+        the page reports it (returns.return_submitted); a refusal is said, in
+        the next quiet spell, with the page's own reason."""
+        self.submit_ref = None
+        if result.outcome in ("applied", "partial"):
+            return None
+        why = "; ".join(r.why for r in result.refused)
+        detail = "; ".join(x for x in (result.detail, why) if x) or result.outcome
+        self._talk = (
+            f"The return was NOT submitted: the page said {detail}. "
+            "Tell the shopper that in one line and what fixes it."
+        )
+        configure_soon(self.session, Config(idle=IdleConfig(timeout_ms=_REACT_IDLE_MS)))
+        return f"[The return was not submitted — the page refused it: {detail}.]"
+
+    def _return_result(self, result: StageResult) -> str | None:
+        """One answer to a move prepare_return sent: a refusal stops the run and
+        is told exactly, with the step it stopped at; the last move landing says
+        the form reached the review."""
+        step, what = self.return_run[result.call_ref]
+        if result.outcome in ("applied", "partial"):
+            if result.call_ref == self.return_last:
+                self.return_run = {}
+                return (
+                    "[The returns form reached the review step. "
+                    "Nothing is submitted until the shopper says yes.]"
+                )
+            return None
+        self.return_run = {}
+        self.pending_submit = None
+        why = "; ".join(
+            f"{r.arg}: {r.why}" + (f" (options: {', '.join(r.options)})" if r.options else "")
+            for r in result.refused
+        )
+        detail = "; ".join(x for x in (result.detail, why) if x) or "no reason given"
+        return (
+            f"[The returns form stopped at step {step}: {what} was {result.outcome} — {detail}. "
+            "Tell the shopper exactly that, ask for what fixes it, then call prepare_return again.]"
         )
 
     # ─── The screen ─────────────────────────────────────────────────────
@@ -701,6 +933,27 @@ class FernhollowBrain(GeminiBrain):
             parts.append(f"cart: {sum(self.cart.values())} items, {money(self._cart_total())}")
         if self.pending is not None:
             parts.append(f"waiting for the shopper's yes on: {self.pending.label}")
+        if self.selection:
+            parts.append(f"circled: {self._selection_line()}")
+        if self.choices:
+            parts.append(
+                "numbered choices: "
+                + ", ".join(
+                    f"{n}. {CATALOG.products[i].title} [id {i}]"
+                    for n, i in enumerate(self.choices, 1)
+                )
+            )
+        if self.checkout_step_now or self.checkout:
+            filled = sorted(set(self.checkout) | self.checkout_filled)
+            missing = [f for f in REQUIRED if f not in filled]
+            parts.append(
+                f"checkout at {self.checkout_step_now or 'contact'}: filled {', '.join(filled) or 'nothing'}"
+                + (f"; still needed {', '.join(missing)}" if missing else "")
+            )
+        if self.pending_order is not None:
+            parts.append(
+                f"waiting for the shopper's yes on Place order, {money(self.pending_order[0])}"
+            )
         return "[SCREEN NOW — " + " · ".join(parts) + "]"
 
     def _move(self, **changes: Any) -> None:
@@ -725,31 +978,98 @@ class FernhollowBrain(GeminiBrain):
                 slot = RECIPES[s.room.room].slot(pc.slot)
                 if slot is not None and r in (slot.label, slot.name, slot.label.split()[-1]):
                     return pc.product
-        if r in ("this", "it", "this one", "that", "that one", "current"):
-            pid = s.product or (s.listing[0] if len(s.listing) == 1 else None)
-            return CATALOG.get(pid) if pid else None
-        m = re.fullmatch(
-            r"(?:the\s+)?(\d+|first|second|third|fourth|fifth|sixth|last)(?:\s+one)?", r
-        )
-        if m:
-            seq = s.compare if s.listing_kind == "compare" else s.listing
-            word = m.group(1)
-            if word == "last":
-                idx = len(seq)
-            else:
-                idx = int(word) if word.isdigit() else _ORDINALS[word]
-            if 1 <= idx <= len(seq):
-                return CATALOG.products[seq[idx - 1]]
-            return None
-        pool = [
-            *s.listing,
-            *s.compare,
-            *(pc.product_id for pc in (s.room.pieces if s.room else ())),
-        ]
-        hits = [i for i in dict.fromkeys(pool) if r in CATALOG.products[i].title.lower()]
-        if len(hits) == 1:
-            return CATALOG.products[hits[0]]
+        res = self.reference(ref)
+        if res.kind == "one" and res.product_id is not None:
+            if res.source == "choices":
+                self._clear_choices()
+            return CATALOG.products[res.product_id]
         return None
+
+    def reference(
+        self, spoken: str, scope: Literal["auto", "screen", "catalog"] = "auto"
+    ) -> Resolution:
+        """The resolver, given everything the brain knows about the screen."""
+        s = self.screen
+        seq = s.compare if s.listing_kind == "compare" else s.listing
+        layout = self.layout if {x.product_id for x in self.layout} == set(seq) else ()
+        pointing, age = (
+            (self.pointing[0], time.monotonic() - self.pointing[1])
+            if self.pointing
+            else (None, None)
+        )
+        saved = [*self.shortlisted, *(pc.product_id for pc in (s.room.pieces if s.room else ()))]
+        return resolve_reference(
+            spoken,
+            pointing=pointing,
+            pointing_age_s=age,
+            choices=self.choices,
+            visible=seq,
+            layout=layout,
+            saved=saved,
+            open_product=s.product,
+            scope=scope,
+            selection=self.selected_products(),
+        )
+
+    def _adopt_page_numbers(self) -> None:
+        """The number the confirmation page shows is the one the shopper will
+        read back: an order Emily placed takes the page's number when the page
+        holds the same order (same lines and total) under another one."""
+        for n, mine in enumerate(self.placed_orders):
+            key = (round(mine.total, 2), sorted((x.product_id, x.qty) for x in mine.lines))
+            for theirs in self.known_orders:
+                if theirs.number == mine.number:
+                    break
+                if (
+                    round(theirs.total, 2),
+                    sorted((x.product_id, x.qty) for x in theirs.lines),
+                ) == key:
+                    adopted = replace(mine, number=theirs.number, email=theirs.email or mine.email)
+                    self.placed_orders[n] = adopted
+                    if self.order is not None and self.order.number == mine.number:
+                        self.order = adopted
+                    break
+
+    def lookup_order(self, text: str) -> Order | None:
+        return find_any_order(text, placed=self.placed_orders, known=self.known_orders)
+
+    def selected_products(self) -> list[str]:
+        return [i for k, i in self.selection if k == "product" and i in CATALOG.products]
+
+    def _selection_line(self) -> str:
+        """What is circled, in one line the model can say from."""
+        out: list[str] = []
+        for kind, ident in self.selection:
+            if kind == "product" and (p := CATALOG.get(ident)) is not None:
+                out.append(f"{p.title} — {p.price_text()} [id {p.id}]")
+            elif kind == "room" and ident in RECIPES:
+                out.append(f"the {RECIPES[ident].label} room [room {ident}]")
+            elif kind == "category" and (c := CATALOG.categories.get(ident)) is not None:
+                out.append(f"the {c.name.lower()} category [category {ident}]")
+            elif kind == "article":
+                out.append(f"the journal article '{ident.replace('-', ' ')}' [article {ident}]")
+        return "; ".join(out)
+
+    def expand(self, refs: Sequence[str]) -> tuple[list[str], str | None]:
+        """Product references, with "these" / "the circled ones" expanded to
+        the selection. The second value says why it cannot be used as is: a
+        selection that holds things other than products."""
+        ids: list[str] = []
+        for ref in refs:
+            if SELECTED.match(ref.strip().lower()) and self.selection:
+                if any(k != "product" for k, _ in self.selection):
+                    return [], "the circled selection mixes products with rooms or categories"
+                ids += self.selected_products()
+                continue
+            p = self.resolve(ref)
+            if p is not None:
+                ids.append(p.id)
+        return list(dict.fromkeys(ids)), None
+
+    def _clear_choices(self) -> None:
+        if self.choices:
+            self.choices = ()
+            self.session.dispatch(ClearChoices())
 
     def _memo(self, key: tuple[Any, ...], make: Callable[[], Any]) -> Any:
         if key in self.ahead:
@@ -838,6 +1158,13 @@ class FernhollowBrain(GeminiBrain):
             self.find_order,
             self.start_return,
             self.check_exchange,
+            self.prepare_return,
+            self.submit_return,
+            self.resolve_product,
+            self.fill_checkout,
+            self.checkout_step,
+            self.place_order,
+            self.clear_selection,
         ]
 
     @needs_result_now
@@ -1095,12 +1422,18 @@ class FernhollowBrain(GeminiBrain):
 
     @needs_result_now
     async def compare(self, request: CompareRequest) -> str:
-        """Compare two or three products side by side; each row names its winner."""
-        found = [self.resolve(r) for r in request.products]
-        ids = [p.id for p in found if p is not None]
-        if len(ids) < 2 or len(ids) > 3:
+        """Compare two to four products side by side; each row names its winner.
+        "these" compares what the shopper circled."""
+        ids, why = self.expand(request.products)
+        if why is not None or len(ids) > 4:
+            what = self._selection_line() if self.selection else ""
             return _not_done(
-                "a comparison needs two or three products I can tell apart", "Ask which ones."
+                why or f"{len(ids)} products are circled, and a comparison holds two to four",
+                f"Say what is circled in one line ({what}) and ask which to compare.",
+            )
+        if len(ids) < 2:
+            return _not_done(
+                "a comparison needs two to four products I can tell apart", "Ask which ones."
             )
         return self._show_compare(ids)
 
@@ -1116,8 +1449,8 @@ class FernhollowBrain(GeminiBrain):
             p = self.resolve(r)
             if p is not None and p.id not in current:
                 current.append(p.id)
-        if len(current) < 2 or len(current) > 3:
-            return _not_done("a comparison holds two or three products", "Ask which to keep.")
+        if len(current) < 2 or len(current) > 4:
+            return _not_done("a comparison holds two to four products", "Ask which to keep.")
         return self._show_compare(current)
 
     def _apply(self, filters: eng.Filters, assumption: str | None) -> tuple[list[str], str]:
@@ -1283,6 +1616,11 @@ class FernhollowBrain(GeminiBrain):
         """Open a product (optionally with an option value selected, or a section
         in focus), a page, or search results. A product returns its facts —
         answer from those."""
+        target = request.product or request.page or ""
+        if self.selection and (SELECTED.match(target.lower()) or target.lower() in _THIS):
+            shown = self._show_selection()
+            if shown is not None:
+                return shown
         if request.product:
             p = self.resolve(request.product)
             if p is None:
@@ -1324,6 +1662,50 @@ class FernhollowBrain(GeminiBrain):
         landed("Here you go.", "Here it is.")
         return _prose(f"The {page} page is open.")
 
+    def _show_selection(self) -> str | None:
+        """The circled selection, shown: a room, category or article opens its
+        page; several products open as a grid. ``None`` when it is one product,
+        which the ordinary product path opens."""
+        kinds = {k for k, _ in self.selection}
+        if len(self.selection) == 1 and kinds != {"product"}:
+            kind, ident = self.selection[0]
+            page = {
+                "room": f"room/{ident}",
+                "category": f"category/{ident}",
+                "article": f"journal/{ident}",
+            }.get(kind)
+            if page is None or not _valid_page(page):
+                return _not_done(f"there is no page for the circled {kind}", "Say so.")
+            self._move(page=page, product=None)
+            self.session.dispatch(Navigate(page=page))
+            landed("Here it is.", "Here you go.")
+            return _prose(f"The {page} page is open.")
+        ids = self.selected_products()
+        if len(ids) >= 2 and kinds == {"product"}:
+            self._move(page="search", listing=tuple(ids), listing_kind="results", product=None)
+            self.layout = ()
+            self.session.dispatch(
+                ShowProducts(title="Your selection", query="", product_ids=ids, count=len(ids))
+            )
+            landed("Here they are.", "Your picks are up.")
+            return _prose(
+                "The circled products are on screen.",
+                items=[_line(CATALOG.products[i]) for i in ids],
+            )
+        if kinds != {"product"}:
+            return _not_done(
+                "the circled selection mixes several kinds of thing",
+                f"Say what is circled in one line ({self._selection_line()}) and ask which they mean.",
+            )
+        return None
+
+    async def clear_selection(self) -> str:
+        """Clear what the shopper circled, when they ask to."""
+        self.selection = ()
+        self.session.dispatch(ClearSelection())
+        landed("Cleared.", "Done.")
+        return _prose("The selection is cleared.")
+
     def _facts(self, p: Product) -> str:
         words = [f'{w} ("{p.sources.get(w, "")}")' for w in (*p.materials, *p.colours, *p.styles)]
         return _prose(
@@ -1353,10 +1735,10 @@ class FernhollowBrain(GeminiBrain):
 
     async def shortlist(self, request: ShortlistRequest) -> str:
         """Save products to, or drop them from, the shortlist tray."""
-        for r in request.add:
-            p = self.resolve(r)
-            if p is not None and p.id not in self.shortlisted:
-                self.shortlisted.append(p.id)
+        added, _ = self.expand(request.add)
+        for pid in added:
+            if pid not in self.shortlisted:
+                self.shortlisted.append(pid)
         for r in request.remove:
             p = self.resolve(r)
             if p is not None and p.id in self.shortlisted:
@@ -1502,7 +1884,7 @@ class FernhollowBrain(GeminiBrain):
         """Look an order up for a return: its lines, and for each whether it can
         go back under the returns policy. Answer from the result: say plainly
         when a line is outside the window or not delivered yet."""
-        order = lookup_order(request.order_number)
+        order = self.lookup_order(request.order_number)
         if order is None:
             return _not_done(
                 f"there is no order {request.order_number!r}",
@@ -1542,7 +1924,7 @@ class FernhollowBrain(GeminiBrain):
     async def start_return(self, request: OrderRequest) -> str:
         """Open the returns form with the order filled in. Only for an order
         find_order showed has a line that can go back."""
-        order = lookup_order(request.order_number)
+        order = self.lookup_order(request.order_number)
         if order is None:
             return _not_done(
                 f"there is no order {request.order_number!r}", "Look it up with find_order first."
@@ -1594,6 +1976,295 @@ class FernhollowBrain(GeminiBrain):
             variants=[f"{v} [variant {vid}]" for vid, v in options],
         )
 
+    @needs_result_now
+    async def resolve_product(self, request: ResolveRequest) -> str:
+        """Which product the shopper means, from their words: what they point
+        at, what is on screen (and where), the shortlist and room, then the
+        catalog. One clear match is returned. Two to four close ones are
+        numbered on screen: ask the ONE question the result gives, then pass
+        their answer ("the second one", "the oak one") to this tool again."""
+        res = self.reference(request.spoken, request.scope)
+        match res.kind:
+            case "one":
+                assert res.product_id is not None
+                if res.source == "choices":
+                    self._clear_choices()
+                p = CATALOG.products[res.product_id]
+                return _prose(f"They mean {p.title}.", product=_line(p), found_on=res.source)
+            case "choose":
+                ids = list(res.candidates)
+                on_screen = set(self.screen.listing) | set(self.screen.compare)
+                if not set(ids) <= on_screen:
+                    self._move(
+                        listing=tuple(ids), listing_kind="results", page="search", product=None
+                    )
+                    self.layout = ()
+                    self.session.dispatch(
+                        ShowProducts(
+                            title="Which one?",
+                            query=request.spoken,
+                            product_ids=ids,
+                            count=len(ids),
+                        )
+                    )
+                self.choices = tuple(ids)
+                self.session.dispatch(ShowChoices(product_ids=ids, label=res.question))
+                landed(res.question)
+                return _prose(
+                    "Close matches are numbered on screen. Ask exactly this, and nothing else:",
+                    ask=res.question,
+                    choices=[f"{n}. {_line(CATALOG.products[i])}" for n, i in enumerate(ids, 1)],
+                )
+            case "many":
+                ids = list(res.candidates)
+                return _prose(
+                    f"They mean the {len(ids)} things they circled.",
+                    products=[_line(CATALOG.products[i]) for i in ids],
+                )
+            case "none":
+                return _not_done(
+                    f"nothing on screen or in the catalog clearly matches '{request.spoken}'",
+                    "Ask them to say a bit more — the kind of piece, its colour or material.",
+                )
+
+    @needs_result_now
+    async def fill_checkout(self, fields: CheckoutFields) -> str:
+        """Fill checkout fields from what the shopper just said. Read the
+        spell-back it returns in one short line, so a mis-heard letter is
+        caught; it also says what is still needed."""
+        if not self.cart:
+            return _not_done("the cart is empty", "Add something to the cart first.")
+        if not self.screen.page.startswith("checkout"):
+            self._move(page="checkout", product=None)
+            self.session.dispatch(Navigate(page="checkout"))
+        refused: list[str] = []
+        spoken: list[str] = []
+        for name in FIELDS:
+            raw = getattr(fields, name)
+            if raw is None or not str(raw).strip():
+                continue
+            value, why = check(name, str(raw))
+            if why is not None:
+                refused.append(f"{name}: {why}")
+                continue
+            self.checkout[name] = value
+            self.session.dispatch(CheckoutFill(field=name, value=value))
+            if (said := spell_back(name, value)) is not None:
+                spoken.append(said)
+        missing = [f for f in REQUIRED if f not in self.checkout and f not in self.checkout_filled]
+        landed("That's in.", "Filled in.")
+        return _prose(
+            "The checkout fields are filled.",
+            say_back=" — ".join(spoken) or None,
+            not_filled=refused,
+            still_needed=", ".join(missing) or "nothing — offer the review step",
+        )
+
+    async def checkout_step(self, request: CheckoutStepRequest) -> str:
+        """Move the checkout to contact, shipping or review."""
+        if not self.cart:
+            return _not_done("the cart is empty", "Add something to the cart first.")
+        self.checkout_step_now = request.step
+        self._move(page="checkout", product=None)
+        self.session.dispatch(CheckoutStep(step=request.step))
+        landed("Here's that step.", "On to that step.")
+        need = [
+            f
+            for f in STEPS[request.step]
+            if f in REQUIRED and f not in self.checkout and f not in self.checkout_filled
+        ]
+        return _prose(f"The checkout is on {request.step}.", still_needed=", ".join(need) or None)
+
+    def _order_total(self) -> float:
+        subtotal = self._cart_total()
+        return round(subtotal + delivery_fee(subtotal), 2)
+
+    async def place_order(self, request: PlaceOrderRequest) -> str:
+        """Place the order — only with the shopper's spoken yes. The first call
+        puts the confirmation on Place order and you ask; when they say yes on
+        their next turn, call again with confirmed_by_voice true."""
+        if not self.cart:
+            return _not_done("the cart is empty", "Add something to the cart first.")
+        missing = [f for f in REQUIRED if f not in self.checkout and f not in self.checkout_filled]
+        if missing:
+            return _not_done(
+                f"checkout still needs {', '.join(missing)}", "Ask for them, one at a time."
+            )
+        if request.confirmed_by_voice:
+            if self.pending_order is None:
+                return _not_done(
+                    "there is no Place order confirmation on screen",
+                    "Call place_order without confirmed_by_voice first.",
+                )
+            if self.pending_order[1] >= self.turns:
+                return _not_done(
+                    "the shopper has not answered the confirmation yet", "Wait for their yes."
+                )
+            return self._place()
+        total = self._order_total()
+        self.pending_order = (total, self.turns)
+        self.checkout_step_now = "review"
+        self.session.dispatch(CheckoutStep(step="review"))
+        label = f"Place order — {money(total)}"
+        self.session.dispatch(ConfirmPlaceOrder(total=total, label=label))
+        landed(f"That's {money(total)} with delivery. Shall I place the order?")
+        subtotal = self._cart_total()
+        return _prose(
+            f"The confirmation is on Place order: {money(total)}. Nothing is ordered until they say yes.",
+            items=f"{money(subtotal)}",
+            delivery="free" if delivery_fee(subtotal) == 0 else money(delivery_fee(subtotal)),
+        )
+
+    def _place(self, page_number: str | None = None) -> str:
+        """Place the order. The number is the brain's own, unless the page
+        already gave it one (a tap on its confirm prompt): then the page's,
+        which is the number the shopper reads on the confirmation."""
+        assert self.pending_order is not None
+        total = self.pending_order[0]
+        self.orders_placed += 1
+        number = page_number or f"FH-{30000 + self.orders_placed}"
+        self.pending_order = None
+        self._remember_order(number, total)
+        self.cart = {}
+        self.checkout_step_now = None
+        self._move(page="checkout/confirmation", product=None)
+        self.session.dispatch(OrderPlaced(order_number=number, total=total))
+        landed(f"Your order {number} is placed.", "The order is placed.")
+        return _prose(
+            f"Order {number} is placed: {money(total)}. It's a demo order; nothing is charged."
+        )
+
+    def _remember_order(self, number: str, total: float) -> None:
+        """An order Emily placed, with its lines and the checkout email. A demo
+        store delivers nothing, so it counts as delivered now (CONTRACT.md, v4)
+        and can go back for the whole window."""
+        lines: list[dict[str, Any]] = []
+        for line in self._cart_lines():
+            p = CATALOG.products[line.product_id]
+            value = next((v.value for v in p.variants if v.id == line.variant_id), "")
+            lines.append(
+                {
+                    "product_id": line.product_id,
+                    "variant_id": line.variant_id,
+                    "title": line.title,
+                    "variant": value,
+                    "qty": line.qty,
+                    "unit_price": line.price,
+                }
+            )
+        name = " ".join(
+            x for x in (self.checkout.get("first_name"), self.checkout.get("last_name")) if x
+        )
+        self.placed_orders.append(
+            order_from(
+                {
+                    "number": number,
+                    "email": self.checkout.get("email", ""),
+                    "name": name,
+                    "status": "delivered",
+                    "placed_days_ago": 0,
+                    "delivered_days_ago": 0,
+                    "total": total,
+                    "lines": lines,
+                },
+                "placed",
+            )
+        )
+
+    async def prepare_return(self, request: PrepareReturn) -> str:
+        """Fill the whole returns form in one go, once the shopper has given
+        every answer: their order, the items, the reason, the condition, refund
+        or exchange or store credit, and pickup (with a window) or drop-off.
+        Say one line with the call, then ask "Shall I submit the return?". If the
+        page refuses a step, you hear exactly why on the next turn."""
+        order = self.lookup_order(request.order_number)
+        if order is None:
+            return _not_done(
+                f"there is no order {request.order_number!r}", "Look it up with find_order first."
+            )
+        plan = plan_return(
+            order,
+            [(i.product_id, i.qty) for i in request.items],
+            reason=request.reason,
+            condition=request.condition,
+            resolution=request.resolution,
+            collection=request.collection,
+            pickup_window=request.pickup_window,
+            exchange_variant=request.exchange_variant,
+        )
+        if isinstance(plan, str):
+            return _not_done(
+                plan, "Ask the shopper for that one answer, then call prepare_return again."
+            )
+        missing = sorted({m for m, _, _ in plan if self.stage.moves.get(m) is None})
+        if missing:
+            return _not_done(
+                f"this page cannot fill the form by voice ({', '.join(missing)} missing)",
+                "Walk them through the form instead.",
+            )
+        self.order = order
+        page = f"returns/start?order={order.number}"
+        if not self.screen.page.startswith("returns/start"):
+            self._move(page=page, product=None)
+            self.session.dispatch(Navigate(page=page))
+        self.return_run = {}
+        for move, args, step in plan:
+            ref = self.stage.send(move, dict(args), queue=False)
+            shown = args.get("field") or args.get("product_id") or ""
+            self.return_run[ref] = (step, f"{move.removeprefix('returns.')} {shown}".strip())
+            self.return_last = ref
+        # The reply with this call asks "Shall I submit the return?": a plain yes
+        # on the next turn submits (see _spoken_yes), unless a step is refused.
+        self.pending_submit = self.turns
+        landed("Filling in the return form now.")
+        chosen = {i.product_id: i.qty for i in request.items}
+        items = [
+            f"{line.title} ({line.variant}), qty {chosen[line.product_id]}"
+            for line in order.lines
+            if line.product_id in chosen
+        ]
+        window = f" ({request.pickup_window})" if request.pickup_window else ""
+        return _prose(
+            f"The returns form for {order.number} is being filled, step by step to the review.",
+            items=items,
+            answers=f"{request.reason}, {request.condition}, {request.resolution}, "
+            f"{request.collection}{window}",
+            next="ask 'Shall I submit the return?' and submit only on their yes",
+        )
+
+    async def submit_return(self, request: SubmitReturnRequest) -> str:
+        """Submit the returns form — only with the shopper's spoken yes. The
+        first call asks; when they say yes on their next turn, call again with
+        confirmed_by_voice true."""
+        if self.order is None:
+            return _not_done("no return is open", "Find the order first.")
+        move = self.stage.moves.get("returns.submit")
+        if move is None:
+            return _not_done(
+                "this page cannot submit the return by voice", "Ask them to press Submit return."
+            )
+        if not request.confirmed_by_voice:
+            self.pending_submit = self.turns
+            landed("Shall I submit the return?")
+            return _prose("Ask for their yes before submitting. Nothing is submitted yet.")
+        if self.pending_submit is None or self.pending_submit >= self.turns:
+            return _not_done(
+                "the shopper has not said yes to submitting yet",
+                "Ask first, then wait for their yes.",
+            )
+        return self._submit_now()
+
+    def _submit_now(self) -> str:
+        """Send the confirmed returns.submit. Nothing claims it went through:
+        the page's answer is told when it comes (``_submit_result``)."""
+        assert self.order is not None
+        self.pending_submit = None
+        self.submit_ref = self.stage.send("returns.submit", {}, queue=False)
+        landed("Submitting it now.")
+        return _prose(
+            f"The return for {self.order.number} is being submitted; the page's answer follows."
+        )
+
     # ─── Browser → brain ────────────────────────────────────────────────
 
     def apply_event(self, event: FernhollowEvent) -> str | None:
@@ -1606,6 +2277,7 @@ class FernhollowBrain(GeminiBrain):
                 if product is not None and product not in CATALOG.products:
                     product = None
                 self.screen = replace(self.screen, page=path, product=product, variant=None)
+                self.choices = ()
                 return f"[The shopper opened the {path} page.]"
             case ProductViewed():
                 p = CATALOG.get(event.product_id)
@@ -1617,6 +2289,15 @@ class FernhollowBrain(GeminiBrain):
                 return f"[The shopper opened {p.title} [id {p.id}].]"
             case VisibleProducts():
                 ids = tuple(i for i in event.product_ids if i in CATALOG.products)
+                self.layout = tuple(
+                    Layout(x.product_id, x.row, x.col)
+                    for x in event.layout
+                    if x.product_id in CATALOG.products
+                )
+                if self.layout and not ids:
+                    ids = tuple(
+                        x.product_id for x in sorted(self.layout, key=lambda x: (x.row, x.col))
+                    )
                 self.screen = replace(self.screen, listing=ids, listing_kind="grid")
                 return None if not ids else f"[The shopper's screen now lists {len(ids)} products.]"
             case VariantSelected():
@@ -1665,6 +2346,13 @@ class FernhollowBrain(GeminiBrain):
                     cart[(p.id, v.id)] = line.qty
                 self.cart = cart
                 return f"[The shopper changed the cart: {sum(cart.values())} items, {money(self._cart_total())}.]"
+            case ConfirmResult() if self.pending_order is not None:
+                if event.confirmed:
+                    self.pending_order = (self.pending_order[0], -1)
+                    self._place(event.order_number)
+                    return "[The shopper tapped Place order: the order is placed.]"
+                self.pending_order = None
+                return "[The shopper did not place the order.]"
             case ConfirmResult():
                 pending = self.pending
                 if pending is None:
@@ -1680,13 +2368,60 @@ class FernhollowBrain(GeminiBrain):
             case ShortlistChanged():
                 self.shortlisted = [i for i in event.product_ids if i in CATALOG.products]
                 return f"[The shopper's shortlist now holds {len(self.shortlisted)}.]"
+            case Pointing():
+                if event.product_id in CATALOG.products:
+                    self.pointing = (event.product_id, time.monotonic())
+                return None  # silent: kept for "this one", never spoken about
+            case OrdersKnown():
+                self.known_orders = [
+                    order_from(o.model_dump(), "known") for o in event.orders if o.number
+                ]
+                self._adopt_page_numbers()
+                return None  # silent: kept for find_order
+            case Selection():
+                things = tuple(
+                    (t.kind, t.id)
+                    for t in event.things
+                    if (t.kind == "product" and t.id in CATALOG.products)
+                    or (t.kind == "room" and t.id in CATALOG.rooms)
+                    or (t.kind == "category" and t.id in CATALOG.categories)
+                    or (t.kind == "article" and t.id in _JOURNAL)
+                )[:8]
+                self.selection = things
+                if not things:
+                    return None
+                return (
+                    f"[The shopper circled {len(things)} thing{'s' if len(things) > 1 else ''} on screen: "
+                    f"{self._selection_line()}. Wait for what they say about them; do nothing yet.]"
+                )
+            case SelectionCleared():
+                had = bool(self.selection)
+                self.selection = ()
+                return "[The shopper cleared what they circled.]" if had else None
+            case ChoiceMade():
+                p = CATALOG.get(event.product_id)
+                if p is None:
+                    return None
+                self.choices = ()
+                return f"[The shopper picked {p.title} [id {p.id}] from the numbered choices.]"
+            case CheckoutChanged():
+                if event.field:
+                    self.checkout_filled.add(event.field)
+                return f"[The shopper filled {event.field} at checkout.]"
+            case CheckoutStepReached():
+                self.checkout_step_now = event.step
+                return f"[The checkout is on {event.step}.]"
 
 
-def _never_email(move: Move, args: list[str]) -> list[str] | None:
-    """Personal data is never a move: a fill of the email field is dropped."""
-    if move.id == FILL.id and args and args[0].strip().lower() == "email":
-        return None
-    return args
+#: A plain yes, as people say one to "Shall I place the order?".
+_YES = re.compile(
+    r"^\s*(yes|yeah|yep|yup|ya|sure|ok|okay|alright|all right|go ahead|go for it|do it|please do"
+    r"|place it|submit it|add (it|them)|that's right|correct|absolutely|definitely|of course)\b",
+    re.IGNORECASE,
+)
+_NOT_YES = re.compile(r"\b(no|not|don't|do not|wait|hold on|actually|change|but)\b", re.IGNORECASE)
+
+_THIS = frozenset({"this", "this one", "that", "that one", "it", "here"})
 
 
 def _use(text: str) -> str:

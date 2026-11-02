@@ -184,7 +184,12 @@ function BoardTile({ piece, index }: { piece: Piece; index: number }) {
     void emily.swap_piece({ slot: piece.slot, old_product_id: piece.product_id, piece: np, total: totalOf(pieces) }, "visitor");
   };
   return (
-    <li className={`tile${changed ? " is-changed" : ""}`} style={{ animationDelay: `${index * 160}ms` }} data-spot={`slot:${piece.slot}`}>
+    <li
+      className={`tile${changed ? " is-changed" : ""}`}
+      style={{ animationDelay: `${index * 160}ms` }}
+      data-spot={`slot:${piece.slot}`}
+      data-fh-thing={`product:${piece.product_id}`}
+    >
       <Link to={`/product/${piece.product_id}`} className="tile-photo" key={piece.product_id}>
         <img src={imgUrl(piece.image, 400)} alt={piece.title} loading="lazy" width={768} height={1344} />
         {swap ? (

@@ -16,7 +16,7 @@ import {
   CHOICES,
   type ChoiceField,
   type DemoOrder,
-  ORDERS,
+  allOrders,
   RETURN_WINDOW_DAYS,
   STEP_FIELDS,
   STEPS,
@@ -26,8 +26,9 @@ import {
   labelOf,
   normalOrderNumber,
 } from "../returns/orders";
-import { type StoredReturn, currentOrder, filledNames, saveReturn, storedReturns, useReturns } from "../returns/store";
+import { type StoredReturn, currentOrder, filledNames, missingInStep, saveReturn, storedReturns, useReturns } from "../returns/store";
 import { useVoiceClient } from "../stage/client";
+import { useOrders } from "../state/orders";
 import { useAppStage, useMove, useSlice } from "../stage/host";
 import { returnsPerformers } from "../stage/performers";
 import { scene } from "../stage/scene.gen";
@@ -65,6 +66,8 @@ export function ReturnsHome() {
   const [number, setNumber] = useState("");
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
+  const placed = useOrders((s) => s.orders);
+  const orders = useMemo(() => allOrders(placed), [placed]);
   const find = (e: React.FormEvent) => {
     e.preventDefault();
     const order = findOrder(number);
@@ -114,9 +117,9 @@ export function ReturnsHome() {
             </button>
           </form>
           <div className="demo-orders">
-            <p className="small">This is a demo store. Try one of these orders:</p>
+            <p className="small">{placed.length ? "Your orders from this browser, then the demo orders:" : "This is a demo store. Try one of these orders:"}</p>
             <ul>
-              {ORDERS.map((o) => (
+              {orders.map((o) => (
                 <li key={o.number}>
                   <button
                     type="button"
@@ -128,6 +131,7 @@ export function ReturnsHome() {
                     }}
                   >
                     <span className="demo-order-n">{o.number}</span>
+                    {"placed" in o ? <span className="demo-order-yours">Yours</span> : null}
                     <span className="small">{orderHint(o)}</span>
                   </button>
                 </li>
@@ -177,7 +181,7 @@ function orderHint(o: DemoOrder): string {
   const what = `${items} item${items === 1 ? "" : "s"}`;
   if (e.kind === "not_delivered") return `${what}, on its way`;
   if (e.kind === "outside_window") return `${what}, delivered ${e.days} days ago`;
-  return `${what}, delivered ${o.delivered_days_ago} days ago`;
+  return o.delivered_days_ago === 0 ? `${what}, placed today` : `${what}, delivered ${o.delivered_days_ago} days ago`;
 }
 
 // ── /returns/start ─────────────────────────────────────────────────────────
@@ -187,6 +191,7 @@ export function ReturnsForm() {
   const [sp] = useSearchParams();
   const navigate = useNavigate();
   const form = useReturns();
+  const placedOrders = useOrders((s) => s.orders);
   const order = currentOrder(form);
   const [emailError, setEmailError] = useState("");
   const [stepError, setStepError] = useState("");
@@ -208,6 +213,9 @@ export function ReturnsForm() {
   useMove(stage, "returns.open_step", performers["returns.open_step"]);
   useMove(stage, "returns.fill", performers["returns.fill"]);
   useMove(stage, "returns.select_item", performers["returns.select_item"]);
+  useMove(stage, "returns.submit", performers["returns.submit"]);
+  useMove(stage, "returns.find", performers["returns.find"]);
+  useMove(stage, "returns.next_step", performers["returns.next_step"]);
 
   const filled = filledNames(form);
   const slice = useMemo(() => ({ step: form.step, changed: form.changed, filled }), [form.step, form.changed, filled.join(",")]);
@@ -252,31 +260,7 @@ export function ReturnsForm() {
   const chosen = order?.lines.filter((l) => form.items[l.product_id]) ?? [];
 
   /** What each step needs before Continue. */
-  const missing = (step: number): string => {
-    switch (step) {
-      case 1:
-        if (!order) return "Enter an order number from your confirmation email.";
-        if (!form.email.trim()) return "Enter the email you used for the order.";
-        if (form.email.trim().toLowerCase() !== order.email.toLowerCase()) return "That email does not match this order.";
-        if (elig?.kind === "not_delivered") return "This order has not been delivered yet. You can start a return once it arrives.";
-        if (elig?.kind === "outside_window") return `This order was delivered ${elig.days} days ago, outside the ${RETURN_WINDOW_DAYS}-day window.`;
-        return "";
-      case 2:
-        return chosen.length ? "" : "Choose at least one item to return.";
-      case 3:
-        return !form.reason ? "Choose a reason." : !form.condition ? "Tell us the condition of the items." : "";
-      case 4:
-        if (!form.resolution) return "Choose how you would like this resolved.";
-        if (form.resolution === "exchange" && chosen.some((l) => !form.exchange[l.product_id] && exchangeOptions(l).length)) {
-          return "Pick the option you would like instead for each item.";
-        }
-        return "";
-      case 5:
-        return !form.collection ? "Choose collection or drop-off." : form.collection === "pickup" && !form.pickup_window ? "Choose a collection window." : "";
-      default:
-        return "";
-    }
-  };
+  const missing = (step: number): string => missingInStep(form, step);
 
   const go = (step: number) => {
     setStepError("");
@@ -320,7 +304,10 @@ export function ReturnsForm() {
       collection: form.collection,
       pickup_window: form.pickup_window,
     });
-    stage?.page.send(scene.event("returns.return_submitted", { reference: stored.reference, filled }, { by: "visitor" }));
+    const agent = stage?.agent && Date.now() <= stage.agent.until ? stage.agent : null;
+    stage?.page.send(
+      scene.event("returns.return_submitted", { reference: stored.reference, filled }, agent ? { by: "agent", callRef: agent.callRef } : { by: "visitor" }),
+    );
     useReturns.getState().reset();
     navigate(`/returns/confirmation?ref=${stored.reference}`, { state: stored });
   };
@@ -455,6 +442,27 @@ export function ReturnsForm() {
               </div>
             </div>
             {order ? <OrderCard order={order} /> : form.order_number.trim().length >= 6 ? <p className="small">No order with that number yet.</p> : null}
+            {!order ? (
+              <div className="known-orders">
+                <p className="small">Your orders from this browser come first, then the demo orders:</p>
+                <div className="band-chips">
+                  {allOrders(placedOrders).slice(0, 6).map((o) => (
+                    <button
+                      key={o.number}
+                      type="button"
+                      className="chip chip-sm"
+                      onClick={() => {
+                        useReturns.getState().setOrderNumber(o.number);
+                        useReturns.getState().setEmail(o.email);
+                      }}
+                    >
+                      {o.number}
+                      {"placed" in o ? " (yours)" : ""}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </>)}
 
           {renderStep(2, <>
@@ -580,7 +588,7 @@ export function ReturnsForm() {
             <button type="submit" className="btn btn-primary co-next" data-dock-avoid>
               Submit return
             </button>
-            <p className="small">You press Submit yourself; Emily never sends a return for you.</p>
+            <p className="small">Emily only submits after you say yes.</p>
           </>)}
         </form>
 
