@@ -6,78 +6,178 @@ This script only reshapes and renames; it never invents product facts.
 
     python3 -I demos/fernhollow/data/build_catalog.py ~/Desktop/voqalize/havenly-data/catalog/products.json
 """
-import html, json, pathlib, re, sys
 
-SRC = pathlib.Path(sys.argv[1]).expanduser()
-OUT = pathlib.Path(__file__).with_name("catalog.json")
+from __future__ import annotations
 
-ROOMS = {
-    "living": ["Sofas", "Coffee Tables", "Entertainment Centers & TV Stands", "Rugs", "Throw Pillows",
-               "Floor Lamps", "Artwork", "Mirrors", "Clocks"],
-    "dining": ["Dining Tables", "Dining Chairs", "Chandeliers", "Dinnerware", "Serveware", "Barware"],
-    "bedroom": ["Beds & Bed Frames", "Bed Sheets", "Quilts & Comforters", "Table Lamps", "Curtains & Drapes"],
+import html
+import json
+import re
+import sys
+import unicodedata
+from pathlib import Path
+from typing import Any, cast
+
+OUT = Path(__file__).with_name("catalog.json")
+
+ROOMS: dict[str, list[str]] = {
+    "living": [
+        "Sofas",
+        "Coffee Tables",
+        "Entertainment Centers & TV Stands",
+        "Rugs",
+        "Throw Pillows",
+        "Floor Lamps",
+        "Artwork",
+        "Mirrors",
+        "Clocks",
+    ],
+    "dining": [
+        "Dining Tables",
+        "Dining Chairs",
+        "Chandeliers",
+        "Dinnerware",
+        "Serveware",
+        "Barware",
+    ],
+    "bedroom": [
+        "Beds & Bed Frames",
+        "Bed Sheets",
+        "Quilts & Comforters",
+        "Table Lamps",
+        "Curtains & Drapes",
+    ],
     "home-office": ["Desks", "Office Chairs", "Shelving"],
     "bath": ["Bath Towels & Washcloths", "Bath Mats & Rugs"],
     "kitchen": ["Cookware", "Food Storage"],
-    "decor": ["Vases", "Household Storage Baskets", "Artificial Flora", "Candle Holders", "Picture Frames"],
+    "decor": [
+        "Vases",
+        "Household Storage Baskets",
+        "Artificial Flora",
+        "Candle Holders",
+        "Picture Frames",
+    ],
 }
 ROOM_OF = {c: r for r, cs in ROOMS.items() for c in cs}
-# Real trademarks and non-English handles in the source, renamed for a fictional store.
+
+# Real trademarks in the source, renamed for a fictional store.
 RENAME = {
-    "fauteuil-executif-eames-soft-pad-cuir-brun": ("soft-pad-executive-chair-brown-leather",
-                                                   "Soft Pad Executive Chair in Brown Leather"),
+    "fauteuil-executif-eames-soft-pad-cuir-brun": (
+        "soft-pad-executive-chair-brown-leather",
+        "Soft Pad Executive Chair in Brown Leather",
+    ),
 }
-slug = lambda s: re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")
-def split_html(h):
+
+Json = dict[str, Any]
+
+
+def slug(text: str) -> str:
+    folded = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
+    return re.sub(r"[^a-z0-9]+", "-", folded.lower()).strip("-")
+
+
+def money(m: Json | None) -> float | None:
+    return round(float(m["amount"]), 2) if m else None
+
+
+def plain(fragment: str) -> str:
+    return html.unescape(re.sub(r"<[^>]+>", "", fragment)).strip()
+
+
+def split_html(source: str) -> tuple[str, list[str]]:
     """The source HTML as an intro paragraph plus its bullet points, text only."""
-    text = lambda x: html.unescape(re.sub(r"<[^>]+>", "", x)).strip()
-    paras = [text(x) for x in re.findall(r"<p[^>]*>(.*?)</p>", h, re.S)]
-    bullets = [text(x) for x in re.findall(r"<li[^>]*>(.*?)</li>", h, re.S)]
+    paras = [plain(x) for x in re.findall(r"<p[^>]*>(.*?)</p>", source, re.S)]
+    bullets = [plain(x) for x in re.findall(r"<li[^>]*>(.*?)</li>", source, re.S)]
     return " ".join(x for x in paras if x), [b for b in bullets if b]
 
-money = lambda m: round(float(m["amount"]), 2) if m else None
 
-products = []
-for p in json.load(open(SRC)):
-    handle, title = RENAME.get(p["handle"], (p["handle"], p["title"]))
-    cat = p["_category"]
-    variants = [{
-        "id": v["id"].rsplit("/", 1)[-1],
+def variant(v: Json) -> Json:
+    return {
+        "id": str(v["id"]).rsplit("/", 1)[-1],
         "title": v["title"],
         "options": {o["name"]: o["value"] for o in v["selectedOptions"]},
         "price": money(v["price"]),
         "compareAtPrice": money(v["compareAtPrice"]),
         "image": (v.get("image") or {}).get("url"),
-    } for v in p["variants"]["nodes"]]
-    prices = [v["price"] for v in variants]
-    products.append({
-        "id": handle,
+    }
+
+
+def product(p: Json) -> Json:
+    _, title = RENAME.get(p["handle"], (p["handle"], p["title"]))
+    cat: str = p["_category"]
+    variants = [variant(v) for v in p["variants"]["nodes"]]
+    prices = [cast(float, v["price"]) for v in variants]
+    intro, highlights = split_html(p["descriptionHtml"])
+    description = str(p["description"]).strip()
+    return {
+        "id": slug(title),
         "sourceHandle": p["handle"],
         "title": title[:1].upper() + title[1:],
         "category": cat,
         "categorySlug": slug(cat),
         "room": ROOM_OF[cat],
         "collections": [c["handle"] for c in p["collections"]["nodes"]],
-        "description": p["description"].strip(),
-        "intro": split_html(p["descriptionHtml"])[0] or p["description"].strip(),
-        "highlights": split_html(p["descriptionHtml"])[1],
+        "description": description,
+        "intro": intro or description,
+        "highlights": highlights,
         "tags": p["tags"],
         "priceMin": min(prices),
         "priceMax": max(prices),
         "onSale": any(v["compareAtPrice"] and v["compareAtPrice"] > v["price"] for v in variants),
-        "options": [{"name": o["name"], "values": [x["name"] for x in o["optionValues"]]} for o in p["options"]],
+        "options": [
+            {"name": o["name"], "values": [x["name"] for x in o["optionValues"]]}
+            for o in p["options"]
+        ],
         "variants": variants,
-        "images": [{"src": i["url"], "alt": i["altText"] or title, "width": i["width"], "height": i["height"],
-                    "file": f"{handle}/{n}"} for n, i in enumerate(p["images"]["nodes"])],
-    })
+        "images": [
+            {
+                "src": i["url"],
+                "alt": i["altText"] or title,
+                "width": i["width"],
+                "height": i["height"],
+                "file": f"{slug(title)}/{n}",
+            }
+            for n, i in enumerate(p["images"]["nodes"])
+        ],
+    }
 
-categories = sorted({(p["category"], p["categorySlug"], p["room"]) for p in products})
-OUT.write_text(json.dumps({
-    "store": "Fernhollow",
-    "source": "mock.shop home-large-catalog (Havenly Nest), subset; see demos/fernhollow/data/README.md",
-    "rooms": list(ROOMS),
-    "categories": [{"name": n, "slug": s, "room": r, "count": sum(p["category"] == n for p in products)}
-                   for n, s, r in categories],
-    "products": products,
-}, indent=1, ensure_ascii=False))
-print(len(products), "products,", len(categories), "categories ->", OUT)
+
+def main(src: Path) -> None:
+    raw = cast(list[Json], json.loads(src.read_text()))
+    products = [product(p) for p in raw]
+    # Ids are the English title's slug (the source mixes Spanish, German, French and
+    # Dutch handles); a repeated title gets -2, -3 in source order.
+    seen: dict[str, int] = {}
+    for p in products:
+        base = p["id"]
+        seen[base] = seen.get(base, 0) + 1
+        if seen[base] > 1:
+            p["id"] = f"{base}-{seen[base]}"
+            for i in p["images"]:
+                i["file"] = f"{p['id']}/{i['file'].rsplit('/', 1)[1]}"
+    categories = sorted({(p["category"], p["categorySlug"], p["room"]) for p in products})
+    OUT.write_text(
+        json.dumps(
+            {
+                "store": "Fernhollow",
+                "source": "mock.shop home-large-catalog (Havenly Nest), subset; see demos/fernhollow/data/README.md",
+                "rooms": list(ROOMS),
+                "categories": [
+                    {
+                        "name": n,
+                        "slug": s,
+                        "room": r,
+                        "count": sum(p["category"] == n for p in products),
+                    }
+                    for n, s, r in categories
+                ],
+                "products": products,
+            },
+            indent=1,
+            ensure_ascii=False,
+        )
+    )
+    print(len(products), "products,", len(categories), "categories ->", OUT)
+
+
+if __name__ == "__main__":
+    main(Path(sys.argv[1]).expanduser())

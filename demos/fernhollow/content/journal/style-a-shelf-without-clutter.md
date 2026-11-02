@@ -12,7 +12,7 @@ products:
   - porcelain-vase-with-carved-vertical-lines
   - ceramic-sculpture-with-matte-glaze
   - hand-finished-walnut-gallery-frame
-  - lampe-d-accent-en-noyer-massif
+  - solid-walnut-accent-lamp
   - solid-oak-keepsake-box
   - linen-storage-basket-with-structured-sides
 ---
@@ -41,7 +41,7 @@ Books work hardest when you vary them. Stand some upright, lean them against a s
 
 A framed photograph or print, leaned rather than hung, is an easy anchor. This walnut gallery frame is hand-sanded and waxed, with a gallery-depth profile that casts a subtle shadow.
 
-::product{id="lampe-d-accent-en-noyer-massif"}
+::product{id="solid-walnut-accent-lamp"}
 
 A small lamp on a shelf is one of the stylist's best tricks: it turns the shelf into a source of evening light as well as a display. This solid walnut accent lamp is sized for reading nooks and shelves.
 

@@ -57,3 +57,57 @@ Every event says `by: "visitor"` when the shopper did it.
 Every component that an action drives must ALSO work by click/tap alone — the store is a complete,
 usable shop without voice. Actions go through one store controller (`src/voice/controller.ts`) so the
 voice layer is a thin adapter. A dev-only action console (`?debug=1`) fires any action by hand.
+
+## Returns desk (v1) — a form Mira helps fill, built on Stage
+
+A second experience: `/returns/` (start page) → `/returns/start/` (the form). The shopper starts a
+return by voice or by hand; Mira finds the order, checks it against the policy, and fills the form with
+them field by field. Data: `data/demo_orders.json` (fictional orders of real catalog products; dates are
+`*_days_ago`, so eligibility holds whenever the demo runs; window = `return_window_days`, 30, counted
+from delivery; unused items only; an order not yet delivered cannot be returned yet).
+
+**Form steps and fields** (field names are the contract — the page's inputs use them as `name`, the
+Stage parts use them as `data-stage-part="<field>:<value>"`):
+
+| step | field | values |
+| --- | --- | --- |
+| 1 Find your order | `order_number` | e.g. `FH-20418` |
+| | `email` | typed by the shopper only — personal data is never a move |
+| 2 Items | `items` | line `product_id`s from the order, each with `qty_<product_id>` (1..ordered) |
+| 3 Reason | `reason` | `changed_mind`, `doesnt_suit_room`, `arrived_damaged`, `wrong_item`, `not_as_expected` |
+| | `condition` | `unused_in_packaging`, `unused_unpacked`, `damaged_on_arrival` |
+| 4 Resolution | `resolution` | `refund`, `exchange` (pick another option value of the same product: `exchange_variant_<product_id>`), `store_credit` |
+| 5 Collection | `collection` | `pickup`, `drop_off` ; `pickup_window` = `weekday_morning`, `weekday_afternoon`, `saturday` (no dates — no delivery/pickup date promises) |
+| 6 Review | — | the shopper presses **Submit return** themselves; Mira never submits |
+
+Confirmation shows a return reference `RT-<order digits>-<n>` and the authored policy lines. Returns
+are stored in the browser (localStorage) like demo orders.
+
+**Stage, not custom actions, for this form.** A `scene.json` (Stage Spec, `stage: 1`) in
+`frontend/src/stage/` generated for both halves with `uv run voqalize stage gen` (`--py
+backend/stage_gen.py --ts frontend/src/stage/scene.gen.ts`) and checked with `voqalize stage check`:
+
+- `returns.open_step` — class `navigate`/`look`, arg `step` (1..6): scrolls to and rings the step.
+- `returns.fill` — class `reversible`, args `field`, `value`: rings the input, sets it, returns one short
+  line ("reason set to doesn't suit the room"). Refused with the valid options when the value is not one
+  of them, or when the field is `email`.
+- `returns.select_item` — `reversible`, args `product_id`, `qty`.
+- Cues in Mira's words, e.g. `{fill: reason | doesnt_suit_room}` "Let's put down that it doesn't suit
+  the room." — the field fills as she says it.
+- Slices: `returns_form` (which fields are filled, by name — values only through a brain tool that reads
+  what the BRAIN set or what the order data says), state events with `by: "visitor"` when the shopper
+  fills/changes a field by hand: `field_filled{field}` as `note`, `step_reached{step}` as `note`,
+  `return_submitted{reference}` as `speak` (ask: "thank them and say what happens next, in one line").
+- `watch` kit on: dwell on a step with nothing filled for ~12 s is a `speak` event (ask: "offer to fill
+  it in, one short line"), never over the visitor.
+
+**Brain tools for returns** (real logic over `demo_orders.json` + `content/policies.json`):
+`find_order(order_number)` → order lines + eligibility per line (`eligible` / `outside_window` with days
+since delivery / `not_delivered`) — `@needs_result_now`; `start_return(order_number)` → navigate to the
+form with the order prefilled; `check_exchange(product_id)` → the product's other real option values.
+Everything else is cues.
+
+**Acknowledgement: one, upstream.** Voqalize's own `ack` ("Sure.", "Let me check.") is ON for this
+agent (the default) and covers the wait while the brain looks an order up. So Mira NEVER opens a reply
+with her own acknowledgement ("Let me check that", "One moment", "Sure!") anywhere in the demo — she
+opens on the answer. Tested: no reply's first sentence is an ack phrase.
