@@ -47,6 +47,7 @@ const DEMOS = [
   'avatar',
   'kiosk',
   'petwell',
+  'fernhollow',
 ];
 
 module.exports = {
