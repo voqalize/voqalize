@@ -7,7 +7,8 @@ product, under ``<images>/<sourceHandle>/``)::
         python fernhollow/backend/embed_images.py --images ~/Desktop/voqalize/havenly-data/images \\
         --out ~/Desktop/voqalize/havenly-data/fernhollow-clip.json
 
-The model is the open-source OpenCLIP ViT-B-32 (LAION-2B weights), run on the
+Vectors are keyed by the product's ``sourceHandle``, which never changes when
+a product id is renamed. The model is the open-source OpenCLIP ViT-B-32 (LAION-2B weights), run on the
 CPU. Neither the model, the images nor the raw vectors are committed: the
 vectors feed :mod:`build_index`, which commits only the small neighbour and
 similarity lists derived from them. A similarity is used to *rank* — two pieces
@@ -51,7 +52,7 @@ def main() -> None:
     for product in catalog["products"]:
         path = Path(args.images).expanduser() / product["sourceHandle"] / "0.png"
         if path.is_file():
-            items.append((product["id"], path))
+            items.append((product["sourceHandle"], path))
         else:
             print(f"no image for {product['id']}")
 
@@ -67,7 +68,9 @@ def main() -> None:
             print(f"{start + len(chunk)}/{len(items)}", flush=True)
 
     out = Path(args.out).expanduser()
-    out.write_text(json.dumps({"model": "/".join(MODEL), "vectors": vectors}))
+    out.write_text(
+        json.dumps({"model": "/".join(MODEL), "keyed_by": "sourceHandle", "vectors": vectors})
+    )
     print(f"wrote {len(vectors)} vectors to {out}")
 
 

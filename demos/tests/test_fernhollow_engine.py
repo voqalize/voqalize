@@ -323,7 +323,7 @@ def test_every_room_recipe_builds_inside_budget(room: str) -> None:
 EXPECTED_WOOD_DESKS_UNDER_500 = [
     "compact-laptop-desk-with-integrated-shelf",
     "children-s-space-saving-wooden-desk",
-    "foldable-desk-in-engineered-wood-2",
+    "foldable-desk-in-engineered-wood",
     "children-s-birch-writing-desk-with-gold-accents",
     "minimalist-wooden-desk",
     "ash-maple-compact-desk",
@@ -332,9 +332,9 @@ EXPECTED_FIRST_TASTE_QUESTION = ("colours", ("neutral", "taupe", "brown"))
 EXPECTED_LEFT_WOOD_MODERN = 9
 EXPECTED_ROOM = [
     ("desk", "modular-oak-desk-with-matte-metal-legs"),
-    ("chair", "silla-de-trabajo-regulable-roble-dorado"),
+    ("chair", "adjustable-golden-oak-task-chair"),
     ("lamp", "walnut-wood-floor-lamp"),
-    ("shelving", "estante-de-madera-laminada-compacto"),
+    ("shelving", "compact-laminated-wood-shelf"),
     ("rug", "misted-linen-area-rug"),
 ]
 EXPECTED_ROOM_TOTAL = 1704.99
@@ -348,7 +348,7 @@ EXPECTED_ROOM_REASONS = [
 EXPECTED_OFFICE_FLOOR = 412.0
 EXPECTED_SWAPPED_LAMP = "birch-wood-table-lamp"
 EXPECTED_ART = [
-    ("silence-bois-flotte-cadre-chene-clair", "Shares the oak"),
+    ("silence-driftwood-light-oak-frame", "Shares the oak"),
     ("canvas-artwork-with-pewter-horizon", "Same modern feel"),
     ("archival-canvas-artwork-with-brushed-bronze-frame", "Picked to sit with the desk"),
     ("ceramic-sculpture-with-matte-glaze", "Picked to sit with the desk"),
@@ -356,7 +356,7 @@ EXPECTED_ART = [
 EXPECTED_CHEAPER_DESKS = [
     "minimalist-wooden-desk",
     "children-s-birch-writing-desk-with-gold-accents",
-    "foldable-desk-in-engineered-wood-2",
+    "foldable-desk-in-engineered-wood",
     "ash-maple-compact-desk",
 ]
 EXPECTED_COMPARE_ORDER = [

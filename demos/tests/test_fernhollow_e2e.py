@@ -331,7 +331,7 @@ async def test_every_number_said_comes_from_the_catalog_or_policies() -> None:
         allowed.add(room.total)
     allowed.add(STRETCH.saved)
     allowed.add(2500.0)  # the shopper's own budget
-    counts = {float(n) for n in range(0, len(CATALOG.products) + 1)}
+    counts = {float(n) for n in range(len(CATALOG.products) + 1)}
     figures = re.compile(r"\$?\d[\d,]*(?:\.\d+)?")
     said = _all_results(llm)
     assert said

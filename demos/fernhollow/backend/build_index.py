@@ -190,7 +190,13 @@ def main() -> None:
 
     vectors: dict[str, list[float]] = {}
     if args.vectors is not None:
-        vectors = json.loads(Path(args.vectors).expanduser().read_text())["vectors"]
+        by_handle = json.loads(Path(args.vectors).expanduser().read_text())["vectors"]
+        # keyed by sourceHandle, which survives a product id rename
+        vectors = {
+            p["id"]: by_handle[p["sourceHandle"]]
+            for p in products
+            if p["sourceHandle"] in by_handle
+        }
         missing = [p["id"] for p in products if p["id"] not in vectors]
         if missing:
             raise SystemExit(f"no vector for {len(missing)} products, e.g. {missing[:3]}")
