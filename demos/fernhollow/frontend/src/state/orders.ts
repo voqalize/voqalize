@@ -21,10 +21,55 @@ export interface PlacedOrder {
 
 const KEY = "fernhollow-orders";
 
+type Raw = Record<string, unknown>;
+const str = (v: unknown) => (typeof v === "string" ? v : "");
+const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+
+/** One stored order in the contract shape, whatever build wrote it. Orders saved
+ *  before v4 carry `placedAt`, cart-style lines and the address instead of
+ *  `email`/`name`/`total`; they are upgraded here rather than dropped, so a
+ *  shopper's earlier orders stay returnable and never break the returns desk. */
+export function normalizeOrder(raw: unknown): PlacedOrder | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Raw;
+  if (typeof o.number !== "string" || !Array.isArray(o.lines)) return null;
+  const address = (o.address && typeof o.address === "object" ? o.address : {}) as Raw;
+  const lines = (o.lines as Raw[])
+    .filter((l) => l && typeof l === "object" && typeof l.product_id === "string")
+    .map((l) => {
+      const p = getProduct(str(l.product_id));
+      const v = p ? getVariant(p, str(l.variant_id)) : null;
+      return {
+        product_id: str(l.product_id),
+        variant_id: str(l.variant_id),
+        title: str(l.title) || p?.title || str(l.product_id),
+        variant: str(l.variant) || v?.title || "",
+        qty: Math.max(1, Math.round(num(l.qty)) || 1),
+        unit_price: num(l.unit_price) || v?.price || 0,
+      };
+    });
+  const placed = str(o.placed_at) || str(o.placedAt);
+  const name = str(o.name) || [str(address.first_name), str(address.last_name)].filter(Boolean).join(" ");
+  const total =
+    num(o.total) || num(o.subtotal) + num(o.delivery) || lines.reduce((t, l) => t + l.qty * l.unit_price, 0);
+  return {
+    number: o.number,
+    email: str(o.email) || str(address.email),
+    name,
+    placed_at: placed && !Number.isNaN(Date.parse(placed)) ? placed : new Date(0).toISOString(),
+    lines,
+    total: Math.round(total * 100) / 100,
+    status: "delivered",
+  };
+}
+
 function load(): PlacedOrder[] {
   try {
-    const all = JSON.parse(localStorage.getItem(KEY) ?? "[]");
-    return Array.isArray(all) ? all.filter((o) => o && typeof o.number === "string" && Array.isArray(o.lines)) : [];
+    const all: unknown = JSON.parse(localStorage.getItem(KEY) ?? "[]");
+    if (!Array.isArray(all)) return [];
+    const orders = all.map(normalizeOrder).filter((o): o is PlacedOrder => o !== null);
+    localStorage.setItem(KEY, JSON.stringify(orders)); // write back the upgraded shape once
+    return orders;
   } catch {
     return [];
   }
@@ -75,7 +120,7 @@ export function savePlacedOrder(o: {
 /** What `orders_known` carries: each order, newest first, with its age in days. */
 export function ordersKnown(orders = useOrders.getState().orders) {
   return [...orders]
-    .sort((a, b) => b.placed_at.localeCompare(a.placed_at))
+    .sort((a, b) => (b.placed_at ?? "").localeCompare(a.placed_at ?? ""))
     .map((o) => ({ ...o, placed_days_ago: daysSince(o.placed_at), delivered_days_ago: daysSince(o.placed_at) }));
 }
 
