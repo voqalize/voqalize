@@ -89,7 +89,9 @@ def test_brief_narrows_one_question_at_a_time() -> None:
     q = eng.next_question(eng.Brief())
     assert q.dim == "room" and q.text == "Which room are we working on?"
     office = eng.Brief(room="home-office")
-    assert len(eng.products_left(office)) == 150
+    assert (
+        len(eng.products_left(office)) == 145
+    )  # desks, chairs, shelving, lamps, rugs after the misfiled clean-up
     q = eng.next_question(office)
     assert (q.dim, q.options) == EXPECTED_FIRST_TASTE_QUESTION
     tasted = eng.Brief(room="home-office", materials=WOOD, styles=("modern",))
@@ -354,7 +356,7 @@ EXPECTED_WOOD_DESKS_UNDER_500 = [
     "ash-maple-compact-desk",
 ]
 EXPECTED_FIRST_TASTE_QUESTION = ("colours", ("neutral", "taupe", "brown"))
-EXPECTED_LEFT_WOOD_MODERN = 9
+EXPECTED_LEFT_WOOD_MODERN = 8  # was 9 with a glass carafe misfiled under Table Lamps
 EXPECTED_ROOM = [
     ("desk", "modular-oak-desk-with-matte-metal-legs"),
     ("chair", "adjustable-golden-oak-task-chair"),

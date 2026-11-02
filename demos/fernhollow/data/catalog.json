@@ -21,19 +21,19 @@
    "name": "Artwork",
    "slug": "artwork",
    "room": "living",
-   "count": 22
+   "count": 20
   },
   {
    "name": "Barware",
    "slug": "barware",
    "room": "dining",
-   "count": 20
+   "count": 21
   },
   {
    "name": "Bath Mats & Rugs",
    "slug": "bath-mats-rugs",
    "room": "bath",
-   "count": 25
+   "count": 24
   },
   {
    "name": "Bath Towels & Washcloths",
@@ -45,7 +45,7 @@
    "name": "Bed Sheets",
    "slug": "bed-sheets",
    "room": "bedroom",
-   "count": 25
+   "count": 27
   },
   {
    "name": "Beds & Bed Frames",
@@ -69,7 +69,7 @@
    "name": "Clocks",
    "slug": "clocks",
    "room": "living",
-   "count": 25
+   "count": 24
   },
   {
    "name": "Coffee Tables",
@@ -87,7 +87,7 @@
    "name": "Curtains & Drapes",
    "slug": "curtains-drapes",
    "room": "bedroom",
-   "count": 25
+   "count": 22
   },
   {
    "name": "Desks",
@@ -99,7 +99,7 @@
    "name": "Dining Chairs",
    "slug": "dining-chairs",
    "room": "dining",
-   "count": 25
+   "count": 24
   },
   {
    "name": "Dining Tables",
@@ -117,7 +117,7 @@
    "name": "Entertainment Centers & TV Stands",
    "slug": "entertainment-centers-tv-stands",
    "room": "living",
-   "count": 25
+   "count": 24
   },
   {
    "name": "Floor Lamps",
@@ -159,37 +159,37 @@
    "name": "Quilts & Comforters",
    "slug": "quilts-comforters",
    "room": "bedroom",
-   "count": 25
+   "count": 28
   },
   {
    "name": "Rugs",
    "slug": "rugs",
    "room": "living",
-   "count": 25
+   "count": 23
   },
   {
    "name": "Serveware",
    "slug": "serveware",
    "room": "dining",
-   "count": 25
+   "count": 27
   },
   {
    "name": "Shelving",
    "slug": "shelving",
    "room": "home-office",
-   "count": 25
+   "count": 23
   },
   {
    "name": "Sofas",
    "slug": "sofas",
    "room": "living",
-   "count": 25
+   "count": 26
   },
   {
    "name": "Table Lamps",
    "slug": "table-lamps",
    "room": "bedroom",
-   "count": 25
+   "count": 24
   },
   {
    "name": "Throw Pillows",
@@ -201,7 +201,7 @@
    "name": "Vases",
    "slug": "vases",
    "room": "decor",
-   "count": 25
+   "count": 24
   }
  ],
  "products": [
@@ -1860,71 +1860,6 @@
    ]
   },
   {
-   "id": "digital-downloadmuted-riverbank-reflections",
-   "sourceHandle": "digital-download-muted-riverbank-reflections",
-   "title": "Digital Download—Muted Riverbank Reflections",
-   "category": "Artwork",
-   "categorySlug": "artwork",
-   "room": "living",
-   "collections": [
-    "reflective-decor"
-   ],
-   "description": "This high-resolution digital file captures the quiet poetry of water meeting land—a study in muted tones and gentle movement. Perfect for those who wish to curate their own moments of calm. Instant access to print at your preferred size and medium Subtle details invite close contemplation in any digital or printed form Ideal for creating personalized art walls or tranquil workspace accents",
-   "intro": "This high-resolution digital file captures the quiet poetry of water meeting land—a study in muted tones and gentle movement. Perfect for those who wish to curate their own moments of calm.",
-   "highlights": [
-    "Instant access to print at your preferred size and medium",
-    "Subtle details invite close contemplation in any digital or printed form",
-    "Ideal for creating personalized art walls or tranquil workspace accents"
-   ],
-   "tags": [
-    "reflective decor",
-    "artwork"
-   ],
-   "priceMin": 56.0,
-   "priceMax": 56.0,
-   "onSale": false,
-   "options": [
-    {
-     "name": "Frame",
-     "values": [
-      "Oak",
-      "Metal"
-     ]
-    }
-   ],
-   "variants": [
-    {
-     "id": "30488",
-     "title": "Oak",
-     "options": {
-      "Frame": "Oak"
-     },
-     "price": 56.0,
-     "compareAtPrice": null,
-     "image": "https://cdn.shopify.com/s/files/1/0926/5994/1398/files/24cf19dc2b5666afdfa962f711767045.png?v=15099548"
-    },
-    {
-     "id": "30489",
-     "title": "Metal",
-     "options": {
-      "Frame": "Metal"
-     },
-     "price": 56.0,
-     "compareAtPrice": null,
-     "image": "https://cdn.shopify.com/s/files/1/0926/5994/1398/files/24cf19dc2b5666afdfa962f711767045.png?v=15099548"
-    }
-   ],
-   "images": [
-    {
-     "src": "https://cdn.shopify.com/s/files/1/0926/5994/1398/files/24cf19dc2b5666afdfa962f711767045.png?v=15099548",
-     "alt": "Digital download—'Muted Riverbank Reflections', Default angle is a 3/4 view at slight eye-level to show both print face...",
-     "width": null,
-     "height": null,
-     "file": "digital-downloadmuted-riverbank-reflections/0"
-    }
-   ]
-  },
-  {
    "id": "tidal-reflection-matte-print",
    "sourceHandle": "tidal-reflection-matte-print",
    "title": "Tidal Reflection matte print",
@@ -2177,71 +2112,6 @@
      "width": null,
      "height": null,
      "file": "ceramic-sculpture-with-matte-glaze/0"
-    }
-   ]
-  },
-  {
-   "id": "product-grid-module-with-subtle-animations",
-   "sourceHandle": "product-grid-module-with-subtle-animations",
-   "title": "Product Grid Module with Subtle Animations",
-   "category": "Artwork",
-   "categorySlug": "artwork",
-   "room": "living",
-   "collections": [
-    "reflective-decor"
-   ],
-   "description": "The product grid module balances clarity and restraint, drawing the eye gently from piece to piece. Minimalist arrangement, softened by understated hover transitions, ensures products command attention without distraction. Clean grid arrangement highlights individual products through generous negative space Discreet interactive cues reveal details only when invited Architectural proportions lend a sense of order and quiet luxury",
-   "intro": "The product grid module balances clarity and restraint, drawing the eye gently from piece to piece. Minimalist arrangement, softened by understated hover transitions, ensures products command attention without distraction.",
-   "highlights": [
-    "Clean grid arrangement highlights individual products through generous negative space",
-    "Discreet interactive cues reveal details only when invited",
-    "Architectural proportions lend a sense of order and quiet luxury"
-   ],
-   "tags": [
-    "reflective decor",
-    "artwork"
-   ],
-   "priceMin": 120.0,
-   "priceMax": 120.0,
-   "onSale": false,
-   "options": [
-    {
-     "name": "Frame",
-     "values": [
-      "Oak",
-      "Metal"
-     ]
-    }
-   ],
-   "variants": [
-    {
-     "id": "30490",
-     "title": "Oak",
-     "options": {
-      "Frame": "Oak"
-     },
-     "price": 120.0,
-     "compareAtPrice": null,
-     "image": "https://cdn.shopify.com/s/files/1/0926/4031/3366/files/881532b7ce1efc78f73de4cb60c82ddb.png?v=14772673"
-    },
-    {
-     "id": "30491",
-     "title": "Metal",
-     "options": {
-      "Frame": "Metal"
-     },
-     "price": 120.0,
-     "compareAtPrice": null,
-     "image": "https://cdn.shopify.com/s/files/1/0926/4031/3366/files/881532b7ce1efc78f73de4cb60c82ddb.png?v=14772673"
-    }
-   ],
-   "images": [
-    {
-     "src": "https://cdn.shopify.com/s/files/1/0926/4031/3366/files/881532b7ce1efc78f73de4cb60c82ddb.png?v=14772673",
-     "alt": "Whispered Heritage product grid module digital asset, Three-quarter angle hero shots with generous negative space around...",
-     "width": null,
-     "height": null,
-     "file": "product-grid-module-with-subtle-animations/0"
     }
    ]
   },
@@ -4749,71 +4619,6 @@
      "width": null,
      "height": null,
      "file": "cloud-ivory-hand-tufted-rug/0"
-    }
-   ]
-  },
-  {
-   "id": "borosilicate-glass-water-bottle-with-sleeve",
-   "sourceHandle": "borosilicate-glass-water-bottle-with-sleeve",
-   "title": "Borosilicate glass water bottle with sleeve",
-   "category": "Bath Mats & Rugs",
-   "categorySlug": "bath-mats-rugs",
-   "room": "bath",
-   "collections": [
-    "sanctuary-bath"
-   ],
-   "description": "This borosilicate glass bottle keeps water crisp and clear, wrapped in a tactile silicone sleeve for confident grip. The leakproof lid twists on smoothly, making it fit for work, gym, or travel. No metallic aftertaste—just pure hydration every sip Wide mouth for easy cleaning and fruit infusions Dishwasher-safe components keep maintenance simple",
-   "intro": "This borosilicate glass bottle keeps water crisp and clear, wrapped in a tactile silicone sleeve for confident grip. The leakproof lid twists on smoothly, making it fit for work, gym, or travel.",
-   "highlights": [
-    "No metallic aftertaste—just pure hydration every sip",
-    "Wide mouth for easy cleaning and fruit infusions",
-    "Dishwasher-safe components keep maintenance simple"
-   ],
-   "tags": [
-    "sanctuary bath",
-    "bath mats & rugs"
-   ],
-   "priceMin": 28.0,
-   "priceMax": 28.0,
-   "onSale": false,
-   "options": [
-    {
-     "name": "Weight",
-     "values": [
-      "Light",
-      "Plush"
-     ]
-    }
-   ],
-   "variants": [
-    {
-     "id": "31354",
-     "title": "Light",
-     "options": {
-      "Weight": "Light"
-     },
-     "price": 28.0,
-     "compareAtPrice": null,
-     "image": "https://cdn.shopify.com/s/files/1/0926/4031/3366/files/f6fc5e094d91b1cf2d43cb9e39bf437b.png?v=15079749"
-    },
-    {
-     "id": "31355",
-     "title": "Plush",
-     "options": {
-      "Weight": "Plush"
-     },
-     "price": 28.0,
-     "compareAtPrice": null,
-     "image": "https://cdn.shopify.com/s/files/1/0926/4031/3366/files/f6fc5e094d91b1cf2d43cb9e39bf437b.png?v=15079749"
-    }
-   ],
-   "images": [
-    {
-     "src": "https://cdn.shopify.com/s/files/1/0926/4031/3366/files/f6fc5e094d91b1cf2d43cb9e39bf437b.png?v=15079749",
-     "alt": "Eco-friendly non-slip mat, Default to three-quarter angle product portraits that capture the reformer’s material details...",
-     "width": null,
-     "height": null,
-     "file": "borosilicate-glass-water-bottle-with-sleeve/0"
     }
    ]
   },
@@ -9561,8 +9366,8 @@
    "id": "natural-linen-duvet-set",
    "sourceHandle": "natural-linen-duvet-set",
    "title": "Natural Linen Duvet Set",
-   "category": "Beds & Bed Frames",
-   "categorySlug": "beds-bed-frames",
+   "category": "Bed Sheets",
+   "categorySlug": "bed-sheets",
    "room": "bedroom",
    "collections": [
     "serene-slumber-suite"
@@ -14662,9 +14467,9 @@
    "id": "wool-throw-blanket-in-muted-ochre-plaid",
    "sourceHandle": "wool-throw-blanket-in-muted-ochre-plaid",
    "title": "Wool throw blanket in muted ochre plaid",
-   "category": "Clocks",
-   "categorySlug": "clocks",
-   "room": "living",
+   "category": "Quilts & Comforters",
+   "categorySlug": "quilts-comforters",
+   "room": "bedroom",
    "collections": [
     "timeless-details"
    ],
@@ -19152,8 +18957,8 @@
    "id": "muted-taupe-bedsheet",
    "sourceHandle": "muted-taupe-bedsheet",
    "title": "Muted Taupe Bedsheet",
-   "category": "Curtains & Drapes",
-   "categorySlug": "curtains-drapes",
+   "category": "Bed Sheets",
+   "categorySlug": "bed-sheets",
    "room": "bedroom",
    "collections": [
     "textured-comfort"
@@ -19213,8 +19018,8 @@
    "id": "linen-throw-blanket",
    "sourceHandle": "linen-throw-blanket",
    "title": "Linen Throw Blanket",
-   "category": "Curtains & Drapes",
-   "categorySlug": "curtains-drapes",
+   "category": "Quilts & Comforters",
+   "categorySlug": "quilts-comforters",
    "room": "bedroom",
    "collections": [
     "textured-comfort"
@@ -19725,8 +19530,8 @@
    "id": "linen-throw-blanket-in-sandstone",
    "sourceHandle": "linen-throw-blanket-in-sandstone",
    "title": "Linen Throw Blanket in Sandstone",
-   "category": "Curtains & Drapes",
-   "categorySlug": "curtains-drapes",
+   "category": "Quilts & Comforters",
+   "categorySlug": "quilts-comforters",
    "room": "bedroom",
    "collections": [
     "textured-comfort"
@@ -22350,8 +22155,8 @@
    "id": "polished-stainless-steel-cutlery-set",
    "sourceHandle": "set-de-cubiertos-acero-inoxidable-pulido",
    "title": "Polished stainless steel cutlery set",
-   "category": "Dining Chairs",
-   "categorySlug": "dining-chairs",
+   "category": "Serveware",
+   "categorySlug": "serveware",
    "room": "dining",
    "collections": [
     "gathering-table-collection"
@@ -27731,8 +27536,8 @@
    "id": "sand-linen-sofa-with-deep-seat",
    "sourceHandle": "sand-linen-sofa-with-deep-seat",
    "title": "Sand Linen Sofa with Deep Seat",
-   "category": "Entertainment Centers & TV Stands",
-   "categorySlug": "entertainment-centers-tv-stands",
+   "category": "Sofas",
+   "categorySlug": "sofas",
    "room": "living",
    "collections": [
     "relaxed-lounging"
@@ -39058,8 +38863,8 @@
    "id": "twin-plush-mattress-with-multi-layer-design",
    "sourceHandle": "twin-plush-mattress-with-multi-layer-design",
    "title": "Twin plush mattress with multi-layer design",
-   "category": "Quilts & Comforters",
-   "categorySlug": "quilts-comforters",
+   "category": "Beds & Bed Frames",
+   "categorySlug": "beds-bed-frames",
    "room": "bedroom",
    "collections": [
     "serene-slumber-suite"
@@ -40490,71 +40295,6 @@
    ]
   },
   {
-   "id": "linen-altar-cloth-handwoven-in-natural-dyes",
-   "sourceHandle": "linen-altar-cloth-handwoven-in-natural-dyes",
-   "title": "Linen Altar Cloth Handwoven in Natural Dyes",
-   "category": "Rugs",
-   "categorySlug": "rugs",
-   "room": "living",
-   "collections": [
-    "textured-comfort"
-   ],
-   "description": "Drape serenity across your altar with this handwoven linen cloth, dyed in muted earth tones. The tactile weave quiets visual noise, supporting focused intention. Supple linen falls elegantly over any surface without added bulk Sustainably colored using plant-based dyes for authentic subtlety Edges finished by hand—each thread a meditative gesture",
-   "intro": "Drape serenity across your altar with this handwoven linen cloth, dyed in muted earth tones. The tactile weave quiets visual noise, supporting focused intention.",
-   "highlights": [
-    "Supple linen falls elegantly over any surface without added bulk",
-    "Sustainably colored using plant-based dyes for authentic subtlety",
-    "Edges finished by hand—each thread a meditative gesture"
-   ],
-   "tags": [
-    "textured comfort",
-    "rugs"
-   ],
-   "priceMin": 72.0,
-   "priceMax": 72.0,
-   "onSale": false,
-   "options": [
-    {
-     "name": "Fabric",
-     "values": [
-      "Linen",
-      "Wool"
-     ]
-    }
-   ],
-   "variants": [
-    {
-     "id": "27393",
-     "title": "Linen",
-     "options": {
-      "Fabric": "Linen"
-     },
-     "price": 72.0,
-     "compareAtPrice": null,
-     "image": "https://cdn.shopify.com/s/files/1/0926/5994/1398/files/7f7b2a8f7c1c47a06079ff9e17f29200.png?v=14739089"
-    },
-    {
-     "id": "27394",
-     "title": "Wool",
-     "options": {
-      "Fabric": "Wool"
-     },
-     "price": 72.0,
-     "compareAtPrice": null,
-     "image": "https://cdn.shopify.com/s/files/1/0926/5994/1398/files/7f7b2a8f7c1c47a06079ff9e17f29200.png?v=14739089"
-    }
-   ],
-   "images": [
-    {
-     "src": "https://cdn.shopify.com/s/files/1/0926/5994/1398/files/7f7b2a8f7c1c47a06079ff9e17f29200.png?v=14739089",
-     "alt": "Handwoven linen altar cloth, Single-object hero shots at a slight 3/4 angle (not straight-on), capturing form and...",
-     "width": 768,
-     "height": 1344,
-     "file": "linen-altar-cloth-handwoven-in-natural-dyes/0"
-    }
-   ]
-  },
-  {
    "id": "oatmeal-wool-runner",
    "sourceHandle": "oatmeal-wool-runner",
    "title": "Oatmeal Wool Runner",
@@ -40807,67 +40547,6 @@
      "width": 768,
      "height": 1344,
      "file": "luxury-bath-rug/0"
-    }
-   ]
-  },
-  {
-   "id": "handwoven-linen-textile",
-   "sourceHandle": "handwoven-linen-textile",
-   "title": "Handwoven Linen Textile",
-   "category": "Rugs",
-   "categorySlug": "rugs",
-   "room": "living",
-   "collections": [
-    "textured-comfort"
-   ],
-   "description": "A handwoven linen textile with a soft, even texture. This piece is designed to highlight tactile details and natural fibers.",
-   "intro": "A handwoven linen textile with a soft, even texture. This piece is designed to highlight tactile details and natural fibers.",
-   "highlights": [],
-   "tags": [
-    "textured comfort",
-    "rugs"
-   ],
-   "priceMin": 120.0,
-   "priceMax": 120.0,
-   "onSale": false,
-   "options": [
-    {
-     "name": "Color",
-     "values": [
-      "Sand",
-      "Sage"
-     ]
-    }
-   ],
-   "variants": [
-    {
-     "id": "27391",
-     "title": "Sand",
-     "options": {
-      "Color": "Sand"
-     },
-     "price": 120.0,
-     "compareAtPrice": null,
-     "image": "https://cdn.shopify.com/s/files/1/0926/4031/3366/files/bcbdb2798c2b9666aaf566e8d50bc2d8.png?v=13665349"
-    },
-    {
-     "id": "27392",
-     "title": "Sage",
-     "options": {
-      "Color": "Sage"
-     },
-     "price": 120.0,
-     "compareAtPrice": null,
-     "image": "https://cdn.shopify.com/s/files/1/0926/4031/3366/files/bcbdb2798c2b9666aaf566e8d50bc2d8.png?v=13665349"
-    }
-   ],
-   "images": [
-    {
-     "src": "https://cdn.shopify.com/s/files/1/0926/4031/3366/files/bcbdb2798c2b9666aaf566e8d50bc2d8.png?v=13665349",
-     "alt": "Handwoven linen textile, Three-quarter angle on products set atop matte wooden surfaces or neutral stone slabs; background...",
-     "width": 768,
-     "height": 1344,
-     "file": "handwoven-linen-textile/0"
     }
    ]
   },
@@ -43715,9 +43394,9 @@
    "id": "linen-cotton-blend-napkins-set-of-four-undyed",
    "sourceHandle": "linen-cotton-blend-napkins-set-of-four-undyed",
    "title": "Linen-cotton blend napkins — set of four, undyed",
-   "category": "Shelving",
-   "categorySlug": "shelving",
-   "room": "home-office",
+   "category": "Serveware",
+   "categorySlug": "serveware",
+   "room": "dining",
    "collections": [
     "organized-calm"
    ],
@@ -44094,71 +43773,6 @@
      "width": null,
      "height": null,
      "file": "light-oak-open-modular-shelf/0"
-    }
-   ]
-  },
-  {
-   "id": "sanded-taupe-product-grid-module",
-   "sourceHandle": "sanded-taupe-product-grid-module",
-   "title": "Sanded Taupe product grid module",
-   "category": "Shelving",
-   "categorySlug": "shelving",
-   "room": "home-office",
-   "collections": [
-    "organized-calm"
-   ],
-   "description": "The sanded taupe grid module offers a serene foundation for your collection, presenting every product as a curated piece within an artfully arranged gallery. Velvety taupe tones and crisp lines create a calm, premium showcase for diverse assortments Adaptive design ensures seamless transitions from mobile to desktop, keeping your catalog inviting everywhere Subtle hover animations add dimension without distraction, guiding customers to discover more",
-   "intro": "The sanded taupe grid module offers a serene foundation for your collection, presenting every product as a curated piece within an artfully arranged gallery.",
-   "highlights": [
-    "Velvety taupe tones and crisp lines create a calm, premium showcase for diverse assortments",
-    "Adaptive design ensures seamless transitions from mobile to desktop, keeping your catalog inviting everywhere",
-    "Subtle hover animations add dimension without distraction, guiding customers to discover more"
-   ],
-   "tags": [
-    "organized calm",
-    "shelving"
-   ],
-   "priceMin": 98.0,
-   "priceMax": 98.0,
-   "onSale": true,
-   "options": [
-    {
-     "name": "Material",
-     "values": [
-      "Wicker",
-      "Canvas"
-     ]
-    }
-   ],
-   "variants": [
-    {
-     "id": "30466",
-     "title": "Wicker",
-     "options": {
-      "Material": "Wicker"
-     },
-     "price": 98.0,
-     "compareAtPrice": 127.4,
-     "image": "https://cdn.shopify.com/s/files/1/0926/4031/3366/files/598d4e49f3534793ba81442b17f61946.png?v=14969179"
-    },
-    {
-     "id": "30467",
-     "title": "Canvas",
-     "options": {
-      "Material": "Canvas"
-     },
-     "price": 98.0,
-     "compareAtPrice": 127.4,
-     "image": "https://cdn.shopify.com/s/files/1/0926/4031/3366/files/598d4e49f3534793ba81442b17f61946.png?v=14969179"
-    }
-   ],
-   "images": [
-    {
-     "src": "https://cdn.shopify.com/s/files/1/0926/4031/3366/files/598d4e49f3534793ba81442b17f61946.png?v=14969179",
-     "alt": "Sanded Taupe product grid module, Three-quarter angle product shots on seamless backgrounds in Ivory Linen or Sanded Taupe...",
-     "width": null,
-     "height": null,
-     "file": "sanded-taupe-product-grid-module/0"
     }
    ]
   },
@@ -47195,9 +46809,9 @@
    "id": "glass-carafe-with-walnut-lid",
    "sourceHandle": "glass-carafe-with-walnut-lid",
    "title": "Glass Carafe With Walnut Lid",
-   "category": "Table Lamps",
-   "categorySlug": "table-lamps",
-   "room": "bedroom",
+   "category": "Barware",
+   "categorySlug": "barware",
+   "room": "dining",
    "collections": [
     "luminous-living-spaces"
    ],
@@ -50595,9 +50209,9 @@
    "id": "linen-throw-with-fringe-edges",
    "sourceHandle": "linen-throw-with-fringe-edges",
    "title": "Linen throw with fringe edges",
-   "category": "Vases",
-   "categorySlug": "vases",
-   "room": "decor",
+   "category": "Quilts & Comforters",
+   "categorySlug": "quilts-comforters",
+   "room": "bedroom",
    "collections": [
     "botanical-accents"
    ],

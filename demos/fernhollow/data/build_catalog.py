@@ -67,6 +67,34 @@ RENAME = {
     ),
 }
 
+# The source files some products in the wrong category. Where the right one is plain
+# (a throw blanket under Clocks, a carafe under Table Lamps) the product is re-filed;
+# what is not furniture or homeware at all (a digital download, UI "grid modules")
+# is dropped. No product fact changes either way.
+REFILE = {
+    "linen-throw-blanket": "Quilts & Comforters",
+    "linen-throw-blanket-in-sandstone": "Quilts & Comforters",
+    "linen-throw-with-fringe-edges": "Quilts & Comforters",
+    "wool-throw-blanket-in-muted-ochre-plaid": "Quilts & Comforters",
+    "muted-taupe-bedsheet": "Bed Sheets",
+    "natural-linen-duvet-set": "Bed Sheets",
+    "sand-linen-sofa-with-deep-seat": "Sofas",
+    "polished-stainless-steel-cutlery-set": "Serveware",
+    "linen-cotton-blend-napkins-set-of-four-undyed": "Serveware",
+    "glass-carafe-with-walnut-lid": "Barware",
+    "twin-plush-mattress-with-multi-layer-design": "Beds & Bed Frames",
+}
+NOT_HOMEWARE = frozenset(
+    {
+        "digital-downloadmuted-riverbank-reflections",
+        "product-grid-module-with-subtle-animations",
+        "sanded-taupe-product-grid-module",
+        "borosilicate-glass-water-bottle-with-sleeve",
+        "linen-altar-cloth-handwoven-in-natural-dyes",
+        "handwoven-linen-textile",
+    }
+)
+
 Json = dict[str, Any]
 
 
@@ -154,6 +182,12 @@ def main(src: Path) -> None:
             p["id"] = f"{base}-{seen[base]}"
             for i in p["images"]:
                 i["file"] = f"{p['id']}/{i['file'].rsplit('/', 1)[1]}"
+    products = [p for p in products if p["id"] not in NOT_HOMEWARE]
+    for p in products:
+        if p["id"] in REFILE:
+            p["category"] = REFILE[p["id"]]
+            p["categorySlug"] = slug(p["category"])
+            p["room"] = ROOM_OF[p["category"]]
     categories = sorted({(p["category"], p["categorySlug"], p["room"]) for p in products})
     OUT.write_text(
         json.dumps(
