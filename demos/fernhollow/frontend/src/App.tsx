@@ -12,7 +12,8 @@ import { CategoryPage, RoomPage, SalePage, SearchPage, ShopPage } from "./pages/
 import { BoardPage, ComparePage, PicksPage } from "./pages/EmilyViews";
 import { ProductPage } from "./pages/ProductPage";
 import { ReturnsConfirmation, ReturnsForm, ReturnsHome } from "./pages/Returns";
-import { bindRouter, dispatch, navigatedBy } from "./voice/controller";
+import { bindRouter, dispatch, emily, navigatedBy } from "./voice/controller";
+import { useScreenReport } from "./voice/screen";
 import { debugMode, emit } from "./voice/events";
 import { VoiceDock } from "./voice/VoiceDock";
 
@@ -32,6 +33,9 @@ function Shell() {
   // Every move — a click, or Emily's navigate — is a history push through the router.
   useEffect(() => bindRouter((to) => navigate(to), () => path.current), [navigate]);
   useStageHost(location.pathname);
+  useScreenReport(location.key);
+  // Numbered choices belong to the screen they were shown on.
+  useEffect(() => emily.clear_choices(), [location.key]);
   useEffect(() => {
     // Dev-only handle (?debug=1): fire a brain command from a test.
     if (debugMode()) (window as unknown as { __fhDispatch?: typeof dispatch }).__fhDispatch = dispatch;

@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import { emit } from "../voice/events";
 
 const STORE = "Fernhollow";
 
@@ -10,12 +9,5 @@ export function useTitle(title: string | null) {
   }, [title]);
 }
 
-/** Reports the products a listing is showing, once it settles. */
-export function useVisibleProducts(ids: string[]) {
-  const key = ids.slice(0, 24).join(",");
-  useEffect(() => {
-    if (!key) return;
-    const t = window.setTimeout(() => emit("visible_products", { product_ids: key.split(",") }), 600);
-    return () => window.clearTimeout(t);
-  }, [key]);
-}
+/** Superseded by `useScreenReport` in the shell, which reports the layout too. */
+export function useVisibleProducts(_ids: string[]) {}

@@ -26,7 +26,7 @@ import {
   labelOf,
   normalOrderNumber,
 } from "../returns/orders";
-import { type StoredReturn, currentOrder, filledNames, saveReturn, storedReturns, useReturns } from "../returns/store";
+import { type StoredReturn, currentOrder, filledNames, missingInStep, saveReturn, storedReturns, useReturns } from "../returns/store";
 import { useVoiceClient } from "../stage/client";
 import { useAppStage, useMove, useSlice } from "../stage/host";
 import { returnsPerformers } from "../stage/performers";
@@ -208,6 +208,7 @@ export function ReturnsForm() {
   useMove(stage, "returns.open_step", performers["returns.open_step"]);
   useMove(stage, "returns.fill", performers["returns.fill"]);
   useMove(stage, "returns.select_item", performers["returns.select_item"]);
+  useMove(stage, "returns.submit", performers["returns.submit"]);
 
   const filled = filledNames(form);
   const slice = useMemo(() => ({ step: form.step, changed: form.changed, filled }), [form.step, form.changed, filled.join(",")]);
@@ -252,31 +253,7 @@ export function ReturnsForm() {
   const chosen = order?.lines.filter((l) => form.items[l.product_id]) ?? [];
 
   /** What each step needs before Continue. */
-  const missing = (step: number): string => {
-    switch (step) {
-      case 1:
-        if (!order) return "Enter an order number from your confirmation email.";
-        if (!form.email.trim()) return "Enter the email you used for the order.";
-        if (form.email.trim().toLowerCase() !== order.email.toLowerCase()) return "That email does not match this order.";
-        if (elig?.kind === "not_delivered") return "This order has not been delivered yet. You can start a return once it arrives.";
-        if (elig?.kind === "outside_window") return `This order was delivered ${elig.days} days ago, outside the ${RETURN_WINDOW_DAYS}-day window.`;
-        return "";
-      case 2:
-        return chosen.length ? "" : "Choose at least one item to return.";
-      case 3:
-        return !form.reason ? "Choose a reason." : !form.condition ? "Tell us the condition of the items." : "";
-      case 4:
-        if (!form.resolution) return "Choose how you would like this resolved.";
-        if (form.resolution === "exchange" && chosen.some((l) => !form.exchange[l.product_id] && exchangeOptions(l).length)) {
-          return "Pick the option you would like instead for each item.";
-        }
-        return "";
-      case 5:
-        return !form.collection ? "Choose collection or drop-off." : form.collection === "pickup" && !form.pickup_window ? "Choose a collection window." : "";
-      default:
-        return "";
-    }
-  };
+  const missing = (step: number): string => missingInStep(form, step);
 
   const go = (step: number) => {
     setStepError("");
@@ -320,7 +297,10 @@ export function ReturnsForm() {
       collection: form.collection,
       pickup_window: form.pickup_window,
     });
-    stage?.page.send(scene.event("returns.return_submitted", { reference: stored.reference, filled }, { by: "visitor" }));
+    const agent = stage?.agent && Date.now() <= stage.agent.until ? stage.agent : null;
+    stage?.page.send(
+      scene.event("returns.return_submitted", { reference: stored.reference, filled }, agent ? { by: "agent", callRef: agent.callRef } : { by: "visitor" }),
+    );
     useReturns.getState().reset();
     navigate(`/returns/confirmation?ref=${stored.reference}`, { state: stored });
   };
@@ -580,7 +560,7 @@ export function ReturnsForm() {
             <button type="submit" className="btn btn-primary co-next" data-dock-avoid>
               Submit return
             </button>
-            <p className="small">You press Submit yourself; Emily never sends a return for you.</p>
+            <p className="small">Emily only submits after you say yes.</p>
           </>)}
         </form>
 

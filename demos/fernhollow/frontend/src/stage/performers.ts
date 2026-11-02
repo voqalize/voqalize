@@ -8,7 +8,7 @@
 import type { MoveContext, Performers } from "@voqalize/stage";
 import { getProduct } from "../data/catalog";
 import { CHOICE_FIELDS, CHOICES, type ChoiceField, eligibility, exchangeOptions, findOrder, labelOf, normalOrderNumber, STEPS } from "../returns/orders";
-import { currentOrder, useReturns } from "../returns/store";
+import { currentOrder, firstMissing, storedReturns, useReturns } from "../returns/store";
 import type { scene } from "./scene.gen";
 
 type Spec = typeof scene.spec;
@@ -17,7 +17,7 @@ type Spec = typeof scene.spec;
 function fillableFields(): string[] {
   const order = currentOrder(useReturns.getState());
   const exchange = order?.lines.map((l) => `exchange_variant_${l.product_id}`) ?? [];
-  return ["order_number", ...CHOICE_FIELDS, ...exchange];
+  return ["order_number", "email", ...CHOICE_FIELDS, ...exchange];
 }
 
 const stepEl = (n: number) => document.querySelector(`[data-stage-thing="step-${n}"]`);
@@ -75,8 +75,17 @@ export function returnsPerformers(): Performers<Spec> {
     "returns.fill": async ({ field, value }, c) => {
       const f = field.trim();
       const v = value.trim();
-      if (f === "email") c.refuse("field", "the shopper types their email themselves", fillableFields());
       if (!stepEl(1)) c.refuse("field", "the returns form is not on screen");
+
+      if (f === "email") {
+        if (!/^\S+@\S+\.\S+$/.test(v)) c.refuse("value", `"${v}" is not an email address`);
+        await openStep(1, c);
+        const input = (await appear(() => document.querySelector('input[name="email"]'))) ?? c.refuse("field", "the email field is not on screen");
+        await c.scrollTo(input);
+        await c.ring(input, "Email");
+        useReturns.getState().setEmail(v, "emily");
+        return "email set";
+      }
 
       if (f === "order_number") {
         const number = normalOrderNumber(v);
@@ -125,6 +134,21 @@ export function returnsPerformers(): Performers<Spec> {
       await c.ring(el, labelOf(choice, v));
       useReturns.getState().setChoice(choice, v, "emily");
       return `${choice.replace("_", " ")} set to ${spoken(labelOf(choice, v))}`;
+    },
+
+    "returns.submit": async (_args, c) => {
+      if (!stepEl(1)) c.refuse("form", "the returns form is not on screen");
+      const gap = firstMissing(useReturns.getState());
+      if (gap) c.refuse("form", `step ${gap.step}, ${STEPS[gap.step - 1].title.toLowerCase()}: ${gap.why}`);
+      await openStep(6, c);
+      const button = (await appear(() => document.querySelector('.rform button[type="submit"]'))) ?? c.refuse("form", "the review step is not on screen");
+      await c.scrollTo(button);
+      await c.ring(button, "Submit return");
+      const before = storedReturns().length;
+      (button as HTMLButtonElement).click();
+      const made = await appear(() => (storedReturns().length > before ? document.body : null), 1500);
+      const ref = storedReturns().at(-1)?.reference;
+      return made && ref ? `return submitted, reference ${ref}` : "submit pressed";
     },
 
     "returns.select_item": async ({ product_id, qty }, c) => {
