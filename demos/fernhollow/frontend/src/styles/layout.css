@@ -4393,12 +4393,15 @@ body.is-circling * {
 .selection-chip button:hover {
   background: rgba(255, 255, 255, 0.22);
 }
+/* The tip never takes a click and sits above the dock, never over it: it once
+   covered the "Talk to Emily" pill and swallowed the click that starts a call. */
 .circle-hint {
   position: fixed;
   left: 50%;
-  bottom: calc(24px + env(safe-area-inset-bottom));
+  bottom: calc(104px + env(safe-area-inset-bottom));
   transform: translateX(-50%);
   z-index: 56;
+  pointer-events: none;
   display: inline-flex;
   align-items: center;
   gap: 8px;

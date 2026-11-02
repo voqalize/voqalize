@@ -143,6 +143,23 @@ check(!(await page.$(".selection-chip")) && !(await page.$(".circle-ink")), "Esc
 await page.evaluate(() => window.__fhCircle());
 await page.waitForTimeout(900);
 check((await count()) === 3, "the fake circle selects three on-sale products");
+// The one-time circle tip must never cover the dock: it once sat over "Talk to
+// Emily" and swallowed the click that starts a call.
+if (!(await page.$('[data-fake="connect"]'))) await page.click('button[aria-label="Open action console"]');
+await page.click('[data-fake="connect"]');
+await page.waitForSelector(".circle-hint", { timeout: 5000 }).catch(() => null);
+const dockClick = await page.evaluate(() => {
+  const tip = document.querySelector(".circle-hint");
+  const btns = [...document.querySelectorAll("[class*=dock] button, [class*=call-tile] button")].filter((e) => e.getBoundingClientRect().width > 0);
+  const covered = btns.filter((e) => {
+    const r = e.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return !!hit?.closest(".circle-hint"); // blocked by the tip itself
+  });
+  return { tip: !!tip, pe: tip ? getComputedStyle(tip).pointerEvents : "", buttons: btns.length, covered: covered.length };
+});
+check(dockClick.tip && dockClick.pe === "none" && dockClick.buttons > 0 && dockClick.covered === 0, `the circle tip never blocks the dock (${JSON.stringify(dockClick)})`);
+await page.click('[data-fake="end"]').catch(() => null);
 const ordinary = await page.evaluate(() => document.getSelection()?.toString() ?? "");
 check(ordinary === "", "no text got selected by the gestures");
 
