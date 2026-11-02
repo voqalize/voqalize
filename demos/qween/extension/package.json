@@ -1,6 +1,6 @@
 {
   "name": "@voqalize/demo-qween-extension",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Puts Trisha, the qween demo brain's jewellery consultant, on www.qween.com: a Chrome extension that injects the call widget and the site adapter into Qween's own page.",
