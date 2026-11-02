@@ -18,7 +18,7 @@ So we started a small design studio in a converted workshop in the countryside, 
 
 **Honest pieces.** We describe what a piece is and what it is made of, and we leave it there. No inflated promises, no invented stories. If a desk is oak with metal legs, that is what we will tell you.
 
-**Rooms, not just products.** Most of us do not buy a sofa in isolation; we are trying to make a room work. That is why our collection is organised by room, why our journal is full of practical advice, and why Mira, our design adviser, can help you put a whole room together.
+**Rooms, not just products.** Most of us do not buy a sofa in isolation; we are trying to make a room work. That is why our collection is organised by room, why our journal is full of practical advice, and why Emily, our design adviser, can help you put a whole room together.
 
 ## How we work
 
@@ -26,9 +26,9 @@ Every piece in the collection is chosen or developed by our studio. We look at h
 
 We keep our palette deliberately narrow, warm woods, soft neutrals and a few earthy accents, so that what you buy from us this year will sit happily beside what you buy next year.
 
-## Meet Mira
+## Meet Emily
 
-Mira is Fernhollow's design adviser. Ask her, by voice, what you are trying to do with a room, and she will show you pieces that suit it, compare options side by side, explain materials and finishes, and help you stay within budget. She will tell you only what we know about a piece, and she will always point you to our policies when it matters.
+Emily is Fernhollow's design adviser. Ask her, by voice, what you are trying to do with a room, and she will show you pieces that suit it, compare options side by side, explain materials and finishes, and help you stay within budget. She will tell you only what we know about a piece, and she will always point you to our policies when it matters.
 
 ## Our promise
 

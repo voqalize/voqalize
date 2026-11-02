@@ -1,10 +1,10 @@
 {
   "hero": {
-    "headline": "Calm rooms, made from natural things",
-    "subline": "Oak, walnut and linen pieces chosen to sit together quietly, with Mira, our design adviser, ready to help you put a room together by voice.",
+    "headline": "Furniture for calm, lived-in homes",
+    "subline": "Sofas, beds, desks, dining tables and everything that finishes a room, made in oak, walnut, linen and wool.",
     "cta": {
-      "label": "Start with a room",
-      "href": "/room/home-office"
+      "label": "Shop furniture",
+      "href": "/shop"
     }
   },
   "rooms": {
