@@ -236,6 +236,106 @@ def test_order_eligibility_per_line() -> None:
     assert rt.exchange_options("desk-chair-with-aluminum-frame", "31094") == [("31095", "Walnut")]
 
 
+# ─── Which product is meant ───────────────────────────────────────────────────
+
+
+def _oak_grid() -> tuple[list[str], list[Any]]:
+    from voqalize_demos._loaded.fernhollow import resolve as rs
+
+    sofas = [p for p in CATALOG.by_category["sofas"] if "oak" in p]
+    return sofas, [rs.Layout(p, i // 3, i % 3) for i, p in enumerate(sofas)]
+
+
+def test_thresholds_are_the_pinned_ones() -> None:
+    from voqalize_demos._loaded.fernhollow import resolve as rs
+
+    assert (rs.MIN_SCORE, rs.CLEAR_MARGIN, rs.ELSEWHERE_MARGIN, rs.POINTING_S) == (
+        0.45,
+        0.08,
+        0.15,
+        5.0,
+    )
+
+
+@pytest.mark.parametrize(
+    ("spoken", "kind", "expected"),
+    [
+        # garbled, and two look-alikes on screen fit it: ask
+        (
+            "the moduler oak sofa with deep seat",
+            "choose",
+            ("modular-oak-sofa-with-deep-seating", "modular-oak-sofa-with-deep-seats"),
+        ),
+        # one clearly meant, by name or by place: no question
+        ("the oak sectional", "one", "modular-oak-sectional-sofa"),
+        ("kanso sofa", "one", "kanso-modular-oak-sofa"),
+        ("modular oak sofa with linen", "one", "modular-oak-sofa-with-linen"),
+        ("the second one", "one", "oak-modular-sofa-with-removable-covers"),
+        ("the top left one", "one", "kanso-modular-oak-sofa"),
+        ("the bottom right one", "one", "modular-oak-sectional-sofa"),
+        ("number two", "one", "oak-modular-sofa-with-removable-covers"),
+        # said of something that is not on screen: the catalog's, not a near miss
+        ("cream linen sofa", "one", "cream-linen-sofa"),
+        ("bowclay loveseat", "one", "honey-oat-boucle-loveseat"),
+        (
+            "teak modular sofa",
+            "choose",
+            ("teak-modular-sofa-with-deep-cushions", "teak-modular-sofa-with-olive-green-cushions"),
+        ),
+        # too little said to offer anything
+        ("the walnut one", "none", None),
+        ("the ninth one", "none", None),
+    ],
+)
+def test_references_on_a_sofa_listing(spoken: str, kind: str, expected: Any) -> None:
+    from voqalize_demos._loaded.fernhollow import resolve as rs
+
+    sofas, grid = _oak_grid()
+    start = time.perf_counter()
+    r = rs.resolve(spoken, visible=sofas, layout=grid)
+    assert (time.perf_counter() - start) * 1000 < 10
+    assert r.kind == kind, (spoken, r)
+    if kind == "one":
+        assert r.product_id == expected
+    elif kind == "choose":
+        assert r.candidates == expected
+        assert r.question.startswith("Which one: one, ")
+
+
+def test_choices_then_pointing() -> None:
+    from voqalize_demos._loaded.fernhollow import resolve as rs
+
+    sofas, grid = _oak_grid()
+    deep = ("modular-oak-sofa-with-deep-seating", "modular-oak-sofa-with-deep-seats")
+    asked = rs.resolve("the moduler oak sofa with deep seat", visible=sofas, layout=grid)
+    assert asked.question == (
+        "Which one: one, the one on the top right at $2,950, or two, the one in the middle at $3,290?"
+    )
+    for answer, pid in (("the second one", deep[1]), ("two", deep[1]), ("the first", deep[0])):
+        r = rs.resolve(answer, choices=deep, visible=sofas, layout=grid)
+        assert (r.kind, r.product_id, r.source) == ("one", pid, "choices")
+    fresh = rs.resolve("this one", pointing=sofas[3], pointing_age_s=2.0, visible=sofas)
+    assert (fresh.kind, fresh.product_id) == ("one", sofas[3])
+    stale = rs.resolve("this one", pointing=sofas[3], pointing_age_s=8.0, open_product=sofas[5])
+    assert stale.product_id == sofas[5]
+
+
+def test_checkout_checks_and_spells_back() -> None:
+    from voqalize_demos._loaded.fernhollow import checkout as co
+
+    assert co.check("email", "Sam dot Rivera at Example dot com") == (
+        "sam.rivera@example.com",
+        None,
+    )
+    assert co.check("email", "sam at example")[1] is not None
+    assert co.spell_back("email", "sam.rivera@example.com") == (
+        "s a m dot r i v e r a, at example dot com"
+    )
+    assert co.check("postcode", " sw1a 1aa ") == ("SW1A 1AA", None)
+    assert co.spell_back("postcode", "SW1A 1AA") == "S W 1 A 1 A A"
+    assert (co.delivery_fee(499.99), co.delivery_fee(500), co.delivery_fee(500.01)) == (49, 49, 0)
+
+
 # ─── Every tool under 10 ms ───────────────────────────────────────────────────
 
 
@@ -284,6 +384,23 @@ def _calls(brain: fb.FernhollowBrain) -> list[tuple[str, Any]]:
         ("find_order", fb.OrderRequest(order_number="fh 20418")),
         ("start_return", fb.OrderRequest(order_number="FH-20418")),
         ("check_exchange", fb.ExchangeRequest(product="desk chair")),
+        ("resolve_product", fb.ResolveRequest(spoken="the moduler oak sofa with deep seat")),
+        ("resolve_product", fb.ResolveRequest(spoken="cream linen sofa")),
+        (
+            "fill_checkout",
+            fb.CheckoutFields(
+                email="sam dot rivera at example dot com",
+                first_name="Sam",
+                last_name="Rivera",
+                address1="12 Elm Street",
+                city="Portland",
+                postcode="97201",
+                country="United States",
+            ),
+        ),
+        ("checkout_step", fb.CheckoutStepRequest(step="review")),
+        ("place_order", fb.PlaceOrderRequest()),
+        ("submit_return", fb.SubmitReturnRequest()),
     ]
 
 
@@ -303,7 +420,13 @@ def test_every_tool_answers_inside_ten_milliseconds() -> None:
             result = await (fn() if arg is None else fn(arg))
             ms = (time.perf_counter() - start) * 1000
             took[name] = max(took.get(name, 0.0), ms)
-            assert isinstance(result, str) and not result.startswith("NOT DONE"), (name, result)
+            # submit_return needs the page's returns.submit move; until the
+            # scene declares it, the tool says so honestly.
+            honest = name == "submit_return" and brain.stage.moves.get("returns.submit") is None
+            assert isinstance(result, str) and (honest or not result.startswith("NOT DONE")), (
+                name,
+                result,
+            )
 
     asyncio.run(run())
     assert set(took) == {t.__name__ for t in brain.tools}

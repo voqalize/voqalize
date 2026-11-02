@@ -495,8 +495,10 @@ def test_marks_are_reads() -> None:
         "suggest_finish",
         "find_order",
         "check_exchange",
+        "resolve_product",
+        "fill_checkout",
     }
-    assert len(brain.tools) == 19
+    assert len(brain.tools) == 24
 
 
 def test_prompt_names_only_what_exists() -> None:
@@ -666,7 +668,7 @@ def _cues(rig: DemoRig) -> list[dict[str, Any]]:
 async def test_the_returns_form_fills_by_cue_and_the_shopper_submits() -> None:
     """FH-20418: the order is found eligible and the form opens with it; Emily's
     cues select the item and fill reason, condition, resolution and collection
-    as she says them — never the email, which is dropped. The shopper presses
+    as she says them, the email too (a demo, CONTRACT v2). The shopper presses
     Submit return themselves; that act reaches Emily, and in the next quiet spell
     she thanks them in one line."""
     llm = _form()
@@ -680,7 +682,7 @@ async def test_the_returns_form_fills_by_cue_and_the_shopper_submits() -> None:
         turn = await rig.driver.user_says("It just doesn't suit the room, and it's still boxed.")
         check_turn(rig, turn, units=1)
         spoken = turn.units[0].text
-        assert "{" not in spoken and "sam@example.com" not in spoken
+        assert "{" not in spoken
         turn = await rig.driver.user_says("A refund, and pick it up on a weekday morning.")
         check_turn(rig, turn, units=1)
 
@@ -689,6 +691,7 @@ async def test_the_returns_form_fills_by_cue_and_the_shopper_submits() -> None:
             ("returns.select_item", [DESK_LINE, "1"]),
             ("returns.fill", ["reason", "doesnt_suit_room"]),
             ("returns.fill", ["condition", "unused_in_packaging"]),
+            ("returns.fill", ["email", "sam@example.com"]),
             ("returns.fill", ["resolution", "refund"]),
             ("returns.fill", ["collection", "pickup"]),
             ("returns.fill", ["pickup_window", "weekday_morning"]),
@@ -811,3 +814,205 @@ async def test_emilys_own_changes_are_followed_but_not_told() -> None:
         await asyncio.sleep(0.1)
         assert brain.screen.product == desks[2]
         assert len(told()) == 1 and desks[2] in told()[0]
+
+
+# ─── v2: references, and checkout by voice ────────────────────────────────────
+
+OAK_SOFAS = [p for p in CATALOG.by_category["sofas"] if "oak" in p]
+GRID = [{"product_id": p, "row": i // 3, "col": i % 3} for i, p in enumerate(OAK_SOFAS)]
+DEEP = ("modular-oak-sofa-with-deep-seating", "modular-oak-sofa-with-deep-seats")
+
+
+async def _show_grid(rig: DemoRig) -> None:
+    await rig.driver.send_ui_event(
+        "visible_products", {"product_ids": OAK_SOFAS, "layout": GRID, "by": "visitor"}
+    )
+    await asyncio.sleep(0.1)
+
+
+async def test_a_garbled_name_between_look_alikes_is_asked_not_guessed() -> None:
+    """A sofa listing, and a name the recognizer garbled that fits two of them:
+    both are numbered on screen and Emily asks one question naming the
+    difference; "the second one" then resolves to the second, and the badges go."""
+    llm = ScriptedGemini(
+        {
+            "the moduler oak sofa with deep seat": [
+                reply_and_call(
+                    "Two of these fit that.",
+                    "resolve_product",
+                    request={"spoken": "the moduler oak sofa with deep seat"},
+                ),
+                reply("Which one: one, top right, or two, in the middle?"),
+            ],
+            "The second one.": [
+                reply_and_call(
+                    "The second.", "resolve_product", request={"spoken": "the second one"}
+                ),
+                reply("Good choice — the deep-seat modular in oak."),
+            ],
+        }
+    )
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        await _show_grid(rig)
+        await rig.driver.user_says("I like the moduler oak sofa with deep seat")
+        choices = rig.command("show_choices")
+        assert tuple(choices["product_ids"]) == DEEP
+        assert choices["label"].startswith("Which one:")
+        asked = _results(llm.captured_contents[-1])["resolve_product"]
+        assert "Ask exactly this" in asked and choices["label"] in asked
+        assert "open_product" not in rig.actions(), "it guessed between close candidates"
+
+        await rig.driver.user_says("The second one.")
+        said = _results(llm.captured_contents[-1])["resolve_product"]
+        assert f"[id {DEEP[1]}]" in said
+        assert rig.actions()[-1] == "clear_choices"
+
+
+async def test_a_clear_reference_is_not_questioned() -> None:
+    """One sofa clearly meant — by name, or by its place on screen — is used
+    at once, with no choices and no question."""
+    llm = ScriptedGemini(
+        {
+            "the oak sectional": [
+                reply_and_call(
+                    "The sectional.", "resolve_product", request={"spoken": "the oak sectional"}
+                ),
+                reply("The modular oak sectional, here."),
+            ],
+            "the bottom left one": [
+                reply_and_call(
+                    "That one.", "resolve_product", request={"spoken": "the bottom left one"}
+                ),
+                reply("That's it."),
+            ],
+        }
+    )
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        await _show_grid(rig)
+        await rig.driver.user_says("Tell me about the oak sectional")
+        assert (
+            "[id modular-oak-sectional-sofa]"
+            in _results(llm.captured_contents[-1])["resolve_product"]
+        )
+        await rig.driver.user_says("And the bottom left one")
+        bottom_left = next(g["product_id"] for g in GRID if g["row"] == 2 and g["col"] == 0)
+        assert f"[id {bottom_left}]" in _results(llm.captured_contents[-1])["resolve_product"]
+        assert "show_choices" not in rig.actions()
+
+
+async def test_pointing_is_this_one() -> None:
+    """What the shopper points at (fresh) is "this", silently."""
+    llm = ScriptedGemini(
+        {
+            "Add this one.": reply_and_call(
+                "Shall I add it?", "add_to_cart", request={"what": "product", "product": "this"}
+            )
+        }
+    )
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.send_ui_event(
+            "pointing", {"product_id": OAK_SOFAS[0], "how": "hover", "by": "visitor"}
+        )
+        await asyncio.sleep(0.1)
+        brain = rig.brain
+        assert isinstance(brain, FernhollowBrain)
+        assert not any(
+            "pointing" in (p.text or "").lower()
+            for c in brain._history  # pyright: ignore[reportPrivateUsage]
+            for p in c.parts or []
+        ), "a pointing was spoken about"
+        await rig.driver.user_says("Add this one.")
+        assert rig.command("confirm_add")["lines"][0]["product_id"] == OAK_SOFAS[0]
+
+
+DESK_ID = "modern-home-office-desk-with-chestnut-brown-finish"
+
+
+async def test_checkout_fully_by_voice_with_the_yes() -> None:
+    """Emily fills checkout from what the shopper says, reads the email and
+    postcode back, asks before placing the order, and places it only on the
+    shopper's yes in a later turn — with the authored delivery charge."""
+    llm = ScriptedGemini(
+        {
+            "Email's sam dot rivera at example dot com, I'm Sam Rivera.": [
+                reply_and_call(
+                    "Sam Rivera, noted.",
+                    "fill_checkout",
+                    fields={
+                        "email": "sam dot rivera at example dot com",
+                        "first_name": "Sam",
+                        "last_name": "Rivera",
+                    },
+                ),
+                reply("That's s a m dot r i v e r a, at example dot com. And the address?"),
+            ],
+            "12 Elm Street, Portland, 97201, United States.": [
+                Reply(
+                    text="Twelve Elm Street, Portland.",
+                    calls=(
+                        (
+                            "fill_checkout",
+                            {
+                                "fields": {
+                                    "address1": "12 Elm Street",
+                                    "city": "Portland",
+                                    "postcode": "97201",
+                                    "country": "United States",
+                                }
+                            },
+                        ),
+                        ("place_order", {"request": {"confirmed_by_voice": True}}),
+                    ),
+                ),
+                reply("Postcode nine seven two zero one."),
+            ],
+            "Looks right.": [
+                reply_and_call("The total is up.", "place_order", request={}),
+                reply("Shall I place the order?"),
+            ],
+            "Yes, place it.": reply_and_call(
+                "Placing it now.", "place_order", request={"confirmed_by_voice": True}
+            ),
+        }
+    )
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        brain = rig.brain
+        assert isinstance(brain, FernhollowBrain)
+        await rig.driver.send_ui_event(
+            "cart_changed",
+            {
+                "lines": [{"product_id": DESK_ID, "variant_id": "27504", "qty": 1}],
+                "total": 499.99,
+                "by": "visitor",
+            },
+        )
+        await asyncio.sleep(0.1)
+
+        await rig.driver.user_says("Email's sam dot rivera at example dot com, I'm Sam Rivera.")
+        first = _results(llm.captured_contents[-1])["fill_checkout"]
+        assert "s a m dot r i v e r a, at example dot com" in first
+        fills = [
+            c["payload"] for c in rig.driver.ui_commands if c.get("command") == "checkout_fill"
+        ]
+        assert {"field": "email", "value": "sam.rivera@example.com"} in fills
+
+        await rig.driver.user_says("12 Elm Street, Portland, 97201, United States.")
+        second = _results(llm.captured_contents[-1])
+        assert "9 7 2 0 1" in second["fill_checkout"]
+        assert "nothing — offer the review step" in second["fill_checkout"]
+        assert "NOT DONE" in second["place_order"], "a yes it was never asked for placed an order"
+        assert "order_placed" not in rig.actions()
+
+        await rig.driver.user_says("Looks right.")
+        confirm = rig.command("confirm_place_order")
+        assert confirm["total"] == 548.99  # $499.99 is not over $500: the flat $49 applies
+        assert "order_placed" not in rig.actions()
+
+        await rig.driver.user_says("Yes, place it.")
+        placed = rig.command("order_placed")
+        assert placed["order_number"] == "FH-30001" and placed["total"] == 548.99
+        assert brain.cart == {} and brain.pending_order is None

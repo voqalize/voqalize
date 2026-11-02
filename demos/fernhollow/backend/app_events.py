@@ -21,11 +21,16 @@ __all__ = [
     "FERNHOLLOW_EVENTS",
     "CartChanged",
     "CartLineIn",
+    "CheckoutChanged",
+    "CheckoutStepReached",
+    "ChoiceMade",
     "ConfirmResult",
     "FernhollowEvent",
     "FilterChanged",
     "FiltersIn",
+    "LayoutIn",
     "PageViewed",
+    "Pointing",
     "ProductViewed",
     "RoomBoardEdited",
     "ShortlistChanged",
@@ -75,10 +80,52 @@ class ProductViewed(AppEvent):
     by: str = "visitor"
 
 
+class LayoutIn(BaseModel):
+    """Where one visible product sits: row and column from the top left."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    product_id: str
+    row: int = 0
+    col: int = 0
+
+
 class VisibleProducts(AppEvent):
-    """The products the grid or strip now shows, in screen order."""
+    """The products the grid or strip now shows, in screen order, with where
+    each sits — so "the left one" and "the bottom row" resolve."""
 
     product_ids: list[str] = Field(default_factory=list[str])
+    layout: list[LayoutIn] = Field(default_factory=list[LayoutIn])
+    by: str = "visitor"
+
+
+class Pointing(AppEvent):
+    """The product card or page under the shopper's pointer, finger or keyboard
+    focus (debounced). Kept for "this one"; never spoken about."""
+
+    product_id: str = ""
+    how: str = "hover"  # "hover" | "focus" | "tap"
+    by: str = "visitor"
+
+
+class ChoiceMade(AppEvent):
+    """The shopper clicked one of the numbered products Emily asked between."""
+
+    product_id: str = ""
+    by: str = "visitor"
+
+
+class CheckoutChanged(AppEvent):
+    """The shopper filled or changed a checkout field — its name, never its value."""
+
+    field: str = ""
+    by: str = "visitor"
+
+
+class CheckoutStepReached(AppEvent):
+    """The checkout moved to a step: contact, shipping or review."""
+
+    step: str = ""
     by: str = "visitor"
 
 
@@ -137,6 +184,10 @@ type FernhollowEvent = (
     | CartChanged
     | ConfirmResult
     | ShortlistChanged
+    | Pointing
+    | ChoiceMade
+    | CheckoutChanged
+    | CheckoutStepReached
 )
 
 FERNHOLLOW_EVENTS = AppEvents[FernhollowEvent](
@@ -149,4 +200,8 @@ FERNHOLLOW_EVENTS = AppEvents[FernhollowEvent](
     CartChanged,
     ConfirmResult,
     ShortlistChanged,
+    Pointing,
+    ChoiceMade,
+    CheckoutChanged,
+    CheckoutStepReached,
 )
