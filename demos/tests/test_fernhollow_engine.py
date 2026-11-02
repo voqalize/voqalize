@@ -452,8 +452,10 @@ def test_every_tool_answers_inside_ten_milliseconds() -> None:
         for name, arg in _calls(brain):
             if name == "suggest_finish":
                 # the cart is filled by the shopper's tap; fold it in as the page would
-                assert brain.pending is not None
-                brain._commit_cart()  # pyright: ignore[reportPrivateUsage]
+                brain.turns += 1
+                pending = brain.confirms.due(brain.turns)
+                assert pending is not None and pending.kind == "add_to_cart"
+                brain.confirms.act(pending)
             fn = getattr(brain, name)
             start = time.perf_counter()
             result = await (fn() if arg is None else fn(arg))
@@ -703,7 +705,7 @@ def _moves(screen: _Screen) -> list[tuple[str, dict[str, Any]]]:
     return [(a.move, dict(a.args)) for a in screen.sent if type(a).__name__ == "StageMove"]
 
 
-def test_prepare_return_sends_the_sequence_and_tells_a_refusal_exactly() -> None:
+async def test_prepare_return_sends_the_sequence_and_tells_a_refusal_exactly() -> None:
     from voqalize.sdk.stage.wire import Refusal, StageResult
 
     brain, screen = _v4_brain()
@@ -715,7 +717,7 @@ def test_prepare_return_sends_the_sequence_and_tells_a_refusal_exactly() -> None
         resolution="refund",
         collection="drop_off",
     )
-    result = asyncio.run(brain.prepare_return(request))
+    result = await brain.prepare_return(request)
     assert "being filled" in result and "sam" not in result.lower()
     sent = _moves(screen)
     assert [m for m, _ in sent] == [
@@ -756,12 +758,12 @@ def test_prepare_return_sends_the_sequence_and_tells_a_refusal_exactly() -> None
     )  # pyright: ignore[reportPrivateUsage]
 
 
-def test_prepare_return_reaching_review_is_said() -> None:
+async def test_prepare_return_reaching_review_is_said() -> None:
     from voqalize.sdk.stage.wire import StageResult
 
     brain, screen = _v4_brain()
-    asyncio.run(
-        brain.prepare_return(
+    (
+        await brain.prepare_return(
             fb.PrepareReturn(
                 order_number="FH-20418",
                 items=[fb.ReturnItem(product_id=CHAIR)],
@@ -782,92 +784,97 @@ def test_prepare_return_reaching_review_is_said() -> None:
     ]
 
 
-@pytest.mark.parametrize("said", ["Yes, please.", "yeah", "Go ahead.", "Place it.", "Yep, do it"])
-def test_a_spoken_yes_places_the_order_at_once(said: str) -> None:
-    brain, screen = _brain()
-    brain.cart = {(CHAIR, "31094"): 1}
-    brain.checkout = dict.fromkeys(
-        ("first_name", "last_name", "address1", "city", "postcode", "country"), "x"
+# ─── Confirmations: one mechanism for every confirmed act ─────────────────────
+
+
+def test_the_yes_classifier() -> None:
+    from voqalize_demos._loaded.fernhollow.confirm import classify
+
+    for said in (
+        "Yes, please.",
+        "yeah",
+        "Go ahead.",
+        "Place it.",
+        "Yep, do it",
+        "Can you please submit it?",
+        "Go ahead and submit it.",
+        "Sure",
+        "OK",
+    ):
+        assert classify(said) == "yes", said
+    for said in ("No, wait.", "Not yet.", "Cancel that", "Hold on"):
+        assert classify(said) == "no", said
+    for said in ("Yes but change the address", "What's the total?", "Hmm"):
+        assert classify(said) is None, said
+
+
+def test_a_new_confirmed_act_needs_no_new_yes_code() -> None:
+    from voqalize_demos._loaded.fernhollow.confirm import Acted, Confirmations
+
+    done: list[str] = []
+    c = Confirmations()
+    c.register(
+        "water_plants",
+        lambda p: (done.append(p.label), Acted("Watering them now.", "[watered]"))[1],
     )
-    brain.checkout["email"] = "sam@example.com"
-    brain.turns = 3
-    asyncio.run(brain.place_order(fb.PlaceOrderRequest()))
-    brain.turns = 4
-    note = brain._spoken_yes(said)  # pyright: ignore[reportPrivateUsage]
-    assert note is not None and "FH-30001 is placed" in note
-    assert any(type(a).__name__ == "OrderPlaced" for a in screen.sent)
-    assert brain.placed_orders[-1].email == "sam@example.com"
+    assert c.ask("water_plants", ("water_plants", "fern"), "Water the fern", 1) is None
+    assert c.due(1) is None, "a yes on the asking turn is not an answer"
+    pending = c.due(2)
+    assert pending is not None
+    assert c.act(pending).line == "Watering them now."
+    assert c.act(pending).line.startswith("That's already done"), "acted twice"
+    assert done == ["Water the fern"]
+    assert c.ask("water_plants", ("water_plants", "fern"), "Water the fern", 3) is not None
 
 
-@pytest.mark.parametrize("said", ["No, wait.", "Yes but change the address", "Hmm, not yet."])
-def test_anything_short_of_a_yes_places_nothing(said: str) -> None:
-    brain, screen = _brain()
-    brain.cart = {(CHAIR, "31094"): 1}
-    brain.checkout = dict.fromkeys(
-        ("email", "first_name", "last_name", "address1", "city", "postcode", "country"), "x"
-    )
-    brain.turns = 3
-    asyncio.run(brain.place_order(fb.PlaceOrderRequest()))
-    brain.turns = 4
-    assert brain._spoken_yes(said) is None  # pyright: ignore[reportPrivateUsage]
-    assert not any(type(a).__name__ == "OrderPlaced" for a in screen.sent)
-
-
-def test_the_page_order_number_is_adopted() -> None:
-    from voqalize_demos._loaded.fernhollow.app_events import OrdersKnown
-
-    brain, _ = _brain()
-    brain.cart = {(CHAIR, "31094"): 1}
-    brain.checkout = {"email": "sam@example.com"}
-    brain.pending_order = (338.0, 0)
-    brain._place()  # pyright: ignore[reportPrivateUsage]
-    assert brain.placed_orders[-1].number == "FH-30001"
-    brain.apply_event(
-        OrdersKnown.model_validate(
-            {
-                "orders": [
-                    {
-                        "number": "FH-879106",
-                        "email": "sam@example.com",
-                        "total": 338.0,
-                        "lines": [{"product_id": CHAIR, "qty": 1}],
-                        "status": "delivered",
-                    }
-                ]
-            }
-        )
-    )
-    found = brain.lookup_order("FH-879106")
-    assert found is not None and found.source == "placed"
-    assert brain.lookup_order("the one I just placed") == found
-
-
-async def test_a_refused_submit_is_never_called_submitted() -> None:
+@pytest.mark.parametrize(
+    ("outcome", "detail", "line"),
+    [
+        (
+            "applied",
+            "return submitted, reference RT-9-1",
+            "Done — your return is in, reference RT-9-1. We'll be in touch about the drop-off.",
+        ),
+        (
+            "refused",
+            "step 1: Enter the email",
+            "That didn't go through — the page says: step 1: Enter the email.",
+        ),
+        ("failed", None, "That didn't go through — the page says: failed."),
+        (
+            "unknown",
+            None,
+            "I can't confirm that went through — the page didn't answer. Please check it on screen.",
+        ),
+    ],
+)
+async def test_a_page_answered_act_says_its_outcome_once(
+    outcome: str, detail: str | None, line: str
+) -> None:
     from voqalize.sdk.stage.wire import StageResult
 
-    brain, _ = _v4_brain()
-    brain.order = fb.find_any_order("FH-20418")  # pyright: ignore[reportAttributeAccessIssue]
-    result = brain._submit_now()  # pyright: ignore[reportPrivateUsage]
-    assert "is submitted" not in result and "being submitted" in result
-    ref = brain.submit_ref
-    assert ref is not None
-    note = brain._staged(  # pyright: ignore[reportPrivateUsage]
-        StageResult(
-            call_ref=ref, move="returns.submit", outcome="refused", detail="step 1: Enter the email"
+    brain, screen = _v4_brain()
+    await brain.prepare_return(
+        fb.PrepareReturn(
+            order_number="FH-20418",
+            items=[fb.ReturnItem(product_id=CHAIR)],
+            reason="changed_mind",
+            condition="unused_unpacked",
+            resolution="refund",
+            collection="drop_off",
         )
     )
-    assert note == "[The return was not submitted — the page refused it: step 1: Enter the email.]"
-    assert brain._talk is not None and "NOT submitted" in brain._talk  # pyright: ignore[reportPrivateUsage]
-
-
-def test_a_tapped_place_order_keeps_the_page_number() -> None:
-    from voqalize_demos._loaded.fernhollow.app_events import ConfirmResult
-
-    brain, screen = _brain()
-    brain.cart = {(CHAIR, "31094"): 1}
-    brain.pending_order = (338.0, 0)
-    note = brain.apply_event(ConfirmResult(confirmed=True, order_number="FH-879106"))
-    assert note is not None and "placed" in note
-    placed = [a for a in screen.sent if type(a).__name__ == "OrderPlaced"]
-    assert placed and placed[0].order_number == "FH-879106"
-    assert brain.lookup_order("FH-879106") is brain.placed_orders[-1]
+    brain._say_next = None  # pyright: ignore[reportPrivateUsage]
+    brain.turns += 1
+    pending = brain.confirms.due(brain.turns)
+    assert pending is not None and pending.kind == "submit_return"
+    acted = brain.confirms.act(pending)
+    assert acted.line == "Submitting it now." and acted.ref is not None
+    brain._staged(
+        StageResult(call_ref=acted.ref, move="returns.submit", outcome=outcome, detail=detail)
+    )  # pyright: ignore[reportPrivateUsage]
+    say = brain._say_next  # pyright: ignore[reportPrivateUsage]
+    assert say is not None and say() == line
+    assert [a.move for a in screen.sent if type(a).__name__ == "StageMove"].count(
+        "returns.submit"
+    ) == 1
