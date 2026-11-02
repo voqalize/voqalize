@@ -320,6 +320,24 @@ def test_choices_then_pointing() -> None:
     assert stale.product_id == sofas[5]
 
 
+def test_the_circled_selection_outranks_pointing() -> None:
+    from voqalize_demos._loaded.fernhollow import resolve as rs
+
+    sofas, grid = _oak_grid()
+    picked = sofas[:3]
+    many = rs.resolve(
+        "these", selection=picked, pointing=sofas[5], pointing_age_s=1.0, visible=sofas
+    )
+    assert (many.kind, many.candidates, many.source) == ("many", tuple(picked), "selection")
+    for said in ("those", "all of them", "the circled ones", "both"):
+        assert rs.resolve(said, selection=picked).kind == "many", said
+    one = rs.resolve("this one", selection=picked[:1], open_product=sofas[4])
+    assert (one.kind, one.product_id) == ("one", picked[0])
+    pointed = rs.resolve("this one", selection=picked[:1], pointing=sofas[5], pointing_age_s=1.0)
+    assert pointed.product_id == sofas[5]
+    assert rs.resolve("these", visible=sofas, layout=grid).kind != "many"
+
+
 def test_checkout_checks_and_spells_back() -> None:
     from voqalize_demos._loaded.fernhollow import checkout as co
 
@@ -401,6 +419,7 @@ def _calls(brain: fb.FernhollowBrain) -> list[tuple[str, Any]]:
         ("checkout_step", fb.CheckoutStepRequest(step="review")),
         ("place_order", fb.PlaceOrderRequest()),
         ("submit_return", fb.SubmitReturnRequest()),
+        ("clear_selection", None),
     ]
 
 

@@ -88,6 +88,13 @@ _STOP = frozenset(
 _DEICTIC = re.compile(
     r"^\s*(this|that|it|this one|that one|the one i'?m (on|pointing at)|here)\s*[.!?]?\s*$"
 )
+#: The words that point at what the shopper circled.
+SELECTED = re.compile(
+    r"^\s*(?:all\s+)?(?:of\s+)?(?:these|those|them|they|both|all of them|all three|all four"
+    r"|the circled ones?|the ones? i circled|what i circled|the selected ones?|my selection)"
+    r"(?:\s+(?:ones?|pieces|products|things|two|three|four))?\s*[.!?]?\s*$"
+)
+
 _ORDINAL = {
     "first": 1,
     "1st": 1,
@@ -119,7 +126,7 @@ class Layout:
 
 @dataclass(frozen=True)
 class Resolution:
-    kind: Literal["one", "choose", "none"]
+    kind: Literal["one", "many", "choose", "none"]
     product_id: str | None = None
     candidates: tuple[str, ...] = ()
     question: str = ""
@@ -420,17 +427,28 @@ def resolve(
     saved: Sequence[str] = (),
     open_product: str | None = None,
     scope: Literal["auto", "screen", "catalog"] = "auto",
+    selection: Sequence[str] = (),
 ) -> Resolution:
-    """The product ``spoken`` names, or the candidates to ask between."""
+    """The product ``spoken`` names, or the candidates to ask between.
+    "These", "those", "all of them", "the circled ones" are the circled
+    selection (ranked above pointing); "this" is a single circled product
+    when nothing is pointed at."""
     fresh = (
         pointing
         if pointing and pointing_age_s is not None and pointing_age_s <= POINTING_S
         else None
     )
-    if _DEICTIC.match(w.normalise(spoken)):
-        pid = fresh or open_product or (visible[0] if len(visible) == 1 else None)
+    said = w.normalise(spoken)
+    if selection and SELECTED.match(said):
+        if len(selection) == 1:
+            return Resolution("one", selection[0], source="selection")
+        return Resolution("many", candidates=tuple(selection), source="selection")
+    if _DEICTIC.match(said):
+        single = selection[0] if len(selection) == 1 else None
+        pid = fresh or single or open_product or (visible[0] if len(visible) == 1 else None)
         if pid:
-            return Resolution("one", pid, source="pointing" if pid == fresh else "screen")
+            source = "pointing" if pid == fresh else "selection" if pid == single else "screen"
+            return Resolution("one", pid, source=source)
         return Resolution("none", source="pointing")
     if choices:
         where = _position(spoken, choices, [x for x in layout if x.product_id in choices])

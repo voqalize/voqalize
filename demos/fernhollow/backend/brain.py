@@ -73,6 +73,8 @@ from .app_events import (
     Pointing,
     ProductViewed,
     RoomBoardEdited,
+    Selection,
+    SelectionCleared,
     ShortlistChanged,
     VariantSelected,
     VisibleProducts,
@@ -91,7 +93,7 @@ from .checkout import (
 from .policies import Topic, policy_page, policy_text
 from .prompt import GREETING, system_instruction
 from .recipes import FINISHING, RECIPES
-from .resolve import Layout, Resolution
+from .resolve import SELECTED, Layout, Resolution
 from .resolve import resolve as resolve_reference
 from .returns import WINDOW_DAYS, Order, exchange_options
 from .returns import find_order as lookup_order
@@ -369,6 +371,10 @@ class ShowChoices(Action):
 
 class ClearChoices(Action):
     """The choice badges removed."""
+
+
+class ClearSelection(Action):
+    """The circled selection's badges and chip removed."""
 
 
 class Undo(Action):
@@ -658,6 +664,9 @@ class FernhollowBrain(GeminiBrain):
         self.pending_order: tuple[float, int] | None = None  # (total, turn asked)
         self.orders_placed = 0
         self.pending_submit: int | None = None  # the turn the submit was asked
+        # What the shopper last circled, as (kind, id): kept across pages until
+        # cleared, and acted on only when they speak about it.
+        self.selection: tuple[tuple[str, str], ...] = ()
         # The returns form is driven by Stage: cues in Emily's words fill it as
         # she says them — this is a demo, so the email too (CONTRACT.md, v2).
         self.stage = Stage(
@@ -810,6 +819,8 @@ class FernhollowBrain(GeminiBrain):
             parts.append(f"cart: {sum(self.cart.values())} items, {money(self._cart_total())}")
         if self.pending is not None:
             parts.append(f"waiting for the shopper's yes on: {self.pending.label}")
+        if self.selection:
+            parts.append(f"circled: {self._selection_line()}")
         if self.choices:
             parts.append(
                 "numbered choices: "
@@ -883,7 +894,41 @@ class FernhollowBrain(GeminiBrain):
             saved=saved,
             open_product=s.product,
             scope=scope,
+            selection=self.selected_products(),
         )
+
+    def selected_products(self) -> list[str]:
+        return [i for k, i in self.selection if k == "product" and i in CATALOG.products]
+
+    def _selection_line(self) -> str:
+        """What is circled, in one line the model can say from."""
+        out: list[str] = []
+        for kind, ident in self.selection:
+            if kind == "product" and (p := CATALOG.get(ident)) is not None:
+                out.append(f"{p.title} — {p.price_text()} [id {p.id}]")
+            elif kind == "room" and ident in RECIPES:
+                out.append(f"the {RECIPES[ident].label} room [room {ident}]")
+            elif kind == "category" and (c := CATALOG.categories.get(ident)) is not None:
+                out.append(f"the {c.name.lower()} category [category {ident}]")
+            elif kind == "article":
+                out.append(f"the journal article '{ident.replace('-', ' ')}' [article {ident}]")
+        return "; ".join(out)
+
+    def expand(self, refs: Sequence[str]) -> tuple[list[str], str | None]:
+        """Product references, with "these" / "the circled ones" expanded to
+        the selection. The second value says why it cannot be used as is: a
+        selection that holds things other than products."""
+        ids: list[str] = []
+        for ref in refs:
+            if SELECTED.match(ref.strip().lower()) and self.selection:
+                if any(k != "product" for k, _ in self.selection):
+                    return [], "the circled selection mixes products with rooms or categories"
+                ids += self.selected_products()
+                continue
+            p = self.resolve(ref)
+            if p is not None:
+                ids.append(p.id)
+        return list(dict.fromkeys(ids)), None
 
     def _clear_choices(self) -> None:
         if self.choices:
@@ -982,6 +1027,7 @@ class FernhollowBrain(GeminiBrain):
             self.fill_checkout,
             self.checkout_step,
             self.place_order,
+            self.clear_selection,
         ]
 
     @needs_result_now
@@ -1239,12 +1285,18 @@ class FernhollowBrain(GeminiBrain):
 
     @needs_result_now
     async def compare(self, request: CompareRequest) -> str:
-        """Compare two or three products side by side; each row names its winner."""
-        found = [self.resolve(r) for r in request.products]
-        ids = [p.id for p in found if p is not None]
-        if len(ids) < 2 or len(ids) > 3:
+        """Compare two to four products side by side; each row names its winner.
+        "these" compares what the shopper circled."""
+        ids, why = self.expand(request.products)
+        if why is not None or len(ids) > 4:
+            what = self._selection_line() if self.selection else ""
             return _not_done(
-                "a comparison needs two or three products I can tell apart", "Ask which ones."
+                why or f"{len(ids)} products are circled, and a comparison holds two to four",
+                f"Say what is circled in one line ({what}) and ask which to compare.",
+            )
+        if len(ids) < 2:
+            return _not_done(
+                "a comparison needs two to four products I can tell apart", "Ask which ones."
             )
         return self._show_compare(ids)
 
@@ -1260,8 +1312,8 @@ class FernhollowBrain(GeminiBrain):
             p = self.resolve(r)
             if p is not None and p.id not in current:
                 current.append(p.id)
-        if len(current) < 2 or len(current) > 3:
-            return _not_done("a comparison holds two or three products", "Ask which to keep.")
+        if len(current) < 2 or len(current) > 4:
+            return _not_done("a comparison holds two to four products", "Ask which to keep.")
         return self._show_compare(current)
 
     def _apply(self, filters: eng.Filters, assumption: str | None) -> tuple[list[str], str]:
@@ -1427,6 +1479,11 @@ class FernhollowBrain(GeminiBrain):
         """Open a product (optionally with an option value selected, or a section
         in focus), a page, or search results. A product returns its facts —
         answer from those."""
+        target = request.product or request.page or ""
+        if self.selection and (SELECTED.match(target.lower()) or target.lower() in _THIS):
+            shown = self._show_selection()
+            if shown is not None:
+                return shown
         if request.product:
             p = self.resolve(request.product)
             if p is None:
@@ -1468,6 +1525,50 @@ class FernhollowBrain(GeminiBrain):
         landed("Here you go.", "Here it is.")
         return _prose(f"The {page} page is open.")
 
+    def _show_selection(self) -> str | None:
+        """The circled selection, shown: a room, category or article opens its
+        page; several products open as a grid. ``None`` when it is one product,
+        which the ordinary product path opens."""
+        kinds = {k for k, _ in self.selection}
+        if len(self.selection) == 1 and kinds != {"product"}:
+            kind, ident = self.selection[0]
+            page = {
+                "room": f"room/{ident}",
+                "category": f"category/{ident}",
+                "article": f"journal/{ident}",
+            }.get(kind)
+            if page is None or not _valid_page(page):
+                return _not_done(f"there is no page for the circled {kind}", "Say so.")
+            self._move(page=page, product=None)
+            self.session.dispatch(Navigate(page=page))
+            landed("Here it is.", "Here you go.")
+            return _prose(f"The {page} page is open.")
+        ids = self.selected_products()
+        if len(ids) >= 2 and kinds == {"product"}:
+            self._move(page="search", listing=tuple(ids), listing_kind="results", product=None)
+            self.layout = ()
+            self.session.dispatch(
+                ShowProducts(title="Your selection", query="", product_ids=ids, count=len(ids))
+            )
+            landed("Here they are.", "Your picks are up.")
+            return _prose(
+                "The circled products are on screen.",
+                items=[_line(CATALOG.products[i]) for i in ids],
+            )
+        if kinds != {"product"}:
+            return _not_done(
+                "the circled selection mixes several kinds of thing",
+                f"Say what is circled in one line ({self._selection_line()}) and ask which they mean.",
+            )
+        return None
+
+    async def clear_selection(self) -> str:
+        """Clear what the shopper circled, when they ask to."""
+        self.selection = ()
+        self.session.dispatch(ClearSelection())
+        landed("Cleared.", "Done.")
+        return _prose("The selection is cleared.")
+
     def _facts(self, p: Product) -> str:
         words = [f'{w} ("{p.sources.get(w, "")}")' for w in (*p.materials, *p.colours, *p.styles)]
         return _prose(
@@ -1497,10 +1598,10 @@ class FernhollowBrain(GeminiBrain):
 
     async def shortlist(self, request: ShortlistRequest) -> str:
         """Save products to, or drop them from, the shortlist tray."""
-        for r in request.add:
-            p = self.resolve(r)
-            if p is not None and p.id not in self.shortlisted:
-                self.shortlisted.append(p.id)
+        added, _ = self.expand(request.add)
+        for pid in added:
+            if pid not in self.shortlisted:
+                self.shortlisted.append(pid)
         for r in request.remove:
             p = self.resolve(r)
             if p is not None and p.id in self.shortlisted:
@@ -1777,6 +1878,12 @@ class FernhollowBrain(GeminiBrain):
                     ask=res.question,
                     choices=[f"{n}. {_line(CATALOG.products[i])}" for n, i in enumerate(ids, 1)],
                 )
+            case "many":
+                ids = list(res.candidates)
+                return _prose(
+                    f"They mean the {len(ids)} things they circled.",
+                    products=[_line(CATALOG.products[i]) for i in ids],
+                )
             case "none":
                 return _not_done(
                     f"nothing on screen or in the catalog clearly matches '{request.spoken}'",
@@ -2018,6 +2125,26 @@ class FernhollowBrain(GeminiBrain):
                 if event.product_id in CATALOG.products:
                     self.pointing = (event.product_id, time.monotonic())
                 return None  # silent: kept for "this one", never spoken about
+            case Selection():
+                things = tuple(
+                    (t.kind, t.id)
+                    for t in event.things
+                    if (t.kind == "product" and t.id in CATALOG.products)
+                    or (t.kind == "room" and t.id in CATALOG.rooms)
+                    or (t.kind == "category" and t.id in CATALOG.categories)
+                    or (t.kind == "article" and t.id in _JOURNAL)
+                )[:8]
+                self.selection = things
+                if not things:
+                    return None
+                return (
+                    f"[The shopper circled {len(things)} thing{'s' if len(things) > 1 else ''} on screen: "
+                    f"{self._selection_line()}. Wait for what they say about them; do nothing yet.]"
+                )
+            case SelectionCleared():
+                had = bool(self.selection)
+                self.selection = ()
+                return "[The shopper cleared what they circled.]" if had else None
             case ChoiceMade():
                 p = CATALOG.get(event.product_id)
                 if p is None:
@@ -2031,6 +2158,9 @@ class FernhollowBrain(GeminiBrain):
             case CheckoutStepReached():
                 self.checkout_step_now = event.step
                 return f"[The checkout is on {event.step}.]"
+
+
+_THIS = frozenset({"this", "this one", "that", "that one", "it", "here"})
 
 
 def _use(text: str) -> str:

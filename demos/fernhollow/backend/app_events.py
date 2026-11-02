@@ -33,7 +33,10 @@ __all__ = [
     "Pointing",
     "ProductViewed",
     "RoomBoardEdited",
+    "Selection",
+    "SelectionCleared",
     "ShortlistChanged",
+    "ThingIn",
     "VariantSelected",
     "VisibleProducts",
 ]
@@ -105,6 +108,31 @@ class Pointing(AppEvent):
 
     product_id: str = ""
     how: str = "hover"  # "hover" | "focus" | "tap"
+    by: str = "visitor"
+
+
+class ThingIn(BaseModel):
+    """One thing the shopper circled: a product, category, room or article."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    kind: str = "product"  # "product" | "category" | "room" | "article"
+    id: str = ""
+
+
+class Selection(AppEvent):
+    """The shopper circled things on screen (Show Emily: circle to ask). Kept
+    until cleared, across pages; acted on only when they speak about it."""
+
+    things: list[ThingIn] = Field(default_factory=list[ThingIn])
+    gesture: str = "circle"
+    page: str = ""
+    by: str = "visitor"
+
+
+class SelectionCleared(AppEvent):
+    """The circled selection was cleared (its clear button, Esc, or a new circle)."""
+
     by: str = "visitor"
 
 
@@ -188,6 +216,8 @@ type FernhollowEvent = (
     | ChoiceMade
     | CheckoutChanged
     | CheckoutStepReached
+    | Selection
+    | SelectionCleared
 )
 
 FERNHOLLOW_EVENTS = AppEvents[FernhollowEvent](
@@ -204,4 +234,6 @@ FERNHOLLOW_EVENTS = AppEvents[FernhollowEvent](
     ChoiceMade,
     CheckoutChanged,
     CheckoutStepReached,
+    Selection,
+    SelectionCleared,
 )

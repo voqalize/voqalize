@@ -498,7 +498,7 @@ def test_marks_are_reads() -> None:
         "resolve_product",
         "fill_checkout",
     }
-    assert len(brain.tools) == 24
+    assert len(brain.tools) == 25
 
 
 def test_prompt_names_only_what_exists() -> None:
@@ -1051,3 +1051,90 @@ async def test_the_return_is_submitted_only_on_a_spoken_yes() -> None:
         assert moves() == [], "submitted before the shopper said yes"
         await rig.driver.user_says("Yes.")
         assert moves() == ["returns.submit"]
+
+
+# ─── v3: circle to ask ────────────────────────────────────────────────────────
+
+SOFAS = CATALOG.by_category["sofas"]
+
+
+async def _circle(rig: DemoRig, things: list[dict[str, str]], page: str = "home") -> None:
+    await rig.driver.send_ui_event(
+        "selection", {"things": things, "gesture": "circle", "page": page, "by": "visitor"}
+    )
+    await asyncio.sleep(0.1)
+
+
+def _circle_llm() -> ScriptedGemini:
+    return ScriptedGemini(
+        {
+            "Compare these.": [
+                reply_and_call("Side by side.", "compare", request={"products": ["these"]}),
+                reply("The first is the cheapest."),
+            ],
+            "Show me this.": reply_and_call("Here it is.", "show", request={"page": "this"}),
+            "Compare them.": [
+                reply_and_call("Six are circled.", "compare", request={"products": ["them"]}),
+                reply("You've circled six sofas — which two to four shall I compare?"),
+            ],
+        }
+    )
+
+
+async def test_circling_three_sofas_then_compare_these() -> None:
+    """Three sofas circled on the home page: nothing happens until the shopper
+    speaks; the selection survives a page change; "compare these" compares
+    exactly those three."""
+    llm = _circle_llm()
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        picked = SOFAS[:3]
+        await _circle(rig, [{"kind": "product", "id": i} for i in picked])
+        assert rig.actions() == [], "acted on a selection the shopper did not speak about"
+        await rig.driver.send_ui_event("page_viewed", {"path": "category/sofas", "by": "visitor"})
+        await asyncio.sleep(0.1)
+        check_turn(rig, await rig.driver.user_says("Compare these."), units=2)
+        assert set(rig.command("show_compare")["product_ids"]) == set(picked)
+        note = " ".join(
+            p.text or "" for c in llm.captured_contents[0] for p in c.parts or [] if p.text
+        )
+        assert "circled 3 things" in note and "do nothing yet" in note
+
+
+async def test_a_circled_room_tile_and_show_me_this() -> None:
+    llm = _circle_llm()
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        await _circle(rig, [{"kind": "room", "id": "home-office"}])
+        await rig.driver.user_says("Show me this.")
+        assert rig.command("navigate")["page"] == "room/home-office"
+
+
+async def test_six_circled_for_a_compare_is_asked_about() -> None:
+    llm = _circle_llm()
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        await _circle(rig, [{"kind": "product", "id": i} for i in SOFAS[:6]], page="category/sofas")
+        check_turn(rig, await rig.driver.user_says("Compare them."), units=2)
+        assert "show_compare" not in rig.actions()
+        said = _results(llm.captured_contents[-1])["compare"]
+        assert "6 products are circled" in said and "ask which to compare" in said
+        assert CATALOG.products[SOFAS[5]].title in said
+
+
+async def test_a_cleared_selection_is_not_these() -> None:
+    llm = ScriptedGemini(
+        {
+            "Compare these.": [
+                reply_and_call("Side by side.", "compare", request={"products": ["these"]}),
+                reply("Which ones?"),
+            ]
+        }
+    )
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        await _circle(rig, [{"kind": "product", "id": i} for i in SOFAS[:2]])
+        await rig.driver.send_ui_event("selection_cleared", {"by": "visitor"})
+        await asyncio.sleep(0.1)
+        await rig.driver.user_says("Compare these.")
+        assert "show_compare" not in rig.actions()
