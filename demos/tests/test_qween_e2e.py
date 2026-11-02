@@ -56,6 +56,8 @@ from voqalize_demos._loaded.qween.catalog import (  # noqa: E402
     FEEDS,
     QUOTE_LIMIT_S,
     Catalog,
+    Query,
+    catalog_params,
     feed_for,
 )
 
@@ -767,3 +769,74 @@ async def test_patience_stays_at_the_demos_through_a_language_switch() -> None:
 )
 def test_english_is_not_heard_as_hindi(said: str) -> None:
     assert not _sounds_hindi(said)
+
+
+def _shaped(code: str, slug: str, name: str, details: dict[str, str], ptype: str = "") -> str:
+    """One feed item with exactly the details given, the way Qween prints them."""
+    detail_xml = "".join(
+        f"<g:product_detail><g:attribute_name>{k}</g:attribute_name>"
+        f"<g:attribute_value>{v}</g:attribute_value></g:product_detail>"
+        for k, v in details.items()
+    )
+    typed = f"<g:product_type>{ptype}</g:product_type>" if ptype else ""
+    return (
+        f"<item><g:id>{code}</g:id><g:item_group_id>{code}</g:item_group_id>"
+        f"<title>{name}</title><link>https://www.qween.com/product/{slug}</link>"
+        f"{typed}<g:price>50000.00 INR</g:price>{detail_xml}</item>"
+    )
+
+
+# Shaped as the live feed was on 2026-11-02: collections comma-joined, the
+# signature sapphire on most pieces, couple rings with no product type.
+SHAPED = Catalog.parse(
+    (
+        '<rss xmlns:g="http://base.google.com/ns/1.0"><channel>'
+        + _shaped("C1", "wolf-ring", "Howl Ring", {
+            "Collection": "Wolf Collection, Classics",
+            "Stone Type": "Diamond, Signature Orange Sapphire", "Style": "Wolf"}, "Rings")
+        + _shaped("C2", "wolf-studs", "Moon Studs", {
+            "Collection": "Classics, Wolf Collection",
+            "Stone Type": "Diamond, Signature Orange Sapphire", "Style": "Plain"}, "Earrings > Studs")
+        + _shaped("C3", "classic-band", "Plain Band", {
+            "Collection": "Classics", "Stone Type": "Signature Orange Sapphire"}, "Rings > Bands")
+        + _shaped("C4", "gold-coin", "1g Gold Coin 22KT", {}, "Coins")
+        + _shaped("C5", "eternal-love-couple-rings", "Eternal Love Couple Rings",
+                  {"Collection": "The One"})
+        + "</channel></rss>"
+    ).encode()
+)  # fmt: skip
+
+
+def test_a_piece_is_in_every_collection_the_feed_names() -> None:
+    """The feed joins a piece's collections with commas; each one finds it."""
+    found = {p.slug for p, _ in SHAPED.search(Query(collection="wolf collection"))}
+    assert found == {"wolf-ring", "wolf-studs"}
+
+
+def test_pairs_skip_the_house_line_and_the_signature_stone() -> None:
+    """The house line and the signature sapphire are on nearly everything, so
+    neither makes two pieces a pair; the collection of their own does."""
+    pairs = SHAPED.pairs(SHAPED.by_slug["wolf-ring"], 2)
+    assert [(p.slug, why) for p, why in pairs] == [("wolf-studs", "from the same Wolf Collection")]
+    assert SHAPED.pairs(SHAPED.by_slug["classic-band"], 2) == []
+
+
+def test_couple_rings_are_indexed_though_the_feed_gives_no_type() -> None:
+    """The One's pairs have no product type in the feed; their name says it, and
+    the grid finds them by those words."""
+    query = Query(category="couple rings")
+    assert [p.slug for p, _ in SHAPED.search(query)] == ["eternal-love-couple-rings"]
+    assert catalog_params(query) == {"q": ["couple rings"]}
+    assert [p.slug for p, _ in SHAPED.search(Query(collection="the one"))] == [
+        "eternal-love-couple-rings"
+    ]
+
+
+def test_browsing_lists_the_jewellery_not_the_coins() -> None:
+    """A search that names no category lists jewellery: a coin is not what a
+    browsing shopper means, and the grid is told the same categories."""
+    browsing = {p.slug for p, _ in SHAPED.search(Query())}
+    assert "gold-coin" not in browsing and "wolf-ring" in browsing
+    cats = catalog_params(Query())["cat"]
+    assert "Rings" in cats and "Coins" not in cats
+    assert [p.slug for p, _ in SHAPED.search(Query(category="coins"))] == ["gold-coin"]

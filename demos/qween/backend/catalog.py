@@ -9,8 +9,8 @@ error, not a filter that quietly matches nothing.
 
 **The URL grammar.** Qween's listing is pure URL state: ``/catalog`` takes the
 facet keys of the search index behind the grid. Which form each key takes was
-read off the live site on 2026-09-29, one URL at a time, and is recorded in
-``ecommerce-program/qween/research/site-actions.md``: most keys want the feed's
+read off the live site on 2026-09-29, one URL at a time, and every value below
+was checked again against both of Qween's sites on 2026-11-02: most keys want the feed's
 label in UPPER_SNAKE (``mtp=ROSE_BLOOM_GOLD``, ``stp=FW_PEARL``), but style and
 collection want the label itself (``stl=Mini Solitaire``, ``dc=Qween's Armour``) —
 UPPER_SNAKE there returns an empty grid. :func:`catalog_params` is the one place
@@ -73,6 +73,8 @@ CategoryName = Literal[
     "bangles",
     "mangalsutra",
     "bracelets",
+    "coins",
+    "couple rings",
 ]
 CATEGORIES: dict[CategoryName, str] = {
     "rings": "Rings",
@@ -84,7 +86,18 @@ CATEGORIES: dict[CategoryName, str] = {
     "bangles": "Bangles",
     "mangalsutra": "Mangalsutra",
     "bracelets": "Bracelets",
+    "coins": "Coins",
+    "couple rings": "Couple Rings",
 }
+#: Categories the grid has no ``cat`` for: the feed prints no product type for
+#: them, and the grid's text search finds them by these words alone.
+SEARCHED_CATEGORIES: dict[CategoryName, str] = {"couple rings": "couple rings"}
+#: What a search that names no category, kind or collection lists: the
+#: jewellery. A coin is not what a shopper browsing means, and sorted by price
+#: a silver coin would come first.
+JEWELLERY: tuple[CategoryName, ...] = tuple(
+    c for c in get_args(CategoryName) if c != "coins" and c not in SEARCHED_CATEGORIES
+)
 
 KindName = Literal["studs", "drops", "hoops", "bands", "nose rings"]
 
@@ -130,13 +143,13 @@ METAL_PLAIN: dict[MetalName, str] = {
     "desert noon": "yellow gold",
     "snowfall white": "white gold",
     "rose bloom": "rose gold",
-    "champagne fizz": "a pale champagne yellow",
+    "champagne fizz": "a pale, warm gold",
     "clover green": "green gold",
     "cloudy grey": "grey gold",
     "solid sunrise": "pure 24 karat gold",
 }
 
-KaratName = Literal["9", "14", "18", "24"]
+KaratName = Literal["9", "14", "18", "22", "24"]
 KARATS: dict[KaratName, str] = {k: f"{k} KT Gold" for k in get_args(KaratName)}
 
 StoneName = Literal[
@@ -164,6 +177,13 @@ StoneName = Literal[
     "quartz",
     "mother of pearl",
     "tsavorite",
+    "tahitian pearl",
+    "rubelite",
+    "carnelian",
+    "rock crystal",
+    "lapis lazuli",
+    "kunzite",
+    "malachite",
 ]
 #: The feed's stone labels. Most are the name title-cased; the pearl is not.
 STONES: dict[StoneName, str] = _titled(
@@ -186,6 +206,12 @@ ShapeName = Literal[
     "octagon",
     "cushion",
     "trillion",
+    "tapered baguette",
+    "kite",
+    "half moon",
+    "hexagon",
+    "triangle",
+    "rose cut round",
 ]
 SHAPES: dict[ShapeName, str] = _titled(
     get_args(ShapeName),
@@ -219,6 +245,18 @@ StyleName = Literal[
     "ombre",
     "multi sapphires",
     "affirmations",
+    "soul mate",
+    "scallop",
+    "apostrophe",
+    "brilliante",
+    "maree",
+    "empress",
+    "disco ball",
+    "lumiere",
+    "spheres",
+    "pearl linear",
+    "celestial",
+    "bow",
 ]
 STYLES: dict[StyleName, str] = _titled(
     get_args(StyleName),
@@ -238,6 +276,12 @@ CollectionName = Literal[
     "the maharani",
     "paris at midnight",
     "wild rose",
+    "all that glitters",
+    "forever in gold",
+    "own my runway",
+    "serendipity",
+    "pearl affair",
+    "colour me committed",
 ]
 COLLECTIONS: dict[CollectionName, str] = _titled(
     get_args(CollectionName),
@@ -245,12 +289,13 @@ COLLECTIONS: dict[CollectionName, str] = _titled(
         "qween's armour": "Qween's Armour",
     },
 )
-#: The collections with an editorial page of their own (``/collection/<slug>``);
-#: the rest are a filtered grid.
+#: Each collection's editorial page, ``/collection/<slug>``: the slug is the
+#: name, hyphenated. Every one answered on www.qween.com on 2026-11-02 (Miss Wolf
+#: redirects to the Wolf Collection, so it is not a name here). The staging site
+#: lacks some; a collection with no pieces in the call's own index is never
+#: opened (see the brain's ``open_collection``).
 COLLECTION_PAGES: dict[CollectionName, str] = {
-    "stairway to power": "stairway-to-power",
-    "the one": "the-one",
-    "wolf collection": "wolf-collection",
+    c: re.sub(r"[^a-z0-9]+", "-", c.replace("'", "")).strip("-") for c in get_args(CollectionName)
 }
 
 SortName = Literal["relevance", "price low to high", "price high to low"]
@@ -290,8 +335,12 @@ def catalog_params(q: Query) -> dict[str, list[str]]:
     them; different keys are AND."""
     params: dict[str, list[str]] = {}
     category = q.category or (KINDS[q.kind].category if q.kind else None)
-    if category:
+    if category in SEARCHED_CATEGORIES:
+        params["q"] = [SEARCHED_CATEGORIES[category]]
+    elif category:
         params["cat"] = [CATEGORIES[category]]
+    elif q.collection is None:
+        params["cat"] = [CATEGORIES[c] for c in JEWELLERY]
     if q.kind:
         params["q"] = [KINDS[q.kind].word]
     if q.metals:
@@ -345,7 +394,9 @@ class Piece:
     stones: tuple[str, ...]
     shapes: tuple[str, ...]
     styles: tuple[str, ...]
-    collection: str
+    collections: tuple[str, ...]
+    """The feed prints a piece's collections comma-joined: most pieces are in
+    a house line as well as a collection of their own."""
     variants: tuple[Variant, ...]
 
     @property
@@ -410,9 +461,12 @@ _KIND_WORDS = frozenset(
         "mangalsutra",
     ]
 )
-#: Collections too broad to make two pieces a pair: the house line holds most of
-#: the catalogue, and a piece outside any collection has none to share.
-_HOUSE_COLLECTIONS = frozenset({"", "Classics"})
+#: Collections too broad to make two pieces a pair: the house lines each hold
+#: most of the catalogue.
+_HOUSE_COLLECTIONS = frozenset({"Classics", "All That Glitters", "Forever In Gold"})
+#: A stone on most of Qween's pieces, as its mark: it says nothing about which
+#: stone a piece is about.
+SIGNATURE_STONE = "Signature Orange Sapphire"
 
 
 def _family(name: str) -> str:
@@ -463,9 +517,13 @@ class Catalog:
         stones = {STONES[s] for s in q.stones}
         shapes = {SHAPES[s] for s in q.shapes}
         styles = {STYLES[s] for s in q.styles}
+        jewellery = {CATEGORIES[c] for c in JEWELLERY}
+        browsing = category is None and q.collection is None
         found: list[tuple[Piece, list[Variant]]] = []
         for p in self.pieces:
             if category and p.category != CATEGORIES[category]:
+                continue
+            if browsing and p.category not in jewellery:
                 continue
             if q.kind:
                 kind = KINDS[q.kind]
@@ -477,7 +535,7 @@ class Catalog:
                 continue
             if styles and not styles & set(p.styles):
                 continue
-            if q.collection and p.collection != COLLECTIONS[q.collection]:
+            if q.collection and COLLECTIONS[q.collection] not in p.collections:
                 continue
             variants = [
                 v
@@ -511,16 +569,18 @@ class Catalog:
 
         if family := _family(piece.name):
             take(self.by_family.get(family, []), "made as a set with it")
-        if (collection := piece.collection) not in _HOUSE_COLLECTIONS:
-            if "collection" not in collection.lower():
-                collection += " collection"
+        for collection in piece.collections:
+            if collection in _HOUSE_COLLECTIONS:
+                continue
+            said = collection if "collection" in collection.lower() else f"{collection} collection"
             take(
-                (p for p in self.pieces if p.collection == piece.collection),
-                f"from the same {collection}",
+                (p for p in self.pieces if collection in p.collections),
+                f"from the same {said}",
             )
         # Otherwise, a stylist's match: its stone — the coloured one, when it
         # has one — in the same cut and style, nearest it in price.
-        stones = set(piece.stones) - {"Diamond", "Solitaire"} or set(piece.stones)
+        own = set(piece.stones) - {SIGNATURE_STONE}
+        stones = own - {"Diamond", "Solitaire"} or own
         if stones and len(found) < limit:
             low = min(v.price for v in piece.variants)
             alike = [
@@ -568,6 +628,15 @@ def _split(value: str) -> tuple[str, ...]:
     return tuple(x.strip() for x in value.split(",") if x.strip())
 
 
+#: The feed prints no product type for a couple's pair of rings or for a set;
+#: the name says which it is. Anything else untyped is left out.
+_UNTYPED = ("Couple Rings", "Necklace Set", "Pendant Set")
+
+
+def _untyped(name: str) -> str:
+    return next((t for t in _UNTYPED if name.lower().endswith(t.lower())), "")
+
+
 def _price(text: str | None) -> int | None:
     m = re.match(r"\s*([\d.]+)", text or "")
     return round(float(m.group(1))) if m else None
@@ -577,14 +646,15 @@ def _piece(items: Sequence[ET.Element]) -> Piece | None:
     first = items[0]
     link = first.findtext("link") or ""
     slug = m.group(1) if (m := re.search(r"/product/([^/?#]+)", link)) else ""
-    product_type = (first.findtext(f"{_G}product_type") or "").strip()
+    name = (first.findtext("title") or "").strip()
+    product_type = (first.findtext(f"{_G}product_type") or "").strip() or _untyped(name)
     if not slug or not product_type:
         return None
     variants: list[Variant] = []
     stones: dict[str, None] = {}
     shapes: dict[str, None] = {}
     styles: dict[str, None] = {}
-    collection = ""
+    collections: dict[str, None] = {}
     for item in items:
         d = _detail(item)
         price = _price(item.findtext(f"{_G}price"))
@@ -606,20 +676,20 @@ def _piece(items: Sequence[ET.Element]) -> Piece | None:
         stones.update(dict.fromkeys(_split(d.get("Stone Type", ""))))
         shapes.update(dict.fromkeys(_split(d.get("Stone Shape", ""))))
         styles.update(dict.fromkeys(_split(d.get("Style", ""))))
-        collection = collection or d.get("Collection", "")
+        collections.update(dict.fromkeys(_split(d.get("Collection", ""))))
     if not variants:
         return None
     return Piece(
         group_id=first.findtext(f"{_G}item_group_id") or "",
         slug=slug,
-        name=(first.findtext("title") or "").strip(),
+        name=name,
         description=(first.findtext("description") or "").strip(),
         category=product_type.split(" > ")[0],
         product_type=product_type,
         stones=tuple(stones),
         shapes=tuple(shapes),
         styles=tuple(styles),
-        collection=collection,
+        collections=tuple(collections),
         variants=tuple(variants),
     )
 

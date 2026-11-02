@@ -76,10 +76,12 @@ from .app_events import (
 )
 from .catalog import (
     COLLECTION_PAGES,
+    COLLECTIONS,
     FEED,
     KARATS,
     METAL_PLAIN,
     METALS,
+    SIGNATURE_STONE,
     Catalog,
     CategoryName,
     CollectionName,
@@ -160,8 +162,8 @@ _LANDED_LINES: dict[str, dict[Language, tuple[str, ...]]] = {
         Language.HI: ("यह रही साइज़ गाइड। इसमें नापने का तरीका है।",),
     },
     "delivery": {
-        Language.EN: ("Here are the delivery options. Your pincode gives the date.",),
-        Language.HI: ("ये रहे डिलीवरी के ऑप्शन। पिनकोड डालने पर तारीख दिखेगी।",),
+        Language.EN: ("Here are the delivery options. Your pincode shows how long it takes.",),
+        Language.HI: ("ये रहे डिलीवरी के ऑप्शन। पिनकोड डालने पर डिलीवरी का समय दिखेगा।",),
     },
     "view_3d": {
         Language.EN: ("Its 3D view, if this piece has one.",),
@@ -225,7 +227,7 @@ SHOW IT, THEN TALK ABOUT IT. The shopper can see the page. A turn opens with a s
 
 EVERY MOVE COMES WITH WORDS. Whenever you move the screen, write your line first and make the call in the same response — the line is spoken while the page moves. A response that is only tool calls is silence: after such a call you do not speak again until the shopper does, and what the call returns reaches you on your next turn. Opening a piece and finding jewellery are the moves that come back to you at once: see the next paragraphs.
 
-A QUESTION GETS ITS ANSWER IN WORDS. When the shopper asks something — how to know their size, how long delivery takes, what the price is made of, whether it is certified — your line is the answer, and a dialog or section you open is shown beside it, in the same response, never instead of it. A dialog's own words reach you only after your turn, so answer from QWEEN KNOWLEDGE, from what a tool already gave you, and from what any good consultant knows: "Here's the size guide. Measure the inside of a bangle that fits you, and match it on the chart." "Here are the delivery options. Your pincode there gives the exact date, and shipping is free and insured." Never a figure you do not have: point to where it is on screen instead.
+A QUESTION GETS ITS ANSWER IN WORDS. When the shopper asks something — how to know their size, how long delivery takes, what the price is made of, whether it is certified — your line is the answer, and a dialog or section you open is shown beside it, in the same response, never instead of it. A dialog's own words reach you only after your turn, so answer from QWEEN KNOWLEDGE, from what a tool already gave you, and from what any good consultant knows: "Here's the size guide. Measure the inside of a bangle that fits you, and match it on the chart." "Here are the delivery options. Your pincode there shows how many days it takes, and shipping is free and insured." Never a figure you do not have: point to where it is on screen instead.
 
 A PIECE YOU OPEN IS A PIECE YOU SELL. When you call show_piece, the line before it is only the piece's name, said as done: "Here are the Petal Hoops." What it returns — the stone, the gold, the weight, the price, what goes with it — comes back to you within this same turn, and you speak again: two or three sentences that make them want it. Pick the one or two things that make this piece special — a stone's colour or fire, how it is set, the design and what it is like to wear, how it catches the light — and tie them to what they told you: who it is for, the occasion, their style. Then end with a light question that takes them a step further, or, when it fits, offer one piece from "Goes with it" by name. Speak about it like you love it, not like a spec sheet: never list its facts, never repeat its name, and give the price only if they asked or named a budget. Opening a piece and saying nothing more about it is never enough.
 
@@ -249,7 +251,7 @@ A PERSON IS ALWAYS ONE STEP AWAY. If they want to see a piece in person, talk to
 
 WHAT YOU DO NOT DO. You do not place orders, take payment or personal details, hold stock, promise delivery dates, or offer discounts. You do not invent a piece, a collection, a policy or a figure. Name a Qween policy in QWEEN KNOWLEDGE's own words — "5-year stone price protection", never a name of your own like "price promise". You do not describe a boutique — its floors, layout, displays or stock — beyond what QWEEN KNOWLEDGE says; to visit one, open the store locator with connect_to_person. Asked about Qween's margins or profit, answer plainly and kindly, once: Qween does not publish its margins; what you can show is what the price is made of — the price breakup separates gold, stones, making and tax — and that Qween buys its diamonds from one partner, Rosy Blue, with no middlemen. Then offer the breakup or the concierge. Qween sells only natural diamonds and gemstones — never say lab-grown. If something is not in QWEEN KNOWLEDGE and no tool gives it to you, say you are not sure and offer the concierge. What a gemstone or a gold is, you may explain; how Qween sets its own prices — how making charges are worked out, when the gold rate is taken, what a certificate or card includes — you know only from QWEEN KNOWLEDGE or the page's own words.
 
-THE FIRST SENTENCE IS A FEW WORDS. The shopper hears nothing until your whole first sentence has been voiced, and a long one is a long silence first. So open every reply, in English or Hindi, with a sentence of two to six words that ends in a full stop, then say the rest in the next sentence. Put the answer in it, not a preamble: "Yes, it's hallmarked. Every Qween piece carries the BIS mark." — not "Every piece we make is hallmarked by BIS, which certifies the purity of the gold, so you can…". "A cluster, for her. It looks larger than a solitaire for the price." Never join clauses with commas or a semicolon to stretch the first sentence.
+THE FIRST SENTENCE IS A FEW WORDS. The shopper hears nothing until your whole first sentence has been voiced, and a long one is a long silence first. So open every reply, in English or Hindi, with a sentence of two to six words that ends in a full stop, then say the rest in the next sentence. Put the answer in it, not a preamble: "Yes, it's hallmarked. Every Qween gold piece carries the BIS mark." — not "Every piece we make is hallmarked by BIS, which certifies the purity of the gold, so you can…". "A cluster, for her. It looks larger than a solitaire for the price." Never join clauses with commas or a semicolon to stretch the first sentence.
 
 SOUND LIKE A PERSON, NOT A SCRIPT. Never open with a filler: your first word is the answer. Inside a reply, now and then — in about one reply in three, never two in a row — let a small filler in where a person thinking aloud would pause, at a later sentence's start or before the word you are choosing: "Rose gold suits you. It's, well, the lighter of the two." "A pendant works. Or, hmm, a light chain." Use "hmm", "so", "um", "well", "I think"; in Hindi "हम्म", "अच्छा", "तो". Never inside or next to a price, weight, karat, grade or a piece's name — a pause there sounds unsure of the fact. Never on an apology, never twice in one reply, and never "uh-huh" or "like".
 
@@ -262,7 +264,7 @@ LANGUAGE. The call starts in English. Many shoppers speak Hinglish — Hindi wit
 - Judge the language by its small grammar words, not its nouns: "आई वांट अ रिंग" is English, however it is spelled. Switch back to English the same way when they do.
 Tool arguments are always the English names in the tool's list, whatever language you are speaking.
 
-QWEEN'S GOLDS. The site names each gold colour; shoppers say it plainly. When they say one, use Qween's name in the tool: {_golds()}. Qween calls the purity "KT": 9, 14, 18 or 24 karat.
+QWEEN'S GOLDS. The site names each gold colour; shoppers say it plainly. When they say one, use Qween's name in the tool: {_golds()}. Qween calls the purity "KT": 9, 14, 18, 22 or 24 karat.
 
 ═══ QWEEN KNOWLEDGE ═══
 
@@ -388,7 +390,9 @@ class HighlightCard(Action):
 
 class FindRequest(BaseModel):
     category: CategoryName | None = Field(
-        None, description="The kind of jewellery. Leave empty to search every kind."
+        None,
+        description="The kind of jewellery. Leave empty to search all the jewellery; "
+        "coins only when they ask for coins. Couple rings are The One collection's pairs.",
     )
     kind: KindName | None = Field(
         None,
@@ -416,7 +420,9 @@ class FindRequest(BaseModel):
     styles: list[StyleName] = Field(
         default_factory=list, description="Design styles; any of them matches."
     )
-    collection: CollectionName | None = Field(None, description="One of Qween's collections.")
+    collection: CollectionName | None = Field(
+        None, description="One of Qween's collections, when they name one."
+    )
     price_min: int | None = Field(None, description="Lowest price in rupees, if they gave one.")
     price_max: int | None = Field(
         None, description="Highest price in rupees: 'under one lakh' is 100000."
@@ -534,7 +540,7 @@ _PAGES: dict[PageName, str] = {
     "video_consult": "/video-consult",
     "diamond_guide": "/diamond-guide",
     "gemstone_guide": "/gemstone-guide",
-    "solitaires": "/solitaires",
+    "solitaires": "/shop/solitaires",
     "buyback": "/lifetime-buyback-exchange",
     "certification": "/certified-jewellery",
     "returns": "/returns-exchanges",
@@ -593,7 +599,7 @@ def _karat(label: str) -> str:
 
 
 def _variant_line(v: Variant) -> str:
-    parts = [f"{v.metal} {_karat(v.karat)}", rupees(v.price)]
+    parts = [f"{v.metal} {_karat(v.karat)}".strip() or v.code, rupees(v.price)]
     if v.metal_weight:
         parts.append(f"gold {v.metal_weight}")
     if v.diamond_quality:
@@ -609,14 +615,17 @@ def _piece_facts(p: Piece, current: Variant | None) -> str:
         lines.append(p.description[:400])
     if p.stones:
         lines.append(f"Stones: {', '.join(p.stones)}.")
-    if p.collection:
-        lines.append(f"Collection: {p.collection}.")
+    if p.collections:
+        lines.append(f"Collections: {', '.join(p.collections)}.")
     if current is not None:
         lines.append(f"Open variant: {_variant_line(current)}.")
-    lines.append(
-        f"Golds: {', '.join(p.metals)}. Purities: {', '.join(_karat(k) for k in p.karats)}. "
-        f"Price across variants: {price_span(p.variants)}."
-    )
+    golds = [m for m in p.metals if m]
+    purities = [_karat(k) for k in p.karats if k]
+    if golds:
+        lines.append(f"Golds: {', '.join(golds)}.")
+    if purities:
+        lines.append(f"Purities: {', '.join(purities)}.")
+    lines.append(f"Price across variants: {price_span(p.variants)}.")
     return " ".join(lines)
 
 
@@ -644,7 +653,8 @@ def _picks_line(found: list[tuple[Piece, list[Variant]]]) -> str:
         if p.slug in seen:
             continue
         seen.add(p.slug)
-        stones = f", {', '.join(p.stones[:2])}" if p.stones else ""
+        own = [s for s in p.stones if s != SIGNATURE_STONE][:2]
+        stones = f", {', '.join(own)}" if own else ""
         named.append(
             f"{p.name} ({p.product_type}{stones}, from {rupees(min(v.price for v in vs))})"
         )
@@ -1051,11 +1061,15 @@ class QweenBrain(GeminiBrain):
     async def open_collection(self, request: CollectionRequest) -> str:
         """Show one of Qween's collections: its own page where it has one,
         otherwise its pieces as a listing."""
-        slug = COLLECTION_PAGES.get(request.name)
-        if slug is not None:
-            self._move(OpenCollection(slug=slug))
-        else:
-            self._move(OpenCatalog(params=catalog_params(Query(collection=request.name))))
+        catalog = self._feed.current()
+        if catalog is not None and not catalog.search(Query(collection=request.name)):
+            # The staging site lacks some collections, and a few have a page
+            # but nothing in it yet: an empty page is not something to show.
+            return (
+                f"Not opened: {COLLECTIONS[request.name]} has no pieces on this site yet. "
+                "Say so, and offer something close."
+            )
+        self._move(OpenCollection(slug=COLLECTION_PAGES[request.name]))
         return "ok"
 
     async def point_at(self, request: PointRequest) -> str:
@@ -1188,8 +1202,8 @@ class QweenBrain(GeminiBrain):
     async def show_delivery_options(self) -> str:
         """Open the open piece's delivery and store-pickup options. Asked how
         long delivery takes, the answer is your line, in this same response:
-        their pincode there gives the date, and shipping in India is free and
-        insured. Never a number of days you have not read; the dialog's words
+        their pincode there shows how many days it takes, and shipping in India
+        is free and insured. Never a number of days you have not read; the dialog's words
         reach you only after your turn."""
         self._move(OpenModal(modal="delivery"), "delivery")
         return "ok"

@@ -46,7 +46,8 @@ import { type Activity, mountWidget, type Status } from "./widget";
 
 declare const __VOQALIZE__: { apiBase: string; agentId: string; publishableKey: string };
 
-const CHARACTER = "trisha";
+// The face is Ananya's; the consultant is still Trisha by name (owner, 2026-11-02).
+const CHARACTER = "ananya";
 /** The call is one per store and agent: the channel and the lock are named
  *  for the agent. */
 const AGENT = __VOQALIZE__.agentId;
