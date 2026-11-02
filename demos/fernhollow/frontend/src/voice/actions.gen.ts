@@ -342,13 +342,13 @@ export interface ListingViewed {
 
   title?: string;
 
-  facets?: Record<string, string[]>;
+  facets?: FacetIn[] | Record<string, string[]>;
 
   active?: Record<string, string[]>;
 
   price?: PriceIn | null;
 
-  sort?: string;
+  sort?: SortIn | string;
 
   count?: number;
 
@@ -451,6 +451,14 @@ export interface VisibleProducts {
 
 // ── Shapes used by the messages above ──────────────────────────────
 
+export interface BandIn {
+  label?: string;
+
+  min?: number | null;
+
+  max?: number | null;
+}
+
 export interface BriefOut {
   room: string | null;
 
@@ -502,6 +510,34 @@ export interface ConfirmLine {
   variant_id: string;
 
   qty: number;
+}
+
+/**
+ * One facet of the page's rail, by kind: `options` (values to tick),
+ * `toggle` (one switch), `bands` (labelled ranges) or `range` (min/max).
+ */
+export interface FacetIn {
+  name?: string;
+
+  kind?: string;
+
+  values?: (FacetValueIn | string)[];
+
+  active?: string[] | boolean;
+
+  bands?: BandIn[];
+
+  min?: number | null;
+
+  max?: number | null;
+
+  multi?: boolean | null;
+}
+
+export interface FacetValueIn {
+  value?: string;
+
+  count?: number | null;
 }
 
 /** The filter chips as the page now holds them. */
@@ -642,6 +678,12 @@ export interface SavingSwap {
   was: number;
 
   now: number;
+}
+
+export interface SortIn {
+  value?: string;
+
+  options?: (string | Record<string, string>)[];
 }
 
 /** One thing the shopper circled: a product, category, room or article. */

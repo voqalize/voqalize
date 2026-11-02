@@ -449,11 +449,11 @@ async def test_filters_say_their_assumption() -> None:
         said = _results(llm.captured_contents[-1])["set_filters"]
         assert "I read 'wood' as Ash and Walnut" in said and "up to $500" in said
         assert _rail(rig) == [], "filtered before the desks page was there"
-        await _listing(rig, "category/desks", "Desks", {"Finish": ["Ash", "Walnut"]})
+        await _listing(rig, "category/desks", "Desks", [_opts("Finish", "Ash", "Walnut"), PRICE])
         assert [(m["move"], m["args"]) for m in _rail(rig)] == [
             ("listing.filter", {"facet": "Finish", "value": "Ash"}),
             ("listing.filter", {"facet": "Finish", "value": "Walnut"}),
-            ("listing.price", {"max": 500}),
+            ("listing.range", {"facet": "Price", "max": 500}),
         ]
         assert "apply_filters" not in rig.actions() and "show_products" not in rig.actions()
 
@@ -1747,39 +1747,77 @@ async def test_the_page_answer_is_said_once(outcome: str, detail: str | None, li
         assert again.units == [], "the outcome was said twice"
 
 
-# ─── v5: Emily filters the page you are on ────────────────────────────────────
+# ─── v5: Emily filters the page you are on — every facet by its kind ──────────
 
-DINING_FACETS = {
-    "Category": [
-        "Dining Tables",
-        "Dining Chairs",
-        "Chandeliers",
-        "Dinnerware",
-        "Serveware",
-        "Barware",
+
+def _opts(name: str, *values: str, active: list[str] | None = None) -> dict[str, Any]:
+    return {
+        "name": name,
+        "kind": "options",
+        "values": list(values),
+        "multi": True,
+        "active": active or [],
+    }
+
+
+PRICE = {
+    "name": "Price",
+    "kind": "bands",
+    "bands": [
+        {"label": "Under $300", "max": 300},
+        {"label": "$300 \u2013 $400", "min": 300, "max": 400},
+        {"label": "Over $400", "min": 400},
     ],
-    "On sale": ["On sale"],
-    "Material": ["Canvas", "Cast Iron", "Ceramic", "Wicker"],
-    "Finish": ["Brushed Brass", "Matte Black", "Oak", "Walnut"],
-    "Style": ["Modern", "Rustic"],
-    "Height": ["Short", "Tall"],
+    "active": [],
+}
+ON_SALE = {"name": "On sale", "kind": "toggle", "values": ["On sale"], "active": []}
+SORT = {"value": "featured", "options": ["featured", "price-asc", "price-desc", "sale"]}
+
+#: Real rails, read off the catalog: each category's own option facets.
+RAILS: dict[str, list[dict[str, Any]]] = {
+    "category/dining-chairs": [_opts("Finish", "Oak", "Walnut"), PRICE, ON_SALE],
+    "category/sofas": [_opts("Fabric", "Linen Blend", "Boucle"), PRICE, ON_SALE],
+    "category/rugs": [
+        _opts("Fabric", "Linen", "Wool"),
+        _opts("Color", "Sand", "Sage"),
+        PRICE,
+        ON_SALE,
+    ],
+    "category/table-lamps": [
+        _opts("Finish", "Brushed Brass", "Matte Black"),
+        _opts("Height", "Short", "Tall"),
+        PRICE,
+    ],
+    "room/dining": [
+        {
+            "name": "Category",
+            "kind": "options",
+            "multi": False,
+            "values": ["Dining Tables", "Dining Chairs", "Serveware"],
+            "active": [],
+        },
+        _opts("Material", "Canvas", "Cast Iron", "Ceramic", "Wicker"),
+        _opts("Finish", "Brushed Brass", "Matte Black", "Oak", "Walnut"),
+        PRICE,
+        ON_SALE,
+    ],
 }
 
 
 async def _listing(
-    rig: DemoRig, page: str, title: str, facets: dict[str, list[str]], **extra: Any
+    rig: DemoRig, page: str, title: str, facets: list[dict[str, Any]], count: int = 40
 ) -> None:
-    payload: dict[str, Any] = {
-        "page": page,
-        "title": title,
-        "facets": facets,
-        "active": {},
-        "sort": "featured",
-        "count": 40,
-        "by": "visitor",
-    }
-    payload.update(extra)
-    await rig.driver.send_ui_event("listing_viewed", payload)
+    await rig.driver.send_ui_event(
+        "listing_viewed",
+        {
+            "page": page,
+            "title": title,
+            "facets": facets,
+            "sort": SORT,
+            "count": count,
+            "by": "visitor",
+        },
+    )
     await asyncio.sleep(0.1)
 
 
@@ -1787,131 +1825,10 @@ def _rail(rig: DemoRig) -> list[dict[str, Any]]:
     return [m for m in _stage_moves(rig) if str(m["move"]).startswith("listing.")]
 
 
-async def _on_dining(rig: DemoRig) -> None:
+async def _on(rig: DemoRig, page: str) -> None:
     await rig.driver.start_session()
-    await rig.driver.send_ui_event("page_viewed", {"path": "room/dining", "by": "visitor"})
-    await _listing(rig, "room/dining", "Dining", DINING_FACETS)
-
-
-async def test_filter_material_to_ceramic_on_the_dining_page() -> None:
-    """The live bug: on Dining, "filter material to ceramic" ticks Ceramic on
-    the Dining page's own rail — one move, no navigation, no /picks — and the
-    page's own answer is said once."""
-    llm = ScriptedGemini(
-        {
-            "Filter material to ceramic.": [
-                reply_and_call(
-                    "Ceramic, on the filters here.",
-                    "set_filters",
-                    request={"materials": ["material ceramic"]},
-                ),
-                reply("Ticking ceramic for you."),
-            ]
-        }
-    )
-    async with demo("fernhollow", llm) as rig:
-        await _on_dining(rig)
-        await rig.driver.user_says("Filter material to ceramic.")
-        moves = _rail(rig)
-        assert [(m["move"], m["args"]) for m in moves] == [
-            ("listing.filter", {"facet": "Material", "value": "Ceramic"})
-        ]
-        assert "navigate" not in rig.actions()
-        assert "show_products" not in rig.actions() and "apply_filters" not in rig.actions()
-        await _answer_with(rig, moves[0], "applied", detail="Material: Ceramic — 9 pieces")
-        said = await rig.driver.user_idle()
-        assert [u.text for u in said.units] == ["Material: Ceramic — 9 pieces."]
-        assert (await rig.driver.user_idle()).units == []
-
-
-async def test_a_value_the_rail_refuses_is_said_with_its_options() -> None:
-    llm = ScriptedGemini(
-        {
-            "Just the walnut ones.": [
-                reply_and_call(
-                    "Walnut, on the filters here.", "set_filters", request={"materials": ["walnut"]}
-                ),
-                reply("Walnut it is."),
-            ]
-        }
-    )
-    async with demo("fernhollow", llm) as rig:
-        await _on_dining(rig)
-        await rig.driver.user_says("Just the walnut ones.")
-        (move,) = _rail(rig)
-        assert move["args"] == {"facet": "Finish", "value": "Walnut"}
-        await _answer_with(
-            rig,
-            move,
-            "refused",
-            detail="no Walnut on this page's rail",
-            refused=[{"arg": "value", "why": "not offered", "options": ["Oak", "Matte Black"]}],
-        )
-        said = await rig.driver.user_idle()
-        assert [u.text for u in said.units] == [
-            "That filter isn't on this page — no Walnut on this page's rail. This page offers Oak, Matte Black."
-        ]
-
-
-async def test_what_this_page_cannot_show_opens_the_page_that_can() -> None:
-    """Linen is not on the Dining rail: Emily opens the category whose rail
-    offers it, in-app, waits for its listing, then ticks it there."""
-    from voqalize_demos._loaded.fernhollow import rail
-
-    found = rail.best_page(["linen"])
-    assert found is not None
-    page, mapped = found
-    llm = ScriptedGemini(
-        {
-            "Show me linen things.": [
-                reply_and_call("Linen it is.", "set_filters", request={"materials": ["linen"]}),
-                reply("Here's the page with linen."),
-            ]
-        }
-    )
-    async with demo("fernhollow", llm) as rig:
-        await _on_dining(rig)
-        await rig.driver.user_says("Show me linen things.")
-        assert rig.command("navigate")["page"] == page
-        assert _rail(rig) == []
-        facets = {f: list(v) for f, v in rail.page_facets(page).items()}
-        await _listing(rig, page, "Linen", facets)
-        assert [(m["move"], m["args"]) for m in _rail(rig)] == [
-            ("listing.filter", {"facet": f, "value": v}) for f, v in mapped.filters
-        ]
-        assert "show_products" not in rig.actions()
-
-
-async def test_price_and_sort_go_to_the_rail() -> None:
-    llm = ScriptedGemini(
-        {
-            "Under two hundred, cheapest first.": [
-                reply_and_call(
-                    "Under two hundred, cheapest first.",
-                    "set_filters",
-                    request={"price_max": 200, "sort": "cheapest first"},
-                ),
-                reply("Up to two hundred dollars, including that price."),
-            ],
-            "Drop the price limit.": reply_and_call(
-                "Price limit off.", "remove_filter", request={"key": "price_max"}
-            ),
-        }
-    )
-    async with demo("fernhollow", llm) as rig:
-        await _on_dining(rig)
-        await rig.driver.user_says("Under two hundred, cheapest first.")
-        assert [(m["move"], m["args"]) for m in _rail(rig)] == [
-            ("listing.price", {"max": 200}),
-            ("listing.sort", {"by": "price-asc"}),
-        ]
-        assert (
-            "up to $200, including that price" in _results(llm.captured_contents[-1])["set_filters"]
-        )
-        await _listing(rig, "room/dining", "Dining", DINING_FACETS, price={"min": None, "max": 200})
-        await rig.driver.user_says("Drop the price limit.")
-        assert (_rail(rig)[-1]["move"], _rail(rig)[-1]["args"]) == ("listing.price", {})
-        assert "navigate" not in rig.actions()
+    await rig.driver.send_ui_event("page_viewed", {"path": page, "by": "visitor"})
+    await _listing(rig, page, page.split("/")[-1].replace("-", " ").title(), RAILS[page])
 
 
 async def _answer_with(rig: DemoRig, move: dict[str, Any], outcome: str, **extra: Any) -> None:
@@ -1922,24 +1839,235 @@ async def _answer_with(rig: DemoRig, move: dict[str, Any], outcome: str, **extra
     await asyncio.sleep(0.1)
 
 
-async def test_a_category_and_on_sale_tick_the_room_page_rail() -> None:
-    llm = ScriptedGemini(
+def _filters_llm(said: str, **request: Any) -> ScriptedGemini:
+    return ScriptedGemini(
         {
-            "Dining tables on sale.": [
-                reply_and_call(
-                    "Dining tables on sale.",
-                    "set_filters",
-                    request={"category": "dining tables", "on_sale": True},
-                ),
-                reply("Here they are."),
+            said: [
+                reply_and_call("Putting that on the filters.", "set_filters", request=request),
+                reply("On it."),
             ]
         }
     )
+
+
+async def test_walnut_under_300_on_dining_chairs_is_two_moves_and_one_honest_line() -> None:
+    """The live bug: both parts go to the page's own rail as their own moves,
+    and the one line said afterwards is built only from the page's answers."""
+    llm = _filters_llm(
+        "I would like a walnut finish under three hundred dollars.",
+        materials=["walnut finish"],
+        constraints=["under three hundred dollars"],
+    )
     async with demo("fernhollow", llm) as rig:
-        await _on_dining(rig)
-        await rig.driver.user_says("Dining tables on sale.")
-        assert [(m["move"], m["args"]) for m in _rail(rig)] == [
-            ("listing.filter", {"facet": "Category", "value": "Dining Tables"}),
+        await _on(rig, "category/dining-chairs")
+        await rig.driver.user_says("I would like a walnut finish under three hundred dollars.")
+        moves = _rail(rig)
+        assert [(m["move"], m["args"]) for m in moves] == [
+            ("listing.filter", {"facet": "Finish", "value": "Walnut"}),
+            ("listing.range", {"facet": "Price", "max": 300}),
+        ]
+        assert "navigate" not in rig.actions() and "show_products" not in rig.actions()
+        said = _results(llm.captured_contents[-1])["set_filters"]
+        assert "Never say a filter is set" in said
+        brain = rig.brain
+        assert isinstance(brain, FernhollowBrain)
+        assert brain._say_next is None, "an outcome before the page answered"  # pyright: ignore[reportPrivateUsage]
+        await _answer_with(rig, moves[0], "applied", detail="Finish: Walnut on — 12 pieces")
+        assert brain._say_next is None, "spoke before every move had answered"  # pyright: ignore[reportPrivateUsage]
+        await _answer_with(rig, moves[1], "applied", detail="Under $300 on — 7 pieces")
+        line = await rig.driver.user_idle()
+        assert [u.text for u in line.units] == ["Finish: Walnut and Under $300 — 7 pieces."]
+
+
+async def test_a_part_the_page_cannot_do_never_blocks_the_rest() -> None:
+    llm = _filters_llm("Walnut, in velvet, on sale.", materials=["walnut", "velvet"], on_sale=True)
+    async with demo("fernhollow", llm) as rig:
+        await _on(rig, "category/dining-chairs")
+        await rig.driver.user_says("Walnut, in velvet, on sale.")
+        moves = _rail(rig)
+        assert [(m["move"], m["args"]) for m in moves] == [
+            ("listing.filter", {"facet": "Finish", "value": "Walnut"}),
             ("listing.filter", {"facet": "On sale", "value": "On sale"}),
         ]
         assert "navigate" not in rig.actions()
+        for m, detail in zip(
+            moves, ("Finish: Walnut on — 12 pieces", "On sale on — 3 pieces"), strict=True
+        ):
+            await _answer_with(rig, m, "applied", detail=detail)
+        line = await rig.driver.user_idle()
+        assert [u.text for u in line.units] == [
+            "Finish: Walnut and On sale — 3 pieces. This page can't filter by velvet; it offers Finish, Price."
+        ]
+
+
+async def test_a_refused_move_is_said_with_the_rails_options() -> None:
+    llm = _filters_llm(
+        "Between six and eight hundred.", constraints=["between six and eight hundred"]
+    )
+    async with demo("fernhollow", llm) as rig:
+        await _on(rig, "category/dining-chairs")
+        await rig.driver.user_says("Between six and eight hundred.")
+        (move,) = _rail(rig)
+        assert move["args"] == {"facet": "Price", "min": 600, "max": 800}
+        await _answer_with(
+            rig,
+            move,
+            "refused",
+            detail="no band covers $600 to $800",
+            refused=[
+                {
+                    "arg": "max",
+                    "why": "no such band",
+                    "options": ["Under $300", "$300 \u2013 $400", "Over $400"],
+                }
+            ],
+        )
+        line = await rig.driver.user_idle()
+        assert [u.text for u in line.units] == [
+            "Price $600 to $800 isn't on this page: no band covers $600 to $800 — it offers Under $300, $300 \u2013 $400, Over $400."
+        ]
+
+
+@pytest.mark.parametrize(
+    ("page", "request_", "moves"),
+    [
+        (
+            "category/sofas",
+            {"materials": ["boucle"]},
+            [("listing.filter", {"facet": "Fabric", "value": "Boucle"})],
+        ),
+        (
+            "category/rugs",
+            {"materials": ["wool"], "colours": ["sage"], "constraints": ["under 300"]},
+            [
+                ("listing.filter", {"facet": "Fabric", "value": "Wool"}),
+                ("listing.filter", {"facet": "Color", "value": "Sage"}),
+                ("listing.range", {"facet": "Price", "max": 300}),
+            ],
+        ),
+        (
+            "category/table-lamps",
+            {"constraints": ["tall", "matte black", "over 400"], "sort": "cheapest first"},
+            [
+                ("listing.filter", {"facet": "Height", "value": "Tall"}),
+                ("listing.filter", {"facet": "Finish", "value": "Matte Black"}),
+                ("listing.range", {"facet": "Price", "min": 400}),
+                ("listing.sort", {"by": "price-asc"}),
+            ],
+        ),
+        (
+            "room/dining",
+            {"category": "dining tables", "materials": ["material ceramic"], "on_sale": True},
+            [
+                ("listing.filter", {"facet": "Category", "value": "Dining Tables"}),
+                ("listing.filter", {"facet": "Material", "value": "Ceramic"}),
+                ("listing.filter", {"facet": "On sale", "value": "On sale"}),
+            ],
+        ),
+    ],
+)
+async def test_every_kind_of_facet_on_real_rails(
+    page: str, request_: dict[str, Any], moves: list[Any]
+) -> None:
+    llm = _filters_llm("Filter it.", **request_)
+    async with demo("fernhollow", llm) as rig:
+        await _on(rig, page)
+        await rig.driver.user_says("Filter it.")
+        assert [(m["move"], m["args"]) for m in _rail(rig)] == moves
+        assert "navigate" not in rig.actions()
+
+
+async def test_a_facet_the_brain_has_never_seen() -> None:
+    """Nothing is named in code: a made-up options facet and a made-up range
+    facet filter by their kind alone."""
+    RAILS["category/vases"] = [
+        _opts("Glaze", "Crackle", "Celadon", "Speckled"),
+        {"name": "Depth", "kind": "range", "min": None, "max": None},
+        PRICE,
+    ]
+    llm = _filters_llm(
+        "Celadon, depth between 10 and 20.", constraints=["celadon", "depth between 10 and 20"]
+    )
+    async with demo("fernhollow", llm) as rig:
+        await _on(rig, "category/vases")
+        await rig.driver.user_says("Celadon, depth between 10 and 20.")
+        assert [(m["move"], m["args"]) for m in _rail(rig)] == [
+            ("listing.filter", {"facet": "Glaze", "value": "Celadon"}),
+            ("listing.range", {"facet": "Depth", "min": 10, "max": 20}),
+        ]
+
+
+async def test_what_this_page_cannot_show_opens_the_page_that_can() -> None:
+    from voqalize_demos._loaded.fernhollow import rail
+
+    found = rail.best_page(["linen"])
+    assert found is not None
+    page, mapped = found
+    llm = _filters_llm("Show me linen things.", materials=["linen"])
+    async with demo("fernhollow", llm) as rig:
+        await _on(rig, "room/dining")
+        await rig.driver.user_says("Show me linen things.")
+        assert rig.command("navigate")["page"] == page
+        assert _rail(rig) == []
+        facets = [_opts(f, *v) for f, v in rail.page_facets(page).items()]
+        await _listing(rig, page, "Linen", facets)
+        assert [(m["move"], m["args"]) for m in _rail(rig)] == [
+            ("listing.filter", {"facet": f, "value": v}) for f, v in mapped.filters
+        ]
+
+
+async def test_removing_the_price_limit_keeps_the_rest() -> None:
+    llm = ScriptedGemini(
+        {
+            "Drop the price limit.": reply_and_call(
+                "Price limit off.", "remove_filter", request={"key": "price_max"}
+            )
+        }
+    )
+    async with demo("fernhollow", llm) as rig:
+        await _on(rig, "category/dining-chairs")
+        on = {**PRICE, "min": 100, "max": 300, "active": ["Under $300"]}
+        await _listing(
+            rig, "category/dining-chairs", "Dining Chairs", [_opts("Finish", "Oak", "Walnut"), on]
+        )
+        await rig.driver.user_says("Drop the price limit.")
+        assert (_rail(rig)[-1]["move"], _rail(rig)[-1]["args"]) == (
+            "listing.range",
+            {"facet": "Price", "min": 100},
+        )
+
+
+async def test_filter_material_to_ceramic_on_the_dining_page() -> None:
+    """The first live bug: on Dining, "filter material to ceramic" ticks
+    Ceramic on the Dining page's own rail — one move, no navigation, no /picks
+    — and the page's own answer is said once."""
+    llm = _filters_llm("Filter material to ceramic.", materials=["material ceramic"])
+    async with demo("fernhollow", llm) as rig:
+        await _on(rig, "room/dining")
+        await rig.driver.user_says("Filter material to ceramic.")
+        moves = _rail(rig)
+        assert [(m["move"], m["args"]) for m in moves] == [
+            ("listing.filter", {"facet": "Material", "value": "Ceramic"})
+        ]
+        assert "navigate" not in rig.actions()
+        assert "show_products" not in rig.actions() and "apply_filters" not in rig.actions()
+        await _answer_with(rig, moves[0], "applied", detail="Material: Ceramic on — 25 pieces")
+        said = await rig.driver.user_idle()
+        assert [u.text for u in said.units] == ["Material: Ceramic — 25 pieces."]
+        assert (await rig.driver.user_idle()).units == []
+
+
+async def test_a_filter_cue_is_said_from_the_pages_answer() -> None:
+    """A {filter:} cue the model wrote goes through the same outcome path:
+    what is said about it comes from the page, not from the model's words."""
+    llm = ScriptedGemini(
+        {"Walnut please.": reply("{filter: Finish | Walnut} Walnut, on the filters.")}
+    )
+    async with demo("fernhollow", llm) as rig:
+        await _on(rig, "category/dining-chairs")
+        await rig.driver.user_says("Walnut please.")
+        cue = next(c["payload"] for c in rig.driver.ui_commands if c.get("command") == "stage_cue")
+        assert cue["move"] == "listing.filter" and cue["args"] == ["Finish", "Walnut"]
+        await _answer_with(rig, cue, "applied", detail="Finish: Walnut on — 12 pieces")
+        said = await rig.driver.user_idle()
+        assert [u.text for u in said.units] == ["Finish: Walnut — 12 pieces."]

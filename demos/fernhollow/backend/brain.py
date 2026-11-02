@@ -37,7 +37,7 @@ from __future__ import annotations
 
 import re
 import time
-from collections.abc import AsyncGenerator, Awaitable, Callable, Sequence
+from collections.abc import AsyncGenerator, Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from typing import Any, Literal
 
@@ -469,6 +469,11 @@ class FilterRequest(BaseModel):
     price_min: float | None = None
     price_max: float | None = None
     on_sale: bool | None = None
+    constraints: list[str] = Field(
+        default_factory=list[str],
+        description="Every other part of the request, one per item, in the shopper's words: "
+        "'walnut', 'under 300', 'between 2 and 4 hundred', 'tall', 'on sale'.",
+    )
     sort: str | None = Field(
         default=None,
         description="How to order the grid, in the shopper's words ('cheapest first') or "
@@ -711,6 +716,11 @@ class FernhollowBrain(GeminiBrain):
         self.pending_rail: tuple[str, list[tuple[str, dict[str, Any]]], str | None] | None = None
         self.rail_run: dict[str, str] = {}
         self.rail_last: str | None = None
+        # The page's answers to the run in flight, and what the page in front
+        # could not express (said with them, in one line).
+        self.rail_answers: list[tuple[str, StageResult]] = []
+        self.rail_unsupported: str | None = None
+        self._rail_answer_at = float("-inf")
         self.last_reference: str = ""  # the latest return reference the page reported
         # A line of the brain's own for the next quiet spell (an outcome), and
         # when the last one was said: a page "speak" reaction just after an
@@ -925,9 +935,15 @@ class FernhollowBrain(GeminiBrain):
             return self._return_result(result)
         if result.call_ref in self.rail_run:
             return self._rail_result(result)
+        move = self.stage.move_of(result.call_ref)
+        if move is not None and move.id.startswith("listing.") and not result.moved:
+            # A filter cue the model wrote: the page's own answer is what is said.
+            self._rail_answer_at = time.monotonic()
+            line = _rail_line([(move.id, result)], None)
+            self._say_line_soon(line)
+            return f"[The page answered your filter cue: {line}]"
         if result.moved or result.outcome in ("applied", "partial", "undone"):
             return None
-        move = self.stage.move_of(result.call_ref)
         offers = "; ".join(
             f"{r.arg}: {r.why}" + (f" (options: {', '.join(r.options)})" if r.options else "")
             for r in result.refused
@@ -955,69 +971,70 @@ class FernhollowBrain(GeminiBrain):
         configure_soon(self.session, Config(idle=IdleConfig(timeout_ms=_SAY_NOW_MS)))
 
     def _rail_result(self, result: StageResult) -> str | None:
-        """The rail's answer to a filter Emily set: one line when the last move
-        lands (the page's own words — its count), or the refusal with the
-        rail's options. A refusal ends the run."""
+        """One answer to a filter move Emily sent. When every move of the run
+        has answered, ONE line is said, built only from the page's answers
+        (and what the page could not express) — never from what was meant."""
         what = self.rail_run.pop(result.call_ref)
-        if result.outcome in ("applied", "partial"):
-            if result.call_ref == self.rail_last:
-                self.rail_run = {}
-                line = result.detail or "Done."
-                self._say_line_soon(
-                    line[:1].upper() + line[1:] + ("" if line.endswith(".") else ".")
-                )
-                return f"[The page applied the filters: {result.detail or 'done'}.]"
+        self.rail_answers.append((what, result))
+        self._rail_answer_at = time.monotonic()
+        if self.rail_run:
             return None
-        self.rail_run = {}
-        options = [o for r in result.refused for o in r.options]
-        why = result.detail or "; ".join(r.why for r in result.refused) or result.outcome
-        offer = f" This page offers {', '.join(options[:6])}." if options else ""
-        self._say_line_soon(f"That filter isn't on this page — {why}.{offer}")
-        return f"[The page refused {what}: {why}.{offer}]"
+        line = _rail_line(self.rail_answers, self.rail_unsupported)
+        self.rail_answers, self.rail_unsupported = [], None
+        self._say_line_soon(line)
+        return f"[The page answered the filters: {line} Say nothing more about them.]"
 
-    def _send_rail(self, moves: Sequence[tuple[str, dict[str, Any]]]) -> list[str]:
-        """Send rail moves to the page in front; the last one's answer is said."""
+    def _send_rail(
+        self, moves: Sequence[tuple[str, dict[str, Any]]], unsupported: str | None = None
+    ) -> list[str]:
+        """Send rail moves to the page in front; their answers are said together."""
         self.rail_run = {}
+        self.rail_answers = []
+        self.rail_unsupported = unsupported
+        if not moves and unsupported:
+            self._say_line_soon(unsupported)
         sent: list[str] = []
         for move, args in moves:
             ref = self.stage.send(move, dict(args), queue=False)
-            label = (
-                f"{move.removeprefix('listing.')} {' '.join(str(v) for v in args.values())}".strip()
-            )
+            label = _move_label(move, args)
             self.rail_run[ref] = label
             self.rail_last = ref
             sent.append(label)
         return sent
 
-    def _rail_plan(
-        self,
-        filters: Sequence[tuple[str, str]],
-        request: FilterRequest,
-        active: dict[str, list[str]],
-    ) -> list[tuple[str, dict[str, Any]]]:
-        moves: list[tuple[str, dict[str, Any]]] = [
-            ("listing.filter", {"facet": f, "value": v})
-            for f, v in filters
-            if v not in active.get(f, [])
+    def _rail(self, listing: ListingViewed) -> list[rail.Facet]:
+        raw = listing.facets
+        if isinstance(raw, dict):
+            return rail.facets_from(raw, listing.active)
+        return rail.facets_from([f.model_dump() for f in raw])
+
+    def _sort_options(self, listing: ListingViewed) -> list[str]:
+        if isinstance(listing.sort, str):
+            return []
+        return [
+            o if isinstance(o, str) else (o.get("value") or o.get("label") or "")
+            for o in listing.sort.options
         ]
-        if request.on_sale and "On sale" not in active.get("On sale", []):
-            moves.append(("listing.filter", {"facet": "On sale", "value": "On sale"}))
-        if request.price_min is not None or request.price_max is not None:
-            price: dict[str, Any] = {}
-            if request.price_min is not None:
-                price["min"] = request.price_min
-            if request.price_max is not None:
-                price["max"] = request.price_max
-            moves.append(("listing.price", price))
-        if request.sort and (key := rail.sort_key(request.sort)) is not None:
-            moves.append(("listing.sort", {"by": key}))
-        return moves
+
+    def _range_move(
+        self, moves: list[tuple[str, dict[str, Any]]]
+    ) -> list[tuple[str, dict[str, Any]]]:
+        """listing.range, or its price alias on a page that only has that."""
+        if self.stage.moves.get("listing.range") is not None:
+            return moves
+        out: list[tuple[str, dict[str, Any]]] = []
+        for mv, args in moves:
+            if mv == "listing.range":
+                out.append(("listing.price", {k: v for k, v in args.items() if k != "facet"}))
+            else:
+                out.append((mv, args))
+        return out
 
     def _rail_ready(self) -> bool:
+        has = self.stage.moves.get
         return all(
-            self.stage.moves.get(m) is not None
-            for m in ("listing.filter", "listing.unfilter", "listing.price", "listing.sort")
-        )
+            has(m) is not None for m in ("listing.filter", "listing.unfilter", "listing.sort")
+        ) and (has("listing.range") is not None or has("listing.price") is not None)
 
     def _return_result(self, result: StageResult) -> str | None:
         """One answer to a move prepare_return sent: a refusal stops the run and
@@ -1688,63 +1705,112 @@ class FernhollowBrain(GeminiBrain):
         )
 
     def _filter_on_rail(self, request: FilterRequest) -> str | None:
-        """The rail path: the page in front, else the page that can; ``None``
-        only when no single listing page can show it."""
+        """The rail path. Every part of the request the page in front can
+        express is sent as its own move; the rest is reported. Another page
+        only when none of the named things fits here; ``None`` only when no
+        single listing page can show it."""
         words = [*request.materials, *request.colours, *request.styles]
+        constraints = [*words, *request.constraints]
         here = (
             self.listing
             if self.listing is not None and self.listing.page == self.screen.page
             else None
         )
         slug = _category(request.category) if request.category else None
-        if here is not None and slug is not None and "Category" in here.facets:
-            # A category the page's own rail offers is a tick there, not a new page.
-            name = CATALOG.categories[slug].name
-            if name in here.facets["Category"]:
-                words.append(f"Category {name}")
-                request = request.model_copy(update={"category": None})
-        other = (
-            request.category is not None
-            and (
-                here is None
-                or here.page != f"category/{_category(request.category) or request.category}"
-            )
-        ) or (request.room is not None and (here is None or here.page != f"room/{request.room}"))
+        price = (
+            (request.price_min, request.price_max)
+            if request.price_min is not None or request.price_max is not None
+            else None
+        )
         price_note = (
             f"up to {money(request.price_max)}, including that price"
             if request.price_max is not None
             else None
         )
-        if here is not None and not other:
-            m = rail.map_words(words, here.facets)
-            if not m.unmatched:
-                moves = self._rail_plan(m.filters, request, here.active)
-                if not moves:
-                    landed("That's already how it's filtered.")
-                    return _prose("Nothing to change: the page is already filtered that way.")
-                sent = self._send_rail(moves)
-                landed("Setting that on the filters now.")
-                assumption = "; ".join(x for x in (*m.assumptions, price_note) if x) or None
-                return _prose(
-                    f"On this page's own filters ({here.title}): {', '.join(sent)}. "
-                    "The page's count follows; nothing else moves.",
-                    assumption=assumption,
+        if here is not None:
+            facets = self._rail(here)
+            if slug is not None:
+                # a category the page's own rail offers is a tick there
+                name = CATALOG.categories[slug].name
+                if any(name in f.values for f in facets):
+                    constraints.insert(0, name)
+                    slug = None
+            if request.on_sale:
+                constraints.append("on sale")
+            elsewhere = (slug is not None and here.page != f"category/{slug}") or (
+                request.room is not None and here.page != f"room/{request.room}"
+            )
+            if not elsewhere:
+                p = rail.plan(
+                    constraints,
+                    facets,
+                    sort=request.sort,
+                    sort_options=self._sort_options(here),
+                    price=price,
+                    # a page that reports its rail untyped still has price controls
+                    price_anyway=isinstance(here.facets, dict) or here.price is not None,
                 )
-        category = _category(request.category) if request.category else None
-        found = rail.best_page(words, category=category, room=request.room)
+                # the key constraint (the named things) fits here, or no other
+                # page fits it either: everything that can goes on this page
+                key_fits = not words or p.matched_words > 0
+                if (key_fits or rail.best_page(words, room=request.room) is None) and (
+                    p.moves or p.unmatched
+                ):
+                    return self._apply_plan(here, facets, p, price_note)
+        found = rail.best_page(words, category=slug, room=request.room)
         if found is None:
             return None
         page, m = found
-        moves = self._rail_plan(m.filters, request, {})
-        self.pending_rail = (page, moves, None)
+        moves: list[tuple[str, dict[str, Any]]] = [
+            ("listing.filter", {"facet": f, "value": v}) for f, v in m.filters
+        ]
+        if price is not None:
+            args: dict[str, Any] = {"facet": "Price"}
+            if price[0] is not None:
+                args["min"] = rail.whole(price[0])
+            if price[1] is not None:
+                args["max"] = rail.whole(price[1])
+            moves.append(("listing.range", args))
+        if request.sort and (key := rail.sort_key(request.sort)) is not None:
+            moves.append(("listing.sort", {"by": key}))
+        self.pending_rail = (page, self._range_move(moves), None)
         self._move(page=page, product=None)
         self.session.dispatch(Navigate(page=page))
-        landed("Opening the right page for that.")
+        landed("Opening the page that has that filter.")
         assumption = "; ".join(x for x in (*m.assumptions, price_note) if x) or None
         return _prose(
             f"Opening {page.replace('/', ': ')}, whose filters can show that; then: "
             + ", ".join(f"{a.get('facet', mv)} {a.get('value', '')}".strip() for mv, a in moves),
             assumption=assumption,
+            rule="Never say a filter is set: Emily says what the page shows when it answers.",
+        )
+
+    def _apply_plan(
+        self,
+        here: ListingViewed,
+        facets: Sequence[rail.Facet],
+        p: rail.Plan,
+        price_note: str | None,
+    ) -> str:
+        unsupported = None
+        if p.unmatched:
+            offers = ", ".join(f.name for f in facets if f.kind != "toggle") or "no other filters"
+            unsupported = (
+                f"This page can't filter by {' or '.join(p.unmatched)}; it offers {offers}."
+            )
+        moves = self._range_move(p.moves)
+        if not moves and not unsupported:
+            landed("That's already how it's filtered.")
+            return _prose("Nothing to change: the page is already filtered that way.")
+        sent = self._send_rail(moves, unsupported)
+        landed("Putting that on the filters.")
+        assumption = "; ".join(x for x in (*p.assumptions, price_note) if x) or None
+        return _prose(
+            f"Sent to this page's own filters ({here.title}): {', '.join(sent) or 'nothing'}.",
+            cannot=unsupported,
+            assumption=assumption,
+            rule="Say only that you are putting it on the filters. Never say a filter "
+            "is set: Emily's next line says what the page actually shows.",
         )
 
     async def remove_filter(self, request: RemoveFilterRequest) -> str:
@@ -1756,19 +1822,24 @@ class FernhollowBrain(GeminiBrain):
         )
         if here is not None and self._rail_ready():
             moves: list[tuple[str, dict[str, Any]]] = []
+            facets = self._rail(here)
+            numeric = next((f for f in facets if f.numeric), None)
             if request.key in ("price_min", "price_max"):
-                price = here.price
-                keep: dict[str, Any] = {}
-                if request.key == "price_max" and price is not None and price.min is not None:
-                    keep["min"] = price.min
-                if request.key == "price_min" and price is not None and price.max is not None:
-                    keep["max"] = price.max
-                moves.append(("listing.price", keep))
+                lo = numeric.min if numeric else (here.price.min if here.price else None)
+                hi = numeric.max if numeric else (here.price.max if here.price else None)
+                keep: dict[str, Any] = {"facet": numeric.name if numeric else "Price"}
+                if request.key == "price_max" and lo is not None:
+                    keep["min"] = lo
+                if request.key == "price_min" and hi is not None:
+                    keep["max"] = hi
+                moves.append(("listing.range", keep))
             elif request.value:
-                m = rail.map_words([request.value], here.active)
+                on = {f.name: list(f.active) for f in facets if f.active}
+                m = rail.map_words([request.value], on)
                 moves += [("listing.unfilter", {"facet": f, "value": v}) for f, v in m.filters]
             elif request.key in ("materials", "colours", "styles", "category", "room", "on_sale"):
                 moves.append(("listing.clear_filters", {}))
+            moves = self._range_move(moves)
             if moves and all(self.stage.moves.get(mv) is not None for mv, _ in moves):
                 sent = self._send_rail(moves)
                 landed("Taking that off now.")
@@ -2539,6 +2610,8 @@ class FernhollowBrain(GeminiBrain):
                     return None
                 self.screen = replace(self.screen, product=p.id, variant=v.id)
                 return f"[The shopper picked {v.value} for {p.title}.]"
+            case FilterChanged() if time.monotonic() - self._rail_answer_at < 1.0:
+                return None  # the page's own answer to Emily's move is the truth
             case FilterChanged():
                 f = event.filters
                 filters = eng.Filters(
@@ -2649,6 +2722,66 @@ class FernhollowBrain(GeminiBrain):
             case CheckoutStepReached():
                 self.checkout_step_now = event.step
                 return f"[The checkout is on {event.step}.]"
+
+
+def _move_label(move: str, args: Mapping[str, Any]) -> str:
+    """A move as the shopper would say it: "Finish: Walnut", "price up to $300"."""
+    if "value" in args:
+        return f"{args.get('facet', '')}: {args['value']}".strip(": ")
+    if move in ("listing.range", "listing.price"):
+        lo, hi = args.get("min"), args.get("max")
+        what = str(args.get("facet") or "price").lower()
+        if lo is not None and hi is not None:
+            return (
+                f"{what} {money(lo)} to {money(hi)}" if "price" in what else f"{what} {lo} to {hi}"
+            )
+        if hi is not None:
+            return f"{what} up to {money(hi)}" if "price" in what else f"{what} up to {hi}"
+        if lo is not None:
+            return f"{what} from {money(lo)}" if "price" in what else f"{what} from {lo}"
+        return f"{what} any"
+    if move == "listing.sort":
+        return f"sorted {args.get('by', '')}"
+    return move.removeprefix("listing.").replace("_", " ")
+
+
+_ON = re.compile(
+    r"^(?P<label>.+?)\s+(?:on|off|set|ticked)\s*[\u2014\u2013-]\s*(?P<tail>.+?)\.?$", re.IGNORECASE
+)
+
+
+def _rail_line(answers: Sequence[tuple[str, StageResult]], unsupported: str | None) -> str:
+    """One line from the page's answers: what took ("Finish: Walnut and Under
+    $300 — 7 pieces"), what was refused, with the rail's options, and what the
+    page cannot filter by. Nothing in it the page did not say."""
+    labels: list[str] = []
+    tail = ""
+    other: list[str] = []
+    refused: list[str] = []
+    for what, r in answers:
+        if r.outcome in ("applied", "partial"):
+            detail = (r.detail or "").strip()
+            m = _ON.match(detail)
+            if m:
+                labels.append(m.group("label"))
+                tail = m.group("tail")
+            elif detail:
+                other.append(detail.rstrip("."))
+        else:
+            options = [o for x in r.refused for o in x.options]
+            why = r.detail or "; ".join(x.why for x in r.refused) or r.outcome
+            offer = f" — it offers {', '.join(options[:6])}" if options else ""
+            refused.append(f"{what} isn't on this page: {why}{offer}")
+    parts: list[str] = []
+    if labels:
+        parts.append(" and ".join(labels) + (f" — {tail}" if tail else ""))
+    parts += other
+    out = ". ".join(p[:1].upper() + p[1:] for p in parts)
+    if refused:
+        out = (out + ". " if out else "") + ". ".join(x[:1].upper() + x[1:] for x in refused)
+    if unsupported:
+        out = (out + ". " if out else "") + unsupported.rstrip(".")
+    return (out or "The page didn't say") + "."
 
 
 #: How long after Emily says an outcome a page "speak" reaction is the same news.
