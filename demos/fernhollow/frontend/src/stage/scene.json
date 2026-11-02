@@ -1,0 +1,102 @@
+{
+  "$schema": "../../../../../sdk/js/stage/stage.schema.json",
+  "stage": 1,
+  "id": "fernhollow_returns",
+  "languages": ["en"],
+  "kits": [
+    {
+      "id": "watch",
+      "major": 1,
+      "events": {
+        "view.changed": { "react": "speak", "ask": "offer to fill it in, one short line" }
+      }
+    }
+  ],
+  "moves": [
+    {
+      "id": "returns.open_step",
+      "verb": "step",
+      "class": "look",
+      "args": [
+        {
+          "name": "step",
+          "type": "integer",
+          "doc": "The step of the returns form, 1 to 6: 1 find your order, 2 items, 3 reason, 4 resolution, 5 collection, 6 review."
+        }
+      ],
+      "say": "{step: 3} as you start talking about that step of the returns form; it opens, scrolls into view and is ringed.",
+      "doc": "Open one step of the returns form and ring it."
+    },
+    {
+      "id": "returns.fill",
+      "verb": "fill",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "field",
+          "doc": "A field of the returns form by its name: order_number, reason, condition, resolution, exchange_variant_<product_id>, collection, pickup_window. Never email: the shopper types that."
+        },
+        {
+          "name": "value",
+          "doc": "One of the field's values as the form names them: doesnt_suit_room, unused_in_packaging, refund, pickup, weekday_morning. For order_number the order number, FH-20418."
+        }
+      ],
+      "say": "{fill: reason | doesnt_suit_room} at the start of the sentence that says it, one field per sentence: \"Let's put down that it doesn't suit the room.\"",
+      "claims": ["putting down", "filling in", "i'll put"],
+      "objects": ["form", "field", "return"],
+      "doc": "Set one field of the returns form, as the voice says it. Refused, with the field's values, when the value is not one of them, and always for email."
+    },
+    {
+      "id": "returns.select_item",
+      "verb": "item",
+      "class": "reversible",
+      "args": [
+        { "name": "product_id", "doc": "The order line's product id, as find_order gives it." },
+        { "name": "qty", "type": "integer", "default": 1, "doc": "How many to return, 1 up to the number ordered; 0 takes the item off the return." }
+      ],
+      "say": "{item: product-id | 1} as you name an item of the order being returned.",
+      "claims": ["returning the", "adding the"],
+      "objects": ["item", "return"],
+      "doc": "Choose an item of the order to return, and how many."
+    }
+  ],
+  "slices": [
+    {
+      "id": "returns_form",
+      "doc": "the returns form: the step in front and which fields hold something, by name, never their values",
+      "fields": [
+        { "name": "step", "type": "integer", "optional": true, "doc": "The step in front, 1 to 6." },
+        { "name": "field", "optional": true, "doc": "The field that just changed, by name." },
+        { "name": "filled", "type": "array", "doc": "The names of the fields that hold something." },
+        { "name": "reference", "optional": true, "doc": "The return's reference, once submitted: RT-20418-1." }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "id": "returns.field_filled",
+      "slice": "returns_form",
+      "op": "merge",
+      "note": "{by} filled {field} on the returns form",
+      "react": "note",
+      "doc": "A field of the returns form was filled or changed."
+    },
+    {
+      "id": "returns.step_reached",
+      "slice": "returns_form",
+      "op": "merge",
+      "note": "{by} is on step {step} of the returns form",
+      "react": "note",
+      "doc": "The returns form moved to another step."
+    },
+    {
+      "id": "returns.return_submitted",
+      "slice": "returns_form",
+      "op": "merge",
+      "note": "{by} submitted the return {reference}",
+      "react": "speak",
+      "ask": "thank them and say what happens next, in one line",
+      "doc": "The shopper pressed Submit return."
+    }
+  ]
+}

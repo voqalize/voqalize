@@ -209,10 +209,23 @@ export function InfoPage({ slug: fixed }: { slug?: string }) {
             <h1 className="h1">{page.title}</h1>
             {page.dek ? <p className="lede">{page.dek}</p> : null}
           </header>
+          {page.slug === "returns" || page.slug === "faq" ? <ReturnsDeskLink /> : null}
           <div className="prose" dangerouslySetInnerHTML={{ __html: md(page.body) }} />
         </div>
       </div>
     </div>
+  );
+}
+
+function ReturnsDeskLink() {
+  return (
+    <Link to="/returns" className="returns-link">
+      <span>
+        <span className="returns-link-title">Start a return online</span>
+        <span className="small">Find your order and send it back in six short steps, by hand or with Mira.</span>
+      </span>
+      <span className="btn btn-primary btn-sm">Returns desk</span>
+    </Link>
   );
 }
 
@@ -385,6 +398,13 @@ export function ConfirmationPage() {
           <Link to="/" className="btn btn-ghost">
             Keep shopping
           </Link>
+          <p className="small">
+            Need to send something back later?{" "}
+            <Link className="link" to="/returns">
+              Start a return
+            </Link>
+            .
+          </p>
         </section>
       </div>
     </div>

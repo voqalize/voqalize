@@ -51,6 +51,9 @@ export function Footer() {
           <div>
             <h3 className="footer-h">Help</h3>
             <ul>
+              <li>
+                <Link to="/returns">Start a return</Link>
+              </li>
               {INFO_PAGES.filter((p) => p.slug !== "about").map((p) => (
                 <li key={p.slug}>
                   <Link to={p.path}>{p.label}</Link>

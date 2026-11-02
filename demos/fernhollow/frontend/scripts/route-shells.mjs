@@ -65,6 +65,9 @@ const routes = [
   ["checkout/confirmation", "Order placed"],
   ["journal", "Journal"],
   ["contact", "Contact"],
+  ["returns", "Returns"],
+  ["returns/start", "Start a return"],
+  ["returns/confirmation", "Return submitted"],
 ];
 for (const r of catalog.rooms) routes.push([`room/${r}`, ROOM_NAMES[r] ?? r]);
 for (const c of catalog.categories) routes.push([`category/${c.slug}`, c.name]);
