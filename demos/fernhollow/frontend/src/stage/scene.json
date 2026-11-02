@@ -132,11 +132,11 @@
       "args": [
         {
           "name": "facet",
-          "doc": "The rail's filter as the listing page names it: Material, Finish, Category, On sale."
+          "doc": "A facet of the rail, as listing_viewed names it: Material, Finish, Category, On sale, Price."
         },
         {
           "name": "value",
-          "doc": "One option of that filter, exactly as the rail lists it: Ceramic, Walnut."
+          "doc": "One of that facet's values as the rail lists it: Ceramic, Walnut; for a bands facet, a band's label (Under $300); for a toggle, its name."
         }
       ],
       "say": "{filter: Material | Ceramic} as you say it; the option is ringed and ticked on the page's own filter rail.",
@@ -148,7 +148,7 @@
       "objects": [
         "filter"
       ],
-      "doc": "Tick one option of the filter rail on the listing in front, exactly as a click does: the grid, the count and the address update in place. Refused, with the rail's options, when this page does not offer it."
+      "doc": "Turn on one value of any options, toggle or bands facet on the listing in front, exactly as a click does: the grid, the count and the address update in place. Refused, with that facet's values, when this page does not offer it."
     },
     {
       "id": "listing.unfilter",
@@ -161,7 +161,8 @@
         },
         {
           "name": "value",
-          "doc": "The option to untick: Ceramic."
+          "doc": "The value to turn off; left out, the facet's value that is on (or its range).",
+          "optional": true
         }
       ],
       "say": "{unfilter: Material | Ceramic} as you take that filter off.",
@@ -174,6 +175,31 @@
       "args": [],
       "say": "{clear} as you say the filters are off.",
       "doc": "Take every filter on the listing in front off."
+    },
+    {
+      "id": "listing.range",
+      "verb": "range",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "facet",
+          "doc": "A bands or range facet: Price."
+        },
+        {
+          "name": "min",
+          "type": "integer",
+          "optional": true,
+          "doc": "The lower bound."
+        },
+        {
+          "name": "max",
+          "type": "integer",
+          "optional": true,
+          "doc": "The upper bound."
+        }
+      ],
+      "say": "{range: Price | | 300} for up to 300, {range: Price | 300 | 400} for a span.",
+      "doc": "Set a bands or range facet to [min, max]. On a bands facet a span that is exactly one band presses that band; a span across bands rings each band it takes in and sets the span; a span no band reaches is refused with the bands. Both left out takes the facet off."
     },
     {
       "id": "listing.price",
@@ -194,7 +220,7 @@
         }
       ],
       "say": "{price: | 500} for up to $500, {price: 200 | 800} for a range.",
-      "doc": "Set the rail's price range; leave both out to clear it."
+      "doc": "The same as listing.range on the page's Price facet; kept for the older name."
     },
     {
       "id": "listing.sort",

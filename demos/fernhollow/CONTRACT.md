@@ -217,15 +217,31 @@ Found live: on the Dining page, "filter material to ceramic" sent the shopper to
 listing instead of using the Dining page's filter rail. Filters must be **visible on the page itself**:
 the option is ringed and ticked exactly as a click would, and the grid, count and URL update in place.
 
-**Page → brain:** `listing_viewed{page, title, facets:{<facet>:[values…]}, active:{<facet>:[values…]},
-price:{min,max}?, sort, count}` on arrival at any listing (room, category, sale, search) and on every
-change, by visitor or by Emily (`silent`). Facet names and values are exactly the rail's labels.
+**Page → brain:** `listing_viewed{page, title, facets:[…], sort:{value, options:[…]}, count}` on arrival
+at any listing (room, category, sale, search) and after every change, by visitor or by Emily (`silent`),
+sent once the grid has rendered so `count` is the count on screen. Each facet is described by its
+**kind**, derived from the rail's one definition, so a new facet needs no new code:
+
+- `{name, kind:"options", values:[…], multi, active?:[…]}` — values to tick (Category, Material, Finish,
+  Fabric, Style, Height…); `multi:false` for Category.
+- `{name, kind:"toggle", active?:true}` — one switch (On sale).
+- `{name, kind:"bands", bands:[{label, min?, max?}], min?, max?, active?:[label]}` — labelled ranges
+  with their numeric bounds, plus the bounds in force (Price).
+- `{name, kind:"range", min?, max?}` — a free min / max with no bands.
+
+Names, values and band labels are exactly the rail's. The page no longer sends `filter_changed` from a
+listing: the brain's own recount of it could disagree with the grid ("0 products show" over 24).
 
 **Stage moves on listing pages (all `reversible`, all ring the real control first, answer one line):**
 - `listing.filter{facet, value}` — ticks that option in the rail (refused with the rail's options if
   the value is not offered on this page).
 - `listing.unfilter{facet, value}` / `listing.clear_filters{}`.
-- `listing.price{min?, max?}` — sets the price range controls.
+- `listing.range{facet, min?, max?}` — a bands or range facet: a span that is exactly one band presses
+  that band; a span across bands rings each band it takes in and sets the span; a span no band reaches
+  is refused with the band labels; both bounds left out takes the facet off. `listing.price{min?, max?}`
+  is the same move on Price, kept as an alias.
+- `listing.filter{facet, value}` works for every kind: an option, a toggle (by its name) or a band (by
+  its label). Refusals always list that facet's own values.
 - `listing.sort{by}` — the page's own sort control.
 
 **Brain rule:** `set_filters` first maps the shopper's words to the **current page's** facets and

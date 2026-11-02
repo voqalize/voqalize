@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useLocation, useParams, useSearchParams } from "react-router-dom";
 import { useAppStage, useMove } from "../stage/host";
 import { type ListingApi, listingPerformers } from "../stage/listing";
+import { type RailFacet, describeFacet, partOf, railModel } from "../data/rail";
 import {
   type ListingFilters,
   type Product,
@@ -80,90 +81,43 @@ export function ListingView({ title, intro, crumbs, base, pills, isSearch, empty
     const next = new URLSearchParams(sp);
     mut(next);
     setSp(next, { replace: true, preventScrollReset: true });
-    const r = readFilters(next);
-    // In the brain's terms: option values become materials, colours and styles.
-    const values = (names: string[]) => r.opts.filter((o) => names.includes(splitOpt(o)[0])).map((o) => splitOpt(o)[1].toLowerCase());
-    const rooms = new Set(base.map((p) => p.room));
-    const cats = new Set(base.map((p) => p.categorySlug));
-    emit("filter_changed", {
-      filters: {
-        room: rooms.size === 1 ? [...rooms][0] : null,
-        category: r.category ?? (cats.size === 1 ? [...cats][0] : null),
-        materials: values(["Material", "Finish", "Fabric", "Frame"]),
-        colours: values(["Color"]),
-        styles: values(["Style"]),
-        price_min: r.min,
-        price_max: r.max,
-        on_sale: r.sale || null,
-      },
-    });
+    // The brain hears this change as listing_viewed once the grid has
+    // rendered, with the count the shopper sees. filter_changed is not sent
+    // from here: the brain recounted its filters with its own rules and could
+    // say "0 products show" over a grid of 24.
   };
-  const toggleOpt = (key: string) =>
-    update((n) => {
-      const all = n.getAll("opt");
-      n.delete("opt");
-      (all.includes(key) ? all.filter((x) => x !== key) : [...all, key]).forEach((v) => n.append("opt", v));
-    });
-  const setPrice = (min: number | null, max: number | null) =>
-    update((n) => {
-      min == null ? n.delete("min") : n.set("min", String(min));
-      max == null ? n.delete("max") : n.set("max", String(max));
-    });
 
+  // ── The rail, as one typed definition (src/data/rail.ts) ──
+  const rail = useMemo(() => railModel(scoped, sp), [scoped, sp.toString()]); // eslint-disable-line react-hooks/exhaustive-deps
+  const chipLabel = (r: RailFacet, v: string) => (r.kind === "toggle" ? r.name : v);
   const active: { label: string; clear: () => void }[] = [
-    ...(f.category ? [{ label: getCategory(f.category)?.name ?? f.category, clear: () => update((n) => n.delete("cat")) }] : []),
-    ...(f.sale ? [{ label: "On sale", clear: () => update((n) => n.delete("sale")) }] : []),
-    ...(f.min != null || f.max != null
-      ? [
-          {
-            label: f.min != null && f.max != null ? `${money(f.min)} – ${money(f.max)}` : f.min != null ? `Over ${money(f.min)}` : `Under ${money(f.max!)}`,
-            clear: () => setPrice(null, null),
-          },
-        ]
-      : []),
-    ...f.opts.map((o) => ({ label: splitOpt(o)[1], clear: () => toggleOpt(o) })),
+    ...rail.flatMap((r) => {
+      if (r.active.length) return r.active.map((v) => ({ label: chipLabel(r, v), clear: () => update(r.toggle(v)) }));
+      if ((r.kind === "bands" || r.kind === "range") && (r.min != null || r.max != null)) {
+        const label = r.min != null && r.max != null ? `${money(r.min)} – ${money(r.max)}` : r.min != null ? `Over ${money(r.min)}` : `Under ${money(r.max!)}`;
+        return [{ label, clear: () => update(r.clear()) }];
+      }
+      return [];
+    }),
     ...(!isSearch && f.q ? [{ label: `“${f.q}”`, clear: () => update((n) => n.delete("q")) }] : []),
   ];
   const clearAll = () =>
     update((n) => {
-      ["cat", "sale", "min", "max", "opt"].forEach((k) => n.delete(k));
+      for (const r of rail) r.clear()(n);
       if (!isSearch) n.delete("q");
     });
 
-  // ── What the rail offers, by its own labels (for Emily and for listing_viewed) ──
-  const rail = useMemo(() => railFacets(scoped), [scoped]);
-  const activeMap: Record<string, string[]> = {};
-  if (f.category) activeMap.Category = [getCategory(f.category)?.name ?? f.category];
-  if (f.sale) activeMap["On sale"] = ["On sale"];
-  for (const o of f.opts) {
-    const [k, v] = splitOpt(o);
-    (activeMap[k] ??= []).push(v);
-  }
   const location = useLocation();
   const stage = useAppStage((s) => s.stage);
   const api: ListingApi = {
     facets: rail,
-    active: activeMap,
     countAfter(mut) {
       const next = new URLSearchParams(sp);
       mut(next);
       const r = readFilters(next);
       return applyListingFilters(scoped, { ...r, q: isSearch ? "" : r.q }).length;
     },
-    toggleMut(facet, value) {
-      if (facet === "Category") {
-        const slug = categories.find((c) => c.name === value)?.slug ?? value;
-        return (n) => (n.get("cat") === slug ? n.delete("cat") : n.set("cat", slug));
-      }
-      if (facet === "On sale") return (n) => (n.get("sale") === "1" ? n.delete("sale") : n.set("sale", "1"));
-      const key = `${facet}:${value}`;
-      return (n) => {
-        const all = n.getAll("opt");
-        n.delete("opt");
-        (all.includes(key) ? all.filter((x) => x !== key) : [...all, key]).forEach((v) => n.append("opt", v));
-      };
-    },
-    setPrice,
+    apply: update,
     setSort: (key) => update((n) => n.set("sort", key)),
     clearAll,
     openSheet: () => setRailOpen(true),
@@ -174,10 +128,11 @@ export function ListingView({ title, intro, crumbs, base, pills, isSearch, empty
   useMove(stage, "listing.filter", performers["listing.filter"]);
   useMove(stage, "listing.unfilter", performers["listing.unfilter"]);
   useMove(stage, "listing.clear_filters", performers["listing.clear_filters"]);
+  useMove(stage, "listing.range", performers["listing.range"]);
   useMove(stage, "listing.price", performers["listing.price"]);
   useMove(stage, "listing.sort", performers["listing.sort"]);
 
-  // listing_viewed: on arrival and after every change, whoever made it.
+  // listing_viewed: on arrival and after every change, whoever made it, once the grid has the new count.
   const viewed = JSON.stringify([location.pathname, sp.toString(), sorted.length]);
   useEffect(() => {
     const t = window.setTimeout(() => {
@@ -187,10 +142,8 @@ export function ListingView({ title, intro, crumbs, base, pills, isSearch, empty
         {
           page: location.pathname + location.search,
           title,
-          facets: rail,
-          active: activeMap,
-          ...(f.min != null || f.max != null ? { price: { min: f.min, max: f.max } } : {}),
-          sort: SORTS.find((s) => s.key === f.sort)?.label ?? f.sort,
+          facets: rail.map(describeFacet),
+          sort: { value: SORTS.find((s) => s.key === f.sort)?.label ?? f.sort, options: SORTS.map((s) => s.label) },
           count: sorted.length,
         },
         agent ? "emily" : "visitor",
@@ -252,15 +205,12 @@ export function ListingView({ title, intro, crumbs, base, pills, isSearch, empty
           <FilterRail
             open={railOpen}
             onClose={() => setRailOpen(false)}
-            scoped={scoped}
-            f={f}
+            rail={rail}
+            q={f.q}
             isSearch={!!isSearch}
             count={sorted.length}
             onQuery={(q) => update((n) => (q ? n.set("q", q) : n.delete("q")))}
-            onSale={() => update((n) => (f.sale ? n.delete("sale") : n.set("sale", "1")))}
-            onCategory={(slug) => update((n) => (slug && f.category !== slug ? n.set("cat", slug) : n.delete("cat")))}
-            onPrice={setPrice}
-            onOpt={toggleOpt}
+            onChange={update}
           />
           <div className="listing-results">
             {sorted.length === 0 ? (
@@ -325,43 +275,28 @@ function SearchField() {
   );
 }
 
+/** The rail, drawn from its typed definition: each facet by its kind. */
 function FilterRail({
   open,
   onClose,
-  scoped,
-  f,
+  rail,
+  q: query,
   isSearch,
   count,
   onQuery,
-  onSale,
-  onCategory,
-  onPrice,
-  onOpt,
+  onChange,
 }: {
   open: boolean;
   onClose: () => void;
-  scoped: Product[];
-  f: ListingFilters;
+  rail: RailFacet[];
+  q: string;
   isSearch: boolean;
   count: number;
   onQuery: (q: string) => void;
-  onSale: () => void;
-  onCategory: (slug: string | null) => void;
-  onPrice: (min: number | null, max: number | null) => void;
-  onOpt: (key: string) => void;
+  onChange: (mut: (n: URLSearchParams) => void) => void;
 }) {
-  const [q, setQ] = useState(f.q);
-  useEffect(() => setQ(f.q), [f.q]);
-  const [min, setMin] = useState(f.min?.toString() ?? "");
-  const [max, setMax] = useState(f.max?.toString() ?? "");
-  useEffect(() => {
-    setMin(f.min?.toString() ?? "");
-    setMax(f.max?.toString() ?? "");
-  }, [f.min, f.max]);
-  const cats = [...new Set(scoped.map((p) => p.categorySlug))].map((s) => getCategory(s)!).filter(Boolean);
-  const groups = facets(scoped);
-  const bands = priceBands(scoped);
-  const saleCount = scoped.filter((p) => p.onSale).length;
+  const [q, setQ] = useState(query);
+  useEffect(() => setQ(query), [query]);
 
   return (
     <aside className={`rail-filters${open ? " is-open" : ""}`} aria-label="Filters">
@@ -383,98 +318,11 @@ function FilterRail({
             <label className="filter-title" htmlFor="filter-q">
               Search within
             </label>
-            <input id="filter-q" className="input input-sm" type="search" placeholder="Oak, linen, round…" value={q} onChange={(e) => setQ(e.target.value)} onBlur={() => q.trim() !== f.q && onQuery(q.trim())} />
+            <input id="filter-q" className="input input-sm" type="search" placeholder="Oak, linen, round…" value={q} onChange={(e) => setQ(e.target.value)} onBlur={() => q.trim() !== query && onQuery(q.trim())} />
           </form>
         ) : null}
-
-        {cats.length > 1 ? (
-          <fieldset className="filter-group">
-            <legend className="filter-title">Category</legend>
-            <ul className="filter-list">
-              {cats.map((c) => (
-                <li key={c.slug}>
-                  <label className="check" data-stage-part={`Category:${c.name}`}>
-                    <input type="checkbox" checked={f.category === c.slug} onChange={() => onCategory(c.slug)} />
-                    <span>{c.name}</span>
-                    <span className="check-count">{scoped.filter((p) => p.categorySlug === c.slug).length}</span>
-                  </label>
-                </li>
-              ))}
-            </ul>
-          </fieldset>
-        ) : null}
-
-        <fieldset className="filter-group" data-stage-thing="price" data-stage-label="Price">
-          <legend className="filter-title">Price</legend>
-          {bands.length ? (
-            <div className="band-chips">
-              {bands.map((b) => (
-                <button
-                  type="button"
-                  key={b.label}
-                  className="chip chip-sm"
-                  data-stage-part={`Price:${b.label}`}
-                  aria-pressed={f.min === b.min && f.max === b.max}
-                  onClick={() => (f.min === b.min && f.max === b.max ? onPrice(null, null) : onPrice(b.min, b.max))}
-                >
-                  {b.label}
-                </button>
-              ))}
-            </div>
-          ) : null}
-          <form
-            className="price-inputs"
-            onSubmit={(e) => {
-              e.preventDefault();
-              onPrice(min ? Number(min) : null, max ? Number(max) : null);
-            }}
-          >
-            <label>
-              <span className="sr-only">Minimum price</span>
-              <span className="price-prefix">$</span>
-              <input className="input input-sm" inputMode="numeric" placeholder="Min" value={min} onChange={(e) => setMin(e.target.value.replace(/[^\d]/g, ""))} />
-            </label>
-            <span aria-hidden>–</span>
-            <label>
-              <span className="sr-only">Maximum price</span>
-              <span className="price-prefix">$</span>
-              <input className="input input-sm" inputMode="numeric" placeholder="Max" value={max} onChange={(e) => setMax(e.target.value.replace(/[^\d]/g, ""))} />
-            </label>
-            <button type="submit" className="btn btn-ghost btn-sm">
-              Go
-            </button>
-          </form>
-        </fieldset>
-
-        {saleCount ? (
-          <div className="filter-group">
-            <label className="toggle" data-stage-part="On sale:On sale">
-              <input type="checkbox" checked={f.sale} onChange={onSale} />
-              <span className="toggle-ui" aria-hidden />
-              <span>On sale</span>
-              <span className="check-count">{saleCount}</span>
-            </label>
-          </div>
-        ) : null}
-
-        {groups.map((g) => (
-          <fieldset key={g.name} className="filter-group">
-            <legend className="filter-title">{g.name}</legend>
-            <ul className="filter-list">
-              {g.values.map((v) => {
-                const key = `${g.name}:${v.value}`;
-                return (
-                  <li key={key}>
-                    <label className="check" data-stage-part={key}>
-                      <input type="checkbox" checked={f.opts.includes(key)} onChange={() => onOpt(key)} />
-                      <span>{v.value}</span>
-                      <span className="check-count">{v.count}</span>
-                    </label>
-                  </li>
-                );
-              })}
-            </ul>
-          </fieldset>
+        {rail.map((r) => (
+          <RailGroup key={r.name} r={r} onChange={onChange} />
         ))}
       </div>
       <div className="rail-filters-foot only-mobile">
@@ -483,6 +331,94 @@ function FilterRail({
         </button>
       </div>
     </aside>
+  );
+}
+
+function RailGroup({ r, onChange }: { r: RailFacet; onChange: (mut: (n: URLSearchParams) => void) => void }) {
+  if (r.kind === "toggle") {
+    return (
+      <div className="filter-group">
+        <label className="toggle" data-stage-part={partOf(r, r.name)}>
+          <input type="checkbox" checked={r.active.length > 0} onChange={() => onChange(r.toggle(r.name))} />
+          <span className="toggle-ui" aria-hidden />
+          <span>{r.name}</span>
+          <span className="check-count">{r.count}</span>
+        </label>
+      </div>
+    );
+  }
+  if (r.kind === "options") {
+    return (
+      <fieldset className="filter-group">
+        <legend className="filter-title">{r.name}</legend>
+        <ul className="filter-list">
+          {(r.values ?? []).map((v) => (
+            <li key={v.value}>
+              <label className="check" data-stage-part={partOf(r, v.value)}>
+                <input type="checkbox" checked={r.active.includes(v.value)} onChange={() => onChange(r.toggle(v.value))} />
+                <span>{v.value}</span>
+                <span className="check-count">{v.count}</span>
+              </label>
+            </li>
+          ))}
+        </ul>
+      </fieldset>
+    );
+  }
+  return <RangeGroup r={r} onChange={onChange} />;
+}
+
+/** A bands facet's chips and its free min / max (a range facet has only the latter). */
+function RangeGroup({ r, onChange }: { r: RailFacet; onChange: (mut: (n: URLSearchParams) => void) => void }) {
+  const [min, setMin] = useState(r.min?.toString() ?? "");
+  const [max, setMax] = useState(r.max?.toString() ?? "");
+  useEffect(() => {
+    setMin(r.min?.toString() ?? "");
+    setMax(r.max?.toString() ?? "");
+  }, [r.min, r.max]);
+  const money$ = r.name === "Price";
+  return (
+    <fieldset className="filter-group" data-stage-thing={`range:${r.name}`} data-stage-label={r.name}>
+      <legend className="filter-title">{r.name}</legend>
+      {r.bands?.length ? (
+        <div className="band-chips">
+          {r.bands.map((b) => (
+            <button
+              type="button"
+              key={b.label}
+              className="chip chip-sm"
+              data-stage-part={partOf(r, b.label)}
+              aria-pressed={r.active.includes(b.label)}
+              onClick={() => onChange(r.toggle(b.label))}
+            >
+              {b.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <form
+        className="price-inputs"
+        onSubmit={(e) => {
+          e.preventDefault();
+          onChange(r.setRange(min ? Number(min) : null, max ? Number(max) : null));
+        }}
+      >
+        <label>
+          <span className="sr-only">Lowest {r.name.toLowerCase()}</span>
+          {money$ ? <span className="price-prefix">$</span> : null}
+          <input className="input input-sm" inputMode="numeric" placeholder="Min" value={min} onChange={(e) => setMin(e.target.value.replace(/[^\d]/g, ""))} />
+        </label>
+        <span aria-hidden>–</span>
+        <label>
+          <span className="sr-only">Highest {r.name.toLowerCase()}</span>
+          {money$ ? <span className="price-prefix">$</span> : null}
+          <input className="input input-sm" inputMode="numeric" placeholder="Max" value={max} onChange={(e) => setMax(e.target.value.replace(/[^\d]/g, ""))} />
+        </label>
+        <button type="submit" className="btn btn-ghost btn-sm">
+          Go
+        </button>
+      </form>
+    </fieldset>
   );
 }
 
@@ -561,14 +497,4 @@ export function SearchPage() {
       }
     />
   );
-}
-
-/** The rail's facets and options, by the labels it shows: Category, On sale, then each option facet. */
-export function railFacets(scoped: Product[]): Record<string, string[]> {
-  const out: Record<string, string[]> = {};
-  const cats = [...new Set(scoped.map((p) => p.categorySlug))].map((s) => getCategory(s)!).filter(Boolean);
-  if (cats.length > 1) out.Category = cats.map((c) => c.name);
-  if (scoped.some((p) => p.onSale)) out["On sale"] = ["On sale"];
-  for (const g of facets(scoped)) out[g.name] = g.values.map((v) => v.value);
-  return out;
 }

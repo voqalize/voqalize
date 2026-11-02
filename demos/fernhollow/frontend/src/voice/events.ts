@@ -26,12 +26,21 @@ interface Pending {
   listing_viewed: {
     page: string;
     title: string;
-    facets: Record<string, string[]>;
-    active: Record<string, string[]>;
-    price?: { min: number | null; max: number | null };
-    sort: string;
+    /** Each facet of the rail by its kind; values and labels exactly as the rail shows them. */
+    facets: {
+      name: string;
+      kind: "options" | "toggle" | "bands" | "range";
+      values?: string[];
+      multi?: boolean;
+      bands?: { label: string; min?: number; max?: number }[];
+      min?: number;
+      max?: number;
+      active?: string[] | true;
+    }[];
+    sort: { value: string; options: string[] };
     count: number;
   };
+
   /** The shopper's answer on a confirm prompt; a yes that placed an order carries its number. */
   confirm_result: { confirmed: boolean; order_number?: string };
   orders_known: {

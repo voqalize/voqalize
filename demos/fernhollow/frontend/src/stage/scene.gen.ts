@@ -91,7 +91,8 @@ export const scene = defineScene({
           "name": "facet"
         },
         {
-          "name": "value"
+          "name": "value",
+          "optional": true
         }
       ]
     },
@@ -99,6 +100,26 @@ export const scene = defineScene({
       "id": "listing.clear_filters",
       "verb": "clear",
       "class": "reversible"
+    },
+    {
+      "id": "listing.range",
+      "verb": "range",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "facet"
+        },
+        {
+          "name": "min",
+          "type": "integer",
+          "optional": true
+        },
+        {
+          "name": "max",
+          "type": "integer",
+          "optional": true
+        }
+      ]
     },
     {
       "id": "listing.price",
@@ -213,4 +234,4 @@ export const scene = defineScene({
   ]
 });
 
-export const SPEC_SHA256 = "1c4b8a0bb10f246cf92ca195c1dace62e8d2f41b09ff767f3b234c81159232ce";
+export const SPEC_SHA256 = "fed4a1a6733f8d2b46df3c261445a3b4883fb1166811d5a40574aaabb3c76df1";
