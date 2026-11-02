@@ -14,7 +14,7 @@ products:
   - oak-latte-blackout-curtain
   - ivory-linen-curtain-panel
   - birch-wood-table-lamp
-  - natural-linen-storage-basket-3
+  - natural-linen-storage-basket-2
 ---
 
 The bedroom is the room we see least with our eyes open, and so it tends to become the place where everything else ends up. The exercise bike, the laundry that never quite gets folded, the boxes from the move. Yet it is also the room that most affects how we feel the rest of the day. A calm bedroom is not a luxury. It is the quickest improvement most homes can make.
@@ -31,7 +31,7 @@ Then look at surfaces. Nightstands, dressers and windowsills collect objects fas
 
 Some things belong in a bedroom but do not need to be seen: spare blankets, chargers, the books you are halfway through. Give them containers. Baskets under the bed or at the foot of it, a lidded box on a shelf, a drawer you finally empty of things that do not belong.
 
-::product{id="natural-linen-storage-basket-3"}
+::product{id="natural-linen-storage-basket-2"}
 
 Soft linen baskets suit a bedroom better than hard plastic boxes. This one is pure linen with a flexible structure that adapts to what is inside, from folded towels to keepsakes, and hand-finished seams.
 

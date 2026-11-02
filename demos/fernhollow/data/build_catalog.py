@@ -13,6 +13,7 @@ import html
 import json
 import re
 import sys
+import unicodedata
 from pathlib import Path
 from typing import Any, cast
 
@@ -58,7 +59,7 @@ ROOMS: dict[str, list[str]] = {
 }
 ROOM_OF = {c: r for r, cs in ROOMS.items() for c in cs}
 
-# Real trademarks and non-English handles in the source, renamed for a fictional store.
+# Real trademarks in the source, renamed for a fictional store.
 RENAME = {
     "fauteuil-executif-eames-soft-pad-cuir-brun": (
         "soft-pad-executive-chair-brown-leather",
@@ -70,7 +71,8 @@ Json = dict[str, Any]
 
 
 def slug(text: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+    folded = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
+    return re.sub(r"[^a-z0-9]+", "-", folded.lower()).strip("-")
 
 
 def money(m: Json | None) -> float | None:
@@ -100,14 +102,14 @@ def variant(v: Json) -> Json:
 
 
 def product(p: Json) -> Json:
-    handle, title = RENAME.get(p["handle"], (p["handle"], p["title"]))
+    _, title = RENAME.get(p["handle"], (p["handle"], p["title"]))
     cat: str = p["_category"]
     variants = [variant(v) for v in p["variants"]["nodes"]]
     prices = [cast(float, v["price"]) for v in variants]
     intro, highlights = split_html(p["descriptionHtml"])
     description = str(p["description"]).strip()
     return {
-        "id": handle,
+        "id": slug(title),
         "sourceHandle": p["handle"],
         "title": title[:1].upper() + title[1:],
         "category": cat,
@@ -132,7 +134,7 @@ def product(p: Json) -> Json:
                 "alt": i["altText"] or title,
                 "width": i["width"],
                 "height": i["height"],
-                "file": f"{handle}/{n}",
+                "file": f"{slug(title)}/{n}",
             }
             for n, i in enumerate(p["images"]["nodes"])
         ],
@@ -142,6 +144,16 @@ def product(p: Json) -> Json:
 def main(src: Path) -> None:
     raw = cast(list[Json], json.loads(src.read_text()))
     products = [product(p) for p in raw]
+    # Ids are the English title's slug (the source mixes Spanish, German, French and
+    # Dutch handles); a repeated title gets -2, -3 in source order.
+    seen: dict[str, int] = {}
+    for p in products:
+        base = p["id"]
+        seen[base] = seen.get(base, 0) + 1
+        if seen[base] > 1:
+            p["id"] = f"{base}-{seen[base]}"
+            for i in p["images"]:
+                i["file"] = f"{p['id']}/{i['file'].rsplit('/', 1)[1]}"
     categories = sorted({(p["category"], p["categorySlug"], p["room"]) for p in products})
     OUT.write_text(
         json.dumps(
