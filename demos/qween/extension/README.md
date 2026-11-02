@@ -27,6 +27,10 @@ own shop before anything goes on it; it is not how a merchant would ship it.
   room. The shopper can drag it anywhere (the spot is remembered as the new
   home) and minimise it to that face with the call still live: the audio and
   the microphone are untouched.
+- `src/backdrop.ts` — what stands behind her: a generated, out-of-focus Qween
+  salon in their teal (`src/assets/salon.webp`, inlined into the bundle). Now
+  and then, never while she speaks, its light slowly warms or a shelf's point
+  of light glints; its doc comment says why it stays that small.
 - `src/dialogs.ts` — watches the page for open drawers and dialogs and reports
   where they will settle, not where they are mid-slide.
 - `src/content.ts` — the call: stock pipecat with `@voqalize/client-transport`
