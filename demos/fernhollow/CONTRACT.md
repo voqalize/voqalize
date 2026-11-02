@@ -150,3 +150,25 @@ candidate is clearly best, use it. If two to four are close — e.g. a listing o
 and a garbled name — dispatch `show_choices` and ask one short question that names the difference
 ("Which one: one, the oak one on the left, or two, the walnut one?"). Never guess between close
 candidates; never ask when one is clearly meant.
+
+## v3 — Show Emily: circle to ask (owner, 2026-11-02)
+
+**Things.** Every selectable element on every page carries `data-fh-thing="<kind>:<id>"` with kind
+`product` (catalog id), `category` (slug), `room` (room), `article` (slug). Home: hero photos, room
+tiles, on-sale rail, category tiles, journal cards. Listings: cards. Product page: the product, its
+look-alike / same-room rails. Articles: inline product cards. Emily's surfaces: room-board pieces,
+compare columns, choices. Cart lines.
+
+**Circle to ask.** Hold Shift (desktop) or long-press 350 ms (touch), then draw a loop; a glowing
+stroke follows the pointer; things whose box is ≥ 50% inside the closed loop light up while drawing.
+On release: numbered badges on the selected things (max 8), a small chip "4 selected · say what you
+want" with a clear (×) button, and one event:
+
+- `selection{things: [{kind, id}], gesture: "circle", page}` — `by: "visitor"`, `note`. Cleared by
+  `selection_cleared{}` (×, Esc, or a new circle). The selection survives navigation until cleared.
+- Brain → UI `clear_selection{}`.
+
+**Brain.** "These / those / all of them / the circled ones" resolve to the last selection (ranked
+above pointing). Products → compare (2–4), cheapest/attribute questions, add to room set, shortlist;
+rooms/categories → navigate/show; mixed or > 4 products for a compare → say what is selected in one
+line and ask which to compare. Never act on a selection the shopper did not speak about.
