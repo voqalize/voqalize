@@ -37,7 +37,7 @@ from __future__ import annotations
 
 import re
 import time
-from collections.abc import AsyncGenerator, Callable, Sequence
+from collections.abc import AsyncGenerator, Awaitable, Callable, Sequence
 from dataclasses import dataclass, field, replace
 from typing import Any, Literal
 
@@ -91,6 +91,7 @@ from .checkout import (
     delivery_fee,
     spell_back,
 )
+from .confirm import Acted, Confirmations, Pending, classify
 from .policies import Topic, policy_page, policy_text
 from .prompt import GREETING, system_instruction
 from .recipes import FINISHING, RECIPES
@@ -112,6 +113,8 @@ AGENT_BY = frozenset({"emily", "mira"})
 #: shopper pressed Submit return).
 _IDLE_MS = 12000
 _REACT_IDLE_MS = 1500
+#: A line the brain already knows (a return's outcome): said as soon as the voice is free.
+_SAY_NOW_MS = 400
 
 # ─── Actions: brain → UI (CONTRACT.md) ────────────────────────────────────────
 
@@ -605,13 +608,6 @@ class Screen:
     strip_anchor: str | None = None
 
 
-@dataclass
-class PendingAdd:
-    lines: list[ConfirmLine]
-    label: str
-    turn: int
-
-
 _ORDINALS = {
     "first": 1,
     "second": 2,
@@ -647,6 +643,8 @@ def _line(p: Product, extra: str = "") -> str:
 
 
 def _not_done(why: str, what_to_do: str) -> str:
+    # The floor, if the model then says nothing: never a claim it went through.
+    landed("That didn't go through yet.")
     return _prose(f"NOT DONE: {why}.", next=what_to_do)
 
 
@@ -669,7 +667,11 @@ class FernhollowBrain(GeminiBrain):
         self.history: list[Screen] = []
         self.shortlisted: list[str] = []
         self.cart: dict[tuple[str, str], int] = {}
-        self.pending: PendingAdd | None = None
+        # Every confirmation Emily asks for, one mechanism (confirm.py).
+        self.confirms = Confirmations()
+        self.confirms.register("add_to_cart", self._act_add)
+        self.confirms.register("place_order", self._act_place)
+        self.confirms.register("submit_return", self._act_submit)
         self.turns = 0
         self.seen: dict[str, list[str]] = {}  # slot → products shown there
         self.ahead: dict[tuple[Any, ...], Any] = {}
@@ -684,9 +686,7 @@ class FernhollowBrain(GeminiBrain):
         self.checkout: dict[str, str] = {}
         self.checkout_filled: set[str] = set()
         self.checkout_step_now: str | None = None
-        self.pending_order: tuple[float, int] | None = None  # (total, turn asked)
         self.orders_placed = 0
-        self.pending_submit: int | None = None  # the turn the submit was asked
         # What the shopper last circled, as (kind, id): kept across pages until
         # cleared, and acted on only when they speak about it.
         self.selection: tuple[tuple[str, str], ...] = ()
@@ -697,7 +697,13 @@ class FernhollowBrain(GeminiBrain):
         # The returns form's moves prepare_return sent: call_ref → (step, what).
         self.return_run: dict[str, tuple[str, str]] = {}
         self.return_last: str | None = None
-        self.submit_ref: str | None = None
+        self.return_collection: str | None = None
+        self.last_reference: str = ""  # the latest return reference the page reported
+        # A line of the brain's own for the next quiet spell (an outcome), and
+        # when the last one was said: a page "speak" reaction just after an
+        # outcome Emily said would be the same news twice.
+        self._say_next: Callable[[], str] | None = None
+        self._outcome_at = float("-inf")
         # The returns form is driven by Stage: cues in Emily's words fill it as
         # she says them — this is a demo, so the email too (CONTRACT.md, v2).
         self.stage = Stage(
@@ -733,48 +739,80 @@ class FernhollowBrain(GeminiBrain):
         self.turns += 1
         self.stage.visitor_spoke()
         self._talk = None
-        done = self._spoken_yes(msg.text)
+        self._settle_expired()
+        pending = self.confirms.due(self.turns)
+        answer = classify(msg.text) if pending is not None else None
         self.append_note(self.screen_now())
-        if done is not None:
-            self.append_note(done)
         self.append_note(msg.text)
+        if pending is not None and answer == "yes":
+            # The yes is acted on here, and its line is the brain's own: the
+            # model does not run, so this turn cannot be a silent tool call.
+            acted = self.confirms.act(pending)
+            self.append_note(acted.note)
+            async for speech in self.say_line(acted.line, remember=True):
+                yield speech
+            return
+        if pending is not None and answer == "no":
+            self.confirms.clear()
+            self.append_note(f"[The shopper said no to: {pending.label}. Nothing was done.]")
         async for speech in self.respond(session):
             yield speech
 
-    def _spoken_yes(self, text: str) -> str | None:
-        """A plain yes to the confirmation Emily asked for on an earlier turn
-        is acted on here, before the model runs, so a "Yes, please." can never
-        be a turn that says nothing and places nothing. Returns the note that
-        tells the model what was done."""
-        if not _YES.match(text) or _NOT_YES.search(text):
-            return None
-        if self.pending_order is not None and self.pending_order[1] < self.turns:
-            self._place()
-            placed = self.placed_orders[-1]
-            return (
-                f"[The shopper said yes: order {placed.number} is placed, {money(placed.total)}. "
-                "Say so in one line with the order number. Do not call place_order again.]"
-            )
-        if (
-            self.pending_submit is not None
-            and self.pending_submit < self.turns
-            and self.order is not None
-        ):
-            if self.stage.moves.get("returns.submit") is None:
-                return None
-            self._submit_now()
-            return (
-                "[The shopper said yes: the return is being submitted. Say 'Submitting it now' "
-                "in a few words; the page's answer follows. Do not call submit_return again.]"
-            )
-        if self.pending is not None and self.pending.turn < self.turns:
-            label = self.pending.label
-            self._commit_cart()
-            return (
-                f"[The shopper said yes: {label} is in the cart. Say so in one line. "
-                "Do not call add_to_cart again.]"
-            )
-        return None
+    async def _invoke_tool(
+        self, tool: Callable[..., Any] | None, name: str, run: Callable[[], Awaitable[Any]]
+    ) -> dict[str, Any]:
+        """Every call — one that lands, one refused, a duplicate — records a
+        floor line first, so a turn that only called tools is never silent; a
+        tool's own landed line comes after and is the one said."""
+        landed("Here's where that stands.")
+        return await super()._invoke_tool(tool, name, run)
+
+    def _confirmed_by_tool(self, kind: str) -> str:
+        """The model calling a confirmed tool with ``confirmed_by_voice``: the
+        same act as a spoken yes, once. Already done, or not yet answered,
+        still says something."""
+        pending = self.confirms.due(self.turns, kind)
+        if pending is not None:
+            acted = self.confirms.act(pending)
+            landed(acted.line)
+            return _prose(acted.note, said=acted.line)
+        if (line := self.confirms.already_kind(kind)) is not None:
+            landed(line)
+            return _prose(f"Already done, not sent again. {line}")
+        return _not_done(
+            "the shopper has not said yes to it yet", "Ask first, then wait for their yes."
+        )
+
+    # ─── What each confirmation does when the shopper says yes ─────────
+
+    def _act_add(self, pending: Pending) -> Acted:
+        lines: list[ConfirmLine] = pending.data["lines"]
+        self._commit_cart(lines)
+        return Acted(
+            "Added to your cart.",
+            f"[{pending.label}: in the cart, which now totals {money(self._cart_total())}. "
+            "Do not call add_to_cart again.]",
+        )
+
+    def _act_place(self, pending: Pending) -> Acted:
+        number = self._place(float(pending.data["total"]), pending.data.get("order_number"))
+        return Acted(
+            f"It's placed — your order number is {number}.",
+            f"[The order {number} is placed, {money(float(pending.data['total']))}. "
+            "Do not call place_order again.]",
+        )
+
+    def _act_submit(self, pending: Pending) -> Acted:
+        ref = self.stage.send("returns.submit", {}, queue=False)
+        return Acted(
+            "Submitting it now.",
+            "[The return is being submitted; Emily tells them the page's answer when it comes. "
+            "Do not call submit_return again.]",
+            ref=ref,
+            on_applied=lambda detail: self._submitted_line(
+                _reference(detail) or self.last_reference
+            ),
+        )
 
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
         """The model's turn, a landed line if it acted in silence, then the
@@ -812,8 +850,18 @@ class FernhollowBrain(GeminiBrain):
         return self._idle(session)
 
     async def _idle(self, session: Session) -> AsyncGenerator[Speech, None]:
+        self._settle_expired()
+        say, self._say_next = self._say_next, None
         ask, self._talk = self._talk, None
         configure_soon(session, Config(idle=IdleConfig(timeout_ms=_IDLE_MS)))
+        if say is not None:
+            # An outcome the brain knows exactly (applied, refused, unknown):
+            # its own written line, once, with no model turn — rendered now, so
+            # a reference the page reported since is in it.
+            self._outcome_at = time.monotonic()
+            async for event in self.say_line(say(), remember=True):
+                yield event
+            return
         if ask is None:
             return
         self.append_note(f"[{ask}]")
@@ -828,6 +876,13 @@ class FernhollowBrain(GeminiBrain):
             folded = self.stage.handle(event)
             if folded is None:
                 return None
+            if ref := str(event.data.get("reference") or ""):
+                self.last_reference = ref
+            if self._say_next is not None or time.monotonic() - self._outcome_at < _OUTCOME_GAP_S:
+                # An outcome of Emily's own is said, or about to be: the page's
+                # "speak" reaction to the same act would be the news twice.
+                self.stage.take_reaction()
+                return None
             if event.by == "visitor" and (ask := self.stage.take_reaction()):
                 self._talk = ask
                 configure_soon(self.session, Config(idle=IdleConfig(timeout_ms=_REACT_IDLE_MS)))
@@ -836,11 +891,26 @@ class FernhollowBrain(GeminiBrain):
             self.stage.handle(event)
             return None
         result = self.stage.handle(event)
-        if result is not None and result.call_ref in self.return_run:
+        return None if result is None else self._settle(result)
+
+    def _settle_expired(self) -> None:
+        """Moves the page never answered come back ``unknown`` and are told."""
+        for result in self.stage.expire():
+            note = self._settle(result)
+            if note is not None:
+                self.append_note(note)
+
+    def _settle(self, result: StageResult) -> str | None:
+        """Every result, one way: a confirmed act's outcome is said once; a
+        form run's is told with the step; a cue that did not land is said."""
+        if self.confirms.is_flight(result.call_ref):
+            why = "; ".join(r.why for r in result.refused)
+            line = self.confirms.outcome(result.call_ref, result.outcome, result.detail, why)
+            self._say_line_soon(line)
+            return f"[The page answered: {result.outcome} — {result.detail or why or 'no detail'}.]"
+        if result.call_ref in self.return_run:
             return self._return_result(result)
-        if result is not None and result.call_ref == self.submit_ref:
-            return self._submit_result(result)
-        if result is None or result.moved or result.outcome in ("applied", "partial", "undone"):
+        if result.moved or result.outcome in ("applied", "partial", "undone"):
             return None
         move = self.stage.move_of(result.call_ref)
         offers = "; ".join(
@@ -848,27 +918,26 @@ class FernhollowBrain(GeminiBrain):
             for r in result.refused
         )
         what = move.id if move else result.move
+        self._say_line_soon(
+            lambda: (
+                f"That didn't take — the page says: {result.detail or offers or result.outcome}."
+            )
+        )
         return (
             f"[Your {what} cue did not land ({result.detail or result.outcome}"
             + (f"; {offers}" if offers else "")
             + "). Never say it did; use one of the options, or ask.]"
         )
 
-    def _submit_result(self, result: StageResult) -> str | None:
-        """The page's answer to returns.submit: a landed submit is thanked when
-        the page reports it (returns.return_submitted); a refusal is said, in
-        the next quiet spell, with the page's own reason."""
-        self.submit_ref = None
-        if result.outcome in ("applied", "partial"):
-            return None
-        why = "; ".join(r.why for r in result.refused)
-        detail = "; ".join(x for x in (result.detail, why) if x) or result.outcome
-        self._talk = (
-            f"The return was NOT submitted: the page said {detail}. "
-            "Tell the shopper that in one line and what fixes it."
-        )
-        configure_soon(self.session, Config(idle=IdleConfig(timeout_ms=_REACT_IDLE_MS)))
-        return f"[The return was not submitted — the page refused it: {detail}.]"
+    def _submitted_line(self, reference: str) -> str:
+        how = "the pickup" if self.return_collection == "pickup" else "the drop-off"
+        ref = f", reference {reference}" if reference else ""
+        return f"Done — your return is in{ref}. We'll be in touch about {how}."
+
+    def _say_line_soon(self, line: str | Callable[[], str]) -> None:
+        """A written line for the next quiet spell, made short so it comes now."""
+        self._say_next = line if callable(line) else (lambda: line)
+        configure_soon(self.session, Config(idle=IdleConfig(timeout_ms=_SAY_NOW_MS)))
 
     def _return_result(self, result: StageResult) -> str | None:
         """One answer to a move prepare_return sent: a refusal stops the run and
@@ -878,18 +947,21 @@ class FernhollowBrain(GeminiBrain):
         if result.outcome in ("applied", "partial"):
             if result.call_ref == self.return_last:
                 self.return_run = {}
+                self._say_line_soon("The form's all filled in — say yes and I'll submit it.")
                 return (
                     "[The returns form reached the review step. "
                     "Nothing is submitted until the shopper says yes.]"
                 )
             return None
         self.return_run = {}
-        self.pending_submit = None
+        if (p := self.confirms.pending) is not None and p.kind == "submit_return":
+            self.confirms.clear()
         why = "; ".join(
             f"{r.arg}: {r.why}" + (f" (options: {', '.join(r.options)})" if r.options else "")
             for r in result.refused
         )
         detail = "; ".join(x for x in (result.detail, why) if x) or "no reason given"
+        self._say_line_soon(f"The form stopped at step {step.split(' ', 1)[0]}: {detail}.")
         return (
             f"[The returns form stopped at step {step}: {what} was {result.outcome} — {detail}. "
             "Tell the shopper exactly that, ask for what fixes it, then call prepare_return again.]"
@@ -931,8 +1003,8 @@ class FernhollowBrain(GeminiBrain):
             )
         if self.cart:
             parts.append(f"cart: {sum(self.cart.values())} items, {money(self._cart_total())}")
-        if self.pending is not None:
-            parts.append(f"waiting for the shopper's yes on: {self.pending.label}")
+        if self.confirms.pending is not None:
+            parts.append(f"waiting for the shopper's yes on: {self.confirms.pending.label}")
         if self.selection:
             parts.append(f"circled: {self._selection_line()}")
         if self.choices:
@@ -949,10 +1021,6 @@ class FernhollowBrain(GeminiBrain):
             parts.append(
                 f"checkout at {self.checkout_step_now or 'contact'}: filled {', '.join(filled) or 'nothing'}"
                 + (f"; still needed {', '.join(missing)}" if missing else "")
-            )
-        if self.pending_order is not None:
-            parts.append(
-                f"waiting for the shopper's yes on Place order, {money(self.pending_order[0])}"
             )
         return "[SCREEN NOW — " + " · ".join(parts) + "]"
 
@@ -1756,19 +1824,7 @@ class FernhollowBrain(GeminiBrain):
         on it adds by itself. If they say yes out loud on their next turn, call
         again with confirmed_by_voice true."""
         if request.confirmed_by_voice:
-            if self.pending is None:
-                return _not_done(
-                    "there is no confirmation on screen",
-                    "Call add_to_cart without confirmed_by_voice first.",
-                )
-            if self.pending.turn >= self.turns:
-                return _not_done(
-                    "the shopper has not answered the confirmation yet", "Wait for their yes."
-                )
-            label = self.pending.label
-            self._commit_cart()
-            landed("It's in your cart.", "Added.")
-            return _prose(f"Added to the cart: {label}. Cart total {money(self._cart_total())}.")
+            return self._confirmed_by_tool("add_to_cart")
         lines: list[ConfirmLine]
         if request.what == "room":
             room = self.screen.room
@@ -1790,7 +1846,12 @@ class FernhollowBrain(GeminiBrain):
                 variant = next((v for v in p.variants if v.id == self.screen.variant), variant)
             lines = [ConfirmLine(product_id=p.id, variant_id=variant.id, qty=1)]
             label = f"Add {p.title} ({variant.value}) — {money(variant.price)}"
-        self.pending = PendingAdd(lines, label, self.turns)
+        key = ("add_to_cart", tuple((x.product_id, x.variant_id, x.qty) for x in lines))
+        if (
+            dup := self.confirms.ask("add_to_cart", key, label, self.turns, lines=lines)
+        ) is not None:
+            landed(dup)
+            return _prose(f"Not asked again: {dup}")
         self.session.dispatch(ConfirmAdd(lines=lines, label=label))
         self.session.dispatch(Highlight(target="button:add-to-cart"))
         landed("Shall I add it? The button's ready for your yes.", "Just say yes, or tap Add.")
@@ -1798,12 +1859,10 @@ class FernhollowBrain(GeminiBrain):
             f"The confirmation is on the Add button: {label}. Nothing is in the cart until they say yes.",
         )
 
-    def _commit_cart(self) -> None:
-        assert self.pending is not None
-        for line in self.pending.lines:
+    def _commit_cart(self, lines: Sequence[ConfirmLine]) -> None:
+        for line in lines:
             key = (line.product_id, line.variant_id)
             self.cart[key] = self.cart.get(key, 0) + line.qty
-        self.pending = None
         self.session.dispatch(
             CartUpdated(
                 lines=self._cart_lines(), total=self._cart_total(), saved=self._cart_saved()
@@ -1912,11 +1971,22 @@ class FernhollowBrain(GeminiBrain):
         logger.info(
             "fernhollow: find_order {} → {}", order.number, [line.status for line in order.lines]
         )
+        opened = None
+        if order.eligible:
+            # One hop: an order that can go back opens its form now, so the
+            # answer is spoken from this result without a second model request.
+            page = f"returns/start?order={order.number}"
+            if self.screen.page != page:
+                self._move(page=page, product=None)
+                self.session.dispatch(Navigate(page=page))
+            opened = "the returns form is open with this order"
+            landed("The returns form is open with your order.")
         return _prose(
             f"Order {order.number}: {len(order.eligible)} of {len(order.lines)} lines can be returned.",
             lines=lines,
             policy=policy,
-            next="start_return to open the form with this order"
+            screen=opened,
+            next="ask what is still needed for the return, one thing at a time"
             if order.eligible
             else "no form: explain the policy honestly",
         )
@@ -2083,6 +2153,8 @@ class FernhollowBrain(GeminiBrain):
         """Place the order — only with the shopper's spoken yes. The first call
         puts the confirmation on Place order and you ask; when they say yes on
         their next turn, call again with confirmed_by_voice true."""
+        if request.confirmed_by_voice:
+            return self._confirmed_by_tool("place_order")
         if not self.cart:
             return _not_done("the cart is empty", "Add something to the cart first.")
         missing = [f for f in REQUIRED if f not in self.checkout and f not in self.checkout_filled]
@@ -2090,22 +2162,16 @@ class FernhollowBrain(GeminiBrain):
             return _not_done(
                 f"checkout still needs {', '.join(missing)}", "Ask for them, one at a time."
             )
-        if request.confirmed_by_voice:
-            if self.pending_order is None:
-                return _not_done(
-                    "there is no Place order confirmation on screen",
-                    "Call place_order without confirmed_by_voice first.",
-                )
-            if self.pending_order[1] >= self.turns:
-                return _not_done(
-                    "the shopper has not answered the confirmation yet", "Wait for their yes."
-                )
-            return self._place()
         total = self._order_total()
-        self.pending_order = (total, self.turns)
+        label = f"Place order — {money(total)}"
+        key = ("place_order", tuple(sorted(self.cart.items())), total)
+        if (
+            dup := self.confirms.ask("place_order", key, label, self.turns, total=total)
+        ) is not None:
+            landed(dup)
+            return _prose(f"Not asked again: {dup}")
         self.checkout_step_now = "review"
         self.session.dispatch(CheckoutStep(step="review"))
-        label = f"Place order — {money(total)}"
         self.session.dispatch(ConfirmPlaceOrder(total=total, label=label))
         landed(f"That's {money(total)} with delivery. Shall I place the order?")
         subtotal = self._cart_total()
@@ -2115,24 +2181,19 @@ class FernhollowBrain(GeminiBrain):
             delivery="free" if delivery_fee(subtotal) == 0 else money(delivery_fee(subtotal)),
         )
 
-    def _place(self, page_number: str | None = None) -> str:
+    def _place(self, total: float, page_number: str | None = None) -> str:
         """Place the order. The number is the brain's own, unless the page
         already gave it one (a tap on its confirm prompt): then the page's,
         which is the number the shopper reads on the confirmation."""
-        assert self.pending_order is not None
-        total = self.pending_order[0]
         self.orders_placed += 1
         number = page_number or f"FH-{30000 + self.orders_placed}"
-        self.pending_order = None
         self._remember_order(number, total)
         self.cart = {}
         self.checkout_step_now = None
         self._move(page="checkout/confirmation", product=None)
         self.session.dispatch(OrderPlaced(order_number=number, total=total))
         landed(f"Your order {number} is placed.", "The order is placed.")
-        return _prose(
-            f"Order {number} is placed: {money(total)}. It's a demo order; nothing is charged."
-        )
+        return number
 
     def _remember_order(self, number: str, total: float) -> None:
         """An order Emily placed, with its lines and the checkout email. A demo
@@ -2214,8 +2275,14 @@ class FernhollowBrain(GeminiBrain):
             self.return_run[ref] = (step, f"{move.removeprefix('returns.')} {shown}".strip())
             self.return_last = ref
         # The reply with this call asks "Shall I submit the return?": a plain yes
-        # on the next turn submits (see _spoken_yes), unless a step is refused.
-        self.pending_submit = self.turns
+        # on the next turn submits (confirm.py), unless a step is refused.
+        self.confirms.ask(
+            "submit_return",
+            ("submit_return", order.number),
+            f"Submit the return for {order.number}",
+            self.turns,
+        )
+        self.return_collection = request.collection
         landed("Filling in the return form now.")
         chosen = {i.product_id: i.qty for i in request.items}
         items = [
@@ -2233,37 +2300,23 @@ class FernhollowBrain(GeminiBrain):
         )
 
     async def submit_return(self, request: SubmitReturnRequest) -> str:
-        """Submit the returns form — only with the shopper's spoken yes. The
-        first call asks; when they say yes on their next turn, call again with
-        confirmed_by_voice true."""
+        """Submit the returns form — only with the shopper's yes. The first call
+        asks; their plain yes on the next turn submits it for you."""
         if self.order is None:
             return _not_done("no return is open", "Find the order first.")
-        move = self.stage.moves.get("returns.submit")
-        if move is None:
+        if self.stage.moves.get("returns.submit") is None:
             return _not_done(
                 "this page cannot submit the return by voice", "Ask them to press Submit return."
             )
-        if not request.confirmed_by_voice:
-            self.pending_submit = self.turns
-            landed("Shall I submit the return?")
-            return _prose("Ask for their yes before submitting. Nothing is submitted yet.")
-        if self.pending_submit is None or self.pending_submit >= self.turns:
-            return _not_done(
-                "the shopper has not said yes to submitting yet",
-                "Ask first, then wait for their yes.",
-            )
-        return self._submit_now()
-
-    def _submit_now(self) -> str:
-        """Send the confirmed returns.submit. Nothing claims it went through:
-        the page's answer is told when it comes (``_submit_result``)."""
-        assert self.order is not None
-        self.pending_submit = None
-        self.submit_ref = self.stage.send("returns.submit", {}, queue=False)
-        landed("Submitting it now.")
-        return _prose(
-            f"The return for {self.order.number} is being submitted; the page's answer follows."
-        )
+        if request.confirmed_by_voice:
+            return self._confirmed_by_tool("submit_return")
+        key = ("submit_return", self.order.number)
+        label = f"Submit the return for {self.order.number}"
+        if (dup := self.confirms.ask("submit_return", key, label, self.turns)) is not None:
+            landed(dup)
+            return _prose(f"Not asked again: {dup}")
+        landed("Shall I submit the return?")
+        return _prose("Ask for their yes before submitting. Nothing is submitted yet.")
 
     # ─── Browser → brain ────────────────────────────────────────────────
 
@@ -2346,25 +2399,19 @@ class FernhollowBrain(GeminiBrain):
                     cart[(p.id, v.id)] = line.qty
                 self.cart = cart
                 return f"[The shopper changed the cart: {sum(cart.values())} items, {money(self._cart_total())}.]"
-            case ConfirmResult() if self.pending_order is not None:
-                if event.confirmed:
-                    self.pending_order = (self.pending_order[0], -1)
-                    self._place(event.order_number)
-                    return "[The shopper tapped Place order: the order is placed.]"
-                self.pending_order = None
-                return "[The shopper did not place the order.]"
             case ConfirmResult():
-                pending = self.pending
+                pending = self.confirms.pending
                 if pending is None:
                     return None
-                if event.confirmed:
-                    self._commit_cart()
-                    return (
-                        f"[The shopper tapped yes: {pending.label} is in the cart. "
-                        f"Cart total {money(self._cart_total())}.]"
-                    )
-                self.pending = None
-                return "[The shopper declined adding to the cart.]"
+                if not event.confirmed:
+                    self.confirms.clear()
+                    return f"[The shopper declined: {pending.label}. Nothing was done.]"
+                if event.order_number:
+                    # The page's number is the one the shopper reads back.
+                    pending.data["order_number"] = event.order_number
+                acted = self.confirms.act(pending)
+                self._say_line_soon(acted.line)
+                return f"[The shopper tapped yes. {acted.note}]"
             case ShortlistChanged():
                 self.shortlisted = [i for i in event.product_ids if i in CATALOG.products]
                 return f"[The shopper's shortlist now holds {len(self.shortlisted)}.]"
@@ -2413,13 +2460,15 @@ class FernhollowBrain(GeminiBrain):
                 return f"[The checkout is on {event.step}.]"
 
 
-#: A plain yes, as people say one to "Shall I place the order?".
-_YES = re.compile(
-    r"^\s*(yes|yeah|yep|yup|ya|sure|ok|okay|alright|all right|go ahead|go for it|do it|please do"
-    r"|place it|submit it|add (it|them)|that's right|correct|absolutely|definitely|of course)\b",
-    re.IGNORECASE,
-)
-_NOT_YES = re.compile(r"\b(no|not|don't|do not|wait|hold on|actually|change|but)\b", re.IGNORECASE)
+#: How long after Emily says an outcome a page "speak" reaction is the same news.
+_OUTCOME_GAP_S = 15.0
+
+
+def _reference(detail: str | None) -> str:
+    """A return reference in the page's own answer, if it gave one."""
+    m = re.search(r"\bRT-[\w-]+", detail or "")
+    return m.group(0) if m else ""
+
 
 _THIS = frozenset({"this", "this one", "that", "that one", "it", "here"})
 
