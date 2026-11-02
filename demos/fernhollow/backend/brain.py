@@ -60,6 +60,7 @@ from voqalize.sdk.stage.wire import StageEvent, StageHello, StageProgress, Stage
 from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
 
 from . import engine as eng
+from . import rail
 from .app_events import (
     FERNHOLLOW_EVENTS,
     CartChanged,
@@ -69,6 +70,7 @@ from .app_events import (
     ConfirmResult,
     FernhollowEvent,
     FilterChanged,
+    ListingViewed,
     OrdersKnown,
     PageViewed,
     Pointing,
@@ -467,6 +469,11 @@ class FilterRequest(BaseModel):
     price_min: float | None = None
     price_max: float | None = None
     on_sale: bool | None = None
+    sort: str | None = Field(
+        default=None,
+        description="How to order the grid, in the shopper's words ('cheapest first') or "
+        "one of featured, price-asc, price-desc, sale.",
+    )
 
 
 class RemoveFilterRequest(BaseModel):
@@ -698,6 +705,12 @@ class FernhollowBrain(GeminiBrain):
         self.return_run: dict[str, tuple[str, str]] = {}
         self.return_last: str | None = None
         self.return_collection: str | None = None
+        # The listing page in front, as the page last reported it; a filter plan
+        # waiting for the page it navigated to; the rail moves in flight.
+        self.listing: ListingViewed | None = None
+        self.pending_rail: tuple[str, list[tuple[str, dict[str, Any]]], str | None] | None = None
+        self.rail_run: dict[str, str] = {}
+        self.rail_last: str | None = None
         self.last_reference: str = ""  # the latest return reference the page reported
         # A line of the brain's own for the next quiet spell (an outcome), and
         # when the last one was said: a page "speak" reaction just after an
@@ -910,6 +923,8 @@ class FernhollowBrain(GeminiBrain):
             return f"[The page answered: {result.outcome} — {result.detail or why or 'no detail'}.]"
         if result.call_ref in self.return_run:
             return self._return_result(result)
+        if result.call_ref in self.rail_run:
+            return self._rail_result(result)
         if result.moved or result.outcome in ("applied", "partial", "undone"):
             return None
         move = self.stage.move_of(result.call_ref)
@@ -938,6 +953,71 @@ class FernhollowBrain(GeminiBrain):
         """A written line for the next quiet spell, made short so it comes now."""
         self._say_next = line if callable(line) else (lambda: line)
         configure_soon(self.session, Config(idle=IdleConfig(timeout_ms=_SAY_NOW_MS)))
+
+    def _rail_result(self, result: StageResult) -> str | None:
+        """The rail's answer to a filter Emily set: one line when the last move
+        lands (the page's own words — its count), or the refusal with the
+        rail's options. A refusal ends the run."""
+        what = self.rail_run.pop(result.call_ref)
+        if result.outcome in ("applied", "partial"):
+            if result.call_ref == self.rail_last:
+                self.rail_run = {}
+                line = result.detail or "Done."
+                self._say_line_soon(
+                    line[:1].upper() + line[1:] + ("" if line.endswith(".") else ".")
+                )
+                return f"[The page applied the filters: {result.detail or 'done'}.]"
+            return None
+        self.rail_run = {}
+        options = [o for r in result.refused for o in r.options]
+        why = result.detail or "; ".join(r.why for r in result.refused) or result.outcome
+        offer = f" This page offers {', '.join(options[:6])}." if options else ""
+        self._say_line_soon(f"That filter isn't on this page — {why}.{offer}")
+        return f"[The page refused {what}: {why}.{offer}]"
+
+    def _send_rail(self, moves: Sequence[tuple[str, dict[str, Any]]]) -> list[str]:
+        """Send rail moves to the page in front; the last one's answer is said."""
+        self.rail_run = {}
+        sent: list[str] = []
+        for move, args in moves:
+            ref = self.stage.send(move, dict(args), queue=False)
+            label = (
+                f"{move.removeprefix('listing.')} {' '.join(str(v) for v in args.values())}".strip()
+            )
+            self.rail_run[ref] = label
+            self.rail_last = ref
+            sent.append(label)
+        return sent
+
+    def _rail_plan(
+        self,
+        filters: Sequence[tuple[str, str]],
+        request: FilterRequest,
+        active: dict[str, list[str]],
+    ) -> list[tuple[str, dict[str, Any]]]:
+        moves: list[tuple[str, dict[str, Any]]] = [
+            ("listing.filter", {"facet": f, "value": v})
+            for f, v in filters
+            if v not in active.get(f, [])
+        ]
+        if request.on_sale and "On sale" not in active.get("On sale", []):
+            moves.append(("listing.filter", {"facet": "On sale", "value": "On sale"}))
+        if request.price_min is not None or request.price_max is not None:
+            price: dict[str, Any] = {}
+            if request.price_min is not None:
+                price["min"] = request.price_min
+            if request.price_max is not None:
+                price["max"] = request.price_max
+            moves.append(("listing.price", price))
+        if request.sort and (key := rail.sort_key(request.sort)) is not None:
+            moves.append(("listing.sort", {"by": key}))
+        return moves
+
+    def _rail_ready(self) -> bool:
+        return all(
+            self.stage.moves.get(m) is not None
+            for m in ("listing.filter", "listing.unfilter", "listing.price", "listing.sort")
+        )
 
     def _return_result(self, result: StageResult) -> str | None:
         """One answer to a move prepare_return sent: a refusal stops the run and
@@ -1005,6 +1085,13 @@ class FernhollowBrain(GeminiBrain):
             parts.append(f"cart: {sum(self.cart.values())} items, {money(self._cart_total())}")
         if self.confirms.pending is not None:
             parts.append(f"waiting for the shopper's yes on: {self.confirms.pending.label}")
+        if self.listing is not None and self.listing.page == self.screen.page:
+            ticked = "; ".join(f"{f}: {', '.join(v)}" for f, v in self.listing.active.items() if v)
+            parts.append(
+                f"listing {self.listing.title}, {self.listing.count} shown"
+                + (f", filtered by {ticked}" if ticked else "")
+                + f", sorted {self.listing.sort}"
+            )
         if self.selection:
             parts.append(f"circled: {self._selection_line()}")
         if self.choices:
@@ -1551,8 +1638,14 @@ class FernhollowBrain(GeminiBrain):
 
     @needs_result_now
     async def set_filters(self, request: FilterRequest) -> str:
-        """Filter the store's grid. Pass the shopper's own words; the result says
-        how they were read — say that assumption aloud."""
+        """Filter the page in front, on its own filter rail — or, when it cannot
+        express the request, the room or category page that can. Pass the
+        shopper's own words; the result says how they were read — say that
+        assumption aloud."""
+        if self._rail_ready():
+            done = self._filter_on_rail(request)
+            if done is not None:
+                return done
         assumptions: list[str] = []
         unmatched: list[str] = []
         lists: dict[str, tuple[str, ...]] = {}
@@ -1594,8 +1687,94 @@ class FernhollowBrain(GeminiBrain):
             first=[_line(CATALOG.products[i]) for i in ids[:4]],
         )
 
+    def _filter_on_rail(self, request: FilterRequest) -> str | None:
+        """The rail path: the page in front, else the page that can; ``None``
+        only when no single listing page can show it."""
+        words = [*request.materials, *request.colours, *request.styles]
+        here = (
+            self.listing
+            if self.listing is not None and self.listing.page == self.screen.page
+            else None
+        )
+        slug = _category(request.category) if request.category else None
+        if here is not None and slug is not None and "Category" in here.facets:
+            # A category the page's own rail offers is a tick there, not a new page.
+            name = CATALOG.categories[slug].name
+            if name in here.facets["Category"]:
+                words.append(f"Category {name}")
+                request = request.model_copy(update={"category": None})
+        other = (
+            request.category is not None
+            and (
+                here is None
+                or here.page != f"category/{_category(request.category) or request.category}"
+            )
+        ) or (request.room is not None and (here is None or here.page != f"room/{request.room}"))
+        price_note = (
+            f"up to {money(request.price_max)}, including that price"
+            if request.price_max is not None
+            else None
+        )
+        if here is not None and not other:
+            m = rail.map_words(words, here.facets)
+            if not m.unmatched:
+                moves = self._rail_plan(m.filters, request, here.active)
+                if not moves:
+                    landed("That's already how it's filtered.")
+                    return _prose("Nothing to change: the page is already filtered that way.")
+                sent = self._send_rail(moves)
+                landed("Setting that on the filters now.")
+                assumption = "; ".join(x for x in (*m.assumptions, price_note) if x) or None
+                return _prose(
+                    f"On this page's own filters ({here.title}): {', '.join(sent)}. "
+                    "The page's count follows; nothing else moves.",
+                    assumption=assumption,
+                )
+        category = _category(request.category) if request.category else None
+        found = rail.best_page(words, category=category, room=request.room)
+        if found is None:
+            return None
+        page, m = found
+        moves = self._rail_plan(m.filters, request, {})
+        self.pending_rail = (page, moves, None)
+        self._move(page=page, product=None)
+        self.session.dispatch(Navigate(page=page))
+        landed("Opening the right page for that.")
+        assumption = "; ".join(x for x in (*m.assumptions, price_note) if x) or None
+        return _prose(
+            f"Opening {page.replace('/', ': ')}, whose filters can show that; then: "
+            + ", ".join(f"{a.get('facet', mv)} {a.get('value', '')}".strip() for mv, a in moves),
+            assumption=assumption,
+        )
+
     async def remove_filter(self, request: RemoveFilterRequest) -> str:
         """Take one filter (or one value of it) off the grid."""
+        here = (
+            self.listing
+            if self.listing is not None and self.listing.page == self.screen.page
+            else None
+        )
+        if here is not None and self._rail_ready():
+            moves: list[tuple[str, dict[str, Any]]] = []
+            if request.key in ("price_min", "price_max"):
+                price = here.price
+                keep: dict[str, Any] = {}
+                if request.key == "price_max" and price is not None and price.min is not None:
+                    keep["min"] = price.min
+                if request.key == "price_min" and price is not None and price.max is not None:
+                    keep["max"] = price.max
+                moves.append(("listing.price", keep))
+            elif request.value:
+                m = rail.map_words([request.value], here.active)
+                moves += [("listing.unfilter", {"facet": f, "value": v}) for f, v in m.filters]
+            elif request.key in ("materials", "colours", "styles", "category", "room", "on_sale"):
+                moves.append(("listing.clear_filters", {}))
+            if moves and all(self.stage.moves.get(mv) is not None for mv, _ in moves):
+                sent = self._send_rail(moves)
+                landed("Taking that off now.")
+                return _prose(
+                    f"On this page's filters: {', '.join(sent)}. The page's count follows."
+                )
         f = self.screen.filters
         key = request.key
         if key in ("materials", "colours", "styles"):
@@ -2419,6 +2598,18 @@ class FernhollowBrain(GeminiBrain):
                 if event.product_id in CATALOG.products:
                     self.pointing = (event.product_id, time.monotonic())
                 return None  # silent: kept for "this one", never spoken about
+            case ListingViewed():
+                self.listing = event
+                self.screen = replace(self.screen, page=event.page.strip("/") or self.screen.page)
+                if self.pending_rail is not None and self.pending_rail[
+                    0
+                ] == self.listing.page.strip("/"):
+                    _, moves, _ = self.pending_rail
+                    self.pending_rail = None
+                    self.listing = event.model_copy(update={"page": event.page.strip("/")})
+                    if moves:
+                        self._send_rail(moves)
+                return None  # silent: kept as the screen
             case OrdersKnown():
                 self.known_orders = [
                     order_from(o.model_dump(), "known") for o in event.orders if o.number

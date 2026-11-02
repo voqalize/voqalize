@@ -29,11 +29,13 @@ __all__ = [
     "FilterChanged",
     "FiltersIn",
     "LayoutIn",
+    "ListingViewed",
     "OrderIn",
     "OrderLineIn",
     "OrdersKnown",
     "PageViewed",
     "Pointing",
+    "PriceIn",
     "ProductViewed",
     "RoomBoardEdited",
     "Selection",
@@ -167,6 +169,28 @@ class Selection(AppEvent):
     by: str = "visitor"
 
 
+class PriceIn(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    min: float | None = None
+    max: float | None = None
+
+
+class ListingViewed(AppEvent):
+    """A listing page (room, category, sale, search) as it stands: its rail's
+    facets and values (the rail's own labels), what is ticked, the price range,
+    the sort and the count. Sent on arrival and on every change. Silent."""
+
+    page: str = ""
+    title: str = ""
+    facets: dict[str, list[str]] = Field(default_factory=dict[str, list[str]])
+    active: dict[str, list[str]] = Field(default_factory=dict[str, list[str]])
+    price: PriceIn | None = None
+    sort: str = "featured"
+    count: int = 0
+    by: str = "visitor"
+
+
 class SelectionCleared(AppEvent):
     """The circled selection was cleared (its clear button, Esc, or a new circle)."""
 
@@ -258,6 +282,7 @@ type FernhollowEvent = (
     | Selection
     | SelectionCleared
     | OrdersKnown
+    | ListingViewed
 )
 
 FERNHOLLOW_EVENTS = AppEvents[FernhollowEvent](
@@ -277,4 +302,5 @@ FERNHOLLOW_EVENTS = AppEvents[FernhollowEvent](
     Selection,
     SelectionCleared,
     OrdersKnown,
+    ListingViewed,
 )
