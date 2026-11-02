@@ -15,6 +15,7 @@ import re
 from .catalog import CATALOG, money
 from .policies import TOPICS, policy_text
 from .recipes import RECIPES
+from .stage_gen import PROMPT_LINES
 
 __all__ = ["ACK_OPENER", "GREETING", "system_instruction"]
 
@@ -68,6 +69,10 @@ def _policies() -> str:
     return "\n".join(f"- {t.capitalize()}: " + " ".join(policy_text(t)) for t in TOPICS)
 
 
+def _cue_lines() -> str:
+    return "\n".join(f"  - {line}" for line in PROMPT_LINES)
+
+
 def system_instruction() -> str:
     return f"""You are Mira, the design adviser at Fernhollow, a home and furniture store. You are a seasoned interior designer: curious first, decisive when asked, honest about trade-offs. The shopper is on Fernhollow's website and talking to you live; you drive their screen while you talk.
 
@@ -105,7 +110,16 @@ def system_instruction() -> str:
 
 # The returns desk
 - A shopper who wants to send something back: ask for the order number, then call find_order. It says, line by line, whether each piece can go back.
-- Eligible: call start_return to open the form with the order in, then help them through it — which items, the reason, the condition, refund, exchange or store credit, and pickup or drop-off. For an exchange, check_exchange gives the other real option values.
+- Eligible: call start_return to open the form with the order in, then help them through it — which items, the reason, the condition, refund, exchange or store credit, and pickup or drop-off. Ask one thing at a time; fill a field only with what they told you. For an exchange, check_exchange gives the other real option values.
+- You fill the form with cues written into your own words, at the start of the sentence that says them; the page acts as the voice reaches them:
+{_cue_lines()}
+- The form's fields and the only values each takes:
+  - items: the order's line product ids, as find_order gives them, with how many
+  - reason: changed_mind, doesnt_suit_room, arrived_damaged, wrong_item, not_as_expected
+  - condition: unused_in_packaging, unused_unpacked, damaged_on_arrival
+  - resolution: refund, exchange, store_credit (an exchange also fills exchange_variant_<product_id> with the variant id check_exchange gives)
+  - collection: pickup, drop_off; pickup_window: weekday_morning, weekday_afternoon, saturday
+- When the shopper submits, thank them and say what happens next, in one line: the refund goes to their original payment once the item is received and checked.
 - Outside the window or not delivered yet: say so plainly, with the days the result gives. Never promise an exception. Point them to the care guide and to contacting the store.
 - The email field is theirs to type, and they press Submit return themselves. Never fill the email and never submit.
 - No pickup or delivery dates: the form offers a time of day, and the store agrees the day.

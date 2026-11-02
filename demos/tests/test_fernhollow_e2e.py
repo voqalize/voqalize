@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+from typing import Any
 
 from google.genai import types
 from voqalize_demos.discovery import discover
@@ -603,7 +604,7 @@ def test_mira_never_opens_on_an_acknowledgement() -> None:
     from voqalize_demos._loaded.fernhollow.prompt import ACK_OPENER
 
     lines = [GREETING]
-    for script in (_story(), _returns()):
+    for script in (_story(), _returns(), _form()):
         for cursor in script._cursors.values():  # pyright: ignore[reportPrivateUsage]
             lines += [step.spoken for step in cursor.steps if step.spoken]
     source = inspect.getsource(fb)
@@ -615,3 +616,164 @@ def test_mira_never_opens_on_an_acknowledgement() -> None:
         first = re.split(r"(?<=[.!?—])\s", line.strip(), maxsplit=1)[0]
         assert not ACK_OPENER.match(first), f"opens on an acknowledgement: {line!r}"
     assert ACK_OPENER.match("Let me check that.") and ACK_OPENER.match("Sure! Here it is.")
+
+
+DESK_LINE = "modern-home-office-desk-with-chestnut-brown-finish"
+
+
+def _form() -> ScriptedGemini:
+    return ScriptedGemini(
+        {
+            "I need to return the desk from FH-20418.": [
+                reply_and_call(
+                    "Order FH-20418, coming up.",
+                    "find_order",
+                    request={"order_number": "FH-20418"},
+                ),
+                reply_and_call(
+                    "The desk can go back — you're well inside the thirty days. What's the reason?",
+                    "start_return",
+                    request={"order_number": "FH-20418"},
+                ),
+            ],
+            "It just doesn't suit the room, and it's still boxed.": reply(
+                f"{{item: {DESK_LINE} | 1}} The desk goes on the return. "
+                "{fill: reason | doesnt_suit_room} I'm putting down that it doesn't suit the room. "
+                "{fill: condition | unused_in_packaging} And it's unused, in its packaging. "
+                "{fill: email | sam@example.com} Refund or store credit?"
+            ),
+            "A refund, and pick it up on a weekday morning.": reply(
+                "{fill: resolution | refund} A refund it is. "
+                "{fill: collection | pickup} We'll collect it. "
+                "{fill: pickup_window | weekday_morning} On a weekday morning. "
+                "Check the review and press Submit return when you're happy."
+            ),
+            "submitted the return": reply(
+                "Thanks — the refund goes to your original payment once the desk is back and checked."
+            ),
+        }
+    )
+
+
+def _cues(rig: DemoRig) -> list[dict[str, Any]]:
+    return [
+        dict(c.get("payload") or {})
+        for c in rig.driver.ui_commands
+        if c.get("command") == "stage_cue"
+    ]
+
+
+async def test_the_returns_form_fills_by_cue_and_the_shopper_submits() -> None:
+    """FH-20418: the order is found eligible and the form opens with it; Mira's
+    cues select the item and fill reason, condition, resolution and collection
+    as she says them — never the email, which is dropped. The shopper presses
+    Submit return themselves; that act reaches Mira, and in the next quiet spell
+    she thanks them in one line."""
+    llm = _form()
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        check_turn(
+            rig, await rig.driver.user_says("I need to return the desk from FH-20418."), units=2
+        )
+        assert rig.command("navigate")["page"] == "returns/start?order=FH-20418"
+
+        turn = await rig.driver.user_says("It just doesn't suit the room, and it's still boxed.")
+        check_turn(rig, turn, units=1)
+        spoken = turn.units[0].text
+        assert "{" not in spoken and "sam@example.com" not in spoken
+        turn = await rig.driver.user_says("A refund, and pick it up on a weekday morning.")
+        check_turn(rig, turn, units=1)
+
+        cues = [(c["move"], c["args"]) for c in _cues(rig)]
+        assert cues == [
+            ("returns.select_item", [DESK_LINE, "1"]),
+            ("returns.fill", ["reason", "doesnt_suit_room"]),
+            ("returns.fill", ["condition", "unused_in_packaging"]),
+            ("returns.fill", ["resolution", "refund"]),
+            ("returns.fill", ["collection", "pickup"]),
+            ("returns.fill", ["pickup_window", "weekday_morning"]),
+        ], cues
+        assert all(c["at"] for c in _cues(rig)), "a cue with no words to fire at"
+
+        # The page answers every cue; a refused one would be told to the model.
+        for c in _cues(rig):
+            await rig.driver.send_ui_event(
+                "stage_result",
+                {
+                    "call_ref": c["call_ref"],
+                    "move": c["move"],
+                    "outcome": "applied",
+                    "detail": "set",
+                },
+            )
+        # The shopper types their email and presses Submit return themselves.
+        await rig.driver.send_ui_event(
+            "stage_event",
+            {
+                "name": "returns.field_filled",
+                "by": "visitor",
+                "data": {"field": "email", "filled": ["order_number", "email"]},
+            },
+        )
+        await rig.driver.send_ui_event(
+            "stage_event",
+            {
+                "name": "returns.return_submitted",
+                "by": "visitor",
+                "data": {"reference": "RT-20418-1", "filled": ["order_number", "email"]},
+            },
+        )
+        await asyncio.sleep(0.1)
+        brain = rig.brain
+        assert isinstance(brain, FernhollowBrain)
+        assert brain._talk is not None  # pyright: ignore[reportPrivateUsage]
+        idle = [
+            r.config.idle for r in rig.driver.requests if getattr(r, "config", None) is not None
+        ]
+        assert any(i is not None and i.timeout_ms == 1500 for i in idle), (
+            "the quiet spell was not shortened"
+        )
+
+        thanks = await rig.driver.user_idle()
+        check_turn(rig, thanks, units=1)
+        assert thanks.units[0].text.startswith("Thanks — the refund")
+        last = " ".join(
+            p.text or "" for c in llm.captured_contents[-1] for p in c.parts or [] if p.text
+        )
+        assert "submitted the return" in last and "thank them" in last
+
+
+async def test_a_refused_cue_is_told_to_the_model() -> None:
+    """A value the form does not take comes back refused with its options, and
+    the model hears that — so it never says the field was set."""
+    llm = ScriptedGemini(
+        {
+            "It's broken.": reply("{fill: reason | broken} I'm putting down that it's broken."),
+            "So?": reply("The reason is set to arrived damaged."),
+        }
+    )
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("It's broken.")
+        (cue,) = _cues(rig)
+        await rig.driver.send_ui_event(
+            "stage_result",
+            {
+                "call_ref": cue["call_ref"],
+                "move": cue["move"],
+                "outcome": "refused",
+                "refused": [
+                    {
+                        "arg": "value",
+                        "why": "not a reason",
+                        "options": ["arrived_damaged", "changed_mind"],
+                    }
+                ],
+            },
+        )
+        await asyncio.sleep(0.1)
+        await rig.driver.user_says("So?")
+        notes = " ".join(
+            p.text or "" for c in llm.captured_contents[-1] for p in c.parts or [] if p.text
+        )
+        assert "did not land" in notes and "arrived_damaged" in notes

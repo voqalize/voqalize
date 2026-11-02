@@ -48,12 +48,15 @@ from voqalize_demos import (
     PATIENCE,
     FallbackLine,
     GeminiBrain,
+    configure_soon,
     landed,
     needs_result_now,
 )
 
-from voqalize.sdk import Action, RTVIMessage, Session, Speech, UserMessage
-from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
+from voqalize.sdk import Action, AppEvents, RTVIMessage, Session, Speech, UserIdle, UserMessage
+from voqalize.sdk.stage import Mirror, Move, Stage
+from voqalize.sdk.stage.wire import StageEvent, StageHello, StageProgress, StageResult
+from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
 
 from . import engine as eng
 from .app_events import (
@@ -75,6 +78,16 @@ from .prompt import GREETING, system_instruction
 from .recipes import FINISHING, RECIPES
 from .returns import WINDOW_DAYS, Order, exchange_options
 from .returns import find_order as lookup_order
+from .stage_gen import FILL, MOVES, SPEC
+
+#: Every event the page sends: the store's own typed events and Stage's.
+_EVENTS = AppEvents(*FERNHOLLOW_EVENTS, StageResult, StageHello, StageProgress, StageEvent)
+
+#: How long a quiet spell is before Mira may speak up of her own accord, and
+#: how short it gets while she has something the page asked her to say (the
+#: shopper pressed Submit return).
+_IDLE_MS = 12000
+_REACT_IDLE_MS = 1500
 
 # ─── Actions: brain → UI (CONTRACT.md) ────────────────────────────────────────
 
@@ -521,6 +534,16 @@ class FernhollowBrain(GeminiBrain):
         self.ahead: dict[tuple[Any, ...], Any] = {}
         self.hits = 0
         self.order: Order | None = None  # the order the returns desk is working on
+        # The returns form is driven by Stage: cues in Mira's words fill it as
+        # she says them. Email is never a move — a cue for it is dropped here,
+        # and the page refuses it too.
+        self.stage = Stage(
+            dispatch=lambda a: self.session.dispatch(a),
+            moves=MOVES,
+            mirror=Mirror(SPEC),
+            resolve=_never_email,
+        )
+        self._talk: str | None = None  # an ask the page left for the next quiet spell
         self._fallback = FallbackLine()
 
     # ─── Session ────────────────────────────────────────────────────────
@@ -532,6 +555,7 @@ class FernhollowBrain(GeminiBrain):
             Config(
                 tts=TtsConfig(voice=Voice.OMNIVOICE_EMILY, language=Language.EN),
                 stt=SttConfig(language=Language.EN, patience=PATIENCE),
+                idle=IdleConfig(timeout_ms=_IDLE_MS),
             )
         )
 
@@ -545,6 +569,8 @@ class FernhollowBrain(GeminiBrain):
         """The screen as it is goes in front of the shopper's words, so "this
         one" resolves against now."""
         self.turns += 1
+        self.stage.visitor_spoke()
+        self._talk = None
         self.append_note(self.screen_now())
         self.append_note(msg.text)
         async for speech in self.respond(session):
@@ -553,15 +579,23 @@ class FernhollowBrain(GeminiBrain):
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
         """The model's turn, a landed line if it acted in silence, then the
         look-ahead for what is now on screen."""
-        async for event in self._fallback.speak_if_silent(self, super().respond(session)):
+        turn = self.stage.cued(super().respond(session))
+        async for event in self._fallback.speak_if_silent(self, turn):
             yield event
+        self.stage.end_turn()
         self.look_ahead()
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
         """Something the shopper did on the page. The mirror follows it and the
         model gets one line; nothing is spoken."""
-        event = FERNHOLLOW_EVENTS.parse(msg)
+        event = _EVENTS.parse(msg)
         if event is None:
+            return
+        if isinstance(event, StageResult | StageHello | StageProgress | StageEvent):
+            staged = self._staged(event)
+            if staged is not None:
+                logger.info("fernhollow: stage {}", staged)
+                self.append_note(staged)
             return
         note = self.apply_event(event)
         # The page also reports what Mira herself just did (``by: "mira"``): the
@@ -569,6 +603,51 @@ class FernhollowBrain(GeminiBrain):
         if note is not None and event.by == "visitor":
             logger.info("fernhollow: shopper {}", note)
             self.append_note(note)
+
+    def on_user_idle(self, session: Session, idle: UserIdle) -> AsyncGenerator[Speech, None]:
+        """A quiet spell. If the page left something for Mira to say — the
+        shopper pressed Submit return — she says it now, in one line; otherwise
+        she stays quiet: a shopper browsing is not nudged."""
+        return self._idle(session)
+
+    async def _idle(self, session: Session) -> AsyncGenerator[Speech, None]:
+        ask, self._talk = self._talk, None
+        configure_soon(session, Config(idle=IdleConfig(timeout_ms=_IDLE_MS)))
+        if ask is None:
+            return
+        self.append_note(f"[{ask}]")
+        async for event in self.respond(session):
+            yield event
+
+    def _staged(self, event: StageResult | StageHello | StageProgress | StageEvent) -> str | None:
+        """One answer from the Stage page, folded in; the line the model reads,
+        if any. A cue that landed was spoken past and needs no line; one that
+        did not is said plainly, with what the page offers instead."""
+        if isinstance(event, StageEvent):
+            folded = self.stage.handle(event)
+            if folded is None:
+                return None
+            if event.by == "visitor" and (ask := self.stage.take_reaction()):
+                self._talk = ask
+                configure_soon(self.session, Config(idle=IdleConfig(timeout_ms=_REACT_IDLE_MS)))
+            return folded.note if event.by == "visitor" else None
+        if not isinstance(event, StageResult):
+            self.stage.handle(event)
+            return None
+        result = self.stage.handle(event)
+        if result is None or result.moved or result.outcome in ("applied", "partial", "undone"):
+            return None
+        move = self.stage.move_of(result.call_ref)
+        offers = "; ".join(
+            f"{r.arg}: {r.why}" + (f" (options: {', '.join(r.options)})" if r.options else "")
+            for r in result.refused
+        )
+        what = move.id if move else result.move
+        return (
+            f"[Your {what} cue did not land ({result.detail or result.outcome}"
+            + (f"; {offers}" if offers else "")
+            + "). Never say it did; use one of the options, or ask.]"
+        )
 
     # ─── The screen ─────────────────────────────────────────────────────
 
@@ -1587,6 +1666,13 @@ class FernhollowBrain(GeminiBrain):
             case ShortlistChanged():
                 self.shortlisted = [i for i in event.product_ids if i in CATALOG.products]
                 return f"[The shopper's shortlist now holds {len(self.shortlisted)}.]"
+
+
+def _never_email(move: Move, args: list[str]) -> list[str] | None:
+    """Personal data is never a move: a fill of the email field is dropped."""
+    if move.id == FILL.id and args and args[0].strip().lower() == "email":
+        return None
+    return args
 
 
 def _use(text: str) -> str:
