@@ -3243,3 +3243,13 @@ main {
   top: auto;
   bottom: 100px;
 }
+.search-page-form {
+  display: flex;
+  gap: 8px;
+  max-width: 560px;
+  margin-top: 6px;
+}
+.search-page-form .input {
+  border-radius: 999px;
+  padding: 0 20px;
+}
