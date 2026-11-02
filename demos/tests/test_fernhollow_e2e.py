@@ -594,7 +594,7 @@ async def test_the_returns_desk_answers_honestly() -> None:
         assert len([c for c in rig.driver.ui_commands if c.get("command") == "navigate"]) == pages
 
 
-def test_mira_never_opens_on_an_acknowledgement() -> None:
+def test_emily_never_opens_on_an_acknowledgement() -> None:
     """One acknowledgement, upstream: Voqalize's own ack covers the wait, so no
     line Emily says — the greeting, every scripted reply here, and every landed
     line the brain can speak in a silent turn — opens on one of her own."""
@@ -777,3 +777,37 @@ async def test_a_refused_cue_is_told_to_the_model() -> None:
             p.text or "" for c in llm.captured_contents[-1] for p in c.parts or [] if p.text
         )
         assert "did not land" in notes and "arrived_damaged" in notes
+
+
+async def test_emilys_own_changes_are_followed_but_not_told() -> None:
+    """The page reports Emily's own moves with ``by: "emily"`` (or ``"mira"``,
+    from a page a release behind): the mirror follows them, and the model hears
+    nothing it already knows. The shopper's own act is told."""
+    desks = CATALOG.by_category["desks"]
+    async with demo("fernhollow", ScriptedGemini()) as rig:
+        await rig.driver.start_session()
+        brain = rig.brain
+        assert isinstance(brain, FernhollowBrain)
+
+        def told() -> list[str]:
+            return [
+                p.text or ""
+                for c in brain._history  # pyright: ignore[reportPrivateUsage]
+                if c.role == "user"
+                for p in c.parts or []
+                if "The shopper opened" in (p.text or "")
+            ]
+
+        for by, pid in (("emily", desks[0]), ("mira", desks[1])):
+            await rig.driver.send_ui_event(
+                "product_viewed", {"product_id": pid, "variant_id": None, "by": by}
+            )
+            await asyncio.sleep(0.1)
+            assert brain.screen.product == pid
+        assert told() == [], "an agent-made change reached the context"
+        await rig.driver.send_ui_event(
+            "product_viewed", {"product_id": desks[2], "variant_id": None, "by": "visitor"}
+        )
+        await asyncio.sleep(0.1)
+        assert brain.screen.product == desks[2]
+        assert len(told()) == 1 and desks[2] in told()[0]

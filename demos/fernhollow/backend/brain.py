@@ -83,6 +83,10 @@ from .stage_gen import FILL, MOVES, SPEC
 #: Every event the page sends: the store's own typed events and Stage's.
 _EVENTS = AppEvents(*FERNHOLLOW_EVENTS, StageResult, StageHello, StageProgress, StageEvent)
 
+#: The ``by`` the page puts on changes Emily made herself. "mira" is the name a
+#: page built before the persona was renamed still sends; drop it next release.
+AGENT_BY = frozenset({"emily", "mira"})
+
 #: How long a quiet spell is before Emily may speak up of her own accord, and
 #: how short it gets while she has something the page asked her to say (the
 #: shopper pressed Submit return).
@@ -598,9 +602,10 @@ class FernhollowBrain(GeminiBrain):
                 self.append_note(staged)
             return
         note = self.apply_event(event)
-        # The page also reports what Emily herself just did (``by: "mira"``): the
-        # mirror follows it, but the model already knows, so no note.
-        if note is not None and event.by == "visitor":
+        # The page also reports what Emily herself just did (``by: "emily"``, and
+        # ``"mira"`` from a page one release behind): the mirror follows it, but
+        # the model already knows, so no note. Only the shopper's own acts are told.
+        if note is not None and event.by not in AGENT_BY:
             logger.info("fernhollow: shopper {}", note)
             self.append_note(note)
 
