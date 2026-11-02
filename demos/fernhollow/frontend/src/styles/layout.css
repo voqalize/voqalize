@@ -4127,3 +4127,55 @@ main {
   border: 1px solid var(--line-strong);
   font-size: 12px;
 }
+.steps button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: inherit;
+  font-weight: inherit;
+}
+.co-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.place-wrap {
+  max-width: 420px;
+}
+
+/* Emily's numbered choices */
+.card.is-choice .card-media {
+  box-shadow: 0 0 0 2px var(--emily), 0 0 0 7px rgba(75, 69, 198, 0.16);
+  animation: spot-in 300ms var(--ease) both;
+}
+.choice-badge {
+  position: absolute;
+  z-index: 3;
+  top: -12px;
+  left: -12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--emily);
+  color: #fff;
+  font-family: var(--serif);
+  font-size: 19px;
+  font-weight: 500;
+  box-shadow: 0 0 0 3px var(--paper), 0 8px 18px -6px rgba(75, 69, 198, 0.6);
+  animation: pop 0.35s var(--ease) both;
+  pointer-events: none;
+}
+.card.is-choice .card-badges {
+  left: 30px;
+}
+@media (max-width: 599px) {
+  .choice-badge {
+    top: -8px;
+    left: -6px;
+    width: 30px;
+    height: 30px;
+    font-size: 16px;
+  }
+}

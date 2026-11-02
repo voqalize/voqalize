@@ -45,6 +45,10 @@ export const scene = defineScene({
           "default": 1
         }
       ]
+    },
+    {
+      "id": "returns.submit",
+      "class": "confirmed"
     }
   ],
   "slices": [
@@ -132,4 +136,4 @@ export const scene = defineScene({
   ]
 });
 
-export const SPEC_SHA256 = "c2228bce90ec2e32da99e34073a166359b49066a4e5f902acce89a7d06d7776f";
+export const SPEC_SHA256 = "d20742ebb0b1f56be29b4ae78f9809149d87b9f1fbb57e312b768805f0dbcce3";

@@ -88,11 +88,20 @@ describe("returns performers", () => {
     expect(useReturns.getState().reason).toBe("doesnt_suit_room");
   });
 
-  it("never fills the email", async () => {
+  it("fills the email the shopper said, and refuses something that is not one", async () => {
     await settle();
+    expect((await moves().run("returns.fill", { field: "email", value: "not an email" }, "email-0"))?.outcome).toBe("refused");
     const r = await moves().run("returns.fill", { field: "email", value: "sam.rivera@example.com" }, "email-1");
+    expect(r?.outcome).toBe("applied");
+    expect(useReturns.getState().email).toBe("sam.rivera@example.com");
+    expect(useReturns.getState().by.email).toBe("emily");
+  });
+
+  it("refuses to submit while a step still needs something, naming it", async () => {
+    await settle();
+    const r = await moves().run("returns.submit", {}, "submit-0");
     expect(r?.outcome).toBe("refused");
-    expect(useReturns.getState().email).toBe("");
+    expect(JSON.stringify(r)).toContain("condition");
   });
 
   it("refuses a step that does not exist, and an item not in the order", async () => {

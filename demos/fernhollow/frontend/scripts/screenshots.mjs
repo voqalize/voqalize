@@ -25,6 +25,26 @@ const fire = async (page, command) => {
 
 const SHOTS = [
   {
+    name: "choices",
+    path: "/category/sofas?debug=1",
+    run: async (page) => {
+      await page.mouse.wheel(0, 380);
+      await settle(page, 900);
+      await fire(page, "show_choices");
+    },
+  },
+  {
+    name: "checkout-fill",
+    path: "/product/weathered-oak-dining-table?debug=1",
+    run: async (page) => {
+      await page.click(".add-btn");
+      await settle(page, 300);
+      await page.keyboard.press("Escape");
+      for (let i = 0; i < 5; i++) await fire(page, "checkout_fill");
+      await settle(page, 300);
+    },
+  },
+  {
     name: "call-connected",
     path: "/product/weathered-oak-dining-table?debug=1",
     run: async (page) => {

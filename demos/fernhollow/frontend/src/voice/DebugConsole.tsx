@@ -9,6 +9,9 @@ import { bestSaving, defaultVariant, getProduct, matchContractFilters, products,
 import { dispatch, useEmily } from "./controller";
 import { useFakeCall } from "./VoiceDock";
 import { eventLog, onEventLog } from "./events";
+import { priced, useCart } from "../state/cart";
+import { type CheckoutField, useCheckout } from "../state/checkout";
+import { screenLayout } from "./screen";
 import { buildCompare, buildRoomSet, findSavings, goesWith, moreLike, pieceFor } from "./local";
 import { COMMAND_NAMES, type CommandName, type Commands } from "./types";
 
@@ -17,6 +20,23 @@ const ANCHOR = "weathered-oak-dining-table";
 function currentProductId(): string {
   const m = /\/product\/([^/?#]+)/.exec(window.location.pathname);
   return m && getProduct(m[1]) ? m[1] : ANCHOR;
+}
+
+/** A shopper's details, said one field at a time: each press fills the next empty one. */
+const SAMPLE_ADDRESS: [CheckoutField, string][] = [
+  ["email", "sam.rivera@example.com"],
+  ["first_name", "Sam"],
+  ["last_name", "Rivera"],
+  ["address1", "14 Fern Lane"],
+  ["city", "Hollowbrook"],
+  ["region", "Vermont"],
+  ["postcode", "05401"],
+  ["delivery", "Please ring the side door"],
+];
+function nextCheckoutFill() {
+  const a = useCheckout.getState().address;
+  const [field, value] = SAMPLE_ADDRESS.find(([f]) => !a[f]) ?? SAMPLE_ADDRESS[0];
+  return { field, value };
 }
 
 export function samplePayloads(): { [K in CommandName]: Commands[K] } {
@@ -82,6 +102,16 @@ export function samplePayloads(): { [K in CommandName]: Commands[K] } {
     suggest_finish: { product_id: anchor.id, reason: "The walnut finish would sit closer to the sofa legs you chose." },
     open_policy: { topic: "returns" },
     undo: {},
+    checkout_fill: nextCheckoutFill(),
+    checkout_step: { step: useCheckout.getState().step === "contact" ? "shipping" : useCheckout.getState().step === "shipping" ? "review" : "contact" },
+    confirm_place_order: { total: priced(useCart.getState().lines).total, label: "" },
+    order_placed: { order_number: `FH-${30000 + (Date.now() % 9000)}`, total: priced(useCart.getState().lines).total },
+    show_choices: (() => {
+      const on = screenLayout().map((x) => x.product_id).slice(0, 3);
+      const ids = on.length >= 2 ? on : sofas.map((p) => p.id);
+      return { product_ids: ids, label: "Which one did you mean?" };
+    })(),
+    clear_choices: {},
   };
 }
 

@@ -327,7 +327,7 @@ export function ConfirmationPage() {
       <div className="confirm-hero">
         <CheckCircle2 size={34} strokeWidth={1.4} aria-hidden />
         <p className="small">Order {order.number}</p>
-        <h1 className="h1">Thank you, {order.address.firstName}. Your order is placed.</h1>
+        <h1 className="h1">Thank you, {order.address.first_name}. Your order is placed.</h1>
         <p className="lede">
           In a real store a confirmation would now go to {order.address.email}. This is a demo, so nothing was charged and nothing will be
           delivered.
@@ -380,11 +380,11 @@ export function ConfirmationPage() {
         <section className="summary-card">
           <h2 className="h3">Delivering to</h2>
           <address className="review-address">
-            {order.address.firstName} {order.address.lastName}
+            {order.address.first_name} {order.address.last_name}
             <br />
             {order.address.address1}
             <br />
-            {order.address.city} {order.address.postal}
+            {order.address.city} {order.address.postcode}
             <br />
             {order.address.country}
           </address>

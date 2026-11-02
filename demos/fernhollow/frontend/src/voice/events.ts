@@ -18,8 +18,20 @@ export interface CartLine {
 
 /** The app's own events, typed by the brain's generated `actions.gen.ts`
  *  (Stage's `stage_*` events are Stage's to send). */
-export type UiEventName = Exclude<AppEventName, `stage_${string}`>;
-export type UiEvents = { [E in UiEventName]: Omit<Extract<AppEvent, { event: E }>["payload"], "by"> };
+type Generated = { [E in Exclude<AppEventName, `stage_${string}`>]: Omit<Extract<AppEvent, { event: E }>["payload"], "by"> };
+
+/** CONTRACT.md v2's events, until the brain's generated file carries them;
+ *  where both name an event, this shape wins. */
+interface V2Events {
+  pointing: { product_id: string; how: "hover" | "focus" | "tap" };
+  visible_products: { product_ids: string[]; layout: { product_id: string; row: number; col: number }[] };
+  choice_made: { product_id: string };
+  checkout_changed: { field: string };
+  checkout_step_reached: { step: string };
+}
+
+export type UiEvents = Omit<Generated, keyof V2Events> & V2Events;
+export type UiEventName = keyof UiEvents;
 
 
 type Sender = (event: string, payload?: unknown) => void;
