@@ -8,15 +8,20 @@
 // Vite builds bake theirs. A build without them fails, because an extension
 // that loads and then cannot start a call looks like a broken site.
 //
+// Production is the default, everywhere (owner, 2026-11-02): .env holds the
+// production key, and a build that names no control plane gets production's.
+// Dev is the exception you ask for by name — `pnpm build:dev`, from .env.dev
+// into dist-dev/, and `publish-embed.sh dev`.
+//
 // VOQALIZE_ENV_FILE and VOQALIZE_OUT_DIR point a build at another key and
 // another directory, so publish-embed.sh can build the hosted embed with its
 // own key without touching the extension in dist/.
 //
 // AVATAR_RUNTIME, when set, swaps the avatar runtime the npm shim names for
-// another — `pnpm build` and `publish-embed.sh dev` set it to the dev host's
+// another — `build:dev` and `publish-embed.sh dev` set it to the dev host's
 // `current.js`, so the dev extension and the dev embed run the last dev upload
 // (see ../../shared/avatar-runtime.mjs, the same override for the Vite demos).
-// Unset, as in `build:prod` and `publish-embed.sh prod`, the bundle is exactly
+// Unset, as in `pnpm build` and `publish-embed.sh prod`, the bundle is exactly
 // what npm gives a customer. Read from the process alone, never from a .env
 // file, so a production build cannot pick it up by accident.
 
@@ -45,7 +50,7 @@ const env = readEnv();
 const avatarRuntime = process.env.AVATAR_RUNTIME || "";
 if (avatarRuntime) unreleasedRuntime(avatarRuntime);
 const wiring = {
-  apiBase: env.VOQALIZE_API_BASE || "https://app.dev.voqalize.com/api/v1",
+  apiBase: env.VOQALIZE_API_BASE || "https://app.voqalize.com/api/v1",
   agentId: env.VOQALIZE_AGENT_ID || "",
   publishableKey: env.VOQALIZE_PUBLISHABLE_KEY || "",
 };

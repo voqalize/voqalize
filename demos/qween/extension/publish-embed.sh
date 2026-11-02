@@ -8,19 +8,22 @@
 #                            this URL picks up the next upload on its next load
 #
 # The key is not the extension's: its allowed origins are every origin the
-# embed runs on (https://*.qween.com, https://shop.qweendom.in). Dev reads it
-# from .env.embed, prod from .env.embed.prod. Usage: ./publish-embed.sh [dev|prod]
+# embed runs on (https://*.qween.com, https://shop.qweendom.in). Prod reads it
+# from .env.embed, dev from .env.embed.dev. Usage: ./publish-embed.sh prod|dev
+#
+# The target has no default: a bare run used to publish dev, and a bare run that
+# published prod would put a build in front of Qween's shoppers by accident.
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
 SITE="qween.com"
 ACCOUNT="sripathi@recruit41.com"
-case "${1:-dev}" in
-  dev) ENV_FILE="$here/.env.embed"; BUCKET="gs://voqal-cloud-dev-avatar-host-asia-south1"; HOST="https://cdn.dev.voqalize.com"
+case "${1:-}" in
+  dev) ENV_FILE="$here/.env.embed.dev"; BUCKET="gs://voqal-cloud-dev-avatar-host-asia-south1"; HOST="https://cdn.dev.voqalize.com"
        RUNTIME="https://avatar.dev.voqalize.com/runtime/current.js" ;;
-  prod) ENV_FILE="$here/.env.embed.prod"; BUCKET="gs://voqal-cloud-prod-avatar-host-asia-south1"; HOST="https://cdn.voqalize.com"
+  prod) ENV_FILE="$here/.env.embed"; BUCKET="gs://voqal-cloud-prod-avatar-host-asia-south1"; HOST="https://cdn.voqalize.com"
        RUNTIME="" ;;
-  *) echo "usage: $0 [dev|prod]" >&2; exit 2 ;;
+  *) echo "usage: $0 prod|dev" >&2; exit 2 ;;
 esac
 
 [[ -f "$ENV_FILE" ]] || { echo "no $(basename "$ENV_FILE") (see README)" >&2; exit 1; }

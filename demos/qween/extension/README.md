@@ -43,14 +43,17 @@ from Qween's public product feed.
 ## Build and load
 
 ```sh
-cp .env.example .env     # the agent id and a publishable key for Qween's sites
+cp .env.example .env     # production's agent id and publishable key for Qween's sites
 pnpm install --ignore-workspace
-pnpm build               # → dist/
+pnpm build               # → dist/, against production
 ```
 
 Then `chrome://extensions` → Developer mode → **Load unpacked** → `dist/`, and
-open www.qween.com or shop.qweendom.in. `pnpm build:prod` builds the same
-extension against production into `dist-prod/`, from `.env.prod`. The first call asks for the microphone.
+open www.qween.com or shop.qweendom.in. The first call asks for the microphone.
+
+Everything here runs against production unless you ask for dev by name.
+`pnpm build:dev` builds the same extension against dev into `dist-dev/`, from
+`.env.dev`, with the last avatar runtime uploaded to dev.
 
 The publishable key's allowed origins must include `https://www.qween.com` and
 `https://shop.qweendom.in`, which are where the session is minted from. The agent id and key are baked into the
@@ -68,8 +71,8 @@ desktop Chrome alone. Qween adds it to their pages just before `</body>`:
 
 That is production. Dev's copy is at `https://cdn.dev.voqalize.com/sites/qween.com.js`.
 
-We host it, on dev and on production. `./publish-embed.sh [dev|prod]` builds it with the key in `.env.embed` (`.env.embed.prod` for production; same
-shape as `.env`, never committed) into a scratch directory, so `dist/` and the
+We host it, on production and on dev. `./publish-embed.sh prod` builds it with the key in `.env.embed` (`./publish-embed.sh dev` uses `.env.embed.dev`; same
+shape as `.env`, never committed; the target has no default) into a scratch directory, so `dist/` and the
 extension are untouched, and uploads it to that environment's asset host twice: at
 `/sites/qween.com/<hash>.js`, immutable, and at `/sites/qween.com.js`, served
 `no-cache`, which is the URL the page carries. A new upload reaches a page on its
@@ -88,8 +91,8 @@ from the live shop's. What
 does have to know the host is the publishable key: its allowed origins must
 list every origin the script runs on, staging included, or `sessions.connect`
 refuses it. The agent id, the key and the control plane are baked in at build
-time from `.env` (`.env.embed` for the hosted copy), so a bundle for
-production is built with production's.
+time from `.env` (`.env.embed` for the hosted copy), which hold production's;
+a dev bundle reads the `.dev` twin of each.
 
 The widget joins the page once it has loaded, after React has hydrated it. If
 the extension is also installed, the two put up one widget between them.

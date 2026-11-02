@@ -40,5 +40,5 @@ proto/gen/
 .idea/
 .vscode/
 
-# The qween extension built against prod (demos/qween/extension, `pnpm build:prod`).
-dist-prod/
+# The qween extension built against dev (demos/qween/extension, `pnpm build:dev`).
+dist-dev/
