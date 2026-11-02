@@ -283,6 +283,10 @@ function SelectionMarks() {
       <div className="selection-marks" aria-hidden data-voqalize>
         {boxes.map((b) => (
           <div key={b.key} className="selection-ring" style={{ left: b.left - 5, top: b.top - 5, width: b.width + 10, height: b.height + 10 }}>
+            <span className="selection-glow">
+              <span className="selection-band" />
+            </span>
+            <span className="selection-edge" />
             <span
               className="selection-badge"
               style={{ left: Math.max(-13, 6 - (b.left - 5)), top: Math.max(-13, (document.querySelector(".site-header")?.getBoundingClientRect().bottom ?? 0) + 6 - (b.top - 5)) }}

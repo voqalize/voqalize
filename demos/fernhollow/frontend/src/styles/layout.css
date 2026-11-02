@@ -4266,14 +4266,67 @@ body.is-circling * {
   z-index: 52;
   pointer-events: none;
 }
+/* Circled things keep the circle's rainbow (owner, 2026-11-02), kept minimal: a 2 px
+   rainbow edge and a faint soft halo. The halo blurs an outer box and masks only an inner
+   band, so it stays soft and never tints the product. */
 .selection-ring {
+  --rainbow: conic-gradient(from 0deg, #ff3b5c, #ff9a1f, #ffd60a, #34d399, #22c3ee, #4f6bff, #a855f7, #ff3b5c);
   position: fixed;
   border-radius: 10px;
-  box-shadow: 0 0 0 2px var(--emily), 0 0 0 7px rgba(75, 69, 198, 0.14), 0 0 28px rgba(123, 108, 240, 0.35);
   animation: spot-in 0.35s var(--ease) both;
+}
+.selection-edge,
+.selection-band {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--rainbow);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+.selection-edge {
+  padding: 2px;
+  animation: rainbow-drift 3s linear infinite;
+}
+.selection-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  filter: blur(6px);
+  opacity: 0.45;
+  animation: rainbow-drift 3s linear infinite;
+}
+.selection-band {
+  padding: 3px;
+}
+@keyframes rainbow-drift {
+  to {
+    filter: hue-rotate(360deg);
+  }
+}
+.selection-glow {
+  animation-name: rainbow-glow;
+}
+@keyframes rainbow-glow {
+  from {
+    filter: blur(6px) hue-rotate(0deg);
+  }
+  to {
+    filter: blur(6px) hue-rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .selection-edge,
+  .selection-glow {
+    animation: none;
+  }
 }
 .selection-badge {
   position: absolute;
+  z-index: 2;
   top: -13px;
   left: -13px;
   width: 32px;
