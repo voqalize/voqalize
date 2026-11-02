@@ -212,6 +212,28 @@ def test_stretch_budget_uses_real_sale_prices() -> None:
     assert s.room.total <= room.total + 1e-6
 
 
+# ─── The returns desk ─────────────────────────────────────────────────────────
+
+
+def test_order_eligibility_per_line() -> None:
+    from voqalize_demos._loaded.fernhollow import returns as rt
+
+    assert rt.WINDOW_DAYS == 30
+    assert rt.normalise_number("fh 20418") == "FH-20418"
+    inside = rt.find_order("FH-20418")
+    assert inside is not None
+    assert [(x.status, x.days_since_delivery, x.days_left) for x in inside.lines] == [
+        ("eligible", 6, 24)
+    ] * 3
+    late = rt.find_order("20155")
+    assert late is not None
+    assert [(x.status, x.days_since_delivery) for x in late.lines] == [("outside_window", 41)]
+    coming = rt.find_order("FH-20502")
+    assert coming is not None and {x.status for x in coming.lines} == {"not_delivered"}
+    assert rt.find_order("FH-99999") is None
+    assert rt.exchange_options("desk-chair-with-aluminum-frame", "31094") == [("31095", "Walnut")]
+
+
 # ─── Every tool under 10 ms ───────────────────────────────────────────────────
 
 
@@ -257,6 +279,9 @@ def _calls(brain: fb.FernhollowBrain) -> list[tuple[str, Any]]:
         ("add_to_cart", fb.AddToCartRequest(what="room")),
         ("suggest_finish", None),
         ("store_policy", fb.PolicyRequest(topic="delivery")),
+        ("find_order", fb.OrderRequest(order_number="fh 20418")),
+        ("start_return", fb.OrderRequest(order_number="FH-20418")),
+        ("check_exchange", fb.ExchangeRequest(product="desk chair")),
     ]
 
 

@@ -170,6 +170,80 @@ export interface OpenPolicy {
 /** Revert the last screen-changing action. */
 export type Undo = Record<string, never>;
 
+/**
+ * A named act that changed one slice of the page's state
+ * (`cart.changed`, `listing.filtered`), as the app's Stage Spec declares
+ * it. Only the fields the slice declares, and none it marks private, are
+ * sent; the brain folds them into its mirror and tells the model one short
+ * line, never the values.
+ */
+export interface StageEvent {
+  name: string;
+
+  by?: 'visitor' | 'agent';
+
+  data?: Record<string, unknown>;
+
+  call_ref?: string | null;
+}
+
+/** A page running Stage, saying what it is — on connect and on every load. */
+export interface StageHello {
+  runtime: string;
+
+  contract: number;
+
+  url?: string;
+
+  title?: string;
+}
+
+/**
+ * Where a move is, before its result: never final, sent as its phase
+ * changes. Each one tells the brain the move is alive, so a move that is
+ * slow is not taken for one that failed.
+ */
+export interface StageProgress {
+  call_ref: string;
+
+  move: string;
+
+  phase: 'queued' | 'loading' | 'waiting_site' | 'ringing' | 'acting' | 'confirming';
+
+  ms?: number;
+}
+
+/** What happened to one move: sent exactly once per `call_ref`. */
+export interface StageResult {
+  call_ref: string;
+
+  move: string;
+
+  outcome: 'applied' | 'partial' | 'refused' | 'failed' | 'undone' | 'unknown';
+
+  detail?: string | null;
+
+  refused?: Refusal[];
+
+  moved?: boolean;
+
+  ms?: number;
+
+  fired?: 'anchor' | 'fuzzy' | 'clock' | 'end' | 'now' | 'quiet' | null;
+
+  received_ms?: number | null;
+
+  queued_ms?: number | null;
+
+  fired_ms?: number | null;
+
+  ringed_ms?: number | null;
+
+  lag_ms?: number | null;
+
+  late?: boolean;
+}
+
 /** The cart as it now stands, after the shopper changed it. */
 export interface CartChanged {
   lines?: CartLineIn[];
@@ -368,6 +442,15 @@ export interface PieceOut {
   reason: string;
 }
 
+/** One argument the page could not use, and what it offers instead. */
+export interface Refusal {
+  arg: string;
+
+  why: string;
+
+  options?: string[];
+}
+
 export interface SavingSwap {
   slot: string;
 
@@ -450,6 +533,10 @@ export function unhandledUiAction(action: never): never {
 
 /** Everything the person can do on screen, discriminated by `event`. */
 export type AppEvent =
+  | { event: 'stage_event'; payload: StageEvent }
+  | { event: 'stage_hello'; payload: StageHello }
+  | { event: 'stage_progress'; payload: StageProgress }
+  | { event: 'stage_result'; payload: StageResult }
   | { event: 'cart_changed'; payload: CartChanged }
   | { event: 'confirm_result'; payload: ConfirmResult }
   | { event: 'filter_changed'; payload: FilterChanged }
@@ -463,6 +550,10 @@ export type AppEvent =
 export type AppEventName = AppEvent['event'];
 
 export const APP_EVENT_NAMES: readonly AppEventName[] = [
+  'stage_event',
+  'stage_hello',
+  'stage_progress',
+  'stage_result',
   'cart_changed',
   'confirm_result',
   'filter_changed',

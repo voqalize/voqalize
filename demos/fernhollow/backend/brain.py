@@ -1,7 +1,7 @@
-"""FernhollowBrain — Mira, the design adviser of a home and furniture store.
+"""FernhollowBrain — Emily, the design adviser of a home and furniture store.
 
 A :class:`voqalize_demos.GeminiBrain`. Voqalize dials this brain's WebSocket per
-session; the inherited tool loop runs Gemini's calls as they arrive. Mira asks
+session; the inherited tool loop runs Gemini's calls as they arrive. Emily asks
 about the room one question at a time, puts a whole room on the shopper's
 screen for their brief and budget, swaps pieces, compares, finds look-alikes
 and things that go with a piece, stretches the budget with real sale prices,
@@ -48,12 +48,15 @@ from voqalize_demos import (
     PATIENCE,
     FallbackLine,
     GeminiBrain,
+    configure_soon,
     landed,
     needs_result_now,
 )
 
-from voqalize.sdk import Action, RTVIMessage, Session, Speech, UserMessage
-from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig, Voice
+from voqalize.sdk import Action, AppEvents, RTVIMessage, Session, Speech, UserIdle, UserMessage
+from voqalize.sdk.stage import Mirror, Move, Stage
+from voqalize.sdk.stage.wire import StageEvent, StageHello, StageProgress, StageResult
+from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
 
 from . import engine as eng
 from .app_events import (
@@ -73,6 +76,18 @@ from .catalog import CATALOG, JOURNAL_DIR, Product, money
 from .policies import Topic, policy_page, policy_text
 from .prompt import GREETING, system_instruction
 from .recipes import FINISHING, RECIPES
+from .returns import WINDOW_DAYS, Order, exchange_options
+from .returns import find_order as lookup_order
+from .stage_gen import FILL, MOVES, SPEC
+
+#: Every event the page sends: the store's own typed events and Stage's.
+_EVENTS = AppEvents(*FERNHOLLOW_EVENTS, StageResult, StageHello, StageProgress, StageEvent)
+
+#: How long a quiet spell is before Emily may speak up of her own accord, and
+#: how short it gets while she has something the page asked her to say (the
+#: shopper pressed Submit return).
+_IDLE_MS = 12000
+_REACT_IDLE_MS = 1500
 
 # ─── Actions: brain → UI (CONTRACT.md) ────────────────────────────────────────
 
@@ -430,6 +445,16 @@ class PolicyRequest(BaseModel):
     topic: Topic
 
 
+class OrderRequest(BaseModel):
+    order_number: str = Field(
+        description="The order number as the shopper said it, e.g. 'FH-20418'."
+    )
+
+
+class ExchangeRequest(BaseModel):
+    product: str = Field(description="A line of the order: its product id, or its title.")
+
+
 # ─── The screen mirror ────────────────────────────────────────────────────────
 
 
@@ -508,6 +533,17 @@ class FernhollowBrain(GeminiBrain):
         self.seen: dict[str, list[str]] = {}  # slot → products shown there
         self.ahead: dict[tuple[Any, ...], Any] = {}
         self.hits = 0
+        self.order: Order | None = None  # the order the returns desk is working on
+        # The returns form is driven by Stage: cues in Emily's words fill it as
+        # she says them. Email is never a move — a cue for it is dropped here,
+        # and the page refuses it too.
+        self.stage = Stage(
+            dispatch=lambda a: self.session.dispatch(a),
+            moves=MOVES,
+            mirror=Mirror(SPEC),
+            resolve=_never_email,
+        )
+        self._talk: str | None = None  # an ask the page left for the next quiet spell
         self._fallback = FallbackLine()
 
     # ─── Session ────────────────────────────────────────────────────────
@@ -519,11 +555,12 @@ class FernhollowBrain(GeminiBrain):
             Config(
                 tts=TtsConfig(voice=Voice.OMNIVOICE_EMILY, language=Language.EN),
                 stt=SttConfig(language=Language.EN, patience=PATIENCE),
+                idle=IdleConfig(timeout_ms=_IDLE_MS),
             )
         )
 
     async def greet(self, session: Session) -> str:
-        """Fixed — no model call — so Mira speaks the instant the call connects."""
+        """Fixed — no model call — so Emily speaks the instant the call connects."""
         return GREETING
 
     async def on_user_message(
@@ -532,6 +569,8 @@ class FernhollowBrain(GeminiBrain):
         """The screen as it is goes in front of the shopper's words, so "this
         one" resolves against now."""
         self.turns += 1
+        self.stage.visitor_spoke()
+        self._talk = None
         self.append_note(self.screen_now())
         self.append_note(msg.text)
         async for speech in self.respond(session):
@@ -540,22 +579,75 @@ class FernhollowBrain(GeminiBrain):
     async def respond(self, session: Session) -> AsyncGenerator[Speech, None]:
         """The model's turn, a landed line if it acted in silence, then the
         look-ahead for what is now on screen."""
-        async for event in self._fallback.speak_if_silent(self, super().respond(session)):
+        turn = self.stage.cued(super().respond(session))
+        async for event in self._fallback.speak_if_silent(self, turn):
             yield event
+        self.stage.end_turn()
         self.look_ahead()
 
     async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
         """Something the shopper did on the page. The mirror follows it and the
         model gets one line; nothing is spoken."""
-        event = FERNHOLLOW_EVENTS.parse(msg)
+        event = _EVENTS.parse(msg)
         if event is None:
             return
+        if isinstance(event, StageResult | StageHello | StageProgress | StageEvent):
+            staged = self._staged(event)
+            if staged is not None:
+                logger.info("fernhollow: stage {}", staged)
+                self.append_note(staged)
+            return
         note = self.apply_event(event)
-        # The page also reports what Mira herself just did (``by: "mira"``): the
+        # The page also reports what Emily herself just did (``by: "mira"``): the
         # mirror follows it, but the model already knows, so no note.
         if note is not None and event.by == "visitor":
             logger.info("fernhollow: shopper {}", note)
             self.append_note(note)
+
+    def on_user_idle(self, session: Session, idle: UserIdle) -> AsyncGenerator[Speech, None]:
+        """A quiet spell. If the page left something for Emily to say — the
+        shopper pressed Submit return — she says it now, in one line; otherwise
+        she stays quiet: a shopper browsing is not nudged."""
+        return self._idle(session)
+
+    async def _idle(self, session: Session) -> AsyncGenerator[Speech, None]:
+        ask, self._talk = self._talk, None
+        configure_soon(session, Config(idle=IdleConfig(timeout_ms=_IDLE_MS)))
+        if ask is None:
+            return
+        self.append_note(f"[{ask}]")
+        async for event in self.respond(session):
+            yield event
+
+    def _staged(self, event: StageResult | StageHello | StageProgress | StageEvent) -> str | None:
+        """One answer from the Stage page, folded in; the line the model reads,
+        if any. A cue that landed was spoken past and needs no line; one that
+        did not is said plainly, with what the page offers instead."""
+        if isinstance(event, StageEvent):
+            folded = self.stage.handle(event)
+            if folded is None:
+                return None
+            if event.by == "visitor" and (ask := self.stage.take_reaction()):
+                self._talk = ask
+                configure_soon(self.session, Config(idle=IdleConfig(timeout_ms=_REACT_IDLE_MS)))
+            return folded.note if event.by == "visitor" else None
+        if not isinstance(event, StageResult):
+            self.stage.handle(event)
+            return None
+        result = self.stage.handle(event)
+        if result is None or result.moved or result.outcome in ("applied", "partial", "undone"):
+            return None
+        move = self.stage.move_of(result.call_ref)
+        offers = "; ".join(
+            f"{r.arg}: {r.why}" + (f" (options: {', '.join(r.options)})" if r.options else "")
+            for r in result.refused
+        )
+        what = move.id if move else result.move
+        return (
+            f"[Your {what} cue did not land ({result.detail or result.outcome}"
+            + (f"; {offers}" if offers else "")
+            + "). Never say it did; use one of the options, or ask.]"
+        )
 
     # ─── The screen ─────────────────────────────────────────────────────
 
@@ -729,6 +821,9 @@ class FernhollowBrain(GeminiBrain):
             self.add_to_cart,
             self.suggest_finish,
             self.store_policy,
+            self.find_order,
+            self.start_return,
+            self.check_exchange,
         ]
 
     @needs_result_now
@@ -1386,6 +1481,105 @@ class FernhollowBrain(GeminiBrain):
         landed("The policy is on screen.", "Here's the policy.")
         return _prose(f"The {request.topic} policy is open.", policy=policy_text(request.topic))
 
+    # ─── Returns desk ───────────────────────────────────────────────────
+
+    @needs_result_now
+    async def find_order(self, request: OrderRequest) -> str:
+        """Look an order up for a return: its lines, and for each whether it can
+        go back under the returns policy. Answer from the result: say plainly
+        when a line is outside the window or not delivered yet."""
+        order = lookup_order(request.order_number)
+        if order is None:
+            return _not_done(
+                f"there is no order {request.order_number!r}",
+                "Ask them to read the order number from their confirmation, e.g. FH-20418.",
+            )
+        self.order = order
+        lines: list[str] = []
+        for line in order.lines:
+            match line.status:
+                case "eligible":
+                    when = f"eligible — delivered {line.days_since_delivery} days ago, {line.days_left} days left in the {WINDOW_DAYS}-day window"
+                case "outside_window":
+                    when = f"outside the window — delivered {line.days_since_delivery} days ago; returns are {WINDOW_DAYS} days from delivery"
+                case "not_delivered":
+                    when = "not delivered yet — it can go back once it has arrived"
+            lines.append(
+                f"{line.title} ({line.variant}), qty {line.qty} — {when} [id {line.product_id}]"
+            )
+        policy = None
+        if not order.eligible:
+            policy = [
+                *policy_text("returns"),
+                "Point them to the care guide (policy/care) and to contacting the store; never promise an exception.",
+            ]
+        logger.info(
+            "fernhollow: find_order {} → {}", order.number, [line.status for line in order.lines]
+        )
+        return _prose(
+            f"Order {order.number}: {len(order.eligible)} of {len(order.lines)} lines can be returned.",
+            lines=lines,
+            policy=policy,
+            next="start_return to open the form with this order"
+            if order.eligible
+            else "no form: explain the policy honestly",
+        )
+
+    async def start_return(self, request: OrderRequest) -> str:
+        """Open the returns form with the order filled in. Only for an order
+        find_order showed has a line that can go back."""
+        order = lookup_order(request.order_number)
+        if order is None:
+            return _not_done(
+                f"there is no order {request.order_number!r}", "Look it up with find_order first."
+            )
+        if not order.eligible:
+            return _not_done(
+                f"nothing on {order.number} can be returned", "Explain the policy honestly instead."
+            )
+        self.order = order
+        page = f"returns/start?order={order.number}"
+        self._move(page=page, product=None)
+        self.session.dispatch(Navigate(page=page))
+        landed("The returns form is open, with your order in.", "Here's the returns form.")
+        return _prose(
+            f"The returns form is open with order {order.number} filled in. The shopper types their own email.",
+            returnable=[
+                f"{line.title} ({line.variant}) [id {line.product_id}]" for line in order.eligible
+            ],
+        )
+
+    @needs_result_now
+    async def check_exchange(self, request: ExchangeRequest) -> str:
+        """For an exchange: the other real option values of a product on the order."""
+        order = self.order
+        line = None
+        if order is not None:
+            ref = request.product.strip().lower()
+            line = next(
+                (x for x in order.lines if ref == x.product_id or ref in x.title.lower()),
+                None,
+            )
+        product_id = line.product_id if line else request.product.strip()
+        p = CATALOG.get(product_id)
+        if p is None:
+            return _not_done(
+                f"I cannot tell which product '{request.product}' is",
+                "Ask which line of the order.",
+            )
+        options = exchange_options(p.id, line.variant_id if line else None)
+        if not options:
+            return _not_done(
+                f"{p.title} comes in no other {p.option_name.lower()}",
+                "Offer a refund or store credit.",
+            )
+        return _prose(
+            f"{p.title} also comes in: "
+            + ", ".join(v for _, v in options)
+            + f" ({p.option_name.lower()}).",
+            variants=[f"{v} [variant {vid}]" for vid, v in options],
+        )
+
     # ─── Browser → brain ────────────────────────────────────────────────
 
     def apply_event(self, event: FernhollowEvent) -> str | None:
@@ -1472,6 +1666,13 @@ class FernhollowBrain(GeminiBrain):
             case ShortlistChanged():
                 self.shortlisted = [i for i in event.product_ids if i in CATALOG.products]
                 return f"[The shopper's shortlist now holds {len(self.shortlisted)}.]"
+
+
+def _never_email(move: Move, args: list[str]) -> list[str] | None:
+    """Personal data is never a move: a fill of the email field is dropped."""
+    if move.id == FILL.id and args and args[0].strip().lower() == "email":
+        return None
+    return args
 
 
 def _use(text: str) -> str:

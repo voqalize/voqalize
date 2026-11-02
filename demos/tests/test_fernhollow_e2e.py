@@ -1,4 +1,4 @@
-"""Fernhollow — Mira, the design adviser — end to end over the wire, no network,
+"""Fernhollow — Emily, the design adviser — end to end over the wire, no network,
 no LLM key.
 
 The real ``FernhollowBrain`` (its prompt, tools, precomputed indexes and the
@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+from typing import Any
 
 from google.genai import types
 from voqalize_demos.discovery import discover
@@ -113,13 +114,13 @@ def _story() -> ScriptedGemini:
                 reply("That's enough to design with. Shall I put the room together?"),
             ],
             "Yes, put it together.": [
-                reply_and_call("Let me pull a room together.", "build_room", request={}),
+                reply_and_call("A wood-and-modern office, coming up.", "build_room", request={}),
                 reply("Here's a wood-and-modern office, with most of the budget on the chair."),
             ],
             # The barge-in: the line streams, the shopper talks over it, and the
             # call never arrives — the board must not move.
             "Hmm, the lamp": Reply(
-                chunks=("Let me find ", "you another ", "lamp that ", "suits the desk."),
+                chunks=("Another lamp ", "that keeps ", "the wood going ", "with the desk."),
                 chunk_delay=0.25,
                 calls=(("swap_piece", {"request": {"slot": "lamp"}}),),
             ),
@@ -152,7 +153,7 @@ def _story() -> ScriptedGemini:
                 reply("The first shares the wood."),
             ],
             "Can we make the budget go further?": [
-                reply_and_call("Let me look at the sale prices.", "stretch_budget", request={}),
+                reply_and_call("Sale prices first.", "stretch_budget", request={}),
                 reply(
                     "The desk has an on-sale look-alike, which saves three hundred thirty-nine dollars."
                 ),
@@ -205,7 +206,7 @@ async def _drive_story(rig: DemoRig, llm: ScriptedGemini) -> None:
 
 
 async def test_greeting_and_voice_reach_the_wire() -> None:
-    """Mira greets with the fixed line, and Emily in English lands on both legs
+    """Emily greets with the fixed line, and Emily in English lands on both legs
     before the greeting audio."""
     async with demo("fernhollow", _story()) as rig:
         greeting = await rig.driver.start_session()
@@ -354,7 +355,7 @@ async def test_a_spoken_yes_adds_after_the_confirmation() -> None:
         {
             "Build me a home office around two thousand.": [
                 Reply(
-                    text="Let me pull one together.",
+                    text="A home office around two thousand.",
                     calls=(
                         ("update_brief", {"update": {"room": "home-office", "budget": 2000}}),
                         ("build_room", {"request": {}}),
@@ -462,7 +463,7 @@ async def test_filters_say_their_assumption() -> None:
 
 
 async def test_a_silent_call_is_still_said() -> None:
-    """The prompt has Mira speak with every call; when the model calls alone the
+    """The prompt has Emily speak with every call; when the model calls alone the
     brain says the landed line, with no second request."""
     llm = ScriptedGemini(
         {"Show me the returns policy.": call("store_policy", request={"topic": "returns"})}
@@ -492,8 +493,10 @@ def test_marks_are_reads() -> None:
         "stretch_budget",
         "show",
         "suggest_finish",
+        "find_order",
+        "check_exchange",
     }
-    assert len(brain.tools) == 16
+    assert len(brain.tools) == 19
 
 
 def test_prompt_names_only_what_exists() -> None:
@@ -518,3 +521,259 @@ def test_prompt_names_only_what_exists() -> None:
     assert f"Styles named: {', '.join(styles)}." in prompt
     assert "scandinavian" not in prompt.lower()
     assert "don't sell" not in prompt.lower() and "do not sell" not in prompt.lower()
+
+
+# ─── The returns desk ─────────────────────────────────────────────────────────
+
+
+def _returns() -> ScriptedGemini:
+    return ScriptedGemini(
+        {
+            "I'd like to return something from FH-20418.": [
+                reply_and_call(
+                    "Order FH-20418, coming up.",
+                    "find_order",
+                    request={"order_number": "FH-20418"},
+                ),
+                reply_and_call(
+                    "All three pieces can go back — you're well inside the thirty days.",
+                    "start_return",
+                    request={"order_number": "FH-20418"},
+                ),
+            ],
+            "Could I swap the chair for another finish?": [
+                reply_and_call(
+                    "The chair's other finish is below.",
+                    "check_exchange",
+                    request={"product": "desk chair"},
+                ),
+                reply("It also comes in walnut."),
+            ],
+            "And order FH-20155?": [
+                reply_and_call(
+                    "Order FH-20155, checking the dates.",
+                    "find_order",
+                    request={"order_number": "FH-20155"},
+                ),
+                reply(
+                    "That one arrived forty-one days ago, so it's past our thirty-day window. "
+                    "The care guide may help, and the team can talk it through."
+                ),
+            ],
+        }
+    )
+
+
+async def test_the_returns_desk_answers_honestly() -> None:
+    """FH-20418 is inside the window: every line eligible, and the form opens with
+    the order in. FH-20155 is past it: the result says so with the days, gives
+    the policy and no form opens."""
+    llm = _returns()
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        check_turn(
+            rig, await rig.driver.user_says("I'd like to return something from FH-20418."), units=2
+        )
+        found = _results(llm.captured_contents[-1])["find_order"]
+        assert "3 of 3 lines can be returned" in found
+        assert "24 days left in the 30-day window" in found
+        assert "sam" not in found.lower() and "@" not in found, "personal data in a tool result"
+        assert rig.command("navigate")["page"] == "returns/start?order=FH-20418"
+
+        check_turn(
+            rig, await rig.driver.user_says("Could I swap the chair for another finish?"), units=2
+        )
+        assert "Walnut" in _results(llm.captured_contents[-1])["check_exchange"]
+
+        pages = len([c for c in rig.driver.ui_commands if c.get("command") == "navigate"])
+        check_turn(rig, await rig.driver.user_says("And order FH-20155?"), units=2)
+        late = _results(llm.captured_contents[-1])["find_order"]
+        assert "0 of 1 lines can be returned" in late
+        assert "delivered 41 days ago" in late and "30 days from delivery" in late
+        assert "never promise an exception" in late
+        assert len([c for c in rig.driver.ui_commands if c.get("command") == "navigate"]) == pages
+
+
+def test_mira_never_opens_on_an_acknowledgement() -> None:
+    """One acknowledgement, upstream: Voqalize's own ack covers the wait, so no
+    line Emily says — the greeting, every scripted reply here, and every landed
+    line the brain can speak in a silent turn — opens on one of her own."""
+    import inspect
+
+    from voqalize_demos._loaded.fernhollow import brain as fb
+    from voqalize_demos._loaded.fernhollow.prompt import ACK_OPENER
+
+    lines = [GREETING]
+    for script in (_story(), _returns(), _form()):
+        for cursor in script._cursors.values():  # pyright: ignore[reportPrivateUsage]
+            lines += [step.spoken for step in cursor.steps if step.spoken]
+    source = inspect.getsource(fb)
+    landed = re.findall(r'landed\(\s*((?:f?"[^"]*",?\s*)+)\)', source)
+    assert len(landed) >= 15, landed
+    for group in landed:
+        lines += re.findall(r'f?"([^"]*)"', group)
+    for line in lines:
+        first = re.split(r"(?<=[.!?—])\s", line.strip(), maxsplit=1)[0]
+        assert not ACK_OPENER.match(first), f"opens on an acknowledgement: {line!r}"
+    assert ACK_OPENER.match("Let me check that.") and ACK_OPENER.match("Sure! Here it is.")
+
+
+DESK_LINE = "modern-home-office-desk-with-chestnut-brown-finish"
+
+
+def _form() -> ScriptedGemini:
+    return ScriptedGemini(
+        {
+            "I need to return the desk from FH-20418.": [
+                reply_and_call(
+                    "Order FH-20418, coming up.",
+                    "find_order",
+                    request={"order_number": "FH-20418"},
+                ),
+                reply_and_call(
+                    "The desk can go back — you're well inside the thirty days. What's the reason?",
+                    "start_return",
+                    request={"order_number": "FH-20418"},
+                ),
+            ],
+            "It just doesn't suit the room, and it's still boxed.": reply(
+                f"{{item: {DESK_LINE} | 1}} The desk goes on the return. "
+                "{fill: reason | doesnt_suit_room} I'm putting down that it doesn't suit the room. "
+                "{fill: condition | unused_in_packaging} And it's unused, in its packaging. "
+                "{fill: email | sam@example.com} Refund or store credit?"
+            ),
+            "A refund, and pick it up on a weekday morning.": reply(
+                "{fill: resolution | refund} A refund it is. "
+                "{fill: collection | pickup} We'll collect it. "
+                "{fill: pickup_window | weekday_morning} On a weekday morning. "
+                "Check the review and press Submit return when you're happy."
+            ),
+            "submitted the return": reply(
+                "Thanks — the refund goes to your original payment once the desk is back and checked."
+            ),
+        }
+    )
+
+
+def _cues(rig: DemoRig) -> list[dict[str, Any]]:
+    return [
+        dict(c.get("payload") or {})
+        for c in rig.driver.ui_commands
+        if c.get("command") == "stage_cue"
+    ]
+
+
+async def test_the_returns_form_fills_by_cue_and_the_shopper_submits() -> None:
+    """FH-20418: the order is found eligible and the form opens with it; Emily's
+    cues select the item and fill reason, condition, resolution and collection
+    as she says them — never the email, which is dropped. The shopper presses
+    Submit return themselves; that act reaches Emily, and in the next quiet spell
+    she thanks them in one line."""
+    llm = _form()
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        check_turn(
+            rig, await rig.driver.user_says("I need to return the desk from FH-20418."), units=2
+        )
+        assert rig.command("navigate")["page"] == "returns/start?order=FH-20418"
+
+        turn = await rig.driver.user_says("It just doesn't suit the room, and it's still boxed.")
+        check_turn(rig, turn, units=1)
+        spoken = turn.units[0].text
+        assert "{" not in spoken and "sam@example.com" not in spoken
+        turn = await rig.driver.user_says("A refund, and pick it up on a weekday morning.")
+        check_turn(rig, turn, units=1)
+
+        cues = [(c["move"], c["args"]) for c in _cues(rig)]
+        assert cues == [
+            ("returns.select_item", [DESK_LINE, "1"]),
+            ("returns.fill", ["reason", "doesnt_suit_room"]),
+            ("returns.fill", ["condition", "unused_in_packaging"]),
+            ("returns.fill", ["resolution", "refund"]),
+            ("returns.fill", ["collection", "pickup"]),
+            ("returns.fill", ["pickup_window", "weekday_morning"]),
+        ], cues
+        assert all(c["at"] for c in _cues(rig)), "a cue with no words to fire at"
+
+        # The page answers every cue; a refused one would be told to the model.
+        for c in _cues(rig):
+            await rig.driver.send_ui_event(
+                "stage_result",
+                {
+                    "call_ref": c["call_ref"],
+                    "move": c["move"],
+                    "outcome": "applied",
+                    "detail": "set",
+                },
+            )
+        # The shopper types their email and presses Submit return themselves.
+        await rig.driver.send_ui_event(
+            "stage_event",
+            {
+                "name": "returns.field_filled",
+                "by": "visitor",
+                "data": {"field": "email", "filled": ["order_number", "email"]},
+            },
+        )
+        await rig.driver.send_ui_event(
+            "stage_event",
+            {
+                "name": "returns.return_submitted",
+                "by": "visitor",
+                "data": {"reference": "RT-20418-1", "filled": ["order_number", "email"]},
+            },
+        )
+        await asyncio.sleep(0.1)
+        brain = rig.brain
+        assert isinstance(brain, FernhollowBrain)
+        assert brain._talk is not None  # pyright: ignore[reportPrivateUsage]
+        idle = [
+            r.config.idle for r in rig.driver.requests if getattr(r, "config", None) is not None
+        ]
+        assert any(i is not None and i.timeout_ms == 1500 for i in idle), (
+            "the quiet spell was not shortened"
+        )
+
+        thanks = await rig.driver.user_idle()
+        check_turn(rig, thanks, units=1)
+        assert thanks.units[0].text.startswith("Thanks — the refund")
+        last = " ".join(
+            p.text or "" for c in llm.captured_contents[-1] for p in c.parts or [] if p.text
+        )
+        assert "submitted the return" in last and "thank them" in last
+
+
+async def test_a_refused_cue_is_told_to_the_model() -> None:
+    """A value the form does not take comes back refused with its options, and
+    the model hears that — so it never says the field was set."""
+    llm = ScriptedGemini(
+        {
+            "It's broken.": reply("{fill: reason | broken} I'm putting down that it's broken."),
+            "So?": reply("The reason is set to arrived damaged."),
+        }
+    )
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("It's broken.")
+        (cue,) = _cues(rig)
+        await rig.driver.send_ui_event(
+            "stage_result",
+            {
+                "call_ref": cue["call_ref"],
+                "move": cue["move"],
+                "outcome": "refused",
+                "refused": [
+                    {
+                        "arg": "value",
+                        "why": "not a reason",
+                        "options": ["arrived_damaged", "changed_mind"],
+                    }
+                ],
+            },
+        )
+        await asyncio.sleep(0.1)
+        await rig.driver.user_says("So?")
+        notes = " ".join(
+            p.text or "" for c in llm.captured_contents[-1] for p in c.parts or [] if p.text
+        )
+        assert "did not land" in notes and "arrived_damaged" in notes
