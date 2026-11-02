@@ -15,6 +15,8 @@
  * minimise the card to her face alone; the call and its audio carry on.
  */
 
+import { animateBackdrop, BACKDROP_HTML, BACKDROP_STYLES } from "./backdrop.js";
+
 export type Status = "idle" | "connecting" | "live" | "error";
 export type Activity = "listening" | "thinking" | "speaking";
 
@@ -114,9 +116,10 @@ button { font: inherit; cursor: pointer; }
   transition: width 300ms ${EASE}, height 300ms ${EASE};
 }
 /* The avatar's mount never changes size: minimising scales it, so the renderer
-   inside is not asked to resize mid-call. */
+   inside is not asked to resize mid-call. It is transparent: the avatar draws
+   her alone, and the backdrop behind shows around her. */
 .face {
-  width: ${CARD - 2}px; height: ${CARD - 2}px; background: #f3ece4;
+  position: relative; width: ${CARD - 2}px; height: ${CARD - 2}px; background: transparent;
   transform-origin: 0 0; transition: transform 300ms ${EASE};
 }
 .face > * { width: 100%; height: 100%; }
@@ -161,7 +164,7 @@ button { font: inherit; cursor: pointer; }
 }
 
 [hidden] { display: none !important; }
-`;
+${BACKDROP_STYLES}`;
 
 const ACTIVITY: Record<Activity, string> = {
   listening: "Listening",
@@ -207,6 +210,7 @@ export function mountWidget(): Widget {
       </button>
       <div class="card" hidden>
         <div class="frame">
+          ${BACKDROP_HTML}
           <div class="face"></div>
           <button class="minimise" type="button" aria-label="Minimise">
             <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M1 6h10" stroke="currentColor" stroke-width="1.4"/></svg>
@@ -239,6 +243,8 @@ export function mountWidget(): Widget {
   const mute = $<HTMLButtonElement>(".mute");
   const hang = $<HTMLButtonElement>(".hang");
   const body = $<HTMLElement>(".body");
+  const room = animateBackdrop(root, $<HTMLElement>(".backdrop"));
+  let roomLive = false;
 
   // ─── Where it sits ────────────────────────────────────────────────────
 
@@ -414,6 +420,11 @@ export function mountWidget(): Widget {
       if (status === "connecting") statusText.textContent = message ?? "Connecting";
       if (status === "live" && !root.dataset.activity) statusText.textContent = ACTIVITY.listening;
       if (status !== "live") delete root.dataset.activity;
+      if ((status === "live") !== roomLive) {
+        roomLive = status === "live";
+        if (roomLive) room.start();
+        else room.stop();
+      }
       // A call that ends puts the card away; the next one opens full size.
       if (card.hidden) minimised = false;
       if (wasHidden !== card.hidden) settle();

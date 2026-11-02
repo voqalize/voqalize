@@ -82,6 +82,9 @@ const bundle = {
   minify: true,
   legalComments: "none",
   define: { __VOQALIZE__: JSON.stringify(wiring) },
+  // The backdrop is a few KB, so it rides inside the bundle as a data URL:
+  // one file to host, and nothing to fetch when the card opens.
+  loader: { ".webp": "dataurl" },
   plugins: avatarRuntime ? [runtimeOverride] : [],
 };
 await build({ ...bundle, outfile: join(out, "content.js"), target: "chrome120" });
