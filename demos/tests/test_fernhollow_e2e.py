@@ -1016,3 +1016,38 @@ async def test_checkout_fully_by_voice_with_the_yes() -> None:
         placed = rig.command("order_placed")
         assert placed["order_number"] == "FH-30001" and placed["total"] == 548.99
         assert brain.cart == {} and brain.pending_order is None
+
+
+async def test_the_return_is_submitted_only_on_a_spoken_yes() -> None:
+    """The confirmed returns.submit goes to the page only after Emily asked
+    and the shopper said yes on a later turn."""
+    llm = ScriptedGemini(
+        {
+            "Return the desk from FH-20418.": [
+                reply_and_call(
+                    "Order FH-20418.", "find_order", request={"order_number": "FH-20418"}
+                ),
+                reply("All three can go back."),
+            ],
+            "Submit it.": Reply(
+                text="Shall I submit the return?",
+                calls=(
+                    ("submit_return", {"request": {}}),
+                    ("submit_return", {"request": {"confirmed_by_voice": True}}),
+                ),
+            ),
+            "Yes.": reply_and_call(
+                "Submitting it.", "submit_return", request={"confirmed_by_voice": True}
+            ),
+        }
+    )
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("Return the desk from FH-20418.")
+        await rig.driver.user_says("Submit it.")
+        moves = lambda: [  # noqa: E731
+            c["payload"]["move"] for c in rig.driver.ui_commands if c.get("command") == "stage_move"
+        ]
+        assert moves() == [], "submitted before the shopper said yes"
+        await rig.driver.user_says("Yes.")
+        assert moves() == ["returns.submit"]

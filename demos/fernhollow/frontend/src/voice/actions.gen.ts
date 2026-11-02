@@ -167,6 +167,42 @@ export interface OpenPolicy {
   topic: 'returns' | 'delivery' | 'assembly' | 'care';
 }
 
+/** Ring a checkout input and set it. */
+export interface CheckoutFill {
+  field: 'email' | 'first_name' | 'last_name' | 'address1' | 'address2' | 'city' | 'region' | 'postcode' | 'country' | 'phone' | 'delivery';
+
+  value: string;
+}
+
+/** Move the checkout to a step. */
+export interface CheckoutStep {
+  step: 'contact' | 'shipping' | 'review';
+}
+
+/** The confirm prompt on Place order. */
+export interface ConfirmPlaceOrder {
+  total: number;
+
+  label: string;
+}
+
+/** The confirmation page, with the demo order's number. */
+export interface OrderPlaced {
+  order_number: string;
+
+  total: number;
+}
+
+/** Numbered badges 1..n on these product cards (2-4, all on screen). */
+export interface ShowChoices {
+  product_ids: string[];
+
+  label: string;
+}
+
+/** The choice badges removed. */
+export type ClearChoices = Record<string, never>;
+
 /** Revert the last screen-changing action. */
 export type Undo = Record<string, never>;
 
@@ -253,6 +289,27 @@ export interface CartChanged {
   by?: string;
 }
 
+/** The shopper filled or changed a checkout field — its name, never its value. */
+export interface CheckoutChanged {
+  field?: string;
+
+  by?: string;
+}
+
+/** The checkout moved to a step: contact, shipping or review. */
+export interface CheckoutStepReached {
+  step?: string;
+
+  by?: string;
+}
+
+/** The shopper clicked one of the numbered products Emily asked between. */
+export interface ChoiceMade {
+  product_id?: string;
+
+  by?: string;
+}
+
 /** The shopper's answer on the Add-to-cart confirmation. */
 export interface ConfirmResult {
   confirmed?: boolean;
@@ -273,6 +330,18 @@ export interface FilterChanged {
  */
 export interface PageViewed {
   path?: string;
+
+  by?: string;
+}
+
+/**
+ * The product card or page under the shopper's pointer, finger or keyboard
+ * focus (debounced). Kept for "this one"; never spoken about.
+ */
+export interface Pointing {
+  product_id?: string;
+
+  how?: string;
 
   by?: string;
 }
@@ -311,9 +380,14 @@ export interface VariantSelected {
   by?: string;
 }
 
-/** The products the grid or strip now shows, in screen order. */
+/**
+ * The products the grid or strip now shows, in screen order, with where
+ * each sits — so "the left one" and "the bottom row" resolve.
+ */
 export interface VisibleProducts {
   product_ids?: string[];
+
+  layout?: LayoutIn[];
 
   by?: string;
 }
@@ -417,6 +491,15 @@ export interface GoesWithItem {
   reason: string;
 }
 
+/** Where one visible product sits: row and column from the top left. */
+export interface LayoutIn {
+  product_id: string;
+
+  row?: number;
+
+  col?: number;
+}
+
 export interface MoreLikeItem {
   product_id: string;
 
@@ -484,6 +567,12 @@ export type UiAction =
   | { command: 'cart_updated'; payload: CartUpdated }
   | { command: 'suggest_finish'; payload: SuggestFinish }
   | { command: 'open_policy'; payload: OpenPolicy }
+  | { command: 'checkout_fill'; payload: CheckoutFill }
+  | { command: 'checkout_step'; payload: CheckoutStep }
+  | { command: 'confirm_place_order'; payload: ConfirmPlaceOrder }
+  | { command: 'order_placed'; payload: OrderPlaced }
+  | { command: 'show_choices'; payload: ShowChoices }
+  | { command: 'clear_choices'; payload: ClearChoices }
   | { command: 'undo'; payload: Undo };
 
 export type UiActionCommand = UiAction['command'];
@@ -508,6 +597,12 @@ export const UI_ACTION_COMMANDS: readonly UiActionCommand[] = [
   'cart_updated',
   'suggest_finish',
   'open_policy',
+  'checkout_fill',
+  'checkout_step',
+  'confirm_place_order',
+  'order_placed',
+  'show_choices',
+  'clear_choices',
   'undo',
 ];
 
@@ -538,9 +633,13 @@ export type AppEvent =
   | { event: 'stage_progress'; payload: StageProgress }
   | { event: 'stage_result'; payload: StageResult }
   | { event: 'cart_changed'; payload: CartChanged }
+  | { event: 'checkout_changed'; payload: CheckoutChanged }
+  | { event: 'checkout_step_reached'; payload: CheckoutStepReached }
+  | { event: 'choice_made'; payload: ChoiceMade }
   | { event: 'confirm_result'; payload: ConfirmResult }
   | { event: 'filter_changed'; payload: FilterChanged }
   | { event: 'page_viewed'; payload: PageViewed }
+  | { event: 'pointing'; payload: Pointing }
   | { event: 'product_viewed'; payload: ProductViewed }
   | { event: 'room_board_edited'; payload: RoomBoardEdited }
   | { event: 'shortlist_changed'; payload: ShortlistChanged }
@@ -555,9 +654,13 @@ export const APP_EVENT_NAMES: readonly AppEventName[] = [
   'stage_progress',
   'stage_result',
   'cart_changed',
+  'checkout_changed',
+  'checkout_step_reached',
+  'choice_made',
   'confirm_result',
   'filter_changed',
   'page_viewed',
+  'pointing',
   'product_viewed',
   'room_board_edited',
   'shortlist_changed',
