@@ -4197,32 +4197,44 @@ body.is-circling * {
   z-index: 85;
   pointer-events: none;
   overflow: visible;
+  animation: ink-shimmer 2.4s linear infinite;
+}
+/* The rainbow drifts round the loop while it is drawn. */
+@keyframes ink-shimmer {
+  to {
+    filter: hue-rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .circle-ink {
+    animation: none;
+  }
 }
 .circle-glow {
   fill: none;
-  stroke: #7b6cf0;
-  stroke-width: 18;
+  stroke: url(#fh-ink);
+  stroke-width: 20;
   stroke-linecap: round;
   stroke-linejoin: round;
-  opacity: 0.42;
+  opacity: 0.6;
 }
 .circle-line {
-  fill: rgba(75, 69, 198, 0.025);
+  fill: rgba(255, 255, 255, 0.03);
   stroke: url(#fh-ink);
-  stroke-width: 3.5;
+  stroke-width: 4;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 .circle-head {
   fill: #fff;
-  stroke: var(--emily);
+  stroke: url(#fh-ink);
   stroke-width: 3;
-  filter: drop-shadow(0 0 8px rgba(75, 69, 198, 0.7));
+  filter: drop-shadow(0 0 6px rgba(255, 154, 31, 0.8)) drop-shadow(0 0 10px rgba(34, 195, 238, 0.6));
 }
 .circle-lit {
-  fill: rgba(123, 108, 240, 0.07);
-  stroke: rgba(75, 69, 198, 0.75);
-  stroke-width: 2;
+  fill: rgba(255, 255, 255, 0.08);
+  stroke: url(#fh-ink);
+  stroke-width: 2.5;
   animation: lit-in 0.22s var(--ease) both;
 }
 @keyframes lit-in {
@@ -4234,7 +4246,7 @@ body.is-circling * {
   animation: ink-out 0.7s ease forwards;
 }
 .circle-ink.is-fading .circle-line {
-  fill: rgba(75, 69, 198, 0.08);
+  fill: rgba(255, 255, 255, 0.06);
 }
 @keyframes ink-out {
   0% {

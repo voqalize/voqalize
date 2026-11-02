@@ -220,10 +220,16 @@ export function CircleLayer() {
       {mode !== "idle" ? (
         <svg className={`circle-ink is-${mode}`} aria-hidden data-voqalize>
           <defs>
+            {/* A full-spectrum rainbow along the stroke (owner, 2026-11-02). */}
             <linearGradient id="fh-ink" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#8b7cf6" />
-              <stop offset="55%" stopColor="#4b45c6" />
-              <stop offset="100%" stopColor="#6d5ce8" />
+              <stop offset="0%" stopColor="#ff3b5c" />
+              <stop offset="16%" stopColor="#ff9a1f" />
+              <stop offset="32%" stopColor="#ffd60a" />
+              <stop offset="48%" stopColor="#34d399" />
+              <stop offset="64%" stopColor="#22c3ee" />
+              <stop offset="80%" stopColor="#4f6bff" />
+              <stop offset="92%" stopColor="#a855f7" />
+              <stop offset="100%" stopColor="#ff3b5c" />
             </linearGradient>
             <filter id="fh-glow" x="-20%" y="-20%" width="140%" height="140%">
               <feGaussianBlur stdDeviation="7" />
