@@ -18,7 +18,7 @@ __all__ = ["FINISHING", "GOES_WITH", "RECIPES", "Recipe", "Slot"]
 @dataclass(frozen=True)
 class Slot:
     name: str  # "desk", "chair" — what the room board calls the tile
-    label: str  # how Mira says it
+    label: str  # how Emily says it
     categories: tuple[str, ...]
     share: float  # usual share of the room budget
     long_hours_share: float | None = None  # the share when they sit for long hours

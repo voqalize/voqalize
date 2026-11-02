@@ -1,7 +1,7 @@
 """What the shopper did on the page — the UI→brain half of ``CONTRACT.md``.
 
 The store works by click and tap alone, so the shopper may browse, filter,
-pick a finish or edit the room board while Mira is on the call. Each of those
+pick a finish or edit the room board while Emily is on the call. Each of those
 is one small typed :class:`~voqalize.sdk.AppEvent`; the brain folds it into its
 picture of the screen (so "this one" and "the second one" mean what is on
 screen now) and leaves one line in the model's context. A tap is never a cue

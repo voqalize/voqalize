@@ -1,6 +1,6 @@
 """Fernhollow's store policies, read from the authored ``content/policies.json``.
 
-The same file the store's policy pages are written from, so what Mira says and
+The same file the store's policy pages are written from, so what Emily says and
 what the page shows cannot drift. Nothing here adds a fact: a topic is its
 authored sentences, in the file's order, and the page it lives on.
 """
@@ -41,7 +41,7 @@ def policy_page(topic: Topic) -> str:
 
 
 def policy_numbers() -> set[float]:
-    """Every number the policies state — the only ones Mira may say about them."""
+    """Every number the policies state — the only ones Emily may say about them."""
     out: set[float] = set()
     for entry in POLICIES.values():
         for value in entry.values():

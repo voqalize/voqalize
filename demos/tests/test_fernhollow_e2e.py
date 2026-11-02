@@ -1,4 +1,4 @@
-"""Fernhollow — Mira, the design adviser — end to end over the wire, no network,
+"""Fernhollow — Emily, the design adviser — end to end over the wire, no network,
 no LLM key.
 
 The real ``FernhollowBrain`` (its prompt, tools, precomputed indexes and the
@@ -206,7 +206,7 @@ async def _drive_story(rig: DemoRig, llm: ScriptedGemini) -> None:
 
 
 async def test_greeting_and_voice_reach_the_wire() -> None:
-    """Mira greets with the fixed line, and Emily in English lands on both legs
+    """Emily greets with the fixed line, and Emily in English lands on both legs
     before the greeting audio."""
     async with demo("fernhollow", _story()) as rig:
         greeting = await rig.driver.start_session()
@@ -463,7 +463,7 @@ async def test_filters_say_their_assumption() -> None:
 
 
 async def test_a_silent_call_is_still_said() -> None:
-    """The prompt has Mira speak with every call; when the model calls alone the
+    """The prompt has Emily speak with every call; when the model calls alone the
     brain says the landed line, with no second request."""
     llm = ScriptedGemini(
         {"Show me the returns policy.": call("store_policy", request={"topic": "returns"})}
@@ -596,7 +596,7 @@ async def test_the_returns_desk_answers_honestly() -> None:
 
 def test_mira_never_opens_on_an_acknowledgement() -> None:
     """One acknowledgement, upstream: Voqalize's own ack covers the wait, so no
-    line Mira says — the greeting, every scripted reply here, and every landed
+    line Emily says — the greeting, every scripted reply here, and every landed
     line the brain can speak in a silent turn — opens on one of her own."""
     import inspect
 
@@ -664,10 +664,10 @@ def _cues(rig: DemoRig) -> list[dict[str, Any]]:
 
 
 async def test_the_returns_form_fills_by_cue_and_the_shopper_submits() -> None:
-    """FH-20418: the order is found eligible and the form opens with it; Mira's
+    """FH-20418: the order is found eligible and the form opens with it; Emily's
     cues select the item and fill reason, condition, resolution and collection
     as she says them — never the email, which is dropped. The shopper presses
-    Submit return themselves; that act reaches Mira, and in the next quiet spell
+    Submit return themselves; that act reaches Emily, and in the next quiet spell
     she thanks them in one line."""
     llm = _form()
     async with demo("fernhollow", llm) as rig:

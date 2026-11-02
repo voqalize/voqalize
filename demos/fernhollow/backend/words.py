@@ -1,4 +1,4 @@
-"""The fixed word lists — the only attribute vocabulary Mira has.
+"""The fixed word lists — the only attribute vocabulary Emily has.
 
 A product *has* a material, colour or style only when one of these words is in
 its own title, intro, highlights or option names; the word is kept with the

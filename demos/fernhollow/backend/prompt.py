@@ -1,4 +1,4 @@
-"""Mira's system instruction — the persona, the method, the screen, the tools,
+"""Emily's system instruction — the persona, the method, the screen, the tools,
 and what Fernhollow carries, the last generated from the data itself.
 
 The catalog section names only what exists: the rooms and categories with their
@@ -19,7 +19,7 @@ from .stage_gen import PROMPT_LINES
 
 __all__ = ["ACK_OPENER", "GREETING", "system_instruction"]
 
-# The acknowledgements Mira never opens a reply with: Voqalize's own `ack` covers
+# The acknowledgements Emily never opens a reply with: Voqalize's own `ack` covers
 # the wait, and a second one from the brain is the same word said twice.
 ACK_OPENER = re.compile(
     r"^\s*(let me|let's (check|see|look)|one (moment|sec)|just a (moment|sec)|give me a"
@@ -28,7 +28,11 @@ ACK_OPENER = re.compile(
     re.IGNORECASE,
 )
 
-GREETING = "Hi, I'm Mira, Fernhollow's design adviser. Which room are we working on?"
+GREETING = (
+    "Hi, I'm Emily from Fernhollow. We make furniture and home pieces for every room, "
+    "from sofas and beds to desks and dining tables. "
+    "Which room of your home would you like to decorate?"
+)
 
 _ROOM_NAMES = {
     "living": "Living room",
@@ -74,7 +78,7 @@ def _cue_lines() -> str:
 
 
 def system_instruction() -> str:
-    return f"""You are Mira, the design adviser at Fernhollow, a home and furniture store. You are a seasoned interior designer: curious first, decisive when asked, honest about trade-offs. The shopper is on Fernhollow's website and talking to you live; you drive their screen while you talk.
+    return f"""You are Emily, Fernhollow's design adviser. Fernhollow is a home and furniture store. You are a seasoned interior designer: curious first, decisive when asked, honest about trade-offs. The shopper is on Fernhollow's website and talking to you live; you drive their screen while you talk.
 
 # How you design a room
 - Start curious. Ask ONE question at a time, and make it the question update_brief hands you: it is the one that narrows the store most. Do not stack questions.

@@ -1,7 +1,7 @@
-"""FernhollowBrain — Mira, the design adviser of a home and furniture store.
+"""FernhollowBrain — Emily, the design adviser of a home and furniture store.
 
 A :class:`voqalize_demos.GeminiBrain`. Voqalize dials this brain's WebSocket per
-session; the inherited tool loop runs Gemini's calls as they arrive. Mira asks
+session; the inherited tool loop runs Gemini's calls as they arrive. Emily asks
 about the room one question at a time, puts a whole room on the shopper's
 screen for their brief and budget, swaps pieces, compares, finds look-alikes
 and things that go with a piece, stretches the budget with real sale prices,
@@ -83,7 +83,7 @@ from .stage_gen import FILL, MOVES, SPEC
 #: Every event the page sends: the store's own typed events and Stage's.
 _EVENTS = AppEvents(*FERNHOLLOW_EVENTS, StageResult, StageHello, StageProgress, StageEvent)
 
-#: How long a quiet spell is before Mira may speak up of her own accord, and
+#: How long a quiet spell is before Emily may speak up of her own accord, and
 #: how short it gets while she has something the page asked her to say (the
 #: shopper pressed Submit return).
 _IDLE_MS = 12000
@@ -534,7 +534,7 @@ class FernhollowBrain(GeminiBrain):
         self.ahead: dict[tuple[Any, ...], Any] = {}
         self.hits = 0
         self.order: Order | None = None  # the order the returns desk is working on
-        # The returns form is driven by Stage: cues in Mira's words fill it as
+        # The returns form is driven by Stage: cues in Emily's words fill it as
         # she says them. Email is never a move — a cue for it is dropped here,
         # and the page refuses it too.
         self.stage = Stage(
@@ -560,7 +560,7 @@ class FernhollowBrain(GeminiBrain):
         )
 
     async def greet(self, session: Session) -> str:
-        """Fixed — no model call — so Mira speaks the instant the call connects."""
+        """Fixed — no model call — so Emily speaks the instant the call connects."""
         return GREETING
 
     async def on_user_message(
@@ -598,14 +598,14 @@ class FernhollowBrain(GeminiBrain):
                 self.append_note(staged)
             return
         note = self.apply_event(event)
-        # The page also reports what Mira herself just did (``by: "mira"``): the
+        # The page also reports what Emily herself just did (``by: "mira"``): the
         # mirror follows it, but the model already knows, so no note.
         if note is not None and event.by == "visitor":
             logger.info("fernhollow: shopper {}", note)
             self.append_note(note)
 
     def on_user_idle(self, session: Session, idle: UserIdle) -> AsyncGenerator[Speech, None]:
-        """A quiet spell. If the page left something for Mira to say — the
+        """A quiet spell. If the page left something for Emily to say — the
         shopper pressed Submit return — she says it now, in one line; otherwise
         she stays quiet: a shopper browsing is not nudged."""
         return self._idle(session)

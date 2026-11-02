@@ -1,4 +1,4 @@
-"""Mira's design engines — pure functions over the precomputed catalog.
+"""Emily's design engines — pure functions over the precomputed catalog.
 
 Every function here is deterministic and reads only dicts the catalog loaded at
 import, so each answers in well under a millisecond to a few milliseconds:
@@ -115,7 +115,7 @@ def map_terms(kind: Literal["materials", "colours", "styles"], terms: Iterable[s
 
 @dataclass(frozen=True)
 class Brief:
-    """What the shopper has told Mira, as catalog words."""
+    """What the shopper has told Emily, as catalog words."""
 
     room: str | None = None
     uses: tuple[str, ...] = ()
