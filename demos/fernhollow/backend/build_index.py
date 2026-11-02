@@ -108,7 +108,7 @@ def _sources(p: dict[str, Any]) -> list[str]:
 # follows straight after it, or after a list of more such words.
 _SETTING = (
     r"floors?|flooring|furniture|interiors?|surfaces?|d[e\u00e9]cor|cabinets?|spaces?"
-    r"|settings?|surroundings|schemes?"
+    r"|settings?|surroundings|schemes?|rooms?|homes?|bedrooms?|bathrooms?|kitchens?"
 )
 _BETWEEN = (
     r"or|and|both|any|tiled|tile|eclectic|scandinavian-inspired|bathroom|bedroom|kitchen"

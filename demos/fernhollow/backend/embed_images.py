@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import importlib
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -44,7 +45,7 @@ def main() -> None:
     catalog = json.loads(CATALOG.read_text())
     model, _, preprocess = open_clip.create_model_and_transforms(MODEL[0], pretrained=MODEL[1])
     model.eval()
-    torch.set_num_threads(max(1, (torch.get_num_threads() or 1)))
+    torch.set_num_threads(os.cpu_count() or 1)
 
     items: list[tuple[str, Path]] = []
     for product in catalog["products"]:
@@ -63,7 +64,7 @@ def main() -> None:
             feats = feats / feats.norm(dim=-1, keepdim=True)
             for (pid, _), vec in zip(chunk, feats.tolist(), strict=True):
                 vectors[pid] = [round(x, 5) for x in vec]
-            print(f"{start + len(chunk)}/{len(items)}")
+            print(f"{start + len(chunk)}/{len(items)}", flush=True)
 
     out = Path(args.out).expanduser()
     out.write_text(json.dumps({"model": "/".join(MODEL), "vectors": vectors}))

@@ -22,6 +22,10 @@ class Slot:
     categories: tuple[str, ...]
     share: float  # usual share of the room budget
     long_hours_share: float | None = None  # the share when they sit for long hours
+    # A word the title must carry to fill this slot. The source catalog files a
+    # few pieces oddly (a carafe under table lamps, a bath rug under rugs); a
+    # room set only takes a piece whose own title says it is the thing.
+    title_has: str = ""
 
 
 @dataclass(frozen=True)
@@ -39,11 +43,11 @@ RECIPES: Mapping[str, Recipe] = {
         "home-office",
         "home office",
         (
-            Slot("desk", "desk", ("desks",), 0.32, 0.27),
-            Slot("chair", "office chair", ("office-chairs",), 0.24, 0.36),
-            Slot("lamp", "lamp", ("table-lamps", "floor-lamps"), 0.10, 0.08),
-            Slot("shelving", "shelving", ("shelving",), 0.20, 0.17),
-            Slot("rug", "rug", ("rugs",), 0.14, 0.12),
+            Slot("desk", "desk", ("desks",), 0.32, 0.27, r"desk|workstation|bureau"),
+            Slot("chair", "office chair", ("office-chairs",), 0.24, 0.36, r"chair"),
+            Slot("lamp", "lamp", ("table-lamps", "floor-lamps"), 0.10, 0.08, r"lamp|light"),
+            Slot("shelving", "shelving", ("shelving",), 0.20, 0.17, r"shel|book|rack|unit|storage"),
+            Slot("rug", "rug", ("rugs",), 0.14, 0.12, r"^(?!.*\bbath\b).*\b(rug|runner)\b"),
         ),
     ),
     "living": Recipe(
@@ -52,8 +56,8 @@ RECIPES: Mapping[str, Recipe] = {
         (
             Slot("sofa", "sofa", ("sofas",), 0.42),
             Slot("coffee_table", "coffee table", ("coffee-tables",), 0.16),
-            Slot("rug", "rug", ("rugs",), 0.14),
-            Slot("lamp", "floor lamp", ("floor-lamps",), 0.10),
+            Slot("rug", "rug", ("rugs",), 0.14, title_has=r"^(?!.*\bbath\b).*\b(rug|runner)\b"),
+            Slot("lamp", "floor lamp", ("floor-lamps",), 0.10, title_has=r"lamp|light"),
             Slot("tv_stand", "media unit", ("entertainment-centers-tv-stands",), 0.13),
             Slot("pillows", "throw pillow", ("throw-pillows",), 0.05),
         ),
@@ -65,7 +69,7 @@ RECIPES: Mapping[str, Recipe] = {
             Slot("table", "dining table", ("dining-tables",), 0.45),
             Slot("chairs", "dining chair", ("dining-chairs",), 0.22),
             Slot("light", "chandelier", ("chandeliers",), 0.18),
-            Slot("rug", "rug", ("rugs",), 0.10),
+            Slot("rug", "rug", ("rugs",), 0.10, title_has=r"^(?!.*\bbath\b).*\b(rug|runner)\b"),
             Slot("serveware", "serveware", ("serveware",), 0.05),
         ),
     ),
@@ -76,9 +80,9 @@ RECIPES: Mapping[str, Recipe] = {
             Slot("bed", "bed", ("beds-bed-frames",), 0.45),
             Slot("quilt", "quilt", ("quilts-comforters",), 0.12),
             Slot("sheets", "sheets", ("bed-sheets",), 0.08),
-            Slot("lamp", "bedside lamp", ("table-lamps",), 0.10),
+            Slot("lamp", "bedside lamp", ("table-lamps",), 0.10, title_has=r"lamp|light"),
             Slot("curtains", "curtains", ("curtains-drapes",), 0.10),
-            Slot("rug", "rug", ("rugs",), 0.15),
+            Slot("rug", "rug", ("rugs",), 0.15, title_has=r"^(?!.*\bbath\b).*\b(rug|runner)\b"),
         ),
     ),
     "bath": Recipe(
