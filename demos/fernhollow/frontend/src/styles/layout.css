@@ -4434,3 +4434,14 @@ body.is-circling * {
     opacity: 0;
   }
 }
+.demo-order-yours {
+  font-size: 11px;
+  font-weight: 650;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--moss);
+}
+.known-orders .small {
+  margin: 0 0 8px;
+}

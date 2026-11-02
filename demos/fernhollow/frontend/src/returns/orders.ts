@@ -6,6 +6,7 @@
  */
 import ordersJson from "../../../data/demo_orders.json";
 import { getProduct } from "../data/catalog";
+import { type PlacedOrder, daysSince, useOrders } from "../state/orders";
 
 export interface OrderLine {
   product_id: string;
@@ -31,12 +32,31 @@ const data = ordersJson as unknown as { return_window_days: number; orders: Demo
 export const RETURN_WINDOW_DAYS = data.return_window_days;
 export const ORDERS = data.orders;
 
+/** An order the shopper placed here, as the returns desk reads it: delivered when placed. */
+export const asReturnable = (o: PlacedOrder, now = Date.now()): DemoOrder & { placed: true } => ({
+  number: o.number,
+  email: o.email,
+  name: o.name,
+  placed_days_ago: daysSince(o.placed_at, now),
+  delivered_days_ago: daysSince(o.placed_at, now),
+  status: "delivered",
+  lines: o.lines,
+  total: o.total,
+  placed: true,
+});
+
+/** Every order the desk can find: the shopper's own (newest first), then the demo orders. */
+export function allOrders(placed: PlacedOrder[] = useOrders.getState().orders): (DemoOrder & { placed?: true })[] {
+  const own = [...placed].sort((a, b) => b.placed_at.localeCompare(a.placed_at)).map((o) => asReturnable(o));
+  return [...own, ...ORDERS.filter((d) => !own.some((o) => o.number === d.number))];
+}
+
 export const normalOrderNumber = (s: string) => {
   const digits = s.replace(/\D/g, "");
   return digits ? `FH-${digits}` : s.trim().toUpperCase();
 };
 export const findOrder = (number: string | null | undefined) =>
-  number ? ORDERS.find((o) => o.number === normalOrderNumber(number)) : undefined;
+  number ? allOrders().find((o) => o.number === normalOrderNumber(number)) : undefined;
 
 export type Eligibility = { kind: "eligible"; daysLeft: number } | { kind: "outside_window"; days: number } | { kind: "not_delivered" };
 

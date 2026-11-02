@@ -10,6 +10,8 @@ export type Who = "visitor" | "emily";
 
 export interface ReturnsForm {
   step: number;
+  /** The furthest step the form has reached; a step up to it can be reopened. */
+  reached: number;
   order_number: string;
   email: string;
   /** product_id → how many to return. */
@@ -28,6 +30,7 @@ export interface ReturnsForm {
 
 const EMPTY: Omit<ReturnsForm, "by" | "changed"> = {
   step: 1,
+  reached: 1,
   order_number: "",
   email: "",
   items: {},
@@ -53,7 +56,11 @@ export const useReturns = create<Api>((set, get) => ({
   ...EMPTY,
   by: {},
   changed: null,
-  setStep: (step) => set({ step: Math.max(1, Math.min(6, step)) }),
+  setStep: (step) =>
+    set((s) => {
+      const next = Math.max(1, Math.min(6, step));
+      return { step: next, reached: Math.max(s.reached, next) };
+    }),
   setOrderNumber(value, by = "visitor") {
     const prev = get().order_number;
     const next = value;
@@ -120,6 +127,29 @@ export function missingInStep(form: ReturnsForm, step: number): string {
       return !form.collection ? "Choose collection or drop-off." : form.collection === "pickup" && !form.pickup_window ? "Choose a collection window." : "";
     default:
       return "";
+  }
+}
+
+/** The fields a step still needs, by the form's names (for a refusal that names them). */
+export function missingFields(form: ReturnsForm, step: number): string[] {
+  const order = currentOrder(form);
+  const chosen = order?.lines.filter((l) => form.items[l.product_id]) ?? [];
+  switch (step) {
+    case 1:
+      return [...(order ? [] : ["order_number"]), ...(form.email.trim() && order && form.email.trim().toLowerCase() === order.email.toLowerCase() ? [] : ["email"])];
+    case 2:
+      return chosen.length ? [] : ["items"];
+    case 3:
+      return [...(form.reason ? [] : ["reason"]), ...(form.condition ? [] : ["condition"])];
+    case 4:
+      if (!form.resolution) return ["resolution"];
+      return form.resolution === "exchange"
+        ? chosen.filter((l) => !form.exchange[l.product_id] && exchangeOptions(l).length).map((l) => `exchange_variant_${l.product_id}`)
+        : [];
+    case 5:
+      return [...(form.collection ? [] : ["collection"]), ...(form.collection === "pickup" && !form.pickup_window ? ["pickup_window"] : [])];
+    default:
+      return [];
   }
 }
 

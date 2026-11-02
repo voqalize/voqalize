@@ -8,7 +8,7 @@
  * outlives navigation until the shopper or Emily clears it.
  */
 import { create } from "zustand";
-import { type By, emit } from "./events";
+import { type By, emit, onSenderReady } from "./events";
 
 export type ThingKind = "product" | "category" | "room" | "article";
 export interface Thing {
@@ -139,3 +139,9 @@ export const useSelection = create<SelectionState>((set, get) => ({
     if (by === "visitor") emit("selection_cleared", {});
   },
 }));
+
+// A circle drawn before the call started still reaches the brain once it connects.
+onSenderReady(() => {
+  const { things, page } = useSelection.getState();
+  if (things.length) emit("selection", { things, gesture: "circle", page });
+});

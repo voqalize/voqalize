@@ -11,7 +11,8 @@ import { ProductGrid } from "../components/ProductCard";
 import { products, productsInCategory } from "../data/catalog";
 import { CheckoutPage } from "../pages/Checkout";
 import { useCart } from "../state/cart";
-import { useCheckout } from "../state/checkout";
+import { placeOrder, useCheckout } from "../state/checkout";
+import { useOrders } from "../state/orders";
 import { bindRouter, emily, useEmily } from "./controller";
 import { setEventSender } from "./events";
 
@@ -124,6 +125,58 @@ describe("checkout_fill", () => {
     await sleep(50);
     expect(useCheckout.getState().step).toBe("review");
     expect(document.querySelector('[role="alertdialog"]')?.textContent).toContain("Place the order");
+    root.unmount();
+  });
+});
+
+describe("order numbers: the page and the brain agree", () => {
+  const fill = () => {
+    const p = productsInCategory("desks")[0];
+    useCart.setState({ lines: [{ product_id: p.id, variant_id: p.variants[0].id, qty: 1 }] });
+    useCheckout.getState().reset();
+    for (const [f, v] of [
+      ["email", "ada@example.com"],
+      ["first_name", "Ada"],
+      ["last_name", "Lane"],
+      ["address1", "1 Fern Way"],
+      ["city", "Hollow"],
+      ["postcode", "12345"],
+    ] as const)
+      useCheckout.getState().set(f, v);
+    return p;
+  };
+  const known = () => sent.filter(([e]) => e === "orders_known").map(([, p]) => (p.orders as { number: string }[]).map((o) => o.number));
+
+  it("order_placed uses exactly the brain's number", async () => {
+    useOrders.setState({ orders: [] });
+    fill();
+    await emily.order_placed({ order_number: "FH-77777", total: 1 });
+    expect(JSON.parse(sessionStorage.getItem("fh-order") ?? "{}").number).toBe("FH-77777");
+    expect(JSON.parse(localStorage.getItem("fernhollow-orders") ?? "[]").map((o: { number: string }) => o.number)).toContain("FH-77777");
+    expect(known().at(-1)).toContain("FH-77777");
+  });
+
+  it("an order placed by hand reports the page's number at once", () => {
+    useOrders.setState({ orders: [] });
+    fill();
+    const order = placeOrder();
+    expect(order).not.toBeNull();
+    expect(known().at(-1)?.[0]).toBe(order!.number);
+  });
+
+  it("a yes on the confirm prompt carries the number it placed", async () => {
+    useOrders.setState({ orders: [] });
+    const p = fill();
+    const root = mount("/checkout", <CheckoutPage />);
+    await sleep(100);
+    await emily.confirm_place_order({ total: p.variants[0].price, label: "" });
+    await sleep(50);
+    (document.querySelector('[role="alertdialog"] .btn-primary') as HTMLElement).click();
+    await sleep(50);
+    const result = sent.find(([e]) => e === "confirm_result")?.[1];
+    const stored = JSON.parse(localStorage.getItem("fernhollow-orders") ?? "[]").at(-1);
+    expect(result).toEqual({ confirmed: true, order_number: stored.number, by: "visitor" });
+    expect(known().at(-1)?.[0]).toBe(stored.number);
     root.unmount();
   });
 });

@@ -20,7 +20,26 @@ export interface CartLine {
  *  (Stage's `stage_*` events are Stage's to send). */
 type Generated = { [E in Exclude<AppEventName, `stage_${string}`>]: Omit<Extract<AppEvent, { event: E }>["payload"], "by"> };
 
-export type UiEvents = Generated;
+/** Events the brain's generated file does not carry yet; where both name one, this shape wins. */
+interface Pending {
+  /** The shopper's answer on a confirm prompt; a yes that placed an order carries its number. */
+  confirm_result: { confirmed: boolean; order_number?: string };
+  orders_known: {
+    orders: {
+      number: string;
+      email: string;
+      name: string;
+      placed_at: string;
+      placed_days_ago: number;
+      delivered_days_ago: number;
+      lines: { product_id: string; variant_id: string; title: string; variant: string; qty: number; unit_price: number }[];
+      total: number;
+      status: string;
+    }[];
+  };
+}
+
+export type UiEvents = Omit<Generated, keyof Pending> & Pending;
 export type UiEventName = keyof UiEvents;
 
 
@@ -32,6 +51,17 @@ const listeners = new Set<() => void>();
 /** The live call's `client.sendUIEvent`, or null when the call ends. */
 export function setEventSender(next: Sender | null) {
   sender = next;
+  if (next) ready.forEach((fn) => fn());
+}
+
+/** True while a call is live (a sender is attached). */
+export const isLive = () => sender !== null;
+
+const ready = new Set<() => void>();
+/** Run `fn` each time a call's sender arrives (on connect). */
+export function onSenderReady(fn: () => void) {
+  ready.add(fn);
+  return () => ready.delete(fn);
 }
 
 export function emit<E extends UiEventName>(event: E, payload: UiEvents[E], by: By = "visitor") {

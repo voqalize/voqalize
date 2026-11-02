@@ -105,3 +105,23 @@ describe("the selection's events", () => {
     expect(useSelection.getState().things).toEqual([]);
   });
 });
+
+describe("a circle drawn before the call", () => {
+  it("reaches the brain once the call connects", () => {
+    setEventSender(null);
+    const things: Thing[] = [{ kind: "product", id: "weathered-oak-dining-table" }];
+    useSelection.getState().select(things, "/");
+    const late: [string, unknown][] = [];
+    setEventSender((event, payload) => late.push([event, payload]));
+    expect(late).toContainEqual(["selection", { things, gesture: "circle", page: "/", by: "visitor" }]);
+    setEventSender((event, payload) => sent.push([event, payload]));
+  });
+
+  it("sends nothing on connect when nothing is circled", () => {
+    setEventSender(null);
+    const late: [string, unknown][] = [];
+    setEventSender((event, payload) => late.push([event, payload]));
+    expect(late.filter(([e]) => e === "selection")).toEqual([]);
+    setEventSender((event, payload) => sent.push([event, payload]));
+  });
+});

@@ -9,6 +9,7 @@ import { create } from "zustand";
 import { deliveryFor } from "../data/content";
 import { type By, emit } from "../voice/events";
 import { type Line, priced, useCart } from "./cart";
+import { savePlacedOrder } from "./orders";
 
 export const CHECKOUT_FIELDS = [
   "email",
@@ -164,12 +165,18 @@ export function placeOrder(number?: string): Order | null {
   };
   try {
     sessionStorage.setItem("fh-order", JSON.stringify(order));
-    const all = JSON.parse(localStorage.getItem("fernhollow-orders") ?? "[]");
-    localStorage.setItem("fernhollow-orders", JSON.stringify([...all, order]));
     sessionStorage.removeItem("fh-address");
   } catch {
     /* storage unavailable: the confirmation reads navigation state */
   }
+  const a = order.address;
+  savePlacedOrder({
+    number: order.number,
+    email: a.email.trim(),
+    name: `${a.first_name} ${a.last_name}`.trim(),
+    lines,
+    total: Math.round((total + order.delivery) * 100) / 100,
+  });
   useCheckout.getState().reset();
   return order;
 }

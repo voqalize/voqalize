@@ -118,10 +118,11 @@ export function CheckoutPage() {
 
   const place = () => {
     const order = placeOrder();
-    if (!order) return;
+    if (!order) return null;
     placed.current = true;
     navigate("/checkout/confirmation", { state: order });
     useCart.getState().clear();
+    return order;
   };
 
   const stepBody = () => {
@@ -269,8 +270,8 @@ export function CheckoutPage() {
               <div className="confirm-actions">
                 <button type="button" className="btn btn-primary btn-sm" autoFocus onClick={() => {
                   useCheckout.setState({ confirm: null });
-                  emit("confirm_result", { confirmed: true });
-                  place();
+                  const order = place();
+                  emit("confirm_result", { confirmed: true, ...(order ? { order_number: order.number } : {}) });
                 }}>
                   <Check size={15} /> Place order
                 </button>

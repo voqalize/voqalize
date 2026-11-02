@@ -9,7 +9,7 @@
  *   a finger or keyboard focus, once it has stayed there 300 ms.
  */
 import { useEffect } from "react";
-import { emit } from "./events";
+import { emit, isLive, onSenderReady } from "./events";
 
 const CARD = '.card[data-spot^="product:"], .inline-product[data-spot^="product:"]';
 const idOf = (el: Element) => (el.getAttribute("data-spot") ?? "").slice("product:".length);
@@ -71,6 +71,11 @@ export function useScreenReport(key: string) {
       timer = setTimeout(report, 450);
     };
     const first = setTimeout(report, 700);
+    // On connect the brain hears what is on screen at once, even if nothing moved since.
+    const offReady = onSenderReady(() => {
+      last = "";
+      report();
+    });
     const mo = new MutationObserver(soon);
     const main = document.getElementById("main");
     if (main) mo.observe(main, { childList: true, subtree: true });
@@ -81,6 +86,7 @@ export function useScreenReport(key: string) {
     return () => {
       clearTimeout(timer);
       clearTimeout(first);
+      offReady();
       mo.disconnect();
       window.removeEventListener("scroll", soon);
       window.removeEventListener("resize", soon);
@@ -95,12 +101,16 @@ let lastPoint = "";
 /** The shopper is pointing at a product; reported once it holds for 300 ms. */
 export function point(productId: string, how: "hover" | "focus" | "tap") {
   clearTimeout(pending);
-  pending = setTimeout(() => {
+  const send = () => {
     const sig = `${productId}:${how}`;
     if (sig === lastPoint) return;
     lastPoint = sig;
     emit("pointing", { product_id: productId, how });
-  }, 300);
+  };
+  // On a live call "this one" must already be known when the shopper says it:
+  // a tap or a focus goes at once, a hover after a short settle.
+  if (isLive() && how !== "hover") send();
+  else pending = setTimeout(send, isLive() ? 120 : 300);
 }
 
 /** The pointer left before 300 ms: nothing is reported. */
