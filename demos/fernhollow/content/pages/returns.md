@@ -24,7 +24,7 @@ Please tell us as soon as you can, ideally within a few days of delivery, with a
 
 ## How to start a return
 
-1. Get in touch with us, or ask Mira, and tell us your order and the item you want to return.
+1. Get in touch with us, or ask Emily, and tell us your order and the item you want to return.
 2. We will confirm the return and agree the next steps with you, including how the item gets back to us.
 3. Once the item arrives and has been checked, we process your refund.
 

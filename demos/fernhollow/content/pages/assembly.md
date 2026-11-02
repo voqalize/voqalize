@@ -6,7 +6,7 @@ dek: Many pieces go together at home in minutes; for furniture you would rather 
 
 ## Our assembly service
 
-Assembly is available for **furniture**: sofas, beds, desks, tables, chairs, shelving and storage. We charge a **flat fee of $79 per item** of furniture assembled, whatever the piece. Add it when you order, or ask Mira to add it for you.
+Assembly is available for **furniture**: sofas, beds, desks, tables, chairs, shelving and storage. We charge a **flat fee of $79 per item** of furniture assembled, whatever the piece. Add it when you order.
 
 Our team will build the piece in the room of your choice and take the packaging away with them.
 

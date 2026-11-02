@@ -1,13 +1,13 @@
 ---
 title: Frequently asked questions
 slug: faq
-dek: Quick answers on delivery, returns, assembly, care and how Mira, our design adviser, can help.
+dek: Quick answers on delivery, returns, assembly, care and how Emily, our design adviser, can help.
 ---
 
 ## Ordering
 
-**Who is Mira?**
-Mira is Fernhollow's design adviser. You can talk to her by voice while you browse: tell her about a room, a budget or a piece you like, and she will show you suitable products, compare options, explain materials and help you put a room together. She only tells you what we know about each piece.
+**Who is Emily?**
+Emily is Fernhollow's design adviser. You can talk to her by voice while you browse: tell her about a room, a budget or a piece you like, and she will show you suitable products, compare options, explain materials and help you put a room together. She only tells you what we know about each piece.
 
 **Can I see a product's materials and finishes?**
 Yes. Each product page lists what the piece is made of, its highlights and the options available, such as finish or fabric.
