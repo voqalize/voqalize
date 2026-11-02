@@ -327,6 +327,13 @@ export interface FilterChanged {
   by?: string;
 }
 
+/** The orders the page holds — on connect and whenever the list changes. Silent. */
+export interface OrdersKnown {
+  orders?: OrderIn[];
+
+  by?: string;
+}
+
 /**
  * The shopper opened a page (`home`, `room/<room>`, `category/<slug>`,
  * `product/<id>`, `journal`, `cart`, `policy/<topic>`…).
@@ -528,6 +535,41 @@ export interface MoreLikeItem {
   differences: string[];
 }
 
+/** One order the page holds (a placed order counts as delivered when placed). */
+export interface OrderIn {
+  number?: string;
+
+  email?: string;
+
+  name?: string;
+
+  placed_at?: string;
+
+  lines?: OrderLineIn[];
+
+  total?: number;
+
+  status?: string;
+
+  placed_days_ago?: number;
+
+  delivered_days_ago?: number | null;
+}
+
+export interface OrderLineIn {
+  product_id: string;
+
+  variant_id?: string;
+
+  title?: string;
+
+  variant?: string;
+
+  qty?: number;
+
+  unit_price?: number;
+}
+
 /** One room-board tile. */
 export interface PieceOut {
   slot: string;
@@ -669,6 +711,7 @@ export type AppEvent =
   | { event: 'choice_made'; payload: ChoiceMade }
   | { event: 'confirm_result'; payload: ConfirmResult }
   | { event: 'filter_changed'; payload: FilterChanged }
+  | { event: 'orders_known'; payload: OrdersKnown }
   | { event: 'page_viewed'; payload: PageViewed }
   | { event: 'pointing'; payload: Pointing }
   | { event: 'product_viewed'; payload: ProductViewed }
@@ -692,6 +735,7 @@ export const APP_EVENT_NAMES: readonly AppEventName[] = [
   'choice_made',
   'confirm_result',
   'filter_changed',
+  'orders_known',
   'page_viewed',
   'pointing',
   'product_viewed',

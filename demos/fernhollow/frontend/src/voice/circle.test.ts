@@ -125,3 +125,44 @@ describe("a circle drawn before the call", () => {
     setEventSender((event, payload) => sent.push([event, payload]));
   });
 });
+
+describe("adding to a selection", () => {
+  it("keeps the existing ones first, adds new ones once, at most eight, in one event", () => {
+    useSelection.getState().select(
+      [
+        { kind: "product", id: "a" },
+        { kind: "product", id: "b" },
+      ],
+      "/",
+    );
+    sent = [];
+    useSelection.getState().add(
+      [
+        { kind: "product", id: "b" },
+        { kind: "room", id: "dining" },
+      ],
+      "/",
+    );
+    expect(sent).toEqual([
+      [
+        "selection",
+        {
+          things: [
+            { kind: "product", id: "a" },
+            { kind: "product", id: "b" },
+            { kind: "room", id: "dining" },
+          ],
+          gesture: "circle",
+          page: "/",
+          by: "visitor",
+        },
+      ],
+    ]);
+    useSelection.getState().add(
+      Array.from({ length: 10 }, (_, i) => ({ kind: "product" as const, id: `x${i}` })),
+      "/",
+    );
+    expect(useSelection.getState().things).toHaveLength(8);
+    expect(useSelection.getState().things[0].id).toBe("a");
+  });
+});

@@ -25,6 +25,20 @@ const fire = async (page, command) => {
 
 const SHOTS = [
   {
+    name: "circle-added",
+    path: "/?debug=1",
+    run: async (page) => {
+      await page.click('.debug [aria-label="Close action console"]');
+      await page.evaluate(async () => {
+        const tiles = [...document.querySelectorAll(".rooms-row [data-fh-thing]")].filter((e) => e.getBoundingClientRect().right <= window.innerWidth);
+        await window.__fhCircle({ els: tiles.slice(0, 2) });
+        await new Promise((r) => setTimeout(r, 300));
+        await window.__fhCircle({ els: tiles.slice(-1), additive: true });
+      });
+      await settle(page, 1000);
+    },
+  },
+  {
     name: "circle-drawing",
     path: "/?debug=1",
     run: async (page) => {

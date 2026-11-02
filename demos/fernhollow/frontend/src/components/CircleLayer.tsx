@@ -23,6 +23,7 @@ import {
   useSelection,
 } from "../voice/circle";
 import { useFakeCall } from "../voice/VoiceDock";
+import { emit } from "../voice/events";
 
 const LONG_PRESS_MS = 350;
 const SLOP = 8;
@@ -34,7 +35,7 @@ type Mode = "idle" | "drawing" | "fading";
 interface CircleApi {
   begin(p: Point): void;
   move(p: Point): void;
-  end(): void;
+  end(additive?: boolean): void;
 }
 let api: CircleApi | null = null;
 
@@ -92,12 +93,16 @@ export function CircleLayer() {
     [redraw],
   );
 
-  const end = useCallback(() => {
+  const end = useCallback((additive = false) => {
     document.body.classList.remove("is-circling");
     const p = pts.current;
     const enough = p.length > 6 && pathLength(p) >= MIN_LOOP;
     const things: Thing[] = enough ? thingsInLoop(p, candidates.current) : [];
-    if (things.length) useSelection.getState().select(things, location.pathname + location.search);
+    const page = location.pathname + location.search;
+    if (things.length) {
+      if (additive && useSelection.getState().things.length) useSelection.getState().add(things, page);
+      else useSelection.getState().select(things, page);
+    }
     setD(smoothPath(p, enough));
     setHead(null);
     setLit([]);
@@ -114,6 +119,26 @@ export function CircleLayer() {
     }, 700);
   }, [location.pathname, location.search]);
 
+  /** Esc mid-stroke: no selection, no fade, nothing left on screen. */
+  const cancel = useCallback(() => {
+    window.clearTimeout(fadeTimer.current);
+    document.body.classList.remove("is-circling");
+    pts.current = [];
+    setLit([]);
+    setHead(null);
+    setD("");
+    setMode("idle");
+  }, []);
+
+  // A new page starts with nothing circled.
+  const firstKey = useRef(location.key);
+  useEffect(() => {
+    if (location.key === firstKey.current) return;
+    firstKey.current = location.key;
+    cancel();
+    useSelection.getState().clear();
+  }, [location.key, cancel]);
+
   useEffect(() => {
     api = { begin, move, end };
     return () => {
@@ -124,6 +149,7 @@ export function CircleLayer() {
   // ── The gesture ──
   useEffect(() => {
     let armed = false;
+    let additive = false;
     let press: { id: number; x: number; y: number; timer: number } | null = null;
     let swallowClick = false;
     const at = (e: PointerEvent | Touch): Point => ({ x: e.clientX, y: e.clientY });
@@ -134,6 +160,8 @@ export function CircleLayer() {
         if (!e.shiftKey) return;
         e.preventDefault();
         armed = true;
+        // Shift + Alt (Option) adds to what is already circled.
+        additive = e.altKey;
         swallowClick = true;
         begin(at(e));
         return;
@@ -147,6 +175,7 @@ export function CircleLayer() {
         timer: window.setTimeout(() => {
           if (!press) return;
           armed = true;
+          additive = useSelection.getState().addNext;
           swallowClick = true;
           navigator.vibrate?.(8);
           begin({ x: press.x, y: press.y });
@@ -168,7 +197,7 @@ export function CircleLayer() {
       press = null;
       if (!armed) return;
       armed = false;
-      end();
+      end(additive);
       // The click that follows the gesture is not a click on the page.
       window.setTimeout(() => (swallowClick = false), 50);
     };
@@ -191,7 +220,18 @@ export function CircleLayer() {
       if (armed) e.preventDefault();
     };
     const key = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && useSelection.getState().things.length) useSelection.getState().clear();
+      if (e.key !== "Escape") return;
+      const drawing = armed;
+      if (press) window.clearTimeout(press.timer);
+      press = null;
+      armed = false;
+      if (drawing) cancel();
+      if (useSelection.getState().things.length) useSelection.getState().clear();
+      else if (drawing) emit("selection_cleared", {});
+    };
+    // A Shift-drag that starts on a photo or link must not become the browser's own drag.
+    const drag = (e: DragEvent) => {
+      if (armed || (e as unknown as { shiftKey?: boolean }).shiftKey) e.preventDefault();
     };
     document.addEventListener("pointerdown", down, true);
     window.addEventListener("pointermove", moveP, { passive: false });
@@ -202,7 +242,9 @@ export function CircleLayer() {
     document.addEventListener("contextmenu", menu, true);
     document.addEventListener("selectstart", select, true);
     document.addEventListener("keydown", key);
+    document.addEventListener("dragstart", drag, true);
     return () => {
+      document.removeEventListener("dragstart", drag, true);
       document.removeEventListener("pointerdown", down, true);
       window.removeEventListener("pointermove", moveP);
       window.removeEventListener("pointerup", up);
@@ -213,7 +255,7 @@ export function CircleLayer() {
       document.removeEventListener("selectstart", select, true);
       document.removeEventListener("keydown", key);
     };
-  }, [begin, move, end]);
+  }, [begin, move, end, cancel]);
 
   return (
     <>
@@ -252,6 +294,8 @@ export function CircleLayer() {
 /** Numbered badges and a ring on the circled things on this page, plus the chip. */
 function SelectionMarks() {
   const things = useSelection((s) => s.things);
+  const addNext = useSelection((s) => s.addNext);
+  const touch = typeof window !== "undefined" && window.matchMedia("(hover: none)").matches;
   const [boxes, setBoxes] = useState<{ n: number; key: string; left: number; top: number; width: number; height: number }[]>([]);
   useEffect(() => {
     if (!things.length) {
@@ -304,6 +348,16 @@ function SelectionMarks() {
           </span>
           say what you want
         </span>
+        {touch ? (
+          <button
+            type="button"
+            className={`selection-add${addNext ? " is-on" : ""}`}
+            aria-pressed={addNext}
+            onClick={() => useSelection.setState({ addNext: !addNext })}
+          >
+            + Add more
+          </button>
+        ) : null}
         <button type="button" aria-label="Clear the selection" onClick={() => useSelection.getState().clear()}>
           <X size={15} />
         </button>
@@ -342,7 +396,7 @@ function CircleHint() {
       <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden>
         <path d="M12 4c5 0 8 2.6 8 6.6S16.6 19 11.6 19C6.8 19 4 16.4 4 12.8 4 9 7.6 6.6 12 6.6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
       </svg>
-      {touch ? "Tip: press and hold, then circle things to ask Emily" : "Tip: hold Shift and circle things to ask Emily"}
+      {touch ? "Tip: press, hold and circle things to ask Emily · + Add more adds" : "Tip: Shift to circle things for Emily · Shift+Alt to add"}
     </div>
   );
 }
@@ -352,7 +406,7 @@ function CircleHint() {
  * three cards of the home page's on-sale rail), `upTo` of the way round, and
  * released unless `hold`.
  */
-export async function fakeCircle(opts: { els?: Element[]; upTo?: number; hold?: boolean } = {}) {
+export async function fakeCircle(opts: { els?: Element[]; upTo?: number; hold?: boolean; additive?: boolean } = {}) {
   const all = opts.els ?? [...document.querySelectorAll(".rail .rail-item [data-fh-thing]")];
   // Only what fits across the screen: three cards on a wide one, fewer on a phone.
   const els = opts.els ?? all.filter((e) => e.getBoundingClientRect().right <= window.innerWidth - 8).slice(0, 3);
@@ -381,6 +435,6 @@ export async function fakeCircle(opts: { els?: Element[]; upTo?: number; hold?: 
     api.move(at(i));
     await new Promise((r) => setTimeout(r, 12));
   }
-  if (!opts.hold) api.end();
+  if (!opts.hold) api.end(opts.additive);
   return true;
 }

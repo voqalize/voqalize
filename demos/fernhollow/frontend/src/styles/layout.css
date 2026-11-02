@@ -4445,3 +4445,27 @@ body.is-circling * {
 .known-orders .small {
   margin: 0 0 8px;
 }
+.selection-chip .selection-add {
+  width: auto;
+  height: 28px;
+  padding: 0 11px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.selection-chip .selection-add.is-on {
+  background: linear-gradient(135deg, #7b6cf0, var(--emily));
+}
+@media (max-width: 420px) {
+  .selection-chip {
+    font-size: 12.5px;
+    gap: 7px;
+  }
+  .selection-sep {
+    margin: 0 4px;
+  }
+  .selection-chip .selection-add {
+    padding: 0 9px;
+    font-size: 12px;
+  }
+}

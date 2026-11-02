@@ -165,7 +165,7 @@ On release: numbered badges on the selected things (max 8), a small chip "4 sele
 want" with a clear (×) button, and one event:
 
 - `selection{things: [{kind, id}], gesture: "circle", page}` — `by: "visitor"`, `note`. Cleared by
-  `selection_cleared{}` (×, Esc, or a new circle). The selection survives navigation until cleared.
+  `selection_cleared{}` (×, Esc, a new circle, or navigating to another page: the selection is cleared on navigation). Shift + Alt (Option) while circling, or "+ Add more" on the chip on touch, adds to the current selection instead (deduplicated, numbering continues, at most 8) and sends one `selection` with the full set.
 - Brain → UI `clear_selection{}`.
 
 **Brain.** "These / those / all of them / the circled ones" resolve to the last selection (ranked

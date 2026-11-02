@@ -120,21 +120,33 @@ export function smoothPath(pts: Point[], close = false): string {
 interface SelectionState {
   things: Thing[];
   page: string;
+  /** The next touch circle adds to the selection ("+ Add more" on the chip). */
+  addNext: boolean;
   select(things: Thing[], page: string): void;
+  /** Add to what is selected: kept in order, new ones after, once each, eight at most. */
+  add(things: Thing[], page: string): void;
   clear(by?: By): void;
 }
 
 export const useSelection = create<SelectionState>((set, get) => ({
   things: [],
   page: "",
+  addNext: false,
+  add(things, page) {
+    const have = get().things;
+    const keys = new Set(have.map(thingKey));
+    const all = [...have, ...things.filter((t) => !keys.has(thingKey(t)))].slice(0, MAX_SELECTED);
+    set({ things: all, page, addNext: false });
+    if (all.length) emit("selection", { things: all, gesture: "circle", page });
+  },
   select(things, page) {
     if (get().things.length) emit("selection_cleared", {});
-    set({ things, page });
+    set({ things, page, addNext: false });
     emit("selection", { things, gesture: "circle", page });
   },
   clear(by = "visitor") {
     if (!get().things.length) return;
-    set({ things: [], page: "" });
+    set({ things: [], page: "", addNext: false });
     // Emily's own clear_selection is hers; the event reports the shopper's.
     if (by === "visitor") emit("selection_cleared", {});
   },
