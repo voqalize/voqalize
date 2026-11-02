@@ -520,3 +520,17 @@ EXPECTED_STRETCH_SWAPS = [
 ]
 EXPECTED_SAVED = 339.01
 EXPECTED_MOVED_TO = None
+
+
+# ─── Model ────────────────────────────────────────────────────────────────────
+
+
+def test_emily_runs_on_gemini_36_flash_at_low_thinking() -> None:
+    from fernhollow.backend.brain import MODEL, THINKING, FernhollowBrain
+    from google.genai import types
+    from voqalize_demos.testing import ScriptedGemini
+
+    brain = FernhollowBrain(client=ScriptedGemini([]))  # pyright: ignore[reportArgumentType]
+    assert MODEL == "gemini-3.6-flash"
+    assert brain._config.thinking_config is THINKING  # pyright: ignore[reportPrivateUsage]
+    assert THINKING.thinking_level == types.ThinkingLevel.LOW

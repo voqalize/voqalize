@@ -42,10 +42,10 @@ from dataclasses import dataclass, field, replace
 from typing import Any, Literal
 
 from google import genai
+from google.genai import types
 from loguru import logger
 from pydantic import BaseModel, Field
 from voqalize_demos import (
-    DEFAULT_MODEL,
     PATIENCE,
     FallbackLine,
     GeminiBrain,
@@ -621,11 +621,20 @@ def _not_done(why: str, what_to_do: str) -> str:
     return _prose(f"NOT DONE: {why}.", next=what_to_do)
 
 
+# Emily's model and thinking level (owner, 2026-11-02): gemini-3.6-flash at LOW. Both are
+# model-specific (see VOICE_THINKING in voqalize.sdk.gemini); measured on one short prompt,
+# LOW spent ~480 thought tokens and ~3 s more than MINIMAL before the first word.
+MODEL = "gemini-3.6-flash"
+THINKING = types.ThinkingConfig(thinking_level=types.ThinkingLevel.LOW)
+
+
 class FernhollowBrain(GeminiBrain):
     """One per session: the brief, the screen mirror, the shortlist and the cart."""
 
-    def __init__(self, *, client: genai.Client, model: str = DEFAULT_MODEL) -> None:
-        super().__init__(client=client, system_instruction=system_instruction(), model=model)
+    def __init__(self, *, client: genai.Client, model: str = MODEL) -> None:
+        super().__init__(
+            client=client, system_instruction=system_instruction(), model=model, thinking=THINKING
+        )
         self.brief = eng.Brief()
         self.screen = Screen()
         self.history: list[Screen] = []

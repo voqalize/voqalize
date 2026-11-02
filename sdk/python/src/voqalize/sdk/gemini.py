@@ -121,6 +121,11 @@ class GeminiBrain(VoiceCore[types.Content, types.GenerateContentConfig]):
     may not call a tool, so the model has to answer. Unmarked tools never ask
     again, so they never count.
 
+    ``thinking`` is the model's thinking setting, :data:`VOICE_THINKING` unless a brain picks
+    another. It is model-specific: a level one model accepts another refuses, and every level
+    above the floor is silence before the first word, so measure it on a real call before
+    raising it.
+
     ``report_steps=False`` keeps each request's and each tool's step off the wire; the counts stay
     in the ``turn:`` log line either way."""
 
@@ -132,6 +137,7 @@ class GeminiBrain(VoiceCore[types.Content, types.GenerateContentConfig]):
         client: genai.Client,
         system_instruction: str,
         model: str = DEFAULT_MODEL,
+        thinking: types.ThinkingConfig = VOICE_THINKING,
         max_tool_hops: int = 6,
         report_steps: bool = True,
     ) -> None:
@@ -139,7 +145,7 @@ class GeminiBrain(VoiceCore[types.Content, types.GenerateContentConfig]):
         self._client = client
         self._config = types.GenerateContentConfig(
             system_instruction=system_instruction,
-            thinking_config=VOICE_THINKING,
+            thinking_config=thinking,
         )
         # The tool loop is ours: google-genai declares the tools and never runs
         # them, so a call's result reaches the model only when we ask again.
