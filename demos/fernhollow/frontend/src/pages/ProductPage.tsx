@@ -81,7 +81,7 @@ function ProductView({ p }: { p: Product }) {
             { label: p.title },
           ]}
         />
-        <div className="pdp-grid" {...pointHandlers(p.id)}>
+        <div className="pdp-grid" data-fh-thing={`product:${p.id}`} {...pointHandlers(p.id)}>
           <div className="gallery">
             {p.images.length > 1 ? (
               <div className="gallery-thumbs" role="tablist" aria-label="Photos">

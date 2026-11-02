@@ -69,6 +69,7 @@ export interface Commands {
   order_placed: { order_number: string; total: number };
   show_choices: { product_ids: string[]; label: string };
   clear_choices: Record<string, never>;
+  clear_selection: Record<string, never>;
 }
 
 export type CommandName = keyof Commands;
@@ -100,4 +101,5 @@ export const COMMAND_NAMES: CommandName[] = [
   "order_placed",
   "show_choices",
   "clear_choices",
+  "clear_selection",
 ];

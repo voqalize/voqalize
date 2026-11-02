@@ -93,6 +93,37 @@ await page.waitForTimeout(400);
 check((await page.evaluate(() => window.scrollY)) < 40, "a push lands at the top of the new page");
 check((await page.inputValue('input[name="order_number"]')) === "FH-20418", "returns form prefilled from navigate's query string");
 
+// Circle to ask: a real Shift + drag round the room tiles, then the debug fake circle.
+await push("brain navigate home (for the circle)", () => page.evaluate(() => window.__fhDispatch("navigate", { page: "home" })), "/");
+await page.evaluate(() => document.querySelector(".rooms-row")?.scrollIntoView({ block: "center" }));
+await page.waitForTimeout(400);
+const row = await page.locator(".rooms-row").boundingBox();
+const cx = row.x + row.width * 0.3;
+const cy = row.y + row.height / 2;
+const rx = row.width * 0.32;
+const ry = row.height * 0.75;
+await page.keyboard.down("Shift");
+await page.mouse.move(cx + rx, cy);
+await page.mouse.down();
+for (let i = 1; i <= 48; i++) await page.mouse.move(cx + Math.cos((i / 44) * 2 * Math.PI) * rx, cy + Math.sin((i / 44) * 2 * Math.PI) * ry, { steps: 2 });
+await page.mouse.up();
+await page.keyboard.up("Shift");
+await page.waitForTimeout(500);
+check(path() === "/", `a Shift-drag that starts on a link does not follow it (${path()})`);
+const circled = Number(await page.textContent(".selection-count").catch(() => "0"));
+check(circled >= 2, `Shift + drag selects the circled room tiles (${circled})`);
+await push("selection survives navigation", () => page.evaluate(() => window.__fhDispatch("navigate", { page: "shop" })), "/shop");
+check(Number(await page.textContent(".selection-count").catch(() => "0")) === circled, "the selection chip is still there on the next page");
+await page.keyboard.press("Escape");
+await page.waitForTimeout(200);
+check(!(await page.$(".selection-chip")), "Esc clears the selection");
+await push("back home", () => page.evaluate(() => window.__fhDispatch("navigate", { page: "home" })), "/");
+await page.evaluate(() => window.__fhCircle());
+await page.waitForTimeout(900);
+check(Number(await page.textContent(".selection-count").catch(() => "0")) === 3, "the fake circle selects three on-sale products");
+const ordinary = await page.evaluate(() => document.getSelection()?.toString() ?? "");
+check(ordinary === "", "no text got selected by the gestures");
+
 check((await page.evaluate(() => window.__fhBoot)) === boot, "window mark __fhBoot unchanged (no reload)");
 check(loads === 0, `no load event after the first (${loads})`);
 check((await page.evaluate(() => window.__fhVoice?.face ?? null)) === face && face !== null, "the voice dock's face mount is the same instance");

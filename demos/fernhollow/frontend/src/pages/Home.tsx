@@ -45,7 +45,7 @@ export function Home() {
           </div>
           <div className="hero-photos">
             {hero.map((p, i) => (
-              <Link key={p.id} to={`/product/${p.id}`} className={`hero-photo hero-photo-${i + 1}`}>
+              <Link key={p.id} to={`/product/${p.id}`} className={`hero-photo hero-photo-${i + 1}`} data-fh-thing={`product:${p.id}`}>
                 <Photo file={p.images[0]} alt={p.title} eager size={1000} sizes="(min-width: 900px) 16vw, 45vw" />
                 <span className="hero-cap">
                   <span>{p.title}</span>
@@ -65,7 +65,7 @@ export function Home() {
               const cover = roomCover(r.id);
               return (
                 <li key={r.id}>
-                  <Link to={`/room/${r.id}`} className="room-tile">
+                  <Link to={`/room/${r.id}`} className="room-tile" data-fh-thing={`room:${r.id}`}>
                     <span className="room-photo">
                       <Photo file={cover.images[0]} alt="" sizes="(min-width: 900px) 14vw, 40vw" />
                     </span>
@@ -81,7 +81,7 @@ export function Home() {
       <section className="section room-feature">
         <div className="wrap room-feature-grid">
           {feature ? (
-            <Link to={`/product/${feature.id}`} className="room-feature-photo" tabIndex={-1} aria-hidden>
+            <Link to={`/product/${feature.id}`} className="room-feature-photo" tabIndex={-1} aria-hidden data-fh-thing={`product:${feature.id}`}>
               <Photo file={feature.images[1] ?? feature.images[0]} alt="" size={1000} sizes="(min-width: 900px) 55vw, 100vw" />
             </Link>
           ) : null}
@@ -93,7 +93,7 @@ export function Home() {
                 .slice(0, 6)
                 .map((c) => (
                   <li key={c.slug}>
-                    <Link to={`/category/${c.slug}`} className="chip">
+                    <Link to={`/category/${c.slug}`} className="chip" data-fh-thing={`category:${c.slug}`}>
                       {c.name}
                     </Link>
                   </li>
@@ -129,7 +129,7 @@ export function Home() {
               const cover = sortProducts(productsInCategory(slug), "featured")[0];
               return (
                 <li key={slug} className={i === 0 ? "cat-feature" : undefined}>
-                  <Link to={`/category/${slug}`} className="cat-tile">
+                  <Link to={`/category/${slug}`} className="cat-tile" data-fh-thing={`category:${slug}`}>
                     <span className="cat-photo">
                       <Photo file={cover.images[0]} alt="" size={i === 0 ? 1000 : 400} sizes={i === 0 ? "(min-width: 900px) 40vw, 100vw" : "(min-width: 900px) 20vw, 50vw"} />
                     </span>
@@ -154,7 +154,7 @@ export function Home() {
                 const hero = getProduct(a.hero);
                 return (
                   <li key={a.slug}>
-                    <Link to={`/journal/${a.slug}`} className="journal-card">
+                    <Link to={`/journal/${a.slug}`} className="journal-card" data-fh-thing={`article:${a.slug}`}>
                       {hero ? (
                         <span className="journal-photo">
                           <Photo file={hero.images[hero.images.length > 1 ? 1 : 0]} alt="" sizes="(min-width: 900px) 30vw, 90vw" />

@@ -203,6 +203,9 @@ export interface ShowChoices {
 /** The choice badges removed. */
 export type ClearChoices = Record<string, never>;
 
+/** The circled selection's badges and chip removed. */
+export type ClearSelection = Record<string, never>;
+
 /** Revert the last screen-changing action. */
 export type Undo = Record<string, never>;
 
@@ -361,6 +364,25 @@ export interface RoomBoardEdited {
 
   action?: string;
 
+  by?: string;
+}
+
+/**
+ * The shopper circled things on screen (Show Emily: circle to ask). Kept
+ * until cleared, across pages; acted on only when they speak about it.
+ */
+export interface Selection {
+  things?: ThingIn[];
+
+  gesture?: string;
+
+  page?: string;
+
+  by?: string;
+}
+
+/** The circled selection was cleared (its clear button, Esc, or a new circle). */
+export interface SelectionCleared {
   by?: string;
 }
 
@@ -546,6 +568,13 @@ export interface SavingSwap {
   now: number;
 }
 
+/** One thing the shopper circled: a product, category, room or article. */
+export interface ThingIn {
+  kind?: string;
+
+  id?: string;
+}
+
 /** Everything the brain can put on screen, discriminated by `command`. */
 export type UiAction =
   | { command: 'navigate'; payload: Navigate }
@@ -573,6 +602,7 @@ export type UiAction =
   | { command: 'order_placed'; payload: OrderPlaced }
   | { command: 'show_choices'; payload: ShowChoices }
   | { command: 'clear_choices'; payload: ClearChoices }
+  | { command: 'clear_selection'; payload: ClearSelection }
   | { command: 'undo'; payload: Undo };
 
 export type UiActionCommand = UiAction['command'];
@@ -603,6 +633,7 @@ export const UI_ACTION_COMMANDS: readonly UiActionCommand[] = [
   'order_placed',
   'show_choices',
   'clear_choices',
+  'clear_selection',
   'undo',
 ];
 
@@ -642,6 +673,8 @@ export type AppEvent =
   | { event: 'pointing'; payload: Pointing }
   | { event: 'product_viewed'; payload: ProductViewed }
   | { event: 'room_board_edited'; payload: RoomBoardEdited }
+  | { event: 'selection'; payload: Selection }
+  | { event: 'selection_cleared'; payload: SelectionCleared }
   | { event: 'shortlist_changed'; payload: ShortlistChanged }
   | { event: 'variant_selected'; payload: VariantSelected }
   | { event: 'visible_products'; payload: VisibleProducts };
@@ -663,6 +696,8 @@ export const APP_EVENT_NAMES: readonly AppEventName[] = [
   'pointing',
   'product_viewed',
   'room_board_edited',
+  'selection',
+  'selection_cleared',
   'shortlist_changed',
   'variant_selected',
   'visible_products',

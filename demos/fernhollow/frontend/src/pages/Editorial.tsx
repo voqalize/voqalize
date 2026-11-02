@@ -15,7 +15,7 @@ function InlineProduct({ id }: { id: string }) {
   const p = getProduct(id);
   if (!p) return null;
   return (
-    <aside className="inline-product" data-spot={`product:${p.id}`}>
+    <aside className="inline-product" data-spot={`product:${p.id}`} data-fh-thing={`product:${p.id}`}>
       <Link to={`/product/${p.id}`} className="inline-photo" tabIndex={-1} aria-hidden>
         <Photo file={p.images[0]} alt="" sizes="(min-width: 900px) 220px, 40vw" />
       </Link>
@@ -76,7 +76,7 @@ export function JournalIndex() {
 function ArticleCard({ a, lead = false }: { a: Doc; lead?: boolean }) {
   const hero = getProduct(a.hero);
   return (
-    <Link to={`/journal/${a.slug}`} className={`journal-card${lead ? " journal-lead" : ""}`}>
+    <Link to={`/journal/${a.slug}`} className={`journal-card${lead ? " journal-lead" : ""}`} data-fh-thing={`article:${a.slug}`}>
       {hero ? (
         <span className="journal-photo">
           <Photo file={hero.images[0]} alt="" size={lead ? 1000 : 400} eager={lead} sizes={lead ? "(min-width: 900px) 55vw, 100vw" : "(min-width: 900px) 30vw, 90vw"} />

@@ -139,7 +139,7 @@ export function ListingView({ title, intro, crumbs, base, pills, isSearch, empty
         {pills?.length ? (
           <div className="pills" role="list">
             {pills.map((c) => (
-              <Link role="listitem" key={c.slug} to={`/category/${c.slug}`} className="chip">
+              <Link role="listitem" key={c.slug} to={`/category/${c.slug}`} className="chip" data-fh-thing={`category:${c.slug}`}>
                 {c.label}
               </Link>
             ))}

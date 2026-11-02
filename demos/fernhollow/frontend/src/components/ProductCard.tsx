@@ -31,6 +31,7 @@ export function ProductCard({
     <article
       className={`card${choice >= 0 ? " is-choice" : ""}`}
       data-spot={`product:${p.id}`}
+      data-fh-thing={`product:${p.id}`}
       {...pointHandlers(p.id)}
       onClickCapture={() => choice >= 0 && emily.choiceMade(p.id)}
     >

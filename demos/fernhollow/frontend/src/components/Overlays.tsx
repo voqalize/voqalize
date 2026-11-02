@@ -119,7 +119,7 @@ export function ShortlistTray() {
         ) : (
           <ul className="tray-list">
             {list.map((p) => (
-              <li key={p.id} className="tray-item" data-spot={`product:${p.id}`}>
+              <li key={p.id} className="tray-item" data-spot={`product:${p.id}`} data-fh-thing={`product:${p.id}`}>
                 <Link to={`/product/${p.id}`} onClick={() => setOpen(false)} className="tray-photo">
                   <Photo file={p.images[0]} alt={p.title} sizes="160px" />
                 </Link>

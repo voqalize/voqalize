@@ -16,6 +16,7 @@ import { create } from "zustand";
 import { type ContractFilters, getProduct, matchContractFilters } from "../data/catalog";
 import { useCart } from "../state/cart";
 import { useShortlist } from "../state/shortlist";
+import { useSelection } from "./circle";
 import { CHECKOUT_FIELDS, CHECKOUT_STEPS, type CheckoutField, type CheckoutStep, STEP_OF_FIELD, placeOrder, useCheckout } from "../state/checkout";
 import { type By, type CartLine, emit } from "./events";
 import { totalOf } from "./local";
@@ -517,6 +518,10 @@ export const emily = {
     set({ choices: null });
   },
 
+  clear_selection() {
+    useSelection.getState().clear("emily");
+  },
+
   /** The shopper clicked a numbered card. */
   choiceMade(productId: string) {
     if (!get().choices?.ids.includes(productId)) return;
@@ -567,7 +572,7 @@ const COMMANDS = new Set<string>([
   "navigate", "show_products", "apply_filters", "remove_filter", "open_product", "select_variant", "highlight",
   "update_brief", "show_room_set", "swap_piece", "show_compare", "show_goes_with", "show_more_like", "show_savings",
   "update_shortlist", "confirm_add", "cart_updated", "suggest_finish", "open_policy", "undo",
-  "checkout_fill", "checkout_step", "confirm_place_order", "order_placed", "show_choices", "clear_choices",
+  "checkout_fill", "checkout_step", "confirm_place_order", "order_placed", "show_choices", "clear_choices", "clear_selection",
 ]);
 const isCommand = (c: string): c is CommandName => COMMANDS.has(c);
 

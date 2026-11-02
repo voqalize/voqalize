@@ -25,6 +25,24 @@ const fire = async (page, command) => {
 
 const SHOTS = [
   {
+    name: "circle-drawing",
+    path: "/?debug=1",
+    run: async (page) => {
+      await page.click('.debug [aria-label="Close action console"]');
+      await page.evaluate(() => window.__fhCircle({ upTo: 0.78, hold: true }));
+      await settle(page, 120);
+    },
+  },
+  {
+    name: "circle-selected",
+    path: "/?debug=1",
+    run: async (page) => {
+      await page.click('.debug [aria-label="Close action console"]');
+      await page.evaluate(() => window.__fhCircle());
+      await settle(page, 1100);
+    },
+  },
+  {
     name: "choices",
     path: "/category/sofas?debug=1",
     run: async (page) => {

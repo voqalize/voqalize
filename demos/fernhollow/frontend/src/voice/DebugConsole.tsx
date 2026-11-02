@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { bestSaving, defaultVariant, getProduct, matchContractFilters, products, productsInCategory } from "../data/catalog";
 import { dispatch, useEmily } from "./controller";
 import { useFakeCall } from "./VoiceDock";
+import { fakeCircle } from "../components/CircleLayer";
 import { eventLog, onEventLog } from "./events";
 import { priced, useCart } from "../state/cart";
 import { type CheckoutField, useCheckout } from "../state/checkout";
@@ -112,6 +113,7 @@ export function samplePayloads(): { [K in CommandName]: Commands[K] } {
       return { product_ids: ids, label: "Which one did you mean?" };
     })(),
     clear_choices: {},
+    clear_selection: {},
   };
 }
 
@@ -155,7 +157,7 @@ export function DebugConsole() {
         ))}
       </ul>
       <div className="debug-fake">
-        <p className="small">Fake call (no voice)</p>
+        <p className="small">Fake call and circle (no voice)</p>
         <div className="debug-fake-row">
           <button type="button" data-fake="connect" onClick={() => useFakeCall.setState({ on: true, state: "listening" })}>
             connect
@@ -169,6 +171,17 @@ export function DebugConsole() {
           </button>
           <button type="button" data-fake="end" onClick={() => useFakeCall.setState({ on: false, heard: "" })}>
             end
+          </button>
+          <button
+            type="button"
+            data-fake="circle"
+            onClick={async () => {
+              dispatch("navigate", { page: "home" });
+              await new Promise((r) => setTimeout(r, 500));
+              await fakeCircle();
+            }}
+          >
+            circle
           </button>
         </div>
       </div>
