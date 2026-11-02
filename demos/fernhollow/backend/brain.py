@@ -73,6 +73,8 @@ from .catalog import CATALOG, JOURNAL_DIR, Product, money
 from .policies import Topic, policy_page, policy_text
 from .prompt import GREETING, system_instruction
 from .recipes import FINISHING, RECIPES
+from .returns import WINDOW_DAYS, Order, exchange_options
+from .returns import find_order as lookup_order
 
 # ─── Actions: brain → UI (CONTRACT.md) ────────────────────────────────────────
 
@@ -430,6 +432,16 @@ class PolicyRequest(BaseModel):
     topic: Topic
 
 
+class OrderRequest(BaseModel):
+    order_number: str = Field(
+        description="The order number as the shopper said it, e.g. 'FH-20418'."
+    )
+
+
+class ExchangeRequest(BaseModel):
+    product: str = Field(description="A line of the order: its product id, or its title.")
+
+
 # ─── The screen mirror ────────────────────────────────────────────────────────
 
 
@@ -508,6 +520,7 @@ class FernhollowBrain(GeminiBrain):
         self.seen: dict[str, list[str]] = {}  # slot → products shown there
         self.ahead: dict[tuple[Any, ...], Any] = {}
         self.hits = 0
+        self.order: Order | None = None  # the order the returns desk is working on
         self._fallback = FallbackLine()
 
     # ─── Session ────────────────────────────────────────────────────────
@@ -729,6 +742,9 @@ class FernhollowBrain(GeminiBrain):
             self.add_to_cart,
             self.suggest_finish,
             self.store_policy,
+            self.find_order,
+            self.start_return,
+            self.check_exchange,
         ]
 
     @needs_result_now
@@ -1385,6 +1401,105 @@ class FernhollowBrain(GeminiBrain):
         self.session.dispatch(OpenPolicy(topic=request.topic))
         landed("The policy is on screen.", "Here's the policy.")
         return _prose(f"The {request.topic} policy is open.", policy=policy_text(request.topic))
+
+    # ─── Returns desk ───────────────────────────────────────────────────
+
+    @needs_result_now
+    async def find_order(self, request: OrderRequest) -> str:
+        """Look an order up for a return: its lines, and for each whether it can
+        go back under the returns policy. Answer from the result: say plainly
+        when a line is outside the window or not delivered yet."""
+        order = lookup_order(request.order_number)
+        if order is None:
+            return _not_done(
+                f"there is no order {request.order_number!r}",
+                "Ask them to read the order number from their confirmation, e.g. FH-20418.",
+            )
+        self.order = order
+        lines: list[str] = []
+        for line in order.lines:
+            match line.status:
+                case "eligible":
+                    when = f"eligible — delivered {line.days_since_delivery} days ago, {line.days_left} days left in the {WINDOW_DAYS}-day window"
+                case "outside_window":
+                    when = f"outside the window — delivered {line.days_since_delivery} days ago; returns are {WINDOW_DAYS} days from delivery"
+                case "not_delivered":
+                    when = "not delivered yet — it can go back once it has arrived"
+            lines.append(
+                f"{line.title} ({line.variant}), qty {line.qty} — {when} [id {line.product_id}]"
+            )
+        policy = None
+        if not order.eligible:
+            policy = [
+                *policy_text("returns"),
+                "Point them to the care guide (policy/care) and to contacting the store; never promise an exception.",
+            ]
+        logger.info(
+            "fernhollow: find_order {} → {}", order.number, [line.status for line in order.lines]
+        )
+        return _prose(
+            f"Order {order.number}: {len(order.eligible)} of {len(order.lines)} lines can be returned.",
+            lines=lines,
+            policy=policy,
+            next="start_return to open the form with this order"
+            if order.eligible
+            else "no form: explain the policy honestly",
+        )
+
+    async def start_return(self, request: OrderRequest) -> str:
+        """Open the returns form with the order filled in. Only for an order
+        find_order showed has a line that can go back."""
+        order = lookup_order(request.order_number)
+        if order is None:
+            return _not_done(
+                f"there is no order {request.order_number!r}", "Look it up with find_order first."
+            )
+        if not order.eligible:
+            return _not_done(
+                f"nothing on {order.number} can be returned", "Explain the policy honestly instead."
+            )
+        self.order = order
+        page = f"returns/start?order={order.number}"
+        self._move(page=page, product=None)
+        self.session.dispatch(Navigate(page=page))
+        landed("The returns form is open, with your order in.", "Here's the returns form.")
+        return _prose(
+            f"The returns form is open with order {order.number} filled in. The shopper types their own email.",
+            returnable=[
+                f"{line.title} ({line.variant}) [id {line.product_id}]" for line in order.eligible
+            ],
+        )
+
+    @needs_result_now
+    async def check_exchange(self, request: ExchangeRequest) -> str:
+        """For an exchange: the other real option values of a product on the order."""
+        order = self.order
+        line = None
+        if order is not None:
+            ref = request.product.strip().lower()
+            line = next(
+                (x for x in order.lines if ref == x.product_id or ref in x.title.lower()),
+                None,
+            )
+        product_id = line.product_id if line else request.product.strip()
+        p = CATALOG.get(product_id)
+        if p is None:
+            return _not_done(
+                f"I cannot tell which product '{request.product}' is",
+                "Ask which line of the order.",
+            )
+        options = exchange_options(p.id, line.variant_id if line else None)
+        if not options:
+            return _not_done(
+                f"{p.title} comes in no other {p.option_name.lower()}",
+                "Offer a refund or store credit.",
+            )
+        return _prose(
+            f"{p.title} also comes in: "
+            + ", ".join(v for _, v in options)
+            + f" ({p.option_name.lower()}).",
+            variants=[f"{v} [variant {vid}]" for vid, v in options],
+        )
 
     # ─── Browser → brain ────────────────────────────────────────────────
 

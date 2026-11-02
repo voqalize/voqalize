@@ -113,13 +113,13 @@ def _story() -> ScriptedGemini:
                 reply("That's enough to design with. Shall I put the room together?"),
             ],
             "Yes, put it together.": [
-                reply_and_call("Let me pull a room together.", "build_room", request={}),
+                reply_and_call("A wood-and-modern office, coming up.", "build_room", request={}),
                 reply("Here's a wood-and-modern office, with most of the budget on the chair."),
             ],
             # The barge-in: the line streams, the shopper talks over it, and the
             # call never arrives — the board must not move.
             "Hmm, the lamp": Reply(
-                chunks=("Let me find ", "you another ", "lamp that ", "suits the desk."),
+                chunks=("Another lamp ", "that keeps ", "the wood going ", "with the desk."),
                 chunk_delay=0.25,
                 calls=(("swap_piece", {"request": {"slot": "lamp"}}),),
             ),
@@ -152,7 +152,7 @@ def _story() -> ScriptedGemini:
                 reply("The first shares the wood."),
             ],
             "Can we make the budget go further?": [
-                reply_and_call("Let me look at the sale prices.", "stretch_budget", request={}),
+                reply_and_call("Sale prices first.", "stretch_budget", request={}),
                 reply(
                     "The desk has an on-sale look-alike, which saves three hundred thirty-nine dollars."
                 ),
@@ -354,7 +354,7 @@ async def test_a_spoken_yes_adds_after_the_confirmation() -> None:
         {
             "Build me a home office around two thousand.": [
                 Reply(
-                    text="Let me pull one together.",
+                    text="A home office around two thousand.",
                     calls=(
                         ("update_brief", {"update": {"room": "home-office", "budget": 2000}}),
                         ("build_room", {"request": {}}),
@@ -492,8 +492,10 @@ def test_marks_are_reads() -> None:
         "stretch_budget",
         "show",
         "suggest_finish",
+        "find_order",
+        "check_exchange",
     }
-    assert len(brain.tools) == 16
+    assert len(brain.tools) == 19
 
 
 def test_prompt_names_only_what_exists() -> None:
@@ -518,3 +520,98 @@ def test_prompt_names_only_what_exists() -> None:
     assert f"Styles named: {', '.join(styles)}." in prompt
     assert "scandinavian" not in prompt.lower()
     assert "don't sell" not in prompt.lower() and "do not sell" not in prompt.lower()
+
+
+# ─── The returns desk ─────────────────────────────────────────────────────────
+
+
+def _returns() -> ScriptedGemini:
+    return ScriptedGemini(
+        {
+            "I'd like to return something from FH-20418.": [
+                reply_and_call(
+                    "Order FH-20418, coming up.",
+                    "find_order",
+                    request={"order_number": "FH-20418"},
+                ),
+                reply_and_call(
+                    "All three pieces can go back — you're well inside the thirty days.",
+                    "start_return",
+                    request={"order_number": "FH-20418"},
+                ),
+            ],
+            "Could I swap the chair for another finish?": [
+                reply_and_call(
+                    "The chair's other finish is below.",
+                    "check_exchange",
+                    request={"product": "desk chair"},
+                ),
+                reply("It also comes in walnut."),
+            ],
+            "And order FH-20155?": [
+                reply_and_call(
+                    "Order FH-20155, checking the dates.",
+                    "find_order",
+                    request={"order_number": "FH-20155"},
+                ),
+                reply(
+                    "That one arrived forty-one days ago, so it's past our thirty-day window. "
+                    "The care guide may help, and the team can talk it through."
+                ),
+            ],
+        }
+    )
+
+
+async def test_the_returns_desk_answers_honestly() -> None:
+    """FH-20418 is inside the window: every line eligible, and the form opens with
+    the order in. FH-20155 is past it: the result says so with the days, gives
+    the policy and no form opens."""
+    llm = _returns()
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        check_turn(
+            rig, await rig.driver.user_says("I'd like to return something from FH-20418."), units=2
+        )
+        found = _results(llm.captured_contents[-1])["find_order"]
+        assert "3 of 3 lines can be returned" in found
+        assert "24 days left in the 30-day window" in found
+        assert "sam" not in found.lower() and "@" not in found, "personal data in a tool result"
+        assert rig.command("navigate")["page"] == "returns/start?order=FH-20418"
+
+        check_turn(
+            rig, await rig.driver.user_says("Could I swap the chair for another finish?"), units=2
+        )
+        assert "Walnut" in _results(llm.captured_contents[-1])["check_exchange"]
+
+        pages = len([c for c in rig.driver.ui_commands if c.get("command") == "navigate"])
+        check_turn(rig, await rig.driver.user_says("And order FH-20155?"), units=2)
+        late = _results(llm.captured_contents[-1])["find_order"]
+        assert "0 of 1 lines can be returned" in late
+        assert "delivered 41 days ago" in late and "30 days from delivery" in late
+        assert "never promise an exception" in late
+        assert len([c for c in rig.driver.ui_commands if c.get("command") == "navigate"]) == pages
+
+
+def test_mira_never_opens_on_an_acknowledgement() -> None:
+    """One acknowledgement, upstream: Voqalize's own ack covers the wait, so no
+    line Mira says — the greeting, every scripted reply here, and every landed
+    line the brain can speak in a silent turn — opens on one of her own."""
+    import inspect
+
+    from voqalize_demos._loaded.fernhollow import brain as fb
+    from voqalize_demos._loaded.fernhollow.prompt import ACK_OPENER
+
+    lines = [GREETING]
+    for script in (_story(), _returns()):
+        for cursor in script._cursors.values():  # pyright: ignore[reportPrivateUsage]
+            lines += [step.spoken for step in cursor.steps if step.spoken]
+    source = inspect.getsource(fb)
+    landed = re.findall(r'landed\(\s*((?:f?"[^"]*",?\s*)+)\)', source)
+    assert len(landed) >= 15, landed
+    for group in landed:
+        lines += re.findall(r'f?"([^"]*)"', group)
+    for line in lines:
+        first = re.split(r"(?<=[.!?—])\s", line.strip(), maxsplit=1)[0]
+        assert not ACK_OPENER.match(first), f"opens on an acknowledgement: {line!r}"
+    assert ACK_OPENER.match("Let me check that.") and ACK_OPENER.match("Sure! Here it is.")
