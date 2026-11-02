@@ -31,13 +31,17 @@ export type ClientHandler = (...args: any[]) => void;
  * imported, so a `PipecatClient` of any version in the peer range (and of any
  * copy of the package, which a linked or bundled site may have two of) fits:
  * `on`/`off` for `uiCommand`, `botOutput`, `botTtsText`,
- * `botStartedSpeaking`, `botStoppedSpeaking` and `userStartedSpeaking`, and
- * `sendUIEvent`.
+ * `botStartedSpeaking`, `botStoppedSpeaking` and `userStartedSpeaking`,
+ * `sendUIEvent`, and `state`.
  */
 export interface StageClient {
   on(event: string, handler: ClientHandler): unknown;
   off(event: string, handler: ClientHandler): unknown;
   sendUIEvent(event: string, payload?: unknown): void;
+  /** Pipecat's transport state. `sendUIEvent` throws unless it is `"ready"`,
+   *  and a site usually makes its client before the call starts — so Stage
+   *  sends nothing until then. A client without one is taken as ready. */
+  readonly state?: string;
 }
 
 export interface AttachOptions {
@@ -76,7 +80,11 @@ export function attachStage(client: StageClient, opts: AttachOptions): Attached 
   let outputSeen = false;
 
   const send = (ev: StageResult | StageHello | StageProgress | StageEvent) => {
-    const sender = (event: string, payload?: unknown) => client.sendUIEvent(event, payload);
+    // Off-call there is no brain to tell: drop it, as `sendAppEvent` does for a
+    // null sender. Pipecat would throw, and a throw here lands in whatever
+    // effect sent it — a route change's hello took the whole page down.
+    const ready = client.state === undefined || client.state === "ready";
+    const sender = ready ? (event: string, payload?: unknown) => client.sendUIEvent(event, payload) : null;
     if ("name" in ev) sendAppEvent(sender, { event: "stage_event", payload: ev });
     else if ("phase" in ev) sendAppEvent(sender, { event: "stage_progress", payload: ev });
     else if ("call_ref" in ev) sendAppEvent(sender, { event: "stage_result", payload: ev });

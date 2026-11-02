@@ -56,6 +56,24 @@ describe("attachStage", () => {
     expect([...f.handlers.values()].every((s) => s.size === 0)).toBe(true);
   });
 
+  it("sends nothing until the client is ready, rather than throwing", () => {
+    const f = fakeClient();
+    const c = f.client as unknown as { state: string; sendUIEvent: (e: string, p?: unknown) => void };
+    const real = c.sendUIEvent;
+    // Pipecat's own guard: off-call, sendUIEvent throws.
+    c.sendUIEvent = (e, p) => {
+      if (c.state !== "ready") throw new Error("Attempt to call sendUIEvent when transport not in ready state.");
+      real(e, p);
+    };
+    c.state = "disconnected";
+    const a = attachStage(f.client, { onMove: () => {} });
+    expect(() => a.hello()).not.toThrow();
+    expect(f.sent).toEqual([]);
+    c.state = "ready";
+    a.hello();
+    expect(f.sent.map((s) => s.event)).toEqual(["stage_hello"]);
+  });
+
   it("feeds the timeline, prefers botOutput, and reports interrupted cues as refused", async () => {
     vi.useFakeTimers();
     const f = fakeClient();
