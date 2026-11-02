@@ -210,3 +210,26 @@ whole sequence deterministically with `stage.send(..., queue=False)`: find → s
 reason + condition → next → resolution → next → collection (+ window) → next → review, and reports back
 which step it reached and any refusal. Emily asks only for what is missing, one question at a time, then
 calls it; she never relies on many spoken cues to fill a form. Every turn that acts also says one line.
+
+## v5 — Emily filters the page you are on (owner, 2026-11-03)
+
+Found live: on the Dining page, "filter material to ceramic" sent the shopper to Emily's own `/picks`
+listing instead of using the Dining page's filter rail. Filters must be **visible on the page itself**:
+the option is ringed and ticked exactly as a click would, and the grid, count and URL update in place.
+
+**Page → brain:** `listing_viewed{page, title, facets:{<facet>:[values…]}, active:{<facet>:[values…]},
+price:{min,max}?, sort, count}` on arrival at any listing (room, category, sale, search) and on every
+change, by visitor or by Emily (`silent`). Facet names and values are exactly the rail's labels.
+
+**Stage moves on listing pages (all `reversible`, all ring the real control first, answer one line):**
+- `listing.filter{facet, value}` — ticks that option in the rail (refused with the rail's options if
+  the value is not offered on this page).
+- `listing.unfilter{facet, value}` / `listing.clear_filters{}`.
+- `listing.price{min?, max?}` — sets the price range controls.
+- `listing.sort{by}` — the page's own sort control.
+
+**Brain rule:** `set_filters` first maps the shopper's words to the **current page's** facets and
+values. If the current listing can express it, Emily applies it there with the moves above — no
+navigation. If not, she navigates to the best room or category page that can (in-app, no reload) and
+then applies it on that page's rail. `/picks` (`show_products`) is kept only for results no single
+listing page can show (e.g. mixed categories from a circle). The assumption is still said aloud.
