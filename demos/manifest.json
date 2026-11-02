@@ -70,6 +70,11 @@
       "name": "petwell",
       "title": "Petwell Appointment Desk",
       "tagline": "A voice booking desk for a vet hospital chain — clinic or home visit, branch, reason and time, filled in on screen as the pet owner talks."
+    },
+    {
+      "name": "fernhollow",
+      "title": "Fernhollow Home",
+      "tagline": "A home & furniture store where Emily, a design adviser, furnishes a room by voice: matching sets within budget, comparisons, look-alikes and real sale prices, all on screen."
     }
   ]
 }

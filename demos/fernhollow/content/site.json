@@ -1,0 +1,73 @@
+{
+  "hero": {
+    "headline": "Furniture for calm, lived-in homes",
+    "subline": "Sofas, beds, desks, dining tables and everything that finishes a room, made in oak, walnut, linen and wool.",
+    "cta": {
+      "label": "Shop furniture",
+      "href": "/shop"
+    }
+  },
+  "rooms": {
+    "living": "Sofas, coffee tables, rugs and lamps for a living room that invites you to sit down and stay a while.",
+    "dining": "Tables, chairs, tableware and lighting for long dinners and relaxed mornings around one surface.",
+    "bedroom": "Low beds, linen bedding, soft curtains and bedside lamps for a quiet room built around rest.",
+    "home-office": "Desks, chairs, shelving and task light for a workspace you will actually want to sit down in.",
+    "bath": "Towels, mats and bath rugs in soft textures and gentle colours for a bathroom that feels like a small retreat.",
+    "kitchen": "Cookware and food storage that work hard every day and look good left out on the counter.",
+    "decor": "Vases, candle holders, frames, baskets and botanicals: the finishing pieces that make a room yours."
+  },
+  "categories": {
+    "artificial-flora": "Stems, arrangements and potted greenery, many in silk or faux, for corners where fresh flowers struggle.",
+    "artwork": "Quiet prints, canvases and sculptural pieces in soft, natural tones to give a wall or shelf a focal point.",
+    "barware": "Glassware, tools and trays for a drink at the door or a slow evening in.",
+    "bath-mats-rugs": "Bath mats and rugs in chenille, cotton, foam and stone-like finishes, in calm, quiet colours.",
+    "bath-towels-washcloths": "Towels and washcloths, mostly in cotton and linen, in sand, taupe and other gentle colours.",
+    "bed-sheets": "Sheets, pillowcases and duvet covers in linen, cotton and more, in a palette of quiet neutrals.",
+    "beds-bed-frames": "Bed frames in oak, walnut and other woods, many low and simple, to anchor a restful bedroom.",
+    "candle-holders": "Candle holders in wood, marble, bronze and iron for warm, low light at the table or on a shelf.",
+    "chandeliers": "Chandeliers and pendants in brass, glass, wood and iron to set the overhead layer of light.",
+    "clocks": "Desk, mantel and wall clocks in wood, stone and brass, made to be looked at as much as read.",
+    "coffee-tables": "Coffee tables in oak, walnut and ash, from low and wide to compact and rounded.",
+    "cookware": "Pans, pots and casseroles for everyday cooking, with a few pieces handsome enough to serve from.",
+    "curtains-drapes": "Linen and cotton curtains, blackout panels and throws to soften windows and filter the light.",
+    "desks": "Writing desks, modular desks and compact desks in oak, walnut, ash and more for working at home.",
+    "dining-chairs": "Dining chairs in solid wood, many with linen or upholstered seats, for lingering at the table.",
+    "dining-tables": "Dining tables in oak, walnut, teak and more, sized for everyday meals and gatherings.",
+    "dinnerware": "Plates, bowls and serving pieces in stoneware, porcelain and ceramic with soft, earthy glazes.",
+    "entertainment-centers-tv-stands": "Media consoles, TV stands and sideboards in warm woods that keep the living room in order.",
+    "floor-lamps": "Floor lamps in wood and brass, including arcs and linen drums, for the middle layer of light.",
+    "food-storage": "Glass, stoneware and stackable containers that keep the pantry and counter tidy.",
+    "household-storage-baskets": "Linen, canvas and woven baskets that hide everyday clutter and look good doing it.",
+    "mirrors": "Round, arched and full-length mirrors in wood and metal frames to borrow light and add depth.",
+    "office-chairs": "Task and executive chairs in mesh, fabric and leather, with adjustment for long working days.",
+    "picture-frames": "Frames in oak, walnut, metal and linen to display photographs, prints and keepsakes.",
+    "quilts-comforters": "Quilts, comforters, duvets and throws for layering a bed through the seasons.",
+    "rugs": "Wool, cotton, jute and linen rugs and runners to ground a room and soften the floor.",
+    "serveware": "Boards, bowls, trays and utensils in wood and ceramic for serving from the centre of the table.",
+    "shelving": "Floating, modular and freestanding shelving in oak, walnut, ash and birch for books and objects.",
+    "sofas": "Sofas, loveseats and lounge chairs in linen, boucle and more, many on oak or walnut frames.",
+    "table-lamps": "Table lamps in ceramic, stoneware and wood with linen and fabric shades for warm, low light.",
+    "throw-pillows": "Cushions and pillows in linen, wool and cotton to add texture to a sofa, chair or bed.",
+    "vases": "Vases and bud vases in ceramic, porcelain and stoneware for a single stem or an armful."
+  },
+  "promises": [
+    {
+      "title": "Natural materials",
+      "text": "Wood, linen, wool, stoneware and brass, chosen to age well."
+    },
+    {
+      "title": "Free delivery over $500",
+      "text": "Standard delivery is free on orders over $500; otherwise a flat $49."
+    },
+    {
+      "title": "30-day returns",
+      "text": "Return unused items within 30 days of delivery for a refund."
+    },
+    {
+      "title": "Assembly available",
+      "text": "Our team can build your furniture for a flat $79 per item."
+    }
+  ],
+  "newsletter": "A short letter from the studio, now and then: new pieces, practical advice for your rooms, and nothing you did not ask for.",
+  "footerTagline": "Fernhollow. Calm, honest pieces for rooms that are lived in."
+}

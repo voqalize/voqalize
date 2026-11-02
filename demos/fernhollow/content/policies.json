@@ -1,0 +1,44 @@
+{
+  "returns": {
+    "window": "30 days from delivery",
+    "condition": "Items must be unused, undamaged, complete and in original condition; original packaging wherever possible.",
+    "refund": "Refunded to the original payment method once the item is received and checked.",
+    "notReturnable": "Used, washed, altered or damaged items, and furniture that has been assembled and taken apart, unless faulty.",
+    "damagedOrFaulty": "Tell us as soon as possible, ideally with a photo; we arrange a repair, replacement or refund.",
+    "howToStart": "Contact us or ask Emily with the order and item; we confirm the return and agree how it comes back.",
+    "exchanges": "Return the original item and place a new order for the one you want.",
+    "page": "policy/returns"
+  },
+  "delivery": {
+    "freeThreshold": 500,
+    "flatFee": 49,
+    "currency": "USD",
+    "summary": "Free standard delivery on orders over $500; otherwise a flat $49 per order.",
+    "perOrder": "The charge is per order, not per item.",
+    "timing": "No specific delivery dates are promised; we get in touch once the order is on its way and agree a day for large furniture.",
+    "stock": "Stock levels are not shown; if a piece is unavailable after ordering we contact you first.",
+    "page": "policy/delivery"
+  },
+  "assembly": {
+    "available": "For furniture: sofas, beds, desks, tables, chairs, shelving and storage.",
+    "fee": 79,
+    "currency": "USD",
+    "summary": "Assembly service for furniture at a flat $79 per item, built in the room you choose, packaging taken away.",
+    "excludes": "Wall mounting, electrical installation, moving or disposing of existing furniture, and decor or textiles.",
+    "diy": "Furniture that needs assembly comes with instructions.",
+    "page": "policy/assembly"
+  },
+  "care": {
+    "general": "Follow the product's own care label first; these are general guides.",
+    "wood": "Dust with a soft cloth along the grain, wipe spills at once, use coasters and trivets, keep away from heat and strong sun.",
+    "linen": "Wash cool to warm on gentle, no bleach, line or low dry; it softens with each wash and creases naturally.",
+    "boucle": "Vacuum gently with a soft brush, blot spills without rubbing, keep away from claws and velcro; professional clean for stains.",
+    "wool": "Vacuum without a beater bar, rotate rugs, blot spills with cold water; some early shedding is normal.",
+    "cotton": "Machine wash per label, darks separately at first, low tumble or line dry.",
+    "leather": "Dust, blot spills, condition every few months, keep from heat and sun, no household cleaners.",
+    "ceramic": "Check dishwasher, microwave and oven suitability first; hand wash handmade pieces; avoid sudden temperature changes.",
+    "brass": "Dust with a dry cloth; patina is natural; polish only unlacquered brass with a brass polish.",
+    "castIron": "Hand wash, dry at once, oil lightly to keep seasoned; scrub and reseason if rust appears.",
+    "page": "policy/care"
+  }
+}

@@ -1,0 +1,118 @@
+{
+ "$comment": "Fictional demo orders for the Fernhollow returns desk. Real catalog products; dates are relative (days ago) so eligibility holds whenever the demo runs. Emails use the reserved example.com domain.",
+ "return_window_days": 30,
+ "orders": [
+  {
+   "number": "FH-20418",
+   "email": "sam.rivera@example.com",
+   "name": "Sam Rivera",
+   "placed_days_ago": 12,
+   "delivered_days_ago": 6,
+   "status": "delivered",
+   "lines": [
+    {
+     "product_id": "modern-home-office-desk-with-chestnut-brown-finish",
+     "variant_id": "27504",
+     "title": "Modern Home Office Desk with Chestnut Brown Finish",
+     "variant": "Walnut",
+     "qty": 1,
+     "unit_price": 499.99
+    },
+    {
+     "product_id": "desk-chair-with-aluminum-frame",
+     "variant_id": "31094",
+     "title": "Desk chair with aluminum frame",
+     "variant": "Ash",
+     "qty": 1,
+     "unit_price": 289.0
+    },
+    {
+     "product_id": "sculpted-matte-ceramic-table-lamp",
+     "variant_id": "30302",
+     "title": "Sculpted Matte Ceramic Table Lamp",
+     "variant": "Brushed Brass",
+     "qty": 1,
+     "unit_price": 179.0
+    }
+   ],
+   "note": "Home office order: the main demo return (well inside 30 days).",
+   "total": 967.99
+  },
+  {
+   "number": "FH-20377",
+   "email": "sam.rivera@example.com",
+   "name": "Sam Rivera",
+   "placed_days_ago": 26,
+   "delivered_days_ago": 19,
+   "status": "delivered",
+   "lines": [
+    {
+     "product_id": "oatmeal-wool-runner",
+     "variant_id": "27401",
+     "title": "Oatmeal Wool Runner",
+     "variant": "Linen",
+     "qty": 1,
+     "unit_price": 179.0
+    },
+    {
+     "product_id": "textured-wool-cushion-in-pebble-grey",
+     "variant_id": "30682",
+     "title": "Textured Wool Cushion in Pebble Grey",
+     "variant": "Linen",
+     "qty": 2,
+     "unit_price": 54.0
+    }
+   ],
+   "note": "Living room order: inside 30 days.",
+   "total": 287.0
+  },
+  {
+   "number": "FH-20155",
+   "email": "jo.chen@example.com",
+   "name": "Jo Chen",
+   "placed_days_ago": 48,
+   "delivered_days_ago": 41,
+   "status": "delivered",
+   "lines": [
+    {
+     "product_id": "aged-ash-side-chair",
+     "variant_id": "30160",
+     "title": "Aged Ash Side Chair",
+     "variant": "Oak",
+     "qty": 4,
+     "unit_price": 395.0
+    }
+   ],
+   "note": "Outside the 30-day window: Emily must say so honestly and offer the care guide / contact page.",
+   "total": 1580.0
+  },
+  {
+   "number": "FH-20502",
+   "email": "jo.chen@example.com",
+   "name": "Jo Chen",
+   "placed_days_ago": 2,
+   "delivered_days_ago": null,
+   "status": "on_its_way",
+   "lines": [
+    {
+     "product_id": "ivory-linen-king-sheet-set",
+     "variant_id": "30098",
+     "title": "Ivory Linen king sheet set",
+     "variant": "Linen",
+     "qty": 1,
+     "unit_price": 198.0
+    },
+    {
+     "product_id": "matte-ceramic-vase-porcelain-cream",
+     "variant_id": "30892",
+     "title": "Matte Ceramic Vase Porcelain Cream",
+     "variant": "Small",
+     "qty": 1,
+     "unit_price": 56.0
+    }
+   ],
+   "note": "Not delivered yet: a return can start once it arrives.",
+   "total": 254.0
+  }
+ ]
+}
