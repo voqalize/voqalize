@@ -141,6 +141,10 @@ DEMOS: dict[str, Expected] = {
     # both legs for the toggle or for English heard — javier in both. Asserted
     # in test_figurella_e2e.py.
     "figurella": Expected(voice="omnivoice/javier", language="es", provider="openai"),
+    # Mira, Fernhollow's design adviser: English only, in Emily's voice — the
+    # voice the `emily` avatar the page mounts was made for. Asserted in
+    # test_fernhollow_e2e.py.
+    "fernhollow": Expected(voice="omnivoice/emily", language="en"),
     "forge": Expected(voice="omnivoice/gauri", language="en"),
     "interview_bot": Expected(voice="omnivoice/gauri", language="en"),
     # Aria on karnatakadigital.in opens in English and moves both legs to Kannada
