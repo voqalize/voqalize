@@ -878,3 +878,99 @@ async def test_a_page_answered_act_says_its_outcome_once(
     assert [a.move for a in screen.sent if type(a).__name__ == "StageMove"].count(
         "returns.submit"
     ) == 1
+
+
+# ─── v5: the page's own filter rail ───────────────────────────────────────────
+
+DINING = {
+    "Material": ("Canvas", "Cast Iron", "Ceramic", "Wicker"),
+    "Finish": ("Brushed Brass", "Matte Black", "Oak", "Walnut"),
+    "Style": ("Modern", "Rustic"),
+}
+
+
+@pytest.mark.parametrize(
+    ("words", "filters", "unmatched"),
+    [
+        (["ceramic"], [("Material", "Ceramic")], []),
+        (["material ceramic"], [("Material", "Ceramic")], []),
+        (["Finish: walnut"], [("Finish", "Walnut")], []),
+        (["seramic"], [("Material", "Ceramic")], []),  # a near spelling
+        (["cast iron", "modern"], [("Material", "Cast Iron"), ("Style", "Modern")], []),
+        (["wood"], [("Finish", "Oak"), ("Finish", "Walnut")], []),  # a broad word, said aloud
+        (["linen"], [], ["linen"]),
+    ],
+)
+def test_words_map_to_the_rail(
+    words: list[str], filters: list[tuple[str, str]], unmatched: list[str]
+) -> None:
+    from voqalize_demos._loaded.fernhollow import rail
+
+    m = rail.map_words(words, DINING)
+    assert list(m.filters) == filters and list(m.unmatched) == unmatched
+    if words == ["wood"]:
+        assert m.assumptions == ("I read 'wood' as Oak and Walnut",)
+
+
+def test_sort_words_and_the_page_that_can() -> None:
+    from voqalize_demos._loaded.fernhollow import rail
+
+    assert rail.sort_key("cheapest first") == "price-asc"
+    assert rail.sort_key("most expensive") == "price-desc"
+    assert rail.sort_key("price-desc") == "price-desc"
+    assert rail.sort_key("by colour") is None
+    assert rail.page_facets("category/desks") == {"Finish": ("Ash", "Walnut")}
+    found = rail.best_page(["walnut"], category="desks")
+    assert found is not None and found[0] == "category/desks"
+    assert rail.best_page(["unobtainium"]) is None
+    start = time.perf_counter()
+    rail.best_page(["linen", "modern"])
+    assert (time.perf_counter() - start) * 1000 < 10
+
+
+async def test_set_filters_on_the_rail_is_fast() -> None:
+    from voqalize_demos._loaded.fernhollow.app_events import ListingViewed
+
+    brain, screen = _brain()
+    brain.screen = fb.replace(brain.screen, page="room/dining")  # pyright: ignore[reportAttributeAccessIssue]
+    facets = [{"name": k, "kind": "options", "values": list(v)} for k, v in DINING.items()]
+    facets.append(
+        {"name": "Price", "kind": "bands", "bands": [{"label": "Under $300", "max": 300}]}
+    )
+    brain.apply_event(
+        ListingViewed.model_validate(
+            {
+                "page": "room/dining",
+                "title": "Dining",
+                "facets": facets,
+                "sort": {"value": "featured", "options": ["featured", "price-asc"]},
+            }
+        )
+    )
+    start = time.perf_counter()
+    await brain.set_filters(fb.FilterRequest(materials=["ceramic"], price_max=200, sort="cheapest"))
+    assert (time.perf_counter() - start) * 1000 < 10
+    moves = [(a.move, dict(a.args)) for a in screen.sent if type(a).__name__ == "StageMove"]
+    assert moves == [
+        ("listing.filter", {"facet": "Material", "value": "Ceramic"}),
+        ("listing.range", {"facet": "Price", "max": 200}),
+        ("listing.sort", {"by": "price-asc"}),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("said", "bounds"),
+    [
+        ("under 300", (None, 300)),
+        ("under three hundred dollars", (None, 300)),
+        ("between 2 and 4 hundred", (200, 400)),
+        ("from 100 to 250", (100, 250)),
+        ("over 2 thousand", (2000, None)),
+        ("at least $150", (150, None)),
+        ("tall", None),
+    ],
+)
+def test_spoken_numbers(said: str, bounds: Any) -> None:
+    from voqalize_demos._loaded.fernhollow import rail
+
+    assert rail.numbers(said) == bounds

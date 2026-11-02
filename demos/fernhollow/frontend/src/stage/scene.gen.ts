@@ -68,6 +68,85 @@ export const scene = defineScene({
     {
       "id": "returns.submit",
       "class": "confirmed"
+    },
+    {
+      "id": "listing.filter",
+      "verb": "filter",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "facet"
+        },
+        {
+          "name": "value"
+        }
+      ]
+    },
+    {
+      "id": "listing.unfilter",
+      "verb": "unfilter",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "facet"
+        },
+        {
+          "name": "value",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "id": "listing.clear_filters",
+      "verb": "clear",
+      "class": "reversible"
+    },
+    {
+      "id": "listing.range",
+      "verb": "range",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "facet"
+        },
+        {
+          "name": "min",
+          "type": "integer",
+          "optional": true
+        },
+        {
+          "name": "max",
+          "type": "integer",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "id": "listing.price",
+      "verb": "price",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "min",
+          "type": "integer",
+          "optional": true
+        },
+        {
+          "name": "max",
+          "type": "integer",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "id": "listing.sort",
+      "verb": "sort",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "by"
+        }
+      ]
     }
   ],
   "slices": [
@@ -155,4 +234,4 @@ export const scene = defineScene({
   ]
 });
 
-export const SPEC_SHA256 = "77c054e830ae17299aadaecf873f95e32370987f1b33662425ac6aa19b544cdc";
+export const SPEC_SHA256 = "fed4a1a6733f8d2b46df3c261445a3b4883fb1166811d5a40574aaabb3c76df1";

@@ -19,26 +19,32 @@ from voqalize.sdk import AppEvent, AppEvents
 
 __all__ = [
     "FERNHOLLOW_EVENTS",
+    "BandIn",
     "CartChanged",
     "CartLineIn",
     "CheckoutChanged",
     "CheckoutStepReached",
     "ChoiceMade",
     "ConfirmResult",
+    "FacetIn",
+    "FacetValueIn",
     "FernhollowEvent",
     "FilterChanged",
     "FiltersIn",
     "LayoutIn",
+    "ListingViewed",
     "OrderIn",
     "OrderLineIn",
     "OrdersKnown",
     "PageViewed",
     "Pointing",
+    "PriceIn",
     "ProductViewed",
     "RoomBoardEdited",
     "Selection",
     "SelectionCleared",
     "ShortlistChanged",
+    "SortIn",
     "ThingIn",
     "VariantSelected",
     "VisibleProducts",
@@ -167,6 +173,66 @@ class Selection(AppEvent):
     by: str = "visitor"
 
 
+class PriceIn(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    min: float | None = None
+    max: float | None = None
+
+
+class BandIn(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    label: str = ""
+    min: float | None = None
+    max: float | None = None
+
+
+class FacetValueIn(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    value: str = ""
+    count: int | None = None
+
+
+class FacetIn(BaseModel):
+    """One facet of the page's rail, by kind: ``options`` (values to tick),
+    ``toggle`` (one switch), ``bands`` (labelled ranges) or ``range`` (min/max)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    name: str = ""
+    kind: str = "options"
+    values: list[FacetValueIn | str] = Field(default_factory=list[FacetValueIn | str])
+    active: list[str] | bool = Field(default_factory=list[str])
+    bands: list[BandIn] = Field(default_factory=list[BandIn])
+    min: float | None = None
+    max: float | None = None
+    multi: bool | None = None
+
+
+class SortIn(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    value: str = "featured"
+    options: list[str | dict[str, str]] = Field(default_factory=list[str | dict[str, str]])
+
+
+class ListingViewed(AppEvent):
+    """A listing page (room, category, sale, search) as it stands: its rail's
+    facets and values (the rail's own labels), what is ticked, the price range,
+    the sort and the count. Sent on arrival and on every change. Silent."""
+
+    page: str = ""
+    title: str = ""
+    facets: list[FacetIn] | dict[str, list[str]] = Field(default_factory=list[FacetIn])
+    active: dict[str, list[str]] = Field(default_factory=dict[str, list[str]])
+    price: PriceIn | None = None
+    sort: SortIn | str = "featured"
+    count: int = 0
+    by: str = "visitor"
+
+
 class SelectionCleared(AppEvent):
     """The circled selection was cleared (its clear button, Esc, or a new circle)."""
 
@@ -258,6 +324,7 @@ type FernhollowEvent = (
     | Selection
     | SelectionCleared
     | OrdersKnown
+    | ListingViewed
 )
 
 FERNHOLLOW_EVENTS = AppEvents[FernhollowEvent](
@@ -277,4 +344,5 @@ FERNHOLLOW_EVENTS = AppEvents[FernhollowEvent](
     Selection,
     SelectionCleared,
     OrdersKnown,
+    ListingViewed,
 )

@@ -131,13 +131,13 @@ export function CircleLayer() {
   }, []);
 
   // A new page starts with nothing circled.
-  const firstKey = useRef(location.key);
+  const firstKey = useRef(location.pathname);
   useEffect(() => {
-    if (location.key === firstKey.current) return;
-    firstKey.current = location.key;
+    if (location.pathname === firstKey.current) return;
+    firstKey.current = location.pathname;
     cancel();
     useSelection.getState().clear();
-  }, [location.key, cancel]);
+  }, [location.pathname, cancel]);
 
   useEffect(() => {
     api = { begin, move, end };

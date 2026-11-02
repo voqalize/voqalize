@@ -94,8 +94,14 @@ export function stageHooks(React: ReactHooks) {
     React.useEffect(() => {
       if (!stage) return;
       const live = stage as { agent: AppStage<S>["agent"] };
+      // Each registration has its own liveness. Clearing the shared ref in the
+      // cleanup instead broke every effect that runs twice — React's
+      // StrictMode in development does exactly that (run, clean up, run), and
+      // so does a change of `stage` — leaving the re-registered performer to
+      // refuse every move as "not on screen" while the page was mounted.
+      let mounted = true;
       stage.scene.register(stage.moves, id, async (args, c) => {
-        const run = latest.current;
+        const run = mounted ? latest.current : null;
         if (!run) return c.refuse("move", "that part of the app is not on screen");
         live.agent = { callRef: c.callRef, until: Number.POSITIVE_INFINITY };
         try {
@@ -105,7 +111,7 @@ export function stageHooks(React: ReactHooks) {
         }
       });
       return () => {
-        latest.current = null;
+        mounted = false;
       };
     }, [stage, id]);
   }

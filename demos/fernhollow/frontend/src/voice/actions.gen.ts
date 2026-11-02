@@ -332,6 +332,29 @@ export interface FilterChanged {
   by?: string;
 }
 
+/**
+ * A listing page (room, category, sale, search) as it stands: its rail's
+ * facets and values (the rail's own labels), what is ticked, the price range,
+ * the sort and the count. Sent on arrival and on every change. Silent.
+ */
+export interface ListingViewed {
+  page?: string;
+
+  title?: string;
+
+  facets?: FacetIn[] | Record<string, string[]>;
+
+  active?: Record<string, string[]>;
+
+  price?: PriceIn | null;
+
+  sort?: SortIn | string;
+
+  count?: number;
+
+  by?: string;
+}
+
 /** The orders the page holds — on connect and whenever the list changes. Silent. */
 export interface OrdersKnown {
   orders?: OrderIn[];
@@ -428,6 +451,14 @@ export interface VisibleProducts {
 
 // ── Shapes used by the messages above ──────────────────────────────
 
+export interface BandIn {
+  label?: string;
+
+  min?: number | null;
+
+  max?: number | null;
+}
+
 export interface BriefOut {
   room: string | null;
 
@@ -479,6 +510,34 @@ export interface ConfirmLine {
   variant_id: string;
 
   qty: number;
+}
+
+/**
+ * One facet of the page's rail, by kind: `options` (values to tick),
+ * `toggle` (one switch), `bands` (labelled ranges) or `range` (min/max).
+ */
+export interface FacetIn {
+  name?: string;
+
+  kind?: string;
+
+  values?: (FacetValueIn | string)[];
+
+  active?: string[] | boolean;
+
+  bands?: BandIn[];
+
+  min?: number | null;
+
+  max?: number | null;
+
+  multi?: boolean | null;
+}
+
+export interface FacetValueIn {
+  value?: string;
+
+  count?: number | null;
 }
 
 /** The filter chips as the page now holds them. */
@@ -594,6 +653,12 @@ export interface PieceOut {
   reason: string;
 }
 
+export interface PriceIn {
+  min?: number | null;
+
+  max?: number | null;
+}
+
 /** One argument the page could not use, and what it offers instead. */
 export interface Refusal {
   arg: string;
@@ -613,6 +678,12 @@ export interface SavingSwap {
   was: number;
 
   now: number;
+}
+
+export interface SortIn {
+  value?: string;
+
+  options?: (string | Record<string, string>)[];
 }
 
 /** One thing the shopper circled: a product, category, room or article. */
@@ -716,6 +787,7 @@ export type AppEvent =
   | { event: 'choice_made'; payload: ChoiceMade }
   | { event: 'confirm_result'; payload: ConfirmResult }
   | { event: 'filter_changed'; payload: FilterChanged }
+  | { event: 'listing_viewed'; payload: ListingViewed }
   | { event: 'orders_known'; payload: OrdersKnown }
   | { event: 'page_viewed'; payload: PageViewed }
   | { event: 'pointing'; payload: Pointing }
@@ -740,6 +812,7 @@ export const APP_EVENT_NAMES: readonly AppEventName[] = [
   'choice_made',
   'confirm_result',
   'filter_changed',
+  'listing_viewed',
   'orders_known',
   'page_viewed',
   'pointing',
