@@ -47,7 +47,7 @@ export const asReturnable = (o: PlacedOrder, now = Date.now()): DemoOrder & { pl
 
 /** Every order the desk can find: the shopper's own (newest first), then the demo orders. */
 export function allOrders(placed: PlacedOrder[] = useOrders.getState().orders): (DemoOrder & { placed?: true })[] {
-  const own = [...placed].sort((a, b) => b.placed_at.localeCompare(a.placed_at)).map((o) => asReturnable(o));
+  const own = [...placed].sort((a, b) => (b.placed_at ?? "").localeCompare(a.placed_at ?? "")).map((o) => asReturnable(o));
   return [...own, ...ORDERS.filter((d) => !own.some((o) => o.number === d.number))];
 }
 
