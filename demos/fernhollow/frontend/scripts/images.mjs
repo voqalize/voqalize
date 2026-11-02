@@ -46,9 +46,19 @@ async function original(product, image) {
   const n = image.file.split("/").pop();
   const local = join(localSource, product.sourceHandle ?? product.id, `${n}.png`);
   if (existsSync(local)) return readFile(local);
-  const res = await fetch(image.src);
-  if (!res.ok) throw new Error(`${image.src}: HTTP ${res.status}`);
-  return Buffer.from(await res.arrayBuffer());
+  // No local copy (a CI build): download, with a few retries for a flaky CDN.
+  let last;
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    try {
+      const res = await fetch(image.src, { signal: AbortSignal.timeout(30_000) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return Buffer.from(await res.arrayBuffer());
+    } catch (err) {
+      last = err;
+      await new Promise((r) => setTimeout(r, 500 * attempt ** 2));
+    }
+  }
+  throw new Error(`${image.src}: ${last instanceof Error ? last.message : last}`);
 }
 
 async function render(product, image) {

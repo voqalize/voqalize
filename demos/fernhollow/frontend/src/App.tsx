@@ -10,7 +10,7 @@ import { Home } from "./pages/Home";
 import { CategoryPage, RoomPage, SalePage, SearchPage, ShopPage } from "./pages/Listing";
 import { BoardPage, ComparePage, PicksPage } from "./pages/MiraViews";
 import { ProductPage } from "./pages/ProductPage";
-import { bindRouter } from "./voice/controller";
+import { bindRouter, navigatedBy } from "./voice/controller";
 import { debugMode, emit } from "./voice/events";
 import { VoiceDock } from "./voice/VoiceDock";
 
@@ -26,7 +26,7 @@ function Shell() {
   useEffect(() => bindRouter((to) => navigate(to), () => path.current), [navigate]);
 
   useEffect(() => {
-    emit("page_viewed", { path: location.pathname + location.search });
+    emit("page_viewed", { path: location.pathname + location.search }, navigatedBy());
     if (!location.hash) window.scrollTo({ top: 0 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname]);

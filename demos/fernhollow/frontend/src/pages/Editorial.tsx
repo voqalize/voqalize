@@ -125,7 +125,11 @@ export function ArticlePage() {
         </header>
         {hero ? (
           <figure className="article-hero">
-            <Photo file={hero.images[hero.images.length > 1 ? 1 : 0]} alt={hero.title} size={1000} eager sizes="(min-width: 900px) 70vw, 100vw" />
+            <div className="article-hero-photos">
+              {articlePhotos(hero.id, a.products).map((ph, i) => (
+                <Photo key={ph.file} file={ph.file} alt={ph.title} size={1000} eager={i === 0} sizes="(min-width: 900px) 45vw, 50vw" />
+              ))}
+            </div>
             <figcaption className="small">
               <Link to={`/product/${hero.id}`} className="link">
                 {hero.title}
@@ -162,6 +166,18 @@ export function ArticlePage() {
       ) : null}
     </article>
   );
+}
+
+/** Two portrait photos to open an article: the hero's own, then its second view or the next featured piece. */
+function articlePhotos(heroId: string, ids: string[]) {
+  const hero = getProduct(heroId)!;
+  const out = [{ file: hero.images[0], title: hero.title }];
+  const other = hero.images[1] ? { file: hero.images[1], title: hero.title } : (() => {
+    const p = productsByIds(ids).find((x) => x.id !== heroId);
+    return p ? { file: p.images[0], title: p.title } : null;
+  })();
+  if (other) out.push(other);
+  return out;
 }
 
 export function InfoPage({ slug: fixed }: { slug?: string }) {

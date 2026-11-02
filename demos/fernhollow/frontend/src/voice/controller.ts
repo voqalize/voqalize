@@ -162,8 +162,13 @@ const unmark = (...keys: string[]) =>
     return { marks };
   });
 
+let miraActedAt = 0;
+/** Who caused the page change that is landing now: Mira if she acted in the last moment. */
+export const navigatedBy = (): By => (Date.now() - miraActedAt < 1500 ? "mira" : "visitor");
+
 /** Remember the screen before a change, so `undo` can put it back. */
 function snapshot() {
+  miraActedAt = Date.now();
   const s = get();
   const slice = Object.fromEntries(SLICE_KEYS.map((k) => [k, s[k]])) as Partial<MiraState>;
   const snap: Snapshot = {
@@ -176,6 +181,13 @@ function snapshot() {
 }
 
 const isMira = (by: By) => by === "mira";
+
+/** Bring the room board on screen before changing it. */
+async function toBoard() {
+  if (currentPath() === "/board") return;
+  go("/board");
+  await wait(350);
+}
 
 // ── Commands (names and payloads mirror CONTRACT.md) ──────────────────────
 
@@ -295,6 +307,7 @@ export const mira = {
     if (!board) return;
     if (isMira(by)) {
       snapshot();
+      await toBoard();
       await ring(`slot:${p.slot}`);
     }
     const pieces = board.pieces.map((x) => (x.slot === p.slot ? p.piece : x));
@@ -354,7 +367,11 @@ export const mira = {
   async show_savings(p: Commands["show_savings"], by: By = "mira") {
     const board = get().board;
     if (!board) return;
-    if (isMira(by)) snapshot();
+    if (isMira(by)) {
+      snapshot();
+      await toBoard();
+      await ring("section:budget");
+    }
     // A saving is a swap: the cheaper piece takes the slot, and its tile shows was/now.
     const pieces = board.pieces.map((piece) => {
       const swap = p.swaps.find((s) => s.slot === piece.slot);
@@ -433,7 +450,7 @@ export const mira = {
     if (!last) return;
     set({ ...last.slice, history: history.slice(0, -1), confirm: null });
     useCart.getState().replace(last.cart, "visitor", true);
-    useShortlist.getState().set(last.shortlist, "mira");
+    useShortlist.setState({ ids: last.shortlist });
     go(last.path);
   },
 };

@@ -1,5 +1,5 @@
 import { Info, Lock } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { money } from "../data/catalog";
 import { deliveryFor } from "../data/content";
@@ -44,7 +44,7 @@ export function CartPage() {
           </div>
           <aside className="summary-card">
             <Totals />
-            <button type="button" className="btn btn-primary btn-block" onClick={() => navigate("/checkout")}>
+            <button type="button" className="btn btn-primary btn-block" data-dock-avoid onClick={() => navigate("/checkout")}>
               Check out
             </button>
             <DemoNote compact />
@@ -121,11 +121,13 @@ export function CheckoutPage() {
     }
   });
   const [step, setStep] = useState<"details" | "review">("details");
+  const [showSummary, setShowSummary] = useState(false);
+  const placed = useRef(false);
   const [errors, setErrors] = useState<Partial<Record<keyof Address, string>>>({});
   const { rows, total, saved } = priced(lines);
   const delivery = deliveryFor(total);
 
-  if (lines.length === 0) return <Navigate to="/cart" replace />;
+  if (lines.length === 0) return placed.current ? null : <Navigate to="/cart" replace />;
 
   const field = (k: keyof Address, props: React.InputHTMLAttributes<HTMLInputElement> = {}) => (
     <div className={`field field-${k}`}>
@@ -175,14 +177,15 @@ export function CheckoutPage() {
     } catch {
       /* storage unavailable: the confirmation reads the state below */
     }
-    clear();
+    placed.current = true;
     navigate("/checkout/confirmation", { state: order });
+    clear();
   };
 
   return (
     <div className="checkout">
       <div className="wrap">
-        <Crumbs items={[{ label: "Cart", to: "/cart" }, { label: "Details", to: step === "review" ? "/checkout" : undefined }, { label: "Review" }]} />
+        <Crumbs items={[{ label: "Cart", to: "/cart" }, { label: "Checkout" }]} />
         <ol className="steps" aria-label="Checkout steps">
           <li aria-current={step === "details" ? "step" : undefined}>
             <span className="step-n">1</span> Details
@@ -244,7 +247,7 @@ export function CheckoutPage() {
                     <Lock size={15} aria-hidden /> Nothing to enter. This demo store never asks for card or payment details.
                   </p>
                 </fieldset>
-                <button type="submit" className="btn btn-primary co-next">
+                <button type="submit" className="btn btn-primary co-next" data-dock-avoid>
                   Review order
                 </button>
               </form>
@@ -292,15 +295,20 @@ export function CheckoutPage() {
                     ))}
                   </ul>
                 </section>
-                <button type="button" className="btn btn-primary co-next" onClick={place}>
+                <button type="button" className="btn btn-primary co-next" data-dock-avoid onClick={place}>
                   Place order, {money(total + delivery)}
                 </button>
                 <p className="small">No payment is taken. Placing the order shows its confirmation.</p>
               </div>
             )}
           </div>
-          <aside className="summary-card checkout-summary">
-            <h2 className="h3">Order summary</h2>
+          <aside className={`summary-card checkout-summary${showSummary ? " is-open" : ""}`}>
+            <h2 className="h3 summary-heading">
+              <span>Order summary</span>
+              <button type="button" className="summary-toggle only-mobile" aria-expanded={showSummary} onClick={() => setShowSummary(!showSummary)}>
+                {showSummary ? "Hide" : "Show"} <span className="price">{money(total + delivery)}</span>
+              </button>
+            </h2>
             <ul className="summary-lines">
               {rows.map(({ line, product, variant }) => (
                 <li key={`${line.product_id}:${line.variant_id}`}>

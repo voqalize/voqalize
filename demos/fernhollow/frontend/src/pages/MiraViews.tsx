@@ -42,7 +42,11 @@ export function BoardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [board?.version]);
 
-  const build = () => mira.show_room_set(buildRoomSet(room, budget), "visitor");
+  const [editing, setEditing] = useState(false);
+  const build = () => {
+    setEditing(false);
+    mira.show_room_set(buildRoomSet(room, budget), "visitor");
+  };
 
   return (
     <div className="wrap page-pad board-page">
@@ -59,8 +63,16 @@ export function BoardPage() {
         {board?.by === "mira" ? <MiraTag label="Built by Mira" /> : null}
       </header>
 
+      {board ? (
+        <button type="button" className="planner-summary only-mobile" aria-expanded={editing} onClick={() => setEditing(!editing)}>
+          <span>
+            {roomName(board.room)}, {money(board.budget)} budget
+          </span>
+          <span className="link small">{editing ? "Done" : "Change"}</span>
+        </button>
+      ) : null}
       <form
-        className="planner"
+        className={`planner${board && !editing ? " is-collapsed" : ""}`}
         onSubmit={(e) => {
           e.preventDefault();
           build();

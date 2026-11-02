@@ -253,6 +253,7 @@ export function AddButton({
         type="button"
         className="btn btn-primary btn-block add-btn"
         data-spot="button:add-to-cart"
+        data-dock-avoid
         disabled={disabled}
         onClick={() => {
           if (confirmFirst) void mira.confirm_add({ lines, label: "" }, "visitor");

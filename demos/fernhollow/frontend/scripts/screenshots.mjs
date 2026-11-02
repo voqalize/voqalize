@@ -101,6 +101,8 @@ for (const width of [1440, 390]) {
     await page.goto(`${base}${shot.path}`, { waitUntil: "networkidle" });
     await settle(page);
     if (shot.run) await shot.run(page);
+    // The console has done its job once the commands are fired; get it out of the picture.
+    if (await page.$(".debug")) await page.click('.debug [aria-label="Close action console"]');
     if (shot.full) {
       // Walk the page so lazy images load before a full-page capture.
       const h = await page.evaluate(() => document.body.scrollHeight);

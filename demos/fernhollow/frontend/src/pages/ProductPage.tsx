@@ -18,7 +18,7 @@ import { Crumbs, MiraMark, MiraTag, Photo, PriceLine, SectionHead } from "../com
 import { ProductCard, Rail } from "../components/ProductCard";
 import { AddButton } from "../components/Overlays";
 import { useShortlist } from "../state/shortlist";
-import { mira, useMira } from "../voice/controller";
+import { mira, navigatedBy, useMira } from "../voice/controller";
 import { emit } from "../voice/events";
 import { goesWith, moreLike } from "../voice/local";
 import { useTitle } from "./usePage";
@@ -48,7 +48,7 @@ function ProductView({ p }: { p: Product }) {
   }, [commanded?.stamp]);
 
   useEffect(() => {
-    emit("product_viewed", { product_id: p.id, variant_id: variantId });
+    emit("product_viewed", { product_id: p.id, variant_id: variantId }, navigatedBy());
     window.scrollTo({ top: 0 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [p.id]);

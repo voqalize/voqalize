@@ -1,6 +1,7 @@
 import { Mic } from "lucide-react";
 import { Suspense, lazy } from "react";
 import { demo } from "../config";
+import { useDockMode } from "./useDockMode";
 
 const VoiceCall = lazy(() => import("./VoiceCall"));
 
@@ -22,8 +23,9 @@ export function VoiceDock() {
 }
 
 function DockPlaceholder({ loading = false }: { loading?: boolean }) {
+  const mode = useDockMode(false);
   return (
-    <div className="dock is-off" role="region" aria-label="Talk to Mira">
+    <div className={`dock is-off${mode.classes}`} role="region" aria-label="Talk to Mira">
       <div className="dock-face dock-face-placeholder" aria-hidden>
         <span>M</span>
       </div>
@@ -32,7 +34,7 @@ function DockPlaceholder({ loading = false }: { loading?: boolean }) {
         <p className="dock-status">{loading ? "Getting ready…" : "Voice coming soon"}</p>
       </div>
       <button type="button" className="dock-cta" disabled title="Voice is not switched on for this preview">
-        <Mic size={16} /> Talk to Mira
+        <Mic size={16} /> <span className="dock-cta-label">Talk to Mira</span>
       </button>
     </div>
   );

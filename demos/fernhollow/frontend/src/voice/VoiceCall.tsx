@@ -19,6 +19,7 @@ import { Mic, MicOff, PhoneOff } from "lucide-react";
 import { connectRequest, withRealHeaders } from "../config";
 import { dispatch } from "./controller";
 import { setEventSender } from "./events";
+import { useDockMode } from "./useDockMode";
 
 type Activity = "idle" | "connecting" | "listening" | "thinking" | "speaking" | "error";
 
@@ -116,6 +117,7 @@ function Dock({ call }: { call: ReturnType<typeof useCall> }) {
   useEffect(() => () => setEventSender(null), []);
 
   const on = activity !== "idle" && activity !== "error";
+  const mode = useDockMode(on);
   const STATUS: Record<Activity, string> = {
     idle: "Design adviser",
     connecting: "Connecting…",
@@ -126,7 +128,7 @@ function Dock({ call }: { call: ReturnType<typeof useCall> }) {
   };
 
   return (
-    <div className={`dock${on ? " is-live" : ""} is-${activity}`} role="region" aria-label="Talk to Mira">
+    <div className={`dock${on ? " is-live" : ""} is-${activity}${mode.classes}`} role="region" aria-label="Talk to Mira">
       <div className="dock-face">
         <Avatar className="dock-avatar" client={call.client} character="emily" aria-label="Mira" />
       </div>
@@ -163,7 +165,7 @@ function Dock({ call }: { call: ReturnType<typeof useCall> }) {
             void call.begin();
           }}
         >
-          <Mic size={16} /> Talk to Mira
+          <Mic size={16} /> <span className="dock-cta-label">Talk to Mira</span>
         </button>
       )}
     </div>
