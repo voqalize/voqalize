@@ -6,6 +6,8 @@
  * Every event the shopper caused carries `by: "visitor"`; events that merely
  * report what Emily just did on screen carry `by: "emily"`.
  */
+import type { AppEvent, AppEventName } from "./actions.gen";
+
 export type By = "visitor" | "emily";
 
 export interface CartLine {
@@ -14,18 +16,11 @@ export interface CartLine {
   qty: number;
 }
 
-export interface UiEvents {
-  page_viewed: { path: string };
-  product_viewed: { product_id: string; variant_id: string };
-  visible_products: { product_ids: string[] };
-  variant_selected: { product_id: string; variant_id: string };
-  filter_changed: { filters: Record<string, unknown> };
-  room_board_edited: { slot: string; action: string };
-  cart_changed: { lines: CartLine[]; total: number };
-  confirm_result: { confirmed: boolean };
-  shortlist_changed: { product_ids: string[] };
-}
-export type UiEventName = keyof UiEvents;
+/** The app's own events, typed by the brain's generated `actions.gen.ts`
+ *  (Stage's `stage_*` events are Stage's to send). */
+export type UiEventName = Exclude<AppEventName, `stage_${string}`>;
+export type UiEvents = { [E in UiEventName]: Omit<Extract<AppEvent, { event: E }>["payload"], "by"> };
+
 
 type Sender = (event: string, payload?: unknown) => void;
 let sender: Sender | null = null;

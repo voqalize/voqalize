@@ -78,15 +78,20 @@ export function ListingView({ title, intro, crumbs, base, pills, isSearch, empty
     mut(next);
     setSp(next, { replace: true, preventScrollReset: true });
     const r = readFilters(next);
+    // In the brain's terms: option values become materials, colours and styles.
+    const values = (names: string[]) => r.opts.filter((o) => names.includes(splitOpt(o)[0])).map((o) => splitOpt(o)[1].toLowerCase());
+    const rooms = new Set(base.map((p) => p.room));
+    const cats = new Set(base.map((p) => p.categorySlug));
     emit("filter_changed", {
       filters: {
-        category: r.category,
+        room: rooms.size === 1 ? [...rooms][0] : null,
+        category: r.category ?? (cats.size === 1 ? [...cats][0] : null),
+        materials: values(["Material", "Finish", "Fabric", "Frame"]),
+        colours: values(["Color"]),
+        styles: values(["Style"]),
         price_min: r.min,
         price_max: r.max,
         on_sale: r.sale || null,
-        options: r.opts,
-        query: r.q || null,
-        sort: r.sort,
       },
     });
   };
