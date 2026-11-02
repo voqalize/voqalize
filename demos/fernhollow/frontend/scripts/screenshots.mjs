@@ -25,6 +25,26 @@ const fire = async (page, command) => {
 
 const SHOTS = [
   {
+    name: "dining-filter-ring",
+    path: "/room/dining?debug=1",
+    run: async (page) => {
+      await page.click('.debug [aria-label="Close action console"]');
+      await page.evaluate(() => {
+        window.__fhStageMove("listing.filter", { facet: "Material", value: "Ceramic" });
+      });
+      await settle(page, page.viewportSize().width < 600 ? 520 : 450);
+    },
+  },
+  {
+    name: "dining-filter-after",
+    path: "/room/dining?debug=1",
+    run: async (page) => {
+      await page.click('.debug [aria-label="Close action console"]');
+      await page.evaluate(() => window.__fhStageMove("listing.filter", { facet: "Material", value: "Ceramic" }));
+      await settle(page, 2200);
+    },
+  },
+  {
     name: "circle-added",
     path: "/?debug=1",
     run: async (page) => {

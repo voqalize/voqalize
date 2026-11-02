@@ -117,6 +117,27 @@ export function samplePayloads(): { [K in CommandName]: Commands[K] } {
   };
 }
 
+/** Make a listing move by hand with an option the rail in front really offers. */
+async function listingMove(kind: "filter" | "unfilter" | "sort" | "clear") {
+  const run = (window as unknown as { __fhStageMove?: (m: string, a: unknown) => Promise<unknown> }).__fhStageMove;
+  if (!run) return;
+  const parts = [...document.querySelectorAll(".rail-filters .check[data-stage-part]")]
+    .map((el) => ({ el, part: el.getAttribute("data-stage-part") ?? "" }))
+    .filter((x) => !x.part.startsWith("Category:"));
+  const on = parts.find((x) => (x.el.querySelector("input") as HTMLInputElement | null)?.checked);
+  const off = parts.find((x) => !(x.el.querySelector("input") as HTMLInputElement | null)?.checked);
+  const split = (p: string) => ({ facet: p.slice(0, p.indexOf(":")), value: p.slice(p.indexOf(":") + 1) });
+  const result =
+    kind === "filter" && off
+      ? await run("listing.filter", split(off.part))
+      : kind === "unfilter" && on
+        ? await run("listing.unfilter", split(on.part))
+        : kind === "sort"
+          ? await run("listing.sort", { by: "Price, low to high" })
+          : await run("listing.clear_filters", {});
+  console.info("[fernhollow] stage move", kind, result);
+}
+
 export function DebugConsole() {
   const [open, setOpen] = useState(true);
   const [picked, setPicked] = useState<CommandName | null>(null);
@@ -156,6 +177,16 @@ export function DebugConsole() {
           </li>
         ))}
       </ul>
+      <div className="debug-fake">
+        <p className="small">Stage moves on this listing</p>
+        <div className="debug-fake-row">
+          {(["filter", "unfilter", "sort", "clear"] as const).map((m) => (
+            <button key={m} type="button" data-stage-move={m} onClick={() => void listingMove(m)}>
+              {m}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="debug-fake">
         <p className="small">Fake call and circle (no voice)</p>
         <div className="debug-fake-row">

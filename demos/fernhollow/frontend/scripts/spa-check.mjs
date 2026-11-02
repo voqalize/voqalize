@@ -93,6 +93,17 @@ await page.waitForTimeout(400);
 check((await page.evaluate(() => window.scrollY)) < 40, "a push lands at the top of the new page");
 check((await page.inputValue('input[name="order_number"]')) === "FH-20418", "returns form prefilled from navigate's query string");
 
+// Emily filters the page in front: a Stage move on the Dining page, no reload, no navigation.
+await push("brain navigate room/dining", () => page.evaluate(() => window.__fhDispatch("navigate", { page: "room/dining" })), "/room/dining");
+const diningAll = Number((await page.textContent(".listing-count")).match(/\d+/)[0]);
+const moved = await page.evaluate(() => window.__fhStageMove("listing.filter", { facet: "Material", value: "Ceramic" }));
+await page.waitForTimeout(500);
+check(moved?.outcome === "applied", `listing.filter Material: Ceramic applied (${moved?.detail})`);
+check(path().startsWith("/room/dining?") && decodeURIComponent(path()).includes("opt=Material:Ceramic"), `the filter is in the URL, on the same page (${decodeURIComponent(path())})`);
+check(await page.isChecked('.rail-filters [data-stage-part="Material:Ceramic"] input'), "the rail's own checkbox is ticked");
+const diningNow = Number((await page.textContent(".listing-count")).match(/\d+/)[0]);
+check(diningNow < diningAll, `the grid count drops (${diningAll} → ${diningNow})`);
+
 // Circle to ask: real Shift-drags on the home page.
 await push("brain navigate home (for the circle)", () => page.evaluate(() => window.__fhDispatch("navigate", { page: "home" })), "/");
 const count = () => page.textContent(".selection-count").then(Number).catch(() => 0);

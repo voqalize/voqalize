@@ -1,12 +1,15 @@
 import { SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Link, Navigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useLocation, useParams, useSearchParams } from "react-router-dom";
+import { useAppStage, useMove } from "../stage/host";
+import { type ListingApi, listingPerformers } from "../stage/listing";
 import {
   type ListingFilters,
   type Product,
   type SortKey,
   SORTS,
   applyListingFilters,
+  categories,
   categoriesIn,
   facets,
   getCategory,
@@ -127,6 +130,76 @@ export function ListingView({ title, intro, crumbs, base, pills, isSearch, empty
       if (!isSearch) n.delete("q");
     });
 
+  // ── What the rail offers, by its own labels (for Emily and for listing_viewed) ──
+  const rail = useMemo(() => railFacets(scoped), [scoped]);
+  const activeMap: Record<string, string[]> = {};
+  if (f.category) activeMap.Category = [getCategory(f.category)?.name ?? f.category];
+  if (f.sale) activeMap["On sale"] = ["On sale"];
+  for (const o of f.opts) {
+    const [k, v] = splitOpt(o);
+    (activeMap[k] ??= []).push(v);
+  }
+  const location = useLocation();
+  const stage = useAppStage((s) => s.stage);
+  const api: ListingApi = {
+    facets: rail,
+    active: activeMap,
+    countAfter(mut) {
+      const next = new URLSearchParams(sp);
+      mut(next);
+      const r = readFilters(next);
+      return applyListingFilters(scoped, { ...r, q: isSearch ? "" : r.q }).length;
+    },
+    toggleMut(facet, value) {
+      if (facet === "Category") {
+        const slug = categories.find((c) => c.name === value)?.slug ?? value;
+        return (n) => (n.get("cat") === slug ? n.delete("cat") : n.set("cat", slug));
+      }
+      if (facet === "On sale") return (n) => (n.get("sale") === "1" ? n.delete("sale") : n.set("sale", "1"));
+      const key = `${facet}:${value}`;
+      return (n) => {
+        const all = n.getAll("opt");
+        n.delete("opt");
+        (all.includes(key) ? all.filter((x) => x !== key) : [...all, key]).forEach((v) => n.append("opt", v));
+      };
+    },
+    setPrice,
+    setSort: (key) => update((n) => n.set("sort", key)),
+    clearAll,
+    openSheet: () => setRailOpen(true),
+    closeSheet: () => setRailOpen(false),
+    sheetOpen: () => railOpen,
+  };
+  const performers = listingPerformers(api);
+  useMove(stage, "listing.filter", performers["listing.filter"]);
+  useMove(stage, "listing.unfilter", performers["listing.unfilter"]);
+  useMove(stage, "listing.clear_filters", performers["listing.clear_filters"]);
+  useMove(stage, "listing.price", performers["listing.price"]);
+  useMove(stage, "listing.sort", performers["listing.sort"]);
+
+  // listing_viewed: on arrival and after every change, whoever made it.
+  const viewed = JSON.stringify([location.pathname, sp.toString(), sorted.length]);
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      const agent = stage?.agent && Date.now() <= stage.agent.until + 400;
+      emit(
+        "listing_viewed",
+        {
+          page: location.pathname + location.search,
+          title,
+          facets: rail,
+          active: activeMap,
+          ...(f.min != null || f.max != null ? { price: { min: f.min, max: f.max } } : {}),
+          sort: SORTS.find((s) => s.key === f.sort)?.label ?? f.sort,
+          count: sorted.length,
+        },
+        agent ? "emily" : "visitor",
+      );
+    }, 250);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewed]);
+
   return (
     <div className="listing">
       <div className="wrap">
@@ -154,7 +227,7 @@ export function ListingView({ title, intro, crumbs, base, pills, isSearch, empty
           </p>
           <label className="sort">
             <span className="small">Sort</span>
-            <select className="select select-sm" value={f.sort} onChange={(e) => update((n) => n.set("sort", e.target.value))}>
+            <select className="select select-sm" data-stage-thing="sort" data-stage-label="Sort" value={f.sort} onChange={(e) => update((n) => n.set("sort", e.target.value))}>
               {SORTS.map((s) => (
                 <option key={s.key} value={s.key}>
                   {s.label}
@@ -170,7 +243,7 @@ export function ListingView({ title, intro, crumbs, base, pills, isSearch, empty
                 {a.label} <X size={13} className="x" />
               </button>
             ))}
-            <button type="button" className="link small" onClick={clearAll}>
+            <button type="button" className="link small" data-stage-thing="clear-filters" onClick={clearAll}>
               Clear all
             </button>
           </div>
@@ -320,7 +393,7 @@ function FilterRail({
             <ul className="filter-list">
               {cats.map((c) => (
                 <li key={c.slug}>
-                  <label className="check">
+                  <label className="check" data-stage-part={`Category:${c.name}`}>
                     <input type="checkbox" checked={f.category === c.slug} onChange={() => onCategory(c.slug)} />
                     <span>{c.name}</span>
                     <span className="check-count">{scoped.filter((p) => p.categorySlug === c.slug).length}</span>
@@ -331,7 +404,7 @@ function FilterRail({
           </fieldset>
         ) : null}
 
-        <fieldset className="filter-group">
+        <fieldset className="filter-group" data-stage-thing="price" data-stage-label="Price">
           <legend className="filter-title">Price</legend>
           {bands.length ? (
             <div className="band-chips">
@@ -340,6 +413,7 @@ function FilterRail({
                   type="button"
                   key={b.label}
                   className="chip chip-sm"
+                  data-stage-part={`Price:${b.label}`}
                   aria-pressed={f.min === b.min && f.max === b.max}
                   onClick={() => (f.min === b.min && f.max === b.max ? onPrice(null, null) : onPrice(b.min, b.max))}
                 >
@@ -374,7 +448,7 @@ function FilterRail({
 
         {saleCount ? (
           <div className="filter-group">
-            <label className="toggle">
+            <label className="toggle" data-stage-part="On sale:On sale">
               <input type="checkbox" checked={f.sale} onChange={onSale} />
               <span className="toggle-ui" aria-hidden />
               <span>On sale</span>
@@ -391,7 +465,7 @@ function FilterRail({
                 const key = `${g.name}:${v.value}`;
                 return (
                   <li key={key}>
-                    <label className="check">
+                    <label className="check" data-stage-part={key}>
                       <input type="checkbox" checked={f.opts.includes(key)} onChange={() => onOpt(key)} />
                       <span>{v.value}</span>
                       <span className="check-count">{v.count}</span>
@@ -487,4 +561,14 @@ export function SearchPage() {
       }
     />
   );
+}
+
+/** The rail's facets and options, by the labels it shows: Category, On sale, then each option facet. */
+export function railFacets(scoped: Product[]): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  const cats = [...new Set(scoped.map((p) => p.categorySlug))].map((s) => getCategory(s)!).filter(Boolean);
+  if (cats.length > 1) out.Category = cats.map((c) => c.name);
+  if (scoped.some((p) => p.onSale)) out["On sale"] = ["On sale"];
+  for (const g of facets(scoped)) out[g.name] = g.values.map((v) => v.value);
+  return out;
 }

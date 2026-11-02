@@ -124,6 +124,90 @@
       "objects": [
         "return"
       ]
+    },
+    {
+      "id": "listing.filter",
+      "verb": "filter",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "facet",
+          "doc": "The rail's filter as the listing page names it: Material, Finish, Category, On sale."
+        },
+        {
+          "name": "value",
+          "doc": "One option of that filter, exactly as the rail lists it: Ceramic, Walnut."
+        }
+      ],
+      "say": "{filter: Material | Ceramic} as you say it; the option is ringed and ticked on the page's own filter rail.",
+      "claims": [
+        "filtering by",
+        "filtering to",
+        "showing only"
+      ],
+      "objects": [
+        "filter"
+      ],
+      "doc": "Tick one option of the filter rail on the listing in front, exactly as a click does: the grid, the count and the address update in place. Refused, with the rail's options, when this page does not offer it."
+    },
+    {
+      "id": "listing.unfilter",
+      "verb": "unfilter",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "facet",
+          "doc": "The rail's filter: Material."
+        },
+        {
+          "name": "value",
+          "doc": "The option to untick: Ceramic."
+        }
+      ],
+      "say": "{unfilter: Material | Ceramic} as you take that filter off.",
+      "doc": "Untick one option that is on. Refused, with the options that are on, when it is not."
+    },
+    {
+      "id": "listing.clear_filters",
+      "verb": "clear",
+      "class": "reversible",
+      "args": [],
+      "say": "{clear} as you say the filters are off.",
+      "doc": "Take every filter on the listing in front off."
+    },
+    {
+      "id": "listing.price",
+      "verb": "price",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "min",
+          "type": "integer",
+          "optional": true,
+          "doc": "The lowest price in dollars."
+        },
+        {
+          "name": "max",
+          "type": "integer",
+          "optional": true,
+          "doc": "The highest price in dollars."
+        }
+      ],
+      "say": "{price: | 500} for up to $500, {price: 200 | 800} for a range.",
+      "doc": "Set the rail's price range; leave both out to clear it."
+    },
+    {
+      "id": "listing.sort",
+      "verb": "sort",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "by",
+          "doc": "The page's sort, as it names it: Featured, Price, low to high, Price, high to low, On sale first."
+        }
+      ],
+      "say": "{sort: Price, low to high} as you say how the pieces are ordered.",
+      "doc": "Choose the listing's sort with its own control."
     }
   ],
   "slices": [

@@ -68,6 +68,64 @@ export const scene = defineScene({
     {
       "id": "returns.submit",
       "class": "confirmed"
+    },
+    {
+      "id": "listing.filter",
+      "verb": "filter",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "facet"
+        },
+        {
+          "name": "value"
+        }
+      ]
+    },
+    {
+      "id": "listing.unfilter",
+      "verb": "unfilter",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "facet"
+        },
+        {
+          "name": "value"
+        }
+      ]
+    },
+    {
+      "id": "listing.clear_filters",
+      "verb": "clear",
+      "class": "reversible"
+    },
+    {
+      "id": "listing.price",
+      "verb": "price",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "min",
+          "type": "integer",
+          "optional": true
+        },
+        {
+          "name": "max",
+          "type": "integer",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "id": "listing.sort",
+      "verb": "sort",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "by"
+        }
+      ]
     }
   ],
   "slices": [
@@ -155,4 +213,4 @@ export const scene = defineScene({
   ]
 });
 
-export const SPEC_SHA256 = "77c054e830ae17299aadaecf873f95e32370987f1b33662425ac6aa19b544cdc";
+export const SPEC_SHA256 = "1c4b8a0bb10f246cf92ca195c1dace62e8d2f41b09ff767f3b234c81159232ce";

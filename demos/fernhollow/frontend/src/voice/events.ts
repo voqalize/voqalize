@@ -22,6 +22,16 @@ type Generated = { [E in Exclude<AppEventName, `stage_${string}`>]: Omit<Extract
 
 /** Events the brain's generated file does not carry yet; where both name one, this shape wins. */
 interface Pending {
+  /** A listing page as the shopper sees it: its rail, what is on, the sort and the count (CONTRACT.md v5). */
+  listing_viewed: {
+    page: string;
+    title: string;
+    facets: Record<string, string[]>;
+    active: Record<string, string[]>;
+    price?: { min: number | null; max: number | null };
+    sort: string;
+    count: number;
+  };
   /** The shopper's answer on a confirm prompt; a yes that placed an order carries its number. */
   confirm_result: { confirmed: boolean; order_number?: string };
   orders_known: {

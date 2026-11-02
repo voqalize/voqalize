@@ -36,7 +36,7 @@ function Shell() {
   useStageHost(location.pathname);
   useScreenReport(location.key);
   // Numbered choices belong to the screen they were shown on.
-  useEffect(() => emily.clear_choices(), [location.key]);
+  useEffect(() => emily.clear_choices(), [location.pathname]);
   useEffect(() => {
     // Dev-only handle (?debug=1): fire a brain command from a test.
     if (debugMode()) {
@@ -65,7 +65,13 @@ function Shell() {
     };
   }, [location.key]);
 
+  // A filter or sort on the same page replaces the URL in place: that is not a
+  // new page, so no page_viewed, no scroll to the top, nothing cleared.
+  const lastPath = useRef<string | null>(null);
   useEffect(() => {
+    const samePage = lastPath.current === location.pathname && navType === "REPLACE";
+    lastPath.current = location.pathname;
+    if (samePage) return;
     emit("page_viewed", { path: location.pathname + location.search }, navigatedBy());
     if (location.hash) return;
     if (navType === "POP" && scrolls.has(location.key)) {
