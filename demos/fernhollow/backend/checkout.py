@@ -63,6 +63,9 @@ REQUIRED: tuple[CheckoutField, ...] = (
     "postcode",
     "country",
 )
+# Personal data the shopper types themselves: never asked for aloud, never
+# filled by Emily — it would be said into a microphone and into a transcript.
+PRIVATE: frozenset[CheckoutField] = frozenset({"email", "phone"})
 STEPS: dict[CheckoutStepName, tuple[CheckoutField, ...]] = {
     "contact": ("email", "first_name", "last_name", "phone"),
     "shipping": ("address1", "address2", "city", "region", "postcode", "country", "delivery"),

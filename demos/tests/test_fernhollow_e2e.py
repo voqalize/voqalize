@@ -36,7 +36,7 @@ discover()
 
 from voqalize_demos._loaded.fernhollow import engine as eng  # noqa: E402
 from voqalize_demos._loaded.fernhollow.brain import FernhollowBrain  # noqa: E402
-from voqalize_demos._loaded.fernhollow.catalog import CATALOG  # noqa: E402
+from voqalize_demos._loaded.fernhollow.catalog import CATALOG, money  # noqa: E402
 from voqalize_demos._loaded.fernhollow.policies import policy_numbers  # noqa: E402
 from voqalize_demos._loaded.fernhollow.prompt import GREETING  # noqa: E402
 
@@ -160,7 +160,7 @@ def _story() -> ScriptedGemini:
                 ),
             ],
             "Add the whole room to my cart.": reply_and_call(
-                "Shall I add all five? Just say yes or tap Add.",
+                "All five, into your cart.",
                 "add_to_cart",
                 request={"what": "room"},
             ),
@@ -199,10 +199,8 @@ async def _drive_story(rig: DemoRig, llm: ScriptedGemini) -> None:
     ):
         check_turn(rig, await rig.driver.user_says(line), units=2)
 
+    # Added at once: no confirmation to answer.
     check_turn(rig, await rig.driver.user_says("Add the whole room to my cart."), units=1)
-    # The shopper taps yes on the Add button; nothing blocks on it.
-    await rig.driver.send_ui_event("confirm_result", {"confirmed": True, "by": "visitor"})
-    await asyncio.sleep(0.1)
     check_turn(rig, await rig.driver.user_says("Anything to finish it off?"), units=2)
 
 
@@ -237,8 +235,6 @@ async def test_the_storyline_drives_the_screen() -> None:
             "show_goes_with",
             *(["swap_piece"] * (len(STRETCH.swaps) + (1 if STRETCH.upgrade else 0))),
             "show_savings",
-            "confirm_add",
-            "highlight",
             "cart_updated",
             "suggest_finish",
         ], actions
@@ -285,11 +281,11 @@ async def test_the_storyline_drives_the_screen() -> None:
             assert CATALOG.products[s["to_id"]].on_sale
             assert s["now"] < s["was"]
 
-        confirm = rig.command("confirm_add")
-        assert [line["product_id"] for line in confirm["lines"]] == [
+        cart = rig.command("cart_updated")
+        assert [line["product_id"] for line in cart["lines"]] == [
             p.product_id for p in STRETCH.room.pieces
         ]
-        cart = rig.command("cart_updated")
+        assert {line["qty"] for line in cart["lines"]} == {1}
         assert cart["total"] == STRETCH.room.total
         assert {line["product_id"] for line in cart["lines"]} == {
             p.product_id for p in STRETCH.room.pieces
@@ -299,11 +295,11 @@ async def test_the_storyline_drives_the_screen() -> None:
         assert finish["product_id"] not in {line["product_id"] for line in cart["lines"]}
         assert finish["reason"]
 
-        # The tap reached the model as context, ahead of the next words.
+        # What Emily added reached the model as context, ahead of the next words.
         last = " ".join(
             p.text or "" for c in llm.captured_contents[-2] for p in c.parts or [] if p.text
         )
-        assert "tapped yes" in last
+        assert f"cart: 5 items, {money(STRETCH.room.total)}" in last
 
 
 async def test_the_model_reads_what_landed() -> None:
@@ -320,7 +316,7 @@ async def test_the_model_reads_what_landed() -> None:
     assert "{" not in results["build_room"], "a tool result read as a dict"
     assert "winner" in results["compare"]
     assert "Savings are on the board" in results["stretch_budget"]
-    assert "Nothing is in the cart until they say yes" in results["add_to_cart"]
+    assert "Added to the cart" in results["add_to_cart"]
 
 
 async def test_every_number_said_comes_from_the_catalog_or_policies() -> None:
@@ -356,9 +352,10 @@ async def test_every_number_said_comes_from_the_catalog_or_policies() -> None:
                 assert value in counts or value in allowed, f"invented number {raw!r} in: {text}"
 
 
-async def test_a_spoken_yes_adds_after_the_confirmation() -> None:
-    """The yes can be said instead of tapped — but only on a later turn than the
-    confirmation, so the model cannot confirm on the shopper's behalf."""
+async def test_add_to_cart_adds_at_once_and_once_per_turn() -> None:
+    """Adding asks nothing (owner, 2026-11-03): the cart shows Emily added it.
+    Two calls in one turn — a model repeating itself — still add once, so
+    nothing lands twice; a later turn can add more."""
     llm = ScriptedGemini(
         {
             "Build me a home office around two thousand.": [
@@ -372,16 +369,14 @@ async def test_a_spoken_yes_adds_after_the_confirmation() -> None:
                 reply("Here it is."),
             ],
             "Add it all.": Reply(
-                text="Shall I add all five?",
+                text="Adding all five.",
                 calls=(
                     ("add_to_cart", {"request": {"what": "room"}}),
-                    ("add_to_cart", {"request": {"what": "room", "confirmed_by_voice": True}}),
+                    ("add_to_cart", {"request": {"what": "room"}}),
                 ),
             ),
-            "Yes please.": reply_and_call(
-                "Done, they're in your cart.",
-                "add_to_cart",
-                request={"what": "room", "confirmed_by_voice": True},
+            "And the chair once more.": reply_and_call(
+                "Another chair, added.", "add_to_cart", request={"product": "chair"}
             ),
         }
     )
@@ -389,12 +384,14 @@ async def test_a_spoken_yes_adds_after_the_confirmation() -> None:
         await rig.driver.start_session()
         await rig.driver.user_says("Build me a home office around two thousand.")
         await rig.driver.user_says("Add it all.")
-        assert "cart_updated" not in rig.actions(), "confirmed in the same turn it asked"
-        await rig.driver.user_says("Yes please.")
-        assert rig.actions().count("cart_updated") == 1
+        assert "confirm_add" not in rig.actions(), "asked before adding"
+        assert rig.actions().count("cart_updated") == 1, "the repeat call added twice"
         brain = rig.brain
         assert isinstance(brain, FernhollowBrain)
-        assert brain.confirms.pending is None and len(brain.cart) == 5
+        assert len(brain.cart) == 5 and set(brain.cart.values()) == {1}
+        await rig.driver.user_says("And the chair once more.")
+        assert rig.actions().count("cart_updated") == 2
+        assert sorted(brain.cart.values()) == [1, 1, 1, 1, 2]
 
 
 async def test_the_grid_follows_the_brief_and_shows_the_question() -> None:
@@ -1001,29 +998,46 @@ async def test_pointing_is_this_one() -> None:
             for p in c.parts or []
         ), "a pointing was spoken about"
         await rig.driver.user_says("Add this one.")
-        assert rig.command("confirm_add")["lines"][0]["product_id"] == OAK_SOFAS[0]
+        assert rig.command("cart_updated")["lines"][0]["product_id"] == OAK_SOFAS[0]
 
 
 DESK_ID = "modern-home-office-desk-with-chestnut-brown-finish"
 
 
 async def test_checkout_fully_by_voice_with_the_yes() -> None:
-    """Emily fills checkout from what the shopper says, reads the email and
-    postcode back, asks before placing the order, and places it only on the
-    shopper's yes in a later turn — with the authored delivery charge."""
+    """Emily opens checkout first, leaves email and phone to the shopper's own
+    typing (personal data is never filled, so never said), fills the name and
+    address from what they say, reads the postcode back, asks before placing
+    the order, and places it only on the shopper's yes in a later turn — with
+    the authored delivery charge."""
     llm = ScriptedGemini(
         {
-            "Email's sam dot rivera at example dot com, I'm Sam Rivera.": [
+            "Let's check out.": [
                 reply_and_call(
-                    "Sam Rivera, noted.",
-                    "fill_checkout",
-                    fields={
-                        "email": "sam dot rivera at example dot com",
-                        "first_name": "Sam",
-                        "last_name": "Rivera",
-                    },
+                    "Here's checkout. Type your email and phone in yourself, and I'll do the rest.",
+                    "checkout_step",
+                    request={"step": "contact"},
                 ),
-                reply("That's s a m dot r i v e r a, at example dot com. And the address?"),
+                reply("What name should the order go under?"),
+            ],
+            "I'm Sam Rivera.": [
+                Reply(
+                    text="Sam Rivera, noted.",
+                    calls=(
+                        # A model that tries anyway: the field is not even in its schema.
+                        (
+                            "fill_checkout",
+                            {
+                                "fields": {
+                                    "email": "sam dot rivera at example dot com",
+                                    "first_name": "Sam",
+                                    "last_name": "Rivera",
+                                }
+                            },
+                        ),
+                    ),
+                ),
+                reply("And the address?"),
             ],
             "12 Elm Street, Portland, 97201, United States.": [
                 Reply(
@@ -1068,18 +1082,26 @@ async def test_checkout_fully_by_voice_with_the_yes() -> None:
         )
         await asyncio.sleep(0.1)
 
-        await rig.driver.user_says("Email's sam dot rivera at example dot com, I'm Sam Rivera.")
-        first = _results(llm.captured_contents[-1])["fill_checkout"]
-        assert "s a m dot r i v e r a, at example dot com" in first
+        await rig.driver.user_says("Let's check out.")
+        assert rig.command("checkout_step")["step"] == "contact", "asked before checkout was open"
+
+        await rig.driver.user_says("I'm Sam Rivera.")
+        # checkout_step is an action, so its result rides this next request.
+        results = _results(llm.captured_contents[-1])
+        assert "email (the shopper types it themselves" in results["checkout_step"]
+        first = results["fill_checkout"]
         fills = [
             c["payload"] for c in rig.driver.ui_commands if c.get("command") == "checkout_fill"
         ]
-        assert {"field": "email", "value": "sam.rivera@example.com"} in fills
+        assert [f["field"] for f in fills] == ["first_name", "last_name"], "email was filled"
+        assert "email (the shopper types it themselves" in first
 
+        # The shopper types their email on the page: the brain hears the field, not the value.
+        await _type_email(rig)
         await rig.driver.user_says("12 Elm Street, Portland, 97201, United States.")
         second = _results(llm.captured_contents[-1])
         assert "9 7 2 0 1" in second["fill_checkout"]
-        assert "nothing — offer the review step" in second["fill_checkout"]
+        assert "nothing — move to the review step" in second["fill_checkout"]
         assert "NOT DONE" in second["place_order"], "a yes it was never asked for placed an order"
         assert "order_placed" not in rig.actions()
 
@@ -1312,7 +1334,8 @@ async def test_a_placed_order_is_returned_by_voice_end_to_end() -> None:
                     "by": "visitor",
                 },
             )
-            await asyncio.sleep(0.1)
+            # The shopper types their own email; Emily fills only what they say.
+            await _type_email(rig)
             check_turn(
                 rig,
                 await rig.driver.user_says(
@@ -1323,6 +1346,25 @@ async def test_a_placed_order_is_returned_by_voice_end_to_end() -> None:
             assert rig.actions().count("confirm_place_order") == 1
             check_turn(rig, await rig.driver.user_says("Yes, please."), units=1)
             assert rig.command("order_placed")["order_number"] == "FH-30001"
+            # The page saves the order with the email the shopper typed, and says so.
+            await rig.driver.send_ui_event(
+                "orders_known",
+                {
+                    "orders": [
+                        {
+                            "number": "FH-30001",
+                            "email": "sam.rivera@example.com",
+                            "name": "Sam Rivera",
+                            "lines": [
+                                {"product_id": CHAIR_ID, "variant_id": CHAIR_VARIANT, "qty": 1}
+                            ],
+                            "total": 289.0 + 49.0,
+                        }
+                    ],
+                    "by": "visitor",
+                },
+            )
+            await asyncio.sleep(0.1)
 
             check_turn(
                 rig,
@@ -1630,8 +1672,9 @@ async def test_any_plain_yes_submits_once(said: str) -> None:
 
 # ─── Every confirmation, one mechanism (parametrized across the acts) ─────────
 
+#: What Emily fills at checkout. Email and phone are not hers: the shopper types
+#: them, which reaches the brain as ``checkout_changed`` with the field name only.
 _FIELDS = {
-    "email": "sam dot rivera at example dot com",
     "first_name": "Sam",
     "last_name": "Rivera",
     "address1": "12 Elm Street",
@@ -1640,14 +1683,9 @@ _FIELDS = {
     "country": "United States",
 }
 
-#: kind → (the line that asks, the calls that ask, the line on a yes, what reaches the page)
+#: kind → (the line that asks, the calls that ask, the line on a yes, what reaches the page).
+#: Adding to the cart is not here: it asks nothing (owner, 2026-11-03).
 ASKS: dict[str, tuple[str, tuple[tuple[str, dict[str, Any]], ...], str, str]] = {
-    "add_to_cart": (
-        "The chair, shall I add it?",
-        (("add_to_cart", {"request": {"what": "product", "product": CHAIR_ID}}),),
-        "Added to your cart.",
-        "cart_updated",
-    ),
     "place_order": (
         "That's everything — shall I place the order?",
         (("fill_checkout", {"fields": _FIELDS}), ("place_order", {"request": {}})),
@@ -1676,13 +1714,16 @@ ASKS: dict[str, tuple[str, tuple[tuple[str, dict[str, Any]], ...], str, str]] = 
     ),
 }
 _CONFIRMED_CALL = {
-    "add_to_cart": (
-        "add_to_cart",
-        {"request": {"what": "product", "product": CHAIR_ID, "confirmed_by_voice": True}},
-    ),
     "place_order": ("place_order", {"request": {"confirmed_by_voice": True}}),
     "submit_return": ("submit_return", {"request": {"confirmed_by_voice": True}}),
 }
+
+
+async def _type_email(rig: DemoRig) -> None:
+    """The shopper types their email at checkout: the page sends the field's
+    name, never its value."""
+    await rig.driver.send_ui_event("checkout_changed", {"field": "email", "by": "visitor"})
+    await asyncio.sleep(0.1)
 
 
 def _sent(rig: DemoRig, what: str) -> int:
@@ -1702,7 +1743,7 @@ async def _asked(rig: DemoRig, kind: str) -> None:
                 "by": "visitor",
             },
         )
-        await asyncio.sleep(0.1)
+        await _type_email(rig)
     check_turn(rig, await rig.driver.user_says(f"Let's do the {kind}."))
     if kind == "submit_return":
         await _answer(rig, _stage_moves(rig))

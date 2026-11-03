@@ -5,7 +5,7 @@ import { CartDrawer } from "./components/CartDrawer";
 import { CircleLayer, fakeCircle } from "./components/CircleLayer";
 import { Footer } from "./components/Footer";
 import { Header } from "./components/Header";
-import { BriefBar, FloatingConfirm, PolicyPanel, ShortlistTray, Spotlight } from "./components/Overlays";
+import { FloatingConfirm, PolicyPanel, ShortlistTray, Spotlight } from "./components/Overlays";
 import { CartPage, CheckoutPage } from "./pages/Checkout";
 import { ArticlePage, ConfirmationPage, ContactPage, InfoPage, JournalIndex, NotFound } from "./pages/Editorial";
 import { Home } from "./pages/Home";
@@ -98,7 +98,6 @@ function Shell() {
         Skip to content
       </a>
       <Header />
-      <BriefBar />
       <main id="main" tabIndex={-1}>
         <Outlet />
       </main>
@@ -122,22 +121,15 @@ function Shell() {
 /**
  * Where an Emily-led arrival lands: the first `[data-emily-start]` on the
  * page (a listing's count-and-sort row, the room board, the comparison),
- * just under the sticky header and brief bar. Landing at the top left the
- * page header filling most of the screen and not one product in view
- * while she talked about them. A shopper's own click still starts at the top.
+ * just under the sticky header. Landing at the top left the page header
+ * filling most of the screen and not one product in view while she talked
+ * about them. A shopper's own click still starts at the top.
  */
 function scrollToStart() {
   const el = document.querySelector<HTMLElement>("[data-emily-start]");
   if (!el) return;
-  const covered = Math.max(
-    0,
-    ...[".site-header", ".brief-bar"].map((s) => {
-      const bar = document.querySelector<HTMLElement>(s);
-      const pos = bar ? getComputedStyle(bar).position : "";
-      return bar && (pos === "sticky" || pos === "fixed") ? bar.getBoundingClientRect().bottom : 0;
-    }),
-  );
-  const top = el.getBoundingClientRect().top + window.scrollY - covered - 12;
+  const covered = document.querySelector(".site-header")?.getBoundingClientRect().bottom ?? 0;
+  const top = el.getBoundingClientRect().top + window.scrollY - Math.max(0, covered) - 12;
   if (top > 40) window.scrollTo({ top, behavior: "smooth" });
 }
 

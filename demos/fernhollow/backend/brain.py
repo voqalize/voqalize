@@ -83,6 +83,7 @@ from .app_events import (
 from .catalog import CATALOG, JOURNAL_DIR, Product, money
 from .checkout import (
     FIELDS,
+    PRIVATE,
     REQUIRED,
     STEPS,
     CheckoutField,
@@ -205,7 +206,7 @@ class AskOut(BaseModel):
 
 
 class UpdateBrief(Action):
-    """The room-brief chips, and the question Emily asks next."""
+    """The brief, and the question Emily asks next (the page points at its options)."""
 
     brief: BriefOut
     products_left: int
@@ -525,10 +526,6 @@ class AddToCartRequest(BaseModel):
     what: Literal["room", "product"] = "product"
     product: str | None = Field(default=None, description="For one product: the reference.")
     option: str | None = Field(default=None, description="Option value, if they chose one.")
-    confirmed_by_voice: bool = Field(
-        default=False,
-        description="True only when the shopper said yes to a confirmation already on screen.",
-    )
 
 
 class PolicyRequest(BaseModel):
@@ -572,11 +569,9 @@ class ResolveRequest(BaseModel):
 
 
 class CheckoutFields(BaseModel):
-    """Checkout fields the shopper just gave, in their words; leave the rest empty."""
+    """Checkout fields the shopper just gave, in their words; leave the rest empty.
+    Email and phone are not here: the shopper types those themselves."""
 
-    email: str | None = Field(
-        default=None, description="As heard, e.g. 'sam dot rivera at example dot com'."
-    )
     first_name: str | None = None
     last_name: str | None = None
     address1: str | None = None
@@ -585,7 +580,6 @@ class CheckoutFields(BaseModel):
     region: str | None = None
     postcode: str | None = None
     country: str | None = None
-    phone: str | None = None
     delivery: str | None = Field(default=None, description="Delivery notes for the driver, if any.")
 
 
@@ -688,6 +682,8 @@ class FernhollowBrain(GeminiBrain):
         self.history: list[Screen] = []
         self.shortlisted: list[str] = []
         self.cart: dict[tuple[str, str], int] = {}
+        # What add_to_cart put in, by its lines, and on which turn.
+        self.added: dict[tuple[tuple[str, str, int], ...], int] = {}
         # Every confirmation Emily asks for, one mechanism (confirm.py).
         self.confirms = Confirmations()
         self.confirms.register("add_to_cart", self._act_add)
@@ -1108,6 +1104,12 @@ class FernhollowBrain(GeminiBrain):
             key = (round(mine.total, 2), sorted((x.product_id, x.qty) for x in mine.lines))
             for theirs in self.known_orders:
                 if theirs.number == mine.number:
+                    # The shopper typed the email; only the page's copy holds it.
+                    if theirs.email and not mine.email:
+                        adopted = replace(mine, email=theirs.email)
+                        self.placed_orders[n] = adopted
+                        if self.order is not None and self.order.number == mine.number:
+                            self.order = adopted
                     break
                 if (
                     round(theirs.total, 2),
@@ -1327,7 +1329,7 @@ class FernhollowBrain(GeminiBrain):
             "fernhollow: brief {} → {} left, ask {}", self.brief.key(), len(left), question.dim
         )
         return _prose(
-            f"The brief is on screen. {len(left)} products in the store fit it so far.",
+            f"The brief is noted. {len(left)} products in the store fit it so far.",
             grid=on_grid,
             ask_next=question.text,
             assumptions=assumptions,
@@ -1905,12 +1907,8 @@ class FernhollowBrain(GeminiBrain):
         )
 
     async def add_to_cart(self, request: AddToCartRequest) -> str:
-        """Add the room on the board, or one product, to the cart — only with the
-        shopper's yes. The first call puts a confirmation on the Add button; a tap
-        on it adds by itself. If they say yes out loud on their next turn, call
-        again with confirmed_by_voice true."""
-        if request.confirmed_by_voice:
-            return self._confirmed_by_tool("add_to_cart")
+        """Add the room on the board, or one product, to the cart — at once, no
+        confirmation: the cart shows Emily added it, and it is one tap to undo."""
         lines: list[ConfirmLine]
         if request.what == "room":
             room = self.screen.room
@@ -1932,17 +1930,18 @@ class FernhollowBrain(GeminiBrain):
                 variant = next((v for v in p.variants if v.id == self.screen.variant), variant)
             lines = [ConfirmLine(product_id=p.id, variant_id=variant.id, qty=1)]
             label = f"Add {p.title} ({variant.value}) — {money(variant.price)}"
-        key = ("add_to_cart", tuple((x.product_id, x.variant_id, x.qty) for x in lines))
-        if (
-            dup := self.confirms.ask("add_to_cart", key, label, self.turns, lines=lines)
-        ) is not None:
-            landed(dup)
-            return _prose(f"Not asked again: {dup}")
-        self.session.dispatch(ConfirmAdd(lines=lines, label=label))
-        self.session.dispatch(Highlight(target="button:add-to-cart"))
-        landed("Shall I add it? The button's ready for your yes.", "Just say yes, or tap Add.")
+        key = tuple((x.product_id, x.variant_id, x.qty) for x in lines)
+        # Once per turn: a model that calls twice for one request would
+        # otherwise put everything in twice. A later turn can add more.
+        if self.added.get(key) == self.turns:
+            landed("That's in your cart.")
+            return _prose(f"Already added this turn, not again: {label}.")
+        self.added[key] = self.turns
+        self._commit_cart(lines)
+        landed("Added to your cart.", "It's in your cart.")
         return _prose(
-            f"The confirmation is on the Add button: {label}. Nothing is in the cart until they say yes.",
+            f"Added to the cart: {label}. The cart now totals {money(self._cart_total())}.",
+            next="say it is in the cart in a few words, then offer checkout or more shopping",
         )
 
     def _commit_cart(self, lines: Sequence[ConfirmLine]) -> None:
@@ -2196,8 +2195,11 @@ class FernhollowBrain(GeminiBrain):
         refused: list[str] = []
         spoken: list[str] = []
         for name in FIELDS:
-            raw = getattr(fields, name)
+            raw = getattr(fields, name, None)
             if raw is None or not str(raw).strip():
+                continue
+            if name in PRIVATE:
+                refused.append(f"{name}: the shopper types it on the page — never fill it")
                 continue
             value, why = check(name, str(raw))
             if why is not None:
@@ -2207,14 +2209,25 @@ class FernhollowBrain(GeminiBrain):
             self.session.dispatch(CheckoutFill(field=name, value=value))
             if (said := spell_back(name, value)) is not None:
                 spoken.append(said)
-        missing = [f for f in REQUIRED if f not in self.checkout and f not in self.checkout_filled]
+        missing = self._still_needed(REQUIRED)
         landed("That's in.", "Filled in.")
         return _prose(
             "The checkout fields are filled.",
             say_back=" — ".join(spoken) or None,
             not_filled=refused,
-            still_needed=", ".join(missing) or "nothing — offer the review step",
+            still_needed=", ".join(missing) or "nothing — move to the review step",
         )
+
+    def _still_needed(self, among: Sequence[CheckoutField]) -> list[str]:
+        """The required fields of ``among`` nobody has filled yet; email and
+        phone are marked as the shopper's to type, so they are never asked aloud."""
+        return [
+            f"{f} (the shopper types it themselves: ask them to type it, never to say it)"
+            if f in PRIVATE
+            else f
+            for f in among
+            if f in REQUIRED and f not in self.checkout and f not in self.checkout_filled
+        ]
 
     async def checkout_step(self, request: CheckoutStepRequest) -> str:
         """Move the checkout to contact, shipping or review."""
@@ -2224,11 +2237,7 @@ class FernhollowBrain(GeminiBrain):
         self._move(page="checkout", product=None)
         self.session.dispatch(CheckoutStep(step=request.step))
         landed("Here's that step.", "On to that step.")
-        need = [
-            f
-            for f in STEPS[request.step]
-            if f in REQUIRED and f not in self.checkout and f not in self.checkout_filled
-        ]
+        need = self._still_needed(STEPS[request.step])
         return _prose(f"The checkout is on {request.step}.", still_needed=", ".join(need) or None)
 
     def _order_total(self) -> float:
@@ -2243,10 +2252,11 @@ class FernhollowBrain(GeminiBrain):
             return self._confirmed_by_tool("place_order")
         if not self.cart:
             return _not_done("the cart is empty", "Add something to the cart first.")
-        missing = [f for f in REQUIRED if f not in self.checkout and f not in self.checkout_filled]
+        missing = self._still_needed(REQUIRED)
         if missing:
             return _not_done(
-                f"checkout still needs {', '.join(missing)}", "Ask for them, one at a time."
+                f"checkout still needs {', '.join(missing)}",
+                "Ask for the rest one at a time; email and phone they type themselves.",
             )
         total = self._order_total()
         label = f"Place order — {money(total)}"
