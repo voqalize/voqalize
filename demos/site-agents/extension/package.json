@@ -1,0 +1,32 @@
+{
+  "name": "@voqalize/demo-site-agents-extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Puts a Site Agent (the platform's shared Site Agent brain) on a customer's own site as a Chrome extension: the Stage extension host, with the site snippet's watcher, executor and Stage moves, and one call held in an offscreen document across every page load. One config file per site (sites/<id>/site.ts).",
+  "scripts": {
+    "typecheck": "node scripts/link-platform.mjs && tsc --noEmit",
+    "build": "node scripts/link-platform.mjs && tsc --noEmit && node build.mjs --site wom",
+    "build:all": "node scripts/link-platform.mjs && tsc --noEmit && node build.mjs --all",
+    "verify": "node test/verify-live.mjs"
+  },
+  "dependencies": {
+    "@pipecat-ai/client-js": "1.13.1",
+    "@pipecat-ai/small-webrtc-transport": "1.10.8",
+    "@voqalize/avatar": "0.6.2",
+    "@voqalize/client-transport": "0.4.0",
+    "@voqalize/stage": "0.1.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.57.0",
+    "@types/chrome": "0.0.287",
+    "@types/node": "22.10.0",
+    "esbuild": "0.25.12",
+    "typescript": "5.9.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

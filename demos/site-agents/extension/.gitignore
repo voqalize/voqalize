@@ -1,0 +1,10 @@
+# The site's key, per extension and per site.
+.env
+sites/*/.env
+# The built extensions.
+dist/
+# The link to the platform checkout the snippet's source is bundled from.
+.platform
+# Playwright outputs.
+test-results/
+playwright-report/

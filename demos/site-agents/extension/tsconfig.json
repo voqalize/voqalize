@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "types": ["chrome", "node"],
+    "baseUrl": ".",
+    "paths": {
+      "@site": ["./sites/wom/site.ts"],
+      "@snippet/*": ["./.platform/frontend/packages/site-snippet/src/*"],
+      "@voqalcloud/shopify-common": ["./.platform/frontend/packages/shopify-common/src/index.ts"],
+      "@voqalize/stage": ["./node_modules/@voqalize/stage/dist/index.d.ts"],
+      "@voqalize/stage/extension": ["./node_modules/@voqalize/stage/dist/extension/index.d.ts"],
+      "@voqalize/avatar": ["./node_modules/@voqalize/avatar"],
+      "@voqalize/client-transport": ["./node_modules/@voqalize/client-transport"],
+      "@pipecat-ai/client-js": ["./node_modules/@pipecat-ai/client-js"]
+    }
+  },
+  "include": ["src", "sites", "types"]
+}
