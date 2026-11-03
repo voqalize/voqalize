@@ -450,8 +450,8 @@ async def test_checkout_tells_what_to_type_sees_it_and_moves_on() -> None:
     """Opening checkout says, in the same turn, that the shopper types their
     email and phone (dev call 551114ff: the page opened and Emily went quiet).
     Half an email is not filled; a whole one completes the contact step, and
-    "done" moves on. A complete address is read back and checked once: the
-    review comes only on the shopper's yes (owner, 2026-11-03)."""
+    "done" moves on. A complete address is not read back: Emily says it is
+    on screen to check and the shopper clicks Review order (owner, 2026-11-03)."""
     llm = ScriptedGemini(
         {
             "Let's check out.": [
@@ -476,12 +476,8 @@ async def test_checkout_tells_what_to_type_sees_it_and_moves_on() -> None:
                     },
                 ),
                 reply(
-                    "That's Sam Rivera, 12 Elm Street, Portland 97201, United States. Is that right?"
+                    "I've filled in your details on screen — please check them and click Review order."
                 ),
-            ],
-            "Yes, that's right.": [
-                reply_and_call("On to the review.", "checkout_step", request={"step": "review"}),
-                reply("Have a look over the order."),
             ],
         }
     )
@@ -533,18 +529,16 @@ async def test_checkout_tells_what_to_type_sees_it_and_moves_on() -> None:
             for c in rig.driver.ui_commands
             if c.get("command") == "checkout_step"
         ]
-        assert steps == ["contact", "shipping"], "moved past the address without a check"
+        assert steps == ["contact", "shipping"], "moved past the address for the shopper"
         filled = _results(llm.captured_contents[-1])["fill_checkout"]
-        assert "confirm address: the address is complete" in filled
-        assert "Sam Rivera, 12 Elm Street, Portland 97201, United States" in filled
+        assert "please check them and click Review order" in filled
+        # Nothing they said is handed back to be read aloud.
+        assert "Elm" not in filled and "9 7 2 0 1" not in filled
 
-        await rig.driver.user_says("Yes, that's right.")
-        steps = [
-            c["payload"]["step"]
-            for c in rig.driver.ui_commands
-            if c.get("command") == "checkout_step"
-        ]
-        assert steps == ["contact", "shipping", "review"]
+        # The shopper clicks Review order; the page says where it is.
+        await rig.driver.send_ui_event("checkout_step_reached", {"step": "review", "by": "visitor"})
+        await asyncio.sleep(0.1)
+        assert brain.checkout_step_now == "review"
 
 
 async def test_the_grid_follows_the_brief_and_shows_the_question() -> None:
@@ -1257,8 +1251,8 @@ async def test_checkout_fully_by_voice_with_the_yes() -> None:
         await _type_email(rig)
         await rig.driver.user_says("12 Elm Street, Portland, 97201, United States.")
         second = _results(llm.captured_contents[-1])
-        assert "9 7 2 0 1" in second["fill_checkout"]
-        assert "confirm address: the address is complete" in second["fill_checkout"]
+        assert "9 7 2 0 1" not in second["fill_checkout"], "the postcode is read back"
+        assert "please check them and click Review order" in second["fill_checkout"]
         assert "NOT DONE" in second["place_order"], "a yes it was never asked for placed an order"
         assert "order_placed" not in rig.actions()
 
