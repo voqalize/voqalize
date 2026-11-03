@@ -2655,10 +2655,19 @@ main {
 
 /* ── Brief bar, shortlist tray ────────────────────────────────────────── */
 
+/* Sticky under the header: the brief, and what Emily is asking, stay on
+   screen while the page scrolls to the products. */
 .brief-bar {
+  position: sticky;
+  top: var(--header-h);
+  z-index: 39;
   background: var(--emily-soft);
   border-bottom: 1px solid rgba(75, 69, 198, 0.15);
   animation: drop 0.3s var(--ease);
+}
+.app:has(.brief-bar) .rail-filters {
+  top: calc(var(--header-h) + 72px);
+  max-height: calc(100vh - var(--header-h) - 92px);
 }
 .brief-row {
   display: flex;
@@ -2689,6 +2698,34 @@ main {
 }
 .brief-left {
   flex: none;
+}
+/* What Emily is asking right now, in her colour, so the choice is on screen. */
+.brief-ask {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  padding: 3px 4px 3px 12px;
+  border-radius: 999px;
+  background: var(--emily-soft);
+  animation: pop 0.3s var(--ease);
+}
+.brief-ask-label {
+  font-size: 12.5px;
+  font-weight: 620;
+  color: var(--emily-ink);
+}
+.brief-ask-chip {
+  height: 26px;
+  font-size: 12.5px;
+  background: #fff;
+  border-color: rgba(75, 69, 198, 0.45);
+  color: var(--emily-ink);
+}
+@media (max-width: 699px) {
+  .brief-ask-label {
+    display: none;
+  }
 }
 @media (max-width: 699px) {
   .brief-left,

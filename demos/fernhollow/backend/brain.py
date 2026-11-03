@@ -197,11 +197,19 @@ class BriefOut(BaseModel):
     budget: float | None = None
 
 
+class AskOut(BaseModel):
+    """The question Emily asks next, so the page can show what she is asking."""
+
+    dim: str
+    options: list[str]
+
+
 class UpdateBrief(Action):
-    """The room-brief chips."""
+    """The room-brief chips, and the question Emily asks next."""
 
     brief: BriefOut
     products_left: int
+    asking: AskOut | None = None
 
 
 class PieceOut(BaseModel):
@@ -1280,8 +1288,34 @@ class FernhollowBrain(GeminiBrain):
         )
         left = eng.products_left(self.brief)
         question = eng.next_question(self.brief)
-        self.session.dispatch(UpdateBrief(brief=self._brief_out(), products_left=len(left)))
+        asking = (
+            AskOut(dim=question.dim, options=list(question.options))
+            if question.dim in eng.TASTE_DIMS and question.options
+            else None
+        )
+        self.session.dispatch(
+            UpdateBrief(brief=self._brief_out(), products_left=len(left), asking=asking)
+        )
+        # The grid follows the brief: once a taste is known it is applied, so
+        # the shopper sees what Emily is choosing from rather than being sent
+        # to the sidebar. The budget is for the whole room, not a price cap.
+        b = self.brief
+        brief_filters = eng.Filters(
+            room=b.room, materials=b.materials, colours=b.colours, styles=b.styles
+        )
+        on_grid: str | None = None
         if (
+            self.screen.room is None
+            and (b.materials or b.colours or b.styles)
+            and brief_filters != self.screen.filters
+            and (fits := brief_filters.results())
+        ):
+            self._apply(brief_filters, None)
+            on_grid = (
+                f"the grid now shows the {len(fits)} that fit; the shopper does not need "
+                "to touch the filters"
+            )
+        elif (
             self.brief.room
             and self.screen.page != f"room/{self.brief.room}"
             and self.screen.room is None
@@ -1294,6 +1328,7 @@ class FernhollowBrain(GeminiBrain):
         )
         return _prose(
             f"The brief is on screen. {len(left)} products in the store fit it so far.",
+            grid=on_grid,
             ask_next=question.text,
             assumptions=assumptions,
             not_matched=[

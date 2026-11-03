@@ -72,6 +72,9 @@ function Shell() {
       const y = scrolls.get(location.key) ?? 0;
       // After the page below has rendered its content.
       requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo({ top: y })));
+    } else if (navigatedBy() === "emily") {
+      window.scrollTo({ top: 0 });
+      requestAnimationFrame(() => requestAnimationFrame(scrollToStart));
     } else {
       window.scrollTo({ top: 0 });
     }
@@ -114,6 +117,28 @@ function Shell() {
       ) : null}
     </div>
   );
+}
+
+/**
+ * Where an Emily-led arrival lands: the first `[data-emily-start]` on the
+ * page (a listing's count-and-sort row, the room board, the comparison),
+ * just under the sticky header and brief bar. Landing at the top left the
+ * page header filling most of the screen and not one product in view
+ * while she talked about them. A shopper's own click still starts at the top.
+ */
+function scrollToStart() {
+  const el = document.querySelector<HTMLElement>("[data-emily-start]");
+  if (!el) return;
+  const covered = Math.max(
+    0,
+    ...[".site-header", ".brief-bar"].map((s) => {
+      const bar = document.querySelector<HTMLElement>(s);
+      const pos = bar ? getComputedStyle(bar).position : "";
+      return bar && (pos === "sticky" || pos === "fixed") ? bar.getBoundingClientRect().bottom : 0;
+    }),
+  );
+  const top = el.getBoundingClientRect().top + window.scrollY - covered - 12;
+  if (top > 40) window.scrollTo({ top, behavior: "smooth" });
 }
 
 /** An href that stays in this store, as a router path; null for anything else. */

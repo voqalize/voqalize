@@ -70,11 +70,13 @@ export interface Highlight {
   target: string;
 }
 
-/** The room-brief chips. */
+/** The room-brief chips, and the question Emily asks next. */
 export interface UpdateBrief {
   brief: BriefOut;
 
   products_left: number;
+
+  asking: AskOut | null;
 }
 
 /** The room board; pieces appear one by one. */
@@ -434,6 +436,13 @@ export interface VisibleProducts {
 }
 
 // ── Shapes used by the messages above ──────────────────────────────
+
+/** The question Emily asks next, so the page can show what she is asking. */
+export interface AskOut {
+  dim: string;
+
+  options: string[];
+}
 
 export interface BriefOut {
   room: string | null;

@@ -222,8 +222,15 @@ async def test_the_storyline_drives_the_screen() -> None:
     async with demo("fernhollow", llm) as rig:
         await _drive_story(rig, llm)
         actions = rig.actions()
-        assert actions[:4] == ["update_brief", "navigate", "update_brief", "show_room_set"], actions
-        assert actions[4:] == [
+        # Once a taste is in the brief, the grid follows it before the room is built.
+        assert actions[:5] == [
+            "update_brief",
+            "navigate",
+            "update_brief",
+            "apply_filters",
+            "show_room_set",
+        ], actions
+        assert actions[5:] == [
             "swap_piece",
             "show_compare",
             "show_more_like",
@@ -388,6 +395,36 @@ async def test_a_spoken_yes_adds_after_the_confirmation() -> None:
         brain = rig.brain
         assert isinstance(brain, FernhollowBrain)
         assert brain.confirms.pending is None and len(brain.cart) == 5
+
+
+async def test_the_grid_follows_the_brief_and_shows_the_question() -> None:
+    """The brief asks about a taste and says which options, so the page can
+    show them; once the shopper names one, the grid is filtered to it without
+    the model calling set_filters or sending them to the sidebar."""
+    llm = ScriptedGemini(
+        {
+            "A home office please.": [
+                reply_and_call("A home office.", "update_brief", update={"room": "home-office"}),
+                reply("Which colours?"),
+            ],
+            "Taupe.": [
+                reply_and_call("Taupe it is.", "update_brief", update={"colours": ["taupe"]}),
+                reply("Here they are."),
+            ],
+        }
+    )
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("A home office please.")
+        asking = rig.command("update_brief")["asking"]
+        assert asking is not None and asking["dim"] in ("styles", "materials", "colours")
+        assert asking["options"], "a question with nothing to show"
+        assert "apply_filters" not in rig.actions(), "filtered before any taste was known"
+        await rig.driver.user_says("Taupe.")
+        sent = rig.command("apply_filters")
+        assert sent["filters"]["room"] == "home-office"
+        assert sent["filters"]["colours"] == ["taupe"]
+        assert sent["count"] > 0
 
 
 async def test_pieces_come_off_the_board_when_not_needed() -> None:

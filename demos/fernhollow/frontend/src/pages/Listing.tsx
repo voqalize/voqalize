@@ -145,7 +145,7 @@ export function ListingView({ title, intro, crumbs, base, pills, isSearch, empty
             ))}
           </div>
         ) : null}
-        <div className="listing-bar">
+        <div className="listing-bar" data-emily-start>
           <button type="button" className="btn btn-ghost btn-sm only-mobile" onClick={() => setRailOpen(true)}>
             <SlidersHorizontal size={15} /> Filter{active.length ? ` (${active.length})` : ""}
           </button>
@@ -384,7 +384,7 @@ function FilterRail({
         ) : null}
 
         {groups.map((g) => (
-          <fieldset key={g.name} className="filter-group">
+          <fieldset key={g.name} className="filter-group" data-spot={`facet:${g.name.toLowerCase()}`}>
             <legend className="filter-title">{g.name}</legend>
             <ul className="filter-list">
               {g.values.map((v) => {

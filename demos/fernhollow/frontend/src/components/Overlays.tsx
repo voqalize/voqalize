@@ -45,6 +45,8 @@ export function Spotlight() {
 
 // ── Brief chips ────────────────────────────────────────────────────────────
 
+const ASK_WORD: Record<string, string> = { colours: "colour", materials: "material", styles: "feel" };
+
 export function BriefBar() {
   const brief = useEmily((s) => s.brief);
   if (!brief) return null;
@@ -67,6 +69,16 @@ export function BriefBar() {
             </li>
           ))}
         </ul>
+        {brief.asking?.options.length ? (
+          <span className="brief-ask" aria-live="polite">
+            <span className="brief-ask-label">Emily asks: {ASK_WORD[brief.asking.dim] ?? brief.asking.dim}?</span>
+            {brief.asking.options.map((o) => (
+              <span key={o} className="chip brief-ask-chip">
+                {o.charAt(0).toUpperCase() + o.slice(1)}
+              </span>
+            ))}
+          </span>
+        ) : null}
         <span className="small brief-left">{brief.productsLeft} pieces match</span>
         {brief.by === "emily" ? <EmilyTag /> : null}
         <button type="button" className="icon-btn" aria-label="Clear brief" onClick={() => emily.clearBrief()}>

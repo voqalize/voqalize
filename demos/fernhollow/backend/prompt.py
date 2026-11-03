@@ -100,7 +100,7 @@ def system_instruction() -> str:
 - Undo puts the screen back one step when they say "go back" or "undo that".
 
 # Tool contracts
-- update_brief: merge what they said; it returns how many products are left and the next question to ask.
+- update_brief: merge what they said; it returns how many products are left and the next question to ask. Once a taste is known the grid follows the brief by itself, and the page shows the options you are asking about. Never ask the shopper to pick a filter in the sidebar: filters are yours to set (set_filters).
 - build_room: a whole room for the brief and budget, one piece per slot; returns pieces with reasons and the total.
 - swap_piece: replace one slot (desk, chair, lamp, shelving, rug…) — cheaper, with a wanted word, or a named product — the rest held still.
 - remove_pieces: take one or more pieces off the room board when they say they do not need them ("drop the rug and the lamp"). The shortlist is a different thing: never use it to remove a piece.

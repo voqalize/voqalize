@@ -21,7 +21,7 @@ import { CHECKOUT_FIELDS, CHECKOUT_STEPS, type CheckoutField, type CheckoutStep,
 import { preferTileSide } from "./CallTile";
 import { type By, type CartLine, emit, isLive } from "./events";
 import { totalOf } from "./local";
-import type { Brief, CommandName, Commands, CompareRow, Piece, Swap } from "./types";
+import type { Asking, Brief, CommandName, Commands, CompareRow, Piece, Swap } from "./types";
 
 export interface Listing {
   title: string;
@@ -74,7 +74,7 @@ interface Snapshot {
 }
 
 export interface EmilyState {
-  brief: (Brief & { productsLeft: number; by: By }) | null;
+  brief: (Brief & { productsLeft: number; by: By; asking: Asking | null }) | null;
   listing: Listing | null;
   board: RoomBoard | null;
   compare: Compare | null;
@@ -130,6 +130,18 @@ let currentPath = () => window.location.pathname.replace(import.meta.env.BASE_UR
 export function bindRouter(navigate: Navigate, path: () => string) {
   navigateFn = navigate;
   currentPath = path;
+}
+
+/** The sidebar group (`facet:<name>`) whose values hold most of `options`, if any does. */
+function facetFor(options: string[]): string | null {
+  const want = new Set(options.map((o) => o.toLowerCase()));
+  let best: { spot: string; hits: number } | null = null;
+  for (const group of document.querySelectorAll<HTMLElement>('[data-spot^="facet:"]')) {
+    const values = [...group.querySelectorAll(".check > span:first-of-type")].map((s) => (s.textContent ?? "").trim().toLowerCase());
+    const hits = values.filter((v) => want.has(v)).length;
+    if (hits && (!best || hits > best.hits)) best = { spot: group.dataset.spot ?? "", hits };
+  }
+  return best?.spot ?? null;
 }
 
 const go = (path: string) => {
@@ -286,8 +298,18 @@ export const emily = {
 
   update_brief(p: Commands["update_brief"], by: By = "emily") {
     if (isEmily(by)) snapshot();
-    set({ brief: { ...p.brief, productsLeft: p.products_left, by } });
+    const asking = isEmily(by) ? (p.asking ?? null) : null;
+    set({ brief: { ...p.brief, productsLeft: p.products_left, by, asking } });
     if (isEmily(by)) mark("brief");
+    // Point at what she is asking about where the sidebar has it: the group
+    // holding most of the options she named (ash, walnut, oak are a Finish).
+    // The brief bar shows the options either way. After the page she is moving
+    // to has landed: her navigate follows this command.
+    if (asking?.options.length)
+      window.setTimeout(() => {
+        const spot = facetFor(asking.options);
+        if (spot) void ring(spot);
+      }, 900);
   },
 
   clearBrief() {

@@ -31,7 +31,7 @@ renders without a second lookup. Product references are catalog `id`s.
 | `open_product` | `product_id, variant_id?, focus?` (`options`\|`highlights`\|`price`) | product page, focus section ringed |
 | `select_variant` | `product_id, variant_id` | variant picker set + ringed |
 | `highlight` | `target` (`product:<id>` \| `filter:<key>` \| `slot:<slot>` \| `button:add-to-cart` \| `section:<name>`) | 300 ms spotlight ring |
-| `update_brief` | `brief{room?,uses[],materials[],colours[],styles[],budget?}, products_left` | room-brief chips |
+| `update_brief` | `brief{room?,uses[],materials[],colours[],styles[],budget?}, products_left, asking?{dim, options[]}` | room-brief chips; `asking` shows the options Emily is asking about and rings the sidebar group holding them |
 | `show_room_set` | `room, budget, total, pieces[{slot, product_id, variant_id, title, price, compare_at?, image, reason}]` | room board, pieces appear one by one |
 | `swap_piece` | `slot, old_product_id, piece{…same as above}, total` | one room-board tile changes |
 | `remove_pieces` | `slots[], total` | those room-board tiles taken off, the rest unchanged |

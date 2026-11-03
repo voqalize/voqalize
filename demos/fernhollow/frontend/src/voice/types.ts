@@ -16,6 +16,12 @@ export interface Brief {
   budget?: number | null;
 }
 
+/** The question Emily asks next: which taste, and the options she named. */
+export interface Asking {
+  dim: string;
+  options: string[];
+}
+
 export interface Piece {
   slot: string;
   product_id: string;
@@ -50,7 +56,7 @@ export interface Commands {
   open_product: { product_id: string; variant_id?: string | null; focus?: "options" | "highlights" | "price" | null };
   select_variant: { product_id: string; variant_id: string };
   highlight: { target: string };
-  update_brief: { brief: Brief; products_left: number };
+  update_brief: { brief: Brief; products_left: number; asking?: Asking | null };
   show_room_set: { room: string; budget: number; total: number; pieces: Piece[] };
   swap_piece: { slot: string; old_product_id: string; piece: Piece; total: number };
   remove_pieces: { slots: string[]; total: number };
