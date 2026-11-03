@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 
 /** The band at the bottom of the viewport the dock occupies, in px. */
 const BAND = 112;
+const PHONE = "(max-width: 699px)";
 
 /**
  * Where the dock sits right now.
@@ -15,12 +16,14 @@ const BAND = 112;
  */
 export function useDockMode(live: boolean) {
   const location = useLocation();
-  const [compact, setCompact] = useState(false);
+  // From the first paint: starting wide and compacting in an effect moved the
+  // dock across a phone's screen on every load, and the face chased it.
+  const [compact, setCompact] = useState(() => window.matchMedia(PHONE).matches);
   const [hidden, setHidden] = useState(false);
 
   useEffect(() => {
     let frame = 0;
-    const phone = window.matchMedia("(max-width: 699px)");
+    const phone = window.matchMedia(PHONE);
     const check = () => {
       frame = 0;
       setCompact(phone.matches);

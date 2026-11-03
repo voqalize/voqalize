@@ -77,6 +77,14 @@ function boxAt(anchor: Anchor, size: { width: number; height: number }): Box {
   return { left, top: Math.max(top0, top), ...size };
 }
 
+/** The dock's in-flight CSS `translate` (its entrance slide), in px. */
+function restOffset(dock: HTMLElement | null | undefined): [number, number] {
+  const t = dock ? getComputedStyle(dock).translate : "none";
+  if (!t || t === "none") return [0, 0];
+  const [x = 0, y = 0] = t.split(" ").map((v) => parseFloat(v) || 0);
+  return [x, y];
+}
+
 const overlaps = (a: Box, b: DOMRect) => a.left < b.right && a.left + a.width > b.left && a.top < b.bottom && a.top + a.height > b.top;
 
 /** The anchor to use: the shopper's, unless it would cover an Add to cart or checkout button. */
@@ -127,8 +135,18 @@ export function CallTile({
     if (mode === "docked") {
       const slotEl = document.querySelector(".dock-face-slot");
       const slot = slotEl?.getBoundingClientRect();
-      const hidden = !!slotEl?.closest(".dock.is-hidden");
-      setBox(slot && slot.width && !hidden ? { left: slot.left, top: slot.top, width: slot.width, height: slot.height } : null);
+      const dock = slotEl?.closest<HTMLElement>(".dock");
+      const hidden = !!dock?.classList.contains("is-hidden");
+      // Where the slot sits once the dock is at rest. The dock slides in
+      // (`dock-in`) and the face runs the same slide itself, so measuring
+      // mid-slide would count the offset twice: the face sat low on load,
+      // then glided up at the next poll.
+      const [dx, dy] = restOffset(dock);
+      setBox(
+        slot && slot.width && !hidden
+          ? { left: slot.left - dx, top: slot.top - dy, width: slot.width, height: slot.height }
+          : null,
+      );
       return;
     }
     const size = tileSize(mode === "mini");
@@ -214,6 +232,16 @@ export function CallTile({
   // One element always, so the avatar inside is never re-created; with nowhere
   // to sit (the dock hidden) it is parked out of sight.
   const parked = !box;
+  // Leaving the park jumps straight to the slot: easing `left`/`top` from
+  // the park would fly the face in from the top-left corner.
+  const wasParked = useRef(true);
+  const snap = wasParked.current && !parked;
+  useLayoutEffect(() => {
+    // Commit the jump while transitions are off: a render in the same frame
+    // that drops `is-snap` would otherwise ease from the park after all.
+    if (snap) void ref.current?.offsetHeight;
+    wasParked.current = parked;
+  });
   const at = box ?? { left: -200, top: -200, width: 46, height: 46 };
   const pos = drag ? { left: drag.left, top: drag.top } : { left: at.left, top: at.top };
   const face = mode === "tile" ? tileSize(false).face : at.height;
@@ -228,7 +256,7 @@ export function CallTile({
   return (
     <div
       ref={ref}
-      className={`call-tile is-${mode} is-${state}${drag ? " is-dragging" : ""}${parked ? " is-parked" : ""}`}
+      className={`call-tile is-${mode} is-${state}${drag ? " is-dragging" : ""}${parked ? " is-parked" : ""}${snap ? " is-snap" : ""}`}
       style={{ left: pos.left, top: pos.top, width: at.width, height: at.height }}
       role={mode === "docked" ? undefined : "region"}
       aria-label={mode === "docked" ? undefined : "Call with Emily. Drag, or use the arrow keys, to move it."}
