@@ -15,8 +15,8 @@ importers:
         specifier: ~1.10.8
         version: 1.10.8(@pipecat-ai/client-js@1.13.1)
       '@voqalize/avatar':
-        specifier: ^0.6.2
-        version: 0.6.2(@pipecat-ai/client-js@1.13.1)
+        specifier: ^0.6.3
+        version: 0.6.3(@pipecat-ai/client-js@1.13.1)
       '@voqalize/client-transport':
         specifier: 0.4.0
         version: 0.4.0(@pipecat-ai/client-js@1.13.1)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.13.1))
@@ -229,8 +229,8 @@ packages:
   '@types/events@3.0.3':
     resolution: {integrity: sha512-trOc4AAUThEz9hapPtSd7wf5tiQKvTtu5b371UxXdTuqzIh0ArcRspRP0i0Viu+LXstIQ1z96t1nsPxT9ol01g==}
 
-  '@voqalize/avatar@0.6.2':
-    resolution: {integrity: sha512-5hGZEw/36hUdjg2p9AOyAmNr0OVbaFnTgTgolSID2puOOV1MWEkJzKsflvnd11rDitzjd5RXmJvdxxp9dvGX/g==}
+  '@voqalize/avatar@0.6.3':
+    resolution: {integrity: sha512-i37tRlTnt6wr/uQ6QBpoxbLPBjuPos6VFg/stbylwtZApu4TJo5nzHUeRlUSzYv1k2q2n6y8wSg7dAgqBm6XCQ==}
     engines: {node: '>=20'}
     peerDependencies:
       '@pipecat-ai/client-js': '>=1.4 <2'
@@ -443,7 +443,7 @@ snapshots:
 
   '@types/events@3.0.3': {}
 
-  '@voqalize/avatar@0.6.2(@pipecat-ai/client-js@1.13.1)':
+  '@voqalize/avatar@0.6.3(@pipecat-ai/client-js@1.13.1)':
     optionalDependencies:
       '@pipecat-ai/client-js': 1.13.1
 

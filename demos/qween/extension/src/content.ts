@@ -33,7 +33,7 @@
 import "./qween-actions.js";
 
 import { type APIRequest, PipecatClient, type TransportState } from "@pipecat-ai/client-js";
-import { type AvatarInstance, createAvatar, listCharacters, preloadAvatar } from "@voqalize/avatar";
+import { type AvatarInstance, createAvatar, preloadAvatar } from "@voqalize/avatar";
 import { createVoqalizeTransport, VoqalizeMediaManager } from "@voqalize/client-transport";
 
 import { type AppEvent, asUiAction, sendAppEvent, UI_ACTION_COMMANDS } from "./actions.gen";
@@ -43,6 +43,7 @@ import {
   inFront, openChannel, type Relay, type TabInfo, tabId, takeCall,
 } from "./tabs";
 import { type Activity, mountWidget, type Status } from "./widget";
+import ananyaSmiling from "./assets/ananya-smiling.webp";
 
 declare const __VOQALIZE__: { apiBase: string; agentId: string; publishableKey: string };
 
@@ -544,17 +545,11 @@ async function start(): Promise<void> {
     void client?.disconnect();
   });
 
-  // Her face on the button. The roster comes from the avatar's own host, so
-  // it is fetched once the page has settled rather than competing with it.
-  const idle = window.requestIdleCallback ?? ((fn: () => void) => setTimeout(fn, 1500));
-  idle(() => {
-    listCharacters()
-      .then((all) => {
-        const still = all.find((c) => c.name === CHARACTER)?.still;
-        if (still) widget.setStill(still);
-      })
-      .catch(() => {});
-  });
+  // Her face on the button, smiling: it is the shopper's first sight of her,
+  // and the roster's still is her at rest, which reads as cool. The smile is
+  // her own warm smile drawn by the renderer, so the live face can make it
+  // too. Bundled rather than fetched, so it is there at once.
+  widget.setStill(ananyaSmiling);
 
   paint("idle");
   spare = prepare();

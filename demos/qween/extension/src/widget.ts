@@ -95,9 +95,12 @@ button { font: inherit; cursor: pointer; }
   transition: border-color 200ms ease;
 }
 .invite:hover { border-color: ${GOLD}; }
+/* Her face, cropped from brow to chin with the hair framing it: the roster's
+   whole-head still left her eyes a few pixels across at this size, too small
+   to read as a person looking back. */
 .still {
-  width: 52px; height: 52px; border-radius: 50%; flex: none;
-  background: #efe7dd center 20% / cover no-repeat;
+  width: 60px; height: 60px; border-radius: 50%; flex: none;
+  background: #efe7dd center / cover no-repeat;
   outline: 1px solid ${GOLD}; outline-offset: 2px;
 }
 .invite-text { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
