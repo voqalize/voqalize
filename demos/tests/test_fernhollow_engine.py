@@ -391,6 +391,7 @@ def _calls(brain: fb.FernhollowBrain) -> list[tuple[str, Any]]:
         ("build_room", fb.BuildRoom()),
         ("swap_piece", fb.SwapRequest(slot="lamp")),
         ("remove_pieces", fb.RemoveRequest(pieces=["rug"])),
+        ("piece_options", fb.PieceOptionsRequest(slot="desk", want=["oak"])),
         ("compare", fb.CompareRequest(products=["chair", chairs[4]])),
         ("edit_compare", fb.EditCompare(add=[chairs[5]])),
         ("more_like", fb.MoreLikeRequest(anchor="desk", change="cheaper")),

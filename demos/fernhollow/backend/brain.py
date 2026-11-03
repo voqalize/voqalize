@@ -447,6 +447,14 @@ class SwapRequest(BaseModel):
     )
 
 
+class PieceOptionsRequest(BaseModel):
+    slot: str = Field(description="The board piece to see options for: desk, chair, lamp, rug…")
+    want: list[str] = Field(
+        default_factory=list[str],
+        description="Words the options should carry, as said: a material, colour or style.",
+    )
+
+
 class RemoveRequest(BaseModel):
     pieces: list[str] = Field(
         description="The pieces to take off the board: slot names (desk, lamp, rug…), ordinals on screen, 'this', or ids."
@@ -1234,6 +1242,7 @@ class FernhollowBrain(GeminiBrain):
             self.build_room,
             self.swap_piece,
             self.remove_pieces,
+            self.piece_options,
             self.goes_with,
             self.more_like,
             self.compare,
@@ -1432,6 +1441,44 @@ class FernhollowBrain(GeminiBrain):
             f"The {slot.replace('_', ' ')} is swapped on the board. Room total now {money(updated.total)}.",
             was=_line(old.product),
             now=_line(new.product, new.reason),
+        )
+
+    @needs_result_now
+    async def piece_options(self, request: PieceOptionsRequest) -> str:
+        """Show the store's other options for one piece — "show me other desks" —
+        as a grid to choose from: that piece's category, carrying any wanted
+        words. Nothing on the board changes until they pick one (swap_piece)."""
+        room = self.screen.room
+        slot = request.slot.strip().lower().replace(" ", "_")
+        piece = room.piece(slot) if room else None
+        category = piece.product.category_slug if piece else _category(request.slot)
+        if category is None:
+            return _not_done(
+                f"I cannot tell which kind of piece '{request.slot}' is", "Ask which piece."
+            )
+        filters = eng.Filters(
+            category=category,
+            materials=eng.map_terms("materials", request.want).words,
+            colours=eng.map_terms("colours", request.want).words,
+            styles=eng.map_terms("styles", request.want).words,
+        )
+        widened = None
+        if not filters.results():
+            # Nothing carries those words: show the whole category and say so.
+            filters = eng.Filters(category=category)
+            widened = f"nothing in {', '.join(request.want)}; showing every one instead"
+        ids, _ = self._apply(filters, None)
+        current = piece.product_id if piece else None
+        name = CATALOG.categories[category].name.lower()
+        landed(f"Here are some other {name}.", "Here are the options.")
+        return _prose(
+            f"The grid shows {len(ids)} {name} to choose from.",
+            note=widened,
+            on_screen=[
+                f"{n}. {_line(CATALOG.products[i])}{' (the one on the board)' if i == current else ''}"
+                for n, i in enumerate(ids[:6], 1)
+            ],
+            next="name two or three in a line and ask which one; when they pick, swap_piece with that product",
         )
 
     async def remove_pieces(self, request: RemoveRequest) -> str:
@@ -2192,6 +2239,7 @@ class FernhollowBrain(GeminiBrain):
         if not self.screen.page.startswith("checkout"):
             self._move(page="checkout", product=None)
             self.session.dispatch(Navigate(page="checkout"))
+            self.checkout_step_now = self.checkout_step_now or "contact"
         refused: list[str] = []
         spoken: list[str] = []
         for name in FIELDS:
@@ -2210,11 +2258,13 @@ class FernhollowBrain(GeminiBrain):
             if (said := spell_back(name, value)) is not None:
                 spoken.append(said)
         missing = self._still_needed(REQUIRED)
-        landed("That's in.", "Filled in.")
+        moved = self._advance_checkout()
+        landed(f"That's in — on to {moved}." if moved else "That's in.", "Filled in.")
         return _prose(
             "The checkout fields are filled.",
             say_back=" — ".join(spoken) or None,
             not_filled=refused,
+            moved_on=f"the step was complete, so the checkout is now on {moved}" if moved else None,
             still_needed=", ".join(missing) or "nothing — move to the review step",
         )
 
@@ -2225,20 +2275,61 @@ class FernhollowBrain(GeminiBrain):
             f"{f} (the shopper types it themselves: ask them to type it, never to say it)"
             if f in PRIVATE
             else f
-            for f in among
-            if f in REQUIRED and f not in self.checkout and f not in self.checkout_filled
+            for f in self._missing(among)
         ]
 
+    @needs_result_now
     async def checkout_step(self, request: CheckoutStepRequest) -> str:
-        """Move the checkout to contact, shipping or review."""
+        """Move the checkout to contact, shipping or review. Marked as a read
+        because what to say next depends on it: on contact, that the shopper
+        types their own email and phone — said in the same breath as the page
+        opens, not a turn later."""
         if not self.cart:
             return _not_done("the cart is empty", "Add something to the cart first.")
         self.checkout_step_now = request.step
         self._move(page="checkout", product=None)
         self.session.dispatch(CheckoutStep(step=request.step))
-        landed("Here's that step.", "On to that step.")
         need = self._still_needed(STEPS[request.step])
-        return _prose(f"The checkout is on {request.step}.", still_needed=", ".join(need) or None)
+        if request.step == "contact" and any(f in PRIVATE for f in self._missing(STEPS["contact"])):
+            landed(
+                "Here's checkout. Type your email and phone in yourself, and tell me when you're done."
+            )
+        else:
+            landed("Here's that step.", "On to that step.")
+        names = list(STEPS)
+        earlier = [
+            f for s in names[: names.index(request.step)] for f in self._still_needed(STEPS[s])
+        ]
+        return _prose(
+            f"The checkout is on {request.step}.",
+            still_needed=", ".join(need) or None,
+            earlier_steps_still_need=", ".join(earlier) or None,
+        )
+
+    def _missing(self, among: Sequence[CheckoutField]) -> list[CheckoutField]:
+        """The required fields of ``among`` nobody has filled yet."""
+        return [
+            f
+            for f in among
+            if f in REQUIRED and f not in self.checkout and f not in self.checkout_filled
+        ]
+
+    def _advance_checkout(self) -> CheckoutStepName | None:
+        """After Emily fills fields: move on past every step that is now
+        complete, as the page's own Continue would. Never on the shopper's
+        typing alone — they may still be typing (the phone is optional)."""
+        names: list[CheckoutStepName] = list(STEPS)
+        moved: CheckoutStepName | None = None
+        while (
+            self.cart
+            and self.checkout_step_now in ("contact", "shipping")
+            and not self._missing(STEPS[self.checkout_step_now])
+        ):
+            nxt = names[names.index(self.checkout_step_now) + 1]
+            self.checkout_step_now = nxt
+            self.session.dispatch(CheckoutStep(step=nxt))
+            moved = nxt
+        return moved
 
     def _order_total(self) -> float:
         subtotal = self._cart_total()
@@ -2548,8 +2639,20 @@ class FernhollowBrain(GeminiBrain):
                 self.choices = ()
                 return f"[The shopper picked {p.title} [id {p.id}] from the numbered choices.]"
             case CheckoutChanged():
-                if event.field:
-                    self.checkout_filled.add(event.field)
+                if not event.field:
+                    return None
+                if not event.complete:
+                    # Half an email, or a field cleared: not filled.
+                    self.checkout_filled.discard(event.field)
+                    return None
+                self.checkout_filled.add(event.field)
+                step = self.checkout_step_now
+                left = self._still_needed(STEPS[step]) if step in STEPS else []
+                if step in ("contact", "shipping") and not left:
+                    return (
+                        f"[The shopper filled {event.field} at checkout. The {step} step is "
+                        "complete: when they say they are done, move on with checkout_step.]"
+                    )
                 return f"[The shopper filled {event.field} at checkout.]"
             case CheckoutStepReached():
                 self.checkout_step_now = event.step

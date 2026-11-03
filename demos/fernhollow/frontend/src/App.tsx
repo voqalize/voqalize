@@ -13,6 +13,8 @@ import { CategoryPage, RoomPage, SalePage, SearchPage, ShopPage } from "./pages/
 import { BoardPage, ComparePage, PicksPage } from "./pages/EmilyViews";
 import { ProductPage } from "./pages/ProductPage";
 import { ReturnsConfirmation, ReturnsForm, ReturnsHome } from "./pages/Returns";
+import { useCart } from "./state/cart";
+import { useShortlist } from "./state/shortlist";
 import { bindRouter, dispatch, emily, navigatedBy } from "./voice/controller";
 import { useScreenReport } from "./voice/screen";
 import { debugMode, emit } from "./voice/events";
@@ -37,6 +39,12 @@ function Shell() {
   useScreenReport(location.key);
   // Numbered choices belong to the screen they were shown on.
   useEffect(() => emily.clear_choices(), [location.key]);
+  // A side panel belongs to the page it opened on: moving on — Emily going to
+  // checkout, or a click — closes the cart and the shortlist.
+  useEffect(() => {
+    useCart.getState().setOpen(false);
+    useShortlist.getState().setOpen(false);
+  }, [location.pathname]);
   useEffect(() => {
     // Dev-only handle (?debug=1): fire a brain command from a test.
     if (debugMode()) {

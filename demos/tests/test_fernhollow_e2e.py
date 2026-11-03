@@ -394,6 +394,143 @@ async def test_add_to_cart_adds_at_once_and_once_per_turn() -> None:
         assert sorted(brain.cart.values()) == [1, 1, 1, 1, 2]
 
 
+async def test_options_for_a_piece_are_a_grid_to_pick_from() -> None:
+    """ "Show me a couple of other desks" is the desk grid to choose from — not a
+    comparison, and not a swap made for them (dev call 551114ff). The one they
+    then pick goes on the board."""
+    llm = ScriptedGemini(
+        {
+            "Build me a home office around two thousand.": [
+                Reply(
+                    text="A home office around two thousand.",
+                    calls=(
+                        ("update_brief", {"update": {"room": "home-office", "budget": 2000}}),
+                        ("build_room", {"request": {}}),
+                    ),
+                ),
+                reply("Here it is."),
+            ],
+            "Show me a couple of other desks, in oak.": [
+                reply_and_call(
+                    "Here are some other desks.",
+                    "piece_options",
+                    request={"slot": "desk", "want": ["oak"]},
+                ),
+                reply("Which one?"),
+            ],
+            "The second one.": [
+                reply_and_call(
+                    "Putting it on the board.",
+                    "swap_piece",
+                    request={"slot": "desk", "product": "2"},
+                ),
+                reply("Done."),
+            ],
+        }
+    )
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("Build me a home office around two thousand.")
+        await rig.driver.user_says("Show me a couple of other desks, in oak.")
+        grid = rig.command("apply_filters")
+        assert grid["filters"]["category"] == "desks"
+        assert grid["count"] > 1
+        assert "show_compare" not in rig.actions() and "swap_piece" not in rig.actions()
+        listed = _results(llm.captured_contents[-1])["piece_options"]
+        assert "1. " in listed and "2. " in listed
+        await rig.driver.user_says("The second one.")
+        brain = rig.brain
+        assert isinstance(brain, FernhollowBrain)
+        assert brain.screen.room is not None
+        desk = brain.screen.room.piece("desk")
+        assert desk is not None and desk.product_id == grid["product_ids"][1]
+
+
+async def test_checkout_tells_what_to_type_sees_it_and_moves_on() -> None:
+    """Opening checkout says, in the same turn, that the shopper types their
+    email and phone (dev call 551114ff: the page opened and Emily went quiet).
+    Half an email is not filled; a whole one completes the contact step, and
+    "done" moves on. Filling the name and address completes shipping, so the
+    checkout moves to the review by itself."""
+    llm = ScriptedGemini(
+        {
+            "Let's check out.": [
+                reply_and_call("Here's checkout.", "checkout_step", request={"step": "contact"}),
+                reply("Type your email and phone in yourself, and tell me when you're done."),
+            ],
+            "Done, I've typed it.": [
+                reply_and_call("On to shipping.", "checkout_step", request={"step": "shipping"}),
+                reply("What name and address should it go to?"),
+            ],
+            "Sam Rivera, 12 Elm Street, Portland, 97201, United States.": [
+                reply_and_call(
+                    "Filling that in.",
+                    "fill_checkout",
+                    fields={
+                        "first_name": "Sam",
+                        "last_name": "Rivera",
+                        "address1": "12 Elm Street",
+                        "city": "Portland",
+                        "postcode": "97201",
+                        "country": "United States",
+                    },
+                ),
+                reply("That's everything — have a look over the order."),
+            ],
+        }
+    )
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        brain = rig.brain
+        assert isinstance(brain, FernhollowBrain)
+        await rig.driver.send_ui_event(
+            "cart_changed",
+            {
+                "lines": [{"product_id": CHAIR_ID, "variant_id": CHAIR_VARIANT, "qty": 1}],
+                "total": 289.0,
+                "by": "visitor",
+            },
+        )
+        await asyncio.sleep(0.1)
+
+        await rig.driver.user_says("Let's check out.")
+        opened = _results(llm.captured_contents[-1])["checkout_step"]
+        assert "email (the shopper types it themselves" in opened, "said a turn late"
+
+        # Half an email, then the whole one: only the whole one counts.
+        await rig.driver.send_ui_event(
+            "checkout_changed", {"field": "email", "complete": False, "by": "visitor"}
+        )
+        await asyncio.sleep(0.1)
+        assert "email" not in brain.checkout_filled
+        await rig.driver.send_ui_event(
+            "checkout_changed", {"field": "email", "complete": True, "by": "visitor"}
+        )
+        await asyncio.sleep(0.1)
+        assert "email" in brain.checkout_filled
+
+        await rig.driver.user_says("Done, I've typed it.")
+        heard = " ".join(
+            p.text or "" for c in llm.captured_contents[-2] for p in c.parts or [] if p.text
+        )
+        assert "contact step is complete" in heard
+        steps = [
+            c["payload"]["step"]
+            for c in rig.driver.ui_commands
+            if c.get("command") == "checkout_step"
+        ]
+        assert steps == ["contact", "shipping"]
+
+        await rig.driver.user_says("Sam Rivera, 12 Elm Street, Portland, 97201, United States.")
+        steps = [
+            c["payload"]["step"]
+            for c in rig.driver.ui_commands
+            if c.get("command") == "checkout_step"
+        ]
+        assert steps == ["contact", "shipping", "review"], "a complete step did not move on"
+        assert "now on review" in _results(llm.captured_contents[-1])["fill_checkout"]
+
+
 async def test_the_grid_follows_the_brief_and_shows_the_question() -> None:
     """The brief asks about a taste and says which options, so the page can
     show them; once the shopper names one, the grid is filtered to it without
@@ -558,6 +695,7 @@ def test_marks_are_reads() -> None:
         "update_brief",
         "build_room",
         "swap_piece",
+        "piece_options",
         "goes_with",
         "more_like",
         "compare",
@@ -570,8 +708,11 @@ def test_marks_are_reads() -> None:
         "check_exchange",
         "resolve_product",
         "fill_checkout",
+        # What to say on opening a step depends on it: the shopper types their
+        # own email and phone, said as the page opens, not a turn later.
+        "checkout_step",
     }
-    assert len(brain.tools) == 27
+    assert len(brain.tools) == 28
 
 
 def test_prompt_names_only_what_exists() -> None:

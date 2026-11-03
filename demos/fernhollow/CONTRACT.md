@@ -142,7 +142,7 @@ New UI → brain events (all `by: "visitor"`):
 - `visible_products{product_ids[], layout: [{product_id, row, col}]}` — now carries screen order, so
   "the one on the left", "the second one", "the bottom row" resolve against what is visible.
 - `choice_made{product_id}` — the shopper clicked a numbered product while choices were showing.
-- `checkout_changed{field}` / `checkout_step_reached{step}` — field names only, like the returns form.
+- `checkout_changed{field, complete}` / `checkout_step_reached{step}` — field names only, like the returns form; `complete` says the value is usable yet (a whole email, a non-empty field), never what it is. Contact is email and phone only; name and address are on shipping.
 
 **Reference resolution (brain).** Every spoken product reference is resolved against, in order: the
 product being pointed at (≤ 5 s old), the products visible on screen (with layout), the shortlist and

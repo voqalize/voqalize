@@ -70,7 +70,7 @@ export interface Highlight {
   target: string;
 }
 
-/** The room-brief chips, and the question Emily asks next. */
+/** The brief, and the question Emily asks next (the page points at its options). */
 export interface UpdateBrief {
   brief: BriefOut;
 
@@ -301,9 +301,15 @@ export interface CartChanged {
   by?: string;
 }
 
-/** The shopper filled or changed a checkout field — its name, never its value. */
+/**
+ * The shopper filled or changed a checkout field — its name, never its value.
+ * `complete` says the value is usable (an email with an @ and a domain, any
+ * other field not empty), so half-typed text never counts as filled.
+ */
 export interface CheckoutChanged {
   field?: string;
+
+  complete?: boolean;
 
   by?: string;
 }

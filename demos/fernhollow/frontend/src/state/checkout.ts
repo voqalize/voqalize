@@ -114,6 +114,10 @@ function keep(a: Address) {
 
 const typing = new Map<string, ReturnType<typeof setTimeout>>();
 
+/** A value checkout can use: an email with an @ and a domain, anything else not blank. */
+const usable = (field: string, value: string) =>
+  field === "email" ? /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value.trim()) : value.trim().length > 0;
+
 export const useCheckout = create<CheckoutState>((set, get) => ({
   address: load(),
   step: "contact",
@@ -123,10 +127,13 @@ export const useCheckout = create<CheckoutState>((set, get) => ({
     const address = { ...get().address, [field]: value };
     keep(address);
     set((s) => ({ address, by: { ...s.by, [field]: by } }));
-    // Typing is reported once the shopper pauses; Emily's fill at once.
+    // Typing is reported once the shopper pauses; Emily's fill at once. The
+    // value never leaves the page: only whether it is usable yet, so half an
+    // email does not count as filled.
     clearTimeout(typing.get(field));
-    if (by === "visitor") typing.set(field, setTimeout(() => emit("checkout_changed", { field }, by), 800));
-    else emit("checkout_changed", { field }, by);
+    const complete = usable(field, value);
+    if (by === "visitor") typing.set(field, setTimeout(() => emit("checkout_changed", { field, complete }, by), 800));
+    else emit("checkout_changed", { field, complete }, by);
   },
   setStep(step, by = "visitor") {
     if (get().step === step) return;

@@ -109,7 +109,7 @@ describe("checkout_fill", () => {
     await emily.checkout_fill({ field: "card_number", value: "4111" });
     expect(document.querySelector('input[name="card_number"]')).toBeNull();
 
-    expect(sent).toContainEqual(["checkout_changed", { field: "email", by: "emily" }]);
+    expect(sent).toContainEqual(["checkout_changed", { field: "email", complete: true, by: "emily" }]);
     expect(sent).toContainEqual(["checkout_step_reached", { step: "shipping", by: "emily" }]);
     // Never a value on the wire.
     expect(JSON.stringify(sent)).not.toContain("sam.rivera");

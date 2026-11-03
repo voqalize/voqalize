@@ -17,6 +17,8 @@ import { Maximize2, Mic, MicOff, Minus, PhoneOff } from "lucide-react";
 import { debugMode } from "./events";
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { create } from "zustand";
+import { useCart } from "../state/cart";
+import { useShortlist } from "../state/shortlist";
 
 export type CallState = "connecting" | "listening" | "thinking" | "speaking" | "error";
 type Anchor = "tl" | "tr" | "ml" | "mr" | "bl" | "br";
@@ -142,6 +144,15 @@ export function CallTile({
     w.__fhVoice = { ...w.__fhVoice, face: mountId.current };
   }, []);
   const mode: "docked" | "tile" | "mini" = !live ? "docked" : saved.mini ? "mini" : "tile";
+
+  // The cart drawer and the shortlist tray open on the right, over the tile:
+  // the tile steps to the left while one is open.
+  const cartOpen = useCart((s) => s.open);
+  const trayOpen = useShortlist((s) => s.open);
+  const panelOpen = cartOpen || trayOpen;
+  useEffect(() => {
+    if (panelOpen) preferTileSide("l");
+  }, [panelOpen]);
 
   // Emily's side: the same height, the other side. Not saved — the shopper's
   // own drag is what the next visit remembers.
