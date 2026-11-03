@@ -29,6 +29,15 @@ export interface Product {
   variants: Variant[];
   /** `images[].file` from the catalog: `<id>/<n>`. */
   images: string[];
+  /** The words the brain's brief and filters use for this product
+   *  (backend/data/attributes.json), so the listing can filter by them too. */
+  taste: Taste;
+}
+
+export interface Taste {
+  materials: string[];
+  colours: string[];
+  styles: string[];
 }
 
 export interface Category {

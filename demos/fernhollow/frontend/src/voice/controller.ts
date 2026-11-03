@@ -13,7 +13,7 @@
  * target (`ring`). `undo` reverts the last screen-changing command.
  */
 import { create } from "zustand";
-import { type ContractFilters, getProduct, matchContractFilters } from "../data/catalog";
+import { type ContractFilters, TASTE_GROUP_OF, getProduct, matchContractFilters } from "../data/catalog";
 import { useCart } from "../state/cart";
 import { useShortlist } from "../state/shortlist";
 import { useSelection } from "./circle";
@@ -120,7 +120,7 @@ const get = useEmily.getState;
 
 // ── Router seam ───────────────────────────────────────────────────────────
 
-type Navigate = (path: string) => void;
+type Navigate = (path: string, replace?: boolean) => void;
 let navigateFn: Navigate = (path) => {
   window.history.pushState({}, "", `${import.meta.env.BASE_URL.replace(/\/$/, "")}${path}`);
 };
@@ -235,26 +235,85 @@ export const emily = {
     go("/picks");
   },
 
-  apply_filters(p: Commands["apply_filters"], by: By = "emily") {
-    if (isEmily(by)) snapshot();
-    const prev = get().listing;
-    set({
-      listing: {
-        title: prev?.title ?? "Picked for you",
-        query: prev?.query ?? "",
-        ids: p.product_ids,
-        count: p.count,
-        filters: p.filters,
-        assumption: p.assumption ?? null,
-        by,
-      },
-    });
-    if (isEmily(by)) mark("filters");
-    else emit("filter_changed", { filters: p.filters as Record<string, unknown> });
-    go("/picks");
+  /**
+   * Emily's filters, on the listing itself (Cannon Home's way): open the room
+   * or category listing, then ring each option in its sidebar and tick it,
+   * one at a time, so the shopper watches the grid narrow. It used to swap in
+   * a "Picked for you" page of its own, and the listing they were looking at
+   * was left behind.
+   */
+  async apply_filters(p: Commands["apply_filters"]) {
+    snapshot();
+    const f = p.filters;
+    const path = f.category ? `/category/${f.category}` : f.room ? `/room/${f.room}` : "/shop";
+    // Emily's filters replace the last ones: start from the bare listing.
+    if (currentPath() !== path || window.location.search) {
+      navigateFn(path);
+      await wait(450);
+    }
+    // One step per group: a spoken word can read as several catalog words
+    // ("neutral" is white, cream, sand…), so its group is ringed once and
+    // every word of it ticked together — a tick per word was a slow parade.
+    const steps: { spot: string; set: (n: URLSearchParams) => void }[] = [];
+    for (const dim of ["colours", "styles", "materials"] as const) {
+      const words = f[dim] ?? [];
+      if (!words.length) continue;
+      const group = TASTE_GROUP_OF[dim];
+      steps.push({
+        spot: words.length === 1 ? `facet:${group}:${words[0]}`.toLowerCase() : `facet:${group.toLowerCase()}`,
+        set: (n) => words.forEach((w) => n.append("opt", `${group}:${w}`)),
+      });
+    }
+    if (f.price_min != null || f.price_max != null) {
+      steps.push({
+        spot: "facet:price",
+        set: (n) => {
+          if (f.price_min != null) n.set("min", String(f.price_min));
+          if (f.price_max != null) n.set("max", String(f.price_max));
+        },
+      });
+    }
+    if (f.on_sale) steps.push({ spot: "facet:sale", set: (n) => n.set("sale", "1") });
+    const params = new URLSearchParams();
+    for (const s of steps) {
+      await ring(s.spot);
+      s.set(params);
+      emilyActedAt = Date.now(); // still Emily's move: the page keeps its place
+      navigateFn(`${path}?${params}`, true);
+      await wait(350);
+    }
+    mark("filters");
   },
 
   async remove_filter(p: Commands["remove_filter"], by: By = "emily") {
+    // On a listing, untick it in the sidebar where it was ticked.
+    if (isEmily(by) && /^\/(room|category|shop|sale)\b/.test(currentPath())) {
+      const [key, value] = [p.key.split(":")[0], p.key.split(":").slice(1).join(":")];
+      const n = new URLSearchParams(window.location.search);
+      let spot: string | null = null;
+      if (key === "materials" || key === "colours" || key === "styles") {
+        const group = TASTE_GROUP_OF[key];
+        const gone = n.getAll("opt").filter((o) => o.startsWith(`${group}:`) && (!value || o === `${group}:${value}`));
+        spot = gone[0] ? `facet:${gone[0].toLowerCase()}` : null;
+        const keep = n.getAll("opt").filter((o) => !gone.includes(o));
+        n.delete("opt");
+        keep.forEach((o) => n.append("opt", o));
+      } else if (key === "price_min" || key === "price_max") {
+        spot = "facet:price";
+        n.delete(key === "price_min" ? "min" : "max");
+      } else if (key === "on_sale") {
+        spot = "facet:sale";
+        n.delete("sale");
+      }
+      if (spot !== null || key === "category" || key === "room") {
+        snapshot();
+        if (spot) await ring(spot);
+        emilyActedAt = Date.now();
+        const q = n.toString();
+        navigateFn(`${currentPath()}${q ? `?${q}` : ""}`, true);
+        return;
+      }
+    }
     const listing = get().listing;
     if (!listing?.filters) return;
     if (isEmily(by)) {

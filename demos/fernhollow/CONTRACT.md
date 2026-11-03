@@ -26,7 +26,7 @@ renders without a second lookup. Product references are catalog `id`s.
 | --- | --- | --- |
 | `navigate` | `page`: `home` \| `room/<room>` \| `category/<slug>` \| `product/<id>` \| `journal` \| `journal/<slug>` \| `cart` \| `policy/<topic>` | route change |
 | `show_products` | `title, query, product_ids[], count` | listing grid with these products |
-| `apply_filters` | `filters{room?,category?,materials[],colours[],styles[],price_min?,price_max?,on_sale?}, product_ids[], count, assumption?` | filter chips + grid |
+| `apply_filters` | `filters{room?,category?,materials[],colours[],styles[],price_min?,price_max?,on_sale?}, product_ids[], count, assumption?` | on the room or category listing (or the shop): each option ringed and ticked in its sidebar, one by one — materials, colours and styles under Made of, Colour and Feel |
 | `remove_filter` | `key, product_ids[], count` | chip removed |
 | `open_product` | `product_id, variant_id?, focus?` (`options`\|`highlights`\|`price`) | product page, focus section ringed |
 | `select_variant` | `product_id, variant_id` | variant picker set + ringed |
