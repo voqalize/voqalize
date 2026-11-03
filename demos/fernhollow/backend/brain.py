@@ -54,7 +54,16 @@ from voqalize_demos import (
     needs_result_now,
 )
 
-from voqalize.sdk import Action, AppEvents, RTVIMessage, Session, Speech, UserIdle, UserMessage
+from voqalize.sdk import (
+    Action,
+    AppEvents,
+    RTVIMessage,
+    Session,
+    Speech,
+    SpeechChunk,
+    UserIdle,
+    UserMessage,
+)
 from voqalize.sdk.stage import Mirror, Stage
 from voqalize.sdk.stage.wire import StageEvent, StageHello, StageProgress, StageResult
 from voqalize.sdk.wire import Config, IdleConfig, Language, SttConfig, TtsConfig, Voice
@@ -788,8 +797,24 @@ class FernhollowBrain(GeminiBrain):
         if pending is not None and answer == "no":
             self.confirms.clear()
             self.append_note(f"[The shopper said no to: {pending.label}. Nothing was done.]")
-        async for speech in self.respond(session):
+        async for speech in self._unjargoned(self.respond(session)):
             yield speech
+
+    async def _unjargoned(
+        self, speech: AsyncGenerator[Speech, None]
+    ) -> AsyncGenerator[Speech, None]:
+        """Speech with this brain's tool names taken out. On a prod call the
+        model said "update_brief helps set up the brief for your space": the
+        SDK stops a call written as text, not a tool's name used as a word."""
+        names = {t.__name__ for t in self.tools}
+        pattern = re.compile(r"\s*\b(?:" + "|".join(map(re.escape, sorted(names))) + r")\b")
+        async for s in speech:
+            if isinstance(s, SpeechChunk) and pattern.search(s.text):
+                text = pattern.sub("", s.text)
+                if not text.strip():
+                    continue
+                s = SpeechChunk(text)
+            yield s
 
     async def _invoke_tool(
         self, tool: Callable[..., Any] | None, name: str, run: Callable[[], Awaitable[Any]]
@@ -898,7 +923,7 @@ class FernhollowBrain(GeminiBrain):
         if ask is None:
             return
         self.append_note(f"[{ask}]")
-        async for event in self.respond(session):
+        async for event in self._unjargoned(self.respond(session)):
             yield event
 
     def _staged(self, event: StageResult | StageHello | StageProgress | StageEvent) -> str | None:
