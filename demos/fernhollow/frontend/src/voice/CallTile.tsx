@@ -16,6 +16,7 @@
 import { Maximize2, Mic, MicOff, Minus, PhoneOff } from "lucide-react";
 import { debugMode } from "./events";
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { create } from "zustand";
 
 export type CallState = "connecting" | "listening" | "thinking" | "speaking" | "error";
 type Anchor = "tl" | "tr" | "ml" | "mr" | "bl" | "br";
@@ -35,13 +36,14 @@ function load(): Saved {
   } catch {
     /* storage unavailable */
   }
-  return { anchor: "br", mini: false };
+  // Bottom-left: over a listing's filter column rather than its products.
+  return { anchor: "bl", mini: false };
 }
 function save(s: Saved) {
   try {
     localStorage.setItem(KEY, JSON.stringify(s));
   } catch {
-    /* storage unavailable: the tile just starts bottom-right next time */
+    /* storage unavailable: the tile just starts bottom-left next time */
   }
 }
 
@@ -54,13 +56,24 @@ interface Box {
 
 const phone = () => window.matchMedia("(max-width: 699px)").matches;
 
-/** The tile's size here: a portrait card, smaller on a phone. */
+/** The tile's size here: a small framed portrait, smaller on a phone. It
+ *  sits over the page, so it is kept to about a quarter of the old card's
+ *  area — small enough to park over a listing's filter column. */
 function tileSize(mini: boolean): { width: number; height: number; face: number } {
   if (mini) return { width: 64, height: 64, face: 64 };
-  const width = phone() ? 140 : 300;
+  const width = phone() ? 104 : 150;
   const face = Math.round(width * 1.2);
-  return { width, height: face + (phone() ? 46 : 68), face };
+  return { width, height: face + (phone() ? 36 : 40), face };
 }
+
+/**
+ * The side Emily wants the tile on, so it covers what she is not talking
+ * about: the left (a listing's filter column) while she shows products, the
+ * right while she works the filters. `n` counts requests, so asking for the
+ * same side again after a drag moves it back.
+ */
+export const useTileSide = create<{ side: "l" | "r" | null; n: number }>(() => ({ side: null, n: 0 }));
+export const preferTileSide = (side: "l" | "r") => useTileSide.setState((s) => ({ side, n: s.n + 1 }));
 
 function headerBottom(): number {
   const h = document.querySelector(".site-header")?.getBoundingClientRect();
@@ -129,6 +142,15 @@ export function CallTile({
     w.__fhVoice = { ...w.__fhVoice, face: mountId.current };
   }, []);
   const mode: "docked" | "tile" | "mini" = !live ? "docked" : saved.mini ? "mini" : "tile";
+
+  // Emily's side: the same height, the other side. Not saved — the shopper's
+  // own drag is what the next visit remembers.
+  const side = useTileSide();
+  useEffect(() => {
+    const want = side.side;
+    if (!want) return;
+    setSaved((s) => (s.anchor[1] === want ? s : { ...s, anchor: `${s.anchor[0]}${want}` as Anchor }));
+  }, [side.n]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Where the element sits right now, recomputed on scroll and resize.
   const place = useCallback(() => {
@@ -269,7 +291,12 @@ export function CallTile({
     >
       <div className="call-face" style={{ height: face }}>
         {children}
-        {mode === "tile" ? <span className={`call-state is-${state}`}>{LABEL[state]}</span> : null}
+        {mode === "tile" ? (
+          <>
+            <span className="call-tag">Emily</span>
+            <span className={`call-state is-${state}`}>{LABEL[state]}</span>
+          </>
+        ) : null}
         {mode === "mini" ? (
           <button type="button" className="call-expand" aria-label="Show the call with Emily" onClick={() => setMini(false)}>
             <Maximize2 size={14} />

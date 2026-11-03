@@ -3943,11 +3943,85 @@ main {
 .call-tile.is-snap {
   transition: none;
 }
+/* The live tile is framed like a small window over the store: a dark ring and
+   bar, a lifted shadow — so it reads as Emily on top of the page, not part of it. */
 .call-tile.is-tile {
-  border-radius: 18px;
-  background: var(--paper);
-  box-shadow: 0 30px 60px -24px rgba(29, 37, 32, 0.42), 0 0 0 1px rgba(29, 37, 32, 0.06);
+  border-radius: 14px;
+  background: var(--ink);
+  color: #fff;
+  box-shadow:
+    0 0 0 5px var(--ink),
+    0 0 0 6px rgba(255, 255, 255, 0.18),
+    0 26px 50px -18px rgba(29, 37, 32, 0.6);
   cursor: grab;
+}
+.call-tile.is-tile .call-face {
+  border-radius: 10px;
+}
+.call-tile.is-tile .call-who {
+  display: none;
+}
+.call-tile.is-tile .call-bar {
+  justify-content: center;
+  padding: 6px;
+}
+.call-tile.is-tile .call-controls {
+  gap: 8px;
+}
+.call-tile.is-tile .call-btn {
+  width: 28px;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+.call-tile.is-tile .call-btn:hover {
+  background: rgba(255, 255, 255, 0.26);
+}
+.call-tile.is-tile .call-btn[aria-pressed="true"] {
+  background: #fff;
+  color: var(--ink);
+}
+.call-tile.is-tile .call-end,
+.call-tile.is-tile .call-end:hover {
+  background: var(--danger);
+}
+.call-tile.is-tile .call-btn svg {
+  width: 14px;
+  height: 14px;
+}
+.call-tag {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(29, 37, 32, 0.72);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+.call-tile.is-tile .call-state {
+  left: 6px;
+  bottom: 6px;
+  height: 20px;
+  padding: 0 8px;
+  font-size: 10.5px;
+}
+.call-tile.is-tile .face-placeholder span {
+  font-size: 44px !important;
+}
+@media (max-width: 699px) {
+  .call-tile.is-tile .call-bar {
+    padding: 4px;
+  }
+  .call-tile.is-tile .call-controls {
+    gap: 4px;
+  }
+  .call-tile.is-tile .call-btn {
+    width: 26px;
+    height: 26px;
+  }
 }
 .call-tile.is-mini {
   border-radius: 50%;

@@ -390,6 +390,44 @@ async def test_a_spoken_yes_adds_after_the_confirmation() -> None:
         assert brain.confirms.pending is None and len(brain.cart) == 5
 
 
+async def test_pieces_come_off_the_board_when_not_needed() -> None:
+    """ "Drop the rug and the lamp" takes those tiles off the room board — the
+    rest held still, the total recomputed — rather than touching the shortlist
+    and saying it did."""
+    llm = ScriptedGemini(
+        {
+            "Build me a home office around two thousand.": [
+                Reply(
+                    text="A home office around two thousand.",
+                    calls=(
+                        ("update_brief", {"update": {"room": "home-office", "budget": 2000}}),
+                        ("build_room", {"request": {}}),
+                    ),
+                ),
+                reply("Here it is."),
+            ],
+            "Drop the rug and the lamp, I don't need them.": [
+                reply_and_call(
+                    "Taking those off.", "remove_pieces", request={"pieces": ["rug", "lamp"]}
+                ),
+                reply("Done."),
+            ],
+        }
+    )
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("Build me a home office around two thousand.")
+        await rig.driver.user_says("Drop the rug and the lamp, I don't need them.")
+        brain = rig.brain
+        assert isinstance(brain, FernhollowBrain)
+        assert brain.screen.room is not None
+        assert [p.slot for p in brain.screen.room.pieces] == ["desk", "chair", "shelving"]
+        sent = rig.command("remove_pieces")
+        assert sent["slots"] == ["rug", "lamp"]
+        assert sent["total"] == brain.screen.room.total
+        assert "update_shortlist" not in rig.actions()
+
+
 async def test_this_one_means_what_is_on_screen() -> None:
     """A tap on the page moves the mirror, so "the second one" and "this" name
     what the shopper sees now — not what the brain last showed."""
@@ -499,7 +537,7 @@ def test_marks_are_reads() -> None:
         "resolve_product",
         "fill_checkout",
     }
-    assert len(brain.tools) == 26
+    assert len(brain.tools) == 27
 
 
 def test_prompt_names_only_what_exists() -> None:

@@ -235,6 +235,13 @@ class SwapPiece(Action):
     total: float
 
 
+class RemovePieces(Action):
+    """Room-board tiles taken off; the rest stay as they are."""
+
+    slots: list[str]
+    total: float
+
+
 class CompareRow(BaseModel):
     label: str
     values: list[str]
@@ -428,6 +435,12 @@ class SwapRequest(BaseModel):
     cheaper: bool = Field(default=False, description="True for a cheaper piece.")
     product: str | None = Field(
         default=None, description="A specific product to put in: id, ordinal on screen, or 'this'."
+    )
+
+
+class RemoveRequest(BaseModel):
+    pieces: list[str] = Field(
+        description="The pieces to take off the board: slot names (desk, lamp, rug…), ordinals on screen, 'this', or ids."
     )
 
 
@@ -1210,6 +1223,7 @@ class FernhollowBrain(GeminiBrain):
             self.update_brief,
             self.build_room,
             self.swap_piece,
+            self.remove_pieces,
             self.goes_with,
             self.more_like,
             self.compare,
@@ -1381,6 +1395,43 @@ class FernhollowBrain(GeminiBrain):
             f"The {slot.replace('_', ' ')} is swapped on the board. Room total now {money(updated.total)}.",
             was=_line(old.product),
             now=_line(new.product, new.reason),
+        )
+
+    async def remove_pieces(self, request: RemoveRequest) -> str:
+        """Take pieces off the room board — the shopper does not need them —
+        with the rest of the room held still."""
+        room = self.screen.room
+        if room is None:
+            return _not_done("there is no room on the board", "Build the room first.")
+        slots: list[str] = []
+        unknown: list[str] = []
+        for ref in request.pieces:
+            slot = ref.strip().lower().replace(" ", "_")
+            if room.piece(slot) is None:
+                match = self.resolve(ref)
+                slot = next(
+                    (pc.slot for pc in room.pieces if match and pc.product_id == match.id), ""
+                )
+            if slot and slot not in slots:
+                slots.append(slot)
+            elif not slot:
+                unknown.append(ref)
+        if not slots:
+            return _not_done(
+                f"there is no {', '.join(request.pieces)} on the board",
+                "Use one of the slots on the board.",
+            )
+        gone = [pc for pc in room.pieces if pc.slot in slots]
+        updated = replace(room, pieces=tuple(pc for pc in room.pieces if pc.slot not in slots))
+        self._move(room=updated)
+        self.session.dispatch(RemovePieces(slots=slots, total=updated.total))
+        names = " and ".join(s.replace("_", " ") for s in slots)
+        landed(f"I've taken off the {names}.", "Taken off the board.")
+        return _prose(
+            f"Taken off the board: {names}. Room total now {money(updated.total)}.",
+            removed=[_line(pc.product) for pc in gone],
+            left=[pc.slot.replace("_", " ") for pc in updated.pieces],
+            not_on_board=unknown,
         )
 
     @needs_result_now

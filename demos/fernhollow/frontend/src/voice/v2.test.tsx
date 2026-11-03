@@ -180,3 +180,25 @@ describe("order numbers: the page and the brain agree", () => {
     root.unmount();
   });
 });
+
+describe("a yes on Add puts each line in once", () => {
+  const line = () => ({ product_id: products[0].id, variant_id: products[0].variants[0].id, qty: 1 });
+
+  it("Emily's prompt, on a call: the brain adds, and the page sends only the yes", async () => {
+    useCart.setState({ lines: [] });
+    await emily.confirm_add({ lines: [line()], label: "Add it" }, "emily");
+    emily.answerConfirm(true);
+    expect(useCart.getState().lines).toEqual([]);
+    expect(sent.filter(([e]) => e === "confirm_result").map(([, p]) => p.confirmed)).toEqual([true]);
+    // The brain's answer is the cart, once.
+    emily.cart_updated({ lines: [line()], total: products[0].variants[0].price, saved: 0 });
+    expect(useCart.getState().lines.map((l) => l.qty)).toEqual([1]);
+  });
+
+  it("the page's own prompt (Add on a whole room) adds on the page", async () => {
+    useCart.setState({ lines: [] });
+    await emily.confirm_add({ lines: [line()], label: "" }, "visitor");
+    emily.answerConfirm(true);
+    expect(useCart.getState().lines.map((l) => l.qty)).toEqual([1]);
+  });
+});

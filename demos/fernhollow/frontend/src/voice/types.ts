@@ -53,6 +53,7 @@ export interface Commands {
   update_brief: { brief: Brief; products_left: number };
   show_room_set: { room: string; budget: number; total: number; pieces: Piece[] };
   swap_piece: { slot: string; old_product_id: string; piece: Piece; total: number };
+  remove_pieces: { slots: string[]; total: number };
   show_compare: { product_ids: string[]; rows: CompareRow[]; summary: string };
   show_goes_with: { anchor_id: string; items: { product_id: string; reason: string }[] };
   show_more_like: { anchor_id: string; items: { product_id: string; differences: string[] }[] };
@@ -85,6 +86,7 @@ export const COMMAND_NAMES: CommandName[] = [
   "update_brief",
   "show_room_set",
   "swap_piece",
+  "remove_pieces",
   "show_compare",
   "show_goes_with",
   "show_more_like",

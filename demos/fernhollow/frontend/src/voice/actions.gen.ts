@@ -99,6 +99,13 @@ export interface SwapPiece {
   total: number;
 }
 
+/** Room-board tiles taken off; the rest stay as they are. */
+export interface RemovePieces {
+  slots: string[];
+
+  total: number;
+}
+
 /** The compare board. */
 export interface ShowCompare {
   product_ids: string[];
@@ -634,6 +641,7 @@ export type UiAction =
   | { command: 'update_brief'; payload: UpdateBrief }
   | { command: 'show_room_set'; payload: ShowRoomSet }
   | { command: 'swap_piece'; payload: SwapPiece }
+  | { command: 'remove_pieces'; payload: RemovePieces }
   | { command: 'show_compare'; payload: ShowCompare }
   | { command: 'show_goes_with'; payload: ShowGoesWith }
   | { command: 'show_more_like'; payload: ShowMoreLike }
@@ -665,6 +673,7 @@ export const UI_ACTION_COMMANDS: readonly UiActionCommand[] = [
   'update_brief',
   'show_room_set',
   'swap_piece',
+  'remove_pieces',
   'show_compare',
   'show_goes_with',
   'show_more_like',

@@ -34,6 +34,7 @@ renders without a second lookup. Product references are catalog `id`s.
 | `update_brief` | `brief{room?,uses[],materials[],colours[],styles[],budget?}, products_left` | room-brief chips |
 | `show_room_set` | `room, budget, total, pieces[{slot, product_id, variant_id, title, price, compare_at?, image, reason}]` | room board, pieces appear one by one |
 | `swap_piece` | `slot, old_product_id, piece{…same as above}, total` | one room-board tile changes |
+| `remove_pieces` | `slots[], total` | those room-board tiles taken off, the rest unchanged |
 | `show_compare` | `product_ids[], rows[{label, values[], winner?}], summary` | compare board |
 | `show_goes_with` | `anchor_id, items[{product_id, reason}]` | goes-with strip |
 | `show_more_like` | `anchor_id, items[{product_id, differences[]}]` | look-alike strip with badges |

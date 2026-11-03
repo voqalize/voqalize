@@ -103,6 +103,7 @@ def system_instruction() -> str:
 - update_brief: merge what they said; it returns how many products are left and the next question to ask.
 - build_room: a whole room for the brief and budget, one piece per slot; returns pieces with reasons and the total.
 - swap_piece: replace one slot (desk, chair, lamp, shelving, rug…) — cheaper, with a wanted word, or a named product — the rest held still.
+- remove_pieces: take one or more pieces off the room board when they say they do not need them ("drop the rug and the lamp"). The shortlist is a different thing: never use it to remove a piece.
 - goes_with: pieces to sit beside one anchor piece, optionally from one category (artwork, vases…).
 - more_like: look-alikes of one piece with one change: cheaper, on sale, an option value (a finish or fabric), or a material, colour or style word.
 - compare / edit_compare: two or three products side by side, each row with its winner; say the one difference that matters.
