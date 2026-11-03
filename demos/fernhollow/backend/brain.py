@@ -2259,14 +2259,43 @@ class FernhollowBrain(GeminiBrain):
                 spoken.append(said)
         missing = self._still_needed(REQUIRED)
         moved = self._advance_checkout()
-        landed(f"That's in — on to {moved}." if moved else "That's in.", "Filled in.")
+        address = (
+            self._address_line()
+            if self.checkout_step_now == "shipping" and not self._missing(STEPS["shipping"])
+            else None
+        )
+        if address:
+            landed(f"That's {address}. Is that right?")
+        else:
+            landed(f"That's in — on to {moved}." if moved else "That's in.", "Filled in.")
         return _prose(
             "The checkout fields are filled.",
             say_back=" — ".join(spoken) or None,
             not_filled=refused,
             moved_on=f"the step was complete, so the checkout is now on {moved}" if moved else None,
-            still_needed=", ".join(missing) or "nothing — move to the review step",
+            confirm_address=(
+                f"the address is complete: read it back in one line — {address} — and ask if it is "
+                "right. Only on their yes, checkout_step review; a correction is fill_checkout again."
+                if address
+                else None
+            ),
+            still_needed=", ".join(missing) or None,
         )
+
+    def _address_line(self) -> str:
+        """The shipping address as one line to read back: name, street, town, postcode, country."""
+        c = self.checkout
+        name = " ".join(x for x in (c.get("first_name"), c.get("last_name")) if x)
+        town = " ".join(x for x in (c.get("city"), c.get("postcode")) if x)
+        parts = (
+            name,
+            c.get("address1"),
+            c.get("address2"),
+            town,
+            c.get("region"),
+            c.get("country"),
+        )
+        return ", ".join(p for p in parts if p)
 
     def _still_needed(self, among: Sequence[CheckoutField]) -> list[str]:
         """The required fields of ``among`` nobody has filled yet; email and
@@ -2315,14 +2344,16 @@ class FernhollowBrain(GeminiBrain):
         ]
 
     def _advance_checkout(self) -> CheckoutStepName | None:
-        """After Emily fills fields: move on past every step that is now
+        """After Emily fills fields: move on past a contact step that is now
         complete, as the page's own Continue would. Never on the shopper's
-        typing alone — they may still be typing (the phone is optional)."""
+        typing alone — they may still be typing (the phone is optional) — and
+        never past shipping: the address is read back and the shopper says it
+        is right before the review (owner, 2026-11-03)."""
         names: list[CheckoutStepName] = list(STEPS)
         moved: CheckoutStepName | None = None
         while (
             self.cart
-            and self.checkout_step_now in ("contact", "shipping")
+            and self.checkout_step_now == "contact"
             and not self._missing(STEPS[self.checkout_step_now])
         ):
             nxt = names[names.index(self.checkout_step_now) + 1]
@@ -2648,10 +2679,26 @@ class FernhollowBrain(GeminiBrain):
                 self.checkout_filled.add(event.field)
                 step = self.checkout_step_now
                 left = self._still_needed(STEPS[step]) if step in STEPS else []
-                if step in ("contact", "shipping") and not left:
+                if step == "contact" and not left:
                     return (
-                        f"[The shopper filled {event.field} at checkout. The {step} step is "
+                        f"[The shopper filled {event.field} at checkout. The contact step is "
                         "complete: when they say they are done, move on with checkout_step.]"
+                    )
+                if step == "shipping" and not left:
+                    # What they typed is never on the wire: read back only an
+                    # address Emily filled whole; otherwise ask them to look it over.
+                    typed = any(
+                        f in self.checkout_filled and f not in self.checkout
+                        for f in STEPS["shipping"]
+                    )
+                    check = (
+                        "ask them to look the address over on screen and say if it is right"
+                        if typed
+                        else f"read it back — {self._address_line()} — and ask if it is right"
+                    )
+                    return (
+                        f"[The shopper filled {event.field} at checkout. The address is complete: "
+                        f"{check}, before the review.]"
                     )
                 return f"[The shopper filled {event.field} at checkout.]"
             case CheckoutStepReached():
