@@ -18,9 +18,10 @@ import { useCart } from "../state/cart";
 import { useShortlist } from "../state/shortlist";
 import { useSelection } from "./circle";
 import { CHECKOUT_FIELDS, CHECKOUT_STEPS, type CheckoutField, type CheckoutStep, STEP_OF_FIELD, placeOrder, useCheckout } from "../state/checkout";
-import { type By, type CartLine, emit } from "./events";
+import { preferTileSide } from "./CallTile";
+import { type By, type CartLine, emit, isLive } from "./events";
 import { totalOf } from "./local";
-import type { Brief, CommandName, Commands, CompareRow, Piece, Swap } from "./types";
+import type { Asking, Brief, CommandName, Commands, CompareRow, Piece, Swap } from "./types";
 
 export interface Listing {
   title: string;
@@ -73,7 +74,7 @@ interface Snapshot {
 }
 
 export interface EmilyState {
-  brief: (Brief & { productsLeft: number; by: By }) | null;
+  brief: (Brief & { productsLeft: number; by: By; asking: Asking | null }) | null;
   listing: Listing | null;
   board: RoomBoard | null;
   compare: Compare | null;
@@ -129,6 +130,18 @@ let currentPath = () => window.location.pathname.replace(import.meta.env.BASE_UR
 export function bindRouter(navigate: Navigate, path: () => string) {
   navigateFn = navigate;
   currentPath = path;
+}
+
+/** The sidebar group (`facet:<name>`) whose values hold most of `options`, if any does. */
+function facetFor(options: string[]): string | null {
+  const want = new Set(options.map((o) => o.toLowerCase()));
+  let best: { spot: string; hits: number } | null = null;
+  for (const group of document.querySelectorAll<HTMLElement>('[data-spot^="facet:"]')) {
+    const values = [...group.querySelectorAll(".check > span:first-of-type")].map((s) => (s.textContent ?? "").trim().toLowerCase());
+    const hits = values.filter((v) => want.has(v)).length;
+    if (hits && (!best || hits > best.hits)) best = { spot: group.dataset.spot ?? "", hits };
+  }
+  return best?.spot ?? null;
 }
 
 const go = (path: string) => {
@@ -285,8 +298,18 @@ export const emily = {
 
   update_brief(p: Commands["update_brief"], by: By = "emily") {
     if (isEmily(by)) snapshot();
-    set({ brief: { ...p.brief, productsLeft: p.products_left, by } });
+    const asking = isEmily(by) ? (p.asking ?? null) : null;
+    set({ brief: { ...p.brief, productsLeft: p.products_left, by, asking } });
     if (isEmily(by)) mark("brief");
+    // Point at what she is asking about where the sidebar has it: the group
+    // holding most of the options she named (ash, walnut, oak are a Finish).
+    // The brief bar shows the options either way. After the page she is moving
+    // to has landed: her navigate follows this command.
+    if (asking?.options.length)
+      window.setTimeout(() => {
+        const spot = facetFor(asking.options);
+        if (spot) void ring(spot);
+      }, 900);
   },
 
   clearBrief() {
@@ -334,6 +357,27 @@ export const emily = {
       },
     });
     if (!isEmily(by)) emit("room_board_edited", { slot: p.slot, action: "swap" });
+  },
+
+  async remove_pieces(p: Commands["remove_pieces"]) {
+    const board = get().board;
+    if (!board) return;
+    snapshot();
+    await toBoard();
+    for (const slot of p.slots) await ring(`slot:${slot}`);
+    const now = get().board ?? board;
+    const pieces = now.pieces.filter((x) => !p.slots.includes(x.slot));
+    set({
+      board: {
+        ...now,
+        pieces,
+        total: p.total,
+        savings: now.savings.filter((s) => !p.slots.includes(s.slot)),
+        changed: now.changed.filter((s) => !p.slots.includes(s)),
+        by: "emily",
+      },
+    });
+    mark("board");
   },
 
   removePiece(slot: string) {
@@ -421,12 +465,18 @@ export const emily = {
     set({ confirm: { ...p, by } });
   },
 
-  /** The shopper's answer to a confirm prompt. */
+  /**
+   * The shopper's answer to a confirm prompt. Emily's prompt, on a call, is
+   * the brain's to act on: it adds the lines (a yes is the same tapped or
+   * spoken) and sends the cart back as `cart_updated` — adding here too put
+   * every line in twice. The page's own prompt (Add on a whole room), or one
+   * left over after the call ended, has no brain waiting, so the page adds.
+   */
   answerConfirm(confirmed: boolean) {
     const c = get().confirm;
     if (!c) return;
     set({ confirm: null });
-    if (confirmed) useCart.getState().add(c.lines, "visitor");
+    if (confirmed && !(isEmily(c.by) && isLive())) useCart.getState().add(c.lines, "visitor");
     emit("confirm_result", { confirmed });
   },
 
@@ -564,13 +614,28 @@ export function dispatch(command: string, payload: unknown): boolean {
     console.info(`[fernhollow] ignoring unknown command ${command}`);
     return false;
   }
+  const side = tileSideFor(command, payload);
+  if (side) preferTileSide(side);
   void fn(payload ?? {}, "emily");
   return true;
 }
 
+/** Where Emily's tile should sit for this command: off the filter column
+ *  while she works the filters, over it while she shows products. */
+function tileSideFor(command: string, payload: unknown): "l" | "r" | null {
+  if (command === "apply_filters" || command === "remove_filter") return "r";
+  if (["show_products", "show_more_like", "show_goes_with", "show_choices"].includes(command)) return "l";
+  if (command === "highlight") {
+    const target = String((payload as { target?: unknown } | null)?.target ?? "");
+    if (target.startsWith("filter:")) return "r";
+    if (target.startsWith("product:")) return "l";
+  }
+  return null;
+}
+
 const COMMANDS = new Set<string>([
   "navigate", "show_products", "apply_filters", "remove_filter", "open_product", "select_variant", "highlight",
-  "update_brief", "show_room_set", "swap_piece", "show_compare", "show_goes_with", "show_more_like", "show_savings",
+  "update_brief", "show_room_set", "swap_piece", "remove_pieces", "show_compare", "show_goes_with", "show_more_like", "show_savings",
   "update_shortlist", "confirm_add", "cart_updated", "suggest_finish", "open_policy", "undo",
   "checkout_fill", "checkout_step", "confirm_place_order", "order_placed", "show_choices", "clear_choices", "clear_selection",
 ]);

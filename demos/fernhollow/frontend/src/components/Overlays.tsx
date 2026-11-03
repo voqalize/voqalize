@@ -2,7 +2,7 @@ import { Check, GitCompare, Heart, X } from "lucide-react";
 import { useEffect, useLayoutEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { marked } from "marked";
-import { getProduct, money, productsByIds, roomName } from "../data/catalog";
+import { getProduct, productsByIds } from "../data/catalog";
 import { getPage, pagePath, policies } from "../data/content";
 import { useCart } from "../state/cart";
 import { useShortlist } from "../state/shortlist";
@@ -40,40 +40,6 @@ export function Spotlight() {
       aria-hidden
       style={{ left: box.left - pad, top: box.top - pad, width: box.width + pad * 2, height: box.height + pad * 2 }}
     />
-  );
-}
-
-// ── Brief chips ────────────────────────────────────────────────────────────
-
-export function BriefBar() {
-  const brief = useEmily((s) => s.brief);
-  if (!brief) return null;
-  const chips: string[] = [
-    ...(brief.room ? [roomName(brief.room)] : []),
-    ...(brief.uses ?? []),
-    ...(brief.materials ?? []),
-    ...(brief.colours ?? []),
-    ...(brief.styles ?? []),
-    ...(brief.budget ? [`Up to ${money(brief.budget)}`] : []),
-  ];
-  return (
-    <div className="brief-bar" data-spot="section:brief">
-      <div className="wrap brief-row">
-        <span className="brief-label">Your brief</span>
-        <ul className="brief-chips">
-          {chips.map((c) => (
-            <li key={c} className="chip brief-chip">
-              {c.charAt(0).toUpperCase() + c.slice(1)}
-            </li>
-          ))}
-        </ul>
-        <span className="small brief-left">{brief.productsLeft} pieces match</span>
-        {brief.by === "emily" ? <EmilyTag /> : null}
-        <button type="button" className="icon-btn" aria-label="Clear brief" onClick={() => emily.clearBrief()}>
-          <X size={16} />
-        </button>
-      </div>
-    </div>
   );
 }
 

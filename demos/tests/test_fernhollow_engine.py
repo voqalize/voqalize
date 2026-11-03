@@ -390,6 +390,8 @@ def _calls(brain: fb.FernhollowBrain) -> list[tuple[str, Any]]:
         ),
         ("build_room", fb.BuildRoom()),
         ("swap_piece", fb.SwapRequest(slot="lamp")),
+        ("remove_pieces", fb.RemoveRequest(pieces=["rug"])),
+        ("piece_options", fb.PieceOptionsRequest(slot="desk", want=["oak"])),
         ("compare", fb.CompareRequest(products=["chair", chairs[4]])),
         ("edit_compare", fb.EditCompare(add=[chairs[5]])),
         ("more_like", fb.MoreLikeRequest(anchor="desk", change="cheaper")),
@@ -415,7 +417,6 @@ def _calls(brain: fb.FernhollowBrain) -> list[tuple[str, Any]]:
         (
             "fill_checkout",
             fb.CheckoutFields(
-                email="sam dot rivera at example dot com",
                 first_name="Sam",
                 last_name="Rivera",
                 address1="12 Elm Street",
@@ -450,12 +451,9 @@ def test_every_tool_answers_inside_ten_milliseconds() -> None:
 
     async def run() -> None:
         for name, arg in _calls(brain):
-            if name == "suggest_finish":
-                # the cart is filled by the shopper's tap; fold it in as the page would
-                brain.turns += 1
-                pending = brain.confirms.due(brain.turns)
-                assert pending is not None and pending.kind == "add_to_cart"
-                brain.confirms.act(pending)
+            if name == "fill_checkout":
+                # the shopper types their own email, as the page reports it
+                brain.checkout_filled.add("email")
             fn = getattr(brain, name)
             start = time.perf_counter()
             result = await (fn() if arg is None else fn(arg))

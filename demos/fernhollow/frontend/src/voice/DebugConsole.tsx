@@ -86,6 +86,10 @@ export function samplePayloads(): { [K in CommandName]: Commands[K] } {
       piece: swappedPiece,
       total: Math.round((board.total - swapSlot.price + swappedPiece.price) * 100) / 100,
     },
+    remove_pieces: {
+      slots: [swapSlot.slot],
+      total: Math.round((board.total - swapSlot.price) * 100) / 100,
+    },
     show_compare: buildCompare(sofas.map((p) => p.id)),
     show_goes_with: goesWith(anchor),
     show_more_like: moreLike(anchor),

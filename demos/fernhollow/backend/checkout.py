@@ -63,9 +63,26 @@ REQUIRED: tuple[CheckoutField, ...] = (
     "postcode",
     "country",
 )
+# Personal data the shopper types themselves: never asked for aloud, never
+# filled by Emily — it would be said into a microphone and into a transcript.
+PRIVATE: frozenset[CheckoutField] = frozenset({"email", "phone"})
+# Which step shows each field — the page's STEP_OF_FIELD (frontend/src/state/
+# checkout.ts), and the two must agree: with the name filed under contact here
+# while the page shows it on shipping, Emily asked for a name the contact page
+# had no box for, and waited on it before moving on.
 STEPS: dict[CheckoutStepName, tuple[CheckoutField, ...]] = {
-    "contact": ("email", "first_name", "last_name", "phone"),
-    "shipping": ("address1", "address2", "city", "region", "postcode", "country", "delivery"),
+    "contact": ("email", "phone"),
+    "shipping": (
+        "first_name",
+        "last_name",
+        "address1",
+        "address2",
+        "city",
+        "region",
+        "postcode",
+        "country",
+        "delivery",
+    ),
     "review": (),
 }
 

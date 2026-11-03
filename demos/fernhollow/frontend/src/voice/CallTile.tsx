@@ -16,6 +16,9 @@
 import { Maximize2, Mic, MicOff, Minus, PhoneOff } from "lucide-react";
 import { debugMode } from "./events";
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { create } from "zustand";
+import { useCart } from "../state/cart";
+import { useShortlist } from "../state/shortlist";
 
 export type CallState = "connecting" | "listening" | "thinking" | "speaking" | "error";
 type Anchor = "tl" | "tr" | "ml" | "mr" | "bl" | "br";
@@ -35,13 +38,14 @@ function load(): Saved {
   } catch {
     /* storage unavailable */
   }
-  return { anchor: "br", mini: false };
+  // Bottom-left: over a listing's filter column rather than its products.
+  return { anchor: "bl", mini: false };
 }
 function save(s: Saved) {
   try {
     localStorage.setItem(KEY, JSON.stringify(s));
   } catch {
-    /* storage unavailable: the tile just starts bottom-right next time */
+    /* storage unavailable: the tile just starts bottom-left next time */
   }
 }
 
@@ -54,13 +58,24 @@ interface Box {
 
 const phone = () => window.matchMedia("(max-width: 699px)").matches;
 
-/** The tile's size here: a portrait card, smaller on a phone. */
+/** The tile's size here: a small framed portrait, smaller on a phone. It
+ *  sits over the page, so it is kept to about a quarter of the old card's
+ *  area — small enough to park over a listing's filter column. */
 function tileSize(mini: boolean): { width: number; height: number; face: number } {
   if (mini) return { width: 64, height: 64, face: 64 };
-  const width = phone() ? 140 : 300;
+  const width = phone() ? 104 : 150;
   const face = Math.round(width * 1.2);
-  return { width, height: face + (phone() ? 46 : 68), face };
+  return { width, height: face + (phone() ? 36 : 40), face };
 }
+
+/**
+ * The side Emily wants the tile on, so it covers what she is not talking
+ * about: the left (a listing's filter column) while she shows products, the
+ * right while she works the filters. `n` counts requests, so asking for the
+ * same side again after a drag moves it back.
+ */
+export const useTileSide = create<{ side: "l" | "r" | null; n: number }>(() => ({ side: null, n: 0 }));
+export const preferTileSide = (side: "l" | "r") => useTileSide.setState((s) => ({ side, n: s.n + 1 }));
 
 function headerBottom(): number {
   const h = document.querySelector(".site-header")?.getBoundingClientRect();
@@ -75,6 +90,14 @@ function boxAt(anchor: Anchor, size: { width: number; height: number }): Box {
   const top =
     anchor[0] === "t" ? top0 : anchor[0] === "m" ? Math.max(top0, (vh - size.height) / 2) : vh - size.height - MARGIN - (phone() ? 8 : 12);
   return { left, top: Math.max(top0, top), ...size };
+}
+
+/** The dock's in-flight CSS `translate` (its entrance slide), in px. */
+function restOffset(dock: HTMLElement | null | undefined): [number, number] {
+  const t = dock ? getComputedStyle(dock).translate : "none";
+  if (!t || t === "none") return [0, 0];
+  const [x = 0, y = 0] = t.split(" ").map((v) => parseFloat(v) || 0);
+  return [x, y];
 }
 
 const overlaps = (a: Box, b: DOMRect) => a.left < b.right && a.left + a.width > b.left && a.top < b.bottom && a.top + a.height > b.top;
@@ -122,13 +145,41 @@ export function CallTile({
   }, []);
   const mode: "docked" | "tile" | "mini" = !live ? "docked" : saved.mini ? "mini" : "tile";
 
+  // The cart drawer and the shortlist tray open on the right, over the tile:
+  // the tile steps to the left while one is open.
+  const cartOpen = useCart((s) => s.open);
+  const trayOpen = useShortlist((s) => s.open);
+  const panelOpen = cartOpen || trayOpen;
+  useEffect(() => {
+    if (panelOpen) preferTileSide("l");
+  }, [panelOpen]);
+
+  // Emily's side: the same height, the other side. Not saved — the shopper's
+  // own drag is what the next visit remembers.
+  const side = useTileSide();
+  useEffect(() => {
+    const want = side.side;
+    if (!want) return;
+    setSaved((s) => (s.anchor[1] === want ? s : { ...s, anchor: `${s.anchor[0]}${want}` as Anchor }));
+  }, [side.n]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Where the element sits right now, recomputed on scroll and resize.
   const place = useCallback(() => {
     if (mode === "docked") {
       const slotEl = document.querySelector(".dock-face-slot");
       const slot = slotEl?.getBoundingClientRect();
-      const hidden = !!slotEl?.closest(".dock.is-hidden");
-      setBox(slot && slot.width && !hidden ? { left: slot.left, top: slot.top, width: slot.width, height: slot.height } : null);
+      const dock = slotEl?.closest<HTMLElement>(".dock");
+      const hidden = !!dock?.classList.contains("is-hidden");
+      // Where the slot sits once the dock is at rest. The dock slides in
+      // (`dock-in`) and the face runs the same slide itself, so measuring
+      // mid-slide would count the offset twice: the face sat low on load,
+      // then glided up at the next poll.
+      const [dx, dy] = restOffset(dock);
+      setBox(
+        slot && slot.width && !hidden
+          ? { left: slot.left - dx, top: slot.top - dy, width: slot.width, height: slot.height }
+          : null,
+      );
       return;
     }
     const size = tileSize(mode === "mini");
@@ -214,6 +265,16 @@ export function CallTile({
   // One element always, so the avatar inside is never re-created; with nowhere
   // to sit (the dock hidden) it is parked out of sight.
   const parked = !box;
+  // Leaving the park jumps straight to the slot: easing `left`/`top` from
+  // the park would fly the face in from the top-left corner.
+  const wasParked = useRef(true);
+  const snap = wasParked.current && !parked;
+  useLayoutEffect(() => {
+    // Commit the jump while transitions are off: a render in the same frame
+    // that drops `is-snap` would otherwise ease from the park after all.
+    if (snap) void ref.current?.offsetHeight;
+    wasParked.current = parked;
+  });
   const at = box ?? { left: -200, top: -200, width: 46, height: 46 };
   const pos = drag ? { left: drag.left, top: drag.top } : { left: at.left, top: at.top };
   const face = mode === "tile" ? tileSize(false).face : at.height;
@@ -228,7 +289,7 @@ export function CallTile({
   return (
     <div
       ref={ref}
-      className={`call-tile is-${mode} is-${state}${drag ? " is-dragging" : ""}${parked ? " is-parked" : ""}`}
+      className={`call-tile is-${mode} is-${state}${drag ? " is-dragging" : ""}${parked ? " is-parked" : ""}${snap ? " is-snap" : ""}`}
       style={{ left: pos.left, top: pos.top, width: at.width, height: at.height }}
       role={mode === "docked" ? undefined : "region"}
       aria-label={mode === "docked" ? undefined : "Call with Emily. Drag, or use the arrow keys, to move it."}
@@ -241,7 +302,12 @@ export function CallTile({
     >
       <div className="call-face" style={{ height: face }}>
         {children}
-        {mode === "tile" ? <span className={`call-state is-${state}`}>{LABEL[state]}</span> : null}
+        {mode === "tile" ? (
+          <>
+            <span className="call-tag">Emily</span>
+            <span className={`call-state is-${state}`}>{LABEL[state]}</span>
+          </>
+        ) : null}
         {mode === "mini" ? (
           <button type="button" className="call-expand" aria-label="Show the call with Emily" onClick={() => setMini(false)}>
             <Maximize2 size={14} />

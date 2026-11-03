@@ -31,15 +31,16 @@ renders without a second lookup. Product references are catalog `id`s.
 | `open_product` | `product_id, variant_id?, focus?` (`options`\|`highlights`\|`price`) | product page, focus section ringed |
 | `select_variant` | `product_id, variant_id` | variant picker set + ringed |
 | `highlight` | `target` (`product:<id>` \| `filter:<key>` \| `slot:<slot>` \| `button:add-to-cart` \| `section:<name>`) | 300 ms spotlight ring |
-| `update_brief` | `brief{room?,uses[],materials[],colours[],styles[],budget?}, products_left` | room-brief chips |
+| `update_brief` | `brief{room?,uses[],materials[],colours[],styles[],budget?}, products_left, asking?{dim, options[]}` | the brief, kept in page state (no bar is shown); `asking` rings the sidebar group holding the options Emily is asking about |
 | `show_room_set` | `room, budget, total, pieces[{slot, product_id, variant_id, title, price, compare_at?, image, reason}]` | room board, pieces appear one by one |
 | `swap_piece` | `slot, old_product_id, piece{…same as above}, total` | one room-board tile changes |
+| `remove_pieces` | `slots[], total` | those room-board tiles taken off, the rest unchanged |
 | `show_compare` | `product_ids[], rows[{label, values[], winner?}], summary` | compare board |
 | `show_goes_with` | `anchor_id, items[{product_id, reason}]` | goes-with strip |
 | `show_more_like` | `anchor_id, items[{product_id, differences[]}]` | look-alike strip with badges |
 | `show_savings` | `swaps[{slot, from_id, to_id, was, now}], saved, moved_to?` | savings badges on room board |
 | `update_shortlist` | `product_ids[]` | shortlist tray |
-| `confirm_add` | `lines[{product_id, variant_id, qty}], label` | confirm prompt on the Add button |
+| `confirm_add` | `lines[{product_id, variant_id, qty}], label` | confirm prompt on the Add button — the page's own whole-room Add only; Emily adds at once and sends `cart_updated` |
 | `cart_updated` | `lines[], total, saved` | cart drawer opens |
 | `suggest_finish` | `product_id, reason` | suggestion card in cart |
 | `open_policy` | `topic` (`returns`\|`delivery`\|`assembly`\|`care`) | policy panel |
@@ -124,7 +125,7 @@ New brain → UI commands:
 
 | command | payload | UI |
 | --- | --- | --- |
-| `checkout_fill` | `field` (`email, first_name, last_name, address1, address2, city, region, postcode, country, phone, delivery`), `value` | rings the checkout input and sets it; works on the cart → checkout → review flow |
+| `checkout_fill` | `field` (`email, first_name, last_name, address1, address2, city, region, postcode, country, phone, delivery`), `value` | rings the checkout input and sets it; works on the cart → checkout → review flow. Never `email` or `phone`: the shopper types those |
 | `checkout_step` | `step` (`contact`, `shipping`, `review`) | moves the checkout to that step |
 | `confirm_place_order` | `total`, `label` | confirm prompt on Place order |
 | `order_placed` | `order_number`, `total` | confirmation page (demo order, stored like a manual one) |
@@ -141,7 +142,7 @@ New UI → brain events (all `by: "visitor"`):
 - `visible_products{product_ids[], layout: [{product_id, row, col}]}` — now carries screen order, so
   "the one on the left", "the second one", "the bottom row" resolve against what is visible.
 - `choice_made{product_id}` — the shopper clicked a numbered product while choices were showing.
-- `checkout_changed{field}` / `checkout_step_reached{step}` — field names only, like the returns form.
+- `checkout_changed{field, complete}` / `checkout_step_reached{step}` — field names only, like the returns form; `complete` says the value is usable yet (a whole email, a non-empty field), never what it is. Contact is email and phone only; name and address are on shipping.
 
 **Reference resolution (brain).** Every spoken product reference is resolved against, in order: the
 product being pointed at (≤ 5 s old), the products visible on screen (with layout), the shortlist and

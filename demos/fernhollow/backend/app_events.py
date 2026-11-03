@@ -181,9 +181,12 @@ class ChoiceMade(AppEvent):
 
 
 class CheckoutChanged(AppEvent):
-    """The shopper filled or changed a checkout field — its name, never its value."""
+    """The shopper filled or changed a checkout field — its name, never its value.
+    ``complete`` says the value is usable (an email with an @ and a domain, any
+    other field not empty), so half-typed text never counts as filled."""
 
     field: str = ""
+    complete: bool = True
     by: str = "visitor"
 
 

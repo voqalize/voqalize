@@ -5,7 +5,7 @@ import { CartDrawer } from "./components/CartDrawer";
 import { CircleLayer, fakeCircle } from "./components/CircleLayer";
 import { Footer } from "./components/Footer";
 import { Header } from "./components/Header";
-import { BriefBar, FloatingConfirm, PolicyPanel, ShortlistTray, Spotlight } from "./components/Overlays";
+import { FloatingConfirm, PolicyPanel, ShortlistTray, Spotlight } from "./components/Overlays";
 import { CartPage, CheckoutPage } from "./pages/Checkout";
 import { ArticlePage, ConfirmationPage, ContactPage, InfoPage, JournalIndex, NotFound } from "./pages/Editorial";
 import { Home } from "./pages/Home";
@@ -13,6 +13,8 @@ import { CategoryPage, RoomPage, SalePage, SearchPage, ShopPage } from "./pages/
 import { BoardPage, ComparePage, PicksPage } from "./pages/EmilyViews";
 import { ProductPage } from "./pages/ProductPage";
 import { ReturnsConfirmation, ReturnsForm, ReturnsHome } from "./pages/Returns";
+import { useCart } from "./state/cart";
+import { useShortlist } from "./state/shortlist";
 import { bindRouter, dispatch, emily, navigatedBy } from "./voice/controller";
 import { useScreenReport } from "./voice/screen";
 import { debugMode, emit } from "./voice/events";
@@ -37,6 +39,12 @@ function Shell() {
   useScreenReport(location.key);
   // Numbered choices belong to the screen they were shown on.
   useEffect(() => emily.clear_choices(), [location.key]);
+  // A side panel belongs to the page it opened on: moving on — Emily going to
+  // checkout, or a click — closes the cart and the shortlist.
+  useEffect(() => {
+    useCart.getState().setOpen(false);
+    useShortlist.getState().setOpen(false);
+  }, [location.pathname]);
   useEffect(() => {
     // Dev-only handle (?debug=1): fire a brain command from a test.
     if (debugMode()) {
@@ -72,6 +80,9 @@ function Shell() {
       const y = scrolls.get(location.key) ?? 0;
       // After the page below has rendered its content.
       requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo({ top: y })));
+    } else if (navigatedBy() === "emily") {
+      window.scrollTo({ top: 0 });
+      requestAnimationFrame(() => requestAnimationFrame(scrollToStart));
     } else {
       window.scrollTo({ top: 0 });
     }
@@ -95,7 +106,6 @@ function Shell() {
         Skip to content
       </a>
       <Header />
-      <BriefBar />
       <main id="main" tabIndex={-1}>
         <Outlet />
       </main>
@@ -114,6 +124,21 @@ function Shell() {
       ) : null}
     </div>
   );
+}
+
+/**
+ * Where an Emily-led arrival lands: the first `[data-emily-start]` on the
+ * page (a listing's count-and-sort row, the room board, the comparison),
+ * just under the sticky header. Landing at the top left the page header
+ * filling most of the screen and not one product in view while she talked
+ * about them. A shopper's own click still starts at the top.
+ */
+function scrollToStart() {
+  const el = document.querySelector<HTMLElement>("[data-emily-start]");
+  if (!el) return;
+  const covered = document.querySelector(".site-header")?.getBoundingClientRect().bottom ?? 0;
+  const top = el.getBoundingClientRect().top + window.scrollY - Math.max(0, covered) - 12;
+  if (top > 40) window.scrollTo({ top, behavior: "smooth" });
 }
 
 /** An href that stays in this store, as a router path; null for anything else. */

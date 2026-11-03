@@ -1,8 +1,8 @@
 import { Heart, Menu, Search, ShoppingBag, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
-import { ROOMS, categoriesIn, roomCover } from "../data/catalog";
-import { site } from "../data/content";
+import { ROOMS, bestSaving, categoriesIn, money, products, roomCover } from "../data/catalog";
+import { DELIVERY_FREE_OVER, site } from "../data/content";
 import { useCart } from "../state/cart";
 import { useShortlist } from "../state/shortlist";
 import { Photo } from "./bits";
@@ -21,6 +21,30 @@ export function Wordmark() {
       </svg>
       <span>Fernhollow</span>
     </Link>
+  );
+}
+
+/** The store's running offers, read from the catalog and the delivery policy. */
+const ON_SALE = products.filter((p) => p.onSale);
+const SALE_UP_TO = Math.max(0, ...ON_SALE.map((p) => bestSaving(p).pct));
+
+function NoticeBar() {
+  return (
+    <div className="notice-bar">
+      <p>
+        {ON_SALE.length ? (
+          <>
+            <Link to="/sale" className="notice-item">
+              <strong>Sale: up to {SALE_UP_TO}% off</strong> on {ON_SALE.length} pieces
+            </Link>
+            <span className="notice-sep" aria-hidden>
+              ·
+            </span>
+          </>
+        ) : null}
+        <span className="notice-item">Free delivery on orders over {money(DELIVERY_FREE_OVER)}</span>
+      </p>
+    </div>
   );
 }
 
@@ -52,11 +76,7 @@ export function Header() {
 
   return (
     <>
-      <div className="notice-bar">
-        <p>
-          A demo store: browse, fill a cart and check out. <strong>No payment is taken.</strong>
-        </p>
-      </div>
+      <NoticeBar />
       <header className="site-header" onKeyDown={(e) => e.key === "Escape" && setMenu(null)}>
         <div className="wrap header-row">
           <button type="button" className="icon-btn only-mobile" aria-label="Open menu" onClick={() => setMobile(true)}>

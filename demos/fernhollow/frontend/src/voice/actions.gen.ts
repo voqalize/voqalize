@@ -70,11 +70,13 @@ export interface Highlight {
   target: string;
 }
 
-/** The room-brief chips. */
+/** The brief, and the question Emily asks next (the page points at its options). */
 export interface UpdateBrief {
   brief: BriefOut;
 
   products_left: number;
+
+  asking: AskOut | null;
 }
 
 /** The room board; pieces appear one by one. */
@@ -95,6 +97,13 @@ export interface SwapPiece {
   old_product_id: string;
 
   piece: PieceOut;
+
+  total: number;
+}
+
+/** Room-board tiles taken off; the rest stay as they are. */
+export interface RemovePieces {
+  slots: string[];
 
   total: number;
 }
@@ -292,9 +301,15 @@ export interface CartChanged {
   by?: string;
 }
 
-/** The shopper filled or changed a checkout field — its name, never its value. */
+/**
+ * The shopper filled or changed a checkout field — its name, never its value.
+ * `complete` says the value is usable (an email with an @ and a domain, any
+ * other field not empty), so half-typed text never counts as filled.
+ */
 export interface CheckoutChanged {
   field?: string;
+
+  complete?: boolean;
 
   by?: string;
 }
@@ -427,6 +442,13 @@ export interface VisibleProducts {
 }
 
 // ── Shapes used by the messages above ──────────────────────────────
+
+/** The question Emily asks next, so the page can show what she is asking. */
+export interface AskOut {
+  dim: string;
+
+  options: string[];
+}
 
 export interface BriefOut {
   room: string | null;
@@ -634,6 +656,7 @@ export type UiAction =
   | { command: 'update_brief'; payload: UpdateBrief }
   | { command: 'show_room_set'; payload: ShowRoomSet }
   | { command: 'swap_piece'; payload: SwapPiece }
+  | { command: 'remove_pieces'; payload: RemovePieces }
   | { command: 'show_compare'; payload: ShowCompare }
   | { command: 'show_goes_with'; payload: ShowGoesWith }
   | { command: 'show_more_like'; payload: ShowMoreLike }
@@ -665,6 +688,7 @@ export const UI_ACTION_COMMANDS: readonly UiActionCommand[] = [
   'update_brief',
   'show_room_set',
   'swap_piece',
+  'remove_pieces',
   'show_compare',
   'show_goes_with',
   'show_more_like',

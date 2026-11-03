@@ -139,7 +139,7 @@ export function RoomBoardView() {
         ) : null}
       </div>
 
-      <ul className="board-grid" key={board.version}>
+      <ul className="board-grid" key={board.version} data-emily-start>
         {board.pieces.map((piece, i) => (
           <BoardTile key={piece.slot} piece={piece} index={i} />
         ))}
@@ -257,7 +257,7 @@ export function CompareBoard() {
   const list = productsByIds(compare.ids);
   return (
     <section className="compare" data-spot="section:compare" aria-label="Comparison">
-      <div className="compare-scroll">
+      <div className="compare-scroll" data-emily-start>
         <table className="compare-table" style={{ ["--cols" as string]: list.length }}>
           <thead>
             <tr>
@@ -335,7 +335,7 @@ export function PicksPage() {
         {listing.query ? <p className="lede">For “{listing.query}”</p> : null}
       </header>
       {chips.length || listing.assumption ? (
-        <div className="active-filters" data-spot="section:filters">
+        <div className="active-filters" data-spot="section:filters" data-emily-start>
           {chips.map((c) => (
             <button key={c.key} type="button" className="chip is-on" data-spot={`filter:${c.key}`} onClick={() => emily.removeFilterByHand(c.key)} aria-label={`Remove filter ${c.label}`}>
               {c.label} <X size={13} className="x" />
@@ -345,7 +345,7 @@ export function PicksPage() {
           {listing.assumption ? <p className="assumption small">{listing.assumption}</p> : null}
         </div>
       ) : null}
-      <p className="small listing-count">
+      <p className="small listing-count" data-emily-start>
         {list.length} {list.length === 1 ? "piece" : "pieces"}
       </p>
       {list.length ? (

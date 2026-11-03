@@ -61,6 +61,30 @@ main {
   font-weight: 600;
   color: #fff;
 }
+.notice-bar a {
+  color: inherit;
+  text-decoration: none;
+}
+.notice-bar a:hover strong,
+.notice-bar a:focus-visible strong {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.notice-item {
+  white-space: nowrap;
+}
+.notice-sep {
+  margin: 0 0.6em;
+  opacity: 0.6;
+}
+@media (max-width: 699px) {
+  .notice-item {
+    display: block;
+  }
+  .notice-sep {
+    display: none;
+  }
+}
 
 .site-header {
   position: sticky;
@@ -2629,49 +2653,7 @@ main {
   padding-top: 20px !important;
 }
 
-/* ── Brief bar, shortlist tray ────────────────────────────────────────── */
-
-.brief-bar {
-  background: var(--emily-soft);
-  border-bottom: 1px solid rgba(75, 69, 198, 0.15);
-  animation: drop 0.3s var(--ease);
-}
-.brief-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 52px;
-}
-.brief-label {
-  font-size: 13px;
-  font-weight: 650;
-  color: var(--emily-ink);
-  flex: none;
-}
-.brief-chips {
-  list-style: none;
-  display: flex;
-  gap: 6px;
-  margin: 0;
-  padding: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
-  flex: 1;
-}
-.brief-chip {
-  height: 30px;
-  font-size: 13px;
-  border-color: rgba(75, 69, 198, 0.2);
-}
-.brief-left {
-  flex: none;
-}
-@media (max-width: 699px) {
-  .brief-left,
-  .brief-label {
-    display: none;
-  }
-}
+/* ── Shortlist tray ────────────────────────────────────────────────────── */
 
 .tray {
   position: absolute;
@@ -3909,14 +3891,95 @@ main {
   pointer-events: none;
   animation: dock-in 0.6s var(--ease) 0.4s both;
 }
+/* The compact dock (a phone) pops in instead of sliding; the face matches it. */
+.app:has(.dock.is-compact) .call-tile.is-docked {
+  animation: pop 0.3s var(--ease);
+}
 .call-tile.is-parked {
   opacity: 0;
 }
+.call-tile.is-snap {
+  transition: none;
+}
+/* The live tile is framed like a small window over the store: a dark ring and
+   bar, a lifted shadow — so it reads as Emily on top of the page, not part of it. */
 .call-tile.is-tile {
-  border-radius: 18px;
-  background: var(--paper);
-  box-shadow: 0 30px 60px -24px rgba(29, 37, 32, 0.42), 0 0 0 1px rgba(29, 37, 32, 0.06);
+  border-radius: 14px;
+  background: var(--ink);
+  color: #fff;
+  box-shadow:
+    0 0 0 5px var(--ink),
+    0 0 0 6px rgba(255, 255, 255, 0.18),
+    0 26px 50px -18px rgba(29, 37, 32, 0.6);
   cursor: grab;
+}
+.call-tile.is-tile .call-face {
+  border-radius: 10px;
+}
+.call-tile.is-tile .call-who {
+  display: none;
+}
+.call-tile.is-tile .call-bar {
+  justify-content: center;
+  padding: 6px;
+}
+.call-tile.is-tile .call-controls {
+  gap: 8px;
+}
+.call-tile.is-tile .call-btn {
+  width: 28px;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+.call-tile.is-tile .call-btn:hover {
+  background: rgba(255, 255, 255, 0.26);
+}
+.call-tile.is-tile .call-btn[aria-pressed="true"] {
+  background: #fff;
+  color: var(--ink);
+}
+.call-tile.is-tile .call-end,
+.call-tile.is-tile .call-end:hover {
+  background: var(--danger);
+}
+.call-tile.is-tile .call-btn svg {
+  width: 14px;
+  height: 14px;
+}
+.call-tag {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(29, 37, 32, 0.72);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+.call-tile.is-tile .call-state {
+  left: 6px;
+  bottom: 6px;
+  height: 20px;
+  padding: 0 8px;
+  font-size: 10.5px;
+}
+.call-tile.is-tile .face-placeholder span {
+  font-size: 44px !important;
+}
+@media (max-width: 699px) {
+  .call-tile.is-tile .call-bar {
+    padding: 4px;
+  }
+  .call-tile.is-tile .call-controls {
+    gap: 4px;
+  }
+  .call-tile.is-tile .call-btn {
+    width: 26px;
+    height: 26px;
+  }
 }
 .call-tile.is-mini {
   border-radius: 50%;

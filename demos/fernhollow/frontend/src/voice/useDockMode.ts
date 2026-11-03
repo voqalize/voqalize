@@ -3,33 +3,30 @@ import { useLocation } from "react-router-dom";
 
 /** The band at the bottom of the viewport the dock occupies, in px. */
 const BAND = 112;
+const PHONE = "(max-width: 699px)";
 
 /**
  * Where the dock sits right now.
  *
- * - `compact`: a small circle at the bottom right instead of the full pill —
- *   always on a phone, and on a wide screen once the shopper scrolls down
- *   (scrolling up brings the pill back). A live call never compacts.
+ * - `compact`: a small circle at the bottom right instead of the full pill,
+ *   on a phone only. On a wide screen the pill stays bottom centre however
+ *   the shopper scrolls. A live call never compacts.
  * - `hidden`: an element marked `data-dock-avoid` (Add to cart, checkout
  *   buttons) is inside the dock's band, so the dock steps aside for it.
  */
 export function useDockMode(live: boolean) {
   const location = useLocation();
-  const [compact, setCompact] = useState(false);
+  // From the first paint: starting wide and compacting in an effect moved the
+  // dock across a phone's screen on every load, and the face chased it.
+  const [compact, setCompact] = useState(() => window.matchMedia(PHONE).matches);
   const [hidden, setHidden] = useState(false);
 
   useEffect(() => {
-    let lastY = window.scrollY;
     let frame = 0;
-    const phone = window.matchMedia("(max-width: 699px)");
+    const phone = window.matchMedia(PHONE);
     const check = () => {
       frame = 0;
-      const y = window.scrollY;
-      if (phone.matches) setCompact(true);
-      else if (y < 240) setCompact(false);
-      else if (y > lastY + 4) setCompact(true);
-      else if (y < lastY - 4) setCompact(false);
-      lastY = y;
+      setCompact(phone.matches);
       const top = window.innerHeight - BAND;
       const blocked = [...document.querySelectorAll<HTMLElement>("[data-dock-avoid]")].some((el) => {
         const r = el.getBoundingClientRect();
