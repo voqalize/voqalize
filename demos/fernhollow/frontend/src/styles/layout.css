@@ -61,6 +61,30 @@ main {
   font-weight: 600;
   color: #fff;
 }
+.notice-bar a {
+  color: inherit;
+  text-decoration: none;
+}
+.notice-bar a:hover strong,
+.notice-bar a:focus-visible strong {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.notice-item {
+  white-space: nowrap;
+}
+.notice-sep {
+  margin: 0 0.6em;
+  opacity: 0.6;
+}
+@media (max-width: 699px) {
+  .notice-item {
+    display: block;
+  }
+  .notice-sep {
+    display: none;
+  }
+}
 
 .site-header {
   position: sticky;
