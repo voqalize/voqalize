@@ -541,6 +541,29 @@ async def test_checkout_tells_what_to_type_sees_it_and_moves_on() -> None:
         assert brain.checkout_step_now == "review"
 
 
+async def test_a_tool_name_is_never_spoken() -> None:
+    """Prod call 4a18177e: "update_brief helps set up the brief for your
+    space" was said aloud. A tool's name is taken out of speech."""
+    llm = ScriptedGemini(
+        {
+            "A home office please.": [
+                reply_and_call(
+                    "I can help with your home office. update_brief helps set up the brief.",
+                    "update_brief",
+                    update={"room": "home-office"},
+                ),
+                reply("Which colours?"),
+            ],
+        }
+    )
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        turn = await rig.driver.user_says("A home office please.")
+        said = " ".join(u.text for u in turn.units)
+        assert "update_brief" not in said, said
+        assert "I can help with your home office." in said
+
+
 async def test_a_taste_filters_the_listing_then_offers_the_room() -> None:
     """A named taste filters the room's own listing (not a page of its own),
     then Emily offers the whole room; with a yes and a budget she is told to

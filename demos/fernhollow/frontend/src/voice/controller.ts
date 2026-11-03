@@ -161,8 +161,11 @@ const reduced = () => {
 
 /** Ring a target for 300 ms before the change lands. Resolves at once if it is not on screen. */
 export async function ring(target: string): Promise<void> {
-  set({ spotlight: { target, stamp: Date.now() } });
   const el = document.querySelector(`[data-spot="${CSS.escape(target)}"]`);
+  // Anything ringed in the filter rail (left): Emily's tile steps right first,
+  // so it never sits over what she is pointing at — however the ring came.
+  if (el?.closest(".rail-filters")) preferTileSide("r");
+  set({ spotlight: { target, stamp: Date.now() } });
   if (!el) return;
   const box = el.getBoundingClientRect();
   if (box.bottom < 0 || box.top > window.innerHeight) el.scrollIntoView({ block: "center", behavior: reduced() ? "auto" : "smooth" });
