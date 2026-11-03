@@ -213,7 +213,9 @@ export function sortProducts(list: Product[], key: SortKey): Product[] {
 }
 
 /** Option facets present in a set of products: { Finish: ["Oak", …], … }. */
-export function facets(list: Product[]): { name: string; values: { value: string; count: number }[] }[] {
+/** The rail's groups for `list`. `keep` (selected "Group:value" keys) stay
+ *  listed even outside a taste group's top few, so a tick is always visible. */
+export function facets(list: Product[], keep: string[] = []): { name: string; values: { value: string; count: number }[] }[] {
   const map = new Map<string, Map<string, number>>();
   for (const p of list)
     for (const o of p.options) {
@@ -222,12 +224,22 @@ export function facets(list: Product[]): { name: string; values: { value: string
       map.set(o.name, m);
     }
   const ORDER = ["Material", "Finish", "Fabric", "Frame", "Color", "Style", "Size", "Height", "Weight"];
-  return [...map.entries()]
+  const byCount = (m: Map<string, number>) =>
+    [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([value, count]) => ({ value, count }));
+  // The brain's words first — they are what Emily asks about — the most
+  // common few of each, so the rail stays short.
+  const taste = (Object.keys(TASTE_GROUPS) as TasteGroup[]).flatMap((name) => {
+    const m = new Map<string, number>();
+    for (const p of list) for (const w of p.taste[TASTE_GROUPS[name]]) m.set(w, (m.get(w) ?? 0) + 1);
+    const all = byCount(m);
+    const kept = new Set(keep.filter((k) => splitOpt(k)[0] === name).map((k) => splitOpt(k)[1]));
+    const values = all.filter((v, i) => i < 8 || kept.has(v.value));
+    return values.length > 1 || kept.size ? [{ name, values }] : [];
+  });
+  const options = [...map.entries()]
     .sort((a, b) => ORDER.indexOf(a[0]) - ORDER.indexOf(b[0]))
-    .map(([name, m]) => ({
-      name,
-      values: [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([value, count]) => ({ value, count })),
-    }));
+    .map(([name, m]) => ({ name, values: byCount(m) }));
+  return [...taste, ...options];
 }
 
 export interface ListingFilters {
@@ -239,6 +251,22 @@ export interface ListingFilters {
   /** "Finish:Oak" style keys. */
   opts: string[];
 }
+
+/**
+ * The sidebar groups that filter by the brain's words rather than by a
+ * product's options: what Emily asks about ("neutral", "oak", "minimalist")
+ * is ticked here, on the listing in front, rather than on a page of its own.
+ * "Feel", because a product option is already called "Style".
+ */
+export const TASTE_GROUPS = { Colour: "colours", Feel: "styles", "Made of": "materials" } as const;
+export type TasteGroup = keyof typeof TASTE_GROUPS;
+export const isTasteGroup = (name: string): name is TasteGroup => name in TASTE_GROUPS;
+/** The group a brain dimension is ticked under. */
+export const TASTE_GROUP_OF: Record<keyof Product["taste"], TasteGroup> = {
+  colours: "Colour",
+  styles: "Feel",
+  materials: "Made of",
+};
 
 export function applyListingFilters(list: Product[], f: ListingFilters): Product[] {
   const byName = new Map<string, Set<string>>();
@@ -254,6 +282,10 @@ export function applyListingFilters(list: Product[], f: ListingFilters): Product
     if (f.min != null && p.priceMax < f.min) return false;
     if (f.max != null && p.priceMin > f.max) return false;
     for (const [name, values] of byName) {
+      if (isTasteGroup(name)) {
+        if (!p.taste[TASTE_GROUPS[name]].some((w) => values.has(w))) return false;
+        continue;
+      }
       const o = p.options.find((x) => x.name === name);
       if (!o || !o.values.some((v) => values.has(v))) return false;
     }

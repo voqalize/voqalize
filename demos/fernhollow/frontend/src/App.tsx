@@ -34,7 +34,7 @@ function Shell() {
   path.current = location.pathname;
 
   // Every move — a click, or Emily's navigate — is a history push through the router.
-  useEffect(() => bindRouter((to) => navigate(to), () => path.current), [navigate]);
+  useEffect(() => bindRouter((to, replace) => navigate(to, { replace }), () => path.current), [navigate]);
   useStageHost(location.pathname);
   useScreenReport(location.key);
   // Numbered choices belong to the screen they were shown on.

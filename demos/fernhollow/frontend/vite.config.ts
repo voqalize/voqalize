@@ -12,6 +12,9 @@ import { avatarRuntime } from "../../shared/avatar-runtime.mjs";
 const BASE = "/demos/fernhollow/";
 
 const CATALOG = fileURLToPath(new URL("../data/catalog.json", import.meta.url));
+// Each product's materials, colours and styles as the brain reads them, so
+// the listing filters by the same words Emily asks about.
+const ATTRIBUTES = fileURLToPath(new URL("../backend/data/attributes.json", import.meta.url));
 const VIRTUAL = "virtual:catalog";
 
 /**
@@ -26,7 +29,10 @@ function slimCatalog(): Plugin {
     load(id) {
       if (id !== `\0${VIRTUAL}`) return null;
       this.addWatchFile(CATALOG);
+      this.addWatchFile(ATTRIBUTES);
       const raw = JSON.parse(readFileSync(CATALOG, "utf8"));
+      const attrs: Record<string, Record<string, [string, string][]>> = JSON.parse(readFileSync(ATTRIBUTES, "utf8"));
+      const words = (id: string, kind: string) => [...new Set((attrs[id]?.[kind] ?? []).map(([w]) => w))];
       const products = raw.products.map((p: Record<string, any>) => ({
         id: p.id,
         title: p.title,
@@ -48,6 +54,7 @@ function slimCatalog(): Plugin {
           compareAtPrice: v.compareAtPrice ?? null,
         })),
         images: p.images.map((i: Record<string, any>) => i.file),
+        taste: { materials: words(p.id, "materials"), colours: words(p.id, "colours"), styles: words(p.id, "styles") },
       }));
       const slim = { store: raw.store, rooms: raw.rooms, categories: raw.categories, products };
       return `export default JSON.parse(${JSON.stringify(JSON.stringify(slim))});`;

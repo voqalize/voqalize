@@ -120,6 +120,8 @@ _SAY_NOW_MS = 400
 CHECK_ON_SCREEN = (
     "I've filled in your details on screen — please check them and click Review order."
 )
+#: Once the grid follows a taste: the offer to plan the whole room (owner, 2026-11-03).
+ROOM_OFFER = "Would you like me to help set up the entire room?"
 
 # ─── Actions: brain → UI (CONTRACT.md) ────────────────────────────────────────
 
@@ -694,6 +696,8 @@ class FernhollowBrain(GeminiBrain):
         self.history: list[Screen] = []
         self.shortlisted: list[str] = []
         self.cart: dict[tuple[str, str], int] = {}
+        # Emily offered to set up the whole room, once the grid followed a taste.
+        self.room_offered = False
         # What add_to_cart put in, by its lines, and on which turn.
         self.added: dict[tuple[tuple[str, str, int], ...], int] = {}
         # Every confirmation Emily asks for, one mechanism (confirm.py).
@@ -1327,8 +1331,9 @@ class FernhollowBrain(GeminiBrain):
         ):
             self._apply(brief_filters, None)
             on_grid = (
-                f"the grid now shows the {len(fits)} that fit; the shopper does not need "
-                "to touch the filters"
+                f"the listing's own filters are being ticked for "
+                f"{', '.join((*b.colours, *b.styles, *b.materials))}, one by one, and the grid "
+                f"narrows to the {len(fits)} that fit; say what you are filtering as it happens"
             )
         elif (
             self.brief.room
@@ -1337,14 +1342,22 @@ class FernhollowBrain(GeminiBrain):
         ):
             self._move(page=f"room/{self.brief.room}")
             self.session.dispatch(Navigate(page=f"room/{self.brief.room}"))
-        landed(question.text)
+        # Once the grid follows a taste: offer the whole room, then on a yes
+        # and a budget, build it (owner, 2026-11-03).
+        ask = question.text
+        if self.screen.room is None and on_grid and not self.room_offered:
+            self.room_offered = True
+            ask = ROOM_OFFER
+        elif self.screen.room is None and self.room_offered and b.budget:
+            ask = "they asked for the whole room and gave the budget: call build_room now"
+        landed(ask if ask == ROOM_OFFER else question.text)
         logger.info(
             "fernhollow: brief {} → {} left, ask {}", self.brief.key(), len(left), question.dim
         )
         return _prose(
             f"The brief is noted. {len(left)} products in the store fit it so far.",
             grid=on_grid,
-            ask_next=question.text,
+            ask_next=ask,
             assumptions=assumptions,
             not_matched=[
                 f"'{u}' is not a word the catalog uses; ask what they mean" for u in unmatched
@@ -1666,7 +1679,14 @@ class FernhollowBrain(GeminiBrain):
             filters=filters,
             listing=tuple(ids[:24]),
             listing_kind="grid",
-            page="search",
+            # The page filters the listing itself now, in its sidebar.
+            page=(
+                f"category/{filters.category}"
+                if filters.category
+                else f"room/{filters.room}"
+                if filters.room
+                else "shop"
+            ),
             product=None,
         )
         self.session.dispatch(

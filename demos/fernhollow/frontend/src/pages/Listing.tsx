@@ -10,6 +10,7 @@ import {
   categoriesIn,
   facets,
   getCategory,
+  isTasteGroup,
   getRoom,
   money,
   priceBands,
@@ -86,9 +87,9 @@ export function ListingView({ title, intro, crumbs, base, pills, isSearch, empty
       filters: {
         room: rooms.size === 1 ? [...rooms][0] : null,
         category: r.category ?? (cats.size === 1 ? [...cats][0] : null),
-        materials: values(["Material", "Finish", "Fabric", "Frame"]),
-        colours: values(["Color"]),
-        styles: values(["Style"]),
+        materials: values(["Made of", "Material", "Finish", "Fabric", "Frame"]),
+        colours: values(["Colour", "Color"]),
+        styles: values(["Feel", "Style"]),
         price_min: r.min,
         price_max: r.max,
         on_sale: r.sale || null,
@@ -118,7 +119,22 @@ export function ListingView({ title, intro, crumbs, base, pills, isSearch, empty
           },
         ]
       : []),
-    ...f.opts.map((o) => ({ label: splitOpt(o)[1], clear: () => toggleOpt(o) })),
+    // A taste group is one chip: "neutral" ticks ten shades, and ten chips
+    // for one spoken word was a wall. Its × clears the whole group.
+    ...[...new Set(f.opts.map((o) => splitOpt(o)[0]).filter(isTasteGroup))].map((group) => {
+      const words = f.opts.filter((o) => splitOpt(o)[0] === group).map((o) => splitOpt(o)[1]);
+      const first = words[0].charAt(0).toUpperCase() + words[0].slice(1);
+      return {
+        label: words.length > 1 ? `${first} +${words.length - 1}` : first,
+        clear: () =>
+          update((n) => {
+            const keep = n.getAll("opt").filter((o) => splitOpt(o)[0] !== group);
+            n.delete("opt");
+            keep.forEach((o) => n.append("opt", o));
+          }),
+      };
+    }),
+    ...f.opts.filter((o) => !isTasteGroup(splitOpt(o)[0])).map((o) => ({ label: splitOpt(o)[1], clear: () => toggleOpt(o) })),
     ...(!isSearch && f.q ? [{ label: `“${f.q}”`, clear: () => update((n) => n.delete("q")) }] : []),
   ];
   const clearAll = () =>
@@ -286,9 +302,28 @@ function FilterRail({
     setMax(f.max?.toString() ?? "");
   }, [f.min, f.max]);
   const cats = [...new Set(scoped.map((p) => p.categorySlug))].map((s) => getCategory(s)!).filter(Boolean);
-  const groups = facets(scoped);
+  const groups = facets(scoped, f.opts);
   const bands = priceBands(scoped);
   const saleCount = scoped.filter((p) => p.onSale).length;
+  const group = (g: (typeof groups)[number]) => (
+    <fieldset key={g.name} className="filter-group" data-spot={`facet:${g.name.toLowerCase()}`}>
+      <legend className="filter-title">{g.name}</legend>
+      <ul className="filter-list">
+        {g.values.map((v) => {
+          const key = `${g.name}:${v.value}`;
+          return (
+            <li key={key}>
+              <label className="check" data-spot={`facet:${key.toLowerCase()}`}>
+                <input type="checkbox" checked={f.opts.includes(key)} onChange={() => onOpt(key)} />
+                <span>{isTasteGroup(g.name) ? v.value.charAt(0).toUpperCase() + v.value.slice(1) : v.value}</span>
+                <span className="check-count">{v.count}</span>
+              </label>
+            </li>
+          );
+        })}
+      </ul>
+    </fieldset>
+  );
 
   return (
     <aside className={`rail-filters${open ? " is-open" : ""}`} aria-label="Filters">
@@ -331,7 +366,10 @@ function FilterRail({
           </fieldset>
         ) : null}
 
-        <fieldset className="filter-group">
+        {/* What Emily asks about, high in the rail: it is ringed as she ticks it. */}
+        {groups.filter((g) => isTasteGroup(g.name)).map(group)}
+
+        <fieldset className="filter-group" data-spot="facet:price">
           <legend className="filter-title">Price</legend>
           {bands.length ? (
             <div className="band-chips">
@@ -374,7 +412,7 @@ function FilterRail({
 
         {saleCount ? (
           <div className="filter-group">
-            <label className="toggle">
+            <label className="toggle" data-spot="facet:sale">
               <input type="checkbox" checked={f.sale} onChange={onSale} />
               <span className="toggle-ui" aria-hidden />
               <span>On sale</span>
@@ -383,25 +421,7 @@ function FilterRail({
           </div>
         ) : null}
 
-        {groups.map((g) => (
-          <fieldset key={g.name} className="filter-group" data-spot={`facet:${g.name.toLowerCase()}`}>
-            <legend className="filter-title">{g.name}</legend>
-            <ul className="filter-list">
-              {g.values.map((v) => {
-                const key = `${g.name}:${v.value}`;
-                return (
-                  <li key={key}>
-                    <label className="check">
-                      <input type="checkbox" checked={f.opts.includes(key)} onChange={() => onOpt(key)} />
-                      <span>{v.value}</span>
-                      <span className="check-count">{v.count}</span>
-                    </label>
-                  </li>
-                );
-              })}
-            </ul>
-          </fieldset>
-        ))}
+        {groups.filter((g) => !isTasteGroup(g.name)).map(group)}
       </div>
       <div className="rail-filters-foot only-mobile">
         <button type="button" className="btn btn-primary btn-block" onClick={onClose}>

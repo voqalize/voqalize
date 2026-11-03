@@ -541,6 +541,45 @@ async def test_checkout_tells_what_to_type_sees_it_and_moves_on() -> None:
         assert brain.checkout_step_now == "review"
 
 
+async def test_a_taste_filters_the_listing_then_offers_the_room() -> None:
+    """A named taste filters the room's own listing (not a page of its own),
+    then Emily offers the whole room; with a yes and a budget she is told to
+    build it (owner, 2026-11-03)."""
+    llm = ScriptedGemini(
+        {
+            "A home office please.": [
+                reply_and_call("A home office.", "update_brief", update={"room": "home-office"}),
+                reply("Which colours?"),
+            ],
+            "Neutral.": [
+                reply_and_call(
+                    "Let me narrow these to neutral.",
+                    "update_brief",
+                    update={"colours": ["neutral"]},
+                ),
+                reply("Would you like me to help set up the entire room?"),
+            ],
+            "Yes, about two thousand.": [
+                reply_and_call("Two thousand it is.", "update_brief", update={"budget": 2000}),
+                reply("Building it now."),
+            ],
+        }
+    )
+    async with demo("fernhollow", llm) as rig:
+        await rig.driver.start_session()
+        await rig.driver.user_says("A home office please.")
+        await rig.driver.user_says("Neutral.")
+        brain = rig.brain
+        assert isinstance(brain, FernhollowBrain)
+        assert brain.screen.page == "room/home-office", "filtered on a page of its own"
+        # "neutral" reads as several catalog colours; all are sent, ticked together.
+        assert "neutral" in rig.command("apply_filters")["filters"]["colours"]
+        offered = _results(llm.captured_contents[-1])["update_brief"]
+        assert "Would you like me to help set up the entire room?" in offered
+        await rig.driver.user_says("Yes, about two thousand.")
+        assert "call build_room now" in _results(llm.captured_contents[-1])["update_brief"]
+
+
 async def test_the_grid_follows_the_brief_and_shows_the_question() -> None:
     """The brief asks about a taste and says which options, so the page can
     show them; once the shopper names one, the grid is filtered to it without
