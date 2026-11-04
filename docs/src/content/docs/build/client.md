@@ -45,7 +45,7 @@ itself. It is MIT and [public](https://github.com/voqalize/voqalize-client-trans
   code.
 
 `createVoqalizeTransport(options?)` takes the `SmallWebRTCTransport` options plus
-two of its own:
+these of its own:
 
 | Option | Default | What it does |
 |---|---|---|
