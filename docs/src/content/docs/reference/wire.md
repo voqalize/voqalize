@@ -532,7 +532,8 @@ enum Language {
 ```
 
 Which voice speaks which language is Voqalize's to say, not the wire's. See
-[Voice and language catalog](/reference/catalog/).
+[the catalog](/reference/catalog/), which is also public JSON at
+`GET https://app.voqalize.com/api/v1/catalog.get`.
 
 ## The RTVI plane
 

@@ -1,11 +1,34 @@
 ---
-title: Voice and language catalog
-description: The languages the recognizer hears, the voices and the languages each one speaks, the turn-taking settings with their defaults, and the rule that both language legs are set together.
+title: Voice, language and character catalog
+description: The live catalog at GET /api/v1/catalog.get, field by field. The languages the recognizer hears, the voices and the languages each one speaks, the avatar characters and the voices that suit them, the turn-taking settings with their defaults, and the rule that both language legs are set together.
 ---
 
-The values a session's `Config` accepts: recognizer languages, voices, and the
-turn-taking settings. How to choose them, at connect or from your brain, is
+The values a session's `Config` accepts (recognizer languages, voices and the
+turn-taking settings) and the avatar characters you can mount beside them. How
+to choose them, at connect or from your brain, is
 [Voice and language](/build/voice-and-language/).
+
+## The live catalog
+
+Voices, languages and characters are published live at:
+
+```
+GET https://app.voqalize.com/api/v1/catalog.get
+```
+
+It is public JSON: no key, no sign-in, and it may be cached for 60 seconds. The
+tables on this page are read from it when the page loads, so none of them is a
+copy that has gone stale. To read the catalog from code, fetch that URL.
+
+| Field | Meaning |
+|---|---|
+| `voices` | Every voice served by id. Each has `id`, `name`, `display`, `engine` and `languages`; see [Voice](#voice-ttsvoice). |
+| `open` | Prefixes under which any id is accepted, each with `prefix`, `engine` and `languages`. The engine behind the prefix judges the rest of the id. Often empty. |
+| `rules` | In words, how a voice id and a language tag are matched, or `null`. |
+| `languages` | The languages the recognizer hears, each with `name`, `code` and `display_name`; see [Language](#language-sttlanguage). |
+| `characters` | The avatar characters, each with `name`, `gender`, `age`, `ethnicity`, `tags`, `suggested_voices` and `languages`; see [Characters](#avatar-characters). |
+| `avatar_package` | The `@voqalize/avatar` release whose characters `characters` lists. |
+| `stale` | `{voices, languages}`, each `true` while that list is being re-read. A stale list may be empty or out of date; read it again shortly rather than treating it as the truth. |
 
 A session with no configuration runs in English on both legs, with ack on and
 idle detection off.
@@ -44,31 +67,18 @@ engine underneath from the language you set.
 
 A language is a BCP-47 tag, such as `es`, `es-MX` or `ta`. The recognizer
 matches it by the part before the first hyphen, ignoring case, so `es-MX` is
-heard as Spanish. It hears **English (`en`)** and these European languages:
+heard as Spanish. It hears English, the major European languages and the Indic
+languages. The catalog's `languages` list names each one:
 
-| Code | Language | Code | Language | Code | Language |
-|---|---|---|---|---|---|
-| `bg` | Bulgarian | `cs` | Czech | `da` | Danish |
-| `de` | German | `el` | Greek | `es` | Spanish |
-| `et` | Estonian | `fi` | Finnish | `fr` | French |
-| `hr` | Croatian | `hu` | Hungarian | `it` | Italian |
-| `lt` | Lithuanian | `lv` | Latvian | `mt` | Maltese |
-| `nl` | Dutch | `pl` | Polish | `pt` | Portuguese |
-| `ro` | Romanian | `ru` | Russian | `sk` | Slovak |
-| `sl` | Slovenian | `sv` | Swedish | `uk` | Ukrainian |
+| Field | Meaning |
+|---|---|
+| `code` | The tag to send as `stt.language`, such as `hi`. |
+| `display_name` | The language's English name, such as `Hindi`. |
+| `name` | The deprecated `Language` enum member for it, such as `LANGUAGE_HI`, where one exists; otherwise the code. The enum is frozen, so a newer language is a string only. |
 
-And these Indic languages:
-
-| Code | Language | Code | Language | Code | Language |
-|---|---|---|---|---|---|
-| `as` | Assamese | `bn` | Bengali | `brx` | Bodo |
-| `doi` | Dogri | `kok` | Konkani | `gu` | Gujarati |
-| `hi` | Hindi | `kn` | Kannada | `ks` | Kashmiri |
-| `mai` | Maithili | `ml` | Malayalam | `mr` | Marathi |
-| `mni` | Manipuri | `ne` | Nepali | `or` | Odia |
-| `pa` | Punjabi | `sa` | Sanskrit | `sat` | Santali |
-| `sd` | Sindhi | `ta` | Tamil | `te` | Telugu |
-| `ur` | Urdu | | | | |
+<div id="language-catalog" class="catalog-live not-content">
+  <p>Loading the languages from <a href="https://app.voqalize.com/api/v1/catalog.get">app.voqalize.com/api/v1/catalog.get</a>…</p>
+</div>
 
 **A language the recognizer does not hear is refused, never substituted.** At
 `sessions.connect` it is a `400` `invalid_config` whose `details.code` is
@@ -82,28 +92,20 @@ A language change applies at the **next end of turn**, never mid-utterance.
 
 ### Voice (`tts.voice`)
 
-The voices Voqalize serves are published live, voice by voice, at
-[`https://speech.prod.voqalize.com/voices.json`](https://speech.prod.voqalize.com/voices.json).
-The table below is read from it when the page loads, so it is never a copy that
-has gone stale. To read the list from code, fetch that URL: it is public JSON and
-needs no key.
-
-Each entry in its `voices` list has these fields:
+The voices Voqalize serves are the catalog's `voices` list, voice by voice.
+Each entry has these fields:
 
 | Field | Meaning |
 |---|---|
 | `id` | What you send as `tts.voice`, such as `omnivoice/gauri`. Matched without regard to case. The prefix before the `/` picks the engine; there is no other engine selector. |
+| `name` | The deprecated `Voice` enum member for it, such as `VOICE_OMNIVOICE_GAURI`, where one exists; otherwise the `id`. Send the `id`. |
 | `display` | A human name for the voice, and whether it sounds male or female. |
 | `languages` | The tags this voice speaks: the values `tts.language` accepts with it. A tag matches by the part before the first hyphen, so `hi-IN` is `hi`. |
 | `engine` | The engine behind the voice. |
 
-The document also carries `version` (the shape of the document, `1` today) and
-`rules`, which states in words how a voice id and a language tag are matched.
-
-<div id="voice-catalog" class="not-content">
-  <p>Loading the voices from <a href="https://speech.prod.voqalize.com/voices.json">speech.prod.voqalize.com/voices.json</a>…</p>
+<div id="voice-catalog" class="catalog-live not-content">
+  <p>Loading the voices from <a href="https://app.voqalize.com/api/v1/catalog.get">app.voqalize.com/api/v1/catalog.get</a>…</p>
 </div>
-<script src="/voice-catalog.js" type="module"></script>
 
 ### Language (`tts.language`)
 
@@ -131,6 +133,31 @@ Config(
 )
 ```
 
+## Avatar characters
+
+The characters [the avatar](/build/avatar/) mounts are the catalog's
+`characters` list, for the `@voqalize/avatar` release `avatar_package` names.
+Pass a `name` as the avatar's `character`.
+
+| Field | Meaning |
+|---|---|
+| `name` | What you pass as `character`, such as `tanya`. |
+| `gender` | The character's presented gender. |
+| `age` | `{min, max}`, the age range the face reads as. |
+| `ethnicity` | A list of words from a closed vocabulary. |
+| `tags` | A list of words from a closed vocabulary, such as `formal`. |
+| `suggested_voices` | Voice ids that suit the face, best first. Advice only: nothing checks the voice a session sets against the face it shows. |
+| `languages` | The languages the first suggested voice speaks. |
+
+A face and a voice are chosen separately: set the session's voice and language
+yourself, on both legs, as [Voice and language](/build/voice-and-language/)
+shows. Each name below opens that character on the avatar page.
+
+<div id="character-catalog" class="catalog-live not-content">
+  <p>Loading the characters from <a href="https://app.voqalize.com/api/v1/catalog.get">app.voqalize.com/api/v1/catalog.get</a>…</p>
+</div>
+<script src="/voice-catalog.js" type="module"></script>
+
 ## Why both halves matter
 
 Each half fails on its own, quietly, in a different way:
@@ -151,3 +178,4 @@ to configure and no provider key in your deployment.
 - [Voice and language](/build/voice-and-language/): set these per session, and switch mid-call.
 - [The wire](/reference/wire/#the-control-leg): the `Config` fields and when each change lands.
 - [Error codes](/reference/errors/): what a refused configuration looks like.
+- [The avatar](/build/avatar/): mount a character beside the call.

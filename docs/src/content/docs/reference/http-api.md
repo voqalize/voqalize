@@ -1,6 +1,6 @@
 ---
 title: HTTP API
-description: The one route that takes an API key, sessions.connect, which starts a session. Its request body, its response, its errors and its rate limit. Management is on the MCP server.
+description: The one route that takes an API key, sessions.connect, which starts a session, with its request body, response, errors and rate limit; and catalog.get, the public catalog of voices, languages and characters. Management is on the MCP server.
 ---
 
 One route accepts an API key, and it starts a session:
@@ -11,8 +11,10 @@ Authorization: Bearer sk_…
 Content-Type: application/json
 ```
 
-Everything else (creating an agent, setting its `brain_url`, minting and
-revoking keys, reading sessions, logs and usage) is on
+One more route is public and takes no key at all:
+[`catalog.get`](#the-catalog-catalogget), the values a session's `config`
+accepts. Everything else (creating an agent, setting its `brain_url`, minting
+and revoking keys, reading sessions, logs and usage) is on
 [the MCP server](/reference/mcp/), authenticated with OAuth.
 
 ## The request body
@@ -56,6 +58,28 @@ correlation_id}`. The codes `sessions.connect` returns are in
 The route is rate limited per tenant. A refused request is a `429` with a
 `Retry-After` header in seconds: wait that long and send it again.
 
+## The catalog: `catalog.get`
+
+```
+GET https://app.voqalize.com/api/v1/catalog.get
+```
+
+**Auth: none.** It is public, answers the same document to everyone, and may be
+cached for 60 seconds. It is what Voqalize serves right now:
+
+| Field | |
+|---|---|
+| `voices` | Each voice's `id` (what `tts.voice` takes), `name`, `display`, `engine` and the `languages` it speaks. |
+| `open` | Prefixes under which any voice id is accepted. |
+| `rules` | How ids and language tags are matched, in words, or `null`. |
+| `languages` | The languages the recognizer hears: `name`, `code`, `display_name`. |
+| `characters` | The avatar characters: `name`, `gender`, `age`, `ethnicity`, `tags`, `suggested_voices`, `languages`. |
+| `avatar_package` | The `@voqalize/avatar` release those characters belong to. |
+| `stale` | `{voices, languages}`, `true` while that list is being re-read. |
+
+Every field, and the tables rendered from it, is in
+[the catalog](/reference/catalog/#the-live-catalog).
+
 ## Management is on MCP, by design
 
 Every API key names one agent, so no key can create an agent or mint another
@@ -71,4 +95,5 @@ HTTP access to the operations you need can be enabled for your account.
 
 - [Connect your app](/build/connect/): the request, and which key to hold.
 - [The MCP server](/reference/mcp/): the management surface, tool by tool.
+- [The catalog](/reference/catalog/): every voice, language and character, live.
 - [Keys and authentication](/build/keys/): `sk_` and `pk_`, and rotation.

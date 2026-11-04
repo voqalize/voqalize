@@ -186,7 +186,7 @@ export const sidebar = [
       { label: "Brain API", slug: "reference/brain" },
       { label: "The wire", slug: "reference/wire" },
       { label: "RTVI messages", slug: "reference/rtvi" },
-      { label: "Voice and language catalog", slug: "reference/catalog" },
+      { label: "Voice, language and character catalog", slug: "reference/catalog" },
       { label: "Error codes", slug: "reference/errors" },
       { label: "HTTP API", slug: "reference/http-api" },
       { label: "MCP server", slug: "reference/mcp" },

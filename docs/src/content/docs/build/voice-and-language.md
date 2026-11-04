@@ -13,7 +13,10 @@ set them in one of two places, and the later one wins:
 
 A session with no configuration speaks and listens in English, with ack on and
 idle detection off. The values each setting accepts (every voice, every
-language) are in the [Voice and language catalog](/reference/catalog/).
+language) are in [the catalog](/reference/catalog/). To find which voice speaks
+a language, read it there, or fetch
+`GET https://app.voqalize.com/api/v1/catalog.get` from code: it is public, and
+each entry in its `voices` list carries the `languages` that voice speaks.
 
 ## Set the voice and language
 
@@ -235,6 +238,6 @@ has the full list.
 
 ## Read next
 
-- [Voice and language catalog](/reference/catalog/): every voice and the languages each one speaks.
+- [The catalog](/reference/catalog/): every voice and the languages each one speaks, and the avatar characters.
 - [Speaking](/build/brain/speaking/): what your brain says, and when.
 - [Connect your app](/build/connect/): the connect request that carries `config`.

@@ -753,10 +753,11 @@ facts:
     note: >-
       English and the European languages on Parakeet TDT 0.6B v3's model card,
       plus the Indic languages on IndicConformer — what the speech tier
-      publishes at `GET /v2/languages`, and what `GET /api/v1/capabilities`
-      relays. Re-run against speech `origin/prod` on 2026-10-21, after the
-      speech prod release, and the live prod `/v2/languages` lists the same. Prefer naming the groups to stating the total; the roster
-      is in docs reference/catalog.md and nowhere else. Before that release it
+      publishes at `GET /v2/languages`, and what the control plane relays as
+      `languages` on the public `GET /api/v1/catalog.get`. Re-run against speech `origin/prod` on 2026-10-21, after the
+      speech prod release, and the live prod `/v2/languages` lists the same. Prefer naming the groups to stating the total; the docs keep
+      no copy of the roster: reference/catalog.md renders it in the reader's
+      browser from `catalog.get` (`docs/public/voice-catalog.js`). Before that release it
       was English plus 22 Indic languages. The `Language` enum stays at English
       and the Indic codes: a European language is a `language_tag` string only.
       The retired claim is "sixty-plus languages", which was never true of any
@@ -787,9 +788,11 @@ facts:
       **This is per voice, not per tier, and it stopped being a single number
       on 2026-09-20** when the kokoro voices reached the enum: they speak `en`
       and nothing else. Do not write it as one figure for "the synthesizer" —
-      the roster the speech tier publishes states it voice by voice and
-      `docs/.../reference/catalog.md` renders that table from it, live in the
-      reader's browser (`docs/public/voice-catalog.js`). The source
+      the roster the speech tier publishes states it voice by voice, the
+      control plane relays it as `voices` on the public
+      `GET /api/v1/catalog.get`, and `docs/.../reference/catalog.md` renders
+      that table from it, live in the reader's browser
+      (`docs/public/voice-catalog.js`). The source
       cited above was `pygato/session_config.py TTS_CLIP_LANGUAGES`, a copy
       that was deleted the same day along with every other copy.
     forbid:

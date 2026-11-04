@@ -175,6 +175,12 @@ this page sends the picked character and its first suggested voice to its brain
 in `init`, and the brain configures that voice before its first word, which is
 why the picker locks once the session starts.
 
+The same list is in [the catalog](/reference/catalog/#avatar-characters), next
+to the voices: `GET https://app.voqalize.com/api/v1/catalog.get` returns it as
+`characters`, with each character's `suggested_voices` and `languages`, and
+needs no key. Read it there when the choice is made on your server, or to match
+a face to a voice that speaks the caller's language before anything mounts.
+
 A name the runtime does not have mounts nothing: `createAvatar` still returns,
 and the console error lists the names it does have. To change the face, pass
 another name. In React the face is rebuilt; with `createAvatar`, destroy the old

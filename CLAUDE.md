@@ -230,8 +230,8 @@ deployment's calibration, which is 7. We widen as we learn.
 The `Voice` enum is deprecated and frozen, like `Language`: a brain names a voice
 by its `voice_id` string, so a voice added to the speech tier needs no proto
 release. `design/voice_catalog.py check` holds each enum value to what the speech
-tier serves, notes a served voice the enum has no value for rather than failing,
-and renders the docs table from the same fetch. `vql-stt` routes English and the
+tier serves and notes a served voice the enum has no value for rather than
+failing. `vql-stt` routes English and the
 European languages to Parakeet TDT 0.6B v3 and the Indic codes to
 IndicConformer, and publishes that route table at `GET /v2/languages`; the
 control plane reads it to refuse an unheard `stt.language` at connect and to
@@ -428,9 +428,11 @@ voice or language they cannot name is printed, not failed; an enum value naming
 a voice nothing serves still fails. `voice-catalog.yml` runs it every morning
 against each environment (`--host`, default prod) so nobody has to remember. It
 needs the generated protobuf module, so it runs from `sdk/python`. The docs keep
-no copy of the roster: `reference/catalog.md`'s voice table is rendered in the
-reader's browser from prod's `/voices.json` (`docs/public/voice-catalog.js`; the
-speech host sends CORS for that path), so adding a voice needs no docs change.
+no copy of the roster: `reference/catalog.md`'s voice, language and character
+tables are rendered in the reader's browser from the control plane's public
+`GET /api/v1/catalog.get` (`docs/public/voice-catalog.js`), same-origin through
+the docs origin's `/api` rewrite, so adding a voice needs no docs change and the
+speech hosts are never named to a reader.
 
 Facts whose source is a registry or a sibling repo cannot be
 derived from this tree; they carry the command that re-earns the stamp, and
