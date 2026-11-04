@@ -10,7 +10,7 @@ Find the symptom, check the cause, apply the fix. If no row fits,
 
 | Symptom | Usual cause | Fix |
 |---|---|---|
-| `connect` throws a `TypeError` that does not mention headers | The connect response's `headers` is a plain object, and pipecat's transport needs a `Headers` instance. | Add the one line in [Connect your app](/build/connect/#the-one-line-you-write-yourself), and call `connect` rather than `startBotAndConnect`. |
+| `connect` throws a `TypeError` that does not mention headers | The connect response's `headers` is a plain object, and the transport needs a `Headers` instance. | Add the one line in [Connect your app](/build/connect/#the-one-line-you-write-yourself), and call `connect` rather than `startBotAndConnect`. |
 | `403` `origin_not_allowed` | The page's origin is not in the `pk_` key's allowed origins, or the request has no `Origin` at all (a server or a native app). | Add the origin with `update_api_key_origins`, or start the session from your server with an `sk_`. See [Keys and authentication](/build/keys/#publishable-keys-pk_). |
 | `401` | The key is wrong, revoked, or for another agent. | Check `last_used_at` in `list_api_keys`. See [Keys and authentication](/build/keys/). |
 | `409` `agent_not_configured` | The agent has no `brain_url` and no Cortex credentials. | Set a `brain_url`, or call `create_agent_credentials`. See [Deploy the brain](/build/hosting/). |

@@ -8,7 +8,7 @@ that joins them:
 
 | Part | What it is | Who runs it |
 |---|---|---|
-| **Your page** | Pipecat's client on `@voqalize/client-transport`. It asks your server for a session and connects to it. | You |
+| **Your page** | Your client on `@voqalize/client-transport`. It asks your server for a session and connects to it. | You |
 | **Your server** | One HTTP request, `sessions.connect`, that decides who may start a session and with what. | You |
 | **Your brain** | One WebSocket endpoint. It receives each finished user turn as text and returns speech and [actions](#glossary). | You |
 | **Voqalize** | WebRTC, recognition, synthesis, turn-taking, interruption, the avatar and recording. | Voqalize |
@@ -57,7 +57,7 @@ sequenceDiagram
    body names the agent and may carry `config` (how this session sounds and
    listens, and whether it records) and `init` (anything your brain should know
    about this user). [Connect your app](/build/connect/) has the request.
-3. **Your page connects.** It hands the response, unchanged, to pipecat's
+3. **Your page connects.** It hands the response, unchanged, to
    `client.connect`. Media then flows directly between the browser and the
    Voqalize machine running the session.
 4. **Voqalize dials your brain** at `{brain_url}?session_id={session_id}` and sends
@@ -150,7 +150,7 @@ None of these is needed for a first session, and each is a change to one side:
 | **App event** | A typed message from the page to the brain (`AppEvent`), arriving at `on_rtvi`. It informs the brain and does not take a turn. [Context and history](/build/brain/context/). |
 | **Tool** | A function your model calls during a turn. It runs in your process. [Tools](/build/brain/tools/). |
 | **The wire** | The published protobuf frames on the brain's WebSocket. Any language can implement it. [The wire](/reference/wire/). |
-| **RTVI** | Pipecat's message format for the page's data channel. Voqalize carries it between page and brain. [RTVI messages](/reference/rtvi/). |
+| **RTVI** | The message format your page and your brain share over the session's data channel. Voqalize carries it between them. [RTVI messages](/reference/rtvi/). |
 | **Inbound route** | A `wss://` route in your app that Voqalize dials once per session. [Deploy the brain](/build/hosting/). |
 | **Cortex** | The relay for a brain that cannot accept inbound connections: your brain dials out to it and Voqalize meets it there. [Deploy the brain](/build/hosting/). |
 | **`sk_` key** | A secret key for one agent. Your server uses it for `sessions.connect`, and a Cortex brain uses it to dial the relay. [Keys](/build/keys/). |

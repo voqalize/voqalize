@@ -72,7 +72,7 @@ running voice agent:
 6. **Talk to it.** Run the brain and open the agent's `test_url`, the console
    Playground.
 7. **Put it in the app.** A server route that calls `sessions.connect` with the
-   `sk_` key, and pipecat's client on `@voqalize/client-transport` in the page. For
+   `sk_` key, and your client on `@voqalize/client-transport` in the page. For
    a public page with no login, mint a browser key with
    `create_api_key(tenant, agent_id, label, kind="publishable", allowed_origins=[…])`.
    See [Connect your app](/build/connect/).

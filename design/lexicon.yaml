@@ -198,6 +198,34 @@ internal_names:
     say_instead: Voqalize
 
 
+# Third-party names the docs never use to describe our product. Where one has to
+# appear in code — an install line, an `import`, an identifier such as
+# `PipecatClient`, a package name in a version row — it is inside backticks or a
+# fence, and `prose_lines` blanks it before this rule looks. What is left is a
+# sentence a writer chose, and that sentence says "your client", "the client",
+# "the transport" or `@voqalize/client-transport` (owner, 2026-11-04).
+#
+# `applies_to` narrows the rule to the docs site: the demo and SDK READMEs in
+# `scope.governed` document code that imports pipecat, and are not held to it.
+#
+# `allowed_in_sections` is the one exception, and it is a section, not a file:
+# native apps (React Native, iOS, Android) use pipecat's own client SDKs, so the
+# "Mobile apps" section on each page that has one names pipecat and links its
+# docs. A line is inside a section from that heading down to the next heading of
+# the same or a higher level, so a subsection under "Mobile apps" is inside it
+# and the rest of the page is not. Frontmatter sits under no heading, so a
+# `description:` is always held to the rule.
+vendor_names:
+  - name: pipecat
+    say_instead: your client, the client, the transport, or `@voqalize/client-transport`
+    applies_to:
+      - docs/src/content/docs/**
+    allowed_in_sections:
+      - file: docs/src/content/docs/build/client.md
+        heading: Mobile apps
+      - file: docs/src/content/docs/overview/status.md
+        heading: Mobile apps
+
 # Retired vocabulary. Not synonyms for anything — words that assert an outcome
 # the reader has not been shown.
 retired_words:

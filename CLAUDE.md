@@ -14,11 +14,16 @@ release, which is what retired the last one.
 the default** (owner, 2026-10-07): "We now ship a client library. And we need to
 make that the default. We should still document stock pipecat libraries for
 another couple of releases as well - but eventually we should remove them and
-only document our library." The browser half is pipecat's client on our
-transport plus one `fetch`, written down in `docs/src/content/docs/build/connect.md`
-and `build/pipecat.md`; the stock transport is the "Without our library"
-section there, and in `connect.md` the rejoin recipe under "On pipecat's stock
-transport". Delete both when the owner calls time on the stock path. The
+only document our library." The owner called time on the stock path on
+2026-11-04: the stock transport's sections are gone, and the docs describe the
+browser side only from `@voqalize/client-transport`'s point of view. The
+browser half is the client on our transport plus one `fetch`, written down in
+`docs/src/content/docs/build/connect.md` and `build/client.md` (it was
+`build/pipecat.md`; the old URL redirects). Prose never describes pipecat:
+"your client", "the client", "the transport". Pipecat appears only where code
+names it (install lines, imports, identifiers, the Versions table's peer rows)
+and in the "Mobile apps" sections, because native apps use pipecat's own
+client SDKs; `vendor_names` in `design/lexicon.yaml` enforces it. The
 version printed in prose is `client.transport.version` in `design/facts.yaml`.
 
 The demos' **media** is ours, on purpose (owner, 2026-10-06): pipecat's
@@ -89,7 +94,7 @@ Consequences to internalize:
   on `brain.dev.voqalize.com`; exercise it at `dev.voqalize.com/demos/*` before you
   fast-forward `prod`.
 - **The docs pin the version PyPI serves, so a renamed export blocks the promote.**
-  Every install line — `build/quickstart.md`, `build/pipecat.md`,
+  Every install line — `build/quickstart.md`, `build/client.md`,
   `overview/status.md`, `examples/fastapi_inbound/requirements.txt` — names the
   *published* release, and gets bumped in a commit of its own once PyPI has it
   (`8104298`, "point the install lines at 0.2.0, now that PyPI serves it"). Docs on
@@ -98,7 +103,7 @@ Consequences to internalize:
   without the name the page just used. **They are level as of 0.12.0, released
   2026-10-29**, which is the normal state right after a release and not the
   normal state. The files carrying that pin are `build/quickstart.md`,
-  `build/pipecat.md`, `overview/status.md`, `reference/brain.md`,
+  `build/client.md`, `overview/status.md`, `reference/brain.md`,
   `sdk/python/examples/fastapi_inbound/requirements.txt` and the repo
   `README.md` — named here rather than counted, because a count is a number that
   rots quietly and a list is one you can `grep` for. `build/existing-agent.md`

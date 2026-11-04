@@ -128,7 +128,7 @@ If the session does not start, check that `brain.py` is still running and that
 ## Put it in your page
 
 The Playground is a page Voqalize hosts. Yours needs two pieces: a route on your
-server that calls `sessions.connect` with an `sk_` key, and pipecat's client on
+server that calls `sessions.connect` with an `sk_` key, and your client on
 `@voqalize/client-transport` in the page. [Connect your app](/build/connect/) has
 both, complete.
 

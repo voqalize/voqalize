@@ -486,10 +486,11 @@ facts:
     note: >-
       MIT, published to npm. Pipecat's SmallWebRTCTransport with an open
       MediaManager in place of the default one, which loads daily's call
-      machine from c.daily.co. It is the documented default for a web page;
-      pipecat's stock transport is the documented alternative until a later
-      release drops it.
+      machine from c.daily.co. It is the one documented path for a web page:
+      the stock transport left the docs on 2026-11-04 (owner), with its
+      "Without our library" and "On pipecat's stock transport" sections.
     forbid:
+      - '(?i)\bstock transport'
       - 'We ship no client library'
       - 'No client library of ours'
       - 'ships no library of ours'
@@ -502,7 +503,7 @@ facts:
     reproduce: npm view @voqalize/client-transport version
     note: >-
       The version every install line pins, exactly, and every demo here
-      depends on. Printed in build/pipecat.md and overview/status.md; bump
+      depends on. Printed in build/client.md and overview/status.md; bump
       both in their own commit once npm serves the next release.
 
   client.transport.pipecat_floor:
@@ -511,9 +512,9 @@ facts:
     verified: 2026-11-04
     reproduce: grep -A3 peerDependencies ../voqalize-client-transport/package.json
     note: >-
-      What a page on the default path must clear. pipecat.client.floor is the
-      lower floor of the stock path, and stays printed beside it until that
-      path leaves the docs.
+      What a page must clear, printed in the Versions table of build/client.md.
+      pipecat.client.floor was the lower floor of the stock path; that path
+      left the docs on 2026-11-04, and the floor with it.
 
   repo.voqalize.licence:
     value: Apache-2.0
@@ -664,8 +665,8 @@ facts:
       @voqalize/demo-kit, so every demo in the repo is built against it and the
       floor is exercised rather than asserted. The demos themselves resolve
       ^1.13.0 as a dev dependency; the floor is what a customer's page must
-      clear, and it is the number docs/src/content/docs/build/pipecat.md is
-      allowed to print.
+      clear. It was printed in the docs as the stock transport's floor until
+      2026-11-04, when that path left them; no page prints it now.
 
   pipecat.client.platforms:
     value: [JavaScript, React, React Native, iOS Swift, Android Kotlin]

@@ -144,7 +144,7 @@ fields under `payload`:
 {"command": "show_results", "payload": {"query": "metformin", "result_ids": ["p1", "p2"], "highlight": "p1"}}
 ```
 
-That is pipecat's own message, so the browser handles it with pipecat's own hook:
+In React, the page handles it with `useUICommandHandler`:
 
 ```tsx
 useUICommandHandler<ShowResults>("show_results", (payload) => {

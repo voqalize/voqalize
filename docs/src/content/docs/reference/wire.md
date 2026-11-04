@@ -369,7 +369,8 @@ units, what the user actually heard, and (later) the control leg. Voqalize mints
 the turn because Voqalize decides when a turn commits, and speech names the turn
 it answers.
 
-The **RTVI plane is a tunnel.** An `RTVIFrame` is one pipecat RTVI message,
+The **RTVI plane is a tunnel.** An `RTVIFrame` is one RTVI message
+(the format your page and your brain share over the session's data channel),
 `{id, label: "rtvi-ai", type, data}` minus the constant label, forwarded
 verbatim in both directions between the app and the brain. Voqalize moves the
 whitelisted types and interprets nothing else about them. Actions,

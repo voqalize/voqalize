@@ -1,6 +1,6 @@
 ---
 title: The avatar
-description: An animated character drawn in the user's browser and lip-synced to the agent, from the session's own data channel. Talk to one on this page, then add it with one package and your PipecatClient.
+description: An animated character drawn in the user's browser and lip-synced to the agent, from the session's own data channel. Talk to one on this page, then add it with one package and your client.
 ---
 
 The avatar is an animated character drawn in the user's browser, in WebGL 2,
@@ -23,24 +23,25 @@ session, any gesture your brain plays, and the mouth shapes (visemes) for each
 reply, timed to the agent's audio. They travel as standard RTVI messages on the
 data channel the session already has, at a few hundred bytes a second.
 
-In the browser you give `@voqalize/avatar` your `PipecatClient` and the name of
+In the browser you give `@voqalize/avatar` your client and the name of
 a character. It fetches the avatar runtime and that character from
 `https://avatar.voqalize.com` and draws the face in the element you give it.
 
 | Part | What it does |
 |---|---|
 | Voqalize | Sends the avatar's state and the mouth shapes for each reply, in every session. There is nothing to install or turn on. |
-| `@voqalize/avatar` | The package you install from npm: a small MIT-licensed loader. You give it your `PipecatClient` and a character name, and it mounts the face. |
+| `@voqalize/avatar` | The package you install from npm: a small MIT-licensed loader. You give it your client and a character name, and it mounts the face. |
 | The avatar runtime | The renderer and the characters, fetched from `https://avatar.voqalize.com` when a face mounts. Licensed separately, for use with Voqalize, under the [avatar runtime licence](https://avatar.voqalize.com/LICENSE). Each release of the package is pinned to the runtime it was released with, so upgrading the package upgrades the avatar. |
 
-You need a page that runs Voqalize sessions with `@pipecat-ai/client-js` 1.4 or
-later, and a browser with WebGL 2. React 18 or later is optional.
+You need a page that runs Voqalize sessions with the client versions
+[Client libraries](/build/client/#versions) pins, and a browser with WebGL 2.
+React 18 or later is optional.
 
 ## Compared with video avatar services
 
-HeyGen, Anam, Protoface, Simli and Tavus are video avatar services with pipecat
-integrations. One sits after the TTS service in the pipeline: it sends the speech
-audio to its own servers, renders a video of a face saying it, and sends the
+HeyGen, Anam, Protoface, Simli and Tavus are video avatar services. One sits
+after the TTS service in the pipeline: it sends the speech audio to its own
+servers, renders a video of a face saying it, and sends the
 video and the audio back through your transport. Voqalize already knows the
 sounds in the audio it synthesizes, turns them into mouth shapes, and sends those
 to the browser, which draws the face.
@@ -67,7 +68,7 @@ npm install @voqalize/avatar
 The package is ESM, has no runtime dependencies and ships its own types.
 `@pipecat-ai/client-js` and React are optional peers.
 
-Mount it where your page draws the agent's tile, with the `PipecatClient` you
+Mount it where your page draws the agent's tile, with the client you
 connected ([Connect your app](/build/connect/)):
 
 ```js
@@ -194,7 +195,7 @@ still working can look like a dropped session.
 
 | State | Where it comes from |
 |---|---|
-| `SPEAKING`, `LISTENING`, `MUTED`, `OFFLINE`, `DEGRADED` | Your `PipecatClient`, in the browser. Voqalize sends nothing for these. |
+| `SPEAKING`, `LISTENING`, `MUTED`, `OFFLINE`, `DEGRADED` | Your client, in the browser. Voqalize sends nothing for these. |
 | `THINKING` | Voqalize. It sees the user's turn end and knows a reply is due. |
 | `WORKING` | Your brain, while a tool runs long enough for the user to notice. |
 | `CANT_HEAR` | Your brain, when something it is waiting on has not responded. |
@@ -266,5 +267,5 @@ is the reference for every option.
 
 ## Read next
 
-- [Client libraries](/build/pipecat/): what in the browser is pipecat's.
+- [Client libraries](/build/client/): the client and transport in the browser.
 - [RTVI messages](/reference/rtvi/): the messages that cross between your brain and the page.

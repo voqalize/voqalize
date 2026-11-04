@@ -19,7 +19,7 @@ language catalog** exposed by the speech tier.
 
 ## Every page is also markdown
 
-`/build/pipecat` is for a person; `/build/pipecat.md` is the same page as raw
+`/build/client` is for a person; `/build/client.md` is the same page as raw
 markdown, for an agent. `/llms.txt` is the index it enters through: every page in
 the site's own reading order, with the one-line `description` each page already
 carries, linking to the `.md` twin. On the site's own origin that index sits

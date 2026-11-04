@@ -27,6 +27,8 @@ of how quietly each one fails:
 - **Retired vocabulary**, from ``lexicon.yaml``: the word for a concept that has
   two names, the outcome words, the contrast grammar, and ``internal_names`` —
   the service and repository names that are never right in customer prose.
+  ``vendor_names`` are third-party names held to code only on the paths in
+  ``applies_to``, except under a heading named in ``allowed_in_sections``.
 
   ``scope.governed`` is the whole scan set. ``scope.reasoning_only`` is a
   *description*, not a second set the code reads: design notes, ``AGENTS.md`` and
@@ -170,7 +172,32 @@ def exempt(path: Path, patterns: list[str]) -> bool:
 
 
 FENCE = re.compile(r"^\s*(```|~~~)")
+HEADING = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
 CODE_SPAN = re.compile(r"`[^`]*`")
+
+
+def headings_by_line(text: str) -> dict[int, tuple[str, ...]]:
+    """Map each line number to the headings it sits under, outermost first.
+
+    A section runs from its heading to the next heading of the same or a higher
+    level, so `### Mobile apps` under `## App clients` is closed by the next `##`
+    or `###` and by nothing deeper. Headings inside a fence are code, not
+    structure, and are ignored. A line before the first heading (frontmatter,
+    the lede) sits under none.
+    """
+    out: dict[int, tuple[str, ...]] = {}
+    stack: list[tuple[int, str]] = []
+    in_fence = False
+    for n, line in enumerate(text.splitlines(), 1):
+        if FENCE.match(line):
+            in_fence = not in_fence
+        elif not in_fence and (m := HEADING.match(line)):
+            level = len(m.group(1))
+            while stack and stack[-1][0] >= level:
+                stack.pop()
+            stack.append((level, m.group(2)))
+        out[n] = tuple(h for _, h in stack)
+    return out
 
 
 def prose_lines(text: str):
@@ -220,6 +247,20 @@ def scan(files: list[Path], facts: dict, lexicon: dict, sweep: bool) -> tuple[li
             )
         )
 
+    # Scoped rules: a path filter, and headings under which the word is allowed.
+    # Kept apart from `rules` because both need the file and the line's place in
+    # it, which a plain (pattern, why, except) triple cannot carry.
+    scoped: list[tuple[re.Pattern[str], str, list[str], list[dict]]] = []
+    for vendor in lexicon.get("vendor_names", []):
+        scoped.append(
+            (
+                re.compile(rf"\b{re.escape(vendor['name'])}\b", re.I),
+                f"third-party name outside code — say {vendor['say_instead']}",
+                vendor.get("applies_to", []),
+                vendor.get("allowed_in_sections", []),
+            )
+        )
+
     for pr in lexicon.get("prohibited", []):
         # A prohibited word may have one phrase it is right in, named by
         # `allowed_pattern`. Split that phrase on the word and guard both sides, so
@@ -260,6 +301,7 @@ def scan(files: list[Path], facts: dict, lexicon: dict, sweep: bool) -> tuple[li
     for path in files:
         rel = path.relative_to(ROOT)
         text = path.read_text()
+        sections = headings_by_line(text) if scoped else {}
         for n, line in prose_lines(text):
             for bucket, rs in ((findings, rules), (advisories, advisory)):
                 for rx, why, exc in rs:
@@ -267,6 +309,16 @@ def scan(files: list[Path], facts: dict, lexicon: dict, sweep: bool) -> tuple[li
                         continue
                     if m := rx.search(line):
                         bucket.append(f"{rel}:{n}: {m.group(0)!r} — {why}")
+            for rx, why, applies, allowed in scoped:
+                if applies and not exempt(path, applies):
+                    continue
+                if any(
+                    exempt(path, [a["file"]]) and a["heading"] in sections.get(n, ())
+                    for a in allowed
+                ):
+                    continue
+                if m := rx.search(line):
+                    findings.append(f"{rel}:{n}: {m.group(0)!r} — {why}")
         for n, line in enumerate(text.splitlines(), 1):
             for rx, why, exc in literal_rules:
                 if exc and exempt(path, exc):

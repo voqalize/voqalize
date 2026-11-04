@@ -41,7 +41,7 @@
  * prologue of the next section — the Build hub opened by sending the reader back
  * out to two of them — and the site was telling one story four times at four
  * lengths. `what-voqalize-is` merged into the apex; the other two are
- * `build/session` and `build/pipecat`.
+ * `build/session` and `build/client` (then `build/pipecat`).
  *
  * **The IA is built top-down from the MCP handshake.** L0 is the paragraph the
  * MCP server hands a coding agent; L1 is the apex; L2 is evaluation plus the
@@ -149,7 +149,7 @@ export const sidebar = [
       { label: "Deploy the brain", slug: "build/hosting" },
       { label: "Keys and authentication", slug: "build/keys" },
       { label: "Connect your app", slug: "build/connect" },
-      { label: "Client libraries", slug: "build/pipecat" },
+      { label: "Client libraries", slug: "build/client" },
       { label: "Work with a coding agent", slug: "build/coding-agent" },
     ],
   },

@@ -1,12 +1,12 @@
 ---
 title: Camera and screen
-description: Record a session's camera and screen share. Turn lanes on with pipecat's enableCam and enableScreenShare, optionally cap each lane's bitrate, and read the files back on one timeline.
+description: Record a session's camera and screen share. Turn lanes on with the client's enableCam and enableScreenShare, optionally cap each lane's bitrate, and read the files back on one timeline.
 ---
 
 A recorded session can carry video as well as audio: the user's camera, their
 screen, or both. Nothing new is installed for it: the transport already
 negotiates a camera lane and a screen lane on every connection, and your page
-turns them on and off with pipecat's own calls.
+turns them on and off with the client's `enableCam` and `enableScreenShare`.
 
 What you get back, beside the audio, on a session with recording on:
 
@@ -73,9 +73,6 @@ client.on(RTVIEvent.TrackStarted, (track, participant) => {
 createVoqalizeTransport({ videoCodec: "VP8" });
 ```
 
-`createVoqalizeTransport` takes the stock transport's constructor options, so
-`new SmallWebRTCTransport({ videoCodec: "VP8" })` is the same on the stock path.
-
 Voqalize records VP8 and accepts only VP8 on the wire, whatever the offer
 lists. Setting it here only keeps the offer small. A browser that cannot send
 VP8 still connects, with its audio, and its video is not recorded.
@@ -94,12 +91,12 @@ towards it. The defaults suit most sessions:
 There is no maximum. A higher cap lifts the ceiling, not what the browser sends.
 
 To set them, add `requestData.video` to the connect params before you connect.
-`requestData` is pipecat's own field, sent with every offer. Either lane may be
-left out, and it takes its default.
+`requestData` is sent with every offer. Either lane may be left out, and it
+takes its default.
 
 Keep [`withRealHeaders`](/build/connect/#the-one-line-you-write-yourself), the
 one line that turns the `headers` object `sessions.connect` returns into a
-`Headers` instance: the stock client calls `headers.entries()`, so a plain
+`Headers` instance: the transport calls `headers.entries()`, so a plain
 object throws at the offer and `connect` never settles.
 
 ```ts
@@ -118,7 +115,7 @@ await client.connect({
 });
 ```
 
-The first offer decides for the whole session. Pipecat resends `requestData`
+The first offer decides for the whole session. The client resends `requestData`
 on every offer, including a reconnect, and a later offer with different values
 is ignored, not refused. The first offer's value is checked strictly:
 `requestData.video` takes only `camera` and `screen`, each takes only
@@ -127,9 +124,8 @@ else, a value below the minimum, a string or decimal, or a field such as
 `max_fps`, is refused at the offer with HTTP `400`, code `invalid_config`, and
 an `info` sentence saying why, and `client.connect` rejects.
 
-On `@pipecat-ai/small-webrtc-transport` 1.10.7 or later, the floor
-[our transport](/build/pipecat/) requires, a refused offer stops at once and
-`client.connect` rejects with a `TransportStartError` whose `cause` is the `400`
+With the versions [Client libraries](/build/client/#versions) pins, a refused
+offer stops at once and `client.connect` rejects with a `TransportStartError` whose `cause` is the `400`
 response.
 
 The bitrate is the only setting there is. Frame rate, resolution and how the
@@ -249,5 +245,5 @@ A session with only one lane leaves out the other's input and overlay.
   state, and the download URL.
 - [Connect your app](/build/connect/): the connect request and the
   `withRealHeaders` line this page builds on.
-- [Client libraries](/build/pipecat/): what is pipecat's and
-  which versions are supported.
+- [Client libraries](/build/client/): the client calls and the
+  versions that are supported.

@@ -80,7 +80,7 @@ export function sendAppEvent(
 ): void;
 ```
 
-`sendAppEvent` takes a pipecat client's `sendUIEvent` — or `null` before the call
+`sendAppEvent` takes the client's `sendUIEvent` — or `null` before the call
 connects, which drops the gesture, correctly: there is no brain that missed it.
 
 ```tsx
