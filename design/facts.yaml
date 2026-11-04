@@ -1107,14 +1107,17 @@ facts:
       - '**/changelog.astro'
 
   docs.pages:
-    value: 46
+    value: 48
     source: docs/src/content/docs/
     verified: 2026-11-04
     derive:
       glob: docs/src/content/docs/**/*.md*
     note: >-
       Each page is served twice — rendered, and as the `.md` twin an agent
-      reads — plus llms.txt and 404.html. It was 39 until 2026-11-04, when the
+      reads — plus llms.txt and 404.html. It was 46 until 2026-11-04, when the
+      Site Agent section was restructured into one story in reading order
+      (study, publish and install were folded into refresh, self-study,
+      preview, security and manage). It was 39 until 2026-11-04, when the
       Site Agent section (`build/site-agent/`) was added. It was 32 until 2026-10-07, when
       `build/video` (camera and screen recording) was added. It was 34 until 2026-09-21, when the
       hosting trio (`build/hosting`, `build/inbound`, `build/outbound`) became
@@ -1232,6 +1235,26 @@ facts:
     verified: 2026-11-04
     reproduce: >-
       grep -n 'greeting: str | None' ../platform/backend/sitekit/sitekit/bundle.py
+
+  site.settings.voice_instructions.max_chars:
+    value: 500
+    source: platform/backend/sitekit/sitekit/limits.py:304 LANGUAGE_INSTRUCTIONS_MAX_CHARS
+    verified: 2026-11-04
+    reproduce: >-
+      grep -n 'LANGUAGE_INSTRUCTIONS_MAX_CHARS' ../platform/backend/sitekit/sitekit/limits.py
+    note: >-
+      Per language, in `voice.instructions`; each key must be one of the
+      site's `voice.languages`.
+
+  site.try_it_live.token_ttl:
+    value: 10 minutes
+    source: platform/backend/controlplane/app/domains/sites/try_links.py:84 TRY_TOKEN_TTL_SECONDS
+    verified: 2026-11-04
+    reproduce: >-
+      grep -n 'TRY_TOKEN_TTL_SECONDS: Final' ../platform/backend/controlplane/app/domains/sites/try_links.py
+    note: >-
+      Single use. Only a tool with a passing proof can be tried; a form send
+      or an irreversible tool never can.
 
   site.settings.assistant_name.max_chars:
     value: 40

@@ -1,53 +1,36 @@
 ---
-title: Site Agent studies and self studies
-description: How Voqalize reads a site into a version, when a refresh is published without review, and how your coding agent runs a self study over MCP, with the kit, the upload format and its limits.
+title: Site Agent self studies
+description: Running a Site Agent study with your own coding agent over MCP. What the machine needs, the run step by step, the upload and its limits, what the checks refuse, and the states a self study passes through.
 ---
 
-A study reads the site and writes a new [version](/build/site-agent/#concepts):
-what the assistant always knows, its deeper topics, every fact with the quote
-it came from, the map of the site's pages, and the site tools it proved.
+So far Voqalize has run every study on its servers
+([Refreshes and review](/build/site-agent/refresh/)), and you have edited the
+knowledge by hand ([Edit the knowledge](/build/site-agent/knowledge/)). A
+**self study** is the third way to write a version: your own coding agent runs
+the study on your machine, with your own model account, using Voqalize's study
+kit. Voqalize checks the result and stores it as a `self_study` version that
+waits for review like any other. A self study is never published on its own,
+and it does not count towards a site's monthly allowance of studies Voqalize
+runs.
 
-## The quick first read
+```text
+  your coding agent                                  Voqalize
+  ─────────────────                                  ────────
+  start_self_study ────────────────────────────────▶ start.json: kit, upload URL
+  run the kit's explorer, then finalize.py
+  upload.py ──────────── bundle.tar.gz ────────────▶ stored, not yet checked
+  submit_self_study ───────────────────────────────▶ collecting: checks every quote,
+                                                       page and site tool
+  get_self_study ◀──────────────────────────────────  stored: a new version, waiting
+                                                    or refused: reasons, a new URL
+```
 
-Adding a site starts it. Within minutes it reads about 15 of the site's key
-pages and publishes a `starter` version that tells visitors it is still learning
-the site. A starter version cannot be edited, and once replaced it is never
-published again.
-
-## Managed studies
-
-Adding a site also starts its first full study, run by Voqalize. Later studies
-start from **Refresh** in the console; **Re-check** on chosen actions runs a
-shorter refresh of just those, in about 10 minutes. A site may run 4 managed
-studies a calendar month; past that a start is refused with
-`run_limit_reached`.
-
-The first study's version always waits for review. A refresh is compared with
-the published version and waits for review when it:
-
-- adds or changes a fact in what the assistant always knows (`l1`);
-- adds or changes a site tool that changes the page or sends a form, or raises
-  what a tool may do;
-- changes the site's Stage moves;
-- carries a conflict between facts, or fails a check.
-
-A refresh that does none of these is approved and published on its own. Edits and self studies are never
-published on their own.
-
-## Self studies
-
-A self study is a study your own coding agent runs on your machine, with your
-own model account, using Voqalize's study kit. The result is checked by
-Voqalize and stored as a `self_study` version that waits for review, exactly
-like a managed one. A self study does not count towards the managed-study
-allowance.
-
-### What the machine needs
+## What the machine needs
 
 A shell, Python 3.12 or newer, Node, a headless Chromium and open internet. On
 Windows, use WSL2. The kit's preflight says in plain words what is missing.
 
-### The run, over MCP
+## The run, over MCP
 
 An owner or admin's coding agent, connected to the
 [MCP server](/reference/mcp/#site-agent-tools):
@@ -80,7 +63,7 @@ An owner or admin's coding agent, connected to the
 The kit link lasts one hour; `get_draft_bundle` and `start_knowledge_edit` hand
 out a fresh one.
 
-### The upload
+## The upload
 
 - One `PUT` of `bundle.tar.gz` to `upload.url`, with every header in
   `upload.headers`, at most `upload.max_bytes` (50 MiB).
@@ -92,7 +75,7 @@ out a fresh one.
   accepts; otherwise the upload is refused and the answer names the kit to
   download.
 
-### What the checks refuse
+## What the checks refuse
 
 After `submit_self_study` the study is `collecting`: Voqalize reads every fact's
 page, the page map and every site tool's proof. Any one of these refuses the
@@ -107,7 +90,7 @@ whole upload, and no version is stored from it:
 `get_self_study` then lists each reason as `{code, path, message}` and gives the
 next upload URL. Fix, upload again, and submit again.
 
-### States
+## States
 
 | `state` | Means |
 |---|---|
@@ -119,8 +102,9 @@ next upload URL. Fix, upload again, and submit again.
 `cancel_self_study` frees the site for another study. Versions already stored
 stay; the upload URL stops taking uploads.
 
-### What the reviewer sees
+## What the reviewer sees
 
 The version records the grader's rounds, and each site tool your kit proved is
 listed in its `review_flags`: its requests were reported by your run, not
-watched by Voqalize's, so the reviewer confirms them.
+watched by Voqalize's, so the reviewer confirms them before
+[approving](/build/site-agent/refresh/#review-in-full).

@@ -1,25 +1,69 @@
 ---
 title: Edit Site Agent knowledge
-description: Change what a site's assistant knows and may do through a draft over MCP. The draft lifecycle, every edit operation, the checks, and how to prove a changed site tool.
+description: Change what a site's assistant knows and may do yourself. What a version holds, notes in the console, and knowledge edits over MCP with the draft lifecycle, every edit operation, the checks, and how to prove a changed site tool.
 ---
 
-A knowledge edit changes a stored version through a draft: open it, apply
-operations, read the checks, prove any changed site tool, submit. The submit
-makes a new version that waits for [review](/build/site-agent/publish/). Edits
-run over [MCP](/reference/mcp/#site-agent-tools), by an owner or admin; nothing
-a draft holds reaches visitors.
+Every version so far was written by a study
+([Refreshes and review](/build/site-agent/refresh/)). When the assistant has
+something wrong, or you want it to know or do something the study missed, you
+can change it yourself, with a **note** in the
+console, which corrects the assistant at once, or with a **knowledge edit**, a
+checked draft that becomes a new version.
 
 The site's look, avatar and languages are [settings](/build/site-agent/settings/),
 not knowledge.
 
-## Read before you edit
+## What a version holds
+
+A version's knowledge is read part by part with `read_site_knowledge`:
+
+| Part | Holds | Who may read |
+|---|---|---|
+| `l1` | What the assistant always knows: it is in every call. | Any member |
+| `l2` | The menu of deeper topics, each with when to read it. | Any member |
+| `l2:<topic>` | One topic in full. | Any member |
+| `report` | The study's report. | Any member |
+| `facts` | Each fact, with the page it came from and the quote on that page. | Owner or admin |
+| `page_map` | The kinds of page on the site and how to reach them. | Owner or admin |
+| `questions` | The questions the study tested the knowledge against. | Owner or admin |
+| `stage` | The site's Stage moves: what the assistant can show on screen. | Owner or admin |
+
+Beside the knowledge, a version holds its site tools: the actions the
+assistant may run on your pages, each with its proof.
+
+## Notes in the console
+
+A **note** is one line of plain text from the business, added in the console by
+an owner or admin, optionally aimed at one fact or one part of what the
+assistant always knows. It is not a new version. It is merged into what the
+assistant always knows, marked as the business's own words with its date, in
+the published and the preview version at once, and it is live on the next
+call. Every later version carries it too.
+
+- **A site keeps at most 50 notes of at most 300 characters each.**
+- **A note may not state a price, stock or reviews.** Those are read live from
+  the page during a call, never kept.
+- **The next study checks it.** Where a page now says otherwise, that study
+  shows the two as a conflict for review.
+- **Notes are console-only.** There is no MCP tool for them.
+
+## Knowledge edits
+
+A knowledge edit changes a stored version through a draft: open it, apply
+operations, read the checks, prove any changed site tool, submit. The submit
+makes a new version that waits for
+[review](/build/site-agent/refresh/#review-in-full). Edits run over
+[MCP](/reference/mcp/#site-agent-tools), by an owner or admin; nothing a draft
+holds reaches visitors.
+
+### Read before you edit
 
 `read_site_knowledge(tenant, site_id, part)` returns one
-[part](/build/site-agent/#concepts) a page at a time: 12,000 characters by
+[part](#what-a-version-holds) a page at a time: 12,000 characters by
 default, `limit` from 1,000 to 40,000, and `cursor` for the next page.
 `version` defaults to the published version, else the newest.
 
-## The draft lifecycle
+### The draft lifecycle
 
 - **`start_knowledge_edit(tenant, site_id, base_version=None)`** opens a draft
   from a stored version, the published one by default. A `starter` version
@@ -42,7 +86,7 @@ default, `limit` from 1,000 to 40,000, and `cursor` for the next page.
 
 A draft expires 7 days after it was started, and an expired draft is gone.
 
-## Operations
+### Operations
 
 Each operation is an object with an `op`. At most 50 per call; an edit that
 would make the draft larger than a version may be is refused with
@@ -67,7 +111,7 @@ A Stage move edited here keeps the `class` and `args` the site's tools and page
 map imply, and changes only its `claims`, `objects`, `verb`, `say`, `doc` and
 `notes`. Removing a `site.*` move drops only those changes.
 
-## The checks
+### The checks
 
 Every edit returns `check`:
 
@@ -90,7 +134,7 @@ Every edit returns `check`:
   the page during a call, never kept. Text the base version already had is not
   judged again.
 
-## Prove a changed site tool
+### Prove a changed site tool
 
 A new or changed site tool, or a changed navigation, needs a passing run of the
 study kit on the draft:
@@ -108,7 +152,7 @@ Without a passing result on its current definition, the submit refuses the tool
 by name; it is never dropped. Each tool your kit proved is listed in the
 version's `review_flags` for the reviewer to confirm.
 
-## Submit refusals
+### Submit refusals
 
 | Code | Means |
 |---|---|

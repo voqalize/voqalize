@@ -1,136 +1,157 @@
 ---
 title: The Site Agent
-description: A voice assistant for an existing website that Voqalize builds from the site's public pages. What a site, a version, a study and a review are, who may do what, and where each step happens.
+description: A voice assistant for a website you already run, built by Voqalize from the site's public pages. The whole path in order, from adding the site to a visitor's first call, with the rest of the section in reading order.
 ---
 
-The Site Agent is a voice assistant for a website you already run. Voqalize
-reads the site's public pages, writes down what the assistant knows and what it
-may do on each kind of page, and serves that to visitors through one script tag.
-You write no brain and run no server. A person on your side reviews what was
-learnt before visitors hear it.
+The Site Agent is a voice assistant for a website you already run. You give
+Voqalize the site's address. Voqalize reads its public pages, writes down what
+the assistant knows and what it may do on each kind of page, and a person on
+your side reviews that before visitors hear it. Visitors reach it through one
+script tag. You write no brain and run no server.
 
-A voice agent you build yourself, with your own brain, does not need any of
-this; start at [How Voqalize works](/build/session/) instead.
+A voice agent you build yourself, with your own brain, needs none of this;
+start at [How Voqalize works](/build/session/) instead.
 
-## How a site goes live
+```text
+  you                              Voqalize                           a visitor
+  ───                              ────────                           ─────────
+  add the site ──────────────────▶ quick first read
+                                     └─▶ starter version, published ─▶ "still learning"
+                                   full study
+                                     └─▶ new version, waiting
+  review it, publish it ─────────▶ that version is published ───────▶ the assistant
+  paste site.js on your pages ──────────────────────────────────────▶ clicks, talks
+```
 
-- **Add the site.** In the console, or with `create_site` over
-  [MCP](/reference/mcp/#site-agent-tools). You get the snippet with the site's
-  live key, shown once.
-- **A quick first read is live within minutes.** It reads about 15 of your
-  pages, answers on every page carrying the snippet, and tells visitors it is
-  still learning the site.
-- **A full study runs.** Voqalize reads the site in depth and stores a new
-  version that waits for review.
-- **A person reviews and publishes it.** Visitors get the new version on their
-  next page load.
-- **You keep it current.** Refresh the study, edit the knowledge, or run a
-  study yourself with your coding agent. Each makes a new version, reviewed the
-  same way.
+This page follows that path once, from adding the site to a visitor's first
+call. Each later page in this section picks the story up where the one before
+left it, and adds what comes after the first call.
 
-## Concepts
+## Add the site
 
-**Site.** One website, named by its primary origin (the `https://` origin of
-its home page). A tenant has one site per primary origin. A site holds its
-settings, its versions, its preview invites and its live key.
+A tenant owner or admin adds the site in the console's **Add a site**, or a
+coding agent does it with `create_site` over [MCP](/reference/mcp/#site-agent-tools).
+Both take the site's home page, an `https://` address on one public host, and
+the languages the assistant speaks; English when you choose none. The origin of
+that address is the site's **primary origin**, and a tenant has one site per
+primary origin.
 
-**Version.** One complete, numbered copy of what the assistant knows and may do
-on the site. Versions are never changed after they are stored; a change is a new
-version. Each has a `status`:
+The answer carries the **snippet**: the script tag for your pages, with the
+site's live key in it. It is shown once. Keep it; you paste it in a later step.
 
-| `status` | Means |
-|---|---|
-| `ready_for_review` | Passed its checks; waiting for a person. |
-| `partial` | Stored, but some checks failed; `partial_failures` lists them. Publishing it needs every one named. |
-| `approved` | A person approved it. Visitors do not get it until it is published. |
-| `published` | What visitors are served now. |
-| `superseded` | Was published, then replaced. Publishing it again is a rollback. |
-| `rejected` | A person rejected it. |
-| `invalid` | The bundle failed validation. |
-| `blocked` | The site blocked our reader; see [If your site blocks automated visitors](/build/site-agent/install/#if-your-site-blocks-automated-visitors). |
+Adding the site also asks you to agree that Voqalize may read pages your
+`robots.txt` asks crawlers to skip. In the console, adding the site is the
+agreement; over MCP it is a separate argument.
+[Bot protection and robots.txt](/build/site-agent/security/#robotstxt) has the
+words and how to turn it off.
 
-Each version also records its `origin`: `starter` (the quick first read),
-`managed_study` (a study Voqalize ran), `knowledge_edit` (a draft someone
-submitted) or `self_study` (a study your own coding agent ran).
+## The quick first read
 
-**Published, preview and latest.** A site points at a published, a preview and a latest version.
-`published_version` is what visitors are served. `preview_version` is what a
-preview invite and the console's preview show, normally the newest version
-waiting for review; rejecting it sends the preview back to the published one.
-`latest_version` is the newest stored, whatever its status.
+Within minutes of adding the site, Voqalize reads its home page and up to 10 key pages (about, pricing, contact, FAQ, policies)
+and publishes what it found as the site's first **version**.
 
-**Study.** Reading the site and writing a version from it. A `managed_study` is
-run by Voqalize on our servers; you start one with **Refresh** in the console.
-A self study is the same work done by your coding agent on your machine, with
-your own model account. The first study of a site is `initial`; any later one
-is a `refresh`, compared against the published version. See
-[Studies and self studies](/build/site-agent/study/).
+A version is one complete, numbered copy of what the assistant knows and may do
+on the site. A version is never changed after it is stored; every change makes a
+new one. The site **publishes** one version at a time, and that is the one
+visitors are served.
 
-**Knowledge.** What a version holds, read part by part with
-`read_site_knowledge`:
+This first version is the **starter**. It answers on every page carrying the
+snippet and tells visitors it is still learning the site. It is published
+without review, it cannot be edited, and once a studied version replaces it, it
+is never published again.
 
-| Part | Holds | Who may read |
-|---|---|---|
-| `l1` | What the assistant always knows: it is in every call. | Any member |
-| `l2` | The menu of deeper topics, each with when to read it. | Any member |
-| `l2:<topic>` | One topic in full. | Any member |
-| `report` | The study's report. | Any member |
-| `facts` | Each fact, with the page it came from and the quote on that page. | Owner or admin |
-| `page_map` | The kinds of page on the site and how to reach them. | Owner or admin |
-| `questions` | The questions the study tested the knowledge against. | Owner or admin |
-| `stage` | The site's Stage moves: what the assistant can show on screen. | Owner or admin |
+## The full study
 
-**Site tools.** The actions the assistant may run on your pages, such as adding
-an item to the cart or filling a form, each proven by a check before it is
-served. A new or changed site tool is always shown to a reviewer.
+At the same time Voqalize starts the site's first **study**: it reads the site
+in depth and writes a new version from it. A study writes:
 
-**Checks.** What a version is tested against before it can be stored: every
-fact's quote is on its page, the page map reads the pages it claims to, and
-every site tool passed its proof. A version that fails checks is `partial` or
-`invalid`; a draft that fails them cannot be submitted.
+- what the assistant always knows, in every call;
+- the deeper topics it reads when a question needs one;
+- every fact, with the page it came from and the quote on that page;
+- a map of the site's kinds of page and how to reach them;
+- the **site tools**: actions the assistant may run on your pages, such as
+  adding an item to the cart or filling a form, each proven by a run on your
+  site before it is kept.
 
-**Review.** A person approves or rejects a version, choosing between
-conflicting facts where the study found two. Approving does not change what
-visitors get; publishing does. See [Review and publish](/build/site-agent/publish/).
+Before the version is stored, Voqalize **checks** it: every fact's quote is on
+its page, the page map reads the pages it claims to, and every site tool passed
+its proof. A version that passes waits for review with the status
+`ready_for_review`. Nothing visitors hear changes yet.
 
-**Preview invite.** A link that lets someone try a version that is not yet
-published, on your live site, in their own browser, with no snippet installed.
-See [Try it before you install](/build/site-agent/install/#try-it-before-you-install).
+If your site's bot protection turns the reader away, the version is `blocked`
+instead; [Bot protection and robots.txt](/build/site-agent/security/#if-your-site-blocks-automated-visitors)
+says how to let it in.
 
-## Who may do what
+## Review and publish the first version
 
-| Role | May |
-|---|---|
-| Owner or admin | Everything: add a site, edit, review, publish, change settings, manage invites, and agree to the robots notice. |
-| Member | Read sites, versions and the member parts of the knowledge, and preview a site in their own browser. |
+A tenant owner or admin reads the new version and decides. In the console this
+is the site's review; over MCP it is `get_site_version` and
+`read_site_knowledge` to read, then:
 
-Voqalize staff may act on a site as an admin does, except that only an owner or
-admin can agree to the robots notice for their site.
+- **Approve it.** `review_site_version` with `decision` `approve`. Where the
+  study found two facts that disagree, approving needs a choice between them.
+  Approving changes nothing visitors get.
+- **Publish it.** `publish_site_version`. Without `confirm: true` it publishes
+  nothing and answers with what would change against the live version; show
+  that to the person, then call again with `confirm: true`.
 
-## Console and MCP
+The published version is now the studied one, and the starter's "still
+learning" greeting is gone. This first publish of a studied version also
+applies the assistant name, greeting, colours and corner the study chose,
+unless a person has already saved their own
+([Settings](/build/site-agent/settings/)).
 
-Every step above can be taken in the console. A coding agent connected to the
-[MCP server](/reference/mcp/#site-agent-tools) can add a site, read and edit
-knowledge, run a self study, review, publish, change settings and manage client
-invites. These are in the console only:
+## Paste the tag
 
-- rotating the live key;
-- starting a managed study (**Refresh**) or re-checking chosen actions;
-- previewing in your own browser (a member invite);
-- notes that correct or add to what the assistant knows;
-- the site's goals;
-- turning the robots notice off.
+Paste the snippet just before `</body>` on every page where the assistant may
+appear:
 
-## Pages in this section
+```html
+<script async src="https://cdn.voqalize.com/sites/site.js" data-key="pk_live_…"></script>
+```
 
-- [Install the snippet](/build/site-agent/install/): the tag, its options, CSP,
-  bot blocking, previews, and what is sent.
-- [Studies and self studies](/build/site-agent/study/): how a site is read,
-  and how your coding agent runs a study over MCP.
-- [Edit the knowledge](/build/site-agent/knowledge/): drafts, operations and
-  checks.
-- [Review and publish](/build/site-agent/publish/): approving, publishing and
-  rolling back.
-- [Settings](/build/site-agent/settings/): the assistant, avatar, languages and
-  look.
+- **It is the same script for every website.** Only the key is yours.
+- **The key works only on the site's own origins**, so it need not be kept
+  secret.
+- **The URL never changes.** Publishing a new version needs no change on your
+  pages; visitors get it on their next page load.
+- **You can paste it at any point.** Until a version is published the script
+  shows nothing.
+
+If your site sends a `Content-Security-Policy`, it needs the sources in
+[CSP](/build/site-agent/security/#if-your-site-sets-a-content-security-policy)
+before the button can load.
+
+## A visitor talks to it
+
+The script reads the site's settings and shows a button in a corner of the
+page. A visitor clicks it and talks. The assistant answers from the published
+version and follows the page as the visitor moves through the site: it can
+open pages, search, show a section, point at things and, through the site tools
+the reviewed version holds, act on the page. It never places an order or
+presses a payment control.
+
+Each call is a session in your tenant, read back like any other in
+[Operate](/operate/) and kept for 30 days.
+[What is sent](/build/site-agent/security/#what-is-sent) lists exactly what
+crosses during a call.
+
+## What comes next
+
+The site is live. The rest of this section, in reading order:
+
+- [Refreshes and review](/build/site-agent/refresh/): keeping it current,
+  which refreshes publish themselves, and every state a version can be in.
+- [Edit the knowledge](/build/site-agent/knowledge/): changing what the
+  assistant knows and may do yourself, through a checked draft.
+- [Self studies](/build/site-agent/self-study/): running a study with your own
+  coding agent over MCP, and the upload it sends.
+- [Previews and invites](/build/site-agent/preview/): trying an unpublished
+  version on your live site, and letting others try it.
+- [Settings](/build/site-agent/settings/): the assistant, avatar, languages,
+  look, where the button shows, and what the assistant may do.
+- [CSP, bot protection and data](/build/site-agent/security/): what your site
+  must allow, and what is sent.
+- [Roll back, roles and the console](/build/site-agent/manage/): going back to
+  an earlier version, who may do what, and what only the console does.
 - [Limits](/build/site-agent/limits/): every bound in one table.
