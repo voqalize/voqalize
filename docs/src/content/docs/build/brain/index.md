@@ -4,64 +4,78 @@ description: The callbacks a brain implements, the one that is required, and the
 ---
 
 A brain is a class. You subclass `Brain`, implement `on_user_message`, and yield
-speech. That is the whole required surface — everything else is a callback you
-add when you need it, and a method on `session` when it is not speech.
+speech. Everything else is a callback you add when you need it, or a method on
+`session` when it is not speech. New to the terms? The
+[glossary](/build/session/#glossary) defines each one.
 
 ```python
+from voqalize.sdk import Brain, SpeechChunk, SpeechEnd, SpeechStart
+
+
 class Concierge(Brain):
+    async def greet(self, session):
+        return "Hi, I'm the concierge. What can I do for you?"
+
     async def on_user_message(self, session, msg):
         yield SpeechStart()
-        yield SpeechChunk(await self.answer(msg.text))
+        yield SpeechChunk("You said: " + msg.text)
         yield SpeechEnd()
 ```
 
-That is a brain that runs. The [Quickstart](/build/quickstart/) has the same
-class with its imports, its greeting and the route it mounts on; this page is
-about everything you can add to it.
+That brain runs. The [Quickstart](/build/quickstart/) mounts it on a route and
+takes a call; this page is about what you add to it.
 
-## The generator is the mouth
+## Speech is yielded; everything else is a session method
 
 `on_user_message` and `on_user_idle` are async generators, and they are the only
-callbacks that are. Speech is the only thing they yield, because speech is the
-only thing with a position on the audio timeline. An action, a language switch,
-hanging up — each is a method on `session`, callable from anywhere, including
-from a callback that is not a generator at all.
+callbacks that are. They yield speech and nothing else, because speech is the
+only output with a position on the audio timeline. Showing something, switching
+language and hanging up are methods on `session`, callable from any callback:
 
-## The greeting is static
-
-`greet` returns a string or `None`. It is `async` so you can look something up —
-`session.init` carries whatever your page passed at connect — **not so you can
-generate the sentence.** The user is connected and hearing nothing while it
-runs, so a model call here is dead air before the first word.
+| Method | What it does |
+|---|---|
+| `session.dispatch(action)` | Sends a typed [action](/build/brain/actions/) to your app. |
+| `await session.configure(config)` | Changes voice, language, turn-taking or the idle timer ([Voice and language](/build/voice-and-language/)). |
+| `session.send_rtvi(type, data)` | Sends a raw RTVI message to your app. |
+| `session.end(reason)` | Hangs up. |
 
 ## The callbacks
 
-`on_user_message` is the only one you must implement. It and `on_user_idle` are
-the generators — the moments the floor is yours. The rest return `None`,
-which is what stops a click or an error from talking over the user:
-`on_session_start` and `greet` open the call, `on_rtvi` receives what the person
-did in your app, `on_finalize` reports what they actually heard, `on_error`
-carries a signal from Voqalize, and `on_session_end` runs as the socket closes.
+| Callback | Returns | When it runs |
+|---|---|---|
+| `on_user_message` | speech (generator) | The user finished a turn. **Required.** |
+| `on_user_idle` | speech (generator) | The user has been quiet; you may re-engage or end. |
+| `on_session_start` | `None` | The session opened, before the greeting. Read `session.init` here. |
+| `greet` | `str` or `None` | Once, for the first line. |
+| `on_rtvi` | `None` | The user did something in your app ([Context and history](/build/brain/context/)). |
+| `on_finalize` | `None` | A speech unit finished playing; reports what the user heard. |
+| `on_error` | `None` | Voqalize sent a signal, such as `OVERLOAD`. |
+| `on_session_end` | `None` | The socket is closing. |
 
-Everything that is not speech is a method on `session` and callable from any of
-them: `session.dispatch(action)`, `await session.configure(config)`,
-`session.send_rtvi(...)`, `session.end(reason)`.
+Only the two generators can speak, so a click or an error never talks over the
+user. Signatures and arguments are in [the Brain API](/reference/brain/).
 
-**`on_finalize` is the one people skip and then debug for a week.** Write
-`fin.heard` into your history rather than what you generated — a barged-in reply
-that produced three sentences and delivered one must be remembered as one, or the
-model will reference things it never finished saying. Nothing in a metric shows
-this.
+## The greeting is a string, not a model call
 
-Signatures, what each callback is handed, and when each fires are in
-[the Brain API](/reference/brain/).
+`greet` returns a string or `None`. It is `async` so you can look something up
+(for example in `session.init`), not so you can generate the sentence: the user
+is connected and hearing nothing while it runs.
 
-## Read next
+:::caution[Record what was heard, not what you generated]
+Write `fin.heard` from `on_finalize` into your history. A reply that generated
+three sentences and was cut after one must be remembered as one, or the model
+refers to things the user never heard. Nothing logs this mistake.
+[Transcripts and heard truth](/build/brain/transcripts/) shows how.
+:::
 
-- [Speaking](/build/brain/speaking/) — the frames, why a turn is many units, what streaming buys.
-- [Actions](/build/brain/actions/) — the second channel: typed, rendered, never spoken.
-- [Tools](/build/brain/tools/) — local function calls, and what the clock costs you.
-- [Context and history](/build/brain/context/) — what the person does in your app, flowing back.
-- [Transcripts](/build/brain/transcripts/) — what was heard, which is not what you sent.
-- [Deploy the brain](/build/hosting/) — a route Voqalize dials, or a relay your brain dials out to.
-- [Testing a brain](/build/testing/) — over the real wire, without a microphone.
+## The brain pages, in order
+
+1. [Speaking](/build/brain/speaking/): the speech frames, units, streaming and acknowledgements.
+2. [Actions](/build/brain/actions/): put things on the user's screen.
+3. [Tools](/build/brain/tools/): function calls on the shipped model brains, and the 20 ms budget.
+4. [Context and history](/build/brain/context/): what the user does in your app, and `session.init`.
+5. [Transcripts and heard truth](/build/brain/transcripts/): what goes into history.
+6. [TypeScript types](/build/brain/typescript/): generate the browser half of actions and events.
+
+Then [test it](/build/testing/) and [deploy it](/build/hosting/). Already have an
+agent? [Bring it over](/build/existing-agent/).

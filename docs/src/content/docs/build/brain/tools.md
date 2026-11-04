@@ -1,46 +1,33 @@
 ---
 title: Tools
-description: Tool calls are local function calls in your process. The model speaks and then calls, a tool returns at once, and a result waits for the next request unless the model needs it now.
+description: Tools on the shipped model brains are local async functions. How to declare them, speak first and call in the same response, mark the reads the model needs now, and return within 20 ms.
 ---
 
-The boundary Voqalize holds is text, so what generates the text is yours — and so
-are the tools. A tool call is an ordinary function call in the process you
-deploy: you keep the stack trace, the connection pool and the secret. What
-changes for voice is not the mechanism but the clock, because every tool runs
-while the user waits for the agent's next word.
+A tool is an ordinary async function in the process you deploy, so it keeps your
+stack traces, connection pools and secrets. What voice changes is the clock:
+every tool runs while the user waits for the agent's next word.
 
-## `Brain` has no tools property
+## Which brains have tools
 
-There is no tool frame on [the wire](/reference/wire/) and no `tools` member on
-`Brain`. A brain that loops over its own model stream calls its own functions,
-and the SDK never sees one — [bringing an agent you already
-have](/build/existing-agent/) is that port, and it is unchanged by voice.
+`tools` is a member of the shipped model brains, `GeminiBrain`, `OpenAIBrain` and
+`LiteLLMBrain`. All three run one tool loop, so everything on this page applies
+to each, and a brain moves between them by changing only its constructor
+([the constructors](/reference/brain/#the-constructors)). Install the extra for
+your model:
 
-`tools` is a member of the **shipped model-backed brains**, `GeminiBrain`,
-`OpenAIBrain` and `LiteLLMBrain`, and of the experimental
-`GeminiInteractionsBrain`, and the rest of this page is the contract they share.
-The first three run their tools in one voice core, so what this page says of the
-tool loop, the mark and the budget is the same on each of them.
+```bash
+pip install "voqalize-agent-sdk[gemini]==0.12.0"    # or [openai], or [litellm]
+```
 
-:::caution[`GeminiInteractionsBrain` is experimental]
-Every demo brain runs on `GeminiBrain`, and the last one that did not moved across
-on 2026-09-08. The interactions adapter's interruption path has open defects —
-a step interrupted before its first delta stays in the context forever, and text
-buffered during a step is discarded if a barge-in lands before the step
-closes. Build on `GeminiBrain`; this one is kept, and tested, for the
-properties it has that `generate_content` does not.
-:::
+A plain `Brain` has no `tools` member: it calls its own functions from its own
+loop ([Bringing an agent you already have](/build/existing-agent/)).
+`GeminiInteractionsBrain` takes the same tool list but runs it differently and
+is experimental; see [the shipped adapters](/reference/brain/#the-shipped-adapters).
 
-They take the same list, so a brain moves between them without touching its
-tools. `GeminiInteractionsBrain` does not run it the same way:
-[the Brain API](/reference/brain/#the-shipped-adapters) has that split, and
-[when the model reads a result](#when-the-model-reads-a-result) below is what it
-means for a turn.
+## Declare tools as bound methods
 
-## The declaration contract
-
-`tools` is an overridable property returning bound methods. There is no
-decorator and no registry:
+`tools` is a property returning bound methods. There is no decorator and no
+registry:
 
 ```python
 from datetime import UTC, datetime
@@ -69,7 +56,8 @@ class Coach(GeminiBrain):
             client=genai.Client(),
             system_instruction=(
                 "You are a diabetes coach. Answer in a sentence or two. "
-                "When you use a tool, say one short line and call it in the same response."
+                "When you use a tool, say what you are doing or showing "
+                "in the same response as the call."
             ),
         )
         self.readings: list[float] = []  # this user's week, loaded in on_session_start
@@ -97,113 +85,41 @@ class Coach(GeminiBrain):
         return f"{sum(self.readings) / len(self.readings):.1f}"
 ```
 
-**The method is the declaration.** Its name is the name the model calls, its
-docstring is the description the model reads, and its single pydantic-model
-parameter is the schema. Nothing is declared twice, so there is no second copy
-to drift (`sdk/python/src/voqalize/sdk/voice.py`, `tools`).
+**The method is the declaration.** Its name is what the model calls, its
+docstring is the description the model reads, and its parameter is the schema.
 
-The example is written on `GeminiBrain`. On `OpenAIBrain` or `LiteLLMBrain` only
-the constructor changes — [the Brain API](/reference/brain/#the-constructors)
-has each one — and the tools, the mark and the class body stay as they are.
+### `async def` is required
 
-Every tool here reads or writes memory and returns. `weekly_average` is the one
-whose result the model has to read before it can finish its sentence, so it is
-the one marked; [when the model reads a result](#when-the-model-reads-a-result)
-is why the other two are not.
+A synchronous tool raises `TypeError` ("must be `async def`…"), because it would
+block every session in the process. The check runs when a turn first reads
+`tools`, not at import: the session opens, the greeting plays, and the first
+turn fails with `brain: turn failed` in your log and no speech. Drive one turn in
+[the conformance harness](/build/testing/) and assert `turn.completed` to catch
+it.
 
-These rules bite.
+### One pydantic model, or no parameters
 
-### `async def` is required, and it fails on the first turn
+| Brain | Parameters a tool may take |
+|---|---|
+| `GeminiBrain` | One pydantic model, or none. |
+| `OpenAIBrain`, `LiteLLMBrain` | One pydantic model, plain parameters (`str`, `int`, `Literal`…), or none. All are validated before the tool runs, and a validation error goes back to the model to correct. |
 
-Every shipped brain refuses a synchronous tool with a `TypeError`. The voice
-core says why:
-
-```
-tool 'log_meal' must be `async def`. A tool runs in the turn's task on the event
-loop, and a sync one would block every session in the process while it ran. Make
-it `async def` — the body needs no other change.
-```
-
-Read where that check runs, because the timing is the trap. Tools are read
-inside `respond`, which runs inside the turn task — `_ready` on `GeminiBrain`,
-`declare` on `OpenAIBrain` and `LiteLLMBrain`, `_declare` on
-`GeminiInteractionsBrain`. So a sync tool is not an import
-error and not a startup error: the session opens, the greeting plays, and the
-`TypeError` lands on the first turn that reads `tools`. The turn task catches
-it, writes `brain: turn failed` to your log, and produces no speech
-(`sdk/python/src/voqalize/sdk/brain.py`, `_run_turn`). The user asked a
-question and heard nothing back.
-
-Drive one turn in [the conformance harness](/build/testing/) and assert
-`turn.completed`; that is the assertion this failure trips.
-
-### One pydantic model, or nothing at all
-
-A tool takes one model parameter — or, like `log_meal` above, no parameters,
-which declares none. Nested models are fine on every shipped brain.
-
-`OpenAIBrain` and `LiteLLMBrain` declare a tool from its signature with pydantic
-alone. One model parameter is declared flat, so the model fills its fields
-directly, and the arguments are validated by that model before the tool runs; a
-validation error goes back to the model as the result, which it can read and
-correct. Plain parameters — a `str`, an `int`, a `Literal` — are validated the
-same way, through a model built from the signature.
-
-On the two Gemini brains the model parameter is still the rule. The reason is
-not that flat parameters are unsupported. A flat `str`, `int`, `bool` or
-`list[str]` runs on both. It is that a flat parameter is the one place
-**neither Gemini brain parses what the model sent**, and they get that wrong in
-opposite directions.
-
-`GeminiBrain` builds the call with google-genai's own argument conversion, which
-checks each flat argument with `isinstance` and coerces nothing. A bare `Literal`
-raises immediately — `isinstance` refuses a subscripted generic — and a bare
-`Enum`, `date`, `Decimal` or `UUID` is rejected as the JSON string it still is.
-Both are caught into `{'error': …}` and handed to the model, which narrates it to
-the user as success. The tool never ran, the schema was right, the stream was
-well-formed, and nothing on the wire says otherwise; the one trace is a
-`tool … failed` line in your log.
-
-On `GeminiInteractionsBrain` the same tool executes. It parses the model parameter
-and passes every other argument through untouched, so your `date` arrives as a
-`str` and the tool is wrong quietly rather than loudly.
-
-A single model parameter is the only annotation *either* Gemini path validates.
-That is why the wrapper is not a workaround for `Literal` specifically: `Section`
-above carries a `Literal`, and inside a model it parses on every shipped brain.
-Written flat, the same field is the version that breaks on Gemini. Write one
-model and the tool moves between all of them unchanged:
-
-```python
-    # Declares a correct schema, then fails to execute on GeminiBrain.
-    async def show(self, section: Literal["glucose", "meals"]) -> str:
-        """Put a section of the screen in front of the user."""
-```
+On the Gemini brains, flat parameters are not validated: a bare `Literal`,
+`Enum`, `date`, `Decimal` or `UUID` can fail at call time (the model is told
+`{'error': …}` and may report success) or arrive as a plain string. Inside a
+model the same field parses on every brain, so write one model and the tool
+moves between brains unchanged. Nested models are fine everywhere.
 
 ### `session` is never a parameter
 
-The signature *is* the schema, so a `session` parameter is a field the model
-would try to fill. Tools read `self.session`; callbacks take the parameter they
-are handed. The line between them is whether we call it or the model does
-(`sdk/python/src/voqalize/sdk/brain.py`, `Brain.session`).
+The signature is the schema, so a `session` parameter is a field the model would
+try to fill. Inside a tool, use `self.session`; the brain is one instance per
+session.
 
-`self.session` inside a tool reaches the session serving this call, because the
-brain is one instance per session and nothing about it crosses to the provider.
-On `GeminiBrain` that costs a closure: google-genai deep-copies the config it is
-handed on every request, and `copy.deepcopy` of a bound method copies
-`__self__` with it. A bound method that crossed that line
-would have its tools called on a *clone* — `self.session.dispatch` reaching
-nothing, the model told `ok`, and not one frame on the wire to say so. So a
-plain function is what goes over and the brain stays here
-(`sdk/python/src/voqalize/sdk/gemini.py`, `_ready`;
-`sdk/python/tests/unit/test_gemini_turn.py`,
-`test_the_brain_is_not_handed_to_google_genai`).
+### The list is read once per turn
 
-### The property is read once per turn
-
-Once, at the top of the turn, and fixed for its length however many requests it
-makes. So the list can depend on this user and on what has happened so far in
-the session:
+`tools` is read at the top of each turn and fixed for that turn, so it can depend
+on the user and on what has happened so far:
 
 ```python
     @property
@@ -213,178 +129,99 @@ the session:
         return [self.show, self.show_sign_in]
 ```
 
-A tool the model cannot see is a tool it cannot call, which is a stronger
-guarantee than a sentence in the prompt asking it not to. The contract suite pins
-this against both adapters in `test_the_tools_are_read_once_per_turn`
-(`sdk/python/tests/contract/test_brain_contract.py`).
+A tool the model cannot see is one it cannot call, which is a stronger guarantee
+than a line in the prompt.
 
-## The call is a function call in your process
+## Speak first, and call in the same response
 
-There is no webhook to expose, no allowlist to file and no egress rule to open,
-because nothing about a tool leaves your process: the wire carries speech,
-transcripts, configuration, RTVI and errors, and no frame that declares a tool
-or carries a schema. The same tool reached as a webhook is a network round trip
-on every turn that uses it, plus a public endpoint to authenticate and an
-inbound path to your network to justify.
-
-What that buys is measured in what stays put. Your model client and its keys,
-your retrieval, your database session and your connection pool are reached by
-`self`, from a coroutine running in the turn's own task — no serialization, no
-second set of credentials, no schema of yours living somewhere you do not
-deploy. What happens when one of those raises is
-[tool design for voice](/design/#tool-design-for-voice); it is a result the model reads,
-and a line in your log.
-
-## When the model reads a result
-
-On `GeminiBrain`, `OpenAIBrain` and `LiteLLMBrain` a turn is **one request**:
-this is the voice core's loop, and it is the same on all three. Each function call in the model's
-response runs the moment it arrives, in stream order, after the speech in front
-of it has gone out — so *"Opening your meals now."* is heard as the screen
-changes, not after it. The result goes into the context directly after the call,
-and the model is not asked again for it: it reads the result with the next
-request, which is normally the user's next message.
+A turn is **one model request**. Each call in the response runs as it arrives,
+after the speech before it has gone out, so *"Opening your meals now."* is heard
+as the screen changes. Its result goes into the context and is read with the
+next request, which is normally the user's next message.
 
 ```
 [ "Opening your meals now."  → show() ]   the turn ends; "shown" waits in the context
 ```
 
-So the model's reply is decided in one response, and what the user hears around
-a call is the model's choice rather than the SDK's. The instruction belongs where
-the model reads it — the prompt, and the tool's docstring: **say one short line,
-and call the tool in the same response.** `aura`'s sign-in tool says so in the
-tool itself (`demos/aura/backend/brain.py`):
+So the line the user hears around a call is the model's, and the rule belongs in
+the prompt and the tool's docstring:
 
-```python
-    async def show_auth_popup(self) -> str:
-        """Put a secure sign-in on the customer's screen. …
-
-        Returns as soon as the sheet is up. It does NOT wait: the customer
-        authorises it in their own time, and you are told when they have and handed
-        an ``authenticated_context`` then. Say one short line ("I'll put a secure
-        sign-in on your screen") and carry on being useful. …"""
-```
+- **Say the substantive line in the same response as the call**: what you are
+  doing or showing ("Opening your meals now", "It's on your screen to confirm").
+- **Never add a filler line** ("Let me check"). With ack on (the default),
+  Voqalize already acknowledged the user when their turn ended
+  ([Speaking](/build/brain/speaking/#voqalize-covers-the-wait-before-your-first-word)).
+  A brain that writes its own acknowledgements turns ack off with
+  `await session.configure(Config(ack=AckConfig(enabled=False)))`.
 
 A response that calls a tool and says nothing leaves the user in silence until
-they speak again. The turn has produced no text, so after ten seconds Voqalize
-fills the silence with a line of its own — *"Sorry — that's taking longer than I expected."*
-([Speaking](/build/brain/speaking/#the-clock-between-units-is-yours) has that
-watchdog). Fixing it is the prompt's job, or the brain's: speak a line of its
-own with `say_line`, or ask once more with the tools off,
+they speak again, and after ten seconds Voqalize says *"Sorry — that's taking
+longer than I expected."* The `turn:` log line reports `speechless=yes` for those
+turns. Fix the prompt, or give the brain a floor: speak a written line with
+`say_line`, or ask once more with tools off,
 `respond_with(session, tools=ToolChoice.NONE)`
-([the Brain API](/reference/brain/#the-members) has both). The `turn:` line the
-voice core logs for every turn reports
-`speechless=yes` when it happened, beside `hops=`, `calls=` and `awaited=`, so you
-can count how often it does.
+([the members](/reference/brain/#the-members)).
 
-### `@needs_result_now`, for the result the model must read first
+## Mark the reads the model needs now
 
-Some results *are* the reply: the balance the user asked for, what is in the
-cart, what is on the screen right now. Mark those tools, and the brain asks
-the model again the moment the response that called one has finished, with every
-result that response produced, so the model speaks about it in the same turn:
+Some results *are* the reply: the balance the user asked for, the cart, what is
+on screen. Mark those with `@needs_result_now`, and the brain asks the model again
+as soon as the response that called it finishes, with every result that response
+produced, so the model answers in the same turn. In the example above,
+`weekly_average` is marked; `show` and `log_meal` are not.
 
-```python
-from pydantic import BaseModel
+**Mark a tool when it reads data the model needs to answer correctly**: a
+balance, a cart, the screen, an eligibility check. Leave it off everything else:
+actions, screen changes, sign-in prompts, language switches, and results that
+repeat what the model already said. Unmarked is the default.
 
-from voqalize.sdk import Action
-from voqalize.sdk.gemini import GeminiBrain, needs_result_now
+Both mistakes are audible:
 
+- **A read left unmarked**: the agent says its line, calls, goes quiet, and
+  answers from the result a turn late.
+- **A mark that is not needed**: a pause before every reply that calls it, the
+  length of a whole model round trip.
 
-class ShowCardControls(Action):
-    pass
+`needs_result_now` lives in `voqalize.sdk.voice`, and `voqalize.sdk.gemini`,
+`voqalize.sdk.openai` and `voqalize.sdk.litellm` each re-export it. It only sets
+an attribute, so it combines with other decorators that keep attributes.
 
-
-class Account(BaseModel):
-    """One of the user's accounts."""
-
-    number: str
-
-
-class Desk(GeminiBrain):
-    async def show_card_controls(self) -> str:
-        """Put the card controls on screen."""
-        self.session.dispatch(ShowCardControls())
-        return "shown"
-
-    @needs_result_now
-    async def get_account_balance(self, args: Account) -> dict[str, str]:
-        """The balance of one of the user's accounts."""
-        return self.accounts[args.number].balance()
-```
-
-**Mark a tool when it reads data the model needs to answer correctly** — a
-balance, a cart, the screen, an eligibility check — from memory. Leave it off
-everything else: actions, screen changes, sign-in prompts, language switches, and
-a tool whose result only repeats what the model already said. Unmarked is the
-default, and the right answer for most tools.
-
-Both mistakes are audible. A read that is missing the mark sounds like an agent
-that says its line, calls the tool and goes quiet, then answers from the result
-a turn late, when the user next speaks. A mark on a tool that does not need it
-sounds like a pause before every reply that calls it: the second request is a
-whole model round trip of silence, which is why it is not the default.
-
-The mark sets an attribute on the function and does nothing else, so it goes on
-a method or a free function, above or below other decorators that keep
-attributes. It lives in `voqalize.sdk.voice`, and `voqalize.sdk.gemini`,
-`voqalize.sdk.openai` and `voqalize.sdk.litellm` each re-export it
-(`sdk/python/src/voqalize/sdk/voice.py`, `needs_result_now`).
-
-`max_tool_hops` (default 6) caps how many times one turn asks again. The last of
-those requests may not call a tool, so the model has to answer, and the voice
-core logs a warning when a turn reaches it. Unmarked tools never ask
-again, so they never count against it.
-
-`GeminiInteractionsBrain` ignores the mark. It asks the model again after every
-response that made a call, marked or not, until one makes none or
-`max_tool_hops` is spent — so every tool on it costs the turn a round trip.
+**`max_tool_hops`** (default `6`) caps how many times one turn asks again. The last
+request may not call a tool, so the model must answer, and a warning is logged.
+Unmarked tools never ask again, so they never count.
 
 ## A tool returns within 20 ms
 
-A tool runs in the turn's task, between one piece of speech and the next. Until
-it returns, nothing after the call in that response is spoken, and a marked
-tool's second request cannot start. So a tool reads memory, dispatches to the
-screen, starts background work if it has any, and returns — `TOOL_BUDGET_MS` in
-`voqalize.sdk.voice` is 20, re-exported by each model layer.
+Until a tool returns, nothing after the call in that response is spoken, and a
+marked tool's second request cannot start. So a tool reads memory, dispatches to
+the screen, starts background work if any, and returns. `TOOL_BUDGET_MS` in
+`voqalize.sdk.voice` is `20`.
 
-The voice core times every tool from the moment it is called to the moment it
-returns, on every model-backed brain. Over budget, it logs one warning and
-cancels nothing:
+Every tool is timed. Over budget, one warning is logged and nothing is cancelled:
 
 ```
 tool Coach.weekly_average took 412ms, over the 20ms budget; the user waited for it
 ```
 
-A slow tool is still a tool that ran, and its result still counts. The warning
-is how you find it before a user does. `GeminiInteractionsBrain` does not time
-its tools.
-
-Work that genuinely takes longer — a search, a payment, a report — is two
-pieces: a tool that starts it and returns a note the model can say something
-about, and the result arriving later as context. The screen is the other lever:
-`session.dispatch(...)` never blocks and holds no floor, so a tool can move the
-display and let the user read while the voice carries on —
-[Actions](/build/brain/actions/) owns that channel.
-[Tool design for voice](/design/#tool-design-for-voice) is the argument, and
-[parallel workstreams](/design/#parallel-workstreams) is where the slow half
+Work that takes longer (a search, a payment, a report) is two pieces: a tool
+that starts it and returns a note the model can speak about, and the result
+arriving later as context. `session.dispatch(...)` never blocks, so a tool can
+move the screen while the voice carries on ([Actions](/build/brain/actions/)).
+[Parallel workstreams](/design/#parallel-workstreams) shows where the slow half
 goes.
 
 ## A tool that needs a person announces and returns
 
-No tool waits for the user. A confirmation, a sign-in, a choice between accounts:
-the tool puts it on the screen and returns at once, and the user's answer
-reaches the brain later as an app event, which the brain adds to the context.
-The turn is over long before they tap — and a tap does not start the agent
-talking, because nothing about a click means the person stopped speaking
-([RTVI](/reference/rtvi/#to-your-brain) has that rule).
+No tool waits for the user. For a confirmation, a sign-in or a choice, the tool
+puts it on the screen and returns at once. The user's answer reaches the brain
+later as an app event at `on_rtvi`, which adds it to the context. A tap never
+starts the agent talking ([RTVI](/reference/rtvi/#to-your-brain)).
 
 ```python
 import uuid
 from typing import Literal
 
 from google import genai
-from google.genai import types
 from pydantic import BaseModel
 
 from voqalize.sdk import Action, AppEvent, AppEvents
@@ -440,30 +277,20 @@ class Booking(GeminiBrain):
             case ConfirmAnswered() as e:
                 summary = self._open.pop(e.nonce, None)
                 if summary is None:
-                    return  # not a sheet this call has open
-                verdict = "CONFIRMED" if e.answer == "yes" else "DECLINED"
-                self.append_to_context(
-                    types.Content(
-                        role="user",
-                        parts=[types.Part(text=f"ON SCREEN, THE USER {verdict}: {summary}")],
-                    )
-                )
+                    return  # not a sheet this session has open
+                verdict = "confirmed" if e.answer == "yes" else "declined"
+                self.append_note(f"On screen, the user {verdict}: {summary}")
 ```
 
-The **nonce** binds an answer to the sheet it answers, so a tap on a sheet the
-call no longer has open changes nothing. The **decline path** — a `"no"` the app
-sends when the user dismisses the sheet — is what tells the model the question
-is closed, so give the app something to send. And the commit belongs to the
-tap, in your app, rather than to the model; the brain learns what happened.
-Nothing waits, so there is no timeout to choose.
+- **The nonce** binds an answer to its sheet, so a tap on a sheet that is no
+  longer open changes nothing.
+- **The decline path** (a `"no"` your app sends when the user dismisses the
+  sheet) tells the model the question is closed.
+- **The commit belongs to the tap**, in your app, not to the model.
 
-`append_to_context` takes Gemini's own `types.Content`. For a sentence like this
-one, `self.append_note(f"On screen, the user {verdict}: {summary}")` is the same
-thing and works on every model-backed brain.
-
-The context is read again on every request, so the answer reaches the model with
-the user's next message — or with a marked tool's second request, if one is
-running when it lands.
+`append_note` adds one sentence to the context without starting a turn. The
+model reads it with the user's next message, or with a marked tool's second
+request if one is running.
 
 Test it as two steps, because the turn finishes on its own:
 
@@ -481,37 +308,33 @@ await driver.send_ui_event(
 await asyncio.sleep(0.1)  # on_rtvi opens no turn, so there is nothing to await
 ```
 
-What the user chose opens no turn and is never spoken, so no `Turn` carries it.
-It reaches the model as context: assert on what the model is handed with the
-next message.
-[Testing a brain](/build/testing/) has the rest of the driver.
+The answer is never spoken, so no `Turn` carries it: assert on what the model is
+handed with the next message. [Testing a brain](/build/testing/) has the rest of
+the driver.
 
-## A tool result is for the model, not the ear
+## Write results for the model, not the ear
 
-Nothing in any shipped brain speaks a return value. It goes into the context as a
-function result and the model decides what to say about it with the next request
-(`sdk/python/src/voqalize/sdk/voice.py`, `_file`;
-`sdk/python/src/voqalize/sdk/gemini_interactions.py`, `_run`). On the voice core
-that is the user's next message unless the tool is marked, so a result written
-for an unmarked tool is read a turn later, as background to whatever the user
-says next.
+No shipped brain speaks a return value. It goes into the context, and the model
+decides what to say about it. So a tool that finds eleven rows puts them on the
+screen with `session.dispatch(...)` and returns what the model needs to speak
+about them: how many, which one answers the question, what to ask next. Mark
+that tool, because the model speaks from it this turn.
 
-That absence is why a tool returning a row set has not decided anything. Eleven
-rows read out loud is a user with no memory of row four; the rows go to the
-screen with `session.dispatch(...)` and the return value tells the model what to
-say about them — how many there are, which one is the answer, what to ask next.
-Write the return value as the sentence's raw material rather than as the
-sentence, and mark the tool: the model is speaking from it this turn.
+Return a short string or a value that survives `json.dumps`. Anything else is
+turned into a string, so an object with only a `repr` reaches the model as that
+`repr`, and the model may read it aloud.
 
-Return something the model can read: a short string, or a value that survives
-`json.dumps`. `GeminiInteractionsBrain` writes the return value into the context
-as `{"result": …}` with `default=str`, and `OpenAIBrain` and `LiteLLMBrain`
-serialize it with `str` as the fallback too, so an object with nothing but a
-`repr` reaches the model as that `repr` and the model reads it aloud as a fact
-(`sdk/python/src/voqalize/sdk/gemini_interactions.py`, `_run`;
-`sdk/python/src/voqalize/sdk/_portable.py`, `output`).
+## What leaves your process
+
+A tool's **arguments and result never leave your process**, and there is no
+webhook to expose: the call is a function call. Its **name, duration and counts**
+are reported to Voqalize as a `TurnStep`, beside each model request's token
+counts, so the call record shows where a slow turn spent its time. Build the
+brain with `report_steps=False` to keep steps off the wire
+([`report_step`](/reference/brain/#methods)).
 
 ## Read next
 
-- [Tool design for voice](/design/#tool-design-for-voice) — the argument, at length.
-- [Parallel workstreams](/design/#parallel-workstreams) — work that outlives a turn.
+- [Tool design for voice](/design/#tool-design-for-voice): the argument, at length.
+- [Context and history](/build/brain/context/): app events, and making state readable.
+- [Testing a brain](/build/testing/): drive tools over the real wire.
