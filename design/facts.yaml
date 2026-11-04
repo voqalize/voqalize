@@ -92,9 +92,9 @@ facts:
       grep -n 'KiB' proto/voqalize/frames/frames.proto
     note: >-
       The bound is the pipecat client's, not ours: the data channel decides what
-      a message may weigh and the wire carries what the client will send. An
-      oversized envelope comes back ERROR_CODE_REJECTED, which is also what a
-      type outside the RTVI whitelist gets. Written "64 KiB" wherever it
+      a message may weigh and the wire carries what the client will send. A
+      brain's oversized envelope, or a type the brain may not send, comes back
+      as a non-fatal ERROR_CODE_PROTOCOL; an app's disallowed type is dropped. Written "64 KiB" wherever it
       appears, because KiB is the unit the client's own documentation uses.
 
   # ---- configuration ownership --------------------------------------------
@@ -922,9 +922,9 @@ facts:
       is the same 10.0 and answers a different question.
 
   recording.url_ttl_secs:
-    value: 60 to 900, default 900
-    source: platform/backend/controlplane/app/domains/sessions/service_dtos.py:43 MAX_RECORDING_URL_TTL_SECONDS
-    verified: 2026-09-21
+    value: 60 to 1200, default 1200
+    source: platform/backend/controlplane/app/domains/sessions/service_dtos.py:49 MAX_RECORDING_URL_TTL_SECONDS
+    verified: 2026-11-04
     reproduce: >-
       grep -n 'RECORDING_URL_TTL_SECONDS'
       ../platform/backend/controlplane/app/domains/sessions/service_dtos.py
