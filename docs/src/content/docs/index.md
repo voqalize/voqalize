@@ -36,7 +36,7 @@ starts and runs the audio around it.
 | | You write | Voqalize runs |
 |---|---|---|
 | **Your server** | The brain: prompts, model, tools, data, and what the user may commit | The connection that dials the brain, one per session |
-| **Your page** | One request for the connect params, then pipecat's client on [`@voqalize/client-transport`](/build/pipecat/) | WebRTC to the browser, and the data channel that carries actions and transcripts |
+| **Your page** | One request for the connect params, then your client on [`@voqalize/client-transport`](/build/client/) | WebRTC to the browser, and the data channel that carries actions and transcripts |
 | **Between them** | Nothing | Recognition, synthesis, turn-taking, interruption, the avatar and recording |
 
 Your code never touches audio. Your model, prompts, tools and retrieval stay in

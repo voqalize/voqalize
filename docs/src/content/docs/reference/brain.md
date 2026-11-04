@@ -196,7 +196,7 @@ def report_step(self, step: TurnStep, *, turn_id: int | None = None) -> None: ..
 ```
 
 **`dispatch`** sends one action to the app and never blocks; nothing comes back.
-It rides RTVI's own `ui-command`, which a pipecat client reads with
+It rides RTVI's `ui-command`, which the client reads with
 `useUICommandHandler`. See [Actions](/build/brain/actions/).
 
 **`send_rtvi`** sends one RTVI message. Only the types a brain may
@@ -792,8 +792,8 @@ Each callback and method is one message on [the wire](/reference/wire/):
 
 ## What is not here
 
-No conversation store. No model client. No `pipecat` import — installing this SDK
-pulls none, and the wire is plain protobuf against plain dataclasses. `Session`
+No conversation store. No model client. The wire is plain protobuf against
+plain dataclasses. `Session`
 holds only what dies with the socket: in-flight request ids and the speech
 counter. History, model context and domain state have a different lifetime, so
 they are yours, in your process, in whatever shape your model takes.

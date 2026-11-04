@@ -142,7 +142,7 @@ move id the brain does not know raises `KeyError`.
 
 ## Attach Stage to the page
 
-`@voqalize/stage` attaches to the pipecat client your app already has. It never
+`@voqalize/stage` attaches to the client your app already has. It never
 creates, connects or wraps one.
 
 - **Markup**: `data-stage-thing="sheets"` names something the agent can point at,
@@ -195,5 +195,5 @@ fill in, by field name only. Nothing is reported unless your spec takes it.
 ## Read next
 
 - [Actions](/build/brain/actions/): moving the screen from a tool.
-- [Connect your app](/build/connect/): the pipecat client Stage attaches to.
+- [Connect your app](/build/connect/): the client Stage attaches to.
 - [Work with a coding agent](/build/coding-agent/): the Stage skills.

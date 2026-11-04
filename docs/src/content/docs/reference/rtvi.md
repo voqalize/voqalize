@@ -3,9 +3,9 @@ title: RTVI messages
 description: A whitelist of message types carried verbatim between your brain and your page. What crosses, what does not, and why the exclusions are the security property.
 ---
 
-Your brain and your page talk to each other over RTVI, pipecat's own message
-format, tunnelled through the Voqalize wire. A message is
-`{id, label, type, data}` on the data channel; Voqalize carries the whitelisted types
+Your brain and your page talk to each other over RTVI, the message format they
+share over the session's data channel, tunnelled through the Voqalize wire. A
+message is `{id, label, type, data}`; Voqalize carries the whitelisted types
 verbatim in both directions and interprets nothing about them — with one
 deliberate exception, [`send-text`](#send-text-is-a-turn-not-a-message), which
 becomes a user turn rather than arriving as a message.
@@ -41,10 +41,11 @@ which is the contract of record.
 
 `ui-command` and `ui-event` are the ones with a Voqalize method behind them:
 `ui-command` is what `session.dispatch` rides, and `ui-event` is what
-`AppEvents.parse` reads. The rest of the `ui-*` family is pipecat's own, defined
-and implemented by its client and its server-side workers; Voqalize carries them and
-interprets nothing. The descriptions above are what pipecat's client does with
-them, and pipecat's documentation is the authority on those.
+`AppEvents.parse` reads. The rest of the `ui-*` family has no Voqalize method:
+the client sends and receives them, and Voqalize carries them and interprets
+nothing. Your page sends `ui-snapshot` with `client.startUISnapshotStream()` and
+`ui-cancel-job-group` with `client.cancelUIJobGroup(jobId)`, and receives
+`ui-job-group` as `RTVIEvent.UIJobGroup`.
 
 ## `send-text` is a turn, not a message
 
@@ -57,13 +58,13 @@ same way. So `send-text` never reaches your brain as a message.
 client.sendText("where do I download my interest certificate?");
 ```
 
-Pipecat's own method, no argument of ours. Voqalize interrupts whatever the agent was
-saying — the answer to the last question is over — and commits the sentence as a
-user turn. Your brain answers it in `on_user_message`, with no way to tell it was
-typed and nothing to write to receive it: a brain built before you added a text
-box gains one the day you add it.
+Voqalize interrupts whatever the agent was saying — the answer to the last
+question is over — and commits the sentence as a user turn. Your brain answers it
+in `on_user_message`, with no way to tell it was typed and nothing to write to
+receive it: a brain built before you added a text box gains one the day you add
+it.
 
-`run_immediately` and `audio_response` ride pipecat's `send-text` and **neither
+`run_immediately` and `audio_response` ride `send-text` and **neither
 is honoured**, deliberately rather than by omission. `run_immediately=false` would need a stimulus that is
 stored without minting a turn, and `audio_response=false` would need a per-turn
 gate on synthesis; Voqalize has neither. **A typed question is answered aloud,
@@ -140,8 +141,7 @@ speech you already yielded. Sending a type the app originates raises before
 anything reaches the socket.
 
 `session.dispatch(action)` is sugar over the same method: it rides `ui-command`,
-which a pipecat client reads with `useUICommandHandler` and no adapter of
-ours.
+which the client reads with `useUICommandHandler`.
 
 ## To your brain
 
@@ -179,5 +179,5 @@ stripped before delivery.
 
 ## Read next
 
-- [Client libraries](/build/pipecat/): the browser packages that read these.
+- [Client libraries](/build/client/): the browser packages that read these.
 - [The wire](/reference/wire/): the envelope RTVI is carried in.

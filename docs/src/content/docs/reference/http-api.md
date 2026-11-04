@@ -34,7 +34,7 @@ Which key to hold, and what a `pk_` may and may not set, is in
 
 ## The response
 
-The pipecat client's connect params, and nothing else:
+The client's connect params, and nothing else:
 
 | Field | |
 |---|---|

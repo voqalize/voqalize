@@ -25,7 +25,7 @@ export const redirects = {
 
   // Start dissolved into Build — it was the prologue of the next section.
   "/start/session-end-to-end": "/build/session",
-  "/start/pipecat": "/build/pipecat",
+  "/start/pipecat": "/build/client",
   "/start/what-voqalize-is": "/",
 
   // Eight namespaces became four. `deploy` described our verb, not the
@@ -80,4 +80,10 @@ export const redirects = {
   // with that. The `ak_` reasoning survives on it, further down, as the answer
   // to the question the title used to be.
   "/reference/management-api": "/reference/http-api",
+
+  // The browser side is documented from `@voqalize/client-transport`'s side
+  // since 2026-11-04, so the page is named for the reader's client rather than
+  // for the library under it. `/start/pipecat` above points straight here
+  // rather than chaining through this hop.
+  "/build/pipecat": "/build/client",
 };

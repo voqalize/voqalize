@@ -4,8 +4,9 @@ description: What is available today, what Voqalize fits, SDK and client version
 ---
 
 This page says what is available today and what is planned. PyPI's
-[`voqalize-agent-sdk`](https://pypi.org/project/voqalize-agent-sdk/) page and
-[pipecat's client documentation](https://docs.pipecat.ai/client/introduction)
+[`voqalize-agent-sdk`](https://pypi.org/project/voqalize-agent-sdk/) page and the
+`@voqalize/client-transport`
+[CHANGELOG](https://github.com/voqalize/voqalize-client-transport/blob/main/CHANGELOG.md)
 are the upstream records for the SDK surfaces.
 
 ## What Voqalize fits
@@ -37,20 +38,27 @@ Another framework or language connects through the published protobuf
 
 ## App clients
 
-The page side is pipecat's client. In a browser, `@voqalize/client-transport@0.4.1`
-handles the media. See [Client libraries](/build/pipecat/).
+The page side is your client on `@voqalize/client-transport@0.4.1`, which
+handles the media. See [Client libraries](/build/client/).
 
 | Environment | Client | Voqalize example |
 |---|---|---|
-| Web | Pipecat JavaScript with `@voqalize/client-transport` | Yes |
-| React web app | Pipecat React with `@voqalize/client-transport` | Yes |
+| Web | `@pipecat-ai/client-js` with `@voqalize/client-transport` | Yes |
+| React web app | `@pipecat-ai/client-react` with `@voqalize/client-transport` | Yes |
+
+### Mobile apps
+
+Voqalize is pipecat-compatible, and a native app uses pipecat's own client SDKs.
+
+| Environment | Client | Voqalize example |
+|---|---|---|
 | React Native | Pipecat React Native with SmallWebRTC | Not yet |
 | Native iOS | Pipecat Swift with SmallWebRTC | Not yet |
 | Native Android | Pipecat Kotlin with SmallWebRTC | Not yet |
 
-Every environment above is supported. A native app starts sessions from your
-backend with an `sk_` key, because a `pk_` key works only from a browser page
-([Client libraries](/build/pipecat/#mobile-apps)).
+Every environment on this page is supported. A native app starts sessions from
+your backend with an `sk_` key, because a `pk_` key works only from a browser
+page ([Client libraries](/build/client/#mobile-apps)).
 
 ## Where the brain runs
 

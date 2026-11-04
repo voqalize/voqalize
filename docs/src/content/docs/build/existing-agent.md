@@ -1,6 +1,6 @@
 ---
 title: Use another agent framework
-description: Give an existing ADK, LangChain, OpenAI Agents, pipecat or hand-rolled agent a voice. The port is one subclass; the one thing that has to change is how you record history.
+description: Give an existing ADK, LangChain, OpenAI Agents or hand-rolled agent a voice. The port is one subclass; the one thing that has to change is how you record history.
 ---
 
 `Brain.on_user_message` hands you the user's finished text and takes speech
@@ -103,26 +103,6 @@ tools, heard truth and the greeting for you:
 Constructors are in [the shipped adapters](/reference/brain/#the-shipped-adapters);
 tools are in [Tools](/build/brain/tools/). There is no adapter for a framework that
 owns its own loop (ADK, LangGraph, the OpenAI Agents SDK): use the port above.
-
-## Coming from a pipecat pipeline
-
-Voqalize runs everything below the text: transport, voice activity detection,
-speech recognition, synthesis, turn-taking and interruption. Your brain runs only
-the part that turns text into text, and the SDK does not depend on pipecat.
-
-| In your pipeline | With Voqalize |
-|---|---|
-| Transport, VAD, STT and TTS services, the pipeline runner | Delete them. Voqalize runs them. |
-| The user transcription reaching your LLM | `on_user_message(session, msg)`, with `msg.text`. |
-| LLM text frames going to TTS | `yield SpeechChunk(text)` inside a unit. |
-| The context aggregator recording the assistant's reply | `on_finalize`, recording `fin.heard`. |
-| Functions registered on the LLM service | Your own loop, or `tools` on a [shipped model brain](/build/brain/tools/). |
-| RTVI server messages to the client | `session.dispatch(action)` or `session.send_rtvi(...)` ([Actions](/build/brain/actions/)). |
-| Client messages handled in the pipeline | `on_rtvi`, with typed app events ([Context and history](/build/brain/context/)). |
-| Voice and language set on the services | `await session.configure(...)` ([Voice and language](/build/voice-and-language/)). |
-
-The browser keeps pipecat's client; it connects with Voqalize's transport
-([Connect your app](/build/connect/)).
 
 ## Report what a turn did
 

@@ -42,7 +42,7 @@ class Desk(Brain):
                 self.cart.pop(e.item_id, None)
 ```
 
-The page sends it with pipecat's client, at the moment the user acts:
+The page sends it with the client, at the moment the user acts:
 
 ```ts
 client.sendUIEvent("quantity_set", { item_id: "li3", quantity: 5 });
@@ -109,7 +109,7 @@ What each type is for: [RTVI messages](/reference/rtvi/).
 
 ## Where a message goes missing
 
-- **Size.** An RTVI payload is limited to **64 KiB**. Pipecat's `sendUIEvent`
+- **Size.** An RTVI payload is limited to **64 KiB**. `sendUIEvent`
   throws above it in the browser. A brain-to-page message over it is refused with
   a non-fatal error; a page-to-brain message that gets through anyway is dropped
   with a log line.

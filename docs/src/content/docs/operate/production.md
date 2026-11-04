@@ -27,7 +27,7 @@ Work down the list before launch. Each line links the page that owns it.
   [The brain-connection token](/build/hosting/#the-brain-connection-token)
 - [ ] **Pin exact versions** of `voqalize-agent-sdk` on your server and
   `@voqalize/client-transport` in your page.
-  [Versions](/build/pipecat/#versions)
+  [Versions](/build/client/#versions)
 - [ ] **Handle `on_error`**, and log `overload` so you know when a queue is
   shedding frames. [Error codes](/reference/errors/#overload)
 - [ ] **Run the conformance suite in CI**, plus your own scenarios, so a broken

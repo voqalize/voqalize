@@ -1,10 +1,10 @@
 ---
 title: Connect your app
-description: Start a Voqalize session from your page. One sessions.connect request (from your server with an sk_ key, or from the browser with a pk_), then pipecat's client on @voqalize/client-transport. The request, the response, the one line of glue, failures, rejoining after a page load, and recording consent.
+description: Start a Voqalize session from your page. One sessions.connect request (from your server with an sk_ key, or from the browser with a pk_), then your client on @voqalize/client-transport. The request, the response, the one line of glue, failures, rejoining after a page load, and recording consent.
 ---
 
 A session starts with one HTTP request, `sessions.connect`, which returns the
-connect params. Your page hands those to pipecat's client, and the browser then
+connect params. Your page hands those to the client, and the browser then
 negotiates WebRTC **directly with the Voqalize machine that runs the session**.
 Audio is direct UDP; transcripts, actions and your page's events ride RTVI on the
 same peer connection's data channel.
@@ -69,7 +69,7 @@ of its own; forward it with the rest.
   session to the next, so it can never be a constant in your page.
 - **The session token is scoped to this session** and expires in minutes. It is
   the only Voqalize credential the browser holds.
-- **Forward the body; do not read it.** Pipecat's client takes these keys as they
+- **Forward the body; do not read it.** The client takes these keys as they
   are. For the session's status, timings and recordings, read the session later
   with `get_session` ([Reading a call back](/operate/reading-a-call/)).
 
@@ -128,8 +128,8 @@ minting both kinds.
 
 ## Connect the page
 
-Install pipecat's client and our transport as [Client libraries](/build/pipecat/)
-shows, then:
+Install the client and `@voqalize/client-transport` as
+[Client libraries](/build/client/) shows, then:
 
 ```ts
 import { PipecatClient } from "@pipecat-ai/client-js";
@@ -157,17 +157,18 @@ const params = await fetch("/api/voice/start", {
 await client.connect(withRealHeaders(params));
 ```
 
-Pipecat's events and hooks then give you the transcript, the agent's actions and
-a way to send your own events; [Client libraries](/build/pipecat/) lists them.
+The client's events and hooks then give you the transcript, the agent's actions
+and a way to send your own events; [Client libraries](/build/client/#the-client)
+lists them.
 
 ### The one line you write yourself
 
 `withRealHeaders` turns the plain `headers` object from JSON into a `Headers`
-instance. Pipecat's transport requires one, and without it the offer request
-throws a `TypeError` that does not mention headers. TypeScript does not catch
-it, because pipecat types connect params as `unknown`.
+instance. The transport requires one, and without it the offer request throws a
+`TypeError` that does not mention headers. TypeScript does not catch it, because
+the client types connect params as `unknown`.
 
-Call `connect` yourself rather than pipecat's `startBotAndConnect`: that helper
+Call `connect` yourself rather than `startBotAndConnect`: that helper
 passes the parsed response straight to the transport, leaving nowhere to apply
 this line.
 
@@ -184,7 +185,7 @@ Every error has the same envelope:
 ```
 
 Branch on `error.code`. Show a person `info`, which repeats `error.message` where
-pipecat's client looks for it. Quote `correlation_id` when you ask us about a
+the client looks for it. Quote `correlation_id` when you ask us about a
 session.
 
 The ones you will meet first:
@@ -263,73 +264,8 @@ A recorded session also records the user's camera and screen whenever the page
 turns them on ([Camera and screen](/build/video/)). [Recordings](/operate/recordings/)
 covers what is stored and how to read it.
 
-## On pipecat's stock transport
-
-Pipecat's own `SmallWebRTCTransport` also connects, for now. Pass it where the
-examples above pass `createVoqalizeTransport()`:
-
-```bash
-pnpm add @pipecat-ai/client-js @pipecat-ai/small-webrtc-transport
-```
-
-```ts
-import { PipecatClient } from "@pipecat-ai/client-js";
-import { SmallWebRTCTransport } from "@pipecat-ai/small-webrtc-transport";
-
-const client = new PipecatClient({ transport: new SmallWebRTCTransport(), enableMic: true });
-```
-
-Your page then loads daily's call machine from `c.daily.co`, and the
-transport's recoveries do not apply. Everything above applies except
-`keepAcrossPageLoads`: to keep a session across a page load, save the params
-yourself.
-
-```ts
-const CALL = "voice-call"; // your sessionStorage key
-
-// The "Start" button.
-async function start() {
-  const params = await fetch("/api/voice/start", {
-    method: "POST",
-    credentials: "include",
-  }).then((r) => r.json());
-  sessionStorage.setItem(CALL, JSON.stringify(params));
-  await client.connect(withRealHeaders(params));
-}
-
-// On every page load.
-const saved = sessionStorage.getItem(CALL);
-if (saved) {
-  client.connect(withRealHeaders(JSON.parse(saved))).catch(() => {
-    sessionStorage.removeItem(CALL); // the session ended while the page was away
-  });
-}
-
-// The "End" button.
-async function end() {
-  sessionStorage.removeItem(CALL);
-  try {
-    client.disconnectBot();
-  } catch {
-    // Not connected: there is no session to end.
-  }
-  await client.disconnect();
-}
-```
-
-- **Save before you connect**, so a load in the middle of connecting still finds
-  the session.
-- **End with `disconnectBot()`**, which ends the session at once rather than
-  after the hold, and forget the params with it.
-- **A rejoin that fails means the session is over** (`410`, or another `4xx`).
-  Forget the params and show the page idle.
-- **Open the microphone before the agent's audio arrives.** On this transport
-  nothing plays held-back audio later.
-- The other rules above apply: no `sessions.connect` on a rejoin, no hang-up on
-  `pagehide`, one session per tab, reload after a back/forward-cache restore.
-
 ## Read next
 
-- [Client libraries](/build/pipecat/): packages, versions, and mobile clients.
+- [Client libraries](/build/client/): packages, versions, and mobile clients.
 - [Keys and authentication](/build/keys/): minting `sk_` and `pk_` keys.
 - [Going to production](/operate/production/): the checklist before launch.

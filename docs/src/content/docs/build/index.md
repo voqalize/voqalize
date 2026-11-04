@@ -4,7 +4,7 @@ description: The order to build a Voqalize agent in, from the brain to the page,
 ---
 
 You write two things: a brain behind one WebSocket in your backend, and a page
-that starts a session with one request and pipecat's client. An agent record
+that starts a session with one request and your client. An agent record
 joins them. [How Voqalize works](/build/session/) explains the parts; the
 [Quickstart](/build/quickstart/) gets you to a first session in ten minutes.
 
@@ -21,8 +21,8 @@ joins them. [How Voqalize works](/build/session/) explains the parts; the
 4. **[Mint keys](/build/keys/).** An `sk_` for your server; a `pk_` only for a
    public page.
 5. **[Connect your app](/build/connect/).** The `sessions.connect` request, the
-   response, and the one line of pipecat glue.
-6. **[Pick client libraries](/build/pipecat/).** Pipecat's client with
+   response, and the one line of glue.
+6. **[Pick client libraries](/build/client/).** Your client with
    `@voqalize/client-transport`, and the mobile path.
 
 [Work with a coding agent](/build/coding-agent/) does these steps from your

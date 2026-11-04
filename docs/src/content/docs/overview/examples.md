@@ -3,8 +3,8 @@ title: Examples
 description: Complete Voqalize demos, grouped by the pattern each shows best (screen actions, Stage, background work, per-session init, authenticated tools, multilingual, the avatar), each with a live link and its source.
 ---
 
-Each demo is a complete app: a `frontend/` (pipecat's client in a Vite app) and a
-`backend/brain.py`; the avatar's page is its own documentation page. Try one
+Each demo is a complete app: a `frontend/` (the client on
+`@voqalize/client-transport` in a Vite app) and a `backend/brain.py`; the avatar's page is its own documentation page. Try one
 live, then read its brain end to end. Every brain here is a `GeminiBrain`; the
 same patterns work on `OpenAIBrain` and `LiteLLMBrain`.
 
