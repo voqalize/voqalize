@@ -163,6 +163,18 @@ export const sidebar = [
     ],
   },
   {
+    label: "The Site Agent",
+    items: [
+      { label: "Overview", slug: "build/site-agent" },
+      { label: "Install the snippet", slug: "build/site-agent/install" },
+      { label: "Studies and self studies", slug: "build/site-agent/study" },
+      { label: "Edit the knowledge", slug: "build/site-agent/knowledge" },
+      { label: "Review and publish", slug: "build/site-agent/publish" },
+      { label: "Settings", slug: "build/site-agent/settings" },
+      { label: "Limits", slug: "build/site-agent/limits" },
+    ],
+  },
+  {
     label: "Improve the agent",
     items: [
       { label: "Designing for voice", slug: "design" },

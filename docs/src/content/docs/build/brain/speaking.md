@@ -40,8 +40,13 @@ What you get for free:
 
 - **A crash mid-unit still closes the unit.** If your generator raises, the SDK
   sends the missing `SpeechEnd`.
-- **A barge-in closes your generator**, so your `finally` blocks run. Nothing
-  more is sent for the dead unit.
+- **A barge-in closes your generator**, so your `finally` blocks run. On the
+  wire it is an `Interruption`: the SDK cancels every turn through its
+  `through_turn`, so your generator gets `CancelledError` at whatever it is
+  awaiting, then is closed. A turn that arrives already covered never runs.
+  Nothing more is sent for the dead unit, not even a `SpeechEnd`; its
+  `on_finalize` still arrives, with what played before the cut. Work started
+  from `on_rtvi` holds no floor and is not cancelled.
 - **Chunk boundaries carry no meaning.** Voqalize re-segments the text for
   synthesis, so split where your model splits and do not buffer into tidy
   sentences. `SpeechChunk("")` sends nothing.
