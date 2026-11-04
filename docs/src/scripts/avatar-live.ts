@@ -364,8 +364,13 @@ function mountLive(root: HTMLElement): void {
     window.clearInterval(ticker);
     ticker = window.setInterval(render, 1000);
     render();
-    // The opening wave waits for this: a brain is dialled before the page's
-    // data channel exists, so a gesture sent from its greeting would be lost.
+  });
+  // The opening wave waits for this: a brain is dialled before the page's
+  // data channel exists, so a gesture sent from its greeting would be lost.
+  // Sent on BotReady, not Connected: the transport is only "connected" when
+  // Connected fires, and sendUIEvent throws until it is "ready", which aborts
+  // the connect() that is still awaiting.
+  client.on(RTVIEvent.BotReady, () => {
     sendAppEvent((event, data) => client.sendUIEvent(event, data), { event: "ready", payload: {} });
   });
   client.on(RTVIEvent.Disconnected, () => {
