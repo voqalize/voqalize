@@ -29,6 +29,16 @@ events (a slice's fields are an allowlist; mark anything personal `private`):
 The note is the one line the model hears: a verb phrase, never the values. The model
 reads values with the read tool.
 
+Talk and act at the same time:
+
+- Every common visitor intent maps to a cue-able move (`site.page`, `site.show` or a kit's)
+  whose spoken label is in the site's language.
+- Every move gets `claims` and `objects` in the site's language and English: "te llevo a" /
+  "taking you to", with the page labels as objects. A claim never ends in `*` (refused).
+- A store takes the commerce kit's `filter`, `sort`, `search` (tool-only), `variant`,
+  `cart_show` and `compare`, each backed by a proven tool.
+- Never a silent action followed by speech: the cue goes in the words that announce it.
+
 Generate and check:
 
 ```sh
