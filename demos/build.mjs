@@ -50,7 +50,7 @@ function run(cmd, cwd, extraEnv = {}) {
 /** Install (standalone, outside any workspace) and build one Vite app, then copy
  *  its `dist/` into the assembled tree at `outDir`. */
 function buildApp(appDir, outDir, env = {}) {
-  run("pnpm install --ignore-workspace", appDir);
+  run("pnpm install --ignore-workspace --frozen-lockfile", appDir);
   run("pnpm build", appDir, env);
   mkdirSync(outDir, { recursive: true });
   cpSync(join(appDir, "dist"), outDir, { recursive: true });
@@ -157,7 +157,7 @@ function assertStylesheetShipped(name, appDir, outDir) {
 // 1. The gallery's own shared chrome — the ambient presence ring and the
 // notice-and-consent wording every demo shows before it opens a microphone. It
 // reads pipecat's transport state and nothing else.
-run("pnpm install --ignore-workspace", join(demosDir, "shared"));
+run("pnpm install --ignore-workspace --frozen-lockfile", join(demosDir, "shared"));
 run("pnpm build", join(demosDir, "shared"));
 
 // Fresh output tree.
