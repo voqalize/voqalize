@@ -134,6 +134,13 @@ steps:
   #    docs/dist. The avatar page's live session bakes in the avatar agent's
   #    wiring (Astro inlines `import.meta.env.PUBLIC_*`); unset, the page still
   #    builds and says the session is unavailable.
+  #
+  #    The docs are a member of the root workspace, so they install from the
+  #    committed root `pnpm-lock.yaml`, frozen: the avatar and transport versions
+  #    the page ships are the ones reviewed in the lockfile, not whatever npm
+  #    serves at deploy time. A `package.json` that drifted from the lockfile
+  #    fails here rather than deploying. Run from the repo root, pnpm follows
+  #    the root `packageManager` pin, which is the pnpm that wrote that lockfile.
   - name: 'node:20-slim'
     id: docs
     waitFor: ['-']  # independent of the demos step — run concurrently
@@ -143,8 +150,8 @@ steps:
       - |
         set -euo pipefail
         corepack enable && corepack prepare pnpm@10.32.1 --activate
+        pnpm install --frozen-lockfile --filter '@voqalize/docs...'
         cd docs
-        pnpm install --ignore-workspace
         pnpm build
     env:
       - 'AVATAR_RUNTIME=${_AVATAR_RUNTIME}'
