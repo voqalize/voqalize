@@ -16,7 +16,6 @@ If your site sends a `Content-Security-Policy`, add these sources:
 script-src   https://cdn.voqalize.com https://avatar.voqalize.com
 connect-src  https://app.voqalize.com https://*.prod.voqalize.com https://avatar.voqalize.com blob:
 img-src      https://avatar.voqalize.com blob:
-media-src    blob:
 ```
 
 - `cdn.voqalize.com` serves `site.js` and the call code it loads on the first
@@ -26,7 +25,17 @@ media-src    blob:
   and starts calls through it.
 - `*.prod.voqalize.com` is where a call's voice connection is set up; the
   server is chosen when the call starts, so it is a wildcard.
-- `blob:` is how the browser plays the voice and decodes the avatar's frames.
+- `blob:` is how the browser decodes the avatar's pictures.
+
+The voice needs no `media-src`: it arrives over the call itself. If you added
+`media-src blob:` for us before, you can remove it.
+
+<!--
+Maintainers: these are the lines for the @voqalize/avatar release site.js
+bundles, before 0.7. The shorter policy for 0.7 and the switch-over steps are
+in platform's docs/site-agent-customer-page.md, in a maintainer comment; change
+this page in the same release.
+-->
 
 No `style-src` change is needed: the button adds its styles to its own shadow
 root as a constructed stylesheet, which `style-src` does not block. A browser

@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Puts Javier, the explora demo brain's guide, on www.explora.com and reservations.explora.com: a Chrome extension built on @voqalize/stage's extension host, with Explora's own site moves, holding one call, in an offscreen document, across every Explora tab and page load on both hosts.",
   "scripts": {
-    "build": "tsc --noEmit && AVATAR_RUNTIME=https://avatar.dev.voqalize.com/runtime/current.js node build.mjs",
+    "build": "tsc --noEmit && AVATAR_RUNTIME=https://cdn.dev.voqalize.com/runtime/current.js node build.mjs",
     "typecheck": "tsc --noEmit",
     "gen": "cd ../.. && uv run voqalize types explora/backend/brain.py -o explora/extension/src/actions.gen.ts",
     "build:prod": "tsc --noEmit && VOQALIZE_ENV_FILE=.env.prod VOQALIZE_OUT_DIR=dist-prod node build.mjs",

@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Puts Javier, the clini demo brain's guide, on www.clini.cl and agenda-web.clini.cl: a Chrome extension that injects the call widget and the site adapter, and holds one call, in an offscreen document, across every Clini tab and page load on both hosts.",
   "scripts": {
-    "build": "tsc --noEmit && AVATAR_RUNTIME=https://avatar.dev.voqalize.com/runtime/current.js node build.mjs",
+    "build": "tsc --noEmit && AVATAR_RUNTIME=https://cdn.dev.voqalize.com/runtime/current.js node build.mjs",
     "typecheck": "tsc --noEmit",
     "gen": "cd ../.. && uv run voqalize types clini/backend/brain.py -o clini/extension/src/actions.gen.ts",
     "build:prod": "tsc --noEmit && VOQALIZE_ENV_FILE=.env.prod VOQALIZE_OUT_DIR=dist-prod node build.mjs",

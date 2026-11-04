@@ -8,7 +8,7 @@
     "build": "tsc --noEmit && node build.mjs",
     "typecheck": "tsc --noEmit",
     "gen": "cd ../.. && uv run voqalize types qween/backend/brain.py -o qween/extension/src/actions.gen.ts",
-    "build:dev": "tsc --noEmit && AVATAR_RUNTIME=https://avatar.dev.voqalize.com/runtime/current.js VOQALIZE_ENV_FILE=.env.dev VOQALIZE_OUT_DIR=dist-dev node build.mjs"
+    "build:dev": "tsc --noEmit && AVATAR_RUNTIME=https://cdn.dev.voqalize.com/runtime/current.js VOQALIZE_ENV_FILE=.env.dev VOQALIZE_OUT_DIR=dist-dev node build.mjs"
   },
   "dependencies": {
     "@pipecat-ai/client-js": "^1.13.0",

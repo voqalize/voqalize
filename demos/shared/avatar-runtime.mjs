@@ -8,7 +8,7 @@
  * it returns nothing and the build is exactly what npm gives a customer.
  *
  *   AVATAR_RUNTIME=https://avatar.local.voqalize.com/runtime/current.js   # the newest local build
- *   AVATAR_RUNTIME=https://avatar.dev.voqalize.com/runtime/current.js     # the last dev upload
+ *   AVATAR_RUNTIME=https://cdn.dev.voqalize.com/runtime/current.js        # the last dev upload
  *
  * `current.js` is the newest runtime each host has, not a release. A demo you
  * copy from here needs none of this: leave `AVATAR_RUNTIME` unset.

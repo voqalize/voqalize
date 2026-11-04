@@ -20,7 +20,7 @@ SITE="qween.com"
 ACCOUNT="sripathi@recruit41.com"
 case "${1:-}" in
   dev) ENV_FILE="$here/.env.embed.dev"; BUCKET="gs://voqal-cloud-dev-avatar-host-asia-south1"; HOST="https://cdn.dev.voqalize.com"
-       RUNTIME="https://avatar.dev.voqalize.com/runtime/current.js" ;;
+       RUNTIME="https://cdn.dev.voqalize.com/runtime/current.js" ;;
   prod) ENV_FILE="$here/.env.embed"; BUCKET="gs://voqal-cloud-prod-avatar-host-asia-south1"; HOST="https://cdn.voqalize.com"
        RUNTIME="" ;;
   *) echo "usage: $0 prod|dev" >&2; exit 2 ;;
