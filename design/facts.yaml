@@ -496,9 +496,9 @@ facts:
       - 'no client library of ours'
 
   client.transport.version:
-    value: '0.4.0'
+    value: '0.4.1'
     source: https://registry.npmjs.org/@voqalize/client-transport
-    verified: 2026-10-15
+    verified: 2026-11-04
     reproduce: npm view @voqalize/client-transport version
     note: >-
       The version every install line pins, exactly, and every demo here
@@ -506,9 +506,9 @@ facts:
       both in their own commit once npm serves the next release.
 
   client.transport.pipecat_floor:
-    value: 'client-js >=1.13.0 <2, small-webrtc-transport >=1.10.0 <2'
+    value: 'client-js >=1.13.0 <2, small-webrtc-transport >=1.10.7 <2'
     source: voqalize-client-transport/package.json peerDependencies
-    verified: 2026-10-15
+    verified: 2026-11-04
     reproduce: grep -A3 peerDependencies ../voqalize-client-transport/package.json
     note: >-
       What a page on the default path must clear. pipecat.client.floor is the
@@ -545,9 +545,9 @@ facts:
     reproduce: grep '"name"' ../avatar-public/packages/avatar/package.json
 
   avatar.npm.version:
-    value: '0.5.0'
+    value: '0.6.3'
     source: avatar-public/packages/avatar/package.json
-    verified: 2026-09-27
+    verified: 2026-11-04
     reproduce: npm view @voqalize/avatar version
     note: >-
       The version every demo here depends on. A different repo, so no derive
@@ -1008,9 +1008,9 @@ facts:
       so capturing larger costs uplink and gains nothing in composite.mp4.
 
   pipecat.small_webrtc.refused_offer_floor:
-    value: '1.10.8'
+    value: '1.10.7'
     source: https://www.npmjs.com/package/@pipecat-ai/small-webrtc-transport + platform/docs/customer-guide/video.md
-    verified: 2026-10-07
+    verified: 2026-11-04
     reproduce: >-
       npm pack @pipecat-ai/small-webrtc-transport@1.10.6
       @pipecat-ai/small-webrtc-transport@1.10.8 and grep each
@@ -1019,9 +1019,9 @@ facts:
       The version build/video.md tells a page to use so a refused offer (a
       bitrate cap below video.max_kbps.min) stops at the first 400 and
       surfaces our `info` sentence. 1.10.6 — the floor the demos declare —
-      resends the offer and rejects with no message. 1.10.7 already carries
-      the 4xx check in its bundle; 1.10.8 is the release the feature was
-      verified against, so it is the number we print.
+      resends the offer and rejects with no message. 1.10.7 carries the 4xx
+      check, and @voqalize/client-transport 0.4.1 makes it the transport's
+      floor, so it is the number we print.
 
   session.max_duration_secs:
     value: 3600

@@ -127,11 +127,10 @@ else, a value below the minimum, a string or decimal, or a field such as
 `max_fps`, is refused at the offer with HTTP `400`, code `invalid_config`, and
 an `info` sentence saying why, and `client.connect` rejects.
 
-`@pipecat-ai/small-webrtc-transport` is supported from 1.10.0
-([Client libraries](/build/pipecat/)). From 1.10.7 it stops at a refused offer
-and rejects with a `TransportStartError` whose `cause` is the `400` response;
-earlier releases retry the refused offer before they reject, so pin 1.10.7 or
-later if you want the reason on your page.
+On `@pipecat-ai/small-webrtc-transport` 1.10.7 or later, the floor
+[our transport](/build/pipecat/) requires, a refused offer stops at once and
+`client.connect` rejects with a `TransportStartError` whose `cause` is the `400`
+response.
 
 The bitrate is the only setting there is. Frame rate, resolution and how the
 browser trades them off under pressure are the browser's own choices, and

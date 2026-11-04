@@ -37,7 +37,7 @@ Another framework or language connects through the published protobuf
 
 ## App clients
 
-The page side is pipecat's client. In a browser, `@voqalize/client-transport@0.4.0`
+The page side is pipecat's client. In a browser, `@voqalize/client-transport@0.4.1`
 handles the media. See [Client libraries](/build/pipecat/).
 
 | Environment | Client | Voqalize example |
@@ -62,7 +62,8 @@ suits serverless and egress-only networks. See
 
 ## Region and limits
 
-Sessions are processed and stored in India today. A United States region is
+There is one Voqalize environment, `app.voqalize.com`, and you use it for local
+development and testing as well as for production. Sessions are processed and stored in India today. A United States region is
 planned and cannot be selected yet.
 
 A session lasts at most one hour. Every other limit, and what happens at it, is
