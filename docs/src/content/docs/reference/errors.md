@@ -1,41 +1,30 @@
 ---
 title: Error codes
-description: Every code the wire can carry, what raises it, and whether the call survives it.
+description: Every error code on the wire, what raises it and whether the call survives it; the exceptions the SDK raises in your process; the refusals at sessions.connect; and the lines your user hears when your brain fails.
 ---
 
-Every error code the wire can carry, what raises it, and whether the call
-survives it. A code that ends the session and a code that rejects one request are
-different failures, and the table says which is which — because the brain author
-meets both at the worst possible moment.
-
-The codes are the whole enum:
-
-```python
-from voqalize.sdk import ErrorCode
-
-list(ErrorCode)
-# [<ErrorCode.PROTOCOL: 'protocol'>, <ErrorCode.WIRE_VERSION: 'wire_version'>,
-#  <ErrorCode.REJECTED: 'rejected'>, <ErrorCode.OVERLOAD: 'overload'>,
-#  <ErrorCode.INTERNAL: 'internal'>]
-```
+A code that ends the session and a code that refuses one request are different
+failures. This page says which is which.
 
 ## The codes
 
-| Code | Direction | Fatal | What raises it |
+`ErrorCode` is exported from `voqalize.sdk`, and these are all its members:
+
+| Code | Where it arrives | Fatal | What raises it |
 |---|---|---|---|
-| `protocol` | Voqalize → brain | No | Your brain sent an RTVI type the app owns, or a payload over 64 KiB. |
-| `wire_version` | brain → Voqalize | **Yes** | `SessionStart` carried a wire version this SDK does not speak. |
-| `rejected` | — | — | Nothing that ships sends it. See below. |
-| `overload` | minted locally | No | Your own SDK shed frames from a full lane. |
-| `internal` | both | Sometimes | From Voqalize: a language change did not land on the recognizer. From your brain: `on_session_start` or `greet` raised. |
+| `protocol` | `on_error`, from Voqalize | No | Your brain sent something Voqalize refuses: an RTVI type the app owns, an RTVI payload over 64 KiB, a `SpeechStart` with no `speech_id`, or a `SpeechCancel` naming a unit the session never opened. |
+| `wire_version` | sent by your SDK | **Yes** | `SessionStart` carried a wire version this SDK does not speak. |
+| `rejected` | nowhere | — | Defined in the proto; nothing sends it. |
+| `overload` | `on_error`, minted by your SDK | No | Your own SDK shed frames from a full lane. |
+| `internal` | `on_error`, or sent by your SDK | Sometimes | From Voqalize: a language change did not land on the recognizer. From your SDK: `on_session_start` or `greet` raised. |
+| `unsupported_voice` | `RequestRejected.code` | No | No voice by that id is served. |
+| `unsupported_language` | `RequestRejected.code` | No | The voice does not speak the language, the recognizer does not hear it, or the tag is malformed. |
+| `invalid_request` | `RequestRejected.code` | No | Anything else wrong with a `configure`: a language on one leg only, a patience off the scale, or one setting given both as a string and as an enum. |
+| `unknown` | SDK only | — | Never sent. A code newer than your SDK reads as this. |
 
-`fatal` is a separate field from the code, and it is the field that decides
-whether the call ends. A fatal `Error` travelling brain → Voqalize cancels the
-pipeline under the call; a non-fatal one is a signal your brain may act on and
-nothing more.
-
-Every code arrives in `on_error`, which is handed an `Error` carrying the code,
-the message and whether it is fatal:
+`fatal` is a separate field from the code, and it decides whether the call ends.
+None of the codes that reach `on_error` arrives fatal, so `on_error` never has to
+end a call.
 
 ```python
 import logging
@@ -53,100 +42,67 @@ class Watchful(Brain):
             logger.error("session %s: %s %s", session.id, error.code, error.message)
 ```
 
-`overload`, `protocol` and `internal` can reach that callback today, and none of
-them arrives fatal, so `on_error` never has to end a
-call. `wire_version` is one your own SDK *sends*, and `rejected` is sent by
-nothing.
-
 ### `protocol`
 
-Voqalize refuses one thing your brain sent and keeps the call running. Most of
-the sites are on the RTVI plane: a type the app originates rather than the brain,
-a payload that will not serialize to JSON, and a payload past the 64 KiB limit
-the browser's message size imposes. Off that plane there is a `SpeechStart`
-carrying no `speech_id`, which names nothing a `Finalize` could ever be matched
-against, and a `SpeechCancel` naming a unit the session never opened. A
-`SpeechChunk` or `SpeechEnd` for a unit you already cancelled is not one of
-them: it is ignored without an error, because a model may still be streaming
-when the cancel goes out.
+Voqalize drops the one thing your brain sent and keeps the call running. A
+`SpeechChunk` or `SpeechEnd` for a unit you already cancelled is not a protocol
+error: it is ignored, because a model may still be streaming when the cancel
+goes out.
 
-The frame is dropped, the error comes back non-fatal, and the turn continues.
-The SDK catches the app-owned type before it reaches the socket — `send_rtvi`
-raises `WireError` for a type outside the sendable set — and refuses an unknown
-`cancel_speech` id with `ValueError`, so a `protocol` error in your logs usually
-means an oversized payload. See
-[The RTVI plane](/reference/rtvi/) for the whitelist and
-[Actions](/build/brain/actions/) for keeping payloads small.
+The SDK catches most of these before they reach the socket: `send_rtvi` raises
+`WireError` for a type outside the sendable set, and `cancel_speech` raises
+`ValueError` for an unknown id. So a `protocol` error in your logs usually means
+an oversized payload. See [The RTVI plane](/reference/rtvi/) for the whitelist
+and [Actions](/build/brain/actions/) for keeping payloads small.
 
 ### `wire_version`
 
-Voqalize speaks first, and the version it speaks is stamped on `SessionStart`.
-If it is not the version your SDK speaks — in either direction, higher or lower —
-the SDK emits a fatal `wire_version` error and ends the session before your
-`greet` runs. Nothing has been synthesized at that point and the user has heard
-nothing, which is the only moment refusing is free.
-
-You do not write this check and you cannot switch it off. A lower version is not
-a subset of a higher one: the envelope arms it names may have been renumbered
-underneath it, so guessing is exactly what a version number exists to prevent.
-The current version and the rules for moving it are in
-[The wire](/reference/wire/).
+Voqalize stamps its wire version on `SessionStart`. If it is not the version
+your SDK speaks, higher or lower, the SDK sends a fatal `wire_version` error and
+ends the session before `greet` runs, so the user has heard nothing. You do not
+write this check. The current version is in [The wire](/reference/wire/#version).
 
 ### `rejected`
 
-**Nothing Voqalize or the SDK sends carries this code.** The cases the wire
-contract assigns to it — an RTVI type the brain may not send, and a payload over
-the limit — come back as `protocol` in the shipping code, and tests in the voice
-tier pin that. Handle `rejected` if you are writing directly against the
-wire and want to be exhaustive over the enum; do not wait for it to arrive.
+Nothing Voqalize or the SDK sends carries this code: a disallowed or oversized
+RTVI message comes back as `protocol`. Handle it only if you write directly
+against the wire and want to be exhaustive over the enum.
 
 ### `overload`
 
-Your SDK holds a priority lane and a bulk lane each way, and the bulk lane
-defaults to 256 frames.
-When it fills, the newest droppable frames are shed — speech chunks and RTVI
-messages, the unbounded flows — and a single non-fatal `overload` error is
-delivered to `on_error` on the edge, rather than once per dropped frame.
+Your SDK holds a priority lane and a bulk lane each way, and the bulk lane holds
+256 frames by default. When it fills, the newest droppable frames are shed
+(speech chunks and RTVI messages) and one non-fatal `overload` error goes to
+`on_error`, not one per dropped frame.
 
-This error never crosses the wire. It is minted inside your own process by the
-session runner and handed to your own callback, which is why the message reads
-`inbound queue full` or `outbound queue full`: it is telling you which side of
-your brain is behind. A user message is never shed — it is bounded by turns
-taken, so it queues however deep the backlog runs. The session is never killed
-by a drop.
+It never crosses the wire. The message reads `inbound queue full` or
+`outbound queue full`, which says which side of your brain is behind. A user
+message is never shed, and a drop never ends the session.
 
 ### `internal`
 
-From Voqalize: a language change did not land on the recognizer — it refused the
-language, it never acknowledged the change inside Voqalize's own wait, or its
-socket was gone — so the session is still listening in the language it was.
-The error names that language and is not fatal — the answer to your `configure`
-already came back accepted, and this is the correction arriving behind it.
+**From Voqalize:** a language change did not land on the recognizer, so the
+session is still listening in the language it was. The error names that
+language and is not fatal: your `configure` was already answered accepted, and
+this is the correction behind it.
 
-From your brain: `on_session_start` or `greet` raised. The SDK emits a **fatal**
-`internal` error naming the hook, and ends the session without greeting. Both
-halves of that are deliberate. A greeting spoken over state that was never built
-promises a working agent the user then talks to; a session whose greeting never
-arrives is dead air on the one turn nothing will retry. The failure goes on the
-wire instead, where the browser's `onError` shows it and the call ends.
-
-A callback that raises **after** the session has opened does not do this. An
-exception inside `on_user_message`, `on_user_idle`, `on_rtvi` or `on_finalize` is
-logged in your process and goes no further: the turn stops producing, the socket
-stays up, and the next turn runs. What the user hears in that case is the last
-section on this page.
+**From your SDK:** `on_session_start` or `greet` raised. The SDK sends a
+**fatal** `internal` error naming the hook and ends the session without
+greeting, and the browser's `onError` shows it. An exception in any later
+callback (`on_user_message`, `on_user_idle`, `on_rtvi`, `on_finalize`) is logged
+in your process and goes no further: that turn produces nothing, and the next
+turn runs. What the user hears then is [below](#what-your-user-hears).
 
 ## A rejected request comes back on the request
 
-`RequestRejected` is not an `ErrorCode` and does not arrive at `on_error`. It is
-raised by the `await` on the request that was refused, in the coroutine that made
-it:
+`RequestRejected` does not arrive at `on_error`. It is raised by the `await` on
+the request that was refused:
 
 ```python
 import logging
 
-from voqalize.sdk import Brain, SpeechChunk, RequestRejected, SpeechEnd, SpeechStart
-from voqalize.sdk.wire import Config, Language, SttConfig, TtsConfig
+from voqalize.sdk import Brain, RequestRejected, SpeechChunk, SpeechEnd, SpeechStart
+from voqalize.sdk.wire import Config, SttConfig, TtsConfig
 
 logger = logging.getLogger(__name__)
 
@@ -158,197 +114,105 @@ class Switcher(Brain):
         yield SpeechEnd()
         try:
             await session.configure(
-                Config(
-                    stt=SttConfig(language=Language.OR),
-                    tts=TtsConfig(language=Language.OR),
-                )
+                Config(stt=SttConfig(language="or"), tts=TtsConfig(language="or"))
             )
         except RequestRejected as rejected:
-            logger.info("configure refused: %s", rejected.detail)
+            logger.info("configure refused (%s): %s", rejected.code, rejected.detail)
             yield SpeechStart()
             yield SpeechChunk("I will listen in Odia and answer in Hindi.")
             yield SpeechEnd()
             await session.configure(
-                Config(
-                    stt=SttConfig(language=Language.OR),
-                    tts=TtsConfig(language=Language.HI),
-                )
+                Config(stt=SttConfig(language="or"), tts=TtsConfig(language="hi"))
             )
 ```
 
-Speak before you await. The `configure` is a round trip to Voqalize, and an
-`await` with no speech in front of it is dead air the user sits in.
+Speak before you await: the `configure` is a round trip, and an `await` with no
+speech in front of it is silence the user sits in.
 
-**A rejection is all-or-nothing, and it is an answer rather than a broken
-session.** Nothing in the request applied — a `Config` naming `tts`, `stt` and
-`idle` at once moves all of them or none — so on this exception the previous
-settings are still in force and the call is still coherent. The socket is
-healthy, the turn finishes, the next turn runs. `rejected.op` is the operation
-name and `rejected.detail` is Voqalize's own sentence, written to be shown.
+**A rejection is all-or-nothing.** Nothing in the request applied, so the
+previous settings are still in force and the call carries on. `rejected.op` is
+the operation, `rejected.detail` is Voqalize's own sentence, written to be shown,
+and `rejected.code` is `unsupported_voice`, `unsupported_language` or
+`invalid_request` (`None` if Voqalize did not say).
 
-One refusal is worth planning for, and it is the reason this exception exists:
-a `tts.language` the speech tier has no recorded clip for. Which languages have
-clips changes as clips are recorded, so it is answered at the moment it is
-asked rather than frozen into the wire contract. The languages that have one,
-and the Odia-in-a-Hindi-clip configuration above, are in
-[Voice and language](/reference/catalog/).
+The refusal to plan for is a `tts.language` the chosen voice does not speak. The
+languages each voice speaks are in [the catalog](/reference/catalog/).
 
 What is *not* a `RequestRejected`:
 
-- **A configuration the SDK can refuse for itself** raises `ConfigError` at the
-  call site, before anything reaches the socket. Naming a language on one leg
-  and not the other is the whole of that rule; it is a property of the message,
-  so nothing has to be asked.
-- **No answer at all** raises `TimeoutError` after 10 seconds, with a message
-  saying that whether the change applied is unknown. The session lives.
-  Accepted is answered before the change reaches the recognizer, so it means
-  the configuration was legal and is being applied — never that the recognizer
-  confirmed it. That correction arrives behind it, as an `internal` error.
+- **A configuration the SDK refuses itself** raises `ConfigError` at the call
+  site, before anything is sent: a language named on one leg only, a patience
+  off the scale, or an empty string. Import it from `voqalize.sdk.wire`.
+- **No answer within 10 seconds** raises `TimeoutError`; whether the change
+  applied is unknown, and the session lives. An accepted answer means the
+  configuration was legal and is being applied. If the recognizer then fails to
+  switch, an `internal` error follows.
 
-## `WireError`, `Unsupported` and `SessionRejected`, raised in your process
+## Exceptions raised in your process
 
-None of them crosses the wire. They are ordinary Python exceptions in the
-process you deploy.
+None of them crosses the wire.
 
-**`WireError`** — your brain broke one of its obligations. Almost always an
-unbalanced bracket: a `SpeechChunk` outside a speech unit, a `SpeechStart` inside an
-open one, a `SpeechEnd` with nothing open. `send_rtvi` also raises it for a type
-the app originates, and `on_rtvi` raises it if you wrote a `yield` anywhere in
-the body, because a message from the app never takes the floor. Raised inside a
-turn it is caught, logged and the turn dies; raised from `send_rtvi` it
-propagates into your own code. The obligations are listed in
-[Speaking](/build/brain/speaking/).
-
-**`Unsupported`** — you called something the Voqalize serving this session did
-not say it honours. Today that is `cancel_speech` when `session.can_cancel_speech`
-is false. It is raised before anything is sent, because a Voqalize that predates
-a frame skips it rather than refusing it — sent anyway, the cancel would do
-nothing and the unit would play out. `capability` names what was missing. Check
-the property first; see
-[stopping your own speech](/build/brain/speaking/#stopping-your-own-speech).
-
-**`SessionRejected`** — the brain-connection token on the incoming socket failed
-verification. `run_session` raises it before your brain is constructed, so no
-session exists and no callback has run. Close the socket with code **4000**; the
-wiring is in [Deploy the brain](/build/hosting/#a-route-voqalize-dials), and what the user hears when
-you do is below.
+| Exception | Raised when | What to do |
+|---|---|---|
+| `WireError` | Your brain broke a wire obligation: an unbalanced speech bracket, `send_rtvi` with a type the app originates, or a `yield` in `on_rtvi`. Inside a turn it is caught and logged and the turn ends; from `send_rtvi` it reaches your code. | See [Speaking](/build/brain/speaking/). |
+| `Unsupported` | You called something this session did not advertise: `cancel_speech` without `can_cancel_speech`, a string voice or language without `can_configure_strings`, or `report_step` without `can_report_steps`. Raised before anything is sent. `capability` names what was missing. | Check the property first. See [stopping your own speech](/build/brain/speaking/#stopping-your-own-speech). |
+| `SessionRejected` | The token on an incoming socket failed verification. `run_session` raises it before your brain is built. | Close the socket with code **4000**. See [Deploy the brain](/build/hosting/#a-route-voqalize-dials). |
 
 ## Refused before your brain is dialled
 
-Some failures end a session before there is a socket to report them on. Your brain
-sees nothing at all — no `SessionStart`, no `on_session_end`, no log line — so
-the place to look is the connect response the browser or your server got.
+These end a session before there is a socket, so your brain sees nothing. Look
+at the response to `sessions.connect`. The refusals about the key (`401`, and
+`403` `origin_not_allowed`) are in [Connect your app](/build/connect/).
 
-A session is minted by `sessions.connect`, and its status table is in
-[Connect a browser](/build/connect/), with the refusals about the key — `401`,
-and `403` `origin_not_allowed` for a `pk_` used from an origin it does not list.
-These are about the *agent*:
+| Status | `code` | Cause | Fix |
+|---|---|---|---|
+| `409` | `agent_not_configured` | The agent has no `brain_url` and no Cortex credentials. | Set a `brain_url` for an [inbound route](/build/hosting/#a-route-voqalize-dials), or mint credentials to [dial out over Cortex](/build/hosting/#a-brain-that-dials-out). |
+| `409` | `agent_archived` | The agent is archived. Sessions in progress continue. | Unarchive it; its existing credentials work again. |
+| `400` | `invalid_config` | `config` has an unknown field or a wrong type. The message names the field. | Fix the field. `config` is parsed as canonical proto3 JSON. |
+| `400` | `invalid_config`, with `details.code` `unsupported_language` | `stt.language` is not one the recognizer hears. The message lists the ones it does. | Pick one from [the catalog](/reference/catalog/#speech-to-text). |
+| `400` | `recording_not_permitted` | A `pk_` asked to turn recording on. | See [Recordings](/operate/recordings/#a-publishable-key-can-turn-recording-off-not-on). |
 
-- **An agent with no brain cannot take a session.** If nobody has said how the agent
-  is reached — no `brain_url`, and no Cortex credentials minted for it — the mint
-  is a `409` with code `agent_not_configured`, before any quota is spent. Set a
-  brain URL to run [inbound](/build/hosting/#a-route-voqalize-dials), or mint credentials to run
-  [outbound over Cortex](/build/hosting/#a-brain-that-dials-out).
+Voqalize then checks the configuration with the same rules your brain's
+`configure` goes through (the voice and its languages, both legs, the idle
+ceiling) before it dials your brain. So an unservable `tts.language` is refused
+at connect when the page set it, and comes back as `RequestRejected` when your
+brain set it: same rule, same words.
 
-  This used to succeed. An unconfigured agent's empty `brain_url` was filled with
-  a hosted `welcome` brain, so the session connected and your user was greeted —
-  by us, saying words you had never written. It worked, which is precisely what
-  made it worth removing: a setup step you can skip without seeing anything break
-  is a step that gets skipped.
-
-- **An archived agent admits no new sessions.** The mint is a `409` with code
-  `agent_archived`, before quota or a session record is spent. Restore the agent
-  to start sessions with its existing credentials. Sessions already in progress
-  continue, and history remains readable.
-
-Others are about the session's configuration rather than the key:
-
-- **The control plane parses `config` as canonical proto3 JSON.** An unknown
-  field name or a wrong type is a `400` with code `invalid_config`, naming the
-  offending field. Nothing about the catalog is re-typed on that side; the
-  message is proto's own.
-- **A language the recognizer does not hear is refused at `sessions.connect`.**
-  `stt.language` is judged against what the speech tier says it transcribes,
-  and a tag outside that is a `400` `invalid_config` whose `details.code` is
-  `unsupported_language`. The message lists the languages the recognizer does
-  hear; `GET /api/v1/capabilities` lists them too.
-- **Voqalize then runs the same validator your brain's `configure` goes
-  through**, before it builds the pipeline, and answers the request that starts
-  the media instead. The clip rule, the both-legs rule and the idle ceiling are
-  one function, called wherever a configuration is written down, and a test pins
-  that each door returns the same sentence. So an unservable `tts.language` is a `400` when the page set it and a
-  rejected response when your brain set it — same rule, same words, different
-  door.
-
-A refusal at either door happens before the session task starts, so the brain is
-never dialled.
-
-**There is no model field on the wire, and nothing substitutes for a voice or a
-language.** `Config` names a voice by its id and a language by its BCP-47 tag,
-and each is judged against what the speech tier serves before it reaches
-anything that could fall back: an id or a tag it does not serve is refused, at
-whichever door it came through. That is what makes a whole class of failure
-unreachable: your brain cannot select an engine, cannot name a model, and
-cannot ask for a voice that does not exist. The wire used to carry `voice`,
-`language` and `model` as free-text strings that nothing judged, and a language
-with no recorded clip behind it was read in the English clip's voice with
-nothing reporting it.
+Nothing substitutes for a voice or a language. A voice id or tag the speech tier
+does not serve is refused, wherever it came from.
 
 ## What your user hears
 
-Nothing above describes the failure the way the person on the phone experiences
-it. Voqalize speaks fixed lines to the user, each off its own threshold, and these
-are the only sentences it ever puts in your agent's mouth.
+Voqalize speaks two fixed lines of its own, in the call's language where it has
+them. Your brain is not told either was spoken, and its `Finalize` reports carry
+only your own words.
 
 **A brain it could not reach.** Voqalize retries the first connect from 100 ms
-out, and gives up after **10 seconds** — about as long as a person will hold a
-silent line before deciding the thing is broken. Then the user hears:
+and gives up after **10 seconds**. Then the user hears (in English):
 
-> Sorry — I can't reach the assistant right now. Please try again shortly.
+> Sorry, I'm having trouble connecting right now. Please try again in a bit.
 
-Six seconds later the call ends. The line says nothing about *why*: your
-`brain_url` never reaches a browser, so the diagnosis goes to your session events
-instead. This is what plays when your service is down, when the URL has a typo in
-it, when TLS fails — and when your own `run_session` raised `SessionRejected` and
-you closed **4000**, which is read as permanent and stops the retries at once.
+Six seconds later the session ends, as `brain_unreachable`. This plays when your
+service is down, the URL is wrong, TLS fails, or the handshake answers `401` or
+`403`. A brain that accepts the socket and then closes it, with **4000** or any
+other code, ends the session at once, as `brain_disconnected`, with no line.
 
-**A turn that produced no audio.** Once a committed user message has been sent to
-your brain, Voqalize starts a **10-second** watchdog. If the turn has produced no
-text by then, the user hears:
+**A turn that produced no audio.** Once a user message reaches your brain,
+Voqalize starts a **10-second** watchdog. If the turn has produced no speech by
+then, the user hears:
 
 > Sorry — that's taking longer than I expected.
 
-The threshold is the same number as the connect deadline, for the same reason,
-and it is bounded from below by a brain that is merely slow — a model that
-thinks before its first word, or reads a tool's result before answering, can
-legitimately take seconds, and speaking over one would create the defect this
-prevents. A turn whose only output is a tool call is the common way to trip it:
-the call runs, the result waits for the next request, and no text is ever sent
-([Tools](/build/brain/tools/#when-the-model-reads-a-result)). **The session stays up.** Only this turn's
-answer is missing; the socket is healthy and the next turn may be fine.
+**The session stays up**, and the next turn may be fine. The watchdog is
+disarmed by your brain's first speech for that turn and by a barge-in, and a
+`UserIdle` never arms it. The common way to trip it is a turn whose only output
+is a tool call ([Tools](/build/brain/tools/#speak-first-and-call-in-the-same-response)).
+A callback that raises, returns nothing or hangs all land here.
 
-The watchdog is disarmed by the first chunk of text your brain sends for that
-turn, and by a barge-in, and it is armed only by a user message. A `UserIdle`
-never arms it — Voqalize opened that turn because the line went quiet, and a
-brain that declines to fill a silence is behaving correctly.
-
-Your brain is not told either line was spoken. Each is registered with the
-aligner on the way out, so an answer that arrives late plays behind the apology
-and its `Finalize` still carries your words and only your words. That is
-deliberate: a brain learning that a sentence it never generated was said would be
-new wire vocabulary for a fact it cannot act on, against a history already
-degraded because the turn produced nothing.
-
-**So this is what your user hears when your brain is down**: a ten-second
-silence, one apology, and — on the unreachable path — a call that ends six
-seconds after it. Every callback that raises after the session opened lands in
-the taking-longer line, because from Voqalize's seat a brain that raised, a brain
-that returned empty and a brain that hung are the same thing: a turn with no
-audio in it.
-
-Finding out which one it was is a read of the session's events and logs.
+Which one it was is in the session's [record and logs](/operate/reading-a-call/).
 
 ## Read next
 
+- [Troubleshooting](/operate/troubleshooting/) — symptoms, causes and fixes.
 - [Reading a call back](/operate/reading-a-call/) — finding the failure afterwards.
-- [The wire](/reference/wire/) — the frame that carries a code.
+- [The wire](/reference/wire/) — the frames that carry a code.

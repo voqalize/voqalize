@@ -1,6 +1,6 @@
 ---
 title: Recordings
-description: Off by default, decided per call, one file per role — audio always, video when the page turns on the camera or screen. Who is allowed to turn recording on, why a publishable key is not, and what each recording state says is in storage.
+description: Recording is off by default and decided per session. Who may turn it on (not a publishable key), the files you get back per role, what each state means, and the short-lived download URL.
 ---
 
 Recording is **off by default** and is decided for each call, at the moment the
@@ -9,27 +9,23 @@ is a real answer rather than a missing one.
 
 ## Who decides
 
-The session creator's explicit `record` value takes precedence over the agent
-default. This lets your backend apply the user's consent for each call.
+The `record` value in `sessions.connect`'s `config` takes precedence over the
+agent default, so your server can apply the user's consent for each session.
 
-| What the mint request says | What happens |
+| `config.record` | What happens |
 |---|---|
 | `record: true` | Recorded |
 | `record: false` | Not recorded, whatever the agent's default says |
 | omitted | The agent's configured default, which itself defaults to off |
 
-Omitting the field uses the agent default. Sending `false` explicitly disables
-recording for that call.
+## A publishable key can turn recording off, not on
 
-## One asymmetry, and it is about which key you hold
-
-**A publishable (`pk_`) key may turn recording off. It may not turn it on.**
-
-A `pk_` key ships in page source. It may honor an opt-out, but it cannot authorize
-storage of new audio or video for an agent whose owner did not enable recording.
-
-That refusal is an HTTP `400` with code `recording_not_permitted`, and it starts
-no call. Handle the error where the session is created.
+:::caution[`record: true` with a `pk_` is refused]
+A `pk_` ships in page source, so it may honour an opt-out but cannot authorize
+storing new audio or video. `record: true` from a `pk_` is a `400` with code
+`recording_not_permitted`, and no session starts. Send it from your server with
+the `sk_` instead.
+:::
 
 A `pk_` embed that wants recording sets the **agent's** default, which its owner
 controls: `update_agent(recording=true)` over
@@ -41,9 +37,9 @@ See [keys and authentication](/build/keys/).
 
 `get_recordings(tenant, session_id)` returns one entry **per role**. Every
 recorded session has the audio roles: `user_audio` (the user's microphone),
-`agent_audio` (what was spoken back) and `audio` (those summed). Each of them reports an entry
-whatever happened to it — a caller who can only see the tracks that worked
-cannot tell "the agent never spoke" from "we never recorded the agent".
+`agent_audio` (what was spoken back) and `audio` (those mixed). Each reports an
+entry whatever happened to it, so you can tell "the agent never spoke" from "the
+agent was not recorded".
 
 A session whose page turned on the camera or shared a screen also has video:
 
@@ -52,63 +48,41 @@ A session whose page turned on the camera or shared a screen also has video:
 | `camera`, `screen` | `video/webm` | Each lane as the browser sent it, VP8. A lane the page never turned on has no entry. |
 | `composite` | `video/mp4` | The one to watch: the screen full-frame with the camera inset, or whichever lane the session had, over `audio`. H.264 and AAC. A session with no video has none. |
 
-`camera` and `screen` also carry a `timeline` — when the lane was on, when its
+`camera` and `screen` also carry a `timeline`: when the lane was on, when its
 picture froze and why, its resolution over time, and whether it is in sync with
-the audio — because a lane's file alone cannot tell "the camera was off" from
-"the picture froze". It is `null` on every other role, and on a lane whose
-render failed or that was recorded before the field existed.
+the audio. It is `null` on every other role and on a lane whose render failed.
 [Camera and screen](/build/video/#the-timeline-off-is-not-frozen) turns the
 lanes on, and reads the timeline field by field.
 
-**`audio` is the one to play back.** The separate tracks are what you inspect
-when you need the channels apart, because missing agent audio is a different
-fault from missing user audio, and they are the primary sources `audio` is
-rendered from. So `audio` exists only when both of them rendered; when one did
-not, it reports the way an unrendered track does.
+**`audio` is the one to play back.** Inspect the separate tracks when you need
+the channels apart. `audio` is mixed from both, so it renders only when both
+did.
 
-All of them, video included, carry the same `started_at`, `ended_at` and
-`duration_secs` — one anchor, read once, so you can lay them on a single
-timeline without first checking that they agree. A moment in the session's
-events is the same offset in every file.
+Every file, video included, carries the same `started_at`, `ended_at` and
+`duration_secs` and runs from the moment the session connected to the moment it
+ended, gaps padded with silence. So a moment in the session's events is the same
+offset in every file, and an audio track is as long as the
+[usage](/operate/usage/) counted. Each entry also carries its `state`,
+`size_bytes`, `content_type` and any `failure_reason`.
 
-Each entry also carries its state, size, content type, and a `failure_reason` if
-it has one.
+## Recording is captured, then rendered
 
-## Recording runs in two passes
-
-During the session the node writes the raw RTP of every recorded track to
-disk, undecoded — no codec work and no timestamp arithmetic on the call path.
-When the session ends it renders `user_audio.webm` and `agent_audio.webm`, each running from
-the moment the call connected to the moment it ended: gaps are padded with
-silence and they are sample-aligned, so both come out the same length and one
-offset names the same instant in both. `audio.webm` is those summed. Connect and
-end are the instants `duration_secs` is measured between, so a completed track
-is as long as the session it came from — see [usage and limits](/operate/usage/).
-
-A video lane is placed on the same timeline and written as `camera.webm` or
-`screen.webm` without being re-encoded. `composite.mp4` is rendered after them,
-from the lanes and `audio`.
-
-The raw capture uploads beside the files as `capture.tar.gz` — a
-`capture-{role}.rtpcap` per captured track, `sender-reports.rtpcap` (the clock
-the video lanes are placed by), `events.jsonl` and `render.json` — so a
-recording can be rendered again later.
+During the session Voqalize captures each recorded track raw; when it ends, it
+renders `user_audio.webm`, `agent_audio.webm`, `audio.webm`, any `camera.webm`
+and `screen.webm`, then `composite.mp4`. The raw capture is stored beside them,
+as `capture_object`, so a track can be rendered again later.
 
 ## What each state says is in storage
 
 | `state` | What is in storage |
 |---|---|
 | `completed` | The rendered file. This is the one to play. |
-| `unrendered` | The capture, and no usable rendered file. `failure_reason` says why the render produced none, and a later re-render recovers the file from the capture. |
+| `unrendered` | The capture, and no usable rendered file. `failure_reason` says why, and re-rendering from the capture can recover it. |
 | `failed` | Nothing. The upload to storage failed. |
 
-`capture_bucket` and `capture_object` are on every entry whose capture uploaded,
-`completed` included: the capture is the source and a rendered track is derived
-from it, so a file that plays back fine is still re-renderable.
-
-A render that produced a partial file uploads it as `{role}.failed.webm`
-(`composite.failed.mp4` for the composite), so neither a listing of the prefix
-nor a download mistakes it for the rendered file.
+A render that produced only a partial file stores it as `{role}.failed.webm`
+(`composite.failed.mp4` for the composite), so it is never mistaken for the
+rendered file.
 
 ## Whether the recording arrived
 
@@ -137,16 +111,18 @@ only when the render left a `{role}.failed.*` file behind, and that file is the
 partial one rather than the rendered file.
 
 It carries its own credential, so treat it as a secret. Do not write it anywhere
-durable — not a ticket, not a log line, not a spreadsheet. `ttl_seconds` sets its
-lifetime between 60 and 900 seconds, defaulting to the maximum. Fifteen minutes is
-long enough to download and short enough that a leaked URL is dead by the time
-anyone finds it.
+durable: not a ticket, a log line or a spreadsheet.
 
-Ask for a fresh one rather than holding one.
+| `ttl_seconds` | |
+|---|---|
+| Range | 60 to 1200 seconds |
+| Default | 1200 (twenty minutes) |
 
-The URL lifetime is not the retention period. Recordings are retained for 30
-days; download anything you need to keep longer. See
-[current status and supported environments](/overview/status/).
+A download that starts before the URL expires runs to the end. Ask for a fresh
+URL rather than holding one, including to resume a download.
+
+The URL lifetime is not the retention period, which is on
+[Status and support](/overview/status/). Download anything you need to keep.
 
 ## Which rule decided, after the fact
 

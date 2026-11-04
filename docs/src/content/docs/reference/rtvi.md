@@ -5,7 +5,7 @@ description: A whitelist of message types carried verbatim between your brain an
 
 Your brain and your page talk to each other over RTVI, pipecat's own message
 format, tunnelled through the Voqalize wire. A message is
-`{id, label, type, data}` on the data channel; we carry the whitelisted types
+`{id, label, type, data}` on the data channel; Voqalize carries the whitelisted types
 verbatim in both directions and interpret nothing about them — with one
 deliberate exception, [`send-text`](#send-text-is-a-turn-not-a-message), which
 becomes a user turn rather than arriving as a message.
@@ -42,7 +42,7 @@ which is the contract of record.
 `ui-command` and `ui-event` are the ones with a Voqalize method behind them:
 `ui-command` is what `session.dispatch` rides, and `ui-event` is what
 `AppEvents.parse` reads. The rest of the `ui-*` family is pipecat's own, defined
-and implemented by its client and its server-side workers; we carry them and
+and implemented by its client and its server-side workers; Voqalize carries them and
 interpret nothing. The descriptions above are what pipecat's client does with
 them, and pipecat's documentation is the authority on those.
 
@@ -77,7 +77,7 @@ travelling as a turn that says nothing.
 ## What Voqalize tells your page
 
 Voqalize sends your page one `server-message` of its own, and your brain never
-sees it: how well the caller's audio is reaching us.
+sees it: how well the user's audio is reaching Voqalize.
 
 ```json
 { "label": "rtvi-ai", "type": "server-message",
@@ -98,9 +98,9 @@ one arrives, the call is `good`. A worse grade arrives at once; a better one com
 back a step at a time, after the network has held there for a while, so a brief
 burst of loss doesn't make it flicker.
 
-What the caller is told, if anything, is yours to decide. A banner at `poor`, a
-"we lost you for a moment" at `bad`, or nothing at all. The word is all we send:
-the measurements behind it are ours and change as we tune them.
+What the user is told, if anything, is yours to decide. A banner at `poor`, a
+"we lost you for a moment" at `bad`, or nothing at all. The word is all Voqalize sends:
+the measurements behind it can change as Voqalize is tuned.
 
 ```js
 client.on(RTVIEvent.ServerMessage, (data) => {
@@ -119,9 +119,13 @@ The consequence is worth stating positively: **your page can trust
 can emit it. A whitelist that let a brain send it would make every one of those
 events a claim rather than a fact.
 
-A type outside the whitelist does not cross in either direction. An envelope
-carrying one comes back as `ERROR_CODE_REJECTED`, which is also what an oversized
-message gets: the payload is bounded by the client's 64 KiB limit.
+A type outside the whitelist does not cross in either direction, and the
+payload is bounded by the client's 64 KiB limit:
+
+| Sent by | Outside the whitelist, or over 64 KiB |
+|---|---|
+| Your brain | Dropped, and your brain gets a non-fatal `protocol` [error](/reference/errors/#protocol). The call continues. |
+| Your page | Dropped. Nothing is sent back. |
 
 ## From your brain
 

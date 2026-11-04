@@ -1,65 +1,66 @@
 ---
 title: Usage and limits
-description: What Voqalize counts, how session duration is measured, which limits apply, and the one gap that tells you your embed is broken.
+description: What Voqalize counts per billing period, how session duration is measured, the limits that apply today, and the one gap that tells you your embed is broken.
 ---
 
-`get_usage(tenant, period="")` returns one tenant's counters for one billing
-period. `period` is `YYYY-MM` in UTC; empty means the current month.
+`get_usage(tenant, period="")` on [the MCP server](/reference/mcp/) returns one
+tenant's counters for one billing period. `period` is `YYYY-MM` in UTC; empty
+means the current month, and a period with no sessions returns zeros.
 
-These are counters maintained as the sessions happen rather than a scan of your
-history, so the answer costs the same in a tenant's fortieth month as in its
-first, and a period with no sessions returns zeros rather than taking longer to say
-so.
+| Field | What it counts |
+|---|---|
+| `sessions_created` | Sessions minted by `sessions.connect`. |
+| `sessions_started` | Sessions a user connected to. |
+| `sessions_completed`, `sessions_failed` | Started sessions that ended cleanly, or on a failure. The rest of `sessions_started` are in progress or were never reported. |
+| `duration_secs` | The usage quantity. |
+| `agents` | The same numbers per agent, busiest first. |
 
-## The usage quantity
+## How duration is measured
 
-`duration_secs` comes from **Voqalize's own measurement of the session** —
-the time it actually held, not the span from when a token was minted. It runs
-from the moment the call connects to the moment it ends. A session that was
-created and never answered contributes zero.
+`duration_secs` is Voqalize's own measurement of each session: from the moment
+the user connected to the moment the session ended. A session nobody joined
+counts zero. Silence inside a session counts, because the session is still
+open; a user who stops talking has not ended it. The same span is what a
+[recording](/operate/recordings/) runs for, so the counted time is the length of
+the audio you can play back.
 
-That span is what a recording is cut to, so the number counted here is the
-length of the audio you can play back. Silence inside a call is inside both: a
-caller who stops talking has not ended the session, and the track carries those
-seconds as silence.
-
-Voqalize is priced per conversation minute, with the developer's LLM billed
-separately by its provider. Each plan's included minutes and rate are on the
+Voqalize is priced per conversation minute, and your LLM is billed separately by
+its provider. Each plan's included minutes and rate are on the
 [pricing page](https://voqalize.com/pricing).
 
-`agents` breaks the same numbers down per agent, busiest first.
+## The gap that means a broken embed
 
-## The gap that tells you something
+`sessions_created` minus `sessions_started` is the sessions **nobody joined**.
 
-`sessions_created` minus `sessions_started` is the sessions **nobody ever joined**:
-a session was minted, and no user ever connected to it.
+A few are normal: someone opened the page and left. A wide gap is a broken embed
+rather than a broken agent, and it is the number here worth an alert. The usual
+causes:
 
-A few of those are normal — someone opened the page and left. A wide gap is a
-broken embed rather than a broken agent, and it is the one number here worth an
-alert. The usual causes are a page that mints on load instead of on click, an
-origin the `pk_` key's allowlist rejects at the offer, or a connect that throws
-before the transport starts.
+- The page mints a session on load instead of on click.
+- The `pk_` key's allowed origins reject the page's origin.
+- The page's `connect` throws before the transport starts.
 
-`list_sessions` shows the sessions behind any number, and
-[reading a call back](/operate/reading-a-call/) shows how far each one got.
+`list_sessions` with `state="expired"` shows the sessions behind the gap, and
+[Reading a call back](/operate/reading-a-call/) shows how far each one got.
 
 ## Limits
 
-Concurrent sessions, included minutes and storage are set by your plan; the
-[pricing page](https://voqalize.com/pricing) lists each plan's allowance. Talk to
-us before a launch that needs more than a plan carries.
+| Limit | Value | What happens |
+|---|---|---|
+| Session length | 1 hour | The session ends with `end_reason` `max_duration`. A session still `active` five minutes past the hour reads `lost`. |
+| MCP tool calls | 120 per minute, per tenant | The call fails with the tool error `Too many requests. Slow down and retry.` Back off and call again. |
+| `sessions.connect` | Rate limited per tenant | A `429` with a `Retry-After` header, in seconds. Wait that long and retry. |
+| `metadata` on a session | 10 keys, 256 characters per value | The request is refused. |
 
-A session lasts at most one hour: the voice tier ends it at the hour with
-`end_reason` `max_duration`. A session still `active` five minutes past the hour
-reads `lost`, because the voice tier never reported how it ended.
+Concurrent sessions, included minutes and storage are set per plan. Ask us
+before a launch that needs more than your plan carries, or if you need to know
+your exact limits.
 
-The MCP server is rate limited per tenant, which shapes how you poll. A refused
-request is a `429` with a `Retry-After` header; wait that long and send it
-again. A dashboard that fires a burst of reads per page is well inside it; a
-loop that reads every session every minute is not the shape to build. Read a session when something happened to it, which is what the `session_id`
-join is for.
+Poll with care: read a session when something happened to it, by its
+`session_id`, rather than reading every session on a timer.
 
 ## Read next
 
+- [Going to production](/operate/production/) — the checklist before launch.
 - [Reading a call back](/operate/reading-a-call/) — the sessions behind the counters.
 - [MCP server](/reference/mcp/) — `get_usage` and `list_sessions` in full.

@@ -13,23 +13,9 @@ The SDKs mirror it exactly, so most brains never see a byte of this — but
 everything the SDK can do, it does by putting one of these messages on the wire,
 and nothing else is possible.
 
-## Why it is shaped this way
-
-A text agent is a function: request in, response out. It may take as long as it
-likes, its output is atomic, and nothing happens between the call and the return.
-A voice agent breaks each of those, and every rule below is a consequence of
-exactly one of them.
-
-| Property of voice | What the wire does about it |
-|---|---|
-| Only one party can hold the air, and the human decides when they take it. | The brain never initiates. It is handed the floor by a stimulus and answers. |
-| Output is consumed in real time and can be cut mid-word. | Speech is bracketed into units, and `Finalize` reports back what was actually heard. |
-| Silence reads as failure. | The opening line is a plain string, sent before anything else. Nothing waits on a model there. |
-| Output is a stream, not a value. | Speech arrives as chunks inside an open unit, not as one finished message. |
-
 ## The voice plane and the RTVI plane
 
-**The voice plane is ours**: turns, speech units, what the user actually heard,
+**The voice plane is Voqalize's**: turns, speech units, what the user actually heard,
 and the control leg. Voqalize mints the turn because Voqalize decides when a turn
 commits, and speech names the turn it answers.
 
@@ -51,8 +37,7 @@ until it has arrived.
 **Voqalize owns the floor.** It decides when the brain may speak by minting a turn
 — a `SessionStart`, a `UserMessage` or a `UserIdle` — and the brain answers with
 speech that names that turn. There is no message a brain can send to ask for the
-floor, and none that interrupts the human. That absence is what makes a call
-predictable.
+floor, and none that interrupts the human.
 
 Everything the brain sends that is *not* speech is floor-free: an `RTVIFrame` to
 redraw the screen, a `Request` to change how the call behaves, an `End` to hang
@@ -149,7 +134,7 @@ could not tell *ignored* from *too late*. The list says up front.
 enum Capability {
   CAPABILITY_UNSPECIFIED = 0;
   CAPABILITY_SPEECH_CANCEL = 1;  // SpeechCancel is honoured
-  // …
+  CAPABILITY_STRING_CONFIG = 2;  // voice_id and language_tag are read
   CAPABILITY_TURN_STEPS = 3;     // TurnStep is recorded
 }
 ```
@@ -157,13 +142,14 @@ enum Capability {
 | Capability | Means |
 |---|---|
 | `CAPABILITY_SPEECH_CANCEL` | `SpeechCancel` stops a unit and is answered by its `Finalize`. See [taking speech back](#taking-speech-back). |
+| `CAPABILITY_STRING_CONFIG` | `TtsConfig.voice_id`, `TtsConfig.language_tag` and `SttConfig.language_tag` are read. Without it they are ignored, and a request carrying only them is answered accepted with nothing changed. See [the control leg](#the-control-leg). |
 | `CAPABILITY_TURN_STEPS` | `TurnStep` is recorded beside its turn. See [what a turn did](#what-a-turn-did). |
 
 Check before sending an optional frame, and treat a value you do not recognise
 as absent. Adding a capability is append-only and does not move the version.
-The Python SDK reads them as `session.can_cancel_speech` and
-`session.can_report_steps`, and refuses the call locally when the one it needs
-is false.
+The Python SDK reads them as `session.can_cancel_speech`,
+`session.can_configure_strings` and `session.can_report_steps`, and refuses the
+call locally when the one it needs is false.
 
 ## Voqalize → brain
 
@@ -174,7 +160,7 @@ is false.
 | `UserIdle` | `turn_id`, `level`, `idle_ms` | The human has been silent past the configured timeout. Also a new turn. `level` counts consecutive escalations with no intervening speech (1 is the first nudge) and resets when they speak; `idle_ms` is the silence elapsed when it fired. |
 | `Interruption` | `through_turn` | Everything up to and including `through_turn` is dead — the user will not hear it. Stop generating for it. |
 | `Finalize` | `speech_id`, `heard_text` | What the human actually heard of one speech unit. |
-| `Response` | `request_id`, `status`, `detail` | The answer to one `Request`. |
+| `Response` | `request_id`, `status`, `detail`, `code` | The answer to one `Request`. `code` names the kind of rejection; see [the control leg](#the-control-leg). |
 | `RTVIFrame` | `type`, `data` *(JSON)*, `id` | The app said something. Delivered verbatim; Voqalize never decides whether it deserves a reply. |
 | `End` | — | The call is over. |
 | `Cancel` | `reason` | The call is being torn down abruptly. |
@@ -206,11 +192,8 @@ a concatenation across units, which is what makes it the whole report: equal to
 what you sent means the unit played out, shorter means the user cut it off, and
 empty against chunks you sent means nothing reached the ear.
 
-So the message carries no verdict. Tag 3 held a `FinalizeReason` until
-2026-08-27 and is now reserved: you hold the text you generated, Voqalize holds
-what played, and the comparison is one subtraction away on the end that has both.
-A copy of that answer could disagree with it; the subtraction cannot. An older
-brain still decodes the message and reads the field as unset.
+So the message carries no verdict: you hold the text you generated, Voqalize
+holds what played, and the comparison is yours. Field 3 is reserved.
 
 "Played" means **released on Voqalize's playout clock** — handed to the
 outbound media — and it is word-granular. It is accurate to about one word
@@ -357,7 +340,7 @@ one present with `0` is a zero. That is what lets a reader tell *not reported*
 from *none*.
 
 **Facts about the work, never its content.** No prompt, no tool arguments, no
-result, no query text, nothing the caller said. Steps are kept in the call
+result, no query text, nothing the user said. Steps are kept in the call
 record, and the record of a call is not the place for its words.
 
 **Counts, never prices.** A price changes on a date nobody here controls, so cost
@@ -379,7 +362,12 @@ message Request {
   uint64 request_id = 1;
   oneof op { Config configure = 2; }
 }
-message Response { uint64 request_id = 1; Status status = 2; string detail = 3; }
+message Response {
+  uint64    request_id = 1;
+  Status    status     = 2;
+  string    detail     = 3;
+  ErrorCode code       = 4;
+}
 ```
 
 `request_id` is brain-minted and session-monotonic; its whole job is to name the
@@ -388,7 +376,16 @@ always** — a brain awaiting one never has to know which ops answer.
 
 `status` is `ACCEPTED` or `REJECTED`, and it reports **whether Voqalize took the
 request, not whether the effect is audible yet**. `detail` says why on a
-rejection and is empty otherwise, and it is written to be shown.
+rejection and is empty otherwise, and it is written to be shown. `code` is the
+same reason by kind, set on a rejection:
+
+| `code` | Rejected because |
+|---|---|
+| `ERROR_CODE_UNSUPPORTED_VOICE` | No voice by that id is served. |
+| `ERROR_CODE_UNSUPPORTED_LANGUAGE` | The voice does not speak the language, the recognizer does not hear it, or the tag is malformed. |
+| `ERROR_CODE_INVALID_REQUEST` | Anything else: a language on one leg only, a patience off the scale, or one setting given both as a string and as an enum. |
+
+It is unset on acceptance.
 
 A request is accepted or rejected **whole**. A rejected `Config` applies none of
 its sections, so the call is still coherent afterwards and the previous settings
@@ -404,17 +401,32 @@ message Config {
   AckConfig  ack  = 4;
 }
 
-message TtsConfig  { optional Voice voice = 1; optional Language language = 2; }
-message SttConfig  { optional Language language = 1; optional uint32 patience = 2; }
+message TtsConfig {
+  optional Voice    voice        = 1 [deprecated = true];
+  optional Language language     = 2 [deprecated = true];
+  optional string   voice_id     = 3;  // "omnivoice/gauri"
+  optional string   language_tag = 4;  // BCP-47, "ta"
+}
+message SttConfig {
+  optional Language language     = 1 [deprecated = true];
+  optional uint32   patience     = 2;  // 0 to 10
+  optional string   language_tag = 3;  // BCP-47, "ta"
+}
 message IdleConfig { optional uint32 timeout_ms = 1; }
 message AckConfig  { optional bool enabled = 1; }
 ```
 
-This message is used twice. `sessions.connect` supplies the starting sections immediately before the call; the brain sends the same
-shape in this op while the call is running. The agent record holds a connection
-`mode`, a `brain_url` and a recording default, and carries no voice, language or
-idle configuration.
-See [the catalog](/reference/catalog/#where-it-is-set).
+This message is used twice: `sessions.connect` supplies the starting sections,
+and the brain sends the same shape in this op while the call is running. The
+agent record carries none of it. See
+[Voice and language](/build/voice-and-language/).
+
+Name a voice by `voice_id` and a language by `language_tag`, which need
+`CAPABILITY_STRING_CONFIG`. The enum fields are deprecated and still parse; set
+at most one of the two spellings for a setting, or the request is rejected with
+`ERROR_CODE_INVALID_REQUEST`. A tag matches by its primary subtag,
+case-insensitively, so `en-IN` is `en`. The values are in
+[the catalog](/reference/catalog/).
 
 Unset means *leave it alone*: a `Request` carries a delta and the call is
 already running. Explicit presence is what makes that readable — without it an
@@ -427,10 +439,8 @@ the halves, leaving the call heard in one language and spoken in another.
 
 The surface is deliberately narrow: the voice, the language on each leg, how
 long the recognizer waits through a pause, the idle timeout, and whether
-Voqalize acknowledges the caller. The
-recognizer's other thresholds are not settable from here; they keep the voice
-tier's own calibration. It widens as we learn what is worth naming, and a knob
-is far easier to add than to take back.
+Voqalize acknowledges the user. The recognizer's other thresholds are not
+settable.
 
 ### When each change lands
 
@@ -444,22 +454,19 @@ is far easier to add than to take back.
 
 ### `ack` — Voqalize acknowledges while the brain thinks
 
-When the caller's turn ends and the brain has not started its reply, Voqalize
-can say a short line of its own — "Let me check.", "Sure.", "Go on." — chosen
-from what the caller said, so the caller is not left in silence while the model
-works. Where nothing fits, it says nothing. It speaks only the languages it has
-a vocabulary for, which today are English, Hindi and Spanish, and stays silent
-in every other.
+When the user's turn ends and the brain has not started its reply, Voqalize can
+say a short line of its own, such as "Let me check." or "Sure.", chosen from
+what the user said. Where nothing fits, or the call's language has no
+acknowledgement vocabulary, it says nothing.
 
 **It is on unless the session turns it off.** `enabled: false` at
 `sessions.connect` turns it off for one call; the brain can turn it off, or back
-on, with this op at any time — which is how an agent opts out for every call.
-A brain that opens its replies with its own acknowledgement should turn it off,
-or the caller hears two.
+on, with this op at any time. When to turn it off is in
+[Voice and language](/build/voice-and-language/).
 
 ### Both legs carry a language, and both must be set
 
-`Language` appears on `TtsConfig` and on `SttConfig`, and that is not
+A language appears on `TtsConfig` and on `SttConfig`, and that is not
 duplication. The recognizer serves English, the European languages and the
 Indic languages; a voice
 speaks the subset it was recorded or trained for, which is smaller and differs
@@ -476,16 +483,14 @@ The rules that follow are enforced in different places on purpose:
 - **A `tts.language` the chosen voice does not speak is rejected**, rather
   than served by the Hindi clip. That one is not in the message; it is a
   capability of the speech tier, it changes as voices are added and clips are
-  recorded, and it comes back as a `REJECTED` `Response` naming the languages
-  that voice does speak. A wire contract that froze today's pairings would be
-  wrong the day the next clip lands, and every SDK carrying a copy of it would
-  be wrong with it.
+  recorded, so it comes back as a `REJECTED` `Response` with
+  `ERROR_CODE_UNSUPPORTED_LANGUAGE`, naming the languages that voice does speak.
 
 Write what you are actually getting:
 
 ```proto
-stt { language: LANGUAGE_OR }   // listen in Odia
-tts { language: LANGUAGE_HI }   // speak with the Hindi clip
+stt { language_tag: "or" }   // listen in Odia
+tts { language_tag: "hi" }   // speak with the Hindi clip
 ```
 
 Changing only the voice touches no language field and is unaffected by either
@@ -494,33 +499,24 @@ rule.
 ### Waiting through a pause (`stt.patience`)
 
 `patience` is a scale from 0 to 10, not a duration: `0` answers as soon as the
-recognizer can, `10` lets a caller finish a sentence they are still assembling.
-What a step is worth in silence stays ours, because the frame size and the
-calibration behind it are ours to retune — a brain that wants *wait longer for
-this caller* says that, and keeps saying it correctly across a retune it never
-hears about.
-
-Leave it unset and the session runs the calibration that deployment already
-runs, which is patience 7. That is the value the tuning was done against, and it
-is written down so the scale has a fixed point to reason from rather than one
-you have to discover. **Nothing writes a `7` onto the wire** — unset is what a
-default-patience session sends, which is why a brain on an older SDK is served
-exactly what it was served before.
+recognizer can, `10` lets a user finish a sentence they are still assembling.
+Unset runs the deployment's calibration, which is patience 7; nothing writes a
+`7` onto the wire.
 
 A patience off the scale is refused at whichever door it arrives at, in the same
-words. At `sessions.connect` the request comes back `invalid_config` and the
-call never starts. Mid-call it comes back as a `RequestRejected` whose `detail`
-names the range, and the session continues at the patience it already had — so a
-brain that miscalculates one loses the change, not the call. A brain on the
-Python SDK meets an earlier door and never reaches this one: `SttConfig` raises
-`ConfigError` in your own process, before anything is written to the socket.
+words: `invalid_config` at `sessions.connect`, so the call never starts, and a
+`REJECTED` `Response` mid-call, so the session keeps the patience it had. The
+Python SDK raises `ConfigError` before either, when you build the `SttConfig`.
 
 ### The catalog
 
-`Voice` and `Language` are enumerations, not free strings, so a value we do not
-serve cannot be sent at all. Each `Language` value carries its speech-tier code
-as a proto option, which is what makes the SDKs' own tables derived rather than
-copied:
+A voice is a `voice_id` string, the id the speech tier serves it under, and its
+prefix picks the engine. A language is a BCP-47 `language_tag`. Neither is a
+list fixed in the proto, so a voice or language the speech tier adds needs no
+wire release; one it does not serve is refused.
+
+The deprecated `Voice` and `Language` enums are frozen. Each `Language` value
+carries its tag as a proto option:
 
 ```proto
 extend google.protobuf.EnumValueOptions {
@@ -528,32 +524,15 @@ extend google.protobuf.EnumValueOptions {
 }
 
 enum Language {
-  // Unset. On the wire this means leave the language alone.
-  LANGUAGE_UNSPECIFIED = 0;
-
-  // English.
+  LANGUAGE_UNSPECIFIED = 0;              // leave the language alone
   LANGUAGE_EN = 1 [(iso_code) = "en"];
-
-  // Odia.
   LANGUAGE_OR = 16 [(iso_code) = "or"];
   // …
 }
 ```
 
-`iso_code` is not derivable from the name: the catalog mixes ISO 639-1
-two-letter codes with 639-3 three-letter ones, because some of these languages
-have no two-letter code. It is here because it is the identifier a developer
-writes and reads, and every end of the wire has to spell it the same way.
-
-Nothing here says which of these can be *spoken*. That is a capability of the
-speech tier, it moves when the speech tier does, and Voqalize answers it when
-asked. See the [voice & language catalog](/reference/catalog) for the full
-list.
-
-Every declaration in `frames.proto` carries its own doc comment, the way the
-`Language` values above do — protoc puts them in `SourceCodeInfo`, so buf and
-any other descriptor consumer read the same words you do, and `buf lint`'s
-`COMMENTS` category fails the build if one is missing.
+Which voice speaks which language is the speech tier's, not the wire's. See
+[the voice and language catalog](/reference/catalog/).
 
 ## The RTVI plane
 
@@ -613,81 +592,28 @@ The path is yours and is used verbatim; the session rides as a query parameter.
 A brain is therefore one ordinary WebSocket route rather than a wildcard path
 segment you have to carve out for us.
 
-`aud` is the constant `"brain"` for every brain, whatever kind it is. Routing
-lives in the `brain_url`, never in the token. `iss` is the literal string
-`pygato` — our internal name for the process that holds the call, here because it
-is a value you compare against, not a name you need.
+`aud` is the constant `"brain"` for every brain. Routing lives in the
+`brain_url`, never in the token. `iss` is a fixed issuer string: compare it, and
+do not read meaning into it.
 
-**The socket is the session, and it is not reconnected.** Voqalize retries the
-first connect for a few seconds, and once you have answered, any close ends the
-call. A close code of **4000** — no agent — is permanent even during that
-window. A `401` or `403` at the HTTP handshake is not a close code at all and is
-equally terminal: a credential that is missing, revoked, or for another agent
-will not start working on attempt twelve.
+**The socket is the session, and it is not reconnected.**
 
-There is nothing to resume, because there is no state to carry: a second
-connection would reach a fresh session with none of the first one's history.
+| What happens | What Voqalize does |
+|---|---|
+| The dial fails: connection refused, TLS error, or a `401` or `403` at the HTTP handshake | Retries, from 100 ms with backoff, for up to **10 seconds** from the first attempt. Then the session ends as `brain_unreachable` and the user hears [the unreachable line](/reference/errors/#what-your-user-hears). |
+| Your brain closes the open socket, with any code | The session ends at once. `1000` reads as `agent_hung_up`; any other code, including **4000** after a failed token check, as `brain_disconnected`. |
+
+A rejected token is therefore best refused after the upgrade, with **4000**: a
+`401` at the handshake is retried for the whole window first. Nothing reconnects
+an open session, because a second connection would reach a brain with none of
+the first one's state.
 
 ## What the SDK makes of it
 
-The [Python SDK](https://github.com/voqalize/voqalize/tree/main/sdk/python) is
-the wire with the bookkeeping removed. A brain implements callbacks and yields
-speech; nothing in its surface names a `turn_id`. The one `speech_id` it sees is
-on `Finalize`, which reports what a unit was heard as and needs to say which —
-and the SDK writes the same id onto the `SpeechStart` you yielded, so you can
-name the unit to `cancel_speech`.
-
-```python
-class Greeter(Brain):
-    async def greet(self, session):
-        return "Hi! How can I help?"
-
-    async def on_user_message(self, session, msg):
-        yield SpeechStart()
-        yield SpeechChunk(f"You said: {msg.text}")
-        yield SpeechEnd()
-```
-
-| Brain surface | Wire |
-|---|---|
-| `on_session_start` / `greet` | ← `SessionStart` |
-| `on_user_message` | ← `UserMessage` |
-| `on_user_idle` | ← `UserIdle` |
-| `on_rtvi` | ← `RTVIFrame` |
-| `on_finalize` | ← `Finalize` |
-| `on_error` | ← `Error` |
-| `yield SpeechStart()` / `SpeechChunk` / `SpeechEnd()` | → `SpeechStart` / `SpeechChunk` / `SpeechEnd`, one minted `speech_id` per unit |
-| `session.send_rtvi(type, data)` / `session.dispatch(action)` | → `RTVIFrame` |
-| `await session.configure(Config(...))` | → `Request`, awaited until its `Response` |
-| `await session.cancel_speech(start.speech_id)` | → `SpeechCancel`, awaited until that unit's `Finalize`; refused locally unless `session.can_cancel_speech` |
-| `session.report_step(TurnStep(...))` | → `TurnStep`, never answered; refused locally unless `session.can_report_steps`. The SDK's model-backed brains send one for every model request and tool |
-| `session.end()` | → `End` |
-
-`greet` returns a string or `None` — one unit of speech, on the turn
-`SessionStart` itself minted. It is a static line: no model call sits on the one
-turn that has nothing to retry it.
-
-The speaking callbacks are async generators, and **the generator is the mouth**:
-`SpeechStart`, `SpeechChunk` and `SpeechEnd` are the only things they may yield,
-because speech is the only output whose position on the audio timeline is its
-meaning. Awaiting between yields is how a tool call sits between two things the
-brain says. Everything else is a method on the session, callable from anywhere —
-including from the callbacks that are not generators at all.
-
-`session.dispatch(action)` is sugar over `send_rtvi`: it serializes an action
-onto RTVI's own `ui-command` as `{"command": "show_results", "payload": {…fields}}`,
-which a pipecat client reads with `useUICommandHandler`. Nothing comes back — if
-the app has an answer it sends an ordinary `ui-event`, correlated by whatever
-the app puts in it.
-
-`configure` is awaited because Voqalize answers it. Awaiting is how a language
-Voqalize cannot serve becomes an exception the brain handles, rather than a call
-that runs on sounding wrong and reports nothing — the rejection names the reason
-and the SDK raises `RequestRejected` carrying it.
-
-One rule does not wait for that round trip: a half-stated language is a
-`ConfigError` at the call site, because whether both legs were named is a
-property of the message and needs nothing from the far end to decide.
+The [Python SDK](/reference/brain/) mints every `turn_id`, `speech_id` and
+`request_id` for you; its callbacks and methods map one to one onto the
+messages above, listed in
+[the Brain API](/reference/brain/#how-the-sdk-maps-onto-the-wire).
 
 ## Invariants
 

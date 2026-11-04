@@ -1,12 +1,12 @@
 ---
 title: Camera and screen
-description: Record a session's camera and screenshare with the stock pipecat client. Turn lanes on with enableCam and enableScreenShare, optionally cap each lane's bitrate, and read the files back on one timeline.
+description: Record a session's camera and screen share. Turn lanes on with pipecat's enableCam and enableScreenShare, optionally cap each lane's bitrate, and read the files back on one timeline.
 ---
 
 A recorded session can carry video as well as audio: the user's camera, their
-screen, or both. Nothing new is installed for it. The stock pipecat client
-already negotiates a camera lane and a screen lane on every connection, and
-your page turns them on and off with pipecat's own calls.
+screen, or both. Nothing new is installed for it: the transport already
+negotiates a camera lane and a screen lane on every connection, and your page
+turns them on and off with pipecat's own calls.
 
 What you get back, beside the audio, on a session with recording on:
 
@@ -30,8 +30,11 @@ the agent's default. A lane is recorded only if the page publishes it.
 ## Turn lanes on and off
 
 ```ts
+import { PipecatClient } from "@pipecat-ai/client-js";
+import { createVoqalizeTransport } from "@voqalize/client-transport";
+
 const client = new PipecatClient({
-  transport: new SmallWebRTCTransport(),
+  transport: createVoqalizeTransport(),
   enableMic: true,
   enableCam: false, // the camera can start on, too
 });
@@ -46,13 +49,10 @@ Voqalize that a lane went on or off. A page that swaps tracks some other way
 still records, but a camera turned off that way reads as one that stalled, and
 the video freezes on its last frame instead of showing that the lane was off.
 
-Turning a lane on or off never renegotiates the connection, so it is instant
-and the session does not drop a beat.
-
 ### When the user stops sharing from the browser
 
-Browsers show their own "Stop sharing" bar. Pressing it ends the screen track,
-and the transport does not report that. Watch the track and call
+Browsers show their own "Stop sharing" bar. Pressing it ends the screen track
+without going through `enableScreenShare`, so watch the track and call
 `enableScreenShare(false)` when it ends:
 
 ```ts
@@ -70,8 +70,11 @@ client.on(RTVIEvent.TrackStarted, (track, participant) => {
 ## Optional: the video codec
 
 ```ts
-new SmallWebRTCTransport({ videoCodec: "VP8" });
+createVoqalizeTransport({ videoCodec: "VP8" });
 ```
+
+`createVoqalizeTransport` takes the stock transport's constructor options, so
+`new SmallWebRTCTransport({ videoCodec: "VP8" })` is the same on the stock path.
 
 Voqalize records VP8 and accepts only VP8 on the wire, whatever the offer
 lists. Setting it here only keeps the offer small. A browser that cannot send
@@ -122,10 +125,13 @@ is ignored, not refused. The first offer's value is checked strictly:
 `max_kbps`, and `max_kbps` is a whole number at or above the minimum. Anything
 else, a value below the minimum, a string or decimal, or a field such as
 `max_fps`, is refused at the offer with HTTP `400`, code `invalid_config`, and
-an `info` sentence saying why, and `client.connect` rejects. Use `@pipecat-ai/small-webrtc-transport` 1.10.8 or
-later, which stops at a refused offer. An earlier release can resend the
-refused offer and then reject with no message, so the `info` sentence never
-reaches your page.
+an `info` sentence saying why, and `client.connect` rejects.
+
+`@pipecat-ai/small-webrtc-transport` is supported from 1.10.0
+([Client libraries](/build/pipecat/)). From 1.10.7 it stops at a refused offer
+and rejects with a `TransportStartError` whose `cause` is the `400` response;
+earlier releases retry the refused offer before they reject, so pin 1.10.7 or
+later if you want the reason on your page.
 
 The bitrate is the only setting there is. Frame rate, resolution and how the
 browser trades them off under pressure are the browser's own choices, and
@@ -245,5 +251,5 @@ A session with only one lane leaves out the other's input and overlay.
   state, and the download URL.
 - [Connect your app](/build/connect/) — the connect request and the
   `withRealHeaders` line this page builds on.
-- [Pipecat client SDKs](/build/pipecat/) — what is pipecat's and which
-  versions we hold to.
+- [Client libraries and mobile](/build/pipecat/) — what is pipecat's and
+  which versions are supported.
