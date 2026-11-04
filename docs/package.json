@@ -10,7 +10,6 @@
     "start": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "check": "astro check",
     "typecheck": "tsc -p tsconfig.scripts.json"
   },
   "dependencies": {
