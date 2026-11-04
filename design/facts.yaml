@@ -788,12 +788,13 @@ facts:
       on 2026-09-20** when the kokoro voices reached the enum: they speak `en`
       and nothing else. Do not write it as one figure for "the synthesizer" —
       the roster the speech tier publishes states it voice by voice and
-      `docs/.../reference/catalog.md` renders that table from it. The source
+      `docs/.../reference/catalog.md` renders that table from it, live in the
+      reader's browser (`docs/public/voice-catalog.js`). The source
       cited above was `pygato/session_config.py TTS_CLIP_LANGUAGES`, a copy
       that was deleted the same day along with every other copy.
     forbid:
       # The wrong half asserted. "23 languages" alone is fine where the page
-      # then says which ten are spoken — reference/catalog.md does exactly that
+      # then says which ten are spoken — reference/catalog.md's live table does that
       # — so the pattern names the *verb*, which is what makes the claim false.
       - '\b(speaks|speaking|spoken in|voices in|say[s]?) (23|twenty-three) languages'
       - '\b(23|twenty-three) (voices|speakers|recorded)'
@@ -1075,9 +1076,9 @@ facts:
 
   demos.roster:
     value: [travel, shopping, support, servicing, interview_bot, sugar, legal,
-            lead_qual, aura, forge, avatar, orderdesk, kiosk, petwell, fernhollow]
+            lead_qual, aura, forge, orderdesk, kiosk, petwell, fernhollow]
     source: demos/manifest.json
-    verified: 2026-11-03
+    verified: 2026-11-04
     derive:
       file: demos/manifest.json
       json_pluck: {key: demos, field: name}

@@ -63,6 +63,10 @@ substitutions:
   _AURA_PK: ''
   _FORGE_AGENT: ''
   _FORGE_PK: ''
+  # The avatar's agent is the docs site's, not a demo UI's: its live session runs
+  # on the docs page /build/avatar (docs/src/scripts/avatar-live.ts), and its
+  # old page at /demos/avatar redirects there. Its pk_ must allow the docs
+  # origin. Same names as before, so the triggers need no change.
   _AVATAR_AGENT: ''
   _AVATAR_PK: ''
   _ORDERDESK_AGENT: ''
@@ -116,8 +120,6 @@ steps:
       - 'VITE_AURA_PK=${_AURA_PK}'
       - 'VITE_FORGE_AGENT=${_FORGE_AGENT}'
       - 'VITE_FORGE_PK=${_FORGE_PK}'
-      - 'VITE_AVATAR_AGENT=${_AVATAR_AGENT}'
-      - 'VITE_AVATAR_PK=${_AVATAR_PK}'
       - 'VITE_ORDERDESK_AGENT=${_ORDERDESK_AGENT}'
       - 'VITE_ORDERDESK_PK=${_ORDERDESK_PK}'
       - 'VITE_KIOSK_AGENT=${_KIOSK_AGENT}'
@@ -127,7 +129,10 @@ steps:
       - 'VITE_FERNHOLLOW_AGENT=${_FERNHOLLOW_AGENT}'
       - 'VITE_FERNHOLLOW_PK=${_FERNHOLLOW_PK}'
 
-  # 2. Build the docs site (Astro Starlight, base:/docs) → docs/dist.
+  # 2. Build the docs site (Astro Starlight, served at its own origin's root) →
+  #    docs/dist. The avatar page's live session bakes in the avatar agent's
+  #    wiring (Astro inlines `import.meta.env.PUBLIC_*`); unset, the page still
+  #    builds and says the session is unavailable.
   - name: 'node:20-slim'
     id: docs
     waitFor: ['-']  # independent of the demos step — run concurrently
@@ -140,6 +145,10 @@ steps:
         cd docs
         pnpm install --ignore-workspace
         pnpm build
+    env:
+      - 'AVATAR_RUNTIME=${_AVATAR_RUNTIME}'
+      - 'PUBLIC_AVATAR_AGENT_ID=${_AVATAR_AGENT}'
+      - 'PUBLIC_AVATAR_PK=${_AVATAR_PK}'
 
   # 3. Assemble the artifact (demos + docs + manifest.json), tar, upload to GCS under
   #    the commit sha, and bump latest.json (the pointer the site build reads).

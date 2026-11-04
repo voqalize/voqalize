@@ -160,7 +160,7 @@ None of these is needed for a first session, and each is a change to one side:
 | **`config`** | How a session sounds and listens: `tts`, `stt`, `idle`, `ack`, and `record` at connect. Set at connect and by the brain. |
 | **`init`** | Your data for the brain, passed at connect and read as `session.init`. Stored on the session, so send identifiers rather than personal data. [Context and history](/build/brain/context/). |
 | **Stage** | The framework for an agent that shows and does things on the page while it talks, declared as moves in a spec. [Stage](/build/stage/). |
-| **The avatar** | A 2-D talking head in the page, driven by the session's own messages. [The avatar](/build/avatar/). |
+| **The avatar** | An animated character drawn in the page, lip-synced to the agent and driven by the session's own messages. [The avatar](/build/avatar/). |
 | **Recording** | The session's audio, plus camera and screen when the page turns them on. [Recordings](/operate/recordings/). |
 | **Conformance harness** | The SDK's test driver: your brain over the real wire, with no microphone and no model. [Test the brain](/build/testing/). |
 | **MCP server** | The hosted tool server your coding agent uses to create agents, mint keys and read sessions. [Work with a coding agent](/build/coding-agent/). |

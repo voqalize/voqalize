@@ -3,8 +3,9 @@ name: Voice catalog
 # Does the voice roster still say the same thing everywhere?
 #
 # The speech tier is the source: it publishes what its running process has
-# loaded at `/voices.json`, and the `Voice` enum, the SDK and the docs table
-# read from that. Every one of them can go stale without anything failing —
+# loaded at `/voices.json`, and the `Voice` enum and the SDK read from that.
+# (The docs table needs no check: it is rendered in the reader's browser from
+# that same document.) Either can go stale without anything failing —
 # a voice deployed to speech that no enum value claims is simply a voice no
 # client can ask for, and it stays that way silently until someone notices.
 # `design/voice_catalog.py check` is what notices.
@@ -54,6 +55,6 @@ jobs:
 
       # The generated protobuf module is what carries `voice_id`, so this runs
       # from the SDK's directory the same way the gate in CLAUDE.md does.
-      - name: The roster, the proto and the docs agree
+      - name: The roster and the proto agree
         working-directory: sdk/python
         run: uv run python ../../design/voice_catalog.py check --host '${{ matrix.host }}'

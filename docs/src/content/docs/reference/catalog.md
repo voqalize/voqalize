@@ -82,48 +82,28 @@ A language change applies at the **next end of turn**, never mid-utterance.
 
 ### Voice (`tts.voice`)
 
-<!-- voices:begin -->
-| `Voice` | Voice ID | Sounds like | Speaks |
-|---|---|---|---|
-| `Voice.OMNIVOICE_AALIYAH` | `omnivoice/aaliyah` | Aaliyah (female) | `en` |
-| `Voice.OMNIVOICE_ADITYA` | `omnivoice/aditya` | Aditya (male) | `en`, `hi` |
-| `Voice.OMNIVOICE_AMARA` | `omnivoice/amara` | Amara (female) | `en` |
-| `Voice.OMNIVOICE_ANANYA` | `omnivoice/ananya` | Ananya (female) | `en`, `hi` |
-| `Voice.OMNIVOICE_ANDREI` | `omnivoice/andrei` | Andrei (male) | `en` |
-| `Voice.OMNIVOICE_ARJUN` | `omnivoice/arjun` | Arjun (male) | `en`, `hi` |
-| `Voice.OMNIVOICE_CHIARA` | `omnivoice/chiara` | Chiara (female) | `en` |
-| `Voice.OMNIVOICE_DANIEL` | `omnivoice/daniel` | Daniel (male) | `en` |
-| `Voice.OMNIVOICE_ELODIE` | `omnivoice/elodie` | Elodie (female) | `en` |
-| `Voice.OMNIVOICE_EMILY` | `omnivoice/emily` | Emily (female) | `en` |
-| `Voice.OMNIVOICE_FREYA` | `omnivoice/freya` | Freya (female) | `en` |
-| `Voice.OMNIVOICE_GAURAV` | `omnivoice/gaurav` | Gaurav (male) | `bn`, `en`, `gu`, `hi`, `kn`, `ml`, `mr`, `pa`, `ta`, `te` |
-| `Voice.OMNIVOICE_GAURI` | `omnivoice/gauri` | Gauri (female) | `bn`, `en`, `gu`, `hi`, `kn`, `ml`, `mr`, `pa`, `ta`, `te` |
-| `Voice.OMNIVOICE_GAUTAM` | `omnivoice/gautam` | Gautam (male) | `bn`, `en`, `gu`, `hi`, `kn`, `ml`, `mr`, `pa`, `ta`, `te` |
-| `Voice.OMNIVOICE_GAYATRI` | `omnivoice/gayatri` | Gayatri (female) | `bn`, `en`, `gu`, `hi`, `kn`, `ml`, `mr`, `pa`, `ta`, `te` |
-| `Voice.OMNIVOICE_JASMINE` | `omnivoice/jasmine` | Jasmine (female) | `en` |
-| `Voice.OMNIVOICE_JAVIER` | `omnivoice/javier` | Javier (male) | `en`, `es` |
-| `Voice.OMNIVOICE_JORDAN` | `omnivoice/jordan` | Jordan (male) | `en` |
-| `Voice.OMNIVOICE_KARTHIK` | `omnivoice/karthik` | Karthik (male) | `en`, `hi` |
-| `Voice.OMNIVOICE_KASIA` | `omnivoice/kasia` | Kasia (female) | `en` |
-| `Voice.OMNIVOICE_KAVYA` | `omnivoice/kavya` | Kavya (female) | `en`, `hi` |
-| `Voice.OMNIVOICE_LUKAS` | `omnivoice/lukas` | Lukas (male) | `en` |
-| `Voice.OMNIVOICE_MADISON` | `omnivoice/madison` | Madison (female) | `en` |
-| `Voice.OMNIVOICE_MARCUS` | `omnivoice/marcus` | Marcus (male) | `en` |
-| `Voice.OMNIVOICE_MEERA` | `omnivoice/meera` | Meera (female) | `en`, `hi` |
-| `Voice.OMNIVOICE_NIKHIL` | `omnivoice/nikhil` | Nikhil (male) | `en`, `hi` |
-| `Voice.OMNIVOICE_OLIVERBENNETT` | `omnivoice/oliverbennett` | Oliverbennett (male) | `en` |
-| `Voice.OMNIVOICE_PRIYA` | `omnivoice/priya` | Priya (female) | `en`, `hi` |
-| `Voice.OMNIVOICE_RIYA` | `omnivoice/riya` | Riya (female) | `en`, `hi` |
-| `Voice.OMNIVOICE_ROHAN` | `omnivoice/rohan` | Rohan (male) | `en`, `hi` |
-| `Voice.OMNIVOICE_RYAN` | `omnivoice/ryan` | Ryan (male) | `en` |
-| — | `omnivoice/saanvi` | Saanvi (female) | `en`, `hi` |
-| `Voice.OMNIVOICE_SAMUEL` | `omnivoice/samuel` | Samuel (male) | `en` |
-| `Voice.OMNIVOICE_SOFIA` | `omnivoice/sofia` | Sofia (female) | `en` |
-| `Voice.OMNIVOICE_TYLER` | `omnivoice/tyler` | Tyler (male) | `en` |
-<!-- voices:end -->
+The voices Voqalize serves are published live, voice by voice, at
+[`https://speech.prod.voqalize.com/voices.json`](https://speech.prod.voqalize.com/voices.json).
+The table below is read from it when the page loads, so it is never a copy that
+has gone stale. To read the list from code, fetch that URL: it is public JSON and
+needs no key.
 
-The table is generated from the voices Voqalize serves. The prefix on the voice
-id picks the engine; there is no other engine selector.
+Each entry in its `voices` list has these fields:
+
+| Field | Meaning |
+|---|---|
+| `id` | What you send as `tts.voice`, such as `omnivoice/gauri`. Matched without regard to case. The prefix before the `/` picks the engine; there is no other engine selector. |
+| `display` | A human name for the voice, and whether it sounds male or female. |
+| `languages` | The tags this voice speaks: the values `tts.language` accepts with it. A tag matches by the part before the first hyphen, so `hi-IN` is `hi`. |
+| `engine` | The engine behind the voice. |
+
+The document also carries `version` (the shape of the document, `1` today) and
+`rules`, which states in words how a voice id and a language tag are matched.
+
+<div id="voice-catalog" class="not-content">
+  <p>Loading the voices from <a href="https://speech.prod.voqalize.com/voices.json">speech.prod.voqalize.com/voices.json</a>…</p>
+</div>
+<script src="/voice-catalog.js" type="module"></script>
 
 ### Language (`tts.language`)
 

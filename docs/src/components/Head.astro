@@ -1,6 +1,7 @@
 ---
 /**
- * Starlight's `<head>`, plus the one script mermaid needs.
+ * Starlight's `<head>`, plus the two scripts the pages need: mermaid, and the
+ * avatar's live call on /build/avatar.
  *
  * A component override rather than `head:` in `astro.config.mjs`, because the
  * config's `head` takes literal tag strings — it cannot reach a bundled module,
@@ -8,12 +9,19 @@
  * load path of every page for the sake of four diagrams.
  *
  * The import is dynamic and guarded, so mermaid's ~500 KB is a separate chunk
- * that only a page with a diagram on it ever fetches.
+ * that only a page with a diagram on it ever fetches. The live call is the same
+ * shape: its page is markdown with an empty `#avatar-live` mount, and pipecat,
+ * the media manager and the avatar loader are one chunk that only that page
+ * fetches (src/scripts/avatar-live.ts).
  */
 import Default from "@astrojs/starlight/components/Head.astro";
 ---
 
 <Default><slot /></Default>
+
+<script>
+  if (document.getElementById("avatar-live")) void import("../scripts/avatar-live");
+</script>
 
 <script>
   const blocks = [...document.querySelectorAll<HTMLElement>("pre.mermaid")].map((el) => ({

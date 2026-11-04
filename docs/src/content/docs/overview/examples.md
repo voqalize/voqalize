@@ -1,12 +1,12 @@
 ---
 title: Examples
-description: Fifteen complete Voqalize demos, grouped by the pattern each shows best (screen actions, Stage, background work, per-session init, authenticated tools, multilingual, the avatar), each with a live link and its source.
+description: Complete Voqalize demos, grouped by the pattern each shows best (screen actions, Stage, background work, per-session init, authenticated tools, multilingual, the avatar), each with a live link and its source.
 ---
 
 Each demo is a complete app: a `frontend/` (pipecat's client in a Vite app) and a
-`backend/brain.py`. Try one live, then read its brain end to end. All fifteen
-brains are `GeminiBrain`s; the same patterns work on `OpenAIBrain` and
-`LiteLLMBrain`.
+`backend/brain.py`; the avatar's page is its own documentation page. Try one
+live, then read its brain end to end. Every brain here is a `GeminiBrain`; the
+same patterns work on `OpenAIBrain` and `LiteLLMBrain`.
 
 ## The brain drives the screen
 
@@ -75,7 +75,7 @@ mid-session. See [Voice and language](/build/voice-and-language/).
 
 | Demo | What it shows | Links |
 |---|---|---|
-| **The Avatar** | A talking head that explains itself, scrolling the page to the answer and gesturing from the brain. Face and voice are chosen before the session. See [The avatar](/build/avatar/). | [Live](https://voqalize.com/demos/avatar/) · [Source](https://github.com/voqalize/voqalize/tree/main/demos/avatar) |
+| **The Avatar** | An animated character that explains itself, scrolling the page to the answer and gesturing from the brain. Face and voice are chosen before the session. Its page is the avatar's own documentation page. | [Live](/build/avatar/) · [Brain](https://github.com/voqalize/voqalize/tree/main/demos/avatar/backend) · [Page](https://github.com/voqalize/voqalize/blob/main/docs/src/scripts/avatar-live.ts) |
 
 ## Read next
 

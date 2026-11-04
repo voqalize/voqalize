@@ -60,7 +60,7 @@ class Section:
 SECTIONS: tuple[Section, ...] = (
     Section(
         id="overview",
-        title="An avatar for your voice agent",
+        title="How it works",
         notes=(
             "This is the avatar for Voqalize voice calls. "
             "Voqalize sends the mouth shapes and states on the call's data channel. "
@@ -83,7 +83,7 @@ SECTIONS: tuple[Section, ...] = (
     ),
     Section(
         id="quickstart",
-        title="Add it to your page",
+        title="Mount it in your page",
         notes=(
             "Voqalize already sends everything the face needs. "
             "Install the package from npm. "
@@ -93,7 +93,7 @@ SECTIONS: tuple[Section, ...] = (
     ),
     Section(
         id="states",
-        title="What the avatar shows between turns",
+        title="What it shows between turns",
         notes=(
             "Speaking and listening come from the audio. "
             "Between turns, I show thinking, working, or that I cannot hear you. "
@@ -104,7 +104,7 @@ SECTIONS: tuple[Section, ...] = (
     ),
     Section(
         id="wire",
-        title="Drive the avatar from your brain",
+        title="Gestures from your brain",
         notes=(
             "Your brain can send me a state or an action. "
             "A state is one I hold, like working. "
@@ -126,7 +126,7 @@ SECTIONS: tuple[Section, ...] = (
     ),
     Section(
         id="faces",
-        title="Choose a face",
+        title="Choosing a character",
         notes=(
             "A character is a name you pass when you mount the face. "
             "The page downloads only the character it mounts. "
@@ -157,8 +157,8 @@ SECTIONS_BY_ID: dict[str, Section] = {section.id: section for section in SECTION
 # ``init``. What this file keeps is what the page cannot know.
 
 #: The face a call wears when ``init`` names no usable face and voice, with the
-#: voice it wears it in. The page opens its strip on the same face
-#: (``DEFAULT_AVATAR`` in ``frontend/src/AvatarDemo.tsx``).
+#: voice it wears it in. The docs page opens its picker on the same face
+#: (``DEFAULT_AVATAR`` in ``docs/src/scripts/avatar-live.ts``).
 DEFAULT_AVATAR = "tanya"
 DEFAULT_VOICE = Voice.OMNIVOICE_MADISON
 
@@ -204,7 +204,7 @@ FACTS ABOUT THE AVATAR — answer from these, and say you are not sure if it is 
 - Voqalize sends the avatar's state and the mouth shapes for every reply, in every call. There is nothing to install or run on the server side, and nothing extra to pay for.
 - The mouth shapes come from the sounds the voice actually spoke, so they match the audio rather than a guess from the text.
 - It needs a Voqalize call. It is not a standalone player, and it does not plug into other voice platforms.
-- The characters are 2.5-D, rendered with WebGL 2 in the browser; the strip under the call shows every one. A browser without WebGL 2 shows a still picture of the character.
+- Each character is animated in the browser with WebGL 2 and lip-synced to the voice; the picker beside the call shows every one. A browser without WebGL 2 shows a still picture of the character.
 - A page with a Content-Security-Policy has to allow avatar.voqalize.com, and blob: for the character's textures.
 - HeyGen, Anam, Protoface, Simli and Tavus are video avatar services with pipecat integrations. They send the speech audio to their own servers, render video of a face, and send that video and the audio back through the transport — so each call carries a video stream and one more hosted service. Voqalize sends the browser a few small instructions and the browser draws the face. Be fair about it: they produce photoreal video, and this does not.
 

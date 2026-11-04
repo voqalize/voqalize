@@ -423,18 +423,14 @@ customer prose — and `check_facts.py` reads it against every governed page.
 `design/voice_catalog.py` fetches what the speech tier is actually serving — per
 A-record, because `speech.*` is round-robin across nodes and one fetch proves
 one node — and holds the `Voice` enum's `voice_id` options to it, and each
-voice's languages to the `Language` enum, then renders `reference/catalog.md`'s
-table from the same document. Both enums are frozen, so a served voice or
-language they cannot name is printed, not failed; an enum value naming a voice
-nothing serves still fails. Run `render` after adding a voice; `check` is what
-fails when somebody didn't, and `voice-catalog.yml` runs it every morning against
-each environment so nobody has to remember. It needs the generated protobuf
-module, so it runs from `sdk/python`.
-
-`--host` picks the environment and defaults to prod, which is the environment the
-docs describe — so the page is compared there and only there; everywhere else the
-proto join still runs and the page check is skipped, because dev and prod are
-*supposed* to differ between a release and its promotion.
+voice's languages to the `Language` enum. Both enums are frozen, so a served
+voice or language they cannot name is printed, not failed; an enum value naming
+a voice nothing serves still fails. `voice-catalog.yml` runs it every morning
+against each environment (`--host`, default prod) so nobody has to remember. It
+needs the generated protobuf module, so it runs from `sdk/python`. The docs keep
+no copy of the roster: `reference/catalog.md`'s voice table is rendered in the
+reader's browser from prod's `/voices.json` (`docs/public/voice-catalog.js`; the
+speech host sends CORS for that path), so adding a voice needs no docs change.
 
 Facts whose source is a registry or a sibling repo cannot be
 derived from this tree; they carry the command that re-earns the stamp, and

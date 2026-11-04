@@ -21,7 +21,7 @@
  * thing from where they were looking. Under the picture is where a decade of
  * video calls has taught everyone to find it.
  *
- * **The face is Tanya**, from `@voqalize/avatar` — the same 2.5-D character the
+ * **The face is Tanya**, from `@voqalize/avatar` — the same animated character the
  * homepage agent wears, and she is here because the voice moved first: Docket
  * speaks with `omnivoice/madison`, an American English voice, as Tanya did
  * when she spoke with Kokoro's Ava.

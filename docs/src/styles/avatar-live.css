@@ -1,0 +1,303 @@
+/* The live call on /build/avatar (src/scripts/avatar-live.ts). Every colour is
+ * one of Starlight's own tokens, so the widget follows the light and dark themes
+ * the rest of the page does. */
+
+.avl-root {
+  margin-block: 1.5rem 2rem;
+  padding: 1rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.75rem;
+  background: var(--sl-color-gray-7, var(--sl-color-black));
+}
+
+.avl-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 40rem) {
+  .avl-stage {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.avl-root p {
+  margin: 0;
+}
+
+/* The slot keeps the tile's space in the page while the tile itself docks. */
+.avl-tile-slot {
+  aspect-ratio: 4 / 3;
+}
+
+.avl-tile {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 0.6rem;
+  overflow: hidden;
+  border: 1px solid var(--sl-color-gray-5);
+  background: linear-gradient(168deg, var(--sl-color-gray-6) 0%, var(--sl-color-black) 100%);
+}
+
+.avl-face {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* While a call is up and the stage has scrolled out of view, the face follows
+ * the reader into the corner of the window, so the page the brain is moving
+ * and the face that is talking are on screen together. */
+.avl-root[data-phase="live"].is-away .avl-tile {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  width: min(15rem, 45vw);
+  height: auto;
+  aspect-ratio: 4 / 3;
+  z-index: 20;
+  box-shadow: var(--sl-shadow-lg, 0 10px 30px rgb(0 0 0 / 0.35));
+}
+
+.avl-dock-end {
+  display: none;
+}
+
+.avl-root[data-phase="live"].is-away .avl-dock-end {
+  display: block;
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  z-index: 3;
+  font: inherit;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  border: 0;
+  color: #fff;
+  background: #c62828;
+  cursor: pointer;
+}
+
+.avl-chip {
+  position: absolute;
+  top: 0.6rem;
+  left: 0.6rem;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  color: #fff;
+  background: rgb(0 0 0 / 0.6);
+}
+
+.avl-chip[hidden] {
+  display: none;
+}
+
+.avl-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: #9aa5b8;
+}
+
+.avl-chip[data-activity="listening"] .avl-dot {
+  background: #2bd9c5;
+}
+
+.avl-chip[data-activity="thinking"] .avl-dot {
+  background: #f5b942;
+}
+
+.avl-chip[data-activity="speaking"] .avl-dot {
+  background: #ff5a1f;
+}
+
+.avl-clock {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+
+.avl-end {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 1rem;
+  text-align: center;
+  color: #fff;
+  background: rgb(6 14 31 / 0.82);
+}
+
+.avl-end[hidden] {
+  display: none;
+}
+
+.avl-end-title {
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.avl-captions {
+  min-height: 3.6rem;
+  margin-top: 0.6rem;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: var(--sl-color-white);
+}
+
+.avl-caption.is-past {
+  color: var(--sl-color-gray-3);
+  animation: avl-fade 11s linear forwards;
+}
+
+@keyframes avl-fade {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.avl-side {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.avl-label {
+  font-size: 0.8rem;
+  color: var(--sl-color-gray-3);
+}
+
+/* Every character the release mounts, which is dozens: a scrolling grid, so the
+ * Talk button stays beside the face rather than below the roster. */
+.avl-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(4.25rem, 1fr));
+  gap: 0.4rem;
+  max-height: 14.5rem;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.avl-pick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.35rem 0.25rem;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--sl-color-gray-2);
+  background: transparent;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.5rem;
+  cursor: pointer;
+}
+
+.avl-pick img {
+  width: 2.75rem;
+  height: 2.75rem;
+  object-fit: cover;
+  border-radius: 50%;
+  background: var(--sl-color-gray-6);
+}
+
+.avl-pick:hover:not(:disabled) {
+  border-color: var(--sl-color-gray-3);
+  color: var(--sl-color-white);
+}
+
+.avl-pick.is-on {
+  border-color: var(--sl-color-accent-high);
+  color: var(--sl-color-white);
+  box-shadow: inset 0 0 0 1px var(--sl-color-accent-high);
+}
+
+.avl-pick:disabled {
+  cursor: default;
+}
+
+.avl-strip.is-locked .avl-pick:not(.is-on) {
+  opacity: 0.38;
+}
+
+.avl-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.avl-button {
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.5rem 1.1rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  color: var(--sl-color-black);
+  background: var(--sl-color-accent-high);
+  cursor: pointer;
+}
+
+.avl-button[hidden] {
+  display: none;
+}
+
+.avl-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.avl-secondary {
+  color: var(--sl-color-white);
+  background: transparent;
+  border-color: var(--sl-color-gray-4);
+}
+
+.avl-hangup {
+  color: #fff;
+  background: #c62828;
+}
+
+.avl-note {
+  font-size: 0.85rem;
+  color: var(--sl-color-gray-2);
+}
+
+.avl-error {
+  font-size: 0.85rem;
+  color: #ff7a59;
+}
+
+.avl-error[hidden] {
+  display: none;
+}
+
+.avl-openers ul {
+  margin: 0.3rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+}
+
+/* The heading the brain last scrolled to. */
+.avl-current {
+  scroll-margin-top: calc(var(--sl-nav-height, 3.5rem) + 1rem);
+  border-left: 3px solid var(--sl-color-accent-high);
+  padding-left: 0.6rem;
+  margin-left: -0.9rem;
+}

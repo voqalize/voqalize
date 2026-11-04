@@ -44,7 +44,9 @@ const DEMOS = [
   'aura',
   'forge',
   'orderdesk',
-  'avatar',
+  // Retired 2026-11-04: the avatar's page is the docs site's /build/avatar now,
+  // served by the `docs` app above. The slot stays so every port after it holds.
+  null,
   'kiosk',
   'petwell',
   'fernhollow',
@@ -61,10 +63,12 @@ module.exports = {
       // Astro 7 daemonizes itself when it thinks an AI agent started it, which
       // leaves pm2 supervising a process that has already exited. Setting this
       // at all turns that detection off; the value is irrelevant.
-      env: { ASTRO_DEV_BACKGROUND: '0' },
+      // AVATAR_RUNTIME: /build/avatar mounts the avatar, on the same local
+      // runtime as the demos.
+      env: { ASTRO_DEV_BACKGROUND: '0', AVATAR_RUNTIME },
       autorestart: true,
     },
-    ...DEMOS.map((name, i) => ({
+    ...DEMOS.flatMap((name, i) => (name === null ? [] : [{
       name,
       namespace: 'demos',
       cwd: path.join(__dirname, 'demos', name, 'frontend'),
@@ -73,6 +77,6 @@ module.exports = {
       interpreter: 'none',
       env: { AVATAR_RUNTIME },
       autorestart: true,
-    })),
+    }])),
   ],
 };

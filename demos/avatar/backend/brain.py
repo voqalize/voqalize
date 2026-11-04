@@ -1,8 +1,10 @@
 """AvatarBrain — the demo that explains the avatar by being one.
 
-A ``GeminiBrain`` whose whole subject is the face it is wearing. The visitor
-asks how the talking head works; the brain scrolls the page to that section of
-the documentation, answers against it, and — because the same wire it is
+A ``GeminiBrain`` whose whole subject is the face it is wearing. It is the live
+call on the avatar page of the documentation (``/build/avatar/`` on the docs
+site; the page script is ``docs/src/scripts/avatar-live.ts``). The visitor asks
+how the avatar works; the brain scrolls the page to that section of the
+documentation, answers against it, and — because the same wire it is
 describing is open the whole time — demonstrates the thing it just said. It waves as the greeting starts, before it
 has been asked for anything.
 
@@ -25,7 +27,7 @@ The mechanics worth reading before the code:
 
 * **The face is chosen before the call, and never during it.** Each face is
   paired with a voice read as the same gender, and the pair has to be settled
-  before a word is spoken. The visitor picks on the strip while the page is
+  before a word is spoken. The visitor picks on the picker while the page is
   idle; the face and the voice it suggests ride the connect request in ``init``,
   and this brain reads them once in :meth:`on_session_start`, configures that
   voice, and keeps it for the session. There is no ``switch_avatar`` tool and no
@@ -33,9 +35,8 @@ The mechanics worth reading before the code:
   changes in the middle of an answer is the thing a listener notices, and a face
   and a voice that disagree for even one sentence is the demo's worst failure.
 
-* **The call is capped at two minutes,** because this page is going to be
-  linked from the avatar's front door and the demo tenant pays for every
-  second. The cap is enforced here rather than on the page: a browser tab is not
+* **The call is capped at two minutes,** because this page is linked from the
+  avatar package's README and the demo tenant pays for every second. The cap is enforced here rather than on the page: a browser tab is not
   a place to keep a limit. It ends the way the demo started — a wave and a line.
 
 The LLM's ``genai.Client`` is dependency-injected; the brain owns the prompt,
@@ -132,7 +133,7 @@ _SIGN_OFF = (
 # The action id is open: two names are required of every face — ``ACKNOWLEDGE``
 # and ``RESPONSE_INTERRUPTED`` — and anything else belongs to the face that is
 # mounted. The ids on the right are the bundled
-# renderer's own catalogue, which every face on this strip shares, so this demo
+# renderer's own catalogue, which every face on the picker shares, so this demo
 # may spell a wave; a brain that does not know what is mounted may not. The
 # names on the left are ours, so a model picks from words rather than from an
 # enum in SCREAMING_CASE.
@@ -346,10 +347,10 @@ WHAT YOU ARE. You are rendered in their browser, driven over the data channel of
 
 {BACKGROUND}
 
-WHAT IS ON THEIR SCREEN. The right two-thirds of the page explains the avatar — plain words first, then code — and they can read all of it without you. You are the fast path through it. Call show_section and the page scrolls them to that section and marks it current; the tool hands you back short lines to answer with, straight away:
+WHAT IS ON THEIR SCREEN. They are on the avatar page of the Voqalize documentation. Below the call, the page explains the avatar — plain words first, then code — and they can read all of it without you. You are the fast path through it. Call show_section and the page scrolls them to that section and marks it current, while your face stays in the corner of their screen; the tool hands you back short lines to answer with, straight away:
 {sections_for_prompt()}
 
-WHICH ONE YOU ARE. You are wearing {name}, a 2.5-D face, speaking in the voice that face is paired with.{blurb} The visitor chose that on the strip before the call started, and it does not change while the call is up — each face is paired with its own voice, so the face and the voice are one choice, made once. If they ask to change it, tell them to hang up, pick another, and call back. The strip under the call shows every face; you do not need to name them.
+WHICH ONE YOU ARE. You are wearing {name}, an animated character drawn in their browser, speaking in the voice that face is paired with.{blurb} The visitor chose that on the picker before the call started, and it does not change while the call is up — each face is paired with its own voice, so the face and the voice are one choice, made once. If they ask to change it, tell them to hang up, pick another, and call back. The picker beside the call shows every face; you do not need to name them.
 
 HOW TO RUN THIS CALL:
 
@@ -363,7 +364,7 @@ GESTURE LIKE A PERSON, NOT A SHOWREEL. Your face already blinks, breathes, liste
 
 NEVER WRITE AN ACTION IN WORDS. Everything you write is read aloud by the voice. No stage directions, no asterisks, no brackets: never "*nods*", "*waves hello*", "(smiles)". A gesture is a perform call and nothing else.
 
-THE FACE IS NOT YOURS TO CHANGE. If they ask what else there is, call show_section on the faces section and let them read the strip. Say the pairing out loud once — the face and the voice are one choice, settled before the call — because that is the constraint, not a limitation you are apologising for.
+THE FACE IS NOT YOURS TO CHANGE. If they ask what else there is, call show_section on the faces section and let them look at the picker. Say the pairing out loud once — the face and the voice are one choice, settled before the call — because that is the constraint, not a limitation you are apologising for.
 
 WATCH THE CLOCK. Two minutes is about eight exchanges. Do not offer a tour of every section; answer what was asked. If you are told you are running out of time, start closing.
 
@@ -512,7 +513,7 @@ class AvatarBrain(GeminiBrain):
     async def on_session_start(self, session: Session) -> None:
         """Settle the face and its voice, once, before anything is spoken.
 
-        The visitor picked on the strip while the page was idle, so the key rode
+        The visitor picked on the picker while the page was idle, so the key rode
         the connect request and is here in ``init`` before the pipeline has said
         a word. That timing is the whole reason the choice lives there: a face
         chosen after the call is up cannot be applied to the opener, because
