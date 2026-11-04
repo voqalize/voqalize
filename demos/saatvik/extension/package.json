@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Puts Sunny, the saatvik demo brain's solar advisor, on www.saatvikgroup.com: a Chrome extension that injects the call widget, the site adapter and a PDF viewer into Saatvik's own page.",
   "scripts": {
-    "build": "tsc --noEmit && AVATAR_RUNTIME=https://avatar.dev.voqalize.com/runtime/current.js node build.mjs",
+    "build": "tsc --noEmit && AVATAR_RUNTIME=https://cdn.dev.voqalize.com/runtime/current.js node build.mjs",
     "typecheck": "tsc --noEmit",
     "gen": "cd ../.. && uv run voqalize types saatvik/backend/brain.py -o saatvik/extension/src/actions.gen.ts",
     "build:prod": "tsc --noEmit && VOQALIZE_ENV_FILE=.env.prod VOQALIZE_OUT_DIR=dist-prod node build.mjs"

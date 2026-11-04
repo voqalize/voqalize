@@ -23,15 +23,16 @@ session, any gesture your brain plays, and the mouth shapes (visemes) for each
 reply, timed to the agent's audio. They travel as standard RTVI messages on the
 data channel the session already has, at a few hundred bytes a second.
 
-In the browser you give `@voqalize/avatar` your client and the name of
-a character. It fetches the avatar runtime and that character from
-`https://avatar.voqalize.com` and draws the face in the element you give it.
+In the browser you give `@voqalize/avatar` your client and the name of a
+character. It fetches the avatar runtime and that character from the avatar
+host (`https://cdn.voqalize.com` from release 0.7) and draws the face in the
+element you give it.
 
 | Part | What it does |
 |---|---|
 | Voqalize | Sends the avatar's state and the mouth shapes for each reply, in every session. There is nothing to install or turn on. |
 | `@voqalize/avatar` | The package you install from npm: a small MIT-licensed loader. You give it your client and a character name, and it mounts the face. |
-| The avatar runtime | The renderer and the characters, fetched from `https://avatar.voqalize.com` when a face mounts. Licensed separately, for use with Voqalize, under the [avatar runtime licence](https://avatar.voqalize.com/LICENSE). Each release of the package is pinned to the runtime it was released with, so upgrading the package upgrades the avatar. |
+| The avatar runtime | The renderer and the characters, fetched from the avatar host when a face mounts. Licensed separately, for use with Voqalize, under the [avatar runtime licence](https://cdn.voqalize.com/LICENSE). Each release of the package is pinned to the runtime it was released with, so upgrading the package upgrades the avatar. |
 
 You need a page that runs Voqalize sessions with the client versions
 [Client libraries](/build/client/#versions) pins, and a browser with WebGL 2.
@@ -136,7 +137,25 @@ unloadAvatar(face);
 
 ### Allow the avatar host
 
-If your page sets a Content-Security-Policy, add:
+If your page sets a Content-Security-Policy, add the lines for the release of
+`@voqalize/avatar` you install. Only the pages that mount a face need them.
+
+**0.7 and later:**
+
+```text
+script-src  https://cdn.voqalize.com
+connect-src https://cdn.voqalize.com
+img-src     https://cdn.voqalize.com
+```
+
+The runtime is a module imported from that host, and it fetches the character
+from it. The `img-src` host serves the still shown where a browser has no
+WebGL 2. The runtime needs nothing else: no `blob:`, no workers, no inline
+styles and no `eval`. Safari before 17 and Firefox before 98 try one image from
+a `blob:` URL first; the policy refuses it, the face draws all the same, and a
+policy with a `report-to` gets one report from each such page.
+
+**Before 0.7:**
 
 ```text
 script-src  https://avatar.voqalize.com
@@ -144,11 +163,15 @@ connect-src https://avatar.voqalize.com blob:
 img-src     https://avatar.voqalize.com blob:
 ```
 
-The runtime is a module imported from that host, it fetches the character from
-it, and it decodes the character's textures from `blob:` URLs. The `img-src`
-host serves the still shown where a browser has no WebGL 2, and `img-src blob:`
-is needed on Safari before 17 and Firefox before 98. The runtime needs nothing
-else: no workers, no inline styles and no `eval`.
+These releases also decode the character's textures from `blob:` URLs, and
+`img-src blob:` is needed on Safari before 17 and Firefox before 98.
+
+**Upgrading to 0.7:** upgrade the package first, then change the policy,
+because a release before 0.7 imports its runtime only from
+`avatar.voqalize.com`. The old policy keeps working with 0.7:
+`avatar.voqalize.com` is another name for the same host, and a face refused on
+one name loads from the other. To trial the new policy, send it as
+`Content-Security-Policy-Report-Only` beside your current one.
 
 ## Choosing a character
 
@@ -256,9 +279,9 @@ stops when the agent stops speaking.
   video, use a video avatar service.
 - **It needs a Voqalize session.** The mouth shapes and states come from
   Voqalize. There is no standalone player and no browser-only lipsync.
-- **The page must reach `avatar.voqalize.com`.** The runtime and the characters
-  are fetched from there when the face mounts, and a strict
-  Content-Security-Policy has to allow it.
+- **The page must reach the avatar host**, `cdn.voqalize.com` from 0.7. The
+  runtime and the characters are fetched from there when the face mounts, and
+  a strict Content-Security-Policy has to allow it.
 - **It needs WebGL 2.** Without it, the tile shows a still photograph of the
   character, like a session whose other side has turned their camera off.
 

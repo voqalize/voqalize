@@ -8,7 +8,7 @@
  * it returns nothing and the build is exactly what npm gives a customer.
  *
  *   AVATAR_RUNTIME=https://avatar.local.voqalize.com/runtime/current.js   # the newest local build
- *   AVATAR_RUNTIME=https://avatar.dev.voqalize.com/runtime/current.js     # the last dev upload
+ *   AVATAR_RUNTIME=https://cdn.dev.voqalize.com/runtime/current.js        # the last dev upload
  *
  * `current.js` is the newest runtime each host has, not a release. A demo you
  * copy from here needs none of this: leave `AVATAR_RUNTIME` unset.
@@ -26,7 +26,7 @@ import { readFileSync } from "node:fs";
 
 const PIN = /[\\/]@voqalize[\\/]avatar[\\/]dist[\\/]pin\.js$/;
 const URL_LINE = /export const RUNTIME_URL = "[^"]*";/;
-const UNRELEASED_HOSTS = ["avatar.dev.voqalize.com", "avatar.local.voqalize.com"];
+const UNRELEASED_HOSTS = ["cdn.dev.voqalize.com", "avatar.dev.voqalize.com", "avatar.local.voqalize.com"];
 
 /** `url`, if it is a runtime on a host of unreleased runtimes; otherwise throws. */
 export function unreleasedRuntime(url) {
@@ -35,7 +35,7 @@ export function unreleasedRuntime(url) {
   if (UNRELEASED_HOSTS.includes(host)) return url;
   throw new Error(
     `AVATAR_RUNTIME names ${url}. It may only name an unreleased runtime, on ${UNRELEASED_HOSTS.join(" or ")}. ` +
-      `A page reaches a runtime on avatar.voqalize.com by depending on the @voqalize/avatar release that pins it.`,
+      `A page reaches a released runtime by depending on the @voqalize/avatar release that pins it.`,
   );
 }
 
