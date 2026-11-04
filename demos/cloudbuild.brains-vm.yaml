@@ -137,7 +137,9 @@ steps:
         curl -fsS --retry 10 --retry-delay 3 --retry-all-errors \
           'https://${_BRAIN_DOMAIN}/_healthz' > /workspace/healthz.json
         cat /workspace/healthz.json; echo
-        TAG="$$TAG" python3 - <<'PY'
+        # uv brings its own Python: cloud-sdk:slim dropped python3 on 2026-11-03.
+        curl -LsSf https://astral.sh/uv/0.8.11/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
+        TAG="$$TAG" uv run --no-project --quiet python - <<'PY'
         import json, os
         from pathlib import Path
 
