@@ -44,9 +44,7 @@ const DEMOS = [
   'aura',
   'forge',
   'orderdesk',
-  // Retired 2026-11-04: the avatar's page is the docs site's /build/avatar now,
-  // served by the `docs` app above. The slot stays so every port after it holds.
-  null,
+  'avatar',
   'kiosk',
   'petwell',
   'fernhollow',
