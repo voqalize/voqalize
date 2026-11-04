@@ -235,7 +235,7 @@ failing. `vql-stt` routes English and the
 European languages to Parakeet TDT 0.6B v3 and the Indic codes to
 IndicConformer, and publishes that route table at `GET /v2/languages`; the
 control plane reads it to refuse an unheard `stt.language` at connect and to
-answer `GET /api/v1/capabilities`. The `Language` enum is frozen at English and
+answer `GET /api/v1/catalog.get`. The `Language` enum is frozen at English and
 the Indic codes (owner, 2026-10-19), so a European language is a string only and
 `voice_catalog.py check` notes a voice that speaks one rather than failing.
 The docs on `main` describe dev, and `prod` describes prod; a promote is what

@@ -17,8 +17,8 @@ name: Voice catalog
 # and what it reports is a fact about the fleet, not about a diff.
 #
 # It is also the seat two other files name as the signal:
-# `backend/controlplane/app/platform/speech/__init__.py` (a voice the wire
-# cannot spell is left out of `/capabilities` rather than reported there) and
+# `backend/controlplane/app/platform/speech/__init__.py` (which shapes the
+# roster that `GET /api/v1/catalog.get` republishes) and
 # `backend/controlplane/AGENTS.md`, both in the private platform repo.
 
 on:
