@@ -77,7 +77,7 @@ import { createAvatar } from "@voqalize/avatar";
 const avatar = createAvatar({
   mount: document.querySelector("#agent-tile"),
   client: pipecatClient,
-  character: "tara",
+  character: "emily",
 });
 
 // when the session ends, or the tile goes away
@@ -104,7 +104,7 @@ Optional gains, from `0` to `2` (`1` is as authored):
 ```jsx
 import { Avatar } from "@voqalize/avatar/react";
 
-<Avatar client={pipecatClient} character="tara" className="agent-tile" />
+<Avatar client={pipecatClient} character="emily" className="agent-tile" />
 ```
 
 Nothing mounts while `client` is `null`, and a new `client` or `character`
@@ -120,8 +120,8 @@ when the user is about to talk, for example on the page with the call button:
 ```js
 import { preloadAvatar, unloadAvatar } from "@voqalize/avatar";
 
-const face = preloadAvatar("tara");
-// later, createAvatar({ ..., character: "tara" }) takes the prepared face
+const face = preloadAvatar("emily");
+// later, createAvatar({ ..., character: "emily" }) takes the prepared face
 // or, if the user leaves without starting a session:
 unloadAvatar(face);
 ```

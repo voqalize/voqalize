@@ -305,12 +305,12 @@ export const DOC_SECTIONS: DocSection[] = [
         <h3>Mount a character</h3>
         <Code lang="javascript">{`import { createAvatar } from '@voqalize/avatar';
 
-const avatar = createAvatar({ mount: el, client: pipecatClient, character: 'tara' });
+const avatar = createAvatar({ mount: el, client: pipecatClient, character: 'emily' });
 // call avatar.destroy() when the element unmounts`}</Code>
         <p>In React:</p>
         <Code lang="jsx">{`import { Avatar } from '@voqalize/avatar/react';
 
-<Avatar client={pipecatClient} character="tara" className="call-tile" />`}</Code>
+<Avatar client={pipecatClient} character="emily" className="call-tile" />`}</Code>
         <p>
           <code>createAvatar</code> returns at once, with one method, <code>destroy()</code>. The
           face appears when the runtime and the character have arrived. It listens to your client’s
@@ -475,7 +475,7 @@ const avatar = createAvatar({ mount: el, client: pipecatClient, character: 'tara
           is the name on the chip, in lower case. A name the runtime does not have logs an error to
           the console and mounts nothing.
         </p>
-        <Code lang="jsx">{`<Avatar client={pipecatClient} character="tanvi" />`}</Code>
+        <Code lang="jsx">{`<Avatar client={pipecatClient} character="emily" />`}</Code>
         <p>
           To switch faces, pass another name. In React the face is rebuilt; with{" "}
           <code>createAvatar</code>, destroy the old one and create a new one.

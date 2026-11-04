@@ -57,7 +57,22 @@ const API_BASE = "/api/v1";
 
 /** The face the picker starts on unless `?avatar=` names another. The brain
  *  falls back to the same face (`DEFAULT_AVATAR` in its `content.py`). */
-const DEFAULT_AVATAR = "tanya";
+const DEFAULT_AVATAR = "emily";
+
+/** Our best characters, which lead the picker in this order. The rest follow
+ *  in the runtime's own order, and a name here the runtime does not carry is
+ *  skipped. The `/demos/avatar` strip keeps the same list (`AvatarDemo.tsx`). */
+const FEATURED = ["emily", "aditya", "javier", "ananya"];
+
+/** The roster with the featured faces first. */
+function featuredFirst(characters: readonly CharacterInfo[]): CharacterInfo[] {
+  const rank = (name: string) => {
+    const i = FEATURED.indexOf(name);
+    return i < 0 ? FEATURED.length : i;
+  };
+  // A stable sort: everything not featured keeps the runtime's order.
+  return [...characters].sort((a, b) => rank(a.name) - rank(b.name));
+}
 
 /** Two minutes. The page only reports it; the brain enforces it. */
 const LIMIT_S = 120;
@@ -435,7 +450,8 @@ function mountLive(root: HTMLElement): void {
 
   // ── The roster ──
   listCharacters().then(
-    (characters) => {
+    (listed) => {
+      const characters = featuredFirst(listed);
       roster = characters;
       strip.replaceChildren(
         ...characters.map((entry) => {

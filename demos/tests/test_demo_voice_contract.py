@@ -102,9 +102,9 @@ DEMOS: dict[str, Expected] = {
     # The avatar demo takes its voice from the connect request: the page sends
     # the face the visitor picked with that face's suggested voice, so a face
     # and a voice are one choice. This sweep sends no `init`, so what is checked
-    # here is the default pair: `tanya`, on madison. The picked case is asserted
-    # in test_avatar_e2e.py.
-    "avatar": Expected(voice="omnivoice/madison", language="en"),
+    # here is the default pair: `emily`, in her own voice. The picked case is
+    # asserted in test_avatar_e2e.py.
+    "avatar": Expected(voice="omnivoice/emily", language="en"),
     # Aria takes the language from the connect request's ``init`` and configures
     # both legs from it, so the brain still owns the answer — nothing in the
     # payload ⇒ English. The per-user case is asserted below.
