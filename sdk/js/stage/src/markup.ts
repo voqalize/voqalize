@@ -13,7 +13,11 @@
  * - `data-stage-thing="name"`: a thing the agent can point at; its spoken
  *   label is `data-stage-label`, else its accessible name.
  * - `data-stage-part="Facet:Option"`: one option a move presses
- *   (`commerce.filter`'s `{filter: Size | King}`).
+ *   (`commerce.filter`'s `{filter: Size | King}`, `commerce.variant`'s
+ *   `{variant: Size | King}`).
+ * - `data-stage-card`: one product card of the listing in front, in the order
+ *   the listing shows them; `commerce.compare`'s `{compare: 1 | 3}` counts
+ *   them from 1. Its value may be the item's path; it is not read.
  * - `data-stage-place="name"`: where the page is, in the app's own terms.
  *
  * The attributes are locators only. They add no moves, labels or prompt text:
@@ -31,6 +35,7 @@ export const ATTR = {
   label: "data-stage-label",
   part: "data-stage-part",
   place: "data-stage-place",
+  card: "data-stage-card",
 } as const;
 
 export interface Thing {
@@ -81,6 +86,12 @@ export function partsOf(facet: string, root: ParentNode = document): string[] {
     .map(([, ...v]) => v.join(":").trim());
 }
 
+/** The listing's product cards the visitor can see, in document order: card
+ *  1 is the first. */
+export function cards(root: ParentNode = document): HTMLElement[] {
+  return [...root.querySelectorAll(`[${ATTR.card}]`)].filter(visible);
+}
+
 /** Where the page says it is, if it says. */
 export function place(root: Document = document): string | null {
   return root.querySelector(`[${ATTR.place}]`)?.getAttribute(ATTR.place) ?? null;
@@ -111,4 +122,44 @@ export const pressParts: Performer<{ facet: string; value?: string | null }> = a
     done.push(v);
   }
   return `${facet} ${done.join(", ")} pressed`;
+};
+
+/** `{variant: Option | Value}`: ring the product's option, then press it. */
+export const pickPart: Performer<{ option: string; value: string }> = async ({ option, value }, c) => {
+  const v = (value ?? "").trim();
+  if (!v) c.refuse("value", `say which ${option}`, partsOf(option));
+  const el = findPart(option, v);
+  if (!el || !visible(el)) return c.refuse("value", `${option} has no option "${v}" here`, partsOf(option));
+  await c.scrollTo(el);
+  await c.ring(el, `${option}: ${v}`);
+  await c.beat();
+  press(el);
+  return `${option} ${v} chosen`;
+};
+
+type Place = number | string | null | undefined;
+
+/** `{compare: 1 | 3}`: ring the listing's cards at those places, side by side,
+ *  each in its own ring. Nothing on the page changes. */
+export const ringCards: Performer<{ first: Place; second: Place; third?: Place; fourth?: Place }> = async (args, c) => {
+  const all = cards();
+  const offered = all.map((_, i) => String(i + 1));
+  const picked: HTMLElement[] = [];
+  const said: number[] = [];
+  for (const arg of ["first", "second", "third", "fourth"] as const) {
+    const raw = args[arg];
+    if (raw === null || raw === undefined || String(raw).trim() === "") continue;
+    const n = Number(String(raw).trim());
+    if (!Number.isInteger(n) || n < 1 || n > all.length) {
+      return c.refuse(arg, `the listing here shows ${all.length} card${all.length === 1 ? "" : "s"}`, offered);
+    }
+    if (said.includes(n)) continue;
+    said.push(n);
+    picked.push(all[n - 1]!);
+  }
+  if (picked.length < 2) return c.refuse("second", "name two cards or more to compare", offered);
+  const names = picked.map((el) => (el.getAttribute(ATTR.label) ?? accessibleName(el)).trim().slice(0, 60));
+  await c.scrollTo(picked[0]!);
+  await c.ring(picked, { label: names.filter(Boolean).join(" · ") || undefined, separate: true });
+  return `compared ${said.map((n, i) => `${n}${names[i] ? ` ${names[i]}` : ""}`).join("; ")}`;
 };

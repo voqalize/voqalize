@@ -1,8 +1,8 @@
 {
   "kit": 1,
   "id": "commerce",
-  "version": "1.1.0",
-  "doc": "A store: its listings filtered, sorted and searched as the agent says so, an item opened, and the cart filled once the visitor said yes. The page writes the performers (where the filters are, how the cart opens); the kit fixes what each move is and how it reports.",
+  "version": "1.2.0",
+  "doc": "A store: its listings filtered, sorted and searched as the agent says so, products compared side by side, an item opened and its options picked, and the cart filled once the visitor said yes. The page writes the performers (where the filters are, how the cart opens); the kit fixes what each move is and how it reports.",
   "moves": [
     {
       "id": "commerce.filter",
@@ -91,6 +91,49 @@
       "doc": "Type into the store's own search box at a human pace and let its suggestions open; open one when asked."
     },
     {
+      "id": "commerce.compare",
+      "verb": "compare",
+      "class": "look",
+      "args": [
+        {
+          "name": "first",
+          "type": "integer",
+          "doc": "A product card's place in the listing in front, 1 for the first, as the listing slice orders its items (a numeral, \"2\", is read as 2)."
+        },
+        {
+          "name": "second",
+          "type": "integer",
+          "doc": "Another card's place."
+        },
+        {
+          "name": "third",
+          "type": "integer",
+          "optional": true,
+          "doc": "A third card's place."
+        },
+        {
+          "name": "fourth",
+          "type": "integer",
+          "optional": true,
+          "doc": "A fourth card's place."
+        }
+      ],
+      "say": "{compare: 1 | 3} as you set products of the listing side by side, by their place in it, two to four.",
+      "claims": [
+        "i'll compare",
+        "let me compare",
+        "i'm comparing",
+        "comparo",
+        "voy a comparar",
+        "comparando"
+      ],
+      "objects": [
+        "comparison",
+        "comparación"
+      ],
+      "doc": "Ring the named cards of the listing in front side by side, each in its own ring, after scrolling the first into view; a page that can lay them out together may. Nothing on the page changes. Refuses a place the listing does not show, with the places it does."
+    },
+    {
       "id": "commerce.open_item",
       "class": "navigate",
       "args": [
@@ -108,6 +151,38 @@
         "producto"
       ],
       "doc": "Open an item's page."
+    },
+    {
+      "id": "commerce.variant",
+      "verb": "variant",
+      "class": "reversible",
+      "args": [
+        {
+          "name": "option",
+          "doc": "The product's option as its page names it: Talla, Tamaño, Peso, Color."
+        },
+        {
+          "name": "value",
+          "doc": "One value of it as the page writes it: King, 1 kg."
+        }
+      ],
+      "say": "{variant: Option | Value} as you pick an option of the product in front, such as its size or weight.",
+      "claims": [
+        "choosing the * option",
+        "choosing the * size",
+        "selecting the * size",
+        "picking the * size",
+        "elijo la talla",
+        "elijo el tamaño",
+        "elijo la opción",
+        "selecciono la talla",
+        "selecciono el tamaño"
+      ],
+      "objects": [
+        "variant",
+        "variante"
+      ],
+      "doc": "Pick one value of an option of the product in front (size, weight, color) with the page's own control, so its price and stock follow. Never adds it to the cart. Refuses a value the page does not offer, with those it does."
     },
     {
       "id": "commerce.cart_add",
@@ -161,6 +236,7 @@
     },
     {
       "id": "commerce.cart_show",
+      "verb": "cart",
       "class": "look",
       "args": [
         {
@@ -169,7 +245,16 @@
           "default": true
         }
       ],
-      "doc": "Open the cart's drawer or page, or close it."
+      "say": "{cart} as you point them to their cart; it opens.",
+      "claims": [
+        "opening your cart",
+        "opening the cart",
+        "abro el carro",
+        "abro tu carro",
+        "abro el carrito",
+        "te muestro el carro"
+      ],
+      "doc": "Open the cart's drawer or page, or close it. As a cue, {cart} opens it; closing is a tool's."
     }
   ],
   "slices": [

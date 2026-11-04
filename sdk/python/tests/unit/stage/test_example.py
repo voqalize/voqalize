@@ -33,9 +33,15 @@ def test_the_brain_imports_with_its_tools(monkeypatch: pytest.MonkeyPatch) -> No
     monkeypatch.syspath_prepend(str(ROOT))
     brain = importlib.import_module("examples.stage_shop.brain")
     try:
-        assert {m.id for m in brain.MOVES} == {"core.show", "commerce.filter", "commerce.cart_add"}
+        assert {m.id for m in brain.MOVES} == {
+            "core.show",
+            "commerce.filter",
+            "commerce.compare",
+            "commerce.cart_add",
+        }
         assert "- {show: Heading}" in brain.PROMPT
         assert "{filter: Facet | Option}" in brain.PROMPT
+        assert "{compare: 1 | 3}" in brain.PROMPT
     finally:
         for name in [n for n in sys.modules if n.startswith("examples")]:
             del sys.modules[name]

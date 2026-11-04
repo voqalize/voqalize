@@ -555,9 +555,13 @@ an app may set). Explora's enquiry form speaks (dev test); Cannon Home takes non
   part already present exactly as the kit has it is the same part (a dump loads again); one
   declared otherwise, a wrong major, an unknown kit or move, or a verb clash is refused. A minor
   version only adds; lowering a class or renaming is a major.
-- **`commerce` 1.0.0**: `commerce.filter` (cue `{filter: Facet | Option[, Option]}`),
-  `commerce.sort` (cue, closed orders), `commerce.search`, `commerce.open_item`,
-  `commerce.cart_add` / `cart_update` (confirmed), `commerce.cart_show`; slices `listing`
+- **`commerce` 1.2.0**: `commerce.filter` (cue `{filter: Facet | Option[, Option]}`),
+  `commerce.sort` (cue, closed orders), `commerce.search`, `commerce.compare` (look, cue
+  `{compare: 1 | 3}`: two to four cards of the listing in front by their place in it, ringed
+  side by side), `commerce.open_item`, `commerce.variant` (reversible, cue
+  `{variant: Option | Value}`: one option of the product in front, such as its size or
+  weight), `commerce.cart_add` / `cart_update` (confirmed), `commerce.cart_show` (look, cue
+  `{cart}` since 1.2.0; closing it is a tool's); slices `listing`
   (path, title, count, filters on/offered, sort, items) and `cart` (count, subtotal, lines);
   events `listing.shown|filtered|sorted`, `cart.changed`. Claims and objects in en and es. Every
   shipped kit is held to `stage check` with no errors.
@@ -578,15 +582,20 @@ an app may set). Explora's enquiry form speaks (dev test); Cannon Home takes non
 ### Developer mode (built)
 
 - **Markup** (`markup.ts`, `@voqalize/stage`): `data-stage-thing="name"` (+ `data-stage-label`,
-  else the accessible name), `data-stage-part="Facet:Option"`, `data-stage-place="name"`.
+  else the accessible name), `data-stage-part="Facet:Option"`, `data-stage-place="name"`,
+  `data-stage-card` (a product card of the listing, counted from 1 in document order among the
+  visible ones).
   Locators only: no moves, labels or prompt text come from markup. `findThing` matches the name,
   then the label whole, then its start, folded; `findPart` folds both halves. Stock performers:
   `showThing` (`{show: Name}`: reveal, scroll, ring; refuses with the labels on the page) and
   `pressParts` (`{filter: Facet | A, B}`: scroll, ring, beat, press each; refuses with the
-  facet's options).
+  facet's options), `pickPart` (`{variant: Option | Value}`: the same for one value of a
+  product's option) and `ringCards` (`{compare: 1 | 3}`: scroll to the first, ring each card in
+  its own ring, change nothing; refuses a place the listing does not show, with the places it
+  does, and fewer than two cards).
 - **Script-tag host** (`@voqalize/stage/script`): `attach(client, {spec, theme?, lang?,
   performers?})`, where `spec` is a spec object or the URL of its page JSON. Each declared move
-  gets the page's own performer, else the stock one for its verb (`STOCK`: show, filter), else
+  gets the page's own performer, else the stock one for its verb (`STOCK`: show, filter, variant, compare), else
   is listed in `unbound` and warned about. It runs on `stagePage`; `navigated()` sends hello
   again for a single-page route change. It is a source module: our snippet and extension
   bundle it, so a plug-and-play customer never installs npm.

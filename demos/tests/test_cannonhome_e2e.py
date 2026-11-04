@@ -742,7 +742,7 @@ def test_the_prompt_teaches_filter_cues_as_the_default() -> None:
     assert "{sort: price_asc}" in prompt
     assert "filter with cues as you say it, one filter per sentence" in prompt
     verbs = {m.verb for m in ch.MOVES if m.verb}
-    assert verbs == {"page", "show", "faq", "filter", "sort"}
+    assert verbs == {"page", "show", "faq", "filter", "sort", "cart"}
 
 
 def test_the_page_for_what_they_asked_about() -> None:

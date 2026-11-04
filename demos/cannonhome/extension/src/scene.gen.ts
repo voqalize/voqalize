@@ -255,6 +255,7 @@ export const scene = defineScene({
     },
     {
       "id": "commerce.cart_show",
+      "verb": "cart",
       "class": "look",
       "args": [
         {
@@ -554,4 +555,4 @@ export const scene = defineScene({
   ]
 });
 
-export const SPEC_SHA256 = "6b46f675bf33dd95874ea7565fdc89837ac9e47784f727245b2f9dd6d2fed4fd";
+export const SPEC_SHA256 = "b4e528b6f992cbc84dbedc8de19289d103f50ed24abe9d11fa451d94ef96213a";
