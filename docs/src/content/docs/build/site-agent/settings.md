@@ -33,7 +33,7 @@ in the console or with `update_site_settings` over
 | `greeting` | none | The assistant's first words; at most 160 characters. A page can override it ([tag options](#options-on-the-tag)). |
 | `avatar.enabled` | `true` | Whether the call shows an animated character. |
 | `avatar.character` | `tara` | Which character; the [catalog](/reference/catalog/) lists them. |
-| `voice.languages` | `["english"]` | The languages the assistant speaks, as names. |
+| `voice.languages` | `["english"]` | The languages the assistant speaks, as names, such as `hindi`, `spanish` or `portuguese` (Brazilian). |
 | `voice.default_language` | `english` | The one calls start in; one of `voice.languages`. |
 | `voice.instructions` | none | Per language, plain text the assistant follows when it speaks that language, such as the currency to say prices in: `{"hindi": "…"}`. Each key one of `voice.languages`; each text at most 500 characters. |
 | `colours.accent`, `.background`, `.text` | derived | The button's colours, each `#rrggbb`. |
@@ -59,6 +59,9 @@ Each character speaks in its own voice, so the voice is not a setting: it is
 set from `avatar.character`, whatever the patch says. With the avatar off the
 site keeps the voice it had. A character none of whose voices speaks every
 site language is refused.
+
+Javier is the character who speaks Spanish and Brazilian Portuguese, each
+beside English, so a site with either language starts with him.
 
 ### What the assistant may do: `assist`
 
