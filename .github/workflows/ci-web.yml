@@ -24,6 +24,8 @@ on:
       - 'demos/build.mjs'
       - 'demos/manifest.json'
       - 'docs/**'
+      # The docs install from the root workspace's lockfile.
+      - 'pnpm-lock.yaml'
       - '.github/workflows/ci-web.yml'
 
 # CI runs on main after a merge, not on pull requests (owner, 2026-10-22): a PR run and its
@@ -71,11 +73,23 @@ jobs:
       - name: Build the demo UIs
         run: node demos/build.mjs
 
+      # The same frozen install from the root lockfile that the deploy's docs
+      # step runs, so a package.json that drifted from pnpm-lock.yaml is red here.
+      - name: Install the docs site
+        run: pnpm install --frozen-lockfile --filter '@voqalize/docs...'
+
+      # The avatar page's live session (src/scripts/avatar-live.ts) is bundled by
+      # Vite, which strips types without checking them, so an avatar or
+      # transport release that changed an API would build clean and break the
+      # page. tsconfig.scripts.json checks the page scripts against the
+      # installed packages' own types.
+      - name: Typecheck the docs scripts
+        working-directory: docs
+        run: pnpm typecheck
+
       - name: Build the docs site
         working-directory: docs
-        run: |
-          pnpm install --ignore-workspace
-          pnpm build
+        run: pnpm build
 
       # The agent's half of the docs. The sibling repo's check_links.py reads the
       # rendered HTML across the marketing/docs seam and cannot see this: an agent

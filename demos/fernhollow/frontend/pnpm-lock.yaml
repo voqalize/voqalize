@@ -24,14 +24,14 @@ importers:
         specifier: ~1.10.8
         version: 1.10.8(@pipecat-ai/client-js@1.16.0)
       '@voqalize/avatar':
-        specifier: ^0.6.2
-        version: 0.6.2(@pipecat-ai/client-js@1.16.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        specifier: ^0.6.3
+        version: 0.6.3(@pipecat-ai/client-js@1.16.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@voqalize/client-transport':
-        specifier: 0.4.0
-        version: 0.4.0(@pipecat-ai/client-js@1.16.0)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.16.0))
+        specifier: 0.4.1
+        version: 0.4.1(@pipecat-ai/client-js@1.16.0)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.16.0))
       '@voqalize/demo-kit':
         specifier: file:../../shared
-        version: file:../../shared(@pipecat-ai/client-js@1.16.0)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.16.0))(@voqalize/client-transport@0.4.0(@pipecat-ai/client-js@1.16.0)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.16.0)))(react@19.3.1)
+        version: file:../../shared(@pipecat-ai/client-js@1.16.0)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.16.0))(@voqalize/client-transport@0.4.1(@pipecat-ai/client-js@1.16.0)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.16.0)))(react@19.3.1)
       '@voqalize/stage':
         specifier: link:../../../sdk/js/stage
         version: link:../../../sdk/js/stage
@@ -514,89 +514,105 @@ packages:
     resolution: {integrity: sha512-excjX8DfsIcJ10x1Kzr4RcWe1edC9PquDRRPx3YVCvQv+U5p7Yin2s32ftzikXojb1PIFc/9Mt28/y+iRklkrw==}
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
 
   '@img/sharp-libvips-linux-arm@1.2.4':
     resolution: {integrity: sha512-bFI7xcKFELdiNCVov8e44Ia4u2byA+l3XtsAj+Q8tfCwO6BQ8iDojYdvoPMqsKDkuoOo+X6HZA0s0q11ANMQ8A==}
     cpu: [arm]
     os: [linux]
+    libc: [glibc]
 
   '@img/sharp-libvips-linux-ppc64@1.2.4':
     resolution: {integrity: sha512-FMuvGijLDYG6lW+b/UvyilUWu5Ayu+3r2d1S8notiGCIyYU/76eig1UfMmkZ7vwgOrzKzlQbFSuQfgm7GYUPpA==}
     cpu: [ppc64]
     os: [linux]
+    libc: [glibc]
 
   '@img/sharp-libvips-linux-riscv64@1.2.4':
     resolution: {integrity: sha512-oVDbcR4zUC0ce82teubSm+x6ETixtKZBh/qbREIOcI3cULzDyb18Sr/Wcyx7NRQeQzOiHTNbZFF1UwPS2scyGA==}
     cpu: [riscv64]
     os: [linux]
+    libc: [glibc]
 
   '@img/sharp-libvips-linux-s390x@1.2.4':
     resolution: {integrity: sha512-qmp9VrzgPgMoGZyPvrQHqk02uyjA0/QrTO26Tqk6l4ZV0MPWIW6LTkqOIov+J1yEu7MbFQaDpwdwJKhbJvuRxQ==}
     cpu: [s390x]
     os: [linux]
+    libc: [glibc]
 
   '@img/sharp-libvips-linux-x64@1.2.4':
     resolution: {integrity: sha512-tJxiiLsmHc9Ax1bz3oaOYBURTXGIRDODBqhveVHonrHJ9/+k89qbLl0bcJns+e4t4rvaNBxaEZsFtSfAdquPrw==}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
 
   '@img/sharp-libvips-linuxmusl-arm64@1.2.4':
     resolution: {integrity: sha512-FVQHuwx1IIuNow9QAbYUzJ+En8KcVm9Lk5+uGUQJHaZmMECZmOlix9HnH7n1TRkXMS0pGxIJokIVB9SuqZGGXw==}
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
 
   '@img/sharp-libvips-linuxmusl-x64@1.2.4':
     resolution: {integrity: sha512-+LpyBk7L44ZIXwz/VYfglaX/okxezESc6UxDSoyo2Ks6Jxc4Y7sGjpgU9s4PMgqgjj1gZCylTieNamqA1MF7Dg==}
     cpu: [x64]
     os: [linux]
+    libc: [musl]
 
   '@img/sharp-linux-arm64@0.34.5':
     resolution: {integrity: sha512-bKQzaJRY/bkPOXyKx5EVup7qkaojECG6NLYswgktOZjaXecSAeCWiZwwiFf3/Y+O1HrauiE3FVsGxFg8c24rZg==}
     engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
 
   '@img/sharp-linux-arm@0.34.5':
     resolution: {integrity: sha512-9dLqsvwtg1uuXBGZKsxem9595+ujv0sJ6Vi8wcTANSFpwV/GONat5eCkzQo/1O6zRIkh0m/8+5BjrRr7jDUSZw==}
     engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
     cpu: [arm]
     os: [linux]
+    libc: [glibc]
 
   '@img/sharp-linux-ppc64@0.34.5':
     resolution: {integrity: sha512-7zznwNaqW6YtsfrGGDA6BRkISKAAE1Jo0QdpNYXNMHu2+0dTrPflTLNkpc8l7MUP5M16ZJcUvysVWWrMefZquA==}
     engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
     cpu: [ppc64]
     os: [linux]
+    libc: [glibc]
 
   '@img/sharp-linux-riscv64@0.34.5':
     resolution: {integrity: sha512-51gJuLPTKa7piYPaVs8GmByo7/U7/7TZOq+cnXJIHZKavIRHAP77e3N2HEl3dgiqdD/w0yUfiJnII77PuDDFdw==}
     engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
     cpu: [riscv64]
     os: [linux]
+    libc: [glibc]
 
   '@img/sharp-linux-s390x@0.34.5':
     resolution: {integrity: sha512-nQtCk0PdKfho3eC5MrbQoigJ2gd1CgddUMkabUj+rBevs8tZ2cULOx46E7oyX+04WGfABgIwmMC0VqieTiR4jg==}
     engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
     cpu: [s390x]
     os: [linux]
+    libc: [glibc]
 
   '@img/sharp-linux-x64@0.34.5':
     resolution: {integrity: sha512-MEzd8HPKxVxVenwAa+JRPwEC7QFjoPWuS5NZnBt6B3pu7EG2Ge0id1oLHZpPJdn3OQK+BQDiw9zStiHBTJQQQQ==}
     engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
 
   '@img/sharp-linuxmusl-arm64@0.34.5':
     resolution: {integrity: sha512-fprJR6GtRsMt6Kyfq44IsChVZeGN97gTD331weR1ex1c1rypDEABN6Tm2xa1wE6lYb5DdEnk03NZPqA7Id21yg==}
     engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
 
   '@img/sharp-linuxmusl-x64@0.34.5':
     resolution: {integrity: sha512-Jg8wNT1MUzIvhBFxViqrEhWDGzqymo3sV7z7ZsaWbZNDLXRJZoRGrjulp60YYtV4wfY8VIKcWidjojlLcWrd8Q==}
     engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
     cpu: [x64]
     os: [linux]
+    libc: [musl]
 
   '@img/sharp-wasm32@0.34.5':
     resolution: {integrity: sha512-OdWTEiVkY2PHwqkbBI8frFxQQFekHaSSkUIJkwzclWZe64O1X4UlUjqqqLaPbUpMOQk6FBu/HtlGXNblIs0huw==}
@@ -642,6 +658,7 @@ packages:
     engines: {node: ^22.20 || ^24.12 || >=25}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
 
   '@pipecat-ai/client-js@1.16.0':
     resolution: {integrity: sha512-rQyct+EghojirF/FSmXMMVkw2vdyO27AmZuNcpurDmbO88NBDtLgjr3X1WdpTYwBcyZMcoks4Cf8uIiUir2b8g==}
@@ -700,66 +717,79 @@ packages:
     resolution: {integrity: sha512-L8IvdrJVtl65g1ozwDSyjGPG+FmibhCdFUwmqTItJLw0S3+Oj4QzFs7rfgTUiK7rsPjkCLdG1/GApFxoynXFJQ==}
     cpu: [arm]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-arm-musleabihf@4.67.4':
     resolution: {integrity: sha512-h7PcoQOzC31jshNpQ48J0akB9tsghjkSjSl5AZ6XsVGTxVsln7t7C4SQyw62tNVSaz2SeHgk4VT2ELbL17BSHQ==}
     cpu: [arm]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-linux-arm64-gnu@4.67.4':
     resolution: {integrity: sha512-KSPuOBNHoOl7AsVjeY1KZci8+0up0U4TFAHU5IzBYN8P+Z6cB9DZq28+JQycZW7f6WLLa/tSzhV7Rdy95bVi+g==}
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-arm64-musl@4.67.4':
     resolution: {integrity: sha512-0E/mKmVk1PlQeQYygIwQm0jlwjANTzGSiNBMPrFx+rdFGFj/2Axh4p6XwcrystQIqXZVudTaGsdbDpzYgJ4wSA==}
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-linux-loong64-gnu@4.67.4':
     resolution: {integrity: sha512-Fvw7dOSc2Sa9UOipRZVI0zOgdLCzsjVyD/6JuHXzUHTXFu7mMgmeX/0/bCVBIut1dz+nWz3pV4WpS/Qg0XVnxw==}
     cpu: [loong64]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-loong64-musl@4.67.4':
     resolution: {integrity: sha512-jzxbVHaE7V3F+P0wEK7UydQtvv7Twfdtx58jI5/3VRx1jJxyrn+qFwfXmqjVFxPhBl+zjaRs+ZJMFJw7vdHaQA==}
     cpu: [loong64]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-linux-ppc64-gnu@4.67.4':
     resolution: {integrity: sha512-fhtrzp9p4GjEJVaigaap9g6X9nP6xgJtKiLLXSDgpE18HXufA5aqfltGn+KAqMtVZReJZfOrXm//y5YSA9BWbA==}
     cpu: [ppc64]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-ppc64-musl@4.67.4':
     resolution: {integrity: sha512-uynaF7IUHwAckV0S+yC1f5esy9gB+aqCBsPH5BOck32TYdCuAn2lVG5tvUcFnEsrviGEmRZxE1NHSOieUPYJEg==}
     cpu: [ppc64]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-linux-riscv64-gnu@4.67.4':
     resolution: {integrity: sha512-uaqRFdfb8eIa2bVHN/FE3ndCvR0zV2xv0AwjCfxrqSu6l6fp/54VhjfhslKlf2RIik9L1jwlt4E56PeVX6tQtQ==}
     cpu: [riscv64]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-riscv64-musl@4.67.4':
     resolution: {integrity: sha512-JZRow7kmxUDEASnxHuVG5itTm+nTXi9BQUABcVUnUEngC+OPwMrpx1uJ9hIA/v+IcAEBL52ktCSPXk5OJn9Jqg==}
     cpu: [riscv64]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-linux-s390x-gnu@4.67.4':
     resolution: {integrity: sha512-rdrh4e+Lq9fCNKoDPaCqeHXbQCe7yl77Ukl45tlSClwYdZ1gpFGZz1XLJdYtY++FRlfL5aHvb6/0n3GDW/Nxsw==}
     cpu: [s390x]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-x64-gnu@4.67.4':
     resolution: {integrity: sha512-wL7MS4r0fYcxluF3ne2plofHZiB/LsqNCnyaUlyiKpAJLb6agPSFz7DEFCfkonWAZXMrLwCmC08b2ZEnEdJkog==}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-x64-musl@4.67.4':
     resolution: {integrity: sha512-4H0XHfd2VufGjX7NjUyeue78sD0bRIoKSGjGqO+F5nSvL6jN48NAU7esdmtFEYxZXwObLtt3MJ/kHS0jASMW3g==}
     cpu: [x64]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-openbsd-x64@4.67.4':
     resolution: {integrity: sha512-osRHQbE55pZpCLetpMsFmhkapyZnAUH73qRKMh+npi3boUom6u6hdaTTPSxlInXxwJHsn9r2uDhdz0V7Yoxx2A==}
@@ -879,8 +909,8 @@ packages:
   '@vitest/utils@2.1.9':
     resolution: {integrity: sha512-v0psaMSkNJ3A2NMrUEHFRzJtDPFn+/VWZ5WxImB21T9fjucJRmS7xCS3ppEnARb9y11OAzaD+P2Ps+b+BGX5iQ==}
 
-  '@voqalize/avatar@0.6.2':
-    resolution: {integrity: sha512-5hGZEw/36hUdjg2p9AOyAmNr0OVbaFnTgTgolSID2puOOV1MWEkJzKsflvnd11rDitzjd5RXmJvdxxp9dvGX/g==}
+  '@voqalize/avatar@0.6.3':
+    resolution: {integrity: sha512-i37tRlTnt6wr/uQ6QBpoxbLPBjuPos6VFg/stbylwtZApu4TJo5nzHUeRlUSzYv1k2q2n6y8wSg7dAgqBm6XCQ==}
     engines: {node: '>=20'}
     peerDependencies:
       '@pipecat-ai/client-js': '>=1.4 <2'
@@ -894,18 +924,18 @@ packages:
       react-dom:
         optional: true
 
-  '@voqalize/client-transport@0.4.0':
-    resolution: {integrity: sha512-3I6ztS/iIjm48Q7E2rXEN732XNJXherUYKWvJZ82ZnO2sTQ0TMw7cR18KazpA8IacHI4NScwMBh5TOIRx83evw==}
+  '@voqalize/client-transport@0.4.1':
+    resolution: {integrity: sha512-w+ipirZg99z/XVHzzrflzDH8b3tKxe9/oIzZWr8GZcDpS+2WyLCxs+bIcqX815mqpUHIiB7ITbojwsYJyVnc3Q==}
     peerDependencies:
       '@pipecat-ai/client-js': '>=1.13.0 <2'
-      '@pipecat-ai/small-webrtc-transport': '>=1.10.0 <2'
+      '@pipecat-ai/small-webrtc-transport': '>=1.10.7 <2'
 
   '@voqalize/demo-kit@file:../../shared':
     resolution: {directory: ../../shared, type: directory}
     peerDependencies:
       '@pipecat-ai/client-js': '>=1.5.0 <2'
       '@pipecat-ai/small-webrtc-transport': '>=1.10.7 <2'
-      '@voqalize/client-transport': 0.4.0
+      '@voqalize/client-transport': 0.4.1
       react: ^19.0.0
 
   assertion-error@2.0.1:
@@ -2019,22 +2049,22 @@ snapshots:
       loupe: 3.2.1
       tinyrainbow: 1.2.0
 
-  '@voqalize/avatar@0.6.2(@pipecat-ai/client-js@1.16.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
+  '@voqalize/avatar@0.6.3(@pipecat-ai/client-js@1.16.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
     optionalDependencies:
       '@pipecat-ai/client-js': 1.16.0
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
 
-  '@voqalize/client-transport@0.4.0(@pipecat-ai/client-js@1.16.0)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.16.0))':
+  '@voqalize/client-transport@0.4.1(@pipecat-ai/client-js@1.16.0)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.16.0))':
     dependencies:
       '@pipecat-ai/client-js': 1.16.0
       '@pipecat-ai/small-webrtc-transport': 1.10.8(@pipecat-ai/client-js@1.16.0)
 
-  '@voqalize/demo-kit@file:../../shared(@pipecat-ai/client-js@1.16.0)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.16.0))(@voqalize/client-transport@0.4.0(@pipecat-ai/client-js@1.16.0)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.16.0)))(react@19.3.1)':
+  '@voqalize/demo-kit@file:../../shared(@pipecat-ai/client-js@1.16.0)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.16.0))(@voqalize/client-transport@0.4.1(@pipecat-ai/client-js@1.16.0)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.16.0)))(react@19.3.1)':
     dependencies:
       '@pipecat-ai/client-js': 1.16.0
       '@pipecat-ai/small-webrtc-transport': 1.10.8(@pipecat-ai/client-js@1.16.0)
-      '@voqalize/client-transport': 0.4.0(@pipecat-ai/client-js@1.16.0)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.16.0))
+      '@voqalize/client-transport': 0.4.1(@pipecat-ai/client-js@1.16.0)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.16.0))
       react: 19.3.1
 
   assertion-error@2.0.1: {}

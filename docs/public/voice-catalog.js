@@ -188,10 +188,25 @@ function renderLanguages(catalog) {
   );
 }
 
+// Our best characters, which lead the table in this order; the rest follow in
+// the catalog's own order. Sorted here as well as in the catalog, so the table
+// is right whichever order the catalog serves. The avatar page's picker keeps
+// the same list (src/scripts/avatar-live.ts).
+const FEATURED_CHARACTERS = ["emily", "aditya", "javier", "ananya"];
+
+function featuredFirst(characters) {
+  const rank = (c) => {
+    const i = FEATURED_CHARACTERS.indexOf(String(c.name).toLowerCase());
+    return i < 0 ? FEATURED_CHARACTERS.length : i;
+  };
+  // A stable sort: everything not featured keeps the catalog's order.
+  return [...characters].sort((a, b) => rank(a) - rank(b));
+}
+
 function renderCharacters(catalog, names) {
   const mount = mounts.characters;
   if (!mount) return;
-  const characters = Array.isArray(catalog.characters) ? catalog.characters : [];
+  const characters = featuredFirst(Array.isArray(catalog.characters) ? catalog.characters : []);
   if (characters.length === 0) {
     mount.replaceChildren(notice("No characters are listed right now. Read ", publicLink(), " directly."));
     return;

@@ -1,11 +1,12 @@
 ---
 name: stage-author
-description: Add Stage to a developer's own web app (React or plain HTML) so a Voqalize voice agent can show and do things on its screen while it talks. Use when annotating an app with data-stage attributes, writing its Stage Spec, wiring @voqalize/stage into its existing pipecat client, or reporting its state to the agent as named events.
+description: Add Stage to a developer's own web app (React or plain HTML) so a Voqalize voice agent can show and do things on its screen while it talks. Use when annotating an app with data-stage attributes, writing its Stage Spec, wiring @voqalize/stage into its existing client, or reporting its state to the agent as named events.
 ---
 
 # Putting Stage into an app
 
-The app keeps its own pipecat client and its own brain. Stage adds three things: a spec of
+The app keeps its own client (in the browser, a `PipecatClient` on
+`@voqalize/client-transport`) and its own brain. Stage adds a spec of
 what the agent may do (`scene.json`), the page's performers for those moves, and named
 events for the state the agent needs. The worked example is
 `sdk/python/examples/stage_shop/`; the contract is `design/stage.md`.
@@ -66,7 +67,7 @@ useSlice(stage, cart, (prev, next) => (prev && prev.count !== next.count ? ["car
 useNavigated(stage, pathname);
 ```
 
-Never wrap, construct or re-export pipecat's client; Stage only attaches to it. Never push
+Never wrap, construct or re-export the app's `PipecatClient`; Stage only attaches to it. Never push
 the whole screen to the brain: a change the agent needs to know about is a named event, and
 one that matches no event is not sent.
 
