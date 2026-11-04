@@ -163,6 +163,20 @@ export const sidebar = [
     ],
   },
   {
+    label: "The Site Agent",
+    items: [
+      { label: "Overview", slug: "build/site-agent" },
+      { label: "Refreshes and review", slug: "build/site-agent/refresh" },
+      { label: "Edit the knowledge", slug: "build/site-agent/knowledge" },
+      { label: "Self studies", slug: "build/site-agent/self-study" },
+      { label: "Previews and invites", slug: "build/site-agent/preview" },
+      { label: "Settings", slug: "build/site-agent/settings" },
+      { label: "CSP, bot protection and data", slug: "build/site-agent/security" },
+      { label: "Roll back, roles and the console", slug: "build/site-agent/manage" },
+      { label: "Limits", slug: "build/site-agent/limits" },
+    ],
+  },
+  {
     label: "Improve the agent",
     items: [
       { label: "Designing for voice", slug: "design" },

@@ -233,7 +233,6 @@ function renderCharacters(catalog, names) {
     ),
     note(
       `${characters.length} characters`,
-      ...(catalog.avatar_package ? [", the set ", code(`@voqalize/avatar@${catalog.avatar_package}`), " mounts"] : []),
       ". Each name opens it on the ",
       el("a", { href: AVATAR_PAGE }, "avatar page"),
       ".",

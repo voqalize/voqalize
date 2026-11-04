@@ -1107,14 +1107,18 @@ facts:
       - '**/changelog.astro'
 
   docs.pages:
-    value: 39
+    value: 48
     source: docs/src/content/docs/
     verified: 2026-11-04
     derive:
       glob: docs/src/content/docs/**/*.md*
     note: >-
       Each page is served twice — rendered, and as the `.md` twin an agent
-      reads — plus llms.txt and 404.html. It was 32 until 2026-10-07, when
+      reads — plus llms.txt and 404.html. It was 46 until 2026-11-04, when the
+      Site Agent section was restructured into one story in reading order
+      (study, publish and install were folded into refresh, self-study,
+      preview, security and manage). It was 39 until 2026-11-04, when the
+      Site Agent section (`build/site-agent/`) was added. It was 32 until 2026-10-07, when
       `build/video` (camera and screen recording) was added. It was 34 until 2026-09-21, when the
       hosting trio (`build/hosting`, `build/inbound`, `build/outbound`) became
       one page and `reference/management-api` became `reference/http-api`: a
@@ -1195,6 +1199,285 @@ facts:
       - 'voqalize\.com/mcp(?![/\w])'
     except:
       - design/facts.yaml
+
+  # ---- the Site Agent (docs/src/content/docs/build/site-agent/) -------------
+  #
+  # Every number the Site Agent pages state. The sources are in the platform
+  # repo, so each fact carries `reproduce:` (run from this repo's root, with
+  # platform checked out beside it). Paths are relative to platform/.
+
+  site.snippet.constructed_stylesheets_floor:
+    value: Safari 16.4
+    source: platform/frontend/packages/site-snippet/src/loader/widget.ts:55 adopt
+    verified: 2026-11-04
+    reproduce: >-
+      sed -n '55,75p' ../platform/frontend/packages/site-snippet/src/loader/widget.ts
+    note: >-
+      The release that added constructable stylesheets to Safari. Older
+      engines get a <style> element in the shadow root, which a strict
+      style-src blocks.
+
+  site.snippet.greeting_override.max_chars:
+    value: 280
+    source: platform/frontend/packages/site-snippet/src/loader/overrides.ts:79 GREETING_MAX_CHARS
+    verified: 2026-11-04
+    reproduce: >-
+      grep -n 'GREETING_MAX_CHARS =' ../platform/frontend/packages/site-snippet/src/loader/overrides.ts
+    note: >-
+      The page's own greeting (`data-greeting`, `window.VoqalizeSite.greeting`),
+      plain text after tags and invisible characters are stripped. A longer
+      value is dropped, not cut. The greeting saved in settings has its own,
+      shorter cap (site.settings.greeting.max_chars).
+
+  site.settings.greeting.max_chars:
+    value: 160
+    source: platform/backend/sitekit/sitekit/bundle.py:1764 SiteSettings.greeting
+    verified: 2026-11-04
+    reproduce: >-
+      grep -n 'greeting: str | None' ../platform/backend/sitekit/sitekit/bundle.py
+
+  site.settings.voice_instructions.max_chars:
+    value: 500
+    source: platform/backend/sitekit/sitekit/limits.py:304 LANGUAGE_INSTRUCTIONS_MAX_CHARS
+    verified: 2026-11-04
+    reproduce: >-
+      grep -n 'LANGUAGE_INSTRUCTIONS_MAX_CHARS' ../platform/backend/sitekit/sitekit/limits.py
+    note: >-
+      Per language, in `voice.instructions`; each key must be one of the
+      site's `voice.languages`.
+
+  site.try_it_live.token_ttl:
+    value: 10 minutes
+    source: platform/backend/controlplane/app/domains/sites/try_links.py:84 TRY_TOKEN_TTL_SECONDS
+    verified: 2026-11-04
+    reproduce: >-
+      grep -n 'TRY_TOKEN_TTL_SECONDS: Final' ../platform/backend/controlplane/app/domains/sites/try_links.py
+    note: >-
+      Single use. Only a tool with a passing proof can be tried; a form send
+      or an irreversible tool never can.
+
+  site.settings.assistant_name.max_chars:
+    value: 40
+    source: platform/backend/sitekit/sitekit/bundle.py:1759 SiteSettings.assistant_name
+    verified: 2026-11-04
+    reproduce: >-
+      grep -n 'assistant_name: str' ../platform/backend/sitekit/sitekit/bundle.py
+
+  site.live_key.rotation_overlap:
+    value: 24 hours
+    source: platform/backend/controlplane/app/domains/sites/service_dtos.py:521 RotatedLiveKey
+    verified: 2026-11-04
+    reproduce: >-
+      grep -n 'previous_key_expires_at' ../platform/backend/controlplane/app/domains/sites/service_dtos.py
+    note: >-
+      After Rotate key, the previous live key keeps working this long so pages
+      can be updated. Rotation is a console action; no MCP tool rotates a key.
+
+  site.starter.pages:
+    value: about 15
+    source: platform/backend/controlplane/app/domains/sites/starter.py:13 STARTER_KEY_PAGES_MAX
+    verified: 2026-11-04
+    reproduce: >-
+      sed -n '10,16p' ../platform/backend/controlplane/app/domains/sites/starter.py
+    note: >-
+      The quick first read, published within minutes of adding a site; its
+      whole pass is capped at site.starter.runtime_cap.
+
+  site.starter.runtime_cap:
+    value: 4 minutes
+    source: platform/backend/controlplane/app/domains/sites/starter.py:62 STARTER_RUNTIME_CAP_S
+    verified: 2026-11-04
+    reproduce: >-
+      grep -n 'STARTER_RUNTIME_CAP_S' ../platform/backend/controlplane/app/domains/sites/starter.py
+    note: >-
+      Pages say "within minutes"; this is the ceiling behind that phrase.
+
+  site.studies.per_month:
+    value: 4
+    source: platform/backend/sitekit/sitekit/limits.py:354 RUNS_PER_SITE_PER_MONTH
+    verified: 2026-11-04
+    reproduce: >-
+      grep -n 'RUNS_PER_SITE_PER_MONTH' ../platform/backend/sitekit/sitekit/limits.py
+    note: >-
+      Studies Voqalize runs, per site, per calendar month (UTC), refreshes and
+      targeted re-checks included; refused past it with `run_limit_reached`.
+      A self study is not counted (run_service.py start_self).
+
+  site.targeted_refresh.minutes:
+    value: about 10 minutes
+    source: platform/backend/controlplane/app/domains/sites/run_service.py:226 FOCUS_MINUTES
+    verified: 2026-11-04
+    reproduce: >-
+      grep -n 'FOCUS_MINUTES' ../platform/backend/controlplane/app/domains/sites/run_service.py
+    note: What the console tells a customer a re-check of chosen actions takes.
+
+  site.self_study.ttl:
+    value: 24 hours
+    source: platform/backend/controlplane/app/domains/sites/run_service.py:192 SELF_RUN_TTL
+    verified: 2026-11-04
+    reproduce: >-
+      grep -n 'SELF_RUN_TTL =' ../platform/backend/controlplane/app/domains/sites/run_service.py
+
+  site.bundle.max_bytes:
+    value: 50 MiB
+    source: platform/backend/sitekit/sitekit/limits.py:41 BUNDLE_MAX_BYTES
+    verified: 2026-11-04
+    reproduce: >-
+      grep -n 'BUNDLE_MAX_BYTES' ../platform/backend/sitekit/sitekit/limits.py
+    note: >-
+      52,428,800 bytes; the self study's `upload.max_bytes`. The same file
+      caps a bundle at 2,000 entries and 40 screenshots of at most 500 KiB each.
+
+  site.bundle.max_entries:
+    value: 2,000
+    source: platform/backend/sitekit/sitekit/limits.py:42 BUNDLE_MAX_ENTRIES
+    verified: 2026-11-04
+    reproduce: >-
+      grep -n 'BUNDLE_MAX_ENTRIES\|SCREENSHOTS_MAX\|SCREENSHOT_MAX_BYTES' ../platform/backend/sitekit/sitekit/limits.py
+
+  site.bundle.screenshots:
+    value: 40, at most 500 KiB each
+    source: platform/backend/sitekit/sitekit/limits.py:43 SCREENSHOTS_MAX, SCREENSHOT_MAX_BYTES
+    verified: 2026-11-04
+    reproduce: >-
+      grep -n 'SCREENSHOT' ../platform/backend/sitekit/sitekit/limits.py
+
+  site.self_study.grader_rounds_max:
+    value: 3
+    source: platform/backend/sitekit/sitekit/limits.py:81 CHECK_FIX_ROUNDS_MAX
+    verified: 2026-11-04
+    reproduce: >-
+      grep -n 'CHECK_FIX_ROUNDS_MAX\|OUTCOME_MAX_ITERATIONS' ../platform/backend/sitekit/sitekit/limits.py
+    note: >-
+      `submit_self_study`'s `grader.rounds`. Recorded for the reviewer, never
+      a gate.
+
+  site.kit.link_ttl:
+    value: 1 hour
+    source: platform/backend/controlplane/app/domains/sites/kit_registry.py:40 KIT_URL_TTL_SECONDS
+    verified: 2026-11-04
+    reproduce: >-
+      grep -n 'KIT_URL_TTL_SECONDS' ../platform/backend/controlplane/app/domains/sites/kit_registry.py
+
+  site.draft.ttl:
+    value: 7 days
+    source: platform/backend/controlplane/app/domains/sites/knowledge_edit/documents.py:31 DRAFT_TTL
+    verified: 2026-11-04
+    reproduce: >-
+      grep -n 'DRAFT_TTL' ../platform/backend/controlplane/app/domains/sites/knowledge_edit/documents.py
+    note: Counted from when the draft was started, not from its last edit.
+
+  site.draft.ops_per_edit:
+    value: 50
+    source: platform/backend/controlplane/app/domains/sites/knowledge_edit/ops.py:90 MAX_OPS_PER_EDIT
+    verified: 2026-11-04
+    reproduce: >-
+      grep -n 'MAX_OPS_PER_EDIT' ../platform/backend/controlplane/app/domains/sites/knowledge_edit/ops.py
+
+  site.draft.fact_reads_per_call:
+    value: 20
+    source: platform/backend/controlplane/app/domains/sites/knowledge_edit/checks.py:124 MAX_FACT_FETCHES
+    verified: 2026-11-04
+    reproduce: >-
+      grep -n 'MAX_FACT_FETCHES' ../platform/backend/controlplane/app/domains/sites/knowledge_edit/checks.py
+    note: Facts past it are `unchecked` until the submit, which reads every one.
+
+  site.draft.bundle_link_ttl:
+    value: 10 minutes
+    source: platform/backend/controlplane/app/domains/sites/knowledge_edit/service.py:106 BUNDLE_URL_TTL_SECONDS
+    verified: 2026-11-04
+    reproduce: >-
+      grep -n 'BUNDLE_URL_TTL_SECONDS' ../platform/backend/controlplane/app/domains/sites/knowledge_edit/service.py
+
+  site.knowledge.read_page_chars:
+    value: 12,000 by default, 1,000 to 40,000
+    source: platform/backend/controlplane/app/domains/sites/knowledge_read.py:59 DEFAULT_PAGE_CHARS
+    verified: 2026-11-04
+    reproduce: >-
+      grep -n 'PAGE_CHARS' ../platform/backend/controlplane/app/domains/sites/knowledge_read.py
+
+  site.knowledge.l1_max_tokens:
+    value: 5,500
+    source: platform/backend/sitekit/sitekit/limits.py:50 L1_MAX_TOKENS
+    verified: 2026-11-04
+    reproduce: >-
+      grep -n 'L1_\|L2_MAX_TOPICS\|CHARS_PER_TOKEN' ../platform/backend/sitekit/sitekit/limits.py
+    note: >-
+      Estimated as characters / 4, not by a tokenizer. A study writes to a
+      target of 5,000.
+
+  site.knowledge.l2_topics_max:
+    value: 30
+    source: platform/backend/sitekit/sitekit/limits.py:54 L2_MAX_TOPICS
+    verified: 2026-11-04
+    reproduce: >-
+      grep -n 'L2_MAX_TOPICS' ../platform/backend/sitekit/sitekit/limits.py
+
+  site.tools.max:
+    value: 48
+    source: platform/backend/sitekit/sitekit/limits.py:182 SITE_TOOLS_MAX
+    verified: 2026-11-04
+    reproduce: >-
+      grep -n 'SITE_TOOLS_MAX' ../platform/backend/sitekit/sitekit/limits.py
+
+  site.invite.client:
+    value: label 1 to 80 characters; 1 to 90 days (default 14); 1 to 1000 voice minutes (default 60)
+    source: platform/backend/controlplane/app/domains/sites/invites.py:37 MAX_INVITE_DAYS
+    verified: 2026-11-04
+    reproduce: >-
+      grep -n 'INVITE_' ../platform/backend/controlplane/app/domains/sites/invites.py
+    note: >-
+      Minutes are checked when a call connects; a call that crosses the budget
+      is not cut.
+
+  site.invite.member_days:
+    value: 30
+    source: platform/backend/controlplane/app/domains/sites/invites.py:43 MEMBER_INVITE_DAYS
+    verified: 2026-11-04
+    reproduce: >-
+      grep -n 'MEMBER_INVITE_DAYS' ../platform/backend/controlplane/app/domains/sites/invites.py
+    note: No minute budget. Made from the console's Preview in my browser only.
+
+  site.invite.preview_key_hours:
+    value: 24
+    source: platform/backend/controlplane/app/domains/sites/invites.py:46 INVITE_KEY_HOURS
+    verified: 2026-11-04
+    reproduce: >-
+      grep -n 'INVITE_KEY_HOURS' ../platform/backend/controlplane/app/domains/sites/invites.py
+    note: The extension refreshes it from the invite until the invite ends.
+
+  site.notes:
+    value: at most 50 notes of at most 300 characters
+    source: platform/backend/controlplane/app/domains/sites/documents.py:443 MAX_SITE_NOTES
+    verified: 2026-11-04
+    reproduce: >-
+      grep -n 'MAX_SITE_NOTES' ../platform/backend/controlplane/app/domains/sites/documents.py;
+      grep -n 'CUSTOMER_NOTE_MAX_CHARS' ../platform/backend/sitekit/sitekit/limits.py
+
+  site.mcp.list_sites_limit_max:
+    value: 100
+    source: platform/backend/controlplane/app/entrypoints/mcp/site_tools.py:121 _MAX_PAGE
+    verified: 2026-11-04
+    reproduce: >-
+      grep -n '_MAX_PAGE =\|_SITE_VERSIONS =' ../platform/backend/controlplane/app/entrypoints/mcp/site_tools.py
+
+  site.mcp.get_site_versions_page:
+    value: 10
+    source: platform/backend/controlplane/app/entrypoints/mcp/site_tools.py:123 _SITE_VERSIONS
+    verified: 2026-11-04
+    reproduce: >-
+      grep -n '_SITE_VERSIONS =' ../platform/backend/controlplane/app/entrypoints/mcp/site_tools.py
+
+  site.robots_acknowledgement.version:
+    value: 2026-10-15-default
+    source: platform/backend/controlplane/app/domains/sites/robots_override.py:64 ROBOTS_ACKNOWLEDGEMENT_VERSION
+    verified: 2026-11-04
+    reproduce: >-
+      sed -n '64,70p' ../platform/backend/controlplane/app/domains/sites/robots_override.py
+    note: >-
+      A new wording is a new version, and an older one is refused with
+      `robots_acknowledgement_outdated`; the page quoting the words must change
+      with it.
 
   # ---- commercial -----------------------------------------------------------
 

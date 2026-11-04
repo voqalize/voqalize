@@ -149,29 +149,32 @@ its sites: what a site knows is edited through a draft, checked, reviewed, then
 published as a version. Each tool's own description, which your coding agent
 reads, has the arguments in full.
 
-| Tool | Does |
-|---|---|
-| `create_site` | Create a site for a website, and start its first study. |
-| `list_sites` | A tenant's sites, with the published and latest versions and any study in progress. |
-| `get_site` | One site with its newest versions and any study in progress. |
-| `get_site_version` | One stored version: its review state, checks and conflicts. |
-| `update_site_settings` | Change a site's settings: its assistant, avatar, languages and look. |
-| `read_site_knowledge` | Read one part of what a site version knows, a page at a time. |
-| `start_knowledge_edit` | Open a draft of a site's knowledge from a stored version. |
-| `edit_knowledge` | Apply a list of operations to the open draft, all or none. |
-| `check_knowledge_edit` | Run the open draft's checks again. |
-| `get_draft_bundle` | A download link for the open draft's bundle, as a `tar.gz`. |
-| `submit_knowledge_edit` | Turn the open draft into a new version, waiting for review. |
-| `discard_knowledge_edit` | Throw the open draft away. |
-| `review_site_version` | Approve or reject a version. |
-| `publish_site_version` | Serve one version to every visitor. |
-| `start_self_study` | Start a study of the site that your own coding agent runs. |
-| `get_self_study` | A self study as it stands. |
-| `submit_self_study` | Create a site version from the self study's upload. |
-| `cancel_self_study` | Cancel a self study, freeing the site for another. |
-| `create_site_invite` | Invite someone outside your tenant to try a site's preview. |
-| `list_site_invites` | A site's preview invites, newest first, with their use. |
-| `revoke_site_invite` | Revoke a preview invite and every preview key made from it. |
+Every tool takes `tenant` first and answers with an object. The pages under
+[The Site Agent](/build/site-agent/) explain each step, and who may take it.
+
+| Tool | Signature | Does |
+|---|---|---|
+| `create_site` | `(tenant, website, robots_acknowledgement_version="", languages=None, default_language="", name="")` | Create a site for a website and start its first study. Answers with the site, its live key's snippet (shown once) and the first study. `languages` defaults to `["english"]`. See [robots.txt](/build/site-agent/security/#robotstxt) and [If your site blocks automated visitors](/build/site-agent/security/#if-your-site-blocks-automated-visitors). |
+| `list_sites` | `(tenant, limit=20, cursor="", include_archived=False)` | A tenant's sites, with the published and latest versions and any study in progress. `limit` is capped at 100. |
+| `get_site` | `(tenant, site_id, versions_cursor="")` | One site with its settings, its versions 10 to a page, and any study in progress. |
+| `get_site_version` | `(tenant, site_id, version)` | One stored version: its review state, checks, conflicts and review flags. |
+| `update_site_settings` | `(tenant, site_id, settings, expected_updated_at="")` | Change a site's settings with a JSON merge patch. See [Settings](/build/site-agent/settings/). |
+| `read_site_knowledge` | `(tenant, site_id, part, version=None, cursor="", limit=None)` | Read one part of a version, a page at a time: 12,000 characters by default, 1,000 to 40,000. `version` defaults to the published one. |
+| `start_knowledge_edit` | `(tenant, site_id, base_version=None)` | Open a draft from a stored version, the published one by default. See [Edit the knowledge](/build/site-agent/knowledge/). |
+| `edit_knowledge` | `(tenant, site_id, ops, expected_revision)` | Apply up to 50 operations to the open draft, all or none, and return its checks. |
+| `check_knowledge_edit` | `(tenant, site_id)` | Run the open draft's checks again. |
+| `get_draft_bundle` | `(tenant, site_id)` | A link to the open draft as a `tar.gz`, valid for ten minutes. |
+| `submit_knowledge_edit` | `(tenant, site_id, owner_tested=False)` | Turn the open draft into a new version, waiting for review. |
+| `discard_knowledge_edit` | `(tenant, site_id)` | Throw the open draft away. |
+| `review_site_version` | `(tenant, site_id, version, decision, resolutions=None, notes="", publish_anyway=None)` | Approve or reject a version. See [Review in full](/build/site-agent/refresh/#review-in-full). |
+| `publish_site_version` | `(tenant, site_id, version, confirm=False, publish_anyway=None)` | Without `confirm`, show what publishing would change; with it, serve the version to every visitor. Publishing a `superseded` version rolls back. |
+| `start_self_study` | `(tenant, site_id)` | Start a study that your own coding agent runs. See [Self studies](/build/site-agent/self-study/). |
+| `get_self_study` | `(tenant, site_id, run_id)` | A self study as it stands, with its upload link. |
+| `submit_self_study` | `(tenant, site_id, run_id, bundle_sha256, kit_version, grader=None, owner_tested=False)` | Check the uploaded bundle and store it as a version. |
+| `cancel_self_study` | `(tenant, site_id, run_id)` | Cancel a self study, freeing the site for another. |
+| `create_site_invite` | `(tenant, site_id, label, days=14, minutes=60)` | Invite someone outside your tenant to try the site's preview: 1 to 90 days, 1 to 1000 voice minutes. See [Previews and invites](/build/site-agent/preview/). |
+| `list_site_invites` | `(tenant, site_id)` | A site's preview invites, newest first, with their use. |
+| `revoke_site_invite` | `(tenant, site_id, invite_id)` | Revoke a preview invite and every preview key made from it. |
 
 ## Read next
 

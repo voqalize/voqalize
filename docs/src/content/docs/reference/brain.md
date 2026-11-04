@@ -781,6 +781,7 @@ Each callback and method is one message on [the wire](/reference/wire/):
 | `on_user_idle` | ← `UserIdle` |
 | `on_rtvi` | ← `RTVIFrame` |
 | `on_finalize` | ← `Finalize` |
+| a barge-in: the running turn's generator is closed | ← `Interruption`: every turn through `through_turn` is cancelled, and one that arrives already covered never runs. Nothing is sent back |
 | `on_error` | ← `Error` |
 | `yield SpeechStart()` / `SpeechChunk` / `SpeechEnd()` | → `SpeechStart` / `SpeechChunk` / `SpeechEnd`, one minted `speech_id` per unit |
 | `session.send_rtvi(type, data)` / `session.dispatch(action)` | → `RTVIFrame` (`dispatch` rides `ui-command`) |
