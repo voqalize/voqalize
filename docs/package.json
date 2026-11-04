@@ -16,7 +16,7 @@
     "@astrojs/starlight": "^0.34.0",
     "@pipecat-ai/client-js": "~1.13.0",
     "@pipecat-ai/small-webrtc-transport": "~1.10.8",
-    "@voqalize/avatar": "0.6.3",
+    "@voqalize/avatar": "0.7.0",
     "@voqalize/client-transport": "0.4.1",
     "astro": "^5.0.0",
     "mermaid": "^11.17.1",

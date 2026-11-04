@@ -537,7 +537,8 @@ facts:
   # below is that checkout, because it is what npm is cut from —
   # `avatar-private/` (the remote `voqalize/avatar-private`) is where the work
   # happens. The runtime and the characters are not in either package: the
-  # loader fetches them from avatar.voqalize.com.
+  # loader fetches them from cdn.voqalize.com (avatar.voqalize.com before 0.7,
+  # still served).
 
   avatar.npm.package:
     value: '@voqalize/avatar'
@@ -546,13 +547,15 @@ facts:
     reproduce: grep '"name"' ../avatar-public/packages/avatar/package.json
 
   avatar.npm.version:
-    value: '0.6.3'
+    value: '0.7.0'
     source: avatar-public/packages/avatar/package.json
     verified: 2026-11-04
     reproduce: npm view @voqalize/avatar version
     note: >-
-      The version every demo here depends on. A different repo, so no derive
-      rule reaches it; the package README is where a version belongs in prose.
+      The version the docs site pins. The demos still depend on ^0.6.3, which
+      stays below 0.7 and loads from avatar.voqalize.com. A different repo, so
+      no derive rule reaches it; the package README is where a version belongs
+      in prose.
     forbid_literal:
       # A version named in a sentence, not a pin: `npm install pkg@0.4.1` is
       # still legal, `@voqalize/avatar 0.4.1` is the claim this fact denies.

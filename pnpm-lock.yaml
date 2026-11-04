@@ -20,8 +20,8 @@ importers:
         specifier: ~1.10.8
         version: 1.10.8(@pipecat-ai/client-js@1.13.1)
       '@voqalize/avatar':
-        specifier: 0.6.3
-        version: 0.6.3(@pipecat-ai/client-js@1.13.1)
+        specifier: 0.7.0
+        version: 0.7.0(@pipecat-ai/client-js@1.13.1)
       '@voqalize/client-transport':
         specifier: 0.4.1
         version: 0.4.1(@pipecat-ai/client-js@1.13.1)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.13.1))
@@ -1276,8 +1276,8 @@ packages:
   '@vitest/utils@2.1.9':
     resolution: {integrity: sha512-v0psaMSkNJ3A2NMrUEHFRzJtDPFn+/VWZ5WxImB21T9fjucJRmS7xCS3ppEnARb9y11OAzaD+P2Ps+b+BGX5iQ==}
 
-  '@voqalize/avatar@0.6.3':
-    resolution: {integrity: sha512-i37tRlTnt6wr/uQ6QBpoxbLPBjuPos6VFg/stbylwtZApu4TJo5nzHUeRlUSzYv1k2q2n6y8wSg7dAgqBm6XCQ==}
+  '@voqalize/avatar@0.7.0':
+    resolution: {integrity: sha512-obixQs8GmkXTn0vzC9gNX5S9Y3r5R0Nq9sVoYcpu+QIZJdEZ5qfC/UujAPzk1dCVqzPo9Tpi4RuUZ4tdbnqzIw==}
     engines: {node: '>=20'}
     peerDependencies:
       '@pipecat-ai/client-js': '>=1.4 <2'
@@ -3995,7 +3995,7 @@ snapshots:
       loupe: 3.2.1
       tinyrainbow: 1.2.0
 
-  '@voqalize/avatar@0.6.3(@pipecat-ai/client-js@1.13.1)':
+  '@voqalize/avatar@0.7.0(@pipecat-ai/client-js@1.13.1)':
     optionalDependencies:
       '@pipecat-ai/client-js': 1.13.1
 
