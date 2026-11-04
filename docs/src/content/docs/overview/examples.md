@@ -75,7 +75,7 @@ mid-session. See [Voice and language](/build/voice-and-language/).
 
 | Demo | What it shows | Links |
 |---|---|---|
-| **The Avatar** | An animated character that explains itself, scrolling the page to the answer and gesturing from the brain. Face and voice are chosen before the session. Its page is the avatar's own documentation page. | [Live](/build/avatar/) · [Brain](https://github.com/voqalize/voqalize/tree/main/demos/avatar/backend) · [Page](https://github.com/voqalize/voqalize/blob/main/docs/src/scripts/avatar-live.ts) |
+| **The Avatar** | An animated character that explains itself, scrolling the page to the answer and gesturing from the brain. Face and voice are chosen before the session. The same brain also runs the live session on the [avatar page](/build/avatar/). | [Live](https://voqalize.com/demos/avatar/) · [Source](https://github.com/voqalize/voqalize/tree/main/demos/avatar) |
 
 ## Read next
 

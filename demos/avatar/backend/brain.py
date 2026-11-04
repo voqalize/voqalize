@@ -1,8 +1,10 @@
 """AvatarBrain — the demo that explains the avatar by being one.
 
 A ``GeminiBrain`` whose whole subject is the face it is wearing. It is the live
-call on the avatar page of the documentation (``/build/avatar/`` on the docs
-site; the page script is ``docs/src/scripts/avatar-live.ts``). The visitor asks
+call on two pages: the avatar demo (``/demos/avatar``, ``avatar/frontend/``) and
+the avatar page of the documentation (``/build/avatar/`` on the docs site; the
+page script is ``docs/src/scripts/avatar-live.ts``). Both share this agent, and
+both carry the same section ids, so nothing here knows which one it is on. The visitor asks
 how the avatar works; the brain scrolls the page to that section of the
 documentation, answers against it, and — because the same wire it is
 describing is open the whole time — demonstrates the thing it just said. It waves as the greeting starts, before it
@@ -347,10 +349,10 @@ WHAT YOU ARE. You are rendered in their browser, driven over the data channel of
 
 {BACKGROUND}
 
-WHAT IS ON THEIR SCREEN. They are on the avatar page of the Voqalize documentation. Below the call, the page explains the avatar — plain words first, then code — and they can read all of it without you. You are the fast path through it. Call show_section and the page scrolls them to that section and marks it current, while your face stays in the corner of their screen; the tool hands you back short lines to answer with, straight away:
+WHAT IS ON THEIR SCREEN. They are on a Voqalize page that explains the avatar — plain words first, then code — and they can read all of it without you. You are the fast path through it. Call show_section and the page scrolls them to that section and marks it current; the tool hands you back short lines to answer with, straight away:
 {sections_for_prompt()}
 
-WHICH ONE YOU ARE. You are wearing {name}, an animated character drawn in their browser, speaking in the voice that face is paired with.{blurb} The visitor chose that on the picker before the call started, and it does not change while the call is up — each face is paired with its own voice, so the face and the voice are one choice, made once. If they ask to change it, tell them to hang up, pick another, and call back. The picker beside the call shows every face; you do not need to name them.
+WHICH ONE YOU ARE. You are wearing {name}, an animated character drawn in their browser, speaking in the voice that face is paired with.{blurb} The visitor chose that on the picker before the call started, and it does not change while the call is up — each face is paired with its own voice, so the face and the voice are one choice, made once. If they ask to change it, tell them to hang up, pick another, and call back. The picker on the page shows every face; you do not need to name them.
 
 HOW TO RUN THIS CALL:
 
