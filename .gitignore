@@ -24,7 +24,7 @@ node_modules/
 # docs is a pnpm workspace member — the root lockfile is authoritative, and the
 # deploy and CI install the docs from it, frozen. This transient lockfile is
 # only written when someone installs docs standalone (--ignore-workspace); it
-# must not be committed, or the site has two lockfiles that can disagree.
+# must not be committed, or it can disagree with the root lockfile.
 docs/pnpm-lock.yaml
 
 # Generated protobuf stubs (regenerated via `make proto`)
