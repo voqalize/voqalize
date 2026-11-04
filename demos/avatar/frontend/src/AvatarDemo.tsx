@@ -77,7 +77,22 @@ const LIMIT_S = 120;
  *  visitor picks another. The brain falls back to the same face when the
  *  connect request carries no usable pick (`DEFAULT_AVATAR` in
  *  `backend/content.py`). */
-const DEFAULT_AVATAR = "tanya";
+const DEFAULT_AVATAR = "emily";
+
+/** Our best characters, which lead the strip in this order. The rest follow in
+ *  the runtime's own order, and a name here the runtime does not carry is
+ *  skipped. The docs page keeps the same list (`avatar-live.ts`). */
+const FEATURED = ["emily", "aditya", "javier", "ananya"];
+
+/** The roster with the featured faces first. */
+function featuredFirst(characters: readonly CharacterInfo[]): CharacterInfo[] {
+  const rank = (name: string) => {
+    const i = FEATURED.indexOf(name);
+    return i < 0 ? FEATURED.length : i;
+  };
+  // A stable sort: everything not featured keeps the runtime's order.
+  return [...characters].sort((a, b) => rank(a.name) - rank(b.name));
+}
 
 /** How a character's name reads on screen: `tess` is Tess. */
 const titled = (name: string) => name.charAt(0).toUpperCase() + name.slice(1);
@@ -720,8 +735,9 @@ export function AvatarDemo() {
   useEffect(() => {
     let live = true;
     listCharacters().then(
-      (characters) => {
+      (listed) => {
         if (!live) return;
+        const characters = featuredFirst(listed);
         const linked =
           characters.find((c) => c.name === init.avatar) ??
           characters.find((c) => c.name === DEFAULT_AVATAR) ??

@@ -256,6 +256,14 @@ Markdown renders the id rather than 17. -->
     glue lives at `@voqalize/stage/react` and takes the app's own React, so no
     second React and no second client surface appear. The owner, deciding the
     Stage architecture: go with the recommendation that 44 be amended this way.*
+    ***Amended 2026-11-04:*** *the stock path has left the docs. The browser
+    path is the client on `@voqalize/client-transport`, and it is the only one
+    the prose teaches. The docs' prose never describes pipecat: its name
+    appears in code (package names, imports, identifiers such as
+    `PipecatClient`) and in the Mobile apps sections, where pipecat's own
+    clients are the path, and nowhere else. "Stays documented as the
+    alternative" above records what was agreed on 2026-10-07; it no longer
+    holds.*
 45. **All server communication is over stock pipecat.** RTVI `ui-event`,
     `server-message` and `ui-command`, on the data channel the transport already
     has. No second channel and no envelope of ours. — *agreed. What is ours is the

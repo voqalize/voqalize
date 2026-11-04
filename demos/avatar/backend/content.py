@@ -159,13 +159,14 @@ SECTIONS_BY_ID: dict[str, Section] = {section.id: section for section in SECTION
 #: The face a call wears when ``init`` names no usable face and voice, with the
 #: voice it wears it in. The docs page opens its picker on the same face
 #: (``DEFAULT_AVATAR`` in ``docs/src/scripts/avatar-live.ts``).
-DEFAULT_AVATAR = "tanya"
-DEFAULT_VOICE = Voice.OMNIVOICE_MADISON
+DEFAULT_AVATAR = "emily"
+DEFAULT_VOICE = Voice.OMNIVOICE_EMILY
 
-#: The voice a face's retired suggestion is worn in. The roster still suggests
-#: Kokoro voices for ``tanya`` and ``tess``, and the speech tier has stopped
-#: serving Kokoro; until a release of ``@voqalize/avatar`` moves the roster, the
-#: brain reads each as the American English voice that replaces it.
+#: The voice a face's retired suggestion is worn in. Rosters before
+#: ``@voqalize/avatar`` 0.6.3 suggest Kokoro voices for ``tanya`` and ``tess``,
+#: and the speech tier has stopped serving Kokoro; a page still on one of those
+#: releases sends them, and the brain reads each as the American English voice
+#: that replaces it.
 RETIRED_VOICES: dict[str, Voice] = {
     "kokoro/ava": Voice.OMNIVOICE_MADISON,
     "kokoro/sarah": Voice.OMNIVOICE_EMILY,
@@ -174,7 +175,8 @@ RETIRED_VOICES: dict[str, Voice] = {
 #: What the model may say about a face beyond its name. Optional: a face with no
 #: line here is introduced by name alone, so a new character needs no edit.
 BLURBS: dict[str, str] = {
-    "tanya": "The default here, and the face on the Voqalize homepage and the legal demo.",
+    "emily": "The default here, the guide on the Voqalize homepage, and the design adviser in the Fernhollow demo.",
+    "tanya": "The face of the legal demo.",
     "tess": "American, and the face of the servicing and travel demos.",
     "tushar": "The male face in the bank demo, beside Tara, and the front desk of the vet-booking demo.",
     "tara": "The face of the bank demo.",

@@ -141,7 +141,7 @@ Pass a `name` as the avatar's `character`.
 
 | Field | Meaning |
 |---|---|
-| `name` | What you pass as `character`, such as `tanya`. |
+| `name` | What you pass as `character`, such as `emily`. |
 | `gender` | The character's presented gender. |
 | `age` | `{min, max}`, the age range the face reads as. |
 | `ethnicity` | A list of words from a closed vocabulary. |
