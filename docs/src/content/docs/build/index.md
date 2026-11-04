@@ -1,36 +1,36 @@
 ---
-title: Build an embedded voice agent
-description: Connect your app, implement the brain, deploy it, and verify a complete call.
+title: Build an agent
+description: The order to build a Voqalize agent in, from the brain to the page, each step linked to the page that covers it.
 ---
 
-You write a pipecat client in your page and a brain behind one WebSocket in
-your backend. An agent record joins them — a name and your brain's
-URL — and Voqalize runs what is between: WebRTC, recognition, synthesis,
-endpointing, turn-taking, interruption and optional recording. Your brain
-receives finalized text and returns speech and actions. Your page writes no
-transport code.
+You write two things: a brain behind one WebSocket in your backend, and a page
+that starts a session with one request and pipecat's client. An agent record
+joins them. [How Voqalize works](/build/session/) explains the parts; the
+[Quickstart](/build/quickstart/) gets you to a first session in ten minutes.
 
-Start with [how a session works](/build/session/), which follows one call the
-whole way, from your page to your brain and back. Every page here is a step of
-that path in detail.
+## The order of work
 
-- [Quickstart](/build/quickstart/) — the smallest complete web example, running.
-- [Connect your app](/build/connect/) — the session-creation request, both
-  credential paths, and the one line of pipecat glue around it.
-- [Build the brain](/build/brain/) — speech, screen actions, tools, context and
-  conversation history.
-- [Use another agent framework](/build/existing-agent/) — when the conversation
-  logic already exists somewhere else.
-- [Deploy the brain](/build/hosting/) — a route Voqalize dials, or a relay your
-  brain dials out to.
-- [Test the brain](/build/testing/) — your brain over the real wire, with no
-  microphone and no model.
-- [Keys and authentication](/build/keys/) — which key goes where, and where a
-  session may be created.
-- [The avatar](/build/avatar/) — a talking head in the page, once the call path
-  works.
-- [Camera and screen](/build/video/) — record the user's camera and
-  screenshare beside the audio, with pipecat's own calls.
+1. **[Write the brain](/build/brain/).** Speech, screen actions, tools, context
+   and history. Bringing logic from another framework instead:
+   [Use another agent framework](/build/existing-agent/).
+2. **[Test the brain](/build/testing/).** Drive it over the real wire with no
+   microphone and no model, before any session is live.
+3. **[Create the agent and say how it is reached](/build/hosting/).** An inbound
+   `wss://` route in production, or the Cortex relay from a laptop or a
+   serverless function.
+4. **[Mint keys](/build/keys/).** An `sk_` for your server; a `pk_` only for a
+   public page.
+5. **[Connect your app](/build/connect/).** The `sessions.connect` request, the
+   response, and the one line of pipecat glue.
+6. **[Pick client libraries](/build/pipecat/).** Pipecat's client with
+   `@voqalize/client-transport`, and the mobile path.
 
-Once a call works end to end, [improving the agent](/design/) is what changes
-next, and [operating calls](/operate/) is how you read one back.
+[Work with a coding agent](/build/coding-agent/) does these steps from your
+editor through the Voqalize MCP server.
+
+## Once it works
+
+- Add [voice and language](/build/voice-and-language/), [Stage](/build/stage/),
+  [the avatar](/build/avatar/) or [camera and screen](/build/video/).
+- Improve the conversation with [Designing for voice](/design/).
+- Read sessions back and prepare for launch in [Operate](/operate/).
