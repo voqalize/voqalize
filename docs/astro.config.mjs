@@ -11,6 +11,11 @@ import { remarkMermaid } from "./src/remark-mermaid.mjs";
 // Every URL we have ever published and retired. Shared with the `.md` twin
 // route, which has to emit a stub at each old path — see src/redirects.mjs.
 import { redirects } from "./src/redirects.mjs";
+// The avatar's live call (/build/avatar) loads `@voqalize/avatar`, and the demos'
+// override for an unreleased runtime applies here too: unset — every prod build —
+// it is nothing, and the page loads the runtime its npm release pins. The dev
+// build sets `AVATAR_RUNTIME` to the dev host's newest runtime.
+import { avatarRuntime } from "../demos/shared/avatar-runtime.mjs";
 
 // The docs site owns its origin — `docs.voqalize.com`, and `docs.dev.` /
 // `docs.local.` one DNS label in front of each environment's apex, matching the
@@ -22,7 +27,15 @@ export default defineConfig({
   trailingSlash: "ignore",
   redirects,
   markdown: { remarkPlugins: [remarkMermaid] },
-  vite: { server: { allowedHosts: [".local.voqalize.com"] } },
+  vite: {
+    plugins: [avatarRuntime()],
+    server: {
+      allowedHosts: [".local.voqalize.com"],
+      // The live call mints its session same-origin at `/api/v1`, which the
+      // deployed docs host rewrites to the control plane; in dev, the local one.
+      proxy: { "/api": { target: "http://localhost:8274", changeOrigin: true } },
+    },
+  },
   integrations: [
     starlight({
       title: "Voqalize",

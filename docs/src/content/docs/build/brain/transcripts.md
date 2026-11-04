@@ -1,84 +1,68 @@
 ---
 title: Transcripts and heard truth
-description: Your history holds what the user heard, not what you intended to say. Where the finalized text comes from and where the record lives.
+description: Record what the user heard, not what you generated. How on_finalize reports each speech unit, how to pair it with the unit that produced it, and what the user's transcript is.
 ---
 
 A reply that generated three sentences and was cut after one is remembered as
-one. At the end of each speech unit Voqalize tells your brain what the user
-actually **heard**, and that — not what your model produced — is what belongs in
-history. Get this wrong and the next turn argues with the user about something
-they were never told.
+one. After each speech unit plays, Voqalize tells your brain what the user
+actually **heard**, and that, not what your model produced, is what goes into
+history. Get it wrong and the next turn refers to things the user was never told.
 
-## `on_finalize`, once per unit, after playout
+## `on_finalize` runs once per unit, after playout
 
 ```python
-async def on_finalize(self, session: Session, fin: Finalize) -> None:
-    ...
-```
+from voqalize.sdk import Brain, Finalize, Session
 
-`Finalize` carries what was heard, what you generated, the unit it reports on,
-and a comparison of heard against generated:
+
+class Concierge(Brain):
+    async def on_finalize(self, session: Session, fin: Finalize) -> None:
+        ...
+```
 
 | Field | What it is |
 |---|---|
-| `heard` | The delivered prefix of that unit's text — what reached the user's ear. |
-| `generated` | The text you emitted for that unit, kept by the SDK so you need not. |
+| `heard` | The prefix of that unit's text that reached the user. |
+| `generated` | The text you sent for that unit, kept by the SDK for you. |
 | `speech_id` | The unit this reports on. |
-| `interrupted` | `heard != generated`. `True` when the user talked over it, `False` when it played to its end. |
+| `interrupted` | `heard != generated`: `True` when the user cut in, `False` when it played to the end. |
 
-`heard` is a verbatim prefix of `generated`, which is what makes `interrupted` a
-comparison rather than a claim: equal means the unit played out, shorter means it
-was cut off, and empty against a unit that sent text means nothing reached the
-ear. Voqalize used to send the verdict alongside the evidence and no longer does
-— a second copy of a derivable fact is one more thing that can disagree.
+`heard` is always a verbatim prefix of `generated`, never longer and never
+another unit's words. Equal means the unit played out, shorter means it was cut,
+and empty means nothing reached the user.
 
-`speech_id` correlates and does nothing else. The SDK mints it when the unit
-opens, inside your generator, so this callback is the first place your own code
-sees the number — which is why the pairing below is by order rather than by id.
+It fires **after playout**, long after the generator that produced the unit
+returned, so this callback is the only place the record can be written.
 
-The callback fires **after playout**, which is long after the generator that
-produced the unit returned. The turn is over when the generator returns; it does
-not wait for the audio. So there is no point in your generator's `finally` where
-what was heard is known yet, and the record is written here or nowhere.
+What you can rely on:
 
-Guarantees a brain can be written against:
-
-- **Exactly one finalize per bracket you opened.** Enrolment happens at
-  `SpeechStart`, not at the first `SpeechChunk`, so a unit you opened and closed with
-  no text in it is reported too — as `heard=""` against `generated=""`, which
-  reads as complete, because nothing was cut.
-- **They arrive in the order the units opened**, oldest first.
-- **A unit the user never heard is still reported**, as `heard=""` against the
-  text you generated. Generated ahead of playout and beaten to the speaker.
+- **Exactly one finalize per `SpeechStart` you yielded**, including a unit with no
+  text (`heard=""`, `generated=""`, not interrupted).
+- **In the order the units opened**, oldest first.
+- **A unit the user never heard is still reported**, as `heard=""` against what
+  you generated.
+- **A barge-in does not cancel the finalizes you are owed.** Every unit the turn
+  opened is still reported.
 - **A finalize with nothing of yours waiting is the greeting.** `greet` returns a
-  string the SDK speaks for you, so this callback is the only record of it that
-  exists. Skip it and your model does not know it greeted, and opens a second
-  time.
+  string the SDK speaks, so this is the only record of it. Skip it and your model
+  does not know it greeted, and greets again.
 
-## Pair a finalize with the unit that produced it
+## Pair each finalize with the unit that produced it
 
-Enrol a unit **where you yield `SpeechStart`** — the same line, so the queue and
-the wire cannot disagree. Then a plain FIFO is enough: the n-th finalize belongs
-to the n-th bracket you opened.
-
-The other half is to **open no bracket you have nothing to say in**. A response
-that only calls a tool is what the model did, not something it said; open a unit for
-it and you have bought a finalize you must account for, and the moment you
-forget to, the reply's heard text lands on the tool call and every finalize
-after it is off by one for the rest of the session. So the `SpeechStart` below
-is lazy — it waits for the first non-empty piece — and enrolment rides along
-with it.
+`speech_id` is minted inside your generator, so pair by order instead: put the
+unit in a queue on the same line where you yield `SpeechStart`, and the n-th
+finalize belongs to the n-th unit you opened. Open no unit you have nothing to
+say in, so a step that only calls a tool never puts an entry in the queue.
 
 ```python
 from collections import deque
 
-from voqalize.sdk import Brain, SpeechChunk, Finalize, Session, SpeechEnd, SpeechStart, UserMessage
+from voqalize.sdk import Brain, Finalize, Session, SpeechChunk, SpeechEnd, SpeechStart, UserMessage
 
 
 class Concierge(Brain):
     def __init__(self) -> None:
         self.history: list[dict[str, str]] = []
-        # Brackets opened, oldest first. One finalize is coming for each.
+        # Units opened, oldest first. One finalize is coming for each.
         self._awaiting: deque[dict[str, str]] = deque()
 
     async def on_user_message(self, session: Session, msg: UserMessage):
@@ -100,7 +84,7 @@ class Concierge(Brain):
 
     async def on_finalize(self, session: Session, fin: Finalize) -> None:
         if not self._awaiting:
-            if fin.heard:                       # the greeting, already heard-truth
+            if fin.heard:                       # the greeting
                 self.history.append({"role": "assistant", "text": fin.heard})
             return
         unit = self._awaiting.popleft()
@@ -110,106 +94,53 @@ class Concierge(Brain):
             self.history = [c for c in self.history if c is not unit]
 ```
 
-Every shipped brain is built this way. The contract suite asserts it against
-both Gemini brains — including the tool-only response that must leave the
-queue untouched — and `OpenAIBrain` and `LiteLLMBrain` share `GeminiBrain`'s
-implementation in the voice core. The conformance driver answers silent brackets too, so a brain
-that opens one and forgets to enrol it fails there rather than in a call — see
-[testing a brain](/build/testing/).
+The shipped model brains (`GeminiBrain`, `OpenAIBrain`, `LiteLLMBrain`) do
+exactly this for you. The [conformance driver](/build/testing/) reports every
+unit too, so a brain that opens one and forgets to queue it fails there rather
+than in a call.
 
-**Keep the callback short.** Frames are dispatched one at a time, so a database
-round-trip in `on_finalize` delays the callbacks queued behind it, including the
-next `on_user_message`. Write into memory here and flush from your own task. An
-interruption rides a priority lane and overtakes everything queued, but not the
-callback already running — one consumer, one frame at a time — so a two-second
-write here is two seconds of a dead turn still generating.
+**Keep the callback short.** Frames are handled one at a time, so a slow database
+write in `on_finalize` delays everything queued behind it, including the next
+`on_user_message`. Write into memory here and flush from your own task.
 
-## The correction only ever shortens
+## A wrong record is invisible until the next turn
 
-`heard` is bounded by that unit's own `generated` text, and expressed in that
-unit's own characters. Voqalize can hand you back less than you sent, down to
-nothing at all, and can never hand you back more. That bound is what the
-`interrupted` comparison rests on.
-
-That bound is a mechanism rather than a promise. No label survives the speech
-path to say which text belonged to which unit, so Voqalize does not carry one: it
-holds the text it relayed, in order, and walks the played-back text through it
-with a cursor that only moves forward. A word that matches nothing at the cursor
-is skipped and counted in the session's own logs. Alignment drift therefore
-degrades into a number you can read back rather than into a history you cannot.
-
-What follows is the reason to build on this:
-
-- **A finalize can never put words in your model's mouth.** Everything between
-  your chunks and the speaker — normalization, segmentation, the synthesis
-  itself — can change what a listener hears and cannot change what you are told
-  you said. The worst case is a turn recorded shorter than it was played.
-- **One unit's finalize can never carry another unit's words.** A cross-unit
-  concatenation is unrepresentable, so the FIFO pairing above cannot silently
-  drift onto the wrong turn.
-
-The interruption watermark is one-way in the same spirit: Voqalize sends the
-newest dead turn, the SDK raises its own mark to it, and it is never lowered,
-never acknowledged, never echoed. A brain that misses one is corrected by the
-next.
-
-**An interruption does not cancel the finalizes you are owed.** The turn's task
-is cancelled and its generator closed, and every bracket it had already opened
-is still reported — as the prefix that played, or as `heard=""`. That is what
-makes `on_finalize` the one place the record is written.
-
-## What a wrong record costs on the next turn
-
-Record what you generated and the next turn is planned against a version of the
-call that never happened. The model refers back to a sentence it did not finish,
-re-uses a number the user never got, or declines to repeat something it
-believes it already covered.
-
-Nothing downstream can tell. Your model's output is a plausible record of what it
-meant to say, your transcript agrees with your logs, your evals pass, and no
-error, dropped frame or latency spike marks the moment it went wrong. The one
-artifact that disagrees is the [recording](/operate/recordings/), and nobody
-plays the recording of a call that went fine. The full argument is in
+Record what you generated, and the next turn is planned against a conversation
+that never happened: the model refers to a sentence it did not finish, reuses a
+number the user never heard, or declines to repeat something it believes it
+covered. Transcripts, logs and evals all agree with the wrong record; only the
+[recording](/operate/recordings/) disagrees. Test it with `barge_in` in the
+[harness](/build/testing/). The argument is
 [interruption and heard truth](/design/#interruption-and-heard-truth).
 
 ## What the user said
 
-`msg.text` in `on_user_message` is the recognizer's **committed** transcript for
-one turn. Nothing partial reaches a brain — there is no interim-transcript frame
-on the wire — so the text you are handed does not move under you, and a turn's
-text may be several commits joined into the one message.
+`msg.text` is the **committed** transcript of one user turn. Nothing partial
+reaches a brain (there is no interim-transcript frame), so the text never changes
+under you, and one turn may be several pieces of speech joined.
 
-Endpointing decides where that turn ends, and it decides twice:
+- **While you speak**, the user takes the floor only with sustained speech. A
+  backchannel ("mm", "haan") does not cut you off.
+- **When the user stops**, the turn is committed when the end of turn is
+  confident, or when silence closes it first. A turn with no transcribed words is
+  not handed to you.
 
-- **While you are speaking**, a start of speech takes the floor only once it is
-  sustained enough to be a real barge-in. A backchannel — "mm", "haan", a
-  one-word garble — does not cut you off and does not become a `UserMessage`.
-- **When the user stops**, the turn is committed either because the end of turn
-  was confident, or because silence forced the close first. A silence-forced
-  close that transcribed nothing is dropped rather than handed to you: there is
-  no question in it to answer.
+So a committed turn is not always a finished thought. Write your brain so a short
+reply to a fragment is survivable: a user who was mid-thought simply carries on,
+and interrupts you if you are speaking.
 
-So a committed turn is not always a finished thought. Silence forces the close on
-8.6% of real turns, measured over 14 days of production, and answering the
-fragment is the cheaper mistake — a user who was mid-thought resumes, and
-resuming inside a few seconds of their own turn ending interrupts you at once.
-Write your brain so a short reply to a fragment is survivable, rather than so it
-never happens.
+Record `msg.text` verbatim for the user's side.
 
-What you record for the user's side is `msg.text` verbatim. It arrived
-finalized, so there is nothing to reconcile on that leg.
+## Voqalize keeps the durable copy
 
-## The durable copy is ours; the working copy is yours
-
-Your history lives in your process, on your schema, and Voqalize persists none of
-it. Our own copy is the wire itself: every frame both directions, uploaded as one
-bundle when the call ends and read back by `session_id` — the same string that was
-in `{brain_url}?session_id={session_id}` and in every line your brain logged. The
-transcripts, each piece of the reply, and each frame a barge-in discarded are all
-in it. See [reading a call back](/operate/reading-a-call/).
+Your history lives in your process, and Voqalize stores none of it. Voqalize's own
+record of the session (what was asked, what your brain generated, what the user
+heard, and what each interruption discarded) is read back by `session_id`, the
+same id your brain sees as `session.id`
+([Reading a call back](/operate/reading-a-call/)).
 
 ## Read next
 
-- [Interruption and heard truth](/design/#interruption-and-heard-truth) — the argument.
-- [The wire](/reference/wire/) — the frames that carry it.
-- [Testing a brain](/build/testing/) — assert on the heard text, without a microphone.
+- [Test the brain](/build/testing/): assert on heard text without a microphone.
+- [Interruption and heard truth](/design/#interruption-and-heard-truth): the argument.
+- [The wire](/reference/wire/): the frames that carry it.

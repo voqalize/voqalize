@@ -230,12 +230,12 @@ deployment's calibration, which is 7. We widen as we learn.
 The `Voice` enum is deprecated and frozen, like `Language`: a brain names a voice
 by its `voice_id` string, so a voice added to the speech tier needs no proto
 release. `design/voice_catalog.py check` holds each enum value to what the speech
-tier serves, notes a served voice the enum has no value for rather than failing,
-and renders the docs table from the same fetch. `vql-stt` routes English and the
+tier serves and notes a served voice the enum has no value for rather than
+failing. `vql-stt` routes English and the
 European languages to Parakeet TDT 0.6B v3 and the Indic codes to
 IndicConformer, and publishes that route table at `GET /v2/languages`; the
 control plane reads it to refuse an unheard `stt.language` at connect and to
-answer `GET /api/v1/capabilities`. The `Language` enum is frozen at English and
+answer `GET /api/v1/catalog.get`. The `Language` enum is frozen at English and
 the Indic codes (owner, 2026-10-19), so a European language is a string only and
 `voice_catalog.py check` notes a voice that speaks one rather than failing.
 The docs on `main` describe dev, and `prod` describes prod; a promote is what
@@ -423,18 +423,16 @@ customer prose — and `check_facts.py` reads it against every governed page.
 `design/voice_catalog.py` fetches what the speech tier is actually serving — per
 A-record, because `speech.*` is round-robin across nodes and one fetch proves
 one node — and holds the `Voice` enum's `voice_id` options to it, and each
-voice's languages to the `Language` enum, then renders `reference/catalog.md`'s
-table from the same document. Both enums are frozen, so a served voice or
-language they cannot name is printed, not failed; an enum value naming a voice
-nothing serves still fails. Run `render` after adding a voice; `check` is what
-fails when somebody didn't, and `voice-catalog.yml` runs it every morning against
-each environment so nobody has to remember. It needs the generated protobuf
-module, so it runs from `sdk/python`.
-
-`--host` picks the environment and defaults to prod, which is the environment the
-docs describe — so the page is compared there and only there; everywhere else the
-proto join still runs and the page check is skipped, because dev and prod are
-*supposed* to differ between a release and its promotion.
+voice's languages to the `Language` enum. Both enums are frozen, so a served
+voice or language they cannot name is printed, not failed; an enum value naming
+a voice nothing serves still fails. `voice-catalog.yml` runs it every morning
+against each environment (`--host`, default prod) so nobody has to remember. It
+needs the generated protobuf module, so it runs from `sdk/python`. The docs keep
+no copy of the roster: `reference/catalog.md`'s voice, language and character
+tables are rendered in the reader's browser from the control plane's public
+`GET /api/v1/catalog.get` (`docs/public/voice-catalog.js`), same-origin through
+the docs origin's `/api` rewrite, so adding a voice needs no docs change and the
+speech hosts are never named to a reader.
 
 Facts whose source is a registry or a sibling repo cannot be
 derived from this tree; they carry the command that re-earns the stamp, and

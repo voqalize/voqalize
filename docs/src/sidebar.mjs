@@ -22,12 +22,20 @@
  * So: five sections, five namespaces, and their names describe the reader's
  * next decision.
  *
- *   Overview /overview/   evaluation, support and current status
+ *   Overview /overview/   evaluation, examples, support and current status
  *   Build    /build/      everything you write, from ten minutes to the whole
- *                         SDK surface
+ *                         SDK surface — including the capabilities you add to
+ *                         an agent that already works (voice and language,
+ *                         Stage, the avatar, video), which the sidebar groups
+ *                         as "Add capabilities" without a namespace of their own
  *   Design   /design/     what changes when the output is spoken
- *   Operate  /operate/    keeping it working
+ *   Operate  /operate/    keeping it working: troubleshooting, production
  *   Reference /reference/ the contracts, consulted from all three
+ *
+ * 2026-11-04: "Start here" leads with the concept page (`build/session`, "How
+ * Voqalize works") and the quickstart, so the first two clicks are the model
+ * and a working call; Stage moved to `build/stage` because it is a capability
+ * added to an agent, not a chapter of writing a brain.
  *
  * `Start` was dissolved into Build on the same day. Its three pages were the
  * prologue of the next section — the Build hub opened by sending the reader back
@@ -114,36 +122,44 @@ export const sidebar = [
   {
     label: "Start here",
     items: [
-      { label: "Current status and support", slug: "overview/status" },
+      { label: "How Voqalize works", slug: "build/session" },
+      { label: "Quickstart", slug: "build/quickstart" },
+      { label: "Examples", slug: "overview/examples" },
+      { label: "Status and support", slug: "overview/status" },
     ],
   },
   {
     label: "Build an agent",
     items: [
       { label: "Overview", slug: "build" },
-      { label: "How a session works", slug: "build/session" },
-      { label: "Quickstart: first call", slug: "build/quickstart" },
-      { label: "Connect your app", slug: "build/connect" },
-      { label: "Client libraries", slug: "build/pipecat" },
       {
-        label: "Your first brain",
+        label: "The brain",
         items: [
           { label: "Overview", slug: "build/brain" },
           { label: "Speaking", slug: "build/brain/speaking" },
           { label: "Actions", slug: "build/brain/actions" },
-          { label: "TypeScript types", slug: "build/brain/typescript" },
           { label: "Tools", slug: "build/brain/tools" },
           { label: "Context and history", slug: "build/brain/context" },
-          { label: "Transcripts", slug: "build/brain/transcripts" },
-          { label: "Stage", slug: "build/brain/stage" },
+          { label: "Transcripts and heard truth", slug: "build/brain/transcripts" },
+          { label: "TypeScript types", slug: "build/brain/typescript" },
         ],
       },
+      { label: "Test the brain", slug: "build/testing" },
       { label: "Use another agent framework", slug: "build/existing-agent" },
       { label: "Deploy the brain", slug: "build/hosting" },
-      { label: "Testing a brain", slug: "build/testing" },
       { label: "Keys and authentication", slug: "build/keys" },
-      { label: "Add an avatar", slug: "build/avatar" },
-      { label: "Record camera and screen", slug: "build/video" },
+      { label: "Connect your app", slug: "build/connect" },
+      { label: "Client libraries", slug: "build/pipecat" },
+      { label: "Work with a coding agent", slug: "build/coding-agent" },
+    ],
+  },
+  {
+    label: "Add capabilities",
+    items: [
+      { label: "Voice and language", slug: "build/voice-and-language" },
+      { label: "Stage", slug: "build/stage" },
+      { label: "The avatar", slug: "build/avatar" },
+      { label: "Camera and screen", slug: "build/video" },
     ],
   },
   {
@@ -156,21 +172,23 @@ export const sidebar = [
     label: "Operate",
     items: [
       { label: "Overview", slug: "operate" },
+      { label: "Troubleshooting", slug: "operate/troubleshooting" },
       { label: "Reading a call back", slug: "operate/reading-a-call" },
       { label: "Recordings", slug: "operate/recordings" },
+      { label: "Going to production", slug: "operate/production" },
       { label: "Usage and limits", slug: "operate/usage" },
     ],
   },
   {
-    label: "API and protocols",
+    label: "Reference",
     items: [
       { label: "Overview", slug: "reference" },
-      { label: "The Brain API", slug: "reference/brain" },
+      { label: "Brain API", slug: "reference/brain" },
       { label: "The wire", slug: "reference/wire" },
-      { label: "The RTVI plane", slug: "reference/rtvi" },
-      { label: "Voice and language", slug: "reference/catalog" },
+      { label: "RTVI messages", slug: "reference/rtvi" },
+      { label: "Voice, language and character catalog", slug: "reference/catalog" },
       { label: "Error codes", slug: "reference/errors" },
-      { label: "The HTTP API", slug: "reference/http-api" },
+      { label: "HTTP API", slug: "reference/http-api" },
       { label: "MCP server", slug: "reference/mcp" },
     ],
   },

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Hold the voice roster — in the proto, in the SDK and in the docs — to what
-the speech tier actually serves.
+"""Hold the voice roster in the proto and the SDK to what the speech tier
+actually serves.
 
 The roster used to be written down wherever it was needed, and every copy went
 stale on its own schedule: voices ran in production for weeks that no client
@@ -12,12 +12,14 @@ The proto enum is the one copy this checks, and ``voice_id`` on each enum value
 is the join. The enum is deprecated and frozen (``frames.proto``, 2026-10-16): a
 brain names a voice by its ``voice_id`` string, so a voice added to the speech
 tier needs no proto release. A served voice no enum value claims is therefore
-printed, not failed, and the docs table lists it by its id alone. The other
-direction still fails: an enum value claiming an id nothing serves is a name
-that fails on a live call.
+printed, not failed. The other direction still fails: an enum value claiming
+an id nothing serves is a name that fails on a live call.
 
-    python3 design/voice_catalog.py check     # the proto and the docs, against every node
-    python3 design/voice_catalog.py render    # rewrite the docs table from the catalog
+The docs carry no copy to check: ``reference/catalog.md``'s voice table is
+rendered in the reader's browser from the same ``/voices.json``
+(``docs/public/voice-catalog.js``).
+
+    python3 design/voice_catalog.py check     # the proto, against every node
 
 **The catalog is fetched per A-record, not per hostname.** ``speech.*`` is DNS
 round-robin across nodes running their own containers, so one fetch proves one
@@ -35,12 +37,8 @@ import json
 import socket
 import ssl
 import sys
-from pathlib import Path
 
-REPO = Path(__file__).resolve().parent.parent
-DOCS_PAGE = REPO / "docs/src/content/docs/reference/catalog.md"
-
-#: The environment whose roster the docs describe.
+#: The environment the docs describe, and the default to check.
 DEFAULT_HOST = "speech.prod.voqalize.com"
 
 #: The document shape this tool understands. The catalog carries its own
@@ -50,20 +48,16 @@ CATALOG_VERSION = 1
 
 #: Engines whose voices left the `Voice` enum while a node may still serve them:
 #: a retirement reaches the proto first and each environment with its next
-#: speech release. A node serving one is reported, not failed, and the docs
-#: table leaves it out. Remove an engine from here once no node serves it.
+#: speech release. A node serving one is reported, not failed. Remove an engine from here once no node serves it.
 #: Kokoro was listed from its retirement (2026-10-26) until speech prod c0adeea
 #: (2026-10-28) left no node serving it.
 RETIRED_ENGINES: frozenset[str] = frozenset()
-
-BEGIN = "<!-- voices:begin -->"
-END = "<!-- voices:end -->"
 
 
 def a_records(host: str) -> list[str]:
     """Every address ``host`` resolves to, in a stable order."""
     infos = socket.getaddrinfo(host, 443, proto=socket.IPPROTO_TCP)
-    return sorted({info[4][0] for info in infos})
+    return sorted({str(info[4][0]) for info in infos})
 
 
 def fetch(host: str, address: str | None = None) -> dict[str, object]:
@@ -137,38 +131,6 @@ def proto_languages() -> dict[str, str]:
     }
 
 
-def table(document: dict[str, object]) -> str:
-    """The docs table, as markdown, from one catalog."""
-    names = proto_voices()
-    rows = [
-        "| `Voice` | Voice ID | Sounds like | Speaks |",
-        "|---|---|---|---|",
-    ]
-    for voice in voices(document):
-        voice_id = str(voice["id"])
-        member = names.get(voice_id)
-        # The enum is frozen, so a voice added since has no value: it is named by its id.
-        name = f"`Voice.{member.removeprefix('VOICE_')}`" if member else "—"
-        spoken = ", ".join(f"`{code}`" for code in voice["languages"])  # type: ignore[union-attr]
-        rows.append(f"| {name} | `{voice_id}` | {voice['display']} | {spoken} |")
-    return "\n".join(rows)
-
-
-def rendered_page(document: dict[str, object]) -> str:
-    page = DOCS_PAGE.read_text()
-    start, end = page.find(BEGIN), page.find(END)
-    if start < 0 or end < 0:
-        raise SystemExit(f"{DOCS_PAGE} has no {BEGIN} … {END} markers to write between")
-    return f"{page[: start + len(BEGIN)]}\n{table(document)}\n{page[end:]}"
-
-
-def cmd_render(args: argparse.Namespace) -> int:
-    document = fetch(args.host)
-    DOCS_PAGE.write_text(rendered_page(document))
-    print(f"{DOCS_PAGE.relative_to(REPO)}: written from https://{args.host}/voices.json")
-    return 0
-
-
 def cmd_check(args: argparse.Namespace) -> int:
     addresses = a_records(args.host)
     print(f"{args.host} resolves to: {', '.join(addresses)}")
@@ -206,8 +168,8 @@ def cmd_check(args: argparse.Namespace) -> int:
     # failed here. Since then a language is also a BCP-47 string
     # (`language_tag`), and the enum is closed on purpose: a language added to
     # the speech tier reaches a brain as a string, with no proto release. So it
-    # is printed, not failed — the docs table still shows the code, rendered
-    # from the same fetch. The reverse is fine and expected too: the
+    # is printed, not failed — the docs table still shows the code, read in
+    # the browser from the same roster. The reverse is fine and expected too: the
     # recognizer serves languages no voice speaks, which is what makes hearing
     # one and answering in another a real session.
     codes = set(proto_languages())
@@ -218,24 +180,11 @@ def cmd_check(args: argparse.Namespace) -> int:
                 f"  · {voice['id']} speaks {code!r}, which is a string tag only; no `Language` value names it"
             )
 
-    # The docs describe one environment, and `render` writes them from
-    # DEFAULT_HOST. Comparing them against any other node would fail on the
-    # difference the two environments are *supposed* to have, so the proto
-    # check runs everywhere and the page check runs where the page is from.
-    if args.host == DEFAULT_HOST:
-        if not problems and DOCS_PAGE.read_text() != rendered_page(fetch(args.host)):
-            problems.append(
-                f"{DOCS_PAGE.relative_to(REPO)} is not what the catalog says — "
-                f"run `python3 design/voice_catalog.py render`"
-            )
-    else:
-        print(f"  (the docs describe {DEFAULT_HOST}, so the page is not compared here)")
-
     for problem in problems:
         print(f"  ✗ {problem}")
     if problems:
         return 1
-    print("  ✓ the proto, the docs and every node agree")
+    print("  ✓ the proto and every node agree")
     return 0
 
 
@@ -247,7 +196,6 @@ def main() -> int:
     host.add_argument("--host", default=DEFAULT_HOST, help=f"default {DEFAULT_HOST}")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("check", parents=[host]).set_defaults(run=cmd_check)
-    sub.add_parser("render", parents=[host]).set_defaults(run=cmd_render)
     args = parser.parse_args()
     return int(args.run(args))
 

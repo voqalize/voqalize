@@ -1,12 +1,10 @@
 ---
-title: Testing a brain
-description: Drive your brain over the real wire in text mode — no audio, no browser, no human — then inspect a live call.
+title: Test the brain
+description: Drive your brain over the real wire in text mode, with no audio, browser or person, assert on what it said and heard, and run the built-in conformance suite in CI.
 ---
 
-The hard part of shipping a voice agent is usually not the voice. It's that every
-change appears to need a person with a microphone. It doesn't.
-
-The SDK ships **`voqalize.conformance`**: a fake Voqalize that speaks
+You can test every change to a brain without a microphone. The SDK ships
+**`voqalize.conformance`**: a fake Voqalize that speaks
 [the wire](/reference/wire/). It hosts your real `Brain` on a real WebSocket,
 mints a real [brain-connection token](/build/hosting/#the-brain-connection-token),
 and models playout and heard-truth the way
@@ -101,7 +99,7 @@ test against the real model as a smoke check.
 
 ## The built-in conformance suite
 
-Beyond your own scenarios, the harness ships a catalog of scenarios — the bar a
+Beyond your own scenarios, the harness ships a catalog of 17 scenarios: the bar a
 brain must clear to be wire-compatible: greeting, turn- and speech-id monotonicity,
 bracket integrity, the barge-in watermark, heard-truth reconciliation across
 multiple interruptions, action-outcome correlation, RTVI delivery, idle
@@ -132,12 +130,12 @@ what can't apply, naming the reason and qualifying the verdict:
   [SKIP] two_units_one_turn
   [SKIP] barge_in
   …
-  [PASS] reject_bad_token             (83 ms)
+  [PASS] reject_bad_token             (86 ms)
   …
 
-  12 skipped: needs the reference command grammar — this brain answered the probe with its own words, which is what any real brain does
+  13 skipped: needs the reference command grammar — this brain answered the probe with its own words, which is what any real brain does
 
-  4 passed, 0 failed, 12 skipped — CONFORMANT on what ran (4 of 16 scenarios; see the skips above)
+  4 passed, 0 failed, 13 skipped — CONFORMANT on what ran (4 of 17 scenarios; see the skips above)
 ```
 
 That is the honest result for an ordinary brain: the wire-level tier is what the
@@ -151,43 +149,21 @@ the probe either way with `--reference` / `--no-reference` if you need to.
 
 The deep tier is worth reaching for once your own scenarios are in place: to run
 it, your brain needs a test mode that answers the grammar and answers a
-`__voqal.conformance.dump` client message with its conversation. Read
+`client-message` named by `voqalize.conformance.CONFORMANCE_DUMP_EVENT` with its
+conversation. Read
 `ConformanceBrain` for the shape — the cooperation is small, and it buys you
 heard-truth reconciliation across multiple interruptions.
 
-## Then: inspect a live call
+## When a live call misbehaves
 
-Once a human has actually talked to the agent, read the call back over the
-[MCP tools](/reference/mcp/):
-
-```
-list_sessions(tenant, agent_id=…, limit=20)              # find it — most recent first
-get_call_record(tenant, session_id)                      # what was said and heard, as turns
-get_session_logs(tenant, session_id, level="WARNING")    # why, when the above isn't enough
-```
-
-The record first: it carries every turn — what was asked, what your brain
-generated, what the user actually heard, and what each interruption threw away —
-and it is versioned contract, so a test may assert on it. Logs are evidence, not
-contract: read them to understand a call, never to assert on one.
-`get_session_events(tenant, session_id)` reads the lifecycle milestones
-(created / connected / ended), and is the only one written while the call is
-still running.
-
-A call still running has no record yet, so check the `record` field before
-concluding it was silent — `missing` is a different fact from an empty list. And
-these are **Voqalize's** records; your brain logs in your own environment. The
-id joining them is `session.id`, the same string in both.
-
-When a live call misbehaves in a way the offline suite passed, that gap **is** the
-next scenario. Reproduce it offline first, then fix it.
+Read it back as [Reading a call back](/operate/reading-a-call/) shows: the call record
+(what was said and heard, turn by turn), then the logs. When a live call fails in
+a way the offline suite passed, that gap is the next scenario: reproduce it here
+first, then fix it.
 
 ## Read next
 
-- **[Interruption and heard truth](/design/#interruption-and-heard-truth)** —
-  what the harness is modelling when it replays a barge-in, and why your history
-  holds what the user heard rather than what you generated.
-- **[Reading a call back](/operate/reading-a-call/)** — the same events and logs
-  against a real call, and what to check before concluding one was silent.
-- **[MCP server](/reference/mcp/)** — the observability tools, and the agent
-  surface that runs this loop for you.
+- [Interruption and heard truth](/design/#interruption-and-heard-truth): what
+  the harness models when it replays a barge-in.
+- [Deploy the brain](/build/hosting/): put the tested brain where Voqalize can reach it.
+- [Reading a call back](/operate/reading-a-call/): the record, logs and events of a real call.

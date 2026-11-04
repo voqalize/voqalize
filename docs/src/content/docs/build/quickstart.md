@@ -1,98 +1,139 @@
 ---
 title: Quickstart
-description: A brain that answers, a call you can hear, in ten minutes. Install, write the brain, create an agent, open a page.
+description: Hear an agent you wrote in about ten minutes. Write a brain in one Python file, create an agent, run the brain on your laptop with no tunnel, and talk to it in the console Playground. Then put it in your page.
 ---
 
-Ten minutes from nothing to a call you can hear. You install the SDK, write a
-brain that answers one way, create an agent that points at it, and open a page.
-Everything you skip here has its own page in [Build](/build/).
+You write a brain in one file, create an agent for it, run the brain on your
+laptop and talk to it in the browser. There is no page to build and no tunnel to
+set up: the brain dials out to Voqalize through the Cortex relay.
 
-## 1. Install
+You need Python 3.12 or later and a Google account to sign in to Voqalize.
+
+## With a coding agent
+
+Connect the Voqalize MCP server to your coding agent. In Claude Code:
+
+```bash
+claude mcp add --transport http voqalize https://app.voqalize.com/mcp/
+```
+
+Then ask:
+
+```text
+Follow https://docs.voqalize.com/build/quickstart.md: write the brain, create
+the agent and its Cortex credentials, run the brain, and give me the test_url.
+```
+
+[Work with a coding agent](/build/coding-agent/) covers the setup and what your
+agent can do from there. The steps below are what it will do.
+
+## By hand
+
+### 1. Install the SDK
 
 ```bash
 pip install voqalize-agent-sdk==0.12.0
 ```
 
-No pipecat, no model SDK, no audio library. **Pin it.** 0.12.0 is where this
-surface stands; the 0.0.x on PyPI is a different one that will import cleanly
-and then fail on a name this page uses.
+Pin the version: releases before 1.0 may change the brain API, and the 0.0.x
+releases on PyPI are an earlier, incompatible surface.
 
-## 2. Write the brain
+### 2. Write the brain
 
-A class, one required callback, the speech frames.
+Save this as `brain.py`:
 
 ```python
-from voqalize.sdk import Brain, SpeechChunk, SpeechEnd, SpeechStart
+import asyncio
+import os
+
+from voqalize.sdk import Brain, SpeechChunk, SpeechEnd, SpeechStart, serve
+
 
 class Concierge(Brain):
     async def greet(self, session):
-        return "Hi! What can I do for you?"
+        return "Hi, I'm your first Voqalize agent. Say something and I'll repeat it."
 
     async def on_user_message(self, session, msg):
         yield SpeechStart()
         yield SpeechChunk("You said: " + msg.text)
         yield SpeechEnd()
-```
 
-`msg.text` is the finalized transcript of one turn. The frames bracket one
-**speech unit** — a thing with a start, a middle you can stream, and an end that
-lets the user interrupt cleanly. Replace the middle with your model's stream
-and this is a real agent. See [Your first brain](/build/brain/).
 
-## 3. Serve it
-
-```python
-from voqalize.sdk import run_session
-
-@app.websocket("/voice")
-async def voice(ws: WebSocket, session_id: str):    # session_id from ?session_id=
-    await ws.accept()
-    await run_session(
-        _WsChannel(ws),
-        brain=Concierge,                            # the class, not an instance
-        session_id=session_id,
-        token=ws.headers.get("authorization"),
+async def main():
+    await serve(
+        Concierge,
+        version="0.1.0",
+        cortex_url=os.environ["VOQALIZE_CORTEX_URL"],
+        api_key=os.environ["VOQALIZE_AGENT_SECRET"],
     )
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
-`run_session` takes a **channel** — anything with `async send(bytes)` and
-`async recv() -> bytes` — so the route is your framework's, not ours.
-`_WsChannel` is the adapter for whichever framework you run;
-[Deploy the brain](/build/hosting/#a-route-voqalize-dials) has it written out for FastAPI. The `brain=`
-is a class, constructed fresh per session, so no state leaks between calls.
+- `greet` returns the first line of every session.
+- `on_user_message` receives each finished user turn as `msg.text` and yields one
+  **speech unit**: `SpeechStart`, the text, `SpeechEnd`. Replace the middle with
+  your model's stream and this is a real agent.
+- `serve` dials the Cortex relay and runs every session on that one connection.
+  `version` is a label of yours that tells you which build answered.
 
-On a laptop or a serverless function that cannot accept inbound, `serve(...)`
-dials out instead and the brain above does not change —
-[Where the brain runs](/build/hosting/).
+### 3. Create the agent and its credentials
 
-## 4. Point an agent at it
+Sign in at [app.voqalize.com](https://app.voqalize.com) with Google. Then use
+either the MCP tools or the console.
 
-An **agent** is our record holding your brain's URL. Create one, keep the `sk_`
-key it gives you, and set `brain_url` to the route from step 3 — through the
-[MCP server](/reference/mcp/), which is where every account operation lives, or
-the console.
-Locally, put a tunnel in front of the route so the URL is reachable.
+**With the MCP tools:**
 
-## 5. Open a page
+```text
+whoami()
+list_tenants()                       # pick your tenant; create_tenant() if the list is empty
+create_agent(tenant, name="Concierge")
+create_agent_credentials(tenant, agent_id)
+```
 
-One `fetch` for the connect parameters, then pipecat's client on
-`@voqalize/client-transport`. The runnable example is web; Pipecat also supplies React Native, native iOS and native Android clients
-for the same connect contract. See [Connecting a page](/build/connect/) and
-[Client libraries](/build/pipecat/).
+`create_agent_credentials` puts the agent in Cortex mode and returns
+`agent_secret` (an `sk_` key, shown once) and `cortex_url`.
 
-## Verify that your brain answered
+**In the console:** create an agent, set it to dial out through Cortex on its
+Overview, then create its secret key on the Connect tab. The console shows both
+values.
 
-A call reaching your agent is now evidence that your route answered: an agent
-with no brain cannot take one at all, so there is no hosted greeter standing in
-for yours. Until 2026-09-01 there was, and a greeting proved only that the call
-path worked.
+### 4. Run the brain
 
-A greeting still does not prove your *turn handling* works. Return a distinctive
-response from `on_user_message`, as above, and confirm that response before
-continuing.
+```bash
+export VOQALIZE_AGENT_SECRET=sk_...   # agent_secret
+export VOQALIZE_CORTEX_URL=...        # cortex_url, exactly as returned
+python brain.py
+```
+
+The two variable names are yours; `brain.py` reads them. Leave the process
+running: it is your brain, connected and waiting for sessions.
+
+### 5. Talk to it
+
+Open the agent's **Playground** in the console. With MCP, its link is the
+`test_url` that `create_agent` and `get_agent(tenant, agent_id)` return. Start a
+session, allow the microphone and say something.
+
+You hear the greeting, then your own words after "You said". That echo is the
+proof that your `on_user_message` ran: an agent whose brain is not connected
+cannot start a session at all.
+
+If the session does not start, check that `brain.py` is still running and that
+`VOQALIZE_CORTEX_URL` is the exact `cortex_url` the tool returned.
+[Troubleshooting](/operate/troubleshooting/) has the rest.
+
+## Put it in your page
+
+The Playground is a page Voqalize hosts. Yours needs two pieces: a route on your
+server that calls `sessions.connect` with an `sk_` key, and pipecat's client on
+`@voqalize/client-transport` in the page. [Connect your app](/build/connect/) has
+both, complete.
 
 ## Read next
 
-- [Your first brain](/build/brain/) — the callbacks, and which one is required.
-- [Where the brain runs](/build/hosting/) — inbound, and dialling out.
-- [Connecting a page](/build/connect/) — the browser half.
+- [Build the brain](/build/brain/): the callbacks, speech, actions and tools.
+- [Deploy the brain](/build/hosting/): an inbound route for production.
+- [Connect your app](/build/connect/): start sessions from your own page.

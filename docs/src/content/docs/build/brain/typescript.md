@@ -1,13 +1,12 @@
 ---
 title: TypeScript types
-description: Your Action and AppEvent classes already describe every payload. `voqalize types` turns both into TypeScript unions so the browser half of each direction is derived rather than copied — and adding one becomes a compile error until it is handled.
+description: Generate TypeScript for your Action and AppEvent classes with `voqalize types`, so the browser half is derived, not copied, and an unhandled action fails the build.
 ---
 
 An [action](/build/brain/actions/) is already a complete description of a
 payload: field names, types, defaults, docstrings. So is an [app
-event](/build/brain/context/), in the other direction. Writing either description
-a second time in TypeScript is not typing work, it is copying — and the copy has
-no way to fail.
+event](/build/brain/context/), in the other direction. Generate the TypeScript
+from them rather than writing it again by hand.
 
 ```bash
 uv run voqalize types backend/brain.py -o frontend/src/actions.gen.ts
@@ -17,26 +16,17 @@ Out comes one file covering both directions: an interface per action and per
 event, an interface per nested model, a union over `command` and a union over
 `event`. Check it in, and regenerate it the way you regenerate a lockfile.
 
-## What the copy costs
+## Why generate instead of copying
 
-Neither of the failures says anything at the time.
-
-**Rename a field in Python** and the hand-written interface goes on compiling.
-The browser reads `cmd.mealType`, gets `undefined`, coerces it to `''`, and draws
-a row with a blank cell. Nothing throws. The bug surfaces as a screenshot in a bug
-report a week later.
-
-**Add an action** and the page's `switch` drops it on `default: break`. The brain
-dispatches, the wire carries it, the reducer ignores it, and the screen simply
-does not move — while the transcript reads perfectly, because the agent said the
-right sentence either way.
-
-Generated types turn both into build failures. That is the entire pitch: not
-better editor completions, but a compiler that notices.
+A hand-written copy fails silently. **Rename a field in Python** and the old
+interface still compiles: the page reads `undefined` and draws a blank cell.
+**Add an action** and the page's `switch` drops it on `default`: the screen does
+not move while the agent says the right sentence. Generated types turn both into
+build failures.
 
 ## What it emits
 
-For a brain declaring `LogMeal`, with a nested `MealItem`:
+For a brain declaring `LogMeal` (with a nested `MealItem`) and `Highlight`:
 
 ```ts
 // Generated from backend/brain.py by `voqalize types`. Do not edit — regenerate with:
@@ -58,6 +48,8 @@ export interface MealItem {
   quantity: string;
   calories: number;
 }
+
+// … and `Highlight`, generated the same way.
 
 /** Everything the brain can put on screen, discriminated by `command`. */
 export type UiAction =
@@ -136,7 +128,7 @@ error TS2345: Argument of type '{ command: "show_summary"; payload: ShowSummary;
   is not assignable to parameter of type 'never'.
 ```
 
-## No action field is optional, and that is on purpose
+## No action field is optional
 
 A Python field with a default is absent from the schema's `required` list, and
 the generated *action* interface still declares it as present. That is not a bug
@@ -178,13 +170,12 @@ imports, and a process-wide registry cannot say which app speaks what. Anything
 the module names — declared there or imported into it — is in; nothing else is.
 That is the same scoping `AppEvents` uses at runtime, for the same reason.
 
-The flags are the whole surface:
-
-| | |
+| Flag | What it does |
 |---|---|
-| `-o`, `--out` | file to write; stdout when omitted |
-| `--union-name` | name of the action union, `UiAction` by default |
-| `--event-union-name` | name of the event union, `AppEvent` by default |
+| `-o`, `--out` | File to write; stdout when omitted. |
+| `--union-name` | Name of the action union, `UiAction` by default. |
+| `--event-union-name` | Name of the event union, `AppEvent` by default. |
+| `--scene SPEC.json` | Instead of a module, write a [Stage Spec](/build/stage/)'s moves as Python (needs `-o`); the same as `voqalize stage gen --py`. |
 
 Rename a union when one frontend talks to more than one brain: everything derived from it
 follows, so `--union-name DeskAction` gives you `DeskAction`,
@@ -209,5 +200,6 @@ works exactly until the next regeneration.
 
 ## Read next
 
-- [Actions](/build/brain/actions/) — declaring the payloads this generates from.
-- [Context and history](/build/brain/context/) — the inbound half these events serve.
+- [Test the brain](/build/testing/): drive actions and events over the real wire.
+- [Actions](/build/brain/actions/): declaring the payloads this generates from.
+- [Context and history](/build/brain/context/): the inbound half these events serve.

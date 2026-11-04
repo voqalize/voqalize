@@ -153,6 +153,16 @@ and the page reaches her through a snippet pasted into that site
 she answers from are an approved list in `kdem/backend/knowledge/`, kept fresh
 from the site's sitemap by `kdem/backend/knowledge.py`. See `kdem/README.md`.
 
+`avatar` is the third, and its page is ours: the avatar's own documentation page,
+`/build/avatar/` on the docs site. Its live session is `docs/src/scripts/avatar-live.ts`,
+bundled into the docs build by `docs/src/components/Head.astro` on that page only,
+with the agent's wiring passed to the docs step of `cloudbuild.web.yaml`
+(`_AVATAR_AGENT` and `_AVATAR_PK`, read as `PUBLIC_AVATAR_AGENT_ID` and
+`PUBLIC_AVATAR_PK`). Its old page, `/demos/avatar`, was retired on 2026-11-04 and
+redirects there, so the brain stays at `wss://brain.<env>.voqalize.com/avatar` with no
+`frontend/` and no `manifest.json` entry. `bin/regen-actions.sh` regenerates the page's
+`docs/src/scripts/avatar-actions.gen.ts` from the brain with the demos' own.
+
 ## Running it
 
 `pm2 start ecosystem.config.cjs` from the repo root is the supervised path: the

@@ -1,43 +1,44 @@
 ---
-title: Current status and supported environments
-description: What is available today — SDK versions, clients, hosting, regions, stored data and retention, and where plans, limits and support are set.
+title: Status and support
+description: What is available today, what Voqalize fits, SDK and client versions, where the brain runs, region, stored session data and its 30-day retention, limits, pricing and support.
 ---
 
-This page separates what is available today from what is planned. The
-[Python package on PyPI](https://pypi.org/project/voqalize-agent-sdk/) and
-[Pipecat's client documentation](https://docs.pipecat.ai/client/introduction)
+This page says what is available today and what is planned. PyPI's
+[`voqalize-agent-sdk`](https://pypi.org/project/voqalize-agent-sdk/) page and
+[pipecat's client documentation](https://docs.pipecat.ai/client/introduction)
 are the upstream records for the SDK surfaces.
+
+## What Voqalize fits
+
+Voqalize fits an app that already has a screen and users, and wants them to talk
+to an agent that acts on that screen: a store, a bank's support flow, a booking
+form, an internal console. You keep the agent's logic, model and data in your own
+backend; Voqalize runs the voice. [Examples](/overview/examples/) shows the
+patterns.
+
+Today it does not place or answer phone (PSTN) calls, it does not host your
+agent's model, and it runs in India only.
 
 ## Brain SDK
 
-The published Python brain SDK is `voqalize-agent-sdk==0.12.0`. It requires
-Python 3.12 or later. Pin the version you build against: releases before 1.0
-may change the brain callbacks.
+The published Python SDK is `voqalize-agent-sdk==0.12.0`, for Python 3.12 or
+later. Pin the version you build against: releases before 1.0 may change the
+brain API.
 
-The `gemini` extra ships `GeminiBrain` and `GeminiInteractionsBrain`.
+| Extra | Brain it ships |
+|---|---|
+| `gemini` | `GeminiBrain` (recommended), and `GeminiInteractionsBrain` (experimental; see [the shipped adapters](/reference/brain/#the-shipped-adapters)) |
+| `openai` | `OpenAIBrain` |
+| `litellm` | `LiteLLMBrain` |
 
-:::caution[`GeminiInteractionsBrain` is experimental]
-Every demo brain runs on `GeminiBrain`, and the last one that did not moved across
-on 2026-09-08. The interactions adapter's interruption path has open defects —
-a step interrupted before its first delta stays in the context forever, and text
-buffered during a step is discarded if a barge-in lands before the step
-closes. Build on `GeminiBrain`; this one is kept, and tested, for the
-properties it has that `generate_content` does not.
-:::
-
-Other agent frameworks and languages connect through
-the published protobuf WebSocket [wire](/reference/wire/). The English
-specification and the conformance harness are the compatibility path: implement
-the wire around the framework's own text stream, then run the harness before
-connecting a live call. See [bringing an agent you already have](/build/existing-agent/).
+Another framework or language connects through the published protobuf
+[wire](/reference/wire/), checked by the conformance harness.
+[Use another agent framework](/build/existing-agent/) shows how.
 
 ## App clients
 
-Voqalize uses Pipecat's RTVI and SmallWebRTC client surfaces directly. In a
-browser, the media is `@voqalize/client-transport@0.4.0`, our open
-implementation of pipecat's media manager; pipecat's stock transport still
-works and is documented for a couple more releases. See
-[client libraries](/build/pipecat/).
+The page side is pipecat's client. In a browser, `@voqalize/client-transport@0.4.1`
+handles the media. See [Client libraries](/build/pipecat/).
 
 | Environment | Client | Voqalize example |
 |---|---|---|
@@ -47,49 +48,27 @@ works and is documented for a couple more releases. See
 | Native iOS | Pipecat Swift with SmallWebRTC | Not yet |
 | Native Android | Pipecat Kotlin with SmallWebRTC | Not yet |
 
-All of these are supported client environments. The Voqalize repository currently
-ships complete examples only for web. For a native client, use the official
-Pipecat client and SmallWebRTC guide; the session-connect response supplies the
-endpoint and session credential that its transport uses. The current
-[connection guide](/build/connect/) shows the web implementation.
+Every environment above is supported. A native app starts sessions from your
+backend with an `sk_` key, because a `pk_` key works only from a browser page
+([Client libraries](/build/pipecat/#mobile-apps)).
 
 ## Where the brain runs
 
-Both connection paths are supported and run the same brain:
+Both connections are supported and run the same brain code. An inbound
+WebSocket route in your app is the production default. The outbound
+[Cortex](/build/session/#glossary) relay is the local-development default, and
+suits serverless and egress-only networks. See
+[Deploy the brain](/build/hosting/).
 
-- An inbound WebSocket route in your application is the default deployment.
-  Voqalize opens one connection per session.
-- An outbound [Cortex relay](/build/hosting/#a-brain-that-dials-out) is supported for egress-only
-  environments and is the default local-development path because the brain
-  needs no public tunnel.
+## Region and limits
 
-Build toward inbound for production unless the environment cannot accept a
-WebSocket connection. See [where the brain runs](/build/hosting/).
+There is one Voqalize environment, `app.voqalize.com`, and you use it for local
+development and testing as well as for production. Sessions are processed and stored in India today. A United States region is
+planned and cannot be selected yet.
 
-## Configuration ownership
-
-The agent record stores the brain URL and an optional recording default. It
-stores no voice, language, recognizer or idle configuration.
-
-`sessions.connect` accepts `tts`, `stt`, `idle` and `record` immediately before
-the call starts. A browser holding a publishable `pk_` may call that route and
-set the same values, with one recording rule: `record: false` is accepted and
-`record: true` is refused. A backend holding an `sk_` may set either value.
-
-During the call, the brain may update `tts`, `stt` and `idle` with
-`await session.configure(...)`. Recording is fixed when the call starts and
-cannot change mid-session. [Voice and language](/reference/catalog/) and
-[recordings](/operate/recordings/) carry the full rules.
-
-## Regions and availability
-
-Calls are processed and stored in India today. A United States region is
-planned and is not available for selection yet.
-
-The MCP server is rate limited per tenant; a refused request is a `429`
-with a `Retry-After` header. Concurrent sessions, included minutes and storage
-are set by your plan; [pricing](https://voqalize.com/pricing) lists each plan's
-allowance. Talk to us before a launch that needs more than a plan carries.
+A session lasts at most one hour. Every other limit, and what happens at it, is
+in [Usage and limits](/operate/usage/#limits); included minutes and storage are
+set by your plan ([pricing](https://voqalize.com/pricing)).
 
 ## Stored session data
 
@@ -99,26 +78,25 @@ allowance. Talk to us before a launch that needs more than a plan carries.
 | Lifecycle and wire events | Yes |
 | Transcripts | Yes, as part of the wire-event record |
 | Voqalize logs | Yes |
-| Audio, and camera and screen video | Only when recording is enabled for that session; video only for a lane the page turned on |
-| Brain model history and brain logs | No; these remain in your environment |
+| Audio, and camera and screen video | Only when the session records; video only for a lane the page turned on |
+| Your brain's model history and logs | No; they stay in your environment |
 
-Stored session data, recordings included, is retained for 30 days. Send
+**Stored session data, recordings included, is retained for 30 days.** Send
 identifiers rather than personal data in `init`, and resolve them against your
 own store.
 
 ## Pricing and support
 
 Voqalize is priced per conversation minute. The minute includes speech
-recognition, speech synthesis, endpointing, WebRTC, the avatar and
-observability. Your brain owns its model, so its LLM usage remains on your
-model-provider account and outside the Voqalize minute.
+recognition, speech synthesis, turn-taking, WebRTC, the avatar and
+observability. Your brain's model usage stays on your own model-provider
+account.
 
-Plans, their included minutes, the free signup credit, support and uptime
-commitments are on the [pricing page](https://voqalize.com/pricing).
+Plans, included minutes, the free signup credit, support and uptime commitments
+are on the [pricing page](https://voqalize.com/pricing).
 
 ## Read next
 
-- [A session, end to end](/build/session/) — the complete application path.
-- [Quickstart](/build/quickstart/) — build the first web call.
-- [Usage and limits](/operate/usage/) — the counters for your tenant.
-- [The wire](/reference/wire/) — implement and verify a brain in another language.
+- [Build an agent](/build/): every step, in order.
+- [Quickstart](/build/quickstart/): hear your first agent.
+- [Going to production](/operate/production/): the checklist before launch.

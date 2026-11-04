@@ -52,11 +52,6 @@
       "tagline": "A voice workflow studio where an ITSM/HR admin assembles, tests, and ships Service Request Workflows by talking to a copilot."
     },
     {
-      "name": "avatar",
-      "title": "The Avatar",
-      "tagline": "A face for AI voice calls, explaining itself. Ask it anything and it scrolls the page to the answer."
-    },
-    {
       "name": "orderdesk",
       "title": "OrderDesk — B2B Order Intake",
       "tagline": "A Hindi voice order-intake agent for a B2B pharma distributor — spoken bulk orders resolve live against a real 20k-SKU catalog on screen."

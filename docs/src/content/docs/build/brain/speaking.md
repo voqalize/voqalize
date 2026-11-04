@@ -1,18 +1,17 @@
 ---
 title: Speaking
-description: Speech is the only thing you yield. The frames that carry it, why a turn is many units, and what streaming buys the user.
+description: Speech is the only thing you yield. The frames that carry it, why a turn is many units, when Voqalize acknowledges for you, and how to stop your own speech.
 ---
 
-Speech is the only thing `on_user_message` yields, because speech is the only
-thing with a position on the audio timeline. You yield `SpeechStart()`, one or
-more `SpeechChunk(text)`, then `SpeechEnd()` — and Voqalize speaks the first sentence
-while you are still producing the last. Everything that is not speech is a
-method on `session`.
+You yield `SpeechStart()`, one or more `SpeechChunk(text)`, then `SpeechEnd()`,
+and Voqalize starts speaking while you are still producing the rest. Everything
+that is not speech is a method on `session` ([Build the brain](/build/brain/)).
 
-## `SpeechStart`, `SpeechChunk`, `SpeechEnd`
+## Open, fill and close a speech unit
 
 ```python
 from voqalize.sdk import Brain, SpeechChunk, SpeechEnd, SpeechStart
+
 
 class Concierge(Brain):
     async def on_user_message(self, session, msg):
@@ -21,39 +20,38 @@ class Concierge(Brain):
         yield SpeechEnd()
 ```
 
-`SpeechStart()` opens a **speech unit** and binds it to the turn you are
-answering. `SpeechChunk(text)` carries text inside the open unit. `SpeechEnd()` closes
-it. The SDK mints the unit's id and stamps the turn on it, so you write neither.
+`SpeechStart()` opens a **speech unit** (one stretch of speech the user can cut
+into, and the grain Voqalize reports what was heard against) and binds it to the
+turn you are answering. `SpeechChunk(text)` carries text inside the open unit.
+`SpeechEnd()` closes it. The SDK mints the unit's id and stamps the turn, so you
+write neither.
 
-Yield anything else — an action, a bare string, a dict — and the SDK raises
-`WireError` rather than putting it on the wire. So does an unbalanced bracket:
-a `SpeechChunk` outside a unit, a `SpeechStart` inside an open one, a
-`SpeechEnd` with nothing open. A unit you cancelled with
-[`cancel_speech`](#stopping-your-own-speech) counts as closed. The rule the
-errors enforce is that every unit you open closes exactly once, and the
-[conformance harness](/build/testing/) checks it against your brain over the
-real wire.
+The SDK raises `WireError` instead of sending:
 
-Behaviours you get for free:
+- anything else you yield: an action, a bare string, a dict;
+- an unbalanced bracket: a `SpeechChunk` outside a unit, a `SpeechStart` inside
+  an open one, a `SpeechEnd` with nothing open.
 
-- **A unit left open by a crash is closed on the wire.** If your generator
-  raises mid-unit, the SDK emits the missing `SpeechEnd` rather than leaving
-  Voqalize waiting for a chunk that is never coming.
-- **On a barge-in the generator is closed, not abandoned**, so your `finally`
-  blocks run. Nothing is emitted for the dead unit.
+Every unit you open closes exactly once. A unit you
+[cancelled](#stopping-your-own-speech) counts as closed. The
+[conformance harness](/build/testing/) checks this over the real wire.
 
-**SpeechChunk boundaries carry no meaning of their own.** Voqalize re-segments the text
-for synthesis (`proto/voqalize/frames/frames.proto`, `message SpeechChunk`), so
-split where your model splits and do not buffer to build tidy sentences.
-`SpeechChunk("")` puts nothing on the wire.
+What you get for free:
 
-`greet` is the one place you do not write the brackets. It returns a string
-rather than yielding, and the SDK wraps that string into exactly one unit on
-turn 1.
+- **A crash mid-unit still closes the unit.** If your generator raises, the SDK
+  sends the missing `SpeechEnd`.
+- **A barge-in closes your generator**, so your `finally` blocks run. Nothing
+  more is sent for the dead unit.
+- **Chunk boundaries carry no meaning.** Voqalize re-segments the text for
+  synthesis, so split where your model splits and do not buffer into tidy
+  sentences. `SpeechChunk("")` sends nothing.
 
-## A turn is many units
+`greet` is the one place you write no brackets: it returns a string, and the SDK
+wraps it into one unit on turn 1.
 
-One call to `on_user_message` may open and close the floor several times:
+## A turn can be several units
+
+One call to `on_user_message` may open and close several units:
 
 ```python
 async def on_user_message(self, session, msg):
@@ -68,56 +66,33 @@ async def on_user_message(self, session, msg):
     yield SpeechEnd()
 ```
 
-Two units, one turn. Write it as one unit spanning the `await` and Voqalize
-reports both back as one `Finalize` — the two lines become a single entry in
-your history, under a single heard prefix.
+Open a unit on the first thing you actually say, and close it when you stop:
 
-**The unit is the grain of everything downstream.** It is what a user can be
-cut out of mid-word, and it is what Voqalize reports heard truth against — one
-`Finalize` per unit that produced audio, never a concatenation across units. So
-a unit opens on the first thing you actually say and closes when you stop:
+- **Speech either side of a wait is two units.** The user can interrupt between
+  them, and each gets its own `Finalize` with its own heard text. Written as one
+  unit spanning the `await`, both lines become one history entry under one heard
+  prefix.
+- **A step that says nothing opens no unit.** An empty `SpeechStart`/`SpeechEnd`
+  pair around a silent tool call still owes a `Finalize`, and if your pairing
+  code forgets it, every finalize after it lands on the wrong unit.
 
-- speech either side of a wait — a database query, a marked tool's second
-  request — is two units, because the user can interrupt between them and
-  Voqalize needs somewhere to stop
-  (`test_speech_either_side_of_a_tool_is_two_units` in
-  `sdk/python/tests/contract/test_brain_contract.py`);
-- a response that only calls a tool opens no unit at all. An empty
-  `SpeechStart`/`SpeechEnd` pair around a silent tool call owes Voqalize a
-  finalize for a unit nobody heard, and every finalize after it lands on the
-  wrong unit for the rest of the call (`test_a_silent_hop_opens_no_unit`, in the
-  same file).
+The shipped model brains (`GeminiBrain`, `OpenAIBrain`, `LiteLLMBrain`) make one
+unit per model response: opened on the first spoken text, closed when the
+response ends. A tool called mid-response runs between two pieces of that unit,
+which is why it must be quick ([Tools](/build/brain/tools/#a-tool-returns-within-20-ms)).
 
-Every shipped brain is written this way. The voice core under `GeminiBrain`,
-`OpenAIBrain` and `LiteLLMBrain` makes a unit of **one model response**: it opens
-lazily on the first spoken text and closes when the response finishes, or when
-its stream ends (`sdk/python/src/voqalize/sdk/voice.py`, `respond_with`). A tool it calls mid-response
-runs between two pieces of the same unit, so a line, a call and a second line in
-one response are one unit, and the tool has to be quick —
-[Tools](/build/brain/tools/#a-tool-returns-within-20-ms) has the budget. Two units
-come from two responses: a tool marked `@needs_result_now` makes the model answer
-again, and that answer is a unit of its own.
+## Voqalize covers the wait before your first word
 
-## The clock between units is yours
+With **ack** on (the default), Voqalize says a short acknowledgement such as
+"Sure." or "Let me check." when the user's turn ends, before your reply begins.
+So:
 
-Voqalize arms one watchdog per committed user turn. If that turn produces no
-**text** for ten seconds, Voqalize speaks a line of its own — *"Sorry — that's
-taking longer than I expected."* — and leaves the session up. The watchdog is
-disarmed by **the first chunk of that turn**, not by the unit opening, and it is
-armed only for a user message: an idle turn you decline to fill is a brain
-behaving correctly and gets no line.
-
-That is the whole guarantee, and its edge is the thing to design around. Once
-your first chunk is out, the turn is unwatched. Silence between unit one and
-unit two is invisible: there is no error, no dropped frame, no failed check, and
-your logs show a turn that answered. The only instrument that sees it is the
-user, sitting through a database query with the floor held by nobody.
-
-Before your first chunk the wait is covered: Voqalize acknowledges the caller
-while your brain works
-([`ack`](/reference/wire/#ack--voqalize-acknowledges-while-the-brain-thinks),
-on unless you turn it off) and the watchdog is armed. So do the slow work before you
-first speak, and open on the answer:
+- **Do slow work before you first speak, and open on the answer.**
+- **Never add a filler line of your own** ("Let me check", "Pulling that up"):
+  the user would hear two.
+- **When a turn calls a tool, say the substantive line in the same response as
+  the call**: what you are doing or showing. [Tools](/build/brain/tools/#speak-first-and-call-in-the-same-response)
+  owns that rule.
 
 ```python
 async def on_user_message(self, session, msg):
@@ -128,32 +103,43 @@ async def on_user_message(self, session, msg):
     yield SpeechEnd()
 ```
 
-Do not open with a line of your own like "Pulling that up now." The caller
-already heard Voqalize's, and hears two. A brain that wants its own turns
-`ack` off.
+### Turn ack off when your brain writes its own
 
-After your first chunk, nothing covers the wait. An `await` there with no
-speech in front of it is dead air you chose, and the line in front of it has
-to carry something, as "The blue one is out of stock." does above. On the
-model-backed brains the SDK writes this shape for a tool marked `@needs_result_now`: the model's
-line is the first unit and its answer from the result is the second. The first
-line is still the model's to say, so it belongs in the prompt —
-[Tools](/build/brain/tools/#when-the-model-reads-a-result) has what a response
-that calls a tool and says nothing sounds like. Work that can
-start early should start early — see
-[parallel workstreams](/design/#parallel-workstreams) — and what a tool costs the
-turn is [tool design for voice](/design/#tool-design-for-voice).
+A brain whose replies open with their own acknowledgement turns ack off. It
+applies from the next turn, so do it in `on_session_start`:
 
-## Why speech is a yield and not a return
+```python
+from voqalize.sdk import Brain
+from voqalize.sdk.wire import AckConfig, Config
 
-A generator lets audio start before your model has finished.
 
-Voqalize aggregates the chunks of an open unit and hands each completed sentence
-to the speech tier as it forms, rather than waiting for `SpeechEnd`. So the first
-syllable is spoken at the first sentence boundary in the text you have yielded so
-far. Stream from your model and the user's ear and your model's output run
-concurrently; build the whole reply and `return` it, and the user pays for the
-generation in silence first and then hears the same words.
+class MyBrain(Brain):
+    async def on_session_start(self, session):
+        await session.configure(Config(ack=AckConfig(enabled=False)))
+```
+
+Acknowledgements are said only in the languages Voqalize has a vocabulary for.
+[Voice and language](/build/voice-and-language/) covers the rest of the session
+settings.
+
+### The ten-second line
+
+If a user turn sends no `SpeechChunk` for ten seconds, Voqalize says a line of
+its own about the wait and keeps the session up. Opening a unit does not stop
+the timer; your first chunk does. [What your user hears](/reference/errors/#what-your-user-hears)
+has the line and the rules.
+
+After your first chunk nothing covers a wait. An `await` between units is
+silence you chose, so the line before it has to carry something, as "The blue
+one is out of stock." does above. Work that can start early should
+([parallel workstreams](/design/#parallel-workstreams)).
+
+## Stream, so speech starts before generation ends
+
+Voqalize does not wait for `SpeechEnd`: it starts speaking once it has a
+sentence. Stream from your model and the user hears the first sentence while the
+model writes the rest; build the whole reply first and the user waits through
+the generation in silence.
 
 ```python
 async def on_user_message(self, session, msg):
@@ -163,24 +149,13 @@ async def on_user_message(self, session, msg):
     yield SpeechEnd()
 ```
 
-Nothing in a transcript distinguishes those calls. The words are identical,
-the recording is not, and the number that moved is
+Text with no sentence boundary waits, so one long unpunctuated clause is spoken
+only when `SpeechEnd` flushes it. Streaming also gives a barge-in somewhere to
+stop: the SDK closes your generator at the `yield` it is on, and your model
+stops producing a reply nobody is hearing. The number this moves is
 [time to first chunk](/design/#the-turn-budget).
 
-The corollary is worth knowing before it bites: text with no sentence boundary in
-it waits. A unit that is one long unpunctuated clause is synthesized when
-`SpeechEnd` flushes it, however early you yielded the chunks.
-
-The generator also buys a place to stop. When the user cuts in,
-the SDK closes your generator at the `yield` it is sitting on, so your model stops
-producing a reply nobody is listening to any more. A body that builds the whole
-string and returns it has already finished by then, and there is nothing left to
-stop.
-
-## A callback that decides not to speak
-
-Declining the floor is a real answer, and the natural way to write it has no
-`yield` in it:
+## Decline the floor with no `yield`
 
 ```python
 async def on_user_idle(self, session, idle):
@@ -188,79 +163,61 @@ async def on_user_idle(self, session, idle):
         session.end(reason="idle")
 ```
 
-Python decides generator-or-coroutine from the source, so that body is an
-ordinary coroutine however it is annotated. The SDK runs it either way. Leave the
-`yield` out when you have nothing to say; `on_user_idle` says nothing by default.
+A body with no `yield` is an ordinary coroutine, and the SDK runs it either way.
+`on_user_idle` says nothing by default.
 
 ## Stopping your own speech
 
-A guardrail that checks your model's output beside the stream decides a beat
-after the text went out. By then some of it has been spoken. `cancel_speech`
-stops the unit where playout has got to, drops the rest, and tells you how much
-the user heard:
+A guardrail that checks output beside the stream decides a beat after the text
+went out. `cancel_speech` stops the unit where playout has got to, drops the
+rest, and returns what the user heard:
 
 ```python
-from voqalize.sdk import SpeechChunk, SpeechEnd, SpeechStart
+from voqalize.sdk import Brain, SpeechChunk, SpeechEnd, SpeechStart
 
-async def on_user_message(self, session, msg):
-    start = SpeechStart()
-    yield start                                   # the SDK writes start.speech_id
-    async for piece in self.model.stream(msg.text):
-        if session.can_cancel_speech and await self.guardrail.flags(piece):
-            await self.model.stop()               # Voqalize can only drop what it is sent
-            fin = await session.cancel_speech(start.speech_id)
-            self.history.append(fin.heard)        # what was said, not what was generated
-            yield SpeechStart()
-            yield SpeechChunk("Let me put that another way.")
-            yield SpeechEnd()
-            return
-        yield SpeechChunk(piece)
-    yield SpeechEnd()
+
+class Guarded(Brain):
+    async def on_user_message(self, session, msg):
+        start = SpeechStart()
+        yield start                                   # the SDK writes start.speech_id
+        async for piece in self.model.stream(msg.text):
+            if session.can_cancel_speech and await self.guardrail.flags(piece):
+                await self.model.stop()               # Voqalize can only drop what it is sent
+                fin = await session.cancel_speech(start.speech_id)
+                self.history.append(fin.heard)        # what was said, not what was generated
+                yield SpeechStart()
+                yield SpeechChunk("Let me put that another way.")
+                yield SpeechEnd()
+                return
+            yield SpeechChunk(piece)
+        yield SpeechEnd()
 ```
 
-Keep the `SpeechStart` you yield: the id the SDK minted for the unit is written
-onto it, and that id is what you cancel. The call returns the unit's
-`Finalize` — the same one `on_finalize` then receives — so `fin.heard` is a
-verbatim prefix of `fin.generated` and `fin.interrupted` says whether the cut
-landed before the end.
+Keep the `SpeechStart` you yield: the SDK writes the unit's id onto it, and that
+id is what you cancel. The call returns the unit's `Finalize` (the same one
+`on_finalize` then receives).
 
-- **The turn stays open.** This is not a barge-in. Open a new unit straight
-  away, as above, and it plays. A cancelled unit needs no `SpeechEnd`, and
-  anything you yield for it after the cancel is dropped by the SDK rather than
-  sent.
-- **`heard` is accurate to about one word either way.** It counts the words
-  Voqalize had handed to the outbound audio when the cut landed; audio already
-  on its way to the user still plays. A guardrail should assume one word more
-  than `heard` may have been heard.
-- **A cancel that lost the race returns at once.** If the unit had already
-  finished playing, you get the `Finalize` it already sent, with nothing cut. A
-  second cancel of the same unit does the same.
-- **Check `session.can_cancel_speech` first.** A Voqalize that does not
-  advertise it would skip the cancel and play the unit out, so the SDK raises
-  `Unsupported` before sending anything. An id this session never opened raises
-  `ValueError`; a `Finalize` that has not arrived after ten seconds raises
-  `TimeoutError`, and the unit still counts as open, so close it with
-  `SpeechEnd` as usual.
-- **Today the cut stops every unit still playing or queued**, not just the one
-  you named — an earlier unit of the same reply included, and a later one you
-  are still streaming, whose remaining yields the SDK drops as it does for the
-  unit you named. Each gets its own `Finalize` at `on_finalize`. A unit you
-  open after the cancel is unaffected.
+- **The turn stays open.** This is not a barge-in: open a new unit and it plays.
+  A cancelled unit needs no `SpeechEnd`, and anything you yield for it afterwards
+  is dropped.
+- **Do not rely on `heard` to the character.** Audio already on its way still
+  plays after the cut, so the user may have heard a little more than `heard`.
+- **A cancel that lost the race returns at once** with the unit's `Finalize`,
+  nothing cut. A second cancel does the same.
+- **Check `session.can_cancel_speech` first.** Without it the SDK raises
+  `Unsupported` before sending. An id this session never opened raises
+  `ValueError`. No `Finalize` within ten seconds raises `TimeoutError`, and the
+  unit still counts as open, so close it with `SpeechEnd`.
+- **The cut stops every unit still playing or queued**, not only the one you
+  named. Each gets its own `Finalize`. A unit you open after the cancel is
+  unaffected.
 
-Call it from the turn, from `on_rtvi`, or from a task of your own. Not from
-`on_finalize` for another unit: that hook runs in line with incoming frames, so
-the `Finalize` it would wait for is queued behind it.
-
-## What the user heard is not what you sent
-
-A unit you generated in full and the user cut after four words is four words in
-their memory of the call. Voqalize reports that back per unit, after playout, at
-`on_finalize` — long after the generator that produced it returned. Record the
-delivered prefix rather than what you yielded:
-[transcripts and heard truth](/build/brain/transcripts/).
+Call it from the turn, from `on_rtvi` or from your own task, but not from
+`on_finalize`: that hook runs in line with incoming frames, so the `Finalize` it
+would wait for is queued behind it.
 
 ## Read next
 
-- [Actions](/build/brain/actions/) — the channel that does not speak.
-- [The turn budget](/design/#the-turn-budget) — how long a unit may be.
-- [Interruption and heard truth](/design/#interruption-and-heard-truth).
+- [Transcripts and heard truth](/build/brain/transcripts/): record what the user heard.
+- [Actions](/build/brain/actions/): the channel that does not speak.
+- [The turn budget](/design/#the-turn-budget): how long a unit may be.

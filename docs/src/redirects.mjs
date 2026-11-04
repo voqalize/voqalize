@@ -20,6 +20,9 @@
  * other's toolchain handles TypeScript.
  */
 export const redirects = {
+  // Stage is a capability you add, not a chapter of the brain.
+  "/build/brain/stage": "/build/stage",
+
   // Start dissolved into Build — it was the prologue of the next section.
   "/start/session-end-to-end": "/build/session",
   "/start/pipecat": "/build/pipecat",

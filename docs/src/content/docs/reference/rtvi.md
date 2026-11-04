@@ -1,12 +1,12 @@
 ---
-title: The RTVI plane
+title: RTVI messages
 description: A whitelist of message types carried verbatim between your brain and your page. What crosses, what does not, and why the exclusions are the security property.
 ---
 
 Your brain and your page talk to each other over RTVI, pipecat's own message
 format, tunnelled through the Voqalize wire. A message is
-`{id, label, type, data}` on the data channel; we carry the whitelisted types
-verbatim in both directions and interpret nothing about them — with one
+`{id, label, type, data}` on the data channel; Voqalize carries the whitelisted types
+verbatim in both directions and interprets nothing about them — with one
 deliberate exception, [`send-text`](#send-text-is-a-turn-not-a-message), which
 becomes a user turn rather than arriving as a message.
 
@@ -27,7 +27,7 @@ which is the contract of record.
 | `server-message` | An unsolicited message to the app. |
 | `server-response` | An answer to a message the app sent, quoting its `id`. |
 | `error-response` | The same, when the answer is a failure. |
-| `ui-command` | An [action](/design/#voice-points-the-screen-holds) — `{"command": …, "payload": {…}}`. |
+| `ui-command` | An [action](/build/brain/actions/) — `{"command": …, "payload": {…}}`. |
 | `ui-job-group` | Lifecycle envelopes for a group of jobs — started, update, completed — keyed by a shared `job_id`. |
 
 **Page → brain**
@@ -42,8 +42,8 @@ which is the contract of record.
 `ui-command` and `ui-event` are the ones with a Voqalize method behind them:
 `ui-command` is what `session.dispatch` rides, and `ui-event` is what
 `AppEvents.parse` reads. The rest of the `ui-*` family is pipecat's own, defined
-and implemented by its client and its server-side workers; we carry them and
-interpret nothing. The descriptions above are what pipecat's client does with
+and implemented by its client and its server-side workers; Voqalize carries them and
+interprets nothing. The descriptions above are what pipecat's client does with
 them, and pipecat's documentation is the authority on those.
 
 ## `send-text` is a turn, not a message
@@ -66,9 +66,7 @@ box gains one the day you add it.
 `run_immediately` and `audio_response` ride pipecat's `send-text` and **neither
 is honoured**, deliberately rather than by omission. `run_immediately=false` would need a stimulus that is
 stored without minting a turn, and `audio_response=false` would need a per-turn
-gate on synthesis; Voqalize has neither. Half-honouring one is worse than
-refusing it, because a user who asked for silence and got speech has been told
-something false about the mechanism. **A typed question is answered aloud,
+gate on synthesis; Voqalize has neither. **A typed question is answered aloud,
 always.**
 
 An empty submission mints nothing — it is dropped where it arrives rather than
@@ -77,7 +75,7 @@ travelling as a turn that says nothing.
 ## What Voqalize tells your page
 
 Voqalize sends your page one `server-message` of its own, and your brain never
-sees it: how well the caller's audio is reaching us.
+sees it: how well the user's audio is reaching Voqalize.
 
 ```json
 { "label": "rtvi-ai", "type": "server-message",
@@ -98,9 +96,9 @@ one arrives, the call is `good`. A worse grade arrives at once; a better one com
 back a step at a time, after the network has held there for a while, so a brief
 burst of loss doesn't make it flicker.
 
-What the caller is told, if anything, is yours to decide. A banner at `poor`, a
-"we lost you for a moment" at `bad`, or nothing at all. The word is all we send:
-the measurements behind it are ours and change as we tune them.
+What the user is told, if anything, is yours to decide. A banner at `poor`, a
+"we lost you for a moment" at `bad`, or nothing at all. The word is all Voqalize sends:
+the measurements behind it can change as Voqalize is tuned.
 
 ```js
 client.on(RTVIEvent.ServerMessage, (data) => {
@@ -119,9 +117,13 @@ The consequence is worth stating positively: **your page can trust
 can emit it. A whitelist that let a brain send it would make every one of those
 events a claim rather than a fact.
 
-A type outside the whitelist does not cross in either direction. An envelope
-carrying one comes back as `ERROR_CODE_REJECTED`, which is also what an oversized
-message gets: the payload is bounded by the client's 64 KiB limit.
+A type outside the whitelist does not cross in either direction, and the
+payload is bounded by the client's 64 KiB limit:
+
+| Sent by | Outside the whitelist, or over 64 KiB |
+|---|---|
+| Your brain | Dropped, and your brain gets a non-fatal `ErrorCode.PROTOCOL` [error](/reference/errors/#protocol). The call continues. |
+| Your page | Dropped. Nothing is sent back. |
 
 ## From your brain
 
@@ -155,8 +157,9 @@ async def on_rtvi(self, session: Session, msg: RTVIMessage) -> None:
 
 `on_rtvi` is **not a generator**, and that is deliberate. A click can update the
 screen or end the call; it cannot make the agent start talking over the person
-clicking, because nothing about a click means the human stopped speaking. There is
-nothing to yield, so the rule needs no runtime check and cannot be broken.
+clicking, because nothing about a click means the human stopped speaking. A
+`yield` in its body is refused with `WireError` and none of the handler runs
+([Context and history](/build/brain/context/#on_rtvi-returns-nothing-and-cannot-speak)).
 
 To say something back, call `session.send_rtvi`.
 
@@ -176,5 +179,5 @@ stripped before delivery.
 
 ## Read next
 
-- [Client libraries](/build/pipecat/) — the browser packages that read these.
-- [The wire](/reference/wire/) — the envelope RTVI is carried in.
+- [Client libraries](/build/pipecat/): the browser packages that read these.
+- [The wire](/reference/wire/): the envelope RTVI is carried in.

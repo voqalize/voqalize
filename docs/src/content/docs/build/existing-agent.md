@@ -1,51 +1,17 @@
 ---
-title: Bringing an agent you already have
-description: You have an ADK, LangChain, OpenAI Agents or hand-rolled agent. What has to change to give it a voice, and what does not.
+title: Use another agent framework
+description: Give an existing ADK, LangChain, OpenAI Agents, pipecat or hand-rolled agent a voice. The port is one subclass; the one thing that has to change is how you record history.
 ---
 
-Most readers of these pages are not starting from nothing. There is already an
-agent — a Google ADK app, a LangChain graph, an OpenAI Agents runner, a state
-machine somebody wrote by hand — and the question is what it costs to give it a
-voice. The answer is a subclass and a loop: `Brain.on_user_message` hands you
-finalized text and takes speech back, so whatever already turns a string into a
-stream of strings is the body of the method. Your model, your prompts, your
-tools, your retrieval and your memory do not move.
-
-## Model layers, not framework adapters
-
-What we ship sits on raw model APIs, not on agent frameworks. `GeminiBrain`,
-`OpenAIBrain` (the Responses API) and `LiteLLMBrain` (any model LiteLLM reaches)
-are one voice core, `voqalize.sdk.voice`, with a thin layer per provider on top.
-If your agent is a prompt, a model and a list of tools, subclassing one of them
-is the shortest port there is — [the Brain API](/reference/brain/#the-shipped-adapters)
-has their constructors. `GeminiInteractionsBrain` is also shipped, and is
-experimental.
-
-There is no adapter for an agent framework that owns its own loop: not ADK, not
-LangGraph, not the OpenAI Agents SDK. The port below is how you bring one of
-those today.
-
-The reason is where the work is. Read what the voice core actually spends its
-code on: `_file` puts each tool's response in the context directly after the
-call that asked for it, so that context appended while the tool ran lands behind
-the pair rather than between them, and `_drop_unanswered` removes a call whose
-result never arrived because a barge-in cut the stream between them
-(`sdk/python/src/voqalize/sdk/voice.py`). Both are about who owns the turn
-record. A model layer owns it, because it is the loop; a framework owns its own,
-and an adapter written against it would be a second surface to learn and a lag
-behind every release of a framework we do not own.
-
-The boundary Voqalize holds is text. Nothing in the wire declares a tool,
-carries a schema or names a model: `proto/voqalize/frames/frames.proto` has
-frames for speech, transcripts, configuration, RTVI and errors, and there is no
-tool frame in it. So there is nothing for an adapter to sit between — your
-stream of strings goes out as speech, and the user's finalized text comes back
-in.
+`Brain.on_user_message` hands you the user's finished text and takes speech
+back, so whatever already turns a string into a stream of strings becomes the
+body of that method. Your model, prompts, tools, retrieval and memory stay where
+they are.
 
 ## The port
 
 Subclass `Brain`, call your existing entrypoint from `on_user_message`, and
-record what the user heard. Against a framework whose entrypoint is
+record what the user heard. For a framework whose entrypoint is
 `async def run(text) -> AsyncIterator[str]`, that is the whole port:
 
 ```python
@@ -62,39 +28,6 @@ class PortedBrain(Brain):
         return "Hi! What can I do for you?"
 
     async def on_user_message(self, session, msg):
-        yield SpeechStart()
-        async for piece in self.agent.run(msg.text):
-            yield SpeechChunk(piece)
-        yield SpeechEnd()
-
-    async def on_finalize(self, session, fin):
-        if fin.heard:
-            self.agent.history.append({"role": "assistant", "content": fin.heard})
-```
-
-`msg.text` is one finalized utterance. `SpeechStart` / `SpeechChunk` / `SpeechEnd` are
-one **speech unit** — the granularity at which a user can cut you off and the
-granularity at which Voqalize reports back what they heard. Yield the chunks as
-your framework produces them; awaiting between them is what a tool call inside a
-turn looks like. [Speaking](/build/brain/speaking/) owns the frames.
-
-You host this the same way as any other brain, and the choice is unrelated to
-the port — [Where the brain runs](/build/hosting/). The class is what you hand
-over, not an instance: the SDK constructs one per session, so a framework object
-built in `__init__` belongs to that call and leaks nothing into the next.
-Per-user setup that needs an identifier goes in `on_session_start`, which reads
-`session.init` and runs before the greeting —
-[Context and history](/build/brain/context/).
-
-### One turn, several units
-
-The fence above opens a unit before your framework has produced anything. If
-`run()` calls a tool before its first token, the user is holding an open unit
-and hearing nothing. Open lazily instead, and the turn mints a unit only when
-there is something to say:
-
-```python
-    async def on_user_message(self, session, msg):
         speaking = False
         async for piece in self.agent.run(msg.text):
             if not speaking:
@@ -103,150 +36,149 @@ there is something to say:
             yield SpeechChunk(piece)
         if speaking:
             yield SpeechEnd()
+
+    async def on_finalize(self, session, fin):
+        if fin.heard:
+            self.agent.history.append({"role": "assistant", "content": fin.heard})
 ```
 
-That is what the voice core's `respond` does on every model-backed brain — a
-response that only calls a tool never opens a unit at all. Opening one per
-response is what used to emit an empty `SpeechStart` / `SpeechEnd` pair around a
-silent tool call (`sdk/python/src/voqalize/sdk/voice.py`, `respond_with`).
+- **`msg.text`** is one committed user turn.
+- **`SpeechStart` / `SpeechChunk` / `SpeechEnd`** are one speech unit: the stretch
+  the user can cut into, and the grain Voqalize reports what was heard against.
+  The unit opens on the first piece of text, so a step that only calls a tool
+  opens nothing ([Speaking](/build/brain/speaking/#a-turn-can-be-several-units)).
+- **The class, not an instance, is what you host.** The SDK constructs one per
+  session, so an object built in `__init__` belongs to that call. Per-user setup
+  goes in `on_session_start`, which reads `session.init` before the greeting
+  ([Context and history](/build/brain/context/)).
 
-Lazy opening removes the empty bracket. It does not remove the silence: the tool
-runs for as long as it runs and the user sits through it either way, and the
-fix for that is to say what you are doing before you do it, or to move the screen
-while the voice waits. The model-backed brains do both by construction: the model says its
-line and calls in the same response, and every tool returns within 20 ms. [The turn budget](/design/#the-turn-budget) is the argument;
-[Tools](/build/brain/tools/) is the mechanism.
+Host it like any other brain: [Deploy the brain](/build/hosting/).
 
-Every unit that emitted text gets exactly one `on_finalize`, in the order the
-units opened — including one that was generated and beaten to the speaker, which
-arrives as `heard=""`. A turn that says a line, closes the unit, waits on a tool
-and opens a second for the answer produces two units and two finalizes.
+## What has to change: history records what was heard
 
-## What your framework keeps
+Your framework almost certainly appends the assistant message from what the model
+returned. For a call that is the wrong record: a user can interrupt mid-word, and
+then what your model generated and what the user heard are different strings.
+
+- **Turn off your framework's own append** of the assistant turn, or rewrite that
+  entry when the finalize arrives.
+- **Append `fin.heard`**, per unit. A reply that generated three sentences and
+  delivered one goes into history as one.
+- **Drop a unit with `heard == ""`.** It reached nobody, so it is not something
+  the model said.
+- **Record the greeting.** `greet` returns a string the SDK speaks, so your
+  framework never saw it. Its finalize arrives first; append it, or the model
+  greets twice.
+- **Keep the conversation in your process.** A conversation stored on the model
+  provider's server (a stored conversation id that each call continues) cannot be
+  told that the user heard only half of the last sentence. Keep a local history
+  list and send it on each request.
+
+[Transcripts and heard truth](/build/brain/transcripts/) has the ordering rules
+and a complete pairing example.
+
+## What stays the same
 
 Tool calls stay ordinary function calls in your process. Your framework's
-registry, its decorators and its dispatch are untouched, because no tool reaches
-the wire and there is nothing here to interpose on.
+registry, decorators and dispatch are untouched, because no tool crosses to
+Voqalize: the boundary is text. The same goes for your retrieval, model client and
+keys, prompts and database. The port adds one class to your service.
 
-The same holds for everything behind them: your retrieval, your model client and
-its keys, your prompts in your version control, your database session. The port
-adds one class to your service and changes nothing about what that service
-already reaches.
+What a tool costs is new, though: it runs while the user waits. Say what you are
+doing in the same response as the call, keep tools fast, and move the screen
+while the voice waits ([Tools](/build/brain/tools/#speak-first-and-call-in-the-same-response)).
 
-## What has to change, and it is one thing: history
+## Or start from a shipped model brain
 
-Your framework almost certainly appends the assistant message from what the
-model returned. That is the wrong record for a call.
+If your agent is a prompt, a model and a list of tools, subclassing a shipped
+model brain is a shorter port than wrapping your loop. Each one runs speech,
+tools, heard truth and the greeting for you:
 
-A user can interrupt mid-word. What your model generated and what the user
-heard are then two different strings, and only one of them is a thing both
-parties can refer to. `on_finalize` hands you the delivered prefix as
-`fin.heard`, per unit, after playout — long after the generator that produced it
-returned (`sdk/python/src/voqalize/sdk/events.py`, `Finalize`). So:
+| Class | Install | Speaks to |
+|---|---|---|
+| `GeminiBrain` | `pip install "voqalize-agent-sdk[gemini]==0.12.0"` | Gemini's `generate_content` |
+| `OpenAIBrain` | `pip install "voqalize-agent-sdk[openai]==0.12.0"` | OpenAI's Responses API |
+| `LiteLLMBrain` | `pip install "voqalize-agent-sdk[litellm]==0.12.0"` | Any model LiteLLM reaches |
 
-- Turn off your framework's own append of the assistant turn, or rewrite that
-  entry in place when the finalize arrives.
-- Append `fin.heard`. A reply that generated three sentences and delivered one
-  goes into history as one.
-- Handle the empty case. `heard` is an empty string for a unit that reached no
-  speaker, and that unit belongs out of your history entirely rather than in it
-  as a sentence the model believes it said.
+Constructors are in [the shipped adapters](/reference/brain/#the-shipped-adapters);
+tools are in [Tools](/build/brain/tools/). There is no adapter for a framework that
+owns its own loop (ADK, LangGraph, the OpenAI Agents SDK): use the port above.
 
-Nothing reports this when you get it wrong — no error, no log line, no metric —
-and the user is the only instrument that sees it.
-[Transcripts and heard truth](/build/brain/transcripts/) has the watermark and
-the ordering rules; [Interruption and heard
-truth](/design/#interruption-and-heard-truth) is the argument under them.
+## Coming from a pipecat pipeline
 
-The voice core's `on_finalize` is a shipped implementation of exactly this, the
-same on every model-backed brain: it pops the oldest unit still awaiting a
-finalize, rewrites that turn's text down to `heard`, and drops the turn when
-nothing is left of it (`sdk/python/src/voqalize/sdk/voice.py`, `on_finalize`
-and `_reconcile`). `sdk/python/tests/unit/test_gemini_heard_truth.py` pins the
-cases, including that finalizes match units in order and that a unit nobody
-heard leaves the context.
+Voqalize runs everything below the text: transport, voice activity detection,
+speech recognition, synthesis, turn-taking and interruption. Your brain runs only
+the part that turns text into text, and the SDK does not depend on pipecat.
 
-### The greeting is also history
+| In your pipeline | With Voqalize |
+|---|---|
+| Transport, VAD, STT and TTS services, the pipeline runner | Delete them. Voqalize runs them. |
+| The user transcription reaching your LLM | `on_user_message(session, msg)`, with `msg.text`. |
+| LLM text frames going to TTS | `yield SpeechChunk(text)` inside a unit. |
+| The context aggregator recording the assistant's reply | `on_finalize`, recording `fin.heard`. |
+| Functions registered on the LLM service | Your own loop, or `tools` on a [shipped model brain](/build/brain/tools/). |
+| RTVI server messages to the client | `session.dispatch(action)` or `session.send_rtvi(...)` ([Actions](/build/brain/actions/)). |
+| Client messages handled in the pipeline | `on_rtvi`, with typed app events ([Context and history](/build/brain/context/)). |
+| Voice and language set on the services | `await session.configure(...)` ([Voice and language](/build/voice-and-language/)). |
 
-`greet` returns a string the SDK speaks, so your framework never saw it. Its
-finalize arrives with nothing of yours awaiting one — that is the branch in the
-shipped brains that appends `fin.heard` as a fresh model turn rather than
-rewriting an existing one. Skip it and the model does not know it greeted, and
-asks its opening question a second time.
+The browser keeps pipecat's client; it connects with Voqalize's transport
+([Connect your app](/build/connect/)).
 
-### Keep the conversation in your process
+## Report what a turn did
 
-If your framework holds history on the provider's server — a stored conversation
-id that each call continues — heard truth cannot be applied to it. A server-side
-conversation cannot be told that the user only heard half of the last sentence.
-`OpenAIBrain` sends `store=False` and no `previous_response_id` for that reason,
-and carries the whole context on every request
-(`sdk/python/src/voqalize/sdk/openai.py`); `GeminiInteractionsBrain` does the
-same with no `previous_interaction_id`
-(`sdk/python/src/voqalize/sdk/gemini_interactions.py`, `_stream`). Port to a
-local history list and the rewrite is a list mutation.
-
-## Where the shipped brains fit
-
-They are worked examples of the port above, not a supported-frameworks list.
-[The Brain API](/reference/brain/#the-shipped-adapters) has their constructors,
-the members they share, and which of them to build on.
-
-The differences that matter while porting are in the tool loop, and they run
-their own. `GeminiBrain`, `OpenAIBrain` and `LiteLLMBrain` share one: a turn is
-one request, and each tool's result is filed for the next request, which is the
-user's next message unless the tool is marked `@needs_result_now`; then the
-model is asked again at once
-([Tools](/build/brain/tools/#when-the-model-reads-a-result) has the rule for
-which tools earn the mark). `GeminiInteractionsBrain` asks again after every
-response that made a call. All of them re-read the whole context on every
-request, so an append that lands while a tool is running reaches the model with
-the next request they make, and all of them apply heard truth per unit of
-speech.
-
-## Reporting what a turn cost
-
-The model-backed brains tell Voqalize what each turn cost their model — tokens
-by kind, requests, tools, the time to the first word — and Voqalize keeps it in
-the call record beside the turn. A ported brain runs its own loop, so it reports
-its own, once per loop, after the last model request:
+The shipped model brains report every model request and tool to Voqalize as a
+`TurnStep`, and the call record shows them as a timeline beside the turn. A ported
+brain runs its own loop, so it reports its own: one step per model request, when
+the request ends.
 
 ```python
-from voqalize.sdk import TurnUsage
+import time
+
+from voqalize.sdk import Brain, SpeechChunk, SpeechEnd, SpeechStart, TurnStep
+
+from myagent import Agent
+
+
+class PortedBrain(Brain):
+    def __init__(self) -> None:
+        self.agent = Agent()
 
     async def on_user_message(self, session, msg):
-        ...  # the turn, as above
+        started = time.monotonic()
+        yield SpeechStart()
+        async for piece in self.agent.run(msg.text):
+            yield SpeechChunk(piece)
+        yield SpeechEnd()
         usage = self.agent.last_usage  # whatever your framework reports
-        if session.can_report_usage:
-            session.report_usage(
-                TurnUsage(
-                    model="gpt-6-sol",
+        if session.can_report_steps:
+            session.report_step(
+                TurnStep(
+                    kind="model",
+                    name="gpt-6-sol",
                     provider="openai",
-                    input_tokens=usage.input_tokens,
-                    output_tokens=usage.output_tokens,
+                    duration_ms=round((time.monotonic() - started) * 1000),
+                    counts={
+                        "input_tokens": usage.input_tokens,
+                        "output_tokens": usage.output_tokens,
+                    },
                 )
             )
 ```
 
-It is optional and never answered. Leave a count your framework does not give
-you unset rather than writing a zero. [The Brain API](/reference/brain/#methods)
-has the fields.
+It never blocks and nothing comes back. Steps carry facts, never content: no
+prompt, arguments or results. Leave out a count you do not have rather than
+writing `0`. Report a tool or a database query the same way, with
+`kind="tool"` or your own word. Fields: [`report_step`](/reference/brain/#methods).
 
-## What changes about the agent itself
+## Rewrite the prompt for voice
 
-Nothing above touches the prompt, and the prompt is where a ported agent
-actually goes wrong first. A chat prompt can afford a lookup, because the reader
-watches a spinner while it happens. Said out loud, the same two seconds are
-silence on a channel where silence is the one thing a user reacts to — so what
-the agent needs, it should mostly already have, and what it says has to survive
-having no scrollback.
-
-That is a design problem rather than an SDK one, and it has its own section:
-[Designing for voice](/design/), starting with
+A chat prompt can afford a lookup, because the reader watches a spinner. Spoken,
+the same two seconds are silence, and nothing can be scrolled back. That is a
+design problem, not an SDK one: start with
 [Prompt design for voice](/design/#prompt-design-for-voice).
 
 ## Read next
 
-- [Your first brain](/build/brain/) — the callbacks you are subclassing.
-- [Tools](/build/brain/tools/) — what a voice tool owes the user.
-- [Testing a brain](/build/testing/) — port it, then prove it without a microphone.
+- [Transcripts and heard truth](/build/brain/transcripts/): the history rule in full.
+- [Test the brain](/build/testing/): prove the port without a microphone.
+- [Deploy the brain](/build/hosting/): a route Voqalize dials, or Cortex for local development.

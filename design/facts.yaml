@@ -92,9 +92,9 @@ facts:
       grep -n 'KiB' proto/voqalize/frames/frames.proto
     note: >-
       The bound is the pipecat client's, not ours: the data channel decides what
-      a message may weigh and the wire carries what the client will send. An
-      oversized envelope comes back ERROR_CODE_REJECTED, which is also what a
-      type outside the RTVI whitelist gets. Written "64 KiB" wherever it
+      a message may weigh and the wire carries what the client will send. A
+      brain's oversized envelope, or a type the brain may not send, comes back
+      as a non-fatal ERROR_CODE_PROTOCOL; an app's disallowed type is dropped. Written "64 KiB" wherever it
       appears, because KiB is the unit the client's own documentation uses.
 
   # ---- configuration ownership --------------------------------------------
@@ -496,9 +496,9 @@ facts:
       - 'no client library of ours'
 
   client.transport.version:
-    value: '0.4.0'
+    value: '0.4.1'
     source: https://registry.npmjs.org/@voqalize/client-transport
-    verified: 2026-10-15
+    verified: 2026-11-04
     reproduce: npm view @voqalize/client-transport version
     note: >-
       The version every install line pins, exactly, and every demo here
@@ -506,9 +506,9 @@ facts:
       both in their own commit once npm serves the next release.
 
   client.transport.pipecat_floor:
-    value: 'client-js >=1.13.0 <2, small-webrtc-transport >=1.10.0 <2'
+    value: 'client-js >=1.13.0 <2, small-webrtc-transport >=1.10.7 <2'
     source: voqalize-client-transport/package.json peerDependencies
-    verified: 2026-10-15
+    verified: 2026-11-04
     reproduce: grep -A3 peerDependencies ../voqalize-client-transport/package.json
     note: >-
       What a page on the default path must clear. pipecat.client.floor is the
@@ -545,9 +545,9 @@ facts:
     reproduce: grep '"name"' ../avatar-public/packages/avatar/package.json
 
   avatar.npm.version:
-    value: '0.5.0'
+    value: '0.6.3'
     source: avatar-public/packages/avatar/package.json
-    verified: 2026-09-27
+    verified: 2026-11-04
     reproduce: npm view @voqalize/avatar version
     note: >-
       The version every demo here depends on. A different repo, so no derive
@@ -753,10 +753,11 @@ facts:
     note: >-
       English and the European languages on Parakeet TDT 0.6B v3's model card,
       plus the Indic languages on IndicConformer — what the speech tier
-      publishes at `GET /v2/languages`, and what `GET /api/v1/capabilities`
-      relays. Re-run against speech `origin/prod` on 2026-10-21, after the
-      speech prod release, and the live prod `/v2/languages` lists the same. Prefer naming the groups to stating the total; the roster
-      is in docs reference/catalog.md and nowhere else. Before that release it
+      publishes at `GET /v2/languages`, and what the control plane relays as
+      `languages` on the public `GET /api/v1/catalog.get`. Re-run against speech `origin/prod` on 2026-10-21, after the
+      speech prod release, and the live prod `/v2/languages` lists the same. Prefer naming the groups to stating the total; the docs keep
+      no copy of the roster: reference/catalog.md renders it in the reader's
+      browser from `catalog.get` (`docs/public/voice-catalog.js`). Before that release it
       was English plus 22 Indic languages. The `Language` enum stays at English
       and the Indic codes: a European language is a `language_tag` string only.
       The retired claim is "sixty-plus languages", which was never true of any
@@ -787,13 +788,16 @@ facts:
       **This is per voice, not per tier, and it stopped being a single number
       on 2026-09-20** when the kokoro voices reached the enum: they speak `en`
       and nothing else. Do not write it as one figure for "the synthesizer" —
-      the roster the speech tier publishes states it voice by voice and
-      `docs/.../reference/catalog.md` renders that table from it. The source
+      the roster the speech tier publishes states it voice by voice, the
+      control plane relays it as `voices` on the public
+      `GET /api/v1/catalog.get`, and `docs/.../reference/catalog.md` renders
+      that table from it, live in the reader's browser
+      (`docs/public/voice-catalog.js`). The source
       cited above was `pygato/session_config.py TTS_CLIP_LANGUAGES`, a copy
       that was deleted the same day along with every other copy.
     forbid:
       # The wrong half asserted. "23 languages" alone is fine where the page
-      # then says which ten are spoken — reference/catalog.md does exactly that
+      # then says which ten are spoken — reference/catalog.md's live table does that
       # — so the pattern names the *verb*, which is what makes the claim false.
       - '\b(speaks|speaking|spoken in|voices in|say[s]?) (23|twenty-three) languages'
       - '\b(23|twenty-three) (voices|speakers|recorded)'
@@ -922,9 +926,9 @@ facts:
       is the same 10.0 and answers a different question.
 
   recording.url_ttl_secs:
-    value: 60 to 900, default 900
-    source: platform/backend/controlplane/app/domains/sessions/service_dtos.py:43 MAX_RECORDING_URL_TTL_SECONDS
-    verified: 2026-09-21
+    value: 60 to 1200, default 1200
+    source: platform/backend/controlplane/app/domains/sessions/service_dtos.py:49 MAX_RECORDING_URL_TTL_SECONDS
+    verified: 2026-11-04
     reproduce: >-
       grep -n 'RECORDING_URL_TTL_SECONDS'
       ../platform/backend/controlplane/app/domains/sessions/service_dtos.py
@@ -1008,9 +1012,9 @@ facts:
       so capturing larger costs uplink and gains nothing in composite.mp4.
 
   pipecat.small_webrtc.refused_offer_floor:
-    value: '1.10.8'
+    value: '1.10.7'
     source: https://www.npmjs.com/package/@pipecat-ai/small-webrtc-transport + platform/docs/customer-guide/video.md
-    verified: 2026-10-07
+    verified: 2026-11-04
     reproduce: >-
       npm pack @pipecat-ai/small-webrtc-transport@1.10.6
       @pipecat-ai/small-webrtc-transport@1.10.8 and grep each
@@ -1019,9 +1023,9 @@ facts:
       The version build/video.md tells a page to use so a refused offer (a
       bitrate cap below video.max_kbps.min) stops at the first 400 and
       surfaces our `info` sentence. 1.10.6 — the floor the demos declare —
-      resends the offer and rejects with no message. 1.10.7 already carries
-      the 4xx check in its bundle; 1.10.8 is the release the feature was
-      verified against, so it is the number we print.
+      resends the offer and rejects with no message. 1.10.7 carries the 4xx
+      check, and @voqalize/client-transport 0.4.1 makes it the transport's
+      floor, so it is the number we print.
 
   session.max_duration_secs:
     value: 3600
@@ -1075,9 +1079,9 @@ facts:
 
   demos.roster:
     value: [travel, shopping, support, servicing, interview_bot, sugar, legal,
-            lead_qual, aura, forge, avatar, orderdesk, kiosk, petwell, fernhollow]
+            lead_qual, aura, forge, orderdesk, kiosk, petwell, fernhollow]
     source: demos/manifest.json
-    verified: 2026-11-03
+    verified: 2026-11-04
     derive:
       file: demos/manifest.json
       json_pluck: {key: demos, field: name}
@@ -1103,9 +1107,9 @@ facts:
       - '**/changelog.astro'
 
   docs.pages:
-    value: 34
+    value: 39
     source: docs/src/content/docs/
-    verified: 2026-10-28
+    verified: 2026-11-04
     derive:
       glob: docs/src/content/docs/**/*.md*
     note: >-
