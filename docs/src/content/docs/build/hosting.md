@@ -109,7 +109,7 @@ URL.
   Django Channels.
 - `brain=` is a class, or a zero-argument callable that returns a brain. It is
   constructed fresh for each session, so no state leaks between sessions.
-- To drive the route without a real session, see [Testing a brain](/build/testing/).
+- To drive the route without a real session, see [Test the brain](/build/testing/).
 
 **The socket is the session, and it is not reconnected.** Voqalize retries
 opening the socket for up to 10 seconds, so a brain that is still starting up is
@@ -187,7 +187,7 @@ A token that fails verification raises `SessionRejected`; close the socket with
 code `4000`, as the route above does.
 
 The claims are listed in [the wire reference](/reference/wire/#connection-and-auth),
-and [Testing a brain](/build/testing/) mints the same token for tests.
+and the harness in [Test the brain](/build/testing/) mints the same token for tests.
 
 ## Local development
 
@@ -212,6 +212,6 @@ Voqalize can reach.
 
 ## Read next
 
-- [Testing a brain](/build/testing/): drive the brain over the real wire, with no microphone.
 - [Keys and authentication](/build/keys/): which key goes where, and how to rotate one.
 - [Connect your app](/build/connect/): start a session from your page.
+- [Test the brain](/build/testing/): drive the brain over the real wire, with no microphone.

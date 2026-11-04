@@ -3,8 +3,8 @@ title: Designing for voice
 description: What changes when the output is spoken, the user can interrupt, and the screen is right there. The durable half of the problem.
 ---
 
-Getting a call working is a week. Getting one people use twice is the rest of the
-work, and almost none of it is about the API. Speech has no scrollback. A user
+Getting a call working is the quick part. Getting one people use twice is the
+rest of the work, and almost none of it is about the API. Speech has no scrollback. A user
 can interrupt you mid-word. The screen is right there and it holds detail the ear
 cannot.
 
@@ -107,14 +107,10 @@ listening to nothing.
 
 ### `greet` is not a turn
 
-`greet` returns a string, not a generator. It is `async` so you can look up the
-user's name, and not so you can generate the sentence. This is the one moment
-where a user is sitting on a connected session hearing nothing at all, and a
-model round-trip here is the most expensive latency in the product.
-
-A fixed line, or a template over what the page sent — `f"Hi {name}, how can I
-help?"` — is as elaborate as it should get. Returning `None` opens the session
-silently, which is what an ambient agent wants.
+A model round trip in `greet` is the most expensive latency in the product: the
+user is connected and hearing nothing. Return a fixed line or a template
+([The greeting is a string](/build/brain/#the-greeting-is-a-string-not-a-model-call)),
+or `None` to open silently, which is what an ambient agent wants.
 
 The demos open with a one-word hello in the session's language followed by a
 written opener, so the user hears a syllable the moment the session connects.
@@ -139,14 +135,7 @@ the background instead. See [tool design](#tool-design-for-voice).
 **Work that was serial for no reason.** Three sequential `await`s cost the sum;
 one `asyncio.gather` costs the slowest.
 
-**Prompt size**, which is [prompt design](#prompt-design-for-voice).
-
-**A cache miss you caused yourself.** The system instruction is the cache prefix.
-Set it once per session and it matches turn after turn; edit it — even to append
-one fresh line of context — and every turn re-reads the whole thing. This is the
-item on the list that is free to get right and quietly expensive to get wrong,
-because nothing in a transcript shows it. Context that changes belongs at the
-tail, next to the latest user message.
+**Prompt size and cache misses**, which is [prompt design](#prompt-design-for-voice).
 
 ### Thinking budget is a latency setting
 
@@ -154,21 +143,10 @@ A reasoning budget on a voice turn is spent in silence the user sits through,
 and thought tokens are never spoken, so the cost has no audible half at all. The
 SDK's `VOICE_THINKING` asks for the least thinking the default model allows.
 
-Both halves of that setting are model-specific, and each way it bites below was
-measured against the live API:
-
-- **The knob moved.** `thinking_budget=0` was accepted by the 3.1 models; 3.5 and
-  later reject it with a bare `400 INVALID_ARGUMENT` that names no field.
-- **The floor moved.** `gemini-3.7-flash` refuses `MINIMAL` outright. Its floor,
-  `LOW`, still spends around 275 thought tokens, so it has no zero-thinking
-  setting at all, and its turns ran about twice as long as the default model's.
-- **A level a model accepts is not one it acts at.** `gemini-3.5-flash-lite`
-  takes `MINIMAL` and then drives the screen on 9 of 15 identical turns, asking
-  "which trip?" on the rest. At `LOW` it was 11 of 15.
-
-Measure when you change the model. The numbers above are one afternoon against
-one set of turns, and they are printed here with that condition attached because
-that is all they are.
+The right setting is model-specific: models differ in which thinking levels
+they accept, whether their lowest level still spends thought tokens, and how
+reliably they call tools at a low level. Measure on real turns whenever you
+change the model.
 
 ### Speak first, and call in the same response
 
@@ -188,7 +166,7 @@ short line first, then make the call, in that same response"*. The rule is
 written down once, in [Tools](/build/brain/tools/#speak-first-and-call-in-the-same-response).
 
 A model that calls a tool and says nothing leaves the user listening to silence
-until they speak again. If a user turn produces no audio within 10 seconds,
+until they speak again. If a user turn sends no `SpeechChunk` within 10 seconds,
 Voqalize says [a line of its own](/build/brain/speaking/#the-ten-second-line)
 about the wait. The fix is the prompt, or a line your brain speaks itself when a
 call arrives with no speech ahead of it; the SDK does not fill the silence for
@@ -210,19 +188,15 @@ said nothing — the silence above, counted.
 over an agent that is too slow, too long, or wrong, and those are hard to
 tell apart from a transcript and easy to tell apart from a clock.
 
-`get_call_record` over [the MCP server](/reference/mcp/) returns our half
+`get_call_record` over [the MCP server](/reference/mcp/) returns Voqalize's half
 of the same call, joined on the same `session_id` — each turn's `marks` and
 the session's `pace`, and every unit the user cut short.
 
 ### There are no latency numbers on this page
 
-We publish no figure for the intervals we own, because we have not measured them
-under conditions we would be willing to print. A number without its percentile,
-its region and its load is a mood, and this reader would check it.
-
-So this section names moments instead — before the first word, on every turn that
-uses it — and hands over the instruments to measure your own half, which is the
-half you can change today.
+Voqalize publishes no latency figures for its half yet. This section names the
+moments instead, and the instruments above measure your half, which is the half
+you can change.
 
 ## Interruption and heard truth
 
@@ -261,9 +235,9 @@ async def on_finalize(self, session: Session, fin: Finalize) -> None:
 the text you yielded. `generated` is the text you yielded, kept by the SDK so the
 two can be set side by side; `fin.interrupted` is that comparison and nothing
 more. This is the
-one place Voqalize knows something your process cannot: playout happens on our
-side of the wire, so where the audio actually stopped is ours to report and yours
-to record.
+one place Voqalize knows something your process cannot: playout happens on
+Voqalize's side of the wire, so where the audio actually stopped is Voqalize's
+to report and yours to record.
 
 The callback fires long after the generator that produced the speech has
 returned. That ordering is the point — the truth about a unit is not available
@@ -353,14 +327,13 @@ unit, which means a test can assert on the heard text instead of the generated
 text — and the strongest property available is the one worth asserting:
 **the history your brain wrote equals what the driver says was heard.**
 
-See [testing a brain](/build/testing/).
+See [Test the brain](/build/testing/).
 
-### One limit we have not established
+### How exact `heard` is
 
-`heard` is a prefix of your text, but playout was cut in the middle of a word.
-Whether that prefix is character-exact or rounds to a boundary is not something we
-have pinned down, and a page should not claim a precision nobody has verified.
-Treat `heard` as the honest account of what was delivered, and do not build
+`heard` is a prefix of your text, and playout can be cut in the middle of a
+word. Whether that prefix is character-exact or rounds to a boundary is not
+specified. Treat `heard` as the account of what was delivered, and do not build
 anything that depends on its last character.
 
 ## Misunderstanding and reversal
@@ -373,7 +346,7 @@ user changes their mind halfway through the sentence — which is not an error a
 all. It is how people talk, and a system that treats it as a fault is a system
 that argues with its user.
 
-So "how do we prevent mistakes" is the wrong question to build against. The
+So "how do I prevent mistakes" is the wrong question to build against. The
 questions that produce a working design are: **how fast does a mistake become
 visible, and how cheap is it to undo?**
 
@@ -457,9 +430,9 @@ to the commit boundary, and the boundary is a human.
 
 ### Where the story stops
 
-Limits, stated because a page that omits them would be selling something.
+What this section does not cover:
 
-**We have no worked example of correcting something already committed.** The
+**Correcting something already committed.** The
 compensating-call taxonomy above runs up to the confirm click and stops. Whatever
 undoes a placed order is your system's problem, and it is a different kind of
 problem.
@@ -590,7 +563,7 @@ That is the whole design rule, and it is not "be concise."
 | 10% | One fast tool call away — in your process, no network, marked `@needs_result_now` | a model round trip |
 | 10% | Genuinely slow — remote, expensive | a background workstream, with an answer to "what does the user hear meanwhile" |
 
-These numbers are a design target we hold to, not a ratio we have instrumented.
+These numbers are a design target, not a measured ratio.
 Their job is the genuinely slow tenth: anything that lands there needs a plan
 for the silence, which is [parallel workstreams](#parallel-workstreams).
 
@@ -634,7 +607,7 @@ quietly, and in the line you say with prepare_case tell them it is under way and
 the headline of what you found; the prep finishes on screen by itself. They are
 never blocked."
 
-**Assume it misheard.** A recognizer on a phone line in a pharmacy will get
+**Assume it misheard.** A recognizer at a busy pharmacy counter will get
 things wrong. Correction paths belong in the prompt as first-class instructions
 rather than as a fallback paragraph at the end — see
 [misunderstanding and reversal](#misunderstanding-and-reversal).
@@ -651,10 +624,10 @@ rather than as a fallback paragraph at the end — see
 
 These are the prompt doing latency work.
 
-### The sharpest fragment we have shipped
+### A prompt fragment worth copying
 
-`orderdesk` has to disambiguate a spoken drug name against two dozen SKUs, over
-the phone, in Hindi, without reading a list aloud. Its prompt teaches an
+`orderdesk` has to disambiguate a spoken drug name against two dozen SKUs, by
+voice, in Hindi, without reading a list aloud. Its prompt teaches an
 information-theoretic rule in plain language, and the whole block is worth reading
 as a model of how specific this gets:
 
@@ -721,6 +694,10 @@ finishes this reply:
 from voqalize.sdk.gemini import GeminiBrain, needs_result_now
 
 class Desk(GeminiBrain):
+    @property
+    def tools(self):
+        return [self.show_card_controls, self.get_account_balance]
+
     async def show_card_controls(self) -> str:
         "Put the card controls on screen."
         self.session.dispatch(ShowCardControls())

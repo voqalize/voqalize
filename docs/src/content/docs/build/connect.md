@@ -23,7 +23,7 @@ Authorization: Bearer <your key>
 Content-Type: application/json
 
 {
-  "agent_id": "agt_…",
+  "agent_id": "06a2…",
   "config": {
     "tts": { "voice": "omnivoice/gauri", "language": "ta" },
     "stt": { "language": "ta" },
@@ -38,7 +38,7 @@ session in English with the agent's recording default.
 
 - **`init`** is your data for the brain. It arrives untouched as `session.init`.
   It is stored on the session, so send identifiers and look them up in your own
-  store. [Context](/build/brain/context/) shows how a brain reads it.
+  store. [Context and history](/build/brain/context/) shows how a brain reads it.
 - **`config`** is how this session sounds and listens (`tts`, `stt`, `idle`,
   `ack`) and whether it records (`record`). Set the voice and language here when
   your server already knows the user's language; the brain can still change them
@@ -118,8 +118,8 @@ directly from the browser. It can start sessions for its one agent and do
 nothing else. Use it when anyone who can load the page may talk to the agent: a
 public demo, a marketing page, a support widget.
 
-A `pk_` key is locked to a list of origins, and **an empty list denies every
-origin**. Add every site that embeds it, including the `http://localhost:5173`
+A `pk_` key is locked to the list of origins it was minted with, at least one.
+Add every site that embeds it, including the `http://localhost:5173`
 you develop against. A request from any other origin, or with no `Origin`
 header at all (a server or a native app), is refused with `403
 origin_not_allowed`. A `pk_` may turn recording off but never on
@@ -187,21 +187,19 @@ Branch on `error.code`. Show a person `info`, which repeats `error.message` wher
 pipecat's client looks for it. Quote `correlation_id` when you ask us about a
 session.
 
-| Status and code | What happened | Fix |
-| --- | --- | --- |
-| `400` `invalid_config` | `config` was refused. `details.code` is `unsupported_voice` or `unsupported_language` for a voice or language Voqalize does not serve, or a pairing the voice cannot speak; the message names the field. An off-scale `stt.patience` or a language on one leg only is refused the same way. | Check the value against [the catalog](/reference/catalog/). |
-| `400` `recording_not_permitted` | `config.record: true` on a `pk_` key. | Record through the agent default or from your server ([below](#recording-is-a-per-session-decision)). |
-| `401` `not_authenticated` | No `Authorization` header, a value that is not an `sk_` or `pk_` key, or a revoked key. | Send a live key for this agent. |
-| `403` `origin_not_allowed` | A `pk_` from an origin not on its list, with an empty list, or with no `Origin` header. The message names the origin it saw, never the allowed ones. | Add the origin to the key, or call from your server with an `sk_`. |
-| `404` `not_found` | No such agent for this key. Each key names exactly one agent. | Use that agent's key. |
-| `409` `agent_not_configured` | The agent has no way to reach a brain. | Set an inbound `brain_url` or create Cortex credentials ([Deploy the brain](/build/hosting/)). |
-| `409` `agent_archived` | The agent is archived. Sessions already in progress continue. | Unarchive it. |
-| `422` `validation_error` | The body has an undeclared key or a wrong type. The message names the field. | Fix the body. |
-| `429` `rate_limited` | Your tenant sent too many requests. | Wait for the `Retry-After` header's seconds, then retry. |
-| `500` | A Voqalize error. | Retry; quote `correlation_id` if it persists. |
+The ones you will meet first:
 
-[Error codes](/reference/errors/) lists every code, including the ones a running
-session reports.
+- `400 invalid_config`: a voice or language Voqalize does not serve; check
+  [the catalog](/reference/catalog/). A language on one leg only is refused at
+  the offer instead, when `client.connect` runs.
+- `400 recording_not_permitted`: `record: true` on a `pk_`
+  ([below](#recording-is-a-per-session-decision)).
+- `403 origin_not_allowed`: a `pk_` from an origin not on its list.
+- `409 agent_not_configured`: the agent has no way to reach a brain
+  ([Deploy the brain](/build/hosting/)).
+
+[Error codes](/reference/errors/#refused-before-your-brain-is-dialled) has every
+status, cause and fix.
 
 ## Keeping a call across a page load
 
@@ -267,9 +265,24 @@ covers what is stored and how to read it.
 
 ## On pipecat's stock transport
 
-Pipecat's own `SmallWebRTCTransport` still connects, and is documented for a few
-more releases. Everything above applies except `keepAcrossPageLoads`: to keep a
-session across a page load, save the params yourself.
+Pipecat's own `SmallWebRTCTransport` also connects, for now. Pass it where the
+examples above pass `createVoqalizeTransport()`:
+
+```bash
+pnpm add @pipecat-ai/client-js @pipecat-ai/small-webrtc-transport
+```
+
+```ts
+import { PipecatClient } from "@pipecat-ai/client-js";
+import { SmallWebRTCTransport } from "@pipecat-ai/small-webrtc-transport";
+
+const client = new PipecatClient({ transport: new SmallWebRTCTransport(), enableMic: true });
+```
+
+Your page then loads daily's call machine from `c.daily.co`, and the
+transport's recoveries do not apply. Everything above applies except
+`keepAcrossPageLoads`: to keep a session across a page load, save the params
+yourself.
 
 ```ts
 const CALL = "voice-call"; // your sessionStorage key

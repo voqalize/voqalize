@@ -8,14 +8,15 @@ failures. This page says which is which.
 
 ## The codes
 
-`ErrorCode` is exported from `voqalize.sdk`, and these are all its members:
+`ErrorCode` is exported from `voqalize.sdk`, and these are all its members,
+listed by value. In Python, compare members: `error.code is ErrorCode.OVERLOAD`.
 
 | Code | Where it arrives | Fatal | What raises it |
 |---|---|---|---|
 | `protocol` | `on_error`, from Voqalize | No | Your brain sent something Voqalize refuses: an RTVI type the app owns, an RTVI payload over 64 KiB, a `SpeechStart` with no `speech_id`, or a `SpeechCancel` naming a unit the session never opened. |
 | `wire_version` | sent by your SDK | **Yes** | `SessionStart` carried a wire version this SDK does not speak. |
 | `rejected` | nowhere | — | Defined in the proto; nothing sends it. |
-| `overload` | `on_error`, minted by your SDK | No | Your own SDK shed frames from a full lane. |
+| `overload` | `on_error`, minted by your SDK | No | Your own SDK shed frames from a full queue. |
 | `internal` | `on_error`, or sent by your SDK | Sometimes | From Voqalize: a language change did not land on the recognizer. From your SDK: `on_session_start` or `greet` raised. |
 | `unsupported_voice` | `RequestRejected.code` | No | No voice by that id is served. |
 | `unsupported_language` | `RequestRejected.code` | No | The voice does not speak the language, the recognizer does not hear it, or the tag is malformed. |
@@ -52,7 +53,7 @@ goes out.
 The SDK catches most of these before they reach the socket: `send_rtvi` raises
 `WireError` for a type outside the sendable set, and `cancel_speech` raises
 `ValueError` for an unknown id. So a `protocol` error in your logs usually means
-an oversized payload. See [The RTVI plane](/reference/rtvi/) for the whitelist
+an oversized payload. See [RTVI messages](/reference/rtvi/) for the whitelist
 and [Actions](/build/brain/actions/) for keeping payloads small.
 
 ### `wire_version`
@@ -70,7 +71,7 @@ against the wire and want to be exhaustive over the enum.
 
 ### `overload`
 
-Your SDK holds a priority lane and a bulk lane each way, and the bulk lane holds
+Your SDK holds a priority queue and a bulk queue each way, and the bulk queue holds
 256 frames by default. When it fills, the newest droppable frames are shed
 (speech chunks and RTVI messages) and one non-fatal `overload` error goes to
 `on_error`, not one per dropped frame.
@@ -132,8 +133,9 @@ speech in front of it is silence the user sits in.
 **A rejection is all-or-nothing.** Nothing in the request applied, so the
 previous settings are still in force and the call carries on. `rejected.op` is
 the operation, `rejected.detail` is Voqalize's own sentence, written to be shown,
-and `rejected.code` is `unsupported_voice`, `unsupported_language` or
-`invalid_request` (`None` if Voqalize did not say).
+and `rejected.code` is `ErrorCode.UNSUPPORTED_VOICE`,
+`ErrorCode.UNSUPPORTED_LANGUAGE` or `ErrorCode.INVALID_REQUEST` (`None` if
+Voqalize did not say).
 
 The refusal to plan for is a `tts.language` the chosen voice does not speak. The
 languages each voice speaks are in [the catalog](/reference/catalog/).
@@ -160,26 +162,34 @@ None of them crosses the wire.
 
 ## Refused before your brain is dialled
 
-These end a session before there is a socket, so your brain sees nothing. Look
-at the response to `sessions.connect`. The refusals about the key (`401`, and
-`403` `origin_not_allowed`) are in [Connect your app](/build/connect/).
+These refuse a session before there is a socket, so your brain sees nothing.
+Look at the response to `sessions.connect`; its envelope is in
+[Connect your app](/build/connect/#when-it-fails).
 
 | Status | `code` | Cause | Fix |
 |---|---|---|---|
+| `400` | `invalid_config` | `config` has an unknown field or a wrong type, or an off-scale `stt.patience`. The message names the field. | Fix the field. `config` is parsed as canonical proto3 JSON. |
+| `400` | `invalid_config`, with `details.code` `unsupported_voice` or `unsupported_language` | A voice Voqalize does not serve, a `tts.language` the voice does not speak, or an `stt.language` the recognizer does not hear. The message names what is served. | Pick values from [the catalog](/reference/catalog/). |
+| `400` | `recording_not_permitted` | `config.record: true` on a `pk_` key. | Record through the agent default or from your server ([Recordings](/operate/recordings/#a-publishable-key-can-turn-recording-off-not-on)). |
+| `401` | `not_authenticated` | No `Authorization` header, a value that is not an `sk_` or `pk_` key, or a revoked key. | Send a live key for this agent. |
+| `403` | `origin_not_allowed` | A `pk_` from an origin not on its list, or with no `Origin` header. The message names the origin it saw, never the allowed ones. | Add the origin to the key, or call from your server with an `sk_` ([Keys](/build/keys/#publishable-keys-pk_)). |
+| `404` | `not_found` | No such agent for this key. Each key names exactly one agent. | Use that agent's key. |
 | `409` | `agent_not_configured` | The agent has no `brain_url` and no Cortex credentials. | Set a `brain_url` for an [inbound route](/build/hosting/#a-route-voqalize-dials), or mint credentials to [dial out over Cortex](/build/hosting/#a-brain-that-dials-out). |
 | `409` | `agent_archived` | The agent is archived. Sessions in progress continue. | Unarchive it; its existing credentials work again. |
-| `400` | `invalid_config` | `config` has an unknown field or a wrong type. The message names the field. | Fix the field. `config` is parsed as canonical proto3 JSON. |
-| `400` | `invalid_config`, with `details.code` `unsupported_language` | `stt.language` is not one the recognizer hears. The message lists the ones it does. | Pick one from [the catalog](/reference/catalog/#speech-to-text). |
-| `400` | `recording_not_permitted` | A `pk_` asked to turn recording on. | See [Recordings](/operate/recordings/#a-publishable-key-can-turn-recording-off-not-on). |
+| `422` | `validation_error` | The body has an undeclared key or a wrong type. The message names the field. | Fix the body. |
+| `429` | `rate_limited` | Your tenant sent too many requests. | Wait for the `Retry-After` header's seconds, then retry. |
+| `500` | | A Voqalize error. | Retry; quote `correlation_id` if it persists. |
 
-Voqalize then checks the configuration with the same rules your brain's
-`configure` goes through (the voice and its languages, both legs, the idle
-ceiling) before it dials your brain. So an unservable `tts.language` is refused
-at connect when the page set it, and comes back as `RequestRejected` when your
-brain set it: same rule, same words.
+A language on one leg only passes `sessions.connect` and is refused at the
+offer: `client.connect` rejects with `400 invalid_config` and an `info`
+sentence ([Voice and language](/build/voice-and-language/#when-a-configuration-is-refused)).
+The voice and its languages are checked with the same rules as your brain's
+`configure`, so an unservable `tts.language` is refused at connect when the
+connect `config` set it, and comes back as `RequestRejected` when your brain set
+it: same rule, same words.
 
-Nothing substitutes for a voice or a language. A voice id or tag the speech tier
-does not serve is refused, wherever it came from.
+Nothing substitutes for a voice or a language. A voice id or tag Voqalize does
+not serve is refused, wherever it came from.
 
 ## What your user hears
 
@@ -197,14 +207,14 @@ service is down, the URL is wrong, TLS fails, or the handshake answers `401` or
 `403`. A brain that accepts the socket and then closes it, with **4000** or any
 other code, ends the session at once, as `brain_disconnected`, with no line.
 
-**A turn that produced no audio.** Once a user message reaches your brain,
-Voqalize starts a **10-second** watchdog. If the turn has produced no speech by
-then, the user hears:
+**A turn that produced no speech.** Once a user message reaches your brain,
+Voqalize starts a **10-second** watchdog. If the turn has sent no `SpeechChunk`
+by then, the user hears:
 
 > Sorry — that's taking longer than I expected.
 
 **The session stays up**, and the next turn may be fine. The watchdog is
-disarmed by your brain's first speech for that turn and by a barge-in, and a
+disarmed by your brain's first `SpeechChunk` for that turn and by a barge-in, and a
 `UserIdle` never arms it. The common way to trip it is a turn whose only output
 is a tool call ([Tools](/build/brain/tools/#speak-first-and-call-in-the-same-response)).
 A callback that raises, returns nothing or hangs all land here.
@@ -213,6 +223,6 @@ Which one it was is in the session's [record and logs](/operate/reading-a-call/)
 
 ## Read next
 
-- [Troubleshooting](/operate/troubleshooting/) — symptoms, causes and fixes.
-- [Reading a call back](/operate/reading-a-call/) — finding the failure afterwards.
-- [The wire](/reference/wire/) — the frames that carry a code.
+- [Troubleshooting](/operate/troubleshooting/): symptoms, causes and fixes.
+- [Reading a call back](/operate/reading-a-call/): finding the failure afterwards.
+- [The wire](/reference/wire/): the frames that carry a code.

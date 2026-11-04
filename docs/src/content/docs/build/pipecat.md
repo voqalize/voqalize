@@ -89,24 +89,10 @@ transport. Our runnable examples are web only; start from pipecat's
 
 ## Without our library
 
-Pipecat's stock `SmallWebRTCTransport` still connects, and is documented for a
-few more releases. Pass it where the example above passes
-`createVoqalizeTransport()`:
-
-```bash
-pnpm add @pipecat-ai/client-js @pipecat-ai/small-webrtc-transport
-```
-
-```ts
-import { PipecatClient } from "@pipecat-ai/client-js";
-import { SmallWebRTCTransport } from "@pipecat-ai/small-webrtc-transport";
-
-const client = new PipecatClient({ transport: new SmallWebRTCTransport(), enableMic: true });
-```
-
-On this path your page loads daily's call machine from `c.daily.co`, and none of
-the recoveries above apply. To keep a session across a page load, follow
-[the stock recipe](/build/connect/#on-pipecats-stock-transport).
+Pipecat's stock `SmallWebRTCTransport` also connects, for now. On that path your
+page loads daily's call machine from `c.daily.co` and none of the recoveries
+above apply. [Connect your app](/build/connect/#on-pipecats-stock-transport)
+has the setup and how to keep a session across a page load.
 
 ## Versions
 

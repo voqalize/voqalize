@@ -105,7 +105,7 @@ plain assignment and do slow work where order does not matter.
   non-fatal error at `on_error` ([error codes](/reference/errors/)), and the page
   gets nothing.
 
-What each type is for: [the RTVI plane](/reference/rtvi/).
+What each type is for: [RTVI messages](/reference/rtvi/).
 
 ## Where a message goes missing
 
@@ -113,7 +113,7 @@ What each type is for: [the RTVI plane](/reference/rtvi/).
   throws above it in the browser. A brain-to-page message over it is refused with
   a non-fatal error; a page-to-brain message that gets through anyway is dropped
   with a log line.
-- **Congestion.** When the outbound lane is full, speech chunks and RTVI messages
+- **Congestion.** When the outbound queue is full, speech chunks and RTVI messages
   are the frames shed, and `on_error` gets one non-fatal `OVERLOAD` per
   congestion episode per direction.
 
@@ -140,7 +140,7 @@ template over it.
 :::caution[Send identifiers, not personal data, in `init`]
 `init` is stored on the session record and returned to anyone who can read that
 session. Pass ids (a customer id, an order id) and resolve them against your own
-store, as above. [Current status](/overview/status/) says what is stored and for
+store, as above. [Status and support](/overview/status/) says what is stored and for
 how long.
 :::
 
@@ -156,15 +156,15 @@ live in your process, on your schema:
 |---|---|
 | `on_session_start` | Read your identifier from `session.init` and load your history. |
 | `on_rtvi` | Fold in what the user did. |
-| `on_finalize` | Write the turn back as what the user *heard* ([Transcripts](/build/brain/transcripts/)). |
+| `on_finalize` | Write the turn back as what the user *heard* ([Transcripts and heard truth](/build/brain/transcripts/)). |
 
 Everything you fold into context is re-read on every later turn, so append the
 act, not the screen, and keep the rest in the store you already query.
 Voqalize keeps the session record, events and recordings
-([Reading a call](/operate/reading-a-call/)).
+([Reading a call back](/operate/reading-a-call/)).
 
 ## Read next
 
 - [Transcripts and heard truth](/build/brain/transcripts/): what goes into history.
-- [The RTVI plane](/reference/rtvi/): the message list, type by type.
+- [RTVI messages](/reference/rtvi/): the message list, type by type.
 - [Misunderstanding and reversal](/design/#misunderstanding-and-reversal).

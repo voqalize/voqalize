@@ -101,7 +101,7 @@ that reports what was heard names it back. Voqalize never
 mints, orders or compares one — it quotes it back exactly as it arrived, so a
 brain may number units however it likes.
 
-One turn may hold several units: a filler, a pause while a tool runs, then the
+One turn may hold several units: a line, a pause while a tool runs, then the
 answer. The unit is the granularity of everything downstream, because the unit
 is what can be cut mid-word.
 
@@ -196,11 +196,11 @@ So the message carries no verdict: you hold the text you generated, Voqalize
 holds what played, and the comparison is yours. Field 3 is reserved.
 
 "Played" means **released on Voqalize's playout clock** — handed to the
-outbound media — and it is word-granular. It is accurate to about one word
-either way: a word whose audio had only just been handed over counts as heard,
-and audio already on the network or in the user's jitter buffer keeps playing
-after a cut. Where that matters, as it does for a guardrail, read it as *the
-user may have heard one word more*.
+outbound media. Audio already on the network or in the user's jitter buffer
+keeps playing after a cut, so where that matters, as it does for a guardrail,
+read it as *the user may have heard a little more*. Whether the prefix is
+character-exact or rounds to a word boundary is not specified: do not build
+anything that depends on its last character.
 
 Feed `heard_text` back into your model's history rather than what you generated.
 A model that remembers the sentence it started is a model that references a
@@ -471,7 +471,7 @@ duplication. The recognizer serves English, the European languages and the
 Indic languages; a voice
 speaks the subset it was recorded or trained for, which is smaller and differs
 from voice to voice. So the legs genuinely differ — a call understood in Odia is
-spoken with the Hindi clip — and one field could not say so.
+spoken in the voice's Hindi — and one field could not say so.
 
 The rules that follow are enforced in different places on purpose:
 
@@ -481,8 +481,8 @@ The rules that follow are enforced in different places on purpose:
   number and no automated check will ever show you. This is a property of the
   message itself, so the SDK refuses to build it — before the request leaves.
 - **A `tts.language` the chosen voice does not speak is rejected**, rather
-  than served by the Hindi clip. That one is not in the message; it is a
-  capability of the speech tier, it changes as voices are added and clips are
+  than served in another language. That one is not in the message; it is a
+  property of the voices Voqalize serves, it changes as voices are added and
   recorded, so it comes back as a `REJECTED` `Response` with
   `ERROR_CODE_UNSUPPORTED_LANGUAGE`, naming the languages that voice does speak.
 
@@ -490,7 +490,7 @@ Write what you are actually getting:
 
 ```proto
 stt { language_tag: "or" }   // listen in Odia
-tts { language_tag: "hi" }   // speak with the Hindi clip
+tts { language_tag: "hi" }   // speak in Hindi
 ```
 
 Changing only the voice touches no language field and is unaffected by either
@@ -510,9 +510,9 @@ Python SDK raises `ConfigError` before either, when you build the `SttConfig`.
 
 ### The catalog
 
-A voice is a `voice_id` string, the id the speech tier serves it under, and its
+A voice is a `voice_id` string, the id Voqalize serves it under, and its
 prefix picks the engine. A language is a BCP-47 `language_tag`. Neither is a
-list fixed in the proto, so a voice or language the speech tier adds needs no
+list fixed in the proto, so a voice or language Voqalize adds needs no
 wire release; one it does not serve is refused.
 
 The deprecated `Voice` and `Language` enums are frozen. Each `Language` value
@@ -531,8 +531,8 @@ enum Language {
 }
 ```
 
-Which voice speaks which language is the speech tier's, not the wire's. See
-[the voice and language catalog](/reference/catalog/).
+Which voice speaks which language is Voqalize's to say, not the wire's. See
+[Voice and language catalog](/reference/catalog/).
 
 ## The RTVI plane
 
@@ -558,13 +558,13 @@ type:
 | Direction | Types |
 |---|---|
 | Brain → Voqalize → app | `server-message`, `server-response`, `error-response`, `ui-command`, `ui-job-group` |
-| App → Voqalize → brain | `ui-event`, `client-message`, `ui-snapshot`, `ui-cancel-job-group` |
+| App → Voqalize → brain | `ui-event`, `client-message` (deprecated), `ui-snapshot`, `ui-cancel-job-group` |
 
 `send-text` is on the app's half of the whitelist and is not in that row on
 purpose: it is the one type that does not cross as a message. A typed sentence
 takes the floor the way a spoken one does, so Voqalize commits it as a **user
 turn** — your brain answers it in `on_user_message` and never sees an `RTVI`
-frame for it. See [the RTVI plane](/reference/rtvi/).
+frame for it. See [RTVI messages](/reference/rtvi/).
 
 A type absent from the list does not cross in either direction. `bot-*` and
 `llm-*` are Voqalize's own assertions about the media and the model, and a
@@ -590,11 +590,10 @@ the recipient decides from them whether it serves this agent.
 
 The path is yours and is used verbatim; the session rides as a query parameter.
 A brain is therefore one ordinary WebSocket route rather than a wildcard path
-segment you have to carve out for us.
+segment you have to carve out.
 
 `aud` is the constant `"brain"` for every brain. Routing lives in the
-`brain_url`, never in the token. `iss` is a fixed issuer string: compare it, and
-do not read meaning into it.
+`brain_url`, never in the token.
 
 **The socket is the session, and it is not reconnected.**
 
@@ -613,7 +612,7 @@ the first one's state.
 The [Python SDK](/reference/brain/) mints every `speech_id` and `request_id`
 and binds speech to its `turn_id` for you; its callbacks and methods map one to
 one onto the messages above, listed in
-[the Brain API](/reference/brain/#how-the-sdk-maps-onto-the-wire).
+the [Brain API](/reference/brain/#how-the-sdk-maps-onto-the-wire).
 
 ## Invariants
 

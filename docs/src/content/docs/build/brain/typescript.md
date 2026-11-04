@@ -5,8 +5,8 @@ description: Generate TypeScript for your Action and AppEvent classes with `voqa
 
 An [action](/build/brain/actions/) is already a complete description of a
 payload: field names, types, defaults, docstrings. So is an [app
-event](/build/brain/context/), in the other direction. Writing either again in TypeScript
-is a copy that cannot fail when it drifts.
+event](/build/brain/context/), in the other direction. Generate the TypeScript
+from them rather than writing it again by hand.
 
 ```bash
 uv run voqalize types backend/brain.py -o frontend/src/actions.gen.ts
@@ -26,7 +26,7 @@ build failures.
 
 ## What it emits
 
-For a brain declaring `LogMeal`, with a nested `MealItem`:
+For a brain declaring `LogMeal` (with a nested `MealItem`) and `Highlight`:
 
 ```ts
 // Generated from backend/brain.py by `voqalize types`. Do not edit — regenerate with:
@@ -48,6 +48,8 @@ export interface MealItem {
   quantity: string;
   calories: number;
 }
+
+// … and `Highlight`, generated the same way.
 
 /** Everything the brain can put on screen, discriminated by `command`. */
 export type UiAction =
@@ -198,5 +200,6 @@ works exactly until the next regeneration.
 
 ## Read next
 
-- [Actions](/build/brain/actions/) — declaring the payloads this generates from.
-- [Context and history](/build/brain/context/) — the inbound half these events serve.
+- [Test the brain](/build/testing/): drive actions and events over the real wire.
+- [Actions](/build/brain/actions/): declaring the payloads this generates from.
+- [Context and history](/build/brain/context/): the inbound half these events serve.

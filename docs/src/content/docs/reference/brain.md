@@ -1,5 +1,5 @@
 ---
-title: The Brain API
+title: Brain API
 description: Every callback a brain may implement, its signature, and what it is handed. Which one is required, and which are generators.
 ---
 
@@ -35,7 +35,7 @@ from any callback and from work that outlives one.
 | `AppEvent` | class | Base for a typed thing the person did in your app. The app→brain direction of [`Action`](/build/brain/actions/). |
 | `AppEvents` | class | Your brain's app→brain vocabulary. Hand it your `AppEvent` classes, give it every `RTVIMessage`, and `parse` returns your union or `None` — it never raises on a live call. |
 | `ErrorCode` | enum | The code on an `Error`. See [Error codes](/reference/errors/). |
-| `RTVIType` | enum | The RTVI message types. See [The RTVI plane](/reference/rtvi/). |
+| `RTVIType` | enum | The RTVI message types. See [RTVI messages](/reference/rtvi/). |
 | `WireError` | exception | A brain broke a wire obligation. |
 | `RequestRejected` | exception | Voqalize refused a `configure` call. Carries `op`, `detail` and `code`; see [Error codes](/reference/errors/#a-rejected-request-comes-back-on-the-request). |
 | `Unsupported` | exception | The Voqalize serving this session does not honour the call — today, `cancel_speech` without `can_cancel_speech`. Raised before anything is sent. |
@@ -138,10 +138,8 @@ silently. The SDK speaks the string as one speech unit bound to the session's
 first turn, so a user who talks over the greeting interrupts it like any other
 turn.
 
-**No model call belongs here.** A fixed line, or at most a template over
-`session.init` — `f"Hi {name}, how can I help?"` — and nothing else. It is
-`async` so you can look that name up, not so you can generate the sentence: this
-is the one moment a connected user is sitting there hearing nothing.
+Return a fixed line or a template over `session.init`, never a model call
+([why](/build/brain/#the-greeting-is-a-string-not-a-model-call)).
 
 ### Failure in `on_session_start` or `greet`
 
@@ -205,7 +203,7 @@ It rides RTVI's own `ui-command`, which a pipecat client reads with
 originate are accepted — `server-message`, `server-response`, `error-response`,
 `ui-command`, `ui-job-group` — and any other raises `WireError` listing them.
 Quote `id` back from the message you are answering. See
-[The RTVI plane](/reference/rtvi/).
+[RTVI messages](/reference/rtvi/).
 
 **`end`** hangs up. Idempotent, callable from anywhere. To say goodbye first,
 speak it and then call this: the generator body resumes only after the SDK has
@@ -237,7 +235,7 @@ BCP-47 tag such as `"ta"`; the values are in [the catalog](/reference/catalog/).
 
 - **Naming a language on one leg and not the other raises `ConfigError`** before
   anything reaches the wire. They may differ — fewer languages can be spoken
-  than understood — but you state both. See [Voice and language](/reference/catalog/).
+  than understood — but you state both. See [Voice and language](/build/voice-and-language/#always-set-both-legs).
 - **A string voice or language needs `can_configure_strings`.** Without it,
   `configure` raises `Unsupported` before sending anything.
 - **A session runs with `idle.timeout_ms` at 0**, which is idle detection off.
@@ -278,8 +276,8 @@ fin = await session.cancel_speech(start.speech_id)   # fin.heard, fin.interrupte
   `SpeechStart` the SDK has not consumed yet.
 - The call waits `REQUEST_TIMEOUT_S`, 10.0 seconds, for the `Finalize`, then
   raises `TimeoutError`.
-- `heard` is accurate to about one word either way, and today the cut stops
-  every unit still playing or queued, each with its own `Finalize`. See
+- Do not rely on `heard` to the character. The cut stops every unit still
+  playing or queued, each with its own `Finalize`. See
   [stopping your own speech](/build/brain/speaking/#stopping-your-own-speech).
 
 **`report_step`** tells Voqalize about one piece of work your brain did for a
@@ -376,7 +374,7 @@ class Error:
 `idle.level` resets the moment the user says something, so a brain can nudge at
 1 and wrap up at 3.
 
-`fin.heard` is the one to record. See [Transcripts](/build/brain/transcripts/).
+`fin.heard` is the one to record. See [Transcripts and heard truth](/build/brain/transcripts/).
 
 **The dataclass is not the frame.** `Finalize` is the SDK's shape; the wire
 carries different names, and a reader moving between this page and
@@ -423,7 +421,7 @@ plays no part in equality.
 ## Hosting
 
 The same `Brain` runs on either entry point. Which one you use is a property of
-your network, not of your code — see [Where the brain runs](/build/hosting/).
+your network, not of your code — see [Deploy the brain](/build/hosting/).
 
 ### `run_session`
 
@@ -741,8 +739,8 @@ Voqalize as a `TurnStep` when `session.can_report_steps` is true: the model
 request with its own token counts, the tool with its time.
 
 The tool declaration contract, the mark and the budget are in
-[Tools](/build/brain/tools/). Porting a brain you already have is
-[Bringing an existing agent](/build/existing-agent/).
+[Tools](/build/brain/tools/). Porting a brain you already have is in
+[Use another agent framework](/build/existing-agent/).
 
 ### `GeminiInteractionsBrain`
 
@@ -758,7 +756,7 @@ offers that `generate_content` does not.
 from voqalize.sdk.gemini_interactions import GeminiInteractionsBrain
 ```
 
-It is not on the voice core and is unchanged. It is installed with the `gemini`
+It is not built on the voice core. It is installed with the `gemini`
 extra and takes `client`, `system_instruction`, `model` and `max_tool_hops`, with
 no `report_steps`: it sends no `TurnStep`. It offers `tools`,
 `system_instruction`, `append_to_context` and `respond`, and none of
@@ -801,5 +799,5 @@ they are yours, in your process, in whatever shape your model takes.
 
 ## Read next
 
-- [Your first brain](/build/brain/) — the same surface, taught rather than listed.
-- [The wire](/reference/wire/) — what the frames underneath look like.
+- [Build the brain](/build/brain/): the same surface, taught rather than listed.
+- [The wire](/reference/wire/): what the frames underneath look like.

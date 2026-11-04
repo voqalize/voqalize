@@ -91,17 +91,10 @@ get_session(tenant, session_id)["files"]["recording"]
 # {"status": "uploaded", "reason": null, "size_bytes": 412331, "updated_at": "…"}
 ```
 
-`status` is `expected` until Voqalize says what became of the recording, then
-`uploaded`, `failed` or `skipped`. `failed` and `skipped` carry a `reason`:
-`skipped` means there was never going to be a recording — it was off, or the
-session never connected. An `uploaded` recording carries a `reason` when the
-session was interrupted and the recording was rebuilt from what had been
-captured: it plays, and it may end before the session did. A recording that read
-`failed` changes to `uploaded` if it is rebuilt later; an `uploaded` one never
-changes back. An `expected` recording is looked up in storage an hour
-after the session ends, and reads `uploaded` if it is there and `lost` if it is
-not. Read this before concluding that an empty `get_recordings` list means the
-call was not recorded. See [reading a call back](/operate/reading-a-call/).
+Read this before concluding that an empty `get_recordings` list means the
+call was not recorded. An `uploaded` recording with a `reason` was rebuilt
+after an interruption: it plays, and it may end before the session did. Every
+status and when it settles: [Whether each file arrived](/operate/reading-a-call/#whether-each-file-arrived).
 
 ## The download URL is a credential
 
@@ -129,13 +122,13 @@ The URL lifetime is not the retention period, which is on
 The call's `session.created` event carries `recording_enabled` and
 `recording_source` — `client` when the mint request said so, `agent_default` when
 it did not. That is how you answer "why was this call not recorded" without
-guessing. See [reading a call back](/operate/reading-a-call/).
+guessing. See [Reading a call back](/operate/reading-a-call/).
 
 `get_session` also carries the same recordings without URLs, for when you only
 need to know whether any exist.
 
 ## Read next
 
-- [Reading a call back](/operate/reading-a-call/) — the record first, logs second, audio last.
-- [Keys and authentication](/build/keys/) — why the key you hold changes what you may ask for.
-- [Camera and screen](/build/video/) — turning the video lanes on, and composing them yourself.
+- [Reading a call back](/operate/reading-a-call/): the record first, logs second, audio last.
+- [Keys and authentication](/build/keys/): why the key you hold changes what you may ask for.
+- [Camera and screen](/build/video/): turning the video lanes on, and composing them yourself.

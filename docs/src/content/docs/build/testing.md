@@ -1,5 +1,5 @@
 ---
-title: Testing a brain
+title: Test the brain
 description: Drive your brain over the real wire in text mode, with no audio, browser or person, assert on what it said and heard, and run the built-in conformance suite in CI.
 ---
 
@@ -149,13 +149,14 @@ the probe either way with `--reference` / `--no-reference` if you need to.
 
 The deep tier is worth reaching for once your own scenarios are in place: to run
 it, your brain needs a test mode that answers the grammar and answers a
-`__voqal.conformance.dump` client message with its conversation. Read
+`client-message` named by `voqalize.conformance.CONFORMANCE_DUMP_EVENT` with its
+conversation. Read
 `ConformanceBrain` for the shape — the cooperation is small, and it buys you
 heard-truth reconciliation across multiple interruptions.
 
 ## When a live call misbehaves
 
-Read it back with [Reading a call](/operate/reading-a-call/): the call record
+Read it back as [Reading a call back](/operate/reading-a-call/) shows: the call record
 (what was said and heard, turn by turn), then the logs. When a live call fails in
 a way the offline suite passed, that gap is the next scenario: reproduce it here
 first, then fix it.
@@ -165,4 +166,4 @@ first, then fix it.
 - [Interruption and heard truth](/design/#interruption-and-heard-truth): what
   the harness models when it replays a barge-in.
 - [Deploy the brain](/build/hosting/): put the tested brain where Voqalize can reach it.
-- [Reading a call](/operate/reading-a-call/): the record, logs and events of a real call.
+- [Reading a call back](/operate/reading-a-call/): the record, logs and events of a real call.

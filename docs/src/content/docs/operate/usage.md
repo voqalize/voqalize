@@ -61,6 +61,6 @@ Poll with care: read a session when something happened to it, by its
 
 ## Read next
 
-- [Going to production](/operate/production/) — the checklist before launch.
-- [Reading a call back](/operate/reading-a-call/) — the sessions behind the counters.
-- [MCP server](/reference/mcp/) — `get_usage` and `list_sessions` in full.
+- [Going to production](/operate/production/): the checklist before launch.
+- [Reading a call back](/operate/reading-a-call/): the sessions behind the counters.
+- [MCP server](/reference/mcp/): `get_usage` and `list_sessions` in full.

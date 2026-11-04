@@ -137,10 +137,10 @@ Your history lives in your process, and Voqalize stores none of it. Voqalize's o
 record of the session (what was asked, what your brain generated, what the user
 heard, and what each interruption discarded) is read back by `session_id`, the
 same id your brain sees as `session.id`
-([Reading a call](/operate/reading-a-call/)).
+([Reading a call back](/operate/reading-a-call/)).
 
 ## Read next
 
-- [Testing a brain](/build/testing/): assert on heard text without a microphone.
+- [Test the brain](/build/testing/): assert on heard text without a microphone.
 - [Interruption and heard truth](/design/#interruption-and-heard-truth): the argument.
 - [The wire](/reference/wire/): the frames that carry it.

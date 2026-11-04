@@ -5,7 +5,7 @@ description: Speech is the only thing you yield. The frames that carry it, why a
 
 You yield `SpeechStart()`, one or more `SpeechChunk(text)`, then `SpeechEnd()`,
 and Voqalize starts speaking while you are still producing the rest. Everything
-that is not speech is a method on `session` ([Your first brain](/build/brain/)).
+that is not speech is a method on `session` ([Build the brain](/build/brain/)).
 
 ## Open, fill and close a speech unit
 
@@ -124,11 +124,10 @@ settings.
 
 ### The ten-second line
 
-If a user turn produces no text for ten seconds, Voqalize says a line of its
-own, *"Sorry — that's taking longer than I expected."*, and keeps the session
-up. The timer starts when the user's turn is committed and stops at **your first
-chunk** (not when a unit opens). It runs only for a user message, not for an
-idle turn.
+If a user turn sends no `SpeechChunk` for ten seconds, Voqalize says a line of
+its own about the wait and keeps the session up. Opening a unit does not stop
+the timer; your first chunk does. [What your user hears](/reference/errors/#what-your-user-hears)
+has the line and the rules.
 
 After your first chunk nothing covers a wait. An `await` between units is
 silence you chose, so the line before it has to carry something, as "The blue
@@ -201,8 +200,8 @@ id is what you cancel. The call returns the unit's `Finalize` (the same one
 - **The turn stays open.** This is not a barge-in: open a new unit and it plays.
   A cancelled unit needs no `SpeechEnd`, and anything you yield for it afterwards
   is dropped.
-- **`heard` is accurate to about one word.** Audio already on its way still
-  plays, so assume one word more than `heard` may have been heard.
+- **Do not rely on `heard` to the character.** Audio already on its way still
+  plays after the cut, so the user may have heard a little more than `heard`.
 - **A cancel that lost the race returns at once** with the unit's `Finalize`,
   nothing cut. A second cancel does the same.
 - **Check `session.can_cancel_speech` first.** Without it the SDK raises

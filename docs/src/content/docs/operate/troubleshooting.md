@@ -15,7 +15,7 @@ Find the symptom, check the cause, apply the fix. If no row fits,
 | `401` | The key is wrong, revoked, or for another agent. | Check `last_used_at` in `list_api_keys`. See [Keys and authentication](/build/keys/). |
 | `409` `agent_not_configured` | The agent has no `brain_url` and no Cortex credentials. | Set a `brain_url`, or call `create_agent_credentials`. See [Deploy the brain](/build/hosting/). |
 | `409` `agent_archived` | The agent is archived. | `unarchive_agent`. |
-| `400` `invalid_config`, `details.code` `unsupported_language` | `stt.language` is one the recognizer does not hear. | Pick one from [the catalog](/reference/catalog/#speech-to-text). |
+| `400` `invalid_config`, `details.code` `unsupported_language` or `unsupported_voice` | The recognizer does not hear `stt.language`, the voice is not served, or the voice does not speak `tts.language`. | Pick values from [the catalog](/reference/catalog/). |
 | `400` `recording_not_permitted` | A `pk_` sent `record: true`. | Send it from your server, or set the agent's default. See [Recordings](/operate/recordings/#a-publishable-key-can-turn-recording-off-not-on). |
 | `sessions_created` is far above `sessions_started` | The page mints on load, an origin is refused, or `connect` throws before the transport starts. | See [the gap that means a broken embed](/operate/usage/#the-gap-that-means-a-broken-embed). |
 
@@ -33,7 +33,7 @@ Find the symptom, check the cause, apply the fix. If no row fits,
 
 | Symptom | Usual cause | Fix |
 |---|---|---|
-| It refers to things the user never heard | History records what the brain generated, not what was heard. | Record `fin.heard` from `on_finalize`. See [Transcripts](/build/brain/transcripts/). |
+| It refers to things the user never heard | History records what the brain generated, not what was heard. | Record `fin.heard` from `on_finalize`. See [Transcripts and heard truth](/build/brain/transcripts/). |
 | The user hears two acknowledgements | Voqalize's acknowledgement is on, and your brain opens with its own. | Turn ack off, or drop your own opener. See [Speaking](/build/brain/speaking/#turn-ack-off-when-your-brain-writes-its-own). |
 | Right words, wrong accent | Only one language leg was changed, or `tts.language` was never set. | Set both legs every time. See [Voice and language](/build/voice-and-language/). |
 | A `configure` raises `RequestRejected` | The voice does not speak that language, or the recognizer does not hear it. | Read `code` and `detail`. See [Error codes](/reference/errors/#a-rejected-request-comes-back-on-the-request). |
@@ -42,9 +42,9 @@ Find the symptom, check the cause, apply the fix. If no row fits,
 
 | Symptom | Usual cause | Fix |
 |---|---|---|
-| The brain dispatched an action and nothing happened | The user talked over the reply, so the unit was discarded (`never_spoken` in the call record). | Expected barge-in behaviour. See [Reading a call back](/operate/reading-a-call/#what-the-record-contains). |
+| The brain's reply was never heard and the screen did not move | The user talked over the turn before your code reached `dispatch`, so the turn was cancelled (`never_spoken` units in the call record). An action already dispatched still arrives. | Expected barge-in behaviour. Dispatch next to the sentence it belongs with. See [Reading a call back](/operate/reading-a-call/#what-the-record-contains). |
 | An action never reaches the page's handler | The action class was renamed, so the page listens for the old name. | Rename both sides together. See [Actions](/build/brain/actions/#the-class-name-is-the-wire-name). |
-| Actions go missing under load, with an `overload` error | Your SDK shed frames from a full lane. | See [`overload`](/reference/errors/#overload). |
+| Actions go missing under load, with an `overload` error | Your SDK shed frames from a full queue. | See [`overload`](/reference/errors/#overload). |
 | Speech and screen disagree on a Stage site | A cue was dropped or a move failed. | Run the `stage-debug` skill. See [Stage](/build/stage/). |
 
 ## Still stuck: read the session back
@@ -62,6 +62,6 @@ us, send the `session_id`, or the `correlation_id` from a refused request.
 
 ## Read next
 
-- [Reading a call back](/operate/reading-a-call/) — the record, the logs and the milestones.
-- [Error codes](/reference/errors/) — every code and refusal.
-- [Going to production](/operate/production/) — avoid these before launch.
+- [Reading a call back](/operate/reading-a-call/): the record, the logs and the milestones.
+- [Error codes](/reference/errors/): every code and refusal.
+- [Going to production](/operate/production/): avoid these before launch.

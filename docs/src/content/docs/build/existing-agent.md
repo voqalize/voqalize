@@ -1,5 +1,5 @@
 ---
-title: Bringing an agent you already have
+title: Use another agent framework
 description: Give an existing ADK, LangChain, OpenAI Agents, pipecat or hand-rolled agent a voice. The port is one subclass; the one thing that has to change is how you record history.
 ---
 
@@ -180,5 +180,5 @@ design problem, not an SDK one: start with
 ## Read next
 
 - [Transcripts and heard truth](/build/brain/transcripts/): the history rule in full.
-- [Testing a brain](/build/testing/): prove the port without a microphone.
+- [Test the brain](/build/testing/): prove the port without a microphone.
 - [Deploy the brain](/build/hosting/): a route Voqalize dials, or Cortex for local development.

@@ -38,8 +38,7 @@ Another framework or language connects through the published protobuf
 ## App clients
 
 The page side is pipecat's client. In a browser, `@voqalize/client-transport@0.4.0`
-handles the media; pipecat's stock transport still works and is documented for
-a few more releases. See [Client libraries](/build/pipecat/).
+handles the media. See [Client libraries](/build/pipecat/).
 
 | Environment | Client | Voqalize example |
 |---|---|---|
@@ -66,13 +65,9 @@ suits serverless and egress-only networks. See
 Sessions are processed and stored in India today. A United States region is
 planned and cannot be selected yet.
 
-| Limit | Value |
-|---|---|
-| Session length | One hour |
-| MCP tool calls | 120 a minute; over it, a tool returns an error asking you to slow down and retry |
-| Included minutes and storage | Set by your plan ([pricing](https://voqalize.com/pricing)) |
-
-Talk to us before a launch that needs more than your plan carries.
+A session lasts at most one hour. Every other limit, and what happens at it, is
+in [Usage and limits](/operate/usage/#limits); included minutes and storage are
+set by your plan ([pricing](https://voqalize.com/pricing)).
 
 ## Stored session data
 
@@ -101,6 +96,6 @@ are on the [pricing page](https://voqalize.com/pricing).
 
 ## Read next
 
-- [How Voqalize works](/build/session/): the whole path, and the glossary.
+- [Build an agent](/build/): every step, in order.
 - [Quickstart](/build/quickstart/): hear your first agent.
 - [Going to production](/operate/production/): the checklist before launch.

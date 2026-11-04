@@ -169,8 +169,7 @@ While a lane is off its file has no frames, and a player holds the last one,
 so a camera that was switched off and a camera whose picture froze look the
 same. A `camera` or `screen` entry whose lane rendered carries a `timeline`
 that tells them apart. It is `null` on every other role, and also on a lane
-entry whose render failed or that was recorded before the field existed, so
-check for it before reading it. Every time in it is in seconds from
+entry whose render failed, so check for it before reading it. Every time in it is in seconds from
 the session's start, to the millisecond:
 
 ```json
@@ -247,9 +246,9 @@ A session with only one lane leaves out the other's input and overlay.
 
 ## Read next
 
-- [Recordings](/operate/recordings/) — who may turn recording on, each file's
+- [Recordings](/operate/recordings/): who may turn recording on, each file's
   state, and the download URL.
-- [Connect your app](/build/connect/) — the connect request and the
+- [Connect your app](/build/connect/): the connect request and the
   `withRealHeaders` line this page builds on.
-- [Client libraries and mobile](/build/pipecat/) — what is pipecat's and
+- [Client libraries](/build/pipecat/): what is pipecat's and
   which versions are supported.

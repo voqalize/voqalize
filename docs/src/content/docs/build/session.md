@@ -74,7 +74,7 @@ sequenceDiagram
    `session.configure(...)`.
 7. **The user may interrupt.** Voqalize stops the audio and sends `Interruption`.
    For every unit, `Finalize` says what the user actually heard. Keep that in your
-   history, not what you generated: [Transcripts](/build/brain/transcripts/)
+   history, not what you generated: [Transcripts and heard truth](/build/brain/transcripts/)
    explains how.
 8. **The page talks back.** A click or a form submitted in your page reaches the
    brain as an app event at `on_rtvi`. It does not take a turn, so the agent
@@ -144,10 +144,10 @@ None of these is needed for a first session, and each is a change to one side:
 | **Session** | One conversation: one connect, one WebSocket to the brain, one record. It lasts at most one hour. |
 | **Turn** | One finished utterance from the user, delivered as `UserMessage` text, and the brain's reply to it. |
 | **Speech unit** | One `SpeechStart` … `SpeechEnd` span of the brain's reply. Speaking starts on its first chunk, and it is the piece a user can be interrupted out of. [Speaking](/build/brain/speaking/). |
-| **Heard text** | What the user actually heard of a unit, delivered in `Finalize`. Shorter than what you generated when the user interrupted. [Transcripts](/build/brain/transcripts/). |
+| **Heard text** | What the user actually heard of a unit, delivered in `Finalize`. Shorter than what you generated when the user interrupted. [Transcripts and heard truth](/build/brain/transcripts/). |
 | **Acknowledgement (ack)** | The short line Voqalize says while your brain works on a reply. On by default. [Voice and language](/build/voice-and-language/). |
 | **Action** | A typed message from the brain to the page (`session.dispatch(...)`), delivered as an RTVI `ui-command`. It renders and is never spoken. [Actions](/build/brain/actions/). |
-| **App event** | A typed message from the page to the brain (`AppEvent`), arriving at `on_rtvi`. It informs the brain and does not take a turn. [Context](/build/brain/context/). |
+| **App event** | A typed message from the page to the brain (`AppEvent`), arriving at `on_rtvi`. It informs the brain and does not take a turn. [Context and history](/build/brain/context/). |
 | **Tool** | A function your model calls during a turn. It runs in your process. [Tools](/build/brain/tools/). |
 | **The wire** | The published protobuf frames on the brain's WebSocket. Any language can implement it. [The wire](/reference/wire/). |
 | **RTVI** | Pipecat's message format for the page's data channel. Voqalize carries it between page and brain. [RTVI messages](/reference/rtvi/). |
@@ -158,7 +158,7 @@ None of these is needed for a first session, and each is a change to one side:
 | **Session token** | The short-lived credential in the connect response. The browser presents it to the Voqalize machine running the session. |
 | **Brain-connection token** | The short-lived credential Voqalize presents when it dials your brain. The SDK verifies it for you. [Deploy the brain](/build/hosting/). |
 | **`config`** | How a session sounds and listens: `tts`, `stt`, `idle`, `ack`, and `record` at connect. Set at connect and by the brain. |
-| **`init`** | Your data for the brain, passed at connect and read as `session.init`. Stored on the session, so send identifiers rather than personal data. [Context](/build/brain/context/). |
+| **`init`** | Your data for the brain, passed at connect and read as `session.init`. Stored on the session, so send identifiers rather than personal data. [Context and history](/build/brain/context/). |
 | **Stage** | The framework for an agent that shows and does things on the page while it talks, declared as moves in a spec. [Stage](/build/stage/). |
 | **The avatar** | A 2-D talking head in the page, driven by the session's own messages. [The avatar](/build/avatar/). |
 | **Recording** | The session's audio, plus camera and screen when the page turns them on. [Recordings](/operate/recordings/). |

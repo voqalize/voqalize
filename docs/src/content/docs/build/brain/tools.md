@@ -20,7 +20,7 @@ pip install "voqalize-agent-sdk[gemini]==0.12.0"    # or [openai], or [litellm]
 ```
 
 A plain `Brain` has no `tools` member: it calls its own functions from its own
-loop ([Bringing an agent you already have](/build/existing-agent/)).
+loop ([Use another agent framework](/build/existing-agent/)).
 `GeminiInteractionsBrain` takes the same tool list but runs it differently and
 is experimental; see [the shipped adapters](/reference/brain/#the-shipped-adapters).
 
@@ -309,7 +309,7 @@ await asyncio.sleep(0.1)  # on_rtvi opens no turn, so there is nothing to await
 ```
 
 The answer is never spoken, so no `Turn` carries it: assert on what the model is
-handed with the next message. [Testing a brain](/build/testing/) has the rest of
+handed with the next message. [Test the brain](/build/testing/) has the rest of
 the driver.
 
 ## Write results for the model, not the ear
@@ -337,4 +337,4 @@ brain with `report_steps=False` to keep steps off the wire
 
 - [Tool design for voice](/design/#tool-design-for-voice): the argument, at length.
 - [Context and history](/build/brain/context/): app events, and making state readable.
-- [Testing a brain](/build/testing/): drive tools over the real wire.
+- [Test the brain](/build/testing/): drive tools over the real wire.

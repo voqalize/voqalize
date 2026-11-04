@@ -1,5 +1,5 @@
 ---
-title: Voice & language catalog
+title: Voice and language catalog
 description: The languages the recognizer hears, the voices and the languages each one speaks, the turn-taking settings with their defaults, and the rule that both language legs are set together.
 ---
 
@@ -11,25 +11,11 @@ A session with no configuration runs in English on both legs, with ack on and
 idle detection off.
 
 :::caution[Set both legs of a language, always]
-`stt.language` picks the **recognizer**. `tts.language` picks the language the
-voice reads in, which for a cloned voice is a different recorded speaker. Name a
-language on one leg and you must name it on the other; the SDK raises
-`ConfigError` otherwise:
-
-```python
-from voqalize.sdk.wire import Config, SttConfig, TtsConfig
-
-await session.configure(
-    Config(
-        stt=SttConfig(language="ta"),
-        tts=TtsConfig(language="ta", voice="omnivoice/gauri"),
-    )
-)
-```
-
-**A half-applied language is silent.** The words stay right and only the speaker
-is wrong, so no transcript, log or automated score shows it. See
-[why both halves matter](#why-both-halves-matter).
+Name a language on `stt` and you must name one on `tts`, or the SDK raises
+`ConfigError`. A half-applied language is silent: the words stay right and only
+the speaker is wrong. [Voice and language](/build/voice-and-language/#always-set-both-legs)
+shows how; [why both halves matter](#why-both-halves-matter) shows what each
+half does wrong.
 :::
 
 Voices and languages are strings: a voice by its id, a language by its BCP-47
@@ -136,32 +122,32 @@ A language change applies at the **next end of turn**, never mid-utterance.
 | `Voice.OMNIVOICE_TYLER` | `omnivoice/tyler` | Tyler (male) | `en` |
 <!-- voices:end -->
 
-The table is generated from the voices the speech tier is serving. The prefix on
-the voice id picks the engine; there is no other engine selector.
+The table is generated from the voices Voqalize serves. The prefix on the voice
+id picks the engine; there is no other engine selector.
 
 ### Language (`tts.language`)
 
 What `tts.language` means depends on the voice, which is why the table states it
 per voice:
 
-- A **cloned** voice is recorded separately for each language it speaks.
-  `omnivoice/gauri` speaking `hi` and `omnivoice/gauri` speaking `en` are two
-  different recorded speakers.
-- A voice whose accent comes from its **checkpoint** speaks only the language
-  that checkpoint was trained on.
+- Most voices are **cloned** from a reference recording, one per language they
+  speak. `omnivoice/gauri` speaking `hi` and `omnivoice/gauri` speaking `en`
+  are two different recorded speakers.
+- A voice whose accent comes from its model (its **checkpoint**) speaks only
+  the language that model was trained on.
 
 **A pairing the voice cannot speak is rejected**, not served in the wrong
 language. The rejection names the languages that voice does speak.
 
-The legs may differ on purpose. An Odia call spoken with the Hindi clip is a
-configuration you write down:
+The legs may differ on purpose. An Odia call answered in the voice's Hindi
+recording is a configuration you write down:
 
 ```python
 from voqalize.sdk.wire import Config, SttConfig, TtsConfig
 
 Config(
     stt=SttConfig(language="or"),   # understood in Odia
-    tts=TtsConfig(language="hi"),   # spoken with the Hindi clip
+    tts=TtsConfig(language="hi"),   # spoken in Hindi
 )
 ```
 
@@ -171,18 +157,11 @@ Each half fails on its own, quietly, in a different way:
 
 | Half wrong | What you get | How you find out |
 |---|---|---|
-| `tts.language` | The right words in the wrong speaker: Hindi read by the English reference clip sounds like a non-native accent | **By ear only.** The words are correct, so transcription-based scoring is blind to it |
+| `tts.language` | The right words in the wrong speaker: Hindi read by the voice's English recording sounds like a non-native accent | **By ear only.** The words are correct, so transcription-based scoring is blind to it |
 | `stt.language` | What the user says is transcribed in the wrong language | Garbled transcripts, blamed on the model |
 
-Two rules prevent it:
-
-- **State both legs or neither.** Not that the legs agree, only that you named
-  both. Changing only the voice touches no language field. `Config` raises
-  `ConfigError` at the call site, before anything reaches the socket.
-- **No silent substitution.** A language the chosen voice does not speak is
-  refused, so the Hindi clip is only ever something you asked for. Voqalize
-  answers this one: at connect when the configuration arrived there, and as a
-  rejected `configure` when your brain sent it.
+Voqalize never substitutes for either: a language the chosen voice does not
+speak is refused at connect, or as a rejected `configure` from your brain.
 
 Voqalize runs recognition and synthesis itself, so there is no speech provider
 to configure and no provider key in your deployment.

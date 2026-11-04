@@ -1,5 +1,5 @@
 ---
-title: Your first brain
+title: Build the brain
 description: The callbacks a brain implements, the one that is required, and the smallest brain that holds a conversation.
 ---
 
@@ -22,7 +22,7 @@ class Concierge(Brain):
         yield SpeechEnd()
 ```
 
-That brain runs. The [Quickstart](/build/quickstart/) mounts it on a route and
+That brain runs. The [Quickstart](/build/quickstart/) runs it over Cortex and
 takes a call; this page is about what you add to it.
 
 ## Speech is yielded; everything else is a session method
@@ -53,7 +53,7 @@ language and hanging up are methods on `session`, callable from any callback:
 | `on_session_end` | `None` | The socket is closing. |
 
 Only the two generators can speak, so a click or an error never talks over the
-user. Signatures and arguments are in [the Brain API](/reference/brain/).
+user. Signatures and arguments are in the [Brain API](/reference/brain/).
 
 ## The greeting is a string, not a model call
 
@@ -78,4 +78,4 @@ refers to things the user never heard. Nothing logs this mistake.
 6. [TypeScript types](/build/brain/typescript/): generate the browser half of actions and events.
 
 Then [test it](/build/testing/) and [deploy it](/build/hosting/). Already have an
-agent? [Bring it over](/build/existing-agent/).
+agent? [Use another agent framework](/build/existing-agent/).

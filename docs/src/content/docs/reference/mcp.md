@@ -8,39 +8,13 @@ The Voqalize MCP server is the management surface: tools your coding agent
 its `brain_url` at your route, and read back what a session did. It is hosted;
 there is nothing to install or run.
 
-How to work with it from a coding agent, end to end, is
-[Work with a coding agent](/build/coding-agent/).
-
 ## Connect
 
-The endpoint is `https://app.voqalize.com/mcp/`. In Claude Code:
-
-```bash
-claude mcp add --transport http voqalize https://app.voqalize.com/mcp/
-```
-
-Or, project-scoped, an `.mcp.json` at your repo root:
-
-```json
-{
-  "mcpServers": {
-    "voqalize": {
-      "type": "http",
-      "url": "https://app.voqalize.com/mcp/"
-    }
-  }
-}
-```
-
-Any other MCP client takes the same two things: a name and that URL over HTTP.
-On first use your client opens a browser **Google sign-in**, the same login as
-the console. There is no API key, client ID or secret to configure: the client
-registers itself and carries the resulting token. Your first sign-in creates
-your Voqalize user.
-
-On connect the server sends your agent its own instructions, which link to these
-docs. Every docs page is also served as markdown at its URL plus `.md`, indexed
-at [`/llms.txt`](/llms.txt).
+The endpoint is `https://app.voqalize.com/mcp/`, over HTTP, signed in with
+Google (OAuth). There is no API key, client ID or secret to configure, and your
+first sign-in creates your Voqalize user.
+[Work with a coding agent](/build/coding-agent/#connect-the-mcp-server) has the
+setup for Claude Code and `.mcp.json`.
 
 ## Auth, tenancy and limits
 
@@ -169,8 +143,9 @@ A member row is `id`, `user_id`, `email`, `full_name`, `role`, `status`,
 
 ## Site Agent tools
 
-The Site Agent answers visitors on a website you name. These tools manage its
-sites: what a site knows is edited through a draft, checked, reviewed, then
+These tools serve the Site Agent, Voqalize's hosted agent that answers visitors
+on a website you name; a voice agent you build does not need them. They manage
+its sites: what a site knows is edited through a draft, checked, reviewed, then
 published as a version. Each tool's own description, which your coding agent
 reads, has the arguments in full.
 
@@ -200,6 +175,6 @@ reads, has the arguments in full.
 
 ## Read next
 
-- [Work with a coding agent](/build/coding-agent/) — the end-to-end flow with these tools.
-- [Reading a call back](/operate/reading-a-call/) — the record first, then the logs.
-- [Deploy the brain](/build/hosting/) — inbound or Cortex.
+- [Work with a coding agent](/build/coding-agent/): the end-to-end flow with these tools.
+- [Reading a call back](/operate/reading-a-call/): the record first, then the logs.
+- [Deploy the brain](/build/hosting/): inbound or Cortex.

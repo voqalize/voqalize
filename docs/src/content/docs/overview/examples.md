@@ -79,5 +79,6 @@ mid-session. See [Voice and language](/build/voice-and-language/).
 
 ## Read next
 
-- [Quickstart](/build/quickstart/): run your own brain.
+- [Status and support](/overview/status/): versions, clients, region and pricing.
+- [Build an agent](/build/): every step, in order.
 - [Build the brain](/build/brain/): the callbacks these demos implement.

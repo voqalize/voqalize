@@ -159,5 +159,5 @@ runtime's own and are never sent.
 
 ## Read next
 
-- [Client libraries and mobile](/build/pipecat/): what in the browser is pipecat's.
+- [Client libraries](/build/pipecat/): what in the browser is pipecat's.
 - [RTVI messages](/reference/rtvi/): the messages that cross between your brain and the page.

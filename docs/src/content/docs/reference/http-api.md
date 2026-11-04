@@ -1,5 +1,5 @@
 ---
-title: The HTTP API
+title: HTTP API
 description: The one route that takes an API key, sessions.connect, which starts a session. Its request body, its response, its errors and its rate limit. Management is on the MCP server.
 ---
 
@@ -56,9 +56,6 @@ correlation_id}`. The codes `sessions.connect` returns are in
 The route is rate limited per tenant. A refused request is a `429` with a
 `Retry-After` header in seconds: wait that long and send it again.
 
-`sessions.create` is the old name of this route and returns `404`; change the
-word, and the body and key stay the same.
-
 ## Management is on MCP, by design
 
 Every API key names one agent, so no key can create an agent or mint another
@@ -72,6 +69,6 @@ HTTP access to the operations you need can be enabled for your account.
 
 ## Read next
 
-- [Connect your app](/build/connect/) — the handshake, and which key to hold.
-- [The MCP server](/reference/mcp/) — the management surface, tool by tool.
-- [Keys and authentication](/build/keys/) — `sk_` and `pk_`, and rotation.
+- [Connect your app](/build/connect/): the request, and which key to hold.
+- [The MCP server](/reference/mcp/): the management surface, tool by tool.
+- [Keys and authentication](/build/keys/): `sk_` and `pk_`, and rotation.

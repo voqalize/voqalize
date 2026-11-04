@@ -44,7 +44,7 @@ back. Each carries:
 
   `cut_short` and `never_spoken` are barge-in working, not faults. `never_spoken`
   is the **wasted work**, and the usual explanation for **"my brain replied and
-  nothing happened on screen."** See
+  the user heard nothing."** See
   [interruption and heard truth](/design/#interruption-and-heard-truth).
 - **`gaps`** — stretches where your brain sent nothing. Named for what a record
   can see: a gap may be a model thinking, a tool running or a socket stalled, and
@@ -162,12 +162,12 @@ configure_logging(json_logs=True)     # only if you have no loguru setup of your
 
 Without a sink that prints those fields, they are computed and thrown away. If
 you already configure loguru, add `{extra}` to your format instead. Signatures and the rest are in
-[The Brain API](/reference/brain/#logging).
+the [Brain API](/reference/brain/#logging).
 
 **Log ids whole.** A truncated id matches nothing on Voqalize's side.
 
 ## Read next
 
-- [Troubleshooting](/operate/troubleshooting/) — symptoms, causes and fixes.
-- [Recordings](/operate/recordings/) — when the events and the logs both look right and the call still sounded wrong.
-- [MCP server](/reference/mcp/) — every tool's signature.
+- [Troubleshooting](/operate/troubleshooting/): symptoms, causes and fixes.
+- [Recordings](/operate/recordings/): when the events and the logs both look right and the call still sounded wrong.
+- [MCP server](/reference/mcp/): every tool's signature.

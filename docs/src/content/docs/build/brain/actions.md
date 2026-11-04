@@ -156,7 +156,7 @@ A page with many actions subscribes once to `RTVIEvent.UICommand`, which carries
 `{ command, payload }`, and routes in a reducer. Do not write `ShowResults` by
 hand: `voqalize types` generates it and the union over `command`
 ([TypeScript types](/build/brain/typescript/)). The rest of the message set is
-[the RTVI plane](/reference/rtvi/).
+[RTVI messages](/reference/rtvi/).
 
 ## Ordering, and when an action does not arrive
 
@@ -168,7 +168,7 @@ hand: `voqalize types` generates it and the union over `command`
 - **A barge-in cancels the turn.** A `dispatch` your code had not reached never
   happens; one already sent stands. Work outside a turn (an `on_rtvi` handler, a
   late callback) is not cancelled.
-- **Under congestion an action can be dropped, silently.** The outbound lane
+- **Under congestion an action can be dropped, silently.** The outbound queue
   holds 256 frames by default; when it is full, speech chunks and RTVI messages
   (actions included) are shed. The symptom is a screen one render behind the
   conversation.

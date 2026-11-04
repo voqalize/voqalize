@@ -56,6 +56,9 @@ brain, test it, deploy it, create the agent, connect your page.
 [Stage](/build/stage/), add [the avatar](/build/avatar/), or record
 [camera and screen](/build/video/).
 
+**Making it good to talk to.** [Designing for voice](/design/) covers the turn
+budget, interruption, the screen and tool design.
+
 **Running it.** [Operate](/operate/) reads a session back, finds the cause of a
 bad call and gets you ready for production.
 

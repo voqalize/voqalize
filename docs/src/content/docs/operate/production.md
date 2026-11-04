@@ -28,7 +28,7 @@ Work down the list before launch. Each line links the page that owns it.
 - [ ] **Pin exact versions** of `voqalize-agent-sdk` on your server and
   `@voqalize/client-transport` in your page.
   [Versions](/build/pipecat/#versions)
-- [ ] **Handle `on_error`**, and log `overload` so you know when a lane is
+- [ ] **Handle `on_error`**, and log `overload` so you know when a queue is
   shedding frames. [Error codes](/reference/errors/#overload)
 - [ ] **Run the conformance suite in CI**, plus your own scenarios, so a broken
   turn fails a build rather than a session.
@@ -67,6 +67,6 @@ Work down the list before launch. Each line links the page that owns it.
 
 ## Read next
 
-- [Troubleshooting](/operate/troubleshooting/) — when something goes wrong anyway.
-- [Usage and limits](/operate/usage/) — what is counted.
-- [Status and support](/overview/status/) — region, retention and support.
+- [Troubleshooting](/operate/troubleshooting/): when something goes wrong anyway.
+- [Usage and limits](/operate/usage/): what is counted.
+- [Status and support](/overview/status/): region, retention and support.

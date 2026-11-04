@@ -135,5 +135,5 @@ both, complete.
 ## Read next
 
 - [Build the brain](/build/brain/): the callbacks, speech, actions and tools.
-- [Connect your app](/build/connect/): start sessions from your own page.
 - [Deploy the brain](/build/hosting/): an inbound route for production.
+- [Connect your app](/build/connect/): start sessions from your own page.

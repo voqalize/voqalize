@@ -21,7 +21,7 @@ At connect, from your server:
 
 ```json
 {
-  "agent_id": "agt_…",
+  "agent_id": "06a2…",
   "config": {
     "tts": { "voice": "omnivoice/gauri", "language": "ta" },
     "stt": { "language": "ta" }
@@ -54,7 +54,8 @@ A voice is its id (`omnivoice/gauri`) and a language its BCP-47 tag (`ta`,
 ### Always set both legs
 
 `stt.language` picks the **recognizer**. `tts.language` picks the language the
-voice reads in, which for a cloned voice is a different recorded speaker. Moving
+voice reads in, which for most voices is a different recorded speaker
+([the catalog](/reference/catalog/#language-ttslanguage)). Moving
 one without the other is silent: the words stay right and only the speaker is
 wrong, so no transcript or log shows it. Name a language on one leg and you must
 name it on the other.
@@ -164,26 +165,24 @@ turn is heard in the new language.
 
 ## Tune turn-taking
 
-| Setting | Values | Default |
-|---|---|---|
-| `stt.patience` | `0` to `10`: how long the recognizer waits through a pause before it decides the user has finished | `7` |
-| `idle.timeout_ms` | `0` (off) to `300000` | `0`: `on_user_idle` never fires |
-| `ack.enabled` | `true` or `false` | `true` |
+Three settings, all in the same `Config` (and the same `config` at connect),
+with or without a language. Their values and defaults are in
+[the catalog](/reference/catalog/#turn-taking-settings).
 
-All three go in the same `Config` (and the same `config` at connect), with or
-without a language.
-
-**`stt.patience`** is a scale, not a duration. Raise it for users who pause
+**`stt.patience`** is a scale from `0` to `10`, not a duration: how long the
+recognizer waits through a pause before it decides the user has finished. Raise it for users who pause
 mid-thought (reading out a number, or speaking a second language); lower it for
 quick back-and-forth. Each step up waits longer on every turn.
 
 ```python
+from voqalize.sdk.wire import Config, SttConfig
+
 await session.configure(Config(stt=SttConfig(patience=9)))
 ```
 
 **`idle.timeout_ms`** is how long after the agent stops speaking a silent user
 waits before your brain gets `on_user_idle`, to re-engage or end the session
-([The brain](/build/brain/)).
+([Build the brain](/build/brain/)).
 
 ```python
 from voqalize.sdk.wire import Config, IdleConfig
@@ -192,16 +191,10 @@ await session.configure(Config(idle=IdleConfig(timeout_ms=15000)))
 ```
 
 **`ack`** is Voqalize's own short acknowledgement ("Sure.", "Let me check.")
-said when the user's turn ends and before your reply starts. It is said only in
-the languages Voqalize has acknowledgements for. Keep it on and never write a
-filler line of your own; turn it off only when your brain writes its own
-acknowledgements ([Speaking](/build/brain/speaking/#voqalize-covers-the-wait-before-your-first-word)):
-
-```python
-from voqalize.sdk.wire import AckConfig, Config
-
-await session.configure(Config(ack=AckConfig(enabled=False)))
-```
+said when the user's turn ends and before your reply starts. Keep it on unless
+your brain writes its own acknowledgements;
+[Speaking](/build/brain/speaking/#voqalize-covers-the-wait-before-your-first-word)
+has the rule and the code to turn it off.
 
 At connect, the same settings are
 `"stt": {"patience": 9}`, `"idle": {"timeout_ms": 15000}` and
@@ -217,7 +210,7 @@ hear, is refused. Voqalize never substitutes another.
 | Building `Config` in the SDK | `ConfigError`, before anything is sent: a language on one leg only, or `patience` outside `0` to `10`. |
 | `sessions.connect` | `400 invalid_config`, with `details.code` `unsupported_voice` or `unsupported_language` and a message naming what is served. |
 | `client.connect` in the page | `400 invalid_config` at the offer, with an `info` sentence, for a connect `config` Voqalize cannot run (for example a language on one leg only). |
-| `session.configure` mid-session | `RequestRejected`, with `.code` `UNSUPPORTED_VOICE`, `UNSUPPORTED_LANGUAGE` or `INVALID_REQUEST` and the reason in `.detail`. Nothing in the request applied. |
+| `session.configure` mid-session | `RequestRejected`, with `.code` `ErrorCode.UNSUPPORTED_VOICE`, `ErrorCode.UNSUPPORTED_LANGUAGE` or `ErrorCode.INVALID_REQUEST` and the reason in `.detail`. Nothing in the request applied. |
 
 ```python
 import logging
