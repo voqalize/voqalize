@@ -610,9 +610,9 @@ the first one's state.
 
 ## What the SDK makes of it
 
-The [Python SDK](/reference/brain/) mints every `turn_id`, `speech_id` and
-`request_id` for you; its callbacks and methods map one to one onto the
-messages above, listed in
+The [Python SDK](/reference/brain/) mints every `speech_id` and `request_id`
+and binds speech to its `turn_id` for you; its callbacks and methods map one to
+one onto the messages above, listed in
 [the Brain API](/reference/brain/#how-the-sdk-maps-onto-the-wire).
 
 ## Invariants

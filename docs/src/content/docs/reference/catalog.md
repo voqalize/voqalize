@@ -130,6 +130,7 @@ A language change applies at the **next end of turn**, never mid-utterance.
 | `Voice.OMNIVOICE_RIYA` | `omnivoice/riya` | Riya (female) | `en`, `hi` |
 | `Voice.OMNIVOICE_ROHAN` | `omnivoice/rohan` | Rohan (male) | `en`, `hi` |
 | `Voice.OMNIVOICE_RYAN` | `omnivoice/ryan` | Ryan (male) | `en` |
+| — | `omnivoice/saanvi` | Saanvi (female) | `en`, `hi` |
 | `Voice.OMNIVOICE_SAMUEL` | `omnivoice/samuel` | Samuel (male) | `en` |
 | `Voice.OMNIVOICE_SOFIA` | `omnivoice/sofia` | Sofia (female) | `en` |
 | `Voice.OMNIVOICE_TYLER` | `omnivoice/tyler` | Tyler (male) | `en` |

@@ -69,8 +69,8 @@ planned and cannot be selected yet.
 | Limit | Value |
 |---|---|
 | Session length | One hour |
-| MCP tool calls | 120 a minute per tenant; a refusal is `429` with `Retry-After` |
-| Concurrent sessions, included minutes, storage | Set by your plan ([pricing](https://voqalize.com/pricing)) |
+| MCP tool calls | 120 a minute; over it, a tool returns an error asking you to slow down and retry |
+| Included minutes and storage | Set by your plan ([pricing](https://voqalize.com/pricing)) |
 
 Talk to us before a launch that needs more than your plan carries.
 

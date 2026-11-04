@@ -25,8 +25,8 @@ Work down the list before launch. Each line links the page that owns it.
 - [ ] **Verify the brain-connection token**, which `run_session` does by
   default. Never set `allow_unverified=True` outside local development.
   [The brain-connection token](/build/hosting/#the-brain-connection-token)
-- [ ] **Pin exact versions**: `voqalize-agent-sdk==0.12.0` on your server and
-  `@voqalize/client-transport` at an exact version in your page.
+- [ ] **Pin exact versions** of `voqalize-agent-sdk` on your server and
+  `@voqalize/client-transport` in your page.
   [Versions](/build/pipecat/#versions)
 - [ ] **Handle `on_error`**, and log `overload` so you know when a lane is
   shedding frames. [Error codes](/reference/errors/#overload)
