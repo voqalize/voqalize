@@ -41,6 +41,7 @@ def test_the_moves_and_their_classes() -> None:
         "faq": MoveClass.LOOK,
         "filter": MoveClass.REVERSIBLE,
         "sort": MoveClass.REVERSIBLE,
+        "cart": MoveClass.LOOK,  # commerce.cart_show, a cue since commerce 1.2.0
     }
     # What the visitor owns changes only by a tool, after they said yes.
     for move in ("commerce.cart_add", "commerce.cart_update", "start_checkout", "fill_checkout"):
@@ -76,5 +77,5 @@ def test_a_cue_split_across_chunks_still_parses() -> None:
 
 
 def test_braces_that_are_no_move_of_his_are_not_spoken() -> None:
-    spoken, cues = _run("Hola {mood: happy} {cart: open} aquí.")
+    spoken, cues = _run("Hola {mood: happy} {basket: open} aquí.")
     assert spoken == "Hola aquí." and cues == []

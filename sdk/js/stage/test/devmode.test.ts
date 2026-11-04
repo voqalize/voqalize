@@ -5,7 +5,7 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { findPart, findThing, partsOf, place, things } from "../src/markup";
+import { cards, findPart, findThing, partsOf, place, things } from "../src/markup";
 import { type ReactHooks, stageHooks } from "../src/react";
 import { defineScene } from "../src/scene";
 import { attach } from "../src/script";
@@ -114,6 +114,79 @@ describe("the script-tag host", () => {
     });
     stage.detach();
     warn.mockRestore();
+  });
+});
+
+function store(): void {
+  document.body.innerHTML = `
+    <main data-stage-place="listing">
+      <article data-stage-card="/p/percale" data-stage-label="Percale sheet">Percale</article>
+      <article data-stage-card="/p/linen">Linen sheet</article>
+      <article data-stage-card="/p/hidden" class="hidden">Hidden</article>
+      <article data-stage-card="/p/satin">Satin sheet</article>
+      <div>
+        <button data-stage-part="Tamaño:Queen">Queen</button> <button data-stage-part="Tamaño:King">King</button>
+      </div>
+    </main>`;
+  for (const el of document.body.querySelectorAll("*")) if (!el.classList.contains("hidden")) box(el);
+}
+
+const kit = defineScene({
+  stage: 1,
+  id: "store",
+  moves: [
+    {
+      id: "commerce.compare",
+      verb: "compare",
+      class: "look",
+      args: [
+        { name: "first", type: "integer" },
+        { name: "second", type: "integer" },
+        { name: "third", type: "integer", optional: true },
+        { name: "fourth", type: "integer", optional: true },
+      ],
+    },
+    { id: "commerce.variant", verb: "variant", class: "reversible", args: [{ name: "option" }, { name: "value" }] },
+  ],
+});
+
+describe("the stock commerce performers", () => {
+  it("counts the listing's visible cards from 1", () => {
+    store();
+    expect(cards().map((c) => c.getAttribute("data-stage-card"))).toEqual(["/p/percale", "/p/linen", "/p/satin"]);
+  });
+
+  it("rings the compared cards side by side and changes nothing", async () => {
+    store();
+    const client = fakeClient();
+    const stage = await attach(client, { spec: kit.spec as never, theme: { color: "#000", beatMs: 0, dwellMs: 0 } });
+    expect(stage.unbound).toEqual([]);
+    const before = document.body.innerHTML;
+    // A cue's words arrive positional, as strings.
+    client.emit("uiCommand", move("c1", "commerce.compare", ["3", "1"] as never));
+    client.emit("uiCommand", move("c2", "commerce.compare", { first: 1, second: 4 }));
+    client.emit("uiCommand", move("c3", "commerce.compare", { first: 2, second: "2" }));
+    await vi.waitFor(() => expect(results(client)).toHaveLength(3), { timeout: 8000 });
+    expect(results(client)[0]).toMatchObject({ call_ref: "c1", outcome: "applied", detail: "compared 3 Satin sheet; 1 Percale sheet" });
+    expect(results(client)[1]).toMatchObject({ call_ref: "c2", outcome: "refused", refused: [{ arg: "second", options: ["1", "2", "3"] }] });
+    expect(results(client)[2]).toMatchObject({ call_ref: "c3", outcome: "refused", refused: [{ arg: "second", options: ["1", "2", "3"] }] });
+    expect(document.body.innerHTML).toBe(before);
+    stage.detach();
+  });
+
+  it("picks a product's option with its own control, and refuses one it does not offer", async () => {
+    store();
+    const client = fakeClient();
+    const stage = await attach(client, { spec: kit.spec as never, theme: { color: "#000", beatMs: 0, dwellMs: 0 } });
+    const pressed: string[] = [];
+    document.querySelectorAll("[data-stage-part]").forEach((a) => a.addEventListener("click", () => pressed.push(a.textContent!)));
+    client.emit("uiCommand", move("c1", "commerce.variant", ["tamano", "king"] as never));
+    client.emit("uiCommand", move("c2", "commerce.variant", { option: "Tamaño", value: "Twin" }));
+    await vi.waitFor(() => expect(results(client)).toHaveLength(2), { timeout: 8000 });
+    expect(pressed).toEqual(["King"]);
+    expect(results(client)[0]).toMatchObject({ call_ref: "c1", outcome: "applied", detail: "tamano king chosen" });
+    expect(results(client)[1]).toMatchObject({ call_ref: "c2", outcome: "refused", refused: [{ arg: "value", options: ["Queen", "King"] }] });
+    stage.detach();
   });
 });
 

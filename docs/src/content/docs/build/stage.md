@@ -146,8 +146,10 @@ move id the brain does not know raises `KeyError`.
 creates, connects or wraps one.
 
 - **Markup**: `data-stage-thing="sheets"` names something the agent can point at,
-  `data-stage-part="Size:King"` an option it can press. With these, `{show: …}` and
-  `{filter: …}` need no code.
+  `data-stage-part="Size:King"` an option it can press, and `data-stage-card` one
+  product card of a listing, counted from 1. With these, `{show: …}` and
+  `{filter: …}` need no code, and from `@voqalize/stage` 0.2.0 nor do the
+  `commerce` kit's `{variant: …}` and `{compare: …}`.
 - **A page with no build step**: `attach(client, { spec: "/scene.page.json" })`
   from `@voqalize/stage/script` (generate the file with `stage gen --json`), with
   your own performers for anything the markup does not cover.

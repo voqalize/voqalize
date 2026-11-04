@@ -55,6 +55,7 @@ describe("the stage_shop example", () => {
     const found = await conformance(stage.scene, stage.moves, [
       { move: "core.show", args: { target: "our sheets" }, setup: layOut },
       { move: "commerce.filter", args: { facet: "Size", value: "King" }, setup: layOut },
+      { move: "commerce.compare", args: { first: "1", second: "2" }, setup: layOut },
       { move: "commerce.cart_add", args: { path: "/p/percale-king" }, setup: layOut },
     ]);
     expect(found).toEqual([]);
@@ -68,6 +69,8 @@ describe("the stage_shop example", () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
     const result = await stage.moves.run("commerce.filter", { facet: "Size", value: "Twin" }, "x1");
     expect(result).toMatchObject({ outcome: "refused", refused: [{ arg: "value", options: ["Queen", "King"] }] });
+    const third = await stage.moves.run("commerce.compare", { first: "1", second: "3" }, "x2");
+    expect(third).toMatchObject({ outcome: "refused", refused: [{ arg: "second", options: ["1", "2"] }] });
     stage.detach();
   });
 });

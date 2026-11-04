@@ -1,7 +1,7 @@
 """A shop's brain on Stage: the cues its replies carry reach the page as the
 voice says them, and the page's state comes back as named acts.
 
-The moves are declared once, in ``scene.json`` (two of them taken from the
+The moves are declared once, in ``scene.json`` (three of them taken from the
 ``commerce`` kit), and generated into ``stage_gen.py``::
 
     voqalize stage gen examples/stage_shop/scene.json --py examples/stage_shop/stage_gen.py

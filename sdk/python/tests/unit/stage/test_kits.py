@@ -12,6 +12,7 @@ from pydantic import ValidationError
 from voqalize.sdk.stage import KITS_DIR, Mirror, StageEvent, load_kit, load_spec
 from voqalize.sdk.stage.check import check_spec
 from voqalize.sdk.stage.gen import render_typescript
+from voqalize.sdk.stage.promises import claim_in, promise_in
 
 
 def _spec(**more: Any) -> dict[str, Any]:
@@ -42,6 +43,53 @@ def test_a_kit_merged_once_survives_a_dump_and_a_load() -> None:
     again = load_spec(json.loads(spec.model_dump_json(by_alias=True)))
     assert again == spec
     assert again.sha256 == spec.sha256
+
+
+def test_commerce_1_2_cues_compare_variant_and_cart() -> None:
+    kit = load_kit("commerce")
+    assert kit.version == "1.2.0"
+    moves = {m.id: m for m in kit.moves}
+    cues = {m.id: (m.verb, m.cls.value, [a.name for a in m.args]) for m in kit.moves if m.verb}
+    assert cues == {
+        "commerce.filter": ("filter", "reversible", ["facet", "value", "path"]),
+        "commerce.sort": ("sort", "reversible", ["order", "path"]),
+        "commerce.compare": ("compare", "look", ["first", "second", "third", "fourth"]),
+        "commerce.variant": ("variant", "reversible", ["option", "value"]),
+        "commerce.cart_show": ("cart", "look", ["open"]),
+    }
+    # Two cards at least: the third and fourth may be left out.
+    assert [a.required for a in moves["commerce.compare"].args] == [True, True, False, False]
+    assert {a.type for a in moves["commerce.compare"].args} == {"integer"}
+    # The ones that change what the person owns stay tools.
+    assert moves["commerce.cart_add"].verb is None and moves["commerce.cart_update"].verb is None
+    spec = load_spec(_spec(kits=[{"id": "commerce", "major": 1}]))
+    lines = spec.prompt_lines()
+    for verb in ("compare", "variant", "cart"):
+        assert spec.move_set().by_verb(verb) is not None
+        assert any(line.startswith(f"{{{verb}") for line in lines), verb
+
+
+@pytest.mark.parametrize(
+    ("move_id", "sentence", "promised"),
+    [
+        ("commerce.compare", "Let me compare the first and the third.", True),
+        ("commerce.compare", "Te comparo las dos sábanas.", True),
+        ("commerce.compare", "The first is cheaper than the third.", False),
+        ("commerce.variant", "I'm choosing the King size for you.", True),
+        ("commerce.variant", "Elijo la talla M.", True),
+        ("commerce.variant", "I'll pick the variant in blue.", True),
+        ("commerce.variant", "It comes in Queen and King.", False),
+        ("commerce.cart_show", "Te abro el carro.", True),
+        ("commerce.cart_show", "I'm opening your cart now.", True),
+        ("commerce.cart_show", "Your cart has two sheets.", False),
+    ],
+)
+def test_commerce_claims_hear_their_promise(move_id: str, sentence: str, promised: bool) -> None:
+    move = next(m for m in load_kit("commerce").moves if m.id == move_id).move()
+    said = any(claim_in(c, sentence) for c in move.claims) or (
+        promise_in(move.objects, sentence) is not None
+    )
+    assert said is promised
 
 
 @pytest.mark.parametrize(

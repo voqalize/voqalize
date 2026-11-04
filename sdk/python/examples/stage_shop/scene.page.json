@@ -31,6 +31,31 @@
       ]
     },
     {
+      "id": "commerce.compare",
+      "verb": "compare",
+      "class": "look",
+      "args": [
+        {
+          "name": "first",
+          "type": "integer"
+        },
+        {
+          "name": "second",
+          "type": "integer"
+        },
+        {
+          "name": "third",
+          "type": "integer",
+          "optional": true
+        },
+        {
+          "name": "fourth",
+          "type": "integer",
+          "optional": true
+        }
+      ]
+    },
+    {
       "id": "commerce.cart_add",
       "class": "confirmed",
       "args": [

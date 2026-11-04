@@ -11,14 +11,15 @@
  *
  * Each move the spec declares gets the page's own performer when one is
  * given, else the stock one for its verb (`show` points at a
- * `data-stage-thing`, `filter` presses `data-stage-part`s); a move with
+ * `data-stage-thing`, `filter` and `variant` press `data-stage-part`s,
+ * `compare` rings `data-stage-card`s); a move with
  * neither is left unregistered, and says so, so its result comes back failed
  * rather than a wrong thing being pressed. A single-page app calls
  * `navigated()` after each route change, so the agent hears where it is.
  */
 
 import { type StageClient } from "./attach.js";
-import { pressParts, showThing } from "./markup.js";
+import { pickPart, pressParts, ringCards, showThing } from "./markup.js";
 import { Moves, type Performer } from "./moves.js";
 import { type StagePage, stagePage } from "./page.js";
 import { defineScene, type Scene, type SceneSpec } from "./scene.js";
@@ -29,6 +30,8 @@ import { Spotlight, type SpotlightTheme } from "./spotlight.js";
 export const STOCK: Readonly<Record<string, Performer<never>>> = {
   show: showThing as Performer<never>,
   filter: pressParts as Performer<never>,
+  variant: pickPart as Performer<never>,
+  compare: ringCards as Performer<never>,
 };
 
 export interface ScriptOptions {

@@ -15,6 +15,33 @@ The public series has now caught up to them, so **a heading carrying
 are different releases that happen to share a number; the pre-restart entries are
 kept for the history, and nothing installable was ever cut from them.
 
+## 0.13.0
+
+The `commerce` kit at 1.2.0: products compared, a product's option picked, and
+the cart opened as cues. Nothing on the wire changes, and the wire version stays
+3. It pairs with `@voqalize/stage` `0.2.0`, whose stock performers make the two
+new cues on `data-stage-*` markup.
+
+### Added
+
+- **`commerce.compare`** (look, cue `{compare: 1 | 3}`): two to four product
+  cards of the listing in front, by their place in it counting from 1, ringed
+  side by side. Nothing on the page changes. Claims and objects in English and
+  Spanish.
+- **`commerce.variant`** (reversible, cue `{variant: Option | Value}`): one
+  value of an option of the product in front, such as its size or weight,
+  picked with the page's own control. Never adds to the cart. Claims and
+  objects in English and Spanish.
+- **`commerce.cart_show` is a cue, `{cart}`**, which opens the cart; closing it
+  is still a tool's (`open: false`). It gains claims in English and Spanish.
+  An app that takes `commerce.cart_show` gets the `{cart}` line in its prompt
+  once it regenerates, and its performer receives `open` as `null` from a bare
+  `{cart}`, so a performer that tests `open === false` keeps opening it.
+- **`@voqalize/stage` 0.2.0**: the stock performers `pickPart` (`variant`) and
+  `ringCards` (`compare`), bound by verb in `@voqalize/stage/script`, and
+  `data-stage-card`, which marks a product card of a listing; `cards()` lists
+  the visible ones in order.
+
 ## 0.12.0
 
 Stage, Voqalize's own acknowledgement, and the Kokoro voices retired. Additive on

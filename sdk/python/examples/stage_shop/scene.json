@@ -3,7 +3,7 @@
   "stage": 1,
   "id": "shop",
   "languages": ["en"],
-  "kits": [{ "id": "commerce", "major": 1, "moves": ["commerce.filter", "commerce.cart_add"] }],
+  "kits": [{ "id": "commerce", "major": 1, "moves": ["commerce.filter", "commerce.compare", "commerce.cart_add"] }],
   "moves": [
     {
       "id": "core.show",
