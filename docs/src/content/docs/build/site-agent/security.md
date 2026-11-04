@@ -13,22 +13,27 @@ sent: when Voqalize reads your site, and when a visitor calls.
 If your site sends a `Content-Security-Policy`, add these sources:
 
 ```text
-script-src   https://cdn.voqalize.com https://avatar.voqalize.com
-connect-src  https://app.voqalize.com https://*.prod.voqalize.com https://avatar.voqalize.com blob:
-img-src      https://avatar.voqalize.com blob:
+script-src   https://cdn.voqalize.com
+connect-src  https://app.voqalize.com https://*.prod.voqalize.com https://cdn.voqalize.com
+img-src      https://cdn.voqalize.com
 ```
 
-- `cdn.voqalize.com` serves `site.js` and the call code it loads on the first
-  click.
-- `avatar.voqalize.com` serves the avatar and its pictures.
+- `cdn.voqalize.com` serves `site.js`, the call code it loads on the first
+  click, and the avatar and its pictures.
 - `app.voqalize.com` is the API: the script reads the site's settings from it
   and starts calls through it.
 - `*.prod.voqalize.com` is where a call's voice connection is set up; the
   server is chosen when the call starts, so it is a wildcard.
-- `blob:` is how the browser decodes the avatar's pictures.
 
-The voice needs no `media-src`: it arrives over the call itself. If you added
-`media-src blob:` for us before, you can remove it.
+The voice needs no `media-src`: it arrives over the call itself. The avatar
+needs no `blob:`: its pictures are decoded without one.
+
+If you added `avatar.voqalize.com`, `blob:` or `media-src blob:` for us
+before, those sources keep working and you can remove them.
+`avatar.voqalize.com` is another name for `cdn.voqalize.com`. To trial a
+change first, send the new policy as `Content-Security-Policy-Report-Only`
+beside your current one: the browser reports what it would have refused, and
+blocks nothing.
 
 No `style-src` change is needed: the button adds its styles to its own shadow
 root as a constructed stylesheet, which `style-src` does not block. A browser
