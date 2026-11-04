@@ -1079,7 +1079,7 @@ facts:
 
   demos.roster:
     value: [travel, shopping, support, servicing, interview_bot, sugar, legal,
-            lead_qual, aura, forge, orderdesk, kiosk, petwell, fernhollow]
+            lead_qual, aura, forge, avatar, orderdesk, kiosk, petwell, fernhollow]
     source: demos/manifest.json
     verified: 2026-11-04
     derive:

@@ -63,10 +63,9 @@ substitutions:
   _AURA_PK: ''
   _FORGE_AGENT: ''
   _FORGE_PK: ''
-  # The avatar's agent is the docs site's, not a demo UI's: its live session runs
-  # on the docs page /build/avatar (docs/src/scripts/avatar-live.ts), and its
-  # old page at /demos/avatar redirects there. Its pk_ must allow the docs
-  # origin. Same names as before, so the triggers need no change.
+  # The avatar's agent serves two pages: the demo at /demos/avatar and the docs
+  # page /build/avatar (docs/src/scripts/avatar-live.ts). Its pk_ must allow
+  # both origins.
   _AVATAR_AGENT: ''
   _AVATAR_PK: ''
   _ORDERDESK_AGENT: ''
@@ -120,6 +119,8 @@ steps:
       - 'VITE_AURA_PK=${_AURA_PK}'
       - 'VITE_FORGE_AGENT=${_FORGE_AGENT}'
       - 'VITE_FORGE_PK=${_FORGE_PK}'
+      - 'VITE_AVATAR_AGENT=${_AVATAR_AGENT}'
+      - 'VITE_AVATAR_PK=${_AVATAR_PK}'
       - 'VITE_ORDERDESK_AGENT=${_ORDERDESK_AGENT}'
       - 'VITE_ORDERDESK_PK=${_ORDERDESK_PK}'
       - 'VITE_KIOSK_AGENT=${_KIOSK_AGENT}'
