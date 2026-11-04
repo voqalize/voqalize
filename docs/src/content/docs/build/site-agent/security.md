@@ -30,13 +30,6 @@ img-src      https://avatar.voqalize.com blob:
 The voice needs no `media-src`: it arrives over the call itself. If you added
 `media-src blob:` for us before, you can remove it.
 
-<!--
-Maintainers: these are the lines for the @voqalize/avatar release site.js
-bundles, before 0.7. The shorter policy for 0.7 and the switch-over steps are
-in platform's docs/site-agent-customer-page.md, in a maintainer comment; change
-this page in the same release.
--->
-
 No `style-src` change is needed: the button adds its styles to its own shadow
 root as a constructed stylesheet, which `style-src` does not block. A browser
 without constructed stylesheets (Safari before 16.4) gets a `<style>` element

@@ -151,7 +151,9 @@ img-src     https://cdn.voqalize.com
 The runtime is a module imported from that host, and it fetches the character
 from it. The `img-src` host serves the still shown where a browser has no
 WebGL 2. The runtime needs nothing else: no `blob:`, no workers, no inline
-styles and no `eval`.
+styles and no `eval`. Safari before 17 and Firefox before 98 try one image from
+a `blob:` URL first; the policy refuses it, the face draws all the same, and a
+policy with a `report-to` gets one report from each such page.
 
 **Before 0.7:**
 
@@ -170,12 +172,6 @@ because a release before 0.7 imports its runtime only from
 `avatar.voqalize.com` is another name for the same host, and a face refused on
 one name loads from the other. To trial the new policy, send it as
 `Content-Security-Policy-Report-Only` beside your current one.
-
-<!--
-Maintainers: delete "Before 0.7" and "Upgrading to 0.7" when releases before
-0.7 are retired (avatar-private RELEASING.md, One host, two names), along with
-the csp-check policies for them.
--->
 
 ## Choosing a character
 
