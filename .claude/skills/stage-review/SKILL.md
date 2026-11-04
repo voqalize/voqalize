@@ -32,7 +32,7 @@ and why it fails in a call. `design/stage.md` is the contract.
 - [ ] A performer **refuses** with the options the page offers instead of guessing.
 - [ ] It reports one short detail; it calls `c.done()` when the visible effect has landed,
       and only rings afterwards in `c.after()`.
-- [ ] No pipecat client is constructed, wrapped or re-exported.
+- [ ] No `PipecatClient` is constructed, wrapped or re-exported.
 - [ ] No state is pushed whole; changes go as the spec's events, through `scene.event()`.
 - [ ] Registration goes through the scene (`registerAll`), never `moves.register` with a
       hand-written class.
