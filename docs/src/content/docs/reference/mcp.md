@@ -63,11 +63,11 @@ Playground `test_url`, `last_session_at`, `brain_verified_at`, `created_at`,
 
 | Tool | Signature | Does |
 |---|---|---|
-| `create_agent` | `(tenant, name, description="", brain_url="", recording=None) -> {agent, session_key: {value, note}}` | Create an agent. `session_key` is an `sk_` secret shown **once**, for your server to start sessions with. A `brain_url` sets `mode="inbound"`. |
+| `create_agent` | `(tenant, name, description="", brain_url="", recording=None) -> {agent, session_key: {value, note}}` | Create an agent. Owner or admin only. `session_key` is an `sk_` secret shown **once**, for your server to start sessions with. A `brain_url` sets `mode="inbound"`. |
 | `create_agent_credentials` | `(tenant, agent_id, label="") -> {agent_id, agent_secret, cortex_url, key_id, expires, instructions, usage}` | Mint credentials for a brain that dials out over Cortex (local development, serverless, egress-only networks), and switch the agent to `cortex` mode. `agent_secret` is an `sk_` shown once that never expires; `usage` carries the environment variables and the `serve` call to paste. Minting revokes nothing: rotate by minting, redeploying, then `revoke_api_key` on the old one. See [Deploy the brain](/build/hosting/#a-brain-that-dials-out). |
 | `get_agent` | `(tenant, agent_id) -> agent` | One agent. |
 | `list_agents` | `(tenant, status=None, limit=20, cursor="") -> {agents, next_cursor}` | Agents, archived included. `status` is `active` or `archived`; anything else is refused. `limit` is capped at 100; a null `next_cursor` is the last page. |
-| `update_agent` | `(tenant, agent_id, name="", description="", brain_url="", mode="", recording=None) -> agent` | Rename, re-describe, set the `brain_url`, or set the [recording](/operate/recordings/) default (`recording=None` leaves it). A `brain_url` sets `mode="inbound"`; `mode="cortex"` drops the `brain_url`. You rarely pass `mode`. |
+| `update_agent` | `(tenant, agent_id, name="", description="", brain_url="", mode="", recording=None) -> agent` | Owner or admin only. Rename, re-describe, set the `brain_url`, or set the [recording](/operate/recordings/) default (`recording=None` leaves it). A `brain_url` sets `mode="inbound"`; `mode="cortex"` drops the `brain_url`. You rarely pass `mode`. |
 | `archive_agent` | `(tenant, agent_id) -> agent` | Refuse new sessions with `agent_archived`, keeping the agent and its history. Sessions in progress continue. New credentials are refused while archived. |
 | `unarchive_agent` | `(tenant, agent_id) -> agent` | Admit new sessions again, with the existing credentials. |
 
@@ -131,8 +131,15 @@ free-text log search. The order to read them in is
 ## Members
 
 A member row is `id`, `user_id`, `email`, `full_name`, `role`, `status`,
-`added_by`, `added_by_user`, `added_at`, `updated_at`. Roles are `owner`, `admin`
-(may mint and revoke keys and change the roster) and `member`.
+`added_by`, `added_by_user`, `added_at`, `updated_at`.
+
+| Role | May |
+|---|---|
+| `owner`, `admin` | Everything below, plus: create, update, archive and restore agents; mint and revoke keys and Cortex credentials; add, re-role and remove members; read the audit log. |
+| `member` | Read agents, sessions, call records, logs, recordings and usage; start sessions from the Playground. |
+
+A member who tries an owner's or admin's action gets the tool error for a role
+that is too low, and the console shows the control disabled with the reason.
 
 | Tool | Signature | Does |
 |---|---|---|
@@ -140,6 +147,12 @@ A member row is `id`, `user_id`, `email`, `full_name`, `role`, `status`,
 | `list_members` | `(tenant, limit=50, cursor="") -> {members, next_cursor}` | The roster, paged. |
 | `update_member_role` | `(tenant, member_id, role) -> member` | Change one member's role. |
 | `remove_member` | `(tenant, member_id) -> member` | Take someone off the tenant. |
+
+## Audit log
+
+| Tool | Signature | Does |
+|---|---|---|
+| `list_audit_events` | `(tenant, action="", actor_id="", since=None, until=None, limit=20, cursor="") -> {events, next_cursor}` | The workspace's audit log, newest first. Owner or admin only. One record per change a member or key made (an agent created or updated, a key minted or revoked, a member added) and per console sign-in (`auth.sign_in`, with the provider and browser in `after`). Each carries `actor_email` and `actor_role` as they were at the time, `source_ip` (null for a background task), and `before` and `after`. `action` and `actor_id` match exactly; `since` is inclusive and `until` exclusive. `limit` is capped at 100. Records are kept for 400 days. The console shows the same log under **Settings → Audit log**. |
 
 ## Site Agent tools
 

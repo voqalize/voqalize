@@ -50,6 +50,10 @@ Work down the list before launch. Each line links the page that owns it.
 
 - [ ] **Plan for the one-hour session cap**: a session ends with `max_duration`
   at the hour. [Usage and limits](/operate/usage/#limits)
+- [ ] **Know that a live call cannot be stopped from outside it.** Archiving the
+  agent or revoking its key refuses *new* sessions; calls already connected run
+  until the caller or your brain ends them, or the hour cap does. To end one
+  yourself, close the brain's socket for that session.
 - [ ] **Ask us about concurrency and minutes** if launch traffic may exceed your
   plan. [Usage and limits](/operate/usage/#limits)
 
