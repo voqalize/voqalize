@@ -55,6 +55,31 @@ Everything here runs against production unless you ask for dev by name.
 `pnpm build:dev` builds the same extension against dev into `dist-dev/`, from
 `.env.dev`, with the last avatar runtime uploaded to dev.
 
+## The extension on our CDN
+
+People who are not building it get the extension from a link:
+
+```
+https://cdn.voqalize.com/sites/qween.com/extension.zip
+```
+
+They unzip it and use **Load unpacked** on the folder. Dev's copy is at
+`https://cdn.dev.voqalize.com/sites/qween.com/extension.zip`.
+
+**Every change to the build means uploading the extension again.** That covers
+`src/`, the manifest, the dependencies and the avatar pin. Until it is
+uploaded, the link hands out the old build. `./publish-embed.sh prod` (or
+`dev`) does this for you: after the embed, it builds the extension with `.env`
+(or `.env.dev`) into a scratch directory and uploads it as a zip, laid out the
+way the embed is:
+
+- `/sites/qween.com/extension/<hash>.zip` is immutable, so an earlier build can
+  be handed out again.
+- `/sites/qween.com/extension.zip` is served `no-cache`, and is the link we
+  share.
+
+So publish both, every time, and never just one of them.
+
 The publishable key's allowed origins must include `https://www.qween.com` and
 `https://shop.qweendom.in`, which are where the session is minted from. The agent id and key are baked into the
 bundle at build time and are never committed.
