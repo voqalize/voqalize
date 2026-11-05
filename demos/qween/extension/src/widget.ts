@@ -10,9 +10,12 @@
  *
  * It keeps out of Qween's way. Their dialogs are drawers that slide in from the
  * right edge, where the widget sits, so whenever one is open the widget glides
- * to where it covers none of it (`avoid`), and back when it closes. The shopper
- * can also drag it anywhere, which becomes its place from then on, and
- * minimise the card to her face alone; the call and its audio carry on.
+ * to where it covers none of it (`avoid`), and back when it closes. It keeps
+ * clear of what they fix to the screen for good, too, where it can: on a phone,
+ * the purchase bar and the Concierge button take its corner, and it sits above
+ * them. The shopper can also drag it anywhere, which becomes its place from
+ * then on, and minimise the card to her face alone; the call and its audio
+ * carry on.
  */
 
 import { animateBackdrop, BACKDROP_HTML, BACKDROP_STYLES } from "./backdrop.js";
@@ -37,8 +40,18 @@ export interface Widget {
   setActivity(activity: Activity): void;
   setMuted(muted: boolean): void;
   setStill(url: string): void;
-  /** What on the page the widget must not cover; empty when nothing is open. */
-  avoid(obstacles: readonly Rect[]): void;
+  /** What on the page the widget must not cover: the dialogs open, empty when
+   *  none is, and what is fixed to the screen, which it covers only when it
+   *  fits nowhere else. */
+  avoid(open: readonly Rect[], fixed: readonly Rect[]): void;
+  /** The card is down to her face, by the shopper's hand or `setMinimised`. */
+  readonly minimised: boolean;
+  setMinimised(minimised: boolean): void;
+  /** The full card takes too much of this screen to leave up while she shows
+   *  the shopper something. */
+  cramped(): boolean;
+  /** The shopper minimised the card or opened it again. */
+  onToggle(fn: (minimised: boolean) => void): void;
   onCall(fn: () => void): void;
   /** The shopper is reaching for the invite: a pointer over it, or focus. */
   onReach(fn: () => void): void;
@@ -66,6 +79,12 @@ const CARD = 256;
 const BUBBLE = 76;
 /** The gap kept from the viewport's edges and from anything it avoids. */
 const GAP = 16;
+/** The share of the screen above which the full card is too much to leave up
+ *  while she shows the shopper the page. The card is about 256 by 382: a phone
+ *  held upright (390 by 664 in Safari) is 38% covered and on its side (844 by
+ *  390) 30%; an iPad (820 by 1180) is 10% covered and a small laptop (1280 by
+ *  720) 11%. A fifth falls well between them. */
+const CRAMPED_SHARE = 1 / 5;
 /** Pointer travel below this is a click, above it a drag. */
 const DRAG_PX = 5;
 /** Where the widget used to be remembered across pages. It is not any more:
@@ -133,6 +152,12 @@ button { font: inherit; cursor: pointer; }
   opacity: 0; transition: opacity 200ms;
 }
 .card:hover .minimise, .minimise:focus-visible { opacity: 1; }
+/* A touchscreen has no hover to show it by, so there it is always shown, and
+   at the size of a fingertip. */
+@media (hover: none) {
+  .minimise { opacity: 1; top: 6px; right: 6px; width: 44px; height: 44px; }
+  .minimise svg { width: 16px; height: 16px; }
+}
 /* A fixed width, not the card's: while the card grows back out of the bubble
    the body would wrap at every width on the way and measure too tall. */
 .body { width: ${CARD - 2}px; padding: 14px 16px 14px; display: flex; flex-direction: column; gap: 10px; }
@@ -251,8 +276,10 @@ export function mountWidget(): Widget {
 
   // ─── Where it sits ────────────────────────────────────────────────────
 
-  let home = startHome();
+  let homeGaps = startHome();
   let obstacles: readonly Rect[] = [];
+  let fixedRects: readonly Rect[] = [];
+  const toggled: ((minimised: boolean) => void)[] = [];
   /** The shopper minimised it. */
   let minimised = false;
   /** Nowhere on screen fits the card beside what is open, so it is shown as
@@ -281,27 +308,49 @@ export function mountWidget(): Widget {
   }
 
   /** The first place, in order of preference, where a widget of this size
-   *  covers nothing that is open: its home; its home moved left of what is in
-   *  the way (their drawers come from the right edge); the bottom-left corner;
-   *  the top-left corner. */
-  function fit(w: number, h: number): { x: number; y: number } | null {
+   *  covers none of `blocks`: its home; its home moved left of what is in the
+   *  way (their drawers come from the right edge); its home moved up above
+   *  what is in the way, and above the next thing then, as often as it takes
+   *  (on a phone, the purchase bar and then the Concierge button over it); the
+   *  bottom-left corner; the top-left corner. */
+  function fit(w: number, h: number, blocks: readonly Rect[]): { x: number; y: number } | null {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const clampX = (x: number) => Math.min(Math.max(x, GAP), vw - w - GAP);
     const clampY = (y: number) => Math.min(Math.max(y, GAP), vh - h - GAP);
-    const x0 = clampX(vw - home.right - w);
-    const y0 = clampY(vh - home.bottom - h);
-    const leftOf = Math.min(...obstacles.map((o) => o.left)) - GAP - w;
-    const candidates = [
-      { x: x0, y: y0 },
-      { x: leftOf, y: y0 },
-      { x: GAP, y: vh - h - GAP },
-      { x: GAP, y: GAP },
-    ];
+    const hits = (c: { x: number; y: number }) => {
+      const box = { left: c.x, top: c.y, right: c.x + w, bottom: c.y + h };
+      return blocks.filter((o) => overlaps(box, o));
+    };
+    const home = { x: clampX(vw - homeGaps.right - w), y: clampY(vh - homeGaps.bottom - h) };
+    const candidates = [home];
+    const inWay = hits(home);
+    if (inWay.length) candidates.push({ x: Math.min(...inWay.map((o) => o.left)) - GAP - w, y: home.y });
+    let up = home;
+    for (let over = inWay; over.length; over = hits(up)) {
+      up = { x: home.x, y: Math.min(...over.map((o) => o.top)) - GAP - h };
+      if (up.y < GAP) break;
+      candidates.push(up);
+    }
+    candidates.push({ x: GAP, y: vh - h - GAP }, { x: GAP, y: GAP });
     for (const c of candidates) {
       if (c.x < GAP || c.y < GAP || c.x + w > vw - GAP + 0.5 || c.y + h > vh - GAP + 0.5) continue;
-      const box = { left: c.x, top: c.y, right: c.x + w, bottom: c.y + h };
-      if (!obstacles.some((o) => overlaps(box, o))) return c;
+      if (!hits(c).length) return c;
+    }
+    return null;
+  }
+
+  /** Clear of everything if it can be; else clear of what it can be, giving
+   *  way over the smallest piece of furniture first (on a phone, the Concierge
+   *  button before the purchase bar), and at last over all of it: furniture is
+   *  covered rather than the card shrunk for it. The dialogs are always kept
+   *  clear. */
+  function fitAll(w: number, h: number): { x: number; y: number } | null {
+    const area = (r: Rect) => (r.right - r.left) * (r.bottom - r.top);
+    const largestFirst = [...fixedRects].sort((a, b) => area(b) - area(a));
+    for (let keep = largestFirst.length; keep >= 0; keep--) {
+      const spot = fit(w, h, [...obstacles, ...largestFirst.slice(0, keep)]);
+      if (spot) return spot;
     }
     return null;
   }
@@ -311,11 +360,11 @@ export function mountWidget(): Widget {
     squeezed = false;
     if (card.hidden || !minimised) {
       const { w, h } = sizeOf(false);
-      spot = fit(w, h);
+      spot = fitAll(w, h);
       squeezed = !spot && !card.hidden;
     }
     const bubble = showMinimised();
-    if (bubble) spot = fit(BUBBLE, BUBBLE);
+    if (bubble) spot = fitAll(BUBBLE, BUBBLE);
     if (!spot) {
       // Nothing fits even the bubble: the least-covering corner, bottom-left.
       const { w, h } = sizeOf(bubble);
@@ -370,7 +419,7 @@ export function mountWidget(): Widget {
     if (!moved) return;
     // Where she put it is its place now, even beside an open drawer.
     swallowClick = true;
-    home = {
+    homeGaps = {
       right: window.innerWidth - at.x - root.offsetWidth,
       bottom: window.innerHeight - at.y - root.offsetHeight,
     };
@@ -398,13 +447,16 @@ export function mountWidget(): Widget {
     e.stopPropagation();
     minimised = true;
     place(true);
+    for (const fn of toggled) fn(true);
   });
   card.addEventListener("click", () => {
     if (!root.hasAttribute("data-min")) return;
+    const was = minimised;
     minimised = false;
     if (squeezed) openedAnyway = true;
     place(true);
     settle();
+    if (was) for (const fn of toggled) fn(false);
   });
 
   return {
@@ -444,11 +496,27 @@ export function mountWidget(): Widget {
     setStill(url) {
       $<HTMLElement>(".still").style.backgroundImage = `url("${url}")`;
     },
-    avoid(next) {
-      obstacles = next;
-      if (!next.length) openedAnyway = false;
+    avoid(open, fixed) {
+      obstacles = open;
+      fixedRects = fixed;
+      if (!open.length) openedAnyway = false;
       if (!drag?.moved) place(true);
     },
+    get minimised() {
+      return minimised;
+    },
+    setMinimised(next) {
+      if (next === minimised) return;
+      minimised = next;
+      if (card.hidden) return;
+      place(true);
+      if (!next) settle();
+    },
+    cramped() {
+      const { w, h } = sizeOf(false);
+      return w * h > window.innerWidth * window.innerHeight * CRAMPED_SHARE;
+    },
+    onToggle: (fn) => void toggled.push(fn),
     onCall: (fn) => invite.addEventListener("click", fn),
     onReach: (fn) => {
       invite.addEventListener("pointerenter", fn);

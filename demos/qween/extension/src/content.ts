@@ -28,6 +28,12 @@
  * Most of Qween's navigation is client-side and keeps the call. A full page
  * load in the holder rejoins the same session on the next page
  * (`keepAcrossPageLoads`), so the conversation carries on.
+ *
+ * The card opens full size, her face large for the greeting. On a screen it
+ * crowds, a phone's, it goes down to her face by itself the first time the page
+ * moves under it, when she shows the shopper something or the shopper goes to
+ * another page: from then on the page is what is being looked at. That happens
+ * once a call; whatever the shopper does with the toggle after it stands.
  */
 
 import "./qween-actions.js";
@@ -86,6 +92,32 @@ function withRealHeaders(response: unknown) {
  *  bundle, both on one page, put up one widget between them. */
 const MOUNTED = "__voqalizeTrisha";
 
+/** The card's state through one call, kept across this tab's page loads. Per
+ *  tab, as the call's own record is: a tab opened from the holder's link gets
+ *  a copy, and goes its own way from there. */
+const VIEW_KEY = "voqalize.qween.view";
+
+interface View {
+  /** The card is down to her face. */
+  min: boolean;
+  /** The one automatic minimise of the call is spent, by it happening or by
+   *  the shopper choosing first. */
+  auto: boolean;
+  /** The page this tab was last seen on, to tell a move from a reload. */
+  path: string | null;
+}
+
+const freshView = (): View => ({ min: false, auto: false, path: null });
+
+function loadView(): View {
+  try {
+    const raw = sessionStorage.getItem(VIEW_KEY);
+    return raw ? { ...freshView(), ...(JSON.parse(raw) as Partial<View>) } : freshView();
+  } catch {
+    return freshView();
+  }
+}
+
 /** How long a follower waits for the holder to come back after it left for
  *  another page, and after a close the Navigation API did not see as one. */
 const BACK_FROM_LOAD_MS = 12_000;
@@ -111,7 +143,7 @@ async function start(): Promise<void> {
   const media = new VoqalizeMediaManager();
   media.bindOutputElement(widget.audio);
   // Qween's drawers open over the corner the widget sits in; it steps aside.
-  watchDialogs((open) => widget.avoid(open));
+  watchDialogs((open, fixed) => widget.avoid(open, fixed));
 
   // Every tab of the store on one channel; see `tabs.ts`.
   const chan = openChannel(AGENT);
@@ -144,6 +176,60 @@ async function start(): Promise<void> {
   let waiting: ReturnType<typeof setTimeout> | null = null;
 
   const post = (r: Relay) => chan.postMessage(r);
+
+  // ─── The card through a call ─────────────────────────────────────────
+
+  let view = freshView();
+
+  function saveView(): void {
+    view.min = widget.minimised;
+    try {
+      sessionStorage.setItem(VIEW_KEY, JSON.stringify(view));
+    } catch {
+      /* Storage blocked: the card simply forgets across a page load. */
+    }
+  }
+
+  /** A call starting here: fresh, or the one this tab had before its page load. */
+  function beginView(carryOn: boolean): void {
+    view = carryOn ? loadView() : freshView();
+    widget.setMinimised(view.min);
+    saveView();
+  }
+
+  function forgetView(): void {
+    view = freshView();
+    try {
+      sessionStorage.removeItem(VIEW_KEY);
+    } catch {
+      /* Nothing was kept. */
+    }
+  }
+
+  /** The page moved under the card: the first time in a call, on a screen the
+   *  card crowds, it goes down to her face. */
+  function pageMoved(): void {
+    if (view.auto || status !== "live") return;
+    view.auto = true;
+    if (widget.cramped()) widget.setMinimised(true);
+    saveView();
+  }
+
+  /** This tab reported its page: a page other than the last one seen is a move,
+   *  whoever made it, whether in this document or across a page load. */
+  function sawPage(): void {
+    const path = location.pathname + location.search;
+    const moved = view.path !== null && view.path !== path;
+    view.path = path;
+    saveView();
+    if (moved) pageMoved();
+  }
+
+  // Whatever the shopper chooses stands; nothing automatic overrides it.
+  widget.onToggle(() => {
+    view.auto = true;
+    saveView();
+  });
 
   function paint(next: Status, message?: string): void {
     status = next;
@@ -234,7 +320,10 @@ async function start(): Promise<void> {
           reporting = next;
           stopAdapter?.();
           stopAdapter = adapter!.start((event, payload) => {
-            if (event === "page_changed") tabs.set(me, here(me));
+            if (event === "page_changed") {
+              tabs.set(me, here(me));
+              sawPage();
+            }
             toBrain(me, { event, payload } as AppEvent);
           });
           // Every other tab says where it is, which fills the brain's list.
@@ -276,6 +365,7 @@ async function start(): Promise<void> {
     role = "holder";
     active = me;
     tabs.clear();
+    beginView(rejoin);
     paint("connecting", rejoin ? "Reconnecting" : undefined);
     if (rejoin) post({ k: "coming", from: me });
 
@@ -310,6 +400,7 @@ async function start(): Promise<void> {
       // away: the page simply starts idle.
       if (rejoin) paint("idle");
       else paint("error", reason(error));
+      forgetView();
       role = "idle";
       release?.();
       release = null;
@@ -334,7 +425,10 @@ async function start(): Promise<void> {
     const action = asUiAction(command, payload);
     if (!action) return null;
     const result = await adapter!.run(action.command, action.payload);
-    if (result.ok) return null;
+    if (result.ok) {
+      pageMoved();
+      return null;
+    }
     return { event: "command_failed", payload: { command, error: result.error ?? "failed" } };
   }
 
@@ -354,6 +448,7 @@ async function start(): Promise<void> {
     paint("idle");
     role = "idle";
     tabs.clear();
+    if (!leaving) forgetView();
     release?.();
     release = null;
     // A call that ends because the page is going away is picked up on the next
@@ -380,13 +475,17 @@ async function start(): Promise<void> {
   /** Another tab holds a live call: follow it here. */
   function follow(from: { status: Status; muted: boolean; activity: Activity | null }): void {
     role = "follower";
+    beginView(true);
     following = followCall(chan, me);
     watchActivity(following.client);
     avatar?.destroy();
     avatar = createAvatar({ mount: widget.face, client: following.client, character: CHARACTER });
     stopAdapter?.();
     stopAdapter = adapter!.start((event, payload) => {
-      if (event === "page_changed") post({ k: "tab", tab: here(me), front: inFront() });
+      if (event === "page_changed") {
+        post({ k: "tab", tab: here(me), front: inFront() });
+        sawPage();
+      }
       if (inFront()) post({ k: "app", from: me, event, payload });
     });
     track(from);
@@ -423,6 +522,7 @@ async function start(): Promise<void> {
     widget.setMuted(false);
     status = "idle";
     widget.paint("idle");
+    forgetView();
   }
 
   /** Tell the holder where this tab is, and, in front, what it shows. */
