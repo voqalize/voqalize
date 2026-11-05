@@ -37,7 +37,7 @@ from websockets.asyncio.server import serve as ws_serve
 
 from voqalize.sdk import Brain
 from voqalize.sdk.brain import _brain_factory
-from voqalize.sdk.session import normalize_keys, serve_channel, verify_token
+from voqalize.sdk.session import _expected_agents, normalize_keys, serve_channel, verify_token
 from voqalize.sdk.wire.transport import CLOSE_NO_AGENT
 
 __all__ = ["BrainServer", "brain_server"]
@@ -59,8 +59,10 @@ class BrainServer:
         port: int = 0,
         public_keys: str | list[str] | None = None,
         allow_unverified: bool = False,
+        expect_agent: str | list[str] | None = None,
     ) -> None:
         self._factory = _brain_factory(build)
+        self._expected = _expected_agents(expect_agent)
         self._host = host
         self._port = port
         self._allow_unverified = allow_unverified
@@ -110,6 +112,13 @@ class BrainServer:
             public_keys=self._public_keys,
             allow_unverified=self._allow_unverified,
         )
+        if (
+            claims is not None
+            and not self._allow_unverified
+            and self._expected is not None
+            and str(claims.get("agent_id", "")) not in self._expected
+        ):
+            claims = None
         if claims is None:
             # 4000 mirrors Cortex's permanent "no agent / rejected" close.
             await ws.close(code=CLOSE_NO_AGENT, reason="unauthorized")
@@ -130,17 +139,20 @@ async def brain_server(
     host: str = "127.0.0.1",
     public_keys: str | list[str] | None = None,
     allow_unverified: bool = False,
+    expect_agent: str | list[str] | None = None,
 ) -> AsyncGenerator[BrainServer]:
     """Host ``build`` on an ephemeral localhost port for the life of the block.
 
     ``build`` is a ``Brain`` subclass or a zero-arg callable returning one; it runs
     per connection. Closes the server on the way out, whatever the test did.
+    ``expect_agent`` refuses a token for any other agent, as ``run_session`` does.
     """
     server = BrainServer(
         build,
         host=host,
         public_keys=public_keys,
         allow_unverified=allow_unverified,
+        expect_agent=expect_agent,
     )
     await server.start()
     try:

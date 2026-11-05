@@ -206,3 +206,175 @@ async def test_run_session_defaults_to_the_embedded_voqalize_keys():
     server_ch, _client_ch = _pipe()
     with pytest.raises(SessionRejected):
         await run_session(server_ch, brain=EchoBrain, session_id=str(uuid.uuid4()))
+
+
+# ─── expect_agent: a brain serves its own agent and refuses the rest ─────────
+
+
+def _keypair() -> tuple[bytes, str]:
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    priv = key.private_bytes(
+        serialization.Encoding.PEM,
+        serialization.PrivateFormat.PKCS8,
+        serialization.NoEncryption(),
+    )
+    pub = (
+        key.public_key()
+        .public_bytes(serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo)
+        .decode()
+    )
+    return priv, pub
+
+
+def _token(priv: bytes, sid: str, *, agent_id: str, tenant_id: str = "t-1", **headers) -> str:
+    now = datetime.now(UTC)
+    return jwt.encode(
+        {
+            "iss": "pygato",
+            "aud": "brain",
+            "sub": sid,
+            "kind": "pygato",
+            "agent_id": agent_id,
+            "tenant_id": tenant_id,
+            "iat": now,
+            "exp": now + timedelta(seconds=60),
+        },
+        priv,
+        algorithm="RS256",
+        headers=headers or None,
+    )
+
+
+class _IdentityBrain(Brain):
+    """Greets with what its session says it was signed for."""
+
+    async def greet(self, session) -> str:
+        return f"for {session.tenant_id}/{session.agent_id}"
+
+    async def on_user_message(self, session, msg):
+        yield SpeechStart()
+        yield SpeechChunk("ok")
+        yield SpeechEnd()
+
+
+async def _greeting(**kwargs) -> str:
+    """Run one session to its greeting and return the greeting's text."""
+    server_ch, client_ch = _pipe()
+    sid = kwargs.pop("session_id")
+    task = asyncio.create_task(
+        run_session(server_ch, brain=_IdentityBrain, session_id=sid, **kwargs)
+    )
+    client = _Client(client_ch)
+    try:
+        await client.send(SessionStartFrame(turn_id=1, session_id=sid))
+        frames = await client.collect_until(_has_text("for "))
+        return next(f.text for f in frames if isinstance(f, SpeechChunkFrame))
+    finally:
+        await client_ch.close()
+        with contextlib.suppress(*_TEARDOWN_ERRORS):
+            await asyncio.wait_for(task, timeout=2.0)
+
+
+async def test_expect_agent_refuses_a_token_for_another_agent():
+    """The attack this exists for: a genuine token, for someone else's agent."""
+    priv, pub = _keypair()
+    sid = str(uuid.uuid4())
+    stranger = _token(priv, sid, agent_id="agent-stranger", tenant_id="t-other")
+    server_ch, _client_ch = _pipe()
+    with pytest.raises(SessionRejected, match="another agent"):
+        await run_session(
+            server_ch,
+            brain=_IdentityBrain,
+            session_id=sid,
+            token=f"Bearer {stranger}",
+            public_keys=pub,
+            expect_agent="agent-mine",
+        )
+
+
+async def test_expect_agent_accepts_its_own_agent_and_says_who_on_the_session():
+    priv, pub = _keypair()
+    sid = str(uuid.uuid4())
+    text = await _greeting(
+        session_id=sid,
+        token=f"Bearer {_token(priv, sid, agent_id='agent-mine')}",
+        public_keys=pub,
+        expect_agent="agent-mine",
+    )
+    assert text == "for t-1/agent-mine"
+
+
+async def test_expect_agent_takes_a_list():
+    priv, pub = _keypair()
+    sid = str(uuid.uuid4())
+    text = await _greeting(
+        session_id=sid,
+        token=f"Bearer {_token(priv, sid, agent_id='agent-b')}",
+        public_keys=pub,
+        expect_agent=["agent-a", "agent-b"],
+    )
+    assert text == "for t-1/agent-b"
+
+
+async def test_an_empty_expect_agent_is_a_mistake_not_accept_all():
+    server_ch, _ = _pipe()
+    with pytest.raises(ValueError, match="expect_agent"):
+        await run_session(
+            server_ch, brain=_IdentityBrain, session_id="s", allow_unverified=True, expect_agent=[]
+        )
+
+
+async def test_without_expect_agent_any_agent_still_runs(monkeypatch):
+    """Optional for now: an existing brain keeps working, and is told once."""
+    import voqalize.sdk.session as session_mod
+
+    monkeypatch.setattr(session_mod, "_warned_no_expect_agent", False)
+    warned: list[str] = []
+    monkeypatch.setattr(session_mod.logger, "warning", lambda msg, *a, **k: warned.append(str(msg)))
+    priv, pub = _keypair()
+    for _ in range(2):
+        sid = str(uuid.uuid4())
+        text = await _greeting(
+            session_id=sid,
+            token=f"Bearer {_token(priv, sid, agent_id='anyone')}",
+            public_keys=pub,
+        )
+        assert text == "for t-1/anyone"
+    assert sum("expect_agent" in w for w in warned) == 1
+
+
+async def test_unverified_sessions_carry_no_identity():
+    text = await _greeting(session_id=str(uuid.uuid4()), allow_unverified=True)
+    assert text == "for None/None"
+
+
+# ─── kid: the token names its key; old tokens without one still verify ──────
+
+
+async def test_kid_picks_the_named_key_and_a_missing_or_unknown_kid_falls_back():
+    from voqalize.sdk.session import key_id, verify_token
+
+    _, pub_a = _keypair()
+    priv_b, pub_b = _keypair()
+    keys = [pub_a, pub_b]
+    sid = str(uuid.uuid4())
+    assert key_id(pub_a) != key_id(pub_b) and len(key_id(pub_a)) == 16
+    for tok in (
+        _token(priv_b, sid, agent_id="x", kid=key_id(pub_b)),  # named
+        _token(priv_b, sid, agent_id="x"),  # signed before key ids existed
+        _token(priv_b, sid, agent_id="x", kid="0000000000000000"),  # unknown
+    ):
+        assert verify_token(tok, sid, public_keys=keys, allow_unverified=False) is not None
+    # A kid cannot vouch for a key: naming A on a token signed by an unknown key fails.
+    priv_c, _ = _keypair()
+    forged = _token(priv_c, sid, agent_id="x", kid=key_id(pub_a))
+    assert verify_token(forged, sid, public_keys=keys, allow_unverified=False) is None
+
+
+def test_key_id_of_the_embedded_production_key_is_stable():
+    """The signer derives the same id from its private key; pin it so a change to
+    the derivation on either side is caught, not discovered in a failed call."""
+    from voqalize.sdk._keys import VOQALIZE_PUBLIC_KEYS
+    from voqalize.sdk.session import key_id
+
+    assert key_id(VOQALIZE_PUBLIC_KEYS[0]) == "5bdf529e75df87c3"
