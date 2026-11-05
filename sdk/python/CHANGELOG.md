@@ -15,6 +15,35 @@ The public series has now caught up to them, so **a heading carrying
 are different releases that happen to share a number; the pre-restart entries are
 kept for the history, and nothing installable was ever cut from them.
 
+## Unreleased
+
+A brain can say which agent it serves. Nothing on the wire changes, and every
+brain written for 0.13.0 runs unchanged.
+
+### Added
+
+- **`run_session(..., expect_agent=...)`**: the agent id this brain serves, or a
+  list of them. A connection whose token was signed for any other agent raises
+  `SessionRejected`, as a forged token does, and your route closes it with
+  `4000`. Voqalize signs a genuine token for every agent it calls, so a brain at
+  a public URL without this check also answers an agent in another workspace
+  that was pointed at its URL. Pass your `VOQALIZE_AGENT_ID`.
+- **`Session.tenant_id` and `Session.agent_id`**: the workspace and agent the
+  connection's verified token names. `None` behind Cortex, which already admits
+  only your agent's sessions, and under `allow_unverified=True`.
+- **`brain_server(..., expect_agent=...)`** in `voqalize.conformance`, the same
+  check on the test host.
+- **Tokens name their signing key.** `verify_token` tries the key a token's
+  `kid` header names first and then the rest, so a token without a `kid`, or
+  with one naming a key this build does not hold, verifies exactly as before.
+  `voqalize.sdk.session.key_id(pem)` derives a key's id, and
+  `mint_voqalize_token` now stamps it.
+
+### Deprecated
+
+- **Leaving `expect_agent` out.** It logs a warning once per process. A future
+  release will make it required.
+
 ## 0.13.0
 
 The `commerce` kit at 1.2.0: products compared, a product's option picked, and

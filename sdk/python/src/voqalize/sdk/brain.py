@@ -79,6 +79,7 @@ from typing import Any
 
 from loguru import logger
 
+from ._identity import verified_identity
 from .actions import Action
 from .engine import Emitter, SessionAdapter, SessionFactory
 from .events import (
@@ -252,6 +253,16 @@ class Session:
         #: said when the session opened. Read the ``can_*`` properties rather
         #: than this set.
         self.capabilities = capabilities
+        identity = verified_identity.get()
+        #: The workspace this session was signed for, from the connection's
+        #: verified token. ``None`` when nothing verified one: a brain behind the
+        #: Cortex relay (the relay already admits only your agent's sessions) or
+        #: a ``run_session(..., allow_unverified=True)`` in local development.
+        self.tenant_id: str | None = identity.tenant_id if identity else None
+        #: The agent this session was signed for, on the same terms as
+        #: :attr:`tenant_id`. Branch on it when one brain serves several agents;
+        #: to refuse every other agent, pass ``expect_agent=`` to ``run_session``.
+        self.agent_id: str | None = identity.agent_id if identity else None
         # One id per speech unit, session-monotonic. Voqalize never reads it — it
         # comes back on the Finalize naming the unit it belongs to, and nothing
         # on that side compares, orders or formats it.

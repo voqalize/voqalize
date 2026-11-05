@@ -284,3 +284,37 @@ async def test_brain_server_demands_an_explicit_verification_choice():
     # allow_unverified is the explicit escape hatch — no raise even with no keys.
     server = BrainServer(EchoBrain, host="127.0.0.1", port=0, allow_unverified=True)
     await server.aclose()
+
+
+async def test_brain_server_expect_agent_closes_another_agents_session():
+    """The test host refuses a token for another agent the way run_session does."""
+    from voqalize.conformance.wire_voqalize import generate_keypair, mint_voqalize_token
+
+    keys = generate_keypair()
+    server, port = await _serve(EchoBrain, public_keys=keys.public_pem, expect_agent="mine")
+    try:
+        sid = str(uuid.uuid4())
+        token = mint_voqalize_token(
+            private_key_pem=keys.private_pem, session_id=sid, agent_id="mine", tenant_id="t"
+        )
+        wire = await _connect(port, sid, headers={"Authorization": f"Bearer {token}"})
+        client = _Client(wire)
+        await client.send(SessionStartFrame(turn_id=1, session_id=sid))
+        assert await client.collect_until(_has_text("hi there"))
+        await wire.close()
+
+        other_sid = str(uuid.uuid4())
+        stranger = mint_voqalize_token(
+            private_key_pem=keys.private_pem, session_id=other_sid, agent_id="theirs", tenant_id="u"
+        )
+        with pytest.raises(PermanentClose):
+            bad = Wire(
+                WireConfig(
+                    url=f"ws://127.0.0.1:{port}?session_id={other_sid}",
+                    headers={"Authorization": f"Bearer {stranger}"},
+                )
+            )
+            await bad.start()
+            await bad.recv()
+    finally:
+        await server.aclose()

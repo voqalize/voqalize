@@ -28,6 +28,8 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from websockets.asyncio.client import ClientConnection, connect
 
+from voqalize.sdk.session import key_id
+
 # Same wire constant every brain verifies (voqalize.sdk.session.BRAIN_AUDIENCE).
 # Not per-agent.
 BRAIN_AUDIENCE = "brain"
@@ -136,8 +138,9 @@ def mint_voqalize_token(
 
     Claims: ``iss=pygato``, ``aud=brain`` (a wire constant),
     ``sub=session_id``, ``kind=pygato``, plus ``agent_id`` / ``tenant_id`` for the
-    recipient to decide. Byte-identical to what Voqalize signs in production, so a brain
-    that accepts this one accepts production.
+    recipient to decide. The header names the signing key as ``kid``
+    (:func:`voqalize.sdk.session.key_id`). The same shape Voqalize signs in
+    production, so a brain that accepts this one accepts production.
     """
     now = datetime.now(UTC)
     claims = {
@@ -150,4 +153,15 @@ def mint_voqalize_token(
         "iat": now,
         "exp": now + timedelta(seconds=ttl_seconds),
     }
-    return jwt.encode(claims, private_key_pem, algorithm="RS256")
+    key = serialization.load_pem_private_key(private_key_pem, password=None)
+    public_pem = (
+        key.public_key()
+        .public_bytes(
+            serialization.Encoding.PEM,
+            serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        .decode()
+    )
+    return jwt.encode(
+        claims, private_key_pem, algorithm="RS256", headers={"kid": key_id(public_pem)}
+    )

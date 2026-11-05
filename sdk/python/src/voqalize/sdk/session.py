@@ -40,13 +40,17 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import functools
+import hashlib
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING, Any, Protocol
 
 import jwt
+from cryptography.hazmat.primitives import serialization
 from loguru import logger
 
+from ._identity import VerifiedIdentity, verified_identity
 from ._keys import VOQALIZE_PUBLIC_KEYS
 from ._logging import session_context
 from .engine import (
@@ -106,6 +110,70 @@ def normalize_keys(public_keys: str | list[str] | None) -> list[str]:
     return [k for k in public_keys if k and k.strip()]
 
 
+@functools.lru_cache(maxsize=64)
+def key_id(public_pem: str) -> str:
+    """The ``kid`` Voqalize stamps on a token signed with this key's private half.
+
+    Derived, never configured: the first 16 hex characters of the SHA-256 of the
+    key's DER-encoded SubjectPublicKeyInfo. The signer computes the same value from
+    its own key, so a key id cannot be set wrong on either side. Returns ``""`` for
+    a PEM that does not parse; that key simply never matches a ``kid``.
+    """
+    try:
+        key = serialization.load_pem_public_key(public_pem.encode())
+    except (ValueError, TypeError):
+        return ""
+    der = key.public_bytes(
+        serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+    return hashlib.sha256(der).hexdigest()[:16]
+
+
+def _keys_for(token: str, public_keys: list[str]) -> list[str]:
+    """``public_keys`` with the one the token's ``kid`` names first.
+
+    The rest follow, in their own order, so a token whose ``kid`` names no key we
+    hold — or that carries none, as every token signed before key ids existed
+    does — is still tried against each key, as before."""
+    try:
+        kid = jwt.get_unverified_header(token).get("kid")
+    except jwt.PyJWTError:
+        return public_keys
+    if not isinstance(kid, str) or not kid:
+        return public_keys
+    named = [pem for pem in public_keys if key_id(pem) == kid]
+    return named + [pem for pem in public_keys if pem not in named]
+
+
+def _expected_agents(expect_agent: str | Iterable[str] | None) -> frozenset[str] | None:
+    if expect_agent is None:
+        return None
+    agents = frozenset([expect_agent]) if isinstance(expect_agent, str) else frozenset(expect_agent)
+    if not agents or not all(agents):
+        raise ValueError(
+            "run_session: expect_agent must be an agent id, or a list of them; "
+            "it was empty. Leave it out to accept any agent."
+        )
+    return agents
+
+
+_warned_no_expect_agent = False
+
+
+def _warn_no_expect_agent() -> None:
+    """Once per process: a brain without ``expect_agent`` serves any agent."""
+    global _warned_no_expect_agent
+    if _warned_no_expect_agent:
+        return
+    _warned_no_expect_agent = True
+    logger.warning(
+        "run_session: expect_agent= is not set, so this brain accepts a session "
+        "for any agent, including one in another workspace whose brain URL points "
+        "here. Pass expect_agent=<your agent id> (it is VOQALIZE_AGENT_ID if you "
+        "followed the docs). A future release will require it."
+    )
+
+
 def verify_token(
     token: str | None,
     session_id: str,
@@ -136,7 +204,7 @@ def verify_token(
         return None
     if token.lower().startswith("bearer "):
         token = token[len("bearer ") :].strip()
-    for pem in public_keys:
+    for pem in _keys_for(token, public_keys):
         try:
             claims = jwt.decode(
                 token,
@@ -291,6 +359,7 @@ async def run_session(
     brain: type[Brain] | Callable[[], Brain],
     session_id: str,
     token: str | None = None,
+    expect_agent: str | Iterable[str] | None = None,
     public_keys: str | list[str] | None = None,
     allow_unverified: bool = False,
     inbound_queue_maxsize: int | None = None,
@@ -312,8 +381,22 @@ async def run_session(
     :func:`verify_token`). Override the keys with ``public_keys=`` (e.g. a
     self-hosted deployment), or ``allow_unverified=True`` for local dev. Raises
     :class:`SessionRejected` if the token fails — the caller should close 4000.
+
+    ``expect_agent`` is the agent this brain serves, or a list of them: a token
+    signed for any other agent is rejected like a forged one. Pass it. Voqalize
+    signs a genuine token for every agent it calls, so without it a brain at a
+    public URL also answers an agent in someone else's workspace that was pointed
+    at that URL. It is optional for now and logs a warning once per process when
+    it is missing; a future release will require it. ``allow_unverified=True``
+    checks nothing, ``expect_agent`` included.
+
+    The verified workspace and agent are on the brain's session as
+    :attr:`Session.tenant_id <voqalize.sdk.Session.tenant_id>` and
+    :attr:`Session.agent_id <voqalize.sdk.Session.agent_id>`.
     """
     from .brain import _brain_factory  # local import breaks the brain↔transport cycle
+
+    expected = _expected_agents(expect_agent)
 
     keys = normalize_keys(public_keys) if public_keys is not None else list(VOQALIZE_PUBLIC_KEYS)
     if not allow_unverified and not keys:
@@ -325,17 +408,35 @@ async def run_session(
     claims = verify_token(token, session_id, public_keys=keys, allow_unverified=allow_unverified)
     if claims is None:
         raise SessionRejected(f"unauthorized session {session_id}")
+    if not allow_unverified:
+        agent_id = str(claims.get("agent_id", ""))
+        if expected is None:
+            _warn_no_expect_agent()
+        elif agent_id not in expected:
+            logger.warning(
+                "session: token is for agent {!r}, not one this brain serves; rejected {}",
+                agent_id,
+                session_id,
+            )
+            raise SessionRejected(f"session {session_id} is for another agent")
+        identity = VerifiedIdentity(tenant_id=str(claims.get("tenant_id", "")), agent_id=agent_id)
+    else:
+        identity = None
     # Tag every line this session writes — including the brain's own — with the
     # identity the signature just vouched for, never with anything the caller
     # supplied. See `_logging`.
-    with session_context(
-        session_id,
-        tenant_id=str(claims.get("tenant_id", "")),
-        agent_id=str(claims.get("agent_id", "")),
-    ):
-        await serve_channel(
-            channel,
-            factory=_brain_factory(brain),
-            session_id=session_id,
-            inbound_queue_maxsize=inbound_queue_maxsize,
-        )
+    identity_token = verified_identity.set(identity)
+    try:
+        with session_context(
+            session_id,
+            tenant_id=str(claims.get("tenant_id", "")),
+            agent_id=str(claims.get("agent_id", "")),
+        ):
+            await serve_channel(
+                channel,
+                factory=_brain_factory(brain),
+                session_id=session_id,
+                inbound_queue_maxsize=inbound_queue_maxsize,
+            )
+    finally:
+        verified_identity.reset(identity_token)
