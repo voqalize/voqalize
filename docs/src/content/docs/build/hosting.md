@@ -53,11 +53,12 @@ the query string, and hand the socket to the SDK's `run_session`. It verifies th
 connection, runs the session, and returns when the session ends.
 
 ```bash
-pip install "voqalize-agent-sdk==0.12.0" fastapi "uvicorn[standard]"
+pip install "voqalize-agent-sdk==0.14.0" fastapi "uvicorn[standard]"
 ```
 
 ```python
 import contextlib
+import os
 
 from fastapi import FastAPI, WebSocket
 from starlette.websockets import WebSocketDisconnect
@@ -90,9 +91,10 @@ async def voice(ws: WebSocket, session_id: str) -> None:  # session_id from ?ses
             brain=MyBrain,  # or brain=lambda: MyBrain(llm=...)
             session_id=session_id,
             token=ws.headers.get("authorization"),
+            expect_agent=os.environ["VOQALIZE_AGENT_ID"],  # the agent this route serves
         )
     except SessionRejected:
-        await ws.close(code=4000)  # the token did not verify
+        await ws.close(code=4000)  # the token did not verify, or names another agent
     except WebSocketDisconnect:
         pass  # Voqalize closed the socket: the session is over
     except Exception:
@@ -186,8 +188,79 @@ yourself.
 A token that fails verification raises `SessionRejected`; close the socket with
 code `4000`, as the route above does.
 
+### Check the token names your agent
+
+The token also names the workspace and the agent the session was started for.
+Voqalize signs a genuine token for every agent it calls, so a route at a public
+URL that checks only the signature also answers any other agent pointed at that
+URL, from any workspace. Pass your agent's id as `expect_agent=`, and
+`run_session` refuses a token signed for any other agent with
+`SessionRejected`, exactly as it refuses a forged one:
+
+```python
+await run_session(
+    channel,
+    brain=MyBrain,
+    session_id=session_id,
+    token=token,
+    expect_agent=os.environ["VOQALIZE_AGENT_ID"],  # or a list, for a route several agents share
+)
+```
+
+Your agent's id is the `agent_id` that `create_agent` returned, and `get_agent`
+reports it. `expect_agent` is optional in this release, and leaving it out logs
+a warning once per process. A future release will require it.
+
+Inside the brain, `session.tenant_id` and `session.agent_id` hold the workspace
+and agent the verified token names. Branch on `agent_id` when one brain serves
+several agents. Both are `None` behind Cortex, which already admits only your
+agent's sessions, and under `allow_unverified=True`.
+
 The claims are listed in [the wire reference](/reference/wire/#connection-and-auth),
 and the harness in [Test the brain](/build/testing/) mints the same token for tests.
+
+## How calls are kept apart
+
+Voqalize serves many customers from the same voice nodes and the same speech
+tier. Everything it builds for a call is keyed by the verified `session_id` in
+the token above, which only Voqalize can sign.
+
+The session token your page uses is a bearer credential for its call: whoever
+holds it can rejoin that call, which is how a page reload resumes it. Keep it in
+the page that started the session, and never log it.
+
+**What each session has to itself:**
+
+- **The audio and the WebRTC connection.** Encrypted per connection
+  (DTLS-SRTP), and the keys are never shared.
+- **Its connection to your brain.** One WebSocket per session, as above.
+  Nothing is pooled.
+- **Its connections to speech recognition and to the voice.** One of each per
+  session, neither pooled nor shared.
+- **Its turn-taking, idle and acknowledgement state.**
+- **Its call record, recording and logs**, each written under its own
+  `session_id`, in your workspace's storage path.
+
+**What is shared, and why it is safe:**
+
+- **The voice node's process and network ports.** Calls arrive on the same
+  ports and are told apart by their encrypted connection, not by the port.
+- **The relay that carries calls through restrictive networks.** It relays
+  only for a call that node holds, with credentials minted for that session.
+- **The speech tier.** Its models are read-only. It caches rendered sentences
+  by voice, language and text, so the same sentence spoken by two customers
+  may be rendered once.
+- **The control plane and its database.** Every record carries its workspace,
+  and every read checks your membership of it. No browser or SDK reaches the
+  database directly: only our services do.
+- **Cortex**, for brains that dial out. Both legs authenticate, and the pair is
+  matched by the verified agent credential, never by the URL.
+
+Your brain and its language model are yours, and none of this applies to them.
+
+For customers who need it, the voice runtime and the speech tier can run on
+your own infrastructure, carrying your calls only. Ask us:
+[Status and support](/overview/status/).
 
 ## Local development
 

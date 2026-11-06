@@ -6,7 +6,7 @@ description: Every callback a brain may implement, its signature, and what it is
 A brain is a subclass of `Brain`. Voqalize opens one WebSocket per session, and
 what arrives on it reaches your code as a callback, each handed the `Session`
 for that call. This page is every signature on that surface,
-read out of `voqalize-agent-sdk` 0.12.0 and speaking wire version 3.
+read out of `voqalize-agent-sdk` 0.14.0 and speaking wire version 3.
 
 Only `on_user_message` is required. `on_user_message` and `on_user_idle` are
 async generators, and they are the only moments the floor is yours. Everything that is not speech is a method on `session`, callable
@@ -175,6 +175,8 @@ lifetime is exactly the socket's.
 | Attribute | Type | What it holds |
 |---|---|---|
 | `id` | `str` | The session id Voqalize assigned — the same string in `?session_id=`, in your logs, and in [the call record](/operate/reading-a-call/). |
+| `tenant_id` | `str \| None` | The workspace the connection's verified token names. `None` behind Cortex and under `allow_unverified=True`. |
+| `agent_id` | `str \| None` | The agent the verified token names, on the same terms. Branch on it when one brain serves several agents. |
 | `init` | `dict[str, Any]` | The opaque init data handed to Voqalize at connect. Read your own keys out of it; the SDK interprets none of it. |
 | `capabilities` | `frozenset[Capability]` | What this Voqalize said it honours beyond the wire version's baseline, at `SessionStart`. Read the `can_*` properties rather than the set. |
 | `can_cancel_speech` | `bool` | Whether `cancel_speech` is honoured. Fixed for the session's life. |
@@ -432,6 +434,7 @@ async def run_session(
     brain: type[Brain] | Callable[[], Brain],
     session_id: str,
     token: str | None = None,
+    expect_agent: str | Iterable[str] | None = None,
     public_keys: str | list[str] | None = None,
     allow_unverified: bool = False,
     inbound_queue_maxsize: int | None = None,
@@ -453,8 +456,12 @@ class Channel(Protocol):
 
 Verification is on by default, against the public keys embedded in the SDK: pass
 the `Authorization` header value as `token=` and the query parameter as
-`session_id=`. `public_keys=` overrides the keys; `allow_unverified=True` skips
-the check and is for local development. A token that fails raises
+`session_id=`. `expect_agent=` is the agent this brain serves, or a list of
+them: a token signed for any other agent fails too. Leaving it out logs a
+warning once per process; see
+[Check the token names your agent](/build/hosting/#check-the-token-names-your-agent).
+`public_keys=` overrides the keys; `allow_unverified=True` skips every check,
+`expect_agent` included, and is for local development. A token that fails raises
 `SessionRejected`; close the socket with code 4000, and the session ends at
 once. The claims themselves are in
 [The wire](/reference/wire/).
@@ -552,7 +559,7 @@ from voqalize.sdk.litellm import LiteLLMBrain
 from voqalize.sdk.voice import TOOL_BUDGET_MS, ToolChoice, needs_result_now
 ```
 
-`GeminiBrain` is installed with `pip install "voqalize-agent-sdk[gemini]==0.12.0"`;
+`GeminiBrain` is installed with `pip install "voqalize-agent-sdk[gemini]==0.14.0"`;
 the other two take the `openai` and `litellm` extras the same way. All three are
 hosted exactly like any other brain.
 

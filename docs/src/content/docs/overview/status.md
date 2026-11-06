@@ -22,7 +22,7 @@ agent's model, and it runs in India only.
 
 ## Brain SDK
 
-The published Python SDK is `voqalize-agent-sdk==0.12.0`, for Python 3.12 or
+The published Python SDK is `voqalize-agent-sdk==0.14.0`, for Python 3.12 or
 later. Pin the version you build against: releases before 1.0 may change the
 brain API.
 
