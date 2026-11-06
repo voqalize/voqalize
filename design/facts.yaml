@@ -167,13 +167,17 @@ facts:
       pattern: '^name = "(.+)"$'
 
   sdk.python.version.tree:
-    value: '0.13.0'
+    value: '0.14.0'
     source: sdk/python/pyproject.toml:3
-    verified: 2026-11-05
+    verified: 2026-11-06
     derive:
       file: sdk/python/pyproject.toml
       pattern: '^version = "(.+)"$'
     note: >-
+      Bumped to 0.14.0 on 2026-11-06: run_session(expect_agent=...), which
+      refuses a token signed for another agent, Session.tenant_id and
+      Session.agent_id, and tokens that name their signing key (kid). Leaving
+      expect_agent out warns once per process. Additive; the wire is unchanged.
       Bumped to 0.13.0 on 2026-11-04: commerce kit 1.2.0 (commerce.compare,
       commerce.variant and the {cart} verb for cart_show), paired with
       @voqalize/stage 0.2.0. Additive; the wire is unchanged.

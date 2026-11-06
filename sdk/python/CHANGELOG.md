@@ -15,7 +15,7 @@ The public series has now caught up to them, so **a heading carrying
 are different releases that happen to share a number; the pre-restart entries are
 kept for the history, and nothing installable was ever cut from them.
 
-## Unreleased
+## 0.14.0
 
 A brain can say which agent it serves. Nothing on the wire changes, and every
 brain written for 0.13.0 runs unchanged.
