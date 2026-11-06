@@ -34,6 +34,7 @@ import { execSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { DAILY_MARKER } from "./shared/no-daily.mjs";
 
 const demosDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(demosDir);
@@ -160,6 +161,20 @@ function assertStylesheetShipped(name, appDir, outDir) {
 run("pnpm install --ignore-workspace --frozen-lockfile", join(demosDir, "shared"));
 run("pnpm build", join(demosDir, "shared"));
 
+// daily-js must not ship: every demo's vite config aliases it away with
+// `noDaily()` (shared/no-daily.mjs). Its own strings in a built file mean it got in.
+function assertNoDaily(name, outDir) {
+  const assets = join(outDir, "assets");
+  const hit = readdirSync(assets).filter(
+    (f) => f.endsWith(".js") && DAILY_MARKER.test(readFileSync(join(assets, f), "utf8")),
+  );
+  if (hit.length) {
+    console.error(`\n✗ ${name}: daily-js is in ${hit.join(", ")} — add noDaily() to its vite.config.ts`);
+    process.exit(1);
+  }
+  console.log(`  ✓ ${name}: no daily-js`);
+}
+
 // Fresh output tree.
 rmSync(distDir, { recursive: true, force: true });
 mkdirSync(distDir, { recursive: true });
@@ -175,6 +190,7 @@ for (const name of demoNames) {
     VITE_PUBLISHABLE_KEY: process.env[`VITE_${up}_PK`] ?? "",
   });
   assertStylesheetShipped(name, appDir, outDir);
+  assertNoDaily(name, outDir);
 }
 
 console.log(`\n✓ assembled ${demoNames.length} demos → ${distDir.replace(repoRoot, ".")}`);
