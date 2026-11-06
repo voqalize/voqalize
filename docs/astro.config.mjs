@@ -16,6 +16,8 @@ import { redirects } from "./src/redirects.mjs";
 // it is nothing, and the page loads the runtime its npm release pins. The dev
 // build sets `AVATAR_RUNTIME` to the dev host's newest runtime.
 import { avatarRuntime } from "../demos/shared/avatar-runtime.mjs";
+// The live call's transport imports daily-js for a media manager it never builds.
+import { noDaily } from "../demos/shared/no-daily.mjs";
 
 // The docs site owns its origin — `docs.voqalize.com`, and `docs.dev.` /
 // `docs.local.` one DNS label in front of each environment's apex, matching the
@@ -28,7 +30,7 @@ export default defineConfig({
   redirects,
   markdown: { remarkPlugins: [remarkMermaid] },
   vite: {
-    plugins: [avatarRuntime()],
+    plugins: [avatarRuntime(), noDaily()],
     server: {
       allowedHosts: [".local.voqalize.com"],
       // The live call mints its session same-origin at `/api/v1`, which the

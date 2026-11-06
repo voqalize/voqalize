@@ -1,6 +1,7 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { avatarRuntime } from "../../shared/avatar-runtime.mjs";
+import { noDaily } from "../../shared/no-daily.mjs";
 
 // This demo is a self-contained single-page app. It builds under the relative
 // base `/demos/legal/` so the assembled MPA serves it at
@@ -14,7 +15,7 @@ export default defineConfig({
   // but there is only one file in the tree to keep current. A demo that wants
   // assets of its own points this at a directory beside its index.html.
   publicDir: "../../public",
-  plugins: [react(), avatarRuntime()],
+  plugins: [react(), avatarRuntime(), noDaily()],
   server: {
     // Vite rejects unknown Host headers; allow the local nginx front.
     allowedHosts: [".local.voqalize.com"],

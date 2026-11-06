@@ -91,6 +91,17 @@ jobs:
         working-directory: docs
         run: pnpm build
 
+      # daily-js must not ship: astro.config.mjs aliases it away with noDaily()
+      # (demos/shared/no-daily.mjs). Its own strings in a built file mean it got in.
+      - name: Check the docs carry no daily-js
+        working-directory: docs
+        run: |
+          if grep -rlE 'DailyIframe|c\.daily\.co' dist --include='*.js'; then
+            echo "::error::daily-js is in the docs bundle (files above)"
+            exit 1
+          fi
+          echo "✓ no daily-js"
+
       # The agent's half of the docs. The sibling repo's check_links.py reads the
       # rendered HTML across the marketing/docs seam and cannot see this: an agent
       # has no sidebar, so its whole path is `llms.txt` plus the links inside the

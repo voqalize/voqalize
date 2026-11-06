@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { type Plugin, defineConfig } from "vite";
 import { avatarRuntime } from "../../shared/avatar-runtime.mjs";
+import { noDaily } from "../../shared/no-daily.mjs";
 
 // Fernhollow is a store, so it has real URLs: /demos/fernhollow/product/<id>,
 // /room/<room>, /journal/<slug>… The app routes on the path (BrowserRouter with
@@ -67,7 +68,7 @@ export default defineConfig({
   // This app's own public/ holds the product images (scripts/images.mjs writes
   // them, and copies the gallery favicon from ../../public beside them).
   publicDir: "public",
-  plugins: [react(), slimCatalog(), avatarRuntime()],
+  plugins: [react(), slimCatalog(), avatarRuntime(), noDaily()],
   build: {
     chunkSizeWarningLimit: 800,
     rollupOptions: {

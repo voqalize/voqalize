@@ -1,6 +1,7 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { avatarRuntime } from "../../shared/avatar-runtime.mjs";
+import { noDaily } from "../../shared/no-daily.mjs";
 
 // This demo is a self-contained single-page app. It builds under the relative
 // base `/demos/kiosk/` so the assembled MPA serves it at
@@ -15,7 +16,7 @@ export default defineConfig({
   // one static asset (the handoff QR) is imported from `src/assets` instead, so
   // it is hashed and served under this demo's base without a second public dir.
   publicDir: "../../public",
-  plugins: [react(), avatarRuntime()],
+  plugins: [react(), avatarRuntime(), noDaily()],
   build: {
     // voice-ui-kit's scoped stylesheet is authored with native CSS nesting.
     // Vite's default CSS target (safari14) cannot lower one of its rules and
