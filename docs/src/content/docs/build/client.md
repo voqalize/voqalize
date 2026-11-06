@@ -101,7 +101,7 @@ examples are web only; start from pipecat's
 | `@voqalize/client-transport` | `0.4.1`, pinned exactly ([CHANGELOG](https://github.com/voqalize/voqalize-client-transport/blob/main/CHANGELOG.md)) |
 | `@pipecat-ai/client-js` | `>=1.13.0 <2` (peer of our transport) |
 | `@pipecat-ai/small-webrtc-transport` | `>=1.10.7 <2` (peer of our transport) |
-| `voqalize-agent-sdk` (your server) | `==0.12.0`; installs websockets, protobuf, pydantic, a JWT library and loguru |
+| `voqalize-agent-sdk` (your server) | `==0.14.0`; installs websockets, protobuf, pydantic, a JWT library and loguru |
 
 ## Read next
 

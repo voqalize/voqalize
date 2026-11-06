@@ -16,7 +16,7 @@ to each, and a brain moves between them by changing only its constructor
 your model:
 
 ```bash
-pip install "voqalize-agent-sdk[gemini]==0.12.0"    # or [openai], or [litellm]
+pip install "voqalize-agent-sdk[gemini]==0.14.0"    # or [openai], or [litellm]
 ```
 
 A plain `Brain` has no `tools` member: it calls its own functions from its own

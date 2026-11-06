@@ -96,9 +96,9 @@ tools, heard truth and the greeting for you:
 
 | Class | Install | Speaks to |
 |---|---|---|
-| `GeminiBrain` | `pip install "voqalize-agent-sdk[gemini]==0.12.0"` | Gemini's `generate_content` |
-| `OpenAIBrain` | `pip install "voqalize-agent-sdk[openai]==0.12.0"` | OpenAI's Responses API |
-| `LiteLLMBrain` | `pip install "voqalize-agent-sdk[litellm]==0.12.0"` | Any model LiteLLM reaches |
+| `GeminiBrain` | `pip install "voqalize-agent-sdk[gemini]==0.14.0"` | Gemini's `generate_content` |
+| `OpenAIBrain` | `pip install "voqalize-agent-sdk[openai]==0.14.0"` | OpenAI's Responses API |
+| `LiteLLMBrain` | `pip install "voqalize-agent-sdk[litellm]==0.14.0"` | Any model LiteLLM reaches |
 
 Constructors are in [the shipped adapters](/reference/brain/#the-shipped-adapters);
 tools are in [Tools](/build/brain/tools/). There is no adapter for a framework that
