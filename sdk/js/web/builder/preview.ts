@@ -64,7 +64,14 @@ async function rebuild(msg: PreviewMessage): Promise<void> {
 
   const w = document.createElement("vql-widget");
   widget = w;
-  w.config = previewConfig(msg.config, Boolean(msg.talk));
+  // A call's agent and key may come from the page address or the local file
+  // rather than the form, so they go into the config here.
+  const config = previewConfig(msg.config, Boolean(msg.talk));
+  if (msg.talk) {
+    config.agent = msg.talk.agent;
+    config.key = msg.talk.key;
+  }
+  w.config = config;
   w.addEventListener("vql-view", (e) => {
     const d = (e as CustomEvent<{ view: string; form: string }>).detail;
     report({ view: d.view, form: d.form, ...(d.view === "ended" ? { ended: true } : {}) });
