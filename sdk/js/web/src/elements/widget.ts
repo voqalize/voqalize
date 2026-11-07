@@ -289,6 +289,8 @@ export class VqlWidget extends LitElement {
     globalThis.removeEventListener?.("scroll", this.onWindowChange, { capture: true });
     globalThis.visualViewport?.removeEventListener("resize", this.onWindowChange);
     globalThis.visualViewport?.removeEventListener("scroll", this.onWindowChange);
+    this.stopFollowing();
+    this.drag = null;
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
     this.childObserver?.disconnect();
@@ -323,7 +325,7 @@ export class VqlWidget extends LitElement {
     if (this.focusAfterRender) {
       const target = this.focusAfterRender;
       this.focusAfterRender = null;
-      this.focusTarget(target);
+      void this.focusTarget(target);
     }
   }
 
@@ -657,7 +659,7 @@ export class VqlWidget extends LitElement {
     if (e.key === "Escape") {
       if (this.devicesOpen) {
         this.devicesOpen = false;
-        this.focusTarget("open");
+        void this.focusTarget("open");
       } else if (this.view === "open") {
         this.collapse();
       }
@@ -688,19 +690,32 @@ export class VqlWidget extends LitElement {
     if (!sheetHandle) {
       if (!this.floating || !this.placement || this.placement.move === "fixed") return;
       // Presses on a control stay presses; the expand target is the exception, it is the bubble itself.
-      const onControl = path.some((n) => {
+      // Only the nodes between the press and the dock count.
+      const inside = path.slice(0, Math.max(0, path.indexOf(e.currentTarget as EventTarget)));
+      const onControl = inside.some((n) => {
         const el = n as Element;
         if (el.classList?.contains("expand")) return false;
-        return el.tagName === "BUTTON" || el.tagName === "SELECT" || (el.tagName ?? "").startsWith("VQL-") && el.tagName !== "VQL-FACE";
+        const tag = el.tagName ?? "";
+        return tag === "BUTTON" || tag === "SELECT" || tag === "A" || (tag.startsWith("VQL-") && tag !== "VQL-FACE");
       });
       if (onControl) return;
     }
     this.drag = { id: e.pointerId, x: e.clientX, y: e.clientY, started: false, sheet: sheetHandle };
-    try {
-      (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
-    } catch {
-      // Capture is a nicety; the move still tracks inside the dock.
-    }
+    // The press is followed on the window, not by capturing the pointer: a
+    // capture would retarget a plain press's click away from the expand
+    // button, and a fast drag leaves the dock before the dock catches up.
+    window.addEventListener("pointermove", this.onWindowMove);
+    window.addEventListener("pointerup", this.onWindowUp);
+    window.addEventListener("pointercancel", this.onWindowUp);
+  }
+
+  private readonly onWindowMove = (e: PointerEvent): void => this.onPointerMove(e);
+  private readonly onWindowUp = (e: PointerEvent): void => this.onPointerUp(e);
+
+  private stopFollowing(): void {
+    window.removeEventListener("pointermove", this.onWindowMove);
+    window.removeEventListener("pointerup", this.onWindowUp);
+    window.removeEventListener("pointercancel", this.onWindowUp);
   }
 
   private onPointerMove(e: PointerEvent): void {
@@ -721,6 +736,7 @@ export class VqlWidget extends LitElement {
     const d = this.drag;
     if (!d || d.id !== e.pointerId) return;
     this.drag = null;
+    this.stopFollowing();
     if (d.sheet) {
       if (e.clientY - d.y > SHEET_SWIPE) this.collapse();
       return;
@@ -740,16 +756,23 @@ export class VqlWidget extends LitElement {
     void this.open();
   }
 
-  private focusTarget(target: "launcher" | "open" | "expand"): void {
+  private async focusTarget(target: "launcher" | "open" | "expand"): Promise<void> {
     const root = this.renderRoot;
+    // A part draws its own button on its next update; wait for it before focusing.
+    const inner = async (tag: string): Promise<HTMLElement | null> => {
+      const el = root.querySelector(tag) as (HTMLElement & { updateComplete?: Promise<unknown> }) | null;
+      if (!el) return null;
+      await el.updateComplete;
+      return el.shadowRoot?.querySelector<HTMLElement>("button") ?? null;
+    };
     if (target === "launcher") {
-      (root.querySelector("vql-launcher") as HTMLElement | null)?.focus();
+      (await inner("vql-launcher"))?.focus();
     } else if (target === "expand") {
       root.querySelector<HTMLElement>(".expand")?.focus();
     } else {
       const el =
         root.querySelector<HTMLElement>(".end-card .again") ??
-        (root.querySelector("vql-mic")?.shadowRoot?.querySelector("button") as HTMLElement | null | undefined) ??
+        (await inner("vql-mic")) ??
         root.querySelector<HTMLElement>(".dock");
       el?.focus();
     }
@@ -842,9 +865,10 @@ export class VqlWidget extends LitElement {
         --vql-radius: 0px;
       }
       .card-form.circle .frame {
-        width: 62%;
+        width: 58%;
         aspect-ratio: 1;
-        margin-top: 16px;
+        /* Clear of the status chip and the grip above it. */
+        margin-top: 44px;
       }
       .card-form.circle .frame vql-face {
         --vql-radius: inherit;
@@ -997,8 +1021,19 @@ export class VqlWidget extends LitElement {
         gap: 8px;
         padding: 5px 6px;
       }
+      .pill .main-col {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
       .pill .stage {
         flex: none;
+      }
+      .pill .grip {
+        display: none;
+      }
+      .pill .status {
+        position: static;
       }
       .pill .frame {
         width: 46px;
@@ -1180,7 +1215,10 @@ export class VqlWidget extends LitElement {
 
   private dockClass(extra: string): string {
     const c = this.cfg;
-    const classes = ["dock", this.form, extra];
+    // The card form is "card-dock" here: the dock holds an element of class
+    // "card", and the card's rules (position: relative among them) must not
+    // land on the fixed dock itself.
+    const classes = ["dock", this.form === "card" ? "card-dock" : this.form, extra];
     if (c.placement.mode === "inline") classes.push("inline");
     if (this.floating && !this.spot) classes.push("unplaced");
     if (this.floating && this.placement && this.placement.move !== "fixed") classes.push("draggable");
@@ -1421,9 +1459,6 @@ export class VqlWidget extends LitElement {
         tabindex="-1"
         ${cssProps(this.dockPosition())}
         @pointerdown=${(e: PointerEvent) => this.onPointerDown(e)}
-        @pointermove=${(e: PointerEvent) => this.onPointerMove(e)}
-        @pointerup=${(e: PointerEvent) => this.onPointerUp(e)}
-        @pointercancel=${(e: PointerEvent) => this.onPointerUp(e)}
       >
         <div class=${this.hasSide && open && form === "card" ? `card ${cardForm} with-side` : `card ${cardForm}`} part="card ${form}">
           <div class="main-col">

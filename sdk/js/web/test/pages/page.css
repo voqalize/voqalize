@@ -1,0 +1,51 @@
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: #f4f1ec;
+  color: #1c1917;
+  min-height: 100vh;
+}
+.site {
+  display: flex;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: #ffffff;
+  border-bottom: 1px solid #e4ded5;
+}
+main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px 20px;
+}
+#inline-slot:empty {
+  display: none;
+}
+#inline-slot {
+  max-width: 380px;
+  margin: 16px 0;
+}
+body.dark {
+  background: #121110;
+  color: #f5f3f0;
+}
+body.dark .site {
+  background: #1c1b1a;
+  border-color: #2e2c2a;
+}
+.own-launcher {
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 16px;
+  background: #0f766e;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 600;
+}
+.side-panel {
+  padding: 14px;
+  font-size: 14px;
+}
+.side-panel h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}

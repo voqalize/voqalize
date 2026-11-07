@@ -25,7 +25,7 @@ import { themeStyles } from "./theme.js";
 import { type Translate, translator } from "./words.js";
 
 /** How far the ring grows at full level, as a fraction of the button. */
-const RING_GROWTH = 0.6;
+const RING_GROWTH = 0.4;
 
 /** The level a voice usually peaks at; the meter reads full there. */
 const LEVEL_FULL = 0.35;
