@@ -55,7 +55,8 @@
     "test": "vitest run",
     "build": "tsc -p tsconfig.build.json",
     "size": "node scripts/size.mjs",
-    "test:pages": "playwright test"
+    "test:pages": "playwright test",
+    "builder": "node builder/serve.mjs"
   },
   "dependencies": {
     "@pipecat-ai/client-js": "~1.13.0",

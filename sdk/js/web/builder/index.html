@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Widget builder</title>
+    <meta name="description" content="Shape the Voqalize widget with switches, see it live on a sample page and a phone, and copy the snippet." />
+    <link rel="stylesheet" href="builder.css" />
+    <script type="module" src="builder.js"></script>
+  </head>
+  <body>
+    <header class="top">
+      <div class="brand">
+        <strong>Widget builder</strong>
+        <span class="pre">@voqalize/web <span id="version"></span> · pre-release</span>
+      </div>
+      <div class="top-actions">
+        <button type="button" id="from-site" class="ghost">Start from my site</button>
+        <button type="button" id="reset" class="ghost">Reset</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="panel" aria-label="Options">
+        <form id="form" autocomplete="off"></form>
+      </aside>
+
+      <section class="stage" aria-label="Preview">
+        <div class="toolbar">
+          <div id="states" class="chips" role="group" aria-label="State"></div>
+          <div class="toggles">
+            <div class="chips" role="group" aria-label="Sample page">
+              <button type="button" class="chip" data-page="light">Light page</button>
+              <button type="button" class="chip" data-page="dark">Dark page</button>
+            </div>
+            <div class="chips" role="group" aria-label="Frames">
+              <button type="button" class="chip" data-frames="both">Both</button>
+              <button type="button" class="chip" data-frames="desktop">Desktop</button>
+              <button type="button" class="chip" data-frames="phone">Phone</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="frames" class="frames">
+          <figure class="frame desktop">
+            <div class="viewport">
+              <iframe id="frame-desktop" title="Desktop preview" allow="microphone; autoplay"></iframe>
+            </div>
+            <figcaption id="caption-desktop">Desktop</figcaption>
+          </figure>
+          <figure class="frame phone">
+            <div class="viewport">
+              <iframe id="frame-phone" title="Phone preview" allow="autoplay"></iframe>
+            </div>
+            <figcaption id="caption-phone">Phone</figcaption>
+          </figure>
+        </div>
+        <p class="note">The preview replays a recorded turn through the real widget: no call, no network. Faces show a placeholder still; on your site the character draws.</p>
+
+        <div class="actions">
+          <button type="button" id="talk" class="primary">Talk to it</button>
+          <button type="button" id="copy">Copy snippet</button>
+          <button type="button" id="apply">Apply to my agent</button>
+          <span id="copy-status" role="status"></span>
+        </div>
+        <p id="talk-note" class="note">To talk to it, add <code>?agent=…&amp;key=pk_…</code> to this page's address, or fill in the agent id and publishable key above.</p>
+
+        <div class="snippet">
+          <div class="tabs" role="tablist" aria-label="Snippet">
+            <button type="button" role="tab" data-snippet="html">HTML</button>
+            <button type="button" role="tab" data-snippet="react">React</button>
+          </div>
+          <pre id="snippet" tabindex="0"></pre>
+          <p class="note">The snippet carries only what you changed; everything else stays the widget's default. The script-tag build is served once the package is released.</p>
+        </div>
+      </section>
+    </div>
+
+    <dialog id="apply-dialog" aria-labelledby="apply-title">
+      <h2 id="apply-title">Apply to my agent</h2>
+      <p>This will save the configuration below as your agent's widget settings, which the Site Agent's embed already serves to your pages. Saving it from here is not connected yet: for now, copy it, or use the snippet.</p>
+      <pre id="apply-json"></pre>
+      <div class="dialog-actions"><button type="button" data-close>Close</button></div>
+    </dialog>
+
+    <dialog id="site-dialog" aria-labelledby="site-title">
+      <h2 id="site-title">Start from my site</h2>
+      <p>Enter your site's address and the builder will start from how your site already looks: its accent colour, the bottom corner your other chat widgets leave free, and a character and voice for its language. It uses the same derivation the Site Agent uses for a new site.</p>
+      <form id="site-form">
+        <label for="site-url">Your site</label>
+        <input id="site-url" type="url" placeholder="https://example.com" />
+        <button type="submit">Start from it</button>
+      </form>
+      <p id="site-result" role="status"></p>
+      <div class="dialog-actions"><button type="button" data-close>Close</button></div>
+    </dialog>
+  </body>
+</html>

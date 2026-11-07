@@ -1,0 +1,101 @@
+:root {
+  --page: #f6f4f0;
+  --surface: #ffffff;
+  --ink: #1d1b18;
+  --muted: #6b665e;
+  --line: #e5e0d8;
+}
+body.dark {
+  --page: #121212;
+  --surface: #1c1c1e;
+  --ink: #f2f0ec;
+  --muted: #a39e96;
+  --line: #2f2e2c;
+}
+html,
+body {
+  margin: 0;
+}
+body {
+  min-height: 100vh;
+  background: var(--page);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  line-height: 1.5;
+}
+.site {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 24px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.site nav {
+  display: flex;
+  gap: 18px;
+}
+.site a {
+  color: var(--muted);
+  text-decoration: none;
+}
+main {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 32px 24px 120px;
+}
+.eyebrow {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+h1 {
+  margin: 4px 0 8px;
+  font-size: 34px;
+  line-height: 1.15;
+}
+.lede {
+  color: var(--muted);
+  max-width: 560px;
+}
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin: 28px 0;
+}
+.cards article {
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.cards h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+.cards p {
+  margin: 0 0 12px;
+  color: var(--muted);
+}
+.price {
+  font-weight: 600;
+}
+#inline-slot:empty {
+  display: none;
+}
+#inline-slot {
+  max-width: 380px;
+  margin: 20px 0;
+}
+@media (max-width: 480px) {
+  .site nav {
+    display: none;
+  }
+  h1 {
+    font-size: 26px;
+  }
+}
