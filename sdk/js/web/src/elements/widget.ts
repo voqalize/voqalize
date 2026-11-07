@@ -69,6 +69,8 @@ export interface WidgetSessionLike extends ReadableStore<SessionSnapshot> {
   connect(source: SessionSource): Promise<void>;
   disconnect(): Promise<void>;
   setMuted(muted: boolean): void;
+  /** Ask for a blocked mic again, where the browser would ask the visitor. */
+  askForMic?(): void;
   selectMic(id: string): void;
   selectSpeaker(id: string): void;
   /** The client the avatar follows, where there is one. */
@@ -1485,6 +1487,7 @@ export class VqlWidget extends LitElement {
       status=${s?.status ?? "idle"}
       agent=${s?.agent ?? "idle"}
       mic=${pillOn ? "idle" : micState}
+      ?unheard=${pillOn}
       label=${this.statusLabel ?? nothing}
       .since=${this.connectedAt}
       .t=${this.t}
@@ -1663,6 +1666,7 @@ export class VqlWidget extends LitElement {
       this.focusDevices();
       return;
     }
+    if (kind === "permission") this.session?.askForMic?.();
     this.coachDismissed = false;
     this.coachReady = true;
     if (kind === "check") this.coachCheck = true;

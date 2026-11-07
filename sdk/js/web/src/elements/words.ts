@@ -32,6 +32,7 @@ export const ENGLISH: Readonly<Record<string, string>> = {
   "status.asking": "Mic off",
   "status.blocked": "Mic blocked",
   "status.missing": "No mic",
+  "status.unheard": "Can't hear you",
   "mic.mute": "Mute",
   "mic.unmute": "Unmute",
   "mic.devices": "Choose microphone and speaker",

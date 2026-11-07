@@ -4,11 +4,14 @@ import { defineConfig } from "@playwright/test";
 // and the builder page. `SHOTS_DIR` says where screenshots go (default
 // `test-results/shots`). The live suite (`test/e2e`, a real stack) joins only
 // when `VQL_E2E_STACK` names one; `npm run test:live` runs it alone.
+// `VQL_BROWSER=webkit` (or `firefox`) runs every suite in that engine instead
+// of Chromium; WebKit is the engine Safari is built on.
+const browserName = (process.env.VQL_BROWSER ?? "chromium") as "chromium" | "firefox" | "webkit";
 export default defineConfig({
   globalSetup: "./test/pages/global-setup.ts",
   fullyParallel: true,
   reporter: [["list"]],
-  use: { browserName: "chromium", colorScheme: "light", reducedMotion: "reduce" },
+  use: { browserName, colorScheme: "light", reducedMotion: "reduce" },
   projects: [
     { name: "pages", testDir: "test/pages", testMatch: "*.spec.ts" },
     { name: "builder", testDir: "builder", testMatch: "*.spec.ts" },

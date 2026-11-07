@@ -99,8 +99,11 @@ The widget reads the browser's own signals for it: the Permissions API, the
 track's `mute`, `unmute` and `ended` events, `devicechange`, the level, and
 the browser and system for the coach's wording. `micPillOf()` decides which
 pill shows, and is exported for a page that draws its own. The pill's text
-is announced through a polite live region. `mic.pill: false` turns it off,
-and `mic.coach: false` turns off the coach mark.
+is announced through a polite live region. While the pill shows and the
+agent is waiting for the visitor, the status chip says **Can't hear you**
+rather than "Listening". `mic.pill: false` turns the pill off, and the chip
+then names the mic's state itself; `mic.coach: false` turns off the coach
+mark.
 
 What the voice runtime is told is unchanged: the mic's state, one of
 `asking`, `live`, `blocked`, `missing` or `muted`, with the silence `hint`.

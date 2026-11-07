@@ -7,10 +7,13 @@
  * - connecting, or ended;
  * - the mic, when the agent cannot hear the visitor (`asking`, `blocked`,
  *   `missing`) or the visitor muted it;
+ * - "Can't hear you", when `unheard` is set (the widget sets it while the mic
+ *   pill shows) and the agent is waiting for the visitor rather than
+ *   thinking or speaking;
  * - the agent: listening, thinking or speaking.
  *
- * Properties: `status` (the session's), `agent`, `mic`, `label`, `since`
- * (a start time in ms; shows a running mm:ss timer when set), `t`.
+ * Properties: `status` (the session's), `agent`, `mic`, `unheard`, `label`,
+ * `since` (a start time in ms; shows a running mm:ss timer when set), `t`.
  *
  * Parts: `status`, `dot`, `word`, `timer`.
  */
@@ -26,12 +29,14 @@ export function statusOf(
   status: SessionStatus,
   agent: AgentState,
   mic: MicState,
+  unheard = false,
 ): { key: string; tone: "idle" | "listening" | "thinking" | "speaking" | "warn" | "muted" } {
   if (status === "connecting") return { key: "status.connecting", tone: "thinking" };
   if (status === "ended") return { key: "status.ended", tone: "idle" };
   if (status === "idle") return { key: "status.idle", tone: "idle" };
   if (mic === "asking" || mic === "blocked" || mic === "missing") return { key: `status.${mic}`, tone: "warn" };
   if (mic === "muted" && agent !== "speaking") return { key: "status.muted", tone: "muted" };
+  if (unheard && (agent === "idle" || agent === "listening")) return { key: "status.unheard", tone: "warn" };
   if (agent === "idle") return { key: "status.listening", tone: "listening" };
   return { key: `status.${agent}`, tone: agent };
 }
@@ -46,6 +51,7 @@ export class VqlStatus extends LitElement {
     status: { reflect: true },
     agent: { reflect: true },
     mic: { reflect: true },
+    unheard: { type: Boolean, reflect: true },
     label: {},
     since: { type: Number },
     tone: { reflect: true },
@@ -57,6 +63,7 @@ export class VqlStatus extends LitElement {
   declare status: SessionStatus;
   declare agent: AgentState;
   declare mic: MicState;
+  declare unheard: boolean;
   declare label: string | undefined;
   declare since: number | undefined;
   declare tone: string;
@@ -135,7 +142,7 @@ export class VqlStatus extends LitElement {
   }
 
   protected override willUpdate(changed: PropertyValues<this>): void {
-    this.tone = statusOf(this.status, this.agent, this.mic).tone;
+    this.tone = statusOf(this.status, this.agent, this.mic, this.unheard).tone;
     if (changed.has("since") || changed.has("status")) {
       if (this.since !== undefined && this.status === "connected") this.startTimer();
       else this.stopTimer();
@@ -155,7 +162,7 @@ export class VqlStatus extends LitElement {
   }
 
   protected override render() {
-    const { key } = statusOf(this.status, this.agent, this.mic);
+    const { key } = statusOf(this.status, this.agent, this.mic, this.unheard);
     const word = this.label || this.t(key);
     return html`<span class="status" part="status" role="status">
       <span class="dot" part="dot" aria-hidden="true"></span>

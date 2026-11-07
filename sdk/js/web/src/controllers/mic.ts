@@ -267,25 +267,58 @@ export class MicController extends Store<MicSnapshot> {
  *
  * The widget uses this to pick the mic up with no reload when a visitor
  * allows it from the address bar after blocking it.
+ *
+ * WebKit fires no `change` on a status it has handed out: a page that was
+ * refused keeps reading "prompt" there, and only a fresh query sees the
+ * grant. So the permission is also asked again when the page regains focus
+ * or is shown, and on a tap or key press, and a different answer is
+ * reported as a change. `events` is where those are heard (the window by
+ * default).
  */
 export function watchMicPermission(
   onChange: (state: "granted" | "denied" | "prompt") => void,
   permissions: Pick<Permissions, "query"> | undefined = globalThis.navigator?.permissions,
+  events: Pick<EventTarget, "addEventListener" | "removeEventListener"> | undefined = globalThis.window,
 ): () => void {
   let stopped = false;
   let status: PermissionStatus | null = null;
-  const listener = () => {
-    if (!stopped && status) onChange(status.state);
+  let last: PermissionState | null = null;
+  const report = (state: PermissionState) => {
+    if (stopped || state === last) return;
+    last = state;
+    onChange(state);
   };
+  const listener = () => {
+    if (status) report(status.state);
+  };
+  const ask = () =>
+    permissions!.query({ name: "microphone" as PermissionName }).then((result) => {
+      report(result.state);
+      return result;
+    });
+  let asking = false;
+  const recheck = () => {
+    if (stopped || asking || !status) return;
+    asking = true;
+    try {
+      void ask()
+        .catch(() => {})
+        .finally(() => {
+          asking = false;
+        });
+    } catch {
+      asking = false;
+    }
+  };
+  const RECHECK = ["focus", "visibilitychange", "pointerdown", "keydown"] as const;
   try {
     if (!permissions?.query) return () => {};
-    permissions
-      .query({ name: "microphone" as PermissionName })
+    ask()
       .then((result) => {
         if (stopped) return;
         status = result;
         result.addEventListener?.("change", listener);
-        onChange(result.state);
+        for (const type of RECHECK) events?.addEventListener(type, recheck, { capture: true, passive: true });
       })
       .catch(() => {});
   } catch {
@@ -295,6 +328,7 @@ export function watchMicPermission(
     stopped = true;
     try {
       status?.removeEventListener?.("change", listener);
+      for (const type of RECHECK) events?.removeEventListener(type, recheck, { capture: true });
     } catch {
       // Nothing to undo.
     }

@@ -100,6 +100,14 @@ describe("status", () => {
     expect(statusOf("connected", "speaking", "muted").key).toBe("status.speaking");
     expect(statusOf("connected", "idle", "live").key).toBe("status.listening");
   });
+
+  it("says it can't hear the visitor while the pill shows and the agent waits", () => {
+    expect(statusOf("connected", "listening", "idle", true)).toEqual({ key: "status.unheard", tone: "warn" });
+    expect(statusOf("connected", "idle", "idle", true).key).toBe("status.unheard");
+    expect(statusOf("connected", "speaking", "idle", true).key).toBe("status.speaking");
+    expect(statusOf("connected", "thinking", "idle", true).key).toBe("status.thinking");
+    expect(statusOf("connecting", "listening", "idle", true).key).toBe("status.connecting");
+  });
 });
 
 describe("cssProps", () => {

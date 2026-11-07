@@ -5,11 +5,31 @@ import { type FrameLocator, type Locator, type Page, expect, test } from "@playw
 const SHOTS = process.env.SHOTS_DIR ?? join(process.cwd(), "test-results", "shots");
 mkdirSync(SHOTS, { recursive: true });
 
+/** True while the test takes a screenshot. */
+let shooting = false;
+
+/**
+ * A screenshot. WebKit's screenshot injects a stylesheet of the inspector's
+ * own into every frame, which the page's CSP refuses and reports as an error;
+ * that report is the harness's, not the page's, so it is not counted.
+ */
+async function shot(page: Page, path: string): Promise<void> {
+  shooting = true;
+  try {
+    await page.screenshot({ path });
+    await page.waitForTimeout(100);
+  } finally {
+    shooting = false;
+  }
+}
+
 async function load(page: Page): Promise<string[]> {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("console", (m) => {
-    if (m.type() === "error" && !m.text().includes("local.json")) errors.push(m.text());
+    if (m.type() !== "error" || m.text().includes("local.json")) return;
+    if (shooting && m.text().startsWith("Refused to apply a stylesheet")) return;
+    errors.push(m.text());
   });
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto(process.env.VQL_BUILDER_URL ?? "");
@@ -39,7 +59,7 @@ test("the form drives the preview and the snippet", async ({ page }) => {
   await expect(widget).toHaveAttribute("form", "card");
   await expect(phone(page).locator("vql-widget")).toHaveAttribute("form", "sheet");
   await expect(snippet).not.toContainText("config=");
-  await page.screenshot({ path: join(SHOTS, "builder-default.png") });
+  await shot(page, join(SHOTS, "builder-default.png"));
 
   // The closed form: a face launcher.
   await page.locator('[data-state="closed"]').click();
@@ -107,7 +127,7 @@ test("each state chip plays through the real widget", async ({ page }) => {
   await page.locator('[data-page="dark"]').click();
   await expect(desktop(page).locator("body.dark")).toBeAttached();
   await page.waitForTimeout(300);
-  await page.screenshot({ path: join(SHOTS, "builder-dark.png") });
+  await shot(page, join(SHOTS, "builder-dark.png"));
   expect(errors).toEqual([]);
 });
 

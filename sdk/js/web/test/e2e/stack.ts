@@ -19,7 +19,7 @@ import { platform } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
-import { type Browser, type BrowserContext, type Page, chromium } from "@playwright/test";
+import { type Browser, type BrowserContext, type Page, chromium, webkit } from "@playwright/test";
 import { build } from "esbuild";
 import { type ProbeEvent, type ProbeStat, installProbe } from "./probe.js";
 
@@ -35,6 +35,9 @@ export const env = {
 };
 
 export const configured = Boolean(env.stack && env.agent && env.key);
+
+/** The engine the suite runs in: Chromium unless `VQL_BROWSER` says `webkit`. */
+export const engine: "chromium" | "webkit" = process.env.VQL_BROWSER === "webkit" ? "webkit" : "chromium";
 
 /** Where generated audio goes: build output, never checked in. */
 const audioDir = join(here, "..", "..", "test-results", "e2e-audio");
@@ -119,6 +122,9 @@ async function pageBundle(): Promise<Uint8Array> {
  * grant through CDP later lets the next request through.
  */
 export async function launch(noise: string): Promise<Browser> {
+  // WebKit, the engine Safari is built on (`VQL_BROWSER=webkit`): its capture
+  // is a mock device, and a mic it has not been granted is refused.
+  if (engine === "webkit") return webkit.launch();
   return chromium.launch({
     channel: "chromium",
     args: [
@@ -191,6 +197,10 @@ export async function openPage(browser: Browser, options: OpenOptions = {}): Pro
  * override when the session that set it detaches.
  */
 export async function grantMic(page: Page): Promise<void> {
+  if (engine !== "chromium") {
+    await page.context().grantPermissions(["microphone"], { origin: env.stack });
+    return;
+  }
   const cdp = await page.context().newCDPSession(page);
   const { targetInfo } = (await cdp.send("Target.getTargetInfo")) as { targetInfo: { browserContextId: string } };
   await cdp.send("Browser.setPermission", {

@@ -185,6 +185,31 @@ describe("mic_state to gato", () => {
     expect(session.mic.getSnapshot().state).toBe("asking");
     expect(client.micEnabled).toEqual([true]);
   });
+
+  it("asks for the mic again from the pill's tap while Safari reads prompt, not while denied", async () => {
+    let state: PermissionState = "prompt";
+    const { session, client, cb } = setup({
+      permissions: { query: () => Promise.resolve({ state, addEventListener() {}, removeEventListener() {} } as unknown as PermissionStatus) },
+    });
+    void session.connect(SESSION);
+    client.init.resolve();
+    await tick();
+    cb().onDeviceError?.({ devices: ["mic"], type: "permissions" } as never);
+    expect(session.mic.getSnapshot().state).toBe("blocked");
+    session.askForMic();
+    expect(session.mic.getSnapshot().state).toBe("asking");
+    expect(client.micEnabled).toEqual([true]);
+
+    // Refused again, and now the browser says denied: asking cannot help.
+    cb().onDeviceError?.({ devices: ["mic"], type: "permissions" } as never);
+    state = "denied";
+    window.dispatchEvent(new Event("focus"));
+    await tick();
+    expect(session.mic.getSnapshot().permission).toBe("denied");
+    session.askForMic();
+    expect(client.micEnabled).toEqual([true]);
+    expect(session.mic.getSnapshot().state).toBe("blocked");
+  });
 });
 
 class FakeTrack extends EventTarget {

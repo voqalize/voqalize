@@ -85,10 +85,12 @@ test("the face is the same element from open to collapsed and back", async ({ pa
   expect(same).toBe(true);
 });
 
-test("the launcher opens the call from the keyboard, and focus moves into it", async ({ page }) => {
+test("the launcher opens the call from the keyboard, and focus moves into it", async ({ page, browserName }) => {
   await page.setViewportSize(DESKTOP);
   await load(page, "closed-pill");
-  await page.keyboard.press("Tab");
+  // Safari's Tab skips buttons unless the visitor turned on "Press Tab to
+  // highlight each item"; Option+Tab reaches them either way.
+  await page.keyboard.press(browserName === "webkit" ? "Alt+Tab" : "Tab");
   await page.keyboard.press("Enter");
   await expect(page.locator("vql-widget")).toHaveAttribute("view", "open");
   const focused = await page.evaluate(() => {

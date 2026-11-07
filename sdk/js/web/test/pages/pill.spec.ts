@@ -136,6 +136,9 @@ test("an ended track shows the check pill and goes out as missing", async ({ pag
   await expect(widget(page).locator("vql-mic")).toHaveAttribute("state", "live");
   await vql(page, "endTrack");
   await expectPill(page, "check", "Is your mic working?");
+  // The chip agrees with the pill rather than saying "Listening".
+  await expect(widget(page).locator("vql-status")).toHaveAttribute("unheard", "");
+  await expect(widget(page).locator("vql-status [part=word]")).toHaveText("Can't hear you");
   await page.screenshot({ path: join(SHOTS, "pill-track-ended-light.png") });
   const sent = (await wire(page)) as { state: string }[];
   expect(sent.at(-1)).toEqual({ state: "missing", hint: false });
@@ -161,6 +164,7 @@ test("with the pill off, the status chip carries the mic and nothing loads the p
   const requested = await load(page, "pill-off");
   await vql(page, "muteTrack");
   await expect(widget(page).locator("vql-status")).toHaveAttribute("mic", "missing");
+  await expect(widget(page).locator("vql-status")).not.toHaveAttribute("unheard", "");
   await expect(pill(page)).toHaveCount(0);
   expect(requested).not.toContain("mic-pill.js");
 });

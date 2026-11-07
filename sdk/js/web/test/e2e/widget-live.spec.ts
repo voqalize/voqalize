@@ -13,6 +13,7 @@ import {
   canSpeak,
   configured,
   dump,
+  engine,
   env,
   events,
   grantMic,
@@ -95,6 +96,10 @@ test("denied: the call connects, greets and says the mic-off line; allowing the 
     const before = (await events(page)).filter((e) => e.dir === "pc" && (e.type === "create-offer" || e.type === "set-local"));
     const grantAt = await now(page);
     await grantMic(page);
+    // WebKit tells the page nothing when the permission changes, and Safari
+    // reads "prompt" after a refusal: the visitor taps the pill, which asks
+    // again. Chromium picks the grant up by itself.
+    if (engine === "webkit") await page.locator("vql-widget vql-mic-pill button").click();
     await waitForEvent(page, (e) => e.dir === "ui" && e.type === "vql-mic" && (e.data as { state: string }).state === "live", 15_000, grantAt);
     await waitForEvent(page, isMicState("live"), 10_000, grantAt);
     await expect(page.locator("vql-widget vql-coach")).toHaveCount(0);

@@ -173,6 +173,33 @@ describe("watchMicPermission", () => {
     expect(status.removeEventListener).toHaveBeenCalled();
   });
 
+  it("asks again on focus, a tap or a key, where WebKit fires no change, and reports only a different answer", async () => {
+    let state: PermissionState = "prompt";
+    const events = new EventTarget();
+    const queries = vi.fn(() =>
+      Promise.resolve({ state, addEventListener() {}, removeEventListener() {} } as unknown as PermissionStatus),
+    );
+    const seen: string[] = [];
+    const stop = watchMicPermission((s) => seen.push(s), { query: queries }, events);
+    const settle = () => new Promise((r) => setTimeout(r, 0));
+    await settle();
+    events.dispatchEvent(new Event("focus"));
+    await settle();
+    state = "granted";
+    events.dispatchEvent(new Event("pointerdown"));
+    await settle();
+    events.dispatchEvent(new Event("keydown"));
+    await settle();
+    expect(seen).toEqual(["prompt", "granted"]);
+    stop();
+    const asked = queries.mock.calls.length;
+    state = "denied";
+    events.dispatchEvent(new Event("visibilitychange"));
+    await settle();
+    expect(queries.mock.calls.length).toBe(asked);
+    expect(seen).toEqual(["prompt", "granted"]);
+  });
+
   it("never throws without the Permissions API", async () => {
     expect(() => watchMicPermission(() => {}, undefined)()).not.toThrow();
     const stop = watchMicPermission(() => {}, { query: () => Promise.reject(new TypeError("no")) });

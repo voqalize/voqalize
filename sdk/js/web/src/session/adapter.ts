@@ -333,6 +333,26 @@ export class WidgetSession extends Store<SessionSnapshot> {
     }
   }
 
+  /**
+   * Ask for the mic again, from the visitor's tap on "Grant mic permission".
+   * Only while it is blocked and the browser does not say the permission is
+   * denied: Safari reads "prompt" after a refusal, and asking again from a
+   * tap is how it is allowed there. A denied permission is changed in the
+   * browser, not by asking, and the coach says where.
+   */
+  askForMic(): void {
+    const mic = this.mic.getSnapshot();
+    if (mic.device !== "blocked" || mic.permission === "denied" || mic.muted) return;
+    const status = this.getSnapshot().status;
+    if (status !== "connecting" && status !== "connected") return;
+    this.mic.asking();
+    try {
+      this.client.enableMic(true);
+    } catch {
+      // Before the client has devices there is nothing to enable.
+    }
+  }
+
   /** Choose the mic. A device that cannot be opened is reported as a device error. */
   selectMic(id: string): void {
     // The old track ends when the new one replaces it; that end is the
