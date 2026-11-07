@@ -314,6 +314,17 @@ describe("end reason", () => {
     expect(client.disconnect).toHaveBeenCalled();
   });
 
+  it("is a failed connect, not mic_denied, when the transport gives up before the agent is ready", async () => {
+    // Seen live: a blocked mic and an offer the browser could not send; the
+    // transport retried, closed, and the card said nobody allowed the mic.
+    const { session, client, cb } = setup();
+    void session.connect(SESSION);
+    client.init.resolve();
+    cb().onDeviceError?.({ devices: ["mic"], type: "permissions" } as never);
+    cb().onDisconnected?.();
+    expect(session.getSnapshot().end).toMatchObject({ by: "error", reason: "connect_failed" });
+  });
+
   it("starts clean on the next call", async () => {
     const { session, client, cb } = setup();
     void session.connect(SESSION);

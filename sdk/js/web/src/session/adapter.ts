@@ -17,10 +17,11 @@
  * - why the call ended.
  *
  * gato tells the client nothing about why a call ended, so the end reason is
- * read here: the visitor hanging up is known locally; a call the far end
- * closed while the mic never went live ended because nobody allowed the mic
- * (gato's idle rule, which it records as `mic_denied`); any other close is
- * the agent ending the call.
+ * read here: the visitor hanging up is known locally; a close before the
+ * agent was ever ready is a failed connect; a call the far end closed while
+ * the mic never went live ended because nobody allowed the mic (gato's idle
+ * rule, which it records as `mic_denied`); any other close is the agent
+ * ending the call.
  */
 
 import { PipecatClient, type RTVIEventCallbacks } from "@pipecat-ai/client-js";
@@ -206,6 +207,8 @@ export class WidgetSession extends Store<SessionSnapshot> {
   private unbindAudio: (() => void) | null = null;
   private stopPermissionWatch: (() => void) | null = null;
   private ready = false;
+  /** Whether the agent was ever ready on this call: a close before that is a failed connect. */
+  private wasReady = false;
   private hangingUp = false;
   private lastSent: string | null = null;
 
@@ -254,6 +257,7 @@ export class WidgetSession extends Store<SessionSnapshot> {
     const status = this.getSnapshot().status;
     if (status === "connecting" || status === "connected") return;
     this.ready = false;
+    this.wasReady = false;
     this.hangingUp = false;
     this.lastSent = null;
     this.mic.reset();
@@ -410,6 +414,7 @@ export class WidgetSession extends Store<SessionSnapshot> {
     return {
       onBotReady: () => {
         this.ready = true;
+        this.wasReady = true;
         this.set({ status: "connected" });
         this.setAgent("listening");
         this.sendMicState();
@@ -417,6 +422,12 @@ export class WidgetSession extends Store<SessionSnapshot> {
       onDisconnected: () => {
         if (this.hangingUp || this.getSnapshot().status === "ended") return;
         if (this.getSnapshot().status === "idle") return;
+        // The transport gave up before the agent was ready: the connect
+        // failed, whatever the mic did.
+        if (!this.wasReady) {
+          this.finish({ by: "error", reason: "connect_failed", message: "disconnected before the agent was ready" });
+          return;
+        }
         this.finish(
           this.mic.getSnapshot().everLive ? { by: "agent", reason: "ended" } : { by: "agent", reason: "mic_denied" },
         );
