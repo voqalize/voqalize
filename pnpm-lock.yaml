@@ -57,6 +57,28 @@ importers:
         specifier: ^2.1.9
         version: 2.1.9(@types/node@25.9.5)(happy-dom@15.11.7)
 
+  sdk/js/web:
+    dependencies:
+      '@pipecat-ai/client-js':
+        specifier: ~1.13.0
+        version: 1.13.1
+      '@pipecat-ai/small-webrtc-transport':
+        specifier: ~1.10.8
+        version: 1.10.8(@pipecat-ai/client-js@1.13.1)
+      '@voqalize/client-transport':
+        specifier: 0.4.1
+        version: 0.4.1(@pipecat-ai/client-js@1.13.1)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.13.1))
+    devDependencies:
+      happy-dom:
+        specifier: ^15.11.7
+        version: 15.11.7
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.9
+        version: 2.1.9(@types/node@25.9.5)(happy-dom@15.11.7)
+
 packages:
 
   '@antfu/install-pkg@1.1.0':

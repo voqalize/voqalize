@@ -1,0 +1,58 @@
+{
+  "name": "@voqalize/web",
+  "version": "0.1.0",
+  "private": false,
+  "description": "Voqalize in the browser: the widget's configuration and its headless controllers, over the session. Pre-release; not published.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/voqalize/voqalize.git",
+    "directory": "sdk/js/web"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./widgets": "./src/widgets.ts",
+    "./internal": "./src/internal.ts",
+    "./widget-config.schema.json": "./src/config/widget-config.schema.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./widgets": {
+        "types": "./dist/widgets.d.ts",
+        "default": "./dist/widgets.js"
+      },
+      "./internal": {
+        "types": "./dist/internal.d.ts",
+        "default": "./dist/internal.js"
+      },
+      "./widget-config.schema.json": "./dist/config/widget-config.schema.json"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@pipecat-ai/client-js": "~1.13.0",
+    "@pipecat-ai/small-webrtc-transport": "~1.10.8",
+    "@voqalize/client-transport": "0.4.1"
+  },
+  "devDependencies": {
+    "happy-dom": "^15.11.7",
+    "typescript": "^5.8.3",
+    "vitest": "^2.1.9"
+  }
+}

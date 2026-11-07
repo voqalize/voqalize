@@ -1,5 +1,7 @@
-# The root workspace holds the docs site and Stage's page runtime
-# (sdk/js/stage, `@voqalize/stage`, private until it is released); sdk/react
+# The root workspace holds the docs site, Stage's page runtime
+# (sdk/js/stage, `@voqalize/stage`, private until it is released) and the
+# browser library (sdk/js/web, `@voqalize/web`, pre-release and not
+# published); sdk/react
 # was deleted on 2026-08-24. Each demo UI (demos/<name>/frontend), each demo
 # extension and the demos landing page are deliberately NOT members — they're
 # self-contained apps with their own lockfiles, built standalone
@@ -9,3 +11,4 @@
 packages:
   - 'docs'
   - 'sdk/js/stage'
+  - 'sdk/js/web'

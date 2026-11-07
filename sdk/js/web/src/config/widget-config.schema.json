@@ -1,0 +1,279 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cdn.voqalize.com/web/widget-config.schema.json",
+  "title": "Voqalize widget configuration",
+  "description": "One object configures the widget: as element attributes, as the element's config property, as the builder's output and as the Site Agent's widget settings. Every field is optional. A field this version does not know is ignored, so a configuration saved by a newer builder still loads. Each default here is the one the widget uses when the field is left out.",
+  "type": "object",
+  "properties": {
+    "agent": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The agent's id. With `key`, the widget mints its own session from the page."
+    },
+    "key": {
+      "type": "string",
+      "pattern": "^pk_",
+      "description": "A publishable key for `agent`. Never a secret key: this sits in page source."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40,
+      "description": "The agent's name as the widget's words say it, as in \"Talk to {name}\"."
+    },
+    "avatar": {
+      "description": "The face. `false` makes a voice-only widget, with a waveform in place of the face.",
+      "oneOf": [
+        { "const": false },
+        {
+          "type": "object",
+          "properties": {
+            "character": {
+              "type": "string",
+              "minLength": 1,
+              "description": "A character from the avatar catalogue. Left out, the agent's own character."
+            },
+            "shape": {
+              "enum": ["circle", "rounded", "square"],
+              "default": "rounded"
+            },
+            "framing": {
+              "enum": ["face", "shoulders"],
+              "default": "shoulders"
+            },
+            "background": {
+              "description": "Behind the transparent face: \"none\", a CSS colour or gradient, or the URL of an image, GIF or muted looping video with how it fits. Characters built from a photograph carry their own backdrop, so a background shows only outside their frame.",
+              "default": "none",
+              "oneOf": [
+                { "type": "string", "minLength": 1 },
+                {
+                  "type": "object",
+                  "properties": {
+                    "url": { "type": "string", "pattern": "^(https?:|/|\\./)" },
+                    "fit": { "enum": ["cover", "contain"], "default": "cover" }
+                  },
+                  "required": ["url"]
+                }
+              ]
+            },
+            "still": {
+              "type": "string",
+              "pattern": "^(https?:|/|\\./|data:image/)",
+              "description": "An image shown until the face draws. Left out, the character's own still."
+            }
+          }
+        }
+      ],
+      "default": {}
+    },
+    "placement": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "enum": ["corner", "inline", "fullscreen"],
+          "default": "corner",
+          "description": "corner floats over the page; inline renders inside the host element; fullscreen covers the viewport."
+        },
+        "anchor": {
+          "enum": [
+            "bottom-right",
+            "bottom-left",
+            "bottom-center",
+            "top-right",
+            "top-left",
+            "middle-right",
+            "middle-left"
+          ],
+          "default": "bottom-right"
+        },
+        "move": {
+          "enum": ["snap", "free", "fixed"],
+          "default": "snap",
+          "description": "snap: dragged freely, released to the nearest anchor. free: stays where dropped. fixed: does not move. Touch screens only snap."
+        },
+        "remember": {
+          "enum": ["tab", "site", "off"],
+          "default": "tab",
+          "description": "Where a moved widget's place is kept: this tab, every tab of this site, or nowhere."
+        },
+        "offset": {
+          "description": "Distance from the viewport's edges in px, one number or per axis. 16 is the Site Agent snippet's margin.",
+          "default": 16,
+          "oneOf": [
+            { "type": "number", "minimum": 0, "maximum": 400 },
+            {
+              "type": "object",
+              "properties": {
+                "x": { "type": "number", "minimum": 0, "maximum": 400, "default": 16 },
+                "y": { "type": "number", "minimum": 0, "maximum": 400, "default": 16 }
+              }
+            }
+          ]
+        },
+        "avoid": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "default": [],
+          "description": "CSS selectors of page elements the widget keeps clear of, besides anything marked data-vq-avoid."
+        },
+        "topClear": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000,
+          "default": 0,
+          "description": "Height in px at the top of the viewport the widget never covers, such as a sticky header."
+        }
+      },
+      "default": {}
+    },
+    "launcher": {
+      "type": "object",
+      "properties": {
+        "style": {
+          "enum": ["pill", "face", "card", "none"],
+          "default": "pill",
+          "description": "The closed form. none: the page opens the widget with its own button."
+        },
+        "label": { "type": "string", "maxLength": 80 },
+        "tagline": { "type": "string", "maxLength": 120 }
+      },
+      "default": {}
+    },
+    "open": {
+      "type": "object",
+      "properties": {
+        "style": { "enum": ["card", "hero"], "default": "card" },
+        "size": { "enum": ["small", "medium", "large"], "default": "medium" }
+      },
+      "default": {}
+    },
+    "collapsed": {
+      "type": "object",
+      "properties": {
+        "style": {
+          "enum": ["bubble", "pill", "none"],
+          "default": "bubble",
+          "description": "none hides minimise."
+        },
+        "autoCollapse": {
+          "type": "boolean",
+          "default": true,
+          "description": "Collapse by itself when the page is cramped."
+        }
+      },
+      "default": {}
+    },
+    "mobile": {
+      "type": "object",
+      "properties": {
+        "open": { "enum": ["sheet", "card", "hero"], "default": "sheet" },
+        "launcher": { "enum": ["face", "pill"], "default": "face" },
+        "breakpoint": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2000,
+          "default": 480,
+          "description": "The viewport width in px below which the phone form is used. 480 is where the Site Agent snippet's tile stops fitting beside page content."
+        }
+      },
+      "default": {}
+    },
+    "controls": {
+      "type": "object",
+      "properties": {
+        "mute": { "type": "boolean", "default": true },
+        "end": { "type": "boolean", "default": true },
+        "minimise": { "type": "boolean", "default": true },
+        "devices": {
+          "type": "boolean",
+          "default": true,
+          "description": "The mic and speaker menu. Shown on desktop only: phones switch audio routes themselves."
+        },
+        "language": { "type": "boolean", "default": true }
+      },
+      "default": {}
+    },
+    "mic": {
+      "type": "object",
+      "properties": {
+        "level": { "enum": ["ring", "bars", "off"], "default": "ring" },
+        "instantStart": {
+          "type": "boolean",
+          "default": true,
+          "description": "Connect on the click while the browser is still asking for the mic. Off waits for the prompt first."
+        },
+        "silenceHint": {
+          "type": "boolean",
+          "default": true,
+          "description": "Say so when the mic is live but has heard nothing while the agent waits."
+        }
+      },
+      "default": {}
+    },
+    "captions": {
+      "type": "object",
+      "properties": {
+        "mode": { "enum": ["off", "karaoke", "rolling"], "default": "karaoke" },
+        "lines": { "type": "integer", "minimum": 1, "maximum": 6, "default": 2 },
+        "linger": {
+          "description": "How long the captions stay after the agent stops: a duration such as \"4s\" or \"800ms\", or a number of milliseconds.",
+          "default": "4s",
+          "oneOf": [
+            { "type": "string", "pattern": "^[0-9]+(\\.[0-9]+)?(ms|s)$" },
+            { "type": "number", "minimum": 0, "maximum": 60000 }
+          ]
+        },
+        "showUser": {
+          "type": "boolean",
+          "default": false,
+          "description": "A faint line with what the visitor said."
+        },
+        "position": { "enum": ["card", "under", "page"], "default": "card" }
+      },
+      "default": {}
+    },
+    "theme": {
+      "type": "object",
+      "properties": {
+        "brand": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+        "background": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+        "ink": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$",
+          "description": "The text colour. Repaired for contrast against the background."
+        },
+        "scheme": { "enum": ["auto", "light", "dark"], "default": "auto" },
+        "radius": { "type": "number", "minimum": 0, "maximum": 48 },
+        "font": {
+          "type": "string",
+          "minLength": 1,
+          "default": "inherit",
+          "description": "\"inherit\" takes the page's font; anything else is a font-family value."
+        },
+        "tokens": {
+          "type": "object",
+          "description": "Any --vq-* custom property, by name.",
+          "propertyNames": { "pattern": "^--vq-[a-z0-9-]+$" },
+          "additionalProperties": { "type": "string", "maxLength": 200 },
+          "default": {}
+        }
+      },
+      "default": {}
+    },
+    "words": {
+      "type": "object",
+      "description": "The widget's words, per BCP-47 tag, by key (\"launcher.label\"). A word left out falls back to English, and English to the built-in words.",
+      "propertyNames": { "pattern": "^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$" },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": { "type": "string", "maxLength": 400 }
+      },
+      "default": {}
+    },
+    "dir": {
+      "enum": ["auto", "ltr", "rtl"],
+      "default": "auto",
+      "description": "Text direction. auto follows the language."
+    }
+  }
+}
