@@ -5,6 +5,11 @@
  * call. It speaks only through the widget's public session shape
  * (`WidgetSessionLike`) and the public `Store`, so the builder carries no
  * package internals when it moves to the marketing site.
+ *
+ * Where the character has a voice in `fixtures/` the turn is spoken aloud
+ * (`voice.ts`), with the captions on the speech tier's word timings and the
+ * face following that voice. Otherwise the words are paced by hand and the
+ * face listens to a silent track.
  */
 
 import {
@@ -15,6 +20,7 @@ import {
   Store,
   type WidgetSessionLike,
 } from "@voqalize/web/widgets";
+import type { PreviewVoice, SpokenClip, SpokenTurn } from "./voice.js";
 
 class Patchable<T> extends Store<T> {
   patch(p: Partial<T>): void {
@@ -35,6 +41,8 @@ export interface RecordedTurn {
   /** What the visitor says between the agent's sentences, with the mic level every 100 ms. */
   user: { text: string; levels: readonly number[] };
   reply: readonly RecordedSentence[];
+  /** The same lines spoken aloud, where the character has a voice in the preview. */
+  spoken?: SpokenTurn;
 }
 
 /** Words spaced at a speaking pace, as the transport's word timings would put them. */
@@ -53,11 +61,13 @@ export function voiceLevels(ms: number): number[] {
   return out;
 }
 
-export function recordedTurn(name: string): RecordedTurn {
+/** The turn the preview plays: spoken in the character's voice where there are clips of it, paced by hand otherwise. */
+export function recordedTurn(spoken?: SpokenTurn): RecordedTurn {
   return {
-    agent: [sentence(`Hi, I'm ${name}. This is how I'd look on your site.`), sentence("What would you like to know?")],
+    agent: [sentence("Hi there! This is how I'd look and sound on your site."), sentence("What would you like to know?")],
     user: { text: "Can you help me pick a plan?", levels: voiceLevels(1800) },
     reply: [sentence("Of course. Tell me roughly how many people will use it.")],
+    ...(spoken ? { spoken } : {}),
   };
 }
 
@@ -84,7 +94,6 @@ export interface ReplayScript {
 
 export class ReplaySession extends Patchable<SessionSnapshot> implements WidgetSessionLike {
   readonly mic = new Patchable<MicSnapshot>(IDLE_MIC);
-  readonly rawClient = undefined;
   private readonly listeners = new Map<string, Set<(...args: unknown[]) => void>>();
   private timers: ReturnType<typeof setTimeout>[] = [];
   private stopped = false;
@@ -92,6 +101,7 @@ export class ReplaySession extends Patchable<SessionSnapshot> implements WidgetS
   constructor(
     private turn: RecordedTurn,
     private script: ReplayScript,
+    private voice?: PreviewVoice,
   ) {
     super({
       status: "idle",
@@ -104,6 +114,11 @@ export class ReplaySession extends Patchable<SessionSnapshot> implements WidgetS
         canPickSpeaker: true,
       },
     });
+  }
+
+  /** The client the widget hands its face: the preview's voice, which the avatar mounts on as on a call's client. */
+  get rawClient(): unknown {
+    return this.voice;
   }
 
   on<K extends keyof SessionEvents>(event: K, listener: SessionEvents[K]): () => void {
@@ -131,13 +146,39 @@ export class ReplaySession extends Patchable<SessionSnapshot> implements WidgetS
     else this.mic.patch({ state: "live", device: "live", everLive: true, permission: "granted" });
     if (m === "muted") this.mic.patch({ muted: true, state: "muted" });
     if (m === "silent") this.mic.patch({ hint: true, level: 0.005 });
+    this.voice?.connect();
     this.patch({ status: "connected", agent: "listening", sessionId: "preview" });
-    if (this.script.play) this.loop(0);
+    if (!this.script.play) return;
+    const spoken = this.voice && this.turn.spoken;
+    if (spoken) {
+      // Decoded before the turn starts, so the captions do not run ahead of the voice.
+      await Promise.all([this.voice!.load(spoken.open), this.voice!.load(spoken.reply)]).catch(() => undefined);
+      if (this.stopped) return;
+    }
+    this.loop(0);
   }
 
   /** Play the turn from `start` ms, then again, until the call ends. */
   private loop(start: number): void {
     let t = start;
+    const spoken = this.voice ? this.turn.spoken : undefined;
+    const say = (clip: SpokenClip) => {
+      const voice = this.voice!;
+      this.after(t, () => {
+        this.patch({ agent: "speaking" });
+        this.fire("agentStarted");
+        void voice.speak(clip, {
+          onSentence: (text) => this.fire("agentSentence", text),
+          onWord: (text) => this.fire("agentWord", text),
+          onEnd: () => {
+            if (this.stopped) return;
+            this.fire("agentStopped");
+            this.patch({ agent: "listening" });
+          },
+        });
+      });
+      t += clip.ms + 300;
+    };
     const speak = (sentences: readonly RecordedSentence[]) => {
       this.after(t, () => {
         this.patch({ agent: "speaking" });
@@ -154,16 +195,19 @@ export class ReplaySession extends Patchable<SessionSnapshot> implements WidgetS
         this.patch({ agent: "listening" });
       });
     };
-    speak(this.turn.agent);
+    if (spoken) say(spoken.open);
+    else speak(this.turn.agent);
     // The visitor answers (only where the mic hears them).
     const hears = this.script.mic === "live";
     t += 600;
     if (hears) {
       const { text, levels } = this.turn.user;
       const words = text.split(" ");
+      this.after(t, () => this.voice?.userSpeaking(true));
       levels.forEach((level, i) => {
         this.after(t + i * 100, () => {
           this.mic.patch({ level });
+          this.voice?.userLevel(level);
           const said = words.slice(0, Math.ceil(((i + 1) / levels.length) * words.length)).join(" ");
           this.patch({ user: { text: said, final: false } });
           this.fire("userTranscript", said, false);
@@ -172,11 +216,14 @@ export class ReplaySession extends Patchable<SessionSnapshot> implements WidgetS
       t += levels.length * 100;
       this.after(t, () => {
         this.mic.patch({ level: 0.01 });
+        this.voice?.userLevel(0);
+        this.voice?.userSpeaking(false);
         this.patch({ user: { text, final: true }, agent: "thinking" });
         this.fire("userTranscript", text, true);
       });
       t += 700;
-      speak(this.turn.reply);
+      if (spoken) say(spoken.reply);
+      else speak(this.turn.reply);
     }
     t += 4500;
     this.after(t, () => this.loop(0));
@@ -209,6 +256,7 @@ export class ReplaySession extends Patchable<SessionSnapshot> implements WidgetS
 
   private halt(): void {
     this.stopped = true;
+    this.voice?.disconnect();
     for (const t of this.timers) clearTimeout(t);
     this.timers = [];
   }

@@ -33,6 +33,10 @@
               <button type="button" class="chip" data-page="light">Light page</button>
               <button type="button" class="chip" data-page="dark">Dark page</button>
             </div>
+            <div class="chips" role="group" aria-label="Voice">
+              <button type="button" class="chip" id="play" title="Play the turn again from the start">Play</button>
+              <button type="button" class="chip" id="sound" aria-pressed="false" title="Hear the agent's voice">Sound off</button>
+            </div>
             <div class="chips" role="group" aria-label="Frames">
               <button type="button" class="chip" data-frames="both">Both</button>
               <button type="button" class="chip" data-frames="desktop">Desktop</button>
@@ -55,7 +59,7 @@
             <figcaption id="caption-phone">Phone</figcaption>
           </figure>
         </div>
-        <p class="note">The preview replays a recorded turn through the real widget: no call, no network. Faces show a placeholder still; on your site the character draws.</p>
+        <p class="note">The preview replays a turn through the real widget, with the real avatar and the character's real voice. Click anything to hear it; one frame plays aloud.</p>
 
         <div class="actions">
           <button type="button" id="talk" class="primary">Talk to it</button>

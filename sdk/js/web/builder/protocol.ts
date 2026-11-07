@@ -33,6 +33,10 @@ export interface PreviewMessage {
   page: "light" | "dark";
   /** Present while the visitor is talking to a real agent in this frame. */
   talk?: TalkTarget;
+  /** This frame plays the agent's voice aloud. At most one frame does, so the voice is not heard twice. */
+  sound?: boolean;
+  /** Bumped to play the turn again from its start. */
+  run?: number;
 }
 
 export interface PreviewReport {

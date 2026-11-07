@@ -26,11 +26,12 @@ import {
   shownValue,
 } from "./schema-form.js";
 import { htmlSnippet, reactSnippet, settingsJson } from "./snippet.js";
+import { VOICED_CHARACTERS } from "./voice.js";
 
 const schema = schemaJson as unknown as SchemaNode;
 
-/** Characters offered as suggestions; any catalogue name is accepted. */
-const CHARACTER_SUGGESTIONS = ["emily", "tara", "ananya", "javier", "tess", "tanya", "tanvi", "tushar"];
+/** Characters offered as suggestions, the ones the preview has a voice for; any catalogue name is accepted. */
+const CHARACTER_SUGGESTIONS = VOICED_CHARACTERS;
 
 /** Choices shorter than this, in characters across all options, are drawn as a segmented control. */
 const SEGMENTED_MAX_CHARS = 30;
@@ -44,6 +45,12 @@ interface BuilderState {
   frames: "both" | "desktop" | "phone";
   snippet: "html" | "react";
   talking: boolean;
+  /** The agent's voice is heard. Turned on by the first click, since a browser plays nothing before one. */
+  sound: boolean;
+  /** The visitor has set the sound themselves, so the first click leaves it alone. */
+  soundChosen: boolean;
+  /** Bumped by "Play" to start the turn again. */
+  run: number;
 }
 
 const st: BuilderState = {
@@ -53,6 +60,9 @@ const st: BuilderState = {
   frames: "both",
   snippet: "html",
   talking: false,
+  sound: false,
+  soundChosen: false,
+  run: 0,
 };
 
 let talkTarget: TalkTarget | null = null;
@@ -427,7 +437,18 @@ function send(which: "desktop" | "phone"): void {
   const frame = frames.get(which);
   if (!frame?.contentWindow) return;
   const talk = st.talking && which === "desktop" && talkTarget ? talkTarget : undefined;
-  const msg: PreviewMessage = { type: "vql-builder", config: st.config, state: st.state, page: st.page, ...(talk ? { talk } : {}) };
+  // One frame is heard: the desktop's, unless only the phone is shown. A
+  // replay in the phone frame stays quiet under a call in the desktop one.
+  const heard = (st.frames === "phone" ? "phone" : "desktop") === which && !(st.talking && which === "phone");
+  const msg: PreviewMessage = {
+    type: "vql-builder",
+    config: st.config,
+    state: st.state,
+    page: st.page,
+    ...(talk ? { talk } : {}),
+    sound: st.sound && heard,
+    run: st.run,
+  };
   frame.contentWindow.postMessage(msg, location.origin);
 }
 
@@ -488,8 +509,34 @@ function renderPreview(): void {
       st.frames = (b.dataset.frames as BuilderState["frames"]) ?? "both";
       renderChips();
       fitFrames();
+      sendAll();
     });
   }
+  // A browser plays sound only after a click on the page: the first one turns
+  // the voice on, unless the visitor has already set it.
+  addEventListener(
+    "pointerdown",
+    (e) => {
+      if (st.soundChosen || st.sound || (e.target as Element | null)?.closest?.("#sound")) return;
+      st.sound = true;
+      renderChips();
+      sendAll();
+    },
+    { capture: true },
+  );
+  $("#sound").addEventListener("click", () => {
+    st.sound = !st.sound;
+    st.soundChosen = true;
+    renderChips();
+    sendAll();
+  });
+  $("#play").addEventListener("click", () => {
+    if (st.talking) stopTalking(false);
+    if (st.state === "closed" || st.state === "ended" || st.state === "silent") st.state = "speaking";
+    st.run += 1;
+    renderChips();
+    sendAll();
+  });
   new ResizeObserver(fitFrames).observe($("#frames"));
   renderChips();
 }
@@ -501,6 +548,9 @@ function renderChips(): void {
   for (const b of document.querySelectorAll<HTMLButtonElement>("[data-page]")) b.setAttribute("aria-pressed", String(b.dataset.page === st.page));
   for (const b of document.querySelectorAll<HTMLButtonElement>("[data-frames]")) b.setAttribute("aria-pressed", String(b.dataset.frames === st.frames));
   $("#frames").dataset.show = st.frames;
+  const sound = $("#sound");
+  sound.setAttribute("aria-pressed", String(st.sound));
+  sound.textContent = st.sound ? "Sound on" : "Sound off";
 }
 
 // ------------------------------------------------------------- the snippet

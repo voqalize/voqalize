@@ -27,7 +27,18 @@ const TYPES = {
   ".css": "text/css",
   ".svg": "image/svg+xml",
   ".json": "application/json",
+  ".webm": "audio/webm",
 };
+
+/** The preview's recorded voice: the clips `fixtures/make.mjs` writes. */
+const CLIP = /^fixtures\/[a-z]+-[a-z]+\.webm$/;
+
+/**
+ * Where `@voqalize/avatar` loads its runtime and characters from: the
+ * avatar's host, and its name before 0.7. Named in each directive the avatar's
+ * README asks for, and nowhere else.
+ */
+const AVATAR_HOSTS = "https://cdn.voqalize.com https://avatar.voqalize.com";
 
 /** The files a browser may fetch, besides the bundles. Nothing else under the folder is served. */
 const STATIC = new Set(["index.html", "preview.html", "builder.css", "preview.css", "still.svg"]);
@@ -51,12 +62,14 @@ async function readLocalEnv() {
 function csp(apiOrigin) {
   return [
     "default-src 'none'",
-    "script-src 'self'",
+    // The avatar's runtime is a module imported from its host.
+    `script-src 'self' ${AVATAR_HOSTS}`,
     "style-src 'self'",
-    "img-src 'self' https: data:",
+    `img-src 'self' ${AVATAR_HOSTS} https: data:`,
     "media-src 'self' https: blob:",
-    // A real call mints its session from the control plane and signals to the voice tier.
-    `connect-src 'self' https: wss:${apiOrigin ? ` ${apiOrigin}` : ""}`,
+    // A real call mints its session from the control plane and signals to the
+    // voice tier; the avatar fetches its character from its host.
+    `connect-src 'self' ${AVATAR_HOSTS} https: wss:${apiOrigin ? ` ${apiOrigin}` : ""}`,
     "base-uri 'none'",
     "form-action 'none'",
     "frame-src 'self'",
@@ -73,8 +86,6 @@ export async function serve(port = 0) {
     write: false,
     outdir: here,
     entryNames: "[name]",
-    // The avatar is an optional peer the builder does not bundle.
-    external: ["@voqalize/avatar"],
     conditions: ["production"],
     define: { "process.env.NODE_ENV": '"production"' },
     logLevel: "warning",
@@ -105,7 +116,7 @@ export async function serve(port = 0) {
       } else if (bundles.has(name)) {
         if (watching && name === "builder.js") await rebuild();
         body = bundles.get(name);
-      } else if (STATIC.has(name)) {
+      } else if (STATIC.has(name) || CLIP.test(name)) {
         body = await readFile(join(here, name));
       } else {
         res.writeHead(404).end();
