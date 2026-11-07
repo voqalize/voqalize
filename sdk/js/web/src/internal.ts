@@ -5,9 +5,6 @@
  * `VoqalizeClient`, designed separately.
  */
 
-import type { CaptionsController } from "./controllers/captions.js";
-import type { WidgetSession } from "./session/adapter.js";
-
 export {
   type AgentState,
   type ClientFactoryArgs,
@@ -29,16 +26,4 @@ export {
 } from "./session/adapter.js";
 export { InstantStartMediaManager, type MediaPlatformOptions, isIOS } from "./session/media.js";
 
-/** Drive a captions controller from a session's agent and visitor events. Returns the unbind. */
-export function bindCaptions(session: WidgetSession, captions: CaptionsController): () => void {
-  const offs = [
-    session.on("agentSentence", (text) => captions.agentSentence(text)),
-    session.on("agentWord", (text) => captions.agentWord(text)),
-    session.on("agentStarted", () => captions.agentStarted()),
-    session.on("agentStopped", () => captions.agentStopped()),
-    session.on("userTranscript", (text, final) => captions.userTranscript(text, final)),
-  ];
-  return () => {
-    for (const off of offs) off();
-  };
-}
+export { bindCaptions, type CaptionEventSource } from "./controllers/bind-captions.js";

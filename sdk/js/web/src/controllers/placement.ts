@@ -327,6 +327,37 @@ export class PlacementController extends Store<PlacementSnapshot> {
     this.place();
   }
 
+  /**
+   * Put the widget at an anchor, as a keyboard move or `widget.place()` does,
+   * and remember it. Ignored while fixed, unless `force` (a page or brain
+   * moving it on purpose).
+   */
+  moveTo(anchor: Anchor, force = false): void {
+    if (this.mode() === "fixed" && !force) return;
+    this.dragFrom = null;
+    this.freeAt = null;
+    this.preferred = anchor;
+    if (this.mode() !== "fixed") {
+      rememberPlace(this.options.remember, this.options.agent, { anchor }, this.options.scope);
+    }
+    this.set({ dragging: false });
+    this.place();
+  }
+
+  /** Move by a few pixels, as an arrow key does in free movement. Snap and fixed ignore it. */
+  nudge(dx: number, dy: number): void {
+    if (this.mode() !== "free") return;
+    const { point } = this.getSnapshot();
+    this.startDrag(point);
+    this.drag({ x: point.x + dx, y: point.y + dy });
+    this.endDrag();
+  }
+
+  /** The movement in force: free becomes snap on touch screens. */
+  get move(): MoveMode {
+    return this.mode();
+  }
+
   private place(): void {
     if (this.dragFrom) return;
     if (this.freeAt) {

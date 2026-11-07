@@ -222,6 +222,14 @@ export class WidgetSession extends Store<SessionSnapshot> {
     this.mic.subscribe(() => this.sendMicState());
   }
 
+  /**
+   * The underlying client, for a layer that must hold it itself — the
+   * avatar follows the call from it. Internal, like everything here.
+   */
+  get rawClient(): ClientLike {
+    return this.client;
+  }
+
   /** Whether this call connects without waiting for the mic. */
   get instant(): boolean {
     if (!(this.options.instantStart ?? true)) return false;

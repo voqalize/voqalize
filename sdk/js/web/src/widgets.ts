@@ -80,3 +80,37 @@ export {
   rememberPlace,
   rememberedPlace,
 } from "./controllers/placement.js";
+
+// ---------------------------------------------------------------- elements
+// Importing these registers nothing; call `defineElements()` once.
+
+export { ELEMENTS, defineElements } from "./elements/define.js";
+export {
+  CONFIG_ATTRIBUTES,
+  VqlWidget,
+  type WidgetForm,
+  type WidgetSessionLike,
+  type WidgetView,
+  inputFromAttributes,
+  neighbourAnchor,
+} from "./elements/widget.js";
+export { VqlLauncher, defineLauncher } from "./elements/launcher.js";
+export {
+  type AvatarLoader,
+  type AvatarModuleLike,
+  type ResolvedBackground,
+  VqlFace,
+  resolveBackground,
+  setAvatarLoader,
+} from "./elements/face.js";
+export { VqlMic, meterLevel } from "./elements/mic.js";
+export { VqlDevices } from "./elements/devices.js";
+export { VqlCaptions } from "./elements/captions.js";
+export { VqlCoach } from "./elements/coach.js";
+export { VqlStatus, statusOf } from "./elements/status.js";
+export { VqlEnd } from "./elements/end.js";
+export { ENGLISH, type Translate, pageLanguage, tagChain, translator } from "./elements/words.js";
+export { type BrowserHints, type BrowserKind, coachKey, detectBrowser } from "./elements/browser.js";
+export { type ThemeColours, MIN_TEXT_CONTRAST, contrast, themeColours } from "./elements/colour.js";
+export { TOKENS } from "./elements/theme.js";
+export { type CssProps, cssProps } from "./elements/css-props.js";
