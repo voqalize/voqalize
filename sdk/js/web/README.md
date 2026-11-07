@@ -1,7 +1,7 @@
 # @voqalize/web
 
 Voqalize in the browser. This package will hold the one client library: the
-session, and the `<vq-widget>` web component built on top of it.
+session, and the `<vql-widget>` web component built on top of it.
 
 **Pre-release.** It has not been published to npm, and nothing here is a
 stable API yet. Today the package holds the widget's core, without any markup:
@@ -60,14 +60,14 @@ order of tools, and each step is public and stable. Take the first one that
 does the job:
 
 - **Configuration**: every field in the schema.
-- **Theme tokens**: `--vq-*` custom properties, set on the element or on any
+- **Theme tokens**: `--vql-*` custom properties, set on the element or on any
   ancestor.
 - **Parts**: `::part(card)`, `::part(face)`, `::part(controls)`,
   `::part(captions)` and the rest, for CSS the tokens do not cover.
 - **Slots**: your own content in named places (`side`, `controls-start`,
   `controls-end`, `launcher`, `notice`, `end`).
-- **Composition**: arrange the parts yourself (`<vq-avatar>`, `<vq-controls>`,
-  `<vq-captions>`, `<vq-status>`), all bound to one session.
+- **Composition**: arrange the parts yourself (`<vql-avatar>`, `<vql-controls>`,
+  `<vql-captions>`, `<vql-status>`), all bound to one session.
 - **Headless behaviours**: the controllers in this package, attached to your
   own markup:
   - placement: anchors, snap, avoid, remember;

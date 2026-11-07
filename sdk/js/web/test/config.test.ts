@@ -68,7 +68,7 @@ const FULL: Required<WidgetConfigInput> = {
     scheme: "dark",
     radius: 12,
     font: "Inter, sans-serif",
-    tokens: { "--vq-caption-size": "18px" },
+    tokens: { "--vql-caption-size": "18px" },
   },
   words: { en: { "launcher.label": "Talk to {name}" }, "hi-IN": { "launcher.label": "{name} से बात करें" } },
   dir: "rtl",
@@ -154,7 +154,7 @@ describe("parseWidgetConfig", () => {
       {
         placement: { anchor: "bottom-middle", offset: -3, topClear: "lots" },
         captions: { lines: 2.5, linger: "soon" },
-        theme: { brand: "red", tokens: { "--vq-ok": "1px", "--not-ours": "x" } },
+        theme: { brand: "red", tokens: { "--vql-ok": "1px", "--not-ours": "x" } },
         mobile: { breakpoint: 99999 },
         key: "sk_secret",
       },
@@ -166,7 +166,7 @@ describe("parseWidgetConfig", () => {
     expect(config.captions.lines).toBe(2);
     expect(config.captions.linger).toBe("4s");
     expect(config.theme.brand).toBeUndefined();
-    expect(config.theme.tokens).toEqual({ "--vq-ok": "1px" });
+    expect(config.theme.tokens).toEqual({ "--vql-ok": "1px" });
     expect(config.mobile.breakpoint).toBe(480);
     expect(config.key).toBeUndefined();
     const text = warnings.join("\n");
@@ -227,7 +227,7 @@ describe("parseWidgetConfig", () => {
   it("does not share default objects between results", () => {
     const a = parseWidgetConfig({}, () => {});
     a.placement.avoid.push("#x");
-    a.theme.tokens["--vq-x"] = "1";
+    a.theme.tokens["--vql-x"] = "1";
     const b = parseWidgetConfig({}, () => {});
     expect(b.placement.avoid).toEqual([]);
     expect(b.theme.tokens).toEqual({});

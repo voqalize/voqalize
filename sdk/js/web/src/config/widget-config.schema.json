@@ -114,7 +114,7 @@
           "type": "array",
           "items": { "type": "string", "minLength": 1 },
           "default": [],
-          "description": "CSS selectors of page elements the widget keeps clear of, besides anything marked data-vq-avoid."
+          "description": "CSS selectors of page elements the widget keeps clear of, besides anything marked data-vql-avoid."
         },
         "topClear": {
           "type": "number",
@@ -252,8 +252,8 @@
         },
         "tokens": {
           "type": "object",
-          "description": "Any --vq-* custom property, by name.",
-          "propertyNames": { "pattern": "^--vq-[a-z0-9-]+$" },
+          "description": "Any --vql-* custom property, by name.",
+          "propertyNames": { "pattern": "^--vql-[a-z0-9-]+$" },
           "additionalProperties": { "type": "string", "maxLength": 200 },
           "default": {}
         }
