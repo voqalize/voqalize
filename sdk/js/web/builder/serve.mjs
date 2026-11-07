@@ -77,7 +77,11 @@ function csp(apiOrigin) {
   ].join("; ");
 }
 
-export async function serve(port = 0) {
+/**
+ * `readLocal: false` ignores `builder/.env.local`, so the tests see the page as
+ * a visitor with no agent of their own does, whatever the working copy holds.
+ */
+export async function serve(port = 0, { readLocal = true } = {}) {
   const ctx = await context({
     entryPoints: { builder: join(here, "builder.ts"), preview: join(here, "preview.ts") },
     bundle: true,
@@ -101,7 +105,7 @@ export async function serve(port = 0) {
   const server = createServer(async (req, res) => {
     const path = new URL(req.url ?? "/", "http://x").pathname;
     const name = path === "/" ? "index.html" : path.slice(1);
-    const local = await readLocalEnv();
+    const local = readLocal ? await readLocalEnv() : null;
     let apiOrigin = "";
     try {
       if (local?.api) apiOrigin = new URL(local.api).origin;

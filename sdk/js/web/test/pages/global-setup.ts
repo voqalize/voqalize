@@ -10,7 +10,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   const pages = (await serve()) as Served;
   process.env.VQL_PAGE_URL = pages.url;
   process.env.VQL_BUILDER_WATCH = "0";
-  const builder = (await serveBuilder()) as Served;
+  const builder = (await serveBuilder(0, { readLocal: false })) as Served;
   process.env.VQL_BUILDER_URL = builder.url;
   const close = (s: Served) => new Promise<void>((resolve) => s.server.close(() => resolve()));
   return async () => {
