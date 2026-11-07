@@ -34,9 +34,32 @@ function readHints(): BrowserHints {
   }
 }
 
-/** The words key for a coach mark in this browser, e.g. `coach.blocked.safari`. Edge reads as Chrome. */
-export function coachKey(state: "asking" | "blocked" | "missing", browser: BrowserKind): string {
+/**
+ * The operating system, for advice that lives in its settings rather than
+ * the browser's (which mic is chosen, its input level).
+ */
+export type OSKind = "mac" | "windows" | "ios" | "android" | "other";
+
+export function detectOS(hints: BrowserHints = readHints()): OSKind {
+  const ua = hints.userAgent ?? "";
+  const touch = (hints.maxTouchPoints ?? 0) > 1;
+  if (/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && touch)) return "ios";
+  if (/Android/.test(ua)) return "android";
+  if (/Macintosh|Mac OS X/.test(ua)) return "mac";
+  if (/Windows/.test(ua)) return "windows";
+  return "other";
+}
+
+/** A coach mark's subject: the three mic states, and `check` for a mic that is on but silent. */
+export type CoachState = "asking" | "blocked" | "missing" | "check";
+
+/**
+ * The words key for a coach mark in this browser, e.g. `coach.blocked.safari`.
+ * Edge reads as Chrome. `check` varies by operating system, not browser.
+ */
+export function coachKey(state: CoachState, browser: BrowserKind, os: OSKind = "other"): string {
   if (state === "missing") return "coach.missing";
+  if (state === "check") return os === "other" ? "coach.check" : `coach.check.${os}`;
   const variant = browser === "chrome" || browser === "edge" || browser === "other" ? "" : `.${browser}`;
   return `coach.${state}${variant}`;
 }

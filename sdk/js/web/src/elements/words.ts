@@ -61,7 +61,20 @@ export const ENGLISH: Readonly<Record<string, string>> = {
   "coach.blocked.android":
     "The mic is blocked for this site. Tap the icon at the left of the address bar, open Permissions, and allow the microphone.",
   "coach.missing": "We can't find a microphone. Plug one in, or choose another one from the menu.",
+  "coach.check":
+    "{name} can't hear your mic. Check it isn't muted or switched off, and that no other app is using it.",
+  "coach.check.mac":
+    "{name} can't hear your mic. Check it isn't muted, and in System Settings, Sound, Input, that the right mic is chosen and its level is up.",
+  "coach.check.windows":
+    "{name} can't hear your mic. Check it isn't muted, and in Settings, System, Sound, Input, that the right mic is chosen and its volume is up.",
+  "coach.check.ios":
+    "{name} can't hear your mic. Check no other app is on a call, and that the mic is allowed in Settings for this browser.",
+  "coach.check.android":
+    "{name} can't hear your mic. Check no other app is on a call, and that the mic is allowed in Settings for this browser.",
   "coach.dismiss": "Dismiss",
+  "pill.permission": "Grant mic permission",
+  "pill.muted": "You are muted",
+  "pill.check": "Is your mic working?",
   "end.hung_up": "You ended the call.",
   "end.ended": "The call has ended.",
   "end.mic_denied":

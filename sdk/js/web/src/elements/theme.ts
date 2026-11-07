@@ -31,6 +31,7 @@ export const TOKENS = [
   "--vql-line",
   "--vql-live",
   "--vql-danger",
+  "--vql-warn",
   "--vql-radius",
   "--vql-font",
   "--vql-shadow",

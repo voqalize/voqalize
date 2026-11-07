@@ -28,6 +28,7 @@ export const IDLE_MIC: MicSnapshot = {
   hint: false,
   level: 0,
   everLive: false,
+  trackMuted: false,
   permission: "unknown",
 };
 

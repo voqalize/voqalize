@@ -42,7 +42,7 @@
               "default": "shoulders"
             },
             "background": {
-              "description": "Behind the transparent face: \"none\", a CSS colour or gradient, or the URL of an image, GIF or muted looping video with how it fits. Characters built from a photograph carry their own backdrop, so a background shows only outside their frame.",
+              "description": "Behind the transparent face: \"none\", a CSS colour or gradient, or the URL of an image, GIF or muted looping video with how it fits.",
               "default": "none",
               "oneOf": [
                 { "type": "string", "minLength": 1 },
@@ -206,6 +206,16 @@
           "type": "boolean",
           "default": true,
           "description": "Say so when the mic is live but has heard nothing while the agent waits."
+        },
+        "pill": {
+          "type": "boolean",
+          "default": true,
+          "description": "A pill that says what the mic needs (permission, unmuting, a check) and does it when pressed."
+        },
+        "coach": {
+          "type": "boolean",
+          "default": true,
+          "description": "The coach mark at the top of the window that says where this browser keeps the mic prompt or setting."
         }
       },
       "default": {}

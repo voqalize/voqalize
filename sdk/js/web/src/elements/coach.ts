@@ -4,9 +4,11 @@
  * A page cannot point at the browser's own permission prompt, so this sits
  * at the top of the window and says where the prompt (or the setting that
  * undoes a block) is in this visitor's browser. It shows for `asking`,
- * `blocked` and `missing`, and hides itself for any other state.
+ * `blocked` and `missing`, and for `check` (a mic that is on but silent:
+ * where this operating system keeps the input settings), and hides itself
+ * for any other state.
  *
- * Properties: `state`, `browser` (detected when not set), `t` (the words).
+ * Properties: `state`, `browser` and `os` (detected when not set), `t` (the words).
  * Event: `vql-dismiss` from its close button; the widget then keeps it
  * hidden until the mic state changes.
  *
@@ -15,7 +17,7 @@
 
 import { LitElement, css, html, nothing } from "lit";
 import type { MicState } from "../controllers/mic.js";
-import { type BrowserKind, coachKey, detectBrowser } from "./browser.js";
+import { type BrowserKind, type OSKind, coachKey, detectBrowser, detectOS } from "./browser.js";
 import { endIcon, micOffIcon } from "./icons.js";
 import { themeStyles } from "./theme.js";
 import { type Translate, translator } from "./words.js";
@@ -24,13 +26,15 @@ export class VqlCoach extends LitElement {
   static override properties = {
     state: { reflect: true },
     browser: {},
+    os: {},
     placement: { reflect: true },
     scheme: { reflect: true },
     t: { attribute: false },
   };
 
-  declare state: MicState | undefined;
+  declare state: MicState | "check" | undefined;
   declare browser: BrowserKind | undefined;
+  declare os: OSKind | undefined;
   /** `top` (default): fixed at the top of the window. `inline`: in the flow, for a composed layout. */
   declare placement: "top" | "inline";
   declare scheme: string | undefined;
@@ -104,8 +108,8 @@ export class VqlCoach extends LitElement {
 
   protected override render() {
     const state = this.state;
-    if (state !== "asking" && state !== "blocked" && state !== "missing") return nothing;
-    const text = this.t(coachKey(state, this.browser ?? detectBrowser()));
+    if (state !== "asking" && state !== "blocked" && state !== "missing" && state !== "check") return nothing;
+    const text = this.t(coachKey(state, this.browser ?? detectBrowser(), this.os ?? detectOS()));
     return html`<div class="coach" part="coach" role="status">
       ${micOffIcon}
       <span class="text" part="text">${text}</span>

@@ -1,17 +1,17 @@
 import { LitElement, html } from "lit";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { PlacementController } from "../src/controllers/placement.js";
-import { coachKey, detectBrowser } from "../src/elements/browser.js";
+import { coachKey, detectBrowser, detectOS } from "../src/elements/browser.js";
 import { contrast, parseColour, themeColours } from "../src/elements/colour.js";
 import { cssProps } from "../src/elements/css-props.js";
-import { defineElements } from "../src/elements/define.js";
+import { defineAllElements } from "../src/elements/define.js";
 import { resolveBackground } from "../src/elements/face.js";
 import { meterLevel } from "../src/elements/mic.js";
 import { statusOf } from "../src/elements/status.js";
 import { tagChain, translator } from "../src/elements/words.js";
 import { eventName } from "../src/react.js";
 
-beforeAll(() => defineElements());
+beforeAll(() => defineAllElements());
 
 afterEach(() => {
   document.body.innerHTML = "";
@@ -60,12 +60,25 @@ describe("browser", () => {
 
   it("has English for every coach key it can ask for", () => {
     const t = translator(undefined, "en", "Emily");
-    for (const state of ["asking", "blocked", "missing"] as const) {
+    for (const state of ["asking", "blocked", "missing", "check"] as const) {
       for (const b of ["chrome", "edge", "firefox", "safari", "ios", "android", "other"] as const) {
-        const key = coachKey(state, b);
-        expect(t(key)).not.toBe(key);
+        for (const os of ["mac", "windows", "ios", "android", "other"] as const) {
+          const key = coachKey(state, b, os);
+          expect(t(key)).not.toBe(key);
+        }
       }
     }
+  });
+
+  it("tells the operating systems apart for the mic check", () => {
+    const mac = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15";
+    expect(detectOS({ userAgent: mac, maxTouchPoints: 0 })).toBe("mac");
+    expect(detectOS({ userAgent: mac, maxTouchPoints: 5 })).toBe("ios");
+    expect(detectOS({ userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130.0" })).toBe("windows");
+    expect(detectOS({ userAgent: "Mozilla/5.0 (Linux; Android 14) Chrome/130.0" })).toBe("android");
+    expect(detectOS({ userAgent: "Mozilla/5.0 (X11; Linux x86_64) Chrome/130.0" })).toBe("other");
+    expect(coachKey("check", "chrome", "windows")).toBe("coach.check.windows");
+    expect(coachKey("check", "safari", "other")).toBe("coach.check");
   });
 });
 
@@ -204,6 +217,25 @@ describe("parts", () => {
     expect(el.shadowRoot?.querySelector("[part=text]")?.textContent).toBe(
       translator(undefined, "en", "")("coach.blocked.firefox"),
     );
+  });
+
+  it("mic pill: says what the mic needs and asks for it when pressed", async () => {
+    const el = await make<Lit & { kind: string | null }>(`<vql-mic-pill></vql-mic-pill>`);
+    expect(el.shadowRoot?.querySelector("[part=pill]")).toBeNull();
+    el.kind = "permission";
+    await el.updateComplete;
+    expect(el.shadowRoot?.querySelector("[part=text]")?.textContent).toBe("Grant mic permission");
+    expect(el.shadowRoot?.querySelector("[aria-live=polite]")?.textContent).toBe("Grant mic permission");
+    const seen: unknown[] = [];
+    el.addEventListener("vql-pill-action", (e) => seen.push((e as CustomEvent).detail));
+    el.shadowRoot?.querySelector<HTMLButtonElement>("[part=pill]")?.click();
+    expect(seen).toEqual([{ kind: "permission" }]);
+    el.kind = "muted";
+    await el.updateComplete;
+    expect(el.shadowRoot?.querySelector("[part=text]")?.textContent).toBe("You are muted");
+    el.kind = "check";
+    await el.updateComplete;
+    expect(el.shadowRoot?.querySelector("[part=text]")?.textContent).toBe("Is your mic working?");
   });
 
   it("end: hangs up", async () => {

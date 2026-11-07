@@ -10,7 +10,9 @@
  * client does not say:
  *
  * - instant start (see `media.ts`): connect does not wait for the mic;
- * - the mic's state as a store (`mic.ts`), sent to gato as `mic_state`;
+ * - the mic's state as a store (`mic.ts`), sent to gato as `mic_state`,
+ *   including what the local track's `mute` and `ended` events and the
+ *   device list's `devicechange` say about it;
  * - the agent's state, derived from the client's speaking and LLM events;
  * - the agent's words as they play and the visitor's transcript, as events;
  * - the devices, with the speaker picker only where `setSinkId` exists;
@@ -134,6 +136,8 @@ export interface SessionOptions {
   canPickSpeaker?: boolean;
   /** For tests: the Permissions API. */
   permissions?: Pick<Permissions, "query">;
+  /** For tests: where `devicechange` and the device list come from. */
+  mediaDevices?: Pick<MediaDevices, "addEventListener" | "removeEventListener" | "enumerateDevices">;
   /** For tests: the mic controller's clock. */
   now?: () => number;
 }
@@ -214,6 +218,9 @@ export class WidgetSession extends Store<SessionSnapshot> {
   private audio: HTMLMediaElement | null = null;
   private unbindAudio: (() => void) | null = null;
   private stopPermissionWatch: (() => void) | null = null;
+  /** Stops following the local track's events. */
+  private stopTrackWatch: (() => void) | null = null;
+  private stopDeviceWatch: (() => void) | null = null;
   private ready = false;
   /** Whether the agent was ever ready on this call: a close before that is a failed connect. */
   private wasReady = false;
@@ -221,6 +228,7 @@ export class WidgetSession extends Store<SessionSnapshot> {
   /** Bumped by every connect and hang-up: an older connect that resumes after either stops. */
   private generation = 0;
   private lastSent: string | null = null;
+  private localTrack: MediaStreamTrack | null = null;
 
   constructor(options: SessionOptions = {}) {
     const canPickSpeaker = options.canPickSpeaker ?? speakerPickable();
@@ -276,6 +284,7 @@ export class WidgetSession extends Store<SessionSnapshot> {
     this.set({ status: "connecting", agent: "idle", end: undefined, user: undefined, sessionId: undefined });
     this.bindAudio();
     this.watchPermission();
+    this.watchDevices();
 
     const instant = this.instant;
     this.mediaManager.instant = instant;
@@ -326,6 +335,9 @@ export class WidgetSession extends Store<SessionSnapshot> {
 
   /** Choose the mic. A device that cannot be opened is reported as a device error. */
   selectMic(id: string): void {
+    // The old track ends when the new one replaces it; that end is the
+    // switch, not a lost mic. The new track is followed when it starts.
+    this.unwatchTrack();
     this.settle(this.mediaManager.updateMic ? this.mediaManager.updateMic(id) : this.client.updateMic(id));
   }
 
@@ -399,7 +411,86 @@ export class WidgetSession extends Store<SessionSnapshot> {
     this.mic.setAgentListening(false);
     this.stopPermissionWatch?.();
     this.stopPermissionWatch = null;
+    // Hanging up stops the track; that end is not news.
+    this.unwatchTrack();
+    this.stopDeviceWatch?.();
+    this.stopDeviceWatch = null;
     if (this.audio) this.audio.srcObject = null;
+  }
+
+  /**
+   * Follow the local mic track: `mute` and `unmute` when the system or
+   * another app silences it, `ended` when it is gone for good.
+   */
+  private watchTrack(track: MediaStreamTrack): void {
+    this.unwatchTrack();
+    const onMute = () => this.mic.setTrackMuted(true);
+    const onUnmute = () => this.mic.setTrackMuted(false);
+    const onEnded = () => {
+      this.unwatchTrack();
+      if (this.getSnapshot().status !== "ended") this.mic.failed("track-ended");
+    };
+    try {
+      track.addEventListener("mute", onMute);
+      track.addEventListener("unmute", onUnmute);
+      track.addEventListener("ended", onEnded);
+    } catch {
+      return; // not a real track: nothing to follow
+    }
+    this.localTrack = track;
+    this.stopTrackWatch = () => {
+      track.removeEventListener("mute", onMute);
+      track.removeEventListener("unmute", onUnmute);
+      track.removeEventListener("ended", onEnded);
+      if (this.localTrack === track) this.localTrack = null;
+    };
+    if (track.readyState === "ended") onEnded();
+    else if (track.muted) onMute();
+  }
+
+  private unwatchTrack(): void {
+    this.stopTrackWatch?.();
+    this.stopTrackWatch = null;
+  }
+
+  /**
+   * On `devicechange`, the device the live track reads from may have left
+   * (unplugged, switched off). Most browsers end the track too; this catches
+   * the ones that leave a silent track behind.
+   */
+  private watchDevices(): void {
+    this.stopDeviceWatch?.();
+    this.stopDeviceWatch = null;
+    const media = this.options.mediaDevices ?? globalThis.navigator?.mediaDevices;
+    if (!media?.addEventListener) return;
+    const onChange = () => {
+      const track = this.localTrack;
+      if (!track || this.getSnapshot().status === "ended") return;
+      let id: string | undefined;
+      try {
+        id = track.getSettings?.().deviceId;
+      } catch {
+        id = undefined;
+      }
+      media
+        .enumerateDevices()
+        .then((devices) => {
+          if (this.localTrack !== track || this.getSnapshot().status === "ended") return;
+          const mics = devices.filter((d) => d.kind === "audioinput");
+          const gone = track.readyState === "ended" || mics.length === 0 || (id !== undefined && id !== "" && !mics.some((d) => d.deviceId === id));
+          if (gone) {
+            this.unwatchTrack();
+            this.mic.failed("device-gone");
+          }
+        })
+        .catch(() => {});
+    };
+    try {
+      media.addEventListener("devicechange", onChange);
+      this.stopDeviceWatch = () => media.removeEventListener("devicechange", onChange);
+    } catch {
+      // No device events here.
+    }
   }
 
   private bindAudio(): void {
@@ -422,9 +513,16 @@ export class WidgetSession extends Store<SessionSnapshot> {
     this.stopPermissionWatch = watchMicPermission((state) => {
       const before = this.mic.getSnapshot();
       this.mic.setPermission(state);
+      const live = this.getSnapshot().status !== "ended";
+      // Revoked mid-call, from the address bar or the site's settings: the
+      // track stops, and the coach can say how to undo it.
+      if (state === "denied" && live && before.device !== "blocked" && before.device !== "idle") {
+        this.mic.failed("permissions");
+        return;
+      }
       // Allowed from the address bar after a refusal: pick the mic up with
       // no reload.
-      if (state === "granted" && before.device === "blocked" && this.getSnapshot().status !== "ended") {
+      if (state === "granted" && before.device === "blocked" && live) {
         this.mic.asking();
         if (!before.muted) {
           try {
@@ -446,6 +544,9 @@ export class WidgetSession extends Store<SessionSnapshot> {
     if (status === "connecting" || status === "connected") void this.disconnect();
     this.stopPermissionWatch?.();
     this.stopPermissionWatch = null;
+    this.unwatchTrack();
+    this.stopDeviceWatch?.();
+    this.stopDeviceWatch = null;
     this.unbindAudio?.();
     this.unbindAudio = null;
   }
@@ -498,6 +599,7 @@ export class WidgetSession extends Store<SessionSnapshot> {
         if (track.kind !== "audio") return;
         if (participant?.local) {
           this.mic.live();
+          this.watchTrack(track);
           return;
         }
         if (this.audio) {

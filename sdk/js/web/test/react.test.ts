@@ -2,7 +2,7 @@ import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
 import type { VqlWidget } from "../src/elements/widget.js";
-import { VoqalizeEnd, VoqalizeLauncher, VoqalizeWidget, useMicState, useSessionState } from "../src/react.js";
+import { VoqalizeDevices, VoqalizeEnd, VoqalizeLauncher, VoqalizeWidget, useMicState, useSessionState } from "../src/react.js";
 import { FakeSession } from "./support/fake-session.js";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -41,6 +41,18 @@ describe("React wrappers", () => {
     await end.updateComplete;
     end.shadowRoot?.querySelector("button")?.click();
     expect(seen).toEqual(["hangup"]);
+  });
+
+  it("loads a lazy element's chunk, then sets its props as properties", async () => {
+    const mics = [{ deviceId: "a", label: "Desk mic" }];
+    const { host } = mount(createElement(VoqalizeDevices, { mics, micId: "a" }));
+    const el = () => host.querySelector("vql-devices") as HTMLElement & { mics?: unknown };
+    await act(async () => {
+      await customElements.whenDefined("vql-devices");
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(el().mics).toBe(mics);
+    expect(el().getAttribute("mics")).toBeNull();
   });
 
   it("puts back a prop the page stops passing", () => {

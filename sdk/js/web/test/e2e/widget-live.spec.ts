@@ -85,6 +85,10 @@ test("denied: the call connects, greets and says the mic-off line; allowing the 
     // Then the mic-off line.
     const line = await waitForEvent(page, (e) => MIC_OFF_LINE.test(botText(e)), 30_000);
     await expect(page.locator("vql-widget vql-coach")).toBeVisible();
+    // The pill says what the mic needs, and the dock's polite region says it too.
+    await expect(page.locator("vql-widget vql-mic-pill[kind=permission]")).toBeVisible();
+    await expect(page.locator("vql-widget vql-mic-pill")).toContainText("Grant mic permission");
+    await expect(page.locator("vql-widget .mic-said")).toHaveText("Grant mic permission");
     await shot(page, "denied-coach");
 
     // Allow it from the "address bar".
@@ -94,6 +98,10 @@ test("denied: the call connects, greets and says the mic-off line; allowing the 
     await waitForEvent(page, (e) => e.dir === "ui" && e.type === "vql-mic" && (e.data as { state: string }).state === "live", 15_000, grantAt);
     await waitForEvent(page, isMicState("live"), 10_000, grantAt);
     await expect(page.locator("vql-widget vql-coach")).toHaveCount(0);
+    // Granted: the pill goes, and the region falls silent.
+    await expect(page.locator("vql-widget vql-mic-pill[kind]")).toHaveCount(0);
+    await expect(page.locator("vql-widget .mic-said")).toHaveText("");
+    await shot(page, "granted-no-pill");
 
     // The agent hears a spoken turn.
     await page.waitForTimeout(1500);

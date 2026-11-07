@@ -24,15 +24,16 @@
  *
  * Events (all bubble and are composed): `vql-view` (`{ view, form }`),
  * `vql-open`, `vql-collapse`, `vql-close`, `vql-end` (`{ reason }`),
- * `vql-mic` (`{ state, hint }`), `vql-agent` (`{ state }`) and `vql-place`
- * (`{ anchor, point, free }`).
+ * `vql-mic` (`{ state, hint }`), `vql-agent` (`{ state }`), `vql-place`
+ * (`{ anchor, point, free }`) and, from the mic pill, `vql-pill-action`
+ * (`{ kind }`), after the widget has acted on it.
  *
  * Slots: `side`, `controls-start`, `controls-end`, `launcher`, `notice`, `end`.
  *
  * Parts: `dock`, `card`, `stage`, `frame`, `face`, `status`, `grip`,
  * `expand`, `badge`, `body`, `controls`, `mic`, `devices`, `minimise`,
  * `end`, `captions`, `hint`, `notice`, `side`, `end-card`, `end-reason`,
- * `again`, `close`, `launcher`, `coach`, `sheet-handle`. The form is also a
+ * `again`, `close`, `launcher`, `coach`, `mic-pill`, `sheet-handle`. The form is also a
  * part name on the card (`card sheet`, `card bubble`, …), so a page can
  * style one form only.
  */
@@ -41,8 +42,8 @@ import { LitElement, type PropertyValues, css, html, nothing } from "lit";
 import { parseWidgetConfig } from "../config/parse.js";
 import { mergeInput } from "../config/site-settings.js";
 import type { Anchor, Warn, WidgetConfig, WidgetConfigInput } from "../config/types.js";
-import { bindCaptions } from "../controllers/bind-captions.js";
-import { CaptionsController } from "../controllers/captions.js";
+import type { CaptionsController } from "../controllers/captions.js";
+import { type MicPillKind, micPillOf } from "../controllers/mic-pill.js";
 import type { MicSnapshot } from "../controllers/mic.js";
 import { ANCHORS, PlacementController, type PlacementSnapshot, type Rect } from "../controllers/placement.js";
 import type { ReadableStore } from "../controllers/store.js";
@@ -51,6 +52,8 @@ import { type BrowserKind, detectBrowser } from "./browser.js";
 import { themeColours } from "./colour.js";
 import { cssProps } from "./css-props.js";
 import { expandIcon, gripIcon, micOffIcon, minimiseIcon } from "./icons.js";
+import { loadElement } from "./lazy.js";
+import type { MicPillActionDetail } from "./mic-pill.js";
 import { themeStyles } from "./theme.js";
 import { type Translate, pageLanguage, translator } from "./words.js";
 
@@ -212,6 +215,7 @@ export class VqlWidget extends LitElement {
     devicesOpen: { state: true },
     coachDismissed: { state: true },
     coachReady: { state: true },
+    coachCheck: { state: true },
     hasSide: { state: true },
     narrow: { state: true },
   };
@@ -247,6 +251,8 @@ export class VqlWidget extends LitElement {
   declare protected devicesOpen: boolean;
   declare protected coachDismissed: boolean;
   declare protected coachReady: boolean;
+  /** The visitor asked "is my mic working?" where there is no device menu: the coach gives this platform's advice. */
+  declare protected coachCheck: boolean;
   declare protected hasSide: boolean;
   declare protected narrow: boolean;
 
@@ -262,6 +268,8 @@ export class VqlWidget extends LitElement {
   private cfgKey = "";
   private t: Translate = translator(undefined, "en", "");
   private captions: CaptionsController | null = null;
+  private captionsLoading: WidgetSessionLike | undefined;
+  private loadingTags = new Set<string>();
   private placement: PlacementController | null = null;
   private placementKey = "";
   private unsubs: (() => void)[] = [];
@@ -290,6 +298,7 @@ export class VqlWidget extends LitElement {
     this.devicesOpen = false;
     this.coachDismissed = false;
     this.coachReady = false;
+    this.coachCheck = false;
     this.hasSide = false;
     this.narrow = false;
     this.instantStartOnIOS = false;
@@ -443,6 +452,7 @@ export class VqlWidget extends LitElement {
       const c = this.cfg.captions;
       this.captions?.setMode(c.mode);
       this.captions?.configure({ lines: c.lines, lingerMs: captionLinger(c.linger), showUser: c.showUser });
+      if (c.mode !== "off") this.loadCaptions();
     }
     this.t = translator(this.cfg.words, pageLanguage(this), this.displayName());
     this.syncPlacement();
@@ -604,19 +614,59 @@ export class VqlWidget extends LitElement {
       this.micSnap = undefined;
       return;
     }
-    const c = this.cfg.captions;
-    this.captions = new CaptionsController({
-      mode: c.mode,
-      lines: c.lines,
-      lingerMs: captionLinger(c.linger),
-      showUser: c.showUser,
-    });
-    this.unsubs.push(bindCaptions(s, this.captions));
+    this.loadCaptions();
     const onSession = () => this.onSession(s.getSnapshot());
     const onMic = () => this.onMic(s.mic.getSnapshot());
     this.unsubs.push(s.subscribe(onSession), s.mic.subscribe(onMic));
     onSession();
     onMic();
+  }
+
+  /**
+   * Captions are their own chunk: loaded when a session binds with captions
+   * on, or when they are turned on during one. The session is created before
+   * it connects, so no caption is missed while the chunk loads.
+   */
+  private loadCaptions(): void {
+    const s = this.boundSession;
+    if (!s || this.captions || this.cfg.captions.mode === "off" || this.captionsLoading === s) return;
+    this.captionsLoading = s;
+    void import("./captions-feature.js")
+      .then(({ CaptionsController, bindCaptions, VqlCaptions }) => {
+        if (this.captionsLoading === s) this.captionsLoading = undefined;
+        if (globalThis.customElements && !customElements.get("vql-captions")) customElements.define("vql-captions", VqlCaptions);
+        if (this.boundSession !== s || this.captions) return;
+        const c = this.cfg.captions;
+        this.captions = new CaptionsController({
+          mode: c.mode,
+          lines: c.lines,
+          lingerMs: captionLinger(c.linger),
+          showUser: c.showUser,
+        });
+        this.unsubs.push(bindCaptions(s, this.captions));
+        this.requestUpdate();
+      })
+      .catch((e: unknown) => {
+        if (this.captionsLoading === s) this.captionsLoading = undefined;
+        this.warn(`captions could not load: ${String(e)}`);
+      });
+  }
+
+  /**
+   * Whether a lazy element is ready to render. The first ask starts its
+   * chunk loading and re-renders when it is defined.
+   */
+  private ready(tag: string): boolean {
+    const registry = globalThis.customElements;
+    if (!registry || registry.get(tag)) return true;
+    if (!this.loadingTags.has(tag)) {
+      this.loadingTags.add(tag);
+      loadElement(tag, registry)
+        .then(() => this.requestUpdate())
+        .catch((e: unknown) => this.warn(`${tag} could not load: ${String(e)}`))
+        .finally(() => this.loadingTags.delete(tag));
+    }
+    return false;
   }
 
   private unbindSession(): void {
@@ -674,6 +724,7 @@ export class VqlWidget extends LitElement {
     if (snap.state !== before) {
       this.coachDismissed = false;
       this.coachReady = false;
+      this.coachCheck = false;
       if (this.coachTimer) clearTimeout(this.coachTimer);
       this.coachTimer = null;
       if (snap.state === "asking") {
@@ -979,6 +1030,10 @@ export class VqlWidget extends LitElement {
       }
       .controls .spacer {
         flex: 1;
+      }
+      .pill-row {
+        display: flex;
+        justify-content: center;
       }
       .hint {
         font-size: 13px;
@@ -1361,7 +1416,7 @@ export class VqlWidget extends LitElement {
     const dir = c.dir === "auto" ? nothing : c.dir;
     const showDevices = c.controls.devices && !this.narrow && !(globalThis.matchMedia?.("(pointer: coarse)").matches ?? false);
     const micOff = micState === "asking" || micState === "blocked" || micState === "missing";
-    const captionsOn = c.captions.mode !== "off" && this.captions;
+    const captionsOn = c.captions.mode !== "off" && this.captions && this.ready("vql-captions");
     const captionsAt = form === "hero" || form === "sheet" ? "card" : c.captions.position;
     const captions = (cls: string) =>
       html`<vql-captions
@@ -1372,13 +1427,23 @@ export class VqlWidget extends LitElement {
         .controller=${this.captions ?? undefined}
         .t=${this.t}
       ></vql-captions>`;
-    const coachOn =
+    const inCall = s?.status === "connecting" || s?.status === "connected";
+    const pill: MicPillKind | null = inCall && !ended ? micPillOf(mic, { askingSettled: this.coachReady }) : null;
+    const pillOn = c.mic.pill && pill !== null && !collapsed;
+    const coachCheck = this.coachCheck && pill === "check";
+    // A track the system muted reads as "missing" on the wire, but the mic
+    // is there: the advice is the "is it working?" kind, not "plug one in".
+    const coachState = coachCheck || (micState === "missing" && mic?.trackMuted) ? "check" : micState;
+    const coachWanted =
+      c.mic.coach &&
       (open || collapsed) &&
-      micOff &&
+      (micOff || coachCheck) &&
       this.coachReady &&
       !this.coachDismissed &&
       !(micState === "asking" && mic?.permission === "granted") &&
-      (s?.status === "connecting" || s?.status === "connected");
+      inCall;
+    const coachOn = coachWanted && this.ready("vql-coach");
+    const pillShown = pillOn && this.ready("vql-mic-pill");
 
     const face = html`<vql-face
       part="face"
@@ -1419,7 +1484,7 @@ export class VqlWidget extends LitElement {
       scheme=${scheme}
       status=${s?.status ?? "idle"}
       agent=${s?.agent ?? "idle"}
-      mic=${micState}
+      mic=${pillOn ? "idle" : micState}
       label=${this.statusLabel ?? nothing}
       .since=${this.connectedAt}
       .t=${this.t}
@@ -1453,7 +1518,7 @@ export class VqlWidget extends LitElement {
       @vql-mute=${(e: CustomEvent<{ muted: boolean }>) => this.session?.setMuted(e.detail.muted)}
       @vql-devices=${(e: CustomEvent<{ open: boolean }>) => {
         this.devicesOpen = e.detail.open;
-        if (this.devicesOpen) void this.updateComplete.then(() => this.renderRoot.querySelector("vql-devices")?.focus());
+        if (this.devicesOpen) this.focusDevices();
       }}
     ></vql-mic>`;
 
@@ -1478,7 +1543,7 @@ export class VqlWidget extends LitElement {
     </div>`;
 
     const devices =
-      this.devicesOpen && showDevices && s
+      this.devicesOpen && showDevices && s && this.ready("vql-devices")
         ? html`<vql-devices
             class="devices"
             part="devices"
@@ -1521,7 +1586,21 @@ export class VqlWidget extends LitElement {
       body = html`<div class="body" part="body">
         ${captionsOn && captionsAt === "card" ? captions("captions-card") : nothing}
         <slot name="notice" part="notice"></slot>
-        ${mic?.hint && c.mic.silenceHint ? html`<div class="hint" part="hint" role="status">${this.t("mic.hint")}</div>` : nothing}
+        ${!c.mic.pill && mic?.hint && c.mic.silenceHint
+          ? html`<div class="hint" part="hint" role="status">${this.t("mic.hint")}</div>`
+          : nothing}
+        ${pillShown
+          ? html`<div class="pill-row">
+              <vql-mic-pill
+                part="mic-pill"
+                scheme=${scheme}
+                kind=${pill}
+                .announce=${false}
+                .t=${this.t}
+                @vql-pill-action=${(e: CustomEvent<MicPillActionDetail>) => this.onPillAction(e.detail.kind, showDevices)}
+              ></vql-mic-pill>
+            </div>`
+          : nothing}
         ${controls}
       </div>`;
     }
@@ -1537,6 +1616,9 @@ export class VqlWidget extends LitElement {
         ${cssProps(this.dockPosition())}
         @pointerdown=${(e: PointerEvent) => this.onPointerDown(e)}
       >
+        ${c.mic.pill
+          ? html`<span class="sr-only mic-said" role="status" aria-live="polite">${pillOn && pill ? this.t(`pill.${pill}`) : ""}</span>`
+          : nothing}
         <div class=${this.hasSide && open && form === "card" ? `card ${cardForm} with-side` : `card ${cardForm}`} part="card ${form}">
           <div class="main-col">
             ${form === "sheet" ? html`<div class="sheet-handle" part="sheet-handle" aria-hidden="true"><span></span></div>` : nothing}
@@ -1555,7 +1637,7 @@ export class VqlWidget extends LitElement {
         ? html`<vql-coach
             part="coach"
             scheme=${scheme}
-            state=${micState}
+            state=${coachState}
             .browser=${this.browser ?? detectBrowser()}
             .t=${this.t}
             @vql-dismiss=${() => {
@@ -1563,6 +1645,35 @@ export class VqlWidget extends LitElement {
             }}
           ></vql-coach>`
         : nothing}`;
+  }
+
+  /**
+   * The mic pill was pressed. `permission` shows the coach mark again, even
+   * after a dismissal; `muted` unmutes; `check` opens the device menu, or
+   * where there is none, the coach mark with this platform's advice. The
+   * event carries on out of the widget, so a page can add its own response.
+   */
+  private onPillAction(kind: MicPillKind, showDevices: boolean): void {
+    if (kind === "muted") {
+      this.session?.setMuted(false);
+      return;
+    }
+    if (kind === "check" && showDevices) {
+      this.devicesOpen = true;
+      this.focusDevices();
+      return;
+    }
+    this.coachDismissed = false;
+    this.coachReady = true;
+    if (kind === "check") this.coachCheck = true;
+  }
+
+  /** Focus the device menu once its chunk is in and it has rendered. */
+  private focusDevices(): void {
+    void loadElement("vql-devices")
+      .then(() => this.updateComplete)
+      .then(() => this.renderRoot.querySelector<HTMLElement>("vql-devices")?.focus())
+      .catch(() => {});
   }
 
   private async again(): Promise<void> {

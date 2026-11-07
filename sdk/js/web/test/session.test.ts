@@ -187,6 +187,129 @@ describe("mic_state to gato", () => {
   });
 });
 
+class FakeTrack extends EventTarget {
+  kind = "audio";
+  muted = false;
+  readyState: MediaStreamTrackState = "live";
+  constructor(readonly deviceId = "mic-1") {
+    super();
+  }
+  getSettings() {
+    return { deviceId: this.deviceId };
+  }
+  fire(type: "mute" | "unmute" | "ended") {
+    if (type === "mute") this.muted = true;
+    if (type === "unmute") this.muted = false;
+    if (type === "ended") this.readyState = "ended";
+    this.dispatchEvent(new Event(type));
+  }
+}
+
+class FakeDevices extends EventTarget {
+  list: { kind: string; deviceId: string }[] = [{ kind: "audioinput", deviceId: "mic-1" }];
+  enumerateDevices() {
+    return Promise.resolve(this.list as MediaDeviceInfo[]);
+  }
+  change(list: { kind: string; deviceId: string }[]) {
+    this.list = list;
+    this.dispatchEvent(new Event("devicechange"));
+  }
+}
+
+describe("the local track and the device list", () => {
+  function live(options: SessionOptions = {}) {
+    const devices = new FakeDevices();
+    const t = setup({ mediaDevices: devices, ...options });
+    void t.session.connect(SESSION);
+    t.client.init.resolve();
+    t.cb().onBotReady?.({} as never);
+    const track = new FakeTrack();
+    t.cb().onTrackStarted?.(track as unknown as MediaStreamTrack, { id: "local", name: "", local: true });
+    return { ...t, devices, track };
+  }
+
+  it("sends a track the system muted as missing, and live again when it unmutes", () => {
+    const { session, client, track } = live();
+    track.fire("mute");
+    expect(session.mic.getSnapshot()).toMatchObject({ state: "missing", device: "live", trackMuted: true, hint: false });
+    track.fire("unmute");
+    expect(micStates(client)).toEqual([
+      { state: "asking", hint: false },
+      { state: "live", hint: false },
+      { state: "missing", hint: false },
+      { state: "live", hint: false },
+    ]);
+  });
+
+  it("reads a track that starts muted", () => {
+    const devices = new FakeDevices();
+    const { session, client, cb } = setup({ mediaDevices: devices });
+    void session.connect(SESSION);
+    client.init.resolve();
+    const track = new FakeTrack();
+    track.muted = true;
+    cb().onTrackStarted?.(track as unknown as MediaStreamTrack, { id: "local", name: "", local: true });
+    expect(session.mic.getSnapshot().state).toBe("missing");
+  });
+
+  it("keeps the visitor's own mute as muted over a muted track", () => {
+    const { session, track } = live();
+    track.fire("mute");
+    session.setMuted(true);
+    expect(session.mic.getSnapshot().state).toBe("muted");
+  });
+
+  it("sends an ended track as missing", () => {
+    const { session, client, track } = live();
+    track.fire("ended");
+    expect(session.mic.getSnapshot()).toMatchObject({ state: "missing", device: "missing" });
+    expect(micStates(client).at(-1)).toEqual({ state: "missing", hint: false });
+  });
+
+  it("sends missing when the device the track reads from leaves", async () => {
+    const { session, devices } = live();
+    devices.change([{ kind: "audioinput", deviceId: "mic-1" }, { kind: "audioinput", deviceId: "mic-2" }]);
+    await tick();
+    expect(session.mic.getSnapshot().state).toBe("live");
+    devices.change([{ kind: "audioinput", deviceId: "mic-2" }]);
+    await tick();
+    expect(session.mic.getSnapshot().state).toBe("missing");
+  });
+
+  it("does not call a mic switch a lost mic", () => {
+    const { session, track } = live();
+    session.selectMic("mic-2");
+    track.fire("ended");
+    expect(session.mic.getSnapshot().state).toBe("live");
+  });
+
+  it("does not call the hang-up's track end a lost mic", async () => {
+    const { session, track } = live();
+    await session.disconnect();
+    track.fire("ended");
+    expect(session.mic.getSnapshot().device).not.toBe("missing");
+  });
+
+  it("sends blocked when the permission is revoked mid-call", async () => {
+    let fire!: () => void;
+    const status = {
+      state: "granted" as PermissionState,
+      addEventListener: (_: string, l: () => void) => (fire = l),
+      removeEventListener() {},
+    };
+    const { session, client, track } = live({
+      permissions: { query: () => Promise.resolve(status as unknown as PermissionStatus) },
+    });
+    await tick();
+    status.state = "denied";
+    fire();
+    // Chrome then ends the track; it stays blocked, not missing.
+    track.fire("ended");
+    expect(session.mic.getSnapshot().state).toBe("blocked");
+    expect(micStates(client).at(-1)).toEqual({ state: "blocked", hint: false });
+  });
+});
+
 describe("agent state and words", () => {
   it("derives the agent's state from the client's events", async () => {
     const { session, client, cb } = setup();

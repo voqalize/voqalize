@@ -8,7 +8,9 @@
  * React 18 sets every prop on a custom element as an attribute, which turns
  * an object into "[object Object]". These wrappers set props as properties
  * instead, and turn `onX` props into listeners for the `vql-x` event, so they
- * work the same on React 18 and 19. Rendering one registers the elements.
+ * work the same on React 18 and 19. Rendering one registers the elements;
+ * the lazy ones (`vql-devices`, `vql-coach`, `vql-captions`, `vql-mic-pill`)
+ * load their chunk on first render, and their props apply once it is in.
  *
  * The hooks read a store with `useSyncExternalStore`, so a page drawing its
  * own controls re-renders on exactly the controller's changes.
@@ -25,6 +27,7 @@ import {
   useCallback,
   useLayoutEffect,
   useRef,
+  useState,
   useSyncExternalStore,
 } from "react";
 import type { CaptionsSnapshot } from "./controllers/captions.js";
@@ -34,6 +37,8 @@ import type { ReadableStore } from "./controllers/store.js";
 import type { VqlCaptions } from "./elements/captions.js";
 import type { VqlCoach } from "./elements/coach.js";
 import { defineElements } from "./elements/define.js";
+import { isLazyElement, loadElement } from "./elements/lazy.js";
+import type { VqlMicPill } from "./elements/mic-pill.js";
 import type { VqlDevices } from "./elements/devices.js";
 import type { VqlEnd } from "./elements/end.js";
 import type { VqlFace } from "./elements/face.js";
@@ -86,6 +91,8 @@ export function createComponent<E extends HTMLElement, P extends object>(
 ): ForwardRefExoticComponent<PropsWithoutRef<P & BaseProps> & RefAttributes<E>> {
   const Component = forwardRef<E, P & BaseProps>((props, ref) => {
     ensureDefined();
+    const lazy = isLazyElement(tag);
+    const [, setLoaded] = useState(0);
     const local = useRef<E | null>(null);
     const handlers = useRef<Record<string, Handler>>({});
     const listening = useRef<Map<string, (e: Event) => void>>(new Map());
@@ -105,9 +112,22 @@ export function createComponent<E extends HTMLElement, P extends object>(
       [ref],
     );
 
+    // A lazy element's chunk: until it is defined, its props have nowhere to go.
+    useLayoutEffect(() => {
+      if (!lazy || globalThis.customElements?.get(tag)) return;
+      let live = true;
+      loadElement(tag)
+        .then(() => live && setLoaded((n) => n + 1))
+        .catch((e: unknown) => console.warn(`[vql] ${tag} could not load: ${String(e)}`));
+      return () => {
+        live = false;
+      };
+    }, [lazy]);
+
     useLayoutEffect(() => {
       const el = local.current as unknown as (HTMLElement & Record<string, unknown>) | null;
       if (!el) return;
+      if (lazy && !globalThis.customElements?.get(tag)) return;
       const nextHandlers: Record<string, Handler> = {};
       const seen = new Set<string>();
       for (const [name, value] of Object.entries(all)) {
@@ -211,8 +231,13 @@ export const VoqalizeCaptions = createComponent<
 
 export const VoqalizeCoach = createComponent<
   VqlCoach,
-  Props<VqlCoach, "state" | "browser" | "placement" | "scheme" | "t"> & { onDismiss?: EventProp }
+  Props<VqlCoach, "state" | "browser" | "os" | "placement" | "scheme" | "t"> & { onDismiss?: EventProp }
 >("vql-coach");
+
+export const VoqalizeMicPill = createComponent<
+  VqlMicPill,
+  Props<VqlMicPill, "kind" | "announce" | "scheme" | "t"> & { onPillAction?: EventProp<{ kind: string }> }
+>("vql-mic-pill");
 
 export const VoqalizeStatus = createComponent<
   VqlStatus,

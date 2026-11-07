@@ -187,3 +187,26 @@ describe("watchMicPermission", () => {
     ).not.toThrow();
   });
 });
+
+describe("track mute and the permission", () => {
+  it("shows a muted track as missing over a live device, and ignores its level", () => {
+    const c = clock();
+    const mic = new MicController({ now: c.now, afterMs: 100 });
+    mic.live();
+    mic.setAgentListening(true);
+    mic.setTrackMuted(true);
+    expect(mic.getSnapshot()).toMatchObject({ state: "missing", device: "live", trackMuted: true });
+    feed(mic, c, 0, 1000);
+    expect(mic.getSnapshot().hint).toBe(false);
+    mic.setTrackMuted(false);
+    expect(mic.getSnapshot()).toMatchObject({ state: "live", trackMuted: false });
+  });
+
+  it("reads every failure as blocked while the permission is denied", () => {
+    const mic = new MicController();
+    mic.live();
+    mic.setPermission("denied");
+    mic.failed("track-ended");
+    expect(mic.getSnapshot().state).toBe("blocked");
+  });
+});

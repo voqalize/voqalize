@@ -20,6 +20,24 @@
  * muted, the agent is waiting for the visitor, and the level has stayed under
  * a floor for a while. It is a hint and never an action — a quiet visitor is
  * not a broken mic.
+ *
+ * The track itself can stop carrying sound without the visitor choosing it:
+ *
+ * - its `mute` event: the system muted the input, or another app took it.
+ *   The track comes back with `unmute`. While it lasts the state is
+ *   "missing" over a device that is still "live" (`trackMuted`).
+ * - its `ended` event, or the device leaving the list on `devicechange`: the
+ *   track is gone for good. The device is "missing" (`failed("track-ended")`
+ *   or `failed("device-gone")`) until a new track starts.
+ *
+ * Both go to gato as "missing", a state every gato build knows: the visitor
+ * cannot be heard, for a reason that is not their choice, and the device
+ * menu offers another mic. No new wire value is needed for them, and a gato
+ * that predates them reads them as it always has.
+ *
+ * A refusal outranks everything else: while the browser reports the
+ * permission as "denied", any failure reads as "blocked", because the menu
+ * cannot fix it and the coach can.
  */
 
 import { Store } from "./store.js";
@@ -89,6 +107,11 @@ export interface MicSnapshot {
   errorType?: string;
   /** The browser's microphone permission, where it says. */
   permission: "granted" | "denied" | "prompt" | "unknown";
+  /**
+   * The live track's `muted`: the system or another app silenced it. Not the
+   * visitor's mute, which is `muted`.
+   */
+  trackMuted: boolean;
 }
 
 export interface MicControllerOptions {
@@ -109,6 +132,7 @@ const INITIAL: MicSnapshot = {
   level: 0,
   everLive: false,
   permission: "unknown",
+  trackMuted: false,
 };
 
 export class MicController extends Store<MicSnapshot> {
@@ -142,9 +166,21 @@ export class MicController extends Store<MicSnapshot> {
     this.setDevice("live", undefined);
   }
 
-  /** Acquiring or keeping the mic failed, with pipecat's `DeviceError` type. */
+  /**
+   * Acquiring or keeping the mic failed, with pipecat's `DeviceError` type,
+   * or `track-ended` / `device-gone` for a track lost mid-call. While the
+   * browser says the permission is denied, every failure is "blocked".
+   */
   failed(errorType: string | undefined): void {
-    this.setDevice(micStateForError(errorType), errorType ?? "unknown");
+    const denied = this.getSnapshot().permission === "denied";
+    this.setDevice(denied ? "blocked" : micStateForError(errorType), denied ? "permissions" : (errorType ?? "unknown"));
+  }
+
+  /** The live track's `mute` / `unmute` events. */
+  setTrackMuted(trackMuted: boolean): void {
+    if (trackMuted === this.getSnapshot().trackMuted) return;
+    this.resetQuiet();
+    this.update({ trackMuted });
   }
 
   setMuted(muted: boolean): void {
@@ -170,7 +206,7 @@ export class MicController extends Store<MicSnapshot> {
     const snap = this.getSnapshot();
     const level = Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
     const at = this.now();
-    if (snap.device !== "live" || snap.muted || !this.agentListening) {
+    if (snap.device !== "live" || snap.muted || snap.trackMuted || !this.agentListening) {
       this.lastSampleAt = null;
       this.update({ level });
       return;
@@ -202,17 +238,21 @@ export class MicController extends Store<MicSnapshot> {
   private setDevice(device: MicDeviceState, errorType: string | undefined): void {
     this.resetQuiet();
     const everLive = this.getSnapshot().everLive || device === "live";
-    this.update({ device, errorType, everLive, level: device === "live" ? this.getSnapshot().level : 0 });
+    // A new track, or none: whatever muted the old one is over.
+    this.update({ device, errorType, everLive, trackMuted: false, level: device === "live" ? this.getSnapshot().level : 0 });
   }
 
   /** Apply a patch and recompute the derived fields, `state` and `hint`. */
   private update(patch: Partial<MicSnapshot>): void {
     const next = { ...this.getSnapshot(), ...patch };
-    const state: MicState = next.device === "live" && next.muted ? "muted" : next.device;
+    let state: MicState = next.device;
+    if (next.device === "live" && next.muted) state = "muted";
+    else if (next.device === "live" && next.trackMuted) state = "missing";
     const hint =
       this.hintEnabled &&
       next.device === "live" &&
       !next.muted &&
+      !next.trackMuted &&
       this.agentListening &&
       this.quietMs >= this.afterMs;
     this.set({ ...patch, state, hint });

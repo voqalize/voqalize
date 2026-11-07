@@ -62,6 +62,7 @@ export {
   micStateForError,
   watchMicPermission,
 } from "./controllers/mic.js";
+export { type MicPillKind, type MicPillOptions, micPillOf } from "./controllers/mic-pill.js";
 export {
   type CaptionLine,
   type CaptionWord,
@@ -94,9 +95,11 @@ export {
 } from "./controllers/placement.js";
 
 // ---------------------------------------------------------------- elements
-// Importing these registers nothing; call `defineElements()` once.
+// Importing these registers nothing; call `defineElements()` once. The lazy
+// ones register on first use, or all at once with `defineAllElements()`.
 
-export { ELEMENTS, defineElements } from "./elements/define.js";
+export { ELEMENTS, defineAllElements, defineElements } from "./elements/define.js";
+export { LAZY_ELEMENTS, isLazyElement, loadElement } from "./elements/lazy.js";
 export {
   CONFIG_ATTRIBUTES,
   VqlWidget,
@@ -119,10 +122,19 @@ export { VqlMic, meterLevel } from "./elements/mic.js";
 export { VqlDevices } from "./elements/devices.js";
 export { VqlCaptions } from "./elements/captions.js";
 export { VqlCoach } from "./elements/coach.js";
+export { type MicPillActionDetail, VqlMicPill } from "./elements/mic-pill.js";
 export { VqlStatus, statusOf } from "./elements/status.js";
 export { VqlEnd } from "./elements/end.js";
 export { ENGLISH, type Translate, pageLanguage, tagChain, translator } from "./elements/words.js";
-export { type BrowserHints, type BrowserKind, coachKey, detectBrowser } from "./elements/browser.js";
+export {
+  type BrowserHints,
+  type BrowserKind,
+  type CoachState,
+  type OSKind,
+  coachKey,
+  detectBrowser,
+  detectOS,
+} from "./elements/browser.js";
 export { type ThemeColours, MIN_TEXT_CONTRAST, contrast, themeColours } from "./elements/colour.js";
 export { TOKENS } from "./elements/theme.js";
 export { type CssProps, cssProps } from "./elements/css-props.js";

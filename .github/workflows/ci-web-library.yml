@@ -1,0 +1,76 @@
+name: CI — web library
+
+# `@voqalize/web` (sdk/js/web): the widget, its elements, the configuration
+# and the React wrappers. Pre-release and not published, but the demos, the
+# docs and the console are meant to take it, so a red here is a break they
+# would inherit.
+#
+# Its own workflow, not a job in ci-web.yml, because the path filters are
+# per workflow: a change to the library should not rebuild every demo UI, and
+# a demo change should not run the library's suite.
+#
+# What runs: the typecheck, the unit tests (happy-dom) and the size budgets
+# (scripts/size.mjs: every entry and every lazy chunk, gzipped). The
+# Playwright suites (`pnpm test:pages`, `pnpm test:live`) stay local: the
+# first needs a browser install this job does not pay for, the second the
+# local stack.
+
+on:
+  push:
+    branches: [main, prod]
+    paths:
+      - 'sdk/js/web/**'
+      # The library installs from the root workspace's lockfile.
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/ci-web-library.yml'
+
+# As ci-web.yml: on main after a merge and on prod, not on pull requests
+# (owner, 2026-10-22). A newer push cancels the run it supersedes; prod keeps
+# every run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/prod' }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # The pnpm the deploy pins, read out of demos/cloudbuild.web.yaml as
+      # ci-web.yml does, so the install here is the one the deploy runs.
+      - name: pnpm
+        run: |
+          pinned=$(sed -n 's/.*corepack prepare pnpm@\([0-9.]*\) --activate.*/\1/p' \
+            demos/cloudbuild.web.yaml | head -1)
+          if [ -z "$pinned" ]; then
+            echo "::error::could not read the pnpm pin out of demos/cloudbuild.web.yaml"
+            exit 1
+          fi
+          echo "deploy pins pnpm $pinned"
+          corepack enable
+          corepack prepare "pnpm@$pinned" --activate
+          pnpm --version
+
+      # Frozen, so a package.json that drifted from pnpm-lock.yaml is red here.
+      - name: Install the library
+        run: pnpm install --frozen-lockfile --filter '@voqalize/web...'
+
+      - name: Typecheck
+        working-directory: sdk/js/web
+        run: pnpm typecheck
+
+      - name: Unit tests
+        working-directory: sdk/js/web
+        run: pnpm test
+
+      # Exits 1 when an entry or a lazy chunk is over its budget; the budgets
+      # and how they were set are in the script.
+      - name: Size budgets
+        working-directory: sdk/js/web
+        run: pnpm size

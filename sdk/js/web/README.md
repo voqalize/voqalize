@@ -79,8 +79,43 @@ it between states and never re-mounts it, so the avatar never restarts.
 
 Events bubble and cross the shadow root: `vql-view` (`{ view, form }`),
 `vql-open`, `vql-collapse`, `vql-close`, `vql-end` (`{ reason }`), `vql-mic`
-(`{ state, hint }`), `vql-agent` (`{ state }`) and `vql-place`
-(`{ anchor, point, free }`).
+(`{ state, hint }`), `vql-agent` (`{ state }`), `vql-place`
+(`{ anchor, point, free }`) and `vql-pill-action` (`{ kind }`).
+
+### The mic pill
+
+When the mic needs something from the visitor, a pill above the controls
+says what, and pressing it does it:
+
+- **Grant mic permission**: the browser is asking, or the mic was refused.
+  It shows the coach mark, which says where this browser keeps the setting.
+- **You are muted**: the visitor muted. It unmutes.
+- **Is your mic working?**: a live mic that has heard nothing while the agent
+  waits, a track the system muted or another app took, a track that ended,
+  a device that was unplugged, or no mic at all. It opens the device menu,
+  or on a phone, the coach mark with advice for the phone's system.
+
+The widget reads the browser's own signals for it: the Permissions API, the
+track's `mute`, `unmute` and `ended` events, `devicechange`, the level, and
+the browser and system for the coach's wording. `micPillOf()` decides which
+pill shows, and is exported for a page that draws its own. The pill's text
+is announced through a polite live region. `mic.pill: false` turns it off,
+and `mic.coach: false` turns off the coach mark.
+
+What the voice runtime is told is unchanged: the mic's state, one of
+`asking`, `live`, `blocked`, `missing` or `muted`, with the silence `hint`.
+The new signals map onto those states:
+
+| What happened | State sent |
+|---|---|
+| The prompt is open | `asking` |
+| The visitor refused, or revoked the permission in a call | `blocked` |
+| The system muted the track, or another app took the mic | `missing`, then `live` when it comes back |
+| The track ended, or the device was unplugged | `missing` |
+| No mic at all | `missing` |
+| The visitor muted | `muted` |
+
+A switch to another mic from the device menu is not read as a lost mic.
 
 ### Placement
 
@@ -108,10 +143,22 @@ and the widget is built from them:
 - `<vql-devices>`: the mic and speaker menu, with a level meter.
 - `<vql-captions>`: the agent's words, lit as they are spoken.
 - `<vql-coach>`: the help shown when the mic is blocked, missing, or waiting
-  for permission, worded for the visitor's browser.
+  for permission, worded for the visitor's browser and system.
+- `<vql-mic-pill>`: the mic pill, which fires `vql-pill-action` when pressed
+  and leaves the action to the widget or the page.
 - `<vql-status>`: a chip for connecting, listening, thinking, speaking and
   the mic's state, with the call's time.
 - `<vql-end>`: the end-call button.
+
+### Loading on first use
+
+`defineElements()` defines the elements every call shows. The device menu,
+the coach mark, the captions and the mic pill are defined too, but their
+code loads only when the widget first needs them, so a page pays for each
+only if it is used. `LAZY_ELEMENTS` lists them. A page composing the parts
+itself loads one with `loadElement(tag)`, or all of them with
+`defineAllElements()`, which resolves once every element is defined. The
+React wrappers load their element when they first render.
 
 ### The avatar
 
@@ -187,7 +234,7 @@ add it.
 
 Set these on the widget or on any ancestor; `TOKENS` lists them:
 `--vql-brand`, `--vql-on-brand`, `--vql-surface`, `--vql-ink`, `--vql-muted`,
-`--vql-line`, `--vql-live`, `--vql-danger`, `--vql-radius`, `--vql-font`,
+`--vql-line`, `--vql-live`, `--vql-danger`, `--vql-warn`, `--vql-radius`, `--vql-font`,
 `--vql-shadow`, `--vql-caption-size`, `--vql-face-background`, `--vql-z`,
 `--vql-listening`, `--vql-thinking` and `--vql-speaking`.
 
@@ -200,7 +247,7 @@ readable text on it gets black or white text, chosen for contrast.
 
 The widget exposes `dock`, `card`, `stage`, `frame`, `face`, `status`,
 `grip`, `body`, `captions`, `controls`, `mic`, `minimise`, `end`, `devices`,
-`side`, `notice`, `coach`, `launcher`, `expand`, `badge`, `hint`,
+`side`, `notice`, `coach`, `mic-pill`, `launcher`, `expand`, `badge`, `hint`,
 `sheet-handle`, `end-card`, `end-reason`, `again` and `close`. The `card`
 part also carries the form's name, so `::part(card bubble)` styles only the
 bubble. Each element exposes its own parts as well, listed in its source.
@@ -244,7 +291,7 @@ wrappers set props as properties instead, and turn `onX` props into
 listeners for the `vql-x` event. They work the same on React 18 and 19, and
 rendering one registers the elements. `VoqalizeLauncher`, `VoqalizeFace`,
 `VoqalizeMic`, `VoqalizeDevices`, `VoqalizeCaptions`, `VoqalizeCoach`,
-`VoqalizeStatus` and `VoqalizeEnd` wrap the parts.
+`VoqalizeMicPill`, `VoqalizeStatus` and `VoqalizeEnd` wrap the parts.
 
 The hooks read the controllers' stores with `useSyncExternalStore`:
 `useSessionState`, `useMicState`, `useCaptions`, `usePlacement`, and
@@ -256,12 +303,18 @@ The hooks read the controllers' stores with `useSyncExternalStore`:
 pnpm typecheck
 pnpm test          # unit tests, in happy-dom
 pnpm build
-pnpm size          # the launcher's and the elements' size, gzipped
+pnpm size          # every entry and lazy chunk, gzipped, against its budget
 pnpm test:pages    # every state in Chromium, under a strict CSP
+pnpm test:live     # against a running stack; see test/e2e/stack.ts
 ```
 
 `pnpm test:pages` saves a screenshot of each state to `test-results/shots`,
-or to `SHOTS_DIR` when it is set. The launcher's budget is 20 KB minified,
-which `pnpm size` checks.
+or to `SHOTS_DIR` when it is set, and the mic pill's to `PILL_SHOTS_DIR`.
+
+`pnpm size` exits 1 when an entry, counted with everything it imports up
+front, or a lazy chunk is over its gzipped budget. The budgets, and the rule
+they were set by, are in `scripts/size.mjs`. CI runs the typecheck, the unit
+tests and the size budgets on a push to `main` or `prod`
+(`.github/workflows/ci-web-library.yml`); the Playwright suites stay local.
 
 MIT licensed.
