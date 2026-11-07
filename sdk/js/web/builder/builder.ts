@@ -4,7 +4,7 @@
  *
  * Self-contained so it can move to the marketing site once the package is
  * released: it imports the package only through its public entry points
- * (`@voqalize/web`, `/widgets`, `/internal` for types, and the schema).
+ * (`@voqalize/web`, `/widgets` and the schema).
  *
  * The page takes a publishable key for "Talk to it" from the query string
  * (`?agent=…&key=pk_…&api=…`), or from the dev server's local file (see the

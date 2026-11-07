@@ -136,6 +136,29 @@ describe("InstantStartMediaManager", () => {
     expect(onDeviceError).toHaveBeenCalled();
     expect(onDeviceError.mock.calls[0]?.[0]).toMatchObject({ type: "permissions" });
   });
+
+  it("asks once when the client initialises again inside its connect", async () => {
+    // The client's connect() calls initDevices() again while the mic is still
+    // being asked for. That must not queue a second ask behind the prompt.
+    const run = async (initTwice: boolean) => {
+      const platform = promptOpen();
+      const m = manager(platform, true);
+      const onDeviceError = vi.fn();
+      m.setClientOptions({ enableMic: true, callbacks: { onDeviceError } });
+      await m.initialize();
+      if (initTwice) await m.initialize();
+      await m.connect();
+      const whilePrompting = platform.getUserMedia.mock.calls.length;
+      platform.deny();
+      await m.pending;
+      await new Promise((r) => setTimeout(r, 0));
+      return { whilePrompting, total: platform.getUserMedia.mock.calls.length, errors: onDeviceError.mock.calls.length };
+    };
+    const once = await run(false);
+    const twice = await run(true);
+    expect(twice.whilePrompting).toBe(1);
+    expect(twice).toEqual(once);
+  });
 });
 
 describe("isIOS", () => {

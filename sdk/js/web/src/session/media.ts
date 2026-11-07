@@ -62,6 +62,10 @@ export class InstantStartMediaManager extends ManagerWithOptions {
   }
 
   override async initialize(): Promise<void> {
+    // The client initialises devices again inside its own connect() while
+    // the mic is still being asked for; in instant mode that would queue a
+    // second acquisition behind the prompt. The ask in flight answers every call.
+    if (this.instant && this.acquiring) return;
     const started = this.track(super.initialize());
     if (!this.instant) return started;
   }

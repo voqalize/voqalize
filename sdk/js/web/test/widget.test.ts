@@ -293,6 +293,21 @@ describe("session events", () => {
     await captions.updateComplete;
     expect(captions.shadowRoot?.textContent).toContain("Hello");
   });
+
+  it("applies a captions change made during the call", async () => {
+    const s = new FakeSession();
+    const w = await mount(`<vql-widget></vql-widget>`, s);
+    w.sessionSource = { session_id: "s" };
+    await w.open();
+    await w.updateComplete;
+    w.config = { captions: { showUser: true } };
+    await w.updateComplete;
+    s.fire("userTranscript", "hello there", true);
+    const captions = shadow(w).querySelector("vql-captions") as HTMLElement & {
+      controller?: { getSnapshot(): { user?: string } };
+    };
+    expect(captions.controller?.getSnapshot().user).toBe("hello there");
+  });
 });
 
 describe("placement", () => {

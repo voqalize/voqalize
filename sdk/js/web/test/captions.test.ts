@@ -102,6 +102,21 @@ describe("karaoke", () => {
     expect(text(captions.getSnapshot())).toEqual(["IT COSTS $5 TODAY."]);
   });
 
+  it("moves on to the next sentence when the last word of one was said differently", () => {
+    const { captions } = make();
+    const seen: string[] = [];
+    captions.subscribe(() => {
+      const a = captions.getSnapshot().announcement;
+      if (a && !seen.includes(a.text)) seen.push(a.text);
+    });
+    captions.agentSentence("It costs $5.");
+    say(captions, "It costs five dollars.");
+    captions.agentSentence("Anything else?");
+    say(captions, "Anything else?");
+    expect(text(captions.getSnapshot()).join(" ")).toContain("ANYTHING ELSE?");
+    expect(seen).toEqual(["It costs $5.", "Anything else?"]);
+  });
+
   it("shows words that arrive before their sentence", () => {
     const { captions } = make();
     say(captions, "Hello there");
@@ -139,6 +154,20 @@ describe("modes and options", () => {
     expect(captions.getSnapshot().user).toBeUndefined();
     captions.userTranscript("hello", true);
     expect(captions.getSnapshot()).toMatchObject({ user: "hello", visible: true });
+  });
+
+  it("takes new lines, linger and showUser on a running controller", () => {
+    const { captions, t } = make({ charsPerLine: 12, lines: 1 });
+    captions.configure({ lines: 2, lingerMs: 900, showUser: true });
+    captions.agentSentence("one two three four five six");
+    say(captions, "one two three four five six");
+    expect(captions.getSnapshot().lines).toHaveLength(2);
+    captions.userTranscript("hello", true);
+    expect(captions.getSnapshot().user).toBe("hello");
+    captions.agentStopped();
+    expect(t.pending.at(-1)?.ms).toBe(900);
+    captions.configure({ showUser: false });
+    expect(captions.getSnapshot().user).toBeUndefined();
   });
 
   it("re-wraps when the width changes", () => {

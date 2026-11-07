@@ -96,6 +96,14 @@ export interface ClientLike {
 export interface MediaManagerLike {
   instant: boolean;
   bindOutputElement(element: HTMLMediaElement): () => void;
+  /**
+   * Choose the mic. Optional: when present the session calls it directly,
+   * because the client forwards the choice and drops the promise, so a
+   * refusal would surface as an unhandled rejection.
+   */
+  updateMic?(id: string): Promise<void> | void;
+  /** Choose the speaker, likewise. */
+  updateSpeaker?(id: string): Promise<void> | void;
 }
 
 export interface ClientFactoryArgs {
@@ -210,6 +218,8 @@ export class WidgetSession extends Store<SessionSnapshot> {
   /** Whether the agent was ever ready on this call: a close before that is a failed connect. */
   private wasReady = false;
   private hangingUp = false;
+  /** Bumped by every connect and hang-up: an older connect that resumes after either stops. */
+  private generation = 0;
   private lastSent: string | null = null;
 
   constructor(options: SessionOptions = {}) {
@@ -256,6 +266,8 @@ export class WidgetSession extends Store<SessionSnapshot> {
   async connect(source: SessionSource): Promise<void> {
     const status = this.getSnapshot().status;
     if (status === "connecting" || status === "connected") return;
+    const generation = ++this.generation;
+    const stale = () => generation !== this.generation || this.hangingUp;
     this.ready = false;
     this.wasReady = false;
     this.hangingUp = false;
@@ -280,12 +292,13 @@ export class WidgetSession extends Store<SessionSnapshot> {
         await devices;
         response = await fetchSession();
       }
-      if (this.hangingUp) return;
+      if (stale()) return;
       this.set({ sessionId: typeof response.session_id === "string" ? response.session_id : undefined });
       await this.client.connect(withRealHeaders(response));
+      if (stale()) return;
       if (this.getSnapshot().status === "connecting") this.set({ status: "connected" });
     } catch (error) {
-      if (this.hangingUp) return;
+      if (stale()) return;
       const message = error instanceof Error ? error.message : String(error);
       this.finish({ by: "error", reason: "connect_failed", message });
       await this.client.disconnect().catch(() => {});
@@ -297,6 +310,7 @@ export class WidgetSession extends Store<SessionSnapshot> {
     const status = this.getSnapshot().status;
     if (status === "idle" || status === "ended") return;
     this.hangingUp = true;
+    this.generation++;
     this.finish({ by: "user", reason: "hung_up" });
     await this.client.disconnect().catch(() => {});
   }
@@ -310,14 +324,35 @@ export class WidgetSession extends Store<SessionSnapshot> {
     }
   }
 
+  /** Choose the mic. A device that cannot be opened is reported as a device error. */
   selectMic(id: string): void {
-    this.client.updateMic(id);
+    this.settle(this.mediaManager.updateMic ? this.mediaManager.updateMic(id) : this.client.updateMic(id));
   }
 
-  /** Choose where the agent plays. Does nothing where the browser cannot route audio. */
+  /**
+   * Choose where the agent plays. Does nothing where the browser cannot
+   * route audio. If the browser refuses the device, the menu goes back to
+   * the speaker that is still playing.
+   */
   selectSpeaker(id: string): void {
     if (!this.getSnapshot().devices.canPickSpeaker) return;
-    this.client.updateSpeaker(id);
+    const before = this.getSnapshot().devices.speakerId;
+    const revert = () => this.setDevices({ speakerId: before });
+    try {
+      this.settle(
+        this.mediaManager.updateSpeaker ? this.mediaManager.updateSpeaker(id) : this.client.updateSpeaker(id),
+        revert,
+      );
+    } catch {
+      revert();
+    }
+  }
+
+  /** Swallow a device change's rejection, which the caller has no promise to catch. */
+  private settle(result: unknown, onError?: () => void): void {
+    if (result && typeof (result as Promise<void>).then === "function") {
+      (result as Promise<void>).then(undefined, () => onError?.());
+    }
   }
 
   // ------------------------------------------------------------- internals
@@ -402,8 +437,13 @@ export class WidgetSession extends Store<SessionSnapshot> {
     }, this.options.permissions);
   }
 
-  /** Stop listening for permission changes and unbind the audio element. */
+  /**
+   * Hang up a call still in progress, stop listening for permission changes
+   * and unbind the audio element.
+   */
   dispose(): void {
+    const status = this.getSnapshot().status;
+    if (status === "connecting" || status === "connected") void this.disconnect();
     this.stopPermissionWatch?.();
     this.stopPermissionWatch = null;
     this.unbindAudio?.();

@@ -158,6 +158,36 @@ const COACH_ASKING_DELAY_MS = 700;
 
 const CARD_WIDTH = { small: 260, medium: 320, large: 380 } as const;
 
+const objectIds = new WeakMap<object, number>();
+let nextObjectId = 0;
+
+/**
+ * A key that changes when the configuration does. JSON where it can be; a
+ * configuration JSON cannot write (a cycle, a BigInt) is keyed by the object
+ * itself, so it is parsed again only when the page passes a new one, and the
+ * parser's warnings say what is wrong with it.
+ */
+function configKey(value: [unknown, unknown]): string {
+  try {
+    return `j:${JSON.stringify(value)}`;
+  } catch {
+    const base = value[0];
+    if (typeof base !== "object" || base === null) return `v:${String(base)}:${nextObjectId++}`;
+    let id = objectIds.get(base);
+    if (id === undefined) {
+      id = nextObjectId++;
+      objectIds.set(base, id);
+    }
+    let attrs: string;
+    try {
+      attrs = JSON.stringify(value[1]);
+    } catch {
+      attrs = String(nextObjectId++);
+    }
+    return `o:${id}:${attrs}`;
+  }
+}
+
 function capitalise(s: string | undefined): string {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
 }
@@ -236,7 +266,8 @@ export class VqlWidget extends LitElement {
   private placementKey = "";
   private unsubs: (() => void)[] = [];
   private boundSession: WidgetSessionLike | undefined;
-  private ownsSession = false;
+  /** The session the widget started itself, which it ends when it is removed. A page's own is the page's to end. */
+  private ownedSession: WidgetSessionLike | undefined;
   private connectedAt: number | undefined;
   private lastMicKey = "";
   private lastAgent = "";
@@ -281,6 +312,11 @@ export class VqlWidget extends LitElement {
       this.childObserver = new MutationObserver(() => this.requestUpdate());
       this.childObserver.observe(this, { childList: true });
     }
+    // Back in the page after a removal: follow the page's session again.
+    if (this.hasUpdated && this.session && this.boundSession !== this.session) {
+      this.bindSession();
+      this.requestUpdate();
+    }
   }
 
   override disconnectedCallback(): void {
@@ -295,7 +331,11 @@ export class VqlWidget extends LitElement {
     this.resizeObserver = null;
     this.childObserver?.disconnect();
     this.childObserver = null;
-    this.unbindSession();
+    // Removed from the page: let go once the current task is over, so a
+    // widget the page only moves (removed and inserted again) keeps its call.
+    queueMicrotask(() => {
+      if (!this.isConnected) this.release();
+    });
     if (this.coachTimer) clearTimeout(this.coachTimer);
     this.coachTimer = null;
   }
@@ -396,11 +436,13 @@ export class VqlWidget extends LitElement {
         base = this.config; // the parser reports it
       }
     }
-    const key = JSON.stringify([base ?? {}, attrs]);
+    const key = configKey([base ?? {}, attrs]);
     if (key !== this.cfgKey) {
       this.cfgKey = key;
       this.cfg = parseWidgetConfig(mergeInput(base ?? {}, attrs), this.warn);
-      this.captions?.setMode(this.cfg.captions.mode);
+      const c = this.cfg.captions;
+      this.captions?.setMode(c.mode);
+      this.captions?.configure({ lines: c.lines, lingerMs: captionLinger(c.linger), showUser: c.showUser });
     }
     this.t = translator(this.cfg.words, pageLanguage(this), this.displayName());
     this.syncPlacement();
@@ -548,7 +590,13 @@ export class VqlWidget extends LitElement {
 
   private bindSession(): void {
     if (this.boundSession === this.session) return;
+    const previous = this.boundSession;
     this.unbindSession();
+    // A session the widget started, replaced by another: its call ends.
+    if (previous && previous === this.ownedSession && previous !== this.session) {
+      this.ownedSession = undefined;
+      previous.dispose?.();
+    }
     const s = this.session;
     this.boundSession = s;
     if (!s) {
@@ -557,8 +605,12 @@ export class VqlWidget extends LitElement {
       return;
     }
     const c = this.cfg.captions;
-    const linger = typeof c.linger === "number" ? c.linger : parseLinger(c.linger);
-    this.captions = new CaptionsController({ mode: c.mode, lines: c.lines, lingerMs: linger, showUser: c.showUser });
+    this.captions = new CaptionsController({
+      mode: c.mode,
+      lines: c.lines,
+      lingerMs: captionLinger(c.linger),
+      showUser: c.showUser,
+    });
     this.unsubs.push(bindCaptions(s, this.captions));
     const onSession = () => this.onSession(s.getSnapshot());
     const onMic = () => this.onMic(s.mic.getSnapshot());
@@ -572,8 +624,26 @@ export class VqlWidget extends LitElement {
     this.unsubs = [];
     this.captions?.reset();
     this.captions = null;
-    if (this.ownsSession) this.boundSession?.dispose?.();
     this.boundSession = undefined;
+  }
+
+  /**
+   * The widget left the page. A call it started itself is hung up, since
+   * nothing could show it or end it any more; a session the page passed in
+   * is only let go of.
+   */
+  private release(): void {
+    this.unbindSession();
+    const owned = this.ownedSession;
+    if (!owned) return;
+    this.ownedSession = undefined;
+    owned.dispose?.();
+    if (this.session === owned) {
+      this.session = undefined;
+      this.sessionSnap = undefined;
+      this.micSnap = undefined;
+    }
+    this.view = "closed";
   }
 
   private onSession(snap: SessionSnapshot): void {
@@ -628,13 +698,19 @@ export class VqlWidget extends LitElement {
     if (!source) return; // a session shown without a call, as a preview is
     if (!this.session) {
       const { WidgetSession } = await import("../session/adapter.js");
-      this.ownsSession = true;
-      this.session = new WidgetSession({
+      const own = new WidgetSession({
         instantStart: this.cfg.mic.instantStart,
         instantStartOnIOS: this.instantStartOnIOS,
         silenceHint: this.cfg.mic.silenceHint,
       });
+      this.ownedSession = own;
+      this.session = own;
       await this.updateComplete;
+      // Removed from the page while the session module loaded.
+      if (!this.isConnected) {
+        this.release();
+        return;
+      }
     }
     await this.session?.connect(source);
   }
@@ -1370,6 +1446,7 @@ export class VqlWidget extends LitElement {
       .level=${mic?.level ?? 0}
       meter=${c.mic.level}
       ?hint=${mic?.hint ?? false}
+      .muted=${mic?.muted ?? false}
       ?devices=${showDevices}
       .expanded=${this.devicesOpen}
       .t=${this.t}
@@ -1494,6 +1571,10 @@ export class VqlWidget extends LitElement {
     this.emit("vql-open", {});
     await this.startCall();
   }
+}
+
+function captionLinger(value: number | string): number {
+  return typeof value === "number" ? value : parseLinger(value);
 }
 
 function parseLinger(value: string): number {

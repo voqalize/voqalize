@@ -89,6 +89,11 @@ export function createComponent<E extends HTMLElement, P extends object>(
     const local = useRef<E | null>(null);
     const handlers = useRef<Record<string, Handler>>({});
     const listening = useRef<Map<string, (e: Event) => void>>(new Map());
+    /**
+     * Each prop set last render, and for a property the element's own value
+     * before the first set: a prop the page stops passing goes back to it.
+     */
+    const applied = useRef<Map<string, { property: boolean; original: unknown }>>(new Map());
     const all = props as Record<string, unknown>;
 
     const setRef = useCallback(
@@ -104,13 +109,16 @@ export function createComponent<E extends HTMLElement, P extends object>(
       const el = local.current as unknown as (HTMLElement & Record<string, unknown>) | null;
       if (!el) return;
       const nextHandlers: Record<string, Handler> = {};
+      const seen = new Set<string>();
       for (const [name, value] of Object.entries(all)) {
         if (PASSTHROUGH.has(name)) continue;
         if (/^on[A-Z]/.test(name)) {
           if (typeof value === "function") nextHandlers[eventName(name)] = value as Handler;
           continue;
         }
+        seen.add(name);
         if (name in el) {
+          if (!applied.current.has(name)) applied.current.set(name, { property: true, original: el[name] });
           if (el[name] !== value) el[name] = value;
         } else if (value === undefined || value === null || value === false) {
           el.removeAttribute(attributeName(name));
@@ -118,6 +126,14 @@ export function createComponent<E extends HTMLElement, P extends object>(
           // An element with attributes only, such as the launcher.
           el.setAttribute(attributeName(name), value === true ? "" : String(value));
         }
+        if (!applied.current.has(name)) applied.current.set(name, { property: false, original: undefined });
+      }
+      // Props the page stopped passing: back to the element's own value.
+      for (const [name, was] of applied.current) {
+        if (seen.has(name)) continue;
+        applied.current.delete(name);
+        if (was.property) el[name] = was.original;
+        else el.removeAttribute(attributeName(name));
       }
       handlers.current = nextHandlers;
       for (const type of Object.keys(nextHandlers)) {
@@ -173,7 +189,7 @@ export const VoqalizeFace = createComponent<
 
 export const VoqalizeMic = createComponent<
   VqlMic,
-  Props<VqlMic, "state" | "level" | "meter" | "hint" | "devices" | "expanded" | "scheme" | "t"> & {
+  Props<VqlMic, "state" | "level" | "meter" | "hint" | "muted" | "devices" | "expanded" | "scheme" | "t"> & {
     onMute?: EventProp<{ muted: boolean }>;
     onDevices?: EventProp<{ open: boolean }>;
   }

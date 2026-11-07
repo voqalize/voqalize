@@ -60,11 +60,14 @@ importers:
   sdk/js/web:
     dependencies:
       '@pipecat-ai/client-js':
-        specifier: ~1.13.0
+        specifier: 1.13.1
         version: 1.13.1
       '@pipecat-ai/small-webrtc-transport':
-        specifier: ~1.10.8
+        specifier: 1.10.8
         version: 1.10.8(@pipecat-ai/client-js@1.13.1)
+      '@voqalize/avatar':
+        specifier: ^0.7.1
+        version: 0.7.1(@pipecat-ai/client-js@1.13.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@voqalize/client-transport':
         specifier: 0.4.1
         version: 0.4.1(@pipecat-ai/client-js@1.13.1)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.13.1))
@@ -85,7 +88,7 @@ importers:
         specifier: 0.25.12
         version: 0.25.12
       happy-dom:
-        specifier: ^20.14.6
+        specifier: 20.14.6
         version: 20.14.6
       react:
         specifier: 18.3.1
@@ -94,10 +97,10 @@ importers:
         specifier: 18.3.1
         version: 18.3.1(react@18.3.1)
       typescript:
-        specifier: ^5.8.3
+        specifier: 5.9.3
         version: 5.9.3
       vitest:
-        specifier: ^2.1.9
+        specifier: 2.1.9
         version: 2.1.9(@types/node@25.9.5)(happy-dom@20.14.6)
 
 packages:
@@ -1349,6 +1352,21 @@ packages:
 
   '@voqalize/avatar@0.7.0':
     resolution: {integrity: sha512-obixQs8GmkXTn0vzC9gNX5S9Y3r5R0Nq9sVoYcpu+QIZJdEZ5qfC/UujAPzk1dCVqzPo9Tpi4RuUZ4tdbnqzIw==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      '@pipecat-ai/client-js': '>=1.4 <2'
+      react: '>=18'
+      react-dom: '>=18'
+    peerDependenciesMeta:
+      '@pipecat-ai/client-js':
+        optional: true
+      react:
+        optional: true
+      react-dom:
+        optional: true
+
+  '@voqalize/avatar@0.7.1':
+    resolution: {integrity: sha512-WIwdFrkZb9Ccp+7q5lFv+O9r9o98HIwkjs0uYAlIL96h/TqiFIx+/XB+08PH3GD2EtkLxuZLqUQehLXgl4b81g==}
     engines: {node: '>=20'}
     peerDependencies:
       '@pipecat-ai/client-js': '>=1.4 <2'
@@ -4158,6 +4176,12 @@ snapshots:
       tinyrainbow: 1.2.0
 
   '@voqalize/avatar@0.7.0(@pipecat-ai/client-js@1.13.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    optionalDependencies:
+      '@pipecat-ai/client-js': 1.13.1
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+
+  '@voqalize/avatar@0.7.1(@pipecat-ai/client-js@1.13.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     optionalDependencies:
       '@pipecat-ai/client-js': 1.13.1
       react: 18.3.1

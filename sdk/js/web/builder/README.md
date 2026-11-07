@@ -47,8 +47,7 @@ builder carries it. The publishable key is never put there.
 ## Moving it to voqalize.com/widget
 
 The builder imports only the package's public entry points (`@voqalize/web`,
-`@voqalize/web/widgets`, the schema, and types from `@voqalize/web/internal`),
-so it can move to the marketing site once a release of the package is on npm.
+`@voqalize/web/widgets` and the schema), so it can move to the marketing site once a release of the package is on npm.
 `serve.mjs` is a dev server only. The site would bundle `builder.ts` and
 `preview.ts` itself and serve the HTML, CSS and still beside them.
 

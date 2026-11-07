@@ -14,6 +14,7 @@
  */
 
 import { LitElement, type PropertyValues, css, html, nothing } from "lit";
+import { keyed } from "lit/directives/keyed.js";
 import type { CaptionsController, CaptionsSnapshot } from "../controllers/captions.js";
 import type { ReadableStore } from "../controllers/store.js";
 import { themeStyles } from "./theme.js";
@@ -43,7 +44,7 @@ export class VqlCaptions extends LitElement {
 
   private unsubscribe: (() => void) | null = null;
   private resize: ResizeObserver | null = null;
-  private announced = "";
+  private announced: { id: number; text: string } | null = null;
   private lastAnnouncementId = -1;
 
   constructor() {
@@ -129,7 +130,7 @@ export class VqlCaptions extends LitElement {
     const a = this.snapshot.announcement;
     if (a && a.id !== this.lastAnnouncementId) {
       this.lastAnnouncementId = a.id;
-      this.announced = a.text;
+      this.announced = { id: a.id, text: a.text };
     }
   }
 
@@ -170,7 +171,7 @@ export class VqlCaptions extends LitElement {
         ${s.user ? html`<span class="user" part="user">${s.user}</span>` : nothing}
       </div>
       <div class="sr-only" part="live" role="log" aria-live="polite" aria-label=${this.t("captions.label")}>
-        ${this.announced}
+        ${this.announced ? keyed(this.announced.id, html`<p>${this.announced.text}</p>`) : nothing}
       </div>`;
   }
 }

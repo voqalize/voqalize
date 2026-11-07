@@ -263,6 +263,34 @@ describe("devices", () => {
     expect(client.updateSpeaker).toHaveBeenCalledWith("s1");
   });
 
+  it("never leaves a refused device change as an unhandled rejection, and reverts the speaker", async () => {
+    const refused = Promise.reject(new Error("NotFoundError"));
+    refused.catch(() => {});
+    const media: MediaManagerLike = {
+      instant: false,
+      bindOutputElement: () => () => {},
+      updateMic: vi.fn(() => Promise.reject(new Error("NotReadableError"))),
+      updateSpeaker: vi.fn(() => Promise.reject(new Error("NotFoundError"))),
+    };
+    const unhandled = vi.fn();
+    process.on("unhandledRejection", unhandled);
+    try {
+      const { session, client, cb } = setup({ createMediaManager: () => media });
+      cb().onSpeakerUpdated?.({ deviceId: "s0" } as MediaDeviceInfo);
+      session.selectMic("m2");
+      session.selectSpeaker("s1");
+      await tick();
+      await tick();
+      expect(media.updateMic).toHaveBeenCalledWith("m2");
+      expect(media.updateSpeaker).toHaveBeenCalledWith("s1");
+      expect(client.updateMic).not.toHaveBeenCalled();
+      expect(session.getSnapshot().devices.speakerId).toBe("s0");
+      expect(unhandled).not.toHaveBeenCalled();
+    } finally {
+      process.off("unhandledRejection", unhandled);
+    }
+  });
+
   it("offers no speaker picker where setSinkId is missing", () => {
     const { session, client } = setup({ canPickSpeaker: false });
     expect(session.getSnapshot().devices.canPickSpeaker).toBe(false);
@@ -323,6 +351,49 @@ describe("end reason", () => {
     cb().onDeviceError?.({ devices: ["mic"], type: "permissions" } as never);
     cb().onDisconnected?.();
     expect(session.getSnapshot().end).toMatchObject({ by: "error", reason: "connect_failed" });
+  });
+
+  it("does not let a connect the visitor hung up on carry on into the next call", async () => {
+    const { session, client } = setup();
+    const first = deferred<typeof SESSION>();
+    const second = deferred<typeof SESSION>();
+    client.init.resolve();
+    const a = session.connect(() => first.promise);
+    await session.disconnect();
+    const b = session.connect(() => second.promise);
+    first.resolve({ ...SESSION, session_id: "sess_first" });
+    await tick();
+    expect(client.connectedWith).toBeUndefined();
+    second.resolve(SESSION);
+    await tick();
+    expect(client.connectedWith).toMatchObject({ session_id: "sess_example" });
+    client.connectResult.resolve({});
+    await Promise.all([a, b]);
+    expect(session.getSnapshot()).toMatchObject({ status: "connected", sessionId: "sess_example" });
+  });
+
+  it("does not end the next call when a connect the visitor hung up on fails", async () => {
+    const { session, client } = setup();
+    const first = deferred<typeof SESSION>();
+    client.init.resolve();
+    const a = session.connect(() => first.promise);
+    await session.disconnect();
+    const b = session.connect(SESSION);
+    first.reject(new Error("too late"));
+    await a;
+    expect(session.getSnapshot().status).toBe("connecting");
+    client.connectResult.resolve({});
+    await b;
+    expect(session.getSnapshot().status).toBe("connected");
+  });
+
+  it("hangs up a call in progress when disposed", async () => {
+    const { session, client } = setup();
+    void session.connect(SESSION);
+    client.init.resolve();
+    session.dispose();
+    expect(client.disconnect).toHaveBeenCalled();
+    expect(session.getSnapshot().status).toBe("ended");
   });
 
   it("starts clean on the next call", async () => {

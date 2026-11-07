@@ -37,6 +37,18 @@ export {
 } from "./config/site-settings.js";
 
 export { type ReadableStore, Store } from "./controllers/store.js";
+// The shapes a session gives the widget, for a page that implements
+// `WidgetSessionLike` itself (a preview, a replay). Types only: the session
+// that makes calls stays internal.
+export type {
+  AgentState,
+  DeviceSnapshot,
+  EndReason,
+  SessionEvents,
+  SessionSnapshot,
+  SessionSource,
+  SessionStatus,
+} from "./session/adapter.js";
 export {
   MicController,
   type MicControllerOptions,

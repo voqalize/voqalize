@@ -7,8 +7,14 @@
  * package internals when it moves to the marketing site.
  */
 
-import type { SessionEvents, SessionSnapshot, SessionSource } from "@voqalize/web/internal";
-import { type MicSnapshot, Store, type WidgetSessionLike } from "@voqalize/web/widgets";
+import {
+  type MicSnapshot,
+  type SessionEvents,
+  type SessionSnapshot,
+  type SessionSource,
+  Store,
+  type WidgetSessionLike,
+} from "@voqalize/web/widgets";
 
 class Patchable<T> extends Store<T> {
   patch(p: Partial<T>): void {

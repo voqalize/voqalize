@@ -141,6 +141,20 @@ describe("parts", () => {
     expect(meterLevel(1)).toBe(1);
   });
 
+  it("mic: unmutes a mic muted while the prompt was still open", async () => {
+    // Muted before the mic went live: the state is still "asking", and the
+    // next press must unmute, not mute again.
+    const el = await make<Lit & { muted: boolean }>(`<vql-mic state="asking"></vql-mic>`);
+    el.muted = true;
+    await el.updateComplete;
+    const seen: unknown[] = [];
+    el.addEventListener("vql-mute", (e) => seen.push((e as CustomEvent).detail));
+    const button = el.shadowRoot?.querySelector("button") as HTMLButtonElement;
+    expect(button.getAttribute("aria-pressed")).toBe("true");
+    button.click();
+    expect(seen).toEqual([{ muted: false }]);
+  });
+
   it("devices: selects a mic and closes on Escape", async () => {
     const el = await make<Lit & { mics: unknown[] }>(`<vql-devices></vql-devices>`);
     el.mics = [
@@ -165,6 +179,20 @@ describe("parts", () => {
     const live = el.shadowRoot?.querySelector("[aria-live=polite]");
     expect(live?.textContent?.trim()).toBe("Hi.");
     expect(el.shadowRoot?.querySelector("[part~=current]")?.textContent).toBe("Hi");
+  });
+
+  it("captions: announces a sentence again when the agent repeats it", async () => {
+    const el = await make<Lit & { snapshot: unknown }>(`<vql-captions></vql-captions>`);
+    const say = async (id: number) => {
+      el.snapshot = { visible: true, lines: [], announcement: { id, text: "Sorry?" } };
+      await el.updateComplete;
+      return el.shadowRoot?.querySelector("[aria-live=polite] p");
+    };
+    const first = await say(1);
+    const again = await say(2);
+    expect(again?.textContent).toBe("Sorry?");
+    // A new node, so the live region reads it out again.
+    expect(again).not.toBe(first);
   });
 
   it("coach: renders only for a mic the agent cannot hear", async () => {

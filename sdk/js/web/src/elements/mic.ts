@@ -6,6 +6,9 @@
  * parts) sets `state`, `level` and `hint` from the session's mic store.
  *
  * - `state`: `idle`, `asking`, `live`, `blocked`, `missing` or `muted`.
+ * - `muted`: whether the visitor muted. It can be set while the state is
+ *   still `asking`, `blocked` or `missing`, before there is a track to mute,
+ *   so the button reads it rather than inferring it from `state`.
  * - `level`: the local level, 0–1, from the transport's 100 ms meter.
  * - `meter`: `ring` (default), `bars` or `off` — the configuration's `mic.level`.
  * - `devices`: show the caret for the device menu.
@@ -41,6 +44,7 @@ export class VqlMic extends LitElement {
     level: { type: Number },
     meter: { reflect: true },
     hint: { type: Boolean, reflect: true },
+    muted: { type: Boolean },
     devices: { type: Boolean, reflect: true },
     expanded: { type: Boolean },
     scheme: { reflect: true },
@@ -51,6 +55,7 @@ export class VqlMic extends LitElement {
   declare level: number;
   declare meter: "ring" | "bars" | "off";
   declare hint: boolean;
+  declare muted: boolean;
   declare devices: boolean;
   declare expanded: boolean;
   declare scheme: string | undefined;
@@ -63,6 +68,7 @@ export class VqlMic extends LitElement {
     this.level = 0;
     this.meter = "ring";
     this.hint = false;
+    this.muted = false;
     this.devices = false;
     this.expanded = false;
     this.t = translator(undefined, "en", "");
@@ -148,8 +154,13 @@ export class VqlMic extends LitElement {
     `,
   ];
 
+  /** Whether the visitor muted, from either the property or the state. */
+  private get isMuted(): boolean {
+    return this.muted || this.state === "muted";
+  }
+
   private toggle(): void {
-    const muted = this.state !== "muted";
+    const muted = !this.isMuted;
     this.dispatchEvent(new CustomEvent("vql-mute", { detail: { muted }, bubbles: true, composed: true }));
   }
 
@@ -160,7 +171,7 @@ export class VqlMic extends LitElement {
   }
 
   protected override render() {
-    const muted = this.state === "muted";
+    const muted = this.isMuted;
     const off = muted || this.state === "blocked" || this.state === "missing";
     const level = this.state === "live" ? meterLevel(this.level) : 0;
     const ring =

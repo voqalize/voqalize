@@ -53,7 +53,7 @@ gives a `sessionSource` that mints the connection.
 
 ### States
 
-The widget reflects where it is as two attributes, `view` and `form`:
+The widget reflects where it is as attributes, `view` and `form`:
 
 - **closed**, before a call: `pill`, `face`, `card`, or `none` (the page
   opens it from its own button, or from a `launcher` slot);

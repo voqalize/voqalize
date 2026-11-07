@@ -81,9 +81,9 @@ const EMPTY: CaptionsSnapshot = { visible: false, lines: [] };
 
 export class CaptionsController extends Store<CaptionsSnapshot> {
   private mode: CaptionsMode;
-  private readonly maxLines: number;
-  private readonly lingerMs: number;
-  private readonly showUser: boolean;
+  private maxLines: number;
+  private lingerMs: number;
+  private showUser: boolean;
   private charsPerLine: number;
   private readonly schedule: (fn: () => void, ms: number) => unknown;
   private readonly cancel: (handle: unknown) => void;
@@ -111,6 +111,17 @@ export class CaptionsController extends Store<CaptionsSnapshot> {
     this.render();
   }
 
+  /** Change the line count, the linger and `showUser` on a running controller, as a configuration change does. */
+  configure(options: Pick<CaptionsOptions, "lines" | "lingerMs" | "showUser">): void {
+    if (options.lines !== undefined) this.maxLines = Math.max(1, Math.floor(options.lines));
+    if (options.lingerMs !== undefined) this.lingerMs = Math.max(0, options.lingerMs);
+    if (options.showUser !== undefined) {
+      this.showUser = options.showUser;
+      if (!this.showUser) this.user = undefined;
+    }
+    this.render();
+  }
+
   setCharsPerLine(chars: number): void {
     const next = Math.max(8, Math.floor(chars));
     if (next === this.charsPerLine) return;
@@ -134,6 +145,12 @@ export class CaptionsController extends Store<CaptionsSnapshot> {
       return;
     }
     this.provisional = false;
+    // A sentence starts to play only once the ones before it have: any word
+    // of theirs still unlit was one the voice said differently ("$5" read
+    // as "five dollars"), so they are done. Otherwise their cursor would
+    // hold every later word back.
+    for (const earlier of this.sentences) earlier.spoken = earlier.words.length;
+    this.finishSentences();
     this.sentences.push({ words, spoken: 0, announced: false });
     this.render();
   }

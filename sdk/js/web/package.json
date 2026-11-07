@@ -1,7 +1,7 @@
 {
   "name": "@voqalize/web",
   "version": "0.1.0",
-  "private": false,
+  "private": true,
   "description": "Voqalize in the browser: the widget, its parts, its configuration and headless controllers, over the session. Pre-release; not published.",
   "license": "MIT",
   "repository": {
@@ -54,14 +54,15 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "build": "tsc -p tsconfig.build.json",
+    "prepack": "tsc -p tsconfig.build.json",
     "size": "node scripts/size.mjs",
     "test:pages": "playwright test",
     "test:live": "playwright test --project live",
     "builder": "node builder/serve.mjs"
   },
   "dependencies": {
-    "@pipecat-ai/client-js": "~1.13.0",
-    "@pipecat-ai/small-webrtc-transport": "~1.10.8",
+    "@pipecat-ai/client-js": "1.13.1",
+    "@pipecat-ai/small-webrtc-transport": "1.10.8",
     "@voqalize/client-transport": "0.4.1",
     "lit": "3.3.2"
   },
@@ -70,14 +71,14 @@
     "@types/react": "18.3.23",
     "@types/react-dom": "18.3.7",
     "esbuild": "0.25.12",
-    "happy-dom": "^20.14.6",
+    "happy-dom": "20.14.6",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "typescript": "^5.8.3",
-    "vitest": "^2.1.9"
+    "typescript": "5.9.3",
+    "vitest": "2.1.9"
   },
   "peerDependencies": {
-    "@voqalize/avatar": ">=0.7.1",
+    "@voqalize/avatar": "^0.7.1",
     "react": ">=18",
     "react-dom": ">=18"
   },

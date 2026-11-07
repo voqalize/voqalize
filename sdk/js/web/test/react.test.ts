@@ -43,6 +43,26 @@ describe("React wrappers", () => {
     expect(seen).toEqual(["hangup"]);
   });
 
+  it("puts back a prop the page stops passing", () => {
+    const config = { name: "Emily" };
+    const { host, root } = mount(
+      createElement("div", null, [
+        createElement(VoqalizeWidget, { key: "w", config }),
+        createElement(VoqalizeLauncher, { key: "l", variant: "face" }),
+      ]),
+    );
+    const w = host.querySelector("vql-widget") as VqlWidget;
+    const original = (document.createElement("vql-widget") as VqlWidget).config;
+    expect(w.config).toBe(config);
+    act(() =>
+      root.render(
+        createElement("div", null, [createElement(VoqalizeWidget, { key: "w" }), createElement(VoqalizeLauncher, { key: "l" })]),
+      ),
+    );
+    expect(w.config).toEqual(original);
+    expect(host.querySelector("vql-launcher")?.hasAttribute("variant")).toBe(false);
+  });
+
   it("re-renders hooks on store changes", () => {
     const s = new FakeSession();
     const seen: string[] = [];
