@@ -244,6 +244,8 @@ export class VqlWidget extends LitElement {
   private drag: { id: number; x: number; y: number; started: boolean; sheet: boolean } | null = null;
   private suppressClick = false;
   private resizeObserver: ResizeObserver | null = null;
+  /** Re-renders when the page adds or removes a slotted launcher. */
+  private childObserver: MutationObserver | null = null;
   private cramped = false;
   private coachTimer: ReturnType<typeof setTimeout> | null = null;
   private focusAfterRender: "launcher" | "open" | "expand" | null = null;
@@ -275,6 +277,10 @@ export class VqlWidget extends LitElement {
     if (typeof ResizeObserver !== "undefined") {
       this.resizeObserver = new ResizeObserver(() => this.queueLayout());
     }
+    if (typeof MutationObserver !== "undefined") {
+      this.childObserver = new MutationObserver(() => this.requestUpdate());
+      this.childObserver.observe(this, { childList: true });
+    }
   }
 
   override disconnectedCallback(): void {
@@ -285,6 +291,8 @@ export class VqlWidget extends LitElement {
     globalThis.visualViewport?.removeEventListener("scroll", this.onWindowChange);
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
+    this.childObserver?.disconnect();
+    this.childObserver = null;
     this.unbindSession();
     if (this.coachTimer) clearTimeout(this.coachTimer);
     this.coachTimer = null;
@@ -1183,7 +1191,7 @@ export class VqlWidget extends LitElement {
   }
 
   private hasLauncherSlot(): boolean {
-    return this.querySelector(":scope > [slot='launcher']") !== null;
+    return Array.from(this.children).some((el) => el.getAttribute("slot") === "launcher");
   }
 
   protected override render() {
