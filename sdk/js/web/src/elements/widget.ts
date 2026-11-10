@@ -97,6 +97,7 @@ export const CONFIG_ATTRIBUTES: Readonly<Record<string, string>> = {
   captions: "captions.mode",
   "mic-level": "mic.level",
   "instant-start": "mic.instantStart",
+  "alert-tone": "mic.alertTone",
   brand: "theme.brand",
   scheme: "theme.scheme",
 };
@@ -207,7 +208,6 @@ export class VqlWidget extends LitElement {
     init: { attribute: false },
     apiBase: { attribute: "api-base" },
     statusLabel: { attribute: "status-label" },
-    instantStartOnIOS: { attribute: false },
     browser: { attribute: false },
     view: { reflect: true },
     form: { reflect: true },
@@ -238,8 +238,6 @@ export class VqlWidget extends LitElement {
   declare apiBase: string | undefined;
   /** A status word set by the page or a brain's action, over the agent's state. */
   declare statusLabel: string | undefined;
-  /** Library flag: allow instant start on iPhone and iPad. Off until tested on real devices. */
-  declare instantStartOnIOS: boolean;
   /** The browser the coach mark writes for. Detected when unset. */
   declare browser: BrowserKind | undefined;
   /** Where the visitor is. Read it; change it with the methods. */
@@ -303,7 +301,6 @@ export class VqlWidget extends LitElement {
     this.coachCheck = false;
     this.hasSide = false;
     this.narrow = false;
-    this.instantStartOnIOS = false;
     this.addEventListener("keydown", (e) => this.onKeydown(e));
   }
 
@@ -737,10 +734,10 @@ export class VqlWidget extends LitElement {
         this.coachReady = true;
       }
     }
-    const key = `${snap.state}:${snap.hint}`;
+    const key = `${snap.state}:${snap.micHint}:${snap.hint}`;
     if (key !== this.lastMicKey) {
       this.lastMicKey = key;
-      if (snap.state !== "idle") this.emit("vql-mic", { state: snap.state, hint: snap.hint });
+      if (snap.state !== "idle") this.emit("vql-mic", { state: snap.state, hint: snap.hint, micHint: snap.micHint });
     }
   }
 
@@ -753,8 +750,8 @@ export class VqlWidget extends LitElement {
       const { WidgetSession } = await import("../session/adapter.js");
       const own = new WidgetSession({
         instantStart: this.cfg.mic.instantStart,
-        instantStartOnIOS: this.instantStartOnIOS,
         silenceHint: this.cfg.mic.silenceHint,
+        alertTone: this.cfg.mic.alertTone,
       });
       this.ownedSession = own;
       this.session = own;
@@ -1433,16 +1430,16 @@ export class VqlWidget extends LitElement {
     const pill: MicPillKind | null = inCall && !ended ? micPillOf(mic, { askingSettled: this.coachReady }) : null;
     const pillOn = c.mic.pill && pill !== null && !collapsed;
     const coachCheck = this.coachCheck && pill === "check";
-    // A track the system muted reads as "missing" on the wire, but the mic
-    // is there: the advice is the "is it working?" kind, not "plug one in".
-    const coachState = coachCheck || (micState === "missing" && mic?.trackMuted) ? "check" : micState;
+    const coachState = coachCheck ? "check" : micState;
     const coachWanted =
       c.mic.coach &&
       (open || collapsed) &&
       (micOff || coachCheck) &&
       this.coachReady &&
       !this.coachDismissed &&
-      !(micState === "asking" && mic?.permission === "granted") &&
+      // Asking with nothing to say: the browser already has a grant and is
+      // about to answer, or has not said yet.
+      !(micState === "asking" && mic?.micHint !== "grant") &&
       inCall;
     const coachOn = coachWanted && this.ready("vql-coach");
     const pillShown = pillOn && this.ready("vql-mic-pill");
@@ -1619,9 +1616,7 @@ export class VqlWidget extends LitElement {
         ${cssProps(this.dockPosition())}
         @pointerdown=${(e: PointerEvent) => this.onPointerDown(e)}
       >
-        ${c.mic.pill
-          ? html`<span class="sr-only mic-said" role="status" aria-live="polite">${pillOn && pill ? this.t(`pill.${pill}`) : ""}</span>`
-          : nothing}
+        <span class="sr-only mic-said" role="status" aria-live="polite">${inCall && !ended ? this.micSaid(mic, pill) : ""}</span>
         <div class=${this.hasSide && open && form === "card" ? `card ${cardForm} with-side` : `card ${cardForm}`} part="card ${form}">
           <div class="main-col">
             ${form === "sheet" ? html`<div class="sheet-handle" part="sheet-handle" aria-hidden="true"><span></span></div>` : nothing}
@@ -1648,6 +1643,19 @@ export class VqlWidget extends LitElement {
             }}
           ></vql-coach>`
         : nothing}`;
+  }
+
+  /**
+   * What a screen reader hears about the mic, said once when it changes:
+   * the pill's words where there is a pill, and the coach's advice where
+   * there is not, so a page that hides both still tells the visitor.
+   */
+  private micSaid(mic: MicSnapshot | undefined, pill: MicPillKind | null): string {
+    if (!mic || !pill) return "";
+    if (this.cfg.mic.pill) return this.t(`pill.${pill}`);
+    if (pill === "muted") return this.t("status.muted");
+    if (pill === "check") return this.t(mic.hint ? "mic.hint" : "coach.missing");
+    return this.t(mic.micHint === "blocked" ? "coach.blocked" : "coach.asking");
   }
 
   /**

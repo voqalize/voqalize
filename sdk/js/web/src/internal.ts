@@ -24,6 +24,6 @@ export {
   mintSession,
   withRealHeaders,
 } from "./session/adapter.js";
-export { InstantStartMediaManager, type MediaPlatformOptions, isIOS } from "./session/media.js";
+export { TONE_AGAIN_MS, type TonePlayer, createTonePlayer } from "./session/tone.js";
 
 export { bindCaptions, type CaptionEventSource } from "./controllers/bind-captions.js";

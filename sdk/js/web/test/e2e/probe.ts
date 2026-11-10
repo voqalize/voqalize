@@ -13,13 +13,15 @@
  *   renegotiated the connection.
  * - `getStats()` samples every 100 ms: the first inbound audio energy is the
  *   moment the agent's audio reached the browser.
+ * - Every oscillator started, with its pitch: the widget's attention tone is
+ *   the only thing on the page that makes one.
  */
 
 export interface ProbeEvent {
   /** Milliseconds since the probe was installed. */
   t: number;
   /** `in` from the runtime, `out` from the browser, `mic`, `pc`, `net` and `ui` local. */
-  dir: "in" | "out" | "mic" | "pc" | "net" | "ui";
+  dir: "in" | "out" | "mic" | "pc" | "net" | "ui" | "tone";
   type: string;
   data?: unknown;
 }
@@ -72,6 +74,12 @@ export function installProbe(): void {
     }
     if (ctx.state === "suspended") void ctx.resume();
     return dest;
+  };
+
+  const realStart = OscillatorNode.prototype.start;
+  OscillatorNode.prototype.start = function (this: OscillatorNode, when?: number) {
+    push("tone", "oscillator-start", { frequency: this.frequency.value });
+    return realStart.call(this, when);
   };
 
   const realGetUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);

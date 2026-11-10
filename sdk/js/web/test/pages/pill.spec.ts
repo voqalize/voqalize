@@ -1,6 +1,6 @@
 /**
  * The mic pill in a real browser, under the strict CSP: each state it can
- * show, light and dark, and the track, device and permission events that
+ * show, light and dark, and the media manager's mic state and hint that
  * move it, through the package's own session. Also that a page with
  * captions, the device menu and the coach mark off never fetches their code.
  *
@@ -56,7 +56,7 @@ async function expectPill(page: Page, kind: string | null, text = ""): Promise<v
 const vql = (page: Page, action: string) =>
   page.evaluate((a) => (window as unknown as { __vql: Record<string, () => void> }).__vql[a](), action);
 
-const wire = (page: Page) => page.evaluate(() => (window as unknown as { __vql: { wire(): unknown[] } }).__vql.wire());
+const sent = (page: Page) => page.evaluate(() => (window as unknown as { __vql: { sent(): unknown[] } }).__vql.sent());
 
 const STATES: { state: string; kind: string; text: string; size?: { width: number; height: number } }[] = [
   { state: "pill-permission", kind: "permission", text: "Grant mic permission" },
@@ -105,44 +105,27 @@ test("pressing the check pill on a phone shows this platform's advice", async ({
 });
 
 for (const scheme of ["light", "dark"] as const) {
-  test(`the real session's track, device and permission events move the pill (${scheme})`, async ({ page }) => {
+  test(`the media manager's mic state and hint move the pill (${scheme})`, async ({ page }) => {
     await page.setViewportSize(DESKTOP);
     await load(page, "pill-real", scheme);
     await expect(widget(page).locator("vql-mic")).toHaveAttribute("state", "live");
     await expectPill(page, null);
 
-    // The system muted the track (a hardware switch, another app).
-    await vql(page, "muteTrack");
-    await expectPill(page, "check", "Is your mic working?");
-    await expect(widget(page).locator("vql-coach")).toHaveAttribute("state", "check");
-    await page.screenshot({ path: join(SHOTS, `pill-track-muted-${scheme}.png`) });
-    await vql(page, "unmuteTrack");
-    await expectPill(page, null);
-
-    // The device left.
-    await vql(page, "unplug");
+    // The device left, or the system silenced it.
+    await vql(page, "lose");
     await expectPill(page, "check", "Is your mic working?");
     await expect(widget(page).locator("vql-coach")).toHaveAttribute("state", "missing");
+    // The chip agrees with the pill rather than saying "Listening".
+    await expect(widget(page).locator("vql-status")).toHaveAttribute("unheard", "");
+    await expect(widget(page).locator("vql-status [part=word]")).toHaveText("Can't hear you");
     await page.screenshot({ path: join(SHOTS, `pill-device-gone-${scheme}.png`) });
+    await vql(page, "restore");
+    await expectPill(page, null);
 
-    const sent = (await wire(page)) as { state: string }[];
-    expect(sent.map((m) => m.state)).toEqual(["asking", "live", "missing", "live", "missing"]);
+    // Nothing about the mic goes to the agent.
+    expect(await sent(page)).toEqual([]);
   });
 }
-
-test("an ended track shows the check pill and goes out as missing", async ({ page }) => {
-  await page.setViewportSize(DESKTOP);
-  await load(page, "pill-real");
-  await expect(widget(page).locator("vql-mic")).toHaveAttribute("state", "live");
-  await vql(page, "endTrack");
-  await expectPill(page, "check", "Is your mic working?");
-  // The chip agrees with the pill rather than saying "Listening".
-  await expect(widget(page).locator("vql-status")).toHaveAttribute("unheard", "");
-  await expect(widget(page).locator("vql-status [part=word]")).toHaveText("Can't hear you");
-  await page.screenshot({ path: join(SHOTS, "pill-track-ended-light.png") });
-  const sent = (await wire(page)) as { state: string }[];
-  expect(sent.at(-1)).toEqual({ state: "missing", hint: false });
-});
 
 test("a permission revoked mid-call asks for it, and a grant clears the pill", async ({ page }) => {
   await page.setViewportSize(DESKTOP);
@@ -155,14 +138,12 @@ test("a permission revoked mid-call asks for it, and a grant clears the pill", a
   await vql(page, "grant");
   await expect(widget(page).locator("vql-mic")).toHaveAttribute("state", "live");
   await expectPill(page, null);
-  const sent = (await wire(page)) as { state: string }[];
-  expect(sent.map((m) => m.state)).toEqual(["asking", "live", "blocked", "asking", "live"]);
 });
 
 test("with the pill off, the status chip carries the mic and nothing loads the pill", async ({ page }) => {
   await page.setViewportSize(DESKTOP);
   const requested = await load(page, "pill-off");
-  await vql(page, "muteTrack");
+  await vql(page, "lose");
   await expect(widget(page).locator("vql-status")).toHaveAttribute("mic", "missing");
   await expect(widget(page).locator("vql-status")).not.toHaveAttribute("unheard", "");
   await expect(pill(page)).toHaveCount(0);

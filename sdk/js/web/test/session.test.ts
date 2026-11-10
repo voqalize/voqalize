@@ -1,4 +1,5 @@
 import type { RTVIEventCallbacks } from "@pipecat-ai/client-js";
+import type { MicHint, MicState } from "@voqalize/client-transport";
 import { describe, expect, it, vi } from "vitest";
 import { CaptionsController } from "../src/controllers/captions.js";
 import { bindCaptions } from "../src/internal.js";
@@ -10,6 +11,7 @@ import {
   mintSession,
   withRealHeaders,
 } from "../src/session/adapter.js";
+import { TONE_AGAIN_MS, type TonePlayer } from "../src/session/tone.js";
 
 type Callbacks = Partial<RTVIEventCallbacks>;
 
@@ -48,6 +50,40 @@ class FakeClient implements ClientLike {
   }
 }
 
+
+/** A media manager whose mic state and hint the test sets. */
+class FakeMedia implements MediaManagerLike {
+  micState: MicState = "idle";
+  micHint: MicHint = "none";
+  bindOutputElement = vi.fn((_el: HTMLAudioElement) => () => {});
+  updateMic?: (id: string) => Promise<void>;
+  updateSpeaker?: (id: string) => Promise<void>;
+  private stateListeners = new Set<(s: MicState) => void>();
+  private hintListeners = new Set<(h: MicHint) => void>();
+  constructor(readonly waitForDevices: boolean) {}
+  onMicStateChange(l: (s: MicState) => void) {
+    this.stateListeners.add(l);
+    return () => this.stateListeners.delete(l);
+  }
+  onMicHintChange(l: (h: MicHint) => void) {
+    this.hintListeners.add(l);
+    return () => this.hintListeners.delete(l);
+  }
+  get listening() {
+    return this.stateListeners.size + this.hintListeners.size;
+  }
+  set(state: MicState, hint: MicHint = this.micHint) {
+    if (state !== this.micState) {
+      this.micState = state;
+      for (const l of this.stateListeners) l(state);
+    }
+    if (hint !== this.micHint) {
+      this.micHint = hint;
+      for (const l of this.hintListeners) l(hint);
+    }
+  }
+}
+
 const SESSION = {
   webrtc_request_params: { endpoint: "https://example.com/offer", headers: { "X-Session": "s" } },
   session_id: "sess_example",
@@ -55,32 +91,30 @@ const SESSION = {
 
 function setup(options: SessionOptions = {}) {
   let client!: FakeClient;
-  const media: MediaManagerLike = { instant: false, bindOutputElement: vi.fn(() => () => {}) };
+  let media!: FakeMedia;
   const session = new WidgetSession({
     createClient: ({ callbacks }) => (client = new FakeClient(callbacks)),
-    createMediaManager: () => media,
-    isIOS: false,
+    createMediaManager: ({ waitForDevices }) => (media = new FakeMedia(waitForDevices)),
     canPickSpeaker: true,
-    permissions: { query: () => new Promise(() => {}) },
     ...options,
   });
   return { session, client, media, cb: () => client.cb };
 }
 
-const micStates = (c: FakeClient) => c.sent.filter((m) => m.type === "mic_state").map((m) => m.data);
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
 describe("instant start", () => {
   it("connects without waiting for the mic, and fetches the session meanwhile", async () => {
     const { session, client, media } = setup();
+    expect(media.waitForDevices).toBe(false);
     const fetchSession = vi.fn(() => Promise.resolve(SESSION));
     const done = session.connect(fetchSession);
-    expect(media.instant).toBe(true);
-    expect(fetchSession).toHaveBeenCalled();
+    media.set("asking", "grant");
     client.init.resolve();
     await tick();
+    expect(fetchSession).toHaveBeenCalled();
     expect(client.connectedWith).toBeDefined();
-    expect(session.mic.getSnapshot().state).toBe("asking");
+    expect(session.mic.getSnapshot()).toMatchObject({ state: "asking", micHint: "grant" });
     client.connectResult.resolve({});
     await done;
     expect(session.getSnapshot()).toMatchObject({ status: "connected", sessionId: "sess_example" });
@@ -88,20 +122,14 @@ describe("instant start", () => {
 
   it("waits for the mic before fetching the session with instant start off", async () => {
     const { session, client, media } = setup({ instantStart: false });
+    expect(media.waitForDevices).toBe(true);
     const fetchSession = vi.fn(() => Promise.resolve(SESSION));
     void session.connect(fetchSession);
-    expect(media.instant).toBe(false);
     await tick();
     expect(fetchSession).not.toHaveBeenCalled();
     client.init.resolve();
     await tick();
     expect(fetchSession).toHaveBeenCalled();
-  });
-
-  it("is off on iOS unless the library flag allows it", () => {
-    expect(setup({ isIOS: true }).session.instant).toBe(false);
-    expect(setup({ isIOS: true, instantStartOnIOS: true }).session.instant).toBe(true);
-    expect(setup({ isIOS: false }).session.instant).toBe(true);
   });
 
   it("hands the transport real Headers", async () => {
@@ -115,223 +143,190 @@ describe("instant start", () => {
   });
 });
 
-describe("mic_state to gato", () => {
-  it("sends once when the agent is ready, then on every change, never twice the same", async () => {
-    const { session, client, cb } = setup({ now: () => 0 });
+describe("the mic, from the media manager", () => {
+  it("mirrors the manager's state and hint, and sends nothing to the agent", async () => {
+    const { session, client, media, cb } = setup();
     void session.connect(SESSION);
     client.init.resolve();
-    await tick();
-    expect(micStates(client)).toEqual([]);
     cb().onBotReady?.({} as never);
-    expect(micStates(client)).toEqual([{ state: "asking", hint: false }]);
-    cb().onTrackStarted?.({ kind: "audio" } as MediaStreamTrack, { id: "local", name: "", local: true });
-    session.setMuted(true);
+    media.set("asking", "grant");
+    media.set("blocked", "blocked");
+    expect(session.mic.getSnapshot()).toMatchObject({ state: "blocked", micHint: "blocked", everLive: false });
+    media.set("live", "none");
+    expect(session.mic.getSnapshot()).toMatchObject({ state: "live", micHint: "none", everLive: true });
+    media.set("live", "silent");
+    expect(session.mic.getSnapshot()).toMatchObject({ micHint: "silent", hint: true });
+    expect(client.sent).toEqual([]);
+  });
+
+  it("does not show the silence hint when the configuration turns it off", () => {
+    const { session, media } = setup({ silenceHint: false });
+    media.set("live", "silent");
+    expect(session.mic.getSnapshot()).toMatchObject({ micHint: "silent", hint: false });
+  });
+
+  it("starts a call from what the manager says now", async () => {
+    const { session, client, media } = setup();
+    media.set("blocked", "blocked");
+    void session.connect(SESSION);
+    client.init.resolve();
+    expect(session.mic.getSnapshot()).toMatchObject({ state: "blocked", micHint: "blocked" });
+  });
+
+  it("mutes through the client", () => {
+    const { session, client } = setup();
     session.setMuted(true);
     session.setMuted(false);
-    expect(micStates(client)).toEqual([
-      { state: "asking", hint: false },
-      { state: "live", hint: false },
-      { state: "muted", hint: false },
-      { state: "live", hint: false },
-    ]);
-    expect(client.micEnabled).toEqual([false, false, true]);
+    expect(client.micEnabled).toEqual([false, true]);
+    expect(session.mic.getSnapshot().muted).toBe(false);
   });
 
-  it("sends the device errors as blocked and missing", async () => {
-    const { session, client, cb } = setup();
+  it("asks for the mic again from the pill's tap only while it is blocked or missing", async () => {
+    const { session, client, media } = setup();
     void session.connect(SESSION);
     client.init.resolve();
-    cb().onBotReady?.({} as never);
-    cb().onDeviceError?.({ devices: ["mic"], type: "permissions" } as never);
-    cb().onDeviceError?.({ devices: ["cam"], type: "not-found" } as never);
-    cb().onDeviceError?.({ devices: ["mic"], type: "in-use" } as never);
-    expect(micStates(client)).toEqual([
-      { state: "asking", hint: false },
-      { state: "blocked", hint: false },
-      { state: "missing", hint: false },
-    ]);
-  });
-
-  it("sends the silence hint as it shows", async () => {
-    let t = 0;
-    const { session, client, cb } = setup({ now: () => t });
-    void session.connect(SESSION);
-    client.init.resolve();
-    cb().onBotReady?.({} as never);
-    cb().onTrackStarted?.({ kind: "audio" } as MediaStreamTrack, { id: "local", name: "", local: true });
-    for (let i = 0; i < 200; i++) {
-      cb().onLocalAudioLevel?.(0);
-      t += 100;
-    }
-    expect(micStates(client).at(-1)).toEqual({ state: "live", hint: true });
-  });
-
-  it("picks the mic up when the visitor allows it after blocking it", async () => {
-    let fire!: () => void;
-    const status = {
-      state: "denied" as PermissionState,
-      addEventListener: (_: string, l: () => void) => (fire = l),
-      removeEventListener() {},
-    };
-    const { session, client, cb } = setup({
-      permissions: { query: () => Promise.resolve(status as unknown as PermissionStatus) },
-    });
-    void session.connect(SESSION);
-    client.init.resolve();
-    cb().onDeviceError?.({ devices: ["mic"], type: "permissions" } as never);
-    await tick();
-    status.state = "granted";
-    fire();
-    expect(session.mic.getSnapshot().state).toBe("asking");
-    expect(client.micEnabled).toEqual([true]);
-  });
-
-  it("asks for the mic again from the pill's tap while Safari reads prompt, not while denied", async () => {
-    let state: PermissionState = "prompt";
-    const { session, client, cb } = setup({
-      permissions: { query: () => Promise.resolve({ state, addEventListener() {}, removeEventListener() {} } as unknown as PermissionStatus) },
-    });
-    void session.connect(SESSION);
-    client.init.resolve();
-    await tick();
-    cb().onDeviceError?.({ devices: ["mic"], type: "permissions" } as never);
-    expect(session.mic.getSnapshot().state).toBe("blocked");
+    media.set("live", "none");
     session.askForMic();
-    expect(session.mic.getSnapshot().state).toBe("asking");
-    expect(client.micEnabled).toEqual([true]);
-
-    // Refused again, and now the browser says denied: asking cannot help.
-    cb().onDeviceError?.({ devices: ["mic"], type: "permissions" } as never);
-    state = "denied";
-    window.dispatchEvent(new Event("focus"));
-    await tick();
-    expect(session.mic.getSnapshot().permission).toBe("denied");
+    expect(client.micEnabled).toEqual([]);
+    media.set("blocked", "blocked");
     session.askForMic();
     expect(client.micEnabled).toEqual([true]);
-    expect(session.mic.getSnapshot().state).toBe("blocked");
+    media.set("missing", "missing");
+    session.askForMic();
+    expect(client.micEnabled).toEqual([true, true]);
+    session.setMuted(true);
+    session.askForMic();
+    expect(client.micEnabled).toEqual([true, true, false]);
+  });
+
+  it("does not ask for the mic outside a call", () => {
+    const { session, client, media } = setup();
+    media.set("blocked", "blocked");
+    session.askForMic();
+    expect(client.micEnabled).toEqual([]);
+  });
+
+  it("stops following the manager when disposed", () => {
+    const { session, media } = setup();
+    expect(media.listening).toBe(2);
+    session.dispose();
+    expect(media.listening).toBe(0);
   });
 });
 
-class FakeTrack extends EventTarget {
-  kind = "audio";
-  muted = false;
-  readyState: MediaStreamTrackState = "live";
-  constructor(readonly deviceId = "mic-1") {
-    super();
-  }
-  getSettings() {
-    return { deviceId: this.deviceId };
-  }
-  fire(type: "mute" | "unmute" | "ended") {
-    if (type === "mute") this.muted = true;
-    if (type === "unmute") this.muted = false;
-    if (type === "ended") this.readyState = "ended";
-    this.dispatchEvent(new Event(type));
-  }
-}
-
-class FakeDevices extends EventTarget {
-  list: { kind: string; deviceId: string }[] = [{ kind: "audioinput", deviceId: "mic-1" }];
-  enumerateDevices() {
-    return Promise.resolve(this.list as MediaDeviceInfo[]);
-  }
-  change(list: { kind: string; deviceId: string }[]) {
-    this.list = list;
-    this.dispatchEvent(new Event("devicechange"));
-  }
-}
-
-describe("the local track and the device list", () => {
-  function live(options: SessionOptions = {}) {
-    const devices = new FakeDevices();
-    const t = setup({ mediaDevices: devices, ...options });
-    void t.session.connect(SESSION);
-    t.client.init.resolve();
-    t.cb().onBotReady?.({} as never);
-    const track = new FakeTrack();
-    t.cb().onTrackStarted?.(track as unknown as MediaStreamTrack, { id: "local", name: "", local: true });
-    return { ...t, devices, track };
-  }
-
-  it("sends a track the system muted as missing, and live again when it unmutes", () => {
-    const { session, client, track } = live();
-    track.fire("mute");
-    expect(session.mic.getSnapshot()).toMatchObject({ state: "missing", device: "live", trackMuted: true, hint: false });
-    track.fire("unmute");
-    expect(micStates(client)).toEqual([
-      { state: "asking", hint: false },
-      { state: "live", hint: false },
-      { state: "missing", hint: false },
-      { state: "live", hint: false },
-    ]);
-  });
-
-  it("reads a track that starts muted", () => {
-    const devices = new FakeDevices();
-    const { session, client, cb } = setup({ mediaDevices: devices });
-    void session.connect(SESSION);
-    client.init.resolve();
-    const track = new FakeTrack();
-    track.muted = true;
-    cb().onTrackStarted?.(track as unknown as MediaStreamTrack, { id: "local", name: "", local: true });
-    expect(session.mic.getSnapshot().state).toBe("missing");
-  });
-
-  it("keeps the visitor's own mute as muted over a muted track", () => {
-    const { session, track } = live();
-    track.fire("mute");
-    session.setMuted(true);
-    expect(session.mic.getSnapshot().state).toBe("muted");
-  });
-
-  it("sends an ended track as missing", () => {
-    const { session, client, track } = live();
-    track.fire("ended");
-    expect(session.mic.getSnapshot()).toMatchObject({ state: "missing", device: "missing" });
-    expect(micStates(client).at(-1)).toEqual({ state: "missing", hint: false });
-  });
-
-  it("sends missing when the device the track reads from leaves", async () => {
-    const { session, devices } = live();
-    devices.change([{ kind: "audioinput", deviceId: "mic-1" }, { kind: "audioinput", deviceId: "mic-2" }]);
-    await tick();
-    expect(session.mic.getSnapshot().state).toBe("live");
-    devices.change([{ kind: "audioinput", deviceId: "mic-2" }]);
-    await tick();
-    expect(session.mic.getSnapshot().state).toBe("missing");
-  });
-
-  it("does not call a mic switch a lost mic", () => {
-    const { session, track } = live();
-    session.selectMic("mic-2");
-    track.fire("ended");
-    expect(session.mic.getSnapshot().state).toBe("live");
-  });
-
-  it("does not call the hang-up's track end a lost mic", async () => {
-    const { session, track } = live();
-    await session.disconnect();
-    track.fire("ended");
-    expect(session.mic.getSnapshot().device).not.toBe("missing");
-  });
-
-  it("sends blocked when the permission is revoked mid-call", async () => {
-    let fire!: () => void;
-    const status = {
-      state: "granted" as PermissionState,
-      addEventListener: (_: string, l: () => void) => (fire = l),
-      removeEventListener() {},
+describe("the attention tone", () => {
+  function withTone(options: SessionOptions = {}) {
+    const played: number[] = [];
+    let closed = 0;
+    let made = 0;
+    const createTone = (): TonePlayer => {
+      made++;
+      return { play: () => played.push(Date.now()), close: () => void closed++ };
     };
-    const { session, client, track } = live({
-      permissions: { query: () => Promise.resolve(status as unknown as PermissionStatus) },
-    });
+    const rig = setup({ alertTone: true, createTone, ...options });
+    return { ...rig, played, made: () => made, closed: () => closed };
+  }
+
+  async function call(rig: ReturnType<typeof withTone>) {
+    void rig.session.connect(SESSION);
+    rig.client.init.resolve();
+    rig.cb().onBotReady?.({} as never);
     await tick();
-    status.state = "denied";
-    fire();
-    // Chrome then ends the track; it stays blocked, not missing.
-    track.fire("ended");
-    expect(session.mic.getSnapshot().state).toBe("blocked");
-    expect(micStates(client).at(-1)).toEqual({ state: "blocked", hint: false });
+  }
+
+  it("beeps when the agent first stops speaking with the mic off, once more later, then never", async () => {
+    vi.useFakeTimers();
+    try {
+      const rig = withTone();
+      void rig.session.connect(SESSION);
+      rig.client.init.resolve();
+      expect(rig.made()).toBe(1);
+      rig.media.set("asking", "grant");
+      rig.cb().onBotStartedSpeaking?.();
+      expect(rig.played).toHaveLength(0);
+      rig.cb().onBotStoppedSpeaking?.();
+      expect(rig.played).toHaveLength(1);
+      rig.cb().onBotStoppedSpeaking?.();
+      expect(rig.played).toHaveLength(1);
+      vi.advanceTimersByTime(TONE_AGAIN_MS);
+      expect(rig.played).toHaveLength(2);
+      rig.cb().onBotStoppedSpeaking?.();
+      vi.advanceTimersByTime(TONE_AGAIN_MS * 4);
+      expect(rig.played).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("beeps for blocked and missing, never for silent or a live mic", async () => {
+    for (const [state, hint, beeps] of [
+      ["blocked", "blocked", 1],
+      ["missing", "missing", 1],
+      ["live", "silent", 0],
+      ["live", "none", 0],
+    ] as const) {
+      const rig = withTone();
+      await call(rig);
+      rig.media.set(state, hint);
+      rig.cb().onBotStoppedSpeaking?.();
+      expect(rig.played, `${state}/${hint}`).toHaveLength(beeps);
+      rig.session.dispose();
+    }
+  });
+
+  it("skips the second beep once the mic is live", async () => {
+    vi.useFakeTimers();
+    try {
+      const rig = withTone();
+      void rig.session.connect(SESSION);
+      rig.client.init.resolve();
+      rig.media.set("blocked", "blocked");
+      rig.cb().onBotStoppedSpeaking?.();
+      rig.media.set("live", "none");
+      vi.advanceTimersByTime(TONE_AGAIN_MS);
+      expect(rig.played).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("stops when the call ends, and closes its audio", async () => {
+    vi.useFakeTimers();
+    try {
+      const rig = withTone();
+      void rig.session.connect(SESSION);
+      rig.client.init.resolve();
+      rig.media.set("blocked", "blocked");
+      rig.cb().onBotStoppedSpeaking?.();
+      await rig.session.disconnect();
+      vi.advanceTimersByTime(TONE_AGAIN_MS);
+      expect(rig.played).toHaveLength(1);
+      expect(rig.closed()).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("is off unless the configuration turns it on", async () => {
+    let made = 0;
+    const rig = setup({ createTone: () => (made++, { play() {}, close() {} }) });
+    void rig.session.connect(SESSION);
+    rig.client.init.resolve();
+    rig.media.set("blocked", "blocked");
+    rig.cb().onBotStoppedSpeaking?.();
+    expect(made).toBe(0);
+  });
+
+  it("starts afresh on the next call", async () => {
+    const rig = withTone();
+    await call(rig);
+    rig.media.set("blocked", "blocked");
+    rig.cb().onBotStoppedSpeaking?.();
+    await rig.session.disconnect();
+    await call(rig);
+    rig.cb().onBotStoppedSpeaking?.();
+    expect(rig.played).toHaveLength(2);
+    expect(rig.made()).toBe(2);
   });
 });
 
@@ -391,7 +386,6 @@ describe("agent state and words", () => {
       cb().onTrackStarted?.({ kind: "audio" } as MediaStreamTrack, { id: "bot", name: "", local: false });
       expect(audio.srcObject).toBeTruthy();
       expect(play).toHaveBeenCalled();
-      expect(session.mic.getSnapshot().state).toBe("asking");
     } finally {
       globalThis.MediaStream = MS;
     }
@@ -414,12 +408,9 @@ describe("devices", () => {
   it("never leaves a refused device change as an unhandled rejection, and reverts the speaker", async () => {
     const refused = Promise.reject(new Error("NotFoundError"));
     refused.catch(() => {});
-    const media: MediaManagerLike = {
-      instant: false,
-      bindOutputElement: () => () => {},
-      updateMic: vi.fn(() => Promise.reject(new Error("NotReadableError"))),
-      updateSpeaker: vi.fn(() => Promise.reject(new Error("NotFoundError"))),
-    };
+    const media = new FakeMedia(false);
+    media.updateMic = vi.fn(() => Promise.reject(new Error("NotReadableError")));
+    media.updateSpeaker = vi.fn(() => Promise.reject(new Error("NotFoundError")));
     const unhandled = vi.fn();
     process.on("unhandledRejection", unhandled);
     try {
@@ -459,21 +450,22 @@ describe("end reason", () => {
   });
 
   it("is mic_denied when the far end closes a call whose mic never went live", async () => {
-    const { session, client, cb } = setup();
+    const { session, client, media, cb } = setup();
     void session.connect(SESSION);
     client.init.resolve();
     cb().onBotReady?.({} as never);
-    cb().onDeviceError?.({ devices: ["mic"], type: "permissions" } as never);
+    media.set("blocked", "blocked");
     cb().onDisconnected?.();
     expect(session.getSnapshot().end).toEqual({ by: "agent", reason: "mic_denied" });
   });
 
-  it("is the agent ending the call otherwise", async () => {
-    const { session, client, cb } = setup();
+  it("is the agent ending the call otherwise, even if the mic was later lost", async () => {
+    const { session, client, media, cb } = setup();
     void session.connect(SESSION);
     client.init.resolve();
     cb().onBotReady?.({} as never);
-    cb().onTrackStarted?.({ kind: "audio" } as MediaStreamTrack, { id: "local", name: "", local: true });
+    media.set("live", "none");
+    media.set("missing", "missing");
     cb().onDisconnected?.();
     expect(session.getSnapshot().end).toEqual({ by: "agent", reason: "ended" });
   });
@@ -493,10 +485,10 @@ describe("end reason", () => {
   it("is a failed connect, not mic_denied, when the transport gives up before the agent is ready", async () => {
     // Seen live: a blocked mic and an offer the browser could not send; the
     // transport retried, closed, and the card said nobody allowed the mic.
-    const { session, client, cb } = setup();
+    const { session, client, media, cb } = setup();
     void session.connect(SESSION);
     client.init.resolve();
-    cb().onDeviceError?.({ devices: ["mic"], type: "permissions" } as never);
+    media.set("blocked", "blocked");
     cb().onDisconnected?.();
     expect(session.getSnapshot().end).toMatchObject({ by: "error", reason: "connect_failed" });
   });

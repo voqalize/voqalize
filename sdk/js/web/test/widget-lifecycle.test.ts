@@ -106,7 +106,7 @@ describe("mute before the mic is live", () => {
     const s = new FakeSession();
     s.onConnect = (x) => {
       x.patch({ status: "connected", agent: "listening" });
-      x.mic.patch({ state: "asking", device: "asking" });
+      x.mic.patch({ state: "asking", micHint: "grant" });
     };
     const w = await mount(s);
     await w.open();

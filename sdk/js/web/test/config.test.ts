@@ -26,7 +26,7 @@ const DEFAULTS: WidgetConfig = {
   collapsed: { style: "bubble", autoCollapse: true },
   mobile: { open: "sheet", launcher: "face", breakpoint: 480 },
   controls: { mute: true, end: true, minimise: true, devices: true, language: true },
-  mic: { level: "ring", instantStart: true, silenceHint: true, pill: true, coach: true },
+  mic: { level: "ring", instantStart: true, silenceHint: true, pill: true, coach: true, alertTone: false },
   captions: { mode: "karaoke", lines: 2, linger: "4s", showUser: false, position: "card" },
   theme: { scheme: "auto", font: "inherit", tokens: {} },
   words: {},
@@ -59,7 +59,7 @@ const FULL: Required<WidgetConfigInput> = {
   collapsed: { style: "pill", autoCollapse: false },
   mobile: { open: "hero", launcher: "pill", breakpoint: 600 },
   controls: { mute: false, end: false, minimise: false, devices: false, language: false },
-  mic: { level: "bars", instantStart: false, silenceHint: false, pill: false, coach: false },
+  mic: { level: "bars", instantStart: false, silenceHint: false, pill: false, coach: false, alertTone: true },
   captions: { mode: "rolling", lines: 3, linger: 800, showUser: true, position: "page" },
   theme: {
     brand: "#112233",

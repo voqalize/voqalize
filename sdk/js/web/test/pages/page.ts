@@ -42,7 +42,7 @@ const session = new FakeSession({
 });
 session.onConnect = (s) => {
   s.patch({ status: "connected", agent: "speaking" });
-  s.mic.patch({ state: "live", device: "live", everLive: true, permission: "granted", level: 0.16 });
+  s.mic.patch({ state: "live", micHint: "none", everLive: true, level: 0.16 });
 };
 
 const base: WidgetConfigInput = {
@@ -103,7 +103,7 @@ const scenarios: Record<
     run: async (w) => {
       session.onConnect = (s) => {
         s.patch({ status: "connecting", agent: "idle" });
-        s.mic.patch({ state: "asking", device: "asking", permission: "prompt" });
+        s.mic.patch({ state: "asking", micHint: "grant" });
       };
       await open(w);
       await new Promise((r) => setTimeout(r, 900));
@@ -113,7 +113,7 @@ const scenarios: Record<
     run: async (w) => {
       session.onConnect = (s) => {
         s.patch({ status: "connected", agent: "listening" });
-        s.mic.patch({ state: "blocked", device: "blocked", permission: "denied" });
+        s.mic.patch({ state: "blocked", micHint: "blocked" });
       };
       await open(w);
     },
@@ -123,7 +123,7 @@ const scenarios: Record<
     run: async (w) => {
       await open(w);
       session.patch({ agent: "listening" });
-      session.mic.patch({ hint: true, level: 0.01 });
+      session.mic.patch({ micHint: "silent", hint: true, level: 0.01 });
       await w.updateComplete;
       const micEl = w.shadowRoot?.querySelector("vql-mic");
       micEl?.dispatchEvent(new CustomEvent("vql-devices", { detail: { open: true } }));
@@ -147,7 +147,7 @@ const scenarios: Record<
     run: async (w) => {
       session.onConnect = (s) => {
         s.patch({ status: "connected", agent: "listening" });
-        s.mic.patch({ state: "blocked", device: "blocked", permission: "denied" });
+        s.mic.patch({ state: "blocked", micHint: "blocked" });
       };
       await open(w);
     },
@@ -156,7 +156,7 @@ const scenarios: Record<
     run: async (w) => {
       session.onConnect = (s) => {
         s.patch({ status: "connecting", agent: "idle" });
-        s.mic.patch({ state: "asking", device: "asking", permission: "prompt" });
+        s.mic.patch({ state: "asking", micHint: "grant" });
       };
       await open(w);
       await new Promise((r) => setTimeout(r, 900));
@@ -167,18 +167,18 @@ const scenarios: Record<
     run: async (w) => {
       await open(w);
       session.patch({ agent: "listening" });
-      session.mic.patch({ hint: true, level: 0.01 });
+      session.mic.patch({ micHint: "silent", hint: true, level: 0.01 });
     },
   },
   "pill-check-phone": {
     run: async (w) => {
       await open(w);
       session.patch({ agent: "listening" });
-      session.mic.patch({ hint: true, level: 0.01 });
+      session.mic.patch({ micHint: "silent", hint: true, level: 0.01 });
     },
   },
-  // These run the package's own session over a fake track, permission and
-  // device list; the test moves them through `window.__vql`.
+  // These run the package's own session over a fake media manager whose
+  // mic state and hint the test moves through `window.__vql`.
   "pill-real": { real: true, run: open },
   "pill-off": { config: { mic: { pill: false } }, real: true, run: open },
   // Captions, the device menu and the coach mark all off, and a healthy mic:

@@ -1,97 +1,81 @@
 /**
- * The package's own `WidgetSession` with the network and the browser's media
- * replaced: a client that connects at once, a mic track that is an
- * `EventTarget`, a permission status and a device list the test moves. So
- * the mic pill is driven by the same track, permission and device events a
- * real call gives, through the real session and mic controller.
+ * The package's own `WidgetSession` with the network and the media manager
+ * replaced: a client that connects at once, and a manager whose `micState`
+ * and `micHint` the test moves, as `@voqalize/client-transport`'s manager
+ * would from the track, the permission and the device list. So the mic pill
+ * is driven through the real session and mic controller.
  *
  * Loaded only by the scenarios that use it, so the other pages never pull in
  * the session.
  */
 
-import type { ClientLike, WidgetSession } from "../../src/session/adapter.js";
+import type { MicHint, MicState } from "@voqalize/client-transport";
+import type { ClientLike, MediaManagerLike, WidgetSession } from "../../src/session/adapter.js";
 
-class FakeTrack extends EventTarget {
-  kind = "audio";
-  muted = false;
-  readyState: MediaStreamTrackState = "live";
-  constructor(readonly deviceId: string) {
-    super();
+class FakeManager implements MediaManagerLike {
+  micState: MicState = "idle";
+  micHint: MicHint = "none";
+  private readonly stateListeners = new Set<(s: MicState) => void>();
+  private readonly hintListeners = new Set<(h: MicHint) => void>();
+  bindOutputElement() {
+    return () => {};
   }
-  getSettings() {
-    return { deviceId: this.deviceId };
+  onMicStateChange(l: (s: MicState) => void) {
+    this.stateListeners.add(l);
+    return () => void this.stateListeners.delete(l);
   }
-  fire(type: "mute" | "unmute" | "ended") {
-    if (type === "mute") this.muted = true;
-    if (type === "unmute") this.muted = false;
-    if (type === "ended") this.readyState = "ended";
-    this.dispatchEvent(new Event(type));
+  onMicHintChange(l: (h: MicHint) => void) {
+    this.hintListeners.add(l);
+    return () => void this.hintListeners.delete(l);
   }
-}
-
-class FakePermission extends EventTarget {
-  state: PermissionState = "granted";
-  onchange = null;
-  name = "microphone";
-  set(state: PermissionState) {
-    this.state = state;
-    this.dispatchEvent(new Event("change"));
-  }
-}
-
-class FakeDevices extends EventTarget {
-  list = [
-    { kind: "audioinput", deviceId: "default", label: "MacBook Pro Microphone", groupId: "" },
-    { kind: "audioinput", deviceId: "usb", label: "Jabra Evolve2 65", groupId: "" },
-  ];
-  enumerateDevices() {
-    return Promise.resolve(this.list as unknown as MediaDeviceInfo[]);
-  }
-  unplug(id: string) {
-    this.list = this.list.filter((d) => d.deviceId !== id);
-    this.dispatchEvent(new Event("devicechange"));
+  set(state: MicState, hint: MicHint) {
+    if (state !== this.micState) {
+      this.micState = state;
+      for (const l of this.stateListeners) l(state);
+    }
+    if (hint !== this.micHint) {
+      this.micHint = hint;
+      for (const l of this.hintListeners) l(hint);
+    }
   }
 }
 
 /** The handles a test moves, as `window.__vql`. */
 export interface RealSessionControls {
-  muteTrack(): void;
-  unmuteTrack(): void;
-  endTrack(): void;
-  unplug(): void;
+  /** The mic went away, or the system silenced it. */
+  lose(): void;
+  /** The mic is back. */
+  restore(): void;
+  /** The permission was taken away mid-call. */
   revoke(): void;
+  /** The permission was given back; the manager picks the mic up. */
   grant(): void;
-  wire(): unknown[];
+  /** Every client message the session sent. */
+  sent(): unknown[];
 }
 
 export async function realSession(): Promise<{ session: WidgetSession; controls: RealSessionControls }> {
   const { WidgetSession } = await import("../../src/session/adapter.js");
-  const permission = new FakePermission();
-  const devices = new FakeDevices();
+  const manager = new FakeManager();
   const sent: unknown[] = [];
-  let track = new FakeTrack("usb");
   let callbacks: Record<string, ((...args: unknown[]) => void) | undefined> = {};
-  const startTrack = () => {
-    track = new FakeTrack("usb");
-    callbacks.onTrackStarted?.(track, { id: "local", name: "", local: true });
-  };
   const client: ClientLike = {
-    initDevices: () => Promise.resolve(),
+    initDevices: () => {
+      manager.set("asking", "none");
+      return Promise.resolve();
+    },
     connect: () => {
       queueMicrotask(() => {
         callbacks.onBotReady?.({});
-        startTrack();
+        manager.set("live", "none");
       });
       return Promise.resolve({});
     },
     disconnect: () => Promise.resolve(),
     enableMic: (on) => {
-      // The client turns the mic back on after a grant: a new track starts.
-      if (on && permission.state === "granted" && track.readyState === "ended") startTrack();
+      if (on && manager.micState === "missing") manager.set("live", "none");
     },
-    sendClientMessage: (type, data) => {
-      if (type === "mic_state") sent.push(data);
-    },
+    sendClientMessage: (type, data) => sent.push({ type, data }),
     updateMic: () => {},
     updateSpeaker: () => {},
   };
@@ -100,24 +84,18 @@ export async function realSession(): Promise<{ session: WidgetSession; controls:
       callbacks = args.callbacks as typeof callbacks;
       return client;
     },
-    createMediaManager: () => ({ instant: true, bindOutputElement: () => () => {} }),
-    isIOS: false,
+    createMediaManager: () => manager,
     canPickSpeaker: true,
-    permissions: { query: () => Promise.resolve(permission as unknown as PermissionStatus) },
-    mediaDevices: devices as unknown as Pick<MediaDevices, "addEventListener" | "removeEventListener" | "enumerateDevices">,
   });
   const controls: RealSessionControls = {
-    muteTrack: () => track.fire("mute"),
-    unmuteTrack: () => track.fire("unmute"),
-    endTrack: () => track.fire("ended"),
-    unplug: () => devices.unplug("usb"),
-    revoke: () => {
-      permission.set("denied");
-      // Chrome stops the track when the permission goes.
-      track.fire("ended");
+    lose: () => manager.set("missing", "missing"),
+    restore: () => manager.set("live", "none"),
+    revoke: () => manager.set("blocked", "blocked"),
+    grant: () => {
+      manager.set("asking", "none");
+      manager.set("live", "none");
     },
-    grant: () => permission.set("granted"),
-    wire: () => sent,
+    sent: () => sent,
   };
   return { session, controls };
 }

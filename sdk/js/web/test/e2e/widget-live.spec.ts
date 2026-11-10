@@ -17,13 +17,11 @@ import {
   env,
   events,
   grantMic,
-  isMicState,
   launch,
   now,
   openPage,
   prepareAudio,
   sessionId,
-  sessionLog,
   speak,
   stats,
   takeOpened,
@@ -51,7 +49,13 @@ test.afterEach(async ({}, info) => {
   for (const [i, page] of pages.entries()) await dump(page, `FAILED-${slug}-${i}-retry${info.retry}`).catch(() => {});
 });
 
-const MIC_OFF_LINE = /microphone is off/i;
+/** The tone's first note, in Hz; see `src/session/tone.ts`. */
+const TONE_FIRST_NOTE = 880;
+const isTone = (e: { dir: string; type: string; data?: unknown }) =>
+  e.dir === "tone" && (e.data as { frequency: number }).frequency === TONE_FIRST_NOTE;
+/** A client message about the mic: the widget sends none. */
+const isMicMessage = (e: { dir: string; type: string; data?: unknown }) =>
+  e.dir === "out" && e.type === "client-message" && /mic/i.test(String((e.data as { t?: string })?.t ?? ""));
 
 async function startCall(page: Page): Promise<number> {
   const launcher = page.locator("vql-widget vql-launcher").first();
@@ -70,21 +74,21 @@ async function shot(page: Page, name: string): Promise<void> {
   await page.screenshot({ path: join(env.out, `${name}.png`) });
 }
 
-test("denied: the call connects, greets and says the mic-off line; allowing the mic picks it up with no renegotiation", async () => {
+test("denied: the call connects and greets, the widget asks for the mic and beeps; allowing it picks it up with no renegotiation", async () => {
   test.setTimeout(120_000);
   test.skip(!canSpeak, "the spoken turn needs macOS say");
-  const { page } = await openPage(browser, { granted: false });
+  const { page } = await openPage(browser, { granted: false, attributes: { "alert-tone": "true" } });
   try {
     await startCall(page);
     await waitForEvent(page, (e) => e.dir === "mic" && e.type === "getusermedia-error");
     await waitForEvent(page, (e) => e.dir === "ui" && e.type === "vql-mic" && (e.data as { state: string }).state === "blocked");
     await waitForEvent(page, (e) => e.dir === "in" && e.type === "bot-ready");
-    await waitForEvent(page, isMicState("blocked"));
     // The greeting plays: its words arrive.
     await waitForEvent(page, (e) => e.dir === "in" && e.type === "bot-started-speaking");
     await waitForEvent(page, (e) => botText(e).length > 0);
-    // Then the mic-off line.
-    const line = await waitForEvent(page, (e) => MIC_OFF_LINE.test(botText(e)), 30_000);
+    // When it ends, the tone sounds.
+    const stopped = await waitForEvent(page, (e) => e.dir === "in" && e.type === "bot-stopped-speaking", 30_000);
+    const tone = await waitForEvent(page, isTone, 5_000, stopped.t);
     await expect(page.locator("vql-widget vql-coach")).toBeVisible();
     // The pill says what the mic needs, and the dock's polite region says it too.
     await expect(page.locator("vql-widget vql-mic-pill[kind=permission]")).toBeVisible();
@@ -101,7 +105,6 @@ test("denied: the call connects, greets and says the mic-off line; allowing the 
     // again. Chromium picks the grant up by itself.
     if (engine === "webkit") await page.locator("vql-widget vql-mic-pill button").click();
     await waitForEvent(page, (e) => e.dir === "ui" && e.type === "vql-mic" && (e.data as { state: string }).state === "live", 15_000, grantAt);
-    await waitForEvent(page, isMicState("live"), 10_000, grantAt);
     await expect(page.locator("vql-widget vql-coach")).toHaveCount(0);
     // Granted: the pill goes, and the region falls silent.
     await expect(page.locator("vql-widget vql-mic-pill[kind]")).toHaveCount(0);
@@ -126,7 +129,7 @@ test("denied: the call connects, greets and says the mic-off line; allowing the 
     const signalling = after.filter((e) => e.type.startsWith("signalling:"));
     const requests = after.filter((e) => e.dir === "net" && /offer/.test(String((e.data as { path: string }).path)));
     test.info().annotations.push(
-      { type: "mic-off line", description: `${botText(line)} at ${line.t} ms` },
+      { type: "tone", description: `${tone.t - stopped.t} ms after the greeting ended` },
       { type: "offers before grant", description: JSON.stringify(before.map((e) => e.data)) },
       { type: "after grant", description: JSON.stringify({ offers: offersAfter.length, signalling: signalling.map((e) => e.type), requests: requests.length, replaceTrack: after.filter((e) => e.type === "replace-track").map((e) => e.data) }) },
     );
@@ -134,15 +137,15 @@ test("denied: the call connects, greets and says the mic-off line; allowing the 
     expect(requests, "allowing the mic sent an offer request").toHaveLength(0);
     expect(signalling.filter((e) => /offer|renegotiat/i.test(e.type)), "allowing the mic renegotiated over the channel").toHaveLength(0);
 
+    // The mic stayed in the browser: nothing about it went to the agent.
+    expect(all.filter(isMicMessage), "the widget sent a mic message").toEqual([]);
+    // Live before the second tone was due: it never played.
+    await page.waitForTimeout(Math.max(0, tone.t + 8_500 - (await now(page))));
+    expect((await events(page)).filter(isTone), "the tone played again with the mic live").toHaveLength(1);
+
     const id = await sessionId(page);
     await hangUp(page);
     expect(id).toBeTruthy();
-    const log = await sessionLog(id as string);
-    if (log) {
-      expect(log.some((m) => /mic_state blocked/.test(m)), "gato never logged mic_state blocked").toBe(true);
-      expect(log.some((m) => /saying the mic-off line/.test(m)), "gato never logged the mic-off line").toBe(true);
-      expect(log.some((m) => /mic_state live/.test(m)), "gato never logged mic_state live").toBe(true);
-    }
   } finally {
     await dump(page, "denied-then-granted").catch(() => {});
     await closePage(page);
@@ -396,20 +399,20 @@ test("UI: a phone gets the sheet; the dark theme", async () => {
 
 // ------------------------------------------------------------ mic_denied end
 
-test("denied and never allowed: gato's idle rule ends the call as mic_denied", async () => {
-  test.skip(!process.env.VQL_E2E_SLOW, "waits out gato's idle window; set VQL_E2E_SLOW=1");
+test("denied and never allowed: the agent's idle rule ends the call, and the widget says to allow the mic", async () => {
+  test.skip(!process.env.VQL_E2E_SLOW, "waits out the agent's idle window; set VQL_E2E_SLOW=1");
   test.setTimeout(9 * 60_000);
-  const { page } = await openPage(browser, { granted: false });
+  const { page } = await openPage(browser, { granted: false, attributes: { "alert-tone": "true" } });
   try {
     await startCall(page);
-    await waitForEvent(page, isMicState("blocked"), 20_000);
+    await waitForEvent(page, (e) => e.dir === "ui" && e.type === "vql-mic" && (e.data as { state: string }).state === "blocked", 20_000);
     const end = await waitForEvent(page, (e) => e.dir === "ui" && e.type === "vql-end", 8 * 60_000);
     expect((end.data as { reason: string }).reason).toBe("mic_denied");
+    await expect(page.locator("vql-widget")).toContainText("Allow your microphone and start again");
+    // The first tone, and the one after it; never a third.
+    expect((await events(page)).filter(isTone)).toHaveLength(2);
     await shot(page, "mic-denied-end");
-    const id = await sessionId(page);
     await dump(page, "mic-denied-end");
-    const log = await sessionLog(id as string, 60_000);
-    if (log) expect(log.some((m) => /mic was never live: mic_denied/.test(m)), "gato did not log the mic_denied end").toBe(true);
   } finally {
     await closePage(page);
   }

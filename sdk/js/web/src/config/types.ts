@@ -79,6 +79,8 @@ export interface MicConfig {
   level: "ring" | "bars" | "off";
   instantStart: boolean;
   silenceHint: boolean;
+  /** A short beep while the mic is off, after the agent first speaks and once more later. */
+  alertTone: boolean;
   /** The mic pill: "Grant mic permission", "You are muted", "Is your mic working?". */
   pill: boolean;
   /** The coach mark that points at the browser's mic prompt or setting. */

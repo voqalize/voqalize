@@ -1,239 +1,79 @@
-import { describe, expect, it, vi } from "vitest";
-import {
-  MicController,
-  SILENCE_HINT_AFTER_MS,
-  SILENCE_HINT_FLOOR,
-  micStateForError,
-  watchMicPermission,
-} from "../src/controllers/mic.js";
+import { describe, expect, it } from "vitest";
+import { MicController, micIsOff } from "../src/controllers/mic.js";
 
-function clock() {
-  let t = 0;
-  return { now: () => t, advance: (ms: number) => (t += ms) };
-}
-
-/** Feed level samples every 100 ms, as the transport does, for `ms`. */
-function feed(mic: MicController, c: ReturnType<typeof clock>, level: number, ms: number) {
-  for (let elapsed = 0; elapsed <= ms; elapsed += 100) {
-    mic.level(level);
-    c.advance(100);
-  }
-}
-
-describe("MicController states", () => {
-  it("goes idle → asking → live", () => {
+describe("MicController", () => {
+  it("mirrors the manager's state and remembers a live mic", () => {
     const mic = new MicController();
-    expect(mic.getSnapshot().state).toBe("idle");
-    mic.asking();
-    expect(mic.getSnapshot().state).toBe("asking");
-    mic.live();
+    expect(mic.getSnapshot()).toMatchObject({ state: "idle", micHint: "none", everLive: false });
+    mic.setState("asking");
+    expect(mic.getSnapshot()).toMatchObject({ state: "asking", everLive: false });
+    mic.setState("live");
     expect(mic.getSnapshot()).toMatchObject({ state: "live", everLive: true });
+    mic.setState("missing");
+    expect(mic.getSnapshot()).toMatchObject({ state: "missing", everLive: true });
   });
 
-  it("classifies device errors into blocked and missing", () => {
-    expect(micStateForError("permissions")).toBe("blocked");
-    expect(micStateForError("undefined-mediadevices")).toBe("blocked");
-    for (const type of ["not-found", "in-use", "constraints", "unknown", undefined]) {
-      expect(micStateForError(type)).toBe("missing");
-    }
+  it("drops the level when the mic is not live", () => {
     const mic = new MicController();
-    mic.asking();
-    mic.failed("permissions");
-    expect(mic.getSnapshot()).toMatchObject({ state: "blocked", errorType: "permissions", everLive: false });
-    mic.asking();
-    mic.live();
-    expect(mic.getSnapshot().errorType).toBeUndefined();
+    mic.setState("live");
+    mic.level(0.5);
+    expect(mic.getSnapshot().level).toBe(0.5);
+    mic.setState("blocked");
+    expect(mic.getSnapshot().level).toBe(0);
   });
 
-  it("reads muted only over a live mic", () => {
+  it("clamps levels and reads a bad one as zero", () => {
     const mic = new MicController();
-    mic.asking();
+    mic.level(4);
+    expect(mic.getSnapshot().level).toBe(1);
+    mic.level(-1);
+    expect(mic.getSnapshot().level).toBe(0);
+    mic.level(Number.NaN);
+    expect(mic.getSnapshot().level).toBe(0);
+  });
+
+  it("shows the silence hint only for `silent`, and only when the configuration allows it", () => {
+    const mic = new MicController();
+    mic.setHint("silent");
+    expect(mic.getSnapshot()).toMatchObject({ micHint: "silent", hint: true });
+    mic.setHint("missing");
+    expect(mic.getSnapshot()).toMatchObject({ micHint: "missing", hint: false });
+    const off = new MicController({ silenceHint: false });
+    off.setHint("silent");
+    expect(off.getSnapshot()).toMatchObject({ micHint: "silent", hint: false });
+  });
+
+  it("keeps the visitor's mute apart from the manager's state", () => {
+    const mic = new MicController();
     mic.setMuted(true);
-    expect(mic.getSnapshot().state).toBe("asking");
-    mic.live();
-    expect(mic.getSnapshot().state).toBe("muted");
-    mic.setMuted(false);
-    expect(mic.getSnapshot().state).toBe("live");
+    expect(mic.getSnapshot()).toMatchObject({ muted: true, state: "idle" });
   });
 
-  it("does not drop a live mic back to asking", () => {
+  it("resets for a new call from what the manager says now", () => {
     const mic = new MicController();
-    mic.live();
-    mic.asking();
-    expect(mic.getSnapshot().state).toBe("live");
-  });
-
-  it("notifies subscribers only on a change, with a new snapshot", () => {
-    const mic = new MicController();
-    const listener = vi.fn();
-    mic.subscribe(listener);
-    const before = mic.getSnapshot();
-    mic.asking();
-    mic.asking();
-    expect(listener).toHaveBeenCalledTimes(1);
-    expect(mic.getSnapshot()).not.toBe(before);
-  });
-
-  it("keeps the permission across a reset", () => {
-    const mic = new MicController();
-    mic.setPermission("denied");
-    mic.failed("permissions");
-    mic.reset();
-    expect(mic.getSnapshot()).toMatchObject({ state: "idle", permission: "denied", everLive: false });
-  });
-});
-
-describe("silence hint", () => {
-  it("has placeholder constants pending real calls", () => {
-    expect(SILENCE_HINT_FLOOR).toBeGreaterThan(0);
-    expect(SILENCE_HINT_AFTER_MS).toBeGreaterThan(0);
-  });
-
-  it("shows after the wait of silence while the agent listens, and clears on sound", () => {
-    const c = clock();
-    const mic = new MicController({ now: c.now, afterMs: 1000 });
-    mic.live();
-    mic.setAgentListening(true);
-    feed(mic, c, 0, 900);
-    expect(mic.getSnapshot().hint).toBe(false);
-    feed(mic, c, 0, 200);
-    expect(mic.getSnapshot().hint).toBe(true);
-    mic.level(0.2);
-    expect(mic.getSnapshot().hint).toBe(false);
-  });
-
-  it("does not count time the agent is speaking", () => {
-    const c = clock();
-    const mic = new MicController({ now: c.now, afterMs: 1000 });
-    mic.live();
-    mic.setAgentListening(true);
-    feed(mic, c, 0, 600);
-    mic.setAgentListening(false);
-    feed(mic, c, 0, 5000);
-    expect(mic.getSnapshot().hint).toBe(false);
-    mic.setAgentListening(true);
-    feed(mic, c, 0, 500);
-    expect(mic.getSnapshot().hint).toBe(true);
-  });
-
-  it("hides while the agent speaks, and when muted", () => {
-    const c = clock();
-    const mic = new MicController({ now: c.now, afterMs: 500 });
-    mic.live();
-    mic.setAgentListening(true);
-    feed(mic, c, 0, 700);
-    expect(mic.getSnapshot().hint).toBe(true);
-    mic.setAgentListening(false);
-    expect(mic.getSnapshot().hint).toBe(false);
-    mic.setAgentListening(true);
-    feed(mic, c, 0, 700);
+    mic.setState("live");
     mic.setMuted(true);
-    expect(mic.getSnapshot()).toMatchObject({ state: "muted", hint: false });
-  });
-
-  it("does not count a gap in the meter as silence", () => {
-    const c = clock();
-    const mic = new MicController({ now: c.now, afterMs: 1000 });
-    mic.live();
-    mic.setAgentListening(true);
-    mic.level(0);
-    c.advance(10_000);
-    mic.level(0);
-    expect(mic.getSnapshot().hint).toBe(false);
-  });
-
-  it("never shows when turned off", () => {
-    const c = clock();
-    const mic = new MicController({ now: c.now, afterMs: 100, silenceHint: false });
-    mic.live();
-    mic.setAgentListening(true);
-    feed(mic, c, 0, 2000);
-    expect(mic.getSnapshot().hint).toBe(false);
-  });
-});
-
-describe("watchMicPermission", () => {
-  it("reports the state and its changes, and stops", async () => {
-    const listeners: (() => void)[] = [];
-    const status = {
-      state: "prompt" as PermissionState,
-      addEventListener: (_: string, l: () => void) => listeners.push(l),
-      removeEventListener: vi.fn(),
-    };
-    const seen: string[] = [];
-    const stop = watchMicPermission((s) => seen.push(s), {
-      query: () => Promise.resolve(status as unknown as PermissionStatus),
+    mic.level(0.4);
+    mic.reset("blocked", "blocked");
+    expect(mic.getSnapshot()).toEqual({
+      state: "blocked",
+      micHint: "blocked",
+      muted: false,
+      hint: false,
+      level: 0,
+      everLive: false,
     });
-    await Promise.resolve();
-    await Promise.resolve();
-    status.state = "granted";
-    listeners.forEach((l) => l());
-    stop();
-    expect(seen).toEqual(["prompt", "granted"]);
-    expect(status.removeEventListener).toHaveBeenCalled();
-  });
-
-  it("asks again on focus, a tap or a key, where WebKit fires no change, and reports only a different answer", async () => {
-    let state: PermissionState = "prompt";
-    const events = new EventTarget();
-    const queries = vi.fn(() =>
-      Promise.resolve({ state, addEventListener() {}, removeEventListener() {} } as unknown as PermissionStatus),
-    );
-    const seen: string[] = [];
-    const stop = watchMicPermission((s) => seen.push(s), { query: queries }, events);
-    const settle = () => new Promise((r) => setTimeout(r, 0));
-    await settle();
-    events.dispatchEvent(new Event("focus"));
-    await settle();
-    state = "granted";
-    events.dispatchEvent(new Event("pointerdown"));
-    await settle();
-    events.dispatchEvent(new Event("keydown"));
-    await settle();
-    expect(seen).toEqual(["prompt", "granted"]);
-    stop();
-    const asked = queries.mock.calls.length;
-    state = "denied";
-    events.dispatchEvent(new Event("visibilitychange"));
-    await settle();
-    expect(queries.mock.calls.length).toBe(asked);
-    expect(seen).toEqual(["prompt", "granted"]);
-  });
-
-  it("never throws without the Permissions API", async () => {
-    expect(() => watchMicPermission(() => {}, undefined)()).not.toThrow();
-    const stop = watchMicPermission(() => {}, { query: () => Promise.reject(new TypeError("no")) });
-    await Promise.resolve();
-    stop();
-    expect(() =>
-      watchMicPermission(() => {}, {
-        query: () => {
-          throw new Error("sync");
-        },
-      }),
-    ).not.toThrow();
+    mic.reset("live", "silent");
+    expect(mic.getSnapshot()).toMatchObject({ state: "live", everLive: true, hint: true });
   });
 });
 
-describe("track mute and the permission", () => {
-  it("shows a muted track as missing over a live device, and ignores its level", () => {
-    const c = clock();
-    const mic = new MicController({ now: c.now, afterMs: 100 });
-    mic.live();
-    mic.setAgentListening(true);
-    mic.setTrackMuted(true);
-    expect(mic.getSnapshot()).toMatchObject({ state: "missing", device: "live", trackMuted: true });
-    feed(mic, c, 0, 1000);
-    expect(mic.getSnapshot().hint).toBe(false);
-    mic.setTrackMuted(false);
-    expect(mic.getSnapshot()).toMatchObject({ state: "live", trackMuted: false });
-  });
-
-  it("reads every failure as blocked while the permission is denied", () => {
-    const mic = new MicController();
-    mic.live();
-    mic.setPermission("denied");
-    mic.failed("track-ended");
-    expect(mic.getSnapshot().state).toBe("blocked");
+describe("micIsOff", () => {
+  it("is true only for the hints that mean the mic is not reaching the call", () => {
+    expect(micIsOff("grant")).toBe(true);
+    expect(micIsOff("blocked")).toBe(true);
+    expect(micIsOff("missing")).toBe(true);
+    expect(micIsOff("silent")).toBe(false);
+    expect(micIsOff("none")).toBe(false);
   });
 });

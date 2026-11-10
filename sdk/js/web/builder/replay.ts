@@ -73,13 +73,11 @@ export function recordedTurn(spoken?: SpokenTurn): RecordedTurn {
 
 const IDLE_MIC: MicSnapshot = {
   state: "idle",
-  device: "idle",
+  micHint: "none",
   muted: false,
   hint: false,
   level: 0,
   everLive: false,
-  trackMuted: false,
-  permission: "unknown",
 };
 
 const mic = (id: string, label: string) => ({ deviceId: id, label, kind: "audioinput", groupId: "" }) as MediaDeviceInfo;
@@ -140,12 +138,12 @@ export class ReplaySession extends Patchable<SessionSnapshot> implements WidgetS
     this.stopped = false;
     this.patch({ status: "connecting", end: undefined });
     const m = this.script.mic;
-    if (m === "asking") this.mic.patch({ state: "asking", device: "asking", permission: "prompt" });
-    else if (m === "blocked") this.mic.patch({ state: "blocked", device: "blocked", permission: "denied" });
-    else if (m === "missing") this.mic.patch({ state: "missing", device: "missing", permission: "granted" });
-    else this.mic.patch({ state: "live", device: "live", everLive: true, permission: "granted" });
+    if (m === "asking") this.mic.patch({ state: "asking", micHint: "grant" });
+    else if (m === "blocked") this.mic.patch({ state: "blocked", micHint: "blocked" });
+    else if (m === "missing") this.mic.patch({ state: "missing", micHint: "missing" });
+    else this.mic.patch({ state: "live", micHint: "none", everLive: true });
     if (m === "muted") this.mic.patch({ muted: true, state: "muted" });
-    if (m === "silent") this.mic.patch({ hint: true, level: 0.005 });
+    if (m === "silent") this.mic.patch({ micHint: "silent", hint: true, level: 0.005 });
     this.voice?.connect();
     this.patch({ status: "connected", agent: "listening", sessionId: "preview" });
     if (!this.script.play) return;
@@ -239,7 +237,7 @@ export class ReplaySession extends Patchable<SessionSnapshot> implements WidgetS
   endFromAgent(reason: "ended" | "mic_denied"): void {
     this.halt();
     this.patch({ status: "ended", agent: "idle", end: { by: "agent", reason } });
-    this.mic.patch({ state: "idle", device: "idle", level: 0 });
+    this.mic.patch({ state: "idle", micHint: "none", level: 0 });
   }
 
   setMuted(muted: boolean): void {

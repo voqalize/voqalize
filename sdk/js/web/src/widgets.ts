@@ -52,15 +52,10 @@ export type {
 export {
   MicController,
   type MicControllerOptions,
-  type MicDeviceState,
+  type MicHint,
   type MicSnapshot,
   type MicState,
-  SILENCE_HINT_AFTER_MS,
-  SILENCE_HINT_FLOOR,
-  SILENCE_HINT_MAX_GAP_MS,
-  type WireMicState,
-  micStateForError,
-  watchMicPermission,
+  micIsOff,
 } from "./controllers/mic.js";
 export { type MicPillKind, type MicPillOptions, micPillOf } from "./controllers/mic-pill.js";
 export {

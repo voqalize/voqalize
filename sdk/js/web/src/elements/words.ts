@@ -61,7 +61,8 @@ export const ENGLISH: Readonly<Record<string, string>> = {
     "The mic is blocked for this site. Tap the page menu in the address bar, open Website Settings, and allow the microphone.",
   "coach.blocked.android":
     "The mic is blocked for this site. Tap the icon at the left of the address bar, open Permissions, and allow the microphone.",
-  "coach.missing": "We can't find a microphone. Plug one in, or choose another one from the menu.",
+  "coach.missing":
+    "We can't hear a microphone. Check one is plugged in and no other app is using it, or choose another one from the menu.",
   "coach.check":
     "{name} can't hear your mic. Check it isn't muted or switched off, and that no other app is using it.",
   "coach.check.mac":
@@ -78,8 +79,7 @@ export const ENGLISH: Readonly<Record<string, string>> = {
   "pill.check": "Is your mic working?",
   "end.hung_up": "You ended the call.",
   "end.ended": "The call has ended.",
-  "end.mic_denied":
-    "The call ended because {name} couldn't hear you. Next time, allow the microphone when your browser asks.",
+  "end.mic_denied": "The call ended. Allow your microphone and start again.",
   "end.connect_failed": "We couldn't connect the call. Please try again.",
   "end.again": "Call again",
   "end.close": "Close",

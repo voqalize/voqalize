@@ -183,14 +183,14 @@ type Props<E, K extends keyof E> = Partial<Pick<E, K>>;
 
 export type VoqalizeWidgetProps = Props<
   VqlWidget,
-  "config" | "session" | "sessionSource" | "init" | "apiBase" | "statusLabel" | "instantStartOnIOS" | "browser"
+  "config" | "session" | "sessionSource" | "init" | "apiBase" | "statusLabel" | "browser"
 > & {
   onView?: EventProp<{ view: string; form: string }>;
   onOpen?: EventProp;
   onCollapse?: EventProp;
   onClose?: EventProp;
   onEnd?: EventProp<{ reason: string }>;
-  onMic?: EventProp<{ state: string; hint: boolean }>;
+  onMic?: EventProp<{ state: string; hint: boolean; micHint: string }>;
   onAgent?: EventProp<{ state: string }>;
   onPlace?: EventProp<{ anchor: string; point: { x: number; y: number }; free: boolean }>;
 };

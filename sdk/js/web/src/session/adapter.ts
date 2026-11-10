@@ -9,28 +9,28 @@
  * Over the client and our transport it adds what a widget needs and a raw
  * client does not say:
  *
- * - instant start (see `media.ts`): connect does not wait for the mic;
- * - the mic's state as a store (`mic.ts`), sent to gato as `mic_state`,
- *   including what the local track's `mute` and `ended` events and the
- *   device list's `devicechange` say about it;
+ * - instant start: connect does not wait for the mic (the media manager's
+ *   `waitForDevices: false`);
+ * - the mic as a store (`mic.ts`), mirroring the media manager's `micState`
+ *   and `micHint`, and the attention tone (`tone.ts`) while the mic is off;
  * - the agent's state, derived from the client's speaking and LLM events;
  * - the agent's words as they play and the visitor's transcript, as events;
  * - the devices, with the speaker picker only where `setSinkId` exists;
  * - why the call ended.
  *
- * gato tells the client nothing about why a call ended, so the end reason is
- * read here: the visitor hanging up is known locally; a close before the
- * agent was ever ready is a failed connect; a call the far end closed while
- * the mic never went live ended because nobody allowed the mic (gato's idle
- * rule, which it records as `mic_denied`); any other close is the agent
- * ending the call.
+ * The far end tells the client nothing about why a call ended, so the end
+ * reason is read here: the visitor hanging up is known locally; a close
+ * before the agent was ever ready is a failed connect; a call the far end
+ * closed while the mic never went live ended because nobody allowed the mic
+ * (the agent's idle timeout, recorded as `mic_denied`); any other close is
+ * the agent ending the call.
  */
 
 import { PipecatClient, type RTVIEventCallbacks } from "@pipecat-ai/client-js";
-import { createVoqalizeTransport } from "@voqalize/client-transport";
-import { MicController, type MicSnapshot, type WireMicState, watchMicPermission } from "../controllers/mic.js";
+import { createVoqalizeTransport, VoqalizeMediaManager } from "@voqalize/client-transport";
+import { MicController, type MicHint, type MicState, micIsOff } from "../controllers/mic.js";
 import { Store } from "../controllers/store.js";
-import { InstantStartMediaManager, isIOS } from "./media.js";
+import { createTonePlayer, TONE_AGAIN_MS, type TonePlayer } from "./tone.js";
 
 // ------------------------------------------------------------------- types
 
@@ -96,7 +96,10 @@ export interface ClientLike {
 
 /** The media manager methods the session uses. */
 export interface MediaManagerLike {
-  instant: boolean;
+  readonly micState: MicState;
+  readonly micHint: MicHint;
+  onMicStateChange(listener: (state: MicState) => void): () => void;
+  onMicHintChange(listener: (hint: MicHint) => void): () => void;
   bindOutputElement(element: HTMLMediaElement): () => void;
   /**
    * Choose the mic. Optional: when present the session calls it directly,
@@ -114,32 +117,25 @@ export interface ClientFactoryArgs {
 }
 
 export interface SessionOptions {
-  /** `mic.instantStart`. Default true. */
-  instantStart?: boolean;
   /**
-   * Allow instant start on iPhone and iPad. Default false: capture switches
-   * iOS's audio session mid-greeting, and that waits on a test on real
-   * devices. A library flag, not a widget setting.
+   * `mic.instantStart`. Default true: the call connects while the browser
+   * is still asking for the mic. The media manager waits anyway on iOS.
    */
-  instantStartOnIOS?: boolean;
+  instantStart?: boolean;
   /** `mic.silenceHint`. Default true. */
   silenceHint?: boolean;
+  /** `mic.alertTone`: the attention tone while the mic is off. Default false. */
+  alertTone?: boolean;
   /** Where the agent plays. Default: an `<audio>` element the session makes. */
   audioElement?: HTMLMediaElement;
   /** For tests. */
-  createMediaManager?: () => MediaManagerLike;
+  createMediaManager?: (options: { waitForDevices: boolean }) => MediaManagerLike;
   /** For tests. */
   createClient?: (args: ClientFactoryArgs) => ClientLike;
   /** For tests. */
-  isIOS?: boolean;
-  /** For tests. */
   canPickSpeaker?: boolean;
-  /** For tests: the Permissions API. */
-  permissions?: Pick<Permissions, "query">;
-  /** For tests: where `devicechange` and the device list come from. */
-  mediaDevices?: Pick<MediaDevices, "addEventListener" | "removeEventListener" | "enumerateDevices">;
-  /** For tests: the mic controller's clock. */
-  now?: () => number;
+  /** For tests: what makes the attention tone. */
+  createTone?: () => TonePlayer | null;
 }
 
 // ------------------------------------------------------------------ helpers
@@ -195,7 +191,7 @@ function speakerPickable(): boolean {
 }
 
 function defaultClient({ mediaManager, callbacks }: ClientFactoryArgs): ClientLike {
-  const transport = createVoqalizeTransport({ mediaManager: mediaManager as InstantStartMediaManager });
+  const transport = createVoqalizeTransport({ mediaManager: mediaManager as VoqalizeMediaManager });
   return new PipecatClient({ transport, enableMic: true, enableCam: false, callbacks });
 }
 
@@ -217,30 +213,33 @@ export class WidgetSession extends Store<SessionSnapshot> {
   };
   private audio: HTMLMediaElement | null = null;
   private unbindAudio: (() => void) | null = null;
-  private stopPermissionWatch: (() => void) | null = null;
-  /** Stops following the local track's events. */
-  private stopTrackWatch: (() => void) | null = null;
-  private stopDeviceWatch: (() => void) | null = null;
-  private ready = false;
+  private readonly unsubscribeManager: Array<() => void>;
   /** Whether the agent was ever ready on this call: a close before that is a failed connect. */
   private wasReady = false;
   private hangingUp = false;
   /** Bumped by every connect and hang-up: an older connect that resumes after either stops. */
   private generation = 0;
-  private lastSent: string | null = null;
-  private localTrack: MediaStreamTrack | null = null;
+  private tone: TonePlayer | null = null;
+  /** Whether this call's attention tone has been scheduled; it is, once, at the agent's first stop. */
+  private toneScheduled = false;
+  private toneTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(options: SessionOptions = {}) {
     const canPickSpeaker = options.canPickSpeaker ?? speakerPickable();
     super({ status: "idle", agent: "idle", devices: { mics: [], speakers: [], canPickSpeaker } });
     this.options = options;
-    this.mic = new MicController({ silenceHint: options.silenceHint ?? true, now: options.now });
-    this.mediaManager = options.createMediaManager?.() ?? new InstantStartMediaManager();
+    this.mic = new MicController({ silenceHint: options.silenceHint ?? true });
+    const waitForDevices = !(options.instantStart ?? true);
+    this.mediaManager =
+      options.createMediaManager?.({ waitForDevices }) ?? new VoqalizeMediaManager({ waitForDevices });
     this.client = (options.createClient ?? defaultClient)({
       mediaManager: this.mediaManager,
       callbacks: this.callbacks(),
     });
-    this.mic.subscribe(() => this.sendMicState());
+    this.unsubscribeManager = [
+      this.mediaManager.onMicStateChange((state) => this.mic.setState(state)),
+      this.mediaManager.onMicHintChange((hint) => this.mic.setHint(hint)),
+    ];
   }
 
   /**
@@ -249,13 +248,6 @@ export class WidgetSession extends Store<SessionSnapshot> {
    */
   get rawClient(): ClientLike {
     return this.client;
-  }
-
-  /** Whether this call connects without waiting for the mic. */
-  get instant(): boolean {
-    if (!(this.options.instantStart ?? true)) return false;
-    const ios = this.options.isIOS ?? isIOS();
-    return !ios || (this.options.instantStartOnIOS ?? false);
   }
 
   on<K extends keyof SessionEvents>(event: K, listener: SessionEvents[K]): () => void {
@@ -269,38 +261,26 @@ export class WidgetSession extends Store<SessionSnapshot> {
    * Start the call. In instant mode the mic is asked for and the session
    * fetched at the same time, and the call connects without waiting for the
    * visitor to answer the prompt. Call it from the click, so the greeting's
-   * audio is allowed to play.
+   * audio, and the attention tone, are allowed to play.
    */
   async connect(source: SessionSource): Promise<void> {
     const status = this.getSnapshot().status;
     if (status === "connecting" || status === "connected") return;
     const generation = ++this.generation;
     const stale = () => generation !== this.generation || this.hangingUp;
-    this.ready = false;
     this.wasReady = false;
     this.hangingUp = false;
-    this.lastSent = null;
-    this.mic.reset();
+    this.mic.reset(this.mediaManager.micState, this.mediaManager.micHint);
     this.set({ status: "connecting", agent: "idle", end: undefined, user: undefined, sessionId: undefined });
     this.bindAudio();
-    this.watchPermission();
-    this.watchDevices();
-
-    const instant = this.instant;
-    this.mediaManager.instant = instant;
-    this.mic.asking();
+    this.startTone();
     try {
-      const devices = this.client.needsInit?.() === false ? Promise.resolve() : this.client.initDevices();
-      const fetchSession = () => (typeof source === "function" ? source() : Promise.resolve(source));
-      let response: SessionResponse;
-      if (instant) {
-        [, response] = await Promise.all([devices, fetchSession()]);
-      } else {
-        // The stock order: the mic first, then the session, so a session is
-        // never minted for a visitor who is still reading the prompt.
-        await devices;
-        response = await fetchSession();
-      }
+      // In instant mode the manager starts the mic request and returns at
+      // once; otherwise this waits for the visitor to answer the prompt, so
+      // a session is never minted for a visitor who is still reading it.
+      if (this.client.needsInit?.() !== false) await this.client.initDevices();
+      if (stale()) return;
+      const response = await (typeof source === "function" ? source() : Promise.resolve(source));
       if (stale()) return;
       this.set({ sessionId: typeof response.session_id === "string" ? response.session_id : undefined });
       await this.client.connect(withRealHeaders(response));
@@ -335,17 +315,16 @@ export class WidgetSession extends Store<SessionSnapshot> {
 
   /**
    * Ask for the mic again, from the visitor's tap on "Grant mic permission".
-   * Only while it is blocked and the browser does not say the permission is
-   * denied: Safari reads "prompt" after a refusal, and asking again from a
-   * tap is how it is allowed there. A denied permission is changed in the
-   * browser, not by asking, and the coach says where.
+   * Only while it is refused or missing: Safari reads "prompt" after a
+   * refusal, and asking again from a tap is how it is allowed there. Where
+   * the browser remembers the refusal, asking fails at once and the coach
+   * says where the setting is.
    */
   askForMic(): void {
     const mic = this.mic.getSnapshot();
-    if (mic.device !== "blocked" || mic.permission === "denied" || mic.muted) return;
+    if ((mic.state !== "blocked" && mic.state !== "missing") || mic.muted) return;
     const status = this.getSnapshot().status;
     if (status !== "connecting" && status !== "connected") return;
-    this.mic.asking();
     try {
       this.client.enableMic(true);
     } catch {
@@ -355,9 +334,6 @@ export class WidgetSession extends Store<SessionSnapshot> {
 
   /** Choose the mic. A device that cannot be opened is reported as a device error. */
   selectMic(id: string): void {
-    // The old track ends when the new one replaces it; that end is the
-    // switch, not a lost mic. The new track is followed when it starts.
-    this.unwatchTrack();
     this.settle(this.mediaManager.updateMic ? this.mediaManager.updateMic(id) : this.client.updateMic(id));
   }
 
@@ -401,116 +377,17 @@ export class WidgetSession extends Store<SessionSnapshot> {
 
   private setAgent(agent: AgentState): void {
     this.set({ agent });
-    this.mic.setAgentListening(agent === "listening");
   }
 
   private setDevices(patch: Partial<DeviceSnapshot>): void {
     this.set({ devices: { ...this.getSnapshot().devices, ...patch } });
   }
 
-  /** `mic_state` to gato: once when the agent is ready, then on every change. */
-  private sendMicState(): void {
-    if (!this.ready) return;
-    const snap: MicSnapshot = this.mic.getSnapshot();
-    if (snap.state === "idle") return;
-    const state: WireMicState = snap.state;
-    const key = `${state}:${snap.hint}`;
-    if (key === this.lastSent) return;
-    try {
-      this.client.sendClientMessage("mic_state", { state, hint: snap.hint });
-      this.lastSent = key;
-    } catch {
-      // Not ready to send; the next change tries again.
-    }
-  }
-
   private finish(end: EndReason): void {
     if (this.getSnapshot().status === "ended") return;
-    this.ready = false;
     this.set({ status: "ended", agent: "idle", end });
-    this.mic.setAgentListening(false);
-    this.stopPermissionWatch?.();
-    this.stopPermissionWatch = null;
-    // Hanging up stops the track; that end is not news.
-    this.unwatchTrack();
-    this.stopDeviceWatch?.();
-    this.stopDeviceWatch = null;
+    this.stopTone();
     if (this.audio) this.audio.srcObject = null;
-  }
-
-  /**
-   * Follow the local mic track: `mute` and `unmute` when the system or
-   * another app silences it, `ended` when it is gone for good.
-   */
-  private watchTrack(track: MediaStreamTrack): void {
-    this.unwatchTrack();
-    const onMute = () => this.mic.setTrackMuted(true);
-    const onUnmute = () => this.mic.setTrackMuted(false);
-    const onEnded = () => {
-      this.unwatchTrack();
-      if (this.getSnapshot().status !== "ended") this.mic.failed("track-ended");
-    };
-    try {
-      track.addEventListener("mute", onMute);
-      track.addEventListener("unmute", onUnmute);
-      track.addEventListener("ended", onEnded);
-    } catch {
-      return; // not a real track: nothing to follow
-    }
-    this.localTrack = track;
-    this.stopTrackWatch = () => {
-      track.removeEventListener("mute", onMute);
-      track.removeEventListener("unmute", onUnmute);
-      track.removeEventListener("ended", onEnded);
-      if (this.localTrack === track) this.localTrack = null;
-    };
-    if (track.readyState === "ended") onEnded();
-    else if (track.muted) onMute();
-  }
-
-  private unwatchTrack(): void {
-    this.stopTrackWatch?.();
-    this.stopTrackWatch = null;
-  }
-
-  /**
-   * On `devicechange`, the device the live track reads from may have left
-   * (unplugged, switched off). Most browsers end the track too; this catches
-   * the ones that leave a silent track behind.
-   */
-  private watchDevices(): void {
-    this.stopDeviceWatch?.();
-    this.stopDeviceWatch = null;
-    const media = this.options.mediaDevices ?? globalThis.navigator?.mediaDevices;
-    if (!media?.addEventListener) return;
-    const onChange = () => {
-      const track = this.localTrack;
-      if (!track || this.getSnapshot().status === "ended") return;
-      let id: string | undefined;
-      try {
-        id = track.getSettings?.().deviceId;
-      } catch {
-        id = undefined;
-      }
-      media
-        .enumerateDevices()
-        .then((devices) => {
-          if (this.localTrack !== track || this.getSnapshot().status === "ended") return;
-          const mics = devices.filter((d) => d.kind === "audioinput");
-          const gone = track.readyState === "ended" || mics.length === 0 || (id !== undefined && id !== "" && !mics.some((d) => d.deviceId === id));
-          if (gone) {
-            this.unwatchTrack();
-            this.mic.failed("device-gone");
-          }
-        })
-        .catch(() => {});
-    };
-    try {
-      media.addEventListener("devicechange", onChange);
-      this.stopDeviceWatch = () => media.removeEventListener("devicechange", onChange);
-    } catch {
-      // No device events here.
-    }
   }
 
   private bindAudio(): void {
@@ -528,45 +405,48 @@ export class WidgetSession extends Store<SessionSnapshot> {
     }
   }
 
-  private watchPermission(): void {
-    this.stopPermissionWatch?.();
-    this.stopPermissionWatch = watchMicPermission((state) => {
-      const before = this.mic.getSnapshot();
-      this.mic.setPermission(state);
-      const live = this.getSnapshot().status !== "ended";
-      // Revoked mid-call, from the address bar or the site's settings: the
-      // track stops, and the coach can say how to undo it.
-      if (state === "denied" && live && before.device !== "blocked" && before.device !== "idle") {
-        this.mic.failed("permissions");
-        return;
-      }
-      // Allowed from the address bar after a refusal: pick the mic up with
-      // no reload.
-      if (state === "granted" && before.device === "blocked" && live) {
-        this.mic.asking();
-        if (!before.muted) {
-          try {
-            this.client.enableMic(true);
-          } catch {
-            // Picked up on the next attempt.
-          }
-        }
-      }
-    }, this.options.permissions);
+  /** Make the tone's audio context now, in the click that starts the call. */
+  private startTone(): void {
+    this.stopTone();
+    this.toneScheduled = false;
+    if (!this.options.alertTone) return;
+    this.tone = (this.options.createTone ?? createTonePlayer)();
   }
 
   /**
-   * Hang up a call still in progress, stop listening for permission changes
-   * and unbind the audio element.
+   * The agent finished speaking. The first time in a call, the tone plays if
+   * the mic is off, and once more after `TONE_AGAIN_MS` if it still is.
+   */
+  private agentStoppedForTone(): void {
+    if (!this.tone || this.toneScheduled) return;
+    this.toneScheduled = true;
+    const beep = () => {
+      if (this.getSnapshot().status === "ended") return;
+      if (micIsOff(this.mic.getSnapshot().micHint)) this.tone?.play();
+    };
+    beep();
+    this.toneTimer = setTimeout(() => {
+      this.toneTimer = null;
+      beep();
+    }, TONE_AGAIN_MS);
+  }
+
+  private stopTone(): void {
+    if (this.toneTimer) clearTimeout(this.toneTimer);
+    this.toneTimer = null;
+    this.tone?.close();
+    this.tone = null;
+  }
+
+  /**
+   * Hang up a call still in progress, stop following the media manager and
+   * unbind the audio element.
    */
   dispose(): void {
     const status = this.getSnapshot().status;
     if (status === "connecting" || status === "connected") void this.disconnect();
-    this.stopPermissionWatch?.();
-    this.stopPermissionWatch = null;
-    this.unwatchTrack();
-    this.stopDeviceWatch?.();
-    this.stopDeviceWatch = null;
+    this.stopTone();
+    for (const off of this.unsubscribeManager.splice(0)) off();
     this.unbindAudio?.();
     this.unbindAudio = null;
   }
@@ -574,11 +454,9 @@ export class WidgetSession extends Store<SessionSnapshot> {
   private callbacks(): Partial<RTVIEventCallbacks> {
     return {
       onBotReady: () => {
-        this.ready = true;
         this.wasReady = true;
         this.set({ status: "connected" });
         this.setAgent("listening");
-        this.sendMicState();
       },
       onDisconnected: () => {
         if (this.hangingUp || this.getSnapshot().status === "ended") return;
@@ -602,6 +480,7 @@ export class WidgetSession extends Store<SessionSnapshot> {
       onBotStoppedSpeaking: () => {
         this.setAgent("listening");
         this.emit("agentStopped");
+        this.agentStoppedForTone();
       },
       onBotOutput: (data) => {
         if (data.spoken_status !== "new" || data.aggregated_by === "word") return;
@@ -617,11 +496,7 @@ export class WidgetSession extends Store<SessionSnapshot> {
       onLocalAudioLevel: (level) => this.mic.level(level),
       onTrackStarted: (track, participant) => {
         if (track.kind !== "audio") return;
-        if (participant?.local) {
-          this.mic.live();
-          this.watchTrack(track);
-          return;
-        }
+        if (participant?.local) return;
         if (this.audio) {
           try {
             this.audio.srcObject = new MediaStream([track]);
@@ -630,10 +505,6 @@ export class WidgetSession extends Store<SessionSnapshot> {
             // The playout guard re-attaches it.
           }
         }
-      },
-      onDeviceError: (error) => {
-        const devices = (error as { devices?: string[] }).devices ?? [];
-        if (devices.includes("mic")) this.mic.failed((error as { type?: string }).type);
       },
       onAvailableMicsUpdated: (mics) => this.setDevices({ mics }),
       onAvailableSpeakersUpdated: (speakers) => this.setDevices({ speakers }),

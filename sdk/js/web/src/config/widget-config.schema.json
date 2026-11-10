@@ -207,6 +207,11 @@
           "default": true,
           "description": "Say so when the mic is live but has heard nothing while the agent waits."
         },
+        "alertTone": {
+          "type": "boolean",
+          "default": false,
+          "description": "Play a short beep while the mic is off (not allowed, blocked or missing): once when the agent first finishes speaking, and once more a few seconds later."
+        },
         "pill": {
           "type": "boolean",
           "default": true,

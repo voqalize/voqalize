@@ -229,7 +229,7 @@ describe("session events", () => {
     w.sessionSource = { session_id: "s" };
     await w.open();
     await w.updateComplete;
-    expect(seen).toContainEqual({ type: "vql-mic", detail: { state: "live", hint: false } });
+    expect(seen).toContainEqual({ type: "vql-mic", detail: { state: "live", hint: false, micHint: "none" } });
     expect(seen).toContainEqual({ type: "vql-agent", detail: { state: "listening" } });
     shadow(w).querySelector("vql-mic")?.dispatchEvent(new CustomEvent("vql-mute", { detail: { muted: true } }));
     expect(s.calls).toContain("mute:true");
@@ -241,7 +241,7 @@ describe("session events", () => {
     const s = new FakeSession();
     s.onConnect = (x) => {
       x.patch({ status: "connected", agent: "listening" });
-      x.mic.patch({ state: "blocked", device: "blocked", permission: "denied" });
+      x.mic.patch({ state: "blocked", micHint: "blocked" });
     };
     const w = await mount(`<vql-widget></vql-widget>`, s);
     w.sessionSource = { session_id: "s" };
@@ -260,7 +260,7 @@ describe("session events", () => {
       const s = new FakeSession();
       s.onConnect = (x) => {
         x.patch({ status: "connecting" });
-        x.mic.patch({ state: "asking", device: "asking", permission: "prompt" });
+        x.mic.patch({ state: "asking", micHint: "grant" });
       };
       const w = await mount(`<vql-widget></vql-widget>`, s);
       w.sessionSource = { session_id: "s" };
@@ -272,7 +272,7 @@ describe("session events", () => {
       await vi.advanceTimersByTimeAsync(10);
       await w.updateComplete;
       expect(shadow(w).querySelector("vql-coach")).not.toBeNull();
-      s.mic.patch({ permission: "granted" });
+      s.mic.patch({ micHint: "none" });
       await w.updateComplete;
       expect(shadow(w).querySelector("vql-coach")).toBeNull();
     } finally {
@@ -341,7 +341,7 @@ describe("mic pill", () => {
   }
 
   it("asks for permission when the mic is blocked, and its press brings back a dismissed coach", async () => {
-    const { w, pill } = await inCall({ state: "blocked", device: "blocked", permission: "denied" });
+    const { w, pill } = await inCall({ state: "blocked", micHint: "blocked" });
     expect(pill()?.getAttribute("kind")).toBe("permission");
     expect(liveText(w)).toBe("Grant mic permission");
     expect(shadow(w).querySelector("vql-status")?.getAttribute("mic")).toBe("idle");
@@ -354,27 +354,23 @@ describe("mic pill", () => {
   });
 
   it("unmutes when the visitor muted", async () => {
-    const { s, w, pill } = await inCall({ state: "muted", device: "live", muted: true, everLive: true, permission: "granted" });
+    const { s, w, pill } = await inCall({ state: "muted", muted: true, everLive: true });
     expect(pill()?.getAttribute("kind")).toBe("muted");
     expect(liveText(w)).toBe("You are muted");
     pill()?.dispatchEvent(new CustomEvent("vql-pill-action", { detail: { kind: "muted" } }));
     expect(s.calls).toContain("mute:false");
   });
 
-  it("asks whether the mic works for the silence hint, a muted track and an ended one", async () => {
-    const { s, w, pill } = await inCall({ state: "live", device: "live", hint: true, everLive: true, permission: "granted" });
+  it("asks whether the mic works for the silence hint and a missing mic", async () => {
+    const { s, w, pill } = await inCall({ state: "live", micHint: "silent", hint: true, everLive: true });
     expect(pill()?.getAttribute("kind")).toBe("check");
     expect(liveText(w)).toBe("Is your mic working?");
     expect(shadow(w).querySelector("[part=hint]")).toBeNull();
-    s.mic.patch({ hint: false, state: "missing", trackMuted: true });
+    s.mic.patch({ hint: false, state: "missing", micHint: "missing" });
     await settle(w);
     expect(pill()?.getAttribute("kind")).toBe("check");
-    // A muted track is coached as a check, not as a missing mic.
-    expect(shadow(w).querySelector("vql-coach")?.getAttribute("state")).toBe("check");
-    s.mic.patch({ trackMuted: false, state: "missing", device: "missing" });
-    await settle(w);
-    expect(pill()?.getAttribute("kind")).toBe("check");
-    s.mic.patch({ state: "live", device: "live" });
+    expect(shadow(w).querySelector("vql-coach")?.getAttribute("state")).toBe("missing");
+    s.mic.patch({ state: "live", micHint: "none" });
     await settle(w);
     expect(pill()).toBeNull();
     expect(liveText(w)).toBe("");
@@ -382,7 +378,7 @@ describe("mic pill", () => {
 
   it("opens the coach with this platform's advice where there is no device menu", async () => {
     const { w, pill } = await inCall(
-      { state: "live", device: "live", hint: true, everLive: true, permission: "granted" },
+      { state: "live", micHint: "silent", hint: true, everLive: true },
       { controls: { devices: false } },
     );
     pill()?.dispatchEvent(new CustomEvent("vql-pill-action", { detail: { kind: "check" } }));
@@ -391,7 +387,7 @@ describe("mic pill", () => {
   });
 
   it("is a toggle, and the coach mark is another", async () => {
-    const { w, pill } = await inCall({ state: "blocked", device: "blocked", permission: "denied" }, { mic: { pill: false, coach: false } });
+    const { w, pill } = await inCall({ state: "blocked", micHint: "blocked" }, { mic: { pill: false, coach: false } });
     expect(pill()).toBeNull();
     expect(shadow(w).querySelector("vql-coach")).toBeNull();
     expect(shadow(w).querySelector("vql-status")?.getAttribute("mic")).toBe("blocked");

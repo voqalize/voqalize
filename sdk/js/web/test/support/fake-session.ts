@@ -23,13 +23,11 @@ export const IDLE_SESSION: SessionSnapshot = {
 
 export const IDLE_MIC: MicSnapshot = {
   state: "idle",
-  device: "idle",
+  micHint: "none",
   muted: false,
   hint: false,
   level: 0,
   everLive: false,
-  trackMuted: false,
-  permission: "unknown",
 };
 
 export class FakeSession extends Patchable<SessionSnapshot> implements WidgetSessionLike {
@@ -40,7 +38,7 @@ export class FakeSession extends Patchable<SessionSnapshot> implements WidgetSes
   /** What connect() does to the stores; by default it connects at once. */
   onConnect: (s: FakeSession) => void = (s) => {
     s.patch({ status: "connected", agent: "listening" });
-    s.mic.patch({ state: "live", device: "live", everLive: true, permission: "granted" });
+    s.mic.patch({ state: "live", micHint: "none", everLive: true });
   };
 
   constructor(initial: Partial<SessionSnapshot> = {}) {
@@ -67,7 +65,7 @@ export class FakeSession extends Patchable<SessionSnapshot> implements WidgetSes
   async disconnect(): Promise<void> {
     this.calls.push("disconnect");
     this.patch({ status: "ended", agent: "idle", end: { by: "user", reason: "hung_up" } });
-    this.mic.patch({ state: "idle", device: "idle", level: 0 });
+    this.mic.patch({ state: "idle", micHint: "none", level: 0 });
   }
 
   setMuted(muted: boolean): void {

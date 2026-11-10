@@ -236,12 +236,6 @@ export async function waitForEvent(
   }
 }
 
-export const isMicState = (state: string) => (e: ProbeEvent) =>
-  e.dir === "out" &&
-  e.type === "client-message" &&
-  (e.data as { t?: string; d?: { state?: string } })?.t === "mic_state" &&
-  (e.data as { d: { state: string } }).d.state === state;
-
 export const botText = (e: ProbeEvent): string =>
   e.dir === "in" && e.type === "bot-output" ? String((e.data as { text?: string })?.text ?? "") : "";
 
