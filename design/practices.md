@@ -43,7 +43,7 @@ subset.
    word unless the tool is marked (rule 50). A model that calls in silence leaves
    the user in silence until they speak again: GeminiBrain's `turn:` log line says
    `speechless=yes`, and Voqalize's watchdog (`brain.watchdog_secs`) then says
-   "Sorry — that's taking longer than I expected." The fix is the prompt, and
+   "Sorry, this is taking a little longer than I expected." The fix is the prompt, and
    under it a line the brain speaks itself when the turn called and said nothing
    — written, from the calls that landed, never a second model request (every
    demo, through `demos/voqalize_demos/silent_turn.py`). The prompt alone did not

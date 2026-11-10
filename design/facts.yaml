@@ -933,8 +933,8 @@ facts:
       ../platform/gato/internal/brain/bridge.go
     note: >-
       The watchdog: armed per committed user turn, disarmed by the first text
-      the brain sends for it or by a barge-in, and at the end it says "Sorry —
-      that's taking longer than I expected." and leaves the session up. Under
+      the brain sends for it or by a barge-in, and at the end it says "Sorry,
+      this is taking a little longer than I expected." and leaves the session up. Under
       the speak-first tool loop (SDK 0.7.0) a turn in which the model only calls
       unmarked tools and says nothing ends without text, so this is what the
       user hears next unless they speak first. Public on reference/errors.md and

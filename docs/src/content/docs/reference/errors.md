@@ -211,7 +211,7 @@ other code, ends the session at once, as `brain_disconnected`, with no line.
 Voqalize starts a **10-second** watchdog. If the turn has sent no `SpeechChunk`
 by then, the user hears:
 
-> Sorry — that's taking longer than I expected.
+> Sorry, this is taking a little longer than I expected.
 
 **The session stays up**, and the next turn may be fine. The watchdog is
 disarmed by your brain's first `SpeechChunk` for that turn and by a barge-in, and a
