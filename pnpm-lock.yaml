@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  astro@5.18.2:
+    hash: ozibdofgdf2yq5hjh4ramod3wu
+    path: patches/astro@5.18.2.patch
+
 importers:
 
   .: {}
@@ -12,7 +17,7 @@ importers:
     dependencies:
       '@astrojs/starlight':
         specifier: ^0.34.0
-        version: 0.34.8(astro@5.18.2(@types/node@25.9.5)(rollup@4.62.2)(typescript@5.9.3))
+        version: 0.34.8(astro@5.18.2(patch_hash=ozibdofgdf2yq5hjh4ramod3wu)(@types/node@25.9.5)(rollup@4.62.2)(typescript@5.9.3))
       '@pipecat-ai/client-js':
         specifier: ~1.13.0
         version: 1.13.1
@@ -27,7 +32,7 @@ importers:
         version: 0.4.1(@pipecat-ai/client-js@1.13.1)(@pipecat-ai/small-webrtc-transport@1.10.8(@pipecat-ai/client-js@1.13.1))
       astro:
         specifier: ^5.0.0
-        version: 5.18.2(@types/node@25.9.5)(rollup@4.62.2)(typescript@5.9.3)
+        version: 5.18.2(patch_hash=ozibdofgdf2yq5hjh4ramod3wu)(@types/node@25.9.5)(rollup@4.62.2)(typescript@5.9.3)
       mermaid:
         specifier: ^11.17.1
         version: 11.17.1
@@ -2995,12 +3000,12 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@astrojs/mdx@4.3.14(astro@5.18.2(@types/node@25.9.5)(rollup@4.62.2)(typescript@5.9.3))':
+  '@astrojs/mdx@4.3.14(astro@5.18.2(patch_hash=ozibdofgdf2yq5hjh4ramod3wu)(@types/node@25.9.5)(rollup@4.62.2)(typescript@5.9.3))':
     dependencies:
       '@astrojs/markdown-remark': 6.3.11
       '@mdx-js/mdx': 3.1.1
       acorn: 8.17.0
-      astro: 5.18.2(@types/node@25.9.5)(rollup@4.62.2)(typescript@5.9.3)
+      astro: 5.18.2(patch_hash=ozibdofgdf2yq5hjh4ramod3wu)(@types/node@25.9.5)(rollup@4.62.2)(typescript@5.9.3)
       es-module-lexer: 1.7.0
       estree-util-visit: 2.0.0
       hast-util-to-html: 9.0.5
@@ -3024,17 +3029,17 @@ snapshots:
       stream-replace-string: 2.0.0
       zod: 4.4.3
 
-  '@astrojs/starlight@0.34.8(astro@5.18.2(@types/node@25.9.5)(rollup@4.62.2)(typescript@5.9.3))':
+  '@astrojs/starlight@0.34.8(astro@5.18.2(patch_hash=ozibdofgdf2yq5hjh4ramod3wu)(@types/node@25.9.5)(rollup@4.62.2)(typescript@5.9.3))':
     dependencies:
       '@astrojs/markdown-remark': 6.3.11
-      '@astrojs/mdx': 4.3.14(astro@5.18.2(@types/node@25.9.5)(rollup@4.62.2)(typescript@5.9.3))
+      '@astrojs/mdx': 4.3.14(astro@5.18.2(patch_hash=ozibdofgdf2yq5hjh4ramod3wu)(@types/node@25.9.5)(rollup@4.62.2)(typescript@5.9.3))
       '@astrojs/sitemap': 3.7.3
       '@pagefind/default-ui': 1.5.2
       '@types/hast': 3.0.5
       '@types/js-yaml': 4.0.9
       '@types/mdast': 4.0.4
-      astro: 5.18.2(@types/node@25.9.5)(rollup@4.62.2)(typescript@5.9.3)
-      astro-expressive-code: 0.41.7(astro@5.18.2(@types/node@25.9.5)(rollup@4.62.2)(typescript@5.9.3))
+      astro: 5.18.2(patch_hash=ozibdofgdf2yq5hjh4ramod3wu)(@types/node@25.9.5)(rollup@4.62.2)(typescript@5.9.3)
+      astro-expressive-code: 0.41.7(astro@5.18.2(patch_hash=ozibdofgdf2yq5hjh4ramod3wu)(@types/node@25.9.5)(rollup@4.62.2)(typescript@5.9.3))
       bcp-47: 2.1.1
       hast-util-from-html: 2.0.3
       hast-util-select: 6.0.4
@@ -4037,12 +4042,12 @@ snapshots:
 
   astring@1.9.0: {}
 
-  astro-expressive-code@0.41.7(astro@5.18.2(@types/node@25.9.5)(rollup@4.62.2)(typescript@5.9.3)):
+  astro-expressive-code@0.41.7(astro@5.18.2(patch_hash=ozibdofgdf2yq5hjh4ramod3wu)(@types/node@25.9.5)(rollup@4.62.2)(typescript@5.9.3)):
     dependencies:
-      astro: 5.18.2(@types/node@25.9.5)(rollup@4.62.2)(typescript@5.9.3)
+      astro: 5.18.2(patch_hash=ozibdofgdf2yq5hjh4ramod3wu)(@types/node@25.9.5)(rollup@4.62.2)(typescript@5.9.3)
       rehype-expressive-code: 0.41.7
 
-  astro@5.18.2(@types/node@25.9.5)(rollup@4.62.2)(typescript@5.9.3):
+  astro@5.18.2(patch_hash=ozibdofgdf2yq5hjh4ramod3wu)(@types/node@25.9.5)(rollup@4.62.2)(typescript@5.9.3):
     dependencies:
       '@astrojs/compiler': 2.13.1
       '@astrojs/internal-helpers': 0.7.6

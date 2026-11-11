@@ -1,0 +1,61 @@
+diff --git a/dist/content/mutable-data-store.js b/dist/content/mutable-data-store.js
+index d8ec6754c244db594209789d579e1f40b05ebfc6..18ae19afabf24e688f86213891d488dede50d671 100644
+--- a/dist/content/mutable-data-store.js
++++ b/dist/content/mutable-data-store.js
+@@ -192,34 +192,34 @@ ${lines.join(",\n")}]);
+       this.#maybeResolveSavePromise();
+     }, SAVE_DEBOUNCE_MS);
+   }
+-  #writing = /* @__PURE__ */ new Set();
+-  #pending = /* @__PURE__ */ new Set();
+-  async #writeFileAtomic(filePath, data, depth = 0) {
+-    if (depth > MAX_DEPTH) {
+-      return;
+-    }
++  // voqalize patch (docs/README.md): writes to one file run in call order, and
++  // every caller waits for its own. Upstream returned at once while a write was in
++  // flight, then rewrote the FIRST caller's data, so the newest snapshot was lost
++  // and "Synced content" could be logged before anything reached disk.
++  #writeChains = /* @__PURE__ */ new Map();
++  async #writeFileAtomic(filePath, data) {
+     const fileKey = filePath.toString();
+-    if (this.#writing.has(fileKey)) {
+-      this.#pending.add(fileKey);
+-      return;
+-    }
+-    this.#writing.add(fileKey);
+-    const tempFile = filePath instanceof URL ? new URL(`${filePath.href}.tmp`) : `${filePath}.tmp`;
++    const previous = this.#writeChains.get(fileKey) ?? Promise.resolve();
++    const current = previous.catch(() => {
++    }).then(() => this.#writeFileNow(filePath, data));
++    this.#writeChains.set(fileKey, current);
+     try {
+-      const oldData = await fs.readFile(filePath, "utf-8").catch(() => "");
+-      if (oldData === data) {
+-        return;
+-      }
+-      await fs.writeFile(tempFile, data);
+-      await fs.rename(tempFile, filePath);
++      await current;
+     } finally {
+-      this.#writing.delete(fileKey);
+-      if (this.#pending.has(fileKey)) {
+-        this.#pending.delete(fileKey);
+-        await this.#writeFileAtomic(filePath, data, depth + 1);
++      if (this.#writeChains.get(fileKey) === current) {
++        this.#writeChains.delete(fileKey);
+       }
+     }
+   }
++  async #writeFileNow(filePath, data) {
++    const tempFile = filePath instanceof URL ? new URL(`${filePath.href}.tmp`) : `${filePath}.tmp`;
++    const oldData = await fs.readFile(filePath, "utf-8").catch(() => "");
++    if (oldData === data) {
++      return;
++    }
++    await fs.writeFile(tempFile, data);
++    await fs.rename(tempFile, filePath);
++  }
+   scopedStore(collectionName) {
+     return {
+       get: (key) => this.get(collectionName, key),
