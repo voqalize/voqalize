@@ -174,7 +174,7 @@ def test_the_pairing_rule_holds_for_strings() -> None:
     with pytest.raises(ConfigError, match=r"tts\.language but not stt\.language"):
         Config(tts=TtsConfig(language="hi"))
     # Both legs stated, differing, is a real configuration.
-    Config(tts=TtsConfig(language="hi"), stt=SttConfig(language="or"))
+    Config(tts=TtsConfig(language="hi"), stt=SttConfig(language="as"))
 
 
 async def test_the_string_capability_decodes() -> None:

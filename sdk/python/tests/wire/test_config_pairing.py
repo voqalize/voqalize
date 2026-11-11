@@ -30,13 +30,13 @@ def test_naming_a_language_on_one_leg_only_is_refused() -> None:
 
 def test_the_legs_may_differ_as_long_as_both_are_stated() -> None:
     # The guard is statedness, not equality. There are fewer languages that can
-    # be spoken than understood, so a call heard in Odia and spoken with the
+    # be spoken than understood, so a call heard in Assamese and spoken with the
     # Hindi clip is a real configuration — it just has to be written down.
     config = Config(
-        stt=SttConfig(language=Language.OR),
+        stt=SttConfig(language=Language.AS),
         tts=TtsConfig(language=Language.HI),
     )
-    assert config.stt is not None and config.stt.language is Language.OR
+    assert config.stt is not None and config.stt.language is Language.AS
     assert config.tts is not None and config.tts.language is Language.HI
 
 

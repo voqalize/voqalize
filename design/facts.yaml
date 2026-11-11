@@ -783,9 +783,9 @@ facts:
       - '\b100\+? languages'
 
   speech.tts.clip_languages:
-    value: 10
+    value: 11
     source: https://speech.prod.voqalize.com/voices.json — the omnivoice voices' `languages`
-    verified: 2026-09-20
+    verified: 2026-11-11
     reproduce: >-
       python3 -c "import json,urllib.request;
       d=json.load(urllib.request.urlopen('https://speech.prod.voqalize.com/voices.json'));
@@ -793,9 +793,9 @@ facts:
     note: >-
       **The number that makes "23 languages" a half-truth, and it has no
       derivable source in this repo.** `vql-stt` *hears* 23; the omnivoice
-      personas have recorded reference clips for 10 — bn, en, gu, hi, kn, ml,
-      mr, pa, ta, te. A tts.language a voice does not speak is refused at mint
-      with the field named, so an Odia call is written `stt.language=OR,
+      personas have recorded reference clips for 11 — bn, en, gu, hi, kn, ml,
+      mr, or, pa, ta, te (Odia since 2026-11-11). A tts.language a voice does not speak is refused at mint
+      with the field named, so an Assamese call is written `stt.language=AS,
       tts.language=HI` on purpose. A surface that says "23 languages" without
       saying which half is which is one clip away from the production bug this
       whole rule came from. Recorded here because a bare 23 invites exactly
@@ -813,7 +813,7 @@ facts:
       that was deleted the same day along with every other copy.
     forbid:
       # The wrong half asserted. "23 languages" alone is fine where the page
-      # then says which ten are spoken — reference/catalog.md's live table does that
+      # then says which are spoken — reference/catalog.md's live table does that
       # — so the pattern names the *verb*, which is what makes the claim false.
       - '\b(speaks|speaking|spoken in|voices in|say[s]?) (23|twenty-three) languages'
       - '\b(23|twenty-three) (voices|speakers|recorded)'

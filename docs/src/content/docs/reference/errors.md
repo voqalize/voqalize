@@ -111,19 +111,19 @@ logger = logging.getLogger(__name__)
 class Switcher(Brain):
     async def on_user_message(self, session, msg):
         yield SpeechStart()
-        yield SpeechChunk("Switching to Odia.")
+        yield SpeechChunk("Switching to Assamese.")
         yield SpeechEnd()
         try:
             await session.configure(
-                Config(stt=SttConfig(language="or"), tts=TtsConfig(language="or"))
+                Config(stt=SttConfig(language="as"), tts=TtsConfig(language="as"))
             )
         except RequestRejected as rejected:
             logger.info("configure refused (%s): %s", rejected.code, rejected.detail)
             yield SpeechStart()
-            yield SpeechChunk("I will listen in Odia and answer in Hindi.")
+            yield SpeechChunk("I will listen in Assamese and answer in Hindi.")
             yield SpeechEnd()
             await session.configure(
-                Config(stt=SttConfig(language="or"), tts=TtsConfig(language="hi"))
+                Config(stt=SttConfig(language="as"), tts=TtsConfig(language="hi"))
             )
 ```
 

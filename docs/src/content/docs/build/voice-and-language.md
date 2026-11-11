@@ -64,11 +64,11 @@ wrong, so no transcript or log shows it. Name a language on one leg and you must
 name it on the other.
 
 The two may differ. A voice speaks fewer languages than the recognizer hears, so
-to understand Odia and answer with the Hindi voice, say exactly that:
+to understand Assamese and answer with the Hindi voice, say exactly that:
 
 ```python
 Config(
-    stt=SttConfig(language="or"),                            # hear Odia
+    stt=SttConfig(language="as"),                            # hear Assamese
     tts=TtsConfig(language="hi", voice="omnivoice/gauri"),   # speak Hindi
 )
 ```

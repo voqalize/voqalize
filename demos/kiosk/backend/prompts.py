@@ -30,7 +30,6 @@ HINDI_VOICED: tuple[str, ...] = (
     "Maithili",
     "Manipuri",
     "Nepali",
-    "Odia",
     "Sanskrit",
     "Santali",
     "Sindhi",
