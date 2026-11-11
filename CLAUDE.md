@@ -194,7 +194,7 @@ on purpose:**
   raises `ConfigError` before the request leaves the process
   (`sdk/python/src/voqalize/sdk/wire/frames.py`). Both legs keep their own
   `language` field, because a voice speaks fewer languages than `vql-stt` hears
-  — and how many fewer depends on the voice — so understanding Odia while
+  — and how many fewer depends on the voice — so understanding Assamese while
   speaking with the Hindi clip is a real, legitimate configuration. The guard is therefore not equality
   but **statedness**: naming a language on one leg and not the other is
   **rejected**. Changing only the voice touches no language field and is
@@ -202,7 +202,7 @@ on purpose:**
   from the far end to decide.
 - **No silent substitution**, checked where the configuration is *used*. A
   `tts.language` the chosen voice does not speak is **rejected**, not quietly
-  served with the Hindi clip. To run an Odia call you write `stt.language = OR,
+  served with the Hindi clip. To run an Assamese call you write `stt.language = AS,
   tts.language = HI` — which is what is actually going to happen. Which
   languages a voice speaks is *not* in the proto and must not go there: it is a
   capability of the speech tier, it moves when a clip is recorded or a voice is

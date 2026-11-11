@@ -93,11 +93,11 @@ def _frames() -> list[Frame]:
                 idle=IdleConfig(timeout_ms=0),
             ),
         ),
-        # The legs differ on purpose: Odia is understood, and there is no Odia
+        # The legs differ on purpose: Assamese is understood, and there is no Assamese
         # clip to speak it with, so the call is spoken with the Hindi one.
         ConfigureFrame(
             request_id=2,
-            config=Config(stt=SttConfig(language=Language.OR), tts=TtsConfig(language=Language.HI)),
+            config=Config(stt=SttConfig(language=Language.AS), tts=TtsConfig(language=Language.HI)),
         ),
         ConfigureFrame(request_id=3, config=Config(tts=TtsConfig(voice=Voice.OMNIVOICE_GAURAV))),
         # off must survive as off rather than as "unset", which is on.

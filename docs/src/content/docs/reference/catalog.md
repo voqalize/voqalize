@@ -121,14 +121,14 @@ per voice:
 **A pairing the voice cannot speak is rejected**, not served in the wrong
 language. The rejection names the languages that voice does speak.
 
-The legs may differ on purpose. An Odia call answered in the voice's Hindi
+The legs may differ on purpose. An Assamese call answered in the voice's Hindi
 recording is a configuration you write down:
 
 ```python
 from voqalize.sdk.wire import Config, SttConfig, TtsConfig
 
 Config(
-    stt=SttConfig(language="or"),   # understood in Odia
+    stt=SttConfig(language="as"),   # understood in Assamese
     tts=TtsConfig(language="hi"),   # spoken in Hindi
 )
 ```

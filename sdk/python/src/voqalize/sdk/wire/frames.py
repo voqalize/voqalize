@@ -512,13 +512,13 @@ class Config:
     a field left ``None`` inside a section it is present in is untouched too.
 
     Both legs carry their own language, and that is not duplication. Fewer
-    languages can be spoken than understood, so understanding Odia while
+    languages can be spoken than understood, so understanding Assamese while
     speaking with the Hindi clip is a real configuration and needs two fields to
     say. The guard is therefore not that they agree, it is that you **stated
     both**::
 
         Config(
-            stt=SttConfig(language=Language.OR),   # listen in Odia
+            stt=SttConfig(language=Language.AS),   # listen in Assamese
             tts=TtsConfig(language=Language.HI),   # speak with the Hindi clip
         )
 

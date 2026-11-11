@@ -572,7 +572,7 @@ A language appears on `TtsConfig` and on `SttConfig`, and that is not
 duplication. The recognizer serves English, the European languages and the
 Indic languages; a voice speaks the subset it was recorded or trained for,
 which is smaller and differs from voice to voice. So the legs genuinely differ
-(a call understood in Odia is spoken in the voice's Hindi) and one field could
+(a call understood in Assamese is spoken in the voice's Hindi) and one field could
 not say so.
 
 The rules that follow are enforced in different places on purpose:
@@ -591,7 +591,7 @@ The rules that follow are enforced in different places on purpose:
 Write what you are actually getting:
 
 ```proto
-stt { language_tag: "or" }   // listen in Odia
+stt { language_tag: "as" }   // listen in Assamese
 tts { language_tag: "hi" }   // speak in Hindi
 ```
 

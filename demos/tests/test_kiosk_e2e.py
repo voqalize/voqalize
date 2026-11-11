@@ -720,32 +720,32 @@ async def test_a_customer_already_speaking_tamil_moves_the_kiosk_without_asking(
 
 
 async def test_a_language_with_no_clip_is_heard_in_it_and_answered_in_hindi() -> None:
-    """Odia: the recognizer understands it and no voice speaks it. The honest
-    configuration is split on purpose — heard in Odia, answered in Hindi — and the
+    """Assamese: the recognizer understands it and no voice speaks it. The honest
+    configuration is split on purpose — heard in Assamese, answered in Hindi — and the
     model is told to say so rather than let the customer discover it. It says so in
     the line it switches with, which goes out before the tool has run, so the
     prompt names these languages; the tool's result only settles what comes next."""
     hindi_voiced = SYSTEM_INSTRUCTION.split("because no voice speaks them:")[1].split(".")[0]
-    assert "Odia" in hindi_voiced, "the prompt does not say Odia is answered in Hindi"
+    assert "Assamese" in hindi_voiced, "the prompt does not say Assamese is answered in Hindi"
     llm = ScriptedGemini(
         {
-            "ମୁଁ ଗୋଟିଏ କ୍ରେଡିଟ୍ କାର୍ଡ ଚାହୁଁଛି": reply_and_call(
-                "I understand Odia, and I will reply in Hindi.",
+            "মোক এখন ক্ৰেডিট কাৰ্ড লাগে": reply_and_call(
+                "I understand Assamese, and I will reply in Hindi.",
                 "switch_language",
-                to={"language": "Odia"},
+                to={"language": "Assamese"},
             ),
             # A tool's result reaches the model on the *next* request, so one more
             # turn is what puts it in the record to read.
-            "ଠିକ ଅଛି": [reply("ठीक है।")],
+            "ঠিক আছে": [reply("ठीक है।")],
         }
     )
     async with demo("kiosk", llm) as rig:
         await rig.driver.start_session()
-        await rig.driver.user_says("ମୁଁ ଗୋଟିଏ କ୍ରେଡିଟ୍ କାର୍ଡ ଚାହୁଁଛି")
+        await rig.driver.user_says("মোক এখন ক্ৰেডিট কাৰ্ড লাগে")
         voice, spoken, heard = _legs(rig)
-        assert (voice, spoken, heard) == (VOICE, "hi", "or"), (voice, spoken, heard)
-        await rig.driver.user_says("ଠିକ ଅଛି")
-        told = next(r for r in _tool_results(llm) if "Odia" in r)
+        assert (voice, spoken, heard) == (VOICE, "hi", "as"), (voice, spoken, heard)
+        await rig.driver.user_says("ঠিক আছে")
+        told = next(r for r in _tool_results(llm) if "Assamese" in r)
         assert "answering in Hindi" in told and "Reply in Hindi" in told, told
         assert "SAY:" not in told, "read a turn late, a SAY line would be said twice"
 
