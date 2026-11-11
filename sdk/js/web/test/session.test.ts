@@ -1,5 +1,4 @@
 import type { RTVIEventCallbacks } from "@pipecat-ai/client-js";
-import type { MicHint, MicState } from "@voqalize/client-transport";
 import { describe, expect, it, vi } from "vitest";
 import { CaptionsController } from "../src/controllers/captions.js";
 import { bindCaptions } from "../src/internal.js";
@@ -11,6 +10,7 @@ import {
   mintSession,
   withRealHeaders,
 } from "../src/session/adapter.js";
+import type { MicHint as SessionMicHint, MicState as SessionMicState } from "../src/session/mic-watch.js";
 import { TONE_AGAIN_MS, type TonePlayer } from "../src/session/tone.js";
 
 type Callbacks = Partial<RTVIEventCallbacks>;
@@ -51,36 +51,96 @@ class FakeClient implements ClientLike {
 }
 
 
-/** A media manager whose mic state and hint the test sets. */
+type MicState = SessionMicState;
+type MicHint = SessionMicHint;
+
+/** A local audio track whose `muted` the test moves. */
+class FakeTrack extends EventTarget {
+  readonly kind = "audio";
+  readyState: MediaStreamTrackState = "live";
+  muted = false;
+}
+
+const LOCAL = { id: "local", name: "", local: true };
+
+/**
+ * The media manager, and a driver that moves the mic to a state and hint the
+ * way the transport and the browser would: the local track, `onDeviceError`,
+ * the permission and the local level, all through the stock callbacks.
+ */
 class FakeMedia implements MediaManagerLike {
-  micState: MicState = "idle";
-  micHint: MicHint = "none";
-  bindOutputElement = vi.fn((_el: HTMLAudioElement) => () => {});
+  bindOutputElement = vi.fn((_el: HTMLMediaElement) => () => {});
   updateMic?: (id: string) => Promise<void>;
   updateSpeaker?: (id: string) => Promise<void>;
-  private stateListeners = new Set<(s: MicState) => void>();
-  private hintListeners = new Set<(h: MicHint) => void>();
-  constructor(readonly waitForDevices: boolean) {}
-  onMicStateChange(l: (s: MicState) => void) {
-    this.stateListeners.add(l);
-    return () => this.stateListeners.delete(l);
+  cb: () => Callbacks = () => ({});
+  t = 0;
+  watchers = 0;
+  private track: FakeTrack | null = null;
+  private permission: ((state: "granted" | "denied" | "prompt" | "unknown") => void) | null = null;
+  /** What the browser says now: a new call's watch hears it at once. */
+  private permissionNow: "granted" | "denied" | "prompt" | "unknown" | null = null;
+  readonly micWatch = {
+    now: () => this.t,
+    watchPermission: (onChange: (state: "granted" | "denied" | "prompt" | "unknown") => void) => {
+      this.watchers++;
+      this.permission = onChange;
+      if (this.permissionNow) onChange(this.permissionNow);
+      return () => {
+        this.watchers--;
+        this.permission = null;
+      };
+    },
+  };
+
+  private stopTrack() {
+    const track = this.track;
+    if (!track) return;
+    this.track = null;
+    track.readyState = "ended";
+    this.cb().onTrackStopped?.(track as unknown as MediaStreamTrack, LOCAL);
   }
-  onMicHintChange(l: (h: MicHint) => void) {
-    this.hintListeners.add(l);
-    return () => this.hintListeners.delete(l);
+
+  private startTrack() {
+    if (this.track) return;
+    this.track = new FakeTrack();
+    this.cb().onTrackStarted?.(this.track as unknown as MediaStreamTrack, LOCAL);
   }
-  get listening() {
-    return this.stateListeners.size + this.hintListeners.size;
-  }
-  set(state: MicState, hint: MicHint = this.micHint) {
-    if (state !== this.micState) {
-      this.micState = state;
-      for (const l of this.stateListeners) l(state);
+
+  set(state: MicState, hint: MicHint) {
+    this.permissionNow = hint === "grant" ? "prompt" : hint === "blocked" ? "denied" : "granted";
+    this.permission?.(this.permissionNow);
+    if (state === "asking") this.stopTrack();
+    if (state === "blocked" || state === "missing") {
+      this.stopTrack();
+      const type = state === "blocked" ? "permissions" : "not-found";
+      this.cb().onDeviceError?.({ devices: ["mic"], type } as never);
     }
-    if (hint !== this.micHint) {
-      this.micHint = hint;
-      for (const l of this.hintListeners) l(hint);
+    if (state === "live") {
+      this.startTrack();
+      if (this.track?.muted) {
+        this.track.muted = false;
+        this.track.dispatchEvent(new Event("unmute"));
+      }
+      if (hint === "silent") {
+        // The agent has spoken and waits; the visitor says nothing for a while.
+        this.cb().onBotStartedSpeaking?.();
+        this.cb().onBotStoppedSpeaking?.();
+        for (let i = 0; i < 100; i++) {
+          this.t += 100;
+          this.cb().onLocalAudioLevel?.(0);
+        }
+      } else {
+        this.t += 100;
+        this.cb().onLocalAudioLevel?.(0.2);
+      }
     }
+  }
+
+  /** The system silenced a live mic. */
+  silence() {
+    if (!this.track) return;
+    this.track.muted = true;
+    this.track.dispatchEvent(new Event("mute"));
   }
 }
 
@@ -91,38 +151,64 @@ const SESSION = {
 
 function setup(options: SessionOptions = {}) {
   let client!: FakeClient;
-  let media!: FakeMedia;
+  let enableMicAtStart: boolean | undefined;
+  const media = new FakeMedia();
   const session = new WidgetSession({
-    createClient: ({ callbacks }) => (client = new FakeClient(callbacks)),
-    createMediaManager: ({ waitForDevices }) => (media = new FakeMedia(waitForDevices)),
+    createClient: ({ callbacks, enableMic }) => {
+      enableMicAtStart = enableMic;
+      client = new FakeClient(callbacks);
+      return client;
+    },
+    createMediaManager: () => media,
+    micWatch: media.micWatch,
     canPickSpeaker: true,
+    // Most of these start with the mic wanted; instant start's muted start is tested on its own.
+    instantStart: false,
     ...options,
   });
-  return { session, client, media, cb: () => client.cb };
+  media.cb = () => client.cb;
+  return { session, client, media, cb: () => client.cb, enableMicAtStart: () => enableMicAtStart };
 }
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
 describe("instant start", () => {
-  it("connects without waiting for the mic, and fetches the session meanwhile", async () => {
-    const { session, client, media } = setup();
-    expect(media.waitForDevices).toBe(false);
+  it("starts muted, asks the browser nothing, and connects at once", async () => {
+    const { session, client, enableMicAtStart } = setup({ instantStart: true });
+    expect(enableMicAtStart()).toBe(false);
     const fetchSession = vi.fn(() => Promise.resolve(SESSION));
     const done = session.connect(fetchSession);
-    media.set("asking", "grant");
+    expect(session.mic.getSnapshot()).toMatchObject({ state: "muted", muted: true, micHint: "none" });
     client.init.resolve();
     await tick();
     expect(fetchSession).toHaveBeenCalled();
     expect(client.connectedWith).toBeDefined();
-    expect(session.mic.getSnapshot()).toMatchObject({ state: "asking", micHint: "grant" });
     client.connectResult.resolve({});
     await done;
     expect(session.getSnapshot()).toMatchObject({ status: "connected", sessionId: "sess_example" });
+    expect(client.micEnabled).toEqual([]);
+  });
+
+  it("asks for the mic when the visitor unmutes, and follows it to live", async () => {
+    const { session, client, media } = setup({ instantStart: true });
+    void session.connect(SESSION);
+    client.init.resolve();
+    session.setMuted(false);
+    expect(client.micEnabled).toEqual([true]);
+    media.set("asking", "grant");
+    expect(session.mic.getSnapshot()).toMatchObject({ state: "asking", micHint: "grant", muted: false });
+    media.set("live", "none");
+    expect(session.mic.getSnapshot()).toMatchObject({ state: "live", micHint: "none", everLive: true });
+  });
+
+  it("is the default", () => {
+    const { enableMicAtStart } = setup({ instantStart: undefined });
+    expect(enableMicAtStart()).toBe(false);
   });
 
   it("waits for the mic before fetching the session with instant start off", async () => {
-    const { session, client, media } = setup({ instantStart: false });
-    expect(media.waitForDevices).toBe(true);
+    const { session, client, enableMicAtStart } = setup({ instantStart: false });
+    expect(enableMicAtStart()).toBe(true);
     const fetchSession = vi.fn(() => Promise.resolve(SESSION));
     void session.connect(fetchSession);
     await tick();
@@ -143,13 +229,14 @@ describe("instant start", () => {
   });
 });
 
-describe("the mic, from the media manager", () => {
-  it("mirrors the manager's state and hint, and sends nothing to the agent", async () => {
+describe("the mic, from the client's events", () => {
+  it("follows the track, the device errors and the permission, and sends nothing to the agent", async () => {
     const { session, client, media, cb } = setup();
     void session.connect(SESSION);
     client.init.resolve();
     cb().onBotReady?.({} as never);
     media.set("asking", "grant");
+    expect(session.mic.getSnapshot()).toMatchObject({ state: "asking", micHint: "grant" });
     media.set("blocked", "blocked");
     expect(session.mic.getSnapshot()).toMatchObject({ state: "blocked", micHint: "blocked", everLive: false });
     media.set("live", "none");
@@ -161,16 +248,30 @@ describe("the mic, from the media manager", () => {
 
   it("does not show the silence hint when the configuration turns it off", () => {
     const { session, media } = setup({ silenceHint: false });
+    void session.connect(SESSION);
     media.set("live", "silent");
     expect(session.mic.getSnapshot()).toMatchObject({ micHint: "silent", hint: false });
   });
 
-  it("starts a call from what the manager says now", async () => {
+  it("calls a live mic the system silenced missing, and live again when it comes back", () => {
+    const { session, media } = setup();
+    void session.connect(SESSION);
+    media.set("live", "none");
+    media.silence();
+    expect(session.mic.getSnapshot()).toMatchObject({ state: "missing", micHint: "missing" });
+    media.set("live", "none");
+    expect(session.mic.getSnapshot()).toMatchObject({ state: "live", micHint: "none" });
+  });
+
+  it("starts each call afresh, whatever the last one ended on", async () => {
     const { session, client, media } = setup();
-    media.set("blocked", "blocked");
     void session.connect(SESSION);
     client.init.resolve();
-    expect(session.mic.getSnapshot()).toMatchObject({ state: "blocked", micHint: "blocked" });
+    media.set("blocked", "blocked");
+    await session.disconnect();
+    expect(session.mic.getSnapshot().state).toBe("idle");
+    void session.connect(SESSION);
+    expect(session.mic.getSnapshot()).toMatchObject({ state: "asking", everLive: false });
   });
 
   it("mutes through the client", () => {
@@ -199,6 +300,15 @@ describe("the mic, from the media manager", () => {
     expect(client.micEnabled).toEqual([true, true, false]);
   });
 
+  it("puts the mic down before asking again where the client still wants it", async () => {
+    const { session, client, media } = setup();
+    void session.connect(SESSION);
+    Object.defineProperty(client, "isMicEnabled", { value: true });
+    media.set("blocked", "blocked");
+    session.askForMic();
+    expect(client.micEnabled).toEqual([false, true]);
+  });
+
   it("does not ask for the mic outside a call", () => {
     const { session, client, media } = setup();
     media.set("blocked", "blocked");
@@ -206,11 +316,13 @@ describe("the mic, from the media manager", () => {
     expect(client.micEnabled).toEqual([]);
   });
 
-  it("stops following the manager when disposed", () => {
+  it("follows the permission only during a call, and not after it is disposed", () => {
     const { session, media } = setup();
-    expect(media.listening).toBe(2);
+    expect(media.watchers).toBe(0);
+    void session.connect(SESSION);
+    expect(media.watchers).toBe(1);
     session.dispose();
-    expect(media.listening).toBe(0);
+    expect(media.watchers).toBe(0);
   });
 });
 
@@ -408,7 +520,7 @@ describe("devices", () => {
   it("never leaves a refused device change as an unhandled rejection, and reverts the speaker", async () => {
     const refused = Promise.reject(new Error("NotFoundError"));
     refused.catch(() => {});
-    const media = new FakeMedia(false);
+    const media = new FakeMedia();
     media.updateMic = vi.fn(() => Promise.reject(new Error("NotReadableError")));
     media.updateSpeaker = vi.fn(() => Promise.reject(new Error("NotFoundError")));
     const unhandled = vi.fn();
@@ -519,6 +631,8 @@ describe("end reason", () => {
     const a = session.connect(() => first.promise);
     await session.disconnect();
     const b = session.connect(SESSION);
+    // The hung-up connect stops before it reads the source, so nothing else catches this.
+    first.promise.catch(() => {});
     first.reject(new Error("too late"));
     await a;
     expect(session.getSnapshot().status).toBe("connecting");

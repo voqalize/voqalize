@@ -63,7 +63,7 @@
   "dependencies": {
     "@pipecat-ai/client-js": "1.13.1",
     "@pipecat-ai/small-webrtc-transport": "1.10.8",
-    "@voqalize/client-transport": "link:../../../../voqalize-client-transport",
+    "@voqalize/client-transport": "0.4.1",
     "lit": "3.3.2"
   },
   "devDependencies": {

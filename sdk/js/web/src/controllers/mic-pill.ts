@@ -1,12 +1,13 @@
 /**
- * Which mic pill shows, from the media manager's `micHint` and the visitor's
+ * Which mic pill shows, from the session's `micHint` and the visitor's
  * mute, put into words a visitor can act on.
  *
  * - `permission` — "Grant mic permission": the hint is `grant` (the browser
  *   is asking) or `blocked` (the visitor or the browser refused). Its action
  *   asks again and shows the coach mark, which says where this browser keeps
  *   the prompt or the setting.
- * - `muted` — "You are muted": the visitor muted. Its action unmutes.
+ * - `muted` — "You are muted": the visitor muted, or the call started
+ *   muted. Its action unmutes, which is when the browser is first asked.
  * - `check` — "Is your mic working?": the hint is `missing` (no mic, one
  *   another app holds, one that went away or that the system silenced), or
  *   the silence hint shows. Its action opens the device menu, or where there

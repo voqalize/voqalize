@@ -9,10 +9,12 @@
  * Over the client and our transport it adds what a widget needs and a raw
  * client does not say:
  *
- * - instant start: connect does not wait for the mic (the media manager's
- *   `waitForDevices: false`);
- * - the mic as a store (`mic.ts`), mirroring the media manager's `micState`
- *   and `micHint`, and the attention tone (`tone.ts`) while the mic is off;
+ * - instant start: the call starts muted (the client's `enableMic: false`),
+ *   so it connects and the greeting plays without the browser asking for
+ *   anything; the browser is first asked when the visitor unmutes;
+ * - the mic as a store (`mic.ts`), mirroring `micState` and `micHint`, which
+ *   `mic-watch.ts` derives from the stock client's and transport's events,
+ *   and the attention tone (`tone.ts`) while the mic is off;
  * - the agent's state, derived from the client's speaking and LLM events;
  * - the agent's words as they play and the visitor's transcript, as events;
  * - the devices, with the speaker picker only where `setSinkId` exists;
@@ -28,8 +30,9 @@
 
 import { PipecatClient, type RTVIEventCallbacks } from "@pipecat-ai/client-js";
 import { createVoqalizeTransport, VoqalizeMediaManager } from "@voqalize/client-transport";
-import { MicController, type MicHint, type MicState, micIsOff } from "../controllers/mic.js";
+import { MicController, micIsOff } from "../controllers/mic.js";
 import { Store } from "../controllers/store.js";
+import { MicWatch, type MicWatchOptions } from "./mic-watch.js";
 import { createTonePlayer, TONE_AGAIN_MS, type TonePlayer } from "./tone.js";
 
 // ------------------------------------------------------------------- types
@@ -89,6 +92,8 @@ export interface ClientLike {
   connect(params?: unknown): Promise<unknown>;
   disconnect(): Promise<void>;
   enableMic(enable: boolean): void;
+  /** Whether the client wants the mic; read before asking again after a refusal. */
+  readonly isMicEnabled?: boolean;
   sendClientMessage(type: string, data?: unknown): void;
   updateMic(id: string): void;
   updateSpeaker(id: string): void;
@@ -96,10 +101,6 @@ export interface ClientLike {
 
 /** The media manager methods the session uses. */
 export interface MediaManagerLike {
-  readonly micState: MicState;
-  readonly micHint: MicHint;
-  onMicStateChange(listener: (state: MicState) => void): () => void;
-  onMicHintChange(listener: (hint: MicHint) => void): () => void;
   bindOutputElement(element: HTMLMediaElement): () => void;
   /**
    * Choose the mic. Optional: when present the session calls it directly,
@@ -114,12 +115,15 @@ export interface MediaManagerLike {
 export interface ClientFactoryArgs {
   mediaManager: MediaManagerLike;
   callbacks: Partial<RTVIEventCallbacks>;
+  /** Whether the call asks for the mic as it starts; false for instant start. */
+  enableMic: boolean;
 }
 
 export interface SessionOptions {
   /**
-   * `mic.instantStart`. Default true: the call connects while the browser
-   * is still asking for the mic. The media manager waits anyway on iOS.
+   * `mic.instantStart`. Default true: the call starts muted and connects at
+   * once, and the browser is asked for the mic when the visitor unmutes.
+   * False asks for the mic first and connects once the visitor has answered.
    */
   instantStart?: boolean;
   /** `mic.silenceHint`. Default true. */
@@ -129,7 +133,9 @@ export interface SessionOptions {
   /** Where the agent plays. Default: an `<audio>` element the session makes. */
   audioElement?: HTMLMediaElement;
   /** For tests. */
-  createMediaManager?: (options: { waitForDevices: boolean }) => MediaManagerLike;
+  createMediaManager?: () => MediaManagerLike;
+  /** For tests: the mic watch's permission source and clock. */
+  micWatch?: MicWatchOptions;
   /** For tests. */
   createClient?: (args: ClientFactoryArgs) => ClientLike;
   /** For tests. */
@@ -190,9 +196,9 @@ function speakerPickable(): boolean {
   }
 }
 
-function defaultClient({ mediaManager, callbacks }: ClientFactoryArgs): ClientLike {
+function defaultClient({ mediaManager, callbacks, enableMic }: ClientFactoryArgs): ClientLike {
   const transport = createVoqalizeTransport({ mediaManager: mediaManager as VoqalizeMediaManager });
-  return new PipecatClient({ transport, enableMic: true, enableCam: false, callbacks });
+  return new PipecatClient({ transport, enableMic, enableCam: false, callbacks });
 }
 
 type Listeners = { [K in keyof SessionEvents]: Set<SessionEvents[K]> };
@@ -201,6 +207,8 @@ type Listeners = { [K in keyof SessionEvents]: Set<SessionEvents[K]> };
 
 export class WidgetSession extends Store<SessionSnapshot> {
   readonly mic: MicController;
+  private readonly micWatch: MicWatch;
+  private readonly instantStart: boolean;
   private readonly options: SessionOptions;
   private readonly mediaManager: MediaManagerLike;
   private readonly client: ClientLike;
@@ -213,7 +221,7 @@ export class WidgetSession extends Store<SessionSnapshot> {
   };
   private audio: HTMLMediaElement | null = null;
   private unbindAudio: (() => void) | null = null;
-  private readonly unsubscribeManager: Array<() => void>;
+  private readonly unsubscribeMic: Array<() => void>;
   /** Whether the agent was ever ready on this call: a close before that is a failed connect. */
   private wasReady = false;
   private hangingUp = false;
@@ -229,16 +237,19 @@ export class WidgetSession extends Store<SessionSnapshot> {
     super({ status: "idle", agent: "idle", devices: { mics: [], speakers: [], canPickSpeaker } });
     this.options = options;
     this.mic = new MicController({ silenceHint: options.silenceHint ?? true });
-    const waitForDevices = !(options.instantStart ?? true);
-    this.mediaManager =
-      options.createMediaManager?.({ waitForDevices }) ?? new VoqalizeMediaManager({ waitForDevices });
+    this.instantStart = options.instantStart ?? true;
+    this.micWatch = new MicWatch(options.micWatch);
+    // One manager per session, and one client per session: the manager keeps
+    // the first client's callbacks it is given, so it is never shared.
+    this.mediaManager = options.createMediaManager?.() ?? new VoqalizeMediaManager();
     this.client = (options.createClient ?? defaultClient)({
       mediaManager: this.mediaManager,
       callbacks: this.callbacks(),
+      enableMic: !this.instantStart,
     });
-    this.unsubscribeManager = [
-      this.mediaManager.onMicStateChange((state) => this.mic.setState(state)),
-      this.mediaManager.onMicHintChange((hint) => this.mic.setHint(hint)),
+    this.unsubscribeMic = [
+      this.micWatch.onMicStateChange((state) => this.mic.setState(state)),
+      this.micWatch.onMicHintChange((hint) => this.mic.setHint(hint)),
     ];
   }
 
@@ -258,10 +269,10 @@ export class WidgetSession extends Store<SessionSnapshot> {
   }
 
   /**
-   * Start the call. In instant mode the mic is asked for and the session
-   * fetched at the same time, and the call connects without waiting for the
-   * visitor to answer the prompt. Call it from the click, so the greeting's
-   * audio, and the attention tone, are allowed to play.
+   * Start the call. In instant mode the call starts muted: nothing is asked
+   * of the browser, and the call connects at once. Otherwise the mic is
+   * asked for first. Call it from the click, so the greeting's audio, and
+   * the attention tone, are allowed to play.
    */
   async connect(source: SessionSource): Promise<void> {
     const status = this.getSnapshot().status;
@@ -270,14 +281,17 @@ export class WidgetSession extends Store<SessionSnapshot> {
     const stale = () => generation !== this.generation || this.hangingUp;
     this.wasReady = false;
     this.hangingUp = false;
-    this.mic.reset(this.mediaManager.micState, this.mediaManager.micHint);
+    this.micWatch.stop();
+    this.mic.reset(this.micWatch.micState, this.micWatch.micHint);
+    this.mic.setMuted(this.instantStart);
+    this.micWatch.start(!this.instantStart);
     this.set({ status: "connecting", agent: "idle", end: undefined, user: undefined, sessionId: undefined });
     this.bindAudio();
     this.startTone();
     try {
-      // In instant mode the manager starts the mic request and returns at
-      // once; otherwise this waits for the visitor to answer the prompt, so
-      // a session is never minted for a visitor who is still reading it.
+      // In instant mode the mic is not wanted yet and this returns at once;
+      // otherwise it waits for the visitor to answer the prompt, so a
+      // session is never minted for a visitor who is still reading it.
       if (this.client.needsInit?.() !== false) await this.client.initDevices();
       if (stale()) return;
       const response = await (typeof source === "function" ? source() : Promise.resolve(source));
@@ -306,6 +320,7 @@ export class WidgetSession extends Store<SessionSnapshot> {
 
   setMuted(muted: boolean): void {
     this.mic.setMuted(muted);
+    this.micWatch.setDesired(!muted);
     try {
       this.client.enableMic(!muted);
     } catch {
@@ -325,7 +340,11 @@ export class WidgetSession extends Store<SessionSnapshot> {
     if ((mic.state !== "blocked" && mic.state !== "missing") || mic.muted) return;
     const status = this.getSnapshot().status;
     if (status !== "connecting" && status !== "connected") return;
+    this.micWatch.setDesired(true);
     try {
+      // The client still wants the mic after a refusal, and wanting it again
+      // is no change: put it down first, so the transport asks once more.
+      if (this.client.isMicEnabled) this.client.enableMic(false);
       this.client.enableMic(true);
     } catch {
       // Before the client has devices there is nothing to enable.
@@ -386,6 +405,7 @@ export class WidgetSession extends Store<SessionSnapshot> {
   private finish(end: EndReason): void {
     if (this.getSnapshot().status === "ended") return;
     this.set({ status: "ended", agent: "idle", end });
+    this.micWatch.stop();
     this.stopTone();
     if (this.audio) this.audio.srcObject = null;
   }
@@ -422,7 +442,9 @@ export class WidgetSession extends Store<SessionSnapshot> {
     this.toneScheduled = true;
     const beep = () => {
       if (this.getSnapshot().status === "ended") return;
-      if (micIsOff(this.mic.getSnapshot().micHint)) this.tone?.play();
+      const mic = this.mic.getSnapshot();
+      // Off, or still muted from an instant start: the visitor has not been heard yet.
+      if (micIsOff(mic.micHint) || (mic.state === "muted" && !mic.everLive)) this.tone?.play();
     };
     beep();
     this.toneTimer = setTimeout(() => {
@@ -439,14 +461,15 @@ export class WidgetSession extends Store<SessionSnapshot> {
   }
 
   /**
-   * Hang up a call still in progress, stop following the media manager and
-   * unbind the audio element.
+   * Hang up a call still in progress, stop following the mic and unbind the
+   * audio element.
    */
   dispose(): void {
     const status = this.getSnapshot().status;
     if (status === "connecting" || status === "connected") void this.disconnect();
     this.stopTone();
-    for (const off of this.unsubscribeManager.splice(0)) off();
+    for (const off of this.unsubscribeMic.splice(0)) off();
+    this.micWatch.dispose();
     this.unbindAudio?.();
     this.unbindAudio = null;
   }
@@ -474,10 +497,12 @@ export class WidgetSession extends Store<SessionSnapshot> {
       onUserStartedSpeaking: () => this.setAgent("listening"),
       onBotLlmStarted: () => this.setAgent("thinking"),
       onBotStartedSpeaking: () => {
+        this.micWatch.agentSpeaking(true);
         this.setAgent("speaking");
         this.emit("agentStarted");
       },
       onBotStoppedSpeaking: () => {
+        this.micWatch.agentSpeaking(false);
         this.setAgent("listening");
         this.emit("agentStopped");
         this.agentStoppedForTone();
@@ -493,10 +518,22 @@ export class WidgetSession extends Store<SessionSnapshot> {
         this.set({ user: { text: data.text, final: Boolean(data.final) } });
         this.emit("userTranscript", data.text, Boolean(data.final));
       },
-      onLocalAudioLevel: (level) => this.mic.level(level),
+      onLocalAudioLevel: (level) => {
+        this.mic.level(level);
+        this.micWatch.level(level);
+      },
+      onDeviceError: (error) => {
+        if (error.devices?.includes("mic")) this.micWatch.deviceError(error.type);
+      },
+      onTrackStopped: (track, participant) => {
+        if (track.kind === "audio" && participant?.local) this.micWatch.setTrack(null);
+      },
       onTrackStarted: (track, participant) => {
         if (track.kind !== "audio") return;
-        if (participant?.local) return;
+        if (participant?.local) {
+          this.micWatch.setTrack(track);
+          return;
+        }
         if (this.audio) {
           try {
             this.audio.srcObject = new MediaStream([track]);
