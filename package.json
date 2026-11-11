@@ -7,5 +7,10 @@
   "packageManager": "pnpm@9.12.0",
   "engines": {
     "node": ">=20"
+  },
+  "pnpm": {
+    "patchedDependencies": {
+      "astro@5.18.2": "patches/astro@5.18.2.patch"
+    }
   }
 }

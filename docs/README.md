@@ -33,7 +33,7 @@ cannot drift from what the site renders the way a separately maintained,
 abridged copy of the docs did. Links inside a `.md` page are rewritten to their
 `.md` twins, so an agent that follows one stays in markdown.
 
-Five files, and what each is for:
+The files, and what each is for:
 
 | File | What it owns |
 |---|---|
@@ -79,3 +79,25 @@ to a check that read one format and not the other.
 The `Content-Type` the routes set is what `astro dev` answers with; the deployed
 site's comes from the static host's own MIME table, so local and prod agree on
 `text/markdown` by two separate mechanisms rather than one.
+
+## Astro is patched
+
+`patches/astro@5.18.2.patch`, at the repo root and applied by pnpm through
+`pnpm.patchedDependencies` in the root `package.json`, replaces one method of
+Astro's content data store: `MutableDataStore.#writeFileAtomic`.
+
+Upstream, a save asked for while an earlier save of the same file was still
+writing returned at once, and the retry that followed wrote the earlier call's
+data. A content sync that pauses for longer than the store's 500 ms save
+debounce starts a save of the half-synced store. If that write is still running
+when the sync ends, the final save is lost, `Synced content` is logged anyway,
+and the build reads a store missing whichever pages loaded last. Starlight then
+fails the build with `The slug "…" specified in the Starlight sidebar config
+does not exist`. It showed only on Cloud Build, where the docs step runs beside
+the demos build, and a re-run of the same commit passed: on 2026-10-21 the
+missing page was `build/brain`, on 2026-11-11 `build/site-agent`. The patched
+method queues the writes to each file and makes every caller wait for its own.
+
+Astro 7 rewrote this path (`writeToDisk` queues a write instead of passing old
+data). pnpm fails an install when a patch matches no installed version, so
+moving off 5.18.2 will stop here: drop the patch then rather than port it.
