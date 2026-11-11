@@ -413,6 +413,10 @@ _TURN = 45.0
 
 _DEVANAGARI = re.compile(r"[ऀ-ॿ]")
 _KANNADA = re.compile(r"[ಀ-೿]")
+_ODIA = re.compile(r"[\u0b00-\u0b7f]")
+#: Devanagari's letters, without the danda (U+0964, U+0965): Odia ends its
+#: sentences with the same mark.
+_DEVANAGARI_LETTERS = re.compile(r"[\u0900-\u0963\u0966-\u097f]")
 
 
 def _client() -> Any:
@@ -479,6 +483,49 @@ async def test_live_mangled_kannada_moves_english_to_kannada() -> None:
         )
         assert rig.brain.language == "Kannada", rig.brain.language
         assert _legs(rig) == (VOICE, "kn", "kn")
+
+
+#: "I want to apply for a credit card" in Odia, as dev's English recognizer wrote
+#: it on three calls on 2026-11-11. The kiosk answered the first in Hindi, after
+#: promising to, and took the second for Kannada.
+_MANGLED_ODIA = [
+    "Mugu credit card pay apply baku chahahochi.",
+    "Mugu credit card pay apply baku chang.",
+    "Mugu credit card pay apply baku chahaunchi.",
+]
+
+
+@live
+@pytest.mark.parametrize("heard", _MANGLED_ODIA)
+async def test_live_mangled_odia_moves_english_to_odia_and_answers_in_odia(heard: str) -> None:
+    """Odia has its own voice: the kiosk moves to Odia, not to a neighbour it
+    sounds like, says nothing about answering in Hindi, and answers the next
+    turn in Odia.
+
+    A rate, not a guarantee: on 2026-11-11 (gemini-3.5-flash) it passed 13 of 18
+    runs with this prompt, against 9 of 18 before the Odia cues and the own-voice
+    list. The misses left were Kannada for Odia, a question asked in Odia
+    written in Latin letters, and a switch line promising Hindi. A run of
+    failures is a regression; one is not."""
+    async with demo("kiosk", _client()) as rig:
+        await _live(rig)
+        before = len(_spoken(rig))
+        await rig.driver.user_says(heard, timeout=_TURN)
+        switch_line = " ".join(_spoken(rig)[before:])
+        assert rig.brain.language == "Odia", f"{rig.brain.language}; said {switch_line!r}"
+        assert _legs(rig) == (VOICE, "or", "or")
+        assert "Hindi" not in switch_line and not _DEVANAGARI_LETTERS.search(switch_line), (
+            switch_line
+        )
+
+        before = len(_spoken(rig))
+        # "I work at a private company, on a salary" — as the Odia recognizer writes it.
+        await rig.driver.user_says("ମୁଁ ଗୋଟିଏ ପ୍ରାଇଭେଟ୍ କମ୍ପାନୀରେ ଦରମା ପାଇ ଚାକିରି କରେ।", timeout=_TURN)
+        said = " ".join(_spoken(rig)[before:])
+        assert _ODIA.search(said) and not _DEVANAGARI_LETTERS.search(said), (
+            f"answered outside Odia: {said!r}"
+        )
+        assert rig.brain.language == "Odia"
 
 
 @live
