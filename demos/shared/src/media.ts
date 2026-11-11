@@ -32,6 +32,8 @@ import type { SmallWebRTCTransportConstructorOptions } from "@pipecat-ai/small-w
 import { VoqalizeMediaManager, attachTrackChangedHandler } from "@voqalize/client-transport";
 import { useEffect, useState } from "react";
 
+type ClientOptions = Parameters<VoqalizeMediaManager["setClientOptions"]>[0];
+
 export interface VoqalizeMedia {
   /** For `PipecatAppBase`'s `transportOptions`. Stable for the component's life. */
   transportOptions: SmallWebRTCTransportConstructorOptions;
@@ -74,6 +76,13 @@ export function createVoqalizeMedia(): VoqalizeMedia {
     },
     onClient(client) {
       current = client;
+      // The transport handed the manager this client's options, but the
+      // manager keeps the first it was given, and it outlives a rebuilt client
+      // (StrictMode, or a prop the base rebuilds on). Without this its device
+      // reports reach a client nobody holds, and `mediaState.mic` never moves.
+      // `_options` is the client's own copy of what it handed the transport.
+      const options = (client as unknown as { _options?: ClientOptions })._options;
+      if (options) manager.setClientOptions(options, true);
       attachTrackChangedHandler(client.transport as never, manager);
       client.on(RTVIEvent.TrackStarted, (track, participant) => {
         if (client !== current || !audio) return;
