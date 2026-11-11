@@ -122,16 +122,23 @@ from .content import AURA_FACTS
 
 AGENT_NAME = "Aria"
 
-# EXPERIMENT (uncommitted): the page's `avatar` field picks who answers, and the
-# voice is part of who. A face read as one gender speaking in the other is the
-# first thing anyone notices, so the voice follows the face, never the reverse —
-# and so does the grammar. Hindi, Marathi and Punjabi put the speaker's gender on
-# the verb ("bol rahi hoon" / "bol raha hoon"), so each persona has its own
-# greetings (`_GREETINGS`) and the prompt names the forms to use (`_gender_rule`).
+# The page's `avatar` field picks who answers, and the voice is part of who. A
+# face read as one gender speaking in the other is the first thing anyone
+# notices, so the voice follows the face, never the reverse — and so does the
+# grammar. Hindi, Marathi and Punjabi put the speaker's gender on the verb ("bol
+# rahi hoon" / "bol raha hoon"), so each persona has its own greetings
+# (`_GREETINGS`) and the prompt names the forms to use (`_gender_rule`).
+#
+# The key is the avatar character's name. Aria wears `ananya`; she wore `tara`
+# until 2026-11-11, with the same voice and name, so only the face changed.
 _PERSONAS: dict[str, tuple[str, Voice, str]] = {
-    "tara": (AGENT_NAME, Voice.OMNIVOICE_GAURI, "woman"),
+    "ananya": (AGENT_NAME, Voice.OMNIVOICE_GAURI, "woman"),
     "tushar": ("Tushar", Voice.OMNIVOICE_GAURAV, "man"),
 }
+
+# Who answers when the page names no one, or someone this brain does not know —
+# a page cached from before a rename sends `tara`, and Aria should still pick up.
+_DEFAULT_PERSONA = "ananya"
 
 
 # ── Calculator maths (verbatim from the managed aura bot / browser store.tsx) ──
@@ -293,7 +300,7 @@ def _trim(row: Any) -> Any:
 # queue on an IVR, and moving it mid-sentence would change the voice in the
 # customer's ear halfway through an answer.
 #
-# The catalogue is exactly the ten languages OmniVoice has reference clips for —
+# The catalogue is exactly the languages OmniVoice has reference clips for —
 # no more, because naming a language TTS cannot speak is refused at the call site
 # rather than silently substituted, and no fewer, because a bank that serves a
 # state should answer in that state's language.
@@ -311,6 +318,7 @@ _LANG_BY_NAME: dict[str, Language] = {
     "Kannada": Language.KN,
     "Malayalam": Language.ML,
     "Marathi": Language.MR,
+    "Odia": Language.OR,
     "Punjabi": Language.PA,
     "Tamil": Language.TA,
     "Telugu": Language.TE,
@@ -324,6 +332,7 @@ LanguageName = Literal[
     "Kannada",
     "Malayalam",
     "Marathi",
+    "Odia",
     "Punjabi",
     "Tamil",
     "Telugu",
@@ -342,6 +351,7 @@ _SCRIPT: dict[LanguageName, str] = {
     "Kannada": "Kannada script",
     "Malayalam": "Malayalam script",
     "Marathi": "Devanagari",
+    "Odia": "Odia script",
     "Punjabi": "Gurmukhi",
     "Tamil": "Tamil script",
     "Telugu": "Telugu script",
@@ -366,6 +376,12 @@ def _resolve_language(payload: dict[str, Any]) -> LanguageName:
 # with no LLM call so the demo greets the instant the session connects. Written
 # rather than translated at runtime for the same reason it is written at all: it
 # is the one line said before any model has run.
+#
+# Odia's opener was written for the call, not translated, and reviewed by
+# Gemini (gemini-pro-latest, with gemini-3.8-flash on the brand) on 2026-11-11:
+# natural for a support line, କିପରି ("how") over କେଉଁଥିରେ ("in what"), and Aura
+# spelled ଅରା, which Odia reads /ɔra/ as it reads ଅଗଷ୍ଟ — ଆଉରା would say
+# "a-u-ra". No native speaker has heard it yet.
 _GREETING: dict[LanguageName, str] = {
     "English": f"Hi, I'm {AGENT_NAME} from Aura Bank support. What can I help you with today?",
     "Hindi": ("नमस्ते, मैं आरिया बोल रही हूँ, ऑरा बैंक सपोर्ट से। आज मैं आपकी किस चीज़ में मदद कर सकती हूँ?"),
@@ -376,6 +392,7 @@ _GREETING: dict[LanguageName, str] = {
     ),
     "Malayalam": ("നമസ്കാരം, ഞാൻ ആരിയ, ഓറ ബാങ്ക് സപ്പോർട്ടിൽ നിന്നാണ്. ഇന്ന് ഞാൻ നിങ്ങളെ എന്തിൽ സഹായിക്കാം?"),
     "Marathi": ("नमस्कार, मी आरिया, ऑरा बँक सपोर्टकडून बोलतेय. आज मी तुम्हाला कशात मदत करू शकते?"),
+    "Odia": ("ନମସ୍କାର, ମୁଁ ଆରିଆ, ଅରା ବ୍ୟାଙ୍କ ସପୋର୍ଟରୁ କହୁଛି। ଆଜି ମୁଁ ଆପଣଙ୍କୁ କିପରି ସାହାଯ୍ୟ କରିପାରିବି?"),
     "Punjabi": ("ਸਤ ਸ੍ਰੀ ਅਕਾਲ, ਮੈਂ ਆਰੀਆ ਹਾਂ, ਔਰਾ ਬੈਂਕ ਸਪੋਰਟ ਤੋਂ। ਅੱਜ ਮੈਂ ਤੁਹਾਡੀ ਕਿਸ ਚੀਜ਼ ਵਿੱਚ ਮਦਦ ਕਰ ਸਕਦੀ ਹਾਂ?"),
     "Tamil": (
         "வணக்கம், நான் ஆரியா, ஔரா வங்கி ஆதரவு பிரிவிலிருந்து பேசுகிறேன். இன்று உங்களுக்கு எதில் உதவ முடியும்?"
@@ -384,8 +401,8 @@ _GREETING: dict[LanguageName, str] = {
 }
 
 # Tushar's: the same sentences in masculine grammar. Only Hindi, Marathi and
-# Punjabi change beyond the name (रहा/सकता, बोलतोय/शकतो, ਸਕਦਾ); the other six
-# put no gender on a first-person present.
+# Punjabi change beyond the name (रहा/सकता, बोलतोय/शकतो, ਸਕਦਾ); every other
+# language here puts no gender on a first-person present.
 _GREETING_TUSHAR: dict[LanguageName, str] = {
     "English": "Hi, I'm Tushar from Aura Bank support. What can I help you with today?",
     "Hindi": ("नमस्ते, मैं तुषार बोल रहा हूँ, ऑरा बैंक सपोर्ट से। आज मैं आपकी किस चीज़ में मदद कर सकता हूँ?"),
@@ -396,6 +413,7 @@ _GREETING_TUSHAR: dict[LanguageName, str] = {
     ),
     "Malayalam": ("നമസ്കാരം, ഞാൻ തുഷാർ, ഓറ ബാങ്ക് സപ്പോർട്ടിൽ നിന്നാണ്. ഇന്ന് ഞാൻ നിങ്ങളെ എന്തിൽ സഹായിക്കാം?"),
     "Marathi": ("नमस्कार, मी तुषार, ऑरा बँक सपोर्टकडून बोलतोय. आज मी तुम्हाला कशात मदत करू शकतो?"),
+    "Odia": ("ନମସ୍କାର, ମୁଁ ତୁଷାର, ଅରା ବ୍ୟାଙ୍କ ସପୋର୍ଟରୁ କହୁଛି। ଆଜି ମୁଁ ଆପଣଙ୍କୁ କିପରି ସାହାଯ୍ୟ କରିପାରିବି?"),
     "Punjabi": ("ਸਤ ਸ੍ਰੀ ਅਕਾਲ, ਮੈਂ ਤੁਸ਼ਾਰ ਹਾਂ, ਔਰਾ ਬੈਂਕ ਸਪੋਰਟ ਤੋਂ। ਅੱਜ ਮੈਂ ਤੁਹਾਡੀ ਕਿਸ ਚੀਜ਼ ਵਿੱਚ ਮਦਦ ਕਰ ਸਕਦਾ ਹਾਂ?"),
     "Tamil": (
         "வணக்கம், நான் துஷார், ஔரா வங்கி ஆதரவு பிரிவிலிருந்து பேசுகிறேன். இன்று உங்களுக்கு எதில் உதவ முடியும்?"
@@ -403,7 +421,7 @@ _GREETING_TUSHAR: dict[LanguageName, str] = {
     "Telugu": ("నమస్తే, నేను తుషార్, ఔరా బ్యాంక్ సపోర్ట్ నుండి మాట్లాడుతున్నాను. ఈరోజు నేను మీకు ఏమి సహాయం చేయగలను?"),
 }
 
-_GREETINGS: dict[str, dict[LanguageName, str]] = {"tara": _GREETING, "tushar": _GREETING_TUSHAR}
+_GREETINGS: dict[str, dict[LanguageName, str]] = {"ananya": _GREETING, "tushar": _GREETING_TUSHAR}
 
 
 def _config(language_name: LanguageName, voice: Voice = Voice.OMNIVOICE_GAURI) -> Config:
@@ -1321,7 +1339,7 @@ class AuraBrain(GeminiBrain):
 
         # The language this call is answered in, settled once from ``init``.
         self.language: LanguageName = _DEFAULT_LANGUAGE
-        self.persona = "tara"
+        self.persona = _DEFAULT_PERSONA
         self.agent_name, _, self.gender = _PERSONAS[self.persona]
 
         # What is on the customer's screen. ``view`` is the only copy of it —
@@ -1400,13 +1418,14 @@ class AuraBrain(GeminiBrain):
         self.payload = dict(session.init or {})
         self.language = _resolve_language(self.payload)
         persona = str(self.payload.get("avatar", "")).strip()
-        self.persona = persona if persona in _PERSONAS else "tara"
+        self.persona = persona if persona in _PERSONAS else _DEFAULT_PERSONA
         self.agent_name, voice, self.gender = _PERSONAS[self.persona]
 
         # `language` moves both legs at once: the recognizer's hint, and the TTS
         # reference clip, which is the accent. Aria's voice does not change with
-        # it — one person, ten languages. This lands before the greeting, so the
-        # opener below is spoken by the clip the customer asked for.
+        # it — one person, every language on the page. This lands before the
+        # greeting, so the opener below is spoken by the clip the customer asked
+        # for.
         await session.configure(_config(self.language, voice))
 
         # And the prompt follows the voice. A model told to speak Tamil while the

@@ -157,6 +157,27 @@ async def test_the_language_the_page_picked_moves_the_greeting_and_both_legs() -
         check_voice_pair(rig, voice=VOICE, language="ta")
 
 
+async def test_odia_moves_the_greeting_and_both_legs() -> None:
+    """Odia, the newest language on the page, rides the same path: the written
+    Odia opener, and ``or`` on the recognizer and the reference clip before it."""
+    async with demo("aura", _llm()) as rig:
+        greeting = await rig.driver.start_session(init={"language": "Odia"})
+        check_greeting(rig, greeting)
+        assert greeting is not None and greeting.text == _GREETING["Odia"]
+        check_voice_pair(rig, voice=VOICE, language="or")
+
+
+async def test_a_face_the_brain_does_not_know_is_still_aria() -> None:
+    """A page cached from before Aria changed faces sends ``avatar: tara``. The
+    brain does not know that key any more, and answers as Aria — her name, her
+    voice — rather than refusing the call."""
+    async with demo("aura", _llm()) as rig:
+        greeting = await rig.driver.start_session(init={"avatar": "tara"})
+        check_greeting(rig, greeting)
+        assert greeting is not None and greeting.text == _GREETING["English"]
+        check_voice_pair(rig, voice=VOICE, language=LANGUAGE)
+
+
 async def test_narrating_a_help_video_drives_the_screen() -> None:
     """One line, and the clip goes up under it: the line and the call are one
     response, and the turn ends with it — the step list follows the video by

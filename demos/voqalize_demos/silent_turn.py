@@ -113,6 +113,15 @@ PHRASES: Mapping[Language, Mapping[Phrase, tuple[str, ...]]] = {
         "thanks": ("धन्यवाद.",),
         "over_to_you": ("सांगा.",),
     },
+    # Odia's lines were reviewed by Gemini (gemini-pro-latest and gemini-3.8-flash)
+    # on 2026-11-11, not by a native speaker: both rated these natural, polite
+    # spoken Odia, and split on ଏଇ ରହିଲା (a calque of ये रहा to one of them).
+    Language.OR: {
+        "shown": ("ଏଇ ଦେଖନ୍ତୁ।", "ଏଇଟା ଦେଖନ୍ତୁ।"),
+        "done": ("ହୋଇଗଲା।",),
+        "thanks": ("ଧନ୍ୟବାଦ।",),
+        "over_to_you": ("କୁହନ୍ତୁ।",),
+    },
     Language.PA: {
         "shown": ("ਇਹ ਰਿਹਾ।", "ਇਹ ਦੇਖੋ।"),
         "done": ("ਹੋ ਗਿਆ।",),
