@@ -96,7 +96,7 @@ from .cards import (
     card_by_id,
 )
 from .eligibility import Assessment, Shortlist, assess, shortlist
-from .prompts import GREETING, HINDI_VOICED, SYSTEM_INSTRUCTION
+from .prompts import GREETING, HINDI_VOICED, OWN_VOICED, SYSTEM_INSTRUCTION
 from .script_english import reads_as_english
 from .values import (
     allowed_values,
@@ -199,9 +199,13 @@ _SPEECH: dict[LanguageName, _Speech] = {
 # the two are held to each other at import rather than discovered on a customer.
 assert set(get_args(LanguageName)) == set(_SPEECH), "LanguageName and _SPEECH disagree"
 # The prompt names the languages answered with the Hindi voice, so Tanvi can say
-# so in the line she switches with; it is held to this table the same way.
+# so in the line she switches with, and the ones she speaks herself, so she does
+# not guess; both are held to this table the same way.
 assert set(HINDI_VOICED) == {name for name, s in _SPEECH.items() if s.spoken != s.heard}, (
     "HINDI_VOICED and _SPEECH disagree"
+)
+assert set(OWN_VOICED) == {name for name, s in _SPEECH.items() if s.spoken == s.heard}, (
+    "OWN_VOICED and _SPEECH disagree"
 )
 
 

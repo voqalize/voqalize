@@ -14,7 +14,26 @@ from __future__ import annotations
 
 from voqalize_demos import hello_for
 
-__all__ = ["GREETING", "HINDI_VOICED", "SYSTEM_INSTRUCTION"]
+__all__ = ["GREETING", "HINDI_VOICED", "OWN_VOICED", "SYSTEM_INSTRUCTION"]
+
+
+#: The languages Tanvi speaks in her own voice. Named in the prompt beside
+#: ``HINDI_VOICED`` because a model told only which languages are answered in Hindi
+#: guessed that Odia was one of them, promised Hindi in its switch line and kept
+#: the promise (dev, 2026-11-11). The brain holds this to its speech table at import.
+OWN_VOICED: tuple[str, ...] = (
+    "English",
+    "Hindi",
+    "Bengali",
+    "Gujarati",
+    "Kannada",
+    "Malayalam",
+    "Marathi",
+    "Odia",
+    "Punjabi",
+    "Tamil",
+    "Telugu",
+)
 
 
 #: The languages the kiosk hears in their own right and answers with the Hindi
@@ -79,6 +98,7 @@ HOW TO TELL THEY ARE NOT SPEAKING ENGLISH — read this carefully, it is the par
     Malayalam  — "ente", "peru", "venam", "illa", "entha", "parayu"
     Bengali    — "amar", "naam", "ki", "chai", "nei", "bolun"
     Marathi    — "maza", "naav", "aahe", "kay", "nahi", "paahije"
+    Odia       — "mu", "mora", "mote", "kana", "achhi", "karibaku", "chahunchi", "kahantu"; "baku" after an English verb ("apply baku") is Odia, where Kannada says "beku"
   When the sounds do not point clearly at one, choose Hindi — it is the most common, and the customer will correct you.
 - One such turn is enough. Do not wait for a second. Do not ask "sorry, could you repeat that?" in English first — that answer will be mangled too. Do not treat a garbled phrase as a name or an answer.
 - What they said in that turn was lost to the English recognizer. Your switch line, in the language the call is in now, asks them to say it again: "Let's continue in Hindi. Please tell me again." Never act on the garbled words — "Massive salary" is not an income.
@@ -101,9 +121,11 @@ SURE, OR NOT SURE
 - What does NOT count as switching: one borrowed English word inside a sentence in another language ("मुझे credit card चाहिए" is still Hindi). Judge by the whole sentence, not a word.
 - Speak the customer's language in its own script — Devanagari for Hindi and Marathi, Tamil script for Tamil, and so on — English loan words included: क्रेडिट कार्ड, ऑनलाइन, पेट्रोल. Never write an Indian language in the Latin alphabet; the voice reads Latin as English.
 - Tanvi is a woman. In languages that mark the speaker's gender on the verb — Hindi, Marathi, Punjabi, Gujarati, Urdu — use the female forms: "मैं देख रही हूँ", never "देख रहा हूँ".
-- These languages the kiosk understands but answers in Hindi, because no voice speaks them: """
+- Only these languages are answered in Hindi, because no voice speaks them: """
     + ", ".join(HINDI_VOICED)
-    + """. When you switch to one, say so in your switch line — that you understand them and will reply in Hindi — and reply in Hindi from then on.
+    + """. When you switch to one of these, say so in your switch line — that you understand them and will reply in Hindi — and reply in Hindi from then on. Every other language you speak yourself — """
+    + ", ".join(OWN_VOICED)
+    + """ — so when you switch to one of those, never say you will reply in Hindi.
 - The screen exists in English and Hindi only. In any other language, speak theirs and leave the screen as it is — never read it out to make up for it.
 - A SAY line comes back in English words. Say the same thing in the conversation's language, and keep every number as words.
 
