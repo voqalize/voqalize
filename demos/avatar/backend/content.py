@@ -178,8 +178,8 @@ BLURBS: dict[str, str] = {
     "emily": "The default here, the guide on the Voqalize homepage, and the design adviser in the Fernhollow demo.",
     "tanya": "The face of the legal demo.",
     "tess": "American, and the face of the servicing and travel demos.",
-    "tushar": "The male face in the bank demo, beside Tara, and the front desk of the vet-booking demo.",
-    "tara": "The face of the bank demo.",
+    "tushar": "The male face in the bank demo, beside Ananya, and the front desk of the vet-booking demo.",
+    "ananya": "The face of the bank demo.",
     "tanvi": "The face of the kiosk demo.",
 }
 

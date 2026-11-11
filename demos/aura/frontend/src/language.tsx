@@ -9,8 +9,8 @@
  * reference clip, and the prompt). See `backend/brain.py` → the Language
  * section: that file is the authority, and this list is its page-side mirror.
  *
- * **Ten, and exactly ten.** OmniVoice has voice-cloning reference clips for
- * these; `vql-stt` understands more, but naming a language TTS cannot speak is
+ * **These, and exactly these.** OmniVoice has voice-cloning reference clips
+ * for them; `vql-stt` understands more, but naming a language TTS cannot speak is
  * refused at the call site rather than quietly served with the English clip. So
  * the page offers what can actually be spoken back.
  *
@@ -43,6 +43,7 @@ export const LANGUAGES = [
   { name: 'Tamil', native: 'தமிழ்' },
   { name: 'Gujarati', native: 'ગુજરાતી' },
   { name: 'Kannada', native: 'ಕನ್ನಡ' },
+  { name: 'Odia', native: 'ଓଡ଼ିଆ' },
   { name: 'Malayalam', native: 'മലയാളം' },
   { name: 'Punjabi', native: 'ਪੰਜਾਬੀ' },
 ] as const;

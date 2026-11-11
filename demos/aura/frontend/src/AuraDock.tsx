@@ -33,7 +33,7 @@
  * different questions: `size` (`compact` shrinks the face when the page matters
  * more than the presenter) and `chat` (the transcript column, off by default).
  *
- * **The face.** Tara, the `tara` character, mounted through `@voqalize/avatar`'s
+ * **The face.** Aria wears the `ananya` character, mounted through `@voqalize/avatar`'s
  * `<Avatar client character>`. She takes the live `PipecatClient` and her name,
  * and drives herself off the `avatar` server messages Voqalize already sends
  * over the same data channel the transcript rides. There is nothing to configure
@@ -48,7 +48,7 @@
  * one start the same way.
  *
  * Before the call there is no client to embody, so the launcher wears a **still**
- * of her — `portraits/tara-portrait.png`, a square crop of the reference she is
+ * of her — `portraits/ananya-portrait.png`, a square crop of the reference she is
  * built from. The package does not ship portraits, so that crop stays here.
  *
  * **The transcript and the composer are voice-ui-kit's**, not ours. `Conversation`
@@ -88,7 +88,7 @@ import { preloadAvatar } from '@voqalize/avatar';
 import { Avatar } from '@voqalize/avatar/react';
 import { Maximize2, MessageSquare, Minimize2, PhoneOff } from 'lucide-react';
 import type { AmbientPresenceActivity } from '@voqalize/demo-kit';
-import taraPortrait from './portraits/tara-portrait.png';
+import ananyaPortrait from './portraits/ananya-portrait.png';
 import tusharPortrait from './portraits/tushar-portrait.png';
 import { agentName, type AuraFace } from './persona';
 
@@ -98,7 +98,7 @@ const ACCENT = '#8B5CF6';
 /** The still each face wears on the launcher. `?avatar=tushar` puts the other
  *  character in the tile (`./persona`); the key is the character's name. */
 const PORTRAITS: Record<AuraFace, string> = {
-  tara: taraPortrait,
+  ananya: ananyaPortrait,
   tushar: tusharPortrait,
 };
 
@@ -296,7 +296,7 @@ function CallTimer() {
  * execution was not — a bust drawn for a 4:3 call tile, scaled 1.9× and clipped
  * to a 52 px circle, is a floating head, and one that blinks at you while you
  * are reading about interest certificates. A still portrait, cropped square at
- * the source (`portraits/tara-portrait.png`), is the same promise made quietly.
+ * the source (`portraits/ananya-portrait.png`), is the same promise made quietly.
  *
  * It says "Talk to Aria" rather than "Chat with us" because it is a *voice*
  * assistant and a customer who expects a text box and is asked for a microphone
