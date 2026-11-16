@@ -29,8 +29,8 @@ mode — binding fields onto a handler whose format never prints them looks exac
 like working, and every one of those fields is computed and thrown away.
 
 Field names match what Voqalize writes — ``service``, ``session_id``,
-``tenant_id``, ``agent_id`` — because being joinable across the whole call is
-the entire point.
+``workspace_id``, ``agent_id`` — because being joinable across the whole call is
+the entire point. (``workspace_id`` was ``tenant_id`` before 0.15.0.)
 """
 
 from __future__ import annotations
@@ -39,36 +39,47 @@ import json
 import sys
 import traceback
 from collections.abc import Generator
-from contextlib import contextmanager
+from contextlib import AbstractContextManager, contextmanager
 from typing import Any
 
 from loguru import logger
+
+from ._identity import resolve_workspace_kwarg
 
 SERVICE_NAME = "brain"
 
 # The identity fields that make a line joinable to the same call elsewhere. Kept
 # as an explicit tuple so the JSON sink promotes exactly these and leaves your
 # own bound fields in `extra`.
-IDENTITY_FIELDS = ("session_id", "tenant_id", "agent_id")
+IDENTITY_FIELDS = ("session_id", "workspace_id", "agent_id")
 
 
-@contextmanager
 def session_context(
     session_id: str,
     *,
-    tenant_id: str = "",
+    workspace_id: str | None = None,
     agent_id: str = "",
-) -> Generator[None]:
+    tenant_id: str | None = None,
+) -> AbstractContextManager[None]:
     """Tag every log line emitted inside this block — and inside any task it
     spawns — with the call's identity.
 
     Ids are carried whole. A truncated id reads better in a terminal and is
     useless as a join key: Voqalize and the session's own records carry the full
     UUID, so a prefix matches nothing on the other side of the query.
+
+    ``tenant_id=`` is a deprecated alias for ``workspace_id=`` (it warns, and is
+    removed in the first minor release on or after 2027-02-15).
     """
+    workspace = resolve_workspace_kwarg("session_context", workspace_id, tenant_id, "")
+    return _session_context(session_id, workspace_id=workspace, agent_id=agent_id)
+
+
+@contextmanager
+def _session_context(session_id: str, *, workspace_id: str, agent_id: str) -> Generator[None]:
     fields: dict[str, str] = {"service": SERVICE_NAME, "session_id": session_id}
-    if tenant_id:
-        fields["tenant_id"] = tenant_id
+    if workspace_id:
+        fields["workspace_id"] = workspace_id
     if agent_id:
         fields["agent_id"] = agent_id
     with logger.contextualize(**fields):

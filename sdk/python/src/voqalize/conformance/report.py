@@ -25,6 +25,8 @@ import time
 import traceback
 from dataclasses import dataclass, field
 
+from voqalize.sdk._identity import resolve_workspace_kwarg
+
 from .scenarios import CATALOG, Scenario, ScenarioContext
 
 # The probe: a brain that speaks the reference grammar answers `say <text>` by
@@ -179,7 +181,8 @@ async def run_suite(
     only: list[str] | None = None,
     default_timeout: float = 5.0,
     agent_id: str = "agent_conformance",
-    tenant_id: str = "tenant_conformance",
+    workspace_id: str | None = None,
+    tenant_id: str | None = None,
 ) -> Report:
     """Run the catalog against ``brain_url`` and return a :class:`Report`.
 
@@ -197,14 +200,20 @@ async def run_suite(
     ``include_auth`` keeps the auth-rejection scenarios (skip them when the brain
     runs unverified — they can't pass without token enforcement); ``only``
     restricts to named scenarios.
+
+    ``workspace_id`` names the workspace the minted tokens carry (default
+    ``"workspace_conformance"``); ``tenant_id=`` is its deprecated alias.
     """
+    workspace = resolve_workspace_kwarg(
+        "run_suite", workspace_id, tenant_id, "workspace_conformance"
+    )
 
     def _ctx() -> ScenarioContext:
         return ScenarioContext(
             brain_url,
             private_key_pem=private_key_pem,
             agent_id=agent_id,
-            tenant_id=tenant_id,
+            workspace_id=workspace,
             default_timeout=default_timeout,
         )
 
