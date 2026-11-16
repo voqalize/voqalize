@@ -79,7 +79,7 @@ from typing import Any
 
 from loguru import logger
 
-from ._identity import verified_identity
+from ._identity import verified_identity, warn_tenant_alias
 from .actions import Action
 from .engine import Emitter, SessionAdapter, SessionFactory
 from .events import (
@@ -258,9 +258,9 @@ class Session:
         #: verified token. ``None`` when nothing verified one: a brain behind the
         #: Cortex relay (the relay already admits only your agent's sessions) or
         #: a ``run_session(..., allow_unverified=True)`` in local development.
-        self.tenant_id: str | None = identity.tenant_id if identity else None
+        self.workspace_id: str | None = identity.workspace_id if identity else None
         #: The agent this session was signed for, on the same terms as
-        #: :attr:`tenant_id`. Branch on it when one brain serves several agents;
+        #: :attr:`workspace_id`. Branch on it when one brain serves several agents;
         #: to refuse every other agent, pass ``expect_agent=`` to ``run_session``.
         self.agent_id: str | None = identity.agent_id if identity else None
         # One id per speech unit, session-monotonic. Voqalize never reads it — it
@@ -285,6 +285,14 @@ class Session:
         self._finals: dict[int, asyncio.Future[Finalize]] = {}
         # When each recent turn's stimulus arrived, on the monotonic clock.
         self._turn_began: OrderedDict[int, float] = OrderedDict()
+
+    @property
+    def tenant_id(self) -> str | None:
+        """Deprecated alias for :attr:`workspace_id` (the tenant is now called a
+        workspace). Warns; removed in the first minor release on or after
+        2027-02-15."""
+        warn_tenant_alias("Session.tenant_id")
+        return self.workspace_id
 
     # ─── The app ────────────────────────────────────────────────────────
 

@@ -30,6 +30,7 @@ import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
+from voqalize.sdk._identity import resolve_workspace_kwarg
 from voqalize.sdk.wire import SpeechChunkFrame, SpeechEndFrame
 
 from . import checks
@@ -68,13 +69,16 @@ class ScenarioContext:
         *,
         private_key_pem: bytes | None,
         agent_id: str = "agent_conformance",
-        tenant_id: str = "tenant_conformance",
+        workspace_id: str | None = None,
         default_timeout: float = 5.0,
+        tenant_id: str | None = None,
     ) -> None:
         self.brain_url = brain_url
         self.private_key_pem = private_key_pem
         self.agent_id = agent_id
-        self.tenant_id = tenant_id
+        self.workspace_id = resolve_workspace_kwarg(
+            "ScenarioContext", workspace_id, tenant_id, "workspace_conformance"
+        )
         self.default_timeout = default_timeout
         self._drivers: list[VoqalizeDriver] = []
 
@@ -104,7 +108,7 @@ class ScenarioContext:
                     private_key_pem=key,
                     session_id=sid,
                     agent_id=self.agent_id,
-                    tenant_id=self.tenant_id,
+                    workspace_id=self.workspace_id,
                 )
         elif auth == "none":
             token = None

@@ -50,7 +50,7 @@ import jwt
 from cryptography.hazmat.primitives import serialization
 from loguru import logger
 
-from ._identity import VerifiedIdentity, verified_identity
+from ._identity import VerifiedIdentity, verified_identity, workspace_claim
 from ._keys import VOQALIZE_PUBLIC_KEYS
 from ._logging import session_context
 from .engine import (
@@ -186,7 +186,7 @@ def verify_token(
     Returns the verified claims on success and ``None`` on rejection — test
     ``is None``, not truthiness, because a verified token with no claims and an
     ``allow_unverified`` session both yield ``{}``. The claims matter because
-    ``tenant_id`` and ``agent_id`` are what tag the session's log lines
+    ``workspace_id`` and ``agent_id`` are what tag the session's log lines
     (`_logging`), and the only trustworthy source for them is the signature that
     was just checked.
 
@@ -194,8 +194,10 @@ def verify_token(
     hosted demo brains — verifies the *same* token the *same* way: signature, plus
     ``iss="pygato"``, ``aud="brain"`` (a wire constant — all brain connections
     share it), and ``sub == session_id`` (scoped to exactly one session). The
-    recipient then decides from the token's ``tenant_id`` / ``agent_id`` whether it
-    serves that agent. ``token`` may be a bare JWT or an
+    recipient then decides from the token's ``workspace_id`` / ``agent_id`` whether it
+    serves that agent. (Tokens minted before the tenant → workspace rename carry
+    ``tenant_id`` instead; :func:`run_session` reads ``workspace_id`` and falls
+    back to ``tenant_id``.) ``token`` may be a bare JWT or an
     ``"Authorization: Bearer <jwt>"`` header value; ``allow_unverified`` skips the
     check entirely (local dev only)."""
     if allow_unverified:
@@ -391,7 +393,7 @@ async def run_session(
     checks nothing, ``expect_agent`` included.
 
     The verified workspace and agent are on the brain's session as
-    :attr:`Session.tenant_id <voqalize.sdk.Session.tenant_id>` and
+    :attr:`Session.workspace_id <voqalize.sdk.Session.workspace_id>` and
     :attr:`Session.agent_id <voqalize.sdk.Session.agent_id>`.
     """
     from .brain import _brain_factory  # local import breaks the brain↔transport cycle
@@ -419,7 +421,7 @@ async def run_session(
                 session_id,
             )
             raise SessionRejected(f"session {session_id} is for another agent")
-        identity = VerifiedIdentity(tenant_id=str(claims.get("tenant_id", "")), agent_id=agent_id)
+        identity = VerifiedIdentity(workspace_id=workspace_claim(claims), agent_id=agent_id)
     else:
         identity = None
     # Tag every line this session writes — including the brain's own — with the
@@ -429,7 +431,7 @@ async def run_session(
     try:
         with session_context(
             session_id,
-            tenant_id=str(claims.get("tenant_id", "")),
+            workspace_id=workspace_claim(claims),
             agent_id=str(claims.get("agent_id", "")),
         ):
             await serve_channel(

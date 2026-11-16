@@ -101,7 +101,7 @@ async def _open(brain: Brain) -> tuple[VoqalizeDriver, BrainServer]:
         private_key_pem=keypair.private_pem,
         session_id=SESSION_ID,
         agent_id="configure",
-        tenant_id="demo",
+        workspace_id="demo",
     )
     driver = VoqalizeDriver(
         DirectConnection(f"ws://127.0.0.1:{port}", SESSION_ID, token=token),
