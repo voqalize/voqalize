@@ -167,13 +167,16 @@ facts:
       pattern: '^name = "(.+)"$'
 
   sdk.python.version.tree:
-    value: '0.14.0'
+    value: '0.15.0'
     source: sdk/python/pyproject.toml:3
-    verified: 2026-11-06
+    verified: 2026-11-17
     derive:
       file: sdk/python/pyproject.toml
       pattern: '^version = "(.+)"$'
     note: >-
+      Bumped to 0.15.0 on 2026-11-17: Config.redial (a call outlives the
+      brain's socket) and Config.late (the slow-turn line off, later, or in the
+      brain's words), each behind a capability. Additive; the wire stays 3.
       Bumped to 0.14.0 on 2026-11-06: run_session(expect_agent=...), which
       refuses a token signed for another agent, Session.tenant_id and
       Session.agent_id, and tokens that name their signing key (kid). Leaving
