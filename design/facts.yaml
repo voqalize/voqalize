@@ -924,6 +924,41 @@ facts:
       the other. What the user hears at the end of either is the apology line,
       not silence.
 
+  brain.redial.window_secs:
+    value: 30
+    source: gato/gato/internal/brain/bridge.go:241 limits.window
+    verified: 2026-11-17
+    reproduce: >-
+      grep -n 'l.window = \|l.cap = \|l.flapLive = \|l.flaps = '
+      ../gato/gato/internal/brain/bridge.go
+    note: >-
+      How long Voqalize keeps redialling one dropped brain socket, from the
+      moment it finds the drop, before the call ends brain_disconnected. Only a
+      session with Config.redial on is redialled. The window is per drop; the
+      call's total across drops is brain.redial.cap_secs.
+
+  brain.redial.cap_secs:
+    value: 60
+    source: gato/gato/internal/brain/bridge.go:250 limits.cap
+    verified: 2026-11-17
+    reproduce: >-
+      grep -n 'l.cap = ' ../gato/gato/internal/brain/bridge.go
+    note: >-
+      The time one call may spend redialling, summed across its drops. Past it
+      the next drop ends the call.
+
+  brain.redial.flap_secs:
+    value: 10
+    source: gato/gato/internal/brain/bridge.go:244 limits.flapLive
+    verified: 2026-11-17
+    reproduce: >-
+      grep -n 'l.flapLive = \|l.flaps = ' ../gato/gato/internal/brain/bridge.go
+    note: >-
+      A redialled socket that dies younger than this is a flap, and the third
+      flap in a row ends the call (l.flaps = 3): a brain that accepts and then
+      crashes on every rejoin is not redialled forever. A socket that lived
+      longer resets the streak.
+
   brain.watchdog_secs:
     value: 10.0
     source: platform/gato/internal/brain/bridge.go:290 DeadAir

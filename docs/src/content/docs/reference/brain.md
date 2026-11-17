@@ -52,7 +52,7 @@ mid-call wire:
 
 ```python
 from voqalize.sdk.wire import (
-    AckConfig, Config, ConfigError, IdleConfig, SttConfig, TtsConfig
+    AckConfig, Config, ConfigError, IdleConfig, RedialConfig, SttConfig, TtsConfig
 )
 ```
 
@@ -90,14 +90,14 @@ async def on_session_end(self, session: Session) -> None: ...
 
 | Callback | Required | Yields | Fires |
 |---|---|---|---|
-| `on_session_start` | no | — | Once, on `SessionStart`, before `greet`. |
+| `on_session_start` | no | — | Once per socket, on `SessionStart`, before `greet`. With redial on, again on each new socket of the same call. |
 | `greet` | no | — | Once, after `on_session_start` returns. |
 | `on_user_message` | **yes** | speech | On every `UserMessage`. `msg.text` is the finalized transcript. |
 | `on_user_idle` | no | speech | On every `UserIdle`. Off unless you set a timeout. |
 | `on_rtvi` | no | — | On every whitelisted RTVI message from the app. |
 | `on_finalize` | no | — | Once per speech unit you opened, after playout, including a unit that turned out silent (empty `heard`) and one you cancelled. |
 | `on_error` | no | — | On an `Error` frame. The session is never killed by it. |
-| `on_session_end` | no | — | Once, for any reason, as the socket closes. |
+| `on_session_end` | no | — | As the socket closes, for any reason. At least once, not exactly once: with [redial](/build/hosting/#surviving-a-redeploy) on it runs on each socket of a call, so keep it idempotent. |
 
 The speaking callbacks are declared `def … -> AsyncGenerator[Speech, None]`
 in the base class because that is the type an async generator function returns.
@@ -182,6 +182,7 @@ lifetime is exactly the socket's.
 | `can_cancel_speech` | `bool` | Whether `cancel_speech` is honoured. Fixed for the session's life. |
 | `can_configure_strings` | `bool` | Whether `configure` accepts a voice or language as a string. Fixed for the session's life. |
 | `can_report_steps` | `bool` | Whether `report_step` is recorded. Fixed for the session's life. |
+| `can_redial` | `bool` | Whether `Config(redial=RedialConfig(enabled=True))` is honoured. Fixed for the session's life. |
 
 There is no `SessionStart` object in the SDK. The frame's payload arrives as
 these attributes, and its turn id is the turn the greeting is bound to.
@@ -230,7 +231,8 @@ await session.configure(
 ```
 
 `Config` has optional `tts` (`voice`, `language`), `stt` (`language`,
-`patience`), `idle` (`timeout_ms`) and `ack` (`enabled`) sections. A section
+`patience`), `idle` (`timeout_ms`), `ack` (`enabled`) and `redial` (`enabled`)
+sections. A section
 left `None` is untouched, and so is a field left `None` inside a section that is
 present. `voice` takes a voice id such as `"omnivoice/gauri"` and `language` a
 BCP-47 tag such as `"ta"`; the values are in [the catalog](/reference/catalog/).
@@ -238,8 +240,9 @@ BCP-47 tag such as `"ta"`; the values are in [the catalog](/reference/catalog/).
 - **Naming a language on one leg and not the other raises `ConfigError`** before
   anything reaches the wire. They may differ — fewer languages can be spoken
   than understood — but you state both. See [Voice and language](/build/voice-and-language/#always-set-both-legs).
-- **A string voice or language needs `can_configure_strings`.** Without it,
-  `configure` raises `Unsupported` before sending anything.
+- **A string voice or language needs `can_configure_strings`,** and turning
+  redial on needs `can_redial`. Without it, `configure` raises `Unsupported`
+  before sending anything.
 - **A session runs with `idle.timeout_ms` at 0**, which is idle detection off.
   Until you set it, `on_user_idle` never fires.
 - **Rejection is all-or-nothing.** `RequestRejected` means Voqalize applied none

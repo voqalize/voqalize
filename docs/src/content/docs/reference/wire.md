@@ -334,6 +334,7 @@ enum Capability {
   CAPABILITY_SPEECH_CANCEL = 1;  // SpeechCancel is honoured
   CAPABILITY_STRING_CONFIG = 2;  // voice_id and language_tag are read
   CAPABILITY_TURN_STEPS = 3;     // TurnStep is recorded
+  CAPABILITY_REDIAL = 4;         // Config.redial is honoured
 }
 ```
 
@@ -342,12 +343,14 @@ enum Capability {
 | `CAPABILITY_SPEECH_CANCEL` | `SpeechCancel` stops a unit and is answered by its `Finalize`. See [taking speech back](#taking-speech-back). |
 | `CAPABILITY_STRING_CONFIG` | `TtsConfig.voice_id`, `TtsConfig.language_tag` and `SttConfig.language_tag` are read. Without it they are ignored, and a request carrying only them is answered accepted with nothing changed. See [changing the call mid-session](#changing-the-call-mid-session). |
 | `CAPABILITY_TURN_STEPS` | `TurnStep` is recorded beside its turn. See [what a turn did](#what-a-turn-did). |
+| `CAPABILITY_REDIAL` | `Config.redial` is honoured: a session that turns it on is dialled again when its socket drops. See [`redial`](#redial--the-call-outlives-the-socket). |
 
 Check before sending an optional message, and treat a value you do not
 recognise as absent. Adding a capability is append-only and does not move the
 version. The Python SDK reads them as `session.can_cancel_speech`,
-`session.can_configure_strings` and `session.can_report_steps`, and refuses the
-call locally when the one it needs is false.
+`session.can_configure_strings`, `session.can_report_steps` and
+`session.can_redial`, and refuses the call locally when the one it needs is
+false.
 
 ## The screen
 
@@ -489,14 +492,15 @@ A request is accepted or rejected **whole**. A rejected `Config` applies none of
 its sections, so the call is still coherent afterwards and the previous settings
 are still in force.
 
-### `Config` — `tts`, `stt`, `idle` and `ack` in one message
+### `Config` — `tts`, `stt`, `idle`, `ack` and `redial` in one message
 
 ```proto
 message Config {
-  TtsConfig  tts  = 1;
-  SttConfig  stt  = 2;
-  IdleConfig idle = 3;
-  AckConfig  ack  = 4;
+  TtsConfig    tts    = 1;
+  SttConfig    stt    = 2;
+  IdleConfig   idle   = 3;
+  AckConfig    ack    = 4;
+  RedialConfig redial = 5;
 }
 
 message TtsConfig {
@@ -512,6 +516,7 @@ message SttConfig {
 }
 message IdleConfig { optional uint32 timeout_ms = 1; }
 message AckConfig  { optional bool enabled = 1; }
+message RedialConfig { optional bool enabled = 1; }
 ```
 
 This message is used twice: `sessions.connect` supplies the starting sections,
@@ -538,8 +543,9 @@ once. Separate ops would put a turn boundary, and a possible refusal, between
 the halves, leaving the call heard in one language and spoken in another.
 
 The surface is deliberately narrow: the voice, the language on each leg, how
-long the recognizer waits through a pause, the idle timeout, and whether
-Voqalize acknowledges the user. The recognizer's other thresholds are not
+long the recognizer waits through a pause, the idle timeout, whether
+Voqalize acknowledges the user, and whether the call outlives the brain's
+socket. The recognizer's other thresholds are not
 settable, and recording is fixed when the session starts.
 
 ### When each change lands
@@ -550,6 +556,7 @@ settable, and recording is fixed when the session starts.
 | `stt.language` | once the open turn commits | The recognizer carries per-turn decoder state, so the turn being spoken when the change arrives still transcribes as spoken. |
 | `stt.patience` | immediately | It bounds a silence counter that resets at every word, so there is nothing in flight for it to corrupt, including the pause already running. |
 | `ack` | the next turn | The acknowledgement is chosen when a turn ends, so a turn already answered keeps what it had. |
+| `redial` | immediately | It is read when the socket drops, so it covers the next drop. |
 | `idle` | immediately | Voqalize owns that timer; one already running restarts on the new duration. `timeout_ms` is the silence after Voqalize stops speaking before it mints an idle turn, and `0` disables idle detection. |
 
 ### `ack` — Voqalize acknowledges while the brain thinks
@@ -565,6 +572,34 @@ brain sees no message for it.
 on, with this op at any time. A brain that opens its replies with its own nod
 should turn it off, or the user hears two. When to turn it off is in
 [Voice and language](/build/voice-and-language/).
+
+### `redial` — the call outlives the socket
+
+**Off unless the brain turns it on.** Off, the socket is the session: any close
+after the brain answered ends the call. On, a drop that is not a hang-up is
+dialled again, for up to 30 seconds per drop and 60 seconds in a call, and the
+new socket opens exactly as the first did: the same `?session_id=`, a fresh
+token, and the same `SessionStart`, `init` and capabilities included. Nothing
+says it is a redial. Every `UserMessage` the brain had not answered, and every
+one the user spoke meanwhile, is sent again in order; the greeting the new
+socket's brain sends is not spoken.
+
+Which drops are dialled again is decided by the close:
+
+| Close | With `redial` on |
+|---|---|
+| None: the process died, the connection reset, or pings went unanswered | Dialled again. |
+| `1001`, `1012`, `1013` | Dialled again at once: a server going away. |
+| `1011`, `1014`, an unassigned code | Dialled again. |
+| `End` or `Cancel` sent, then any close | The call ends. |
+| `1000` | The call ends, `agent_hung_up`. |
+| `1005`, `1002`–`1010`, `3000`–`4999` | The call ends, `brain_disconnected`: a deliberate close, a protocol fault that the same request would meet again, or an application decision. |
+
+Turn it on only for a brain that can rejoin: one that stores what a session
+needs under its id, somewhere every instance behind `brain_url` can read it. A
+brain that keeps a session in the memory of one connection takes a redial for a
+new call. Set it from the brain with this op; it needs `CAPABILITY_REDIAL`. What
+a brain owes is in [Surviving a redeploy](/build/hosting/#surviving-a-redeploy).
 
 ### Both legs carry a language, and both must be set
 
@@ -828,17 +863,18 @@ segment you have to carve out.
 `aud` is the constant `"brain"` for every brain. Routing lives in the
 `brain_url`, never in the token.
 
-**The socket is the session, and it is not reconnected.**
+**The socket is the session, unless the brain turned on
+[`redial`](#redial--the-call-outlives-the-socket).**
 
 | What happens | What Voqalize does |
 |---|---|
 | The dial fails: connection refused, TLS error, or a `401` or `403` at the HTTP handshake | Retries, from 100 ms with backoff, for up to **10 seconds** from the first attempt. Then the session ends as `brain_unreachable` and the user hears [the unreachable line](/reference/errors/#what-your-user-hears). |
-| Your brain closes the open socket, with any code | The session ends at once. `1000` reads as `agent_hung_up`; any other code, including **4000** after a failed token check, as `brain_disconnected`. |
+| Your brain closes the open socket, with any code | The session ends at once. `1000` reads as `agent_hung_up`; any other code, including **4000** after a failed token check, as `brain_disconnected`. With `redial` on, a drop that is not a hang-up is dialled again instead. |
 
 A rejected token is therefore best refused after the upgrade, with **4000**: a
-`401` at the handshake is retried for the whole window first. Nothing reconnects
-an open session, because a second connection would reach a brain with none of
-the first one's state.
+`401` at the handshake is retried for the whole window first. Without `redial`,
+nothing reconnects an open session, because a second connection would reach a
+brain with none of the first one's state.
 
 ### Voqalize → brain
 

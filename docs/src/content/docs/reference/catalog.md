@@ -56,7 +56,7 @@ advertises it today.
 | `ack.enabled` | `true` or `false` | on |
 
 A value off the scale is refused. What each one does and when a change lands is
-in [the wire reference](/reference/wire/#config--tts-stt-idle-and-ack-in-one-message).
+in [the wire reference](/reference/wire/#config--tts-stt-idle-ack-and-redial-in-one-message).
 
 ## Speech-to-text
 
