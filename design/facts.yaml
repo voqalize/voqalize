@@ -229,13 +229,17 @@ facts:
       two are deliberately apart between a bump and the tag that publishes it.
 
   sdk.python.version.published:
-    value: '0.14.0'
+    value: '0.15.0'
     source: https://pypi.org/pypi/voqalize-agent-sdk/json
-    verified: 2026-11-06
+    verified: 2026-11-17
     reproduce: >-
       curl -s https://pypi.org/pypi/voqalize-agent-sdk/json
       | python3 -c "import sys,json;print(json.load(sys.stdin)['info']['version'])"
     note: >-
+      Published 2026-11-17 by the `python-sdk-v0.15.0` tag, and level with
+      sdk.python.version.tree again; the install lines across the docs moved
+      from 0.14.0 to 0.15.0 the same day. 0.15.0 adds Config.redial and
+      Config.late, each behind a capability.
       Published 2026-11-06 by the `python-sdk-v0.14.0` tag, and level with
       sdk.python.version.tree again; the install lines across the docs moved
       from 0.12.0 to 0.14.0 the same day, and Stage's npm pin to 0.2.0. 0.14.0
