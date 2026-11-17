@@ -125,6 +125,9 @@ class Capability(StrEnum):
     #: Voqalize honours :class:`RedialConfig`.
     REDIAL = "redial"
 
+    #: Voqalize honours :class:`LateConfig`.
+    LATE = "late"
+
 
 # ─── Voqalize → Brain ────────────────────────────────────────────────────────────
 
@@ -525,6 +528,33 @@ class RedialConfig:
 
 
 @dataclass(frozen=True)
+class LateConfig:
+    """What Voqalize says when the brain is slow to answer a turn.
+
+    A caller's turn that has produced no audio after ``after_ms`` hears
+    Voqalize's own line ("Sorry — that's taking longer than I expected." in the
+    voice's language), and the brain is not told. Your answer, when it comes,
+    plays after it as usual. Voqalize keeps it rare whatever is set here: once a
+    turn at most, never for a turn it read as owing no answer (a noise, a nod, a
+    goodbye), and not again within a couple of minutes of the last one.
+
+    Turn it off, or raise ``after_ms``, if your brain sometimes stays quiet on
+    purpose or takes long over a turn as a matter of course; set ``text`` for
+    your own words. ``text`` is spoken as given, whatever language the session
+    is speaking, so a brain that changes language changes it too.
+
+    At session creation, unset is on, 15000 ms and Voqalize's own line. In a
+    mid-call request, unset leaves a field alone, and ``text=""`` goes back to
+    Voqalize's own line. ``after_ms`` runs from 5000 to 120000 and ``text`` to
+    200 characters; outside them the request is rejected. Applies from the next
+    turn, only on a Voqalize that advertises :attr:`Capability.LATE`."""
+
+    enabled: bool | None = None
+    after_ms: int | None = None
+    text: str | None = None
+
+
+@dataclass(frozen=True)
 class Config:
     """One configuration, in optional sections.
 
@@ -556,6 +586,7 @@ class Config:
     idle: IdleConfig | None = None
     ack: AckConfig | None = None
     redial: RedialConfig | None = None
+    late: LateConfig | None = None
 
     def __post_init__(self) -> None:
         spoken = self.tts.language if self.tts is not None else None

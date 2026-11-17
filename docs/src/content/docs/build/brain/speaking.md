@@ -127,12 +127,27 @@ Acknowledgements are said only in the languages Voqalize has a vocabulary for.
 [Voice and language](/build/voice-and-language/) covers the rest of the session
 settings.
 
-### The ten-second line
+### The line for a slow turn
 
-If a user turn sends no `SpeechChunk` for ten seconds, Voqalize says a line of
+If a user turn sends no `SpeechChunk` for 15 seconds, Voqalize says a line of
 its own about the wait and keeps the session up. Opening a unit does not stop
 the timer; your first chunk does. [What your user hears](/reference/errors/#what-your-user-hears)
 has the line and the rules.
+
+A brain that sometimes says nothing on purpose, or that is slow over a turn as a
+matter of course, can turn the line off, change the wait or put it in its own
+words:
+
+```python
+from voqalize.sdk.wire import Config, LateConfig
+
+async def on_session_start(self, session):
+    if session.can_late:
+        await session.configure(Config(late=LateConfig(after_ms=25000)))
+```
+
+`LateConfig(enabled=False)` turns it off, and `text="…"` is spoken in place of
+Voqalize's line. See [`late`](/reference/wire/#late--the-line-for-a-slow-turn).
 
 After your first chunk nothing covers a wait. An `await` between units is
 silence you chose, so the line before it has to carry something, as "The blue

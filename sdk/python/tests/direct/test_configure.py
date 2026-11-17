@@ -46,6 +46,7 @@ from voqalize.sdk.wire import (
     ErrorCode,
     IdleConfig,
     Language,
+    LateConfig,
     RedialConfig,
     SpeechChunkFrame,
     SttConfig,
@@ -389,6 +390,57 @@ async def test_turning_redial_off_needs_no_capability() -> None:
         await server.aclose()
 
     assert _spoken(turn) == "accepted can_redial=False"
+
+
+class LateBrain(Brain):
+    """Sets the late line before the greeting, and says whether it could."""
+
+    def __init__(self, late: LateConfig) -> None:
+        super().__init__()
+        self.late = late
+        self.outcome = ""
+
+    async def on_session_start(self, session) -> None:
+        try:
+            await session.configure(Config(late=self.late))
+            self.outcome = f"accepted can_late={session.can_late}"
+        except Unsupported as exc:
+            self.outcome = f"unsupported {exc.capability} can_late={session.can_late}"
+
+    async def on_user_message(self, session, msg):
+        yield SpeechStart()
+        yield SpeechChunk(self.outcome)
+        yield SpeechEnd()
+
+
+async def test_the_late_line_reaches_a_voqalize_that_honours_it() -> None:
+    late = LateConfig(after_ms=30000, text="Give me a moment to think about that.")
+    driver, server = await _open(LateBrain(late))
+    try:
+        await driver.start_session()
+        turn = await driver.user_says("hello")
+    finally:
+        await driver.aclose()
+        await server.aclose()
+
+    assert _spoken(turn) == "accepted can_late=True"
+    assert [f.config for f in driver.requests] == [Config(late=late)]
+
+
+async def test_turning_the_late_line_off_is_refused_here_when_voqalize_does_not_honour_it() -> None:
+    # An older Voqalize skips the section, answers accepted and speaks its own
+    # line anyway: off is not what it does, so even off needs the capability.
+    driver, server = await _open(LateBrain(LateConfig(enabled=False)))
+    driver.capabilities.discard(Capability.LATE)
+    try:
+        await driver.start_session()
+        turn = await driver.user_says("hello")
+    finally:
+        await driver.aclose()
+        await server.aclose()
+
+    assert _spoken(turn) == "unsupported late can_late=False"
+    assert driver.requests == [], "nothing may reach the wire"
 
 
 async def test_a_refusal_names_its_code() -> None:

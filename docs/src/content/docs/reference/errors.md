@@ -208,14 +208,17 @@ service is down, the URL is wrong, TLS fails, or the handshake answers `401` or
 other code, ends the session at once, as `brain_disconnected`, with no line.
 
 **A turn that produced no speech.** Once a user message reaches your brain,
-Voqalize starts a **10-second** watchdog. If the turn has sent no `SpeechChunk`
+Voqalize starts a **15-second** watchdog. If the turn has sent no `SpeechChunk`
 by then, the user hears:
 
 > Sorry — that's taking longer than I expected.
 
 **The session stays up**, and the next turn may be fine. The watchdog is
 disarmed by your brain's first `SpeechChunk` for that turn and by a barge-in, and a
-`UserIdle` never arms it. The common way to trip it is a turn whose only output
+`UserIdle` never arms it. Nor does a turn Voqalize read as owing no answer, a
+noise or a nod, and after one line the next waits a couple of minutes. The brain
+can turn it off, change the wait or put the line in its own words with
+[`Config.late`](/reference/wire/#late--the-line-for-a-slow-turn). The common way to trip it is a turn whose only output
 is a tool call ([Tools](/build/brain/tools/#speak-first-and-call-in-the-same-response)).
 A callback that raises, returns nothing or hangs all land here.
 

@@ -399,6 +399,9 @@ class Session:
         - **redial** — immediately, and for the rest of the call. Turn it on
           only if this brain can pick the call up again on a new socket; see
           :class:`RedialConfig`.
+        - **late** — from the next turn. Voqalize's line when a turn goes long
+          without audio: off, later, or in your own words; see
+          :class:`LateConfig`.
 
         Accepted means Voqalize took the change, not that you can hear it yet.
         Rejection is all-or-nothing and raises :class:`RequestRejected` with the
@@ -409,12 +412,15 @@ class Session:
         needs :attr:`can_configure_strings`. Without it, this raises
         :class:`Unsupported` before sending anything: a Voqalize that predates
         the string fields would skip them and answer accepted. Turning redial
-        on needs :attr:`can_redial`, for the same reason.
+        on needs :attr:`can_redial`, and any ``late`` needs :attr:`can_late`,
+        for the same reason.
         """
         if not self.can_configure_strings and _names_a_string(config):
             raise Unsupported("configure", Capability.STRING_CONFIG)
         if not self.can_redial and config.redial is not None and config.redial.enabled:
             raise Unsupported("configure", Capability.REDIAL)
+        if not self.can_late and config.late is not None:
+            raise Unsupported("configure", Capability.LATE)
         await self._request("configure", ConfigureFrame(config=config))
 
     @property
@@ -432,6 +438,13 @@ class Session:
         again for the same session instead of ending the call. Fixed for the
         session's life."""
         return Capability.REDIAL in self.capabilities
+
+    @property
+    def can_late(self) -> bool:
+        """Whether this Voqalize honours ``Config(late=LateConfig(...))``: its
+        line when a turn goes long without audio can be turned off, delayed or
+        put in your own words. Fixed for the session's life."""
+        return Capability.LATE in self.capabilities
 
     async def _request(self, op: str, frame: ConfigureRequest) -> None:
         """Send one request and block on its answer.

@@ -218,6 +218,7 @@ class VoqalizeDriver:
             Capability.STRING_CONFIG,
             Capability.TURN_STEPS,
             Capability.REDIAL,
+            Capability.LATE,
         }
         # Every ``SpeechCancel`` the brain sent, in wire order, honoured or not.
         self.cancels: list[SpeechCancelFrame] = []

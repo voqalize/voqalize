@@ -344,12 +344,13 @@ enum Capability {
 | `CAPABILITY_STRING_CONFIG` | `TtsConfig.voice_id`, `TtsConfig.language_tag` and `SttConfig.language_tag` are read. Without it they are ignored, and a request carrying only them is answered accepted with nothing changed. See [changing the call mid-session](#changing-the-call-mid-session). |
 | `CAPABILITY_TURN_STEPS` | `TurnStep` is recorded beside its turn. See [what a turn did](#what-a-turn-did). |
 | `CAPABILITY_REDIAL` | `Config.redial` is honoured: a session that turns it on is dialled again when its socket drops. See [`redial`](#redial--the-call-outlives-the-socket). |
+| `CAPABILITY_LATE` | `Config.late` is honoured: the line for a slow turn can be turned off, delayed or reworded. See [`late`](#late--the-line-for-a-slow-turn). |
 
 Check before sending an optional message, and treat a value you do not
 recognise as absent. Adding a capability is append-only and does not move the
 version. The Python SDK reads them as `session.can_cancel_speech`,
-`session.can_configure_strings`, `session.can_report_steps` and
-`session.can_redial`, and refuses the call locally when the one it needs is
+`session.can_configure_strings`, `session.can_report_steps`,
+`session.can_redial` and `session.can_late`, and refuses the call locally when the one it needs is
 false.
 
 ## The screen
@@ -492,7 +493,7 @@ A request is accepted or rejected **whole**. A rejected `Config` applies none of
 its sections, so the call is still coherent afterwards and the previous settings
 are still in force.
 
-### `Config` — `tts`, `stt`, `idle`, `ack` and `redial` in one message
+### `Config` — `tts`, `stt`, `idle`, `ack`, `redial` and `late` in one message
 
 ```proto
 message Config {
@@ -501,6 +502,7 @@ message Config {
   IdleConfig   idle   = 3;
   AckConfig    ack    = 4;
   RedialConfig redial = 5;
+  LateConfig   late   = 6;
 }
 
 message TtsConfig {
@@ -517,6 +519,11 @@ message SttConfig {
 message IdleConfig { optional uint32 timeout_ms = 1; }
 message AckConfig  { optional bool enabled = 1; }
 message RedialConfig { optional bool enabled = 1; }
+message LateConfig {
+  optional bool   enabled  = 1;
+  optional uint32 after_ms = 2;  // 5000 to 120000
+  optional string text     = 3;  // at most 200 characters; "" is Voqalize's own
+}
 ```
 
 This message is used twice: `sessions.connect` supplies the starting sections,
@@ -600,6 +607,26 @@ needs under its id, somewhere every instance behind `brain_url` can read it. A
 brain that keeps a session in the memory of one connection takes a redial for a
 new call. Set it from the brain with this op; it needs `CAPABILITY_REDIAL`. What
 a brain owes is in [Surviving a redeploy](/build/hosting/#surviving-a-redeploy).
+
+### `late` — the line for a slow turn
+
+When a user's turn has produced no audio after `after_ms`, Voqalize says a line
+of its own: "Sorry — that's taking longer than I expected.", in the voice's
+language. The brain sees no message for it, and its answer, when it comes, plays
+after the line as usual.
+
+**It is on, at 15 seconds, unless the session changes it.** Voqalize keeps it
+rare whatever is set: at most once a turn, never for a turn it read as owing no
+answer (a noise, a nod, a goodbye), and not again within a couple of minutes of
+the last one. A brain that sometimes stays quiet on purpose, or takes long over
+a turn as a matter of course, should turn it off with `enabled: false` or raise
+`after_ms`. `text` replaces the line with the brain's own words, spoken as given
+in whatever language the call is speaking, so a brain that changes language
+sets it again; `""` goes back to Voqalize's own line.
+
+Set it at `sessions.connect` or with this op at any time; it applies from the
+next turn. It needs `CAPABILITY_LATE`: a Voqalize without it ignores the section
+and speaks its own line, after 10 seconds.
 
 ### Both legs carry a language, and both must be set
 

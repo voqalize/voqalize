@@ -134,6 +134,10 @@ enum Capability {
   // brain's socket dropping. A runtime that does not list it ignores the
   // section, and any drop ends the call.
   CAPABILITY_REDIAL = 4;
+
+  // The runtime honours LateConfig. A runtime that does not list it ignores
+  // the section and speaks its own late line, in its own time.
+  CAPABILITY_LATE = 5;
 }
 
 // A committed user utterance, on a turn of its own.
@@ -377,6 +381,9 @@ message Config {
 
   // Whether the runtime redials the brain when its socket drops mid-call.
   RedialConfig redial = 5;
+
+  // What the runtime says when the brain is slow to answer a turn.
+  LateConfig late = 6;
 }
 
 // The speaking leg. Applies to the next speech unit, never mid-utterance.
@@ -492,6 +499,37 @@ message RedialConfig {
   // On or off. Unset at session creation is off; on the wire, unset leaves it
   // alone.
   optional bool enabled = 1;
+}
+
+// The runtime's own line when the brain is slow: a caller's turn that has
+// produced no audio after after_ms hears it ("Sorry — that's taking longer
+// than I expected." in the voice's language), and the brain is not told. The
+// brain's answer, when it comes, plays after it as usual.
+//
+// The runtime keeps it rare whatever is set here: once a turn at most, never
+// for a turn it read as owing no answer (a noise, a nod, a goodbye), and not
+// again within a couple of minutes of the last one.
+//
+// A brain that sometimes stays quiet on purpose, or takes long over a turn as
+// a matter of course, should turn it off or raise after_ms; one that wants its
+// own words sets text. Set it at session creation or from the brain at any
+// time; it applies from the next turn. Honoured only by a runtime that
+// advertises CAPABILITY_LATE.
+message LateConfig {
+  // On or off. Unset at session creation is on; on the wire, unset leaves it
+  // alone.
+  optional bool enabled = 1;
+
+  // How long a turn may go without audio before the line, in milliseconds,
+  // from 5000 to 120000. Unset at session creation is 15000; on the wire,
+  // unset leaves it alone.
+  optional uint32 after_ms = 2;
+
+  // The line itself, spoken as given, in whatever language the session is
+  // speaking: a brain that changes language changes it too. At most 200
+  // characters. Unset at session creation, or "" on the wire, is the
+  // runtime's own line in the voice's language.
+  optional string text = 3;
 }
 
 // ─── The catalog ─────────────────────────────────────────────────────────────

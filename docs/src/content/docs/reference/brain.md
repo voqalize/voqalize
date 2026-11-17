@@ -52,7 +52,8 @@ mid-call wire:
 
 ```python
 from voqalize.sdk.wire import (
-    AckConfig, Config, ConfigError, IdleConfig, RedialConfig, SttConfig, TtsConfig
+    AckConfig, Config, ConfigError, IdleConfig, LateConfig, RedialConfig, SttConfig,
+    TtsConfig,
 )
 ```
 
@@ -183,6 +184,7 @@ lifetime is exactly the socket's.
 | `can_configure_strings` | `bool` | Whether `configure` accepts a voice or language as a string. Fixed for the session's life. |
 | `can_report_steps` | `bool` | Whether `report_step` is recorded. Fixed for the session's life. |
 | `can_redial` | `bool` | Whether `Config(redial=RedialConfig(enabled=True))` is honoured. Fixed for the session's life. |
+| `can_late` | `bool` | Whether `Config(late=LateConfig(...))` is honoured: Voqalize's line for a slow turn turned off, delayed or reworded. Fixed for the session's life. |
 
 There is no `SessionStart` object in the SDK. The frame's payload arrives as
 these attributes, and its turn id is the turn the greeting is bound to.
@@ -241,7 +243,7 @@ BCP-47 tag such as `"ta"`; the values are in [the catalog](/reference/catalog/).
   anything reaches the wire. They may differ — fewer languages can be spoken
   than understood — but you state both. See [Voice and language](/build/voice-and-language/#always-set-both-legs).
 - **A string voice or language needs `can_configure_strings`,** and turning
-  redial on needs `can_redial`. Without it, `configure` raises `Unsupported`
+  redial on needs `can_redial`, and any `late` needs `can_late`. Without it, `configure` raises `Unsupported`
   before sending anything.
 - **A session runs with `idle.timeout_ms` at 0**, which is idle detection off.
   Until you set it, `on_user_idle` never fires.
