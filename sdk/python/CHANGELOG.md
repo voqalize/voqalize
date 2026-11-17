@@ -15,6 +15,34 @@ The public series has now caught up to them, so **a heading carrying
 are different releases that happen to share a number; the pre-restart entries are
 kept for the history, and nothing installable was ever cut from them.
 
+## 0.15.0
+
+A call can outlive its brain's socket, and a brain can quiet, delay or reword
+Voqalize's line for a slow turn. Both are opt-in `Config` sections, each behind a
+capability. The wire version stays 3, and every brain written for 0.14.0 runs
+unchanged.
+
+### Added
+
+- **`Config(redial=RedialConfig(enabled=True))`**: when the brain's socket drops
+  without a hang-up, Voqalize dials the brain's URL again for the same session,
+  with the same session id, init and parameters, and resends every turn the
+  brain had not answered. Off by default. Turn it on only when what a session
+  needs is stored under its id where every instance behind the URL can read it.
+  `Session.can_redial` and `Capability.REDIAL` say whether this Voqalize honours
+  it.
+- **`Config(late=LateConfig(enabled=..., after_ms=..., text=...))`**: the line
+  Voqalize speaks when a caller's turn has produced no audio after `after_ms`
+  ("Sorry — that's taking longer than I expected."). Turn it off, wait longer
+  (`after_ms` from 5000 to 120000), or give your own words (`text`, up to 200
+  characters). Unset is on, 15000 ms and Voqalize's own line; mid-call, unset
+  leaves a field alone. `Session.can_late` and `Capability.LATE` say whether
+  this Voqalize honours it.
+- **`Session.configure` refuses before sending** a `redial` that turns redial on
+  without `can_redial`, and any `late` without `can_late`, raising
+  `Unsupported`: a Voqalize that predates them would skip the field and answer
+  accepted.
+
 ## 0.14.0
 
 A brain can say which agent it serves. Nothing on the wire changes, and every
