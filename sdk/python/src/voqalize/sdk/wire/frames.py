@@ -122,6 +122,9 @@ class Capability(StrEnum):
     #: Voqalize records :class:`TurnStepFrame`.
     TURN_STEPS = "turn_steps"
 
+    #: Voqalize honours :class:`RedialConfig`.
+    REDIAL = "redial"
+
 
 # ─── Voqalize → Brain ────────────────────────────────────────────────────────────
 
@@ -500,6 +503,28 @@ class AckConfig:
 
 
 @dataclass(frozen=True)
+class RedialConfig:
+    """Whether the call survives the brain's socket dropping.
+
+    On, Voqalize redials the brain's URL when the socket fails with no close
+    frame or closes with 1001, 1011, 1012, 1013, 1014 or an unassigned code.
+    :class:`EndFrame`, and any other close (1000, a protocol or policy code,
+    3000-4999), still ends the call. Voqalize opens the new socket exactly as it
+    opened the first: the same session
+    id, init and parameters. Nothing says it is a redial. The brain tells a new
+    call from a rejoined one by the session id, from state it keeps itself, and
+    every turn it had not answered is sent again in order.
+
+    Off by default, because a brain that keeps a session in the memory of one
+    connection takes a redial for a new call. Turn it on only when what a
+    session needs is stored under its id, somewhere every instance behind the
+    URL can read it. It applies at once, to the next drop, and only on a
+    Voqalize that advertises :attr:`Capability.REDIAL`."""
+
+    enabled: bool | None = None
+
+
+@dataclass(frozen=True)
 class Config:
     """One configuration, in optional sections.
 
@@ -530,6 +555,7 @@ class Config:
     stt: SttConfig | None = None
     idle: IdleConfig | None = None
     ack: AckConfig | None = None
+    redial: RedialConfig | None = None
 
     def __post_init__(self) -> None:
         spoken = self.tts.language if self.tts is not None else None

@@ -396,6 +396,9 @@ class Session:
           decoder state for it to disturb.
         - **idle** — immediately. Voqalize owns that timer, and one already
           running restarts on the new duration before the answer comes back.
+        - **redial** — immediately, and for the rest of the call. Turn it on
+          only if this brain can pick the call up again on a new socket; see
+          :class:`RedialConfig`.
 
         Accepted means Voqalize took the change, not that you can hear it yet.
         Rejection is all-or-nothing and raises :class:`RequestRejected` with the
@@ -405,10 +408,13 @@ class Session:
         A voice or language named as a string rather than a catalog member
         needs :attr:`can_configure_strings`. Without it, this raises
         :class:`Unsupported` before sending anything: a Voqalize that predates
-        the string fields would skip them and answer accepted.
+        the string fields would skip them and answer accepted. Turning redial
+        on needs :attr:`can_redial`, for the same reason.
         """
         if not self.can_configure_strings and _names_a_string(config):
             raise Unsupported("configure", Capability.STRING_CONFIG)
+        if not self.can_redial and config.redial is not None and config.redial.enabled:
+            raise Unsupported("configure", Capability.REDIAL)
         await self._request("configure", ConfigureFrame(config=config))
 
     @property
@@ -418,6 +424,14 @@ class Session:
         the :class:`Voice` and :class:`Language` catalogs works either way.
         Fixed for the session's life."""
         return Capability.STRING_CONFIG in self.capabilities
+
+    @property
+    def can_redial(self) -> bool:
+        """Whether this Voqalize honours ``Config(redial=RedialConfig(enabled=True))``:
+        when this brain's socket drops without a hang-up, it dials the brain
+        again for the same session instead of ending the call. Fixed for the
+        session's life."""
+        return Capability.REDIAL in self.capabilities
 
     async def _request(self, op: str, frame: ConfigureRequest) -> None:
         """Send one request and block on its answer.
@@ -732,11 +746,21 @@ class Brain:
         up: read your own identifier out of ``session.init`` and load your own
         history. The SDK persists nothing and interprets no identifier, so the
         context never leaves your environment.
+
+        With redial on, it runs again on each new socket of the same call, with
+        the same ``session.id`` and ``session.init``: load what you stored for
+        the call here. The greeting a redialled brain returns is not spoken.
         """
 
     async def on_session_end(self, session: Session) -> None:
-        """Teardown, once, for any reason. Best-effort: exceptions are swallowed
-        and it never blocks the socket from closing."""
+        """Teardown, as the socket closes, for any reason. Best-effort:
+        exceptions are swallowed and it never blocks the socket from closing.
+
+        It runs at least once per socket, not exactly once per call: with redial
+        on, a call that moved to a new socket runs it on each, so make what it
+        does idempotent (key a write on ``session.id``). And it cannot run when
+        the process is killed outright, so it is no place for the only copy of
+        anything."""
 
     async def on_error(self, session: Session, error: Error) -> None:
         """A signal from Voqalize — today, that the wire dropped data under
