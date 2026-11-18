@@ -1,0 +1,499 @@
+{
+ "$comment": "The application form, as data: the page renders it and the brain checks what it fills against it. Field names are the contract (CONTRACT.md).",
+ "steps": [
+  {
+   "step": 1,
+   "id": "personal",
+   "title": "Personal details",
+   "fields": [
+    {
+     "name": "full_name",
+     "label": "Applicant's full name",
+     "type": "text",
+     "required": true,
+     "private": true
+    },
+    {
+     "name": "date_of_birth",
+     "label": "Date of birth",
+     "type": "text",
+     "placeholder": "DD MMM YYYY",
+     "required": true,
+     "private": true
+    },
+    {
+     "name": "gender",
+     "label": "Gender",
+     "type": "choice",
+     "required": true,
+     "options": [
+      [
+       "female",
+       "Female"
+      ],
+      [
+       "male",
+       "Male"
+      ],
+      [
+       "non_binary",
+       "Non-binary"
+      ],
+      [
+       "prefer_not",
+       "Prefer not to say"
+      ]
+     ]
+    },
+    {
+     "name": "mobile",
+     "label": "Mobile number",
+     "type": "text",
+     "placeholder": "+91 98xxx xxxxx",
+     "required": true,
+     "private": true
+    },
+    {
+     "name": "email",
+     "label": "Email",
+     "type": "text",
+     "required": true,
+     "private": true
+    },
+    {
+     "name": "city",
+     "label": "City",
+     "type": "text",
+     "required": true
+    },
+    {
+     "name": "state",
+     "label": "State",
+     "type": "choice",
+     "required": true,
+     "options": [
+      [
+       "maharashtra",
+       "Maharashtra"
+      ],
+      [
+       "karnataka",
+       "Karnataka"
+      ],
+      [
+       "delhi",
+       "Delhi"
+      ],
+      [
+       "gujarat",
+       "Gujarat"
+      ],
+      [
+       "madhya_pradesh",
+       "Madhya Pradesh"
+      ],
+      [
+       "rajasthan",
+       "Rajasthan"
+      ],
+      [
+       "tamil_nadu",
+       "Tamil Nadu"
+      ],
+      [
+       "telangana",
+       "Telangana"
+      ],
+      [
+       "uttar_pradesh",
+       "Uttar Pradesh"
+      ],
+      [
+       "west_bengal",
+       "West Bengal"
+      ],
+      [
+       "bihar",
+       "Bihar"
+      ],
+      [
+       "kerala",
+       "Kerala"
+      ],
+      [
+       "punjab",
+       "Punjab"
+      ],
+      [
+       "other",
+       "Other"
+      ]
+     ]
+    },
+    {
+     "name": "parent_name",
+     "label": "Parent or guardian's name",
+     "type": "text",
+     "required": true,
+     "private": true
+    }
+   ]
+  },
+  {
+   "step": 2,
+   "id": "academics",
+   "title": "Academics",
+   "fields": [
+    {
+     "name": "class10_board",
+     "label": "Class 10 board",
+     "type": "choice",
+     "required": true,
+     "options": [
+      [
+       "cbse",
+       "CBSE"
+      ],
+      [
+       "icse",
+       "ICSE / ISC"
+      ],
+      [
+       "state",
+       "State board"
+      ],
+      [
+       "ib",
+       "IB"
+      ],
+      [
+       "other",
+       "Other"
+      ]
+     ]
+    },
+    {
+     "name": "class10_percent",
+     "label": "Class 10 marks (%)",
+     "type": "percent",
+     "required": true
+    },
+    {
+     "name": "class12_board",
+     "label": "Class 12 board",
+     "type": "choice",
+     "required": true,
+     "options": [
+      [
+       "cbse",
+       "CBSE"
+      ],
+      [
+       "icse",
+       "ICSE / ISC"
+      ],
+      [
+       "state",
+       "State board"
+      ],
+      [
+       "ib",
+       "IB"
+      ],
+      [
+       "other",
+       "Other"
+      ]
+     ]
+    },
+    {
+     "name": "class12_stream",
+     "label": "Class 12 stream",
+     "type": "choice",
+     "required": true,
+     "options": [
+      [
+       "science_pcm",
+       "Science (PCM)"
+      ],
+      [
+       "science_pcb",
+       "Science (PCB)"
+      ],
+      [
+       "commerce",
+       "Commerce"
+      ],
+      [
+       "humanities",
+       "Humanities / Arts"
+      ],
+      [
+       "other",
+       "Other"
+      ]
+     ]
+    },
+    {
+     "name": "class12_status",
+     "label": "Class 12 result",
+     "type": "choice",
+     "required": true,
+     "options": [
+      [
+       "passed",
+       "Passed"
+      ],
+      [
+       "appearing",
+       "Appearing in 2027"
+      ]
+     ]
+    },
+    {
+     "name": "class12_percent",
+     "label": "Class 12 marks (%)",
+     "type": "percent",
+     "required": false,
+     "help": "Leave empty if you are appearing this year."
+    },
+    {
+     "name": "graduation_degree",
+     "label": "Graduation degree",
+     "type": "text",
+     "required": false,
+     "help": "Postgraduate applicants only."
+    },
+    {
+     "name": "graduation_percent",
+     "label": "Graduation marks (%)",
+     "type": "percent",
+     "required": false,
+     "help": "Postgraduate applicants only. Convert CGPA × 10."
+    },
+    {
+     "name": "entrance_exam",
+     "label": "Entrance exam",
+     "type": "choice",
+     "required": true,
+     "options": [
+      [
+       "vusat",
+       "VUSAT 2027 (register with this application)"
+      ],
+      [
+       "jee_main",
+       "JEE Main"
+      ],
+      [
+       "cat",
+       "CAT / XAT / CMAT"
+      ],
+      [
+       "clat",
+       "CLAT"
+      ],
+      [
+       "neet",
+       "NEET-UG"
+      ],
+      [
+       "gate",
+       "GATE"
+      ],
+      [
+       "none",
+       "Not needed for my programme"
+      ]
+     ]
+    },
+    {
+     "name": "entrance_score",
+     "label": "Score or percentile",
+     "type": "text",
+     "required": false
+    }
+   ]
+  },
+  {
+   "step": 3,
+   "id": "programme",
+   "title": "Programme choice",
+   "fields": [
+    {
+     "name": "program",
+     "label": "Programme",
+     "type": "program",
+     "required": true
+    },
+    {
+     "name": "campus",
+     "label": "Campus",
+     "type": "choice",
+     "required": true,
+     "options": [
+      [
+       "pune",
+       "Pune"
+      ],
+      [
+       "bengaluru",
+       "Bengaluru"
+      ],
+      [
+       "online",
+       "Online"
+      ]
+     ]
+    },
+    {
+     "name": "intake",
+     "label": "Intake",
+     "type": "intake",
+     "required": true
+    },
+    {
+     "name": "hostel",
+     "label": "Hostel",
+     "type": "choice",
+     "required": true,
+     "options": [
+      [
+       "yes",
+       "Yes, I need a room"
+      ],
+      [
+       "no",
+       "No, I'll be a day scholar"
+      ]
+     ]
+    },
+    {
+     "name": "room_type",
+     "label": "Room preference",
+     "type": "choice",
+     "required": false,
+     "options": [
+      [
+       "single_ac",
+       "Single room, AC"
+      ],
+      [
+       "twin_ac",
+       "Twin sharing, AC"
+      ],
+      [
+       "triple",
+       "Triple sharing, non-AC"
+      ]
+     ]
+    },
+    {
+     "name": "scholarship",
+     "label": "Scholarship you are applying for",
+     "type": "scholarship",
+     "required": false
+    }
+   ]
+  },
+  {
+   "step": 4,
+   "id": "documents",
+   "title": "Documents",
+   "fields": [
+    {
+     "name": "doc_class10",
+     "label": "Class 10 marksheet",
+     "type": "document",
+     "required": true
+    },
+    {
+     "name": "doc_class12",
+     "label": "Class 12 marksheet or admit card",
+     "type": "document",
+     "required": true
+    },
+    {
+     "name": "doc_graduation",
+     "label": "Graduation marksheets",
+     "type": "document",
+     "required": false
+    },
+    {
+     "name": "doc_score",
+     "label": "Entrance scorecard",
+     "type": "document",
+     "required": false
+    },
+    {
+     "name": "doc_photo_id",
+     "label": "Government photo ID",
+     "type": "document",
+     "required": true
+    },
+    {
+     "name": "doc_photo",
+     "label": "Passport-size photograph",
+     "type": "document",
+     "required": true
+    },
+    {
+     "name": "doc_income",
+     "label": "Family income certificate",
+     "type": "document",
+     "required": false
+    }
+   ]
+  },
+  {
+   "step": 5,
+   "id": "payment",
+   "title": "Application fee",
+   "fields": [
+    {
+     "name": "pay_method",
+     "label": "Pay with",
+     "type": "choice",
+     "required": true,
+     "options": [
+      [
+       "upi",
+       "UPI"
+      ],
+      [
+       "card",
+       "Debit or credit card"
+      ],
+      [
+       "netbanking",
+       "Net banking"
+      ]
+     ]
+    },
+    {
+     "name": "declaration",
+     "label": "I confirm the details above are true",
+     "type": "choice",
+     "required": true,
+     "options": [
+      [
+       "agreed",
+       "I agree"
+      ]
+     ]
+    }
+   ]
+  }
+ ],
+ "document_values": [
+  [
+   "uploaded",
+   "Uploaded"
+  ],
+  [
+   "later",
+   "I'll upload later"
+  ]
+ ],
+ "reference_prefix": "VRN-27-"
+}

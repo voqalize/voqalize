@@ -1,0 +1,192 @@
+{
+  "$schema": "../../../../../sdk/js/stage/stage.schema.json",
+  "stage": 1,
+  "id": "varenya_university",
+  "languages": ["en", "hi"],
+  "moves": [
+    {
+      "id": "catalogue.filter",
+      "verb": "filter",
+      "class": "reversible",
+      "args": [
+        {"name": "facet", "doc": "A filter group of the programme finder: Level, School, Mode, Campus, Fee, Hours."},
+        {"name": "value", "doc": "One option of that group as the finder labels it: Postgraduate, Business, Online, Pune, Under ₹1 lakh, Up to 8 hrs a week."}
+      ],
+      "say": "{filter: Level | Postgraduate} right before the words that give the reason, one option per cue: \"Since you already have a degree, postgraduate.\"",
+      "claims": ["filtering", "narrowing it down", "ticking"],
+      "objects": ["filter", "filters", "programme", "programmes", "list"],
+      "doc": "Tick one option in the programme finder's sidebar: the box is ringed, ticked, and the list narrows. Refused with the group's options when the value is not one of them. Opens /programs first when the finder is not on screen."
+    },
+    {
+      "id": "catalogue.clear",
+      "verb": "clear",
+      "class": "reversible",
+      "args": [
+        {"name": "facet", "optional": true, "doc": "The filter group to clear, or nothing for every filter."}
+      ],
+      "say": "{clear: Fee} takes the fee filter off; {clear} takes every filter off.",
+      "doc": "Untick one group's options in the programme finder, or all of them."
+    },
+    {
+      "id": "catalogue.pick",
+      "verb": "pick",
+      "class": "reversible",
+      "args": [
+        {"name": "first", "doc": "A programme id from the catalogue, btech-cse."},
+        {"name": "second", "optional": true, "doc": "A second programme id."},
+        {"name": "third", "optional": true, "doc": "A third programme id."}
+      ],
+      "say": "{pick: online-mba | pgd-data-analytics} when you name the two or three programmes that fit; each card is ringed and marked as your pick.",
+      "claims": ["shortlisting"],
+      "objects": ["shortlist"],
+      "doc": "Mark two or three programmes as the advisor's picks: each card is ringed in turn and badged 1, 2, 3, and the shortlist tray shows them. Replaces the previous picks."
+    },
+    {
+      "id": "catalogue.compare",
+      "verb": "compare",
+      "class": "look",
+      "args": [
+        {"name": "first", "doc": "A programme id."},
+        {"name": "second", "doc": "Another programme id."},
+        {"name": "third", "optional": true, "doc": "A third programme id."}
+      ],
+      "say": "{compare: online-mba | emba} as you start comparing them; the comparison opens side by side.",
+      "claims": ["comparing them", "putting them side by side"],
+      "objects": ["comparison"],
+      "doc": "Open the side-by-side comparison of two or three programmes: duration, mode, campus, fee per year and in total, hours a week, eligibility, selection, next deadline, scholarships and outcomes."
+    },
+    {
+      "id": "site.open",
+      "verb": "open",
+      "class": "navigate",
+      "args": [
+        {"name": "program", "doc": "A programme id from the catalogue, mba."}
+      ],
+      "say": "{open: mba} when you start talking about one programme's details; its page opens.",
+      "claims": ["opening the"],
+      "objects": ["programme page"],
+      "doc": "Open a programme's page."
+    },
+    {
+      "id": "site.go",
+      "verb": "go",
+      "class": "navigate",
+      "args": [
+        {"name": "page", "doc": "home, programs, admissions, scholarships, campus-life, apply, schools, or schools/<school id>: schools/law."}
+      ],
+      "say": "{go: scholarships} when the conversation moves to another part of the site; that page opens.",
+      "doc": "Go to a page of the university site."
+    },
+    {
+      "id": "site.show",
+      "verb": "show",
+      "class": "look",
+      "args": [
+        {"name": "target", "doc": "A section of the page in front by its name: fees, eligibility, selection, deadlines, scholarships, outcomes, hostel, loans, documents, vusat, process, faqs, refund, instalments."}
+      ],
+      "say": "{show: hostel} as you start talking about that section; it scrolls into view and is ringed.",
+      "doc": "Scroll to a section of the page in front and ring it. Refused with the sections the page has."
+    },
+    {
+      "id": "apply.fill",
+      "verb": "fill",
+      "class": "reversible",
+      "args": [
+        {"name": "field", "doc": "A field of the application by its name: full_name, gender, city, state, class12_stream, class12_percent, entrance_exam, program, campus, intake, hostel, room_type, scholarship, doc_class10, pay_method…"},
+        {"name": "value", "doc": "The value: an option id for a choice (science_pcm, pune, twin_ac, upi), a number for marks (92.4), a programme id for program, a scholarship id for scholarship, uploaded or later for a document, the words said for a text field."}
+      ],
+      "say": "{fill: class12_percent | 92.4} at the start of the sentence that says it, one field per cue: \"92.4 percent in Class 12, noted.\"",
+      "claims": ["filling in", "putting down", "noting down"],
+      "objects": ["application", "form", "field"],
+      "doc": "Set one field of the application as the voice says it: the step opens, the input is ringed and filled. Opens /apply first when the form is not on screen. Refused with the field's options when the value is not one of them."
+    },
+    {
+      "id": "apply.step",
+      "verb": "step",
+      "class": "look",
+      "args": [
+        {"name": "step", "type": "integer", "doc": "1 personal details, 2 academics, 3 programme choice, 4 documents, 5 application fee."}
+      ],
+      "say": "{step: 3} as you start on that step of the application; it opens and is ringed.",
+      "doc": "Open a step of the application and ring it."
+    },
+    {
+      "id": "apply.next",
+      "verb": "next",
+      "class": "reversible",
+      "args": [],
+      "say": "{next} moves the application on to its next step, as Continue does.",
+      "doc": "Check the step in front as Continue does and open the next one. Refused, naming the required fields still empty."
+    }
+  ],
+  "slices": [
+    {
+      "id": "catalogue",
+      "doc": "the programme finder: the filters ticked, how many programmes match, the first ones listed, the advisor's picks and the comparison open",
+      "window": 12,
+      "fields": [
+        {"name": "filters", "type": "array", "doc": "Ticked options as Group: Option."},
+        {"name": "count", "type": "integer", "doc": "How many programmes match."},
+        {"name": "top", "type": "array", "doc": "The ids of the first programmes listed."},
+        {"name": "picks", "type": "array", "doc": "The ids marked as picks."},
+        {"name": "compared", "type": "array", "doc": "The ids in the open comparison."}
+      ]
+    },
+    {
+      "id": "application",
+      "doc": "the application form: the step in front, which fields hold something (by name), and the programme, academic and hostel choices",
+      "fields": [
+        {"name": "step", "type": "integer", "optional": true},
+        {"name": "field", "optional": true, "doc": "The field that just changed."},
+        {"name": "filled", "type": "array", "doc": "Names of the fields that hold something."},
+        {"name": "missing", "type": "array", "doc": "Required fields of the step in front still empty."},
+        {"name": "program", "optional": true},
+        {"name": "campus", "optional": true},
+        {"name": "intake", "optional": true},
+        {"name": "class12_stream", "optional": true},
+        {"name": "class12_percent", "optional": true},
+        {"name": "graduation_percent", "optional": true},
+        {"name": "entrance_exam", "optional": true},
+        {"name": "hostel", "optional": true},
+        {"name": "room_type", "optional": true},
+        {"name": "scholarship", "optional": true},
+        {"name": "reference", "optional": true, "doc": "The application number, once paid: VRN-27-48213."}
+      ]
+    }
+  ],
+  "events": [
+    {
+      "id": "catalogue.changed",
+      "slice": "catalogue",
+      "op": "set",
+      "note": "{by} changed the programme finder: {count} programmes match",
+      "react": "note",
+      "doc": "Filters, picks or the comparison changed."
+    },
+    {
+      "id": "application.changed",
+      "slice": "application",
+      "op": "merge",
+      "note": "{by} filled {field} on the application",
+      "react": "note",
+      "doc": "A field of the application was filled or changed."
+    },
+    {
+      "id": "application.step_reached",
+      "slice": "application",
+      "op": "merge",
+      "note": "{by} is on step {step} of the application",
+      "react": "note",
+      "doc": "The application moved to another step."
+    },
+    {
+      "id": "application.submitted",
+      "slice": "application",
+      "op": "merge",
+      "note": "{by} paid the application fee and submitted application {reference}",
+      "react": "speak",
+      "ask": "congratulate them in one line, give the application number and say what happens next",
+      "doc": "The applicant pressed Pay and submit."
+    }
+  ]
+}
