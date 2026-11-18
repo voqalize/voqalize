@@ -1,6 +1,6 @@
 import { Heart, Minus, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Link, Navigate, useParams } from "react-router-dom";
+import { Link, Navigate, useParams, useSearchParams } from "react-router-dom";
 import {
   type Product,
   collectionName,
@@ -35,7 +35,10 @@ function ProductView({ p }: { p: Product }) {
   useTitle(p.title);
   const commanded = useEmily((s) => s.variants[p.id]);
   const focus = useEmily((s) => s.focus);
-  const [variantId, setVariantId] = useState(() => getVariant(p, commanded?.id).id);
+  // `?variant=<id>` (a size-guide or kiosk link) opens on that option.
+  const [params] = useSearchParams();
+  const asked = params.get("variant");
+  const [variantId, setVariantId] = useState(() => getVariant(p, asked ?? commanded?.id).id);
   const [qty, setQty] = useState(1);
   const [shot, setShot] = useState(0);
   const saved = useShortlist((s) => s.ids.includes(p.id));

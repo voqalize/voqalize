@@ -111,7 +111,7 @@ from .resolve import SELECTED, Layout, Resolution
 from .resolve import resolve as resolve_reference
 from .returns import WINDOW_DAYS, Order, exchange_options, order_from, plan_return
 from .returns import find_order as find_any_order
-from .sizing import advise, next_question, size_of, sized_products
+from .sizing import advise, next_question, prune, size_of, sized_products
 from .sizing import question as size_question
 from .sizing import valid as size_valid
 from .stage_gen import MOVES, SPEC
@@ -2720,7 +2720,7 @@ class FernhollowBrain(GeminiBrain):
                 or any(merged.get(k) != v for k, v in when.items())
             ):
                 continue
-            self.size_answers[qid] = value
+            self.size_answers = prune({**self.size_answers, qid: value})
             self._send("size.answer", {"question": qid, "value": value})
             sent.append(qid)
         if not self.screen.page.startswith("size-guide"):
@@ -2942,7 +2942,7 @@ class FernhollowBrain(GeminiBrain):
                     return None
                 if qid == "kind" and self.size_answers.get("kind") != value:
                     self.size_answers = {}
-                self.size_answers[qid] = value
+                self.size_answers = prune({**self.size_answers, qid: value})
                 advice = advise(self.size_answers)
                 tail = (
                     f" The guide now says {advice.size}: {advice.why}"

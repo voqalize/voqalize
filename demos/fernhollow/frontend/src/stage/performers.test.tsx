@@ -17,6 +17,7 @@ import { useReturns } from "../returns/store";
 import { useCart } from "../state/cart";
 import { placeOrder, useCheckout } from "../state/checkout";
 import { useOrders } from "../state/orders";
+import { performers } from "./frontdesk";
 import { returnsPerformers } from "./performers";
 import { scene } from "./scene.gen";
 
@@ -32,7 +33,8 @@ let root: ReturnType<typeof createRoot> | null = null;
 
 function moves(): Moves {
   const m = new Moves(new Spotlight({ color: "#4b45c6", beatMs: 0, dwellMs: 0 }));
-  scene.registerAll(m, returnsPerformers());
+  // The whole spec: the returns form's moves and the front of house's.
+  scene.registerAll(m, { ...returnsPerformers(), ...performers } as unknown as Parameters<typeof scene.registerAll>[1]);
   return m;
 }
 

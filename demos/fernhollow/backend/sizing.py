@@ -22,6 +22,7 @@ __all__ = [
     "advice_for",
     "advise",
     "next_question",
+    "prune",
     "question",
     "section",
     "size_of",
@@ -54,6 +55,22 @@ def _holds(when: dict[str, str], answers: dict[str, str]) -> bool:
 def valid(qid: str, value: str) -> bool:
     q = question(qid)
     return q is not None and any(o["value"] == value for o in q["options"])
+
+
+def prune(answers: dict[str, str]) -> dict[str, str]:
+    """The answers that still apply: one whose question's ``when`` no longer
+    holds (mattress moved from none to king drops sleepers and room) goes,
+    as it does on the page."""
+    out = dict(answers)
+    changed = True
+    while changed:
+        changed = False
+        for qid in list(out):
+            q = question(qid)
+            if q is None or not _holds(q.get("when", {}), out):
+                del out[qid]
+                changed = True
+    return out
 
 
 def next_question(answers: dict[str, str]) -> dict[str, Any] | None:

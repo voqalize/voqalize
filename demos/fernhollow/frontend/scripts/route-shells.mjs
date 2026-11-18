@@ -68,6 +68,11 @@ const routes = [
   ["returns", "Returns"],
   ["returns/start", "Start a return"],
   ["returns/confirmation", "Return submitted"],
+  ["size-guide", "Size guide"],
+  ["gifts", "Gift edit"],
+  ["orders", "Your orders"],
+  ["kiosk", "Showroom"],
+  ["my-picks", "Your picks"],
 ];
 for (const r of catalog.rooms) routes.push([`room/${r}`, ROOM_NAMES[r] ?? r]);
 for (const c of catalog.categories) routes.push([`category/${c.slug}`, c.name]);

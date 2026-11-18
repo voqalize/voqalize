@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect, useRef } from "react";
 import { BrowserRouter, Outlet, Route, Routes, useLocation, useNavigate, useNavigationType } from "react-router-dom";
-import { useStageHost } from "./stage/host";
+import { useAppStage, useStageHost } from "./stage/host";
+import { runByHand, useStoreMoves } from "./stage/frontdesk";
 import { CartDrawer } from "./components/CartDrawer";
 import { CircleLayer, fakeCircle } from "./components/CircleLayer";
 import { Footer } from "./components/Footer";
@@ -13,6 +14,11 @@ import { CategoryPage, RoomPage, SalePage, SearchPage, ShopPage } from "./pages/
 import { BoardPage, ComparePage, PicksPage } from "./pages/EmilyViews";
 import { ProductPage } from "./pages/ProductPage";
 import { ReturnsConfirmation, ReturnsForm, ReturnsHome } from "./pages/Returns";
+import { SizeGuide } from "./pages/SizeGuide";
+import { Gifts } from "./pages/Gifts";
+import { Orders } from "./pages/Orders";
+import { Kiosk } from "./pages/Kiosk";
+import { MyPicks } from "./pages/MyPicks";
 import { useCart } from "./state/cart";
 import { useShortlist } from "./state/shortlist";
 import { bindRouter, dispatch, emily, navigatedBy } from "./voice/controller";
@@ -36,6 +42,7 @@ function Shell() {
   // Every move — a click, or Emily's navigate — is a history push through the router.
   useEffect(() => bindRouter((to, replace) => navigate(to, { replace }), () => path.current), [navigate]);
   useStageHost(location.pathname);
+  useStoreMoves(useAppStage((s) => s.stage));
   useScreenReport(location.key);
   // Numbered choices belong to the screen they were shown on.
   useEffect(() => emily.clear_choices(), [location.key]);
@@ -48,9 +55,10 @@ function Shell() {
   useEffect(() => {
     // Dev-only handle (?debug=1): fire a brain command from a test.
     if (debugMode()) {
-      const w = window as unknown as { __fhDispatch?: typeof dispatch; __fhCircle?: typeof fakeCircle };
+      const w = window as unknown as { __fhDispatch?: typeof dispatch; __fhCircle?: typeof fakeCircle; __fhMove?: typeof runByHand };
       w.__fhDispatch = dispatch;
       w.__fhCircle = fakeCircle;
+      w.__fhMove = runByHand;
     }
   }, []);
 
@@ -127,6 +135,45 @@ function Shell() {
 }
 
 /**
+ * The showroom kiosk's own chrome: no store header or footer, the same router,
+ * Stage host, front-of-house moves and voice dock (restyled big for a totem).
+ */
+function KioskShell() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const path = useRef(location.pathname);
+  path.current = location.pathname;
+  useEffect(() => bindRouter((to, replace) => navigate(to, { replace }), () => path.current), [navigate]);
+  useStageHost(location.pathname);
+  useStoreMoves(useAppStage((s) => s.stage));
+  useEffect(() => {
+    document.documentElement.classList.add("kiosk-mode");
+    return () => document.documentElement.classList.remove("kiosk-mode");
+  }, []);
+  useEffect(() => {
+    emit("page_viewed", { path: location.pathname + location.search }, navigatedBy());
+    if (debugMode()) {
+      const w = window as unknown as { __fhDispatch?: typeof dispatch; __fhMove?: typeof runByHand };
+      w.__fhDispatch = dispatch;
+      w.__fhMove = runByHand;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.key]);
+  return (
+    <div className="app kiosk-app">
+      <Kiosk />
+      <CartDrawer />
+      <VoiceDock />
+      {debugMode() ? (
+        <Suspense fallback={null}>
+          <DebugConsole />
+        </Suspense>
+      ) : null}
+    </div>
+  );
+}
+
+/**
  * Where an Emily-led arrival lands: the first `[data-emily-start]` on the
  * page (a listing's count-and-sort row, the room board, the comparison),
  * just under the sticky header. Landing at the top left the page header
@@ -160,6 +207,7 @@ export function App() {
   return (
     <BrowserRouter basename={BASENAME}>
       <Routes>
+        <Route path="kiosk" element={<KioskShell />} />
         <Route element={<Shell />}>
           <Route index element={<Home />} />
           <Route path="room/:room" element={<RoomPage />} />
@@ -183,6 +231,10 @@ export function App() {
           <Route path="returns" element={<ReturnsHome />} />
           <Route path="returns/start" element={<ReturnsForm />} />
           <Route path="returns/confirmation" element={<ReturnsConfirmation />} />
+          <Route path="size-guide" element={<SizeGuide />} />
+          <Route path="gifts" element={<Gifts />} />
+          <Route path="orders" element={<Orders />} />
+          <Route path="my-picks" element={<MyPicks />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
