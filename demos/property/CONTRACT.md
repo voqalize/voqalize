@@ -33,7 +33,8 @@ years, `sahyadri`). Only for `deal: buy`.
 `exchange` desk for `resale` and `rent`. Days: the 7 dates after today's date in Asia/Kolkata. A day's
 weekday key is `mon`…`sun`; `hours[key]` null means closed. Slots start at `open`, every
 `slot_minutes`, while `start + slot_minutes ≤ close`. A slot is free unless its HH:MM is in
-`booked[key]` or a booking this browser made (page) / this call made or heard of (brain) holds it.
+`booked[key]` or a booking this browser made (page) / this call made or heard of (brain) holds that time with the
+same host (host key: the project id for `new`, `exchange:<city>` otherwise).
 Parts of the day: morning before 12:00, afternoon 12:00–15:59, evening from 16:00. Slot id
 `YYYY-MM-DDTHH:MM`. Booking reference: `KV-<listing number>-<DD><HHMM>` (BLR-104 on the 22nd at 10:30 →
 `KV-104-221030`). Visit address: the project's `address` (new) or the desk's `office` (resale, rent);

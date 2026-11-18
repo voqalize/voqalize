@@ -322,7 +322,7 @@ async def test_the_booker_finds_a_slot_and_books_only_on_yes() -> None:
         assert h.reference("BLR-101", slot) in text
         assert h.PROJECTS["kosha-aranya"]["team"]["contact"] in text
         assert len(llm.requests) == requests, "the yes and the outcome needed no model call"
-        assert slot in _brain(rig).taken
+        assert f"kosha-aranya|{slot}" in _brain(rig).taken
 
 
 async def test_a_slot_the_team_has_taken_cannot_be_held() -> None:

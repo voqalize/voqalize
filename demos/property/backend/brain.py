@@ -195,7 +195,7 @@ class PropertyBrain(OpenAIBrain):
         self.search = h.Search()
         self.results: list[str] = [x["id"] for x in h.search(self.search)]
         self.shortlisted: list[str] = []
-        self.taken: set[str] = set()
+        self.taken: set[str] = set()  # "<host key>|<slot id>": a host can be in one place at once
         self.booked: dict[str, Proposal] = {}  # reference → booking
         self.pending: Proposal | None = None
         self.turns = 0
@@ -376,8 +376,8 @@ class PropertyBrain(OpenAIBrain):
                 self.shortlisted = [str(i) for i in data.get("ids") or []]
             case "visit.booked":
                 slot, listing = str(data.get("slot") or ""), str(data.get("listing_id") or "")
-                if slot:
-                    self.taken.add(slot)
+                if slot and listing in h.LISTINGS:
+                    self.taken.add(f"{h.host_key(h.LISTINGS[listing])}|{slot}")
                 if visitor and listing in h.LISTINGS:
                     self.pending = None
                     if ask := self.stage.take_reaction():
@@ -407,7 +407,7 @@ class PropertyBrain(OpenAIBrain):
         if booking is not None:
             if result.outcome in ("applied", "partial"):
                 ref = h.reference(booking.listing_id, booking.slot)
-                self.taken.add(booking.slot)
+                self.taken.add(f"{h.host_key(h.LISTINGS[booking.listing_id])}|{booking.slot}")
                 self.booked[ref] = booking
                 self._say_soon(lambda: self._booked_line(booking))
                 return f"[The visit is booked: {booking.listing_id} at {booking.slot}, reference {ref}.]"
@@ -451,6 +451,11 @@ class PropertyBrain(OpenAIBrain):
             self.set_language,
             self.read_screen,
         ]
+
+    def _held(self, x: dict[str, Any]) -> set[str]:
+        """The slots this call booked or heard booked with ``x``'s host."""
+        key = h.host_key(x) + "|"
+        return {t[len(key) :] for t in self.taken if t.startswith(key)}
 
     def _listing(self, ref: str) -> dict[str, Any] | None:
         return h.LISTINGS.get(ref.strip().upper())
@@ -637,7 +642,7 @@ class PropertyBrain(OpenAIBrain):
         if day is None:
             week: list[str] = []
             for d in days:
-                free = h.free_slots(x, d, request.part, self.taken)
+                free = h.free_slots(x, d, request.part, self._held(x))
                 if h.day_slots(x, d) is None:
                     week.append(f"{h.spoken_day(d)} ({d.isoformat()}): closed")
                 else:
@@ -651,16 +656,16 @@ class PropertyBrain(OpenAIBrain):
             "slots",
         )
         if h.day_slots(x, day) is None:
-            nxt = [h.spoken_day(d) for d in days if h.free_slots(x, d, request.part, self.taken)][
-                :3
-            ]
+            nxt = [
+                h.spoken_day(d) for d in days if h.free_slots(x, d, request.part, self._held(x))
+            ][:3]
             return (
                 f"The sales team does not take visits on {h.spoken_day(day)}. "
                 f"Days with free {request.part} slots: {', '.join(nxt) or 'none this week'}."
             )
-        free = h.free_slots(x, day, request.part, self.taken)
+        free = h.free_slots(x, day, request.part, self._held(x))
         if not free:
-            other = [s.time for s in h.free_slots(x, day, "any", self.taken)][:4]
+            other = [s.time for s in h.free_slots(x, day, "any", self._held(x))][:4]
             return (
                 f"No free {request.part} slots on {h.spoken_day(day)}. Other free times that day: "
                 f"{', '.join(h.spoken_time(t) for t in other) or 'none'}."
@@ -683,7 +688,7 @@ class PropertyBrain(OpenAIBrain):
             day = date.fromisoformat(slot[:10])
         except ValueError:
             return "The slot must be an id like 2026-11-22T10:30 from visit_slots."
-        free = {s.id for s in h.free_slots(x, day, "any", self.taken)}
+        free = {s.id for s in h.free_slots(x, day, "any", self._held(x))}
         if slot not in free:
             return f"{slot} is not a free slot. Call visit_slots for that day and offer a free one."
         name = request.name.strip()

@@ -277,6 +277,11 @@ def host(x: dict[str, Any]) -> Host:
     return Host(desk["contact"], desk["phone"], desk["office"], desk, tuple(bring))
 
 
+def host_key(x: dict[str, Any]) -> str:
+    """Whose diary a visit takes a slot from: the project's team, or the city's desk."""
+    return x["project_id"] if x["kind"] == "new" else f"exchange:{x['city']}"
+
+
 def today_ist(now: datetime | None = None) -> date:
     return (now or datetime.now(IST)).astimezone(IST).date()
 
