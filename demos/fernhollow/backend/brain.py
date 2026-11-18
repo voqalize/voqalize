@@ -1324,6 +1324,10 @@ class FernhollowBrain(GeminiBrain):
         if len(s.listing) >= 2:
             pair = tuple(s.listing[:2])
             self._memo(("compare", pair, brief_key), lambda: eng.compare(pair, self.brief))
+        if s.room is None and self.brief.room and self.brief.budget:
+            # The brief has a room and a budget: "put it together" is next.
+            brief = self.brief
+            self._memo(("room", brief_key), lambda: eng.build_room(brief))
         if s.room is not None:
             room = s.room
             self._memo(
