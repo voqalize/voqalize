@@ -1,0 +1,52 @@
+{
+ "stats": [
+  {
+   "label": "Student clubs",
+   "value": "86"
+  },
+  {
+   "label": "Sports facilities",
+   "value": "24"
+  },
+  {
+   "label": "Hostel rooms",
+   "value": "4,600"
+  },
+  {
+   "label": "Library volumes",
+   "value": "2.1 lakh"
+  }
+ ],
+ "sections": [
+  {
+   "id": "hostels",
+   "title": "Hostels",
+   "text": "Separate blocks for women and men with study lounges on every floor, gyms in each block and a 24-hour health centre on both campuses."
+  },
+  {
+   "id": "clubs",
+   "title": "Clubs and societies",
+   "text": "From robotics and debating to classical music and theatre: 86 student-run clubs, each with a budget from the student activity fund."
+  },
+  {
+   "id": "sports",
+   "title": "Sports",
+   "text": "Olympic-size pool, synthetic athletics track, cricket ground and indoor courts in Pune; football turf and indoor courts in Bengaluru."
+  },
+  {
+   "id": "festivals",
+   "title": "Festivals",
+   "text": "Spandan, the cultural festival, every February; Anvaya Tech Week every September; the design degree show every May."
+  },
+  {
+   "id": "wellbeing",
+   "title": "Wellbeing",
+   "text": "Free, confidential counselling with qualified psychologists; peer mentors for every first-year student."
+  },
+  {
+   "id": "food",
+   "title": "Food",
+   "text": "Four mess halls with North and South Indian menus, Jain and vegan options, and a food court open till midnight."
+  }
+ ]
+}

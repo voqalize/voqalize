@@ -1,0 +1,253 @@
+/* Anvaya University: ink indigo, marigold, warm paper. Fraunces for display, Hanken Grotesk for reading. */
+:root {
+  --ink: #1b2350;
+  --ink-2: #252f66;
+  --indigo: #34418f;
+  --marigold: #e9a23b;
+  --saffron: #b35f0c; /* marigold, dark enough for text on paper */
+  --paper: #f7f3ea;
+  --paper-2: #efe8d9;
+  --surface: #fffdf8;
+  --line: #e1d9c6;
+  --line-2: #cfc4ab;
+  --text: #1c1f33;
+  --muted: #5c6075;
+  --leaf: #2f6b55;
+  --rose: #b4466a;
+  --danger: #b3261e;
+  --display: "Fraunces Variable", "Noto Sans Devanagari Variable", "Iowan Old Style", Georgia, serif;
+  --sans: "Hanken Grotesk Variable", "Noto Sans Devanagari Variable", system-ui, -apple-system, "Segoe UI", "Noto Sans Devanagari", "Nirmala UI", sans-serif;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --shadow: 0 1px 0 rgba(27, 35, 80, 0.05), 0 8px 24px -14px rgba(27, 35, 80, 0.28);
+  --wrap: 1240px;
+  --gutter: clamp(16px, 4vw, 40px);
+  color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-padding-top: 96px;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--display);
+  font-variation-settings: "SOFT" 50, "WONK" 0;
+  font-weight: 560;
+  line-height: 1.15;
+  letter-spacing: -0.012em;
+  color: var(--ink);
+  margin: 0 0 0.5em;
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: clamp(2rem, 4.2vw, 3.1rem);
+  font-weight: 520;
+  font-variation-settings: "SOFT" 100, "WONK" 1, "opsz" 144;
+}
+h2 {
+  font-size: clamp(1.45rem, 2.4vw, 1.85rem);
+}
+h3 {
+  font-size: 1.12rem;
+  font-weight: 600;
+}
+
+p {
+  margin: 0 0 0.8em;
+}
+
+a {
+  color: var(--indigo);
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+a:hover {
+  color: var(--ink);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--marigold);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.muted {
+  color: var(--muted);
+}
+.small {
+  font-size: 0.88rem;
+}
+.center {
+  text-align: center;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.skip-link {
+  position: absolute;
+  left: -999px;
+  top: 8px;
+  background: var(--ink);
+  color: #fff;
+  padding: 8px 14px;
+  z-index: 100;
+}
+.skip-link:focus {
+  left: 8px;
+}
+
+.wrap {
+  max-width: var(--wrap);
+  margin: 0 auto;
+  padding-left: var(--gutter);
+  padding-right: var(--gutter);
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-weight: 650;
+  font-size: 0.95rem;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.btn-accent {
+  background: var(--marigold);
+  color: var(--ink);
+}
+.btn-accent:hover:not(:disabled) {
+  background: #f0b356;
+  color: var(--ink);
+}
+.btn-primary {
+  background: var(--ink);
+  color: #fff;
+}
+.btn-primary:hover {
+  background: var(--indigo);
+  color: #fff;
+}
+.btn-ghost {
+  background: transparent;
+  border-color: var(--line-2);
+  color: var(--ink);
+}
+.btn-ghost:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+.btn-sm {
+  min-height: 34px;
+  padding: 0 14px;
+  font-size: 0.88rem;
+}
+.btn-lg {
+  min-height: 50px;
+  padding: 0 26px;
+  font-size: 1.02rem;
+}
+.text-btn {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--indigo);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  cursor: pointer;
+}
+.text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 650;
+  color: var(--indigo);
+  text-decoration: none;
+}
+.text-link:hover {
+  text-decoration: underline;
+}
+
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

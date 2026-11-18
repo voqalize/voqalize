@@ -1,0 +1,193 @@
+{
+ "$comment": "Anvaya University's authored admissions content: what the counsellor answers from. Fictional. Amounts in INR, dates DD MMM YYYY.",
+ "process": [
+  {
+   "step": 1,
+   "title": "Choose a programme",
+   "text": "Check eligibility, fees and the next intake on the programme page."
+  },
+  {
+   "step": 2,
+   "title": "Apply online",
+   "text": "Fill the five-step application and pay the application fee: ₹1,500 for campus programmes, ₹500 for online programmes and certificates."
+  },
+  {
+   "step": 3,
+   "title": "Selection",
+   "text": "Take AUSAT or send an accepted score, then an interview or studio test where the programme has one."
+  },
+  {
+   "step": 4,
+   "title": "Offer",
+   "text": "Offers go out within 21 days of the selection step, by email and on the applicant portal."
+  },
+  {
+   "step": 5,
+   "title": "Confirm your seat",
+   "text": "Pay ₹75,000 within 15 days of the offer to confirm the seat. It is adjusted against the first-year fee."
+  }
+ ],
+ "ausat": {
+  "name": "AUSAT 2027 (Anvaya University Scholastic Aptitude Test)",
+  "format": "Online, proctored from home; 2 hours; 120 questions on English, quantitative aptitude, logical reasoning and a short domain section. No negative marking.",
+  "phases": [
+   {
+    "name": "Phase 1",
+    "dates": "23–24 Jan 2027",
+    "register_by": "15 Jan 2027"
+   },
+   {
+    "name": "Phase 2",
+    "dates": "20–21 Mar 2027",
+    "register_by": "12 Mar 2027"
+   },
+   {
+    "name": "Phase 3",
+    "dates": "22–23 May 2027",
+    "register_by": "14 May 2027"
+   }
+  ],
+  "note": "Registration is included in the application fee. You may sit up to two phases; the better score counts."
+ },
+ "fees": {
+  "what_is_included": "The yearly fee covers tuition, labs, library, exams and the student activity fund. Hostel and mess are separate.",
+  "one_time": [
+   {
+    "item": "Registration (once, at admission)",
+    "amount": 15000,
+    "refundable": false
+   },
+   {
+    "item": "Caution deposit",
+    "amount": 10000,
+    "refundable": true
+   }
+  ],
+  "seat_confirmation": "₹75,000 within 15 days of the offer, adjusted against the first-year fee.",
+  "instalments": "The yearly fee is paid in two equal instalments, by 15 July and by 15 January. Online programmes are paid per semester.",
+  "zero_interest_plan": "Anvaya's own zero-interest plan splits a year's fee into six monthly instalments, for a ₹2,000 processing charge per year.",
+  "refund": "Withdraw before the programme starts and everything paid is refunded except ₹10,000 processing. After the programme starts, the current semester's fee is not refunded; the caution deposit always is.",
+  "payment_methods": "UPI, debit or credit card, net banking, or a demand draft in favour of Anvaya University, payable at Pune."
+ },
+ "hostel": {
+  "summary": "Separate hostel blocks for women and men on both campuses, with 24-hour security and resident wardens. The yearly charge includes four meals a day, Wi-Fi, housekeeping and laundry twice a week.",
+  "rooms": [
+   {
+    "id": "single_ac",
+    "campus": "pune",
+    "label": "Single room, AC",
+    "per_year": 185000
+   },
+   {
+    "id": "twin_ac",
+    "campus": "pune",
+    "label": "Twin sharing, AC",
+    "per_year": 145000
+   },
+   {
+    "id": "triple",
+    "campus": "pune",
+    "label": "Triple sharing, non-AC",
+    "per_year": 98000
+   },
+   {
+    "id": "twin_ac",
+    "campus": "bengaluru",
+    "label": "Twin sharing, AC",
+    "per_year": 155000
+   },
+   {
+    "id": "triple",
+    "campus": "bengaluru",
+    "label": "Triple sharing, non-AC",
+    "per_year": 105000
+   }
+  ],
+  "deposit": 20000,
+  "allotment": "Rooms are allotted in order of seat confirmation. First-year students who request a room by 30 Jun 2027 are guaranteed one; the room type is subject to availability.",
+  "rules": "First-year in-time is 10:30 pm. Visitors meet residents in the lounge. Guardians can stay in the campus guest house at ₹1,800 a night."
+ },
+ "loans": {
+  "summary": "Anvaya's education-loan desk helps families apply to partner banks and finance companies. Anvaya issues the admission letter and the fee-structure letter lenders ask for, within two working days of a request.",
+  "covers": "Lenders usually finance the full programme fee, and hostel and mess when you ask for them on the fee-structure letter.",
+  "timeline": "Most families get a lender's decision within 7 to 10 working days of handing in complete documents.",
+  "who_decides": "The interest rate, collateral and co-applicant terms are the lender's, not Anvaya's. The loan desk can tell you which documents each lender needs.",
+  "contact": "loans@anvaya.edu.in · +91 20 6700 4400 (Mon–Sat, 9:30 am–6 pm)"
+ },
+ "scholarship_rules": [
+  "One scholarship per student: the highest one you qualify for is applied.",
+  "The exception is Women in STEM, which adds to one other scholarship; together they are capped at 75% of tuition.",
+  "Scholarships reduce tuition only, never hostel or mess.",
+  "Choose the scholarship on step 3 of the application; it is confirmed with the offer.",
+  "To keep it in later years: a CGPA of 7.5 or above and no disciplinary action, reviewed every year."
+ ],
+ "documents": [
+  {
+   "id": "doc_class10",
+   "label": "Class 10 marksheet",
+   "for": "everyone"
+  },
+  {
+   "id": "doc_class12",
+   "label": "Class 12 marksheet (or admit card if appearing)",
+   "for": "everyone"
+  },
+  {
+   "id": "doc_graduation",
+   "label": "Graduation marksheets",
+   "for": "postgraduate applicants"
+  },
+  {
+   "id": "doc_score",
+   "label": "Entrance scorecard (JEE Main, CAT, CLAT, NEET-UG or other)",
+   "for": "anyone sending an outside score"
+  },
+  {
+   "id": "doc_photo_id",
+   "label": "Government photo ID",
+   "for": "everyone"
+  },
+  {
+   "id": "doc_photo",
+   "label": "Passport-size photograph",
+   "for": "everyone"
+  },
+  {
+   "id": "doc_income",
+   "label": "Family income certificate",
+   "for": "Udaan need-based scholarship applicants"
+  }
+ ],
+ "faqs": [
+  {
+   "q": "Can I apply while I'm still in Class 12?",
+   "a": "Yes. Apply with your Class 10 marks and your Class 12 admit card; your Class 12 marks are checked when results are out, and the offer is provisional until then."
+  },
+  {
+   "q": "Can I apply to more than one programme?",
+   "a": "Yes, up to three programmes on one application and one application fee. AUSAT counts for all of them."
+  },
+  {
+   "q": "Is there a management or NRI quota?",
+   "a": "No. Every seat is filled on the published selection process."
+  },
+  {
+   "q": "Can my parents attend the counselling session?",
+   "a": "Yes. Families are welcome on calls and at campus visits, which run every Saturday at 11 am on both campuses."
+  },
+  {
+   "q": "What if I miss a round deadline?",
+   "a": "Apply in the next round. Round 3 runs only if seats remain, so earlier rounds have more seats and more scholarship budget."
+  },
+  {
+   "q": "Are online degrees the same as campus degrees?",
+   "a": "Yes. The degree certificate does not say online; the faculty and exams are the same."
+  }
+ ],
+ "contact": {
+  "phone": "+91 20 6700 4000",
+  "email": "admissions@anvaya.edu.in",
+  "hours": "Mon–Sat, 9 am–7 pm",
+  "whatsapp": "+91 98200 41100"
+ }
+}

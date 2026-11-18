@@ -1,0 +1,4254 @@
+{
+ "$comment": "Anvaya University's programme catalogue: the single source of truth for both the page and the brain. Fictional. Fees are per year in INR (fee_total = fee_per_year x duration in years; under a year, the whole fee). Dates are DD MMM YYYY.",
+ "university": {
+  "name": "Anvaya University",
+  "short": "Anvaya",
+  "founded": 1998,
+  "students": 18400,
+  "faculty": 1120,
+  "recruiters": 640,
+  "campus_count": 2,
+  "motto": "Learn across disciplines."
+ },
+ "schools": [
+  {
+   "id": "engineering",
+   "name": "School of Engineering & Technology",
+   "short": "Engineering",
+   "dean": "Prof. Meenakshi Raghavan",
+   "founded": 1998,
+   "campuses": [
+    "pune",
+    "bengaluru"
+   ],
+   "blurb": "Labs-first engineering: every B.Tech student ships a funded project with an industry mentor before graduating.",
+   "accent": "#2B4C9A"
+  },
+  {
+   "id": "business",
+   "name": "Anvaya School of Business",
+   "short": "Business",
+   "dean": "Prof. Harish Kulkarni",
+   "founded": 2001,
+   "campuses": [
+    "pune",
+    "bengaluru"
+   ],
+   "blurb": "Case-led management education with a live consulting project in every year of study.",
+   "accent": "#8A3B12"
+  },
+  {
+   "id": "design",
+   "name": "School of Design",
+   "short": "Design",
+   "dean": "Prof. Tanvi Deshmukh",
+   "founded": 2006,
+   "campuses": [
+    "pune",
+    "bengaluru"
+   ],
+   "blurb": "Studio culture, open 24 hours, with makers' labs for wood, metal, textile and digital fabrication.",
+   "accent": "#A8325E"
+  },
+  {
+   "id": "law",
+   "name": "School of Law",
+   "short": "Law",
+   "dean": "Prof. Farhan Siddiqui",
+   "founded": 2009,
+   "campuses": [
+    "pune"
+   ],
+   "blurb": "Moot courts, legal aid clinics and a mandatory chambers internship every summer.",
+   "accent": "#3D4B57"
+  },
+  {
+   "id": "health",
+   "name": "School of Health Sciences",
+   "short": "Health Sciences",
+   "dean": "Dr. Sunita Pai",
+   "founded": 2011,
+   "campuses": [
+    "pune"
+   ],
+   "blurb": "Clinical training at the 400-bed Anvaya teaching hospital, a ten-minute walk from the classrooms.",
+   "accent": "#0F7A6B"
+  },
+  {
+   "id": "liberal-arts",
+   "name": "School of Liberal Arts & Sciences",
+   "short": "Liberal Arts",
+   "dean": "Prof. Rohini Banerjee",
+   "founded": 2014,
+   "campuses": [
+    "pune",
+    "bengaluru"
+   ],
+   "blurb": "Major in one discipline, minor in another, and write a research thesis in the honours year.",
+   "accent": "#6B4FA0"
+  },
+  {
+   "id": "online",
+   "name": "Anvaya Online & Executive Education",
+   "short": "Online & Executive",
+   "dean": "Prof. Vikram Sethi",
+   "founded": 2019,
+   "campuses": [
+    "online"
+   ],
+   "blurb": "Degrees and certificates built for working people: live weekend classes, recorded lectures, the same faculty.",
+   "accent": "#B7791F"
+  }
+ ],
+ "campuses": [
+  {
+   "id": "pune",
+   "name": "Pune",
+   "label": "Pune Campus",
+   "address": "Anvaya Nagar, Hinjawadi Phase 3, Pune 411057",
+   "acres": 120
+  },
+  {
+   "id": "bengaluru",
+   "name": "Bengaluru",
+   "label": "Bengaluru Campus",
+   "address": "Anvaya Knowledge Park, Hosur Road, Bengaluru 560100",
+   "acres": 45
+  },
+  {
+   "id": "online",
+   "name": "Online",
+   "label": "Online",
+   "address": "Learn from anywhere: live classes on the Anvaya Online app",
+   "acres": 0
+  }
+ ],
+ "levels": [
+  {
+   "id": "ug",
+   "label": "Undergraduate"
+  },
+  {
+   "id": "pg",
+   "label": "Postgraduate"
+  },
+  {
+   "id": "diploma",
+   "label": "Diploma"
+  },
+  {
+   "id": "certificate",
+   "label": "Certificate"
+  }
+ ],
+ "modes": [
+  {
+   "id": "full_time",
+   "label": "Full-time on campus"
+  },
+  {
+   "id": "online",
+   "label": "Online"
+  },
+  {
+   "id": "weekend",
+   "label": "Weekend"
+  },
+  {
+   "id": "hybrid",
+   "label": "Hybrid"
+  }
+ ],
+ "fee_bands": [
+  {
+   "id": "under_1l",
+   "label": "Under ₹1 lakh",
+   "min": 0,
+   "max": 100000
+  },
+  {
+   "id": "1l_2l",
+   "label": "₹1–2 lakh",
+   "min": 100001,
+   "max": 200000
+  },
+  {
+   "id": "2l_3_5l",
+   "label": "₹2–3.5 lakh",
+   "min": 200001,
+   "max": 350000
+  },
+  {
+   "id": "above_3_5l",
+   "label": "Above ₹3.5 lakh",
+   "min": 350001,
+   "max": 99999999
+  }
+ ],
+ "hour_bands": [
+  {
+   "id": "upto_8",
+   "label": "Up to 8 hrs a week",
+   "min": 0,
+   "max": 8
+  },
+  {
+   "id": "8_15",
+   "label": "8–15 hrs a week",
+   "min": 9,
+   "max": 15
+  },
+  {
+   "id": "full_time",
+   "label": "Full-time",
+   "min": 16,
+   "max": 99
+  }
+ ],
+ "intakes": {
+  "ug-2027": {
+   "label": "July 2027",
+   "starts": "19 Jul 2027",
+   "rounds": [
+    {
+     "name": "Round 1",
+     "deadline": "31 Jan 2027"
+    },
+    {
+     "name": "Round 2",
+     "deadline": "31 Mar 2027"
+    },
+    {
+     "name": "Round 3",
+     "deadline": "31 May 2027",
+     "note": "only if seats remain"
+    }
+   ]
+  },
+  "pg-2027": {
+   "label": "July 2027",
+   "starts": "26 Jul 2027",
+   "rounds": [
+    {
+     "name": "Round 1",
+     "deadline": "15 Feb 2027"
+    },
+    {
+     "name": "Round 2",
+     "deadline": "15 Apr 2027"
+    },
+    {
+     "name": "Round 3",
+     "deadline": "15 Jun 2027",
+     "note": "only if seats remain"
+    }
+   ]
+  },
+  "mba-2027": {
+   "label": "June 2027",
+   "starts": "21 Jun 2027",
+   "rounds": [
+    {
+     "name": "Round 1",
+     "deadline": "15 Dec 2026"
+    },
+    {
+     "name": "Round 2",
+     "deadline": "28 Feb 2027"
+    },
+    {
+     "name": "Round 3",
+     "deadline": "30 Apr 2027",
+     "note": "only if seats remain"
+    }
+   ]
+  },
+  "online-jan-2027": {
+   "label": "January 2027",
+   "starts": "11 Jan 2027",
+   "rounds": [
+    {
+     "name": "January 2027 batch",
+     "deadline": "31 Dec 2026"
+    },
+    {
+     "name": "July 2027 batch",
+     "deadline": "30 Jun 2027"
+    }
+   ]
+  },
+  "exec-jan-2027": {
+   "label": "January 2027",
+   "starts": "16 Jan 2027",
+   "rounds": [
+    {
+     "name": "January 2027 batch",
+     "deadline": "15 Dec 2026"
+    },
+    {
+     "name": "August 2027 batch",
+     "deadline": "15 Jul 2027"
+    }
+   ]
+  },
+  "cert-monthly": {
+   "label": "December 2026",
+   "starts": "07 Dec 2026",
+   "rounds": [
+    {
+     "name": "December 2026 cohort",
+     "deadline": "30 Nov 2026"
+    },
+    {
+     "name": "February 2027 cohort",
+     "deadline": "20 Jan 2027"
+    }
+   ]
+  }
+ },
+ "scholarships": [
+  {
+   "id": "merit-12",
+   "name": "Anvaya Merit Scholarship",
+   "for": "Undergraduate full-time programmes",
+   "basis": "Class 12 marks",
+   "tiers": [
+    {
+     "rule": "95% and above",
+     "waiver": 50
+    },
+    {
+     "rule": "90% to 94.99%",
+     "waiver": 25
+    },
+    {
+     "rule": "85% to 89.99%",
+     "waiver": 10
+    }
+   ]
+  },
+  {
+   "id": "ausat-rank",
+   "name": "AUSAT Rank Scholarship",
+   "for": "Undergraduate and postgraduate full-time programmes",
+   "basis": "AUSAT 2027 rank",
+   "tiers": [
+    {
+     "rule": "Rank 1 to 100",
+     "waiver": 75
+    },
+    {
+     "rule": "Rank 101 to 500",
+     "waiver": 40
+    },
+    {
+     "rule": "Rank 501 to 1,500",
+     "waiver": 20
+    }
+   ]
+  },
+  {
+   "id": "pg-merit",
+   "name": "Postgraduate Merit Scholarship",
+   "for": "Postgraduate full-time programmes",
+   "basis": "Graduation marks",
+   "tiers": [
+    {
+     "rule": "80% (or 8.0 CGPA) and above",
+     "waiver": 25
+    },
+    {
+     "rule": "70% to 79.99%",
+     "waiver": 10
+    }
+   ]
+  },
+  {
+   "id": "udaan",
+   "name": "Udaan Need-based Scholarship",
+   "for": "All full-time programmes",
+   "basis": "Annual family income, assessed by the scholarship committee on documents",
+   "tiers": [
+    {
+     "rule": "Family income below ₹4 lakh a year",
+     "waiver": 60
+    },
+    {
+     "rule": "₹4 lakh to ₹8 lakh a year",
+     "waiver": 30
+    }
+   ]
+  },
+  {
+   "id": "women-stem",
+   "name": "Women in STEM Scholarship",
+   "for": "Women in B.Tech, M.Tech, B.Sc (Hons) Data Science and M.Sc Data Science",
+   "basis": "Automatic for women admitted to these programmes; adds to one other scholarship",
+   "tiers": [
+    {
+     "rule": "All women admitted",
+     "waiver": 20
+    }
+   ]
+  },
+  {
+   "id": "sports",
+   "name": "Sports Excellence Scholarship",
+   "for": "All full-time programmes",
+   "basis": "Representation in a recognised sport in the last three years",
+   "tiers": [
+    {
+     "rule": "National-level medal",
+     "waiver": 50
+    },
+    {
+     "rule": "State-level medal",
+     "waiver": 20
+    }
+   ]
+  },
+  {
+   "id": "defence",
+   "name": "Defence Family Scholarship",
+   "for": "All full-time programmes",
+   "basis": "Children of serving or retired defence and paramilitary personnel",
+   "tiers": [
+    {
+     "rule": "On a service certificate",
+     "waiver": 15
+    }
+   ]
+  },
+  {
+   "id": "online-early",
+   "name": "Online Early-bird Scholarship",
+   "for": "Online degrees and online certificates",
+   "basis": "Paying the full programme fee by the batch deadline",
+   "tiers": [
+    {
+     "rule": "Full fee paid by the deadline",
+     "waiver": 10
+    }
+   ]
+  }
+ ],
+ "programs": [
+  {
+   "id": "btech-cse",
+   "name": "B.Tech Computer Science & Engineering",
+   "award": "B.Tech",
+   "school": "engineering",
+   "level": "ug",
+   "mode": "full_time",
+   "campuses": [
+    "pune",
+    "bengaluru"
+   ],
+   "duration_months": 48,
+   "duration_label": "4 years",
+   "hours_per_week": 40,
+   "fee_per_year": 340000,
+   "fee_total": 1360000,
+   "application_fee": 1500,
+   "seats": 360,
+   "intake": "ug-2027",
+   "eligibility": {
+    "requires": "class12",
+    "min_percent": 60,
+    "needs": "Class 12 with Physics, Chemistry and Maths, 60% overall",
+    "streams": [
+     "science_pcm"
+    ]
+   },
+   "entrance": [
+    "AUSAT 2027",
+    "JEE Main (70 percentile and above)"
+   ],
+   "selection": [
+    "Apply online",
+    "AUSAT, or a JEE Main score",
+    "Merit list by round",
+    "Offer and seat confirmation"
+   ],
+   "scholarships": [
+    "merit-12",
+    "ausat-rank",
+    "udaan",
+    "sports",
+    "defence",
+    "women-stem"
+   ],
+   "outcomes": {
+    "placement_pct": 92,
+    "median_ctc_lpa": 8.4,
+    "highest_ctc_lpa": 42.0,
+    "roles": [
+     "Software engineer",
+     "Backend developer",
+     "Cloud engineer"
+    ]
+   },
+   "highlights": [
+    "Funded capstone with an industry mentor",
+    "Semester exchange with partner universities",
+    "Open-source contribution credit"
+   ],
+   "modules": [
+    "Data structures",
+    "Operating systems",
+    "Computer networks",
+    "Machine learning",
+    "Distributed systems"
+   ],
+   "interests": [
+    "coding",
+    "software",
+    "computers",
+    "ai",
+    "data",
+    "technology",
+    "apps"
+   ],
+   "specialisations": [
+    "Cloud computing",
+    "Cyber security",
+    "Full-stack engineering"
+   ]
+  },
+  {
+   "id": "btech-ai-ml",
+   "name": "B.Tech CSE (Artificial Intelligence & Machine Learning)",
+   "award": "B.Tech",
+   "school": "engineering",
+   "level": "ug",
+   "mode": "full_time",
+   "campuses": [
+    "pune",
+    "bengaluru"
+   ],
+   "duration_months": 48,
+   "duration_label": "4 years",
+   "hours_per_week": 40,
+   "fee_per_year": 360000,
+   "fee_total": 1440000,
+   "application_fee": 1500,
+   "seats": 180,
+   "intake": "ug-2027",
+   "eligibility": {
+    "requires": "class12",
+    "min_percent": 65,
+    "needs": "Class 12 with Physics, Chemistry and Maths, 65% overall",
+    "streams": [
+     "science_pcm"
+    ]
+   },
+   "entrance": [
+    "AUSAT 2027",
+    "JEE Main (75 percentile and above)"
+   ],
+   "selection": [
+    "Apply online",
+    "AUSAT, or a JEE Main score",
+    "Merit list by round",
+    "Offer and seat confirmation"
+   ],
+   "scholarships": [
+    "merit-12",
+    "ausat-rank",
+    "udaan",
+    "sports",
+    "defence",
+    "women-stem"
+   ],
+   "outcomes": {
+    "placement_pct": 90,
+    "median_ctc_lpa": 9.1,
+    "highest_ctc_lpa": 38.0,
+    "roles": [
+     "ML engineer",
+     "Data scientist",
+     "AI product engineer"
+    ]
+   },
+   "highlights": [
+    "GPU lab with 64 accelerators",
+    "Research track with the Centre for Applied AI",
+    "Year-four industry residency"
+   ],
+   "modules": [
+    "Linear algebra for ML",
+    "Deep learning",
+    "Natural language processing",
+    "Computer vision",
+    "MLOps"
+   ],
+   "interests": [
+    "ai",
+    "machine learning",
+    "coding",
+    "data",
+    "technology",
+    "research",
+    "robotics"
+   ],
+   "specialisations": [
+    "Generative AI",
+    "Computer vision",
+    "Robotics"
+   ]
+  },
+  {
+   "id": "btech-ece",
+   "name": "B.Tech Electronics & Communication Engineering",
+   "award": "B.Tech",
+   "school": "engineering",
+   "level": "ug",
+   "mode": "full_time",
+   "campuses": [
+    "pune"
+   ],
+   "duration_months": 48,
+   "duration_label": "4 years",
+   "hours_per_week": 40,
+   "fee_per_year": 295000,
+   "fee_total": 1180000,
+   "application_fee": 1500,
+   "seats": 120,
+   "intake": "ug-2027",
+   "eligibility": {
+    "requires": "class12",
+    "min_percent": 60,
+    "needs": "Class 12 with Physics, Chemistry and Maths, 60% overall",
+    "streams": [
+     "science_pcm"
+    ]
+   },
+   "entrance": [
+    "AUSAT 2027",
+    "JEE Main (60 percentile and above)"
+   ],
+   "selection": [
+    "Apply online",
+    "AUSAT, or a JEE Main score",
+    "Merit list by round",
+    "Offer and seat confirmation"
+   ],
+   "scholarships": [
+    "merit-12",
+    "ausat-rank",
+    "udaan",
+    "sports",
+    "defence",
+    "women-stem"
+   ],
+   "outcomes": {
+    "placement_pct": 86,
+    "median_ctc_lpa": 7.2,
+    "highest_ctc_lpa": 24.0,
+    "roles": [
+     "Embedded engineer",
+     "VLSI design engineer",
+     "Telecom engineer"
+    ]
+   },
+   "highlights": [
+    "Chip design studio with industry EDA tools",
+    "IoT product lab",
+    "Minor in AI available"
+   ],
+   "modules": [
+    "Analog circuits",
+    "Digital signal processing",
+    "VLSI design",
+    "Embedded systems",
+    "5G communication"
+   ],
+   "interests": [
+    "electronics",
+    "chips",
+    "semiconductors",
+    "hardware",
+    "iot",
+    "technology"
+   ],
+   "specialisations": [
+    "VLSI",
+    "Embedded systems"
+   ]
+  },
+  {
+   "id": "btech-mech-ev",
+   "name": "B.Tech Mechanical Engineering (Electric Vehicles)",
+   "award": "B.Tech",
+   "school": "engineering",
+   "level": "ug",
+   "mode": "full_time",
+   "campuses": [
+    "pune"
+   ],
+   "duration_months": 48,
+   "duration_label": "4 years",
+   "hours_per_week": 40,
+   "fee_per_year": 270000,
+   "fee_total": 1080000,
+   "application_fee": 1500,
+   "seats": 90,
+   "intake": "ug-2027",
+   "eligibility": {
+    "requires": "class12",
+    "min_percent": 55,
+    "needs": "Class 12 with Physics, Chemistry and Maths, 55% overall",
+    "streams": [
+     "science_pcm"
+    ]
+   },
+   "entrance": [
+    "AUSAT 2027",
+    "JEE Main (50 percentile and above)"
+   ],
+   "selection": [
+    "Apply online",
+    "AUSAT, or a JEE Main score",
+    "Merit list by round",
+    "Offer and seat confirmation"
+   ],
+   "scholarships": [
+    "merit-12",
+    "ausat-rank",
+    "udaan",
+    "sports",
+    "defence",
+    "women-stem"
+   ],
+   "outcomes": {
+    "placement_pct": 84,
+    "median_ctc_lpa": 6.5,
+    "highest_ctc_lpa": 18.0,
+    "roles": [
+     "EV powertrain engineer",
+     "Design engineer",
+     "Manufacturing engineer"
+    ]
+   },
+   "highlights": [
+    "Formula Student EV team",
+    "Battery testing lab",
+    "Six-month plant internship"
+   ],
+   "modules": [
+    "Thermodynamics",
+    "Machine design",
+    "Battery systems",
+    "Motor control",
+    "Vehicle dynamics"
+   ],
+   "interests": [
+    "cars",
+    "ev",
+    "electric vehicles",
+    "machines",
+    "mechanical",
+    "manufacturing",
+    "automobiles"
+   ],
+   "specialisations": [
+    "EV powertrain",
+    "Smart manufacturing"
+   ]
+  },
+  {
+   "id": "btech-civil",
+   "name": "B.Tech Civil Engineering (Sustainable Infrastructure)",
+   "award": "B.Tech",
+   "school": "engineering",
+   "level": "ug",
+   "mode": "full_time",
+   "campuses": [
+    "pune"
+   ],
+   "duration_months": 48,
+   "duration_label": "4 years",
+   "hours_per_week": 40,
+   "fee_per_year": 240000,
+   "fee_total": 960000,
+   "application_fee": 1500,
+   "seats": 60,
+   "intake": "ug-2027",
+   "eligibility": {
+    "requires": "class12",
+    "min_percent": 55,
+    "needs": "Class 12 with Physics, Chemistry and Maths, 55% overall",
+    "streams": [
+     "science_pcm"
+    ]
+   },
+   "entrance": [
+    "AUSAT 2027",
+    "JEE Main (45 percentile and above)"
+   ],
+   "selection": [
+    "Apply online",
+    "AUSAT, or a JEE Main score",
+    "Merit list by round",
+    "Offer and seat confirmation"
+   ],
+   "scholarships": [
+    "merit-12",
+    "ausat-rank",
+    "udaan",
+    "sports",
+    "defence",
+    "women-stem"
+   ],
+   "outcomes": {
+    "placement_pct": 78,
+    "median_ctc_lpa": 5.6,
+    "highest_ctc_lpa": 14.0,
+    "roles": [
+     "Site engineer",
+     "Structural engineer",
+     "Urban infrastructure analyst"
+    ]
+   },
+   "highlights": [
+    "Green building studio",
+    "Smart-city project with the municipal corporation",
+    "Surveying and drone mapping"
+   ],
+   "modules": [
+    "Structural analysis",
+    "Geotechnical engineering",
+    "Transportation",
+    "Green buildings",
+    "Water resources"
+   ],
+   "interests": [
+    "construction",
+    "buildings",
+    "infrastructure",
+    "environment",
+    "cities"
+   ],
+   "specialisations": [
+    "Green buildings",
+    "Transportation"
+   ]
+  },
+  {
+   "id": "btech-ds",
+   "name": "B.Tech Data Science & Engineering",
+   "award": "B.Tech",
+   "school": "engineering",
+   "level": "ug",
+   "mode": "full_time",
+   "campuses": [
+    "bengaluru"
+   ],
+   "duration_months": 48,
+   "duration_label": "4 years",
+   "hours_per_week": 40,
+   "fee_per_year": 350000,
+   "fee_total": 1400000,
+   "application_fee": 1500,
+   "seats": 120,
+   "intake": "ug-2027",
+   "eligibility": {
+    "requires": "class12",
+    "min_percent": 60,
+    "needs": "Class 12 with Physics, Chemistry and Maths, 60% overall",
+    "streams": [
+     "science_pcm"
+    ]
+   },
+   "entrance": [
+    "AUSAT 2027",
+    "JEE Main (70 percentile and above)"
+   ],
+   "selection": [
+    "Apply online",
+    "AUSAT, or a JEE Main score",
+    "Merit list by round",
+    "Offer and seat confirmation"
+   ],
+   "scholarships": [
+    "merit-12",
+    "ausat-rank",
+    "udaan",
+    "sports",
+    "defence",
+    "women-stem"
+   ],
+   "outcomes": {
+    "placement_pct": 89,
+    "median_ctc_lpa": 8.8,
+    "highest_ctc_lpa": 31.0,
+    "roles": [
+     "Data engineer",
+     "Analytics engineer",
+     "Data scientist"
+    ]
+   },
+   "highlights": [
+    "Bengaluru tech-park internships from year two",
+    "Big-data cluster for coursework",
+    "Kaggle-style competition league"
+   ],
+   "modules": [
+    "Statistics",
+    "Databases",
+    "Data engineering",
+    "Machine learning",
+    "Data visualisation"
+   ],
+   "interests": [
+    "data",
+    "analytics",
+    "coding",
+    "ai",
+    "statistics",
+    "technology"
+   ],
+   "specialisations": [
+    "Data engineering",
+    "Business analytics"
+   ]
+  },
+  {
+   "id": "mtech-ai",
+   "name": "M.Tech Artificial Intelligence",
+   "award": "M.Tech",
+   "school": "engineering",
+   "level": "pg",
+   "mode": "full_time",
+   "campuses": [
+    "pune"
+   ],
+   "duration_months": 24,
+   "duration_label": "2 years",
+   "hours_per_week": 40,
+   "fee_per_year": 220000,
+   "fee_total": 440000,
+   "application_fee": 1500,
+   "seats": 40,
+   "intake": "pg-2027",
+   "eligibility": {
+    "requires": "graduation",
+    "min_percent": 60,
+    "needs": "B.E. or B.Tech in any branch, or M.Sc in CS, Maths or Statistics, 60%",
+    "streams": []
+   },
+   "entrance": [
+    "GATE score",
+    "AUSAT-PG 2027"
+   ],
+   "selection": [
+    "Apply online",
+    "GATE or AUSAT-PG score",
+    "Technical interview",
+    "Offer"
+   ],
+   "scholarships": [
+    "ausat-rank",
+    "pg-merit",
+    "udaan",
+    "sports",
+    "defence",
+    "women-stem"
+   ],
+   "outcomes": {
+    "placement_pct": 88,
+    "median_ctc_lpa": 12.5,
+    "highest_ctc_lpa": 36.0,
+    "roles": [
+     "ML engineer",
+     "Research engineer",
+     "AI architect"
+    ]
+   },
+   "highlights": [
+    "Teaching assistantship with a monthly stipend of ₹15,000",
+    "Thesis with the Centre for Applied AI",
+    "Paper-writing support for conferences"
+   ],
+   "modules": [
+    "Advanced machine learning",
+    "Deep learning systems",
+    "Reinforcement learning",
+    "AI ethics"
+   ],
+   "interests": [
+    "ai",
+    "machine learning",
+    "research",
+    "data",
+    "coding"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "mtech-vlsi",
+   "name": "M.Tech VLSI Design",
+   "award": "M.Tech",
+   "school": "engineering",
+   "level": "pg",
+   "mode": "full_time",
+   "campuses": [
+    "bengaluru"
+   ],
+   "duration_months": 24,
+   "duration_label": "2 years",
+   "hours_per_week": 40,
+   "fee_per_year": 210000,
+   "fee_total": 420000,
+   "application_fee": 1500,
+   "seats": 30,
+   "intake": "pg-2027",
+   "eligibility": {
+    "requires": "graduation",
+    "min_percent": 60,
+    "needs": "B.E. or B.Tech in Electronics, Electrical or Instrumentation, 60%",
+    "streams": []
+   },
+   "entrance": [
+    "GATE score",
+    "AUSAT-PG 2027"
+   ],
+   "selection": [
+    "Apply online",
+    "GATE or AUSAT-PG score",
+    "Technical interview",
+    "Offer"
+   ],
+   "scholarships": [
+    "ausat-rank",
+    "pg-merit",
+    "udaan",
+    "sports",
+    "defence",
+    "women-stem"
+   ],
+   "outcomes": {
+    "placement_pct": 91,
+    "median_ctc_lpa": 13.0,
+    "highest_ctc_lpa": 28.0,
+    "roles": [
+     "Physical design engineer",
+     "Verification engineer"
+    ]
+   },
+   "highlights": [
+    "Tape-out project in year two",
+    "Semiconductor-firm internships in Bengaluru"
+   ],
+   "modules": [
+    "CMOS design",
+    "Verification",
+    "Physical design",
+    "FPGA prototyping"
+   ],
+   "interests": [
+    "chips",
+    "semiconductors",
+    "electronics",
+    "hardware"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "diploma-ev",
+   "name": "Diploma in EV Technology",
+   "award": "Diploma",
+   "school": "engineering",
+   "level": "diploma",
+   "mode": "full_time",
+   "campuses": [
+    "pune"
+   ],
+   "duration_months": 12,
+   "duration_label": "1 year",
+   "hours_per_week": 40,
+   "fee_per_year": 120000,
+   "fee_total": 120000,
+   "application_fee": 1500,
+   "seats": 60,
+   "intake": "ug-2027",
+   "eligibility": {
+    "requires": "class12",
+    "min_percent": 50,
+    "needs": "Class 12 (any stream) with 50%, or an ITI certificate",
+    "streams": [
+     "science_pcm",
+     "science_pcb",
+     "commerce",
+     "humanities",
+     "other"
+    ]
+   },
+   "entrance": [
+    "No entrance test"
+   ],
+   "selection": [
+    "Apply online",
+    "Aptitude conversation (online)",
+    "Offer"
+   ],
+   "scholarships": [
+    "udaan",
+    "defence"
+   ],
+   "outcomes": {
+    "placement_pct": 81,
+    "median_ctc_lpa": 3.6,
+    "roles": [
+     "EV service technician",
+     "Battery assembly lead",
+     "Charging-station technician"
+    ]
+   },
+   "highlights": [
+    "70% hands-on workshop time",
+    "Placement with EV service networks"
+   ],
+   "modules": [
+    "EV fundamentals",
+    "Battery packs",
+    "Motors and controllers",
+    "Diagnostics"
+   ],
+   "interests": [
+    "ev",
+    "cars",
+    "electric vehicles",
+    "hands-on",
+    "mechanical"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "cert-fullstack",
+   "name": "Certificate in Full-Stack Web Development",
+   "award": "Certificate",
+   "school": "online",
+   "level": "certificate",
+   "mode": "online",
+   "campuses": [
+    "online"
+   ],
+   "duration_months": 6,
+   "duration_label": "6 months",
+   "hours_per_week": 10,
+   "fee_per_year": 55000,
+   "fee_total": 55000,
+   "application_fee": 500,
+   "seats": 200,
+   "intake": "cert-monthly",
+   "eligibility": {
+    "requires": "class12",
+    "min_percent": 0,
+    "needs": "Class 12 pass; no coding experience needed",
+    "streams": []
+   },
+   "entrance": [
+    "No entrance test"
+   ],
+   "selection": [
+    "Apply online",
+    "Short orientation call",
+    "Start with the next cohort"
+   ],
+   "scholarships": [
+    "online-early"
+   ],
+   "outcomes": {
+    "note": "Portfolio of four deployed projects; career-support sessions for a year after completion",
+    "roles": [
+     "Junior web developer",
+     "Frontend developer"
+    ]
+   },
+   "highlights": [
+    "Live classes on weekday evenings",
+    "Mentor code reviews every week"
+   ],
+   "modules": [
+    "HTML, CSS and JavaScript",
+    "React",
+    "Node.js and APIs",
+    "Databases",
+    "Deployment"
+   ],
+   "interests": [
+    "coding",
+    "web",
+    "software",
+    "apps",
+    "career switch"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "bba",
+   "name": "BBA (Hons)",
+   "award": "BBA",
+   "school": "business",
+   "level": "ug",
+   "mode": "full_time",
+   "campuses": [
+    "pune",
+    "bengaluru"
+   ],
+   "duration_months": 48,
+   "duration_label": "4 years",
+   "hours_per_week": 40,
+   "fee_per_year": 260000,
+   "fee_total": 1040000,
+   "application_fee": 1500,
+   "seats": 240,
+   "intake": "ug-2027",
+   "eligibility": {
+    "requires": "class12",
+    "min_percent": 55,
+    "needs": "Class 12 in any stream, 55% overall",
+    "streams": [
+     "science_pcm",
+     "science_pcb",
+     "commerce",
+     "humanities",
+     "other"
+    ]
+   },
+   "entrance": [
+    "AUSAT 2027"
+   ],
+   "selection": [
+    "Apply online",
+    "AUSAT",
+    "Personal interview (online)",
+    "Offer"
+   ],
+   "scholarships": [
+    "merit-12",
+    "ausat-rank",
+    "udaan",
+    "sports",
+    "defence"
+   ],
+   "outcomes": {
+    "placement_pct": 85,
+    "median_ctc_lpa": 6.2,
+    "highest_ctc_lpa": 16.0,
+    "roles": [
+     "Business analyst",
+     "Marketing associate",
+     "Management trainee"
+    ]
+   },
+   "highlights": [
+    "Exit after three years with a BBA, or stay for the honours year",
+    "Live consulting project every year",
+    "Startup incubator access"
+   ],
+   "modules": [
+    "Principles of management",
+    "Marketing",
+    "Financial accounting",
+    "Business analytics",
+    "Entrepreneurship"
+   ],
+   "interests": [
+    "business",
+    "management",
+    "marketing",
+    "startups",
+    "entrepreneurship",
+    "finance"
+   ],
+   "specialisations": [
+    "Marketing",
+    "Finance",
+    "Entrepreneurship"
+   ]
+  },
+  {
+   "id": "bba-analytics",
+   "name": "BBA Business Analytics",
+   "award": "BBA",
+   "school": "business",
+   "level": "ug",
+   "mode": "full_time",
+   "campuses": [
+    "bengaluru"
+   ],
+   "duration_months": 36,
+   "duration_label": "3 years",
+   "hours_per_week": 40,
+   "fee_per_year": 280000,
+   "fee_total": 840000,
+   "application_fee": 1500,
+   "seats": 60,
+   "intake": "ug-2027",
+   "eligibility": {
+    "requires": "class12",
+    "min_percent": 55,
+    "needs": "Class 12 with Maths, 55% overall",
+    "streams": [
+     "science_pcm",
+     "commerce"
+    ]
+   },
+   "entrance": [
+    "AUSAT 2027"
+   ],
+   "selection": [
+    "Apply online",
+    "AUSAT",
+    "Personal interview (online)",
+    "Offer"
+   ],
+   "scholarships": [
+    "merit-12",
+    "ausat-rank",
+    "udaan",
+    "sports",
+    "defence"
+   ],
+   "outcomes": {
+    "placement_pct": 87,
+    "median_ctc_lpa": 6.8,
+    "highest_ctc_lpa": 15.0,
+    "roles": [
+     "Business analyst",
+     "Data analyst",
+     "Operations analyst"
+    ]
+   },
+   "highlights": [
+    "Excel, SQL and Python from semester one",
+    "Analytics internships in Bengaluru"
+   ],
+   "modules": [
+    "Statistics for business",
+    "SQL",
+    "Python for analytics",
+    "Marketing analytics",
+    "Operations"
+   ],
+   "interests": [
+    "business",
+    "analytics",
+    "data",
+    "management",
+    "finance"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "bcom-hons",
+   "name": "B.Com (Hons) Accounting & Finance",
+   "award": "B.Com",
+   "school": "business",
+   "level": "ug",
+   "mode": "full_time",
+   "campuses": [
+    "pune"
+   ],
+   "duration_months": 36,
+   "duration_label": "3 years",
+   "hours_per_week": 40,
+   "fee_per_year": 180000,
+   "fee_total": 540000,
+   "application_fee": 1500,
+   "seats": 120,
+   "intake": "ug-2027",
+   "eligibility": {
+    "requires": "class12",
+    "min_percent": 55,
+    "needs": "Class 12 in Commerce, or any stream with Maths, 55% overall",
+    "streams": [
+     "commerce",
+     "science_pcm"
+    ]
+   },
+   "entrance": [
+    "AUSAT 2027",
+    "Class 12 merit"
+   ],
+   "selection": [
+    "Apply online",
+    "AUSAT or Class 12 merit",
+    "Offer"
+   ],
+   "scholarships": [
+    "merit-12",
+    "ausat-rank",
+    "udaan",
+    "sports",
+    "defence"
+   ],
+   "outcomes": {
+    "placement_pct": 82,
+    "median_ctc_lpa": 5.2,
+    "highest_ctc_lpa": 11.0,
+    "roles": [
+     "Audit associate",
+     "Financial analyst",
+     "Tax associate"
+    ]
+   },
+   "highlights": [
+    "Exam prep built in for professional accounting qualifications",
+    "Big-four style audit simulation"
+   ],
+   "modules": [
+    "Financial accounting",
+    "Corporate finance",
+    "Taxation",
+    "Auditing",
+    "Financial markets"
+   ],
+   "interests": [
+    "finance",
+    "accounting",
+    "commerce",
+    "banking",
+    "stock market"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "mba",
+   "name": "MBA (Two-year, full-time)",
+   "award": "MBA",
+   "school": "business",
+   "level": "pg",
+   "mode": "full_time",
+   "campuses": [
+    "pune",
+    "bengaluru"
+   ],
+   "duration_months": 24,
+   "duration_label": "2 years",
+   "hours_per_week": 40,
+   "fee_per_year": 650000,
+   "fee_total": 1300000,
+   "application_fee": 1500,
+   "seats": 300,
+   "intake": "mba-2027",
+   "eligibility": {
+    "requires": "graduation",
+    "min_percent": 50,
+    "needs": "Graduation in any discipline, 50%",
+    "streams": []
+   },
+   "entrance": [
+    "CAT",
+    "XAT",
+    "CMAT",
+    "AUSAT-PG 2027"
+   ],
+   "selection": [
+    "Apply online",
+    "A CAT, XAT, CMAT or AUSAT-PG score",
+    "Group discussion and interview (online)",
+    "Offer"
+   ],
+   "scholarships": [
+    "ausat-rank",
+    "pg-merit",
+    "udaan",
+    "sports",
+    "defence"
+   ],
+   "outcomes": {
+    "placement_pct": 96,
+    "median_ctc_lpa": 11.2,
+    "highest_ctc_lpa": 29.0,
+    "roles": [
+     "Product manager",
+     "Brand manager",
+     "Investment analyst",
+     "Consultant"
+    ]
+   },
+   "highlights": [
+    "Summer internship with a stipend",
+    "Global immersion week",
+    "Specialise in year two"
+   ],
+   "modules": [
+    "Managerial economics",
+    "Corporate finance",
+    "Marketing management",
+    "Operations",
+    "Strategy"
+   ],
+   "interests": [
+    "business",
+    "management",
+    "leadership",
+    "finance",
+    "marketing",
+    "consulting",
+    "product"
+   ],
+   "specialisations": [
+    "Finance",
+    "Marketing",
+    "Operations",
+    "Human resources",
+    "Product management"
+   ]
+  },
+  {
+   "id": "mba-ba",
+   "name": "MBA Business Analytics",
+   "award": "MBA",
+   "school": "business",
+   "level": "pg",
+   "mode": "full_time",
+   "campuses": [
+    "bengaluru"
+   ],
+   "duration_months": 24,
+   "duration_label": "2 years",
+   "hours_per_week": 40,
+   "fee_per_year": 690000,
+   "fee_total": 1380000,
+   "application_fee": 1500,
+   "seats": 60,
+   "intake": "mba-2027",
+   "eligibility": {
+    "requires": "graduation",
+    "min_percent": 55,
+    "needs": "Graduation with Maths or Statistics in Class 12 or college, 55%",
+    "streams": []
+   },
+   "entrance": [
+    "CAT",
+    "XAT",
+    "CMAT",
+    "AUSAT-PG 2027"
+   ],
+   "selection": [
+    "Apply online",
+    "A CAT, XAT, CMAT or AUSAT-PG score",
+    "Case discussion and interview (online)",
+    "Offer"
+   ],
+   "scholarships": [
+    "ausat-rank",
+    "pg-merit",
+    "udaan",
+    "sports",
+    "defence"
+   ],
+   "outcomes": {
+    "placement_pct": 95,
+    "median_ctc_lpa": 12.4,
+    "highest_ctc_lpa": 27.0,
+    "roles": [
+     "Analytics manager",
+     "Product analyst",
+     "Strategy analyst"
+    ]
+   },
+   "highlights": [
+    "Analytics lab with industry datasets",
+    "Capstone with a Bengaluru company"
+   ],
+   "modules": [
+    "Business statistics",
+    "Machine learning for managers",
+    "Marketing analytics",
+    "Supply chain analytics"
+   ],
+   "interests": [
+    "business",
+    "analytics",
+    "data",
+    "management",
+    "consulting"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "mba-healthcare",
+   "name": "MBA Healthcare Management",
+   "award": "MBA",
+   "school": "business",
+   "level": "pg",
+   "mode": "full_time",
+   "campuses": [
+    "pune"
+   ],
+   "duration_months": 24,
+   "duration_label": "2 years",
+   "hours_per_week": 40,
+   "fee_per_year": 540000,
+   "fee_total": 1080000,
+   "application_fee": 1500,
+   "seats": 60,
+   "intake": "mba-2027",
+   "eligibility": {
+    "requires": "graduation",
+    "min_percent": 50,
+    "needs": "Graduation in any discipline, 50%; a health-sciences degree is an advantage",
+    "streams": []
+   },
+   "entrance": [
+    "CAT",
+    "XAT",
+    "CMAT",
+    "AUSAT-PG 2027"
+   ],
+   "selection": [
+    "Apply online",
+    "A CAT, XAT, CMAT or AUSAT-PG score",
+    "Interview (online)",
+    "Offer"
+   ],
+   "scholarships": [
+    "ausat-rank",
+    "pg-merit",
+    "udaan",
+    "sports",
+    "defence"
+   ],
+   "outcomes": {
+    "placement_pct": 93,
+    "median_ctc_lpa": 9.6,
+    "highest_ctc_lpa": 19.0,
+    "roles": [
+     "Hospital operations manager",
+     "Healthcare consultant"
+    ]
+   },
+   "highlights": [
+    "Residency at the Anvaya teaching hospital",
+    "Health-tech elective track"
+   ],
+   "modules": [
+    "Hospital operations",
+    "Health economics",
+    "Healthcare quality",
+    "Health-tech strategy"
+   ],
+   "interests": [
+    "healthcare",
+    "management",
+    "hospitals",
+    "business",
+    "public health"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "pgd-digital-marketing",
+   "name": "PG Diploma in Digital Marketing",
+   "award": "PG Diploma",
+   "school": "business",
+   "level": "diploma",
+   "mode": "full_time",
+   "campuses": [
+    "pune"
+   ],
+   "duration_months": 12,
+   "duration_label": "1 year",
+   "hours_per_week": 40,
+   "fee_per_year": 290000,
+   "fee_total": 290000,
+   "application_fee": 1500,
+   "seats": 60,
+   "intake": "pg-2027",
+   "eligibility": {
+    "requires": "graduation",
+    "min_percent": 50,
+    "needs": "Graduation in any discipline, 50%",
+    "streams": []
+   },
+   "entrance": [
+    "No entrance test"
+   ],
+   "selection": [
+    "Apply online",
+    "Interview (online)",
+    "Offer"
+   ],
+   "scholarships": [
+    "udaan",
+    "defence"
+   ],
+   "outcomes": {
+    "placement_pct": 88,
+    "median_ctc_lpa": 5.8,
+    "highest_ctc_lpa": 12.0,
+    "roles": [
+     "Performance marketer",
+     "Content strategist",
+     "Social media manager"
+    ]
+   },
+   "highlights": [
+    "Run real ad budgets for partner brands",
+    "Agency internship"
+   ],
+   "modules": [
+    "Performance marketing",
+    "SEO and content",
+    "Social media",
+    "Marketing analytics"
+   ],
+   "interests": [
+    "marketing",
+    "social media",
+    "advertising",
+    "business",
+    "content"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "emba",
+   "name": "Executive MBA (Weekend)",
+   "award": "MBA",
+   "school": "online",
+   "level": "pg",
+   "mode": "weekend",
+   "campuses": [
+    "pune",
+    "bengaluru"
+   ],
+   "duration_months": 18,
+   "duration_label": "1.5 years",
+   "hours_per_week": 12,
+   "fee_per_year": 480000,
+   "fee_total": 720000,
+   "application_fee": 1500,
+   "seats": 80,
+   "intake": "exec-jan-2027",
+   "eligibility": {
+    "requires": "graduation",
+    "min_percent": 50,
+    "needs": "Graduation with 50% and at least 3 years of full-time work experience",
+    "streams": [],
+    "min_experience_years": 3
+   },
+   "entrance": [
+    "Profile review",
+    "AUSAT-PG or a CAT/GMAT score (optional)"
+   ],
+   "selection": [
+    "Apply online",
+    "Profile review",
+    "Interview with faculty",
+    "Offer"
+   ],
+   "scholarships": [
+    "defence"
+   ],
+   "outcomes": {
+    "note": "64% of the 2025 batch reported a promotion or role change within 12 months",
+    "roles": [
+     "Senior manager",
+     "Business head"
+    ]
+   },
+   "highlights": [
+    "Saturday classes on campus, Sunday online",
+    "International study week",
+    "Peer group averaging 9 years of experience"
+   ],
+   "modules": [
+    "Leadership",
+    "Finance for executives",
+    "Digital strategy",
+    "Negotiation"
+   ],
+   "interests": [
+    "leadership",
+    "management",
+    "business",
+    "career growth",
+    "working professional"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "online-mba",
+   "name": "Online MBA",
+   "award": "MBA",
+   "school": "online",
+   "level": "pg",
+   "mode": "online",
+   "campuses": [
+    "online"
+   ],
+   "duration_months": 24,
+   "duration_label": "2 years",
+   "hours_per_week": 12,
+   "fee_per_year": 110000,
+   "fee_total": 220000,
+   "application_fee": 500,
+   "seats": 1000,
+   "intake": "online-jan-2027",
+   "eligibility": {
+    "requires": "graduation",
+    "min_percent": 50,
+    "needs": "Graduation in any discipline, 50%",
+    "streams": []
+   },
+   "entrance": [
+    "No entrance test"
+   ],
+   "selection": [
+    "Apply online",
+    "Document check",
+    "Offer"
+   ],
+   "scholarships": [
+    "online-early"
+   ],
+   "outcomes": {
+    "note": "Same degree as on campus; career-services portal and alumni network included",
+    "roles": [
+     "Manager",
+     "Business analyst",
+     "Entrepreneur"
+    ]
+   },
+   "highlights": [
+    "Live weekend classes and recorded lectures",
+    "Specialise in finance, marketing, HR or analytics",
+    "Pay per semester"
+   ],
+   "modules": [
+    "Management foundations",
+    "Finance",
+    "Marketing",
+    "Analytics",
+    "Strategy"
+   ],
+   "interests": [
+    "business",
+    "management",
+    "working professional",
+    "career growth",
+    "finance",
+    "marketing"
+   ],
+   "specialisations": [
+    "Finance",
+    "Marketing",
+    "Human resources",
+    "Business analytics"
+   ]
+  },
+  {
+   "id": "online-bba",
+   "name": "Online BBA",
+   "award": "BBA",
+   "school": "online",
+   "level": "ug",
+   "mode": "online",
+   "campuses": [
+    "online"
+   ],
+   "duration_months": 36,
+   "duration_label": "3 years",
+   "hours_per_week": 12,
+   "fee_per_year": 75000,
+   "fee_total": 225000,
+   "application_fee": 500,
+   "seats": 1000,
+   "intake": "online-jan-2027",
+   "eligibility": {
+    "requires": "class12",
+    "min_percent": 45,
+    "needs": "Class 12 in any stream, 45%",
+    "streams": [
+     "science_pcm",
+     "science_pcb",
+     "commerce",
+     "humanities",
+     "other"
+    ]
+   },
+   "entrance": [
+    "No entrance test"
+   ],
+   "selection": [
+    "Apply online",
+    "Document check",
+    "Offer"
+   ],
+   "scholarships": [
+    "online-early"
+   ],
+   "outcomes": {
+    "note": "Study while you work; the same degree as on campus",
+    "roles": [
+     "Business associate",
+     "Sales executive"
+    ]
+   },
+   "highlights": [
+    "Learn at your own pace with weekly live sessions",
+    "Pay per semester"
+   ],
+   "modules": [
+    "Management",
+    "Accounting",
+    "Marketing",
+    "Business communication"
+   ],
+   "interests": [
+    "business",
+    "management",
+    "working professional",
+    "marketing"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "cert-product",
+   "name": "Certificate in Product Management",
+   "award": "Certificate",
+   "school": "online",
+   "level": "certificate",
+   "mode": "online",
+   "campuses": [
+    "online"
+   ],
+   "duration_months": 5,
+   "duration_label": "5 months",
+   "hours_per_week": 8,
+   "fee_per_year": 68000,
+   "fee_total": 68000,
+   "application_fee": 500,
+   "seats": 120,
+   "intake": "cert-monthly",
+   "eligibility": {
+    "requires": "graduation",
+    "min_percent": 0,
+    "needs": "Graduation; two years of work experience recommended",
+    "streams": []
+   },
+   "entrance": [
+    "No entrance test"
+   ],
+   "selection": [
+    "Apply online",
+    "Short orientation call",
+    "Start with the next cohort"
+   ],
+   "scholarships": [
+    "online-early"
+   ],
+   "outcomes": {
+    "note": "Capstone product teardown reviewed by working product managers",
+    "roles": [
+     "Associate product manager",
+     "Product analyst"
+    ]
+   },
+   "highlights": [
+    "Live weekend workshops",
+    "Mentors from product teams"
+   ],
+   "modules": [
+    "Product discovery",
+    "Roadmaps",
+    "Metrics",
+    "Working with engineering"
+   ],
+   "interests": [
+    "product",
+    "technology",
+    "business",
+    "career switch",
+    "startups"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "cert-fin-model",
+   "name": "Certificate in Financial Modelling & Valuation",
+   "award": "Certificate",
+   "school": "online",
+   "level": "certificate",
+   "mode": "online",
+   "campuses": [
+    "online"
+   ],
+   "duration_months": 4,
+   "duration_label": "4 months",
+   "hours_per_week": 6,
+   "fee_per_year": 42000,
+   "fee_total": 42000,
+   "application_fee": 500,
+   "seats": 150,
+   "intake": "cert-monthly",
+   "eligibility": {
+    "requires": "class12",
+    "min_percent": 0,
+    "needs": "Class 12 pass; comfort with spreadsheets",
+    "streams": []
+   },
+   "entrance": [
+    "No entrance test"
+   ],
+   "selection": [
+    "Apply online",
+    "Start with the next cohort"
+   ],
+   "scholarships": [
+    "online-early"
+   ],
+   "outcomes": {
+    "note": "Build three company valuation models end to end",
+    "roles": [
+     "Financial analyst",
+     "Equity research associate"
+    ]
+   },
+   "highlights": [
+    "Evening live classes twice a week",
+    "Model templates you keep"
+   ],
+   "modules": [
+    "Three-statement models",
+    "DCF valuation",
+    "Comparable companies",
+    "Deal modelling"
+   ],
+   "interests": [
+    "finance",
+    "stock market",
+    "banking",
+    "accounting",
+    "investment"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "bdes-communication",
+   "name": "B.Des Communication Design",
+   "award": "B.Des",
+   "school": "design",
+   "level": "ug",
+   "mode": "full_time",
+   "campuses": [
+    "pune"
+   ],
+   "duration_months": 48,
+   "duration_label": "4 years",
+   "hours_per_week": 40,
+   "fee_per_year": 380000,
+   "fee_total": 1520000,
+   "application_fee": 1500,
+   "seats": 60,
+   "intake": "ug-2027",
+   "eligibility": {
+    "requires": "class12",
+    "min_percent": 50,
+    "needs": "Class 12 in any stream, 50% overall",
+    "streams": [
+     "science_pcm",
+     "science_pcb",
+     "commerce",
+     "humanities",
+     "other"
+    ]
+   },
+   "entrance": [
+    "Anvaya Design Aptitude Test (ADAT)"
+   ],
+   "selection": [
+    "Apply online",
+    "ADAT (drawing and design thinking)",
+    "Studio test and portfolio interview",
+    "Offer"
+   ],
+   "scholarships": [
+    "merit-12",
+    "ausat-rank",
+    "udaan",
+    "sports",
+    "defence"
+   ],
+   "outcomes": {
+    "placement_pct": 83,
+    "median_ctc_lpa": 6.0,
+    "highest_ctc_lpa": 14.0,
+    "roles": [
+     "Graphic designer",
+     "Brand designer",
+     "Motion designer"
+    ]
+   },
+   "highlights": [
+    "24-hour studios",
+    "Annual degree show with industry jury",
+    "Print and motion labs"
+   ],
+   "modules": [
+    "Typography",
+    "Visual storytelling",
+    "Branding",
+    "Motion graphics",
+    "Publication design"
+   ],
+   "interests": [
+    "design",
+    "art",
+    "drawing",
+    "branding",
+    "animation",
+    "creative"
+   ],
+   "specialisations": [
+    "Branding",
+    "Motion design",
+    "Illustration"
+   ]
+  },
+  {
+   "id": "bdes-product",
+   "name": "B.Des Product & Industrial Design",
+   "award": "B.Des",
+   "school": "design",
+   "level": "ug",
+   "mode": "full_time",
+   "campuses": [
+    "pune"
+   ],
+   "duration_months": 48,
+   "duration_label": "4 years",
+   "hours_per_week": 40,
+   "fee_per_year": 380000,
+   "fee_total": 1520000,
+   "application_fee": 1500,
+   "seats": 40,
+   "intake": "ug-2027",
+   "eligibility": {
+    "requires": "class12",
+    "min_percent": 50,
+    "needs": "Class 12 in any stream, 50% overall",
+    "streams": [
+     "science_pcm",
+     "science_pcb",
+     "commerce",
+     "humanities",
+     "other"
+    ]
+   },
+   "entrance": [
+    "Anvaya Design Aptitude Test (ADAT)"
+   ],
+   "selection": [
+    "Apply online",
+    "ADAT (drawing and design thinking)",
+    "Studio test and portfolio interview",
+    "Offer"
+   ],
+   "scholarships": [
+    "merit-12",
+    "ausat-rank",
+    "udaan",
+    "sports",
+    "defence"
+   ],
+   "outcomes": {
+    "placement_pct": 80,
+    "median_ctc_lpa": 6.4,
+    "highest_ctc_lpa": 13.0,
+    "roles": [
+     "Product designer",
+     "Industrial designer",
+     "Design researcher"
+    ]
+   },
+   "highlights": [
+    "Wood, metal and 3D-printing workshops",
+    "Furniture and consumer-electronics briefs from industry"
+   ],
+   "modules": [
+    "Form and materials",
+    "Ergonomics",
+    "Prototyping",
+    "Design for manufacture"
+   ],
+   "interests": [
+    "design",
+    "products",
+    "making",
+    "hands-on",
+    "creative",
+    "engineering"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "bdes-fashion",
+   "name": "B.Des Fashion & Textile Design",
+   "award": "B.Des",
+   "school": "design",
+   "level": "ug",
+   "mode": "full_time",
+   "campuses": [
+    "pune"
+   ],
+   "duration_months": 48,
+   "duration_label": "4 years",
+   "hours_per_week": 40,
+   "fee_per_year": 360000,
+   "fee_total": 1440000,
+   "application_fee": 1500,
+   "seats": 60,
+   "intake": "ug-2027",
+   "eligibility": {
+    "requires": "class12",
+    "min_percent": 50,
+    "needs": "Class 12 in any stream, 50% overall",
+    "streams": [
+     "science_pcm",
+     "science_pcb",
+     "commerce",
+     "humanities",
+     "other"
+    ]
+   },
+   "entrance": [
+    "Anvaya Design Aptitude Test (ADAT)"
+   ],
+   "selection": [
+    "Apply online",
+    "ADAT (drawing and design thinking)",
+    "Studio test and portfolio interview",
+    "Offer"
+   ],
+   "scholarships": [
+    "merit-12",
+    "ausat-rank",
+    "udaan",
+    "sports",
+    "defence"
+   ],
+   "outcomes": {
+    "placement_pct": 76,
+    "median_ctc_lpa": 5.0,
+    "highest_ctc_lpa": 11.0,
+    "roles": [
+     "Fashion designer",
+     "Textile designer",
+     "Merchandiser"
+    ]
+   },
+   "highlights": [
+    "Handloom clusters study tour",
+    "Graduation runway show"
+   ],
+   "modules": [
+    "Fashion illustration",
+    "Pattern making",
+    "Textile science",
+    "Sustainable fashion"
+   ],
+   "interests": [
+    "fashion",
+    "textiles",
+    "design",
+    "art",
+    "creative",
+    "clothes"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "bdes-ux",
+   "name": "B.Des UX & Interaction Design",
+   "award": "B.Des",
+   "school": "design",
+   "level": "ug",
+   "mode": "full_time",
+   "campuses": [
+    "pune",
+    "bengaluru"
+   ],
+   "duration_months": 48,
+   "duration_label": "4 years",
+   "hours_per_week": 40,
+   "fee_per_year": 395000,
+   "fee_total": 1580000,
+   "application_fee": 1500,
+   "seats": 90,
+   "intake": "ug-2027",
+   "eligibility": {
+    "requires": "class12",
+    "min_percent": 50,
+    "needs": "Class 12 in any stream, 50% overall",
+    "streams": [
+     "science_pcm",
+     "science_pcb",
+     "commerce",
+     "humanities",
+     "other"
+    ]
+   },
+   "entrance": [
+    "Anvaya Design Aptitude Test (ADAT)"
+   ],
+   "selection": [
+    "Apply online",
+    "ADAT (drawing and design thinking)",
+    "Studio test and portfolio interview",
+    "Offer"
+   ],
+   "scholarships": [
+    "merit-12",
+    "ausat-rank",
+    "udaan",
+    "sports",
+    "defence"
+   ],
+   "outcomes": {
+    "placement_pct": 88,
+    "median_ctc_lpa": 7.6,
+    "highest_ctc_lpa": 18.0,
+    "roles": [
+     "UX designer",
+     "Interaction designer",
+     "UX researcher"
+    ]
+   },
+   "highlights": [
+    "Usability lab with eye-tracking",
+    "Product-team internships"
+   ],
+   "modules": [
+    "Interaction design",
+    "User research",
+    "Prototyping",
+    "Design systems",
+    "Accessibility"
+   ],
+   "interests": [
+    "design",
+    "ux",
+    "apps",
+    "technology",
+    "creative",
+    "psychology"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "mdes-interaction",
+   "name": "M.Des Interaction Design",
+   "award": "M.Des",
+   "school": "design",
+   "level": "pg",
+   "mode": "full_time",
+   "campuses": [
+    "bengaluru"
+   ],
+   "duration_months": 24,
+   "duration_label": "2 years",
+   "hours_per_week": 40,
+   "fee_per_year": 340000,
+   "fee_total": 680000,
+   "application_fee": 1500,
+   "seats": 30,
+   "intake": "pg-2027",
+   "eligibility": {
+    "requires": "graduation",
+    "min_percent": 55,
+    "needs": "Graduation in design, architecture, engineering or fine arts, 55%, with a portfolio",
+    "streams": []
+   },
+   "entrance": [
+    "Portfolio review",
+    "AUSAT-PG Design"
+   ],
+   "selection": [
+    "Apply online with portfolio",
+    "Design test",
+    "Portfolio interview",
+    "Offer"
+   ],
+   "scholarships": [
+    "ausat-rank",
+    "pg-merit",
+    "udaan",
+    "sports",
+    "defence"
+   ],
+   "outcomes": {
+    "placement_pct": 90,
+    "median_ctc_lpa": 11.0,
+    "highest_ctc_lpa": 22.0,
+    "roles": [
+     "Senior UX designer",
+     "Product designer"
+    ]
+   },
+   "highlights": [
+    "Studio projects with Bengaluru product companies",
+    "Thesis exhibited at the design week"
+   ],
+   "modules": [
+    "Advanced interaction design",
+    "Service design",
+    "Design research",
+    "Design leadership"
+   ],
+   "interests": [
+    "design",
+    "ux",
+    "technology",
+    "product",
+    "creative"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "diploma-interior",
+   "name": "Diploma in Interior Design",
+   "award": "Diploma",
+   "school": "design",
+   "level": "diploma",
+   "mode": "full_time",
+   "campuses": [
+    "pune"
+   ],
+   "duration_months": 12,
+   "duration_label": "1 year",
+   "hours_per_week": 40,
+   "fee_per_year": 145000,
+   "fee_total": 145000,
+   "application_fee": 1500,
+   "seats": 40,
+   "intake": "ug-2027",
+   "eligibility": {
+    "requires": "class12",
+    "min_percent": 45,
+    "needs": "Class 12 in any stream, 45%",
+    "streams": [
+     "science_pcm",
+     "science_pcb",
+     "commerce",
+     "humanities",
+     "other"
+    ]
+   },
+   "entrance": [
+    "No entrance test"
+   ],
+   "selection": [
+    "Apply online",
+    "Portfolio conversation",
+    "Offer"
+   ],
+   "scholarships": [
+    "udaan",
+    "defence"
+   ],
+   "outcomes": {
+    "placement_pct": 74,
+    "median_ctc_lpa": 3.4,
+    "roles": [
+     "Junior interior designer",
+     "Site coordinator"
+    ]
+   },
+   "highlights": [
+    "Site visits every month",
+    "Software: AutoCAD-style drafting and 3D visualisation"
+   ],
+   "modules": [
+    "Space planning",
+    "Materials",
+    "Lighting",
+    "3D visualisation"
+   ],
+   "interests": [
+    "interiors",
+    "design",
+    "homes",
+    "architecture",
+    "creative"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "cert-uiux",
+   "name": "Certificate in UI/UX Design",
+   "award": "Certificate",
+   "school": "online",
+   "level": "certificate",
+   "mode": "online",
+   "campuses": [
+    "online"
+   ],
+   "duration_months": 6,
+   "duration_label": "6 months",
+   "hours_per_week": 10,
+   "fee_per_year": 58000,
+   "fee_total": 58000,
+   "application_fee": 500,
+   "seats": 150,
+   "intake": "cert-monthly",
+   "eligibility": {
+    "requires": "class12",
+    "min_percent": 0,
+    "needs": "Class 12 pass; no design experience needed",
+    "streams": []
+   },
+   "entrance": [
+    "No entrance test"
+   ],
+   "selection": [
+    "Apply online",
+    "Start with the next cohort"
+   ],
+   "scholarships": [
+    "online-early"
+   ],
+   "outcomes": {
+    "note": "Leave with a three-case-study portfolio",
+    "roles": [
+     "Junior UI designer",
+     "UX designer"
+    ]
+   },
+   "highlights": [
+    "Weekly critique with practising designers",
+    "Tools taught: Figma-style prototyping"
+   ],
+   "modules": [
+    "Visual design",
+    "User research",
+    "Wireframes and prototypes",
+    "Portfolio"
+   ],
+   "interests": [
+    "design",
+    "ux",
+    "apps",
+    "creative",
+    "career switch"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "ballb",
+   "name": "BA LL.B (Hons)",
+   "award": "BA LL.B",
+   "school": "law",
+   "level": "ug",
+   "mode": "full_time",
+   "campuses": [
+    "pune"
+   ],
+   "duration_months": 60,
+   "duration_label": "5 years",
+   "hours_per_week": 40,
+   "fee_per_year": 310000,
+   "fee_total": 1550000,
+   "application_fee": 1500,
+   "seats": 120,
+   "intake": "ug-2027",
+   "eligibility": {
+    "requires": "class12",
+    "min_percent": 45,
+    "needs": "Class 12 in any stream, 45% overall",
+    "streams": [
+     "science_pcm",
+     "science_pcb",
+     "commerce",
+     "humanities",
+     "other"
+    ]
+   },
+   "entrance": [
+    "CLAT score",
+    "AUSAT-Law 2027"
+   ],
+   "selection": [
+    "Apply online",
+    "A CLAT or AUSAT-Law score",
+    "Personal interview (online)",
+    "Offer"
+   ],
+   "scholarships": [
+    "merit-12",
+    "ausat-rank",
+    "udaan",
+    "sports",
+    "defence"
+   ],
+   "outcomes": {
+    "placement_pct": 80,
+    "median_ctc_lpa": 7.0,
+    "highest_ctc_lpa": 16.0,
+    "roles": [
+     "Litigation associate",
+     "Corporate lawyer",
+     "Judicial services aspirant"
+    ]
+   },
+   "highlights": [
+    "Moot court hall",
+    "Legal aid clinic in villages near Pune",
+    "Chambers internship every summer"
+   ],
+   "modules": [
+    "Constitutional law",
+    "Contracts",
+    "Criminal law",
+    "Jurisprudence",
+    "Political science"
+   ],
+   "interests": [
+    "law",
+    "justice",
+    "policy",
+    "debating",
+    "politics",
+    "public speaking"
+   ],
+   "specialisations": [
+    "Constitutional law",
+    "Criminal law"
+   ]
+  },
+  {
+   "id": "bballb",
+   "name": "BBA LL.B (Hons)",
+   "award": "BBA LL.B",
+   "school": "law",
+   "level": "ug",
+   "mode": "full_time",
+   "campuses": [
+    "pune"
+   ],
+   "duration_months": 60,
+   "duration_label": "5 years",
+   "hours_per_week": 40,
+   "fee_per_year": 320000,
+   "fee_total": 1600000,
+   "application_fee": 1500,
+   "seats": 120,
+   "intake": "ug-2027",
+   "eligibility": {
+    "requires": "class12",
+    "min_percent": 45,
+    "needs": "Class 12 in any stream, 45% overall",
+    "streams": [
+     "science_pcm",
+     "science_pcb",
+     "commerce",
+     "humanities",
+     "other"
+    ]
+   },
+   "entrance": [
+    "CLAT score",
+    "AUSAT-Law 2027"
+   ],
+   "selection": [
+    "Apply online",
+    "A CLAT or AUSAT-Law score",
+    "Personal interview (online)",
+    "Offer"
+   ],
+   "scholarships": [
+    "merit-12",
+    "ausat-rank",
+    "udaan",
+    "sports",
+    "defence"
+   ],
+   "outcomes": {
+    "placement_pct": 84,
+    "median_ctc_lpa": 8.0,
+    "highest_ctc_lpa": 18.0,
+    "roles": [
+     "Corporate lawyer",
+     "Legal counsel",
+     "Compliance associate"
+    ]
+   },
+   "highlights": [
+    "Corporate law clinic",
+    "Law-firm internships in Mumbai and Pune"
+   ],
+   "modules": [
+    "Company law",
+    "Contracts",
+    "Business management",
+    "Securities law",
+    "Taxation"
+   ],
+   "interests": [
+    "law",
+    "business",
+    "corporate",
+    "finance",
+    "debating"
+   ],
+   "specialisations": [
+    "Corporate law",
+    "Tax law"
+   ]
+  },
+  {
+   "id": "llb",
+   "name": "LL.B (Three-year)",
+   "award": "LL.B",
+   "school": "law",
+   "level": "ug",
+   "mode": "full_time",
+   "campuses": [
+    "pune"
+   ],
+   "duration_months": 36,
+   "duration_label": "3 years",
+   "hours_per_week": 40,
+   "fee_per_year": 210000,
+   "fee_total": 630000,
+   "application_fee": 1500,
+   "seats": 120,
+   "intake": "ug-2027",
+   "eligibility": {
+    "requires": "graduation",
+    "min_percent": 45,
+    "needs": "Graduation in any discipline, 45%",
+    "streams": []
+   },
+   "entrance": [
+    "AUSAT-Law 2027",
+    "Graduation merit"
+   ],
+   "selection": [
+    "Apply online",
+    "AUSAT-Law or graduation merit",
+    "Offer"
+   ],
+   "scholarships": [
+    "pg-merit",
+    "udaan",
+    "sports",
+    "defence"
+   ],
+   "outcomes": {
+    "placement_pct": 72,
+    "median_ctc_lpa": 5.5,
+    "roles": [
+     "Advocate",
+     "Legal associate"
+    ]
+   },
+   "highlights": [
+    "Evening legal-writing labs",
+    "Court visits every term"
+   ],
+   "modules": [
+    "Constitutional law",
+    "Civil procedure",
+    "Criminal procedure",
+    "Evidence"
+   ],
+   "interests": [
+    "law",
+    "justice",
+    "career switch",
+    "policy"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "llm-corporate",
+   "name": "LL.M Corporate & Commercial Law (One-year)",
+   "award": "LL.M",
+   "school": "law",
+   "level": "pg",
+   "mode": "full_time",
+   "campuses": [
+    "pune"
+   ],
+   "duration_months": 12,
+   "duration_label": "1 year",
+   "hours_per_week": 40,
+   "fee_per_year": 250000,
+   "fee_total": 250000,
+   "application_fee": 1500,
+   "seats": 30,
+   "intake": "pg-2027",
+   "eligibility": {
+    "requires": "graduation",
+    "min_percent": 50,
+    "needs": "LL.B or an integrated law degree, 50%",
+    "streams": []
+   },
+   "entrance": [
+    "CLAT PG score",
+    "AUSAT-Law PG 2027"
+   ],
+   "selection": [
+    "Apply online",
+    "A CLAT PG or AUSAT-Law PG score",
+    "Interview",
+    "Offer"
+   ],
+   "scholarships": [
+    "ausat-rank",
+    "pg-merit",
+    "udaan",
+    "sports",
+    "defence"
+   ],
+   "outcomes": {
+    "placement_pct": 85,
+    "median_ctc_lpa": 9.0,
+    "roles": [
+     "Corporate counsel",
+     "Law teacher"
+    ]
+   },
+   "highlights": [
+    "Dissertation with a practising partner as co-guide"
+   ],
+   "modules": [
+    "Mergers and acquisitions",
+    "Competition law",
+    "Insolvency",
+    "Research methods"
+   ],
+   "interests": [
+    "law",
+    "corporate",
+    "business",
+    "research"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "cert-cyberlaw",
+   "name": "Certificate in Cyber Law & Data Protection",
+   "award": "Certificate",
+   "school": "online",
+   "level": "certificate",
+   "mode": "online",
+   "campuses": [
+    "online"
+   ],
+   "duration_months": 3,
+   "duration_label": "3 months",
+   "hours_per_week": 5,
+   "fee_per_year": 28000,
+   "fee_total": 28000,
+   "application_fee": 500,
+   "seats": 200,
+   "intake": "cert-monthly",
+   "eligibility": {
+    "requires": "class12",
+    "min_percent": 0,
+    "needs": "Class 12 pass",
+    "streams": []
+   },
+   "entrance": [
+    "No entrance test"
+   ],
+   "selection": [
+    "Apply online",
+    "Start with the next cohort"
+   ],
+   "scholarships": [
+    "online-early"
+   ],
+   "outcomes": {
+    "note": "Useful for compliance, IT and legal roles",
+    "roles": [
+     "Compliance associate",
+     "Privacy analyst"
+    ]
+   },
+   "highlights": [
+    "Recorded lectures with a live doubt session each week"
+   ],
+   "modules": [
+    "Cyber crime",
+    "Data protection law",
+    "Contracts online",
+    "Compliance"
+   ],
+   "interests": [
+    "law",
+    "technology",
+    "cyber security",
+    "compliance",
+    "working professional"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "bpt",
+   "name": "Bachelor of Physiotherapy (BPT)",
+   "award": "BPT",
+   "school": "health",
+   "level": "ug",
+   "mode": "full_time",
+   "campuses": [
+    "pune"
+   ],
+   "duration_months": 54,
+   "duration_label": "4.5 years",
+   "hours_per_week": 40,
+   "fee_per_year": 190000,
+   "fee_total": 855000,
+   "application_fee": 1500,
+   "seats": 100,
+   "intake": "ug-2027",
+   "eligibility": {
+    "requires": "class12",
+    "min_percent": 50,
+    "needs": "Class 12 with Physics, Chemistry, Biology and English, 50% overall",
+    "streams": [
+     "science_pcb"
+    ]
+   },
+   "entrance": [
+    "AUSAT-Health 2027",
+    "NEET-UG score"
+   ],
+   "selection": [
+    "Apply online",
+    "AUSAT-Health or a NEET-UG score",
+    "Interview",
+    "Offer"
+   ],
+   "scholarships": [
+    "merit-12",
+    "ausat-rank",
+    "udaan",
+    "sports",
+    "defence"
+   ],
+   "outcomes": {
+    "placement_pct": 88,
+    "median_ctc_lpa": 4.2,
+    "roles": [
+     "Physiotherapist",
+     "Sports rehab therapist"
+    ]
+   },
+   "highlights": [
+    "Six-month internship at the Anvaya teaching hospital",
+    "Sports rehab with university teams"
+   ],
+   "modules": [
+    "Anatomy",
+    "Physiology",
+    "Exercise therapy",
+    "Orthopaedic physiotherapy",
+    "Sports physiotherapy"
+   ],
+   "interests": [
+    "healthcare",
+    "sports",
+    "fitness",
+    "biology",
+    "helping people"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "bsc-nursing",
+   "name": "B.Sc Nursing",
+   "award": "B.Sc",
+   "school": "health",
+   "level": "ug",
+   "mode": "full_time",
+   "campuses": [
+    "pune"
+   ],
+   "duration_months": 48,
+   "duration_label": "4 years",
+   "hours_per_week": 40,
+   "fee_per_year": 160000,
+   "fee_total": 640000,
+   "application_fee": 1500,
+   "seats": 100,
+   "intake": "ug-2027",
+   "eligibility": {
+    "requires": "class12",
+    "min_percent": 45,
+    "needs": "Class 12 with Physics, Chemistry, Biology and English, 45% overall",
+    "streams": [
+     "science_pcb"
+    ]
+   },
+   "entrance": [
+    "AUSAT-Health 2027"
+   ],
+   "selection": [
+    "Apply online",
+    "AUSAT-Health",
+    "Interview",
+    "Offer"
+   ],
+   "scholarships": [
+    "merit-12",
+    "ausat-rank",
+    "udaan",
+    "sports",
+    "defence"
+   ],
+   "outcomes": {
+    "placement_pct": 95,
+    "median_ctc_lpa": 3.8,
+    "roles": [
+     "Staff nurse",
+     "Critical-care nurse"
+    ]
+   },
+   "highlights": [
+    "Clinical postings from year one",
+    "Simulation lab with patient mannequins"
+   ],
+   "modules": [
+    "Nursing foundations",
+    "Medical-surgical nursing",
+    "Child health nursing",
+    "Community health"
+   ],
+   "interests": [
+    "healthcare",
+    "nursing",
+    "biology",
+    "helping people",
+    "hospitals"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "bpharm",
+   "name": "B.Pharm",
+   "award": "B.Pharm",
+   "school": "health",
+   "level": "ug",
+   "mode": "full_time",
+   "campuses": [
+    "pune"
+   ],
+   "duration_months": 48,
+   "duration_label": "4 years",
+   "hours_per_week": 40,
+   "fee_per_year": 175000,
+   "fee_total": 700000,
+   "application_fee": 1500,
+   "seats": 100,
+   "intake": "ug-2027",
+   "eligibility": {
+    "requires": "class12",
+    "min_percent": 50,
+    "needs": "Class 12 with Physics, Chemistry and Biology or Maths, 50% overall",
+    "streams": [
+     "science_pcb",
+     "science_pcm"
+    ]
+   },
+   "entrance": [
+    "AUSAT-Health 2027"
+   ],
+   "selection": [
+    "Apply online",
+    "AUSAT-Health",
+    "Merit list",
+    "Offer"
+   ],
+   "scholarships": [
+    "merit-12",
+    "ausat-rank",
+    "udaan",
+    "sports",
+    "defence"
+   ],
+   "outcomes": {
+    "placement_pct": 82,
+    "median_ctc_lpa": 4.0,
+    "roles": [
+     "Pharmacist",
+     "Quality analyst",
+     "Medical representative"
+    ]
+   },
+   "highlights": [
+    "Industrial training in pharma plants",
+    "Drug-formulation lab"
+   ],
+   "modules": [
+    "Pharmaceutics",
+    "Pharmacology",
+    "Medicinal chemistry",
+    "Pharmacognosy"
+   ],
+   "interests": [
+    "pharmacy",
+    "chemistry",
+    "healthcare",
+    "biology",
+    "medicines"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "bsc-mlt",
+   "name": "B.Sc Medical Laboratory Technology",
+   "award": "B.Sc",
+   "school": "health",
+   "level": "ug",
+   "mode": "full_time",
+   "campuses": [
+    "pune"
+   ],
+   "duration_months": 36,
+   "duration_label": "3 years",
+   "hours_per_week": 40,
+   "fee_per_year": 120000,
+   "fee_total": 360000,
+   "application_fee": 1500,
+   "seats": 60,
+   "intake": "ug-2027",
+   "eligibility": {
+    "requires": "class12",
+    "min_percent": 45,
+    "needs": "Class 12 with Physics, Chemistry and Biology, 45% overall",
+    "streams": [
+     "science_pcb"
+    ]
+   },
+   "entrance": [
+    "AUSAT-Health 2027",
+    "Class 12 merit"
+   ],
+   "selection": [
+    "Apply online",
+    "AUSAT-Health or Class 12 merit",
+    "Offer"
+   ],
+   "scholarships": [
+    "merit-12",
+    "ausat-rank",
+    "udaan",
+    "sports",
+    "defence"
+   ],
+   "outcomes": {
+    "placement_pct": 86,
+    "median_ctc_lpa": 3.2,
+    "roles": [
+     "Lab technologist",
+     "Pathology lab supervisor"
+    ]
+   },
+   "highlights": [
+    "Hospital lab rotation in the final year"
+   ],
+   "modules": [
+    "Haematology",
+    "Clinical biochemistry",
+    "Microbiology",
+    "Histopathology"
+   ],
+   "interests": [
+    "healthcare",
+    "biology",
+    "lab",
+    "science"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "mph",
+   "name": "Master of Public Health (MPH)",
+   "award": "MPH",
+   "school": "health",
+   "level": "pg",
+   "mode": "full_time",
+   "campuses": [
+    "pune"
+   ],
+   "duration_months": 24,
+   "duration_label": "2 years",
+   "hours_per_week": 40,
+   "fee_per_year": 180000,
+   "fee_total": 360000,
+   "application_fee": 1500,
+   "seats": 40,
+   "intake": "pg-2027",
+   "eligibility": {
+    "requires": "graduation",
+    "min_percent": 50,
+    "needs": "Graduation in health sciences, life sciences, social sciences or medicine, 50%",
+    "streams": []
+   },
+   "entrance": [
+    "AUSAT-PG 2027",
+    "Interview"
+   ],
+   "selection": [
+    "Apply online",
+    "AUSAT-PG",
+    "Interview",
+    "Offer"
+   ],
+   "scholarships": [
+    "ausat-rank",
+    "pg-merit",
+    "udaan",
+    "sports",
+    "defence"
+   ],
+   "outcomes": {
+    "placement_pct": 84,
+    "median_ctc_lpa": 6.0,
+    "roles": [
+     "Public health officer",
+     "Epidemiology analyst",
+     "Programme manager"
+    ]
+   },
+   "highlights": [
+    "Field practicum with district health programmes"
+   ],
+   "modules": [
+    "Epidemiology",
+    "Biostatistics",
+    "Health policy",
+    "Global health"
+   ],
+   "interests": [
+    "public health",
+    "healthcare",
+    "policy",
+    "research",
+    "social impact"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "msc-nutrition",
+   "name": "M.Sc Clinical Nutrition & Dietetics",
+   "award": "M.Sc",
+   "school": "health",
+   "level": "pg",
+   "mode": "full_time",
+   "campuses": [
+    "pune"
+   ],
+   "duration_months": 24,
+   "duration_label": "2 years",
+   "hours_per_week": 40,
+   "fee_per_year": 150000,
+   "fee_total": 300000,
+   "application_fee": 1500,
+   "seats": 30,
+   "intake": "pg-2027",
+   "eligibility": {
+    "requires": "graduation",
+    "min_percent": 50,
+    "needs": "B.Sc in Home Science, Nutrition, Life Sciences or a health science, 50%",
+    "streams": []
+   },
+   "entrance": [
+    "AUSAT-PG 2027"
+   ],
+   "selection": [
+    "Apply online",
+    "AUSAT-PG",
+    "Interview",
+    "Offer"
+   ],
+   "scholarships": [
+    "ausat-rank",
+    "pg-merit",
+    "udaan",
+    "sports",
+    "defence"
+   ],
+   "outcomes": {
+    "placement_pct": 80,
+    "median_ctc_lpa": 4.8,
+    "roles": [
+     "Clinical dietitian",
+     "Sports nutritionist"
+    ]
+   },
+   "highlights": [
+    "Hospital dietetics internship"
+   ],
+   "modules": [
+    "Medical nutrition therapy",
+    "Sports nutrition",
+    "Food science",
+    "Research methods"
+   ],
+   "interests": [
+    "nutrition",
+    "healthcare",
+    "fitness",
+    "food",
+    "biology"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "diploma-ott",
+   "name": "Diploma in Operation Theatre Technology",
+   "award": "Diploma",
+   "school": "health",
+   "level": "diploma",
+   "mode": "full_time",
+   "campuses": [
+    "pune"
+   ],
+   "duration_months": 24,
+   "duration_label": "2 years",
+   "hours_per_week": 40,
+   "fee_per_year": 85000,
+   "fee_total": 170000,
+   "application_fee": 1500,
+   "seats": 40,
+   "intake": "ug-2027",
+   "eligibility": {
+    "requires": "class12",
+    "min_percent": 45,
+    "needs": "Class 12 with Physics, Chemistry and Biology, 45%",
+    "streams": [
+     "science_pcb"
+    ]
+   },
+   "entrance": [
+    "No entrance test"
+   ],
+   "selection": [
+    "Apply online",
+    "Interview",
+    "Offer"
+   ],
+   "scholarships": [
+    "udaan",
+    "defence"
+   ],
+   "outcomes": {
+    "placement_pct": 90,
+    "median_ctc_lpa": 2.8,
+    "roles": [
+     "OT technician",
+     "Anaesthesia assistant"
+    ]
+   },
+   "highlights": [
+    "Daily OT postings in the second year"
+   ],
+   "modules": [
+    "OT techniques",
+    "Anaesthesia basics",
+    "Sterilisation",
+    "Patient care"
+   ],
+   "interests": [
+    "healthcare",
+    "hospitals",
+    "hands-on",
+    "biology"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "cert-health-analytics",
+   "name": "Certificate in Healthcare Data Analytics",
+   "award": "Certificate",
+   "school": "online",
+   "level": "certificate",
+   "mode": "online",
+   "campuses": [
+    "online"
+   ],
+   "duration_months": 4,
+   "duration_label": "4 months",
+   "hours_per_week": 6,
+   "fee_per_year": 38000,
+   "fee_total": 38000,
+   "application_fee": 500,
+   "seats": 150,
+   "intake": "cert-monthly",
+   "eligibility": {
+    "requires": "graduation",
+    "min_percent": 0,
+    "needs": "Graduation in any discipline",
+    "streams": []
+   },
+   "entrance": [
+    "No entrance test"
+   ],
+   "selection": [
+    "Apply online",
+    "Start with the next cohort"
+   ],
+   "scholarships": [
+    "online-early"
+   ],
+   "outcomes": {
+    "note": "For clinicians and hospital staff moving into data roles",
+    "roles": [
+     "Healthcare data analyst"
+    ]
+   },
+   "highlights": [
+    "Real anonymised hospital datasets"
+   ],
+   "modules": [
+    "Health data basics",
+    "SQL",
+    "Dashboards",
+    "Quality metrics"
+   ],
+   "interests": [
+    "healthcare",
+    "data",
+    "analytics",
+    "working professional"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "ba-psychology",
+   "name": "BA (Hons) Psychology",
+   "award": "BA (Hons)",
+   "school": "liberal-arts",
+   "level": "ug",
+   "mode": "full_time",
+   "campuses": [
+    "pune",
+    "bengaluru"
+   ],
+   "duration_months": 48,
+   "duration_label": "4 years",
+   "hours_per_week": 40,
+   "fee_per_year": 240000,
+   "fee_total": 960000,
+   "application_fee": 1500,
+   "seats": 120,
+   "intake": "ug-2027",
+   "eligibility": {
+    "requires": "class12",
+    "min_percent": 50,
+    "needs": "Class 12 in any stream, 50% overall",
+    "streams": [
+     "science_pcm",
+     "science_pcb",
+     "commerce",
+     "humanities",
+     "other"
+    ]
+   },
+   "entrance": [
+    "AUSAT 2027"
+   ],
+   "selection": [
+    "Apply online",
+    "AUSAT",
+    "Personal interview (online)",
+    "Offer"
+   ],
+   "scholarships": [
+    "merit-12",
+    "ausat-rank",
+    "udaan",
+    "sports",
+    "defence"
+   ],
+   "outcomes": {
+    "placement_pct": 70,
+    "median_ctc_lpa": 4.5,
+    "note": "About half of graduates go on to a master's",
+    "roles": [
+     "Counselling assistant",
+     "HR associate",
+     "UX researcher"
+    ]
+   },
+   "highlights": [
+    "Counselling practicum",
+    "Psychology research lab",
+    "Honours thesis in year four"
+   ],
+   "modules": [
+    "Cognitive psychology",
+    "Developmental psychology",
+    "Social psychology",
+    "Research methods",
+    "Counselling skills"
+   ],
+   "interests": [
+    "psychology",
+    "people",
+    "counselling",
+    "mental health",
+    "research"
+   ],
+   "specialisations": [
+    "Clinical",
+    "Organisational"
+   ]
+  },
+  {
+   "id": "ba-economics",
+   "name": "BA (Hons) Economics",
+   "award": "BA (Hons)",
+   "school": "liberal-arts",
+   "level": "ug",
+   "mode": "full_time",
+   "campuses": [
+    "pune"
+   ],
+   "duration_months": 48,
+   "duration_label": "4 years",
+   "hours_per_week": 40,
+   "fee_per_year": 230000,
+   "fee_total": 920000,
+   "application_fee": 1500,
+   "seats": 90,
+   "intake": "ug-2027",
+   "eligibility": {
+    "requires": "class12",
+    "min_percent": 55,
+    "needs": "Class 12 with Maths, 55% overall",
+    "streams": [
+     "science_pcm",
+     "commerce",
+     "humanities"
+    ]
+   },
+   "entrance": [
+    "AUSAT 2027"
+   ],
+   "selection": [
+    "Apply online",
+    "AUSAT",
+    "Personal interview (online)",
+    "Offer"
+   ],
+   "scholarships": [
+    "merit-12",
+    "ausat-rank",
+    "udaan",
+    "sports",
+    "defence"
+   ],
+   "outcomes": {
+    "placement_pct": 78,
+    "median_ctc_lpa": 6.0,
+    "roles": [
+     "Economic analyst",
+     "Policy researcher",
+     "Banking associate"
+    ]
+   },
+   "highlights": [
+    "Econometrics lab",
+    "Policy fellowship with think tanks"
+   ],
+   "modules": [
+    "Microeconomics",
+    "Macroeconomics",
+    "Econometrics",
+    "Development economics",
+    "Public policy"
+   ],
+   "interests": [
+    "economics",
+    "policy",
+    "finance",
+    "data",
+    "research",
+    "politics"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "ba-journalism",
+   "name": "BA Journalism & Mass Communication",
+   "award": "BA",
+   "school": "liberal-arts",
+   "level": "ug",
+   "mode": "full_time",
+   "campuses": [
+    "pune"
+   ],
+   "duration_months": 36,
+   "duration_label": "3 years",
+   "hours_per_week": 40,
+   "fee_per_year": 210000,
+   "fee_total": 630000,
+   "application_fee": 1500,
+   "seats": 90,
+   "intake": "ug-2027",
+   "eligibility": {
+    "requires": "class12",
+    "min_percent": 45,
+    "needs": "Class 12 in any stream, 45% overall",
+    "streams": [
+     "science_pcm",
+     "science_pcb",
+     "commerce",
+     "humanities",
+     "other"
+    ]
+   },
+   "entrance": [
+    "AUSAT 2027"
+   ],
+   "selection": [
+    "Apply online",
+    "AUSAT",
+    "Writing test and interview",
+    "Offer"
+   ],
+   "scholarships": [
+    "merit-12",
+    "ausat-rank",
+    "udaan",
+    "sports",
+    "defence"
+   ],
+   "outcomes": {
+    "placement_pct": 74,
+    "median_ctc_lpa": 4.2,
+    "roles": [
+     "Reporter",
+     "Content producer",
+     "PR executive"
+    ]
+   },
+   "highlights": [
+    "Campus radio and newsroom",
+    "Documentary film project"
+   ],
+   "modules": [
+    "Reporting",
+    "Broadcast journalism",
+    "Digital media",
+    "Media law"
+   ],
+   "interests": [
+    "media",
+    "journalism",
+    "writing",
+    "films",
+    "content",
+    "public speaking"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "bsc-data-science",
+   "name": "B.Sc (Hons) Data Science & Statistics",
+   "award": "B.Sc (Hons)",
+   "school": "liberal-arts",
+   "level": "ug",
+   "mode": "full_time",
+   "campuses": [
+    "bengaluru"
+   ],
+   "duration_months": 48,
+   "duration_label": "4 years",
+   "hours_per_week": 40,
+   "fee_per_year": 250000,
+   "fee_total": 1000000,
+   "application_fee": 1500,
+   "seats": 60,
+   "intake": "ug-2027",
+   "eligibility": {
+    "requires": "class12",
+    "min_percent": 55,
+    "needs": "Class 12 with Maths, 55% overall",
+    "streams": [
+     "science_pcm",
+     "commerce"
+    ]
+   },
+   "entrance": [
+    "AUSAT 2027"
+   ],
+   "selection": [
+    "Apply online",
+    "AUSAT",
+    "Offer"
+   ],
+   "scholarships": [
+    "merit-12",
+    "ausat-rank",
+    "udaan",
+    "sports",
+    "defence",
+    "women-stem"
+   ],
+   "outcomes": {
+    "placement_pct": 84,
+    "median_ctc_lpa": 6.6,
+    "roles": [
+     "Data analyst",
+     "Statistician",
+     "Research analyst"
+    ]
+   },
+   "highlights": [
+    "Research thesis in year four",
+    "R and Python throughout"
+   ],
+   "modules": [
+    "Probability",
+    "Statistical inference",
+    "Machine learning",
+    "Data visualisation"
+   ],
+   "interests": [
+    "data",
+    "statistics",
+    "maths",
+    "analytics",
+    "research"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "ba-liberal-arts",
+   "name": "BA (Hons) Liberal Arts",
+   "award": "BA (Hons)",
+   "school": "liberal-arts",
+   "level": "ug",
+   "mode": "full_time",
+   "campuses": [
+    "pune"
+   ],
+   "duration_months": 48,
+   "duration_label": "4 years",
+   "hours_per_week": 40,
+   "fee_per_year": 250000,
+   "fee_total": 1000000,
+   "application_fee": 1500,
+   "seats": 90,
+   "intake": "ug-2027",
+   "eligibility": {
+    "requires": "class12",
+    "min_percent": 50,
+    "needs": "Class 12 in any stream, 50% overall",
+    "streams": [
+     "science_pcm",
+     "science_pcb",
+     "commerce",
+     "humanities",
+     "other"
+    ]
+   },
+   "entrance": [
+    "AUSAT 2027"
+   ],
+   "selection": [
+    "Apply online",
+    "AUSAT",
+    "Personal interview (online)",
+    "Offer"
+   ],
+   "scholarships": [
+    "merit-12",
+    "ausat-rank",
+    "udaan",
+    "sports",
+    "defence"
+   ],
+   "outcomes": {
+    "placement_pct": 72,
+    "median_ctc_lpa": 5.0,
+    "roles": [
+     "Policy associate",
+     "Content strategist",
+     "Researcher"
+    ]
+   },
+   "highlights": [
+    "Choose a major and a minor in year two",
+    "Study-abroad semester"
+   ],
+   "modules": [
+    "Critical thinking",
+    "World histories",
+    "Philosophy",
+    "Writing",
+    "Your major and minor"
+   ],
+   "interests": [
+    "humanities",
+    "history",
+    "philosophy",
+    "writing",
+    "policy",
+    "undecided"
+   ],
+   "specialisations": [
+    "Majors: Economics, Psychology, History, English, Political Science"
+   ]
+  },
+  {
+   "id": "ma-clinical-psychology",
+   "name": "MA Clinical Psychology",
+   "award": "MA",
+   "school": "liberal-arts",
+   "level": "pg",
+   "mode": "full_time",
+   "campuses": [
+    "pune"
+   ],
+   "duration_months": 24,
+   "duration_label": "2 years",
+   "hours_per_week": 40,
+   "fee_per_year": 200000,
+   "fee_total": 400000,
+   "application_fee": 1500,
+   "seats": 30,
+   "intake": "pg-2027",
+   "eligibility": {
+    "requires": "graduation",
+    "min_percent": 55,
+    "needs": "BA or B.Sc in Psychology, 55%",
+    "streams": []
+   },
+   "entrance": [
+    "AUSAT-PG 2027",
+    "Interview"
+   ],
+   "selection": [
+    "Apply online",
+    "AUSAT-PG",
+    "Interview",
+    "Offer"
+   ],
+   "scholarships": [
+    "ausat-rank",
+    "pg-merit",
+    "udaan",
+    "sports",
+    "defence"
+   ],
+   "outcomes": {
+    "placement_pct": 76,
+    "median_ctc_lpa": 4.8,
+    "roles": [
+     "Psychologist (supervised)",
+     "Counsellor"
+    ]
+   },
+   "highlights": [
+    "Supervised practicum at the university counselling centre and hospital"
+   ],
+   "modules": [
+    "Psychopathology",
+    "Psychological assessment",
+    "Therapy approaches",
+    "Research dissertation"
+   ],
+   "interests": [
+    "psychology",
+    "mental health",
+    "counselling",
+    "healthcare"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "msc-data-science",
+   "name": "M.Sc Data Science",
+   "award": "M.Sc",
+   "school": "liberal-arts",
+   "level": "pg",
+   "mode": "full_time",
+   "campuses": [
+    "bengaluru"
+   ],
+   "duration_months": 24,
+   "duration_label": "2 years",
+   "hours_per_week": 40,
+   "fee_per_year": 260000,
+   "fee_total": 520000,
+   "application_fee": 1500,
+   "seats": 60,
+   "intake": "pg-2027",
+   "eligibility": {
+    "requires": "graduation",
+    "min_percent": 55,
+    "needs": "Graduation with Maths or Statistics, 55%",
+    "streams": []
+   },
+   "entrance": [
+    "AUSAT-PG 2027"
+   ],
+   "selection": [
+    "Apply online",
+    "AUSAT-PG",
+    "Interview",
+    "Offer"
+   ],
+   "scholarships": [
+    "ausat-rank",
+    "pg-merit",
+    "udaan",
+    "sports",
+    "defence",
+    "women-stem"
+   ],
+   "outcomes": {
+    "placement_pct": 89,
+    "median_ctc_lpa": 9.4,
+    "highest_ctc_lpa": 21.0,
+    "roles": [
+     "Data scientist",
+     "ML engineer"
+    ]
+   },
+   "highlights": [
+    "Industry capstone in the final semester"
+   ],
+   "modules": [
+    "Statistical learning",
+    "Deep learning",
+    "Big data",
+    "Bayesian methods"
+   ],
+   "interests": [
+    "data",
+    "ai",
+    "statistics",
+    "analytics",
+    "coding"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "online-mca",
+   "name": "Online MCA",
+   "award": "MCA",
+   "school": "online",
+   "level": "pg",
+   "mode": "online",
+   "campuses": [
+    "online"
+   ],
+   "duration_months": 24,
+   "duration_label": "2 years",
+   "hours_per_week": 15,
+   "fee_per_year": 80000,
+   "fee_total": 160000,
+   "application_fee": 500,
+   "seats": 1000,
+   "intake": "online-jan-2027",
+   "eligibility": {
+    "requires": "graduation",
+    "min_percent": 50,
+    "needs": "BCA, B.Sc or B.Com with Maths at Class 12 or graduation, 50%",
+    "streams": []
+   },
+   "entrance": [
+    "No entrance test"
+   ],
+   "selection": [
+    "Apply online",
+    "Document check",
+    "Offer"
+   ],
+   "scholarships": [
+    "online-early"
+   ],
+   "outcomes": {
+    "note": "Same degree as on campus; placement-readiness bootcamp in the final semester",
+    "roles": [
+     "Software developer",
+     "Cloud engineer"
+    ]
+   },
+   "highlights": [
+    "Specialise in cloud, AI or cyber security",
+    "Pay per semester"
+   ],
+   "modules": [
+    "Programming",
+    "Data structures",
+    "Cloud computing",
+    "AI fundamentals"
+   ],
+   "interests": [
+    "coding",
+    "software",
+    "technology",
+    "working professional",
+    "career growth"
+   ],
+   "specialisations": [
+    "Cloud",
+    "AI",
+    "Cyber security"
+   ]
+  },
+  {
+   "id": "online-bca",
+   "name": "Online BCA",
+   "award": "BCA",
+   "school": "online",
+   "level": "ug",
+   "mode": "online",
+   "campuses": [
+    "online"
+   ],
+   "duration_months": 36,
+   "duration_label": "3 years",
+   "hours_per_week": 12,
+   "fee_per_year": 60000,
+   "fee_total": 180000,
+   "application_fee": 500,
+   "seats": 1000,
+   "intake": "online-jan-2027",
+   "eligibility": {
+    "requires": "class12",
+    "min_percent": 45,
+    "needs": "Class 12 in any stream, 45%",
+    "streams": [
+     "science_pcm",
+     "science_pcb",
+     "commerce",
+     "humanities",
+     "other"
+    ]
+   },
+   "entrance": [
+    "No entrance test"
+   ],
+   "selection": [
+    "Apply online",
+    "Document check",
+    "Offer"
+   ],
+   "scholarships": [
+    "online-early"
+   ],
+   "outcomes": {
+    "note": "Study while you work; the same degree as on campus",
+    "roles": [
+     "Junior developer",
+     "IT support engineer"
+    ]
+   },
+   "highlights": [
+    "Weekend live classes",
+    "Pay per semester"
+   ],
+   "modules": [
+    "Programming in C and Python",
+    "Databases",
+    "Web development",
+    "Networks"
+   ],
+   "interests": [
+    "coding",
+    "computers",
+    "technology",
+    "working professional"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "online-mcom",
+   "name": "Online M.Com",
+   "award": "M.Com",
+   "school": "online",
+   "level": "pg",
+   "mode": "online",
+   "campuses": [
+    "online"
+   ],
+   "duration_months": 24,
+   "duration_label": "2 years",
+   "hours_per_week": 10,
+   "fee_per_year": 50000,
+   "fee_total": 100000,
+   "application_fee": 500,
+   "seats": 1000,
+   "intake": "online-jan-2027",
+   "eligibility": {
+    "requires": "graduation",
+    "min_percent": 45,
+    "needs": "B.Com, BBA or BA Economics, 45%",
+    "streams": []
+   },
+   "entrance": [
+    "No entrance test"
+   ],
+   "selection": [
+    "Apply online",
+    "Document check",
+    "Offer"
+   ],
+   "scholarships": [
+    "online-early"
+   ],
+   "outcomes": {
+    "note": "Same degree as on campus",
+    "roles": [
+     "Accountant",
+     "Finance executive"
+    ]
+   },
+   "highlights": [
+    "Recorded lectures with weekly live doubt sessions"
+   ],
+   "modules": [
+    "Advanced accounting",
+    "Financial management",
+    "Taxation",
+    "Research methods"
+   ],
+   "interests": [
+    "finance",
+    "accounting",
+    "commerce",
+    "working professional"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "pgd-data-analytics",
+   "name": "PG Diploma in Data Analytics (Online)",
+   "award": "PG Diploma",
+   "school": "online",
+   "level": "diploma",
+   "mode": "online",
+   "campuses": [
+    "online"
+   ],
+   "duration_months": 12,
+   "duration_label": "1 year",
+   "hours_per_week": 10,
+   "fee_per_year": 135000,
+   "fee_total": 135000,
+   "application_fee": 500,
+   "seats": 300,
+   "intake": "online-jan-2027",
+   "eligibility": {
+    "requires": "graduation",
+    "min_percent": 50,
+    "needs": "Graduation in any discipline, 50%",
+    "streams": []
+   },
+   "entrance": [
+    "No entrance test"
+   ],
+   "selection": [
+    "Apply online",
+    "Aptitude quiz (online)",
+    "Offer"
+   ],
+   "scholarships": [
+    "online-early"
+   ],
+   "outcomes": {
+    "note": "Career services for 18 months: mock interviews and referrals",
+    "roles": [
+     "Data analyst",
+     "Business analyst"
+    ]
+   },
+   "highlights": [
+    "Live weekend classes",
+    "Four industry projects"
+   ],
+   "modules": [
+    "Excel and SQL",
+    "Python",
+    "Statistics",
+    "Dashboards",
+    "Machine learning basics"
+   ],
+   "interests": [
+    "data",
+    "analytics",
+    "career switch",
+    "working professional",
+    "technology"
+   ],
+   "specialisations": []
+  },
+  {
+   "id": "exec-ai-leaders",
+   "name": "Executive Certificate in AI for Business Leaders",
+   "award": "Executive Certificate",
+   "school": "online",
+   "level": "certificate",
+   "mode": "hybrid",
+   "campuses": [
+    "online",
+    "pune"
+   ],
+   "duration_months": 9,
+   "duration_label": "9 months",
+   "hours_per_week": 6,
+   "fee_per_year": 240000,
+   "fee_total": 240000,
+   "application_fee": 500,
+   "seats": 60,
+   "intake": "exec-jan-2027",
+   "eligibility": {
+    "requires": "graduation",
+    "min_percent": 0,
+    "needs": "Graduation and at least 8 years of work experience",
+    "streams": [],
+    "min_experience_years": 8
+   },
+   "entrance": [
+    "Profile review"
+   ],
+   "selection": [
+    "Apply online",
+    "Profile review",
+    "Conversation with the programme director",
+    "Offer"
+   ],
+   "scholarships": [],
+   "outcomes": {
+    "note": "Two three-day immersions on the Pune campus; an AI roadmap for your own organisation as the capstone",
+    "roles": [
+     "Senior leader"
+    ]
+   },
+   "highlights": [
+    "Online every other Saturday",
+    "Two campus immersions in Pune"
+   ],
+   "modules": [
+    "AI for strategy",
+    "Data-driven decisions",
+    "Leading AI teams",
+    "Responsible AI"
+   ],
+   "interests": [
+    "ai",
+    "leadership",
+    "business",
+    "management",
+    "working professional"
+   ],
+   "specialisations": []
+  }
+ ]
+}
