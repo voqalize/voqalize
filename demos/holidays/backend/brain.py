@@ -912,14 +912,7 @@ class HolidaysBrain(OpenAIBrain):
         if "budget" in w or "cheap" in w:
             return [h for h in hotels if "budget" in h["tags"] or h["stars"] == 3]
         if "pool" in w:
-            return [
-                h
-                for h in hotels
-                if "pool"
-                in _fold(
-                    h["name"] + " " + " ".join(r["name"] for r in h["rooms"]) + " " + h["blurb"]
-                )
-            ]
+            return [h for h in hotels if any("pool" in r["name"].lower() for r in h["rooms"])]
         tag = next(
             (
                 t
