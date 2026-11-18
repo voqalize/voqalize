@@ -1,0 +1,175 @@
+{
+  "$schema": "../../../../../sdk/js/stage/stage.schema.json",
+  "stage": 1,
+  "id": "dantika_front_desk",
+  "languages": ["en", "hi"],
+  "moves": [
+    {
+      "id": "site.go",
+      "verb": "go",
+      "class": "navigate",
+      "args": [
+        { "name": "page", "enum": ["home", "book", "my-appointments"], "doc": "The page: home, book or my-appointments." }
+      ],
+      "say": "{go: book} as you start the sentence about that page: \"Let's open the booking page.\"",
+      "claims": ["opening the booking page", "taking you to", "opening your appointments"],
+      "objects": ["page", "booking page", "appointments page"],
+      "doc": "Open one of the clinic's pages, ringing its link in the header first."
+    },
+    {
+      "id": "site.show",
+      "verb": "show",
+      "class": "look",
+      "args": [
+        {
+          "name": "thing",
+          "doc": "A part of the page by name: services, dentists, branches, visit-info, payment, insurance, parking, eating, aftercare, emergency, hours, policy, calendar, summary, appointments."
+        }
+      ],
+      "say": "{show: parking} at the start of the sentence that talks about it; it scrolls into view and is ringed.",
+      "doc": "Scroll to a part of the page and ring it; nothing changes. Opens the home page first for a part only it has."
+    },
+    {
+      "id": "book.slots",
+      "class": "reversible",
+      "args": [
+        { "name": "service_id", "doc": "The service's id from clinic.json: consult, checkup, emergency, scaling, filling, rct, extraction, wisdom, aligner, whitening, implant, iopa, opg, cbct." },
+        { "name": "date", "doc": "The day shown, YYYY-MM-DD." },
+        { "name": "branch_id", "optional": true, "doc": "indiranagar or hsr; none for both." },
+        { "name": "dentist_id", "optional": true, "doc": "The dentist's id; none for a scan or for any dentist." },
+        { "name": "view", "enum": ["day", "week"], "default": "day", "doc": "The calendar's view." }
+      ],
+      "claims": ["checking the calendar", "looking at the slots", "pulling up the slots"],
+      "objects": ["slots", "calendar", "times", "availability"],
+      "doc": "On the booking page: pick the service, branch and dentist as the visitor would, put that dentist's (or the imaging room's) calendar on the day, and ring the free slots. Opens the booking page first."
+    },
+    {
+      "id": "book.hold",
+      "class": "reversible",
+      "args": [
+        { "name": "service_id" },
+        { "name": "branch_id" },
+        { "name": "date", "doc": "YYYY-MM-DD." },
+        { "name": "time", "doc": "HH:MM, 24-hour." },
+        { "name": "dentist_id", "optional": true },
+        { "name": "chair_id", "optional": true, "doc": "The chair the slot was computed on." },
+        { "name": "resource_id", "optional": true, "doc": "The imaging room, for a scan." },
+        { "name": "sittings", "type": "array", "optional": true, "doc": "A root canal's later sittings, each 'YYYY-MM-DD HH:MM branch_id chair_id'." }
+      ],
+      "claims": ["holding the slot", "picking that slot", "selecting the slot"],
+      "objects": ["slot", "time", "appointment"],
+      "doc": "Select one free slot on the calendar and show the booking summary (price, preparation, sittings) with its Confirm button. Nothing is booked yet. Refused when the slot is no longer free."
+    },
+    {
+      "id": "book.confirm",
+      "class": "confirmed",
+      "args": [
+        { "name": "booking_id", "doc": "The id the brain minted, DT-24117." },
+        { "name": "patient_id", "doc": "The verified patient, P-1001, or the new patient's id." },
+        { "name": "service_id" },
+        { "name": "branch_id" },
+        { "name": "date" },
+        { "name": "time" },
+        { "name": "dentist_id", "optional": true },
+        { "name": "chair_id", "optional": true },
+        { "name": "resource_id", "optional": true },
+        { "name": "sittings", "type": "array", "optional": true },
+        { "name": "sitting_ids", "type": "array", "optional": true, "doc": "The ids of the later sittings, in order." }
+      ],
+      "claims": ["booking it now", "confirming your appointment", "confirming the booking"],
+      "objects": ["booking", "appointment"],
+      "doc": "Book the held slot, after the patient's spoken yes: the appointment goes on the calendar and the confirmation shows. Refused when nothing is held, the patient is not verified, or the slot was taken."
+    },
+    {
+      "id": "patient.phone",
+      "class": "reversible",
+      "args": [{ "name": "phone", "doc": "The phone number as said; the page keeps the last ten digits." }],
+      "claims": ["sending you a code", "sending the code"],
+      "objects": ["code", "otp", "phone number"],
+      "doc": "Fill the phone number in the sign-in panel and send the one-time code (a demo SMS shown on screen)."
+    },
+    {
+      "id": "patient.otp",
+      "class": "reversible",
+      "args": [{ "name": "code", "doc": "The four digits the patient read out." }],
+      "claims": ["verifying the code", "checking the code"],
+      "objects": ["code", "otp"],
+      "doc": "Fill the one-time code and verify it. Refused when it does not match."
+    },
+    {
+      "id": "patient.name",
+      "class": "reversible",
+      "args": [{ "name": "name", "doc": "A new patient's full name, as said." }],
+      "claims": ["adding your name", "registering you"],
+      "objects": ["name", "registration"],
+      "doc": "For a phone number with no record: fill the new patient's name and register them."
+    },
+    {
+      "id": "appt.focus",
+      "class": "look",
+      "args": [{ "name": "appointment_id", "doc": "DT-24051." }],
+      "doc": "On My appointments: scroll to one appointment's card and ring it."
+    },
+    {
+      "id": "appt.propose",
+      "class": "reversible",
+      "args": [
+        { "name": "appointment_id" },
+        { "name": "action", "enum": ["reschedule", "cancel"] },
+        { "name": "fee", "type": "integer", "default": 0, "doc": "The late-change fee in rupees, 0 when free." },
+        { "name": "date", "optional": true, "doc": "The new day, for a reschedule." },
+        { "name": "time", "optional": true, "doc": "The new time, for a reschedule." },
+        { "name": "branch_id", "optional": true },
+        { "name": "dentist_id", "optional": true },
+        { "name": "chair_id", "optional": true },
+        { "name": "resource_id", "optional": true }
+      ],
+      "claims": ["moving it to", "cancelling it"],
+      "objects": ["appointment", "reschedule", "cancellation"],
+      "doc": "On My appointments: open the change sheet on one card (old and new time, or the cancellation) with the policy line and fee, and its Confirm and Keep buttons. Nothing changes yet."
+    },
+    {
+      "id": "appt.apply",
+      "class": "confirmed",
+      "args": [
+        { "name": "appointment_id" },
+        { "name": "action", "enum": ["reschedule", "cancel"] },
+        { "name": "fee", "type": "integer", "default": 0 },
+        { "name": "date", "optional": true },
+        { "name": "time", "optional": true },
+        { "name": "branch_id", "optional": true },
+        { "name": "dentist_id", "optional": true },
+        { "name": "chair_id", "optional": true },
+        { "name": "resource_id", "optional": true }
+      ],
+      "claims": ["moving your appointment now", "cancelling your appointment now"],
+      "objects": ["appointment"],
+      "doc": "Make the change the sheet shows, after the patient's spoken yes. Refused when the new slot was taken."
+    },
+    {
+      "id": "callback.request",
+      "class": "reversible",
+      "args": [
+        { "name": "callback_id", "doc": "CB-3107." },
+        { "name": "reason", "doc": "One short line for the dentist, in English." },
+        { "name": "urgency", "enum": ["urgent", "today", "routine"] },
+        { "name": "window", "doc": "When the call comes, as authored: within 30 minutes." },
+        { "name": "phone", "optional": true, "doc": "The number to call, when known." }
+      ],
+      "claims": ["asking a dentist to call", "requesting a callback", "arranging a callback"],
+      "objects": ["callback", "call back"],
+      "doc": "Show the callback request card: what the dentist will call about, how soon, and its reference."
+    },
+    {
+      "id": "cal.view",
+      "class": "look",
+      "args": [
+        { "name": "date", "doc": "YYYY-MM-DD." },
+        { "name": "dentist_id", "optional": true },
+        { "name": "resource_id", "optional": true },
+        { "name": "mode", "enum": ["day", "week"], "default": "week" }
+      ],
+      "doc": "Put one dentist's (or imaging room's) calendar on screen, on the day or its week, and ring it. Changes no selection."
+    }
+  ]
+}
