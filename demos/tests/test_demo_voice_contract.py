@@ -220,6 +220,11 @@ DEMOS: dict[str, Expected] = {
     # a gallery card (the page is Uno Salud's own site). Asserted in
     # test_unosalud_e2e.py.
     "unosalud": Expected(voice="omnivoice/javier", language="es", provider="openai"),
+    # Wanderloom's trip planner (character, name and voices in
+    # holidays/persona.json): English unless the page's toggle said Hindi, which
+    # moves both legs to the Hindi voice persona.json names. Asserted in
+    # test_holidays_e2e.py.
+    "holidays": Expected(voice="omnivoice/aaliyah", language="en", provider="openai"),
 }
 
 
