@@ -1,0 +1,52 @@
+/* Tankora tokens, from data/product.json brand.palette and brand.type. */
+
+/* JetBrains Mono has no ₹ (U+20B9); figures take it from Plus Jakarta Sans,
+   whose latin-ext subset carries it, so a rupee amount never falls back. */
+@font-face {
+  font-family: "Tankora Rupee";
+  src: url("../../node_modules/@fontsource-variable/plus-jakarta-sans/files/plus-jakarta-sans-latin-ext-wght-normal.woff2") format("woff2-variations");
+  font-weight: 200 800;
+  font-display: swap;
+  unicode-range: U+20B9;
+}
+
+:root {
+  --primary: #0b6e5f;
+  --primary-dark: #08524a;
+  --primary-soft: #e3f1ee;
+  --accent: #e8a33d;
+  --accent-soft: #fbf0dc;
+  --accent-ink: #8a5a12;
+  --ink: #13212b;
+  --ink-muted: #5a6873;
+  --paper: #f7f5f0;
+  --surface: #ffffff;
+  --line: #e2ded6;
+  --line-strong: #cfc9bd;
+  --positive: #1f8a4c;
+  --warning: #b7791f;
+  --negative: #c2413a;
+
+  --display: "Fraunces Variable", Georgia, serif;
+  --ui: "Plus Jakarta Sans Variable", system-ui, sans-serif;
+  --num: "Tankora Rupee", "JetBrains Mono Variable", ui-monospace, monospace;
+
+  --step--1: 0.8125rem;
+  --step-0: 1rem;
+  --step-1: 1.125rem;
+  --step-2: 1.375rem;
+  --step-3: 1.75rem;
+  --step-4: clamp(2rem, 1.4rem + 2.2vw, 2.75rem);
+  --step-5: clamp(2.5rem, 1.6rem + 3.6vw, 4.25rem);
+
+  --radius-s: 8px;
+  --radius: 12px;
+  --radius-l: 16px;
+  --shadow: 0 1px 2px rgba(19, 33, 43, 0.05), 0 8px 24px -12px rgba(19, 33, 43, 0.18);
+  --shadow-lift: 0 2px 4px rgba(19, 33, 43, 0.06), 0 22px 48px -20px rgba(19, 33, 43, 0.32);
+
+  --header-h: 68px;
+  --gutter: clamp(16px, 4vw, 48px);
+  --max: 1240px;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}

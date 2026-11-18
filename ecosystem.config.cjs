@@ -48,6 +48,8 @@ const DEMOS = [
   'kiosk',
   'petwell',
   'fernhollow',
+  'payroll_site',
+  'payroll_app',
 ];
 
 module.exports = {
