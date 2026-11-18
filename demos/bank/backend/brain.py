@@ -1275,6 +1275,13 @@ class BankBrain(OpenAIBrain):
                 f"lounge value {b.inr(v.lounge_value)}, fee "
                 + ("waived" if v.fee_waived else b.inr(v.fee))
                 + ")."
+                + (
+                    f" Needs an income of {b.inr(card.get('min_income_monthly', 0))} a month, "
+                    "above hers: say so if you mention it."
+                    if req.use_my_spend
+                    and card.get("min_income_monthly", 0) > b.CUSTOMER["profile"]["monthly_income"]
+                    else ""
+                )
             )
         return "\n".join(lines)
 

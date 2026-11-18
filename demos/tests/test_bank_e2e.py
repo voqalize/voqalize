@@ -97,7 +97,21 @@ def test_card_emi_and_ranking_numbers() -> None:
     assert row.emi == m.rnd(m.emi(64990, 14.0, 6))
     assert row.processing_fee == 650 and row.gst_on_fee == 117
     profile = m.customer_profile()
-    assert all(v % 100 == 0 for v in profile.values())
+    # The same figures frontend/src/lib/bankmath.test.ts pins for the page.
+    assert profile == {
+        "dining": 13700,
+        "online": 44000,
+        "groceries": 7300,
+        "travel": 22000,
+        "fuel": 5400,
+        "utilities": 3500,
+        "other": 100,
+    }
+    assert [(v.card_id, v.net_yearly) for v in m.rank_cards(profile)] == [
+        ("prism", 49048), ("voyage", 38776), ("daily", 27520), ("spark", 13479), ("fuelone", 9114)
+    ]  # fmt: skip
+    assert m.card_emi(64990, 6).emi == 11278
+    assert m.fd_quote(100000, 12, "cumulative")["maturity"] == 107291
     ranked = m.rank_cards(profile)
     assert {v.card_id for v in ranked} == set(b.CARD_IDS)
     assert ranked == sorted(ranked, key=lambda v: (-v.net_yearly, v.card_id))
