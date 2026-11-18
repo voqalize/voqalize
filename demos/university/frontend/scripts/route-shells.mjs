@@ -17,7 +17,7 @@ const dist = join(app, "dist");
 const catalogue = JSON.parse(await readFile(join(app, "..", "data", "catalogue.json"), "utf8"));
 const shell = await readFile(join(dist, "index.html"), "utf8");
 
-const SITE = "Anvaya University";
+const SITE = "Varenya University";
 const escape = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 const routes = [

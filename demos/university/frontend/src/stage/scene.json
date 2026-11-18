@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../sdk/js/stage/stage.schema.json",
   "stage": 1,
-  "id": "anvaya_university",
+  "id": "varenya_university",
   "languages": ["en", "hi"],
   "moves": [
     {
@@ -82,7 +82,7 @@
       "verb": "show",
       "class": "look",
       "args": [
-        {"name": "target", "doc": "A section of the page in front by its name: fees, eligibility, selection, deadlines, scholarships, outcomes, hostel, loans, documents, ausat, process, faqs, refund, instalments."}
+        {"name": "target", "doc": "A section of the page in front by its name: fees, eligibility, selection, deadlines, scholarships, outcomes, hostel, loans, documents, vusat, process, faqs, refund, instalments."}
       ],
       "say": "{show: hostel} as you start talking about that section; it scrolls into view and is ringed.",
       "doc": "Scroll to a section of the page in front and ring it. Refused with the sections the page has."
@@ -150,7 +150,7 @@
         {"name": "hostel", "optional": true},
         {"name": "room_type", "optional": true},
         {"name": "scholarship", "optional": true},
-        {"name": "reference", "optional": true, "doc": "The application number, once paid: ANV-27-48213."}
+        {"name": "reference", "optional": true, "doc": "The application number, once paid: VRN-27-48213."}
       ]
     }
   ],

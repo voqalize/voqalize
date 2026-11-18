@@ -26,7 +26,7 @@ function keyDates(): Dated[] {
   add("ug-2027", "Undergraduate");
   add("pg-2027", "Postgraduate");
   add("mba-2027", "MBA");
-  for (const ph of ADMISSIONS.ausat.phases) out.push({ date: ph.dates.split("–")[0].replace(/^(\d+)$/, `$1 ${ph.dates.split(" ").slice(1).join(" ")}`), what: `AUSAT ${ph.name}`, detail: `Test on ${ph.dates}, register by ${ph.register_by}` });
+  for (const ph of ADMISSIONS.vusat.phases) out.push({ date: ph.dates.split("–")[0].replace(/^(\d+)$/, `$1 ${ph.dates.split(" ").slice(1).join(" ")}`), what: `VUSAT ${ph.name}`, detail: `Test on ${ph.dates}, register by ${ph.register_by}` });
   const now = Date.now();
   return out
     .map((d) => ({ ...d, t: parseDate(d.date)?.getTime() ?? 0 }))
@@ -55,7 +55,7 @@ export function Home() {
         <Jaali id="jaali-hero" className="hero-jaali" opacity={0.2} />
         <div className="wrap hero-grid">
           <div className="hero-copy">
-            <p className="hero-kicker">Pune, Bengaluru and Anvaya Online. Since {u.founded}.</p>
+            <p className="hero-kicker">Pune, Bengaluru and Varenya Online. Since {u.founded}.</p>
             <h1>{u.motto}</h1>
             <p className="hero-lede">
               Seven schools and {PROGRAMS.length} programmes, from a four-year B.Tech to a six-week online certificate. Find the one that fits your marks, your budget and
@@ -98,7 +98,7 @@ export function Home() {
               Not sure where to start? Press <b>Talk to {PERSONA.name}</b> and say what you are looking for.
             </p>
           </div>
-          <dl className="hero-plate" aria-label="Anvaya in numbers">
+          <dl className="hero-plate" aria-label="Varenya in numbers">
             <div>
               <dt>Students</dt>
               <dd>{INDIAN.format(u.students)}</dd>
@@ -196,7 +196,7 @@ export function Home() {
           <h2>Scholarships</h2>
           <p>{ADMISSIONS.scholarship_rules[0]}</p>
           <ul>
-            {["ausat-rank", "udaan", "merit-12", "women-stem"].map((id) => {
+            {["vusat-rank", "udaan", "merit-12", "women-stem"].map((id) => {
               const s = SCHOLARSHIPS.find((x) => x.id === id)!;
               return (
                 <li key={id}>

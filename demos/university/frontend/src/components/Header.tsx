@@ -37,7 +37,7 @@ export function Header() {
       </div>
       <header className="site-header">
         <div className="wrap header-row">
-          <Link to="/" className="brand" aria-label="Anvaya University home" data-nav="/">
+          <Link to="/" className="brand" aria-label="Varenya University home" data-nav="/">
             <Wordmark />
           </Link>
           <nav className={`main-nav${open ? " is-open" : ""}`} aria-label="Main">

@@ -1,7 +1,7 @@
-# Anvaya University — UI ↔ brain contract (v1)
+# Varenya University — UI ↔ brain contract (v1)
 
-Anvaya University is a fictional large private university in India (Pune and Bengaluru campuses plus
-Anvaya Online) and a Voqalize voice demo. One agent, whose character lives in `persona.json`, does two
+Varenya University is a fictional large private university in India (Pune and Bengaluru campuses plus
+Varenya Online) and a Voqalize voice demo. One agent, whose character lives in `persona.json`, does two
 jobs, chosen by the page the call is on:
 
 | landing | job | what it does on screen |
@@ -34,7 +34,7 @@ tells the page with the action `language_changed{language}` so the toggle follow
   requires, min_percent, needs, streams[], min_experience_years?}, entrance[], selection[], scholarships[],
   outcomes{placement_pct?, median_ctc_lpa?, highest_ctc_lpa?, note?, roles[]}, highlights[], modules[],
   interests[], specialisations[]`.
-- `data/admissions.json` — process, AUSAT, fees (one-time, seat confirmation, instalments, zero-interest
+- `data/admissions.json` — process, VUSAT, fees (one-time, seat confirmation, instalments, zero-interest
   plan, refund, payment methods), hostel (rooms per campus), loans, scholarship rules, documents, FAQs,
   contact.
 - `data/application.json` — the application form as data: 5 steps, each field's `name`, `label`, `type`
@@ -77,7 +77,7 @@ Generated with, from `demos/`:
 | `apply.next` | next | reversible | — | as Continue: refuses naming required fields still empty. |
 
 Paying is never a move: the applicant presses **Pay ₹<fee> and submit** themselves. The page then shows
-the application number `ANV-27-<5 digits>` and stores the application in localStorage.
+the application number `VRN-27-<5 digits>` and stores the application in localStorage.
 
 Comparison rows: Duration, Mode, Campus, Fee per year, Total fee, Hours a week, Eligibility, Selection,
 Next deadline, Scholarships, Placement / outcome, Median salary.

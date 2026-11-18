@@ -1,4 +1,4 @@
-"""Anvaya University's authored data, read once: the catalogue, the admissions
+"""Varenya University's authored data, read once: the catalogue, the admissions
 content, the application form and the persona.
 
 The page reads the same files (``demos/university/data/*.json`` and

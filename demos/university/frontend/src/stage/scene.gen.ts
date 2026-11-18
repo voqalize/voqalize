@@ -2,10 +2,10 @@
 //   voqalize stage gen university/frontend/src/stage/scene.json --py university/backend/stage_gen.py --ts university/frontend/src/stage/scene.gen.ts
 import { defineScene } from "@voqalize/stage";
 
-/** The moves of anvaya_university, from its Stage Spec. */
+/** The moves of varenya_university, from its Stage Spec. */
 export const scene = defineScene({
   "stage": 1,
-  "id": "anvaya_university",
+  "id": "varenya_university",
   "moves": [
     {
       "id": "catalogue.filter",

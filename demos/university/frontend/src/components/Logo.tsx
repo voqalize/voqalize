@@ -1,13 +1,13 @@
-/** Anvaya's mark: a banyan leaf inside two interlaced arcs, the disciplines it joins. */
+/** Varenya's mark: a lamp flame rising from an open book, under the arc of a gateway. */
 export function Mark({ size = 40 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 40 40" aria-hidden className="mark">
       <circle cx="20" cy="20" r="19.5" fill="var(--ink)" />
-      <path d="M6.5 25.5a14 14 0 0 1 27 0" fill="none" stroke="var(--paper)" strokeOpacity=".35" strokeWidth="1.3" />
-      <path d="M9.5 29a11 11 0 0 1 21 0" fill="none" stroke="var(--paper)" strokeOpacity=".2" strokeWidth="1.3" />
-      <path d="M20 6.5c7.6 5 8.6 15.2 0 24.5-8.6-9.3-7.6-19.5 0-24.5Z" fill="var(--marigold)" />
-      <path d="M20 11v24.5" stroke="var(--ink)" strokeWidth="1.4" strokeLinecap="round" />
-      <path d="M20 16.5l3.6-3M20 21l-3.8-3.2M20 25.3l3.6-3" stroke="var(--ink)" strokeWidth="1.1" strokeLinecap="round" />
+      <path d="M8.5 31V17.5a11.5 11.5 0 0 1 23 0V31" fill="none" stroke="var(--paper)" strokeOpacity=".3" strokeWidth="1.3" />
+      <path d="M9.5 27.5c4-1.6 7.6-1.2 10.5 1.4 2.9-2.6 6.5-3 10.5-1.4" fill="none" stroke="var(--paper)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M9.5 31c4-1.6 7.6-1.2 10.5 1.4 2.9-2.6 6.5-3 10.5-1.4" fill="none" stroke="var(--paper)" strokeOpacity=".45" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M20 8.5c3.9 4.2 5 8.4 3.3 11.9A3.7 3.7 0 0 1 20 22.6a3.7 3.7 0 0 1-3.3-2.2C15 16.9 16.1 12.7 20 8.5Z" fill="var(--marigold)" />
+      <path d="M20 15c1.4 1.8 1.7 3.6.9 5a1 1 0 0 1-1.8 0c-.8-1.4-.5-3.2.9-5Z" fill="var(--ink)" fillOpacity=".55" />
     </svg>
   );
 }
@@ -17,7 +17,7 @@ export function Wordmark() {
     <span className="wordmark">
       <Mark />
       <span className="wordmark-text">
-        <span className="wordmark-name">Anvaya</span>
+        <span className="wordmark-name">Varenya</span>
         <span className="wordmark-sub">University</span>
       </span>
     </span>

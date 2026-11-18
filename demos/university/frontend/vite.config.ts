@@ -3,7 +3,7 @@ import { defineConfig } from "vite";
 import { avatarRuntime } from "../../shared/avatar-runtime.mjs";
 import { noDaily } from "../../shared/no-daily.mjs";
 
-// Anvaya University has real URLs: /demos/university/programs/<id>, /apply…
+// Varenya University has real URLs: /demos/university/programs/<id>, /apply…
 // The app routes on the path (BrowserRouter with this base) and
 // `scripts/route-shells.mjs` writes a copy of index.html at every route after
 // the build, so a deep link or a refresh on static hosting finds a file of its own.

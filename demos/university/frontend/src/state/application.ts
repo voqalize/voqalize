@@ -8,7 +8,7 @@ import { INTAKES, programById } from "../data/catalogue";
 import { FORM, STEPS, missingIn, optionsFor, fieldByName } from "../data/application";
 import { readJSON, writeJSON } from "./storage";
 
-export const STORE_KEY = "anvaya.applications";
+export const STORE_KEY = "varenya.applications";
 
 export interface Submitted {
   reference: string;

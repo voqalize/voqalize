@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Anvaya University, a fictional Indian private university where an admissions and course advisor talks and drives the screen. A standalone Vite app served at /demos/university.",
+  "description": "Varenya University, a fictional Indian private university where an admissions and course advisor talks and drives the screen. A standalone Vite app served at /demos/university.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build && node scripts/route-shells.mjs",

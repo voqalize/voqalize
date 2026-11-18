@@ -1,8 +1,8 @@
 {
- "$comment": "Anvaya University's programme catalogue: the single source of truth for both the page and the brain. Fictional. Fees are per year in INR (fee_total = fee_per_year x duration in years; under a year, the whole fee). Dates are DD MMM YYYY.",
+ "$comment": "Varenya University's programme catalogue: the single source of truth for both the page and the brain. Fictional. Fees are per year in INR (fee_total = fee_per_year x duration in years; under a year, the whole fee). Dates are DD MMM YYYY.",
  "university": {
-  "name": "Anvaya University",
-  "short": "Anvaya",
+  "name": "Varenya University",
+  "short": "Varenya",
   "founded": 1998,
   "students": 18400,
   "faculty": 1120,
@@ -26,7 +26,7 @@
   },
   {
    "id": "business",
-   "name": "Anvaya School of Business",
+   "name": "Varenya School of Business",
    "short": "Business",
    "dean": "Prof. Harish Kulkarni",
    "founded": 2001,
@@ -71,7 +71,7 @@
    "campuses": [
     "pune"
    ],
-   "blurb": "Clinical training at the 400-bed Anvaya teaching hospital, a ten-minute walk from the classrooms.",
+   "blurb": "Clinical training at the 400-bed Varenya teaching hospital, a ten-minute walk from the classrooms.",
    "accent": "#0F7A6B"
   },
   {
@@ -89,7 +89,7 @@
   },
   {
    "id": "online",
-   "name": "Anvaya Online & Executive Education",
+   "name": "Varenya Online & Executive Education",
    "short": "Online & Executive",
    "dean": "Prof. Vikram Sethi",
    "founded": 2019,
@@ -105,21 +105,21 @@
    "id": "pune",
    "name": "Pune",
    "label": "Pune Campus",
-   "address": "Anvaya Nagar, Hinjawadi Phase 3, Pune 411057",
+   "address": "Varenya Nagar, Hinjawadi Phase 3, Pune 411057",
    "acres": 120
   },
   {
    "id": "bengaluru",
    "name": "Bengaluru",
    "label": "Bengaluru Campus",
-   "address": "Anvaya Knowledge Park, Hosur Road, Bengaluru 560100",
+   "address": "Varenya Knowledge Park, Hosur Road, Bengaluru 560100",
    "acres": 45
   },
   {
    "id": "online",
    "name": "Online",
    "label": "Online",
-   "address": "Learn from anywhere: live classes on the Anvaya Online app",
+   "address": "Learn from anywhere: live classes on the Varenya Online app",
    "acres": 0
   }
  ],
@@ -309,7 +309,7 @@
  "scholarships": [
   {
    "id": "merit-12",
-   "name": "Anvaya Merit Scholarship",
+   "name": "Varenya Merit Scholarship",
    "for": "Undergraduate full-time programmes",
    "basis": "Class 12 marks",
    "tiers": [
@@ -328,10 +328,10 @@
    ]
   },
   {
-   "id": "ausat-rank",
-   "name": "AUSAT Rank Scholarship",
+   "id": "vusat-rank",
+   "name": "VUSAT Rank Scholarship",
    "for": "Undergraduate and postgraduate full-time programmes",
-   "basis": "AUSAT 2027 rank",
+   "basis": "VUSAT 2027 rank",
    "tiers": [
     {
      "rule": "Rank 1 to 100",
@@ -461,18 +461,18 @@
     ]
    },
    "entrance": [
-    "AUSAT 2027",
+    "VUSAT 2027",
     "JEE Main (70 percentile and above)"
    ],
    "selection": [
     "Apply online",
-    "AUSAT, or a JEE Main score",
+    "VUSAT, or a JEE Main score",
     "Merit list by round",
     "Offer and seat confirmation"
    ],
    "scholarships": [
     "merit-12",
-    "ausat-rank",
+    "vusat-rank",
     "udaan",
     "sports",
     "defence",
@@ -543,18 +543,18 @@
     ]
    },
    "entrance": [
-    "AUSAT 2027",
+    "VUSAT 2027",
     "JEE Main (75 percentile and above)"
    ],
    "selection": [
     "Apply online",
-    "AUSAT, or a JEE Main score",
+    "VUSAT, or a JEE Main score",
     "Merit list by round",
     "Offer and seat confirmation"
    ],
    "scholarships": [
     "merit-12",
-    "ausat-rank",
+    "vusat-rank",
     "udaan",
     "sports",
     "defence",
@@ -624,18 +624,18 @@
     ]
    },
    "entrance": [
-    "AUSAT 2027",
+    "VUSAT 2027",
     "JEE Main (60 percentile and above)"
    ],
    "selection": [
     "Apply online",
-    "AUSAT, or a JEE Main score",
+    "VUSAT, or a JEE Main score",
     "Merit list by round",
     "Offer and seat confirmation"
    ],
    "scholarships": [
     "merit-12",
-    "ausat-rank",
+    "vusat-rank",
     "udaan",
     "sports",
     "defence",
@@ -703,18 +703,18 @@
     ]
    },
    "entrance": [
-    "AUSAT 2027",
+    "VUSAT 2027",
     "JEE Main (50 percentile and above)"
    ],
    "selection": [
     "Apply online",
-    "AUSAT, or a JEE Main score",
+    "VUSAT, or a JEE Main score",
     "Merit list by round",
     "Offer and seat confirmation"
    ],
    "scholarships": [
     "merit-12",
-    "ausat-rank",
+    "vusat-rank",
     "udaan",
     "sports",
     "defence",
@@ -783,18 +783,18 @@
     ]
    },
    "entrance": [
-    "AUSAT 2027",
+    "VUSAT 2027",
     "JEE Main (45 percentile and above)"
    ],
    "selection": [
     "Apply online",
-    "AUSAT, or a JEE Main score",
+    "VUSAT, or a JEE Main score",
     "Merit list by round",
     "Offer and seat confirmation"
    ],
    "scholarships": [
     "merit-12",
-    "ausat-rank",
+    "vusat-rank",
     "udaan",
     "sports",
     "defence",
@@ -861,18 +861,18 @@
     ]
    },
    "entrance": [
-    "AUSAT 2027",
+    "VUSAT 2027",
     "JEE Main (70 percentile and above)"
    ],
    "selection": [
     "Apply online",
-    "AUSAT, or a JEE Main score",
+    "VUSAT, or a JEE Main score",
     "Merit list by round",
     "Offer and seat confirmation"
    ],
    "scholarships": [
     "merit-12",
-    "ausat-rank",
+    "vusat-rank",
     "udaan",
     "sports",
     "defence",
@@ -939,16 +939,16 @@
    },
    "entrance": [
     "GATE score",
-    "AUSAT-PG 2027"
+    "VUSAT-PG 2027"
    ],
    "selection": [
     "Apply online",
-    "GATE or AUSAT-PG score",
+    "GATE or VUSAT-PG score",
     "Technical interview",
     "Offer"
    ],
    "scholarships": [
-    "ausat-rank",
+    "vusat-rank",
     "pg-merit",
     "udaan",
     "sports",
@@ -1011,16 +1011,16 @@
    },
    "entrance": [
     "GATE score",
-    "AUSAT-PG 2027"
+    "VUSAT-PG 2027"
    ],
    "selection": [
     "Apply online",
-    "GATE or AUSAT-PG score",
+    "GATE or VUSAT-PG score",
     "Technical interview",
     "Offer"
    ],
    "scholarships": [
-    "ausat-rank",
+    "vusat-rank",
     "pg-merit",
     "udaan",
     "sports",
@@ -1218,17 +1218,17 @@
     ]
    },
    "entrance": [
-    "AUSAT 2027"
+    "VUSAT 2027"
    ],
    "selection": [
     "Apply online",
-    "AUSAT",
+    "VUSAT",
     "Personal interview (online)",
     "Offer"
    ],
    "scholarships": [
     "merit-12",
-    "ausat-rank",
+    "vusat-rank",
     "udaan",
     "sports",
     "defence"
@@ -1297,17 +1297,17 @@
     ]
    },
    "entrance": [
-    "AUSAT 2027"
+    "VUSAT 2027"
    ],
    "selection": [
     "Apply online",
-    "AUSAT",
+    "VUSAT",
     "Personal interview (online)",
     "Offer"
    ],
    "scholarships": [
     "merit-12",
-    "ausat-rank",
+    "vusat-rank",
     "udaan",
     "sports",
     "defence"
@@ -1370,17 +1370,17 @@
     ]
    },
    "entrance": [
-    "AUSAT 2027",
+    "VUSAT 2027",
     "Class 12 merit"
    ],
    "selection": [
     "Apply online",
-    "AUSAT or Class 12 merit",
+    "VUSAT or Class 12 merit",
     "Offer"
    ],
    "scholarships": [
     "merit-12",
-    "ausat-rank",
+    "vusat-rank",
     "udaan",
     "sports",
     "defence"
@@ -1444,16 +1444,16 @@
     "CAT",
     "XAT",
     "CMAT",
-    "AUSAT-PG 2027"
+    "VUSAT-PG 2027"
    ],
    "selection": [
     "Apply online",
-    "A CAT, XAT, CMAT or AUSAT-PG score",
+    "A CAT, XAT, CMAT or VUSAT-PG score",
     "Group discussion and interview (online)",
     "Offer"
    ],
    "scholarships": [
-    "ausat-rank",
+    "vusat-rank",
     "pg-merit",
     "udaan",
     "sports",
@@ -1527,16 +1527,16 @@
     "CAT",
     "XAT",
     "CMAT",
-    "AUSAT-PG 2027"
+    "VUSAT-PG 2027"
    ],
    "selection": [
     "Apply online",
-    "A CAT, XAT, CMAT or AUSAT-PG score",
+    "A CAT, XAT, CMAT or VUSAT-PG score",
     "Case discussion and interview (online)",
     "Offer"
    ],
    "scholarships": [
-    "ausat-rank",
+    "vusat-rank",
     "pg-merit",
     "udaan",
     "sports",
@@ -1599,16 +1599,16 @@
     "CAT",
     "XAT",
     "CMAT",
-    "AUSAT-PG 2027"
+    "VUSAT-PG 2027"
    ],
    "selection": [
     "Apply online",
-    "A CAT, XAT, CMAT or AUSAT-PG score",
+    "A CAT, XAT, CMAT or VUSAT-PG score",
     "Interview (online)",
     "Offer"
    ],
    "scholarships": [
-    "ausat-rank",
+    "vusat-rank",
     "pg-merit",
     "udaan",
     "sports",
@@ -1624,7 +1624,7 @@
     ]
    },
    "highlights": [
-    "Residency at the Anvaya teaching hospital",
+    "Residency at the Varenya teaching hospital",
     "Health-tech elective track"
    ],
    "modules": [
@@ -1735,7 +1735,7 @@
    },
    "entrance": [
     "Profile review",
-    "AUSAT-PG or a CAT/GMAT score (optional)"
+    "VUSAT-PG or a CAT/GMAT score (optional)"
    ],
    "selection": [
     "Apply online",
@@ -2061,17 +2061,17 @@
     ]
    },
    "entrance": [
-    "Anvaya Design Aptitude Test (ADAT)"
+    "Varenya Design Aptitude Test (VDAT)"
    ],
    "selection": [
     "Apply online",
-    "ADAT (drawing and design thinking)",
+    "VDAT (drawing and design thinking)",
     "Studio test and portfolio interview",
     "Offer"
    ],
    "scholarships": [
     "merit-12",
-    "ausat-rank",
+    "vusat-rank",
     "udaan",
     "sports",
     "defence"
@@ -2143,17 +2143,17 @@
     ]
    },
    "entrance": [
-    "Anvaya Design Aptitude Test (ADAT)"
+    "Varenya Design Aptitude Test (VDAT)"
    ],
    "selection": [
     "Apply online",
-    "ADAT (drawing and design thinking)",
+    "VDAT (drawing and design thinking)",
     "Studio test and portfolio interview",
     "Offer"
    ],
    "scholarships": [
     "merit-12",
-    "ausat-rank",
+    "vusat-rank",
     "udaan",
     "sports",
     "defence"
@@ -2219,17 +2219,17 @@
     ]
    },
    "entrance": [
-    "Anvaya Design Aptitude Test (ADAT)"
+    "Varenya Design Aptitude Test (VDAT)"
    ],
    "selection": [
     "Apply online",
-    "ADAT (drawing and design thinking)",
+    "VDAT (drawing and design thinking)",
     "Studio test and portfolio interview",
     "Offer"
    ],
    "scholarships": [
     "merit-12",
-    "ausat-rank",
+    "vusat-rank",
     "udaan",
     "sports",
     "defence"
@@ -2296,17 +2296,17 @@
     ]
    },
    "entrance": [
-    "Anvaya Design Aptitude Test (ADAT)"
+    "Varenya Design Aptitude Test (VDAT)"
    ],
    "selection": [
     "Apply online",
-    "ADAT (drawing and design thinking)",
+    "VDAT (drawing and design thinking)",
     "Studio test and portfolio interview",
     "Offer"
    ],
    "scholarships": [
     "merit-12",
-    "ausat-rank",
+    "vusat-rank",
     "udaan",
     "sports",
     "defence"
@@ -2368,7 +2368,7 @@
    },
    "entrance": [
     "Portfolio review",
-    "AUSAT-PG Design"
+    "VUSAT-PG Design"
    ],
    "selection": [
     "Apply online with portfolio",
@@ -2377,7 +2377,7 @@
     "Offer"
    ],
    "scholarships": [
-    "ausat-rank",
+    "vusat-rank",
     "pg-merit",
     "udaan",
     "sports",
@@ -2572,17 +2572,17 @@
    },
    "entrance": [
     "CLAT score",
-    "AUSAT-Law 2027"
+    "VUSAT-Law 2027"
    ],
    "selection": [
     "Apply online",
-    "A CLAT or AUSAT-Law score",
+    "A CLAT or VUSAT-Law score",
     "Personal interview (online)",
     "Offer"
    ],
    "scholarships": [
     "merit-12",
-    "ausat-rank",
+    "vusat-rank",
     "udaan",
     "sports",
     "defence"
@@ -2654,17 +2654,17 @@
    },
    "entrance": [
     "CLAT score",
-    "AUSAT-Law 2027"
+    "VUSAT-Law 2027"
    ],
    "selection": [
     "Apply online",
-    "A CLAT or AUSAT-Law score",
+    "A CLAT or VUSAT-Law score",
     "Personal interview (online)",
     "Offer"
    ],
    "scholarships": [
     "merit-12",
-    "ausat-rank",
+    "vusat-rank",
     "udaan",
     "sports",
     "defence"
@@ -2727,12 +2727,12 @@
     "streams": []
    },
    "entrance": [
-    "AUSAT-Law 2027",
+    "VUSAT-Law 2027",
     "Graduation merit"
    ],
    "selection": [
     "Apply online",
-    "AUSAT-Law or graduation merit",
+    "VUSAT-Law or graduation merit",
     "Offer"
    ],
    "scholarships": [
@@ -2793,16 +2793,16 @@
    },
    "entrance": [
     "CLAT PG score",
-    "AUSAT-Law PG 2027"
+    "VUSAT-Law PG 2027"
    ],
    "selection": [
     "Apply online",
-    "A CLAT PG or AUSAT-Law PG score",
+    "A CLAT PG or VUSAT-Law PG score",
     "Interview",
     "Offer"
    ],
    "scholarships": [
-    "ausat-rank",
+    "vusat-rank",
     "pg-merit",
     "udaan",
     "sports",
@@ -2919,18 +2919,18 @@
     ]
    },
    "entrance": [
-    "AUSAT-Health 2027",
+    "VUSAT-Health 2027",
     "NEET-UG score"
    ],
    "selection": [
     "Apply online",
-    "AUSAT-Health or a NEET-UG score",
+    "VUSAT-Health or a NEET-UG score",
     "Interview",
     "Offer"
    ],
    "scholarships": [
     "merit-12",
-    "ausat-rank",
+    "vusat-rank",
     "udaan",
     "sports",
     "defence"
@@ -2944,7 +2944,7 @@
     ]
    },
    "highlights": [
-    "Six-month internship at the Anvaya teaching hospital",
+    "Six-month internship at the Varenya teaching hospital",
     "Sports rehab with university teams"
    ],
    "modules": [
@@ -2990,17 +2990,17 @@
     ]
    },
    "entrance": [
-    "AUSAT-Health 2027"
+    "VUSAT-Health 2027"
    ],
    "selection": [
     "Apply online",
-    "AUSAT-Health",
+    "VUSAT-Health",
     "Interview",
     "Offer"
    ],
    "scholarships": [
     "merit-12",
-    "ausat-rank",
+    "vusat-rank",
     "udaan",
     "sports",
     "defence"
@@ -3060,17 +3060,17 @@
     ]
    },
    "entrance": [
-    "AUSAT-Health 2027"
+    "VUSAT-Health 2027"
    ],
    "selection": [
     "Apply online",
-    "AUSAT-Health",
+    "VUSAT-Health",
     "Merit list",
     "Offer"
    ],
    "scholarships": [
     "merit-12",
-    "ausat-rank",
+    "vusat-rank",
     "udaan",
     "sports",
     "defence"
@@ -3130,17 +3130,17 @@
     ]
    },
    "entrance": [
-    "AUSAT-Health 2027",
+    "VUSAT-Health 2027",
     "Class 12 merit"
    ],
    "selection": [
     "Apply online",
-    "AUSAT-Health or Class 12 merit",
+    "VUSAT-Health or Class 12 merit",
     "Offer"
    ],
    "scholarships": [
     "merit-12",
-    "ausat-rank",
+    "vusat-rank",
     "udaan",
     "sports",
     "defence"
@@ -3195,17 +3195,17 @@
     "streams": []
    },
    "entrance": [
-    "AUSAT-PG 2027",
+    "VUSAT-PG 2027",
     "Interview"
    ],
    "selection": [
     "Apply online",
-    "AUSAT-PG",
+    "VUSAT-PG",
     "Interview",
     "Offer"
    ],
    "scholarships": [
-    "ausat-rank",
+    "vusat-rank",
     "pg-merit",
     "udaan",
     "sports",
@@ -3263,16 +3263,16 @@
     "streams": []
    },
    "entrance": [
-    "AUSAT-PG 2027"
+    "VUSAT-PG 2027"
    ],
    "selection": [
     "Apply online",
-    "AUSAT-PG",
+    "VUSAT-PG",
     "Interview",
     "Offer"
    ],
    "scholarships": [
-    "ausat-rank",
+    "vusat-rank",
     "pg-merit",
     "udaan",
     "sports",
@@ -3456,17 +3456,17 @@
     ]
    },
    "entrance": [
-    "AUSAT 2027"
+    "VUSAT 2027"
    ],
    "selection": [
     "Apply online",
-    "AUSAT",
+    "VUSAT",
     "Personal interview (online)",
     "Offer"
    ],
    "scholarships": [
     "merit-12",
-    "ausat-rank",
+    "vusat-rank",
     "udaan",
     "sports",
     "defence"
@@ -3534,17 +3534,17 @@
     ]
    },
    "entrance": [
-    "AUSAT 2027"
+    "VUSAT 2027"
    ],
    "selection": [
     "Apply online",
-    "AUSAT",
+    "VUSAT",
     "Personal interview (online)",
     "Offer"
    ],
    "scholarships": [
     "merit-12",
-    "ausat-rank",
+    "vusat-rank",
     "udaan",
     "sports",
     "defence"
@@ -3610,17 +3610,17 @@
     ]
    },
    "entrance": [
-    "AUSAT 2027"
+    "VUSAT 2027"
    ],
    "selection": [
     "Apply online",
-    "AUSAT",
+    "VUSAT",
     "Writing test and interview",
     "Offer"
    ],
    "scholarships": [
     "merit-12",
-    "ausat-rank",
+    "vusat-rank",
     "udaan",
     "sports",
     "defence"
@@ -3682,16 +3682,16 @@
     ]
    },
    "entrance": [
-    "AUSAT 2027"
+    "VUSAT 2027"
    ],
    "selection": [
     "Apply online",
-    "AUSAT",
+    "VUSAT",
     "Offer"
    ],
    "scholarships": [
     "merit-12",
-    "ausat-rank",
+    "vusat-rank",
     "udaan",
     "sports",
     "defence",
@@ -3756,17 +3756,17 @@
     ]
    },
    "entrance": [
-    "AUSAT 2027"
+    "VUSAT 2027"
    ],
    "selection": [
     "Apply online",
-    "AUSAT",
+    "VUSAT",
     "Personal interview (online)",
     "Offer"
    ],
    "scholarships": [
     "merit-12",
-    "ausat-rank",
+    "vusat-rank",
     "udaan",
     "sports",
     "defence"
@@ -3828,17 +3828,17 @@
     "streams": []
    },
    "entrance": [
-    "AUSAT-PG 2027",
+    "VUSAT-PG 2027",
     "Interview"
    ],
    "selection": [
     "Apply online",
-    "AUSAT-PG",
+    "VUSAT-PG",
     "Interview",
     "Offer"
    ],
    "scholarships": [
-    "ausat-rank",
+    "vusat-rank",
     "pg-merit",
     "udaan",
     "sports",
@@ -3894,16 +3894,16 @@
     "streams": []
    },
    "entrance": [
-    "AUSAT-PG 2027"
+    "VUSAT-PG 2027"
    ],
    "selection": [
     "Apply online",
-    "AUSAT-PG",
+    "VUSAT-PG",
     "Interview",
     "Offer"
    ],
    "scholarships": [
-    "ausat-rank",
+    "vusat-rank",
     "pg-merit",
     "udaan",
     "sports",

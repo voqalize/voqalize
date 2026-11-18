@@ -8,7 +8,7 @@ import { NotFound } from "./NotFound";
 export function Schools() {
   return (
     <div>
-      <PageHead title="Our schools" lede="Seven schools across two campuses and Anvaya Online. Each runs its own studios, labs and clinics." crumbs={[["", "Schools"]]} />
+      <PageHead title="Our schools" lede="Seven schools across two campuses and Varenya Online. Each runs its own studios, labs and clinics." crumbs={[["", "Schools"]]} />
       <div className="wrap section school-list">
         {SCHOOLS.map((s) => {
           const ps = programsOf(s.id);

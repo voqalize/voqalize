@@ -1,5 +1,5 @@
 {
- "$comment": "Anvaya University's authored admissions content: what the counsellor answers from. Fictional. Amounts in INR, dates DD MMM YYYY.",
+ "$comment": "Varenya University's authored admissions content: what the counsellor answers from. Fictional. Amounts in INR, dates DD MMM YYYY.",
  "process": [
   {
    "step": 1,
@@ -14,7 +14,7 @@
   {
    "step": 3,
    "title": "Selection",
-   "text": "Take AUSAT or send an accepted score, then an interview or studio test where the programme has one."
+   "text": "Take VUSAT or send an accepted score, then an interview or studio test where the programme has one."
   },
   {
    "step": 4,
@@ -27,8 +27,8 @@
    "text": "Pay ₹75,000 within 15 days of the offer to confirm the seat. It is adjusted against the first-year fee."
   }
  ],
- "ausat": {
-  "name": "AUSAT 2027 (Anvaya University Scholastic Aptitude Test)",
+ "vusat": {
+  "name": "VUSAT 2027 (Varenya University Scholastic Aptitude Test)",
   "format": "Online, proctored from home; 2 hours; 120 questions on English, quantitative aptitude, logical reasoning and a short domain section. No negative marking.",
   "phases": [
    {
@@ -65,9 +65,9 @@
   ],
   "seat_confirmation": "₹75,000 within 15 days of the offer, adjusted against the first-year fee.",
   "instalments": "The yearly fee is paid in two equal instalments, by 15 July and by 15 January. Online programmes are paid per semester.",
-  "zero_interest_plan": "Anvaya's own zero-interest plan splits a year's fee into six monthly instalments, for a ₹2,000 processing charge per year.",
+  "zero_interest_plan": "Varenya's own zero-interest plan splits a year's fee into six monthly instalments, for a ₹2,000 processing charge per year.",
   "refund": "Withdraw before the programme starts and everything paid is refunded except ₹10,000 processing. After the programme starts, the current semester's fee is not refunded; the caution deposit always is.",
-  "payment_methods": "UPI, debit or credit card, net banking, or a demand draft in favour of Anvaya University, payable at Pune."
+  "payment_methods": "UPI, debit or credit card, net banking, or a demand draft in favour of Varenya University, payable at Pune."
  },
  "hostel": {
   "summary": "Separate hostel blocks for women and men on both campuses, with 24-hour security and resident wardens. The yearly charge includes four meals a day, Wi-Fi, housekeeping and laundry twice a week.",
@@ -108,11 +108,11 @@
   "rules": "First-year in-time is 10:30 pm. Visitors meet residents in the lounge. Guardians can stay in the campus guest house at ₹1,800 a night."
  },
  "loans": {
-  "summary": "Anvaya's education-loan desk helps families apply to partner banks and finance companies. Anvaya issues the admission letter and the fee-structure letter lenders ask for, within two working days of a request.",
+  "summary": "Varenya's education-loan desk helps families apply to partner banks and finance companies. Varenya issues the admission letter and the fee-structure letter lenders ask for, within two working days of a request.",
   "covers": "Lenders usually finance the full programme fee, and hostel and mess when you ask for them on the fee-structure letter.",
   "timeline": "Most families get a lender's decision within 7 to 10 working days of handing in complete documents.",
-  "who_decides": "The interest rate, collateral and co-applicant terms are the lender's, not Anvaya's. The loan desk can tell you which documents each lender needs.",
-  "contact": "loans@anvaya.edu.in · +91 20 6700 4400 (Mon–Sat, 9:30 am–6 pm)"
+  "who_decides": "The interest rate, collateral and co-applicant terms are the lender's, not Varenya's. The loan desk can tell you which documents each lender needs.",
+  "contact": "loans@varenya.edu.in · +91 20 6700 4400 (Mon–Sat, 9:30 am–6 pm)"
  },
  "scholarship_rules": [
   "One scholarship per student: the highest one you qualify for is applied.",
@@ -165,7 +165,7 @@
   },
   {
    "q": "Can I apply to more than one programme?",
-   "a": "Yes, up to three programmes on one application and one application fee. AUSAT counts for all of them."
+   "a": "Yes, up to three programmes on one application and one application fee. VUSAT counts for all of them."
   },
   {
    "q": "Is there a management or NRI quota?",
@@ -186,7 +186,7 @@
  ],
  "contact": {
   "phone": "+91 20 6700 4000",
-  "email": "admissions@anvaya.edu.in",
+  "email": "admissions@varenya.edu.in",
   "hours": "Mon–Sat, 9 am–7 pm",
   "whatsapp": "+91 98200 41100"
  }

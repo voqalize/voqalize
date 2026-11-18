@@ -8,7 +8,7 @@ export function Scholarships() {
     <div>
       <PageHead
         title="Scholarships"
-        lede="Eight schemes that reduce tuition, on marks, AUSAT rank, family income, sport and service. Choose one on step 3 of the application."
+        lede="Eight schemes that reduce tuition, on marks, VUSAT rank, family income, sport and service. Choose one on step 3 of the application."
         crumbs={[["/admissions", "Admissions"], ["", "Scholarships"]]}
       />
       <div className="wrap section schol-page">

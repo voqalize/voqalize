@@ -35,7 +35,7 @@ function Shell() {
   useEffect(() => bindRouter((to) => navigate(to), () => path.current), [navigate]);
   useEffect(() => {
     if (!debugMode()) return;
-    (window as unknown as { __anvaya?: unknown }).__anvaya = { moves, run: runByHand };
+    (window as unknown as { __varenya?: unknown }).__varenya = { moves, run: runByHand };
   }, []);
 
   // Every route change: the brain switches job on the hello's path.

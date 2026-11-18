@@ -1,4 +1,4 @@
-"""Anvaya University — demo backend (brain + route). See `routes.py`."""
+"""Varenya University — demo backend (brain + route). See `routes.py`."""
 
 from .routes import NAME, build, router
 

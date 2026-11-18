@@ -1,4 +1,4 @@
-"""Anvaya University — the demo's own FastAPI brain route.
+"""Varenya University — the demo's own FastAPI brain route.
 
 Voqalize dials ``/university?session_id=…`` once per session; the shared
 ``make_openai_brain_router`` owns the socket lifecycle and token verification,

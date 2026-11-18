@@ -7,7 +7,7 @@ import { CAMPUSES, INTAKES, SCHOLARSHIPS, nextRound, rupees } from "../data/cata
 const SECTIONS: [string, string][] = [
   ["process", "How admission works"],
   ["deadlines", "Deadlines"],
-  ["ausat", "AUSAT 2027"],
+  ["vusat", "VUSAT 2027"],
   ["fees", "Fees"],
   ["instalments", "Instalments"],
   ["refund", "Refunds"],
@@ -101,11 +101,11 @@ export function Admissions() {
             </div>
           </section>
 
-          <section id="ausat" className="psec" data-stage-thing="ausat" data-stage-label="AUSAT 2027">
-            <h2>{A.ausat.name}</h2>
-            <p>{A.ausat.format}</p>
+          <section id="vusat" className="psec" data-stage-thing="vusat" data-stage-label="VUSAT 2027">
+            <h2>{A.vusat.name}</h2>
+            <p>{A.vusat.format}</p>
             <div className="phase-grid">
-              {A.ausat.phases.map((p) => (
+              {A.vusat.phases.map((p) => (
                 <div key={p.name} className="phase">
                   <h3>{p.name}</h3>
                   <p className="phase-date">{p.dates}</p>
@@ -113,7 +113,7 @@ export function Admissions() {
                 </div>
               ))}
             </div>
-            <p className="note">{A.ausat.note}</p>
+            <p className="note">{A.vusat.note}</p>
           </section>
 
           <section id="fees" className="psec" data-stage-thing="fees" data-stage-label="Fees">

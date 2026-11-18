@@ -220,7 +220,7 @@ DEMOS: dict[str, Expected] = {
     # a gallery card (the page is Uno Salud's own site). Asserted in
     # test_unosalud_e2e.py.
     "unosalud": Expected(voice="omnivoice/javier", language="es", provider="openai"),
-    # Anvaya University's course advisor and admissions counsellor: the
+    # Varenya University's course advisor and admissions counsellor: the
     # voice per language lives in demos/university/persona.json. With no `lang`
     # in the payload it opens in English, and moves both legs to Hindi for the
     # toggle, for Hindi heard or when asked — the same voice in both. Asserted in

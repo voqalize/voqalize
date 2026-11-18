@@ -4,7 +4,7 @@ import life from "../../../data/campus_life.json";
 
 export interface Admissions {
   process: { step: number; title: string; text: string }[];
-  ausat: { name: string; format: string; phases: { name: string; dates: string; register_by: string }[]; note: string };
+  vusat: { name: string; format: string; phases: { name: string; dates: string; register_by: string }[]; note: string };
   fees: {
     what_is_included: string;
     one_time: { item: string; amount: number; refundable: boolean }[];

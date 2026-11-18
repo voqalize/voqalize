@@ -71,7 +71,7 @@ export function Footer() {
         </div>
       </div>
       <div className="wrap footer-base">
-        <span>© {new Date().getFullYear()} Anvaya University</span>
+        <span>© {new Date().getFullYear()} Varenya University</span>
         <span>All fees in Indian rupees. Dates as DD MMM YYYY.</span>
       </div>
     </footer>

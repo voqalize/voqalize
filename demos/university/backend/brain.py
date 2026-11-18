@@ -1,4 +1,4 @@
-"""UniversityBrain — Anvaya University's course advisor and admissions counsellor.
+"""UniversityBrain — Varenya University's course advisor and admissions counsellor.
 
 One brain, two jobs, picked by the page the call is on (``prompt.job_for``):
 
@@ -153,7 +153,7 @@ class EligibilityRequest(BaseModel):
     class12_percent: float | None = None
     graduation_percent: float | None = None
     experience_years: float | None = None
-    ausat_rank: int | None = None
+    vusat_rank: int | None = None
     family_income_lakh: float | None = Field(None, description="Annual family income in lakh.")
     gender: Literal["female", "male", "other"] | None = None
     sports: Literal["national", "state"] | None = Field(
@@ -623,7 +623,7 @@ class UniversityBrain(OpenAIBrain):
                 class12_percent=request.class12_percent,
                 graduation_percent=request.graduation_percent,
                 experience_years=request.experience_years,
-                ausat_rank=request.ausat_rank,
+                vusat_rank=request.vusat_rank,
                 family_income_lakh=request.family_income_lakh,
                 gender=request.gender,
                 sports=request.sports,

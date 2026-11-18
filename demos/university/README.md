@@ -1,6 +1,6 @@
-# Anvaya University — course advisor and admissions counsellor
+# Varenya University — course advisor and admissions counsellor
 
-A fictional large private university in India (Pune and Bengaluru campuses, plus Anvaya Online)
+A fictional large private university in India (Pune and Bengaluru campuses, plus Varenya Online)
 with seven schools and 54 programmes: engineering, business, design, law, health sciences, liberal
 arts, and online and executive education, at undergraduate, postgraduate, diploma and certificate
 level. One voice agent talks to the visitor, often a student calling with their parents, in English

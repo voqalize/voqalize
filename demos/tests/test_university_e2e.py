@@ -1,4 +1,4 @@
-"""Anvaya University — the course advisor and the admissions counsellor — end to
+"""Varenya University — the course advisor and the admissions counsellor — end to
 end over the wire, no network, no LLM key.
 
 The real ``UniversityBrain`` (its prompt, tools, cue resolver and Stage
@@ -286,7 +286,7 @@ async def test_the_counsellor_answers_from_the_reference_and_fills_the_form() ->
             {
                 "name": "application.submitted",
                 "by": "visitor",
-                "data": {"reference": "ANV-27-48213", "filled": ["program"], "missing": []},
+                "data": {"reference": "VRN-27-48213", "filled": ["program"], "missing": []},
             },
         )
         await asyncio.sleep(0.1)
@@ -296,7 +296,7 @@ async def test_the_counsellor_answers_from_the_reference_and_fills_the_form() ->
         idle = await rig.driver.user_idle()
         check_turn(rig, idle, units=1)
         sent = _last_input(llm)
-        assert "submitted application ANV-27-48213" in sent and "congratulate" in sent
+        assert "submitted application VRN-27-48213" in sent and "congratulate" in sent
 
 
 async def test_the_agents_own_form_changes_are_not_told_back() -> None:

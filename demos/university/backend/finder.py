@@ -325,7 +325,7 @@ class Applicant:
     class12_percent: float | None = None
     graduation_percent: float | None = None
     experience_years: float | None = None
-    ausat_rank: int | None = None
+    vusat_rank: int | None = None
     family_income_lakh: float | None = None
     gender: str | None = None
     sports: str | None = None  # "national" | "state"
@@ -344,8 +344,8 @@ def scholarship_waivers(p: Program, a: Applicant) -> list[tuple[str, int]]:
         if sid == "merit-12" and a.class12_percent is not None:
             m = a.class12_percent
             pct = _tier(((m >= 95, 50), (90 <= m < 95, 25), (85 <= m < 90, 10)))
-        elif sid == "ausat-rank" and a.ausat_rank is not None:
-            r = a.ausat_rank
+        elif sid == "vusat-rank" and a.vusat_rank is not None:
+            r = a.vusat_rank
             pct = _tier(((r <= 100, 75), (100 < r <= 500, 40), (500 < r <= 1500, 20)))
         elif sid == "pg-merit" and a.graduation_percent is not None:
             g = a.graduation_percent
@@ -428,7 +428,7 @@ def eligibility_text(p: Program, a: Applicant) -> str:
 
 
 def admissions_brief() -> str:
-    """The counsellor's reference: process, AUSAT, fees, hostel, loans,
+    """The counsellor's reference: process, VUSAT, fees, hostel, loans,
     scholarships, documents and FAQs — all of ``admissions.json``."""
     a = admissions()
     c = catalogue()
@@ -437,7 +437,7 @@ def admissions_brief() -> str:
     loans = a["loans"]
     lines: list[str] = ["## Process"]
     lines += [f"{s['step']}. {s['title']}: {s['text']}" for s in a["process"]]
-    au = a["ausat"]
+    au = a["vusat"]
     lines += [
         f"## {au['name']}",
         au["format"],
