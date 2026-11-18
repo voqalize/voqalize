@@ -1,0 +1,510 @@
+/* ── Voice dock ──────────────────────────────────────────────────────── */
+.dock {
+  position: fixed;
+  left: 50%;
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 55;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px;
+  min-width: 360px;
+  max-width: calc(100vw - 32px);
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  box-shadow: 0 18px 44px -14px rgba(16, 40, 42, 0.35);
+  animation: dock-in 0.6s var(--ease) 0.4s both;
+  transition: opacity 0.25s ease, translate 0.3s var(--ease);
+}
+@keyframes dock-in {
+  from {
+    opacity: 0;
+    translate: 0 20px;
+  }
+}
+@keyframes pop {
+  from {
+    opacity: 0;
+    scale: 0.85;
+  }
+}
+.dock-face {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex: none;
+  position: relative;
+}
+.dock-avatar {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.dock-text {
+  min-width: 0;
+  flex: 1;
+}
+.dock-name {
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1.2;
+}
+.dock-status {
+  font-size: 12.5px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+.dock.is-listening .dock-status::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--teal-600);
+  margin-right: 6px;
+  animation: blink 1.4s ease-in-out infinite;
+}
+@keyframes blink {
+  50% {
+    opacity: 0.3;
+  }
+}
+.lang-toggle {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  flex: none;
+}
+.lang-btn {
+  height: 32px;
+  min-width: 40px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--muted);
+}
+.lang-btn[lang="hi"] {
+  font-family: var(--deva);
+  font-size: 13.5px;
+}
+.lang-btn.is-on {
+  background: var(--card);
+  color: var(--teal-900);
+  box-shadow: 0 1px 2px rgba(16, 40, 42, 0.12), 0 0 0 1px var(--line);
+}
+.dock-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 44px;
+  padding: 0 20px;
+  border-radius: 999px;
+  background: var(--teal-900);
+  color: #fff;
+  font-weight: 640;
+  font-size: 14px;
+  transition: background 0.2s;
+  flex: none;
+}
+.dock-cta:hover:not(:disabled) {
+  background: var(--teal-800);
+}
+.dock-cta:disabled {
+  background: var(--paper-2);
+  color: var(--muted);
+}
+.dock-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--paper-2);
+  flex: none;
+}
+.dock-btn[aria-pressed="true"] {
+  background: var(--ink);
+  color: #fff;
+}
+.dock-end {
+  background: var(--danger);
+  color: #fff;
+}
+.dock.is-compact {
+  left: auto;
+  right: max(16px, env(safe-area-inset-right));
+  transform: none;
+  min-width: 0;
+  width: auto;
+  gap: 6px;
+  padding: 5px;
+  animation: pop 0.3s var(--ease);
+}
+.dock.is-compact .dock-text,
+.dock.is-compact .dock-cta-label {
+  display: none;
+}
+.dock.is-compact .dock-cta {
+  width: 44px;
+  padding: 0;
+  justify-content: center;
+}
+.dock.is-compact .lang-btn {
+  height: 30px;
+  min-width: 34px;
+  padding: 0 7px;
+}
+.dock.is-hidden {
+  opacity: 0;
+  translate: 0 24px;
+  pointer-events: none;
+}
+/* During a call the face lives in the tile; the dock keeps status, the
+   language toggle and the call controls. */
+.dock.is-calling .dock-face {
+  display: none;
+}
+.dock.is-calling {
+  padding-left: 18px;
+}
+.dock-face-slot {
+  background: transparent;
+}
+
+/* ── Call tile (one element: docked face, live tile, mini bubble) ──── */
+.call-tile {
+  position: fixed;
+  z-index: 57;
+  display: flex;
+  flex-direction: column;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--teal-50);
+  box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px rgba(229, 121, 27, 0.55);
+  transition:
+    left 0.45s var(--ease),
+    top 0.45s var(--ease),
+    width 0.45s var(--ease),
+    height 0.45s var(--ease),
+    border-radius 0.45s var(--ease),
+    box-shadow 0.45s var(--ease),
+    opacity 0.25s ease;
+  touch-action: none;
+  outline: none;
+}
+.call-tile.is-docked {
+  pointer-events: none;
+  animation: dock-in 0.6s var(--ease) 0.4s both;
+}
+.call-tile.is-parked {
+  opacity: 0;
+}
+.call-tile.is-snap {
+  transition: none;
+}
+.call-tile.is-tile {
+  border-radius: 14px;
+  background: var(--teal-950);
+  color: #fff;
+  box-shadow:
+    0 0 0 5px var(--teal-950),
+    0 0 0 6px rgba(255, 255, 255, 0.18),
+    0 26px 50px -18px rgba(16, 40, 42, 0.6);
+  cursor: grab;
+}
+.call-tile.is-tile .call-face {
+  border-radius: 10px;
+}
+.call-tile.is-tile .call-who {
+  display: none;
+}
+.call-tile.is-tile .call-bar {
+  justify-content: center;
+  padding: 6px;
+}
+.call-controls {
+  display: flex;
+  gap: 8px;
+}
+.call-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+.call-btn:hover {
+  background: rgba(255, 255, 255, 0.26);
+}
+.call-btn[aria-pressed="true"] {
+  background: #fff;
+  color: var(--ink);
+}
+.call-end,
+.call-end:hover {
+  background: var(--danger);
+}
+.call-btn svg {
+  width: 14px;
+  height: 14px;
+}
+.call-tag {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(10, 44, 45, 0.75);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 650;
+  z-index: 1;
+}
+.call-state {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  font-size: 10.5px;
+  font-weight: 640;
+  color: var(--ink-2);
+  z-index: 1;
+}
+.call-state::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.call-state.is-listening::before {
+  background: var(--teal-600);
+  animation: blink 1.4s ease-in-out infinite;
+}
+.call-state.is-speaking::before {
+  background: var(--saffron);
+  animation: blink 0.7s ease-in-out infinite;
+}
+.call-tile.is-mini {
+  border-radius: 50%;
+  cursor: grab;
+  box-shadow: 0 16px 34px -12px rgba(16, 40, 42, 0.45), 0 0 0 2px #fff, 0 0 0 4px rgba(229, 121, 27, 0.5);
+}
+.call-tile.is-dragging {
+  cursor: grabbing;
+  transition: width 0.45s var(--ease), height 0.45s var(--ease), border-radius 0.45s var(--ease);
+}
+.call-face {
+  position: relative;
+  flex: none;
+  width: 100%;
+  overflow: hidden;
+  background: linear-gradient(180deg, #e7f1ed 0%, #d7e8e2 100%);
+  transition: height 0.45s var(--ease);
+}
+.call-tile.is-docked .call-face,
+.call-tile.is-mini .call-face {
+  height: 100% !important;
+}
+.call-face > .dock-avatar,
+.call-face > .face-portrait {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 20%;
+}
+.call-expand {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: end;
+  padding: 4px;
+  color: #fff;
+}
+.call-bar {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 0;
+}
+.call-name {
+  font-weight: 650;
+  font-size: 15px;
+}
+.call-heard {
+  font-size: 12px;
+  color: var(--muted);
+}
+@media (max-width: 599px) {
+  .dock {
+    min-width: 0;
+  }
+  .dock-cta {
+    padding: 0 16px;
+  }
+}
+
+/* ── Debug console (?debug=1) ────────────────────────────────────────── */
+.debug {
+  position: fixed;
+  top: calc(var(--header-h) + 12px);
+  right: 12px;
+  z-index: 70;
+  width: 360px;
+  max-height: calc(100vh - var(--header-h) - 120px);
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid var(--line-2);
+  border-radius: 14px;
+  box-shadow: var(--shadow-lg);
+  font-size: 12.5px;
+}
+.debug-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.debug-head .small {
+  flex: 1;
+}
+.debug-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line-2);
+  font-size: 11.5px;
+}
+.debug-chip.is-on {
+  background: var(--teal-900);
+  color: #fff;
+  border-color: var(--teal-900);
+}
+.debug-body {
+  overflow: auto;
+  padding: 8px 12px 12px;
+}
+.debug-h {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 10px 0 6px;
+}
+.debug-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.debug-preset {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  border-radius: 7px;
+  background: var(--marigold-50);
+  color: var(--saffron-ink);
+  font-weight: 620;
+  font-size: 11.5px;
+}
+.debug-moves {
+  display: grid;
+  gap: 4px;
+}
+.debug-move {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.debug-move-id {
+  min-width: 92px;
+  font-size: 11.5px;
+}
+.debug-move input,
+.debug-move select {
+  flex: 1 1 60px;
+  min-width: 0;
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  font-size: 11.5px;
+  background: #fff;
+}
+.debug-run {
+  height: 26px;
+  padding: 0 9px;
+  border-radius: 6px;
+  background: var(--teal-900);
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 620;
+}
+.debug-results {
+  display: grid;
+  gap: 4px;
+}
+.debug-results li {
+  padding: 5px 7px;
+  border-radius: 6px;
+  background: var(--paper);
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+}
+.debug-results li.o-refused {
+  background: var(--warn-50);
+}
+.debug-results li.o-failed {
+  background: var(--danger-50);
+}
+.debug-fab {
+  position: fixed;
+  bottom: calc(22px + env(safe-area-inset-bottom));
+  left: 12px;
+  z-index: 70;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 620;
+}
+@media (max-width: 599px) {
+  .debug {
+    left: 8px;
+    right: 8px;
+    width: auto;
+  }
+}
